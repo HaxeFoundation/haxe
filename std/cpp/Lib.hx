@@ -21,8 +21,19 @@
  */
 package cpp;
 
+#if macro
+import haxe.macro.Context;
+import haxe.macro.Type;
+import haxe.macro.Expr;
+#end
+
+using cpp.NativeString;
+using cpp.RawConstPointer;
+using cpp.Char;
+
 class Lib {
 
+   #if !macro
 	/**
 		Load and return a Cpp primitive from a DLL library.
 	**/
@@ -37,9 +48,22 @@ class Lib {
 	/**
 		Load and return a Cpp primitive from a DLL library.
 	**/
-	@:extern public static inline function getProcAddress( lib : String, prim : String ) : Dynamic {
-		return untyped __global__.__hxcpp_cast_get_proc_address(lib,prim);
+	@:extern public static inline function getProcAddress( lib : String, prim : String, quietFail=false ) : Dynamic {
+		return untyped __global__.__hxcpp_cast_get_proc_address(lib,prim,quietFail);
 	}
+
+	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
+		var factory:Function< RawConstPointer<Char> -> RawPointer<Object> > = getProcAddress(lib, prim + "__prime", quietFail);
+      if (factory!=null)
+      {
+         var func:Dynamic = factory.call(signature.raw());
+         if (func==null && !quietFail)
+            throw '$prim does not have signature $signature';
+         return func;
+      }
+      return null;
+	}
+
 
 	/**
 		Tries to load, and always returns a valid function, but the function may throw
@@ -93,5 +117,37 @@ class Lib {
 	public static function println( v : Dynamic ) : Void {
 		untyped __global__.__hxcpp_println(v);
 	}
+
+   #else
+   static function codeToType(code:String) : String
+   {
+      switch(code)
+      {
+         case "b" : return "Bool";
+         case "i" : return "Int";
+         case "d" : return "Float";
+         case "f" : return "cpp.Float32";
+         case "s" : return "String";
+         case "o" : return "cpp.Object";
+         case "v" : return "cpp.Void";
+         case "c" : return "cpp.RawConstPtr<cpp.Char> ";
+         default:
+            throw "Unknown signature type :" + code;
+      }
+   }
+   #end
+
+   public static macro function loadPrime(inModule:String, inName:String, inSig:String,inAllowFail:Bool = false)
+   {
+      var parts = inSig.split("");
+      if (parts.length<1)
+         throw "Invalid function signature " + inSig;
+      var typeString = parts.length==1 ? "Void" : codeToType(parts.shift());
+      for(p in parts)
+         typeString += "->" + codeToType(p);
+      typeString = "cpp.Function<" + typeString + ">";
+      var expr = 'new $typeString(cpp.Lib._loadPrime("$inModule","$inName","$inSig",$inAllowFail))';
+      return Context.parse( expr, Context.currentPos() );
+   }
 
 }

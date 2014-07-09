@@ -1047,7 +1047,7 @@ try
 		("-swf-version",Arg.Float (fun v ->
 			if not !swf_version || com.flash_version < v then com.flash_version <- v;
 			swf_version := true;
-		),"<version> : change the SWF version (6 to 10)");
+		),"<version> : change the SWF version");
 		("-swf-header",Arg.String (fun h ->
 			try
 				swf_header := Some (match ExtString.String.nsplit h ":" with
@@ -1379,9 +1379,6 @@ try
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 
-	(* check file extension. In case of wrong commandline, we don't want
-		to accidentaly delete a source file. *)
-	if not !no_output && file_extension com.file = ext then delete_file com.file;
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	if !classes = [([],"Std")] && not !force_typing then begin
 		let help_spec = basic_args_spec @ [
@@ -1418,6 +1415,9 @@ try
 		com.modules <- modules;
 		Filters.run com tctx main;
 		if ctx.has_error then raise Abort;
+		(* check file extension. In case of wrong commandline, we don't want
+			to accidentaly delete a source file. *)
+		if not !no_output && file_extension com.file = ext then delete_file com.file;
 		(match !xml_out with
 		| None -> ()
 		| Some "hx" ->
@@ -1561,7 +1561,7 @@ with
 			| Typer.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
 			| Typer.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
 			| Typer.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
-			| Typer.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s<i>\n" s)
+			| Typer.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))

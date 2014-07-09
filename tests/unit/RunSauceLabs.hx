@@ -17,7 +17,7 @@ class RunSauceLabs {
 			tags.push("TravisCI");
 
 		//https://saucelabs.com/platforms
-		var browsers = [
+		var browsers:Array<Dynamic> = [
 			// {
 			// 	"browserName": "internet explorer",
 			// 	"platform": "Windows XP",
@@ -51,12 +51,12 @@ class RunSauceLabs {
 			{
 				"browserName": "chrome",
 				"platform": "Windows XP",
-				"version": "31"
+				"version": "35"
 			},
 			{
 				"browserName": "firefox",
 				"platform": "Windows XP",
-				"version": "26"
+				"version": "30"
 			},
 			{
 				"browserName": "safari",
@@ -75,18 +75,6 @@ class RunSauceLabs {
 			},
 			{
 				"browserName": "iphone",
-				"platform": "OS X 10.8",
-				"version": "6.1",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "iphone",
-				"platform": "OS X 10.9",
-				"version": "7",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "iphone",
 				"platform": "OS X 10.9",
 				"version": "7.1",
 				"device-orientation": "portrait"
@@ -95,6 +83,12 @@ class RunSauceLabs {
 				"browserName": "android",
 				"platform": "Linux",
 				"version": "4.0",
+				"device-orientation": "portrait"
+			},
+			{
+				"browserName": "android",
+				"platform": "Linux",
+				"version": "4.3",
 				"device-orientation": "portrait"
 			}
 		];
@@ -120,8 +114,14 @@ class RunSauceLabs {
 					console.log('${caps.browserName} ${caps.version} on ${caps.platform}:');
 					browser.init(caps, function(err) {
 						if (!handleError(err)) return;
+						browser.setAsyncScriptTimeout(30000); //10s timeout
 						browser.get("http://localhost:2000/unit-js.html", function(err) {
 							if (!handleError(err)) return;
+
+							console.log("[debug] waiting for test exit");
+							browser.waitForConditionInBrowser("try { typeof unit.Test.success === 'boolean'; } catch(e) { false; }", 3000); //3s timeout
+							console.log("[debug] test exited");
+
 							browser.text("body", function(err, re) {
 								if (!handleError(err)) return;
 								console.log(re);
@@ -135,11 +135,14 @@ class RunSauceLabs {
 									}
 								}
 								success = success && test;
+								console.log("[debug] all SauceLabs tests success: " + success);
 
 								//let saucelabs knows the result
 								browser.sauceJobUpdate({ passed: test }, function(err) {
+									console.log("[debug] job update: " + (err == null ? "ok" : err));
 									if (!handleError(err)) return;
 									browser.quit(function(err) {
+										console.log("[debug] browser quit: " + (err == null ? "ok" : err));
 										if (!handleError(err)) return;
 										testBrowsers(browsers);
 									});

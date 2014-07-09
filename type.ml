@@ -1548,11 +1548,12 @@ and unify_with_variance f t1 t2 =
 	| TAbstract(a1,tl1),TAbstract(a2,tl2) when a1 == a2 && Meta.has Meta.CoreType a1.a_meta ->
 		List.iter2 f tl1 tl2
 	| TAbstract(a1,pl1),TAbstract(a2,pl2) ->
-		let ta1 = apply_params a1.a_types pl1 a1.a_this in
-		let ta2 = apply_params a2.a_types pl2 a2.a_this in
-		if (Meta.has Meta.CoreType a1.a_meta) && (Meta.has Meta.CoreType a2.a_meta) then
+		if (Meta.has Meta.CoreType a1.a_meta) && (Meta.has Meta.CoreType a2.a_meta) then begin
+			let ta1 = apply_params a1.a_types pl1 a1.a_this in
+			let ta2 = apply_params a2.a_types pl2 a2.a_this in
 			type_eq EqStrict ta1 ta2;
-		if not (List.exists (allows_variance_to ta2) a1.a_to) && not (List.exists (allows_variance_to ta1) a2.a_from) then
+		end;
+		if not (List.exists (allows_variance_to t2) a1.a_to) && not (List.exists (allows_variance_to t1) a2.a_from) then
 			error [cannot_unify t1 t2]
 	| TAbstract(a,pl),t ->
 		type_eq EqStrict (apply_params a.a_types pl a.a_this) t;

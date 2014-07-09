@@ -2135,20 +2135,20 @@ let configure gen =
 	mkdir (gen.gcon.file ^ "/src");
 
 	(* add resources array *)
+	let res = ref [] in
+	Hashtbl.iter (fun name v ->
+		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
+
+		let full_path = gen.gcon.file ^ "/src/" ^ name in
+		mkdir_from_path full_path;
+
+		let f = open_out_bin full_path in
+		output_string f v;
+		close_out f
+	) gen.gcon.resources;
 	(try
-		let res = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
-		let cf = PMap.find "content" res.cl_statics in
-		let res = ref [] in
-		Hashtbl.iter (fun name v ->
-			res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
-
-			let full_path = gen.gcon.file ^ "/src/" ^ name in
-			mkdir_from_path full_path;
-
-			let f = open_out full_path in
-			output_string f v;
-			close_out f
-		) gen.gcon.resources;
+		let c = get_cl (Hashtbl.find gen.gtypes (["haxe"], "Resource")) in
+		let cf = PMap.find "content" c.cl_statics in
 		cf.cf_expr <- Some ({ eexpr = TArrayDecl(!res); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = Ast.null_pos })
 	with | Not_found -> ());
 

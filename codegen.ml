@@ -249,7 +249,10 @@ let rec generic_substitute_type gctx t =
 		(match follow t,gctx.mg with TInst(c,_), Some m -> add_dependency m c.cl_module | _ -> ());
 		t
 	| _ ->
-		try List.assq t gctx.subst with Not_found -> Type.map (generic_substitute_type gctx) t
+		try
+			generic_substitute_type gctx (List.assq t gctx.subst)
+		with Not_found ->
+			Type.map (generic_substitute_type gctx) t
 
 let generic_substitute_expr gctx e =
 	let vars = Hashtbl.create 0 in

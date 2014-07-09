@@ -13,6 +13,8 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
 	public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
 
+   override public function get_raw() : RawPointer<T>;
+
 	override public function inc():Pointer<T>;
 	override public function dec():Pointer<T>;
 	override public function incBy(inT:Int):Pointer<T>;

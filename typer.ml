@@ -89,12 +89,12 @@ type type_class =
 	| KDyn
 	| KOther
 	| KParam of t
-	| KAbstract of tabstract
+	| KAbstract of tabstract * t list
 
 let rec classify t =
 	match follow t with
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
-	| TAbstract({a_impl = Some _} as a,_) -> KAbstract a
+	| TAbstract({a_impl = Some _} as a,tl) -> KAbstract (a,tl)
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
 	| TAbstract (a,[]) when List.exists (fun (t,_) -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KParam t
@@ -1855,16 +1855,20 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
 	let to_string e =
-		match classify e.etype with
-		| KAbstract {a_impl = Some c} when PMap.mem "toString" c.cl_statics ->
-			call_to_string ctx c e
-		| KUnk | KDyn | KParam _ | KOther | KAbstract _ ->
-			let std = type_type ctx ([],"Std") e.epos in
-			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
-			ignore(follow acc.etype);
-			let acc = (match acc.eexpr with TField (e,FClosure (Some c,f)) -> { acc with eexpr = TField (e,FInstance (c,f)) } | _ -> acc) in
-			make_call ctx acc [e] ctx.t.tstring e.epos
-		| KInt | KFloat | KString -> e
+		let rec loop t = match classify t with
+			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
+				call_to_string ctx c e
+			| KInt | KFloat | KString -> e
+			| KUnk | KDyn | KParam _ | KOther ->
+				let std = type_type ctx ([],"Std") e.epos in
+				let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
+				ignore(follow acc.etype);
+				let acc = (match acc.eexpr with TField (e,FClosure (Some c,f)) -> { acc with eexpr = TField (e,FInstance (c,f)) } | _ -> acc) in
+				make_call ctx acc [e] ctx.t.tstring e.epos
+			| KAbstract (a,tl) ->
+				loop (Codegen.Abstract.get_underlying_type a tl)
+		in
+		loop e.etype
 	in
 	let mk_op e1 e2 t =
 		if op = OpAdd && (classify t) = KString then
@@ -2716,7 +2720,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		| WithType t | WithTypeResume t ->
 			(match follow t with
 			| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
-			| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+			| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) && List.exists (fun (_,cfo) -> cfo = None) a.a_from ->
 				begin match follow (Codegen.Abstract.get_underlying_type a tl) with
 					| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
 					| _ -> None

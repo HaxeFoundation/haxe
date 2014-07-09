@@ -373,7 +373,7 @@ class RunTravis {
 
 				//generate documentation
 				haxelibInstallGit("Simn", "hxparse", "development", "src", true);
-				haxelibInstallGit("Simn", "hxtemplo", "master", "src", true);
+				haxelibInstallGit("Simn", "hxtemplo", true);
 				haxelibInstallGit("Simn", "hxargs", true);
 				haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
 
@@ -382,7 +382,7 @@ class RunTravis {
 				haxelibInstallGit("HaxeFoundation", "hxcs", true);
 
 				haxelibInstallGit("dpeek", "dox", true);
-				changeDirectory(getHaxelibPath("dox") + "..");
+				changeDirectory(getHaxelibPath("dox"));
 				runCommand("haxe", ["run.hxml"]);
 				runCommand("haxe", ["gen.hxml"]);
 				haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
@@ -432,8 +432,11 @@ class RunTravis {
 				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
 			case Js:
 				getJSDependencies();
-				runCommand("haxe", ["compile-js.hxml"]);
-				runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+
+				for (flatten in [true, false]) {
+					runCommand("haxe", ["compile-js.hxml"].concat(flatten ? ["-D", "js-flatten"] : []));
+					runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+				}
 
 				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
 					//https://saucelabs.com/opensource/travis
@@ -512,8 +515,6 @@ class RunTravis {
 		haxelibInstallGit("Simn", "hxparse", "development", "src");
 		haxelibInstallGit("Simn", "hxtemplo");
 
-		changeDirectory(getHaxelibPath("hxtemplo"));
-
 		var buildArgs = [
 			"-cp", "src",
 			"-cp", "test",
@@ -522,7 +523,7 @@ class RunTravis {
 			"-dce", "full"
 		];
 
-		changeDirectory(getHaxelibPath("hxtemplo"));
+		changeDirectory(getHaxelibPath("hxtemplo") + "..");
 		runCommand("haxe", ["build.hxml"]);
 	}
 
@@ -550,9 +551,9 @@ class RunTravis {
 		haxelibInstallGit("massiveinteractive", "MassiveUnit", "master", "src", false, "munit");
 		changeDirectory(Path.join([getHaxelibPath("munit"), "..", "tool"]));
 		runCommand("haxe", ["build.hxml"]);
-		haxelibRun(["munit", "test", "-result-exit-code", "-neko"]);
+		haxelibRun(["munit", "test", "-result-exit-code", "-neko"], true);
 		changeDirectory("../");
-		haxelibRun(["munit", "test", "-result-exit-code", "-neko"]);
+		haxelibRun(["munit", "test", "-result-exit-code", "-neko"], true);
 	}
 
 	static function testFlambe() {

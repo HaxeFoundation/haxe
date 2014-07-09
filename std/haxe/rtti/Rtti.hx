@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,46 +20,38 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
- /**
-	IntIterator is used for implementing interval iterations.
+package haxe.rtti;
+import haxe.rtti.CType;
 
-	It is usually not used explicitly, but through it's special syntax:
-	`min...max`
-
-	While it is possible to assign an instance of IntIterator to a variable or
-	field, it is worth noting that IntIterator does not reset after being used
-	in a for-loop. Subsequent uses of the same instance will then have no
-	effect.
+/**
+	Rtti is a helper class which supplements the `@:rtti` metadata.
 **/
-class IntIterator {
-
-	var min : Int;
-	var max : Int;
+class Rtti {
 
 	/**
-		Iterates from `min` (inclusive) to `max` (exclusive).
+		Returns the `haxe.rtti.CType.Classdef` corresponding to class `c`.
 
-		If `max <= min`, the iterator will not act as a countdown.
+		If `c` has no runtime type information, e.g. because no `@:rtti@` was
+		added, `null` is returned.
+
+		If `c` is null, the result is unspecified.
 	**/
-	public inline function new( min : Int, max : Int ) {
-		this.min = min;
-		this.max = max;
+	static public function getRtti<T>(c:Class<T>):Null<Classdef> {
+		var rtti = Reflect.field(c, "__rtti");
+		var x = Xml.parse(rtti).firstElement();
+		var infos = new haxe.rtti.XmlParser().processElement(x);
+		switch (infos) {
+			case TClassdecl(c): return c;
+			case t: throw 'Enum mismatch: expected TClassDecl but found $t';
+		}
 	}
 
 	/**
-		Returns true if the iterator has other items, false otherwise.
+		Tells if `c` has runtime type information.
+
+		If `c` is null, the result is unspecified.
 	**/
-	public inline function hasNext() {
-		return min < max;
+	static public function hasRtti<T>(c:Class<T>):Bool {
+		return Lambda.has(Type.getClassFields(c), "__rtti");
 	}
-
-	/**
-		Moves to the next item of the iterator.
-
-		If this is called while hasNext() is false, the result is unspecified.
-	**/
-	public inline function next() {
-		return min++;
-	}
-
 }

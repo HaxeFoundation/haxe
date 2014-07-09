@@ -25,7 +25,7 @@ env:
     - TEST=flash8
 
 matrix:
-  fast_finish: true
+  # fast_finish: true #https://github.com/travis-ci/travis-ci/issues/1696
   allow_failures:
     - env: TEST=flash8
 
