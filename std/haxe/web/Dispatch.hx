@@ -25,6 +25,7 @@ package haxe.web;
 import haxe.macro.Expr;
 import haxe.macro.Type.ClassField;
 import haxe.macro.Context;
+import haxe.macro.MacroType;
 #end
 
 typedef DispatchConfig = {
@@ -81,9 +82,8 @@ class Dispatch {
 	}
 
 	public macro function dispatch( ethis : Expr, obj : ExprOf<{}> ) : ExprOf<Void> {
-		var p = Context.currentPos();
 		var cfg = makeConfig(obj);
-		return { expr : ECall({ expr : EField(ethis, "runtimeDispatch"), pos : p }, [cfg]), pos : p };
+		return macro $ethis.runtimeDispatch($cfg); 
 	}
 
 	public macro function getParams( ethis : Expr ) : Expr {
@@ -95,9 +95,9 @@ class Dispatch {
 		var index = PARAMS.length;
 		var t = Context.typeof({ expr : EConst(CIdent("null")), pos : p });
 		PARAMS.push( { p : p, t : t } );
-		var call = { expr : ECall( { expr : EField(ethis, "runtimeGetParams"), pos : p }, [ { expr : EConst(CInt(Std.string(index))), pos : p } ]), pos : p };
-		var rt = TPath( { pack : ["haxe", "macro"], name : "MacroType", params : [TPExpr(Context.parse("haxe.web.Dispatch.getRunParam("+index+")",p))], sub : null } );
-		return { expr : EBlock([ { expr : EVars([ { name : "tmp", type : rt, expr : call } ]), pos : p }, { expr : EConst(CIdent("tmp")), pos : p } ]), pos : p };
+		
+		var rpt = Dispatch.getRunParam( index );
+		return macro { var tmp :MacroType<$rpt> = this.runtimeGetParams( index ); };
 	}
 
 	public dynamic function onMeta( v : String, args : Null<Array<Dynamic>> ) {
@@ -460,9 +460,8 @@ class Dispatch {
 	}
 
 	public static macro function run( url : ExprOf<String>, params : ExprOf<haxe.ds.StringMap<String>>, obj : ExprOf<{}> ) : ExprOf<Void> {
-		var p = Context.currentPos();
 		var cfg = makeConfig(obj);
-		return { expr : ECall({ expr : EField({ expr : ENew({ name : "Dispatch", pack : ["haxe","web"], params : [], sub : null },[url,params]), pos : p },"runtimeDispatch"), pos : p },[cfg]), pos : p };
+		return macro new Dispatch($url, $params).runtimeDispatch($cfg);
 	}
 
 	static function extractConfig( obj : Dynamic ) : DispatchConfig {
