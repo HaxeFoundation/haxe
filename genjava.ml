@@ -3200,9 +3200,9 @@ let add_java_lib com file std =
 							| (EClass c, pos) -> begin
 								let parts = String.nsplit c.d_name "_24" in
 								match parts with
-									| [outer;inner] ->
-										let alias_name = outer ^ "_" ^ inner in
-										if (not (SS.mem alias_name !inner_alias)) then begin
+									| _ :: _ ->
+										let alias_name = String.concat "_" parts in
+										if (not (SS.mem alias_name !inner_alias)) && (not (String.exists (snd path) "_24")) then begin
 											let alias_def = ETypedef {
 												d_name = alias_name;
 												d_doc = None;
