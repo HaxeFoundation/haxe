@@ -41,7 +41,7 @@ class ObjectMap<K:{},V> implements Map.IMap<K,V> {
 		return __Internal.get( untyped __global__.__hxcpp_obj_id(key) );
 	}
 
-	public inline function exists( key : K ) : Bool {
+	public function exists( key : K ) : Bool {
 		return __Internal.exists( untyped __global__.__hxcpp_obj_id(key) );
 	}
 

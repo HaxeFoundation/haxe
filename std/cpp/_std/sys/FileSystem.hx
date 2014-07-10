@@ -30,7 +30,7 @@ private enum FileKind {
 @:coreApi
 class FileSystem {
 
-	public static inline function exists( path : String ) : Bool {
+	public static function exists( path : String ) : Bool {
 		return sys_exists(haxe.io.Path.removeTrailingSlashes(path));
 	}
 
