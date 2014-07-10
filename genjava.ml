@@ -30,6 +30,7 @@ open Type
 open Printf
 open Option
 open ExtString
+module SS = Set.Make(String)
 
 let is_boxed_type t = match follow t with
 	| TInst ({ cl_path = (["java";"lang"], "Boolean") }, [])
@@ -3179,6 +3180,51 @@ let add_java_lib com file std =
 						with | Not_found ->
 							inner
 						in
+						let inner_alias = ref SS.empty in
+						List.iter (fun x ->
+							match fst x with
+							| EClass c ->
+								inner_alias := SS.add c.d_name !inner_alias;
+							| _ -> ()
+						) inner;
+						let alias_list = ref [] in
+						List.iter (fun x ->
+							match x with
+							| (EClass c, pos) -> begin
+								let parts = String.nsplit c.d_name "_24" in
+								match parts with
+									| [outer;inner] ->
+										let alias_name = outer ^ "_" ^ inner in
+										if (not (SS.mem alias_name !inner_alias)) then begin
+											let alias_def = ETypedef {
+												d_name = alias_name;
+												d_doc = None;
+												d_params = c.d_params;
+												d_meta = [];
+												d_flags = [];
+												d_data = CTPath {
+													tpackage = pack;
+													tname = snd path;
+													tparams = List.map (fun tp ->
+														TPType (CTPath {
+															tpackage = [];
+															tname = tp.tp_name;
+															tparams = [];
+															tsub = None;
+														})
+													) c.d_params;
+													tsub = Some(c.d_name);
+												};
+											} in
+											inner_alias := SS.add alias_name !inner_alias;
+											(*Hashtbl.add inner_alias alias_name true;*)
+											alias_list := (alias_def, pos) :: !alias_list;
+										end
+									| _ -> ()
+							end
+							| _ -> ()
+						) inner;
+						let inner = List.concat [!alias_list ; inner] in
 						let ret = Some ( real_path, (pack, (convert_java_class ctx pos cls, pos) :: inner) ) in
 						ctx.jtparams <- old_types;
 						ret
