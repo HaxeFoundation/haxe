@@ -2245,7 +2245,12 @@ let jname_to_hx name =
 		else
 			Buffer.add_string sb (Printf.sprintf "_%X" (Char.code c))
 	) name;
-	Buffer.contents sb
+	let ret = Buffer.contents sb in
+	let first_char = ret.[0] in
+	if first_char >= 'a' || first_char <= 'z' then begin
+		ret.[0] <- (Char.uppercase first_char)
+	end;
+	ret
 
 let normalize_pack pack =
 	List.map (function
