@@ -2240,6 +2240,8 @@ let jname_to_hx name =
 	String.iter (fun c ->
 		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') then
 			Buffer.add_char sb c
+		else if c = '_' then
+			Buffer.add_string sb "__"
 		else
 			Buffer.add_string sb (Printf.sprintf "_%X" (Char.code c))
 	) name;
@@ -2268,11 +2270,16 @@ let hxname_to_j name =
 		if i >= String.length name then Buffer.contents sb else
 			let c = name.[i] in
 			if c == '_' then begin
-				Buffer.add_char sb (Char.chr (int_of_string ("0x" ^ String.sub name (i+1) 2)));
-				next (i + 3)
+				if name.[i+1] = '_' then begin
+					Buffer.add_char sb '_';
+					next (i + 2);
+				end else begin
+					Buffer.add_char sb (Char.chr (int_of_string ("0x" ^ String.sub name (i+1) 2)));
+					next (i + 3);
+				end
 			end else begin
 				Buffer.add_char sb c;
-				next (i + 1)
+				next (i + 1);
 			end
 	in
 	next 0
@@ -3217,7 +3224,6 @@ let add_java_lib com file std =
 												};
 											} in
 											inner_alias := SS.add alias_name !inner_alias;
-											(*Hashtbl.add inner_alias alias_name true;*)
 											alias_list := (alias_def, pos) :: !alias_list;
 										end
 									| _ -> ()
