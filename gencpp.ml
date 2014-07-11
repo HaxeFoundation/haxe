@@ -4326,9 +4326,17 @@ let rec script_type_string haxe_type =
       | TInst ({ cl_path = [],"Float" },_)
       | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
       | _ -> script_type_string t)
+   | TInst ({cl_path=[],"Null"},[t]) ->
+      (match follow t with
+      | TAbstract ({ a_path = [],"Int" },_)
+      | TAbstract ({ a_path = [],"Float" },_)
+      | TAbstract ({ a_path = [],"Bool" },_)
+      | TInst ({ cl_path = [],"Int" },_)
+      | TInst ({ cl_path = [],"Float" },_)
+      | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+      | _ -> script_type_string t )
    | _ ->
       match follow haxe_type with
-
       | TType ({t_path = [],"Array"},params) -> "Array"
       | TInst ({cl_path=[],"Array"},params) ->
          (match params with
@@ -4339,13 +4347,14 @@ let rec script_type_string haxe_type =
             | "bool" -> "Array.bool"
             | "::String" -> "Array.String"
             | "unsigned char" -> "Array.unsigned char"
-            | _ -> "Array.Dynamic"
+            | "Dynamic" -> "Array.Any"
+            | _ -> "Array.Object"
             )
-         | _ -> "Array.Dynamic"
+         | _ -> "Array.Object"
          )
-      | TAbstract (abs,pl) when abs.a_impl <> None ->
+     | TAbstract (abs,pl) when abs.a_impl <> None ->
          script_type_string  (Codegen.Abstract.get_underlying_type abs pl);
-      | _ ->
+     | _ ->
          type_string_suff "" haxe_type
 ;;
 
@@ -4353,7 +4362,7 @@ type array_of =
    | ArrayInterface of int
    | ArrayData of string
    | ArrayObject
-   | ArrayDynamic
+   | ArrayAny
    | ArrayNone
 ;;
 
@@ -4470,6 +4479,7 @@ class script_writer common_ctx ctx filename =
       match varExpr with
       | Some expression -> this#gen_expression expression
       | _ -> ()
+   method implDynamic = this#write "IMPLDYNAMIC\n";
    method writeVar v =
       this#ident v.v_name;
       this#wint v.v_id;
@@ -4497,7 +4507,7 @@ class script_writer common_ctx ctx filename =
                   | "::String"  -> ArrayData "String"
                   | "int" | "Float" | "bool" | "String" | "unsigned char" ->
                      ArrayData typeName
-                  | "Dynamic" -> ArrayDynamic
+                  | "Dynamic" -> ArrayAny
                   | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
                   | _ -> ArrayObject
                   )
@@ -4512,17 +4522,18 @@ class script_writer common_ctx ctx filename =
                get_array_type expr.etype
             in
          match (get_array_type toType), (get_array_expr_type expr) with
-         | ArrayDynamic, ArrayNone
-         | ArrayDynamic, ArrayData _ -> write_cast ("TODYNARRAY")
+         | ArrayAny, _ -> false
+         | ArrayObject, ArrayData _ -> write_cast ("TODYNARRAY")
          | ArrayData t, ArrayNone
-         | ArrayData t, ArrayDynamic -> write_cast ("TODATAARRAY " ^ (this#typeTextString ("Array." ^ t)))
+         | ArrayData t, ArrayObject
+         | ArrayData t, ArrayAny -> write_cast ("TODATAARRAY " ^ (this#typeTextString ("Array." ^ t)))
          | ArrayInterface t, ArrayNone
-         | ArrayInterface t, ArrayDynamic -> write_cast ("TOINTERFACEARRAY " ^ (string_of_int t))
+         | ArrayInterface t, ArrayAny -> write_cast ("TOINTERFACEARRAY " ^ (string_of_int t))
          | _,_ -> (* a0,a1 ->
                let arrayString a =
                   match a with
                   | ArrayNone -> "ArrayNone"
-                  | ArrayDynamic -> "ArrayDynamic"
+                  | ArrayAny -> "ArrayAny"
                   | ArrayObject -> "ArrayObject"
                   | ArrayData _ -> "ArrayData"
                   | ArrayInterface _ -> "ArrayInterface"
@@ -4607,6 +4618,10 @@ class script_writer common_ctx ctx filename =
                   argN ^ "\n");
       | TField (obj,FInstance (_,field) ) when is_real_function field ->
                this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  argN ^ "\n");
+               this#gen_expression obj;
+      | TField (obj,FDynamic (name) )  when (is_internal_member name || (type_string obj.etype = "::String" && name="cca") ) ->
+               this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText name) ^
                   argN ^ "\n");
                this#gen_expression obj;
       | TConst TSuper -> this#write ("CALLSUPERNEW " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
@@ -4762,6 +4777,7 @@ let generate_script_class common_ctx script class_def =
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
+                                 (if (implement_dynamic_here class_def) then 1 else 0) +
                                  (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
                                  ^ "\n");
 
@@ -4769,7 +4785,7 @@ let generate_script_class common_ctx script class_def =
       match field.cf_kind, follow field.cf_type with
       | Var { v_read = AccInline; v_write = AccNever },_ ->
          script#write "INLINE\n";
-      | Var v,t ->
+      | Var v,_ ->
          let mode_code mode = match mode with
          | AccNormal -> "N"
          | AccNo -> "!"
@@ -4780,7 +4796,7 @@ let generate_script_class common_ctx script class_def =
          | AccRequire (_,_) -> "?"
          in
          let isExtern = is_extern_field field in
-         script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name t field.cf_expr
+         script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name field.cf_type field.cf_expr
       | Method MethDynamic, TFun(args,ret) ->
          script#func isStatic true field.cf_name ret args class_def.cl_interface field.cf_expr
       | Method _, TFun(args,ret) when field.cf_name="new" ->
@@ -4799,6 +4815,8 @@ let generate_script_class common_ctx script class_def =
 
    List.iter (generate_field false) ordered_fields;
    List.iter (generate_field true) ordered_statics;
+   if (implement_dynamic_here class_def) then
+      script#implDynamic;
    script#write "\n";
 ;;
 
