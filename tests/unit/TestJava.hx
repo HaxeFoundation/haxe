@@ -2,6 +2,8 @@ package unit;
 import haxe.io.Bytes;
 import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
+import haxe.test.Base.Base_24__InnerClass3__;
+import haxe.test.Base.Base_24__InnerClass3___24InnerClass4__;
 import haxe.test.TEnum;
 
 #if java
@@ -66,6 +68,7 @@ class TestJava extends Test
 		eq(helper.typedGeneric, null);
 
 		var val = new Base_InnerClass();
+		var val3 = new Base_24__InnerClass3__();
 		var g1 = new haxe.test.Generic1(val);
 		g1.complexTypeParameterOfTypeParameter(new Base_InnerClass_InnerInnerClass());
 		//if no compile-time error, we're fine!
