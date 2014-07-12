@@ -10593,11 +10593,12 @@ struct
 								let old_args, old_ret = get_fun f.cf_type in
 								let args, ret = get_fun t in
 								let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
+								let f3_mk_return = if is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
 								f3.cf_expr <- Some {
 									eexpr = TFunction({
 										tf_args = tf_args;
 										tf_type = ret;
-										tf_expr = mk_block (mk_return (mk_cast ret {
+										tf_expr = mk_block (f3_mk_return {
 											eexpr = TCall(
 												{
 													eexpr = TField(
@@ -10609,7 +10610,7 @@ struct
 												List.map2 (fun (v,_) (_,_,t) -> mk_cast t (mk_local v p)) tf_args old_args);
 											etype = old_ret;
 											epos = p
-										}))
+										})
 									});
 									etype = t;
 									epos = p;
