@@ -10149,6 +10149,10 @@ struct
 							);
 							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
 							false
+						| Method MethDynamic ->
+							(* TODO OPTIMIZATION - add a `_dispatch` method to the interface which will call the dynamic function itself *)
+							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+							false
 						| _ -> true
 				) cl.cl_ordered_fields in
 
