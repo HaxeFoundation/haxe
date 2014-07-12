@@ -10056,7 +10056,7 @@ struct
 												| Some o -> o
 											in
 											let e = { e with eexpr = TLocal v2; etype = basic.tnull e.etype } in
-											let const = mk_cast e.etype { e with eexpr = TConst(o); etype = v.v_type } in
+											let const = mk_cast e.etype { e with eexpr = TConst(o); etype = follow v.v_type } in
 											found := true;
 											{ e with eexpr = TIf({
 												eexpr = TBinop(Ast.OpEq, e, null e.etype e.epos);
@@ -10147,6 +10147,10 @@ struct
 									to_add := newcf :: !to_add;
 								| _ -> ()
 							);
+							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+							false
+						| Method MethDynamic ->
+							(* TODO OPTIMIZATION - add a `_dispatch` method to the interface which will call the dynamic function itself *)
 							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
 							false
 						| _ -> true
@@ -10593,11 +10597,12 @@ struct
 								let old_args, old_ret = get_fun f.cf_type in
 								let args, ret = get_fun t in
 								let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
+								let f3_mk_return = if is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
 								f3.cf_expr <- Some {
 									eexpr = TFunction({
 										tf_args = tf_args;
 										tf_type = ret;
-										tf_expr = mk_block (mk_return (mk_cast ret {
+										tf_expr = mk_block (f3_mk_return {
 											eexpr = TCall(
 												{
 													eexpr = TField(
@@ -10609,7 +10614,7 @@ struct
 												List.map2 (fun (v,_) (_,_,t) -> mk_cast t (mk_local v p)) tf_args old_args);
 											etype = old_ret;
 											epos = p
-										}))
+										})
 									});
 									etype = t;
 									epos = p;
