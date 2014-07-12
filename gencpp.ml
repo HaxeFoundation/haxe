@@ -4957,8 +4957,6 @@ let generate_source common_ctx =
       );
    ) common_ctx.types;
 
-   let class_list_file = scriptable || (Common.defined common_ctx Define.DllExport) in
-
 
    (match common_ctx.main with
    | None -> generate_dummy_main common_ctx
