@@ -10056,7 +10056,7 @@ struct
 												| Some o -> o
 											in
 											let e = { e with eexpr = TLocal v2; etype = basic.tnull e.etype } in
-											let const = mk_cast e.etype { e with eexpr = TConst(o); etype = v.v_type } in
+											let const = mk_cast e.etype { e with eexpr = TConst(o); etype = follow v.v_type } in
 											found := true;
 											{ e with eexpr = TIf({
 												eexpr = TBinop(Ast.OpEq, e, null e.etype e.epos);
