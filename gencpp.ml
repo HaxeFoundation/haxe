@@ -4138,6 +4138,9 @@ let create_constructor_dependencies common_ctx =
       ) common_ctx.types;
    result;;
 
+(*
+
+  Exports can now be done with macros and a class list
 
 let rec s_type t =
    let result =
@@ -4176,9 +4179,6 @@ and s_type_params = function
    | l -> "< " ^ String.concat ", " (List.map s_type  l) ^ " >"
 
 ;;
-
-
-
 
 
 let gen_extern_class common_ctx class_def file_info =
@@ -4294,6 +4294,7 @@ let gen_extern_enum common_ctx enum_def file_info =
    output "}\n";
    file#close
 ;;
+*)
 
 let is_this expression =
    match (remove_parens expression).eexpr with
@@ -4916,18 +4917,12 @@ let generate_source common_ctx =
    let main_deps = ref [] in
    let build_xml = ref "" in
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
-   let gen_externs = scriptable || (Common.defined common_ctx Define.DllExport) in
-   if (gen_externs) then begin
-   make_base_directory (common_ctx.file ^ "/extern");
-   end;
 
    List.iter (fun object_def ->
       (match object_def with
-      | TClassDecl class_def when is_extern_class class_def ->
-         (*if (gen_externs) then gen_extern_class common_ctx class_def file_info;*)();
+      | TClassDecl class_def when is_extern_class class_def -> ()
       | TClassDecl class_def ->
          let name =  class_text class_def.cl_path in
-         if (gen_externs) then gen_extern_class common_ctx class_def file_info;
          let is_internal = is_internal_class class_def.cl_path in
          let is_generic_def = match class_def.cl_kind with KGeneric -> true | _ -> false in
          if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
@@ -4947,7 +4942,6 @@ let generate_source common_ctx =
       | TEnumDecl enum_def when enum_def.e_extern -> ()
       | TEnumDecl enum_def ->
          let name =  class_text enum_def.e_path in
-         if (gen_externs) then gen_extern_enum common_ctx enum_def file_info;
          let is_internal = is_internal_class enum_def.e_path in
          if (is_internal) then
             (if (debug>1) then print_endline (" internal enum " ^ name ))
@@ -4962,6 +4956,8 @@ let generate_source common_ctx =
       | TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
       );
    ) common_ctx.types;
+
+   let class_list_file = scriptable || (Common.defined common_ctx Define.DllExport) in
 
 
    (match common_ctx.main with
@@ -4979,6 +4975,16 @@ let generate_source common_ctx =
 
    write_resources common_ctx;
 
+   (* Output class list if requested *)
+   if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
+      let filename = match Common.defined_value_safe common_ctx Define.DllExport with
+         | "" -> "exe.classes"
+         | x -> x
+      in
+      let exeClasses = open_out filename in
+      List.iter (fun x -> output_string exeClasses ((join_class_path (fst x) ".") ^ "\n") ) !exe_classes;
+      close_out exeClasses;
+   end;
 
    let output_name = match  common_ctx.main_class with
    | Some path -> (snd path)
