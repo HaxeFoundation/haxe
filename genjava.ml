@@ -2540,12 +2540,17 @@ let convert_java_enum ctx p pe =
 		in
 		let cff_name, cff_meta =
 			match String.get cff_name 0 with
-				| '%' | '$' ->
+				| '%' ->
 					let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
 					"_" ^ name,
 					(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
 				| _ ->
-					cff_name, !cff_meta
+					match String.nsplit cff_name "$" with
+						| [ no_dollar ] ->
+							cff_name, !cff_meta
+						| parts ->
+							String.concat "_" parts,
+							(Meta.Native, [EConst (String (cff_name) ), cff_pos], cff_pos) :: !cff_meta
 		in
 
 		{
