@@ -52,6 +52,8 @@ enum ValueType {
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 		var a : Array<String> = untyped c.__name__;
+		if (a == null)
+			return null;
 		return a.join(".");
 	}
 
