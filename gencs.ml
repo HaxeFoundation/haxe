@@ -1050,6 +1050,29 @@ let configure gen =
 			let was_in_value = !in_value in
 			in_value := true;
 			(match e.eexpr with
+				| TCall({ eexpr = TField(ef,f) }, (_ :: _ as args) ) when (field_name f) = "get_Item" ->
+					expr_s w ef;
+					write w "[";
+					let first = ref true in
+					List.iter (fun f ->
+						if !first then first := false else write w ", ";
+						expr_s w f
+					) args;
+					write w "]"
+				| TCall({ eexpr = TField(ef,f) }, (_ :: _ :: _ as args) ) when (field_name f) = "set_Item" ->
+					expr_s w ef;
+					write w "[";
+					let args, value = match List.rev args with
+						| v :: args -> List.rev args, v
+						| _ -> assert false
+					in
+					let first = ref true in
+					List.iter (fun f ->
+						if !first then first := false else write w ", ";
+						expr_s w f
+					) args;
+					write w "] = ";
+					expr_s w value
 				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "add_" ->
 					let name = field_name f in
 					let propname = String.sub name 4 (String.length name - 4) in
