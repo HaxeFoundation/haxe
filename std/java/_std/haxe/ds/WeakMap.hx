@@ -390,7 +390,7 @@ import java.lang.ref.ReferenceQueue;
 				{
 					if (!isEither(hashes[j]))
 					{
-						var entry = entries[i];
+						var entry = entries[j];
 						var last = entry.get();
 						if (last != null)
 						{
