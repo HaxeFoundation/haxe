@@ -392,7 +392,7 @@ let generate_type com t =
 		| AccNever, "flash" :: _ -> "null"
 		| _ -> s_access is_read a
 	in
-	let print_field stat f =
+	let rec print_field stat f =
 		p "\t";
 		print_meta f.cf_meta;
 		if stat then p "static ";
@@ -429,6 +429,7 @@ let generate_type com t =
 			) in
 			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
 			p "function %s%s(%s) : %s" f.cf_name tparams (String.concat ", " (List.map sparam params)) (stype ret);
+			if Meta.has Meta.Overload f.cf_meta then List.iter (fun f -> p ";\n"; print_field stat f) f.cf_overloads;
 		);
 		p ";\n"
 	in
