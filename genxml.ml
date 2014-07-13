@@ -429,9 +429,9 @@ let generate_type com t =
 			) in
 			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
 			p "function %s%s(%s) : %s" f.cf_name tparams (String.concat ", " (List.map sparam params)) (stype ret);
-			if Meta.has Meta.Overload f.cf_meta then List.iter (fun f -> p ";\n"; print_field stat f) f.cf_overloads;
 		);
-		p ";\n"
+		p ";\n";
+		if Meta.has Meta.Overload f.cf_meta then List.iter (fun f -> print_field stat f) f.cf_overloads
 	in
 	(match t with
 	| TClassDecl c ->
