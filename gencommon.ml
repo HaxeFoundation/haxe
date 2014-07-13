@@ -6181,9 +6181,17 @@ struct
 			let was_in_value = !in_value in
 			in_value := true;
 			match e.eexpr with
-				| TConst ( TInt _ | TFloat _ | TBool _ ) ->
+				| TConst ( TInt _ | TFloat _ | TBool _ as const ) ->
 					(* take off any Null<> that it may have *)
-					{ e with etype = follow (run_follow gen e.etype) }
+					let t = follow (run_follow gen e.etype) in
+					(* do not allow constants typed as Single - need to cast them *)
+					let real_t = match const with
+						| TInt _ -> gen.gcon.basic.tint
+						| TFloat _ -> gen.gcon.basic.tfloat
+						| TBool _ -> gen.gcon.basic.tbool
+						| _ -> assert false
+					in
+					handle e t real_t
 				| TCast( { eexpr = TCall( { eexpr = TLocal { v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
 					{ e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
 
