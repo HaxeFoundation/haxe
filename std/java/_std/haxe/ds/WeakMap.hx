@@ -71,7 +71,6 @@ import java.lang.ref.ReferenceQueue;
 		var x:Dynamic = null, nOccupied = nOccupied;
 		while (( x = queue.poll()) != null)
 		{
-			trace('queue poll != null',x,x.hash);
 			//even if not found on hashtable (already removed), release value
 			var x:Entry<K,V> = cast x;
 			x.value = null;
