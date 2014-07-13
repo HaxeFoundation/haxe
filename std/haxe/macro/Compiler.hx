@@ -41,7 +41,7 @@ class Compiler {
 	}
 
 	public static function define( flag : String, ?value : String ) untyped {
-		var v = flag + (value == null ? "" : "= " + value);
+		var v = flag + (value == null ? "" : "=" + value);
 		load("define", 1)(v.__s);
 	}
 
