@@ -6176,6 +6176,12 @@ struct
 
 		let in_value = ref false in
 
+		let rec clean_cast e = match e.eexpr with
+		 | TCast(e,_) -> clean_cast e
+		 | TParenthesis(e) | TMeta(_,e) -> clean_cast e
+		 | _ -> e
+		in
+
 		let rec run ?(just_type = false) e =
 			let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
 			let was_in_value = !in_value in
@@ -6196,7 +6202,8 @@ struct
 					{ e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
 
 				| TBinop ( (Ast.OpAssign | Ast.OpAssignOp _ as op), e1, e2 ) ->
-					{ e with eexpr = TBinop(op, run ~just_type:true e1, run e2) }
+					let e1 = run ~just_type:true e1 in
+					{ e with eexpr = TBinop(op, clean_cast e1, run e2) }
 				| TField(ef, f) ->
 					handle_type_parameter gen None e (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f [] calls_parameters_explicitly
 				| TArrayDecl el ->
