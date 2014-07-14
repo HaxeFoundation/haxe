@@ -158,40 +158,8 @@ class List<T> {
 	/**
 		Returns an iterator on the elements of the list.
 	**/
-	public function iterator() : Iterator<T> {
-		#if (java || cs || python)
-		var h = h;
-		return cast {
-			hasNext : function() {
-				return (h != null);
-			},
-			next : function() {
-				{
-					if( h == null )
-						return null;
-					var x = h[0];
-					h = h[1];
-					return x;
-				}
-			}
-		}
-		#else
-		return cast {
-			h : h,
-			hasNext : function() {
-				return untyped (__this__.h != null);
-			},
-			next : function() {
-				untyped {
-					if( __this__.h == null )
-						return null;
-					var x = __this__.h[0];
-					__this__.h = __this__.h[1];
-					return x;
-				}
-			}
-		}
-		#end
+	public inline function iterator() : ListIterator<T> {
+		return new ListIterator<T>(h);
 	}
 
 	/**
@@ -267,4 +235,24 @@ class List<T> {
 		return b;
 	}
 
+}
+
+private class ListIterator<T> {
+	var head:Array<Dynamic>;
+	var val:Dynamic;
+
+	public inline function new(head:Array<Dynamic>) {
+		this.head = head;
+		this.val = null;
+	}
+
+	public inline function hasNext():Bool {
+		return head != null;
+	}
+
+	public inline function next():T {
+		val = head[0];
+		head = head[1];
+		return val;
+	}
 }
