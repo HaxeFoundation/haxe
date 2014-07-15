@@ -63,6 +63,11 @@ class FileSystem {
 			return p;
 	}
 
+	public static function absPath ( relPath : String ) : String {
+		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
+		return haxe.io.Path.join([Sys.getCwd(), relPath]);
+	}
+
 	static function kind( path : String ) : FileKind {
 		var k = untyped __call__("filetype", path);
 		switch(k) {

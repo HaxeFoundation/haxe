@@ -50,6 +50,11 @@ class FileSystem {
 		return new String(file_full_path(untyped relPath.__s));
 	}
 
+	public static function absPath ( relPath : String ) : String {
+		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
+		return haxe.io.Path.join([Sys.getCwd(), relPath]);
+	}
+
 	static function kind( path : String ) : FileKind {
 		var k = new String(sys_file_type(untyped (haxe.io.Path.removeTrailingSlashes(path)).__s));
 		return switch(k) {

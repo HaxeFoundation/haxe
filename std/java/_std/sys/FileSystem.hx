@@ -61,7 +61,12 @@ class FileSystem {
 
 	public static function fullPath( relPath : String ) : String
 	{
-		return new File(relPath).getAbsolutePath();
+		return new File(relPath).getCanonicalPath();
+	}
+
+	public static function absPath ( relPath : String ) : String {
+		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
+		return haxe.io.Path.join([Sys.getCwd(), relPath]);
 	}
 
 	public static function isDirectory( path : String ) : Bool
