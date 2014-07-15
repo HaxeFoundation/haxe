@@ -4379,6 +4379,7 @@ class script_writer common_ctx ctx filename =
    val mutable indents = []
    val mutable just_finished_block = false
    val mutable classCount = 0
+   val mutable return_type = TMono(ref None)
    val buffer = Buffer.create 0
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
@@ -4449,6 +4450,10 @@ class script_writer common_ctx ctx filename =
    | TThis -> "THIS "
    | TSuper -> "SUPER "
 
+   method pushReturn inType =
+      let oldReturnType = return_type in
+      return_type <- inType;
+      fun () -> return_type <- oldReturnType;
    method fileText file = string_of_int (this#fileId file)
    method indent_one = this#write indent_str
    method push_indent = indents <- indent_str::indents; indent <- String.concat "" indents
@@ -4563,7 +4568,9 @@ class script_writer common_ctx ctx filename =
             | Some const when const <> TNull -> this#write ("1 " ^ (this#constText const) ^ "\n")
             | _ -> this#write "0\n";
          ) function_def.tf_args;
+         let pop = this#pushReturn function_def.tf_type in
          this#gen_expression function_def.tf_expr;
+         pop ();
    | TBlock expr_list -> this#writeList "BLOCK" (List.length expr_list);
          List.iter this#gen_expression expr_list;
    | TConst const -> this#write (this#constText const)
@@ -4694,7 +4701,7 @@ class script_writer common_ctx ctx filename =
    | TReturn optval -> (match optval with
          | None -> this#write "RETURN\n"
          | Some value -> this#write ("RETVAL " ^ (this#typeText value.etype) ^ "\n");
-                     this#gen_expression value;
+              this#checkCast return_type value false false;
          )
    | TObjectDecl (
       ("fileName" , { eexpr = (TConst (TString file)) }) ::
