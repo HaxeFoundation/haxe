@@ -1336,7 +1336,7 @@ let match_expr ctx e cases def with_type p =
 		let pat = match follow st.st_type with
 			| TAbstract({a_impl = Some cl} as a,_) when Meta.has Meta.Enum a.a_meta ->
 				let rec s_pat pat = match pat.p_def with
-					| PCon ({c_def = CConst c},[]) ->
+					| PCon ({c_def = CConst c},[]) when c <> TNull ->
 						let cf = List.find (fun cf ->
 							match cf.cf_expr with
 							| Some ({eexpr = TConst c2 | TCast({eexpr = TConst c2},None)}) -> c = c2
