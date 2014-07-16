@@ -73,6 +73,48 @@ class TypedExprTools {
 	}
 
 	/**
+		Calls function [f] on each sub-expression of [e].
+
+		See `haxe.macro.ExprTools.iter` for details on iterating expressions in
+		general. This function works the same way, but with a different data
+		structure.
+	**/
+	static public function iter(e:TypedExpr, f:TypedExpr -> Void):Void {
+		switch(e.expr) {
+			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_):
+			case TArray(e1, e2) | TBinop(_, e1, e2) | TFor(_, e1, e2) | TWhile(e1, e2, _):
+				f(e1);
+				f(e2);
+			case TThrow(e1) | TEnumParameter(e1, _, _) | TField(e1, _) | TParenthesis(e1) | TUnop(_, _, e1) | TCast(e1, _) | TMeta(_, e1):
+				f(e1);
+			case TArrayDecl(el) | TNew(_, _, el) | TBlock(el):
+				for (e in el) f(e);
+			case TObjectDecl(fl):
+				for (field in fl) f(field.expr);
+			case TCall(e1, el):
+				f(e1);
+				for (e in el) f(e);
+			case TVar(_, e1) | TReturn(e1):
+				if (e1 != null) f(e1);
+			case TFunction(fu):
+				f(fu.expr);
+			case TIf(e1, e2, e3):
+				f(e1);
+				f(e2);
+				if (e3 != null) f(e3);
+			case TSwitch(e1, cases, e2):
+				f(e1);
+				for (c in cases) f(c.expr);
+				if (e2 != null) f(e2);
+			case TTry(e1, catches):
+				f(e1);
+				for (c in catches) f(c.expr);
+			case TPatMatch:
+				throw false;
+		}
+	}
+
+	/**
 		Transforms the sub-expressions of [e] by calling [f] on each of them.
 		Additionally, types are mapped using `ft` and variables are mapped using
 		`fv`.

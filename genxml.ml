@@ -23,6 +23,7 @@
 open Ast
 open Type
 open Common
+open ExtString
 
 type xml =
 	| Node of string * (string * string) list * xml list
@@ -292,9 +293,27 @@ let conv_path p =
 	| x :: l when x.[0] = '_' -> List.rev (("priv" ^ x) :: l), snd p
 	| _ -> p
 
+let get_real_path meta path =
+	try
+		let real_path = match Meta.get Meta.RealPath meta with
+			| (_,[(EConst(String s),_)],_) ->
+				s
+			| _ -> raise Not_found
+		in
+		match List.rev (String.nsplit real_path ".") with
+			| name :: pack ->
+				(List.rev pack), name
+			| _ -> raise Not_found
+	with | Not_found ->
+		path
+
+
 let generate_type com t =
 	let base_path = "hxclasses" in
-	let pack , name = conv_path (t_path t) in
+	let pack, name =
+		let info = t_infos t in
+		get_real_path info.mt_meta info.mt_path
+	in
 	create_dir "." (base_path :: pack);
 	match pack, name with
 	| ["flash";"net"], "NetStreamPlayTransitions"
@@ -318,8 +337,8 @@ let generate_type com t =
 		| _ ->
 			t
 	in
-	let rec path p tl =
-		let p = conv_path p in
+	let rec path meta p tl =
+		let p = conv_path (get_real_path meta p) in
 		(if fst p = pack then snd p else s_type_path p) ^ (match tl with [] -> "" | _ -> "<" ^ String.concat "," (List.map stype tl) ^ ">")
 	and stype t =
 		match t with
@@ -328,15 +347,15 @@ let generate_type com t =
 			| None -> "Unknown"
 			| Some t -> stype t)
 		| TInst ({ cl_kind = KTypeParameter _ } as c,tl) ->
-			path ([],snd c.cl_path) tl
+			path [] ([],snd c.cl_path) tl
 		| TInst (c,tl) ->
-			path c.cl_path tl
+			path c.cl_meta c.cl_path tl
 		| TEnum (e,tl) ->
-			path e.e_path tl
+			path e.e_meta e.e_path tl
 		| TType (t,tl) ->
-			path t.t_path tl
+			path t.t_meta t.t_path tl
 		| TAbstract (a,tl) ->
-			path a.a_path tl
+			path a.a_meta a.a_path tl
 		| TAnon a ->
 			let fields = PMap.fold (fun f acc -> (f.cf_name ^ " : " ^ stype f.cf_type) :: acc) a.a_fields [] in
 			"{" ^ String.concat ", " fields ^ "}"
@@ -392,7 +411,7 @@ let generate_type com t =
 		| AccNever, "flash" :: _ -> "null"
 		| _ -> s_access is_read a
 	in
-	let print_field stat f =
+	let rec print_field stat f =
 		p "\t";
 		print_meta f.cf_meta;
 		if stat then p "static ";
@@ -430,7 +449,8 @@ let generate_type com t =
 			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
 			p "function %s%s(%s) : %s" f.cf_name tparams (String.concat ", " (List.map sparam params)) (stype ret);
 		);
-		p ";\n"
+		p ";\n";
+		if Meta.has Meta.Overload f.cf_meta then List.iter (fun f -> print_field stat f) f.cf_overloads
 	in
 	(match t with
 	| TClassDecl c ->

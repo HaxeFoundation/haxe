@@ -262,6 +262,9 @@ class RunTravis {
 	static function getPhpDependencies() {
 		switch (systemName) {
 			case "Linux":
+				//let's install php 5.4 to avoid #3175
+				runCommand("sudo", ["add-apt-repository", "ppa:ondrej/php5-oldstable", "-y"], true);
+				runCommand("sudo", ["apt-get", "update"], true);
 				runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
 			case "Mac":
 				//pass

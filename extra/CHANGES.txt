@@ -36,6 +36,7 @@
 	Macro features and changes:
 
 	macro : added Context.getLocalTVars
+	macro : added TypedExprTools.iter
 
 	Deprecations:
 

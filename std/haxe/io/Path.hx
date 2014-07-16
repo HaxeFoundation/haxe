@@ -299,4 +299,13 @@ class Path {
 		}
 		return path;
 	}
+
+	/**
+		Returns true if the path is an absolute path, and false otherwise.
+	**/
+	public static function isAbsolute ( path : String ) : Bool {
+		if (StringTools.startsWith(path, '/')) return true;
+		if (path.charAt(2) == ':') return true;
+		return false;
+	}
 }

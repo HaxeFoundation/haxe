@@ -24,13 +24,17 @@ import java.lang.Throwable;
 import java.lang.RuntimeException;
 import java.lang.Exception;
 
-@:allow(haxe.CallStack)
-@:allow(java.lang.RuntimeException)
 @:native("haxe.lang.Exceptions")
 class Exceptions {
-	private static var exception = new java.lang.ThreadLocal<java.lang.RuntimeException>();
+	private static var exception = new java.lang.ThreadLocal<java.lang.Throwable>();
 
-	private static function currentException() {
+	@:keep private static function setException(exc:Throwable)
+	{
+		exception.set(exc);
+	}
+
+	public static function currentException()
+	{
 		return exception.get();
 	}
 }
@@ -73,7 +77,6 @@ class Exceptions {
 			ret = new HaxeException(obj, null, obj);
 		else
 			ret = new HaxeException(obj, null, null);
-		Exceptions.exception.set( ret );
 		return ret;
 	}
 }
