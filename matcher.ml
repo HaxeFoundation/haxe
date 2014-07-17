@@ -889,7 +889,9 @@ let rec compile mctx stl pmat toplevel =
 					raise (Not_exhaustive(collapse_pattern pl,st))
 			end
 		| _ ->
-			assert false)
+			(* This can happen in cases a value is required and all default cases are guarded (issue #3150).
+			   Not a particularly elegant solution, may want to revisit this later. *)
+			raise Exit)
 	| ([|{p_def = PTuple pt}|],out) :: pl ->
 		compile mctx stl ((pt,out) :: pl) toplevel
 	| (pv,out) :: pl ->
@@ -952,7 +954,12 @@ let rec compile mctx stl pmat toplevel =
 				compile mctx st_tail def false
 			| def,_ ->
 				let cdef = mk_con CAny t_dynamic st_head.st_pos in
-				let cases = cases @ [cdef,compile mctx st_tail def false] in
+				let def = try
+					compile mctx st_tail def false
+				with Exit ->
+					raise (Not_exhaustive(any,st_head))
+				in
+				let cases = cases @ [cdef,def] in
 				switch st_head cases
 			in
 			if bl = [] then dt else bind bl dt
