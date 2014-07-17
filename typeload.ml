@@ -352,7 +352,7 @@ let rec load_instance ctx t p allow_no_params =
 			| _ -> false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
-		if allow_no_params && t.tparams = [] then begin
+		if allow_no_params && t.tparams = [] && not (match types with ["Rest",_] -> true | _ -> false) then begin
 			let pl = ref [] in
 			pl := List.map (fun (name,t) ->
 				match follow t with
