@@ -365,7 +365,7 @@ let rec load_instance ctx t p allow_no_params =
 			| [TPType t] -> TDynamic (load_complex_type ctx p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
-			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
+			(* if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p; *)
 			let tparams = List.map (fun t ->
 				match t with
 				| TPExpr e ->
@@ -380,22 +380,38 @@ let rec load_instance ctx t p allow_no_params =
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx p t
 			) t.tparams in
-			let params = List.map2 (fun t (name,t2) ->
-				let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
-				if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
-				match follow t2 with
-				| TInst ({ cl_kind = KTypeParameter [] }, []) when not is_generic ->
-					t
-				| TInst (c,[]) ->
-					let r = exc_protect ctx (fun r ->
-						r := (fun() -> t);
-						delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);
-						t
-					) "constraint" in
-					delay ctx PForce (fun () -> ignore(!r()));
-					TLazy r
-				| _ -> assert false
-			) tparams types in
+			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
+				| t :: tl1,(name,t2) :: tl2 ->
+					let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
+					if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
+					let is_rest = is_rest || name = "Rest" in
+					let t = match follow t2 with
+						| TInst ({ cl_kind = KTypeParameter [] }, []) when not is_generic ->
+							t
+						| TInst (c,[]) ->
+							let r = exc_protect ctx (fun r ->
+								r := (fun() -> t);
+								delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);
+								t
+							) "constraint" in
+							delay ctx PForce (fun () -> ignore(!r()));
+							TLazy r
+						| _ -> assert false
+					in
+					t :: loop tl1 tl2 is_rest
+				| [],[] ->
+					[]
+				| [],["Rest",_] ->
+					[]
+				| [],_ ->
+					error ("Not enough type parameters for " ^ s_type_path path) p
+				| t :: tl,[] ->
+					if is_rest then
+						t :: loop tl [] true
+					else
+						error ("Too many parameters for " ^ s_type_path path) p
+			in
+			let params = loop tparams types false in
 			f params
 		end
 (*
