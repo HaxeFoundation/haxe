@@ -4410,7 +4410,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	| MMacroType ->
 		let cttype = { tpackage = ["haxe";"macro"]; tname = "Type"; tparams = []; tsub = None } in
 		let ttype = Typeload.load_instance mctx cttype p false in
-		unify mctx mret ttype mpos
+		try
+			unify_raise mctx mret ttype mpos;
+			ctx.com.warning "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p;
+		with Error (Unify _,_) ->
+			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("ComplexType") } in
+			let ttype = Typeload.load_instance mctx cttype p false in
+			unify_raise mctx mret ttype mpos;
 	);
 	(*
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_params
@@ -4506,7 +4512,15 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					) in
 					(EVars ["fields",Some (CTAnonymous fields),None],p)
 				| MMacroType ->
-					ctx.ret <- Interp.decode_type v;
+					let t = if v = Interp.VNull then
+						mk_mono()
+					else try
+						let ct = Interp.decode_ctype v in
+						Typeload.load_complex_type ctx p ct;
+					with Interp.Invalid_expr ->
+						Interp.decode_type v
+					in
+					ctx.ret <- t;
 					(EBlock [],p)
 				)
 			with Interp.Invalid_expr ->
