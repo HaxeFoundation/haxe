@@ -387,7 +387,7 @@ let rec load_instance ctx t p allow_no_params =
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
 					let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
-					if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
+					if isconst <> (name = "Const") && t != t_dynamic && name <> "Rest" then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
 						| TInst ({ cl_kind = KTypeParameter [] }, []) when not is_generic ->
