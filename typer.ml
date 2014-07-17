@@ -1324,6 +1324,10 @@ and type_field ?(resume=false) ctx e i p mode =
 				let t = apply_params c.cl_types params t in
 				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then begin
 					let f = PMap.find "resolve" c.cl_fields in
+					begin match f.cf_kind with
+						| Method MethMacro -> display_error ctx "The macro accessor is not allowed for field resolve" f.cf_pos
+						| _ -> ()
+					end;
 					let texpect = tfun [ctx.t.tstring] t in
 					let tfield = apply_params c.cl_types params (monomorphs f.cf_params f.cf_type) in
 					(try Type.unify tfield texpect
