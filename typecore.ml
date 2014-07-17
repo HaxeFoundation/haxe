@@ -96,6 +96,7 @@ and typer = {
 	mutable meta : metadata;
 	mutable this_stack : texpr list;
 	mutable with_type_stack : with_type list;
+	mutable constructor_argument_stack : Ast.expr list list;
 	(* variable *)
 	mutable pass : typer_pass;
 	(* per-module *)
