@@ -346,7 +346,11 @@ let rec load_instance ctx t p allow_no_params =
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx p t in
-		let is_generic = match mt with TClassDecl {cl_kind = KGeneric} -> true | _ -> false in
+		let is_generic,is_generic_build = match mt with
+			| TClassDecl {cl_kind = KGeneric} -> true,false
+			| TClassDecl {cl_kind = KGenericBuild _} -> false,true
+			| _ -> false,false
+		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		if allow_no_params && t.tparams = [] then begin
 			let pl = ref [] in
@@ -384,7 +388,7 @@ let rec load_instance ctx t p allow_no_params =
 				| t :: tl1,(name,t2) :: tl2 ->
 					let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 					if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
-					let is_rest = is_rest || name = "Rest" in
+					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
 						| TInst ({ cl_kind = KTypeParameter [] }, []) when not is_generic ->
 							t
@@ -401,7 +405,7 @@ let rec load_instance ctx t p allow_no_params =
 					t :: loop tl1 tl2 is_rest
 				| [],[] ->
 					[]
-				| [],["Rest",_] ->
+				| [],["Rest",_] when is_generic_build ->
 					[]
 				| [],_ ->
 					error ("Not enough type parameters for " ^ s_type_path path) p
