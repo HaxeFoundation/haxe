@@ -61,6 +61,9 @@ extern class XMLHttpRequest extends EventTarget
 
 	var onreadystatechange : EventListener;
 
+	/** A function that is called whenever the request times out. */
+	var ontimeout : EventListener;
+	
 	/** <p>The state of the request:</p> <table class="standard-table"> <tbody> <tr> <td class="header">Value</td> <td class="header">State</td> <td class="header">Description</td> </tr> <tr> <td><code>0</code></td> <td><code>UNSENT</code></td> <td><code>open()</code>has not been called yet.</td> </tr> <tr> <td><code>1</code></td> <td><code>OPENED</code></td> <td><code>send()</code>has not been called yet.</td> </tr> <tr> <td><code>2</code></td> <td><code>HEADERS_RECEIVED</code></td> <td><code>send()</code> has been called, and headers and status are available.</td> </tr> <tr> <td><code>3</code></td> <td><code>LOADING</code></td> <td>Downloading; <code>responseText</code> holds partial data.</td> </tr> <tr> <td><code>4</code></td> <td><code>DONE</code></td> <td>The operation is complete.</td> </tr> </tbody> </table> */
 	var readyState(default,null) : Int;
 
@@ -88,6 +91,9 @@ extern class XMLHttpRequest extends EventTarget
 	/** The response string returned by the HTTP server. Unlike <code>status</code>, this includes the entire text of the response message ("<code>200 OK</code>", for example). <strong>Read-only.</strong> Getter throws DOMException. */
 	var statusText(default,null) : String;
 
+	/** The number of milliseconds a request can take before automatically being terminated. A value of 0 (which is the default) means there is no timeout. */
+	var timeout(default, null) : String;
+	
 	/** The upload process can be tracked by adding an event listener to <code>upload</code>. 
 <span>New in <a rel="custom" href="https://developer.mozilla.org/en/Firefox_3.5_for_developers">Firefox 3.5</a></span> */
 	var upload(default,null) : XMLHttpRequestUpload;
