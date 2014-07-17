@@ -114,6 +114,18 @@ class Context {
 	}
 
 	/**
+		Returns the constructor arguments that are used to construct the
+		current `@:genericBuild` class, if available.
+
+		Returns `null` if the current macro is not a build-macro which was
+		called from constructing a `@:genericBuild` instance.
+	**/
+	@:require(haxe_ver >= 3.2)
+	public static function getConstructorArguments():Null<Array<Expr>> {
+		return load("constructor_arguments", 0)();
+	}
+
+	/**
 		Returns the current class in which the macro was called.
 
 		If no such class exists, null is returned.

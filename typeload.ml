@@ -2619,6 +2619,7 @@ let type_module ctx m file tdecls p =
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
+		constructor_argument_stack = [];
 		pass = PBuildModule;
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;

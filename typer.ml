@@ -3157,7 +3157,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				error "Constructor is not a function" p
 		in
 		let t = try
-			follow (Typeload.load_instance ctx t p true)
+			ctx.constructor_argument_stack <- el :: ctx.constructor_argument_stack;
+			let t = follow (Typeload.load_instance ctx t p true) in
+			ctx.constructor_argument_stack <- List.tl ctx.constructor_argument_stack;
+			t
 		with Codegen.Generic_Exception _ ->
 			(* Try to infer generic parameters from the argument list (issue #2044) *)
 			match Typeload.load_type_def ctx p t with
@@ -4192,6 +4195,11 @@ let make_macro_api ctx p =
 				| (WithType t | WithTypeResume t) :: _ -> Some t
 				| _ -> None
 		);
+		Interp.get_constructor_arguments = (fun() ->
+			match ctx.constructor_argument_stack with
+				| [] -> None
+				| el :: _ -> Some el
+		);
 		Interp.get_local_method = (fun() ->
 			ctx.curfield.cf_name;
 		);
@@ -4618,6 +4626,7 @@ let rec create com =
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
+		constructor_argument_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;
