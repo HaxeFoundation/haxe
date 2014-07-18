@@ -36,6 +36,22 @@ using Lambda;
 class ExprTools {
 
 	/**
+		Returns the `Position` where the caller of `makeMacroPosition` is.
+	**/
+	macro static function makeMacroPosition():ExprOf<Position>
+	{
+		var positionExpr = Context.makeExpr(Context.getPosInfos(Context.currentPos()), Context.currentPos());
+		if (Context.defined("macro"))
+		{
+			return macro Context.makePosition($positionExpr);
+		}
+		else
+		{
+			return positionExpr;
+		}
+	}
+
+	/**
 		Converts expression [e] to a human-readable String representation.
 
 		The result is guaranteed to be valid haxe code, but there may be
