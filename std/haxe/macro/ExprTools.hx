@@ -38,7 +38,7 @@ class ExprTools {
 	/**
 		Returns the `Position` where the caller of `makeMacroPosition` is.
 	**/
-	macro static function makeMacroPosition():ExprOf<Position>
+	macro public static function makeMacroPosition():ExprOf<Position>
 	{
 		var positionExpr = Context.makeExpr(Context.getPosInfos(Context.currentPos()), Context.currentPos());
 		if (Context.defined("macro"))
