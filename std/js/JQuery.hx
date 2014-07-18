@@ -399,6 +399,7 @@ extern class JQuery implements ArrayAccess<Element> {
 			haxe.macro.Compiler.includeFile("js/jquery-latest.min.js");
 		#end
 		var q : Dynamic = (untyped js.Browser.window).jQuery;
+		var js = untyped __js__("js || {}");
 		js.JQuery = q;
 		__feature__('js.JQuery.iterator',
 			q.fn.iterator = function() return { pos : 0, j : __this__, hasNext : function() return __this__.pos < __this__.j.length, next : function() return $(__this__.j[__this__.pos++]) }
