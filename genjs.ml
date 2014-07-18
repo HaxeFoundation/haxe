@@ -922,9 +922,10 @@ let gen_class_static_field ctx c f =
 		match e.eexpr with
 		| TFunction _ ->
 			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
+			let dot_path = (dot_path c.cl_path) ^ (static_field f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
-			(match (get_exposed ctx path f.cf_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
+			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
@@ -977,7 +978,7 @@ let generate_class ctx c =
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
-	(match (get_exposed ctx p c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
+	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> (print ctx "function() { }"); ctx.separator <- true);
@@ -1209,7 +1210,7 @@ let generate com =
 	let exposed = List.concat (List.map (fun t ->
 		match t with
 			| TClassDecl c ->
-				let path = s_path ctx c.cl_path in
+				let path = dot_path c.cl_path in
 				let class_exposed = get_exposed ctx path c.cl_meta in
 				let static_exposed = List.map (fun f ->
 					get_exposed ctx (path ^ static_field f.cf_name) f.cf_meta
