@@ -5,6 +5,14 @@ open Typecore
 
 (* PASS 1 begin *)
 
+let rec verify_ast e = match e.eexpr with
+	| TField(_) ->
+		()
+	| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl _}) ->
+		error "Cannot use abstract as value" e.epos
+	| _ ->
+		Type.iter verify_ast e
+
 (*
 	Wraps implicit blocks in TIf, TFor, TWhile, TFunction and TTry with real ones
 *)
@@ -1052,6 +1060,10 @@ let check_void_field ctx t = match t with
 (* PASS 3 end *)
 
 let run_expression_filters ctx filters t =
+	let run e =
+		verify_ast e;
+		List.fold_left (fun e f -> f e) e filters
+	in
 	match t with
 	| TClassDecl c when is_removable_class c -> ()
 	| TClassDecl c ->
@@ -1059,7 +1071,7 @@ let run_expression_filters ctx filters t =
 			match f.cf_expr with
 			| Some e when not (is_removable_field ctx f) ->
 				Codegen.Abstract.cast_stack := f :: !Codegen.Abstract.cast_stack;
-				f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters);
+				f.cf_expr <- Some (run e);
 				Codegen.Abstract.cast_stack := List.tl !Codegen.Abstract.cast_stack;
 			| _ -> ()
 		in
@@ -1071,7 +1083,7 @@ let run_expression_filters ctx filters t =
 		(match c.cl_init with
 		| None -> ()
 		| Some e ->
-			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
+			c.cl_init <- Some (run e));
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()

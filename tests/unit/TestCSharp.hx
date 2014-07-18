@@ -78,8 +78,8 @@ class TestCSharp extends Test
 		v.Invoke();
 		t(run);
 
-		var dyn:Dynamic = v;
-		t(Std.is(dyn, haxe.test.VoidVoid));
+		//var dyn:Dynamic = v;
+		//t(Std.is(dyn, haxe.test.VoidVoid));
 	}
 
 	var didRun = false;
