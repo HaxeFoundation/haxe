@@ -52,6 +52,8 @@ class MacroStringTools {
 		return Context.load("is_fmt_string", 1)(e.pos);
 	}
 
+	#end
+
 	/**
 		Converts an array of Strings `sl` to a field expression.
 
@@ -87,5 +89,4 @@ class MacroStringTools {
 		return TPath( { pack : pack, name : pack.pop(), params : [] } );
 	}
 
-	#end
 }
