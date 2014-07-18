@@ -1072,15 +1072,15 @@ enum flash.display.BitmapCompressColorSpace;
 
 @:require(flash11_2) flash.display.StageWorker;
 @:require(flash11_2) flash.display.Worker;
-@:require(flash11_2) flash.events.GameInputEvent;
+@:require(flash11_8) flash.events.GameInputEvent;
 @:require(flash11_2) flash.events.ThrottleEvent;
 
 flash.events.ThrottleEvent.$type : ThrottleType;
 
 enum flash.events.ThrottleType;
 
-@:require(flash11_2) flash.ui.GameInput;
-@:require(flash11_2) flash.ui.GameInputDevice;
+@:require(flash11_8) flash.ui.GameInput;
+@:require(flash11_8) flash.ui.GameInputDevice;
 -flash.ui.GameInput.new;
 
 @:require(flash11_2) flash.utils.Telemetry;
