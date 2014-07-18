@@ -5085,6 +5085,8 @@ struct
 			| TContinue -> right
 			| TParenthesis p | TMeta(_,p) ->
 				apply_assign assign_fun p
+			| TVar _ ->
+				right
 			| _ ->
 				match follow right.etype with
 					| TEnum( { e_path = ([], "Void") }, [] )
