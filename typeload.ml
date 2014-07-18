@@ -429,6 +429,19 @@ and load_complex_type ctx p t =
 	| CTExtend (tl,l) ->
 		(match load_complex_type ctx p (CTAnonymous l) with
 		| TAnon a as ta ->
+			let is_redefined cf1 a2 =
+				try
+					let cf2 = PMap.find cf1.cf_name a2.a_fields in
+					let st = s_type (print_context()) in
+					if not (type_iseq cf1.cf_type cf2.cf_type) then begin
+						display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
+						display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
+						error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
+					end else
+						true
+				with Not_found ->
+					false
+			in
 			let mk_extension t =
 				match follow t with
 				| TInst ({cl_kind = KTypeParameter _},_) ->
@@ -452,17 +465,15 @@ and load_complex_type ctx p t =
 				| TMono _ ->
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
-					PMap.iter (fun f _ ->
-						if PMap.mem f a2.a_fields then error ("Cannot redefine field " ^ f) p;
-					) a.a_fields;
+					PMap.iter (fun _ cf -> ignore(is_redefined cf a2)) a.a_fields;
 					mk_anon (PMap.foldi PMap.add a.a_fields a2.a_fields)
 				| _ -> error "Can only extend classes and structures" p
 			in
 			let loop t = match follow t with
 				| TAnon a2 ->
 					PMap.iter (fun f cf ->
-						if PMap.mem f a.a_fields then error ("Cannot redefine field " ^ f) p;
-						a.a_fields <- PMap.add f cf a.a_fields
+						if not (is_redefined cf a) then
+							a.a_fields <- PMap.add f cf a.a_fields
 					) a2.a_fields
 				| _ ->
 					error "Multiple structural extension is only allowed for structures" p
