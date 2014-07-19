@@ -4592,8 +4592,12 @@ let call_macro ctx path meth args p =
 
 let call_init_macro ctx e =
 	let p = { pfile = "--macro"; pmin = 0; pmax = 0 } in
-	let api = make_macro_api ctx p in
-	let e = api.Interp.parse_string e p false in
+	let e = try
+		parse_expr_string ctx e p false
+	with err ->
+		display_error ctx ("Could not parse `" ^ e ^ "`") p;
+		raise err
+	in
 	match fst e with
 	| ECall (e,args) ->
 		let rec loop e =
