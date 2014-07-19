@@ -2,7 +2,7 @@ language: cpp
 
 os:
   - linux
-  # - osx
+  - osx
 
 env:
   global:
@@ -11,18 +11,18 @@ env:
     # SAUCE_ACCESS_KEY
     - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
   matrix:
-    # - TEST=third-party
+    - TEST=third-party
     - TEST=macro
-    # - TEST=neko
-    # - TEST=js
-    # - TEST=php
-    # - TEST=cpp
-    # - TEST=flash9
-    # - TEST=as3
-    # - TEST=java
-    # - TEST=cs
-    # - TEST=python
-    # - TEST=flash8
+    - TEST=neko
+    - TEST=js
+    - TEST=php
+    - TEST=cpp
+    - TEST=flash9
+    - TEST=as3
+    - TEST=java
+    - TEST=cs
+    - TEST=python
+    - TEST=flash8
 
 matrix:
   # fast_finish: true #https://github.com/travis-ci/travis-ci/issues/1696
