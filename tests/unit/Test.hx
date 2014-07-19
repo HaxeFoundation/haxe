@@ -103,7 +103,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		reportInfos = m;
 	}
 
-	function async<Args,T>( f : Args -> (T -> Void) -> Void, args : Args, v : T, ?pos : haxe.PosInfos ) {
+	function async<Args,T>( f : Args -> (T -> Void) -> Void, args : Args, v : T, ?pos : haxe.PosInfos ) : Void {
 		if( asyncWaits.length >= AMAX ) {
 			asyncCache.push(async.bind(f,args,v,pos));
 			return;
@@ -124,7 +124,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		});
 	}
 
-	function asyncExc<Args>( seterror : (Dynamic -> Void) -> Void, f : Args -> (Dynamic -> Void) -> Void, args : Args, ?pos : haxe.PosInfos ) {
+	function asyncExc<Args>( seterror : (Dynamic -> Void) -> Void, f : Args -> (Dynamic -> Void) -> Void, args : Args, ?pos : haxe.PosInfos ) : Void {
 		if( asyncWaits.length >= AMAX ) {
 		asyncCache.push(asyncExc.bind(seterror,f,args,pos));
 			return;

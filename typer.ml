@@ -1550,8 +1550,20 @@ let type_bind ctx (e : texpr) params p =
 	let t_inner = TFun(inner_fun_args missing_args, ret) in
 	let call = make_call ctx (vexpr loc) ordered_args ret p in
 	let e_ret = match follow ret with
-		| TAbstract ({a_path = [],"Void"},_) -> call
-		| _ -> mk (TReturn (Some call)) t_dynamic p;
+		| TAbstract ({a_path = [],"Void"},_) ->
+			call
+		| TMono _ ->
+			delay ctx PFinal (fun () ->
+				match follow ret with
+				| TAbstract ({a_path = [],"Void"},_) ->
+					display_error ctx "Could not bind this function because its Void return type was inferred too late" p;
+					error "Consider an explicit type hint" p
+				| _ ->
+					()
+			);
+			mk (TReturn (Some call)) t_dynamic p;
+		| _ ->
+			mk (TReturn (Some call)) t_dynamic p;
 	in
 	let func = mk (TFunction {
 		tf_args = List.map (fun (v,o) -> v, if o then Some TNull else None) missing_args;
