@@ -36,9 +36,9 @@ using Lambda;
 class ExprTools {
 
 	/**
-		Returns the `Position` where the caller of `makeMacroPosition` is.
+		Returns the `Position` where the caller of `here` is.
 	**/
-	macro public static function makeMacroPosition():ExprOf<Position> {
+	macro public static function here():ExprOf<Position> {
 		var positionExpr = Context.makeExpr(Context.getPosInfos(Context.currentPos()), Context.currentPos());
 		if (Context.defined("macro")) {
 			return macro Context.makePosition($positionExpr);
