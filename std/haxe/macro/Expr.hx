@@ -21,7 +21,7 @@
  */
 package haxe.macro;
 
-#if macro
+#if (macro && !doc_gen)
 extern enum Position {
 }
 #else
