@@ -394,7 +394,7 @@ class RunTravis {
 				//BYTECODE
 				if (Sys.getEnv("TRAVIS") == "true") {
 					changeDirectory(repoDir);
-					runCommand("make", []);
+					runCommand("make", ["BYTECODE=1"]);
 					runCommand("sudo", ["make", "install"]);
 					changeDirectory(unitDir);
 					runCommand("haxe", ["compile-macro.hxml"]);
