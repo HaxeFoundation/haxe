@@ -813,6 +813,8 @@ let rename_local_vars com e =
 		| TCast (e,Some t) ->
 			loop e;
 			check t;
+		| TConst TSuper ->
+			check_type e.etype
 		| _ ->
 			Type.iter loop e
 	in
