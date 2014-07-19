@@ -30,3 +30,4 @@ typedef TComplexTypeTools = ComplexTypeTools;
 typedef TTypeTools = TypeTools;
 typedef TMacroStringTools = MacroStringTools;
 typedef TTypedExprTools = TypedExprTools;
+typedef TPositionTools = PositionTools;
