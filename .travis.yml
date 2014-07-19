@@ -32,7 +32,7 @@ matrix:
 install:
   - if [ -z "${TRAVIS_OS_NAME}" ]; then export TRAVIS_OS_NAME=linux; fi; # for our forks that do not have mult-os enabled.
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then travis_retry sudo apt-get update; travis_retry sudo apt-get install ocaml zlib1g-dev libgc-dev -y; fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew update; travis_retry brew install phinze/cask/brew-cask && travis_retry brew cask install xquartz; travis_retry brew install ocaml; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew update; travis_retry brew install phinze/cask/brew-cask; travis_retry brew install ocaml; fi
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko && cd ~/neko && make os=${TRAVIS_OS_NAME} && sudo make install && cd $TRAVIS_BUILD_DIR; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew install neko --HEAD; fi
 
