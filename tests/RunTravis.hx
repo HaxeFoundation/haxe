@@ -367,6 +367,7 @@ class RunTravis {
 
 	static function main():Void {
 		changeDirectory(unitDir);
+		Sys.putEnv("OCAMLRUNPARAM", "b");
 		switch (test) {
 			case Macro, null:
 				runCommand("haxe", ["compile-macro.hxml"]);
