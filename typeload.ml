@@ -208,7 +208,7 @@ let make_module ctx mpath file tdecls loadp =
 let parse_file com file p =
 	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
 	let t = Common.timer "parsing" in
-	Lexer.init file;
+	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com (Lexing.from_channel ch) with e -> close_in ch; t(); raise e) in
 	close_in ch;

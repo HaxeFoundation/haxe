@@ -85,10 +85,10 @@ let keywords =
 		Inline;Using;Null;True;False;Abstract;Macro];
 	h
 
-let init file =
+let init file do_add =
 	let f = make_file file in
 	cur := f;
-	Hashtbl.replace all_files file f
+	if do_add then Hashtbl.replace all_files file f
 
 let save() =
 	!cur

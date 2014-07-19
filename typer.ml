@@ -339,7 +339,7 @@ let parse_string ctx s p inlined =
 		Lexer.restore old;
 		Parser.display_error := old_de
 	in
-	Lexer.init p.pfile;
+	Lexer.init p.pfile false;
 	Parser.display_error := (fun e p -> raise (Parser.Error (e,p)));
 	if not inlined then Parser.resume_display := null_pos;
 	let _, decls = try
