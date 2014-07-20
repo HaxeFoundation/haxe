@@ -94,7 +94,6 @@ class Printer {
 				write("<?" + value.nodeValue + "?>");
 			case Xml.DocType:
 				write("<!DOCTYPE " + value.nodeValue + ">");
-			case _:
 		}
 	}
 
@@ -117,7 +116,6 @@ class Printer {
 					if (StringTools.ltrim(child.nodeValue).length != 0) {
 						return true;
 					}
-				case _:
 			}
 		}
 		return false;
