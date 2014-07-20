@@ -4616,6 +4616,8 @@ class script_writer common_ctx ctx filename =
          | _ -> false;
       in
       (match (remove_parens func).eexpr with
+      | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
+               this#write ("CALLGLOBAL " ^ (this#stringText (field_name field)) ^ argN ^ "\n");
       | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
                this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
                   argN ^ "\n");
