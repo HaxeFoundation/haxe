@@ -4157,6 +4157,13 @@ let make_macro_api ctx p =
 					"isKeyword", Interp.VFunction (Interp.Fun1 (fun v ->
 						Interp.VBool (Hashtbl.mem Genjs.kwds (Interp.dec_string v))
 					));
+					"hasFeature", Interp.VFunction (Interp.Fun1 (fun v ->
+						Interp.VBool (Common.has_feature ctx.com (Interp.dec_string v))
+					));
+					"addFeature", Interp.VFunction (Interp.Fun1 (fun v ->
+						Common.add_feature ctx.com (Interp.dec_string v);
+						Interp.VNull
+					));	
 					"quoteString", Interp.VFunction (Interp.Fun1 (fun v ->
 						Interp.enc_string ("\"" ^ Ast.s_escape (Interp.dec_string v) ^ "\"")
 					));
