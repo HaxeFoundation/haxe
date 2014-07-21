@@ -3608,26 +3608,42 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          output_cpp "};\n\n";
       end;
 
-      let dump_member_storage = (fun field ->
-         let storage = match type_string field.cf_type with
+      let storage field = match type_string field.cf_type with
          | "bool" -> "hx::fsBool"
          | "int" -> "hx::fsInt"
          | "Float" -> "hx::fsFloat"
          | "::String" -> "hx::fsString"
          | str -> "hx::fsObject" ^ " /*" ^ str ^ "*/ "
          in
-         output_cpp ("\t{" ^ storage ^ ",(int)offsetof(" ^ class_name ^"," ^ (keyword_remap field.cf_name) ^")," ^
+      let dump_member_storage = (fun field ->
+         output_cpp ("\t{" ^ (storage field) ^ ",(int)offsetof(" ^ class_name ^"," ^ (keyword_remap field.cf_name) ^")," ^
             (str field.cf_name) ^ "},\n")
          )
       in
-      let stored_fields = List.filter is_data_member implemented_instance_fields in
+      let dump_static_storage = (fun field ->
+         output_cpp ("\t{" ^ (storage field) ^ ",(void *) &" ^ class_name ^"::" ^ (keyword_remap field.cf_name) ^"," ^
+            (str field.cf_name) ^ "},\n")
+         )
+      in
+
       output_cpp "#if HXCPP_SCRIPTABLE\n";
+
+      let stored_fields = List.filter is_data_member implemented_instance_fields in
       if ( (List.length stored_fields) > 0) then begin
          output_cpp "static hx::StorageInfo sMemberStorageInfo[] = {\n";
          List.iter dump_member_storage stored_fields;
          output_cpp "\t{ hx::fsUnknown, 0, null()}\n};\n";
       end else
          output_cpp "static hx::StorageInfo *sMemberStorageInfo = 0;\n";
+
+      let stored_statics = List.filter is_data_member implemented_fields in
+      if ( (List.length stored_statics) > 0) then begin
+         output_cpp "static hx::StaticInfo sStaticStorageInfo[] = {\n";
+         List.iter dump_static_storage stored_statics;
+         output_cpp "\t{ hx::fsUnknown, 0, null()}\n};\n";
+      end else
+         output_cpp "static hx::StaticInfo *sStaticStorageInfo = 0;\n";
+
       output_cpp "#endif\n\n";
    end; (* cl_interface *)
 
@@ -3815,7 +3831,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp ("\t&__CreateEmpty, &__Create,\n");
       output_cpp ("\t&super::__SGetClass(), 0, sMarkStatics\n");
       output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatics\n#endif\n");
-      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n    , sMemberStorageInfo\n#endif\n");
+      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n    , sMemberStorageInfo, sStaticStorageInfo \n#endif\n");
       output_cpp (");\n");
       if (scriptable) then
             output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
