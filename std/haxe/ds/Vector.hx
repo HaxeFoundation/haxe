@@ -54,7 +54,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
 	public inline function new(length:Int) {
-		#if flash9
+		#if flash10
 			this = new flash.Vector<T>(length, true);
 		#elseif neko
 			this = untyped __dollar__amake(length);
