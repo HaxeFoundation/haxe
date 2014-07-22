@@ -20,18 +20,17 @@ class TestTranslator extends Test {
 	#if !macro
 	public function test()
 	{
-		#if run_time_translation
-		eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "Hello, World!");
-		Translator.runTimeLocale = "zh_CN.UTF-8";
-		eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "世界，你好！");
-		Translator.runTimeLocale = null;
-		eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "Hello, World!");
-		#else
 		eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "Hello, World!");
 		setupTranslation();
 		eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "Hello, World!");
-		setupLocale();
-		eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "世界，你好！");
+		#if run_time_translation
+			Translator.runTimeLocale = "zh_CN.UTF-8";
+			eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "世界，你好！");
+			Translator.runTimeLocale = null;
+			eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "Hello, World!");
+		#else
+			setupLocale();
+			eq({ var who = "World".translate(); Translator.translate('Hello, $who!'); }, "世界，你好！");
 		#end
 	}
 	#end
