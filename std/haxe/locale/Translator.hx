@@ -2,6 +2,8 @@ package haxe.locale;
 import haxe.macro.*;
 import haxe.macro.Expr;
 
+private typedef Translation = Iterable<{ var source(default, never):String; var translated(default, never):String; }>;
+
 class Translator {
 
 	#if run_time_translation
@@ -15,34 +17,46 @@ class Translator {
 		compileTimeTranslate(self, defaultDictionary, Context.definedValue("locale"));
 		#end
 	}
-
 	#if macro
 
 	@:access(haxe.format.JsonParser)
-	public static function addTranslationFile(locale:String, translationFile:String):Void {
-		var path = Context.resolvePath(translationFile);
+	static function readJsonFile(file:String):Dynamic return {
+		var path = Context.resolvePath(file);
 		var content = sys.io.File.getContent(path);
 		var parser = new haxe.format.JsonParser(content);
-		var json = try {
+		try {
 			parser.parseRec();
 		} catch (e:Dynamic) {
 			Context.error(Std.string(e), Context.makePosition({ min: parser.pos, max: parser.pos, file: path }));
 		}
-		addTranslation(locale, json);
 	}
 
-	public static function addTranslation(locale:String, translation:Iterable<{ var source(default, never):String; var translated(default, never):String; }>):Void {
-		var map = defaultDictionary.get(locale);
+	static function merge(dictionary:Map<String, Map<String, String>>, locale:String, translation:Translation):Void {
+		var map = dictionary.get(locale);
 		if (map == null) {
 			map = new Map<String, String>();
-			defaultDictionary.set(locale, map);
+			dictionary.set(locale, map);
 		}
 		for (entry in translation) {
 			map.set(entry.source, entry.translated);
 		}
 	}
 
-	static var defaultDictionary(default, never) = new Map<String, Map<String, String>>();
+	static var defaultDictionary(default, never) = {
+		var d = new Map<String, Map<String, String>>();
+		merge(d, "zh_CN.GBK", readJsonFile("haxe/locale/translation.zh_CN.GBK.json"));
+		d;
+	}
+
+	@:noUsing
+	public static function addTranslationFile(locale:String, translationFile:String):Void {
+		addTranslation(locale, readJsonFile(translationFile));
+	}
+
+	@:noUsing
+	public static function addTranslation(locale:String, translation:Translation):Void {
+		merge(defaultDictionary, locale, translation);
+	}
 
 	@:noUsing
 	public static function compileTimeTranslate(text:ExprOf<String>, dictionary:Map<String, Map<String, String>>, locale:Null<String>):ExprOf<String> return {
@@ -67,7 +81,7 @@ class Translator {
 						}
 					}
 				case { expr: EMeta({ name: ":this", params: []}, {expr: EConst(CIdent("this")) }), pos: p }:
-					Context.error(translate("Using mix-in macro is not supported for string interpolation"), p);
+					Context.error(translate("Using mix-in macro is not supported"), p);
 				case { pos: p }:
 					Context.error(translate("Expect a string literal"), p);
 			}
