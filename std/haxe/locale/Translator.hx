@@ -3,7 +3,7 @@ import haxe.macro.*;
 import haxe.macro.Expr;
 
 class Translator {
-	
+
 	#if run_time_translator
 	public static var runTimeLocale:Null<String>;
 	#end
@@ -20,12 +20,13 @@ class Translator {
 
 	@:access(haxe.format.JsonParser)
 	public static function addTranslationFile(locale:String, translationFile:String):Void {
-		var content = sys.io.File.getContent(Context.resolvePath(translationFile));
+		var path = Context.resolvePath(translationFile);
+		var content = sys.io.File.getContent(path);
 		var parser = new haxe.format.JsonParser(content);
 		var json = try {
 			parser.parseRec();
 		} catch (e:Dynamic) {
-			Context.error(Std.string(e), Context.makePosition({ min: parser.pos, max: parser.pos, file: translationFile }));
+			Context.error(Std.string(e), Context.makePosition({ min: parser.pos, max: parser.pos, file: path }));
 		}
 		addTranslation(locale, json);
 	}
