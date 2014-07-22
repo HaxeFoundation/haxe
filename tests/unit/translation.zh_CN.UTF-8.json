@@ -1,0 +1,10 @@
+[
+	{
+		"source": "World",
+		"translated": "世界"
+	},
+	{
+		"source": "Hello, $who!",
+		"translated": "$who，你好！"
+	}
+]

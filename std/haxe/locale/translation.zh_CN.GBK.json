@@ -1,0 +1,10 @@
+[
+  {
+    "source": "Using mix-in macro is not supported",
+    "translated": "不支持using混入语法"
+  },
+  {
+    "source": "Expect a string literal",
+    "translated": "需要字符串字面量"
+  }
+]
