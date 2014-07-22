@@ -30,6 +30,7 @@ open Type
 open Printf
 open Option
 open ExtString
+module SS = Set.Make(String)
 
 let is_boxed_type t = match follow t with
 	| TInst ({ cl_path = (["java";"lang"], "Boolean") }, [])
@@ -2242,16 +2243,21 @@ exception ConversionError of string * pos
 let error s p = raise (ConversionError (s, p))
 
 let jname_to_hx name =
-	let name =
-		if name <> "" && (String.get name 0 < 'A' || String.get name 0 > 'Z') then
-			Char.escaped (Char.uppercase (String.get name 0)) ^ String.sub name 1 (String.length name - 1)
+	let sb = Buffer.create 16 in
+	String.iter (fun c ->
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') then
+			Buffer.add_char sb c
+		else if c = '_' then
+			Buffer.add_string sb "__"
 		else
-			name
-	in
-	(* handle non-inner classes with same final name as non-inner *)
-	let name = String.concat "__" (String.nsplit name "_") in
-	(* handle with inner classes *)
-	String.map (function | '$' -> '_' | c -> c) name
+			Buffer.add_string sb (Printf.sprintf "_%X" (Char.code c))
+	) name;
+	let ret = Buffer.contents sb in
+	let first_char = ret.[0] in
+	if first_char >= 'a' || first_char <= 'z' then begin
+		ret.[0] <- (Char.uppercase first_char)
+	end;
+	ret
 
 let normalize_pack pack =
 	List.map (function
@@ -2271,11 +2277,24 @@ let jpath_to_hx (pack,name) = match pack, name with
 	| pack, name -> normalize_pack pack, jname_to_hx name
 
 let hxname_to_j name =
-	let name = String.implode (List.rev (String.explode name)) in
-	let fl = String.nsplit name "__" in
-	let fl = List.map (String.map (fun c -> if c = '_' then '$' else c)) fl in
-	let ret = String.concat "_" fl in
-	String.implode (List.rev (String.explode ret))
+	let sb = Buffer.create 16 in
+	let rec next i = 
+		if i >= String.length name then Buffer.contents sb else
+			let c = name.[i] in
+			if c == '_' then begin
+				if name.[i+1] = '_' then begin
+					Buffer.add_char sb '_';
+					next (i + 2);
+				end else begin
+					Buffer.add_char sb (Char.chr (int_of_string ("0x" ^ String.sub name (i+1) 2)));
+					next (i + 3);
+				end
+			end else begin
+				Buffer.add_char sb c;
+				next (i + 1);
+			end
+	in
+	next 0
 
 let hxpath_to_j (pack,name) = match pack, name with
 	| "java" :: "com" :: ("oracle" | "sun") :: _, _
@@ -2297,11 +2316,15 @@ let lookup_jclass com path =
 	) com.java_libs None
 
 let mk_type_path ctx path params =
-	let name, sub = try
-		let p, _ = String.split (snd path) "$" in
-		jname_to_hx p, Some (jname_to_hx (snd path))
-	with | Invalid_string ->
-		jname_to_hx (snd path), None
+	let jname = snd path in
+	let name, sub = if String.ends_with jname "$sp" || String.ends_with jname "$" then
+		jname_to_hx jname, None
+	else
+		try
+			let dollarIndex = String.index jname '$' in
+				jname_to_hx (String.sub jname 0 dollarIndex), Some(jname_to_hx jname)
+		with
+			| Not_found -> jname_to_hx jname, None
 	in
 	CTPath {
 		tpackage = fst (jpath_to_hx path);
@@ -2523,12 +2546,18 @@ let convert_java_enum ctx p pe =
 				| _ -> error "Method signature was expected" p
 		in
 		let cff_name, cff_meta =
-			if String.get cff_name 0 = '%' then
-				let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
-				"_" ^ name,
-				(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
-			else
-				cff_name, !cff_meta
+			match String.get cff_name 0 with
+				| '%' ->
+					let name = (String.sub cff_name 1 (String.length cff_name - 1)) in
+					"_" ^ name,
+					(Meta.Native, [EConst (String (name) ), cff_pos], cff_pos) :: !cff_meta
+				| _ ->
+					match String.nsplit cff_name "$" with
+						| [ no_dollar ] ->
+							cff_name, !cff_meta
+						| parts ->
+							String.concat "_" parts,
+							(Meta.Native, [EConst (String (cff_name) ), cff_pos], cff_pos) :: !cff_meta
 		in
 
 		{
@@ -3175,6 +3204,50 @@ let add_java_lib com file std =
 						with | Not_found ->
 							inner
 						in
+						let inner_alias = ref SS.empty in
+						List.iter (fun x ->
+							match fst x with
+							| EClass c ->
+								inner_alias := SS.add c.d_name !inner_alias;
+							| _ -> ()
+						) inner;
+						let alias_list = ref [] in
+						List.iter (fun x ->
+							match x with
+							| (EClass c, pos) -> begin
+								let parts = String.nsplit c.d_name "_24" in
+								match parts with
+									| _ :: _ ->
+										let alias_name = String.concat "_" parts in
+										if (not (SS.mem alias_name !inner_alias)) && (not (String.exists (snd path) "_24")) then begin
+											let alias_def = ETypedef {
+												d_name = alias_name;
+												d_doc = None;
+												d_params = c.d_params;
+												d_meta = [];
+												d_flags = [];
+												d_data = CTPath {
+													tpackage = pack;
+													tname = snd path;
+													tparams = List.map (fun tp ->
+														TPType (CTPath {
+															tpackage = [];
+															tname = tp.tp_name;
+															tparams = [];
+															tsub = None;
+														})
+													) c.d_params;
+													tsub = Some(c.d_name);
+												};
+											} in
+											inner_alias := SS.add alias_name !inner_alias;
+											alias_list := (alias_def, pos) :: !alias_list;
+										end
+									| _ -> ()
+							end
+							| _ -> ()
+						) inner;
+						let inner = List.concat [!alias_list ; inner] in
 						let ret = Some ( real_path, (pack, (convert_java_class ctx pos cls, pos) :: inner) ) in
 						ctx.jtparams <- old_types;
 						ret

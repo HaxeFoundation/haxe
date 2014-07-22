@@ -104,4 +104,11 @@ public class Base
 			return a1;
 		}
 	}
+
+	public static class _InnerClass3_
+	{
+		public static class InnerClass4_
+		{
+		}
+	}
 }
