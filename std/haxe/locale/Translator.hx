@@ -4,12 +4,12 @@ import haxe.macro.Expr;
 
 class Translator {
 
-	#if run_time_translator
+	#if run_time_translation
 	public static var runTimeLocale:Null<String>;
 	#end
 
 	macro public static function translate(self:ExprOf<String>):ExprOf<String> return {
-		#if run_time_translator
+		#if run_time_translation
 		runTimeTranslate(self, defaultDictionary, macro Translator.runTimeLocale);
 		#else
 		compileTimeTranslate(self, defaultDictionary, Context.definedValue("locale"));
