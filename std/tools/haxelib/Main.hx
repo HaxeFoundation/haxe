@@ -659,13 +659,16 @@ class Main {
 			if( last != "/" && last != "\\" )
 				haxepath += "/";
 		}
+		var envPath = Sys.getEnv("HAXELIB_PATH");
 		var config_file;
 		if( win )
 			config_file = Sys.getEnv("HOMEDRIVE") + Sys.getEnv("HOMEPATH");
 		else
 			config_file = Sys.getEnv("HOME");
 		config_file += "/.haxelib";
-		var rep = try
+		var rep = if (envPath != null)
+			envPath
+		else try
 			File.getContent(config_file)
 		catch( e : Dynamic ) try
 			File.getContent("/etc/.haxelib")
