@@ -689,6 +689,16 @@ let is_array haxe_type =
    | _ -> false
    ;;
 
+let is_array_or_dyn_array haxe_type =
+   match follow haxe_type with
+   | TInst (klass,params) ->
+      (match klass.cl_path with | [] , "Array" -> true | _ -> false )
+   | TType (type_def,params) ->
+      (match type_def.t_path with | [] , "Array" -> true | _ -> false )
+   | _ -> false
+   ;;
+
+
 
 let is_array_implementer haxe_type =
    match follow haxe_type with
@@ -4466,6 +4476,22 @@ class script_writer common_ctx ctx filename =
    | TThis -> "THIS "
    | TSuper -> "SUPER "
 
+   method get_array_type t =
+      match follow t with
+      | TInst ({cl_path=[],"Array"},[param]) ->
+            let typeName = type_string_suff "" param in
+            (match typeName with
+            | "::String"  -> ArrayData "String"
+            | "int" | "Float" | "bool" | "String" | "unsigned char" ->
+               ArrayData typeName
+            | "Dynamic" -> ArrayAny
+            | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
+            | _ -> ArrayObject
+            )
+      | TAbstract (abs,pl) when abs.a_impl <> None ->
+            this#get_array_type  (Codegen.Abstract.get_underlying_type abs pl);
+      | _ -> ArrayNone;
+
    method pushReturn inType =
       let oldReturnType = return_type in
       return_type <- inType;
@@ -4508,10 +4534,11 @@ class script_writer common_ctx ctx filename =
       this#writeBool v.v_capture;
       this#writeType v.v_type;
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
+   method writePos expr = this#write ( (this#fileText expr.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expr.epos) ) ^ indent);
    method checkCast toType expr forceCast fromGenExpression=
    let write_cast text =
       if (not fromGenExpression) then
-         this#write ( (this#fileText expr.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expr.epos) ) ^ indent);
+         this#writePos expr;
       this#write (text ^"\n" );
       this#begin_expr;
       this#gen_expression expr;
@@ -4522,29 +4549,13 @@ class script_writer common_ctx ctx filename =
       if (is_interface_type toType) && not (is_interface_type expr.etype) then begin
          write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeText expr.etype) )
       end else begin
-         let rec get_array_type t =
-            match follow t with
-            | TInst ({cl_path=[],"Array"},[param]) ->
-                  let typeName = type_string_suff "" param in
-                  (match typeName with
-                  | "::String"  -> ArrayData "String"
-                  | "int" | "Float" | "bool" | "String" | "unsigned char" ->
-                     ArrayData typeName
-                  | "Dynamic" -> ArrayAny
-                  | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
-                  | _ -> ArrayObject
-                  )
-            | TAbstract (abs,pl) when abs.a_impl <> None ->
-                  get_array_type  (Codegen.Abstract.get_underlying_type abs pl);
-            | _ -> ArrayNone
-         in
-         let get_array_expr_type expr =
+        let get_array_expr_type expr =
             if is_dynamic_in_cpp ctx expr then
                ArrayNone
             else
-               get_array_type expr.etype
+               this#get_array_type expr.etype
             in
-         match (get_array_type toType), (get_array_expr_type expr) with
+         match (this#get_array_type toType), (get_array_expr_type expr) with
          | ArrayAny, _ -> false
          | ArrayObject, ArrayData _ -> write_cast ("TODYNARRAY")
          | ArrayData t, ArrayNone
@@ -4631,41 +4642,62 @@ class script_writer common_ctx ctx filename =
          | Method MethNormal -> true
          | _ -> false;
       in
-      (match (remove_parens func).eexpr with
-      | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
-               this#write ("CALLGLOBAL " ^ (this#stringText (field_name field)) ^ argN ^ "\n");
-      | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
-               this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
-                  argN ^ "\n");
-      | TField (obj,FInstance (_,field) ) when (is_this obj) && (is_real_function field) ->
-               this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                  argN ^ "\n");
-      | TField (obj,FInstance (_,field) ) when is_super obj ->
-               this#write ("CALLSUPER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                  argN ^ "\n");
-      | TField (obj,FInstance (_,field) ) when is_real_function field ->
-               this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                  argN ^ "\n");
-               this#gen_expression obj;
-      | TField (obj,FDynamic (name) )  when (is_internal_member name || (type_string obj.etype = "::String" && name="cca") ) ->
-               this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText name) ^
-                  argN ^ "\n");
-               this#gen_expression obj;
-      | TConst TSuper -> this#write ("CALLSUPERNEW " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
-      | TField (_,FEnum (enum,field)) -> this#write ("CREATEENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
-      | _ -> this#write ("CALL " ^ argN ^ "\n");
-               this#gen_expression func;
-      );
-      let matched_args = match func.etype with
-         | TFun (args,_) ->
-            ( try (
-               List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false false)  args arg_list;
-               true; )
-            with Invalid_argument _ -> (*print_endline "Bad count?";*) false )
-         | _ -> false
+      let gen_call () = 
+         (match (remove_parens func).eexpr with
+         | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
+                  this#write ("CALLGLOBAL " ^ (this#stringText (field_name field)) ^ argN ^ "\n");
+         | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
+                  this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
+                     argN ^ "\n");
+         | TField (obj,FInstance (_,field) ) when (is_this obj) && (is_real_function field) ->
+                  this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                     argN ^ "\n");
+         | TField (obj,FInstance (_,field) ) when is_super obj ->
+                  this#write ("CALLSUPER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                     argN ^ "\n");
+         | TField (obj,FInstance (_,field) ) when is_real_function field ->
+                  this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                     argN ^ "\n");
+                  this#gen_expression obj;
+         | TField (obj,FDynamic (name) )  when (is_internal_member name || (type_string obj.etype = "::String" && name="cca") ) ->
+                  this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText name) ^
+                     argN ^ "\n");
+                  this#gen_expression obj;
+         | TConst TSuper -> this#write ("CALLSUPERNEW " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
+         | TField (_,FEnum (enum,field)) -> this#write ("CREATEENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
+         | _ -> this#write ("CALL " ^ argN ^ "\n");
+                  this#gen_expression func;
+         );
+         let matched_args = match func.etype with
+            | TFun (args,_) ->
+               ( try (
+                  List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false false)  args arg_list;
+                  true; )
+               with Invalid_argument _ -> (*print_endline "Bad count?";*) false )
+            | _ -> false
+         in
+         if not matched_args then
+            List.iter this#gen_expression arg_list;
       in
-      if not matched_args then
-         List.iter this#gen_expression arg_list;
+      (match (remove_parens func).eexpr with
+         | TField(obj,field) when is_array_or_dyn_array obj.etype && (field_name field)="map" ->
+            (match this#get_array_type expression.etype with
+            | ArrayData t ->
+                this#write ("TODATAARRAY " ^ (this#typeTextString ("Array." ^ t)) ^ "\n");
+                this#begin_expr;
+                this#writePos func;
+                gen_call();
+                this#end_expr;
+            | ArrayInterface t ->
+                this#write ("TOINTERFACEARRAY " ^ (string_of_int t) ^ "\n");
+                this#begin_expr;
+                this#writePos func;
+                gen_call();
+                this#end_expr;
+            | _ -> gen_call();
+            )
+         | _ -> gen_call();
+      );
    | TField (obj, acc) ->
       let typeText = this#typeText obj.etype in
       (match acc with
@@ -4715,7 +4747,22 @@ class script_writer common_ctx ctx filename =
                      this#checkCast tvar.v_type init false false);
    | TNew (clazz,params,arg_list) ->
       this#write ("NEW " ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
-      List.iter this#gen_expression arg_list;
+      let rec matched_args clazz = match clazz.cl_constructor, clazz.cl_super with
+         | None, Some super -> matched_args (fst super)
+         | None, _ -> false
+         | Some ctr, _ ->
+            (match ctr.cf_type with
+            | TFun(args,_) ->
+               ( try (
+                  List.iter2 (fun (_,_,protoT) arg -> this#checkCast protoT arg false false)  args arg_list;
+                  true; )
+                 with Invalid_argument _ -> (*print_endline "Bad count?";*) false )
+            | _ -> false
+            )
+      in
+      if not (matched_args clazz) then
+         List.iter this#gen_expression arg_list;
+
    | TReturn optval -> (match optval with
          | None -> this#write "RETURN\n"
          | Some value -> this#write ("RETVAL " ^ (this#typeText value.etype) ^ "\n");
@@ -4772,7 +4819,7 @@ class script_writer common_ctx ctx filename =
             this#gen_expression catch_expr;
          ) catches;
    | TCast (cast,None) -> error "Unexpected cast" expression.epos
-   | TCast (cast,Some _) -> this#checkCast expression.etype cast true true
+   | TCast (cast,Some _) -> this#checkCast expression.etype cast true true;
    | TParenthesis _ -> error "Unexpected parens" expression.epos
    | TMeta(_,_) -> error "Unexpected meta" expression.epos
    | TPatMatch _ ->  error "Unexpected pattern match" expression.epos
