@@ -87,8 +87,7 @@ class UnitBuilder {
 			}
 		}
 		var e = switch [isFloat(e1) || isFloat(e2), e2.expr] {
-			// hell yeah
-			case [true, EField( { expr:EConst(CIdent("Math")) }, "POSITIVE_INFINITY" | "NEGATIVE_INFINITY")] if (Context.defined("cpp") || Context.defined("php")):
+			case [_, EField( { expr:EConst(CIdent("Math" | "math")) }, "POSITIVE_INFINITY" | "NEGATIVE_INFINITY")] if (Context.defined("cpp") || Context.defined("php")):
 				macro t($e1 == $e2);
 			case [true, _]:
 				macro feq($e1, $e2);
