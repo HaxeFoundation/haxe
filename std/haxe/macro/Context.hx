@@ -200,7 +200,7 @@ class Context {
 	public static function getLocalTVars() : haxe.ds.StringMap<Type.TVar> {
 		return load("local_vars", 1)(true);
 	}
-	
+
 	/**
 		Tells if compiler directive `s` has been set.
 
@@ -253,6 +253,9 @@ class Context {
 
 	/**
 		Parses `expr` as haxe code, returning the corresponding AST.
+
+		String interpolation of single quote strings within `expr` is not
+		supported.
 
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
