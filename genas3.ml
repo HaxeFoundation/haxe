@@ -167,6 +167,12 @@ let init infos path =
 	}
 
 let close ctx =
+	begin match ctx.inf.com.main_class with
+		| Some tp when tp = ctx.curclass.cl_path ->
+			output_string ctx.ch "// Compile __main__.as instead\n";
+		| _ ->
+			()
+	end;
 	output_string ctx.ch (Printf.sprintf "package %s {\n" (String.concat "." (fst ctx.path)));
 	Hashtbl.iter (fun name paths ->
 		List.iter (fun pack ->
