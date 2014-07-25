@@ -22,6 +22,9 @@
 	cpp : fixed issue with the side-effect handler
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
+	all : fixed __init__ methods of extern classes being generated even if the class is not used (but imported).
+	      this change may break existing code that relies on that bug. to force extern class __init__ generation,
+	      use the @:keepInit class-level metadata
 
 	General improvements and optimizations:
 
