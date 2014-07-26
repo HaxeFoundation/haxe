@@ -268,11 +268,7 @@ class Printer {
 					+ " {\n"
 					+ [for (f in t.fields) {
 						var fstr = printField(f);
-						tabs + fstr + switch(f.kind) {
-							case FVar(_, _), FProp(_, _, _, _): ";";
-							case FFun(func) if (func.expr == null): ";";
-							case _: "";
-						};
+						tabs + fstr + ";";
 					}].join("\n")
 					+ "\n}";
 				case TDAlias(ct):
