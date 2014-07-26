@@ -1950,7 +1950,7 @@ module Generator = struct
 				spr_line ctx import;
 				spr_line ctx "except:\n\tpass"
 			end else
-				spr ctx import
+				spr_line ctx import
 		end
 
 	let gen_class ctx c =
