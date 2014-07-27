@@ -1339,7 +1339,7 @@ module Printer = struct
 		in
 		let call_override s =
 			match s with
-			| "iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift" | "join" | "push" -> true
+			| "iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift" | "join" | "push" | "map" | "filter" -> true
 			| _ -> false
 		in
 		match fa with
@@ -1504,7 +1504,7 @@ module Printer = struct
 
 	and print_call pctx e1 el =
 		match e1.eexpr, el with
-			| TField(e1,((FAnon {cf_name = (("join" | "push") as s)}) | FDynamic (("join" | "push") as s))), [x] ->
+			| TField(e1,((FAnon {cf_name = (("join" | "push" | "map" | "filter") as s)}) | FDynamic (("join" | "push" | "map" | "filter") as s))), [x] ->
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
 			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)

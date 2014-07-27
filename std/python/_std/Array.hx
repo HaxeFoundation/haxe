@@ -107,11 +107,11 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 		return ArrayImpl.splice(this, pos, len);
 	}
 
-	public inline function map<S>( f : T -> S ) : Array<S> {
+	@:runtime public inline function map<S>( f : T -> S ) : Array<S> {
 		return ArrayImpl.map(this, f);
 	}
 
-	public inline function filter( f : T -> Bool ) : Array<T> {
+	@:runtime public inline function filter( f : T -> Bool ) : Array<T> {
 		return ArrayImpl.filter(this,f);
 	}
 
