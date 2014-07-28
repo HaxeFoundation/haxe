@@ -304,16 +304,14 @@ class Compiler {
 	private static function keepSubType( path : String )
 	{
 		var module = path.substring(0, path.lastIndexOf("."));
-		var subType = module.substring(0, module.lastIndexOf(".")) + "." + path.substring(path.lastIndexOf(".") + 1);
-		var types = Context.getModule(module);
-		var found:Bool = false;
-		for (type in types) {
+		var typeName = path.substring(path.lastIndexOf(".") + 1);
+		var found = false;
+		for (type in Context.getModule(module)) {
 			switch(type) {
-				case TInst(cls, _):
-					if (cls.toString() == subType) {
-						found = true;
-						cls.get().meta.add(":keep", [], cls.get().pos);
-					}
+				case TInst(_.get() => cls, _) if (cls.name == typeName):
+					cls.meta.add(":keep", [], cls.pos);
+					found = true;
+					break;
 				default:
 					//
 			}
