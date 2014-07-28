@@ -34,27 +34,21 @@ class Lib
 		Changes the current culture settings to allow a consistent cross-target behavior.
 		Currently the only change made is in regard to the decimal separator, which is always set to "."
 	**/
-	@:functionCode('
-			System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
-			decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
-            ci.NumberFormat.NumberDecimalSeparator = ".";
-            System.Threading.Thread.CurrentThread.CurrentCulture = ci;
-	')
 	@:keep public static function applyCultureChanges():Void
 	{
-
+		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
+		decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
+		ci.NumberFormat.NumberDecimalSeparator = ".";
+		cs.system.threading.Thread.CurrentThread.CurrentCulture = ci;
 	}
 
 	/**
 		Reverts the culture changes to the default settings.
 	**/
-	@:functionCode('
-		System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
-		System.Threading.Thread.CurrentThread.CurrentCulture = ci;
-	')
 	public static function revertDefaultCulture():Void
 	{
-
+		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
+		cs.system.threading.Thread.CurrentThread.CurrentCulture = ci;
 	}
 
 	/**
@@ -83,9 +77,6 @@ class Lib
 
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
-	@:functionCode('
-			throw new haxe.lang.HaxeException("This function cannot be accessed at runtime");
-	')
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
 		return untyped __as__(obj, cl);
