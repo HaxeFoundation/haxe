@@ -1999,7 +1999,10 @@ module Generator = struct
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
-			if use_pass then spr ctx "\tpass";
+			if use_pass then begin
+				newline ctx;
+				spr ctx "\tpass";
+			end
 		end;
 		gen_class_init ctx c
 
