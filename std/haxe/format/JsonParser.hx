@@ -21,6 +21,12 @@
  */
 package haxe.format;
 
+/**
+	An implementation of JSON parser in Haxe.
+
+	This class is used by `haxe.Json` when native JSON implementation
+	is not available.
+**/
 class JsonParser {
 
 	/**
