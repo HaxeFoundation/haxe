@@ -93,7 +93,7 @@ class Reflect {
 		else Builtin.setattr(o,field, value);
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
 		var args:VarArgs = args;
 		return if (Builtin.callable(func)) func(python.Syntax.varArgs(args)) else null;
