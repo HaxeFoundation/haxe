@@ -141,7 +141,7 @@ class RunTravis {
 				Sys.putEnv("DISPLAY", ":99.0");
 				runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
 				Sys.putEnv("AUDIODEV", "null");
-				runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch", "-y"], true);
+				runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch"], true);
 				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
 				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
@@ -262,13 +262,11 @@ class RunTravis {
 	static function getPhpDependencies() {
 		switch (systemName) {
 			case "Linux":
-				//let's install php 5.4 to avoid #3175
-				runCommand("sudo", ["add-apt-repository", "ppa:ondrej/php5-oldstable", "-y"], true);
-				runCommand("sudo", ["apt-get", "update"], true);
-				runCommand("sudo", ["apt-get", "install", "php5", "-y"], true);
+				runCommand("sudo", ["apt-get", "install", "php5", "-qq"], true);
 			case "Mac":
 				//pass
 		}
+		runCommand("php", ["-v"]);
 	}
 
 	static var gotCppDependencies = false;
@@ -278,7 +276,7 @@ class RunTravis {
 		//hxcpp dependencies
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-y"], true);
+				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-qq"], true);
 			case "Mac":
 				//pass
 		}
@@ -296,24 +294,29 @@ class RunTravis {
 
 	static function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
+
+		runCommand("javac", ["-version"]);
 	}
 
 	static function getJSDependencies() {
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "nodejs", "-y"], true);
+				runCommand("sudo", ["apt-get", "install", "nodejs", "-qq"], true);
 			case "Mac":
 				//pass
 		}
+		
+		runCommand("node", ["-v"]);
 	}
 
 	static function getCsDependencies() {
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-y"], true);
+				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-qq"], true);
 			case "Mac":
 				runCommand("brew", ["install", "mono"], true);
 		}
+		runCommand("mono", ["--version"]);
 
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
 	}
@@ -348,7 +351,7 @@ class RunTravis {
 	static function getPythonDependencies() {
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "python3", "-y"], true);
+				runCommand("sudo", ["apt-get", "install", "python3", "-qq"], true);
 			case "Mac":
 				runCommand("brew", ["install", "python3"], true);
 		}

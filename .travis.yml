@@ -37,9 +37,9 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew install neko --HEAD; fi
 
 script:
-  - make
-  - make tools
-  - sudo make install
+  - make -s
+  - make tools -s
+  - sudo make install -s
   - cd tests/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
