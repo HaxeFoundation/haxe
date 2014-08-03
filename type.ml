@@ -145,7 +145,7 @@ and texpr = {
 }
 
 and tclass_field = {
-	cf_name : string;
+	mutable cf_name : string;
 	mutable cf_type : t;
 	mutable cf_public : bool;
 	cf_pos : pos;
