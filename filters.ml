@@ -910,17 +910,29 @@ let check_private_path ctx t = match t with
 
 (* Rewrites class or enum paths if @:native metadata is set *)
 let apply_native_paths ctx t =
-	let get_real_path meta path =
+	let get_native_name meta =
 		let (_,e,mp) = Meta.get Meta.Native meta in
 		match e with
 		| [Ast.EConst (Ast.String name),p] ->
-			(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path)),p],mp),parse_path name
+			name,p
 		| _ ->
 			error "String expected" mp
+	in
+	let get_real_path meta path =
+		let name,p = get_native_name meta in
+		(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path)), p], p), parse_path name
 	in
 	try
 		(match t with
 		| TClassDecl c ->
+			let field cf = try
+				let name,_ = get_native_name cf.cf_meta in
+				cf.cf_name <- name;
+			with Not_found ->
+				()
+			in
+			List.iter field c.cl_ordered_fields;
+			List.iter field c.cl_ordered_statics;
 			let meta,path = get_real_path c.cl_meta c.cl_path in
 			c.cl_meta <- meta :: c.cl_meta;
 			c.cl_path <- path;
