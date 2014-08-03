@@ -118,6 +118,24 @@ class TestSerialize extends Test {
 		haxe.Serializer.USE_CACHE = false;
 		eq( c2.ref, c2 );
 
+		// cache
+		var c = new MyClass(999);
+		c.intValue = 33;
+		c.stringValue = "Hello";
+		var arr = [c,c,c,c];
+		var obj1 = { myclass:c, arr1:arr, arr2:arr, deep: { arr1:arr }, itself: null };
+		obj1.itself = cast obj1;
+		haxe.Serializer.USE_CACHE = true;
+		var obj2 = id(obj1);
+		haxe.Serializer.USE_CACHE = false;
+		eq( obj2, cast obj2.itself );
+		var arr2 = obj2.arr1,
+				c2 = obj2.myclass;
+		for (i in 0...4)
+			eq(arr2[i], c2);
+		eq(obj2.arr2,obj2.arr1);
+		eq(obj2.deep.arr1,obj2.arr2);
+
 		// errors
 		#if !cpp
 		exc(function() haxe.Unserializer.run(null));
