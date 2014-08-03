@@ -58,6 +58,26 @@ public class Base
 		return b;
 	}
 
+	public static int throwsTest() throws java.io.IOException
+	{
+		return 5;
+	}
+
+	public static int throwsTest(float someArg) throws java.lang.Throwable
+	{
+		return (int) someArg;
+	}
+
+	public int throwsMemberTest() throws java.lang.Throwable
+	{
+		return 6;
+	}
+
+	public int throwsMemberTest(boolean someArg) throws java.io.IOException
+	{
+		return 10;
+	}
+
 	public int varNameClash;
 
 	public static class InnerClass extends Base
