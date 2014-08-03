@@ -4108,6 +4108,9 @@ struct
 							Some false
 						else if Meta.has Meta.HaxeGeneric cl.cl_meta then
 							Some true
+						else if cl.cl_types = [] then
+							(cl.cl_meta <- (Meta.HaxeGeneric,[],cl.cl_pos) :: cl.cl_meta;
+							Some true)
 						else if not (is_hxgen md) then
 							(cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
 							Some false)

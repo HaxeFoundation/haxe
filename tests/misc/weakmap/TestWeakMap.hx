@@ -11,6 +11,11 @@ class TestWeakMap
 
 	static function main()
 	{
+#if sys
+		var iterate = Sys.args().has('-iterate');
+#else
+		var iterate = true;
+#end
 		var map = new WeakMap(),
 				saved = new List();
 		var i = 0;
@@ -38,7 +43,7 @@ class TestWeakMap
 					if (val != s.count)
 						trace('ERROR: Wrong value for $s: $val');
 				}
-			} else if (i % 10000 == 0) {
+			} else if (iterate && i % 10000 == 0) {
 				var count = 0;
 				for (v in map.keys())
 				{
@@ -48,7 +53,7 @@ class TestWeakMap
 					if (val != v.count)
 						trace('ITERATION ERROR: $val != ${v.count}');
 				}
-#if sys
+#if false
 				Sys.print('$count (${count / saved.length}) \r');
 #else
 				trace(count, count / saved.length);
