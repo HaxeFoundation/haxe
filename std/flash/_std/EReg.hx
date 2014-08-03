@@ -35,25 +35,25 @@
 	}
 
 	public function matched( n : Int ) : String {
-		return if( result != null && n >= 0 && n < result.length ) result[n] else throw "EReg::matched";
+		return if( result != null && n >= 0 && n < (result : Array<Dynamic>).length ) result[n] else throw "EReg::matched";
 	}
 
 	public function matchedLeft() : String {
 		if( result == null ) throw "No string matched";
-		var s = result.input;
-		return s.substr(0,result.index);
+		var s : String = untyped result.input;
+		return s.substr(0,untyped result["index"]);
 	}
 
 	public function matchedRight() : String {
 		if( result == null ) throw "No string matched";
-		var rl = result.index + result[0].length;
-		var s = result.input;
+		var rl = (result[untyped "index"] : Int) + (result[0] : String).length;
+		var s : String = untyped result.input;
 		return s.substr(rl,s.length - rl);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
 		if( result == null ) throw "No string matched";
-		return { pos : result.index, len : result[0].length };
+		return { pos : result[untyped "index"], len : (result[0] : String).length };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
@@ -62,14 +62,14 @@
 			result = r.exec(len < 0 ? s : s.substr(0, pos + len));
 			var b = result != null;
 			if (b) {
-				result.input = s;
+				untyped result.input = s;
 			}
 			b;
 		} else {
 			var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
 			if (b) {
-				result.input = s;
-				result.index += pos;
+				untyped result.input = s;
+				untyped result["index"] += pos;
 			}
 			b;
 		}
