@@ -172,7 +172,7 @@ struct
 				| TField( _, FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = "POSITIVE_INFINITY" }) ) ->
 					mk_static_field_access_infer float_cl "POSITIVE_INFINITY" e.epos []
 				| TField( _, FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = "isNaN"}) ) ->
-					mk_static_field_access_infer float_cl "_isNaN" e.epos []
+					mk_static_field_access_infer float_cl "isNaN" e.epos []
 				| TCall( ({ eexpr = TField( (_ as ef), FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = ("ffloor" as f) }) ) } as fe), p)
 				| TCall( ({ eexpr = TField( (_ as ef), FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = ("fceil" as f) }) ) } as fe), p) ->
 						Type.map_expr run { e with eexpr = TCall({ fe with eexpr = TField(ef, FDynamic (String.sub f 1 (String.length f - 1)))	}, p) }
@@ -2278,7 +2278,7 @@ let jpath_to_hx (pack,name) = match pack, name with
 
 let hxname_to_j name =
 	let sb = Buffer.create 16 in
-	let rec next i = 
+	let rec next i =
 		if i >= String.length name then Buffer.contents sb else
 			let c = name.[i] in
 			if c == '_' then begin
