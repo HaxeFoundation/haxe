@@ -4921,7 +4921,7 @@ let generate_cppia common_ctx =
    let debug = 1 in
    let null_file = new source_writer common_ctx ignore (fun () -> () ) in
    let ctx = new_context common_ctx null_file debug (ref PMap.empty) in
-   ctx.ctx_class_member_types <- ctx.ctx_class_member_types;
+   ctx.ctx_class_member_types <- create_member_types common_ctx;
    let script = new script_writer common_ctx ctx common_ctx.file in
    ignore (script#stringId "");
    ignore (script#typeId "");
