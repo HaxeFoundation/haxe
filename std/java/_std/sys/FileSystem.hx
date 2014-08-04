@@ -61,7 +61,12 @@ class FileSystem {
 
 	public static function fullPath( relPath : String ) : String
 	{
-		return new File(relPath).getCanonicalPath();
+		try {
+			return new File(relPath).getCanonicalPath();
+		} catch (e: java.io.IOException) {
+			throw new java.lang.RuntimeException(e);
+			return null;
+		}
 	}
 
 	public static function absPath ( relPath : String ) : String {
