@@ -1224,6 +1224,7 @@ let configure gen =
 					write w "("; expr_s w e; write w ")"
 				| TMeta (_,e) ->
 					expr_s w e
+				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
 				| TArrayDecl el when t_has_type_param_shallow false e.etype ->
 					print w "( (%s) (new java.lang.Object[] " (t_s e.epos e.etype);
 					write w "{";
@@ -1233,6 +1234,7 @@ let configure gen =
 						acc + 1
 					) 0 el);
 					write w "}) )"
+				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
 				| TArrayDecl el ->
 					print w "new %s" (param_t_s e.epos (transform_nativearray_t e.etype));
 					let is_double = match follow e.etype with
@@ -1844,6 +1846,7 @@ let configure gen =
 	Hashtbl.add gen.gspecial_vars "__typeof__" true;
 	Hashtbl.add gen.gspecial_vars "__java__" true;
 	Hashtbl.add gen.gspecial_vars "__lock__" true;
+	Hashtbl.add gen.gspecial_vars "__array__" true;
 
 	gen.greal_type <- real_type;
 	gen.greal_type_param <- change_param_type;

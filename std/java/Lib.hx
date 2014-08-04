@@ -35,7 +35,7 @@ package java;
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	@:generic public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
 		var ret = new NativeArray(arr.length);
 		for (i in 0...arr.length)

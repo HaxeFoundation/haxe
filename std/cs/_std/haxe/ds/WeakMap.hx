@@ -24,9 +24,7 @@ package haxe.ds;
 import cs.NativeArray;
 import cs.system.WeakReference;
 
-/**
-	This implementation works by lazily evaluating the weak references, and kicking them out as needed.
-**/
+// This implementation works by lazily evaluating the weak references, and only cleaning them up when needed.
 @:coreApi class WeakMap<K:{}, V> implements Map.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
