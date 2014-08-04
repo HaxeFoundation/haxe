@@ -910,17 +910,48 @@ let check_private_path ctx t = match t with
 
 (* Rewrites class or enum paths if @:native metadata is set *)
 let apply_native_paths ctx t =
-	let get_real_path meta path =
-		let (_,e,mp) = Meta.get Meta.Native meta in
+	let get_native_name meta =
+		let rec get_native meta = match meta with
+			| [] -> raise Not_found
+			| (Meta.Native,[v],p as meta) :: _ ->
+				meta
+			| _ :: meta ->
+				get_native meta
+		in
+		let (_,e,mp) = get_native meta in
 		match e with
 		| [Ast.EConst (Ast.String name),p] ->
-			(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path)),p],mp),parse_path name
+			name,p
+		| [] ->
+			raise Not_found
 		| _ ->
 			error "String expected" mp
+	in
+	let get_real_path meta path =
+		let name,p = get_native_name meta in
+		(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path)), p], p), parse_path name
 	in
 	try
 		(match t with
 		| TClassDecl c ->
+			let did_change = ref false in
+			let field cf = try
+				let name,_ = get_native_name cf.cf_meta in
+				cf.cf_name <- name;
+				did_change := true
+			with Not_found ->
+				()
+			in
+			let fields cfs old_map =
+				did_change := false;
+				List.iter field cfs;
+				if !did_change then
+					List.fold_left (fun map f -> PMap.add f.cf_name f map) PMap.empty cfs
+				else
+					old_map
+			in
+			c.cl_fields <- fields c.cl_ordered_fields c.cl_fields;
+			c.cl_statics <- fields c.cl_ordered_statics c.cl_statics;
 			let meta,path = get_real_path c.cl_meta c.cl_path in
 			c.cl_meta <- meta :: c.cl_meta;
 			c.cl_path <- path;

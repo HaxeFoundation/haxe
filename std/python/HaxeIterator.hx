@@ -16,6 +16,7 @@ class HaxeIterator<T>
 	}
 
 	public inline function next ():T {
+		if (!checked) hasNext();
 		checked = false;
 		return x;
 	}

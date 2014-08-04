@@ -1198,7 +1198,8 @@ let configure gen =
 					write w "("; expr_s w e; write w ")"
 				| TMeta (_,e) ->
 						expr_s w e
-				| TArrayDecl el ->
+				| TArrayDecl el
+				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el) ->
 					print w "new %s" (t_s e.etype);
 					write w "{";
 					ignore (List.fold_left (fun acc e ->
@@ -2206,6 +2207,7 @@ let configure gen =
 	Hashtbl.add gen.gspecial_vars "__sizeof__" true;
 
 	Hashtbl.add gen.gspecial_vars "__delegate__" true;
+	Hashtbl.add gen.gspecial_vars "__array__" true;
 
 	Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
 	let last_needs_box = gen.gneeds_box in

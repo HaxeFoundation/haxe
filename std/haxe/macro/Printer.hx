@@ -270,7 +270,9 @@ class Printer {
 						var fstr = printField(f);
 						tabs + fstr + switch(f.kind) {
 							case FVar(_, _), FProp(_, _, _, _): ";";
-							case FFun(func) if (func.expr == null): ";";
+							case FFun({expr:null}): ";";
+							case FFun({expr:{expr:EBlock(_)}}): "";
+							case FFun(_): ";";
 							case _: "";
 						};
 					}].join("\n")

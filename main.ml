@@ -173,32 +173,35 @@ let make_path f =
 		| ["hx";path] -> ExtString.String.nsplit path "/"
 		| _ -> cl
 	) in
-	let error() =
-		let msg = "Could not process argument " ^ f in
-		let msg = msg ^ "\n" ^
-			if String.length f == 0 then
-				"Class name must not be empty"
-			else match (List.hd (List.rev cl)).[0] with
-				| 'A'..'Z' -> "Invalid class name"
-				| _ -> "Class name must start with uppercase character"
-		in
+ 	let error msg =
+		let msg = "Could not process argument " ^ f ^ "\n" ^ msg in
 		failwith msg
 	in
 	let invalid_char x =
 		for i = 1 to String.length x - 1 do
 			match x.[i] with
 			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
-			| _ -> error()
-		done;
-		false
+			| c -> error ("invalid character: " ^ (String.make 1 c))
+		done
 	in
 	let rec loop = function
-		| [] -> error()
-		| [x] -> if String.length x = 0 || not (x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')) || invalid_char x then error() else [] , x
+		| [] ->
+			error "empty part"
+		| [x] ->
+			if String.length x = 0 then
+				error "empty part"
+			else if not (x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')) then
+				error "Class name must start with uppercase character";
+			invalid_char x;
+			[],x
 		| x :: l ->
-			if String.length x = 0 || x.[0] < 'a' || x.[0] > 'z' || invalid_char x then error() else
-				let path , name = loop l in
-				x :: path , name
+			if String.length x = 0 then
+				error "empty part"
+			else if x.[0] < 'a' || x.[0] > 'z' then
+				error "Package name must start with a lower case character";
+			invalid_char x;
+			let path,name = loop l in
+			x :: path,name
 	in
 	loop cl
 

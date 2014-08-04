@@ -283,7 +283,7 @@ module Define = struct
 		| NoOpt -> ("no_opt","Disable optimizations")
 		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
 		| NoInline -> ("no_inline","Disable inlining")
-		| NoRoot -> ("no_root","GenCS internal")
+		| NoRoot -> ("no_root","Generate top-level types into haxe.root namespace")
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")

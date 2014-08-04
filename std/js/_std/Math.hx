@@ -23,6 +23,7 @@ package;
 
 // Can't enable @:coreApi because some fields are now inline getters
 // @:coreApi
+@:keepInit
 extern class Math
 {
 	static var PI(default,null) : Float;

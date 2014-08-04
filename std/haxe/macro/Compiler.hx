@@ -304,23 +304,25 @@ class Compiler {
 	private static function keepSubType( path : String )
 	{
 		var module = path.substring(0, path.lastIndexOf("."));
-		var subType = module.substring(0, module.lastIndexOf(".")) + "." + path.substring(path.lastIndexOf(".") + 1);
-		var types = Context.getModule(module);
-		var found:Bool = false;
-		for (type in types) {
+		var typeName = path.substring(path.lastIndexOf(".") + 1);
+		var subType:Type.BaseType = null;
+		for (type in Context.getModule(module)) {
 			switch(type) {
-				case TInst(cls, _):
-					if (cls.toString() == subType) {
-						found = true;
-						cls.get().meta.add(":keep", [], cls.get().pos);
-					}
+				case TInst(_.get() => cls, _) if (cls.name == typeName):
+					subType = cls;
+					break;
+				case TEnum(_.get() => en, _) if (en.name == typeName):
+					subType = en;
+					break;
 				default:
 					//
 			}
 		}
 
-		if (!found)
-			Context.warning("subtype not found, can't keep: "+path, Context.currentPos());
+		if (subType == null)
+			Context.warning('Cannot keep $path: type not found or is not a class or enum', Context.currentPos());
+		else
+			subType.meta.add(":keep", [], subType.pos);
 	}
 
 	private static function keepModule( path : String )
@@ -328,8 +330,10 @@ class Compiler {
 		var types = Context.getModule(path);
 		for (type in types) {
 			switch(type) {
-				case TInst(cls, _):
-					cls.get().meta.add(":keep", [], cls.get().pos);
+				case TInst(_.get() => cls, _) if (!cls.kind.match(KAbstractImpl(_))):
+					cls.meta.add(":keep", [], cls.pos);
+				case TEnum(_.get() => en, _):
+					en.meta.add(":keep", [], en.pos);
 				default:
 					//
 			}

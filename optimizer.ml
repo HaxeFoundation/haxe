@@ -145,9 +145,34 @@ let api_inline ctx c field params p =
 	| (["cs"],"Lib"),("fixed" | "checked" | "unsafe"),[e] ->
 			Some (mk_untyped_call ("__" ^ field ^ "__") p [e])
 	| (["cs"],"Lib"),("lock"),[obj;block] ->
-			Some (mk_untyped_call ("__lock__") p [obj;block])
+			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
 	| (["java"],"Lib"),("lock"),[obj;block] ->
-			Some (mk_untyped_call ("__lock__") p [obj;block])
+			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
+	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
+	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
+			let platf = match ctx.com.platform with
+				| Cs -> "cs"
+				| Java -> "java"
+				| _ -> raise Exit
+			in
+			let mpath = if field = "fromArrayCopy" then
+				(["haxe";"ds"],"Vector")
+			else
+				([platf],"NativeArray")
+			in
+
+			let m = ctx.g.do_load_module ctx mpath null_pos in
+			let main = List.find (function | TClassDecl _ | TAbstractDecl _ -> true | _ -> false) m.m_types in
+			let t = match follow edecl.etype, main with
+				| TInst({ cl_path = [],"Array" }, [t]), TClassDecl(cl) ->
+					TInst(cl,[t])
+				| TInst({ cl_path = [],"Array" }, [t]), TAbstractDecl(a) ->
+					TAbstract(a,[t])
+				| _ -> assert false
+			in
+			Some ({ (mk_untyped_call "__array__" p args) with etype = t })
+		with | Exit ->
+			None)
 	| _ ->
 		None
 

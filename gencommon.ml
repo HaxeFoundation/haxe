@@ -2823,6 +2823,13 @@ struct
 
 	}
 
+	type map_info = {
+		in_unsafe : bool;
+		in_unused : bool;
+	}
+
+	let null_map_info = { in_unsafe = false; in_unused = false; }
+
 	(*
 		the default implementation will take 3 transformation functions:
 			* one that will transform closures that are not called immediately (instance.myFunc).
@@ -2875,7 +2882,8 @@ struct
 			tf_type = ret;
 		}
 
-	let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->t option->texpr) (dynamic_func_call:texpr->texpr) e =
+	let traverse gen ?tparam_anon_decl ?tparam_anon_acc (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->map_info->t option->texpr) (dynamic_func_call:texpr->texpr) e =
+		let info = ref null_map_info in
 		let rec run e =
 			match e.eexpr with
 				| TCast({ eexpr = TCall({ eexpr = TLocal{ v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
@@ -2891,16 +2899,22 @@ struct
 							replace_delegate { clean with eexpr = TField( run ef, f ) }
 						| TFunction tf ->
 							(* handle like we'd handle a normal function, but create an unchanged closure field for it *)
-							let ret = handle_anon_func clean { tf with tf_expr = run tf.tf_expr } (Some e.etype) in
+							let ret = handle_anon_func clean { tf with tf_expr = run tf.tf_expr } !info (Some e.etype) in
 							replace_delegate ret
 						| _ -> try
 							let tf = mk_conversion_fun gen del in
-							let ret = handle_anon_func del { tf with tf_expr = run tf.tf_expr } (Some e.etype) in
+							let ret = handle_anon_func del { tf with tf_expr = run tf.tf_expr } !info (Some e.etype) in
 							replace_delegate ret
 						with Not_found ->
 							gen.gcon.error "This delegate construct is unsupported" e.epos;
 							replace_delegate (run clean))
 
+				| TCall(({ eexpr = TLocal{ v_name = "__unsafe__" } } as local), [arg]) ->
+					let old = !info in
+					info := { !info with in_unsafe = true };
+					let arg2 = run arg in
+					info := old;
+					{ e with eexpr = TCall(local,[arg2]) }
 				(* parameterized functions handling *)
 				| TVar(vv, ve) -> (match tparam_anon_decl with
 					| None -> Type.map_expr run e
@@ -2954,7 +2968,7 @@ struct
 				| TField(ecl, FClosure (_,cf)) ->
 					transform_closure e (run ecl) cf.cf_name
 				| TFunction tf ->
-					handle_anon_func e { tf with tf_expr = run tf.tf_expr } None
+					handle_anon_func e { tf with tf_expr = run tf.tf_expr } !info None
 				| TCall({ eexpr = TConst(TSuper) }, _) ->
 					Type.map_expr run e
 				| TCall({ eexpr = TLocal(v) }, args) when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
@@ -3073,7 +3087,13 @@ struct
 		parent_func_class.cl_ordered_fields <- (List.filter (fun cf -> cf.cf_name <> "new") cfs) @ parent_func_class.cl_ordered_fields;
 		ft.func_class <- parent_func_class;
 
-		let handle_anon_func fexpr tfunc delegate_type : texpr * (tclass * texpr list) =
+		let handle_anon_func fexpr tfunc mapinfo delegate_type : texpr * (tclass * texpr list) =
+			let gen = ft.fgen in
+			let in_unsafe = mapinfo.in_unsafe || match gen.gcurrent_class, gen.gcurrent_classfield with
+				| Some c, _ when Meta.has Meta.Unsafe c.cl_meta -> true
+				| _, Some cf when Meta.has Meta.Unsafe cf.cf_meta -> true
+				| _ -> false
+			in
 			(* get all captured variables it uses *)
 			let captured_ht, tparams = get_captured fexpr in
 			let captured = Hashtbl.fold (fun _ e acc -> e :: acc) captured_ht [] in
@@ -3089,6 +3109,7 @@ struct
 			let cur_line = Lexer.get_error_line fexpr.epos in
 			let path = (fst ft.fgen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd ft.fgen.gcurrent_path) cfield cur_line) in
 			let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
+			if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],Ast.null_pos) :: cls.cl_meta;
 			cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
 			cls.cl_types <- cltypes;
 
@@ -3247,7 +3268,7 @@ struct
 		traverse
 			ft.fgen
 			~tparam_anon_decl:(fun v e fn ->
-				let _, info = handle_anon_func e fn None in
+				let _, info = handle_anon_func e fn null_map_info None in
 				Hashtbl.add tvar_to_cdecl v.v_id info
 			)
 			~tparam_anon_acc:(fun v e -> try
@@ -3292,7 +3313,7 @@ struct
 			)
 			(* (transform_closure:texpr->texpr->string->texpr) (handle_anon_func:texpr->tfunc->texpr) (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 			ft.transform_closure
-			(fun e f delegate_type -> fst (handle_anon_func e f delegate_type))
+			(fun e f info delegate_type -> fst (handle_anon_func e f info delegate_type))
 			ft.dynamic_fun_call
 			(* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
 
@@ -4087,6 +4108,9 @@ struct
 							Some false
 						else if Meta.has Meta.HaxeGeneric cl.cl_meta then
 							Some true
+						else if cl.cl_types = [] then
+							(cl.cl_meta <- (Meta.HaxeGeneric,[],cl.cl_pos) :: cl.cl_meta;
+							Some true)
 						else if not (is_hxgen md) then
 							(cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
 							Some false)
@@ -6064,6 +6088,13 @@ struct
 						cf, actual_t, true
 					else
 						cf,actual_t,error
+				in
+				(* set the real (selected) class field *)
+				let f = match f with
+					| FInstance(c,_) -> FInstance(c,cf)
+					| FClosure(c,_) -> FClosure(c,cf)
+					| FStatic(c,_) -> FStatic(c,cf)
+					| f -> f
 				in
 				let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
 				if error then (* if error, ignore arguments *)

@@ -59,6 +59,20 @@ class HxOverrides {
 		return Syntax.callField(x, "join", sep);
 	}
 
+	static public function filter(x, f) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).filter(f);
+		}
+		return Syntax.callField(x, "filter", f);
+	}
+
+	static public function map(x, f) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).map(f);
+		}
+		return Syntax.callField(x, "map", f);
+	}
+
 	static public function toUpperCase(x) {
 		if (Boot.isString(x)) {
 			return (x:String).toUpperCase();

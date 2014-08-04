@@ -172,7 +172,7 @@ struct
 				| TField( _, FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = "POSITIVE_INFINITY" }) ) ->
 					mk_static_field_access_infer float_cl "POSITIVE_INFINITY" e.epos []
 				| TField( _, FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = "isNaN"}) ) ->
-					mk_static_field_access_infer float_cl "_isNaN" e.epos []
+					mk_static_field_access_infer float_cl "isNaN" e.epos []
 				| TCall( ({ eexpr = TField( (_ as ef), FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = ("ffloor" as f) }) ) } as fe), p)
 				| TCall( ({ eexpr = TField( (_ as ef), FStatic({ cl_path = (["java";"lang"], "Math") }, { cf_name = ("fceil" as f) }) ) } as fe), p) ->
 						Type.map_expr run { e with eexpr = TCall({ fe with eexpr = TField(ef, FDynamic (String.sub f 1 (String.length f - 1)))	}, p) }
@@ -251,7 +251,6 @@ struct
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
-
 
 (* ******************************************* *)
 (* JavaSpecificSynf *)
@@ -646,8 +645,93 @@ struct
 
 end;;
 
+
+(* ******************************************* *)
+(* handle @:throws *)
+(* ******************************************* *)
+let rec is_checked_exc cl =
+	match cl.cl_path with
+		| ["java";"lang"],"RuntimeException" ->
+			false
+		| ["java";"lang"],"Throwable" ->
+			true
+		| _ -> match cl.cl_super with
+			| None -> false
+			| Some(c,_) -> is_checked_exc c
+
+let rec cls_any_super cl supers =
+	PMap.mem cl.cl_path supers || match cl.cl_super with
+		| None -> false
+		| Some(c,_) -> cls_any_super c supers
+
+let rec handle_throws gen cf =
+	List.iter (handle_throws gen) cf.cf_overloads;
+	match cf.cf_expr with
+	| Some ({ eexpr = TFunction(tf) } as e)  ->
+		let rec collect_throws acc = function
+			| (Meta.Throws, [Ast.EConst (Ast.String path), _],_) :: meta -> (try
+				collect_throws (get_cl ( get_type gen (parse_path path)) :: acc) meta
+			with | Not_found | TypeNotFound _ ->
+				collect_throws acc meta)
+			| [] ->
+				acc
+			| _ :: meta ->
+				collect_throws acc meta
+		in
+		let cf_throws = collect_throws [] cf.cf_meta in
+		let throws = ref (List.fold_left (fun map cl ->
+			PMap.add cl.cl_path cl map
+		) PMap.empty cf_throws) in
+		let rec iter e = match e.eexpr with
+			| TTry(etry,ecatches) ->
+				let old = !throws in
+				let needs_check_block = ref true in
+				List.iter (fun (v,e) ->
+					Type.iter iter e;
+					match follow (run_follow gen v.v_type) with
+						| TInst({ cl_path = ["java";"lang"],"Throwable" },_)
+						| TDynamic _ ->
+							needs_check_block := false
+						| TInst(c,_) when is_checked_exc c ->
+							throws := PMap.add c.cl_path c !throws
+						| _ ->()
+				) ecatches;
+				if !needs_check_block then Type.iter iter etry;
+				throws := old
+			| TField(e, (FInstance(_,f) | FStatic(_,f) | FClosure(_,f))) ->
+				let tdefs = collect_throws [] f.cf_meta in
+				if tdefs <> [] && not (List.for_all (fun c -> cls_any_super c !throws) tdefs) then
+					raise Exit;
+				Type.iter iter e
+			| TThrow e -> (match follow (run_follow gen e.etype) with
+				| TInst(c,_) when is_checked_exc c && not (cls_any_super c !throws) ->
+					raise Exit
+				| _ -> iter e)
+			| _ -> Type.iter iter e
+		in
+		(try
+			Type.iter iter e
+		with | Exit -> (* needs typed exception to be caught *)
+			let throwable = get_cl (get_type gen (["java";"lang"],"Throwable")) in
+			let catch_var = alloc_var "typedException" (TInst(throwable,[])) in
+			let rethrow = mk_local catch_var e.epos in
+			let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
+			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
+			let wrapped = { rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]) }; } in
+			let map_throws cl =
+				let var = alloc_var "typedException" (TInst(cl,List.map (fun _ -> t_dynamic) cl.cl_types)) in
+				var, { tf.tf_expr with eexpr = TThrow (mk_local var e.epos) }
+			in
+			cf.cf_expr <- Some { e with
+				eexpr = TFunction({ tf with
+					tf_expr = mk_block { tf.tf_expr with eexpr = TTry(tf.tf_expr, List.map (map_throws) cf_throws @ [catch_var, wrapped]) }
+				})
+			})
+	| _ -> ()
+
+
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
-let default_package = "java" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
+let default_package = "java"
 let strict_mode = ref false (* strict mode is so we can check for unexpected information *)
 
 (* reserved c# words *)
@@ -1140,6 +1224,7 @@ let configure gen =
 					write w "("; expr_s w e; write w ")"
 				| TMeta (_,e) ->
 					expr_s w e
+				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
 				| TArrayDecl el when t_has_type_param_shallow false e.etype ->
 					print w "( (%s) (new java.lang.Object[] " (t_s e.epos e.etype);
 					write w "{";
@@ -1149,6 +1234,7 @@ let configure gen =
 						acc + 1
 					) 0 el);
 					write w "}) )"
+				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
 				| TArrayDecl el ->
 					print w "new %s" (param_t_s e.epos (transform_nativearray_t e.etype));
 					let is_double = match follow e.etype with
@@ -1577,6 +1663,9 @@ let configure gen =
 	in
 
 	let gen_class w cl =
+		let cf_filters = [ handle_throws ] in
+		List.iter (fun f -> List.iter (f gen) cl.cl_ordered_fields) cf_filters;
+		List.iter (fun f -> List.iter (f gen) cl.cl_ordered_statics) cf_filters;
 		let should_close = match change_ns (fst cl.cl_path) with
 			| [] -> false
 			| ns ->
@@ -1686,22 +1775,22 @@ let configure gen =
 			| Some init ->
 				write w "static ";
 				expr_s w (mk_block init));
-		(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-		(if not cl.cl_interface then
-			List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
-		List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
-		end_block w;
-		if should_close then end_block w;
+				(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
+				(if not cl.cl_interface then
+				List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
+				List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
+				end_block w;
+				if should_close then end_block w;
 
-		(* add imports *)
-		List.iter (function
-			| ["haxe";"root"], _ | [], _ -> ()
-			| path ->
-					write w_header "import ";
-					write w_header (path_s path);
-					write w_header ";\n"
-		) !imports;
-		add_writer w w_header
+				(* add imports *)
+				List.iter (function
+					| ["haxe";"root"], _ | [], _ -> ()
+					| path ->
+							write w_header "import ";
+							write w_header (path_s path);
+							write w_header ";\n"
+				) !imports;
+				add_writer w w_header
 	in
 
 
@@ -1757,6 +1846,7 @@ let configure gen =
 	Hashtbl.add gen.gspecial_vars "__typeof__" true;
 	Hashtbl.add gen.gspecial_vars "__java__" true;
 	Hashtbl.add gen.gspecial_vars "__lock__" true;
+	Hashtbl.add gen.gspecial_vars "__array__" true;
 
 	gen.greal_type <- real_type;
 	gen.greal_type_param <- change_param_type;
@@ -2052,7 +2142,7 @@ let configure gen =
 		TryCatchWrapper.traverse gen
 			(fun t -> not (is_exception (real_type t)))
 			(fun throwexpr expr ->
-				let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], base_exception_t)) expr.epos in
+				let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) expr.epos in
 				{ throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]); etype = hx_exception_t }; etype = gen.gcon.basic.tvoid }
 			)
 			(fun v_to_unwrap pos ->
@@ -2060,8 +2150,8 @@ let configure gen =
 				mk_field_access gen local "obj" pos
 			)
 			(fun rethrow ->
-				let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], base_exception_t)) rethrow.epos in
-				{ rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]) }; }
+				let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) rethrow.epos in
+				{ rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]); etype = hx_exception_t }; }
 			)
 			(base_exception_t)
 			(hx_exception_t)
@@ -2278,7 +2368,7 @@ let jpath_to_hx (pack,name) = match pack, name with
 
 let hxname_to_j name =
 	let sb = Buffer.create 16 in
-	let rec next i = 
+	let rec next i =
 		if i >= String.length name then Buffer.contents sb else
 			let c = name.[i] in
 			if c == '_' then begin
@@ -2501,6 +2591,13 @@ let convert_java_enum ctx p pe =
 			| _ -> ()
 		) field.jf_attributes;
 
+		List.iter (fun jsig ->
+			match convert_signature ctx p jsig with
+				| CTPath path ->
+					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (path_s (path.tpackage,path.tname))), p],p) :: !cff_meta
+				| _ -> ()
+		) field.jf_throws;
+
 		let kind = match field.jf_kind with
 			| JKField when !readonly ->
 				FProp ("default", "null", Some (convert_signature ctx p field.jf_signature), None)
@@ -2596,7 +2693,7 @@ let convert_java_enum ctx p pe =
 	let convert_java_class ctx p jc =
 		match List.mem JEnum jc.cflags with
 		| true -> (* is enum *)
-			convert_java_enum ctx p jc
+				[convert_java_enum ctx p jc]
 		| false ->
 			let flags = ref [HExtern] in
 			(* todo: instead of JavaNative, use more specific definitions *)
@@ -2645,14 +2742,25 @@ let convert_java_enum ctx p pe =
 						| Exit -> ()
 				) (jc.cfields @ jc.cmethods);
 
-			EClass {
+			(* make sure the throws types are imported correctly *)
+			let imports = List.concat (List.map (fun f ->
+				List.map (fun jsig ->
+					match convert_signature ctx p jsig with
+						| CTPath path ->
+							let pos = { p with pfile = p.pfile ^ " (" ^ f.jf_name ^" @:throws)" } in
+							EImport( List.map (fun s -> s,pos) (path.tpackage @ [path.tname]), INormal )
+						| _ -> assert false
+				) f.jf_throws
+			) jc.cmethods) in
+
+			(EClass {
 				d_name = jname_to_hx (snd jc.cpath);
 				d_doc = None;
 				d_params = List.map (convert_param ctx p jc.cpath) jc.ctypes;
 				d_meta = !meta;
 				d_flags = !flags;
 				d_data = !fields;
-			}
+			}) :: imports
 
 	let create_ctx com =
 		{
@@ -3198,8 +3306,8 @@ let add_java_lib com file std =
 							let obj = TObject( (["java";"lang"],"Object"), []) in
 							let ncls = convert_java_class ctx pos { cls with cmethods = smethods; cfields = sfields; cflags = []; csuper = obj; cinterfaces = []; cinner_types = []; ctypes = [] } in
 							match ncls with
-							| EClass c ->
-								(EClass { c with d_name = c.d_name ^ "_Statics" }, pos) :: inner
+							| EClass c :: imports ->
+								(EClass { c with d_name = c.d_name ^ "_Statics" }, pos) :: inner @ List.map (fun i -> i,pos) imports
 							| _ -> assert false
 						with | Not_found ->
 							inner
@@ -3248,7 +3356,9 @@ let add_java_lib com file std =
 							| _ -> ()
 						) inner;
 						let inner = List.concat [!alias_list ; inner] in
-						let ret = Some ( real_path, (pack, (convert_java_class ctx pos cls, pos) :: inner) ) in
+						let classes = List.map (fun t -> t,pos) (convert_java_class ctx pos cls) in
+						let imports, defs = List.partition (function | (EImport(_),_) -> true | _ -> false) (classes @ inner) in
+						let ret = Some ( real_path, (pack, imports @ defs) ) in
 						ctx.jtparams <- old_types;
 						ret
 			end
