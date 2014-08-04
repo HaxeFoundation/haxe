@@ -39,8 +39,7 @@ package haxe.ds;
 
 	private var h : Dynamic;
 
-	public function new() : Void {
-	}
+	public function new() : Void { }
 
 	public function set( key : Int, value : T ) : Void {
 		untyped __global__.__int_hash_set(h,key,value);
