@@ -10513,7 +10513,7 @@ struct
 				c.cl_ordered_fields <- List.filter (fun f ->
 					try
 						if Meta.has Meta.Overload f.cf_meta then raise Not_found;
-						let f2 = Codegen.find_field c f in
+						let f2 = Codegen.find_field gen.gcon c f in
 						if f2 == f then raise Not_found;
 						c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 						false;

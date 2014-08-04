@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:headerClassCode_disable("
+@:headerClassCode("
   inline void set(int key, ::null value) { __int_hash_set(h,key,value); }
   inline void set(int key, bool value) { __int_hash_set(h,key,value); }
   inline void set(int key, char value) { __int_hash_set_int(h,key,value); }
@@ -34,6 +34,7 @@ package haxe.ds;
   inline void set(int key, float value) { __int_hash_set_float(h,key,value); }
   inline void set(int key, double value) { __int_hash_set_float(h,key,value); }
   inline void set(int key, ::String value) { __int_hash_set_string(h,key,value); }
+  inline Void set(Dynamic key, ::Dynamic value) { __int_hash_set(h,key,value); return null(); }
 ")
 @:coreApi class IntMap<T> implements Map.IMap<Int,T> {
 
