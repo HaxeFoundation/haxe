@@ -21,13 +21,25 @@
  */
 package haxe.ds;
 
+@:headerClassCode("
+  inline void set(int key, ::null value) { __int_hash_set(h,key,value); }
+  inline void set(int key, bool value) { __int_hash_set(h,key,value); }
+  inline void set(int key, char value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, unsigned char value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, signed char value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, short value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, unsigned short value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, int value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, unsigned int value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, float value) { __int_hash_set_float(h,key,value); }
+  inline void set(int key, double value) { __int_hash_set_float(h,key,value); }
+  inline void set(int key, ::String value) { __int_hash_set_string(h,key,value); }
+")
 @:coreApi class IntMap<T> implements Map.IMap<Int,T> {
 
 	private var h : Dynamic;
 
-	public function new() : Void {
-		h = untyped __global__.__int_hash_create();
-	}
+	public function new() : Void { }
 
 	public function set( key : Int, value : T ) : Void {
 		untyped __global__.__int_hash_set(h,key,value);

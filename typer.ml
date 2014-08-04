@@ -2207,9 +2207,10 @@ and type_unop ctx op flag e p =
 				let cf,t,r = try loop a.a_unops with Not_found -> error "Invalid operation" p in
 				(match cf.cf_expr with
 				| None ->
-					let e = make {e with etype = apply_params a.a_types pl a.a_this} in
+					let e = {e with etype = apply_params a.a_types pl a.a_this} in
+					let e = mk (TUnop(op,flag,e)) r p in
 					(* unify ctx r e.etype p; *) (* TODO: I'm not sure why this was here (related to #2295) *)
-					{e with etype = r}
+					e
 				| Some _ ->
 					let et = type_module_type ctx (TClassDecl c) None p in
 					let ef = mk (TField (et,FStatic (c,cf))) t p in
@@ -4163,7 +4164,7 @@ let make_macro_api ctx p =
 					"addFeature", Interp.VFunction (Interp.Fun1 (fun v ->
 						Common.add_feature ctx.com (Interp.dec_string v);
 						Interp.VNull
-					));	
+					));
 					"quoteString", Interp.VFunction (Interp.Fun1 (fun v ->
 						Interp.enc_string ("\"" ^ Ast.s_escape (Interp.dec_string v) ^ "\"")
 					));

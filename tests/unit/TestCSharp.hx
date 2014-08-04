@@ -38,7 +38,7 @@ class TestCSharp extends Test
 
 	function testGenerics()
 	{
-		t(haxe.test.GenericHelper.staticTypedGeneric(new Base_InnerClass_InnerInnerClass()) != null);
+		// t(haxe.test.GenericHelper.staticTypedGeneric(new Base_InnerClass_InnerInnerClass()) != null);
 
 		var helper = new haxe.test.GenericHelper();
 

@@ -6089,6 +6089,13 @@ struct
 					else
 						cf,actual_t,error
 				in
+				(* set the real (selected) class field *)
+				let f = match f with
+					| FInstance(c,_) -> FInstance(c,cf)
+					| FClosure(c,_) -> FClosure(c,cf)
+					| FStatic(c,_) -> FStatic(c,cf)
+					| f -> f
+				in
 				let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
 				if error then (* if error, ignore arguments *)
 					if is_void ecall.etype then

@@ -113,6 +113,66 @@ class TestJava extends Test
 		t(c.dynamicCalled);
 	}
 
+	function testThrows1()
+	{
+		// test 1: no @:throws / no catch
+		var b = new Base();
+		eq(Base.throwsTest(), 5);
+		eq(Base.throwsTest(42), 42);
+		eq(b.throwsMemberTest(), 6);
+		eq(b.throwsMemberTest(true), 10);
+	}
+
+	function testThrows2()
+	{
+		// test 2: catching only the IOException
+		try
+		{
+			var b = new Base();
+			eq(Base.throwsTest(), 5);
+			eq(Base.throwsTest(42), 42);
+			eq(b.throwsMemberTest(), 6);
+			eq(b.throwsMemberTest(true), 10);
+		}
+		catch(e:java.io.IOException)
+		{
+		}
+	}
+
+	function testThrows3()
+	{
+		// test 3: catching all exceptions
+		try
+		{
+			var b = new Base();
+			eq(Base.throwsTest(), 5);
+			eq(Base.throwsTest(42), 42);
+			eq(b.throwsMemberTest(), 6);
+			eq(b.throwsMemberTest(true), 10);
+		}
+		catch(e:java.lang.Throwable)
+		{
+		}
+	}
+
+	// test 4: @:throws IOException and only use IOException
+	@:throws('java.io.IOException') function testThrows4()
+	{
+		var b = new Base();
+		eq(Base.throwsTest(), 5);
+		eq(b.throwsMemberTest(true), 10);
+	}
+
+	// test 5: @:throws IOException and use any
+	@:throws('java.io.IOException') function testThrows5()
+	{
+		var b = new Base();
+		eq(Base.throwsTest(), 5);
+		eq(Base.throwsTest(42), 42);
+		eq(b.throwsMemberTest(), 6);
+		eq(b.throwsMemberTest(true), 10);
+	}
+
 	function testJavaLibEnum()
 	{
 		var e = TEnum.TA;
