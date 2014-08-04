@@ -832,9 +832,8 @@ let configure gen =
 
 	let change_clname name =
 		let r = String.copy name in
-		for i = 0 to String.length r - 1 do
+		for i = 0 to String.length r - 2 do
 			match r.[i] with
-				| '$' when i + 1 == String.length r -> ()
 				| '$' -> r.[i] <- '.'
 				| _ -> ()
 		done;
