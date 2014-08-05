@@ -82,6 +82,7 @@ and ilfield = {
 	fname : string;
 	fflags : field_flags;
 	fsig : ilsig_t;
+  fconstant : constant option;
 }
 
 and ilmethod = {

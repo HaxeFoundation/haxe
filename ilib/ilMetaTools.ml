@@ -230,10 +230,18 @@ let ilsig_of_tdef_ref = function
 		error "Invalid tdef_or_ref"
 
 let convert_field ctx f =
+	let constant = List.fold_left (fun c -> function
+		| Constant c ->
+			Some c.c_value
+		| _ ->
+			c
+	) None (Hashtbl.find_all ctx.il_relations (IField, f.f_id))
+	in
 	{
 		fname = f.f_name;
 		fflags = f.f_flags;
 		fsig = ilsig_t f.f_signature;
+		fconstant = constant;
 	}
 
 let convert_generic ctx gp =
