@@ -255,35 +255,6 @@ import cs.system.Object;
 							l1 = s1.length,
 							l2 = s2.length;
 					return String.Compare(s1,s2, cs.system.StringComparison.Ordinal);
-					// bool active = true;
-					// while(active)
-					// {
-					// 	char h1; char h2;
-					// 	if (i >= l1)
-					// 	{
-					// 		h1 = (char) 0;
-					// 		active = false;
-					// 	} else {
-					// 		h1 = s1[i];
-					// 	}
-
-					// 	if (i >= l2)
-					// 	{
-					// 		h2 = (char) 0;
-					// 		active = false;
-					// 	} else {
-					// 		h2 = s2[i];
-					// 	}
-
-					// 	int v = h1 - h2;
-					// 	if (v > 0)
-					// 		return 1;
-					// 	else if (v < 0)
-					// 		return -1;
-
-					// 	i++;
-					// }
-					// return 0;
 				case cs.system.TypeCode.Double:
 					var d1:Float = cast v1,
 							d2:Float = cv2.ToDouble(null);
