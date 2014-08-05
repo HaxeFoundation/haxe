@@ -1390,7 +1390,7 @@ and type_field ?(resume=false) ctx e i p mode =
 			let f = PMap.find i a.a_fields in
 			if not f.cf_public && not ctx.untyped then begin
 				match !(a.a_status) with
-				| Closed -> () (* always allow anon private fields access *)
+				| Closed | Extend _ -> () (* always allow anon private fields access *)
 				| Statics c when can_access ctx c f true -> ()
 				| _ -> display_error ctx ("Cannot access private field " ^ i) p
 			end;
