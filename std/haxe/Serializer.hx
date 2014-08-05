@@ -69,7 +69,8 @@ class Serializer {
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 
 	var buf : StringBuf;
-	var cache : Array<Dynamic>;
+	var cache : haxe.ds.ObjectMap<Dynamic,Int>;
+	var cacheIndex : Int;
 	var shash : haxe.ds.StringMap<Int>;
 	var scount : Int;
 
@@ -99,7 +100,8 @@ class Serializer {
 	**/
 	public function new() {
 		buf = new StringBuf();
-		cache = new Array();
+		cache = new haxe.ds.ObjectMap();
+		cacheIndex = 0;
 		useCache = USE_CACHE;
 		useEnumIndex = USE_ENUM_INDEX;
 		shash = new haxe.ds.StringMap();
@@ -167,23 +169,25 @@ class Serializer {
 	}
 
 	function serializeRef(v) {
-		#if js
-		var vt = untyped __js__("typeof")(v);
-		#end
-		for( i in 0...cache.length ) {
-			#if js
-			var ci = cache[i];
-			if( untyped __js__("typeof")(ci) == vt && ci == v ) {
-			#else
-			if( cache[i] == v ) {
-			#end
-				buf.add("r");
-				buf.add(i);
-				return true;
-			}
+		var cached = cache.get(v);
+		if (cached != null)
+		{
+			buf.add("r");
+			buf.add(cached);
+			return true;
+		} else {
+			cache.set(v, cacheIndex++);
+			return false;
 		}
-		cache.push(v);
-		return false;
+	}
+
+	inline function cache_pop(v) {
+		if (cache.remove(v))
+			cacheIndex--;
+	}
+
+	inline function cache_push(v) {
+		cache.set(v,cacheIndex++);
 	}
 
 	#if flash9
@@ -364,17 +368,17 @@ class Serializer {
 				buf.add(":");
 				buf.add(chars);
 			default:
-				if( useCache ) cache.pop();
+				if( useCache ) cache_pop(v);
 				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
-					if( useCache ) cache.push(v);
+					if( useCache ) cache_push(v);
 					v.hxSerialize(this);
 					buf.add("g");
 				} else {
 					buf.add("c");
 					serializeString(Type.getClassName(c));
-					if( useCache ) cache.push(v);
+					if( useCache ) cache_push(v);
 					#if flash9
 					serializeClassFields(v,c);
 					#else
@@ -391,7 +395,7 @@ class Serializer {
 			if( useCache ) {
 				if( serializeRef(v) )
 					return;
-				cache.pop();
+				cache_pop(v);
 			}
 			buf.add(useEnumIndex?"j":"w");
 			serializeString(Type.getEnumName(e));
@@ -485,7 +489,7 @@ class Serializer {
 			for( i in 2...l )
 				serialize(v[i]);
 			#end
-			if( useCache ) cache.push(v);
+			if( useCache ) cache_push(v);
 		case TFunction:
 			throw "Cannot serialize function";
 		default:
