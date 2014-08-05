@@ -411,9 +411,9 @@ struct
 				| TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = "length" })) ->
 					{ e with eexpr = TField(run ef, FDynamic "Length") }
 				| TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = "toLowerCase" })) ->
-					{ e with eexpr = TField(run ef, FDynamic "ToLower") }
+					{ e with eexpr = TField(run ef, FDynamic "ToLowerInvariant") }
 				| TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = "toUpperCase" })) ->
-					{ e with eexpr = TField(run ef, FDynamic "ToUpper") }
+					{ e with eexpr = TField(run ef, FDynamic "ToUpperInvariant") }
 
 				| TCall( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) }, [cc] ) ->
 					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
@@ -2927,7 +2927,17 @@ let convert_ilenum ctx p ilcls =
 	List.iter (fun f -> match f.fname with
 		| "value__" -> ()
 		| _ ->
-			data := { ec_name = f.fname; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
+			let meta = match f.fconstant with
+				| Some IChar i
+				| Some IByte i
+				| Some IShort i ->
+					[Meta.CsNative, [EConst (Int (string_of_int i) ), p], p ]
+				| Some IInt i ->
+					[Meta.CsNative, [EConst (Int (Int32.to_string i) ), p], p ]
+				| _ ->
+					[]
+			in
+			data := { ec_name = f.fname; ec_doc = None; ec_meta = meta; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
 	) ilcls.cfields;
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	EEnum {

@@ -25,9 +25,11 @@ import cs.NativeArray;
 import cs.NativeArray;
 import cs.system.Activator;
 import cs.system.IConvertible;
+import cs.system.IComparable;
 import cs.system.reflection.MethodBase;
 import cs.system.reflection.MethodInfo;
 import cs.system.Type;
+import cs.system.Object;
 
 /**
  This class is meant for internal compiler use only. It provides the Haxe runtime
@@ -36,6 +38,7 @@ import cs.system.Type;
 
 @:nativeGen
 @:native('haxe.lang.Runtime')
+@:access(String)
 @:classCode('
 	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
@@ -225,87 +228,82 @@ import cs.system.Type;
 		return false;
 	}
 
-	@:functionCode('
-			if (v1 == v2) return 0;
-			if (v1 == null) return -1;
-			if (v2 == null) return 1;
-			System.IConvertible cv1 = v1 as System.IConvertible;
-			if (cv1 != null)
-			{
-				System.IConvertible cv2 = v2 as System.IConvertible;
-
-				if (cv2 == null)
-				{
-					throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-				}
-
-				switch(cv1.GetTypeCode())
-				{
-					case System.TypeCode.String:
-						if (cv2.GetTypeCode() != System.TypeCode.String)
-							throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-						string s1 = v1 as string;
-						string s2 = v2 as string;
-						int i =0;
-						int l1 = s1.Length;
-						int l2 = s2.Length;
-						bool active = true;
-						while(active)
-						{
-							char h1; char h2;
-							if (i >= l1)
-							{
-								h1 = (char) 0;
-								active = false;
-							} else {
-								h1 = s1[i];
-							}
-
-							if (i >= l2)
-							{
-								h2 = (char) 0;
-								active = false;
-							} else {
-								h2 = s2[i];
-							}
-
-							int v = h1 - h2;
-							if (v > 0)
-								return 1;
-							else if (v < 0)
-								return -1;
-
-							i++;
-						}
-						return 0;
-					case System.TypeCode.Double:
-					double d1 = (double) v1;
-					double d2 = cv2.ToDouble(null);
-
-          return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
-					default:
-            double d1d = cv1.ToDouble(null);
-            double d2d = cv2.ToDouble(null);
-            return (d1d < d2d) ? -1 : (d1d > d2d) ? 1 : 0;
-				}
-			}
-
-			System.IComparable c1 = v1 as System.IComparable;
-			System.IComparable c2 = v2 as System.IComparable;
-
-			if (c1 == null || c2 == null)
-			{
-				if (c1 == c2)
-					return 0;
-
-				throw new System.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-			}
-
-			return c1.CompareTo(c2);
-	')
 	public static function compare(v1:Dynamic, v2:Dynamic):Int
 	{
-		return 0;
+		if (Object.ReferenceEquals(v1,v2)) return 0;
+		if (Object.ReferenceEquals(v1,null)) return -1;
+		if (Object.ReferenceEquals(v2,null)) return 1;
+
+		var cv1 = Lib.as(v1, IConvertible);
+		if (cv1 != null)
+		{
+			var cv2 = Lib.as(v2, IConvertible);
+
+			if (cv2 == null)
+			{
+				throw new cs.system.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
+			}
+
+			switch(cv1.GetTypeCode())
+			{
+				case cs.system.TypeCode.String:
+					if (cv2.GetTypeCode() != cs.system.TypeCode.String)
+						throw new cs.system.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
+					var s1 = Lib.as(v1,String);
+					var s2 = Lib.as(v2,String);
+					var i = 0,
+							l1 = s1.length,
+							l2 = s2.length;
+					return String.Compare(s1,s2, cs.system.StringComparison.Ordinal);
+					// bool active = true;
+					// while(active)
+					// {
+					// 	char h1; char h2;
+					// 	if (i >= l1)
+					// 	{
+					// 		h1 = (char) 0;
+					// 		active = false;
+					// 	} else {
+					// 		h1 = s1[i];
+					// 	}
+
+					// 	if (i >= l2)
+					// 	{
+					// 		h2 = (char) 0;
+					// 		active = false;
+					// 	} else {
+					// 		h2 = s2[i];
+					// 	}
+
+					// 	int v = h1 - h2;
+					// 	if (v > 0)
+					// 		return 1;
+					// 	else if (v < 0)
+					// 		return -1;
+
+					// 	i++;
+					// }
+					// return 0;
+				case cs.system.TypeCode.Double:
+					var d1:Float = cast v1,
+							d2:Float = cv2.ToDouble(null);
+					return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
+				default:
+					var d1d = cv1.ToDouble(null);
+					var d2d = cv2.ToDouble(null);
+					return (d1d < d2d) ? -1 : (d1d > d2d) ? 1 : 0;
+			}
+		}
+
+		var c1 = Lib.as(v1, IComparable);
+		var c2 = Lib.as(v2, IComparable);
+
+		if (c1 == null || c2 == null)
+		{
+			throw new cs.system.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
+		}
+
+		return c1.CompareTo(c2);
 	}
 
 	@:functionCode('

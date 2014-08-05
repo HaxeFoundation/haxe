@@ -2527,12 +2527,20 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					) l, rt)
 			) in
 			if PMap.mem c.ec_name e.e_constrs then error ("Duplicate constructor " ^ c.ec_name) p;
+			let eindex = try
+				match Meta.get Meta.CsNative c.ec_meta with
+					| (Meta.CsNative,[EConst (Int i), _], _) ->
+							int_of_string i
+					| _ -> raise Not_found
+				with Not_found ->
+					!index
+			in
 			let f = {
 				ef_name = c.ec_name;
 				ef_type = t;
 				ef_pos = p;
 				ef_doc = c.ec_doc;
-				ef_index = !index;
+				ef_index = eindex;
 				ef_params = params;
 				ef_meta = c.ec_meta;
 			} in

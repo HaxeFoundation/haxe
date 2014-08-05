@@ -23,7 +23,8 @@ import cs.StdTypes;
 
 @:coreApi extern class String implements ArrayAccess<Char16> {
 
-	private static function Compare(s1:String, s2:String):Int;
+	@:overload private static function Compare(s1:String, s2:String):Int;
+	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
 
 	var length(default,null) : Int;
 
