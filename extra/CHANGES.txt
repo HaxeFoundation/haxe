@@ -38,6 +38,7 @@
 	macro : added Context.getLocalTVars
 	macro : added TypedExprTools.iter
 	macro : changed @:genericBuild macros to prefer ComplexType returns
+	macro : [breaking] extended TAnonymous structures now have AExtend status instead of AClosed
 
 	Deprecations:
 

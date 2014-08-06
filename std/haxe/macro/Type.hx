@@ -47,6 +47,7 @@ enum AnonStatus {
 	AClosed;
 	AOpened;
 	AConst;
+	AExtend( tl:Ref<Array<Type>> );
 	AClassStatics( t : Ref<ClassType> );
 	AEnumStatics( t : Ref<EnumType> );
 	AAbstractStatics( t : Ref<AbstractType> );

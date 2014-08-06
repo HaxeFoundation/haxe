@@ -466,7 +466,7 @@ and load_complex_type ctx p t =
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
 					PMap.iter (fun _ cf -> ignore(is_redefined cf a2)) a.a_fields;
-					mk_anon (PMap.foldi PMap.add a.a_fields a2.a_fields)
+					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
 				| _ -> error "Can only extend classes and structures" p
 			in
 			let loop t = match follow t with
@@ -488,6 +488,7 @@ and load_complex_type ctx p t =
 						mk_extension i
 					| _ ->
 						List.iter loop il;
+						a.a_status := Extend il;
 						ta);
 				t
 			) "constraint" in

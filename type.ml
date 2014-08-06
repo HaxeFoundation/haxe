@@ -91,6 +91,7 @@ and anon_status =
 	| Closed
 	| Opened
 	| Const
+	| Extend of t list
 	| Statics of tclass
 	| EnumStatics of tenum
 	| AbstractStatics of tabstract
@@ -1360,7 +1361,7 @@ let rec unify a b =
 			(match !(an.a_status) with
 			| Opened -> an.a_status := Closed;
 			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
-			| Closed | Const -> ())
+			| Closed | Extend _ | Const -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
@@ -1403,7 +1404,7 @@ let rec unify a b =
 			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| Opened -> a2.a_status := Closed
-			| Const | Closed -> ())
+			| Const | Extend _ | Closed -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
