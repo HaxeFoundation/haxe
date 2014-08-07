@@ -4562,7 +4562,10 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					(EBlock [],p)
 				)
 			with Interp.Invalid_expr ->
-				error "The macro didn't return a valid result" p
+				if v = Interp.VNull then
+					error "Unexpected null value returned from macro" p
+				else
+					error "The macro didn't return a valid result" p
 	in
 	let e = (if ctx.in_macro then begin
 		(*
