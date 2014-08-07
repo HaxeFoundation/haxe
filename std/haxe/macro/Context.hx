@@ -436,7 +436,7 @@ class Context {
 	**/
 	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?usings: Array<TypePath> ) : Void {
 		if (usings == null) usings = [];
-		load("define_module", 2)(untyped modulePath.__s, untyped types.__neko(), untyped usings.__neko());
+		load("define_module", 3)(untyped modulePath.__s, untyped types.__neko(), untyped usings.__neko());
 	}
 
 	/**
