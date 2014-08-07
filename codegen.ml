@@ -183,7 +183,7 @@ let extend_remoting ctx c t p async prot =
 			(EClass { c with d_flags = []; d_name = new_name; d_data = fields },p)
 		| _ -> d
 	) decls in
-	let m = Typeload.type_module ctx (t.tpackage,new_name) file decls p in
+	let m = Typeload.type_module ctx (t.tpackage,new_name) file decls [] p in
 	add_dependency ctx.m.curmod m;
 	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types

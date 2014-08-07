@@ -117,7 +117,7 @@ type extern_api = {
 	get_build_fields : unit -> value;
 	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Ast.pos) PMap.t;
 	define_type : value -> unit;
-	define_module : string -> value list -> unit;
+	define_module : string -> value list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
 	delayed_macro : int -> (unit -> (unit -> value));
@@ -204,6 +204,7 @@ let enc_string_ref = ref (fun s -> assert false)
 let make_ast_ref = ref (fun _ -> assert false)
 let make_complex_type_ref = ref (fun _ -> assert false)
 let encode_tvar_ref = ref (fun _ -> assert false)
+let decode_path_ref = ref (fun _ -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let enc_array (l:value list) : value = (!enc_array_ref) l
 let dec_array (l:value) : value list = (!dec_array_ref) l
@@ -220,6 +221,7 @@ let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
 let enc_string (s:string) : value = (!enc_string_ref) s
 let make_complex_type (t:Type.t) : Ast.complex_type = (!make_complex_type_ref) t
 let encode_tvar (v:tvar) : value = (!encode_tvar_ref) v
+let decode_path (v:value) : Ast.type_path = (!decode_path_ref) v
 
 let to_int f = Int32.of_float (mod_float f 2147483648.0)
 let need_32_bits i = Int32.compare (Int32.logand (Int32.add i 0x40000000l) 0x80000000l) Int32.zero <> 0
@@ -2487,10 +2489,10 @@ let macro_lib =
 			(get_ctx()).curapi.define_type v;
 			VNull
 		);
-		"define_module", Fun2 (fun p v ->
-			match p, v with
-			| VString path, VArray vl ->
-				(get_ctx()).curapi.define_module path (Array.to_list vl);
+		"define_module", Fun3 (fun p v u ->
+			match p, v, u with
+			| VString path, VArray vl, VArray ul ->
+				(get_ctx()).curapi.define_module path (Array.to_list vl) (List.map decode_path (Array.to_list ul));
 				VNull
 			| _ ->
 				error()
@@ -4997,3 +4999,4 @@ enc_hash_ref := enc_hash;
 encode_texpr_ref := encode_texpr;
 decode_texpr_ref := decode_texpr;
 encode_tvar_ref := encode_tvar;
+decode_path_ref := decode_path;

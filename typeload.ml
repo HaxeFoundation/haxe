@@ -2277,6 +2277,35 @@ let add_module ctx m p =
 	List.iter decl_type m.m_types;
 	Hashtbl.add ctx.g.modules m.m_path m
 
+let add_using ctx p t =
+	(* do the import first *)
+	let types = (match t.tsub with
+		| None ->
+			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
+			ctx.m.module_types <- types @ ctx.m.module_types;
+			types
+		| Some _ ->
+			let t = load_type_def ctx p t in
+			ctx.m.module_types <- t :: ctx.m.module_types;
+			[t]
+	) in
+	(* delay the using since we need to resolve typedefs *)
+	let filter_classes types =
+		let rec loop acc types = match types with
+			| td :: l ->
+				(match resolve_typedef td with
+				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
+					loop (c :: acc) l
+				| td ->
+					loop acc l)
+			| [] ->
+				acc
+		in
+		loop [] types
+	in
+	ctx.m.module_using <- filter_classes types @ ctx.m.module_using
+
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
@@ -2398,33 +2427,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				) :: !context_init
 			))
 	| EUsing t ->
-		(* do the import first *)
-		let types = (match t.tsub with
-			| None ->
-				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.m.module_types <- types @ ctx.m.module_types;
-				types
-			| Some _ ->
-				let t = load_type_def ctx p t in
-				ctx.m.module_types <- t :: ctx.m.module_types;
-				[t]
-		) in
-		(* delay the using since we need to resolve typedefs *)
-		let filter_classes types =
-			let rec loop acc types = match types with
-				| td :: l ->
-					(match resolve_typedef td with
-					| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-						loop (c :: acc) l
-					| td ->
-						loop acc l)
-				| [] ->
-					acc
-			in
-			loop [] types
-		in
-		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
+		context_init := (fun() -> add_using ctx p t) :: !context_init
 	| EClass d ->
 		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
 		let herits = d.d_flags in
@@ -2626,7 +2629,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				error "Abstract is missing underlying type declaration" a.a_pos
 		end
 
-let type_module ctx m file tdecls p =
+let type_module ctx m file tdecls usings p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in
 	add_module ctx m p;
 	(* define the per-module context for the next pass *)
@@ -2668,6 +2671,9 @@ let type_module ctx m file tdecls p =
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_core_type ctx "String");
 	end;
+	List.iter (fun t ->
+		add_using ctx p t
+	) usings;
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
 		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 	List.iter (fun d ->
@@ -2802,7 +2808,7 @@ let load_module ctx m p =
 				loop ctx.com.load_extern_type
 			) in
 			try
-				type_module ctx m file decls p
+				type_module ctx m file decls [] p
 			with Forbid_package (inf,pl,pf) when p <> Ast.null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 	) in
