@@ -434,8 +434,9 @@ class Context {
 	/**
 		Defines a new module with several `TypeDefinition` `types`.
 	**/
-	public static function defineModule( modulePath : String, types : Array<TypeDefinition> ) : Void {
-		load("define_module", 2)(untyped modulePath.__s,untyped types.__neko());
+	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?usings: Array<TypePath> ) : Void {
+		if (usings == null) usings = [];
+		load("define_module", 2)(untyped modulePath.__s, untyped types.__neko(), untyped usings.__neko());
 	}
 
 	/**

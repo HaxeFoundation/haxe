@@ -4241,7 +4241,7 @@ let make_macro_api ctx p =
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			let add ctx =
 				let prev = (try Some (Hashtbl.find ctx.g.modules m) with Not_found -> None) in
-				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
+				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] [] pos in
 				add_dependency mnew ctx.m.curmod;
 				(* if we defined a type in an existing module, let's move the types here *)
 				(match prev with
@@ -4262,7 +4262,7 @@ let make_macro_api ctx p =
 			| _ ->
 				()
 		);
-		Interp.define_module = (fun m types ->
+		Interp.define_module = (fun m types usings ->
 			let types = List.map (fun v ->
 				let _, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 				tdef, pos
@@ -4270,7 +4270,7 @@ let make_macro_api ctx p =
 			let m = Ast.parse_path m in
 			let pos = (match types with [] -> Ast.null_pos | (_,p) :: _ -> p) in
 			let prev = (try Some (Hashtbl.find ctx.g.modules m) with Not_found -> None) in
-			let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file types pos in
+			let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file types usings pos in
 			add_dependency mnew ctx.m.curmod;
 			(* if we defined a type in an existing module, let's move the types here *)
 			(match prev with
