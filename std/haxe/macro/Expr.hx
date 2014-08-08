@@ -334,3 +334,14 @@ class Error {
 		return message;
 	}
 }
+
+enum ImportMode {
+	INormal;
+	IAsName(alias:String);
+	IAll;
+}
+
+typedef ImportExpr = {
+	path: Array< { pos: Position, name: String } >;
+	mode: ImportMode;
+}

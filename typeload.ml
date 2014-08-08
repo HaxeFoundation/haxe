@@ -2277,7 +2277,118 @@ let add_module ctx m p =
 	List.iter decl_type m.m_types;
 	Hashtbl.add ctx.g.modules m.m_path m
 
-let add_using ctx p t =
+let add_import ctx context_init path mode =
+	let rec loop acc = function
+		| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
+		| rest -> List.rev acc, rest
+	in
+	let pack, rest = loop [] path in
+	(match rest with
+	| [] ->
+		(match mode with
+		| IAll ->
+			ctx.m.wildcard_packages <- List.map fst pack :: ctx.m.wildcard_packages
+		| _ ->
+			(match List.rev path with
+			| [] -> assert false
+			| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
+	| (tname,p2) :: rest ->
+		let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
+		let p = punion p1 p2 in
+		let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p in
+		let types = md.m_types in
+		let no_private t = not (t_infos t).mt_private in
+		let chk_private t p = if (t_infos t).mt_private then error "You can't import a private type" p in
+		let has_name name t = snd (t_infos t).mt_path = name in
+		let get_type tname =
+			let t = (try List.find (has_name tname) types with Not_found -> error (string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p) in
+			chk_private t p;
+			t
+		in
+		let rebind t name =
+			let _, _, f = ctx.g.do_build_instance ctx t p in
+			(* create a temp private typedef, does not register it in module *)
+			TTypeDecl {
+				t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
+				t_module = md;
+				t_pos = p;
+				t_private = true;
+				t_doc = None;
+				t_meta = [];
+				t_types = (t_infos t).mt_types;
+				t_type = f (List.map snd (t_infos t).mt_types);
+			}
+		in
+		let add_static_init t name s =
+			let name = (match name with None -> s | Some n -> n) in
+			match resolve_typedef t with
+			| TClassDecl c ->
+				c.cl_build();
+				ignore(PMap.find s c.cl_statics);
+				ctx.m.module_globals <- PMap.add name (TClassDecl c,s) ctx.m.module_globals
+			| TEnumDecl e ->
+				ignore(PMap.find s e.e_constrs);
+				ctx.m.module_globals <- PMap.add name (TEnumDecl e,s) ctx.m.module_globals
+			| _ ->
+				raise Not_found
+		in
+		(match mode with
+		| INormal | IAsName _ ->
+			let name = (match mode with IAsName n -> Some n | _ -> None) in
+			(match rest with
+			| [] ->
+				(match name with
+				| None ->
+					ctx.m.module_types <- List.filter no_private types @ ctx.m.module_types
+				| Some newname ->
+					ctx.m.module_types <- rebind (get_type tname) newname :: ctx.m.module_types);
+			| [tsub,p2] ->
+				let p = punion p1 p2 in
+				(try
+					let tsub = List.find (has_name tsub) types in
+					chk_private tsub p;
+					ctx.m.module_types <- (match name with None -> tsub | Some n -> rebind tsub n) :: ctx.m.module_types
+				with Not_found ->
+					(* this might be a static property, wait later to check *)
+					let tmain = get_type tname in
+					context_init := (fun() ->
+						try
+							add_static_init tmain name tsub
+						with Not_found ->
+							error (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
+					) :: !context_init)
+			| (tsub,p2) :: (fname,p3) :: rest ->
+				(match rest with
+				| [] -> ()
+				| (n,p) :: _ -> error ("Unexpected " ^ n) p);
+				let tsub = get_type tsub in
+				context_init := (fun() ->
+					try
+						add_static_init tsub name fname
+					with Not_found ->
+						error (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
+				) :: !context_init;
+			)
+		| IAll ->
+			let t = (match rest with
+				| [] -> get_type tname
+				| [tsub,_] -> get_type tsub
+				| _ :: (n,p) :: _ -> error ("Unexpected " ^ n) p
+			) in
+			context_init := (fun() ->
+				match resolve_typedef t with
+				| TClassDecl c
+				| TAbstractDecl {a_impl = Some c} ->
+					c.cl_build();
+					PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name) ctx.m.module_globals) c.cl_statics
+				| TEnumDecl e ->
+					PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name) ctx.m.module_globals) e.e_constrs
+				| _ ->
+					error "No statics to import from this type" p
+			) :: !context_init
+		))
+
+let add_using ctx context_init p t =
 	(* do the import first *)
 	let types = (match t.tsub with
 		| None ->
@@ -2304,7 +2415,7 @@ let add_using ctx p t =
 		in
 		loop [] types
 	in
-	ctx.m.module_using <- filter_classes types @ ctx.m.module_using
+	context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
@@ -2317,117 +2428,9 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 	in
 	match decl with
 	| EImport (path,mode) ->
-		let rec loop acc = function
-			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
-			| rest -> List.rev acc, rest
-		in
-		let pack, rest = loop [] path in
-		(match rest with
-		| [] ->
-			(match mode with
-			| IAll ->
-				ctx.m.wildcard_packages <- List.map fst pack :: ctx.m.wildcard_packages
-			| _ ->
-				(match List.rev path with
-				| [] -> assert false
-				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
-		| (tname,p2) :: rest ->
-			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
-			let p = punion p1 p2 in
-			let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p in
-			let types = md.m_types in
-			let no_private t = not (t_infos t).mt_private in
-			let chk_private t p = if (t_infos t).mt_private then error "You can't import a private type" p in
-			let has_name name t = snd (t_infos t).mt_path = name in
-			let get_type tname =
-				let t = (try List.find (has_name tname) types with Not_found -> error (string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p) in
-				chk_private t p;
-				t
-			in
-			let rebind t name =
-				let _, _, f = ctx.g.do_build_instance ctx t p in
-				(* create a temp private typedef, does not register it in module *)
-				TTypeDecl {
-					t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
-					t_module = md;
-					t_pos = p;
-					t_private = true;
-					t_doc = None;
-					t_meta = [];
-					t_types = (t_infos t).mt_types;
-					t_type = f (List.map snd (t_infos t).mt_types);
-				}
-			in
-			let add_static_init t name s =
-				let name = (match name with None -> s | Some n -> n) in
-				match resolve_typedef t with
-				| TClassDecl c ->
-					c.cl_build();
-					ignore(PMap.find s c.cl_statics);
-					ctx.m.module_globals <- PMap.add name (TClassDecl c,s) ctx.m.module_globals
-				| TEnumDecl e ->
-					ignore(PMap.find s e.e_constrs);
-					ctx.m.module_globals <- PMap.add name (TEnumDecl e,s) ctx.m.module_globals
-				| _ ->
-					raise Not_found
-			in
-			(match mode with
-			| INormal | IAsName _ ->
-				let name = (match mode with IAsName n -> Some n | _ -> None) in
-				(match rest with
-				| [] ->
-					(match name with
-					| None ->
-						ctx.m.module_types <- List.filter no_private types @ ctx.m.module_types
-					| Some newname ->
-						ctx.m.module_types <- rebind (get_type tname) newname :: ctx.m.module_types);
-				| [tsub,p2] ->
-					let p = punion p1 p2 in
-					(try
-						let tsub = List.find (has_name tsub) types in
-						chk_private tsub p;
-						ctx.m.module_types <- (match name with None -> tsub | Some n -> rebind tsub n) :: ctx.m.module_types
-					with Not_found ->
-						(* this might be a static property, wait later to check *)
-						let tmain = get_type tname in
-						context_init := (fun() ->
-							try
-								add_static_init tmain name tsub
-							with Not_found ->
-								error (s_type_path (t_infos tmain).mt_path ^ " has no field or subtype " ^ tsub) p
-						) :: !context_init)
-				| (tsub,p2) :: (fname,p3) :: rest ->
-					(match rest with
-					| [] -> ()
-					| (n,p) :: _ -> error ("Unexpected " ^ n) p);
-					let tsub = get_type tsub in
-					context_init := (fun() ->
-						try
-							add_static_init tsub name fname
-						with Not_found ->
-							error (s_type_path (t_infos tsub).mt_path ^ " has no field " ^ fname) (punion p p3)
-					) :: !context_init;
-				)
-			| IAll ->
-				let t = (match rest with
-					| [] -> get_type tname
-					| [tsub,_] -> get_type tsub
-					| _ :: (n,p) :: _ -> error ("Unexpected " ^ n) p
-				) in
-				context_init := (fun() ->
-					match resolve_typedef t with
-					| TClassDecl c
-					| TAbstractDecl {a_impl = Some c} ->
-						c.cl_build();
-						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name) ctx.m.module_globals) c.cl_statics
-					| TEnumDecl e ->
-						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name) ctx.m.module_globals) e.e_constrs
-					| _ ->
-						error "No statics to import from this type" p
-				) :: !context_init
-			))
+		(add_import ctx context_init path mode)
 	| EUsing t ->
-		context_init := (fun() -> add_using ctx p t) :: !context_init
+		(add_using ctx context_init p t)
 	| EClass d ->
 		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
 		let herits = d.d_flags in
@@ -2629,7 +2632,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				error "Abstract is missing underlying type declaration" a.a_pos
 		end
 
-let type_module ctx m file tdecls usings p =
+let type_module ctx m file tdecls imports usings p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in
 	add_module ctx m p;
 	(* define the per-module context for the next pass *)
@@ -2671,9 +2674,6 @@ let type_module ctx m file tdecls usings p =
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_core_type ctx "String");
 	end;
-	List.iter (fun t ->
-		add_using ctx p t
-	) usings;
 	(* here is an additional PASS 1 phase, which define the type parameters for all module types.
 		 Constraints are handled lazily (no other type is loaded) because they might be recursive anyway *)
 	List.iter (fun d ->
@@ -2691,6 +2691,12 @@ let type_module ctx m file tdecls usings p =
 	) decls;
 	(* setup module types *)
 	let context_init = ref [] in
+	List.iter (fun (path, mode) ->
+		add_import ctx context_init path mode
+	) imports;
+	List.iter (fun t ->
+		add_using ctx context_init p t
+	) usings;
 	let do_init() =
 		match !context_init with
 		| [] -> ()
@@ -2808,7 +2814,7 @@ let load_module ctx m p =
 				loop ctx.com.load_extern_type
 			) in
 			try
-				type_module ctx m file decls [] p
+				type_module ctx m file decls [] [] p
 			with Forbid_package (inf,pl,pf) when p <> Ast.null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 	) in
