@@ -342,6 +342,6 @@ enum ImportMode {
 }
 
 typedef ImportExpr = {
-	path: Array< { pos: Position, name: String } >;
-	mode: ImportMode;
+	var path: Array< { pos: Position, name: String } >;
+	var mode: ImportMode;
 }
