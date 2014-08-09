@@ -115,7 +115,7 @@ class Printer {
 
 	public function printMetadata(meta:MetadataEntry) return
 		'@${meta.name}'
-		+ (meta.params.length > 0 ? '(${printExprs(meta.params,", ")})' : "");
+		+ ((meta.params != null && meta.params.length > 0) ? '(${printExprs(meta.params,", ")})' : "");
 
 	public function printAccess(access:Access) return switch(access) {
 		case AStatic: "static";
