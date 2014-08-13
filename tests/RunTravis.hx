@@ -305,7 +305,7 @@ class RunTravis {
 			case "Mac":
 				//pass
 		}
-		
+
 		runCommand("node", ["-v"]);
 	}
 
@@ -395,14 +395,13 @@ class RunTravis {
 				haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
 
 				//BYTECODE
-				// disabled until https://github.com/HaxeFoundation/haxe/issues/3184 is resolved
-				//if (Sys.getEnv("TRAVIS") == "true") {
-					//changeDirectory(repoDir);
-					//runCommand("make", ["BYTECODE=1"]);
-					//runCommand("sudo", ["make", "install"]);
-					//changeDirectory(unitDir);
-					//runCommand("haxe", ["compile-macro.hxml"]);
-				//}
+				if (Sys.getEnv("TRAVIS") == "true") {
+					changeDirectory(repoDir);
+					runCommand("make", ["BYTECODE=1"]);
+					runCommand("sudo", ["make", "install"]);
+					changeDirectory(unitDir);
+					runCommand("haxe", ["compile-macro.hxml"]);
+				}
 			case Neko:
 				runCommand("haxe", ["compile-neko.hxml"]);
 				runCommand("neko", ["unit.n"]);
