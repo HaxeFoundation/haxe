@@ -17,5 +17,6 @@ class Issue3247 extends Test {
 		eq(2, e[1]);
 		eq(3, e[2]);
 		eq(4, e[2]++);
+		eq(5, (e[3])++);
 	}
 }
