@@ -44,7 +44,7 @@ and con = {
 
 and st_def =
 	| SVar of tvar
-	| SField of st * string
+	| SField of st * tclass_field
 	| SEnum of st * tenum_field * int
 	| SArray of st * int
 	| STuple of st * int * int
@@ -198,7 +198,7 @@ let mk_subs st con =
 		| _ -> fun t -> t
 	in
 	match con.c_def with
-	| CFields (_,fl) -> List.map (fun (s,cf) -> mk_st (SField(st,s)) (map cf.cf_type) st.st_pos) fl
+	| CFields (_,fl) -> List.map (fun (s,cf) -> mk_st (SField(st,cf)) (map cf.cf_type) st.st_pos) fl
 	| CEnum (en,({ef_type = TFun _} as ef)) ->
 		let rec loop t = match follow t with
 			| TEnum(_,pl) -> pl
@@ -265,7 +265,7 @@ let rec s_st st =
 	| SEnum (st,ef,i) -> s_st st ^ "." ^ ef.ef_name ^ "." ^ (string_of_int i)
 	| SArray (st,i) -> s_st st ^ "[" ^ (string_of_int i) ^ "]"
 	| STuple (st,i,a) -> "(" ^ (st_args i (a - i - 1) (s_st st)) ^ ")"
-	| SField (st,n) -> s_st st ^ "." ^ n)
+	| SField (st,cf) -> s_st st ^ "." ^ cf.cf_name)
 
 (* Pattern parsing *)
 
@@ -475,11 +475,10 @@ let to_pattern ctx e t =
 				end
 			end
 		| (EObjectDecl fl) ->
-			let is_matchable cf = match cf.cf_kind with Method _ | Var {v_read = AccCall} -> false | _ -> true in
+			let is_matchable cf = match cf.cf_kind with Method _ -> false | _ -> true in
 			let is_valid_field_name fields co n p =
 				try
 					let cf = PMap.find n fields in
-					if not (is_matchable cf) then error ("Cannot match against method or property with getter " ^ n) p;
 					begin match co with
 					| Some c when not (Typer.can_access ctx c cf false) -> error ("Cannot match against private field " ^ n) p
 					| _ -> ()
@@ -488,37 +487,37 @@ let to_pattern ctx e t =
 					error ((s_type t) ^ " has no field " ^ n ^ " that can be matched against") p;
 			in
 			pctx.pc_is_complex <- true;
-			begin match follow t with
-			| TAnon {a_fields = fields} ->
-				List.iter (fun (n,(_,p)) -> is_valid_field_name fields None n p) fl;
+			let loop_fields fields f =
 				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
 					if not (is_matchable cf) then
 						sl,pl,i
 					else
-						let pat =
-							try
-								if pctx.pc_reify && cf.cf_name = "pos" then raise Not_found;
-								loop pctx (List.assoc n fl) cf.cf_type
-							with Not_found ->
-								(mk_any cf.cf_type p)
+						let pat = try
+							loop pctx (List.assoc cf.cf_name fl) (f cf)
+						with Not_found ->
+							(mk_any cf.cf_type p)
 						in
 						(n,cf) :: sl,pat :: pl,i + 1
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
-			| TInst(c,tl) ->
-				List.iter (fun (n,(_,p)) -> is_valid_field_name c.cl_fields (Some c) n p) fl;
-				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
-					if not (is_matchable cf) then
-						sl,pl,i
-					else
-						let t = apply_params c.cl_types tl (monomorphs cf.cf_params cf.cf_type) in
-						let pat = try loop pctx (List.assoc n fl) t with Not_found -> (mk_any t p) in
-						(n,cf) :: sl,pat :: pl,i + 1
-				) c.cl_fields ([],[],0) in
-				mk_con_pat (CFields(i,sl)) pl t p
-			| _ ->
-				error ((s_type t) ^ " should be { }") p
-			end
+			in
+			let fields,map = match follow t with
+				| TAnon {a_fields = fields} ->
+					fields,(fun cf -> cf.cf_type)
+				| TInst(c,tl) ->
+					c.cl_fields,(fun cf -> apply_params c.cl_types tl (monomorphs cf.cf_params cf.cf_type))
+				| TAbstract({a_impl = Some c} as a,tl) ->
+					let fields = List.fold_left (fun acc cf ->
+						if Meta.has Meta.Impl cf.cf_meta then
+							PMap.add cf.cf_name cf acc
+						else acc
+					) PMap.empty c.cl_ordered_statics in
+					fields,(fun cf -> apply_params a.a_types tl (monomorphs cf.cf_params cf.cf_type))
+				| _ ->
+					error ((s_type t) ^ " cannot be matched against a structure") p
+			in
+			List.iter (fun (n,(_,p)) -> is_valid_field_name fields None n p) fl;
+			loop_fields fields map
 		| EArrayDecl [] ->
 			mk_con_pat (CArray 0) [] t p
 		| EArrayDecl el ->
@@ -984,10 +983,9 @@ let mk_const ctx p = function
 
 let rec convert_st ctx st = match st.st_def with
 	| SVar v -> mk (TLocal v) v.v_type st.st_pos
-	| SField (sts,f) ->
+	| SField (sts,cf) ->
 		let e = convert_st ctx sts in
-		let fa = try quick_field e.etype f with Not_found -> FDynamic f in
-		mk (TField(e,fa)) st.st_type st.st_pos
+		Typer.acc_get ctx (Typer.type_field ctx e cf.cf_name st.st_pos Typer.MGet) st.st_pos
 	| SArray (sts,i) -> mk (TArray(convert_st ctx sts,mk_const ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 	| STuple (st,_,_) -> convert_st ctx st
 	| SEnum(sts,ef,i) -> mk (TEnumParameter(convert_st ctx sts, ef, i)) st.st_type st.st_pos
@@ -1332,10 +1330,10 @@ let match_expr ctx e cases def with_type p =
 				Printf.sprintf "[%s]" (st_args i r (s_st_r top false st v))
 			| SArray(st,i) ->
 				s_st_r false true st (Printf.sprintf "[%i]%s" i (if top then " = " ^ v else v))
-			| SField({st_def = SVar v1},f) when v1.v_name.[0] = '`' ->
-				f ^ (if top then " = " ^ v else v)
-			| SField(st,f) ->
-				s_st_r false true st (Printf.sprintf ".%s%s" f (if top then " = " ^ v else v))
+			| SField({st_def = SVar v1},cf) when v1.v_name.[0] = '`' ->
+				cf.cf_name ^ (if top then " = " ^ v else v)
+			| SField(st,cf) ->
+				s_st_r false true st (Printf.sprintf ".%s%s" cf.cf_name (if top then " = " ^ v else v))
 			| SEnum(st,ef,i) ->
 				let len = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> 0 in
 				s_st_r false false st (Printf.sprintf "%s(%s)" ef.ef_name (st_args i (len - 1 - i) v))
