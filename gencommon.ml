@@ -5922,11 +5922,17 @@ struct
 		with | Unify_error _ -> false
 
 	(* this is a workaround for issue #1743, as FInstance() is returning the incorrect classfield *)
+	let rec clean_t t = match follow t with
+		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+			clean_t (Codegen.Abstract.get_underlying_type a tl)
+		| t -> t
+
 	let select_overload gen applied_f overloads types params =
 		let rec check_arg arglist elist =
 			match arglist, elist with
 				| [], [] -> true (* it is valid *)
-				| (_,_,t) :: arglist, (_,_,et) :: elist when Type.type_iseq et t ->
+				| (_,_,t) :: arglist, (_,_,et) :: elist when Type.type_iseq (clean_t et) (clean_t t) ->
+
 					check_arg arglist elist
 				| _ -> false
 		in
