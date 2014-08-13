@@ -2219,42 +2219,54 @@ and type_unop ctx op flag e p =
 		) with Not_found ->
 			make e
 	in
-	match acc with
-	| AKExpr e -> access e
-	| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
-	| AKNo s ->
-		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-	| AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ ->
-		error "This kind of operation is not supported" p
-	| AKSet (e,t,cf) ->
-		let l = save_locals ctx in
-		let v = gen_local ctx e.etype in
-		let ev = mk (TLocal v) e.etype p in
-		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
-		let one = (EConst (Int "1"),p) in
-		let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
-		match flag with
-		| Prefix ->
-			let get = type_binop ctx op eget one false Value p in
-			unify ctx get.etype t p;
-			l();
-			mk (TBlock [
-				mk (TVar (v,Some e)) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
-			]) t p
-		| Postfix ->
-			let v2 = gen_local ctx t in
-			let ev2 = mk (TLocal v2) t p in
-			let get = type_expr ctx eget Value in
-			let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false Value p in
-			unify ctx get.etype t p;
-			l();
-			mk (TBlock [
-				mk (TVar (v,Some e)) ctx.t.tvoid p;
-				mk (TVar (v2,Some get)) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [plusone.etype] t) p) [plusone] t p;
-				ev2
-			]) t p
+	let rec loop acc =
+		match acc with
+		| AKExpr e -> access e
+		| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
+		| AKNo s ->
+			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
+		| AKAccess(ebase,ekey) ->
+			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype None p in
+			let e = match cf.cf_expr with
+				| None ->
+					mk (TArray(ebase,ekey)) r p
+				| Some _ ->
+					make_static_call ctx c cf (fun t -> t) [ebase;ekey] r p
+			in
+			loop (AKExpr e)
+		| AKInline _ | AKUsing _ | AKMacro _ ->
+			error "This kind of operation is not supported" p
+		| AKSet (e,t,cf) ->
+			let l = save_locals ctx in
+			let v = gen_local ctx e.etype in
+			let ev = mk (TLocal v) e.etype p in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let one = (EConst (Int "1"),p) in
+			let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
+			match flag with
+			| Prefix ->
+				let get = type_binop ctx op eget one false Value p in
+				unify ctx get.etype t p;
+				l();
+				mk (TBlock [
+					mk (TVar (v,Some e)) ctx.t.tvoid p;
+					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
+				]) t p
+			| Postfix ->
+				let v2 = gen_local ctx t in
+				let ev2 = mk (TLocal v2) t p in
+				let get = type_expr ctx eget Value in
+				let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false Value p in
+				unify ctx get.etype t p;
+				l();
+				mk (TBlock [
+					mk (TVar (v,Some e)) ctx.t.tvoid p;
+					mk (TVar (v2,Some get)) ctx.t.tvoid p;
+					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [plusone.etype] t) p) [plusone] t p;
+					ev2
+				]) t p
+	in
+	loop acc
 
 and type_switch_old ctx e cases def with_type p =
 	let eval = type_expr ctx e Value in
