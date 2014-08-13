@@ -1233,7 +1233,9 @@ and gen_expr ctx e =
 			gen_value_op ctx e2;
 		));
 	| TEnumParameter(e1,_,i) ->
+		spr ctx "_hx_deref(";
 		gen_value ctx e1;
+		spr ctx ")";
 		print ctx "->params[%d]" i;
 	| TField (e1,s) ->
 		gen_tfield ctx e e1 (field_name s)
