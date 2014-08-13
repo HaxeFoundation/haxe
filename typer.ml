@@ -3807,7 +3807,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		ignore(acc_get ctx acc p);
 		assert false
 	| AKExpr e ->
-		let el , t, e = (match follow e.etype with
+		let rec loop t = match follow t with
 		| TFun (args,r) ->
 			let fopts = (match acc with
 				| AKExpr {eexpr = TField(e, (FStatic (_,f) | FInstance(_,f) | FAnon(f)))} ->
@@ -3821,6 +3821,8 @@ and build_call ctx acc el (with_type:with_type) p =
 				| _ ->
 					let el, tfunc = unify_call_params ctx fopts el args r p false in
 					el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc})
+		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
+			loop (Codegen.Abstract.get_underlying_type a tl)
 		| TMono _ ->
 			let t = mk_mono() in
 			let el = List.map (fun e -> type_expr ctx e Value) el in
@@ -3834,7 +3836,8 @@ and build_call ctx acc el (with_type:with_type) p =
 				mk_mono()
 			else
 				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos), e
-		) in
+		in
+		let el , t, e = loop e.etype in
 		mk (TCall (e,el)) t p
 
 (* ---------------------------------------------------------------------- *)

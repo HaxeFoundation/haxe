@@ -4,6 +4,7 @@
 
 	all : add --display mode for toplevel completion
 	all : add --display mode for position and usage information
+	all : allow @:callable on abstracts to forward calls to their underlying type
 	python : added python target
 	flash : flash player 12-14 support
 	js : add @:jsRequire and js.Lib.require

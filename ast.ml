@@ -41,6 +41,7 @@ module Meta = struct
 		| BridgeProperties
 		| Build
 		| BuildXml
+		| Callable
 		| Class
 		| ClassCode
 		| Commutative
