@@ -493,6 +493,7 @@ let to_pattern ctx e t =
 						sl,pl,i
 					else
 						let pat = try
+							if pctx.pc_reify && cf.cf_name = "pos" then raise Not_found;
 							loop pctx (List.assoc cf.cf_name fl) (f cf)
 						with Not_found ->
 							(mk_any cf.cf_type p)
