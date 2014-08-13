@@ -237,10 +237,6 @@ let class_field ctx c pl name p =
 
 (* checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
-	let c = match c.cl_kind with
-		| KGenericInstance(c,_) -> c
-		| _ -> c
-	in
 	if cf.cf_public then
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
@@ -248,8 +244,9 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 	else
 	(* TODO: should we add a c == ctx.curclass short check here? *)
 	(* has metadata path *)
-	let make_path c f = match c.cl_kind with
+	let rec make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
+		| KGenericInstance(c,_) -> make_path c f
 		| _ when c.cl_private -> List.rev (f.cf_name :: snd c.cl_path :: (List.tl (List.rev (fst c.cl_path))))
 		| _ -> fst c.cl_path @ [snd c.cl_path; f.cf_name]
 	in
