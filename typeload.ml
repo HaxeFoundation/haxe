@@ -188,7 +188,7 @@ let make_module ctx mpath file tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum),_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| _ ->
 							()
@@ -1715,14 +1715,21 @@ let init_class ctx c p context_init herits fields =
 		| Some e ->
 			let check_cast e =
 				(* insert cast to keep explicit field type (issue #1901) *)
-				if not (type_iseq e.etype cf.cf_type)
-				then begin match e.eexpr,follow cf.cf_type with
+				let st = s_type (print_context()) in
+				if e.epos.pfile = "src/Main.hx" then Printf.printf "%s %s\n" (st e.etype) (st cf.cf_type);
+				if type_iseq e.etype cf.cf_type then
+					e
+				else begin match e.eexpr,follow cf.cf_type with
 					| TConst (TInt i),TAbstract({a_path=[],"Float"},_) ->
 						(* turn int constant to float constant if expected type is float *)
 						{e with eexpr = TConst (TFloat (Int32.to_string i))}
 					| _ ->
-						mk (TCast(e,None)) cf.cf_type e.epos
-				end else e
+						let e' = (!check_abstract_cast_ref) ctx cf.cf_type e e.epos in
+						if e' == e then
+							mk (TCast(e,None)) cf.cf_type e.epos
+						else
+							e'
+				end
 			in
 			let r = exc_protect ctx (fun r ->
 				(* type constant init fields (issue #1956) *)
@@ -1760,7 +1767,7 @@ let init_class ctx c p context_init herits fields =
 								has_this e;
 								e
 						in
-						check_cast e
+						e
 					| Var v when v.v_read = AccInline ->
 						let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 						begin match c.cl_kind with
@@ -1773,10 +1780,11 @@ let init_class ctx c p context_init herits fields =
 							| _ ->
 								()
 						end;
-						check_cast e
+						e
 					| _ ->
 						e
 					) in
+					let e = check_cast e in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 				end;
