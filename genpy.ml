@@ -680,6 +680,10 @@ module Transformer = struct
 			let e1 = trans true [] e1 in
 			let p = { ae.a_expr with eexpr = TParenthesis(e1.a_expr)} in
 			lift true e1.a_blocks p
+		| (_, TEnumParameter(e1,ef,i)) ->
+			let e1 = trans true [] e1 in
+			let p = { ae.a_expr with eexpr = TEnumParameter(e1.a_expr,ef,i)} in
+			lift true e1.a_blocks p
 		| (true, TIf(econd, eif, eelse)) ->
 			(let econd1 = trans true [] econd in
 			let eif1 = trans true [] eif in
