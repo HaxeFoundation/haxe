@@ -1223,17 +1223,20 @@ let add_constructor cl cf =
 
 (* replace open TMonos with TDynamic *)
 let rec replace_mono t =
-	match follow t with
-	| TMono t -> t := Some t_dynamic
+	match t with
+	| TMono t ->
+		(match !t with
+		| None -> t := Some t_dynamic
+		| Some _ -> ())
 	| TEnum (_,p) | TInst (_,p) | TType (_,p) | TAbstract (_,p) ->
-			List.iter replace_mono p
+		List.iter replace_mono p
 	| TFun (args,ret) ->
-			List.iter (fun (_,_,t) -> replace_mono t) args;
-			replace_mono ret
+		List.iter (fun (_,_,t) -> replace_mono t) args;
+		replace_mono ret
 	| TAnon _
 	| TDynamic _ -> ()
-	| _ -> assert false
-
+	| TLazy f ->
+		replace_mono (!f())
 
 (* helper *)
 let mk_class_field name t public pos kind params =
