@@ -607,7 +607,7 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		print ctx ".params[%i]" i;
 	| TField (e,s) ->
-   		gen_value ctx e;
+		gen_value ctx e;
 		gen_field_access ctx e.etype (field_name s)
 	| TTypeExpr t ->
 		spr ctx (s_path ctx true (t_path t) e.epos)
@@ -652,7 +652,7 @@ and gen_expr ctx e =
 		end else begin
 			ctx.constructor_block <- false;
 			print ctx " if( !%s.skip_constructor ) {" (s_path ctx true (["flash"],"Boot") e.epos);
-            (fun() -> print ctx "}")
+			(fun() -> print ctx "}")
 		end) in
 		(match ctx.block_inits with None -> () | Some i -> i());
 		List.iter (fun e -> block_newline ctx; gen_expr ctx e) el;
@@ -959,8 +959,8 @@ let generate_field ctx static f =
 		| _ -> ()
 	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
-	    || f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta
-	    (* consider all abstract methods public to avoid issues with inlined private access *)
+		|| f.cf_name = "resolve" || Ast.Meta.has Ast.Meta.Public f.cf_meta
+		(* consider all abstract methods public to avoid issues with inlined private access *)
 	    || (match ctx.curclass.cl_kind with KAbstractImpl _ -> true | _ -> false)
 	in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in

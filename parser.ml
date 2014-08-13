@@ -1067,7 +1067,7 @@ and block acc s =
 			let tk , pos = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			(!display_error) (Unexpected tk) pos;
 			block acc s
-        | Error (e,p) ->
+		| Error (e,p) ->
 			(!display_error) e p;
 			block acc s
 
@@ -1222,7 +1222,7 @@ and expr = parser
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 = parser
- 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
+	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
 		| EConst(Ident n) -> expr_next (EMeta((Common.MetaInfo.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)

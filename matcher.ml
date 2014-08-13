@@ -141,8 +141,8 @@ let mk_out mctx id e eg is_catch_all p =
 	out
 
 let clone_out mctx out p =
- 	let out = {out with o_pos = p; } in
- 	mctx.outcomes <- out :: mctx.outcomes;
+	let out = {out with o_pos = p; } in
+	mctx.outcomes <- out :: mctx.outcomes;
 	out
 
 let get_guard mctx id =
@@ -458,7 +458,7 @@ let to_pattern ctx e t =
 					| TConst c | TCast({eexpr = TConst c},None) ->
 						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
 						unify ctx ec.etype t p;
-                        mk_con_pat (CConst c) [] t p
+						mk_con_pat (CConst c) [] t p
 					| TTypeExpr mt ->
 						mk_type_pat ctx mt t p
 					| _ ->
@@ -634,7 +634,7 @@ let spec mctx con pmat =
 			loop2 (Array.append [|pat|] (array_tl pv)) out
 		| PTuple tl ->
 			loop2 tl out
- 		| POr _ ->
+		| POr _ ->
 			assert false
 	in
 	let rec loop pmat = match pmat with
@@ -661,10 +661,10 @@ let default mctx pmat =
 			loop2 (Array.append [|pat|] (array_tl pv)) out
 		| PTuple tl ->
 			loop2 tl out
- 		| POr _ ->
+		| POr _ ->
 			assert false
 	in
- 	let rec loop pmat = match pmat with
+	let rec loop pmat = match pmat with
 		| (pv,out) :: pl ->
 			loop2 pv out;
 			loop pl;
@@ -1280,9 +1280,9 @@ let match_expr ctx e cases def with_type p =
 	let check_unused () =
 		let unused p =
 			display_error ctx "This pattern is unused" p;
- 			let old_error = ctx.on_error in
+			let old_error = ctx.on_error in
 			ctx.on_error <- (fun ctx s p -> ctx.on_error <- old_error; raise Exit);
-	 		let check_expr e p =
+			let check_expr e p =
 				try begin match fst e with
 						| EConst(Ident ("null" | "true" | "false")) -> ()
 						| EConst(Ident _) ->
@@ -1302,10 +1302,10 @@ let match_expr ctx e cases def with_type p =
 			ctx.on_error <- old_error;
 		in
 		let had_catch_all = ref false in
- 		List.iter (fun out ->
- 			if out.o_catch_all && not !had_catch_all then
- 				had_catch_all := true
- 			else if out.o_num_paths = 0 then begin
+		List.iter (fun out ->
+			if out.o_catch_all && not !had_catch_all then
+				had_catch_all := true
+			else if out.o_num_paths = 0 then begin
 				unused out.o_pos;
 				if mctx.toplevel_or then begin match evals with
 					| [{etype = t}] when (match follow t with TAbstract({a_path=[],"Int"},[]) -> true | _ -> false) ->
@@ -1319,25 +1319,25 @@ let match_expr ctx e cases def with_type p =
 		(* compile decision tree *)
 		compile mctx stl pl true
 	with Not_exhaustive(pat,st) ->
- 		let rec s_st_r top pre st v = match st.st_def with
- 			| SVar v1 ->
- 				if not pre then v else begin try
- 					let e = match List.assoc v1 !var_inits with Some e -> e | None -> assert false in
- 					(Type.s_expr_pretty "" (Type.s_type (print_context())) e) ^ v
- 				with Not_found ->
- 					v1.v_name ^ v
- 				end
- 			| STuple(st,i,a) ->
- 				let r = a - i - 1 in
- 				Printf.sprintf "[%s]" (st_args i r (s_st_r top false st v))
- 			| SArray(st,i) ->
- 				s_st_r false true st (Printf.sprintf "[%i]%s" i (if top then " = " ^ v else v))
- 			| SField({st_def = SVar v1},f) when v1.v_name.[0] = '`' ->
- 				f ^ (if top then " = " ^ v else v)
-  			| SField(st,f) ->
- 				s_st_r false true st (Printf.sprintf ".%s%s" f (if top then " = " ^ v else v))
- 			| SEnum(st,ef,i) ->
- 				let len = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> 0 in
+		let rec s_st_r top pre st v = match st.st_def with
+			| SVar v1 ->
+				if not pre then v else begin try
+					let e = match List.assoc v1 !var_inits with Some e -> e | None -> assert false in
+					(Type.s_expr_pretty "" (Type.s_type (print_context())) e) ^ v
+				with Not_found ->
+					v1.v_name ^ v
+				end
+			| STuple(st,i,a) ->
+				let r = a - i - 1 in
+				Printf.sprintf "[%s]" (st_args i r (s_st_r top false st v))
+			| SArray(st,i) ->
+				s_st_r false true st (Printf.sprintf "[%i]%s" i (if top then " = " ^ v else v))
+			| SField({st_def = SVar v1},f) when v1.v_name.[0] = '`' ->
+				f ^ (if top then " = " ^ v else v)
+			| SField(st,f) ->
+				s_st_r false true st (Printf.sprintf ".%s%s" f (if top then " = " ^ v else v))
+			| SEnum(st,ef,i) ->
+				let len = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> 0 in
 				s_st_r false false st (Printf.sprintf "%s(%s)" ef.ef_name (st_args i (len - 1 - i) v))
 		in
 		let pat = match follow st.st_type with
@@ -1407,7 +1407,7 @@ let match_expr ctx e cases def with_type p =
 				i + 1
 			end else i in
 			Array.set map c i;
-		 	loop i' (c + 1)
+			loop i' (c + 1)
 		end
 	in
 	loop 0 0;

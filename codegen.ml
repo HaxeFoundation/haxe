@@ -1576,7 +1576,7 @@ struct
 			List.iter (function
 				| (elist,TFun(args,ret)) -> (try
 					rated := ( (elist,TFun(args,ret)), mk_rate [] elist args ) :: !rated
-					with | Not_found ->  ())
+					with | Not_found -> ())
 				| _ -> assert false
 			) compatible;
 

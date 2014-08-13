@@ -632,8 +632,8 @@ let is_forced_inline c cf =
 	| _ -> false
 
 let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
-  (* 'overloads' will carry a ( return_result ) list, called 'compatible' *)
-  (* it's used to correctly support an overload selection algorithm *)
+	(* 'overloads' will carry a ( return_result ) list, called 'compatible' *)
+	(* it's used to correctly support an overload selection algorithm *)
 	let overloads, compatible, legacy = match cf, overloads with
 		| Some(TInst(c,pl),f), None when ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta ->
 				let overloads = List.filter (fun (_,f2) ->
@@ -1142,7 +1142,7 @@ let rec using_field ctx mode e i p =
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
 					Type.unify e.etype t0;
 					(* early constraints check is possible because e.etype has no monomorphs *)
-		 			List.iter2 (fun m (name,t) -> match follow t with
+					List.iter2 (fun m (name,t) -> match follow t with
 						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
 							List.iter (fun tc -> Type.unify m (map tc)) constr
 						| _ -> ()
@@ -1256,8 +1256,8 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 			| [] -> raise Not_found
 			| t :: l ->
 				match t with
- 				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
- 					begin try
+				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
+					begin try
 						let cf = PMap.find i c.cl_statics in
 						if not (Meta.has Meta.Enum cf.cf_meta) then
 							loop l
@@ -1451,7 +1451,7 @@ and type_field ?(resume=false) ctx e i p mode =
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
 	| TAbstract (a,pl) ->
 		(try
- 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
+			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
 			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
@@ -1780,9 +1780,9 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 			]) t p
- 		| AKUsing(ef,c,cf,et) ->
- 			(* abstract setter + getter *)
- 			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) | _ -> assert false in
+		| AKUsing(ef,c,cf,et) ->
+			(* abstract setter + getter *)
+			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) | _ -> assert false in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
 				| _ ->  error "Invalid field type for abstract setter" p
@@ -2720,7 +2720,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
-    | EBinop (op,e1,e2) ->
+	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when with_type <> NoValue ->
 		type_expr ctx (EObjectDecl [],p) with_type
@@ -3881,7 +3881,7 @@ let generate ctx =
 			Hashtbl.replace states p Done;
 			types := t :: !types
 
-    and loop_class p c =
+	and loop_class p c =
 		if c.cl_path <> p then loop (TClassDecl c)
 
 	and loop_enum p e =
@@ -3932,7 +3932,7 @@ let generate ctx =
 		| _ ->
 			iter (walk_expr p) e
 
-    and walk_class p c =
+	and walk_class p c =
 		(match c.cl_super with None -> () | Some (c,_) -> loop_class p c);
 		List.iter (fun (c,_) -> loop_class p c) c.cl_implements;
 		(match c.cl_init with

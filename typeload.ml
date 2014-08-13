@@ -727,40 +727,40 @@ let copy_meta meta_src meta_target sl =
 	!meta
 
 let same_overload_args t1 t2 f1 f2 =
-  if List.length f1.cf_params <> List.length f2.cf_params then
-    false
-  else
-    let rec follow_skip_null t = match t with
-    | TMono r ->
-      (match !r with
-      | Some t -> follow_skip_null t
-      | _ -> t)
-    | TLazy f ->
-      follow_skip_null (!f())
-    | TType ({ t_path = [],"Null" } as t, [p]) ->
-      TType(t,[follow p])
-    | TType (t,tl) ->
-      follow_skip_null (apply_params t.t_types tl t.t_type)
-    | _ -> t
-    in
-    let same_arg t1 t2 =
-      let t1 = follow_skip_null t1 in
-      let t2 = follow_skip_null t2 in
-      match follow_skip_null t1, follow_skip_null t2 with
-      | TType _, TType _ -> type_iseq t1 t2
-      | TType _, _
-      | _, TType _ -> false
-      | _ -> type_iseq t1 t2
-    in
+	if List.length f1.cf_params <> List.length f2.cf_params then
+		false
+	else
+	let rec follow_skip_null t = match t with
+		| TMono r ->
+			(match !r with
+			| Some t -> follow_skip_null t
+			| _ -> t)
+		| TLazy f ->
+			follow_skip_null (!f())
+		| TType ({ t_path = [],"Null" } as t, [p]) ->
+			TType(t,[follow p])
+		| TType (t,tl) ->
+			follow_skip_null (apply_params t.t_types tl t.t_type)
+		| _ -> t
+	in
+	let same_arg t1 t2 =
+	let t1 = follow_skip_null t1 in
+	let t2 = follow_skip_null t2 in
+	match follow_skip_null t1, follow_skip_null t2 with
+		| TType _, TType _ -> type_iseq t1 t2
+		| TType _, _
+		| _, TType _ -> false
+		| _ -> type_iseq t1 t2
+	in
 
-    match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
-    | TFun(a1,_), TFun(a2,_) ->
-      (try
-        List.for_all2 (fun (_,_,t1) (_,_,t2) ->
-          same_arg t1 t2) a1 a2
-      with | Invalid_argument("List.for_all2") ->
-        false)
-    | _ -> assert false
+	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
+		| TFun(a1,_), TFun(a2,_) ->
+			(try
+				List.for_all2 (fun (_,_,t1) (_,_,t2) ->
+				same_arg t1 t2) a1 a2
+			with | Invalid_argument("List.for_all2") ->
+				false)
+		| _ -> assert false
 
 (** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
 let rec get_overloads c i =
@@ -859,7 +859,7 @@ let check_overriding ctx c =
 						) overloads
 					) true
 				) f.cf_overloads
-      end else
+	  end else
 				check_field f (fun csup i ->
 					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup i in
 					t, f2) false
@@ -1530,7 +1530,7 @@ let build_enum_abstract ctx c a fields p =
 			end;
 			field.cff_access <- [AStatic;APublic;AInline];
 			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
- 			let e = match eo with
+			let e = match eo with
 				| None -> error "Value required" field.cff_pos
 				| Some e -> (ECast(e,None),field.cff_pos)
 			in
@@ -2195,9 +2195,9 @@ let init_class ctx c p context_init herits fields =
 					| None ->
 							c.cl_constructor <- Some f
 					| Some ctor when ctx.com.config.pf_overload ->
-              if Meta.has Meta.Overload f.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
-  							ctor.cf_overloads <- f :: ctor.cf_overloads
-              else if Meta.has Meta.Overload f.cf_meta <> Meta.has Meta.Overload ctor.cf_meta then
+			  if Meta.has Meta.Overload f.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
+							ctor.cf_overloads <- f :: ctor.cf_overloads
+			  else if Meta.has Meta.Overload f.cf_meta <> Meta.has Meta.Overload ctor.cf_meta then
 								display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if Meta.has Meta.Overload f.cf_meta then ctor.cf_pos else f.cf_pos)
 					| Some ctor ->
 								display_error ctx "Duplicate constructor" p
