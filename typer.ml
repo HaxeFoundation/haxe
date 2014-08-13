@@ -1704,6 +1704,19 @@ let call_to_string ctx c e =
 	let cf = PMap.find "toString" c.cl_statics in
 	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
 
+let find_array_access_from_type tbase tkey twrite p =
+	let a,pl,c = match follow tbase with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
+	let f = find_array_access a pl tkey in
+	let cf,tf,r = match twrite with
+		| None ->
+			(try f tkey false
+			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) tkey)) p)
+		| Some t ->
+			(try f t true
+			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) tkey) (s_type (print_context()) t)) p)
+	in
+	c,cf,tf,r
+
 let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
@@ -1726,19 +1739,13 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			unify ctx e2.etype t p;
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(ebase,ekey) ->
-			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
-			let cf,tf,r =
-				try find_array_access a pl ekey.etype e2.etype true
-				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) e2.etype)) p
-			in
+			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype (Some e2.etype) p in
 			begin match cf.cf_expr with
 				| None ->
 					let ea = mk (TArray(ebase,ekey)) r p in
 					mk (TBinop(OpAssign,ea,e2)) r p
 				| Some _ ->
-					let et = type_module_type ctx (TClassDecl c) None p in
-					let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
-					make_call ctx ef [ebase;ekey;e2] r p
+					make_static_call ctx c cf (fun t -> t) [ebase;ekey;e2] r p
 			end
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
@@ -1807,12 +1814,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			else
 				e_call
 		| AKAccess(ebase,ekey) ->
-			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let cf_get,tf_get,r_get =
-				try find_array_access a pl ekey.etype t_dynamic false
-				with Not_found -> error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) ekey.etype)) p
-			in
+			let c,cf_get,tf_get,r_get = find_array_access_from_type ebase.etype ekey.etype None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
 				| Some e -> e, fun () -> None
@@ -1826,10 +1828,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
 			let eget = type_binop ctx op ast_call e2 true with_type p in
 			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set =
-				try find_array_access a pl ekey.etype eget.etype true
-				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) eget.etype)) p
-			in
+			let _,cf_set,tf_set,r_set = find_array_access_from_type ebase.etype ekey.etype (Some eget.etype) p in
+			let et = type_module_type ctx (TClassDecl c) None p in
 			begin match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
 					let ea = mk (TArray(ebase,ekey)) r_get p in
