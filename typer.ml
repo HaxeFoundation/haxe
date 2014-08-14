@@ -237,10 +237,6 @@ let class_field ctx c pl name p =
 
 (* checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
-	let c = match c.cl_kind with
-		| KGenericInstance(c,_) -> c
-		| _ -> c
-	in
 	if cf.cf_public then
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
@@ -248,8 +244,9 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 	else
 	(* TODO: should we add a c == ctx.curclass short check here? *)
 	(* has metadata path *)
-	let make_path c f = match c.cl_kind with
+	let rec make_path c f = match c.cl_kind with
 		| KAbstractImpl a -> fst a.a_path @ [snd a.a_path; f.cf_name]
+		| KGenericInstance(c,_) -> make_path c f
 		| _ when c.cl_private -> List.rev (f.cf_name :: snd c.cl_path :: (List.tl (List.rev (fst c.cl_path))))
 		| _ -> fst c.cl_path @ [snd c.cl_path; f.cf_name]
 	in
@@ -632,8 +629,8 @@ let is_forced_inline c cf =
 	| _ -> false
 
 let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
-  (* 'overloads' will carry a ( return_result ) list, called 'compatible' *)
-  (* it's used to correctly support an overload selection algorithm *)
+	(* 'overloads' will carry a ( return_result ) list, called 'compatible' *)
+	(* it's used to correctly support an overload selection algorithm *)
 	let overloads, compatible, legacy = match cf, overloads with
 		| Some(TInst(c,pl),f), None when ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta ->
 				let overloads = List.filter (fun (_,f2) ->
@@ -1142,7 +1139,7 @@ let rec using_field ctx mode e i p =
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
 					Type.unify e.etype t0;
 					(* early constraints check is possible because e.etype has no monomorphs *)
-		 			List.iter2 (fun m (name,t) -> match follow t with
+					List.iter2 (fun m (name,t) -> match follow t with
 						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
 							List.iter (fun tc -> Type.unify m (map tc)) constr
 						| _ -> ()
@@ -1256,8 +1253,8 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 			| [] -> raise Not_found
 			| t :: l ->
 				match t with
- 				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
- 					begin try
+				| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
+					begin try
 						let cf = PMap.find i c.cl_statics in
 						if not (Meta.has Meta.Enum cf.cf_meta) then
 							loop l
@@ -1451,7 +1448,7 @@ and type_field ?(resume=false) ctx e i p mode =
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
 	| TAbstract (a,pl) ->
 		(try
- 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
+			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
 			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
@@ -1704,6 +1701,19 @@ let call_to_string ctx c e =
 	let cf = PMap.find "toString" c.cl_statics in
 	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
 
+let find_array_access_from_type tbase tkey twrite p =
+	let a,pl,c = match follow tbase with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
+	let f = find_array_access a pl tkey in
+	let cf,tf,r = match twrite with
+		| None ->
+			(try f tkey false
+			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) tkey)) p)
+		| Some t ->
+			(try f t true
+			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) tkey) (s_type (print_context()) t)) p)
+	in
+	c,cf,tf,r
+
 let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
@@ -1726,19 +1736,13 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			unify ctx e2.etype t p;
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(ebase,ekey) ->
-			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
-			let cf,tf,r =
-				try find_array_access a pl ekey.etype e2.etype true
-				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) e2.etype)) p
-			in
+			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype (Some e2.etype) p in
 			begin match cf.cf_expr with
 				| None ->
 					let ea = mk (TArray(ebase,ekey)) r p in
 					mk (TBinop(OpAssign,ea,e2)) r p
 				| Some _ ->
-					let et = type_module_type ctx (TClassDecl c) None p in
-					let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
-					make_call ctx ef [ebase;ekey;e2] r p
+					make_static_call ctx c cf (fun t -> t) [ebase;ekey;e2] r p
 			end
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
@@ -1780,9 +1784,9 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 			]) t p
- 		| AKUsing(ef,c,cf,et) ->
- 			(* abstract setter + getter *)
- 			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) | _ -> assert false in
+		| AKUsing(ef,c,cf,et) ->
+			(* abstract setter + getter *)
+			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) | _ -> assert false in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
 				| _ ->  error "Invalid field type for abstract setter" p
@@ -1807,12 +1811,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			else
 				e_call
 		| AKAccess(ebase,ekey) ->
-			let a,pl,c = match follow ebase.etype with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let cf_get,tf_get,r_get =
-				try find_array_access a pl ekey.etype t_dynamic false
-				with Not_found -> error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) ekey.etype)) p
-			in
+			let c,cf_get,tf_get,r_get = find_array_access_from_type ebase.etype ekey.etype None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
 				| Some e -> e, fun () -> None
@@ -1826,10 +1825,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
 			let eget = type_binop ctx op ast_call e2 true with_type p in
 			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set =
-				try find_array_access a pl ekey.etype eget.etype true
-				with Not_found -> error ("No @:arrayAccess function accepts arguments of " ^ (s_type (print_context()) ekey.etype) ^ " and " ^ (s_type (print_context()) eget.etype)) p
-			in
+			let _,cf_set,tf_set,r_set = find_array_access_from_type ebase.etype ekey.etype (Some eget.etype) p in
+			let et = type_module_type ctx (TClassDecl c) None p in
 			begin match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
 					let ea = mk (TArray(ebase,ekey)) r_get p in
@@ -2219,42 +2216,54 @@ and type_unop ctx op flag e p =
 		) with Not_found ->
 			make e
 	in
-	match acc with
-	| AKExpr e -> access e
-	| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
-	| AKNo s ->
-		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-	| AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ ->
-		error "This kind of operation is not supported" p
-	| AKSet (e,t,cf) ->
-		let l = save_locals ctx in
-		let v = gen_local ctx e.etype in
-		let ev = mk (TLocal v) e.etype p in
-		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
-		let one = (EConst (Int "1"),p) in
-		let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
-		match flag with
-		| Prefix ->
-			let get = type_binop ctx op eget one false Value p in
-			unify ctx get.etype t p;
-			l();
-			mk (TBlock [
-				mk (TVar (v,Some e)) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
-			]) t p
-		| Postfix ->
-			let v2 = gen_local ctx t in
-			let ev2 = mk (TLocal v2) t p in
-			let get = type_expr ctx eget Value in
-			let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false Value p in
-			unify ctx get.etype t p;
-			l();
-			mk (TBlock [
-				mk (TVar (v,Some e)) ctx.t.tvoid p;
-				mk (TVar (v2,Some get)) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [plusone.etype] t) p) [plusone] t p;
-				ev2
-			]) t p
+	let rec loop acc =
+		match acc with
+		| AKExpr e -> access e
+		| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
+		| AKNo s ->
+			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
+		| AKAccess(ebase,ekey) ->
+			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype None p in
+			let e = match cf.cf_expr with
+				| None ->
+					mk (TArray(ebase,ekey)) r p
+				| Some _ ->
+					make_static_call ctx c cf (fun t -> t) [ebase;ekey] r p
+			in
+			loop (AKExpr e)
+		| AKInline _ | AKUsing _ | AKMacro _ ->
+			error "This kind of operation is not supported" p
+		| AKSet (e,t,cf) ->
+			let l = save_locals ctx in
+			let v = gen_local ctx e.etype in
+			let ev = mk (TLocal v) e.etype p in
+			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+			let one = (EConst (Int "1"),p) in
+			let eget = (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) in
+			match flag with
+			| Prefix ->
+				let get = type_binop ctx op eget one false Value p in
+				unify ctx get.etype t p;
+				l();
+				mk (TBlock [
+					mk (TVar (v,Some e)) ctx.t.tvoid p;
+					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
+				]) t p
+			| Postfix ->
+				let v2 = gen_local ctx t in
+				let ev2 = mk (TLocal v2) t p in
+				let get = type_expr ctx eget Value in
+				let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false Value p in
+				unify ctx get.etype t p;
+				l();
+				mk (TBlock [
+					mk (TVar (v,Some e)) ctx.t.tvoid p;
+					mk (TVar (v2,Some get)) ctx.t.tvoid p;
+					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [plusone.etype] t) p) [plusone] t p;
+					ev2
+				]) t p
+	in
+	loop acc
 
 and type_switch_old ctx e cases def with_type p =
 	let eval = type_expr ctx e Value in
@@ -2720,7 +2729,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		type_expr ctx (format_string ctx s p) with_type
 	| EConst c ->
 		Codegen.type_constant ctx.com c p
-    | EBinop (op,e1,e2) ->
+	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
 	| EBlock [] when with_type <> NoValue ->
 		type_expr ctx (EObjectDecl [],p) with_type
@@ -3795,7 +3804,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		ignore(acc_get ctx acc p);
 		assert false
 	| AKExpr e ->
-		let el , t, e = (match follow e.etype with
+		let rec loop t = match follow t with
 		| TFun (args,r) ->
 			let fopts = (match acc with
 				| AKExpr {eexpr = TField(e, (FStatic (_,f) | FInstance(_,f) | FAnon(f)))} ->
@@ -3809,6 +3818,8 @@ and build_call ctx acc el (with_type:with_type) p =
 				| _ ->
 					let el, tfunc = unify_call_params ctx fopts el args r p false in
 					el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc})
+		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta ->
+			loop (Codegen.Abstract.get_underlying_type a tl)
 		| TMono _ ->
 			let t = mk_mono() in
 			let el = List.map (fun e -> type_expr ctx e Value) el in
@@ -3822,7 +3833,8 @@ and build_call ctx acc el (with_type:with_type) p =
 				mk_mono()
 			else
 				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos), e
-		) in
+		in
+		let el , t, e = loop e.etype in
 		mk (TCall (e,el)) t p
 
 (* ---------------------------------------------------------------------- *)
@@ -3881,7 +3893,7 @@ let generate ctx =
 			Hashtbl.replace states p Done;
 			types := t :: !types
 
-    and loop_class p c =
+	and loop_class p c =
 		if c.cl_path <> p then loop (TClassDecl c)
 
 	and loop_enum p e =
@@ -3932,7 +3944,7 @@ let generate ctx =
 		| _ ->
 			iter (walk_expr p) e
 
-    and walk_class p c =
+	and walk_class p c =
 		(match c.cl_super with None -> () | Some (c,_) -> loop_class p c);
 		List.iter (fun (c,_) -> loop_class p c) c.cl_implements;
 		(match c.cl_init with

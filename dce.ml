@@ -168,7 +168,9 @@ and mark_t dce p t =
 			end
 		| TAbstract(a,pl) ->
 			mark_abstract dce a;
-			List.iter (mark_t dce p) pl
+			List.iter (mark_t dce p) pl;
+			if not (Meta.has Meta.CoreType a.a_meta) then
+				mark_t dce p (Codegen.Abstract.get_underlying_type a pl)
 		| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 		end;
 		dce.t_stack <- List.tl dce.t_stack

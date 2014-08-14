@@ -347,6 +347,7 @@ module MetaInfo = struct
 		| BridgeProperties -> ":bridgeProperties",("Creates native property bridges for all Haxe properties in this class.",[UsedOn TClass;Platform Cs])
 		| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
 		| BuildXml -> ":buildXml",("",[Platform Cpp])
+		| Callable -> ":callable",("Abstract forwards call to its underlying type",[UsedOn TAbstract])
 		| Class -> ":class",("Used internally to annotate an enum that will be generated as a class",[Platforms [Java;Cs]; UsedOn TEnum; Internal])
 		| ClassCode -> ":classCode",("Used to inject platform-native code into a class",[Platforms [Java;Cs]; UsedOn TClass])
 		| Commutative -> ":commutative",("Declares an abstract operator as commutative",[UsedOn TAbstractField])

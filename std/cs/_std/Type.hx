@@ -374,9 +374,12 @@ import cs.internal.Runtime;
 
 	@:functionCode('
 		if (e is System.Enum)
-			return ((System.IConvertible) e).ToInt32(null);
-		else
+		{
+			System.Array values = System.Enum.GetValues(e.GetType());
+			return System.Array.IndexOf(values, e);
+		} else {
 			return ((haxe.lang.Enum) e).index;
+		}
 	')
 	public static function enumIndex( e : EnumValue ) : Int  untyped
 	{

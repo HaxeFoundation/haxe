@@ -173,7 +173,7 @@ let make_path f =
 		| ["hx";path] -> ExtString.String.nsplit path "/"
 		| _ -> cl
 	) in
- 	let error msg =
+	let error msg =
 		let msg = "Could not process argument " ^ f ^ "\n" ^ msg in
 		failwith msg
 	in
@@ -265,30 +265,30 @@ let rec read_type_path com p =
 			loop path p
 		) (extract());
 	) com.swf_libs;
-  List.iter (fun (path,std,close,all_files,lookup) ->
-    List.iter (fun (path, name) ->
-      if path = p then classes := name :: !classes else
-      let rec loop p1 p2 =
-        match p1, p2 with
-        | [], _ -> ()
-        | x :: _, [] -> packages := x :: !packages
-        | a :: p1, b :: p2 -> if a = b then loop p1 p2
-      in
-      loop path p
-    ) (all_files())
-  ) com.java_libs;
-  List.iter (fun (path,std,all_files,lookup) ->
-    List.iter (fun (path, name) ->
-      if path = p then classes := name :: !classes else
-      let rec loop p1 p2 =
-        match p1, p2 with
-        | [], _ -> ()
-        | x :: _, [] -> packages := x :: !packages
-        | a :: p1, b :: p2 -> if a = b then loop p1 p2
-      in
-      loop path p
-    ) (all_files())
-  ) com.net_libs;
+	List.iter (fun (path,std,close,all_files,lookup) ->
+		List.iter (fun (path, name) ->
+			if path = p then classes := name :: !classes else
+			let rec loop p1 p2 =
+				match p1, p2 with
+				| [], _ -> ()
+				| x :: _, [] -> packages := x :: !packages
+				| a :: p1, b :: p2 -> if a = b then loop p1 p2
+			in
+			loop path p
+		) (all_files())
+	) com.java_libs;
+	List.iter (fun (path,std,all_files,lookup) ->
+		List.iter (fun (path, name) ->
+			if path = p then classes := name :: !classes else
+			let rec loop p1 p2 =
+				match p1, p2 with
+				| [], _ -> ()
+				| x :: _, [] -> packages := x :: !packages
+				| a :: p1, b :: p2 -> if a = b then loop p1 p2
+			in
+		loop path p
+		) (all_files())
+	) com.net_libs;
 	unique !packages, unique !classes
 
 let delete_file f = try Sys.remove f with _ -> ()
@@ -999,7 +999,7 @@ try
 		("-cpp",Arg.String (fun dir ->
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
- 		("-cs",Arg.String (fun dir ->
+		("-cs",Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
 			set_platform Cs dir;
 		),"<directory> : generate C# code into target directory");
@@ -1183,9 +1183,9 @@ try
 			com.php_front <- Some f;
 		),"<filename> : select the name for the php front file");
 		("--php-lib",Arg.String (fun f ->
- 			if com.php_lib <> None then raise (Arg.Bad "Multiple --php-lib");
- 			com.php_lib <- Some f;
- 		),"<filename> : select the name for the php lib folder");
+			if com.php_lib <> None then raise (Arg.Bad "Multiple --php-lib");
+			com.php_lib <- Some f;
+		),"<filename> : select the name for the php lib folder");
 		("--php-prefix", Arg.String (fun f ->
 			if com.php_prefix <> None then raise (Arg.Bad "Multiple --php-prefix");
 			com.php_prefix <- Some f;

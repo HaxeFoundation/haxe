@@ -305,7 +305,7 @@ class RunTravis {
 			case "Mac":
 				//pass
 		}
-		
+
 		runCommand("node", ["-v"]);
 	}
 
@@ -483,9 +483,10 @@ class RunTravis {
 				setupFlashPlayerDebugger();
 
 				//setup flex sdk
-				runCommand("wget", ["http://mirror.cc.columbia.edu/pub/software/apache/flex/4.12.1/binaries/apache-flex-sdk-4.12.1-bin.tar.gz"], true);
-				runCommand("tar", ["-xf", "apache-flex-sdk-4.12.1-bin.tar.gz", "-C", Sys.getEnv("HOME")]);
-				var flexsdkPath = Sys.getEnv("HOME") + "/apache-flex-sdk-4.12.1-bin";
+				var flexVersion = "4.13.0";
+				runCommand("wget", ['http://mirror.cc.columbia.edu/pub/software/apache/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+				runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
+				var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
 				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
 				var playerglobalswcFolder = flexsdkPath + "/player";
 				FileSystem.createDirectory(playerglobalswcFolder + "/11.1");

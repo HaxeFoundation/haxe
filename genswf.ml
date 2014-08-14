@@ -134,7 +134,7 @@ let build_class com c file =
 		} in
 		(path.tpackage, [(ETypedef inf,pos)])
 	| _ ->
-  (* make flags *)
+	(* make flags *)
 	let flags = [HExtern] in
 	let flags = if c.hlc_interface then HInterface :: flags else flags in
 	let flags = (match c.hlc_super with
@@ -157,7 +157,7 @@ let build_class com c file =
 		if c.hlc_interface then HExtends (make_tpath i) else HImplements (make_tpath i)
 	) (Array.to_list c.hlc_implements) @ flags in
 	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
-  (* make fields *)
+	(* make fields *)
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
 	let override = Hashtbl.create 0 in
@@ -1033,10 +1033,10 @@ let build_swf9 com file swc =
 	res @ bmp @ code @ clips
 
 let merge com file priority (h1,tags1) (h2,tags2) =
-  (* prioritize header+bgcolor for first swf *)
+	(* prioritize header+bgcolor for first swf *)
 	let header = if priority then { h2 with h_version = max h2.h_version (Common.flash_version_tag com.flash_version) } else h1 in
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
-  (* remove unused tags *)
+	(* remove unused tags *)
 	let use_stage = priority && Common.defined com Define.FlashUseStage in
 	let classes = ref [] in
 	let nframe = ref 0 in
@@ -1067,7 +1067,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 			false
 		| _ -> true
 	) tags2 in
-  (* rebuild character ids *)
+(* rebuild character ids *)
 	let max_id = ref (-1) in
 	List.iter (SwfParser.scan (fun id -> if id > !max_id then max_id := id; id) (fun id -> id)) tags1;
 	incr max_id;
@@ -1079,7 +1079,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 	in
 	List.iter loop tags2;
 	let classes = List.map (fun e -> match e.f9_cid with None -> e | Some id -> { e with f9_cid = Some (id + !max_id) }) !classes in
-  (* merge timelines *)
+	(* merge timelines *)
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| ({ tdata = TSetBgColor _ } as t) :: l1, _
@@ -1112,7 +1112,7 @@ let generate com swf_header =
 	let swc = if Common.defined com Define.Swc then Some (ref "") else None in
 	if swc <> None && not isf9 then failwith "SWC support is only available for Flash9+";
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
-  (* list exports *)
+	(* list exports *)
 	let exports = Hashtbl.create 0 in
 	let toremove = ref [] in
 	List.iter (fun (file,lib,_) ->
@@ -1143,7 +1143,7 @@ let generate com swf_header =
 			| _ -> ()
 		) tags;
 	) com.swf_libs;
-  (* build haxe swf *)
+	(* build haxe swf *)
 	let tags = if isf9 then build_swf9 com file swc else build_swf8 com codeclip exports in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
@@ -1185,7 +1185,7 @@ let generate com swf_header =
 		[]
 	in
 	let swf = header, fattr @ meta_data @ bg :: debug @ swf_script_limits @ preframe @ tags @ [tag TShowFrame] in
-  (* merge swf libraries *)
+	(* merge swf libraries *)
 	let priority = ref (swf_header = None) in
 	let swf = List.fold_left (fun swf (file,lib,cl) ->
 		let swf = merge com file !priority swf (remove_classes toremove lib cl) in
@@ -1193,7 +1193,7 @@ let generate com swf_header =
 		swf
 	) swf com.swf_libs in
 	t();
-  (* write swf/swc *)
+	(* write swf/swc *)
 	let t = Common.timer "write swf" in
 	let level = (try int_of_string (Common.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
 	SwfParser.init Extc.input_zip (Extc.output_zip ~level);

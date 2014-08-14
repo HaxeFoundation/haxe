@@ -261,7 +261,7 @@ let constants =
 	let h = Hashtbl.create 0 in
 	List.iter (fun f -> Hashtbl.add h (hash f) f)
 	["done";"read";"write";"min";"max";"file";"args";"loadprim";"loadmodule";"__a";"__s";"h";
-    "tag";"index";"length";"message";"pack";"name";"params";"sub";"doc";"kind";"meta";"access";
+	"tag";"index";"length";"message";"pack";"name";"params";"sub";"doc";"kind";"meta";"access";
 	"constraints";"opt";"type";"value";"ret";"expr";"field";"values";"get";"__string";"toString";
 	"$";"add";"remove";"has";"__t";"module";"isPrivate";"isPublic";"isExtern";"isInterface";"exclude";
 	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
@@ -1008,17 +1008,17 @@ let builtins =
 			| CInf -> VInt (-1)
 		);
 		"pcompare", Fun2 (fun a b ->
-	 		assert false
-	 	);
-	 	"excstack", Fun0 (fun() ->
+			assert false
+		);
+		"excstack", Fun0 (fun() ->
 			build_stack (get_ctx()).exc
-	 	);
-	 	"callstack", Fun0 (fun() ->
-	 		build_stack (List.map (fun s -> s.cpos) (get_ctx()).callstack)
-	 	);
-	 	"version", Fun0 (fun() ->
-	 		VInt 200
-	 	);
+		);
+		"callstack", Fun0 (fun() ->
+			build_stack (List.map (fun s -> s.cpos) (get_ctx()).callstack)
+		);
+		"version", Fun0 (fun() ->
+			VInt 200
+		);
 	(* extra *)
 		"use_neko_dll", Fun0 (fun() ->
 			VBool (neko <> None)
@@ -2070,16 +2070,16 @@ let z_lib =
 
 (* convert float value to haxe expression, handling inf/-inf/nan *)
 let haxe_float f p =
-    let std = (Ast.EConst (Ast.Ident "std"), p) in
-    let math = (Ast.EField (std, "Math"), p) in
-    if (f = infinity) then
-        (Ast.EField (math, "POSITIVE_INFINITY"), p)
-    else if (f = neg_infinity) then
-        (Ast.EField (math, "NEGATIVE_INFINITY"), p)
-    else if (f <> f) then
-        (Ast.EField (math, "NaN"), p)
-    else
-        (Ast.EConst (Ast.Float (float_repres f)), p)
+	let std = (Ast.EConst (Ast.Ident "std"), p) in
+	let math = (Ast.EField (std, "Math"), p) in
+	if (f = infinity) then
+		(Ast.EField (math, "POSITIVE_INFINITY"), p)
+	else if (f = neg_infinity) then
+		(Ast.EField (math, "NEGATIVE_INFINITY"), p)
+	else if (f <> f) then
+		(Ast.EField (math, "NaN"), p)
+	else
+		(Ast.EConst (Ast.Float (float_repres f)), p)
 
 let macro_lib =
 	let error() =
@@ -2418,7 +2418,7 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
-        "get_resources", Fun0 (fun() ->
+		"get_resources", Fun0 (fun() ->
 			let res = (ccom()).resources in
 			let h = Hashtbl.create 0 in
 			Hashtbl.iter (fun n v -> Hashtbl.replace h (VString n) (VString v)) res;

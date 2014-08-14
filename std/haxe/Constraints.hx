@@ -28,6 +28,7 @@ package haxe;
 	It is intended to be used as a type parameter constraint. If used as a real
 	type, the underlying type will be `Dynamic`.
 **/
+@:callable
 abstract Function(Dynamic) { }
 
 /**

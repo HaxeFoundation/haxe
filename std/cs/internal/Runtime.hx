@@ -21,6 +21,7 @@
  */
 package cs.internal;
 import cs.Lib;
+import cs.Lib.*;
 import cs.NativeArray;
 import cs.NativeArray;
 import cs.system.Activator;
@@ -241,14 +242,14 @@ import cs.system.Object;
 
 			if (cv2 == null)
 			{
-				throw new cs.system.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
+				throw new cs.system.ArgumentException("Cannot compare " + nativeType(v1).ToString() + " and " + nativeType(v2).ToString());
 			}
 
 			switch(cv1.GetTypeCode())
 			{
 				case cs.system.TypeCode.String:
 					if (cv2.GetTypeCode() != cs.system.TypeCode.String)
-						throw new cs.system.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
+						throw new cs.system.ArgumentException("Cannot compare " + nativeType(v1).ToString() + " and " + nativeType(v2).ToString());
 					var s1 = Lib.as(v1,String);
 					var s2 = Lib.as(v2,String);
 					var i = 0,
@@ -271,7 +272,7 @@ import cs.system.Object;
 
 		if (c1 == null || c2 == null)
 		{
-			throw new cs.system.ArgumentException("Cannot compare " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
+			throw new cs.system.ArgumentException("Cannot compare " + nativeType(v1).ToString() + " and " + nativeType(v2).ToString());
 		}
 
 		return c1.CompareTo(c2);

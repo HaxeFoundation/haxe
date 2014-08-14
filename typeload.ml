@@ -188,7 +188,7 @@ let make_module ctx mpath file tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum),_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| _ ->
 							()
@@ -727,40 +727,40 @@ let copy_meta meta_src meta_target sl =
 	!meta
 
 let same_overload_args t1 t2 f1 f2 =
-  if List.length f1.cf_params <> List.length f2.cf_params then
-    false
-  else
-    let rec follow_skip_null t = match t with
-    | TMono r ->
-      (match !r with
-      | Some t -> follow_skip_null t
-      | _ -> t)
-    | TLazy f ->
-      follow_skip_null (!f())
-    | TType ({ t_path = [],"Null" } as t, [p]) ->
-      TType(t,[follow p])
-    | TType (t,tl) ->
-      follow_skip_null (apply_params t.t_types tl t.t_type)
-    | _ -> t
-    in
-    let same_arg t1 t2 =
-      let t1 = follow_skip_null t1 in
-      let t2 = follow_skip_null t2 in
-      match follow_skip_null t1, follow_skip_null t2 with
-      | TType _, TType _ -> type_iseq t1 t2
-      | TType _, _
-      | _, TType _ -> false
-      | _ -> type_iseq t1 t2
-    in
+	if List.length f1.cf_params <> List.length f2.cf_params then
+		false
+	else
+	let rec follow_skip_null t = match t with
+		| TMono r ->
+			(match !r with
+			| Some t -> follow_skip_null t
+			| _ -> t)
+		| TLazy f ->
+			follow_skip_null (!f())
+		| TType ({ t_path = [],"Null" } as t, [p]) ->
+			TType(t,[follow p])
+		| TType (t,tl) ->
+			follow_skip_null (apply_params t.t_types tl t.t_type)
+		| _ -> t
+	in
+	let same_arg t1 t2 =
+	let t1 = follow_skip_null t1 in
+	let t2 = follow_skip_null t2 in
+	match follow_skip_null t1, follow_skip_null t2 with
+		| TType _, TType _ -> type_iseq t1 t2
+		| TType _, _
+		| _, TType _ -> false
+		| _ -> type_iseq t1 t2
+	in
 
-    match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
-    | TFun(a1,_), TFun(a2,_) ->
-      (try
-        List.for_all2 (fun (_,_,t1) (_,_,t2) ->
-          same_arg t1 t2) a1 a2
-      with | Invalid_argument("List.for_all2") ->
-        false)
-    | _ -> assert false
+	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
+		| TFun(a1,_), TFun(a2,_) ->
+			(try
+				List.for_all2 (fun (_,_,t1) (_,_,t2) ->
+				same_arg t1 t2) a1 a2
+			with | Invalid_argument("List.for_all2") ->
+				false)
+		| _ -> assert false
 
 (** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
 let rec get_overloads c i =
@@ -859,7 +859,7 @@ let check_overriding ctx c =
 						) overloads
 					) true
 				) f.cf_overloads
-      end else
+	  end else
 				check_field f (fun csup i ->
 					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup i in
 					t, f2) false
@@ -1530,7 +1530,7 @@ let build_enum_abstract ctx c a fields p =
 			end;
 			field.cff_access <- [AStatic;APublic;AInline];
 			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
- 			let e = match eo with
+			let e = match eo with
 				| None -> error "Value required" field.cff_pos
 				| Some e -> (ECast(e,None),field.cff_pos)
 			in
@@ -1715,14 +1715,21 @@ let init_class ctx c p context_init herits fields =
 		| Some e ->
 			let check_cast e =
 				(* insert cast to keep explicit field type (issue #1901) *)
-				if not (type_iseq e.etype cf.cf_type)
-				then begin match e.eexpr,follow cf.cf_type with
+				let st = s_type (print_context()) in
+				if e.epos.pfile = "src/Main.hx" then Printf.printf "%s %s\n" (st e.etype) (st cf.cf_type);
+				if type_iseq e.etype cf.cf_type then
+					e
+				else begin match e.eexpr,follow cf.cf_type with
 					| TConst (TInt i),TAbstract({a_path=[],"Float"},_) ->
 						(* turn int constant to float constant if expected type is float *)
 						{e with eexpr = TConst (TFloat (Int32.to_string i))}
 					| _ ->
-						mk (TCast(e,None)) cf.cf_type e.epos
-				end else e
+						let e' = (!check_abstract_cast_ref) ctx cf.cf_type e e.epos in
+						if e' == e then
+							mk (TCast(e,None)) cf.cf_type e.epos
+						else
+							e'
+				end
 			in
 			let r = exc_protect ctx (fun r ->
 				(* type constant init fields (issue #1956) *)
@@ -1760,7 +1767,7 @@ let init_class ctx c p context_init herits fields =
 								has_this e;
 								e
 						in
-						check_cast e
+						e
 					| Var v when v.v_read = AccInline ->
 						let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 						begin match c.cl_kind with
@@ -1773,10 +1780,11 @@ let init_class ctx c p context_init herits fields =
 							| _ ->
 								()
 						end;
-						check_cast e
+						e
 					| _ ->
 						e
 					) in
+					let e = check_cast e in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 				end;
@@ -2187,9 +2195,9 @@ let init_class ctx c p context_init herits fields =
 					| None ->
 							c.cl_constructor <- Some f
 					| Some ctor when ctx.com.config.pf_overload ->
-              if Meta.has Meta.Overload f.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
-  							ctor.cf_overloads <- f :: ctor.cf_overloads
-              else if Meta.has Meta.Overload f.cf_meta <> Meta.has Meta.Overload ctor.cf_meta then
+			  if Meta.has Meta.Overload f.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
+							ctor.cf_overloads <- f :: ctor.cf_overloads
+			  else if Meta.has Meta.Overload f.cf_meta <> Meta.has Meta.Overload ctor.cf_meta then
 								display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if Meta.has Meta.Overload f.cf_meta then ctor.cf_pos else f.cf_pos)
 					| Some ctor ->
 								display_error ctx "Duplicate constructor" p
@@ -2528,20 +2536,12 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					) l, rt)
 			) in
 			if PMap.mem c.ec_name e.e_constrs then error ("Duplicate constructor " ^ c.ec_name) p;
-			let eindex = try
-				match Meta.get Meta.CsNative c.ec_meta with
-					| (Meta.CsNative,[EConst (Int i), _], _) ->
-							int_of_string i
-					| _ -> raise Not_found
-				with Not_found ->
-					!index
-			in
 			let f = {
 				ef_name = c.ec_name;
 				ef_type = t;
 				ef_pos = p;
 				ef_doc = c.ec_doc;
-				ef_index = eindex;
+				ef_index = !index;
 				ef_params = params;
 				ef_meta = c.ec_meta;
 			} in
