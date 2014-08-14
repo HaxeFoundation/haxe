@@ -1715,8 +1715,6 @@ let init_class ctx c p context_init herits fields =
 		| Some e ->
 			let check_cast e =
 				(* insert cast to keep explicit field type (issue #1901) *)
-				let st = s_type (print_context()) in
-				if e.epos.pfile = "src/Main.hx" then Printf.printf "%s %s\n" (st e.etype) (st cf.cf_type);
 				if type_iseq e.etype cf.cf_type then
 					e
 				else begin match e.eexpr,follow cf.cf_type with
