@@ -810,7 +810,13 @@ let configure gen =
 		all those references are using dynamic_anon, which means Generic<{}>
 	*)
 	change_param_type md tl =
-		let is_hxgeneric = (TypeParams.RealTypeParams.is_hxgeneric md) in
+		let types = match md with
+			| TClassDecl c -> c.cl_types
+			| TEnumDecl e -> []
+			| TAbstractDecl a -> a.a_types
+			| TTypeDecl t -> t.t_types
+		in
+		let is_hxgeneric = if types = [] then is_hxgen md else (TypeParams.RealTypeParams.is_hxgeneric md) in
 		let ret t =
 			let t_changed = real_type t in
 			match is_hxgeneric, t_changed with
@@ -1481,7 +1487,8 @@ let configure gen =
 				| [] -> ()
 				| params ->
 					let md = match e.eexpr with
-						| TField(ef, _) -> t_to_md (run_follow gen ef.etype)
+						| TField(ef, _) ->
+							t_to_md (run_follow gen ef.etype)
 						| _ -> assert false
 					in
 					write w "<";
