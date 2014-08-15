@@ -91,8 +91,8 @@ let cs_binops =
 let cs_unops =
 	[Ast.Decrement, "op_Decrement";
 	Ast.Increment, "op_Increment";
-	Ast.Not, "op_UnaryNegation";
-	Ast.Neg, "op_UnaryMinus";
+	Ast.Neg, "op_UnaryNegation";
+	Ast.Not, "op_LogicalNot";
 	Ast.NegBits, "op_OnesComplement"]
 
 let binops_names = List.fold_left (fun acc (op,n) -> PMap.add n op acc) PMap.empty cs_binops
