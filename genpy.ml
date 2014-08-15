@@ -916,7 +916,6 @@ module Transformer = struct
 
 		| ( _, TConst _ ) -> lift_expr a_expr
 		| ( _, TTypeExpr _ ) -> lift_expr a_expr
-		| ( _, TEnumParameter _ ) -> lift_expr a_expr
 		| ( _, TUnop _ ) -> assert false
 		| ( true, TWhile(econd, ebody, DoWhile) ) ->
 			let new_expr = trans false [] a_expr in
