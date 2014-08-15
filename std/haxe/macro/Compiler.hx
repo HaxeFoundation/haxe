@@ -143,6 +143,19 @@ class Compiler {
 	}
 
 	/**
+		Exclude a class or a enum without changing it to @:nativeGen.
+	**/
+	static function excludeBaseType( baseType : Type.BaseType ) : Void {
+		if (!baseType.isExtern) {
+			var meta = baseType.meta;
+			if (!meta.has(":nativeGen")) {
+				meta.add(":hxGen", [], baseType.pos);
+			}
+			baseType.exclude();
+		}
+	}
+
+	/**
 		Exclude a given class or a complete package from being generated.
 	**/
 	public static function exclude( pack : String, ?rec = true ) {
@@ -160,7 +173,7 @@ class Compiler {
 				}
 				var p = b.pack.join(".");
 				if( (p == pack || name == pack) || (rec && StringTools.startsWith(p, pack + ".")) )
-					b.exclude();
+					excludeBaseType(b);
 			}
 		});
 	}
@@ -184,8 +197,8 @@ class Compiler {
 		Context.onGenerate(function(types) {
 			for( t in types ) {
 				switch( t ) {
-				case TInst(c, _): if( classes.exists(c.toString()) ) c.get().exclude();
-				case TEnum(e, _): if( classes.exists(e.toString()) ) e.get().exclude();
+				case TInst(c, _): if( classes.exists(c.toString()) ) excludeBaseType(c.get());
+				case TEnum(e, _): if( classes.exists(e.toString()) ) excludeBaseType(e.get());
 				default:
 				}
 			}
