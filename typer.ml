@@ -1438,6 +1438,20 @@ and type_field ?(resume=false) ctx e i p mode =
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
+	let does_forward a stat =
+		try
+			let _,el,_ = Meta.get (if stat then Meta.ForwardStatics else Meta.Forward) a.a_meta in
+			match el with
+				| [] ->
+					true
+				| _ ->
+					List.exists (fun e -> match fst e with
+						| EConst(Ident s | String s) -> s = i
+						| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
+					) el
+		with Not_found ->
+			false
+	in
 	match follow e.etype with
 	| TInst (c,params) ->
 		let rec loop_dyn c params =
@@ -1540,26 +1554,34 @@ and type_field ?(resume=false) ctx e i p mode =
 						FAnon f, t
 			) in
 			field_access ctx mode f fmode ft e p
-		with Not_found ->
-			if is_closed a then try
-				using_field ctx mode e i p
+		with Not_found -> try
+				match !(a.a_status) with
+				| Statics {cl_kind = KAbstractImpl a} when does_forward a true ->
+					let mt = try module_type_of_type a.a_this with Exit -> raise Not_found in
+					let et = type_module_type ctx mt None p in
+					type_field ctx et i p mode;
+				| _ ->
+					raise Not_found
 			with Not_found ->
-				no_field()
-			else
-			let f = {
-				cf_name = i;
-				cf_type = mk_mono();
-				cf_doc = None;
-				cf_meta = no_meta;
-				cf_public = true;
-				cf_pos = p;
-				cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
-				cf_expr = None;
-				cf_params = [];
-				cf_overloads = [];
-			} in
-			a.a_fields <- PMap.add i f a.a_fields;
-			field_access ctx mode f (FAnon f) (Type.field_type f) e p
+				if is_closed a then try
+					using_field ctx mode e i p
+				with Not_found ->
+					no_field()
+				else
+				let f = {
+					cf_name = i;
+					cf_type = mk_mono();
+					cf_doc = None;
+					cf_meta = no_meta;
+					cf_public = true;
+					cf_pos = p;
+					cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
+					cf_expr = None;
+					cf_params = [];
+					cf_overloads = [];
+				} in
+				a.a_fields <- PMap.add i f a.a_fields;
+				field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
 	| TMono r ->
 		let f = {
@@ -1633,14 +1655,9 @@ and type_field ?(resume=false) ctx e i p mode =
 				AKUsing (ef,c,f,e)
 			| MSet, _ ->
 				error "This operation is unsupported" p)
-		with Not_found -> try
-			let _,el,_ = Meta.get Meta.Forward a.a_meta in
-			if not (List.exists (fun e -> match fst e with
-				| EConst(Ident s | String s) -> s = i
-				| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
-			) el) && el <> [] then raise Not_found;
+		with Not_found when does_forward a false ->
 			type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
-		with Not_found -> try
+		| Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
 			(match ctx.curfun, e.eexpr with

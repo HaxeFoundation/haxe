@@ -75,6 +75,7 @@ module Meta = struct
 		| FlatEnum
 		| Font
 		| Forward
+		| ForwardStatics
 		| From
 		| FunctionCode
 		| FunctionTailCode
