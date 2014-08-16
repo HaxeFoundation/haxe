@@ -3381,6 +3381,16 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old = ctx.meta in
 		ctx.meta <- m :: ctx.meta;
 		let e () = type_expr ctx e1 with_type in
+		let change_ctx f =
+			let old_globals = ctx.m.module_globals in
+			let old_types = ctx.m.module_types in
+			let old_using = ctx.m.module_using in
+			let r = f() in
+			ctx.m.module_globals <- old_globals;
+			ctx.m.module_types <- old_types;
+			ctx.m.module_using <- old_using;
+			r
+		in
 		let e = match m with
 			| (Meta.ToString,_,_) ->
 				let e = e() in
@@ -3394,6 +3404,43 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| _ -> Type.map_expr loop e
 				in
 				loop e
+			| (Meta.Import,[e1],_) ->
+				let e1,mode = match fst e1 with
+					| EIn(e1,(EConst (Ident s),_)) -> e1,IAsName s
+					| _ -> e1,INormal
+				in
+				let sl = Typeload.string_list_of_expr_path e1 in
+				let sl = List.rev_map (fun s -> s,pos e1) sl in
+				let e = change_ctx (fun () ->
+					Typeload.handle_import ctx None sl mode;
+					e()
+				) in
+				e
+			| (Meta.Using,[e1],_) ->
+				let sl = Typeload.string_list_of_expr_path e1 in
+				let tp = match sl with
+					| s1 :: s2 :: sl when not (is_lower_ident s1) && not (is_lower_ident s2) ->
+						{
+							tpackage = List.rev sl;
+							tname = s2;
+							tsub = Some s1;
+							tparams = []
+						}
+					| s1 :: sl ->
+						{
+							tpackage = List.rev sl;
+							tname = s1;
+							tsub = None;
+							tparams = []
+						}
+					| [] ->
+						error "Invalid type path" (pos e1)
+				in
+				let e = change_ctx (fun () ->
+					Typeload.handle_using ctx None tp (pos e1);
+					e()
+				) in
+				e
 			| _ -> e()
 		in
 		ctx.meta <- old;

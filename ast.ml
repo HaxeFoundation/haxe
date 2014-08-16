@@ -86,6 +86,7 @@ module Meta = struct
 		| IfFeature
 		| Impl
 		| PythonImport
+		| Import
 		| Include
 		| InitPackage
 		| Internal
@@ -150,6 +151,7 @@ module Meta = struct
 		| Unsafe
 		| Usage
 		| Used
+		| Using
 		| Void
 		| Last
 		(* do not put any custom metadata after Last *)
