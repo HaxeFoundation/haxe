@@ -3455,8 +3455,12 @@ and handle_display ctx e iscall p =
 				else if field_name fa = "match" then (match follow e1.etype with
 					| TEnum _ as t -> {e1 with etype = tfun [t] ctx.t.tbool }
 					| _ -> e)
-				else
-					e
+				else begin match fa,follow e.etype with
+					| FStatic(_,cf),TFun(args,ret) when Meta.has Meta.Impl cf.cf_meta ->
+						{e with etype = TFun(List.tl args,ret)}
+					| _ ->
+						e
+				end
 			| _ ->
 				e
 		in
