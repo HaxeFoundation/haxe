@@ -716,7 +716,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			(null (ctx.t.tnull t) p, true)
 		end
 	in
-	let force_inline = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f | _ -> false in
+	let force_inline,is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f,c.cl_extern | _ -> false,false in
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
@@ -750,7 +750,14 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 					end;
 					process ((Codegen.Abstract.check_cast ctx t e p,false) :: acc) rest
 			in
-			loop (process acc l) [] [] skip
+			let acc = if is_extern then
+				 process acc l
+			else
+				let rest_args = process [] l in
+				let e = mk (TArrayDecl (List.rev_map fst rest_args)) (ctx.t.tarray t) p in
+				(e,false) :: acc
+			in
+			loop acc [] [] skip
 		| [] , (_,false,_) :: _ ->
 			error (List.fold_left (fun acc (_,_,t) -> default_value t None :: acc) acc l2) "Not enough"
 		| [] , (name,true,t) :: l ->
