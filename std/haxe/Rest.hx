@@ -29,4 +29,5 @@ package haxe;
     representing that arbitrary number of arguments of given type can be
     passed to that method.
 **/
+@:forward
 abstract Rest<T>(Array<T>) { }
