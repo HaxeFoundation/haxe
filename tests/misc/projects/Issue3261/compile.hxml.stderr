@@ -1,0 +1,4 @@
+<type>
+b : Int -&gt; String
+</type>
+
