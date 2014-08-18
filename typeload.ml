@@ -1918,10 +1918,23 @@ let init_class ctx c p context_init herits fields =
 					if stat then params else params @ ctx.type_params);
 			let constr = (name = "new") in
 			let ret = if constr then ctx.t.tvoid else type_opt ctx p fd.f_type in
-			let args = List.map (fun (name,opt,t,c) ->
-				let t, c = type_function_param ctx (type_opt ctx p t) c opt p in
-				name, c, t
-			) fd.f_args in
+			let rec loop args = match args with
+				| (name,opt,t,ct) :: args ->
+					let t, ct = type_function_param ctx (type_opt ctx p t) ct opt p in
+					begin match t with
+						| TAbstract({a_path = ["haxe"],"Rest"},_) ->
+							if not c.cl_extern then error "Rest argument are only supported for extern methods" p;
+							if opt then error "Rest argument cannot be optional" p;
+							if ct <> None then error "Rest argument cannot have default value" p;
+							if args <> [] then error "Rest should only be used for the last function argument" p;
+						| _ ->
+							()
+					end;
+					(name, ct, t) :: (loop args)
+				| [] ->
+					[]
+			in
+			let args = loop fd.f_args in
 			let t = TFun (fun_args args,ret) in
 			if c.cl_interface && not stat && fd.f_expr <> None then error (f.cff_name ^ ": An interface method cannot have a body") p;
 			if constr then begin

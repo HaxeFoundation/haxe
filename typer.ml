@@ -737,6 +737,20 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 					List.map fst args, tf
 			else
 				List.map fst args, tf
+		| l , [(name,opt,TAbstract({a_path=(["haxe"],"Rest")},[t]))] ->
+			let rec process acc el =
+				match el with
+				| [] -> acc
+				| ee :: rest ->
+					let e = type_expr ctx ee (WithTypeResume t) in
+					begin try
+						unify_raise ctx e.etype t e.epos
+					with Error (Unify ul,p) ->
+						raise (Error (Stack (Unify ul,Custom ("For rest function argument '" ^ name ^ "'")), p))
+					end;
+					process ((Codegen.Abstract.check_cast ctx t e p,false) :: acc) rest
+			in
+			loop (process acc l) [] [] skip
 		| [] , (_,false,_) :: _ ->
 			error (List.fold_left (fun acc (_,_,t) -> default_value t None :: acc) acc l2) "Not enough"
 		| [] , (name,true,t) :: l ->
