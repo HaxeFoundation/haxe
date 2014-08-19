@@ -1923,7 +1923,6 @@ let init_class ctx c p context_init herits fields =
 					let t, ct = type_function_param ctx (type_opt ctx p t) ct opt p in
 					begin match t with
 						| TAbstract({a_path = ["haxe"],"Rest"},_) ->
-							if not c.cl_extern then error "Rest argument are only supported for extern methods" p;
 							if opt then error "Rest argument cannot be optional" p;
 							if ct <> None then error "Rest argument cannot have default value" p;
 							if args <> [] then error "Rest should only be used for the last function argument" p;
