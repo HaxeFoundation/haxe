@@ -134,7 +134,7 @@ class TypeTools {
 			case TAbstract(_.get() => baseType, params):
 				TPath(toTypePath(baseType, params));
 			default:
-				throw "Invalide type";
+				throw "Invalid type";
 		}
 		#end
 	}
