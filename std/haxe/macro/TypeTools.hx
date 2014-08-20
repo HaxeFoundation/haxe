@@ -94,6 +94,9 @@ class TypeTools {
 	**/
 	public static function toComplexType(type : Null<Type>) : Null<ComplexType> return
 	{
+		#if macro
+		Context.toComplexType(type);
+		#else
 		switch (type) {
 			case null:
 				null;
@@ -133,6 +136,7 @@ class TypeTools {
 			default:
 				throw "Invalide type";
 		}
+		#end
 	}
 
 	static function toTypePath(baseType : BaseType, params : Array<Type>) : TypePath return {
