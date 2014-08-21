@@ -1921,7 +1921,7 @@ let init_class ctx c p context_init herits fields =
 			let rec loop args = match args with
 				| (name,opt,t,ct) :: args ->
 					let t, ct = type_function_param ctx (type_opt ctx p t) ct opt p in
-					begin match t with
+					delay ctx PTypeField (fun() -> match follow t with
 						| TAbstract({a_path = ["haxe"],"Rest"},_) ->
 							if not c.cl_extern then error "Rest argument are only supported for extern methods" p;
 							if opt then error "Rest argument cannot be optional" p;
@@ -1929,7 +1929,7 @@ let init_class ctx c p context_init herits fields =
 							if args <> [] then error "Rest should only be used for the last function argument" p;
 						| _ ->
 							()
-					end;
+					);
 					(name, ct, t) :: (loop args)
 				| [] ->
 					[]
