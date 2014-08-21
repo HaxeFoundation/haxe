@@ -716,7 +716,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 			(null (ctx.t.tnull t) p, true)
 		end
 	in
-	let force_inline = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f | _ -> false in
+	let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in
 	let rec loop acc l l2 skip check_rest =
 		match l , l2 with
 		| [] , [] ->
@@ -776,7 +776,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 					else
 						arg_error ul name false p
 	in
-	loop [] el args [] true
+	loop [] el args [] is_extern
 
 let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
