@@ -62,10 +62,10 @@ extern class EnumTools {
 		The constructor indices are preserved from haxe syntax, so the first
 		declared is index 0, the next index 1 etc.
 
-		If `e` or `constr` is null, or if enum `e` has no constructor named
-		`constr`, or if the number of elements in `params` does not match the
-		expected number of constructor arguments, or if any argument has an
-		invalid type, the result is unspecified.
+		If `e` or `index` is null, or if enum `e` has no constructor
+		corresponding to index `index`, or if the number of elements in `params`
+		does not match the expected number of constructor arguments, or if any
+		argument has an invalid type, the result is unspecified.
 	**/
 	static public inline function createByIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T {
 		return Type.createEnumIndex(e, index, params);
@@ -150,5 +150,37 @@ extern class EnumValueTools {
 	**/
 	static public inline function getIndex(e:EnumValue):Int {
 		return Type.enumIndex(e);
+	}
+
+	/**
+		Matches enum instance `e` against pattern `pattern`, returning true if
+		matching succeeded and false otherwise.
+
+		Example usage:
+
+		```
+		if (e.match(pattern)) {
+			// codeIfTrue
+		} else {
+			// codeIfFalse
+		}
+		```
+
+		This is equivalent to the following code:
+
+		```
+		switch (e) {
+			case pattern:
+				// codeIfTrue
+			case _:
+				// codeIfFalse
+		}
+		```
+
+		This method is implemented in the compiler. This definition exists only
+		for documentation.
+	**/
+	static public function match(e:EnumValue, pattern:Dynamic):Bool {
+		return false;
 	}
 }
