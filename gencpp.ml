@@ -3420,6 +3420,12 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                "return operator " ^ interface_name ^ "_obj *();\n");
             ) implemented;
          output_cpp ("\treturn super::__ToInterface(inType);\n}\n\n");
+
+
+         List.iter (fun interface_name ->
+            output_cpp (class_name ^ "::operator " ^ interface_name ^ "_obj *()\n\t" ^
+               "{ return new " ^ interface_name ^ "_delegate_< " ^ class_name ^" >(this); }\n" );
+         ) implemented;
       end;
 
    end;
@@ -3953,13 +3959,13 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          output_h ("\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
       end;
 
-      List.iter (fun interface_name ->
-         output_h ("\t\tinline operator " ^ interface_name ^ "_obj *()\n\t\t\t" ^
-               "{ return new " ^ interface_name ^ "_delegate_< " ^ class_name ^" >(this); }\n" );
-      ) implemented;
-
-      if ( (List.length implemented) > 0 ) then
+      if ( (List.length implemented) > 0 ) then begin
          output_h "\t\thx::Object *__ToInterface(const hx::type_info &inType);\n";
+
+         List.iter (fun interface_name ->
+            output_h ("\t\toperator " ^ interface_name ^ "_obj *();\n")
+         ) implemented;
+      end;
 
       if (has_init_field class_def) then
          output_h "\t\tstatic void __init__();\n\n";
