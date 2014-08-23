@@ -1172,11 +1172,6 @@ let generate com swf_header =
 		})]
 	) in
 	let fattr = if Common.defined com Define.AdvancedTelemetry then fattr @ [tag (TUnknown (0x5D,"\x00\x00"))] else fattr in
-	let preframe, header =
-		if Common.defined com Define.SwfPreloaderFrame then
-			[tag TShowFrame], {h_version=header.h_version; h_size=header.h_size; h_frame_count=header.h_frame_count+1; h_fps=header.h_fps; h_compressed=header.h_compressed; }
-		else
-			[], header in
 	let swf_script_limits = try
 		let s = Common.defined_value com Define.SwfScriptTimeout in
 		let i = try int_of_string s with _ -> error "Argument to swf_script_timeout must be an integer" Ast.null_pos in
@@ -1184,7 +1179,7 @@ let generate com swf_header =
 	with Not_found ->
 		[]
 	in
-	let swf = header, fattr @ meta_data @ bg :: debug @ swf_script_limits @ preframe @ tags @ [tag TShowFrame] in
+	let swf = header, fattr @ meta_data @ bg :: debug @ swf_script_limits @ tags @ [tag TShowFrame] in
 	(* merge swf libraries *)
 	let priority = ref (swf_header = None) in
 	let swf = List.fold_left (fun swf (file,lib,cl) ->
@@ -1192,6 +1187,16 @@ let generate com swf_header =
 		priority := false;
 		swf
 	) swf com.swf_libs in
+	let swf = match swf with
+	| header,tags when Common.defined com Define.SwfPreloaderFrame ->
+		let rec loop l =
+			match l with
+			| ({tdata = TFilesAttributes _ | TUnknown (0x5D,"\x00\x00") | TMetaData _ | TSetBgColor _ | TEnableDebugger2 _ | TScriptLimits _} as t) :: l -> t :: loop l
+			| t :: l -> tag TShowFrame :: t :: l
+			| [] -> []
+		in
+		{header with h_frame_count = header.h_frame_count + 1},loop tags
+	| _ -> swf in
 	t();
 	(* write swf/swc *)
 	let t = Common.timer "write swf" in
