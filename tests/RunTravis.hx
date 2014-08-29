@@ -371,6 +371,9 @@ class RunTravis {
 	static function main():Void {
 		changeDirectory(unitDir);
 		Sys.putEnv("OCAMLRUNPARAM", "b");
+		
+		var args = ["foo", "12", "a b c\\ &<>[\"]#{}|"];
+		
 		switch (test) {
 			case Macro, null:
 				runCommand("haxe", ["compile-macro.hxml"]);
@@ -410,7 +413,7 @@ class RunTravis {
 				changeDirectory(sysDir);
 				runCommand("haxe", ["compile-neko.hxml"]);
 				changeDirectory("bin/neko");
-				runCommand("neko", ["sys.n", "foo", "12", "a b c\\\\"]);
+				runCommand("neko", ["sys.n"].concat(args));
 			case Php:
 				getPhpDependencies();
 				runCommand("haxe", ["compile-php.hxml"]);
@@ -423,7 +426,7 @@ class RunTravis {
 				changeDirectory(sysDir);
 				runCommand("haxe", ["compile-python.hxml"]);
 				changeDirectory("bin/python");
-				runCommand("python3", ["sys.py", "foo", "12", "a b c\\\\"]);
+				runCommand("python3", ["sys.py"].concat(args));
 			case Cpp:
 				getCppDependencies();
 				runCommand("haxe", ["compile-cpp.hxml"]);
@@ -437,7 +440,7 @@ class RunTravis {
 				changeDirectory(sysDir);
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				changeDirectory("bin/cpp");
-				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
+				runCommand("./Main-debug", args);
 			case Js:
 				getJSDependencies();
 
