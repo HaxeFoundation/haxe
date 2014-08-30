@@ -154,6 +154,8 @@ class RunTravis {
 	}
 
 	static function runFlash(swf:String):Void {
+		swf = FileSystem.fullPath(swf);
+		Sys.println('going to run $swf');
 		switch (systemName) {
 			case "Linux":
 				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
