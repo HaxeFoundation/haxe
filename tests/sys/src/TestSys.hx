@@ -4,7 +4,7 @@ class TestSys extends haxe.unit.TestCase {
 		assertEquals(3, args.length);
 		assertEquals("foo", args[0]);
 		assertEquals("12", args[1]);
-		assertEquals("a b c\\", args[2]);
+		assertEquals("a b c\\ &<>[\"]#{}|", args[2]);		
 	}
 
 	function testEnv() {

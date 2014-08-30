@@ -148,15 +148,19 @@ class RunTravis {
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
-				runCommand("sudo", ["mkdir", "-p", Path.directory(mmcfgPath)]);
-				runCommand("printf", ["ErrorReportingEnable=1\nTraceOutputFileEnable=1" , "|", "sudo", "tee", mmcfgPath, ">", "/dev/null"]);
+				var dir = Path.directory(mmcfgPath);
+				runCommand("sudo", ["mkdir", "-p", dir]);
+				runCommand("sudo", ["chmod", "a+w", dir]);
+				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 		}
 	}
 
 	static function runFlash(swf:String):Void {
+		swf = FileSystem.fullPath(swf);
+		Sys.println('going to run $swf');
 		switch (systemName) {
 			case "Linux":
-				Sys.command(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf, "&"]);
+				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
 			case "Mac":
 				Sys.command("open", ["-a", Sys.getEnv("HOME") + "/Applications/Flash Player Debugger.app", swf]);
 		}
@@ -371,6 +375,9 @@ class RunTravis {
 	static function main():Void {
 		changeDirectory(unitDir);
 		Sys.putEnv("OCAMLRUNPARAM", "b");
+		
+		var args = ["foo", "12", "a b c\\ &<>[\"]#{}|"];
+		
 		switch (test) {
 			case Macro, null:
 				runCommand("haxe", ["compile-macro.hxml"]);
@@ -410,7 +417,7 @@ class RunTravis {
 				changeDirectory(sysDir);
 				runCommand("haxe", ["compile-neko.hxml"]);
 				changeDirectory("bin/neko");
-				runCommand("neko", ["sys.n", "foo", "12", "a b c\\\\"]);
+				runCommand("neko", ["sys.n"].concat(args));
 			case Php:
 				getPhpDependencies();
 				runCommand("haxe", ["compile-php.hxml"]);
@@ -423,7 +430,7 @@ class RunTravis {
 				changeDirectory(sysDir);
 				runCommand("haxe", ["compile-python.hxml"]);
 				changeDirectory("bin/python");
-				runCommand("python3", ["sys.py", "foo", "12", "a b c\\\\"]);
+				runCommand("python3", ["sys.py"].concat(args));
 			case Cpp:
 				getCppDependencies();
 				runCommand("haxe", ["compile-cpp.hxml"]);
@@ -437,7 +444,7 @@ class RunTravis {
 				changeDirectory(sysDir);
 				runCommand("haxe", ["compile-cpp.hxml"]);
 				changeDirectory("bin/cpp");
-				runCommand("./Main-debug", ["foo", "12", "a b c\\\\"]);
+				runCommand("./Main-debug", args);
 			case Js:
 				getJSDependencies();
 
@@ -449,11 +456,14 @@ class RunTravis {
 				if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
 					//https://saucelabs.com/opensource/travis
 					runCommand("npm", ["install", "wd"], true);
-					runCommand("curl", ["https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh", "-L", "|", "bash"], true);
+					runCommand("wget", ["-nv", "https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh"], true);
+					runCommand("chmod", ["a+x", "sauce_connect_setup.sh"]);
+					runCommand("./sauce_connect_setup.sh", []);
 					haxelibInstallGit("dionjwa", "nodejs-std", "master", "src", true, "nodejs");
 					runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
-					runCommand("nekotools", ["server", "&"]);
+					var server = new Process("nekotools", ["server"]);
 					runCommand("node", ["RunSauceLabs.js"]);
+					server.close();
 				}
 
 				infoMsg("Test optimization:");

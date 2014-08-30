@@ -3474,9 +3474,6 @@ and handle_display ctx e iscall p =
 				if field_name fa = "bind" then (match follow e1.etype with
 					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
 					| _ -> e)
-				else if field_name fa = "match" then (match follow e1.etype with
-					| TEnum _ as t -> {e1 with etype = tfun [t] ctx.t.tbool }
-					| _ -> e)
 				else
 					e
 			| _ ->
@@ -3571,9 +3568,6 @@ and handle_display ctx e iscall p =
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p in
 				PMap.add "bind" cf PMap.empty
-			| TEnum(_) as t ->
-				let cf = mk_field "match" (tfun [t] ctx.t.tbool) p in
-				PMap.add "match" cf PMap.empty
 			| _ ->
 				PMap.empty
 		in
