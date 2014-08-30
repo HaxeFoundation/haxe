@@ -97,7 +97,7 @@
 		return false;
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator() : ListIterator<T> {
 		return untyped __call__("new _hx_list_iterator", this);
 	}
 
@@ -157,4 +157,9 @@
 	function getIterator() : Iterator<T> {
 		return iterator();
 	}
+}
+
+@:coreType private extern class ListIterator<T> {
+	function hasNext():Bool;
+	function next():T;
 }
