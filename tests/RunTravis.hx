@@ -148,8 +148,10 @@ class RunTravis {
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
-				runCommand("sudo", ["mkdir", "-p", Path.directory(mmcfgPath)]);
-				runCommand("printf", ["ErrorReportingEnable=1\nTraceOutputFileEnable=1" , "|", "sudo", "tee", mmcfgPath, ">", "/dev/null"]);
+				var dir = Path.directory(mmcfgPath);
+				runCommand("sudo", ["mkdir", "-p", dir]);
+				runCommand("sudo", ["chmod", "a+w", dir]);
+				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 		}
 	}
 
