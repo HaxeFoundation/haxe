@@ -90,6 +90,7 @@ module Meta = struct
 		| InitPackage
 		| Internal
 		| IsVar
+		| JavaCanonical
 		| JavaNative
 		| JsRequire
 		| Keep

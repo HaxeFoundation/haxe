@@ -2,8 +2,8 @@ package unit;
 import haxe.io.Bytes;
 import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
-import haxe.test.Base.Base_24__InnerClass3__;
-import haxe.test.Base.Base_24__InnerClass3___24InnerClass4__;
+import haxe.test.Base.Base___InnerClass3__;
+import haxe.test.Base.Base___InnerClass3___InnerClass4__;
 import haxe.test.TEnum;
 import java.util.EnumSet;
 
@@ -68,6 +68,15 @@ class TestJava extends Test
 
 		var i2 = new Base_InnerClass_InnerInnerClass();
 		t(true);
+
+		eq("InnerName1$", haxe.test.MyClass.MyClass_InnerName1_.test());
+		eq("$InnerName2", haxe.test.MyClass.MyClass__InnerName2.test());
+		eq("Inner$Name3", haxe.test.MyClass.MyClass_Inner_Name3.test());
+		eq("InnerName4$$", haxe.test.MyClass.MyClass_InnerName4__.test());
+		eq("$$InnerName5", haxe.test.MyClass.MyClass___InnerName5.test());
+		eq("Inner$$Name6", haxe.test.MyClass.MyClass_Inner__Name6.test());
+		eq("$$Inner$$Name7$$", haxe.test.MyClass.MyClass___Inner__Name7__.test());
+		eq("$$Inner$$Name8", haxe.test.MyClass.MyClass___Inner__Name7_____Inner__Name8.test());
 	}
 
 	function testGenerics()
@@ -81,7 +90,7 @@ class TestJava extends Test
 		eq(helper.typedGeneric, null);
 
 		var val = new Base_InnerClass();
-		var val3 = new Base_24__InnerClass3__();
+		var val3 = new Base___InnerClass3__();
 		var g1 = new haxe.test.Generic1(val);
 		g1.complexTypeParameterOfTypeParameter(new Base_InnerClass_InnerInnerClass());
 		//if no compile-time error, we're fine!
