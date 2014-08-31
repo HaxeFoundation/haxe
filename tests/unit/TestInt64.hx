@@ -1,5 +1,6 @@
 package unit;
 using haxe.Int64;
+import haxe.Int64.*;
 
 class TestInt64 extends Test {
 
@@ -45,6 +46,50 @@ class TestInt64 extends Test {
 		var expected = Int64.make(0xDDE8A2E8, 0xBA2E8BA3);
 		eq( expected.compare(c), 0 );
 		#end
+	}
+
+	// tests ported from https://github.com/candu/node-int64-native/blob/master/test/int64.js
+	public function testCompare()
+	{
+    var a = ofInt(2),
+        b = ofInt(3);
+		t(a == a);
+		t(b == b);
+		eq(a.compare(a), 0);
+		eq(a.compare(b), -1);
+		eq(b.compare(a), 1);
+	}
+
+	public function testBits()
+	{
+	  var x = make(0xfedcba98,0x76543210);
+    var y = x.and((ofInt(0xffff))),
+        z = x.or((ofInt(0xffff))),
+        w = x.xor((make(0xffffffff,0xffffffff)));
+    eq(y.toStr(), '12816');
+    eq(z.toStr(), '-81985529216434177');
+    eq(w.toStr(), '81985529216486895');
+    eq(x.and(ofInt(0xffff)).toStr(), '12816');
+    eq((x.or(ofInt(0xffff))).toStr(), '-81985529216434177');
+    eq((x.xor(ofInt(0xffff))).toStr(), '-81985529216446993');
+    eq((x.and(make(0x1,0xffffffff))).toStr(), '1985229328');
+    eq((x.or(make(0x1,0xffffffff))).toStr(), '-81985522611781633');
+    eq((x.xor(make(0x1, 0xffffffff))).toStr(), '-81985524597010961');
+    var a = ofInt(7),
+        b = a.shl(1);
+    eq(b.toStr(), '14');
+	}
+
+	public function testAdd()
+	{
+		var a = ofInt(3),
+				b = ofInt(2),
+				c = make(0xffffffff,0xfffffffe);
+		eq( (a.add(b)).compare(ofInt(5)), 0 );
+		eq( (a.add(ofInt(4))).compare(ofInt(7)), 0 );
+		eq( (c.add(ofInt(3))).compare(ofInt(1)), 0 );
+		// numbers larger than int32
+		eq( a.add(make(0x1, 0)).toStr(), '4294967299');
 	}
 
 }
