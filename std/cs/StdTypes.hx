@@ -85,6 +85,6 @@ package cs;
 	@:op(A<B) public static function lt(lhs:UInt64, rhs:UInt64):Bool;
 	@:op(A<=B) public static function lte(lhs:UInt64, rhs:UInt64):Bool;
 
-	@:op(~A) public function bneg(t:UInt64):UInt64;
-	@:op(-A) public function neg(t:UInt64):UInt64;
+	@:op(~A) public static function bneg(t:UInt64):UInt64;
+	@:op(-A) public static function neg(t:UInt64):UInt64;
 }
