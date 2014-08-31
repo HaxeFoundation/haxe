@@ -6153,7 +6153,14 @@ struct
 						{ ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist) }, elist
 					in
 					let new_ecall = if fparams <> [] then gen.gparam_func_call new_ecall { e1 with eexpr = TField(!ef, f) } fparams elist else new_ecall in
-					handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret_ft)
+					let ret = handle_cast gen new_ecall (gen.greal_type ecall.etype) (gen.greal_type ret_ft) in
+					(match gen.gcon.platform, cf.cf_params, ret.eexpr with
+						| _, _, TCast _ -> ret
+						| Java, _ :: _, _ ->
+							(* this is a workaround for a javac openjdk issue with unused type parameters and return type inference *)
+							(* see more at issue #3123 *)
+							mk_cast (gen.greal_type ret_ft) new_ecall
+						| _ -> ret)
 				end
 		| FClassField (cl,params,_,{ cf_kind = (Method MethDynamic | Var _) },_,actual_t,_) ->
 			(* if it's a var, we will just try to apply the class parameters that have been changed with greal_type_param *)
