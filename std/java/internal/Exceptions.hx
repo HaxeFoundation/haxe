@@ -61,7 +61,7 @@ class Exceptions {
 		return obj;
 	}
 
-	@:overload override function fillInStackTrace():Throwable
+	@:overload override public function fillInStackTrace():Throwable
 	{
 		return this;
 	}
