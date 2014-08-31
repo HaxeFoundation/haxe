@@ -72,6 +72,14 @@ package java;
 	}
 
 	/**
+		Returns a java.lang.Class equivalent to the Haxe Enum<> type.
+	**/
+	public static inline function toNativeEnum<T>(cl:Enum<T>):java.lang.Class<T>
+	{
+		return untyped cl;
+	}
+
+	/**
 		Returns a Haxe Array of a native Array.
 		It won't copy the contents of the native array, so unless any operation triggers an array resize,
 		all changes made to the Haxe array will affect the native array argument.

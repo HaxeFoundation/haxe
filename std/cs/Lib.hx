@@ -104,6 +104,14 @@ class Lib
 	}
 
 	/**
+		Returns a System.Type equivalent to the Haxe Enum<> type.
+	**/
+	public static inline function toNativeEnum(cl:Enum<Dynamic>):Type
+	{
+		return untyped cl;
+	}
+
+	/**
 		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
 	**/
 	public static function nativeType(obj:Dynamic):Type

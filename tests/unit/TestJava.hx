@@ -5,6 +5,7 @@ import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base_24__InnerClass3__;
 import haxe.test.Base.Base_24__InnerClass3___24InnerClass4__;
 import haxe.test.TEnum;
+import java.util.EnumSet;
 
 #if java
 class TestJava extends Test
@@ -27,6 +28,18 @@ class TestJava extends Test
 	{
 		t(haxe.uppercasepackage.SomeClass.SomeClassFound);
 		t(haxe.uppercasepackage.Lowercase.lowercaseFound);
+	}
+
+	function testEnumSet()
+	{
+		var es1:EnumSet<TEnum> = EnumSet.noneOf(java.Lib.toNativeEnum(TEnum));
+		f(es1.contains(TA));
+		es1.add(TA);
+		t(es1.contains(TA));
+		var es2 = EnumSet.of(HA,HB);
+		t(es2.contains(HA));
+		t(es2.contains(HB));
+		f(es2.contains(HC));
 	}
 
 	function testHaxeKeywords()
@@ -265,6 +278,12 @@ private class HxClass extends NativeClass
   {
 
   }
+}
+
+enum HaxeEnum {
+	HA;
+	HB;
+	HC;
 }
 
 #end

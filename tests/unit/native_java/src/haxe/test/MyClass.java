@@ -41,4 +41,6 @@ public class MyClass
 	{
 		
 	}
+
+	/* public void testEnumSet */
 }
