@@ -61,6 +61,11 @@ class Exceptions {
 		return obj;
 	}
 
+	@:overload override public function fillInStackTrace():Throwable
+	{
+		return this;
+	}
+
 	@:overload override public function toString():String
 	{
 		return "Haxe Exception: " + obj;
