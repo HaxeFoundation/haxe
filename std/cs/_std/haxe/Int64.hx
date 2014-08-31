@@ -113,11 +113,7 @@ import cs.StdTypes.UInt64 in NativeUInt64;
 
 	public static inline function neg( a : Int64 ) : Int64
 	{
-		var a2:NativeInt64 = a.asNative();
-		// var a3 = NativeInt64.bneg(a2);
-		var a3 = ~a;
-		return a;
-		// return (~(a.asNative())).ofNative();
+		return (~(a.asNative())).ofNative();
 	}
 
 	public static inline function isNeg( a : Int64 ) : Bool

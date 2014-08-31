@@ -1426,11 +1426,16 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 module Overloads =
 struct
 	let rec simplify_t t = match t with
-		| TInst _ | TEnum _ | TAbstract({ a_impl = None }, _) ->
+		| TAbstract(a,_) when Meta.has Meta.CoreType a.a_meta ->
+			t
+		| TInst _ | TEnum _ ->
 			t
 		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
 		| TType(({ t_path = [],"Null" } as t), [t2]) -> (match simplify_t t2 with
-			| (TAbstract({ a_impl = None }, _) | TEnum _ as t2) -> TType(t, [simplify_t t2])
+			| (TAbstract(a,_) as t2) when Meta.has Meta.CoreType a.a_meta ->
+				TType(t, [simplify_t t2])
+			| (TEnum _ as t2) ->
+				TType(t, [simplify_t t2])
 			| t2 -> t2)
 		| TType(t, tl) ->
 			simplify_t (apply_params t.t_types tl t.t_type)
@@ -1488,7 +1493,7 @@ struct
 			(cacc, 0)
 		| TDynamic _, _ ->
 			(max_int, 0) (* a function with dynamic will always be worst of all *)
-		| TAbstract({ a_impl = None }, _), TDynamic _ ->
+		| TAbstract(a, _), TDynamic _ when Meta.has Meta.CoreType a.a_meta ->
 			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
 		| _, TDynamic _ ->
 			(cacc + 1, 0)
