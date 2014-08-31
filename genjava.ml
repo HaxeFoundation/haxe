@@ -822,7 +822,7 @@ let configure gen =
 									| TAbstract ({ a_path = [],"Single" },[]) ->
 											basic.tnull f_t
 									(*| TType ({ t_path = [], "Null"*)
-									| TInst (cl, ((_ :: _) as p)) ->
+									| TInst (cl, ((_ :: _) as p)) when cl.cl_path <> (["java"],"NativeArray") ->
 										TInst(cl, List.map (fun _ -> t_dynamic) p)
 									| TEnum (e, ((_ :: _) as p)) ->
 										TEnum(e, List.map (fun _ -> t_dynamic) p)
