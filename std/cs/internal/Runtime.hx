@@ -80,152 +80,130 @@ import cs.system.Object;
 		return null;
 	}
 
-	@:functionCode('
-			if (System.Object.ReferenceEquals(v1, v2))
-				return true;
-			if (v1 == null || v2 == null)
-				return false;
-
-			System.IConvertible v1c = v1 as System.IConvertible;
-
-			if (v1c != null)
-			{
-				System.IConvertible v2c = v2 as System.IConvertible;
-
-				if (v2c == null)
-				{
-					return false;
-				}
-
-				System.TypeCode t1 = v1c.GetTypeCode();
-				System.TypeCode t2 = v2c.GetTypeCode();
-				if (t1 == t2)
-					return v1c.Equals(v2c);
-
-				if (t1 == System.TypeCode.String || t2 == System.TypeCode.String)
-					return false;
-
-				switch(t1)
-				{
-					case System.TypeCode.Decimal:
-						return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-					case System.TypeCode.Int64:
-					case System.TypeCode.UInt64:
-						if (t2 == System.TypeCode.Decimal)
-							return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-						else
-							return v1c.ToUInt64(null) == v2c.ToUInt64(null);
-					default:
-						switch(t2)
-						{
-							case System.TypeCode.Decimal:
-								return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-							case System.TypeCode.Int64:
-							case System.TypeCode.UInt64:
-								if (t2 == System.TypeCode.Decimal)
-									return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-								else
-									return v1c.ToUInt64(null) == v2c.ToUInt64(null);
-							default:
-								return v1c.ToDouble(null) == v2c.ToDouble(null);
-						}
-				}
-			}
-
-			System.ValueType v1v = v1 as System.ValueType;
-			if (v1v != null)
-			{
-				return v1.Equals(v2);
-			} else {
-				System.Type v1t = v1 as System.Type;
-				if (v1t != null)
-				{
-					System.Type v2t = v2 as System.Type;
-					if (v2t != null)
-						return typeEq(v1t, v2t);
-					return false;
-				}
-			}
-
-			return false;
-	')
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool
 	{
+		if (Object.ReferenceEquals(v1, v2))
+			return true;
+		if (Object.ReferenceEquals(v1,null) || Object.ReferenceEquals(v2,null))
+			return false;
+
+		var v1c = Lib.as(v1, IConvertible);
+
+		if (v1c != null)
+		{
+			var v2c = Lib.as(v2, IConvertible);
+
+			if (v2c == null)
+			{
+				return false;
+			}
+
+			var t1 = v1c.GetTypeCode(),
+					t2 = v2c.GetTypeCode();
+			if (t1 == t2)
+				return Object._Equals(v1c,v2c);
+
+			if (t1 == cs.system.TypeCode.String || t2 == cs.system.TypeCode.String)
+				return false;
+
+			switch(t1)
+			{
+				case Decimal:
+					return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+				case Int64:
+				case UInt64:
+					if (t2 == Decimal)
+						return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+					else
+						return v1c.ToUInt64(null) == v2c.ToUInt64(null);
+				default:
+					switch(t2)
+					{
+						case Decimal:
+							return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+						case Int64:
+						case UInt64:
+							if (t2 == Decimal)
+								return v1c.ToDecimal(null) == v2c.ToDecimal(null);
+							else
+								return v1c.ToUInt64(null) == v2c.ToUInt64(null);
+						default:
+							return v1c.ToDouble(null) == v2c.ToDouble(null);
+					}
+			}
+		}
+
+		var v1v = Lib.as(v1, cs.system.ValueType);
+		if (v1v != null)
+		{
+			return v1.Equals(v2);
+		} else {
+			var v1t = Lib.as(v1, Type);
+			if (v1t != null)
+			{
+				var v2t = Lib.as(v2, Type);
+				if (v2t != null)
+					return typeEq(v1t, v2t);
+				return false;
+			}
+		}
+
 		return false;
 	}
 
-	@:functionCode('
-			if (v1 is System.Type)
-				return typeEq(v1 as System.Type, v2 as System.Type);
-			return System.Object.ReferenceEquals(v1, v2);
-	')
 	public static function refEq(v1: { }, v2: { } ):Bool
 	{
-		return false;
+		if (Std.is(v1, Type))
+			return typeEq(Lib.as(v1,Type), Lib.as(v2,Type));
+		return Object.ReferenceEquals(v1,v2);
 	}
 
-	@:functionCode('
-		return (obj == null) ? 0.0 : (obj is double) ? (double)obj : ((System.IConvertible) obj).ToDouble(null);
-	')
 	public static function toDouble(obj:Dynamic):Float
 	{
-		return 0.0;
+		return (obj == null) ? .0 : Std.is(obj,Float) ? cast obj : Lib.as(obj,IConvertible).ToDouble(null);
 	}
 
-	@:functionCode('
-		return (obj == null) ? 0 : (obj is int) ? (int)obj : ((System.IConvertible) obj).ToInt32(null);
-	')
 	public static function toInt(obj:Dynamic):Int
 	{
-		return 0;
+		return (obj == null) ? 0 : Std.is(obj,Int) ? cast obj : Lib.as(obj,IConvertible).ToInt32(null);
 	}
 
-	@:functionCode('
-			System.IConvertible cv1 = obj as System.IConvertible;
-			if (cv1 != null)
-			{
-                switch (cv1.GetTypeCode())
-                {
-                    case System.TypeCode.Double:
-                        double d = (double)obj;
-
-				        return d >= int.MinValue && d <= int.MaxValue && d == ( (int)d );
-                    case System.TypeCode.UInt32:
-                    case System.TypeCode.Int32:
-                        return true;
-                    default:
-                        return false;
-                }
-
-			}
-			return false;
-	')
 	public static function isInt(obj:Dynamic):Bool
 	{
+		var cv1 = Lib.as(obj, IConvertible);
+		if (cv1 != null)
+		{
+			switch (cv1.GetTypeCode())
+			{
+				case Double:
+					var d:Float = cast obj;
+					return d >= cs.system.Int32.MinValue && d <= cs.system.Int32.MaxValue && d == ( cast(d,Int) );
+				case UInt32, Int32:
+					return true;
+				default:
+					return false;
+			}
+		}
 		return false;
 	}
 
-	@:functionCode('
-			System.IConvertible cv1 = obj as System.IConvertible;
-			if (cv1 != null)
-			{
-                switch (cv1.GetTypeCode())
-                {
-                    case System.TypeCode.Double:
-                        double d = (double)obj;
-
-				        return d >= uint.MinValue && d <= uint.MaxValue && d == ( (uint)d );
-                    case System.TypeCode.UInt32:
-                        return true;
-                    default:
-                        return false;
-                }
-
-			}
-			return false;
-	')
 	public static function isUInt(obj:Dynamic):Bool
 	{
+		var cv1 = Lib.as(obj, IConvertible);
+		if (cv1 != null)
+		{
+			switch (cv1.GetTypeCode())
+			{
+				case Double:
+					var d:Float = cast obj;
+					return d >= cs.system.UInt32.MinValue && d <= cs.system.UInt32.MaxValue && d == ( cast(d,UInt) );
+				case UInt32:
+					return true;
+				default:
+					return false;
+			}
+
+		}
 		return false;
 	}
 
@@ -278,28 +256,23 @@ import cs.system.Object;
 		return c1.CompareTo(c2);
 	}
 
-	@:functionCode('
-			if (v1 is string || v2 is string)
-				return Std.@string(v1) + Std.@string(v2);
-
-			System.IConvertible cv1 = v1 as System.IConvertible;
-			if (cv1 != null)
-			{
-				System.IConvertible cv2 = v2 as System.IConvertible;
-
-				if (cv2 == null)
-				{
-					throw new System.ArgumentException("Cannot dynamically add " + v1.GetType().ToString() + " and " + v2.GetType().ToString());
-				}
-
-				return cv1.ToDouble(null) + cv2.ToDouble(null);
-			}
-
-			throw new System.ArgumentException("Cannot dynamically add " + v1 + " and " + v2);
-	')
 	public static function plus(v1:Dynamic, v2:Dynamic):Dynamic
 	{
-		return null;
+		if (Std.is(v1,String) || Std.is(v2,String))
+			return Std.string(v1) + Std.string(v2);
+
+		var cv1 = Lib.as(v1, IConvertible);
+		if (cv1 != null)
+		{
+			var cv2 = Lib.as(v2, IConvertible);
+			if (cv2 == null)
+			{
+				throw new cs.system.ArgumentException("Cannot dynamically add " + cs.Lib.nativeType(v1).ToString() + " and " + cs.Lib.nativeType(v2).ToString());
+			}
+			return cv1.ToDouble(null) + cv2.ToDouble(null);
+		}
+
+		throw new cs.system.ArgumentException("Cannot dynamically add " + v1 + " and " + v2);
 	}
 
 	@:functionCode('
@@ -435,7 +408,7 @@ import cs.system.Object;
 		if (methodLength == 0) throw "No available methods";
 		var length = args.length;
 		var oargs:NativeArray<Dynamic> = new NativeArray(length);
-		var ts:NativeArray<cs.system.Type> = new NativeArray(length);
+		var ts:NativeArray<Type> = new NativeArray(length);
 		var rates:NativeArray<Int> = new NativeArray(methods.Length);
 
 		for (i in 0...length)
@@ -567,7 +540,7 @@ import cs.system.Object;
 			return haxe.lang.Null<object>.ofDynamic<object>(obj);
 		return nullableType.GetMethod("_ofDynamic").Invoke(null, new object[] { obj });
 	')
-	public static function mkNullable(obj:Dynamic, nullableType:cs.system.Type):Dynamic
+	public static function mkNullable(obj:Dynamic, nullableType:Type):Dynamic
 	{
 		return null;
 	}
@@ -708,7 +681,7 @@ import cs.system.Object;
 			string n2 = Type.getClassName(t2);
 			return n1.Equals(n2);
 	')
-	public static function typeEq(t1:cs.system.Type, t2:cs.system.Type):Bool
+	public static function typeEq(t1:Type, t2:Type):Bool
 	{
 		return false;
 	}
