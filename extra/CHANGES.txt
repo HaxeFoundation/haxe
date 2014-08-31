@@ -45,6 +45,7 @@
 	Deprecations:
 
 	all : deprecated structurally extending classes and interfaces
+	sys : Sys.command shell special chars (&|<>#;*?(){}$) are now properly escaped
 
 2014-04-13: 3.1.3
 
