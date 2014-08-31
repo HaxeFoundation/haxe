@@ -780,7 +780,7 @@ let configure gen =
 
 	(*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
 
-	let ti64 = match ( get_type gen (["haxe";"_Int64"], "NativeInt64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+	let ti64 = match ( get_type gen (["java"], "Int64") ) with | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
 
 	let has_tdynamic params =
 		List.exists (fun e -> match run_follow gen e with | TDynamic _ -> true | _ -> false) params
@@ -810,8 +810,8 @@ let configure gen =
 									| TInst ({ cl_path = ["haxe"],"Int64" },[])
 									| TInst ({ cl_path = ([],"Int") },[])
 									| TAbstract ({ a_path = ([],"Int") },[])
-									| TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-									| TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[])
+									| TType ({ t_path = ["java"], "Int64" },[])
+									| TAbstract ({ a_path = ["java"], "Int64" },[])
 									| TType ({ t_path = ["java"],"Int8" },[])
 									| TAbstract ({ a_path = ["java"],"Int8" },[])
 									| TType ({ t_path = ["java"],"Int16" },[])
@@ -855,8 +855,8 @@ let configure gen =
 			| TAbstract ({ a_path = ([],"Int") },[])
 			| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 			| TInst( { cl_path = (["haxe"], "Int64") }, [] )
-			| TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-			| TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[])
+			| TType ({ t_path = ["java"], "Int64" },[])
+			| TAbstract ({ a_path = ["java"], "Int64" },[])
 			| TType ({ t_path = ["java"],"Int8" },[])
 			| TAbstract ({ a_path = ["java"],"Int8" },[])
 			| TType ({ t_path = ["java"],"Int16" },[])
@@ -974,8 +974,8 @@ let configure gen =
 			| TAbstract ({ a_path = ([],"Float") },[]) -> "double"
 			| TInst ({ cl_path = ([],"Int") },[])
 			| TAbstract ({ a_path = ([],"Int") },[]) -> "int"
-			| TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-			| TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) -> "long"
+			| TType ({ t_path = ["java"], "Int64" },[])
+			| TAbstract ({ a_path = ["java"], "Int64" },[]) -> "long"
 			| TType ({ t_path = ["java"],"Int8" },[])
 			| TAbstract ({ a_path = ["java"],"Int8" },[]) -> "byte"
 			| TType ({ t_path = ["java"],"Int16" },[])
@@ -1038,8 +1038,8 @@ let configure gen =
 			| TInst ({ cl_path = ([],"Int") },[])
 			| TAbstract ({ a_path = ([],"Int") },[]) ->
 					path_s_import pos (["java";"lang"], "Integer")
-			| TType ({ t_path = ["haxe";"_Int64"], "NativeInt64" },[])
-			| TAbstract ({ a_path = ["haxe";"_Int64"], "NativeInt64" },[]) ->
+			| TType ({ t_path = ["java"], "Int64" },[])
+			| TAbstract ({ a_path = ["java"], "Int64" },[]) ->
 					path_s_import pos (["java";"lang"], "Long")
 			| TInst ({ cl_path = ["haxe"],"Int64" },[])
 			| TAbstract ({ a_path = ["haxe"],"Int64" },[]) ->
@@ -1155,7 +1155,7 @@ let configure gen =
 						| TInt i32 ->
 							print w "%ld" i32;
 							(match real_type e.etype with
-								| TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] ) -> write w "L";
+								| TType( { t_path = (["java"], "Int64") }, [] ) -> write w "L";
 								| _ -> ()
 							)
 						| TFloat s ->
@@ -1170,7 +1170,7 @@ let configure gen =
 						| TBool b -> write w (if b then "true" else "false")
 						| TNull ->
 							(match real_type e.etype with
-								| TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] )
+								| TAbstract( { a_path = (["java"], "Int64") }, [] )
 								| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> write w "0L"
 								| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 								| TInst({ cl_path = ([], "Int") },[])
@@ -1183,7 +1183,7 @@ let configure gen =
 									expr_s w { e with eexpr = TConst(TInt Int32.zero) }
 								| TAbstract _ when like_float e.etype ->
 									expr_s w { e with eexpr = TConst(TFloat "0.0") }
-								| _ -> write w "null")
+								| t -> write w ("null /*" ^ debug_type t ^ "*/") )
 						| TThis -> write w "this"
 						| TSuper -> write w "super")
 				| TLocal { v_name = "__fallback__" } -> ()
@@ -2040,6 +2040,7 @@ let configure gen =
 				| TAbstract ({ a_path = ([], "Int") },[])
 				| TEnum({ e_path = ([], "Bool") }, [])
 				| TAbstract ({ a_path = ([], "Bool") },[]) -> Some t
+				| t when is_java_basic_type t -> Some t
 				| _ -> None )
 		| _ -> None
 	in

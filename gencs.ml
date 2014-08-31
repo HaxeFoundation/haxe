@@ -2484,6 +2484,7 @@ let configure gen =
 				| TEnum({ e_path = ([], "Bool") }, [])
 				| TAbstract ({ a_path = ([], "Bool") },[]) -> Some t
 				| TAbstract _ when like_float t -> Some t
+				| t when is_cs_basic_type t -> Some t
 				| _ -> None )
 		| _ -> None
 	in

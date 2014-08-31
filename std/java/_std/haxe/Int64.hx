@@ -21,14 +21,14 @@
  */
 package haxe;
 using haxe.Int64;
-private typedef NativeInt64 = Int;
+import java.StdTypes.Int64 in NativeInt64;
 
 @:coreApi
 @:nativeGen class Int64
 {
 	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i;
 	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i;
-	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i;
+	@:extern private static inline function mkNative(i:Int):NativeInt64 return cast i;
 
 	public static inline function make( high : Int, low : Int ) : Int64
 	{
@@ -37,12 +37,11 @@ private typedef NativeInt64 = Int;
 
 	public static inline function getLow( x : Int64 ) : Int
 	{
-		return cast (x.asNative() & untyped __java__("0xFFFFFFFFL"), Int);
+		return cast (x.asNative() & (untyped __java__("0xFFFFFFFFL")), Int);
 	}
 
-	public static inline function getHigh( x : Int64 ) : Int
-	{
-		return cast(cast(x,NativeInt64) >>> cast(32,NativeInt64), Int);
+	public static inline function getHigh( x : Int64 ) : Int {
+		return cast(cast(x,NativeInt64) >>> 32, Int);
 	}
 
 	public static inline function ofInt( x : Int ) : Int64 {
@@ -70,17 +69,17 @@ private typedef NativeInt64 = Int;
 
 	static function divMod( modulus : Int64, divisor : Int64 ) : { quotient : Int64, modulus : Int64 }
 	{
-		var q:Int64 = (modulus.asNative() / divisor.asNative()).mkNative().ofNative();
-		var m:Int64 = (modulus.asNative() % divisor.asNative()).mkNative().ofNative();
+		var q:Int64 = (modulus.asNative() / divisor.asNative()).ofNative();
+		var m:Int64 = (modulus.asNative() % divisor.asNative()).ofNative();
 		return { quotient : q, modulus : m };
 	}
 
 	public static inline function div( a : Int64, b : Int64 ) : Int64 {
-		return (a.asNative() / b.asNative()).mkNative().ofNative();
+		return (a.asNative() / b.asNative()).ofNative();
 	}
 
 	public static inline function mod( a : Int64, b : Int64 ) : Int64 {
-		return (a.asNative() % b.asNative()).mkNative().ofNative();
+		return (a.asNative() % b.asNative()).ofNative();
 	}
 
 	public static inline function shl( a : Int64, b : Int ) : Int64 {
@@ -92,7 +91,7 @@ private typedef NativeInt64 = Int;
 	}
 
 	public static inline function ushr( a : Int64, b : Int ) : Int64 {
-		return (a.asNative() >>> b).ofNative();
+		return ( a.asNative() >>> b).ofNative();
 	}
 
 	public static inline function and( a : Int64, b : Int64 ) : Int64
@@ -112,7 +111,7 @@ private typedef NativeInt64 = Int;
 
 	public static inline function neg( a : Int64 ) : Int64
 	{
-		return (~a.asNative()).ofNative();
+		return (~(a.asNative())).ofNative();
 	}
 
 	public static inline function isNeg( a : Int64 ) : Bool
@@ -133,7 +132,7 @@ private typedef NativeInt64 = Int;
 	public static function ucompare( a : Int64, b : Int64 ) : Int
 	{
 		if (a.asNative() < 0.mkNative())
-			return (b.asNative() < 0.mkNative()) ? compare( (~a.asNative()).ofNative(), (~b.asNative()).ofNative()) : 1;
+			return (b.asNative() < 0.mkNative()) ? compare( (~(a.asNative())).ofNative(), (~(b.asNative())).ofNative()) : 1;
 		return (b.asNative() < 0.mkNative()) ? -1 : compare(a, b);
 	}
 
