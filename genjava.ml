@@ -2036,11 +2036,9 @@ let configure gen =
 	in
 
 	let is_dynamic_expr e =
-		print_endline (e.epos.pfile ^ ":: " ^ debug_expr e);
 		is_dynamic e.etype || match e.eexpr with
 		| TField(tf, f) -> field_is_dynamic tf.etype f
 		| _ ->
-			print_endline (e.epos.pfile ^ ": yes");
 			false
 	in
 
