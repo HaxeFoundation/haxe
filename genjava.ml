@@ -1183,7 +1183,7 @@ let configure gen =
 									expr_s w { e with eexpr = TConst(TInt Int32.zero) }
 								| TAbstract _ when like_float e.etype ->
 									expr_s w { e with eexpr = TConst(TFloat "0.0") }
-								| t -> write w ("null /*" ^ debug_type t ^ "*/") )
+								| t -> write w ("null") )
 						| TThis -> write w "this"
 						| TSuper -> write w "super")
 				| TLocal { v_name = "__fallback__" } -> ()
