@@ -27,8 +27,8 @@ package java.net;
 	{
 		try
 		{
-			this.sock = javax.net.ssl.SSLSocketFactory.getDefault().createSocket();
-			this.server = javax.net.ssl.SSLServerSocketFactory.getDefault().createServerSocket();
+			this.sock = java.javax.net.ssl.SSLSocketFactory.getDefault().createSocket();
+			this.server = java.javax.net.ssl.SSLServerSocketFactory.getDefault().createServerSocket();
 		} catch(e:Dynamic) throw e;
 	}
 
