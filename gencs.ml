@@ -2279,7 +2279,8 @@ let configure gen =
 		(fun e ->
 			match real_type e.etype with
 				| TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
-						{ (mk_field_access gen e "value" e.epos) with etype = t }
+					let e = { e with eexpr = TParenthesis(e) } in
+					{ (mk_field_access gen e "value" e.epos) with etype = t }
 				| _ ->
 					trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; assert false
 		)

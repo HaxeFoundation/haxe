@@ -9466,6 +9466,14 @@ struct
 			| _ -> None
 
 	let traverse gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler handle_opeq handle_cast =
+		(* let unwrap_null e = *)
+		(* 	let ret = unwrap_null e in *)
+		(* 	{ ret with eexpr = TParenthesis(ret) } *)
+		(* in *)
+		(* let wrap_val e t b = *)
+		(* 	let ret = wrap_val e t b in *)
+		(* 	{ ret with eexpr = TParenthesis(ret) } *)
+		(* in *)
 		let handle_unwrap to_t e =
 			let e_null_t = get (is_null_t gen e.etype) in
 			match gen.greal_type to_t with

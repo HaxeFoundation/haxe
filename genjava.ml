@@ -2025,6 +2025,7 @@ let configure gen =
 	let field_is_dynamic t field =
 		match field_access_esp gen (gen.greal_type t) field with
 			| FClassField (cl,p,_,_,_,t,_) ->
+				let p = change_param_type (TClassDecl cl) p in
 				is_dynamic (apply_params cl.cl_types p t)
 			| FEnumField _ -> false
 			| _ -> true
@@ -2037,7 +2038,8 @@ let configure gen =
 
 	let is_dynamic_expr e =
 		is_dynamic e.etype || match e.eexpr with
-		| TField(tf, f) -> field_is_dynamic tf.etype f
+		| TField(tf, f) ->
+			field_is_dynamic tf.etype f
 		| _ ->
 			false
 	in
@@ -2072,7 +2074,8 @@ let configure gen =
 			| TBinop (Ast.OpGte, e1, e2)
 			| TBinop (Ast.OpGt, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2 || is_string e1.etype || is_string e2.etype
 			| TBinop (_, e1, e2) -> is_dynamic e.etype || is_dynamic_expr e1 || is_dynamic_expr e2
-			| TUnop (_, _, e1) -> is_dynamic_expr e1
+			| TUnop (_, _, e1) ->
+				is_dynamic_expr e1
 			| _ -> false)
 		(fun e1 e2 ->
 			let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in
