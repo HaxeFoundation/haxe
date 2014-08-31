@@ -9242,6 +9242,11 @@ struct
 
 	let priority = solve_deps name []
 
+	let rec simplify_expr e = match e.eexpr with
+		| TParenthesis e
+		| TMeta(_,e) -> simplify_expr e
+		| _ -> e
+
 	let traverse gen (should_convert:texpr->bool) (handle_nullables:bool) =
 		let basic = gen.gcon.basic in
 		let rec run e =
@@ -9310,6 +9315,27 @@ struct
 						with | Exit ->
 							{ e with eexpr = TBlock [] }
 					end
+				| TSwitch(cond,cases,default) -> (try
+					match (simplify_expr cond).eexpr with
+						| TCall( { eexpr = TField(_,FStatic({ cl_path = [],"Type" }, { cf_name = "enumIndex" })) }, [enum] ) ->
+							let real_enum = match enum.etype with
+								| TEnum(e,_) -> e
+								| _ -> raise Not_found
+							in
+							if Meta.has Meta.Class real_enum.e_meta then raise Not_found;
+							let enum_expr = mk_mt_access (TEnumDecl(real_enum)) e.epos in
+							let fields = Hashtbl.create (List.length real_enum.e_names) in
+							PMap.iter (fun _ ef -> Hashtbl.add fields ef.ef_index ef) real_enum.e_constrs;
+							let cases = List.map (fun (el,e) ->
+								List.map (fun e -> match e.eexpr with
+								| TConst(TInt i) ->
+									let ef = Hashtbl.find fields (Int32.to_int i) in
+									{ e with eexpr = TField(enum_expr, FEnum(real_enum,ef)); etype = TEnum(real_enum,List.map (fun _ -> t_dynamic) real_enum.e_types) }
+								| _ -> raise Not_found) el, e
+							) cases in
+							{ e with eexpr = TSwitch(enum,cases,default) }
+						| _ -> raise Not_found
+					with Not_found -> Type.map_expr run e)
 				| _ -> Type.map_expr run e
 		in
 		run

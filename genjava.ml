@@ -1442,7 +1442,11 @@ let configure gen =
 						List.iter (fun e ->
 							write w "case ";
 							in_value := true;
-							expr_s w e;
+							(match e.eexpr with
+								| TField(_,FEnum(e,ef)) ->
+									write w ef.ef_name
+								| _ ->
+									expr_s w e);
 							write w ":";
 						) el;
 						newline w;
