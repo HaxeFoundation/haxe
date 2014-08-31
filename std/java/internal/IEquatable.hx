@@ -23,6 +23,7 @@ package java.internal;
 
 @:native('haxe.lang.IEquatable')
 @:keep
+@:nativeGen
 interface IEquatable
 {
 
