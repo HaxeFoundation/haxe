@@ -150,7 +150,7 @@ genswf9.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) genswf8.$(MODULE_E
 
 genxml.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-interp.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) lexer.$(MODULE_EXT) genneko.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) genswf.$(MODULE_EXT) genjava.$(MODULE_EXT) parser.$(MODULE_EXT)
+interp.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) lexer.$(MODULE_EXT) genneko.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) genswf.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) parser.$(MODULE_EXT)
 
 matcher.$(MODULE_EXT): optimizer.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) typer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
