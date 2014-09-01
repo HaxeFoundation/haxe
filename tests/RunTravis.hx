@@ -267,6 +267,7 @@ class RunTravis {
 		switch (systemName) {
 			case "Linux":
 				runCommand("sudo", ["apt-get", "install", "php5", "-qq"], true);
+				runCommand("sudo", ["apt-get", "install", "php5-mysql", "-qq"], true);
 			case "Mac":
 				//pass
 		}
