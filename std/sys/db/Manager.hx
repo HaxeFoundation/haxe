@@ -177,6 +177,11 @@ class Manager<T : Object> {
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
 			Reflect.setField(x,table_keys[0],getCnx().lastInsertId());
 		addToCache(x);
+		var cache = Reflect.field(x,cache_field);
+		if (cache == null)
+		{
+			Reflect.setField(x,cache_field,{});
+		}
 	}
 
 	inline function isBinary( t : RecordInfos.RecordType ) {
