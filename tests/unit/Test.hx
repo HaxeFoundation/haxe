@@ -301,7 +301,7 @@ class Test #if swf_mark implements mt.Protect #end {
 				pass : "",
 				database : "haxe_test" })),
 			#end
-			// new TestSpod(sys.db.Sqlite.open("db.db3")),
+			new TestSpod(sys.db.Sqlite.open("db.db3")),
 			#end
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
