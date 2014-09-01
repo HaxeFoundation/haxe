@@ -220,6 +220,8 @@ let promote_complex_rhs ctx e =
 						r := (mk (TVar (v,Some (find e))) ctx.basic.tvoid e.epos) :: !r
 					| None -> r := (mk (TVar (v,None)) ctx.basic.tvoid e.epos) :: !r
 				end
+			| TReturn (Some e1) when (match follow e1.etype with TAbstract({a_path=[],"Void"},_) -> true | _ -> false) ->
+				r := ({e with eexpr = TReturn None}) :: e1 :: !r
 			| _ -> r := (find e) :: !r
 		) el;
 		List.rev !r

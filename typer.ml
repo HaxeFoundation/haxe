@@ -1572,14 +1572,6 @@ let type_bind ctx (e : texpr) params p =
 		| TAbstract ({a_path = [],"Void"},_) ->
 			call
 		| TMono _ ->
-			delay ctx PFinal (fun () ->
-				match follow ret with
-				| TAbstract ({a_path = [],"Void"},_) ->
-					display_error ctx "Could not bind this function because its Void return type was inferred too late" p;
-					error "Consider an explicit type hint" p
-				| _ ->
-					()
-			);
 			mk (TReturn (Some call)) t_dynamic p;
 		| _ ->
 			mk (TReturn (Some call)) t_dynamic p;
