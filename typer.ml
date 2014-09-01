@@ -1650,9 +1650,9 @@ let unify_int ctx e k =
 let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-	let c,stat = match follow e.etype with
-		| (TInst (c,_)) -> c,false
-		| (TAnon a) -> (match !(a.a_status) with Statics c -> c,true | _ -> assert false)
+	let c,tl,stat = match follow e.etype with
+		| (TInst (c,tl)) -> c,tl,false
+		| (TAnon a) -> (match !(a.a_status) with Statics c -> c,[],true | _ -> assert false)
 		| _ -> assert false
 	in
 	let t = apply_params cf.cf_params monos cf.cf_type in
@@ -1678,9 +1678,23 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 	(try
 		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
 		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
+		let unify_existing_field tcf pcf = try
+			unify_raise ctx tcf t p
+		with Error(Unify _,_) as err ->
+			display_error ctx ("Cannot create field " ^ name ^ " due to type mismatch") p;
+			display_error ctx "Conflicting field was defined here" pcf;
+			raise err
+		in
 		let cf2 = try
-			let cf2 = PMap.find name (if stat then c.cl_statics else c.cl_fields) in
-			unify ctx cf2.cf_type t cf2.cf_pos;
+			let cf2 = if stat then
+				let cf2 = PMap.find name c.cl_statics in
+				unify_existing_field cf2.cf_type cf2.cf_pos;
+				cf2
+			else
+				let _,tcf,cf2 = class_field ctx c tl name p in
+				unify_existing_field tcf cf2.cf_pos;
+				cf2
+			in
 			cf2
 		with Not_found ->
 			let cf2 = mk_field name t cf.cf_pos in
