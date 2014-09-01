@@ -3,7 +3,7 @@ package haxe.ds;
 import python.lib.Dict;
 import python.Syntax;
 
-class IntMap<T> implements Map.IMap<Int, T> {
+class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	private var h : Dict<Int, T>;
 
 	public function new() : Void {

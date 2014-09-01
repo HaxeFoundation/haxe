@@ -25,7 +25,7 @@ import java.NativeArray;
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 
-@:coreApi class WeakMap<K:{}, V> implements Map.IMap<K,V>
+@:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;

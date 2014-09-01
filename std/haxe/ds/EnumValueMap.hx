@@ -28,7 +28,7 @@ package haxe.ds;
 	Keys are compared by value and recursively over their parameters. If any
 	parameter is not an enum value, `Reflect.compare` is used to compare them.
 **/
-class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements Map.IMap<K,V> {
+class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements haxe.Constraints.IMap<K,V> {
 
 	override function compare(k1:EnumValue, k2:EnumValue):Int {
 		var d = k1.getIndex() - k2.getIndex();

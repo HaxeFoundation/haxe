@@ -25,7 +25,7 @@ import cs.NativeArray;
 import cs.system.WeakReference;
 
 // This implementation works by lazily evaluating the weak references, and only cleaning them up when needed.
-@:coreApi class WeakMap<K:{}, V> implements Map.IMap<K,V>
+@:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;

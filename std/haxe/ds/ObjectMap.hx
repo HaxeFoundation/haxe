@@ -30,7 +30,7 @@ package haxe.ds;
 
 	See `Map` for documentation details.
 **/
-extern class ObjectMap < K: { }, V > implements Map.IMap<K,V> {
+extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 
 	/**
 		Creates a new ObjectMap.

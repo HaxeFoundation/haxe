@@ -4,7 +4,7 @@ package haxe.ds;
 import python.Syntax;
 import python.lib.Dict;
 
-class StringMap<T> implements Map.IMap<String, T> {
+class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	private var h : Dict<String,T>;
 
 	public function new() : Void {

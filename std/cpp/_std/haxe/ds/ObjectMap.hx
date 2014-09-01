@@ -22,7 +22,7 @@
 package haxe.ds;
 
 @:coreApi
-class ObjectMap<K:{},V> implements Map.IMap<K,V> {
+class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 	private var __Internal : IntMap<V>;
 	private var __KeyRefs : IntMap<K>;
 
