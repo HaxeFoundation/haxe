@@ -30,13 +30,6 @@ class TestSpod extends Test
 		Manager.cleanup();
 	}
 
-	public function testSpodFail()
-	{
-		setManager();
-		exc(function() new MySpodClass().insert());
-		exc(function() new OtherSpodClass(null).insert());
-	}
-
 	function getDefaultClass()
 	{
 		var scls = new MySpodClass();
