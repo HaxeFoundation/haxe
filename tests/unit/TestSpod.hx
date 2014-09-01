@@ -66,45 +66,45 @@ class TestSpod extends Test
 		scls.insert();
 
 		//after inserting, id must be filled
-		t(scls.theId != 0 && scls.theId != null);
+		t(scls.theId != 0 && scls.theId != null,pos());
 		var theid = scls.theId;
 
 		c1 = c2 = null;
 		Manager.cleanup();
 
 		var cls1 = MySpodClass.manager.get(theid);
-		t(cls1 != null);
+		t(cls1 != null,pos());
 		//after Manager.cleanup(), the instances should be different
-		f(cls1 == scls);
+		f(cls1 == scls,pos());
 		scls = null;
 
-		t(Std.is(cls1.int, Int));
-		eq(cls1.int, 1);
-		t(Std.is(cls1.double, Float));
-		eq(cls1.double, 2.0);
-		t(Std.is(cls1.boolean, Bool));
-		eq(cls1.boolean, true);
-		t(Std.is(cls1.string, String));
-		eq(cls1.string, "some string");
-		t(cls1.date != null);
-		t(Std.is(cls1.date, Date));
-		eq(cls1.date.getTime(), new Date(2012, 07, 30, 0, 0, 0).getTime());
+		t(Std.is(cls1.int, Int),pos());
+		eq(cls1.int, 1,pos());
+		t(Std.is(cls1.double, Float),pos());
+		eq(cls1.double, 2.0,pos());
+		t(Std.is(cls1.boolean, Bool),pos());
+		eq(cls1.boolean, true,pos());
+		t(Std.is(cls1.string, String),pos());
+		eq(cls1.string, "some string",pos());
+		t(cls1.date != null,pos());
+		t(Std.is(cls1.date, Date),pos());
+		eq(cls1.date.getTime(), new Date(2012, 07, 30, 0, 0, 0).getTime(),pos());
 
-		t(Std.is(cls1.binary, Bytes));
-		eq(cls1.binary.compare(Bytes.ofString("\x01\n\r\x02")), 0);
-		t(cls1.enumFlags.has(FirstValue));
-		f(cls1.enumFlags.has(SecondValue));
-		t(cls1.enumFlags.has(ThirdValue));
+		t(Std.is(cls1.binary, Bytes),pos());
+		eq(cls1.binary.compare(Bytes.ofString("\x01\n\r\x02")), 0,pos());
+		t(cls1.enumFlags.has(FirstValue),pos());
+		f(cls1.enumFlags.has(SecondValue),pos());
+		t(cls1.enumFlags.has(ThirdValue),pos());
 
-		t(Std.is(cls1.data, Array));
-		t(Std.is(cls1.data[0], ComplexClass));
+		t(Std.is(cls1.data, Array),pos());
+		t(Std.is(cls1.data[0], ComplexClass),pos());
 
-		eq(cls1.data[0].val.name, "test");
-		eq(cls1.data[0].val.array.length, 4);
-		eq(cls1.data[0].val.array[1], "is");
+		eq(cls1.data[0].val.name, "test",pos());
+		eq(cls1.data[0].val.array.length, 4,pos());
+		eq(cls1.data[0].val.array[1], "is",pos());
 
-		eq(cls1.relation.name, "first spod");
-		eq(cls1.relationNullable.name, "second spod");
+		eq(cls1.relation.name, "first spod",pos());
+		eq(cls1.relationNullable.name, "second spod",pos());
 
 		//test create a new class
 		var scls = getDefaultClass();
@@ -118,15 +118,15 @@ class TestSpod extends Test
 		scls = cls1 = null;
 		Manager.cleanup();
 
-		eq(2, MySpodClass.manager.all().length);
+		eq(2, MySpodClass.manager.all().length,pos());
 		var req = MySpodClass.manager.search({ relation: OtherSpodClass.manager.select({ name:"third spod"} ) });
-		eq(req.length, 1);
+		eq(req.length, 1,pos());
 		scls = req.first();
 
 		scls.relation.name = "Test";
 		scls.relation.update();
 
-		eq(OtherSpodClass.manager.select({ name:"third spod" }), null);
+		eq(OtherSpodClass.manager.select({ name:"third spod" }), null,pos());
 
 		for (c in MySpodClass.manager.all())
 			c.delete();
@@ -152,20 +152,20 @@ class TestSpod extends Test
 		c2.insert();
 
 		var q = MySpodClass.manager.search($date > now);
-		eq(q.length, 1);
-		eq(q.first(), c2);
+		eq(q.length, 1,pos());
+		eq(q.first(), c2,pos());
 
 		q = MySpodClass.manager.search($date == now);
-		eq(q.length, 1);
-		eq(q.first(), c1);
+		eq(q.length, 1,pos());
+		eq(q.first(), c1,pos());
 
 		q = MySpodClass.manager.search($date >= now);
-		eq(q.length, 2);
-		eq(q.first(), c1);
+		eq(q.length, 2,pos());
+		eq(q.first(), c1,pos());
 
 		q = MySpodClass.manager.search($date >= DateTools.delta(now, DateTools.hours(2)));
-		eq(q.length, 0);
-		eq(q.first(), null);
+		eq(q.length, 0,pos());
+		eq(q.first(), null,pos());
 
 		c1.delete();
 		c2.delete();
@@ -182,7 +182,7 @@ class TestSpod extends Test
 		c1.relation = other1;
 		c1.insert();
 
-		eq(c1.data.length,1);
+		eq(c1.data.length,1,pos());
 		c1.data.pop();
 		c1.update();
 
@@ -190,25 +190,29 @@ class TestSpod extends Test
 		c1 = null;
 
 		c1 = MySpodClass.manager.select($relation == other1);
-		eq(c1.data.length, 0);
+		eq(c1.data.length, 0,pos());
 		c1.data.push(new ComplexClass({ name: "test1", array:["complex","field"] }));
 		c1.data.push(null);
-		eq(c1.data.length, 2);
+		eq(c1.data.length, 2,pos());
 		c1.update();
 
 		Manager.cleanup();
 		c1 = null;
 
 		c1 = MySpodClass.manager.select($relation == other1);
-		eq(c1.data.length,2);
-		eq(c1.data[0].val.name, "test1");
-		eq(c1.data[0].val.array.length, 2);
-		eq(c1.data[0].val.array[0], "complex");
-		eq(c1.data[1], null);
+		eq(c1.data.length,2,pos());
+		eq(c1.data[0].val.name, "test1",pos());
+		eq(c1.data[0].val.array.length, 2,pos());
+		eq(c1.data[0].val.array[0], "complex",pos());
+		eq(c1.data[1], null,pos());
 
 		c1.delete();
 		other1.delete();
 	}
-}
 
-class TestSpodMysql extends TestSpod {}
+	private function pos(?p:haxe.PosInfos):haxe.PosInfos
+	{
+		p.fileName = p.fileName + "(" + cnx.dbName()  +")";
+		return p;
+	}
+}

@@ -295,7 +295,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			#end
 			#if ((neko || php) && !macro && !interp)
 			#if travis
-			new unit.TestSpod.TestSpodMysql(sys.db.Mysql.connect({
+			new TestSpod(sys.db.Mysql.connect({
 				host : "localhost",
 				user : "travis",
 				pass : "",
