@@ -782,6 +782,12 @@ let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
 
+let type_of_module_type = function
+	| TClassDecl c -> TInst (c,List.map snd c.cl_types)
+	| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
+	| TTypeDecl t -> TType (t,List.map snd t.t_types)
+	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
+
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
@@ -4047,12 +4053,6 @@ let typing_timer ctx f =
 			raise e
 
 let make_macro_api ctx p =
-	let make_instance = function
-		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
-		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
-		| TTypeDecl t -> TType (t,List.map snd t.t_types)
-		| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
-	in
 	let parse_expr_string s p inl =
 		typing_timer ctx (fun() -> parse_expr_string ctx s p inl)
 	in
@@ -4078,14 +4078,14 @@ let make_macro_api ctx p =
 		Interp.get_module = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
-				let m = List.map make_instance (Typeload.load_module ctx path p).m_types in
+				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
 			)
 		);
 		Interp.on_generate = (fun f ->
 			Common.add_filter ctx.com (fun() ->
 				let t = macro_timer ctx "onGenerate" in
-				f (List.map make_instance ctx.com.types);
+				f (List.map type_of_module_type ctx.com.types);
 				t()
 			)
 		);
@@ -4182,7 +4182,7 @@ let make_macro_api ctx p =
 			ctx.com.js_gen <- Some (fun() ->
 				let jsctx = Interp.enc_obj [
 					"outputFile", Interp.enc_string ctx.com.file;
-					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (make_instance t)) ctx.com.types);
+					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (type_of_module_type t)) ctx.com.types);
 					"main", (match ctx.com.main with None -> Interp.VNull | Some e -> Interp.encode_texpr e);
 					"generateValue", Interp.VFunction (Interp.Fun1 (fun v ->
 						let e = Interp.decode_texpr v in
@@ -4214,7 +4214,7 @@ let make_macro_api ctx p =
 					));
 					"setTypeAccessor", Interp.VFunction (Interp.Fun1 (fun callb ->
 						js_ctx.Genjs.type_accessor <- (fun t ->
-							let v = Interp.encode_type (make_instance t) in
+							let v = Interp.encode_type (type_of_module_type t) in
 							let ret = Interp.call (Interp.get_ctx()) Interp.VNull callb [v] Nast.null_pos in
 							Interp.dec_string ret
 						);
