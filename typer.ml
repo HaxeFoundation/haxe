@@ -3438,7 +3438,7 @@ and handle_display ctx e_ast iscall p =
 	ctx.in_display <- true;
 	let get_submodule_fields path =
 		let m = Hashtbl.find ctx.g.modules path in
-		let tl = List.filter (fun t -> not (t_infos t).mt_private) m.m_types in
+		let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
 		let tl = List.map (fun mt ->
 			let infos = t_infos mt in
 			(snd infos.mt_path),type_of_module_type mt,infos.mt_doc
