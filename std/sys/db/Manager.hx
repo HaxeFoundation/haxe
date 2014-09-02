@@ -330,7 +330,7 @@ class Manager<T : Object> {
 					} else {
 						val = Date.fromString(val +"");
 					}
-				case DSmallBinary, DLongBinary, DBinary, DBytes(_) if (Std.is(val, String)):
+				case DSmallBinary, DLongBinary, DBinary, DBytes(_), DData if (Std.is(val, String)):
 					val = haxe.io.Bytes.ofString(val);
 				case DBool if (!Std.is(val,Bool)):
 					if (Std.is(val,Int))
@@ -345,6 +345,7 @@ class Manager<T : Object> {
 			}
 
 			Reflect.setField(o, f, val);
+			Reflect.setField(x, f, val);
 		}
 		Reflect.setField(o,cache_field,x);
 		addToCache(o);
