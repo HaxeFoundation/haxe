@@ -612,8 +612,8 @@ let rec process_params create pl =
 			loop [] l
 		| "--cwd" :: dir :: l ->
 			(* we need to change it immediately since it will affect hxml loading *)
-			(try Unix.chdir dir with _ -> ());
-			loop (dir :: "--cwd" :: acc) l
+			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"));
+			loop acc l
 		| "--connect" :: hp :: l ->
 			(match !global_cache with
 			| None ->
@@ -1213,7 +1213,7 @@ try
 			assert false
 		),"<[host:]port> : connect on the given port and run commands there)");
 		("--cwd", Arg.String (fun dir ->
-			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"))
+			assert false
 		),"<dir> : set current working directory");
 		("-version",Arg.Unit (fun() ->
 			message ctx s_version Ast.null_pos;
