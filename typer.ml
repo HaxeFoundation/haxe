@@ -3637,25 +3637,26 @@ and handle_display ctx e_ast iscall p =
 		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
-		let t = (if iscall then
+		let t = if iscall then
 			match follow e.etype with
 			| TFun _ -> e.etype
 			| _ -> t_dynamic
-		else match fields with
-			| [] -> e.etype
-			| _ ->
-				let get_field acc f =
-					List.fold_left (fun acc f -> if f.cf_public then (f.cf_name,f.cf_type,f.cf_doc) :: acc else acc) acc (f :: f.cf_overloads)
-				in
-				let fields = List.fold_left get_field [] fields in
-				let fields = try
-					let sl = Typeload.string_list_of_expr_path_raise e_ast in
-					fields @ get_submodule_fields (List.tl sl,List.hd sl)
-				with Exit | Not_found ->
-					fields
-				in
+		else
+			let get_field acc f =
+				List.fold_left (fun acc f -> if f.cf_public then (f.cf_name,f.cf_type,f.cf_doc) :: acc else acc) acc (f :: f.cf_overloads)
+			in
+			let fields = List.fold_left get_field [] fields in
+			let fields = try
+				let sl = Typeload.string_list_of_expr_path_raise e_ast in
+				fields @ get_submodule_fields (List.tl sl,List.hd sl)
+			with Exit | Not_found ->
+				fields
+			in
+			if fields = [] then
+				e.etype
+			else
 				raise (DisplayFields fields)
-		) in
+		in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
 		| _ -> raise (DisplayTypes [t]))
