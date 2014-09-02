@@ -46,7 +46,14 @@ type identifier_type =
 	| ITType of module_type
 	| ITPackage of string
 
-exception DisplayFields of (string * t * documentation) list
+(* order of these variants affects output sorting *)
+type display_field_kind =
+	| FKVar
+	| FKMethod
+	| FKType
+	| FKPackage
+
+exception DisplayFields of (string * t * display_field_kind option * documentation) list
 exception DisplayToplevel of identifier_type list
 
 exception WithTypeError of unify_error list * pos
@@ -3441,7 +3448,7 @@ and handle_display ctx e_ast iscall p =
 		let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
 		let tl = List.map (fun mt ->
 			let infos = t_infos mt in
-			(snd infos.mt_path),type_of_module_type mt,infos.mt_doc
+			(snd infos.mt_path),type_of_module_type mt,Some FKType,infos.mt_doc
 		) tl in
 		tl
 	in
@@ -3643,7 +3650,10 @@ and handle_display ctx e_ast iscall p =
 			| _ -> t_dynamic
 		else
 			let get_field acc f =
-				List.fold_left (fun acc f -> if f.cf_public then (f.cf_name,f.cf_type,f.cf_doc) :: acc else acc) acc (f :: f.cf_overloads)
+				List.fold_left (fun acc f ->
+					let kind = match f.cf_kind with Method _ -> FKMethod | Var _ -> FKVar in
+					if f.cf_public then (f.cf_name,f.cf_type,Some kind,f.cf_doc) :: acc else acc
+				) acc (f :: f.cf_overloads)
 			in
 			let fields = List.fold_left get_field [] fields in
 			let fields = try
@@ -4162,7 +4172,7 @@ let make_macro_api ctx p =
 				"NO COMPLETION"
 			with DisplayFields fields ->
 				let pctx = print_context() in
-				String.concat "," (List.map (fun (f,t,_) -> f ^ ":" ^ s_type pctx t) fields)
+				String.concat "," (List.map (fun (f,t,_,_) -> f ^ ":" ^ s_type pctx t) fields)
 			| DisplayTypes tl ->
 				let pctx = print_context() in
 				String.concat "," (List.map (s_type pctx) tl)

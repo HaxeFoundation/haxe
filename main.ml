@@ -150,9 +150,17 @@ let reserved_flags = [
 let complete_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
-	List.iter (fun (n,t,d) ->
-		Buffer.add_string b (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>\n" n (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,_,_) (b,_,_) -> compare a b) fields);
+	List.iter (fun (n,t,k,d) ->
+		let s_kind = match k with
+			| Some k -> (match k with
+				| Typer.FKVar -> "var"
+				| Typer.FKMethod -> "method"
+				| Typer.FKType -> "type"
+				| Typer.FKPackage -> "package")
+			| None -> ""
+		in
+		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
+	) (List.sort (fun (a,_,ak,_) (b,_,bk,_) -> compare (ak,a) (bk,b)) fields);
 	Buffer.add_string b "</list>\n";
 	raise (Completion (Buffer.contents b))
 
@@ -1135,7 +1143,7 @@ try
 			| "classes" ->
 				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
 			| "keywords" ->
-				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords [])
+				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [])
 			| "memory" ->
 				did_something := true;
 				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
@@ -1516,15 +1524,15 @@ with
 		message ctx msg Ast.null_pos
 	| Typer.DisplayFields fields ->
 		let ctx = print_context() in
-		let fields = List.map (fun (name,t,doc) -> name, s_type ctx t, (match doc with None -> "" | Some d -> d)) fields in
+		let fields = List.map (fun (name,t,kind,doc) -> name, s_type ctx t, kind, (match doc with None -> "" | Some d -> d)) fields in
 		let fields = if !measure_times then begin
 			close_times();
 			let tot = ref 0. in
 			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. !start_time), "") :: fields in
+			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. !start_time), None, "") :: fields in
 			if !tot > 0. then
 				Hashtbl.fold (fun _ t acc ->
-					("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
+					("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), None, "") :: acc
 				) Common.htimers fields
 			else fields
 		end else
@@ -1575,7 +1583,10 @@ with
 			if packs = [] && classes = [] then
 				error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
 			else
-				complete_fields (List.map (fun f -> f,"","") (packs @ classes))
+				complete_fields (
+					let convert k f = (f,"",Some k,"") in
+					(List.map (convert Typer.FKPackage) packs) @ (List.map (convert Typer.FKType) classes)
+				)
 		| Some (c,cur_package) ->
 			try
 				let ctx = Typer.create com in
@@ -1591,7 +1602,7 @@ with
 							raise e
 				in
 				let m = lookup p in
-				complete_fields (List.map (fun t -> snd (t_path t),"","") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
+				complete_fields (List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
 			with Completion c ->
 				raise (Completion c)
 			| _ ->
