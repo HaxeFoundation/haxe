@@ -1307,12 +1307,17 @@ let rec constructor_side_effects e =
 		with Exit ->
 			true
 
+let make_valid_filename s =
+	let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
+	Str.global_substitute r (fun s -> "_") s
+
 (*
 	Make a dump of the full typed AST of all types
 *)
 let rec create_dumpfile acc = function
 	| [] -> assert false
 	| d :: [] ->
+		let d = make_valid_filename d in
 		let ch = open_out (String.concat "/" (List.rev (d :: acc)) ^ ".dump") in
 		let buf = Buffer.create 0 in
 		buf, (fun () ->
