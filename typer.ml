@@ -3466,7 +3466,6 @@ and handle_display ctx e_ast iscall p =
 	in
 	match ctx.com.display with
 	| DMUsage | DMPosition ->
-		(* print_endline (s_expr (s_type (print_context())) e); *)
 		begin match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
 			if ctx.com.display = DMPosition then
