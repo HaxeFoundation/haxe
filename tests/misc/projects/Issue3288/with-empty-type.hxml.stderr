@@ -1,0 +1,6 @@
+<list>
+<i n="AnotherOne"><t>AnotherOne</t><d></d></i>
+<i n="OtherType"><t>OtherType</t><d></d></i>
+<i n="WithEmptyType"><t>WithEmptyType</t><d></d></i>
+</list>
+

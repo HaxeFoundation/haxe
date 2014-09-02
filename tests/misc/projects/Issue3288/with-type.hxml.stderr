@@ -1,0 +1,8 @@
+<list>
+<i n="AnotherOne"><t>AnotherOne</t><d></d></i>
+<i n="OtherType"><t>OtherType</t><d></d></i>
+<i n="WithType"><t>WithType</t><d></d></i>
+<i n="f1"><t>Int</t><d></d></i>
+<i n="f2"><t>Void -&gt; Void</t><d></d></i>
+</list>
+

@@ -782,6 +782,12 @@ let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
 
+let type_of_module_type = function
+	| TClassDecl c -> TInst (c,List.map snd c.cl_types)
+	| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
+	| TTypeDecl t -> TType (t,List.map snd t.t_types)
+	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
+
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
@@ -3427,15 +3433,30 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.meta <- old;
 		e
 
-and handle_display ctx e iscall p =
+and handle_display ctx e_ast iscall p =
 	let old = ctx.in_display in
 	ctx.in_display <- true;
+	let get_submodule_fields path =
+		let m = Hashtbl.find ctx.g.modules path in
+		let tl = List.filter (fun t -> not (t_infos t).mt_private) m.m_types in
+		let tl = List.map (fun mt ->
+			let infos = t_infos mt in
+			(snd infos.mt_path),type_of_module_type mt,infos.mt_doc
+		) tl in
+		tl
+	in
 	let e = try
-		type_expr ctx e Value
+		type_expr ctx e_ast Value
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None))
 	| Error (Unknown_ident "trace",_) ->
 		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+	| Error (Type_not_found (path,_),_) as err ->
+		begin try
+			raise (DisplayFields (get_submodule_fields path))
+		with Not_found ->
+			raise err
+		end
 	in
 	ctx.in_display <- old;
 	let handle_field cf =
@@ -3616,18 +3637,26 @@ and handle_display ctx e iscall p =
 		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
-		let t = (if iscall then
+		let t = if iscall then
 			match follow e.etype with
 			| TFun _ -> e.etype
 			| _ -> t_dynamic
-		else match fields with
-			| [] -> e.etype
-			| _ ->
-				let get_field acc f =
-					List.fold_left (fun acc f -> if f.cf_public then (f.cf_name,f.cf_type,f.cf_doc) :: acc else acc) acc (f :: f.cf_overloads)
-				in
-				raise (DisplayFields (List.fold_left get_field [] fields))
-		) in
+		else
+			let get_field acc f =
+				List.fold_left (fun acc f -> if f.cf_public then (f.cf_name,f.cf_type,f.cf_doc) :: acc else acc) acc (f :: f.cf_overloads)
+			in
+			let fields = List.fold_left get_field [] fields in
+			let fields = try
+				let sl = Typeload.string_list_of_expr_path_raise e_ast in
+				fields @ get_submodule_fields (List.tl sl,List.hd sl)
+			with Exit | Not_found ->
+				fields
+			in
+			if fields = [] then
+				e.etype
+			else
+				raise (DisplayFields fields)
+		in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
 		| _ -> raise (DisplayTypes [t]))
@@ -4047,12 +4076,6 @@ let typing_timer ctx f =
 			raise e
 
 let make_macro_api ctx p =
-	let make_instance = function
-		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
-		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
-		| TTypeDecl t -> TType (t,List.map snd t.t_types)
-		| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
-	in
 	let parse_expr_string s p inl =
 		typing_timer ctx (fun() -> parse_expr_string ctx s p inl)
 	in
@@ -4078,14 +4101,14 @@ let make_macro_api ctx p =
 		Interp.get_module = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
-				let m = List.map make_instance (Typeload.load_module ctx path p).m_types in
+				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
 			)
 		);
 		Interp.on_generate = (fun f ->
 			Common.add_filter ctx.com (fun() ->
 				let t = macro_timer ctx "onGenerate" in
-				f (List.map make_instance ctx.com.types);
+				f (List.map type_of_module_type ctx.com.types);
 				t()
 			)
 		);
@@ -4182,7 +4205,7 @@ let make_macro_api ctx p =
 			ctx.com.js_gen <- Some (fun() ->
 				let jsctx = Interp.enc_obj [
 					"outputFile", Interp.enc_string ctx.com.file;
-					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (make_instance t)) ctx.com.types);
+					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (type_of_module_type t)) ctx.com.types);
 					"main", (match ctx.com.main with None -> Interp.VNull | Some e -> Interp.encode_texpr e);
 					"generateValue", Interp.VFunction (Interp.Fun1 (fun v ->
 						let e = Interp.decode_texpr v in
@@ -4214,7 +4237,7 @@ let make_macro_api ctx p =
 					));
 					"setTypeAccessor", Interp.VFunction (Interp.Fun1 (fun callb ->
 						js_ctx.Genjs.type_accessor <- (fun t ->
-							let v = Interp.encode_type (make_instance t) in
+							let v = Interp.encode_type (type_of_module_type t) in
 							let ret = Interp.call (Interp.get_ctx()) Interp.VNull callb [v] Nast.null_pos in
 							Interp.dec_string ret
 						);
