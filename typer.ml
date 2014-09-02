@@ -3433,21 +3433,27 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.meta <- old;
 		e
 
-and handle_display ctx e iscall p =
+and handle_display ctx e_ast iscall p =
 	let old = ctx.in_display in
 	ctx.in_display <- true;
+	let get_submodule_fields path =
+		let m = Hashtbl.find ctx.g.modules path in
+		let tl = List.filter (fun t -> not (t_infos t).mt_private) m.m_types in
+		let tl = List.map (fun mt ->
+			let infos = t_infos mt in
+			(snd infos.mt_path),type_of_module_type mt,infos.mt_doc
+		) tl in
+		tl
+	in
 	let e = try
-		type_expr ctx e Value
+		type_expr ctx e_ast Value
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None))
 	| Error (Unknown_ident "trace",_) ->
 		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
-	| Error (Type_not_found (path,s),_) as err ->
+	| Error (Type_not_found (path,_),_) as err ->
 		begin try
-			let m = Hashtbl.find ctx.g.modules path in
-			let tl = List.filter (fun t -> not (t_infos t).mt_private) m.m_types in
-			let tl = List.map type_of_module_type tl in
-			raise (DisplayTypes tl)
+			raise (DisplayFields (get_submodule_fields path))
 		with Not_found ->
 			raise err
 		end
@@ -3641,7 +3647,14 @@ and handle_display ctx e iscall p =
 				let get_field acc f =
 					List.fold_left (fun acc f -> if f.cf_public then (f.cf_name,f.cf_type,f.cf_doc) :: acc else acc) acc (f :: f.cf_overloads)
 				in
-				raise (DisplayFields (List.fold_left get_field [] fields))
+				let fields = List.fold_left get_field [] fields in
+				let fields = try
+					let sl = Typeload.string_list_of_expr_path_raise e_ast in
+					fields @ get_submodule_fields (List.tl sl,List.hd sl)
+				with Exit | Not_found ->
+					fields
+				in
+				raise (DisplayFields fields)
 		) in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
