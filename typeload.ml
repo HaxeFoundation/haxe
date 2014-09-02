@@ -1205,6 +1205,7 @@ let type_function_params ctx fd fname p =
 
 let find_enclosing com e =
 	let display_pos = ref (!Parser.resume_display) in
+	let mk_null p = (EDisplay(((EConst(Ident "null")),p),false),p) in
 	let encloses_display_pos p =
 		if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
 			let p = !display_pos in
@@ -1227,14 +1228,14 @@ let find_enclosing com e =
 						if b || p.pmax <= p2.pmin then begin
 							(b,e :: el)
 						end else begin
-							let e_d = (EDisplay(e,false)),p in
-							(true,e_d :: el)
+							let e_d = (EDisplay(mk_null p,false)),p in
+							(true,e :: e_d :: el)
 						end
 					) (false,[]) el in
 					let el = if b then
 						el
 					else begin
-						(EDisplay(((EConst(Ident "null")),p),false),p) :: el
+						mk_null p :: el
 					end in
 					List.rev el
 			in
