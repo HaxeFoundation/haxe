@@ -3271,11 +3271,9 @@ let convert_fun ctx p ret args =
 	let args = List.map (convert_fun_arg ctx p) args in
 	CTFunction(args, convert_signature ctx p ret)
 
-let get_clsname cpath =
-	match cpath with
-		| (_,[],n) -> netcl_to_hx n
-		| (_,nested,n) ->
-			String.concat "_" nested ^ "_" ^ netcl_to_hx n
+let get_clsname ctx cpath =
+	match netpath_to_hx ctx.nstd cpath with
+		| (_,n) -> n
 
 let convert_delegate ctx p ilcls =
 	let p = { p with pfile =	p.pfile ^" (abstract delegate)" } in
@@ -3301,7 +3299,7 @@ let convert_delegate ctx p ilcls =
 	let mk_op_fn op name p =
 		let fn_name = List.assoc op cs_binops in
 		let clsname = match ilcls.cpath with
-			| (ns,inner,n) -> get_clsname (ns,inner,"Delegate_"^n)
+			| (ns,inner,n) -> get_clsname ctx (ns,inner,"Delegate_"^n)
 		in
 		let expr = (ECall( (EField( (EConst(Ident (clsname)),p), fn_name ),p), [(EConst(Ident"arg1"),p);(EConst(Ident"arg2"),p)]),p) in
 		FFun {
