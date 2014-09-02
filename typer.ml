@@ -3428,23 +3428,28 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		e
 
 and handle_display ctx e iscall p =
-	let old = ctx.in_display in
-	ctx.in_display <- true;
-	let e = try
-		type_expr ctx e Value
-	with Error (Unknown_ident n,_) when not iscall ->
-		raise (Parser.TypePath ([n],None))
-	| Error (Unknown_ident "trace",_) ->
-		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
-	in
-	ctx.in_display <- old;
-	let handle_field cf =
-		if ctx.com.display = DMPosition then
-			raise (DisplayPosition [cf.cf_pos]);
-		cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+	let process_expr() =
+		let old = ctx.in_display in
+		ctx.in_display <- true;
+		let e = try
+			type_expr ctx e Value
+		with Error (Unknown_ident n,_) when not iscall ->
+			raise (Parser.TypePath ([n],None))
+		| Error (Unknown_ident "trace",_) ->
+			raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+		in
+		ctx.in_display <- old;
+		e
 	in
 	match ctx.com.display with
 	| DMUsage | DMPosition ->
+		let handle_field cf =
+			if ctx.com.display = DMPosition then
+				raise (DisplayPosition [cf.cf_pos]);
+			cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+		in
+
+		let e = process_expr() in
 		(* print_endline (s_expr (s_type (print_context())) e); *)
 		begin match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -3475,6 +3480,7 @@ and handle_display ctx e iscall p =
 		collect_toplevel_identifiers ctx;
 	| DMDefault | DMNone ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
+		let e = process_expr() in
 		let e = match e.eexpr with
 			| TField (e1,fa) ->
 				if field_name fa = "bind" then (match follow e1.etype with
