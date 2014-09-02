@@ -3442,6 +3442,15 @@ and handle_display ctx e iscall p =
 		raise (Parser.TypePath ([n],None))
 	| Error (Unknown_ident "trace",_) ->
 		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+	| Error (Type_not_found (path,s),_) as err ->
+		begin try
+			let m = Hashtbl.find ctx.g.modules path in
+			let tl = List.filter (fun t -> not (t_infos t).mt_private) m.m_types in
+			let tl = List.map type_of_module_type tl in
+			raise (DisplayTypes tl)
+		with Not_found ->
+			raise err
+		end
 	in
 	ctx.in_display <- old;
 	let handle_field cf =
