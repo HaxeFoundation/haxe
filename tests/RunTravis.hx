@@ -267,6 +267,7 @@ class RunTravis {
 		switch (systemName) {
 			case "Linux":
 				runCommand("sudo", ["apt-get", "install", "php5", "-qq"], true);
+				runCommand("sudo", ["apt-get", "install", "php5-mysql", "php5-sqlite", "-qq"], true);
 			case "Mac":
 				//pass
 		}
@@ -375,12 +376,12 @@ class RunTravis {
 	static function main():Void {
 		changeDirectory(unitDir);
 		Sys.putEnv("OCAMLRUNPARAM", "b");
-		
+
 		var args = ["foo", "12", "a b c\\ &<>[\"]#{}|"];
-		
+
 		switch (test) {
 			case Macro, null:
-				runCommand("haxe", ["compile-macro.hxml"]);
+				runCommand("haxe", ["compile-macro.hxml","-D","travis"]);
 
 				changeDirectory(miscDir);
 				runCommand("haxe", ["compile.hxml"]);
@@ -411,45 +412,45 @@ class RunTravis {
 					//runCommand("haxe", ["compile-macro.hxml"]);
 				//}
 			case Neko:
-				runCommand("haxe", ["compile-neko.hxml"]);
+				runCommand("haxe", ["compile-neko.hxml","-D","travis"]);
 				runCommand("neko", ["unit.n"]);
 
 				changeDirectory(sysDir);
-				runCommand("haxe", ["compile-neko.hxml"]);
+				runCommand("haxe", ["compile-neko.hxml","-D","travis"]);
 				changeDirectory("bin/neko");
 				runCommand("neko", ["sys.n"].concat(args));
 			case Php:
 				getPhpDependencies();
-				runCommand("haxe", ["compile-php.hxml"]);
+				runCommand("haxe", ["compile-php.hxml","-D","travis"]);
 				runCommand("php", ["php/index.php"]);
 			case Python:
 				getPythonDependencies();
-				runCommand("haxe", ["compile-python.hxml"]);
+				runCommand("haxe", ["compile-python.hxml","-D","travis"]);
 				runCommand("python3", ["unit.py"]);
 
 				changeDirectory(sysDir);
-				runCommand("haxe", ["compile-python.hxml"]);
+				runCommand("haxe", ["compile-python.hxml","-D","travis"]);
 				changeDirectory("bin/python");
 				runCommand("python3", ["sys.py"].concat(args));
 			case Cpp:
 				getCppDependencies();
-				runCommand("haxe", ["compile-cpp.hxml"]);
+				runCommand("haxe", ["compile-cpp.hxml","-D","travis"]);
 				runCommand("./cpp/Test-debug", []);
 
 				runCommand("rm", ["-rf", "cpp"]);
 
-				runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"]);
+				runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64","-D","travis"]);
 				runCommand("./cpp/Test-debug", []);
 
 				changeDirectory(sysDir);
-				runCommand("haxe", ["compile-cpp.hxml"]);
+				runCommand("haxe", ["compile-cpp.hxml","-D","travis"]);
 				changeDirectory("bin/cpp");
 				runCommand("./Main-debug", args);
 			case Js:
 				getJSDependencies();
 
 				for (flatten in [true, false]) {
-					runCommand("haxe", ["compile-js.hxml"].concat(flatten ? ["-D", "js-flatten"] : []));
+					runCommand("haxe", ["compile-js.hxml","-D","travis"].concat(flatten ? ["-D", "js-flatten"] : []));
 					runCommand("node", ["-e", "var unit = require('./unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 				}
 
@@ -471,23 +472,23 @@ class RunTravis {
 				runCommand("haxe", ["run.hxml"]);
 			case Java:
 				getJavaDependencies();
-				runCommand("haxe", ["compile-java.hxml"]);
+				runCommand("haxe", ["compile-java.hxml","-D","travis"]);
 				runCommand("java", ["-jar", "java/Test-Debug.jar"]);
 			case Cs:
 				getCsDependencies();
 
-				runCommand("haxe", ["compile-cs.hxml"]);
+				runCommand("haxe", ["compile-cs.hxml","-D","travis"]);
 				runCommand("mono", ["cs/bin/Test-Debug.exe"]);
 
-				runCommand("haxe", ["compile-cs-unsafe.hxml"]);
+				runCommand("haxe", ["compile-cs-unsafe.hxml","-D","travis"]);
 				runCommand("mono", ["cs_unsafe/bin/Test-Debug.exe"]);
 			case Flash9:
 				setupFlashPlayerDebugger();
-				runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
+				runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb","-D","travis"]);
 				runFlash("unit9.swf");
 			case Flash8:
 				setupFlashPlayerDebugger();
-				runCommand("haxe", ["compile-flash8.hxml", "-D", "fdb"]);
+				runCommand("haxe", ["compile-flash8.hxml", "-D", "fdb","-D","travis"]);
 				runFlash("unit8.swf");
 			case As3:
 				setupFlashPlayerDebugger();
@@ -504,7 +505,7 @@ class RunTravis {
 				File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 				runCommand("mxmlc", ["--version"]);
 
-				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
+				runCommand("haxe", ["compile-as3.hxml", "-D", "fdb","-D","travis"]);
 				runFlash("unit9_as3.swf");
 			case ThirdParty:
 				getPhpDependencies();

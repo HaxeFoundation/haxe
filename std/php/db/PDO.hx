@@ -100,6 +100,13 @@ private class PDOConnection implements Connection {
 			pdo = untyped __call__("new PDO", dsn, user, password, arr);
 		}
 		dbname = dsn.split(':').shift();
+		switch(dbname.toLowerCase())
+		{
+			case "sqlite":
+				dbname = "SQLite";
+			case "mysql":
+				dbname = "MySQL";
+		}
 	}
 
 	public function close() {
@@ -190,6 +197,8 @@ private class TypeStrategy {
 				return untyped __call__("floatval", v);
 			case "date":
 				return Date.fromString(v);
+			case "blob":
+				return haxe.io.Bytes.ofString(v);
 			default:
 				return v;
 		}
@@ -216,10 +225,12 @@ private class PHPNativeStrategy extends TypeStrategy {
 				return "float";
 			case "date", "datetime":
 				return "date";
-			case "bool":
+			case "bool", "tinyint(1)", "tiny":
 				return "bool";
 			case "int", "int24", "int32", "long", "longlong", "short":
 				return "int";
+			case "blob":
+				return "blob";
 			default:
 				return "string";
 		}

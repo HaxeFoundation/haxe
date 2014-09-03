@@ -177,6 +177,11 @@ class Manager<T : Object> {
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
 			Reflect.setField(x,table_keys[0],getCnx().lastInsertId());
 		addToCache(x);
+		var cache = Reflect.field(x,cache_field);
+		if (cache == null)
+		{
+			Reflect.setField(x,cache_field,{});
+		}
 	}
 
 	inline function isBinary( t : RecordInfos.RecordType ) {
@@ -314,6 +319,34 @@ class Manager<T : Object> {
 			Reflect.setField(o, f, Reflect.field(x, f));
 		untyped o._manager = this;
 		#end
+		for (f in Reflect.fields(x) )
+		{
+			var val:Dynamic = Reflect.field(x,f), info = table_infos.hfields.get(f);
+			if (val != null && info != null) switch (info.t) {
+				case DDate, DDateTime if (!Std.is(val,Date)):
+					if (Std.is(val,Float))
+					{
+						val = Date.fromTime(val);
+					} else {
+						val = Date.fromString(val +"");
+					}
+				case DSmallBinary, DLongBinary, DBinary, DBytes(_), DData if (Std.is(val, String)):
+					val = haxe.io.Bytes.ofString(val);
+				case DBool if (!Std.is(val,Bool)):
+					if (Std.is(val,Int))
+						val = val != 0;
+					else if (Std.is(val, String)) switch (val.toLowerCase()) {
+						case "1", "true": val = true;
+						case "0", "false": val = false;
+					}
+				case DFloat if (Std.is(val,String)):
+					val = Std.parseFloat(val);
+				case _:
+			}
+
+			Reflect.setField(o, f, val);
+			Reflect.setField(x, f, val);
+		}
 		Reflect.setField(o,cache_field,x);
 		addToCache(o);
 		untyped o._lock = lock;

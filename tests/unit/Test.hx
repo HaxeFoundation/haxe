@@ -299,6 +299,21 @@ class Test #if swf_mark implements mt.Protect #end {
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
+		// SPOD tests
+		#if ( (neko || php) && !macro && !interp)
+		#if travis
+		if (Sys.systemName() != "Mac")
+		{
+			classes.push(new TestSpod(sys.db.Mysql.connect({
+				host : "localhost",
+				user : "travis",
+				pass : "",
+				port : 3306,
+				database : "haxe_test" })));
+		}
+		#end
+		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
+		#end
 		TestIssues.addIssueClasses();
 		var current = null;
 		#if (!fail_eager)
