@@ -432,8 +432,11 @@ let collect_toplevel_identifiers ctx =
 	let module_params = ref [] in
 
 	let add_type mt =
-		let path = (t_infos mt).mt_path in
-		if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_params) then module_params := mt :: !module_params
+		match mt with
+		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
+		| _ ->
+			let path = (t_infos mt).mt_path in
+			if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_params) then module_params := mt :: !module_params
 	in
 
 	(* module types *)
