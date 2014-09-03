@@ -415,7 +415,16 @@ let run com main full =
 			begin match c.cl_constructor with
 				| Some cf -> loop false cf
 				| None -> ()
-			end
+			end;
+			begin match c.cl_init with
+				| Some e when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
+					(* create a fake field to deal with our internal logic (issue #3286) *)
+					let cf = mk_field "__init__" e.etype e.epos in
+					cf.cf_expr <- Some e;
+					loop true cf
+				| _ ->
+					()
+			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
 			mark_enum dce en
 		| _ ->
