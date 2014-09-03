@@ -351,6 +351,33 @@ let parse_string com s p inlined =
 	restore();
 	decls
 
+let eval ctx s =
+	let p = { pfile = "--eval"; pmin = 0; pmax = String.length s; } in
+	let decls = parse_string ctx.com s p false in
+	let rec find_main current decls = match decls with
+		| (EClass c,_) :: decls ->
+			begin try
+				let cff = List.find (fun cff -> cff.cff_name = "main") c.d_data in
+				if ctx.com.main_class <> None then error "Multiple main" cff.cff_pos;
+				ctx.com.main_class <- Some ([],c.d_name);
+				Some ([],c.d_name)
+			with Not_found ->
+				find_main (if current = None then Some ([],c.d_name) else current) decls
+			end
+		| ((EEnum {d_name = s} | ETypedef {d_name = s} | EAbstract {d_name = s}),_) :: decls when current = None ->
+			find_main (Some ([],s)) decls
+		| _ :: decls ->
+			find_main current decls
+		| [] ->
+			current
+	in
+	let path_module = match find_main None decls with
+		| None -> error "Evaluated string did not define any types" p
+		| Some path -> path
+	in
+	ignore(Typeload.type_module ctx path_module "eval" decls p);
+	flush_pass ctx PBuildClass "load_module"
+
 let parse_expr_string ctx s p inl =
 	let head = "class X{static function main() " in
 	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
