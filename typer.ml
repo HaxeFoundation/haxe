@@ -2104,7 +2104,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 						begin try
 							begin
 								if impl then
-									type_eq EqStrict (Abstract.get_underlying_type a pl) t1
+									type_eq EqStrict (Abstract.get_underlying_type a pl) (Abstract.follow_with_abstracts t1)
 								else
 									type_eq EqStrict (TAbstract(a,pl)) t1;
 							end;
