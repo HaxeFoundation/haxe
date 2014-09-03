@@ -193,6 +193,7 @@ let get_error_pos printer p =
 		let l1, p1 = find_line p.pmin file in
 		let l2, p2 = find_line p.pmax file in
 		if l1 = l2 then begin
+			let p1, p2 = p1 + 1, p2 + 1 in
 			let s = (if p1 = p2 then Printf.sprintf " %d" p1 else Printf.sprintf "s %d-%d" p1 p2) in
 			Printf.sprintf "%s character%s" (printer p.pfile l1) s
 		end else
@@ -367,7 +368,7 @@ and string2 = parse
 		string2 lexbuf;
 	}
 	| [^'\'' '\\' '\r' '\n' '$']+ { store lexbuf; string2 lexbuf }
-	
+
 and code_string = parse
 	| eof { raise Exit }
 	| '\n' | '\r' | "\r\n" { newline lexbuf; store lexbuf; code_string lexbuf }
