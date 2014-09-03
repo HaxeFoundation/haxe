@@ -32,7 +32,7 @@ let unsupported p = error "This expression cannot be generated to Cpp" p
 *)
 let rec follow t = match Type.follow t with
    | TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-      follow (Codegen.Abstract.get_underlying_type a tl)
+      follow (Abstract.get_underlying_type a tl)
    | t ->
       t
 
@@ -626,7 +626,7 @@ and type_string_suff suffix haxe_type =
    | TDynamic haxe_type -> "Dynamic" ^ suffix
    | TLazy func -> type_string_suff suffix ((!func)())
    | TAbstract (abs,pl) when abs.a_impl <> None ->
-      type_string_suff suffix (Codegen.Abstract.get_underlying_type abs pl)
+      type_string_suff suffix (Abstract.get_underlying_type abs pl)
    | TAbstract (abs,pl) ->
       "::" ^ (join_class_path_remap abs.a_path "::") ^ suffix
    )
@@ -1761,7 +1761,7 @@ and gen_expression ctx retval expression =
          | real_type -> gen_array_cast cast_name real_type call
          )
       | TAbstract (abs,pl) when abs.a_impl <> None ->
-         check_array_element_cast (Codegen.Abstract.get_underlying_type abs pl) cast_name call
+         check_array_element_cast (Abstract.get_underlying_type abs pl) cast_name call
       | _ -> ()
    in
    let rec check_array_cast array_type =
@@ -1774,7 +1774,7 @@ and gen_expression ctx retval expression =
          else
             gen_array_cast ".StaticCast" (type_string array_type) "()"
       | TAbstract (abs,pl) when abs.a_impl <> None ->
-         check_array_cast (Codegen.Abstract.get_underlying_type abs pl)
+         check_array_cast (Abstract.get_underlying_type abs pl)
       | _ -> ()
    in
 
@@ -4186,7 +4186,7 @@ let rec s_type t =
    | TInst (c,tl) -> Ast.s_type_path c.cl_path ^ s_type_params tl
    | TType (t,tl) -> Ast.s_type_path t.t_path ^ s_type_params tl
    | TAbstract (abs,pl) when abs.a_impl <> None ->
-      s_type (Codegen.Abstract.get_underlying_type abs pl);
+      s_type (Abstract.get_underlying_type abs pl);
    | TAbstract (a,tl) -> Ast.s_type_path a.a_path ^ s_type_params tl
    | TFun ([],t) -> "Void -> " ^ s_fun t false
    | TFun (l,t) ->
@@ -4390,7 +4390,7 @@ let rec script_type_string haxe_type =
          | _ -> "Array.Object"
          )
      | TAbstract (abs,pl) when abs.a_impl <> None ->
-         script_type_string  (Codegen.Abstract.get_underlying_type abs pl);
+         script_type_string  (Abstract.get_underlying_type abs pl);
      | _ ->
          type_string_suff "" haxe_type
 ;;
@@ -4499,7 +4499,7 @@ class script_writer common_ctx ctx filename =
             | _ -> ArrayObject
             )
       | TAbstract (abs,pl) when abs.a_impl <> None ->
-            this#get_array_type  (Codegen.Abstract.get_underlying_type abs pl);
+            this#get_array_type  (Abstract.get_underlying_type abs pl);
       | _ -> ArrayNone;
 
    method pushReturn inType =

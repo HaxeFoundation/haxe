@@ -1107,9 +1107,9 @@ let run_expression_filters ctx filters t =
 		let process_field f =
 			match f.cf_expr with
 			| Some e when not (is_removable_field ctx f) ->
-				Codegen.Abstract.cast_stack := f :: !Codegen.Abstract.cast_stack;
+				Codegen.AbstractCast.cast_stack := f :: !Codegen.AbstractCast.cast_stack;
 				f.cf_expr <- Some (run e);
-				Codegen.Abstract.cast_stack := List.tl !Codegen.Abstract.cast_stack;
+				Codegen.AbstractCast.cast_stack := List.tl !Codegen.AbstractCast.cast_stack;
 			| _ -> ()
 		in
 		List.iter process_field c.cl_ordered_fields;
@@ -1149,7 +1149,7 @@ let run com tctx main =
 	(* PASS 1: general expression filters *)
  	let filters = [
  		Codegen.UnificationCallback.run (check_unification com);
-		Codegen.Abstract.handle_abstract_casts tctx;
+		Codegen.AbstractCast.handle_abstract_casts tctx;
 		blockify_ast;
 		(match com.platform with
 			| Cpp | Flash8 -> (fun e ->

@@ -1591,6 +1591,53 @@ and unify_with_access t1 f2 =
 	(* read/write *)
 	| _ -> type_eq EqBothDynamic t1 f2.cf_type
 
+module Abstract = struct
+	open Ast
+
+	let find_to ab pl b =
+		if follow b == t_dynamic then
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to
+		else
+			List.find (unify_to_field ab pl b) ab.a_to
+
+	let find_from ab pl a b =
+		if follow a == t_dynamic then
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from
+		else
+			List.find (unify_from_field ab pl a b) ab.a_from
+
+	let underlying_type_stack = ref []
+
+	let rec get_underlying_type a pl =
+		let maybe_recurse t =
+			underlying_type_stack := a :: !underlying_type_stack;
+			let t = match follow t with
+				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+					if List.mem a !underlying_type_stack then begin
+						(* let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in *)
+						(* technically this should be done at type declaration level *)
+						(* error ("Abstract chain detected: " ^ s) a.a_pos *)
+						assert false
+					end;
+					get_underlying_type a tl
+				| _ ->
+					t
+			in
+			underlying_type_stack := List.tl !underlying_type_stack;
+			t
+		in
+		try
+			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
+			let m = mk_mono() in
+			let _ = find_to a pl m in
+			maybe_recurse (follow m)
+		with Not_found ->
+			if Meta.has Meta.CoreType a.a_meta then
+				t_dynamic
+			else
+				maybe_recurse (apply_params a.a_params pl a.a_this)
+end
+
 (* ======= Mapping and iterating ======= *)
 
 let iter_dt f dt = match dt with

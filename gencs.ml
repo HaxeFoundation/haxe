@@ -49,7 +49,7 @@ let rec is_cs_basic_type t =
 		| TAbstract _ when like_float t ->
 			true
 		| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-			is_cs_basic_type (Codegen.Abstract.get_underlying_type a pl)
+			is_cs_basic_type (Abstract.get_underlying_type a pl)
 		| TEnum(e, _) when not (Meta.has Meta.Class e.e_meta) -> true
 		| TInst(cl, _) when Meta.has Meta.Struct cl.cl_meta -> true
 		| _ -> false
@@ -738,7 +738,7 @@ let configure gen =
 			| TAbstract ({ a_path = [],"Single" },[]) -> Some t
 			| TType ({ t_path = [],"Null" },[_]) -> Some t
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					Some (gen.gfollow#run_f ( Codegen.Abstract.get_underlying_type a pl) )
+					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _	)
 			| TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
 			| _ -> None);
@@ -769,7 +769,7 @@ let configure gen =
 		let t = gen.gfollow#run_f t in
 		let ret = match t with
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				real_type (Codegen.Abstract.get_underlying_type a pl)
+				real_type (Abstract.get_underlying_type a pl)
 			| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
 			| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
 			| TAbstract( { a_path = [],"Class" }, _ )
@@ -922,7 +922,7 @@ let configure gen =
 					| _ -> "object")
 			| TDynamic _ -> "object"
 			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				t_s (Codegen.Abstract.get_underlying_type a pl)
+				t_s (Abstract.get_underlying_type a pl)
 			(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
 			| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
 

@@ -203,7 +203,7 @@ let mk_subs st con =
 		let rec loop t = match follow t with
 			| TEnum(_,pl) -> pl
 			| TAbstract({a_path = [],"EnumValue"},[]) -> []
-			| TAbstract(a,pl) -> loop (Codegen.Abstract.get_underlying_type a pl)
+			| TAbstract(a,pl) -> loop (Abstract.get_underlying_type a pl)
 			| _ -> []
 		in
 		let pl = loop con.c_type in
@@ -812,7 +812,7 @@ let rec all_ctors mctx t =
 				| _ -> ()
 		) c.cl_ordered_statics;
 		h,false
-	| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) -> all_ctors mctx (Codegen.Abstract.get_underlying_type a pl)
+	| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) -> all_ctors mctx (Abstract.get_underlying_type a pl)
 	| TInst({cl_path=[],"String"},_)
 	| TInst({cl_path=[],"Array"},_) ->
 		h,true
@@ -1020,7 +1020,7 @@ let convert_switch mctx st cases loop =
 	let e = match follow st.st_type with
 	| TEnum(_) ->
 		wrap_exhaustive (mk_index_call())
-	| TAbstract(a,pl) when (match Codegen.Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
+	| TAbstract(a,pl) when (match Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
 		wrap_exhaustive (mk_index_call())
 	| TInst({cl_path = [],"Array"},_) as t ->
 		mk (TField (e_st,quick_field t "length")) ctx.t.tint p
@@ -1257,10 +1257,10 @@ let match_expr ctx e cases def with_type p =
 				match with_type with
 				| WithType t ->
 					unify ctx e.etype t e.epos;
-					Codegen.Abstract.check_cast ctx t e e.epos;
+					Codegen.AbstractCast.check_cast ctx t e e.epos;
 				| WithTypeResume t ->
 					(try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
-					Codegen.Abstract.check_cast ctx t e e.epos
+					Codegen.AbstractCast.check_cast ctx t e e.epos
 				| _ -> e
 		in
 		(* type case guard *)

@@ -867,7 +867,7 @@ let configure gen =
 			| TAbstract ({ a_path = [],"Single" },[])
 			| TType ({ t_path = [],"Null" },[_]) -> Some t
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					Some (gen.gfollow#run_f ( Codegen.Abstract.get_underlying_type a pl) )
+					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
 			| TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
 			| _ -> None);
@@ -892,7 +892,7 @@ let configure gen =
 		let t = gen.gfollow#run_f t in
 		match t with
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				real_type (Codegen.Abstract.get_underlying_type a pl)
+				real_type (Abstract.get_underlying_type a pl)
 			| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
 			| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
 			| TAbstract( { a_path = ([], "Class") }, p	)

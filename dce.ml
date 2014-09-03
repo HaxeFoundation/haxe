@@ -162,7 +162,7 @@ and mark_t dce p t =
 			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 			begin try
-				mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization dce.com a pl p))
+				mark_t dce p (snd (Codegen.AbstractCast.find_multitype_specialization dce.com a pl p))
 			with Typecore.Error _ ->
 				()
 			end
@@ -170,7 +170,7 @@ and mark_t dce p t =
 			mark_abstract dce a;
 			List.iter (mark_t dce p) pl;
 			if not (Meta.has Meta.CoreType a.a_meta) then
-				mark_t dce p (Codegen.Abstract.get_underlying_type a pl)
+				mark_t dce p (Abstract.get_underlying_type a pl)
 		| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 		end;
 		dce.t_stack <- List.tl dce.t_stack
@@ -227,7 +227,7 @@ let rec to_string dce t = match t with
 		if Meta.has Meta.CoreType a.a_meta then
 			field dce c "toString" false
 		else
-			to_string dce (Codegen.Abstract.get_underlying_type a tl)
+			to_string dce (Abstract.get_underlying_type a tl)
 	| TMono r ->
 		(match !r with
 		| Some t -> to_string dce t

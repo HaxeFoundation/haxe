@@ -647,50 +647,9 @@ let promote_abstract_parameters ctx t = match t with
 (* -------------------------------------------------------------------------- *)
 (* ABSTRACT CASTS *)
 
-module Abstract = struct
-
-	let find_to ab pl b =
-		if follow b == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to
-		else
-			List.find (Type.unify_to_field ab pl b) ab.a_to
-
-	let find_from ab pl a b =
-		if follow a == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from
-		else
-			List.find (Type.unify_from_field ab pl a b) ab.a_from
+module AbstractCast = struct
 
 	let cast_stack = ref []
-	let underlying_type_stack = ref []
-
-	let rec get_underlying_type a pl =
-		let maybe_recurse t =
-			underlying_type_stack := a :: !underlying_type_stack;
-			let t = match follow t with
-				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					if List.mem a !underlying_type_stack then begin
-						let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in
-						(* technically this should be done at type declaration level *)
-						error ("Abstract chain detected: " ^ s) a.a_pos
-					end;
-					get_underlying_type a tl
-				| _ ->
-					t
-			in
-			underlying_type_stack := List.tl !underlying_type_stack;
-			t
-		in
-		try
-			if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
-			let m = mk_mono() in
-			let _ = find_to a pl m in
-			maybe_recurse (follow m)
-		with Not_found ->
-			if Meta.has Meta.CoreType a.a_meta then
-				t_dynamic
-			else
-				maybe_recurse (apply_params a.a_params pl a.a_this)
 
 	let make_static_call ctx c cf a pl args t p =
 		make_static_call ctx c cf (apply_params a.a_params pl) args t p
@@ -729,14 +688,14 @@ module Abstract = struct
 		else try
 			begin match follow eright.etype with
 				| TAbstract(a,tl) ->
-					find a tl (fun () -> find_to a tl tleft)
+					find a tl (fun () -> Abstract.find_to a tl tleft)
 				| _ ->
 					raise Not_found
 			end
 		with Not_found -> try
 			begin match follow tleft with
 				| TAbstract(a,tl) ->
-					find a tl (fun () -> find_from a tl eright.etype tleft)
+					find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
 				| _ ->
 					raise Not_found
 			end
@@ -781,7 +740,7 @@ module Abstract = struct
 		in
 		let _,cfo =
 			try
-				find_to a tl m
+				Abstract.find_to a tl m
 			with Not_found ->
 				let at = apply_params a.a_params pl a.a_this in
 				let st = s_type (print_context()) at in
@@ -819,7 +778,7 @@ module Abstract = struct
 						| TField(e2,fa) ->
 							begin match follow e2.etype with
 								| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-									let m = get_underlying_type a pl in
+									let m = Abstract.get_underlying_type a pl in
 									let fname = field_name fa in
 									let el = List.map (loop ctx) el in
 									begin try

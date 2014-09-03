@@ -976,15 +976,15 @@ module Printer = struct
 		)
 
 	let is_underlying_string t = match follow t with
-		| TAbstract(a,tl) -> (is_type1 "" "String")(Codegen.Abstract.get_underlying_type a tl)
+		| TAbstract(a,tl) -> (is_type1 "" "String")(Abstract.get_underlying_type a tl)
 		| _ -> false
 	let is_underlying_array t = match follow t with
-		| TAbstract(a,tl) -> (is_type1 "" "list")(Codegen.Abstract.get_underlying_type a tl)
+		| TAbstract(a,tl) -> (is_type1 "" "list")(Abstract.get_underlying_type a tl)
 		| _ -> false
 
 	let rec is_anon_or_dynamic t = match follow t with
 		| TAbstract(a,tl) ->
-			is_anon_or_dynamic (Codegen.Abstract.get_underlying_type a tl)
+			is_anon_or_dynamic (Abstract.get_underlying_type a tl)
 		| TAnon _ | TDynamic _ -> true
 		| _ -> false
 

@@ -3005,7 +3005,7 @@ struct
 			| TDynamic t ->
 				(match t with | TDynamic _ -> acc | _ -> get_type_params acc t)
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					get_type_params acc ( Codegen.Abstract.get_underlying_type a pl)
+					get_type_params acc ( Abstract.get_underlying_type a pl)
 			| TAnon a ->
 				PMap.fold (fun cf acc -> get_type_params acc cf.cf_type) a.a_fields acc
 			| TType(_, [])
@@ -5924,7 +5924,7 @@ struct
 	(* this is a workaround for issue #1743, as FInstance() is returning the incorrect classfield *)
 	let rec clean_t t = match follow t with
 		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-			clean_t (Codegen.Abstract.get_underlying_type a tl)
+			clean_t (Abstract.get_underlying_type a tl)
 		| t -> t
 
 	let select_overload gen applied_f overloads types params =
@@ -6326,7 +6326,7 @@ struct
 					let arr_etype = match follow arr.etype with
 					| (TInst _ as t) -> t
 					| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-						follow (Codegen.Abstract.get_underlying_type a pl)
+						follow (Abstract.get_underlying_type a pl)
 					| t -> t in
 					let idx = match gen.greal_type idx.etype with
 					| TAbstract({ a_path = [],"Int" },_) -> run idx

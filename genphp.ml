@@ -208,7 +208,7 @@ let rec is_string_type t =
 	   (match !(a.a_status) with
 	   | Statics ({cl_path = ([], "String")}) -> true
 	   | _ -> false)
-	| TAbstract (a,pl) -> is_string_type (Codegen.Abstract.get_underlying_type a pl)
+	| TAbstract (a,pl) -> is_string_type (Abstract.get_underlying_type a pl)
 	| _ -> false
 
 let is_string_expr e = is_string_type e.etype
