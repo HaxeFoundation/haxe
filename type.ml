@@ -1289,9 +1289,9 @@ let rec unify a b =
 		end
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
-		unify_types a b tl1 tl2
+		unify_type_params a b tl1 tl2
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
-		unify_types a b tl1 tl2
+		unify_type_params a b tl1 tl2
 	| TAbstract ({a_path=[],"Void"},_) , _
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
@@ -1303,7 +1303,7 @@ let rec unify a b =
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
-				unify_types a b tl tl2;
+				unify_type_params a b tl tl2;
 				true
 			end else (match c.cl_super with
 				| None -> false
@@ -1565,7 +1565,7 @@ and unify_with_variance f t1 t2 =
 	| _ ->
 		error [cannot_unify t1 t2]
 
-and unify_types a b tl1 tl2 =
+and unify_type_params a b tl1 tl2 =
 	List.iter2 (fun t1 t2 ->
 		try
 			with_variance (type_eq EqRightDynamic) t1 t2
