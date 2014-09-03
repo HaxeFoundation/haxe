@@ -30,7 +30,7 @@ matrix:
     - env: TEST=flash8
 
 before_script:
-  - mysql -e 'create database haxe_test;'
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then mysql -u root -e "CREATE DATABASE haxe_test;"; fi
 
 install:
   - if [ -z "${TRAVIS_OS_NAME}" ]; then export TRAVIS_OS_NAME=linux; fi; # for our forks that do not have mult-os enabled.
