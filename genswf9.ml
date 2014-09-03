@@ -210,9 +210,9 @@ let rec follow_basic t =
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
 	| TType (t,tl) ->
-		follow_basic (apply_params t.t_types tl t.t_type)
+		follow_basic (apply_params t.t_params tl t.t_type)
 	| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-		follow_basic (apply_params a.a_types pl a.a_this)
+		follow_basic (apply_params a.a_params pl a.a_this)
 	| _ -> t
 
 let rec type_id ctx t =
@@ -354,7 +354,7 @@ let property ctx p t =
 		(* cast type when accessing an extension field *)
 		(try
 			let f = PMap.find p c.cl_fields in
-			ident p, Some (classify ctx (apply_params c.cl_types params f.cf_type)), false
+			ident p, Some (classify ctx (apply_params c.cl_params params f.cf_type)), false
 		with Not_found ->
 			ident p, None, false)
 	| TInst ({ cl_interface = true } as c,_) ->

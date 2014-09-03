@@ -989,7 +989,7 @@ let add_rtti ctx t =
 let add_field_inits ctx t =
 	let is_as3 = Common.defined ctx.com Define.As3 && not ctx.in_macro in
 	let apply c =
-		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
+		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
 		let v = alloc_var "_g" ethis.etype in
 		let need_this = ref false in

@@ -174,7 +174,7 @@ let rec is_pos_infos = function
 	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
 		true
 	| TType (t,tl) ->
-		is_pos_infos (apply_params t.t_types tl t.t_type)
+		is_pos_infos (apply_params t.t_params tl t.t_type)
 	| _ ->
 		false
 
@@ -200,9 +200,9 @@ let check_constraints ctx tname tpl tl map delayed p =
 	) tl tpl
 
 let enum_field_type ctx en ef tl_en tl_ef p =
-	let map t = apply_params en.e_types tl_en (apply_params ef.ef_params tl_ef t) in
+	let map t = apply_params en.e_params tl_en (apply_params ef.ef_params tl_ef t) in
 	begin try
-		check_constraints ctx (s_type_path en.e_path) en.e_types tl_en map true p;
+		check_constraints ctx (s_type_path en.e_path) en.e_params tl_en map true p;
 		check_constraints ctx ef.ef_name ef.ef_params tl_ef map true p;
 	with Unify_error l ->
 		display_error ctx (error_msg (Unify l)) p
@@ -236,7 +236,7 @@ let field_type ctx c pl f p =
 	| [] -> f.cf_type
 	| l ->
 		let monos = List.map (fun _ -> mk_mono()) l in
-		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_types pl f monos p;
+		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_params pl f monos p;
 		apply_params l monos f.cf_type
 
 let class_field ctx c pl name p =
@@ -413,7 +413,7 @@ let collect_toplevel_identifiers ctx =
 			) e.e_constrs;
 	in
 	List.iter enum_ctors ctx.m.curmod.m_types;
-	List.iter enum_ctors ctx.m.module_types;
+	List.iter enum_ctors ctx.m.module_params;
 
 	(* imported globals *)
 	PMap.iter (fun _ (mt,s) ->
@@ -429,18 +429,18 @@ let collect_toplevel_identifiers ctx =
 			()
 	) ctx.m.module_globals;
 
-	let module_types = ref [] in
+	let module_params = ref [] in
 
 	let add_type mt =
 		let path = (t_infos mt).mt_path in
-		if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_types) then module_types := mt :: !module_types
+		if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_params) then module_params := mt :: !module_params
 	in
 
 	(* module types *)
 	List.iter add_type ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter add_type ctx.m.module_types;
+	List.iter add_type ctx.m.module_params;
 
 	(* module using *)
 	List.iter (fun c ->
@@ -498,14 +498,14 @@ let collect_toplevel_identifiers ctx =
 
 	List.iter (fun mt ->
 		DynArray.add acc (ITType mt)
-	) !module_types;
+	) !module_params;
 
 	raise (DisplayToplevel (DynArray.to_list acc))
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
-let rec base_types t =
+let rec base_params t =
 	let tl = ref [] in
 	let rec loop t = (match t with
 		| TInst(cl, params) ->
@@ -513,18 +513,18 @@ let rec base_types t =
 			| KTypeParameter tl -> List.iter loop tl
 			| _ -> ());
 			List.iter (fun (ic, ip) ->
-				let t = apply_params cl.cl_types params (TInst (ic,ip)) in
+				let t = apply_params cl.cl_params params (TInst (ic,ip)) in
 				loop t
 			) cl.cl_implements;
 			(match cl.cl_super with None -> () | Some (csup, pl) ->
-				let t = apply_params cl.cl_types params (TInst (csup,pl)) in
+				let t = apply_params cl.cl_params params (TInst (csup,pl)) in
 				loop t);
 			tl := t :: !tl;
 		| TEnum(en,(_ :: _ as tl2)) ->
 			tl := (TEnum(en,List.map (fun _ -> t_dynamic) tl2)) :: !tl;
 			tl := t :: !tl;
 		| TType (td,pl) ->
-			loop (apply_params td.t_types pl td.t_type);
+			loop (apply_params td.t_params pl td.t_type);
 			(* prioritize the most generic definition *)
 			tl := t :: !tl;
 		| TLazy f -> loop (!f())
@@ -597,7 +597,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 		with Not_found ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
-			let common_types = base_types t in
+			let common_types = base_params t in
 			let dyn_types = List.fold_left (fun acc t ->
 				let rec loop c =
 					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
@@ -663,7 +663,7 @@ let rec unify_call_params ctx ?(overloads=None) cf el args r p inline =
 		match cf, overloads with
 		| Some (TInst(c,pl),_), (ft,o) :: l ->
 			let o = { o with cf_type = ft } in
-			let args, ret = (match follow (apply_params c.cl_types pl (field_type ctx c pl o p)) with (* I'm getting non-followed types here. Should it happen? *)
+			let args, ret = (match follow (apply_params c.cl_params pl (field_type ctx c pl o p)) with (* I'm getting non-followed types here. Should it happen? *)
 				| TFun (tl,t) -> tl, t
 				| _ -> assert false
 			) in
@@ -793,10 +793,10 @@ let fast_enum_field e ef p =
 	TField (et,FEnum (e,ef))
 
 let type_of_module_type = function
-	| TClassDecl c -> TInst (c,List.map snd c.cl_types)
-	| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
-	| TTypeDecl t -> TType (t,List.map snd t.t_types)
-	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_types)
+	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
+	| TEnumDecl e -> TEnum (e,List.map snd e.e_params)
+	| TTypeDecl t -> TType (t,List.map snd t.t_params)
+	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
 
 let rec type_module_type ctx t tparams p =
 	match t with
@@ -811,15 +811,15 @@ let rec type_module_type ctx t tparams p =
 				a_status = ref (Statics c);
 			};
 			t_private = true;
-			t_types = [];
+			t_params = [];
 			t_meta = no_meta;
 		} in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
-		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
+		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p
 	| TTypeDecl s ->
-		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
+		let t = apply_params s.t_params (List.map (fun _ -> mk_mono()) s.t_params) s.t_type in
 		Codegen.DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
@@ -844,7 +844,7 @@ let rec type_module_type ctx t tparams p =
 				a_status = ref (AbstractStatics a);
 			};
 			t_private = true;
-			t_types = [];
+			t_params = [];
 			t_meta = no_meta;
 		} in
 		mk (TTypeExpr (TAbstractDecl a)) (TType (t_tmp,[])) p
@@ -857,10 +857,10 @@ let get_constructor ctx c params p =
 	| KAbstractImpl a ->
 		let f = (try PMap.find "_new" c.cl_statics with Not_found -> error (s_type_path a.a_path ^ " does not have a constructor") p) in
 		let ct = field_type ctx c params f p in
-		apply_params a.a_types params ct, f
+		apply_params a.a_params params ct, f
 	| _ ->
 		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
-		apply_params c.cl_types params ct, f
+		apply_params c.cl_params params ct, f
 
 let make_call ctx e params t p =
 	try
@@ -882,9 +882,9 @@ let make_call ctx e params t p =
 				in
 				begin match t with
 					| TAbstract(a,pl) ->
-						let has_params = a.a_types <> [] || f.cf_params <> [] in
+						let has_params = a.a_params <> [] || f.cf_params <> [] in
 						let monos = List.map (fun _ -> mk_mono()) f.cf_params in
-						let map_type = fun t -> apply_params a.a_types pl (apply_params f.cf_params monos t) in
+						let map_type = fun t -> apply_params a.a_params pl (apply_params f.cf_params monos t) in
 						Some (has_params,map_type)
 					| _ ->
 						None
@@ -1068,7 +1068,7 @@ let field_access ctx mode f fmode t e p =
 		| (FunMemberAbstract | FunMemberAbstractLocal),TTypeExpr(TClassDecl ({cl_kind = KAbstractImpl a} as c)) when c == ctx.curclass && Meta.has Meta.Impl f.cf_meta ->
 			let e = mk (TField(e,fmode)) t p in
 			let ethis = get_this ctx p in
-			let ethis = {ethis with etype = TAbstract(a,List.map snd a.a_types)} in
+			let ethis = {ethis with etype = TAbstract(a,List.map snd a.a_params)} in
 			AKUsing(e,ctx.curclass,f,ethis)
 		| _ ->
 			(match m, mode with
@@ -1131,7 +1131,7 @@ let field_access ctx mode f fmode t e p =
 					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
 					let f = PMap.find m c.cl_statics in
 					(* we don't have access to the type parameters here, right? *)
-					(* let t = apply_params a.a_types pl (field_type ctx c [] f p) in *)
+					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
 					let t = (field_type ctx c [] f p) in
 					let ef = mk (TField (e,FStatic (c,f))) t p in
 					AKUsing (ef,c,f,this)
@@ -1313,13 +1313,13 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 					try
 						let ef = PMap.find i e.e_constrs in
 						let et = type_module_type ctx t None p in
-						let monos = List.map (fun _ -> mk_mono()) e.e_types in
+						let monos = List.map (fun _ -> mk_mono()) e.e_params in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
 		in
-		(try loop (List.rev ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_types)
+		(try loop (List.rev ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_params)
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name = PMap.find i ctx.m.module_globals in
@@ -1356,7 +1356,7 @@ and type_field ?(resume=false) ctx e i p mode =
 		let rec loop_dyn c params =
 			match c.cl_dynamic with
 			| Some t ->
-				let t = apply_params c.cl_types params t in
+				let t = apply_params c.cl_params params t in
 				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then begin
 					let f = PMap.find "resolve" c.cl_fields in
 					begin match f.cf_kind with
@@ -1364,7 +1364,7 @@ and type_field ?(resume=false) ctx e i p mode =
 						| _ -> ()
 					end;
 					let texpect = tfun [ctx.t.tstring] t in
-					let tfield = apply_params c.cl_types params (monomorphs f.cf_params f.cf_type) in
+					let tfield = apply_params c.cl_params params (monomorphs f.cf_params f.cf_type) in
 					(try Type.unify tfield texpect
 					with Unify_error l ->
 						display_error ctx "Field resolve has an invalid type" f.cf_pos;
@@ -1396,7 +1396,7 @@ and type_field ?(resume=false) ctx e i p mode =
 				| _ ->
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
-			field_access ctx mode f (match c2 with None -> FAnon f | Some c -> FInstance (c,f)) (apply_params c.cl_types params t) e p
+			field_access ctx mode f (match c2 with None -> FAnon f | Some c -> FInstance (c,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
@@ -1491,7 +1491,7 @@ and type_field ?(resume=false) ctx e i p mode =
 			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
 				let t = field_type ctx c [] f p in
-				apply_params a.a_types pl t
+				apply_params a.a_params pl t
 			in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let field_expr f t = mk (TField (et,FStatic (c,f))) t p in
@@ -1526,12 +1526,12 @@ and type_field ?(resume=false) ctx e i p mode =
 				| EConst(Ident s | String s) -> s = i
 				| _ -> error "Identifier or string expected as argument to @:forward" (pos e)
 			) el) && el <> [] then raise Not_found;
-			type_field ctx {e with etype = apply_params a.a_types pl a.a_this} i p mode;
+			type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
 			(match ctx.curfun, e.eexpr with
-			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_types pl a.a_this} i p mode;
+			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 			| _ -> raise Not_found)
 		with Not_found ->
 			no_field())
@@ -1627,7 +1627,7 @@ let unify_int ctx e k =
 		| TAnon a ->
 			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> false)
 		| TInst (c,pl) ->
-			(try is_dynamic (apply_params c.cl_types pl ((let _,t,_ = Type.class_field c f in t))) with Not_found -> false)
+			(try is_dynamic (apply_params c.cl_params pl ((let _,t,_ = Type.class_field c f in t))) with Not_found -> false)
 		| _ ->
 			true
 	in
@@ -1672,7 +1672,7 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 		| _ -> assert false
 	in
 	let t = apply_params cf.cf_params monos cf.cf_type in
-	add_constraint_checks ctx c.cl_types [] cf monos p;
+	add_constraint_checks ctx c.cl_params [] cf monos p;
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
 			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
@@ -1830,7 +1830,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			]) t p
 		| AKUsing(ef,c,cf,et) ->
 			(* abstract setter + getter *)
-			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_types) | _ -> assert false in
+			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> assert false in
 			let ret = match follow ef.etype with
 				| TFun([_;_],ret) -> ret
 				| _ ->  error "Invalid field type for abstract setter" p
@@ -2095,7 +2095,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				let impl = Meta.has Meta.Impl cf.cf_meta in
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let tcf = apply_params cf.cf_params monos cf.cf_type in
-				let tcf = if impl then apply_params a.a_types pl tcf else tcf in
+				let tcf = if impl then apply_params a.a_params pl tcf else tcf in
 				(match follow tcf with
 				| TFun([(_,_,t1);(_,_,t2)],r) ->
 					(* implementation fields can only be used in left mode (issue #2130) *)
@@ -2117,7 +2117,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 									()
 							end;
 							Type.unify t t2;
-							check_constraints ctx "" cf.cf_params monos (apply_params a.a_types pl) false cf.cf_pos;
+							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params pl) false cf.cf_pos;
 							cf,t2,r,o = OpAssignOp(op),Meta.has Meta.Commutative cf.cf_meta
 						with Unify_error _ ->
 							loop ops
@@ -2131,7 +2131,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	in
 	let mk_cast_op c f a pl e1 e2 r assign =
 		let t = field_type ctx c [] f p in
-		let t = apply_params a.a_types pl t in
+		let t = apply_params a.a_params pl t in
 		let et = type_module_type ctx (TClassDecl c) None p in
 		let ef = mk (TField (et,FStatic (c,f))) t p in
 		let ec = make_call ctx ef [e1;e2] r p in
@@ -2161,8 +2161,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e2 = Codegen.Abstract.check_cast ctx t2 e2 e2.epos in
 			begin match f.cf_expr with
 				| None ->
-					let e2 = match follow e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_types pl a.a_this} | _ -> e2 in
-					cast_rec {e1 with etype = apply_params a.a_types pl a.a_this} e2 r (Meta.has Meta.CoreType a.a_meta)
+					let e2 = match follow e2.etype with TAbstract(a,pl) -> {e2 with etype = apply_params a.a_params pl a.a_this} | _ -> e2 in
+					cast_rec {e1 with etype = apply_params a.a_params pl a.a_this} e2 r (Meta.has Meta.CoreType a.a_meta)
 				| Some _ ->
 					mk_cast_op c f a pl e1 e2 r assign
 			end
@@ -2187,8 +2187,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			end in
 			let e = match f.cf_expr with
 				| None ->
-					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_types pl a.a_this} | _ -> e1 in
-					cast_rec e1 {e2 with etype = apply_params a.a_types pl a.a_this} r (Meta.has Meta.CoreType a.a_meta)
+					let e1 = match follow e1.etype with TAbstract(a,pl) -> {e1 with etype = apply_params a.a_params pl a.a_this} | _ -> e1 in
+					cast_rec e1 {e2 with etype = apply_params a.a_params pl a.a_this} r (Meta.has Meta.CoreType a.a_meta)
 				| Some _ ->
 					mk_cast_op c f a pl e1 e2 r assign
 			in
@@ -2238,9 +2238,9 @@ and type_unop ctx op flag e p =
 					| [] -> raise Not_found
 					| (op2,flag2,cf) :: opl when op == op2 && flag == flag2 ->
 						let m = mk_mono() in
-						let tcf = apply_params c.cl_types pl (monomorphs cf.cf_params cf.cf_type) in
+						let tcf = apply_params c.cl_params pl (monomorphs cf.cf_params cf.cf_type) in
 						if Meta.has Meta.Impl cf.cf_meta then begin
-							if type_iseq (tfun [apply_params a.a_types pl a.a_this] m) tcf then cf,tcf,m else loop opl
+							if type_iseq (tfun [apply_params a.a_params pl a.a_this] m) tcf then cf,tcf,m else loop opl
 						end else
 							if type_iseq (tfun [e.etype] m) tcf then cf,tcf,m else loop opl
 					| _ :: opl -> loop opl
@@ -2248,7 +2248,7 @@ and type_unop ctx op flag e p =
 				let cf,t,r = try loop a.a_unops with Not_found -> error "Invalid operation" p in
 				(match cf.cf_expr with
 				| None ->
-					let e = {e with etype = apply_params a.a_types pl a.a_this} in
+					let e = {e with etype = apply_params a.a_params pl a.a_this} in
 					let e = mk (TUnop(op,flag,e)) r p in
 					(* unify ctx r e.etype p; *) (* TODO: I'm not sure why this was here (related to #2295) *)
 					e
@@ -2393,7 +2393,7 @@ and type_access ctx e p mode =
 			| TTypeExpr (TClassDecl c) ->
 				if mode = MSet then error "Cannot set constructor" p;
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
-				let monos = List.map (fun _ -> mk_mono()) c.cl_types in
+				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 				let ct, _ = get_constructor ctx c monos p in
 				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
 				let vl = List.map (fun (n,_,t) -> alloc_var n t) args in
@@ -2492,7 +2492,7 @@ and type_access ctx e p mode =
 						(match pack with
 						| [] ->
 							(try
-								let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_types) in
+								let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_params) in
 								(* if the static is not found, look for a subtype instead - #1916 *)
 								get_static true t
 							with Not_found ->
@@ -2549,14 +2549,14 @@ and type_access ctx e p mode =
 		unify ctx e2.etype ctx.t.tint e2.epos;
 		let rec loop et =
 			match follow et with
-			| TInst ({ cl_array_access = Some t; cl_types = pl },tl) ->
+			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
 				apply_params pl tl t
-			| TInst ({ cl_super = Some (c,stl); cl_types = pl },tl) ->
+			| TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
 				apply_params pl tl (loop (TInst (c,stl)))
 			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t
 			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
-				loop (apply_params a.a_types tl a.a_this)
+				loop (apply_params a.a_params tl a.a_this)
 			| _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
@@ -3231,7 +3231,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			(* Try to infer generic parameters from the argument list (issue #2044) *)
 			match Typeload.load_type_def ctx p t with
 			| TClassDecl ({cl_constructor = Some cf} as c) ->
-				let monos = List.map (fun _ -> mk_mono()) c.cl_types in
+				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 				let ct, f = get_constructor ctx c monos p in
 				ignore (unify_constructor_call c monos f ct);
 				Codegen.build_generic ctx c p monos
@@ -3559,7 +3559,7 @@ and handle_display ctx e_ast iscall p =
 						| KTypeParameter pl -> List.fold_left (fun acc t -> merge acc (get_fields t)) m pl
 						| _ -> m
 					) in
-					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params (opt_type f.cf_type); cf_public = true; }) m
+					PMap.map (fun f -> { f with cf_type = apply_params c.cl_params params (opt_type f.cf_type); cf_public = true; }) m
 				in
 				loop c params
 			| TAbstract({a_impl = Some c} as a,pl) ->
@@ -3571,7 +3571,7 @@ and handle_display ctx e_ast iscall p =
 						| EConst(Ident s) -> Some s
 						| _ -> None
 					) el in
-					let fields = get_fields (apply_params a.a_types pl a.a_this) in
+					let fields = get_fields (apply_params a.a_params pl a.a_this) in
 					if sl = [] then fields else PMap.fold (fun cf acc ->
 						if List.mem cf.cf_name sl then
 							PMap.add cf.cf_name cf acc
@@ -3584,7 +3584,7 @@ and handle_display ctx e_ast iscall p =
 				PMap.fold (fun f acc ->
 					if f.cf_name <> "_new" && can_access ctx c f true && Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then begin
 						let f = prepare_using_field f in
-						let t = apply_params a.a_types pl (follow f.cf_type) in
+						let t = apply_params a.a_params pl (follow f.cf_type) in
 						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
 					end else
 						acc
@@ -3758,7 +3758,7 @@ and type_call ctx e el (with_type:with_type) p =
 and build_call ctx acc el (with_type:with_type) p =
 	let fopts t f = match follow t with
 		| (TInst (c,pl) as t) -> Some (t,f)
-		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,List.map snd c.cl_types),f) | _ -> Some (t,f))
+		| (TAnon a) as t -> (match !(a.a_status) with Statics c -> Some (TInst(c,List.map snd c.cl_params),f) | _ -> Some (t,f))
 		| _ -> None
 	in
 	let push_this e =
@@ -3798,7 +3798,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
 			let t,tthis,is_abstract_impl_call = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_types tl t,apply_params a.a_types tl a.a_this,true
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl t,apply_params a.a_params tl a.a_this,true
 				| te -> t,te,false
 			in
 			let params,args,r,eparam = match t with
@@ -4478,7 +4478,7 @@ let load_macro ctx cpath f p =
 	let mloaded = Typeload.load_module mctx m p in
 	mctx.m <- {
 		curmod = mloaded;
-		module_types = [];
+		module_params = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
@@ -4725,7 +4725,7 @@ let rec create com =
 		};
 		m = {
 			curmod = null_module;
-			module_types = [];
+			module_params = [];
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
@@ -4758,7 +4758,7 @@ let rec create com =
 		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.module_types <- ctx.g.std.m_types;
+	ctx.m.module_params <- ctx.g.std.m_types;
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->

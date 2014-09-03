@@ -2474,7 +2474,7 @@ let macro_lib =
 				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 					t
 				| TType (t,tl) ->
-					apply_params t.t_types tl t.t_type
+					apply_params t.t_params tl t.t_type
 				| TLazy f ->
 					(!f)()
 			in
@@ -4246,7 +4246,7 @@ let rec encode_mtype t fields =
 		"isPrivate", VBool i.mt_private;
 		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
 		"doc", null enc_string i.mt_doc;
-		"params", encode_type_params i.mt_types;
+		"params", encode_type_params i.mt_params;
 	] @ fields)
 
 and encode_type_params tl =

@@ -178,7 +178,7 @@ and tinfos = {
 	mt_private : bool;
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
-	mt_types : type_params;
+	mt_params : type_params;
 }
 
 and tclass = {
@@ -188,7 +188,7 @@ and tclass = {
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
-	mutable cl_types : type_params;
+	mutable cl_params : type_params;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
@@ -226,7 +226,7 @@ and tenum = {
 	e_private : bool;
 	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
-	mutable e_types : type_params;
+	mutable e_params : type_params;
 	(* do not insert any fields above *)
 	e_type : tdef;
 	mutable e_extern : bool;
@@ -241,7 +241,7 @@ and tdef = {
 	t_private : bool;
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
-	mutable t_types : type_params;
+	mutable t_params : type_params;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -253,7 +253,7 @@ and tabstract = {
 	a_private : bool;
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
-	mutable a_types : type_params;
+	mutable a_params : type_params;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
@@ -351,7 +351,7 @@ let mk_class m path pos =
 		cl_kind = KNormal;
 		cl_extern = false;
 		cl_interface = false;
-		cl_types = [];
+		cl_params = [];
 		cl_super = None;
 		cl_implements = [];
 		cl_fields = PMap.empty;
@@ -545,7 +545,7 @@ let rec follow t =
 	| TLazy f ->
 		follow (!f())
 	| TType (t,tl) ->
-		follow (apply_params t.t_types tl t.t_type)
+		follow (apply_params t.t_params tl t.t_type)
 	| _ -> t
 
 let rec is_nullable ?(no_lazy=false) = function
@@ -556,7 +556,7 @@ let rec is_nullable ?(no_lazy=false) = function
 	| TLazy f ->
 		if no_lazy then raise Exit else is_nullable (!f())
 	| TType (t,tl) ->
-		is_nullable (apply_params t.t_types tl t.t_type)
+		is_nullable (apply_params t.t_params tl t.t_type)
 	| TFun _ ->
 		false
 (*
@@ -571,7 +571,7 @@ let rec is_nullable ?(no_lazy=false) = function
 	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		not (Meta.has Meta.NotNull a.a_meta)
 	| TAbstract (a,tl) ->
-		is_nullable (apply_params a.a_types tl a.a_this)
+		is_nullable (apply_params a.a_params tl a.a_this)
 	| _ ->
 		true
 
@@ -583,7 +583,7 @@ let rec is_null = function
 	| TLazy f ->
 		is_null (!f())
 	| TType (t,tl) ->
-		is_null (apply_params t.t_types tl t.t_type)
+		is_null (apply_params t.t_params tl t.t_type)
 	| _ ->
 		false
 
@@ -648,7 +648,7 @@ let rec raw_class_field build_type c i =
 			raise Not_found
 		| Some (c,tl) ->
 			let c2 , t , f = raw_class_field build_type c i in
-			c2, apply_params c.cl_types tl t , f
+			c2, apply_params c.cl_params tl t , f
 	with Not_found ->
 		match c.cl_kind with
 		| KTypeParameter tl ->
@@ -666,7 +666,7 @@ let rec raw_class_field build_type c i =
 					| TInst (c,pl) ->
 						(try
 							let c2, t , f = raw_class_field build_type c i in
-							c2, apply_params c.cl_types pl t, f
+							c2, apply_params c.cl_params pl t, f
 						with
 							Not_found -> loop ctl)
 					| _ ->
@@ -685,7 +685,7 @@ let rec raw_class_field build_type c i =
 				| (c,tl) :: l ->
 					try
 						let c2, t , f = raw_class_field build_type c i in
-						c2, apply_params c.cl_types tl t, f
+						c2, apply_params c.cl_params tl t, f
 					with
 						Not_found -> loop l
 			in
@@ -732,7 +732,7 @@ let rec get_constructor build_type c =
 	| None, None -> raise Not_found
 	| None, Some (csup,cparams) ->
 		let t, c = get_constructor build_type csup in
-		apply_params csup.cl_types cparams t, c
+		apply_params csup.cl_params cparams t, c
 
 (* ======= Printing ======= *)
 
@@ -1174,14 +1174,14 @@ let rec type_eq param a b =
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		List.iter2 (type_eq param) tl1 tl2
 	| TType (t,tl) , _ when param <> EqCoreType ->
-		type_eq param (apply_params t.t_types tl t.t_type) b
+		type_eq param (apply_params t.t_params tl t.t_type) b
 	| _ , TType (t,tl) when param <> EqCoreType ->
 		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
 			()
 		else begin
 			eq_stack := (a,b) :: !eq_stack;
 			try
-				type_eq param a (apply_params t.t_types tl t.t_type);
+				type_eq param a (apply_params t.t_params tl t.t_type);
 				eq_stack := List.tl !eq_stack;
 			with
 				Unify_error l ->
@@ -1269,7 +1269,7 @@ let rec unify a b =
 		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
 			try
 				unify_stack := (a,b) :: !unify_stack;
-				unify (apply_params t.t_types tl t.t_type) b;
+				unify (apply_params t.t_params tl t.t_type) b;
 				unify_stack := List.tl !unify_stack;
 			with
 				Unify_error l ->
@@ -1280,7 +1280,7 @@ let rec unify a b =
 		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
 			try
 				unify_stack := (a,b) :: !unify_stack;
-				unify a (apply_params t.t_types tl t.t_type);
+				unify a (apply_params t.t_params tl t.t_type);
 				unify_stack := List.tl !unify_stack;
 			with
 				Unify_error l ->
@@ -1308,12 +1308,12 @@ let rec unify a b =
 			end else (match c.cl_super with
 				| None -> false
 				| Some (cs,tls) ->
-					loop cs (List.map (apply_params c.cl_types tl) tls)
+					loop cs (List.map (apply_params c.cl_params tl) tls)
 			) || List.exists (fun (cs,tls) ->
-				loop cs (List.map (apply_params c.cl_types tl) tls)
+				loop cs (List.map (apply_params c.cl_params tl) tls)
 			) c.cl_implements
 			|| (match c.cl_kind with
-			| KTypeParameter pl -> List.exists (fun t -> match follow t with TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_types tl) tls) | _ -> false) pl
+			| KTypeParameter pl -> List.exists (fun t -> match follow t with TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls) | _ -> false) pl
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
@@ -1344,7 +1344,7 @@ let rec unify a b =
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				(try
-					unify_with_access (apply_params c.cl_types tl ft) f2
+					unify_with_access (apply_params c.cl_params tl ft) f2
 				with
 					Unify_error l -> error (invalid_field n :: l));
 				List.iter (fun f2o ->
@@ -1409,11 +1409,11 @@ let rec unify a b =
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
 		(match !(an.a_status) with
-		| Statics cl -> unify (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_types)) pt
+		| Statics cl -> unify (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_params)) pt
 		| _ -> error [cannot_unify a b])
 	| TAnon an, TAbstract ({ a_path = [],"Enum" },[pt]) ->
 		(match !(an.a_status) with
-		| EnumStatics e -> unify (TEnum (e,List.map (fun _ -> mk_mono()) e.e_types)) pt
+		| EnumStatics e -> unify (TEnum (e,List.map (fun _ -> mk_mono()) e.e_params)) pt
 		| _ -> error [cannot_unify a b])
 	| TEnum _, TAbstract ({ a_path = [],"EnumValue" },[]) ->
 		()
@@ -1464,7 +1464,7 @@ let rec unify a b =
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
-			let t = apply_params c.cl_types pl t in
+			let t = apply_params c.cl_params pl t in
 			try unify t b; true with Unify_error _ -> false
 		) ctl) && not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
@@ -1480,7 +1480,7 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 		| Some cf -> (match follow cf.cf_type with
 			| TFun(_,r) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-				let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
+				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
 				unify_func a (map t);
 				List.iter2 (fun m (name,t) -> match follow t with
 					| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
@@ -1490,7 +1490,7 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 				unify (map r) b;
 			| _ -> assert false)
 		| _ ->
-			unify_func a (apply_params ab.a_types tl t)
+			unify_func a (apply_params ab.a_params tl t)
 		end;
 		true
 	with Unify_error _ -> false
@@ -1513,7 +1513,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 		| Some cf -> (match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-				let map t = apply_params ab.a_types tl (apply_params cf.cf_params monos t) in
+				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
 				let athis = map ab.a_this in
 				(* we cannot allow implicit casts when the this type is not completely known yet *)
 				(* if has_mono athis then raise (Unify_error []); *)
@@ -1527,7 +1527,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 				unify_func (map t) b;
 			| _ -> assert false)
 		| _ ->
-			unify_func (apply_params ab.a_types tl t) b;
+			unify_func (apply_params ab.a_params tl t) b;
 		end;
 		true
 	with Unify_error _ -> false
@@ -1550,17 +1550,17 @@ and unify_with_variance f t1 t2 =
 		List.iter2 f tl1 tl2
 	| TAbstract(a1,pl1),TAbstract(a2,pl2) ->
 		if (Meta.has Meta.CoreType a1.a_meta) && (Meta.has Meta.CoreType a2.a_meta) then begin
-			let ta1 = apply_params a1.a_types pl1 a1.a_this in
-			let ta2 = apply_params a2.a_types pl2 a2.a_this in
+			let ta1 = apply_params a1.a_params pl1 a1.a_this in
+			let ta2 = apply_params a2.a_params pl2 a2.a_this in
 			type_eq EqStrict ta1 ta2;
 		end;
 		if not (List.exists (allows_variance_to t2) a1.a_to) && not (List.exists (allows_variance_to t1) a2.a_from) then
 			error [cannot_unify t1 t2]
 	| TAbstract(a,pl),t ->
-		type_eq EqStrict (apply_params a.a_types pl a.a_this) t;
+		type_eq EqStrict (apply_params a.a_params pl a.a_this) t;
 		if not (List.exists (allows_variance_to t) a.a_to) then error [cannot_unify t1 t2]
 	| t,TAbstract(a,pl) ->
-		type_eq EqStrict t (apply_params a.a_types pl a.a_this);
+		type_eq EqStrict t (apply_params a.a_params pl a.a_this);
 		if not (List.exists (allows_variance_to t) a.a_from) then error [cannot_unify t1 t2]
 	| _ ->
 		error [cannot_unify t1 t2]
@@ -1847,13 +1847,13 @@ let map_expr_type f ft fv e =
 (* ======= Miscellaneous ======= *)
 
 let find_array_access a pl t1 t2 is_set =
-	let ta = apply_params a.a_types pl a.a_this in
+	let ta = apply_params a.a_params pl a.a_this in
 	let rec loop cfl = match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl when not (Meta.has Meta.ArrayAccess cf.cf_meta) ->
 			loop cfl
 		| cf :: cfl ->
-			match follow (apply_params a.a_types pl (monomorphs cf.cf_params cf.cf_type)) with
+			match follow (apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type)) with
 			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 				begin try
 					unify tab ta;

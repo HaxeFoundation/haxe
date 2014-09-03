@@ -133,7 +133,7 @@ and type_string_suff suffix haxe_type =
 			(match params with
 			| [t] -> "Array<" ^ (type_string (follow t) ) ^ " >"
 			| _ -> assert false)
-		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
+		| _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type)
 		)
 	| TFun (args,haxe_type) -> "Dynamic"
 	| TAnon anon -> "Dynamic"
@@ -1995,7 +1995,7 @@ let generate_inline_method ctx c m =
 let generate_class ctx c =
 	let requires_constructor = ref true in
 	ctx.curclass <- c;
-	ctx.local_types <- List.map snd c.cl_types;
+	ctx.local_types <- List.map snd c.cl_params;
 
 	print ctx "%s %s " (if c.cl_interface then "interface" else "class") (s_path ctx c.cl_path c.cl_extern c.cl_pos);
 	(match c.cl_super with
@@ -2138,7 +2138,7 @@ let generate_main ctx c =
 		newline ctx
 
 let generate_enum ctx e =
-	ctx.local_types <- List.map snd e.e_types;
+	ctx.local_types <- List.map snd e.e_params;
 	let pack = open_block ctx in
 	let ename = s_path ctx e.e_path e.e_extern e.e_pos in
 

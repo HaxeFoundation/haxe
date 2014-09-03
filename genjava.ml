@@ -719,7 +719,7 @@ let rec handle_throws gen cf =
 			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], t_dynamic)) rethrow.epos in
 			let wrapped = { rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]) }; } in
 			let map_throws cl =
-				let var = alloc_var "typedException" (TInst(cl,List.map (fun _ -> t_dynamic) cl.cl_types)) in
+				let var = alloc_var "typedException" (TInst(cl,List.map (fun _ -> t_dynamic) cl.cl_params)) in
 				var, { tf.tf_expr with eexpr = TThrow (mk_local var e.epos) }
 			in
 			cf.cf_expr <- Some { e with
@@ -1197,7 +1197,7 @@ let configure gen =
 				| TLocal { v_name = "__fallback__" } -> ()
 				| TLocal { v_name = "__sbreak__" } -> write w "break"
 				| TLocal { v_name = "__undefined__" } ->
-					write w (t_s e.epos (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_types)));
+					write w (t_s e.epos (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_params)));
 					write w ".undefined";
 				| TLocal var ->
 					write_id w var.v_name
@@ -1515,12 +1515,12 @@ let configure gen =
 		expr_s w e
 	in
 
-	let get_string_params cl_types =
-		match cl_types with
+	let get_string_params cl_params =
+		match cl_params with
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> assert false) cl_types)) in
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> assert false) cl_params)) in
 				let params_extends = List.fold_left (fun acc (name, t) ->
 					match run_follow gen t with
 						| TInst (cl, p) ->
@@ -1528,8 +1528,8 @@ let configure gen =
 								| [] -> acc
 								| _ -> acc) (* TODO
 								| _ -> (sprintf " where %s : %s" name (String.concat ", " (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements))) :: acc ) *)
-						| _ -> trace (t_s Ast.null_pos t); assert false (* FIXME it seems that a cl_types will never be anything other than cl.cl_types. I'll take the risk and fail if not, just to see if that confirms *)
-				) [] cl_types in
+						| _ -> trace (t_s Ast.null_pos t); assert false (* FIXME it seems that a cl_params will never be anything other than cl.cl_params. I'll take the risk and fail if not, just to see if that confirms *)
+				) [] cl_params in
 				(params, String.concat " " params_extends)
 	in
 
@@ -1608,12 +1608,12 @@ let configure gen =
 				let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
 				let visibility, is_virtual = if is_explicit_iface then "",false else visibility, is_virtual in
 				let v_n = if is_static then "static " else if is_override && not is_interface then "" else if not is_virtual then "final " else "" in
-				let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_types)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
+				let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
 
-				let params = List.map snd cl.cl_types in
+				let params = List.map snd cl.cl_params in
 				let ret_type, args = match follow cf_type, follow cf.cf_type with
 					| TFun (strbtl, t), TFun(rargs, _) ->
-							(apply_params cl.cl_types params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_types params (real_type t))) strbtl rargs)
+							(apply_params cl.cl_params params (real_type t), List.map2 (fun(_,_,t) (n,o,_) -> (n,o,apply_params cl.cl_params params (real_type t))) strbtl rargs)
 					| _ -> assert false
 				in
 
@@ -1727,7 +1727,7 @@ let configure gen =
 
 		print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
 		(* type parameters *)
-		let params, _ = get_string_params cl.cl_types in
+		let params, _ = get_string_params cl.cl_params in
 		let cl_p_to_string (c,p) =
 			let p = List.map (fun t -> match follow t with
 				| TMono _ | TDynamic _ -> t_empty
@@ -2026,7 +2026,7 @@ let configure gen =
 		match field_access_esp gen (gen.greal_type t) field with
 			| FClassField (cl,p,_,_,_,t,_) ->
 				let p = change_param_type (TClassDecl cl) p in
-				is_dynamic (apply_params cl.cl_types p t)
+				is_dynamic (apply_params cl.cl_params p t)
 			| FEnumField _ -> false
 			| _ -> true
 	in

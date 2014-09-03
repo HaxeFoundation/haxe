@@ -177,7 +177,7 @@ let mk_type_pat ctx mt t p =
 		| TEnumDecl _ -> "Enum"
 		| TAbstractDecl a when Meta.has Meta.RuntimeValue a.a_meta -> "Class"
 		| TTypeDecl t ->
-			begin match follow (monomorphs t.t_types t.t_type) with
+			begin match follow (monomorphs t.t_params t.t_type) with
 				| TInst(c,_) -> loop (TClassDecl c)
 				| TEnum(en,_) -> loop (TEnumDecl en)
 				| TAbstract(a,_) -> loop (TAbstractDecl a)
@@ -192,9 +192,9 @@ let mk_type_pat ctx mt t p =
 
 let mk_subs st con =
 	let map = match follow st.st_type with
-		| TInst(c,pl) -> apply_params c.cl_types pl
-		| TEnum(en,pl) -> apply_params en.e_types pl
-		| TAbstract(a,pl) -> apply_params a.a_types pl
+		| TInst(c,pl) -> apply_params c.cl_params pl
+		| TEnum(en,pl) -> apply_params en.e_params pl
+		| TAbstract(a,pl) -> apply_params a.a_params pl
 		| _ -> fun t -> t
 	in
 	match con.c_def with
@@ -207,7 +207,7 @@ let mk_subs st con =
 			| _ -> []
 		in
 		let pl = loop con.c_type in
-		begin match apply_params en.e_types pl (monomorphs ef.ef_params ef.ef_type) with
+		begin match apply_params en.e_params pl (monomorphs ef.ef_params ef.ef_type) with
 			| TFun(args,r) ->
 				ExtList.List.mapi (fun i (_,_,t) ->
 					mk_st (SEnum(st,ef,i)) t st.st_pos
@@ -222,7 +222,7 @@ let mk_subs st con =
 	| CEnum _ | CConst _ | CType _ | CExpr _ | CAny ->
 		[]
 
-let get_tuple_types t = match t with
+let get_tuple_params t = match t with
 	| TFun(tl,tr) when tr == fake_tuple_type -> Some tl
 	| _ -> None
 
@@ -274,7 +274,7 @@ let unify_enum_field en pl ef t =
 		| TFun(_,r) -> r
 		| t2 -> t2
 	in
-	let t2 = (apply_params en.e_types pl (monomorphs ef.ef_params t2)) in
+	let t2 = (apply_params en.e_params pl (monomorphs ef.ef_params t2)) in
 	Type.unify t2 t
 
 let unify ctx a b p =
@@ -284,7 +284,7 @@ let rec is_value_type = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_value_type t)
 	| TType (t,tl) ->
-		is_value_type (apply_params t.t_types tl t.t_type)
+		is_value_type (apply_params t.t_params tl t.t_type)
 	| TInst({cl_path=[],"String"},[]) ->
 		true
 	| TAbstract _ ->
@@ -302,7 +302,7 @@ let rec matches_null ctx t = match t with
 	| TLazy f ->
 		matches_null ctx (!f())
 	| TType (t,tl) ->
-		matches_null ctx (apply_params t.t_types tl t.t_type)
+		matches_null ctx (apply_params t.t_params tl t.t_type)
 	| TFun _ | TEnum _ ->
 		false
 	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
@@ -361,7 +361,7 @@ let to_pattern ctx e t =
 				mk_con_pat (CExpr e) [] cf.cf_type p
 			| TField(_, FEnum(en,ef)) ->
 				begin try
-					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef t
+					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t
 				with Unify_error l ->
 					error (error_msg (Unify l)) p
 				end;
@@ -377,7 +377,7 @@ let to_pattern ctx e t =
 					| _ -> error ("Expected constructor for enum " ^ (s_type_path en.e_path)) p
 				in
 				let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
-				let tl,r = match apply_params en.e_types pl (apply_params ef.ef_params monos ef.ef_type) with
+				let tl,r = match apply_params en.e_params pl (apply_params ef.ef_params monos ef.ef_type) with
 					| TFun(args,r) ->
 						unify ctx r t p;
 						List.map (fun (n,_,t) -> t) args,r
@@ -403,7 +403,7 @@ let to_pattern ctx e t =
 				mk_con_pat (CEnum(en,ef)) el r p
 			| _ -> perror p)
 		| EConst(Ident "_") ->
-			begin match get_tuple_types t with
+			begin match get_tuple_params t with
 			| Some tl ->
 				let pl = List.map (fun (_,_,t) -> mk_any t p) tl in
 				mk_pat (PTuple (Array.of_list pl)) t_dynamic p
@@ -429,7 +429,7 @@ let to_pattern ctx e t =
 								error msg p
 							| _ -> ());
 						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
-						mk (TField (et,FEnum (en,ef))) (apply_params en.e_types pl ef.ef_type) p
+						mk (TField (et,FEnum (en,ef))) (apply_params en.e_params pl ef.ef_type) p
 					| TAbstract({a_impl = Some c} as a,_) when Meta.has Meta.Enum a.a_meta ->
 						let cf = PMap.find s c.cl_statics in
 						Type.unify (follow cf.cf_type) t;
@@ -450,7 +450,7 @@ let to_pattern ctx e t =
 					| TField (_,FEnum (en,ef)) ->
 						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
 						begin try
-							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_types) ef t;
+							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t;
 						with Unify_error l ->
 							error (error_msg (Unify l)) p
 						end;
@@ -464,7 +464,7 @@ let to_pattern ctx e t =
 					| _ ->
 						raise Not_found);
 			with Not_found ->
-				begin match get_tuple_types t with
+				begin match get_tuple_params t with
 					| Some tl ->
 						let s = String.concat "," (List.map (fun (_,_,t) -> s_type t) tl) in
 						error ("Pattern should be tuple [" ^ s ^ "]") p
@@ -506,14 +506,14 @@ let to_pattern ctx e t =
 				| TAnon {a_fields = fields} ->
 					fields,(fun cf -> cf.cf_type)
 				| TInst(c,tl) ->
-					c.cl_fields,(fun cf -> apply_params c.cl_types tl (monomorphs cf.cf_params cf.cf_type))
+					c.cl_fields,(fun cf -> apply_params c.cl_params tl (monomorphs cf.cf_params cf.cf_type))
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					let fields = List.fold_left (fun acc cf ->
 						if Meta.has Meta.Impl cf.cf_meta then
 							PMap.add cf.cf_name cf acc
 						else acc
 					) PMap.empty c.cl_ordered_statics in
-					fields,(fun cf -> apply_params a.a_types tl (monomorphs cf.cf_params cf.cf_type))
+					fields,(fun cf -> apply_params a.a_params tl (monomorphs cf.cf_params cf.cf_type))
 				| _ ->
 					error ((s_type t) ^ " cannot be matched against a structure") p
 			in
@@ -792,7 +792,7 @@ let rec is_explicit_null = function
 	| TLazy f ->
 		is_null (!f())
 	| TType (t,tl) ->
-		is_null (apply_params t.t_types tl t.t_type)
+		is_null (apply_params t.t_params tl t.t_type)
 	| _ ->
 		false
 

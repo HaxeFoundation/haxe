@@ -291,7 +291,7 @@ let rec type_str ctx t p =
 				| TEnum ({ e_path = [],"Bool" },_) -> "*"
 				| _ -> type_str ctx t p)
 			| _ -> assert false);
-		| _ -> type_str ctx (apply_params t.t_types args t.t_type) p)
+		| _ -> type_str ctx (apply_params t.t_params args t.t_type) p)
 	| TLazy f ->
 		type_str ctx ((!f)()) p
 
@@ -1069,7 +1069,7 @@ let generate_class ctx c =
 	ctx.curclass <- c;
 	define_getset ctx true c;
 	define_getset ctx false c;
-	ctx.local_types <- List.map snd c.cl_types;
+	ctx.local_types <- List.map snd c.cl_params;
 	let pack = open_block ctx in
 	print ctx "\tpublic %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
 	(match c.cl_super with
@@ -1130,7 +1130,7 @@ let generate_main ctx inits =
 	newline ctx
 
 let generate_enum ctx e =
-	ctx.local_types <- List.map snd e.e_types;
+	ctx.local_types <- List.map snd e.e_params;
 	let pack = open_block ctx in
 	let ename = snd e.e_path in
 	print ctx "\tpublic final class %s extends enum {" ename;

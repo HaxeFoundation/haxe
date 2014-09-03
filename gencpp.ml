@@ -613,14 +613,14 @@ and type_string_suff suffix haxe_type =
          | [t] -> "const " ^ (type_string (follow t) ) ^ " *"
          | _ -> assert false)
       | ["cpp"] , "Function" -> "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
-      | _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
+      | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type)
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
    | TAnon a -> "Dynamic"
       (*
       (match !(a.a_status) with
-      | Statics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_types))
-      | EnumStatics e -> type_string_suff suffix (TEnum (e,List.map snd e.e_types))
+      | Statics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_params))
+      | EnumStatics e -> type_string_suff suffix (TEnum (e,List.map snd e.e_params))
       | _ -> "Dynamic"  ^ suffix )
       *)
    | TDynamic haxe_type -> "Dynamic" ^ suffix
@@ -2715,7 +2715,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          visited := List.tl !visited;
       end
    in
-   let rec visit_types expression =
+   let rec visit_params expression =
       begin
       let rec visit_expression = fun expression ->
          (* Expand out TTypeExpr (ie, the name of a class, as used for static access etc ... *)
@@ -2770,7 +2770,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
       visit_type field.cf_type;
       if (not header_only) then
          (match field.cf_expr with
-         | Some expression -> visit_types expression | _ -> ());
+         | Some expression -> visit_params expression | _ -> ());
    in
    let visit_class class_def =
       let fields = List.append class_def.cl_ordered_fields class_def.cl_ordered_statics in
@@ -2793,7 +2793,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          ) enum_def.e_constrs;
       if (not header_only) then begin
          let meta = Codegen.build_metadata ctx (TEnumDecl enum_def) in
-         match meta with Some expr -> visit_types expr | _ -> ();
+         match meta with Some expr -> visit_params expr | _ -> ();
       end;
    in
    let inc_cmp i1 i2 =
@@ -2803,7 +2803,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
    (* Body of main function *)
    (match obj with
    | TClassDecl class_def -> visit_class class_def;
-      (match class_def.cl_init with Some expression -> visit_types expression | _ -> ())
+      (match class_def.cl_init with Some expression -> visit_params expression | _ -> ())
    | TEnumDecl enum_def -> visit_enum enum_def
    | TTypeDecl _ | TAbstractDecl _ -> (* These are expanded *) ());
 
@@ -4286,7 +4286,7 @@ let gen_extern_class common_ctx class_def file_info =
    let c = class_def in
    output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
    output ( "@:include extern " ^ (if c.cl_private then "private " else "") ^ (if c.cl_interface then "interface" else "class")
-            ^ " " ^ (snd path) ^ (params c.cl_types) );
+            ^ " " ^ (snd path) ^ (params c.cl_params) );
    (match c.cl_super with None -> () | Some (c,pl) -> output (" extends " ^  (s_type (TInst (c,pl)))));
    List.iter (fun (c,pl) -> output ( " implements " ^ (s_type (TInst (c,pl))))) (real_interfaces c.cl_implements);
    (match c.cl_dynamic with None -> () | Some t -> output (" implements Dynamic< " ^ (s_type t) ^ " >"));
@@ -4314,7 +4314,7 @@ let gen_extern_enum common_ctx enum_def file_info =
    let params = function [] -> "" | l ->  "< " ^ (String.concat "," (List.map (fun (n,t) -> n) l) ^ " >")  in
    output ( "package " ^ (String.concat "." (fst path)) ^ ";\n" );
    output ( "@:include extern " ^ (if enum_def.e_private then "private " else "")
-            ^ " enum " ^ (snd path) ^ (params enum_def.e_types) );
+            ^ " enum " ^ (snd path) ^ (params enum_def.e_params) );
    output " {\n";
    let sorted_items = List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) in
    List.iter (fun constructor ->

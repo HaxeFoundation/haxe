@@ -1775,7 +1775,7 @@ module Generator = struct
 		let py_metas = filter_py_metas cf.cf_meta in
 		begin match member_inits,cf.cf_expr with
 			| _,Some ({eexpr = TFunction f} as ef) ->
-				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_types)) cf.cf_pos in
+				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_params)) cf.cf_pos in
 				let member_data = List.map (fun cf ->
 					let ef = mk (TField(ethis,FInstance(c, cf))) cf.cf_type cf.cf_pos in
 					mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos

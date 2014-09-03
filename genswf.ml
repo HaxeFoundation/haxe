@@ -643,7 +643,7 @@ let build_dependencies t =
 			match follow t with
 			| TInst (c,_) -> List.iter add_inherit c.cl_implements
 			| _ -> ()
-		) c.cl_types;
+		) c.cl_params;
 		List.iter add_inherit c.cl_implements;
 	| TEnumDecl e when not e.e_extern ->
 		PMap.iter (fun _ f -> add_type f.ef_type) e.e_constrs;

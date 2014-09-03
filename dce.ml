@@ -221,7 +221,7 @@ let rec to_string dce t = match t with
 	| TType(tt,tl) ->
 		if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then begin
 			dce.ts_stack <- t :: dce.ts_stack;
-			to_string dce (apply_params tt.t_types tl tt.t_type)
+			to_string dce (apply_params tt.t_params tl tt.t_type)
 		end
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		if Meta.has Meta.CoreType a.a_meta then
