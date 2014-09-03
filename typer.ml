@@ -339,7 +339,7 @@ let parse_string com s p inlined =
 	Lexer.init p.pfile (ExtString.String.ends_with p.pfile ".hx");
 	Parser.display_error := (fun e p -> raise (Parser.Error (e,p)));
 	if not inlined then Parser.resume_display := null_pos;
-	let _, decls = try
+	let pack, decls = try
 		Parser.parse com (Lexing.from_string s)
 	with Parser.Error (e,pe) ->
 		restore();
@@ -349,23 +349,24 @@ let parse_string com s p inlined =
 		error (Lexer.error_msg e) (if inlined then pe else p)
 	in
 	restore();
-	decls
+	pack,decls
 
 let eval ctx s =
 	let p = { pfile = "--eval"; pmin = 0; pmax = String.length s; } in
-	let decls = parse_string ctx.com s p false in
+	let pack,decls = parse_string ctx.com s p false in
 	let rec find_main current decls = match decls with
 		| (EClass c,_) :: decls ->
+			let path = pack,c.d_name in
 			begin try
 				let cff = List.find (fun cff -> cff.cff_name = "main") c.d_data in
 				if ctx.com.main_class <> None then error "Multiple main" cff.cff_pos;
-				ctx.com.main_class <- Some ([],c.d_name);
-				Some ([],c.d_name)
+				ctx.com.main_class <- Some path;
+				Some path
 			with Not_found ->
-				find_main (if current = None then Some ([],c.d_name) else current) decls
+				find_main (if current = None then Some path else current) decls
 			end
 		| ((EEnum {d_name = s} | ETypedef {d_name = s} | EAbstract {d_name = s}),_) :: decls when current = None ->
-			find_main (Some ([],s)) decls
+			find_main (Some (pack,s)) decls
 		| _ :: decls ->
 			find_main current decls
 		| [] ->
@@ -383,7 +384,7 @@ let parse_expr_string ctx s p inl =
 	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
 	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
 	match parse_string ctx.com (head ^ s ^ ";}") p inl with
-	| [EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
+	| _,[EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
 	| _ -> raise Interp.Invalid_expr
 
 let collect_toplevel_identifiers ctx =
@@ -4207,7 +4208,7 @@ let make_macro_api ctx p =
 			typing_timer ctx (fun() ->
 				let v = (match v with None -> None | Some s ->
 					match parse_string ctx.com ("typedef T = " ^ s) null_pos false with
-					| [ETypedef { d_data = ct },_] -> Some ct
+					| _,[ETypedef { d_data = ct },_] -> Some ct
 					| _ -> assert false
 				) in
 				let tp = get_type_patch ctx t (Some (f,s)) in
@@ -4218,7 +4219,7 @@ let make_macro_api ctx p =
 		);
 		Interp.meta_patch = (fun m t f s ->
 			let m = (match parse_string ctx.com (m ^ " typedef T = T") null_pos false with
-				| [ETypedef t,_] -> t.d_meta
+				| _,[ETypedef t,_] -> t.d_meta
 				| _ -> assert false
 			) in
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
