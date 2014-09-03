@@ -257,7 +257,7 @@ let rec load_type_def ctx p t =
 		List.find (fun t2 ->
 			let tp = t_path t2 in
 			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
-		) (ctx.m.curmod.m_types @ ctx.m.module_params)
+		) (ctx.m.curmod.m_types @ ctx.m.module_types)
 	with
 		Not_found ->
 			let next() =
@@ -617,7 +617,7 @@ let hide_params ctx =
 	let old_deps = ctx.g.std.m_extra.m_deps in
 	ctx.m <- {
 		curmod = ctx.g.std;
-		module_params = [];
+		module_types = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
@@ -1153,7 +1153,7 @@ let set_heritance ctx c herits p =
 		| [] ->
 			try
 				let find = List.find (fun lt -> snd (t_path lt) = t.tname) in
-				let lt = try find ctx.m.curmod.m_types with Not_found -> find ctx.m.module_params in
+				let lt = try find ctx.m.curmod.m_types with Not_found -> find ctx.m.module_types in
 				{ t with tpackage = fst (t_path lt) }
 			with
 				Not_found -> t
@@ -2373,15 +2373,15 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				| [] ->
 					(match name with
 					| None ->
-						ctx.m.module_params <- List.filter no_private types @ ctx.m.module_params
+						ctx.m.module_types <- List.filter no_private types @ ctx.m.module_types
 					| Some newname ->
-						ctx.m.module_params <- rebind (get_type tname) newname :: ctx.m.module_params);
+						ctx.m.module_types <- rebind (get_type tname) newname :: ctx.m.module_types);
 				| [tsub,p2] ->
 					let p = punion p1 p2 in
 					(try
 						let tsub = List.find (has_name tsub) types in
 						chk_private tsub p;
-						ctx.m.module_params <- (match name with None -> tsub | Some n -> rebind tsub n) :: ctx.m.module_params
+						ctx.m.module_types <- (match name with None -> tsub | Some n -> rebind tsub n) :: ctx.m.module_types
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
 						let tmain = get_type tname in
@@ -2427,11 +2427,11 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.m.module_params <- types @ ctx.m.module_params;
+				ctx.m.module_types <- types @ ctx.m.module_types;
 				types
 			| Some _ ->
 				let t = load_type_def ctx p t in
-				ctx.m.module_params <- t :: ctx.m.module_params;
+				ctx.m.module_types <- t :: ctx.m.module_types;
 				[t]
 		) in
 		(* delay the using since we need to resolve typedefs *)
@@ -2652,7 +2652,7 @@ let type_module ctx m file tdecls p =
 		t = ctx.t;
 		m = {
 			curmod = m;
-			module_params = ctx.g.std.m_types;
+			module_types = ctx.g.std.m_types;
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];

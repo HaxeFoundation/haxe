@@ -413,7 +413,7 @@ let collect_toplevel_identifiers ctx =
 			) e.e_constrs;
 	in
 	List.iter enum_ctors ctx.m.curmod.m_types;
-	List.iter enum_ctors ctx.m.module_params;
+	List.iter enum_ctors ctx.m.module_types;
 
 	(* imported globals *)
 	PMap.iter (fun _ (mt,s) ->
@@ -429,21 +429,21 @@ let collect_toplevel_identifiers ctx =
 			()
 	) ctx.m.module_globals;
 
-	let module_params = ref [] in
+	let module_types = ref [] in
 
 	let add_type mt =
 		match mt with
 		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
-			if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_params) then module_params := mt :: !module_params
+			if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_types) then module_types := mt :: !module_types
 	in
 
 	(* module types *)
 	List.iter add_type ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter add_type ctx.m.module_params;
+	List.iter add_type ctx.m.module_types;
 
 	(* module using *)
 	List.iter (fun c ->
@@ -501,7 +501,7 @@ let collect_toplevel_identifiers ctx =
 
 	List.iter (fun mt ->
 		DynArray.add acc (ITType mt)
-	) !module_params;
+	) !module_types;
 
 	raise (DisplayToplevel (DynArray.to_list acc))
 
@@ -1322,7 +1322,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 					with
 						Not_found -> loop l
 		in
-		(try loop (List.rev ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_params)
+		(try loop (List.rev ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_types)
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name = PMap.find i ctx.m.module_globals in
@@ -2495,7 +2495,7 @@ and type_access ctx e p mode =
 						(match pack with
 						| [] ->
 							(try
-								let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_params) in
+								let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_types) in
 								(* if the static is not found, look for a subtype instead - #1916 *)
 								get_static true t
 							with Not_found ->
@@ -4481,7 +4481,7 @@ let load_macro ctx cpath f p =
 	let mloaded = Typeload.load_module mctx m p in
 	mctx.m <- {
 		curmod = mloaded;
-		module_params = [];
+		module_types = [];
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
@@ -4728,7 +4728,7 @@ let rec create com =
 		};
 		m = {
 			curmod = null_module;
-			module_params = [];
+			module_types = [];
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
@@ -4761,7 +4761,7 @@ let rec create com =
 		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
-	ctx.m.module_params <- ctx.g.std.m_types;
+	ctx.m.module_types <- ctx.g.std.m_types;
 	List.iter (fun t ->
 		match t with
 		| TAbstractDecl a ->

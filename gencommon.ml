@@ -536,7 +536,7 @@ type generator_ctx =
 	(* add type can be called at any time, and will add a new module_def that may or may not be filtered *)
 	(* module_type -> should_filter *)
 	mutable gadd_type : module_type -> bool -> unit;
-	(* during expr filters, add_to_module will be available so module_params can be added to current module_def. we must pass the priority argument so the filters can be resumed	*)
+	(* during expr filters, add_to_module will be available so module_types can be added to current module_def. we must pass the priority argument so the filters can be resumed	*)
 	mutable gadd_to_module : module_type -> float -> unit;
 	(* during expr filters, shows the current class path *)
 	mutable gcurrent_path : path;
