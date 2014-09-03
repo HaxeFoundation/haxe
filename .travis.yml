@@ -22,12 +22,9 @@ env:
     - TEST=java
     - TEST=cs
     - TEST=python
-    - TEST=flash8
 
 matrix:
   # fast_finish: true #https://github.com/travis-ci/travis-ci/issues/1696
-  allow_failures:
-    - env: TEST=flash8
 
 before_script:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then mysql -u root -e "CREATE DATABASE haxe_test;"; fi
