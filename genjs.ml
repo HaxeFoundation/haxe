@@ -1140,7 +1140,10 @@ let generate_type ctx = function
 		(* Special case, want to add Math.__name__ only when required, handle here since Math is extern *)
 		let p = s_path ctx c.cl_path in
 		if p = "Math" then generate_class___name__ ctx c;
-		if not c.cl_extern then
+		(* Another special case for Std because we do not want to generate it if it's empty. *)
+		if p = "Std" && c.cl_ordered_statics = [] then
+			()
+		else if not c.cl_extern then
 			generate_class ctx c
 		else if Meta.has Meta.JsRequire c.cl_meta then
 			generate_require ctx c
