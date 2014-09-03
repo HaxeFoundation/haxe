@@ -3291,7 +3291,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let rt = Typeload.load_type_opt ctx p f.f_type in
 		let args = List.map (fun (s,opt,t,c) ->
 			let t = Typeload.load_type_opt ctx p t in
-			let t, c = Typeload.type_function_param ctx t c opt p in
+			let t, c = Typeload.type_function_arg ctx t c opt p in
 			s , c, t
 		) f.f_args in
 		(match with_type with

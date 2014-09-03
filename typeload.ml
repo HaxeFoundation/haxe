@@ -221,7 +221,7 @@ let type_module_hook = ref (fun _ _ _ -> None)
 let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 let return_partial_type = ref false
 
-let type_function_param ctx t e opt p =
+let type_function_arg ctx t e opt p =
 	if opt then
 		let e = (match e with None -> Some (EConst (Ident "null"),p) | _ -> e) in
 		ctx.t.tnull t, e
@@ -1925,7 +1925,7 @@ let init_class ctx c p context_init herits fields =
 			let ret = if constr then ctx.t.tvoid else type_opt ctx p fd.f_type in
 			let rec loop args = match args with
 				| (name,opt,t,ct) :: args ->
-					let t, ct = type_function_param ctx (type_opt ctx p t) ct opt p in
+					let t, ct = type_function_arg ctx (type_opt ctx p t) ct opt p in
 					delay ctx PTypeField (fun() -> match follow t with
 						| TAbstract({a_path = ["haxe"],"Rest"},_) ->
 							if not c.cl_extern then error "Rest argument are only supported for extern methods" p;
