@@ -1636,6 +1636,12 @@ module Abstract = struct
 				t_dynamic
 			else
 				maybe_recurse (apply_params a.a_params pl a.a_this)
+
+	let rec follow_with_abstracts t = match follow t with
+		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+			follow_with_abstracts (get_underlying_type a tl)
+		| t ->
+			t
 end
 
 (* ======= Mapping and iterating ======= *)
