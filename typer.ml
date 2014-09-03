@@ -460,26 +460,29 @@ let collect_toplevel_identifiers ctx =
 	in
 
 	List.iter (fun dir ->
-		let entries = Sys.readdir dir in
-		Array.iter (fun file ->
-			match file with
-				| "." | ".." ->
-					()
-				| _ when Sys.is_directory (dir ^ file) ->
-					add_package file
-				| _ ->
-					let l = String.length file in
-					if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-						try
-							let name = String.sub file 0 (l - 3) in
-							let md = Typeload.load_module ctx ([],name) Ast.null_pos in
-							List.iter (fun mt ->
-								if (t_infos mt).mt_path = md.m_path then add_type mt
-							) md.m_types
-						with _ ->
-							()
-					end
-		) entries;
+		try
+			let entries = Sys.readdir dir in
+			Array.iter (fun file ->
+				match file with
+					| "." | ".." ->
+						()
+					| _ when Sys.is_directory (dir ^ file) ->
+						add_package file
+					| _ ->
+						let l = String.length file in
+						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+							try
+								let name = String.sub file 0 (l - 3) in
+								let md = Typeload.load_module ctx ([],name) Ast.null_pos in
+								List.iter (fun mt ->
+									if (t_infos mt).mt_path = md.m_path then add_type mt
+								) md.m_types
+							with _ ->
+								()
+						end
+			) entries;
+		with Sys_error _ ->
+			()
 	) class_paths;
 
 	List.iter (fun pack ->
