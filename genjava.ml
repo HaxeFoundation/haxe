@@ -55,6 +55,7 @@ let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
 let rec t_has_type_param t = match follow t with
 	| TInst({ cl_kind = KTypeParameter _ }, []) -> true
 	| TEnum(_, params)
+	| TAbstract(_, params)
 	| TInst(_, params) -> List.exists t_has_type_param params
 	| TFun(f,ret) -> t_has_type_param ret || List.exists (fun (_,_,t) -> t_has_type_param t) f
 	| _ -> false
@@ -66,9 +67,17 @@ let is_type_param t = match follow t with
 let rec t_has_type_param_shallow last t = match follow t with
 	| TInst({ cl_kind = KTypeParameter _ }, []) -> true
 	| TEnum(_, params)
+	| TAbstract(_, params)
 	| TInst(_, params) when not last -> List.exists (t_has_type_param_shallow true) params
 	| TFun(f,ret) when not last -> t_has_type_param_shallow true ret	|| List.exists (fun (_,_,t) -> t_has_type_param_shallow true t) f
 	| _ -> false
+
+let rec replace_type_param t = match follow t with
+	| TInst({ cl_kind = KTypeParameter _ }, []) -> t_dynamic
+	| TEnum(e, params) -> TEnum(e, List.map replace_type_param params)
+	| TAbstract(a, params) -> TAbstract(a, List.map replace_type_param params)
+	| TInst(cl, params) -> TInst(cl, List.map replace_type_param params)
+	| _ -> t
 
 let is_java_basic_type t =
 	match follow t with
@@ -1233,8 +1242,8 @@ let configure gen =
 				| TMeta (_,e) ->
 					expr_s w e
 				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
-				| TArrayDecl el when t_has_type_param_shallow false e.etype ->
-					print w "( (%s) (new java.lang.Object[] " (t_s e.epos e.etype);
+				| TArrayDecl el when t_has_type_param e.etype ->
+					print w "( (%s) (new %s " (t_s e.epos e.etype) (t_s e.epos (replace_type_param e.etype));
 					write w "{";
 					ignore (List.fold_left (fun acc e ->
 						(if acc <> 0 then write w ", ");
