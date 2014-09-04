@@ -3135,16 +3135,6 @@ let normalize_jclass com cls =
 	let cmethods = loop [] cmethods in
 	{ cls with cfields = cfields; cmethods = cmethods }
 
-let rec get_classes_dir pack dir ret =
-	Array.iter (fun f -> match (Unix.stat (dir ^"/"^ f)).st_kind with
-		| S_DIR ->
-				get_classes_dir (pack @ [f]) (dir ^"/"^ f) ret
-		| _ when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" ->
-				let path = jpath_to_hx (pack,f) in
-				ret := path :: !ret;
-		| _ -> ()
-	) (Sys.readdir dir)
-
 let get_classes_zip zip =
 	let ret = ref [] in
 	List.iter (function
@@ -3172,20 +3162,24 @@ let add_java_lib com file std =
 		(* check if it is a directory or jar file *)
 		match (Unix.stat file).st_kind with
 		| S_DIR -> (* open classes directly from directory *)
+			let all = ref [] in
 			let rec iter_files pack dir path = try
 				let file = Unix.readdir dir in
+				let filepath = path ^ "/" ^ file in
 				(if String.ends_with file ".class" then
 					let file = String.sub file 0 (String.length file - 6) in
-					Hashtbl.add hxpack_to_jpack (jpath_to_hx(pack,file)) (pack,file)
-				else if (Unix.stat file).st_kind = S_DIR && file <> "." && file <> ".." then
-					let path = path ^"/"^ file in
+					let path = jpath_to_hx (pack,file) in
+					all := path :: !all;
+					Hashtbl.add hxpack_to_jpack path (pack,file)
+				else if (Unix.stat filepath).st_kind = S_DIR && file <> "." && file <> ".." then
 					let pack = pack @ [file] in
-					iter_files (pack @ [file]) (Unix.opendir path) path);
+					iter_files (pack) (Unix.opendir filepath) filepath);
 				iter_files pack dir path
 			with | End_of_file | Unix.Unix_error _ ->
 				Unix.closedir dir
 			in
 			iter_files [] (Unix.opendir file) file;
+			let all = !all in
 
 			(fun (pack, name) ->
 				let real_path = file ^ "/" ^ (String.concat "/" pack) ^ "/" ^ (name ^ ".class") in
@@ -3193,7 +3187,7 @@ let add_java_lib com file std =
 					let data = Std.input_file ~bin:true real_path in
 					Some(JReader.parse_class (IO.input_string data), real_path, real_path)
 				with
-					| _ -> None), (fun () -> ()), (fun () -> let ret = ref [] in get_classes_dir [] file ret; !ret)
+					| _ -> None), (fun () -> ()), (fun () -> all)
 		| _ -> (* open zip file *)
 			let closed = ref false in
 			let zip = ref (Zip.open_in file) in

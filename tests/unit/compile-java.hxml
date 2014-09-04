@@ -7,3 +7,10 @@ compile-each.hxml
 -main unit.Test
 -java java
 -java-lib native_java/native.jar
+
+--next
+
+compile-each.hxml
+-main unit.Test
+-java java
+-java-lib native_java/obj
