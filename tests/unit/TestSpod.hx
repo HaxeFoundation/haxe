@@ -46,7 +46,7 @@ class TestSpod extends Test
 		scls.enumFlags.set(ThirdValue);
 
 		scls.data = [new ComplexClass( { name:"test", array:["this", "is", "a", "test"] } )];
-		// scls.anEnum = SecondValue;
+		scls.anEnum = SecondValue;
 
 		return scls;
 	}
@@ -105,6 +105,11 @@ class TestSpod extends Test
 
 		eq(cls1.relation.name, "first spod",pos());
 		eq(cls1.relationNullable.name, "second spod",pos());
+
+		eq(cls1.anEnum, SecondValue,pos());
+		t(Std.is(cls1.anEnum, SpodEnum),pos());
+
+		eq(cls1, MySpodClass.manager.select($anEnum == SecondValue),pos());
 
 		//test create a new class
 		var scls = getDefaultClass();

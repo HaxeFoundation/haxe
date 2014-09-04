@@ -19,7 +19,7 @@ class MySpodClass extends Object
   @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
 
   public var data:SData<Array<ComplexClass>>;
-  // public var anEnum:SEnum<SpodEnum>;
+  public var anEnum:SEnum<SpodEnum>;
 }
 
 class ComplexClass
