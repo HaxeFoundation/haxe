@@ -1197,9 +1197,9 @@ let configure gen =
 								| TEnum({ e_path = ([], "Bool") }, [])
 								| TAbstract ({ a_path = ([], "Bool") },[]) -> write w "false"
 								| TAbstract _ when like_int e.etype ->
-									expr_s w { e with eexpr = TConst(TInt Int32.zero) }
+									expr_s w (mk_cast e.etype { e with eexpr = TConst(TInt Int32.zero) })
 								| TAbstract _ when like_float e.etype ->
-									expr_s w { e with eexpr = TConst(TFloat "0.0") }
+									expr_s w (mk_cast e.etype { e with eexpr = TConst(TFloat "0.0") } )
 								| t -> write w ("null") )
 						| TThis -> write w "this"
 						| TSuper -> write w "super")
