@@ -766,7 +766,7 @@ let unify_field_call ctx fa el args ret p inline =
 				| err :: _ -> raise err
 				| _ -> assert false
 			end
-		| _ :: _ :: _ when ctx.com.config.pf_overload -> error "Ambiguous overload" p
+		| _ :: _ :: _ when is_overload && ctx.com.config.pf_overload -> error "Ambiguous overload" p
 		| (el,tf,mk_call) :: _ -> List.map fst el,tf,mk_call
 
 let fast_enum_field e ef p =
