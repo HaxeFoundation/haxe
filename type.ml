@@ -646,9 +646,9 @@ let rec raw_class_field build_type c tl i =
 		match c.cl_super with
 		| None ->
 			raise Not_found
-		| Some (c,tl) ->
-			let c2 , t , f = raw_class_field build_type c tl i in
-			c2, apply_params c.cl_params tl t , f
+		| Some (csup,tl2) ->
+			let c2 , t , f = raw_class_field build_type csup (List.map (apply_params c.cl_params tl) tl2) i in
+			c2, apply_params csup.cl_params tl2 t , f
 	with Not_found ->
 		match c.cl_kind with
 		| KTypeParameter tl ->
