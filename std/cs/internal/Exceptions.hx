@@ -30,6 +30,7 @@ import cs.system.Exception;
 }
 
 //should NOT be usable inside haxe code
+@:classCode('override public string Message{ get{ return this.toString(); } }')
 @:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception
 {
 	private var obj:Dynamic;
