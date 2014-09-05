@@ -28,6 +28,13 @@ let rec blockify_ast e =
 		{e with eexpr = TFunction {tf with tf_expr = mk_block (blockify_ast tf.tf_expr)}}
 	| TTry(e1,cl) ->
 		{e with eexpr = TTry(blockify_ast e1,List.map (fun (v,e) -> v,mk_block (blockify_ast e)) cl)}
+	| TSwitch(e1,cases,def) ->
+		let e1 = blockify_ast e1 in
+		let cases = List.map (fun (el,e) ->
+			el,mk_block (blockify_ast e)
+		) cases in
+		let def = match def with None -> None | Some e -> Some (blockify_ast e) in
+		{e with eexpr = TSwitch(e1,cases,def)}
 	| _ ->
 		Type.map_expr blockify_ast e
 
