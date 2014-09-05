@@ -1099,7 +1099,7 @@ let rec reduce_loop ctx e =
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
 	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
-		let fmode = (match c with None -> FAnon cf | Some c -> FInstance (c,cf)) in
+		let fmode = (match c with None -> FAnon cf | Some c -> FInstance (c,[],cf)) in (* TODO *)
 		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
 	| TSwitch (e1,[[{eexpr = TConst (TBool true)}],{eexpr = TConst (TBool true)}],Some ({eexpr = TConst (TBool false)})) ->
 		(* introduced by extractors in some cases *)
@@ -1244,7 +1244,7 @@ let inline_constructors ctx e =
 								match e.eexpr with
 								| TBlock el ->
 									List.iter get_assigns el
-								| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,cf)); etype = t }, e) when v == vv ->
+								| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,_,cf)); etype = t }, e) when v == vv ->
 									assigns := (cf.cf_name,e,t) :: !assigns
 								| _ ->
 									raise Exit
@@ -1269,7 +1269,7 @@ let inline_constructors ctx e =
 					end
 				| None -> ()
 			end
-		| TField({eexpr = TLocal v}, (FInstance(_, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
+		| TField({eexpr = TLocal v}, (FInstance(_, _, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
 			()
 		| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
 			let (_,_,fields,_,_) = PMap.find (-v.v_id) !vars in
@@ -1279,7 +1279,7 @@ let inline_constructors ctx e =
 			begin match e1.eexpr with
 				| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 && not (is_valid_field v (Int32.to_string i)) ->
 					cancel v
-				| TField({eexpr = TLocal v}, (FInstance(_, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) when v.v_id < 0 && not (is_valid_field v s) ->
+				| TField({eexpr = TLocal v}, (FInstance(_, _, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) when v.v_id < 0 && not (is_valid_field v s) ->
 					cancel v
 				| _ ->
 					find_locals e1
@@ -1323,7 +1323,7 @@ let inline_constructors ctx e =
 				in
 				List.iter (fun (v,e) -> append (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos)) (List.rev vars);
 				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
-			| TField ({ eexpr = TLocal v },FInstance (c,cf)) when v.v_id < 0 ->
+			| TField ({ eexpr = TLocal v },FInstance (c,_,cf)) when v.v_id < 0 ->
 				let (_, vars),el_init = PMap.find (-v.v_id) vfields in
 				(try
 					let v = PMap.find cf.cf_name vars in

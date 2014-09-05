@@ -340,7 +340,7 @@ let has_meta_key meta key =
 
 let get_field_access_meta field_access key =
 match field_access with
-   | FInstance(_,class_field)
+   | FInstance(_,_,class_field)
    | FStatic(_,class_field) -> get_meta_string class_field.cf_meta key
    | _ -> ""
 ;;
@@ -483,7 +483,7 @@ let is_addressOf_call func =
 let is_lvalue var =
    match (remove_parens var).eexpr with
    | TLocal _ -> true
-   | TField (_,FStatic(_,field) ) | TField (_,FInstance(_,field) ) -> is_var_field field
+   | TField (_,FStatic(_,field) ) | TField (_,FInstance(_,_,field) ) -> is_var_field field
    | _ -> false
 ;;
 
@@ -1823,7 +1823,7 @@ and gen_expression ctx retval expression =
                   check_array_element_cast field_object.etype "Fast" "";
 
                already_dynamic := (match field with
-                  | FInstance(_,var) when is_var_field var -> true
+                  | FInstance(_,_,var) when is_var_field var -> true
                   | _ -> false);
             end;
          end;
@@ -1936,7 +1936,7 @@ and gen_expression ctx retval expression =
       in
       let expr_type = type_string expression.etype in
       let rec is_fixed_override e = (not (is_scalar expr_type)) && match e.eexpr with
-      | TField(obj,FInstance(_,field) ) ->
+      | TField(obj,FInstance(_,_,field) ) ->
          let cpp_type = member_type ctx obj field.cf_name in
          (not (is_scalar cpp_type)) && (
             let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
@@ -1950,7 +1950,7 @@ and gen_expression ctx retval expression =
       | _ -> false
       in
       let check_extern_pointer_cast e = match (remove_parens e).eexpr with
-      | TField (_,FInstance(class_def,_) )
+      | TField (_,FInstance(class_def,_,_) )
       | TField (_,FStatic(class_def,_) )
          when class_def.cl_extern ->
          (try
@@ -4655,13 +4655,13 @@ class script_writer common_ctx ctx filename =
          | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
                   this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
-         | TField (obj,FInstance (_,field) ) when (is_this obj) && (is_real_function field) ->
+         | TField (obj,FInstance (_,_,field) ) when (is_this obj) && (is_real_function field) ->
                   this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
-         | TField (obj,FInstance (_,field) ) when is_super obj ->
+         | TField (obj,FInstance (_,_,field) ) when is_super obj ->
                   this#write ("CALLSUPER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
-         | TField (obj,FInstance (_,field) ) when is_real_function field ->
+         | TField (obj,FInstance (_,_,field) ) when is_real_function field ->
                   this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
                   this#gen_expression obj;
@@ -4710,8 +4710,8 @@ class script_writer common_ctx ctx filename =
       | FDynamic name -> this#write ("FNAME " ^ typeText ^ " " ^ (this#stringText name) ^ "\n");
             this#gen_expression obj;
       | FStatic (class_def,field) -> this#write ("FSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) );
-      | FInstance (_,field) when is_this obj -> this#write ("FTHISINST " ^ typeText ^ " " ^ (this#stringText field.cf_name) );
-      | FInstance (_,field) -> this#write ("FLINK " ^ typeText ^ " " ^ (this#stringText field.cf_name) ^ "\n");
+      | FInstance (_,_,field) when is_this obj -> this#write ("FTHISINST " ^ typeText ^ " " ^ (this#stringText field.cf_name) );
+      | FInstance (_,_,field) -> this#write ("FLINK " ^ typeText ^ " " ^ (this#stringText field.cf_name) ^ "\n");
             this#gen_expression obj;
 
       | FClosure (_,field) when is_this obj -> this#write ("FTHISNAME " ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")

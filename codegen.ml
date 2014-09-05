@@ -267,7 +267,7 @@ let generic_substitute_expr gctx e =
 	in
 	let rec build_expr e =
 		match e.eexpr with
-		| TField(e1, FInstance({cl_kind = KGeneric},cf)) ->
+		| TField(e1, FInstance({cl_kind = KGeneric},_,cf)) ->
 			build_expr {e with eexpr = TField(e1,quick_field_dynamic (generic_substitute_type gctx (e1.etype)) cf.cf_name)}
 		| _ -> map_expr_type build_expr (generic_substitute_type gctx) build_var e
 	in
@@ -909,7 +909,7 @@ let detect_usage com =
 					let p = {e.epos with pmin = e.epos.pmax - (String.length ef.ef_name)} in
 					usage := p :: !usage;
 					Type.iter expr e
-				| TField(_,(FAnon cf | FInstance (_,cf) | FStatic (_,cf) | FClosure (_,cf))) when Meta.has Meta.Usage cf.cf_meta ->
+				| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) when Meta.has Meta.Usage cf.cf_meta ->
 					let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
 					usage := p :: !usage;
 					Type.iter expr e
@@ -1691,7 +1691,7 @@ module DeprecationCheck = struct
 			| TField(e1,fa) ->
 				expr e1;
 				begin match fa with
-					| FStatic(c,cf) | FInstance(c,cf) ->
+					| FStatic(c,cf) | FInstance(c,_,cf) ->
 						check_class com c e.epos;
 						check_cf com cf e.epos
 					| FAnon cf ->

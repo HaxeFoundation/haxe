@@ -352,7 +352,7 @@ and expr dce e =
 			| FStatic(c,cf) ->
 				mark_class dce c;
 				mark_field dce c cf true;
-			| FInstance(c,cf) ->
+			| FInstance(c,_,cf) ->
 				mark_class dce c;
 				mark_field dce c cf false;
 			| _ ->

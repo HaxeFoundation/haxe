@@ -4526,7 +4526,7 @@ and encode_tfunc func =
 
 and encode_field_access fa =
 	let tag,pl = match fa with
-		| FInstance(c,cf) -> 0,[encode_clref c;encode_cfref cf]
+		| FInstance(c,_,cf) -> 0,[encode_clref c;encode_cfref cf] (* TODO: breaking change, kind of *)
 		| FStatic(c,cf) -> 1,[encode_clref c;encode_cfref cf]
 		| FAnon(cf) -> 2,[encode_cfref cf]
 		| FDynamic(s) -> 3,[enc_string s]
@@ -4676,7 +4676,9 @@ let decode_efield v =
 
 let decode_field_access v =
 	match decode_enum v with
-	| 0, [c;cf] -> FInstance(decode_ref c,decode_ref cf)
+	| 0, [c;cf] ->
+		let c = decode_ref c in
+		FInstance(c,List.map snd c.cl_params,decode_ref cf) (* TODO: breaking change? *)
 	| 1, [c;cf] -> FStatic(decode_ref c,decode_ref cf)
 	| 2, [cf] -> FAnon(decode_ref cf)
 	| 3, [s] -> FDynamic(dec_string s)

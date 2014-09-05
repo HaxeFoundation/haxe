@@ -1395,7 +1395,7 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ -> FNotFound
 
 let field_access_esp gen t field = match field with
-	| FStatic(cl,cf) | FInstance(cl,cf) when Meta.has Meta.Extern cf.cf_meta ->
+	| FStatic(cl,cf) | FInstance(cl,_,cf) when Meta.has Meta.Extern cf.cf_meta ->
 		let static = match field with
 			| FStatic _ -> true
 			| _ -> false
@@ -1410,7 +1410,7 @@ let field_access_esp gen t field = match field with
 let mk_field_access gen expr field pos =
 	match field_access gen expr.etype field with
 		| FClassField(c,p,dc,cf,false,at,_) ->
-				{ eexpr = TField(expr, FInstance(dc,cf)); etype = apply_params c.cl_params p at; epos = pos }
+				{ eexpr = TField(expr, FInstance(dc,p,cf)); etype = apply_params c.cl_params p at; epos = pos }
 		| FClassField(c,p,dc,cf,true,at,_) ->
 				{ eexpr = TField(expr, FStatic(dc,cf)); etype = at; epos = pos }
 		| FAnonField cf ->
@@ -2055,7 +2055,7 @@ struct
 							| Method(MethDynamic) ->
 								(match cf.cf_expr, cf.cf_params with
 									| Some e, [] ->
-										let var = { eexpr = TField({ eexpr = TConst(TThis); epos = cf.cf_pos; etype = TInst(cl, List.map snd cl.cl_params); }, FInstance(cl, cf)); etype = cf.cf_type; epos = cf.cf_pos } in
+										let var = { eexpr = TField({ eexpr = TConst(TThis); epos = cf.cf_pos; etype = TInst(cl, List.map snd cl.cl_params); }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf.cf_type; epos = cf.cf_pos } in
 										let ret = ({ eexpr = TBinop(Ast.OpAssign, var, e); etype = cf.cf_type; epos = cf.cf_pos; }) in
 										cf.cf_expr <- None;
 										let is_override = List.memq cf cl.cl_overrides in
@@ -2068,7 +2068,7 @@ struct
 									| Some e, _ ->
 										let params = List.map (fun _ -> t_dynamic) cf.cf_params in
 										let fn = apply_params cf.cf_params params in
-										let var = { eexpr = TField({ eexpr = TConst(TThis); epos = cf.cf_pos; etype = TInst(cl, List.map snd cl.cl_params); }, FInstance(cl, cf)); etype = cf.cf_type; epos = cf.cf_pos } in
+										let var = { eexpr = TField({ eexpr = TConst(TThis); epos = cf.cf_pos; etype = TInst(cl, List.map snd cl.cl_params); }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf.cf_type; epos = cf.cf_pos } in
 										let rec change_expr e =
 											Type.map_expr_type (change_expr) fn (fun v -> v.v_type <- fn v.v_type; v) e
 										in
@@ -3170,7 +3170,7 @@ struct
 								eexpr = TConst TThis;
 								etype = TInst(cls, List.map snd cls.cl_params);
 								epos = pos;
-							}, FInstance(cls, cf));
+							}, FInstance(cls, List.map snd cls.cl_params, cf));
 							etype = cf.cf_type;
 							epos = pos;
 						}, List.map (fun (v,_) -> mk_local v pos) tfunc.tf_args);
@@ -4271,7 +4271,7 @@ struct
 						if not (PMap.mem name cl.cl_fields) then begin
 							let reverse_params = List.map (apply_params cls.cl_params (List.map snd cparams)) reverse_params in
 							let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
-							let field = { eexpr = TField(this, FInstance(cl,cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
+							let field = { eexpr = TField(this, FInstance(cl,List.map snd cl.cl_params, cast_cfield)); etype = apply_params cast_cfield.cf_params reverse_params cast_cfield.cf_type; epos = p } in
 							let call =
 							{
 								eexpr = TCall(field, []);
@@ -4380,10 +4380,10 @@ struct
 				(* this will take all fields that were *)
 				let fields_to_cases fields =
 					List.map (fun (cf, t_cl, t_cf) ->
-						let this_field = { eexpr = TField(this, FInstance(cl, cf)); etype = t_cl; epos = pos } in
+						let this_field = { eexpr = TField(this, FInstance(cl, List.map snd cl.cl_params, cf)); etype = t_cl; epos = pos } in
 						let expr =
 						{
-							eexpr = TBinop(OpAssign, { eexpr = TField(local_new_me, FInstance(cl, cf) ); etype = t_cf; epos = pos },
+							eexpr = TBinop(OpAssign, { eexpr = TField(local_new_me, FInstance(cl, List.map snd cl.cl_params, cf) ); etype = t_cf; epos = pos },
 								try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with | Not_found -> (* if not found tparam cast, it shouldn't be a valid hxgeneric *) assert false
 							);
 							etype = t_cf;
@@ -4476,7 +4476,7 @@ struct
 				let params = List.map snd cparams in
 
 				let me = alloc_var "me" me_type in
-				let field = { eexpr = TField(mk_local me p, FInstance(iface,cf)); etype = apply_params cf.cf_params params cf.cf_type; epos = p } in
+				let field = { eexpr = TField(mk_local me p, FInstance(iface, List.map snd iface.cl_params, cf)); etype = apply_params cf.cf_params params cf.cf_type; epos = p } in
 				let call =
 				{
 					eexpr = TCall(field, []);
@@ -6065,7 +6065,7 @@ struct
 							cf,declared_t,false
 					| true ->
 					let (cf, actual_t, error), is_static = match f with
-						| FInstance(c,cf) | FClosure(Some c,cf) ->
+						| FInstance(c,_,cf) | FClosure(Some c,cf) ->
 							(* get from overloads *)
 							(* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
 							(* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Typeload.get_overloads cl (field_name f)) in *)
@@ -6100,7 +6100,7 @@ struct
 				in
 				(* set the real (selected) class field *)
 				let f = match f with
-					| FInstance(c,_) -> FInstance(c,cf)
+					| FInstance(c,tl,_) -> FInstance(c,tl,cf)
 					| FClosure(c,_) -> FClosure(c,cf)
 					| FStatic(c,_) -> FStatic(c,cf)
 					| f -> f
@@ -6717,7 +6717,7 @@ struct
 	let call_super ctx fn_args ret_t cf cl this_t pos =
 		{
 			eexpr = TCall({
-				eexpr = TField({ eexpr = TConst(TSuper); etype = this_t; epos = pos }, FInstance(cl,cf));
+				eexpr = TField({ eexpr = TConst(TSuper); etype = this_t; epos = pos }, FInstance(cl,List.map snd cl.cl_params,cf));
 				etype = TFun(fun_args fn_args, ret_t);
 				epos = pos;
 			}, List.map (fun (v,_) -> mk_local v pos) fn_args);
@@ -7477,7 +7477,7 @@ struct
 						fun () ->
 							mk_return {
 								eexpr = TCall(
-									{ eexpr = TField({ eexpr = TConst TSuper; etype = t; epos = pos }, FInstance(cl, cfield)); etype = !fun_type; epos = pos },
+									{ eexpr = TField({ eexpr = TConst TSuper; etype = t; epos = pos }, FInstance(cl, List.map snd cl.cl_params, cfield)); etype = !fun_type; epos = pos },
 									(List.map (fun (v,_) -> mk_local v pos) args) );
 								etype = if is_float then basic.tfloat else t_dynamic;
 								epos = pos;
@@ -7497,7 +7497,7 @@ struct
 				in
 
 				let do_field cf cf_type is_static =
-					let get_field ethis = { eexpr = TField (ethis, if is_static then FStatic (cl, cf) else FInstance(cl, cf)); etype = cf_type; epos = pos } in
+					let get_field ethis = { eexpr = TField (ethis, if is_static then FStatic (cl, cf) else FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos } in
 					let this = if is_static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
 					let value_local = if is_float then match follow cf_type with
 						| TInst({ cl_kind = KTypeParameter _ }, _) ->
@@ -7585,13 +7585,13 @@ struct
 								eexpr = TIf(
 									handle_prop_local,
 									mk_return (mk_this_call_raw ("get_" ^ cf.cf_name) (TFun(["value",false,cf.cf_type], cf.cf_type)) [	]),
-									Some { eexpr = TField (ethis, FInstance(cl, cf)); etype = cf_type; epos = pos }
+									Some { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos }
 								);
 								etype = cf_type;
 								epos = pos;
 							}
 						| Var _
-						| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,cf)); etype = cf_type; epos = pos }
+						| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,List.map snd cl.cl_params,cf)); etype = cf_type; epos = pos }
 						| _ ->
 								{ eexpr = TField (this, FClosure(Some cl, cf)); etype = cf_type; epos = pos }
 				in
@@ -7834,7 +7834,7 @@ struct
 							(if is_some if_not_inst then get if_not_inst else []) @
 							[{
 								eexpr = TCall(
-									{ eexpr = TField({ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = pos }, FInstance(cl, cf)); etype = t; epos = pos },
+									{ eexpr = TField({ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = pos }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = t; epos = pos },
 									base_arr :: (if ctx.rcf_handle_statics then [is_inst] else [])
 								);
 								etype = basic.tvoid;
@@ -8523,7 +8523,7 @@ struct
 					let expr = {
 						eexpr = TCall(
 							{
-								eexpr = (if static then TField(mk_classtype_access cl pos, FStatic(cl, cf)) else TField(this, FInstance(cl, cf)));
+								eexpr = (if static then TField(mk_classtype_access cl pos, FStatic(cl, cf)) else TField(this, FInstance(cl, List.map snd cl.cl_params, cf)));
 								etype = cf.cf_type;
 								epos = cf.cf_pos;
 							},
@@ -10640,7 +10640,7 @@ struct
 									let vars = List.map (fun (n,_,t) -> alloc_var n t) a2 in
 
 									let args = List.map2 (fun v (_,_,t) -> mk_cast t (mk_local v f2.cf_pos)) vars a1 in
-									let field = { eexpr = TField(this, FInstance(c,f2)); etype = TFun(a1,r1); epos = p } in
+									let field = { eexpr = TField(this, FInstance(c,List.map snd c.cl_params,f2)); etype = TFun(a1,r1); epos = p } in
 									let call = { eexpr = TCall(field, args); etype = r1; epos = p } in
 									(* let call = gen.gparam_func_call call field (List.map snd f.cf_params) args in *)
 									let is_void = is_void r2 in
@@ -10705,7 +10705,7 @@ struct
 												{
 													eexpr = TField(
 														{ eexpr = TConst TThis; etype = TInst(c, List.map snd c.cl_params); epos = p },
-														FInstance(c,f));
+														FInstance(c,List.map snd c.cl_params,f));
 													etype = f.cf_type;
 													epos = p
 												},

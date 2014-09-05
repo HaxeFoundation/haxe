@@ -410,7 +410,7 @@ module Transformer = struct
 			) length_map [] in
 			let c_string = match !t_string with TInst(c,_) -> c | _ -> assert false in
 			let cf_length = PMap.find "length" c_string.cl_fields in
-			let ef = mk (TField(e1,FInstance(c_string,cf_length))) !t_int e1.epos in
+			let ef = mk (TField(e1,FInstance(c_string,[],cf_length))) !t_int e1.epos in
 			let res_var = alloc_var (ae.a_next_id()) ef.etype in
 			let res_local = {ef with eexpr = TLocal res_var} in
 			let var_expr = {ef with eexpr = TVar(res_var,Some ef)} in
@@ -1333,7 +1333,7 @@ module Printer = struct
 		in
 		let name = field_name fa in
 		let is_extern = (match fa with
-		| FInstance(c,_) -> c.cl_extern
+		| FInstance(c,_,_) -> c.cl_extern
 		| FStatic(c,_) -> c.cl_extern
 		| _ -> false)
 		in
@@ -1347,9 +1347,9 @@ module Printer = struct
 		in
 		match fa with
 			(* we need to get rid of these cases in the transformer, how is this handled in js *)
-			| FInstance(c,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
+			| FInstance(c,_,{cf_name = "length" | "get_length"}) when (is_type "" "list")(TClassDecl c) ->
 				Printf.sprintf "python_lib_Builtin.len(%s)" (print_expr pctx e1)
-			| FInstance(c,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->
+			| FInstance(c,_,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "python_lib_Builtin.len(%s)" (print_expr pctx e1)
 			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "String")(TClassDecl c) ->
 				Printf.sprintf "HxString.fromCharCode"
@@ -1777,7 +1777,7 @@ module Generator = struct
 			| _,Some ({eexpr = TFunction f} as ef) ->
 				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_params)) cf.cf_pos in
 				let member_data = List.map (fun cf ->
-					let ef = mk (TField(ethis,FInstance(c, cf))) cf.cf_type cf.cf_pos in
+					let ef = mk (TField(ethis,FInstance(c,[],cf))) cf.cf_type cf.cf_pos in (* TODO *)
 					mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos
 				) member_inits in
 				let e = {f.tf_expr with eexpr = TBlock (member_data @ [f.tf_expr])} in

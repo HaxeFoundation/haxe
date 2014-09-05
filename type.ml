@@ -132,7 +132,7 @@ and texpr_expr =
 	| TEnumParameter of texpr * tenum_field * int
 
 and tfield_access =
-	| FInstance of tclass * tclass_field
+	| FInstance of tclass * tparams * tclass_field
 	| FStatic of tclass * tclass_field
 	| FAnon of tclass_field
 	| FDynamic of string
@@ -616,12 +616,12 @@ let is_closed a = !(a.a_status) <> Opened
 
 let field_name f =
 	match f with
-	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
+	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
 	| FEnum (_,f) -> f.ef_name
 	| FDynamic n -> n
 
 let extract_field = function
-	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
+	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
 	| _ -> None
 
 let is_extern_field f =
@@ -697,7 +697,7 @@ let quick_field t n =
 	match follow t with
 	| TInst (c,tl) ->
 		let c, _, f = raw_class_field (fun f -> f.cf_type) c tl n in
-		(match c with None -> FAnon f | Some (c,tl) -> FInstance (c,f))
+		(match c with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f))
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics e ->
@@ -865,7 +865,7 @@ let rec s_expr s_type e =
 	| TField (e,f) ->
 		let fstr = (match f with
 			| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
-			| FInstance (c,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ " : " ^ s_type f.cf_type ^ ")"
+			| FInstance (c,_,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ " : " ^ s_type f.cf_type ^ ")"
 			| FClosure (c,f) -> "closure(" ^ (match c with None -> f.cf_name | Some c -> s_type_path c.cl_path ^ "." ^ f.cf_name)  ^ ")"
 			| FAnon f -> "anon(" ^ f.cf_name ^ ")"
 			| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
@@ -1827,7 +1827,7 @@ let map_expr_type f ft fv e =
 		let v = try
 			let n = match v with
 				| FClosure _ -> raise Not_found
-				| FAnon f | FInstance (_,f) | FStatic (_,f) -> f.cf_name
+				| FAnon f | FInstance (_,_,f) | FStatic (_,f) -> f.cf_name
 				| FEnum (_,f) -> f.ef_name
 				| FDynamic n -> n
 			in

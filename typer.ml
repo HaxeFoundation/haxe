@@ -956,7 +956,7 @@ let rec acc_get ctx g p =
 		| _ -> assert false)
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
-		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,f) -> FClosure (Some c,f) | _ -> assert false) in
+		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,_,f) -> FClosure (Some c,f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
 		| None ->
@@ -1080,8 +1080,8 @@ let field_access ctx mode f fmode t e p =
 			| MethMacro, MCall -> AKMacro (e,f)
 			| _ , MGet ->
 				let cmode = (match fmode with
-					| FInstance(_, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
-					| FInstance (c,cf) -> FClosure (Some c,cf)
+					| FInstance(_, _, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
+					| FInstance (c,_,cf) -> FClosure (Some c,cf)
 					| FStatic _ | FEnum _ -> fmode
 					| FAnon f -> FClosure (None, f)
 					| FDynamic _ | FClosure _ -> assert false
@@ -1259,7 +1259,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 				let cf = { (mk_field v.v_name v.v_type e.epos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
 				c.cl_extern <- true;
 				c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
-				AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,cf), t)
+				AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
 			| _ ->
 				AKExpr (mk (TLocal v) t p))
 		| _ ->
@@ -1268,7 +1268,7 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
 		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
-		field_access ctx mode f (match c with None -> FAnon f | Some (c,tl) -> FInstance (c,f)) t (get_this ctx p) p
+		field_access ctx mode f (match c with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) t (get_this ctx p) p
 	with Not_found -> try
 		(* lookup using on 'this' *)
 		if ctx.curfun = FunStatic then raise Not_found;
@@ -1372,7 +1372,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					with Unify_error l ->
 						display_error ctx "Field resolve has an invalid type" f.cf_pos;
 						display_error ctx (error_msg (Unify [Cannot_unify(tfield,texpect)])) f.cf_pos);
-					AKExpr (make_call ctx (mk (TField (e,FInstance (c,f))) tfield p) [Codegen.type_constant ctx.com (String i) p] t p)
+					AKExpr (make_call ctx (mk (TField (e,FInstance (c,params,f))) tfield p) [Codegen.type_constant ctx.com (String i) p] t p)
 				end else
 					AKExpr (mk (TField (e,FDynamic i)) t p)
 			| None ->
@@ -1399,7 +1399,7 @@ and type_field ?(resume=false) ctx e i p mode =
 				| _ ->
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
-			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,f)) (apply_params c.cl_params params t) e p
+			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
@@ -1738,7 +1738,7 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
-		let e = acc_get ctx (field_access ctx MCall cf2 (if stat then FStatic (c,cf2) else FInstance (c,cf2)) cf2.cf_type e p) p in
+		let e = acc_get ctx (field_access ctx MCall cf2 (if stat then FStatic (c,cf2) else FInstance (c,[],cf2)) cf2.cf_type e p) p in (* TODO *)
 		(el,ret,e)
 	with Codegen.Generic_Exception (msg,p) ->
 		error msg p)
@@ -1775,7 +1775,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
 			| TLocal i1 , TLocal i2 when i1 == i2 -> error "Assigning a value to itself" p
-			| TField ({ eexpr = TConst TThis },FInstance (_,f1)) , TField ({ eexpr = TConst TThis },FInstance (_,f2)) when f1 == f2 ->
+			| TField ({ eexpr = TConst TThis },FInstance (_,_,f1)) , TField ({ eexpr = TConst TThis },FInstance (_,_,f2)) when f1 == f2 ->
 				error "Assigning a value to itself" p
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
@@ -1923,7 +1923,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				let std = type_type ctx ([],"Std") e.epos in
 				let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
 				ignore(follow acc.etype);
-				let acc = (match acc.eexpr with TField (e,FClosure (Some c,f)) -> { acc with eexpr = TField (e,FInstance (c,f)) } | _ -> acc) in
+				let acc = (match acc.eexpr with TField (e,FClosure (Some c,f)) -> { acc with eexpr = TField (e,FInstance (c,[],f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
 			| KAbstract (a,tl) ->
 				loop (Abstract.get_underlying_type a tl)
@@ -2923,7 +2923,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let el = e1 :: el in
 		let v = gen_local ctx tmap in
 		let ev = mk (TLocal v) tmap p in
-		let ef = mk (TField(ev,FInstance(c,cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
+		let ef = mk (TField(ev,FInstance(c,[],cf))) (tfun [tkey;tval] ctx.t.tvoid) p in (* TODO *)
 		let el = ev :: List.fold_left (fun acc e -> match fst e with
 			| EBinop(OpArrow,e1,e2) ->
 				let e1,e2 = type_arrow e1 e2 in
@@ -3019,7 +3019,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					if fhasnext.cf_kind <> Method MethInline then raise Exit;
 					let tmp = gen_local ctx e1.etype in
 					let eit = mk (TLocal tmp) e1.etype p in
-					let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
+					let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, pl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
 					let enext = mk (TVar (i,Some (make_call ctx (mk (TField (eit,FDynamic "next")) (TFun ([],pt)) p) [] pt p))) ctx.t.tvoid p in
 					let eblock = (match e2.eexpr with
 						| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
@@ -3485,7 +3485,7 @@ and handle_display ctx e_ast iscall p =
 			if ctx.com.display = DMPosition then
 				raise (DisplayPosition [ef.ef_pos]);
 			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
-		| TField(_,(FAnon cf | FInstance (_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
+		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
 			handle_field cf;
 		| TLocal v ->
 			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
@@ -3874,7 +3874,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
 			let fopts = (match acc with
-				| AKExpr {eexpr = TField(e, (FStatic (_,f) | FInstance(_,f) | FAnon(f)))} ->
+				| AKExpr {eexpr = TField(e, (FStatic (_,f) | FInstance(_,_,f) | FAnon(f)))} ->
 					fopts e.etype f
 				| _ ->
 					None
