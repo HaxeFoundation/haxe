@@ -93,7 +93,7 @@ import cs.StdTypes.UInt64 in NativeUInt64;
 	}
 
 	public static inline function ushr( a : Int64, b : Int ) : Int64 {
-		return ( cast(a, NativeUInt64) >> b).ofUNative();
+		return cast(cast(a, NativeUInt64) >> b, NativeInt64).ofNative();
 	}
 
 	public static inline function and( a : Int64, b : Int64 ) : Int64
