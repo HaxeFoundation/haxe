@@ -636,6 +636,7 @@ let field_type f =
 	| l -> monomorphs l f.cf_type
 
 let rec raw_class_field build_type c tl i =
+	let apply = apply_params c.cl_params tl in
 	try
 		let f = PMap.find i c.cl_fields in
 		Some (c,tl), build_type f , f
@@ -646,9 +647,9 @@ let rec raw_class_field build_type c tl i =
 		match c.cl_super with
 		| None ->
 			raise Not_found
-		| Some (csup,tl2) ->
-			let c2 , t , f = raw_class_field build_type csup (List.map (apply_params c.cl_params tl) tl2) i in
-			c2, apply_params csup.cl_params tl2 t , f
+		| Some (c,tl) ->
+			let c2 , t , f = raw_class_field build_type c (List.map apply tl) i in
+			c2, apply_params c.cl_params tl t , f
 	with Not_found ->
 		match c.cl_kind with
 		| KTypeParameter tl ->
@@ -663,10 +664,10 @@ let rec raw_class_field build_type c tl i =
 							None, build_type f, f
 						with
 							Not_found -> loop ctl)
-					| TInst (cp,tl2) ->
+					| TInst (c,tl) ->
 						(try
-							let c2, t , f = raw_class_field build_type cp (List.map (apply_params c.cl_params tl) tl2) i in
-							c2, apply_params cp.cl_params tl2 t, f
+							let c2, t , f = raw_class_field build_type c (List.map apply tl) i in
+							c2, apply_params c.cl_params tl t, f
 						with
 							Not_found -> loop ctl)
 					| _ ->
@@ -682,10 +683,10 @@ let rec raw_class_field build_type c tl i =
 			let rec loop = function
 				| [] ->
 					raise Not_found
-				| (ci,tl2) :: l ->
+				| (c,tl) :: l ->
 					try
-						let c2, t , f = raw_class_field build_type ci (List.map (apply_params c.cl_params tl) tl2) i in
-						c2, apply_params ci.cl_params tl2 t, f
+						let c2, t , f = raw_class_field build_type c (List.map apply tl) i in
+						c2, apply_params c.cl_params tl t, f
 					with
 						Not_found -> loop l
 			in

@@ -721,11 +721,11 @@ let unify_field_call ctx fa el args ret p inline =
 	let expand_overloads map cf =
 		(TFun(args,ret),cf) :: (List.map (map_cf map) cf.cf_overloads)
 	in
-	let candidates,is_overload,mk_fa = match fa with
+	let candidates,co,cf,mk_fa = match fa with
 		| FStatic(c,cf) ->
-			expand_overloads (fun t -> t) cf,Meta.has Meta.Overload cf.cf_meta,(fun cf -> FStatic(c,cf))
+			expand_overloads (fun t -> t) cf,Some c,cf,(fun cf -> FStatic(c,cf))
 		| FAnon cf ->
-			expand_overloads (fun t -> t) cf,Meta.has Meta.Overload cf.cf_meta,(fun cf -> FAnon cf)
+			expand_overloads (fun t -> t) cf,None,cf,(fun cf -> FAnon cf)
 		| FInstance(c,tl,cf) ->
 			let map = apply_params c.cl_params tl in
 			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
@@ -733,21 +733,22 @@ let unify_field_call ctx fa el args ret p inline =
 			else
 				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Typeload.get_overloads c cf.cf_name)
 			in
-			(TFun(args,ret),cf) :: cfl,Meta.has Meta.Overload cf.cf_meta,(fun cf -> FInstance(c,tl,cf))
+			(TFun(args,ret),cf) :: cfl,None,cf,(fun cf -> FInstance(c,tl,cf))
 		| _ ->
 			error "Invalid field call" p
 	in
-	let is_forced_inline = false in
+	let is_forced_inline = is_forced_inline co cf in
+	let is_overload = Meta.has Meta.Overload cf.cf_meta in
 	let candidates,failures = List.fold_left (fun (candidates,failures) (t,cf) ->
 		begin try
 			begin match follow t with
 				| TFun(args,ret) ->
-					let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
+				let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 					let mk_call ethis =
 						let ef = mk (TField(ethis,fa)) tf p in
 						make_call ctx ef (List.map fst el) ret p
 					in
-					(el,tf,mk_call) :: candidates,failures
+					(el,tf,mk_call)	:: candidates,failures
 				| _ ->
 					assert false
 			end
@@ -755,19 +756,18 @@ let unify_field_call ctx fa el args ret p inline =
 			candidates,err :: failures
 		end
 	) ([],[]) candidates in
-	let candidates = if is_overload && ctx.com.config.pf_overload then
-		Codegen.Overloads.reduce_compatible candidates
-	else
-		List.rev candidates
+	let fail () = match List.rev failures with
+		| err :: _ -> raise err
+		| _ -> assert false
 	in
-	match candidates with
-		| [] ->
-			begin match List.rev failures with
-				| err :: _ -> raise err
-				| _ -> assert false
-			end
-		| _ :: _ :: _ when is_overload && ctx.com.config.pf_overload -> error "Ambiguous overload" p
+	if is_overload && ctx.com.config.pf_overload then begin match Codegen.Overloads.reduce_compatible candidates with
+		| [] -> fail()
+		| [el,tf,mk_call] -> List.map fst el,tf,mk_call
+		| _ -> error "Ambiguous overload" p
+	end else begin match List.rev candidates with
+		| [] -> fail()
 		| (el,tf,mk_call) :: _ -> List.map fst el,tf,mk_call
+	end
 
 let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
@@ -1716,7 +1716,7 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
-		let e = acc_get ctx (field_access ctx MCall cf2 (if stat then FStatic (c,cf2) else FInstance (c,[],cf2)) cf2.cf_type e p) p in (* TODO *)
+		let e = acc_get ctx (field_access ctx MCall cf2 (if stat then FStatic (c,cf2) else FInstance (c,tl,cf2)) cf2.cf_type e p) p in
 		make_call ctx e el ret p
 	with Codegen.Generic_Exception (msg,p) ->
 		error msg p)
@@ -2901,7 +2901,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let el = e1 :: el in
 		let v = gen_local ctx tmap in
 		let ev = mk (TLocal v) tmap p in
-		let ef = mk (TField(ev,FInstance(c,[],cf))) (tfun [tkey;tval] ctx.t.tvoid) p in (* TODO *)
+		let ef = mk (TField(ev,FInstance(c,[tkey;tval],cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
 		let el = ev :: List.fold_left (fun acc e -> match fst e with
 			| EBinop(OpArrow,e1,e2) ->
 				let e1,e2 = type_arrow e1 e2 in
