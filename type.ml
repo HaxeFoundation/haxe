@@ -663,10 +663,10 @@ let rec raw_class_field build_type c tl i =
 							None, build_type f, f
 						with
 							Not_found -> loop ctl)
-					| TInst (c,tl) ->
+					| TInst (cp,tl2) ->
 						(try
-							let c2, t , f = raw_class_field build_type c tl i in
-							c2, apply_params c.cl_params tl t, f
+							let c2, t , f = raw_class_field build_type cp (List.map (apply_params c.cl_params tl) tl2) i in
+							c2, apply_params cp.cl_params tl2 t, f
 						with
 							Not_found -> loop ctl)
 					| _ ->
@@ -682,10 +682,10 @@ let rec raw_class_field build_type c tl i =
 			let rec loop = function
 				| [] ->
 					raise Not_found
-				| (c,tl) :: l ->
+				| (ci,tl2) :: l ->
 					try
-						let c2, t , f = raw_class_field build_type c tl i in
-						c2, apply_params c.cl_params tl t, f
+						let c2, t , f = raw_class_field build_type ci (List.map (apply_params c.cl_params tl) tl2) i in
+						c2, apply_params ci.cl_params tl2 t, f
 					with
 						Not_found -> loop l
 			in
