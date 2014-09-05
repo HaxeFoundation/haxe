@@ -54,7 +54,7 @@ import cs.system.Exception;
 
 	public function toString():String
 	{
-		return "Haxe Exception: " + obj;
+		return Std.string(obj);
 	}
 
 	public static function wrap(obj:Dynamic):Exception
