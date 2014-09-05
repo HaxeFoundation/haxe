@@ -239,8 +239,8 @@ let field_type ctx c pl f p =
 		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_params pl f monos p;
 		apply_params l monos f.cf_type
 
-let class_field ctx c pl name p =
-	raw_class_field (fun f -> field_type ctx c pl f p) c name
+let class_field ctx c tl name p =
+	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
 
 (* checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
@@ -869,7 +869,7 @@ let make_call ctx e params t p =
 	try
 		let ethis, fname = (match e.eexpr with TField (ethis,f) -> ethis, field_name f | _ -> raise Exit) in
 		let f, cl = (match follow ethis.etype with
-			| TInst (c,params) -> (try let _,_,f = Type.class_field c fname in f with Not_found -> raise Exit), Some c
+			| TInst (c,params) -> (try let _,_,f = Type.class_field c params fname in f with Not_found -> raise Exit), Some c
 			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit), (match !(a.a_status) with Statics c -> Some c | _ -> None)
 			| _ -> raise Exit
 		) in
@@ -1267,8 +1267,8 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.curfun = FunStatic then raise Not_found;
-		let c , t , f = class_field ctx ctx.curclass [] i p in
-		field_access ctx mode f (match c with None -> FAnon f | Some c -> FInstance (c,f)) t (get_this ctx p) p
+		let c , t , f = class_field ctx ctx.curclass (List.map snd ctx.curclass.cl_params) i p in
+		field_access ctx mode f (match c with None -> FAnon f | Some (c,tl) -> FInstance (c,f)) t (get_this ctx p) p
 	with Not_found -> try
 		(* lookup using on 'this' *)
 		if ctx.curfun = FunStatic then raise Not_found;
@@ -1392,14 +1392,14 @@ and type_field ?(resume=false) ctx e i p mode =
 				| MCall, _ ->
 					()
 				| MGet,Var _
-				| MSet,Var _ when (match c2 with Some { cl_extern = true; cl_path = ("flash" :: _,_) } -> true | _ -> false) ->
+				| MSet,Var _ when (match c2 with Some ({ cl_extern = true; cl_path = ("flash" :: _,_) }, _) -> true | _ -> false) ->
 					()
 				| _, Method _ ->
 					display_error ctx "Cannot create closure on super method" p
 				| _ ->
 					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
 			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
-			field_access ctx mode f (match c2 with None -> FAnon f | Some c -> FInstance (c,f)) (apply_params c.cl_params params t) e p
+			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
@@ -1629,8 +1629,8 @@ let unify_int ctx e k =
 		match follow t with
 		| TAnon a ->
 			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> false)
-		| TInst (c,pl) ->
-			(try is_dynamic (apply_params c.cl_params pl ((let _,t,_ = Type.class_field c f in t))) with Not_found -> false)
+		| TInst (c,tl) ->
+			(try is_dynamic (apply_params c.cl_params tl ((let _,t,_ = Type.class_field c tl f in t))) with Not_found -> false)
 		| _ ->
 			true
 	in

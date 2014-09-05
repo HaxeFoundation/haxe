@@ -635,19 +635,19 @@ let field_type f =
 	| [] -> f.cf_type
 	| l -> monomorphs l f.cf_type
 
-let rec raw_class_field build_type c i =
+let rec raw_class_field build_type c tl i =
 	try
 		let f = PMap.find i c.cl_fields in
-		Some c, build_type f , f
+		Some (c,tl), build_type f , f
 	with Not_found -> try (match c.cl_constructor with
-		| Some ctor when i = "new" -> Some c, build_type ctor,ctor
+		| Some ctor when i = "new" -> Some (c,tl), build_type ctor,ctor
 		| _ -> raise Not_found)
 	with Not_found -> try
 		match c.cl_super with
 		| None ->
 			raise Not_found
 		| Some (c,tl) ->
-			let c2 , t , f = raw_class_field build_type c i in
+			let c2 , t , f = raw_class_field build_type c tl i in
 			c2, apply_params c.cl_params tl t , f
 	with Not_found ->
 		match c.cl_kind with
@@ -663,10 +663,10 @@ let rec raw_class_field build_type c i =
 							None, build_type f, f
 						with
 							Not_found -> loop ctl)
-					| TInst (c,pl) ->
+					| TInst (c,tl) ->
 						(try
-							let c2, t , f = raw_class_field build_type c i in
-							c2, apply_params c.cl_params pl t, f
+							let c2, t , f = raw_class_field build_type c tl i in
+							c2, apply_params c.cl_params tl t, f
 						with
 							Not_found -> loop ctl)
 					| _ ->
@@ -684,7 +684,7 @@ let rec raw_class_field build_type c i =
 					raise Not_found
 				| (c,tl) :: l ->
 					try
-						let c2, t , f = raw_class_field build_type c i in
+						let c2, t , f = raw_class_field build_type c tl i in
 						c2, apply_params c.cl_params tl t, f
 					with
 						Not_found -> loop l
@@ -695,9 +695,9 @@ let class_field = raw_class_field field_type
 
 let quick_field t n =
 	match follow t with
-	| TInst (c,_) ->
-		let c, _, f = raw_class_field (fun f -> f.cf_type) c n in
-		(match c with None -> FAnon f | Some c -> FInstance (c,f))
+	| TInst (c,tl) ->
+		let c, _, f = raw_class_field (fun f -> f.cf_type) c tl n in
+		(match c with None -> FAnon f | Some (c,tl) -> FInstance (c,f))
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics e ->
@@ -1340,7 +1340,7 @@ let rec unify a b =
 			| _ -> ());
 		(try
 			PMap.iter (fun n f2 ->
-				let _, ft, f1 = (try class_field c n with Not_found -> error [has_no_field a n]) in
+				let _, ft, f1 = (try class_field c tl n with Not_found -> error [has_no_field a n]) in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				(try
