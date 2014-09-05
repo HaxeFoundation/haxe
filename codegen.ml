@@ -267,7 +267,7 @@ let generic_substitute_expr gctx e =
 	in
 	let rec build_expr e =
 		match e.eexpr with
-		| TField(e1, FInstance({cl_kind = KGeneric},cf)) ->
+		| TField(e1, FInstance({cl_kind = KGeneric},_,cf)) ->
 			build_expr {e with eexpr = TField(e1,quick_field_dynamic (generic_substitute_type gctx (e1.etype)) cf.cf_name)}
 		| _ -> map_expr_type build_expr (generic_substitute_type gctx) build_var e
 	in
@@ -909,7 +909,7 @@ let detect_usage com =
 					let p = {e.epos with pmin = e.epos.pmax - (String.length ef.ef_name)} in
 					usage := p :: !usage;
 					Type.iter expr e
-				| TField(_,(FAnon cf | FInstance (_,cf) | FStatic (_,cf) | FClosure (_,cf))) when Meta.has Meta.Usage cf.cf_meta ->
+				| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) when Meta.has Meta.Usage cf.cf_meta ->
 					let p = {e.epos with pmin = e.epos.pmax - (String.length cf.cf_name)} in
 					usage := p :: !usage;
 					Type.iter expr e
@@ -1503,15 +1503,15 @@ struct
 
 	let rec rm_duplicates acc ret = match ret with
 		| [] -> acc
-		| ( el, t ) :: ret when List.exists (fun (_,t2) -> type_iseq t t2) acc ->
+		| ( el, t, _ ) :: ret when List.exists (fun (_,t2,_) -> type_iseq t t2) acc ->
 			rm_duplicates acc ret
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
 
-	let s_options rated =
+(* 	let s_options rated =
 		String.concat ",\n" (List.map (fun ((_,t),rate) ->
 			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
-		) rated)
+		) rated) *)
 
 	let count_optionals elist =
 		List.fold_left (fun acc (_,is_optional) -> if is_optional then acc + 1 else acc) 0 elist
@@ -1519,7 +1519,7 @@ struct
 	let rec fewer_optionals acc compatible = match acc, compatible with
 		| _, [] -> acc
 		| [], c :: comp -> fewer_optionals [c] comp
-		| (elist_acc, _) :: _, ((elist, _) as cur) :: comp ->
+		| (elist_acc, _, _) :: _, ((elist, _, _) as cur) :: comp ->
 			let acc_opt = count_optionals elist_acc in
 			let comp_opt = count_optionals elist in
 			if acc_opt = comp_opt then
@@ -1530,7 +1530,8 @@ struct
 				fewer_optionals [cur] comp
 
 	let reduce_compatible compatible = match fewer_optionals [] (rm_duplicates [] compatible) with
-		| [] -> [] | [v] -> [v]
+		| [] -> []
+		| [v] -> [v]
 		| compatible ->
 			(* convert compatible into ( rate * compatible_type ) list *)
 			let rec mk_rate acc elist args = match elist, args with
@@ -1543,8 +1544,8 @@ struct
 
 			let rated = ref [] in
 			List.iter (function
-				| (elist,TFun(args,ret)) -> (try
-					rated := ( (elist,TFun(args,ret)), mk_rate [] elist args ) :: !rated
+				| (elist,TFun(args,ret),d) -> (try
+					rated := ( (elist,TFun(args,ret),d), mk_rate [] elist args ) :: !rated
 					with | Not_found -> ())
 				| _ -> assert false
 			) compatible;
@@ -1561,9 +1562,9 @@ struct
 						loop ( (rover,rargs) :: best ) rem
 			in
 
-			List.map fst (loop [] !rated)
+			let r = loop [] !rated in
+			List.map fst r
 end;;
-
 
 module UnificationCallback = struct
 	let tf_stack = ref []
@@ -1691,7 +1692,7 @@ module DeprecationCheck = struct
 			| TField(e1,fa) ->
 				expr e1;
 				begin match fa with
-					| FStatic(c,cf) | FInstance(c,cf) ->
+					| FStatic(c,cf) | FInstance(c,_,cf) ->
 						check_class com c e.epos;
 						check_cf com cf e.epos
 					| FAnon cf ->

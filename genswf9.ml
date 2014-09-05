@@ -2059,7 +2059,7 @@ let check_constructor ctx c f =
 		Type.iter loop e;
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
-		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,cf)) },_) when c != cc && (match classify ctx cf.cf_type with KFloat | KDynamic -> true | _ -> false) ->
+		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,_,cf)) },_) when c != cc && (match classify ctx cf.cf_type with KFloat | KDynamic -> true | _ -> false) ->
 			error "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos
 		| _ -> ()
 	in

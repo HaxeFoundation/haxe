@@ -132,7 +132,7 @@ and texpr_expr =
 	| TEnumParameter of texpr * tenum_field * int
 
 and tfield_access =
-	| FInstance of tclass * tclass_field
+	| FInstance of tclass * tparams * tclass_field
 	| FStatic of tclass * tclass_field
 	| FAnon of tclass_field
 	| FDynamic of string
@@ -616,12 +616,12 @@ let is_closed a = !(a.a_status) <> Opened
 
 let field_name f =
 	match f with
-	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
+	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> f.cf_name
 	| FEnum (_,f) -> f.ef_name
 	| FDynamic n -> n
 
 let extract_field = function
-	| FAnon f | FInstance (_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
+	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
 	| _ -> None
 
 let is_extern_field f =
@@ -635,19 +635,20 @@ let field_type f =
 	| [] -> f.cf_type
 	| l -> monomorphs l f.cf_type
 
-let rec raw_class_field build_type c i =
+let rec raw_class_field build_type c tl i =
+	let apply = apply_params c.cl_params tl in
 	try
 		let f = PMap.find i c.cl_fields in
-		Some c, build_type f , f
+		Some (c,tl), build_type f , f
 	with Not_found -> try (match c.cl_constructor with
-		| Some ctor when i = "new" -> Some c, build_type ctor,ctor
+		| Some ctor when i = "new" -> Some (c,tl), build_type ctor,ctor
 		| _ -> raise Not_found)
 	with Not_found -> try
 		match c.cl_super with
 		| None ->
 			raise Not_found
 		| Some (c,tl) ->
-			let c2 , t , f = raw_class_field build_type c i in
+			let c2 , t , f = raw_class_field build_type c (List.map apply tl) i in
 			c2, apply_params c.cl_params tl t , f
 	with Not_found ->
 		match c.cl_kind with
@@ -663,10 +664,10 @@ let rec raw_class_field build_type c i =
 							None, build_type f, f
 						with
 							Not_found -> loop ctl)
-					| TInst (c,pl) ->
+					| TInst (c,tl) ->
 						(try
-							let c2, t , f = raw_class_field build_type c i in
-							c2, apply_params c.cl_params pl t, f
+							let c2, t , f = raw_class_field build_type c (List.map apply tl) i in
+							c2, apply_params c.cl_params tl t, f
 						with
 							Not_found -> loop ctl)
 					| _ ->
@@ -684,7 +685,7 @@ let rec raw_class_field build_type c i =
 					raise Not_found
 				| (c,tl) :: l ->
 					try
-						let c2, t , f = raw_class_field build_type c i in
+						let c2, t , f = raw_class_field build_type c (List.map apply tl) i in
 						c2, apply_params c.cl_params tl t, f
 					with
 						Not_found -> loop l
@@ -695,9 +696,9 @@ let class_field = raw_class_field field_type
 
 let quick_field t n =
 	match follow t with
-	| TInst (c,_) ->
-		let c, _, f = raw_class_field (fun f -> f.cf_type) c n in
-		(match c with None -> FAnon f | Some c -> FInstance (c,f))
+	| TInst (c,tl) ->
+		let c, _, f = raw_class_field (fun f -> f.cf_type) c tl n in
+		(match c with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f))
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics e ->
@@ -865,7 +866,7 @@ let rec s_expr s_type e =
 	| TField (e,f) ->
 		let fstr = (match f with
 			| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
-			| FInstance (c,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ " : " ^ s_type f.cf_type ^ ")"
+			| FInstance (c,_,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ " : " ^ s_type f.cf_type ^ ")"
 			| FClosure (c,f) -> "closure(" ^ (match c with None -> f.cf_name | Some c -> s_type_path c.cl_path ^ "." ^ f.cf_name)  ^ ")"
 			| FAnon f -> "anon(" ^ f.cf_name ^ ")"
 			| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
@@ -1340,7 +1341,7 @@ let rec unify a b =
 			| _ -> ());
 		(try
 			PMap.iter (fun n f2 ->
-				let _, ft, f1 = (try class_field c n with Not_found -> error [has_no_field a n]) in
+				let _, ft, f1 = (try class_field c tl n with Not_found -> error [has_no_field a n]) in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				(try
@@ -1827,7 +1828,7 @@ let map_expr_type f ft fv e =
 		let v = try
 			let n = match v with
 				| FClosure _ -> raise Not_found
-				| FAnon f | FInstance (_,f) | FStatic (_,f) -> f.cf_name
+				| FAnon f | FInstance (_,_,f) | FStatic (_,f) -> f.cf_name
 				| FEnum (_,f) -> f.ef_name
 				| FDynamic n -> n
 			in

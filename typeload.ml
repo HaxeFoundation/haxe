@@ -452,7 +452,7 @@ and load_complex_type ctx p t =
 					c2.cl_private <- true;
 					PMap.iter (fun f _ ->
 						try
-							ignore(class_field c f);
+							ignore(class_field c tl f);
 							error ("Cannot redefine field " ^ f) p
 						with
 							Not_found -> ()
@@ -859,9 +859,9 @@ let check_overriding ctx c =
 						) overloads
 					) true
 				) f.cf_overloads
-	  end else
+			end else
 				check_field f (fun csup i ->
-					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup i in
+					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup params i in
 					t, f2) false
 		) c.cl_fields
 
@@ -875,7 +875,7 @@ let class_field_no_interf c i =
 			raise Not_found
 		| Some (c,tl) ->
 			(* rec over class_field *)
-			let _, t , f = raw_class_field (fun f -> f.cf_type) c i in
+			let _, t , f = raw_class_field (fun f -> f.cf_type) c tl i in
 			apply_params c.cl_params tl t , f
 
 let rec check_interface ctx c intf params =
@@ -2107,7 +2107,7 @@ let init_class ctx c p context_init herits fields =
 			let check_method m t req_name =
 				if ctx.com.display <> DMNone then () else
 				try
-					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in Some c, f.cf_type, f else class_field c m) in
+					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
 					(* accessors must be public on As3 (issue #1872) *)
 					if Common.defined ctx.com Define.As3 then f.cf_meta <- (Meta.Public,[],p) :: f.cf_meta;
 					(match f.cf_kind with
