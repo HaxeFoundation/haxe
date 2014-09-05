@@ -737,23 +737,23 @@ let unify_field_call ctx fa el args ret p inline =
 			error "Invalid field call" p
 	in
 	let is_forced_inline = false in
-	let candidates,failures = List.fold_left (fun (candidates,failures) (t,cf) ->
+	let _,candidates,failures = List.fold_left (fun (first,candidates,failures) (t,cf) ->
 		begin try
-			begin match follow (map t) with
+			begin match follow (if first then t else (map t)) with
 				| TFun(args,ret) ->
 					let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 					let mk_call ethis =
 						let ef = mk (TField(ethis,fa)) tf p in
 						make_call ctx ef (List.map fst el) ret p
 					in
-					(el,tf,mk_call) :: candidates,failures
+					false,(el,tf,mk_call) :: candidates,failures
 				| _ ->
 					assert false
 			end
 		with Error (Call_error _,_) as err ->
-			candidates,err :: failures
+			false,candidates,err :: failures
 		end
-	) ([],[]) candidates in
+	) (true,[],[]) candidates in
 	let candidates = if is_overload && ctx.com.config.pf_overload then
 		Codegen.Overloads.reduce_compatible candidates
 	else
