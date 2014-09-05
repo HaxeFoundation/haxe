@@ -3241,14 +3241,16 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| mt ->
 				error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 		in
-		let ct = (match t with
-			| TAbstract (a,pl) ->
-				(match a.a_impl with
-				| None -> t
-				| Some c -> TInst (c,pl))
-			| _ -> t
-		) in
-		(match ct with
+		let build_constructor_call c tl =
+			let ct, f = get_constructor ctx c tl p in
+			if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
+			(match f.cf_kind with
+			| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
+			| _ -> ());
+			let el = unify_constructor_call c tl f ct in
+			el,f,ct
+		in
+		(match t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 			if not (Typeload.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 			let el = List.map (fun e -> type_expr ctx e Value) el in
@@ -3263,21 +3265,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| _ -> false
 			) tl) then error (s_type_path c.cl_path ^ " does not have a constructor") p;
 			mk (TNew (c,params,el)) t p
-		| TInst (c,params) ->
-			let ct, f = get_constructor ctx c params p in
-			if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
-			(match f.cf_kind with
-			| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
-			| _ -> ());
-			let el = unify_constructor_call c params f ct in
-			(match c.cl_kind with
-			| KAbstractImpl a when not (Meta.has Meta.MultiType a.a_meta) ->
-				let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-				let e = mk (TTypeExpr (TClassDecl c)) ta p in
-				let e = mk (TField (e,(FStatic (c,f)))) ct p in
-				make_call ctx e el t p
-			| _ ->
-				mk (TNew (c,params,el)) t p)
+		| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
+			let el,cf,ct = build_constructor_call c tl in
+			let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+			let e = mk (TTypeExpr (TClassDecl c)) ta p in
+			let e = mk (TField (e,(FStatic (c,cf)))) ct p in
+			make_call ctx e el t p
+		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
+			let el,_,_ = build_constructor_call c params in
+			mk (TNew (c,params,el)) t p
 		| _ ->
 			error (s_type (print_context()) t ^ " cannot be constructed") p)
 	| EUnop (op,flag,e) ->
