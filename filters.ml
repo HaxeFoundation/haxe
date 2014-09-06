@@ -947,6 +947,7 @@ let apply_native_paths ctx t =
 			let field cf = try
 				let name,_ = get_native_name cf.cf_meta in
 				cf.cf_name <- name;
+				List.iter (fun cf -> cf.cf_name <- name) cf.cf_overloads;
 				did_change := true
 			with Not_found ->
 				()
