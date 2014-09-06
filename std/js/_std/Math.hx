@@ -29,17 +29,17 @@ extern class Math
 	static var PI(default,null) : Float;
 
 	static var NEGATIVE_INFINITY(get, null) : Float;
-	static inline function get_NEGATIVE_INFINITY () : Float {
+	private static inline function get_NEGATIVE_INFINITY () : Float {
 		return -(untyped __js__("Infinity"));
 	}
 
 	static var POSITIVE_INFINITY(get,null) : Float;
-	static inline function get_POSITIVE_INFINITY () : Float {
+	private static inline function get_POSITIVE_INFINITY () : Float {
 		return (untyped __js__("Infinity"));
 	}
 
 	static var NaN(get, null) : Float;
-	static inline function get_NaN () : Float {
+	private static inline function get_NaN () : Float {
 		return (untyped __js__("NaN"));
 	}
 
