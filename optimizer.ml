@@ -280,7 +280,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| _ when not (first && Meta.has Meta.Impl cf.cf_meta && cf.cf_name <> "_new") -> (!check_abstract_cast_ref) ctx (map_type v.v_type) e e.epos
 			| _ -> e) :: loop pl al false
 		| [], (v,opt) :: al ->
-			mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p :: loop [] al false
+			(mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p) :: loop [] al false
 	in
 	(*
 		Build the expr/var subst list
