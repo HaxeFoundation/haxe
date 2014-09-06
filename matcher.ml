@@ -1219,29 +1219,27 @@ let match_expr ctx e cases def with_type p =
 	let pl = ExtList.List.mapi (fun i (ep,eg,e) ->
 		let save = save_locals ctx in
 		(* type case patterns *)
-		let pl,restore,with_type = try (match tl with
-				| [t] when not !array_match ->
-					(* context type parameters are turned into monomorphs until the pattern has been typed *)
-					let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
-					let t = apply_params ctx.type_params monos t in
-					let pl = [add_pattern_locals (to_pattern ctx ep t)] in
-					let old_ret = ctx.ret in
-					ctx.ret <- apply_params ctx.type_params monos ctx.ret;
-					let restore = PMap.fold (fun v acc ->
-						(* apply context monomorphs to locals and replace them back after typing the case body *)
-						let t = v.v_type in
-						v.v_type <- apply_params ctx.type_params monos v.v_type;
-						(fun () -> v.v_type <- t) :: acc
-					) ctx.locals [fun() -> ctx.ret <- old_ret] in
-					(* turn any still unknown types back to type parameters *)
-					List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ctx.type_params;
-					pl,restore,(match with_type with
-						| WithType t -> WithType (apply_params ctx.type_params monos t)
-						| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
-						| _ -> with_type);
-				| tl ->
-					let t = monomorphs ctx.type_params (tfun tl fake_tuple_type) in
-					[add_pattern_locals (to_pattern ctx ep t)],[],with_type)
+		let pl,restore,with_type =
+			try
+				(* context type parameters are turned into monomorphs until the pattern has been typed *)
+				let monos = List.map (fun _ -> mk_mono()) ctx.type_params in
+				let t = match tl with [t] when not !array_match -> t | tl -> tfun tl fake_tuple_type in
+				let t = apply_params ctx.type_params monos t in
+				let pl = [add_pattern_locals (to_pattern ctx ep t)] in
+				let old_ret = ctx.ret in
+				ctx.ret <- apply_params ctx.type_params monos ctx.ret;
+				let restore = PMap.fold (fun v acc ->
+					(* apply context monomorphs to locals and replace them back after typing the case body *)
+					let t = v.v_type in
+					v.v_type <- apply_params ctx.type_params monos v.v_type;
+					(fun () -> v.v_type <- t) :: acc
+				) ctx.locals [fun() -> ctx.ret <- old_ret] in
+				(* turn any still unknown types back to type parameters *)
+				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ctx.type_params;
+				pl,restore,(match with_type with
+					| WithType t -> WithType (apply_params ctx.type_params monos t)
+					| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
+					| _ -> with_type);
 			with Unrecognized_pattern (e,p) ->
 				error "Case expression must be a constant value or a pattern, not an arbitrary expression" p
 		in
