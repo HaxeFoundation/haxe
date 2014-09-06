@@ -771,7 +771,7 @@ let unify_field_call ctx fa el args ret p inline =
 				| TFun(args,ret) ->
 				let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
 					let mk_call ethis =
-						let ef = mk (TField(ethis,fa)) tf p in
+						let ef = mk (TField(ethis,mk_fa cf)) tf p in
 						make_call ctx ef (List.map fst el) ret p
 					in
 					(el,tf,mk_call)	:: candidates,failures
