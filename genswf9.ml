@@ -884,8 +884,8 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		write ctx (HGetProp (ident "params"));
 		write ctx (HSmallInt i);
 		VArray
-	| TField (e1,f) ->
-		let f = field_name f in
+	| TField (e1,fa) ->
+		let f = field_name fa in
 		let id, k, closure = property ctx f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
@@ -899,8 +899,14 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		| _ , TFun _ when not ctx.for_call -> VCast(id,classify ctx e.etype)
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
+			let is_type_parameter_field = match fa with
+				| FInstance(_,_,cf) ->
+					(match follow cf.cf_type with TInst({cl_kind = KTypeParameter _},_) -> true | _ -> false)
+				| _ ->
+					List.exists (fun t -> follow t == et) tl
+			in
 			(* if the return type is one of the type-parameters, then we need to cast it *)
-			if List.exists (fun t -> follow t == et) tl then
+			if is_type_parameter_field then
 				VCast (id, classify ctx et)
 			else if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
