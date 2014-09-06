@@ -64,7 +64,6 @@ class TypedExprTools {
 			case TFunction(fu): with(e, TFunction({ t: fu.t, args: fu.args, expr: f(fu.expr)}));
 			case TIf(e1, e2, e3): with(e, TIf(f(e1), f(e2), e3 == null ? null : f(e3)));
 			case TSwitch(e1, cases, e2): with(e, TSwitch(f(e1), cases.map(function(c) return { values: c.values.map(f), expr: f(c.expr) }), e2 == null ? null : f(e2)));
-			case TPatMatch: throw false;
 			case TTry(e1, catches): with(e, TTry(f(e1), catches.map(function(c) return { v:c.v, expr: f(c.expr) })));
 			case TReturn(e1): with(e, TReturn(e1 == null ? null : f(e1)));
 			case TCast(e1, mt): with(e, TCast(f(e1), mt));
@@ -112,8 +111,6 @@ class TypedExprTools {
 			case TTry(e1, catches):
 				f(e1);
 				for (c in catches) f(c.expr);
-			case TPatMatch:
-				throw false;
 		}
 	}
 
@@ -148,7 +145,6 @@ class TypedExprTools {
 			case TFunction(fu): with(e, TFunction({ t: ft(fu.t), args: fu.args.map(function(arg) return { v: fv(arg.v), value: arg.value }), expr: f(fu.expr)}), ft(e.t));
 			case TIf(e1, e2, e3): with(e, TIf(f(e1), f(e2), e3 == null ? null : f(e3)), ft(e.t));
 			case TSwitch(e1, cases, e2): with(e, TSwitch(f(e1), cases.map(function(c) return { values: c.values.map(f), expr: f(c.expr) }), e2 == null ? null : f(e2)), ft(e.t));
-			case TPatMatch: throw false;
 			case TTry(e1, catches): with(e, TTry(f(e1), catches.map(function(c) return { v:fv(c.v), expr: f(c.expr) })), ft(e.t));
 			case TReturn(e1): with(e, TReturn(e1 == null ? null : f(e1)), ft(e.t));
 			case TCast(e1, mt): with(e, TCast(f(e1), mt), ft(e.t));

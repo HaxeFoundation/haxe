@@ -268,7 +268,6 @@ enum TypedExprDef {
 	TIf(econd:TypedExpr, eif:TypedExpr, eelse:Null<TypedExpr>);
 	TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool);
 	TSwitch(e:TypedExpr, cases:Array<{values:Array<TypedExpr>, expr:TypedExpr}>, edef:Null<TypedExpr>);
-	TPatMatch;
 	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>);
 	TReturn(e:Null<TypedExpr>);
 	TBreak;

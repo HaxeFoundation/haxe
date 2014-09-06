@@ -964,19 +964,6 @@ let rec return_flow ctx e =
 		return_flow e
 	| TSwitch ({eexpr = TMeta((Meta.Exhaustive,_,_),_)},cases,None) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
-	| TPatMatch dt ->
-		let rec loop d = match d with
-			| DTExpr e -> return_flow e
-			| DTGuard(_,dt1,dt2) ->
-				loop dt1;
-				(match dt2 with None -> () | Some dt -> loop dt)
-			| DTBind (_,d) -> loop d
-			| DTSwitch (_,cl,dto) ->
-				List.iter (fun (_,dt) -> loop dt) cl;
-				(match dto with None -> () | Some dt -> loop dt)
-			| DTGoto i -> loop (dt.dt_dt_lookup.(i))
-		in
-		loop (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;

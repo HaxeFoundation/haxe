@@ -376,26 +376,6 @@ let check_local_vars_init e =
 			| Some e ->
 				loop vars e;
 				join vars cvars)
-		| TPatMatch dt ->
-			let cvars = ref [] in
-			let rec fdt dt = match dt with
-				| DTExpr e ->
-					let old = !vars in
-					loop vars e;
-					restore vars old [];
-					cvars := !vars :: !cvars
-				| DTSwitch(e,cl,dto) ->
-					loop vars e;
-					List.iter (fun (_,dt) -> fdt dt) cl;
-					(match dto with None -> () | Some dt -> fdt dt)
-				| DTGuard(e,dt1,dt2) ->
-					fdt dt1;
-					(match dt2 with None -> () | Some dt -> fdt dt)
-				| DTBind(_,dt) -> fdt dt
-				| DTGoto _ -> ()
-			in
-			Array.iter fdt dt.dt_dt_lookup;
-			join vars !cvars
 		(* mark all reachable vars as initialized, since we don't exit the block  *)
 		| TBreak | TContinue | TReturn None ->
 			vars := PMap.map (fun _ -> true) !vars
@@ -469,33 +449,6 @@ let rec local_usage f e =
 				local_usage f e;
 			))
 		) catchs;
-	| TPatMatch dt ->
-		List.iter (fun (v,eo) ->
-			f (Declare v);
-			match eo with None -> () | Some e -> local_usage f e
-		) dt.dt_var_init;
-		let rec fdt dt = match dt with
-			| DTBind(bl,dt) ->
-				List.iter (fun ((v,_),e) ->
-					f (Declare v);
-					local_usage f e
-				) bl;
-				fdt dt
-			| DTExpr e -> local_usage f e
-			| DTGuard(e,dt1,dt2) ->
-				local_usage f e;
-				fdt dt1;
-				(match dt2 with None -> () | Some dt -> fdt dt)
-			| DTSwitch(e,cl,dto) ->
-				local_usage f e;
-				List.iter (fun (e,dt) ->
-					local_usage f e;
-					fdt dt
-				) cl;
-				(match dto with None -> () | Some dt -> fdt dt)
-			| DTGoto _ -> ()
-		in
-		Array.iter fdt dt.dt_dt_lookup
 	| _ ->
 		iter (local_usage f) e
 
@@ -538,27 +491,6 @@ let captured_vars com e =
 					v, e
 			) catchs in
 			mk (TTry (wrap used expr,catchs)) e.etype e.epos
-		(* TODO: find out this does *)
-(* 		| TMatch (expr,enum,cases,def) ->
-			let cases = List.map (fun (il,vars,e) ->
-				let pos = e.epos in
-				let e = ref (wrap used e) in
-				let vars = match vars with
-					| None -> None
-					| Some l ->
-						Some (List.map (fun v ->
-							match v with
-							| Some v when PMap.mem v.v_id used ->
-								let vtmp = mk_var v used in
-								e := concat (mk_init v vtmp pos) !e;
-								Some vtmp
-							| _ -> v
-						) l)
-				in
-				il, vars, !e
-			) cases in
-			let def = match def with None -> None | Some e -> Some (wrap used e) in
-			mk (TMatch (wrap used expr,enum,cases,def)) e.etype e.epos *)
 		| TFunction f ->
 			(*
 				list variables that are marked as used, but also used in that
@@ -789,33 +721,6 @@ let rename_local_vars com e =
 				loop e;
 				old()
 			) catchs;
-		| TPatMatch dt ->
-			let rec fdt dt = match dt with
-				| DTSwitch(e,cl,dto) ->
-					loop e;
-					List.iter (fun (_,dt) ->
-						let old = save() in
-						fdt dt;
-						old();
-					) cl;
-					(match dto with None -> () | Some dt ->
-						let old = save() in
-						fdt dt;
-						old())
-				| DTBind(bl,dt) ->
-					List.iter (fun ((v,p),e) ->
-						declare v e.epos
-					) bl;
-					fdt dt
-				| DTExpr e -> loop e;
-				| DTGuard(e,dt1,dt2) ->
-					loop e;
-					fdt dt1;
-					(match dt2 with None -> () | Some dt -> fdt dt)
-				| DTGoto _ ->
-					()
-			in
-			Array.iter fdt dt.dt_dt_lookup
 		| TTypeExpr t ->
 			check t
 		| TNew (c,_,_) ->

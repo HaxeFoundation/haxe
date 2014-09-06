@@ -1299,59 +1299,6 @@ let rec gen_expr_content ctx retval e =
 		);
 		List.iter (fun j -> j()) jend;
 		branch());
-(* 	| TMatch (e0,_,cases,def) ->
-		let t = classify ctx e.etype in
-		let rparams = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
-		let has_params = List.exists (fun (_,p,_) -> p <> None) cases in
-		gen_expr ctx true e0;
-		if has_params then begin
-			write ctx HDup;
-			write ctx (HGetProp (ident "params"));
-			set_reg ctx rparams;
-		end;
-		write ctx (HGetProp (ident "index"));
-		write ctx HToInt;
-		let switch,case = begin_switch ctx in
-		(match def with
-		| None ->
-			if retval then begin
-				write ctx HNull;
-				coerce ctx t;
-			end;
-		| Some e ->
-			gen_expr ctx retval e;
-			if retval && classify ctx e.etype <> t then coerce ctx t);
-		let jends = List.map (fun (cl,params,e) ->
-			let j = jump ctx J3Always in
-			List.iter case cl;
-			pop_value ctx retval;
-			let b = open_block ctx retval in
-			(match params with
-			| None -> ()
-			| Some l ->
-				let p = ref (-1) in
-				List.iter (fun v ->
-					incr p;
-					match v with
-					| None -> ()
-					| Some v ->
-						define_local ctx v e.epos;
-						let acc = gen_local_access ctx v e.epos Write in
-						write ctx (HReg rparams.rid);
-						write ctx (HSmallInt !p);
-						getvar ctx VArray;
-						setvar ctx acc None
-				) l
-			);
-			gen_expr ctx retval e;
-			b();
-			if retval && classify ctx e.etype <> t then coerce ctx t;
-			j
-		) cases in
-		switch();
-		List.iter (fun j -> j()) jends;
-		free_reg ctx rparams *)
-	| TPatMatch dt -> assert false
 	| TCast (e1,t) ->
 		gen_expr ctx retval e1;
 		if retval then begin
@@ -1743,7 +1690,7 @@ and generate_function ctx fdata stat =
 			| TReturn (Some e) ->
 				let rec inner_loop e =
 					match e.eexpr with
-					| TSwitch _ | TPatMatch _ | TFor _ | TWhile _ | TTry _ -> false
+					| TSwitch _ | TFor _ | TWhile _ | TTry _ -> false
 					| TIf _ -> loop e
 					| TParenthesis e | TMeta(_,e) -> inner_loop e
 					| _ -> true

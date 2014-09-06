@@ -1311,7 +1311,6 @@ and gen_expr ctx e =
 				| TThrow _
 				| TWhile _
 				| TFor _
-				| TPatMatch _
 				| TTry _
 				| TBreak
 				| TBlock _ ->
@@ -1325,7 +1324,6 @@ and gen_expr ctx e =
 					| TThrow _
 					| TWhile _
 					| TFor _
-					| TPatMatch _
 					| TTry _
 					| TBlock _ -> ()
 					| _ ->
@@ -1592,7 +1590,6 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}"
-	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		let old_loop = ctx.in_loop in
 		ctx.in_loop <- false;
@@ -1783,7 +1780,6 @@ and gen_value ctx e =
 	| TThrow _
 	| TSwitch _
 	| TFor _
-	| TPatMatch _
 	| TIf _
 	| TTry _ ->
 		inline_block ctx e

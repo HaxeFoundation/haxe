@@ -121,7 +121,6 @@ and texpr_expr =
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr list * texpr) list * texpr option
-	| TPatMatch of decision_tree
 	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -829,7 +828,6 @@ let s_expr_kind e =
 	| TIf (_,_,_) -> "If"
 	| TWhile (_,_,_) -> "While"
 	| TSwitch (_,_,_) -> "Switch"
-	| TPatMatch _ -> "PatMatch"
 	| TTry (_,_) -> "Try"
 	| TReturn _ -> "Return"
 	| TBreak -> "Break"
@@ -906,7 +904,6 @@ let rec s_expr s_type e =
 		| DoWhile -> sprintf "DoWhile (%s,%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
 		sprintf "Switch (%s,(%s)%s)" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> "," ^ loop e)
-	| TPatMatch dt -> s_dt "" (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cl) ->
 		sprintf "Try %s(%s) " (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (s_var v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
@@ -985,7 +982,6 @@ let rec s_expr_pretty tabs s_type e =
 		let ntabs = tabs ^ "\t" in
 		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
-	| TPatMatch dt -> s_dt tabs (dt.dt_dt_lookup.(dt.dt_first))
 	| TTry (e,cl) ->
 		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
@@ -1700,25 +1696,6 @@ let iter f e =
 		f e;
 		List.iter (fun (el,e2) -> List.iter f el; f e2) cases;
 		(match def with None -> () | Some e -> f e)
-	| TPatMatch dt ->
-		let rec loop dt = match dt with
-			| DTBind(_,dt) -> loop dt
-			| DTGoto _ -> ()
-			| DTSwitch(e,cl,dto) ->
-				f e;
-				List.iter (fun (e,dt) ->
-					f e;
-					loop dt
-				) cl;
-				(match dto with None -> () | Some dt -> loop dt)
-			| DTExpr e -> f e
-			| DTGuard(eg,dt1,dt2) ->
-				f eg;
-				loop dt1;
-				(match dt2 with None -> () | Some dt -> loop dt)
-		in
-		List.iter (fun (_,eo) -> match eo with None -> () | Some e -> f e) dt.dt_var_init;
-		Array.iter loop dt.dt_dt_lookup
 	| TTry (e,catches) ->
 		f e;
 		List.iter (fun (_,e) -> f e) catches
@@ -1777,16 +1754,6 @@ let map_expr f e =
 		let e1 = f e1 in
 		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
 		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)) }
-	| TPatMatch dt ->
-		let rec loop dt = match dt with
-			| DTBind(vl,dt) -> DTBind(vl, loop dt)
-			| DTGoto _ -> dt
-			| DTSwitch(e,cl,dto) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl,match dto with None -> None | Some dt -> Some (loop dt))
-			| DTExpr e -> DTExpr(f e)
-			| DTGuard(e,dt1,dt2) -> DTGuard(f e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
-		in
-		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
-		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi})}
 	| TTry (e1,catches) ->
 		let e1 = f e1 in
 		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f e) catches) }
@@ -1878,16 +1845,6 @@ let map_expr_type f ft fv e =
 		let e1 = f e1 in
 		let cases = List.map (fun (el,e2) -> List.map f el, f e2) cases in
 		{ e with eexpr = TSwitch (e1, cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
-	| TPatMatch dt ->
-		let rec loop dt = match dt with
-			| DTBind(vl,dt) -> DTBind(vl, loop dt)
-			| DTGoto _ -> dt
-			| DTSwitch(e,cl,dto) -> DTSwitch(f e, List.map (fun (e,dt) -> f e,loop dt) cl,match dto with None -> None | Some dt -> Some (loop dt))
-			| DTExpr e -> DTExpr(f e)
-			| DTGuard (e,dt1,dt2) -> DTGuard(f e, loop dt, match dt2 with None -> None | Some dt -> Some (loop dt))
-		in
-		let vi = List.map (fun (v,eo) -> v, match eo with None -> None | Some e -> Some(f e)) dt.dt_var_init in
-		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup; dt_var_init = vi}); etype = ft e.etype}
 	| TTry (e1,catches) ->
 		let e1 = f e1 in
 		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }

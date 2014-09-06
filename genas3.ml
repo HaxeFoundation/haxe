@@ -298,7 +298,7 @@ let rec type_str ctx t p =
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ | TPatMatch _ when not in_switch -> iter_switch_break true e
+	| TSwitch _ when not in_switch -> iter_switch_break true e
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
@@ -746,7 +746,6 @@ and gen_expr ctx e =
 			print ctx "catch( %s : %s )" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
 			gen_expr ctx e;
 		) catchs;
-	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx (parent e);
@@ -920,7 +919,6 @@ and gen_value ctx e =
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
-	| TPatMatch dt -> assert false
 	| TTry (b,catchs) ->
 		let v = value true in
 		gen_expr ctx (mk (TTry (block (assign b),

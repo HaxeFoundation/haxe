@@ -911,7 +911,6 @@ module Transformer = struct
 			let e = trans is_value [] e in
 			let r = { a_expr with eexpr = TMeta(m, e.a_expr); etype = e.a_expr.etype } in
 			lift_expr ~blocks:e.a_blocks r
-		| ( _, TPatMatch _ ) -> assert false
 		| ( _, TLocal _ ) -> lift_expr a_expr
 
 		| ( _, TConst _ ) -> lift_expr a_expr
@@ -1308,7 +1307,7 @@ module Printer = struct
 				Printf.sprintf "(%s if %s else %s)" (print_expr pctx eif) (print_expr pctx econd) (print_expr pctx eelse)
 			| TMeta(_,e1) ->
 				print_expr pctx e1
-			| TPatMatch _ | TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
+			| TSwitch _ | TCast(_, Some _) | TFor _ | TUnop(_,Postfix,_) ->
 				assert false
 
 	and print_if_else pctx econd eif eelse as_elif =

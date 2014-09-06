@@ -966,7 +966,7 @@ let configure gen =
 
 	let has_semicolon e =
 		match e.eexpr with
-			| TBlock _ | TFor _ | TSwitch _ | TPatMatch _ | TTry _ | TIf _ -> false
+			| TBlock _ | TFor _ | TSwitch _ | TTry _ | TIf _ -> false
 			| TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
 			| _ -> true
 	in
@@ -1478,7 +1478,6 @@ let configure gen =
 					if !strict_mode then assert false
 				| TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
 				| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
-				| TPatMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
 				| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
 		)
 		and do_call w e el =

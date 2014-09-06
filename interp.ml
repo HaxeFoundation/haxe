@@ -4565,9 +4565,7 @@ and encode_texpr e =
 				enc_array (List.map (fun (el,e) -> enc_obj ["values",encode_texpr_list el;"expr",loop e]) cases);
 				vopt encode_texpr edef
 				]
-			| TPatMatch _ ->
-				assert false
-			| TTry(e1,catches) -> 20,[
+			| TTry(e1,catches) -> 19,[
 				loop e1;
 				enc_array (List.map (fun (v,e) ->
 					enc_obj [
@@ -4575,13 +4573,13 @@ and encode_texpr e =
 						"expr",loop e
 					]) catches
 				)]
-			| TReturn e1 -> 21,[vopt encode_texpr e1]
-			| TBreak -> 22,[]
-			| TContinue -> 23,[]
-			| TThrow e1 -> 24,[loop e1]
-			| TCast(e1,mt) -> 25,[loop e1;match mt with None -> VNull | Some mt -> encode_module_type mt]
-			| TMeta(m,e1) -> 26,[encode_meta_entry m;loop e1]
-			| TEnumParameter(e1,ef,i) -> 27,[loop e1;encode_efield ef;VInt i]
+			| TReturn e1 -> 20,[vopt encode_texpr e1]
+			| TBreak -> 21,[]
+			| TContinue -> 22,[]
+			| TThrow e1 -> 23,[loop e1]
+			| TCast(e1,mt) -> 24,[loop e1;match mt with None -> VNull | Some mt -> encode_module_type mt]
+			| TMeta(m,e1) -> 25,[encode_meta_entry m;loop e1]
+			| TEnumParameter(e1,ef,i) -> 26,[loop e1;encode_efield ef;VInt i]
 		in
 		enc_obj [
 			"pos", encode_pos e.epos;
@@ -4962,7 +4960,6 @@ let rec make_ast e =
 		) cases in
 		let def = match eopt def with None -> None | Some (EBlock [],_) -> Some None | e -> Some e in
 		ESwitch (make_ast e,cases,def)
-	| TPatMatch _
 	| TEnumParameter _ ->
 		(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
 		assert false

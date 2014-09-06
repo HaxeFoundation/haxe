@@ -1029,7 +1029,6 @@ let rec iter_retval f retval e =
       f true e;
       List.iter (fun (_,_,e) -> f false e) cases;
       (match def with None -> () | Some e -> f false e) *)
-   | TPatMatch dt -> assert false
    | TTry (e,catches) ->
       f retval e;
       List.iter (fun (_,e) -> f false e) catches
@@ -1516,7 +1515,6 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
          if (retval) then begin
             define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
          end  (* else we are done *)
-      | TPatMatch (_)
       | TTry (_, _)
       | TSwitch (_, _, _) when retval ->
             define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
@@ -1540,7 +1538,6 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
       | TArray (obj,_) when (is_null obj) -> ( )
       | TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
          iter_retval find_local_functions_and_return_blocks retval expression
-      | TPatMatch (_)
       | TSwitch (_, _, _) when retval -> ( )
       (* | TMatch ( cond , _, _, _) *)
       | TWhile ( cond , _, _ )
@@ -2257,10 +2254,8 @@ and gen_expression ctx retval expression =
 
    (* These have already been defined in find_local_return_blocks ... *)
    | TTry (_,_)
-   | TSwitch (_,_,_)
-   | TPatMatch (_) when (retval && (not return_from_internal_node) )->
+   | TSwitch (_,_,_) when (retval && (not return_from_internal_node) ) ->
       gen_local_block_call()
-   | TPatMatch dt -> assert false
    | TSwitch (condition,cases,optional_default)  ->
       let switch_on_int_constants = (only_int_cases cases) && (not (contains_break expression)) in
       if (switch_on_int_constants) then begin
@@ -4828,7 +4823,6 @@ class script_writer common_ctx ctx filename =
    | TCast (cast,Some _) -> this#checkCast expression.etype cast true true;
    | TParenthesis _ -> error "Unexpected parens" expression.epos
    | TMeta(_,_) -> error "Unexpected meta" expression.epos
-   | TPatMatch _ ->  error "Unexpected pattern match" expression.epos
    );
    this#end_expr;
 end;;

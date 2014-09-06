@@ -34,7 +34,7 @@ let has_side_effect e =
 		match e.eexpr with
 		| TConst _ | TLocal _ | TField _ | TTypeExpr _ | TFunction _ -> ()
 		| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
-		| TPatMatch _ | TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
+		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TVar _ | TBlock _ | TObjectDecl _ -> Type.iter loop e
 	in
@@ -352,17 +352,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let eloop = map false eloop in
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
-(* 		| TMatch (v,en,cases,def) ->
-			let term = term && def <> None in
-			let cases = List.map (fun (i,vl,e) ->
-				let vl = opt (List.map (fun v -> opt (fun v -> (local v).i_subst) v)) vl in
-				i, vl, map term e
-			) cases in
-			let def = opt (map term) def in
-			{ e with eexpr = TMatch (map false v,en,cases,def); etype = if term && ret_val then unify_min ctx ((List.map (fun (_,_,e) -> e) cases) @ (match def with None -> [] | Some e -> [e])) else e.etype } *)
-		| TPatMatch _ ->
-			cancel_inlining := true; (* TODO *)
-			e
 		| TSwitch (e1,cases,def) when term ->
 			let term = term && def <> None in
 			let cases = List.map (fun (el,e) ->
@@ -766,7 +755,7 @@ let rec need_parent e =
 	match e.eexpr with
 	| TConst _ | TLocal _ | TArray _ | TField _ | TEnumParameter _ | TParenthesis _ | TMeta _ | TCall _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
 	| TCast (e,None) -> need_parent e
-	| TCast _ | TThrow _ | TReturn _ | TTry _ | TPatMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
+	| TCast _ | TThrow _ | TReturn _ | TTry _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVar _ | TFunction _ | TUnop _ -> true
 
 let sanitize_expr com e =
@@ -785,7 +774,6 @@ let sanitize_expr com e =
 		match e.eexpr with
 		| TVar _	(* needs to be put into blocks *)
 		| TFor _	(* a temp var is needed for holding iterator *)
-		| TPatMatch _	(* a temp var is needed for holding enum *)
 		| TCall ({ eexpr = TLocal { v_name = "__js__" } },_) (* we never know *)
 			-> block e
 		| _ -> e
@@ -870,17 +858,6 @@ let sanitize_expr com e =
 		let cases = List.map (fun (el,e) -> el, complex e) cases in
 		let def = (match def with None -> None | Some e -> Some (complex e)) in
 		{ e with eexpr = TSwitch (e1,cases,def) }
-	| TPatMatch dt ->
-		let rec loop d = match d with
-			| DTGoto _ -> d
-			| DTExpr e -> DTExpr (complex e)
-			| DTBind(bl,dt) -> DTBind(bl, loop dt)
-			| DTGuard(e,dt1,dt2) -> DTGuard(complex e,loop dt1,match dt2 with None -> None | Some dt -> Some (loop dt))
-			| DTSwitch(e,cl,dto) ->
-				let cl = List.map (fun (e,dt) -> complex e,loop dt) cl in
-				DTSwitch(parent e,cl,match dto with None -> None | Some dt -> Some (loop dt))
-		in
-		{ e with eexpr = TPatMatch({dt with dt_dt_lookup = Array.map loop dt.dt_dt_lookup })}
 	| _ ->
 		e
 

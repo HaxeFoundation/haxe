@@ -1128,7 +1128,7 @@ let configure gen =
 		match e.eexpr with
 			| TLocal { v_name = "__fallback__" }
 			| TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt _) } ] ) -> false
-			| TBlock _ | TFor _ | TSwitch _ | TPatMatch _ | TTry _ | TIf _ -> false
+			| TBlock _ | TFor _ | TSwitch _ | TTry _ | TIf _ -> false
 			| TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
 			| _ -> true
 	in
@@ -1518,7 +1518,6 @@ let configure gen =
 					if !strict_mode then assert false
 				| TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
 				| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
-				| TPatMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
 				| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
 		in
 		expr_s w e
