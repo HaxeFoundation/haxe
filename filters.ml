@@ -1179,7 +1179,7 @@ let run com tctx main =
 	let filters = [
 		promote_complex_rhs com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-		rename_local_vars com; (* TODO: it shouldn't be necessary to have this here if promote_complex_rhs can generate proper variable names *)
+		rename_local_vars com;
 	] in
 	List.iter (fun t ->
 		remove_generic_base tctx t;
