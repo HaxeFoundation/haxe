@@ -3,8 +3,6 @@ package python.internal;
 import python.internal.Internal;
 import python.internal.HxBuiltin;
 
-
-
 @:keep
 @:native("HxString")
 class StringImpl {
