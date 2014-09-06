@@ -390,7 +390,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	//static function is*, makeArray, map, merge, noop, now, param, proxy, sub, trim, type, unique
 
 	private static inline function get_cur() : JQuery {
-		return untyped $(__js__("this"));
+		return untyped js.JQuery(__js__("this"));
 	}
 
 	private static function __init__() : Void untyped {
