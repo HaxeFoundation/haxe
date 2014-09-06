@@ -4,6 +4,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 #end
 
+@:native("python_Internal")
 class PythonInternal {
 
 	#if macro

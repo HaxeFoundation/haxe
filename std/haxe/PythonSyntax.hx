@@ -6,6 +6,7 @@ import haxe.macro.Context;
 import haxe.macro.ExprTools;
 #end
 
+@:native("python_Syntax")
 extern class PythonSyntax {
 
 	#if macro
