@@ -220,6 +220,7 @@ let invalid_char lexbuf =
 
 let ident = ('_'* ['a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* | '_'+ | '_'+ ['0'-'9'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* )
 let idtype = '_'* ['A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
+let integer = ['1'-'9'] ['0'-'9']* | '0'
 
 rule skip_header = parse
 	| "\239\187\191" { skip_header lexbuf }
@@ -232,12 +233,12 @@ and token = parse
 	| "\r\n" { newline lexbuf; token lexbuf }
 	| '\n' | '\r' { newline lexbuf; token lexbuf }
 	| "0x" ['0'-'9' 'a'-'f' 'A'-'F']+ { mk lexbuf (Const (Int (lexeme lexbuf))) }
-	| ['0'-'9']+ { mk lexbuf (Const (Int (lexeme lexbuf))) }
-	| ['0'-'9']+ '.' ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
+	| integer { mk lexbuf (Const (Int (lexeme lexbuf))) }
+	| integer '.' ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| '.' ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
-	| ['0'-'9']+ ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
-	| ['0'-'9']+ '.' ['0'-'9']* ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
-	| ['0'-'9']+ "..." {
+	| integer ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
+	| integer '.' ['0'-'9']* ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
+	| integer "..." {
 			let s = lexeme lexbuf in
 			mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))
 		}
@@ -367,7 +368,7 @@ and string2 = parse
 		string2 lexbuf;
 	}
 	| [^'\'' '\\' '\r' '\n' '$']+ { store lexbuf; string2 lexbuf }
-	
+
 and code_string = parse
 	| eof { raise Exit }
 	| '\n' | '\r' | "\r\n" { newline lexbuf; store lexbuf; code_string lexbuf }

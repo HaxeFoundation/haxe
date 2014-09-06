@@ -1,5 +1,5 @@
 // leap year
-var d = new Date(2012, 01, 17, 01, 02, 03);
+var d = new Date(2012, 1, 17, 1, 2, 3);
 DateTools.getMonthDays(d) == 29;
 
 // seconds/delta

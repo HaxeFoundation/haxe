@@ -115,7 +115,7 @@ class TestMisc extends Test {
 	}
 
 	function testDate() {
-		var d = new Date(2012, 07, 17, 01, 02, 03);
+		var d = new Date(2012, 7, 17, 1, 2, 3);
 		eq( d.getDay(), 5 );
 
 		eq( d.getDate(), 17 );

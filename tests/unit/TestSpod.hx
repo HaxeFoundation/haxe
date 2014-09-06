@@ -37,7 +37,7 @@ class TestSpod extends Test
 		scls.double = 2.0;
 		scls.boolean = true;
 		scls.string = "some string";
-		scls.date = new Date(2012, 07, 30, 0, 0, 0);
+		scls.date = new Date(2012, 7, 30, 0, 0, 0);
 
 		var bytes = Bytes.ofString("\x01\n\r\x02");
 		scls.binary = bytes;
@@ -88,7 +88,7 @@ class TestSpod extends Test
 		eq(cls1.string, "some string",pos());
 		t(cls1.date != null,pos());
 		t(Std.is(cls1.date, Date),pos());
-		eq(cls1.date.getTime(), new Date(2012, 07, 30, 0, 0, 0).getTime(),pos());
+		eq(cls1.date.getTime(), new Date(2012, 7, 30, 0, 0, 0).getTime(),pos());
 
 		t(Std.is(cls1.binary, Bytes),pos());
 		eq(cls1.binary.compare(Bytes.ofString("\x01\n\r\x02")), 0,pos());
