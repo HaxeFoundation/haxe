@@ -1374,6 +1374,7 @@ let load_core_class ctx c =
 			com2.defines <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
+			Common.define_value com2 Define.Dce (Common.defined_value ctx.com Define.Dce);
 			if ctx.in_macro then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
 			let ctx2 = ctx.g.do_create com2 in
