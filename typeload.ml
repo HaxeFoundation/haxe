@@ -2058,18 +2058,32 @@ let init_class ctx c p context_init herits fields =
 							if constr then FunConstructor else if stat then FunStatic else FunMember
 					) in
 					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
-					let e , fargs = type_function ctx args ret fmode fd display_field p in
-					let f = {
-						tf_args = fargs;
-						tf_type = ret;
-						tf_expr = e;
-					} in
-					if stat && name = "__init__" then
-						(match e.eexpr with
-						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-						| _ -> c.cl_init <- Some e);
-					cf.cf_expr <- Some (mk (TFunction f) t p);
+
 					cf.cf_type <- t;
+					try
+						if not core_api || fd.f_expr <> None then
+							raise Not_found
+						else
+							let ccore = load_core_class ctx c in
+							let cfcore = PMap.find name (if stat then ccore.cl_statics else ccore.cl_fields) in
+							match cfcore.cf_expr with
+							| Some e ->
+								cf.cf_expr <- Some (Type.copy_expr e)
+							| _ ->
+								raise Not_found
+					with Not_found -> begin
+						let e, fargs = type_function ctx args ret fmode fd display_field p in
+						let f = {
+							tf_args = fargs;
+							tf_type = ret;
+							tf_expr = e;
+						} in
+						if stat && name = "__init__" then
+							(match e.eexpr with
+							| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+							| _ -> c.cl_init <- Some e);
+						cf.cf_expr <- Some (mk (TFunction f) t p);
+					end
 				end;
 				t
 			) "type_fun" in
