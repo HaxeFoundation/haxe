@@ -399,7 +399,8 @@ let collect_toplevel_identifiers ctx =
 
 	(* locals *)
 	PMap.iter (fun _ v ->
-		DynArray.add acc (ITLocal v)
+		if not (is_gen_local v) then
+			DynArray.add acc (ITLocal v)
 	) ctx.locals;
 
 	(* member vars *)

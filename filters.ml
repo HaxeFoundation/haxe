@@ -649,7 +649,7 @@ let rename_local_vars com e =
 			| TAbstract ({a_path = [],"Void"},_) -> error "Arguments and variables of type Void are not allowed" p
 			| _ -> ());
 		(* chop escape char for all local variables generated *)
-		if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
+		if is_gen_local v then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
 		let look_vars = (if not cfg.pf_captured_scope && v.v_capture then !all_vars else !vars) in
 		(try
 			let v2 = PMap.find v.v_name look_vars in

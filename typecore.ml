@@ -333,6 +333,9 @@ let gen_local ctx t =
 	in
 	add_local ctx (loop 0) t
 
+let is_gen_local v =
+	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
+
 let not_opened = ref Closed
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
