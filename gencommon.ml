@@ -1504,8 +1504,10 @@ struct
 		basically, everything that is extern is assumed to not be hxgen, unless meta :hxgen is set, and
 		everything that is not extern is assumed to be hxgen, unless meta :nativegen is set
 	*)
-	let default_hxgen_func md =
+	let rec default_hxgen_func md =
 		match md with
+			| TClassDecl { cl_kind = KAbstractImpl a } ->
+				default_hxgen_func (TAbstractDecl a)
 			| TClassDecl cl ->
 				let rec is_hxgen_class (c,_) =
 					if c.cl_extern then begin
@@ -1530,7 +1532,12 @@ struct
 
 				is_hxgen_class (cl,[])
 			| TEnumDecl e -> if e.e_extern then Meta.has Meta.HxGen e.e_meta else not (Meta.has Meta.NativeGen e.e_meta)
-			| TAbstractDecl a -> not (Meta.has Meta.NativeGen a.a_meta)
+			| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> not (Meta.has Meta.NativeGen a.a_meta)
+			| TAbstractDecl a -> (match follow a.a_this with
+				| TInst _ | TEnum _ | TAbstract _ ->
+					default_hxgen_func (t_to_md (follow a.a_this))
+				| _ ->
+					Meta.has Meta.NativeGen a.a_meta)
 			| TTypeDecl t -> (* TODO see when would we use this *)
 				false
 
