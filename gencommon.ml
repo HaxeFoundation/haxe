@@ -9344,9 +9344,9 @@ struct
 								| TConst(TInt i) ->
 									let ef = Hashtbl.find fields (Int32.to_int i) in
 									{ e with eexpr = TField(enum_expr, FEnum(real_enum,ef)); etype = TEnum(real_enum,List.map (fun _ -> t_dynamic) real_enum.e_params) }
-								| _ -> raise Not_found) el, e
+								| _ -> raise Not_found) el, run e
 							) cases in
-							{ e with eexpr = TSwitch(enum,cases,default) }
+							{ e with eexpr = TSwitch(enum,cases,Option.map run default) }
 						| _ -> raise Not_found
 					with Not_found -> Type.map_expr run e)
 				| _ -> Type.map_expr run e
