@@ -84,9 +84,59 @@ package java;
 		It won't copy the contents of the native array, so unless any operation triggers an array resize,
 		all changes made to the Haxe array will affect the native array argument.
 	**/
-	public static function array<T>(native:java.NativeArray<T>):Array<T>
+	@:generic public static function array<T>(native:java.NativeArray<T>):Array<T>
 	{
 		return untyped Array.ofNative(native);
+	}
+
+	@:extern inline private static function doArray<T>(native:java.NativeArray<T>):Array<T>
+	{
+		var ret:NativeArray<Null<T>> = new NativeArray(native.length);
+		for (i in 0...native.length)
+		{
+			ret[i] = native[i];
+		}
+		return untyped Array.ofNative(ret);
+	}
+
+	public static function array_Int(native:java.NativeArray<Int>):Array<Int>
+	{
+		return doArray(native);
+	}
+
+	public static function array_Float(native:java.NativeArray<Float>):Array<Float>
+	{
+		return doArray(native);
+	}
+
+	public static function array_Bool(native:java.NativeArray<Bool>):Array<Bool>
+	{
+		return doArray(native);
+	}
+
+	public static function array_java_Int8(native:java.NativeArray<java.StdTypes.Int8>):Array<java.StdTypes.Int8>
+	{
+		return doArray(native);
+	}
+
+	public static function array_java_Int16(native:java.NativeArray<java.StdTypes.Int16>):Array<java.StdTypes.Int16>
+	{
+		return doArray(native);
+	}
+
+	public static function array_java_Char16(native:java.NativeArray<java.StdTypes.Char16>):Array<java.StdTypes.Char16>
+	{
+		return doArray(native);
+	}
+
+	public static function array_Single(native:java.NativeArray<Single>):Array<Single>
+	{
+		return doArray(native);
+	}
+
+	public static function array_haxe_Int64(native:java.NativeArray<haxe.Int64>):Array<haxe.Int64>
+	{
+		return doArray(native);
 	}
 
 	/**
