@@ -1904,14 +1904,25 @@ let copy_expr e =
 		| _ -> Hashtbl.find locals v.v_id
 	in
 	let rec loop e = match e.eexpr with
-	| TVar (v,eo) -> { e with eexpr = TVar (local v, match eo with Some e -> Some (loop e) | None -> None) }
-	| TFor (v,e1,e2) -> {e with eexpr = TFor (local v, loop e1, loop e2) }
-	| TTry (e,cl) -> { e with eexpr = TTry (loop e, List.map (fun (v,e) -> local v, loop e) cl) }
+	| TVar (v,eo) ->
+		let v = local v in
+		{ e with eexpr = TVar (v, match eo with Some e -> Some (loop e) | None -> None) }
+	| TFor (v,e1,e2) ->
+		let v = local v in
+		{e with eexpr = TFor (v, loop e1, loop e2) }
+	| TTry (e,cl) ->
+		let cl = List.map (fun (v,e) ->
+			let v = local v in
+			v, loop e
+		) cl in
+		{ e with eexpr = TTry (loop e, cl) }
 	| TFunction f ->
 		let args = List.map (fun (v,c) -> local v, c) f.tf_args in
 		let fcopy = {f with tf_args = args; tf_expr = loop f.tf_expr } in
 		{ e with eexpr = TFunction fcopy }
-	| TLocal v -> { e with eexpr = TLocal (read_local v) }
-	| _ -> map_expr loop e
+	| TLocal v ->
+		{ e with eexpr = TLocal (read_local v) }
+	| _ ->
+		map_expr loop e
 	in
 	loop e
