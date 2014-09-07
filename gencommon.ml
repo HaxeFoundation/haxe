@@ -3043,8 +3043,14 @@ struct
 					check_params v.v_type;
 					Type.iter traverse expr
 				| TFunction(tf) ->
-					List.iter (fun (v,_) -> check_params v.v_type; Hashtbl.add ignored v.v_id v) tf.tf_args;
-					check_params tf.tf_type;
+					List.iter (fun (v,_) -> Hashtbl.add ignored v.v_id v) tf.tf_args;
+					(match follow expr.etype with
+						| TFun(args,ret) ->
+							List.iter (fun (_,_,t) ->
+								check_params t
+							) args;
+							check_params ret
+						| _ -> ());
 					Type.iter traverse expr
 				| TVar (v, opt) ->
 					(match v.v_extra with
