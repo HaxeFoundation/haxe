@@ -1192,6 +1192,7 @@ try
 						activate_special_display_mode();
 						DMToplevel
 					| _ ->
+						Parser.use_parser_resume := true;
 						DMDefault
 				in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
