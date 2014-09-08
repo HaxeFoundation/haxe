@@ -916,8 +916,8 @@ let configure gen =
 			| TType({ t_path = ([], "Null") }, [t]) ->
 				(match follow t with
 					| TInst( { cl_kind = KTypeParameter _ }, []) ->
-							(* t_dynamic *)
-							real_type t
+							t_dynamic
+							(* real_type t *)
 					| _ -> real_type t
 				)
 			| TType _ | TAbstract _ -> t
