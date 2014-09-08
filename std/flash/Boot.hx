@@ -209,6 +209,21 @@ class Boot extends flash.display.MovieClip {
 		return s;
 	}
 
+	static public function mapDynamic(d:Dynamic, f:Dynamic) {
+		if (Std.is(d, Array)) {
+			return untyped d["mapHX"](f);
+		} else {
+			return d.map(f);
+		}
+	}
+
+	static public function filterDynamic(d:Dynamic, f:Dynamic) {
+		if (Std.is(d, Array)) {
+			return untyped d["filterHX"](f);
+		} else {
+			return d.map(f);
+		}
+	}
 
 	static function __init__() untyped {
 		var aproto = Array.prototype;

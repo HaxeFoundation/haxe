@@ -505,6 +505,12 @@ let rec gen_call ctx e el r =
 				print ctx ")";
 			| _ -> assert false)
 		| _ -> assert false)
+	| TField(e1, (FAnon {cf_name = s} | FDynamic s)),[ef] when s = "map" || s = "filter" ->
+		spr ctx (s_path ctx true (["flash";],"Boot") e.epos);
+		gen_field_access ctx t_dynamic (s ^ "Dynamic");
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) [e1;ef];
+		spr ctx ")"
 	| TField (ee,f), args when is_var_field f ->
 		spr ctx "(";
 		gen_value ctx e;
