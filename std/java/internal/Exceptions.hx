@@ -62,10 +62,12 @@ class Exceptions {
 		return obj;
 	}
 
+#if !debug
 	@:overload override public function fillInStackTrace():Throwable
 	{
 		return this;
 	}
+#end
 
 	@:overload override public function toString():String
 	{
