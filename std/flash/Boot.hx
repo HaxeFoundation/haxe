@@ -213,7 +213,7 @@ class Boot extends flash.display.MovieClip {
 		if (Std.is(d, Array)) {
 			return untyped d["mapHX"](f);
 		} else {
-			return d.map(f);
+			return untyped d["map"](f);
 		}
 	}
 
@@ -221,7 +221,7 @@ class Boot extends flash.display.MovieClip {
 		if (Std.is(d, Array)) {
 			return untyped d["filterHX"](f);
 		} else {
-			return d.map(f);
+			return untyped d["filter"](f);
 		}
 	}
 
