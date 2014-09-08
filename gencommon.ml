@@ -6199,8 +6199,6 @@ struct
 						correctly use class field type parameters with RealTypeParams
 					*)
 					let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) _params in
-					(* params are inverted *)
-					let cf_params = List.rev cf_params in
 					let t = apply_params en.e_params (gen.greal_type_param (TEnumDecl en) cf_params) actual_t in
 					let t = apply_params efield.ef_params (List.map (fun _ -> t_dynamic) efield.ef_params) t in
 
