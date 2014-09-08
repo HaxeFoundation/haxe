@@ -31,10 +31,15 @@ class Object {
 
 	var _lock(default,never) : Bool;
 	var _manager(default,never) : sys.db.Manager<Dynamic>;
+	#if cpp
+	var __cache__:Dynamic;
+	#end
 
 	public function new() {
 		#if php
 		if( _manager == null ) untyped _manager = Type.getClass(this).manager;
+		#elseif cpp
+		if( _manager == null ) untyped _manager = Reflect.field(Type.getClass(this), "manager");
 		#end
 	}
 
