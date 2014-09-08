@@ -43,7 +43,7 @@ extern class Path {
 
 	public static function ismount (path:String):Bool;
 
-	public static function join (path1:String, ?path2:String, ?path3:String, ?path4:String):String;
+	public static function join (path:String, paths:haxe.Rest<String>):String;
 
 	public static function normpath (path:String):String;
 
