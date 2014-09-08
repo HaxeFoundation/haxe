@@ -20,9 +20,8 @@ extern class Subprocess {
 	public static var STARTF_USESTDHANDLES:Int;
 	public static var STARTF_USESHOWWINDOW:Int;
 
-	//public static var CREATE_NEW_CONSOLE;
-
-	//public static var CREATE_NEW_PROCESS_GROUP;
+	public static var CREATE_NEW_CONSOLE:Int;
+	public static var CREATE_NEW_PROCESS_GROUP:Int;
 
 	public static var PIPE:Int;
 
