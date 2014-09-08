@@ -118,7 +118,7 @@ class TestRunner {
 		var cl = Type.getClass(t);
 		var fields = Type.getInstanceFields(cl);
 
-		print( "Class: "+Type.getClassName(cl)+" ");
+		print( "Class: "+Type.getClassName(cl)+" \n");
 		for ( f in fields ){
 			var fname = f;
 			var field = Reflect.field(t, f);
