@@ -840,7 +840,13 @@ let configure gen =
 	in
 
 	let change_clname name =
-		String.map (function | '$' -> '.' | c -> c) name
+		let r = String.copy name in
+		for i = 0 to String.length r - 2 do
+			match r.[i] with
+				| '$' -> r.[i] <- '.'
+				| _ -> ()
+		done;
+		r
 	in
 	let change_id name = try Hashtbl.find reserved name with | Not_found -> name in
 	let rec change_ns ns = match ns with
