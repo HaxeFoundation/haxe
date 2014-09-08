@@ -26,7 +26,7 @@ class StringBuf {
 
 	public var length(get,never) : Int;
 
-	public function new() : Void {
+	public inline function new() : Void {
 		b = new cs.StringBuilder();
 	}
 
@@ -38,16 +38,15 @@ class StringBuf {
 		b.Append(Std.string(x));
 	}
 
-	public function addSub( s : String, pos : Int, ?len : Int ) : Void {
-		var l:Int = (len == null) ? (s.length - pos) : len;
-		b.Append(s, pos, l);
+	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
+		b.Append(s, pos, (len == null) ? (s.length - pos) : len);
 	}
 
 	public inline function addChar( c : Int ) : Void untyped {
 		b.Append(cast(c, cs.StdTypes.Char16));
 	}
 
-	public function toString() : String {
+	public inline function toString() : String {
 		return b.ToString();
 	}
 
