@@ -256,7 +256,7 @@ class InflateImpl {
 			var cmf = input.readByte();
 			var cm = cmf & 15;
 			var cinfo = cmf >> 4;
-			if( cm != 8 || cinfo != 7 ) throw "Invalid data";
+			if( cm != 8 ) throw "Invalid data";
 			var flg = input.readByte();
 			//var fcheck = flg & 31;
 			var fdict = flg & 32 != 0;
