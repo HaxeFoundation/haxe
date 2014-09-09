@@ -1324,17 +1324,21 @@ class RecordMacros {
 			default:
 			}
 		}
-		// var getM = {
-		// 	args : [],
-		// 	params : [],
-		// 	ret : macro : sys.db.Manager<Dynamic>,
-		// 	expr : macro return $i{inst.name}.manager
-		// };
-		// fields.push({ name: "__getManager", meta : [], access : [APrivate,AOverride], doc : null, kind : FFun(getM) });
 		if( !hasManager ) {
 			var inst = Context.getLocalClass().get();
 			if( inst.meta.has(":skip") )
 				return fields;
+			if (!Context.defined('neko'))
+			{
+				var iname = { expr:EConst(CIdent(inst.name)), pos: inst.pos };
+				var getM = {
+					args : [],
+					params : [],
+					ret : macro : sys.db.Manager<Dynamic>,
+					expr : macro return $iname.manager
+				};
+				fields.push({ name: "__getManager", meta : [], access : [APrivate,AOverride], doc : null, kind : FFun(getM), pos : inst.pos });
+			}
 			var p = inst.pos;
 			var tinst = TPath( { pack : inst.pack, name : inst.name, sub : null, params : [] } );
 			var path = inst.pack.copy().concat([inst.name]).join(".");
