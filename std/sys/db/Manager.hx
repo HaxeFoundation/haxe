@@ -140,6 +140,12 @@ class Manager<T : Object> {
 		var s = new StringBuf();
 		var fields = new List();
 		var values = new List();
+		var cache = Reflect.field(x,cache_field);
+		if (cache == null)
+		{
+			Reflect.setField(x,cache_field,cache = {});
+		}
+
 		for( f in table_infos.fields ) {
 			var name = f.name,
 			    fieldName = getFieldName(f);
@@ -168,32 +174,34 @@ class Manager<T : Object> {
 					// no default value for these
 				}
 			}
+
+			Reflect.setField(cache, name, v);
 		}
 		s.add("INSERT INTO ");
 		s.add(table_name);
-		s.add(" (");
-		s.add(fields.join(","));
-		s.add(") VALUES (");
-		var first = true;
-		for( v in values ) {
-			if( first )
-				first = false;
-			else
-				s.add(", ");
-			getCnx().addValue(s,v);
+		if (fields.length > 0 || cnx.dbName() != "SQLite")
+		{
+			s.add(" (");
+			s.add(fields.join(","));
+			s.add(") VALUES (");
+			var first = true;
+			for( v in values ) {
+				if( first )
+					first = false;
+				else
+					s.add(", ");
+				getCnx().addValue(s,v);
+			}
+			s.add(")");
+		} else {
+			s.add(" DEFAULT VALUES");
 		}
-		s.add(")");
 		unsafeExecute(s.toString());
 		untyped x._lock = true;
 		// table with one key not defined : suppose autoincrement
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
 			Reflect.setField(x,table_keys[0],getCnx().lastInsertId());
 		addToCache(x);
-		var cache = Reflect.field(x,cache_field);
-		if (cache == null)
-		{
-			Reflect.setField(x,cache_field,{});
-		}
 	}
 
 	inline function isBinary( t : RecordInfos.RecordType ) {
@@ -226,6 +234,8 @@ class Manager<T : Object> {
 		var cache = Reflect.field(x,cache_field);
 		var mod = false;
 		for( f in table_infos.fields ) {
+			if (table_keys.indexOf(f.name) >= 0)
+				continue;
 			var name = f.name,
 			    fieldName = getFieldName(f);
 			var v : Dynamic = Reflect.field(x,fieldName);
