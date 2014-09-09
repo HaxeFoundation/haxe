@@ -560,6 +560,7 @@ class Manager<T : Object> {
 		var lock = r.lock;
 		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation " + r.prop + "(" + r.key + ") on a multiple key table");
+#if neko
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
 			var othis = untyped __this__;
 			var f = Reflect.field(othis,hprop);
@@ -583,6 +584,7 @@ class Manager<T : Object> {
 			Reflect.setField(othis,hkey,Reflect.field(f,manager.table_keys[0]));
 			return f;
 		});
+#end
 	}
 
 	#if !neko
@@ -590,14 +592,14 @@ class Manager<T : Object> {
 	function __get( x : Dynamic, prop : String, key : String, lock ) {
 		var v = Reflect.field(x,prop);
 		if( v != null )
-			return v.value;
+			return v;
 		var y = unsafeGet(Reflect.field(x, key), lock);
-		Reflect.setField(x,prop,{ value : y });
+		Reflect.setField(x,prop,v);
 		return y;
 	}
 
 	function __set( x : Dynamic, prop : String, key : String, v : T ) {
-		Reflect.setField(x,prop,{ value : v });
+		Reflect.setField(x,prop,v);
 		if( v == null )
 			Reflect.setField(x,key,null);
 		else

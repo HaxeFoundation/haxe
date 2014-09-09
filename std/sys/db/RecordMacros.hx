@@ -1244,68 +1244,70 @@ class RecordMacros {
 					skip = true;
 				case ":relation":
 					switch( f.kind ) {
-					case FVar(t, _):
-						f.kind = FProp("dynamic", "dynamic", t);
-						if( isNeko )
-							continue;
-						// create compile-time getter/setter for other platforms
-						var relKey = null;
-						var relParams = [];
-						var lock = false;
-						for( p in m.params )
-							switch( p.expr ) {
-							case EConst(c):
-								switch( c ) {
-								case CIdent(i):
-									relParams.push(i);
+						case FVar(t, _):
+							f.kind = FProp("dynamic", "dynamic", t);
+							if( isNeko )
+								continue;
+							// create compile-time getter/setter for other platforms
+							var relKey = null;
+							var relParams = [];
+							var lock = false;
+							for( p in m.params )
+								switch( p.expr ) {
+								case EConst(c):
+									switch( c ) {
+									case CIdent(i):
+										relParams.push(i);
+									default:
+									}
 								default:
 								}
-							default:
-							}
-						relKey = relParams.shift();
-						for( p in relParams )
-							if( p == "lock" )
-								lock = true;
-						// we will get an error later
-						if( relKey == null )
-							continue;
-						// generate get/set methods stubs
-						var pos = f.pos;
-						var ttype = t, tname;
-						while( true )
-							switch(ttype) {
-							case TPath(t):
-								if( t.params.length == 1 && (t.name == "Null" || t.name == "SNull") ) {
-									ttype = switch( t.params[0] ) {
-									case TPType(t): t;
-									default: throw "assert";
-									};
-									continue;
+							relKey = relParams.shift();
+							for( p in relParams )
+								if( p == "lock" )
+									lock = true;
+							// we will get an error later
+							if( relKey == null )
+								continue;
+							// generate get/set methods stubs
+							var pos = f.pos;
+							var ttype = t, tname;
+							while( true )
+								switch(ttype) {
+								case TPath(t):
+									if( t.params.length == 1 && (t.name == "Null" || t.name == "SNull") ) {
+										ttype = switch( t.params[0] ) {
+										case TPType(t): t;
+										default: throw "assert";
+										};
+										continue;
+									}
+									var p = t.pack.copy();
+									p.push(t.name);
+									if( t.sub != null ) p.push(t.sub);
+									tname = p.join(".");
+									break;
+								default:
+									Context.error("Relation type should be a type path", f.pos);
 								}
-								var p = t.pack.copy();
-								p.push(t.name);
-								if( t.sub != null ) p.push(t.sub);
-								tname = p.join(".");
-								break;
-							default:
-								Context.error("Relation type should be a type path", f.pos);
-							}
-						function e(expr) return { expr : expr, pos : pos };
-						var get = {
-							args : [],
-							params : [],
-							ret : t,
-							expr : Context.parse("return untyped "+tname+".manager.__get(this,'"+f.name+"','"+relKey+"',"+lock+")",pos),
-						};
-						var set = {
-							args : [{ name : "_v", opt : false, type : t, value : null }],
-							params : [],
-							ret : t,
-							expr : Context.parse("return untyped "+tname+".manager.__set(this,'"+f.name+"','"+relKey+"',_v)",pos),
-						};
-						var meta = [{ name : ":hide", params : [], pos : pos }];
-						fields.push({ name : "get_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) });
-						fields.push({ name : "set_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) });
+							function e(expr) return { expr : expr, pos : pos };
+							var get = {
+								args : [],
+								params : [],
+								ret : t,
+								expr : Context.parse("return untyped "+tname+".manager.__get(this,'"+f.name+"','"+relKey+"',"+lock+")",pos),
+							};
+							var set = {
+								args : [{ name : "_v", opt : false, type : t, value : null }],
+								params : [],
+								ret : t,
+								expr : Context.parse("return untyped "+tname+".manager.__set(this,'"+f.name+"','"+relKey+"',_v)",pos),
+							};
+							var meta = [{ name : ":hide", params : [], pos : pos }];
+							f.meta.push({ name: ":isVar", params : [], pos : pos });
+							fields.push({ name : "get_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) });
+							fields.push({ name : "set_"+f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) });
+							fields.push({ name : relKey, pos : pos, meta : [{ name : ":skip", params : [], pos : pos }], access : [APrivate], doc : null, kind : FVar(macro : Dynamic) });
 					default:
 						Context.error("Invalid relation field type", f.pos);
 					}
