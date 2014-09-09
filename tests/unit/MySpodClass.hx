@@ -22,6 +22,13 @@ import sys.db.Types;
   public var anEnum:SEnum<SpodEnum>;
 }
 
+@:keep class NullableSpodClass extends Object
+{
+	public var theId:SId;
+  @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
+  public var data:Null<SData<Array<ComplexClass>>>;
+}
+
 @:keep class ComplexClass
 {
 	public var val : { name:String, array:Array<String> };

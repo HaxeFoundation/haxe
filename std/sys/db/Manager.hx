@@ -211,6 +211,13 @@ class Manager<T : Object> {
 	function doUpdate( x : T ) {
 		if( untyped !x._lock )
 			throw "Cannot update a not locked object";
+		var upd = getUpdateStatement(x);
+		if (upd == null) return;
+		unsafeExecute(upd);
+	}
+
+	function getUpdateStatement( x : T ):Null<String>
+	{
 		unmake(x);
 		var s = new StringBuf();
 		s.add("UPDATE ");
@@ -242,10 +249,10 @@ class Manager<T : Object> {
 			}
 		}
 		if( !mod )
-			return;
+			return null;
 		s.add(" WHERE ");
 		addKeys(s,x);
-		unsafeExecute(s.toString());
+		return s.toString();
 	}
 
 	function doDelete( x : T ) {

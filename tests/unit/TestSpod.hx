@@ -19,8 +19,10 @@ class TestSpod extends Test
 		Manager.cnx = cnx;
 		try cnx.request('DROP TABLE MySpodClass') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE OtherSpodClass') catch(e:Dynamic) {}
+		try cnx.request('DROP TABLE NullableSpodClass') catch(e:Dynamic) {}
 		TableCreate.create(MySpodClass.manager);
 		TableCreate.create(OtherSpodClass.manager);
+		TableCreate.create(NullableSpodClass.manager);
 	}
 
 	private function setManager()
@@ -49,6 +51,57 @@ class TestSpod extends Test
 		scls.anEnum = SecondValue;
 
 		return scls;
+	}
+
+	public function testUpdate()
+	{
+		setManager();
+		var c1 = new OtherSpodClass("first spod");
+		c1.insert();
+		var c2 = new OtherSpodClass("second spod");
+		c2.insert();
+		var scls = getDefaultClass();
+		scls.relation = c1;
+		scls.relationNullable = c2;
+		scls.insert();
+
+		var id = scls.theId;
+
+		//if no change made, update should return nothing
+		eq( untyped MySpodClass.manager.getUpdateStatement( scls ), null );
+		Manager.cleanup();
+		scls = MySpodClass.manager.get(id);
+		eq( untyped MySpodClass.manager.getUpdateStatement( scls ), null );
+		scls.delete();
+
+		//try now with null SData and null relation
+		var scls = new NullableSpodClass();
+		scls.insert();
+
+		var id = scls.theId;
+
+		//if no change made, update should return nothing
+		eq( untyped NullableSpodClass.manager.getUpdateStatement( scls ), null );
+		Manager.cleanup();
+		scls = NullableSpodClass.manager.get(id);
+		eq( untyped NullableSpodClass.manager.getUpdateStatement( scls ), null );
+		scls.delete();
+
+		//same thing with explicit null set
+		var scls = new NullableSpodClass();
+		scls.data = null;
+		scls.relationNullable = null;
+		scls.insert();
+
+		var id = scls.theId;
+
+		//if no change made, update should return nothing
+		eq( untyped NullableSpodClass.manager.getUpdateStatement( scls ), null );
+		Manager.cleanup();
+		scls = NullableSpodClass.manager.get(id);
+		eq( untyped NullableSpodClass.manager.getUpdateStatement( scls ), null );
+		scls.delete();
+
 	}
 
 	public function testSpodTypes()
