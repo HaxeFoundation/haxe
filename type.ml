@@ -1885,3 +1885,44 @@ let find_array_access a pl t1 t2 is_set =
 			| _ -> loop cfl
 	in
 	loop a.a_array
+
+let copy_expr e =
+	let locals = Hashtbl.create 0 in
+	let local v =
+		try
+			Hashtbl.find locals v.v_id
+		with Not_found ->
+			let vcopy = alloc_var v.v_name v.v_type in
+			vcopy.v_meta <- v.v_meta;
+			Hashtbl.add locals v.v_id vcopy;
+			Hashtbl.add locals vcopy.v_id vcopy;
+			vcopy
+	in
+	let read_local v =
+		match v.v_name with
+		| "`trace" -> v
+		| _ -> Hashtbl.find locals v.v_id
+	in
+	let rec loop e = match e.eexpr with
+	| TVar (v,eo) ->
+		let v = local v in
+		{ e with eexpr = TVar (v, match eo with Some e -> Some (loop e) | None -> None) }
+	| TFor (v,e1,e2) ->
+		let v = local v in
+		{e with eexpr = TFor (v, loop e1, loop e2) }
+	| TTry (e,cl) ->
+		let cl = List.map (fun (v,e) ->
+			let v = local v in
+			v, loop e
+		) cl in
+		{ e with eexpr = TTry (loop e, cl) }
+	| TFunction f ->
+		let args = List.map (fun (v,c) -> local v, c) f.tf_args in
+		let fcopy = {f with tf_args = args; tf_expr = loop f.tf_expr } in
+		{ e with eexpr = TFunction fcopy }
+	| TLocal v ->
+		{ e with eexpr = TLocal (read_local v) }
+	| _ ->
+		map_expr loop e
+	in
+	loop e
