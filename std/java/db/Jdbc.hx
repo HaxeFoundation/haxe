@@ -55,13 +55,7 @@ private class JdbcConnection implements sys.db.Connection
 	{
 		if (Std.is(v, Date))
 		{
-			if (dbName() == "SQLite")
-			{
-				v = Std.string(v);
-			} else {
-				var d:Date = v;
-				v = new java.sql.Date(cast(d.getTime(), haxe.Int64));
-			}
+			v = Std.string(v);
 		} else if (Std.is(v, Bytes)) {
 			var bt:Bytes = v;
 			v = bt.getData();
@@ -143,7 +137,7 @@ private class JdbcConnection implements sys.db.Connection
 				s = r.matchedRight();
 			}
 			newst.add(s);
-			var stmt = cnx.prepareStatement(newst.toString());
+			var stmt = cnx.prepareStatement(newst.toString(), java.sql.Statement.Statement_Statics.RETURN_GENERATED_KEYS);
 			for (i in 0...sentArray.length)
 			{
 				stmt.setObject(i + 1, sentArray[i]);
@@ -195,6 +189,7 @@ private class JdbcResultSet implements sys.db.ResultSet
 	private var names:Array<String>;
 	private var types:java.NativeArray<Int>;
 	private var dbName:String;
+	private var didNext:Bool;
 
 	public function new(rs, dbName, meta:java.sql.ResultSetMetaData)
 	{
@@ -240,6 +235,7 @@ private class JdbcResultSet implements sys.db.ResultSet
 	{
 		try
 		{
+			didNext = true;
 			return rs != null && rs.next();
 		}
 		catch(e:Dynamic) { return throw e; }
@@ -249,6 +245,15 @@ private class JdbcResultSet implements sys.db.ResultSet
 	{
 		try {
 			if (rs == null) return null;
+			if (didNext)
+			{
+				didNext = false;
+			} else {
+				if (!rs.next())
+				{
+					return null;
+				}
+			}
 			var ret = {}, names = names, types = types;
 			for (i in 0...names.length)
 			{
@@ -290,7 +295,7 @@ private class JdbcResultSet implements sys.db.ResultSet
 
 		try
 		{
-			while(rs.next())
+			while(hasNext())
 				l.add(next());
 		} catch(e:Dynamic) throw e;
 		return l;

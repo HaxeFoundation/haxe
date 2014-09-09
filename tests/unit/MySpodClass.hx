@@ -2,7 +2,7 @@ package unit;
 import sys.db.Object;
 import sys.db.Types;
 
-class MySpodClass extends Object
+@:keep class MySpodClass extends Object
 {
   public var theId:SId;
   public var int:SInt;
@@ -22,7 +22,7 @@ class MySpodClass extends Object
   public var anEnum:SEnum<SpodEnum>;
 }
 
-class ComplexClass
+@:keep class ComplexClass
 {
 	public var val : { name:String, array:Array<String> };
 
@@ -32,7 +32,7 @@ class ComplexClass
 	}
 }
 
-class OtherSpodClass extends Object
+@:keep class OtherSpodClass extends Object
 {
 	public var theid:SId;
 	public var name:SString<255>;
@@ -44,7 +44,7 @@ class OtherSpodClass extends Object
 	}
 }
 
-enum SpodEnum
+@:keep enum SpodEnum
 {
 	FirstValue;
 	SecondValue;

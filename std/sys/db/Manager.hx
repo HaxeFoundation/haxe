@@ -128,7 +128,7 @@ class Manager<T : Object> {
 	static function getFieldName(field:RecordField):String
 	{
 		return switch (field.t) {
-			case DData:
+			case DData | DEnum(_):
 				"data_" + field.name;
 			case _:
 				field.name;
@@ -143,7 +143,7 @@ class Manager<T : Object> {
 		for( f in table_infos.fields ) {
 			var name = f.name,
 			    fieldName = getFieldName(f);
-			var v = Reflect.field(x,fieldName);
+			var v:Dynamic = Reflect.field(x,fieldName);
 			if( v != null ) {
 				fields.add(quoteField(name));
 				switch( f.t ) {
@@ -322,44 +322,60 @@ class Manager<T : Object> {
 
 	/* ---------------------------- INTERNAL API -------------------------- */
 
+	function normalizeCache(x:CacheType<T>)
+	{
+		for (f in Reflect.fields(x) )
+		{
+			var val:Dynamic = Reflect.field(x,f), info = table_infos.hfields.get(f);
+			if (info != null)
+			{
+				if (val != null) switch (info.t) {
+					case DDate, DDateTime if (!Std.is(val,Date)):
+						if (Std.is(val,Float))
+						{
+							val = Date.fromTime(val);
+						} else {
+							var v = val + "";
+							var index = v.indexOf('.');
+							if (index >= 0)
+								v = v.substr(0,index);
+							val = Date.fromString(v);
+						}
+					case DSmallBinary, DLongBinary, DBinary, DBytes(_), DData if (Std.is(val, String)):
+						val = haxe.io.Bytes.ofString(val);
+					case DBool if (!Std.is(val,Bool)):
+						if (Std.is(val,Int))
+							val = val != 0;
+						else if (Std.is(val, String)) switch (val.toLowerCase()) {
+							case "1", "true": val = true;
+							case "0", "false": val = false;
+						}
+					case DFloat if (Std.is(val,String)):
+						val = Std.parseFloat(val);
+					case _:
+				}
+				Reflect.setField(x, f, val);
+			}
+		}
+	}
+
 	function cacheObject( x : T, lock : Bool ) {
 		#if neko
 		var o = untyped __dollar__new(x);
 		untyped __dollar__objsetproto(o, class_proto.prototype);
 		#else
 		var o : T = Type.createEmptyInstance(cast class_proto);
-		for( f in Reflect.fields(x) )
-			Reflect.setField(o, f, Reflect.field(x, f));
 		untyped o._manager = this;
 		#end
+		normalizeCache(x);
 		for (f in Reflect.fields(x) )
 		{
 			var val:Dynamic = Reflect.field(x,f), info = table_infos.hfields.get(f);
-			var fieldName = getFieldName(info);
-			if (val != null && info != null) switch (info.t) {
-				case DDate, DDateTime if (!Std.is(val,Date)):
-					if (Std.is(val,Float))
-					{
-						val = Date.fromTime(val);
-					} else {
-						val = Date.fromString(val +"");
-					}
-				case DSmallBinary, DLongBinary, DBinary, DBytes(_), DData if (Std.is(val, String)):
-					val = haxe.io.Bytes.ofString(val);
-				case DBool if (!Std.is(val,Bool)):
-					if (Std.is(val,Int))
-						val = val != 0;
-					else if (Std.is(val, String)) switch (val.toLowerCase()) {
-						case "1", "true": val = true;
-						case "0", "false": val = false;
-					}
-				case DFloat if (Std.is(val,String)):
-					val = Std.parseFloat(val);
-				case _:
+			if (info != null)
+			{
+				var fieldName = getFieldName(info);
+				Reflect.setField(o, fieldName, val);
 			}
-
-			Reflect.setField(o, fieldName, val);
-			Reflect.setField(x, f, val);
 		}
 		Reflect.setField(o,cache_field,x);
 		addToCache(o);
@@ -405,6 +421,7 @@ class Manager<T : Object> {
 		var r = unsafeExecute(sql).next();
 		if( r == null )
 			return null;
+		normalizeCache(r);
 		var c = getFromCache(r,lock);
 		if( c != null )
 			return c;
@@ -421,6 +438,7 @@ class Manager<T : Object> {
 		var l = unsafeExecute(sql).results();
 		var l2 = new List<T>();
 		for( x in l ) {
+			normalizeCache(x);
 			var c = getFromCache(x,lock);
 			if( c != null )
 				l2.add(c);
@@ -629,11 +647,11 @@ class Manager<T : Object> {
 		return s.toString();
 	}
 
-	function addToCache( x : T ) {
+	function addToCache( x : CacheType<T> ) {
 		object_cache.set(makeCacheKey(x),x);
 	}
 
-	function removeFromCache( x : T ) {
+	function removeFromCache( x : CacheType<T> ) {
 		object_cache.remove(makeCacheKey(x));
 	}
 
@@ -641,14 +659,18 @@ class Manager<T : Object> {
 		return cast object_cache.get(key);
 	}
 
-	function getFromCache( x : T, lock : Bool ) : T {
+	function getFromCache( x : CacheType<T>, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
 		if( c != null && lock && !c._lock ) {
 			// synchronize the fields since our result is up-to-date !
 			for( f in Reflect.fields(c) )
 				Reflect.deleteField(c,f);
-			for( f in Reflect.fields(x) )
-				Reflect.setField(c,f,Reflect.field(x,f));
+			for (f in table_infos.fields)
+			{
+				var name = f.name,
+				    fieldName = getFieldName(f);
+				Reflect.setField(c,fieldName,Reflect.field(x,name));
+			}
 			// mark as locked
 			c._lock = true;
 			// restore our manager
@@ -685,3 +707,5 @@ class Manager<T : Object> {
 	}
 
 }
+
+private typedef CacheType<T> = Dynamic;

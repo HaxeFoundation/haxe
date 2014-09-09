@@ -1195,15 +1195,15 @@ class RecordMacros {
 				expr : macro { if( $ecache == null ) { $ecache = { v : _v }; $efield = cast {}; } else $ecache.v = _v; return _v; },
 			};
 			fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t }, null) } );
-			fields.push( { name : dataName, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : haxe.io.Bytes, null) } );
+			fields.push( { name : dataName, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : Dynamic, null) } );
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 		case "SEnum":
 			f.kind = FProp("dynamic", "dynamic", rt, null);
-			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
-			var efield = { expr : EConst(CIdent(f.name)), pos : pos };
+			var dataName = "data_" + f.name;
+			var efield = { expr : EConst(CIdent(dataName)), pos : pos };
 			var eval = switch( t ) {
 			case TPath(p):
 				var pack = p.pack.copy();
@@ -1227,6 +1227,7 @@ class RecordMacros {
 			};
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
+			fields.push( { name : dataName, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : Null<Int>, null) } );
 		case "SNull", "Null":
 			buildField(f, fields, t, rt);
 		}
@@ -1323,6 +1324,13 @@ class RecordMacros {
 			default:
 			}
 		}
+		// var getM = {
+		// 	args : [],
+		// 	params : [],
+		// 	ret : macro : sys.db.Manager<Dynamic>,
+		// 	expr : macro return $i{inst.name}.manager
+		// };
+		// fields.push({ name: "__getManager", meta : [], access : [APrivate,AOverride], doc : null, kind : FFun(getM) });
 		if( !hasManager ) {
 			var inst = Context.getLocalClass().get();
 			if( inst.meta.has(":skip") )
