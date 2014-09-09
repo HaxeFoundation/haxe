@@ -1176,13 +1176,11 @@ class RecordMacros {
 			f.meta.push( { name : ":data", params : [], pos : f.pos } );
 			f.meta.push( { name : ":isVar", params : [], pos : f.pos } );
 			var meta = [ { name : ":hide", params : [], pos : pos } ];
-			var cache = "cache_" + f.name;
+			var cache = "cache_" + f.name,
+			    dataName = "data_" + f.name;
 			var ecache = { expr : EConst(CIdent(cache)), pos : pos };
-			var efield = { expr : EConst(CIdent(f.name)), pos : pos };
-			var fname = { expr : EConst(CString(f.name)), pos : pos };
-			// note : we need to store the data in the same field, which is typed as t while it is actually a haxe.io.Bytes
-			// this might cause some issues with static platforms.
-			// In that case maybe a special handling of SData field compilation to haxe.io.Bytes will be necessary
+			var efield = { expr : EConst(CIdent(dataName)), pos : pos };
+			var fname = { expr : EConst(CString(dataName)), pos : pos };
 			var get = {
 				args : [],
 				params : [],
@@ -1197,6 +1195,7 @@ class RecordMacros {
 				expr : macro { if( $ecache == null ) { $ecache = { v : _v }; $efield = cast {}; } else $ecache.v = _v; return _v; },
 			};
 			fields.push( { name : cache, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : { v : $t }, null) } );
+			fields.push( { name : dataName, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : haxe.io.Bytes, null) } );
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 		case "SEnum":

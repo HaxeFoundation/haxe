@@ -22,6 +22,7 @@
 package sys.db;
 import Reflect;
 import sys.db.Connection;
+import sys.db.RecordInfos;
 
 /**
 	Record Manager : the persistent object database manager. See the tutorial on
@@ -124,14 +125,25 @@ class Manager<T : Object> {
 		return v;
 	}
 
+	static function getFieldName(field:RecordField):String
+	{
+		return switch (field.t) {
+			case DData:
+				"data_" + field.name;
+			case _:
+				field.name;
+		}
+	}
+
 	function doInsert( x : T ) {
 		unmake(x);
 		var s = new StringBuf();
 		var fields = new List();
 		var values = new List();
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v = Reflect.field(x,name);
+			var name = f.name,
+			    fieldName = getFieldName(f);
+			var v = Reflect.field(x,fieldName);
 			if( v != null ) {
 				fields.add(quoteField(name));
 				switch( f.t ) {
@@ -207,8 +219,9 @@ class Manager<T : Object> {
 		var cache = Reflect.field(x,cache_field);
 		var mod = false;
 		for( f in table_infos.fields ) {
-			var name = f.name;
-			var v : Dynamic = Reflect.field(x,name);
+			var name = f.name,
+			    fieldName = getFieldName(f);
+			var v : Dynamic = Reflect.field(x,fieldName);
 			var vc : Dynamic = Reflect.field(cache,name);
 			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
 				switch( f.t ) {
@@ -322,6 +335,7 @@ class Manager<T : Object> {
 		for (f in Reflect.fields(x) )
 		{
 			var val:Dynamic = Reflect.field(x,f), info = table_infos.hfields.get(f);
+			var fieldName = getFieldName(info);
 			if (val != null && info != null) switch (info.t) {
 				case DDate, DDateTime if (!Std.is(val,Date)):
 					if (Std.is(val,Float))
@@ -344,7 +358,7 @@ class Manager<T : Object> {
 				case _:
 			}
 
-			Reflect.setField(o, f, val);
+			Reflect.setField(o, fieldName, val);
 			Reflect.setField(x, f, val);
 		}
 		Reflect.setField(o,cache_field,x);
