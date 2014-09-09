@@ -301,7 +301,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		];
 		// SPOD tests
 		#if ( (neko || php || java || cpp) && !macro && !interp)
-		#if travis
+		#if (travis && !cpp)
 		if (Sys.systemName() != "Mac")
 		{
 			classes.push(new TestSpod(sys.db.Mysql.connect({
