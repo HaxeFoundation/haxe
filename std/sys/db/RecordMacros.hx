@@ -23,9 +23,9 @@ package sys.db;
 import sys.db.RecordInfos;
 import haxe.macro.Expr;
 import haxe.macro.Type.VarAccess;
+using haxe.macro.TypeTools;
 #if macro
 import haxe.macro.Context;
-using haxe.macro.TypeTools;
 #end
 
 private typedef SqlFunction = {
