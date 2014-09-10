@@ -2402,12 +2402,21 @@ and type_access ctx e p mode =
 				if mode = MSet then error "Cannot set constructor" p;
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
 				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
-				let ct, _ = get_constructor ctx c monos p in
+				let ct, cf = get_constructor ctx c monos p in
 				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
 				let vl = List.map (fun (n,_,t) -> alloc_var n t) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
-				let t = TInst(c,monos) in
-				let ec = mk (TNew(c,monos,List.map vexpr vl)) t p in
+				let el = List.map vexpr vl in
+				let ec,t = match c.cl_kind with
+					| KAbstractImpl a ->
+						let e = type_module_type ctx (TClassDecl c) None p in
+						let e = mk (TField (e,(FStatic (c,cf)))) ct p in
+						let t = TAbstract(a,monos) in
+						make_call ctx e el t p,t
+					| _ ->
+						let t = TInst(c,monos) in
+						mk (TNew(c,monos,el)) t p,t
+				in
 				AKExpr(mk (TFunction {
 					tf_args = List.map (fun v -> v,None) vl;
 					tf_type = t;
