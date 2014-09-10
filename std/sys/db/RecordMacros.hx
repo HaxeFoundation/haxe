@@ -25,6 +25,7 @@ import haxe.macro.Expr;
 import haxe.macro.Type.VarAccess;
 #if macro
 import haxe.macro.Context;
+using haxe.macro.TypeTools;
 #end
 
 private typedef SqlFunction = {
@@ -193,12 +194,15 @@ class RecordMacros {
 			case "haxe.io.Bytes": DBinary;
 			default: throw "Unsupported Record Type " + name;
 			}
-		case TAbstract(a, _):
+		case TAbstract(a, p):
 			var name = a.toString();
 			return switch( name ) {
 			case "Int": DInt;
 			case "Float": DFloat;
 			case "Bool": DBool;
+			case _ if (!a.get().meta.has(':coreType')):
+				var a = a.get();
+				makeType(a.type.applyTypeParameters(a.params, p));
 			default: throw "Unsupported Record Type " + name;
 			}
 		case TEnum(e, _):

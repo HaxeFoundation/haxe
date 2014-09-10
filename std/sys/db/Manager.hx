@@ -360,6 +360,8 @@ class Manager<T : Object> {
 						}
 					case DSmallBinary, DLongBinary, DBinary, DBytes(_), DData if (Std.is(val, String)):
 						val = haxe.io.Bytes.ofString(val);
+					case DString(_) | DTinyText | DSmallText | DText if(!Std.is(val,String)):
+						val = val + "";
 					case DBool if (!Std.is(val,Bool)):
 						if (Std.is(val,Int))
 							val = val != 0;

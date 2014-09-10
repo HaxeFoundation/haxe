@@ -11,6 +11,7 @@ import sys.db.Types;
   public var string:SString<255>;
   public var date:SDateTime;
   public var binary:SBinary;
+	public var abstractType:AbstractSpodTest<String>;
 
   public var nullInt:SNull<Int>;
   public var enumFlags:SFlags<SpodEnum>;
@@ -27,6 +28,7 @@ import sys.db.Types;
 	public var theId:SId;
   @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
   public var data:Null<SData<Array<ComplexClass>>>;
+	public var abstractType:Null<AbstractSpodTest<String>>;
 }
 
 @:keep class ComplexClass
@@ -56,4 +58,12 @@ import sys.db.Types;
 	FirstValue;
 	SecondValue;
 	ThirdValue;
+}
+
+abstract AbstractSpodTest<A>(A) from A
+{
+	public function get():A
+	{
+		return this;
+	}
 }

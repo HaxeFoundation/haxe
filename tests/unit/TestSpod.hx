@@ -40,8 +40,9 @@ class TestSpod extends Test
 		scls.boolean = true;
 		scls.string = "some string";
 		scls.date = new Date(2012, 7, 30, 0, 0, 0);
+		scls.abstractType = "other string";
 
-		var bytes = Bytes.ofString("\x01\n\r\x02");
+		var bytes = Bytes.ofString("\x01\n\r'\x02");
 		scls.binary = bytes;
 		scls.enumFlags = EnumFlags.ofInt(0);
 		scls.enumFlags.set(FirstValue);
@@ -91,6 +92,7 @@ class TestSpod extends Test
 		var scls = new NullableSpodClass();
 		scls.data = null;
 		scls.relationNullable = null;
+		scls.abstractType = null;
 		scls.insert();
 
 		var id = scls.theId;
@@ -139,12 +141,14 @@ class TestSpod extends Test
 		eq(cls1.boolean, true,pos());
 		t(Std.is(cls1.string, String),pos());
 		eq(cls1.string, "some string",pos());
+		t(Std.is(cls1.abstractType, String),pos());
+		eq(cls1.abstractType.get(), "other string",pos());
 		t(cls1.date != null,pos());
 		t(Std.is(cls1.date, Date),pos());
 		eq(cls1.date.getTime(), new Date(2012, 7, 30, 0, 0, 0).getTime(),pos());
 
 		t(Std.is(cls1.binary, Bytes),pos());
-		eq(cls1.binary.compare(Bytes.ofString("\x01\n\r\x02")), 0,pos());
+		eq(cls1.binary.compare(Bytes.ofString("\x01\n\r'\x02")), 0,pos());
 		t(cls1.enumFlags.has(FirstValue),pos());
 		f(cls1.enumFlags.has(SecondValue),pos());
 		t(cls1.enumFlags.has(ThirdValue),pos());
