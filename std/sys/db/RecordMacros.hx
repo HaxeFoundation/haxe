@@ -23,9 +23,9 @@ package sys.db;
 import sys.db.RecordInfos;
 import haxe.macro.Expr;
 import haxe.macro.Type.VarAccess;
-using haxe.macro.TypeTools;
 #if macro
 import haxe.macro.Context;
+using haxe.macro.TypeTools;
 #end
 
 private typedef SqlFunction = {
@@ -202,7 +202,11 @@ class RecordMacros {
 			case "Bool": DBool;
 			case _ if (!a.get().meta.has(':coreType')):
 				var a = a.get();
+#if macro
 				makeType(a.type.applyTypeParameters(a.params, p));
+#else
+				makeType(a.type);
+#end
 			default: throw "Unsupported Record Type " + name;
 			}
 		case TEnum(e, _):
