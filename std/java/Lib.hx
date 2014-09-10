@@ -91,7 +91,7 @@ package java;
 
 	@:extern inline private static function doArray<T>(native:java.NativeArray<T>):Array<T>
 	{
-		var ret:NativeArray<Null<T>> = new NativeArray(native.length);
+		var ret:NativeArray<Dynamic> = new NativeArray(native.length);
 		for (i in 0...native.length)
 		{
 			ret[i] = native[i];
