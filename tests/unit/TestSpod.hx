@@ -86,6 +86,10 @@ class TestSpod extends Test
 		Manager.cleanup();
 		scls = NullableSpodClass.manager.get(id);
 		eq( untyped NullableSpodClass.manager.getUpdateStatement( scls ), null );
+		eq(scls.data,null);
+		eq(scls.relationNullable,null);
+		eq(scls.abstractType,null);
+		eq(scls.anEnum,null);
 		scls.delete();
 
 		//same thing with explicit null set
@@ -93,6 +97,7 @@ class TestSpod extends Test
 		scls.data = null;
 		scls.relationNullable = null;
 		scls.abstractType = null;
+		scls.anEnum = null;
 		scls.insert();
 
 		var id = scls.theId;
@@ -102,6 +107,10 @@ class TestSpod extends Test
 		Manager.cleanup();
 		scls = NullableSpodClass.manager.get(id);
 		eq( untyped NullableSpodClass.manager.getUpdateStatement( scls ), null );
+		eq(scls.data,null);
+		eq(scls.relationNullable,null);
+		eq(scls.abstractType,null);
+		eq(scls.anEnum,null);
 		scls.delete();
 
 	}

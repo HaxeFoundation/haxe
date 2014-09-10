@@ -29,6 +29,7 @@ import sys.db.Types;
   @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
   public var data:Null<SData<Array<ComplexClass>>>;
 	public var abstractType:Null<AbstractSpodTest<String>>;
+	public var anEnum:Null<SEnum<SpodEnum>>;
 }
 
 @:keep class ComplexClass
