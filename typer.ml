@@ -4341,13 +4341,15 @@ let make_macro_api ctx p =
 			| _ ->
 				()
 		);
-		Interp.define_module = (fun m types ->
+		Interp.define_module = (fun m types imports usings ->
 			let types = List.map (fun v ->
 				let _, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 				tdef, pos
 			) types in
-			let m = Ast.parse_path m in
 			let pos = (match types with [] -> Ast.null_pos | (_,p) :: _ -> p) in
+			let types = types @ (List.map (fun (il,ik) -> EImport(il,ik),pos)) imports in
+			let types = types @ (List.map (fun tp -> EUsing tp,pos)) usings in
+			let m = Ast.parse_path m in
 			let prev = (try Some (Hashtbl.find ctx.g.modules m) with Not_found -> None) in
 			let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file types pos in
 			add_dependency mnew ctx.m.curmod;
