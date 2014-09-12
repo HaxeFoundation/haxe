@@ -4347,8 +4347,9 @@ let make_macro_api ctx p =
 				tdef, pos
 			) types in
 			let pos = (match types with [] -> Ast.null_pos | (_,p) :: _ -> p) in
-			let types = types @ (List.map (fun (il,ik) -> EImport(il,ik),pos)) imports in
-			let types = types @ (List.map (fun tp -> EUsing tp,pos)) usings in
+			let imports = List.map (fun (il,ik) -> EImport(il,ik),pos) imports in
+			let usings = List.map (fun tp -> EUsing tp,pos) usings in
+			let types = imports @ usings @ types in
 			let m = Ast.parse_path m in
 			let prev = (try Some (Hashtbl.find ctx.g.modules m) with Not_found -> None) in
 			let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file types pos in
