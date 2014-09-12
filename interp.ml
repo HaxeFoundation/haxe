@@ -2137,6 +2137,12 @@ let macro_lib =
 			| VString s -> (try VString (Common.raw_defined_value (ccom()) s) with Not_found -> VNull)
 			| _ -> error();
 		);
+		"get_defines", Fun0 (fun() ->
+			let defines = (ccom()).defines in
+			let h = Hashtbl.create 0 in
+			PMap.iter (fun n v -> Hashtbl.replace h (VString n) (VString v)) defines;
+			enc_hash h
+		);
 		"get_type", Fun1 (fun s ->
 			match s with
 			| VString s ->
