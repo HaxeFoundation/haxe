@@ -21,6 +21,7 @@
  */
 package haxe.macro;
 
+import haxe.ds.StringMap;
 import haxe.macro.Expr;
 import haxe.macro.Type.TypedExpr;
 
@@ -225,7 +226,19 @@ class Context {
 		var d = load("defined_value", 1)(untyped key.__s);
 		return d == null ? null : new String(d);
 	}
-
+	
+	/**
+		Returns a map of all compiler directives that have been set.
+		
+		Compiler directives are set using the `-D` command line parameter, or
+		by calling `haxe.macro.Compiler.define`.
+		
+		Modifying the returned map has no effect on the compiler.
+	 */
+	public static function getDefines() : haxe.ds.StringMap<String> {
+		return load("get_defines", 0)();
+	}
+	
 	/**
 		Resolves a type identified by `name`.
 
