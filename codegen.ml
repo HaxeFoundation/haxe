@@ -663,16 +663,6 @@ module AbstractCast = struct
 			else match a.a_impl with
 				| Some c -> recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
 				| None -> assert false
-
-(* 			match cfo,a.a_impl with
-				| None,_ ->
-					mk_cast();
-				| Some cf,_ when Meta.has Meta.MultiType a.a_meta ->
-					mk_cast();
-				| Some cf,Some c ->
-
-				| _ ->
-					assert false *)
 		in
 		if type_iseq tleft eright.etype then
 			eright
@@ -683,18 +673,28 @@ module AbstractCast = struct
 				| _ ->
 					raise Not_found
 			end
-		with Not_found -> try
+		with Not_found ->
 			begin match follow tleft with
 				| TAbstract(a,tl) ->
 					find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
 				| _ ->
 					raise Not_found
 			end
+
+	let cast_or_unify_raise ctx tleft eright p =
+		try
+			if ctx.com.display <> DMNone then raise Not_found;
+			do_check_cast ctx tleft eright p
 		with Not_found ->
+			unify_raise ctx eright.etype tleft p;
 			eright
 
-	let check_cast ctx tleft eright p =
-		if ctx.com.display <> DMNone then eright else do_check_cast ctx tleft eright p
+	let cast_or_unify ctx tleft eright p =
+		try
+			cast_or_unify_raise ctx tleft eright p
+		with Error (Unify _ as err,_) ->
+			if not ctx.untyped then display_error ctx (error_msg err) p;
+			eright
 
 	let find_multitype_specialization com a pl p =
 		let m = mk_mono() in

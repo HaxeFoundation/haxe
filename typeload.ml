@@ -234,7 +234,7 @@ let type_function_arg ctx t e opt p =
 let type_var_field ctx t e stat p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = type_expr ctx e (WithType t) in
-	unify ctx e.etype t p;
+	let e = (!check_abstract_cast_ref) ctx t e p in
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e
@@ -1716,11 +1716,7 @@ let init_class ctx c p context_init herits fields =
 						(* turn int constant to float constant if expected type is float *)
 						{e with eexpr = TConst (TFloat (Int32.to_string i))}
 					| _ ->
-						let e' = (!check_abstract_cast_ref) ctx cf.cf_type e e.epos in
-						if e' == e then
-							mk (TCast(e,None)) cf.cf_type e.epos
-						else
-							e'
+						mk_cast e cf.cf_type e.epos
 				end
 			in
 			let r = exc_protect ctx (fun r ->
@@ -2235,8 +2231,8 @@ let init_class ctx c p context_init herits fields =
 	) fields;
 	(match c.cl_kind with
 	| KAbstractImpl a ->
-		a.a_to <- List.rev a.a_to;
-		a.a_from <- List.rev a.a_from;
+		a.a_to_field <- List.rev a.a_to_field;
+		a.a_from_field <- List.rev a.a_from_field;
 		a.a_ops <- List.rev a.a_ops;
 		a.a_unops <- List.rev a.a_unops;
 	| _ -> ());

@@ -1475,26 +1475,18 @@ let rec unify a b =
 
 and unify_from ab tl a b ?(allow_transitive_cast=true) t =
 	let t = apply_params ab.a_params tl t in
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
 	try
-		begin match follow a with
-			| TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast ->
-				type_eq EqStrict a t
-			| _ ->
-				unify a t
-		end;
+		unify_func a t;
 		true
 	with Unify_error _ ->
 		false
 
 and unify_to ab tl b ?(allow_transitive_cast=true) t =
 	let t = apply_params ab.a_params tl t in
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
 	try
-		begin match follow b with
-			| TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast ->
-				type_eq EqStrict t b
-			| _ ->
-				unify t b
-		end;
+		unify_func t b;
 		true
 	with Unify_error _ ->
 		false
@@ -1502,7 +1494,7 @@ and unify_to ab tl b ?(allow_transitive_cast=true) t =
 and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
 	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
-	let unify_func = match follow a with TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast -> type_eq EqStrict | _ -> unify in
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
 	let b = try
 		begin match follow cf.cf_type with
 			| TFun(_,r) ->
@@ -1514,7 +1506,7 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
 						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> unify m (map tc) ) constr
 					| _ -> ()
 				) monos cf.cf_params;
-				unify (map r) b;
+				unify_func (map r) b;
 			| _ -> assert false
 		end;
 		true
@@ -1528,12 +1520,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 	let a = TAbstract(ab,tl) in
 	if (List.exists (fun (b2,a2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (b,a) :: !abstract_cast_stack;
-	let unify_func = match follow b with
-		| TAbstract(ab2,_) when not (Meta.has Meta.CoreType ab.a_meta) || not (Meta.has Meta.CoreType ab2.a_meta) || not allow_transitive_cast ->
-			type_eq EqStrict
-		| _ ->
-			unify
-	in
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
 	let r = try
 		begin match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
@@ -1617,12 +1604,16 @@ module Abstract = struct
 	let find_to ab pl b =
 		if follow b == t_dynamic then
 			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
+		else if List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to then
+			raise Not_found (* legacy compatibility *)
 		else
 			List.find (unify_to_field ab pl b) ab.a_to_field
 
 	let find_from ab pl a b =
 		if follow a == t_dynamic then
 			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
+		else if List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_to then
+			raise Not_found (* legacy compatibility *)
 		else
 			List.find (unify_from_field ab pl a b) ab.a_from_field
 
