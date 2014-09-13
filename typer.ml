@@ -1181,7 +1181,7 @@ let rec using_field ctx mode e i p =
 			begin match follow t with
 				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
-					Type.unify e.etype t0;
+					let e = Codegen.AbstractCast.cast_or_unify_raise ctx t0 e p in
 					(* early constraints check is possible because e.etype has no monomorphs *)
 					List.iter2 (fun m (name,t) -> match follow t with
 						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
@@ -1195,7 +1195,7 @@ let rec using_field ctx mode e i p =
 			end
 		with Not_found ->
 			loop l
-		| Unify_error el ->
+		| Unify_error el | Error (Unify el,_) ->
 			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
@@ -3891,16 +3891,16 @@ and build_call ctx acc el (with_type:with_type) p =
 		| _ ->
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
-			let t,tthis,is_abstract_impl_call = match follow eparam.etype with
-				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl t,apply_params a.a_params tl a.a_this,true
-				| te -> t,te,false
+			let t,tthis = match follow eparam.etype with
+				| TAbstract(a,tl) when Meta.has Meta.Impl ef.cf_meta -> apply_params a.a_params tl t,apply_params a.a_params tl a.a_this
+				| te -> t,te
 			in
 			let params,args,r,eparam = match t with
 				| TFun ((_,_,t1) :: args,r) ->
 					unify ctx tthis t1 eparam.epos;
 					let ef = prepare_using_field ef in
 					begin match unify_call_args ctx el args r p (ef.cf_kind = Method MethInline) (is_forced_inline (Some cl) ef) with
-					| el,TFun(args,r) -> el,args,r,(if is_abstract_impl_call then eparam else Codegen.AbstractCast.cast_or_unify ctx t1 eparam eparam.epos)
+					| el,TFun(args,r) -> el,args,r,eparam
 					| _ -> assert false
 					end
 				| _ -> assert false
