@@ -23,9 +23,9 @@
 open Gencommon.ReflectionCFs
 open Ast
 open Common
+open Type
 open Gencommon
 open Gencommon.SourceWriter
-open Type
 open Printf
 open Option
 open ExtString

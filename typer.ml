@@ -1409,6 +1409,26 @@ and type_field ?(resume=false) ctx e i p mode =
 			using_field ctx mode e i p
 		with Not_found -> try
 			loop_dyn c params
+		with Not_found -> try
+			(* if we have an abstract constraint we have to check its static fields and recurse (issue #2343) *)
+			begin match c.cl_kind with
+				| KTypeParameter tl ->
+					let rec loop tl = match tl with
+						| t :: tl ->
+							begin match follow t with
+								| TAbstract({a_impl = Some c},tl) when PMap.mem i c.cl_statics ->
+									let e = mk_cast e t p in
+									type_field ctx e i p mode;
+								| _ ->
+									loop tl
+							end
+						| [] ->
+							raise Not_found
+					in
+					loop tl
+				| _ ->
+					raise Not_found
+			end
 		with Not_found ->
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
 			(*

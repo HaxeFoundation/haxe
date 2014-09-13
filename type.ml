@@ -329,6 +329,8 @@ let mk_block e =
 	| TBlock (_ :: _) -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
 
+let mk_cast e t p = mk (TCast(e,None)) t p
+
 let null t p = mk (TConst TNull) t p
 
 let mk_mono() = TMono (ref None)
