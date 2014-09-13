@@ -258,9 +258,11 @@ and tabstract = {
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
 	mutable a_impl : tclass option;
 	mutable a_this : t;
-	mutable a_from : (t * tclass_field option) list;
+	mutable a_from : t list;
+	mutable a_from_field : (t * tclass_field) list;
+	mutable a_to : t list;
+	mutable a_to_field : (t * tclass_field) list;
 	mutable a_array : tclass_field list;
-	mutable a_to : (t * tclass_field option) list;
 }
 
 and module_type =
@@ -1295,8 +1297,8 @@ let rec unify a b =
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		let f1 = unify_to_field a1 tl1 b in
-		let f2 = unify_from_field a2 tl2 a b in
+		let f1 = unify_to a1 tl1 b in
+		let f2 = unify_from a2 tl2 a b in
 		if not (List.exists (f1 ~allow_transitive_cast:false) a1.a_to) && not (List.exists (f2 ~allow_transitive_cast:false) a2.a_from)
 		    && not (List.exists f1 a1.a_to) && not (List.exists f2 a2.a_from) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
@@ -1459,24 +1461,50 @@ let rec unify a b =
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
-		if not (List.exists (unify_to_field aa tl b) aa.a_to) then error [cannot_unify a b];
+		if not (List.exists (unify_to aa tl b) aa.a_to) then error [cannot_unify a b];
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_params pl t in
 			try unify t b; true with Unify_error _ -> false
-		) ctl) && not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b];
+		) ctl) && not (List.exists (unify_from bb tl a b) bb.a_from) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
-		if not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b]
+		if not (List.exists (unify_from bb tl a b) bb.a_from) then error [cannot_unify a b]
 	| _ , _ ->
 		error [cannot_unify a b]
 
-and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
+and unify_from ab tl a b ?(allow_transitive_cast=true) t =
+	let t = apply_params ab.a_params tl t in
+	try
+		begin match follow a with
+			| TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast ->
+				type_eq EqStrict a t
+			| _ ->
+				unify a t
+		end;
+		true
+	with Unify_error _ ->
+		false
+
+and unify_to ab tl b ?(allow_transitive_cast=true) t =
+	let t = apply_params ab.a_params tl t in
+	try
+		begin match follow b with
+			| TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast ->
+				type_eq EqStrict t b
+			| _ ->
+				unify t b
+		end;
+		true
+	with Unify_error _ ->
+		false
+
+and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
 	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
 	let unify_func = match follow a with TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast -> type_eq EqStrict | _ -> unify in
-	let b = try begin match cfo with
-		| Some cf -> (match follow cf.cf_type with
+	let b = try
+		begin match follow cf.cf_type with
 			| TFun(_,r) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
@@ -1487,9 +1515,7 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 					| _ -> ()
 				) monos cf.cf_params;
 				unify (map r) b;
-			| _ -> assert false)
-		| _ ->
-			unify_func a (apply_params ab.a_params tl t)
+			| _ -> assert false
 		end;
 		true
 	with Unify_error _ -> false
@@ -1498,7 +1524,7 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 	b
 	end
 
-and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
+and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 	let a = TAbstract(ab,tl) in
 	if (List.exists (fun (b2,a2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (b,a) :: !abstract_cast_stack;
@@ -1508,8 +1534,8 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 		| _ ->
 			unify
 	in
-	let r = try begin match cfo with
-		| Some cf -> (match follow cf.cf_type with
+	let r = try
+		begin match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
@@ -1524,9 +1550,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 					| _ -> ()
 				) monos cf.cf_params;
 				unify_func (map t) b;
-			| _ -> assert false)
-		| _ ->
-			unify_func (apply_params ab.a_params tl t) b;
+			| _ -> assert false
 		end;
 		true
 	with Unify_error _ -> false
@@ -1536,10 +1560,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 	end
 
 and unify_with_variance f t1 t2 =
-	let allows_variance_to t (tf,cfo) = match cfo with
-		| None -> type_iseq tf t
-		| Some _ -> false
-	in
+	let allows_variance_to t tf = type_iseq tf t in
 	match follow t1,follow t2 with
 	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
 		List.iter2 f tl1 tl2
@@ -1595,15 +1616,15 @@ module Abstract = struct
 
 	let find_to ab pl b =
 		if follow b == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
 		else
-			List.find (unify_to_field ab pl b) ab.a_to
+			List.find (unify_to_field ab pl b) ab.a_to_field
 
 	let find_from ab pl a b =
 		if follow a == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
 		else
-			List.find (unify_from_field ab pl a b) ab.a_from
+			List.find (unify_from_field ab pl a b) ab.a_from_field
 
 	let underlying_type_stack = ref []
 

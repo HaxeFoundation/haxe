@@ -118,6 +118,8 @@ let make_module ctx mpath file tdecls loadp =
 				a_meta = d.d_meta;
 				a_from = [];
 				a_to = [];
+				a_from_field = [];
+				a_to_field = [];
 				a_ops = [];
 				a_unops = [];
 				a_impl = None;
@@ -1976,7 +1978,7 @@ let init_class ctx c p context_init herits fields =
 									| TFun([_,_,t],_) -> t
 									| _ -> error (f.cff_name ^ ": @:from cast functions must accept exactly one argument") p
 							in
-							a.a_from <- (TLazy (ref r),Some cf) :: a.a_from;
+							a.a_from_field <- (TLazy (ref r),cf) :: a.a_from_field;
 						| (Meta.To,_,_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro cast functions are not supported") p;
 							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
@@ -2003,7 +2005,7 @@ let init_class ctx c p context_init herits fields =
 							end else (fun () ->
 								resolve_m []
 							) in
-							a.a_to <- (TLazy (ref r), Some cf) :: a.a_to
+							a.a_to_field <- (TLazy (ref r), cf) :: a.a_to_field
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro array-access functions are not supported") p;
 							a.a_array <- cf :: a.a_array;
@@ -2611,8 +2613,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			t
 		in
 		List.iter (function
-			| AFromType t -> a.a_from <- (load_type t true, None) :: a.a_from
-			| AToType t -> a.a_to <- (load_type t false, None) :: a.a_to
+			| AFromType t -> a.a_from <- (load_type t true) :: a.a_from
+			| AToType t -> a.a_to <- (load_type t false) :: a.a_to
 			| AIsType t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;

@@ -4008,7 +4008,7 @@ let decode_unop op =
 	| 4, [] -> NegBits
 	| _ -> raise Invalid_expr
 
-let decode_import_mode t = 
+let decode_import_mode t =
 	match decode_enum t with
 	| 0, [] -> INormal
 	| 1, [alias] -> IAsName (dec_string alias)
@@ -4285,8 +4285,8 @@ and encode_tabstract a =
 		"impl", (match a.a_impl with None -> VNull | Some c -> encode_clref c);
 		"binops", enc_array (List.map (fun (op,cf) -> enc_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops);
 		"unops", enc_array (List.map (fun (op,postfix,cf) -> enc_obj [ "op",encode_unop op; "isPostfix",VBool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops);
-		"from", enc_array (List.map (fun (t,cfo) -> enc_obj [ "t",encode_type t; "field",match cfo with None -> VNull | Some cf -> encode_cfield cf]) a.a_from);
-		"to", enc_array (List.map (fun (t,cfo) -> enc_obj [ "t",encode_type t; "field",match cfo with None -> VNull | Some cf -> encode_cfield cf]) a.a_to);
+(* 		"from", enc_array (List.map (fun (t,cfo) -> enc_obj [ "t",encode_type t; "field",match cfo with None -> VNull | Some cf -> encode_cfield cf]) a.a_from);
+		"to", enc_array (List.map (fun (t,cfo) -> enc_obj [ "t",encode_type t; "field",match cfo with None -> VNull | Some cf -> encode_cfield cf]) a.a_to); *)
 		"array", enc_array (List.map encode_cfield a.a_array);
 	]
 

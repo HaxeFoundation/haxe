@@ -648,7 +648,7 @@ module AbstractCast = struct
 			r
 		in
 		let find a tl f =
-			let tcf,cfo = f() in
+			let tcf,cf = f() in
 			let mk_cast () =
 				let tcf = apply_params a.a_params tl tcf in
 				if type_iseq tcf tleft then
@@ -658,15 +658,21 @@ module AbstractCast = struct
 					(* let eright = mk (TCast(eright,None)) tleft p in *)
 					do_check_cast ctx tcf eright p
 			in
-			match cfo,a.a_impl with
+			if Meta.has Meta.MultiType a.a_meta then
+				mk_cast()
+			else match a.a_impl with
+				| Some c -> recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
+				| None -> assert false
+
+(* 			match cfo,a.a_impl with
 				| None,_ ->
 					mk_cast();
 				| Some cf,_ when Meta.has Meta.MultiType a.a_meta ->
 					mk_cast();
 				| Some cf,Some c ->
-					recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
+
 				| _ ->
-					assert false
+					assert false *)
 		in
 		if type_iseq tleft eright.etype then
 			eright
@@ -723,7 +729,7 @@ module AbstractCast = struct
 				end;
 				tl
 		in
-		let _,cfo =
+		let _,cf =
 			try
 				Abstract.find_to a tl m
 			with Not_found ->
@@ -734,9 +740,7 @@ module AbstractCast = struct
 				else
 					error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 		in
-		match cfo with
-			| None -> assert false
-			| Some cf -> cf, follow m
+		cf, follow m
 
 	let handle_abstract_casts ctx e =
 		let rec loop ctx e = match e.eexpr with
@@ -1451,7 +1455,7 @@ struct
 				(cacc, rate_tp tlf tla)
 			else
 				let ret = ref None in
-				if List.exists (fun (t,_) -> try
+				if List.exists (fun t -> try
 					ret := Some (rate_conv (cacc+1) (apply_params af.a_params tlf t) targ);
 					true
 				with | Not_found ->
@@ -1459,7 +1463,7 @@ struct
 				) af.a_from then
 					Option.get !ret
 			else
-				if List.exists (fun (t,_) -> try
+				if List.exists (fun t -> try
 					ret := Some (rate_conv (cacc+1) tfun (apply_params aa.a_params tla t));
 					true
 				with | Not_found ->
