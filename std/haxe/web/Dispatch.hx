@@ -69,7 +69,7 @@ class Redirect {
 class Dispatch {
 
 	public var parts : Array<String>;
-	public var params : haxe.ds.StringMap<String>;
+	public var params : Map<String,String>;
 	public var name : String;
 	public var cfg : DispatchConfig;
 	var subDispatch : Bool;
@@ -135,7 +135,7 @@ class Dispatch {
 		}
 	}
 
-	public function redirect( url : String, ?params : haxe.ds.StringMap<String> ) {
+	public function redirect( url : String, ?params : Map<String,String> ) {
 		parts = url.split("/");
 		if( parts[0] == "" ) parts.shift();
 		if( params != null ) this.params = params;
@@ -459,7 +459,7 @@ class Dispatch {
 		return makeConfig(obj);
 	}
 
-	public static macro function run( url : ExprOf<String>, params : ExprOf<haxe.ds.StringMap<String>>, obj : ExprOf<{}> ) : ExprOf<Void> {
+	public static macro function run( url : ExprOf<String>, params : ExprOf<Map<String,String>>, obj : ExprOf<{}> ) : ExprOf<Void> {
 		var p = Context.currentPos();
 		var cfg = makeConfig(obj);
 		return { expr : ECall({ expr : EField({ expr : ENew({ name : "Dispatch", pack : ["haxe","web"], params : [], sub : null },[url,params]), pos : p },"runtimeDispatch"), pos : p },[cfg]), pos : p };

@@ -120,7 +120,7 @@
 		return new String(sys_exe_path());
 	}
 
-	public static function environment() : haxe.ds.StringMap<String> {
+	public static function environment() : Map<String,String> {
 		var vars:Array<String> = sys_env();
 		var result = new haxe.ds.StringMap<String>();
 		var i = 0;

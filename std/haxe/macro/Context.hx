@@ -188,7 +188,7 @@ class Context {
 		Modifying the returned map has no effect on the compiler.
 	**/
 	@:deprecated("Use Context.getLocalTVars() instead")
-	public static function getLocalVars() : haxe.ds.StringMap<Type> {
+	public static function getLocalVars() : Map<String,Type> {
 		return load("local_vars", 1)(false);
 	}
 
@@ -197,7 +197,7 @@ class Context {
 		of `Type`.
 	**/
 	@:require(haxe_ver >= 3.102)
-	public static function getLocalTVars() : haxe.ds.StringMap<Type.TVar> {
+	public static function getLocalTVars() : Map<String,Type.TVar> {
 		return load("local_vars", 1)(true);
 	}
 
@@ -234,7 +234,7 @@ class Context {
 		
 		Modifying the returned map has no effect on the compiler.
 	 */
-	public static function getDefines() : haxe.ds.StringMap<String> {
+	public static function getDefines() : Map<String,String> {
 		return load("get_defines", 0)();
 	}
 	
@@ -407,7 +407,7 @@ class Context {
 		Modifying the returned map has no effect on the compilation, use
 		`haxe.macro.Context.addResource` to add new resources to the compilation unit.
 	**/
-	public static function getResources():haxe.ds.StringMap<haxe.io.Bytes> {
+	public static function getResources():Map<String,haxe.io.Bytes> {
 		var x:haxe.ds.StringMap<neko.NativeString> = load("get_resources",0)();
 		var r = new haxe.ds.StringMap();
 		for (k in x.keys()) {

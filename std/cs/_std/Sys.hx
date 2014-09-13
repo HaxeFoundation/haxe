@@ -85,7 +85,7 @@ class Sys {
 			_env.set(s, v);
 	}
 
-	public static function environment() : haxe.ds.StringMap<String>
+	public static function environment() : Map<String,String>
 	{
 		if (_env == null)
 		{

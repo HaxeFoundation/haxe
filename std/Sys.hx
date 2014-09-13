@@ -53,7 +53,7 @@ extern class Sys {
 	/**
 		Returns the whole environement variables.
 	**/
-	static function environment() : haxe.ds.StringMap<String>;
+	static function environment() : Map<String,String>;
 
 	/**
 		Suspend the current execution for the given time (in seconds).
