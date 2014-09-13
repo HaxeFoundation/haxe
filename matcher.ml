@@ -292,8 +292,7 @@ let rec is_value_type = function
 	| _ ->
 		false
 
-(* 	Determines if a type allows null-matching. This is similar to is_nullable, but it infers Null<T> on monomorphs,
-	and enums are not considered nullable *)
+(* 	Determines if a type allows null-matching. This is similar to is_nullable, but it infers Null<T> on monomorphs *)
 let rec matches_null ctx t = match t with
 	| TMono r ->
 		(match !r with None -> r := Some (ctx.t.tnull (mk_mono())); true | Some t -> matches_null ctx t)
@@ -303,7 +302,7 @@ let rec matches_null ctx t = match t with
 		matches_null ctx (!f())
 	| TType (t,tl) ->
 		matches_null ctx (apply_params t.t_params tl t.t_type)
-	| TFun _ | TEnum _ ->
+	| TFun _ ->
 		false
 	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
 	| _ ->
