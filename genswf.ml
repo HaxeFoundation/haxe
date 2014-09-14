@@ -1115,31 +1115,25 @@ let generate com swf_header =
 	(* list exports *)
 	let exports = Hashtbl.create 0 in
 	let toremove = ref [] in
+	let remove_candidates = ExtList.List.filter_map (fun mt -> match mt with
+		| TClassDecl c when not c.cl_extern -> Some c
+		| _ -> None
+	) com.types in
 	List.iter (fun (file,lib,_) ->
 		let _, tags = lib() in
 		List.iter (fun t ->
 			match t.tdata with
 			| TExport l -> List.iter (fun e -> Hashtbl.add exports e.exp_name ()) l
-			| TF9Classes el ->
-				List.iter (fun e ->
-					if e.f9_cid <> None then List.iter (fun t ->
-						let extern = (match t with
-							| TClassDecl c -> c.cl_extern
-							| TEnumDecl e -> e.e_extern
-							| TAbstractDecl a -> false
-							| TTypeDecl t -> false
-						) in
-						if not extern && s_type_path (t_path t) = e.f9_classname then
-							match t with
-							| TClassDecl c ->
-								if Meta.has Meta.Bind c.cl_meta then
-									toremove := (t_path t) :: !toremove
-								else
-									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos
-							| _ ->
-								error ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_infos t).mt_pos
-					) com.types;
-				) el
+			| TActionScript3 (Some (_,name),_) ->
+				let name = String.concat "." (ExtString.String.nsplit name "/") in
+				List.iter (fun c ->
+					if s_type_path (c.cl_path) = name then begin
+						if Meta.has Meta.Bind c.cl_meta then
+							toremove := (c.cl_path) :: !toremove
+						else
+							error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") c.cl_pos
+					end
+				) remove_candidates;
 			| _ -> ()
 		) tags;
 	) com.swf_libs;
