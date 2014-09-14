@@ -48,7 +48,7 @@ type context = {
 let is_var_field f =
 	match f with
 	| FStatic (_,f) | FInstance (_,_,f) ->
-		(match f.cf_kind with Var _ -> true | _ -> false)
+		(match f.cf_kind with Var _ | Method MethDynamic -> true | _ -> false)
 	| _ ->
 		false
 
