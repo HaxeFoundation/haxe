@@ -990,7 +990,7 @@ let generate_field ctx static f =
 		let is_getset = (match f.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
 		if ctx.curclass.cl_interface then
 			match follow f.cf_type with
-			| TFun (args,r) ->
+			| TFun (args,r) when (match f.cf_kind with Method MethDynamic | Var _ -> false | _ -> true) ->
 				let rec loop = function
 					| [] -> f.cf_name
 					| (Ast.Meta.Getter,[Ast.EConst (Ast.String name),_],_) :: _ -> "get " ^ name
