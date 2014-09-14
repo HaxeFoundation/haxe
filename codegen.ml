@@ -385,7 +385,7 @@ let rec build_generic ctx c p tl =
 						if pl <> [] then raise Not_found;
 						let t = loop subst in
 						(* extended type parameter: concrete type must have a constructor, but generic base class must not have one *)
- 						begin match follow t,c.cl_constructor with
+						begin match follow t,c.cl_constructor with
 							| TInst({cl_constructor = None} as cs,_),None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
 							| _,Some cf -> error "Generics extending type parameters cannot have constructors" cf.cf_pos
 							| _ -> ()
@@ -793,7 +793,7 @@ end
 
 module PatternMatchConversion = struct
 
- 	type cctx = {
+	type cctx = {
 		ctx : typer;
 		mutable eval_stack : ((tvar * pos) * texpr) list list;
 		dt_lookup : dt array;
@@ -1715,3 +1715,38 @@ module DeprecationCheck = struct
 				()
 		) com.types
 end
+
+let interpolate_code com code tl f_string f_expr p =
+	let exprs = Array.of_list tl in
+	let i = ref 0 in
+	let err msg =
+		let pos = { p with pmin = p.pmin + !i } in
+		com.error msg pos
+	in
+	let regex = Str.regexp "[{}]" in
+	let rec loop m = match m with
+		| [] ->
+			()
+		| Str.Text txt :: tl ->
+			i := !i + String.length txt;
+			f_string txt;
+			loop tl
+		| Str.Delim a :: Str.Delim b :: tl when a = b ->
+			i := !i + 2;
+			f_string a;
+			loop tl
+		| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
+			(try
+				let expr = Array.get exprs (int_of_string n) in
+				f_expr expr;
+				i := !i + 2 + String.length n;
+				loop tl
+			with
+			| Failure "int_of_string" ->
+				err ("Index expected. Got " ^ n)
+			| Invalid_argument _ ->
+				err ("Out-of-bounds special parameter: " ^ n))
+			| Str.Delim x :: _ ->
+				err ("Unexpected " ^ x)
+	in
+	loop (Str.full_split regex code)
