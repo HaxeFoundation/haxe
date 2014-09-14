@@ -362,7 +362,7 @@ let property ctx p t =
 		let rec loop c =
 			try
 				(match PMap.find p c.cl_fields with
-				| { cf_kind = Var _ } -> raise Exit (* no vars in interfaces in swf9 *)
+				| { cf_kind = Var _ | Method MethDynamic } -> raise Exit (* no vars in interfaces in swf9 *)
 				| _ -> c)
 			with Not_found ->
 				let rec loop2 = function
