@@ -157,7 +157,16 @@ and gen_field att f =
 		| Some ({eexpr = TFunction tf}) -> Some tf
 		| _ -> None
 	in
-	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type ~tfunc:tfunc f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
+	let field_name cf =
+		try
+			begin match Meta.get Meta.RealPath cf.cf_meta with
+				| _,[EConst (String (s)),_],_ -> s
+				| _ -> raise Not_found
+			end;
+		with Not_found ->
+			cf.cf_name
+	in
+	node (field_name f) (if f.cf_public then ("public","1") :: att else att) (gen_type ~tfunc:tfunc f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in

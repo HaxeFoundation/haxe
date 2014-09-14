@@ -841,6 +841,10 @@ let apply_native_paths ctx t =
 		| _ ->
 			error "String expected" mp
 	in
+	let get_real_name meta name =
+		let name',p = get_native_name meta in
+		(Meta.RealPath,[Ast.EConst (Ast.String (name)), p], p), name'
+	in
 	let get_real_path meta path =
 		let name,p = get_native_name meta in
 		(Meta.RealPath,[Ast.EConst (Ast.String (s_type_path path)), p], p), parse_path name
@@ -850,8 +854,9 @@ let apply_native_paths ctx t =
 		| TClassDecl c ->
 			let did_change = ref false in
 			let field cf = try
-				let name,_ = get_native_name cf.cf_meta in
+				let meta,name = get_real_name cf.cf_meta cf.cf_name in
 				cf.cf_name <- name;
+				cf.cf_meta <- meta :: cf.cf_meta;
 				List.iter (fun cf -> cf.cf_name <- name) cf.cf_overloads;
 				did_change := true
 			with Not_found ->
