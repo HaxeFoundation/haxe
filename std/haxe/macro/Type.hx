@@ -27,14 +27,65 @@ typedef Ref<T> = {
 }
 
 enum Type {
+	/**
+		Represents a monomorph.
+
+		@see http://haxe.org/manual/types-monomorph.html
+	**/
 	TMono( t : Ref<Null<Type>> );
+
+	/**
+		Represents an enum instance.
+
+		@see http://haxe.org/manual/types-enum-instance.html
+	**/
 	TEnum( t : Ref<EnumType>, params : Array<Type> );
+
+	/**
+		Represents a class instance.
+
+		@see http://haxe.org/manual/types-class-instance.html
+	**/
 	TInst( t : Ref<ClassType>, params : Array<Type> );
+
+	/**
+		Represents a typedef.
+
+		@see http://haxe.org/manual/type-system-typedef.html
+	**/
 	TType( t : Ref<DefType>, params : Array<Type> );
+
+	/**
+		Represents a function type.
+
+		@see http://haxe.org/manual/types-function.html
+	**/
 	TFun( args : Array<{ name : String, opt : Bool, t : Type }>, ret : Type );
+
+	/**
+		Represents an anonymous structure type.
+
+		@see http://haxe.org/manual/types-anonymous-structure.html
+	**/
 	TAnonymous( a : Ref<AnonType> );
+
+	/**
+		Represents Dynamic.
+
+		@see http://haxe.org/manual/types-dynamic.html
+	**/
 	TDynamic( t : Null<Type> );
+
+	/**
+		Used internally by the compiler to delay some typing.
+	**/
 	TLazy( f : Void -> Type );
+
+	/**
+		Represents an abstract type.
+
+		@see http://haxe.org/manual/types-abstract.html
+	**/
 	TAbstract( t : Ref<AbstractType>, params : Array<Type> );
 }
 
