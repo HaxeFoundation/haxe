@@ -593,13 +593,18 @@ and gen_expr ctx e =
 		gen_field_access ctx e1.etype s;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2; *)
+	(* assignments to variable or dynamic methods fields on interfaces are generated as class["field"] = value *)
+	| TBinop (op,{eexpr = TField (ei, FInstance({cl_interface = true},_,{cf_kind = (Method MethDynamic | Var _); cf_name = s}))},e2) ->
+		gen_value ctx ei;
+		print ctx "[\"%s\"]" s;
+		print ctx " %s " (Ast.s_binop op);
+		gen_value_op ctx e2;
 	| TBinop (op,e1,e2) ->
 		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2;
-	(* variable fields on interfaces are generated as (class["field"] as class) *)
-	| TField ({etype = TInst({cl_interface = true} as c,_)} as ei,FInstance (_,_,{ cf_name = s }))
-		when (try (match (PMap.find s c.cl_fields).cf_kind with Var _ -> true | _ -> false) with Not_found -> false) ->
+	(* variable fields and dynamic methods on interfaces are generated as (class["field"] as class) *)
+	| TField (ei, FInstance({cl_interface = true},_,{cf_kind = (Method MethDynamic | Var _); cf_name = s})) ->
 		spr ctx "(";
 		gen_value ctx ei;
 		print ctx "[\"%s\"]" s;
