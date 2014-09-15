@@ -9,6 +9,7 @@ class Issue2856 extends Test {
 			for (key in dict.keys()) {
 				acc.push(key + "=" +dict.get(key, null));
 			}
+			acc.sort(Reflect.compare);
 			return acc.join(";");
 		}
 
