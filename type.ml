@@ -1617,7 +1617,7 @@ module Abstract = struct
 	let find_from ab pl a b =
 		if follow a == t_dynamic then
 			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
-		else if List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_to then
+		else if List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from then
 			raise Not_found (* legacy compatibility *)
 		else
 			List.find (unify_from_field ab pl a b) ab.a_from_field
