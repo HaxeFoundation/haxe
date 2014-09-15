@@ -234,7 +234,7 @@ let type_function_arg ctx t e opt p =
 let type_var_field ctx t e stat p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = type_expr ctx e (WithType t) in
-	let e = (!check_abstract_cast_ref) ctx t e p in
+	let e = (!cast_or_unify_ref) ctx t e p in
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e

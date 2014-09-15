@@ -4801,5 +4801,5 @@ let rec create com =
 unify_min_ref := unify_min;
 make_call_ref := make_call;
 get_constructor_ref := get_constructor;
-check_abstract_cast_ref := Codegen.AbstractCast.cast_or_unify_raise;
+cast_or_unify_ref := Codegen.AbstractCast.cast_or_unify_raise;
 type_module_type_ref := type_module_type;
