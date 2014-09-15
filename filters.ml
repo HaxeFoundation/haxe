@@ -704,6 +704,22 @@ let rename_local_vars com e =
 			old()
 		| TBlock el ->
 			let old = save() in
+			(* we have to look ahead for vars on these targets (issue #3344) *)
+			begin match com.platform with
+				| Js | Flash8 ->
+					let rec check_var e = match e.eexpr with
+						| TVar (v,eo) ->
+							(match eo with None -> () | Some e -> loop e);
+							declare v e.epos
+						| TBlock _ ->
+							()
+						| _ ->
+							Type.iter check_var e
+					in
+					List.iter check_var el
+				| _ ->
+					()
+			end;
 			List.iter loop el;
 			old()
 		| TFor (v,it,e1) ->
