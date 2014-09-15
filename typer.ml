@@ -2111,6 +2111,14 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	| OpAssignOp _ ->
 		assert false
 	in
+	let rec expected_result_type = function
+		| OpAdd | OpSub | OpMult | OpDiv | OpMod -> ctx.t.tfloat
+		| OpGt | OpGte | OpLt | OpLte | OpEq | OpNotEq | OpBoolAnd | OpBoolOr -> ctx.t.tbool
+		| OpAnd | OpOr | OpXor | OpUShr | OpShr | OpShl -> ctx.t.tint
+		| OpArrow -> t_dynamic
+		| OpAssignOp op -> expected_result_type op
+		| OpInterval | OpAssign -> assert false
+	in
 	let find_overload a c tl =
 		let map = apply_params a.a_params tl in
 		(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
@@ -2131,7 +2139,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				loop ol
 			| (op_cf,cf) :: ol ->
 				begin match follow cf.cf_type with
-					| TFun([(_,_,t1);(_,_,t2)],ret) ->
+					| TFun([(_,_,t1);(_,_,t2)],tret) ->
 						let map_arguments () =
 							let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 							let map t = map (apply_params cf.cf_params monos t) in
@@ -2140,9 +2148,36 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 							monos,t1,t2
 						in
 						let make e1 e2 =
-							if cf.cf_expr = None then mk_cast (Codegen.binop op e1 e2 ret p) ret p
-							else begin
-								let e = make_static_call ctx c cf map [e1;e2] ret p in
+							if cf.cf_expr = None then begin
+								if not (Meta.has Meta.CoreType a.a_meta) then begin
+									(* for non core-types we require that the return type is compatible to the native result type *)
+									let t_expected = expected_result_type op_cf in
+									begin try
+										unify_raise ctx tret t_expected p
+									with Error (Unify _,_) ->
+										let invalid_return () =
+											let s_expected = match op with
+												| OpAdd | OpAssignOp OpAdd -> "String or "
+												| _ -> ""
+											in
+											let pctx = print_context() in
+											let st = s_type pctx in
+											error (Printf.sprintf "The result of this operation (%s%s) is not compatible with declared return type %s" s_expected (st t_expected) (st tret)) p
+										in
+										match op with
+											| OpAdd | OpAssignOp OpAdd ->
+												begin try
+													unify_raise ctx tret ctx.t.tstring p
+												with Error (Unify _,_) ->
+													invalid_return()
+												end
+											| _ ->
+												invalid_return()
+									end;
+								end;
+								mk_cast (Codegen.binop op e1 e2 tret p) tret p
+							end else begin
+								let e = make_static_call ctx c cf map [e1;e2] tret p in
 								if is_assign_op && op_cf = op then (mk (TMeta((Meta.RequiresAssign,[],p),e)) e.etype e.epos)
 								else e
 							end

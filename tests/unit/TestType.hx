@@ -783,9 +783,9 @@ class TestType extends Test {
 		t(Std.is(msum2, String));
 
 		// operation is defined, but return type is not compatible
-		//t(typeError(ms1 + true));
+		t(typeError(ms1 + true));
 		// operation is not defined
-		//t(typeError(ms1 - ms2));
+		t(typeError(ms1 - ms2));
 	}
 
 	function testAbstractUnop() {
