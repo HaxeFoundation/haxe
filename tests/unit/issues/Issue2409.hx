@@ -11,6 +11,6 @@ private abstract Foo(Int) {
 class Issue2409 extends Test {
 	function test() {
 		var f:Foo = new Foo(1);
-		eq(1, (f+f).get());
+		eq(2, (f+f).get());
 	}
 }
