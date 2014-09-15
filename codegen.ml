@@ -657,20 +657,37 @@ module AbstractCast = struct
 		in
 		if type_iseq tleft eright.etype then
 			eright
-		else try
-			begin match follow eright.etype with
-				| TAbstract(a,tl) ->
-					find a tl (fun () -> Abstract.find_to a tl tleft)
-				| _ ->
-					raise Not_found
-			end
-		with Not_found ->
-			begin match follow tleft with
-				| TAbstract(a,tl) ->
-					find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
-				| _ ->
-					raise Not_found
-			end
+		else begin
+			let rec loop tleft tright = match follow tleft,follow tright with
+			| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
+				begin try find a2 tl2 (fun () -> Abstract.find_to a2 tl2 tleft)
+				with Not_found -> try find a1 tl1 (fun () -> Abstract.find_from a1 tl1 eright.etype tleft)
+				with Not_found -> raise Not_found
+				end
+			| TAbstract(a,tl),_ ->
+				begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
+				with Not_found ->
+					let rec loop2 tcl = match tcl with
+						| tc :: tcl -> loop (apply_params a.a_params tl tc) tright
+						| [] -> raise Not_found
+					in
+					loop2 a.a_from
+				end
+			| _,TAbstract(a,tl) ->
+				begin try find a tl (fun () -> Abstract.find_to a tl tleft)
+				with Not_found ->
+					let rec loop2 tcl = match tcl with
+						| tc :: tcl -> loop tleft (apply_params a.a_params tl tc)
+						| [] -> raise Not_found
+					in
+					loop2 a.a_to
+				end
+			| _ ->
+				unify_raise ctx eright.etype tleft p;
+				eright
+			in
+			loop tleft eright.etype
+		end
 
 	let cast_or_unify_raise ctx tleft eright p =
 		try
