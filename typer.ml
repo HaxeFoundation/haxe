@@ -2162,10 +2162,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 								let map t = map (apply_params cf.cf_params monos t) in
 								let t1 = map t1 in
 								let t2 = map t2 in
-								monos,t1,t2
+								let tret = map tret in
+								monos,t1,t2,tret
 							in
+							let monos,t1,t2,tret = map_arguments() in
 							let make e1 e2 = make op_cf cf e1 e2 tret in
-							let monos,t1,t2 = map_arguments() in
 							let t1 = if is_impl then Abstract.follow_with_abstracts t1 else t1 in
 							let e1,e2 = if left || not left && swapped then begin
 								Type.type_eq EqStrict (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
