@@ -2184,6 +2184,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 						in
 						begin try
 							let monos,t1,t2 = map_arguments() in
+							let t1 = if Meta.has Meta.Impl cf.cf_meta then Abstract.follow_with_abstracts t1 else t1 in
 							let e1 = Codegen.AbstractCast.cast_or_unify_raise ctx t1 e1 p in
 							let e2 = Codegen.AbstractCast.cast_or_unify_raise ctx t2 e2 p in
 							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
