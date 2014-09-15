@@ -1254,11 +1254,9 @@ let match_expr ctx e cases def with_type p =
 				let e = type_expr ctx e with_type in
 				match with_type with
 				| WithType t ->
-					unify ctx e.etype t e.epos;
-					Codegen.AbstractCast.check_cast ctx t e e.epos;
+					Codegen.AbstractCast.cast_or_unify ctx t e e.epos;
 				| WithTypeResume t ->
-					(try unify_raise ctx e.etype t e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
-					Codegen.AbstractCast.check_cast ctx t e e.epos
+					(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
 				| _ -> e
 		in
 		(* type case guard *)

@@ -277,7 +277,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 			(* we have to check for abstract casts here because we can't do that later. However, we have to skip the check for the
 			   first argument of abstract implementation functions. *)
-			| _ when not (first && Meta.has Meta.Impl cf.cf_meta && cf.cf_name <> "_new") -> (!check_abstract_cast_ref) ctx (map_type v.v_type) e e.epos
+			(* actually we don't because unify_call_args takes care of that anyway *)
+			(* | _ when not (first && Meta.has Meta.Impl cf.cf_meta && cf.cf_name <> "_new") -> (!cast_or_unify_ref) ctx (map_type v.v_type) e e.epos *)
 			| _ -> e) :: loop pl al false
 		| [], (v,opt) :: al ->
 			(mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p) :: loop [] al false

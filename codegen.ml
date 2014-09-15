@@ -648,47 +648,65 @@ module AbstractCast = struct
 			r
 		in
 		let find a tl f =
-			let tcf,cfo = f() in
-			let mk_cast () =
-				let tcf = apply_params a.a_params tl tcf in
-				if type_iseq tcf tleft then
-					eright
-				else
-					(* TODO: causes Java overload issues *)
-					(* let eright = mk (TCast(eright,None)) tleft p in *)
-					do_check_cast ctx tcf eright p
-			in
-			match cfo,a.a_impl with
-				| None,_ ->
-					mk_cast();
-				| Some cf,_ when Meta.has Meta.MultiType a.a_meta ->
-					mk_cast();
-				| Some cf,Some c ->
-					recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
-				| _ ->
-					assert false
+			let tcf,cf = f() in
+			if (Meta.has Meta.MultiType a.a_meta) then
+				mk_cast eright tleft p
+			else match a.a_impl with
+				| Some c -> recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
+				| None -> assert false
 		in
 		if type_iseq tleft eright.etype then
 			eright
-		else try
-			begin match follow eright.etype with
-				| TAbstract(a,tl) ->
-					find a tl (fun () -> Abstract.find_to a tl tleft)
-				| _ ->
-					raise Not_found
-			end
-		with Not_found -> try
-			begin match follow tleft with
-				| TAbstract(a,tl) ->
-					find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
-				| _ ->
-					raise Not_found
-			end
+		else begin
+			let rec loop tleft tright = match follow tleft,follow tright with
+			| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
+				begin try find a2 tl2 (fun () -> Abstract.find_to a2 tl2 tleft)
+				with Not_found -> try find a1 tl1 (fun () -> Abstract.find_from a1 tl1 eright.etype tleft)
+				with Not_found -> raise Not_found
+				end
+			| TAbstract(a,tl),_ ->
+				begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
+				with Not_found ->
+					let rec loop2 tcl = match tcl with
+						| tc :: tcl ->
+							if not (type_iseq tc tleft) then loop (apply_params a.a_params tl tc) tright
+							else loop2 tcl
+						| [] -> raise Not_found
+					in
+					loop2 a.a_from
+				end
+			| _,TAbstract(a,tl) ->
+				begin try find a tl (fun () -> Abstract.find_to a tl tleft)
+				with Not_found ->
+					let rec loop2 tcl = match tcl with
+						| tc :: tcl ->
+							if not (type_iseq tc tright) then loop tleft (apply_params a.a_params tl tc)
+							else loop2 tcl
+						| [] -> raise Not_found
+					in
+					loop2 a.a_to
+				end
+			| _ ->
+				unify_raise ctx eright.etype tleft p;
+				eright
+			in
+			loop tleft eright.etype
+		end
+
+	let cast_or_unify_raise ctx tleft eright p =
+		try
+			if ctx.com.display <> DMNone then raise Not_found;
+			do_check_cast ctx tleft eright p
 		with Not_found ->
+			unify_raise ctx eright.etype tleft p;
 			eright
 
-	let check_cast ctx tleft eright p =
-		if ctx.com.display <> DMNone then eright else do_check_cast ctx tleft eright p
+	let cast_or_unify ctx tleft eright p =
+		try
+			cast_or_unify_raise ctx tleft eright p
+		with Error (Unify _ as err,_) ->
+			if not ctx.untyped then display_error ctx (error_msg err) p;
+			eright
 
 	let find_multitype_specialization com a pl p =
 		let m = mk_mono() in
@@ -723,7 +741,7 @@ module AbstractCast = struct
 				end;
 				tl
 		in
-		let _,cfo =
+		let _,cf =
 			try
 				Abstract.find_to a tl m
 			with Not_found ->
@@ -734,9 +752,7 @@ module AbstractCast = struct
 				else
 					error ("Abstract " ^ (s_type_path a.a_path) ^ " has no @:to function that accepts " ^ st) p;
 		in
-		match cfo with
-			| None -> assert false
-			| Some cf -> cf, follow m
+		cf, follow m
 
 	let handle_abstract_casts ctx e =
 		let rec loop ctx e = match e.eexpr with
@@ -1451,7 +1467,7 @@ struct
 				(cacc, rate_tp tlf tla)
 			else
 				let ret = ref None in
-				if List.exists (fun (t,_) -> try
+				if List.exists (fun t -> try
 					ret := Some (rate_conv (cacc+1) (apply_params af.a_params tlf t) targ);
 					true
 				with | Not_found ->
@@ -1459,7 +1475,7 @@ struct
 				) af.a_from then
 					Option.get !ret
 			else
-				if List.exists (fun (t,_) -> try
+				if List.exists (fun t -> try
 					ret := Some (rate_conv (cacc+1) tfun (apply_params aa.a_params tla t));
 					true
 				with | Not_found ->

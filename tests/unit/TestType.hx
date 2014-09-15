@@ -387,7 +387,7 @@ class TestType extends Test {
 		eq(c.b, true);
 		eq(c.t, String);
 
-		var c = new InitChildWithCtor(null);
+		var c = new InitChildWithCtor("null");
 		eq(c.i, 2);
 		eq(c.s, "foo");
 		eq(c.b, true);

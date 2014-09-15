@@ -1,7 +1,8 @@
 package unit.issues;
 import unit.Test;
 
-private abstract Vector<T>(Array<T>) {
+@:arrayAccess
+private abstract MyVector<T>(Array<T>) {
 
 	public function new ():Void {
 		this = new Array<T>();
@@ -11,7 +12,7 @@ private abstract Vector<T>(Array<T>) {
 		return this.push(x);
 	}
 
-	@:from static public inline function fromArray<T, U> (a:Array<U>):Vector<T> {
+	@:from static public inline function fromArray<T, U> (a:Array<U>):MyVector<T> {
 		return cast a;
 	}
 
@@ -23,7 +24,7 @@ private abstract Vector<T>(Array<T>) {
 
 class Issue2713 extends Test {
 	function test() {
-		var v:Vector<Int> = [1, 2, 3];
+		var v:MyVector<Int> = [1, 2, 3];
 		for (i in 0...2) {
 			v.push(i);
 		}

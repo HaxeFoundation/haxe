@@ -258,9 +258,11 @@ and tabstract = {
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
 	mutable a_impl : tclass option;
 	mutable a_this : t;
-	mutable a_from : (t * tclass_field option) list;
+	mutable a_from : t list;
+	mutable a_from_field : (t * tclass_field) list;
+	mutable a_to : t list;
+	mutable a_to_field : (t * tclass_field) list;
 	mutable a_array : tclass_field list;
-	mutable a_to : (t * tclass_field option) list;
 }
 
 and module_type =
@@ -1295,8 +1297,8 @@ let rec unify a b =
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		let f1 = unify_to_field a1 tl1 b in
-		let f2 = unify_from_field a2 tl2 a b in
+		let f1 = unify_to a1 tl1 b in
+		let f2 = unify_from a2 tl2 a b in
 		if not (List.exists (f1 ~allow_transitive_cast:false) a1.a_to) && not (List.exists (f2 ~allow_transitive_cast:false) a2.a_from)
 		    && not (List.exists f1 a1.a_to) && not (List.exists f2 a2.a_from) then error [cannot_unify a b]
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
@@ -1364,48 +1366,7 @@ let rec unify a b =
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
-		(try
-			PMap.iter (fun n f2 ->
-			try
-				let f1 = PMap.find n a1.a_fields in
-				if not (unify_kind f1.cf_kind f2.cf_kind) then
-					(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
-					| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
-						f1.cf_kind <- f2.cf_kind;
-					| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
-				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
-				try
-					unify_with_access f1.cf_type f2;
-					(match !(a1.a_status) with
-					| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
-					| _ -> ());
-				with
-					Unify_error l -> error (invalid_field n :: l)
-			with
-				Not_found ->
-					match !(a1.a_status) with
-					| Opened ->
-						if not (link (ref None) a f2.cf_type) then error [];
-						a1.a_fields <- PMap.add n f2 a1.a_fields
-					| Const when Meta.has Meta.Optional f2.cf_meta ->
-						()
-					| _ ->
-						error [has_no_field a n];
-			) a2.a_fields;
-			(match !(a1.a_status) with
-			| Const when not (PMap.is_empty a2.a_fields) ->
-				PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
-			| Opened ->
-				a1.a_status := Closed
-			| _ -> ());
-			(match !(a2.a_status) with
-			| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
-			| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
-			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
-			| Opened -> a2.a_status := Closed
-			| Const | Extend _ | Closed -> ())
-		with
-			Unify_error l -> error (cannot_unify a b :: l))
+		unify_anons a b a1 a2
 	| TAnon an, TAbstract ({ a_path = [],"Class" },[pt]) ->
 		(match !(an.a_status) with
 		| Statics cl -> unify (TInst (cl,List.map (fun _ -> mk_mono()) cl.cl_params)) pt
@@ -1459,24 +1420,92 @@ let rec unify a b =
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
-		if not (List.exists (unify_to_field aa tl b) aa.a_to) then error [cannot_unify a b];
+		if not (List.exists (unify_to aa tl b) aa.a_to) then error [cannot_unify a b];
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
 		if not (List.exists (fun t ->
 			let t = apply_params c.cl_params pl t in
 			try unify t b; true with Unify_error _ -> false
-		) ctl) && not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b];
+		) ctl) && not (List.exists (unify_from bb tl a b) bb.a_from) then error [cannot_unify a b];
 	| _, TAbstract (bb,tl) ->
-		if not (List.exists (unify_from_field bb tl a b) bb.a_from) then error [cannot_unify a b]
+		if not (List.exists (unify_from bb tl a b) bb.a_from) then error [cannot_unify a b]
 	| _ , _ ->
 		error [cannot_unify a b]
 
-and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
+and unify_anons a b a1 a2 =
+	(try
+		PMap.iter (fun n f2 ->
+		try
+			let f1 = PMap.find n a1.a_fields in
+			if not (unify_kind f1.cf_kind f2.cf_kind) then
+				(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
+				| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
+					f1.cf_kind <- f2.cf_kind;
+				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
+			if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
+			try
+				unify_with_access f1.cf_type f2;
+				(match !(a1.a_status) with
+				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
+				| _ -> ());
+			with
+				Unify_error l -> error (invalid_field n :: l)
+		with
+			Not_found ->
+				match !(a1.a_status) with
+				| Opened ->
+					if not (link (ref None) a f2.cf_type) then error [];
+					a1.a_fields <- PMap.add n f2 a1.a_fields
+				| Const when Meta.has Meta.Optional f2.cf_meta ->
+					()
+				| _ ->
+					error [has_no_field a n];
+		) a2.a_fields;
+		(match !(a1.a_status) with
+		| Const when not (PMap.is_empty a2.a_fields) ->
+			PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
+		| Opened ->
+			a1.a_status := Closed
+		| _ -> ());
+		(match !(a2.a_status) with
+		| Statics c -> (match !(a1.a_status) with Statics c2 when c == c2 -> () | _ -> error [])
+		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
+		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
+		| Opened -> a2.a_status := Closed
+		| Const | Extend _ | Closed -> ())
+	with
+		Unify_error l -> error (cannot_unify a b :: l))
+
+and unify_from ab tl a b ?(allow_transitive_cast=true) t =
 	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
-	let unify_func = match follow a with TAbstract({a_impl = Some _},_) when ab.a_impl <> None || not allow_transitive_cast -> type_eq EqStrict | _ -> unify in
-	let b = try begin match cfo with
-		| Some cf -> (match follow cf.cf_type with
+	let t = apply_params ab.a_params tl t in
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+	let b = try
+		unify_func a t;
+		true
+	with Unify_error _ ->
+		false
+	in
+	abstract_cast_stack := List.tl !abstract_cast_stack;
+	b
+	end
+
+and unify_to ab tl b ?(allow_transitive_cast=true) t =
+	let t = apply_params ab.a_params tl t in
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+	try
+		unify_func t b;
+		true
+	with Unify_error _ ->
+		false
+
+and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cf) =
+	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
+	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+	let b = try
+		begin match follow cf.cf_type with
 			| TFun(_,r) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
@@ -1486,10 +1515,8 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 						List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> unify m (map tc) ) constr
 					| _ -> ()
 				) monos cf.cf_params;
-				unify (map r) b;
-			| _ -> assert false)
-		| _ ->
-			unify_func a (apply_params ab.a_params tl t)
+				unify_func (map r) b;
+			| _ -> assert false
 		end;
 		true
 	with Unify_error _ -> false
@@ -1498,18 +1525,13 @@ and unify_from_field ab tl a b ?(allow_transitive_cast=true) (t,cfo) =
 	b
 	end
 
-and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
+and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cf) =
 	let a = TAbstract(ab,tl) in
 	if (List.exists (fun (b2,a2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
 	abstract_cast_stack := (b,a) :: !abstract_cast_stack;
-	let unify_func = match follow b with
-		| TAbstract(ab2,_) when not (Meta.has Meta.CoreType ab.a_meta) || not (Meta.has Meta.CoreType ab2.a_meta) || not allow_transitive_cast ->
-			type_eq EqStrict
-		| _ ->
-			unify
-	in
-	let r = try begin match cfo with
-		| Some cf -> (match follow cf.cf_type with
+	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+	let r = try
+		begin match follow cf.cf_type with
 			| TFun((_,_,ta) :: _,_) ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params ab.a_params tl (apply_params cf.cf_params monos t) in
@@ -1524,9 +1546,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 					| _ -> ()
 				) monos cf.cf_params;
 				unify_func (map t) b;
-			| _ -> assert false)
-		| _ ->
-			unify_func (apply_params ab.a_params tl t) b;
+			| _ -> assert false
 		end;
 		true
 	with Unify_error _ -> false
@@ -1536,10 +1556,7 @@ and unify_to_field ab tl b ?(allow_transitive_cast=true) (t,cfo) =
 	end
 
 and unify_with_variance f t1 t2 =
-	let allows_variance_to t (tf,cfo) = match cfo with
-		| None -> type_iseq tf t
-		| Some _ -> false
-	in
+	let allows_variance_to t tf = type_iseq tf t in
 	match follow t1,follow t2 with
 	| TInst(c1,tl1),TInst(c2,tl2) when c1 == c2 ->
 		List.iter2 f tl1 tl2
@@ -1556,11 +1573,13 @@ and unify_with_variance f t1 t2 =
 		if not (List.exists (allows_variance_to t2) a1.a_to) && not (List.exists (allows_variance_to t1) a2.a_from) then
 			error [cannot_unify t1 t2]
 	| TAbstract(a,pl),t ->
-		type_eq EqStrict (apply_params a.a_params pl a.a_this) t;
-		if not (List.exists (allows_variance_to t) a.a_to) then error [cannot_unify t1 t2]
+		type_eq EqBothDynamic (apply_params a.a_params pl a.a_this) t;
+		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_to) then error [cannot_unify t1 t2]
 	| t,TAbstract(a,pl) ->
-		type_eq EqStrict t (apply_params a.a_params pl a.a_this);
-		if not (List.exists (allows_variance_to t) a.a_from) then error [cannot_unify t1 t2]
+		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
+		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
+	| TAnon a1,TAnon a2 ->
+		unify_anons t1 t2 a1 a2
 	| _ ->
 		error [cannot_unify t1 t2]
 
@@ -1588,22 +1607,26 @@ and unify_with_access t1 f2 =
 	(* read only *)
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } -> unify t1 f2.cf_type
 	(* read/write *)
-	| _ -> type_eq EqBothDynamic t1 f2.cf_type
+	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
 
 module Abstract = struct
 	open Ast
 
 	let find_to ab pl b =
 		if follow b == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_to_field
+		else if List.exists (unify_to ab pl ~allow_transitive_cast:false b) ab.a_to then
+			raise Not_found (* legacy compatibility *)
 		else
-			List.find (unify_to_field ab pl b) ab.a_to
+			List.find (unify_to_field ab pl b) ab.a_to_field
 
 	let find_from ab pl a b =
 		if follow a == t_dynamic then
-			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from
+			List.find (fun (t,_) -> follow t == t_dynamic) ab.a_from_field
+		else if List.exists (unify_from ab pl a ~allow_transitive_cast:false b) ab.a_from then
+			raise Not_found (* legacy compatibility *)
 		else
-			List.find (unify_from_field ab pl a b) ab.a_from
+			List.find (unify_from_field ab pl a b) ab.a_from_field
 
 	let underlying_type_stack = ref []
 

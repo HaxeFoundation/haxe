@@ -203,7 +203,6 @@ abstract MyString(String) from String to String {
 	@:op(A + B) static public function add(lhs:MyString, rhs:MyString):MyString;
 	@:op(A + B) static public function addInt(lhs:MyString, rhs:Int):MyString;
 	@:op(A + B) static public function addBool(lhs:MyString, rhs:Bool):Bool;
-	@:op(A - B) static public function sub(lhs:MyString, rhs:MyString):MyString;
 }
 
 class ClassWithHashCode {

@@ -118,6 +118,8 @@ let make_module ctx mpath file tdecls loadp =
 				a_meta = d.d_meta;
 				a_from = [];
 				a_to = [];
+				a_from_field = [];
+				a_to_field = [];
 				a_ops = [];
 				a_unops = [];
 				a_impl = None;
@@ -232,7 +234,7 @@ let type_function_arg ctx t e opt p =
 let type_var_field ctx t e stat p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = type_expr ctx e (WithType t) in
-	unify ctx e.etype t p;
+	let e = (!cast_or_unify_ref) ctx t e p in
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e
@@ -1714,11 +1716,7 @@ let init_class ctx c p context_init herits fields =
 						(* turn int constant to float constant if expected type is float *)
 						{e with eexpr = TConst (TFloat (Int32.to_string i))}
 					| _ ->
-						let e' = (!check_abstract_cast_ref) ctx cf.cf_type e e.epos in
-						if e' == e then
-							mk (TCast(e,None)) cf.cf_type e.epos
-						else
-							e'
+						mk_cast e cf.cf_type e.epos
 				end
 			in
 			let r = exc_protect ctx (fun r ->
@@ -1976,7 +1974,7 @@ let init_class ctx c p context_init herits fields =
 									| TFun([_,_,t],_) -> t
 									| _ -> error (f.cff_name ^ ": @:from cast functions must accept exactly one argument") p
 							in
-							a.a_from <- (TLazy (ref r),Some cf) :: a.a_from;
+							a.a_from_field <- (TLazy (ref r),cf) :: a.a_from_field;
 						| (Meta.To,_,_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro cast functions are not supported") p;
 							if not (Meta.has Meta.Impl cf.cf_meta) then cf.cf_meta <- (Meta.Impl,[],cf.cf_pos) :: cf.cf_meta;
@@ -2003,7 +2001,7 @@ let init_class ctx c p context_init herits fields =
 							end else (fun () ->
 								resolve_m []
 							) in
-							a.a_to <- (TLazy (ref r), Some cf) :: a.a_to
+							a.a_to_field <- (TLazy (ref r), cf) :: a.a_to_field
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro array-access functions are not supported") p;
 							a.a_array <- cf :: a.a_array;
@@ -2233,8 +2231,8 @@ let init_class ctx c p context_init herits fields =
 	) fields;
 	(match c.cl_kind with
 	| KAbstractImpl a ->
-		a.a_to <- List.rev a.a_to;
-		a.a_from <- List.rev a.a_from;
+		a.a_to_field <- List.rev a.a_to_field;
+		a.a_from_field <- List.rev a.a_from_field;
 		a.a_ops <- List.rev a.a_ops;
 		a.a_unops <- List.rev a.a_unops;
 	| _ -> ());
@@ -2611,8 +2609,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			t
 		in
 		List.iter (function
-			| AFromType t -> a.a_from <- (load_type t true, None) :: a.a_from
-			| AToType t -> a.a_to <- (load_type t false, None) :: a.a_to
+			| AFromType t -> a.a_from <- (load_type t true) :: a.a_from
+			| AToType t -> a.a_to <- (load_type t false) :: a.a_to
 			| AIsType t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
