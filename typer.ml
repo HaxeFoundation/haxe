@@ -2111,42 +2111,23 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	| OpAssignOp _ ->
 		assert false
 	in
-	let rec expected_result_type = function
-		| OpAdd | OpSub | OpMult | OpDiv | OpMod -> ctx.t.tfloat
-		| OpGt | OpGte | OpLt | OpLte | OpEq | OpNotEq | OpBoolAnd | OpBoolOr -> ctx.t.tbool
-		| OpAnd | OpOr | OpXor | OpUShr | OpShr | OpShl -> ctx.t.tint
-		| OpArrow -> t_dynamic
-		| OpAssignOp op -> expected_result_type op
-		| OpInterval | OpAssign -> assert false
-	in
 	let find_overload a c tl left =
 		let map = apply_params a.a_params tl in
 		let make op_cf cf e1 e2 tret =
 			if cf.cf_expr = None then begin
 				if not (Meta.has Meta.CoreType a.a_meta) then begin
 					(* for non core-types we require that the return type is compatible to the native result type *)
-					let t_expected = expected_result_type op_cf in
+					let e' = make {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} in
+					let t_expected = e'.etype in
 					begin try
 						unify_raise ctx tret t_expected p
 					with Error (Unify _,_) ->
-						let invalid_return () =
-							let s_expected = match op with
-								| OpAdd | OpAssignOp OpAdd -> "String or "
-								| _ -> ""
-							in
-							let pctx = print_context() in
-							let st = s_type pctx in
-							error (Printf.sprintf "The result of this operation (%s%s) is not compatible with declared return type %s" s_expected (st t_expected) (st tret)) p
-						in
-						match op with
-							| OpAdd | OpAssignOp OpAdd ->
-								begin try
-									unify_raise ctx tret ctx.t.tstring p
-								with Error (Unify _,_) ->
-									invalid_return()
-								end
+						match follow tret with
+							| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
+								()
 							| _ ->
-								invalid_return()
+								let st = s_type (print_context()) in
+								error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 					end;
 				end;
 				mk_cast (Codegen.binop op e1 e2 tret p) tret p
