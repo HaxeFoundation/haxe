@@ -2119,8 +2119,42 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| OpAssignOp op -> expected_result_type op
 		| OpInterval | OpAssign -> assert false
 	in
-	let find_overload a c tl =
+	let find_overload a c tl left =
 		let map = apply_params a.a_params tl in
+		let make op_cf cf e1 e2 tret =
+			if cf.cf_expr = None then begin
+				if not (Meta.has Meta.CoreType a.a_meta) then begin
+					(* for non core-types we require that the return type is compatible to the native result type *)
+					let t_expected = expected_result_type op_cf in
+					begin try
+						unify_raise ctx tret t_expected p
+					with Error (Unify _,_) ->
+						let invalid_return () =
+							let s_expected = match op with
+								| OpAdd | OpAssignOp OpAdd -> "String or "
+								| _ -> ""
+							in
+							let pctx = print_context() in
+							let st = s_type pctx in
+							error (Printf.sprintf "The result of this operation (%s%s) is not compatible with declared return type %s" s_expected (st t_expected) (st tret)) p
+						in
+						match op with
+							| OpAdd | OpAssignOp OpAdd ->
+								begin try
+									unify_raise ctx tret ctx.t.tstring p
+								with Error (Unify _,_) ->
+									invalid_return()
+								end
+							| _ ->
+								invalid_return()
+					end;
+				end;
+				mk_cast (Codegen.binop op e1 e2 tret p) tret p
+			end else begin
+				let e = make_static_call ctx c cf map [e1;e2] tret p in
+				e
+			end
+		in
 		(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		   it with the first type to preserve comparison semantics. *)
 		begin match op with
@@ -2134,77 +2168,53 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ ->
 				()
 		end;
-		let rec loop ol = match ol with
-			| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op))->
+ 		let rec loop ol = match ol with
+			| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op)) ->
 				loop ol
 			| (op_cf,cf) :: ol ->
+				let is_impl = Meta.has Meta.Impl cf.cf_meta in
 				begin match follow cf.cf_type with
 					| TFun([(_,_,t1);(_,_,t2)],tret) ->
-						let map_arguments () =
-							let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-							let map t = map (apply_params cf.cf_params monos t) in
-							let t1 = map t1 in
-							let t2 = map t2 in
-							monos,t1,t2
-						in
-						let make e1 e2 =
-							if cf.cf_expr = None then begin
-								if not (Meta.has Meta.CoreType a.a_meta) then begin
-									(* for non core-types we require that the return type is compatible to the native result type *)
-									let t_expected = expected_result_type op_cf in
-									begin try
-										unify_raise ctx tret t_expected p
-									with Error (Unify _,_) ->
-										let invalid_return () =
-											let s_expected = match op with
-												| OpAdd | OpAssignOp OpAdd -> "String or "
-												| _ -> ""
-											in
-											let pctx = print_context() in
-											let st = s_type pctx in
-											error (Printf.sprintf "The result of this operation (%s%s) is not compatible with declared return type %s" s_expected (st t_expected) (st tret)) p
-										in
-										match op with
-											| OpAdd | OpAssignOp OpAdd ->
-												begin try
-													unify_raise ctx tret ctx.t.tstring p
-												with Error (Unify _,_) ->
-													invalid_return()
-												end
-											| _ ->
-												invalid_return()
-									end;
-								end;
-								mk_cast (Codegen.binop op e1 e2 tret p) tret p
+						let check e1 e2 swapped =
+							let map_arguments () =
+								let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+								let map t = map (apply_params cf.cf_params monos t) in
+								let t1 = map t1 in
+								let t2 = map t2 in
+								monos,t1,t2
+							in
+							let make e1 e2 = make op_cf cf e1 e2 tret in
+							let monos,t1,t2 = map_arguments() in
+							let t1 = if is_impl then Abstract.follow_with_abstracts t1 else t1 in
+							let e1,e2 = if left || not left && swapped then begin
+								Type.type_eq EqStrict (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
+								e1,Codegen.AbstractCast.cast_or_unify_raise ctx t2 e2 p
 							end else begin
-								let e = make_static_call ctx c cf map [e1;e2] tret p in
+								Type.type_eq EqStrict e2.etype t2;
+								Codegen.AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
+							end in
+							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
+							if not swapped then
+								make e1 e2
+							else
+								let v1,v2 = gen_local ctx t1, gen_local ctx t2 in
+								let ev1,ev2 = mk (TVar(v1,Some e1)) ctx.t.tvoid p,mk (TVar(v2,Some e2)) ctx.t.tvoid p in
+								let eloc1,eloc2 = mk (TLocal v1) v1.v_type p,mk (TLocal v2) v2.v_type p in
+								let e = make eloc1 eloc2 in
+								let e = mk (TBlock [
+									ev2;
+									ev1;
+									e
+								]) e.etype e.epos in
 								if is_assign_op && op_cf = op then (mk (TMeta((Meta.RequiresAssign,[],p),e)) e.etype e.epos)
 								else e
-							end
 						in
 						begin try
-							let monos,t1,t2 = map_arguments() in
-							let t1 = if Meta.has Meta.Impl cf.cf_meta then Abstract.follow_with_abstracts t1 else t1 in
-							let e1 = Codegen.AbstractCast.cast_or_unify_raise ctx t1 e1 p in
-							let e2 = Codegen.AbstractCast.cast_or_unify_raise ctx t2 e2 p in
-							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
-							make e1 e2
+							check e1 e2 false
 						with Error (Unify _,_) | Unify_error _ -> try
 							if not (Meta.has Meta.Commutative cf.cf_meta) then raise Not_found;
-							let monos,t1,t2 = map_arguments() in
-							let e1 = Codegen.AbstractCast.cast_or_unify_raise ctx t2 e1 p in
-							let e2 = Codegen.AbstractCast.cast_or_unify_raise ctx t1 e2 p in
-							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
-							let v1,v2 = gen_local ctx t2, gen_local ctx t1 in
-							let ev1,ev2 = mk (TVar(v1,Some e1)) ctx.t.tvoid p,mk (TVar(v2,Some e2)) ctx.t.tvoid p in
-							let eloc1,eloc2 = mk (TLocal v1) v1.v_type p,mk (TLocal v2) v2.v_type p in
-							let e = make eloc2 eloc1 in
-							mk (TBlock [
-								ev1;
-								ev2;
-								e
-							]) e.etype e.epos
-						with Error (Unify _,_) | Unify_error _ | Not_found ->
+							check e2 e1 true
+						with Not_found | Error (Unify _,_) | Unify_error _ ->
 							loop ol
 						end
 					| _ ->
@@ -2213,16 +2223,16 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| [] ->
 				raise Not_found
 		in
-		loop a.a_ops
+		loop (if left then a.a_ops else List.filter (fun (_,cf) -> not (Meta.has Meta.Impl cf.cf_meta)) a.a_ops)
 	in
 	try
 		begin match follow e1.etype with
-			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl
+			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl true
 			| _ -> raise Not_found
 		end
 	with Not_found -> try
 		begin match follow e2.etype with
-			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl
+			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl false
 			| _ -> raise Not_found
 		end
 	with Not_found ->
