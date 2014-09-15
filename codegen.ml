@@ -668,7 +668,9 @@ module AbstractCast = struct
 				begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
 				with Not_found ->
 					let rec loop2 tcl = match tcl with
-						| tc :: tcl -> loop (apply_params a.a_params tl tc) tright
+						| tc :: tcl ->
+							if not (type_iseq tc tleft) then loop (apply_params a.a_params tl tc) tright
+							else loop2 tcl
 						| [] -> raise Not_found
 					in
 					loop2 a.a_from
@@ -677,7 +679,9 @@ module AbstractCast = struct
 				begin try find a tl (fun () -> Abstract.find_to a tl tleft)
 				with Not_found ->
 					let rec loop2 tcl = match tcl with
-						| tc :: tcl -> loop tleft (apply_params a.a_params tl tc)
+						| tc :: tcl ->
+							if not (type_iseq tc tright) then loop tleft (apply_params a.a_params tl tc)
+							else loop2 tcl
 						| [] -> raise Not_found
 					in
 					loop2 a.a_to

@@ -1477,13 +1477,19 @@ and unify_anons a b a1 a2 =
 		Unify_error l -> error (cannot_unify a b :: l))
 
 and unify_from ab tl a b ?(allow_transitive_cast=true) t =
+	if (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!abstract_cast_stack)) then false else begin
+	abstract_cast_stack := (a,b) :: !abstract_cast_stack;
 	let t = apply_params ab.a_params tl t in
 	let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
-	try
+	let b = try
 		unify_func a t;
 		true
 	with Unify_error _ ->
 		false
+	in
+	abstract_cast_stack := List.tl !abstract_cast_stack;
+	b
+	end
 
 and unify_to ab tl b ?(allow_transitive_cast=true) t =
 	let t = apply_params ab.a_params tl t in
