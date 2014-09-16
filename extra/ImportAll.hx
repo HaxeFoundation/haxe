@@ -44,8 +44,6 @@ class ImportAll {
 			if( !Context.defined("flash") || Context.defined("flash9") ) return;
 		case "flash":
 			if( !Context.defined("flash9") ) return;
-		case "mt","mtwin":
-			return;
 		case "sys":
 			if( !Context.defined("neko") && !Context.defined("php") && !Context.defined("cpp") ) return;
 		case "java":

@@ -620,9 +620,6 @@ let on_inherit ctx c p h =
 	| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
-		extend_remoting ctx c t p true false;
-		false
 	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
 		extend_xml_proxy ctx c t file p;
 		true
@@ -1230,7 +1227,6 @@ let rec is_volatile t =
 		is_volatile (!f())
 	| TType (t,tl) ->
 		(match t.t_path with
-		| ["mt";"flash"],"Volatile" -> true
 		| _ -> is_volatile (apply_params t.t_params tl t.t_type))
 	| _ ->
 		false
