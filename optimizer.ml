@@ -682,7 +682,7 @@ let rec optimize_for_loop ctx i e1 e2 p =
 			end;
 			begin try
 				(* first try: do we have an @:arrayAccess getter field? *)
-				let cf,_,r = find_array_access a tl ctx.com.basic.tint None p in
+				let cf,_,r = find_array_access ctx a tl ctx.com.basic.tint None p in
 				let get_next e_base e_index t p =
 					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
 				in

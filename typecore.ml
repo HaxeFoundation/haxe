@@ -393,7 +393,7 @@ let create_fake_module ctx file =
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
 
-let find_array_access_raise a pl t1 t2o =
+let find_array_access_raise ctx a pl t1 t2o p =
 	let is_set = t2o <> None in
 	let ta = apply_params a.a_params pl a.a_this in
 	let rec loop cfl = match cfl with
@@ -423,8 +423,8 @@ let find_array_access_raise a pl t1 t2o =
 	in
 	loop a.a_array
 
-let find_array_access a tl t1 t2o p =
-	try find_array_access_raise a tl t1 t2o
+let find_array_access ctx a tl t1 t2o p =
+	try find_array_access_raise ctx a tl t1 t2o p
 	with Not_found -> match t2o with
 		| None ->
 			error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) t1)) p
