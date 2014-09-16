@@ -682,13 +682,12 @@ let rec optimize_for_loop ctx i e1 e2 p =
 			end;
 			begin try
 				(* first try: do we have an @:arrayAccess getter field? *)
-(* 				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r = Codegen.AbstractCast.find_array_access ctx a tl todo None p in
+				let todo = mk (TConst TNull) ctx.t.tint p in
+				let cf,_,r,_,_ = (!find_array_access_raise_ref) ctx a tl todo None p in
 				let get_next e_base e_index t p =
 					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
 				in
-				gen_int_iter r get_next get_length *)
-				raise Not_found (* TODO *)
+				gen_int_iter r get_next get_length
 			with Not_found ->
 				(* second try: do we have @:arrayAccess on the abstract itself? *)
 				if not (Meta.has Meta.ArrayAccess a.a_meta) then raise Not_found;
