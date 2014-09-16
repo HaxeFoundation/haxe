@@ -65,7 +65,7 @@ type access_kind =
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
 	| AKUsing of texpr * tclass * tclass_field * texpr
-	| AKAccess of texpr * texpr
+	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Common.get_full_path p.pfile else Filename.basename p.pfile in
@@ -1775,19 +1775,6 @@ let call_to_string ctx c e =
 	let cf = PMap.find "toString" c.cl_statics in
 	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
 
-let find_array_access_from_type tbase tkey twrite p =
-	let a,pl,c = match follow tbase with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
-	let f = find_array_access a pl tkey in
-	let cf,tf,r = match twrite with
-		| None ->
-			(try f tkey false
-			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) tkey)) p)
-		| Some t ->
-			(try f t true
-			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) tkey) (s_type (print_context()) t)) p)
-	in
-	c,cf,tf,r
-
 let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
@@ -1808,8 +1795,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKSet (e,t,cf) ->
 			let e2 = Codegen.AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
-		| AKAccess(ebase,ekey) ->
-			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype (Some e2.etype) p in
+		| AKAccess(a,tl,c,ebase,ekey) ->
+			let cf,tf,r = find_array_access a tl ekey.etype (Some e2.etype) p in
 			begin match cf.cf_expr with
 				| None ->
 					let ea = mk (TArray(ebase,ekey)) r p in
@@ -1883,8 +1870,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				]) ret p
 			else
 				e_call
-		| AKAccess(ebase,ekey) ->
-			let c,cf_get,tf_get,r_get = find_array_access_from_type ebase.etype ekey.etype None p in
+		| AKAccess(a,tl,c,ebase,ekey) ->
+			let cf_get,tf_get,r_get = find_array_access a tl ekey.etype None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
 				| Some e -> e, fun () -> None
@@ -1898,7 +1885,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
 			let eget = type_binop ctx op ast_call e2 true with_type p in
 			unify ctx eget.etype r_get p;
-			let _,cf_set,tf_set,r_set = find_array_access_from_type ebase.etype ekey.etype (Some eget.etype) p in
+			let cf_set,tf_set,r_set = find_array_access a tl ekey.etype (Some eget.etype) p in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			begin match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
@@ -2284,8 +2271,8 @@ and type_unop ctx op flag e p =
 		| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
 		| AKNo s ->
 			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-		| AKAccess(ebase,ekey) ->
-			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype None p in
+		| AKAccess(a,tl,c,ebase,ekey) ->
+			let cf,tf,r = find_array_access a tl ekey.etype None p in
 			let e = match cf.cf_expr with
 				| None ->
 					mk (TArray(ebase,ekey)) r p
@@ -2557,10 +2544,10 @@ and type_access ctx e p mode =
 			begin match mode with
 			| MSet ->
 				(* resolve later *)
-				AKAccess (e1, e2)
+				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let cf,tf,r = find_array_access a pl e2.etype t_dynamic false in
+				let cf,tf,r = find_array_access a pl e2.etype None p in
 				let e = match cf.cf_expr with
 					| None ->
 						mk (TArray(e1,e2)) r p
