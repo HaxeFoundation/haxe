@@ -189,9 +189,6 @@ class UsingChild1 extends UsingBase {
 
 class UsingChild2 extends UsingBase {
 	static public function test() {
-		#if !macro
-		TestType.typeError("foo".siblingFunc());
-		#end
 		return "foo".siblingFunc();
 	}
 
@@ -200,11 +197,8 @@ class UsingChild2 extends UsingBase {
 
 class UsingUnrelated {
 	static public function test() {
-		#if !macro
-		TestType.typeError("foo".privFunc());
-		TestType.typeError("foo".siblingFunc());
-		#end
-		return "foo".pupFunc() + "foo".siblingFunc();
+		var err = TestType.typeError("foo".privFunc());
+		return err + "foo".pupFunc() + "foo".siblingFunc();
 	}
 }
 

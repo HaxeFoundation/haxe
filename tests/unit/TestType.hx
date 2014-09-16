@@ -489,7 +489,7 @@ class TestType extends Test {
 	{
 		eq(UsingChild1.test(), "FOOFOOFOO");
 		eq(UsingChild2.test(), "FOO");
-		eq(UsingUnrelated.test(), "FOOFOO");
+		eq(UsingUnrelated.test(), "trueFOOFOO");
 	}
 
 	function testInlineInit()
