@@ -1796,7 +1796,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e2 = Codegen.AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			let cf,tf,r = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p in
+			let cf,tf,r,ekey,e2 = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p in
+			let e2 = match e2 with None -> assert false | Some e -> e in
 			begin match cf.cf_expr with
 				| None ->
 					let ea = mk (TArray(ebase,ekey)) r p in
@@ -1871,7 +1872,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			else
 				e_call
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			let cf_get,tf_get,r_get = Codegen.AbstractCast.find_array_access ctx a tl ekey None p in
+			let cf_get,tf_get,r_get,ekey,_ = Codegen.AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
 				| Some e -> e, fun () -> None
@@ -1885,7 +1886,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
 			let eget = type_binop ctx op ast_call e2 true with_type p in
 			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
+			let cf_set,tf_set,r_set,ekey,eget = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
+			let eget = match eget with None -> assert false | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			begin match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
@@ -2272,7 +2274,7 @@ and type_unop ctx op flag e p =
 		| AKNo s ->
 			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			let cf,tf,r = Codegen.AbstractCast.find_array_access ctx a tl ekey None p in
+			let cf,tf,r,ekey,_ = Codegen.AbstractCast.find_array_access ctx a tl ekey None p in
 			let e = match cf.cf_expr with
 				| None ->
 					mk (TArray(ebase,ekey)) r p
@@ -2547,7 +2549,7 @@ and type_access ctx e p mode =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let cf,tf,r = Codegen.AbstractCast.find_array_access ctx a pl e2 None p in
+				let cf,tf,r,e2,_ = Codegen.AbstractCast.find_array_access ctx a pl e2 None p in
 				let e = match cf.cf_expr with
 					| None ->
 						mk (TArray(e1,e2)) r p

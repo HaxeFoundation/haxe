@@ -717,17 +717,17 @@ module AbstractCast = struct
 				| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 					begin try
 						Type.unify tab ta;
-						cast_or_unify ctx ta1 e1 p;
-						(match e2o with None -> None | Some e2 -> Some (cast_or_unify ctx ta2 e2 p));
-						cf,tf,r
+						let e1 = cast_or_unify ctx ta1 e1 p in
+						let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify ctx ta2 e2 p) in
+						cf,tf,r,e1,e2o
 					with Unify_error _ ->
 						loop cfl
 					end
 				| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
 					begin try
 						Type.unify tab ta;
-						cast_or_unify ctx ta1 e1 p;
-						cf,tf,r
+						let e1 = cast_or_unify ctx ta1 e1 p in
+						cf,tf,r,e1,None
 					with Unify_error _ ->
 						loop cfl
 					end
