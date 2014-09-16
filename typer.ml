@@ -2176,7 +2176,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 								Codegen.AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
 							end in
 							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
-							if not swapped then
+							let e = if not swapped then
 								make e1 e2
 							else
 								let v1,v2 = gen_local ctx t1, gen_local ctx t2 in
@@ -2188,8 +2188,10 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 									ev1;
 									e
 								]) e.etype e.epos in
-								if is_assign_op && op_cf = op then (mk (TMeta((Meta.RequiresAssign,[],p),e)) e.etype e.epos)
-								else e
+								e
+							in
+							if is_assign_op && op_cf = op || true then (mk (TMeta((Meta.RequiresAssign,[],p),e)) e.etype e.epos)
+							else e
 						in
 						begin try
 							check e1 e2 false
