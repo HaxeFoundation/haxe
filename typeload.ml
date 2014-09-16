@@ -1984,24 +1984,28 @@ let init_class ctx c p context_init herits fields =
 									| TMono _ when (match cf.cf_type with TFun(_,r) -> r == t_dynamic | _ -> false) -> t_dynamic
 									| m -> m
 							in
-							let r = if Meta.has Meta.MultiType a.a_meta then begin
-								let ctor = try
-									PMap.find "_new" c.cl_statics
-								with Not_found ->
-									error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
-								in
-								(fun () ->
+ 							let r = exc_protect ctx (fun r ->
+ 								let args = if Meta.has Meta.MultiType a.a_meta then begin
+									let ctor = try
+										PMap.find "_new" c.cl_statics
+									with Not_found ->
+										error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
+									in
 									delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
 									let args = match follow (monomorphs a.a_params ctor.cf_type) with
 										| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
 										| _ -> assert false
 									in
-									resolve_m args
-								)
-							end else (fun () ->
-								resolve_m []
-							) in
-							a.a_to_field <- (TLazy (ref r), cf) :: a.a_to_field
+									args
+								end else
+									[]
+								in
+								let t = resolve_m args in
+								r := (fun() -> t);
+								t
+							) "@:to" in
+							delay ctx PForce (fun() -> ignore ((!r)()));
+							a.a_to_field <- (TLazy r, cf) :: a.a_to_field
 						| (Meta.ArrayAccess,_,_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro array-access functions are not supported") p;
 							a.a_array <- cf :: a.a_array;
