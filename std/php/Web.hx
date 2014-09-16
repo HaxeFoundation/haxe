@@ -255,7 +255,7 @@ class Web {
 		Returns an hashtable of all Cookies sent by the client.
 		Modifying the hashtable will not modify the cookie, use setCookie instead.
 	**/
-	public static function getCookies():haxe.ds.StringMap<String> {
+	public static function getCookies():Map<String,String> {
 		return Lib.hashOfAssociativeArray(untyped __php__("$_COOKIE"));
 	}
 
@@ -292,7 +292,7 @@ class Web {
 		Get the multipart parameters as an hashtable. The data
 		cannot exceed the maximum size specified.
 	**/
-	public static function getMultipart( maxSize : Int ) : haxe.ds.StringMap<String> {
+	public static function getMultipart( maxSize : Int ) : Map<String,String> {
 		var h = new haxe.ds.StringMap();
 		var buf : StringBuf = null;
 		var curname = null;

@@ -171,7 +171,7 @@ typedef EnumField = {
 }
 
 typedef EnumType = {> BaseType,
-	var constructs : haxe.ds.StringMap<EnumField>;
+	var constructs : Map<String,EnumField>;
 	var names : Array<String>;
 }
 

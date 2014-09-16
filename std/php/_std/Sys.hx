@@ -110,7 +110,7 @@
 		return untyped __php__("$_SERVER['SCRIPT_FILENAME']");
 	}
 
-	public static function environment() : haxe.ds.StringMap<String> {
+	public static function environment() : Map<String,String> {
 		return php.Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
 	}
 

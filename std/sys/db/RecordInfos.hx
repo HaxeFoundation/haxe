@@ -78,7 +78,7 @@ typedef RecordInfos = {
 	var name : String;
 	var key : Array<String>;
 	var fields : Array<RecordField>;
-	var hfields : haxe.ds.StringMap<RecordField>;
+	var hfields : Map<String,RecordField>;
 	var relations : Array<RecordRelation>;
 	var indexes : Array<{ keys : Array<String>, unique : Bool }>;
 }
