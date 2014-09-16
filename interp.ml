@@ -123,6 +123,7 @@ type extern_api = {
 	delayed_macro : int -> (unit -> (unit -> value));
 	use_cache : unit -> bool;
 	format_string : string -> Ast.pos -> Ast.expr;
+	cast_or_unify : Type.t -> texpr -> Ast.pos -> Type.texpr;
 }
 
 type callstack = {
@@ -2344,8 +2345,9 @@ let macro_lib =
 			with Exit -> VNull
 		);
 		"unify", Fun2 (fun t1 t2 ->
-			try Type.unify (decode_type t1) (decode_type t2); VBool true
-			with Unify_error _ -> VBool false
+			let e1 = mk (TConst TNull) (decode_type t1) Ast.null_pos in
+			try ignore(((get_ctx()).curapi.cast_or_unify) (decode_type t2) e1 Ast.null_pos); VBool true
+			with Typecore.Error (Typecore.Unify _,_) -> VBool false
 		);
 		"typeof", Fun1 (fun v ->
 			encode_type ((get_ctx()).curapi.type_expr (decode_expr v)).etype

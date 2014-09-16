@@ -4387,6 +4387,9 @@ let make_macro_api ctx p =
 		Interp.format_string = (fun s p ->
 			format_string ctx s p
 		);
+		Interp.cast_or_unify = (fun t e p ->
+			Codegen.AbstractCast.cast_or_unify_raise ctx t e p
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =
