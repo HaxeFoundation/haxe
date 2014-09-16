@@ -676,11 +676,13 @@ let rec unify_call_args' ctx el args r p inline force_inline =
 		let err = Stack (Unify ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")) in
 		call_error (Could_not_unify err) p
 	in
+	let mk_pos_infos t =
+		let infos = mk_infos ctx p [] in
+		type_expr ctx infos (WithType t)
+	in
 	let rec default_value name t =
 		if is_pos_infos t then
-			let infos = mk_infos ctx p [] in
-			let e = type_expr ctx infos (WithType t) in
-			e
+			mk_pos_infos t
 		else
 			null (ctx.t.tnull t) p
 	in
@@ -711,7 +713,9 @@ let rec unify_call_args' ctx el args r p inline force_inline =
 			call_error Not_enough_arguments p
 		| [],(name,true,t) :: args ->
 			begin match loop [] args with
-				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls -> []
+				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
+					if is_pos_infos t then [mk_pos_infos t,true]
+					else []
 				| args ->
 					let e_def = default_value name t in
 					(e_def,true) :: args
