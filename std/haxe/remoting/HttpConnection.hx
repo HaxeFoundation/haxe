@@ -125,11 +125,18 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			var u = new haxe.Unserializer(requestData);
 			var path = u.unserialize();
 			var args : Array<Dynamic> = cast u.unserialize();
-			for ( i in 0...args.length ) {
+			var files	= [];
+			var i	= 0;
+			while ( i < args.length ) {
 				var arg	= args[ i ];
-				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) )
-					args[ i ]	= neko.Web.getMultipartParams().get( arg.substr( 8 ) );
+				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
+					files.push( neko.Web.getMultipartParams().get( arg.substr( 8 ) ) );
+					args.splice( i, 1 );
+					continue;
+				}
+				i++;
 			}
+			args.push( files );
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
 			s.serialize(data);
@@ -146,11 +153,18 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			var u = new haxe.Unserializer(requestData);
 			var path = u.unserialize();
 			var args : Array<Dynamic> = cast u.unserialize();
-			for ( i in 0...args.length ) {
+			var files	= [];
+			var i	= 0;
+			while ( i < args.length ) {
 				var arg	= args[ i ];
-				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) )
-					args[ i ]	= php.Web.getMultipartParams().get( arg.substr( 8 ) );
+				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
+					files.push( php.Web.getMultipartParams().get( arg.substr( 8 ) ) );
+					args.splice( i, 1 );
+					continue;
+				}
+				i++;
 			}
+			args.push( files );
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
 			s.serialize(data);
