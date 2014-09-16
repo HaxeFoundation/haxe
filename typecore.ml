@@ -393,45 +393,6 @@ let create_fake_module ctx file =
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
 
-let find_array_access_raise ctx a pl t1 t2o p =
-	let is_set = t2o <> None in
-	let ta = apply_params a.a_params pl a.a_this in
-	let rec loop cfl = match cfl with
-		| [] -> raise Not_found
-		| cf :: cfl when not (Ast.Meta.has Ast.Meta.ArrayAccess cf.cf_meta) ->
-			loop cfl
-		| cf :: cfl ->
-			match follow (apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type)) with
-			| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
-				begin try
-					Type.unify tab ta;
-					Type.unify t1 ta1;
-					(match t2o with None -> () | Some t2 -> Type.unify t2 ta2);
-					cf,tf,r
-				with Unify_error _ ->
-					loop cfl
-				end
-			| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
-				begin try
-					Type.unify tab ta;
-					Type.unify t1 ta1;
-					cf,tf,r
-				with Unify_error _ ->
-					loop cfl
-				end
-			| _ -> loop cfl
-	in
-	loop a.a_array
-
-let find_array_access ctx a tl t1 t2o p =
-	try find_array_access_raise ctx a tl t1 t2o p
-	with Not_found -> match t2o with
-		| None ->
-			error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) t1)) p
-		| Some t2 ->
-			error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) t1) (s_type (print_context()) t2)) p
-
-
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
