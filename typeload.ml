@@ -2724,13 +2724,15 @@ let resolve_module_file com m remap p =
 	| _ -> ());
 	if !forbid then begin
 		let _, decls = (!parse_hook) com file p in
-		let meta = (match decls with
-		| (EClass d,_) :: _ -> d.d_meta
-		| (EEnum d,_) :: _ -> d.d_meta
-		| (EAbstract d,_) :: _ -> d.d_meta
-		| (ETypedef d,_) :: _ -> d.d_meta
-		| _ -> []
-		) in
+		let rec loop decls = match decls with
+			| ((EImport _,_) | (EUsing _,_)) :: decls -> loop decls
+			| (EClass d,_) :: _ -> d.d_meta
+			| (EEnum d,_) :: _ -> d.d_meta
+			| (EAbstract d,_) :: _ -> d.d_meta
+			| (ETypedef d,_) :: _ -> d.d_meta
+			| [] -> []
+		in
+		let meta = loop decls in
 		if not (Meta.has Meta.NoPackageRestrict meta) then begin
 			let x = (match fst m with [] -> assert false | x :: _ -> x) in
 			raise (Forbid_package ((x,m,p),[],if Common.defined com Define.Macro then "macro" else platform_name com.platform));
