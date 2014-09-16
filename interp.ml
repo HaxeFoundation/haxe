@@ -4744,16 +4744,15 @@ let rec decode_texpr v =
 		| 16, [vif;vthen;velse] -> TIf(loop vif,loop vthen,opt loop velse)
 		| 17, [vcond;v1;b] -> TWhile(loop vcond,loop v1,if dec_bool b then NormalWhile else DoWhile)
 		| 18, [v1;cl;vdef] -> TSwitch(loop v1,List.map (fun v -> List.map loop (dec_array (field v "values")),loop (field v "expr")) (dec_array cl),opt loop vdef)
-		| 19, [dt] -> assert false
-		| 20, [v1;cl] -> TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (dec_array cl))
-		| 21, [vo] -> TReturn(opt loop vo)
-		| 22, [] -> TBreak
-		| 23, [] -> TContinue
-		| 24, [v1] -> TThrow(loop v1)
-		| 25, [v1;mto] -> TCast(loop v1,opt decode_module_type mto)
-		| 26, [m;v1] -> TMeta(decode_meta_entry m,loop v1)
-		| 27, [v1;ef;i] -> TEnumParameter(loop v1,decode_efield ef,match i with VInt i -> i | _ -> raise Invalid_expr)
-		| _ -> raise Invalid_expr
+		| 19, [v1;cl] -> TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (dec_array cl))
+		| 20, [vo] -> TReturn(opt loop vo)
+		| 21, [] -> TBreak
+		| 22, [] -> TContinue
+		| 23, [v1] -> TThrow(loop v1)
+		| 24, [v1;mto] -> TCast(loop v1,opt decode_module_type mto)
+		| 25, [m;v1] -> TMeta(decode_meta_entry m,loop v1)
+		| 26, [v1;ef;i] -> TEnumParameter(loop v1,decode_efield ef,match i with VInt i -> i | _ -> raise Invalid_expr)
+		| i,el -> Printf.printf "%i %i\n" i (List.length el); raise Invalid_expr
 	in
 	try
 		loop v
