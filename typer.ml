@@ -2190,7 +2190,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 								]) e.etype e.epos in
 								e
 							in
-							if is_assign_op && op_cf = op || true then (mk (TMeta((Meta.RequiresAssign,[],p),e)) e.etype e.epos)
+							if is_assign_op && op_cf = op then (mk (TMeta((Meta.RequiresAssign,[],p),e)) e.etype e.epos)
 							else e
 						in
 						begin try
