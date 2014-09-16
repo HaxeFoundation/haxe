@@ -2140,7 +2140,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		   it with the first type to preserve comparison semantics. *)
 		begin match op with
 			| (OpEq | OpNotEq) ->
-				begin match follow e1.etype,e2.etype with
+				begin match follow e1.etype,follow e2.etype with
 					| TMono _,_ | _,TMono _ ->
 						Type.unify e1.etype e2.etype
 					| _ ->
