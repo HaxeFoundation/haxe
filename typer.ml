@@ -922,6 +922,25 @@ let make_call ctx e params t p =
 	with Exit ->
 		mk (TCall (e,params)) t p
 
+let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
+	| None ->
+		mk (TArray(ebase,e1)) r p
+	| Some _ ->
+		let et = type_module_type ctx (TClassDecl c) None p in
+		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+		make_call ctx ef [ebase;e1] r p
+
+let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
+	let evalue = match e2o with None -> assert false | Some e -> e in
+	match cf.cf_expr with
+		| None ->
+			let ea = mk (TArray(ebase,e1)) r p in
+			mk (TBinop(OpAssign,ea,evalue)) r p
+		| Some _ ->
+			let et = type_module_type ctx (TClassDecl c) None p in
+			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+			make_call ctx ef [ebase;e1;evalue] r p
+
 let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
@@ -1796,15 +1815,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let e2 = Codegen.AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			let cf,tf,r,ekey,e2 = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p in
-			let e2 = match e2 with None -> assert false | Some e -> e in
-			begin match cf.cf_expr with
-				| None ->
-					let ea = mk (TArray(ebase,ekey)) r p in
-					mk (TBinop(OpAssign,ea,e2)) r p
-				| Some _ ->
-					make_static_call ctx c cf (fun t -> t) [ebase;ekey;e2] r p
-			end
+			mk_array_set_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
 			let ret = match follow ef.etype with
@@ -2274,13 +2285,7 @@ and type_unop ctx op flag e p =
 		| AKNo s ->
 			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			let cf,tf,r,ekey,_ = Codegen.AbstractCast.find_array_access ctx a tl ekey None p in
-			let e = match cf.cf_expr with
-				| None ->
-					mk (TArray(ebase,ekey)) r p
-				| Some _ ->
-					make_static_call ctx c cf (fun t -> t) [ebase;ekey] r p
-			in
+			let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 			loop (AKExpr e)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
@@ -2549,15 +2554,7 @@ and type_access ctx e p mode =
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let cf,tf,r,e2,_ = Codegen.AbstractCast.find_array_access ctx a pl e2 None p in
-				let e = match cf.cf_expr with
-					| None ->
-						mk (TArray(e1,e2)) r p
-					| Some _ ->
-						let et = type_module_type ctx (TClassDecl c) None p in
-						let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
-						make_call ctx ef [e1;e2] r p
-				in
+				let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
 				AKExpr e
 			end
 		| _ -> raise Not_found)

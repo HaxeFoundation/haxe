@@ -713,12 +713,22 @@ module AbstractCast = struct
 			| cf :: cfl when not (Ast.Meta.has Ast.Meta.ArrayAccess cf.cf_meta) ->
 				loop cfl
 			| cf :: cfl ->
-				match follow (apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type)) with
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+				let check_constraints () =
+					List.iter2 (fun m (name,t) -> match follow t with
+						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+							List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
+						| _ -> ()
+					) monos cf.cf_params;
+				in
+				match follow (map cf.cf_type) with
 				| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 					begin try
 						Type.unify tab ta;
 						let e1 = cast_or_unify ctx ta1 e1 p in
 						let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify ctx ta2 e2 p) in
+						check_constraints();
 						cf,tf,r,e1,e2o
 					with Unify_error _ ->
 						loop cfl
@@ -727,6 +737,7 @@ module AbstractCast = struct
 					begin try
 						Type.unify tab ta;
 						let e1 = cast_or_unify ctx ta1 e1 p in
+						check_constraints();
 						cf,tf,r,e1,None
 					with Unify_error _ ->
 						loop cfl
