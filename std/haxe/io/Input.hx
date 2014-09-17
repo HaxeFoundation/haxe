@@ -85,10 +85,10 @@ class Input {
 
 		Behaviour while reading after calling this method is unspecified.
 	**/
-	public function close() {
+	public function close() : Void {
 	}
 
-	function set_bigEndian(b) {
+	function set_bigEndian( b : Bool ) : Bool {
 		bigEndian = b;
 		return b;
 	}
@@ -128,7 +128,7 @@ class Input {
 
 		Unlike `readBytes`, this method tries to read the exact `len` amount of bytes.
 	**/
-	public function readFullBytes( s : Bytes, pos : Int, len : Int ) {
+	public function readFullBytes( s : Bytes, pos : Int, len : Int ) : Void {
 		while( len > 0 ) {
 			var k = readBytes(s,pos,len);
 			pos += k;
@@ -326,7 +326,7 @@ class Input {
 	/**
 		Read a 8-bit signed integer.
 	**/
-	public function readInt8() {
+	public function readInt8() : Int {
 		var n = readByte();
 		if( n >= 128 )
 			return n - 256;
@@ -338,7 +338,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readInt16() {
+	public function readInt16() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var n = bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
@@ -352,7 +352,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readUInt16() {
+	public function readUInt16() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		return bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
@@ -363,7 +363,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readInt24() {
+	public function readInt24() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
@@ -378,7 +378,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readUInt24() {
+	public function readUInt24() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
@@ -390,7 +390,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readInt32() {
+	public function readInt32() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
