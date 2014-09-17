@@ -1893,9 +1893,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 					let e = mk (TLocal v) ekey.etype p in
 					e, fun () -> (save(); Some (mk (TVar (v,Some ekey)) ctx.t.tvoid p))
 			in
-			let ast_call = ECall((EField(Interp.make_ast ebase,cf_get.cf_name),p),[Interp.make_ast ekey]),p in
-			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
-			let eget = type_binop ctx op ast_call e2 true with_type p in
+			let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
+			let eget = type_binop2 ctx op eget e2 true (WithType eget.etype) p in
 			unify ctx eget.etype r_get p;
 			let cf_set,tf_set,r_set,ekey,eget = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
 			let eget = match eget with None -> assert false | Some e -> e in
@@ -1919,23 +1918,26 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
-	(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
-	   to the individual arguments (issue #2786). *)
-	let wt = match with_type with
-		| WithType t | WithTypeResume t ->
-			begin match follow t with
-				| TAbstract(a,_) ->
-					begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
-						| [_] -> with_type
-						| _ -> Value
-					end
-				| _ ->
-					Value
-			end
-		| _ ->
-			Value
-	in
-	let e1 = type_expr ctx e1 wt in
+		(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
+		   to the individual arguments (issue #2786). *)
+		let wt = match with_type with
+			| WithType t | WithTypeResume t ->
+				begin match follow t with
+					| TAbstract(a,_) ->
+						begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
+							| [_] -> with_type
+							| _ -> Value
+						end
+					| _ ->
+						Value
+				end
+			| _ ->
+				Value
+		in
+		let e1 = type_expr ctx e1 wt in
+		type_binop2 ctx op e1 e2 is_assign_op wt p
+
+and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	let e2 = type_expr ctx e2 (if op == OpEq || op == OpNotEq then WithType e1.etype else wt) in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
