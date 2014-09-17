@@ -173,7 +173,6 @@ class Http {
 				var isLocal = rlocalProtocol.match( protocol );
 				if ( isLocal ) {
 					s = r.responseText != null ? 200 : 404;
-					
 				}
 			}
 			if( s == untyped __js__("undefined") )
