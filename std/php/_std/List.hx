@@ -21,8 +21,8 @@
  */
 @:coreApi class List<T> implements php.IteratorAggregate<T> {
 
-	private var h : ArrayAccess<Dynamic>;
-	private var q : ArrayAccess<Dynamic>;
+	@:ifFeature("List.iterator") private var h : ArrayAccess<Dynamic>;
+	@:ifFeature("List.iterator") private var q : ArrayAccess<Dynamic>;
 
 	public var length(default,null) : Int;
 
