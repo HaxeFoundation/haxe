@@ -258,6 +258,55 @@ class Web {
 			h.set(curname,neko.Lib.stringReference(buf.getBytes()));
 		return h;
 	}
+	
+	/**
+		Get the multipart parameters as an hashtable.
+		Values are String, { filename : String, bytes : haxe.io.Bytes }
+		or Array<{ filename : String, bytes : haxe.io.Bytes }> (if multiple files with same name)
+	**/
+	static var _multipartParams	: haxe.ds.StringMap<Dynamic>;
+	public static function getMultipartParams() : haxe.ds.StringMap<Dynamic> {
+		if( _multipartParams == null ){
+			_multipartParams = new haxe.ds.StringMap<Dynamic>();
+			var buf : haxe.io.BytesBuffer = null;
+			var curname 	= null;
+			var curFilename = null;
+			var curIsFile 	= false;
+			parseMultipart(function(p,filename) {
+				if ( curname != null )
+					if ( curIsFile ){
+						if ( _multipartParams.exists( curname ) ){
+							if( _multipartParams.get( curname ).push != null )
+								_multipartParams.get( curname ).push( { filename : curFilename, bytes : buf.getBytes() } );
+							else 
+								_multipartParams.set( curname, [ _multipartParams.get( curname ) ].concat( [ { filename : curFilename, bytes : buf.getBytes() } ] ) );
+						}else {
+							_multipartParams.set( curname, { filename : curFilename, bytes : buf.getBytes() } );
+						}
+					}else
+						_multipartParams.set(curname,neko.Lib.stringReference(buf.getBytes()));
+				curname 	= p;
+				curIsFile	= filename != null;
+				curFilename	= filename;
+				buf = new haxe.io.BytesBuffer();
+			},function(str,pos,len) {
+				buf.addBytes(str,pos,len);
+			});
+			if ( curname != null )
+				if ( curIsFile ){
+					if ( _multipartParams.exists( curname ) ){
+						if( _multipartParams.get( curname ).push != null )
+							_multipartParams.get( curname ).push( { filename : curFilename, bytes : buf.getBytes() } );
+						else 
+							_multipartParams.set( curname, [ _multipartParams.get( curname ) ].concat( [ { filename : curFilename, bytes : buf.getBytes() } ] ) );
+					}else {
+						_multipartParams.set( curname, { filename : curFilename, bytes : buf.getBytes() } );
+					}
+				}else
+						_multipartParams.set(curname,neko.Lib.stringReference(buf.getBytes()));
+		}
+		return _multipartParams;
+	}
 
 	/**
 		Parse the multipart data. Call [onPart] when a new part is found
@@ -271,7 +320,7 @@ class Web {
 			function(buf,pos,len) { onData(untyped new haxe.io.Bytes(__dollar__ssize(buf),buf),pos,len); }
 		);
 	}
-
+	
 	/**
 		Flush the data sent to the client. By default on Apache, outgoing data is buffered so
 		this can be useful for displaying some long operation progress.
