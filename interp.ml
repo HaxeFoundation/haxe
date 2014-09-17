@@ -124,6 +124,7 @@ type extern_api = {
 	use_cache : unit -> bool;
 	format_string : string -> Ast.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Ast.pos -> Type.texpr;
+	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
 }
 
 type callstack = {
@@ -2400,6 +2401,14 @@ let macro_lib =
 			| VString m, VString t, VNull, VBool s -> p m t None s
 			| _ -> error());
 			VNull
+		);
+		"add_global_metadata", Fun5 (fun v1 v2 v3 v4 v5 ->
+			match v1,v2,v3,v4,v5 with
+				| VString s1,VString s2,VBool b1,VBool b2,VBool b3 ->
+					(get_ctx()).curapi.add_global_metadata s1 s2 (b1,b2,b3);
+					VNull
+				| _ ->
+					error()
 		);
 		"custom_js", Fun1 (fun f ->
 			match f with

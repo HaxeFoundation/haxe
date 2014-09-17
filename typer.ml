@@ -4371,6 +4371,15 @@ let make_macro_api ctx p =
 		Interp.cast_or_unify = (fun t e p ->
 			Codegen.AbstractCast.cast_or_unify_raise ctx t e p
 		);
+		Interp.add_global_metadata = (fun s1 s2 config ->
+			let meta = (match parse_string ctx.com (s2 ^ " typedef T = T") null_pos false with
+				| _,[ETypedef t,_] -> t.d_meta
+				| _ -> assert false
+			) in
+			List.iter (fun m ->
+				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
+			) meta;
+		);
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -4702,6 +4711,7 @@ let rec create com =
 			modules = Hashtbl.create 0;
 			types_module = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
+			global_metadata = [];
 			delayed = [];
 			debug_delayed = [];
 			delayed_macros = DynArray.create();
