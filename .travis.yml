@@ -2,7 +2,7 @@ language: cpp
 
 os:
   - linux
-  - osx
+  # - osx #https://github.com/travis-ci/travis-ci/issues/2792
 
 env:
   global:
