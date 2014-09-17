@@ -46,7 +46,7 @@
 		}
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 		var a = args.__neko();
 		// pad missing args with null's
 		var n = $nargs(func);

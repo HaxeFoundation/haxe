@@ -89,7 +89,7 @@ extern class Reflect {
 	/**
 		Call a method with the given object and arguments.
 	**/
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic;
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic;
 
 	/**
 		Returns the fields of structure `o`.

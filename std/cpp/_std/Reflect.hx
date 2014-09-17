@@ -43,7 +43,7 @@
 			o.__SetField(field,value,true);
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 			if (func!=null && func.__GetType()==__global__.vtString)
 				func = o.__Field(func,true);
 			untyped func.__SetThis(o);
