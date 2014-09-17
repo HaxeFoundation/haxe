@@ -1452,17 +1452,6 @@ and type_field ?(resume=false) ctx e i p mode =
 			end
 		with Not_found ->
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
-			(*
-				This is a fix to deal with optimize_completion which will call iterator()
-				on the expression for/in, which vectors do no have.
-			*)
-			if ctx.com.display <> DMNone && i = "iterator" && c.cl_path = (["flash"],"Vector") then begin
-				let it = TAnon {
-					a_fields = PMap.add "next" (mk_field "next" (TFun([],List.hd params)) p) PMap.empty;
-					a_status = ref Closed;
-				} in
-				AKExpr (mk (TField (e,FDynamic i)) (TFun([],it)) p)
-			end else
 			no_field())
 	| TDynamic t ->
 		(try
