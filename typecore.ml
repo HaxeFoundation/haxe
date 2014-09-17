@@ -155,6 +155,7 @@ let match_expr_ref : (typer -> Ast.expr -> (Ast.expr list * Ast.expr option * As
 let get_pattern_locals_ref : (typer -> Ast.expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let get_constructor_ref : (typer -> tclass -> t list -> Ast.pos -> (t * tclass_field)) ref = ref (fun _ _ _ _ -> assert false)
 let cast_or_unify_ref : (typer -> t -> texpr -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
+let find_array_access_raise_ref : (typer -> tabstract -> tparams -> texpr -> texpr option -> pos -> (tclass_field * t * t * texpr * texpr option)) ref = ref (fun _ _ _ _ _ _ -> assert false)
 
 (* Source: http://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#OCaml *)
 let levenshtein a b =

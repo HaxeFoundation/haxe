@@ -705,6 +705,55 @@ module AbstractCast = struct
 			if not ctx.untyped then display_error ctx (error_msg err) p;
 			eright
 
+	let find_array_access_raise ctx a pl e1 e2o p =
+		let is_set = e2o <> None in
+		let ta = apply_params a.a_params pl a.a_this in
+		let rec loop cfl = match cfl with
+			| [] -> raise Not_found
+			| cf :: cfl when not (Ast.Meta.has Ast.Meta.ArrayAccess cf.cf_meta) ->
+				loop cfl
+			| cf :: cfl ->
+				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+				let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
+				let check_constraints () =
+					List.iter2 (fun m (name,t) -> match follow t with
+						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+							List.iter (fun tc -> match follow m with TMono _ -> raise (Unify_error []) | _ -> Type.unify m (map tc) ) constr
+						| _ -> ()
+					) monos cf.cf_params;
+				in
+				match follow (map cf.cf_type) with
+				| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
+					begin try
+						Type.unify tab ta;
+						let e1 = cast_or_unify ctx ta1 e1 p in
+						let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify ctx ta2 e2 p) in
+						check_constraints();
+						cf,tf,r,e1,e2o
+					with Unify_error _ ->
+						loop cfl
+					end
+				| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
+					begin try
+						Type.unify tab ta;
+						let e1 = cast_or_unify ctx ta1 e1 p in
+						check_constraints();
+						cf,tf,r,e1,None
+					with Unify_error _ ->
+						loop cfl
+					end
+				| _ -> loop cfl
+		in
+		loop a.a_array
+
+	let find_array_access ctx a tl e1 e2o p =
+		try find_array_access_raise ctx a tl e1 e2o p
+		with Not_found -> match e2o with
+			| None ->
+				error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) e1.etype)) p
+			| Some e2 ->
+				error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) e1.etype) (s_type (print_context()) e2.etype)) p
+
 	let find_multitype_specialization com a pl p =
 		let m = mk_mono() in
 		let tl = match Meta.get Meta.MultiType a.a_meta with

@@ -65,7 +65,7 @@ type access_kind =
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
 	| AKUsing of texpr * tclass * tclass_field * texpr
-	| AKAccess of texpr * texpr
+	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Common.get_full_path p.pfile else Filename.basename p.pfile in
@@ -922,6 +922,25 @@ let make_call ctx e params t p =
 	with Exit ->
 		mk (TCall (e,params)) t p
 
+let mk_array_get_call ctx (cf,tf,r,e1,e2o) c ebase p = match cf.cf_expr with
+	| None ->
+		mk (TArray(ebase,e1)) r p
+	| Some _ ->
+		let et = type_module_type ctx (TClassDecl c) None p in
+		let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+		make_call ctx ef [ebase;e1] r p
+
+let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
+	let evalue = match e2o with None -> assert false | Some e -> e in
+	match cf.cf_expr with
+		| None ->
+			let ea = mk (TArray(ebase,e1)) r p in
+			mk (TBinop(OpAssign,ea,evalue)) r p
+		| Some _ ->
+			let et = type_module_type ctx (TClassDecl c) None p in
+			let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
+			make_call ctx ef [ebase;e1;evalue] r p
+
 let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
@@ -1775,19 +1794,6 @@ let call_to_string ctx c e =
 	let cf = PMap.find "toString" c.cl_statics in
 	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
 
-let find_array_access_from_type tbase tkey twrite p =
-	let a,pl,c = match follow tbase with TAbstract({a_impl = Some c} as a,pl) -> a,pl,c | _ -> error "Invalid operation" p in
-	let f = find_array_access a pl tkey in
-	let cf,tf,r = match twrite with
-		| None ->
-			(try f tkey false
-			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts argument of %s" (s_type (print_context()) tkey)) p)
-		| Some t ->
-			(try f t true
-			with Not_found -> error (Printf.sprintf "No @:arrayAccess function accepts arguments of %s and %s" (s_type (print_context()) tkey) (s_type (print_context()) t)) p)
-	in
-	c,cf,tf,r
-
 let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
@@ -1808,15 +1814,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKSet (e,t,cf) ->
 			let e2 = Codegen.AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
-		| AKAccess(ebase,ekey) ->
-			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype (Some e2.etype) p in
-			begin match cf.cf_expr with
-				| None ->
-					let ea = mk (TArray(ebase,ekey)) r p in
-					mk (TBinop(OpAssign,ea,e2)) r p
-				| Some _ ->
-					make_static_call ctx c cf (fun t -> t) [ebase;ekey;e2] r p
-			end
+		| AKAccess(a,tl,c,ebase,ekey) ->
+			mk_array_set_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
 			let ret = match follow ef.etype with
@@ -1883,8 +1882,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				]) ret p
 			else
 				e_call
-		| AKAccess(ebase,ekey) ->
-			let c,cf_get,tf_get,r_get = find_array_access_from_type ebase.etype ekey.etype None p in
+		| AKAccess(a,tl,c,ebase,ekey) ->
+			let cf_get,tf_get,r_get,ekey,_ = Codegen.AbstractCast.find_array_access ctx a tl ekey None p in
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let ekey,l = match Optimizer.make_constant_expression ctx ekey with
 				| Some e -> e, fun () -> None
@@ -1894,11 +1893,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 					let e = mk (TLocal v) ekey.etype p in
 					e, fun () -> (save(); Some (mk (TVar (v,Some ekey)) ctx.t.tvoid p))
 			in
-			let ast_call = ECall((EField(Interp.make_ast ebase,cf_get.cf_name),p),[Interp.make_ast ekey]),p in
-			let ast_call = (EMeta((Meta.PrivateAccess,[],pos ast_call),ast_call),pos ast_call) in
-			let eget = type_binop ctx op ast_call e2 true with_type p in
+			let eget = mk_array_get_call ctx (cf_get,tf_get,r_get,ekey,None) c ebase p in
+			let eget = type_binop2 ctx op eget e2 true (WithType eget.etype) p in
 			unify ctx eget.etype r_get p;
-			let _,cf_set,tf_set,r_set = find_array_access_from_type ebase.etype ekey.etype (Some eget.etype) p in
+			let cf_set,tf_set,r_set,ekey,eget = Codegen.AbstractCast.find_array_access ctx a tl ekey (Some eget) p in
+			let eget = match eget with None -> assert false | Some e -> e in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			begin match cf_set.cf_expr,cf_get.cf_expr with
 				| None,None ->
@@ -1919,23 +1918,26 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
-	(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
-	   to the individual arguments (issue #2786). *)
-	let wt = match with_type with
-		| WithType t | WithTypeResume t ->
-			begin match follow t with
-				| TAbstract(a,_) ->
-					begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
-						| [_] -> with_type
-						| _ -> Value
-					end
-				| _ ->
-					Value
-			end
-		| _ ->
-			Value
-	in
-	let e1 = type_expr ctx e1 wt in
+		(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
+		   to the individual arguments (issue #2786). *)
+		let wt = match with_type with
+			| WithType t | WithTypeResume t ->
+				begin match follow t with
+					| TAbstract(a,_) ->
+						begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
+							| [_] -> with_type
+							| _ -> Value
+						end
+					| _ ->
+						Value
+				end
+			| _ ->
+				Value
+		in
+		let e1 = type_expr ctx e1 wt in
+		type_binop2 ctx op e1 e2 is_assign_op wt p
+
+and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	let e2 = type_expr ctx e2 (if op == OpEq || op == OpNotEq then WithType e1.etype else wt) in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
@@ -2284,14 +2286,8 @@ and type_unop ctx op flag e p =
 		| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
 		| AKNo s ->
 			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-		| AKAccess(ebase,ekey) ->
-			let c,cf,tf,r = find_array_access_from_type ebase.etype ekey.etype None p in
-			let e = match cf.cf_expr with
-				| None ->
-					mk (TArray(ebase,ekey)) r p
-				| Some _ ->
-					make_static_call ctx c cf (fun t -> t) [ebase;ekey] r p
-			in
+		| AKAccess(a,tl,c,ebase,ekey) ->
+			let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
 			loop (AKExpr e)
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
@@ -2557,18 +2553,10 @@ and type_access ctx e p mode =
 			begin match mode with
 			| MSet ->
 				(* resolve later *)
-				AKAccess (e1, e2)
+				AKAccess (a,pl,c,e1,e2)
 			| _ ->
 				has_abstract_array_access := true;
-				let cf,tf,r = find_array_access a pl e2.etype t_dynamic false in
-				let e = match cf.cf_expr with
-					| None ->
-						mk (TArray(e1,e2)) r p
-					| Some _ ->
-						let et = type_module_type ctx (TClassDecl c) None p in
-						let ef = mk (TField(et,(FStatic(c,cf)))) tf p in
-						make_call ctx ef [e1;e2] r p
-				in
+				let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
 				AKExpr e
 			end
 		| _ -> raise Not_found)
@@ -4840,3 +4828,4 @@ make_call_ref := make_call;
 get_constructor_ref := get_constructor;
 cast_or_unify_ref := Codegen.AbstractCast.cast_or_unify_raise;
 type_module_type_ref := type_module_type;
+find_array_access_raise_ref := Codegen.AbstractCast.find_array_access_raise

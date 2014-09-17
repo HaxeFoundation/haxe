@@ -2239,6 +2239,7 @@ let init_class ctx c p context_init herits fields =
 		a.a_from_field <- List.rev a.a_from_field;
 		a.a_ops <- List.rev a.a_ops;
 		a.a_unops <- List.rev a.a_unops;
+		a.a_array <- List.rev a.a_array;
 	| _ -> ());
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
