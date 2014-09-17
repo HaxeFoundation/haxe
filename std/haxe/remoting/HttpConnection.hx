@@ -136,7 +136,9 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 				}
 				i++;
 			}
-			args.push( files );
+			if( files.length > 0 ){
+				args.push( files );
+			}
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
 			s.serialize(data);
@@ -164,7 +166,9 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 				}
 				i++;
 			}
-			args.push( files );
+			if( files.length > 0 ){
+				args.push( files );
+			}
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
 			s.serialize(data);
