@@ -636,7 +636,7 @@ module AbstractCast = struct
 	let make_static_call ctx c cf a pl args t p =
 		make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
-	let rec do_check_cast ctx tleft eright p =
+	let do_check_cast ctx tleft eright p =
 		let recurse cf f =
 			if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
 			cast_stack := cf :: !cast_stack;
@@ -684,8 +684,7 @@ module AbstractCast = struct
 					loop2 a.a_to
 				end
 			| _ ->
-				unify_raise ctx eright.etype tleft p;
-				eright
+				raise Not_found
 			in
 			loop tleft eright.etype
 		end
