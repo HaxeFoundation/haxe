@@ -21,6 +21,9 @@
  */
 package haxe.unit;
 import haxe.PosInfos;
+#if macro
+import haxe.macro.*;
+#end
 
 @:keepSub
 @:publicFields
