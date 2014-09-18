@@ -10241,7 +10241,7 @@ struct
 				let to_add = ref [] in
 				let fields = List.filter (fun cf ->
 					match cf.cf_kind with
-						| Var vkind ->
+						| Var vkind when not (Type.is_extern_field cf && Meta.has Meta.Property cf.cf_meta) ->
 							(match vkind.v_read with
 								| AccCall ->
 									let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
@@ -10266,10 +10266,11 @@ struct
 				cl.cl_ordered_fields <- fields;
 
 				List.iter (fun cf ->
-					if not (PMap.mem cf.cf_name cl.cl_fields) then begin
-						cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
-						cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
-					end
+					match field_access gen (TInst(cl,List.map snd cl.cl_params)) cf.cf_name with
+						| FNotFound | FDynamicField _ ->
+							cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
+							cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+						| _ -> ()
 				) !to_add;
 
 				md
