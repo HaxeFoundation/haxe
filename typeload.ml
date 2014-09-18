@@ -1466,14 +1466,14 @@ let init_core_api ctx c =
 	| None, Some { cf_public = false } -> ()
 	| _ -> error "Constructor differs from core type" c.cl_pos)
 
-let check_global_metadata ctx mpath tpath so =
+let check_global_metadata ctx f_add mpath tpath so =
 	let sl1 = if mpath = tpath then
 		(fst tpath) @ [snd tpath]
 	else
 		(fst mpath) @ [snd mpath;snd tpath]
 	in
 	let sl1,field_mode = match so with None -> sl1,false | Some s -> sl1 @ [s],true in
-	List.fold_left (fun acc (sl2,m,(recursive,to_types,to_fields)) ->
+	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
 		let rec loop sl1 sl2 = match sl1,sl2 with
 			| [],[] ->
 				true
@@ -1488,8 +1488,8 @@ let check_global_metadata ctx mpath tpath so =
 				s1 = s2 && loop sl1 sl2
 		in
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (sl2 = [""] || loop sl1 sl2) in
-		if add then (m :: acc) else acc
-	) [] ctx.g.global_metadata
+		if add then f_add m
+	) ctx.g.global_metadata
 
 let patch_class ctx c fields =
 	let h = (try Some (Hashtbl.find ctx.g.type_patches c.cl_path) with Not_found -> None) in
@@ -1812,7 +1812,7 @@ let init_class ctx c p context_init herits fields =
 
 	let loop_cf f =
 		let name = f.cff_name in
-		f.cff_meta <- f.cff_meta @ (check_global_metadata ctx c.cl_module.m_path c.cl_path (Some name));
+		check_global_metadata ctx (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 		let p = f.cff_pos in
 		if name.[0] = '$' && ctx.com.display = DMNone then error "Field names starting with a dollar are not allowed" p;
 		let stat = List.mem AStatic f.cff_access in
@@ -2467,7 +2467,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
 		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
-		c.cl_meta <- c.cl_meta @ check_global_metadata ctx c.cl_module.m_path c.cl_path None;
+		check_global_metadata ctx (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
 		if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
 		if Meta.has Meta.GenericBuild c.cl_meta then c.cl_kind <- KGenericBuild d.d_data;
@@ -2489,7 +2489,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let e = (match get_type d.d_name with TEnumDecl e -> e | _ -> assert false) in
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
-		e.e_meta <- e.e_meta @ check_global_metadata ctx e.e_module.m_path e.e_path None;
+		check_global_metadata ctx (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
 		(match h with
 		| None -> ()
 		| Some (h,hcl) ->
