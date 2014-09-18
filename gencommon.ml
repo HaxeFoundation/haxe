@@ -10830,8 +10830,13 @@ struct
 	let default_implementation_module gen ~metas =
 		let rec run md = match md with
 			| TClassDecl cl ->
-				List.iter (fun cf -> cf.cf_type <- filter_param cf.cf_type) cl.cl_ordered_fields;
-				List.iter (fun cf -> cf.cf_type <- filter_param cf.cf_type) cl.cl_ordered_statics;
+				let rec map cf =
+					cf.cf_type <- filter_param cf.cf_type;
+					List.iter map cf.cf_overloads
+				in
+				List.iter map cl.cl_ordered_fields;
+				List.iter map cl.cl_ordered_statics;
+				Option.may map cl.cl_constructor;
 				md
 			| _ -> md
 		in
