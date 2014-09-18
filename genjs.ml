@@ -1274,8 +1274,8 @@ let generate com =
 		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
 
-(* 	if not (Common.defined com Define.JsEs5) then
-		spr ctx "if(typeof(console) == \"undefined\") var console = {log:function(){}};\n"; *)
+	if not (Common.defined com Define.JsEs5) then
+		spr ctx "var console = (1,eval)('this').console || {log:function(){}};\n";
 	(* TODO: fix $estr *)
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
