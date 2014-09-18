@@ -10805,6 +10805,8 @@ struct
 	| TType(t,tl) -> TType(t,List.map filter_param tl)
 	| TInst(c,tl) -> TInst(c,List.map filter_param tl)
 	| TEnum(e,tl) -> TEnum(e,List.map filter_param tl)
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+		filter_param (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) -> TAbstract(a, List.map filter_param tl)
 	| TAnon a ->
 		TAnon {
@@ -10825,9 +10827,21 @@ struct
 		in
 		run
 
+	let default_implementation_module gen ~metas =
+		let rec run md = match md with
+			| TClassDecl cl ->
+				List.iter (fun cf -> cf.cf_type <- filter_param cf.cf_type) cl.cl_ordered_fields;
+				List.iter (fun cf -> cf.cf_type <- filter_param cf.cf_type) cl.cl_ordered_statics;
+				md
+			| _ -> md
+		in
+		run
+
 	let configure gen ~metas =
 		let map e = Some(default_implementation gen e ~metas:metas) in
-		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map;
+		let map md = Some(default_implementation_module gen ~metas md) in
+		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
 
