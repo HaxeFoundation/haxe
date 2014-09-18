@@ -1626,6 +1626,8 @@ module Generator = struct
 			match cf.cf_kind with
 				| Var({v_read = AccResolve}) ->
 					()
+				| Var _ when is_extern_field cf ->
+					()
 				| Var({v_read = AccCall}) ->
 					if Meta.has Meta.IsVar cf.cf_meta then
 						DynArray.add fields cf.cf_name
