@@ -70,4 +70,20 @@ class TestCase #if mt_build implements mt.Protect #end {
 		}
 	}
 
+	macro function assertMatch( self : Expr, expected : Expr, actual : Expr) : Expr return {
+		var prefix = "expected '" + ExprTools.toString(expected) + "' but was '";
+		macro {
+			$self.currentTest.done = true;
+			switch ($actual) {
+				case $expected: // Fine
+				default:
+					$self.currentTest.success = false;
+					$self.currentTest.error	 = $v{prefix} + $actual + "'";
+					inline function getPosInfos(?c : haxe.PosInfos) return c;
+					$self.currentTest.posInfos = getPosInfos();
+					throw $self.currentTest;
+			}
+		}
+	}
+
 }
