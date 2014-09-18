@@ -908,7 +908,7 @@ let rec check_interface ctx c intf params =
 				| MethDynamic -> 1
 				| MethMacro -> 2
 			in
-			if f.cf_public && not f2.cf_public then
+			if f.cf_public && not f2.cf_public && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 			else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
@@ -2091,7 +2091,7 @@ let init_class ctx c p context_init herits fields =
 					if Meta.has Meta.IsVar f.cff_meta then error (f.cff_name ^ ": Abstract properties cannot be real variables") f.cff_pos;
 					let ta = apply_params a.a_params (List.map snd a.a_params) a.a_this in
 					tfun [ta] ret, tfun [ta;ret] ret
-				| _ -> tfun [] ret, tfun [ret] ret
+				| _ -> tfun [] ret, TFun(["value",false,ret],ret)
 			in
 			let check_method m t req_name =
 				if ctx.com.display <> DMNone then () else
@@ -2110,7 +2110,13 @@ let init_class ctx c p context_init herits fields =
 					| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 					| Not_found ->
 						if req_name <> None then display_error ctx (f.cff_name ^ ": Custom property accessor is no longer supported, please use get/set") p else
-						if not (c.cl_interface || c.cl_extern) then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
+						if c.cl_interface then begin
+							let cf = mk_field m t p in
+							cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+							cf.cf_kind <- Method MethNormal;
+							c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
+							c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+						end else if not c.cl_extern then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 			in
 			let get = (match get with
 				| "null" -> AccNo
@@ -2119,7 +2125,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let get = if get = "get" then "get_" ^ name else get in
-					delay ctx PForce (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
+					delay ctx PTypeField (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 					AccCall
 			) in
 			let set = (match set with
@@ -2134,7 +2140,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let set = if set = "set" then "set_" ^ name else set in
-					delay ctx PForce (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
+					delay ctx PTypeField (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 					AccCall
 			) in
 			if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (f.cff_name ^ ": Unsupported property combination") p;

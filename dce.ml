@@ -71,6 +71,7 @@ let keep_field dce cf =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
+	|| is_extern_field cf
 
 (* marking *)
 
@@ -253,23 +254,6 @@ and field dce c n stat =
 	(try
 		let cf = find_field n in
 		mark_field dce c cf stat;
-	with Not_found -> try
-		(* me might have a property access on an interface *)
- 		let l = String.length n - 4 in
-		if l < 0 then raise Not_found;
-		let prefix = String.sub n 0 4 in
-		let pn = String.sub n 4 l in
-		let cf = find_field pn in
-		let keep () =
-			mark_dependent_fields dce c n stat;
-			field dce c pn stat
-		in
-		(match prefix,cf.cf_kind with
-			| "get_",Var {v_read = AccCall} when "get_" ^ cf.cf_name = n -> keep()
-			| "set_",Var {v_write = AccCall} when "set_" ^ cf.cf_name = n -> keep()
-			| _ -> raise Not_found
-		);
-		raise Not_found
 	with Not_found -> try
 		if c.cl_interface then begin
 			let rec loop cl = match cl with
