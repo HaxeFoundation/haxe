@@ -535,7 +535,7 @@ let run com main full =
 
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
 	List.iter (fun mt -> match mt with
-		| (TClassDecl c) ->
+		| (TClassDecl c) when not c.cl_interface ->
 			let rec has_accessor c n stat =
 				PMap.mem n (if stat then c.cl_statics else c.cl_fields)
 				|| match c.cl_super with Some (csup,_) -> has_accessor csup n stat | None -> false
