@@ -2125,8 +2125,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let get = if get = "get" then "get_" ^ name else get in
-					let f () = check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None) in
-					delay ctx PTypeField f;
+					delay ctx PTypeField (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 					AccCall
 			) in
 			let set = (match set with
