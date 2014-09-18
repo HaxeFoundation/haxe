@@ -71,6 +71,7 @@ let keep_field dce cf =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
+	|| is_extern_field cf
 
 (* marking *)
 
