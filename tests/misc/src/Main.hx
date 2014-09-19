@@ -91,8 +91,8 @@ class Main {
 
 		if (result && expectStderr != null)
 		{
-			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n");
-			if (stderr != expectStderr)
+			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n").trim();
+			if (stderr != expectStderr.trim())
 			{
 				Sys.println("Actual stderr output doesn't match the expected one");
 				Sys.println('Expected:\n"$expectStderr"');
