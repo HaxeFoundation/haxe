@@ -2110,24 +2110,27 @@ let configure gen =
 						ret
 					| _ -> raise Not_found
 			in
+			let interf = cl.cl_interface in
 			(* get all functions that are getters/setters *)
-			List.iter (function
+			let nonprops = List.filter (function
 				| cf when String.starts_with cf.cf_name "get_" -> (try
 					(* find the property *)
 					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
 					let v, t, get, set = !prop in
 					assert (get = None);
 					prop := (v,t,Some cf,set);
-				with | Not_found -> ())
+					not interf
+				with | Not_found -> true)
 				| cf when String.starts_with cf.cf_name "set_" -> (try
 					(* find the property *)
 					let prop = find_prop (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
 					let v, t, get, set = !prop in
 					assert (set = None);
 					prop := (v,t,get,Some cf);
-				with | Not_found -> ())
-				| _ -> ()
-			) nonprops;
+					not interf
+				with | Not_found -> true)
+				| _ -> true
+			) nonprops in
 			let ret = List.map (fun (_,v) -> !v) !props in
 			let ret = List.filter (function | (_,_,None,None) -> false | _ -> true) ret in
 			ret, nonprops
