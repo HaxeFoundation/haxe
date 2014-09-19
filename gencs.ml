@@ -1658,7 +1658,7 @@ let configure gen =
 				(match mkind with | MethInline -> true | _ -> false) || Meta.has Meta.Final m.cf_meta
 			| _ -> assert false
 		in
-		let is_virtual = not (is_final || Meta.has Meta.Final prop.cf_meta || fn_is_final get || fn_is_final set) in
+		let is_virtual = not (is_interface || is_final || Meta.has Meta.Final prop.cf_meta || fn_is_final get || fn_is_final set) in
 
 		let fn_is_override = function
 			| Some cf -> List.memq cf cl.cl_overrides
