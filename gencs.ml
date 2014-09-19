@@ -1396,7 +1396,7 @@ let configure gen =
 					(match eelse with
 						| None -> ()
 						| Some e ->
-							write w " else ";
+							write w "else ";
 							in_value := false;
 							expr_s w (mk_block e)
 					)
