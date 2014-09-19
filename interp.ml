@@ -2345,7 +2345,7 @@ let macro_lib =
 			with Exit -> VNull
 		);
 		"unify", Fun2 (fun t1 t2 ->
-			let e1 = mk (TConst TNull) (decode_type t1) Ast.null_pos in
+			let e1 = mk (TObjectDecl []) (decode_type t1) Ast.null_pos in
 			try ignore(((get_ctx()).curapi.cast_or_unify) (decode_type t2) e1 Ast.null_pos); VBool true
 			with Typecore.Error (Typecore.Unify _,_) -> VBool false
 		);
