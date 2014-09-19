@@ -1601,6 +1601,13 @@ let configure gen =
 		) metadata
 	in
 
+	let gen_nocompletion w metadata =
+		if Meta.has Meta.NoCompletion metadata then begin
+			write w "[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]";
+			newline w
+		end;
+	in
+
 	let argt_s t =
 		let w = new_source_writer () in
 		let rec run t =
@@ -1668,10 +1675,7 @@ let configure gen =
 		let visibility = if is_interface then "" else "public" in
 		let visibility, modifiers = get_fun_modifiers prop.cf_meta visibility [] in
 		let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
-		if Meta.has Meta.NoCompletion prop.cf_meta then begin
-			write w "[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]";
-			newline w
-		end;
+		gen_nocompletion w prop.cf_meta;
 		print w "%s %s %s %s %s " visibility v_n (String.concat " " modifiers) (t_s (run_follow gen t)) (change_field prop.cf_name);
 		let check cf = match cf with
 			| Some ({ cf_overloads = o :: _ } as cf) ->
@@ -1751,14 +1755,14 @@ let configure gen =
 				if not is_interface then begin
 					let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
 					let modifiers = modifiers @ modf in
-					let no_completion = if Meta.has Meta.NoCompletion cf.cf_meta then "[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)] " else "" in
+					gen_nocompletion w cf.cf_meta;
 					(match cf.cf_expr with
 						| Some e ->
-							print w "%s%s %s%s %s %s = " no_completion access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name);
+							print w "%s %s%s %s %s = " access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name);
 							expr_s w e;
 							write w ";"
 						| None ->
-							print w "%s%s %s%s %s %s;" no_completion access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
+							print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
 					)
 				end (* TODO see how (get,set) variable handle when they are interfaces *)
 			| Method _ when Type.is_extern_field cf || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
@@ -1794,10 +1798,10 @@ let configure gen =
 				let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
 				let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
 				let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
-				let no_completion = if Meta.has Meta.NoCompletion cf.cf_meta then "[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)] " else "" in
+				gen_nocompletion w cf.cf_meta;
 
 				(* public static void funcName *)
-				print w "%s%s %s %s %s %s" no_completion (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
+				print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
 				let params, params_ext = get_string_params cf.cf_params in
 				(* <T>(string arg1, object arg2) with T : object *)
 				(match cf.cf_expr with
