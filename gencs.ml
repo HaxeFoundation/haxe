@@ -1656,6 +1656,16 @@ let configure gen =
 				(params, String.concat " " params_extends)
 	in
 
+	let gen_field_decl w visibility v_n modifiers t n =
+		let parts = ref [] in
+		if visibility <> "" then parts := visibility :: !parts;
+		if v_n <> "" then parts := v_n :: !parts;
+		if modifiers <> [] then parts := modifiers @ !parts;
+		if t <> "" then parts := t :: !parts;
+		parts := n :: !parts;
+		write w (String.concat " " (List.rev !parts));
+	in
+
 	let rec gen_prop w is_static cl is_final (prop,t,get,set) =
 		gen_attributes w prop.cf_meta;
 		let is_interface = cl.cl_interface in
@@ -1674,9 +1684,11 @@ let configure gen =
 		let is_override = fn_is_override get || fn_is_override set in
 		let visibility = if is_interface then "" else "public" in
 		let visibility, modifiers = get_fun_modifiers prop.cf_meta visibility [] in
-		let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
+		let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
 		gen_nocompletion w prop.cf_meta;
-		print w "%s %s %s %s %s " visibility v_n (String.concat " " modifiers) (t_s (run_follow gen t)) (change_field prop.cf_name);
+
+		gen_field_decl w visibility v_n modifiers (t_s (run_follow gen t)) (change_field prop.cf_name);
+
 		let check cf = match cf with
 			| Some ({ cf_overloads = o :: _ } as cf) ->
 					gen.gcon.error "Property functions with more than one overload is currently unsupported" cf.cf_pos;
@@ -1686,6 +1698,7 @@ let configure gen =
 		check get;
 		check set;
 
+		write w " ";
 		if is_interface then begin
 			write w "{ ";
 			let s = ref "" in
@@ -1708,6 +1721,8 @@ let configure gen =
 					cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
 				| None -> ());
 			end_block w;
+			newline w;
+			newline w;
 		end;
 	in
 
@@ -1756,14 +1771,14 @@ let configure gen =
 					let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
 					let modifiers = modifiers @ modf in
 					gen_nocompletion w cf.cf_meta;
+					gen_field_decl w access (if is_static then "static" else "") modifiers (t_s (run_follow gen cf.cf_type)) (change_field name);
 					(match cf.cf_expr with
 						| Some e ->
-							print w "%s %s%s %s %s = " access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name);
+							write w " = ";
 							expr_s w e;
-							write w ";"
-						| None ->
-							print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
-					)
+						| None -> ()
+					);
+					write w ";"
 				end (* TODO see how (get,set) variable handle when they are interfaces *)
 			| Method _ when Type.is_extern_field cf || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 				List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
@@ -1795,13 +1810,14 @@ let configure gen =
 				let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
 				let modifiers = modifiers @ modf in
 				let visibility, is_virtual = if is_explicit_iface then "",false else if visibility = "private" then "private",false else visibility, is_virtual in
-				let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
+				let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
 				let cf_type = if is_override && not is_overload && not (Meta.has Meta.Overload cf.cf_meta) then match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with | FClassField(_,_,_,_,_,actual_t,_) -> actual_t | _ -> assert false else cf.cf_type in
 				let ret_type, args = match follow cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
 				gen_nocompletion w cf.cf_meta;
 
 				(* public static void funcName *)
-				print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
+				gen_field_decl w visibility v_n modifiers (if not is_new then (rett_s (run_follow gen ret_type)) else "") (change_field name);
+
 				let params, params_ext = get_string_params cf.cf_params in
 				(* <T>(string arg1, object arg2) with T : object *)
 				(match cf.cf_expr with
@@ -1813,6 +1829,7 @@ let configure gen =
 				if is_interface then
 					write w ";"
 				else begin
+					write w " ";
 					let rec loop meta =
 						match meta with
 							| [] ->
@@ -2047,9 +2064,9 @@ let configure gen =
 						for cases where the main class is called Main, there will be a problem with creating the entry point there.
 						In this special case, a special entry point class will be created
 					*)
-					write w "public class EntryPoint__Main";
+					write w "public class EntryPoint__Main ";
 					begin_block w;
-					write w "public static void Main()";
+					write w "public static void Main() ";
 					begin_block w;
 					(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
 					expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = Ast.null_pos };
