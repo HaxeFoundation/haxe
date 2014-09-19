@@ -328,7 +328,7 @@ let mk e t p = { eexpr = e; etype = t; epos = p }
 
 let mk_block e =
 	match e.eexpr with
-	| TBlock (_ :: _) -> e
+	| TBlock _ -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
 
 let mk_cast e t p = mk (TCast(e,None)) t p
