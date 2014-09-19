@@ -1864,20 +1864,24 @@ let configure gen =
 													t()
 											);
 											begin_block w;
-											write w "unchecked ";
-											let t = Common.timer "expression to string" in
-											expr_s w { expr with eexpr = TBlock(rest) };
-											t();
-											if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
+											if rest <> [] then begin
+												write w "unchecked ";
+												let t = Common.timer "expression to string" in
+												expr_s w { expr with eexpr = TBlock(rest) };
+												t();
+												if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
+											end;
 											end_block w;
 										| _ -> assert false
 								end else begin
 									begin_block w;
-									write w "unchecked ";
-									let t = Common.timer "expression to string" in
-									expr_s w expr;
-									t();
-									if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
+									if expr.eexpr <> TBlock [] then begin
+										write w "unchecked ";
+										let t = Common.timer "expression to string" in
+										expr_s w expr;
+										t();
+										if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
+									end;
 									end_block w;
 								end)
 							| (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
@@ -2093,6 +2097,7 @@ let configure gen =
 		(* class head ok: *)
 		(* public class Test<A> : X, Y, Z where A : Y *)
 		begin_block w;
+		newline w;
 		(* our constructor is expected to be a normal "new" function *
 		if !strict_mode && is_some cl.cl_constructor then assert false;*)
 
@@ -2117,7 +2122,10 @@ let configure gen =
 			| None -> ()
 			| Some init ->
 				print w "static %s() " (snd cl.cl_path);
-				expr_s w (mk_block init));
+				expr_s w (mk_block init);
+				newline w;
+				newline w
+		);
 
 		(* collect properties *)
 		let partition_props cl cflist =
@@ -2209,7 +2217,7 @@ let configure gen =
 		match md_tp with
 			| TClassDecl cl ->
 				if not cl.cl_extern then begin
-					(if no_root && len w = 0 then write w "using haxe.root;"; newline w;);
+					(if no_root && len w = 0 then write w "using haxe.root;\n"; newline w;);
 					gen_class w cl;
 					newline w;
 					newline w
@@ -2217,7 +2225,7 @@ let configure gen =
 				(not cl.cl_extern)
 			| TEnumDecl e ->
 				if not e.e_extern then begin
-					(if no_root && len w = 0 then write w "using haxe.root;"; newline w;);
+					(if no_root && len w = 0 then write w "using haxe.root;\n"; newline w;);
 					gen_enum w e;
 					newline w;
 					newline w
