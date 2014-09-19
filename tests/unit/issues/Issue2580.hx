@@ -11,7 +11,7 @@ class Issue2580 extends Test {
 			return switch (t) {
 				case T1(T1(_)): 0;
 				case T1(T2(_)): 1;
-				case T1(_): 2;
+				case T1(null): 2;
 				case T2(_): 3;
 			}
 		}

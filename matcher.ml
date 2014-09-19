@@ -535,7 +535,7 @@ let to_pattern ctx e t =
 					with Invalid_argument _ ->
 						error ("Invalid number of arguments: expected " ^ (string_of_int (List.length tl)) ^ ", found " ^ (string_of_int (List.length el))) p
 					in
-					mk_pat (PTuple (Array.of_list pl)) t_dynamic p
+					mk_pat (PTuple (Array.of_list pl)) t p
 				| _ ->
 					error ((s_type t) ^ " should be Array") p
 			end
@@ -920,7 +920,7 @@ let rec compile mctx stl pmat toplevel =
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
 			let pmat = expand_or mctx pmat in
 			let sigma,bl = column_sigma mctx st_head pmat in
-			let all,inf = all_ctors mctx st_head.st_type in
+			let all,inf = all_ctors mctx pv.(0).p_type in
 			let cases = List.map (fun (c,g) ->
 				if not g then all := PMap.remove c.c_def !all;
 				let spec = spec mctx c pmat in
