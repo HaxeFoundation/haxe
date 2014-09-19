@@ -1,0 +1,3 @@
+Main.hx:5: lines 5-8 : Field v has different type than in I
+Main.hx:5: lines 5-8 : String -> Void should be Dynamic -> Void
+Main.hx:5: lines 5-8 : String should be Dynamic

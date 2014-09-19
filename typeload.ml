@@ -707,15 +707,26 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 			(* ignore type params, will create other errors later *)
 			t1, t2
 	) in
-	match follow t1, follow t2 with
-	| TFun (args1,r1) , TFun (args2,r2) when List.length args1 = List.length args2 -> (try
-			List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
-				if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
-				(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
-			) args1 args2;
-			valid r1 r2
-		with Unify_error l ->
-			raise (Unify_error (Cannot_unify (t1,t2) :: l)))
+	match f1.cf_kind,f2.cf_kind with
+	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
+		begin match follow t1, follow t2 with
+		| TFun (args1,r1) , TFun (args2,r2) when List.length args1 = List.length args2 -> (try
+				List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
+					if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
+					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
+				) args1 args2;
+				valid r1 r2
+			with Unify_error l ->
+				raise (Unify_error (Cannot_unify (t1,t2) :: l)))
+		| _ ->
+			assert false
+		end
+	| _,(Var { v_write = AccNo | AccNever }) ->
+		(* write variance *)
+		valid t2 t1
+	| _,(Var { v_read = AccNo | AccNever }) ->
+		(* read variance *)
+		valid t1 t2
 	| _ , _ ->
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
