@@ -1668,8 +1668,11 @@ let configure gen =
 		let visibility = if is_interface then "" else "public" in
 		let visibility, modifiers = get_fun_modifiers prop.cf_meta visibility [] in
 		let v_n = if is_static then "static " else if is_override && not is_interface then "override " else if is_virtual then "virtual " else "" in
-		let no_completion = if Meta.has Meta.NoCompletion prop.cf_meta then "[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)] " else "" in
-		print w "%s%s %s %s %s %s" no_completion (visibility) v_n (String.concat " " modifiers) (t_s (run_follow gen t)) (change_field prop.cf_name);
+		if Meta.has Meta.NoCompletion prop.cf_meta then begin
+			write w "[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]";
+			newline w
+		end;
+		print w "%s %s %s %s %s " visibility v_n (String.concat " " modifiers) (t_s (run_follow gen t)) (change_field prop.cf_name);
 		let check cf = match cf with
 			| Some ({ cf_overloads = o :: _ } as cf) ->
 					gen.gcon.error "Property functions with more than one overload is currently unsupported" cf.cf_pos;
@@ -1679,26 +1682,29 @@ let configure gen =
 		check get;
 		check set;
 
-		begin_block w;
-		(match prop.cf_kind with
-		| Var { v_read = AccCall } when is_interface ->
-			write w "get;";
-		| _ -> match get with
-			| Some cf  ->
-				print w "get { return _get_%s(); }" prop.cf_name;
-				cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
-				newline w
-			| _ -> ());
-		(match prop.cf_kind with
-		| Var { v_write = AccCall } when is_interface ->
-			write w "set;";
-		| _ -> match set with
-			| Some cf  ->
-				print w "set { _set_%s(value); }" prop.cf_name;
-				cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
-				newline w
-			| _ -> ());
-		end_block w;
+		if is_interface then begin
+			write w "{ ";
+			let s = ref "" in
+			(match prop.cf_kind with Var { v_read = AccCall } -> write w "get;"; s := " "; | _ -> ());
+			(match prop.cf_kind with Var { v_write = AccCall } -> print w "%sset;" !s | _ -> ());
+			write w " }";
+			newline w;
+		end else begin
+			begin_block w;
+			(match get with
+				| Some cf ->
+					print w "get { return _get_%s(); }" prop.cf_name;
+					newline w;
+					cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
+				| None -> ());
+			(match set with
+				| Some cf ->
+					print w "set { _set_%s(value); }" prop.cf_name;
+					newline w;
+					cf.cf_meta <- (Meta.Custom "?prop_impl", [], null_pos) :: cf.cf_meta;
+				| None -> ());
+			end_block w;
+		end;
 	in
 
 	let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
