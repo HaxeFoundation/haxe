@@ -1272,7 +1272,7 @@ and gen_expr ctx e =
 	| TContinue ->
 		if ctx.in_loop then spr ctx "continue" else print ctx "continue %d" ctx.nested_loops
 	| TBlock [] ->
-		spr ctx ""
+		spr ctx "{}"
 	| TBlock el ->
 		let old_l = ctx.inv_locals in
 		let b = save_locals ctx in
