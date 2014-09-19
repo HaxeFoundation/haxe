@@ -4559,7 +4559,7 @@ struct
 
 				let rec run md =
 					match md with
-						| TClassDecl ({ cl_extern = false; cl_params = [] } as cl) ->
+						| TClassDecl ({ cl_params = [] } as cl) ->
 							(* see if we're implementing any generic interface *)
 							let rec check (iface,tl) =
 								if tl <> [] && set_hxgeneric gen (TClassDecl iface) then
@@ -4569,7 +4569,7 @@ struct
 							in
 							List.iter (check) cl.cl_implements;
 							md
-						| TClassDecl ({ cl_extern = false; cl_params = hd :: tl } as cl) when set_hxgeneric gen md ->
+						| TClassDecl ({ cl_params = hd :: tl } as cl) when set_hxgeneric gen md ->
 							let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
 							iface.cl_array_access <- Option.map (apply_params (cl.cl_params) (List.map (fun _ -> t_dynamic) cl.cl_params)) cl.cl_array_access;
 							iface.cl_module <- cl.cl_module;
