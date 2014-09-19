@@ -1357,7 +1357,12 @@ let match_expr ctx e cases def with_type p =
 			| _ ->
 				s_pat pat
 		in
-		error ("Unmatched patterns: " ^ (s_st_r true false st pat)) st.st_pos
+		let msg = "Unmatched patterns: " ^ (s_st_r true false st pat) in
+		if !extractor_depth > 0 then begin
+			display_error ctx msg st.st_pos;
+			error "Note: Patterns with extractors may require a default pattern" st.st_pos;
+		end else
+			error msg st.st_pos
 	in
 	save();
 	(* check for unused patterns *)
