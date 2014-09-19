@@ -10683,7 +10683,7 @@ struct
 							end
 						with | Not_found -> ()
 					in
-					List.iter loop_f iface.cl_ordered_fields
+					List.iter (fun f -> match f.cf_kind with | Var _ -> () | _ -> loop_f f) iface.cl_ordered_fields
 				in
 				List.iter (fun (iface,itl) -> loop_iface iface itl) c.cl_implements;
 				(* now go through all overrides, *)
