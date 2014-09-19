@@ -2030,7 +2030,7 @@ let configure gen =
 		let should_close = match change_ns (TClassDecl cl) (fst (cl.cl_path)) with
 			| [] -> false
 			| ns ->
-				print w "namespace %s" (String.concat "." ns);
+				print w "namespace %s " (String.concat "." ns);
 				begin_block w;
 				true
 		in
@@ -2052,6 +2052,7 @@ let configure gen =
 					write w ".main();";
 					end_block w;
 					end_block w;
+					newline w;
 					false
 				| Some path when path = cl.cl_path && not cl.cl_interface -> true
 				| _ -> false
@@ -2060,7 +2061,8 @@ let configure gen =
 		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
 		let is_final = clt = "struct" || Meta.has Meta.Final cl.cl_meta in
 
-		print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
+		let modifiers = [access] @ modifiers in
+		print w "%s %s %s" (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
 		(* type parameters *)
 		let params, params_ext = get_string_params cl.cl_params in
 		let extends_implements = (match cl.cl_super with | None -> [] | Some (cl,p) -> [path_param_s (TClassDecl cl) cl.cl_path p]) @ (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements) in
