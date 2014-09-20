@@ -6,6 +6,8 @@
 	all : add --display mode for position and usage information
 	all : allow @:callable on abstracts to forward calls to their underlying type
 	all : add haxe.Rest type for representing "rest" arguments in extern method signatures
+	all : allow pattern matching on getters
+	all : allow @:native on class fields
 	python : added python target
 	flash : flash player 12-14 support
 	js : add @:jsRequire and js.Lib.require
@@ -21,6 +23,10 @@
 	all : fixed issue involving recursively constrained type parameters and @:generic
 	all : fixed type inference issue in map literals
 	all : fixed type inference issue when calling abstract method from within the abstract
+	all : fixed several abstract variance issues
+	all : fixed DCE issues with interface properties
+	all : fixed variance issue with function variables and dynamic methods on interfaces
+	all : fixed pattern matching on empty arrays that are typed as Dynamic
 	cpp : fixed issue with the side-effect handler
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
@@ -32,6 +38,9 @@
 	all : resolve unqualified identifiers to @:enum abstract constructors
 	all : determine @:generic type parameters from constructor call if possible
 	all : properly disallowed field redefinition in extending interface
+	all : properly disallowed leading zeroes for Int and Float literals
+	all : allowed variance on interface variables
+	all : allowed pattern matching on arrays if they are typed as Dynamic
 	neko : create output directory if it does not exist
 	js : inline Math methods and fields
 
@@ -41,6 +50,7 @@
 	macro : added TypedExprTools.iter
 	macro : changed @:genericBuild macros to prefer ComplexType returns
 	macro : [breaking] extended TAnonymous structures now have AExtend status instead of AClosed
+	macro added Context.getDefines
 
 	Deprecations:
 
