@@ -1405,7 +1405,7 @@ let configure gen =
 						| Ast.NormalWhile ->
 							write w "while ";
 							expr_s w (mk_paren econd);
-							write w "";
+							write w " ";
 							in_value := false;
 							expr_s w (mk_block eblock)
 						| Ast.DoWhile ->
@@ -1419,6 +1419,7 @@ let configure gen =
 				| TSwitch (econd, ele_l, default) ->
 					write w "switch ";
 					expr_s w (mk_paren econd);
+					write w " ";
 					begin_block w;
 					List.iter (fun (el, e) ->
 						List.iter (fun e ->
