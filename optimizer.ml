@@ -636,7 +636,7 @@ let rec optimize_for_loop ctx i e1 e2 p =
 		(*
 			force locals to be of Int type (to prevent Int/UInt issues)
 		*)
-		let i2 = match i2.etype with
+		let i2 = match follow i2.etype with
 			| TAbstract ({ a_path = ([],"Int") }, []) -> i2
 			| _ -> { i2 with eexpr = TCast(i2, None); etype = t_int }
 		in
