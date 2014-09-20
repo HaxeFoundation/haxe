@@ -2123,6 +2123,7 @@ let configure gen =
 			| Some init ->
 				print w "static %s() " (snd cl.cl_path);
 				expr_s w (mk_block init);
+				if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
 				newline w;
 				newline w
 		);
