@@ -1858,7 +1858,7 @@ let configure gen =
 											(match super_call with
 												| None -> ()
 												| Some sc ->
-													write w " : ";
+													write w ": ";
 													let t = Common.timer "expression to string" in
 													expr_s w sc;
 													t()
