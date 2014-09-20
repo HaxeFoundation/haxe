@@ -217,7 +217,7 @@ let mk_subs st con =
 		end
 	| CArray 0 -> []
 	| CArray i ->
-		let t = match follow con.c_type with TInst({cl_path=[],"Array"},[t]) -> t | _ -> assert false in
+		let t = match follow con.c_type with TInst({cl_path=[],"Array"},[t]) -> t | TDynamic _ as t -> t | _ -> assert false in
 		ExtList.List.init i (fun i -> mk_st (SArray(st,i)) t st.st_pos)
 	| CEnum _ | CConst _ | CType _ | CExpr _ | CAny ->
 		[]
@@ -524,7 +524,7 @@ let to_pattern ctx e t =
 		| EArrayDecl el ->
 			pctx.pc_is_complex <- true;
 			begin match follow t with
-				| TInst({cl_path=[],"Array"},[t2]) ->
+				| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
 					let pl = ExtList.List.mapi (fun i e ->
 						loop pctx e t2
 					) el in
@@ -989,7 +989,7 @@ let rec convert_st ctx st = match st.st_def with
 		Typer.acc_get ctx (Typer.type_field ctx e cf.cf_name st.st_pos Typer.MGet) st.st_pos
 	| SArray (sts,i) -> mk (TArray(convert_st ctx sts,mk_const ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 	| STuple (st,_,_) -> convert_st ctx st
-	| SEnum(sts,ef,i) -> mk (TEnumParameter(convert_st ctx sts, ef, i)) st.st_type st.st_pos
+	| SEnum (sts,ef,i) -> mk (TEnumParameter(convert_st ctx sts, ef, i)) st.st_type st.st_pos
 
 let convert_con ctx con = match con.c_def with
 	| CConst c -> mk_const ctx con.c_pos c
@@ -1029,10 +1029,16 @@ let convert_switch mctx st cases loop =
 	| TAbstract({a_path = [],"Bool"},_) ->
 		wrap_exhaustive (e_st)
 	| _ ->
-		if List.exists (fun (con,_) -> match con.c_def with CEnum _ -> true | _ -> false) cases then
-			mk_index_call()
-		else
-			e_st
+		let rec loop cases = match cases with
+			| [] -> e_st
+			| (con,_) :: cases ->
+				begin match con.c_def with
+					| CEnum _ -> mk_index_call()
+					| CArray _ -> mk (TField (e_st,FDynamic "length")) ctx.t.tint p
+					| _ -> loop cases
+				end
+		in
+		loop cases
 	in
 	let null = ref None in
 	let def = ref None in
