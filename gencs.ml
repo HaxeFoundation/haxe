@@ -1153,10 +1153,11 @@ let configure gen =
 							write w (escape s);
 							write w "\""
 						| TBool b -> write w (if b then "true" else "false")
-						| TNull ->
+						| TNull when is_cs_basic_type e.etype || is_tparam e.etype ->
 							write w "default(";
 							write w (t_s e.etype);
 							write w ")"
+						| TNull -> write w "null"
 						| TThis -> write w "this"
 						| TSuper -> write w "base")
 				| TLocal { v_name = "__sbreak__" } -> write w "break"
