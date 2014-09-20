@@ -1206,11 +1206,6 @@ let t_to_mt t =
 		| TAbstract(a, _) -> TAbstractDecl a
 		| _ -> assert false
 
-let mk_paren e =
-	match e.eexpr with
-		| TParenthesis _ -> e
-		| _ -> { e with eexpr = TParenthesis(e) }
-
 let rec get_last_ctor cl =
 	Option.map_default (fun (super,_) -> if is_some super.cl_constructor then Some(get super.cl_constructor) else get_last_ctor super) None cl.cl_super
 
