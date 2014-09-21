@@ -1863,6 +1863,7 @@ let configure gen =
 													write w ": ";
 													let t = Common.timer "expression to string" in
 													expr_s w sc;
+													write w " ";
 													t()
 											);
 											begin_block w;
