@@ -19,15 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import cs.system.text.StringBuilder;
+
 @:coreApi
 class StringBuf {
 
-	private var b : cs.StringBuilder;
+	private var b : StringBuilder;
 
 	public var length(get,never) : Int;
 
 	public inline function new() : Void {
-		b = new cs.StringBuilder();
+		b = new StringBuilder();
 	}
 
 	inline function get_length() : Int {
