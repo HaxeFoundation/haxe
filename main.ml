@@ -712,7 +712,10 @@ and wait_loop boot_com host port =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
 	in
 	let check_module_path com m p =
-		m.m_extra.m_file = Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
+		try
+			m.m_extra.m_file = Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
+		with | Not_found ->
+			true
 	in
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in

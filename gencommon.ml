@@ -94,6 +94,10 @@ let follow_once t =
 
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref (Closed) })
 
+let tmp_count = ref 0
+
+let reset_temps () = tmp_count := 0
+
 (* the undefined is a special var that works like null, but can have special meaning *)
 let v_undefined = alloc_var "__undefined__" t_dynamic
 
@@ -798,6 +802,7 @@ let run_filters_from gen t filters =
 
 				gen.gcurrent_classfield <- None;
 				let rec process_field f =
+					reset_temps();
 					gen.gcurrent_classfield <- Some(f);
 					List.iter (fun fn -> fn()) gen.gon_classfield_start;
 
@@ -811,10 +816,10 @@ let run_filters_from gen t filters =
 				List.iter process_field c.cl_ordered_fields;
 				List.iter process_field c.cl_ordered_statics;
 
-				gen.gcurrent_classfield <- None;
 				(match c.cl_constructor with
 				| None -> ()
 				| Some f -> process_field f);
+				gen.gcurrent_classfield <- None;
 				(match c.cl_init with
 				| None -> ()
 				| Some e ->
@@ -826,7 +831,7 @@ let run_filters_from gen t filters =
 let run_filters gen =
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Common.timer "gencommon_filters" in
-	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true);
+	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
 	let run_filters filter =
 		let rec loop acc mds =
 			match mds with
@@ -1127,7 +1132,6 @@ let mk_paren e =
 	match e.eexpr with | TParenthesis _ -> e | _ -> { e with eexpr=TParenthesis(e) }
 
 (* private *)
-let tmp_count = ref 0
 
 let get_real_fun gen t =
 	match follow t with
@@ -1150,8 +1154,6 @@ let ensure_local gen block name e =
 			let var = mk_temp gen name e.etype in
 			block := { e with eexpr = TVar(var, Some e); etype = gen.gcon.basic.tvoid; } :: !block;
 			{ e with eexpr = TLocal var }
-
-let reset_temps () = tmp_count := 0
 
 let follow_module follow_func md = match md with
 	| TClassDecl _
@@ -6269,7 +6271,12 @@ struct
 					let et = e.etype in
 					let base_type = match follow et with
 						| TInst({ cl_path = ([], "Array") } as cl, bt) -> gen.greal_type_param (TClassDecl cl) bt
-						| _ -> assert false
+						| _ ->
+							gen.gcon.warning (debug_type et) e.epos;
+							(match gen.gcurrent_class with
+								| Some cl -> print_endline (path_s cl.cl_path)
+								| _ -> ());
+							assert false
 					in
 					let base_type = List.hd base_type in
 					{ e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
@@ -8779,7 +8786,6 @@ struct
 
 			cl.cl_super <- Some(base_class,[]);
 			cl.cl_extern <- en.e_extern;
-			en.e_extern <- true;
 			en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 			cl.cl_module <- en.e_module;
 			cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;
