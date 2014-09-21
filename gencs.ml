@@ -1454,8 +1454,8 @@ let configure gen =
 						newline w
 					) ve_l
 				| TReturn eopt ->
-					write w "return ";
-					if is_some eopt then expr_s w (get eopt)
+					write w "return";
+					if is_some eopt then (write w " "; expr_s w (get eopt))
 				| TBreak -> write w "break"
 				| TContinue -> write w "continue"
 				| TThrow e ->
