@@ -1433,8 +1433,8 @@ let configure gen =
 							in_value := true;
 							expr_s w e;
 							write w ":";
+							newline w;
 						) el;
-						newline w;
 						in_value := false;
 						expr_s w (mk_block e);
 						newline w;
