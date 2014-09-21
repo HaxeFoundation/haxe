@@ -36,7 +36,7 @@ package haxe.ds;
   inline void set(int key, ::String value) { __int_hash_set_string(h,key,value); }
 
   template<typename VALUE>
-  inline void set(Dynamic &key, const VALUE &value) { set( (int)key, value ); }
+  inline Void set(Dynamic &key, const VALUE &value) { set( (int)key, value ); return null(); }
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
