@@ -1399,7 +1399,12 @@ let configure gen =
 						| Some e ->
 							write w "else ";
 							in_value := false;
-							expr_s w (mk_block e)
+							let e = match e.eexpr with
+								| TIf _ -> e
+								| TBlock [{eexpr = TIf _} as e] -> e
+								| _ -> mk_block e
+							in
+							expr_s w e
 					)
 				| TWhile (econd, eblock, flag) ->
 					(match flag with
