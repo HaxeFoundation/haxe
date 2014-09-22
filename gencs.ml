@@ -127,6 +127,15 @@ let is_bool t =
 			true
 		| _ -> false
 
+let is_dynamic gen t =
+	match follow (gen.greal_type t) with
+		| TDynamic _ -> true
+		| _ -> false
+
+let is_pointer gen t =
+	match follow (gen.greal_type t) with
+		| TInst( {cl_path = ["cs"], "Pointer"}, _ ) -> true
+		| _ -> false
 
 let rec is_null t =
 	match t with
@@ -387,10 +396,15 @@ struct
 			| _ -> assert false
 		in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
-
 		let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
-
 		let clstring = match basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
+		let boxed_ptr, clptr =
+			if Common.defined gen.gcon Define.Unsafe then
+				get_cl (get_type gen (["haxe";"lang"], "BoxedPointer")),
+				get_cl (get_type gen (["cs"],"Pointer"))
+			else
+				null_class,null_class
+		in
 
 		let is_struct t = (* not basic type *)
 			match follow t with
@@ -437,6 +451,14 @@ struct
 					run ef
 				| TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
+				| TCast(expr, _) when is_dynamic gen expr.etype && is_pointer gen e.etype ->
+					(* unboxing *)
+					let expr = run expr in
+					mk_cast e.etype (mk_field_access gen (mk_cast (TInst(boxed_ptr,[])) expr) "value" e.epos)
+				| TCast(expr, _) when is_pointer gen expr.etype && is_dynamic gen e.etype ->
+					(* boxing *)
+					let expr = run expr in
+					{ e with eexpr = TNew(boxed_ptr,[],[expr]) }
 				| TCast(expr, _) when is_bool e.etype ->
 					{
 						eexpr = TCall(
@@ -906,7 +928,8 @@ let configure gen =
 				(check_t_s param) ^ "[]"
 			| TInst({ cl_path = (["cs"], "Pointer") },[t])
 			| TAbstract({ a_path = (["cs"], "Pointer") },[t])->
-				t_s t ^ "*"
+				let ret = t_s t in
+				(if ret = "object" then "void" else ret) ^ "*"
 			(* end of basic types *)
 			| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
 			| TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
@@ -2273,7 +2296,10 @@ let configure gen =
 
 	Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
 	let last_needs_box = gen.gneeds_box in
-	gen.gneeds_box <- (fun t -> match t with | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ ) -> true | _ -> last_needs_box t);
+	gen.gneeds_box <- (fun t -> match (gen.greal_type t) with
+		| TInst( { cl_path = ["cs"], "Pointer" }, _ )
+		| TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ ) -> true
+		| _ -> last_needs_box t);
 
 	gen.greal_type <- real_type;
 	gen.greal_type_param <- change_param_type;
