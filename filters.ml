@@ -186,7 +186,7 @@ let promote_complex_rhs ctx e =
 	let rec is_complex e = match e.eexpr with
 		| TBlock _ | TSwitch _ | TIf _ | TTry _ | TCast(_,Some _) -> true
 		| TBinop(_,e1,e2) -> is_complex e1 || is_complex e2
-		| TParenthesis e | TMeta(_,e) | TCast(e, None) -> is_complex e
+		| TParenthesis e | TMeta(_,e) | TCast(e, None) | TField(e,_) -> is_complex e
 		| _ -> false
 	in
 	let rec loop f e = match e.eexpr with
