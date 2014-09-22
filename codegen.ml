@@ -1362,6 +1362,12 @@ let dump_types com =
 			| Some f -> print_field false f);
 			List.iter (print_field false) c.cl_ordered_fields;
 			List.iter (print_field true) c.cl_ordered_statics;
+            (match c.cl_init with
+            | None -> ()
+            | Some e ->
+                print "\n\n\t__init__ = ";
+                print "%s" (s_expr s_type e);
+                print "}\n");
 			print "}";
 		| Type.TEnumDecl e ->
 			print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);

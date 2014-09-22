@@ -17,7 +17,7 @@ class TestJson extends Test {
         return;
         #end
 
-        function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v);
+        function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v, pos);
         function deepId(v:Dynamic) {
             var str = haxe.Json.stringify(v);
             eq(haxe.Json.stringify(haxe.Json.parse(str)), str);

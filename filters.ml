@@ -27,7 +27,7 @@ let rec blockify_ast e =
 	| TFunction tf ->
 		{e with eexpr = TFunction {tf with tf_expr = mk_block (blockify_ast tf.tf_expr)}}
 	| TTry(e1,cl) ->
-		{e with eexpr = TTry(blockify_ast e1,List.map (fun (v,e) -> v,mk_block (blockify_ast e)) cl)}
+		{e with eexpr = TTry(mk_block (blockify_ast e1),List.map (fun (v,e) -> v,mk_block (blockify_ast e)) cl)}
 	| TSwitch(e1,cases,def) ->
 		let e1 = blockify_ast e1 in
 		let cases = List.map (fun (el,e) ->
@@ -186,7 +186,7 @@ let promote_complex_rhs ctx e =
 	let rec is_complex e = match e.eexpr with
 		| TBlock _ | TSwitch _ | TIf _ | TTry _ | TCast(_,Some _) -> true
 		| TBinop(_,e1,e2) -> is_complex e1 || is_complex e2
-		| TParenthesis e | TMeta(_,e) | TCast(e, None) -> is_complex e
+		| TParenthesis e | TMeta(_,e) | TCast(e, None) | TField(e,_) -> is_complex e
 		| _ -> false
 	in
 	let rec loop f e = match e.eexpr with
