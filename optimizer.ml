@@ -1041,6 +1041,20 @@ let optimize_binop e op e1 e2 =
 	| _ ->
 		e)
 
+let optimize_unop e op flag esub =
+	match op, esub.eexpr with
+		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
+		| Neg, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
+		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
+		| Neg, TConst (TFloat f) ->
+			let v = 0. -. float_of_string f in
+			let vstr = float_repres v in
+			if float_of_string vstr = v then
+				{ e with eexpr = TConst (TFloat vstr) }
+			else
+				e
+		| _ -> e
+
 let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
 	sanitize_expr ctx.com (match e.eexpr with
@@ -1053,19 +1067,7 @@ let rec reduce_loop ctx e =
 	| TBinop (op,e1,e2) ->
 		optimize_binop e op e1 e2
 	| TUnop (op,flag,esub) ->
-		(match op, esub.eexpr with
-		| Not, TConst (TBool f) -> { e with eexpr = TConst (TBool (not f)) }
-		| Neg, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
-		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
-		| Neg, TConst (TFloat f) ->
-			let v = 0. -. float_of_string f in
-			let vstr = float_repres v in
-			if float_of_string vstr = v then
-				{ e with eexpr = TConst (TFloat vstr) }
-			else
-				e
-		| _ -> e
-		)
+		optimize_unop e op flag esub
 	| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },field) },params) ->
 		(match api_inline ctx c (field_name field) params e.epos with
 		| None -> reduce_expr ctx e
