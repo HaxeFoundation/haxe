@@ -3452,6 +3452,9 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 		(*	| _ -> raise Exit); *)
 		(match ilcls.csuper with
 			| Some { snorm = LClass ( (["System"],[],"Object"), [] ) } -> ()
+			| Some ({ snorm = LClass ( (["System"],[],"ValueType"), [] ) } as s) ->
+				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags;
+				meta := (Meta.Struct,[],p) :: !meta
 			| Some { snorm = LClass ( (["haxe";"lang"],[],"HxObject"), [] ) } ->
 				meta := (Meta.HxGen,[],p) :: !meta
 			| Some s ->
