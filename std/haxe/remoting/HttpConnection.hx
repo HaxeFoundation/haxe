@@ -57,6 +57,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 				var a	: Array<Dynamic>	= cast o;
 				for ( i in 0...a.length ) {
 					var p	= a [ i ];
+					if ( p == null )	continue;
 					if ( p.param != null && p.filename != null && p.bytes != null  ) {
 						files.add( cast p );
 						a[ i ]	= '__file__${ p.param }';
@@ -67,6 +68,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			}else if ( Reflect.isObject( o ) ) {
 				for ( k in Reflect.fields( o ) ) {
 					var p	= Reflect.getProperty( o, k );
+					if ( p == null )	continue;
 					if ( p.param != null && p.filename != null && p.bytes != null  ) {
 						files.add( cast p );
 						Reflect.setProperty( o, k ,'__file__${ p.param }' );
@@ -206,7 +208,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 						if ( arg	== null )	continue;
 						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
 							var s	: String	= cast arg;
-							Reflect.setProperty( o, k , neko.Web.getMultipartParams().get( s.substr( 8 ) ) );
+							Reflect.setProperty( o, k , php.Web.getMultipartParams().get( s.substr( 8 ) ) );
 						}else if ( Std.is( arg, Array ) || ( Reflect.isObject( arg ) && !Std.is( arg, String ) ) ) {
 							searchFile( arg );
 						}
