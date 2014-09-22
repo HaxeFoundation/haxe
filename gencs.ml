@@ -150,6 +150,13 @@ let rec is_null t =
 			is_null (!f())
 		| _ -> false
 
+let rec get_arrptr e = match e.eexpr with
+	| TParenthesis e | TMeta(_,e)
+	| TCast(e,_) -> get_arrptr e
+	| TCall( { eexpr = TLocal({ v_name = "__arrptr__" }) }, [ e ] ) ->
+		Some e
+	| _ -> None
+
 let parse_explicit_iface =
 	let regex = Str.regexp "\\." in
 	let parse_explicit_iface str =
@@ -452,13 +459,21 @@ struct
 				| TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
 				| TCast(expr, _) when is_dynamic gen expr.etype && is_pointer gen e.etype ->
-					(* unboxing *)
-					let expr = run expr in
-					mk_cast e.etype (mk_field_access gen (mk_cast (TInst(boxed_ptr,[])) expr) "value" e.epos)
+					(match get_arrptr expr with
+						| None ->
+							(* unboxing *)
+							let expr = run expr in
+							mk_cast e.etype (mk_field_access gen (mk_cast (TInst(boxed_ptr,[])) expr) "value" e.epos)
+						| Some e ->
+							run e)
 				| TCast(expr, _) when is_pointer gen expr.etype && is_dynamic gen e.etype ->
-					(* boxing *)
-					let expr = run expr in
-					{ e with eexpr = TNew(boxed_ptr,[],[expr]) }
+					(match get_arrptr expr with
+						| None ->
+							(* boxing *)
+							let expr = run expr in
+							{ e with eexpr = TNew(boxed_ptr,[],[expr]) }
+						| Some e ->
+							run e)
 				| TCast(expr, _) when is_bool e.etype ->
 					{
 						eexpr = TCall(
@@ -1276,21 +1291,38 @@ let configure gen =
 					write w ")";
 					expr_s w (mk_block eblock)
 				| TCall ({ eexpr = TLocal( { v_name = "__fixed__" } ) }, [ e ] ) ->
-					let first = ref true in
+					let fixeds = ref [] in
 					let rec loop = function
-						| ({ eexpr = TVar(v, Some({ eexpr = TCast( { eexpr = TCast(e, _) }, _) }) ) } as expr) :: tl when is_pointer v.v_type ->
-							(if !first then first := false);
-							write w "fixed(";
-							let vf = mk_temp gen "fixed" v.v_type in
-							expr_s w { expr with eexpr = TVar(vf, Some e) };
-							write w ")";
-							begin_block w;
-							expr_s w { expr with eexpr = TVar(v, Some (mk_local vf expr.epos)) };
-							write w ";";
+						| ({ eexpr = TVar(v, Some(e) ) } as expr) :: tl when is_pointer v.v_type ->
+							let e = match get_arrptr e with
+								| None -> e
+								| Some e -> e
+							in
+							fixeds := (v,e,expr) :: !fixeds;
 							loop tl;
+						| el when !fixeds <> [] ->
+							write w "fixed(";
+							let rec loop fx acc = match fx with
+								| (v,e,expr) :: tl ->
+									let vf = mk_temp gen "fixed" v.v_type in
+									expr_s w { expr with eexpr = TVar(vf, Some e) };
+									let acc = (expr,v,vf) :: acc in
+									if tl = [] then begin
+										write w ")";
+										acc
+									end else begin
+										write w ", ";
+										loop tl acc
+									end
+								| _ -> assert false
+							in
+							let vars = loop (List.rev !fixeds) [] in
+							begin_block w;
+							List.iter (fun (expr,v,vf) ->
+								expr_s w { expr with eexpr = TVar(v, Some (mk_local vf expr.epos)) };
+								write w ";") vars;
+							expr_s w { e with eexpr = TBlock el };
 							end_block w
-						| el when not !first ->
-							expr_s w { e with eexpr = TBlock el }
 						| _ ->
 							trace (debug_expr e);
 							gen.gcon.error "Invalid 'fixed' keyword format" e.epos
@@ -2246,6 +2278,7 @@ let configure gen =
 	in
 
 	let module_type_gen w md_tp =
+		reset_temps();
 		match md_tp with
 			| TClassDecl cl ->
 				if not cl.cl_extern then begin
@@ -2293,6 +2326,7 @@ let configure gen =
 
 	Hashtbl.add gen.gspecial_vars "__delegate__" true;
 	Hashtbl.add gen.gspecial_vars "__array__" true;
+	Hashtbl.add gen.gspecial_vars "__arrptr__" true;
 
 	Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
 	let last_needs_box = gen.gneeds_box in

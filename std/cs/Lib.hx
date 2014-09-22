@@ -258,7 +258,7 @@ class Lib
 	**/
 	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
 	{
-		return cast array;
+		return untyped __arrptr__(array);
 	}
 
 	/**
