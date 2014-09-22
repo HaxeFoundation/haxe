@@ -23,7 +23,8 @@ package haxe.ds;
 
 import cs.NativeArray;
 
-@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T>
+//@:coreApi 
+class StringMap<T> implements Map.IMap<String,T>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
@@ -37,9 +38,11 @@ import cs.NativeArray;
 	 * The lookup algorithm will keep looking until a 0 or the key wanted is found;
 	 * The insertion algorithm will do the same but will also break when FLAG_DEL is found;
 	 */
-	private var hashes:NativeArray<HashType>;
+	//@:allow(StringMap.hasNext) - FIXME - not working so it's public for now
+	public var hashes:NativeArray<HashType>;
 	private var _keys:NativeArray<String>;
-	private var vals:NativeArray<T>;
+	//@:allow(StringMap.hasNext) - FIXME - not working so it's public for now
+	public var vals:NativeArray<T>;
 
 	private var nBuckets:Int;
 	private var size:Int;
@@ -379,28 +382,9 @@ import cs.NativeArray;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<T>
+	@:extern inline public function iterator() : StringMapValueIterator<T>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new StringMapValueIterator<T>(this, 0, nBuckets);
 	}
 
 	/**
@@ -436,7 +420,8 @@ import cs.NativeArray;
 	@:extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
 		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
 
-	@:extern private static inline function isEither(v:HashType):Bool
+	//@:allow(StringMap.hasNext) - FIXME - not working so it's public for now
+	@:extern public static inline function isEither(v:HashType):Bool
 		return (v & 0xFFFFFFFE) == 0;
 
 	@:extern private static inline function isEmpty(v:HashType):Bool
@@ -486,3 +471,28 @@ import cs.NativeArray;
 }
 
 private typedef HashType = Int;
+
+class StringMapValueIterator<T> {
+	var collection:StringMap<T>;
+	var i:Int;
+	var len:Int;
+	public inline function new(collection:StringMap<T>, i:Int, len:Int) {
+		this.collection = collection;
+		this.i = i;
+		this.len = len;
+	}
+	public inline function hasNext():Bool {
+		var j = i;
+		while (j < len && StringMap.isEither(collection.hashes[j])) {}
+		if ( j == len ) {
+			i = j;
+		}
+		return j == len;
+	}
+
+	public inline function next():T {
+		var ret = collection.vals[i];
+		i = i + 1;
+		return ret;
+	}
+}
