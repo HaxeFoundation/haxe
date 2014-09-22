@@ -147,6 +147,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 					var a	: Array<Dynamic>	= cast o;
 					for ( i in 0...a.length ) {
 						var arg	= a [ i ];
+						if ( arg	== null )	continue;
 						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
 							var s	: String	= cast arg;
 							a[ i ]	= neko.Web.getMultipartParams().get( s.substr( 8 ) );
@@ -157,6 +158,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 				}else if ( Reflect.isObject( o ) && !Std.is( o, String ) ) {
 					for ( k in Reflect.fields( o ) ) {
 						var arg	= Reflect.getProperty( o, k );
+						if ( arg	== null )	continue;
 						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
 							var s	: String	= cast arg;
 							Reflect.setProperty( o, k , neko.Web.getMultipartParams().get( s.substr( 8 ) ) );
@@ -190,9 +192,10 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 					var a	: Array<Dynamic>	= cast o;
 					for ( i in 0...a.length ) {
 						var arg	= a [ i ];
+						if ( arg	== null )	continue;
 						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
 							var s	: String	= cast arg;
-							a[ i ]	= neko.Web.getMultipartParams().get( s.substr( 8 ) );
+							a[ i ]	= php.Web.getMultipartParams().get( s.substr( 8 ) );
 						}else if ( Std.is( arg, Array ) || ( Reflect.isObject( arg ) && !Std.is( arg, String ) ) ) {
 							searchFile( arg );
 						}
@@ -200,6 +203,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 				}else if ( Reflect.isObject( o ) && !Std.is( o, String ) ) {
 					for ( k in Reflect.fields( o ) ) {
 						var arg	= Reflect.getProperty( o, k );
+						if ( arg	== null )	continue;
 						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
 							var s	: String	= cast arg;
 							Reflect.setProperty( o, k , neko.Web.getMultipartParams().get( s.substr( 8 ) ) );
