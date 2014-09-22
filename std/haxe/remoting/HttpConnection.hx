@@ -52,15 +52,31 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			h.cnxTimeout = TIMEOUT;
 		#end
 		var files	= new List();
-		var i		= 0;
-		while ( i < params.length ) {
-			var p	= params[ i ];
-			if ( p.param != null && p.filename != null && p.bytes != null ) {
-				files.add( p );
-				params[ i ]	= '__file__${ p.param }';
+		function searchFile( o : Dynamic ) {
+			if ( Std.is( o, Array ) ) {
+				var a	: Array<Dynamic>	= cast o;
+				for ( i in 0...a.length ) {
+					var p	= a [ i ];
+					if ( p.param != null && p.filename != null && p.bytes != null  ) {
+						files.add( cast p );
+						a[ i ]	= '__file__${ p.param }';
+					}else if ( Std.is( p, Array ) || Reflect.isObject( p ) ) {
+						searchFile( p );
+					}
+				}
+			}else if ( Reflect.isObject( o ) ) {
+				for ( k in Reflect.fields( o ) ) {
+					var p	= Reflect.getProperty( o, k );
+					if ( p.param != null && p.filename != null && p.bytes != null  ) {
+						files.add( cast p );
+						Reflect.setProperty( o, k ,'__file__${ p.param }' );
+					}else if ( Std.is( p, Array ) || Reflect.isObject( p ) ) {
+						searchFile( p );
+					}
+				}
 			}
-			i++;
 		}
+		searchFile( params );
 		var s = new haxe.Serializer();
 		s.serialize(__path);
 		s.serialize(params);
@@ -125,20 +141,33 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			var u = new haxe.Unserializer(requestData);
 			var path = u.unserialize();
 			var args : Array<Dynamic> = cast u.unserialize();
-			var files	= [];
-			var i	= 0;
-			while ( i < args.length ) {
-				var arg	= args[ i ];
-				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
-					files.push( neko.Web.getMultipartParams().get( arg.substr( 8 ) ) );
-					args.splice( i, 1 );
-					continue;
+						
+			function searchFile( o : Dynamic ) {
+				if ( Std.is( o, Array ) ) {
+					var a	: Array<Dynamic>	= cast o;
+					for ( i in 0...a.length ) {
+						var arg	= a [ i ];
+						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
+							var s	: String	= cast arg;
+							a[ i ]	= neko.Web.getMultipartParams().get( s.substr( 8 ) );
+						}else if ( Std.is( arg, Array ) || ( Reflect.isObject( arg ) && !Std.is( arg, String ) ) ) {
+							searchFile( arg );
+						}
+					}
+				}else if ( Reflect.isObject( o ) && !Std.is( o, String ) ) {
+					for ( k in Reflect.fields( o ) ) {
+						var arg	= Reflect.getProperty( o, k );
+						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
+							var s	: String	= cast arg;
+							Reflect.setProperty( o, k , neko.Web.getMultipartParams().get( s.substr( 8 ) ) );
+						}else if ( Std.is( arg, Array ) || ( Reflect.isObject( arg ) && !Std.is( arg, String ) ) ) {
+							searchFile( arg );
+						}
+					}
 				}
-				i++;
 			}
-			if( files.length > 0 ){
-				args.push( files );
-			}
+			searchFile( args );
+			
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
 			s.serialize(data);
@@ -155,20 +184,33 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 			var u = new haxe.Unserializer(requestData);
 			var path = u.unserialize();
 			var args : Array<Dynamic> = cast u.unserialize();
-			var files	= [];
-			var i	= 0;
-			while ( i < args.length ) {
-				var arg	= args[ i ];
-				if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
-					files.push( php.Web.getMultipartParams().get( arg.substr( 8 ) ) );
-					args.splice( i, 1 );
-					continue;
+					
+			function searchFile( o : Dynamic ) {
+				if ( Std.is( o, Array ) ) {
+					var a	: Array<Dynamic>	= cast o;
+					for ( i in 0...a.length ) {
+						var arg	= a [ i ];
+						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
+							var s	: String	= cast arg;
+							a[ i ]	= neko.Web.getMultipartParams().get( s.substr( 8 ) );
+						}else if ( Std.is( arg, Array ) || ( Reflect.isObject( arg ) && !Std.is( arg, String ) ) ) {
+							searchFile( arg );
+						}
+					}
+				}else if ( Reflect.isObject( o ) && !Std.is( o, String ) ) {
+					for ( k in Reflect.fields( o ) ) {
+						var arg	= Reflect.getProperty( o, k );
+						if ( Std.is( arg, String ) && StringTools.startsWith( arg, "__file__" ) ) {
+							var s	: String	= cast arg;
+							Reflect.setProperty( o, k , neko.Web.getMultipartParams().get( s.substr( 8 ) ) );
+						}else if ( Std.is( arg, Array ) || ( Reflect.isObject( arg ) && !Std.is( arg, String ) ) ) {
+							searchFile( arg );
+						}
+					}
 				}
-				i++;
 			}
-			if( files.length > 0 ){
-				args.push( files );
-			}
+			searchFile( args );
+			
 			var data = ctx.call(path,args);
 			var s = new haxe.Serializer();
 			s.serialize(data);

@@ -46,16 +46,33 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 		#if (neko && no_remoting_shutdown)
 			h.noShutdown = true;
 		#end
+		
 		var files	= new List();
-		var i		= 0;
-		while ( i < params.length ) {
-			var p	= params[ i ];
-			if ( p.param != null && p.filename != null && p.bytes != null ) {
-				files.add( p );
-				params[ i ]	= '__file__${ p.param }';
+		function searchFile( o : Dynamic ) {
+			if ( Std.is( o, Array ) ) {
+				var a	: Array<Dynamic>	= cast o;
+				for ( i in 0...a.length ) {
+					var p	= a [ i ];
+					if ( p != null && p.param != null && p.filename != null && p.bytes != null  ) {
+						files.add( cast p );
+						a[ i ]	= '__file__${ p.param }';
+					}else if ( Std.is( p, Array ) || ( Reflect.isObject( p ) && !Std.is( p, String ) ) ) {
+						searchFile( p );
+					}
+				}
+			}else if ( Reflect.isObject( o ) && !Std.is( o, String ) ) {
+				for ( k in Reflect.fields( o ) ) {
+					var p	= Reflect.getProperty( o, k );
+					if ( p != null && p.param != null && p.filename != null && p.bytes != null  ) {
+						files.add( cast p );
+						Reflect.setProperty( o, k ,'__file__${ p.param }' );
+					}else if ( Std.is( p, Array ) || ( Reflect.isObject( p ) && !Std.is( p, String ) ) ) {
+						searchFile( p );
+					}
+				}
 			}
-			i++;
 		}
+		searchFile( params );
 		var s = new haxe.Serializer();
 		s.serialize(__path);
 		s.serialize(params);
