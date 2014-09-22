@@ -46,7 +46,7 @@ let has_side_effect e =
 
 let mk_untyped_call name p params =
 	{
-		eexpr = TCall({ eexpr = TLocal(alloc_var name t_dynamic); etype = t_dynamic; epos = p }, params);
+		eexpr = TCall({ eexpr = TLocal(alloc_unbound_var name t_dynamic); etype = t_dynamic; epos = p }, params);
 		etype = t_dynamic;
 		epos = p;
 	}
@@ -97,7 +97,14 @@ let api_inline ctx c field params p =
 		| _ ->
 			None)
 	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
-		let mk_local ctx n t pos = mk (TLocal (try PMap.find n ctx.locals with _ -> add_local ctx n t)) t pos in
+		let mk_local ctx n t pos =
+			mk (TLocal (try
+				PMap.find n ctx.locals
+			with _ ->
+				let v = add_local ctx n t in
+				v.v_meta <- [Meta.Unbound,[],p];
+				v
+			)) t pos in
 
 		let tstring = ctx.com.basic.tstring in
 		let tbool = ctx.com.basic.tbool in
@@ -231,9 +238,11 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
+			let v' = alloc_var v.v_name v.v_type in
+			if Meta.has Meta.Unbound v.v_meta then v'.v_meta <- [Meta.Unbound,[],p];
 			let i = {
 				i_var = v;
-				i_subst = alloc_var v.v_name v.v_type;
+				i_subst = v';
 				i_captured = false;
 				i_write = false;
 				i_force_temp = false;
