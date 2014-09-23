@@ -352,7 +352,7 @@ import cs.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : StringMapKeysIterator<String, T>
+	public inline function keys() : StringMapKeysIterator<String, T>
 	{
 		return new StringMapKeysIterator<String, T>(this, 0, nBuckets);
 	}
@@ -361,7 +361,7 @@ import cs.NativeArray;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	inline public function iterator() : StringMapValuesIterator<String, T>
+	public inline function iterator() : StringMapValuesIterator<String, T>
 	{
 		return new StringMapValuesIterator<String, T>(this, 0, nBuckets);
 	}
