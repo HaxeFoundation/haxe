@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
+import haxe.ds.IntMap.IntMapKeysIterator;
+import haxe.ds.IntMap.IntMapValuesIterator;
 
 @:headerClassCode("
   inline void set(int key, ::null value) { __int_hash_set(h,key,value); }
@@ -60,12 +62,12 @@ package haxe.ds;
 		return untyped __global__.__int_hash_remove(h,key);
 	}
 
-	public function keys() : Iterator<Int> {
+	public function keys() : IntMapKeysIterator<Int,T> {
 		var a:Array<Int> = untyped __global__.__int_hash_keys(h);
 		return a.iterator();
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator() : IntMapValuesIterator<Int,T> {
 		var a:Array<Dynamic> = untyped __global__.__int_hash_values(h);
 		return a.iterator();
 	}
@@ -86,3 +88,7 @@ package haxe.ds;
 	}
 
 }
+
+typedef IntMapKeysIterator<K,V> = Iterator<K>;
+
+typedef IntMapValuesIterator<K,V> = Iterator<V>;

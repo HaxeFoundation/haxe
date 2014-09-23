@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
+import haxe.ds.IntMap.IntMapKeysIterator;
 
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
@@ -45,16 +46,16 @@ package haxe.ds;
 		return untyped __dollar__hremove(h,key,null);
 	}
 
-	public function keys() : Iterator<Int> {
+	public function keys() : IntMapKeysIterator<Int, T> {
 		var l = new List<Int>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
-		return l.iterator();
+		return new IntMapKeysIterator<Int, T>(l.iterator());
 	}
 
-	public function iterator() : Iterator<T> {
+	public function iterator() : IntMapValuesIterator<Int, T> {
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
-		return l.iterator();
+		return new IntMapValuesIterator<Int, T>(l.iterator());
 	}
 
 	public function toString() : String {
@@ -72,4 +73,31 @@ package haxe.ds;
 		return s.toString();
 	}
 
+}
+
+class IntMapKeysIterator<K, V> {
+	var i:Iterator<K>;
+	@:allow(haxe.ds.IntMap)
+	inline function new(i:Iterator<K>) {
+		this.i = i;
+	}
+	public inline function hasNext():Bool {
+		return i.hasNext();
+	}
+	public inline function next():K {		
+		return i.next();
+	}
+}
+class IntMapValuesIterator<K, V> {
+	var i:Iterator<V>;
+	@:allow(haxe.ds.IntMap)
+	inline function new(i:Iterator<V>) {
+		this.i = i;
+	}
+	public inline function hasNext():Bool {
+		return i.hasNext();
+	}
+	public inline function next():V {		
+		return i.next();
+	}
 }

@@ -33,10 +33,13 @@ import cs.NativeArray;
  * Thanks also to Jonas Malaco Filho for his Haxe-written IntMap code inspired by Python tables.
  * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
+@:allow(haxe.ds.IntMapKeysIterator)
+@:allow(haxe.ds.IntMapValuesIterator)
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T>
 {
 	private static inline var HASH_UPPER = 0.7;
 
+	// FIXME - allow not working
 	private var flags:NativeArray<Int>;
 	private var _keys:NativeArray<Int>;
 	private var vals:NativeArray<T>;
@@ -326,59 +329,18 @@ import cs.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<Int>
+	public function keys() : IntMapKeysIterator<Int, T>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(flags, j))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
-
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new IntMapKeysIterator<Int, T>(this, 0, nBuckets);
 	}
 
 	/**
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<T>
+	public function iterator() : IntMapValuesIterator<Int, T>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(flags, j))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new IntMapValuesIterator<Int, T>(this, 0, nBuckets);
 	}
 
 	/**
@@ -424,6 +386,9 @@ import cs.NativeArray;
 	private static inline function flagIsDel(flag:NativeArray<Int>, i:Int):Bool
 		return ((flag[i >> 4] >>> ((i & 0xf) << 1)) & 1) != 0;
 
+	// FIXME - allow not working
+	//@:allow(haxe.ds.IntMap.IntMapKeysIterator, haxe.ds.IntMap.IntMapValuesIterator)
+	@:allow(haxe.ds.IntMapKeysIterator, haxe.ds.IntMapValuesIterator)
 	private static inline function isEither(flag:NativeArray<Int>, i:Int):Bool
 		return ((flag[i >> 4] >>> ((i & 0xf) << 1)) & 3) != 0;
 
@@ -452,4 +417,66 @@ import cs.NativeArray;
 
 	private static inline function flagsSize(m:Int):Int
 		return ((m) < 16? 1 : (m) >> 4);
+}
+
+class IntMapKeysIterator<K, V> {
+	var collection:IntMap<V>;
+	var i:Int;
+	var len:Int;
+	@:allow(haxe.ds.IntMap)
+	inline function new(collection:IntMap<V>, i:Int, len:Int) {
+		this.collection = collection;
+		this.i = i;
+		this.len = len;
+	}
+	public inline function hasNext():Bool {
+		var j = i;
+		while (j < len) {
+			if (!IntMap.isEither(collection.flags, j))
+			{
+				i = j;
+				break;
+//				return true;
+			}
+			
+			j++;
+		}
+		return i == j && j < len;
+	}
+	public inline function next():Int {
+		var ret = collection._keys[i];
+		i = i + 1;
+		return ret;
+	}	
+}
+
+class IntMapValuesIterator<K, V> {
+	var collection:IntMap<V>;
+	var i:Int;
+	var len:Int;
+	@:allow(haxe.ds.IntMap)
+	inline function new(collection:IntMap<V>, i:Int, len:Int) {
+		this.collection = collection;
+		this.i = i;
+		this.len = len;
+	}
+	public inline function hasNext():Bool {
+		var j = i;
+		while (j < len) {
+			if (!IntMap.isEither(collection.flags, j))
+			{
+				i = j;
+				break;
+//				return true;
+			}
+			
+			j++;
+		}
+		return i == j && j < len;
+	}
+	public inline function next():V {
+		var ret = collection.vals[i];
+		i = i + 1;
+		return ret;
+	}
 }
