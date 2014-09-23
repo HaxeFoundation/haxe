@@ -81,7 +81,7 @@ let mk_infos ctx p params =
 
 let check_assign ctx e =
 	match e.eexpr with
-	| TLocal _ | TArray _ | TField _ ->
+	| TLocal {v_extra = None} | TArray _ | TField _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
@@ -1280,12 +1280,17 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 			let t = monomorphs params v.v_type in
 			(match e with
 			| Some ({ eexpr = TFunction f } as e) ->
-				(* create a fake class with a fake field to emulate inlining *)
-				let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos in
-				let cf = { (mk_field v.v_name v.v_type e.epos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
-				c.cl_extern <- true;
-				c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
-				AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+				begin match mode with
+					| MSet -> error "Cannot set inline closure" p
+					| MGet -> error "Cannot create closure on inline closure" p
+					| MCall ->
+						(* create a fake class with a fake field to emulate inlining *)
+						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos in
+						let cf = { (mk_field v.v_name v.v_type e.epos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
+						c.cl_extern <- true;
+						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
+						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+				end
 			| _ ->
 				AKExpr (mk (TLocal v) t p))
 		| _ ->
