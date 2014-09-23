@@ -100,12 +100,11 @@ let is_bool t =
 
 let is_int_float gen t =
 	match follow (gen.greal_type t) with
-		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 		| TInst( { cl_path = ([], "Int") }, [] ) | TAbstract( { a_path =	([], "Int") }, [] )
 		| TInst( { cl_path = ([], "Float") }, [] ) | TAbstract( { a_path =	([], "Float") }, [] ) ->
 			true
-		| (TAbstract _ as t) when like_float t -> true
+		| (TAbstract _ as t) when like_float t && not (like_i64 t)-> true
 		| _ -> false
 
 let parse_explicit_iface =
@@ -786,6 +785,7 @@ let configure gen =
 	let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
 
 	let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
+	let nulltdef = get_tdef (get_type gen ([],"Null")) in
 
 	(*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
 
@@ -829,7 +829,7 @@ let configure gen =
 									| TAbstract ({ a_path = ["java"],"Char16" },[])
 									| TType ({ t_path = [],"Single" },[])
 									| TAbstract ({ a_path = [],"Single" },[]) ->
-											basic.tnull f_t
+										TType(nulltdef, [f_t])
 									(*| TType ({ t_path = [], "Null"*)
 									| TInst (cl, ((_ :: _) as p)) when cl.cl_path <> (["java"],"NativeArray") ->
 										TInst(cl, List.map (fun _ -> t_dynamic) p)

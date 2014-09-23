@@ -22,6 +22,20 @@ class TestInt64 extends Test {
 		eq(Int64.ofInt(0).toStr(), "0");
 	}
 
+	public function testCapture()
+	{
+		var a = Int64.make(0xFF00FF00,0xF0F0F0F0),
+		    b = Int64.make(0xFF00FF00,0xF0F0F0F0);
+		eq(a.compare(b), 0);
+		eq(a.getHigh(), 0xFF00FF00);
+		function test() return Int64.compare(a,Int64.make(0xFF00FF00,0xF0F0F0F0));
+		eq(test(),0);
+		function testSet(v:Int64) b = v;
+		testSet( make(0xFF00FF00, 0xFF0) );
+		eq(b.compare(make(0xFF00FF00,0xFF0)),0);
+		eq(b.getHigh(), 0xFF00FF00);
+	}
+
 	public function testMath() {
 		var a = Int64.make(0, 0x239B0E13);
 		var b = Int64.make(0, 0x39193D1B);
