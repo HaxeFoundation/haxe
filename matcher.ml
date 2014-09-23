@@ -1255,15 +1255,17 @@ let match_expr ctx e cases def with_type p =
 		in
 		(* type case body *)
 		let e = match e with
-			| None -> mk (TBlock []) ctx.com.basic.tvoid (pos ep)
+			| None ->
+				mk (TBlock []) ctx.com.basic.tvoid (pos ep)
 			| Some e ->
-				let e = type_expr ctx e with_type in
-				match with_type with
-				| WithType t ->
-					Codegen.AbstractCast.cast_or_unify ctx t e e.epos;
-				| WithTypeResume t ->
-					(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
-				| _ -> e
+				type_expr ctx e with_type
+		in
+		let e = match with_type with
+			| WithType t ->
+				Codegen.AbstractCast.cast_or_unify ctx t e e.epos;
+			| WithTypeResume t ->
+				(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
+			| _ -> e
 		in
 		(* type case guard *)
 		let eg = match eg with
