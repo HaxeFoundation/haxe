@@ -46,6 +46,8 @@ let rec is_cs_basic_type t =
 		| TEnum( { e_path = ([], "Bool") }, [] )
 		| TAbstract ({ a_path = ([], "Bool") },[]) ->
 			true
+		| TAbstract ({ a_path = (["cs"], "Pointer") },_) ->
+			false
 		| TAbstract _ when like_float t ->
 			true
 		| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -109,13 +111,12 @@ let is_tparam t =
 let rec is_int_float t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
-		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
 		| TInst( { cl_path = ([], "Int") }, [] )
 		| TAbstract ({ a_path = ([], "Int") },[])
 		| TInst( { cl_path = ([], "Float") }, [] )
 		| TAbstract ({ a_path = ([], "Float") },[]) ->
 			true
-		| TAbstract _ when like_float t ->
+		| TAbstract _ when like_float t && not (like_i64 t) ->
 			true
 		| TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
 		| _ -> false
@@ -134,6 +135,7 @@ let is_dynamic gen t =
 
 let is_pointer gen t =
 	match follow (gen.greal_type t) with
+		| TAbstract( ( {a_path = ["cs"], "Pointer"}, _ ) )
 		| TInst( {cl_path = ["cs"], "Pointer"}, _ ) -> true
 		| _ -> false
 
@@ -405,12 +407,13 @@ struct
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 		let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
 		let clstring = match basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
-		let boxed_ptr, clptr =
+		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
+		let boxed_ptr =
 			if Common.defined gen.gcon Define.Unsafe then
-				get_cl (get_type gen (["haxe";"lang"], "BoxedPointer")),
-				get_cl (get_type gen (["cs"],"Pointer"))
+				get_cl (get_type gen (["haxe";"lang"], "BoxedPointer"))
+				(* get_abstract (get_type gen (["cs"],"Pointer")) *)
 			else
-				null_class,null_class
+				null_class
 		in
 
 		let is_struct t = (* not basic type *)
@@ -458,6 +461,9 @@ struct
 					run ef
 				| TNew( { cl_path = ([], "String") }, [], [p] ) -> run p (* new String(myString) -> myString *)
 
+				| TCast(expr, _) when like_float expr.etype && is_pointer gen e.etype ->
+					let expr = run expr in
+					mk_cast e.etype (mk_cast ti64 expr)
 				| TCast(expr, _) when is_dynamic gen expr.etype && is_pointer gen e.etype ->
 					(match get_arrptr expr with
 						| None ->
@@ -2331,6 +2337,7 @@ let configure gen =
 	Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
 	let last_needs_box = gen.gneeds_box in
 	gen.gneeds_box <- (fun t -> match (gen.greal_type t) with
+		| TAbstract( ( { a_path = ["cs"], "Pointer" }, _ ) )
 		| TInst( { cl_path = ["cs"], "Pointer" }, _ )
 		| TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ ) -> true
 		| _ -> last_needs_box t);

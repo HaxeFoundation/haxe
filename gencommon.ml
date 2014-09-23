@@ -70,15 +70,26 @@ let rec like_float t =
 	match follow t with
 		| TAbstract({ a_path = ([], "Float") },[])
 		| TAbstract({ a_path = ([], "Int") },[]) -> true
+		| TAbstract({ a_path = (["cs"], "Pointer") },_) -> false
 		| TAbstract(a, _) -> List.exists (fun t -> like_float t) a.a_from || List.exists (fun t -> like_float t) a.a_to
 		| _ -> false
 
 let rec like_int t =
 	match follow t with
 		| TAbstract({ a_path = ([], "Int") },[]) -> true
+		| TAbstract({ a_path = (["cs"], "Pointer") },_) -> false
 		| TAbstract(a, _) -> List.exists (fun t -> like_int t) a.a_from || List.exists (fun t -> like_int t) a.a_to
 		| _ -> false
 
+let rec like_i64 t =
+	match follow t with
+		| TInst({ cl_path = (["cs"], "Int64") },[])
+		| TInst({ cl_path = (["cs"], "UInt64") },[])
+		| TInst({ cl_path = (["java"], "Int64") },[])
+		| TInst({ cl_path = (["haxe"], "Int64") },[])
+		| TAbstract({ a_path = (["haxe"], "Int64") },[]) -> true
+		| TAbstract(a, _) -> List.exists (fun t -> like_i64 t) a.a_from || List.exists (fun t -> like_i64 t) a.a_to
+		| _ -> false
 
 let follow_once t =
 	match t with
@@ -239,6 +250,8 @@ let path_s path =
 	| _ -> assert false
 
 let get_cl mt = match mt with | TClassDecl cl -> cl | _ -> failwith ("Unexpected module type of '" ^ path_s (t_path mt) ^ "'")
+
+let get_abstract mt = match mt with | TAbstractDecl a -> a | _ -> failwith ("Unexpected module type of '" ^ path_s (t_path mt) ^ "'")
 
 let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
 
@@ -3400,7 +3413,7 @@ struct
 			let rettype_real_to_func t = match run_follow gen t with
 				| TType({ t_path = [],"Null" }, _) ->
 					0,t_dynamic
-				| _ when like_float t ->
+				| _ when like_float t && not (like_i64 t) ->
 					(1, basic.tfloat)
 				| _ ->
 					(0, t_dynamic)
@@ -3411,10 +3424,10 @@ struct
 					[{ eexpr = TArrayDecl el; etype = basic.tarray t_dynamic; epos = pos }]
 				else begin
 					List.fold_left (fun acc e ->
-																						if like_float (gen.greal_type e.etype) then
-																							( e :: undefined e.epos :: acc )
-																						else
-																							( null basic.tfloat e.epos :: e :: acc )
+						if like_float (gen.greal_type e.etype) && not (like_i64 (gen.greal_type e.etype)) then
+							( e :: undefined e.epos :: acc )
+						else
+							( null basic.tfloat e.epos :: e :: acc )
 					) ([]) (List.rev el)
 				end
 			in
@@ -3560,8 +3573,9 @@ struct
 					| TCall(tc, params) -> (tc, params)
 					| _ -> assert false
 				in
+					let ct = gen.greal_type call_expr.etype in
 					let postfix, ret_t =
-						if like_float (gen.greal_type call_expr.etype) then
+						if like_float ct && not (like_i64 ct) then
 								"_f", gen.gcon.basic.tfloat
 						else
 							"_o", t_dynamic
@@ -3631,7 +3645,7 @@ struct
 						let vf, _ = List.nth args (i * 2) in
 						let vo, _ = List.nth args (i * 2 + 1) in
 
-						let needs_cast, is_float = match t, like_float t with
+						let needs_cast, is_float = match t, like_float t && not (like_i64 t) with
 							| TInst({ cl_path = ([], "Float") }, []), _
 							| TAbstract({ a_path = ([], "Float") },[]), _ -> false, true
 							| _, true -> true, true
@@ -3888,7 +3902,7 @@ struct
 				in
 				(* let rec loop goes here *)
 				let map_fn cur_arity fun_ret_type vars (api:(int->t->tconstant option->texpr)) =
-					let is_float = like_float fun_ret_type in
+					let is_float = like_float fun_ret_type && not (like_i64 fun_ret_type) in
 					match cur_arity with
 						| -1 ->
 							let dynargs = api (-1) (t_dynamic) None in
@@ -7113,7 +7127,7 @@ struct
 						| TInst ( { cl_path = ["haxe"], "Int64" }, [] ) ->
 							loop tl ((name, gen.ghandle_cast t_dynamic real_t expr) :: acc) acc_f
 						| _ ->
-							if like_float real_t then
+							if like_float real_t && not (like_i64 real_t) then
 								loop tl acc ((name, gen.ghandle_cast basic.tfloat real_t expr) :: acc_f)
 							else
 								loop tl ((name, gen.ghandle_cast t_dynamic real_t expr) :: acc) acc_f
@@ -7628,7 +7642,7 @@ struct
 						match follow (ctx.rcf_gen.greal_type (ctx.rcf_gen.gfollow#run_f cf.cf_type)) with
 							| TDynamic _ | TMono _
 							| TInst ({ cl_kind = KTypeParameter _ }, _) -> true
-							| t when like_float t -> true
+							| t when like_float t && not (like_i64 t) -> true
 							| _ -> false
 					) ret
 				else

@@ -47,6 +47,22 @@ class TestCSharp extends Test
 		eq(ptr[0],0xFFFF);
 		eq(captured[0],0xFFFF);
 		t(ptr == captured);
+
+		var other:Pointer<Pointer<Int>> = cast cs.system.runtime.interopservices.Marshal.AllocHGlobal(10 * 4).ToPointer();
+		other[0] = ptr;
+		eq(other[0][0], 0xFFFF);
+		var captured = other;
+		function test(v:Int) captured[0][0] = v;
+		test(-1);
+		eq(other[0][0],-1);
+		eq(captured[0][0],-1);
+		t(other == captured);
+
+		function test2(p:Pointer<Pointer<Int>>, v:Int)
+			p[0][0]=v;
+
+		test2(other,-2);
+		eq(other[0][0],-2);
 	}
 #end
 
