@@ -450,8 +450,6 @@ private typedef HashType = Int;
 
 class ObjectMapKeysIterator<K:{}, V> {
 	var collection:ObjectMap<K, V>;
-	var hashes:NativeArray<HashType>;
-	var keys:NativeArray<K>;
 	var i:Int;
 	var len:Int;
 	@:allow(haxe.ds.ObjectMap)
@@ -463,7 +461,7 @@ class ObjectMapKeysIterator<K:{}, V> {
 	public inline function hasNext():Bool {
 		var j = i;
 		while (j < len) {
-			if (!ObjectMap.isEither(hashes[j]))
+			if (!ObjectMap.isEither(collection.hashes[j]))
 			{
 				i = j;
 				break;
@@ -475,7 +473,7 @@ class ObjectMapKeysIterator<K:{}, V> {
 		return i == j && j < len;
 	}
 	public inline function next():K {
-		var ret = keys[i];
+		var ret = collection._keys[i];
 		i = i + 1;
 		return ret;
 	}	
