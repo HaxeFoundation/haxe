@@ -3022,7 +3022,13 @@ struct
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					get_type_params acc ( Abstract.get_underlying_type a pl)
 			| TAnon a ->
-				PMap.fold (fun cf acc -> get_type_params acc cf.cf_type) a.a_fields acc
+				PMap.fold (fun cf acc ->
+					let params = List.map (fun (_,t) -> match follow t with
+						| TInst(c,_) -> c
+						| _ -> assert false) cf.cf_params
+					in
+					List.filter (fun t -> not (List.mem t params)) (get_type_params acc cf.cf_type)
+				) a.a_fields acc
 			| TType(_, [])
 			| TAbstract (_, [])
 			| TInst(_, [])
