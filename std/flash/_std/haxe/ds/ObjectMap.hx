@@ -1,78 +1,117 @@
 package haxe.ds;
 
-@:coreApi
-class ObjectMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constraints.IMap<K,V> {
+import flash.utils.Dictionary;
 
-	public function new() {
-		super(false);
+@:coreApi
+class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
+	var d:Dictionary;
+	
+	public function new() : Void {
+		d = new Dictionary(false);
+	}
+
+	public inline function set( key : K, value : V ) : Void {
+		untyped d[key] = value;
 	}
 
 	public inline function get( key : K ) : Null<V> {
-		return untyped this[key];
-	}
-
-	public inline function set( key : K, value : V ):Void {
-		untyped this[key] = value;
+		return untyped d[key];
 	}
 
 	public inline function exists( key : K ) : Bool {
-		return untyped this[key] != null;
+		return untyped __in__(key,d);
 	}
 
-	public function remove( key : K ):Bool {
-		var has = exists(key);
-		untyped __delete__(this, key);
-		return has;
+	public function remove( key : K ) : Bool {
+		if( !exists(key) ) return false;
+		untyped __delete__(d,key);
+		return true;
 	}
 
 	#if as3
 
- 	public function keys() : Iterator<K> {
-		return untyped __keys__(this).iterator();
+ 	public function keys() : ObjectMapKeysIterator<K, V> {
+		var array:Array<K> = untyped __keys__(d);
+		return new ObjectMapKeysIterator<K, V>(untyped array, 0, array.length);
  	}
 
- 	public function iterator() : Iterator<V> {
-		var ret = [];
+ 	public function iterator() : ObjectMapValuesIterator<K, V> {
+		var ret:Array<V> = [];
 		for (i in keys())
 			ret.push(get(i));
-		return ret.iterator();
+		return new ObjectMapValuesIterator<K, V>(ret, 0, ret.length);
  	}
+	
 	#else
 
-	public function keys() : Iterator<K> {
-		return NativePropertyIterator.iterator(this);
+	public inline function keys() : ObjectMapKeysIterator<K, V> {
+		return new ObjectMapKeysIterator<K, V>(d, 0);
 	}
 
-	public function iterator() : Iterator<V> {
-		return NativeValueIterator.iterator(this);
+	public inline function iterator() : ObjectMapValuesIterator<K, V> {
+		return new ObjectMapValuesIterator<K, V>(d, 0);
 	}
 
 	#end
-
+	
 	public function toString() : String {
-		var s = "";
+		var s = new StringBuf();
+		s.add("{");
 		var it = keys();
 		for( i in it ) {
-			s += (s == "" ? "" : ",") + Std.string(i);
-			s += " => ";
-			s += Std.string(get(i));
+			s.add(i);
+			s.add(" => ");
+			s.add(Std.string(get(i)));
+			if( it.hasNext() )
+				s.add(", ");
 		}
-		return s + "}";
+		s.add("}");
+		return s.toString();
 	}
+
 }
 
-private class NativePropertyIterator {
-	var collection:Dynamic;
-	var index:Int = 0;
-
-	public static inline function iterator(collection:Dynamic):NativePropertyIterator {
-		var result = new NativePropertyIterator();
-		result.collection = collection;
-		return result;
+#if as3
+class ObjectMapKeysIterator<K, V> {
+	var collection:Array<K>;
+	var index:Int;
+	var len:Int;
+	public inline function new(c:Array<K>, i:Int, l:Int) {
+		this.collection = c;
+		index = i;
+		len = l;
 	}
-
-	function new() {}
-
+	public inline function hasNext():Bool {
+		return index < len;
+	}
+	public inline function next():K {
+		return collection[index++];
+	}
+}
+class ObjectMapValuesIterator<K, V> {
+	var collection:Array<V>;
+	var index:Int;
+	var len:Int;
+	public inline function new(c:Array<V>, i:Int, l:Int) {
+		this.collection = c;
+		index = i;
+		len = l;
+	}
+	public inline function hasNext():Bool {
+		return index < len;
+	}
+	public inline function next():V {
+		return collection[index++];
+	}
+}
+#else
+class ObjectMapKeysIterator<K, V> {
+	var collection:Dictionary;
+	var index:Int;
+	public inline function new(c:Dictionary, i:Int) {
+		this.collection = c;
+		index = i;
+	}
 	public inline function hasNext():Bool {
 		var c = collection;
 		var i = index;
@@ -81,27 +120,18 @@ private class NativePropertyIterator {
 		index = i;
 		return result;
 	}
-
-	public inline function next():Dynamic {
-		var i = index;
-		var result = untyped __forin__(collection, i);
-		index = i;
-		return result;
+	public inline function next():K {
+		return untyped __forin__(collection, index);
 	}
 }
 
-private class NativeValueIterator {
-	var collection:Dynamic;
-	var index:Int = 0;
-
-	public static inline function iterator(collection:Dynamic):NativeValueIterator {
-		var result = new NativeValueIterator();
-		result.collection = collection;
-		return result;
+class ObjectMapValuesIterator<K, V> {
+	var collection:Dictionary;
+	var index:Int;
+	public inline function new(c:Dictionary, i:Int) {
+		this.collection = c;
+		index = i;
 	}
-
-	function new() {}
-
 	public inline function hasNext():Bool {
 		var c = collection;
 		var i = index;
@@ -110,11 +140,8 @@ private class NativeValueIterator {
 		index = i;
 		return result;
 	}
-
-	public inline function next():Dynamic {
-		var i = index;
-		var result = untyped __foreach__(collection, i);
-		index = i;
-		return result;
+	public inline function next():V {
+		return untyped __foreach__(collection, index);
 	}
 }
+#end

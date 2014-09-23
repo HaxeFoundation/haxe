@@ -21,45 +21,59 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
+import flash.utils.Dictionary;
 
-	private var h : flash.utils.Dictionary;
-
+@:coreApi class IntMap<V> implements haxe.Constraints.IMap<Int,V> {
+	var d:Dictionary;
+	
 	public function new() : Void {
-		h = new flash.utils.Dictionary();
+		d = new Dictionary();
 	}
 
-	public inline function set( key : Int, value : T ) : Void {
-		untyped h[key] = value;
+	public inline function set( key : Int, value : V ) : Void {
+		untyped d[key] = value;
 	}
 
-	public inline function get( key : Int ) : Null<T> {
-		return untyped h[key];
+	public inline function get( key : Int ) : Null<V> {
+		return untyped d[key];
 	}
 
 	public inline function exists( key : Int ) : Bool {
-		return untyped __in__(key,h);
+		return untyped __in__(key,d);
 	}
 
 	public function remove( key : Int ) : Bool {
 		if( !exists(key) ) return false;
-		untyped __delete__(h,key);
+		untyped __delete__(d,key);
 		return true;
 	}
+	
+	#if as3
 
-	public function keys() : Iterator<Int> {
-		return untyped (__keys__(h)).iterator();
+ 	public function keys() : IntMapKeysIterator<Int, V> {
+		var array:Array<Int> = untyped __keys__(d);
+		return new IntMapKeysIterator<Int, V>(array, 0, array.length);
+ 	}
+
+ 	public function iterator() : IntMapValuesIterator<Int, V> {
+		var ret:Array<V> = [];
+		for (i in keys())
+			ret.push(get(i));
+		return new IntMapValuesIterator<Int, V>(ret, 0, ret.length);
+ 	}
+	
+	#else
+
+	public inline function keys() : IntMapKeysIterator<Int, V> {
+		return new IntMapKeysIterator<Int, V>(d, 0);
 	}
 
-	public function iterator() : Iterator<T> {
-		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
-		};
+	public inline function iterator() : IntMapValuesIterator<Int, V> {
+		return new IntMapValuesIterator<Int, V>(d, 0);
 	}
 
+	#end
+	
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");
@@ -76,3 +90,78 @@ package haxe.ds;
 	}
 
 }
+
+#if as3
+class IntMapKeysIterator<K, V> {
+	var collection:Array<K>;
+	var index:Int;
+	var len:Int;
+	public inline function new(c:Array<K>, i:Int, l:Int) {
+		this.collection = c;
+		index = i;
+		len = l;
+	}
+	public inline function hasNext():Bool {
+		return index < len;
+	}
+	public inline function next():K {
+		return collection[index++];
+	}
+}
+class IntMapValuesIterator<K, V> {
+	var collection:Array<V>;
+	var index:Int;
+	var len:Int;
+	public inline function new(c:Array<V>, i:Int, l:Int) {
+		this.collection = c;
+		index = i;
+		len = l;
+	}
+	public inline function hasNext():Bool {
+		return index < len;
+	}
+	public inline function next():V {
+		return collection[index++];
+	}
+}
+#else
+class IntMapKeysIterator<K, V> {
+	var collection:Dictionary;
+	var index:Int;
+	public inline function new(c:Dictionary, i:Int) {
+		this.collection = c;
+		index = i;
+	}
+	public inline function hasNext():Bool {
+		var c = collection;
+		var i = index;
+		var result = untyped __has_next__(c, i);
+		collection = c;
+		index = i;
+		return result;
+	}
+	public inline function next():K {
+		return untyped __forin__(collection, index);
+	}
+}
+
+class IntMapValuesIterator<K, V> {
+	var collection:Dictionary;
+	var index:Int;
+	public inline function new(c:Dictionary, i:Int) {
+		this.collection = c;
+		index = i;
+	}
+	public inline function hasNext():Bool {
+		var c = collection;
+		var i = index;
+		var result = untyped __has_next__(c, i);
+		collection = c;
+		index = i;
+		return result;
+	}
+	public inline function next():V {
+		return untyped __foreach__(collection, index);
+	}
+}
+#end

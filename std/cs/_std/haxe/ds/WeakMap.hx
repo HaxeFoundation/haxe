@@ -25,6 +25,8 @@ import cs.NativeArray;
 import cs.system.WeakReference;
 
 // This implementation works by lazily evaluating the weak references, and only cleaning them up when needed.
+@:allow(haxe.ds.WeakMapKeysIterator)
+@:allow(haxe.ds.WeakMapValuesIterator)
 @:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
@@ -377,81 +379,18 @@ import cs.system.WeakReference;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<K>
+	public function keys() : WeakMapKeysIterator<K, V>
 	{
-		var i = 0;
-		var len = nBuckets;
-		var lastKey = null; //keep a strong reference to the key while iterating, so it can't be collected while iterating
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						var entry = entries[j];
-						var last = entry.Target;
-						if (last != null)
-						{
-							lastKey = last;
-							cachedIndex = i;
-							cachedEntry = entry;
-							i = j;
-							return true;
-						} else {
-							--size;
-							hashes[j] = FLAG_DEL;
-							entries[j] = null;
-						}
-					}
-				}
-				return false;
-			},
-			next: function() {
-				i = i + 1;
-				return lastKey;
-			}
-		};
+		return new WeakMapKeysIterator<K, V>(this, 0, nBuckets);
 	}
 
 	/**
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<V>
+	public function iterator() : WeakMapValuesIterator<K, V>
 	{
-		var i = 0;
-		var len = nBuckets;
-		var lastKey = null; //keep a strong reference to the key while iterating, so it can't be collected while iterating
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						var entry = entries[j];
-						var last = entry.Target;
-						if (last != null)
-						{
-							lastKey = last;
-							cachedIndex = i;
-							cachedEntry = entry;
-							i = j;
-							return true;
-						} else {
-							--size;
-							hashes[j] = FLAG_DEL;
-							entries[j] = null;
-						}
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = entries[i].value;
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new WeakMapValuesIterator<K, V>(this, 0, nBuckets);
 	}
 
 	/**
@@ -560,3 +499,90 @@ private class Entry<K,V> extends WeakReference
 }
 
 private typedef HashType = Int;
+
+class WeakMapKeysIterator<K:{}, V> {
+	var collection:WeakMap<K, V>;
+	var i:Int;
+	var len:Int;
+	var lastKey = null; //keep a strong reference to the key while iterating, so it can't be collected while iterating
+	@:allow(haxe.ds.WeakMap)
+	inline function new(collection:WeakMap<K, V>, i:Int, len:Int) {
+		this.collection = collection;
+		this.i = i;
+		this.len = len;
+	}
+	public inline function hasNext():Bool {
+		var j = i;
+		while (j < len) {
+			if (!WeakMap.isEither(collection.hashes[j]))
+			{
+				var entry = collection.entries[j];
+				var last = entry.Target;
+				if (last != null)
+				{
+					lastKey = last;
+					collection.cachedIndex = i;
+					collection.cachedEntry = entry;
+					i = j;
+					break;
+//					return true;
+				} else {
+					--collection.size;
+					collection.hashes[j] = WeakMap.FLAG_DEL;
+					collection.entries[j] = null;
+				}
+			}
+			
+			j++; 
+		}
+		return i == j && j < len;
+	}
+	public inline function next():K {
+		i = i + 1;
+		return lastKey;
+	}	
+}
+
+class WeakMapValuesIterator<K:{}, V> {
+	var collection:WeakMap<K, V>;
+	var i:Int;
+	var len:Int;
+	var lastKey = null; //keep a strong reference to the key while iterating, so it can't be collected while iterating
+	@:allow(haxe.ds.WeakMap)
+	inline function new(collection:WeakMap<K, V>, i:Int, len:Int) {
+		this.collection = collection;
+		this.i = i;
+		this.len = len;
+	}
+	public inline function hasNext():Bool {
+		var j = i;
+		while (j < len) { 
+			if (!WeakMap.isEither(collection.hashes[j]))
+			{
+				var entry = collection.entries[j];
+				var last = entry.Target;
+				if (last != null)
+				{
+					lastKey = last;
+					collection.cachedIndex = i;
+					collection.cachedEntry = entry;
+					i = j;
+					break;
+//					return true;
+				} else {
+					--collection.size;
+					collection.hashes[j] = WeakMap.FLAG_DEL;
+					collection.entries[j] = null;
+				}
+			}
+			
+			j++; 
+		}
+		return i == j && j < len;
+	}
+	public inline function next():V {
+		var ret = collection.entries[i].value;
+		i = i + 1;
+		return ret;
+	}
+}

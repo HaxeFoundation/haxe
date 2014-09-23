@@ -23,6 +23,8 @@ package haxe.ds;
 
 import cs.NativeArray;
 
+@:allow(haxe.ds.ObjectMapKeysIterator)
+@:allow(haxe.ds.ObjectMapValuesIterator)
 @:coreApi class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
@@ -348,59 +350,18 @@ import cs.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<K>
+	public function keys() : ObjectMapKeysIterator<K, V>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
-
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new ObjectMapKeysIterator<K, V>(this, 0, nBuckets);
 	}
 
 	/**
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<V>
+	public function iterator() : ObjectMapValuesIterator<K, V>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new ObjectMapValuesIterator<K, V>(this, 0, nBuckets);
 	}
 
 	/**
@@ -486,3 +447,65 @@ import cs.NativeArray;
 }
 
 private typedef HashType = Int;
+
+class ObjectMapKeysIterator<K:{}, V> {
+	var collection:ObjectMap<K, V>;
+	var i:Int;
+	var len:Int;
+	@:allow(haxe.ds.ObjectMap)
+	inline function new(collection:ObjectMap<K, V>, i:Int, len:Int) {
+		this.collection = collection;
+		this.i = i;
+		this.len = len;
+	}
+	public inline function hasNext():Bool {
+		var j = i;
+		while (j < len) {
+			if (!ObjectMap.isEither(collection.hashes[j]))
+			{
+				i = j;
+				break;
+//				return true;
+			}
+			
+			j++;
+		}
+		return i == j && j < len;
+	}
+	public inline function next():K {
+		var ret = collection._keys[i];
+		i = i + 1;
+		return ret;
+	}	
+}
+
+class ObjectMapValuesIterator<K:{}, V> {
+	var collection:ObjectMap<K, V>;
+	var i:Int;
+	var len:Int;
+	@:allow(haxe.ds.ObjectMap)
+	inline function new(collection:ObjectMap<K, V>, i:Int, len:Int) {
+		this.collection = collection;
+		this.i = i;
+		this.len = len;
+	}
+	public inline function hasNext():Bool {
+		var j = i;
+		while (j < len) {
+			if (!ObjectMap.isEither(collection.hashes[j]))
+			{
+				i = j;
+				break;
+//				return true;
+			}
+			
+			j++;
+		}
+		return i == j && j < len;
+	}
+	public inline function next():V {
+		var ret = collection.vals[i];
+		i = i + 1;
+		return ret;
+	}
+}
