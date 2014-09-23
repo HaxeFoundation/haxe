@@ -140,9 +140,10 @@ let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end
 
-and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then
+and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then begin
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path a.a_path));
 	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
+end
 
 (* mark a type as kept *)
 and mark_t dce p t =
