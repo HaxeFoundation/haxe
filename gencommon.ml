@@ -3027,7 +3027,7 @@ struct
 						| TInst(c,_) -> c
 						| _ -> assert false) cf.cf_params
 					in
-					List.filter (fun t -> not (List.mem t params)) (get_type_params acc cf.cf_type)
+					List.filter (fun t -> not (List.memq t params)) (get_type_params acc cf.cf_type)
 				) a.a_fields acc
 			| TType(_, [])
 			| TAbstract (_, [])
