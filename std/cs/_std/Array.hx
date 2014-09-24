@@ -95,6 +95,10 @@ import cs.NativeArray;
 			i += len;
 			if (i < 0) i = 0;
 		}
+		else if (i >= len)
+		{
+			return -1;
+		}
 		return cs.system.Array._IndexOf(__a, x, i, len - i);
 	}
 
