@@ -96,11 +96,12 @@
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
+		cmd = escapeArgument(cmd);
 		if( args != null ) {
-			cmd = escapeArgument(cmd);
 			for( a in args )
 				cmd += " "+escapeArgument(a);
 		}
+		if (systemName() == "Windows") cmd = '"$cmd"';
 		return sys_command(cmd);
 	}
 
