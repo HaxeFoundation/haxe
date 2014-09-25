@@ -271,9 +271,12 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 	in
 	let has m c f path =
 		let rec loop = function
-			| (m2,[e],_) :: l when m = m2 ->
-				let p = expr_path [] e in
-				(p <> [] && chk_path p path) || loop l
+			| (m2,el,_) :: l when m = m2 ->
+				List.exists (fun e ->
+					let p = expr_path [] e in
+					(p <> [] && chk_path p path)
+				) el
+				|| loop l
 			| _ :: l -> loop l
 			| [] -> false
 		in
