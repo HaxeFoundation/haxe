@@ -1911,11 +1911,29 @@ let configure gen =
 								in
 
 								let needs_unchecked e =
-									(* TODO skip DynamicObject/Runtime.*Field calls? *)
 									let rec loop e = match e.eexpr with
-									| TConst (TInt i) when i <> Int32.zero -> raise Exit
-									| TCall ({ eexpr = TLocal({ v_name = "__checked__" }) }, _) -> ()
-									| _ -> Type.iter loop e
+									(* a non-zero integer constant means that we want unchecked context *)
+									| TConst (TInt i) when i <> Int32.zero ->
+										raise Exit
+
+									(* don't recurse into explicit checked blocks *)
+									| TCall ({ eexpr = TLocal({ v_name = "__checked__" }) }, _) ->
+										()
+
+									(* skip reflection field hashes as they are safe *)
+									| TNew ({ cl_path = (["haxe"; "lang"],"DynamicObject") }, [], [_; e1; _; e2]) ->
+										loop e1;
+										loop e2
+									| TNew ({ cl_path = (["haxe"; "lang"],"Closure") }, [], [eo; _; _]) ->
+										loop eo
+									| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ["haxe"; "lang"],"Runtime" },
+											 { cf_name = "getField" | "setField" | "getField_f" | "setField_f" | "callField" })) },
+											 eo :: _ :: _ :: rest) ->
+										loop eo;
+										List.iter loop rest
+
+									| _ ->
+										Type.iter loop e
 									in
 									try (loop e; false) with Exit -> true
 								in
