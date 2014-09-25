@@ -1738,7 +1738,7 @@ let std_lib =
 			VString (try Extc.get_full_path (vstring file) with _ -> error())
 		);
 		"sys_exe_path", Fun0 (fun() ->
-			VString (Sys.argv.(0))
+			VString (Extc.executable_path())
 		);
 		"sys_env", Fun0 (fun() ->
 			let env = Unix.environment() in
