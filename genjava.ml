@@ -742,7 +742,7 @@ let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/u
 let default_package = "java"
 let strict_mode = ref false (* strict mode is so we can check for unexpected information *)
 
-(* reserved c# words *)
+(* reserved java words *)
 let reserved = let res = Hashtbl.create 120 in
 	List.iter (fun lst -> Hashtbl.add res lst ("_" ^ lst)) ["abstract"; "assert"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class";
 		"const"; "continue"; "default"; "do"; "double"; "else"; "enum"; "extends"; "final";
