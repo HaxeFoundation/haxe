@@ -78,7 +78,7 @@ class Lib
 	**/
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
-		return untyped __as__(obj, cl);
+		return untyped __as__(obj);
 	}
 
 	/**
