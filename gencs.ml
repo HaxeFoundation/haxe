@@ -1909,6 +1909,33 @@ let configure gen =
 												mk_block (tf.tf_expr)
 											| _ -> assert false (* FIXME *)
 								in
+
+								let needs_unchecked e =
+									(* TODO skip DynamicObject/Runtime.*Field calls? *)
+									let rec loop e = match e.eexpr with
+									| TConst (TInt i) when i <> Int32.zero -> raise Exit
+									| TCall ({ eexpr = TLocal({ v_name = "__checked__" }) }, _) -> ()
+									| _ -> Type.iter loop e
+									in
+									try (loop e; false) with Exit -> true
+								in
+								let write_method_expr e =
+									match e.eexpr with
+									| TBlock [] ->
+										begin_block w;
+										end_block w
+									| TBlock _ ->
+										let unchecked = needs_unchecked e in
+										if unchecked then (begin_block w; write w "unchecked ");
+										let t = Common.timer "expression to string" in
+										expr_s w e;
+										t();
+										if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
+										if unchecked then end_block w
+									| _ ->
+										assert false
+								in
+
 								(if is_new then begin
 									let rec get_super_call el =
 										match el with
@@ -1932,27 +1959,11 @@ let configure gen =
 													write w " ";
 													t()
 											);
-											begin_block w;
-											if rest <> [] then begin
-												write w "unchecked ";
-												let t = Common.timer "expression to string" in
-												expr_s w { expr with eexpr = TBlock(rest) };
-												t();
-												if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
-											end;
-											end_block w;
+											write_method_expr { expr with eexpr = TBlock(rest) }
 										| _ -> assert false
-								end else begin
-									begin_block w;
-									if expr.eexpr <> TBlock [] then begin
-										write w "unchecked ";
-										let t = Common.timer "expression to string" in
-										expr_s w expr;
-										t();
-										if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
-									end;
-									end_block w;
-								end)
+								end else
+									write_method_expr expr
+								)
 							| (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) :: tl ->
 								begin_block w;
 								write w contents;
