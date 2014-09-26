@@ -350,7 +350,7 @@ import cs.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public inline function keys() : ObjectMapKeysIterator<K, V>
+	public function keys() : ObjectMapKeysIterator<K, V>
 	{
 		return new ObjectMapKeysIterator<K, V>(this, 0, nBuckets);
 	}
@@ -359,7 +359,7 @@ import cs.NativeArray;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public inline function iterator() : ObjectMapValuesIterator<K, V>
+	public function iterator() : ObjectMapValuesIterator<K, V>
 	{
 		return new ObjectMapValuesIterator<K, V>(this, 0, nBuckets);
 	}

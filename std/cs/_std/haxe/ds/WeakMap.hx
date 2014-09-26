@@ -379,7 +379,7 @@ import cs.system.WeakReference;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public inline function keys() : WeakMapKeysIterator<K, V>
+	public function keys() : WeakMapKeysIterator<K, V>
 	{
 		return new WeakMapKeysIterator<K, V>(this, 0, nBuckets);
 	}
@@ -388,7 +388,7 @@ import cs.system.WeakReference;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public inline function iterator() : WeakMapValuesIterator<K, V>
+	public function iterator() : WeakMapValuesIterator<K, V>
 	{
 		return new WeakMapValuesIterator<K, V>(this, 0, nBuckets);
 	}
