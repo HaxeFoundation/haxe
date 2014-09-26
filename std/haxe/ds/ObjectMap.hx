@@ -60,15 +60,26 @@ extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 	/**
 		See `Map.keys`
 	**/
-	public function keys():Iterator<K>;
+	public function keys():ObjectMapKeysIterator<K, V>;
 
 	/**
 		See `Map.iterator`
 	**/
-	public function iterator():Iterator<V>;
+	public function iterator():ObjectMapValuesIterator<K, V>;
 
 	/**
 		See `Map.toString`
 	**/
 	public function toString():String;
+}
+
+
+extern class ObjectMapKeysIterator<K, V> {
+	public function hasNext():Bool;
+	public function next():K;
+}
+
+extern class ObjectMapValuesIterator<K, V> {
+	public function hasNext():Bool;
+	public function next():V;
 }
