@@ -346,7 +346,7 @@ let parse_string com s p inlined =
 		Lexer.restore old;
 		Parser.display_error := old_de
 	in
-	Lexer.init p.pfile (ExtString.String.ends_with p.pfile ".hx");
+	Lexer.init p.pfile true;
 	Parser.display_error := (fun e p -> raise (Parser.Error (e,p)));
 	if not inlined then Parser.resume_display := null_pos;
 	let pack, decls = try
