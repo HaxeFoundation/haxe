@@ -240,7 +240,7 @@ import java.internal.Exceptions;
 		return 0.0;
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return Std.is(value, c) ? cast value : null;
 	}
 
