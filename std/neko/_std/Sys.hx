@@ -111,6 +111,7 @@
 			for( a in args )
 				cmd += " "+escapeArgument(a);
 		}
+		if (systemName() == "Windows") cmd = '"$cmd"';
 		return sys_command(untyped cmd.__s);
 	}
 

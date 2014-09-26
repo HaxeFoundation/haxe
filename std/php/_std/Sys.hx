@@ -89,6 +89,7 @@
 			for( a in args )
 				cmd += " "+escapeArgument(a);
 		}
+		if (systemName() == "Windows") cmd = '"$cmd"';
 		var result = 0;
 		untyped __call__("system", cmd, result);
 		return result;
