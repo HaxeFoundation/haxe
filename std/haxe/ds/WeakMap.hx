@@ -68,14 +68,14 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 	/**
 		See `Map.keys`
 	**/
-	public function keys():WeakMapKeysIterator<K, V> {
+	public function keys():Iterator<K> {
 		return null;
 	}
 
 	/**
 		See `Map.iterator`
 	**/
-	public function iterator():WeakMapValuesIterator<K, V> {
+	public function iterator():Iterator<V> {
 		return null;
 	}
 
@@ -85,14 +85,4 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 	public function toString():String {
 		return null;
 	}
-}
-
-extern class WeakMapKeysIterator<K, V> {
-	public function hasNext():Bool;
-	public function next():K;
-}
-
-extern class WeakMapValuesIterator<K, V> {
-	public function hasNext():Bool;
-	public function next():V;
 }

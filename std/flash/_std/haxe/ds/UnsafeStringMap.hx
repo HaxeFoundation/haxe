@@ -21,64 +21,50 @@
  */
 package haxe.ds;
 
-import flash.utils.Dictionary;
-
 /**
 	This is similar to `StringMap` excepts that it does not sanitize the keys.
 	As a result, it will be faster to access the map for reading, but it might fail
 	with some reserved keys such as `constructor` or `prototype`.
 **/
-class UnsafeStringMap<V> implements haxe.Constraints.IMap<String,V> {
-	var d:Dictionary;
-	
+class UnsafeStringMap<T> implements haxe.Constraints.IMap<String,T> {
+
+	private var h : flash.utils.Dictionary;
+
 	public function new() : Void {
-		d = new Dictionary(false);
+		h = new flash.utils.Dictionary();
 	}
 
-	public inline function set( key : String, value : V ) : Void {
-		untyped d[key] = value;
+	public inline function set( key : String, value : T ) : Void {
+		untyped h[key] = value;
 	}
 
-	public inline function get( key : String ) : Null<V> {
-		return untyped d[key];
+	public inline function get( key : String ) : Null<T> {
+		return untyped h[key];
 	}
 
 	public inline function exists( key : String ) : Bool {
-		return untyped __in__(key,d);
+		return untyped __in__(key,h);
 	}
 
 	public function remove( key : String ) : Bool {
-		if( !exists(key) ) return false;
-		untyped __delete__(d,key);
+		if( untyped !h.hasOwnProperty(key) ) return false;
+		untyped __delete__(h,key);
 		return true;
 	}
 
-	#if as3
-
- 	public function keys() : UnsafeStringMapKeysIterator<String, V> {
-		var array:Array<String> = untyped __keys__(d);
-		return new UnsafeStringMapKeysIterator<String, V>(array, 0, array.length);
- 	}
-
- 	public function iterator() : UnsafeStringMapValuesIterator<String, V> {
-		var ret:Array<V> = [];
-		for (i in keys())
-			ret.push(get(i));
-		return new UnsafeStringMapValuesIterator<String, V>(ret, 0, ret.length);
- 	}
-	
-	#else
-
-	public inline function keys() : UnsafeStringMapKeysIterator<String, V> {
-		return new UnsafeStringMapKeysIterator<String, V>(d, 0);
+	public function keys() : Iterator<String> {
+		return untyped (__keys__(h)).iterator();
 	}
 
-	public inline function iterator() : UnsafeStringMapValuesIterator<String, V> {
-		return new UnsafeStringMapValuesIterator<String, V>(d, 0);
+	public function iterator() : Iterator<T> {
+		return untyped {
+			ref : h,
+			it : __keys__(h).iterator(),
+			hasNext : function() { return __this__.it.hasNext(); },
+			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
+		};
 	}
 
-	#end
-	
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");
@@ -95,78 +81,3 @@ class UnsafeStringMap<V> implements haxe.Constraints.IMap<String,V> {
 	}
 
 }
-
-#if as3
-class UnsafeStringMapKeysIterator<K, V> {
-	var collection:Array<K>;
-	var index:Int;
-	var len:Int;
-	public inline function new(c:Array<K>, i:Int, l:Int) {
-		this.collection = c;
-		index = i;
-		len = l;
-	}
-	public inline function hasNext():Bool {
-		return index < len;
-	}
-	public inline function next():K {
-		return collection[index++];
-	}
-}
-class UnsafeStringMapValuesIterator<K, V> {
-	var collection:Array<V>;
-	var index:Int;
-	var len:Int;
-	public inline function new(c:Array<V>, i:Int, l:Int) {
-		this.collection = c;
-		index = i;
-		len = l;
-	}
-	public inline function hasNext():Bool {
-		return index < len;
-	}
-	public inline function next():V {
-		return collection[index++];
-	}
-}
-#else
-class UnsafeStringMapKeysIterator<K, V> {
-	var collection:Dictionary;
-	var index:Int;
-	public inline function new(c:Dictionary, i:Int) {
-		this.collection = c;
-		index = i;
-	}
-	public inline function hasNext():Bool {
-		var c = collection;
-		var i = index;
-		var result = untyped __has_next__(c, i);
-		collection = c;
-		index = i;
-		return result;
-	}
-	public inline function next():K {
-		return untyped __forin__(collection, index);
-	}
-}
-
-class UnsafeStringMapValuesIterator<K, V> {
-	var collection:Dictionary;
-	var index:Int;
-	public inline function new(c:Dictionary, i:Int) {
-		this.collection = c;
-		index = i;
-	}
-	public inline function hasNext():Bool {
-		var c = collection;
-		var i = index;
-		var result = untyped __has_next__(c, i);
-		collection = c;
-		index = i;
-		return result;
-	}
-	public inline function next():V {
-		return untyped __foreach__(collection, index);
-	}
-}
-#end

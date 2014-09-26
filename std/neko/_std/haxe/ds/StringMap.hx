@@ -21,8 +21,6 @@
  */
 package haxe.ds;
 
-@:allow(StringMapKeysIterator)
-@:allow(StringMapValuesIterator)
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
 	private var h : Dynamic;
@@ -47,16 +45,16 @@ package haxe.ds;
 		return untyped __dollar__hremove(h,key.__s,null);
 	}
 
-	public function keys() : StringMapKeysIterator<String, T> {
+	public function keys() : Iterator<String> {
 		var l = new List<String>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
-		return new StringMapKeysIterator<String, T>(l.iterator());
+		return l.iterator();
 	}
 
-	public function iterator() : StringMapValuesIterator<String, T> {
+	public function iterator() : Iterator<T> {
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
-		return new StringMapValuesIterator<String, T>(l.iterator());
+		return l.iterator();
 	}
 
 	public function toString() : String {
@@ -74,32 +72,4 @@ package haxe.ds;
 		return s.toString();
 	}
 
-}
-
-class StringMapKeysIterator<K, V> {
-	var i:Iterator<K>;
-	@:allow(haxe.ds.StringMap)
-	inline function new(i:Iterator<K>) {
-		this.i = i;
-	}
-	public inline function hasNext():Bool {
-		return i.hasNext();
-	}
-	public inline function next():K {		
-		return i.next();
-	}
-}
-
-class StringMapValuesIterator<K, V> {
-	var i:Iterator<V>;
-	@:allow(haxe.ds.StringMap)
-	inline function new(i:Iterator<V>) {
-		this.i = i;
-	}
-	public inline function hasNext():Bool {
-		return i.hasNext();
-	}
-	public inline function next():V {		
-		return i.next();
-	}
 }

@@ -64,16 +64,16 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 		return untyped __dollar__hremove(k,id,null);
 	}
 
-	public function keys() : ObjectMapKeysIterator<K, V> {
+	public function keys() : Iterator<K> {
 		var l = new List<K>();
 		untyped __dollar__hiter(k,function(_,v) { l.push(v); });
-		return new ObjectMapKeysIterator<K, V>(l.iterator());
+		return l.iterator();
 	}
 
-	public function iterator() : ObjectMapValuesIterator<K, V> {
+	public function iterator() : Iterator<V> {
 		var l = new List<V>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
-		return new ObjectMapValuesIterator<K, V>(l.iterator());
+		return l.iterator();
 	}
 
 	public function toString() : String {
@@ -89,32 +89,5 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 		}
 		s.add("}");
 		return s.toString();
-	}
-}
-
-class ObjectMapKeysIterator<K, V> {
-	var i:Iterator<K>;
-	@:allow(haxe.ds.ObjectMap)
-	inline function new(i:Iterator<K>) {
-		this.i = i;
-	}
-	public inline function hasNext():Bool {
-		return i.hasNext();
-	}
-	public inline function next():K {		
-		return i.next();
-	}
-}
-class ObjectMapValuesIterator<K, V> {
-	var i:Iterator<V>;
-	@:allow(haxe.ds.ObjectMap)
-	inline function new(i:Iterator<V>) {
-		this.i = i;
-	}
-	public inline function hasNext():Bool {
-		return i.hasNext();
-	}
-	public inline function next():V {		
-		return i.next();
 	}
 }

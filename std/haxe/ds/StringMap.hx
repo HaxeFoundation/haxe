@@ -57,26 +57,16 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	/**
 		See `Map.keys`
 	**/
-	public function keys() : StringMapKeysIterator<String, T>;
+	public function keys() : Iterator<String>;
 
 	/**
 		See `Map.iterator`
 	**/
-	public function iterator() : StringMapValuesIterator<String, T>;
+	public function iterator() : Iterator<T>;
 
 	/**
 		See `Map.toString`
 	**/
 	public function toString() : String;
 
-}
-
-extern class StringMapKeysIterator<K, V> {
-	public function hasNext():Bool;
-	public function next():K;
-}
-
-extern class StringMapValuesIterator<K, V> {
-	public function hasNext():Bool;
-	public function next():V;
 }

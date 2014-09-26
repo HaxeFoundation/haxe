@@ -56,26 +56,16 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	/**
 		See `Map.keys`
 	**/
-	public function keys() : IntMapKeysIterator<Int, T>;
+	public function keys() : Iterator<Int>;
 
 	/**
 		See `Map.iterator`
 	**/
-	public function iterator() : IntMapValuesIterator<Int, T>;
+	public function iterator() : Iterator<T>;
 
 	/**
 		See `Map.toString`
 	**/
 	public function toString() : String;
 
-}
-
-extern class IntMapKeysIterator<K, V> {
-	public function hasNext():Bool;
-	public function next():K;
-}
-
-extern class IntMapValuesIterator<K, V> {
-	public function hasNext():Bool;
-	public function next():V;
 }
