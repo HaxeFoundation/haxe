@@ -771,23 +771,32 @@ let unify_field_call ctx fa el args ret p inline =
 	in
 	let is_forced_inline = is_forced_inline co cf in
 	let is_overload = Meta.has Meta.Overload cf.cf_meta in
-	let candidates,failures = List.fold_left (fun (candidates,failures) (t,cf) ->
-		begin try
-			begin match follow t with
-				| TFun(args,ret) ->
-					let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-					let mk_call ethis =
-						let ef = mk (TField(ethis,mk_fa cf)) tf p in
-						make_call ctx ef (List.map fst el) ret p
-					in
-					(el,tf,mk_call)	:: candidates,failures
-				| _ ->
-					assert false
+	let rec loop candidates = match candidates with
+		| [] -> [],[]
+		| (t,cf) :: candidates ->
+			begin try
+				begin match follow t with
+					| TFun(args,ret) ->
+						let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
+						let mk_call ethis =
+							let ef = mk (TField(ethis,mk_fa cf)) tf p in
+							make_call ctx ef (List.map fst el) ret p
+						in
+						let candidate = (el,tf,mk_call) in
+						if ctx.com.config.pf_overload && is_overload then begin
+							let candidates,failures = loop candidates in
+							candidate :: candidates,failures
+						end else
+							[candidate],[]
+					| _ ->
+						assert false
+				end
+			with Error (Call_error _,_) as err ->
+				let candidates,failures = loop candidates in
+				candidates,err :: failures
 			end
-		with Error (Call_error _,_) as err ->
-			candidates,err :: failures
-		end
-	) ([],[]) candidates in
+	in
+	let candidates,failures = loop candidates in
 	let fail () = match List.rev failures with
 		| err :: _ -> raise err
 		| _ -> assert false
