@@ -6766,20 +6766,41 @@ struct
 		let basic = gen.gcon.basic in
 		let pos = cl.cl_pos in
 
+		let vtmp = mk_temp gen "i" basic.tint in
+		let vlen = mk_temp gen "len" basic.tint in
+
 		let mk_for arr =
 			let t = if ctx.rcf_optimize then basic.tint else basic.tstring in
 			let convert_str e = if ctx.rcf_optimize then ctx.rcf_lookup_function e else e in
-			let var = mk_temp gen "field" t in
+			let lenlocal = mk_local vlen pos in
+			let tmpinc = { eexpr = TUnop(Ast.Increment, Ast.Postfix, mk_local vtmp pos); etype = basic.tint; epos = pos } in
 			{
-				eexpr = TFor(var, mk_iterator_access gen t arr, mk_block (when_found (convert_str (mk_local var pos))));
+				eexpr = TBlock [
+					{ eexpr = TBinop(OpAssign, mk_local vtmp pos, mk_int ctx 0 pos); etype = basic.tint; epos = pos };
+					{ eexpr = TBinop(OpAssign, lenlocal, mk_field_access gen arr "length" pos); etype = basic.tint; epos = pos };
+					{
+						eexpr = TWhile (
+							{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, lenlocal); etype = basic.tbool; epos = pos },
+							mk_block (when_found (convert_str { eexpr = TArray (arr, tmpinc); etype = t; epos = pos })),
+							NormalWhile
+						);
+						etype = basic.tvoid;
+						epos = pos
+					}
+				];
 				etype = basic.tvoid;
 				epos = pos;
 			}
-		in
+ 		in
 
 		let this_t = TInst(cl, List.map snd cl.cl_params) in
 		let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
+		[
+			{ eexpr = TVar (vtmp,None); etype = basic.tvoid; epos = pos };
+			{ eexpr = TVar (vlen,None); etype = basic.tvoid; epos = pos };
+		]
+		@
 		if ctx.rcf_optimize then
 		[
 			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (basic.tarray basic.tint));
