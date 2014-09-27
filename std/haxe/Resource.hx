@@ -20,10 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe;
-#if python
-import haxe.io.Bytes;
-import haxe.io.BytesData;
-#end
 
 /**
 	Resource can be used to access resources that were added through the
@@ -36,26 +32,14 @@ import haxe.io.BytesData;
 **/
 class Resource {
 
-	#if python
-	static var content : python.lib.Dict<String, BytesData>;
-	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
-	#end
 
 	/**
 		Lists all available resource names. The resource name is the name part
 		of the -resource file@name command line parameter.
 	**/
 	public static function listNames() : Array<String> {
-		var names = new Array();
-		#if python
-		for ( k in content.keys().iter())
-			names.push(k);
-		#else
-		for ( x in content )
-			names.push(x.name);
-		#end
-		return names;
+		return [for (x in content) x.name];
 	}
 
 	/**
@@ -64,19 +48,6 @@ class Resource {
 		If `name` does not match any resource name, null is returned.
 	**/
 	public static function getString( name : String ) : String {
-		#if python
-        #if embed_resources
-		for( k in content.keys().iter() )
-			if( k == name ) {
-				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
-				return b.toString();
-
-			}
-		return null;
-        #else
-        return content.hasKey(name) ? Bytes.ofData(content.get(name,null)).toString() : null;
-        #end
-		#else
 		for( x in content )
 			if( x.name == name ) {
 				#if neko
@@ -88,7 +59,6 @@ class Resource {
 				#end
 			}
 		return null;
-		#end
 	}
 
 	/**
@@ -98,18 +68,6 @@ class Resource {
 		If `name` does not match any resource name, null is returned.
 	**/
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		#if python
-        #if embed_resources
-		for( k in content.keys().iter() )
-			if( k == name ) {
-				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
-				return b;
-
-			}
-        #else
-        return Bytes.ofData(content.get(name,null));
-        #end
-		#else
 		for( x in content )
 			if( x.name == name ) {
 				#if neko
@@ -120,7 +78,6 @@ class Resource {
 				#end
 			}
 		return null;
-		#end
 	}
 
 	static function __init__() {
@@ -131,8 +88,6 @@ class Resource {
 		content = null;
 		#elseif as3
 		null;
-		#elseif python
-		content = untyped _hx_resources__();
 		#else
 		content = untyped __resources__();
 		#end
