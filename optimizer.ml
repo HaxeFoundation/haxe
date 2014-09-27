@@ -873,7 +873,7 @@ let sanitize_expr com e =
 	| _ ->
 		e
 
-let reduce_expr ctx e =
+let reduce_expr com e =
 	match e.eexpr with
 	| TSwitch (_,cases,_) ->
 		List.iter (fun (cl,_) ->
@@ -906,8 +906,8 @@ let reduce_expr ctx e =
 	| _ ->
 		e
 
-let rec sanitize ctx e =
-	sanitize_expr ctx.com (reduce_expr ctx (Type.map_expr (sanitize ctx) e))
+let rec sanitize com e =
+	sanitize_expr com (reduce_expr com (Type.map_expr (sanitize com) e))
 
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)

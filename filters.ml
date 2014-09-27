@@ -1092,7 +1092,7 @@ let run com tctx main =
 				save();
 				e)
 			| _ -> fun e -> e);
-		if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize tctx;
+		if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize com;
 		check_local_vars_init;
 		captured_vars com;
 	] in
