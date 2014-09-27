@@ -36,32 +36,12 @@ import haxe.io.BytesData;
 **/
 class Resource {
 
-	#if (java || cs)
+	#if java
 	@:keep static var content : Array<String>;
 	#elseif python
 	static var content : python.lib.Dict<String, BytesData>;
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
-	#end
-
-	#if cs
-	static var paths : haxe.ds.StringMap<String>;
-
-	#if cs @:keep #end private static function getPaths():haxe.ds.StringMap<String>
-	{
-		if (paths != null)
-			return paths;
-		var p = new haxe.ds.StringMap();
-		var all = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceNames();
-		for (i in 0...all.Length)
-		{
-			var path = all[i];
-			var name = path.substr(path.indexOf("Resources.") + 10);
-			p.set(name, path);
-		}
-
-		return paths = p;
-	}
 	#end
 
 	/**
@@ -70,7 +50,7 @@ class Resource {
 	**/
 	public static function listNames() : Array<String> {
 		var names = new Array();
-		#if (java || cs)
+		#if java
 		for ( x in content )
 			names.push(x);
 		#elseif python
@@ -95,12 +75,6 @@ class Resource {
 			return null;
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll().toString();
-		#elseif cs
-		var path = getPaths().get(name);
-		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
-		if (str != null)
-			return new cs.io.NativeInput(str).readAll().toString();
-		return null;
 		#elseif python
         #if embed_resources
 		for( k in content.keys().iter() )
@@ -141,12 +115,6 @@ class Resource {
 			return null;
 		var stream = new java.io.NativeInput(stream);
 		return stream.readAll();
-		#elseif cs
-		var path = getPaths().get(name);
-		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
-		if (str != null)
-			return new cs.io.NativeInput(str).readAll();
-		return null;
 		#elseif python
         #if embed_resources
 		for( k in content.keys().iter() )
@@ -180,7 +148,7 @@ class Resource {
 		content = null;
 		#elseif as3
 		null;
-		#elseif (java || cs)
+		#elseif java
 		//do nothing
 		#elseif python
 		content = untyped _hx_resources__();
