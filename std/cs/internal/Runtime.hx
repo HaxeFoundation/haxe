@@ -397,7 +397,6 @@ import cs.system.Object;
 	{
 		//not implemented yet;
 		throw "Not implemented";
-		return null;
 	}
 
 	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
@@ -587,7 +586,6 @@ import cs.system.Object;
 	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
 	{
 		throw "not implemented";
-		return null;
 	}
 
 	@:functionCode('

@@ -155,14 +155,13 @@ class EReg {
 				lastEnd = x.end();
 			}
 			ret.push(s.substr(lastEnd));
-			return ret;
+			ret;
 		} else {
 			this.match(s);
 			if (matchObj == null) {
-
-				return [s];
+				[s];
 			} else {
-				return [ s.substring(0, matchObj.start()), s.substr(matchObj.end()) ];
+				[ s.substring(0, matchObj.start()), s.substr(matchObj.end()) ];
 			}
 
 		}

@@ -65,7 +65,6 @@ class FileSystem {
 			return new File(relPath).getCanonicalPath();
 		} catch (e: java.io.IOException) {
 			throw new java.lang.RuntimeException(e);
-			return null;
 		}
 	}
 

@@ -40,7 +40,6 @@ package cs.internal;
 	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
-		return null;
 	}
 }
 

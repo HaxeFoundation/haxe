@@ -307,7 +307,6 @@ private class JdbcResultSet implements sys.db.ResultSet
     {
   		return rs.getString(n);
     } catch(e:Dynamic) throw e;
-    return null;
 	}
 
 	public function getIntResult( n : Int ) : Int
