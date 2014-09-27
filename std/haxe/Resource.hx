@@ -36,9 +36,7 @@ import haxe.io.BytesData;
 **/
 class Resource {
 
-	#if java
-	@:keep static var content : Array<String>;
-	#elseif python
+	#if python
 	static var content : python.lib.Dict<String, BytesData>;
 	#else
 	static var content : Array<{ name : String, data : String, str : String }>;
@@ -50,10 +48,7 @@ class Resource {
 	**/
 	public static function listNames() : Array<String> {
 		var names = new Array();
-		#if java
-		for ( x in content )
-			names.push(x);
-		#elseif python
+		#if python
 		for ( k in content.keys().iter())
 			names.push(k);
 		#else
@@ -69,13 +64,7 @@ class Resource {
 		If `name` does not match any resource name, null is returned.
 	**/
 	public static function getString( name : String ) : String {
-		#if java
-		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
-		if (stream == null)
-			return null;
-		var stream = new java.io.NativeInput(stream);
-		return stream.readAll().toString();
-		#elseif python
+		#if python
         #if embed_resources
 		for( k in content.keys().iter() )
 			if( k == name ) {
@@ -109,13 +98,7 @@ class Resource {
 		If `name` does not match any resource name, null is returned.
 	**/
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		#if java
-		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
-		if (stream == null)
-			return null;
-		var stream = new java.io.NativeInput(stream);
-		return stream.readAll();
-		#elseif python
+		#if python
         #if embed_resources
 		for( k in content.keys().iter() )
 			if( k == name ) {
@@ -148,8 +131,6 @@ class Resource {
 		content = null;
 		#elseif as3
 		null;
-		#elseif java
-		//do nothing
 		#elseif python
 		content = untyped _hx_resources__();
 		#else
