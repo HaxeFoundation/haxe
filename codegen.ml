@@ -1637,7 +1637,7 @@ module UnificationCallback = struct
 		| TFun(args,_) ->
 			check_call_params f el args
 		| _ ->
-			el
+			List.map (fun e -> f e t_dynamic) el
 
 	let rec run f e =
 		let f e t =
