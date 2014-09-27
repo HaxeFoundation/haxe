@@ -783,19 +783,6 @@ let column_sigma mctx st pmat =
 	loop pmat;
 	List.rev_map (fun con -> con,not (Hashtbl.mem unguarded con.c_def)) !acc,!bindings
 
-(* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
-let rec is_explicit_null = function
-	| TMono r ->
-		(match !r with None -> false | Some t -> is_null t)
-	| TType ({ t_path = ([],"Null") },[t]) ->
-		true
-	| TLazy f ->
-		is_null (!f())
-	| TType (t,tl) ->
-		is_null (apply_params t.t_params tl t.t_type)
-	| _ ->
-		false
-
 let rec all_ctors mctx t =
 	let h = ref PMap.empty in
 	if is_explicit_null t then h := PMap.add (CConst TNull) Ast.null_pos !h;

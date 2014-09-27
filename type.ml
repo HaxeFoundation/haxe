@@ -595,6 +595,19 @@ let rec is_null = function
 	| _ ->
 		false
 
+(* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
+let rec is_explicit_null = function
+	| TMono r ->
+		(match !r with None -> false | Some t -> is_null t)
+	| TType ({ t_path = ([],"Null") },[t]) ->
+		true
+	| TLazy f ->
+		is_null (!f())
+	| TType (t,tl) ->
+		is_null (apply_params t.t_params tl t.t_type)
+	| _ ->
+		false
+
 let rec has_mono t = match t with
 	| TMono r ->
 		(match !r with None -> true | Some t -> has_mono t)
