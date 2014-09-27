@@ -14,7 +14,6 @@ class Issue2907 extends Test {
 		} catch(e:Dynamic) {
 			return null;
 		}
-		return null;
 	}
 
 	function test<T>() {

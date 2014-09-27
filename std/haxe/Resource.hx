@@ -158,7 +158,6 @@ class Resource {
         #else
         return Bytes.ofData(content.get(name,null));
         #end
-		return null;
 		#else
 		for( x in content )
 			if( x.name == name ) {
