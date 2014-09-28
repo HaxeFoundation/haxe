@@ -28,74 +28,50 @@ import python.lib.Builtin;
 import python.lib.Inspect;
 import python.Syntax;
 import python.VarArgs;
+import python.Boot.handleKeywords;
 
 @:access(python.Boot)
 @:coreApi
 class Reflect {
 
-
-	static inline function handleKeywords(name:String):String {
-		return python.Boot.handleKeywords(name);
+	public static inline function hasField( o : Dynamic, field : String ) : Bool {
+		return Builtin.hasattr(o, handleKeywords(field));
 	}
 
-	static function unhandleKeywords(name:String):String {
-		return python.Boot.unhandleKeywords(name);
-	}
-
-	public static function hasField( o : Dynamic, field : String ) : Bool
-	{
-		var field = handleKeywords(field);
-		return Builtin.hasattr(o, field);
-	}
-
-	static inline function isString (o:Dynamic):Bool {
-		return Builtin.isinstance(o, String);
-	}
-	static inline function isArray (o:Dynamic):Bool {
-		return Builtin.isinstance(o, Array);
-	}
-	@:access(python.Boot)
-	@:keep public static function field( o : Dynamic, field : String ) : Dynamic
-	{
+	@:keep
+	public static inline function field( o : Dynamic, field : String ) : Dynamic {
 		return python.Boot.field(o, field);
 	}
 
-	@:keep public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
-	{
-		var field = handleKeywords(field);
-		return Builtin.setattr(o,field,value);
+	@:keep
+	public static inline function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
+		return Builtin.setattr(o, handleKeywords(field), value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
-		var field = handleKeywords(field);
-		var tmp = null;
-		if (o == null) {
+		if (o == null)
 			return null;
-		} else {
-			tmp = Reflect.field(o, "get_" + field);
-			if (tmp != null && Builtin.callable(tmp)) {
-				return tmp();
-			} else {
-				return Reflect.field(o, field);
-			}
-		}
+
+		field = handleKeywords(field);
+		var tmp = Reflect.field(o, "get_" + field);
+		if (tmp != null && Builtin.callable(tmp))
+			return tmp();
+		else
+			return Reflect.field(o, field);
 	}
 
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 
 		var field = handleKeywords(field);
-
-		return if (Builtin.hasattr(o,"set_"+field)) {
-			var tmp = Builtin.getattr(o,"set_"+field);
-			tmp(value);
-		}
-		else Builtin.setattr(o,field, value);
+		if (Builtin.hasattr(o, "set_" + field))
+			Builtin.getattr(o, "set_" + field)(value);
+		else
+			Builtin.setattr(o, field, value);
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
-		var args:VarArgs = args;
 		return if (Builtin.callable(func)) func(python.Syntax.varArgs(args)) else null;
 	}
 
@@ -126,7 +102,6 @@ class Reflect {
 	}
 
 	public static function isObject( v : Dynamic ) : Bool {
-
 		return switch (Type.typeof(v)) {
 			case TObject, TClass(_): true;
 			case _ : false;
@@ -145,12 +120,10 @@ class Reflect {
 
 	public static function copy<T>( o : T ) : T {
 		var o2 : Dynamic = {};
-		for( f in Reflect.fields(o) )
-			Reflect.setField(o2,f,Reflect.field(o,f));
+		for ( f in Reflect.fields(o) )
+			Reflect.setField(o2, f, Reflect.field(o,f));
 		return o2;
 	}
-
-
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
@@ -158,5 +131,4 @@ class Reflect {
 			return f(v);
 		}
 	}
-
 }
