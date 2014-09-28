@@ -88,10 +88,6 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 @:preCode("_hx_classes = _hx_ClassRegistry()")
 @:keep class Boot {
 
-	static inline function mathRound (v:Float) {
-		return Math.floor(v + 0.5);
-	}
-
 	static var keywords:Set<String> = new Set(
 	[
 		"and",      "del",      "from",     "not",      "while",
@@ -186,7 +182,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		if (isPyFloat(o)) {
 			try {
 				if ( (o:Float) == builtinInt(o)) {
-					return builtinStr(mathRound(o));
+					return builtinStr(Math.round(o));
 				} else {
 					return builtinStr(o);
 				}
