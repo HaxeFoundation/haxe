@@ -89,7 +89,7 @@ extern class Syntax {
 
 		return macro {
 			var $id = null;
-			$self._foreach($v, $it, $b);
+			$self._foreach($v, $it, cast $b);
 		}
 	}
 
