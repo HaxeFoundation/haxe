@@ -1,16 +1,11 @@
-
 package python.lib;
 
-import python.Syntax;
+import python.lib.Tuple.Tup2;
 
 @:pythonImport("inspect")
 extern class Inspect {
-
-	static function getmembers (value:Dynamic, ?filter:Dynamic->Bool):Bool;
-	static function ismethod (value:Dynamic):Bool;
-	static function isclass (value:Dynamic):Bool;
-
-	static function isfunction(value:Dynamic):Bool;
-
-
+	static function getmembers(object:Dynamic, ?predicate:Dynamic->Bool):Array<Tup2<String,Dynamic>>;
+	static function ismethod(object:Dynamic):Bool;
+	static function isclass(object:Dynamic):Bool;
+	static function isfunction(object:Dynamic):Bool;
 }

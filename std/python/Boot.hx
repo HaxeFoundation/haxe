@@ -8,19 +8,10 @@ import python.internal.HxOverrides;
 import python.internal.HxException;
 import python.internal.AnonObject;
 import python.internal.HxBuiltin;
+import python.lib.Inspect;
+import python.lib.Set;
 
 import python.Syntax;
-
-private extern class Set<T> {
-	public inline function has (v:T):Bool {
-		return python.Syntax.isIn(v, this);
-	}
-}
-
-@:pythonImport("math") private extern class Math {
-	public static function floor (x:Float):Int;
-}
-@:pythonImport("inspect") private extern class Inspect {}
 
 typedef HxClassBase = {
     _hx_class:Dynamic,
@@ -101,9 +92,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		return Math.floor(v + 0.5);
 	}
 
-	inline static function mkSet <T>(a:Array<T>):Set<T> return Syntax.callField(HxBuiltin, "set", a);
-
-	static var keywords:Set<String> = mkSet(
+	static var keywords:Set<String> = new Set(
 	[
 		"and",      "del",      "from",     "not",      "while",
 		"as",       "elif",     "global",   "or",       "with",
@@ -159,25 +148,8 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		return Syntax.callField(HxBuiltin, "callable", o);
 	}
 
-	inline static function inspectGetMembers(o:Dynamic, f:String->Bool):Void {
-		Syntax.callField(Inspect, "getmembers", o, f);
-	}
-
-	inline static function inspectIsClass(o:Dynamic):Bool {
-		return Syntax.callField(Inspect, "isclass", o);
-	}
-
-	inline static function inspectIsFunction(o:Dynamic):Bool {
-		return Syntax.callField(Inspect, "isfunction", o);
-	}
-
-	inline static function inspectIsMethod(o:Dynamic):Bool {
-		return Syntax.callField(Inspect, "ismethod", o);
-	}
-
-
 	static inline function isClass(o:Dynamic) : Bool {
-		return o != null && (o == String || inspectIsClass(o));
+		return o != null && (o == String || Inspect.isclass(o));
 	}
 
 	static function isAnonObject (o:Dynamic) {
@@ -248,7 +220,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		} catch (e:Dynamic) {
 		}
 
-		if (inspectIsFunction(o) || inspectIsMethod(o)) return "<function>";
+		if (Inspect.isfunction(o) || Inspect.ismethod(o)) return "<function>";
 
 		if (builtinHasAttr(o, "__class__"))
 		{
@@ -338,12 +310,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			}
 			return "???";
 		} else {
-			try {
-				inspectGetMembers(o, function (_) return true);
-				return builtinStr(o);
-			} catch (e:Dynamic) {
-				return "???";
-			}
+			return builtinStr(o);
 		}
 	}
 
