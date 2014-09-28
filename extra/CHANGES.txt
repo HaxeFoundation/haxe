@@ -43,6 +43,9 @@
 	all : allowed pattern matching on arrays if they are typed as Dynamic
 	neko : create output directory if it does not exist
 	js : inline Math methods and fields
+	cs/java : optimize Reflect.fields on dynamic structures
+	cs : optimize casting of parametrized types
+	cs : beautify c# code output
 
 	Macro features and changes:
 
