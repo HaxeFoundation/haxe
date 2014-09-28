@@ -68,6 +68,7 @@ type typer_globals = {
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
+	mutable global_metadata : (string list * Ast.metadata_entry * (bool * bool * bool)) list;
 	mutable get_build_infos : unit -> (module_type * t list * Ast.class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
 	mutable global_using : tclass list;
