@@ -4394,6 +4394,11 @@ struct
 				let this = { eexpr = TConst(TThis); etype = (TInst(cl, List.map snd cl.cl_params)); epos = pos } in
 				let field_var = alloc_var "field" gen.gcon.basic.tstring in
 				let local_field = { eexpr = TLocal(field_var); etype = field_var.v_type; epos = pos } in
+				let i_var = alloc_var "i" gen.gcon.basic.tint in
+				let local_i = { eexpr = TLocal(i_var); etype = gen.gcon.basic.tint; epos = pos } in
+				let incr_i = { eexpr = TUnop(Ast.Increment, Ast.Postfix, local_i); etype = basic.tint; epos = pos } in
+				let fields_var = alloc_var "fields" (gen.gcon.basic.tarray gen.gcon.basic.tstring) in
+				let local_fields = { eexpr = TLocal(fields_var); etype = (gen.gcon.basic.tarray gen.gcon.basic.tstring); epos = pos } in
 
 				let get_path t =
 					match follow t with
@@ -4446,7 +4451,6 @@ struct
 						| _ -> assert false
 				in
 
-				let ref_fields = gen.gtools.r_fields true this in
 				let fn =
 				{
 					tf_args = [];
@@ -4464,26 +4468,60 @@ struct
 									epos = pos;
 								};
 								(* var new_me = /*special create empty with tparams construct*/ *)
-								{ eexpr = TVar(new_me_var, Some(
-									gen.gtools.rf_create_empty cl params pos
-								)); etype = gen.gcon.basic.tvoid; epos = pos };
-								{ eexpr = TFor( (* for (field in Reflect.fields(this)) *)
-									field_var,
-									mk_iterator_access gen gen.gcon.basic.tstring ref_fields,
-									(* { *)
-										(* switch(field) *)
+								{
+									eexpr = TVar(new_me_var, Some(gen.gtools.rf_create_empty cl params pos));
+									etype = gen.gcon.basic.tvoid;
+									epos = pos
+								};
+								(* var fields = Reflect.fields(this); *)
+								{
+									eexpr = TVar(fields_var, Some(gen.gtools.r_fields true this));
+									etype = gen.gcon.basic.tvoid;
+									epos = pos
+								};
+								(* var i = 0; *)
+								{
+									eexpr = TVar(i_var, Some(mk_int gen 0 pos));
+									etype = gen.gcon.basic.tvoid;
+									epos = pos
+								};
+								{
+									eexpr = TWhile( (* while (i < fields.length) *)
 										{
-											eexpr = TSwitch(local_field, fields_to_cases fields, Some(
-												(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
-												gen.gtools.r_set_field (gen.gcon.basic.tvoid) local_new_me local_field (gen.gtools.r_field false t_dynamic this local_field)
-											));
-											etype = t_dynamic;
-											epos = pos;
-										}
-									(* } *)
-								); etype = t_dynamic; epos = pos };
-								(* return new_me *)
-								mk_return (mk_local new_me_var pos)
+											eexpr = TBinop(Ast.OpLt,
+												local_i,
+												mk_field_access gen local_fields "length" pos);
+											etype = gen.gcon.basic.tbool;
+											epos = pos
+										},
+										{
+											eexpr = TBlock [
+												(* var field = fields[i++]; *)
+												{
+													eexpr = TVar(field_var, Some { eexpr = TArray (local_fields, incr_i); etype = gen.gcon.basic.tstring; epos = pos });
+													etype = gen.gcon.basic.tvoid;
+													epos = pos
+												};
+												(* switch(field) { ... } *)
+												{
+													eexpr = TSwitch(local_field, fields_to_cases fields, Some(
+														(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
+														gen.gtools.r_set_field gen.gcon.basic.tvoid local_new_me local_field (gen.gtools.r_field false gen.gcon.basic.tvoid this local_field)
+													));
+													etype = gen.gcon.basic.tvoid;
+													epos = pos;
+												}
+											];
+											etype = gen.gcon.basic.tvoid;
+											epos = pos
+										},
+										Ast.NormalWhile
+									);
+									etype = gen.gcon.basic.tvoid;
+									epos = pos;
+								};
+ 								(* return new_me *)
+								mk_return local_new_me
 							]);
 							etype = t_dynamic;
 							epos = pos;
@@ -6782,7 +6820,7 @@ struct
 						eexpr = TWhile (
 							{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, lenlocal); etype = basic.tbool; epos = pos },
 							mk_block (when_found (convert_str { eexpr = TArray (arr, tmpinc); etype = t; epos = pos })),
-							NormalWhile
+							Ast.NormalWhile
 						);
 						etype = basic.tvoid;
 						epos = pos
