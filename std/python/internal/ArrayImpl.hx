@@ -23,22 +23,20 @@
 package python.internal;
 
 import python.lib.FuncTools;
-import python.internal.HxBuiltin;
+import python.lib.Builtin;
 
 @:allow(Array)
 @:keep
 class ArrayImpl {
 
+	public static inline function get_length <T>(x:Array<T>):Int return Builtin.len(x);
 
-
-	public static inline function get_length <T>(x:Array<T>):Int return HxBuiltin.len(x);
-
-	public static inline function concat<T>( a1:Array<T>, a2 : Array<T>) : Array<T> {
+	public static inline function concat<T>(a1:Array<T>, a2 : Array<T>) : Array<T> {
 		return Syntax.binop(a1, "+", a2);
 	}
 
 	public static inline function copy<T>(x:Array<T>) : Array<T> {
-		return Syntax.field(HxBuiltin, "list")(x);
+		return Builtin.list(x);
 	}
 
 	public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
@@ -123,12 +121,12 @@ class ArrayImpl {
 		return res;
 	}
 
-	public static inline function map<S,T>(x:Array<T>, f : T -> S ) : Array<S> {
-		return Syntax.field(HxBuiltin, "list")(Syntax.field(HxBuiltin, "map")(f, x));
+	public static inline function map<S,T>(x:Array<T>, f : T -> S) : Array<S> {
+		return Builtin.list(Builtin.map(f, cast x));
 	}
 
-	public static inline function filter<T>(x:Array<T>, f : T -> Bool ) : Array<T> {
-		return Syntax.field(HxBuiltin, "list")(Syntax.field(HxBuiltin, "filter")(f, x));
+	public static inline function filter<T>(x:Array<T>, f : T -> Bool) : Array<T> {
+		return Builtin.list(Builtin.filter(f, cast x));
 	}
 
 	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {

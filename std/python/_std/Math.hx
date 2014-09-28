@@ -1,8 +1,3 @@
-
-package;
-
-import python.lib.Builtin;
-
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
@@ -24,6 +19,8 @@ import python.lib.Builtin;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import python.lib.Builtin;
+
 /**
 	This class defines mathematical functions and constants.
 **/

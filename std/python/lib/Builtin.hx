@@ -25,7 +25,7 @@ extern class Builtin {
 
 
 
-	@:overload(function (obj:Dynamic, f:Tuple<Dynamic>):Bool {})
+	@:overload(function(obj:Dynamic, f:Tuple<Dynamic>):Bool {})
 	public static function isinstance(obj:Dynamic, cl:Dynamic):Bool;
 
 	public static function hasattr(obj:Dynamic, attr:String):Bool;
@@ -51,9 +51,7 @@ extern class Builtin {
 	@:overload(function (x:Dynamic, base:Int):Int {})
 	public static function int(x:Dynamic):Int;
 	public static function ord(s:String):Int;
-	public static inline function str(o:Dynamic):String {
-		return python.Syntax.field(Builtin, "str")(o);
-	}
+	public static function str(o:Dynamic):String;
 	//public static function eval():Void;
 
 	//public static function pow():Void;
@@ -89,8 +87,9 @@ extern class Builtin {
 	public static function float(x:Dynamic):Float;
 
 	@:overload(function <T>(f:Array<T>):Array<T> {})
+	@:overload(function <T>(f:Tuple<T>):Array<T> {})
+	@:overload(function <T>(f:Dict.DictView<T>):Array<T> {})
 	@:overload(function (f:String):Array<String> {})
-	@:overload(function <G>(f:Tuple<G>):Array<G> {})
 	public static function list<T>(i:NativeIterable<T>):Array<T>;
 
 	@:overload(function <A>(f:A->Bool, i:NativeIterable<A>):NativeIterator<A> {})
@@ -114,8 +113,8 @@ extern class Builtin {
 	//public static function xrange():Void;
 	//public static function cmp():Void;
 	//public static function globals():Void;
-	@:overload(function (a1:Float, a2:Float, ?a3:Float, ?a4:Float, ?a5:Float, ?a6:Float, ?a7:Float, ?a8:Float, ?a9:Float):Float {})
-	public static function max(a1:Int, a2:Int, ?a3:Int, ?a4:Int, ?a5:Int, ?a6:Int, ?a7:Int, ?a8:Int, ?a9:Int):Int;
+	@:overload(function (a1:Float, a2:Float, rest:haxe.Rest<Float>):Float {})
+	public static function max(a1:Int, a2:Int, rest:haxe.Rest<Int>):Int;
 	//public static function reversed():Void;
 	//public static function zip():Void;
 	//public static function compile():Void;
@@ -125,8 +124,8 @@ extern class Builtin {
 	//public static function __import__():Void;
 	//public static function complex():Void;
 	//public static function hash():Void;
-	@:overload(function (a1:Float, a2:Float, ?a3:Float, ?a4:Float, ?a5:Float, ?a6:Float, ?a7:Float, ?a8:Float, ?a9:Float):Float {})
-	public static function min(a1:Int, a2:Int, ?a3:Int, ?a4:Int, ?a5:Int, ?a6:Int, ?a7:Int, ?a8:Int, ?a9:Int):Int;
+	@:overload(function (a1:Float, a2:Float, rest:haxe.Rest<Float>):Float {})
+	public static function min(a1:Int, a2:Int, rest:haxe.Rest<Int>):Int;
 	//public static function set():Void;
 	//public static function apply():Void;
 	public static function delattr(o:Dynamic, attr:String):Void;

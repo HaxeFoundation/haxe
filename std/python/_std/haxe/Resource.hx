@@ -28,8 +28,8 @@ import haxe.io.BytesData;
 
 	static var content : python.lib.Dict<String, BytesData> = untyped _hx_resources__();
 
-	public static function listNames() : Array<String> {
-		return python.internal.HxBuiltin.list(content.keys());
+	public static inline function listNames() : Array<String> {
+		return python.lib.Builtin.list(content.keys());
 	}
 
 	public static function getString( name : String ) : String {
