@@ -138,6 +138,15 @@ class Lib
 	}
 
 	/**
+		Rethrow an exception. This is useful when manually filtering an exception in order
+		to keep the previous exception stack.
+	**/
+	@:extern inline public static function rethrow(e:Dynamic):Void
+	{
+		untyped __rethrow__();
+	}
+
+	/**
 		Creates a "checked" block, which throws exceptions for overflows.
 
 		Usage:
