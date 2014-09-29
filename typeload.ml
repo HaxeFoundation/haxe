@@ -710,7 +710,9 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 	match f1.cf_kind,f2.cf_kind with
 	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
 		begin match follow t1, follow t2 with
-		| TFun (args1,r1) , TFun (args2,r2) when List.length args1 = List.length args2 -> (try
+		| TFun (args1,r1) , TFun (args2,r2) -> (
+			if not (List.length args1 = List.length args2) then raise (Unify_error [Unify_custom "Different number of function arguments"]);
+			try
 				List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
 					if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
 					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
