@@ -22,7 +22,7 @@
 package haxe.io;
 
 /**
-	An Input is an abstract reader. See other classes in the [haxe.io] package
+	An Input is an abstract reader. See other classes in the `haxe.io` package
 	for several possible implementations.
 **/
 class Input {
