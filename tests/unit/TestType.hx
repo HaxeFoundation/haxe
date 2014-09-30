@@ -665,6 +665,7 @@ class TestType extends Test {
 		eq(c.fProp(9), "test09");
 	}
 
+	@:analyzer(ignore)
 	function testVoidFunc() {
 		exc(function() { throw null; return 1; } );
 		exc(function() { throw null; return "foo"; } );

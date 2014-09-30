@@ -25,7 +25,11 @@
 	The unsigned Int type is only defined for Flash9 and C#. It's currently
 	handled the same as a normal Int.
 **/
-@:coreType @:notNull @:runtimeValue abstract UInt to Int from Int { }
+@:coreType
+@:notNull
+@:runtimeValue
+@:analyzer(no_const_propagation)
+abstract UInt to Int from Int { }
 #else
 /**
 	The unsigned Int type is only defined for Flash9 and C#.

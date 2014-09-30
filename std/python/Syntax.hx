@@ -7,6 +7,7 @@ import haxe.macro.ExprTools;
 #end
 
 @:noPackageRestrict
+@:analyzer(no_simplification)
 extern class Syntax {
 
 	#if macro
