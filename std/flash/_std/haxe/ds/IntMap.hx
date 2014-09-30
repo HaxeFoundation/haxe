@@ -51,7 +51,7 @@ package haxe.ds;
 		return untyped (__keys__(h)).iterator();
 	}
 
-	public function iterator() : Iterator<T> {
+	@:analyzer(ignore) public function iterator() : Iterator<T> {
 		return untyped {
 			ref : h,
 			it : keys(),

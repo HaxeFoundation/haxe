@@ -133,7 +133,7 @@ class UnitBuilder {
 							el2.push(mkEq((macro $e1[$v{i}]), e2, e.pos));
 						}
 						if (el2.length == 0)
-							mkEq((macro $e1.length), (macro 0), e.pos);
+							mkEq((macro @:pos(e1.pos) $e1.length), (macro 0), e.pos);
 						else
 							macro { $a{el2}; };
 					case EBinop(OpEq, e1, e2):

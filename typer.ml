@@ -3444,6 +3444,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| _ -> Type.map_expr loop e
 				in
 				loop e
+			| (Meta.Analyzer,_,_) ->
+				let e = e() in
+				{e with eexpr = TMeta(m,e)}
 			| _ -> e()
 		in
 		ctx.meta <- old;

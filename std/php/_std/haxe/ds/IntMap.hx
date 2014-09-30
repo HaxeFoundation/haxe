@@ -22,7 +22,9 @@
 package haxe.ds;
 
 @:coreApi class IntMap<T> implements php.IteratorAggregate<T> implements haxe.Constraints.IMap<Int,T> {
+	@:analyzer(no_simplification)
 	private var h : ArrayAccess<Int>;
+
 	public function new() : Void {
 		h = untyped __call__('array');
 	}

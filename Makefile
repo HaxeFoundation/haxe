@@ -49,7 +49,7 @@ RELDIR=../../..
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
-	genswf9 genswf genjava gencs genpy interp dce filters typer matcher version main
+	genswf9 genswf genjava gencs genpy interp dce analyzer filters typer matcher version main
 
 ADD_REVISION=0
 
@@ -116,13 +116,15 @@ uninstall:
 
 # Modules
 
+analyzer.$(MODULE_EXT): ast.$(MODULE_EXT) type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT)
+
 codegen.$(MODULE_EXT): optimizer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) genxml.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
 common.$(MODULE_EXT): type.$(MODULE_EXT) ast.$(MODULE_EXT)
 
 dce.$(MODULE_EXT): ast.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) type.$(MODULE_EXT)
 
-filters.$(MODULE_EXT): ast.$(MODULE_EXT) common.$(MODULE_EXT) type.$(MODULE_EXT) dce.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT)
+filters.$(MODULE_EXT): ast.$(MODULE_EXT) analyzer.$(MODULE_EXT) common.$(MODULE_EXT) type.$(MODULE_EXT) dce.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT)
 
 genas3.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
