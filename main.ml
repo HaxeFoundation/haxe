@@ -361,7 +361,7 @@ let parse_hxml_data data =
 	) lines)
 
 let parse_hxml file =
-	let ch = IO.input_channel (try open_in_bin file with _ -> failwith ("File not found " ^ file)) in
+	let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
 	let data = IO.read_all ch in
 	IO.close_in ch;
 	parse_hxml_data data
@@ -663,7 +663,9 @@ let rec process_params create pl =
 			ctx.flush()
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
-			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) -> loop acc (parse_hxml arg @ l)
+			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) ->
+				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+				loop acc l
 			| _ -> loop (arg :: acc) l
 	in
 	(* put --display in front if it was last parameter *)
