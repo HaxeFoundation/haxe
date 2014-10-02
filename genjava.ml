@@ -1794,23 +1794,25 @@ let configure gen =
 			| None -> ()
 			| Some init ->
 				write w "static ";
-				expr_s w (mk_block init));
-				(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
-				(if not cl.cl_interface then
-				List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
-				List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
-				end_block w;
-				if should_close then end_block w;
+				expr_s w (mk_block init)
+		);
 
-				(* add imports *)
-				List.iter (function
-					| ["haxe";"root"], _ | [], _ -> ()
-					| path ->
-							write w_header "import ";
-							write w_header (path_s path []);
-							write w_header ";\n"
-				) !imports;
-				add_writer w w_header
+		(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
+		(if not cl.cl_interface then List.iter (gen_class_field w true cl is_final) cl.cl_ordered_statics);
+		List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
+
+		end_block w;
+		if should_close then end_block w;
+
+		(* add imports *)
+		List.iter (function
+			| ["haxe";"root"], _ | [], _ -> ()
+			| path ->
+					write w_header "import ";
+					write w_header (path_s path []);
+					write w_header ";\n"
+		) !imports;
+		add_writer w w_header
 	in
 
 
