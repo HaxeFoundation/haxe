@@ -1569,6 +1569,8 @@ and define_local_return_block_ctx ctx expression name retval =
          match expression.eexpr with
          | TObjectDecl _ -> "Dynamic"
          | _ -> type_string expression.etype in
+      (* TODO - analyse usage *)
+      let pass_by_value name = (String.length name >=5 ) && (String.sub name 0 5 = "_this") in
       output_i ("inline static " ^ ret_type ^ " Block( ");
       output (String.concat "," (
          (List.map
@@ -1578,7 +1580,7 @@ and define_local_return_block_ctx ctx expression name retval =
                   Fake 'this' pointers can't be changed, so needn't be references *)
                match var with
                | "this" -> "hx::ObjectPtr< " ^ var_type ^ " > __this"
-               | "_this" -> var_type ^ " _this"
+               | name when (pass_by_value name)  -> var_type ^ " " ^ name
                | name -> var_type ^ " &" ^name
             ) vars) ) );
       output (")");
