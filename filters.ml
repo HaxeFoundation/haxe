@@ -957,8 +957,9 @@ let run com tctx main =
 	 	let filters = [
 	 		Codegen.UnificationCallback.run (check_unification com);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
-			blockify_ast;
 			Optimizer.inline_constructors tctx;
+			Optimizer.reduce_expression tctx;
+			blockify_ast;
 			captured_vars com;
 		] in
 		List.iter (post_process tctx filters) com.types;
