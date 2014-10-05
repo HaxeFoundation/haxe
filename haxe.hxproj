@@ -21,6 +21,7 @@
   <build>
     <option directives="" />
     <option flashStrict="False" />
+    <option noInlineOnDebug="False" />
     <option mainClass="" />
     <option enabledebug="False" />
     <option additional="" />
@@ -139,6 +140,9 @@
     <hidden path="genpy.obj" />
     <hidden path="genpy.cmi" />
     <hidden path="genpy.cmx" />
+    <hidden path="analyzer.cmi" />
+    <hidden path="analyzer.cmx" />
+    <hidden path="analyzer.obj" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
