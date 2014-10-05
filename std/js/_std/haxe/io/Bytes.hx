@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.io;
+import js.html.compat.Uint8array;
 
 @:coreApi
 class Bytes {
@@ -38,7 +39,7 @@ class Bytes {
 	}
 
 	public inline function set( pos : Int, v : Int ) : Void {
-		b[pos] = v;
+		b[pos] = v & 0xFF; // the &0xFF is necessary for js.html.compat support
 	}
 
 	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
