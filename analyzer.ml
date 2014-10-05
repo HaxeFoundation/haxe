@@ -592,7 +592,7 @@ module Ssa = struct
 				let close = branch ctx e.epos in
 				List.iter (fun (v,co) ->
 					declare_var ctx v e.epos;
- 					match co with
+					match co with
 						| Some TNull when (match v.v_type with TType({t_path=["haxe"],"PosInfos"},_) -> false | _ -> true) -> ()
 						| _ -> apply_not_null_cond ctx v e.epos
 				) tf.tf_args;
@@ -797,7 +797,7 @@ module ConstPropagation = struct
 		| TBinop(OpAssignOp _,_,_)
 		| TBinop(OpAssign,_,_) ->
 			raise Not_found
- 		| TBinop(op,e1,e2) ->
+		| TBinop(op,e1,e2) ->
 			let e1 = value ssa e1 in
 			let e2 = value ssa e2 in
 			let e = {e with eexpr = TBinop(op,e1,e2)} in
@@ -868,7 +868,7 @@ module ConstPropagation = struct
 			| TBinop(OpAssign,({eexpr = TLocal _} as e1),e2) ->
 				let e2 = loop e2 in
 				{e with eexpr = TBinop(OpAssign,e1,e2)}
-	 		| TBinop(op,e1,e2) ->
+			| TBinop(op,e1,e2) ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
 				let e = {e with eexpr = TBinop(op,e1,e2)} in
@@ -1006,7 +1006,7 @@ module LocalDce = struct
 				Type.iter collect e
 		in
 		let rec loop e = match e.eexpr with
- 			| TLocal v ->
+			| TLocal v ->
 				use v;
 				e
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
@@ -1149,7 +1149,7 @@ let run_expression_filters com config t =
 		(match c.cl_constructor with
 		| None -> ()
 		| Some f -> process_field f);
- 		(match c.cl_init with
+		(match c.cl_init with
 		| None -> ()
 		| Some e ->
 			(* never optimize init expressions (too messy) *)
