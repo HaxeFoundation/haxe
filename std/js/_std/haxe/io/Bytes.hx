@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.io;
-import js.html.compat.Uint8array;
+import js.html.compat.Uint8Array;
 
 @:coreApi
 class Bytes {
