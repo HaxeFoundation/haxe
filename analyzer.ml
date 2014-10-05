@@ -1002,7 +1002,7 @@ end
 
 module LocalDce = struct
 	let apply e =
-		let is_used v = Meta.has Meta.Used v.v_meta in
+		let is_used v = Meta.has Meta.Used v.v_meta || type_has_analyzer_option v.v_type flag_no_local_dce in
 		let use v = v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta in
 		let has_side_effect e = match e.eexpr with
 			| TVar(v,None) -> is_used v
