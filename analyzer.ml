@@ -1007,6 +1007,7 @@ module LocalDce = struct
 		let has_side_effect e = match e.eexpr with
 			| TVar(v,None) -> is_used v
 			| TVar(v,Some e1) -> is_used v || Optimizer.has_side_effect e1
+			| TBinop(OpAssign,{eexpr = TLocal v},e2) -> is_used v || Optimizer.has_side_effect e2
 			| _ -> true
 		in
 		let rec collect e = match e.eexpr with
