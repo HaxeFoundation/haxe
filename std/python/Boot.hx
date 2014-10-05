@@ -285,6 +285,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		return python.Syntax.binop(v, "==", t);
 	}
 
+	@:analyzer(no_local_dce)
 	static function fields (o:Dynamic) {
 		var a = [];
 		if (o != null) {
