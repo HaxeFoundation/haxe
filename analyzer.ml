@@ -866,6 +866,17 @@ module ConstPropagation = struct
 			| TBinop(OpAssign,({eexpr = TLocal _} as e1),e2) ->
 				let e2 = loop e2 in
 				{e with eexpr = TBinop(OpAssign,e1,e2)}
+	 		| TBinop(op,e1,e2) ->
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				let e = {e with eexpr = TBinop(op,e1,e2)} in
+				let e' = Optimizer.optimize_binop e op e1 e2 in
+				e'
+			| TUnop(op,flag,e1) ->
+				let e1 = loop e1 in
+				let e = {e with eexpr = TUnop(op,flag,e1)} in
+				let e' = Optimizer.optimize_unop e op flag e1 in
+				e'
 			| TIf(e1,e2,eo) ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
