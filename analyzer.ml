@@ -858,9 +858,11 @@ module ConstPropagation = struct
 				in
 				let el = Codegen.UnificationCallback.check_call check el e1.etype in
 				{e with eexpr = TCall(e1,el)}
-			| TUnop((Increment | Decrement),_,_)
-			| TBinop(OpAssignOp _,_,_) ->
+			| TUnop((Increment | Decrement),_,_) ->
 				e
+			| TBinop(OpAssignOp op,e1,e2) ->
+				let e2 = loop e2 in
+				{e with eexpr = TBinop(OpAssignOp op,e1,e2)}
 			| TBinop(OpAssign,({eexpr = TLocal _} as e1),e2) ->
 				let e2 = loop e2 in
 				{e with eexpr = TBinop(OpAssign,e1,e2)}
