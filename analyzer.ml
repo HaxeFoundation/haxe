@@ -20,12 +20,22 @@ let flag_no_simplification = "no_simplification"
 
 let has_analyzer_option meta s =
 	try
-		let _,el,_ = Meta.get Meta.Analyzer meta in
-		List.exists (fun (e,p) ->
-			match e with
-				| EConst(Ident s2) when s = s2 -> true
-				| _ -> false
-		) el
+		let rec loop ml = match ml with
+			| (Meta.Analyzer,el,_) :: ml ->
+				if List.exists (fun (e,p) ->
+					match e with
+						| EConst(Ident s2) when s = s2 -> true
+						| _ -> false
+				) el then
+					true
+				else
+					loop ml
+			| _ :: ml ->
+				loop ml
+			| [] ->
+				false
+		in
+		loop meta
 	with Not_found ->
 		false
 
