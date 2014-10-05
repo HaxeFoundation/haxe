@@ -989,21 +989,49 @@ module Checker = struct
 end
 
 module LocalDce = struct
-	let apply com e =
+	let apply e =
 		let is_used v = Meta.has Meta.Used v.v_meta in
 		let use v = v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta in
+		let has_side_effect e = match e.eexpr with
+			| TVar(v,None) -> is_used v
+			| TVar(v,Some e1) -> is_used v || Optimizer.has_side_effect e1
+			| _ -> true
+		in
+		let rec collect e = match e.eexpr with
+			| TLocal v ->
+				use v
+			| _ ->
+				Type.iter collect e
+		in
 		let rec loop e = match e.eexpr with
- 			| TLocal {v_extra = Some (_,Some {eexpr = TLocal v})} ->
+ 			| TLocal v ->
 				use v;
 				e
-			| TVar(v,Some e1) when not (is_used v) ->
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+				let e2 = loop e2 in
+				if not (is_used v) then
+					e2
+				else
+					{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v},e2)}
+			(* Cannot do that at the moment due to https://github.com/HaxeFoundation/haxe/issues/3440 *)
+(* 			| TVar(v,Some e1) when not (is_used v) ->
 				let e1 = loop e1 in
-				e1
+				e1 *)
+			| TWhile(e1,e2,flag) ->
+				collect e2;
+				let e2 = loop e2 in
+				let e1 = loop e1 in
+				{e with eexpr = TWhile(e1,e2,flag)}
+			| TFor(v,e1,e2) ->
+				collect e2;
+				let e2 = loop e2 in
+				let e1 = loop e1 in
+				{e with eexpr = TFor(v,e1,e2)}
 			| TBlock el ->
 				let rec block el = match el with
 					| e :: el ->
 						let el = block el in
-						if el <> [] && not (Optimizer.has_side_effect e) then
+						if el <> [] && not (has_side_effect e) then
 							el
 						else begin
 							let e = loop e in
@@ -1025,6 +1053,7 @@ type analyzer_config = {
 	ssa_apply : bool;
 	const_propagation : bool;
 	check : bool;
+	local_dce : bool;
 	ssa_unapply : bool;
 	simplifier_unapply : bool;
 }
@@ -1079,6 +1108,7 @@ let run_ssa com config e =
 		else
 			e
 		in
+		let e = if config.local_dce then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 		e
 	with Exit ->
 		e
@@ -1131,6 +1161,7 @@ let apply com =
 		ssa_apply = true;
 		const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 		check = not (Common.raw_defined com "analyzer-no-check");
+		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 		ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");
 		simplifier_unapply = not (Common.raw_defined com "analyzer-no-simplify-unapply");
 	} in
