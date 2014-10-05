@@ -13,6 +13,8 @@ let flag_no_check = "no_check"
 let flag_check = "check"
 let flag_no_const_propagation = "no_const_propagation"
 let flag_const_propagation = "const_propagation"
+let flag_no_local_dce = "no_local_dce"
+let flag_local_dce = "local_dce"
 let flag_ignore = "ignore"
 let flag_no_simplification = "no_simplification"
 
@@ -1121,6 +1123,8 @@ let update_config_from_meta config meta =
 				| EConst (Ident s) when s = flag_check -> { config with check = true}
 				| EConst (Ident s) when s = flag_no_const_propagation -> { config with const_propagation = false}
 				| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
+				| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
+				| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
 				| _ -> config
 			) config el
 		| _ ->

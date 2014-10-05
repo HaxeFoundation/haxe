@@ -12,6 +12,7 @@ class InlineCtor {
 	var A = "a";
 }
 
+@:analyzer(no_local_dce)
 class Test {
 	@:js('3;')
 	static function testNoOpRemoval() {
