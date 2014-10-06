@@ -786,34 +786,50 @@ module ConstPropagation = struct
 		| _ ->
 			false
 
-	let rec local ssa v p =
-		if v.v_capture then raise Not_found;
-		if type_has_analyzer_option v.v_type flag_no_const_propagation then raise Not_found;
-		begin match follow v.v_type with
-			| TDynamic _ -> raise Not_found
-			| _ -> ()
-		end;
-		let e = IntMap.find v.v_id ssa.var_values in
-		let reset() =
-			ssa.var_values <- IntMap.add v.v_id e ssa.var_values;
-		in
-		ssa.var_values <- IntMap.remove v.v_id ssa.var_values;
-		let e = try value ssa e with Not_found -> reset(); raise Not_found in
-		reset();
-		e
+	let can_be_inlined com e = match e.eexpr with
+		| TConst ct ->
+			begin match ct with
+				| TThis | TSuper -> false
+				(* Some targets don't like seeing null in certain places and won't even compile. We have to detect `if (x != null)
+				   in order for this to work. *)
+				| TNull when (match com.platform with Php | Cpp -> true | _ -> false) -> false
+				| _ -> true
+			end
+		| _ ->
+			false
+
+	let rec local ssa v e =
+		begin try
+			if v.v_capture then raise Not_found;
+			if type_has_analyzer_option v.v_type flag_no_const_propagation then raise Not_found;
+			begin match follow v.v_type with
+				| TDynamic _ -> raise Not_found
+				| _ -> ()
+			end;
+			let e = IntMap.find v.v_id ssa.var_values in
+			let reset() =
+				ssa.var_values <- IntMap.add v.v_id e ssa.var_values;
+			in
+			ssa.var_values <- IntMap.remove v.v_id ssa.var_values;
+			let e = value ssa e in
+			reset();
+			e
+		with Not_found ->
+			e
+		end
 
 	and value ssa e = match e.eexpr with
 		| TUnop((Increment | Decrement),_,_)
 		| TBinop(OpAssignOp _,_,_)
 		| TBinop(OpAssign,_,_) ->
-			raise Not_found
+			e
 		| TBinop(op,e1,e2) ->
 			let e1 = value ssa e1 in
 			let e2 = value ssa e2 in
 			let e = {e with eexpr = TBinop(op,e1,e2)} in
 			let e' = Optimizer.optimize_binop e op e1 e2 in
 			if e == e' then
-				raise Not_found
+				e
 			else
 				value ssa e'
 		| TUnop(op,flag,e1) ->
@@ -821,7 +837,7 @@ module ConstPropagation = struct
 			let e = {e with eexpr = TUnop(op,flag,e1)} in
 			let e' = Optimizer.optimize_unop e op flag e1 in
 			if e == e' then
-				raise Not_found
+				e
 			else
 				value ssa e'
 		| TCall ({eexpr = TLocal {v_name = "__ssa_phi__"}},el) ->
@@ -832,22 +848,14 @@ module ConstPropagation = struct
 					if List.for_all (fun e2 -> expr_eq e1 e2) el then
 						value ssa e1
 					else
-						raise Not_found
-			end
-		| TConst ct ->
-			begin match ct with
-				| TThis | TSuper -> raise Not_found
-				(* Some targets don't like seeing null in certain places and won't even compile. We have to detect `if (x != null)
-				   in order for this to work. *)
-				| TNull when (match ssa.com.platform with Php | Cpp -> true | _ -> false) -> raise Not_found
-				| _ -> e
+						e
 			end
 		| TParenthesis e1 | TMeta(_,e1) ->
 			value ssa e1
 		| TLocal v ->
-			local ssa v e.epos
+			local ssa v e
 		| _ ->
-			raise Not_found
+			e
 
 	let apply ssa e =
 		let had_function = ref false in
@@ -858,8 +866,11 @@ module ConstPropagation = struct
 				had_function := true;
 				{e with eexpr = TFunction {tf with tf_expr = loop tf.tf_expr}}
 			| TLocal v ->
-				begin try local ssa v e.epos
-				with Not_found -> e end
+				let e' = local ssa v e in
+				if can_be_inlined ssa.com e' then
+					e'
+				else
+					e
 			| TCall({eexpr = TField(_,(FStatic(_,cf) | FInstance(_,_,cf) | FAnon cf))},el) when has_analyzer_option cf.cf_meta flag_no_const_propagation ->
 				e
 			| TCall(e1,el) ->
