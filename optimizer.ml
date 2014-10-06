@@ -1143,7 +1143,7 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 
 type inline_kind =
 	| IKCtor of tfunc * tclass_field * tclass * texpr list * texpr list
-	| IKArray of texpr list
+	| IKArray of texpr list * t
 	| IKStructure of (string * texpr) list
 	| IKNone
 
@@ -1172,7 +1172,12 @@ let inline_constructors ctx e =
 		| TObjectDecl [] | TArrayDecl [] ->
 			IKNone
 		| TArrayDecl el ->
-			IKArray el
+			begin match follow e.etype with
+				| TInst({cl_path = [],"Array"},[t]) ->
+					IKArray(el,t)
+				| _ ->
+					IKNone
+			end
 		| TObjectDecl fl ->
 			if (List.exists (fun (s,_) -> not (is_valid_ident s)) fl) then
 				IKNone
@@ -1249,8 +1254,8 @@ let inline_constructors ctx e =
 								find_locals ecst
 							with Exit ->
 								())
-					| IKArray el ->
-						vars := PMap.add v.v_id (v,[],ExtList.List.mapi (fun i e -> string_of_int i,e,e.etype) el, false, n.epos) !vars;
+					| IKArray (el,t) ->
+						vars := PMap.add v.v_id (v,[],ExtList.List.mapi (fun i e -> string_of_int i,e,t) el, false, n.epos) !vars;
 						v.v_id <- -v.v_id;
 					| IKStructure fl ->
 						vars := PMap.add v.v_id (v,[],List.map (fun (s,e) -> s,e,e.etype) fl, false, n.epos) !vars;
