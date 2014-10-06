@@ -1200,12 +1200,10 @@ let inline_constructors ctx e =
 		| _ ->
 			IKNone
 	in
-	let is_valid_field v s =
-		try
-			let (_,_,fields,_,_) = PMap.find (-v.v_id) !vars in
-			List.exists (fun (s2,_,_) -> s = s2) fields
-		with Not_found ->
-			false
+	let check_field v s e t =
+		let (a,b,fields,c,d) = PMap.find (-v.v_id) !vars in
+		if not (List.exists (fun (s2,_,_) -> s = s2) fields) then
+			vars := PMap.add (-v.v_id) (a,b,(s,e,t) :: fields,c,d) !vars
 	in
 	let cancel v =
 		v.v_id <- -v.v_id;
@@ -1273,10 +1271,10 @@ let inline_constructors ctx e =
 			if i < 0 || i >= List.length fields then cancel v
 		| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
 			begin match e1.eexpr with
-				| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 && not (is_valid_field v (Int32.to_string i)) ->
-					cancel v
-				| TField({eexpr = TLocal v}, (FInstance(_, _, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) when v.v_id < 0 && not (is_valid_field v s) ->
-					cancel v
+	 			| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
+					check_field v (Int32.to_string i) e2 e2.etype
+				| TField({eexpr = TLocal v}, (FInstance(_, _, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) when v.v_id < 0 ->
+					check_field v s e2 e2.etype
 				| _ ->
 					find_locals e1
 			end;
