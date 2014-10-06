@@ -82,6 +82,9 @@ class Browser {
 	 */
 	public static function createXMLHttpRequest() : XMLHttpRequest
 	{
+		if( untyped __js__("typeof XDomainRequest") != "undefined" ) {
+			return untyped __new__("XDomainRequest");
+		}
 		if( untyped __js__("typeof XMLHttpRequest") != "undefined" ) {
 			return new XMLHttpRequest();
 		}
