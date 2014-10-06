@@ -2268,12 +2268,12 @@ struct
 									dyn_plus_handler e (run e1) (run e2)
 							| OpGt | OpGte | OpLt | OpLte  -> (* type 2 *)
 								{ eexpr = TBinop(op, compare_handler (run e1) (run e2), { eexpr = TConst(TInt(Int32.zero)); etype = gen.gcon.basic.tint; epos = e.epos} ); etype = gen.gcon.basic.tbool; epos = e.epos }
-							| OpMult | OpDiv | OpSub -> (* always cast everything to double *)
+							| OpMult | OpDiv | OpSub | OpMod -> (* always cast everything to double *)
 								let etype, _ = get_etype_one e in
 								{ e with eexpr = TBinop(op, mk_cast etype (run e1), mk_cast etype (run e2)) }
 							| OpBoolAnd | OpBoolOr ->
 								{ e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tbool (run e1), mk_cast gen.gcon.basic.tbool (run e2)) }
-							| OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
+							| OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr ->
 								{ e with eexpr = TBinop(op, mk_cast gen.gcon.basic.tint (run e1), mk_cast gen.gcon.basic.tint (run e2)) }
 							| OpAssign | OpAssignOp _ | OpInterval | OpArrow -> assert false)
 					| TUnop (Increment as op, flag, e1)
