@@ -106,6 +106,7 @@ type display_mode =
 	| DMUsage
 	| DMPosition
 	| DMToplevel
+	| DMResolve of string
 
 type context = {
 	(* config *)

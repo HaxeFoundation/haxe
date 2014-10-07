@@ -1193,9 +1193,18 @@ try
 					| "toplevel" ->
 						activate_special_display_mode();
 						DMToplevel
-					| _ ->
+					| "" ->
 						Parser.use_parser_resume := true;
 						DMDefault
+					| _ ->
+						let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
+						match smode with
+							| "resolve" ->
+								activate_special_display_mode();
+								DMResolve arg
+							| _ ->
+								Parser.use_parser_resume := true;
+								DMDefault
 				in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 				com.display <- mode;
@@ -1447,7 +1456,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match com.display with
-			| DMNone | DMUsage | DMPosition ->
+			| DMNone | DMUsage | DMPosition | DMResolve _ ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;

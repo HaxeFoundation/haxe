@@ -3484,6 +3484,8 @@ and handle_display ctx e_ast iscall p =
 		cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 	in
 	match ctx.com.display with
+	| DMResolve _ ->
+		assert false
 	| DMUsage | DMPosition ->
 		begin match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->

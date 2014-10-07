@@ -1673,7 +1673,15 @@ let init_class ctx c p context_init herits fields =
 
 	(* ----------------------- COMPLETION ----------------------------- *)
 
-	let display_file = if ctx.com.display <> DMNone then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
+	let display_file = match ctx.com.display with
+		| DMNone -> false
+		| DMResolve s ->
+			let mt = load_type_def ctx p {tname = s; tpackage = []; tsub = None; tparams = []} in
+			let p = (t_infos mt).mt_pos in
+			raise (DisplayPosition [p]);
+		| _ ->
+			Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
+	in
 
 	let cp = !Parser.resume_display in
 
