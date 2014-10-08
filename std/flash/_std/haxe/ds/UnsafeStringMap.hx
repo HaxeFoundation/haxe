@@ -21,4 +21,4 @@
  */
 package haxe.ds;
 
-typedef UnsafeStringMap<T> = StringMap<T>;
+@:deprecated("UnsafeStringMap is deprecated, use StringMap instead") typedef UnsafeStringMap<T> = StringMap<T>;
