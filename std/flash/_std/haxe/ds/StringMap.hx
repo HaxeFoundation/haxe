@@ -23,33 +23,33 @@ package haxe.ds;
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
-	private var h :flash.utils.Dictionary;
+	private var h : flash.utils.Dictionary;
 
 	public function new() : Void {
 		h = new flash.utils.Dictionary();
 	}
 
-	public function set( key : String, value : T ) : Void {
-		untyped h["$"+key] = value;
+	public inline function set( key : String, value : T ) : Void {
+		untyped h[key] = value;
 	}
 
-	public function get( key : String ) : Null<T> {
-		return untyped h["$"+key];
+	public inline function get( key : String ) : Null<T> {
+		var rv:Null<T> = untyped h[key];
+		return rv == null ? null : rv;
 	}
 
 	public inline function exists( key : String ) : Bool {
-		return untyped __in__("$"+key,h);
+		return untyped __in__(key,h);
 	}
 
 	public function remove( key : String ) : Bool {
-		key = "$"+key;
-		if( untyped !__in__(key,h) ) return false;
+		if( untyped !__in__(key, h) ) return false;
 		untyped __delete__(h,key);
 		return true;
 	}
 
 	public function keys() : Iterator<String> {
-		return untyped (__hkeys__(h)).iterator();
+		return untyped (__keys__(h)).iterator();
 	}
 
 	public function iterator() : Iterator<T> {
