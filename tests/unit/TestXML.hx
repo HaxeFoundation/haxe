@@ -73,9 +73,7 @@ class TestXML extends Test {
 		var comment = '<!--Comment-->';
 		var xml = '<html><body><![CDATA[<a href="CDATA"/>&lt;]]></body></html>';
 
-		#if flash8
-		return; // too hard for him
-		#end
+		#if !flash8
 
 		var x = Xml.parse(header + doctype + comment + xml);
 
@@ -85,6 +83,9 @@ class TestXML extends Test {
 		#end
 
 		eq( x.toString(), header + doctype + comment + xml);
+
+		return; // too hard for him
+		#end
 	}
 
 	function testWhitespaces() {
@@ -117,10 +118,8 @@ class TestXML extends Test {
 	function testCreate() {
 		eq( Xml.createDocument().toString(), "");
 		eq( Xml.createPCData("Hello").toString(), "Hello" );
-		#if flash8
+		#if !flash8
 		// too hard for him
-		return;
-		#end
 
 		eq( Xml.createCData("<x>").toString(), "<![CDATA[<x>]]>" );
 		eq( Xml.createComment("Hello").toString(), "<!--Hello-->" );
@@ -147,6 +146,9 @@ class TestXML extends Test {
 		eq( c.nodeValue, "Blabla" );
 		eq( c.toString(), "<![CDATA[Blabla]]>");
 		eq( Xml.createPCData("Hello").nodeValue, "Hello" );
+
+		return;
+		#end
 	}
 
 	function testNS() {

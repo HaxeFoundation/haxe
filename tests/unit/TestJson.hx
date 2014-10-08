@@ -13,9 +13,7 @@ class TestJson extends Test {
         eq( parts.join("#"), "" );
 
         // no support for regexps
-        #if flash8
-        return;
-        #end
+        #if !flash8
 
         function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v, pos);
         function deepId(v:Dynamic) {
@@ -47,6 +45,9 @@ class TestJson extends Test {
         eq(haxe.Json.stringify(Math.POSITIVE_INFINITY), "null");
         eq(haxe.Json.stringify(Math.NEGATIVE_INFINITY), "null");
         eq(haxe.Json.stringify(Math.NaN), "null");
+
+        return;
+        #end
     }
 
     // TODO: test pretty-printing (also with objects with skipped function fields!)
@@ -61,9 +62,7 @@ class TestJson extends Test {
         eq( parts.join("#"), "" );
 
         // no support for regexps
-        #if flash8
-        return;
-        #end
+        #if !flash8
 
         function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.format.JsonParser.parse(haxe.format.JsonPrinter.print(v)),v);
         function deepId(v:Dynamic) {
@@ -97,5 +96,8 @@ class TestJson extends Test {
         eq(haxe.format.JsonPrinter.print(Math.NaN), "null");
         eq(haxe.format.JsonPrinter.print(function() {}), "\"<fun>\"");
         eq(haxe.format.JsonPrinter.print({a: function() {}, b: 1}), "{\"b\":1}");
+
+        return;
+        #end
     }
 }

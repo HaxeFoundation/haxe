@@ -41,7 +41,6 @@ class TestPhp extends Test
 	{
         var x = try {
             throw "foo";
-            false;
         } catch (e:String) {
             true;
         }
