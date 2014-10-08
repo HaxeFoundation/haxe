@@ -1083,23 +1083,8 @@ type analyzer_config = {
 }
 
 let run_ssa com config e =
-	let all_locals = ref PMap.empty in
-	let rec loop e = match e.eexpr with
-		| TVar(v,eo) ->
-			all_locals := PMap.add v.v_name true !all_locals;
-			begin match eo with None -> () | Some e -> loop e end
-		| _ ->
-			Type.iter loop e
-	in
-	loop e;
-	let n = ref (-1) in
 	let rec gen_local t =
-		incr n;
-		let name = "_" ^ (string_of_int !n) in
-		if PMap.mem name !all_locals then
-			gen_local t
-		else
-			alloc_var name t
+		alloc_var "tmp" t
 	in
 	let do_simplify = match com.platform with
 		| Cpp | Flash8 | Python -> true
