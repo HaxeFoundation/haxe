@@ -902,7 +902,6 @@ let check_void_field ctx t = match t with
 
 let run_expression_filters ctx filters t =
 	let run e =
-		verify_ast e;
 		List.fold_left (fun e f -> f e) e filters
 	in
 	match t with
@@ -941,6 +940,20 @@ let post_process ctx filters t =
 let post_process_end() =
 	incr pp_counter
 
+let iter_expressions com fl =
+	List.iter (fun mt -> match mt with
+		| TClassDecl c ->
+			let field cf = match cf.cf_expr with
+				| None -> ()
+				| Some e -> List.iter (fun f -> f e) fl
+			in
+			List.iter field c.cl_ordered_statics;
+			List.iter field c.cl_ordered_fields;
+			(match c.cl_constructor with None -> () | Some cf -> field cf)
+		| _ ->
+			()
+	) com.types
+
 let run com tctx main =
 	begin match com.display with
 		| DMUsage | DMPosition ->
@@ -954,8 +967,8 @@ let run com tctx main =
 	(* this part will be a bit messy until we make the analyzer the default *)
 	if use_static_analyzer then begin
 		(* PASS 1: general expression filters *)
-	 	let filters = [
-	 		Codegen.UnificationCallback.run (check_unification com);
+		let filters = [
+			Codegen.UnificationCallback.run (check_unification com);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			Optimizer.inline_constructors tctx;
 			Optimizer.reduce_expression tctx;
@@ -965,6 +978,7 @@ let run com tctx main =
 		List.iter (post_process tctx filters) com.types;
 		Analyzer.apply com;
 		post_process_end();
+		iter_expressions com [verify_ast];
 		List.iter (fun f -> f()) (List.rev com.filters);
 		(* save class state *)
 		List.iter (save_class_state tctx) com.types;
@@ -981,8 +995,8 @@ let run com tctx main =
 		) com.types;
 	end else begin
 		(* PASS 1: general expression filters *)
-	 	let filters = [
-	 		Codegen.UnificationCallback.run (check_unification com);
+		let filters = [
+			Codegen.UnificationCallback.run (check_unification com);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			blockify_ast;
 			(match com.platform with
@@ -998,6 +1012,7 @@ let run com tctx main =
 		] in
 		List.iter (post_process tctx filters) com.types;
 		post_process_end();
+		iter_expressions com [verify_ast];
 		List.iter (fun f -> f()) (List.rev com.filters);
 		(* save class state *)
 		List.iter (save_class_state tctx) com.types;
