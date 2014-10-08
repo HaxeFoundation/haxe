@@ -1,5 +1,6 @@
 package unit;
 
+@:analyzer(no_check_has_effect)
 class DCEClass {
 	// used statics
 	static function staticUsed() { }

@@ -114,5 +114,5 @@ function idx(x, y) {
 }
 
 var end = begin();
-(arr(a(), b()))[idx(c(), d())];
+var _ = (arr(a(), b()))[idx(c(), d())];
 eq(end(), "1_2_3_4");

@@ -17,6 +17,8 @@ let flag_no_local_dce = "no_local_dce"
 let flag_local_dce = "local_dce"
 let flag_ignore = "ignore"
 let flag_no_simplification = "no_simplification"
+let flag_check_has_effect = "check_has_effect"
+let flag_no_check_has_effect = "no_check_has_effect"
 
 let has_analyzer_option meta s =
 	try
@@ -923,6 +925,28 @@ module ConstPropagation = struct
 		loop e
 end
 
+module EffectChecker = struct
+	let run com is_var_expression e =
+		let has_effect e = match e.eexpr with
+			| TVar _ -> true
+			| _ -> Optimizer.has_side_effect e
+		in
+		let e = if is_var_expression then
+			(* var initialization expressions are like assignments, so let's cheat a bit here *)
+			Simplifier.apply com (alloc_var "tmp") (Codegen.binop OpAssign (mk (TConst TNull) t_dynamic e.epos) e e.etype e.epos)
+		else e
+		in
+		let rec loop e = match e.eexpr with
+			| TBlock el ->
+				List.iter (fun e ->
+					if not (has_effect e) then com.warning "This expression has no effect" e.epos
+				) el
+			| _ ->
+				Type.iter loop e
+			in
+		loop e
+end
+
 module Checker = struct
 	open Ssa
 
@@ -1077,12 +1101,13 @@ type analyzer_config = {
 	ssa_apply : bool;
 	const_propagation : bool;
 	check : bool;
+	check_has_effect : bool;
 	local_dce : bool;
 	ssa_unapply : bool;
 	simplifier_unapply : bool;
 }
 
-let run_ssa com config e =
+let run_ssa com config is_var_expression e =
 	let rec gen_local t =
 		alloc_var "tmp" t
 	in
@@ -1102,14 +1127,15 @@ let run_ssa com config e =
 		else
 			e
 		in
-		let e = if config.analyzer_use then
+		let e = if config.analyzer_use then begin
+				if config.check_has_effect then EffectChecker.run com is_var_expression e;
 				let e,ssa = with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply com e) in
 				let e = if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ssa e) else e in
 				(* let e = if config.check then with_timer "analyzer-checker" (fun () -> Checker.apply ssa e) else e in *)
 				let e = if config.ssa_unapply then with_timer "analyzer-ssa-unapply" (fun () -> Ssa.unapply com e) else e in
 				List.iter (fun f -> f()) ssa.Ssa.cleanup;
 				e
-		else
+		end else
 			e
 		in
 		let e = if not do_simplify && not (Common.raw_defined com "analyzer-no-simplify-unapply") then
@@ -1132,6 +1158,8 @@ let update_config_from_meta config meta =
 				| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
 				| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
 				| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
+				| EConst (Ident s) when s = flag_no_check_has_effect -> { config with check_has_effect = false}
+				| EConst (Ident s) when s = flag_check_has_effect -> { config with check_has_effect = true}
 				| _ -> config
 			) config el
 		| _ ->
@@ -1145,10 +1173,14 @@ let run_expression_filters com config t =
 	| TClassDecl c ->
 		let config = update_config_from_meta config c.cl_meta in
 		let process_field cf =
+			let is_var_expression = match cf.cf_kind with
+				| Var _ -> true
+				| _ -> false
+			in
 			match cf.cf_expr with
 			| Some e when not (has_analyzer_option cf.cf_meta flag_ignore) && not (Meta.has Meta.Extern cf.cf_meta) (* TODO: use is_removable_field *) ->
 				let config = update_config_from_meta config cf.cf_meta in
-				cf.cf_expr <- Some (run_ssa com config e);
+				cf.cf_expr <- Some (run_ssa com config is_var_expression e);
 			| _ -> ()
 		in
 		List.iter process_field c.cl_ordered_fields;
@@ -1160,7 +1192,7 @@ let run_expression_filters com config t =
 		| None -> ()
 		| Some e ->
 			(* never optimize init expressions (too messy) *)
-			c.cl_init <- Some (run_ssa com {config with analyzer_use = false} e));
+			c.cl_init <- Some (run_ssa com {config with analyzer_use = false} false e));
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()
@@ -1171,6 +1203,7 @@ let apply com =
 		simplifier_apply = true;
 		ssa_apply = true;
 		const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
+		check_has_effect = not (Common.raw_defined com "analyzer-no-check-has-effect");
 		check = not (Common.raw_defined com "analyzer-no-check");
 		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 		ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");

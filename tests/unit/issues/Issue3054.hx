@@ -10,7 +10,7 @@ private enum MyOtherEnum {
 	B;
 }
 
-
+@:analyzer(no_check_has_effect)
 class Issue3054 extends Test {
 	function test() {
 		var myValue:Null<MyEnum> = A;
