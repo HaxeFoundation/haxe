@@ -21,4 +21,4 @@
  */
 package haxe.ds;
 
-typedef UnsafeStringMap<T> = haxe.ds.StringMap<T>;
+typedef UnsafeStringMap<T> = StringMap<T>;
