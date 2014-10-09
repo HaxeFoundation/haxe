@@ -5,6 +5,7 @@ private abstract A<T>(Array<T>) {
         this = a;
     }
 
+	#if java
     @:overload static inline public function sum(a:A<Int>) {
         return "sum of ints";
     }
@@ -12,6 +13,7 @@ private abstract A<T>(Array<T>) {
     @:overload static inline public function sum(a:A<String>) {
         return "sum of strings";
     }
+	#end
 }
 
 class Issue3388 extends Test {
