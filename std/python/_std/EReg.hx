@@ -115,7 +115,7 @@ class EReg {
 
 		If `s` is null, the result is unspecified.
 	**/
-	public function matchSub( s : String, pos : Int, ?len : Int):Bool {
+	public function matchSub( s : String, pos : Int, len : Int = 0):Bool {
 		if (len != null) {
 			matchObj = pattern.search(s, pos, pos+len);
 		} else {

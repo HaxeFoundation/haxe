@@ -4823,18 +4823,18 @@ let rec create com =
 			| "Null" ->
 				let mk_null t =
 					try
-						if not (is_nullable ~no_lazy:true t) then TType (td,[t]) else t
+						if not (is_null ~no_lazy:true t) then TType (td,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
 						let r = ref (fun() -> assert false) in
 						r := (fun() ->
-							let t = (if not (is_nullable t) then TType (td,[t]) else t) in
+							let t = (if not (is_null t) then TType (td,[t]) else t) in
 							r := (fun() -> t);
 							t
 						);
 						TLazy r
 				in
-				ctx.t.tnull <- if not com.config.pf_static then (fun t -> t) else mk_null;
+				ctx.t.tnull <- mk_null;
 			| _ -> ());
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in

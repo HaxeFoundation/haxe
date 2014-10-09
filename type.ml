@@ -556,13 +556,13 @@ let rec follow t =
 		follow (apply_params t.t_params tl t.t_type)
 	| _ -> t
 
-let rec is_nullable ?(no_lazy=false) = function
+let rec is_nullable = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_nullable t)
 	| TType ({ t_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
-		if no_lazy then raise Exit else is_nullable (!f())
+		is_nullable (!f())
 	| TType (t,tl) ->
 		is_nullable (apply_params t.t_params tl t.t_type)
 	| TFun _ ->
@@ -583,13 +583,13 @@ let rec is_nullable ?(no_lazy=false) = function
 	| _ ->
 		true
 
-let rec is_null = function
+let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_null t)
 	| TType ({ t_path = ([],"Null") },[t]) ->
 		not (is_nullable (follow t))
 	| TLazy f ->
-		is_null (!f())
+		if no_lazy then raise Exit else is_null (!f())
 	| TType (t,tl) ->
 		is_null (apply_params t.t_params tl t.t_type)
 	| _ ->

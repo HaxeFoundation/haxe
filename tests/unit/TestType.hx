@@ -132,13 +132,8 @@ class TestType extends Test {
 		var ti1:Array<I1>;
 		var tbase:Array<Base>;
 		var tpbase:Array<PClassBase<Float>>;
-		#if (flash9 || cpp || java || cs)
 		var tnullbool:Array<Null<Bool>>;
 		var tnullbase:Array<Null<Base>>;
-		#else
-		var tnullbool:Array<Bool>;
-		var tnullbase:Array<Base>;
-		#end
 		var tchild1:Array<Child1>;
 		var ts:Array<{s:String}>;
 
@@ -157,7 +152,7 @@ class TestType extends Test {
 		typedAs([null, false], tnullbool);
 		typedAs([false, null], tnullbool);
 		typedAs([null, new Base()], tnullbase);
-		//typedAs([new Base(), null], tnullbase); // TODO: this fails on flash9 and cpp
+		typedAs([new Base(), null], tnullbase);
 		typedAs([new Base()], tbase);
 		typedAs([new Base(), new Child1()], tbase);
 		typedAs([new Child1(), new Base()], tbase);
@@ -169,11 +164,7 @@ class TestType extends Test {
 
 		var tbase:Base;
 		var ti1:I1;
-		#if (flash9 || cpp || java || cs)
 		var tnullbool:Null<Bool>;
-		#else
-		var tnullbool:Bool;
-		#end
 		var ts: { s:String };
 
 		typedAs(if (false) new Child1(); else new Child2(), tbase);
