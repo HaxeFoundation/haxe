@@ -886,16 +886,21 @@ let get_constructor ctx c params p =
 
 let make_call ctx e params t p =
 	try
-		let ethis, fname = (match e.eexpr with TField (ethis,f) -> ethis, field_name f | _ -> raise Exit) in
-		let f, cl = (match follow ethis.etype with
-			| TInst (c,params) -> (try let _,_,f = Type.class_field c params fname in f with Not_found -> raise Exit), Some c
-			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit), (match !(a.a_status) with Statics c -> Some c | _ -> None)
-			| _ -> raise Exit
-		) in
+		let ethis,cl,f = match e.eexpr with
+			| TField (ethis,fa) ->
+				let co,cf = match fa with
+					| FInstance(c,_,cf) | FStatic(c,cf) -> Some c,cf
+					| FAnon cf -> None,cf
+					| _ -> raise Exit
+				in
+				ethis,co,cf
+			| _ ->
+				raise Exit
+		in
 		if f.cf_kind <> Method MethInline then raise Exit;
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
-				let t = if fname = "_new" then
+				let t = if f.cf_name = "_new" then
 					t
 				else if params = [] then
 					error "Invalid abstract implementation function" f.cf_pos
