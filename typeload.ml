@@ -2371,21 +2371,21 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
-			let p = punion p1 p2 in
-			let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p in
+			let p_type = punion p1 p2 in
+			let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
 			let types = md.m_types in
 			let no_private t = not (t_infos t).mt_private in
 			let chk_private t p = if (t_infos t).mt_private then error "You can't import a private type" p in
 			let has_name name t = snd (t_infos t).mt_path = name in
 			let get_type tname =
-				let t = (try List.find (has_name tname) types with Not_found -> error (string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p) in
-				chk_private t p;
+				let t = (try List.find (has_name tname) types with Not_found -> error (string_error tname (List.map (fun mt -> snd (t_infos mt).mt_path) types) ("Module " ^ s_type_path md.m_path ^ " does not define type " ^ tname)) p_type) in
+				chk_private t p_type;
 				t
 			in
 			let rebind t name =
 				if not (name.[0] >= 'A' && name.[0] <= 'Z') then
 					error "Type aliases must start with an uppercase letter" p;
-				let _, _, f = ctx.g.do_build_instance ctx t p in
+				let _, _, f = ctx.g.do_build_instance ctx t p_type in
 				(* create a temp private typedef, does not register it in module *)
 				TTypeDecl {
 					t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
