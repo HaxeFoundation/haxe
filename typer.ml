@@ -2982,7 +2982,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| _ ->
+			| t ->
 				if t == t_dynamic then Some t else None)
 		| _ ->
 			None
