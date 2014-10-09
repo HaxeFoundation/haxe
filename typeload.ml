@@ -2383,6 +2383,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				t
 			in
 			let rebind t name =
+				if not (name.[0] >= 'A' && name.[0] <= 'Z') then
+					error "Type aliases must start with an uppercase letter" p;
 				let _, _, f = ctx.g.do_build_instance ctx t p in
 				(* create a temp private typedef, does not register it in module *)
 				TTypeDecl {
