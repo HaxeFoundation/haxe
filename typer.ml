@@ -1571,6 +1571,19 @@ and type_field ?(resume=false) ctx e i p mode =
 			| (MGet | MCall), Var {v_read = AccNever} ->
 				AKNo f.cf_name
 			| (MGet | MCall), _ ->
+				let rec loop cfl = match cfl with
+					| [] -> error (Printf.sprintf "Field %s cannot be called on %s" f.cf_name (s_type (print_context()) e.etype)) p
+					| cf :: cfl ->
+						match follow (apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type)) with
+							| TFun((_,_,t1) :: _,_) when type_iseq t1 e.etype ->
+								cf
+							| _ ->
+								loop cfl
+				in
+				let f = match f.cf_overloads with
+					| [] -> f
+					| cfl -> loop (f :: cfl)
+				in
 				let t = field_type f in
 				begin match follow t with
 					| TFun((_,_,t1) :: _,_) -> ()
