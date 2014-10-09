@@ -1414,6 +1414,8 @@ let rec unify a b =
 					type_eq EqRightDynamic t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
+		| TAbstract(bb,tl) when (List.exists (unify_from bb tl a b) bb.a_from) ->
+			()
 		| _ ->
 			error [cannot_unify a b])
 	| _ , TDynamic t ->
@@ -1440,6 +1442,8 @@ let rec unify a b =
 				) an.a_fields
 			with Unify_error l ->
 				error (cannot_unify a b :: l))
+		| TAbstract(aa,tl) when (List.exists (unify_to aa tl b) aa.a_to) ->
+			()
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->
