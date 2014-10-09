@@ -2944,11 +2944,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let el = e1 :: el in
 		let v = gen_local ctx tmap in
 		let ev = mk (TLocal v) tmap p in
-		let ef = mk (TField(ev,FInstance(c,[tkey;tval],cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
+		let ec = type_module_type ctx (TClassDecl c) None p in
+		let ef = mk (TField(ec,FStatic(c,cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
 		let el = ev :: List.fold_left (fun acc e -> match fst e with
 			| EBinop(OpArrow,e1,e2) ->
 				let e1,e2 = type_arrow e1 e2 in
-				(make_call ctx ef [e1;e2] ctx.com.basic.tvoid p) :: acc
+				(make_call ctx ef [ev;e1;e2] ctx.com.basic.tvoid p) :: acc
 			| _ ->
 				error "Expected a => b" (snd e)
 		) [] el in
