@@ -88,7 +88,7 @@ class ArrayImpl {
 	}
 
 	public static inline function unshift<T>(x:Array<T>,e : T) : Void {
-		return x.insert(0,e);
+		x.insert(0,e);
 	}
 
 	public static function remove<T>(x:Array<T>,e : T) : Bool {
