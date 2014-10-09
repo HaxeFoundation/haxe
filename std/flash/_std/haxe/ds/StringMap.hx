@@ -22,10 +22,6 @@
 package haxe.ds;
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
-	// reserved words that are not allowed in Dictionary include all non-static members of Dictionary
-	private static var reservedWords:Array<String> = ["constructor", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "setPropertyIsEnumerable", "toLocaleString", "toString", "valueOf", "toJSON"];
-	private static var reservedWordIndexers:Array<ReservedWordIndexer> = [new ReservedWordIndexer(0), new ReservedWordIndexer(1), new ReservedWordIndexer(2), new ReservedWordIndexer(3), new ReservedWordIndexer(4), new ReservedWordIndexer(5), new ReservedWordIndexer(6), new ReservedWordIndexer(7), new ReservedWordIndexer(8)];
-	private static inline var reservedWordCount:Int = 9;
 	
 	private var h : flash.utils.Dictionary;
 
@@ -33,15 +29,35 @@ package haxe.ds;
 		h = new flash.utils.Dictionary();
 	}
 
-	private inline function reservedWordIndex(key:String):Int {
-		var i:Int = reservedWordCount - 1;
-		while (i >= 0) {
-			if ( reservedWords[i] == key ) {
-				break;
-			}
-			i--;
+	// reserved words that are not allowed in Dictionary include all non-static members of Dictionary
+	private static var reservedWordIndexers:Array<ReservedWordIndexer> = [new ReservedWordIndexer(0), new ReservedWordIndexer(1), new ReservedWordIndexer(2), new ReservedWordIndexer(3), new ReservedWordIndexer(4), new ReservedWordIndexer(5), new ReservedWordIndexer(6), new ReservedWordIndexer(7), new ReservedWordIndexer(8)];
+	private inline function reservedWordByIndex(index:Int):String {
+		return switch(index) { 
+			case 0: "constructor";
+			case 1: "hasOwnProperty";
+			case 2: "isPrototypeOf";
+			case 3: "propertyIsEnumerable";
+			case 4: "setPropertyIsEnumerable";
+			case 5: "toLocaleString";
+			case 6: "toString";
+			case 7: "valueOf";
+			case 8: "toJSON";
+			default: null;
 		}
-		return i;
+	}
+	private inline function reservedWordIndex(key:String):Int {
+		return switch(key) { 
+			case "constructor": 0;
+			case "hasOwnProperty": 1;
+			case "isPrototypeOf": 2;
+			case "propertyIsEnumerable": 3;
+			case "setPropertyIsEnumerable": 4;
+			case "toLocaleString": 5;
+			case "toString": 6;
+			case "valueOf": 7;
+			case "toJSON": 8;
+			default: -1;
+		}
 	}
 	public inline function set( key : String, value : T ) : Void {
 		var i:Int = reservedWordIndex(key);
@@ -95,11 +111,10 @@ package haxe.ds;
 		var rv = untyped (__keys__(h));
 		var len:Int = untyped rv.length;
 		var i:Int = 0;
-		var reservedWordsCount:Int = reservedWords.length;
 		while (i < len) {
 			if ( Std.is(untyped rv[i], ReservedWordIndexer) ) {
 				var indexer:ReservedWordIndexer = untyped rv[i];
-				untyped rv[i] = reservedWords[indexer.i];
+				untyped rv[i] = reservedWordByIndex(indexer.i);
 			}
 			i++;
 		}
