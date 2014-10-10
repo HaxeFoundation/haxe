@@ -13,4 +13,5 @@
 -js testopt.js
 --macro Macro.register('Test')
 --macro Macro.register('TestJs')
+--macro Macro.register('TestLocalDce')
 -dce std

@@ -1062,10 +1062,9 @@ module LocalDce = struct
 					e2
 				else
 					{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v},e2)}
-			(* Cannot do that at the moment due to https://github.com/HaxeFoundation/haxe/issues/3440 *)
-(* 			| TVar(v,Some e1) when not (is_used v) ->
+			| TVar(v,Some e1) when not (is_used v) ->
 				let e1 = loop e1 in
-				e1 *)
+				e1
 			| TWhile(e1,e2,flag) ->
 				collect e2;
 				let e2 = loop e2 in
@@ -1144,7 +1143,7 @@ let run_ssa com config is_var_expression e =
 		else
 			e
 		in
-		let e = if config.local_dce then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
+		let e = if config.local_dce && config.analyzer_use then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 		e
 	with Exit ->
 		e
