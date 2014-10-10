@@ -31,6 +31,18 @@ package haxe.ds;
 
 	// reserved words that are not allowed in Dictionary include all non-static members of Dictionary
 	private static var reservedWordIndexers:Array<ReservedWordIndexer> = [new ReservedWordIndexer(0), new ReservedWordIndexer(1), new ReservedWordIndexer(2), new ReservedWordIndexer(3), new ReservedWordIndexer(4), new ReservedWordIndexer(5), new ReservedWordIndexer(6), new ReservedWordIndexer(7), new ReservedWordIndexer(8)];
+	static private var reservedWordIndicesStatic = {
+			"constructor":0,
+			"hasOwnProperty":1,
+			"isPrototypeOf":2,
+			"propertyIsEnumerable":3,
+			"setPropertyIsEnumerable":4,
+			"toLocaleString":5,
+			"toString":6,
+			"valueOf":7,
+			"toJSON":8
+	};
+	private var reservedWordIndices = reservedWordIndicesStatic;
 	private inline function reservedWordByIndex(index:Int):String {
 		return switch(index) { 
 			case 0: "constructor";
@@ -45,23 +57,9 @@ package haxe.ds;
 			default: null;
 		}
 	}
-	private inline function reservedWordIndex(key:String):Int {
-		return switch(key) { 
-			case "constructor": 0;
-			case "hasOwnProperty": 1;
-			case "isPrototypeOf": 2;
-			case "propertyIsEnumerable": 3;
-			case "setPropertyIsEnumerable": 4;
-			case "toLocaleString": 5;
-			case "toString": 6;
-			case "valueOf": 7;
-			case "toJSON": 8;
-			default: -1;
-		}
-	}
 	public inline function set( key : String, value : T ) : Void {
-		var i:Int = reservedWordIndex(key);
-		if ( i >= 0 ) {
+		if ( untyped __in__(key, reservedWordIndices) ) {
+			var i:Int = untyped reservedWordIndices[key];
 			untyped h[reservedWordIndexers[i]] = value;
 		} else {
 			untyped h[key] = value;
@@ -70,8 +68,8 @@ package haxe.ds;
 
 	public inline function get( key : String ) : Null<T> {
 		var rv:Null<T>;
-		var i:Int = reservedWordIndex(key);
-		if ( i >= 0 ) {
+		if ( untyped __in__(key, reservedWordIndices) ) {
+			var i:Int = untyped reservedWordIndices[key];
 			rv = untyped h[reservedWordIndexers[i]];
 		} else {
 			rv = untyped h[key];
@@ -80,8 +78,8 @@ package haxe.ds;
 	}
 
 	public inline function exists( key : String ) : Bool {
-		var i:Int = reservedWordIndex(key);
-		if ( i >= 0 ) {
+		if ( untyped __in__(key, reservedWordIndices) ) {
+			var i:Int = untyped reservedWordIndices[key];
 			return untyped __in__(reservedWordIndexers[i], h);
 		} else {
 			return untyped __in__(key, h);
@@ -89,8 +87,8 @@ package haxe.ds;
 	}
 
 	public inline function remove( key : String ) : Bool {
-		var i:Int = reservedWordIndex(key);
-		if ( i >= 0 ) {
+		if ( untyped __in__(key, reservedWordIndices) ) {
+			var i:Int = untyped reservedWordIndices[key];
 			if ( !(untyped __in__(reservedWordIndexers[i], h)) ) {
 				return false;
 			} else {
