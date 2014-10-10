@@ -660,6 +660,8 @@ and parse_import s p1 =
 			p2, List.rev acc, INormal
 		| [< '(Kwd In,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
 			p2, List.rev acc, IAsName name
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName name
 		| [< >] ->
 			serror()
 	in
