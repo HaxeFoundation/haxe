@@ -173,6 +173,7 @@ module Simplifier = struct
 				| TLocal _ when allow_tlocal -> ()
 				| TParenthesis e1 | TCast(e1,None) | TEnumParameter(e1,_,_) -> Type.iter loop e
 				| TField(_,(FStatic(c,cf) | FInstance(c,_,cf))) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification -> ()
+				| TField({eexpr = TLocal _},_) when allow_tlocal -> ()
 				| _ -> raise Exit
 			in
 			try
@@ -236,7 +237,7 @@ module Simplifier = struct
 				let e2 = loop e2 in
 				{e with eexpr = TBinop(op,e1,e2)}
 			| TBinop((OpAssign | OpAssignOp _) as op,e1,e2) ->
-				let e2 = bind e2 in
+				let e2 = bind ~allow_tlocal:true e2 in
 				let e1 = loop e1 in
 				{e with eexpr = TBinop(op,e1,e2)}
 			| TBinop(op,e1,e2) ->
@@ -285,14 +286,14 @@ module Simplifier = struct
 				let e1 = match e1.eexpr with
 					| TFunction _ -> loop e1
 					| TArrayDecl [{eexpr = TFunction _}] -> loop e1
-					| _ -> bind e1
+					| _ -> bind ~allow_tlocal:true e1
 				in
 				{e with eexpr = TVar(v,Some e1)}
 			| TUnop((Neg | NegBits | Not) as op,flag,e1) ->
 				let e1 = bind e1 in
 				{e with eexpr = TUnop(op,flag,e1)}
 			| TField(e1,fa) ->
-				let e1 = bind e1 in
+				let e1 = bind ~allow_tlocal:true e1 in
 				{e with eexpr = TField(e1,fa)}
 			| TReturn (Some ({eexpr = TThrow _ | TReturn _} as e1)) ->
 				loop e1 (* this is a bit hackish *)
