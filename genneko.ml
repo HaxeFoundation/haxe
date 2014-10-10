@@ -422,9 +422,9 @@ let gen_class ctx c =
 	let stpath = gen_type_path p c.cl_path in
 	let fnew = (match c.cl_constructor with
 	| Some f ->
-		(match follow f.cf_type with
-		| TFun (args,_) ->
-			let params = List.map (fun (n,_,_) -> n) args in
+		(match f.cf_expr with
+		| Some {eexpr = TFunction tf} ->
+			let params = List.map (fun (v,_) -> v.v_name) tf.tf_args in
 			gen_method ctx p f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
 				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
