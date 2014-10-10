@@ -1161,6 +1161,15 @@ let configure gen =
 		| _ -> t
 	in
 
+	let line_directive =
+		if Common.defined gen.gcon Define.RealPosition then
+			fun w p -> ()
+		else fun w p ->
+			let cur_line = Lexer.get_error_line p in
+			let file = Common.get_full_path p.pfile in
+			print w "//line %d \"%s\"" cur_line (Ast.s_escape file); newline w
+	in
+
 	let expr_s w e =
 		in_value := false;
 		let rec expr_s w e =
@@ -1404,11 +1413,11 @@ let configure gen =
 						if cur_line <> ((!last_line)+1) then begin print w "//#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
 						last_line := cur_line in*)
 					List.iter (fun e ->
-						(*line_directive e.epos;*)
 						in_value := false;
 						(match e.eexpr with
 						| TConst _ -> ()
 						| _ ->
+							line_directive w e.epos;
 							expr_s w e;
 							(if has_semicolon e then write w ";");
 							newline w);
