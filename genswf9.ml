@@ -2270,7 +2270,7 @@ let generate_enum ctx e meta =
 			};
 		|];
 		hlc_static_construct = empty_method ctx e.e_pos;
-		hlc_static_fields = Array.of_list ({
+		hlc_static_fields = Array.of_list (List.rev ({
 			hlf_name = ident "__isenum";
 			hlf_slot = !st_count + 2;
 			hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Boolean")); hlv_value = HVBool true; hlv_const = true; };
@@ -2278,9 +2278,9 @@ let generate_enum ctx e meta =
 		} :: {
 			hlf_name = ident "__constructs__";
 			hlf_slot = !st_count + 1;
-			hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
+			hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Array")); hlv_value = HVNone; hlv_const = false; };
 			hlf_metas = None;
-		} :: constrs);
+		} :: constrs));
 	}
 
 let rec generate_type ctx t =
