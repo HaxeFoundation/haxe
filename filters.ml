@@ -486,8 +486,8 @@ let captured_vars com e =
 (* -------------------------------------------------------------------------- *)
 (* RENAME LOCAL VARS *)
 
-let rename_local_vars com e =
-	let cfg = com.config in
+let rename_local_vars ctx e =
+	let cfg = ctx.com.config in
 	let all_scope = (not cfg.pf_captured_scope) || (not cfg.pf_locals_scope) in
 	let vars = ref PMap.empty in
 	let all_vars = ref PMap.empty in
@@ -568,7 +568,7 @@ let rename_local_vars com e =
 		| TBlock el ->
 			let old = save() in
 			(* we have to look ahead for vars on these targets (issue #3344) *)
-			begin match com.platform with
+			begin match ctx.com.platform with
 				| Js | Flash8 ->
 					let rec check_var e = match e.eexpr with
 						| TVar (v,eo) ->
@@ -614,6 +614,9 @@ let rename_local_vars com e =
 			Type.iter loop e
 	in
 	declare (alloc_var "this" t_dynamic) Ast.null_pos; (* force renaming of 'this' vars in abstract *)
+	begin match ctx.curclass.cl_path with
+		| s :: _,_ | [],s -> declare (alloc_var s t_dynamic) Ast.null_pos
+	end;
 	loop e;
 	e
 
@@ -907,6 +910,7 @@ let run_expression_filters ctx filters t =
 	match t with
 	| TClassDecl c when is_removable_class c -> ()
 	| TClassDecl c ->
+		ctx.curclass <- c;
 		let process_field f =
 			match f.cf_expr with
 			| Some e when not (is_removable_field ctx f) ->
@@ -986,7 +990,7 @@ let run com tctx main =
 		let filters = [
 			Optimizer.sanitize com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-			rename_local_vars com;
+			rename_local_vars tctx;
 		] in
 		List.iter (fun t ->
 			remove_generic_base tctx t;
@@ -1020,7 +1024,7 @@ let run com tctx main =
 		let filters = [
 			promote_complex_rhs com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-			rename_local_vars com;
+			rename_local_vars tctx;
 		] in
 		List.iter (fun t ->
 			remove_generic_base tctx t;
