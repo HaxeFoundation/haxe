@@ -59,31 +59,39 @@ package haxe.ds;
 	}
 	public inline function set( key : String, value : T ) : Void {
 		if ( untyped __in__(key, reservedWordIndices) ) {
-			var i:Int = untyped reservedWordIndices[key];
-			untyped h[reservedWordIndexers[i]] = value;
+			setReserved(key, value);
 		} else {
 			untyped h[key] = value;
 		}
 	}
+	private function setReserved( key : String, value : T ) : Void {
+		var i:Int = untyped reservedWordIndices[key];
+		untyped h[reservedWordIndexers[i]] = value;		
+	}
 
-	public inline function get( key : String ) : Null<T> {
-		var rv:Null<T>;
+	public inline function get( key : String ) : Null<T> {		
 		if ( untyped __in__(key, reservedWordIndices) ) {
-			var i:Int = untyped reservedWordIndices[key];
-			rv = untyped h[reservedWordIndexers[i]];
+			return getReserved(key);
 		} else {
-			rv = untyped h[key];
+			var rv:Null<T> = untyped h[key];
+			return rv == null ? null : rv;
 		}
-		return rv == null ? null : rv;
+	}
+	private function getReserved( key : String ) : Null<T> {
+		var i:Int = untyped reservedWordIndices[key];
+		return untyped h[reservedWordIndexers[i]];
 	}
 
 	public inline function exists( key : String ) : Bool {
 		if ( untyped __in__(key, reservedWordIndices) ) {
-			var i:Int = untyped reservedWordIndices[key];
-			return untyped __in__(reservedWordIndexers[i], h);
+			return existsReserved(key);
 		} else {
 			return untyped __in__(key, h);
-		}
+		}		
+	}
+	private function existsReserved( key : String ) : Bool {
+		var i:Int = untyped reservedWordIndices[key];
+		return untyped __in__(reservedWordIndexers[i], h);
 	}
 
 	public inline function remove( key : String ) : Bool {
