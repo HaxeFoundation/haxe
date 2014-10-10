@@ -920,6 +920,31 @@ module ConstPropagation = struct
 						let eo = match eo with None -> None | Some e -> Some (loop e) in
 						{e with eexpr = TIf(e1,e2,eo)}
 				end;
+			| TSwitch(e1,cases,edef) ->
+				let e1 = loop e1 in
+				let rec check_constant e = match e.eexpr with
+					| TConst ct -> ct
+					| TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) -> check_constant e1
+					| _ -> raise Not_found
+				in
+				begin try
+					let ct = check_constant e1 in
+					begin try
+						let _,e = List.find (fun (el,_) ->
+							List.exists (fun e -> match e.eexpr with
+								| TConst ct2 -> ct = ct2
+								| _ -> false
+							) el
+						) cases in
+						loop e
+					with Not_found ->
+						begin match edef with None -> raise Not_found | Some e -> loop e end
+					end
+				with Not_found ->
+					let cases = List.map (fun (el,e) -> el,loop e) cases in
+					let edef = match edef with None -> None | Some e -> Some (loop e) in
+					{e with eexpr = TSwitch(e1,cases,edef)}
+				end
 			| _ ->
 				Type.map_expr loop e
 		in

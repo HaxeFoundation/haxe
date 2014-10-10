@@ -141,4 +141,36 @@ class Test {
 	static function testAbstractOverStringBinop() {
 		var s = "" + A;
 	}
+
+	@:js('
+		var a = true;
+		var b = 0;
+		b = 1;
+		b;
+	')
+	static function testSwitch1() {
+		var a = true;
+		var b = 0;
+		switch (a) {
+			case true: b = 1;
+			case false: b = 2;
+		}
+		b; // TODO: this should become 1
+	}
+
+	@:js('
+		var a = true;
+		var b = 0;
+		a = true;
+		a;
+	')
+	static function testSwitch2() {
+		var a = true;
+		var b = 0;
+		switch (b) {
+			case -1: a = false;
+			default: a = true;
+		}
+		a;
+	}
 }
