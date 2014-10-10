@@ -2,16 +2,15 @@
 
 	New features:
 
-	all : add --display mode for toplevel completion
-	all : add --display mode for position and usage information
-	all : allow @:callable on abstracts to forward calls to their underlying type
-	all : add haxe.Rest type for representing "rest" arguments in extern method signatures
-	all : allow pattern matching on getters
-	all : allow @:native on class fields
+	all : added --display mode for toplevel completion
+	all : added --display mode for position and usage information
+	all : allowed @:callable on abstracts to forward calls to their underlying type
+	all : allowed pattern matching on getters
+	all : allowed @:native on class fields
 	python : added python target
 	flash : flash player 12-14 support
-	js : add @:jsRequire and js.Lib.require
-	cs : add @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
+	js : added @:jsRequire and js.Lib.require
+	cs : added @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
 
 	Bugfixes:
 
@@ -43,9 +42,14 @@
 	all : allowed pattern matching on arrays if they are typed as Dynamic
 	neko : create output directory if it does not exist
 	js : inline Math methods and fields
-	cs/java : optimize Reflect.fields on dynamic structures
-	cs : optimize casting of parametrized types
+	cs/java : optimized Reflect.fields on dynamic structures
+	cs : optimized casting of parametrized types
 	cs : beautify c# code output
+
+	Standard Library:
+
+	all : added haxe.ds.Either
+	all : added haxe.Rest type for representing "rest" arguments in extern method signatures
 
 	Macro features and changes:
 
