@@ -45,7 +45,7 @@ class Reflect {
 
 	@:keep
 	public static inline function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		return Builtin.setattr(o, handleKeywords(field), value);
+		Builtin.setattr(o, handleKeywords(field), value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
