@@ -50,6 +50,7 @@
 
 	all : added haxe.ds.Either
 	all : added haxe.Rest type for representing "rest" arguments in extern method signatures
+	all : added haxe.EitherType abstract type for dealing with externs for dynamic targets
 
 	Macro features and changes:
 
