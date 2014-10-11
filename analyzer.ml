@@ -269,6 +269,7 @@ module Simplifier = struct
 				in
 				let e2 = if flag = NormalWhile then e2 else map_continue e2 in
 				let e_if = e_if None in
+				let e_if = mk (TMeta((Meta.Custom ":whileCond",[],e_if.epos), e_if)) e_if.etype e_if.epos in
 				let e_block = if flag = NormalWhile then Type.concat e_if e2 else Type.concat e2 e_if in
 				let e_true = mk (TConst (TBool true)) com.basic.tbool p in
 				let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
@@ -339,6 +340,36 @@ module Simplifier = struct
 			| TLocal v when Meta.has Meta.CompilerGenerated v.v_meta ->
 				begin try IntMap.find v.v_id !var_map
 				with Not_found -> e end
+			| TWhile(e1,e2,flag) ->
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				let extract_cond e = match e.eexpr with
+					| TIf({eexpr = TUnop(Not,_,e1)},_,_) -> e1
+					| TBreak -> raise Exit (* can happen due to optimization, not so easy to deal with because there might be other breaks/continues *)
+					| _ -> assert false
+				in
+				let e1,e2,flag = try
+					begin match e2.eexpr with
+						| TBlock el ->
+							begin match el with
+								| {eexpr = TMeta((Meta.Custom ":whileCond",_,_),e1)} :: el ->
+									let e1 = extract_cond e1 in
+									e1,{e2 with eexpr = TBlock el},NormalWhile
+								| _ ->
+									begin match List.rev el with
+										| {eexpr = TMeta((Meta.Custom ":whileCond",_,_),e1)} :: el ->
+											let e1 = extract_cond e1 in
+											e1,{e2 with eexpr = TBlock (List.rev el)},DoWhile
+										| _ ->
+											e1,e2,flag
+									end
+							end
+						| _ ->
+							e1,e2,flag
+					end with Exit ->
+						e1,e2,flag
+				in
+				{e with eexpr = TWhile(e1,e2,flag)}
 			| _ ->
 				Type.map_expr loop e
 		in
