@@ -23,14 +23,16 @@ package haxe.ds;
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	
-	private var h : flash.utils.Dictionary;
+	private var h : flash.utils.Object;
+	private var rh : flash.utils.Object;
 
 	public function new() : Void {
-		h = new flash.utils.Dictionary();
+		h = { };
+		rh = { };
 	}
 
 	// reserved words that are not allowed in Dictionary include all non-static members of Dictionary
-	private static var reservedWordIndexers:Array<ReservedWordIndexer> = [new ReservedWordIndexer(0), new ReservedWordIndexer(1), new ReservedWordIndexer(2), new ReservedWordIndexer(3), new ReservedWordIndexer(4), new ReservedWordIndexer(5), new ReservedWordIndexer(6), new ReservedWordIndexer(7), new ReservedWordIndexer(8)];
+	static private inline var reservedWordCount = 8;
 	static private var reservedWordIndicesStatic = {
 			"constructor":0,
 			"hasOwnProperty":1,
@@ -39,8 +41,7 @@ package haxe.ds;
 			"setPropertyIsEnumerable":4,
 			"toLocaleString":5,
 			"toString":6,
-			"valueOf":7,
-			"toJSON":8
+			"valueOf":7
 	};
 	private var reservedWordIndices = reservedWordIndicesStatic;
 	private inline function reservedWordByIndex(index:Int):String {
@@ -53,7 +54,6 @@ package haxe.ds;
 			case 5: "toLocaleString";
 			case 6: "toString";
 			case 7: "valueOf";
-			case 8: "toJSON";
 			default: null;
 		}
 	}
@@ -66,7 +66,7 @@ package haxe.ds;
 	}
 	private function setReserved( key : String, value : T ) : Void {
 		var i:Int = untyped reservedWordIndices[key];
-		untyped h[reservedWordIndexers[i]] = value;		
+		untyped rh[i] = value;		
 	}
 
 	public inline function get( key : String ) : Null<T> {		
@@ -79,7 +79,7 @@ package haxe.ds;
 	}
 	private function getReserved( key : String ) : Null<T> {
 		var i:Int = untyped reservedWordIndices[key];
-		return untyped h[reservedWordIndexers[i]];
+		return rh[i];
 	}
 
 	public inline function exists( key : String ) : Bool {
@@ -91,16 +91,16 @@ package haxe.ds;
 	}
 	private function existsReserved( key : String ) : Bool {
 		var i:Int = untyped reservedWordIndices[key];
-		return untyped __in__(reservedWordIndexers[i], h);
+		return rh[i] != null;
 	}
 
-	public inline function remove( key : String ) : Bool {
+	public function remove( key : String ) : Bool {
 		if ( untyped __in__(key, reservedWordIndices) ) {
 			var i:Int = untyped reservedWordIndices[key];
-			if ( !(untyped __in__(reservedWordIndexers[i], h)) ) {
+			if ( !(untyped __in__(i, rh)) ) {
 				return false;
 			} else {
-				untyped __delete__(h, reservedWordIndexers[i]);
+				untyped __delete__(rh, i);
 				return true;
 			}
 		} else {
@@ -115,14 +115,12 @@ package haxe.ds;
 
 	public function keys() : Iterator<String> {
 		var rv = untyped (__keys__(h));
-		var len:Int = untyped rv.length;
-		var i:Int = 0;
-		while (i < len) {
-			if ( Std.is(untyped rv[i], ReservedWordIndexer) ) {
-				var indexer:ReservedWordIndexer = untyped rv[i];
-				untyped rv[i] = reservedWordByIndex(indexer.i);
+		var i:Int = reservedWordCount - 1;
+		while (i >= 0) {
+			if ( untyped __in__(i, rh) ) {
+				rv.push(reservedWordByIndex(i));
 			}
-			i++;
+			i--;
 		}
 		return rv.iterator();
 	}
@@ -151,12 +149,4 @@ package haxe.ds;
 		return s.toString();
 	}
 
-}
-
-@:allow(haxe.ds.StringMap)
-class ReservedWordIndexer {
-	private var i:Int;
-	private function new(i:Int):Void {
-		this.i = i;
-	}
 }
