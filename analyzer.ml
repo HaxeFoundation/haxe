@@ -331,13 +331,35 @@ module Simplifier = struct
 		let var_map = ref IntMap.empty in
 		let rec loop e = match e.eexpr with
 			| TBlock el ->
-				let el = ExtList.List.filter_map (fun e -> match e.eexpr with
-					| TVar(v,Some e1) when Meta.has Meta.CompilerGenerated v.v_meta ->
-						var_map := IntMap.add v.v_id (loop e1) !var_map;
-						None
-					| _ ->
-						Some (loop e)
-				) el in
+				let rec loop2 el = match el with
+					| e :: el ->
+						begin match e.eexpr with
+							| TVar(v,Some e1) when Meta.has Meta.CompilerGenerated v.v_meta ->
+								var_map := IntMap.add v.v_id (loop e1) !var_map;
+								loop2 el
+							| TVar(v,None) ->
+								begin match el with
+									| {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v == v2 ->
+										let e = {e with eexpr = TVar(v,Some e2)} in
+										loop2 (e :: el)
+									| ({eexpr = TIf(e1,
+										{eexpr = TBlock [{eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)}]},
+										Some {eexpr = TBlock [{eexpr = TBinop(OpAssign,{eexpr = TLocal v3},e3)}]})} as e_if) :: el when v == v2 && v == v3 ->
+										let e_if = {e_if with eexpr = TIf(e1,e2,Some e3)} in
+										let e = {e with eexpr = TVar(v,Some e_if)} in
+										loop2 (e :: el)
+									| _ ->
+										let e = loop e in
+										e :: loop2 el
+								end
+							| _ ->
+								let e = loop e in
+								e :: loop2 el
+						end
+					| [] ->
+						[]
+				in
+				let el = loop2 el in
 				{e with eexpr = TBlock el}
 			| TLocal v when Meta.has Meta.CompilerGenerated v.v_meta ->
 				begin try IntMap.find v.v_id !var_map
