@@ -185,9 +185,11 @@ module Simplifier = struct
 					| _ -> false
 				end
 		in
+		let has_unbound = ref false in
 		let rec loop e = match e.eexpr with
 			| TLocal v when Meta.has Meta.Unbound v.v_meta && v.v_name <> "`trace" ->
-				raise Exit (* nope *)
+				has_unbound := true;
+				e
 			| TBlock el ->
 				{e with eexpr = TBlock (block loop el)}
 			| TCall({eexpr = TField(_,(FStatic(c,cf) | FInstance(c,_,cf)))},el) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification ->
@@ -319,7 +321,7 @@ module Simplifier = struct
 				List.map bind el
 		in
 		let e = loop e in
-		match close_block() with
+		!has_unbound,match close_block() with
 			| [] ->
 				e
 			| el ->
@@ -990,7 +992,7 @@ module EffectChecker = struct
 		in
 		let e = if is_var_expression then
 			(* var initialization expressions are like assignments, so let's cheat a bit here *)
-			Simplifier.apply com (alloc_var "tmp") (Codegen.binop OpAssign (mk (TConst TNull) t_dynamic e.epos) e e.etype e.epos)
+			snd (Simplifier.apply com (alloc_var "tmp") (Codegen.binop OpAssign (mk (TConst TNull) t_dynamic e.epos) e e.etype e.epos))
 		else e
 		in
 		let rec loop e = match e.eexpr with
@@ -1178,12 +1180,12 @@ let run_ssa com config is_var_expression e =
 		r
 	in
 	try
-		let e = if do_simplify || config.analyzer_use then
+		let has_unbound,e = if do_simplify || config.analyzer_use then
 			with_timer "analyzer-simplify-apply" (fun () -> Simplifier.apply com gen_local e)
 		else
-			e
+			false,e
 		in
-		let e = if config.analyzer_use then begin
+		let e = if config.analyzer_use && not has_unbound then begin
 				if config.check_has_effect then EffectChecker.run com is_var_expression e;
 				let e,ssa = with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply com e) in
 				let e = if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ssa e) else e in
@@ -1199,7 +1201,7 @@ let run_ssa com config is_var_expression e =
 		else
 			e
 		in
-		let e = if config.local_dce && config.analyzer_use then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
+		let e = if config.local_dce && config.analyzer_use && not has_unbound then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 		e
 	with Exit ->
 		e

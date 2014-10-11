@@ -1006,7 +1006,7 @@ let run com tctx main =
 			(match com.platform with
 				| Cpp | Flash8 -> (fun e ->
 					let save = save_locals tctx in
-					let e = try Analyzer.Simplifier.apply com (Typecore.gen_local tctx) e with Exit -> e in
+					let e = try snd (Analyzer.Simplifier.apply com (Typecore.gen_local tctx) e) with Exit -> e in
 					save();
 					e)
 				| _ -> fun e -> e);
