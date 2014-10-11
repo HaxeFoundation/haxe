@@ -187,7 +187,7 @@ module Simplifier = struct
 		in
 		let has_unbound = ref false in
 		let rec loop e = match e.eexpr with
-			| TLocal v when Meta.has Meta.Unbound v.v_meta && v.v_name <> "`trace" ->
+			| TCall({eexpr = TLocal v | TField({eexpr = TLocal v},_)},_) | TField({eexpr = TLocal v},_) | TLocal v when Meta.has Meta.Unbound v.v_meta && v.v_name <> "`trace" ->
 				has_unbound := true;
 				e
 			| TBlock el ->
