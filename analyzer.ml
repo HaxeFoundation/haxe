@@ -303,6 +303,9 @@ module Simplifier = struct
 			| TReturn (Some e1) ->
 				let e1 = bind e1 in
 				{e with eexpr = TReturn (Some e1)}
+			| TThrow e1 ->
+				let e1 = bind e1 in
+				{e with eexpr = TThrow e1}
 			| TCast(e1,mto) ->
 				let e1 = bind ~allow_tlocal:true e1 in
 				{e with eexpr = TCast(e1,mto)}
