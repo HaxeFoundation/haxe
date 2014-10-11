@@ -330,7 +330,7 @@ module Simplifier = struct
 			| el ->
 				mk (TBlock (List.rev (e :: el))) e.etype e.epos
 
-	let unapply e =
+	let unapply com e =
 		let var_map = ref IntMap.empty in
 		let rec get_assignment_to v e = match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v == v2 -> Some e2
@@ -345,7 +345,7 @@ module Simplifier = struct
 							| TVar(v,Some e1) when Meta.has Meta.CompilerGenerated v.v_meta ->
 								var_map := IntMap.add v.v_id (loop e1) !var_map;
 								loop2 el
-							| TVar(v,None) ->
+							| TVar(v,None) when not (com.platform = Php) ->
 								begin match el with
 									| {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v == v2 ->
 										let e = {e with eexpr = TVar(v,Some e2)} in
@@ -1234,7 +1234,7 @@ let run_ssa com config is_var_expression e =
 			e
 		in
 		let e = if not do_simplify && not (Common.raw_defined com "analyzer-no-simplify-unapply") then
-			with_timer "analyzer-simplify-unapply" (fun () -> Simplifier.unapply e)
+			with_timer "analyzer-simplify-unapply" (fun () -> Simplifier.unapply com e)
 		else
 			e
 		in
