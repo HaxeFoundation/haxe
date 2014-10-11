@@ -871,6 +871,10 @@ module ConstPropagation = struct
 		| _ ->
 			false
 
+	let is_enum_type t = match follow t with
+		| TEnum(_) -> true
+		| _ -> false
+
 	let rec local ssa v e =
 		begin try
 			if v.v_capture then raise Not_found;
@@ -929,6 +933,22 @@ module ConstPropagation = struct
 			local ssa v e
 		| _ ->
 			e
+
+	(* TODO: the name is quite accurate *)
+	let awkward_get_enum_index ssa e =
+		let e = match e.eexpr with
+			| TArray(e1,{eexpr = TConst(TInt i)}) when ssa.com.platform = Js && Int32.to_int i = 1 && is_enum_type e1.etype ->
+				e1
+			| TCall({eexpr = TField(e1, FDynamic "__Index")},[]) when ssa.com.platform = Cpp && is_enum_type e1.etype ->
+				e1
+			| TField(e1,FDynamic "index") when ssa.com.platform = Neko && is_enum_type e1.etype ->
+				e1
+			| _ ->
+				raise Not_found
+		in
+		match (value ssa e).eexpr with
+			| TField(_,FEnum(_,ef)) -> TInt (Int32.of_int ef.ef_index)
+			| _ -> raise Not_found
 
 	let apply ssa e =
 		let had_function = ref false in
@@ -995,7 +1015,7 @@ module ConstPropagation = struct
 				let rec check_constant e = match e.eexpr with
 					| TConst ct -> ct
 					| TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) -> check_constant e1
-					| _ -> raise Not_found
+					| _ -> awkward_get_enum_index ssa e
 				in
 				begin try
 					let ct = check_constant e1 in
