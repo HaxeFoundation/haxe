@@ -329,6 +329,11 @@ module Simplifier = struct
 
 	let unapply e =
 		let var_map = ref IntMap.empty in
+		let rec get_assignment_to v e = match e.eexpr with
+			| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v == v2 -> Some e2
+			| TBlock [e] -> get_assignment_to v e
+			| _ -> None
+		in
 		let rec loop e = match e.eexpr with
 			| TBlock el ->
 				let rec loop2 el = match el with
@@ -342,12 +347,19 @@ module Simplifier = struct
 									| {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v == v2 ->
 										let e = {e with eexpr = TVar(v,Some e2)} in
 										loop2 (e :: el)
-									| ({eexpr = TIf(e1,
-										{eexpr = TBlock [{eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)}]},
-										Some {eexpr = TBlock [{eexpr = TBinop(OpAssign,{eexpr = TLocal v3},e3)}]})} as e_if) :: el when v == v2 && v == v3 ->
-										let e_if = {e_if with eexpr = TIf(e1,e2,Some e3)} in
-										let e = {e with eexpr = TVar(v,Some e_if)} in
-										loop2 (e :: el)
+									| ({eexpr = TIf(e1,e2,Some e3)} as e_if) :: el ->
+										let e1 = loop e1 in
+										let e2 = loop e2 in
+										let e3 = loop e3 in
+										begin match get_assignment_to v e2,get_assignment_to v e3 with
+											| Some e2,Some e3 ->
+												let e_if = {e_if with eexpr = TIf(e1,e2,Some e3)} in
+												let e = {e with eexpr = TVar(v,Some e_if)} in
+												loop2 (e :: el)
+											| _ ->
+												let e_if = {e_if with eexpr = TIf(e1,e2,Some e3)} in
+												e :: e_if :: loop2 el
+										end
 									| _ ->
 										let e = loop e in
 										e :: loop2 el
