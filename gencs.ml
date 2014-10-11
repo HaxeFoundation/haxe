@@ -2911,8 +2911,8 @@ let configure gen =
 
 	generate_modules gen "cs" "src" module_gen;
 
+	dump_descriptor gen ("hxcs_build.txt") path_s module_s;
 	if ( not (Common.defined gen.gcon Define.NoCompilation || Common.defined gen.gcon Define.UnityStdTarget) ) then begin
-		dump_descriptor gen ("hxcs_build.txt") path_s module_s;
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxcs hxcs_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) in
