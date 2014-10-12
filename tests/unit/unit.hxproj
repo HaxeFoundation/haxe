@@ -8,14 +8,14 @@
     <movie fps="30" />
     <movie width="300" />
     <movie height="300" />
-    <movie version="8" />
+    <movie version="0" />
     <movie minorVersion="0" />
     <movie platform="Flash Player" />
     <movie background="#FFFFFF" />
   </output>
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
-    <class path=".." />
+    <class path="src" />
   </classpaths>
   <!-- Build options -->
   <build>
@@ -62,7 +62,7 @@
     <hidden path="obj" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>"$(CompilerPath)/haxe" compile.hxml</preBuildCommand>
+  <preBuildCommand>"$(CompilerPath)/haxe" compile$(TargetBuild).hxml</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->

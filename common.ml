@@ -956,8 +956,11 @@ let rec mkdir_recursive base dir_list =
 
 let mkdir_from_path path =
 	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
-	let dir_list = List.rev (List.tl (List.rev parts)) in
-	mkdir_recursive "" dir_list
+	match parts with
+		| [] -> (* path was "" *) ()
+		| _ ->
+			let dir_list = List.rev (List.tl (List.rev parts)) in
+			mkdir_recursive "" dir_list
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])

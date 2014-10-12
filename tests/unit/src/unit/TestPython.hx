@@ -84,32 +84,6 @@ private class B extends A {
     public function new() {}
 }
 
-@:pythonImport("native_python.sample", "A")
-extern class ExternClass {
-	function new();
-	function f(v:Int):Int;
-}
-
-@:pythonImport("native_python.sample", "A.Nested")
-extern class ExternNestedClass {
-	function new();
-	function f(v:Int):Int;
-}
-
-@:pythonImport("native_python.sample")
-extern class ExternModule {
-	static function f(v:Int):Int;
-}
-
-@:pythonImport("inexistant", "AZAZA", ignoreError=true)
-extern class InexistantExtern1 {}
-
-@:pythonImport("inexistant", "AZAZA.ZAZA", ignoreError=true)
-extern class InexistantExtern2 {}
-
-@:pythonImport("inexistant", ignoreError=true)
-extern class InexistantExtern3 {}
-
 class TestPython extends Test {
 
 	public function testDoWhileAsExpression () {
@@ -384,13 +358,6 @@ class TestPython extends Test {
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t.length, 2);
-	}
-
-	function testExtern()
-	{
-		eq(new ExternClass().f(1), 2);
-		eq(new ExternNestedClass().f(1), 3);
-		eq(ExternModule.f(1), 4);
 	}
 
 }

@@ -1,6 +1,6 @@
 -D macro-times
 -debug
--cp ..
+-cp src
 -cp "C:\Program Files\The Haxe Effect\src/dev/null"
 -resource res1.txt
 -resource res2.bin

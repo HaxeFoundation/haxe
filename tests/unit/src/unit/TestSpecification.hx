@@ -142,7 +142,7 @@ class RttiClass3 extends RttiClass1 {
 }
 
 #if !macro
-@:build(unit.UnitBuilder.build("unitstd"))
+@:build(unit.UnitBuilder.build("src/unitstd"))
 #end
 class TestSpecification extends Test {
 
