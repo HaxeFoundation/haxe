@@ -2104,6 +2104,28 @@ let configure gen =
 				| _ -> ()
 			)
 		with | Not_found -> ());
+		(try
+			if cl.cl_interface then raise Not_found;
+			let cf = PMap.find "finalize" cl.cl_fields in
+			(if List.exists (fun c -> c.cf_name = "finalize") cl.cl_overrides then raise Not_found);
+			(match cf.cf_type with
+				| TFun([], ret) ->
+					(match real_type ret with
+						| TAbstract( { a_path = ([], "Void") }, []) ->
+							write w "~";
+							write w (snd cl.cl_path);
+							write w "()";
+							begin_block w;
+							write w "this.finalize();";
+							end_block w;
+							newline w;
+							newline w
+						| _ ->
+							gen.gcon.error "A finalize() function should be Void->Void!" cf.cf_pos
+					)
+				| _ -> ()
+			)
+		with | Not_found -> ());
 		(* properties *)
 		let handle_prop static f =
 			match f.cf_kind with
