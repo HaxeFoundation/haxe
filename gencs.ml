@@ -2910,6 +2910,8 @@ let configure gen =
 
 	let t = Common.timer "code generation" in
 
+	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
+	mkdir_recursive "" parts;
 	generate_modules gen "cs" "src" module_gen;
 
 	dump_descriptor gen ("hxcs_build.txt") path_s module_s;

@@ -2305,6 +2305,8 @@ let configure gen =
 
 	let t = Common.timer "code generation" in
 
+	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
+	mkdir_recursive "" parts;
 	generate_modules_t gen "java" "src" change_path module_gen;
 
 	let path_s_desc path = path_s path [] in
