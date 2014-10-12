@@ -45,6 +45,8 @@ type context = {
 	mutable block_inits : (unit -> unit) option;
 }
 
+let follow = Abstract.follow_with_abstracts
+
 let is_var_field f =
 	match f with
 	| FStatic (_,f) | FInstance (_,_,f) ->
