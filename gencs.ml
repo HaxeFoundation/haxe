@@ -779,7 +779,8 @@ let configure gen =
 			| TAbstract ({ a_path = ["cs"],"Out" },_)
 			| TType ({ t_path = [],"Single" },[])
 			| TAbstract ({ a_path = [],"Single" },[]) -> Some t
-			| TType ({ t_path = [],"Null" },[_]) -> Some t
+			| TType (({ t_path = [],"Null" } as tdef),[t2]) ->
+					Some (TType(tdef,[follow (gen.gfollow#run_f t2)]))
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _	)

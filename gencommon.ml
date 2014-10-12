@@ -9565,6 +9565,10 @@ struct
 		(* 	let ret = wrap_val e t b in *)
 		(* 	{ ret with eexpr = TParenthesis(ret) } *)
 		(* in *)
+		let is_string t = match gen.greal_type t with
+			| TInst({ cl_path=([],"String") },_) -> true
+			| _ -> false
+		in
 		let handle_unwrap to_t e =
 			let e_null_t = get (is_null_t gen e.etype) in
 			match gen.greal_type to_t with
@@ -9616,6 +9620,9 @@ struct
 					let null_et = is_null_t e.etype in
 					let null_vt = is_null_t v.etype in
 					(match null_vt, null_et with
+						| Some(vt), None when is_string e.etype ->
+							let v = run v in
+							{ e with eexpr = TCast(null_to_dynamic v,None) }
 						| Some(vt), None ->
 							(match v.eexpr with
 								(* is there an unnecessary cast to Nullable? *)
@@ -9720,6 +9727,22 @@ struct
 								| _ ->
 									Type.map_expr run e
 							)
+						| Ast.OpAdd when is_string e1.etype || is_string e2.etype ->
+							let e1 = if is_some e1_t then
+								null_to_dynamic (run e1)
+							else
+								run e1
+							in
+							let e2 = if is_some e2_t then
+								null_to_dynamic (run e2)
+							else
+								run e2
+							in
+							let e_t = is_null_t e.etype in
+							if is_some e_t then
+								wrap_val { eexpr = TBinop(op,e1,e2); etype = get e_t; epos = e.epos } (get e_t) true
+							else
+								{ e with eexpr = TBinop(op,e1,e2) }
 						| _ ->
 							let e1 = if is_some e1_t then
 								handle_unwrap (get e1_t) (run e1)

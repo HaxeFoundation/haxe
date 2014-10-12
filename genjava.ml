@@ -873,8 +873,10 @@ let configure gen =
 			| TType ({ t_path = ["java"],"Char16" },[])
 			| TAbstract ({ a_path = ["java"],"Char16" },[])
 			| TType ({ t_path = [],"Single" },[])
-			| TAbstract ({ a_path = [],"Single" },[])
-			| TType ({ t_path = [],"Null" },[_]) -> Some t
+			| TAbstract ({ a_path = [],"Single" },[]) ->
+					Some t
+			| TType (({ t_path = [],"Null" } as tdef),[t2]) ->
+					Some (TType(tdef,[gen.gfollow#run_f t2]))
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
@@ -912,7 +914,7 @@ let configure gen =
 			| TInst(c,params) when Meta.has Meta.Enum c.cl_meta ->
 				TInst(c, List.map (fun _ -> t_dynamic) params)
 			| TInst _ -> t
-			| TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type t -> t_dynamic
+			| TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type (gen.gfollow#run_f t) -> t_dynamic
 			| TType({ t_path = ([], "Null") }, [t]) ->
 				(match follow t with
 					| TInst( { cl_kind = KTypeParameter _ }, []) ->
@@ -2096,7 +2098,8 @@ let configure gen =
 
 	DynamicOperators.configure gen
 		(DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
-			| TBinop (Ast.OpEq, e1, e2)
+			| TBinop (Ast.OpEq, e1, e2) ->
+				is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype
 			| TBinop (Ast.OpAdd, e1, e2)
 			| TBinop (Ast.OpNotEq, e1, e2) -> is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype
 			| TBinop (Ast.OpLt, e1, e2)
@@ -2110,13 +2113,12 @@ let configure gen =
 		(fun e1 e2 ->
 			let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in
 
-			if is_null e1 || is_null e2 then
-				match e1.eexpr, e2.eexpr with
-					| TConst c1, TConst c2 ->
-						{ e1 with eexpr = TConst(TBool (c1 = c2)); etype = basic.tbool }
-					| _ ->
-						{ e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
-			else begin
+			match e1.eexpr, e2.eexpr with
+				| TConst c1, TConst c2 when is_null e1 || is_null e2 ->
+					{ e1 with eexpr = TConst(TBool (c1 = c2)); etype = basic.tbool }
+				| _ when is_null e1 || is_null e2 && not (is_java_basic_type e1.etype || is_java_basic_type e2.etype) ->
+					{ e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
+				| _ ->
 				let is_ref = match follow e1.etype, follow e2.etype with
 					| TDynamic _, _
 					| _, TDynamic _
@@ -2143,7 +2145,6 @@ let configure gen =
 
 				let static = mk_static_field_access_infer (runtime_cl) (if is_ref then "refEq" else "eq") e1.epos [] in
 				{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tbool; epos=e1.epos }
-			end
 		)
 		(fun e e1 e2 ->
 			match may_nullable e1.etype, may_nullable e2.etype with
