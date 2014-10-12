@@ -611,7 +611,6 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			let fields = List.fold_left (fun acc e ->
 				match follow e.etype with
 				| TAnon a when !(a.a_status) = Const ->
-					a.a_status := Closed;
 					if !fcount = -1 then begin
 						fcount := field_count a;
 						PMap.map (fun f -> [expr f]) a.a_fields
