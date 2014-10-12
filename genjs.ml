@@ -1024,7 +1024,7 @@ let generate_class ctx c =
 		(match c.cl_super with
 		| None -> print ctx "%s.prototype = {" p;
 		| Some (csup,_) ->
-			let psup = s_path ctx csup.cl_path in
+			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx;
 			print ctx "%s.prototype = $extend(%s.prototype,{" p psup;
