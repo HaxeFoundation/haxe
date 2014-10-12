@@ -467,7 +467,7 @@ class RunTravis {
 					haxelibInstallGit("dionjwa", "nodejs-std", "master", "src", true, "nodejs");
 					runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 					var server = new Process("nekotools", ["server"]);
-					runCommand("node", ["RunSauceLabs.js"]);
+					runCommand("node", ["bin/RunSauceLabs.js"]);
 					server.close();
 				}
 
