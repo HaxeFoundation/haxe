@@ -36,7 +36,7 @@ package haxe.ds;
 	static private inline var reservedWordCount = 8;
 	static private var reservedWordIndicesStatic = {
 			"constructor":0,
-			"hasOwnProperty":1,
+			"hasOwnProperty":1, // NOTE - you cannot find the correct value of this entry by [] indexing in as3 target, so we have a special test in getReservedWordIndex
 			"isPrototypeOf":2,
 			"propertyIsEnumerable":3,
 			"setPropertyIsEnumerable":4,
@@ -45,6 +45,19 @@ package haxe.ds;
 			"valueOf":7
 	};
 	private var reservedWordIndices = reservedWordIndicesStatic;
+	static private inline function getReservedWordIndex(name:String):Int {
+		return switch(name) {
+			case "constructor":0;
+			case "hasOwnProperty":1;
+			case "isPrototypeOf":2;
+			case "propertyIsEnumerable":3;
+			case "setPropertyIsEnumerable":4;
+			case "toLocaleString":5;
+			case "toString":6;
+			case "valueOf":7;
+			default: -1;
+		}
+	}
 	@:allow(haxe.ds.StringMapKeysIterator)
 	@:allow(haxe.ds.StringMapValuesIterator)
 	static private inline function reservedWordByIndex(index:Int):String {
@@ -72,7 +85,7 @@ package haxe.ds;
 		if( rh == null ) {
 			rh = {};
 		}
-		var i:Int = untyped reservedWordIndices[key];
+		var i:Int = untyped getReservedWordIndex(key);
 		untyped rh[i] = value;		
 	}
 
@@ -88,7 +101,7 @@ package haxe.ds;
 		if( rh == null ) {
 			return null;
 		}
-		var i:Int = untyped reservedWordIndices[key];
+		var i:Int = untyped getReservedWordIndex(key);
 		var rv:Null<T> = untyped rh[i];
 		return rv == null ? null : rv;
 	}
@@ -104,7 +117,7 @@ package haxe.ds;
 		if( rh == null ) {
 			return false;
 		}
-		var i:Int = untyped reservedWordIndices[key];
+		var i:Int = untyped getReservedWordIndex(key);
 		return untyped __in__(i, rh);
 	}
 
@@ -113,7 +126,7 @@ package haxe.ds;
 			if( rh == null ) {
 				return false;
 			}
-			var i:Int = untyped reservedWordIndices[key];
+			var i:Int = untyped getReservedWordIndex(key);
 			if( !(untyped __in__(i, rh)) ) {
 				return false;
 			} else {
@@ -131,14 +144,6 @@ package haxe.ds;
 	}
 	
 	#if as3
-	public inline function keys() : Iterator<String> {
-		return new StringMapKeysIterator(h, rh, 0);
-	}
-	
-	public inline function iterator() : Iterator<T> {
-		return new StringMapValuesIterator(h, rh, 0);
-	}
-	#else
 	public function keys() : Iterator<String> {
 		var rv = untyped (__keys__(h));
 		if( rh != null ) {
@@ -161,6 +166,14 @@ package haxe.ds;
 			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
 		};
 	}
+	#else
+	public inline function keys() : Iterator<String> {
+		return new StringMapKeysIterator(h, rh, 0);
+	}
+	
+	public inline function iterator() : Iterator<T> {
+		return new StringMapValuesIterator(h, rh, 0);
+	}
 	#end
 
 	public function toString() : String {
@@ -181,6 +194,7 @@ package haxe.ds;
 }
 
 #if as3
+#else
 private class StringMapKeysIterator {
 	var collection:Dynamic;
 	var rh:Dynamic;
