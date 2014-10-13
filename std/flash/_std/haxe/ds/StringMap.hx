@@ -131,11 +131,11 @@ package haxe.ds;
 	}
 	
 	#if flash9
-	@:extern public inline function keys() : Iterator<String> {
+	public inline function keys() : Iterator<String> {
 		return new StringMapKeysIterator(h, rh, 0);
 	}
 	
-	@:extern public inline function iterator() : Iterator<T> {
+	public inline function iterator() : Iterator<T> {
 		return new StringMapValuesIterator(h, rh, 0);
 	}
 	#else
