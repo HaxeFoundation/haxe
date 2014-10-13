@@ -1482,6 +1482,7 @@ try
 			Genxml.generate_hx com
 		| Some file ->
 			Common.log com ("Generating xml : " ^ file);
+			Common.mkdir_from_path file;
 			Genxml.generate com file);
 		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com Define.Dump then Codegen.dump_types com;
