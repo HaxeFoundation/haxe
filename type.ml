@@ -860,7 +860,7 @@ let s_expr_kind e =
 
 let s_const = function
 	| TInt i -> Int32.to_string i
-	| TFloat s -> s ^ "f"
+	| TFloat s -> s
 	| TString s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)
 	| TBool b -> if b then "true" else "false"
 	| TNull -> "null"
