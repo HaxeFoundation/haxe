@@ -3232,10 +3232,10 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		| name -> name
 	in
 	let acc = match m.mflags.mf_access with
-		| _ when List.mem SGetter m.msemantics || List.mem SSetter m.msemantics ->
-			APrivate
 		| FAFamily | FAFamOrAssem -> APrivate
 		(* | FAPrivate -> APrivate *)
+		| FAPublic when List.mem SGetter m.msemantics || List.mem SSetter m.msemantics ->
+			APrivate
 		| FAPublic -> APublic
 		| _ ->
 			raise Exit
