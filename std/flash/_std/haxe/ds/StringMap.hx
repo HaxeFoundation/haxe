@@ -61,7 +61,7 @@ package haxe.ds;
 		}
 	}
 	
-	@:extern public inline function set( key : String, value : T ) : Void {
+	public inline function set( key : String, value : T ) : Void {
 		if( untyped __in__(key, reservedWordIndices) ) {
 			setReserved(key, value);
 		} else {
@@ -76,7 +76,7 @@ package haxe.ds;
 		untyped rh[i] = value;		
 	}
 
-	@:extern public inline function get( key : String ) : Null<T> {		
+	public inline function get( key : String ) : Null<T> {		
 		if( untyped __in__(key, reservedWordIndices) ) {
 			return getReserved(key);
 		} else {
@@ -93,7 +93,7 @@ package haxe.ds;
 		return rv == null ? null : rv;
 	}
 
-	@:extern public inline function exists( key : String ) : Bool {
+	public inline function exists( key : String ) : Bool {
 		if( untyped __in__(key, reservedWordIndices) ) {
 			return existsReserved(key);
 		} else {
@@ -231,6 +231,9 @@ private class StringMapValuesIterator<T> {
 		this.collection = collection;
 		this.rh = rh;
 		this.index = index;
+	}
+	public inline function iterator():Iterator<T> {
+		return this;
 	}
 
 	public inline function hasNext():Bool {
