@@ -30,5 +30,9 @@ map.exists("bar") == false;
 map.exists("baz") == true;
 map.get("bar") == null;
 map["bar"] == null;
+
 map = {test: 2};
 map["test"] == 2;
+
+var d:Dynamic<Int> = map;
+d.test == 2;

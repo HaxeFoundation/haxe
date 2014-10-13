@@ -29,7 +29,7 @@ package haxe;
 
 	Basically, it wraps `Reflect` calls in a `Map`-like interface.
 **/
-abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> {
+abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 	/**
 		Creates a new structure.
