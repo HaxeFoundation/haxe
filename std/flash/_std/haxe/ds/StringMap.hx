@@ -130,7 +130,7 @@ package haxe.ds;
 		}
 	}
 	
-	#if flash9
+	#if as3
 	public inline function keys() : Iterator<String> {
 		return new StringMapKeysIterator(h, rh, 0);
 	}
@@ -180,6 +180,7 @@ package haxe.ds;
 
 }
 
+#if as3
 private class StringMapKeysIterator {
 	var collection:Dynamic;
 	var rh:Dynamic;
@@ -259,4 +260,4 @@ private class StringMapValuesIterator<T> {
 		return result;
 	}
 }
-
+#end
