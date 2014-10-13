@@ -30,7 +30,7 @@ class Issue3462 extends Test
 		f(keyCount != keys.length); // keys missing
 		var keyCount:Int = 0;
 		for (v in d) {
-			g(v < 0 || v >= keys.length); // bad value iterated
+			f(v < 0 || v >= keys.length); // bad value iterated
 			keyCount++;
 		}
 		f(keyCount != keys.length); // values missing
