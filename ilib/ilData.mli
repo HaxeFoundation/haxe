@@ -94,6 +94,7 @@ and ilmethod = {
 	moverride : (ilpath * string) option; (* method_impl *)
 		(* refers to the signature of the declaring class *)
 	mtypes : type_param list;
+  msemantics : semantic_flags;
 }
 
 and ilmethod_arg = string * param_flags * ilsig_t

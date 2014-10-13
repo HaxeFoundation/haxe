@@ -275,8 +275,8 @@ let convert_method ctx m =
 	| _ -> assert false
 	in
 
-	let override, types =
-		List.fold_left (fun (override,types) -> function
+	let override, types, semantics =
+		List.fold_left (fun (override,types,semantics) -> function
 		| MethodImpl mi ->
 			let declaring = match mi.mi_method_declaration with
 				| MemberRef mr ->
@@ -287,12 +287,14 @@ let convert_method ctx m =
 					| None -> override)
 				| _ -> override
 			in
-			declaring, types
+			declaring, types, semantics
 		| GenericParam gp ->
-			override, (convert_generic ctx gp) :: types
+			override, (convert_generic ctx gp) :: types, semantics
+		| MethodSemantics ms ->
+			override, types, ms.ms_semantic @ semantics
 		| _ ->
-			override,types
-		) (None,[]) (Hashtbl.find_all ctx.il_relations (IMethod, m.m_id))
+			override,types, semantics
+		) (None,[],[]) (Hashtbl.find_all ctx.il_relations (IMethod, m.m_id))
 	in
 	{
 		mname = m.m_name;
@@ -302,6 +304,7 @@ let convert_method ctx m =
 		mret = ret;
 		moverride = override;
 		mtypes = types;
+		msemantics = semantics;
 	}
 
 let convert_prop ctx prop =
