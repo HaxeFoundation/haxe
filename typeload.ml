@@ -873,7 +873,7 @@ let check_overriding ctx c =
 							same_overload_args f.cf_type (apply_params csup.cl_params params t) f f2
 						) overloads
 					) true
-				) f.cf_overloads
+				) (f :: f.cf_overloads)
 			end else
 				check_field f (fun csup i ->
 					let _, t, f2 = raw_class_field (fun f -> f.cf_type) csup params i in
@@ -2253,9 +2253,9 @@ let init_class ctx c p context_init herits fields =
 					| None ->
 							c.cl_constructor <- Some f
 					| Some ctor when ctx.com.config.pf_overload ->
-			  if Meta.has Meta.Overload f.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
-							ctor.cf_overloads <- f :: ctor.cf_overloads
-			  else if Meta.has Meta.Overload f.cf_meta <> Meta.has Meta.Overload ctor.cf_meta then
+							if Meta.has Meta.Overload f.cf_meta && Meta.has Meta.Overload ctor.cf_meta then
+								ctor.cf_overloads <- f :: ctor.cf_overloads
+							else
 								display_error ctx ("If using overloaded constructors, all constructors must be declared with @:overload") (if Meta.has Meta.Overload f.cf_meta then ctor.cf_pos else f.cf_pos)
 					| Some ctor ->
 								display_error ctx "Duplicate constructor" p

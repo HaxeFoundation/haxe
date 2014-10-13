@@ -2429,8 +2429,21 @@ let mk_type_path ctx path params =
 		with | Invalid_string ->
 			jname_to_hx (snd path), None
 	in
+	let pack = fst (jpath_to_hx path) in
+	let pack, sub, name = match path with
+		| [], ("Float" as c)
+		| [], ("Int" as c)
+		| [], ("Single" as c)
+		| [], ("Bool" as c)
+		| [], ("Dynamic" as c)
+		| [], ("Iterator" as c)
+		| [], ("Iterable" as c) ->
+			[], Some c, "StdTypes"
+		| _ ->
+			pack, sub, name
+	in
 	CTPath {
-		tpackage = fst (jpath_to_hx path);
+		tpackage = pack;
 		tname = name;
 		tparams = params;
 		tsub = sub;
