@@ -23,15 +23,16 @@ package haxe.ds;
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	
-	private var h : flash.utils.Object;
-	private var rh : flash.utils.Object;
+	private var h : Dynamic;
+	private var rh : Dynamic;
 
 	public function new() : Void {
-		h = { };
-		rh = { };
+		h = {};
 	}
 
 	// reserved words that are not allowed in Dictionary include all non-static members of Dictionary
+	@:allow(haxe.ds.StringMapKeysIterator)
+	@:allow(haxe.ds.StringMapValuesIterator)
 	static private inline var reservedWordCount = 8;
 	static private var reservedWordIndicesStatic = {
 			"constructor":0,
@@ -44,7 +45,9 @@ package haxe.ds;
 			"valueOf":7
 	};
 	private var reservedWordIndices = reservedWordIndicesStatic;
-	private inline function reservedWordByIndex(index:Int):String {
+	@:allow(haxe.ds.StringMapKeysIterator)
+	@:allow(haxe.ds.StringMapValuesIterator)
+	static private inline function reservedWordByIndex(index:Int):String {
 		return switch(index) { 
 			case 0: "constructor";
 			case 1: "hasOwnProperty";
@@ -57,20 +60,24 @@ package haxe.ds;
 			default: null;
 		}
 	}
-	public inline function set( key : String, value : T ) : Void {
-		if ( untyped __in__(key, reservedWordIndices) ) {
+	
+	@:extern public inline function set( key : String, value : T ) : Void {
+		if( untyped __in__(key, reservedWordIndices) ) {
 			setReserved(key, value);
 		} else {
 			untyped h[key] = value;
 		}
 	}
 	private function setReserved( key : String, value : T ) : Void {
+		if( rh == null ) {
+			rh = {};
+		}
 		var i:Int = untyped reservedWordIndices[key];
 		untyped rh[i] = value;		
 	}
 
-	public inline function get( key : String ) : Null<T> {		
-		if ( untyped __in__(key, reservedWordIndices) ) {
+	@:extern public inline function get( key : String ) : Null<T> {		
+		if( untyped __in__(key, reservedWordIndices) ) {
 			return getReserved(key);
 		} else {
 			var rv:Null<T> = untyped h[key];
@@ -78,33 +85,43 @@ package haxe.ds;
 		}
 	}
 	private function getReserved( key : String ) : Null<T> {
+		if( rh == null ) {
+			return null;
+		}
 		var i:Int = untyped reservedWordIndices[key];
-		return rh[i];
+		var rv:Null<T> = untyped rh[i];
+		return rv == null ? null : rv;
 	}
 
-	public inline function exists( key : String ) : Bool {
-		if ( untyped __in__(key, reservedWordIndices) ) {
+	@:extern public inline function exists( key : String ) : Bool {
+		if( untyped __in__(key, reservedWordIndices) ) {
 			return existsReserved(key);
 		} else {
 			return untyped __in__(key, h);
 		}		
 	}
 	private function existsReserved( key : String ) : Bool {
+		if( rh == null ) {
+			return false;
+		}
 		var i:Int = untyped reservedWordIndices[key];
-		return rh[i] != null;
+		return untyped __in__(i, rh);
 	}
 
 	public function remove( key : String ) : Bool {
-		if ( untyped __in__(key, reservedWordIndices) ) {
+		if( untyped __in__(key, reservedWordIndices) ) {
+			if( rh == null ) {
+				return false;
+			}
 			var i:Int = untyped reservedWordIndices[key];
-			if ( !(untyped __in__(i, rh)) ) {
+			if( !(untyped __in__(i, rh)) ) {
 				return false;
 			} else {
 				untyped __delete__(rh, i);
 				return true;
 			}
 		} else {
-			if ( !(untyped __in__(key, h)) ) {
+			if( !(untyped __in__(key, h)) ) {
 				return false;
 			} else {
 				untyped __delete__(h, key);
@@ -112,19 +129,30 @@ package haxe.ds;
 			}
 		}
 	}
-
+	
+	#if flash9
+	@:extern public inline function keys() : Iterator<String> {
+		return new StringMapKeysIterator(h, rh, 0);
+	}
+	
+	@:extern public inline function iterator() : Iterator<T> {
+		return new StringMapValuesIterator(h, rh, 0);
+	}
+	#else
 	public function keys() : Iterator<String> {
 		var rv = untyped (__keys__(h));
-		var i:Int = reservedWordCount - 1;
-		while (i >= 0) {
-			if ( untyped __in__(i, rh) ) {
-				rv.push(reservedWordByIndex(i));
+		if( rh != null ) {
+			var i:Int = reservedWordCount - 1;
+			while(i >= 0) {
+				if( untyped __in__(i, rh) ) {
+					rv.push(reservedWordByIndex(i));
+				}
+				i--;
 			}
-			i--;
 		}
 		return rv.iterator();
 	}
-
+	
 	public function iterator() : Iterator<T> {
 		return untyped {
 			ref : h,
@@ -133,6 +161,7 @@ package haxe.ds;
 			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
 		};
 	}
+	#end
 
 	public function toString() : String {
 		var s = new StringBuf();
@@ -150,3 +179,81 @@ package haxe.ds;
 	}
 
 }
+
+private class StringMapKeysIterator {
+	var collection:Dynamic;
+	var rh:Dynamic;
+	var index:Int;
+
+	@:allow(haxe.ds.StringMap)
+	inline function new(collection:Dynamic, rh:Dynamic, index:Int):Void {
+		this.collection = collection;
+		this.rh = rh;
+		this.index = index;
+	}
+
+	public inline function hasNext():Bool {
+		var c = collection;
+		var i = index;
+		var result = untyped __has_next__(c, i);
+		if ( !result ) {
+			if( rh != null && rh != collection ) {
+				c = rh;
+				i = 0;
+				result = untyped __has_next__(c, i);
+			}
+		}
+		collection = c;
+		index = i;
+		return result;
+	}
+
+	public inline function next():String {
+		var result;
+		var i = index;
+		if( collection == rh ) {
+			result = StringMap.reservedWordByIndex(untyped __forin__(collection, i));
+		} else {
+			result = untyped __forin__(collection, i);
+		}
+		index = i;
+		return result;
+	}
+}
+
+private class StringMapValuesIterator<T> {
+	var collection:Dynamic;
+	var rh:Dynamic;
+	var index:Int;
+
+	@:allow(haxe.ds.StringMap)
+	inline function new(collection:Dynamic, rh:Dynamic, index:Int):Void {
+		this.collection = collection;
+		this.rh = rh;
+		this.index = index;
+	}
+
+	public inline function hasNext():Bool {
+		var c = collection;
+		var i = index;
+		var result = untyped __has_next__(c, i);
+		if ( !result ) {
+			if( rh != null && rh != collection ) {
+				c = rh;
+				i = 0;
+				result = untyped __has_next__(c, i);
+			}
+		}
+		collection = c;
+		index = i;
+		return result;
+	}
+
+	public inline function next():T {
+		var i = index;
+		var result = untyped __foreach__(collection, i);
+		index = i;
+		return result;
+	}
+}
+
