@@ -1920,7 +1920,7 @@ module Generator = struct
 	let gen_import ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
 
-		if Meta.has Meta.PythonImport c.cl_meta then begin
+		if (Meta.has Meta.PythonImport c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then begin
 			let _, args, mp = Meta.get Meta.PythonImport c.cl_meta in
 
 			let class_name = match c.cl_path with
