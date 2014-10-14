@@ -212,18 +212,35 @@ private class StringMapKeysIterator {
 		var i = index;
 		var result = untyped __has_next__(c, i);
 		if ( !result ) {
-			if( rh != null && rh != collection ) {
-				c = rh;
-				i = 0;
-				result = untyped __has_next__(c, i);
-			}
+			return hasNextReserved();
 		}
+		collection = c;
+		index = i;
+		return result;
+	}
+	private function hasNextReserved():Bool {
+		if ( rh == null || rh == collection ) {
+			return false;
+		}
+		var c = rh;
+		var i = 0;
+		var result = untyped __has_next__(c, i);
 		collection = c;
 		index = i;
 		return result;
 	}
 
 	public inline function next():String {
+		if ( collection == rh ) {
+			return nextReserved();
+		}
+		var result;
+		var i = index;
+		result = untyped __forin__(collection, i);
+		index = i;
+		return result;
+	}
+	private function nextReserved():String {
 		var result;
 		var i = index;
 		if( collection == rh ) {
@@ -232,7 +249,7 @@ private class StringMapKeysIterator {
 			result = untyped __forin__(collection, i);
 		}
 		index = i;
-		return result;
+		return result;		
 	}
 }
 
@@ -256,12 +273,19 @@ private class StringMapValuesIterator<T> {
 		var i = index;
 		var result = untyped __has_next__(c, i);
 		if ( !result ) {
-			if( rh != null && rh != collection ) {
-				c = rh;
-				i = 0;
-				result = untyped __has_next__(c, i);
-			}
+			return hasNextReserved();
 		}
+		collection = c;
+		index = i;
+		return result;
+	}
+	private function hasNextReserved():Bool {
+		if ( rh == null || rh == collection ) {
+			return false;
+		}
+		var c = rh;
+		var i = 0;
+		var result = untyped __has_next__(c, i);
 		collection = c;
 		index = i;
 		return result;
