@@ -32,26 +32,54 @@ package haxe.ds;
 	}
 
 	// reserved words that are not allowed in Dictionary include all non-static members of Dictionary
-	static private inline var reservedWordCount = 13;
+	static private inline var reservedWordCount = 19;
+	// this object is used to find reserved keys, shown in getReservedWordIndex - some are already set as functions
+	// NOTE - per issue 3480 setting key toString to an Int causes problems for the haxe test regime, which analyzes the guts of StringMap by reflection, so put the correct value in getReservedWordIndex since it will still be non-null here
+	// NOTE - you cannot find the correct value of key "__proto__" by [] indexing, so we use getReservedWordIndex
 	static private var reservedWordIndices = {
-			"constructor":0,
-			"hasOwnProperty":1,
-			"isPrototypeOf":2,
-			"propertyIsEnumerable":3,
-			"toLocaleString":4,
-			"toString":5,
-			"valueOf":6,
-			"__definegetter__":7,
-			"__definesetter__":8,
-			"__lookupgetter__":9,
-			"__lookupsetter__":10,
-			"__proto__":11 // NOTE - you cannot find the correct value of this entry by [] indexing, so we have a special test in getReservedWordIndex
+		"constructor":function():Void{},
+		"hasOwnProperty":function():Bool { return false; },
+		"isPrototypeOf":function():Bool { return false; },
+		"propertyIsEnumerable":function():Bool { return false; },
+		"toLocaleString":function():String { return null; },
+		"toString":function():String { return null; },
+		"valueOf":function():Dynamic { return null; },
+		"__definegetter__":function(s:String, d:Dynamic):Void {},
+		"__definesetter__":function(s:String, d:Dynamic):Void {},
+		"__lookupgetter__":function(s:String):Dynamic { return null; },
+		"__lookupsetter__":function(s:String):Dynamic { return null; },
+		//"__proto__":11;
+		// NOTE - the following entries are nonstandard and/or deprecated ECMAScript
+		"__noSuchMethod__":function(id, args):Void {},
+		//"__count__":13;
+		"__parent__":{},
+		//"eval":function(s:String):Void {},
+		//"toSource":function():String { return null; },
+		//"unwatch":function(s:String):Void {},
+		//"watch":function(s:String):Void {},
 	};
-	private inline function getReservedWordIndex(key:String):Int {
-		if ( key == "__proto__" ) {
-			return 11;
-		} else {
-			return untyped reservedWordIndices[key];
+	private inline function getReservedWordIndex(name:String):Int {
+		return switch(name) {
+			case "constructor":0;
+			case "hasOwnProperty":1;
+			case "isPrototypeOf":2;
+			case "propertyIsEnumerable":3;
+			case "toLocaleString":4;
+			case "toString":5;
+			case "valueOf":6;
+			case "__definegetter__":7;
+			case "__definesetter__":8;
+			case "__lookupgetter__":9;
+			case "__lookupsetter__":10;
+			case "__proto__":11;
+			case "__noSuchMethod__":12;
+			case "__count__":13;
+			case "__parent__":14;
+			case "eval":15;
+			case "toSource":16;
+			case "unwatch":17;
+			case "watch":18;
+			default: -1;
 		}
 	}
 	private inline function reservedWordByIndex(index:Int):String {
@@ -68,6 +96,13 @@ package haxe.ds;
 			case 9: "__lookupgetter__";
 			case 10: "__lookupsetter__";
 			case 11: "__proto__";
+			case 12: "__noSuchMethod__";
+			case 13: "__count__";
+			case 14: "__parent__"; 
+			case 15: "eval";
+			case 16: "toSource";
+			case 17: "unwatch";
+			case 18: "watch";
 			default: null;
 		}
 	}
@@ -148,8 +183,10 @@ package haxe.ds;
 		untyped {
 			var i:Int = 0;
 			__js__("for( var key in this.h ) {");
-				cachedKeys[i] = key;
-				i++;
+				if( Object.prototype.hasOwnProperty.call(h, key) ) {
+					cachedKeys[i] = key;
+					i++;
+				}
 			__js__("}");
 			cachedKeys.length = i;
 		}
