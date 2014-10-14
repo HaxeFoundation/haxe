@@ -124,6 +124,7 @@ module Meta = struct
 		| Public
 		| PublicFields
 		| ReadOnly
+		| ReallyUsed
 		| RealPath
 		| Remove
 		| Require
