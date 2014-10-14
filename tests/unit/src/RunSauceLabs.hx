@@ -119,7 +119,7 @@ class RunSauceLabs {
 							if (!handleError(err)) return;
 
 							console.log("[debug] waiting for test exit");
-							browser.waitForConditionInBrowser("try { typeof unit.Test.success === 'boolean'; } catch(e) { false; }", 3000); //3s timeout
+							browser.waitForConditionInBrowser("try { typeof unit.Test.success === 'boolean'; } catch(e) { false; }", 15000); //15s timeout
 							console.log("[debug] test exited");
 
 							browser.text("body", function(err, re) {
