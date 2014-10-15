@@ -2,6 +2,16 @@ import js.Node.*;
 using Reflect;
 
 class RunSauceLabs {
+	static function successMsg(msg:String):Void {
+		console.log('\x1b[32m' + msg + '\x1b[0m');
+	}
+	static function failMsg(msg:String):Void {
+		console.log('\x1b[31m' + msg + '\x1b[0m');
+	}
+	static function infoMsg(msg:String):Void {
+		console.log('\x1b[36m' + msg + '\x1b[0m');
+	}
+
 	static function main():Void {
 		var success = true;
 		var webdriver:Dynamic = require("wd");
@@ -122,20 +132,24 @@ class RunSauceLabs {
 							browser.waitForConditionInBrowser("try { typeof unit.Test.success === 'boolean'; } catch(e) { false; }", 15000); //15s timeout
 							console.log("[debug] test exited");
 
-							browser.text("body", function(err, re) {
+							browser.text("body", function(err, re:String) {
 								if (!handleError(err)) return;
-								console.log(re);
 
 								//check if test is successful or not
 								var test = false;
 								for (line in re.split("\n")) {
+									infoMsg(line);
 									if (line.indexOf("SUCCESS: ") >= 0) {
 										test = line.indexOf("SUCCESS: true") >= 0;
-										break;
 									}
 								}
 								success = success && test;
-								console.log("[debug] all SauceLabs tests success: " + success);
+
+								if (test) {
+									successMsg('${caps.browserName} ${caps.version} on ${caps.platform}: SUCCESS');
+								} else {
+									failMsg('${caps.browserName} ${caps.version} on ${caps.platform}: FAIL');
+								}
 
 								//let saucelabs knows the result
 								browser.sauceJobUpdate({ passed: test }, function(err) {
