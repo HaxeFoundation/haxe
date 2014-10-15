@@ -3052,7 +3052,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					let tmp = gen_local ctx e1.etype in
 					let eit = mk (TLocal tmp) e1.etype p in
 					let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, pl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
-					let enext = mk (TVar (i,Some (make_call ctx (mk (TField (eit,FDynamic "next")) (TFun ([],pt)) p) [] pt p))) ctx.t.tvoid p in
+					let enext = mk (TVar (i,Some (make_call ctx (mk (TField (eit,quick_field_dynamic eit.etype "next")) (TFun ([],pt)) p) [] pt p))) ctx.t.tvoid p in
 					let eblock = (match e2.eexpr with
 						| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
 						| _ -> mk (TBlock [enext;e2]) ctx.t.tvoid p
