@@ -1009,10 +1009,10 @@ let is_generic_parameter ctx c =
 		false
 
 let check_extends ctx c t p = match follow t with
-	| TInst ({ cl_path = [],"Array" },_)
-	| TInst ({ cl_path = [],"String" },_)
-	| TInst ({ cl_path = [],"Date" },_)
-	| TInst ({ cl_path = [],"Xml" },_) ->
+	| TInst ({ cl_path = [],"Array"; cl_extern = basic_extern },_)
+	| TInst ({ cl_path = [],"String"; cl_extern = basic_extern },_)
+	| TInst ({ cl_path = [],"Date"; cl_extern = basic_extern },_)
+	| TInst ({ cl_path = [],"Xml"; cl_extern = basic_extern },_) when not (c.cl_extern && basic_extern) ->
 		error "Cannot extend basic class" p;
 	| TInst (csup,params) ->
 		if is_parent c csup then error "Recursive class" p;
