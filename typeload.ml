@@ -1557,7 +1557,10 @@ let build_enum_abstract ctx c a fields p =
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
 			begin match ct with
-				| Some _ -> error "Type hints on enum abstract fields are not allowed" field.cff_pos
+				| Some t ->
+					let t = load_complex_type ctx field.cff_pos t in
+					let t2 = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) in
+					unify ctx t t2 field.cff_pos
 				| None -> ()
 			end;
 			field.cff_access <- [AStatic;APublic;AInline];
