@@ -862,4 +862,11 @@ class TestType extends Test {
 		eq(12, ea.pop());
 		#end
 	}
+
+	function testGADTEnumAbstract() {
+		var expectedA:unit.MyAbstract.GADTEnumAbstract<Void->Void>;
+		var expectedB:unit.MyAbstract.GADTEnumAbstract<Int->Void>;
+		typedAs(unit.MyAbstract.GADTEnumAbstract.A, expectedA);
+		typedAs(unit.MyAbstract.GADTEnumAbstract.B, expectedB);
+	}
 }
