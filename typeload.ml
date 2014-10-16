@@ -1556,10 +1556,6 @@ let build_enum_abstract ctx c a fields p =
 	List.iter (fun field ->
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
-			begin match ct with
-				| Some _ -> error "Type hints on enum abstract fields are not allowed" field.cff_pos
-				| None -> ()
-			end;
 			field.cff_access <- [AStatic;APublic;AInline];
 			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
 			let e = match eo with
@@ -1806,7 +1802,7 @@ let init_class ctx c p context_init herits fields =
 						let e = require_constant_expression e "Inline variable initialization must be a constant value" in
 						begin match c.cl_kind with
 							| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta && Meta.has Meta.Enum a.a_meta ->
-								unify ctx (TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_params))) t p;
+								unify ctx t (TAbstract(a,(List.map (fun _ -> mk_mono()) a.a_params))) p;
 								begin match e.eexpr with
 									| TCast(e1,None) -> unify ctx e1.etype a.a_this e1.epos
 									| _ -> assert false
