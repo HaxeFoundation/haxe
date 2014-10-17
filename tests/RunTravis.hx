@@ -404,13 +404,13 @@ class RunTravis {
 
 				//BYTECODE
 				// disabled until https://github.com/HaxeFoundation/haxe/issues/3184 is resolved
-				//if (Sys.getEnv("TRAVIS") == "true") {
-					//changeDirectory(repoDir);
-					//runCommand("make", ["BYTECODE=1"]);
-					//runCommand("sudo", ["make", "install"]);
-					//changeDirectory(unitDir);
-					//runCommand("haxe", ["compile-macro.hxml"]);
-				//}
+				if (Sys.getEnv("TRAVIS") == "true") {
+					changeDirectory(repoDir);
+					runCommand("make", ["BYTECODE=1"]);
+					runCommand("sudo", ["make", "install"]);
+					changeDirectory(unitDir);
+					runCommand("haxe", ["compile-macro.hxml"]);
+				}
 			case Neko:
 				runCommand("haxe", ["compile-neko.hxml","-D","travis"]);
 				runCommand("neko", ["bin/unit.n"]);
