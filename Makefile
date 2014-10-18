@@ -18,6 +18,7 @@ OUTPUT=haxe
 EXTENSION=
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
+LFLAGS=-ccopt "-L${GCC_LIB}"
 
 CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize
 
