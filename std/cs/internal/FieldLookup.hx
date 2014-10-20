@@ -22,6 +22,7 @@
 package cs.internal;
 
 @:native('haxe.lang.FieldLookup')
+@:final @:nativeGen
 @:keep @:static private class FieldLookup
 {
 
@@ -34,7 +35,7 @@ package cs.internal;
 		var acc = 0; //alloc_int
 		for (i in 0...s.length)
 		{
-			acc = (( 223 * (acc >> 1) + s.charCodeAt(i) ) << 1);
+			acc = (( 223 * (acc >> 1) + cast(s[i], Int)) << 1);
 		}
 
 		return acc >>> 1; //always positive
