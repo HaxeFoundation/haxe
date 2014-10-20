@@ -4506,15 +4506,19 @@ struct
 													etype = gen.gcon.basic.tvoid;
 													epos = pos
 												};
-												(* switch(field) { ... } *)
-												{
-													eexpr = TSwitch(local_field, fields_to_cases fields, Some(
-														(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
-														gen.gtools.r_set_field gen.gcon.basic.tvoid local_new_me local_field (gen.gtools.r_field false gen.gcon.basic.tvoid this local_field)
-													));
-													etype = gen.gcon.basic.tvoid;
-													epos = pos;
-												}
+												(
+													(* default: Reflect.setField(new_me, field, Reflect.field(this, field)) *)
+													let edef = gen.gtools.r_set_field gen.gcon.basic.tvoid local_new_me local_field (gen.gtools.r_field false gen.gcon.basic.tvoid this local_field) in
+													if fields <> [] then
+														(* switch(field) { ... } *)
+														{
+															eexpr = TSwitch(local_field, fields_to_cases fields, Some(edef));
+															etype = gen.gcon.basic.tvoid;
+															epos = pos;
+														}
+													else
+														edef;
+												)
 											];
 											etype = gen.gcon.basic.tvoid;
 											epos = pos
