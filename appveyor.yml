@@ -16,17 +16,18 @@ environment:
             MINGW_ARCH: x86_64
 
 init:
-    - 'echo System architecture: %PLATFORM%'
+    - echo System architecture: %PLATFORM%
 
 install:
-    - 'git submodule update --init --recursive'
+    - git submodule update --init --recursive
     # Install ocaml using wodi
-    - 'appveyor DownloadFile http://cygwin.com/setup-%CYG_ARCH%.exe -FileName setup.exe'
-    - 'setup.exe -qnNdO -R "%CYG_ROOT%" -s "%CYG_MIRROR%" -l "%CYG_CACHE%" -P wget  -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ >NUL'
-    - '%CYG_ROOT%/bin/bash -lc "cygcheck -dc cygwin"'
-    - '%CYG_ROOT%/bin/bash -lc "wget -q http://ml.ignorelist.com/wodi/8/wodi%WODI_ARCH%.tar.xz -O /tmp/wodi%WODI_ARCH%.tar.xz"'
-    - '%CYG_ROOT%/bin/bash -lc "cd /tmp && rm -rf wodi%WODI_ARCH% && tar -xf wodi%WODI_ARCH%.tar.xz && bash wodi%WODI_ARCH%/install.sh"'
+    - appveyor DownloadFile http://cygwin.com/setup-%CYG_ARCH%.exe -FileName setup.exe
+    - setup.exe -qnNdO -R "%CYG_ROOT%" -s "%CYG_MIRROR%" -l "%CYG_CACHE%" -P wget  -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ >NUL
+    - %CYG_ROOT%/bin/bash -lc "cygcheck -dc cygwin"
+    - %CYG_ROOT%/bin/bash -lc "wget -q http://ml.ignorelist.com/wodi/8/wodi%WODI_ARCH%.tar.xz -O /tmp/wodi%WODI_ARCH%.tar.xz"
+    - %CYG_ROOT%/bin/bash -lc "cd /tmp && rm -rf wodi%WODI_ARCH% && tar -xf wodi%WODI_ARCH%.tar.xz && bash wodi%WODI_ARCH%/install.sh"
+    - %CYG_ROOT%/bin/bash -lc godi_add godi-zip
 
 build_script:
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
-    # - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && cd tests haxe RunAppveyor.n -main RunAppveyor -lib hx-yaml"'
+    - %CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"
+    # - %CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && cd tests haxe RunAppveyor.n -main RunAppveyor -lib hx-yaml"
