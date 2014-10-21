@@ -31,3 +31,6 @@ install:
 build_script:
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
     # - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && cd tests haxe RunAppveyor.n -main RunAppveyor -lib hx-yaml"'
+
+test_script:
+    - 'haxe -version'
