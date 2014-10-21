@@ -264,6 +264,10 @@ class TestCSharp extends Test
 		t(attrib != null);
 		eq("Hello",attrib.getName());
 		eq(1.1, attrib.version);
+		eq("a",attrib.anArray[0]);
+		eq("b",attrib.anArray[1]);
+		eq(null,attrib.anArray[2]);
+		eq("c",attrib.anArray[3]);
 	}
 
 	public function testUncheckedAttribute()
@@ -469,14 +473,14 @@ private class TestMyClass extends haxe.test.MyClass
 }
 
 @M(Serializable)
-@M(Author("Hello", version=1.1))
+@M(Author("Hello", version=1.1, anArray = ["a","b",null,"c"]))
 class TestStrictMeta implements cs.StrictMeta
 {
 	public function new()
 	{
 	}
 
-	@M(Author("author 2", version=3))
+	@M(Author("author 2", version=3, anEnum = TA))
 	public function test()
 	{
 	}
@@ -488,6 +492,8 @@ class Author extends cs.system.Attribute
 {
 	@:private var name:String;
 	public var version:Float;
+	public var anArray:cs.NativeArray<String>;
+	public var anEnum:TEnum;
 	public function new(name:String)
 	{
 		super();
