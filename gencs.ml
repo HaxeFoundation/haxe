@@ -1638,6 +1638,10 @@ let configure gen =
 			write w s;
 			write w " = ";
 			gen_spart w e2
+		| EBinop( Ast.OpOr, e1, e2 ), _ ->
+			gen_spart w e1;
+			write w " | ";
+			gen_spart w e2
 		| EArrayDecl( el ), _ ->
 			write w "new[] {";
 			let fst = ref true in
