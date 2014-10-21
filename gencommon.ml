@@ -10180,6 +10180,21 @@ struct
 
 	let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
 
+	let gen_check basic t nullable_var const pos =
+		let const_t = match const with
+			| TString _ -> basic.tstring | TInt _ -> basic.tint | TFloat _ -> basic.tfloat
+			| TNull -> t | TBool _ -> basic.tbool | _ -> assert false
+		in
+		{
+			eexpr = TIf(
+				{ eexpr = TBinop(Ast.OpEq, mk_local nullable_var pos, null nullable_var.v_type pos); etype = basic.tbool; epos = pos },
+				mk_cast t { eexpr = TConst(const); etype = const_t; epos = pos },
+				Some(mk_cast t (mk_local nullable_var pos))
+			);
+			etype = t;
+			epos = pos;
+		}
+
 	let add_opt gen block pos (var,opt) =
 		match opt with
 			| None | Some TNull -> (var,opt)
@@ -10192,23 +10207,10 @@ struct
 				let orig_name = var.v_name in
 				var.v_name <- nullable_var.v_name;
 				nullable_var.v_name <- orig_name;
-				let const_t = match const with
-					| TString _ -> basic.tstring | TInt _ -> basic.tint | TFloat _ -> basic.tfloat
-					| TNull -> var.v_type | TBool _ -> basic.tbool | _ -> assert false
-				in
 				(* var v = (temp_var == null) ? const : cast temp_var; *)
 				block :=
 				{
-					eexpr = TVar(var, Some(
-					{
-						eexpr = TIf(
-							{ eexpr = TBinop(Ast.OpEq, mk_local nullable_var pos, null nullable_var.v_type pos); etype = basic.tbool; epos = pos },
-							mk_cast var.v_type { eexpr = TConst(const); etype = const_t; epos = pos },
-							Some(mk_cast var.v_type (mk_local nullable_var pos))
-						);
-						etype = var.v_type;
-						epos = pos;
-					}));
+					eexpr = TVar(var, Some(gen_check basic var.v_type nullable_var const pos));
 					etype = basic.tvoid;
 					epos = pos;
 				} :: !block;
@@ -10267,14 +10269,8 @@ struct
 												| None -> raise Not_found
 												| Some o -> o
 											in
-											let e = { e with eexpr = TLocal v2; etype = basic.tnull e.etype } in
-											let const = mk_cast e.etype { e with eexpr = TConst(o); etype = follow v.v_type } in
 											found := true;
-											{ e with eexpr = TIf({
-												eexpr = TBinop(Ast.OpEq, e, null e.etype e.epos);
-												etype = basic.tbool;
-												epos = e.epos
-											}, const, Some e) }
+											gen_check gen.gcon.basic v.v_type v2 o e.epos
 										with | Not_found -> e)
 										| _ -> Type.map_expr replace_args e
 									in
