@@ -18,7 +18,7 @@ kill:
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 
 ifdef WODI
-NATIVE_LIBS += -I "c:/${WODI}/opt/${WODI}/lib"
+NATIVE_LIBS += -I "/opt/${WODI}/lib"
 endif
 
 # use make MSVC=1 -f Makefile.win to build for OCaml/MSVC
