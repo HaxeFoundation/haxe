@@ -1,5 +1,5 @@
 platform:
-    - x64
+    - x86
 
 clone_folder: C:/projects/haxe
 
@@ -34,9 +34,9 @@ install:
     # Install neko
     - 'git clone --recursive -b win https://github.com/andyli/neko.git %NEKO_ROOT%'
     - 'cd %NEKO_ROOT%'
-    - 'msbuild neko_vc10.sln'
+    - 'msbuild neko_vc10.sln /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"'
     - 'cd libs/std'
-    - 'msbuild std2_vc10.sln'
+    - 'msbuild std2_vc10.sln /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"'
     - 'cd %NEKO_ROOT%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make compiler libs"'
     - 'set PATH=%PATH%;%NEKO_ROOT%/bin'
