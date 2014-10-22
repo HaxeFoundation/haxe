@@ -890,6 +890,11 @@ let run_filters gen =
 		let rec loop processed not_processed =
 			match not_processed with
 				| hd :: tl ->
+					(match hd with
+						| TClassDecl c ->
+							gen.gcurrent_class <- Some c
+						| _ ->
+							gen.gcurrent_class <- None);
 					let new_hd = filter#run_f hd in
 
 					let added_types_new = !added_types in
