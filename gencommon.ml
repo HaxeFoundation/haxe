@@ -10181,15 +10181,27 @@ struct
 	let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
 
 	let gen_check basic t nullable_var const pos =
+		let is_null t = match t with TType({t_path = ([],"Null")}, _) -> true | _ -> false in
+		let needs_cast t1 t2 = match is_null t1, is_null t2 with
+			| true, false | false, true -> true
+			| _ -> false
+		in
+
 		let const_t = match const with
 			| TString _ -> basic.tstring | TInt _ -> basic.tint | TFloat _ -> basic.tfloat
 			| TNull -> t | TBool _ -> basic.tbool | _ -> assert false
 		in
+		let const = { eexpr = TConst(const); etype = const_t; epos = pos } in
+		let const = if needs_cast t const_t then mk_cast t const else const in
+
+		let arg = mk_local nullable_var pos in
+		let arg = if needs_cast t nullable_var.v_type then mk_cast t arg else arg in
+
 		{
 			eexpr = TIf(
 				{ eexpr = TBinop(Ast.OpEq, mk_local nullable_var pos, null nullable_var.v_type pos); etype = basic.tbool; epos = pos },
-				mk_cast t { eexpr = TConst(const); etype = const_t; epos = pos },
-				Some(mk_cast t (mk_local nullable_var pos))
+				const,
+				Some(arg)
 			);
 			etype = t;
 			epos = pos;
