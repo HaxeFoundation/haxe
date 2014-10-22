@@ -1,5 +1,5 @@
 platform:
-    - x86
+    - Win32
 
 clone_folder: C:/projects/haxe
 
