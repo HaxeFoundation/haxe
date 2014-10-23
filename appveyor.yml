@@ -1,3 +1,5 @@
+version: "{build}"
+
 platform:
     - Win32
 
@@ -32,22 +34,27 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip"'
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/wodi%WODI_ARCH%/bin'
     # Install neko
-    - 'git clone --recursive -b win https://github.com/andyli/neko.git %NEKO_ROOT%'
+    - cinst make
+    - cinst SQLite -version 3.8.5
+    - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
     - 'cd %NEKO_ROOT%'
-    - 'msbuild neko_vc10.sln /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"'
-    - 'cd libs/std'
-    - 'msbuild std2_vc10.sln /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"'
-    - 'cd %NEKO_ROOT%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make compiler libs"'
-    - 'set PATH=%PATH%;%NEKO_ROOT%/bin'
-    - 'neko -version'
+    - set PATH=%PATH%;%NEKO_ROOT%/bin
+    - msbuild neko_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    - msbuild libs/libs_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    - copy /y libs\include\gc\gc.dll bin
+    - cd %NEKO_ROOT%/src
+    - neko ../boot/nekoc tools/install.neko
+    - neko tools/install -nolibs
+    - neko -version
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
-    # - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && cd tests haxe RunAppveyor.n -main RunAppveyor -lib hx-yaml"'
+    - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
 
 test_script:
-    - 'haxe -version'
-    - 'cd tests\unit'
-    - 'haxe compile-macro.hxml'
+    - haxe -version
+    - cd tests/unit
+    - haxe compile-macro.hxml
+    - haxe compile-neko.hxml
+    - neko bin/unit.n
