@@ -44,8 +44,8 @@ script:
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
   - haxe -version
-  - haxe -neko RunTravis.n -main RunTravis -lib hx-yaml
-  - neko RunTravis.n
+  - haxe -neko RunCi.n -main RunCi -lib hx-yaml
+  - neko RunCi.n
 
 notifications:
   webhooks:

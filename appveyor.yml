@@ -10,6 +10,7 @@ clone_folder: C:/projects/haxe
 environment:
     global:
         NEKO_ROOT: C:/projects/neko
+        HAXELIB_ROOT: C:/projects/haxelib
     matrix:
         -   CYG_ARCH: x86
             CYG_ROOT: C:/cygwin
@@ -49,12 +50,16 @@ install:
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% tools"'
+    - cd %APPVEYOR_BUILD_FOLDER%/tests/
+    - mkdir "%HAXELIB_ROOT%"
+    - haxelib setup "%HAXELIB_ROOT%"
+    - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
 
 test_script:
+    - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - haxe -version
-    - cd tests/unit
-    - haxe compile-macro.hxml
-    - haxe compile-neko.hxml
-    - neko bin/unit.n
+    - haxe -neko RunCi.n -main RunCi -lib hx-yaml
+    - neko RunCi.n
