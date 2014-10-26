@@ -28,10 +28,10 @@ enum LoaderHandle {
 }
 
 /**
-	Loaders can be used to dynamicly load Neko primitives stored in NDLL libraries.
+	Loaders can be used to dynamically load Neko primitives stored in NDLL libraries.
 
 
-	Loaders can be used to dynamicly load other Neko modules (.n bytecode files).
+	Loaders can be used to dynamically load other Neko modules (.n bytecode files).
 	Modules are referenced by names. To lookup the corresponding bytecode file, the
 	default loader first look in its cache, then eventually adds the .n extension
 	to the name and lookup the bytecode in its path.
