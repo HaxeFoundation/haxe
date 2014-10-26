@@ -79,7 +79,7 @@ class Loader {
 		The default loader contains a cache of already loaded modules. It's
 		ensuring that the same module does not get loaded twice when circular
 		references are occuring. The same module can eventually be loaded twice
-		but with different names, for example with two relatives paths reprensenting
+		but with different names, for example with two relative paths reprensenting
 		the same file, since the cache is done on a by-name basic.
 	**/
 	public function getCache() : Map<String,Module> {
