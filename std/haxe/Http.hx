@@ -59,16 +59,16 @@ class Http {
 #if sys
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
-	public var responseHeaders : Map<String,String>;
+	public var responseHeaders : haxe.ds.StringMap<String>;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
-	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
 #elseif js
 	public var async : Bool;
 #end
 	var postData : String;
 	var headers : List<{ header:String, value:String }>;
 	var params : List<{ param:String, value:String }>;
+	var files	: List<{ param : String, filename : String, bytes : haxe.io.Bytes, mimeType : String }>;
 
 	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
@@ -89,6 +89,7 @@ class Http {
 		this.url = url;
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
+		files	= new List<{ param : String, filename : String, bytes : haxe.io.Bytes, mimeType : String }>();
 
 		#if js
 		async = true;
@@ -115,6 +116,11 @@ class Http {
 
 	public function addHeader( header : String, value : String ):Http {
 		headers.push({ header:header, value:value });
+		return this;
+	}
+	
+	public function addFileTransfer( argname : String, filename : String, bytes : haxe.io.Bytes, mimeType = "application/octet-stream" ) : Http {
+		files.add( { param : argname, filename : filename, bytes : bytes, mimeType : mimeType } );
 		return this;
 	}
 
@@ -231,9 +237,27 @@ class Http {
 		if( async )
 			r.onreadystatechange = onreadystatechange;
 		var uri = postData;
+		var isMultipart		= !files.isEmpty();
+		var multipartData	= [];
 		if( uri != null )
 			post = true;
-		else for( p in params ) {
+		else if ( isMultipart ) {
+			function encodeString( p : String )	for ( i in 0...p.length )	multipartData.push( p.charCodeAt( i ) & 0xff );
+			function encodeBinary( p : haxe.io.Bytes )	for ( i in 0...p.length )	multipartData.push( p.get( i ) & 0xff );
+			post = true;
+			var boundary = Std.string(Std.random(1000)) + Std.string(Std.random(1000)) + Std.string(Std.random(1000)) + Std.string(Std.random(1000));
+			while( boundary.length < 38 )
+				boundary = "-" + boundary;
+			headers.add( { header : 'Content-Type', value : 'multipart/form-data; boundary=$boundary' } );
+			for ( file in files ) {
+				encodeString( '--$boundary\r\nContent-Disposition: form-data; name="${ file.param }"; filename="${ file.filename }"\r\nContent-Type: ${ file.mimeType }\r\n\r\n' );
+				encodeBinary( file.bytes );
+				encodeString( '\r\n ' );
+			}
+			for ( param in params )	encodeString( '--$boundary\r\nContent-Disposition: form-data; name="${ param.param }"\r\n\r\n${ param.value }\r\n' );
+			encodeString( '--$boundary--' );
+			//headers.add( { header : 'Content-Length', value : Std.string( multipartData.length ) } );	// Browser security error
+		}else for( p in params ) {
 			if( uri == null )
 				uri = "";
 			else
@@ -249,17 +273,22 @@ class Http {
 				uri = null;
 			} else
 				r.open("GET",url,async);
-		} catch( e : Dynamic ) {
+		} catch ( e : Dynamic ) {
 			me.req = null;
 			onError(e.toString());
 			return;
 		}
-		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
+		if ( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null && !isMultipart )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
 		for( h in headers )
-			r.setRequestHeader(h.header,h.value);
-		r.send(uri);
+			r.setRequestHeader(h.header, h.value);
+			
+		if ( isMultipart ) {
+			r.send( new js.html.Uint8Array( multipartData ) );
+		}else{
+			r.send(uri);
+		}
 		if( !async )
 			onreadystatechange(null);
 	#elseif flash9
@@ -284,14 +313,36 @@ class Http {
 			me.req = null;
 			me.onError(e.text);
 		});
-
+		
+		var isMultipart	= !files.isEmpty();
+		var multipartData	= new flash.utils.ByteArray();
+		if( isMultipart ){
+			function encodeString( p : String )	for ( i in 0...p.length )	multipartData.writeByte( p.charCodeAt( i ) & 0xff );
+			function encodeBinary( p : haxe.io.Bytes )	for ( i in 0...p.length )	multipartData.writeByte( p.get( i ) & 0xff );
+			post = true;
+			var boundary = Std.string(Std.random(1000)) + Std.string(Std.random(1000)) + Std.string(Std.random(1000)) + Std.string(Std.random(1000));
+			while( boundary.length < 38 )
+				boundary = "-" + boundary;
+			headers.add( { header : 'Content-Type', value : 'multipart/form-data; boundary=$boundary' } );
+			for ( file in files ) {
+				encodeString( '--$boundary\r\nContent-Disposition: form-data; name="${ file.param }"; filename="${ file.filename }"\r\nContent-Type: ${ file.mimeType }\r\n\r\n' );
+				encodeBinary( file.bytes );
+				encodeString( '\r\n ' );
+			}
+			for ( param in params )	encodeString( '--$boundary\r\nContent-Disposition: form-data; name="${ param.param }"\r\n\r\n${ param.value }\r\n' );
+			encodeString( '--$boundary--' );
+			//headers.add( { header : 'Content-Length', value : Std.string( multipartData.length ) } );	// flash player #2096 security error
+		}
 		// headers
 		var param = false;
 		var vars = new flash.net.URLVariables();
-		for( p in params ){
-			param = true;
-			Reflect.setField(vars,p.param,p.value);
-		}
+		if ( isMultipart ) {
+		
+		}else
+			for( p in params ){
+				param = true;
+				Reflect.setField(vars,p.param,p.value);
+			}
 		var small_url = url;
 		if( param && !post ){
 			var k = url.split("?");
@@ -305,9 +356,13 @@ class Http {
 
 		var request = new flash.net.URLRequest( small_url );
 		for( h in headers )
-			request.requestHeaders.push( new flash.net.URLRequestHeader(h.header,h.value) );
-
-		if( postData != null ) {
+			request.requestHeaders.push( new flash.net.URLRequestHeader(h.header, h.value) );
+		if( isMultipart ){	
+			loader.dataFormat	= flash.net.URLLoaderDataFormat.BINARY;
+			request.method 		= "POST";
+			request.contentType = headers.filter( function( elt ) return elt.header == "Content-Type" ).first().value;
+			request.data 		= multipartData;
+		}else if( postData != null ) {
 			request.data = postData;
 			request.method = "POST";
 		} else {
@@ -394,12 +449,13 @@ class Http {
     }
 
 	public function fileTransfer( argname : String, filename : String, file : haxe.io.Input, size : Int, mimeType = "application/octet-stream" ) {
-		this.file = { param : argname, filename : filename, io : file, size : size, mimeType : mimeType };
+		this.files.clear();
+		files.add( { param : argname, filename : filename, bytes : file.readAll(), mimeType : mimeType } );
 	}
 
 	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
 		this.responseData = null;
-		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
+		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
 			return;
@@ -427,8 +483,11 @@ class Http {
 		var port = if ( portString == null || portString == "" ) secure ? 443 : 80 else Std.parseInt(portString.substr(1, portString.length - 1));
 		var data;
 
-		var multipart = (file != null);
+		var multipart = !files.isEmpty();
 		var boundary = null;
+		var fileHeaders	= [];
+		var filesSize	= 0;
+		var afiles		= Lambda.array( files );
 		var uri = null;
 		if( multipart ) {
 			post = true;
@@ -448,17 +507,23 @@ class Http {
 				b.add(p.value);
 				b.add("\r\n");
 			}
-			b.add("--");
-			b.add(boundary);
-			b.add("\r\n");
-			b.add('Content-Disposition: form-data; name="');
-			b.add(file.param);
-			b.add('"; filename="');
-			b.add(file.filename);
-			b.add('"');
-			b.add("\r\n");
-			b.add("Content-Type: "+file.mimeType+"\r\n"+"\r\n");
 			uri = b.toString();
+						
+			for ( file in afiles ){
+				var b = new StringBuf();
+					b.add("--");
+					b.add(boundary);
+					b.add("\r\n");
+					b.add('Content-Disposition: form-data; name="');
+					b.add(file.param);
+					b.add('"; filename="');
+					b.add(file.filename);
+					b.add('"');
+					b.add("\r\n");
+					b.add("Content-Type: " + file.mimeType + "\r\n" + "\r\n");
+				fileHeaders.push( b.toString() );
+				filesSize += file.bytes.length;
+			}
 		} else {
 			for( p in params ) {
 				if( uri == null )
@@ -468,7 +533,7 @@ class Http {
 				uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
 			}
 		}
-
+		
 		var b = new StringBuf();
 		if( method != null ) {
 			b.add(method);
@@ -510,7 +575,7 @@ class Http {
 				b.add("\r\n");
 			}
 			if( multipart )
-				b.add("Content-Length: "+(uri.length+file.size+boundary.length+6)+"\r\n");
+				b.add("Content-Length: "+(uri.length+fileHeaders.join( "" ).length + filesSize+boundary.length+6)+"\r\n");
 			else
 				b.add("Content-Length: "+uri.length+"\r\n");
 		}
@@ -531,19 +596,25 @@ class Http {
 			else
 				sock.connect(new Host(host),port);
 			sock.write(b.toString());
-			if( multipart ) {
-				var bufsize = 4096;
-				var buf = haxe.io.Bytes.alloc(bufsize);
-				while( file.size > 0 ) {
-					var size = if( file.size > bufsize ) bufsize else file.size;
-					var len = 0;
-					try {
-						len = file.io.readBytes(buf,0,size);
-					} catch( e : haxe.io.Eof ) break;
-					sock.output.writeFullBytes(buf,0,len);
-					file.size -= len;
+			if ( multipart ) {
+				for( i in 0...afiles.length ){
+					var file	= afiles[ i ];
+					sock.write( fileHeaders[ i ] );
+					var bufsize = 4096;
+					var buf = haxe.io.Bytes.alloc(bufsize);
+					var filesize	= file.bytes.length;
+					var bi			= new haxe.io.BytesInput( file.bytes );
+					while( filesize > 0 ) {
+						var size = if( filesize > bufsize ) bufsize else filesize;
+						var len = 0;
+						try {
+							len = bi.readBytes(buf,0,size);
+						} catch( e : haxe.io.Eof ) break;
+						sock.output.writeFullBytes(buf,0,len);
+						filesize -= len;
+					}
+					sock.write("\r\n");
 				}
-				sock.write("\r\n");
 				sock.write("--");
 				sock.write(boundary);
 				sock.write("--");
