@@ -6140,7 +6140,12 @@ struct
 				let cf, actual_t, error = match is_overload with
 					| false ->
 							(* since actual_t from FClassField already applies greal_type, we're using the get_overloads helper to get this info *)
-							cf,declared_t,false
+							let t = if cf.cf_params = [] then (* this if statement must be eliminated - it's a workaround for #3516 + infer params. *)
+								actual_t
+							else
+								declared_t
+							in
+							cf,t,false
 					| true ->
 					let (cf, actual_t, error), is_static = match f with
 						| FInstance(c,_,cf) | FClosure(Some c,cf) ->
