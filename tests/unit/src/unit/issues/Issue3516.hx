@@ -20,7 +20,7 @@ private class A<T> {
 
 private class B extends A<C> {}
 
-private class C {}
+private class C { @:keep public function new() {} }
 
 class TestMain {
     static function main() {
