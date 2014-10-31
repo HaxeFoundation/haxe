@@ -3,6 +3,7 @@ import haxe.io.Bytes;
 import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
+import cs.system.SerializableAttribute;
 #if unsafe
 import cs.Pointer;
 #end
@@ -255,6 +256,20 @@ class TestCSharp extends Test
 				});
 	}
 
+	public function testStrictMeta()
+	{
+		var cls = cs.Lib.toNativeType( TestStrictMeta ),
+				attribType = cs.Lib.toNativeType( Author );
+		var attrib:Author = cast cs.system.Attribute.GetCustomAttribute(cls,attribType,true);
+		t(attrib != null);
+		eq("Hello",attrib.getName());
+		eq(1.1, attrib.version);
+		eq("a",attrib.anArray[0]);
+		eq("b",attrib.anArray[1]);
+		eq(null,attrib.anArray[2]);
+		eq("c",attrib.anArray[3]);
+	}
+
 	public function testUncheckedAttribute()
 	{
 		var cls = cs.Lib.toNativeType( TestMyClass ),
@@ -454,5 +469,41 @@ private class TestMyClass extends haxe.test.MyClass
 	@:overload override private function get_SomeProp2():Int
 	{
 		return Std.int(super.get_SomeProp2() / 2);
+	}
+}
+
+@M(Serializable)
+@M(Author("Hello", version=1.1, anArray = ["a","b",null,"c"]))
+class TestStrictMeta implements cs.StrictMeta
+{
+	public function new()
+	{
+	}
+
+	@M(Author("author 2", version=3, anEnum = TA))
+	public function test()
+	{
+	}
+}
+
+// Test attribute creation
+@:native("UpperCasePackage.Автор")
+class Author extends cs.system.Attribute
+{
+	@:private var name:String;
+	public var version:Float;
+	public var anArray:cs.NativeArray<String>;
+	public var anEnum:TEnum;
+	public function new(name:String)
+	{
+		super();
+
+		this.name = name;
+		version = 1.0;
+	}
+
+	public function getName()
+	{
+		return name;
 	}
 }
