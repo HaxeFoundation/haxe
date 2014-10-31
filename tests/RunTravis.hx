@@ -377,7 +377,7 @@ class RunTravis {
 		changeDirectory(unitDir);
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var args = ["foo", "12", "a b c\\ &<>[\"]#{}|"];
+		var args = ["foo", "12", "a b %PATH% $HOME c\\ &<>[\"]#{}|%$"];
 
 		switch (test) {
 			case Macro, null:
