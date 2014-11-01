@@ -395,7 +395,7 @@ class RunCi {
 		changeDirectory(unitDir);
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var args = ["foo", "12", "a b %PATH% $HOME c\\ &<>[\"]#{}|%$"];
+		var args = ["foo", "12", "a b  %PATH% $HOME c\\&<>[\"]#{}|%$"];
 
 		var tests:Array<TEST> = switch (ci) {
 			case null:
