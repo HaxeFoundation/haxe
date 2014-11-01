@@ -15,18 +15,18 @@ private typedef TravisConfig = {
 	List of "TEST" defined in the "matrix" section of ".travis.yml".
 */
 @:enum abstract TEST(String) from String {
-    var Macro = "macro";
-    var Neko = "neko";
-    var Js = "js";
-    var Php = "php";
-    var Cpp = "cpp";
-    var Flash9 = "flash9";
-    var As3 = "as3";
-    var Java = "java";
-    var Cs = "cs";
-    var Python = "python";
-    var Flash8 = "flash8";
-    var ThirdParty = "third-party";
+	var Macro = "macro";
+	var Neko = "neko";
+	var Js = "js";
+	var Php = "php";
+	var Cpp = "cpp";
+	var Flash9 = "flash9";
+	var As3 = "as3";
+	var Java = "java";
+	var Cs = "cs";
+	var Python = "python";
+	var Flash8 = "flash8";
+	var ThirdParty = "third-party";
 }
 
 enum Ci {
