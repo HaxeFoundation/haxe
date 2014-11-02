@@ -1288,6 +1288,10 @@ let configure gen =
 					write w s
 				| TCall ({ eexpr = TLocal( { v_name = "__cs__" } ) }, { eexpr = TConst(TString(s)) } :: tl ) ->
 					Codegen.interpolate_code gen.gcon s tl (write w) (expr_s w) e.epos
+				| TCall ({ eexpr = TLocal( { v_name = "__stackalloc__" } ) }, [ e ] ) ->
+					write w "stackalloc byte[";
+					expr_s w e;
+					write w "]"
 				| TCall ({ eexpr = TLocal( { v_name = "__unsafe__" } ) }, [ e ] ) ->
 					write w "unsafe";
 					expr_s w (mk_block e)
@@ -2383,6 +2387,7 @@ let configure gen =
 	Hashtbl.add gen.gspecial_vars "__addressOf__" true;
 	Hashtbl.add gen.gspecial_vars "__valueOf__" true;
 	Hashtbl.add gen.gspecial_vars "__sizeof__" true;
+	Hashtbl.add gen.gspecial_vars "__stackalloc__" true;
 
 	Hashtbl.add gen.gspecial_vars "__delegate__" true;
 	Hashtbl.add gen.gspecial_vars "__array__" true;
