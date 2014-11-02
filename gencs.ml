@@ -152,10 +152,10 @@ let rec is_null t =
 			is_null (!f())
 		| _ -> false
 
-let rec get_arrptr e = match e.eexpr with
+let rec get_ptr e = match e.eexpr with
 	| TParenthesis e | TMeta(_,e)
-	| TCast(e,_) -> get_arrptr e
-	| TCall( { eexpr = TLocal({ v_name = "__arrptr__" }) }, [ e ] ) ->
+	| TCast(e,_) -> get_ptr e
+	| TCall( { eexpr = TLocal({ v_name = "__ptr__" }) }, [ e ] ) ->
 		Some e
 	| _ -> None
 
@@ -465,7 +465,7 @@ struct
 					let expr = run expr in
 					mk_cast e.etype (mk_cast ti64 expr)
 				| TCast(expr, _) when is_dynamic gen expr.etype && is_pointer gen e.etype ->
-					(match get_arrptr expr with
+					(match get_ptr expr with
 						| None ->
 							(* unboxing *)
 							let expr = run expr in
@@ -473,7 +473,7 @@ struct
 						| Some e ->
 							run e)
 				| TCast(expr, _) when is_pointer gen expr.etype && is_dynamic gen e.etype ->
-					(match get_arrptr expr with
+					(match get_ptr expr with
 						| None ->
 							(* boxing *)
 							let expr = run expr in
@@ -1307,7 +1307,7 @@ let configure gen =
 					let fixeds = ref [] in
 					let rec loop = function
 						| ({ eexpr = TVar(v, Some(e) ) } as expr) :: tl when is_pointer v.v_type ->
-							let e = match get_arrptr e with
+							let e = match get_ptr e with
 								| None -> e
 								| Some e -> e
 							in
@@ -2391,7 +2391,7 @@ let configure gen =
 
 	Hashtbl.add gen.gspecial_vars "__delegate__" true;
 	Hashtbl.add gen.gspecial_vars "__array__" true;
-	Hashtbl.add gen.gspecial_vars "__arrptr__" true;
+	Hashtbl.add gen.gspecial_vars "__ptr__" true;
 
 	Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
 	let last_needs_box = gen.gneeds_box in
