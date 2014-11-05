@@ -64,6 +64,55 @@ class TestCSharp extends Test
 		test2(other,-2);
 		eq(other[0][0],-2);
 	}
+
+	@:unsafe function testPointerAccess()
+	{
+		var struct = new SomeStruct(10,20);
+		eq(10,struct.int);
+		eq(20.0,struct.float);
+
+		var addr = cs.Lib.addressOf(struct);
+		eq(10,addr.acc.int);
+		eq(20.0,addr.acc.float);
+		addr.acc.int = 22;
+		eq(22,addr.acc.int);
+		eq(22,struct.int);
+
+		addr.acc.float = 42.42;
+		eq(42.42,addr.acc.float);
+		eq(42.42,struct.float);
+
+		var arr = new cs.NativeArray<SomeStruct>(10);
+		cs.Lib.fixed({
+			var arrptr = cs.Lib.pointerOfArray(arr);
+			for (i in 0...10)
+			{
+				(arrptr + i).acc.int = i;
+				(arrptr + i).acc.float = i + i / 10;
+			}
+			var ptr = arrptr;
+			for (i in 0...10)
+			{
+				eq(arr[i].int,i);
+				eq(arr[i].float,i + i / 10);
+
+				eq((arrptr + i).acc.int, i);
+				eq((arrptr + i).acc.float, i + i / 10);
+
+				ptr.acc.int = i *2;
+				ptr.acc.float = (i + i / 10) * 2;
+				ptr++;
+			}
+			for (i in 0...10)
+			{
+				eq(arr[i].int,i*2);
+				eq(arr[i].float,(i + i / 10)*2);
+
+				eq((arrptr + i).acc.int, i*2);
+				eq((arrptr + i).acc.float, (i + i / 10)*2);
+			}
+		});
+	}
 #end
 
 	function testTypes()
@@ -454,5 +503,17 @@ private class TestMyClass extends haxe.test.MyClass
 	@:overload override private function get_SomeProp2():Int
 	{
 		return Std.int(super.get_SomeProp2() / 2);
+	}
+}
+
+@:struct @:nativeGen private class SomeStruct
+{
+	public var int:Int;
+	public var float:Float;
+
+	public function new(i,f)
+	{
+		this.int = i;
+		this.float = f;
 	}
 }

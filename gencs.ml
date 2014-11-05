@@ -748,6 +748,13 @@ let configure gen =
 
 	let write_field w name = write w (change_field name) in
 
+	let ptr =
+		if Common.defined gen.gcon Define.Unsafe then
+			get_abstract (get_type gen (["cs"],"Pointer"))
+		else
+			null_abstract
+	in
+
 	gen.gfollow#add ~name:"follow_basic" (fun t -> match t with
 			| TEnum ({ e_path = ([], "Bool") }, [])
 			| TAbstract ({ a_path = ([], "Bool") },[])
@@ -781,6 +788,8 @@ let configure gen =
 			| TAbstract ({ a_path = [],"Single" },[]) -> Some t
 			| TType (({ t_path = [],"Null" } as tdef),[t2]) ->
 					Some (TType(tdef,[follow (gen.gfollow#run_f t2)]))
+			| TAbstract({ a_path = ["cs"],"PointerAccess" },[t]) ->
+					Some (TAbstract(ptr,[t]))
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _	)
@@ -1232,6 +1241,14 @@ let configure gen =
 					);
 					write w ".";
 					write_field w (field_name s)
+				| TField (e, s) when is_pointer gen e.etype ->
+					(* take off the extra cast if possible *)
+					let e = match e.eexpr with
+						| TCast(e1,_) when Gencommon.CastDetect.type_iseq gen e.etype e1.etype ->
+							e1
+						| _ -> e
+					in
+					expr_s w e; write w "->"; write_field w (field_name s)
 				| TField (e, s) ->
 					expr_s w e; write w "."; write_field w (field_name s)
 				| TTypeExpr mt ->

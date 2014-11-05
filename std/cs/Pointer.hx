@@ -33,9 +33,9 @@ import cs.StdTypes.Int64;
 			...
 		}
 	Haxe code:
-		var pSrc:cs.Pointer<Int>;
-		cs.Lib.fixed(pSrc = cast src,
-		{
+		var src:NativeArray<Int>;
+		cs.Lib.fixed({
+			var pSrc:cs.Pointer<Int> = cs.Lib.pointerOfArray(src);
 			...
 		});
 
@@ -72,6 +72,20 @@ import cs.StdTypes.Int64;
 	@:op(A<=B) public static function ltep<T>(lhs:Pointer<T>, rhs:Pointer<T>):Bool;
 
 	@:op(~A) public static function bnegp<T>(t:Pointer<T>):Pointer<T>;
+	@:op(A++) public static function prepp<T>(t:Pointer<T>):Pointer<T>;
+	@:op(A--) public static function prenn<T>(t:Pointer<T>):Pointer<T>;
+	@:op(++A) public static function postpp<T>(t:Pointer<T>):Pointer<T>;
+	@:op(--A) public static function postnn<T>(t:Pointer<T>):Pointer<T>;
+
+	/**
+		Returns a `cs.PointerAccess` type, which in turn allows the underlying Pointer's
+		fields to be accessed.
+	 **/
+	// @:analyzer(no_simplification)
+	public var acc(get,never):PointerAccess<T>;
+
+	// @:analyzer(no_simplification)
+	@:extern inline private function get_acc():PointerAccess<T> return (cast this : PointerAccess<T>);
 
 	// backwards compatibility
 	inline public function add(i:Int):Pointer<T>
@@ -84,13 +98,8 @@ import cs.StdTypes.Int64;
 	@:arrayAccess public static function getp<T>(p:Pointer<T>, at:Int64):T;
 	@:arrayAccess public static function setp<T>(p:Pointer<T>, at:Int64, val:T):T;
 }
-//
-// @:native('cs.Pointer') extern class PointerData<T> /*extends Int,*/ implements ArrayAccess<T>
-// {
-// 	static function op_Addition<T>(p:Pointer<T>, i:Int):Pointer<T>;
-// 	public inline function add(i:Int):Pointer<T>
-// 	{
-// 		return op_Addition(this,i);
-// 	}
-// }
+
+@:forward abstract PointerAccess<T>(T)
+{
+}
 #end

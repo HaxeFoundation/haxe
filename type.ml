@@ -419,6 +419,25 @@ let null_class =
 
 let null_field = mk_field "" t_dynamic Ast.null_pos
 
+let null_abstract = {
+	a_path = ([],"");
+	a_module = null_module;
+	a_pos = null_pos;
+	a_private = true;
+	a_doc = None;
+	a_meta = [];
+	a_params = [];
+	a_ops = [];
+	a_unops = [];
+	a_impl = None;
+	a_this = t_dynamic;
+	a_from = [];
+	a_from_field = [];
+	a_to = [];
+	a_to_field = [];
+	a_array = [];
+}
+
 let add_dependency m mdep =
 	if m != null_module && m != mdep then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
 
