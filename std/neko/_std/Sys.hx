@@ -113,6 +113,7 @@
 			for( a in args )
 				cmd += " "+escapeArgument(a, win);
 		}
+		if (win) cmd = '"$cmd"';
 		return sys_command(untyped cmd.__s);
 	}
 
