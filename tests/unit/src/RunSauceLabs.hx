@@ -111,10 +111,12 @@ class RunSauceLabs {
 					function handleError(err:String, ?pos:haxe.PosInfos):Bool {
 						if (err != null) {
 							console.log('${pos.fileName}:${pos.lineNumber}: $err');
-							if (retries > 0)
-								testBrowser(caps, retries - 1);
-							else
-								throw err;
+							browser.quit(function(err) {
+								if (retries > 0)
+									testBrowser(caps, retries - 1);
+								else
+									throw err;
+							});
 							return false;
 						}
 						return true;
