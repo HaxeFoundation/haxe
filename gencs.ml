@@ -1055,13 +1055,6 @@ let configure gen =
 			| _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
 	in
 
-	let is_pointer t = match follow t with
-		| TInst({ cl_path = (["cs"], "Pointer") }, _)
-		| TAbstract ({ a_path = (["cs"], "Pointer") },_) ->
-				true
-		| _ ->
-				false in
-
 	let last_line = ref (-1) in
 	let begin_block w = write w "{"; push_indent w; newline w; last_line := -1 in
 	let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w; last_line := -1 in
@@ -1306,7 +1299,7 @@ let configure gen =
 				| TCall ({ eexpr = TLocal( { v_name = "__fixed__" } ) }, [ e ] ) ->
 					let fixeds = ref [] in
 					let rec loop = function
-						| ({ eexpr = TVar(v, Some(e) ) } as expr) :: tl when is_pointer v.v_type ->
+						| ({ eexpr = TVar(v, Some(e) ) } as expr) :: tl when is_pointer gen v.v_type ->
 							let e = match get_ptr e with
 								| None -> e
 								| Some e -> e
@@ -1314,19 +1307,14 @@ let configure gen =
 							fixeds := (v,e,expr) :: !fixeds;
 							loop tl;
 						| el when !fixeds <> [] ->
-							write w "fixed(";
 							let rec loop fx acc = match fx with
 								| (v,e,expr) :: tl ->
+									write w "fixed(";
 									let vf = mk_temp gen "fixed" v.v_type in
 									expr_s w { expr with eexpr = TVar(vf, Some e) };
 									let acc = (expr,v,vf) :: acc in
-									if tl = [] then begin
-										write w ")";
-										acc
-									end else begin
-										write w ", ";
-										loop tl acc
-									end
+									write w ") ";
+									if tl = [] then acc else loop tl acc
 								| _ -> assert false
 							in
 							let vars = loop (List.rev !fixeds) [] in
