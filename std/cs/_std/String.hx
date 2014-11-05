@@ -52,6 +52,7 @@ import cs.StdTypes;
 
 	static function fromCharCode( code : Int ) : String;
 
+	private function IndexOf(value:String, startIndex:Int, comparisonType:cs.system.StringComparison):Int;
 	private function Replace(oldValue:String, newValue:String):String;
 	private function StartsWith(value:String):Bool;
 	private function EndsWith(value:String):Bool;
