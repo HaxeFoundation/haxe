@@ -10494,6 +10494,10 @@ struct
 
 	let is_int = like_int
 
+	let is_exactly_int t = match follow t with
+		| TAbstract ({ a_path=[],"Int" }, []) -> true
+		| _ -> false
+
 	let default_implementation gen catch_int_div =
 		let basic = gen.gcon.basic in
 		let rec run e =
@@ -10504,10 +10508,18 @@ struct
 						{ eexpr = TField(_, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })) },
 						[ ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ) ]
 					) when catch_int_div && is_int e1.etype && is_int e2.etype ->
-					{ ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint }
+					let e = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint } in
+					if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
+						mk_cast basic.tint e
+					else
+						e
 				| TCast( ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ), _ )
 				| TCast( ({ eexpr = TBinop(( (Ast.OpAssignOp Ast.OpDiv) as op), e1, e2) } as ebinop ), _ ) when catch_int_div && is_int e1.etype && is_int e2.etype && is_int e.etype ->
-					{ ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint }
+					let e = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint } in
+					if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
+						mk_cast basic.tint e
+					else
+						e
 				| _ -> Type.map_expr run e
 		in
 		run
