@@ -579,6 +579,8 @@ and gen_expr ctx e =
 				spr ctx " = ";
 				gen_value ctx e
 		end
+	| TNew ({ cl_path = [],"Array" },_,[]) ->
+		print ctx "[]"
 	| TNew (c,_,el) ->
 		print ctx "new %s(" (ctx.type_accessor (TClassDecl c));
 		concat ctx "," (gen_value ctx) el;
