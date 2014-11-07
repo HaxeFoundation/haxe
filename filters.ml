@@ -319,26 +319,38 @@ let captured_vars com e =
 
 	let t = com.basic in
 
-	let rec mk_init av v pos =
-		mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+	let captured_type = t.tarray in
 
-	and mk_var v used =
+	let mk_ref v ve p =
+		mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
+	in
+
+	let mk_ref_access e v =
+		mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+	in
+
+	let mk_init av v pos =
+		mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+	in
+
+	let mk_var v used =
 		let v2 = alloc_var v.v_name (PMap.find v.v_id used) in
 		v2.v_meta <- v.v_meta;
 		v2
+	in
 
-	and wrap used e =
+	let rec wrap used e =
 		match e.eexpr with
 		| TVar (v,ve) ->
 			let v,ve =
 				if PMap.mem v.v_id used then
-					v, Some (mk (TArrayDecl (match ve with None -> [] | Some e -> [wrap used e])) v.v_type e.epos)
+					v, Some (mk_ref v (Option.map (wrap used) ve) e.epos)
 				else
 					v, (match ve with None -> None | Some e -> Some (wrap used e))
 			 in
 			{ e with eexpr = TVar (v,ve) }
 		| TLocal v when PMap.mem v.v_id used ->
-			mk (TArray ({ e with etype = v.v_type },mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+			mk_ref_access e v
 		| TFor (v,it,expr) when PMap.mem v.v_id used ->
 			let vtmp = mk_var v used in
 			let it = wrap used it in
@@ -406,7 +418,7 @@ let captured_vars com e =
 		else
 			let used = PMap.map (fun v ->
 				let vt = v.v_type in
-				v.v_type <- t.tarray vt;
+				v.v_type <- captured_type vt;
 				v.v_capture <- true;
 				vt
 			) used in
