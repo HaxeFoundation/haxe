@@ -319,18 +319,28 @@ let captured_vars com e =
 
 	let t = com.basic in
 
-	let captured_type = t.tarray in
-
-	let mk_ref v ve p =
-		mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
-	in
-
-	let mk_ref_access e v =
-		mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
-	in
-
-	let mk_init av v pos =
-		mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+	let impl = match com.platform with
+	| Cs | Java ->
+		(* TODO: optimized stuff here *)
+		object
+			method captured_type = t.tarray
+			method mk_ref v ve p =
+				mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
+			method mk_ref_access e v =
+				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+			method mk_init av v pos =
+				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+		end
+	| _ ->
+		object
+			method captured_type = t.tarray
+			method mk_ref v ve p =
+				mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
+			method mk_ref_access e v =
+				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+			method mk_init av v pos =
+				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+		end
 	in
 
 	let mk_var v used =
@@ -344,24 +354,24 @@ let captured_vars com e =
 		| TVar (v,ve) ->
 			let v,ve =
 				if PMap.mem v.v_id used then
-					v, Some (mk_ref v (Option.map (wrap used) ve) e.epos)
+					v, Some (impl#mk_ref v (Option.map (wrap used) ve) e.epos)
 				else
 					v, (match ve with None -> None | Some e -> Some (wrap used e))
 			 in
 			{ e with eexpr = TVar (v,ve) }
 		| TLocal v when PMap.mem v.v_id used ->
-			mk_ref_access e v
+			impl#mk_ref_access e v
 		| TFor (v,it,expr) when PMap.mem v.v_id used ->
 			let vtmp = mk_var v used in
 			let it = wrap used it in
 			let expr = wrap used expr in
-			mk (TFor (vtmp,it,Type.concat (mk_init v vtmp e.epos) expr)) e.etype e.epos
+			mk (TFor (vtmp,it,Type.concat (impl#mk_init v vtmp e.epos) expr)) e.etype e.epos
 		| TTry (expr,catchs) ->
 			let catchs = List.map (fun (v,e) ->
 				let e = wrap used e in
 				try
 					let vtmp = mk_var v used in
-					vtmp, Type.concat (mk_init v vtmp e.epos) e
+					vtmp, Type.concat (impl#mk_init v vtmp e.epos) e
 				with Not_found ->
 					v, e
 			) catchs in
@@ -388,7 +398,7 @@ let captured_vars com e =
 			let fargs = List.map (fun (v,o) ->
 				if PMap.mem v.v_id used then
 					let vtmp = mk_var v used in
-					fexpr := Type.concat (mk_init v vtmp e.epos) !fexpr;
+					fexpr := Type.concat (impl#mk_init v vtmp e.epos) !fexpr;
 					vtmp, o
 				else
 					v, o
@@ -418,7 +428,7 @@ let captured_vars com e =
 		else
 			let used = PMap.map (fun v ->
 				let vt = v.v_type in
-				v.v_type <- captured_type vt;
+				v.v_type <- impl#captured_type vt;
 				v.v_capture <- true;
 				vt
 			) used in
