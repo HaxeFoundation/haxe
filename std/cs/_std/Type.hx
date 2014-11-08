@@ -22,6 +22,8 @@
 import cs.Lib;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
+import cs.system.reflection.*;
+using StringTools;
 /*
  * Copyright (c) 2005, The Haxe Project Contributors
  * All rights reserved.
@@ -234,28 +236,32 @@ import cs.internal.Runtime;
 		return createEnum(e, constr[index], params);
 	}
 
-	@:functionCode('
-		if (c == typeof(string))
+	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String>
+	{
+		if (c == String)
+			return cs.internal.StringExt.StringRefl.fields;
+
+		var c = cs.Lib.toNativeType(c);
+		var ret = [];
+		var bindingFlags:BindingFlags = cast cast(BindingFlags.Public, Int) | cast(BindingFlags.Instance, Int) | cast(BindingFlags.FlattenHierarchy,Int);
+		var mis = c.GetMembers(bindingFlags);
+		for (i in 0...mis.Length)
 		{
-			return haxe.lang.StringRefl.fields;
+			var i = mis[i];
+			if (Std.is(i, PropertyInfo))
+				continue;
+			var n = i.Name;
+			if (!n.startsWith('__hx_') && n.fastCodeAt(0) != '.'.code)
+			{
+				switch(n)
+				{
+					case 'Equals' | 'ToString' | 'GetHashCode' | 'GetType':
+					case _:
+						ret.push(n);
+				}
+			}
 		}
-
-		Array<object> ret = new Array<object>();
-
-        System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
-        for (int i = 0; i < mis.Length; i++)
-        {
-			if (mis[i] is System.Reflection.PropertyInfo)
-                continue;
-			string n = mis[i].Name;
-			if (!n.StartsWith("__hx_") && n[0] != \'.\' && !n.Equals("Equals") && !n.Equals("ToString") && !n.Equals("GetHashCode") && !n.Equals("GetType"))
-				ret.push(mis[i].Name);
-        }
-
 		return ret;
-	')
-	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		return null;
 	}
 
 	@:functionCode('

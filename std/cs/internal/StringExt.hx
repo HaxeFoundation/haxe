@@ -205,7 +205,7 @@ private typedef NativeString = String;
 	}
 }
 
-@:keep @:nativeGen @:native('haxe.lang.StringRefl') private class StringRefl
+@:keep @:nativeGen @:native('haxe.lang.StringRefl') class StringRefl
 {
 	public static var fields = ["length", "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring"];
 
