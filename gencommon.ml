@@ -1535,19 +1535,19 @@ struct
 			| TClassDecl cl ->
 				let rec is_hxgen_class (c,_) =
 					if c.cl_extern then begin
-						if Meta.has Meta.HxGen c.cl_meta then true else Option.map_default (is_hxgen_class) false c.cl_super
+						if Meta.has Meta.HxGen c.cl_meta then true else Option.map_default (is_hxgen_class) false c.cl_super || List.exists is_hxgen_class c.cl_implements
 					end else begin
 						if Meta.has Meta.NativeChildren c.cl_meta || Meta.has Meta.NativeGen c.cl_meta then
-							Option.map_default (is_hxgen_class) false c.cl_super
+							Option.map_default (is_hxgen_class) false c.cl_super || List.exists is_hxgen_class c.cl_implements
 						else
 							let rec has_nativec (c,p) =
 								if is_hxgen_class (c,p) then
 									false
 								else
-									(Meta.has Meta.NativeChildren c.cl_meta && not (Option.map_default is_hxgen_class false c.cl_super))
+									(Meta.has Meta.NativeChildren c.cl_meta && not (Option.map_default is_hxgen_class false c.cl_super || List.exists is_hxgen_class c.cl_implements))
 									|| Option.map_default has_nativec false c.cl_super
 							in
-							if Option.map_default has_nativec false c.cl_super then
+							if Option.map_default has_nativec false c.cl_super && not (List.exists is_hxgen_class c.cl_implements) then
 								false
 							else
 								true
