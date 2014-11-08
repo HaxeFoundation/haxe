@@ -837,6 +837,9 @@ let run_filters_from gen t filters =
 			| TAbstractDecl _ -> ()
 
 let run_filters gen =
+	let last_error = gen.gcon.error in
+	let has_errors = ref false in
+	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
 	let t = Common.timer "gencommon_filters" in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true);
@@ -926,7 +929,8 @@ let run_filters gen =
 	List.iter (fun fn -> fn()) gen.gafter_filters_ended;
 
 	reorder_modules gen;
-	t()
+	t();
+	if !has_errors then raise (Abort("Compilation aborted with errors",null_pos))
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)
@@ -1900,7 +1904,11 @@ struct
 							ctor
 						in
 						(* now that we made sure we have a constructor, exit if native gen *)
-						if not (is_hxgen (TClassDecl cl)) || Meta.has Meta.SkipCtor cl.cl_meta then raise Exit;
+						if not (is_hxgen (TClassDecl cl)) || Meta.has Meta.SkipCtor cl.cl_meta then begin
+							if descends_from_native_or_skipctor cl && is_some cl.cl_super then
+								List.iter (fun cf -> ensure_super_is_first gen cf) (ctor :: ctor.cf_overloads);
+							raise Exit
+						end;
 
 						(* if cl descends from a native class, we cannot use the static constructor strategy *)
 						if descends_from_native_or_skipctor cl && is_some cl.cl_super then
@@ -1910,7 +1918,7 @@ struct
 							List.iter (fun cf ->
 								create_static_ctor gen ~empty_ctor_expr:empty_ctor_expr cl static_ctor_name cf
 							) (ctor :: ctor.cf_overloads)
-					with | Exit -> ());
+					with | Exit ->());
 
 					(* implement empty ctor *)
 					(try
