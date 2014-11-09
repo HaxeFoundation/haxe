@@ -212,7 +212,21 @@ using StringTools;
 
 		if (Reflect.hasField(cl, "__hx_createEmpty"))
 			return untyped cl.__hx_createEmpty();
-		return createInstance(cl, []);
+		if (untyped cl == String)
+			return cast "";
+		var t:cs.system.Type = Lib.toNativeType(cl);
+
+		var ctors = t.GetConstructors();
+		for (c in 0...ctors.Length)
+		{
+			if (ctors[c].GetParameters().Length == 0)
+			{
+				var arr = new cs.NativeArray(1);
+				arr[0] = ctors[c];
+				return Runtime.callMethod(null, cast arr, arr.Length, []);
+			}
+		}
+		return cs.system.Activator.CreateInstance(t);
 	}
 
 	@:functionCode('
