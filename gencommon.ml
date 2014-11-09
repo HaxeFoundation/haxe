@@ -2016,7 +2016,18 @@ struct
 
 		let priority = solve_deps name [DBefore OverloadingConstructor.priority]
 
-		let configure gen should_handle_dynamic_functions =
+		let ensure_simple_expr gen e =
+			let rec iter e = match e.eexpr with
+				| TConst _ | TLocal _ | TArray _ | TBinop _
+				| TField _ | TTypeExpr _ | TParenthesis _
+				| TCall _ | TNew _ | TUnop _ ->
+					Type.iter iter e
+				| _ ->
+					gen.gcon.error "Expression is too complex for a readonly variable initialization" e.epos
+			in
+			iter e
+
+		let configure gen should_handle_dynamic_functions readonly_support =
 			let handle_override_dynfun acc e this field =
 				let add_expr = ref None in
 				let v = mk_temp gen ("super_" ^ field) e.etype in
@@ -2050,6 +2061,11 @@ struct
 				in
 				let init = List.fold_left (fun acc cf ->
 					match cf.cf_kind, should_handle_dynamic_functions with
+						| (Var v, _) when Meta.has Meta.ReadOnly cf.cf_meta && readonly_support ->
+								if v.v_write <> AccNever then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+								(match cf.cf_expr with
+									| None -> gen.gcon.warning "Uninitialized readonly variable" cf.cf_pos; acc
+									| Some e -> ensure_simple_expr gen e; acc)
 						| (Var _, _)
 						| (Method (MethDynamic), true) when not (Type.is_extern_field cf) ->
 							(match cf.cf_expr with
@@ -2086,6 +2102,11 @@ struct
 				if should_handle_dynamic_functions then begin
 					let funs = List.fold_left (fun acc cf ->
 						match cf.cf_kind with
+							| Var v when Meta.has Meta.ReadOnly cf.cf_meta && readonly_support ->
+									if v.v_write <> AccNever then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+									(match cf.cf_expr with
+										| None -> acc
+										| Some e -> ensure_simple_expr gen e; acc)
 							| Var _
 							| Method(MethDynamic) ->
 								(match cf.cf_expr, cf.cf_params with

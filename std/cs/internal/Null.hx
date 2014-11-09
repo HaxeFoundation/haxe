@@ -43,8 +43,8 @@ package cs.internal;
 @:keep @:struct @:nativeGen @:native("haxe.lang.Null") private class Nullable<T>
 {
 
-	@:readOnly public var value:T;
-	@:readOnly public var hasValue:Bool;
+	@:readOnly public var value(default,never):T;
+	@:readOnly public var hasValue(default,never):Bool;
 
 	@:functionCode('
 			if ( !(v is System.ValueType) && System.Object.ReferenceEquals(v, default(T)))
@@ -57,8 +57,8 @@ package cs.internal;
 	')
 	public function new(v:T, hasValue:Bool)
 	{
-		this.value = v;
-		this.hasValue = hasValue;
+		untyped this.value = v;
+		untyped this.hasValue = hasValue;
 	}
 
 	@:functionCode('

@@ -770,7 +770,7 @@ let rec get_fun_modifiers meta access modifiers =
 		| [] -> access,modifiers
 		| (Meta.Protected,[],_) :: meta -> get_fun_modifiers meta "protected" modifiers
 		| (Meta.Internal,[],_) :: meta -> get_fun_modifiers meta "" modifiers
-		(*| (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)*)
+		| (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("final" :: modifiers)
 		(*| (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)*)
 		| (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
 		| (Meta.Transient,[],_) :: meta -> get_fun_modifiers meta access ("transient" :: modifiers)
@@ -2043,7 +2043,7 @@ let configure gen =
 
 	ObjectDeclMap.configure gen (ObjectDeclMap.traverse gen objdecl_fn);
 
-	InitFunction.configure gen true;
+	InitFunction.configure gen true true;
 	TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
 	fun e _ ->
 		match e.eexpr with
