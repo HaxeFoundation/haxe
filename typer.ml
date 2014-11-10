@@ -3374,8 +3374,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
 			let rec loop = function
 				| Filters.Block f | Filters.Loop f | Filters.Function f -> f loop
-				| Filters.Use v2 when v == v2 -> raise Exit
-				| Filters.Use _ | Filters.Declare _ -> ()
+				| Filters.Use v2 | Filters.Assign v2 when v == v2 -> raise Exit
+				| Filters.Use _ | Filters.Assign _ | Filters.Declare _ -> ()
 			in
 			let is_rec = (try Filters.local_usage loop e; false with Exit -> true) in
 			let decl = (if is_rec then begin

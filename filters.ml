@@ -278,9 +278,15 @@ type usage =
 	| Function of ((usage -> unit) -> unit)
 	| Declare of tvar
 	| Use of tvar
+	| Assign of tvar
 
 let rec local_usage f e =
 	match e.eexpr with
+	| TBinop ((OpAssign | OpAssignOp _), { eexpr = TLocal v }, e2) ->
+		local_usage f e2;
+		f (Assign v)
+	| TUnop ((Increment | Decrement), _, { eexpr = TLocal v }) ->
+		f (Assign v)
 	| TLocal v ->
 		f (Use v)
 	| TVar (v,eo) ->
@@ -405,7 +411,7 @@ let captured_vars com e =
 			let tmp_used = ref used in
 			let rec browse = function
 				| Block f | Loop f | Function f -> f browse
-				| Use v ->
+				| Use v | Assign v ->
 					if PMap.mem v.v_id !tmp_used then fused := PMap.add v.v_id v !fused;
 				| Declare v ->
 					tmp_used := PMap.remove v.v_id !tmp_used
@@ -478,7 +484,7 @@ let captured_vars com e =
 					decr depth;
 				| Declare v ->
 					if in_loop then vars := PMap.add v.v_id !depth !vars;
-				| Use v ->
+				| Use v | Assign v ->
 					try
 						let d = PMap.find v.v_id !vars in
 						if d <> !depth then used := PMap.add v.v_id v !used;
@@ -508,7 +514,7 @@ let captured_vars com e =
 			decr depth;
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
-		| Use v ->
+		| Use v | Assign v ->
 			try
 				let d = PMap.find v.v_id !vars in
 				if d <> !depth then used := PMap.add v.v_id v !used;
