@@ -319,37 +319,79 @@ let captured_vars com e =
 
 	let t = com.basic in
 
-	let rec mk_init av v pos =
-		mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+	let impl = match com.platform with
+	(* optimized version for C# - use native .net arrays *)
+	| Cs ->
+		let cnativearray =
+			match (List.find (fun md -> match md with
+					| TClassDecl ({ cl_path = ["cs"],"NativeArray" }) -> true
+					| _ -> false
+				) com.types)
+			with TClassDecl cl -> cl | _ -> assert false
+		in
 
-	and mk_var v used =
+		object
+			method captured_type t = TInst (cnativearray,[t])
+
+			method mk_ref v ve p =
+				let earg = match ve with
+					| None ->
+						let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
+						mk (TConst TNull) t p (* gencs will do the right thing for the non-nullable types *)
+					| Some e -> e
+				in
+				{ (Optimizer.mk_untyped_call "__array__" p [earg]) with etype = v.v_type }
+
+			method mk_ref_access e v =
+				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+
+			method mk_init av v pos =
+				let elocal = mk (TLocal v) v.v_type pos in
+				let earray = { (Optimizer.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
+				mk (TVar (av,Some earray)) t.tvoid pos
+		end
+	(* default implementation - use haxe array *)
+	| _ ->
+		object
+			method captured_type = t.tarray
+			method mk_ref v ve p =
+				mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
+			method mk_ref_access e v =
+				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+			method mk_init av v pos =
+				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+		end
+	in
+
+	let mk_var v used =
 		let v2 = alloc_var v.v_name (PMap.find v.v_id used) in
 		v2.v_meta <- v.v_meta;
 		v2
+	in
 
-	and wrap used e =
+	let rec wrap used e =
 		match e.eexpr with
 		| TVar (v,ve) ->
 			let v,ve =
 				if PMap.mem v.v_id used then
-					v, Some (mk (TArrayDecl (match ve with None -> [] | Some e -> [wrap used e])) v.v_type e.epos)
+					v, Some (impl#mk_ref v (Option.map (wrap used) ve) e.epos)
 				else
 					v, (match ve with None -> None | Some e -> Some (wrap used e))
 			 in
 			{ e with eexpr = TVar (v,ve) }
 		| TLocal v when PMap.mem v.v_id used ->
-			mk (TArray ({ e with etype = v.v_type },mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+			impl#mk_ref_access e v
 		| TFor (v,it,expr) when PMap.mem v.v_id used ->
 			let vtmp = mk_var v used in
 			let it = wrap used it in
 			let expr = wrap used expr in
-			mk (TFor (vtmp,it,Type.concat (mk_init v vtmp e.epos) expr)) e.etype e.epos
+			mk (TFor (vtmp,it,Type.concat (impl#mk_init v vtmp e.epos) expr)) e.etype e.epos
 		| TTry (expr,catchs) ->
 			let catchs = List.map (fun (v,e) ->
 				let e = wrap used e in
 				try
 					let vtmp = mk_var v used in
-					vtmp, Type.concat (mk_init v vtmp e.epos) e
+					vtmp, Type.concat (impl#mk_init v vtmp e.epos) e
 				with Not_found ->
 					v, e
 			) catchs in
@@ -376,7 +418,7 @@ let captured_vars com e =
 			let fargs = List.map (fun (v,o) ->
 				if PMap.mem v.v_id used then
 					let vtmp = mk_var v used in
-					fexpr := Type.concat (mk_init v vtmp e.epos) !fexpr;
+					fexpr := Type.concat (impl#mk_init v vtmp e.epos) !fexpr;
 					vtmp, o
 				else
 					v, o
@@ -406,7 +448,7 @@ let captured_vars com e =
 		else
 			let used = PMap.map (fun v ->
 				let vt = v.v_type in
-				v.v_type <- t.tarray vt;
+				v.v_type <- impl#captured_type vt;
 				v.v_capture <- true;
 				vt
 			) used in

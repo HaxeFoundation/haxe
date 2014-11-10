@@ -2984,7 +2984,7 @@ struct
 					| Some tparam_anon_decl ->
 						(match (vv, ve) with
 							| ({ v_extra = Some( _ :: _, _) } as v), Some ({ eexpr = TFunction tf } as f)
-							| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
+							| ({ v_extra = Some( _ :: _, _) } as v), Some { eexpr = TArrayDecl([{ eexpr = TFunction tf } as f]) | TCall({ eexpr = TLocal { v_name = "__array__" } }, [{ eexpr = TFunction tf } as f]) } -> (* captured transformation *)
 								ignore(tparam_anon_decl v f { tf with tf_expr = run tf.tf_expr });
 								{ e with eexpr = TBlock([]) }
 							| _ ->
