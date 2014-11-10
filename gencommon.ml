@@ -7517,12 +7517,10 @@ struct
 							mk_may_check_throw "Field not found or incompatible field type.";
 						]
 					end else begin
-						let undefined = alloc_var "__undefined__" t_dynamic in
-						let undefined_local = mk_local undefined pos in
 						let is_check_local = mk_local (get is_check_opt) pos in
 						[
 							{
-								eexpr = TIf(is_check_local, mk_return undefined_local, Some( mk_may_check_throw "Field not found." ));
+								eexpr = TIf(is_check_local, mk_return (undefined pos), Some( mk_may_check_throw "Field not found." ));
 								etype = ret_t;
 								epos = pos;
 							}
