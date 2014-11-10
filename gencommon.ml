@@ -1350,7 +1350,7 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
 	(* let pointers to values be accessed as the underlying values *)
 	let t = match gen.greal_type t with
 		| TAbstract({ a_path = ["cs"],"Pointer" },[t]) ->
-			t
+			gen.greal_type t
 		| _ -> t
 	in
 
