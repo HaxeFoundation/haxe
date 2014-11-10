@@ -2716,6 +2716,8 @@ let configure gen =
 						false
 					| _, TConst(TNull) when is_null_expr e1 ->
 						false
+					| _, TLocal { v_name = "__undefined__" } ->
+						false
 					| _ ->
 						should_handle_opeq e1.etype || should_handle_opeq e2.etype
 				)
