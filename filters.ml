@@ -320,6 +320,7 @@ let captured_vars com e =
 	let t = com.basic in
 
 	let impl = match com.platform with
+	(* optimized version for C# - use native .net arrays *)
 	| Cs ->
 		let cnativearray =
 			match (List.find (fun md -> match md with
@@ -336,7 +337,7 @@ let captured_vars com e =
 				let earg = match ve with
 					| None ->
 						let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
-						mk (TConst TNull) t p
+						mk (TConst TNull) t p (* gencs will do the right thing for the non-nullable types *)
 					| Some e -> e
 				in
 				{ (Optimizer.mk_untyped_call "__array__" p [earg]) with etype = v.v_type }
@@ -349,6 +350,7 @@ let captured_vars com e =
 				let earray = { (Optimizer.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
 				mk (TVar (av,Some earray)) t.tvoid pos
 		end
+	(* default implementation - use haxe array *)
 	| _ ->
 		object
 			method captured_type = t.tarray
