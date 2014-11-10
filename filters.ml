@@ -320,16 +320,34 @@ let captured_vars com e =
 	let t = com.basic in
 
 	let impl = match com.platform with
-	| Cs | Java ->
-		(* TODO: optimized stuff here *)
+	| Cs ->
+		let cnativearray =
+			match (List.find (fun md -> match md with
+					| TClassDecl ({ cl_path = ["cs"],"NativeArray" }) -> true
+					| _ -> false
+				) com.types)
+			with TClassDecl cl -> cl | _ -> assert false
+		in
+
 		object
-			method captured_type = t.tarray
+			method captured_type t = TInst (cnativearray,[t])
+
 			method mk_ref v ve p =
-				mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
+				let earg = match ve with
+					| None ->
+						let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
+						mk (TConst TNull) t p
+					| Some e -> e
+				in
+				{ (Optimizer.mk_untyped_call "__array__" p [earg]) with etype = v.v_type }
+
 			method mk_ref_access e v =
 				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+
 			method mk_init av v pos =
-				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
+				let elocal = mk (TLocal v) v.v_type pos in
+				let earray = { (Optimizer.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
+				mk (TVar (av,Some earray)) t.tvoid pos
 		end
 	| _ ->
 		object
