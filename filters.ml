@@ -498,6 +498,7 @@ let captured_vars com e =
 	and all_vars e =
 		let vars = ref PMap.empty in
 		let used = ref PMap.empty in
+		let assigned = ref PMap.empty in
 		let depth = ref 0 in
 		let rec collect_vars = function
 		| Block f ->
@@ -514,18 +515,32 @@ let captured_vars com e =
 			decr depth;
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
-		| Use v | Assign v ->
-			try
+		| Use v ->
+			(try
 				let d = PMap.find v.v_id !vars in
 				if d <> !depth then used := PMap.add v.v_id v !used;
-			with Not_found -> ()
+			with Not_found -> ())
+		| Assign v ->
+			(try
+				let d = PMap.find v.v_id !vars in
+				(* different depth - needs wrap *)
+				if d <> !depth then begin
+					used := PMap.add v.v_id v !used;
+					assigned := PMap.add v.v_id v !assigned;
+				end
+				(* same depth but assigned after being used on a different depth - needs wrap *)
+				else if PMap.mem v.v_id !used then
+					assigned := PMap.add v.v_id v !assigned;
+			with Not_found -> ())
 		in
 		local_usage collect_vars e;
-		!used
+
+		(* mark all capture variables - also used in rename_local_vars at later stage *)
+		PMap.iter (fun _ v -> v.v_capture <- true) !used;
+
+		!assigned
 	in
-	(* mark all capture variables - also used in rename_local_vars at later stage *)
 	let captured = all_vars e in
-	PMap.iter (fun _ v -> v.v_capture <- true) captured;
 	match com.config.pf_capture_policy with
 	| CPNone -> e
 	| CPWrapRef -> do_wrap captured e
