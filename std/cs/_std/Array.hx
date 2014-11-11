@@ -422,12 +422,7 @@ import cs.NativeArray;
 
 	private function __get(idx:Int):T
 	{
-		var __a = __a;
-		var idx:UInt = idx;
-		if (idx >= length)
-			return null;
-
-		return __a[idx];
+		return if ((cast idx : UInt) >= length) null else __a[idx];
 	}
 
 	private function __set(idx:Int, v:T):T
