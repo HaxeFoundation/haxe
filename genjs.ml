@@ -1345,7 +1345,7 @@ let generate com =
 		print ctx "})(";
 		if (anyExposed && not (Common.defined com Define.ShallowExpose)) then (
 			(* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
-			print ctx "typeof window != \"undefined\" ? window : exports"
+			print ctx "typeof window != \"undefined\" ? window : typeof exports != \"undefined\" ? exports : this"
 		);
 		print ctx ")";
 		newline ctx;
