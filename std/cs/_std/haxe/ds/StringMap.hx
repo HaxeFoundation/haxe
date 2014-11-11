@@ -357,28 +357,9 @@ import cs.NativeArray;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<T>
+	public inline function iterator() : Iterator<T>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new StringMapValueIterator(this);
 	}
 
 	/**
@@ -494,5 +475,33 @@ private class StringMapKeyIterator<T> {
 		m.cachedKey = ret;
 		i++;
 		return ret;
+	}
+}
+
+@:final
+@:access(haxe.ds.StringMap)
+private class StringMapValueIterator<T> {
+	var m:StringMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:StringMap<T>) {
+		this.m = m;
+		this.i = 0;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!StringMap.isEither(m.hashes[j])) {
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function next():T {
+		return m.vals[i++];
 	}
 }
