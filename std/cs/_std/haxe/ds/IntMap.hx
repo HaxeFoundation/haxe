@@ -326,31 +326,9 @@ import cs.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<Int>
+	public inline function keys() : Iterator<Int>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(flags, j))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
-
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new IntMapKeyIterator(this);
 	}
 
 	/**
@@ -437,18 +415,18 @@ import cs.NativeArray;
 
 @:access(haxe.ds.IntMap)
 @:final
-private class IntMapValueIterator<T> {
+private class IntMapKeyIterator<T> {
 	var m:IntMap<T>;
 	var i:Int;
 	var len:Int;
 
 	public function new(m:IntMap<T>) {
-		untyped this.i = 0;
-		untyped this.m = m;
-		untyped this.len = m.nBuckets;
+		this.i = 0;
+		this.m = m;
+		this.len = m.nBuckets;
 	}
 
-	public function hasNext() {
+	public function hasNext():Bool {
 		for (j in i...len) {
 			if (!IntMap.isEither(m.flags, j)) {
 				i = j;
@@ -458,7 +436,39 @@ private class IntMapValueIterator<T> {
 		return false;
 	}
 
-	public inline function next() {
+	public function next():Int {
+		var ret = m._keys[i];
+		m.cachedIndex = i;
+		m.cachedKey = ret;
+		i++;
+		return ret;
+	}
+}
+
+@:access(haxe.ds.IntMap)
+@:final
+private class IntMapValueIterator<T> {
+	var m:IntMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:IntMap<T>) {
+		this.i = 0;
+		this.m = m;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!IntMap.isEither(m.flags, j)) {
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function next():T {
 		return m.vals[i++];
 	}
 }
