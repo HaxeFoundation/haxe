@@ -348,31 +348,9 @@ import cs.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<String>
+	public inline function keys() : Iterator<String>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
-
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new StringMapKeyIterator(this);
 	}
 
 	/**
@@ -486,3 +464,35 @@ import cs.NativeArray;
 }
 
 private typedef HashType = Int;
+
+@:final
+@:access(haxe.ds.StringMap)
+private class StringMapKeyIterator<T> {
+	var m:StringMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:StringMap<T>) {
+		this.m = m;
+		this.i = 0;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!StringMap.isEither(m.hashes[j])) {
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function next():String {
+		var ret = m._keys[i];
+		m.cachedIndex = i;
+		m.cachedKey = ret;
+		i++;
+		return ret;
+	}
+}
