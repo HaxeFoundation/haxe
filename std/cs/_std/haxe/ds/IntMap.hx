@@ -357,28 +357,9 @@ import cs.NativeArray;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<T>
+	public inline function iterator() : Iterator<T>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(flags, j))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new IntMapValueIterator(this);
 	}
 
 	/**
@@ -452,4 +433,32 @@ import cs.NativeArray;
 
 	private static inline function flagsSize(m:Int):Int
 		return ((m) < 16? 1 : (m) >> 4);
+}
+
+@:access(haxe.ds.IntMap)
+@:final
+private class IntMapValueIterator<T> {
+	var m:IntMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:IntMap<T>) {
+		untyped this.i = 0;
+		untyped this.m = m;
+		untyped this.len = m.nBuckets;
+	}
+
+	public function hasNext() {
+		for (j in i...len) {
+			if (!IntMap.isEither(m.flags, j)) {
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function next() {
+		return m.vals[i++];
+	}
 }
