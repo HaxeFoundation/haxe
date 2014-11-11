@@ -326,11 +326,11 @@ let captured_vars com e =
 	let t = com.basic in
 
 	let impl = match com.platform with
-	(* optimized version for C# - use native .net arrays *)
-	| Cs ->
+	(* optimized version for C#/Java - use native arrays *)
+	| Cs | Java ->
 		let cnativearray =
 			match (List.find (fun md -> match md with
-					| TClassDecl ({ cl_path = ["cs"],"NativeArray" }) -> true
+					| TClassDecl ({ cl_path = ["cs" | "java"],"NativeArray" }) -> true
 					| _ -> false
 				) com.types)
 			with TClassDecl cl -> cl | _ -> assert false
@@ -343,7 +343,7 @@ let captured_vars com e =
 				let earg = match ve with
 					| None ->
 						let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
-						mk (TConst TNull) t p (* gencs will do the right thing for the non-nullable types *)
+						mk (TConst TNull) t p (* generator will do the right thing for the non-nullable types *)
 					| Some e -> e
 				in
 				{ (Optimizer.mk_untyped_call "__array__" p [earg]) with etype = v.v_type }
