@@ -254,28 +254,43 @@ class Http {
 			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
 		}
 		try {
-			if( post )
-				r.open("POST",url,async);
+			if( post ){
+				if(ielegacy){
+					r.open("POST",url); 
+				} else {
+					r.open("POST",url,async); 
+				}
+			}
 			else if( uri != null ) {
 				var question = url.split("?").length <= 1;
-				r.open("GET",url+(if( question ) "?" else "&")+uri,async);
+				if(ielegacy){
+					r.open("GET",url+(if( question ) "?" else "&")+uri);
+				} else {
+					r.open("GET",url+(if( question ) "?" else "&")+uri,async);
+				}
 				uri = null;
-			} else
-				r.open("GET",url);
+			} else{
+				r.open("GET",url); 
+			}
 		} catch( e : Dynamic ) {
 			me.req = null;
 			onError(e.toString());
 			return;
 		}
-		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
-			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
-
-		for( h in headers )
-			r.setRequestHeader(h.header,h.value);
+		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null ){
+			if(!ielegacy){
+				r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
+			}
+		}
+		for( h in headers ){
+			if(!ielegacy){
+				r.setRequestHeader(h.header,h.value);
+			}
+		}
 		if(ielegacy){
 			untyped __js__('setTimeout')(function () {
-               r.send();
-            }, 0);
+               r.send(uri);
+            }, 1000);
 		} else {
 			r.send(uri);
 		}
