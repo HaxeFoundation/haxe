@@ -17,6 +17,13 @@ class Issue3558 extends Test
 			eq(e.Key,10);
 			eq(e.Value,"11");
 		}
+		var e = dict.GetEnumerator();
+		while (e.MoveNext())
+		{
+			var cur = e.Current;
+			eq(cur.Key,10);
+			eq(cur.Value,"11");
+		}
 	}
 #end
 

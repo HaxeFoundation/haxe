@@ -717,13 +717,9 @@ let configure gen =
 	let basic = gen.gcon.basic in
 
 	let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
-
 	let null_t = (get_cl (get_type gen (["haxe";"lang"],"Null")) ) in
-
 	let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
-
 	let no_root = Common.defined gen.gcon Define.NoRoot in
-
 	let change_id name = try
 			Hashtbl.find reserved name
 		with | Not_found ->
@@ -733,19 +729,47 @@ let configure gen =
 
 	let change_clname n = change_id n in
 
-	let change_ns md = if no_root then
-		function
-			| [] when is_hxgen md -> ["haxe";"root"]
+	let change_ns_params_root md ns params =
+		let ns,params = List.fold_left (fun (ns,params) nspart -> try
+			let part, nparams = String.split nspart "`" in
+			let nparams = int_of_string nparams in
+			let rec loop i needed params =
+				if i = nparams then
+					(List.rev needed,params)
+				else
+					loop (i+1) (List.hd params :: needed) (List.tl params)
+			in
+			let needed,params = loop 0 [] params in
+			let part = change_id part in
+			(part ^ "<" ^ (String.concat ", " needed) ^ ">")::ns, params
+		with _ ->
+			(change_id nspart)::ns, params
+		) ([],params) ns
+		in
+		List.rev ns,params
+	in
+
+	let change_ns_params md params ns = if no_root then match ns with
+			| [] when is_hxgen md -> ["haxe";"root"], params
 			| [] -> (match md with
-				| TClassDecl { cl_path = ([],"Std" | [],"Math") } -> ["haxe";"root"]
-				| _ -> [])
-			| ns -> List.map change_id ns
-	else List.map change_id in
+				| TClassDecl { cl_path = ([],"Std" | [],"Math") } -> ["haxe";"root"], params
+				| _ -> [], params)
+			| ns when params = [] -> List.map change_id ns, params
+			| ns ->
+				change_ns_params_root md ns params
+		else if params = [] then
+			List.map change_id ns, params
+		else
+			change_ns_params_root md ns params
+	in
+
+	let change_ns md ns =
+		let ns, _ = change_ns_params md [] ns in
+		ns
+	in
 
 	let change_field = change_id in
-
 	let write_id w name = write w (change_id name) in
-
 	let write_field w name = write w (change_field name) in
 
 	let ptr =
@@ -796,13 +820,19 @@ let configure gen =
 			| TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
 			| _ -> None);
 
-	let module_s md =
+	let module_s_params md params =
 		let md = change_md md in
 		let path = (t_infos md).mt_path in
 		match path with
-		| ([], "String") -> "string"
-		| ([], "Null") -> path_s (change_ns md ["haxe"; "lang"], change_clname "Null")
-		| (ns,clname) -> path_s (change_ns md ns, change_clname clname)
+			| ([], "String") -> "string", params
+			| ([], "Null") -> path_s (change_ns md ["haxe"; "lang"], change_clname "Null"), params
+			| (ns,clname) ->
+				let ns, params = change_ns_params md params ns in
+				path_s (ns, change_clname clname), params
+	in
+
+	let module_s md =
+		fst (module_s_params md [])
 	in
 
 	let ifaces = Hashtbl.create 1 in
@@ -983,7 +1013,13 @@ let configure gen =
 	and path_param_s md path params =
 			match params with
 				| [] -> "global::" ^ module_s md
-				| _ -> sprintf "%s<%s>" ("global::" ^ module_s md) (String.concat ", " (List.map (fun t -> t_s t) (change_param_type md params)))
+				| _ ->
+					let params = (List.map (fun t -> t_s t) (change_param_type md params)) in
+					let str,params = module_s_params md params in
+					if params = [] then
+						"global::" ^ str
+					else
+						sprintf "global::%s<%s>" str (String.concat ", " params)
 	in
 
 	let rett_s t =
