@@ -114,7 +114,7 @@ class HxOverrides {
 	}
 
 	static function remove<T>( a : Array<T>, obj : T ) {
-		var i = a.indexOf(obj);
+		var i = indexOf(a, obj, 0);
 		if( i == -1 ) return false;
 		a.splice(i,1);
 		return true;
