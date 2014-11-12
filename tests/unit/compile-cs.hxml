@@ -7,3 +7,6 @@ compile-each.hxml
 -main unit.Test
 -cs bin/cs
 -net-lib native_cs/bin/native_cs.dll
+-net-lib cs_drivers/System.Data.dll
+-net-lib cs_drivers/System.Xml.dll
+-net-lib cs_drivers/Mono.Data.Sqlite.dll
