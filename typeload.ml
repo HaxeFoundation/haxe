@@ -1136,7 +1136,7 @@ let set_heritance ctx c herits p =
 				if not intf.cl_interface then error "You can only implement an interface" p;
 				process_meta intf;
 				c.cl_implements <- (intf, params) :: c.cl_implements;
-				if not !has_interf then begin
+				if not !has_interf && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 					delay ctx PForce (fun() -> check_interfaces ctx c);
 					has_interf := true;
 				end

@@ -3598,17 +3598,23 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags
 			| _ -> ());
 
+			let has_explicit_ifaces = ref false in
 			List.iter (fun i ->
 				match i.snorm with
 				| LClass ( (["haxe";"lang"],[], "IHxObject"), _ ) ->
 					meta := (Meta.HxGen,[],p) :: !meta
-				| i when is_explicit ctx ilcls i -> ()
-				| i -> flags :=
-					if !is_interface then
+				(* | i when is_explicit ctx ilcls i -> () *)
+				| i ->
+					if is_explicit ctx ilcls i then has_explicit_ifaces := true;
+					flags := if !is_interface then
 						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
 					else
 						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
 			) ilcls.cimplements;
+			(* this is needed because of explicit interfaces. see http://msdn.microsoft.com/en-us/library/aa288461(v=vs.71).aspx *)
+			(* explicit interfaces can't be mapped into Haxe in any way - since their fields can't be accessed directly, but they still implement that interface *)
+			if !has_explicit_ifaces then
+				meta := (Meta.Custom "$do_not_check_interf",[],p) :: !meta;
 
 			(* ArrayAccess *)
 			ignore (List.exists (function
