@@ -199,10 +199,17 @@ class Http {
 	#if js
 		me.responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
+		var ielegacy = false;
+			if( untyped __js__("typeof XDomainRequest") != "undefined" ) {
+				ielegacy = true;
+			}
 		var onreadystatechange = function(_) {
-			if( r.readyState != 4 )
+			
+			if( r.readyState != 4 &&  !ielegacy)
 				return;
 			var s = try r.status catch( e : Dynamic ) null;
+			if(ielegacy)
+				s = 9999;
 			if( s == untyped __js__("undefined") )
 				s = null;
 			if( s != null )
@@ -222,14 +229,20 @@ class Http {
 			case 12007:
 				me.req = null;
 				me.onError("Unknown host");
+			case 9999:
+				me.req = null;
+				me.onData(me.responseData = r.responseText);
 			default:
 				me.req = null;
 				me.responseData = r.responseText;
 				me.onError("Http Error #"+r.status);
 			}
 		};
-		if( async )
+		if( ielegacy )
+			r.onload = onreadystatechange;
+		else if( async ) {
 			r.onreadystatechange = onreadystatechange;
+		}
 		var uri = postData;
 		if( uri != null )
 			post = true;
@@ -248,7 +261,7 @@ class Http {
 				r.open("GET",url+(if( question ) "?" else "&")+uri,async);
 				uri = null;
 			} else
-				r.open("GET",url,async);
+				r.open("GET",url);
 		} catch( e : Dynamic ) {
 			me.req = null;
 			onError(e.toString());
@@ -259,7 +272,13 @@ class Http {
 
 		for( h in headers )
 			r.setRequestHeader(h.header,h.value);
-		r.send(uri);
+		if(ielegacy){
+			untyped __js__('setTimeout')(function () {
+               r.send();
+            }, 0);
+		} else {
+			r.send(uri);
+		}
 		if( !async )
 			onreadystatechange(null);
 	#elseif flash9
