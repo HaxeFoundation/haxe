@@ -88,11 +88,9 @@ import cs.system.Object;
 			return false;
 
 		var v1c = Lib.as(v1, IConvertible);
-
 		if (v1c != null)
 		{
 			var v2c = Lib.as(v2, IConvertible);
-
 			if (v2c == null)
 			{
 				return false;
@@ -110,8 +108,7 @@ import cs.system.Object;
 			{
 				case Decimal:
 					return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-				case Int64:
-				case UInt64:
+				case UInt64 | Int64:
 					if (t2 == Decimal)
 						return v1c.ToDecimal(null) == v2c.ToDecimal(null);
 					else
@@ -121,8 +118,7 @@ import cs.system.Object;
 					{
 						case Decimal:
 							return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-						case Int64:
-						case UInt64:
+						case UInt64 | Int64:
 							if (t2 == Decimal)
 								return v1c.ToDecimal(null) == v2c.ToDecimal(null);
 							else

@@ -30,7 +30,7 @@ private class AdoConnection implements Connection
 		this.name = name;
 		this.escapes = [];
 		this.command = cnx.CreateCommand();
-		this.escapeRegex = ~/@@HX_ESCAPE(\d+)_(\d+)@@/;
+		this.escapeRegex = ~/@HX_ESCAPE(\d+)_(\d+)/;
 	}
 
 	public function close() : Void
@@ -41,7 +41,7 @@ private class AdoConnection implements Connection
 	public function escape(s:String):String
 	{
 		var param = command.CreateParameter();
-		var name = "@@HX_ESCAPE" + id + "_" +escapes.push(param) + "@@";
+		var name = "@HX_ESCAPE" + id + "_" +escapes.push(param) + "";
 		param.ParameterName = name;
 		param.Value = s;
 		return name;
@@ -50,7 +50,7 @@ private class AdoConnection implements Connection
 	public function quote(s:String):String
 	{
 		var param = command.CreateParameter();
-		var name = "@@HX_ESCAPE" + id + "_" +escapes.push(param) + "@@";
+		var name = "@HX_ESCAPE" + id + "_" +escapes.push(param) + "";
 		param.ParameterName = name;
 		param.Value = s;
 		return name;
@@ -66,7 +66,7 @@ private class AdoConnection implements Connection
 			v = bt.getData();
 		}
 		var param = command.CreateParameter();
-		var name = "@@HX_ESCAPE" + id + "_" +escapes.push(param) + "@@";
+		var name = "@HX_ESCAPE" + id + "_" +escapes.push(param) + "";
 		param.ParameterName = name;
 		param.Value = v;
 		s.add(name);
@@ -75,7 +75,12 @@ private class AdoConnection implements Connection
 	public function lastInsertId():Int
 	{
 		var ret = cnx.CreateCommand();
-		ret.CommandText = 'SELECT @@IDENTITY';
+		ret.CommandText = switch(name) {
+			case 'SQLite':
+				'SELECT last_insert_rowid()';
+			case _:
+				'SELECT @@IDENTITY';
+		}
 		ret.CommandType = CommandType.Text;
 		var r = cast ret.ExecuteScalar();
 		ret.Dispose();
@@ -160,37 +165,38 @@ private class AdoConnection implements Connection
 
 	public function request( s : String ) : ResultSet
 	{
-		//cycle through the request string, adding any @@HX_ESCAPE@@ reference to the sentArray
+		var newst = new StringBuf();
+		//cycle through the request string, adding any @HX_ESCAPE reference to the command
 		var ret:ResultSet = null;
 		var r = escapeRegex;
 		var myid = id + "", escapes = escapes, elen = escapes.length;
 		var cmd = this.command;
 		try
 		{
-			var check = s;
-			//check escape names
-			while (r.match(check))
+			while (r.match(s))
 			{
 				var id = r.matched(1);
+#if debug
 				if (id != myid) throw "Request quotes are only valid for one single request; They can't be cached.";
+#end
 
+				newst.add(r.matchedLeft());
 				var eid = Std.parseInt(r.matched(2));
+#if debug
 				if (eid == null || eid > elen)
 					throw "Invalid request quote ID " + eid;
-				check = r.matchedRight();
+#end
+				cmd.Parameters.Add(escapes[eid - 1]);
+				newst.add(escapes[eid-1].ParameterName);
+				s = r.matchedRight();
 			}
+			newst.add(s);
 
-			trace(s);
-			for (param in escapes)
-			{
-				trace(param.ParameterName);
-				cmd.Parameters.Add(param);
-			}
-			trace(cmd);
+			s = newst.toString();
 			cmd.CommandText = s;
 
 			var stmt = getFirstStatement(s).toLowerCase();
-			if (stmt == 'insert')
+			if (stmt == 'select')
 			{
 				ret = new AdoResultSet( cmd.ExecuteReader() );
 			} else {
@@ -207,7 +213,6 @@ private class AdoConnection implements Connection
 		}
 		catch(e:Dynamic)
 		{
-			trace(escapes.length);
 			if (escapes.length != 0)
 				this.escapes = [];
 			this.id = cs.system.threading.Interlocked.Increment(ids);
@@ -225,7 +230,7 @@ private class AdoResultSet implements ResultSet
 	public var nfields(get,null) : Int;
 
 	private var reader:IDataReader;
-	private var readFirst = false;
+	private var didNext:Bool;
 	private var names:Array<String>;
 	private var types:Array<Class<Dynamic>>;
 
@@ -248,47 +253,38 @@ private class AdoResultSet implements ResultSet
 
 	public function hasNext() : Bool
 	{
-		if (!readFirst)
-		{
-			readFirst = true;
-			return reader.Depth > 0;
-		} else {
-			return reader.NextResult();
-		}
+		didNext = true;
+		return reader.Read();
 	}
 
 	public function next() : Dynamic
 	{
+		if (!didNext && !hasNext())
+			return null;
+		didNext = false;
 		var ret = {}, names = names, types = types;
 		for (i in 0...names.length)
 		{
 			var name = names[i], t = types[i], val:Dynamic = null;
-			trace(name,t);
 			if (t == cs.system.Single)
 			{
 				val = reader.GetDouble(i);
 			} else if (t == cs.system.DateTime || t == cs.system.TimeSpan) {
-				// if (dbName == "SQLite")
-				// {
-				// 	var str = rs.getString(i+1);
-				// 	if (str != null)
-				// 	{
-				// 		var d:Date = Date.fromString(str);
-				// 		val = d;
-				// 	}
-				// } else {
-					var d = reader.GetDateTime(i);
-					if (d != null)
-						val = Date.fromTime(cast(d.Ticks,Float) / cast(cs.system.TimeSpan.TicksPerMillisecond,Float));
-				// }
-			// } else if (t == Types.LONGVARBINARY || t == Types.VARBINARY || t == Types.BINARY || t == Types.BLOB) {
-			// 	var b = rs.getBytes(i+1);
-			// 	if (b != null)
-			// 		val = Bytes.ofData(b);
+				var d = reader.GetDateTime(i);
+				if (d != null)
+					val = Date.fromTime(cast(d.Ticks,Float) / cast(cs.system.TimeSpan.TicksPerMillisecond,Float));
+			} else if (t == cs.system.DBNull) {
+				val = null;
+			} else if (t == cs.system.Byte) {
+				var v2:cs.StdTypes.UInt8 = reader.GetValue(i);
+				val = cast(v2,Int);
+			} else if (Std.string(t) == 'System.Byte[]') {
+				val = haxe.io.Bytes.ofData(reader.GetValue(i));
 			} else {
 				val = reader.GetValue(i);
-				// untyped __java__("val = rs.getObject(i + 1)"); //type parameter constraint + overloads
 			}
+			if (Std.is(val,cs.system.DBNull))
+				val = null;
 			Reflect.setField(ret, name, val);
 		}
 		return ret;
