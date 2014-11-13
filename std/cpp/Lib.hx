@@ -45,15 +45,10 @@ class Lib {
 		#end
 	}
 
-	/**
-		Load and return a Cpp primitive from a DLL library.
-	**/
-	@:extern public static inline function getProcAddress( lib : String, prim : String, quietFail=false ) : Dynamic {
-		return untyped __global__.__hxcpp_cast_get_proc_address(lib,prim,quietFail);
-	}
-
+   @:analyzer(no_simplification)
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
-		var factory:Function< RawConstPointer<Char> -> RawPointer<Object> > = getProcAddress(lib, prim + "__prime", quietFail);
+		var factory:Function< RawConstPointer<Char> -> RawPointer<Object> > =
+               untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
       if (factory!=null)
       {
          var func:Dynamic = factory.call(signature.raw());
