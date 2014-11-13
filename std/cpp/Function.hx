@@ -1,6 +1,7 @@
 package cpp;
 
 @:coreType @:structAccess @:include("cpp/Pointer.h")
+@:analyzer(no_simplification)
 extern class Function<T>
 {
    public function new(d:Dynamic);
