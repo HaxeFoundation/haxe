@@ -2283,6 +2283,8 @@ let configure gen =
 	mkdir gen.gcon.file;
 	mkdir (gen.gcon.file ^ "/src");
 
+	let out_files = ref [] in
+
 	(* add resources array *)
 	let res = ref [] in
 	Hashtbl.iter (fun name v ->
@@ -2290,6 +2292,8 @@ let configure gen =
 
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
 		mkdir_from_path full_path;
+
+		out_files := (unique_full_path full_path) :: !out_files;
 
 		let f = open_out_bin full_path in
 		output_string f v;
@@ -2309,7 +2313,10 @@ let configure gen =
 
 	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
 	mkdir_recursive "" parts;
-	generate_modules_t gen "java" "src" change_path module_gen;
+	generate_modules_t gen "java" "src" change_path module_gen out_files;
+
+	if Common.defined gen.gcon Define.CleanOutDir then
+		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
 	let path_s_desc path = path_s path [] in
 	dump_descriptor gen ("hxjava_build.txt") path_s_desc (fun md -> path_s_desc (t_infos md).mt_path);
