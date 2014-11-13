@@ -2990,7 +2990,7 @@ let configure gen =
 	mkdir_recursive "" parts;
 	generate_modules gen "cs" "src" module_gen out_files;
 
-	if Common.defined gen.gcon Define.CleanOutDir then
+	if not (Common.defined gen.gcon Define.KeepOldOutput) then
 		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
 	dump_descriptor gen ("hxcs_build.txt") path_s module_s;

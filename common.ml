@@ -169,7 +169,6 @@ module Define = struct
 		| Analyzer
 		| As3
 		| CheckXmlProxy
-		| CleanOutDir
 		| CoreApi
 		| CoreApiSerialize
 		| Cppia
@@ -196,6 +195,7 @@ module Define = struct
 		| JsClassic
 		| JsEs5
 		| JsFlatten
+		| KeepOldOutput
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -247,7 +247,6 @@ module Define = struct
 		| Analyzer -> ("analyzer","Use static analyzer for optimization (experimental)")
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
-		| CleanOutDir -> ("clean_out_dir","Remove old source files from the output directory (for C#/Java)")
 		| CoreApi -> ("core_api","Defined in the core api context")
 		| CoreApiSerialize -> ("core_api_serialize","Sets so some generated core api classes be marked with the Serializable attribute on C#")
 		| Cppia -> ("cppia", "Generate experimental cpp instruction assembly")
@@ -274,6 +273,7 @@ module Define = struct
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
 		| JsEs5 -> ("js_es5","Generate JS for ES5-compliant runtimes")
 		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
+		| KeepOldOutput -> ("keep_old_output","Keep old source files in the output directory (for C#/Java)")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")

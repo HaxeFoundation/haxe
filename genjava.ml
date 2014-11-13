@@ -2315,7 +2315,7 @@ let configure gen =
 	mkdir_recursive "" parts;
 	generate_modules_t gen "java" "src" change_path module_gen out_files;
 
-	if Common.defined gen.gcon Define.CleanOutDir then
+	if not (Common.defined gen.gcon Define.KeepOldOutput) then
 		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
 	let path_s_desc path = path_s path [] in
