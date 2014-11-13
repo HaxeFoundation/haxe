@@ -43,6 +43,7 @@
 	neko : create output directory if it does not exist
 	js : inline Math methods and fields
 	cs/java : optimized Reflect.fields on dynamic structures
+	cs/java : haxe will now clear output directory of old files (use -D keep-old-output to keep them)
 	cs : optimized casting of parametrized types
 	cs : beautify c# code output
 
