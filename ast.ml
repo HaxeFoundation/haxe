@@ -32,6 +32,7 @@ module Meta = struct
 		| Access
 		| Accessor
 		| Allow
+		| Analyzer
 		| Annotation
 		| ArrayAccess
 		| Ast
@@ -123,6 +124,7 @@ module Meta = struct
 		| Public
 		| PublicFields
 		| ReadOnly
+		| ReallyUsed
 		| RealPath
 		| Remove
 		| Require

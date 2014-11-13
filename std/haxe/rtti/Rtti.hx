@@ -36,7 +36,7 @@ class Rtti {
 
 		If `c` is null, the result is unspecified.
 	**/
-	static public function getRtti<T>(c:Class<T>):Null<Classdef> {
+	static public function getRtti<T>(c:Class<T>):Classdef {
 		var rtti = Reflect.field(c, "__rtti");
 		var x = Xml.parse(rtti).firstElement();
 		var infos = new haxe.rtti.XmlParser().processElement(x);

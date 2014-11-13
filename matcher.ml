@@ -217,7 +217,7 @@ let mk_subs st con =
 		end
 	| CArray 0 -> []
 	| CArray i ->
-		let t = match follow con.c_type with TInst({cl_path=[],"Array"},[t]) -> t | _ -> assert false in
+		let t = match follow con.c_type with TInst({cl_path=[],"Array"},[t]) -> t | TDynamic _ as t -> t | _ -> assert false in
 		ExtList.List.init i (fun i -> mk_st (SArray(st,i)) t st.st_pos)
 	| CEnum _ | CConst _ | CType _ | CExpr _ | CAny ->
 		[]
@@ -524,7 +524,7 @@ let to_pattern ctx e t =
 		| EArrayDecl el ->
 			pctx.pc_is_complex <- true;
 			begin match follow t with
-				| TInst({cl_path=[],"Array"},[t2]) ->
+				| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
 					let pl = ExtList.List.mapi (fun i e ->
 						loop pctx e t2
 					) el in
@@ -535,7 +535,7 @@ let to_pattern ctx e t =
 					with Invalid_argument _ ->
 						error ("Invalid number of arguments: expected " ^ (string_of_int (List.length tl)) ^ ", found " ^ (string_of_int (List.length el))) p
 					in
-					mk_pat (PTuple (Array.of_list pl)) t_dynamic p
+					mk_pat (PTuple (Array.of_list pl)) t p
 				| _ ->
 					error ((s_type t) ^ " should be Array") p
 			end
@@ -783,19 +783,6 @@ let column_sigma mctx st pmat =
 	loop pmat;
 	List.rev_map (fun con -> con,not (Hashtbl.mem unguarded con.c_def)) !acc,!bindings
 
-(* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
-let rec is_explicit_null = function
-	| TMono r ->
-		(match !r with None -> false | Some t -> is_null t)
-	| TType ({ t_path = ([],"Null") },[t]) ->
-		true
-	| TLazy f ->
-		is_null (!f())
-	| TType (t,tl) ->
-		is_null (apply_params t.t_params tl t.t_type)
-	| _ ->
-		false
-
 let rec all_ctors mctx t =
 	let h = ref PMap.empty in
 	if is_explicit_null t then h := PMap.add (CConst TNull) Ast.null_pos !h;
@@ -920,7 +907,7 @@ let rec compile mctx stl pmat toplevel =
 			let st_head,st_tail = match stl with st :: stl -> st,stl | _ -> assert false in
 			let pmat = expand_or mctx pmat in
 			let sigma,bl = column_sigma mctx st_head pmat in
-			let all,inf = all_ctors mctx st_head.st_type in
+			let all,inf = all_ctors mctx pv.(0).p_type in
 			let cases = List.map (fun (c,g) ->
 				if not g then all := PMap.remove c.c_def !all;
 				let spec = spec mctx c pmat in
@@ -989,7 +976,7 @@ let rec convert_st ctx st = match st.st_def with
 		Typer.acc_get ctx (Typer.type_field ctx e cf.cf_name st.st_pos Typer.MGet) st.st_pos
 	| SArray (sts,i) -> mk (TArray(convert_st ctx sts,mk_const ctx st.st_pos (TInt (Int32.of_int i)))) st.st_type st.st_pos
 	| STuple (st,_,_) -> convert_st ctx st
-	| SEnum(sts,ef,i) -> mk (TEnumParameter(convert_st ctx sts, ef, i)) st.st_type st.st_pos
+	| SEnum (sts,ef,i) -> mk (TEnumParameter(convert_st ctx sts, ef, i)) st.st_type st.st_pos
 
 let convert_con ctx con = match con.c_def with
 	| CConst c -> mk_const ctx con.c_pos c
@@ -1029,10 +1016,16 @@ let convert_switch mctx st cases loop =
 	| TAbstract({a_path = [],"Bool"},_) ->
 		wrap_exhaustive (e_st)
 	| _ ->
-		if List.exists (fun (con,_) -> match con.c_def with CEnum _ -> true | _ -> false) cases then
-			mk_index_call()
-		else
-			e_st
+		let rec loop cases = match cases with
+			| [] -> e_st
+			| (con,_) :: cases ->
+				begin match con.c_def with
+					| CEnum _ -> mk_index_call()
+					| CArray _ -> mk (TField (e_st,FDynamic "length")) ctx.t.tint p
+					| _ -> loop cases
+				end
+		in
+		loop cases
 	in
 	let null = ref None in
 	let def = ref None in
@@ -1249,15 +1242,17 @@ let match_expr ctx e cases def with_type p =
 		in
 		(* type case body *)
 		let e = match e with
-			| None -> mk (TBlock []) ctx.com.basic.tvoid (pos ep)
+			| None ->
+				mk (TBlock []) ctx.com.basic.tvoid (pos ep)
 			| Some e ->
-				let e = type_expr ctx e with_type in
-				match with_type with
-				| WithType t ->
-					Codegen.AbstractCast.cast_or_unify ctx t e e.epos;
-				| WithTypeResume t ->
-					(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
-				| _ -> e
+				type_expr ctx e with_type
+		in
+		let e = match with_type with
+			| WithType t ->
+				Codegen.AbstractCast.cast_or_unify ctx t e e.epos;
+			| WithTypeResume t ->
+				(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
+			| _ -> e
 		in
 		(* type case guard *)
 		let eg = match eg with
@@ -1357,7 +1352,12 @@ let match_expr ctx e cases def with_type p =
 			| _ ->
 				s_pat pat
 		in
-		error ("Unmatched patterns: " ^ (s_st_r true false st pat)) st.st_pos
+		let msg = "Unmatched patterns: " ^ (s_st_r true false st pat) in
+		if !extractor_depth > 0 then begin
+			display_error ctx msg st.st_pos;
+			error "Note: Patterns with extractors may require a default pattern" st.st_pos;
+		end else
+			error msg st.st_pos
 	in
 	save();
 	(* check for unused patterns *)

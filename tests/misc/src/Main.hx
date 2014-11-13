@@ -26,7 +26,7 @@ class Main {
 				var path = Path.join([dirPath, file]);
 				if (FileSystem.isDirectory(path)) {
 					browse(path);
-				} else if (file.endsWith(".hxml")) {
+				} else if (file.endsWith(".hxml") && !file.endsWith("-each.hxml")) {
 					var old = Sys.getCwd();
 					Sys.setCwd(dirPath);
 					Sys.println('Running haxe $path');
@@ -73,6 +73,7 @@ class Main {
 
 	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String) {
 		var proc = new sys.io.Process(command, args);
+		proc.stdout.readAll();
 		var exit = proc.exitCode();
 		var success = exit == 0;
 		var result = switch [success, expectFailure] {
@@ -91,8 +92,8 @@ class Main {
 
 		if (result && expectStderr != null)
 		{
-			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n");
-			if (stderr != expectStderr)
+			var stderr = proc.stderr.readAll().toString().replace("\r\n", "\n").trim();
+			if (stderr != expectStderr.trim())
 			{
 				Sys.println("Actual stderr output doesn't match the expected one");
 				Sys.println('Expected:\n"$expectStderr"');

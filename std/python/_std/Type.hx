@@ -1,9 +1,3 @@
-import python.internal.AnonObject;
-import python.internal.EnumImpl;
-import python.internal.Internal;
-import python.lib.Builtin;
-import python.Syntax;
-
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
@@ -25,6 +19,13 @@ import python.Syntax;
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import python.internal.AnonObject;
+import python.internal.EnumImpl;
+import python.internal.Internal;
+import python.lib.Builtin;
+import python.Syntax;
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -137,7 +138,6 @@ enum ValueType {
 			default:
 				throw "Too many arguments";
 		}
-		return null;
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T

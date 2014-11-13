@@ -52,4 +52,15 @@ class Lib {
 		return untyped __js__("require")(module);
 	}
 
+	/**
+		Returns JavaScript `undefined` value.
+
+		Note that this is only needed in very rare cases when working with external JavaScript code.
+
+		In Haxe, `null` is used to represent the absence of a value.
+	**/
+	public static var undefined(get,never) : Dynamic;
+	static inline function get_undefined() : Dynamic {
+		return untyped __js__("undefined");
+	}
 }

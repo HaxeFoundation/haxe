@@ -1,3 +1,3 @@
 compile-each.hxml
 unit.Test
--js unit.js
+-js bin/unit.js

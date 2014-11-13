@@ -1079,15 +1079,6 @@ let contains_break expression =
 let dynamic_internal = function | "__Is" -> true | _ -> false
 
 
-(* Get a list of variables to extract from a enum tmatch *)
-let tmatch_params_to_args params =
-   (match params with
-   | None | Some [] -> []
-   | Some l ->
-      let n = ref (-1) in
-      List.fold_left
-         (fun acc v -> incr n; match v with None -> acc | Some v -> (v.v_name,v.v_type,!n) :: acc) [] l)
-
 let rec is_null expr =
    match expr.eexpr with
    | TConst TNull -> true
@@ -1569,6 +1560,8 @@ and define_local_return_block_ctx ctx expression name retval =
          match expression.eexpr with
          | TObjectDecl _ -> "Dynamic"
          | _ -> type_string expression.etype in
+      (* TODO - analyse usage *)
+      let pass_by_value name = (String.length name >=5 ) && (String.sub name 0 5 = "_this") in
       output_i ("inline static " ^ ret_type ^ " Block( ");
       output (String.concat "," (
          (List.map
@@ -1578,7 +1571,7 @@ and define_local_return_block_ctx ctx expression name retval =
                   Fake 'this' pointers can't be changed, so needn't be references *)
                match var with
                | "this" -> "hx::ObjectPtr< " ^ var_type ^ " > __this"
-               | "_this" -> var_type ^ " _this"
+               | name when (pass_by_value name)  -> var_type ^ " " ^ name
                | name -> var_type ^ " &" ^name
             ) vars) ) );
       output (")");
@@ -2707,6 +2700,8 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
             (* Must visit type too, Type.iter will visit the expressions ... *)
             | TVar (v,_) ->
                visit_type v.v_type
+            (* Must visit enum type too, Type.iter will visit the expressions ... *)
+            | TEnumParameter (_,ef,_) -> visit_type (follow ef.ef_type)
             (* Must visit args too, Type.iter will visit the expressions ... *)
             | TFunction func_def ->
                List.iter (fun (v,_) -> visit_type v.v_type) func_def.tf_args;

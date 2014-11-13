@@ -3,6 +3,7 @@ package python;
 
 import python.lib.Builtin;
 
+@:analyzer(no_simplification)
 abstract VarArgs (Dynamic)
 {
 	inline function new (d:Array<Dynamic>) this = d;

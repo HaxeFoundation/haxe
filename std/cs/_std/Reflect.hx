@@ -140,12 +140,9 @@ import cs.internal.Function;
 		return false;
 	}
 
-	@:functionCode('
-		return haxe.lang.Runtime.compare(a, b);
-	')
 	public static function compare<T>( a : T, b : T ) : Int
 	{
-		return 0;
+		return cs.internal.Runtime.compare(a, b);
 	}
 
 	@:functionCode('

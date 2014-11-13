@@ -1300,7 +1300,19 @@ module Printer = struct
 			| TContinue ->
 				"continue"
 			| TThrow e1 ->
-				Printf.sprintf "raise _HxException(%s)" (print_expr pctx e1)
+				let rec is_native_exception t =
+					match Abstract.follow_with_abstracts t with
+					| TInst ({ cl_path = [],"BaseException" }, _) ->
+						true
+					| TInst ({ cl_super = Some csup }, _) ->
+						is_native_exception (TInst(fst csup, snd csup))
+					| _ ->
+						false
+				in
+				if is_native_exception e1.etype then
+					Printf.sprintf "raise %s" (print_expr pctx e1)
+				else
+					Printf.sprintf "raise _HxException(%s)" (print_expr pctx e1)
 			| TCast(e1,None) ->
 				print_expr pctx e1
 			| TMeta((Meta.Custom ":ternaryIf",_,_),{eexpr = TIf(econd,eif,Some eelse)}) ->
@@ -1908,7 +1920,7 @@ module Generator = struct
 	let gen_import ctx c =
 		gen_pre_code_meta ctx c.cl_meta;
 
-		if Meta.has Meta.PythonImport c.cl_meta then begin
+		if (Meta.has Meta.PythonImport c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then begin
 			let _, args, mp = Meta.get Meta.PythonImport c.cl_meta in
 
 			let class_name = match c.cl_path with

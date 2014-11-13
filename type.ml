@@ -320,6 +320,11 @@ let alloc_var =
 	let uid = ref 0 in
 	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = [] })
 
+let alloc_unbound_var n t =
+	let v = alloc_var n t in
+	v.v_meta <- [Meta.Unbound,[],null_pos];
+	v
+
 let alloc_mid =
 	let mid = ref 0 in
 	(fun() -> incr mid; !mid)
@@ -328,7 +333,7 @@ let mk e t p = { eexpr = e; etype = t; epos = p }
 
 let mk_block e =
 	match e.eexpr with
-	| TBlock (_ :: _) -> e
+	| TBlock _ -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
 
 let mk_cast e t p = mk (TCast(e,None)) t p
@@ -413,6 +418,25 @@ let null_class =
 	c
 
 let null_field = mk_field "" t_dynamic Ast.null_pos
+
+let null_abstract = {
+	a_path = ([],"");
+	a_module = null_module;
+	a_pos = null_pos;
+	a_private = true;
+	a_doc = None;
+	a_meta = [];
+	a_params = [];
+	a_ops = [];
+	a_unops = [];
+	a_impl = None;
+	a_this = t_dynamic;
+	a_from = [];
+	a_from_field = [];
+	a_to = [];
+	a_to_field = [];
+	a_array = [];
+}
 
 let add_dependency m mdep =
 	if m != null_module && m != mdep then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
@@ -551,13 +575,13 @@ let rec follow t =
 		follow (apply_params t.t_params tl t.t_type)
 	| _ -> t
 
-let rec is_nullable ?(no_lazy=false) = function
+let rec is_nullable = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_nullable t)
 	| TType ({ t_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
-		if no_lazy then raise Exit else is_nullable (!f())
+		is_nullable (!f())
 	| TType (t,tl) ->
 		is_nullable (apply_params t.t_params tl t.t_type)
 	| TFun _ ->
@@ -578,11 +602,24 @@ let rec is_nullable ?(no_lazy=false) = function
 	| _ ->
 		true
 
-let rec is_null = function
+let rec is_null ?(no_lazy=false) = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_null t)
 	| TType ({ t_path = ([],"Null") },[t]) ->
 		not (is_nullable (follow t))
+	| TLazy f ->
+		if no_lazy then raise Exit else is_null (!f())
+	| TType (t,tl) ->
+		is_null (apply_params t.t_params tl t.t_type)
+	| _ ->
+		false
+
+(* Determines if we have a Null<T>. Unlike is_null, this returns true even if the wrapped type is nullable itself. *)
+let rec is_explicit_null = function
+	| TMono r ->
+		(match !r with None -> false | Some t -> is_null t)
+	| TType ({ t_path = ([],"Null") },[t]) ->
+		true
 	| TLazy f ->
 		is_null (!f())
 	| TType (t,tl) ->
@@ -842,7 +879,7 @@ let s_expr_kind e =
 
 let s_const = function
 	| TInt i -> Int32.to_string i
-	| TFloat s -> s ^ "f"
+	| TFloat s -> s
 	| TString s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)
 	| TBool b -> if b then "true" else "false"
 	| TNull -> "null"
@@ -1396,6 +1433,8 @@ let rec unify a b =
 					type_eq EqRightDynamic t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
+		| TAbstract(bb,tl) when (List.exists (unify_from bb tl a b) bb.a_from) ->
+			()
 		| _ ->
 			error [cannot_unify a b])
 	| _ , TDynamic t ->
@@ -1422,6 +1461,8 @@ let rec unify a b =
 				) an.a_fields
 			with Unify_error l ->
 				error (cannot_unify a b :: l))
+		| TAbstract(aa,tl) when (List.exists (unify_to aa tl b) aa.a_to) ->
+			()
 		| _ ->
 			error [cannot_unify a b])
 	| TAbstract (aa,tl), _  ->

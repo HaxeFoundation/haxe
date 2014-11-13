@@ -21,11 +21,11 @@
  */
 @:coreApi class EReg {
 
-	var r : Dynamic;
+	var r : HaxeRegExp;
 
 	public function new( r : String, opt : String ) : Void {
 		opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
-		this.r = untyped __new__("RegExp",r,opt);
+		this.r = new HaxeRegExp(r, opt);
 	}
 
 	public function match( s : String ) : Bool {
@@ -109,4 +109,10 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+}
+
+@:native("RegExp")
+private extern class HaxeRegExp extends js.RegExp {
+	var m:js.RegExp.RegExpMatch;
+	var s:String;
 }

@@ -130,16 +130,20 @@ let rec update_marked_class_fields dce c =
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
 and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
 	c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+	check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
 	update_marked_class_fields dce c;
 end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
 	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
+	check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end
 
-and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then
+and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then begin
+	check_feature dce (Printf.sprintf "%s.*" (s_type_path a.a_path));
 	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
+end
 
 (* mark a type as kept *)
 and mark_t dce p t =
@@ -278,11 +282,23 @@ and field dce c n stat =
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
 
+and mark_really_used_class c =
+	if not (Meta.has Meta.ReallyUsed c.cl_meta) then
+		c.cl_meta <- (Meta.ReallyUsed,[],c.cl_pos) :: c.cl_meta
+
+and mark_really_used_mt mt =
+	match mt with
+	| TClassDecl c ->
+		mark_really_used_class c
+	| _ ->
+		()
+
 and expr dce e =
 	mark_t dce e.epos e.etype;
 	match e.eexpr with
 	| TNew(c,pl,el) ->
 		mark_class dce c;
+		mark_really_used_class c;
 		field dce c "new" false;
 		List.iter (expr dce) el;
 		List.iter (mark_t dce e.epos) pl;
@@ -292,9 +308,11 @@ and expr dce e =
 	| TCast(e, Some mt) ->
 		check_feature dce "typed_cast";
 		mark_mt dce mt;
+		mark_really_used_mt mt;
 		expr dce e;
 	| TTypeExpr mt ->
-		mark_mt dce mt
+		mark_mt dce mt;
+		mark_really_used_mt mt;
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
@@ -553,6 +571,15 @@ let run com main full =
 				in
 				loop c
 			) c.cl_overrides;
+		| _ -> ()
+	) com.types;
+
+	(* mark extern classes as really used if they are extended by non-extern ones *)
+	List.iter (function
+		| TClassDecl ({cl_extern = false; cl_super = Some ({cl_extern = true} as csup, _)}) ->
+			mark_really_used_class csup
+		| TClassDecl ({cl_extern = false} as c) when c.cl_implements <> [] ->
+			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_really_used_class iface) c.cl_implements;
 		| _ -> ()
 	) com.types;
 

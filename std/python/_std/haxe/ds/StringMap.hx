@@ -30,20 +30,11 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	}
 
 	public function keys() : Iterator<String> {
-		var a = [];
-		Syntax.foreach(key, h, {
-			a.push( key);
-		});
-		return a.iterator();
+		return h.keys().iter();
 	}
 
 	public function iterator() : Iterator<T> {
-		var iter = keys();
-		var ref = h;
-		return {
-			hasNext : function() { return iter.hasNext(); },
-			next : function() { var i = iter.next(); return ref.get(i, null); }
-		};
+		return h.values().iter();
 	}
 
 	public function toString() : String {

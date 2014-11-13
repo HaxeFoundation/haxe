@@ -28,7 +28,9 @@ class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		return untyped __php__("spl_object_hash($key)");
 	}
 
+	@:analyzer(no_simplification)
 	var h : ArrayAccess<V>;
+	@:analyzer(no_simplification)
 	var hk : ArrayAccess<K>;
 
 	public function new():Void {

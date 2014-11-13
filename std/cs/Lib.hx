@@ -78,7 +78,7 @@ class Lib
 	**/
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
-		return untyped __as__(obj, cl);
+		return untyped __as__(obj);
 	}
 
 	/**
@@ -135,6 +135,15 @@ class Lib
 	public static function arrayAlloc<T>(size:Int):Array<T>
 	{
 		return untyped Array.alloc(size);
+	}
+
+	/**
+		Rethrow an exception. This is useful when manually filtering an exception in order
+		to keep the previous exception stack.
+	**/
+	@:extern inline public static function rethrow(e:Dynamic):Void
+	{
+		untyped __rethrow__();
 	}
 
 	/**
@@ -258,7 +267,7 @@ class Lib
 	**/
 	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
 	{
-		return cast array;
+		return untyped __ptr__(array);
 	}
 
 	/**

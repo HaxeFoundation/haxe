@@ -1893,36 +1893,29 @@ let generate_enum_init ctx e hc meta =
 	write ctx (HGetLex (type_path ctx path));
 	write ctx (HClassDef hc);
 	write ctx HPopScope;
-	let r = alloc_reg ctx KDynamic in
-	write ctx HDup;
-	write ctx (HSetReg r.rid); (* needed for setslot *)
 	write ctx (HInitProp name_id);
-	let nslot = ref 0 in
 	PMap.iter (fun _ f ->
-		incr nslot;
 		match f.ef_type with
 		| TFun _ -> ()
 		| _ ->
-			write ctx (HReg r.rid);
+			write ctx (HGetLex name_id);
 			write ctx (HFindPropStrict name_id);
 			write ctx (HString f.ef_name);
 			write ctx (HInt f.ef_index);
 			write ctx HNull;
 			write ctx (HConstructProperty (name_id,3));
-			write ctx (HSetSlot !nslot);
+			write ctx (HInitProp (ident f.ef_name));
 	) e.e_constrs;
-	write ctx (HReg r.rid);
+	write ctx (HGetLex name_id);
 	List.iter (fun n -> write ctx (HString n)) e.e_names;
 	write ctx (HArray (List.length e.e_names));
-	write ctx (HSetProp (ident "__constructs__"));
-	(match meta with
+	write ctx (HInitProp (ident "__constructs__"));
+	match meta with
 	| None -> ()
 	| Some e ->
-		write ctx (HReg r.rid);
+		write ctx (HGetLex name_id);
 		gen_expr ctx true e;
-		write ctx (HSetProp (ident "__meta__"));
-	);
-	free_reg ctx r
+		write ctx (HInitProp (ident "__meta__"))
 
 let extract_meta meta =
 	let rec loop = function
@@ -2180,7 +2173,7 @@ let generate_class ctx c =
 let generate_enum ctx e meta =
 	let name_id = type_path ctx e.e_path in
 	let api = ctx.com.basic in
-	let f = begin_fun ctx [alloc_var "tag" api.tstring, None;alloc_var "index" api.tint, None;alloc_var "params" (mk_mono()), None] api.tvoid [ethis] false e.e_pos in
+	let f = begin_fun ctx [alloc_var "tag" api.tstring, None;alloc_var "index" api.tint, None;alloc_var "params" (api.tarray (mk_mono())), None] api.tvoid [ethis] false e.e_pos in
 	let tag_id = ident "tag" in
 	let index_id = ident "index" in
 	let params_id = ident "params" in
@@ -2201,8 +2194,10 @@ let generate_enum ctx e meta =
 	write ctx (HCallProperty (ident "enum_to_string",1));
 	write ctx HRet;
 	let tostring = f() in
-	let st_count = ref 0 in
+	let st_field_count = ref 0 in
+	let st_meth_count = ref 0 in
 	let constrs = PMap.fold (fun f acc ->
+		let st_count = (match f.ef_type with TFun _ -> st_meth_count | _ -> st_field_count) in
 		incr st_count;
 		{
 			hlf_name = ident f.ef_name;
@@ -2234,10 +2229,10 @@ let generate_enum ctx e meta =
 	let constrs = (match meta with
 		| None -> constrs
 		| Some _ ->
-			incr st_count;
+			incr st_field_count;
 			{
 				hlf_name = ident "__meta__";
-				hlf_slot = !st_count;
+				hlf_slot = !st_field_count;
 				hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
 				hlf_metas = None;
 			} :: constrs
@@ -2270,17 +2265,17 @@ let generate_enum ctx e meta =
 			};
 		|];
 		hlc_static_construct = empty_method ctx e.e_pos;
-		hlc_static_fields = Array.of_list ({
+		hlc_static_fields = Array.of_list (List.rev ({
 			hlf_name = ident "__isenum";
-			hlf_slot = !st_count + 2;
+			hlf_slot = !st_field_count + 2;
 			hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Boolean")); hlv_value = HVBool true; hlv_const = true; };
 			hlf_metas = None;
 		} :: {
 			hlf_name = ident "__constructs__";
-			hlf_slot = !st_count + 1;
-			hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
+			hlf_slot = !st_field_count + 1;
+			hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Array")); hlv_value = HVNone; hlv_const = false; };
 			hlf_metas = None;
-		} :: constrs);
+		} :: constrs));
 	}
 
 let rec generate_type ctx t =

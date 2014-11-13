@@ -725,20 +725,20 @@ module AbstractCast = struct
 				| TFun([(_,_,tab);(_,_,ta1);(_,_,ta2)],r) as tf when is_set ->
 					begin try
 						Type.unify tab ta;
-						let e1 = cast_or_unify ctx ta1 e1 p in
-						let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify ctx ta2 e2 p) in
+						let e1 = cast_or_unify_raise ctx ta1 e1 p in
+						let e2o = match e2o with None -> None | Some e2 -> Some (cast_or_unify_raise ctx ta2 e2 p) in
 						check_constraints();
 						cf,tf,r,e1,e2o
-					with Unify_error _ ->
+					with Unify_error _ | Error (Unify _,_) ->
 						loop cfl
 					end
 				| TFun([(_,_,tab);(_,_,ta1)],r) as tf when not is_set ->
 					begin try
 						Type.unify tab ta;
-						let e1 = cast_or_unify ctx ta1 e1 p in
+						let e1 = cast_or_unify_raise ctx ta1 e1 p in
 						check_constraints();
 						cf,tf,r,e1,None
-					with Unify_error _ ->
+					with Unify_error _ | Error (Unify _,_) ->
 						loop cfl
 					end
 				| _ -> loop cfl
@@ -1362,6 +1362,12 @@ let dump_types com =
 			| Some f -> print_field false f);
 			List.iter (print_field false) c.cl_ordered_fields;
 			List.iter (print_field true) c.cl_ordered_statics;
+            (match c.cl_init with
+            | None -> ()
+            | Some e ->
+                print "\n\n\t__init__ = ";
+                print "%s" (s_expr s_type e);
+                print "}\n");
 			print "}";
 		| Type.TEnumDecl e ->
 			print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
@@ -1631,7 +1637,7 @@ module UnificationCallback = struct
 		| TFun(args,_) ->
 			check_call_params f el args
 		| _ ->
-			el
+			List.map (fun e -> f e t_dynamic) el
 
 	let rec run f e =
 		let f e t =

@@ -95,6 +95,10 @@ import cs.NativeArray;
 			i += len;
 			if (i < 0) i = 0;
 		}
+		else if (i >= len)
+		{
+			return -1;
+		}
 		return cs.system.Array._IndexOf(__a, x, i, len - i);
 	}
 
@@ -418,12 +422,7 @@ import cs.NativeArray;
 
 	private function __get(idx:Int):T
 	{
-		var __a = __a;
-		var idx:UInt = idx;
-		if (idx >= length)
-			return null;
-
-		return __a[idx];
+		return if ((cast idx : UInt) >= length) null else __a[idx];
 	}
 
 	private function __set(idx:Int, v:T):T

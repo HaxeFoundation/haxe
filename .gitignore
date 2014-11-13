@@ -58,9 +58,12 @@ build.bat
 tests/unit/compile.php.hxml
 /extra/*.xml
 tests/optimization/testopt.js
-tests/unit/native_python/__pycache__
+tests/misc/pythonImport/native_python/__pycache__
 tests/unit/unit.py
 tests/unit/unit.py.res1.txt
 tests/unit/unit.py.res2.bin
 *.cmo
 tests/sys/bin/
+tests/optimization/dump/
+tests/misc/projects/Issue3102/test.n
+tests/unit/bin/

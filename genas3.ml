@@ -45,6 +45,8 @@ type context = {
 	mutable block_inits : (unit -> unit) option;
 }
 
+let follow = Abstract.follow_with_abstracts
+
 let is_var_field f =
 	match f with
 	| FStatic (_,f) | FInstance (_,_,f) ->
@@ -666,7 +668,7 @@ and gen_expr ctx e =
 			(fun() -> print ctx "}")
 		end) in
 		(match ctx.block_inits with None -> () | Some i -> i());
-		List.iter (fun e -> block_newline ctx; gen_expr ctx e) el;
+		List.iter (fun e -> gen_block_element ctx e) el;
 		bend();
 		newline ctx;
 		cb();
@@ -792,6 +794,13 @@ and gen_expr ctx e =
 		end
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
+
+and gen_block_element ctx e = match e.eexpr with
+	| TObjectDecl fl ->
+		List.iter (fun (_,e) -> gen_block_element ctx e) fl
+	| _ ->
+		block_newline ctx;
+		gen_expr ctx e
 
 and gen_block ctx e =
 	newline ctx;

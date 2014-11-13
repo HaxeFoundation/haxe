@@ -123,7 +123,7 @@ let valid_js_ident s =
 	with Exit ->
 		false
 
-let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
+let field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 
@@ -579,6 +579,8 @@ and gen_expr ctx e =
 				spr ctx " = ";
 				gen_value ctx e
 		end
+	| TNew ({ cl_path = [],"Array" },_,[]) ->
+		print ctx "[]"
 	| TNew (c,_,el) ->
 		print ctx "new %s(" (ctx.type_accessor (TClassDecl c));
 		concat ctx "," (gen_value ctx) el;
@@ -763,6 +765,8 @@ and gen_block_element ?(after=false) ctx e =
 			| _ -> assert false)
 	| TFunction _ ->
 		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+	| TObjectDecl fl ->
+		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| _ ->
 		if not after then newline ctx;
 		gen_expr ctx e;
@@ -856,7 +860,7 @@ and gen_value ctx e =
 	| TIf (cond,e,eo) ->
 		(* remove parenthesis unless it's an operation with higher precedence than ?: *)
 		let cond = (match cond.eexpr with
-			| TParenthesis { eexpr = TBinop ((Ast.OpAssign | Ast.OpAssignOp _),_,_) } -> cond
+			| TParenthesis { eexpr = TBinop ((Ast.OpAssign | Ast.OpAssignOp _),_,_) | TIf _ } -> cond
 			| TParenthesis e -> e
 			| _ -> cond
 		) in
@@ -985,9 +989,15 @@ let generate_class ctx c =
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
 	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
-	(match c.cl_constructor with
-	| Some { cf_expr = Some e } -> gen_expr ctx e
-	| _ -> (print ctx "function() { }"); ctx.separator <- true);
+	(match c.cl_kind with
+		| KAbstractImpl _ ->
+			(* abstract implementations only contain static members and don't need to have constructor functions *)
+			print ctx "{}"; ctx.separator <- true
+		| _ ->
+			(match c.cl_constructor with
+			| Some { cf_expr = Some e } -> gen_expr ctx e
+			| _ -> (print ctx "function() { }"); ctx.separator <- true)
+	);
 	newline ctx;
 	if ctx.js_modern && hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
@@ -1022,7 +1032,7 @@ let generate_class ctx c =
 		(match c.cl_super with
 		| None -> print ctx "%s.prototype = {" p;
 		| Some (csup,_) ->
-			let psup = s_path ctx csup.cl_path in
+			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx;
 			print ctx "%s.prototype = $extend(%s.prototype,{" p psup;
@@ -1145,7 +1155,7 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if Meta.has Meta.JsRequire c.cl_meta then
+		else if (Meta.has Meta.JsRequire c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then
 			generate_require ctx c
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with

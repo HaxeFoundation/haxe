@@ -22,7 +22,7 @@
 package haxe.io;
 
 /**
-	An Input is an abstract reader. See other classes in the [haxe.io] package
+	An Input is an abstract reader. See other classes in the `haxe.io` package
 	for several possible implementations.
 **/
 class Input {
@@ -46,7 +46,6 @@ class Input {
 	public function readByte() : Int {
 	#if cpp
 		throw "Not implemented";
-		return 0;
 	#else
 		return throw "Not implemented";
 	#end

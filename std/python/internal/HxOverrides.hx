@@ -5,6 +5,7 @@ import python.Syntax;
 import python.Syntax.pythonCode in py;
 
 @:keep
+@:noDoc
 @:native("HxOverrides")
 @:access(python.internal.ArrayImpl)
 @:access(python.Boot)

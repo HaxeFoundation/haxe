@@ -123,7 +123,7 @@ class Boot {
 					// strange error on IE
 					return "???";
 				}
-				if( tostr != null && tostr != __js__("Object.toString") ) {
+				if( tostr != null && tostr != __js__("Object.toString") && __typeof__(tostr) == "function" ) {
 					var s2 = o.toString();
 					if( s2 != "[object Object]")
 						return s2;
@@ -212,7 +212,7 @@ class Boot {
 		if (__instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
-	
+
 	static var __toStr = untyped __js__("{}.toString");
 	// get native JS [[Class]]
 	static function __nativeClassName(o:Dynamic):String {
@@ -223,12 +223,12 @@ class Boot {
 			return null;
 		return name;
 	}
-	
+
 	// check for usable native JS object
 	static function __isNativeObj(o:Dynamic):Bool {
 		return __nativeClassName(o) != null;
 	}
-	
+
 	// resolve native JS class (with window or global):
 	static function __resolveNativeClass(name:String) untyped {
 		if (__js__("typeof window") != "undefined")

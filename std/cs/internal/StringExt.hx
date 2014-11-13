@@ -37,26 +37,20 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionCode('
-			if ( ((uint) index) >= me.Length)
-				return default(haxe.lang.Null<int>);
-			else
-				return new haxe.lang.Null<int>((int)me[index], true);
-	')
 	public static function charCodeAt(me:NativeString, index:Int):Null<Int>
 	{
-		return null;
+		if (cast(index,UInt) >= me.length)
+			return null;
+		else
+			return cast me[index];
 	}
 
-	@:functionCode('
-			uint sIndex = (startIndex.hasValue) ? ((uint) startIndex.@value) : 0;
-			if (sIndex >= me.Length)
-				return -1;
-			return me.IndexOf(str, (int)sIndex, System.StringComparison.Ordinal);
-	')
 	public static function indexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
 	{
-		return -1;
+		var sIndex:Int = startIndex != null ? startIndex : 0;
+		if (sIndex >= me.length)
+			return -1;
+		return @:privateAccess me.IndexOf(str, sIndex, cs.system.StringComparison.Ordinal);
 	}
 
 	@:functionCode('
@@ -211,7 +205,7 @@ private typedef NativeString = String;
 	}
 }
 
-@:keep @:nativeGen @:native('haxe.lang.StringRefl') private class StringRefl
+@:keep @:nativeGen @:native('haxe.lang.StringRefl') class StringRefl
 {
 	public static var fields = ["length", "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring"];
 

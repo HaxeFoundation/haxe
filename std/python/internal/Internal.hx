@@ -45,7 +45,7 @@ class Internal {
 	}
 
 	static function has (o:Expr, field:String):Expr {
-		return macro python.internal.HxBuiltin.hasattr($o, $v{field});
+		return macro python.lib.Builtin.hasattr($o, $v{field});
 	}
 
 	#end

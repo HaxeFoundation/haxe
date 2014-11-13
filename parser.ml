@@ -660,6 +660,8 @@ and parse_import s p1 =
 			p2, List.rev acc, INormal
 		| [< '(Kwd In,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
 			p2, List.rev acc, IAsName name
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName name
 		| [< >] ->
 			serror()
 	in
@@ -1094,7 +1096,7 @@ and parse_array_decl = parser
 and parse_var_decl = parser
 	| [< name, _ = dollar_ident; t = parse_type_opt; s >] ->
 		match s with parser
-		| [< '(Binop OpAssign,_); e = expr >] -> (name,t,Some e)
+		| [< '(Binop OpAssign,_); s >] -> let e = try expr s with Display e -> e in (name,t,Some e)
 		| [< >] -> (name,t,None)
 
 and inline_function = parser

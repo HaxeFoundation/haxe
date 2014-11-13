@@ -232,8 +232,8 @@ import cs.internal.Exceptions;
 		}
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Std.is(value, c) ? cast value : null;
+	@:extern inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return cs.Lib.as(value,c);
 	}
 
 	public static function random( x : Int ) : Int {

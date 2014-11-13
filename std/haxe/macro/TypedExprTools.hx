@@ -53,7 +53,7 @@ class TypedExprTools {
 			case TThrow(e1): with(e, TThrow(f(e1)));
 			case TEnumParameter(e1, ef, i): with(e, TEnumParameter(f(e1), ef, i));
 			case TField(e1, fa): with(e, TField(f(e1), fa));
-			case TParenthesis(e1): with(e, TParenthesis(e1));
+			case TParenthesis(e1): with(e, TParenthesis(f(e1)));
 			case TUnop(op, pre, e1): with(e, TUnop(op, pre, f(e1)));
 			case TArrayDecl(el): with(e, TArrayDecl(el.map(f)));
 			case TNew(t, pl, el): with(e, TNew(t, pl, el.map(f)));

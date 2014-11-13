@@ -98,7 +98,6 @@ enum XmlType {
 
 	public static function createComment( data : String ) : Xml {
 		throw "not implemented";
-		return null;
 	}
 
 	public static function createDocType( data : String ) : Xml {

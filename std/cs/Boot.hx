@@ -28,6 +28,9 @@ import cs.internal.Runtime;
 import cs.internal.Iterator;
 import cs.internal.Null;
 import cs.internal.StringExt;
+#if unsafe
+import cs.internal.BoxedPointer;
+#end
 import cs.StdTypes;
 import haxe.ds.StringMap;
 import Reflect;

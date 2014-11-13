@@ -172,8 +172,9 @@ let reserved_flags = [
 	"as3";"swc";"macro";"sys"
 	]
 
-let complete_fields fields =
+let complete_fields com fields =
 	let b = Buffer.create 0 in
+	let details = Common.raw_defined com "display-details" in
 	Buffer.add_string b "<list>\n";
 	List.iter (fun (n,t,k,d) ->
 		let s_kind = match k with
@@ -184,7 +185,10 @@ let complete_fields fields =
 				| Typer.FKPackage -> "package")
 			| None -> ""
 		in
-		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
+		if details then
+			Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
+		else
+			Buffer.add_string b (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>\n" n (htmlescape t) (htmlescape d))
 	) (List.sort (fun (a,_,ak,_) (b,_,bk,_) -> compare (ak,a) (bk,b)) fields);
 	Buffer.add_string b "</list>\n";
 	raise (Completion (Buffer.contents b))
@@ -361,7 +365,7 @@ let parse_hxml_data data =
 	) lines)
 
 let parse_hxml file =
-	let ch = IO.input_channel (try open_in_bin file with _ -> failwith ("File not found " ^ file)) in
+	let ch = IO.input_channel (try open_in_bin file with _ -> raise Not_found) in
 	let data = IO.read_all ch in
 	IO.close_in ch;
 	parse_hxml_data data
@@ -663,7 +667,9 @@ let rec process_params create pl =
 			ctx.flush()
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
-			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) -> loop acc (parse_hxml arg @ l)
+			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) ->
+				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+				loop acc l
 			| _ -> loop (arg :: acc) l
 	in
 	(* put --display in front if it was last parameter *)
@@ -1169,7 +1175,7 @@ try
 			| "classes" ->
 				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
 			| "keywords" ->
-				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [])
+				complete_fields com (Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [])
 			| "memory" ->
 				did_something := true;
 				(try display_memory ctx with e -> prerr_endline (Printexc.get_backtrace ()));
@@ -1191,9 +1197,18 @@ try
 					| "toplevel" ->
 						activate_special_display_mode();
 						DMToplevel
-					| _ ->
+					| "" ->
 						Parser.use_parser_resume := true;
 						DMDefault
+					| _ ->
+						let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
+						match smode with
+							| "resolve" ->
+								activate_special_display_mode();
+								DMResolve arg
+							| _ ->
+								Parser.use_parser_resume := true;
+								DMDefault
 				in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 				com.display <- mode;
@@ -1445,7 +1460,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match com.display with
-			| DMNone | DMUsage | DMPosition ->
+			| DMNone | DMUsage | DMPosition | DMResolve _ ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1467,11 +1482,18 @@ try
 			Genxml.generate_hx com
 		| Some file ->
 			Common.log com ("Generating xml : " ^ file);
+			Common.mkdir_from_path file;
 			Genxml.generate com file);
 		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com Define.Dump then Codegen.dump_types com;
 		if Common.defined com Define.DumpDependencies then Codegen.dump_dependencies com;
 		t();
+		if not !no_output then begin match com.platform with
+			| Neko when !interp -> ()
+			| Cpp when Common.defined com Define.Cppia -> ()
+			| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
+			| _ -> Common.mkdir_from_path com.file
+		end;
 		(match com.platform with
 		| _ when !no_output ->
 			if !interp then begin
@@ -1569,7 +1591,7 @@ with
 		end else
 			fields
 		in
-		complete_fields fields
+		complete_fields com fields
 	| Typecore.DisplayTypes tl ->
 		let ctx = print_context() in
 		let b = Buffer.create 0 in
@@ -1614,7 +1636,7 @@ with
 			if packs = [] && classes = [] then
 				error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
 			else
-				complete_fields (
+				complete_fields com (
 					let convert k f = (f,"",Some k,"") in
 					(List.map (convert Typer.FKPackage) packs) @ (List.map (convert Typer.FKType) classes)
 				)
@@ -1633,7 +1655,7 @@ with
 							raise e
 				in
 				let m = lookup p in
-				complete_fields (List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
+				complete_fields com (List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
 			with Completion c ->
 				raise (Completion c)
 			| _ ->
