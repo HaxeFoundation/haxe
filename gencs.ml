@@ -2913,6 +2913,8 @@ let configure gen =
 	CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
 	CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
 
+	let out_files = ref [] in
+
 	(* copy resource files *)
 	if Hashtbl.length gen.gcon.resources > 0 then begin
 		let src =
@@ -2924,6 +2926,8 @@ let configure gen =
 		Hashtbl.iter (fun name v ->
 			let full_path = src ^ "/" ^ name in
 			mkdir_from_path full_path;
+
+			out_files := (unique_full_path full_path) :: !out_files;
 
 			let f = open_out full_path in
 			output_string f v;
@@ -2984,7 +2988,10 @@ let configure gen =
 
 	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
 	mkdir_recursive "" parts;
-	generate_modules gen "cs" "src" module_gen;
+	generate_modules gen "cs" "src" module_gen out_files;
+
+	if not (Common.defined gen.gcon Define.KeepOldOutput) then
+		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
 	dump_descriptor gen ("hxcs_build.txt") path_s module_s;
 	if ( not (Common.defined gen.gcon Define.NoCompilation || Common.defined gen.gcon Define.UnityStdTarget) ) then begin
