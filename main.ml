@@ -1490,6 +1490,7 @@ try
 		t();
 		if not !no_output then begin match com.platform with
 			| Neko when !interp -> ()
+			| Cpp when Common.defined com Define.Cppia -> ()
 			| Cpp | Cs | Java | Php -> Common.mkdir_from_path (com.file ^ "/.")
 			| _ -> Common.mkdir_from_path com.file
 		end;

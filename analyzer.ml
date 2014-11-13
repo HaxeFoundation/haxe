@@ -1227,7 +1227,8 @@ let run_ssa com config is_var_expression e =
 	let rec gen_local t =
 		alloc_var "tmp" t
 	in
-	let do_simplify = match com.platform with
+	let do_simplify = (not (Common.defined com Define.NoSimplify) ) && match com.platform with
+		| Cpp when Common.defined com Define.Cppia -> false
 		| Cpp | Flash8 | Python -> true
 		| _ -> false
 	in
