@@ -54,6 +54,57 @@ class TestSpod extends Test
 		return scls;
 	}
 
+	public function testEnum()
+	{
+		setManager();
+		var c1 = new OtherSpodClass("first spod");
+		c1.insert();
+		var c2 = new OtherSpodClass("second spod");
+		c2.insert();
+
+		var scls = getDefaultClass();
+		scls.relation = c1;
+		scls.insert();
+		var id1 = scls.theId;
+		scls = getDefaultClass();
+		scls.relation = c1;
+		scls.insert();
+		var id2 = scls.theId;
+		scls = getDefaultClass();
+		scls.relation = c1;
+		scls.anEnum = FirstValue;
+		scls.insert();
+		var id3 = scls.theId;
+		scls = null;
+
+		Manager.cleanup();
+		var r1s = [ for (c in MySpodClass.manager.search($anEnum == SecondValue,{orderBy:theId})) c.theId ];
+		eq([id1,id2].join(','),r1s.join(','));
+		var r2s = MySpodClass.manager.search($anEnum == FirstValue);
+		eq(r2s.length,1);
+		eq(r2s.first().theId,id3);
+
+		var fv = getSecond();
+		var r1s = [ for (c in MySpodClass.manager.search($anEnum == fv,{orderBy:theId})) c.theId ];
+		eq([id1,id2].join(','),r1s.join(','));
+		var r2s = MySpodClass.manager.search($anEnum == getFirst());
+		eq(r2s.length,1);
+		eq(r2s.first().theId,id3);
+
+		r2s.first().delete();
+		for (v in MySpodClass.manager.search($anEnum == fv)) v.delete();
+	}
+
+	public function getFirst()
+	{
+		return FirstValue;
+	}
+
+	public function getSecond()
+	{
+		return SecondValue;
+	}
+
 	public function testUpdate()
 	{
 		setManager();

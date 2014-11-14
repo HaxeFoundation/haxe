@@ -574,7 +574,6 @@ class RecordMacros {
 									if( c == null ) {
 										if( n == "null" )
 											return { sql : sqlAddString(r1.sql, eq ? " IS NULL" : " IS NOT NULL"), t : DBool, n : false };
-										error("Unknown constructor " + n, e2.pos);
 									} else {
 										return { sql : makeOp(eq?" = ":" != ", r1.sql, { expr : EConst(CInt(Std.string(c.index))), pos : e2.pos }, pos), t : DBool, n : r1.n };
 									}
@@ -585,7 +584,13 @@ class RecordMacros {
 						default:
 						}
 						if( !ok )
-							error("Should be a constant constructor", e2.pos);
+						{
+							var epath = e.split('.');
+							var ename = epath.pop();
+							var etype = TPath({ name:ename, pack:epath });
+							var expr = macro std.Type.enumIndex( @:pos(e2.pos) ( $e2 : $etype ) ); //make sure we have the correct type
+							return { sql: makeOp(eq?" = ":" != ", r1.sql, expr, pos), t : DBool, n : r1.n };
+						}
 					default:
 					}
 				}
