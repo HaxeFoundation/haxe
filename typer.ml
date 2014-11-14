@@ -3879,7 +3879,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then
 			begin
-				ctx.com.error msg p;
+				ctx.com.error msg ep;
 				old ctx "Called from macro here" p
 			end
 			else
