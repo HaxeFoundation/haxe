@@ -138,6 +138,12 @@ class TestSerialize extends Test {
 			case C(_,_): true;
 			default: false;
 		});
+
+		eq( id(SimpleEnum.SE_A), SimpleEnum.SE_A );
+		eq( id(SimpleEnum.SE_B), SimpleEnum.SE_B );
+		eq( id(SimpleEnum.SE_C), SimpleEnum.SE_C );
+		eq( id(SimpleEnum.SE_D), SimpleEnum.SE_D );
+		t( id(SimpleEnum.SE_A) == SimpleEnum.SE_A );
 	}
 
 	function doTestCollection( a : Array<Dynamic> ) {

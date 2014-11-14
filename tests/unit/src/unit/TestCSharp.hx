@@ -3,6 +3,7 @@ import haxe.io.Bytes;
 import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
+import haxe.test.TEnumWithValue;
 #if unsafe
 import cs.Pointer;
 #end
@@ -233,7 +234,60 @@ class TestCSharp extends Test
 				t(false);
 		}
 		eq("TA",Type.enumConstructor(e));
+
+		eq(0, Type.enumIndex(TEnum.TA));
+		eq(0, Type.enumIndex(getTA()));
+		eq(3, Type.enumIndex(TEnumWithValue.TVA));
+		eq(3, Type.enumIndex(getTVA()));
+
+		eq(0, Type.enumIndex(TEnumWithValue.TVB));
+		eq(0, Type.enumIndex(getTVB()));
+		eq(1, Type.enumIndex(TEnum.TB));
+		eq(1, Type.enumIndex(getTB()));
+
+		eq(2, Type.enumIndex(TEnum.TC));
+		eq(2, Type.enumIndex(getTC()));
+		eq(2, Type.enumIndex(TEnumWithValue.TVC));
+		eq(2, Type.enumIndex(getTVC()));
+
+		eq(1, Type.enumIndex(TEnumWithValue.TVD));
+		eq(1, Type.enumIndex(getTVD()));
+
+		checkEnum(TEnum,0,TEnum.TA);
+		checkEnum(TEnum,1,TEnum.TB);
+		checkEnum(TEnum,2,TEnum.TC);
+
+		checkEnum(TEnumWithValue,3,TEnumWithValue.TVA);
+		checkEnum(TEnumWithValue,0,TEnumWithValue.TVB);
+		checkEnum(TEnumWithValue,2,TEnumWithValue.TVC);
+		checkEnum(TEnumWithValue,1,TEnumWithValue.TVD);
+		// trace( getArray(cs.system.Enum.GetValues(untyped TEnum)) );
+		// trace( getArray(cs.system.Enum.GetNames(untyped TEnum)) );
+		// trace( getArray(cs.system.Enum.GetValues(untyped TEnumWithValue)) );
+		// trace( getArray(cs.system.Enum.GetNames(untyped TEnumWithValue)) );
+		// trace( Type.getEnumConstructs(TEnum) );
+		// trace( Type.getEnumConstructs(TEnumWithValue) );
+		// trace( Type.allEnums(TEnum) );
+		// trace( Type.allEnums(TEnumWithValue) );
 	}
+
+	private static function getArray(arr:cs.system.Array)
+	{
+		return [ for (i in 0...arr.Length) arr.GetValue(i) ];
+	}
+
+	function checkEnum<T>(e:Enum<T>,idx:Int,v:T,?pos:haxe.PosInfos)
+	{
+		eq(v,Type.createEnumIndex(e,idx),pos);
+	}
+
+	function getTA() return TEnum.TA;
+	function getTVA() return TEnumWithValue.TVA;
+	function getTB() return TEnum.TB;
+	function getTVB() return TEnumWithValue.TVB;
+	function getTC() return TEnum.TC;
+	function getTVC() return TEnumWithValue.TVC;
+	function getTVD() return TEnumWithValue.TVD;
 
 	@:skipReflection private function refTest(i:cs.Ref<Int>):Void
 	{

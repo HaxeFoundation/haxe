@@ -1171,7 +1171,7 @@ class RecordMacros {
 
 	static var isNeko = Context.defined("neko");
 
-	static function buildField( f : Field, fields : Array<Field>, ft : ComplexType, rt : ComplexType ) {
+	static function buildField( f : Field, fields : Array<Field>, ft : ComplexType, rt : ComplexType, isNull=false ) {
 		var p = switch( ft ) {
 		case TPath(p): p;
 		default: return;
@@ -1236,13 +1236,15 @@ class RecordMacros {
 				args : [{ name : "_v", opt : false, type : t, value : null }],
 				params : [],
 				ret : t,
-				expr : macro { $efield = _v == null ? null : cast Type.enumIndex(_v); return _v; },
+				expr : (Context.defined('cs') && !isNull) ?
+					macro { $efield = cast Type.enumIndex(_v); return _v; } :
+					macro { $efield = _v == null ? null : cast Type.enumIndex(_v); return _v; },
 			};
 			fields.push( { name : "get_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(get) } );
 			fields.push( { name : "set_" + f.name, pos : pos, meta : meta, access : [APrivate], doc : null, kind : FFun(set) } );
 			fields.push( { name : dataName, pos : pos, meta : [meta[0], { name:":skip", params:[], pos:pos } ], access : [APrivate], doc : null, kind : FVar(macro : Null<Int>, null) } );
 		case "SNull", "Null":
-			buildField(f, fields, t, rt);
+			buildField(f, fields, t, rt,true);
 		}
 	}
 

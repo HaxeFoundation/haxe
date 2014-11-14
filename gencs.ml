@@ -3162,18 +3162,24 @@ let convert_ilenum ctx p ilcls =
 	List.iter (fun f -> match f.fname with
 		| "value__" -> ()
 		| _ ->
-			let meta = match f.fconstant with
+			let meta, const = match f.fconstant with
 				| Some IChar i
 				| Some IByte i
 				| Some IShort i ->
-					[Meta.CsNative, [EConst (Int (string_of_int i) ), p], p ]
+					[Meta.CsNative, [EConst (Int (string_of_int i) ), p], p ], Int64.of_int i
 				| Some IInt i ->
-					[Meta.CsNative, [EConst (Int (Int32.to_string i) ), p], p ]
+					[Meta.CsNative, [EConst (Int (Int32.to_string i) ), p], p ], Int64.of_int32 i
+				| Some IFloat32 f | Some IFloat64 f ->
+					[], Int64.of_float f
+				| Some IInt64 i ->
+					[], i
 				| _ ->
-					[]
+					[], Int64.zero
 			in
-			data := { ec_name = f.fname; ec_doc = None; ec_meta = meta; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
+			data := ( { ec_name = f.fname; ec_doc = None; ec_meta = meta; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; }, const) :: !data;
 	) ilcls.cfields;
+	let data = List.stable_sort (fun (_,i1) (_,i2) -> Int64.compare i1 i2) (List.rev !data) in
+
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	EEnum {
 		d_name = netname_to_hx c;
@@ -3181,7 +3187,7 @@ let convert_ilenum ctx p ilcls =
 		d_params = []; (* enums never have type parameters *)
 		d_meta = !meta;
 		d_flags = [EExtern];
-		d_data = List.rev !data;
+		d_data = List.map fst data;
 	}
 
 let rec has_unmanaged = function
