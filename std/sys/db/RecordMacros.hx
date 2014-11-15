@@ -1333,7 +1333,7 @@ class RecordMacros {
 			if( skip )
 				continue;
 			switch( f.kind ) {
-			case FVar(t, _):
+			case FVar(t, _) | FProp('default',_,t,_):
 				if( t != null )
 					buildField(f,fields,t,t);
 			default:

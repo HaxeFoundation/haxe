@@ -161,13 +161,13 @@ class Manager<T : Object> {
 				// if the field is not defined, give it a default value on insert
 				switch( f.t ) {
 				case DUInt, DTinyInt, DInt, DSingle, DFloat, DFlags(_), DBigInt, DTinyUInt, DSmallInt, DSmallUInt, DMediumInt, DMediumUInt, DEnum(_):
-					Reflect.setField(x, name, 0);
+					Reflect.setField(x, fieldName, 0);
 				case DBool:
-					Reflect.setField(x, name, false);
+					Reflect.setField(x, fieldName, false);
 				case DTinyText, DText, DString(_), DSmallText, DSerialized:
-					Reflect.setField(x, name, "");
+					Reflect.setField(x, fieldName, "");
 				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
-					Reflect.setField(x, name, haxe.io.Bytes.alloc(0));
+					Reflect.setField(x, fieldName, haxe.io.Bytes.alloc(0));
 				case DDate, DDateTime, DTimeStamp:
 					// default date might depend on database
 				case DId, DUId, DBigId, DNull, DInterval, DEncoded, DData:
