@@ -1662,7 +1662,9 @@ struct
 				let args, _ = get_fun (apply_params cf.cf_params stl cf.cf_type) in
 				try
 					List.for_all2 (fun (_,_,t) e -> try
-						unify e.etype t; true
+						let e_etype = run_follow gen e.etype in
+						let t = run_follow gen t in
+						unify e_etype t; true
 					with | Unify_error _ -> false) args with_params
 				with | Invalid_argument("List.for_all2") -> false
 			) (cf :: cf.cf_overloads)
