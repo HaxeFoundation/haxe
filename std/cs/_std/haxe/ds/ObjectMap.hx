@@ -374,31 +374,7 @@ import cs.NativeArray;
 	**/
 	public function keys() : Iterator<K>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-#if !no_map_cache
-				cachedIndex = i;
-				cachedKey = ret;
-#end
-
-				i = i + 1;
-				return ret;
-			}
-		};
+    return new ObjectMapKeyIterator(this);
 	}
 
 	/**
@@ -407,26 +383,7 @@ import cs.NativeArray;
 	**/
 	public function iterator() : Iterator<V>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+    return new ObjectMapValueIterator(this);
 	}
 
 	/**
@@ -509,6 +466,74 @@ import cs.NativeArray;
 		if (!x) throw "assert failed";
 #end
 	}
+}
+
+@:access(haxe.ds.ObjectMap)
+@:final @:keep
+private class ObjectMapKeyIterator<T:{},V> {
+	var m:ObjectMap<T,V>;
+	var i:Int;
+	var len:Int;
+  public function new(m:ObjectMap<T,V>) {
+		this.i = 0;
+    this.m = m;
+		this.len = m.nBuckets;
+  }
+
+	public function hasNext():Bool {
+    for (j in i...len)
+    {
+      if (!ObjectMap.isEither(m.hashes[j]))
+      {
+        i = j;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public function next() : T {
+    var ret = m._keys[i];
+#if !no_map_cache
+    m.cachedIndex = i;
+    m.cachedKey = ret;
+#end
+
+    i = i + 1;
+    return ret;
+  }
+}
+
+@:access(haxe.ds.ObjectMap)
+@:final @:keep
+private class ObjectMapValueIterator<K:{},T> {
+  var m:ObjectMap<K,T>;
+  var i:Int;
+  var len:Int;
+
+  public function new(m:ObjectMap<K,T>) {
+		this.i = 0;
+    this.m = m;
+		this.len = m.nBuckets;
+  }
+
+  public function hasNext() : Bool {
+    for (j in i...len)
+    {
+      if (!ObjectMap.isEither(m.hashes[j]))
+      {
+        i = j;
+        return true;
+      }
+    }
+    return false;
+  }
+
+	public inline function next():T {
+    var ret = m.vals[i];
+    i = i + 1;
+    return ret;
+  }
 }
 
 private typedef HashType = Int;
