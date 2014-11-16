@@ -327,6 +327,11 @@ class TestCSharp extends Test
 		cl.test = 100;
 		cl.refTest(cl.test);
 		eq(cl.test,400);
+
+		i = 10;
+		var cl = new haxe.test.MyClass();
+		cl.refTest(i);
+		eq(i,420);
 	}
 
 	public function testOut()
@@ -342,6 +347,10 @@ class TestCSharp extends Test
 		cl.test = 20;
 		cl.outTest(cl.test, 10);
 		eq(cl.test,40);
+
+		var cl = new haxe.test.MyClass();
+		cl.outTest(i);
+		eq(i,42);
 	}
 
 	public function testChecked()

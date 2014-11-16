@@ -3350,7 +3350,9 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		let args = List.map (fun (name,flag,s) ->
 			let t = match s.snorm with
 				| LManagedPointer s ->
-					mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
+					let is_out = List.mem POut flag.pf_io && not (List.mem PIn flag.pf_io) in
+					let name = if is_out then "Out" else "Ref" in
+					mk_type_path ctx (["cs"],[],name) [ TPType (convert_signature ctx p s) ]
 				| _ ->
 					convert_signature ctx p (change_sig s.snorm)
 			in
