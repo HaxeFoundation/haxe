@@ -6202,7 +6202,12 @@ struct
 					in
 					if not (is_static || error) then match find_first_declared_field gen cl ~exact_field:{ cf with cf_type = actual_t } cf.cf_name with
 					| Some(_,actual_t,_,_,declared_cl,tl,tlch) ->
-						if declared_cl != cl && overloads_cast_to_base then begin
+						let rec is_super e = match e.eexpr with
+							| TConst TSuper -> true
+							| TParenthesis p | TMeta(_,p) -> is_super p
+							| _ -> false
+						in
+						if declared_cl != cl && overloads_cast_to_base && not (is_super !ef) then begin
 							let pos = (!ef).epos in
 							ef := {
 								eexpr = TCall(
