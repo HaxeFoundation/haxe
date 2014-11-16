@@ -46,12 +46,16 @@ import cs.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
+#if !no_map_cache
 	private var cachedKey:Int;
 	private var cachedIndex:Int;
+#end
 
 	public function new() : Void
 	{
+#if !no_map_cache
 		cachedIndex = -1;
+#end
 	}
 
 	public function set( key : Int, value : T ) : Void
@@ -135,17 +139,20 @@ import cs.NativeArray;
 	public function get( key : Int ) : Null<T>
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-
+#end
 			return vals[idx];
 		}
 
@@ -155,17 +162,20 @@ import cs.NativeArray;
 	private function getDefault( key : Int, def : T ) : T
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-
+#end
 			return vals[idx];
 		}
 
@@ -175,16 +185,20 @@ import cs.NativeArray;
 	public function exists( key : Int ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return true;
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
+#end
 
 			return true;
 		}
@@ -195,7 +209,9 @@ import cs.NativeArray;
 	public function remove( key : Int ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
+#end
 		{
 			idx = lookup(key);
 		}
@@ -204,9 +220,10 @@ import cs.NativeArray;
 		{
 			return false;
 		} else {
+#if !no_map_cache
 			if (cachedKey == key)
 				cachedIndex = -1;
-
+#end
 			if (!isEither(flags, idx))
 			{
 				setIsDelTrue(flags, idx);
@@ -253,9 +270,11 @@ import cs.NativeArray;
 
 		if (j != 0)
 		{ //rehashing is required
+#if !no_map_cache
 			//resetting cache
 			cachedKey = 0;
 			cachedIndex = -1;
+#end
 
 			j = -1;
 			var nBuckets = nBuckets, _keys = _keys, vals = vals, flags = flags;
@@ -438,8 +457,10 @@ private class IntMapKeyIterator<T> {
 
 	public function next():Int {
 		var ret = m._keys[i];
+#if !no_map_cache
 		m.cachedIndex = i;
 		m.cachedKey = ret;
+#end
 		i++;
 		return ret;
 	}
