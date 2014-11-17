@@ -835,6 +835,30 @@ let implement_dynamic_here class_def =
    ( (implements_dynamic class_def) && (not (super_implements_dynamic class_def) ) );;
 
 
+let gen_hash32 seed str =
+   let h = ref (Int32.of_int seed) in
+   let cycle = Int32.of_int 223 in
+   for i = 0 to String.length str - 1 do
+      h := Int32.add (Int32.mul !h cycle) (Int32.of_int (int_of_char (String.unsafe_get str i)));
+   done;
+   !h
+;;
+
+let gen_hash seed str =
+   Printf.sprintf "0x%08lx" (gen_hash32 seed str)
+;;
+
+let gen_string_hash str =
+   let h = gen_hash32 0 str in
+   Printf.sprintf "\"\\x%02lx\",\"\\x%02lx\",\"\\x%02lx\",\"\\x%02lx\""
+       (Int32.shift_right_logical (Int32.shift_left h 24) 24)
+       (Int32.shift_right_logical (Int32.shift_left h 16) 24)
+       (Int32.shift_right_logical (Int32.shift_left h 8) 24)
+       (Int32.shift_right_logical h 24)
+;;
+
+
+
 
 (* Make string printable for c++ code *)
 (* Here we know there are no utf8 characters, so use the L"" notation to avoid conversion *)
@@ -910,7 +934,7 @@ let str s =
    let escaped = Ast.s_escape ~hex:false s in
    let hexed = (special_to_hex escaped) in
    if (String.length hexed <= 16000 ) then
-      "HX_CSTRING(\"" ^ hexed ^ "\")"
+      "HX_HCSTRING(\"" ^ hexed ^ "\"," ^ (gen_string_hash s) ^ ")"
    else
       "(" ^ (split s "" ) ^ ")"
 ;;
@@ -1349,14 +1373,6 @@ let has_default_values args =
 
 exception PathFound of string;;
 
-let gen_hash seed str =
-   let h = ref (Int32.of_int seed) in
-   let cycle = Int32.of_int 223 in
-   for i = 0 to String.length str - 1 do
-      h := Int32.add (Int32.mul !h cycle) (Int32.of_int (int_of_char (String.unsafe_get str i)));
-   done;
-   Printf.sprintf "0x%08lx" !h
-;;
 
 let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath with
    | true -> file
