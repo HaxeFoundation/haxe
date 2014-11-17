@@ -6388,6 +6388,14 @@ struct
 					in
 					let base_type = List.hd base_type in
 					{ e with eexpr = TArrayDecl( List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
+				| TCall ({ eexpr = TLocal { v_name = "__array__" } } as arr_local, el) ->
+					let et = e.etype in
+					let base_type = match follow et with
+						| TInst(cl, bt) -> gen.greal_type_param (TClassDecl cl) bt
+						| _ -> assert false
+					in
+					let base_type = List.hd base_type in
+					{ e with eexpr = TCall(arr_local, List.map (fun e -> handle (run e) base_type e.etype) el ); etype = et }
 				| TCall( ({ eexpr = TLocal v } as local), params ) when String.get v.v_name 0 = '_' && String.get v.v_name 1 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
 					{ e with eexpr = TCall(local, List.map (fun e -> (match e.eexpr with TBlock _ -> in_value := false | _ -> ()); run e) params) }
 				| TCall( ({ eexpr = TField(ef, f) }) as e1, elist ) ->
