@@ -1379,7 +1379,7 @@ let rec unify a b =
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
 			| KTypeParameter pl ->
 				(* one of the constraints must unify with { } *)
-				if not (List.exists (fun t -> match t with TInst _ | TAnon _ -> true | _ -> false) pl) then error [cannot_unify a b]
+				if not (List.exists (fun t -> match follow t with TInst _ | TAnon _ -> true | _ -> false) pl) then error [cannot_unify a b]
 			| _ -> ());
 		(try
 			PMap.iter (fun n f2 ->

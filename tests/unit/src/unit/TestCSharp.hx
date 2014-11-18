@@ -4,6 +4,7 @@ import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
 import haxe.test.TEnumWithValue;
+import NoPackage;
 #if unsafe
 import cs.Pointer;
 #end
@@ -130,6 +131,14 @@ class TestCSharp extends Test
 
 		var i2 = new Base_InnerClass_InnerInnerClass();
 		t(true);
+
+		var noPack:NoPackage = new NoPackage();
+		t(noPack.isWorking);
+		t(noPack.b != null);
+		t(noPack.b.isReallyWorking);
+
+		var noPack2 = new NoPackage.NoPackage_NoPackInner();
+		t(noPack2.isReallyWorking);
 	}
 
 	function testGenerics()
@@ -261,14 +270,6 @@ class TestCSharp extends Test
 		checkEnum(TEnumWithValue,0,TEnumWithValue.TVB);
 		checkEnum(TEnumWithValue,2,TEnumWithValue.TVC);
 		checkEnum(TEnumWithValue,1,TEnumWithValue.TVD);
-		// trace( getArray(cs.system.Enum.GetValues(untyped TEnum)) );
-		// trace( getArray(cs.system.Enum.GetNames(untyped TEnum)) );
-		// trace( getArray(cs.system.Enum.GetValues(untyped TEnumWithValue)) );
-		// trace( getArray(cs.system.Enum.GetNames(untyped TEnumWithValue)) );
-		// trace( Type.getEnumConstructs(TEnum) );
-		// trace( Type.getEnumConstructs(TEnumWithValue) );
-		// trace( Type.allEnums(TEnum) );
-		// trace( Type.allEnums(TEnumWithValue) );
 	}
 
 	private static function getArray(arr:cs.system.Array)

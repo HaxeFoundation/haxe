@@ -1163,6 +1163,12 @@ let field_access ctx mode f fmode t e p =
 				normal()
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
+			let is_abstract_this_access () = match e.eexpr,ctx.curfun with
+				| TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)),(FunMemberAbstract | FunMemberAbstractLocal) ->
+					c == ctx.curclass
+				| _ ->
+					false
+			in
 			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
 				if is_extern_field f then begin
@@ -1170,7 +1176,7 @@ let field_access ctx mode f fmode t e p =
 					display_error ctx "Add @:isVar here to enable it" f.cf_pos;
 				end;
 				AKExpr (mk (TField (e,if prefix = "" then fmode else FDynamic (prefix ^ f.cf_name))) t p)
-			else if (match e.eexpr with TTypeExpr (TClassDecl ({cl_kind = KAbstractImpl _} as c)) when c == ctx.curclass -> true | _ -> false) then begin
+			else if is_abstract_this_access() then begin
 				let this = get_this ctx p in
 				if mode = MSet then begin
 					let c,a = match ctx.curclass with {cl_kind = KAbstractImpl a} as c -> c,a | _ -> assert false in
@@ -1795,7 +1801,7 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 			end;
 			ignore(follow cf.cf_type);
 			cf2.cf_expr <- (match cf.cf_expr with
-				| None -> None
+				| None -> error "Recursive @:generic function" p
 				| Some e -> Some (Codegen.generic_substitute_expr gctx e));
 			cf2.cf_kind <- cf.cf_kind;
 			cf2.cf_public <- cf.cf_public;
@@ -3330,9 +3336,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						| _ -> ()
 					) args args2;
 					(* unify for top-down inference unless we are expecting Void *)
-					begin match follow tr with
-						| TAbstract({a_path = [],"Void"},_) -> ()
-						| _ -> unify ctx rt tr p
+					begin match follow tr,follow rt with
+						| TAbstract({a_path = [],"Void"},_),_ -> ()
+						| _,TMono _ -> unify ctx rt tr p
+						| _ -> ()
 					end
 				| TAbstract(a,tl) ->
 					loop (Abstract.get_underlying_type a tl)

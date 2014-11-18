@@ -516,7 +516,7 @@ class RunCi {
 				case Cs:
 					getCsDependencies();
 
-					runCommand("haxe", ["compile-cs.hxml"]);
+					runCommand("haxe", ["compile-cs-travis.hxml"]);
 					runCommand("mono", ["bin/cs/bin/Test-Debug.exe"]);
 
 					runCommand("haxe", ["compile-cs-unsafe.hxml"]);

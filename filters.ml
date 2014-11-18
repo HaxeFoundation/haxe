@@ -330,7 +330,7 @@ let captured_vars com e =
 	| Cs | Java ->
 		let cnativearray =
 			match (List.find (fun md -> match md with
-					| TClassDecl ({ cl_path = ["cs" | "java"],"NativeArray" }) -> true
+					| TClassDecl ({ cl_path = ["cs"|"java"],"NativeArray" }) -> true
 					| _ -> false
 				) com.types)
 			with TClassDecl cl -> cl | _ -> assert false
