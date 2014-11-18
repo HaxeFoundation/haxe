@@ -1709,6 +1709,7 @@ struct
 			let local_map = Hashtbl.create (List.length cur_tf_args) in
 			let static_tf_args = (me, None) :: List.map (fun (v,b) ->
 				let new_v = alloc_var v.v_name (apply_params cl.cl_params ctor_params v.v_type) in
+				new_v.v_capture <- v.v_capture;
 				Hashtbl.add local_map v.v_id new_v;
 				(new_v, b)
 			) cur_tf_args in
