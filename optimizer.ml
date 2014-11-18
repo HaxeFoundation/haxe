@@ -1142,7 +1142,7 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 *)
 
 type inline_kind =
-	| IKCtor of tfunc * tclass_field * tclass * texpr list * texpr list * t
+	| IKCtor of tfunc * tclass_field * tclass * t list * texpr list * texpr list
 	| IKArray of texpr list * t
 	| IKStructure of (string * texpr) list
 	| IKNone
@@ -1168,7 +1168,7 @@ let inline_constructors ctx e =
 	in
 	let rec get_inline_ctor_info e = match e.eexpr with
 		| TNew ({ cl_constructor = Some ({ cf_kind = Method MethInline; cf_expr = Some { eexpr = TFunction f } } as cst) } as c,tl,pl) ->
-			IKCtor (f,cst,c,pl,[],TInst(c,tl))
+			IKCtor (f,cst,c,tl,pl,[])
 		| TObjectDecl [] | TArrayDecl [] ->
 			IKNone
 		| TArrayDecl el ->
@@ -1189,8 +1189,8 @@ let inline_constructors ctx e =
 			begin match List.rev el with
 				| e :: el ->
 					begin match get_inline_ctor_info e with
-						| IKCtor(f,cst,c,pl,e_init,t) ->
-							IKCtor(f,cst,c,pl,(List.rev el) @ e_init,t)
+						| IKCtor(f,cst,c,tl,pl,e_init) ->
+							IKCtor(f,cst,c,tl,pl,(List.rev el) @ e_init)
 						| _ ->
 							IKNone
 					end
@@ -1222,9 +1222,9 @@ let inline_constructors ctx e =
 			begin match eo with
 				| Some n ->
 					begin match get_inline_ctor_info n with
-					| IKCtor (f,cst,c,pl,el_init,t) ->
+					| IKCtor (f,cst,c,tl,pl,el_init) ->
 						(* inline the constructor *)
-						(match (try type_inline ctx cst f (mk (TLocal v) t n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
+						(match (try type_inline ctx cst f (mk (TLocal v) (TInst (c,tl)) n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
 						| None -> ()
 						| Some ecst ->
 							let assigns = ref [] in
