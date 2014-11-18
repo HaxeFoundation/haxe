@@ -59,15 +59,16 @@ class Lib
 	**/
 	inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
-		return p_nativeArray(arr,new cs.NativeArray(arr.length));
+		var ret = new cs.NativeArray(arr.length);
+		p_nativeArray(arr,ret);
+		return ret;
 	}
 
-	static function p_nativeArray<T>(arr:Array<T>, ret:NativeArray<T>):NativeArray<T>
+	static function p_nativeArray<T>(arr:Array<T>, ret:cs.system.Array):Void
 	{
 		var native:NativeArray<T> = untyped arr.__a;
 		var len = arr.length;
 		cs.system.Array.Copy(native, 0, ret, 0, len);
-		return ret;
 	}
 
 	/**
