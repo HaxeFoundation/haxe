@@ -57,7 +57,7 @@ class Lib
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	@:extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
 		var ret = new cs.NativeArray(arr.length);
 		p_nativeArray(arr,ret);
