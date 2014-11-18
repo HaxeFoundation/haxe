@@ -1801,7 +1801,7 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 			end;
 			ignore(follow cf.cf_type);
 			cf2.cf_expr <- (match cf.cf_expr with
-				| None -> None
+				| None -> error "Recursive @:generic function" p
 				| Some e -> Some (Codegen.generic_substitute_expr gctx e));
 			cf2.cf_kind <- cf.cf_kind;
 			cf2.cf_public <- cf.cf_public;
