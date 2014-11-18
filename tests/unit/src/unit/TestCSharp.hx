@@ -4,6 +4,7 @@ import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
 import haxe.test.TEnumWithValue;
+import NoPackage;
 #if unsafe
 import cs.Pointer;
 #end
