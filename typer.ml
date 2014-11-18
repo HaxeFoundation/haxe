@@ -3336,9 +3336,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						| _ -> ()
 					) args args2;
 					(* unify for top-down inference unless we are expecting Void *)
-					begin match follow tr with
-						| TAbstract({a_path = [],"Void"},_) -> ()
-						| _ -> unify ctx rt tr p
+					begin match follow tr,follow rt with
+						| TAbstract({a_path = [],"Void"},_),_ -> ()
+						| _,TMono _ -> unify ctx rt tr p
+						| _ -> ()
 					end
 				| TAbstract(a,tl) ->
 					loop (Abstract.get_underlying_type a tl)
