@@ -300,7 +300,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			//new TestRemoting(),
 		];
 		// SPOD tests
-		#if ( (neko || php || java || cpp || cs) && !macro && !interp)
+		#if ( (neko || php || java || cpp || (cs && travis)) && !macro && !interp)
 		#if !(cpp || cs)
 		if (Sys.getEnv("CI") != null && Sys.systemName() == "Linux")
 		{
