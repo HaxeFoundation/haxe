@@ -1329,20 +1329,21 @@ let rec unify a b =
 		if ea != eb then error [cannot_unify a b];
 		unify_type_params a b tl1 tl2
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
-		unify_type_params a b tl1 tl2
+		begin try
+			unify_type_params a b tl1 tl2
+		with Unify_error _ as err ->
+			(* the type could still have a from/to relation to itself (issue #3494) *)
+			begin try
+				unify_abstracts a b a1 tl1 a2 tl2
+			with Unify_error _ ->
+				raise err
+			end
+		end
 	| TAbstract ({a_path=[],"Void"},_) , _
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
-		let f1 = unify_to a1 tl1 b in
-		let f2 = unify_from a2 tl2 a b in
-		if (List.exists (f1 ~allow_transitive_cast:false) a1.a_to)
-		|| (List.exists (f2 ~allow_transitive_cast:false) a2.a_from)
-		|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
-			&& ((List.exists f1 a1.a_to) || (List.exists f2 a2.a_from))) then
-			()
-		else
-			error [cannot_unify a b]
+		unify_abstracts a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then begin
@@ -1477,6 +1478,17 @@ let rec unify a b =
 		if not (List.exists (unify_from bb tl a b) bb.a_from) then error [cannot_unify a b]
 	| _ , _ ->
 		error [cannot_unify a b]
+
+and unify_abstracts a b a1 tl1 a2 tl2 =
+	let f1 = unify_to a1 tl1 b in
+		let f2 = unify_from a2 tl2 a b in
+		if (List.exists (f1 ~allow_transitive_cast:false) a1.a_to)
+		|| (List.exists (f2 ~allow_transitive_cast:false) a2.a_from)
+		|| (((Meta.has Meta.CoreType a1.a_meta) || (Meta.has Meta.CoreType a2.a_meta))
+			&& ((List.exists f1 a1.a_to) || (List.exists f2 a2.a_from))) then
+			()
+		else
+			error [cannot_unify a b]
 
 and unify_anons a b a1 a2 =
 	(try
