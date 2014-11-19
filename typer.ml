@@ -2726,7 +2726,8 @@ and format_string ctx s p =
 		let scode = String.sub s (pos + 1) slen in
 		if warn_escape then warn (pos + 1) slen;
 		min := !min + 2;
-		add (fst (parse_expr_string ctx scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } true)) slen;
+		if slen > 0 then
+			add (fst (parse_expr_string ctx scode { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } true)) slen;
 		min := !min + 1;
 		parse (send + 1) (send + 1)
 	in
