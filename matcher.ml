@@ -506,7 +506,16 @@ let to_pattern ctx e t =
 				| TAnon {a_fields = fields} ->
 					fields
 				| TInst(c,tl) ->
-					PMap.map (fun cf -> {cf with cf_type = apply_params c.cl_params tl (monomorphs cf.cf_params cf.cf_type)}) c.cl_fields
+					let fields = ref PMap.empty in
+					let rec loop c tl =
+						begin match c.cl_super with
+							| Some (csup,tlsup) -> loop csup (List.map (apply_params c.cl_params tl) tlsup)
+							| None -> ()
+						end;
+						PMap.iter (fun n cf -> fields := PMap.add n {cf with cf_type = apply_params c.cl_params tl (monomorphs cf.cf_params cf.cf_type)} !fields) c.cl_fields
+					in
+					loop c tl;
+					!fields
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					let fields = List.fold_left (fun acc cf ->
 						if Meta.has Meta.Impl cf.cf_meta then
