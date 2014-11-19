@@ -487,14 +487,14 @@ let to_pattern ctx e t =
 					error ((s_type t) ^ " has no field " ^ n ^ " that can be matched against") p;
 			in
 			pctx.pc_is_complex <- true;
-			let loop_fields fields f =
+			let loop_fields fields =
 				let sl,pl,i = PMap.foldi (fun n cf (sl,pl,i) ->
 					if not (is_matchable cf) then
 						sl,pl,i
 					else
 						let pat = try
 							if pctx.pc_reify && cf.cf_name = "pos" then raise Not_found;
-							loop pctx (List.assoc cf.cf_name fl) (f cf)
+							loop pctx (List.assoc cf.cf_name fl) cf.cf_type
 						with Not_found ->
 							(mk_any cf.cf_type p)
 						in
@@ -502,23 +502,23 @@ let to_pattern ctx e t =
 				) fields ([],[],0) in
 				mk_con_pat (CFields(i,sl)) pl t p
 			in
-			let fields,map = match follow t with
+			let fields = match follow t with
 				| TAnon {a_fields = fields} ->
-					fields,(fun cf -> cf.cf_type)
+					fields
 				| TInst(c,tl) ->
-					c.cl_fields,(fun cf -> apply_params c.cl_params tl (monomorphs cf.cf_params cf.cf_type))
+					PMap.map (fun cf -> {cf with cf_type = apply_params c.cl_params tl (monomorphs cf.cf_params cf.cf_type)}) c.cl_fields
 				| TAbstract({a_impl = Some c} as a,tl) ->
 					let fields = List.fold_left (fun acc cf ->
 						if Meta.has Meta.Impl cf.cf_meta then
 							PMap.add cf.cf_name cf acc
 						else acc
 					) PMap.empty c.cl_ordered_statics in
-					fields,(fun cf -> apply_params a.a_params tl (monomorphs cf.cf_params cf.cf_type))
+					PMap.map (fun cf -> {cf with cf_type = apply_params a.a_params tl (monomorphs cf.cf_params cf.cf_type)}) fields
 				| _ ->
 					error ((s_type t) ^ " cannot be matched against a structure") p
 			in
 			List.iter (fun (n,(_,p)) -> is_valid_field_name fields None n p) fl;
-			loop_fields fields map
+			loop_fields fields
 		| EArrayDecl [] ->
 			mk_con_pat (CArray 0) [] t p
 		| EArrayDecl el ->
