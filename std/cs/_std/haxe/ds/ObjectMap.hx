@@ -374,7 +374,7 @@ import cs.NativeArray;
 	**/
 	public function keys() : Iterator<K>
 	{
-    return new ObjectMapKeyIterator(this);
+		return new ObjectMapKeyIterator(this);
 	}
 
 	/**
@@ -383,7 +383,7 @@ import cs.NativeArray;
 	**/
 	public function iterator() : Iterator<V>
 	{
-    return new ObjectMapValueIterator(this);
+		return new ObjectMapValueIterator(this);
 	}
 
 	/**
@@ -474,66 +474,69 @@ private class ObjectMapKeyIterator<T:{},V> {
 	var m:ObjectMap<T,V>;
 	var i:Int;
 	var len:Int;
-  public function new(m:ObjectMap<T,V>) {
+
+	public function new(m:ObjectMap<T,V>) {
 		this.i = 0;
-    this.m = m;
+		this.m = m;
 		this.len = m.nBuckets;
-  }
+	}
 
 	public function hasNext():Bool {
-    for (j in i...len)
-    {
-      if (!ObjectMap.isEither(m.hashes[j]))
-      {
-        i = j;
-        return true;
-      }
-    }
-    return false;
-  }
+		for (j in i...len)
+		{
+			if (!ObjectMap.isEither(m.hashes[j]))
+			{
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
 
-  public function next() : T {
-    var ret = m._keys[i];
+	public function next() : T {
+		var ret = m._keys[i];
+
 #if !no_map_cache
-    m.cachedIndex = i;
-    m.cachedKey = ret;
+		m.cachedIndex = i;
+		m.cachedKey = ret;
 #end
 
-    i = i + 1;
-    return ret;
-  }
+		i = i + 1;
+		return ret;
+	}
 }
 
 @:access(haxe.ds.ObjectMap)
 @:final @:keep
 private class ObjectMapValueIterator<K:{},T> {
-  var m:ObjectMap<K,T>;
-  var i:Int;
-  var len:Int;
+	var m:ObjectMap<K,T>;
+	var i:Int;
+	var len:Int;
 
-  public function new(m:ObjectMap<K,T>) {
+	public function new(m:ObjectMap<K,T>)
+	{
 		this.i = 0;
-    this.m = m;
+		this.m = m;
 		this.len = m.nBuckets;
-  }
+	}
 
-  public function hasNext() : Bool {
-    for (j in i...len)
-    {
-      if (!ObjectMap.isEither(m.hashes[j]))
-      {
-        i = j;
-        return true;
-      }
-    }
-    return false;
-  }
+	public function hasNext() : Bool {
+		for (j in i...len)
+		{
+			if (!ObjectMap.isEither(m.hashes[j]))
+			{
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
 
 	public inline function next():T {
-    var ret = m.vals[i];
-    i = i + 1;
-    return ret;
-  }
+		var ret = m.vals[i];
+		i = i + 1;
+		return ret;
+	}
 }
 
 private typedef HashType = Int;
