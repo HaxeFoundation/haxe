@@ -2871,7 +2871,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
 					(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 				with Not_found ->
-					extra_fields := n :: !extra_fields;
+					if add then
+						extra_fields := n :: !extra_fields;
 					type_expr ctx e Value
 				in
 				if add then begin
