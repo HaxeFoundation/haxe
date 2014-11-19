@@ -8897,12 +8897,6 @@ struct
 			let has_meta meta = List.exists (fun (m,_,_) -> match m with Meta.Custom _ -> true | _ -> false) meta in
 			has_meta en.e_meta || pmap_exists (fun _ ef -> has_meta ef.ef_meta) en.e_constrs
 
-		let has_parameters e =
-			try
-				(PMap.iter (fun _ ef -> match follow ef.ef_type with | TFun _ -> raise Exit | _ -> ()) e.e_constrs);
-				false
-			with | Exit -> true
-
 		let convert gen t base_class en should_be_hxgen handle_type_params =
 			let basic = gen.gcon.basic in
 			let pos = en.e_pos in
@@ -9054,7 +9048,7 @@ struct
 						convert e
 					else if convert_if_has_meta && has_any_meta e then
 						convert e
-					else if has_parameters e then
+					else if not (Meta.has Meta.FlatEnum e.e_meta) then
 						convert e
 					else begin
 						(* take off the :hxgen meta from it, if there's any *)
