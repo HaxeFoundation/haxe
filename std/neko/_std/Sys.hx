@@ -103,7 +103,7 @@
 			}
 		if( ok )
 			return arg;
-		return windows ? '"'+arg.split('"').join('"""').split("%").join('"%"')+'"' : "'"+arg.split("'").join("'\\''")+"'";
+		return windows ? '"'+arg.split('"').join('""').split("%").join('"%"')+'"' : "'"+arg.split("'").join("'\\''")+"'";
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
