@@ -23,4 +23,4 @@
 // This file is generated, do not edit!
 package js.html;
 
-typedef RequestAnimationFrameCallback = Float -> Bool;
+typedef RequestAnimationFrameCallback = Float -> Void;
