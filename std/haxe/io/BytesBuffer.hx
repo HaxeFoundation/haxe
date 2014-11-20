@@ -188,6 +188,8 @@ class BytesBuffer {
 		#elseif python
 		var buf = python.lib.Builtin.bytearray(b);
 		var bytes = new Bytes(buf.length, buf);
+		#elseif js
+		var bytes = new Bytes(b.length,new BytesData(b));
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

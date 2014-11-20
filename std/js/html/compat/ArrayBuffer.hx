@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,25 +19,36 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.io;
+package js.html.compat;
 
-#if neko
-	typedef BytesData =	neko.NativeString;
-#elseif flash9
-	typedef BytesData =	flash.utils.ByteArray;
-#elseif php
-	typedef BytesData =	php.NativeString;
-#elseif cpp
-	extern class Unsigned_char__ { }
-	typedef BytesData = Array<Unsigned_char__>;
-#elseif java
-	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
-#elseif cs
-	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
-#elseif python
-	typedef BytesData = python.lib.ByteArray;
-#elseif js
-	typedef BytesData = js.html.Uint8Array;
-#else
-	typedef BytesData = Array<Int>;
-#end
+@:keep
+class ArrayBuffer {
+
+	public var byteLength : Int;
+	var a : Array<Dynamic>;
+	
+	public function new( ?a : Dynamic ) {
+		if( Std.is(a,Array) ) {
+			this.a = a;
+			byteLength = a.length;
+		} else
+			throw "TODO";
+	}
+	
+	public function slice(begin,?end) {
+		return new ArrayBuffer(a.slice(begin,end));
+	}
+	
+	static function sliceImpl(begin,?end) {
+		var u = new js.html.Uint8Array(untyped __js__('this'), begin, end == null ? null : end - begin);
+        var result = new js.html.ArrayBuffer(u.byteLength);
+        var resultArray = new js.html.Uint8Array(result);
+		resultArray.set(u);
+        return result;
+	}
+
+	static function __init__() untyped {
+		var ArrayBuffer = __js__('typeof(window) != "undefined" && window.ArrayBuffer') || ArrayBuffer;
+		if( ArrayBuffer.prototype.slice == null ) ArrayBuffer.prototype.slice = sliceImpl; // IE10
+	}
+}
