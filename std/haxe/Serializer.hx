@@ -294,7 +294,7 @@ class Serializer {
 			case #if (neko || cs || python) "Date" #else cast Date #end:
 				var d : Date = v;
 				buf.add("v");
-				buf.add(d.toString());
+				buf.add(d.getTime());
 			case #if (neko || cs || python) "haxe.ds.StringMap" #else cast haxe.ds.StringMap #end:
 				buf.add("b");
 				var v : haxe.ds.StringMap<Dynamic> = v;
