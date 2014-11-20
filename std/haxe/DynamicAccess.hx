@@ -57,10 +57,15 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 		If the structure contains the given key, its value will be overwritten.
 
+		Returns the given value.
+
 		If `key` is null, the result is unspecified.
 	**/
 	@:arrayAccess
-	public inline function set(key:String, value:T):Void Reflect.setField(this, key, value);
+	public inline function set(key:String, value:T):T {
+		Reflect.setField(this, key, value);
+		return value;
+	}
 
 	/**
 		Tells if the structure contains a specified `key`.

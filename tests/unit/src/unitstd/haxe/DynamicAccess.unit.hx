@@ -1,9 +1,9 @@
 var map = new haxe.DynamicAccess();
 map.exists("foo") == false;
 map.get("foo") == null;
-map["foo"] =  1;
+(map["foo"] = 1) == 1;
 map.set("bar", 2);
-map.set("baz", 3);
+map.set("baz", 3) == 3;
 map.exists("foo") == true;
 map.exists("bar") == true;
 map.exists("baz") == true;
