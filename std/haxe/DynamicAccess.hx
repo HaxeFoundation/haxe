@@ -63,8 +63,12 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 	**/
 	@:arrayAccess
 	public inline function set(key:String, value:T):T {
+		#if js
+		return untyped this[key] = value;
+		#else
 		Reflect.setField(this, key, value);
 		return value;
+		#end
 	}
 
 	/**
