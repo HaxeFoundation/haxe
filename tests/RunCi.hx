@@ -556,7 +556,7 @@ class RunCi {
 					//getOpenFLDependencies();
 
 					testPolygonalDs();
-					if (systemName == "Linux") testFlambe();
+					// if (systemName == "Linux") testFlambe(); //#3439
 					testHxTemplo();
 					testMUnit();
 					//testOpenflSamples();
