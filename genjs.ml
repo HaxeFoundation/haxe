@@ -461,6 +461,11 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx e;
 			spr ctx ")";
 		end
+	| TField (eo, (FInstance(_,_,cf) | FStatic(_,cf) | FAnon(cf))), _ when Meta.has Meta.SelfCall cf.cf_meta ->
+		gen_value ctx eo;
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")"
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";

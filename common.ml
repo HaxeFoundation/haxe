@@ -444,6 +444,7 @@ module MetaInfo = struct
 		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
 		| Runtime -> ":runtime",("?",[])
 		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
+		| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platform Js])
 		| Setter -> ":setter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 		| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; Internal])
 		| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; Internal])
