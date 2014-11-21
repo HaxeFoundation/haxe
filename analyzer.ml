@@ -77,7 +77,7 @@ module Simplifier = struct
 		let push e = block_el := e :: !block_el in
 		let assign ev e =
 			let mk_assign e2 = match e2.eexpr with
-				| TBreak | TContinue | TThrow _ -> e2
+				| TBreak | TContinue | TThrow _ | TReturn _ -> e2
 				| _ -> mk (TBinop(OpAssign,ev,e2)) e2.etype e2.epos
 			in
 			let rec loop e = match e.eexpr with
