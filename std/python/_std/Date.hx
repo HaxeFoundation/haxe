@@ -1,6 +1,3 @@
-
-
-
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
@@ -22,16 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package;
-
 import python.lib.datetime.DateTime;
 import python.lib.datetime.TimeDelta;
 import python.Syntax;
 
 @:coreApi class Date
 {
-	// since January 1, 1970, 00:00:00 GMT
-	//static var BASE = new DateTime(1970, 1, 1);
+	static var EPOCH = DateTime.fromtimestamp(0, python.lib.datetime.Timezone.utc);
 
 	private var date:DateTime;
 
@@ -102,14 +96,14 @@ import python.Syntax;
 	static public function now() : Date
 	{
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = DateTime.now();
+		d.date = DateTime.now(python.lib.datetime.Timezone.utc);
 		return d;
 	}
 
 	static public function fromTime( t : Float ) : Date
 	{
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = DateTime.fromtimestamp(t/1000.0, python.lib.datetime.Timezone.utc);
+		d.date = DateTime.fromtimestamp(t / 1000.0, python.lib.datetime.Timezone.utc);
 		return d;
 	}
 
@@ -120,9 +114,7 @@ import python.Syntax;
 	}
 
 	static function datetimeTimestamp(dt:DateTime):Float {
-		var dt2 = new DateTime(1970, 1, 1, 0, 0, 0, 0, python.lib.datetime.Timezone.utc);
-		var timedelta = new TimeDelta(0, 1);
-		return Syntax.binop(Syntax.binop(dt, "-", dt2) * 1000, "/", timedelta);
+		return (Syntax.binop(dt, "-", EPOCH) : TimeDelta).total_seconds() * 1000;
 	}
 
 	static public function fromString( s : String ) : Date
