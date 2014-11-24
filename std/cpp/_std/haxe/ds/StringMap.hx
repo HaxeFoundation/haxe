@@ -21,58 +21,55 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
-	private var __Internal : Dynamic;
+@:headerClassCode("
+  inline void set(String key, ::null value) { __string_hash_set(h,key,value); }
+  inline void set(String key, bool value) { __string_hash_set(h,key,value); }
+  inline void set(String key, char value) { __string_hash_set_int(h,key,value); }
+  inline void set(String key, unsigned char value) { __string_hash_set_int(h,key,value); }
+  inline void set(String key, signed char value) { __string_hash_set_int(h,key,value); }
+  inline void set(String key, short value) { __string_hash_set_int(h,key,value); }
+  inline void set(String key, unsigned short value) { __string_hash_set_int(h,key,value); }
+  inline void set(String key, int value) { __string_hash_set_int(h,key,value); }
+  inline void set(String key, unsigned int value) { __string_hash_set_int(h,key,value); }
+  inline void set(String key, float value) { __string_hash_set_float(h,key,value); }
+  inline void set(String key, double value) { __string_hash_set_float(h,key,value); }
+  inline void set(String key, ::String value) { __string_hash_set_string(h,key,value); }
 
-	public function new() : Void {
-		__Internal = {};
-	}
+  template<typename VALUE>
+  inline Void set(Dynamic &key, const VALUE &value) { set( (String)key, value ); return null(); }
+")
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
+	private var h : Dynamic;
+
+	public function new() : Void { }
 
 	public function set( key : String, value : T ) : Void {
-		untyped __Internal.__SetField(key,value,true);
+		untyped __global__.__string_hash_set(h,key,value);
 	}
 
 	public function get( key : String ) : Null<T> {
-		return untyped __Internal.__Field(key,true);
+		return untyped __global__.__string_hash_get(h,key);
 	}
 
 	public function exists( key : String ) : Bool {
-		return untyped __Internal.__HasField(key);
+		return untyped __global__.__string_hash_exists(h,key);
 	}
 
 	public function remove( key : String ) : Bool {
-		return untyped __global__.__hxcpp_anon_remove(__Internal,key);
+		return untyped __global__.__string_hash_remove(h,key);
 	}
 
 	public function keys() : Iterator<String> {
-		var a:Array<String> = [];
-		untyped __Internal.__GetFields(a);
+		var a:Array<String> = untyped __global__.__string_hash_keys(h);
 		return a.iterator();
 	}
 
 	public function iterator() : Iterator<T> {
-		var a:Array<String> = [];
-		untyped __Internal.__GetFields(a);
-		var it = a.iterator();
-		var me = this;
-		return untyped {
-			hasNext : function() { return it.hasNext(); },
-			next : function() { return me.__Internal.__Field(it.next(),true); }
-		};
+		var a:Array<Dynamic> = untyped __global__.__string_hash_values(h);
+		return a.iterator();
 	}
 
 	public function toString() : String {
-		var s = new StringBuf();
-		s.add("{");
-		var it = keys();
-		for( i in it ) {
-			s.add(i);
-			s.add(" => ");
-			s.add(Std.string(get(i)));
-			if( it.hasNext() )
-				s.add(", ");
-		}
-		s.add("}");
-		return s.toString();
+		return untyped __global__.__string_hash_to_string(h);
 	}
 }
