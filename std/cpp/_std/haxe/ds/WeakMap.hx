@@ -22,27 +22,27 @@
 package haxe.ds;
 
 @:headerClassCode("
-  inline void set(Dynamic key, ::null value) { __object_hash_set(h,key,value); }
-  inline void set(Dynamic key, bool value) { __object_hash_set(h,key,value); }
-  inline void set(Dynamic key, char value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, unsigned char value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, signed char value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, short value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, unsigned short value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, int value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, unsigned int value) { __object_hash_set_int(h,key,value); }
-  inline void set(Dynamic key, float value) { __object_hash_set_float(h,key,value); }
-  inline void set(Dynamic key, double value) { __object_hash_set_float(h,key,value); }
-  inline void set(Dynamic key, ::String value) { __object_hash_set_string(h,key,value); }
+  inline void set(Dynamic key, ::null value) { __object_hash_set(h,key,value,true); }
+  inline void set(Dynamic key, bool value) { __object_hash_set(h,key,value,true); }
+  inline void set(Dynamic key, char value) { __object_hash_set_int(h,key,value,true); }
+  inline void set(Dynamic key, unsigned char value) { __object_hash_set_int(h,key,value,true); }
+  inline void set(Dynamic key, signed char value) { __object_hash_set_int(h,key,value,true); }
+  inline void set(Dynamic key, short value) { __object_hash_set_int(h,key,value,true); }
+  inline void set(Dynamic key, unsigned short value) { __object_hash_set_int(h,key,value,true); }
+  inline void set(Dynamic key, int value) { __object_hash_set_int(h,key,value,true); }
+  inline void set(Dynamic key, unsigned int value) { __object_hash_set_int(h,key,value,true); }
+  inline void set(Dynamic key, float value) { __object_hash_set_float(h,key,value,true); }
+  inline void set(Dynamic key, double value) { __object_hash_set_float(h,key,value,true); }
+  inline void set(Dynamic key, ::String value) { __object_hash_set_string(h,key,value,true); }
 ")
 @:coreApi
-class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
+class WeakMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 	private var h : Dynamic;
 
 	public function new() : Void { }
 
 	public function set( key : K, value : V ) : Void {
-		untyped __global__.__object_hash_set(h,key,value);
+		untyped __global__.__object_hash_set(h,key,value,true);
 	}
 
 	public function get( key : K ) : Null<V> {

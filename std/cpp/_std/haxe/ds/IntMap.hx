@@ -71,18 +71,6 @@ package haxe.ds;
 	}
 
 	public function toString() : String {
-		var s = new StringBuf();
-		s.add("{");
-		var it = keys();
-		for( i in it ) {
-			s.add(i);
-			s.add(" => ");
-			s.add(Std.string(get(i)));
-			if( it.hasNext() )
-				s.add(", ");
-		}
-		s.add("}");
-		return s.toString();
+		return untyped __global__.__int_hash_to_string(h);
 	}
-
 }
