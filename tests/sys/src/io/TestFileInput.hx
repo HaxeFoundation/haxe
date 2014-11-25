@@ -28,7 +28,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testRead() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(0, file.tell());
 		assertEquals(116, file.readByte());
 		assertEquals(1, file.tell());
@@ -42,7 +42,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekBeginCur() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());
@@ -56,7 +56,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekBeginEnd() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());
@@ -70,7 +70,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekBegin() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());
@@ -84,7 +84,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekPosBegin() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());
@@ -98,7 +98,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekPosBeginMulti() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());
@@ -116,7 +116,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekEnd() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());
@@ -130,7 +130,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekEofLast() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());
@@ -150,7 +150,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	public function testSeekEof() {
-		var file : FileInput = File.read(path, false);
+		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
 		assertEquals(101, file.readByte());
 		assertEquals(115, file.readByte());

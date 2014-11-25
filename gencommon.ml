@@ -43,7 +43,7 @@
 
 	Weaknesses and TODO's
 *)
-
+open Unix
 open Ast
 open Type
 open Common
@@ -936,7 +936,7 @@ let run_filters gen =
 (* basic generation module that source code compilation implementations can use *)
 (* ******************************************* *)
 
-let write_file gen w source_dir path extension =
+let write_file gen w source_dir path extension out_files =
 	let t = timer "write file" in
 	let s_path = source_dir	^ "/" ^ (snd path) ^ "." ^ (extension) in
 	(* create the folders if they don't exist *)
@@ -955,7 +955,34 @@ let write_file gen w source_dir path extension =
 		output_string f contents;
 		close_out f
 	end;
+
+	out_files := (unique_full_path s_path) :: !out_files;
+
 	t()
+
+
+let clean_files path excludes verbose =
+	let rec iter_files pack dir path = try
+		let file = Unix.readdir dir in
+
+		if file <> "." && file <> ".." then begin
+			let filepath = path ^ "/" ^ file in
+			if (Unix.stat filepath).st_kind = S_DIR then
+				let pack = pack @ [file] in
+				iter_files (pack) (Unix.opendir filepath) filepath;
+				try Unix.rmdir filepath with Unix.Unix_error (ENOTEMPTY,_,_) -> ();
+			else if not (List.mem (unique_full_path filepath) excludes) then begin
+				if verbose then print_endline ("Removing " ^ filepath);
+			 	Sys.remove filepath
+			end
+		end;
+
+		iter_files pack dir path
+	with | End_of_file | Unix.Unix_error _ ->
+		Unix.closedir dir
+	in
+	iter_files [] (Unix.opendir path) path
+
 
 let dump_descriptor gen name path_s module_s =
 	let w = SourceWriter.new_source_writer () in
@@ -1093,7 +1120,7 @@ let is_relative cwd rel =
 	If received true, it means that module_gen has generated this content, so the file must be saved.
 	See that it will write a whole module
 *)
-let generate_modules gen extension source_dir (module_gen : SourceWriter.source_writer->module_def->bool) =
+let generate_modules gen extension source_dir (module_gen : SourceWriter.source_writer->module_def->bool) out_files =
 	let cwd = Common.unique_full_path (Sys.getcwd()) in
 	List.iter (fun md_def ->
 		let source_dir =
@@ -1125,11 +1152,11 @@ let generate_modules gen extension source_dir (module_gen : SourceWriter.source_
 		let should_write = module_gen w md_def in
 		if should_write then begin
 			let path = md_def.m_path in
-			write_file gen w source_dir path extension;
+			write_file gen w source_dir path extension out_files
 		end
 	) gen.gcon.modules
 
-let generate_modules_t gen extension source_dir change_path (module_gen : SourceWriter.source_writer->module_type->bool) =
+let generate_modules_t gen extension source_dir change_path (module_gen : SourceWriter.source_writer->module_type->bool) out_files =
 	let source_dir = gen.gcon.file ^ "/" ^ source_dir in
 	List.iter (fun md ->
 		let w = SourceWriter.new_source_writer () in
@@ -1137,7 +1164,7 @@ let generate_modules_t gen extension source_dir change_path (module_gen : Source
 		let should_write = module_gen w md in
 		if should_write then begin
 			let path = change_path (t_path md) in
-			write_file gen w (source_dir ^ "/" ^ (String.concat "/" (fst path))) path extension;
+			write_file gen w (source_dir ^ "/" ^ (String.concat "/" (fst path))) path extension out_files;
 		end
 	) gen.gcon.types
 

@@ -403,7 +403,7 @@ class RunCi {
 			case TravisCI:
 				[Sys.getEnv("TEST")];
 			case AppVeyor:
-				[Macro];
+				[Macro, Neko];
 		}
 
 		for (test in tests) {
