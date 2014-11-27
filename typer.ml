@@ -3513,6 +3513,8 @@ and handle_display ctx e_ast iscall p =
 	match ctx.com.display with
 	| DMResolve _ ->
 		assert false
+	| DMType ->
+		raise (DisplayTypes [e.etype])
 	| DMUsage | DMPosition ->
 		begin match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
