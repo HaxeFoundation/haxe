@@ -1300,7 +1300,7 @@ let type_function ctx args ret fmode f do_display p =
 	else begin
 		let e = match ctx.com.display with
 			| DMToplevel -> find_enclosing ctx.com e
-			| DMPosition | DMUsage -> find_before_pos ctx.com e
+			| DMPosition | DMUsage | DMType -> find_before_pos ctx.com e
 			| _ -> e
 		in
 		try
