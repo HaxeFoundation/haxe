@@ -4253,6 +4253,14 @@ let encode_meta m set =
 				failwith "Invalid expression");
 			VNull
 		));
+		"extract", VFunction (Fun1 (fun k ->
+			let k = MetaInfo.from_string (try dec_string k with Invalid_expr -> raise Builtin_error) in
+			try
+				let entry = List.find (fun (m,_,_) -> m = k) (!meta) in
+				encode_meta_entry entry
+			with Not_found ->
+				VNull
+		));
 		"remove", VFunction (Fun1 (fun k ->
 			let k = MetaInfo.from_string (try dec_string k with Invalid_expr -> raise Builtin_error) in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
