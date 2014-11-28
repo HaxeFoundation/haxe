@@ -1170,6 +1170,7 @@ try
 			xml_out := Some "hx"
 		),": generate hx headers for all input classes");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
+		("--each", Arg.Unit (fun() -> assert false), ": append preceding parameters to all haxe compilations separated by --next");
 		("--display", Arg.String (fun file_pos ->
 			match file_pos with
 			| "classes" ->
