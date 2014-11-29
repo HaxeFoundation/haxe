@@ -111,6 +111,6 @@ typedef Iterable<T> = {
 
 /**
 	ArrayAccess is used to indicate a class that can be accessed using brackets.
-	The type parameter represent the type of the elements stored.
+	The type parameter represents the type of the elements stored.
 **/
 extern interface ArrayAccess<T> { }
