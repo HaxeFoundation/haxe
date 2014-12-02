@@ -1194,8 +1194,14 @@ type eq_kind =
 	| EqCoreType
 	| EqRightDynamic
 	| EqBothDynamic
+	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 
 let rec type_eq param a b =
+	let can_follow t = match param with
+		| EqCoreType -> false
+		| EqDoNotFollowNull -> not (is_null t)
+		| _ -> true
+	in
 	if a == b then
 		()
 	else match a , b with
@@ -1211,9 +1217,9 @@ let rec type_eq param a b =
 		| Some t -> type_eq param a t)
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		List.iter2 (type_eq param) tl1 tl2
-	| TType (t,tl) , _ when param <> EqCoreType ->
+	| TType (t,tl) , _ when can_follow a ->
 		type_eq param (apply_params t.t_params tl t.t_type) b
-	| _ , TType (t,tl) when param <> EqCoreType ->
+	| _ , TType (t,tl) when can_follow b ->
 		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
 			()
 		else begin
