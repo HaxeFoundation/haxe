@@ -2832,6 +2832,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx e with_type in
 		mk (TParenthesis e) e.etype p
 	| EObjectDecl fl ->
+		let dynamic_parameter = ref None in
 		let a = (match with_type with
 		| WithType t | WithTypeResume t ->
 			(match follow t with
@@ -2841,6 +2842,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
 					| _ -> None
 				end
+			| TDynamic t when (follow t != t_dynamic) ->
+				dynamic_parameter := Some t;
+				Some {
+					a_status = ref Closed;
+					a_fields = PMap.empty;
+				}
 			| _ -> None)
 		| _ -> None
 		) in
@@ -2868,7 +2875,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				let n,add = Parser.unquote_ident n in
 				if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 				let e = try
-					let t = (PMap.find n a.a_fields).cf_type in
+					let t = (match !dynamic_parameter with Some t -> t | None -> (PMap.find n a.a_fields).cf_type) in
 					let e = type_expr ctx e (match with_type with WithTypeResume _ -> WithTypeResume t | _ -> WithType t) in
 					let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
 					(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
