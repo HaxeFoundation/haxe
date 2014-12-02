@@ -1505,7 +1505,11 @@ let check_global_metadata ctx f_add mpath tpath so =
 	) ctx.g.global_metadata
 
 let patch_class ctx c fields =
-	let h = (try Some (Hashtbl.find ctx.g.type_patches c.cl_path) with Not_found -> None) in
+	let path = match c.cl_kind with
+		| KAbstractImpl a -> a.a_path
+		| _ -> c.cl_path
+	in
+	let h = (try Some (Hashtbl.find ctx.g.type_patches path) with Not_found -> None) in
 	match h with
 	| None -> fields
 	| Some (h,hcl) ->
