@@ -2079,6 +2079,14 @@ let init_class ctx c p context_init herits fields =
 							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
 							check_bind();
+						| (Meta.Impl,_,_) :: ml ->
+							begin match follow t with
+								| TFun((_,_,t1) :: _, _) when type_iseq tthis t1 ->
+									()
+								| _ ->
+									display_error ctx ("First argument of implementation function must be " ^ (s_type (print_context()) tthis)) f.cff_pos
+							end;
+							loop ml
 						| _ :: ml ->
 							loop ml
 						| [] ->
