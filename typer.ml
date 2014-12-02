@@ -1555,6 +1555,8 @@ and type_field ?(resume=false) ctx e i p mode =
 			let f = PMap.find i c.cl_statics in
 			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
+				if not (Meta.has Meta.Impl f.cf_meta) then
+					error ("Invalid call to static function " ^ i ^ " through abstract instance") p;
 				let t = field_type ctx c [] f p in
 				apply_params a.a_params pl t
 			in
