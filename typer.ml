@@ -1741,14 +1741,14 @@ let unify_int ctx e k =
 		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
-let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
-	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
-	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-	let c,tl,stat = match follow e.etype with
-		| (TInst (c,tl)) -> c,tl,false
-		| (TAnon a) -> (match !(a.a_status) with Statics c -> c,[],true | _ -> assert false)
+ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
+	let c,tl,cf,stat = match fa with
+		| FInstance(c,tl,cf) -> c,tl,cf,false
+		| FStatic(c,cf) -> c,[],cf,true
 		| _ -> assert false
 	in
+	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
+	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 	let t = apply_params cf.cf_params monos cf.cf_type in
 	add_constraint_checks ctx c.cl_params [] cf monos p;
 	let args,ret = match t,using_param with
@@ -1785,8 +1785,8 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 				unify_existing_field cf2.cf_type cf2.cf_pos;
 				cf2
 			else
-				let _,tcf,cf2 = class_field ctx c tl name p in
-				unify_existing_field tcf cf2.cf_pos;
+				let cf2 = PMap.find name c.cl_fields in
+				unify_existing_field cf2.cf_type cf2.cf_pos;
 				cf2
 			in
 			cf2
@@ -1796,6 +1796,7 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 				c.cl_statics <- PMap.add name cf2 c.cl_statics;
 				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
 			end else begin
+				if List.memq cf c.cl_overrides then c.cl_overrides <- cf2 :: c.cl_overrides;
 				c.cl_fields <- PMap.add name cf2 c.cl_fields;
 				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields
 			end;
@@ -1813,7 +1814,8 @@ let type_generic_function ctx (e,cf) el ?(using_param=None) with_type p =
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
-		let e = acc_get ctx (field_access ctx MCall cf2 (if stat then FStatic (c,cf2) else FInstance (c,tl,cf2)) cf2.cf_type e p) p in
+		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
+		let e = mk (TField(e,fa)) cf2.cf_type p in
 		make_call ctx e el ret p
 	with Codegen.Generic_Exception (msg,p) ->
 		error msg p)
@@ -3808,8 +3810,8 @@ and build_call ctx acc el (with_type:with_type) p =
 				er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 	in
 	match acc with
-	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
-		type_generic_function ctx (ethis,f) el with_type p
+ 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
+		type_generic_function ctx (ethis,fmode) el with_type p
 	| AKInline (ethis,f,fmode,t) ->
 		(match follow t with
 			| TFun (args,r) ->
@@ -3820,8 +3822,8 @@ and build_call ctx acc el (with_type:with_type) p =
 		)
 	| AKUsing (et,cl,ef,eparam) when Meta.has Meta.Generic ef.cf_meta ->
 		(match et.eexpr with
-		| TField(ec,_) ->
-			type_generic_function ctx (ec,ef) el ~using_param:(Some eparam) with_type p
+		| TField(ec,fa) ->
+			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
 		| _ -> assert false)
 	| AKUsing (et,cl,ef,eparam) ->
 		begin match ef.cf_kind with
@@ -3911,7 +3913,7 @@ and build_call ctx acc el (with_type:with_type) p =
 				| TField(e1,fa) when not (match fa with FEnum _ -> true | _ -> false) ->
 					begin match fa with
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
-							type_generic_function ctx (e1,cf) el with_type p
+							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
 							let _,_,mk_call = unify_field_call ctx fa el args r p false in
 							mk_call e1
