@@ -508,7 +508,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					| TAbstract ({ a_path = [],"Void" },_) -> e
 					| _ -> raise (Unify_error []))
 				| _ -> try
-					type_eq EqStrict etype tret;
+					type_eq (if ctx.com.config.pf_static then EqDoNotFollowNull else EqStrict) etype tret;
 					e
 				with Unify_error _ when (match ctx.com.platform with Cpp -> true | Flash when Common.defined ctx.com Define.As3 -> true | _ -> false) ->
 					(* try to detect upcasts: in that case we may use a safe cast *)
