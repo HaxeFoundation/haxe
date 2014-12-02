@@ -1589,9 +1589,11 @@ and type_field ?(resume=false) ctx e i p mode =
 					| [] -> f
 					| cfl -> loop (f :: cfl)
 				in
-				if not (Meta.has Meta.Impl f.cf_meta) then
-					error ("Invalid call to static function " ^ i ^ " through abstract instance") p;
 				let t = field_type f in
+				begin match follow t with
+					| TFun((_,_,t1) :: _,_) -> ()
+					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") p
+				end;
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e)
 			| MSet, _ ->
