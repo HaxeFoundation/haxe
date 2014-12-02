@@ -30,6 +30,20 @@ class TestType extends Test {
 		return { pos: haxe.macro.Context.currentPos(), expr: haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent(result)) };
 	}
 
+	static public macro function typeErrorText(e:haxe.macro.Expr) {
+		var result = try {
+			haxe.macro.Context.typeof(e);
+			null;
+		} catch (e:haxe.macro.Expr.Error) e.message;
+		return {
+			pos: haxe.macro.Context.currentPos(),
+			expr: if (result == null)
+					haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent("null"))
+				else
+					haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CString(result))
+		};
+	}
+
 	static public macro function complete(e:String) : haxe.macro.Expr.ExprOf<String> {
 		var str = new String(untyped haxe.macro.Context.load("display", 1)(e.__s));
 		return { expr : EConst(CString(str)), pos : haxe.macro.Context.currentPos() };
