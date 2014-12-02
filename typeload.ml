@@ -2079,7 +2079,7 @@ let init_class ctx c p context_init herits fields =
 							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
 							check_bind();
-						| (Meta.Impl,_,_) :: ml ->
+						| (Meta.Impl,_,_) :: ml when f.cff_name <> "_new" && not is_macro ->
 							begin match follow t with
 								| TFun((_,_,t1) :: _, _) when type_iseq tthis t1 ->
 									()
@@ -2151,16 +2151,18 @@ let init_class ctx c p context_init herits fields =
 			let check_method m t req_name =
 				if ctx.com.display <> DMNone then () else
 				try
-					let _, t2, f = (if stat then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
+					let _, t2, f2 = (if stat then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
 					(* accessors must be public on As3 (issue #1872) *)
-					if Common.defined ctx.com Define.As3 then f.cf_meta <- (Meta.Public,[],p) :: f.cf_meta;
-					(match f.cf_kind with
+					if Common.defined ctx.com Define.As3 then f2.cf_meta <- (Meta.Public,[],p) :: f2.cf_meta;
+					(match f2.cf_kind with
 						| Method MethMacro ->
-							display_error ctx (f.cf_name ^ ": Macro methods cannot be used as property accessor") p;
-							display_error ctx (f.cf_name ^ ": Accessor method is here") f.cf_pos;
+							display_error ctx (f2.cf_name ^ ": Macro methods cannot be used as property accessor") p;
+							display_error ctx (f2.cf_name ^ ": Accessor method is here") f2.cf_pos;
 						| _ -> ());
-					unify_raise ctx t2 t f.cf_pos;
-					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f.cf_pos);
+					unify_raise ctx t2 t f2.cf_pos;
+					if (Meta.has Meta.Impl f.cff_meta && not (Meta.has Meta.Impl f2.cf_meta)) || (Meta.has Meta.Impl f2.cf_meta && not (Meta.has Meta.Impl f.cff_meta)) then
+						display_error ctx "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
+					(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f2.cf_pos);
 				with
 					| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 					| Not_found ->
