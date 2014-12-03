@@ -65,5 +65,6 @@ tests/unit/unit.py.res2.bin
 *.cmo
 tests/sys/bin/
 tests/optimization/dump/
-tests/misc/projects/Issue3102/test.n
+tests/misc/projects/*/*.n
 tests/unit/bin/
+tests/*.n
