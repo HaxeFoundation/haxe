@@ -8,6 +8,3 @@ compile-each.hxml
 -D unsafe
 -cs bin/cs_unsafe
 -net-lib native_cs/bin/native_cs.dll
--net-lib cs_drivers/System.Data.dll
--net-lib cs_drivers/System.Xml.dll
--net-lib cs_drivers/Mono.Data.Sqlite.dll
