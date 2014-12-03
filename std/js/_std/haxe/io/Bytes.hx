@@ -73,25 +73,25 @@ class Bytes {
 	inline function initData() : Void {
 		if( data == null ) data = new js.html.DataView(b.buffer, b.byteOffset, b.byteLength);
 	}
-	
+
 	public function getDouble( pos : Int ) : Float {
 		initData();
-		return data.getFloat64(pos, false);
+		return data.getFloat64(pos, true);
 	}
 
 	public function getFloat( pos : Int ) : Float {
 		initData();
-		return data.getFloat32(pos, false);
+		return data.getFloat32(pos, true);
 	}
 
 	public function setDouble( pos : Int, v : Float ) : Void {
 		initData();
-		data.setFloat64(pos, v, false);
+		data.setFloat64(pos, v, true);
 	}
 
 	public function setFloat( pos : Int, v : Float ) : Void {
 		initData();
-		data.setFloat32(pos, v, false);
+		data.setFloat32(pos, v, true);
 	}
 
 	public function getString( pos : Int, len : Int ) : String {
