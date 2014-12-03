@@ -4,6 +4,7 @@ import yaml.*;
 
 import sys.*;
 import sys.io.*;
+import haxe.*;
 import haxe.io.*;
 
 private typedef TravisConfig = {
@@ -69,11 +70,15 @@ class RunCi {
 
 		while (trials-->0) {
 			Sys.println('Command: $cmd $args');
+
+			var t = Timer.stamp();
 			exitCode = Sys.command(cmd, args);
+			var dt = Math.round(Timer.stamp() - t);
+
 			if (exitCode == 0)
-				successMsg('Command exited with $exitCode: $cmd $args');
+				successMsg('Command exited with $exitCode in ${dt}s: $cmd $args');
 			else
-				failMsg('Command exited with $exitCode: $cmd $args');
+				failMsg('Command exited with $exitCode in ${dt}s: $cmd $args');
 
 			if (exitCode == 0) {
 				return;
