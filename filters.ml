@@ -989,29 +989,29 @@ let run_expression_filters ctx filters t =
 
 let pp_counter = ref 1
 
-let post_process ctx filters t =
-	(* ensure that we don't process twice the same (cached) module *)
+let is_cached t =
 	let m = (t_infos t).mt_module.m_extra in
 	if m.m_processed = 0 then m.m_processed <- !pp_counter;
-	if m.m_processed = !pp_counter then
-	run_expression_filters ctx filters t
+	m.m_processed <> !pp_counter
 
-let post_process_end() =
+let apply_filters_once ctx filters t =
+	if not (is_cached t) then run_expression_filters ctx filters t
+
+let next_compilation() =
 	incr pp_counter
 
-let iter_expressions com fl =
-	List.iter (fun mt -> match mt with
-		| TClassDecl c ->
-			let field cf = match cf.cf_expr with
-				| None -> ()
-				| Some e -> List.iter (fun f -> f e) fl
-			in
-			List.iter field c.cl_ordered_statics;
-			List.iter field c.cl_ordered_fields;
-			(match c.cl_constructor with None -> () | Some cf -> field cf)
-		| _ ->
-			()
-	) com.types
+let iter_expressions fl mt =
+	match mt with
+	| TClassDecl c ->
+		let field cf = match cf.cf_expr with
+			| None -> ()
+			| Some e -> List.iter (fun f -> f e) fl
+		in
+		List.iter field c.cl_ordered_statics;
+		List.iter field c.cl_ordered_fields;
+		(match c.cl_constructor with None -> () | Some cf -> field cf)
+	| _ ->
+		()
 
 let run com tctx main =
 	begin match com.display with
@@ -1024,6 +1024,7 @@ let run com tctx main =
 		Codegen.DeprecationCheck.run com;
 	let use_static_analyzer = Common.defined com Define.Analyzer in
 	(* this part will be a bit messy until we make the analyzer the default *)
+	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	if use_static_analyzer then begin
 		(* PASS 1: general expression filters *)
 		let filters = [
@@ -1034,24 +1035,15 @@ let run com tctx main =
 			blockify_ast;
 			captured_vars com;
 		] in
-		List.iter (post_process tctx filters) com.types;
-		Analyzer.apply tctx;
-		post_process_end();
-		iter_expressions com [verify_ast];
-		List.iter (fun f -> f()) (List.rev com.filters);
-		(* save class state *)
-		List.iter (save_class_state tctx) com.types;
-		(* PASS 2: destructive type and expression filters *)
+		List.iter (run_expression_filters tctx filters) new_types;
+		Analyzer.apply tctx; (* TODO *)
+		List.iter (iter_expressions [verify_ast]) new_types;
 		let filters = [
 			Optimizer.sanitize com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 			rename_local_vars tctx;
 		] in
-		List.iter (fun t ->
-			remove_generic_base tctx t;
-			remove_extern_fields tctx t;
-			run_expression_filters tctx filters t;
-		) com.types;
+		List.iter (run_expression_filters tctx filters) new_types;
 	end else begin
 		(* PASS 1: general expression filters *)
 		let filters = [
@@ -1070,25 +1062,20 @@ let run com tctx main =
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize com;
 			check_local_vars_init;
 			captured_vars com;
-		] in
-		List.iter (post_process tctx filters) com.types;
-		post_process_end();
-		iter_expressions com [verify_ast];
-		List.iter (fun f -> f()) (List.rev com.filters);
-		(* save class state *)
-		List.iter (save_class_state tctx) com.types;
-		(* PASS 2: destructive type and expression filters *)
-		let filters = [
 			promote_complex_rhs com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 			rename_local_vars tctx;
 		] in
-		List.iter (fun t ->
-			remove_generic_base tctx t;
-			remove_extern_fields tctx t;
-			run_expression_filters tctx filters t;
-		) com.types;
+		List.iter (run_expression_filters tctx filters) new_types;
+		List.iter (iter_expressions [verify_ast]) new_types;
 	end;
+	next_compilation();
+	List.iter (fun f -> f()) (List.rev com.filters); (* macros onGenerate etc. *)
+	List.iter (save_class_state tctx) new_types;
+	List.iter (fun t ->
+		remove_generic_base tctx t;
+		remove_extern_fields tctx t;
+	) com.types;
 	(* update cache dependencies before DCE is run *)
 	Codegen.update_cache_dependencies com;
 	(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
