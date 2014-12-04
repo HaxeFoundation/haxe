@@ -317,6 +317,8 @@ class RunCi {
 		//install and build hxcpp
 		haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 		var oldDir = Sys.getCwd();
+		changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/tools/hxcpp/");
+		runCommand("haxe", ["compile.hxml"]);
 		changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
 		runCommand("neko", ["build.n"]);
 		changeDirectory(oldDir);
