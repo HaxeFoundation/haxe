@@ -106,6 +106,8 @@ type display_mode =
 	| DMUsage
 	| DMPosition
 	| DMToplevel
+	| DMResolve of string
+	| DMType
 
 type context = {
 	(* config *)
@@ -165,6 +167,7 @@ module Define = struct
 	type strict_defined =
 		| AbsolutePath
 		| AdvancedTelemetry
+		| Analyzer
 		| As3
 		| CheckXmlProxy
 		| CoreApi
@@ -193,6 +196,7 @@ module Define = struct
 		| JsClassic
 		| JsEs5
 		| JsFlatten
+		| KeepOldOutput
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -209,6 +213,7 @@ module Define = struct
 		| NoOpt
 		| NoPatternMatching
 		| NoRoot
+		| NoSimplify
 		| NoSwfCompress
 		| NoTraces
 		| PhpPrefix
@@ -240,6 +245,7 @@ module Define = struct
 	let infos = function
 		| AbsolutePath -> ("absolute_path","Print absolute file path in trace output")
 		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
+		| Analyzer -> ("analyzer","Use static analyzer for optimization (experimental)")
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
@@ -268,6 +274,7 @@ module Define = struct
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
 		| JsEs5 -> ("js_es5","Generate JS for ES5-compliant runtimes")
 		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
+		| KeepOldOutput -> ("keep_old_output","Keep old source files in the output directory (for C#/Java)")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
@@ -275,7 +282,7 @@ module Define = struct
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
-		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
+		| NoCompilation -> ("no-compilation","Disable final compilation for Cs, Cpp and Java")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")
 		| NoDeprecationWarnings -> ("no-deprecation-warnings","Do not warn if fields annotated with @:deprecated are used")
@@ -283,8 +290,9 @@ module Define = struct
 		| NoOpt -> ("no_opt","Disable optimizations")
 		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
 		| NoInline -> ("no_inline","Disable inlining")
-		| NoRoot -> ("no_root","GenCS internal")
+		| NoRoot -> ("no_root","Generate top-level types into haxe.root namespace")
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
+      | NoSimplify -> "no_simplify",("Disable simplification filter")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
@@ -338,14 +346,17 @@ module MetaInfo = struct
 		| Access -> ":access",("Forces private access to package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
 		| Accessor -> ":accessor",("Used internally by DCE to mark property accessors",[UsedOn TClassField;Internal])
 		| Allow -> ":allow",("Allows private access from package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
+		| Analyzer -> ":analyzer",("Used to configure the static analyzer",[])
 		| Annotation -> ":annotation",("Annotation (@interface) definitions on -java-lib imports will be annotated with this metadata. Has no effect on types compiled by Haxe",[Platform Java; UsedOn TClass])
 		| ArrayAccess -> ":arrayAccess",("Allows [] access on an abstract",[UsedOnEither [TAbstract;TAbstractField]])
 		| Ast -> ":ast",("Internally used to pass the AST source into the typed AST",[Internal])
 		| AutoBuild -> ":autoBuild",("Extends @:build metadata to all extending and implementing classes",[HasParam "Build macro call";UsedOn TClass])
 		| Bind -> ":bind",("Override Swf class declaration",[Platform Flash;UsedOn TClass])
 		| Bitmap -> ":bitmap",("Embeds given bitmap data into the class (must extend flash.display.BitmapData)",[HasParam "Bitmap file path";UsedOn TClass;Platform Flash])
+		| BridgeProperties -> ":bridgeProperties",("Creates native property bridges for all Haxe properties in this class.",[UsedOn TClass;Platform Cs])
 		| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
 		| BuildXml -> ":buildXml",("",[Platform Cpp])
+		| Callable -> ":callable",("Abstract forwards call to its underlying type",[UsedOn TAbstract])
 		| Class -> ":class",("Used internally to annotate an enum that will be generated as a class",[Platforms [Java;Cs]; UsedOn TEnum; Internal])
 		| ClassCode -> ":classCode",("Used to inject platform-native code into a class",[Platforms [Java;Cs]; UsedOn TClass])
 		| Commutative -> ":commutative",("Declares an abstract operator as commutative",[UsedOn TAbstractField])
@@ -355,7 +366,7 @@ module MetaInfo = struct
 		| CppFileCode -> ":cppFileCode",("",[Platform Cpp])
 		| CppNamespaceCode -> ":cppNamespaceCode",("",[Platform Cpp])
 		| CsNative -> ":csNative",("Automatically added by -net-lib on classes generated from .NET DLL files",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
-		| Dce -> ":dce",("Forces dead code elimination even when not -dce full is specified",[UsedOnEither [TClass;TEnum]])
+		| Dce -> ":dce",("Forces dead code elimination even when -dce full is not specified",[UsedOnEither [TClass;TEnum]])
 		| Debug -> ":debug",("Forces debug information to be generated into the Swf even without -debug",[UsedOnEither [TClass;TClassField]; Platform Flash])
 		| Decl -> ":decl",("",[Platform Cpp])
 		| DefParam -> ":defParam",("?",[])
@@ -394,6 +405,7 @@ module MetaInfo = struct
 		| InitPackage -> ":initPackage",("?",[])
 		| Meta.Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 		| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
+		| JavaCanonical -> ":javaCanonical",("Used by the Java target to annotate the canonical path of the type",[HasParam "Output type package";HasParam "Output type name";UsedOnEither [TClass;TEnum]; Platform Java])
 		| JavaNative -> ":javaNative",("Automatically added by -java-lib on classes generated from JAR/class files",[Platform Java; UsedOnEither[TClass;TEnum]; Internal])
 		| JsRequire -> ":jsRequire",("Generate javascript module require expression for given extern",[Platform Js; UsedOn TClass])
 		| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
@@ -412,7 +424,7 @@ module MetaInfo = struct
 		| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
 		| NoImportGlobal -> ":noImportGlobal",("Prevents a static field from being imported with import Class.*",[UsedOn TAnyField])
-		| NoPackageRestrict -> ":noPackageRestrict",("?",[])
+		| NoPackageRestrict -> ":noPackageRestrict",("Allows a module to be accessed across all targets if found on its first type.",[Internal])
 		| NoStack -> ":noStack",("",[Platform Cpp])
 		| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
 		| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
@@ -426,6 +438,7 @@ module MetaInfo = struct
 		| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField])
 		| Property -> ":property",("Marks a property field to be compiled as a native C# property",[UsedOn TClassField;Platform Cs])
 		| ReadOnly -> ":readOnly",("Generates a field with the 'readonly' native keyword",[Platform Cs; UsedOn TClassField])
+		| ReallyUsed -> ":reallyUsed",("Marks types that are directly referenced by non-extern code",[Internal])
 		| RealPath -> ":realPath",("Internally used on @:native types to retain original path information",[Internal])
 		| Remove -> ":remove",("Causes an interface to be removed from all implementing classes before generation",[UsedOn TClass])
 		| Require -> ":require",("Allows access to a field only if the specified compiler flag is set",[HasParam "Compiler flag to check";UsedOn TClassField])
@@ -434,6 +447,7 @@ module MetaInfo = struct
 		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
 		| Runtime -> ":runtime",("?",[])
 		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
+		| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platform Js])
 		| Setter -> ":setter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 		| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; Internal])
 		| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; Internal])
@@ -762,6 +776,7 @@ let platforms = [
 	Cpp;
 	Cs;
 	Java;
+	Python;
 ]
 
 let platform_name = function
@@ -948,8 +963,11 @@ let rec mkdir_recursive base dir_list =
 
 let mkdir_from_path path =
 	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
-	let dir_list = List.rev (List.tl (List.rev parts)) in
-	mkdir_recursive "" dir_list
+	match parts with
+		| [] -> (* path was "" *) ()
+		| _ ->
+			let dir_list = List.rev (List.tl (List.rev parts)) in
+			mkdir_recursive "" dir_list
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])

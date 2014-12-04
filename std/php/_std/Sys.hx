@@ -73,14 +73,14 @@
 		var ok = true;
 		for( i in 0...arg.length )
 			switch( arg.charCodeAt(i) ) {
-			case 32, 34: // [space] "
+			case ' '.code, '\t'.code, '"'.code, '&'.code, '|'.code, '<'.code, '>'.code, '#'.code , ';'.code, '*'.code, '?'.code, '('.code, ')'.code, '{'.code, '}'.code, '$'.code:
 				ok = false;
 			case 0, 13, 10: // [eof] [cr] [lf]
 				arg = arg.substr(0,i);
 			}
 		if( ok )
 			return arg;
-		return '"'+arg.split('"').join('\\"')+'"';
+		return '"'+arg.split('\\').join("\\\\").split('"').join('\\"')+'"';
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
@@ -89,6 +89,7 @@
 			for( a in args )
 				cmd += " "+escapeArgument(a);
 		}
+		if (systemName() == "Windows") cmd = '"$cmd"';
 		var result = 0;
 		untyped __call__("system", cmd, result);
 		return result;
@@ -110,7 +111,7 @@
 		return untyped __php__("$_SERVER['SCRIPT_FILENAME']");
 	}
 
-	public static function environment() : haxe.ds.StringMap<String> {
+	public static function environment() : Map<String,String> {
 		return php.Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
 	}
 

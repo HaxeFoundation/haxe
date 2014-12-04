@@ -25,7 +25,11 @@
 	The unsigned Int type is only defined for Flash9 and C#. It's currently
 	handled the same as a normal Int.
 **/
-@:coreType @:notNull @:runtimeValue abstract UInt to Int from Int { }
+@:coreType
+@:notNull
+@:runtimeValue
+@:analyzer(no_const_propagation)
+abstract UInt to Int from Int { }
 #else
 /**
 	The unsigned Int type is only defined for Flash9 and C#.
@@ -49,7 +53,7 @@ abstract UInt(Int) from Int to Int {
 		return a.toInt() - b.toInt();
 	}
 
-	@:op(A > B) private static inline function gt(a:UInt, b:UInt):Bool {
+	@:op(A > B) private static #if !js inline #end function gt(a:UInt, b:UInt):Bool {
 		var aNeg = a.toInt() < 0;
 		var bNeg = b.toInt() < 0;
 		return
@@ -57,7 +61,7 @@ abstract UInt(Int) from Int to Int {
 			else a.toInt() > b.toInt();
 	}
 
-	@:op(A >= B) private static inline function gte(a:UInt, b:UInt):Bool {
+	@:op(A >= B) private static #if !js inline #end function gte(a:UInt, b:UInt):Bool {
 		var aNeg = a.toInt() < 0;
 		var bNeg = b.toInt() < 0;
 		return
@@ -211,7 +215,7 @@ abstract UInt(Int) from Int to Int {
 		return this;
 	}
 
-	@:to private inline function toFloat():Float {
+	@:to private #if !js inline #end function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
 			return 4294967296.0 + int;

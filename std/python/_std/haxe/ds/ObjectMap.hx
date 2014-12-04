@@ -3,7 +3,7 @@ package haxe.ds;
 import python.lib.Builtin;
 import python.lib.Dict;
 
-class ObjectMap<K:{},V> implements Map.IMap<K, V> {
+class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K, V> {
 
 	var h : Dict<K,V>;
 

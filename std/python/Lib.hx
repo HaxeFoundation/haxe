@@ -1,7 +1,6 @@
 package python;
 
 import python.internal.AnonObject;
-import python.internal.HxBuiltin;
 import python.lib.Dict;
 import python.NativeStringTools;
 
@@ -31,7 +30,7 @@ class Lib {
 
 	public static function anonToDict (o:{}):Dict<String, Dynamic>
 	{
-		return if (HxBuiltin.isinstance(o, AnonObject))
+		return if (python.lib.Builtin.isinstance(o, AnonObject))
 		{
 			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>).copy();
 		}

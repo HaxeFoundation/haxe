@@ -22,6 +22,8 @@
 import cs.Lib;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
+import cs.system.reflection.*;
+using StringTools;
 /*
  * Copyright (c) 2005, The Haxe Project Contributors
  * All rights reserved.
@@ -210,7 +212,21 @@ import cs.internal.Runtime;
 
 		if (Reflect.hasField(cl, "__hx_createEmpty"))
 			return untyped cl.__hx_createEmpty();
-		return createInstance(cl, []);
+		if (untyped cl == String)
+			return cast "";
+		var t:cs.system.Type = Lib.toNativeType(cl);
+
+		var ctors = t.GetConstructors();
+		for (c in 0...ctors.Length)
+		{
+			if (ctors[c].GetParameters().Length == 0)
+			{
+				var arr = new cs.NativeArray(1);
+				arr[0] = ctors[c];
+				return Runtime.callMethod(null, cast arr, arr.Length, []);
+			}
+		}
+		return cs.system.Activator.CreateInstance(t);
 	}
 
 	@:functionCode('
@@ -234,28 +250,32 @@ import cs.internal.Runtime;
 		return createEnum(e, constr[index], params);
 	}
 
-	@:functionCode('
-		if (c == typeof(string))
+	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String>
+	{
+		if (c == String)
+			return cs.internal.StringExt.StringRefl.fields;
+
+		var c = cs.Lib.toNativeType(c);
+		var ret = [];
+		var bindingFlags:BindingFlags = cast cast(BindingFlags.Public, Int) | cast(BindingFlags.Instance, Int) | cast(BindingFlags.FlattenHierarchy,Int);
+		var mis = c.GetMembers(bindingFlags);
+		for (i in 0...mis.Length)
 		{
-			return haxe.lang.StringRefl.fields;
+			var i = mis[i];
+			if (Std.is(i, PropertyInfo))
+				continue;
+			var n = i.Name;
+			if (!n.startsWith('__hx_') && n.fastCodeAt(0) != '.'.code)
+			{
+				switch(n)
+				{
+					case 'Equals' | 'ToString' | 'GetHashCode' | 'GetType':
+					case _:
+						ret.push(n);
+				}
+			}
 		}
-
-		Array<object> ret = new Array<object>();
-
-        System.Reflection.MemberInfo[] mis = c.GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
-        for (int i = 0; i < mis.Length; i++)
-        {
-			if (mis[i] is System.Reflection.PropertyInfo)
-                continue;
-			string n = mis[i].Name;
-			if (!n.StartsWith("__hx_") && n[0] != \'.\' && !n.Equals("Equals") && !n.Equals("ToString") && !n.Equals("GetHashCode") && !n.Equals("GetType"))
-				ret.push(mis[i].Name);
-        }
-
 		return ret;
-	')
-	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		return null;
 	}
 
 	@:functionCode('
@@ -284,7 +304,7 @@ import cs.internal.Runtime;
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		if (Reflect.hasField(e, "constructs"))
 			return untyped e.constructs.copy();
-		return cs.Lib.array(cs.system.Enum.GetNames(cs.Lib.nativeType(e)));
+		return cs.Lib.array(cs.system.Enum.GetNames(untyped e));
 	}
 
 	@:functionCode('
@@ -374,9 +394,12 @@ import cs.internal.Runtime;
 
 	@:functionCode('
 		if (e is System.Enum)
-			return ((System.IConvertible) e).ToInt32(null);
-		else
+		{
+			System.Array values = System.Enum.GetValues(e.GetType());
+			return System.Array.IndexOf(values, e);
+		} else {
 			return ((haxe.lang.Enum) e).index;
+		}
 	')
 	public static function enumIndex( e : EnumValue ) : Int  untyped
 	{

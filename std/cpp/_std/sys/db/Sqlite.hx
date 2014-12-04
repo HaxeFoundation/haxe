@@ -55,7 +55,9 @@ private class SqliteConnection implements Connection {
 		if (v == null) {
 			s.add(v);
       }
-      else {
+      else if (Std.is(v,Bool)) {
+				s.add( v ? 1 : 0 );
+			} else {
 			var t:Int = untyped v.__GetType();
 			if( t == 0xff )
 				s.add(v);

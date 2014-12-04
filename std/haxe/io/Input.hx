@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,27 +22,42 @@
 package haxe.io;
 
 /**
-	An Input is an abstract reader. See other classes in the [haxe.io] package
+	An Input is an abstract reader. See other classes in the `haxe.io` package
 	for several possible implementations.
 **/
 class Input {
 
+	/**
+		Endianness (word byte order) used when reading numbers.
+
+		If `true`, big-endian is used, otherwise `little-endian` is used.
+	**/
 	public var bigEndian(default,set) : Bool;
+
 	#if cs
 	private var helper:BytesData;
 	#elseif java
 	private var helper:java.nio.ByteBuffer;
 	#end
 
+	/**
+		Read and return one byte.
+	**/
 	public function readByte() : Int {
 	#if cpp
 		throw "Not implemented";
-		return 0;
 	#else
 		return throw "Not implemented";
 	#end
 	}
 
+	/**
+		Read `len` bytes and write them into `s` to the position specified by `pos`.
+
+		Returns the actual length of read data that can be smaller than `len`.
+
+		See `readFullBytes` that tries to read the exact amount of specified bytes.
+	**/
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
 		var b = s.getData();
@@ -64,16 +79,27 @@ class Input {
 		return len;
 	}
 
-	public function close() {
+	/**
+		Close the input source.
+
+		Behaviour while reading after calling this method is unspecified.
+	**/
+	public function close() : Void {
 	}
 
-	function set_bigEndian(b) {
+	function set_bigEndian( b : Bool ) : Bool {
 		bigEndian = b;
 		return b;
 	}
 
 	/* ------------------ API ------------------ */
 
+	/**
+		Read and return all available data.
+
+		The `bufsize` optional argument specifies the size of chunks by
+		which data is read. Its default value is target-specific.
+	**/
 	public function readAll( ?bufsize : Int ) : Bytes {
 		if( bufsize == null )
 		#if php
@@ -96,7 +122,12 @@ class Input {
 		return total.getBytes();
 	}
 
-	public function readFullBytes( s : Bytes, pos : Int, len : Int ) {
+	/**
+		Read `len` bytes and write them into `s` to the position specified by `pos`.
+
+		Unlike `readBytes`, this method tries to read the exact `len` amount of bytes.
+	**/
+	public function readFullBytes( s : Bytes, pos : Int, len : Int ) : Void {
 		while( len > 0 ) {
 			var k = readBytes(s,pos,len);
 			pos += k;
@@ -104,6 +135,9 @@ class Input {
 		}
 	}
 
+	/**
+		Read and return `nbytes` bytes.
+	**/
 	public function read( nbytes : Int ) : Bytes {
 		var s = Bytes.alloc(nbytes);
 		var p = 0;
@@ -116,6 +150,11 @@ class Input {
 		return s;
 	}
 
+	/**
+		Read a string until a character code specified by `end` is occurred.
+
+		The final character is not included in the resulting string.
+	**/
 	public function readUntil( end : Int ) : String {
 		var buf = new StringBuf();
 		var last : Int;
@@ -124,6 +163,11 @@ class Input {
 		return buf.toString();
 	}
 
+	/**
+		Read a line of text separated by CR and/or LF bytes.
+
+		The CR/LF characters are not included in the resulting string.
+	**/
 	public function readLine() : String {
 		var buf = new StringBuf();
 		var last : Int;
@@ -141,6 +185,11 @@ class Input {
 		return s;
 	}
 
+	/**
+		Read a 32-bit floating point number.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
 	public function readFloat() : Float {
 		#if neko
 			return _float_of_bytes(untyped read(4).b,bigEndian);
@@ -195,6 +244,11 @@ class Input {
 		#end
 	}
 
+	/**
+		Read a 64-bit double-precision floating point number.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
 	public function readDouble() : Float {
 		#if neko
 			return _double_of_bytes(untyped read(8).b,bigEndian);
@@ -268,14 +322,22 @@ class Input {
 		#end
 	}
 
-	public function readInt8() {
+	/**
+		Read a 8-bit signed integer.
+	**/
+	public function readInt8() : Int {
 		var n = readByte();
 		if( n >= 128 )
 			return n - 256;
 		return n;
 	}
 
-	public function readInt16() {
+	/**
+		Read a 16-bit signed integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readInt16() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var n = bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
@@ -284,13 +346,23 @@ class Input {
 		return n;
 	}
 
-	public function readUInt16() {
+	/**
+		Read a 16-bit unsigned integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readUInt16() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		return bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
 	}
 
-	public function readInt24() {
+	/**
+		Read a 24-bit signed integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readInt24() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
@@ -300,14 +372,24 @@ class Input {
 		return n;
 	}
 
-	public function readUInt24() {
+	/**
+		Read a 24-bit unsigned integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readUInt24() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
 		return bigEndian ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
 	}
 
-	public function readInt32() {
+	/**
+		Read a 32-bit signed integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readInt32() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
@@ -323,6 +405,9 @@ class Input {
 #end
 	}
 
+	/**
+		Read and `len` bytes as a string.
+	**/
 	public function readString( len : Int ) : String {
 		var b = Bytes.alloc(len);
 		readFullBytes(b,0,len);

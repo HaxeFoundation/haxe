@@ -133,9 +133,6 @@ private class SocketOutput extends haxe.io.Output {
         Creates a new unconnected socket.
     **/
     public function new() : Void {
-        //var __s = new PSocket();
-        //input = new SocketInput(__s);
-        //output = new SocketOutput(__s);
     }
 
     function __init() : Void  {
@@ -155,14 +152,14 @@ private class SocketOutput extends haxe.io.Output {
         Read the whole data available on the socket.
     **/
     public function read() : String {
-        return "";
+        return input.readAll().toString();
     }
 
     /**
         Write the whole data to the socket output.
     **/
     public function write( content : String ) : Void {
-
+        output.writeString(content);
     }
 
     /**

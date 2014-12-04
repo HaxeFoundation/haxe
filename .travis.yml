@@ -1,4 +1,8 @@
-language: node_js
+language: cpp
+
+os:
+  - linux
+  # - osx #https://github.com/travis-ci/travis-ci/issues/2792
 
 env:
   global:
@@ -18,26 +22,35 @@ env:
     - TEST=java
     - TEST=cs
     - TEST=python
-    - TEST=flash8
 
 matrix:
-  fast_finish: true
-  allow_failures:
-    - env: TEST=flash8
+  # fast_finish: true #https://github.com/travis-ci/travis-ci/issues/1696
+
+before_script:
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then mysql -u root -e "CREATE DATABASE haxe_test;"; fi
 
 install:
-  - travis_retry sudo apt-get update
-  - travis_retry sudo apt-get install ocaml zlib1g-dev libgc-dev -y
-  - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
-  - cd ~/neko && make && sudo make install && cd $TRAVIS_BUILD_DIR
+  - if [ -z "${TRAVIS_OS_NAME}" ]; then export TRAVIS_OS_NAME=linux; fi; # for our forks that do not have mult-os enabled.
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then travis_retry sudo apt-get update -qq; travis_retry sudo apt-get install ocaml zlib1g-dev libgc-dev -qq; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew update; travis_retry brew install phinze/cask/brew-cask; travis_retry brew install ocaml; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko && cd ~/neko && make os=${TRAVIS_OS_NAME} -s && sudo make install -s && cd $TRAVIS_BUILD_DIR; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew install neko --HEAD; fi
 
 script:
-  - make
-  - make tools
-  - sudo make install
+  - make -s
+  - make tools -s
+  - sudo make install -s
   - cd tests/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
   - haxe -version
-  - haxe -neko RunTravis.n -main RunTravis -lib hx-yaml
-  - neko RunTravis.n
+  - haxe -neko RunCi.n -main RunCi -lib hx-yaml
+  - neko RunCi.n
+
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/95a5fa471c27beee8e7c
+    on_success: change  # options: [always|never|change] default: always
+    on_failure: always  # options: [always|never|change] default: always
+    on_start: false     # default: false

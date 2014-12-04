@@ -91,12 +91,12 @@ class XmlParser {
 			f1.set = RMethod;
 			return true;
 		}
-		return false;
+		return Type.enumEq(f1.get, f2.get) && Type.enumEq(f1.set, f2.set);
 	}
 
 	function mergeDoc( f1 : ClassField, f2 : ClassField ) {
 		if( f1.doc == null )
-			f2.doc = f2.doc;
+			f1.doc = f2.doc;
 		else if( f2.doc == null )
 			f2.doc = f1.doc;
 		return true;
@@ -393,7 +393,7 @@ class XmlParser {
 		};
 	}
 
-	function xclassfield( x : Fast, ?defPublic ) : ClassField {
+	function xclassfield( x : Fast, ?defPublic = false ) : ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
 		var doc = null;

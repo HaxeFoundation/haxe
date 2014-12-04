@@ -26,7 +26,7 @@ class Request {
 	/**
 		Returns the current page GET and POST parameters (only GET parameters for Javascript)
 	**/
-	public static function getParams() : haxe.ds.StringMap<String> {
+	public static function getParams() : Map<String,String> {
 		#if neko
 		return neko.Web.getParams();
 		#elseif php

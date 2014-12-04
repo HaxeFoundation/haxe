@@ -50,7 +50,7 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 	}
 
 	public inline function insert( pos : Int, x : T ) : Void {
-		return ArrayImpl.insert(this, pos, x);
+		ArrayImpl.insert(this, pos, x);
 	}
 
 
@@ -71,7 +71,7 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 	}
 
 	public inline function unshift(x : T) : Void {
-		return ArrayImpl.unshift(this,x);
+		ArrayImpl.unshift(this,x);
 	}
 
 	public inline function indexOf(x : T, ?fromIndex:Int) : Int {
@@ -88,7 +88,7 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 	}
 
 	public inline function reverse() : Void {
-		return ArrayImpl.reverse(this);
+		ArrayImpl.reverse(this);
 	}
 
 	@:runtime public inline function shift() : Null<T> {
@@ -100,18 +100,18 @@ extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
 	}
 
 	public inline function sort(f:T->T->Int) : Void {
-		return ArrayImpl.sort(this, f);
+		ArrayImpl.sort(this, f);
 	}
 
 	public inline function splice( pos : Int, len : Int ) : Array<T> {
 		return ArrayImpl.splice(this, pos, len);
 	}
 
-	public inline function map<S>( f : T -> S ) : Array<S> {
+	@:runtime public inline function map<S>( f : T -> S ) : Array<S> {
 		return ArrayImpl.map(this, f);
 	}
 
-	public inline function filter( f : T -> Bool ) : Array<T> {
+	@:runtime public inline function filter( f : T -> Bool ) : Array<T> {
 		return ArrayImpl.filter(this,f);
 	}
 

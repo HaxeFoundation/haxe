@@ -32,14 +32,17 @@ module Meta = struct
 		| Access
 		| Accessor
 		| Allow
+		| Analyzer
 		| Annotation
 		| ArrayAccess
 		| Ast
 		| AutoBuild
 		| Bind
 		| Bitmap
+		| BridgeProperties
 		| Build
 		| BuildXml
+		| Callable
 		| Class
 		| ClassCode
 		| Commutative
@@ -88,6 +91,7 @@ module Meta = struct
 		| InitPackage
 		| Internal
 		| IsVar
+		| JavaCanonical
 		| JavaNative
 		| JsRequire
 		| Keep
@@ -120,6 +124,7 @@ module Meta = struct
 		| Public
 		| PublicFields
 		| ReadOnly
+		| ReallyUsed
 		| RealPath
 		| Remove
 		| Require
@@ -128,6 +133,7 @@ module Meta = struct
 		| Rtti
 		| Runtime
 		| RuntimeValue
+		| SelfCall
 		| Setter
 		| SkipCtor
 		| SkipReflection
@@ -436,7 +442,7 @@ let is_lower_ident i =
 let pos = snd
 
 let rec is_postfix (e,_) op = match op with
-	| Increment | Decrement -> (match e with EConst _ | EField _ | EArray _ -> true | EMeta(_,e1) -> is_postfix e1 op | _ -> false)
+	| Increment | Decrement -> true
 	| Not | Neg | NegBits -> false
 
 let is_prefix = function
@@ -624,16 +630,17 @@ let unescape s =
 					inext := !inext + 2;
 				| 'u' ->
 					let (u, a) =
-					  (try
-					      (int_of_string ("0x" ^ String.sub s (i+1) 4), 4)
-					    with
-					      _ -> try
-						assert (s.[i+1] = '{');
-						let l = String.index_from s (i+3) '}' - (i+2) in
-						let u = int_of_string ("0x" ^ String.sub s (i+2) l) in
-						assert (u <= 0x10FFFF);
-						(u, l+2)
-					      with _ -> raise Exit) in
+						try
+							(int_of_string ("0x" ^ String.sub s (i+1) 4), 4)
+						with _ -> try
+							assert (s.[i+1] = '{');
+							let l = String.index_from s (i+3) '}' - (i+2) in
+							let u = int_of_string ("0x" ^ String.sub s (i+2) l) in
+							assert (u <= 0x10FFFF);
+							(u, l+2)
+						with _ ->
+							raise Exit
+					in
 					let ub = UTF8.Buf.create 0 in
 					UTF8.Buf.add_char ub (UChar.uchar_of_int u);
 					Buffer.add_string b (UTF8.Buf.contents ub);

@@ -92,7 +92,7 @@ enum ValueType {
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		var f = Reflect.field(e,constr);
+		var f:Dynamic = Reflect.field(e,constr);
 		if( f == null ) throw "No such constructor "+constr;
 		if( Reflect.isFunction(f) ) {
 			if( params == null ) throw "Constructor "+constr+" need parameters";

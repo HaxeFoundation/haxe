@@ -110,7 +110,7 @@ import cs.internal.Function;
 	@:functionCode('
 		return ((haxe.lang.Function) func).__hx_invokeDynamic(args);
 	')
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
 		return null;
 	}
@@ -140,12 +140,9 @@ import cs.internal.Function;
 		return false;
 	}
 
-	@:functionCode('
-		return haxe.lang.Runtime.compare(a, b);
-	')
 	public static function compare<T>( a : T, b : T ) : Int
 	{
-		return 0;
+		return cs.internal.Runtime.compare(a, b);
 	}
 
 	@:functionCode('

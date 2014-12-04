@@ -104,6 +104,12 @@ type context = {
 	mutable for_call : bool;
 }
 
+let rec follow t = match Type.follow t with
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+		follow (Abstract.get_underlying_type a tl)
+	| t ->
+		t
+
 let invalid_expr p = error "Invalid expression" p
 let stack_error p = error "Stack error" p
 
@@ -204,9 +210,9 @@ let rec follow_basic t =
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
 	| TType (t,tl) ->
-		follow_basic (apply_params t.t_types tl t.t_type)
+		follow_basic (apply_params t.t_params tl t.t_type)
 	| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-		follow_basic (apply_params a.a_types pl a.a_this)
+		follow_basic (apply_params a.a_params pl a.a_this)
 	| _ -> t
 
 let rec type_id ctx t =
@@ -348,7 +354,7 @@ let property ctx p t =
 		(* cast type when accessing an extension field *)
 		(try
 			let f = PMap.find p c.cl_fields in
-			ident p, Some (classify ctx (apply_params c.cl_types params f.cf_type)), false
+			ident p, Some (classify ctx (apply_params c.cl_params params f.cf_type)), false
 		with Not_found ->
 			ident p, None, false)
 	| TInst ({ cl_interface = true } as c,_) ->
@@ -356,7 +362,7 @@ let property ctx p t =
 		let rec loop c =
 			try
 				(match PMap.find p c.cl_fields with
-				| { cf_kind = Var _ } -> raise Exit (* no vars in interfaces in swf9 *)
+				| { cf_kind = Var _ | Method MethDynamic } -> raise Exit (* no vars in interfaces in swf9 *)
 				| _ -> c)
 			with Not_found ->
 				let rec loop2 = function
@@ -878,8 +884,8 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		write ctx (HGetProp (ident "params"));
 		write ctx (HSmallInt i);
 		VArray
-	| TField (e1,f) ->
-		let f = field_name f in
+	| TField (e1,fa) ->
+		let f = field_name fa in
 		let id, k, closure = property ctx f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
@@ -893,8 +899,14 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		| _ , TFun _ when not ctx.for_call -> VCast(id,classify ctx e.etype)
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
+			let is_type_parameter_field = match fa with
+				| FInstance(_,_,cf) ->
+					(match follow cf.cf_type with TInst({cl_kind = KTypeParameter _},_) -> true | _ -> false)
+				| _ ->
+					List.exists (fun t -> follow t == et) tl
+			in
 			(* if the return type is one of the type-parameters, then we need to cast it *)
-			if List.exists (fun t -> follow t == et) tl then
+			if is_type_parameter_field then
 				VCast (id, classify ctx et)
 			else if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
@@ -1293,59 +1305,6 @@ let rec gen_expr_content ctx retval e =
 		);
 		List.iter (fun j -> j()) jend;
 		branch());
-(* 	| TMatch (e0,_,cases,def) ->
-		let t = classify ctx e.etype in
-		let rparams = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
-		let has_params = List.exists (fun (_,p,_) -> p <> None) cases in
-		gen_expr ctx true e0;
-		if has_params then begin
-			write ctx HDup;
-			write ctx (HGetProp (ident "params"));
-			set_reg ctx rparams;
-		end;
-		write ctx (HGetProp (ident "index"));
-		write ctx HToInt;
-		let switch,case = begin_switch ctx in
-		(match def with
-		| None ->
-			if retval then begin
-				write ctx HNull;
-				coerce ctx t;
-			end;
-		| Some e ->
-			gen_expr ctx retval e;
-			if retval && classify ctx e.etype <> t then coerce ctx t);
-		let jends = List.map (fun (cl,params,e) ->
-			let j = jump ctx J3Always in
-			List.iter case cl;
-			pop_value ctx retval;
-			let b = open_block ctx retval in
-			(match params with
-			| None -> ()
-			| Some l ->
-				let p = ref (-1) in
-				List.iter (fun v ->
-					incr p;
-					match v with
-					| None -> ()
-					| Some v ->
-						define_local ctx v e.epos;
-						let acc = gen_local_access ctx v e.epos Write in
-						write ctx (HReg rparams.rid);
-						write ctx (HSmallInt !p);
-						getvar ctx VArray;
-						setvar ctx acc None
-				) l
-			);
-			gen_expr ctx retval e;
-			b();
-			if retval && classify ctx e.etype <> t then coerce ctx t;
-			j
-		) cases in
-		switch();
-		List.iter (fun j -> j()) jends;
-		free_reg ctx rparams *)
-	| TPatMatch dt -> assert false
 	| TCast (e1,t) ->
 		gen_expr ctx retval e1;
 		if retval then begin
@@ -1737,7 +1696,7 @@ and generate_function ctx fdata stat =
 			| TReturn (Some e) ->
 				let rec inner_loop e =
 					match e.eexpr with
-					| TSwitch _ | TPatMatch _ | TFor _ | TWhile _ | TTry _ -> false
+					| TSwitch _ | TFor _ | TWhile _ | TTry _ -> false
 					| TIf _ -> loop e
 					| TParenthesis e | TMeta(_,e) -> inner_loop e
 					| _ -> true
@@ -1934,36 +1893,29 @@ let generate_enum_init ctx e hc meta =
 	write ctx (HGetLex (type_path ctx path));
 	write ctx (HClassDef hc);
 	write ctx HPopScope;
-	let r = alloc_reg ctx KDynamic in
-	write ctx HDup;
-	write ctx (HSetReg r.rid); (* needed for setslot *)
 	write ctx (HInitProp name_id);
-	let nslot = ref 0 in
 	PMap.iter (fun _ f ->
-		incr nslot;
 		match f.ef_type with
 		| TFun _ -> ()
 		| _ ->
-			write ctx (HReg r.rid);
+			write ctx (HGetLex name_id);
 			write ctx (HFindPropStrict name_id);
 			write ctx (HString f.ef_name);
 			write ctx (HInt f.ef_index);
 			write ctx HNull;
 			write ctx (HConstructProperty (name_id,3));
-			write ctx (HSetSlot !nslot);
+			write ctx (HInitProp (ident f.ef_name));
 	) e.e_constrs;
-	write ctx (HReg r.rid);
+	write ctx (HGetLex name_id);
 	List.iter (fun n -> write ctx (HString n)) e.e_names;
 	write ctx (HArray (List.length e.e_names));
-	write ctx (HSetProp (ident "__constructs__"));
-	(match meta with
+	write ctx (HInitProp (ident "__constructs__"));
+	match meta with
 	| None -> ()
 	| Some e ->
-		write ctx (HReg r.rid);
+		write ctx (HGetLex name_id);
 		gen_expr ctx true e;
-		write ctx (HSetProp (ident "__meta__"));
-	);
-	free_reg ctx r
+		write ctx (HInitProp (ident "__meta__"))
 
 let extract_meta meta =
 	let rec loop = function
@@ -2016,7 +1968,7 @@ let generate_field_kind ctx f c stat =
 			Some (HFMethod {
 				hlm_type = m;
 				hlm_final = stat || (Meta.has Meta.Final f.cf_meta);
-				hlm_override = not stat && loop c name;
+				hlm_override = not stat && (loop c name || loop c f.cf_name);
 				hlm_kind = kind;
 			})
 		);
@@ -2044,7 +1996,7 @@ let generate_field_kind ctx f c stat =
 			hlv_value = HVNone;
 			hlv_const = false;
 		})
-		
+
 let check_constructor ctx c f =
 	(*
 		check that we don't assign a super Float var before we call super() : will result in NaN
@@ -2053,7 +2005,7 @@ let check_constructor ctx c f =
 		Type.iter loop e;
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
-		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,cf)) },_) when c != cc && (match classify ctx cf.cf_type with KFloat | KDynamic -> true | _ -> false) ->
+		| TBinop (OpAssign,{ eexpr = TField({ eexpr = TConst TThis },FInstance (cc,_,cf)) },_) when c != cc && (match classify ctx cf.cf_type with KFloat | KDynamic -> true | _ -> false) ->
 			error "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos
 		| _ -> ()
 	in
@@ -2061,7 +2013,7 @@ let check_constructor ctx c f =
 		loop f.tf_expr
 	with Exit ->
 		()
-		
+
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
@@ -2221,7 +2173,7 @@ let generate_class ctx c =
 let generate_enum ctx e meta =
 	let name_id = type_path ctx e.e_path in
 	let api = ctx.com.basic in
-	let f = begin_fun ctx [alloc_var "tag" api.tstring, None;alloc_var "index" api.tint, None;alloc_var "params" (mk_mono()), None] api.tvoid [ethis] false e.e_pos in
+	let f = begin_fun ctx [alloc_var "tag" api.tstring, None;alloc_var "index" api.tint, None;alloc_var "params" (api.tarray (mk_mono())), None] api.tvoid [ethis] false e.e_pos in
 	let tag_id = ident "tag" in
 	let index_id = ident "index" in
 	let params_id = ident "params" in
@@ -2242,8 +2194,10 @@ let generate_enum ctx e meta =
 	write ctx (HCallProperty (ident "enum_to_string",1));
 	write ctx HRet;
 	let tostring = f() in
-	let st_count = ref 0 in
+	let st_field_count = ref 0 in
+	let st_meth_count = ref 0 in
 	let constrs = PMap.fold (fun f acc ->
+		let st_count = (match f.ef_type with TFun _ -> st_meth_count | _ -> st_field_count) in
 		incr st_count;
 		{
 			hlf_name = ident f.ef_name;
@@ -2275,10 +2229,10 @@ let generate_enum ctx e meta =
 	let constrs = (match meta with
 		| None -> constrs
 		| Some _ ->
-			incr st_count;
+			incr st_field_count;
 			{
 				hlf_name = ident "__meta__";
-				hlf_slot = !st_count;
+				hlf_slot = !st_field_count;
 				hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
 				hlf_metas = None;
 			} :: constrs
@@ -2311,17 +2265,17 @@ let generate_enum ctx e meta =
 			};
 		|];
 		hlc_static_construct = empty_method ctx e.e_pos;
-		hlc_static_fields = Array.of_list ({
+		hlc_static_fields = Array.of_list (List.rev ({
 			hlf_name = ident "__isenum";
-			hlf_slot = !st_count + 2;
+			hlf_slot = !st_field_count + 2;
 			hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Boolean")); hlv_value = HVBool true; hlv_const = true; };
 			hlf_metas = None;
 		} :: {
 			hlf_name = ident "__constructs__";
-			hlf_slot = !st_count + 1;
-			hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
+			hlf_slot = !st_field_count + 1;
+			hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Array")); hlv_value = HVNone; hlv_const = false; };
 			hlf_metas = None;
-		} :: constrs);
+		} :: constrs));
 	}
 
 let rec generate_type ctx t =

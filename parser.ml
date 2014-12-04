@@ -660,6 +660,8 @@ and parse_import s p1 =
 			p2, List.rev acc, INormal
 		| [< '(Kwd In,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
 			p2, List.rev acc, IAsName name
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName name
 		| [< >] ->
 			serror()
 	in
@@ -1067,7 +1069,7 @@ and block acc s =
 			let tk , pos = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			(!display_error) (Unexpected tk) pos;
 			block acc s
-        | Error (e,p) ->
+		| Error (e,p) ->
 			(!display_error) e p;
 			block acc s
 
@@ -1094,7 +1096,7 @@ and parse_array_decl = parser
 and parse_var_decl = parser
 	| [< name, _ = dollar_ident; t = parse_type_opt; s >] ->
 		match s with parser
-		| [< '(Binop OpAssign,_); e = expr >] -> (name,t,Some e)
+		| [< '(Binop OpAssign,_); s >] -> let e = try expr s with Display e -> e in (name,t,Some e)
 		| [< >] -> (name,t,None)
 
 and inline_function = parser
@@ -1222,7 +1224,7 @@ and expr = parser
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 = parser
- 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
+	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
 		| EConst(Ident n) -> expr_next (EMeta((Common.MetaInfo.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
@@ -1265,8 +1267,13 @@ and expr_next e1 = parser
 			make_binop OpGte e1 (secure_expr s)
 		| [< e2 = secure_expr >] ->
 			make_binop OpGt e1 e2)
-	| [< '(Binop op,_); e2 = expr >] ->
-		make_binop op e1 e2
+	| [< '(Binop op,_); s >] ->
+		(try
+			(match s with parser
+			| [< e2 = expr >] -> make_binop op e1 e2
+			| [< >] -> serror())
+		with Display e2 ->
+			raise (Display (make_binop op e1 e2)))
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->

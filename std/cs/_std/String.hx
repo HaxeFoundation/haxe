@@ -23,7 +23,8 @@ import cs.StdTypes;
 
 @:coreApi extern class String implements ArrayAccess<Char16> {
 
-	private static function Compare(s1:String, s2:String):Int;
+	@:overload private static function Compare(s1:String, s2:String):Int;
+	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
 
 	var length(default,null) : Int;
 
@@ -51,6 +52,7 @@ import cs.StdTypes;
 
 	static function fromCharCode( code : Int ) : String;
 
+	private function IndexOf(value:String, startIndex:Int, comparisonType:cs.system.StringComparison):Int;
 	private function Replace(oldValue:String, newValue:String):String;
 	private function StartsWith(value:String):Bool;
 	private function EndsWith(value:String):Bool;

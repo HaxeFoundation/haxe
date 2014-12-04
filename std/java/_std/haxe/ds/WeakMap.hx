@@ -25,7 +25,7 @@ import java.NativeArray;
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 
-@:coreApi class WeakMap<K:{}, V> implements Map.IMap<K,V>
+@:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
 	@:extern private static inline var HASH_UPPER = 0.77;
 	@:extern private static inline var FLAG_EMPTY = 0;
@@ -66,6 +66,7 @@ import java.lang.ref.ReferenceQueue;
 		queue = new ReferenceQueue();
 	}
 
+	@:analyzer(ignore)
 	private function cleanupRefs():Void
 	{
 		var x:Dynamic = null, nOccupied = nOccupied;
@@ -390,7 +391,7 @@ import java.lang.ref.ReferenceQueue;
 				{
 					if (!isEither(hashes[j]))
 					{
-						var entry = entries[i];
+						var entry = entries[j];
 						var last = entry.get();
 						if (last != null)
 						{

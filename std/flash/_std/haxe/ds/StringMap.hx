@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements Map.IMap<String,T> {
+@:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
 	private var h :flash.utils.Dictionary;
 

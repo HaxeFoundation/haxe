@@ -1,8 +1,11 @@
 package cpp;
 
 @:coreType @:structAccess @:include("cpp/Pointer.h")
+@:analyzer(no_simplification)
 extern class Function<T>
 {
+   public function new(d:Dynamic);
+
    // Actually a function pointer, but can be called using haxe notation
 	public var call(default,null):T;
 

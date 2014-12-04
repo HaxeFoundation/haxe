@@ -54,7 +54,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
 	public inline function new(length:Int) {
-		#if flash9
+		#if flash10
 			this = new flash.Vector<T>(length, true);
 		#elseif neko
 			this = untyped __dollar__amake(length);
@@ -205,6 +205,12 @@ abstract Vector<T>(VectorData<T>) {
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		#if python
 		return cast array.copy();
+		#elseif flash9
+		return fromData(flash.Vector.ofArray(array));
+		#elseif java
+		return fromData(java.Lib.nativeArray(array,false));
+		#elseif cs
+		return fromData(cs.Lib.nativeArray(array,false));
 		#else
 		// TODO: Optimize this for flash (and others?)
 		var vec = new Vector<T>(array.length);

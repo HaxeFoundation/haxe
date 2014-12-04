@@ -1,0 +1,3 @@
+compile2-each.hxml
+--macro keep('pack1.pack2.Test.get12')
+--macro keep('pack1.pack2.Test.new')

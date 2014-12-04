@@ -203,7 +203,7 @@ class BalancedTree<K,V> {
 	}
 
 	public function toString() {
-		return '{${root.toString()}}';
+		return root == null ? '{}' : '{${root.toString()}}';
 	}
 }
 

@@ -21,7 +21,8 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements php.IteratorAggregate<T> implements Map.IMap<String,T> {
+@:coreApi class StringMap<T> implements php.IteratorAggregate<T> implements haxe.Constraints.IMap<String,T> {
+	@:analyzer(no_simplification)
 	private var h : ArrayAccess<T>;
 
 	public function new() : Void {

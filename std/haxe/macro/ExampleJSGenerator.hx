@@ -49,6 +49,7 @@ class ExampleJSGenerator {
 		return switch(t) {
 			case TInst(c, _): getPath(c.get());
 			case TEnum(e, _): getPath(e.get());
+			case TAbstract(a, _): getPath(a.get());
 			default: throw "assert";
 		};
 	}

@@ -28,6 +28,7 @@ package haxe;
 	It is intended to be used as a type parameter constraint. If used as a real
 	type, the underlying type will be `Dynamic`.
 **/
+@:callable
 abstract Function(Dynamic) { }
 
 /**
@@ -38,3 +39,13 @@ abstract Function(Dynamic) { }
 	type, the underlying type will be `Dynamic`.
 **/
 abstract FlatEnum(Dynamic) { }
+
+interface IMap<K,V> {
+	public function get(k:K):Null<V>;
+	public function set(k:K, v:V):Void;
+	public function exists(k:K):Bool;
+	public function remove(k:K):Bool;
+	public function keys():Iterator<K>;
+	public function iterator():Iterator<V>;
+	public function toString():String;
+}

@@ -30,7 +30,7 @@ private enum FileKind {
 @:coreApi
 class FileSystem {
 
-	public static inline function exists( path : String ) : Bool {
+	public static function exists( path : String ) : Bool {
 		return sys_exists(haxe.io.Path.removeTrailingSlashes(path));
 	}
 
@@ -53,6 +53,11 @@ class FileSystem {
 		return new String(file_full_path(relPath));
 	}
 
+	public static function absPath ( relPath : String ) : String {
+		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
+		return haxe.io.Path.join([Sys.getCwd(), relPath]);
+	}
+
 	static function kind( path : String ) : FileKind {
 		var k:String = sys_file_type(haxe.io.Path.removeTrailingSlashes(path));
 		return switch(k) {
@@ -68,8 +73,12 @@ class FileSystem {
 
 	public static function createDirectory( path : String ) : Void {
 		var path = haxe.io.Path.addTrailingSlash(path);
-		var parts = [while ((path = haxe.io.Path.directory(path)) != "") path];
-		parts.reverse();
+		var _p = null;
+		var parts = [];
+		while (path != (_p = haxe.io.Path.directory(path))) {
+			parts.unshift(path);
+			path = _p;
+		}
 		for (part in parts) {
 			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && sys_create_dir( part, 493 )==null)
 				throw "Could not create directory:" + part;

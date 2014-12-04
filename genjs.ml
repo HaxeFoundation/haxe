@@ -123,7 +123,7 @@ let valid_js_ident s =
 	with Exit ->
 		false
 
-let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
+let field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 
@@ -244,7 +244,7 @@ let write_mappings ctx =
 	output_string channel "{\n";
 	output_string channel "\"version\":3,\n";
 	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"file://\",\n");
+	output_string channel ("\"sourceRoot\":\"file:///\",\n");
 	output_string channel ("\"sources\":[" ^
 		(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
 		"],\n");
@@ -306,7 +306,7 @@ let rec has_return e =
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ | TPatMatch _ when not in_switch -> iter_switch_break true e
+	| TSwitch _ when not in_switch -> iter_switch_break true e
 	| TBreak when in_switch -> raise Exit
 	| _ -> iter (iter_switch_break in_switch) e
 
@@ -402,6 +402,8 @@ let rec gen_call ctx e el in_value =
 		spr ctx (this ctx)
 	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+	| TLocal { v_name = "__js__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
 	| TLocal { v_name = "__instanceof__" },  [o;t] ->
 		spr ctx "(";
 		gen_value ctx o;
@@ -492,6 +494,12 @@ and gen_expr ctx e =
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
+	| TField (x,FClosure (Some {cl_path=[],"Array"}, {cf_name="push"})) ->
+		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
+		add_feature ctx "use.$arrayPushClosure";
+		print ctx "$arrayPushClosure(";
+		gen_value ctx x;
+		print ctx ")"
 	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use.$bind";
 		(match x.eexpr with
@@ -510,6 +518,8 @@ and gen_expr ctx e =
 		print ctx "[%i]" (i + 2)
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
 		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
+	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
+		gen_value ctx x;
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
@@ -571,6 +581,8 @@ and gen_expr ctx e =
 				spr ctx " = ";
 				gen_value ctx e
 		end
+	| TNew ({ cl_path = [],"Array" },_,[]) ->
+		print ctx "[]"
 	| TNew (c,_,el) ->
 		print ctx "new %s(" (ctx.type_accessor (TClassDecl c));
 		concat ctx "," (gen_value ctx) el;
@@ -698,7 +710,6 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}";
-	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
 		gen_value ctx e;
@@ -756,6 +767,8 @@ and gen_block_element ?(after=false) ctx e =
 			| _ -> assert false)
 	| TFunction _ ->
 		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+	| TObjectDecl fl ->
+		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| _ ->
 		if not after then newline ctx;
 		gen_expr ctx e;
@@ -849,7 +862,7 @@ and gen_value ctx e =
 	| TIf (cond,e,eo) ->
 		(* remove parenthesis unless it's an operation with higher precedence than ?: *)
 		let cond = (match cond.eexpr with
-			| TParenthesis { eexpr = TBinop ((Ast.OpAssign | Ast.OpAssignOp _),_,_) } -> cond
+			| TParenthesis { eexpr = TBinop ((Ast.OpAssign | Ast.OpAssignOp _),_,_) | TIf _ } -> cond
 			| TParenthesis e -> e
 			| _ -> cond
 		) in
@@ -867,7 +880,6 @@ and gen_value ctx e =
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
-	| TPatMatch dt -> assert false
 	| TTry (b,catchs) ->
 		let v = value() in
 		let block e = mk (TBlock [e]) e.etype e.epos in
@@ -922,9 +934,10 @@ let gen_class_static_field ctx c f =
 		match e.eexpr with
 		| TFunction _ ->
 			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
+			let dot_path = (dot_path c.cl_path) ^ (static_field f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
-			(match (get_exposed ctx path f.cf_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
+			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
@@ -977,10 +990,16 @@ let generate_class ctx c =
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
-	(match (get_exposed ctx p c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
-	(match c.cl_constructor with
-	| Some { cf_expr = Some e } -> gen_expr ctx e
-	| _ -> (print ctx "function() { }"); ctx.separator <- true);
+	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
+	(match c.cl_kind with
+		| KAbstractImpl _ ->
+			(* abstract implementations only contain static members and don't need to have constructor functions *)
+			print ctx "{}"; ctx.separator <- true
+		| _ ->
+			(match c.cl_constructor with
+			| Some { cf_expr = Some e } -> gen_expr ctx e
+			| _ -> (print ctx "function() { }"); ctx.separator <- true)
+	);
 	newline ctx;
 	if ctx.js_modern && hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
@@ -1015,7 +1034,7 @@ let generate_class ctx c =
 		(match c.cl_super with
 		| None -> print ctx "%s.prototype = {" p;
 		| Some (csup,_) ->
-			let psup = s_path ctx csup.cl_path in
+			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx;
 			print ctx "%s.prototype = $extend(%s.prototype,{" p psup;
@@ -1133,9 +1152,12 @@ let generate_type ctx = function
 		(* Special case, want to add Math.__name__ only when required, handle here since Math is extern *)
 		let p = s_path ctx c.cl_path in
 		if p = "Math" then generate_class___name__ ctx c;
-		if not c.cl_extern then
+		(* Another special case for Std because we do not want to generate it if it's empty. *)
+		if p = "Std" && c.cl_ordered_statics = [] then
+			()
+		else if not c.cl_extern then
 			generate_class ctx c
-		else if Meta.has Meta.JsRequire c.cl_meta then
+		else if (Meta.has Meta.JsRequire c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then
 			generate_require ctx c
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
@@ -1209,7 +1231,7 @@ let generate com =
 	let exposed = List.concat (List.map (fun t ->
 		match t with
 			| TClassDecl c ->
-				let path = s_path ctx c.cl_path in
+				let path = dot_path c.cl_path in
 				let class_exposed = get_exposed ctx path c.cl_meta in
 				let static_exposed = List.map (fun f ->
 					get_exposed ctx (path ^ static_field f.cf_name) f.cf_meta
@@ -1264,6 +1286,8 @@ let generate com =
 		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
 
+	if not (Common.defined com Define.JsEs5) then
+		spr ctx "var console = (1,eval)('this').console || {log:function(){}};\n";
 	(* TODO: fix $estr *)
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
@@ -1307,6 +1331,12 @@ let generate com =
 		newline ctx;
 		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
+	end;
+	if has_feature ctx "use.$arrayPushClosure" then begin
+		print ctx "function $arrayPushClosure(a) {";
+		print ctx " return function(x) { a.push(x); }; ";
+		print ctx "}";
+		newline ctx
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);

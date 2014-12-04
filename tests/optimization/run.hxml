@@ -1,5 +1,17 @@
 -cp src
+-D analyzer
+--each
+
+-main TestAnalyzer
+--interp
+
+--next
+-main TestNullChecker
+--interp
+
+--next
 -js testopt.js
 --macro Macro.register('Test')
 --macro Macro.register('TestJs')
+--macro Macro.register('TestLocalDce')
 -dce std

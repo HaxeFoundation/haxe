@@ -34,27 +34,21 @@ class Lib
 		Changes the current culture settings to allow a consistent cross-target behavior.
 		Currently the only change made is in regard to the decimal separator, which is always set to "."
 	**/
-	@:functionCode('
-			System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
-			decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
-            ci.NumberFormat.NumberDecimalSeparator = ".";
-            System.Threading.Thread.CurrentThread.CurrentCulture = ci;
-	')
 	@:keep public static function applyCultureChanges():Void
 	{
-
+		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
+		decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
+		ci.NumberFormat.NumberDecimalSeparator = ".";
+		cs.system.threading.Thread.CurrentThread.CurrentCulture = ci;
 	}
 
 	/**
 		Reverts the culture changes to the default settings.
 	**/
-	@:functionCode('
-		System.Globalization.CultureInfo ci = new System.Globalization.CultureInfo(System.Threading.Thread.CurrentThread.CurrentCulture.Name, true);
-		System.Threading.Thread.CurrentThread.CurrentCulture = ci;
-	')
 	public static function revertDefaultCulture():Void
 	{
-
+		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
+		cs.system.threading.Thread.CurrentThread.CurrentCulture = ci;
 	}
 
 	/**
@@ -63,18 +57,18 @@ class Lib
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	@:extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	{
+		var ret = new cs.NativeArray(arr.length);
+		p_nativeArray(arr,ret);
+		return ret;
+	}
+
+	static function p_nativeArray<T>(arr:Array<T>, ret:cs.system.Array):Void
 	{
 		var native:NativeArray<T> = untyped arr.__a;
 		var len = arr.length;
-		if (!equalLengthRequired || native.Length == len)
-		{
-			return native;
-		} else {
-			var ret = new NativeArray<T>(len);
-			cs.system.Array.Copy(native, 0, ret, 0, len);
-			return ret;
-		}
+		cs.system.Array.Copy(native, 0, ret, 0, len);
 	}
 
 	/**
@@ -83,12 +77,9 @@ class Lib
 
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
-	@:functionCode('
-			throw new haxe.lang.HaxeException("This function cannot be accessed at runtime");
-	')
 	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
-		return untyped __as__(obj, cl);
+		return untyped __as__(obj);
 	}
 
 	/**
@@ -109,6 +100,14 @@ class Lib
 		This may change in the future, so use this function whenever you need to perform such conversion.
 	**/
 	public static inline function toNativeType(cl:Class<Dynamic>):Type
+	{
+		return untyped cl;
+	}
+
+	/**
+		Returns a System.Type equivalent to the Haxe Enum<> type.
+	**/
+	public static inline function toNativeEnum(cl:Enum<Dynamic>):Type
 	{
 		return untyped cl;
 	}
@@ -137,6 +136,15 @@ class Lib
 	public static function arrayAlloc<T>(size:Int):Array<T>
 	{
 		return untyped Array.alloc(size);
+	}
+
+	/**
+		Rethrow an exception. This is useful when manually filtering an exception in order
+		to keep the previous exception stack.
+	**/
+	@:extern inline public static function rethrow(e:Dynamic):Void
+	{
+		untyped __rethrow__();
 	}
 
 	/**
@@ -260,7 +268,7 @@ class Lib
 	**/
 	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
 	{
-		return cast array;
+		return untyped __ptr__(array);
 	}
 
 	/**

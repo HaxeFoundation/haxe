@@ -115,8 +115,8 @@ class EReg {
 
 		If `s` is null, the result is unspecified.
 	**/
-	public function matchSub( s : String, pos : Int, ?len : Int):Bool {
-		if (len != null) {
+	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+		if (len != -1) {
 			matchObj = pattern.search(s, pos, pos+len);
 		} else {
 			matchObj = pattern.search(s, pos);
@@ -155,14 +155,13 @@ class EReg {
 				lastEnd = x.end();
 			}
 			ret.push(s.substr(lastEnd));
-			return ret;
+			ret;
 		} else {
 			this.match(s);
 			if (matchObj == null) {
-
-				return [s];
+				[s];
 			} else {
-				return [ s.substring(0, matchObj.start()), s.substr(matchObj.end()) ];
+				[ s.substring(0, matchObj.start()), s.substr(matchObj.end()) ];
 			}
 
 		}

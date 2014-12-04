@@ -1,0 +1,65 @@
+version: "{build}"
+
+os: unstable #http://help.appveyor.com/discussions/suggestions/427-pre-install-cygwin
+
+platform:
+    - Win32
+
+clone_folder: C:/projects/haxe
+
+environment:
+    global:
+        NEKO_ROOT: C:/projects/neko
+        HAXELIB_ROOT: C:/projects/haxelib
+    matrix:
+        -   CYG_ARCH: x86
+            CYG_ROOT: C:/cygwin
+            CYG_SETUP: C:/cygwin/setup-x86.exe
+            WODI_ARCH: 32
+            MINGW_ARCH: i686
+        # -   CYG_ARCH: x86_64
+        #     CYG_ROOT: C:/cygwin64
+        #     WODI_ARCH: 64
+        #     MINGW_ARCH: x86_64
+
+init:
+    - 'echo System architecture: %PLATFORM%'
+
+install:
+    - 'git submodule update --init --recursive'
+    # Install ocaml using wodi
+    - '%CYG_ROOT%/setup-%CYG_ARCH%.exe -q -R "%CYG_ROOT%" -P wget -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ >NUL'
+    - '%CYG_ROOT%/bin/bash -lc "cygcheck -dc cygwin"'
+    - '%CYG_ROOT%/bin/bash -lc "wget -q http://ml.ignorelist.com/wodi/8/wodi%WODI_ARCH%.tar.xz -O /tmp/wodi%WODI_ARCH%.tar.xz"'
+    - '%CYG_ROOT%/bin/bash -lc "cd /tmp && rm -rf wodi%WODI_ARCH% && tar -xf wodi%WODI_ARCH%.tar.xz && bash wodi%WODI_ARCH%/install.sh"'
+    - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip"'
+    - 'set PATH=%PATH%;%CYG_ROOT%/opt/wodi%WODI_ARCH%/bin'
+    # Install neko
+    - cinst make
+    - cinst SQLite -version 3.8.5
+    - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
+    - 'cd %NEKO_ROOT%'
+    - set PATH=%PATH%;%NEKO_ROOT%/bin
+    - msbuild neko_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    - msbuild libs/libs_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    - copy /y libs\include\gc\gc.dll bin
+    - cd %NEKO_ROOT%/src
+    - neko ../boot/nekoc tools/install.neko
+    - neko tools/install -nolibs
+    - neko -version
+
+build_script:
+    - 'cd %APPVEYOR_BUILD_FOLDER%'
+    - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% tools"'
+    - cd %APPVEYOR_BUILD_FOLDER%/tests/
+    - mkdir "%HAXELIB_ROOT%"
+    - haxelib setup "%HAXELIB_ROOT%"
+    - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
+
+test_script:
+    - cd %APPVEYOR_BUILD_FOLDER%/tests/
+    - haxe -version
+    - haxe -neko RunCi.n -main RunCi -lib hx-yaml
+    - neko RunCi.n

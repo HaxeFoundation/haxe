@@ -25,28 +25,28 @@ package sys.db;
 
 /** int with auto increment **/
 @:noPackageRestrict
-typedef SId = Int
+typedef SId = Null<Int>
 
 /** int unsigned with auto increment **/
-typedef SUId = Int
+typedef SUId = Null<Int>
 
 /** big int with auto increment **/
-typedef SBigId = Float
+typedef SBigId = Null<Float>
 
-typedef SInt = Int
+typedef SInt = Null<Int>
 
-typedef SUInt = Int
+typedef SUInt = Null<Int>
 
-typedef SBigInt = Float
+typedef SBigInt = Null<Float>
 
 /** single precision float **/
-typedef SSingle = Float
+typedef SSingle = Null<Float>
 
 /** double precision float **/
-typedef SFloat = Float
+typedef SFloat = Null<Float>
 
 /** use tinyint(1) to distinguish with int **/
-typedef SBool = Bool
+typedef SBool = Null<Bool>
 
 /** same as varchar(n) **/
 typedef SString<Const> = String
@@ -82,30 +82,30 @@ typedef SBinary = haxe.io.Bytes
 typedef SBytes<Const> = haxe.io.Bytes
 
 /** one byte signed [-128...127] **/
-typedef STinyInt = Int
+typedef STinyInt = Null<Int>
 
 /** two bytes signed [-32768...32767] **/
-typedef SSmallInt = Int;
+typedef SSmallInt = Null<Int>
 
 /** three bytes signed [-8388608...8388607] **/
-typedef SMediumInt = Int;
+typedef SMediumInt = Null<Int>
 
 /** one byte [0...255] **/
-typedef STinyUInt = Int
+typedef STinyUInt = Null<Int>
 
 /** two bytes [0...65535] **/
-typedef SSmallUInt = Int;
+typedef SSmallUInt = Null<Int>
 
 /** three bytes [0...16777215] **/
-typedef SMediumUInt = Int;
+typedef SMediumUInt = Null<Int>
 
 // extra
 
 /** specify that this field is nullable **/
-typedef SNull<T> = T
+typedef SNull<T> = Null<T>
 
 /** specify that the integer use custom encoding **/
-typedef SEncoded = Int
+typedef SEncoded = Null<Int>
 
 /** haxe Serialized string **/
 typedef SSerialized = String
@@ -114,14 +114,14 @@ typedef SSerialized = String
 typedef SNekoSerialized = haxe.io.Bytes
 
 /** a set of bitflags of different enum values **/
-typedef SFlags<T:EnumValue> = haxe.EnumFlags<T>
+typedef SFlags<T:EnumValue> = Null<haxe.EnumFlags<T>>
 
 /** same as [SFlags] but will adapt the storage size to the number of flags **/
 typedef SSmallFlags<T:EnumValue> = SFlags<T>;
 
 /** allow to store any value in serialized form **/
-typedef SData<T> = T
+typedef SData<T> = Null<T>
 
 /** allow to store an enum value that does not have parameters as a simple int **/
-typedef SEnum<E:EnumValue> = E
+typedef SEnum<E:EnumValue> = Null<E>
 

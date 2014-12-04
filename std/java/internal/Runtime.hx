@@ -406,6 +406,9 @@ package java.internal;
 			{
 				cls[i] = java.lang.Number.class;
 				isNum = hasNumber = true;
+			} else if (o instanceof java.lang.Boolean) {
+				cls[i] = java.lang.Boolean.class;
+				isNum = true;
 			}
 
 			msl = realMsl;

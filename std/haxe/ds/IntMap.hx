@@ -26,7 +26,7 @@ package haxe.ds;
 
 	See `Map` for documentation details.
 **/
-extern class IntMap<T> implements Map.IMap<Int,T> {
+extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
 	/**
 		Creates a new IntMap.

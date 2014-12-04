@@ -27,11 +27,10 @@ import cs.system.Random;
 	public static inline function __init__():Void
 	{
 		PI = cs.system.Math.PI;
-		NaN = untyped __cs__("double.NaN");
-		NEGATIVE_INFINITY = untyped __cs__("double.NegativeInfinity");
-		POSITIVE_INFINITY = untyped __cs__("double.PositiveInfinity");
+		NaN = cs.system.Double.NaN;
+		NEGATIVE_INFINITY = cs.system.Double.NegativeInfinity;
+		POSITIVE_INFINITY = cs.system.Double.PositiveInfinity;
 		rand = new Random();
-
 	}
 
 	private static var rand:Random;
@@ -153,13 +152,13 @@ import cs.system.Random;
 		return rand.NextDouble();
 	}
 
-	public static function isFinite( f : Float ) : Bool
+	public static inline function isFinite( f : Float ) : Bool
 	{
-		return untyped __cs__("!double.IsInfinity(f) && !double.IsNaN(f)");
+		return !cs.system.Double.IsInfinity(f) && !cs.system.Double.IsNaN(f);
 	}
 
-	public static function isNaN( f : Float ) : Bool
+	public static inline function isNaN( f : Float ) : Bool
 	{
-		return untyped __cs__("double.IsNaN(f)");
+		return cs.system.Double.IsNaN(f);
 	}
 }

@@ -5,5 +5,5 @@
 
 compile-each.hxml
 -main unit.Test
--cs cs
+-cs bin/cs
 -net-lib native_cs/bin/native_cs.dll

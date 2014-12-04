@@ -185,7 +185,7 @@ private class TimerTask extends java.util.TimerTask {
 		this.timer = timer;
 	}
 
-	@:overload public function run():Void {
+	@:overload override public function run():Void {
 		timer.run();
 	}
 }

@@ -71,6 +71,7 @@ let keep_field dce cf =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
+	|| is_extern_field cf
 
 (* marking *)
 
@@ -129,16 +130,20 @@ let rec update_marked_class_fields dce c =
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
 and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
 	c.cl_meta <- (Meta.Used,[],c.cl_pos) :: c.cl_meta;
+	check_feature dce (Printf.sprintf "%s.*" (s_type_path c.cl_path));
 	update_marked_class_fields dce c;
 end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
 	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
+	check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end
 
-and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then
+and mark_abstract dce a = if not (Meta.has Meta.Used a.a_meta) then begin
+	check_feature dce (Printf.sprintf "%s.*" (s_type_path a.a_path));
 	a.a_meta <- (Meta.Used,[],a.a_pos) :: a.a_meta
+end
 
 (* mark a type as kept *)
 and mark_t dce p t =
@@ -162,13 +167,15 @@ and mark_t dce p t =
 			List.iter (mark_t dce p) pl
 		| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
 			begin try
-				mark_t dce p (snd (Codegen.Abstract.find_multitype_specialization a pl p))
+				mark_t dce p (snd (Codegen.AbstractCast.find_multitype_specialization dce.com a pl p))
 			with Typecore.Error _ ->
 				()
 			end
 		| TAbstract(a,pl) ->
 			mark_abstract dce a;
-			List.iter (mark_t dce p) pl
+			List.iter (mark_t dce p) pl;
+			if not (Meta.has Meta.CoreType a.a_meta) then
+				mark_t dce p (Abstract.get_underlying_type a pl)
 		| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
 		end;
 		dce.t_stack <- List.tl dce.t_stack
@@ -219,13 +226,13 @@ let rec to_string dce t = match t with
 	| TType(tt,tl) ->
 		if not (List.exists (fun t2 -> Type.fast_eq t t2) dce.ts_stack) then begin
 			dce.ts_stack <- t :: dce.ts_stack;
-			to_string dce (apply_params tt.t_types tl tt.t_type)
+			to_string dce (apply_params tt.t_params tl tt.t_type)
 		end
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		if Meta.has Meta.CoreType a.a_meta then
 			field dce c "toString" false
 		else
-			to_string dce (Codegen.Abstract.get_underlying_type a tl)
+			to_string dce (Abstract.get_underlying_type a tl)
 	| TMono r ->
 		(match !r with
 		| Some t -> to_string dce t
@@ -252,23 +259,6 @@ and field dce c n stat =
 		let cf = find_field n in
 		mark_field dce c cf stat;
 	with Not_found -> try
-		(* me might have a property access on an interface *)
- 		let l = String.length n - 4 in
-		if l < 0 then raise Not_found;
-		let prefix = String.sub n 0 4 in
-		let pn = String.sub n 4 l in
-		let cf = find_field pn in
-		let keep () =
-			mark_dependent_fields dce c n stat;
-			field dce c pn stat
-		in
-		(match prefix,cf.cf_kind with
-			| "get_",Var {v_read = AccCall} when "get_" ^ cf.cf_name = n -> keep()
-			| "set_",Var {v_write = AccCall} when "set_" ^ cf.cf_name = n -> keep()
-			| _ -> raise Not_found
-		);
-		raise Not_found
-	with Not_found -> try
 		if c.cl_interface then begin
 			let rec loop cl = match cl with
 				| [] -> raise Not_found
@@ -292,11 +282,23 @@ and field dce c n stat =
 	with Not_found ->
 		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
 
+and mark_really_used_class c =
+	if not (Meta.has Meta.ReallyUsed c.cl_meta) then
+		c.cl_meta <- (Meta.ReallyUsed,[],c.cl_pos) :: c.cl_meta
+
+and mark_really_used_mt mt =
+	match mt with
+	| TClassDecl c ->
+		mark_really_used_class c
+	| _ ->
+		()
+
 and expr dce e =
 	mark_t dce e.epos e.etype;
 	match e.eexpr with
 	| TNew(c,pl,el) ->
 		mark_class dce c;
+		mark_really_used_class c;
 		field dce c "new" false;
 		List.iter (expr dce) el;
 		List.iter (mark_t dce e.epos) pl;
@@ -306,9 +308,11 @@ and expr dce e =
 	| TCast(e, Some mt) ->
 		check_feature dce "typed_cast";
 		mark_mt dce mt;
+		mark_really_used_mt mt;
 		expr dce e;
 	| TTypeExpr mt ->
-		mark_mt dce mt
+		mark_mt dce mt;
+		mark_really_used_mt mt;
 	| TTry(e, vl) ->
 		expr dce e;
 		List.iter (fun (v,e) ->
@@ -350,7 +354,7 @@ and expr dce e =
 			| FStatic(c,cf) ->
 				mark_class dce c;
 				mark_field dce c cf true;
-			| FInstance(c,cf) ->
+			| FInstance(c,_,cf) ->
 				mark_class dce c;
 				mark_field dce c cf false;
 			| _ ->
@@ -413,7 +417,16 @@ let run com main full =
 			begin match c.cl_constructor with
 				| Some cf -> loop false cf
 				| None -> ()
-			end
+			end;
+			begin match c.cl_init with
+				| Some e when keep_class || Meta.has Meta.KeepInit c.cl_meta ->
+					(* create a fake field to deal with our internal logic (issue #3286) *)
+					let cf = mk_field "__init__" e.etype e.epos in
+					cf.cf_expr <- Some e;
+					loop true cf
+				| _ ->
+					()
+			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
 			mark_enum dce en
 		| _ ->
@@ -435,7 +448,7 @@ let run com main full =
 			List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
 			(* mark fields as used *)
 			List.iter (fun (c,cf,stat) ->
-				mark_class dce c;
+				if not (is_extern_field cf) then mark_class dce c;
 				mark_field dce c cf stat;
 				mark_t dce cf.cf_pos cf.cf_type
 			) cfl;
@@ -499,8 +512,10 @@ let run com main full =
 				b
 			) c.cl_ordered_fields;
 			(match c.cl_constructor with Some cf when not (keep_field dce cf) -> c.cl_constructor <- None | _ -> ());
+			let inef cf = not (is_extern_field cf) in
+			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
 			(* we keep a class if it was used or has a used field *)
-			if Meta.has Meta.Used c.cl_meta || c.cl_ordered_statics <> [] || c.cl_ordered_fields <> [] then loop (mt :: acc) l else begin
+			if Meta.has Meta.Used c.cl_meta || has_non_extern_fields then loop (mt :: acc) l else begin
 				(match c.cl_init with
 				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)
@@ -558,6 +573,15 @@ let run com main full =
 				in
 				loop c
 			) c.cl_overrides;
+		| _ -> ()
+	) com.types;
+
+	(* mark extern classes as really used if they are extended by non-extern ones *)
+	List.iter (function
+		| TClassDecl ({cl_extern = false; cl_super = Some ({cl_extern = true} as csup, _)}) ->
+			mark_really_used_class csup
+		| TClassDecl ({cl_extern = false} as c) when c.cl_implements <> [] ->
+			List.iter (fun (iface,_) -> if (iface.cl_extern) then mark_really_used_class iface) c.cl_implements;
 		| _ -> ()
 	) com.types;
 

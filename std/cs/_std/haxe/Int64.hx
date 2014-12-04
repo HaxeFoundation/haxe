@@ -21,15 +21,16 @@
  */
 package haxe;
 using haxe.Int64;
-@:coreType @:notNull @:runtimeValue private abstract NativeInt64 from Int to Int {}
-@:coreType @:notNull @:runtimeValue private abstract NativeUInt64 from Int to Int {}
+import cs.StdTypes.Int64 in NativeInt64;
+import cs.StdTypes.UInt64 in NativeUInt64;
 
 @:coreApi
 @:nativeGen class Int64
 {
 	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i;
 	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i;
-	@:extern private static inline function mkNative(i:Dynamic):NativeInt64 return i;
+	@:extern private static inline function ofUNative(i:NativeUInt64):Int64 return untyped i;
+	@:extern private static inline function mkNative(i:Int):NativeInt64 return cast i;
 
 	public static inline function make( high : Int, low : Int ) : Int64
 	{
@@ -70,17 +71,17 @@ using haxe.Int64;
 
 	static function divMod( modulus : Int64, divisor : Int64 ) : { quotient : Int64, modulus : Int64 }
 	{
-		var q:Int64 = (modulus.asNative() / divisor.asNative()).mkNative().ofNative();
-		var m:Int64 = (modulus.asNative() % divisor.asNative()).mkNative().ofNative();
+		var q:Int64 = (modulus.asNative() / divisor.asNative()).ofNative();
+		var m:Int64 = (modulus.asNative() % divisor.asNative()).ofNative();
 		return { quotient : q, modulus : m };
 	}
 
 	public static inline function div( a : Int64, b : Int64 ) : Int64 {
-		return (a.asNative() / b.asNative()).mkNative().ofNative();
+		return (a.asNative() / b.asNative()).ofNative();
 	}
 
 	public static inline function mod( a : Int64, b : Int64 ) : Int64 {
-		return (a.asNative() % b.asNative()).mkNative().ofNative();
+		return (a.asNative() % b.asNative()).ofNative();
 	}
 
 	public static inline function shl( a : Int64, b : Int ) : Int64 {
@@ -92,7 +93,7 @@ using haxe.Int64;
 	}
 
 	public static inline function ushr( a : Int64, b : Int ) : Int64 {
-		return ( cast(a, NativeUInt64) >> b).ofNative();
+		return cast(cast(a, NativeUInt64) >> b, NativeInt64).ofNative();
 	}
 
 	public static inline function and( a : Int64, b : Int64 ) : Int64
@@ -112,7 +113,7 @@ using haxe.Int64;
 
 	public static inline function neg( a : Int64 ) : Int64
 	{
-		return (~a.asNative()).ofNative();
+		return (~(a.asNative())).ofNative();
 	}
 
 	public static inline function isNeg( a : Int64 ) : Bool
@@ -132,9 +133,9 @@ using haxe.Int64;
 
 	public static function ucompare( a : Int64, b : Int64 ) : Int
 	{
-		if (a.asNative() < 0.mkNative())
-			return (b.asNative() < 0.mkNative()) ? compare( (~a.asNative()).ofNative(), (~b.asNative()).ofNative()) : 1;
-		return (b.asNative() < 0.mkNative()) ? -1 : compare(a, b);
+		var a:NativeUInt64 = cast a,
+				b:NativeUInt64 = cast b;
+		return (a < b) ? -1 : (a > b) ? 1 : 0;
 	}
 
 	public static inline function toStr( a : Int64 ) : String {

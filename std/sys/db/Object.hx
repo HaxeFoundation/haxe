@@ -31,12 +31,23 @@ class Object {
 
 	var _lock(default,never) : Bool;
 	var _manager(default,never) : sys.db.Manager<Dynamic>;
+#if !neko
+	@:keep var __cache__:Dynamic;
+#end
 
 	public function new() {
-		#if php
-		if( _manager == null ) untyped _manager = Type.getClass(this).manager;
+		#if !neko
+		if( _manager == null ) untyped _manager = __getManager();
 		#end
 	}
+
+#if !neko
+	private function __getManager():sys.db.Manager<Dynamic>
+	{
+		var cls:Dynamic = Type.getClass(this);
+		return cls.manager;
+	}
+#end
 
 	public function insert() {
 		untyped _manager.doInsert(this);

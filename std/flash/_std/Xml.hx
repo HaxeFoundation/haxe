@@ -114,7 +114,6 @@ extern enum XmlType {
 		default :
 			throw "unimplemented node type: " + node.nodeType;
 		}
-		return null;
 	}
 
 	private function get_nodeName() : String {

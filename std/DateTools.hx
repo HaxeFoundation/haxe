@@ -45,6 +45,8 @@ class DateTools {
 				__format(d,"%m/%d/%y");
 			case "e":
 				untyped Std.string(d.getDate());
+			case "F":
+				__format(d,"%Y-%m-%d");
 			case "H","k":
 				untyped StringTools.lpad(Std.string(d.getHours()),if( e == "H" ) "0" else " ",2);
 			case "I","l":

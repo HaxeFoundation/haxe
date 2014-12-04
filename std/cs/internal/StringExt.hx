@@ -37,26 +37,20 @@ private typedef NativeString = String;
 		return null;
 	}
 
-	@:functionCode('
-			if ( ((uint) index) >= me.Length)
-				return default(haxe.lang.Null<int>);
-			else
-				return new haxe.lang.Null<int>((int)me[index], true);
-	')
 	public static function charCodeAt(me:NativeString, index:Int):Null<Int>
 	{
-		return null;
+		if (cast(index,UInt) >= me.length)
+			return null;
+		else
+			return cast me[index];
 	}
 
-	@:functionCode('
-			uint sIndex = (startIndex.hasValue) ? ((uint) startIndex.@value) : 0;
-			if (sIndex >= me.Length)
-				return -1;
-			return me.IndexOf(str, (int)sIndex);
-	')
 	public static function indexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
 	{
-		return -1;
+		var sIndex:Int = startIndex != null ? startIndex : 0;
+		if (sIndex >= me.length)
+			return -1;
+		return @:privateAccess me.IndexOf(str, sIndex, cs.system.StringComparison.Ordinal);
 	}
 
 	@:functionCode('
@@ -87,7 +81,7 @@ private typedef NativeString = String;
 
 				return -1;
 			} else {
-				return me.LastIndexOf(str, sIndex);
+				return me.LastIndexOf(str, sIndex, System.StringComparison.Ordinal);
 			}
 	')
 	public static function lastIndexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
@@ -182,7 +176,7 @@ private typedef NativeString = String;
 	}
 
 	@:functionCode('
-			return me.ToLower();
+			return me.ToLowerInvariant();
 	')
 	public static function toLowerCase(me:NativeString):NativeString
 	{
@@ -190,7 +184,7 @@ private typedef NativeString = String;
 	}
 
 	@:functionCode('
-			return me.ToUpper();
+			return me.ToUpperInvariant();
 	')
 	public static function toUpperCase(me:NativeString):NativeString
 	{
@@ -211,7 +205,7 @@ private typedef NativeString = String;
 	}
 }
 
-@:keep @:nativeGen @:native('haxe.lang.StringRefl') private class StringRefl
+@:keep @:nativeGen @:native('haxe.lang.StringRefl') class StringRefl
 {
 	public static var fields = ["length", "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring"];
 

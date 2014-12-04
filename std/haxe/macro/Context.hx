@@ -114,6 +114,18 @@ class Context {
 	}
 
 	/**
+		Returns the constructor arguments that are used to construct the
+		current `@:genericBuild` class, if available.
+
+		Returns `null` if the current macro is not a build-macro which was
+		called from constructing a `@:genericBuild` instance.
+	**/
+	@:require(haxe_ver >= 3.2)
+	public static function getConstructorArguments():Null<Array<Expr>> {
+		return load("constructor_arguments", 0)();
+	}
+
+	/**
 		Returns the current class in which the macro was called.
 
 		If no such class exists, null is returned.
@@ -176,7 +188,7 @@ class Context {
 		Modifying the returned map has no effect on the compiler.
 	**/
 	@:deprecated("Use Context.getLocalTVars() instead")
-	public static function getLocalVars() : haxe.ds.StringMap<Type> {
+	public static function getLocalVars() : Map<String,Type> {
 		return load("local_vars", 1)(false);
 	}
 
@@ -185,10 +197,10 @@ class Context {
 		of `Type`.
 	**/
 	@:require(haxe_ver >= 3.102)
-	public static function getLocalTVars() : haxe.ds.StringMap<Type.TVar> {
+	public static function getLocalTVars() : Map<String,Type.TVar> {
 		return load("local_vars", 1)(true);
 	}
-	
+
 	/**
 		Tells if compiler directive `s` has been set.
 
@@ -213,7 +225,19 @@ class Context {
 		var d = load("defined_value", 1)(untyped key.__s);
 		return d == null ? null : new String(d);
 	}
-
+	
+	/**
+		Returns a map of all compiler directives that have been set.
+		
+		Compiler directives are set using the `-D` command line parameter, or
+		by calling `haxe.macro.Compiler.define`.
+		
+		Modifying the returned map has no effect on the compiler.
+	 */
+	public static function getDefines() : Map<String,String> {
+		return load("get_defines", 0)();
+	}
+	
 	/**
 		Resolves a type identified by `name`.
 
@@ -241,6 +265,9 @@ class Context {
 
 	/**
 		Parses `expr` as haxe code, returning the corresponding AST.
+
+		String interpolation of single quote strings within `expr` is not
+		supported.
 
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
@@ -380,7 +407,7 @@ class Context {
 		Modifying the returned map has no effect on the compilation, use
 		`haxe.macro.Context.addResource` to add new resources to the compilation unit.
 	**/
-	public static function getResources():haxe.ds.StringMap<haxe.io.Bytes> {
+	public static function getResources():Map<String,haxe.io.Bytes> {
 		var x:haxe.ds.StringMap<neko.NativeString> = load("get_resources",0)();
 		var r = new haxe.ds.StringMap();
 		for (k in x.keys()) {
@@ -419,8 +446,10 @@ class Context {
 	/**
 		Defines a new module with several `TypeDefinition` `types`.
 	**/
-	public static function defineModule( modulePath : String, types : Array<TypeDefinition> ) : Void {
-		load("define_module", 2)(untyped modulePath.__s,untyped types.__neko());
+	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?imports: Array<ImportExpr>, ?usings : Array<TypePath> ) : Void {
+		if (imports == null) imports = [];
+		if (usings == null) usings = [];
+		load("define_module", 4)(untyped modulePath.__s, untyped types.__neko(), untyped imports.__neko(), untyped usings.__neko());
 	}
 
 	/**

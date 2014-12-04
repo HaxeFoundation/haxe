@@ -32,7 +32,7 @@
 **/
 class StringBuf {
 
-	var b:String = "";
+	var b:String;
 
 	/**
 		The length of `this` StringBuf in characters.
@@ -44,7 +44,9 @@ class StringBuf {
 
 		This may involve initialization of the internal buffer.
 	**/
-	public function new() {}
+	public inline function new() {
+		b = "";
+	}
 
 	inline function get_length() : Int {
 		return b.length;

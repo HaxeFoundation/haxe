@@ -59,7 +59,7 @@ class Http {
 #if sys
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
-	public var responseHeaders : haxe.ds.StringMap<String>;
+	public var responseHeaders : Map<String,String>;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
@@ -203,6 +203,15 @@ class Http {
 			if( r.readyState != 4 )
 				return;
 			var s = try r.status catch( e : Dynamic ) null;
+			if ( s != null ) {
+				// If the request is local and we have data: assume a success (jQuery approach):
+				var protocol = js.Browser.location.protocol.toLowerCase();
+				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
+				var isLocal = rlocalProtocol.match( protocol );
+				if ( isLocal ) {
+					s = r.responseText != null ? 200 : 404;
+				}
+			}
 			if( s == untyped __js__("undefined") )
 				s = null;
 			if( s != null )
@@ -399,7 +408,7 @@ class Http {
 
 	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
 		this.responseData = null;
-		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
+		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
 			return;

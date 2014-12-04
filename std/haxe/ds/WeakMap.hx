@@ -29,7 +29,7 @@ package haxe.ds;
 
 	See `Map` for documentation details.
 **/
-class WeakMap<K: { },V> implements Map.IMap<K,V> {
+class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 
 	/**
 		Creates a new WeakMap.

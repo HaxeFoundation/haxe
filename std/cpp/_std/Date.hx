@@ -78,7 +78,6 @@
 			default:
 				throw "Invalid date format : " + s;
 		}
-		return null;
 	}
 }
 

@@ -1,7 +1,7 @@
 package haxe.ds;
 
 @:coreApi
-class WeakMap<K:{},V> extends flash.utils.Dictionary implements Map.IMap<K,V> {
+class WeakMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constraints.IMap<K,V> {
 
 	public function new() {
 		super(true);

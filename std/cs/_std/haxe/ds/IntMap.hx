@@ -33,7 +33,7 @@ import cs.NativeArray;
  * Thanks also to Jonas Malaco Filho for his Haxe-written IntMap code inspired by Python tables.
  * (https://jonasmalaco.com/fossil/test/jonas-haxe/artifact/887b53126e237d6c68951111d594033403889304)
  */
-@:coreApi class IntMap<T> implements Map.IMap<Int,T>
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T>
 {
 	private static inline var HASH_UPPER = 0.7;
 
@@ -46,12 +46,16 @@ import cs.NativeArray;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
+#if !no_map_cache
 	private var cachedKey:Int;
 	private var cachedIndex:Int;
+#end
 
 	public function new() : Void
 	{
+#if !no_map_cache
 		cachedIndex = -1;
+#end
 	}
 
 	public function set( key : Int, value : T ) : Void
@@ -135,17 +139,20 @@ import cs.NativeArray;
 	public function get( key : Int ) : Null<T>
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-
+#end
 			return vals[idx];
 		}
 
@@ -155,17 +162,20 @@ import cs.NativeArray;
 	private function getDefault( key : Int, def : T ) : T
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return vals[idx];
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
-
+#end
 			return vals[idx];
 		}
 
@@ -175,16 +185,20 @@ import cs.NativeArray;
 	public function exists( key : Int ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (cachedKey == key && ( (idx = cachedIndex) != -1 ))
 		{
 			return true;
 		}
+#end
 
 		idx = lookup(key);
 		if (idx != -1)
 		{
+#if !no_map_cache
 			cachedKey = key;
 			cachedIndex = idx;
+#end
 
 			return true;
 		}
@@ -195,7 +209,9 @@ import cs.NativeArray;
 	public function remove( key : Int ) : Bool
 	{
 		var idx = -1;
+#if !no_map_cache
 		if (! (cachedKey == key && ( (idx = cachedIndex) != -1 )))
+#end
 		{
 			idx = lookup(key);
 		}
@@ -204,9 +220,10 @@ import cs.NativeArray;
 		{
 			return false;
 		} else {
+#if !no_map_cache
 			if (cachedKey == key)
 				cachedIndex = -1;
-
+#end
 			if (!isEither(flags, idx))
 			{
 				setIsDelTrue(flags, idx);
@@ -253,9 +270,11 @@ import cs.NativeArray;
 
 		if (j != 0)
 		{ //rehashing is required
+#if !no_map_cache
 			//resetting cache
 			cachedKey = 0;
 			cachedIndex = -1;
+#end
 
 			j = -1;
 			var nBuckets = nBuckets, _keys = _keys, vals = vals, flags = flags;
@@ -326,59 +345,18 @@ import cs.NativeArray;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<Int>
+	public inline function keys() : Iterator<Int>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(flags, j))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = _keys[i];
-				cachedIndex = i;
-				cachedKey = ret;
-
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new IntMapKeyIterator(this);
 	}
 
 	/**
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<T>
+	public inline function iterator() : Iterator<T>
 	{
-		var i = 0;
-		var len = nBuckets;
-		return {
-			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(flags, j))
-					{
-						i = j;
-						return true;
-					}
-				}
-				return false;
-			},
-			next: function() {
-				var ret = vals[i];
-				i = i + 1;
-				return ret;
-			}
-		};
+		return new IntMapValueIterator(this);
 	}
 
 	/**
@@ -452,4 +430,66 @@ import cs.NativeArray;
 
 	private static inline function flagsSize(m:Int):Int
 		return ((m) < 16? 1 : (m) >> 4);
+}
+
+@:access(haxe.ds.IntMap)
+@:final
+private class IntMapKeyIterator<T> {
+	var m:IntMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:IntMap<T>) {
+		this.i = 0;
+		this.m = m;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!IntMap.isEither(m.flags, j)) {
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function next():Int {
+		var ret = m._keys[i];
+#if !no_map_cache
+		m.cachedIndex = i;
+		m.cachedKey = ret;
+#end
+		i++;
+		return ret;
+	}
+}
+
+@:access(haxe.ds.IntMap)
+@:final
+private class IntMapValueIterator<T> {
+	var m:IntMap<T>;
+	var i:Int;
+	var len:Int;
+
+	public function new(m:IntMap<T>) {
+		this.i = 0;
+		this.m = m;
+		this.len = m.nBuckets;
+	}
+
+	public function hasNext():Bool {
+		for (j in i...len) {
+			if (!IntMap.isEither(m.flags, j)) {
+				i = j;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public inline function next():T {
+		return m.vals[i++];
+	}
 }

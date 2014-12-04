@@ -47,6 +47,16 @@ public class MyClass
 	{
 	}
 
+	public void outTest(out int i)
+	{
+		i = 42;
+	}
+
+	public void refTest(ref int i)
+	{
+		i *= 42;
+	}
+
 	public void dispatch()
 	{
 		if (voidvoid != null)

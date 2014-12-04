@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 /**
-	The Reflect API is a way to manipulate values dynamicly through an
+	The Reflect API is a way to manipulate values dynamically through an
 	abstract interface in an untyped manner. Use with care.
 **/
 extern class Reflect {
@@ -89,7 +89,7 @@ extern class Reflect {
 	/**
 		Call a method with the given object and arguments.
 	**/
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic;
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic;
 
 	/**
 		Returns the fields of structure `o`.

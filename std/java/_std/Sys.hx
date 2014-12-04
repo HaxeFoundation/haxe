@@ -56,7 +56,7 @@ import sys.io.Process;
 		throw "Not implemented in this platform";
 	}
 
-	public static function environment() : haxe.ds.StringMap<String>
+	public static function environment() : Map<String,String>
 	{
 		if (_env != null)
 			return _env;

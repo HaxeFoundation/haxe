@@ -43,7 +43,7 @@
 			o.__SetField(field,value,true);
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 			if (func!=null && func.__GetType()==__global__.vtString)
 				func = o.__Field(func,true);
 			untyped func.__SetThis(o);
@@ -62,7 +62,7 @@
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
-		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+		return ( a == b ) ? 0 : (((a:Dynamic) > (b:Dynamic)) ? 1 : -1);
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {

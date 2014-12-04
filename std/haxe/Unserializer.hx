@@ -168,6 +168,19 @@ class Unserializer {
  			k *= -1;
  		return k;
  	}
+	
+	function readFloat() {
+		var p1 = pos;
+ 		while( true ) {
+ 			var c = get(pos);
+ 			// + - . , 0-9
+ 			if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
+ 				pos++;
+ 			else
+ 				break;
+ 		}
+ 		return Std.parseFloat(buf.substr(p1,pos-p1));
+	}
 
 	function unserializeObject(o) {
  		while( true ) {
@@ -229,16 +242,7 @@ class Unserializer {
  		case "i".code:
  			return readDigits();
  		case "d".code:
- 			var p1 = pos;
- 			while( true ) {
- 				var c = get(pos);
- 				// + - . , 0-9
- 				if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
- 					pos++;
- 				else
- 					break;
- 			}
- 			return Std.parseFloat(buf.substr(p1,pos-p1));
+ 			return readFloat();
 		case "y".code:
  			var len = readDigits();
  			if( get(pos++) != ":".code || length - pos < len )
@@ -361,9 +365,19 @@ class Unserializer {
 			pos++;
 			return h;
 		case "v".code:
-			var d = Date.fromString(buf.substr(pos,19));
+			var d;
+			if(	get(pos) >= '0'.code && get(pos) <= '9'.code &&
+				get(pos + 1) >= '0'.code && get(pos + 1) <= '9'.code &&
+				get(pos + 2) >= '0'.code && get(pos + 2) <= '9'.code &&
+				get(pos + 3) >= '0'.code && get(pos + 3) <= '9'.code &&
+				get(pos + 4) == '-'.code
+				) {
+				// Included for backwards compatibility
+				d = Date.fromString(buf.substr(pos,19));
+				pos += 19;
+			} else
+				d = Date.fromTime(readFloat());
 			cache.push(d);
-			pos += 19;
 			return d;
  		case "s".code:
  			var len = readDigits();

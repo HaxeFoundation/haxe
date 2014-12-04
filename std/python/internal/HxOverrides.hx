@@ -5,6 +5,7 @@ import python.Syntax;
 import python.Syntax.pythonCode in py;
 
 @:keep
+@:noDoc
 @:native("HxOverrides")
 @:access(python.internal.ArrayImpl)
 @:access(python.Boot)
@@ -32,14 +33,59 @@ class HxOverrides {
 	}
 
 	static public function shift(x) {
-		return Reflect.callMethod(null, Reflect.field(x, "shift"), []);
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).shift();
+		}
+		return Syntax.callField(x, "shift");
 	}
+
+	static public function pop(x) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).pop();
+		}
+		return Syntax.callField(x, "pop");
+	}
+
+	static public function push(x, e) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).push(e);
+		}
+		return Syntax.callField(x, "push", e);
+	}
+
+	static public function join(x, sep) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).join(sep);
+		}
+		return Syntax.callField(x, "join", sep);
+	}
+
+	static public function filter(x, f) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).filter(f);
+		}
+		return Syntax.callField(x, "filter", f);
+	}
+
+	static public function map(x, f) {
+		if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).map(f);
+		}
+		return Syntax.callField(x, "map", f);
+	}
+
 	static public function toUpperCase(x) {
-		return Reflect.callMethod(null, Reflect.field(x, "toUpperCase"), []);
+		if (Boot.isString(x)) {
+			return (x:String).toUpperCase();
+		}
+		return Syntax.callField(x, "toUpperCase");
 	}
 
 	static public function toLowerCase(x) {
-		return Reflect.callMethod(null, Reflect.field(x, "toLowerCase"), []);
+		if (Boot.isString(x)) {
+			return (x:String).toLowerCase();
+		}
+		return Syntax.callField(x, "toLowerCase");
 	}
 
 	static public function rshift(val:Int, n:Int) {

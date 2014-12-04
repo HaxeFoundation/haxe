@@ -148,8 +148,9 @@ enum ValueType {
       for(name in names)
       {
          try {
-            var result:T = untyped e.mConstructEnum(name,null);
-            enums.push( result );
+            var result:T = untyped e.ConstructEnum(name,null);
+            if (result!=null)
+               enums.push( result );
          } catch ( invalidArgCount:String) {
          }
       }

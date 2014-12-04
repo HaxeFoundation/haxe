@@ -287,6 +287,8 @@ class Bytes {
 		try
 			return new String(b, pos, len, "UTF-8")
 		catch (e:Dynamic) throw e;
+		#elseif python
+		return python.Syntax.pythonCode("self.b[pos:pos+len].decode('UTF-8','replace')");
 		#else
 		var s = "";
 		var b = b;

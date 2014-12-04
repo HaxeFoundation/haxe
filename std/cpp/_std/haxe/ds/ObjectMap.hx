@@ -21,56 +21,53 @@
  */
 package haxe.ds;
 
+@:headerClassCode("
+  inline void set(Dynamic key, ::null value) { __object_hash_set(h,key,value); }
+  inline void set(Dynamic key, bool value) { __object_hash_set(h,key,value); }
+  inline void set(Dynamic key, char value) { __object_hash_set_int(h,key,value); }
+  inline void set(Dynamic key, unsigned char value) { __object_hash_set_int(h,key,value); }
+  inline void set(Dynamic key, signed char value) { __object_hash_set_int(h,key,value); }
+  inline void set(Dynamic key, short value) { __object_hash_set_int(h,key,value); }
+  inline void set(Dynamic key, unsigned short value) { __object_hash_set_int(h,key,value); }
+  inline void set(Dynamic key, int value) { __object_hash_set_int(h,key,value); }
+  inline void set(Dynamic key, unsigned int value) { __object_hash_set_int(h,key,value); }
+  inline void set(Dynamic key, float value) { __object_hash_set_float(h,key,value); }
+  inline void set(Dynamic key, double value) { __object_hash_set_float(h,key,value); }
+  inline void set(Dynamic key, ::String value) { __object_hash_set_string(h,key,value); }
+")
 @:coreApi
-class ObjectMap<K:{},V> implements Map.IMap<K,V> {
-	private var __Internal : IntMap<V>;
-	private var __KeyRefs : IntMap<K>;
+class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
+	private var h : Dynamic;
 
-	public function new() : Void {
-		__Internal = new IntMap<V>();
-		__KeyRefs = new IntMap<K>();
-	}
+	public function new() : Void { }
 
 	public function set( key : K, value : V ) : Void {
-		var id = untyped __global__.__hxcpp_obj_id(key);
-		__Internal.set( id, value );
-		__KeyRefs.set( id, key );
+		untyped __global__.__object_hash_set(h,key,value);
 	}
 
 	public function get( key : K ) : Null<V> {
-		return __Internal.get( untyped __global__.__hxcpp_obj_id(key) );
+		return untyped __global__.__object_hash_get(h,key);
 	}
 
-	public inline function exists( key : K ) : Bool {
-		return __Internal.exists( untyped __global__.__hxcpp_obj_id(key) );
+	public function exists( key : K ) : Bool {
+		return untyped __global__.__object_hash_exists(h,key);
 	}
 
 	public function remove( key : K ) : Bool {
-		var id = untyped __global__.__hxcpp_obj_id(key);
-		__Internal.remove(id);
-		return __KeyRefs.remove(id);
+		return untyped __global__.__object_hash_remove(h,key);
 	}
 
 	public function keys() : Iterator<K> {
-		return __KeyRefs.iterator();
+		var a:Array<K> = untyped __global__.__object_hash_keys(h);
+		return a.iterator();
 	}
 
 	public function iterator() : Iterator<V> {
-		return __Internal.iterator();
+		var a:Array<Dynamic> = untyped __global__.__object_hash_values(h);
+		return a.iterator();
 	}
 
 	public function toString() : String {
-		var s = new StringBuf();
-		s.add("{");
-		var it = __Internal.keys();
-		for( i in it ) {
-			s.add(Std.string(__KeyRefs.get(i)));
-			s.add(" => ");
-			s.add(Std.string(__Internal.get(i)));
-			if( it.hasNext() )
-				s.add(", ");
-		}
-		s.add("}");
-		return s.toString();
+		return untyped __global__.__object_hash_to_string(h);
 	}
 }
