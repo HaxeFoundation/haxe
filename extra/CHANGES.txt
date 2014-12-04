@@ -53,6 +53,7 @@
 	all : added haxe.Rest type for representing "rest" arguments in extern method signatures
 	all : added haxe.EitherType abstract type for dealing with externs for dynamic targets
 	all : added haxe.DynamicAccess type for working with dynamic anonymous structures using a Map-like interface
+	all : [breaking] changed haxe.ds.Vector.get to return T instead of Null<T>
 
 	Macro features and changes:
 

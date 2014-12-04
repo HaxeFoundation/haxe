@@ -81,7 +81,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
-	@:arrayAccess public inline function get(index:Int):Null<T> {
+	@:arrayAccess public inline function get(index:Int):T {
 		#if cpp
 		return this.unsafeGet(index);
 		#elseif python
