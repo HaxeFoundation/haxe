@@ -107,6 +107,41 @@ class Int64 {
 		return new Int64(x >> 31,x);
 	}
 
+	public static function ofFloat( f : Float ) : Int64 {
+		if (Math.isNaN(f) || !Math.isFinite(f)) {
+			throw "Number is NaN or Infinite";
+		}
+		
+		var noFractions = f - (f % 1);
+		
+		// 2^53-1 and -2^53: these are parseable without loss of precision
+		if (noFractions > 9007199254740991) {
+			throw "Conversion overflow";
+		}
+		if (noFractions < -9007199254740991) {
+			throw "Conversion underflow";
+		}
+		
+		var result = Int64.ofInt(0);
+		var neg = noFractions < 0;
+		var rest = neg ? -noFractions : noFractions;
+		
+		var i = 0;
+		while (rest >= 1) {
+			var curr = rest % 2;
+			rest = rest / 2;
+			if (curr >= 1) {
+			result = Int64.add(result, Int64.shl(Int64.ofInt(1), i));
+			}
+			i++;
+		}
+		
+		if (neg) {
+			result = Int64.mul(Int64.ofInt(-1), result); // TODO when Int64.neg is fixed on java target use Int64.neg
+		}
+		return result;
+	}
+
 	public static function toInt( x : Int64 ) : Int {
 		if( x.high != 0 ) {
 			if( x.high < 0 )
