@@ -99,6 +99,45 @@ class Int64 {
 		return str;
 	}
 
+	public static function fromString( s : String ) : Int64 {
+		var base = Int64.ofInt(10);
+		var current = Int64.ofInt(0);
+		var multiplier = Int64.ofInt(1);
+		var finishNeg = false;
+
+		var len = s.length;
+
+		for (i in 0...len) {
+		var char = s.charAt(len-1-i);
+		var digit : Int64 = Int64.ofInt(0);
+
+		switch (char) {
+			case "0": digit = Int64.ofInt(0);
+			case "1": digit = Int64.ofInt(1);
+			case "2": digit = Int64.ofInt(2);
+			case "3": digit = Int64.ofInt(3);
+			case "4": digit = Int64.ofInt(4);
+			case "5": digit = Int64.ofInt(5);
+			case "6": digit = Int64.ofInt(6);
+			case "7": digit = Int64.ofInt(7);
+			case "8": digit = Int64.ofInt(8);
+			case "9": digit = Int64.ofInt(9);
+			case "-": finishNeg = true;
+			default: throw "NumberFormatError";
+		}
+		if (finishNeg) {
+			if (i != len-1) {
+			throw "NumberFormatError";
+			}
+			current = Int64.neg(current);
+			break;
+		}
+		current = Int64.add(current, Int64.mul(multiplier, digit));
+		multiplier = Int64.mul(multiplier, base);
+		}
+		return current;
+	}
+
 	public static inline function make( high : Int, low : Int ) : Int64 {
 		return new Int64(high, low);
 	}
