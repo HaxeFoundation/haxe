@@ -8,12 +8,12 @@ private class ClassWithInitButNoConstructorChild extends ClassWithInitButNoConst
 	public var b = 2;
 }
 
-private class ClassWithInitAndConstructorChild extends ClassWithInitButNoConstructor {
-	public var b = 2;
-	public function new() {
-		super();
-	}
-}
+//private class ClassWithInitAndConstructorChild extends ClassWithInitButNoConstructor {
+	//public var b = 2;
+	//public function new() {
+		//super();
+	//}
+//}
 
 private class ClassWithConstructor {
 	public var a = 1;
@@ -50,9 +50,9 @@ class Issue3596 extends Test {
 		t(unit.TestType.typeError(new ClassWithInitButNoConstructor()));
 		t(unit.TestType.typeError(new ClassWithInitButNoConstructorChild()));
 
-		var c = new ClassWithInitAndConstructorChild();
-		eq(1, c.a);
-		eq(2, c.b);
+		//var c = new ClassWithInitAndConstructorChild();
+		//eq(1, c.a);
+		//eq(2, c.b);
 
 		var c = new ClassWithConstructor();
 		eq(2, c.a);

@@ -3800,6 +3800,7 @@ and type_call ctx e el (with_type:with_type) p =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let ct, f = get_constructor ctx c params p in
+			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
 			let el = (match follow ct with
 			| TFun (args,r) ->
 				let el,_,_ = unify_field_call ctx (FInstance(c,params,f)) el args r p false in
