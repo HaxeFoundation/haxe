@@ -1582,7 +1582,7 @@ and type_field ?(resume=false) ctx e i p mode =
 					| [] -> error (Printf.sprintf "Field %s cannot be called on %s" f.cf_name (s_type (print_context()) e.etype)) p
 					| cf :: cfl ->
 						match follow (apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type)) with
-							| TFun((_,_,t1) :: _,_) when type_iseq t1 e.etype ->
+							| TFun((_,_,t1) :: _,_) when type_iseq t1 (Abstract.get_underlying_type a pl) ->
 								cf
 							| _ ->
 								loop cfl

@@ -6,11 +6,15 @@ private abstract A<T>(Array<T>) {
     }
 
 	#if java
-    @:overload static inline public function sum(a:A<Int>) {
+	@:impl
+    @:overload
+	static inline public function sum(a:Array<Int>) {
         return "sum of ints";
     }
 
-    @:overload static inline public function sum(a:A<String>) {
+    @:overload
+	@:impl
+	static inline public function sum(a:Array<String>) {
         return "sum of strings";
     }
 	#end
