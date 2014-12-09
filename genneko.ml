@@ -663,8 +663,9 @@ let generate_libs_init = function
 				@env("HAXEPATH") + "\\lib\\"
 				else try $loader.loadprim("std@file_contents",1)(@env("HOME")+"/.haxelib") + "/"
 				catch e if( @s == "Linux" ) "/usr/lib/haxe/lib/" else "/usr/local/lib/haxe/lib/";
+			if( try $loader.loadprim("std@sys_file_type",1)(".haxelib") == "dir" catch e false ) @b = $loader.loadprim("std@file_full_path",1)(".haxelib") + "/";
 			if( $loader.loadprim("std@sys_is64",0)() ) @s = @s + 64;
-			@s = @s + "/"
+			@b = @b + "/"
 		*)
 		let p = null_pos in
 		let es = ident p "@s" in
@@ -690,6 +691,7 @@ let generate_libs_init = function
 					),p)
 				),p);
 			],p);
+			(EIf ((ETry (op "==" (call p (loadp "sys_file_type" 1) [str p ".haxelib"]) (str p "dir"),"e",(EConst False,p)),p),op "=" (ident p "@b") (op "+" (call p (loadp "file_full_path" 1) [str p ".haxelib"]) (str p "/")), None),p);
 			(EIf (call p (loadp "sys_is64" 0) [],op "=" es (op "+" es (int p 64)),None),p);
 			op "=" es (op "+" es (str p "/"));
 		] in
@@ -699,7 +701,7 @@ let generate_libs_init = function
 			let dstr = str p dir in
 			(*
 				// for each lib dir
-				$loader.path = $array($loader.path,dir+@s);
+				$loader.path = $array($loader.path,@b+dir+@s);
 			*)
 			op "=" lpath (call p (builtin p "array") [op "+" (if full_path then dstr else op "+" (ident p "@b") dstr) (ident p "@s"); lpath])
 		) libs
