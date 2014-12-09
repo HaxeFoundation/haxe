@@ -113,7 +113,7 @@ import cs.StdTypes.UInt64 in NativeUInt64;
 
 	public static inline function neg( a : Int64 ) : Int64
 	{
-		return (~(a.asNative())).ofNative();
+		return (-(a.asNative())).ofNative();
 	}
 
 	public static inline function isNeg( a : Int64 ) : Bool
