@@ -3292,6 +3292,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let build_constructor_call c tl =
 			let ct, f = get_constructor ctx c tl p in
+			if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
 			if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
 			(match f.cf_kind with
 			| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)

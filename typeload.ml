@@ -1024,7 +1024,7 @@ let check_extends ctx c t p = match follow t with
 
 let rec add_constructor ctx c force_constructor p =
 	match c.cl_constructor, c.cl_super with
-	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
+	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern && not (Meta.has Meta.CompilerGenerated cfsup.cf_meta) ->
 		let cf = {
 			cfsup with
 			cf_pos = p;
