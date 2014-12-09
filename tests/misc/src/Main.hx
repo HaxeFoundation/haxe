@@ -73,7 +73,7 @@ class Main {
 
 	static function runCommand(command:String, args:Array<String>, expectFailure:Bool, expectStderr:String) {
 		var proc = new sys.io.Process(command, args);
-		proc.stdout.readAll();
+		var stdout = proc.stdout.readAll();
 		var exit = proc.exitCode();
 		var success = exit == 0;
 		var result = switch [success, expectFailure] {
@@ -88,6 +88,10 @@ class Main {
 				var stderr = proc.stderr.readAll().toString();
 				Sys.print(stderr);
 				false;
+		}
+
+		if (stdout.length > 0) {
+			Sys.println(stdout);
 		}
 
 		if (result && expectStderr != null)
