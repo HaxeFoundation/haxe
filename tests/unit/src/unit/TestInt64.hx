@@ -106,4 +106,10 @@ class TestInt64 extends Test {
 		eq( a.add(make(0x1, 0)).toStr(), '4294967299');
 	}
 
+	public function testNeg()
+	{
+		eq(Std.string(ofInt(-1)),Std.string(neg(ofInt(1))));
+		eq(Std.string(ofInt(-100)),Std.string(neg(ofInt(100))));
+		eq(Std.string(make(-2147483648, 1)), Std.string(neg(make(2147483647, -1)))); // -9223372036854775807 == neg(9223372036854775807)
+	}
 }
