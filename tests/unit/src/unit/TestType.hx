@@ -599,7 +599,7 @@ class TestType extends Test {
 		var t = new haxe.Template("foo");
 		var ta = gf3(t, [])[0];
 		f(t == ta);
-		hsf(TestType, "gf3_haxe_Template_Array__");
+		hsf(TestType, "gf3_haxe_Template_Array_haxe_Template");
 		#end
 
 		eq(overloadFake(1), 1);

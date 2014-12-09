@@ -1749,8 +1749,9 @@ let unify_int ctx e k =
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-	let t = apply_params cf.cf_params monos cf.cf_type in
-	add_constraint_checks ctx c.cl_params [] cf monos p;
+	let map t = apply_params cf.cf_params monos t in
+	let map t = if stat then map t else apply_params c.cl_params tl (map t) in
+	let t = map cf.cf_type in
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
 			let ta = if not (Meta.has Meta.Impl cf.cf_meta) then ta
@@ -1768,6 +1769,11 @@ let unify_int ctx e k =
 		| _ -> ()
 	end;
 	let el,_ = unify_call_args ctx el args ret p false false in
+	begin try
+		check_constraints ctx cf.cf_name cf.cf_params monos map false p
+	with Unify_error l ->
+		display_error ctx (error_msg (Unify l)) p
+	end;
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
 		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
