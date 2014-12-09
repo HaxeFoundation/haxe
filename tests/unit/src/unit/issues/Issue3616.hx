@@ -9,6 +9,12 @@ private abstract B<T>(T) {
     public static function f<T>(v:T):B<T> return cast v;
 }
 
+private abstract C(Int) {
+    public static var f(get,set):Int;
+    static function get_f() return 1;
+    static function set_f(value) return 1;
+}
+
 class Issue3616 extends Test {
 	function test() {
         var v:A = null;
@@ -16,5 +22,9 @@ class Issue3616 extends Test {
 
 		var v = B.f(10);
 		eq(unit.TestType.typeErrorText(v.f()), "Invalid call to static function f through abstract instance");
+
+        var v:C = null;
+		eq(unit.TestType.typeErrorText(v.f), "Invalid call to static function f through abstract instance");
+		eq(unit.TestType.typeErrorText(v.f = 5), "Invalid call to static function f through abstract instance");
 	}
 }
