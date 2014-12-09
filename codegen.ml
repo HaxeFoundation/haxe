@@ -114,6 +114,13 @@ let add_property_field com c =
 		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
 		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
 
+let is_removable_field ctx f =
+	Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
+	|| (match f.cf_kind with
+		| Var {v_read = AccRequire (s,_)} -> true
+		| Method MethMacro -> not ctx.in_macro
+		| _ -> false)
+
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 

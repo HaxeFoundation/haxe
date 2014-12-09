@@ -1,6 +1,7 @@
 open Ast
 open Type
 open Common
+open Typecore
 
 module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
 
@@ -1283,7 +1284,7 @@ let update_config_from_meta config meta =
 			config
 	) config meta
 
-let run_expression_filters com config t =
+let run_expression_filters ctx config t =
 	match t with
 	| TClassDecl c when (has_analyzer_option c.cl_meta flag_ignore) ->
 		()
@@ -1295,9 +1296,9 @@ let run_expression_filters com config t =
 				| _ -> false
 			in
 			match cf.cf_expr with
-			| Some e when not (has_analyzer_option cf.cf_meta flag_ignore) && not (Meta.has Meta.Extern cf.cf_meta) (* TODO: use is_removable_field *) ->
+			| Some e when not (has_analyzer_option cf.cf_meta flag_ignore) && not (Codegen.is_removable_field ctx cf) ->
 				let config = update_config_from_meta config cf.cf_meta in
-				cf.cf_expr <- Some (run_ssa com config is_var_expression e);
+				cf.cf_expr <- Some (run_ssa ctx.com config is_var_expression e);
 			| _ -> ()
 		in
 		List.iter process_field c.cl_ordered_fields;
@@ -1309,12 +1310,13 @@ let run_expression_filters com config t =
 		| None -> ()
 		| Some e ->
 			(* never optimize init expressions (too messy) *)
-			c.cl_init <- Some (run_ssa com {config with analyzer_use = false} false e));
+			c.cl_init <- Some (run_ssa ctx.com {config with analyzer_use = false} false e));
 	| TEnumDecl _ -> ()
 	| TTypeDecl _ -> ()
 	| TAbstractDecl _ -> ()
 
-let apply com =
+let apply ctx =
+	let com = ctx.com in
 	let config = {
 		analyzer_use = true;
 		simplifier_apply = true;
@@ -1326,4 +1328,4 @@ let apply com =
 		ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");
 		simplifier_unapply = not (Common.raw_defined com "analyzer-no-simplify-unapply");
 	} in
-	List.iter (run_expression_filters com config) com.types
+	List.iter (run_expression_filters ctx config) com.types

@@ -738,23 +738,16 @@ let remove_generic_base ctx t = match t with
 
 (* Removes extern and macro fields, also checks for Void fields *)
 
-let is_removable_field ctx f =
-	Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
-	|| (match f.cf_kind with
-		| Var {v_read = AccRequire (s,_)} -> true
-		| Method MethMacro -> not ctx.in_macro
-		| _ -> false)
-
 let remove_extern_fields ctx t = match t with
 	| TClassDecl c ->
 		if not (Common.defined ctx.com Define.DocGen) then begin
 			c.cl_ordered_fields <- List.filter (fun f ->
-				let b = is_removable_field ctx f in
+				let b = Codegen.is_removable_field ctx f in
 				if b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 				not b
 			) c.cl_ordered_fields;
 			c.cl_ordered_statics <- List.filter (fun f ->
-				let b = is_removable_field ctx f in
+				let b = Codegen.is_removable_field ctx f in
 				if b then c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				not b
 			) c.cl_ordered_statics;
@@ -976,7 +969,7 @@ let run_expression_filters ctx filters t =
 		ctx.curclass <- c;
 		let process_field f =
 			match f.cf_expr with
-			| Some e when not (is_removable_field ctx f) ->
+			| Some e when not (Codegen.is_removable_field ctx f) ->
 				Codegen.AbstractCast.cast_stack := f :: !Codegen.AbstractCast.cast_stack;
 				f.cf_expr <- Some (run e);
 				Codegen.AbstractCast.cast_stack := List.tl !Codegen.AbstractCast.cast_stack;
@@ -1043,7 +1036,7 @@ let run com tctx main =
 			captured_vars com;
 		] in
 		List.iter (post_process tctx filters) com.types;
-		Analyzer.apply com;
+		Analyzer.apply tctx;
 		post_process_end();
 		iter_expressions com [verify_ast];
 		List.iter (fun f -> f()) (List.rev com.filters);
