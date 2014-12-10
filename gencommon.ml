@@ -2130,15 +2130,16 @@ struct
 
 				(* FIXME: find a way to tell OverloadingCtors to execute this code even with empty constructors *)
 				if should_handle_dynamic_functions then begin
-					let funs = List.fold_left (fun acc cf ->
+					let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->
 						match cf.cf_kind with
 							| Var v when Meta.has Meta.ReadOnly cf.cf_meta && readonly_support ->
 									if v.v_write <> AccNever then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 									(match cf.cf_expr with
-										| None -> acc
-										| Some e -> ensure_simple_expr gen e; acc)
+										| None -> (acc_vars,acc_funs)
+										| Some e -> ensure_simple_expr gen e; (acc_vars,acc_funs))
 							| Var _
 							| Method(MethDynamic) ->
+								let is_var = match cf.cf_kind with | Var _ -> true | _ -> false in
 								(match cf.cf_expr, cf.cf_params with
 									| Some e, [] ->
 										let var = { eexpr = TField({ eexpr = TConst(TThis); epos = cf.cf_pos; etype = TInst(cl, List.map snd cl.cl_params); }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf.cf_type; epos = cf.cf_pos } in
@@ -2149,8 +2150,11 @@ struct
 										if is_override then begin
 											cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
 											cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
-											handle_override_dynfun acc ret var cf.cf_name
-										end else ret :: acc
+											acc_vars, handle_override_dynfun acc_funs ret var cf.cf_name
+										end else if is_var then
+											ret :: acc_vars, acc_funs
+										else
+											acc_vars, ret :: acc_funs
 									| Some e, _ ->
 										let params = List.map (fun _ -> t_dynamic) cf.cf_params in
 										let fn = apply_params cf.cf_params params in
@@ -2166,15 +2170,20 @@ struct
 										if is_override then begin
 											cl.cl_ordered_fields <- List.filter (fun f -> f.cf_name <> cf.cf_name) cl.cl_ordered_fields;
 											cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
-											handle_override_dynfun acc ret var cf.cf_name
-										end else ret :: acc
-									| None, _ -> acc)
-							| _ -> acc
-					) [] cl.cl_ordered_fields
+											acc_vars, handle_override_dynfun acc_funs ret var cf.cf_name
+										end else if is_var then
+											ret :: acc_vars, acc_funs
+										else
+											acc_vars, ret :: acc_funs
+									| None, _ -> acc_vars,acc_funs)
+							| _ -> acc_vars,acc_funs
+					) ([],[]) cl.cl_ordered_fields
 					in
+					(* let vars = List.rev vars in *)
+					(* let funs = List.rev funs in *)
 					(* see if there is any *)
-					(match funs with
-						| [] -> ()
+					(match vars, funs with
+						| [], [] -> ()
 						| _ ->
 							(* if there is, we need to find the constructor *)
 							let ctors = match cl.cl_constructor with
@@ -2207,12 +2216,15 @@ struct
 										let rec add_fn e = match e.eexpr with
 											| TBlock(hd :: tl) -> (match hd.eexpr with
 												| TCall({ eexpr = TConst TSuper }, _) ->
-													{ e with eexpr = TBlock(hd :: (funs @ tl)) }
+													if is_hxgen (TClassDecl cl) then
+														{ e with eexpr = TBlock(vars @ (hd :: (funs @ tl))) }
+													else
+														{ e with eexpr = TBlock(hd :: (vars @ funs @ tl)) }
 												| TBlock(_) ->
 													{ e with eexpr = TBlock( (add_fn hd) :: tl ) }
 												| _ ->
-													{ e with eexpr = TBlock( funs @ (hd :: tl) ) })
-											| _ -> Type.concat { e with eexpr = TBlock(funs) } e
+													{ e with eexpr = TBlock( vars @ funs @ (hd :: tl) ) })
+											| _ -> Type.concat { e with eexpr = TBlock(vars @ funs) } e
 										in
 										let tf_expr = add_fn (mk_block tf.tf_expr) in
 										{ e with eexpr = TFunction({ tf with tf_expr = tf_expr }) }
