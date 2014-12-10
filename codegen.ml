@@ -1656,8 +1656,8 @@ module UnificationCallback = struct
 			| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
 				let e2 = f e2 e1.etype in
 				{e with eexpr = TBinop(op,e1,e2)}
-			| TVar(v,Some e) ->
-				let eo = Some (f e v.v_type) in
+			| TVar(v,Some ev) ->
+				let eo = Some (f ev v.v_type) in
 				{ e with eexpr = TVar(v,eo) }
 			| TCall(e1,el) ->
 				let el = check_call f el e1.etype in
