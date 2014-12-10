@@ -110,6 +110,11 @@ type matcher = {
 	mutable is_exhaustive : bool;
 }
 
+type type_finiteness =
+	| Infinite (* type has inifite constructors (e.g. Int, String) *)
+	| CompileTimeFinite (* type is considered finite only at compile-time but has inifite possible run-time values (enum abstracts) *)
+	| RunTimeFinite (* type is truly finite (Bool, enums) *)
+
 exception Not_exhaustive of pat * st
 exception Unrecognized_pattern of Ast.expr
 
@@ -799,7 +804,7 @@ let rec all_ctors mctx t =
 	| TAbstract({a_path = [],"Bool"},_) ->
 		h := PMap.add (CConst(TBool true)) Ast.null_pos !h;
 		h := PMap.add (CConst(TBool false)) Ast.null_pos !h;
-		h,false
+		h,RunTimeFinite
 	| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
 		List.iter (fun cf ->
 			ignore(follow cf.cf_type);
@@ -807,11 +812,11 @@ let rec all_ctors mctx t =
 				| Some {eexpr = TConst c | TCast ({eexpr = TConst c},None)} -> h := PMap.add (CConst c) cf.cf_pos !h
 				| _ -> ()
 		) c.cl_ordered_statics;
-		h,false
+		h,CompileTimeFinite
 	| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) -> all_ctors mctx (Abstract.get_underlying_type a pl)
 	| TInst({cl_path=[],"String"},_)
 	| TInst({cl_path=[],"Array"},_) ->
-		h,true
+		h,Infinite
 	| TEnum(en,pl) ->
 		PMap.iter (fun _ ef ->
 			let tc = monomorphs mctx.ctx.type_params t in
@@ -820,13 +825,13 @@ let rec all_ctors mctx t =
 			with Unify_error _ ->
 				()
 		) en.e_constrs;
-		h,false
+		h,RunTimeFinite
 	| TAnon a ->
-		h,true
+		h,Infinite
 	| TInst(_,_) ->
-		h,true
+		h,Infinite
 	| _ ->
-		h,true
+		h,Infinite
 
 let rec collapse_pattern pl = match pl with
 	| pat :: [] ->
@@ -878,7 +883,7 @@ let rec compile mctx stl pmat toplevel =
 			let all,inf = all_ctors mctx st.st_type in
 			let pl = PMap.foldi (fun cd p acc -> (mk_con_pat cd [] t_dynamic p) :: acc) !all [] in
 			begin match pl,inf with
-				| _,true
+				| _,Infinite
 				| [],_ ->
 					raise (Not_exhaustive(any,st))
 				| _ ->
@@ -929,13 +934,13 @@ let rec compile mctx stl pmat toplevel =
 			let dt = match def,cases with
 			| _ when List.exists (fun (c,_) -> match c.c_def with CFields _ -> true | _ -> false) cases ->
 				switch st_head cases
-			| [],_ when not inf && PMap.is_empty !all ->
+			| _ when inf = RunTimeFinite && PMap.is_empty !all ->
 				switch st_head cases
-			| [],_ when inf && not mctx.need_val && toplevel ->
+			| [],_ when inf = Infinite && not mctx.need_val && toplevel ->
 				(* ignore exhaustiveness, but mark context so we do not generate @:exhaustive metadata *)
 				mctx.is_exhaustive <- false;
 				switch st_head cases
-			| [],_ when inf ->
+			| [],_ when inf = Infinite ->
 				raise (Not_exhaustive(any,st_head))
 			| [],_ ->
 				let pl = PMap.foldi (fun cd p acc -> (mk_con_pat cd [] t_dynamic p) :: acc) !all [] in
