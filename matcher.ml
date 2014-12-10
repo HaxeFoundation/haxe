@@ -936,6 +936,8 @@ let rec compile mctx stl pmat toplevel =
 				switch st_head cases
 			| _ when inf = RunTimeFinite && PMap.is_empty !all ->
 				switch st_head cases
+			| [],_ when inf = CompileTimeFinite && PMap.is_empty !all ->
+				switch st_head cases
 			| [],_ when inf = Infinite && not mctx.need_val && toplevel ->
 				(* ignore exhaustiveness, but mark context so we do not generate @:exhaustive metadata *)
 				mctx.is_exhaustive <- false;
