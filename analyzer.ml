@@ -439,7 +439,6 @@ module Ssa = struct
 		com : Common.context;
 		mutable cleanup : (unit -> unit) list;
 		mutable cur_data : node_data;
-		mutable var_values : texpr IntMap.t;
 		mutable var_conds : (condition list) IntMap.t;
 		mutable loop_stack : (join_node * join_node) list;
 		mutable exception_stack : join_node list;
@@ -533,6 +532,21 @@ module Ssa = struct
 		| _ ->
 			assert false
 
+	let get_var_value v = match v.v_extra with
+		| Some (_,Some {eexpr = TArrayDecl (_ :: e :: _)}) -> e
+		| _ -> raise Not_found
+
+	let set_var_value v e =
+		match v.v_extra with
+		| Some (tl,Some ({eexpr = TArrayDecl (e1 :: el)} as ee)) ->
+			let el = match el with
+				| [] -> [e]
+				| _ :: el -> e :: el
+			in
+			v.v_extra <- Some (tl,Some {ee with eexpr = TArrayDecl (e1 :: el)})
+		| _ ->
+			assert false
+
 	let declare_var ctx v p =
 		let old = v.v_extra in
 		ctx.cleanup <- (fun () ->
@@ -554,10 +568,9 @@ module Ssa = struct
 			in
 			let v' = alloc_var (Printf.sprintf "%s<%i>" v.v_name i) v.v_type in
 			v'.v_meta <- [(Meta.Custom ":ssa"),[],p];
-			(* v'.v_extra <- Some ([],(Some (mk_loc v p))); *)
 			set_origin_var v' v p;
 			ctx.cur_data.nd_var_map <- IntMap.add v.v_id v' ctx.cur_data.nd_var_map;
-			ctx.var_values <- IntMap.add v'.v_id e ctx.var_values;
+			set_var_value v' e;
 			v'
 		end
 
@@ -620,7 +633,7 @@ module Ssa = struct
 		| TUnop(Not,_,e1) ->
 			invert_conds (eval_cond ctx e1)
 		| TLocal v ->
-			begin try eval_cond ctx (IntMap.find v.v_id ctx.var_values)
+			begin try eval_cond ctx (get_var_value v)
 			with Not_found -> [] end
 		| _ ->
 			[]
@@ -693,7 +706,7 @@ module Ssa = struct
 					| None -> None
 					| Some e ->
 						let e = loop ctx e in
-						ctx.var_values <- IntMap.add v.v_id e ctx.var_values;
+						set_var_value v e;
 						Some e
 				in
 				{e with eexpr = TVar(v,eo)}
@@ -843,7 +856,6 @@ module Ssa = struct
 		let ctx = {
 			com = com;
 			cur_data = mk_node_data e.epos;
-			var_values = IntMap.empty;
 			var_conds = IntMap.empty;
 			loop_stack = [];
 			exception_stack = [];
@@ -909,11 +921,12 @@ module ConstPropagation = struct
 				| TDynamic _ -> raise Not_found
 				| _ -> ()
 			end;
-			let e = IntMap.find v.v_id ssa.var_values in
+			let e = Ssa.get_var_value v in
+			let old = v.v_extra in
 			let reset() =
-				ssa.var_values <- IntMap.add v.v_id e ssa.var_values;
+				v.v_extra <- old;
 			in
-			ssa.var_values <- IntMap.remove v.v_id ssa.var_values;
+			v.v_extra <- None;
 			let e = value ssa e in
 			reset();
 			e
@@ -1098,7 +1111,7 @@ module Checker = struct
 			given_warnings := PMap.add p true !given_warnings
 		in
 		let resolve_value v =
-			let e' = IntMap.find v.v_id ssa.var_values in
+			let e' = Ssa.get_var_value v in
 			begin match e'.eexpr with
 				| TLocal v' when v == v' -> e'
 				| _ -> e'
