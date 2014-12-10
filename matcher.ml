@@ -929,7 +929,7 @@ let rec compile mctx stl pmat toplevel =
 			let dt = match def,cases with
 			| _ when List.exists (fun (c,_) -> match c.c_def with CFields _ -> true | _ -> false) cases ->
 				switch st_head cases
-			| _ when not inf && PMap.is_empty !all ->
+			| [],_ when not inf && PMap.is_empty !all ->
 				switch st_head cases
 			| [],_ when inf && not mctx.need_val && toplevel ->
 				(* ignore exhaustiveness, but mark context so we do not generate @:exhaustive metadata *)
