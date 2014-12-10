@@ -511,13 +511,35 @@ module Ssa = struct
 			ctx.exception_stack <- List.tl ctx.exception_stack;
 		)
 
+	let get_origin_var v = match v.v_extra with
+		| Some (_,Some {eexpr = TArrayDecl ({eexpr = TLocal v'} :: _)}) -> v'
+		| _ -> raise Not_found
+
+	let set_origin_var v v_origin p =
+		let ev = mk_loc v_origin p in
+		let create tl =
+			let e_extra = mk (TArrayDecl [
+				ev
+			]) t_dynamic p in
+			v.v_extra <- Some (tl,Some e_extra)
+		in
+		match v.v_extra with
+		| Some (tl,Some ({eexpr = TArrayDecl (_ :: el)} as ee)) ->
+			v.v_extra <- Some(tl, Some {ee with eexpr = TArrayDecl (ev :: el)})
+		| Some (tl,None) ->
+			create tl
+		| None ->
+			create []
+		| _ ->
+			assert false
+
 	let declare_var ctx v p =
 		let old = v.v_extra in
 		ctx.cleanup <- (fun () ->
 			v.v_extra <- old
 		) :: ctx.cleanup;
 		ctx.cur_data.nd_var_map <- IntMap.add v.v_id v ctx.cur_data.nd_var_map;
-		v.v_extra <- Some ([],(Some (mk_loc v p)))
+		set_origin_var v v p
 
 	let assign_var ctx v e p =
 		if v.v_capture then
@@ -532,7 +554,8 @@ module Ssa = struct
 			in
 			let v' = alloc_var (Printf.sprintf "%s<%i>" v.v_name i) v.v_type in
 			v'.v_meta <- [(Meta.Custom ":ssa"),[],p];
-			v'.v_extra <- Some ([],(Some (mk_loc v p)));
+			(* v'.v_extra <- Some ([],(Some (mk_loc v p))); *)
+			set_origin_var v' v p;
 			ctx.cur_data.nd_var_map <- IntMap.add v.v_id v' ctx.cur_data.nd_var_map;
 			ctx.var_values <- IntMap.add v'.v_id e ctx.var_values;
 			v'
@@ -575,7 +598,8 @@ module Ssa = struct
 				IntMap.iter (fun i vl -> match vl with
 					| [v,p] ->
 						ctx.cur_data.nd_var_map <- IntMap.add i v ctx.cur_data.nd_var_map;
-					| ({v_extra = Some (_,Some {eexpr = TLocal v})},p) :: _ ->
+					| (v',_) :: _ ->
+						let v = get_origin_var v' in
 						ignore(assign_var ctx v (mk_phi vl p) p)
 					| _ ->
 						assert false
@@ -830,11 +854,11 @@ module Ssa = struct
 
 	let unapply com e =
 		let rec loop e = match e.eexpr with
-			| TFor(({v_extra = Some([],Some {eexpr = TLocal v'})} as v),e1,e2) when Meta.has (Meta.Custom ":ssa") v.v_meta ->
+			| TFor(({v_extra = Some([],Some {eexpr = TArrayDecl ({eexpr = TLocal v'} :: _)})} as v),e1,e2) when Meta.has (Meta.Custom ":ssa") v.v_meta ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
 				{e with eexpr = TFor(v',e1,e2)}
-			| TLocal ({v_extra = Some([],Some {eexpr = TLocal v'})} as v) when Meta.has (Meta.Custom ":ssa") v.v_meta ->
+			| TLocal ({v_extra = Some([],Some {eexpr = TArrayDecl ({eexpr = TLocal v'} :: _)})} as v) when Meta.has (Meta.Custom ":ssa") v.v_meta ->
 				{e with eexpr = TLocal v'}
 			| TBlock el ->
 				let rec filter e = match e.eexpr with
