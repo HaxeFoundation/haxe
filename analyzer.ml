@@ -954,16 +954,16 @@ module ConstPropagation = struct
 				e
 			else
 				value ssa e'
-		| TCall ({eexpr = TLocal {v_name = "__ssa_phi__"}},e1 :: el) ->
-			let e1v = value ssa e1 in
-			let rec loop el = match el with
+		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}} as e1),el) ->
+			let el = List.map (value ssa) el in
+			begin match el with
+				| [] -> assert false
 				| e1 :: el ->
-					let e1 = value ssa e1 in
-					if not (expr_eq e1 e1v) then e else loop el
-				| [] ->
-					e1v
-			in
-			loop el
+					if List.for_all (fun e2 -> expr_eq e1 e2) el then
+						value ssa e1
+					else
+						{e with eexpr = TCall(e1,el)}
+			end
 		| TParenthesis e1 | TMeta(_,e1) ->
 			value ssa e1
 		| TLocal v ->
