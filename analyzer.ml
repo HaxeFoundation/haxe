@@ -923,12 +923,10 @@ module ConstPropagation = struct
 			end;
 			let e = Ssa.get_var_value v in
 			let old = v.v_extra in
-			let reset() =
-				v.v_extra <- old;
-			in
 			v.v_extra <- None;
 			let e = value ssa e in
-			reset();
+			v.v_extra <- old;
+			Ssa.set_var_value v e;
 			e
 		with Not_found ->
 			e
