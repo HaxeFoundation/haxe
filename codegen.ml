@@ -274,9 +274,12 @@ let generic_substitute_expr gctx e =
 	in
 	let rec build_expr e =
 		match e.eexpr with
-		| TField(e1, FInstance({cl_kind = KGeneric},_,cf)) ->
-			build_expr {e with eexpr = TField(e1,quick_field_dynamic (generic_substitute_type gctx (e1.etype)) cf.cf_name)}
-		| _ -> map_expr_type build_expr (generic_substitute_type gctx) build_var e
+		| TField(e1, FInstance({cl_kind = KGeneric} as c,tl,cf)) ->
+			let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c) gctx.p in
+			let t = f (List.map (generic_substitute_type gctx) tl) in
+			build_expr {e with eexpr = TField(e1,quick_field t cf.cf_name)}
+		| _ ->
+			map_expr_type build_expr (generic_substitute_type gctx) build_var e
 	in
 	build_expr e
 
