@@ -954,7 +954,7 @@ module ConstPropagation = struct
 				e
 			else
 				value ssa e'
-		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}} as e1),el) ->
+		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}}),el) ->
 			let el = List.map (value ssa) el in
 			begin match el with
 				| [] -> assert false
