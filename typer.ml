@@ -3035,15 +3035,15 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EVars vl ->
 		type_vars ctx vl p false
 	| EFor (it,e2) ->
-		let i, e1 = (match it with
-			| (EIn ((EConst (Ident i),_),e),_) -> i, e
+		let i, pi, e1 = (match it with
+			| (EIn ((EConst (Ident i),pi),e),_) -> i, pi, e
 			| _ -> error "For expression should be 'v in expr'" (snd it)
 		) in
 		let e1 = type_expr ctx e1 Value in
 		let old_loop = ctx.in_loop in
 		let old_locals = save_locals ctx in
 		ctx.in_loop <- true;
-		let e = (match Optimizer.optimize_for_loop ctx i e1 e2 p with
+		let e = (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
 			| Some e -> e
 			| None ->
 				let t, pt = Typeload.t_iterator ctx in
