@@ -4913,8 +4913,7 @@ let generate_cppia common_ctx =
          () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
       | TClassDecl class_def ->
          let is_internal = is_internal_class class_def.cl_path in
-         let is_generic_def = match class_def.cl_kind with KGeneric -> true | _ -> false in
-         if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
+         if (is_internal || (is_macro class_def.cl_meta)) then
             ( if (debug>1) then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
          else begin
             ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
@@ -4978,8 +4977,7 @@ let generate_source common_ctx =
       | TClassDecl class_def ->
          let name =  class_text class_def.cl_path in
          let is_internal = is_internal_class class_def.cl_path in
-         let is_generic_def = match class_def.cl_kind with KGeneric -> true | _ -> false in
-         if (is_internal || (is_macro class_def.cl_meta) || is_generic_def) then
+         if (is_internal || (is_macro class_def.cl_meta)) then
             ( if (debug>1) then print_endline (" internal class " ^ name ))
          else begin
             build_xml := !build_xml ^ (get_code class_def.cl_meta Meta.BuildXml);
