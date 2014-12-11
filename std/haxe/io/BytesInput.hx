@@ -155,36 +155,44 @@ class BytesInput extends Input {
 	}
 
 	#if flash9
+	@:dox(hide)
 	override function set_bigEndian(e) {
 		bigEndian = e;
 		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
 		return e;
 	}
 
+	@:dox(hide)
 	override function readFloat() {
 		return try b.readFloat() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readDouble() {
 		return try b.readDouble() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readInt8() {
 		return try b.readByte() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readInt16() {
 		return try b.readShort() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readUInt16() : Int {
 		return try b.readUnsignedShort() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readInt32() : Int {
 		return try b.readInt() catch( e : Dynamic ) throw new Eof();
 	}
 
+	@:dox(hide)
 	override function readString( len : Int ) {
 		return try b.readUTFBytes(len) catch( e : Dynamic ) throw new Eof();
 	}
