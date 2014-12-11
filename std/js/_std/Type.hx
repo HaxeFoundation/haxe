@@ -141,6 +141,7 @@ enum ValueType {
 		a.remove("__interfaces__");
 		a.remove("__properties__");
 		a.remove("__super__");
+		a.remove("__meta__");
 		a.remove("prototype");
 		return a;
 	}
