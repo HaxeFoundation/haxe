@@ -777,8 +777,8 @@ let unify_field_call ctx fa el args ret p inline =
 				begin match follow t with
 					| TFun(args,ret) ->
 						let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-						let mk_call ethis =
-							let ef = mk (TField(ethis,mk_fa cf)) tf p in
+						let mk_call ethis p_field =
+							let ef = mk (TField(ethis,mk_fa cf)) tf p_field in
 							make_call ctx ef (List.map fst el) ret p
 						in
 						let candidate = (el,tf,mk_call) in
@@ -3834,7 +3834,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		(match follow t with
 			| TFun (args,r) ->
 				let _,_,mk_call = unify_field_call ctx fmode el args r p true in
-				mk_call ethis
+				mk_call ethis p
 			| _ ->
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
@@ -3934,7 +3934,7 @@ and build_call ctx acc el (with_type:with_type) p =
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
 							let _,_,mk_call = unify_field_call ctx fa el args r p false in
-							mk_call e1
+							mk_call e1 e.epos
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in
