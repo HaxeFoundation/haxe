@@ -2573,6 +2573,7 @@ and type_access ctx e p mode =
 					Not_found -> loop [] path
 		in
 		let rec loop acc e =
+			let p = pos e in
 			match fst e with
 			| EField (e,s) ->
 				loop ((s,not (is_lower_ident s),p) :: acc) e
