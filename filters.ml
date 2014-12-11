@@ -1059,13 +1059,15 @@ let run com tctx main =
 			Codegen.UnificationCallback.run (check_unification com);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			blockify_ast;
-			(match com.platform with
-				| Cpp | Flash8 -> (fun e ->
-					let save = save_locals tctx in
-					let e = try snd (Analyzer.Simplifier.apply com (Typecore.gen_local tctx) e) with Exit -> e in
-					save();
-					e)
-				| _ -> fun e -> e);
+			( if (Common.defined com Define.NoSimplify) || (Common.defined com Define.Cppia) ||
+						( match com.platform with Cpp | Flash8 -> false | _ -> true ) then
+					fun e -> e
+				else
+					fun e ->
+						let save = save_locals tctx in
+						let e = try snd (Analyzer.Simplifier.apply com (Typecore.gen_local tctx) e) with Exit -> e in
+						save();
+					e );
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize com;
 			check_local_vars_init;
 			captured_vars com;
