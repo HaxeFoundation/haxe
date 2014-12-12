@@ -909,9 +909,9 @@ module PatternMatchConversion = struct
 				if is_declared cctx v then
 					vl, (mk (TBinop(OpAssign,mk (TLocal v) v.v_type p,e)) e.etype e.epos) :: el
 				else
-					((v,Some e) :: vl), el
+					((v,p,Some e) :: vl), el
 			) ([],[e]) bl in
-			let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) cctx.ctx.t.tvoid e.epos) vl in
+			let el_v = List.map (fun (v,p,eo) -> mk (TVar (v,eo)) cctx.ctx.t.tvoid p) vl in
 			mk (TBlock (el_v @ el)) e.etype e.epos
 		| DTGoto i ->
 			convert_dt cctx (cctx.dt_lookup.(i))
