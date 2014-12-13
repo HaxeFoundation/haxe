@@ -2007,6 +2007,7 @@ let init_class ctx c p context_init herits fields =
 								| None -> error (f.cff_name ^ ": Functions without expressions must have an explicit return type") f.cff_pos
 								| Some _ -> ()
 							end;
+							cf.cf_meta <- (Meta.NoExpr,[],cf.cf_pos) :: cf.cf_meta;
 							do_add := false;
 							do_bind := false;
 						end

@@ -47,21 +47,21 @@ abstract Int32(Int) from Int to Int {
 	}
 
 	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
-		return clamp( a + b );
+		return clamp( (a : Int) + (b : Int) );
 
 	@:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
-		return clamp( (a : Int) + b );
+		return clamp( (a : Int) + (b : Int) );
 
 	@:op(A + B) @:commutative private static function addFloat(a:Int32, b:Float):Float;
 
 	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
-		return clamp( a - b );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
-		return clamp( (a : Int) - b );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
-		return clamp( a - (b : Int) );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
 
@@ -70,7 +70,7 @@ abstract Int32(Int) from Int to Int {
 	#if (as3 || flash8 || js || php || python)
 
 	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
-		return clamp( a * (b & 0xFFFF) + clamp( a * (b >>> 16) << 16 ) );
+		return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
 
 	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
 		return mul(a, b);
@@ -152,13 +152,13 @@ abstract Int32(Int) from Int to Int {
 
 	// PHP may be 64-bit, so shifts must be clamped
 	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
-		return clamp( a << b );
+		return clamp( (a : Int) << (b : Int) );
 
 	@:op(A << B) private static inline function shlInt(a:Int32, b:Int):Int32
-		return clamp( a << b );
+		return clamp( (a : Int) << b );
 
-	@:op(A << B) private static inline function intShl(a:Int32, b:Int):Int32
-		return clamp( a << b );
+	@:op(A << B) private static inline function intShl(a:Int, b:Int32):Int32
+		return clamp( a << (b : Int) );
 
 	#else
 
