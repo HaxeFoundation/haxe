@@ -499,27 +499,18 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	else
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
-			(try
-				let etype = if has_params then map_type e.etype else e.etype in
-				(* if the expression is "untyped" and we don't want to unify it accidentally ! *)
-				(match follow e.etype with
-				| TMono _ ->
-					(match follow tret with
-					| TAbstract ({ a_path = [],"Void" },_) -> e
-					| _ -> raise (Unify_error []))
-				| _ -> try
-					type_eq (if ctx.com.config.pf_static then EqDoNotFollowNull else EqStrict) etype tret;
-					e
-				with Unify_error _ when (match ctx.com.platform with Cpp -> true | Flash when Common.defined ctx.com Define.As3 -> true | _ -> false) ->
-					(* try to detect upcasts: in that case we may use a safe cast *)
-					Type.unify tret etype;
-					let ct = match follow tret with
-						| TInst(c,_) -> Some (TClassDecl c)
-						| _ -> None
-					in
-					mk (TCast (e,ct)) tret e.epos)
+			let etype = if has_params then map_type e.etype else e.etype in
+			(* if the expression is "untyped" and we don't want to unify it accidentally ! *)
+			try (match follow e.etype with
+			| TMono _ ->
+				(match follow tret with
+				| TAbstract ({ a_path = [],"Void" },_) -> e
+				| _ -> raise (Unify_error []))
+			| _ ->
+				type_eq (if ctx.com.config.pf_static then EqDoNotFollowNull else EqStrict) etype tret;
+				e)
 			with Unify_error _ ->
-				mk (TCast (e,None)) tret e.epos)
+				mk (TCast (e,None)) tret e.epos
 		in
 		let e = (match e.eexpr, init with
 			| _, None when not !has_return_value ->
