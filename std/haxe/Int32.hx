@@ -47,21 +47,21 @@ abstract Int32(Int) from Int to Int {
 	}
 
 	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
-		return clamp( a + b );
+		return clamp( (a : Int) + (b : Int) );
 
 	@:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
-		return clamp( (a : Int) + b );
+		return clamp( (a : Int) + (b : Int) );
 
 	@:op(A + B) @:commutative private static function addFloat(a:Int32, b:Float):Float;
 
 	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
-		return clamp( a - b );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
-		return clamp( (a : Int) - b );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
-		return clamp( a - (b : Int) );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
 

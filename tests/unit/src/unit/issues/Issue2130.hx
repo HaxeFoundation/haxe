@@ -17,7 +17,9 @@ private abstract ZeroOneFloat(Float) to Float {
         return this = new ZeroOneFloat(this*r);
     }
 
-    @:op(A * B) @:commutative public static inline function mul_i(l:ZeroOneFloat, r:Float) return l*r;
+    @:op(A * B) @:commutative public static inline function mul_i(l:ZeroOneFloat, r:Float) {
+		return (l : Float) * r;
+	}
 }
 
 class Issue2130 extends Test {

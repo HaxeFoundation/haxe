@@ -94,11 +94,11 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:op(A >> B) private static inline function shr(a:UInt, b:UInt):UInt {
-		return a.toInt() >> b;
+		return a.toInt() >> b.toInt();
 	}
 
 	@:op(A >>> B) private static inline function ushr(a:UInt, b:UInt):UInt {
-		return a.toInt() >>> b;
+		return a.toInt() >>> b.toInt();
 	}
 
 	@:op(A % B) private static inline function mod(a:UInt, b:UInt):UInt {
