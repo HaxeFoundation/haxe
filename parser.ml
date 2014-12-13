@@ -1085,6 +1085,7 @@ and block acc s =
 and parse_block_elt = parser
 	| [< '(Kwd Var,p1); vl = parse_var_decls p1; p2 = semicolon >] ->
 		(EVars vl,punion p1 p2)
+	| [< '(Kwd Inline,p1); '(Kwd Function,_); e = parse_function p1 true; _ = semicolon >] -> e
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl = parser
@@ -1158,6 +1159,22 @@ and parse_macro_expr p = parser
 	| [< e = secure_expr >] ->
 		reify_expr e
 
+and parse_function p1 inl = parser
+	| [< name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
+		let make e =
+			let f = {
+				f_params = pl;
+				f_type = t;
+				f_args = al;
+				f_expr = Some e;
+			} in
+			EFunction ((match name with None -> None | Some (name,_) -> Some (if inl then "inline_" ^ name else name)),f), punion p1 (pos e)
+		in
+		(try
+			expr_next (make (secure_expr s)) s
+		with
+			Display e -> display (make e))
+
 and expr = parser
 	| [< (name,params,p) = parse_meta_entry; s >] ->
 		(try
@@ -1198,20 +1215,7 @@ and expr = parser
 		| [< t = parse_type_hint; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,t),punion p1 p2), punion p1 p2) s
 		| [< >] -> serror())
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
-	| [< inl, p1 = inline_function; name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
-		let make e =
-			let f = {
-				f_params = pl;
-				f_type = t;
-				f_args = al;
-				f_expr = Some e;
-			} in
-			EFunction ((match name with None -> None | Some (name,_) -> Some (if inl then "inline_" ^ name else name)),f), punion p1 (pos e)
-		in
-		(try
-			expr_next (make (secure_expr s)) s
-		with
-			Display e -> display (make e))
+	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
 	| [< '(Binop OpSub,p1); e = expr >] ->
 		let neg s =
