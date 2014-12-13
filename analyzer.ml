@@ -130,8 +130,6 @@ module Simplifier = struct
 (* 				| TBinop(OpAssignOp op,({eexpr = TLocal _} as e1),e2) ->
 					push e;
 					mk_assign e1 *)
-				| TParenthesis e1 ->
-					loop e1 (* this is weird *)
 				| _ ->
 					mk_assign e
 			in
@@ -145,14 +143,24 @@ module Simplifier = struct
 				let e = mk (TVar (v,e_init)) com.basic.tvoid p in
 				push e;
 			in
-			begin match eo with
+			let e_v = match eo with
 				| None ->
-					declare None
+					declare None;
+					e_v
 				| Some e1 ->
 					begin match e1.eexpr with
 						| TThrow _ | TReturn _ | TBreak | TContinue ->
-							()
+							e_v
 						| _ ->
+							let rec loop e_v e = match e.eexpr with
+								| TParenthesis e1 ->
+									loop {e_v with eexpr = TParenthesis e_v} e1
+								| TMeta(m,e1) ->
+									loop {e_v with eexpr = TMeta(m,e_v)} e1
+								| _ ->
+									e_v,e
+							in
+							let e_v',e1 = loop e_v e1 in
 							let e1 = assign e_v e1 in
 							begin match e1.eexpr with
 								| TBinop(OpAssign,{eexpr = TLocal v1},e2) when v == v1 ->
@@ -160,9 +168,10 @@ module Simplifier = struct
 								| _ ->
 									declare None;
 									push e1
-							end
+							end;
+							e_v'
 					end
-			end;
+			in
 			e_v
 		in
 		let rec push_block () =
