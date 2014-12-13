@@ -1552,13 +1552,16 @@ and type_field ?(resume=false) ctx e i p mode =
 		r := Some t;
 		field_access ctx mode f (FAnon f) (Type.field_type f) e p
 	| TAbstract (a,pl) ->
+		let static_abstract_access_through_instance = ref false in
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
 			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
 			let field_type f =
-				if not (Meta.has Meta.Impl f.cf_meta) then
-					error ("Invalid call to static function " ^ i ^ " through abstract instance") p;
+				if not (Meta.has Meta.Impl f.cf_meta) then begin
+					static_abstract_access_through_instance := true;
+					raise Not_found;
+				end;
 				let t = field_type ctx c [] f p in
 				apply_params a.a_params pl t
 			in
@@ -1616,7 +1619,8 @@ and type_field ?(resume=false) ctx e i p mode =
 			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 			| _ -> raise Not_found)
 		with Not_found ->
-			no_field())
+			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
+			else no_field())
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
 
