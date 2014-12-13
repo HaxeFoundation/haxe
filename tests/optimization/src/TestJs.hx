@@ -12,4 +12,10 @@ class TestJs {
         //var x = true;
         //Std.string(x);
 	//}
+
+	@:js("var a = new List();var _g_head = a.h;var _g_val = null;while(_g_head != null) {var tmp;_g_val = _g_head[0];_g_head = _g_head[1];tmp = _g_val;tmp;}")
+	static function testListIteratorInline() {
+		var a = new List();
+		for (v in a) { }
+	}
 }
