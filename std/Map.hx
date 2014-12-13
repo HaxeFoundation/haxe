@@ -134,19 +134,19 @@ abstract Map<K,V>(IMap<K,V> ) {
 		return v;
 	}
 
-	@:to static inline function toStringMap(t:IMap<String,V>):StringMap<V> {
+	@:to static inline function toStringMap<V>(t:IMap<String,V>):StringMap<V> {
 		return new StringMap<V>();
 	}
 
-	@:to static inline function toIntMap(t:IMap<Int,V>):IntMap<V> {
+	@:to static inline function toIntMap<V>(t:IMap<Int,V>):IntMap<V> {
 		return new IntMap<V>();
 	}
 
-	@:to static inline function toEnumValueMapMap<K:EnumValue>(t:IMap<K,V>):EnumValueMap<K,V> {
+	@:to static inline function toEnumValueMapMap<K:EnumValue,V>(t:IMap<K,V>):EnumValueMap<K,V> {
 		return new EnumValueMap<K, V>();
 	}
 
-	@:to static inline function toObjectMap<K:{ }>(t:IMap<K,V>):ObjectMap<K,V> {
+	@:to static inline function toObjectMap<K:{ },V>(t:IMap<K,V>):ObjectMap<K,V> {
 		return new ObjectMap<K, V>();
 	}
 
