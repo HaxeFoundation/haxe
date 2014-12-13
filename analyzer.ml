@@ -130,7 +130,7 @@ module Simplifier = struct
 (* 				| TBinop(OpAssignOp op,({eexpr = TLocal _} as e1),e2) ->
 					push e;
 					mk_assign e1 *)
-				| TParenthesis e1 | TMeta(_, e1) ->
+				| TParenthesis e1 ->
 					loop e1 (* this is weird *)
 				| _ ->
 					mk_assign e
