@@ -827,9 +827,9 @@ let rec all_ctors mctx t =
 		) en.e_constrs;
 		h,RunTimeFinite
 	| TAnon a ->
-		h,Infinite
+		h,CompileTimeFinite
 	| TInst(_,_) ->
-		h,Infinite
+		h,CompileTimeFinite
 	| _ ->
 		h,Infinite
 
@@ -932,8 +932,6 @@ let rec compile mctx stl pmat toplevel =
 			) sigma in
 			let def = default mctx pmat in
 			let dt = match def,cases with
-			| _ when List.exists (fun (c,_) -> match c.c_def with CFields _ -> true | _ -> false) cases ->
-				switch st_head cases
 			| _ when inf = RunTimeFinite && PMap.is_empty !all ->
 				switch st_head cases
 			| [],_ when inf = CompileTimeFinite && PMap.is_empty !all ->
