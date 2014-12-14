@@ -1721,7 +1721,7 @@ let configure gen =
 
 	let gen_nocompletion w metadata =
 		if Meta.has Meta.NoCompletion metadata then begin
-			write w "[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]";
+			write w "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]";
 			newline w
 		end;
 	in
