@@ -21,12 +21,12 @@ class TestJs {
 
 	@:js("var a = 1;var tmp;var v2 = a;tmp = a + v2;if(tmp > 0) {}")
 	@:analyzer(no_const_propagation)
-	static function testInline() {
+	static function testInlineWithArgumentUsedMoreThanOnce() {
 		var a = 1;
-		if (f(a) > 0) { }
+		if (_inlineWithArgumentUsedMoreThanOnce(a) > 0) { }
 	}
 
-    inline static function f(v) {
+    inline static function _inlineWithArgumentUsedMoreThanOnce(v) {
         var v2 = v;
         return v + v2;
     }
