@@ -960,6 +960,10 @@ module ConstPropagation = struct
 		| _ ->
 			false
 
+	let semi_awkward_enum_value ssa e i = match e.eexpr with
+		| TCall({eexpr = TField(_,FEnum _)},el) -> (try List.nth el i with Failure _ -> raise Not_found)
+		| _ -> raise Not_found
+
 	let rec local ssa v e =
 		begin try
 			if v.v_capture then raise Not_found;
@@ -1015,6 +1019,10 @@ module ConstPropagation = struct
 			value ssa e1
 		| TLocal v ->
 			local ssa v e
+ 		| TEnumParameter(e1,ef,i) ->
+			let ev = value ssa e1 in
+			begin try semi_awkward_enum_value ssa ev i
+			with Not_found -> e end
 		| _ ->
 			e
 

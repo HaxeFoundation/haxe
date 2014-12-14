@@ -1,3 +1,8 @@
+private enum E {
+	A(s:String, i:Int, a:Array<Int>);
+	B(?i:Int);
+}
+
 class TestAnalyzer extends TestBase {
 
 	static function main() {
@@ -651,6 +656,25 @@ class TestAnalyzer extends TestBase {
 		//assertEquals(22, call(assertEqualsConst(2, a++), assertEqualsConst(4, ++a), assertEqualsConst(16, a *= a)));
 		//assertEquals(50, call(a, a = a + 1, a));
 	//}
+
+	function testEnumValues() {
+		var array = [1];
+		var a = A("foo", 12, array);
+		switch (a) {
+			case A(s, i, a):
+				assertEqualsConst("foo", s);
+				assertEqualsConst(12, i);
+				assertEquals(array, a);
+			case B(_):
+		}
+
+		var b = B(0);
+		switch (b) {
+			case B(i):
+				assertEqualsConst(0, i);
+			case A(_):
+		}
+	}
 
 	function cond1() {
 		append("cond1");
