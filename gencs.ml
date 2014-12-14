@@ -1365,18 +1365,20 @@ let configure gen =
 									write w "fixed(";
 									let vf = mk_temp gen "fixed" v.v_type in
 									expr_s w { expr with eexpr = TVar(vf, Some e) };
-									let acc = (expr,v,vf) :: acc in
 									write w ") ";
-									if tl = [] then acc else loop tl acc
-								| _ -> assert false
+									begin_block w;
+									expr_s w { expr with eexpr = TVar(v, Some (mk_local vf expr.epos)) };
+									write w ";";
+									newline w;
+									loop tl (acc + 1)
+								| [] -> acc
 							in
-							let vars = loop (List.rev !fixeds) [] in
-							begin_block w;
-							List.iter (fun (expr,v,vf) ->
-								expr_s w { expr with eexpr = TVar(v, Some (mk_local vf expr.epos)) };
-								write w ";") vars;
+							let nblocks = loop (List.rev !fixeds) 0 in
+							in_value := false;
 							expr_s w { e with eexpr = TBlock el };
-							end_block w
+							for i = 1 to nblocks do
+								end_block w
+							done
 						| _ ->
 							trace (debug_expr e);
 							gen.gcon.error "Invalid 'fixed' keyword format" e.epos
