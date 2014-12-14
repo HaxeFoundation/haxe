@@ -732,4 +732,6 @@ let rec s_expr (e,_) =
 	| EArrayDecl el -> "[" ^ (String.concat "," (List.map s_expr el)) ^ "]"
 	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr e)) fl)) ^ "}"
 	| EBinop (op,e1,e2) -> s_expr e1 ^ s_binop op ^ s_expr e2
+	| ECall (e,el) -> s_expr e ^ "(" ^ (String.concat ", " (List.map s_expr el)) ^ ")"
+	| EField (e,f) -> s_expr e ^ "." ^ f
 	| _ -> "'???'"
