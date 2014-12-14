@@ -907,7 +907,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 			in
 			(* if the return type is one of the type-parameters, then we need to cast it *)
 			if is_type_parameter_field then
-				VCast (id, classify ctx et)
+				VCast (id, classify ctx e.etype)
 			else if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
 			else

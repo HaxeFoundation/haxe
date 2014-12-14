@@ -12,7 +12,6 @@ private class Node<T>
 }
 
 class Issue3681 extends Test {
-    #if !flash
 	function test() {
         var i:Null<Int> = null;
         var nodes = new Node(i,new Node(1,new Node(2, new Node(i))));
@@ -25,5 +24,4 @@ class Issue3681 extends Test {
         }
         t(matches);
 	}
-    #end
 }
