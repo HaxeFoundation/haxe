@@ -61,4 +61,14 @@ class TestJs {
 		inline function forEach(f) for (v in a) f(v);
 		forEach(function(x) trace(x + 2));
 	}
+
+	@:js('var a = "";var tmp;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":tmp = 0;break;default:throw false;}var e = tmp;')
+	@:analyzer(no_const_propagation, no_local_dce)
+	static function testRValueSwitchWithExtractors() {
+		var a = "";
+		var e = switch (a) {
+			case _.toLowerCase() => "e": 0;
+			default: throw false;
+		}
+	}
 }
