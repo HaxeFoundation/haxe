@@ -30,4 +30,14 @@ class TestJs {
         var v2 = v;
         return v + v2;
     }
+
+    @:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}if(tmp) {}")
+    static function testInlineWithComplexExpr() {
+        var a = [];
+        if (_inlineWithComplexExpr(a, 0)) {}
+    }
+
+    inline static function _inlineWithComplexExpr(a, i) {
+    	return try a[i] catch (e:Dynamic) null;
+    }
 }
