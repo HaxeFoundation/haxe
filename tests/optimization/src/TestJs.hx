@@ -51,4 +51,11 @@ class TestJs {
 			default: false;
 		}) {}
 	}
+
+	@:js("var a = [1,2,3];var _g = 0;while(_g < a.length) {var v = a[_g];++_g;console.log(v + 2);}")
+	static function testInlineFunctionWithAnonymousCallback() {
+		var a = [1,2,3];
+		inline function forEach(f) for (v in a) f(v);
+		forEach(function(x) trace(x + 2));
+	}
 }
