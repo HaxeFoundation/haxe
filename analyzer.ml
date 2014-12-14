@@ -124,6 +124,8 @@ module Simplifier = struct
 						v,e
 					) catches in
 					{e with eexpr = TTry(e1,catches)}
+				| TParenthesis e1 | TMeta(_,e1) ->
+					loop e1 (* this is still weird, have to review *)
 (* 				| TBinop(OpAssign,({eexpr = TLocal _} as e1),e2) ->
 					push e;
 					mk_assign e1 *)
