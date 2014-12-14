@@ -21,6 +21,7 @@ class TestJs {
 
 	@:js("var a = 1;var tmp;var v2 = a;tmp = a + v2;if(tmp > 0) {}")
 	@:analyzer(no_const_propagation)
+	@:analyzer(no_check_has_effect)
 	static function testInlineWithArgumentUsedMoreThanOnce() {
 		var a = 1;
 		if (_inlineWithArgumentUsedMoreThanOnce(a) > 0) { }
@@ -32,6 +33,7 @@ class TestJs {
 	}
 
 	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}if(tmp) {}")
+	@:analyzer(no_check_has_effect)
 	static function testInlineWithComplexExpr() {
 		var a = [];
 		if (_inlineWithComplexExpr(a, 0)) {}
@@ -43,6 +45,7 @@ class TestJs {
 
 	@:js("var a = { v : [{ b : 1}]};a;var tmp;switch(a.v.length) {case 1:switch(a.v[0].b) {case 1:tmp = true;break;default:tmp = false;}break;default:tmp = false;}if(tmp) {}")
 	@:analyzer(no_const_propagation)
+	@:analyzer(no_check_has_effect)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
 		a;
