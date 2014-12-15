@@ -25,19 +25,19 @@ package haxe.ds;
 
 	private var h : Dynamic;
 
-	public function new() : Void {
+	public inline function new() : Void {
 		h = {};
 	}
 
-	public function set( key : String, value : T ) : Void {
+	public inline function set( key : String, value : T ) : Void {
 		untyped h["$"+key] = value;
 	}
 
-	public function get( key : String ) : Null<T> {
+	public inline function get( key : String ) : Null<T> {
 		return untyped h["$"+key];
 	}
 
-	public function exists( key : String ) : Bool {
+	public inline function exists( key : String ) : Bool {
 		return untyped h.hasOwnProperty("$"+key);
 	}
 
