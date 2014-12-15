@@ -2,7 +2,7 @@
 #
 #  - use 'make' to build all
 #  - use 'make haxe' to build only the compiler (not the libraries)
-#  - if you want to build quickly, install 'ocamlopt.opt' and change OCAMLOPT=ocamlopt.top
+#  - if you want to build quickly, install 'ocamlopt.opt' and change OCAMLOPT=ocamlopt.opt
 #
 #  Windows users :
 #  - use 'make -f Makefile.win' to build for Windows
