@@ -138,7 +138,7 @@ extern class Array<T> {
 
 		The sort operation is not guaranteed to be stable, which means that the
 		order of equal elements may not be retained. For a stable Array sorting
-		algorithm, `haxe.ds.sort.MergeSort.sort()` can be used instead.
+		algorithm, `haxe.ds.ArraySort.sort()` can be used instead.
 
 		If `f` is null, the result is unspecified.
 	**/
