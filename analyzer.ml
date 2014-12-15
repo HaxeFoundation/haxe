@@ -1249,6 +1249,9 @@ module LocalDce = struct
 		let rec collect e = match e.eexpr with
 			| TLocal v ->
 				use v
+			| TVar(v,_) when not (is_used v) ->
+				(* TODO: this is probably dangerous *)
+				()
 			| _ ->
 				Type.iter collect e
 		in
@@ -1339,12 +1342,12 @@ let run_ssa com config is_var_expression e =
 		end else
 			e
 		in
+		let e = if config.local_dce && config.analyzer_use && not has_unbound && not is_var_expression then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 		let e = if not do_simplify && not (Common.raw_defined com "analyzer-no-simplify-unapply") then
 			with_timer "analyzer-simplify-unapply" (fun () -> Simplifier.unapply com e)
 		else
 			e
 		in
-		let e = if config.local_dce && config.analyzer_use && not has_unbound then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 		e
 	with Exit ->
 		e
