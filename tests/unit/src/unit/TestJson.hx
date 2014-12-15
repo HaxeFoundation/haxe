@@ -3,7 +3,8 @@ package unit;
 class TestJson extends Test {
 
     function testNativeJson() {
-        var str = haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
+        var strJson = haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
+        var str = strJson;
         str = str.substr(1, str.length - 2); // remove {}
         var parts = str.split(",");
         t( parts.remove('"x":-4500') );
@@ -11,6 +12,10 @@ class TestJson extends Test {
         t( parts.remove('"a":["hello"') );
         t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
         eq( parts.join("#"), "" );
+
+        var parsed : Dynamic = haxe.Json.parse( strJson );
+        eq( parsed.x, -4500 );
+        eq( parsed.y, 1.456 );
 
         // no support for regexps
         #if !flash8
