@@ -779,9 +779,9 @@ module Ssa = struct
 				{e with eexpr = TBinop(OpAssign,e1,e2)}
 			| TBinop(OpAssignOp op,({eexpr = TLocal v} as e1),e2) ->
 				let e1 = loop ctx e1 in
+				let e2 = loop ctx e2 in
 				let e_op = mk (TBinop(op,e1,e2)) e.etype e.epos in
 				let _ = assign_var ctx v e_op e1.epos in
-				let e2 = loop ctx e2 in
 				{e with eexpr = TBinop(OpAssignOp op,e1,e2)}
 			| TUnop((Increment | Decrement as op),flag,({eexpr = TLocal v} as e1)) ->
 				let op = match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false in
@@ -1244,7 +1244,7 @@ module LocalDce = struct
 			| TVar(v,None) -> is_used v
 			| TVar(v,Some e1) -> is_used v || Optimizer.has_side_effect e1
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) -> is_used v || Optimizer.has_side_effect e2
-			| _ -> true
+			| _ -> Optimizer.has_side_effect e
 		in
 		let rec collect e = match e.eexpr with
 			| TLocal v ->

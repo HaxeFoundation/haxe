@@ -44,8 +44,7 @@ class TestJs {
 	}
 
 	@:js("var a = { v : [{ b : 1}]};a;var tmp;switch(a.v.length) {case 1:switch(a.v[0].b) {case 1:tmp = true;break;default:tmp = false;}break;default:tmp = false;}if(tmp) {}")
-	@:analyzer(no_const_propagation)
-	@:analyzer(no_check_has_effect)
+	@:analyzer(no_const_propagation, no_local_dce, no_check_has_effect)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
 		a;
