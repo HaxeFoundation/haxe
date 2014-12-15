@@ -12,6 +12,10 @@ class TestJson extends Test {
         t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
         eq( parts.join("#"), "" );
 
+        var parsed = haxe.Json.parse( str );
+        eq( parsed.x, -4500 );
+        eq( parsed.y, 1.456 );
+
         // no support for regexps
         #if !flash8
 
