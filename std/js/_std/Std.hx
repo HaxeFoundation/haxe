@@ -50,7 +50,7 @@ import js.Boot;
 		return cast v;
 	}
 
-	public static function parseFloat( x : String ) : Float {
+	public static inline function parseFloat( x : String ) : Float {
 		return untyped __js__("parseFloat")(x);
 	}
 
