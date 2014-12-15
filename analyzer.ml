@@ -152,7 +152,7 @@ module Simplifier = struct
 				| Some e1 ->
 					begin match e1.eexpr with
 						| TThrow _ | TReturn _ | TBreak | TContinue ->
-							e_v
+							e1
 						| _ ->
 							let rec loop e_v e = match e.eexpr with
 								| TParenthesis e1 ->
