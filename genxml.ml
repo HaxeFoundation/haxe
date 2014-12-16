@@ -207,10 +207,16 @@ let rec gen_type_decl com pos t =
 	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
-		let stats = List.map (gen_field ["static","1"]) (List.filter (fun cf -> cf.cf_name <> "__meta__") c.cl_ordered_statics) in
+		let stats = List.filter (fun cf ->
+			cf.cf_name <> "__meta__" && not (Meta.has Meta.GenericInstance cf.cf_meta)
+		) c.cl_ordered_statics in
+		let stats = List.map (gen_field ["static","1"]) stats in
+		let fields = List.filter (fun cf ->
+			not (Meta.has Meta.GenericInstance cf.cf_meta)
+		) c.cl_ordered_fields in
 		let fields = (match c.cl_super with
-			| None -> List.map (fun f -> f,[]) c.cl_ordered_fields
-			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) c.cl_ordered_fields
+			| None -> List.map (fun f -> f,[]) fields
+			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) fields
 		) in
 		let fields = List.map (fun (f,att) -> gen_field att f) fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in

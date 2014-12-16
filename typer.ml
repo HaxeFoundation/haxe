@@ -1824,7 +1824,7 @@ let unify_int ctx e k =
 				| Meta.Generic -> false
 				| _ -> true
 			) cf.cf_meta in
-			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: metadata;
+			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata;
 			cf2
 		in
 		let e = if stat then type_type ctx c.cl_path p else e in
