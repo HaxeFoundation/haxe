@@ -422,7 +422,7 @@ class RunCi {
 			case TravisCI:
 				[Sys.getEnv("TEST")];
 			case AppVeyor:
-				[Macro, Neko, Cs];
+				[Neko, Cs, Macro];
 		}
 		Sys.println('Going to test: $tests');
 
@@ -450,7 +450,12 @@ class RunCi {
 					changeDirectory(getHaxelibPath("dox"));
 					runCommand("haxe", ["run.hxml"]);
 					runCommand("haxe", ["gen.hxml"]);
-					haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
+					switch (ci) {
+						case AppVeyor:
+							//do not build zip to save time
+						case _:
+							haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
+					}
 
 					//BYTECODE
 					switch (ci) {
