@@ -6241,7 +6241,7 @@ struct
 							(cf, actual_t, true), true
 					in
 					if not (is_static || error) then match find_first_declared_field gen cl ~exact_field:{ cf with cf_type = actual_t } cf.cf_name with
-					| Some(_,actual_t,_,_,declared_cl,tl,tlch) ->
+					| Some(cf,actual_t,_,_,declared_cl,tl,tlch) ->
 						let rec is_super e = match e.eexpr with
 							| TConst TSuper -> true
 							| TParenthesis p | TMeta(_,p) -> is_super p
