@@ -533,7 +533,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		if not has_params then
 			Some e
 		else
-(* 			let mt = map_type cf.cf_type in
+ 			let mt = map_type cf.cf_type in
 			let unify_func () = unify_raise ctx mt (TFun (List.map (fun e -> "",false,e.etype) params,tret)) p in
 			(match follow ethis.etype with
 			| TAnon a -> (match !(a.a_status) with
@@ -544,7 +544,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 						unify_raise ctx mt tb p
 					end
 				| _ -> unify_func())
-			| _ -> unify_func()); *)
+			| _ -> unify_func());
 			(*
 				this is very expensive since we are building the substitution list for
 				every expression, but hopefully in such cases the expression size is small

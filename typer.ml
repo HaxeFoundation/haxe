@@ -696,7 +696,6 @@ let rec unify_call_args' ctx el args r p inline force_inline =
 		default_value name t
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
-	let force_inline, is_extern = false, false in
 	let type_against t e =
 		let e = type_expr ctx e (WithTypeResume t) in
 		(try Codegen.AbstractCast.cast_or_unify_raise ctx t e p with Error (Unify l,p) -> raise (WithTypeError (l,p)));
@@ -764,7 +763,7 @@ let unify_field_call ctx fa el args ret p inline =
 			else
 				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Typeload.get_overloads c cf.cf_name)
 			in
-			(TFun(args,ret),cf) :: cfl,None,cf,(fun cf -> FInstance(c,tl,cf))
+			(TFun(args,ret),cf) :: cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
 		| _ ->
 			error "Invalid field call" p
 	in
