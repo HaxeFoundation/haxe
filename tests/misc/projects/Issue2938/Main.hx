@@ -7,6 +7,6 @@ class Main {
 		for(i in 0...width){
 			slots[i] = i;
 		}
-		trace(Std.string(slots));
+		Std.string(slots);
     }
 }
