@@ -6241,7 +6241,7 @@ struct
 							(cf, actual_t, true), true
 					in
 					if not (is_static || error) then match find_first_declared_field gen cl ~exact_field:{ cf with cf_type = actual_t } cf.cf_name with
-					| Some(cf,actual_t,_,_,declared_cl,tl,tlch) ->
+					| Some(cf_orig,actual_t,_,_,declared_cl,tl,tlch) ->
 						let rec is_super e = match e.eexpr with
 							| TConst TSuper -> true
 							| TParenthesis p | TMeta(_,p) -> is_super p
@@ -6257,7 +6257,7 @@ struct
 								epos = pos
 							}
 						end;
-						cf,actual_t,false
+						{ cf_orig with cf_name = cf.cf_name },actual_t,false
 					| None ->
 						gen.gcon.warning "Cannot find matching overload" ecall.epos;
 						cf, actual_t, true
