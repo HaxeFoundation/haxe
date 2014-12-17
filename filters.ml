@@ -967,13 +967,14 @@ let run_expression_filters ctx filters t =
 	| TClassDecl c when is_removable_class c -> ()
 	| TClassDecl c ->
 		ctx.curclass <- c;
-		let process_field f =
-			match f.cf_expr with
+		let rec process_field f =
+			(match f.cf_expr with
 			| Some e when not (Codegen.is_removable_field ctx f) ->
 				Codegen.AbstractCast.cast_stack := f :: !Codegen.AbstractCast.cast_stack;
 				f.cf_expr <- Some (run e);
 				Codegen.AbstractCast.cast_stack := List.tl !Codegen.AbstractCast.cast_stack;
-			| _ -> ()
+			| _ -> ());
+			List.iter process_field f.cf_overloads
 		in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
