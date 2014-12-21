@@ -3171,6 +3171,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EContinue ->
 		if not ctx.in_loop then display_error ctx "Continue outside loop" p;
 		mk TContinue t_dynamic p
+	| ETry (e1,[]) ->
+		type_expr ctx e1 with_type
 	| ETry (e1,catches) ->
 		let e1 = type_expr ctx e1 with_type in
 		let rec check_unreachable cases t p = match cases with

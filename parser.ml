@@ -1221,10 +1221,7 @@ and expr = parser
 			Display e -> display (EWhile (cond,e,NormalWhile),punion p1 (pos e)))
 	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> (EWhile (cond,e,DoWhile),punion p1 (pos e))
 	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
-	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); >] ->
-		(match cl with
-			| [] -> error (Custom "Expected catch after try") p1
-			| _ -> (ETry (e,cl),p1))
+	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); >] -> (ETry (e,cl),p1)
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
