@@ -230,7 +230,7 @@ module Simplifier = struct
 				e
 			| TCall(e1,el) ->
 				let rec is_valid_call_target e = match e.eexpr with
-					| TFunction _ | TField _ | TLocal _  ->
+					| TFunction _ | TField _ | TLocal _ | TConst (TSuper)  ->
 						true
 					| TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) ->
 						is_valid_call_target e1
@@ -250,7 +250,7 @@ module Simplifier = struct
 					| TConst TSuper,_ when com.platform = Java || com.platform = Cs ->
 						(* they hate you if you mess up the super call *)
 						el
-					| _,TFun _ ->
+					| _,TFun _ | TConst TSuper,_ ->
 						Codegen.UnificationCallback.check_call check el e1.etype
 					| _ ->
 						(* too dangerous *)
