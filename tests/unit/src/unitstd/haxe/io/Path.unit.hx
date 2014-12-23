@@ -103,3 +103,10 @@ haxe.io.Path.addTrailingSlash("a/b/") == "a/b/";
 haxe.io.Path.addTrailingSlash("a\\") == "a\\";
 haxe.io.Path.addTrailingSlash("a\\b") == "a\\b\\";
 haxe.io.Path.addTrailingSlash("a\\b\\") == "a\\b\\";
+
+// isAbsolute
+haxe.io.Path.isAbsolute("") == false;
+haxe.io.Path.isAbsolute("some") == false;
+haxe.io.Path.isAbsolute("some/other") == false;
+haxe.io.Path.isAbsolute("/some") == true;
+haxe.io.Path.isAbsolute("c:/some") == true;

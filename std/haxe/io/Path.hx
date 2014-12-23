@@ -305,7 +305,7 @@ class Path {
 	**/
 	public static function isAbsolute ( path : String ) : Bool {
 		if (StringTools.startsWith(path, '/')) return true;
-		if (path.charAt(2) == ':') return true;
+		if (path.charAt(1) == ':') return true;
 		return false;
 	}
 }
