@@ -46,12 +46,16 @@ class TestSerialize extends Test {
 		eq( c2.intValue, c.intValue );
 		eq( c2.stringValue, c.stringValue );
 		eq( c2.get(), 999 );
+		// Class value
+		eq( id(MyClass), MyClass );
 
 		// enums
 		haxe.Serializer.USE_ENUM_INDEX = false;
 		doTestEnums();
 		haxe.Serializer.USE_ENUM_INDEX = true;
 		doTestEnums();
+		// Enum value
+		eq( id(MyEnum), MyEnum );
 
 		// StringMap
 		var h = new haxe.ds.StringMap();

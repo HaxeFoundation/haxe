@@ -431,6 +431,18 @@ class Unserializer {
 			if( get(pos++) != "g".code )
 				throw "Invalid custom data";
 			return o;
+		case "A".code:
+			var name = unserialize();
+			var cl = resolver.resolveClass(name);
+			if( cl == null )
+				throw "Class not found " + name;
+			return cl;
+		case "B".code:
+			var name = unserialize();
+			var e = resolver.resolveEnum(name);
+			if( e == null )
+				throw "Enum not found " + name;
+			return e;
  		default:
  		}
  		pos--;

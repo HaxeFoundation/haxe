@@ -143,6 +143,8 @@ class Serializer {
 		x : exception
 		y : urlencoded string
 		z : zero
+		A : Class<Dynamic>
+		B : Enum<Dynamic>
 		M : haxe.ds.ObjectMap
 		C : custom
 	*/
@@ -383,10 +385,18 @@ class Serializer {
 				}
 			}
 		case TObject:
-			if( useCache && serializeRef(v) )
-				return;
-			buf.add("o");
-			serializeFields(v);
+			if (Std.is(v,Class)) {
+				buf.add("A");
+				serializeString(Type.getClassName(v));
+			} else if (Std.is(v,Enum)) {
+				buf.add("B");
+				serializeString(Type.getEnumName(v));
+			} else {
+				if( useCache && serializeRef(v) )
+					return;
+				buf.add("o");
+				serializeFields(v);
+			}
 		case TEnum(e):
 			if( useCache ) {
 				if( serializeRef(v) )
