@@ -502,7 +502,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let etype = if has_params then map_type e.etype else e.etype in
 			(* if the expression is "untyped" and we don't want to unify it accidentally ! *)
 			try (match follow e.etype with
-			| TMono _ ->
+			| TMono _ | TInst ({cl_kind = KTypeParameter _ },_) ->
 				(match follow tret with
 				| TAbstract ({ a_path = [],"Void" },_) -> e
 				| _ -> raise (Unify_error []))
