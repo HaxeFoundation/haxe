@@ -2040,7 +2040,7 @@ let init_class ctx c p context_init herits fields =
 									with Not_found ->
 										error "Constructor of multi-type abstract must be defined before the individual @:to-functions are" cf.cf_pos
 									in
-									delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos);
+									(* delay ctx PFinal (fun () -> unify ctx m tthis f.cff_pos); *)
 									let args = match follow (monomorphs a.a_params ctor.cf_type) with
 										| TFun(args,_) -> List.map (fun (_,_,t) -> t) args
 										| _ -> assert false
