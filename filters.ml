@@ -45,7 +45,7 @@ let rec blockify_ast e =
 	x = { exprs; value; } -> { exprs; x = value; }
 	var x = { exprs; value; } -> { var x; exprs; x = value; }
 *)
-let promote_complex_rhs ctx e =
+let promote_complex_rhs com e =
 	let rec is_complex e = match e.eexpr with
 		| TBlock _ | TSwitch _ | TIf _ | TTry _ | TCast(_,Some _) -> true
 		| TBinop(_,e1,e2) -> is_complex e1 || is_complex e2
@@ -59,12 +59,12 @@ let promote_complex_rhs ctx e =
 				| [] -> e
 			end
 		| TSwitch(es,cases,edef) ->
-			{e with eexpr = TSwitch(es,List.map (fun (el,e) -> List.map find el,loop f e) cases,match edef with None -> None | Some e -> Some (loop f e))}
+			{e with eexpr = TSwitch(es,List.map (fun (el,e) -> List.map find el,loop f e) cases,match edef with None -> None | Some e -> Some (loop f e)); etype = com.basic.tvoid}
 		| TIf(eif,ethen,eelse) ->
-			{e with eexpr = TIf(find eif, loop f ethen, match eelse with None -> None | Some e -> Some (loop f e))}
+			{e with eexpr = TIf(find eif, loop f ethen, match eelse with None -> None | Some e -> Some (loop f e)); etype = com.basic.tvoid}
 		| TTry(e1,el) ->
-			{e with eexpr = TTry(loop f e1, List.map (fun (el,e) -> el,loop f e) el)}
-		| TParenthesis e1 when not (Common.defined ctx Define.As3) ->
+			{e with eexpr = TTry(loop f e1, List.map (fun (el,e) -> el,loop f e) el); etype = com.basic.tvoid}
+		| TParenthesis e1 when not (Common.defined com Define.As3) ->
 			{e with eexpr = TParenthesis(loop f e1)}
 		| TMeta(m,e1) ->
 			{ e with eexpr = TMeta(m,loop f e1)}
@@ -82,11 +82,11 @@ let promote_complex_rhs ctx e =
 				begin match eo with
 					| Some e when is_complex e ->
 						r := (loop (fun e -> mk (TBinop(OpAssign,mk (TLocal v) v.v_type e.epos,e)) v.v_type e.epos) e)
-							:: ((mk (TVar (v,None)) ctx.basic.tvoid e.epos))
+							:: ((mk (TVar (v,None)) com.basic.tvoid e.epos))
 							:: !r
 					| Some e ->
-						r := (mk (TVar (v,Some (find e))) ctx.basic.tvoid e.epos) :: !r
-					| None -> r := (mk (TVar (v,None)) ctx.basic.tvoid e.epos) :: !r
+						r := (mk (TVar (v,Some (find e))) com.basic.tvoid e.epos) :: !r
+					| None -> r := (mk (TVar (v,None)) com.basic.tvoid e.epos) :: !r
 				end
 			| TReturn (Some e1) when (match follow e1.etype with TAbstract({a_path=[],"Void"},_) -> true | _ -> false) ->
 				r := ({e with eexpr = TReturn None}) :: e1 :: !r
