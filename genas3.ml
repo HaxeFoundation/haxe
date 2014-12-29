@@ -881,7 +881,7 @@ and gen_value ctx e =
 		begin match s with
 		| "*" ->
 			gen_value ctx e1
-		| "Function" | "Array" ->
+		| "Function" | "Array" | "String" ->
 			spr ctx "((";
 			gen_value ctx e1;
 			print ctx ") as %s)" s;
