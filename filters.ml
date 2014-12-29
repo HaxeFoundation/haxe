@@ -94,7 +94,7 @@ let promote_complex_rhs ctx e =
 		) el;
 		List.rev !r
 	and find e = match e.eexpr with
-		| TReturn (Some e1) -> loop (fun e -> {e with eexpr = TReturn (Some e)}) e1
+		| TReturn (Some e1) -> loop (fun er -> {e with eexpr = TReturn (Some er)}) e1
 		| TBinop(OpAssign | OpAssignOp _ as op, ({eexpr = TLocal _ | TField _ | TArray _} as e1), e2) -> loop (fun er -> {e with eexpr = TBinop(op, e1, er)}) e2
 		| TBlock(el) -> {e with eexpr = TBlock (block el)}
 		| _ -> Type.map_expr find e
