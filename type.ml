@@ -1042,6 +1042,86 @@ let rec s_expr_pretty tabs s_type e =
 	| TMeta ((n,el,_),e) ->
 		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
 
+let rec s_expr_ast tabs s_type e =
+	let sprintf = Printf.sprintf in
+	let loop ?(extra_tabs="") = s_expr_ast (tabs ^ "\t" ^ extra_tabs) s_type in
+	let tag_args tabs sl = match sl with
+		| [] -> ""
+		| [s] when not (String.contains s '\n') -> " " ^ s
+		| _ ->
+			let tabs = "\n" ^ tabs ^ "\t" in
+			tabs ^ (String.concat tabs sl)
+	in
+	let tag s ?(t=None) ?(extra_tabs="") sl =
+		let st = match t with
+			| None -> s_type e.etype
+			| Some t -> s_type t
+		in
+		sprintf "[%s:%s]%s" s st (tag_args (tabs ^ extra_tabs) sl)
+	in
+	let const c = sprintf "[Const %s:%s]" (s_const c) (s_type e.etype) in
+	let local v = sprintf "[Local %s(%i):%s]" v.v_name v.v_id (s_type v.v_type) in
+	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name v.v_id (s_type v.v_type) (tag_args tabs sl) in
+	let module_type mt = sprintf "[TypeExpr %s:%s]" (s_type_path (t_path mt)) (s_type e.etype) in
+	match e.eexpr with
+	| TConst c -> const c
+	| TLocal v -> local v
+	| TArray (e1,e2) -> tag "Array" [loop e1; loop e2]
+	| TBinop (op,e1,e2) -> tag "Binop" [loop e1; s_binop op; loop e2]
+	| TUnop (op,flag,e1) -> tag "Unop" [s_unop op; if flag = Postfix then "Postfix" else "Prefix"; loop e1]
+	| TEnumParameter (e1,ef,i) -> tag "EnumParameter" [loop e1; ef.ef_name; string_of_int i]
+	| TField (e1,fa) ->
+		let sfa = match fa with
+			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); cf.cf_name]
+			| FStatic(c,cf) -> tag "FStatic" ~extra_tabs:"\t" [s_type_path c.cl_path; cf.cf_name]
+			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some c -> s_type_path c.cl_path); cf.cf_name]
+			| FAnon cf -> tag "FAnon" ~extra_tabs:"\t" [cf.cf_name]
+			| FDynamic s -> tag "FDynamic" ~extra_tabs:"\t" [s]
+			| FEnum(en,ef) -> tag "FEnum" ~extra_tabs:"\t" [s_type_path en.e_path; ef.ef_name]
+		in
+		tag "Field" [loop e1; sfa]
+	| TTypeExpr mt -> module_type mt
+	| TParenthesis e1 -> tag "Parenthesis" [loop e1]
+	| TObjectDecl fl -> tag "ObjectDecl" (List.map (fun (s,e) -> sprintf "%s: %s" s (loop e)) fl)
+	| TArrayDecl el -> tag "ArrayDecl" (List.map loop el)
+	| TCall (e1,el) -> tag "Call" (loop e1 :: (List.map loop el))
+	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
+	| TFunction f -> tag "Function" [loop f.tf_expr]
+	| TVar (v,eo) -> var v (match eo with None -> [] | Some e -> [loop e])
+	| TBlock el -> tag "Block" (List.map loop el)
+	| TIf (e,e1,e2) -> tag "If" (loop e :: ("Then " ^ loop e1) :: (match e2 with None -> [] | Some e -> ["Else " ^ (loop e)]))
+	| TCast (e1,None) -> tag "Cast" [loop e1]
+	| TCast (e1,Some mt) -> tag "Cast" [loop e1; module_type mt]
+	| TThrow e1 -> tag "Throw" [loop e1]
+	| TBreak -> tag "Break" []
+	| TContinue -> tag "Continue" []
+	| TReturn None -> tag "Return" []
+	| TReturn (Some e1) -> tag "Return" [loop e1]
+	| TWhile (e1,e2,NormalWhile) -> tag "While" [loop e1; loop e2]
+	| TWhile (e1,e2,DoWhile) -> tag "Do" [loop e1; loop e2]
+	| TFor (v,e1,e2) -> tag "For" [local v; loop e1; loop e2]
+	| TTry (e1,catches) ->
+		let sl = List.map (fun (v,e) ->
+			sprintf "Catch %s%s" (local v) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);
+		) catches in
+		tag "Try" ((loop e1) :: sl)
+	| TSwitch (e1,cases,eo) ->
+		let sl = List.map (fun (el,e) ->
+			tag "Case" ~t:(Some e.etype) ~extra_tabs:"\t" ((List.map loop el) @ [loop ~extra_tabs:"\t" e])
+		) cases in
+		let sl = match eo with
+			| None -> sl
+			| Some e -> sl @ [tag "Default" ~t:(Some e.etype) ~extra_tabs:"\t" [loop ~extra_tabs:"\t" e]]
+		in
+		tag "Switch" ((loop e1) :: sl)
+	| TMeta ((m,el,_),e1) ->
+		let s = Meta.to_string m in
+		let s = match el with
+			| [] -> s
+			| _ -> sprintf "%s(%s)" s (String.concat ", " (List.map Ast.s_expr el))
+		in
+		tag "Meta" [s; loop e1]
+
 let s_types ?(sep = ", ") tl =
 	let pctx = print_context() in
 	String.concat sep (List.map (s_type pctx) tl)
