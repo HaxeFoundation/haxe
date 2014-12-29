@@ -72,8 +72,6 @@ let promote_complex_rhs ctx e =
 			find e
 		| TContinue | TBreak ->
 			e
-		| TCast(e1,None) when ctx.config.pf_ignore_unsafe_cast ->
-			loop f e1
 		| _ ->
 			f (find e)
 	and block el =
