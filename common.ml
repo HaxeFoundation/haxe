@@ -180,6 +180,7 @@ module Define = struct
 		| DocGen
 		| Dump
 		| DumpDependencies
+		| DumpIgnoreVarIds
 		| Fdb
 		| FlashStrict
 		| FlashUseStage
@@ -258,6 +259,7 @@ module Define = struct
 		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
+		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Dump files do not contain variable IDs (helps with diff)")
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")

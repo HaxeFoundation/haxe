@@ -1042,9 +1042,9 @@ let rec s_expr_pretty tabs s_type e =
 	| TMeta ((n,el,_),e) ->
 		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
 
-let rec s_expr_ast tabs s_type e =
+let rec s_expr_ast print_var_ids tabs s_type e =
 	let sprintf = Printf.sprintf in
-	let loop ?(extra_tabs="") = s_expr_ast (tabs ^ "\t" ^ extra_tabs) s_type in
+	let loop ?(extra_tabs="") = s_expr_ast print_var_ids (tabs ^ "\t" ^ extra_tabs) s_type in
 	let tag_args tabs sl = match sl with
 		| [] -> ""
 		| [s] when not (String.contains s '\n') -> " " ^ s
@@ -1059,9 +1059,10 @@ let rec s_expr_ast tabs s_type e =
 		in
 		sprintf "[%s:%s]%s" s st (tag_args (tabs ^ extra_tabs) sl)
 	in
+	let var_id v = if print_var_ids then v.v_id else 0 in
 	let const c = sprintf "[Const %s:%s]" (s_const c) (s_type e.etype) in
-	let local v = sprintf "[Local %s(%i):%s]" v.v_name v.v_id (s_type v.v_type) in
-	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name v.v_id (s_type v.v_type) (tag_args tabs sl) in
+	let local v = sprintf "[Local %s(%i):%s]" v.v_name (var_id v) (s_type v.v_type) in
+	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name (var_id v) (s_type v.v_type) (tag_args tabs sl) in
 	let module_type mt = sprintf "[TypeExpr %s:%s]" (s_type_path (t_path mt)) (s_type e.etype) in
 	match e.eexpr with
 	| TConst c -> const c
