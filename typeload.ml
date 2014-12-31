@@ -339,6 +339,19 @@ let check_param_constraints ctx types t pl c p =
 				if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
 		) ctl
 
+let requires_value_meta com co =
+	Common.defined com Define.DocGen || (match co with
+		| None -> false
+		| Some c -> c.cl_extern || Meta.has Meta.Rtti c.cl_meta)
+
+let generate_value_meta com co cf args =
+	if requires_value_meta com co then begin
+		let values = List.fold_left (fun acc (name,_,_,eo) -> match eo with Some e -> (name,e) :: acc | _ -> acc) [] args in
+		match args with
+			| [] -> ()
+			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],cf.cf_pos) :: cf.cf_meta)
+	end
+
 (* build an instance from a full type *)
 let rec load_instance ctx t p allow_no_params =
 	try
@@ -567,7 +580,7 @@ and load_complex_type ctx p t =
 				cf_meta = f.cff_meta;
 				cf_overloads = [];
 			} in
-			init_meta_overloads ctx cf;
+			init_meta_overloads ctx None cf;
 			PMap.add n cf acc
 		in
 		mk_anon (List.fold_left loop PMap.empty l)
@@ -581,8 +594,13 @@ and load_complex_type ctx p t =
 				"",opt,load_complex_type ctx p t
 			) args,load_complex_type ctx p r)
 
-and init_meta_overloads ctx cf =
+and init_meta_overloads ctx co cf =
 	let overloads = ref [] in
+	let filter_meta m = match m with
+		| ((Meta.Overload | Meta.Value),_,_) -> false
+		| _ -> true
+	in
+	let cf_meta = List.filter filter_meta cf.cf_meta in
 	cf.cf_meta <- List.filter (fun m ->
 		match m with
 		| (Meta.Overload,[(EFunction (fname,f),p)],_)  ->
@@ -596,7 +614,9 @@ and init_meta_overloads ctx cf =
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx p t in
 			let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) f.f_args in
-			overloads := (args,topt f.f_type, params) :: !overloads;
+			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
+			generate_value_meta ctx.com co cf f.f_args;
+			overloads := cf :: !overloads;
 			ctx.type_params <- old;
 			false
 		| (Meta.Overload,[],_) when ctx.com.config.pf_overload ->
@@ -612,7 +632,7 @@ and init_meta_overloads ctx cf =
 		| _ ->
 			true
 	) cf.cf_meta;
-	cf.cf_overloads <- List.map (fun (args,ret,params) -> { cf with cf_type = TFun (args,ret); cf_params = params }) (List.rev !overloads)
+	cf.cf_overloads <- (List.rev !overloads)
 
 let hide_params ctx =
 	let old_m = ctx.m in
@@ -1756,6 +1776,7 @@ let init_class ctx c p context_init herits fields =
 		match e with
 		| None -> ()
 		| Some e ->
+			if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
 			let check_cast e =
 				(* insert cast to keep explicit field type (issue #1901) *)
 				if type_iseq e.etype cf.cf_type then
@@ -1996,6 +2017,7 @@ let init_class ctx c p context_init herits fields =
 				cf_params = params;
 				cf_overloads = [];
 			} in
+			generate_value_meta ctx.com (Some c) cf fd.f_args;
 			let do_bind = ref (((not c.cl_extern || inline) && not c.cl_interface) || cf.cf_name = "__init__") in
 			let do_add = ref true in
 			(match c.cl_kind with
@@ -2100,7 +2122,7 @@ let init_class ctx c p context_init herits fields =
 					if f.cff_name = "_new" && Meta.has Meta.MultiType a.a_meta then do_bind := false;
 				| _ ->
 					());
-			init_meta_overloads ctx cf;
+			init_meta_overloads ctx (Some c) cf;
 			ctx.curfield <- cf;
 			let r = exc_protect ctx (fun r ->
 				if not !return_partial_type then begin
