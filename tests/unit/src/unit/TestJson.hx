@@ -100,4 +100,11 @@ class TestJson extends Test {
         return;
         #end
     }
+
+	function test3690() {
+		var strJson = haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
+		var parsed : Dynamic = haxe.Json.parse( strJson );
+		eq( parsed.x, -4500 );
+		eq( parsed.y, 1.456 );
+	}
 }
