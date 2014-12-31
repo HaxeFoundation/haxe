@@ -279,6 +279,37 @@ class TypeTools {
 	}
 
 	/**
+		Calls function `f` on each component of type `t`.
+
+		If `t` is not a compound type, this operation has no effect.
+
+		The following types are considered compound:
+			- TInst, TEnum, TType and TAbstract with type parameters
+			- TFun
+			- TAnonymous
+
+		If `t` or `f` are null, the result is unspecified.
+	**/
+	static public function iter(t:Type, f:Type -> Void):Void {
+		switch (t) {
+			case TMono(tm):
+				var t = tm.get();
+				if (t != null) f(t);
+			case TEnum(_, tl) | TInst(_, tl) | TType(_, tl) | TAbstract(_, tl):
+				for (t in tl) f(t);
+			case TDynamic(t2):
+				if (t != t2) f(t2);
+			case TLazy(ft):
+				f(ft());
+			case TAnonymous(an):
+				for (field in an.get().fields) f(field.type);
+			case TFun(args, ret):
+				for (arg in args) f(arg.t);
+				f(ret);
+		}
+	}
+
+	/**
 		Converts type `t` to a human-readable String representation.
 	**/
 	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
