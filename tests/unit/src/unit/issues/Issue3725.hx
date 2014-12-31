@@ -5,6 +5,8 @@ class Issue3725 extends Test {
 
 	static function myStaticArgs(stringValue = "foo", intValue = 12, intHexValue = 0xFFFFFF, floatValue = 12.2223, boolValue = true) { }
 
+	#if !php
+
 	function testStaticArgs() {
 		var rtti = haxe.rtti.Rtti.getRtti(Issue3725);
 		var valueMap = new Map();
@@ -86,4 +88,6 @@ class Issue3725 extends Test {
 		eq("12.2223", valueMap["floatValueM"]);
 		eq("true", valueMap["boolValueM"]);
 	}
+
+	#end
 }
