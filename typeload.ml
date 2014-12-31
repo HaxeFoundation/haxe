@@ -1043,6 +1043,20 @@ let check_extends ctx c t p = match follow t with
 		end
 	| _ -> error "Should extend by using a class" p
 
+let type_function_arg_value ctx t c =
+	match c with
+		| None -> None
+		| Some e ->
+			let p = pos e in
+			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType t)) in
+			unify ctx e.etype t p;
+			let rec loop e = match e.eexpr with
+				| TConst c -> Some c
+				| TCast(e,None) -> loop e
+				| _ -> display_error ctx "Parameter default value should be constant" p; None
+			in
+			loop e
+
 let rec add_constructor ctx c force_constructor p =
 	match c.cl_constructor, c.cl_super with
 	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern && not (Meta.has Meta.CompilerGenerated cfsup.cf_meta) ->
@@ -1062,23 +1076,29 @@ let rec add_constructor ctx c force_constructor p =
 			} in
 			ignore (follow cfsup.cf_type); (* make sure it's typed *)
 			(if ctx.com.config.pf_overload then List.iter (fun cf -> ignore (follow cf.cf_type)) cf.cf_overloads);
+			let map_arg (v,def) =
+				(*
+					let's optimize a bit the output by not always copying the default value
+					into the inherited constructor when it's not necessary for the platform
+				*)
+				match ctx.com.platform, def with
+				| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
+				| Flash, Some (TString _) -> v, (Some TNull)
+				| Cpp, Some (TString _) -> v, def
+				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)
+				| _ -> v, def
+			in
 			let args = (match cfsup.cf_expr with
 				| Some { eexpr = TFunction f } ->
-					List.map (fun (v,def) ->
-						(*
-							let's optimize a bit the output by not always copying the default value
-							into the inherited constructor when it's not necessary for the platform
-						*)
-						match ctx.com.platform, def with
-						| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
-						| Flash, Some (TString _) -> v, (Some TNull)
-						| Cpp, Some (TString _) -> v, def
-						| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)
-						| _ -> v, def
-					) f.tf_args
+					List.map map_arg f.tf_args
 				| _ ->
+					let values = get_value_meta cfsup.cf_meta in
 					match follow cfsup.cf_type with
-					| TFun (args,_) -> List.map (fun (n,o,t) -> alloc_var n (if o then ctx.t.tnull t else t), if o then Some TNull else None) args
+					| TFun (args,_) ->
+						List.map (fun (n,o,t) ->
+							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) with Not_found -> if o then Some TNull else None in
+							map_arg (alloc_var n (if o then ctx.t.tnull t else t),def)
+						) args
 					| _ -> assert false
 			) in
 			let p = c.cl_pos in
@@ -1292,19 +1312,7 @@ let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
 		if n.[0] = '$' then error "Function argument names starting with a dollar are not allowed" p;
-		let c = (match c with
-			| None -> None
-			| Some e ->
-				let p = pos e in
-				let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType t)) in
-				unify ctx e.etype t p;
-				let rec loop e = match e.eexpr with
-					| TConst c -> Some c
-					| TCast(e,None) -> loop e
-					| _ -> display_error ctx "Parameter default value should be constant" p; None
-				in
-				loop e
-		) in
+		let c = type_function_arg_value ctx t c in
 		let v,c = add_local ctx n t, c in
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
