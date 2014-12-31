@@ -1494,14 +1494,16 @@ let check_global_metadata ctx f_add mpath tpath so =
 			(* always recurse into types of package paths *)
 			| (s1 :: s11 :: _),[s2] when is_lower_ident s2 && not (is_lower_ident s11)->
 				s1 = s2
-			| _,[] ->
+			| [_],[""] ->
+				true
+			| _,([] | [""]) ->
 				recursive
 			| [],_ ->
 				false
 			| (s1 :: sl1),(s2 :: sl2) ->
 				s1 = s2 && loop sl1 sl2
 		in
-		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (sl2 = [""] || loop sl1 sl2) in
+		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (loop sl1 sl2) in
 		if add then f_add m
 	) ctx.g.global_metadata
 
