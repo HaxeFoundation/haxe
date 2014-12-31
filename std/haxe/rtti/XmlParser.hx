@@ -418,7 +418,8 @@ class XmlParser {
 			params : if( x.has.params ) mkTypeParams(x.att.params) else [],
 			platforms : defplat(),
 			meta : meta,
-			overloads: overloads
+			overloads: overloads,
+			expr : if( x.has.expr ) x.att.expr else null
 		};
 	}
 

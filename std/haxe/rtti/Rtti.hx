@@ -38,6 +38,9 @@ class Rtti {
 	**/
 	static public function getRtti<T>(c:Class<T>):Classdef {
 		var rtti = Reflect.field(c, "__rtti");
+		if (rtti == null) {
+			throw 'Class ${Type.getClassName(c)} has no RTTI information, consider adding @:rtti';
+		}
 		var x = Xml.parse(rtti).firstElement();
 		var infos = new haxe.rtti.XmlParser().processElement(x);
 		switch (infos) {

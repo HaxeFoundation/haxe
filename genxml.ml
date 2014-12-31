@@ -92,7 +92,7 @@ let gen_meta meta =
 		) meta in
 		[node "meta" [] nodes]
 
-let rec gen_type ?(tfunc=None) t =
+let rec gen_type ?(values=None) t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> gen_type_decl "e" (TEnumDecl e) params
@@ -100,29 +100,30 @@ let rec gen_type ?(tfunc=None) t =
 	| TAbstract (a,params) -> gen_type_decl "x" (TAbstractDecl a) params
 	| TType (t,params) -> gen_type_decl "t" (TTypeDecl t) params
 	| TFun (args,r) ->
-		let s_const ct = match ct with
-			| TString s -> Printf.sprintf "'%s'" (Ast.s_escape s)
-			| _ -> s_const ct
-		in
 		let names = String.concat ":" (List.map gen_arg_name args) in
-		let values = match tfunc with
-			| None ->
-				[]
-			| Some tfunc ->
+		let values = match values with
+			| None -> []
+			| Some values ->
 				let has_value = ref false in
-				let values = List.map (fun (_,cto) -> match cto with
-					| None ->
-						""
-					| Some ct ->
+				let values = List.map (fun (n,_,_) ->
+					try
+						let e = PMap.find n values in
 						has_value := true;
-						s_const ct
-				) tfunc.tf_args in
+						let s = Ast.s_expr e in
+						(* the XML parser has issues otherwise *)
+						String.concat "'" (ExtString.String.nsplit s "\"")
+					with Not_found ->
+						""
+				) args in
 				if !has_value then
 					["v",String.concat ":" values]
 				else
 					[]
 		in
-		node "f" (("a",names) :: values) (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
+		let args = List.map (fun (_,opt,t) ->
+			if opt then follow_param t else t
+		) args in
+		node "f" (("a",names) :: values) (List.map gen_type (args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
@@ -140,22 +141,29 @@ and gen_field att f =
 		| AccInline -> (name,"inline") :: att
 	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
-	let att = (match f.cf_kind with
-		| Var v -> add_get_set v.v_read "get" (add_get_set v.v_write "set" att)
+	let att,values = (match f.cf_kind with
+		| Var v ->
+			let att = try
+				begin match Meta.get Meta.Value f.cf_meta with
+					| (_,[e],_) -> ("expr",String.concat "'" (ExtString.String.nsplit (Ast.s_expr e) "\"")) :: att
+					| _ -> att
+				end
+			with Not_found ->
+				att
+			in
+			add_get_set v.v_read "get" (add_get_set v.v_write "set" att),PMap.empty
 		| Method m ->
-			(match m with
+			let att = match m with
 			| MethNormal | MethMacro -> ("set", "method") :: att
 			| MethDynamic -> ("set", "dynamic") :: att
-			| MethInline -> ("get", "inline") :: ("set","null") :: att)
+			| MethInline -> ("get", "inline") :: ("set","null") :: att
+			in
+			att,get_value_meta f.cf_meta
 	) in
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
 	let overloads = match List.map (gen_field []) f.cf_overloads with
 		| [] -> []
 		| nl -> [node "overloads" [] nl]
-	in
-	let tfunc = match f.cf_expr with
-		| Some ({eexpr = TFunction tf}) -> Some tf
-		| _ -> None
 	in
 	let field_name cf =
 		try
@@ -166,7 +174,7 @@ and gen_field att f =
 		with Not_found ->
 			cf.cf_name
 	in
-	node (field_name f) (if f.cf_public then ("public","1") :: att else att) (gen_type ~tfunc:tfunc f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
+	node (field_name f) (if f.cf_public then ("public","1") :: att else att) (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
