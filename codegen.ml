@@ -1347,8 +1347,8 @@ let dump_types com =
 	let params = function [] -> "" | l -> Printf.sprintf "<%s>" (String.concat "," (List.map (fun (n,t) -> n ^ " : " ^ s_type t) l)) in
 	let s_expr = match Common.defined_value_safe com Define.Dump with
 		| "pretty" -> Type.s_expr_pretty "\t"
-		| "ast" -> Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"
-		| _ -> Type.s_expr
+		| "legacy" ->  Type.s_expr
+		| _ -> Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"
 	in
 	List.iter (fun mt ->
 		let path = Type.t_path mt in
