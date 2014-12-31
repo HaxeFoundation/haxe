@@ -1298,95 +1298,120 @@ module LocalDce = struct
 		loop e
 end
 
-type analyzer_config = {
-	analyzer_use : bool;
-	simplifier_apply : bool;
-	ssa_apply : bool;
-	const_propagation : bool;
-	check : bool;
-	check_has_effect : bool;
-	local_dce : bool;
-	ssa_unapply : bool;
-	simplifier_unapply : bool;
-}
+module Config = struct
 
-let run_ssa com config is_var_expression e =
-	let rec gen_local t =
-		alloc_var "tmp" t
-	in
-	let do_simplify = (not (Common.defined com Define.NoSimplify) ) && match com.platform with
-		| Cpp when Common.defined com Define.Cppia -> false
-		| Cpp | Flash8 | Python -> true
-		| _ -> false
-	in
-	let with_timer s f =
-		let timer = timer s in
-		let r = f() in
-		timer();
-		r
-	in
-	try
-		let has_unbound,e = if do_simplify || config.analyzer_use then
-			with_timer "analyzer-simplify-apply" (fun () -> Simplifier.apply com gen_local e)
-		else
-			false,e
+	type analyzer_config = {
+		analyzer_use : bool;
+		simplifier_apply : bool;
+		ssa_apply : bool;
+		const_propagation : bool;
+		check : bool;
+		check_has_effect : bool;
+		local_dce : bool;
+		ssa_unapply : bool;
+		simplifier_unapply : bool;
+	}
+
+	let get_base_config com =
+		{
+			analyzer_use = true;
+			simplifier_apply = true;
+			ssa_apply = true;
+			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
+			check_has_effect = not (Common.raw_defined com "analyzer-no-check-has-effect");
+			check = not (Common.raw_defined com "analyzer-no-check");
+			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
+			ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");
+			simplifier_unapply = not (Common.raw_defined com "analyzer-no-simplify-unapply");
+		}
+
+	let update_config_from_meta config meta =
+		List.fold_left (fun config meta -> match meta with
+			| (Meta.Analyzer,el,_) ->
+				List.fold_left (fun config e -> match fst e with
+					| EConst (Ident s) when s = flag_no_check -> { config with check = false}
+					| EConst (Ident s) when s = flag_check -> { config with check = true}
+					| EConst (Ident s) when s = flag_no_const_propagation -> { config with const_propagation = false}
+					| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
+					| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
+					| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
+					| EConst (Ident s) when s = flag_no_check_has_effect -> { config with check_has_effect = false}
+					| EConst (Ident s) when s = flag_check_has_effect -> { config with check_has_effect = true}
+					| _ -> config
+				) config el
+			| _ ->
+				config
+		) config meta
+
+	let get_class_config com c =
+		let config = get_base_config com in
+		update_config_from_meta config c.cl_meta
+
+	let get_field_config com c cf =
+		let config = get_class_config com c in
+		update_config_from_meta config cf.cf_meta
+end
+
+module Run = struct
+
+	open Config
+
+	let run_on_expr com config is_var_expression e =
+		let rec gen_local t =
+			alloc_var "tmp" t
 		in
-		let e = if config.analyzer_use && not has_unbound then begin
-				if config.check_has_effect then EffectChecker.run com is_var_expression e;
-				let e,ssa = with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply com e) in
-				let e = if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ssa e) else e in
-				(* let e = if config.check then with_timer "analyzer-checker" (fun () -> Checker.apply ssa e) else e in *)
-				let e = if config.ssa_unapply then with_timer "analyzer-ssa-unapply" (fun () -> Ssa.unapply com e) else e in
-				List.iter (fun f -> f()) ssa.Ssa.cleanup;
+		let do_simplify = (not (Common.defined com Define.NoSimplify) ) && match com.platform with
+			| Cpp when Common.defined com Define.Cppia -> false
+			| Cpp | Flash8 | Python -> true
+			| _ -> false
+		in
+		let with_timer s f =
+			let timer = timer s in
+			let r = f() in
+			timer();
+			r
+		in
+		try
+			let has_unbound,e = if do_simplify || config.analyzer_use then
+				with_timer "analyzer-simplify-apply" (fun () -> Simplifier.apply com gen_local e)
+			else
+				false,e
+			in
+			let e = if config.analyzer_use && not has_unbound then begin
+					if config.check_has_effect then EffectChecker.run com is_var_expression e;
+					let e,ssa = with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply com e) in
+					let e = if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ssa e) else e in
+					(* let e = if config.check then with_timer "analyzer-checker" (fun () -> Checker.apply ssa e) else e in *)
+					let e = if config.ssa_unapply then with_timer "analyzer-ssa-unapply" (fun () -> Ssa.unapply com e) else e in
+					List.iter (fun f -> f()) ssa.Ssa.cleanup;
+					e
+			end else
 				e
-		end else
+			in
+			let e = if config.local_dce && config.analyzer_use && not has_unbound && not is_var_expression then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
+			let e = if not do_simplify && not (Common.raw_defined com "analyzer-no-simplify-unapply") then
+				with_timer "analyzer-simplify-unapply" (fun () -> Simplifier.unapply com e)
+			else
+				e
+			in
 			e
-		in
-		let e = if config.local_dce && config.analyzer_use && not has_unbound && not is_var_expression then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
-		let e = if not do_simplify && not (Common.raw_defined com "analyzer-no-simplify-unapply") then
-			with_timer "analyzer-simplify-unapply" (fun () -> Simplifier.unapply com e)
-		else
+		with Exit ->
 			e
-		in
-		e
-	with Exit ->
-		e
 
-let update_config_from_meta config meta =
-	List.fold_left (fun config meta -> match meta with
-		| (Meta.Analyzer,el,_) ->
-			List.fold_left (fun config e -> match fst e with
-				| EConst (Ident s) when s = flag_no_check -> { config with check = false}
-				| EConst (Ident s) when s = flag_check -> { config with check = true}
-				| EConst (Ident s) when s = flag_no_const_propagation -> { config with const_propagation = false}
-				| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
-				| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
-				| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
-				| EConst (Ident s) when s = flag_no_check_has_effect -> { config with check_has_effect = false}
-				| EConst (Ident s) when s = flag_check_has_effect -> { config with check_has_effect = true}
-				| _ -> config
-			) config el
-		| _ ->
-			config
-	) config meta
-
-let run_expression_filters ctx config t =
-	match t with
-	| TClassDecl c when (has_analyzer_option c.cl_meta flag_ignore) ->
-		()
-	| TClassDecl c ->
-		let config = update_config_from_meta config c.cl_meta in
-		let process_field cf =
+	let run_on_field ctx config cf =
+		match cf.cf_expr with
+		| Some e when not (has_analyzer_option cf.cf_meta flag_ignore) && not (Codegen.is_removable_field ctx cf) ->
+			let config = update_config_from_meta config cf.cf_meta in
 			let is_var_expression = match cf.cf_kind with
 				| Var _ -> true
 				| _ -> false
 			in
-			match cf.cf_expr with
-			| Some e when not (has_analyzer_option cf.cf_meta flag_ignore) && not (Codegen.is_removable_field ctx cf) ->
-				let config = update_config_from_meta config cf.cf_meta in
-				cf.cf_expr <- Some (run_ssa ctx.com config is_var_expression e);
-			| _ -> ()
-		in
+			cf.cf_expr <- Some (run_on_expr ctx.com config is_var_expression e);
+		| _ -> ()
+
+	let run_on_class ctx config c =
+		let config = update_config_from_meta config c.cl_meta in
+		let process_field cf = run_on_field ctx config cf in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
 		(match c.cl_constructor with
@@ -1396,22 +1421,19 @@ let run_expression_filters ctx config t =
 		| None -> ()
 		| Some e ->
 			(* never optimize init expressions (too messy) *)
-			c.cl_init <- Some (run_ssa ctx.com {config with analyzer_use = false} false e));
-	| TEnumDecl _ -> ()
-	| TTypeDecl _ -> ()
-	| TAbstractDecl _ -> ()
+			c.cl_init <- Some (run_on_expr ctx.com {config with analyzer_use = false} false e))
 
-let apply ctx =
-	let com = ctx.com in
-	let config = {
-		analyzer_use = true;
-		simplifier_apply = true;
-		ssa_apply = true;
-		const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
-		check_has_effect = not (Common.raw_defined com "analyzer-no-check-has-effect");
-		check = not (Common.raw_defined com "analyzer-no-check");
-		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
-		ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");
-		simplifier_unapply = not (Common.raw_defined com "analyzer-no-simplify-unapply");
-	} in
-	List.iter (run_expression_filters ctx config) com.types
+	let run_on_type ctx config t =
+		match t with
+		| TClassDecl c when (has_analyzer_option c.cl_meta flag_ignore) -> ()
+		| TClassDecl c -> run_on_class ctx config c
+		| TEnumDecl _ -> ()
+		| TTypeDecl _ -> ()
+		| TAbstractDecl _ -> ()
+
+	let run_on_types ctx types =
+		let com = ctx.com in
+		let config = get_base_config com in
+		List.iter (run_on_type ctx config) types
+
+end

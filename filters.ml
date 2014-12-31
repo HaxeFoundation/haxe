@@ -1036,7 +1036,7 @@ let run com tctx main =
 			captured_vars com;
 		] in
 		List.iter (run_expression_filters tctx filters) new_types;
-		Analyzer.apply tctx; (* TODO *)
+		Analyzer.Run.run_on_types tctx new_types;
 		List.iter (iter_expressions [verify_ast]) new_types;
 		let filters = [
 			Optimizer.sanitize com;
