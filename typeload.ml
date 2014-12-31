@@ -2177,7 +2177,13 @@ let init_class ctx c p context_init herits fields =
 							cf.cf_kind <- Method MethNormal;
 							c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
 							c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
-						end else if not c.cl_extern then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
+						end else if not c.cl_extern then begin
+							try
+								let _, _, f2 = (if not stat then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
+								display_error ctx (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m name (if stat then "not " else "")) f2.cf_pos
+							with Not_found ->
+								display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
+						end
 			in
 			let get = (match get with
 				| "null" -> AccNo
