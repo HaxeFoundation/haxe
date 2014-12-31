@@ -96,8 +96,6 @@ type platform_config = {
 	pf_pattern_matching : bool;
 	(** can the platform use default values for non-nullable arguments *)
 	pf_can_skip_non_nullable_argument : bool;
-	(** generator ignores TCast(_,None) *)
-	pf_ignore_unsafe_cast : bool;
 }
 
 type display_mode =
@@ -518,7 +516,6 @@ let default_config =
 		pf_overload = false;
 		pf_pattern_matching = false;
 		pf_can_skip_non_nullable_argument = true;
-		pf_ignore_unsafe_cast = false;
 	}
 
 let get_config com =
@@ -539,7 +536,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
 		}
 	| Js ->
 		{
@@ -554,7 +550,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = true;
 		}
 	| Neko ->
 		{
@@ -569,7 +564,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = true;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -584,7 +578,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
-			pf_ignore_unsafe_cast = false;
 		}
 	| Flash ->
 		{
@@ -599,7 +592,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
-			pf_ignore_unsafe_cast = false;
 		}
 	| Php ->
 		{
@@ -614,7 +606,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
 		}
 	| Cpp ->
 		{
@@ -629,7 +620,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
 		}
 	| Cs ->
 		{
@@ -644,7 +634,6 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
 		}
 	| Java ->
 		{
@@ -659,7 +648,6 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
 		}
 	| Python ->
 		{
@@ -674,7 +662,6 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = true;
 		}
 
 let memory_marker = [|Unix.time()|]

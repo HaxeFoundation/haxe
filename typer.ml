@@ -4490,12 +4490,12 @@ and flush_macro_context mint ctx =
 	let expr_filters = [Codegen.AbstractCast.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx] in
 	let type_filters = [Filters.add_field_inits mctx] in
 	let ready = fun t ->
-		Filters.post_process mctx expr_filters t;
+		Filters.apply_filters_once mctx expr_filters t;
 		List.iter (fun f -> f t) type_filters
 	in
 	(try Interp.add_types mint types ready
 	with Error (e,p) -> raise (Fatal_error(error_msg e,p)));
-	Filters.post_process_end()
+	Filters.next_compilation()
 
 let create_macro_interp ctx mctx =
 	let com2 = mctx.com in
