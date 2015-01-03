@@ -119,11 +119,29 @@ class TestInt64 extends Test {
 			eq(Std.string(fromString(v)), v);
 		}
 
-		// overflow, normal long long behavior:
-		eq("-9223372036854775808", Std.string(fromString("9223372036854775808")));
-
 		// trims the string:
 		eq("-23", Std.string(fromString("  -23 ")));
+
+
+		// overflow and underflow raise exceptions:
+		try
+		{
+			fromString("9223372036854775808");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+		try
+		{
+			fromString("-9223372036854775809");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
 
 		try
 		{

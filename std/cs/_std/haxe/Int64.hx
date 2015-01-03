@@ -46,6 +46,10 @@ import cs.StdTypes.UInt64 in NativeUInt64;
 		return cast(cast(x,NativeUInt64) >> 32, Int);
 	}
 
+	public static inline function fromString( sParam : String ) : Int64 {
+		return (cs.system.Int64.Parse(StringTools.trim(sParam))).ofNative();
+	}
+
 	public static inline function ofInt( x : Int ) : Int64 {
 		return cast x;
 	}
@@ -53,6 +57,19 @@ import cs.StdTypes.UInt64 in NativeUInt64;
 	public static inline function toInt( x : Int64 ) : Int
 	{
 		return cast x;
+	}
+
+	public static inline function fromFloat( f : Float ) : Int64 {
+		var noFractions = f - (f % 1);
+
+		// 2^53-1 and -2^53: these are parseable without loss of precision
+		if (noFractions > 9007199254740991) {
+			throw "Conversion overflow";
+		}
+		if (noFractions < -9007199254740991) {
+			throw "Conversion underflow";
+		}
+		return (cs.system.Convert.ToInt64(noFractions)).ofNative();
 	}
 
 	public static inline function add( a : Int64, b : Int64 ) : Int64

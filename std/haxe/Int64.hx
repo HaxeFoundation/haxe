@@ -105,11 +105,11 @@ class Int64 {
 		var base = Int64.ofInt(10);
 		var current = Int64.ofInt(0);
 		var multiplier = Int64.ofInt(1);
-		var finishNeg = false;
+		var sIsNegative = false;
 
 		var s = StringTools.trim(sParam);
 		if (s.charAt(0) == "-") {
-			finishNeg = true;
+			sIsNegative = true;
 			s = s.substring(1, s.length);
 		}
 		var len = s.length;
@@ -131,10 +131,16 @@ class Int64 {
 				case "9": digit = Int64.ofInt(9);
 				default: throw "NumberFormatError";
 			}
-			if (finishNeg) {
+			if (sIsNegative) {
 				current = Int64.sub(current, Int64.mul(multiplier, digit));
+				if (!Int64.isNeg(current)) {
+					throw "NumberFormatError: Underflow";
+				}
 			} else {
 				current = Int64.add(current, Int64.mul(multiplier, digit));
+				if (Int64.isNeg(current)) {
+					throw "NumberFormatError: Overflow";
+				}
 			}
 			multiplier = Int64.mul(multiplier, base);
 		}

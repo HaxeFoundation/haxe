@@ -44,6 +44,10 @@ import java.StdTypes.Int64 in NativeInt64;
 		return cast(cast(x,NativeInt64) >>> 32, Int);
 	}
 
+	public static inline function fromString( sParam : String ) : Int64 {
+		return (java.lang.Long.parseLong(StringTools.trim(sParam))).ofNative();
+	}
+
 	public static inline function ofInt( x : Int ) : Int64 {
 		return cast x;
 	}
@@ -51,6 +55,19 @@ import java.StdTypes.Int64 in NativeInt64;
 	public static inline function toInt( x : Int64 ) : Int
 	{
 		return cast x;
+	}
+
+	public static inline function fromFloat( f : Float ) : Int64 {
+		var noFractions = f - (f % 1);
+
+		// 2^53-1 and -2^53: these are parseable without loss of precision
+		if (noFractions > 9007199254740991) {
+			throw "Conversion overflow";
+		}
+		if (noFractions < -9007199254740991) {
+			throw "Conversion underflow";
+		}
+		return (new java.lang.Double(noFractions).longValue()).ofNative();
 	}
 
 	public static inline function add( a : Int64, b : Int64 ) : Int64
