@@ -347,7 +347,7 @@ let requires_value_meta com co =
 let generate_value_meta com co cf args =
 	if requires_value_meta com co then begin
 		let values = List.fold_left (fun acc (name,_,_,eo) -> match eo with Some e -> (name,e) :: acc | _ -> acc) [] args in
-		match args with
+		match values with
 			| [] -> ()
 			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],cf.cf_pos) :: cf.cf_meta)
 	end
