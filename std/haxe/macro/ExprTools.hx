@@ -243,6 +243,9 @@ class ExprTools {
 				}
 				obj;
 			case EArrayDecl(el): el.map(getValue);
+			case EIf(econd, eif, eelse) | ETernary(econd, eif, eelse):
+				var econd:Dynamic = getValue(econd);
+				econd ? getValue(eif) : getValue(eelse);
 			case EUnop(op, false, e1):
 				var e1:Dynamic = getValue(e1);
 				switch (op) {
