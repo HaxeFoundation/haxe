@@ -200,7 +200,7 @@ class TestInt64 extends Test {
 			// fine
 		}
 
-		var nan = 1.0/0.0;
+		var nan = Math.NaN;
 		try
 		{
 			fromFloat(nan);

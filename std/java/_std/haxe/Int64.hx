@@ -58,6 +58,9 @@ import java.StdTypes.Int64 in NativeInt64;
 	}
 
 	public static inline function fromFloat( f : Float ) : Int64 {
+		if (Math.isNaN(f)) {
+			throw "Conversion of NaN impossible";
+		}
 		var noFractions = f - (f % 1);
 
 		// 2^53-1 and -2^53: these are parseable without loss of precision
