@@ -234,7 +234,7 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
 	}
 
-	function testCompare() {
+	function testCompareMethods() {
 		var a = new MyClass(0);
 		var b = new MyClass(1);
 		t( Reflect.compareMethods(a.add,a.add) );
@@ -255,6 +255,20 @@ class TestReflect extends Test {
 			f( Reflect.compareMethods(fadd, a.get) );
 			f( Reflect.compareMethods(fadd, null) );
 		*/
+	}
+
+	function testCompare() {
+		eq( Reflect.compare(1,1), 0 );
+		t( Reflect.compare(0,1) < 0 );
+		t( Reflect.compare(1,0) > 0 );
+
+		eq( Reflect.compare(1.0,1.0), 0 );
+		t( Reflect.compare(0.0,1.0) < 0 );
+		t( Reflect.compare(1.0,0.0) > 0 );
+
+		t( Reflect.compare("","a") < 0 );
+		t( Reflect.compare("a","") > 0 );
+		eq( Reflect.compare("aasdf","aaasdf".substr(1, 5)), 0 ); // ensure new object is allocated for comparison
 	}
 
 	function testGetProp() {
