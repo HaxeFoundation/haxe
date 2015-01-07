@@ -170,6 +170,7 @@ import java.internal.Exceptions;
 				if (div != 0.0)
 					break;
 				div = 1.0;
+				foundAny = true;
 
 				continue;
 			}
