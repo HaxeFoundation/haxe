@@ -88,7 +88,7 @@ package haxe.ds;
 
 	public function keys() : Iterator<String> {
 		var out : Array<String> = untyped __keys__(h);
-		if( rh != null ) out = out.concat(__hkeys__(rh));
+		if( rh != null ) out = out.concat(untyped __hkeys__(rh));
 		return out.iterator();
 	}
 
