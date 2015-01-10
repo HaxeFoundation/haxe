@@ -94,9 +94,9 @@ package haxe.ds;
 
 	public function iterator() : Iterator<T> {
 		return untyped {
-			it : keys().iterator(),
+			it : keys(),
 			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i : String = __this__.it.next(); return get(i); }
+			next : function() { return get(__this__.it.next()); }
 		};
 	}
 
