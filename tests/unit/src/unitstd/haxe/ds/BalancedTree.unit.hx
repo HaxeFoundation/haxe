@@ -1,7 +1,7 @@
-var arrEq = function(arrA:Array<Dynamic>, arrB:Array<Dynamic>) {
-	eq(arrA.length, arrB.length);
+var arrEq = function(arrA:Array<Dynamic>, arrB:Array<Dynamic>, ?pos : haxe.PosInfos) {
+	eq(arrA.length, arrB.length, pos);
 	for (i in 0...arrA.length) {
-		eq(arrA[i], arrB[i]);
+		eq(arrA[i], arrB[i], pos);
 	}
 };
 
