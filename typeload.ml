@@ -861,6 +861,7 @@ let check_overriding ctx c =
 					() (* allow to redefine a method as inlined *)
 				| _ ->
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
+				if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override @:final method " ^ i) p;
 				try
 					let t = apply_params csup.cl_params params t in
 					valid_redefinition ctx f f.cf_type f2 t
