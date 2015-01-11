@@ -17,7 +17,35 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
 
+if Array.length Sys.argv > 1 then begin
+	print_string Sys.argv.(1);
+	flush stdout;
+	prerr_string "ERROR";
+	flush stderr;
+	let input = Std.input_all stdin in
+	print_string input;
+	exit 66;
+end;
+ 
+prerr_endline "Start";
+
 prerr_endline (Extc.executable_path());
 let contents = Std.input_file "test.ml" in
 let s = Extc.unzip (Extc.zip contents) in
 if s <> contents then failwith "zip + unzip failed";
+
+let p = Process.run "test" [|"Hello"|] in
+let tmp = String.create 100 in
+let out = String.sub tmp 0 (Process.read_stdout p tmp 0 100) in
+if out <> "Hello" then failwith ("OUT=" ^ out ^ "#");
+let err = String.sub tmp 0 (Process.read_stderr p tmp 0 100) in
+if err <> "ERROR" then failwith ("ERR= " ^ err ^ "#");
+ignore(Process.write_stdin p "INPUT" 0 5);
+Process.close_stdin p;
+let out = String.sub tmp 0 (Process.read_stdout p tmp 0 100) in
+if out <> "INPUT" then failwith ("IN-OUT=" ^ out ^ "#");
+let code = Process.exit p in
+if code <> 66 then failwith ("EXIT=" ^ string_of_int code);
+Process.close p;
+
+prerr_endline "End";
