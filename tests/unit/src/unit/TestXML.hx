@@ -188,4 +188,14 @@ class TestXML extends Test {
 
 		eq(doc.toString(), "<i>I<a>A</a></i>");
 	}
+
+	function testIssue3630() {
+		var a = Xml.parse('<node attribute="something with &lt; &amp; &quot; &apos; special characters &gt;"/>');
+		var c = a.firstChild();
+		eq('something with < & " \' special characters >', c.get("attribute"));
+
+		var a = Xml.parse('<div e="event=Hit.Eject&#x0D;&#x0A;&quot;onHit"></div>');
+		var c = a.firstChild();
+		eq('event=Hit.Eject\r\n"onHit', c.get("e"));
+	}
 }
