@@ -329,6 +329,8 @@ class Parser
 						}
 						start = p + 1;
 						state = escapeNext;
+					} else if (!isValidChar(c)) {
+						throw 'Invalid character in entity: ' + String.fromCharCode(c);
 					}
 			}
 			c = str.fastCodeAt(++p);
