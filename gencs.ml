@@ -3316,11 +3316,6 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	) ([acc],None) m.mflags.mf_contract in
 
 	let meta = [Meta.Overload, [], p] in
-	let meta = match is_final with
-		| None | Some false ->
-			(Meta.Final, [], p) :: meta
-		| _ -> meta
-	in
 	let meta = if is_explicit_impl then
 			(Meta.NoCompletion,[],p) :: (Meta.SkipReflection,[],p) :: meta
 		else
