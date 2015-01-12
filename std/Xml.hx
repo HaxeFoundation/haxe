@@ -20,14 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-@:enum abstract XmlType(String) {
-	var Element = "element";
-	var PCData = "pcdata";
-	var CData = "cdata";
-	var Comment = "comment";
-	var DocType = "doctype";
-	var ProcessingInstruction = "processinginstruction";
-	var Document = "document";
+@:enum abstract XmlType(Int) {
+	var Element = 0;
+	var PCData = 1;
+	var CData = 2;
+	var Comment = 3;
+	var DocType = 4;
+	var ProcessingInstruction = 5;
+	var Document = 6;
 }
 
 class Xml {
