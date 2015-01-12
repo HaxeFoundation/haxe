@@ -46,28 +46,28 @@ class Printer {
 
 	function writeNode(value:Xml, tabs:String) {
 		switch (value.nodeType) {
-			case Xml.CData:
+			case CData:
 				write(tabs + "<![CDATA[");
 				write(StringTools.trim(value.nodeValue));
 				write("]]>");
 				newline();
-			case Xml.Comment:
+			case Comment:
 				var commentContent:String = value.nodeValue;
 				commentContent = ~/[\n\r\t]+/g.replace(commentContent, "");
 				commentContent = "<!--" + commentContent + "-->";
 				write(tabs);
 				write(StringTools.trim(commentContent));
 				newline();
-			case Xml.Document:
+			case Document:
 				for (child in value) {
 					writeNode(child, tabs);
 				}
-			case Xml.Element:
+			case Element:
 				write(tabs + "<");
 				write(value.nodeName);
 				for (attribute in value.attributes()) {
 					write(" " + attribute + "=\"");
-					write(value.get(attribute));
+					write(StringTools.htmlEscape(value.get(attribute), true));
 					write("\"");
 				}
 				if (hasChildren(value)) {
@@ -84,15 +84,15 @@ class Printer {
 					write("/>");
 					newline();
 				}
-			case Xml.PCData:
+			case PCData:
 				var nodeValue:String = value.nodeValue;
 				if (nodeValue.length != 0) {
-					write(tabs + nodeValue);
+					write(tabs + StringTools.htmlEscape(nodeValue));
 					newline();
 				}
-			case Xml.ProcessingInstruction:
+			case ProcessingInstruction:
 				write("<?" + value.nodeValue + "?>");
-			case Xml.DocType:
+			case DocType:
 				write("<!DOCTYPE " + value.nodeValue + ">");
 		}
 	}
@@ -116,6 +116,7 @@ class Printer {
 					if (StringTools.ltrim(child.nodeValue).length != 0) {
 						return true;
 					}
+				case _:
 			}
 		}
 		return false;
