@@ -214,6 +214,9 @@ class TestXML extends Test {
 	}
 
 	function testIssue3630() {
+		exc(function() Xml.parse("<node attribute='<'/>"));
+		exc(function() Xml.parse("<node attribute='>'/>"));
+
 		var a = Xml.parse('<node attribute="something with &lt; &amp; &quot; &apos; special characters &gt;"/>');
 		var c = a.firstChild();
 		eq('something with < & " \' special characters >', c.get("attribute"));
