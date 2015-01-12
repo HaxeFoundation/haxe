@@ -195,6 +195,17 @@ class TestXML extends Test {
 		eq('Hä?', xml.firstElement().firstChild().nodeValue);
 	}
 
+	function testIssue2739() {
+		var simpleContent = "My &amp; &lt;You&gt;";
+		var node1 = Xml.parse(simpleContent).firstChild();
+		eq( node1.toString(), simpleContent );
+
+		// TODO?
+		//var content2 = "&laquo;&#64;&raquo;";
+		//var node3 = Xml.parse(content2).firstChild();
+		//eq( node3.toString(), content2 );
+	}
+
 	function testIssue3058() {
         var xml = Xml.createElement("node");
         xml.set("key", 'a"b\'&c>d<e');
