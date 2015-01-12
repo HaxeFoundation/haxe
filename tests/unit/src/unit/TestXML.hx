@@ -189,6 +189,12 @@ class TestXML extends Test {
 		eq(doc.toString(), "<i>I<a>A</a></i>");
 	}
 
+	function testIssue2299() {
+		var xml = Xml.parse("<xml>Hä?</xml>");
+		eq('<xml>Hä?</xml>', xml.firstElement().toString());
+		eq('Hä?', xml.firstElement().firstChild().nodeValue);
+	}
+
 	function testIssue3058() {
         var xml = Xml.createElement("node");
         xml.set("key", 'a"b\'&c>d<e');
