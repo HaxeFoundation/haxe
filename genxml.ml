@@ -145,7 +145,7 @@ and gen_field att f =
 		| Var v ->
 			let att = try
 				begin match Meta.get Meta.Value f.cf_meta with
-					| (_,[e],_) -> ("expr",String.concat "'" (ExtString.String.nsplit (Ast.s_expr e) "\"")) :: att
+					| (_,[e],_) -> ("expr",Ast.s_expr e) :: att
 					| _ -> att
 				end
 			with Not_found ->
@@ -262,8 +262,11 @@ let rec gen_type_decl com pos t =
 		let this = [node "this" [] [gen_type a.a_this]] in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_params a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)
 
+let escape_entities s =
+	Xml.to_string (Xml.PCData s)
+
 let att_str att =
-	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
+	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a (escape_entities v)) att)
 
 let rec write_xml ch tabs x =
 	match x with
