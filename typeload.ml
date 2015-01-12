@@ -861,6 +861,7 @@ let check_overriding ctx c =
 					() (* allow to redefine a method as inlined *)
 				| _ ->
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
+				if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override @:final method " ^ i) p;
 				try
 					let t = apply_params csup.cl_params params t in
 					valid_redefinition ctx f f.cf_type f2 t
@@ -2741,8 +2742,9 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				error "Abstract is missing underlying type declaration" a.a_pos
 		end
 
-let type_module ctx m file tdecls p =
+let type_module ctx m file ?(is_extern=false) tdecls p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in
+	if is_extern then m.m_extra.m_kind <- MExtern;
 	add_module ctx m p;
 	(* define the per-module context for the next pass *)
 	let ctx = {
@@ -2905,6 +2907,7 @@ let load_module ctx m p =
 			match !type_module_hook ctx m p with
 			| Some m -> m
 			| None ->
+			let is_extern = ref false in
 			let file, decls = (try
 				parse_module ctx m p
 			with Not_found ->
@@ -2916,10 +2919,12 @@ let load_module ctx m p =
 						| None -> loop l
 						| Some (file,(_,a)) -> file, a
 				in
+				is_extern := true;
 				loop ctx.com.load_extern_type
 			) in
+			let is_extern = !is_extern in
 			try
-				type_module ctx m file decls p
+				type_module ctx m file ~is_extern decls p
 			with Forbid_package (inf,pl,pf) when p <> Ast.null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 	) in

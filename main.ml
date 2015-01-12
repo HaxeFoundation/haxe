@@ -741,6 +741,18 @@ and wait_loop boot_com host port =
 				if m.m_extra.m_mark <= start_mark then begin
 					(match m.m_extra.m_kind with
 					| MFake | MSub -> () (* don't get classpath *)
+					| MExtern ->
+						(* if we have a file then this will override our extern type *)
+						let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
+						if has_file then raise Not_found;
+						let rec loop = function
+							| [] -> raise Not_found (* no extern registration *)
+							| load :: l ->
+								match load m.m_path p with
+								| None -> loop l
+								| Some (file,_) -> if Common.unique_full_path file <> m.m_extra.m_file then raise Not_found
+						in
+						loop com2.load_extern_type
 					| MCode -> if not (check_module_path com2 m p) then raise Not_found;
 					| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
 					| MMacro ->

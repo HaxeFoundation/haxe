@@ -33,7 +33,7 @@ let rec blockify_ast e =
 		let cases = List.map (fun (el,e) ->
 			el,mk_block (blockify_ast e)
 		) cases in
-		let def = match def with None -> None | Some e -> Some (blockify_ast e) in
+		let def = match def with None -> None | Some e -> Some (mk_block (blockify_ast e)) in
 		{e with eexpr = TSwitch(e1,cases,def)}
 	| _ ->
 		Type.map_expr blockify_ast e

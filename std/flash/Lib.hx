@@ -64,6 +64,10 @@ class Lib {
 	public static function trace( arg : Dynamic ) {
 		untyped __global__["trace"](arg);
 	}
+	
+	public static function describeType( value : Dynamic ) : flash.xml.XML {
+		return untyped __global__["flash.utils.describeType"](value);
+	}
 
 	public static function attach( name : String ) : flash.display.MovieClip {
 		var cl = untyped __as__(__global__["flash.utils.getDefinitionByName"](name),Class);
