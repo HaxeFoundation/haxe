@@ -5,8 +5,6 @@ class Issue3725 extends Test {
 
 	static function myStaticArgs(stringValue = "foo", intValue = 12, intHexValue = 0xFFFFFF, floatValue = 12.2223, boolValue = true) { }
 
-	#if !php
-
 	function testStaticArgs() {
 		var rtti = haxe.rtti.Rtti.getRtti(Issue3725);
 		var valueMap = new Map();
@@ -21,7 +19,7 @@ class Issue3725 extends Test {
 				}
 			}
 		}
-		eq("'foo'", valueMap["stringValue"]);
+		eq('"foo"', valueMap["stringValue"]);
 		eq("12", valueMap["intValue"]);
 		eq("0xFFFFFF", valueMap["intHexValue"]);
 		eq("12.2223", valueMap["floatValue"]);
@@ -40,7 +38,7 @@ class Issue3725 extends Test {
 		for (cf in rtti.statics) {
 			valueMap[cf.name] = cf.expr;
 		}
-		eq("'foo'", valueMap["stringValue"]);
+		eq('"foo"', valueMap["stringValue"]);
 		eq("12", valueMap["intValue"]);
 		eq("0xFFFFFF", valueMap["intHexValue"]);
 		eq("12.2223", valueMap["floatValue"]);
@@ -63,7 +61,7 @@ class Issue3725 extends Test {
 				}
 			}
 		}
-		eq("'foo'", valueMap["stringValue"]);
+		eq('"foo"', valueMap["stringValue"]);
 		eq("12", valueMap["intValue"]);
 		eq("0xFFFFFF", valueMap["intHexValue"]);
 		eq("12.2223", valueMap["floatValue"]);
@@ -82,12 +80,10 @@ class Issue3725 extends Test {
 		for (cf in rtti.fields) {
 			valueMap[cf.name] = cf.expr;
 		}
-		eq("'foo'", valueMap["stringValueM"]);
+		eq('"foo"', valueMap["stringValueM"]);
 		eq("12", valueMap["intValueM"]);
 		eq("0xFFFFFF", valueMap["intHexValueM"]);
 		eq("12.2223", valueMap["floatValueM"]);
 		eq("true", valueMap["boolValueM"]);
 	}
-
-	#end
 }

@@ -329,7 +329,7 @@ class Parser
 						}
 						start = p + 1;
 						state = escapeNext;
-					} else if (!isValidChar(c)) {
+					} else if (!isValidChar(c) && c != "#".code) {
 						throw 'Invalid character in entity: ' + String.fromCharCode(c);
 					}
 			}

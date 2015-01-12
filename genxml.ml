@@ -110,8 +110,7 @@ let rec gen_type ?(values=None) t =
 						let e = PMap.find n values in
 						has_value := true;
 						let s = Ast.s_expr e in
-						(* the XML parser has issues otherwise *)
-						String.concat "'" (ExtString.String.nsplit s "\"")
+						s
 					with Not_found ->
 						""
 				) args in
