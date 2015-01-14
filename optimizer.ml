@@ -285,10 +285,14 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			if v.v_type != t_dynamic && follow e.etype == t_dynamic then (local v).i_write <- true;
 			(match e.eexpr, opt with
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
-			(* we have to check for abstract casts here because we can't do that later. However, we have to skip the check for the
-			   first argument of abstract implementation functions. *)
-			(* actually we don't because unify_call_args takes care of that anyway *)
-			(* | _ when not (first && Meta.has Meta.Impl cf.cf_meta && cf.cf_name <> "_new") -> (!cast_or_unify_ref) ctx (map_type v.v_type) e e.epos *)
+			(*
+				This is really weird and should be reviewed again. The problem is that we cannot insert a TCast here because
+				the abstract `this` value could be written to, which is not possible if it is wrapped in a cast.
+
+				The original problem here is that we do not generate a temporary variable and thus mute the type of the
+				`this` variable, which leads to unification errors down the line. See issues #2236 and #3713.
+			*)
+			| _ when first && (Meta.has Meta.Impl cf.cf_meta) -> {e with etype = v.v_type}
 			| _ -> e) :: loop pl al false
 		| [], (v,opt) :: al ->
 			(mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p) :: loop [] al false
