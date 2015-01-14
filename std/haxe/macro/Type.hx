@@ -203,14 +203,13 @@ typedef MetaAccess = {
 	function get() : Expr.Metadata;
 
 	/**
-		Extract metadata entry by given `name`.
+		Extract metadata entries by given `name`.
 
-		If there's no metadata with such name, null will be returned.
-		If there's more than one entry with such name, the first one will be returned.
+		If there's no metadata with such name, empty array is returned.
 
 		If `name` is null, compilation fails with an error.
 	**/
-	function extract( name : String ) : Expr.MetadataEntry;
+	function extract( name : String ) : Array<Expr.MetadataEntry>;
 
 	/**
 		Adds the metadata specified by `name`, `params` and `pos` to the origin
