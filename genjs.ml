@@ -584,7 +584,10 @@ and gen_expr ctx e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		print ctx "[]"
 	| TNew (c,_,el) ->
-		print ctx "new %s(" (ctx.type_accessor (TClassDecl c));
+		(match c.cl_constructor with
+		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
+		| _ -> print ctx "new ");
+		print ctx "%s(" (ctx.type_accessor (TClassDecl c));
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
