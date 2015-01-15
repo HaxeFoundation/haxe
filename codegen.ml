@@ -1763,7 +1763,7 @@ module DeprecationCheck = struct
 					| FAnon cf ->
 						check_cf com cf e.epos
 					| FClosure(co,cf) ->
-						(match co with None -> () | Some c -> check_class com c e.epos);
+						(match co with None -> () | Some (c,_) -> check_class com c e.epos);
 						check_cf com cf e.epos
 					| FEnum(en,ef) ->
 						check_enum com en e.epos;

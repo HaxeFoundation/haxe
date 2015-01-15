@@ -1001,7 +1001,7 @@ let rec acc_get ctx g p =
 		| _ -> assert false)
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
-		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,_,f) -> FClosure (Some c,f) | _ -> assert false) in
+		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
 		| None ->
@@ -1126,7 +1126,7 @@ let field_access ctx mode f fmode t e p =
 			| _ , MGet ->
 				let cmode = (match fmode with
 					| FInstance(_, _, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
-					| FInstance (c,_,cf) -> FClosure (Some c,cf)
+					| FInstance (c,tl,cf) -> FClosure (Some (c,tl),cf)
 					| FStatic _ | FEnum _ -> fmode
 					| FAnon f -> FClosure (None, f)
 					| FDynamic _ | FClosure _ -> assert false
@@ -2012,7 +2012,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 				let std = type_type ctx ([],"Std") e.epos in
 				let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
 				ignore(follow acc.etype);
-				let acc = (match acc.eexpr with TField (e,FClosure (Some c,f)) -> { acc with eexpr = TField (e,FInstance (c,[],f)) } | _ -> acc) in
+				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
 			| KAbstract (a,tl) ->
 				loop (Abstract.get_underlying_type a tl)

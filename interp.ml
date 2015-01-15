@@ -4564,7 +4564,7 @@ and encode_field_access fa =
 		| FStatic(c,cf) -> 1,[encode_clref c;encode_cfref cf]
 		| FAnon(cf) -> 2,[encode_cfref cf]
 		| FDynamic(s) -> 3,[enc_string s]
-		| FClosure(co,cf) -> 4,[vopt encode_clref co;encode_cfref cf]
+		| FClosure(co,cf) -> 4,[(match co with Some (c,_) -> encode_clref c | None -> VNull);encode_cfref cf] (* TODO: breaking change, kind of, too *)
 		| FEnum(en,ef) -> 5,[encode_enref en;encode_efield ef]
 	in
 	enc_enum IFieldAccess tag pl

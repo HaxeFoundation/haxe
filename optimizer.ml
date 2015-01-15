@@ -1085,7 +1085,7 @@ let rec reduce_loop ctx e =
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
 	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
-		let fmode = (match c with None -> FAnon cf | Some c -> FInstance (c,[],cf)) in (* TODO *)
+		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
 		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
 	| TSwitch (e1,[[{eexpr = TConst (TBool true)}],{eexpr = TConst (TBool true)}],Some ({eexpr = TConst (TBool false)})) ->
 		(* introduced by extractors in some cases *)

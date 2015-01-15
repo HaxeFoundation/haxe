@@ -3374,7 +3374,7 @@ struct
 				expr,clscapt
 			| Some _ ->
 				{
-					eexpr = TField(expr, FClosure(Some cls,invokecf));
+					eexpr = TField(expr, FClosure(Some (cls,[]),invokecf)); (* TODO: FClosure change *)
 					etype = invokecf.cf_type;
 					epos = cls.cl_pos
 				}, clscapt
@@ -6226,7 +6226,7 @@ struct
 							cf,t,false
 					| true ->
 					let (cf, actual_t, error), is_static = match f with
-						| FInstance(c,_,cf) | FClosure(Some c,cf) ->
+						| FInstance(c,_,cf) | FClosure(Some (c,_),cf) ->
 							(* get from overloads *)
 							(* FIXME: this is a workaround for issue #1743 . Uncomment this code after it was solved *)
 							(* let t, cf = List.find (fun (t,cf2) -> cf == cf2) (Typeload.get_overloads cl (field_name f)) in *)
@@ -7785,7 +7785,7 @@ struct
 						| Var _
 						| Method MethDynamic -> { eexpr = TField (ethis, FInstance(cl,List.map snd cl.cl_params,cf)); etype = cf_type; epos = pos }
 						| _ ->
-								{ eexpr = TField (this, FClosure(Some cl, cf)); etype = cf_type; epos = pos }
+								{ eexpr = TField (this, FClosure(Some (cl,[]), cf)); etype = cf_type; epos = pos } (* TODO: FClosure change *)
 				in
 
 				let do_field cf cf_type static =

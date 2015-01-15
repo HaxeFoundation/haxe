@@ -494,7 +494,7 @@ and gen_expr ctx e =
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
-	| TField (x,FClosure (Some {cl_path=[],"Array"}, {cf_name="push"})) ->
+	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
 		add_feature ctx "use.$arrayPushClosure";
 		print ctx "$arrayPushClosure(";

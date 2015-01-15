@@ -135,7 +135,7 @@ and tfield_access =
 	| FStatic of tclass * tclass_field
 	| FAnon of tclass_field
 	| FDynamic of string
-	| FClosure of tclass option * tclass_field (* None class = TAnon *)
+	| FClosure of (tclass * tparams) option * tclass_field (* None class = TAnon *)
 	| FEnum of tenum * tenum_field
 
 and texpr = {
@@ -907,7 +907,7 @@ let rec s_expr s_type e =
 		let fstr = (match f with
 			| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
 			| FInstance (c,_,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ " : " ^ s_type f.cf_type ^ ")"
-			| FClosure (c,f) -> "closure(" ^ (match c with None -> f.cf_name | Some c -> s_type_path c.cl_path ^ "." ^ f.cf_name)  ^ ")"
+			| FClosure (c,f) -> "closure(" ^ (match c with None -> f.cf_name | Some (c,_) -> s_type_path c.cl_path ^ "." ^ f.cf_name)  ^ ")"
 			| FAnon f -> "anon(" ^ f.cf_name ^ ")"
 			| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
 			| FDynamic f -> "dynamic(" ^ f ^ ")"
@@ -1076,7 +1076,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 		let sfa = match fa with
 			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); cf.cf_name]
 			| FStatic(c,cf) -> tag "FStatic" ~extra_tabs:"\t" [s_type_path c.cl_path; cf.cf_name]
-			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some c -> s_type_path c.cl_path); cf.cf_name]
+			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some (c,_) -> s_type_path c.cl_path); cf.cf_name]
 			| FAnon cf -> tag "FAnon" ~extra_tabs:"\t" [cf.cf_name]
 			| FDynamic s -> tag "FDynamic" ~extra_tabs:"\t" [s]
 			| FEnum(en,ef) -> tag "FEnum" ~extra_tabs:"\t" [s_type_path en.e_path; ef.ef_name]
