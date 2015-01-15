@@ -3309,10 +3309,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			ctx.constructor_argument_stack <- el :: ctx.constructor_argument_stack;
 			let t = follow (Typeload.load_instance ctx t p true) in
 			ctx.constructor_argument_stack <- List.tl ctx.constructor_argument_stack;
-			t
+			(* Try to properly build @:generic classes here (issue #2016) *)
+			begin match t with
+				| TInst({cl_kind = KGeneric } as c,tl) -> follow (Codegen.build_generic ctx c p tl)
+				| _ -> t
+			end
 		with Codegen.Generic_Exception _ ->
 			(* Try to infer generic parameters from the argument list (issue #2044) *)
-			match Typeload.load_type_def ctx p t with
+			match Typeload.resolve_typedef (Typeload.load_type_def ctx p t) with
 			| TClassDecl ({cl_constructor = Some cf} as c) ->
 				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 				let ct, f = get_constructor ctx c monos p in
