@@ -2122,6 +2122,17 @@ let init_class ctx c p context_init herits fields =
 									display_error ctx ("First argument of implementation function must be " ^ (s_type (print_context()) tthis)) f.cff_pos
 							end;
 							loop ml
+(* 						| (Meta.Resolve,_,_) :: _ ->
+							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
+							begin match follow t with
+								| TFun([(_,_,t1);(_,_,t2)],_) ->
+									if not is_macro then begin
+										if not (type_iseq targ t1) then error ("First argument type must be " ^ (s_type (print_context()) targ)) f.cff_pos;
+										if not (type_iseq ctx.t.tstring t2) then error ("Second argument type must be String") f.cff_pos
+									end
+								| _ ->
+									error ("Field type of resolve must be " ^ (s_type (print_context()) targ) ^ " -> String -> T") f.cff_pos
+							end *)
 						| _ :: ml ->
 							loop ml
 						| [] ->
