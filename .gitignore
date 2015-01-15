@@ -68,3 +68,4 @@ tests/optimization/dump/
 tests/misc/projects/*/*.n
 tests/unit/bin/
 tests/*.n
+tests/misc/projects/Issue3756/cpp/

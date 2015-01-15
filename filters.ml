@@ -1081,8 +1081,17 @@ let run com tctx main =
 	(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 	List.iter (check_remove_metadata tctx) com.types;
 	(* DCE *)
-	let dce_mode = (try Common.defined_value com Define.Dce with _ -> "no") in
-	if not (Common.defined com Define.As3 || dce_mode = "no" || Common.defined com Define.DocGen) then Dce.run com main (dce_mode = "full" && not (Common.defined com Define.Interp));
+	let dce_mode = if Common.defined com Define.As3 || Common.defined com Define.DocGen then
+		"no"
+	else
+		(try Common.defined_value com Define.Dce with _ -> "no")
+	in
+	begin match dce_mode with
+		| "full" -> Dce.run com main (not (Common.defined com Define.Interp))
+		| "std" -> Dce.run com main false
+		| "no" -> Dce.fix_accessors com
+		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
+	end;
 	(* always filter empty abstract implementation classes (issue #1885) *)
 	List.iter (fun mt -> match mt with
 		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
