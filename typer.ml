@@ -766,6 +766,9 @@ let unify_field_call ctx fa el args ret p inline =
 				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Typeload.get_overloads c cf.cf_name)
 			in
 			(TFun(args,ret),cf) :: cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
+		| FClosure(co,cf) ->
+			let c = match co with None -> None | Some (c,_) -> Some c in
+			expand_overloads (fun t -> t) cf,c,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
 		| _ ->
 			error "Invalid field call" p
 	in
