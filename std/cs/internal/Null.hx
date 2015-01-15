@@ -47,7 +47,7 @@ package cs.internal;
 	@:readOnly public var hasValue(default,never):Bool;
 
 	@:functionCode('
-			if ( !(v is System.ValueType) && System.Object.ReferenceEquals(v, default(T)))
+			if (!typeof(T).IsValueType && System.Object.ReferenceEquals(v, default(T)))
 			{
 				hasValue = false;
 			}
