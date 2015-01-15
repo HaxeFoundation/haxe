@@ -292,7 +292,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				The original problem here is that we do not generate a temporary variable and thus mute the type of the
 				`this` variable, which leads to unification errors down the line. See issues #2236 and #3713.
 			*)
-			| _ when first && (Meta.has Meta.Impl cf.cf_meta) -> {e with etype = v.v_type}
+			(* | _ when first && (Meta.has Meta.Impl cf.cf_meta) -> {e with etype = v.v_type} *)
 			| _ -> e) :: loop pl al false
 		| [], (v,opt) :: al ->
 			(mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p) :: loop [] al false
