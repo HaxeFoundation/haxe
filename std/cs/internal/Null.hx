@@ -22,6 +22,14 @@
 package cs.internal;
 
 @:classCode('
+	static public readonly System.Type Type = typeof(T);
+	static public readonly bool IsValueType = haxe.lang.NullMetadata<T>.Type.IsValueType;
+')
+@:keep @:nativeGen @:native("haxe.lang.NullMetadata") private class NullMetadata<T>
+{
+}
+
+@:classCode('
 	//This function is here to be used with Reflection, when the haxe.lang.Null type is known
 	public static haxe.lang.Null<T> _ofDynamic(object obj)
 	{
@@ -47,7 +55,7 @@ package cs.internal;
 	@:readOnly public var hasValue(default,never):Bool;
 
 	@:functionCode('
-			if (!typeof(T).IsValueType && System.Object.ReferenceEquals(v, default(T)))
+			if (!haxe.lang.NullMetadata<T>.IsValueType && System.Object.ReferenceEquals(v, default(T)))
 			{
 				hasValue = false;
 			}
