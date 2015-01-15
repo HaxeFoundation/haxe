@@ -50,34 +50,6 @@ import java.io.EOFException;
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-   
-   override public function writeBytes(s:Bytes, pos:Int, len:Int):Int 
-   {
-      if (pos < s.length)
-      {
-         try
-         {
-            if (s.length < pos + len)
-            {
-               len = s.length - pos;
-            }
-            stream.write(s.getData(), pos, len);
-         }
-
-         catch (e:EOFException) {
-            throw new Eof();
-         }
-
-         catch (e:IOException) {
-            throw haxe.io.Error.Custom(e);
-         }
-      }
-      else
-      {
-         len = 0;
-      }
-      return len;
-   }
 
 	override public function close():Void
 	{
@@ -90,7 +62,7 @@ import java.io.EOFException;
 			throw haxe.io.Error.Custom(e);
 		}
 	}
-   
+
 	override public function flush():Void
 	{
 		try
