@@ -234,6 +234,7 @@ module Define = struct
 		| SwfUseDoAbc
 		| Sys
 		| UnityStdTarget
+		| Unity46LineNumbers
 		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
@@ -314,6 +315,8 @@ module Define = struct
 		| SwfUseDoAbc -> ("swf_use_doabc", "Use DoAbc swf-tag instead of DoAbcDefine")
 		| Sys -> ("sys","Defined for all system platforms")
 		| UnityStdTarget -> ("unity_std_target", "Changes C# sources location so that each generated C# source is relative to the Haxe source location. If the location is outside the current directory, the value set here will be used")
+		(* see https://github.com/HaxeFoundation/haxe/issues/3759 *)
+		| Unity46LineNumbers -> ("unity46_line_numbers", "Fixes line numbers in generated C# files for Unity 4.6 Mono compiler")
 		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")

@@ -1109,7 +1109,8 @@ let configure gen =
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
 			let file = Common.get_full_path p.pfile in
-			if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
+			let line = if Common.defined gen.gcon Define.Unity46LineNumbers then cur_line - 1 else cur_line in
+			if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" line (Ast.s_escape file); newline w end;
 			last_line := cur_line
 	in
 
