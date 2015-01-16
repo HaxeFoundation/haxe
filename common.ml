@@ -292,7 +292,7 @@ module Define = struct
 		| NoInline -> ("no_inline","Disable inlining")
 		| NoRoot -> ("no_root","Generate top-level types into haxe.root namespace")
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
-      | NoSimplify -> "no_simplify",("Disable simplification filter")
+		| NoSimplify -> "no_simplify",("Disable simplification filter")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
