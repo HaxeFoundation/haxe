@@ -33,6 +33,7 @@
 #	include <sys/types.h>
 #	include <unistd.h>
 #	include <errno.h>
+#	include <string.h>
 #	ifndef __APPLE__
 #		include <wait.h>
 #	endif
