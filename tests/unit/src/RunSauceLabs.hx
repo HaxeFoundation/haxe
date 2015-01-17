@@ -19,7 +19,7 @@ private typedef Promise = {
 	Usage: npm install wd q && node RunSauceLabs.js testFile.html [...testFile2.html] [options]
 	Options:
 		-serve-domain <domain>		Domain of the server that serves the test files. Default: localhost
-		-serve-port	<port>			Port number of the server that serves the test files. Default: 2000
+		-serve-port <port>			Port number of the server that serves the test files. Default: 2000
 		-connect-domain <domain>	Domain of the remote testing server. Default: localhost (using Sauce Connect)
 		-connect-port <port>		Port number of remote testing server. Default: 4445 (using Sauce Connect)
 		-browsers <browsers>		A list of browsers to test with in JSON format. Default: refer to source code
