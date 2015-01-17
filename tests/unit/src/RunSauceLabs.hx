@@ -24,7 +24,7 @@ private typedef Promise = {
 		-connect-port <port>		Port number of remote testing server. Default: 4445 (using Sauce Connect)
 		-browsers <browsers>		A list of browsers to test with in JSON format. Default: refer to source code
 
-	Tests should log "SUCCESS: true" or "SUCCESS: false" to the console when it is done.
+	When a test finishes, it should set `window.success` to a boolean.
 */
 class RunSauceLabs {
 	static function successMsg(msg:String):Void {
@@ -228,31 +228,29 @@ class RunSauceLabs {
 								.then(function() {
 									console.log("[debug] waiting for test to exit");
 									return 
-										until("return (typeof unit != 'undefined') && unit.Test && (typeof unit.Test.success === 'boolean')")
+										until("return (typeof window.success === 'boolean');")
 										.timeout(timeout);
 								})
 								.then(function() {
 									console.log("[debug] test exited");
 									return browser.text("body");
 								})
-								.then(function(resultText:String) {
-									//check if test is successful or not
-									var success = false;
-									for (line in resultText.split("\n")) {
-										infoMsg(line);
-										if (line.indexOf("SUCCESS: ") >= 0) {
-											success = line.indexOf("SUCCESS: true") >= 0;
-											break;
-										}
-									}
-									browserSuccess = browserSuccess && success;
-									allSuccess = allSuccess && browserSuccess;
+								.then(function(text:String) {
+									text.split("\n").iter(infoMsg);
+								})
+								.then(function() {
+									return browser
+										.execute("return window.success;")
+										.then(function(success) {
+											browserSuccess = browserSuccess && success;
+											allSuccess = allSuccess && browserSuccess;
 
-									if (success) {
-										successMsg('$url in ${caps.browserName} ${caps.version} on ${caps.platform}: SUCCESS');
-									} else {
-										failMsg('$url in ${caps.browserName} ${caps.version} on ${caps.platform}: FAIL');
-									}
+											if (success) {
+												successMsg('$url in ${caps.browserName} ${caps.version} on ${caps.platform}: SUCCESS');
+											} else {
+												failMsg('$url in ${caps.browserName} ${caps.version} on ${caps.platform}: FAIL');
+											}
+										});
 								})
 								.timeout(60000 * 5); //5 min
 						});

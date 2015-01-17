@@ -352,6 +352,12 @@ class Test #if swf_mark implements mt.Protect #end {
 
 		trace("SUCCESS: " + success);
 
+		#if js
+		if (js.Browser.supported) {
+			untyped js.Browser.window.success = success;
+		}
+		#end
+
 		#if sys
 		Sys.exit(success ? 0 : 1);
 		#end
