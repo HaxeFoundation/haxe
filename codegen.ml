@@ -360,25 +360,36 @@ let rec build_generic ctx c p tl =
 			List.iter loop tl
 		in
 		List.iter loop tl;
-		let delays = ref [] in
-		let build_field f =
-			let t = generic_substitute_type gctx f.cf_type in
-			let f = { f with cf_type = t} in
-			(* delay the expression mapping to make sure all cf_type fields are set correctly first *)
-			(delays := (fun () ->
-				try (match f.cf_expr with
+		let build_field cf_old =
+			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
+			let f () =
+				let t = generic_substitute_type gctx cf_old.cf_type in
+				ignore (follow t);
+				begin try (match cf_old.cf_expr with
 					| None ->
-						begin match f.cf_kind with
+						begin match cf_old.cf_kind with
 							| Method _ when not c.cl_interface && not c.cl_extern ->
-								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" f.cf_name) f.cf_pos;
+								display_error ctx (Printf.sprintf "Field %s has no expression (possible typing order issue)" cf_new.cf_name) cf_new.cf_pos;
 								display_error ctx (Printf.sprintf "While building %s" (s_type_path cg.cl_path)) p;
 							| _ ->
 								()
 						end
-					| Some e -> f.cf_expr <- Some (generic_substitute_expr gctx e)
+					| Some e ->
+						cf_new.cf_expr <- Some (generic_substitute_expr gctx e)
 				) with Unify_error l ->
-					error (error_msg (Unify l)) f.cf_pos) :: !delays);
-			f
+					error (error_msg (Unify l)) cf_new.cf_pos
+				end;
+				t
+			in
+			let r = exc_protect ctx (fun r ->
+				let t = mk_mono() in
+				r := (fun() -> t);
+				unify_raise ctx (f()) t p;
+				t
+			) "build_generic" in
+			delay ctx PForce (fun() -> ignore ((!r)()));
+			cf_new.cf_type <- TLazy r;
+			cf_new
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
@@ -417,7 +428,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
-			| _, Some c, _ -> Some (build_field c)
+			| _, Some cf, _ -> Some (build_field cf)
 			| Some ctor, _, _ -> Some ctor
 			| None, None, None -> None
 			| _ -> error "Please define a constructor for this class in order to use it as generic" c.cl_pos
@@ -432,7 +443,6 @@ let rec build_generic ctx c p tl =
 			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
 			f
 		) c.cl_ordered_fields;
-		List.iter (fun f -> f()) !delays;
 		TInst (cg,[])
 	end
 
