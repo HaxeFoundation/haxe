@@ -817,7 +817,7 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s)},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 in
 			transform_expr ~is_value:is_value e
-		| (is_value, TField(e1, FClosure(Some {cl_path = [],("String" | "list")},cf))) ->
+		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("String" | "list")},_),cf))) ->
 			let e = dynamic_field_read e1 cf.cf_name in
 			transform_expr ~is_value:is_value e
 		| (is_value, TBinop(OpAssign, left, right))->

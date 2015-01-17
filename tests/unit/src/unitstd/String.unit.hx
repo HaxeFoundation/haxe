@@ -154,3 +154,7 @@ s.substring(120, 100) == "";
 
 // fromCharCode
 String.fromCharCode(65) == "A";
+
+// ensure int strings compared as strings, not parsed ints (issue #3734)
+("3" > "11") == true;
+(" 3" < "3") == true;

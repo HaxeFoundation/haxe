@@ -56,7 +56,10 @@ class FileSystem {
 	}
 
 	static function kind( path : String ) : FileKind {
-		var k = new String(sys_file_type(untyped (haxe.io.Path.removeTrailingSlashes(path)).__s));
+		if (!haxe.io.Path.isAbsolute(path)) {
+			path = haxe.io.Path.removeTrailingSlashes(path);
+		}
+		var k = new String(sys_file_type(untyped path.__s));
 		return switch(k) {
 		case "file": kfile;
 		case "dir": kdir;

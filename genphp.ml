@@ -1227,6 +1227,20 @@ and gen_expr ctx e =
 				gen_field_op ctx e2;
 				spr ctx ")";
 			end
+		| Ast.OpGt | Ast.OpGte | Ast.OpLt | Ast.OpLte when is_string_expr e1 ->
+			spr ctx "(strcmp(";
+			gen_field_op ctx e1;
+			spr ctx ", ";
+			gen_field_op ctx e2;
+			spr ctx ")";
+			let op_str = match op with
+				| Ast.OpGt -> ">"
+				| Ast.OpGte -> ">="
+				| Ast.OpLt -> "<"
+				| Ast.OpLte -> "<="
+				| _ -> assert false
+			in
+			print ctx "%s 0)" op_str
 		| _ ->
 			leftside e1;
 			print ctx " %s " (Ast.s_binop op);

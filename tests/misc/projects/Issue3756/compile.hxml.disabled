@@ -1,0 +1,4 @@
+-main Main
+-dce no
+-cpp cpp
+# can't use --no-output here

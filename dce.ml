@@ -379,6 +379,30 @@ and expr dce e =
 	| _ ->
 		Type.iter (expr dce) e
 
+let fix_accessors com =
+	List.iter (fun mt -> match mt with
+		| (TClassDecl c) ->
+			let rec has_accessor c n stat =
+				PMap.mem n (if stat then c.cl_statics else c.cl_fields)
+				|| match c.cl_super with Some (csup,_) -> has_accessor csup n stat | None -> false
+			in
+			let check_prop stat cf =
+				(match cf.cf_kind with
+				| Var {v_read = AccCall; v_write = a} ->
+					let s = "get_" ^ cf.cf_name in
+					cf.cf_kind <- Var {v_read = if has_accessor c s stat then AccCall else AccNever; v_write = a}
+				| _ -> ());
+				(match cf.cf_kind with
+				| Var {v_write = AccCall; v_read = a} ->
+					let s = "set_" ^ cf.cf_name in
+					cf.cf_kind <- Var {v_write = if has_accessor c s stat then AccCall else AccNever; v_read = a}
+				| _ -> ())
+			in
+			List.iter (check_prop true) c.cl_ordered_statics;
+			List.iter (check_prop false) c.cl_ordered_fields;
+		| _ -> ()
+	) com.types
+
 let run com main full =
 	let dce = {
 		com = com;
@@ -538,28 +562,7 @@ let run com main full =
 	com.types <- loop [] (List.rev com.types);
 
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
-	List.iter (fun mt -> match mt with
-		| (TClassDecl c) ->
-			let rec has_accessor c n stat =
-				PMap.mem n (if stat then c.cl_statics else c.cl_fields)
-				|| match c.cl_super with Some (csup,_) -> has_accessor csup n stat | None -> false
-			in
-			let check_prop stat cf =
-				(match cf.cf_kind with
-				| Var {v_read = AccCall; v_write = a} ->
-					let s = "get_" ^ cf.cf_name in
-					cf.cf_kind <- Var {v_read = if has_accessor c s stat then AccCall else AccNever; v_write = a}
-				| _ -> ());
-				(match cf.cf_kind with
-				| Var {v_write = AccCall; v_read = a} ->
-					let s = "set_" ^ cf.cf_name in
-					cf.cf_kind <- Var {v_write = if has_accessor c s stat then AccCall else AccNever; v_read = a}
-				| _ -> ())
-			in
-			List.iter (check_prop true) c.cl_ordered_statics;
-			List.iter (check_prop false) c.cl_ordered_fields;
-		| _ -> ()
-	) com.types;
+	fix_accessors com;
 
 	(* remove "override" from fields that do not override anything anymore *)
 	List.iter (fun mt -> match mt with

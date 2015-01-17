@@ -7,6 +7,7 @@
 	all : allowed @:callable on abstracts to forward calls to their underlying type
 	all : allowed pattern matching on getters
 	all : allowed @:native on class fields
+	all : added static analyzer with constant propagation
 	python : added python target
 	flash : flash player 12-14 support
 	js : added @:jsRequire and js.Lib.require
@@ -26,9 +27,13 @@
 	all : fixed DCE issues with interface properties
 	all : fixed variance issue with function variables and dynamic methods on interfaces
 	all : fixed pattern matching on empty arrays that are typed as Dynamic
+	all : fixed various @:generic issues
+	all : fixed default cases on @:enum abstract being omitted
+	all : fixed various expression positions
 	cpp : fixed issue with the side-effect handler
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
+	php : fixed Reflect.compare and string comparison for numeric strings
 
 	General improvements and optimizations:
 
@@ -40,12 +45,15 @@
 	all : properly disallowed leading zeroes for Int and Float literals
 	all : allowed variance on interface variables
 	all : allowed pattern matching on arrays if they are typed as Dynamic
+	all : allowed pattern matching on fields of parent classes
+	flash/js: optimized haxe.ds.StringMap
 	neko : create output directory if it does not exist
 	js : inline Math methods and fields
 	cs/java : optimized Reflect.fields on dynamic structures
 	cs/java : haxe will now clear output directory of old files (use -D keep-old-output to keep them)
 	cs : optimized casting of parametrized types
 	cs : beautify c# code output
+	xml : improved documentation generation and fixed missing entity escaping
 
 	Standard Library:
 
@@ -54,6 +62,7 @@
 	all : added haxe.EitherType abstract type for dealing with externs for dynamic targets
 	all : added haxe.DynamicAccess type for working with dynamic anonymous structures using a Map-like interface
 	all : [breaking] changed haxe.ds.Vector.get to return T instead of Null<T>
+	all : added haxe.macro.Compiler.addGlobalMetadata
 
 	Macro features and changes:
 

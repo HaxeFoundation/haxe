@@ -67,6 +67,8 @@ type access_kind =
 	| AKUsing of texpr * tclass * tclass_field * texpr
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 
+let build_call_ref : (typer -> access_kind -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else if Common.defined ctx.com Define.AbsolutePath then Common.get_full_path p.pfile else Filename.basename p.pfile in
 	(EObjectDecl (
@@ -764,6 +766,9 @@ let unify_field_call ctx fa el args ret p inline =
 				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Typeload.get_overloads c cf.cf_name)
 			in
 			(TFun(args,ret),cf) :: cfl,Some c,cf,(fun cf -> FInstance(c,tl,cf))
+		| FClosure(co,cf) ->
+			let c = match co with None -> None | Some (c,_) -> Some c in
+			expand_overloads (fun t -> t) cf,c,cf,(fun cf -> match co with None -> FAnon cf | Some (c,tl) -> FInstance(c,tl,cf))
 		| _ ->
 			error "Invalid field call" p
 	in
@@ -999,7 +1004,7 @@ let rec acc_get ctx g p =
 		| _ -> assert false)
 	| AKInline (e,f,fmode,t) ->
 		(* do not create a closure for static calls *)
-		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,_,f) -> FClosure (Some c,f) | _ -> assert false) in
+		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
 		| None ->
@@ -1124,7 +1129,7 @@ let field_access ctx mode f fmode t e p =
 			| _ , MGet ->
 				let cmode = (match fmode with
 					| FInstance(_, _, cf) | FStatic(_, cf) when Meta.has Meta.Generic cf.cf_meta -> display_error ctx "Cannot create closure on generic function" p; fmode
-					| FInstance (c,_,cf) -> FClosure (Some c,cf)
+					| FInstance (c,tl,cf) -> FClosure (Some (c,tl),cf)
 					| FStatic _ | FEnum _ -> fmode
 					| FAnon f -> FClosure (None, f)
 					| FDynamic _ | FClosure _ -> assert false
@@ -1617,6 +1622,14 @@ and type_field ?(resume=false) ctx e i p mode =
 			(match ctx.curfun, e.eexpr with
 			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 			| _ -> raise Not_found)
+(* 		with Not_found -> try
+			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
+			let cf = PMap.find "resolve" c.cl_statics in
+			if not (Meta.has Meta.Resolve cf.cf_meta) then raise Not_found;
+			let et = type_module_type ctx (TClassDecl c) None p in
+			let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
+			let ef = mk (TField (et,FStatic (c,cf))) t p in
+			AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p) *)
 		with Not_found ->
 			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 			else no_field())
@@ -1894,11 +1907,18 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let v = gen_local ctx e.etype in
 			let ev = mk (TLocal v) e.etype p in
 			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) e2 true with_type p in
-			unify ctx get.etype t p;
+			let e' = match get.eexpr with
+				| TBinop _ ->
+					unify ctx get.etype t p;
+					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
+				| _ ->
+					(* abstract setter *)
+					get
+			in
 			l();
 			mk (TBlock [
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
-				make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
+				e'
 			]) t p
 		| AKUsing(ef,c,cf,et) ->
 			(* abstract setter + getter *)
@@ -1995,7 +2015,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 				let std = type_type ctx ([],"Std") e.epos in
 				let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
 				ignore(follow acc.etype);
-				let acc = (match acc.eexpr with TField (e,FClosure (Some c,f)) -> { acc with eexpr = TField (e,FInstance (c,[],f)) } | _ -> acc) in
+				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
 			| KAbstract (a,tl) ->
 				loop (Abstract.get_underlying_type a tl)
@@ -3289,10 +3309,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			ctx.constructor_argument_stack <- el :: ctx.constructor_argument_stack;
 			let t = follow (Typeload.load_instance ctx t p true) in
 			ctx.constructor_argument_stack <- List.tl ctx.constructor_argument_stack;
-			t
+			(* Try to properly build @:generic classes here (issue #2016) *)
+			begin match t with
+				| TInst({cl_kind = KGeneric } as c,tl) -> follow (Codegen.build_generic ctx c p tl)
+				| _ -> t
+			end
 		with Codegen.Generic_Exception _ ->
 			(* Try to infer generic parameters from the argument list (issue #2044) *)
-			match Typeload.load_type_def ctx p t with
+			match Typeload.resolve_typedef (Typeload.load_type_def ctx p t) with
 			| TClassDecl ({cl_constructor = Some cf} as c) ->
 				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 				let ct, f = get_constructor ctx c monos p in
@@ -4907,4 +4931,5 @@ make_call_ref := make_call;
 get_constructor_ref := get_constructor;
 cast_or_unify_ref := Codegen.AbstractCast.cast_or_unify_raise;
 type_module_type_ref := type_module_type;
-find_array_access_raise_ref := Codegen.AbstractCast.find_array_access_raise
+find_array_access_raise_ref := Codegen.AbstractCast.find_array_access_raise;
+build_call_ref := build_call

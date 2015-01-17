@@ -522,7 +522,7 @@ class RunCi {
 
 					if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
 						//https://saucelabs.com/opensource/travis
-						runCommand("npm", ["install", "wd"], true);
+						runCommand("npm", ["install", "wd", "q"], true);
 						runCommand("wget", ["-nv", "https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh"], true);
 						runCommand("chmod", ["a+x", "sauce_connect_setup.sh"]);
 						runCommand("./sauce_connect_setup.sh", []);

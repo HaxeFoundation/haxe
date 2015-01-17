@@ -234,6 +234,7 @@ module Define = struct
 		| SwfUseDoAbc
 		| Sys
 		| UnityStdTarget
+		| Unity46LineNumbers
 		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
@@ -292,7 +293,7 @@ module Define = struct
 		| NoInline -> ("no_inline","Disable inlining")
 		| NoRoot -> ("no_root","Generate top-level types into haxe.root namespace")
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
-      | NoSimplify -> "no_simplify",("Disable simplification filter")
+		| NoSimplify -> "no_simplify",("Disable simplification filter")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
@@ -314,6 +315,8 @@ module Define = struct
 		| SwfUseDoAbc -> ("swf_use_doabc", "Use DoAbc swf-tag instead of DoAbcDefine")
 		| Sys -> ("sys","Defined for all system platforms")
 		| UnityStdTarget -> ("unity_std_target", "Changes C# sources location so that each generated C# source is relative to the Haxe source location. If the location is outside the current directory, the value set here will be used")
+		(* see https://github.com/HaxeFoundation/haxe/issues/3759 *)
+		| Unity46LineNumbers -> ("unity46_line_numbers", "Fixes line numbers in generated C# files for Unity 4.6 Mono compiler")
 		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
@@ -445,6 +448,7 @@ module MetaInfo = struct
 		| Remove -> ":remove",("Causes an interface to be removed from all implementing classes before generation",[UsedOn TClass])
 		| Require -> ":require",("Allows access to a field only if the specified compiler flag is set",[HasParam "Compiler flag to check";UsedOn TClassField])
 		| RequiresAssign -> ":requiresAssign",("Used internally to mark certain abstract operator overloads",[Internal])
+		(* | Resolve -> ":resolve",("Abstract fields marked with this metadata can be used to resolve unknown fields",[UsedOn TClassField]) *)
 		| ReplaceReflection -> ":replaceReflection",("Used internally to specify a function that should replace its internal __hx_functionName counterpart",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum]; Internal])
 		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
 		| Runtime -> ":runtime",("?",[])

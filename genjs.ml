@@ -494,7 +494,7 @@ and gen_expr ctx e =
 		print ctx "$iterator(";
 		gen_value ctx x;
 		print ctx ")";
-	| TField (x,FClosure (Some {cl_path=[],"Array"}, {cf_name="push"})) ->
+	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
 		add_feature ctx "use.$arrayPushClosure";
 		print ctx "$arrayPushClosure(";
@@ -584,7 +584,10 @@ and gen_expr ctx e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		print ctx "[]"
 	| TNew (c,_,el) ->
-		print ctx "new %s(" (ctx.type_accessor (TClassDecl c));
+		(match c.cl_constructor with
+		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
+		| _ -> print ctx "new ");
+		print ctx "%s(" (ctx.type_accessor (TClassDecl c));
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
@@ -1009,7 +1012,7 @@ let generate_class ctx c =
 	(match c.cl_implements with
 	| [] -> ()
 	| l ->
-		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path ctx i.cl_path) l));
+		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
 		newline ctx;
 	);
 
@@ -1286,8 +1289,10 @@ let generate com =
 		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
 
+	(* Provide console for environments that may not have it. *)
 	if not (Common.defined com Define.JsEs5) then
 		spr ctx "var console = (1,eval)('this').console || {log:function(){}};\n";
+
 	(* TODO: fix $estr *)
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in

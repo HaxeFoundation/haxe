@@ -1,5 +1,6 @@
 import js.Node.*;
 using Reflect;
+using Lambda;
 
 class RunSauceLabs {
 	static function successMsg(msg:String):Void {
@@ -13,9 +14,10 @@ class RunSauceLabs {
 	}
 
 	static function main():Void {
-		var success = true;
+		var allSuccess = true;
+		var q:Dynamic = require("q");
 		var webdriver:Dynamic = require("wd");
-		var browser:Dynamic = webdriver.remote(
+		var browser:Dynamic = webdriver.promiseRemote(
 			"localhost",
 			4445,
 			Sys.getEnv("SAUCE_USERNAME"),
@@ -60,13 +62,11 @@ class RunSauceLabs {
 			},
 			{
 				"browserName": "chrome",
-				"platform": "Windows XP",
-				"version": "35"
+				"platform": "Windows XP"
 			},
 			{
 				"browserName": "firefox",
-				"platform": "Windows XP",
-				"version": "30"
+				"platform": "Windows XP"
 			},
 			{
 				"browserName": "safari",
@@ -84,9 +84,14 @@ class RunSauceLabs {
 				"version": "7"
 			},
 			{
+				"browserName": "safari",
+				"platform": "OS X 10.10",
+				"version": "8"
+			},
+			{
 				"browserName": "iphone",
-				"platform": "OS X 10.9",
-				"version": "7.1",
+				"platform": "OS X 10.8",
+				"version": "6.1",
 				"device-orientation": "portrait"
 			},
 			{
@@ -103,81 +108,105 @@ class RunSauceLabs {
 			}
 		];
 
-		function testBrowsers(browsers:Array<Dynamic>) {
-			if (browsers.length == 0) {
-				Sys.exit(success ? 0 : 1);
-			} else {
-				function testBrowser(caps:Dynamic, retries = 3):Void {
-					function handleError(err:String, ?pos:haxe.PosInfos):Bool {
-						if (err != null) {
-							console.log('${pos.fileName}:${pos.lineNumber}: $err');
-							browser.quit(function(err) {
-								if (retries > 0)
-									testBrowser(caps, retries - 1);
-								else
-									throw err;
-							});
-							return false;
+		var timeout = 30000; //30s
+
+		function testBrowser(caps:Dynamic, trials = 3):Dynamic {
+			console.log('========================================================');
+			console.log('Requesting: ${caps.browserName} ${caps.version} on ${caps.platform}');
+
+			caps.setField("name", Sys.getEnv("TRAVIS") != null ? Sys.getEnv("TRAVIS_REPO_SLUG") : "haxe");
+			caps.setField("tags", tags);
+			if (Sys.getEnv("TRAVIS") != null) {
+				caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
+				caps.setField("build", Sys.getEnv("TRAVIS_BUILD_NUMBER"));
+			}
+
+			trials--;
+
+			function onErrored(err):Dynamic {
+				console.log(err);
+				if (trials > 0) {
+					return browser
+						.sauceJobUpdate({ passed: true, tags: tags.concat(["errored"]) })
+						.then(function() return browser.quit())
+						.timeout(timeout)
+						.fail(onErrored)
+						.then(function() return testBrowser(caps, trials));
+				} else {
+					allSuccess = false;
+					return null;
+				}
+			}
+
+			function until(code:String) {
+				return browser
+					.execute(code)
+					.then(function(v)
+						if (v)
+							return null;
+						else
+							return q.delay(1000)
+								.then(function() return until(code))
+					);
+			}
+
+			return browser
+				.init(caps)
+				.then(function() {
+					return browser
+						.sessionCapabilities()
+						.then(function(caps) {
+							console.log('Using: ${caps.browserName} ${caps.version} on ${caps.platform}');
+						});
+				})
+				.then(function()
+					return browser.setAsyncScriptTimeout(timeout))
+				.then(function(){
+					console.log("[debug] opening test page");
+					return browser.get("http://localhost:2000/unit-js.html");
+				})
+				.then(function() {
+					console.log("[debug] waiting for test to exit");
+					return 
+						until("return (typeof unit != 'undefined') && unit.Test && (typeof unit.Test.success === 'boolean')")
+						.timeout(timeout);
+				})
+				.then(function() {
+					console.log("[debug] test exited");
+					return browser.text("body");
+				})
+				.then(function(resultText:String) {
+					//check if test is successful or not
+					var success = false;
+					for (line in resultText.split("\n")) {
+						infoMsg(line);
+						if (line.indexOf("SUCCESS: ") >= 0) {
+							success = line.indexOf("SUCCESS: true") >= 0;
+							break;
 						}
-						return true;
+					}
+					allSuccess = allSuccess && success;
+
+					if (success) {
+						successMsg('${caps.browserName} ${caps.version} on ${caps.platform}: SUCCESS');
+					} else {
+						failMsg('${caps.browserName} ${caps.version} on ${caps.platform}: FAIL');
 					}
 
-					console.log('========================================================');
-					console.log('${caps.browserName} ${caps.version} on ${caps.platform}:');
-					browser.init(caps, function(err) {
-						if (!handleError(err)) return;
-						browser.setAsyncScriptTimeout(30000); //10s timeout
-						browser.get("http://localhost:2000/unit-js.html", function(err) {
-							if (!handleError(err)) return;
-
-							console.log("[debug] waiting for test exit");
-							browser.waitForConditionInBrowser("try { typeof unit.Test.success === 'boolean'; } catch(e) { false; }", 15000); //15s timeout
-							console.log("[debug] test exited");
-
-							browser.text("body", function(err, re:String) {
-								if (!handleError(err)) return;
-
-								//check if test is successful or not
-								var test = false;
-								for (line in re.split("\n")) {
-									infoMsg(line);
-									if (line.indexOf("SUCCESS: ") >= 0) {
-										test = line.indexOf("SUCCESS: true") >= 0;
-									}
-								}
-								success = success && test;
-
-								if (test) {
-									successMsg('${caps.browserName} ${caps.version} on ${caps.platform}: SUCCESS');
-								} else {
-									failMsg('${caps.browserName} ${caps.version} on ${caps.platform}: FAIL');
-								}
-
-								//let saucelabs knows the result
-								browser.sauceJobUpdate({ passed: test }, function(err) {
-									console.log("[debug] job update: " + (err == null ? "ok" : err));
-									if (!handleError(err)) return;
-									browser.quit(function(err) {
-										console.log("[debug] browser quit: " + (err == null ? "ok" : err));
-										if (!handleError(err)) return;
-										testBrowsers(browsers);
-									});
-								});
-							});
-						});
-					});
-				}
-
-				var caps = browsers.shift();
-				caps.setField("name", Sys.getEnv("TRAVIS") != null ? Sys.getEnv("TRAVIS_REPO_SLUG") : "haxe");
-				caps.setField("tags", tags);
-				if (Sys.getEnv("TRAVIS") != null) {
-					caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
-					caps.setField("build", Sys.getEnv("TRAVIS_BUILD_NUMBER"));
-				}
-				testBrowser(caps);
-			}
+					return browser.sauceJobUpdate({ passed: success });
+				})
+				.then(function()
+					return browser.quit())
+				.timeout(60000 * 5) //5 min
+				.fail(onErrored);
 		}
-		testBrowsers(browsers);
+
+		browsers
+			.fold(function(caps:Dynamic, promise:Dynamic):Dynamic {
+				return promise.then(function () return testBrowser(caps));
+			}, q())
+			.then(function() {
+				Sys.exit(allSuccess ? 0 : 1);
+			});
 	}
 }
