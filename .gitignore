@@ -52,6 +52,7 @@
 /tests/unit/native_cs/native_cs.csproj
 /tests/unit/unit.js.map
 /tests/unit/unit.n
+/tests/unit/node_modules/
 
 /haxe.sublime*
 build.bat

@@ -529,7 +529,7 @@ class RunCi {
 						haxelibInstallGit("dionjwa", "nodejs-std", "master", "src", true, "nodejs");
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
-						runCommand("node", ["bin/RunSauceLabs.js"]);
+						runCommand("node", ["bin/RunSauceLabs.js", "unit-js.html"]);
 						server.close();
 					}
 
