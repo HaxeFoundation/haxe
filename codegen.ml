@@ -407,7 +407,12 @@ let rec build_generic ctx c p tl =
 						let t = loop subst in
 						(* extended type parameter: concrete type must have a constructor, but generic base class must not have one *)
 						begin match follow t,c.cl_constructor with
-							| TInst({cl_constructor = None} as cs,_),None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
+							| TInst(cs,_),None ->
+								cs.cl_build();
+								begin match cs.cl_constructor with
+									| None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
+									| _ -> ()
+								end;
 							| _,Some cf -> error "Generics extending type parameters cannot have constructors" cf.cf_pos
 							| _ -> ()
 						end;
