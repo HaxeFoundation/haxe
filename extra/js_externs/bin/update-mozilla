@@ -1,0 +1,8 @@
+#!/bin/sh -e
+
+if [ -d webidl/mozilla/.svn ]; then
+    cd webidl/mozilla
+    svn up
+else
+    svn co https://github.com/mozilla/gecko-dev/trunk/dom/webidl webidl/mozilla
+fi

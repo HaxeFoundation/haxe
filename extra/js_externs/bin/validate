@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+
+import os
+import subprocess
+
+subprocess.check_call([
+    "haxe", "-js", "none.js", "--no-output", "--macro", "include(\"js.html\", true)",
+])

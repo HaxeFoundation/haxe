@@ -1,0 +1,3 @@
+#!/bin/sh -e
+
+find webidl | xargs grep 'Pref=".*\.enabled"' webidl/mozilla/ -o --no-filename | sort | uniq
