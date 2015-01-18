@@ -1264,6 +1264,27 @@ let generate com =
 		in loop parts "";
 	)) exposed;
 
+
+	let closureArgs = [] in
+	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
+		(
+			"$hx_exports",
+			(* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
+			"typeof window != \"undefined\" ? window : exports"
+		) :: closureArgs
+	else
+		closureArgs
+	in
+	(* Provide console for environments that may not have it. *)
+	let closureArgs = if (not (Common.defined com Define.JsEs5)) then
+		(
+			"console",
+			"typeof console != \"undefined\" ? console : {log:function(){}}"
+		) :: closureArgs
+	else
+		closureArgs
+	in
+
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)
 		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
@@ -1274,9 +1295,7 @@ let generate com =
 			ctx.separator <- true;
 			newline ctx
 		);
-		print ctx "(function (";
-		if (anyExposed && not (Common.defined com Define.ShallowExpose)) then print ctx "$hx_exports";
-		print ctx ") { \"use strict\"";
+		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;
 		let rec print_obj f root = (
 			let path = root ^ "." ^ f.os_name in
@@ -1289,8 +1308,8 @@ let generate com =
 		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
 
-	(* Provide console for environments that may not have it. *)
-	if not (Common.defined com Define.JsEs5) then
+	(* If ctx.js_modern, console is defined in closureArgs. *)
+	if (not ctx.js_modern) && (not (Common.defined com Define.JsEs5)) then
 		spr ctx "var console = Function(\"return typeof console != 'undefined' ? console : {log:function(){}}\")();\n";
 
 	(* TODO: fix $estr *)
@@ -1349,12 +1368,7 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.js_modern then begin
-		print ctx "})(";
-		if (anyExposed && not (Common.defined com Define.ShallowExpose)) then (
-			(* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
-			print ctx "typeof window != \"undefined\" ? window : exports"
-		);
-		print ctx ")";
+		print ctx "})(%s)" (String.concat ", " (List.map snd closureArgs));
 		newline ctx;
 		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
 			List.iter (fun f ->
