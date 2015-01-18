@@ -31,27 +31,6 @@ class TestJava extends Test
 		t(haxe.uppercasepackage.Lowercase.lowercaseFound);
 	}
 
-	function testBasicLock()
-	{
-		var lock = new Lock();
-		//it starts locked
-		f(lock.wait(0.001));
-		lock.release();
-		t(lock.wait(.001));
-		f(lock.wait(.001));
-		f(lock.wait(.001));
-
-		lock.release();
-		t(lock.wait());
-		lock.release();
-		lock.release();
-		lock.release();
-		t(lock.wait());
-		t(lock.wait(.001));
-		t(lock.wait());
-		f(lock.wait(.001));
-	}
-
 	function testEnumSet()
 	{
 		var es1:EnumSet<TEnum> = EnumSet.noneOf(java.Lib.toNativeEnum(TEnum));

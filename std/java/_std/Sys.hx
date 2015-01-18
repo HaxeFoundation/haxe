@@ -22,6 +22,7 @@
 
 import java.lang.System;
 import sys.io.Process;
+using haxe.Int64;
 
 @:coreApi class Sys {
 	private static var _args:java.NativeArray<String>;
@@ -125,7 +126,7 @@ import sys.io.Process;
 
 	public static function time() : Float
 	{
-		return cast(System.currentTimeMillis(), Float) / 1000;
+		return cast(System.currentTimeMillis().div(Int64.ofInt(1000)), Float);
 	}
 
 	public static function cpuTime() : Float
