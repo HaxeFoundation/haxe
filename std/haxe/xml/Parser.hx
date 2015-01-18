@@ -55,7 +55,6 @@ class Parser
 		h.set("amp", "&");
 		h.set("quot", '"');
 		h.set("apos", "'");
-		h.set("nbsp", String.fromCharCode(160));
 		h;
 	}
 
@@ -77,6 +76,9 @@ class Parser
 		var nbrackets = 0;
 		var c = str.fastCodeAt(p);
 		var buf = new StringBuf();
+		// need extra state because next is in use
+		var escapeNext = S.BEGIN;
+		var attrValQuote = -1;
 		while (!StringTools.isEof(c))
 		{
 			switch(state)
@@ -107,25 +109,18 @@ class Parser
 				case S.PCDATA:
 					if (c == '<'.code)
 					{
-						#if php
-						var child = Xml.createPCDataFromCustomParser(buf.toString() + str.substr(start, p - start));
-						#else
 						var child = Xml.createPCData(buf.toString() + str.substr(start, p - start));
-						#end
 						buf = new StringBuf();
 						parent.addChild(child);
 						nsubs++;
 						state = S.IGNORE_SPACES;
 						next = S.BEGIN_NODE;
-					}
-					#if !flash9
-					else if (c == '&'.code) {
+					} else if (c == '&'.code) {
 						buf.addSub(str, start, p - start);
 						state = S.ESCAPE;
-						next = S.PCDATA;
+						escapeNext = S.PCDATA;
 						start = p + 1;
 					}
-					#end
 				case S.CDATA:
 					if (c == ']'.code && str.fastCodeAt(p + 1) == ']'.code && str.fastCodeAt(p + 2) == '>'.code)
 					{
@@ -229,19 +224,29 @@ class Parser
 				case S.ATTVAL_BEGIN:
 					switch(c)
 					{
-						case '"'.code, '\''.code:
+						case '"'.code | '\''.code:
+							buf = new StringBuf();
 							state = S.ATTRIB_VAL;
-							start = p;
+							start = p + 1;
+							attrValQuote = c;
 						default:
 							throw("Expected \"");
 					}
 				case S.ATTRIB_VAL:
-					if (c == str.fastCodeAt(start))
-					{
-						var val = str.substr(start+1,p-start-1);
-						xml.set(aname, val);
-						state = S.IGNORE_SPACES;
-						next = S.BODY;
+					switch (c) {
+						case '&'.code:
+							buf.addSub(str, start, p - start);
+							state = S.ESCAPE;
+							escapeNext = S.ATTRIB_VAL;
+							start = p + 1;
+						case '>'.code | '<'.code:
+							throw "Invalid unescaped " + String.fromCharCode(c) + " in attribute value";
+						case _ if (c == attrValQuote):
+							var val = buf.toString() + str.substr(start, p - start);
+							buf = new StringBuf();
+							xml.set(aname, val);
+							state = S.IGNORE_SPACES;
+							next = S.BODY;
 					}
 				case S.CHILDS:
 					p = doParse(str, p, xml);
@@ -313,12 +318,19 @@ class Parser
 								? Std.parseInt("0" +s.substr(1, s.length - 1))
 								: Std.parseInt(s.substr(1, s.length - 1));
 							buf.add(String.fromCharCode(i));
-						} else if (!escapes.exists(s))
+						} else if (!escapes.exists(s)) {
+							#if xml_strict
+							throw 'Undefined entity: $s';
+							#else
 							buf.add('&$s;');
-						else
+							#end
+						} else {
 							buf.add(escapes.get(s));
+						}
 						start = p + 1;
-						state = next;
+						state = escapeNext;
+					} else if (!isValidChar(c) && c != "#".code) {
+						throw 'Invalid character in entity: ' + String.fromCharCode(c);
 					}
 			}
 			c = str.fastCodeAt(++p);
