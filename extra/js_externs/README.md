@@ -9,7 +9,8 @@ Run `bin/generate` to update the js.html externs on this repo. Run
 `bin/validate` to make sure the output compiles.
 
 To update to Mozilla's latest APIs, run `bin/update-mozilla` and run
-generate again.
+generate again. You may also need to grab the latest WebIDL.py from
+https://dxr.mozilla.org/mozilla-central/source/dom/bindings/parser/WebIDL.py
 
 To add a new API by hand, add it in a new .webidl file under the webidl/
 directory.

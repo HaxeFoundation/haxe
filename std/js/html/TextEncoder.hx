@@ -31,6 +31,5 @@ extern class TextEncoder
 	
 	/** @throws DOMError */
 	function new( ?utfLabel : String = "utf-8" ) : Void;
-	/** @throws DOMError */
 	function encode( ?input : String = "" ) : Uint8Array;
 }

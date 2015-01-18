@@ -57,7 +57,6 @@ extern class Navigator
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
 	function sendBeacon( url : String, ?data : haxe.EitherType<ArrayBufferView,haxe.EitherType<Blob,haxe.EitherType<String,FormData>>> ) : Bool;
-	/** @throws DOMError */
 	function requestMediaKeySystemAccess( keySystem : String, ?supportedConfigurations : Array<MediaKeySystemOptions> ) : Promise/*<MediaKeySystemAccess (Wrapper)>*/;
 	/** @throws DOMError */
 	function registerProtocolHandler( scheme : String, url : String, title : String ) : Void;

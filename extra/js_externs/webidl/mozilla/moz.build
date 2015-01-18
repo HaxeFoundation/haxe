@@ -55,6 +55,7 @@ WEBIDL_FILES = [
     'BiquadFilterNode.webidl',
     'Blob.webidl',
     'BoxObject.webidl',
+    'BroadcastChannel.webidl',
     'BrowserElement.webidl',
     'BrowserElementDictionaries.webidl',
     'CallsList.webidl',
@@ -106,7 +107,6 @@ WEBIDL_FILES = [
     'DOMException.webidl',
     'DOMImplementation.webidl',
     'DOMMatrix.webidl',
-    'DOMMMIError.webidl',
     'DOMMobileMessageError.webidl',
     'DOMParser.webidl',
     'DOMPoint.webidl',
@@ -332,6 +332,7 @@ WEBIDL_FILES = [
     'PopupBoxObject.webidl',
     'Position.webidl',
     'PositionError.webidl',
+    'PresentationDeviceInfoManager.webidl',
     'ProcessingInstruction.webidl',
     'ProfileTimelineMarker.webidl',
     'Promise.webidl',
@@ -341,6 +342,8 @@ WEBIDL_FILES = [
     'Range.webidl',
     'Rect.webidl',
     'Request.webidl',
+    'RequestSyncManager.webidl',
+    'RequestSyncScheduler.webidl',
     'ResourceStats.webidl',
     'ResourceStatsManager.webidl',
     'Response.webidl',
@@ -649,6 +652,7 @@ if CONFIG['MOZ_B2G_RIL']:
 
 if CONFIG['MOZ_NFC']:
     WEBIDL_FILES += [
+         'MozIsoDepTech.webidl',
          'MozNDEFRecord.webidl',
          'MozNFC.webidl',
          'MozNFCPeer.webidl',

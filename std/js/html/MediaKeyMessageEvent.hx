@@ -20,15 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaKeyMessageEvent.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/MediaKeyMessageEvent.webidl line 20:0. Do not edit!
 
 package js.html;
 
 @:native("MediaKeyMessageEvent")
 extern class MediaKeyMessageEvent extends Event
 {
+	var messageType(default,null) : MediaKeyMessageType;
 	var message(default,null) : ArrayBuffer;
-	var destinationURL(default,null) : String;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : MediaKeyMessageEventInit ) : Void;

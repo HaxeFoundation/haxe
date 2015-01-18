@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaKeyMessageEvent.webidl line 20:0. Do not edit!
+// This file is generated from mozilla/MediaKeyMessageEvent.webidl line 26:0. Do not edit!
 
 package js.html;
 
 typedef MediaKeyMessageEventInit =
 {
 	> EventInit,
-	@:optional var destinationURL : String;
 	@:optional var message : ArrayBuffer;
+	@:optional var messageType : MediaKeyMessageType;
 }

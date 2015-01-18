@@ -33,16 +33,10 @@ extern class MediaKeySession extends EventTarget
 	var expiration(default,null) : Float;
 	var closed(default,null) : Promise/*<Void>*/;
 	
-	/** @throws DOMError */
 	function generateRequest( initDataType : String, initData : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
-	/** @throws DOMError */
 	function load( sessionId : String ) : Promise/*<Boolean>*/;
-	/** @throws DOMError */
 	function update( response : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
-	/** @throws DOMError */
 	function close() : Promise/*<Void>*/;
-	/** @throws DOMError */
 	function remove() : Promise/*<Void>*/;
-	/** @throws DOMError */
 	function getUsableKeyIds() : Promise/*<ArrayBufferSequence>*/;
 }

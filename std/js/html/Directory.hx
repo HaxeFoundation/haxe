@@ -29,14 +29,9 @@ extern class Directory
 {
 	var name(default,null) : String;
 	
-	/** @throws DOMError */
 	function createFile( path : String, ?options : CreateFileOptions ) : Promise/*<File (Wrapper)>*/;
-	/** @throws DOMError */
 	function createDirectory( path : String ) : Promise/*<Directory (Wrapper)>*/;
-	/** @throws DOMError */
 	function get( path : String ) : Promise/*<FileOrDirectory>*/;
-	/** @throws DOMError */
 	function remove( path : haxe.EitherType<String,haxe.EitherType<File,Directory>> ) : Promise/*<Boolean>*/;
-	/** @throws DOMError */
 	function removeDeep( path : haxe.EitherType<String,haxe.EitherType<File,Directory>> ) : Promise/*<Boolean>*/;
 }

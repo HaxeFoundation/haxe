@@ -62,11 +62,13 @@ PREFS = set([
 FUNCS = set([
 	"TextTrackRegion::RegionsEnabled",
 	"mozilla::dom::EventSource::PrefEnabled",
+	"mozilla::dom::MediaSource::Enabled",
 	"mozilla::dom::Touch::PrefEnabled",
 	"mozilla::dom::TouchEvent::PrefEnabled",
 	"mozilla::dom::TouchList::PrefEnabled",
 	"mozilla::dom::WebSocket::PrefEnabled",
 	"mozilla::dom::workers::WorkerPrivate::WorkerAvailable",
+	"nsDocument::IsWebAnimationsEnabled",
 	"nsDocument::IsWebComponentsEnabled",
 ])
 

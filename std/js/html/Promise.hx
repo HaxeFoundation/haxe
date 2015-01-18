@@ -27,19 +27,13 @@ package js.html;
 @:native("Promise")
 extern class Promise
 {
-	/** @throws DOMError */
 	static function resolve( ?value : Dynamic ) : Promise/*<Any>*/;
-	/** @throws DOMError */
 	static function reject( ?value : Dynamic ) : Promise/*<Void>*/;
-	/** @throws DOMError */
 	static function all( iterable : Array<Dynamic> ) : Promise/*<Any>*/;
-	/** @throws DOMError */
 	static function race( iterable : Array<Dynamic> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
 	function new( init : Dynamic -> Dynamic -> Void ) : Void;
-	/** @throws DOMError */
 	function then( ?fulfillCallback : haxe.Constraints.Function, ?rejectCallback : haxe.Constraints.Function ) : Promise/*<Any>*/;
-	/** @throws DOMError */
 	@:native("catch")
 	function catch_( ?rejectCallback : haxe.Constraints.Function ) : Promise/*<Any>*/;
 }

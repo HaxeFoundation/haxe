@@ -31,6 +31,5 @@ extern class MediaKeys
 	
 	/** @throws DOMError */
 	function createSession( ?sessionType : SessionType = "temporary" ) : MediaKeySession;
-	/** @throws DOMError */
 	function setServerCertificate( serverCertificate : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
 }

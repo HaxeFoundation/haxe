@@ -7,6 +7,7 @@ dictionary DeviceStorageEnumerationParameters {
   Date since;
 };
 
+[Pref="device.storage.enabled"]
 interface DeviceStorage : EventTarget {
   attribute EventHandler onchange;
 
@@ -82,7 +83,7 @@ interface DeviceStorage : EventTarget {
   // for storing new files.
   readonly attribute boolean default;
 
-  [NewObject, Throws]
+  [NewObject]
   // XXXbz what type does this really return?
   Promise<any> getRoot();
 };

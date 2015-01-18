@@ -94,6 +94,7 @@ extern class CanvasRenderingContext2D
 	/** @throws DOMError */
 	function addHitRegion( ?options : HitRegionOptions ) : Void;
 	function removeHitRegion( id : String ) : Void;
+	function clearHitRegions() : Void;
 	/** @throws DOMError */
 	@:overload( function( sw : Float, sh : Float ) : ImageData {} )
 	function createImageData( imagedata : ImageData ) : ImageData;

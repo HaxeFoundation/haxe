@@ -20,16 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DeviceStorageChangeEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/MediaKeyMessageEvent.webidl line 13:0. Do not edit!
 
 package js.html;
 
-@:native("DeviceStorageChangeEvent")
-extern class DeviceStorageChangeEvent extends Event
+@:enum abstract MediaKeyMessageType(String)
 {
-	var path(default,null) : String;
-	var reason(default,null) : String;
-	
-	/** @throws DOMError */
-	function new( type : String, ?eventInitDict : DeviceStorageChangeEventInit ) : Void;
+	var LICENSE_REQUEST = "license-request";
+	var LICENSE_RENEWAL = "license-renewal";
+	var LICENSE_RELEASE = "license-release";
 }

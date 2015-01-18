@@ -76,6 +76,5 @@ extern class MediaElement extends HTMLElement
 	/** @throws DOMError */
 	function pause() : Void;
 	function addTextTrack( kind : TextTrackKind, ?label : String = "", ?language : String = "" ) : TextTrack;
-	/** @throws DOMError */
 	function setMediaKeys( mediaKeys : MediaKeys ) : Promise/*<Void>*/;
 }

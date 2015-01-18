@@ -33,6 +33,5 @@ extern class DOMRequest extends EventTarget
 	var onsuccess : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	
-	/** @throws DOMError */
 	function then( ?fulfillCallback : haxe.Constraints.Function, ?rejectCallback : haxe.Constraints.Function ) : Promise/*<Any>*/;
 }
