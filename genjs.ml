@@ -1291,7 +1291,7 @@ let generate com =
 
 	(* Provide console for environments that may not have it. *)
 	if not (Common.defined com Define.JsEs5) then
-		spr ctx "var console = (1,eval)('this').console || {log:function(){}};\n";
+		spr ctx "var console = Function(\"return typeof console != 'undefined' ? console : {log:function(){}}\")();\n";
 
 	(* TODO: fix $estr *)
 	let vars = [] in
