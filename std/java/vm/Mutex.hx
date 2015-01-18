@@ -1,9 +1,9 @@
 package java.vm;
+import java.util.concurrent.Semaphore;
 
 @:native('haxe.java.vm.Mutex') class Mutex
 {
-	@:private var owner:java.lang.Thread;
-	@:private var lockCount:Int = 0;
+	@:private var lock:Semaphore;
 
 	/**
 		Creates a mutex, which can be used to acquire a temporary lock to access some resource.
@@ -11,7 +11,7 @@ package java.vm;
 	**/
 	public function new()
 	{
-
+		this.lock = new Semaphore(1);
 	}
 
 	/**
@@ -19,22 +19,7 @@ package java.vm;
 	**/
 	public function tryAcquire():Bool
 	{
-		var ret = false, cur = java.lang.Thread.currentThread();
-		untyped __lock__(this, {
-			var expr = null;
-			if (owner == null)
-			{
-				ret = true;
-				if(lockCount != 0) throw "assert";
-				lockCount = 1;
-				owner = cur;
-			} else if (owner == cur) {
-				ret = true;
-				owner = cur;
-				lockCount++;
-			}
-		});
-		return ret;
+		return this.lock.tryAcquire();
 	}
 
 	/**
@@ -43,22 +28,7 @@ package java.vm;
 	**/
 	public function acquire():Void
 	{
-		var cur = java.lang.Thread.currentThread();
-		untyped __lock__(this, {
-			var expr = null;
-			if (owner == null)
-			{
-				owner = cur;
-				if (lockCount != 0) throw "assert";
-				lockCount = 1;
-			} else if (owner == cur) {
-				lockCount++;
-			} else {
-				try { untyped this.wait(); } catch(e:Dynamic) { throw e; }
-				lockCount = 1;
-				owner = cur;
-			}
-		});
+		this.lock.acquire();
 	}
 
 	/**
@@ -66,17 +36,6 @@ package java.vm;
 	**/
 	public function release():Void
 	{
-		var cur = java.lang.Thread.currentThread();
-		untyped __lock__(this, {
-			var expr = null;
-			if (owner != cur) {
-				throw "This mutex isn't owned by the current thread!";
-			}
-			if (--lockCount == 0)
-			{
-				this.owner = null;
-				untyped this.notify();
-			}
-		});
+		this.lock.release();
 	}
 }
