@@ -392,7 +392,10 @@ let rec build_generic ctx c p tl =
 			cf_new
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
-		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
+		List.iter (fun cf -> match cf.cf_kind with
+			| Method MethMacro when not ctx.in_macro -> ()
+			| _ -> error "A generic class can't have static fields" cf.cf_pos
+		) c.cl_ordered_statics;
 		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->

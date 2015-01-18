@@ -4591,8 +4591,9 @@ let load_macro ctx cpath f p =
 		wildcard_packages = [];
 	};
 	add_dependency ctx.m.curmod mloaded;
-	let cl, meth = (match Typeload.load_instance mctx { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } p true with
-		| TInst (c,_) ->
+	let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
+	let cl, meth = (match mt with
+		| TClassDecl c ->
 			finalize mctx;
 			c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p
