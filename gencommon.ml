@@ -971,7 +971,7 @@ let clean_files path excludes verbose =
 				let pack = pack @ [file] in
 				iter_files (pack) (Unix.opendir filepath) filepath;
 				try Unix.rmdir filepath with Unix.Unix_error (ENOTEMPTY,_,_) -> ();
-			else if not (List.mem (unique_full_path filepath) excludes) then begin
+			else if not (String.ends_with filepath ".meta") && not (List.mem (unique_full_path filepath) excludes) then begin
 				if verbose then print_endline ("Removing " ^ filepath);
 			 	Sys.remove filepath
 			end
