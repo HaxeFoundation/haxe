@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/PerformanceNavigation.webidl line 13:0. Do not edit!
+
 package js.html;
 
 @:native("PerformanceNavigation")
 extern class PerformanceNavigation
 {
-	static inline var TYPE_BACK_FORWARD : Int = 2;
-
 	static inline var TYPE_NAVIGATE : Int = 0;
-
 	static inline var TYPE_RELOAD : Int = 1;
-
+	static inline var TYPE_BACK_FORWARD : Int = 2;
 	static inline var TYPE_RESERVED : Int = 255;
-
-	var redirectCount(default,null) : Int;
-
+	
 	var type(default,null) : Int;
-
+	var redirectCount(default,null) : Int;
+	
 }

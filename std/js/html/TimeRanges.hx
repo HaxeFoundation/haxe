@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/TimeRanges.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** <p>The <code>TimeRanges</code> interface is used to represent a set of time ranges, primarily for the purpose of tracking which portions of media have been buffered when loading it for use by the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/audio">&lt;audio&gt;</a></code>
- and <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/video">&lt;video&gt;</a></code>
-&nbsp;elements.</p>
-<p>A <code>TimeRanges</code> object includes one or more ranges of time, each specified by a starting and ending time offset. You reference each time range by using the <code>start()</code> and <code>end()</code> methods, passing the index number of the time range you want to retrieve.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/TimeRanges">MDN</a>. */
 @:native("TimeRanges")
 extern class TimeRanges
 {
-	/** The number of time ranges represented by the time range object. <strong>Read only.</strong> */
 	var length(default,null) : Int;
-
-	function end( index : Int ) : Float;
-
+	
+	/** @throws DOMError */
 	function start( index : Int ) : Float;
-
+	/** @throws DOMError */
+	function end( index : Int ) : Float;
 }

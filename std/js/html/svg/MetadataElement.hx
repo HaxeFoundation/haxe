@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGMetadataElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** Metadata is structured data about data. Metadata which is included with SVG content should be specified within <code>metadata</code> elements. The contents of the <code>metadata</code> should be elements from other XML namespaces such as RDF, FOAF, etc.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/metadata">MDN</a>. */
 @:native("SVGMetadataElement")
 extern class MetadataElement extends Element
 {

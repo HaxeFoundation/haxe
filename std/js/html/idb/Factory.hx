@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,21 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/IDBFactory.webidl line 26:0. Do not edit!
+
 package js.html.idb;
 
-/** <p>The <code>IDBFactory</code> interface of the <a title="en/IndexedDB" rel="internal" href="https://developer.mozilla.org/en/IndexedDB">IndexedDB&nbsp;API</a> lets applications asynchronously access the indexed databases. The object that implements the interface is&nbsp; <code>window.indexedDB</code>. You open—that is, create and access—and delete a database with the object and not directly with <code>IDBFactory</code>.</p>
-<p>This interface still has vendor prefixes, that is to say, you have to make calls with <code>mozIndexedDB.open()</code> for Firefox and <code>webkitIndexedDB.open()</code> for Chrome.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/IndexedDB/IDBFactory">MDN</a>. */
 @:native("IDBFactory")
 extern class Factory
 {
-	function cmp( first : Key, second : Key ) : Int;
-
-	function deleteDatabase( name : String ) : VersionChangeRequest;
-
-	function getDatabaseNames() : Request;
-
-	function open( name : String, ?version : Int ) : OpenDBRequest;
-
+	/** @throws DOMError */
+	@:overload( function( name : String, version : Int ) : OpenDBRequest {} )
+	function open( name : String, ?options : OpenDBOptions ) : OpenDBRequest;
+	/** @throws DOMError */
+	function deleteDatabase( name : String, ?options : OpenDBOptions ) : OpenDBRequest;
+	/** @throws DOMError */
+	function cmp( first : Dynamic, second : Dynamic ) : Int;
 }

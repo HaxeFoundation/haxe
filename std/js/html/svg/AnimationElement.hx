@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,26 +20,30 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGAnimationElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGAnimationElement</code> interface is the base interface for all of the animation element interfaces: <code><a rel="custom" href="/api/js/html/svg/AnimateElement">SVGAnimateElement</a></code>
-, <code><a rel="custom" href="/api/js/html/svg/SetElement">SVGSetElement</a></code>
-, <code><a rel="custom" href="/api/js/html/svg/AnimateColorElement">SVGAnimateColorElement</a></code>
-, <code><a rel="custom" href="/api/js/html/svg/AnimateMotionElement">SVGAnimateMotionElement</a></code>
- and <code><a rel="custom" href="/api/js/html/svg/AnimateTransformElement">SVGAnimateTransformElement</a></code>
-.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGAnimationElement">MDN</a>. */
 @:native("SVGAnimationElement")
 extern class AnimationElement extends Element
 {
-	/** The element which is being animated. */
 	var targetElement(default,null) : Element;
-
-	function getCurrentTime() : Float;
-
-	function getSimpleDuration() : Float;
-
+	var requiredFeatures(default,null) : StringList;
+	var requiredExtensions(default,null) : StringList;
+	var systemLanguage(default,null) : StringList;
+	
+	/** @throws DOMError */
 	function getStartTime() : Float;
-
+	function getCurrentTime() : Float;
+	/** @throws DOMError */
+	function getSimpleDuration() : Float;
+	/** @throws DOMError */
+	function beginElement() : Void;
+	/** @throws DOMError */
+	function beginElementAt( offset : Float ) : Void;
+	/** @throws DOMError */
+	function endElement() : Void;
+	/** @throws DOMError */
+	function endElementAt( offset : Float ) : Void;
+	function hasExtension( extension : String ) : Bool;
 }

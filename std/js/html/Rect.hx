@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/Rect.webidl line 7:0. Do not edit!
+
 package js.html;
 
-/** The <code>rect</code> element is an SVG basic shape, used to create rectangles based on the position of a corner and their width and height. It may also be used to create rectangles with rounded corners.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/rect">MDN</a>. */
 @:native("Rect")
 extern class Rect
 {
-	var bottom(default,null) : CSSPrimitiveValue;
-
-	var left(default,null) : CSSPrimitiveValue;
-
-	var right(default,null) : CSSPrimitiveValue;
-
 	var top(default,null) : CSSPrimitiveValue;
-
+	var right(default,null) : CSSPrimitiveValue;
+	var bottom(default,null) : CSSPrimitiveValue;
+	var left(default,null) : CSSPrimitiveValue;
+	
 }

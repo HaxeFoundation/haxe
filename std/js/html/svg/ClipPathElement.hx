@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGClipPathElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGClipPathElement</code> interface provides access to the properties of <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/clipPath">&lt;clipPath&gt;</a></code>
- elements, as well as methods to manipulate them.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGClipPathElement">MDN</a>. */
 @:native("SVGClipPathElement")
 extern class ClipPathElement extends Element
 {
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/clipPathUnits">clipPathUnits</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/clipPath">&lt;clipPath&gt;</a></code>
- element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code> */
+	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
+	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
+	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
+	
 	var clipPathUnits(default,null) : AnimatedEnumeration;
-
+	var transform(default,null) : AnimatedTransformList;
+	
 }

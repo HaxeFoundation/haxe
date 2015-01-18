@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFESpecularLightingElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGFESpecularLightingElement")
 extern class FESpecularLightingElement extends Element
 {
 	var in1(default,null) : AnimatedString;
-
-	var specularConstant(default,null) : AnimatedNumber;
-
-	var specularExponent(default,null) : AnimatedNumber;
-
 	var surfaceScale(default,null) : AnimatedNumber;
-
+	var specularConstant(default,null) : AnimatedNumber;
+	var specularExponent(default,null) : AnimatedNumber;
+	var kernelUnitLengthX(default,null) : AnimatedNumber;
+	var kernelUnitLengthY(default,null) : AnimatedNumber;
+	var x(default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var result(default,null) : AnimatedString;
+	
 }

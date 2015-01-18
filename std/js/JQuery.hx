@@ -21,7 +21,7 @@
  */
 package js;
 
-import js.html.DOMWindow;
+import js.html.Window;
 import js.html.Element;
 
 typedef JqEvent = {
@@ -64,10 +64,10 @@ typedef JqEvent = {
 
 extern class JQueryHelper {
 	@:overload(function(j:JQuery):JQuery{})
-	@:overload(function(j:DOMWindow):JQuery{})
+	@:overload(function(j:Window):JQuery{})
 	@:overload(function(j:Element):JQuery { } )
 
-	public static inline function J( html : haxe.EitherType<String,haxe.EitherType<JQuery,haxe.EitherType<DOMWindow,Element>>> ) : JQuery {
+	public static inline function J( html : haxe.EitherType<String,haxe.EitherType<JQuery,haxe.EitherType<Window,Element>>> ) : JQuery {
         return new JQuery(cast html);
     }
 
@@ -86,7 +86,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	var length(default, null) : Int;
 
 	@:overload(function(j:JQuery):Void{})
-	@:overload(function(j:DOMWindow):Void{})
+	@:overload(function(j:Window):Void{})
 	@:overload(function(j:Element):Void{})
 	function new( html : String ) : Void;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/MediaStreamAudioSourceNode.webidl line 13:0. Do not edit!
+
 package js.html.audio;
 
 @:native("MediaStreamAudioSourceNode")
-extern class MediaStreamAudioSourceNode extends AudioSourceNode
+extern class MediaStreamAudioSourceNode extends AudioNode
 {
-	var mediaStream(default,null) : js.html.rtc.MediaStream;
-
 }

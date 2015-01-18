@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,43 +20,21 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/OscillatorNode.webidl line 21:0. Do not edit!
+
 package js.html.audio;
 
 @:native("OscillatorNode")
-extern class OscillatorNode extends AudioSourceNode
+extern class OscillatorNode extends AudioNode
 {
-	static inline var CUSTOM : Int = 4;
-
-	static inline var FINISHED_STATE : Int = 3;
-
-	static inline var PLAYING_STATE : Int = 2;
-
-	static inline var SAWTOOTH : Int = 2;
-
-	static inline var SCHEDULED_STATE : Int = 1;
-
-	static inline var SINE : Int = 0;
-
-	static inline var SQUARE : Int = 1;
-
-	static inline var TRIANGLE : Int = 3;
-
-	static inline var UNSCHEDULED_STATE : Int = 0;
-
-	var detune(default,null) : AudioParam;
-
+	var type : OscillatorType;
 	var frequency(default,null) : AudioParam;
-
-	var playbackState(default,null) : Int;
-
-	/** Setter throws DOMException. */
-	var type : Int;
-
-	function setWaveTable( waveTable : WaveTable ) : Void;
-
-	function start( when : Float ) : Void;
-
-	function stop( when : Float ) : Void;
-
+	var detune(default,null) : AudioParam;
+	var onended : haxe.Constraints.Function;
+	
+	/** @throws DOMError */
+	function start( ?when : Float = 0.0 ) : Void;
+	/** @throws DOMError */
+	function stop( ?when : Float = 0.0 ) : Void;
+	function setPeriodicWave( periodicWave : PeriodicWave ) : Void;
 }

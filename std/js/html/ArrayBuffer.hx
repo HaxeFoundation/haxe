@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,19 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from typedarray.webidl line 12:0. Do not edit!
+
 package js.html;
 
-/** The <code>ArrayBuffer</code> is a data type that is used to represent a generic, fixed-length binary data buffer. You can't directly manipulate the contents of an <code>ArrayBuffer</code>; instead, you create an <a title="en/JavaScript typed arrays/ArrayBufferView" rel="internal" href="/api/js/html/ArrayBufferView"><code>ArrayBufferView</code></a> object which represents the buffer in a specific format, and use that to read and write the contents of the buffer.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/JavaScript_typed_arrays/ArrayBuffer">MDN</a>. */
 @:native("ArrayBuffer")
 extern class ArrayBuffer
 {
-	/** The size, in bytes, of the array. This is established when the array is constructed and cannot be changed. <strong>Read only.</strong> */
+	static function isView( value : Dynamic ) : Bool;
 	var byteLength(default,null) : Int;
-
-	function new( ?arg0 : Dynamic ) : Void;
-
+	
+	/** @throws DOMError */
+	function new( length : Int ) : Void;
 	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
-
 }

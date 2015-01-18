@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,28 +20,21 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/MutationObserver.webidl line 10:0. Do not edit!
+
 package js.html;
 
 @:native("MutationRecord")
 extern class MutationRecord
 {
-	var addedNodes(default,null) : NodeList;
-
-	var attributeName(default,null) : String;
-
-	var attributeNamespace(default,null) : String;
-
-	var nextSibling(default,null) : Node;
-
-	var oldValue(default,null) : String;
-
-	var previousSibling(default,null) : Node;
-
-	var removedNodes(default,null) : NodeList;
-
-	var target(default,null) : Node;
-
 	var type(default,null) : String;
-
+	var target(default,null) : Node;
+	var addedNodes(default,null) : NodeList;
+	var removedNodes(default,null) : NodeList;
+	var previousSibling(default,null) : Node;
+	var nextSibling(default,null) : Node;
+	var attributeName(default,null) : String;
+	var attributeNamespace(default,null) : String;
+	var oldValue(default,null) : String;
+	
 }

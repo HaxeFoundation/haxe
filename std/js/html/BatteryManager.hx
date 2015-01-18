@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,26 +20,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/BatteryManager.webidl line 13:0. Do not edit!
+
 package js.html;
 
 @:native("BatteryManager")
 extern class BatteryManager extends EventTarget
 {
 	var charging(default,null) : Bool;
-
 	var chargingTime(default,null) : Float;
-
 	var dischargingTime(default,null) : Float;
-
 	var level(default,null) : Float;
-
-	var onchargingchange : EventListener;
-
-	var onchargingtimechange : EventListener;
-
-	var ondischargingtimechange : EventListener;
-
-	var onlevelchange : EventListener;
-
+	var onchargingchange : haxe.Constraints.Function;
+	var onchargingtimechange : haxe.Constraints.Function;
+	var ondischargingtimechange : haxe.Constraints.Function;
+	var onlevelchange : haxe.Constraints.Function;
+	
 }

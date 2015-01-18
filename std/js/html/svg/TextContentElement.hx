@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,38 +20,33 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGTextContentElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGTextContentElement")
-extern class TextContentElement extends Element
+extern class TextContentElement extends GraphicsElement
 {
-	static inline var LENGTHADJUST_SPACING : Int = 1;
-
-	static inline var LENGTHADJUST_SPACINGANDGLYPHS : Int = 2;
-
 	static inline var LENGTHADJUST_UNKNOWN : Int = 0;
-
-	var lengthAdjust(default,null) : AnimatedEnumeration;
-
+	static inline var LENGTHADJUST_SPACING : Int = 1;
+	static inline var LENGTHADJUST_SPACINGANDGLYPHS : Int = 2;
+	
 	var textLength(default,null) : AnimatedLength;
-
-	function getCharNumAtPosition( point : Point ) : Int;
-
-	function getComputedTextLength() : Float;
-
-	function getEndPositionOfChar( offset : Int ) : Point;
-
-	function getExtentOfChar( offset : Int ) : Rect;
-
+	var lengthAdjust(default,null) : AnimatedEnumeration;
+	
 	function getNumberOfChars() : Int;
-
-	function getRotationOfChar( offset : Int ) : Float;
-
-	function getStartPositionOfChar( offset : Int ) : Point;
-
-	function getSubStringLength( offset : Int, length : Int ) : Float;
-
-	function selectSubString( offset : Int, length : Int ) : Void;
-
+	function getComputedTextLength() : Float;
+	/** @throws DOMError */
+	function getSubStringLength( charnum : Int, nchars : Int ) : Float;
+	/** @throws DOMError */
+	function getStartPositionOfChar( charnum : Int ) : Point;
+	/** @throws DOMError */
+	function getEndPositionOfChar( charnum : Int ) : Point;
+	/** @throws DOMError */
+	function getExtentOfChar( charnum : Int ) : Rect;
+	/** @throws DOMError */
+	function getRotationOfChar( charnum : Int ) : Float;
+	function getCharNumAtPosition( point : Point ) : Int;
+	/** @throws DOMError */
+	function selectSubString( charnum : Int, nchars : Int ) : Void;
 }
