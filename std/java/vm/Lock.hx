@@ -10,7 +10,6 @@ import java.Lib;
 	**/
 	public function new()
 	{
-
 	}
 
 	/**
@@ -26,26 +25,28 @@ import java.Lib;
 				return true;
 			if (timeout == null)
 			{
-				try
+				while( releasedCount < 0 )
 				{
-					untyped __java__("this.wait()");
-				}
-				catch(e:Dynamic) {
-					throw e;
+					try
+					{
+						untyped __java__("this.wait()");
+					}
+					catch(e:java.lang.InterruptedException)
+					{
+					}
 				}
 			} else {
-				var t:Dynamic = this;
 				try
 				{
 					var t:haxe.Int64 = cast timeout * 1000;
-					untyped __java__("this.wait(t)");
+					untyped __java__("this.wait({0})",t);
 				}
-				catch(e:Dynamic) {
-					throw e;
+				catch(e:java.lang.InterruptedException)
+				{
 				}
 			}
 			ret = this.releasedCount >= 0;
-			if (!ret && ++this.releasedCount == 0) //even if timeout failed, we should release the lock; Other locks may be released then
+			if (++this.releasedCount == 0) //even if timeout failed, we should release the lock; Other locks may have been released in the meantime
 			{
 				untyped this.notify();
 			}

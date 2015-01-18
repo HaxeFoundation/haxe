@@ -6,6 +6,7 @@ import haxe.test.Base.Base___InnerClass3__;
 import haxe.test.Base.Base___InnerClass3___InnerClass4__;
 import haxe.test.TEnum;
 import java.util.EnumSet;
+import java.vm.*;
 
 #if java
 class TestJava extends Test
@@ -28,6 +29,27 @@ class TestJava extends Test
 	{
 		t(haxe.uppercasepackage.SomeClass.SomeClassFound);
 		t(haxe.uppercasepackage.Lowercase.lowercaseFound);
+	}
+
+	function testBasicLock()
+	{
+		var lock = new Lock();
+		//it starts locked
+		f(lock.wait(0.001));
+		lock.release();
+		t(lock.wait(.001));
+		f(lock.wait(.001));
+		f(lock.wait(.001));
+
+		lock.release();
+		t(lock.wait());
+		lock.release();
+		lock.release();
+		lock.release();
+		t(lock.wait());
+		t(lock.wait(.001));
+		t(lock.wait());
+		f(lock.wait(.001));
 	}
 
 	function testEnumSet()
