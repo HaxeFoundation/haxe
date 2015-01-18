@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLHtmlElement")
-extern class HtmlElement extends HTMLElement
+extern class HTMLHtmlElement extends HTMLElement
 {
 	var version : String;
 	

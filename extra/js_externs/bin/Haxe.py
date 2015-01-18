@@ -400,7 +400,7 @@ def generate (idl, usedTypes, knownTypes, cssProperties, outputDir):
 			if idl.identifier.name == "HTMLDocument":
 				for name, html in HTML_ELEMENTS.iteritems():
 					writeln("/** Shorthand for creating an HTML <%s> element. */" % html)
-					write("inline function create%s() : %s {" % (name, name))
+					write("inline function create%s() : %s {" % (name, toHaxeType(name)))
 					writeln(" return cast createElement(\"%s\"); }" % html)
 				writeln()
 
@@ -660,6 +660,9 @@ def toHaxeType (name):
 	if name != "":
 		name = name[0].upper() + name[1:]
 	name = re.sub("^HTML(.+Element)", "\\1", name)
+	if name == "HtmlElement":
+		# Avoid a case-insensitive collision between HTMLElement and HTMLHtmlElement (for Windows)
+		name = "HTMLHtmlElement"
 	if name.startswith("SVG"):
 		name = name[len("SVG"):]
 	if name.startswith("WebGL"):
