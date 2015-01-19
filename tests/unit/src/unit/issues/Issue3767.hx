@@ -10,7 +10,7 @@ import cpp.vm.*;
 
 class Issue3767 extends Test
 {
-#if (java || neko || cpp)
+#if (java || (neko && !interp && !macro) || cpp)
 	function testBasicLock()
 	{
 		var lock = new Lock();
