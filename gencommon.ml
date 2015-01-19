@@ -136,6 +136,11 @@ struct
 		}
 end;;
 
+let path_of_md_def md_def =
+	match md_def.m_types with
+		| [TClassDecl c] -> c.cl_path
+		| _ -> md_def.m_path
+
 open ExprHashtblHelper;;
 (* Expression Hashtbl. This shouldn't be kept indefinately as it's not a weak Hashtbl. *)
 module ExprHashtbl = Hashtbl.Make(
@@ -1015,11 +1020,7 @@ let dump_descriptor gen name path_s module_s =
 	let main_paths = Hashtbl.create 0 in
 	List.iter (fun md_def ->
 		SourceWriter.write w "M ";
-		let path = match md_def.m_types with
-			| [TClassDecl c] -> c.cl_path
-			| _ -> md_def.m_path
-		in
-		SourceWriter.write w (path_s path);
+		SourceWriter.write w (path_s (path_of_md_def md_def));
 		SourceWriter.newline w;
 		List.iter (fun m ->
 			match m with
@@ -1149,17 +1150,14 @@ let generate_modules gen extension source_dir (module_gen : SourceWriter.source_
 					| _ ->
 						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Haxe-Std/" ^ (String.concat "/" (fst md_def.m_path))
 			else
-				gen.gcon.file ^ "/" ^ source_dir ^ "/" ^ (String.concat "/" (fst md_def.m_path))
+				gen.gcon.file ^ "/" ^ source_dir ^ "/" ^ (String.concat "/" (fst (path_of_md_def md_def)))
 		in
 		let w = SourceWriter.new_source_writer () in
 		(*let should_write = List.fold_left (fun should md -> module_gen w md or should) false md_def.m_types in*)
 		let should_write = module_gen w md_def in
 		if should_write then begin
-			let path = match md_def.m_types with
-				| [TClassDecl c] -> c.cl_path
-				| _ -> md_def.m_path
-			in
-			write_file gen w source_dir path extension out_files;
+			let path = path_of_md_def md_def in
+			write_file gen w source_dir path extension out_files
 		end
 	) gen.gcon.modules
 
