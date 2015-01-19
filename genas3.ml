@@ -228,7 +228,7 @@ let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
-	| TAbstract ({ a_impl = Some _ } as a,pl) ->
+	| TAbstract (a,pl) when not (Ast.Meta.has Ast.Meta.CoreType a.a_meta) ->
 		type_str ctx (Abstract.get_underlying_type a pl) p
 	| TAbstract (a,_) ->
 		(match a.a_path with
