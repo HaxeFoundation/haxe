@@ -34,6 +34,9 @@ extern class Element extends Node
 	var attributes(default,null) : NamedNodeMap;
 	var onwheel : haxe.Constraints.Function;
 	var style(default,null) : CSSStyleDeclaration;
+	var oncopy : haxe.Constraints.Function;
+	var oncut : haxe.Constraints.Function;
+	var onpaste : haxe.Constraints.Function;
 	var scrollTop : Int;
 	var scrollLeft : Int;
 	var scrollWidth(default,null) : Int;

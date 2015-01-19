@@ -47,9 +47,6 @@ extern class HTMLElement extends Element
 	var isContentEditable(default,null) : Bool;
 	var contextMenu(default,null) : MenuElement;
 	var spellcheck : Bool;
-	var oncopy : haxe.Constraints.Function;
-	var oncut : haxe.Constraints.Function;
-	var onpaste : haxe.Constraints.Function;
 	var offsetParent(default,null) : Element;
 	var offsetTop(default,null) : Int;
 	var offsetLeft(default,null) : Int;

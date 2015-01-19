@@ -29,8 +29,5 @@ extern class Element extends js.html.Element
 {
 	var ownerSVGElement(default,null) : SVGElement;
 	var viewportElement(default,null) : Element;
-	var oncopy : haxe.Constraints.Function;
-	var oncut : haxe.Constraints.Function;
-	var onpaste : haxe.Constraints.Function;
 	
 }
