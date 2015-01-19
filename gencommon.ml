@@ -1081,6 +1081,22 @@ let dump_descriptor gen name path_s module_s =
 			end
 		) gen.gcon.net_libs;
 	SourceWriter.write w "end libs";
+	SourceWriter.newline w;
+	let opts = match gen.gcon.platform with
+		| Java ->
+			gen.gcon.javac_opts
+		| Cs ->
+			gen.gcon.cs_opts
+		| _ ->
+			[]
+	in
+	if opts <> [] then begin
+		SourceWriter.write w "begin opts";
+		SourceWriter.newline w;
+		List.iter (fun opt -> SourceWriter.write w opt; SourceWriter.newline w) opts;
+		SourceWriter.write w "end opts";
+		SourceWriter.newline w;
+	end;
 
 	let contents = SourceWriter.contents w in
 	let f = open_out (gen.gcon.file ^ "/" ^ name) in
