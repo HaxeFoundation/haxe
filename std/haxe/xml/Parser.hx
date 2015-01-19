@@ -58,14 +58,17 @@ class Parser
 		h;
 	}
 
-	static public function parse(str:String)
+	/**
+		Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
+	**/
+	static public function parse(str:String,strict=false)
 	{
 		var doc = Xml.createDocument();
-		doParse(str, 0, doc);
+		doParse(str, 0, strict, doc);
 		return doc;
 	}
 
-	static function doParse(str:String, p:Int = 0, ?parent:Xml):Int
+	static function doParse(str:String, p:Int = 0, strict:Bool, ?parent:Xml):Int
 	{
 		var xml:Xml = null;
 		var state = S.BEGIN;
@@ -239,7 +242,8 @@ class Parser
 							state = S.ESCAPE;
 							escapeNext = S.ATTRIB_VAL;
 							start = p + 1;
-						case '>'.code | '<'.code:
+						case '>'.code | '<'.code if( strict ):
+							// HTML allows these in attributes values
 							throw "Invalid unescaped " + String.fromCharCode(c) + " in attribute value";
 						case _ if (c == attrValQuote):
 							var val = buf.toString() + str.substr(start, p - start);
@@ -249,7 +253,7 @@ class Parser
 							next = S.BODY;
 					}
 				case S.CHILDS:
-					p = doParse(str, p, xml);
+					p = doParse(str, p, strict, xml);
 					start = p;
 					state = S.BEGIN;
 				case S.WAIT_END:
@@ -314,23 +318,45 @@ class Parser
 					{
 						var s = str.substr(start, p - start);
 						if (s.fastCodeAt(0) == '#'.code) {
-							var i = s.fastCodeAt(1) == 'x'.code
+							var c = s.fastCodeAt(1) == 'x'.code
 								? Std.parseInt("0" +s.substr(1, s.length - 1))
 								: Std.parseInt(s.substr(1, s.length - 1));
-							buf.add(String.fromCharCode(i));
-						} else if (!escapes.exists(s)) {
-							#if xml_strict
-							throw 'Undefined entity: $s';
-							#else
-							buf.add('&$s;');
+							#if (neko || cpp)
+							if( c >= 128 ) {
+								// UTF8-encode it
+								if( c <= 0x7FF ) {
+									buf.addChar(0xC0 | (c >> 6));
+									buf.addChar(0x80 | (c & 63));
+								} else if( c <= 0xFFFF ) {
+									buf.addChar(0xE0 | (c >> 12));
+									buf.addChar(0x80 | ((c >> 6) & 63));
+									buf.addChar(0x80 | (c & 63));
+								} else if( c <= 0x10FFFF ) {
+									buf.addChar(0xF0 | (c >> 18));
+									buf.addChar(0x80 | ((c >> 12) & 63));
+									buf.addChar(0x80 | ((c >> 6) & 63));
+									buf.addChar(0x80 | (c & 63));
+								} else
+									throw "Cannot encode UTF8-char " + c;
+							} else
 							#end
+							buf.addChar(c);
+						} else if (!escapes.exists(s)) {
+							if( strict )
+								throw 'Undefined entity: $s';
+							buf.add('&$s;');
 						} else {
 							buf.add(escapes.get(s));
 						}
 						start = p + 1;
 						state = escapeNext;
 					} else if (!isValidChar(c) && c != "#".code) {
-						throw 'Invalid character in entity: ' + String.fromCharCode(c);
+						if( strict )
+							throw 'Invalid character in entity: ' + String.fromCharCode(c);
+						buf.add("&" + str.substr(start, p - start));
+						p--;
+						start = p;
+						state = escapeNext;
 					}
 			}
 			c = str.fastCodeAt(++p);
