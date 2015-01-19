@@ -1142,7 +1142,7 @@ try
 		("-javac-opt",Arg.String (fun arg ->
 			com.javac_opts <- arg :: com.javac_opts
 		),"<opt> : pass option <opt> to the Java compiler");
-		("-cs-opt",Arg.String (fun arg ->
+		("-csc-opt",Arg.String (fun arg ->
 			com.cs_opts <- arg :: com.cs_opts
 		),"<opt> : pass option <opt> to the C# compiler");
 		("-x", Arg.String (fun file ->
