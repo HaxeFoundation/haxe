@@ -1015,7 +1015,11 @@ let dump_descriptor gen name path_s module_s =
 	let main_paths = Hashtbl.create 0 in
 	List.iter (fun md_def ->
 		SourceWriter.write w "M ";
-		SourceWriter.write w (path_s md_def.m_path);
+		let path = match md_def.m_types with
+			| [TClassDecl c] -> c.cl_path
+			| _ -> md_def.m_path
+		in
+		SourceWriter.write w (path_s path);
 		SourceWriter.newline w;
 		List.iter (fun m ->
 			match m with
@@ -1151,8 +1155,11 @@ let generate_modules gen extension source_dir (module_gen : SourceWriter.source_
 		(*let should_write = List.fold_left (fun should md -> module_gen w md or should) false md_def.m_types in*)
 		let should_write = module_gen w md_def in
 		if should_write then begin
-			let path = md_def.m_path in
-			write_file gen w source_dir path extension out_files
+			let path = match md_def.m_types with
+				| [TClassDecl c] -> c.cl_path
+				| _ -> md_def.m_path
+			in
+			write_file gen w source_dir path extension out_files;
 		end
 	) gen.gcon.modules
 
