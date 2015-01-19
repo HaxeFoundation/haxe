@@ -134,7 +134,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 		return v;
 	}
 
-	@:to static inline function toStringMap<V>(t:IMap<String,V>):StringMap<V> {
+	@:to static inline function toStringMap<K:String,V>(t:IMap<K,V>):StringMap<V> {
 		return new StringMap<V>();
 	}
 
