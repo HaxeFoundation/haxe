@@ -1031,6 +1031,7 @@ try
 		| [] -> ()
 		| args -> (!process_ref) args
 	in
+	let arg_delays = ref [] in
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
 			process_libs();
@@ -1123,7 +1124,7 @@ try
 			Genswf.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
-			Genjava.add_java_lib com file false
+			arg_delays := (fun () -> Genjava.add_java_lib com file false) :: !arg_delays;
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
 			let file, is_std = match ExtString.String.nsplit file "@" with
@@ -1133,7 +1134,7 @@ try
 					file,true
 				| _ -> raise Exit
 			in
-			Gencs.add_net_lib com file is_std
+			arg_delays := (fun () -> Gencs.add_net_lib com file is_std) :: !arg_delays;
 		),"<file>[@std] : add an external .NET DLL file");
 		("-net-std",Arg.String (fun file ->
 			Gencs.add_net_std com file
@@ -1348,8 +1349,9 @@ try
 	let all_args_spec = basic_args_spec @ adv_args_spec in
 	let process args =
 		let current = ref 0 in
-		try
-			Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) all_args_spec args_callback usage
+		(try
+			Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) all_args_spec args_callback usage;
+			List.iter (fun fn -> fn()) !arg_delays
 		with (Arg.Bad msg) as exc ->
 			let r = Str.regexp "unknown option `\\([-A-Za-z]+\\)'" in
 			try
@@ -1359,7 +1361,8 @@ try
 				let msg = Typecore.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
 				raise (Arg.Bad msg)
 			with Not_found ->
-				raise exc
+				raise exc);
+		arg_delays := []
 	in
 	process_ref := process;
 	process ctx.com.args;
