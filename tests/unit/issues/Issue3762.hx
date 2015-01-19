@@ -1,6 +1,6 @@
 package unit.issues;
 import unit.Test;
-import haxe.ds.StringMap;
+import haxe.ds.IntMap;
 
 class Issue3762 extends Test
 {
