@@ -61,14 +61,14 @@ class Parser
 	/**
 		Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
 	**/
-	static public function parse(str:String,strict=false)
+	static public function parse(str:String, strict = false)
 	{
 		var doc = Xml.createDocument();
-		doParse(str, 0, strict, doc);
+		doParse(str, strict, 0, doc);
 		return doc;
 	}
 
-	static function doParse(str:String, p:Int = 0, strict:Bool, ?parent:Xml):Int
+	static function doParse(str:String, strict:Bool, p:Int = 0, ?parent:Xml):Int
 	{
 		var xml:Xml = null;
 		var state = S.BEGIN;
@@ -253,7 +253,7 @@ class Parser
 							next = S.BODY;
 					}
 				case S.CHILDS:
-					p = doParse(str, p, strict, xml);
+					p = doParse(str, strict, p, xml);
 					start = p;
 					state = S.BEGIN;
 				case S.WAIT_END:
