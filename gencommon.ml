@@ -2422,81 +2422,6 @@ struct
 end;;
 
 (* ******************************************* *)
-(* Closure Detection *)
-(* ******************************************* *)
-
-(*
-
-	Just a small utility filter that detects when a closure must be created.
-	On the default implementation, this means when a function field is being accessed
-	not via reflection and not to be called instantly
-
-*)
-
-module FilterClosures =
-struct
-
-	let priority = 0.0
-
-	let traverse gen (should_change:texpr->string->bool) (filter:texpr->texpr->string->bool->texpr) =
-		let rec run e =
-			match e.eexpr with
-				(*(* this is precisely the only case where we won't even ask if we should change, because it is a direct use of TClosure *)
-				| TCall ( {eexpr = TClosure(e1,s)} as clos, args ) ->
-					{ e with eexpr = TCall({ clos with eexpr = TClosure(run e1, s) }, List.map run args ) }
-				| TCall ( clos, args ) ->
-					let rec loop clos = match clos.eexpr with
-						| TClosure(e1,s) -> Some (clos, e1, s)
-						| TParenthesis p -> loop p
-						| _ -> None
-					in
-					let clos = loop clos in
-					(match clos with
-						| Some (clos, e1, s) -> { e with eexpr = TCall({ clos with eexpr = TClosure(run e1, s) }, List.map run args ) }
-						| None -> Type.map_expr run e)*)
-					| TCall({ eexpr = TLocal{ v_name = "__delegate__" } } as local, [del]) ->
-						{ e with eexpr = TCall(local, [Type.map_expr run del]) }
-					| TCall(({ eexpr = TField(_, _) } as ef), params) ->
-						{ e with eexpr = TCall(Type.map_expr run ef, List.map run params) }
-					| TField(ef, FEnum(en, field)) ->
-							(* FIXME replace t_dynamic with actual enum Anon field *)
-							let ef = run ef in
-							(match follow field.ef_type with
-								| TFun _ when should_change ef field.ef_name ->
-									filter e ef field.ef_name true
-								| _ ->
-										{ e with eexpr = TField(ef, FEnum(en,field)) }
-							)
-					| TField(({ eexpr = TTypeExpr _ } as tf), f) ->
-						(match field_access_esp gen tf.etype (f) with
-							| FClassField(_,_,_,cf,_,_,_) ->
-								(match cf.cf_kind with
-									| Method(MethDynamic)
-									| Var _ ->
-										e
-									| _ when should_change tf cf.cf_name ->
-										filter e tf cf.cf_name true
-									| _ ->
-										e
-							 )
-							| _ -> e)
-					| TField(e1, FClosure (Some _, cf)) when should_change e1 cf.cf_name ->
-						(match cf.cf_kind with
-						| Method MethDynamic | Var _ ->
-							Type.map_expr run e
-						| _ ->
-							filter e (run e1) cf.cf_name false)
-					| _ -> Type.map_expr run e
-		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
-		gen.gexpr_filters#add ~name:"closures_filter" ~priority:(PCustom priority) map
-
-end;;
-
-(* ******************************************* *)
 (* Dynamic Field Access *)
 (* ******************************************* *)
 
@@ -2626,6 +2551,85 @@ struct
 	let configure_as_synf gen (mapping_func:texpr->texpr) =
 		let map e = Some(mapping_func e) in
 		gen.gexpr_filters#add ~name:"dynamic_field_access" ~priority:(PCustom(priority_as_synf)) map
+
+end;;
+
+(* ******************************************* *)
+(* Closure Detection *)
+(* ******************************************* *)
+
+(*
+
+	Just a small utility filter that detects when a closure must be created.
+	On the default implementation, this means when a function field is being accessed
+	not via reflection and not to be called instantly
+
+	dependencies:
+		must run after DynamicFieldAccess, so any TAnon { Statics / EnumStatics } will be changed to the corresponding TTypeExpr
+*)
+
+module FilterClosures =
+struct
+
+	let name = "filter_closures"
+
+	let priority = solve_deps name [DAfter DynamicFieldAccess.priority]
+
+	let traverse gen (should_change:texpr->string->bool) (filter:texpr->texpr->string->bool->texpr) =
+		let rec run e =
+			match e.eexpr with
+				(*(* this is precisely the only case where we won't even ask if we should change, because it is a direct use of TClosure *)
+				| TCall ( {eexpr = TClosure(e1,s)} as clos, args ) ->
+					{ e with eexpr = TCall({ clos with eexpr = TClosure(run e1, s) }, List.map run args ) }
+				| TCall ( clos, args ) ->
+					let rec loop clos = match clos.eexpr with
+						| TClosure(e1,s) -> Some (clos, e1, s)
+						| TParenthesis p -> loop p
+						| _ -> None
+					in
+					let clos = loop clos in
+					(match clos with
+						| Some (clos, e1, s) -> { e with eexpr = TCall({ clos with eexpr = TClosure(run e1, s) }, List.map run args ) }
+						| None -> Type.map_expr run e)*)
+					| TCall({ eexpr = TLocal{ v_name = "__delegate__" } } as local, [del]) ->
+						{ e with eexpr = TCall(local, [Type.map_expr run del]) }
+					| TCall(({ eexpr = TField(_, _) } as ef), params) ->
+						{ e with eexpr = TCall(Type.map_expr run ef, List.map run params) }
+					| TField(ef, FEnum(en, field)) ->
+							(* FIXME replace t_dynamic with actual enum Anon field *)
+							let ef = run ef in
+							(match follow field.ef_type with
+								| TFun _ when should_change ef field.ef_name ->
+									filter e ef field.ef_name true
+								| _ ->
+										{ e with eexpr = TField(ef, FEnum(en,field)) }
+							)
+					| TField(({ eexpr = TTypeExpr _ } as tf), f) ->
+						(match field_access_esp gen tf.etype (f) with
+							| FClassField(_,_,_,cf,_,_,_) ->
+								(match cf.cf_kind with
+									| Method(MethDynamic)
+									| Var _ ->
+										e
+									| _ when should_change tf cf.cf_name ->
+										filter e tf cf.cf_name true
+									| _ ->
+										e
+							 )
+							| _ -> e)
+					| TField(e1, FClosure (Some _, cf)) when should_change e1 cf.cf_name ->
+						(match cf.cf_kind with
+						| Method MethDynamic | Var _ ->
+							Type.map_expr run e
+						| _ ->
+							filter e (run e1) cf.cf_name false)
+					| _ -> Type.map_expr run e
+		in
+		run
+
+	let configure gen (mapping_func:texpr->texpr) =
+		let map e = Some(mapping_func e) in
+		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
 
