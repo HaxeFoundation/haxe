@@ -1139,6 +1139,12 @@ try
 		("-net-std",Arg.String (fun file ->
 			Gencs.add_net_std com file
 		),"<file> : add a root std .NET DLL search path");
+		("-javac-opt",Arg.String (fun arg ->
+			com.javac_opts <- arg :: com.javac_opts
+		),"<opt> : pass option <opt> to the Java compiler");
+		("-cs-opt",Arg.String (fun arg ->
+			com.cs_opts <- arg :: com.cs_opts
+		),"<opt> : pass option <opt> to the C# compiler");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
 			set_platform Neko neko_file;
