@@ -77,4 +77,13 @@ package cs.internal;
 	{
 		return Runtime.callField(obj, field, hash, dynArgs);
 	}
+	
+	public function Equals(obj:Dynamic):Bool
+	{
+		if (obj == null)
+			return false;
+		
+		Closure c = cast obj;
+		return (c.obj == this.obj && c.field == this.field);
+	}
 }
