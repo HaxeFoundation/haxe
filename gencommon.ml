@@ -10591,9 +10591,9 @@ struct
 						e
 				| TCast( ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ), _ )
 				| TCast( ({ eexpr = TBinop(( (Ast.OpAssignOp Ast.OpDiv) as op), e1, e2) } as ebinop ), _ ) when catch_int_div && is_int e1.etype && is_int e2.etype && is_int e.etype ->
-					let e = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint } in
+					let ret = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = e.etype } in
 					if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
-						mk_cast basic.tint e
+						mk_cast e.etype ret
 					else
 						e
 				| _ -> Type.map_expr run e
