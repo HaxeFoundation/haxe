@@ -504,6 +504,11 @@ let is_dynamic_method f =
 		| Method MethDynamic -> true
 		| _ -> false)
 
+let is_type_expression_type t = match follow t with
+	| TAbstract({a_path=([],"Class")},_) -> true
+	| TAnon an -> (match !(an.a_status) with Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false)
+	| t -> false
+
 let fun_block ctx f p =
 	let e = (match f.tf_expr with { eexpr = TBlock [{ eexpr = TBlock _ } as e] } -> e | e -> e) in
 	let e = List.fold_left (fun e (v,c) ->
@@ -951,22 +956,25 @@ and gen_while_expr ctx e =
 	ctx.in_loop <- old_loop
 
 and gen_tfield ctx e e1 s =
+	let ob ex =
+		(match ex with
+		| TTypeExpr t ->
+			print ctx "\"";
+			spr ctx (s_path ctx (t_path t) false e1.epos);
+			print ctx "\""
+		| _ ->
+			gen_expr ctx e1) in
 	match follow e.etype with
 	| TFun (args, _) ->
 		(if ctx.is_call then begin
 			gen_field_access ctx false e1 s
 	  	end else if is_in_dynamic_methods ctx e1 s then begin
 	  		gen_field_access ctx true e1 s;
+		end else if is_type_expression_type e1.etype then begin
+			spr ctx "array(";
+			ob e1.eexpr;
+			print ctx ", \"%s\")" (s_ident s);
 	  	end else begin
-			let ob ex =
-				(match ex with
-				| TTypeExpr t ->
-					print ctx "\"";
-					spr ctx (s_path ctx (t_path t) false e1.epos);
-					print ctx "\""
-				| _ ->
-					gen_expr ctx e1) in
-
 			spr ctx "(isset(";
 			gen_field_access ctx true e1 s;
 			spr ctx ") ? ";
