@@ -90,7 +90,6 @@ package haxe.ds;
 		s.add("}");
 		return s.toString();
 	}
-
 }
 
 #if !as3

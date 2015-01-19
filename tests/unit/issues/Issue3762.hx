@@ -25,5 +25,6 @@ class Issue3762 extends Test
 			keyCount++;
 		}
 		f(keyCount != keys.length); // values missing
+
 	}
 }
