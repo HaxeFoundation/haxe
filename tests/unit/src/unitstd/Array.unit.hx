@@ -234,6 +234,12 @@ a == [i0, i1];
 [1, 10, 10, 1].lastIndexOf(10, -4) == -1;
 [1, 10, 10, 1].lastIndexOf(10, -5) == -1;
 
+// contains
+[].contains(1) == false;
+[1,2,3].contains(2) == true;
+[1,2,2].contains(2) == true;
+[1,2,3].contains(4) == false;
+
 // copy
 var i0 = new IntWrap(1);
 var i1 = new IntWrap(1);
