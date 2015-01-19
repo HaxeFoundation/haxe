@@ -890,7 +890,7 @@ module Ssa = struct
 						[]
 					| e :: el ->
 						if ctx.cur_data.nd_terminates then begin
-							ctx.com.warning (Printf.sprintf "Unreachable code: %s" (s_expr_pretty e)) e.epos;
+							(* ctx.com.warning (Printf.sprintf "Unreachable code: %s" (s_expr_pretty e)) e.epos; *)
 							[]
 						end else
 							let e = loop ctx e in
