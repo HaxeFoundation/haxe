@@ -138,7 +138,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 		return new StringMap<V>();
 	}
 
-	@:to static inline function toIntMap<V>(t:IMap<Int,V>):IntMap<V> {
+	@:to static inline function toIntMap<K:Int,V>(t:IMap<K,V>):IntMap<V> {
 		return new IntMap<V>();
 	}
 
