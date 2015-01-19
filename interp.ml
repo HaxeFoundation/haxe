@@ -2553,9 +2553,9 @@ let macro_lib =
 				let com = ccom() in
 				(match com.platform with
 				| Java ->
-					com.javac_args := arg :: com.javac_args
+					com.javac_args <- arg :: com.javac_args
 				| Cs ->
-					com.csc_arg := arg :: com.csc_arg
+					com.csc_args <- arg :: com.csc_args
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->

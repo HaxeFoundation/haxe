@@ -1091,14 +1091,14 @@ let dump_descriptor gen name path_s module_s =
 		| Java ->
 			gen.gcon.javac_args
 		| Cs ->
-			gen.gcon.csc_arg
+			gen.gcon.csc_args
 		| _ ->
 			[]
 	in
 	if args <> [] then begin
 		SourceWriter.write w "begin opts";
 		SourceWriter.newline w;
-		List.iter (fun opt -> SourceWriter.write w opt; SourceWriter.newline w) args;
+		List.iter (fun opt -> SourceWriter.write w opt; SourceWriter.newline w) (List.rev args);
 		SourceWriter.write w "end opts";
 		SourceWriter.newline w;
 	end;
