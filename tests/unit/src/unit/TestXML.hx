@@ -157,22 +157,13 @@ class TestXML extends Test {
 		}
 	}
 
-	function testEntities() {
-		var entities = ["&lt;", "&gt;", "&quot;", "&amp;", "&apos;", "&nbsp;", "&euro;", "&#64;", "&#244;", "&#x3F;", "&#xFF;"];
-		var values = ['<', '>', '"', '&', "'", "&nbsp;", '&euro;', '@', String.fromCharCode(244), '?', String.fromCharCode(0xFF)];
-		for( i in 0...entities.length ) {
-			infos(entities[i]);
-			eq( Xml.parse(entities[i]).firstChild().nodeValue, values[i] );
-		}
-	}
-
 	function testCustomXmlParser() {
 		var entities = ["&lt;", "&gt;", "&quot;", "&amp;", "&apos;", "&euro;", "&#64;", "&#244;", "&#x3F;", "&#xFF;"];
-		var values = ['<', '>', '"', '&', "'", '&euro;', '@', String.fromCharCode(244), String.fromCharCode(0x3F), String.fromCharCode(0xFF)];
+		var values = ['<', '>', '"', '&', "'", '&euro;', '@', "ô", String.fromCharCode(0x3F), "ÿ"];
 
 		for( i in 0...entities.length) {
 			infos(entities[i]);
-			eq( haxe.xml.Parser.parse(entities[i]).firstChild().nodeValue, values[i] );
+			eq( haxe.xml.Parser.parse(entities[i], false).firstChild().nodeValue, values[i] );
 		}
 
 		var s = "<a>&gt;<b>&lt;</b>&lt;&gt;<b>&gt;&lt;</b>\"</a>";
@@ -214,8 +205,8 @@ class TestXML extends Test {
 	}
 
 	function testIssue3630() {
-		exc(function() Xml.parse("<node attribute='<'/>"));
-		exc(function() Xml.parse("<node attribute='>'/>"));
+		exc(function() haxe.xml.Parser.parse("<node attribute='<'/>", true));
+		exc(function() haxe.xml.Parser.parse("<node attribute='>'/>", true));
 
 		var a = Xml.parse('<node attribute="something with &lt; &amp; &quot; &apos; special characters &gt;"/>');
 		var c = a.firstChild();
