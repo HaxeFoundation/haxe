@@ -2547,6 +2547,20 @@ let macro_lib =
 			| _ ->
 				error()
 		);
+		"add_native_arg", Fun1 (fun v ->
+			match v with
+			| VString arg ->
+				let com = ccom() in
+				(match com.platform with
+				| Java ->
+					com.javac_args := arg :: com.javac_args
+				| Cs ->
+					com.csc_arg := arg :: com.csc_arg
+				| _ -> failwith "Unsupported platform");
+				VNull
+			| _ ->
+				error()
+		);
 		"module_dependency", Fun2 (fun m file ->
 			match m, file with
 			| VString m, VString file ->

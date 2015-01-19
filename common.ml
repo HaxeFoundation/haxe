@@ -150,8 +150,8 @@ type context = {
 	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
-	mutable javac_opts : string list;
-	mutable cs_opts : string list;
+	mutable javac_args : string list;
+	mutable cs_args : string list;
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
 	mutable basic : basic_types;
@@ -710,8 +710,8 @@ let create v args =
 		net_libs = [];
 		net_std = [];
 		net_path_map = Hashtbl.create 0;
-		javac_opts = [];
-		cs_opts = [];
+		javac_args = [];
+		cs_args = [];
 		neko_libs = [];
 		php_prefix = None;
 		js_gen = None;
