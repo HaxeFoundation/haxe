@@ -101,13 +101,11 @@ private class IntMapKeysIterator {
 	var h:flash.utils.Dictionary;
 	var index : Int;
 	var nextIndex : Int;
-	var isReserved : Bool;
 
 	inline function new(h:flash.utils.Dictionary):Void {
 		this.h = h;
 		this.index = 0;
 		this.nextIndex = 0;
-		isReserved = false;
 	}
 
 	public inline function hasNext():Bool {
