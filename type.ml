@@ -780,6 +780,23 @@ let rec get_constructor build_type c =
 
 let print_context() = ref []
 
+let rec s_type_kind t =
+	let map tl = String.concat ", " (List.map s_type_kind tl) in
+	match t with
+	| TMono r ->
+		begin match !r with
+			| None -> "TMono (None)"
+			| Some t -> "TMono (Some (" ^ (s_type_kind t) ^ "))"
+		end
+	| TEnum(en,tl) -> Printf.sprintf "TEnum(%s, [%s])" (s_type_path en.e_path) (map tl)
+	| TInst(c,tl) -> Printf.sprintf "TInst(%s, [%s])" (s_type_path c.cl_path) (map tl)
+	| TType(t,tl) -> Printf.sprintf "TType(%s, [%s])" (s_type_path t.t_path) (map tl)
+	| TAbstract(a,tl) -> Printf.sprintf "TAbstract(%s, [%s])" (s_type_path a.a_path) (map tl)
+	| TFun(tl,r) -> Printf.sprintf "TFun([%s], %s)" (String.concat ", " (List.map (fun (n,b,t) -> Printf.sprintf "%s%s:%s" (if b then "?" else "") n (s_type_kind t)) tl)) (s_type_kind r)
+	| TAnon an -> "TAnon"
+	| TDynamic t2 -> "TDynamic"
+	| TLazy _ -> "TLazy"
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->
