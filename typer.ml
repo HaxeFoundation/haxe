@@ -194,7 +194,7 @@ let check_constraints ctx tname tpl tl map delayed p =
 				) constr
 			) in
 			if delayed then
-				delay ctx PCheckConstraint f
+				delay ctx PCheckConstraint (fun () -> try f() with Unify_error l -> display_error ctx (error_msg (Unify l)) p)
 			else
 				f()
 		| _ ->
@@ -2246,7 +2246,11 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 								Type.type_eq EqStrict e2.etype t2;
 								Codegen.AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
 							end in
-							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
+							begin try
+								check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
+							with Unify_error l ->
+								display_error ctx (error_msg (Unify l)) p
+							end;
 							let e = if not swapped then
 								make e1 e2
 							else
