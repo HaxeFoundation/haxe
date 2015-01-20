@@ -1082,14 +1082,7 @@ let dump_descriptor gen name path_s module_s =
 		) gen.gcon.net_libs;
 	SourceWriter.write w "end libs";
 	SourceWriter.newline w;
-	let args = match gen.gcon.platform with
-		| Java ->
-			gen.gcon.javac_args
-		| Cs ->
-			gen.gcon.csc_args
-		| _ ->
-			[]
-	in
+	let args = gen.gcon.c_args in
 	if args <> [] then begin
 		SourceWriter.write w "begin opts";
 		SourceWriter.newline w;

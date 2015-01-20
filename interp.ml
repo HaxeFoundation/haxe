@@ -2552,10 +2552,8 @@ let macro_lib =
 			| VString arg ->
 				let com = ccom() in
 				(match com.platform with
-				| Java ->
-					com.javac_args <- arg :: com.javac_args
-				| Cs ->
-					com.csc_args <- arg :: com.csc_args
+				| Java | Cs | Cpp ->
+					com.c_args <- arg :: com.c_args
 				| _ -> failwith "Unsupported platform");
 				VNull
 			| _ ->
