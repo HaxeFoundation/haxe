@@ -1081,7 +1081,7 @@ module ConstPropagation = struct
 			| TIf(e1,e2,eo) ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
-				begin match e1.eexpr with
+				let rec check_const e1 = match e1.eexpr with
 					| TConst (TBool true) ->
 						e2
 					| TConst (TBool false) ->
@@ -1091,10 +1091,13 @@ module ConstPropagation = struct
 							| Some e ->
 								loop e
 						end
+					| TParenthesis e1 ->
+						check_const e1
 					| _ ->
 						let eo = match eo with None -> None | Some e -> Some (loop e) in
 						{e with eexpr = TIf(e1,e2,eo)}
-				end;
+				in
+				check_const e1
 			| TSwitch(e1,cases,edef) ->
 				let e1 = loop e1 in
 				let rec check_constant e = match e.eexpr with
