@@ -1086,6 +1086,15 @@ let dump_descriptor gen name path_s module_s =
 			end
 		) gen.gcon.net_libs;
 	SourceWriter.write w "end libs";
+	SourceWriter.newline w;
+	let args = gen.gcon.c_args in
+	if args <> [] then begin
+		SourceWriter.write w "begin opts";
+		SourceWriter.newline w;
+		List.iter (fun opt -> SourceWriter.write w opt; SourceWriter.newline w) (List.rev args);
+		SourceWriter.write w "end opts";
+		SourceWriter.newline w;
+	end;
 
 	let contents = SourceWriter.contents w in
 	let f = open_out (gen.gcon.file ^ "/" ^ name) in
