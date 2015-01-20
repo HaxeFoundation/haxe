@@ -2056,3 +2056,6 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TCast (f e1,t); etype = ft e.etype }
 	| TMeta (m,e1) ->
 		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
+
+let print_if b e =
+	if b then print_endline (s_expr_pretty "" (s_type (print_context())) e)
