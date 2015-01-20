@@ -83,7 +83,7 @@ package cs.internal;
 		if (obj == null)
 			return false;
 		
-		Closure c = cast obj;
+		var c:Closure = cast obj;
 		return (c.obj == this.obj && c.field == this.field);
 	}
 }
