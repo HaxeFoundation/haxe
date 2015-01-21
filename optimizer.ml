@@ -667,17 +667,18 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 			])
 	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) ->
 		begin try
+			let num_expr = ref 0 in
+			let rec loop e = match fst e with
+				| EContinue | EBreak ->
+					raise Exit
+				| _ ->
+					incr num_expr;
+					Ast.map_expr loop e
+			in
+			ignore(loop e2);
 			let v = add_local ctx i pt in
 			let e2 = type_expr ctx e2 NoValue in
-			let i = ref 0 in
-			let rec loop e =
-				incr i;
-				match e.eexpr with
-				| TBreak | TContinue -> raise Exit
-				| _ -> Type.iter loop e
-			in
-			loop e2;
-			let cost = (List.length el) * !i in
+			let cost = (List.length el) * !num_expr in
 			let max_cost = try
 				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
 			with Not_found ->
