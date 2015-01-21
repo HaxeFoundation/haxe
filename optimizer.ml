@@ -665,6 +665,20 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			])
+	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) ->
+		begin try
+			let v = add_local ctx i pt in
+			let e2 = type_expr ctx e2 NoValue in
+			let eloc = mk (TLocal v) v.v_type p in
+			let el = List.map (fun e ->
+				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
+				concat e_assign e2
+			) el in
+			let ev = mk (TVar(v, None)) ctx.t.tvoid p in
+			Some (mk (TBlock (ev :: el)) ctx.t.tvoid p)
+		with Exit ->
+			gen_int_iter pt get_next_array_element get_array_length
+		end
 	| _ , TInst({ cl_path = [],"Array" },[pt])
 	| _ , TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 		gen_int_iter pt get_next_array_element get_array_length

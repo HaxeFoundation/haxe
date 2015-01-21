@@ -128,5 +128,30 @@ class TestLocalDce {
 		trace(s);
 	}
 
-	static function keep(v) { return v; }
+	@:js('
+		var s = TestLocalDce.keep(1);
+		s += 0;
+		s += 6;
+		s += 8;
+		console.log(s);
+	')
+	static function testLoopUnroll() {
+		var s = keep(1);
+		for (i in [0, 3, 4]) {
+			s += i * 2;
+		}
+		trace(s);
+	}
+
+	@:js('console.log(5.);')
+	static function testLoopUnrollDavid() {
+		var s = 0.0;
+		inline function foo(r)
+			return 2.0 + r;
+		for ( r in [0.0,1.0] )
+			s+=foo(r);
+		trace(s);
+	}
+
+	static function keep(v:Dynamic) { return v; }
 }
