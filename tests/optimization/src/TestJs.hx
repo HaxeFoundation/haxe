@@ -13,7 +13,7 @@ class TestJs {
 	//Std.string(x);
 	//}
 
-	@:js("var a = new List();var _g_head = a.h;var _g_val = null;while(_g_head != null) {var tmp;_g_val = _g_head[0];_g_head = _g_head[1];tmp = _g_val;tmp;}")
+	@:js("var a = new List();var _g_head = a.h;var _g_val = null;while(_g_head != null) {var tmp;_g_val = _g_head[0];_g_head = _g_head[1];tmp = _g_val;}")
 	static function testListIteratorInline() {
 		var a = new List();
 		for (v in a) { }
@@ -22,6 +22,7 @@ class TestJs {
 	@:js("var a = 1;var tmp;var v2 = a;tmp = a + v2;if(tmp > 0) {}")
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_check_has_effect)
+	@:analyzer(no_local_dce)
 	static function testInlineWithArgumentUsedMoreThanOnce() {
 		var a = 1;
 		if (_inlineWithArgumentUsedMoreThanOnce(a) > 0) { }
@@ -34,6 +35,7 @@ class TestJs {
 
 	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}if(tmp) {}")
 	@:analyzer(no_check_has_effect)
+	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];
 		if (_inlineWithComplexExpr(a, 0)) {}
