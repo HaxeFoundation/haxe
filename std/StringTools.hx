@@ -26,6 +26,9 @@
 	If the first argument to any of the methods is null, the result is
 	unspecified.
 **/
+#if cpp
+using cpp.NativeString;
+#end
 #if cs
 @:keep
 #end
@@ -133,6 +136,15 @@ class StringTools {
 		return untyped s.startsWith(start);
 		#elseif cs
 		return untyped s.StartsWith(start);
+		#elseif cpp
+		if (s.length<start.length)
+			return false;
+		var p0 = s.c_str();
+		var p1 = start.c_str();
+		for(i in 0...start.length)
+			if ( p0.at(i) != p1.at(i) )
+				return false;
+		return true;
 		#else
 		return( s.length >= start.length && s.substr(0, start.length) == start );
 		#end
@@ -150,6 +162,15 @@ class StringTools {
 		return untyped s.endsWith(end);
 		#elseif cs
 		return untyped s.EndsWith(end);
+		#elseif cpp
+		if (s.length<end.length)
+			return false;
+		var p0 = s.c_str().add( s.length-end.length );
+		var p1 = end.c_str();
+		for(i in 0...end.length)
+			if ( p0.at(i) != p1.at(i) )
+				return false;
+		return true;
 		#else
 		var elen = end.length;
 		var slen = s.length;
