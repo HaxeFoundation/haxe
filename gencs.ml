@@ -2349,7 +2349,7 @@ let configure gen =
 		let sprops, snonprops = partition_props cl cl.cl_ordered_statics in
 		(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
 		if not cl.cl_interface then begin
-			(* we don't want to generate properties for abstrac implementation classes, because they don't have object to work with *)
+			(* we don't want to generate properties for abstract implementation classes, because they don't have object to work with *)
 			if (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) then List.iter (gen_prop w true cl is_final) sprops;
 			List.iter (gen_class_field w true cl is_final) snonprops
 		end;
