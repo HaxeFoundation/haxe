@@ -1246,11 +1246,15 @@ end
 module LocalDce = struct
 	let apply e =
 		let is_used v = Meta.has Meta.Used v.v_meta || type_has_analyzer_option v.v_type flag_no_local_dce in
+		let is_ref_type t = match t with
+			| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
+			| _ -> false
+		in
 		let use v = v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta in
 		let has_side_effect e = match e.eexpr with
 			| TVar(v,None) -> is_used v
 			| TVar(v,Some e1) -> is_used v || Optimizer.has_side_effect e1
-			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) -> is_used v || Optimizer.has_side_effect e2
+			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) -> is_used v || Optimizer.has_side_effect e2 || is_ref_type v.v_type
 			| _ -> Optimizer.has_side_effect e
 		in
 		let rec collect e = match e.eexpr with
@@ -1268,7 +1272,7 @@ module LocalDce = struct
 				e
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 				let e2 = loop false e2 in
-				if not (is_used v) then
+				if not (is_used v) && not (is_ref_type v.v_type) then
 					e2
 				else
 					{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v},e2)}
