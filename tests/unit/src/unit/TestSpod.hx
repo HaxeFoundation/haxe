@@ -22,6 +22,8 @@ class TestSpod extends Test
 		try cnx.request('DROP TABLE MySpodClass') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE OtherSpodClass') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE NullableSpodClass') catch(e:Dynamic) {}
+		try cnx.request('DROP TABLE ClassWithStringId') catch(e:Dynamic) {}
+		try cnx.request('DROP TABLE ClassWithStringIdRef') catch(e:Dynamic) {}
 		TableCreate.create(MySpodClass.manager);
 		TableCreate.create(OtherSpodClass.manager);
 		TableCreate.create(NullableSpodClass.manager);
