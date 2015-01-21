@@ -526,7 +526,7 @@ class RunCi {
 						runCommand("wget", ["-nv", "https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh"], true);
 						runCommand("chmod", ["a+x", "sauce_connect_setup.sh"]);
 						runCommand("./sauce_connect_setup.sh", []);
-						haxelibInstallGit("dionjwa", "nodejs-std", "master", "src", true, "nodejs");
+						haxelibInstallGit("dionjwa", "nodejs-std", "master", null, true, "nodejs");
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
 						runCommand("node", ["bin/RunSauceLabs.js", "unit-js.html"]);
