@@ -669,6 +669,11 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		begin try
 			let v = add_local ctx i pt in
 			let e2 = type_expr ctx e2 NoValue in
+			let rec loop e = match e.eexpr with
+				| TBreak | TContinue -> raise Exit
+				| _ -> Type.iter loop e
+			in
+			loop e2;
 			let eloc = mk (TLocal v) v.v_type p in
 			let el = List.map (fun e ->
 				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
