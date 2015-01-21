@@ -197,6 +197,7 @@ module Define = struct
 		| JsEs5
 		| JsFlatten
 		| KeepOldOutput
+		| LoopUnrollMaxCost
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -277,6 +278,7 @@ module Define = struct
 		| JsEs5 -> ("js_es5","Generate JS for ES5-compliant runtimes")
 		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
 		| KeepOldOutput -> ("keep_old_output","Keep old source files in the output directory (for C#/Java)")
+		| LoopUnrollMaxCost -> ("loop_unroll_max_cost","Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
