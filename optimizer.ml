@@ -727,6 +727,24 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 	| _ ->
 		None
 
+let optimize_for_loop_iterator ctx v e1 e2 p =
+	let c,tl = (match follow e1.etype with TInst (c,pl) -> c,pl | _ -> raise Exit) in
+	let _, _, fhasnext = (try raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "hasNext" with Not_found -> raise Exit) in
+	if fhasnext.cf_kind <> Method MethInline then raise Exit;
+	let tmp = gen_local ctx e1.etype in
+	let eit = mk (TLocal tmp) e1.etype p in
+	let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, tl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
+	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,quick_field_dynamic eit.etype "next")) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
+	let eblock = (match e2.eexpr with
+		| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
+		| _ -> mk (TBlock [enext;e2]) ctx.t.tvoid p
+	) in
+	mk (TBlock [
+		mk (TVar (tmp,Some e1)) ctx.t.tvoid p;
+		mk (TWhile (ehasnext,eblock,NormalWhile)) ctx.t.tvoid p
+	]) ctx.t.tvoid p
+
+
 (* ---------------------------------------------------------------------- *)
 (* SANITIZE *)
 

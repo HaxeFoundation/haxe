@@ -890,7 +890,7 @@ module Ssa = struct
 						[]
 					| e :: el ->
 						if ctx.cur_data.nd_terminates then begin
-							ctx.com.warning (Printf.sprintf "Unreachable code: %s" (s_expr_pretty e)) e.epos;
+							(* ctx.com.warning (Printf.sprintf "Unreachable code: %s" (s_expr_pretty e)) e.epos; *)
 							[]
 						end else
 							let e = loop ctx e in
@@ -1081,7 +1081,7 @@ module ConstPropagation = struct
 			| TIf(e1,e2,eo) ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
-				begin match e1.eexpr with
+				let rec check_const e1 = match e1.eexpr with
 					| TConst (TBool true) ->
 						e2
 					| TConst (TBool false) ->
@@ -1091,10 +1091,13 @@ module ConstPropagation = struct
 							| Some e ->
 								loop e
 						end
+					| TParenthesis e1 ->
+						check_const e1
 					| _ ->
 						let eo = match eo with None -> None | Some e -> Some (loop e) in
 						{e with eexpr = TIf(e1,e2,eo)}
-				end;
+				in
+				check_const e1
 			| TSwitch(e1,cases,edef) ->
 				let e1 = loop e1 in
 				let rec check_constant e = match e.eexpr with
@@ -1318,7 +1321,7 @@ module Config = struct
 			simplifier_apply = true;
 			ssa_apply = true;
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
-			check_has_effect = not (Common.raw_defined com "analyzer-no-check-has-effect");
+			check_has_effect = (Common.raw_defined com "analyzer-check-has-effect");
 			check = not (Common.raw_defined com "analyzer-no-check");
 			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 			ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");

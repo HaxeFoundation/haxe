@@ -194,7 +194,7 @@ let check_constraints ctx tname tpl tl map delayed p =
 				) constr
 			) in
 			if delayed then
-				delay ctx PCheckConstraint f
+				delay ctx PCheckConstraint (fun () -> try f() with Unify_error l -> display_error ctx (error_msg (Unify l)) p)
 			else
 				f()
 		| _ ->
@@ -3096,25 +3096,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					)
 				) in
 				let e2 = type_expr ctx e2 NoValue in
-				(* can we inline hasNext() ? *)
-				(try
-					let c,pl = (match follow e1.etype with TInst (c,pl) -> c,pl | _ -> raise Exit) in
-					let _, ft, fhasnext = (try class_field ctx c pl "hasNext" p with Not_found -> raise Exit) in
-					if fhasnext.cf_kind <> Method MethInline then raise Exit;
-					let tmp = gen_local ctx e1.etype in
-					let eit = mk (TLocal tmp) e1.etype p in
-					let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, pl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
-					let enext = mk (TVar (i,Some (make_call ctx (mk (TField (eit,quick_field_dynamic eit.etype "next")) (TFun ([],pt)) p) [] pt p))) ctx.t.tvoid p in
-					let eblock = (match e2.eexpr with
-						| TBlock el -> { e2 with eexpr = TBlock (enext :: el) }
-						| _ -> mk (TBlock [enext;e2]) ctx.t.tvoid p
-					) in
-					mk (TBlock [
-						mk (TVar (tmp,Some e1)) ctx.t.tvoid p;
-						mk (TWhile (ehasnext,eblock,NormalWhile)) ctx.t.tvoid p
-					]) ctx.t.tvoid p
-				with Exit ->
-					mk (TFor (i,e1,e2)) ctx.t.tvoid p)
+				(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 		) in
 		ctx.in_loop <- old_loop;
 		old_locals();

@@ -9,6 +9,8 @@ import sys.db.TableCreate;
 import sys.FileSystem;
 import unit.MySpodClass;
 
+using Lambda;
+
 class TestSpod extends Test
 {
 	private var cnx:Connection;
@@ -20,9 +22,13 @@ class TestSpod extends Test
 		try cnx.request('DROP TABLE MySpodClass') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE OtherSpodClass') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE NullableSpodClass') catch(e:Dynamic) {}
+		try cnx.request('DROP TABLE ClassWithStringId') catch(e:Dynamic) {}
+		try cnx.request('DROP TABLE ClassWithStringIdRef') catch(e:Dynamic) {}
 		TableCreate.create(MySpodClass.manager);
 		TableCreate.create(OtherSpodClass.manager);
 		TableCreate.create(NullableSpodClass.manager);
+		TableCreate.create(ClassWithStringId.manager);
+		TableCreate.create(ClassWithStringIdRef.manager);
 	}
 
 	private function setManager()
@@ -52,6 +58,59 @@ class TestSpod extends Test
 		scls.anEnum = SecondValue;
 
 		return scls;
+	}
+
+	public function testStringIdRel()
+	{
+		setManager();
+		var s = new ClassWithStringId();
+		s.name = "first";
+		s.field = 1;
+		s.insert();
+		var v1 = new ClassWithStringIdRef();
+		v1.ref = s;
+		v1.insert();
+		var v2 = new ClassWithStringIdRef();
+		v2.ref = s;
+		v2.insert();
+
+		s = new ClassWithStringId();
+		s.name = "second";
+		s.field = 2;
+		s.insert();
+		v1 = new ClassWithStringIdRef();
+		v1.ref = s;
+		v1.insert();
+		s = null; v1 = null; v2 = null;
+		Manager.cleanup();
+
+		var first = ClassWithStringId.manager.search($name == "first");
+		eq(first.length,1);
+		var first = first.first();
+		eq(first.field,1);
+		var frel = ClassWithStringIdRef.manager.search($ref == first);
+		eq(frel.length,2);
+		for (rel in frel)
+			eq(rel.ref, first);
+		var frel2 = ClassWithStringIdRef.manager.search($ref_id == "first");
+		eq(frel2.length,2);
+		for (rel in frel2)
+			eq(rel.ref, first);
+
+		var second = ClassWithStringId.manager.search($name == "second");
+		eq(second.length,1);
+		var second = second.first();
+		eq(second.field,2);
+		var srel = ClassWithStringIdRef.manager.search($ref == second);
+		eq(srel.length,1);
+		for (rel in srel)
+			eq(rel.ref, second);
+
+		eq(frel.array().indexOf(srel.first()), -1);
+		second.delete();
+		for (r in srel) r.delete();
+		first.delete();
+		for (r in frel) r.delete();
 	}
 
 	public function testEnum()

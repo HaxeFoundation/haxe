@@ -479,10 +479,17 @@ let map loop t =
 	| TFun (tl,r) ->
 		TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 	| TAnon a ->
-		TAnon {
-			a_fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields;
-			a_status = a.a_status;
-		}
+		let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
+		begin match !(a.a_status) with
+			| Opened ->
+				a.a_fields <- fields;
+				t
+			| _ ->
+	 			TAnon {
+					a_fields = fields;
+					a_status = a.a_status;
+				}
+		end
 	| TLazy f ->
 		let ft = !f() in
 		let ft2 = loop ft in
@@ -542,10 +549,17 @@ let apply_params cparams params t =
 		| TFun (tl,r) ->
 			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 		| TAnon a ->
-			TAnon {
-				a_fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields;
-				a_status = a.a_status;
-			}
+			let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
+			begin match !(a.a_status) with
+				| Opened ->
+					a.a_fields <- fields;
+					t
+				| _ ->
+		 			TAnon {
+						a_fields = fields;
+						a_status = a.a_status;
+					}
+			end
 		| TLazy f ->
 			let ft = !f() in
 			let ft2 = loop ft in
@@ -2042,3 +2056,6 @@ let map_expr_type f ft fv e =
 		{ e with eexpr = TCast (f e1,t); etype = ft e.etype }
 	| TMeta (m,e1) ->
 		{e with eexpr = TMeta(m, f e1); etype = ft e.etype }
+
+let print_if b e =
+	if b then print_endline (s_expr_pretty "" (s_type (print_context())) e)
