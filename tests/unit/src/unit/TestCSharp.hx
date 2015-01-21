@@ -295,6 +295,11 @@ class TestCSharp extends Test
 		i *= 2;
 	}
 
+	@:skipReflection private function refTestAssign(i:cs.Ref<Int>):Void
+	{
+		i = 2;
+	}
+
 	@:skipReflection private function outTest(out:cs.Out<Int>, x:Int):Void
 	{
 		out = x * 2;
@@ -317,6 +322,10 @@ class TestCSharp extends Test
 
 	public function testRef()
 	{
+		var i = 10;
+		refTestAssign(i);
+		eq(i, 2);
+
 		var i = 10;
 		refTest(i);
 		eq(i, 20);
