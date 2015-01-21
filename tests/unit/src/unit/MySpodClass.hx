@@ -68,3 +68,16 @@ abstract AbstractSpodTest<A>(A) from A
 		return this;
 	}
 }
+
+@:id(name)
+@:keep class ClassWithStringId extends Object
+{
+	public var name:SString<255>;
+	public var field:SInt;
+}
+
+@:keep class ClassWithStringIdRef extends Object
+{
+	public var id:SId;
+	@:relation(ref_id) public var ref:ClassWithStringId;
+}

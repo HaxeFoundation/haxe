@@ -367,9 +367,10 @@ class RecordMacros {
 					case DId: DInt;
 					case DUId: DUInt;
 					case DBigId: DBigInt;
-					default: throw "Unexpected id type, use either SId, SUId, SBigID";
+					case t = DString(_): t;
+					default: throw "Unexpected id type, use either SId, SUId, SBigID or SString";
 				}
-			
+
 			if( f == null ) {
 				f = {
 					name : r.key,
