@@ -112,7 +112,8 @@ class Parser
 				case S.PCDATA:
 					if (c == '<'.code)
 					{
-						var child = Xml.createPCData(buf.toString() + str.substr(start, p - start));
+						buf.addSub(str, start, p - start);
+						var child = Xml.createPCData(buf.toString());
 						buf = new StringBuf();
 						parent.addChild(child);
 						nsubs++;
@@ -246,7 +247,8 @@ class Parser
 							// HTML allows these in attributes values
 							throw "Invalid unescaped " + String.fromCharCode(c) + " in attribute value";
 						case _ if (c == attrValQuote):
-							var val = buf.toString() + str.substr(start, p - start);
+							buf.addSub(str, start, p - start);
+							var val = buf.toString();
 							buf = new StringBuf();
 							xml.set(aname, val);
 							state = S.IGNORE_SPACES;
@@ -353,7 +355,8 @@ class Parser
 					} else if (!isValidChar(c) && c != "#".code) {
 						if( strict )
 							throw 'Invalid character in entity: ' + String.fromCharCode(c);
-						buf.add("&" + str.substr(start, p - start));
+						buf.addChar("&".code);
+						buf.addSub(str, start, p - start);
 						p--;
 						start = p;
 						state = escapeNext;
@@ -370,8 +373,17 @@ class Parser
 
 		if (state == S.PCDATA)
 		{
-			if (p != start || nsubs == 0)
-				parent.addChild(Xml.createPCData(buf.toString() + str.substr(start, p - start)));
+			if (p != start || nsubs == 0) {
+				buf.addSub(str, start, p-start);
+				parent.addChild(Xml.createPCData(buf.toString()));
+			}
+			return p;
+		}
+
+		if( !strict && state == S.ESCAPE && escapeNext == S.PCDATA ) {
+			buf.addChar("&".code);
+			buf.addSub(str, start, p - start);
+			parent.addChild(Xml.createPCData(buf.toString()));
 			return p;
 		}
 
