@@ -396,8 +396,12 @@ module Simplifier = struct
 					| e :: el ->
 						begin match e.eexpr with
 							| TVar(v,Some e1) when Meta.has Meta.CompilerGenerated v.v_meta ->
-								var_map := IntMap.add v.v_id (loop e1) !var_map;
-								loop2 el
+								if el = [] then
+									[loop e1]
+								else begin
+									var_map := IntMap.add v.v_id (loop e1) !var_map;
+									loop2 el
+								end
 							| TVar(v,None) when not (com.platform = Php) ->
 								begin match el with
 									| {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v == v2 ->
@@ -1242,11 +1246,15 @@ end
 module LocalDce = struct
 	let apply e =
 		let is_used v = Meta.has Meta.Used v.v_meta || type_has_analyzer_option v.v_type flag_no_local_dce in
+		let is_ref_type t = match t with
+			| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
+			| _ -> false
+		in
 		let use v = v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta in
 		let has_side_effect e = match e.eexpr with
 			| TVar(v,None) -> is_used v
 			| TVar(v,Some e1) -> is_used v || Optimizer.has_side_effect e1
-			| TBinop(OpAssign,{eexpr = TLocal v},e2) -> is_used v || Optimizer.has_side_effect e2
+			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) -> is_used v || Optimizer.has_side_effect e2 || is_ref_type v.v_type
 			| _ -> Optimizer.has_side_effect e
 		in
 		let rec collect e = match e.eexpr with
@@ -1258,47 +1266,56 @@ module LocalDce = struct
 			| _ ->
 				Type.iter collect e
 		in
-		let rec loop e = match e.eexpr with
+		let rec loop need_val e = match e.eexpr with
 			| TLocal v ->
 				use v;
 				e
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-				let e2 = loop e2 in
-				if not (is_used v) then
+				let e2 = loop false e2 in
+				if not (is_used v) && not (is_ref_type v.v_type) then
 					e2
 				else
 					{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v},e2)}
 			| TVar(v,Some e1) when not (is_used v) ->
-				let e1 = loop e1 in
+				let e1 = loop true e1 in
 				e1
 			| TWhile(e1,e2,flag) ->
 				collect e2;
-				let e2 = loop e2 in
-				let e1 = loop e1 in
+				let e2 = loop false e2 in
+				let e1 = loop false e1 in
 				{e with eexpr = TWhile(e1,e2,flag)}
 			| TFor(v,e1,e2) ->
 				collect e2;
-				let e2 = loop e2 in
-				let e1 = loop e1 in
+				let e2 = loop false e2 in
+				let e1 = loop false e1 in
 				{e with eexpr = TFor(v,e1,e2)}
 			| TBlock el ->
 				let rec block el = match el with
 					| e :: el ->
 						let el = block el in
-						if el <> [] && not (has_side_effect e) then
+						if not need_val && not (has_side_effect e) then
 							el
 						else begin
-							let e = loop e in
+							let e = loop false e in
 							e :: el
 						end
 					| [] ->
 						[]
 				in
 				{e with eexpr = TBlock (block el)}
+			| TCall(e1, el) ->
+				let e1 = loop false e1 in
+				let el = List.map (loop true) el in
+				{e with eexpr = TCall(e1,el)}
+			| TIf(e1,e2,e3) ->
+				let e3 = match e3 with None -> None | Some e -> Some (loop need_val e) in
+				let e2 = loop need_val e2 in
+				let e1 = loop false e1 in
+				{e with eexpr = TIf(e1,e2,e3)}
 			| _ ->
-				Type.map_expr loop e
+				Type.map_expr (loop false) e
 		in
-		loop e
+		loop false e
 end
 
 module Config = struct

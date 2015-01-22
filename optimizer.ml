@@ -665,6 +665,36 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			])
+	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) ->
+		begin try
+			let num_expr = ref 0 in
+			let rec loop e = match fst e with
+				| EContinue | EBreak ->
+					raise Exit
+				| _ ->
+					incr num_expr;
+					Ast.map_expr loop e
+			in
+			ignore(loop e2);
+			let v = add_local ctx i pt in
+			let e2 = type_expr ctx e2 NoValue in
+			let cost = (List.length el) * !num_expr in
+			let max_cost = try
+				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
+			with Not_found ->
+				250
+			in
+			if cost > max_cost then raise Exit;
+			let eloc = mk (TLocal v) v.v_type p in
+			let el = List.map (fun e ->
+				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
+				concat e_assign e2
+			) el in
+			let ev = mk (TVar(v, None)) ctx.t.tvoid p in
+			Some (mk (TBlock (ev :: el)) ctx.t.tvoid p)
+		with Exit ->
+			gen_int_iter pt get_next_array_element get_array_length
+		end
 	| _ , TInst({ cl_path = [],"Array" },[pt])
 	| _ , TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 		gen_int_iter pt get_next_array_element get_array_length
