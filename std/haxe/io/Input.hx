@@ -190,7 +190,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public #if !flash inline #end function readFloat() : Float {
+	public #if !(flash || python) inline #end function readFloat() : Float {
 		return FPHelper.i32ToFloat(readInt32());
 	}
 
