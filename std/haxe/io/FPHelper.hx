@@ -207,7 +207,7 @@ class FPHelper {
 			}
 			return i64;
 		#elseif php	
-			var a = untyped __call__('unpack','i',__call__('pack', 'd', v));
+			var a = untyped __call__('unpack','ii',__call__('pack', 'd', v));
 			var i64 = i64tmp;
 			@:privateAccess {
 				i64.low = a[1];
