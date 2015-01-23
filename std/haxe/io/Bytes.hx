@@ -266,8 +266,8 @@ class Bytes {
 		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
 		#else
 		var i = FPHelper.doubleToI64(v);
-		setI32(pos, i.getLow());
-		setI32(pos + 4, i.getHigh());
+		setI32(pos, haxe.Int64.getLow(i));
+		setI32(pos + 4, haxe.Int64.getHigh(i));
 		#end
 	}
 

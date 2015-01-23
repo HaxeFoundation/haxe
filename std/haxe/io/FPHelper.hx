@@ -216,20 +216,20 @@ class FPHelper {
 			return i64;
 		#else
 			var i64 = i64tmp;
-			if( f == 0 ) {
+			if( v == 0 ) {
 				@:privateAccess {
 					i64.low = 0;
 					i64.high = 0;
 				}
 			} else {
-				var af = f < 0 ? -f : f;
-				var exp = Math.floor(Math.log(af) / LN2);
-				var sig = Math.floor(af / Math.pow(2, exp) * 4503599627370496.); // 2^52
+				var av = v < 0 ? -v : v;
+				var exp = Math.floor(Math.log(av) / LN2);
+				var sig = Math.floor(av / Math.pow(2, exp) * 4503599627370496.); // 2^52
 				var sig_l = sig & 0xFFFFFFFF;
 				var sig_h = Std.int(sig / 4294967296.0);
 				@:privateAccess {
 					i64.low = sig_l;
-					i64.high = (f < 0 ? 0x80000000 : 0) | (exp << 10) | sigh; 
+					i64.high = (v < 0 ? 0x80000000 : 0) | (exp << 10) | sig_h; 
 				}
 			}
 			return i64;
