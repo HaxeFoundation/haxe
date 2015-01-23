@@ -10466,6 +10466,8 @@ struct
 				let to_add = ref [] in
 				let fields = List.filter (fun cf ->
 					match cf.cf_kind with
+						| Var _ when gen.gcon.platform = Cs && Meta.has Meta.Event cf.cf_meta ->
+							true
 						| Var vkind when not (Type.is_extern_field cf && Meta.has Meta.Property cf.cf_meta) ->
 							(match vkind.v_read with
 								| AccCall ->

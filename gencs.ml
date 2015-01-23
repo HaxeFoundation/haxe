@@ -708,7 +708,7 @@ let rec get_fun_modifiers meta access modifiers =
 		| (Meta.ReadOnly,[],_) :: meta -> get_fun_modifiers meta access ("readonly" :: modifiers)
 		| (Meta.Unsafe,[],_) :: meta -> get_fun_modifiers meta access ("unsafe" :: modifiers)
 		| (Meta.Volatile,[],_) :: meta -> get_fun_modifiers meta access ("volatile" :: modifiers)
-		| (Meta.Custom "?prop_impl",[],_) :: meta -> get_fun_modifiers meta "private" modifiers
+		| (Meta.Custom ("?prop_impl" | "?event_impl"),[],_) :: meta -> get_fun_modifiers meta "private" modifiers
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
@@ -1785,6 +1785,26 @@ let configure gen =
 		write w (String.concat " " (List.rev !parts));
 	in
 
+	let rec gen_event w is_static cl (event,t,custom,add,remove) =
+		let is_interface = cl.cl_interface in
+		let visibility = if is_interface then "" else "public" in
+		let visibility, modifiers = get_fun_modifiers event.cf_meta visibility ["event"] in
+		let v_n = if is_static then "static" else "" in
+		gen_field_decl w visibility v_n modifiers (t_s (run_follow gen t)) (change_field event.cf_name);
+		if custom && not is_interface then begin
+			write w " ";
+			begin_block w;
+			print w "add { _add_%s(value); }" event.cf_name;
+			newline w;
+			print w "remove { _remove_%s(value); }" event.cf_name;
+			newline w;
+			end_block w;
+			newline w;
+		end else
+			write w ";\n";
+		newline w;
+	in
+
 	let rec gen_prop w is_static cl is_final (prop,t,get,set) =
 		gen_attributes w prop.cf_meta;
 		let is_interface = cl.cl_interface in
@@ -1860,7 +1880,7 @@ let configure gen =
 				let unop = PMap.find name unops_names in
 				"operator " ^ s_unop unop, false, false
 			with | Not_found ->
-				if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then
+				if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta || Meta.has (Meta.Custom "?event_impl") cf.cf_meta then
 					"_" ^ name, false, false
 				else
 					name, false, false
@@ -2299,17 +2319,24 @@ let configure gen =
 				newline w
 		);
 
-		(* collect properties *)
-		let partition_props cl cflist =
-			let t = TInst(cl, List.map snd cl.cl_params) in
-			(* first get all vars declared as properties *)
-			let props, nonprops = List.partition (fun v -> match v.cf_kind with
-				| Var { v_read = AccCall } | Var { v_write = AccCall } ->
-					Type.is_extern_field v && Meta.has Meta.Property v.cf_meta
-				| _ -> false
-			) cflist in
-			let props = ref (List.map (fun v -> (v.cf_name, ref (v,v.cf_type,None,None))) props) in
+		(* collect properties and events *)
+		let partition cf cflist =
+			let events, props, nonprops = ref [], ref [], ref [] in
 
+			List.iter (fun v -> match v.cf_kind with
+				| Var { v_read = AccCall } | Var { v_write = AccCall } when Type.is_extern_field v && Meta.has Meta.Property v.cf_meta ->
+					props := (v.cf_name, ref (v, v.cf_type, None, None)) :: !props;
+				| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event v.cf_meta ->
+					if v.cf_public then gen.gcon.error "@:event fields must be private" v.cf_pos;
+					v.cf_meta <- (Meta.SkipReflection, [], null_pos) :: v.cf_meta;
+					events := (v.cf_name, ref (v, v.cf_type, false, None, None)) :: !events;
+				| _ ->
+					nonprops := v :: !nonprops;
+			) cflist;
+
+			let events, nonprops = !events, !nonprops in
+
+			let t = TInst(cl, List.map snd cl.cl_params) in
 			let find_prop name = try
 					List.assoc name !props
 				with | Not_found -> match field_access gen t name with
@@ -2319,6 +2346,14 @@ let configure gen =
 						ret
 					| _ -> raise Not_found
 			in
+
+			let find_event name = List.assoc name events in
+
+			let is_empty_function cf = match cf.cf_expr with
+				| Some {eexpr = TFunction { tf_expr = {eexpr = TBlock []}}} -> true
+				| _ -> false
+			in
+
 			let interf = cl.cl_interface in
 			(* get all functions that are getters/setters *)
 			let nonprops = List.filter (function
@@ -2338,21 +2373,67 @@ let configure gen =
 					prop := (v,t,get,Some cf);
 					not interf
 				with | Not_found -> true)
+				| cf when String.starts_with cf.cf_name "add_" -> (try
+					let event = find_event (String.sub cf.cf_name 4 (String.length cf.cf_name - 4)) in
+					let v, t, _, add, remove = !event in
+					assert (add = None);
+					cf.cf_meta <- (Meta.Custom "?event_impl", [], null_pos) :: cf.cf_meta;
+					let custom = not (is_empty_function cf) in
+					event := (v, t, custom, Some cf, remove);
+					false
+				with | Not_found -> true)
+				| cf when String.starts_with cf.cf_name "remove_" -> (try
+					let event = find_event (String.sub cf.cf_name 7 (String.length cf.cf_name - 7)) in
+					let v, t, _, add, remove = !event in
+					assert (remove = None);
+					cf.cf_meta <- (Meta.Custom "?event_impl", [], null_pos) :: cf.cf_meta;
+					let custom = not (is_empty_function cf) in
+					event := (v, t, custom, add, Some cf);
+					false
+				with | Not_found -> true)
 				| _ -> true
 			) nonprops in
+
+			let nonprops = ref nonprops in
+			List.iter (fun (n,r) ->
+				let ev, t, custom, add, remove = !r in
+				let tmeth = (tfun [t] basic.tvoid) in
+				match add, remove with
+				| None, _ ->
+					gen.gcon.error ("Missing event method add_" ^ n) ev.cf_pos;
+					failwith "Build failed"
+				| _, None ->
+					gen.gcon.error ("Missing event method remove_" ^ n) ev.cf_pos;
+					failwith "Build failed"
+				| Some add, Some remove ->
+					let check cf = try
+						type_eq EqStrict cf.cf_type tmeth
+					with Unify_error el ->
+						List.iter (fun e -> gen.gcon.error (Typecore.unify_error_msg (print_context()) e) cf.cf_pos) el;
+						failwith "Build failed";
+					in
+					check add;
+					check remove;
+					if custom && not cl.cl_interface then
+						nonprops := add :: remove :: !nonprops
+			) events;
+
+			let evts = List.map (fun(_,v) -> !v) events in
 			let ret = List.map (fun (_,v) -> !v) !props in
 			let ret = List.filter (function | (_,_,None,None) -> false | _ -> true) ret in
-			ret, nonprops
+			evts, ret, !nonprops
 		in
 
-		let fprops, fnonprops = partition_props cl cl.cl_ordered_fields in
-		let sprops, snonprops = partition_props cl cl.cl_ordered_statics in
+		let fevents, fprops, fnonprops = partition cl cl.cl_ordered_fields in
+		let sevents, sprops, snonprops = partition cl cl.cl_ordered_statics in
 		(if is_some cl.cl_constructor then gen_class_field w false cl is_final (get cl.cl_constructor));
 		if not cl.cl_interface then begin
-			(* we don't want to generate properties for abstrac implementation classes, because they don't have object to work with *)
+			(* we don't want to generate properties for abstract implementation classes, because they don't have object to work with *)
+			List.iter (gen_event w true cl) sevents;
 			if (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) then List.iter (gen_prop w true cl is_final) sprops;
 			List.iter (gen_class_field w true cl is_final) snonprops
 		end;
+		List.iter (gen_event w false cl) fevents;
 		List.iter (gen_prop w false cl is_final) fprops;
 		List.iter (gen_class_field w false cl is_final) fnonprops;
 		check_special_behaviors w cl;
@@ -2461,7 +2542,14 @@ let configure gen =
 				let all_fields = (Option.map_default (fun cf -> [cf]) [] cl.cl_constructor) @ cl.cl_ordered_fields @ cl.cl_ordered_statics in
 				List.iter (fun cf ->
 					cf.cf_type <- run_follow_gen cf.cf_type;
-					cf.cf_expr <- Option.map type_map cf.cf_expr
+					cf.cf_expr <- Option.map type_map cf.cf_expr;
+
+					(* add @:skipReflection to @:event vars *)
+					match cf.cf_kind with
+					| Var _ when (Meta.has Meta.Event cf.cf_meta) && not (Meta.has Meta.SkipReflection cf.cf_meta) ->
+						cf.cf_meta <- (Meta.SkipReflection, [], null_pos) :: cf.cf_meta;
+					| _ -> ()
+
 				) all_fields;
 			 cl.cl_dynamic <- Option.map run_follow_gen cl.cl_dynamic;
 			 cl.cl_array_access <- Option.map run_follow_gen cl.cl_array_access;
