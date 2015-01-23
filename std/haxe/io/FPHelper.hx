@@ -6,7 +6,10 @@ package haxe.io;
 **/
 class FPHelper {
 
+	#if !(java || cs)
 	static var i64tmp = Int64.ofInt(0);
+	#end
+	
 	#if neko
 		#if neko_v21
 		static var helper = neko.NativeArray.alloc(2);
@@ -25,7 +28,7 @@ class FPHelper {
 		static var _float_bytes = cpp.Lib.load("std","float_bytes",2);
 		static var _double_bytes = cpp.Lib.load("std","double_bytes",2);
 	#elseif cs
-		static var helper = new cs.NativeArray(8);
+		static var helper = new cs.NativeArray<cs.types.UInt8>(8);
 	#elseif java
 		static var helper = {
 			var h = java.nio.ByteBuffer.allocateDirect(8);
@@ -102,7 +105,7 @@ class FPHelper {
 			return r.getI32(0);
 		#elseif cs
 			// TODO : is this bytes allocation eliminated by JIT ? If not can we do otherwise ?
-			var bytes = cs.system.BitConverter.GetBytes(cast(x, Single));
+			var bytes = cs.system.BitConverter.GetBytes(cast(f, Single));
 			return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
 		#elseif java
 			var helper = helper;
@@ -152,7 +155,7 @@ class FPHelper {
 		#elseif java
 			var helper = helper;
 			helper.putInt(0, low);
-			helper.putInt(4, hight;
+			helper.putInt(4, high);
 			return helper.getDouble(0);
 		#elseif php
 			return untyped  __call__('unpack', 'd', (__call__('pack', 'i', low):String)+(__call__('pack', 'i', high):String))[1];
@@ -200,12 +203,11 @@ class FPHelper {
 		#elseif java
 			var helper = helper;
 			helper.putDouble(0, v);
-			var i64 = i64tmp;
-			@:privateAccess {
-				i64.low = helper.getInt(0);
-				i64.high = helper.getInt(4);
-			}
-			return i64;
+			return helper.getLong(0);
+		#elseif cs
+			// TODO : is this bytes allocation eliminated by JIT ? If not can we do otherwise ?
+			var bytes = cs.system.BitConverter.GetBytes(v);
+			return haxe.Int64.make(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24), bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24));	
 		#elseif php	
 			var a = untyped __call__('unpack','ii',__call__('pack', 'd', v));
 			var i64 = i64tmp;
