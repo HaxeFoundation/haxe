@@ -40,7 +40,7 @@ class Bytes {
 
 	public inline function get( pos : Int ) : Int {
 		#if neko
-		return untyped __dollar__sget(b,pos);
+		return untyped $sget(b,pos);
 		#elseif flash9
 		return b[pos];
 		#elseif php
@@ -58,7 +58,7 @@ class Bytes {
 
 	public inline function set( pos : Int, v : Int ) : Void {
 		#if neko
-		untyped __dollar__sset(b,pos,v);
+		untyped $sset(b,pos,v);
 		#elseif flash9
 		b[pos] = v;
 		#elseif php
@@ -81,7 +81,7 @@ class Bytes {
 		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw Error.OutsideBounds;
 		#end
 		#if neko
-		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
+		try untyped $sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif php
 		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
 		#elseif flash9
@@ -207,10 +207,16 @@ class Bytes {
 		return length - other.length;
 		#end
 	}
-
+	
+	
+	/**
+		Returns the IEEE double precision value at given position (in low endian encoding).
+		Result is unspecified if reading outside of the bounds
+	**/
+	#if (neko_v21 || cpp) inline #end
 	public function getDouble( pos : Int ) : Float {
-		#if neko
-		return untyped Input._double_of_bytes(sub(pos,8).b,false);
+		#if neko_v21
+		return untyped $sgetd(b, pos, false);
 		#elseif flash9
 		b.position = pos;
 		return b.readDouble();
@@ -218,14 +224,18 @@ class Bytes {
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_double(b,pos);
 		#else
-		var b = new haxe.io.BytesInput(this,pos,8);
-		return b.readDouble();
+		return FPHelper.i64ToDouble(getI32(pos),getI32(pos+4));
 		#end
 	}
 
+	/**
+		Returns the IEEE single precision value at given position (in low endian encoding).
+		Result is unspecified if reading outside of the bounds
+	**/
+	#if (neko_v21 || cpp) inline #end
 	public function getFloat( pos : Int ) : Float {
-		#if neko
-		return untyped Input._float_of_bytes(sub(pos,4).b,false);
+		#if neko_v21
+		return untyped $sgetf(b, pos, false);
 		#elseif flash9
 		b.position = pos;
 		return b.readFloat();
@@ -238,9 +248,16 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Store the IEEE double precision value at given position in low endian encoding.
+		Result is unspecified if writing outside of the bounds.
+	**/
+	#if neko_v21 inline #end
 	public function setDouble( pos : Int, v : Float ) : Void {
-		#if neko
-		untyped $sblit(b, pos, Output._double_bytes(v,false), 0, 8);
+		#if neko_v21
+		untyped $ssetd(b, pos, v, false);
+		#elseif neko
+		untyped $sblit(b, pos, FPHelper._double_bytes(v,false), 0, 8);
 		#elseif flash9
 		b.position = pos;
 		b.writeDouble(v);
@@ -248,13 +265,22 @@ class Bytes {
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
 		#else
-		throw "Not supported";
+		var i = FPHelper.doubleToI64(v);
+		setI32(pos, i.getLow());
+		setI32(pos + 4, i.getHigh());
 		#end
 	}
 
+	/**
+		Store the IEEE single precision value at given position in low endian encoding.
+		Result is unspecified if writing outside of the bounds.
+	**/
+	#if neko_v21 inline #end
 	public function setFloat( pos : Int, v : Float ) : Void {
-		#if neko
-		untyped $sblit(b, pos, Output._float_bytes(v,false), 0, 4);
+		#if neko_v21
+		untyped $ssetf(b, pos, v, false);
+		#else
+		untyped $sblit(b, pos, FPHelper._float_bytes(v,false), 0, 4);
 		#elseif flash9
 		b.position = pos;
 		b.writeFloat(v);
@@ -262,7 +288,32 @@ class Bytes {
 		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
 		untyped __global__.__hxcpp_memory_set_float(b,pos,v);
 		#else
-		throw "Not supported";
+		setI32(pos, FPHelper.floatToI32(v));
+		#end
+	}
+	
+	/** 
+		Returns the 32 bit integer at given position (in low endian encoding).
+	**/
+	public inline function getI32( pos : Int ) : Int {
+		#if neko_v21
+		return untyped $sget32(b, pos, false);
+		#else
+		return get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
+		#end
+	}
+
+	/**
+		Store the 32 bit integer at given position (in low endian encoding).
+	**/
+	public inline function setI32( pos : Int, value : Int ) : Void {
+		#if neko_v21
+		untyped $sset32(b, pos, value, false);
+		#else
+		set(pos, value);
+		set(pos + 1, value >> 8);
+		set(pos + 2, value >> 16);
+		set(pos + 3, value >>> 24);
 		#end
 	}
 

@@ -32,7 +32,11 @@ class NativeString {
 	}
 
 	public static inline function length( s : NativeString ) : Int {
-		return untyped __dollar__ssize(s);
+		return untyped $ssize(s);
+	}
+	
+	public static inline function alloc( size : Int ) : NativeString {
+		return untyped $smake(size);
 	}
 
 }
