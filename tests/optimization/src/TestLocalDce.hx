@@ -128,13 +128,13 @@ class TestLocalDce {
 		trace(s);
 	}
 
-	@:js('
-		var s = TestLocalDce.keep(1);
-		s += 0;
-		s += 6;
-		s += 8;
-		console.log(s);
-	')
+	//@:js('
+		//var s = TestLocalDce.keep(1);
+		//s += 0;
+		//s += 6;
+		//s += 8;
+		//console.log(s);
+	//')
 	static function testLoopUnroll() {
 		var s = keep(1);
 		for (i in [0, 3, 4]) {
@@ -143,7 +143,7 @@ class TestLocalDce {
 		trace(s);
 	}
 
-	@:js('console.log(5.);')
+	//@:js('console.log(5.);')
 	static function testLoopUnrollDavid() {
 		var s = 0.0;
 		inline function foo(r)
@@ -153,18 +153,18 @@ class TestLocalDce {
 		trace(s);
 	}
 
-	@:js('
-		var s = TestLocalDce.keep(1);
-		var _g = 0;
-		var _g1 = [0,3,4];
-		while(_g < _g1.length) {
-			var i = _g1[_g];
-			++_g;
-			s += i * 2;
-			continue;
-		}
-		console.log(s);
-	')
+	//@:js('
+		//var s = TestLocalDce.keep(1);
+		//var _g = 0;
+		//var _g1 = [0,3,4];
+		//while(_g < _g1.length) {
+			//var i = _g1[_g];
+			//++_g;
+			//s += i * 2;
+			//continue;
+		//}
+		//console.log(s);
+	//')
 	static function testLoopUnrollContinue() {
 		var s = keep(1);
 		for (i in [0, 3, 4]) {
@@ -174,18 +174,18 @@ class TestLocalDce {
 		trace(s);
 	}
 
-	@:js('
-		var s = TestLocalDce.keep(1);
-		var _g = 0;
-		var _g1 = [0,3,4];
-		while(0 < _g1.length) {
-			var i = _g1[0];
-			++_g;
-			s += i * 2;
-			break;
-		}
-		console.log(s);
-	')
+	//@:js('
+		//var s = TestLocalDce.keep(1);
+		//var _g = 0;
+		//var _g1 = [0,3,4];
+		//while(0 < _g1.length) {
+			//var i = _g1[0];
+			//++_g;
+			//s += i * 2;
+			//break;
+		//}
+		//console.log(s);
+	//')
 	static function testLoopUnrollBreak() {
 		var s = keep(1);
 		for (i in [0, 3, 4]) {
