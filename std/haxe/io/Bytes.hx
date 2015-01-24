@@ -279,7 +279,7 @@ class Bytes {
 	public function setFloat( pos : Int, v : Float ) : Void {
 		#if neko_v21
 		untyped $ssetf(b, pos, v, false);
-		#else
+		#elseif neko
 		untyped $sblit(b, pos, FPHelper._float_bytes(v,false), 0, 4);
 		#elseif flash9
 		b.position = pos;

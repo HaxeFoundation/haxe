@@ -35,6 +35,12 @@ class FPHelper {
 			h.order(java.nio.ByteOrder.LITTLE_ENDIAN);
 			h;
 		}
+	#elseif flash
+		static var helper = {
+			var b = new flash.utils.ByteArray();
+			b.endian = flash.utils.Endian.LITTLE_ENDIAN;
+			b;
+		}
 	#else
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 	#end
@@ -80,6 +86,12 @@ class FPHelper {
 			return helper.getFloat(0);
 		#elseif php
 			return untyped  __call__('unpack', 'f', __call__('pack', 'i', i))[1];
+		#elseif flash
+			var helper = helper;
+			helper.position = 0;
+			helper.writeUnsignedInt(i);
+			helper.position = 0;
+			return helper.readFloat();
 		#else
 			var sign = 1 - ((i >>> 31) << 1);
 			var exp = (i >>> 23) & 0xFF;
@@ -111,14 +123,20 @@ class FPHelper {
 			var helper = helper;
 			helper.putFloat(0, f);
 			return helper.getInt(0);
+		#elseif flash
+			var helper = helper;
+			helper.position = 0;
+			helper.writeFloat(f);
+			helper.position = 0;
+			return helper.readUnsignedInt();
 		#elseif php
 			return untyped __call__('unpack','i',__call__('pack', 'f', f))[1];
 		#else
 			if( f == 0 ) return 0;
 			var af = f < 0 ? -f : f;
-			var exp = Math.floor(Math.log(af) / LN2);
+			var exp = Math.round(Math.log(af) / LN2);
 			if( exp < -127 ) exp = -127 else if( exp > 128 ) exp = 128;
-			var sig = Math.floor(af / Math.pow(2, exp) * 0x800000) & 0x7FFFFF;
+			var sig = Math.round(af / Math.pow(2, exp) * 0x800000) & 0x7FFFFF;
 			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig;
 		#end
 	}
@@ -157,12 +175,19 @@ class FPHelper {
 			helper.putInt(0, low);
 			helper.putInt(4, high);
 			return helper.getDouble(0);
+		#elseif flash
+			var helper = helper;
+			helper.position = 0;
+			helper.writeUnsignedInt(low);
+			helper.writeUnsignedInt(high);
+			helper.position = 0;
+			return helper.readDouble();
 		#elseif php
 			return untyped  __call__('unpack', 'd', (__call__('pack', 'i', low):String)+(__call__('pack', 'i', high):String))[1];
 		#else
 			var sign = 1 - ((high >>> 31) << 1);
-			var exp = ((high >> 10) & 0x7FF) - 1023;
-			var sig = (high&0x3FF) * 4294967296. + (low>>>31) * 2147483648. + (low&0x7FFFFFFF);
+			var exp = ((high >> 20) & 0x7FF) - 1023;
+			var sig = (high&0xFFFFF) * 4294967296. + (low>>>31) * 2147483648. + (low&0x7FFFFFFF);
 			if( sig == 0 && exp == -1023 )
 				return 0.0;
 			return sign*(1.0 + Math.pow(2, -52)*sig) * Math.pow(2, exp);
@@ -208,6 +233,17 @@ class FPHelper {
 			// TODO : is this bytes allocation eliminated by JIT ? If not can we do otherwise ?
 			var bytes = cs.system.BitConverter.GetBytes(v);
 			return haxe.Int64.make(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24), bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24));	
+		#elseif flash
+			var helper = helper;
+			helper.position = 0;
+			helper.writeDouble(v);
+			helper.position = 0;
+			var i64 = i64tmp;
+			@:privateAccess {
+				i64.low = helper.readUnsignedInt();
+				i64.high = helper.readUnsignedInt();
+			}
+			return i64;
 		#elseif php	
 			var a = untyped __call__('unpack','ii',__call__('pack', 'd', v));
 			var i64 = i64tmp;
@@ -225,13 +261,13 @@ class FPHelper {
 				}
 			} else {
 				var av = v < 0 ? -v : v;
-				var exp = Math.floor(Math.log(av) / LN2);
-				var sig = Math.floor(av / Math.pow(2, exp) * 4503599627370496.); // 2^52
-				var sig_l = sig & 0xFFFFFFFF;
+				var exp = Math.round(Math.log(av) / LN2);
+				var sig = Math.fround((av / Math.pow(2, exp)) * 4503599627370496.); // 2^52
+				var sig_l = Std.int(sig);
 				var sig_h = Std.int(sig / 4294967296.0);
 				@:privateAccess {
 					i64.low = sig_l;
-					i64.high = (v < 0 ? 0x80000000 : 0) | (exp << 10) | sig_h; 
+					i64.high = (v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | sig_h; 
 				}
 			}
 			return i64;
