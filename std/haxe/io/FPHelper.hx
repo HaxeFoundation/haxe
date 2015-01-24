@@ -35,7 +35,7 @@ class FPHelper {
 			h.order(java.nio.ByteOrder.LITTLE_ENDIAN);
 			h;
 		}
-	#elseif flash
+	#elseif flash9
 		static var helper = {
 			var b = new flash.utils.ByteArray();
 			b.endian = flash.utils.Endian.LITTLE_ENDIAN;
@@ -88,7 +88,7 @@ class FPHelper {
 			return helper.getFloat(0);
 		#elseif php
 			return untyped  __call__('unpack', 'f', __call__('pack', 'l', i))[1];
-		#elseif flash
+		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
 			helper.writeUnsignedInt(i);
@@ -125,7 +125,7 @@ class FPHelper {
 			var helper = helper;
 			helper.putFloat(0, f);
 			return helper.getInt(0);
-		#elseif flash
+		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
 			helper.writeFloat(f);
@@ -177,7 +177,7 @@ class FPHelper {
 			helper.putInt(0, low);
 			helper.putInt(4, high);
 			return helper.getDouble(0);
-		#elseif flash
+		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
 			helper.writeUnsignedInt(low);
@@ -235,7 +235,7 @@ class FPHelper {
 			// TODO : is this bytes allocation eliminated by JIT ? If not can we do otherwise ?
 			var bytes = cs.system.BitConverter.GetBytes(v);
 			return haxe.Int64.make(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24), bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24));	
-		#elseif flash
+		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
 			helper.writeDouble(v);
