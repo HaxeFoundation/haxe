@@ -247,7 +247,7 @@ class FPHelper {
 			}
 			return i64;
 		#elseif php	
-			var a = untyped __call__('unpack',isLittleEndian ? 'VV' : 'NN',__call__('pack', 'd', v));
+			var a = untyped __call__('unpack',isLittleEndian ? 'V2' : 'N2',__call__('pack', 'd', v));
 			var i64 = i64tmp;
 			@:privateAccess {
 				i64.low = a[isLittleEndian ? 1 : 2];
