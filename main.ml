@@ -1557,8 +1557,8 @@ try
 		);
 	end;
 	Sys.catch_break false;
+	List.iter (fun f -> f()) (List.rev com.final_filters);
 	if not !no_output then begin
-		List.iter (fun f -> f()) (List.rev com.final_filters);
 		List.iter (fun c ->
 			let r = run_command ctx c in
 			if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
