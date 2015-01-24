@@ -665,7 +665,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			])
-	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) ->
+	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) when false ->
 		begin try
 			let num_expr = ref 0 in
 			let rec loop e = match fst e with
