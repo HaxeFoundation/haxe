@@ -41,6 +41,8 @@ class FPHelper {
 			b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 			b;
 		}
+	#elseif php
+		static var isLittleEndian : Bool = untyped __call__('unpack','S','\x01\x00')[1] == 1;
 	#else
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 	#end
@@ -85,7 +87,7 @@ class FPHelper {
 			helper.putInt(0, i);
 			return helper.getFloat(0);
 		#elseif php
-			return untyped  __call__('unpack', 'f', __call__('pack', 'i', i))[1];
+			return untyped  __call__('unpack', 'f', __call__('pack', 'l', i))[1];
 		#elseif flash
 			var helper = helper;
 			helper.position = 0;
@@ -130,7 +132,7 @@ class FPHelper {
 			helper.position = 0;
 			return helper.readUnsignedInt();
 		#elseif php
-			return untyped __call__('unpack','i',__call__('pack', 'f', f))[1];
+			return untyped __call__('unpack','l',__call__('pack', 'f', f))[1];
 		#else
 			if( f == 0 ) return 0;
 			var af = f < 0 ? -f : f;
@@ -183,7 +185,7 @@ class FPHelper {
 			helper.position = 0;
 			return helper.readDouble();
 		#elseif php
-			return untyped  __call__('unpack', 'd', (__call__('pack', 'i', low):String)+(__call__('pack', 'i', high):String))[1];
+			return untyped  __call__('unpack', 'd', __call__('pack', 'ii', isLittleEndian ? low : high, isLittleEndian ? high : low))[1];
 		#else
 			var sign = 1 - ((high >>> 31) << 1);
 			var exp = ((high >> 20) & 0x7FF) - 1023;
@@ -245,11 +247,11 @@ class FPHelper {
 			}
 			return i64;
 		#elseif php	
-			var a = untyped __call__('unpack','ii',__call__('pack', 'd', v));
+			var a = untyped __call__('unpack',isLittleEndian ? 'VV' : 'NN',__call__('pack', 'd', v));
 			var i64 = i64tmp;
 			@:privateAccess {
-				i64.low = a[1];
-				i64.high = a[2];
+				i64.low = a[isLittleEndian ? 1 : 2];
+				i64.high = a[isLittleEndian ? 2 : 1];
 			}
 			return i64;
 		#else
