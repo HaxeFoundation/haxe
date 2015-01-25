@@ -9,7 +9,7 @@ class FPHelper {
 	#if !(java || cs)
 	static var i64tmp = Int64.ofInt(0);
 	#end
-	
+
 	#if neko
 		#if neko_v21
 		static var helper = neko.NativeArray.alloc(2);
@@ -27,8 +27,6 @@ class FPHelper {
 		static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 		static var _float_bytes = cpp.Lib.load("std","float_bytes",2);
 		static var _double_bytes = cpp.Lib.load("std","double_bytes",2);
-	#elseif cs
-		static var helper = new cs.NativeArray<cs.types.UInt8>(8);
 	#elseif java
 		static var helper = {
 			var h = java.nio.ByteBuffer.allocateDirect(8);
@@ -69,19 +67,15 @@ class FPHelper {
 			helper.set(3,i>>>24);
 			return _float_of_bytes(helper.getData(),false);
 		#elseif cs
+			var helper = new SingleHelper(0);
 			if( cs.system.BitConverter.IsLittleEndian )
 			{
-				helper[0] = i;
-				helper[1] = i>>8;
-				helper[2] = i>>16;
-				helper[3] = i>>>24;
+				helper.i = i;
 			} else {
-				helper[0] = i>>>24;
-				helper[1] = i>>16;
-				helper[2] = i>>8;
-				helper[3] = i;
+				helper.i = ((i >>> 24) & 0xFF) | (((i >> 16) & 0xFF) << 8) | (((i >> 8) & 0xFF) << 16) | ((i & 0xFF) << 24);
 			}
-			return cs.system.BitConverter.ToSingle(helper, 0);	
+
+			return helper.f;
 		#elseif java
 			var helper = helper;
 			helper.putInt(0, i);
@@ -103,7 +97,7 @@ class FPHelper {
 			return sign*(1 + Math.pow(2, -23)*sig) * Math.pow(2, exp-127);
 		#end
 	}
-	
+
 	#if neko_v21 inline #end
 	public static function floatToI32( f : Float ) : Int {
 		#if neko
@@ -118,9 +112,14 @@ class FPHelper {
 			var r = haxe.io.Bytes.ofData(_float_bytes(f,false));
 			return r.getI32(0);
 		#elseif cs
-			// TODO : is this bytes allocation eliminated by JIT ? If not can we do otherwise ?
-			var bytes = cs.system.BitConverter.GetBytes(cast(f, Single));
-			return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+			var helper = new SingleHelper(f);
+			if( cs.system.BitConverter.IsLittleEndian )
+			{
+				return helper.i;
+			} else {
+				var i = helper.i;
+				return ((i >>> 24) & 0xFF) | (((i >> 16) & 0xFF) << 8) | (((i >> 8) & 0xFF) << 16) | ((i & 0xFF) << 24);
+			}
 		#elseif java
 			var helper = helper;
 			helper.putFloat(0, f);
@@ -142,7 +141,7 @@ class FPHelper {
 			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig;
 		#end
 	}
-	
+
 	#if neko_v21 inline #end
 	public static function i64ToDouble( low : Int, high : Int ) : Float {
 		#if neko
@@ -171,7 +170,7 @@ class FPHelper {
 			helper.set(5,high>>8);
 			helper.set(6,high>>16);
 			helper.set(7,high>>>24);
-			return _double_of_bytes(helper.getData(),false);		
+			return _double_of_bytes(helper.getData(),false);
 		#elseif java
 			var helper = helper;
 			helper.putInt(0, low);
@@ -195,7 +194,7 @@ class FPHelper {
 			return sign*(1.0 + Math.pow(2, -52)*sig) * Math.pow(2, exp);
 		#end
 	}
-	
+
 	/**
 		Returns an Int64 representing the bytes representation of the double precision IEEE float value.
 		WARNING : for performance reason, the same Int64 value might be reused every time. Copy its low/high values before calling again.
@@ -232,9 +231,19 @@ class FPHelper {
 			helper.putDouble(0, v);
 			return helper.getLong(0);
 		#elseif cs
-			// TODO : is this bytes allocation eliminated by JIT ? If not can we do otherwise ?
-			var bytes = cs.system.BitConverter.GetBytes(v);
-			return haxe.Int64.make(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24), bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24));	
+			var helper = new FloatHelper(v);
+			if( cs.system.BitConverter.IsLittleEndian )
+			{
+				return helper.i;
+			} else {
+				var i = helper.i;
+				var i1 = haxe.Int64.getHigh(i),
+				    i2 = haxe.Int64.getLow(i);
+				var j2 = ((i1 >>> 24) & 0xFF) | (((i1 >> 16) & 0xFF) << 8) | (((i1 >> 8) & 0xFF) << 16) | ((i1 & 0xFF) << 24);
+				var j1 = ((i2 >>> 24) & 0xFF) | (((i2 >> 16) & 0xFF) << 8) | (((i2 >> 8) & 0xFF) << 16) | ((i2 & 0xFF) << 24);
+
+				return haxe.Int64.make(j1,j2);
+			}
 		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
@@ -246,7 +255,7 @@ class FPHelper {
 				i64.high = helper.readUnsignedInt();
 			}
 			return i64;
-		#elseif php	
+		#elseif php
 			var a = untyped __call__('unpack',isLittleEndian ? 'V2' : 'N2',__call__('pack', 'd', v));
 			var i64 = i64tmp;
 			@:privateAccess {
@@ -269,7 +278,7 @@ class FPHelper {
 				var sig_h = Std.int(sig / 4294967296.0);
 				@:privateAccess {
 					i64.low = sig_l;
-					i64.high = (v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | sig_h; 
+					i64.high = (v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | sig_h;
 				}
 			}
 			return i64;
@@ -277,3 +286,36 @@ class FPHelper {
 	}
 
 }
+
+#if cs
+@:meta(System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit))
+@:nativeGen @:struct private class SingleHelper
+{
+	@:meta(System.Runtime.InteropServices.FieldOffset(0))
+	public var i:Int;
+	@:meta(System.Runtime.InteropServices.FieldOffset(0))
+	public var f:Single;
+
+	public function new(f:Single)
+	{
+		this.i = 0;
+		this.f = f;
+	}
+}
+
+@:meta(System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit))
+@:nativeGen @:struct private class FloatHelper
+{
+	@:meta(System.Runtime.InteropServices.FieldOffset(0))
+	public var i:haxe.Int64;
+	@:meta(System.Runtime.InteropServices.FieldOffset(0))
+	public var f:Float;
+
+	public function new(f:Float)
+	{
+		this.i = haxe.Int64.ofInt(0);
+		this.f = f;
+	}
+}
+
+#end
