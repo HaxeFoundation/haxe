@@ -27,12 +27,6 @@ class FPHelper {
 		static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 		static var _float_bytes = cpp.Lib.load("std","float_bytes",2);
 		static var _double_bytes = cpp.Lib.load("std","double_bytes",2);
-	#elseif java
-		static var helper = {
-			var h = java.nio.ByteBuffer.allocateDirect(8);
-			h.order(java.nio.ByteOrder.LITTLE_ENDIAN);
-			h;
-		}
 	#elseif flash9
 		static var helper = {
 			var b = new flash.utils.ByteArray();
@@ -77,9 +71,7 @@ class FPHelper {
 
 			return helper.f;
 		#elseif java
-			var helper = helper;
-			helper.putInt(0, i);
-			return helper.getFloat(0);
+			return java.lang.Float.intBitsToFloat(i);
 		#elseif php
 			return untyped  __call__('unpack', 'f', __call__('pack', 'l', i))[1];
 		#elseif flash9
@@ -121,9 +113,7 @@ class FPHelper {
 				return ((i >>> 24) & 0xFF) | (((i >> 16) & 0xFF) << 8) | (((i >> 8) & 0xFF) << 16) | ((i & 0xFF) << 24);
 			}
 		#elseif java
-			var helper = helper;
-			helper.putFloat(0, f);
-			return helper.getInt(0);
+			return java.lang.Float.floatToRawIntBits(f);
 		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
@@ -171,11 +161,21 @@ class FPHelper {
 			helper.set(6,high>>16);
 			helper.set(7,high>>>24);
 			return _double_of_bytes(helper.getData(),false);
+		#elseif cs
+			var helper = new FloatHelper(0);
+			if( cs.system.BitConverter.IsLittleEndian )
+			{
+				helper.i = haxe.Int64.make(high,low);
+			} else {
+				var i1 = high,
+				    i2 = low;
+				var j2 = ((i1 >>> 24) & 0xFF) | (((i1 >> 16) & 0xFF) << 8) | (((i1 >> 8) & 0xFF) << 16) | ((i1 & 0xFF) << 24);
+				var j1 = ((i2 >>> 24) & 0xFF) | (((i2 >> 16) & 0xFF) << 8) | (((i2 >> 8) & 0xFF) << 16) | ((i2 & 0xFF) << 24);
+				helper.i = haxe.Int64.make(j1,j2);
+			}
+			return helper.f;
 		#elseif java
-			var helper = helper;
-			helper.putInt(0, low);
-			helper.putInt(4, high);
-			return helper.getDouble(0);
+			return java.lang.Double.longBitsToDouble( Int64.make(high,low) );
 		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
@@ -227,9 +227,7 @@ class FPHelper {
 			}
 			return i64;
 		#elseif java
-			var helper = helper;
-			helper.putDouble(0, v);
-			return helper.getLong(0);
+			return java.lang.Double.doubleToRawLongBits(v);
 		#elseif cs
 			var helper = new FloatHelper(v);
 			if( cs.system.BitConverter.IsLittleEndian )
