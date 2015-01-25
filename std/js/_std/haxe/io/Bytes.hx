@@ -93,7 +93,17 @@ class Bytes {
 		initData();
 		data.setFloat32(pos, v, true);
 	}
+	
+	public function getI32( pos : Int ) : Int {
+		initData();
+		return data.getInt32(pos);
+	}
 
+	public function setI32( pos : Int, value : Int ) : Void {
+		initData();
+		data.setInt32(pos, value);
+	}
+	
 	public function getString( pos : Int, len : Int ) : String {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 		var s = "";
