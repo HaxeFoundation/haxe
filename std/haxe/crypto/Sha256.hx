@@ -183,15 +183,10 @@ class Sha256 {
 	
 	function hex( a : Array<Int> ){
 		var str = "";
-		var hex_chr = "0123456789abcdef";
 		for( num in a ) {
-			var j = 7;
-			while( j >= 0 ) {
-				str += hex_chr.charAt( (num >>> (j<<2)) & 0xF );
-				j--;
-			}
+			str += StringTools.hex(num, 8);
 		}
-		return str;
+		return str.toLowerCase();
 	}
 
 }
