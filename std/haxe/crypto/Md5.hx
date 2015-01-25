@@ -99,10 +99,14 @@ class Md5 {
 
 	function hex( a : Array<Int> ){
 		var str = "";
+		var hex_chr = "0123456789abcdef";
 		for( num in a ) {
-			str += StringTools.hex(num, 8);
+			for( j in 0...4 ) {
+				str += hex_chr.charAt((num >> (j * 8 + 4)) & 0x0F) +
+							hex_chr.charAt((num >> (j * 8)) & 0x0F);
+			}
 		}
-		return str.toLowerCase();
+		return str;
 	}
 
 	static function bytes2blks( b : haxe.io.Bytes ){
