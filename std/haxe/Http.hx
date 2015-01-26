@@ -60,6 +60,8 @@ class Http {
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
 	public var responseHeaders : Map<String,String>;
+	public var customOutput: haxe.io.Output;
+	private var cancelled: Bool = false;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
@@ -94,6 +96,8 @@ class Http {
 		async = true;
 		#elseif sys
 		cnxTimeout = 10;
+		customOutput = null;
+		cancelled = false;
 		#end
 		#if php
 		noShutdown = ! untyped __call__('function_exists', 'stream_socket_shutdown');
@@ -174,6 +178,11 @@ class Http {
 		req.close();
 		#end
 		req = null;
+	}
+	#elseif sys
+	public function cancel()
+	{
+		cancelled = true;
 	}
 	#end
 
@@ -384,12 +393,14 @@ class Http {
 			onError = old;
 			onError(e);
 		}
-		customRequest(post,output);
+		customRequest(post,customOutput == null ? output : customOutput);
 		if( !err )
 		#if neko
-			me.onData(me.responseData = neko.Lib.stringReference(output.getBytes()));
+			if (customOutput == null) me.onData(me.responseData = neko.Lib.stringReference(output.getBytes()))
+			else me.onData(me.responseData = "");
 		#else
-			me.onData(me.responseData = output.getBytes().toString());
+			if (customOutput == null) me.onData(me.responseData = output.getBytes().toString());
+			else me.onData(me.responseData = "");
 		#end
 	#end
 	}
@@ -681,6 +692,7 @@ class Http {
 							break;
 					} else
 						api.writeBytes(buf,0,len);
+					if (cancelled) throw "Transfer aborted";
 				}
 			} catch( e : haxe.io.Eof ) {
 			}
@@ -695,6 +707,7 @@ class Http {
 					} else
 						api.writeBytes(buf,0,len);
 					size -= len;
+					if (cancelled) throw "Transfer aborted";
 				}
 			} catch( e : haxe.io.Eof ) {
 				throw "Transfer aborted";
