@@ -60,7 +60,7 @@ class Http {
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
 	public var responseHeaders : Map<String,String>;
-	public var customOutput: Output;
+	public var customOutput: haxe.io.Output;
 	private var cancelled: Bool = false;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
