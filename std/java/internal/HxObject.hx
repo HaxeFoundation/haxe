@@ -78,7 +78,7 @@ private class Enum
 		untyped this.index = index;
 		untyped this.params = params;
 	}
-	@:final public function getTag():String
+	public function getTag():String
 	{
 		var cl:Dynamic = StdType.getEnum(cast this);
 		return cl.constructs[index];

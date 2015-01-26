@@ -9059,6 +9059,37 @@ struct
 			cl.cl_ordered_statics <- constructs_cf :: cfs @ cl.cl_ordered_statics ;
 			cl.cl_statics <- PMap.add "constructs" constructs_cf cl.cl_statics;
 
+			let getTag_cf_type = tfun [] basic.tstring in
+			let getTag_cf = mk_class_field "getTag" getTag_cf_type true pos (Method MethNormal) [] in
+			getTag_cf.cf_meta <- [(Meta.Final, [], pos)];
+			getTag_cf.cf_expr <- Some {
+				eexpr = TFunction {
+					tf_args = [];
+					tf_type = basic.tstring;
+					tf_expr = {
+						eexpr = TReturn (Some (
+							let e_constructs = mk_static_field_access_infer cl "constructs" pos [] in
+							let e_this = mk (TConst TThis) (TInst (cl,[])) pos in
+							let e_index = mk_field_access gen e_this "index" pos in
+							let e_unsafe_get = mk_field_access gen e_constructs "__unsafe_get" pos in
+							{
+								eexpr = TCall (e_unsafe_get, [e_index]);
+								etype = basic.tstring;
+								epos = pos;
+							}
+						));
+						epos = pos;
+						etype = basic.tvoid;
+					}
+				};
+				etype = getTag_cf_type;
+				epos = pos;
+			};
+
+			cl.cl_ordered_fields <- getTag_cf :: cl.cl_ordered_fields ;
+			cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
+			cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
+
 			(if should_be_hxgen then
 				cl.cl_meta <- (Meta.HxGen,[],cl.cl_pos) :: cl.cl_meta
 			else begin
