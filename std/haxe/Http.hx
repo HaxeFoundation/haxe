@@ -396,10 +396,10 @@ class Http {
 		customRequest(post,customOutput == null ? output : customOutput);
 		if( !err )
 		#if neko
-			if (customOutput != null) me.onData(me.responseData = neko.Lib.stringReference(output.getBytes()))
+			if (customOutput == null) me.onData(me.responseData = neko.Lib.stringReference(output.getBytes()))
 			else me.onData(me.responseData = "");
 		#else
-			if (customOutput != null) me.onData(me.responseData = output.getBytes().toString());
+			if (customOutput == null) me.onData(me.responseData = output.getBytes().toString());
 			else me.onData(me.responseData = "");
 		#end
 	#end
