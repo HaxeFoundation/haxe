@@ -9211,19 +9211,29 @@ struct
  *)
 		let traverse gen t opt_get_native_enum_tag =
 			let rec run e =
+				let get_converted_enum_type et =
+					let en, eparams = match follow (gen.gfollow#run_f et) with
+						| TEnum(en,p) -> en, p
+						| _ -> raise Not_found
+					in
+					let cl = Hashtbl.find t.ec_tbl en.e_path in
+					TInst(cl, eparams)
+				in
+
 				match e.eexpr with
+					| TCall ({eexpr = TField(_, FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}))}, [f]) ->
+						let f = run f in
+						(try
+							mk_field_access gen {f with etype = get_converted_enum_type f.etype} "index" e.epos
+						with Not_found ->
+							e)
 					| TEnumParameter(f, _,i) ->
 						let f = run f in
 						(* check if en was converted to class *)
 						(* if it was, switch on tag field and change cond type *)
 						let f = try
-							let en, eparams = match follow (gen.gfollow#run_f f.etype) with
-								| TEnum(en,p) -> en, p
-								| _ -> raise Not_found
-							in
-							let cl = Hashtbl.find t.ec_tbl en.e_path in
-							{ f with etype = TInst(cl, eparams) }
-						with | Not_found ->
+							{ f with etype = get_converted_enum_type f.etype }
+						with Not_found ->
 							f
 						in
 						let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gcon.basic.tarray t_empty } in
