@@ -2776,11 +2776,6 @@ let configure gen =
 			| _ -> true
 	in
 
-	let is_type_param e = match follow e with
-		| TInst( { cl_kind = KTypeParameter _ },[]) -> true
-		| _ -> false
-	in
-
 	let is_dynamic_expr e = is_dynamic e.etype || match e.eexpr with
 		| TField(tf, f) -> field_is_dynamic tf.etype (f)
 		| _ -> false
@@ -2850,7 +2845,7 @@ let configure gen =
 				)
 			| TBinop (Ast.OpAssignOp Ast.OpAdd, e1, e2) ->
 				is_dynamic_expr e1 || is_null_expr e1 || is_string e.etype
-			| TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype || is_string e1.etype || is_string e2.etype || is_string e.etype
+			| TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype || is_dynamic e2.etype || is_tparam e1.etype || is_tparam e2.etype || is_string e1.etype || is_string e2.etype || is_string e.etype
 			| TBinop (Ast.OpLt, e1, e2)
 			| TBinop (Ast.OpLte, e1, e2)
 			| TBinop (Ast.OpGte, e1, e2)
