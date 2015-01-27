@@ -2834,9 +2834,9 @@ let configure gen =
 				(
 					(* dont touch (v == null) and (null == v) comparisons because they are handled by HardNullableSynf later *)
 					match e1.eexpr, e2.eexpr with
-					| TConst(TNull), _ when is_null_expr e2 ->
+					| TConst(TNull), _ when (not (is_tparam e2.etype) && is_dynamic e2.etype) || is_null_expr e2 ->
 						false
-					| _, TConst(TNull) when is_null_expr e1 ->
+					| _, TConst(TNull) when (not (is_tparam e1.etype) && is_dynamic e1.etype) || is_null_expr e1 ->
 						false
 					| _, TLocal { v_name = "__undefined__" } ->
 						false
