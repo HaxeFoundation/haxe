@@ -817,12 +817,6 @@ let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
 	TField (et,FEnum (e,ef))
 
-let type_of_module_type = function
-	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
-	| TEnumDecl e -> TEnum (e,List.map snd e.e_params)
-	| TTypeDecl t -> TType (t,List.map snd t.t_params)
-	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
-
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->

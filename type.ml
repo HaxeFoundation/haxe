@@ -667,6 +667,12 @@ let concat e1 e2 =
 
 let is_closed a = !(a.a_status) <> Opened
 
+let type_of_module_type = function
+	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
+	| TEnumDecl e -> TEnum (e,List.map snd e.e_params)
+	| TTypeDecl t -> TType (t,List.map snd t.t_params)
+	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
+
 (* ======= Field utility ======= *)
 
 let field_name f =
