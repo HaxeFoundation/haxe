@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import js.Boot;
+import lua.Boot;
 
 @:keepInit
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped js.Boot.__instanceof(v,t);
+		return untyped lua.Boot.__instanceof(v,t);
 	}
 
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
@@ -33,7 +33,7 @@ import js.Boot;
 	}
 
 	public static function string( s : Dynamic ) : String {
-		return untyped js.Boot.__string_rec(s,"");
+		return untyped lua.Boot.__string_rec(s,"");
 	}
 
 	public static inline function int( x : Float ) : Int {

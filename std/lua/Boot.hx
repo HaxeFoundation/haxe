@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package js;
+package lua;
 
 class Boot {
 
@@ -30,10 +30,6 @@ class Boot {
 	private static function __trace(v,i : haxe.PosInfos) {
 		untyped {
 			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-			#if jsfl
-			msg += __string_rec(v,"");
-			fl.trace(msg);
-			#else
 			msg += __string_rec(v, "");
 			if( i != null && i.customParams != null )
 				for( v in i.customParams )
@@ -43,19 +39,14 @@ class Boot {
 				d.innerHTML += __unhtml(msg)+"<br/>";
 			else if( __js__("typeof console") != "undefined" && __js__("console").log != null )
 				__js__("console").log(msg);
-			#end
 		}
 	}
 
 	private static function __clear_trace() {
 		untyped {
-			#if jsfl
-			fl.outputPanel.clear();
-			#else
 			var d = document.getElementById("haxe:trace");
 			if( d != null )
 				d.innerHTML = "";
-			#end
 		}
 	}
 

@@ -59,7 +59,7 @@
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __js__("typeof(f)") == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
+		return __js__("typeof(f)") == "function" && !(lua.Boot.isClass(f) || lua.Boot.isEnum(f));
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -78,7 +78,7 @@
 		if( v == null )
 			return false;
 		var t = __js__("typeof(v)");
-		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
+		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (lua.Boot.isClass(v) || lua.Boot.isEnum(v)) != null);
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
