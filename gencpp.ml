@@ -3714,7 +3714,7 @@ let write_build_data common_ctx filename classes main_deps build_extra exe_name 
    in
 
    output_string buildfile "<xml>\n";
-   output_string buildfile ("<set name=\"HXCPP_API_LEVEL\" value=\"" ^
+   output_string buildfile ("<set name=\"hxcpp_api_level\" value=\"" ^
             (Common.defined_value common_ctx Define.HxcppApiLevel) ^ "\" />\n");
    output_string buildfile "<files id=\"haxe\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
