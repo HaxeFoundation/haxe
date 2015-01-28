@@ -1145,10 +1145,12 @@ and expr = parser
 	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s
 	| [< '(Kwd Cast,p1); s >] ->
 		(match s with parser
-		| [< '(POpen,_); e = expr; s >] ->
+		| [< '(POpen,pp); e = expr; s >] ->
 			(match s with parser
 			| [< '(Comma,_); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
-			| [< '(PClose,p2); s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
+			| [< '(PClose,p2); s >] ->
+				let ep = expr_next (EParenthesis(e),punion pp p2) s in
+				expr_next (ECast (ep,None),punion p1 (pos ep)) s
 			| [< >] -> serror())
 		| [< e = secure_expr >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
