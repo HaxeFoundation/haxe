@@ -47,6 +47,7 @@ type stats = {
 type platform =
 	| Cross
 	| Js
+	| Lua
 	| Neko
 	| Flash
 	| Php
@@ -578,6 +579,20 @@ let get_config com =
 			pf_can_skip_non_nullable_argument = true;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
+	| Lua ->
+		{
+			pf_static = false;
+			pf_sys = false;
+			pf_locals_scope = false;
+			pf_captured_scope = false;
+			pf_unique_locals = false;
+			pf_capture_policy = CPLoopVars;
+			pf_pad_nulls = false;
+			pf_add_final_return = false;
+			pf_overload = false;
+			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
+		}
 	| Neko ->
 		{
 			default_config with
@@ -795,6 +810,7 @@ let file_extension file =
 
 let platforms = [
 	Js;
+   Lua;
 	Neko;
 	Flash;
 	Php;
@@ -808,6 +824,7 @@ let platforms = [
 let platform_name = function
 	| Cross -> "cross"
 	| Js -> "js"
+	| Lua -> "lua"
 	| Neko -> "neko"
 	| Flash -> "flash"
 	| Php -> "php"
