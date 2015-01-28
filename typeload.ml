@@ -2725,15 +2725,19 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let is_type = ref false in
 		let load_type t from =
 			let t = load_complex_type ctx p t in
-			if not (Meta.has Meta.CoreType a.a_meta) then begin
+			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
-					delay ctx PFinal (fun () ->
+					let r = exc_protect ctx (fun r ->
+						r := (fun() -> t);
 						let at = monomorphs a.a_params a.a_this in
-						(try (if from then Type.unify t at else Type.unify at t) with Unify_error _ -> error "You can only declare from/to with compatible types" p)
-					);
+						(try (if from then Type.unify t at else Type.unify at t) with Unify_error _ -> error "You can only declare from/to with compatible types" p);
+						t
+					) "constraint" in
+					delay ctx PForce (fun () -> ignore(!r()));
+					TLazy r
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
-			end;
+			end else t in
 			t
 		in
 		List.iter (function
