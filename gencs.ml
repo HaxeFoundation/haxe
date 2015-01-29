@@ -1757,21 +1757,49 @@ let configure gen =
 			ret
 	in
 
-	let get_string_params cl_params =
+	let get_string_params hxgen cl_params =
 		match cl_params with
 			| [] ->
 				("","")
 			| _ ->
-				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> match follow tcl with | TInst(cl, _) -> snd cl.cl_path | _ -> assert false) cl_params)) in
-				let params_extends = List.fold_left (fun acc (name, t) ->
-					match run_follow gen t with
-						| TInst (cl, p) ->
-							(match cl.cl_implements with
-								| [] -> acc
-								| _ -> acc) (* TODO
-								| _ -> (sprintf " where %s : %s" name (String.concat ", " (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements))) :: acc ) *)
-						| _ -> trace (t_s t); assert false (* FIXME it seems that a cl_params will never be anything other than cl.cl_params. I'll take the risk and fail if not, just to see if that confirms *)
-				) [] cl_params in
+				let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> assert false in
+				let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
+				let params_extends =
+					if hxgen then
+						[""]
+					else
+						List.fold_left (fun acc (name, t) ->
+							match run_follow gen t with
+								| TInst({cl_kind = KTypeParameter constraints}, _) when constraints <> [] ->
+									(* base class should come before interface constraints *)
+									let base_class_constraints = ref [] in
+									let other_constraints = List.fold_left (fun acc t ->
+										match follow t with
+											(* string is implicitly sealed, maybe haxe should have it final as well *)
+											| TInst ({ cl_path=[],"String" }, []) ->
+												acc
+
+											(* non-sealed class *)
+											| TInst ({ cl_interface = false; cl_meta = meta},_) when not (Meta.has Meta.Final meta) ->
+												base_class_constraints := (t_s t) :: !base_class_constraints;
+												acc;
+
+											(* interface *)
+											| TInst ({ cl_interface = true}, _) ->
+												(t_s t) :: acc
+
+											(* skip anything other *)
+											| _ ->
+												acc
+									) [] constraints in
+
+									let s_constraints = (!base_class_constraints @ other_constraints) in
+									if s_constraints <> [] then
+										(sprintf " where %s : %s" (get_param_name t) (String.concat ", " s_constraints) :: acc)
+									else
+										acc;
+								| _ -> acc
+						) [] cl_params in
 				(params, String.concat " " params_extends)
 	in
 
@@ -1957,7 +1985,7 @@ let configure gen =
 				(* public static void funcName *)
 				gen_field_decl w visibility v_n modifiers (if not is_new then (rett_s (run_follow gen ret_type)) else "") (change_field name);
 
-				let params, params_ext = get_string_params cf.cf_params in
+				let params, params_ext = get_string_params (is_hxgen (TClassDecl cl)) cf.cf_params in
 				(* <T>(string arg1, object arg2) with T : object *)
 				(match cf.cf_expr with
 				| Some { eexpr = TFunction tf } ->
@@ -2280,11 +2308,11 @@ let configure gen =
 		let modifiers = [access] @ modifiers in
 		print w "%s %s %s" (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
 		(* type parameters *)
-		let params, params_ext = get_string_params cl.cl_params in
+		let params, params_ext = get_string_params (is_hxgen (TClassDecl cl)) cl.cl_params in
 		let extends_implements = (match cl.cl_super with | None -> [] | Some (cl,p) -> [path_param_s (TClassDecl cl) cl.cl_path p]) @ (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements) in
 		(match extends_implements with
-			| [] -> print w "%s %s" params params_ext
-			| _ -> print w "%s : %s %s" params (String.concat ", " extends_implements) params_ext);
+			| [] -> print w "%s%s " params params_ext
+			| _ -> print w "%s : %s%s " params (String.concat ", " extends_implements) params_ext);
 		(* class head ok: *)
 		(* public class Test<A> : X, Y, Z where A : Y *)
 		begin_block w;
