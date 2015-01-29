@@ -26,26 +26,10 @@ open Common
 
 type pos = Ast.pos
 
-type sourcemap = {
-	sources : (string) DynArray.t;
-	sources_hash : (string, int) Hashtbl.t;
-	mappings : Buffer.t;
-
-	mutable source_last_line : int;
-	mutable source_last_col : int;
-	mutable source_last_file : int;
-	mutable print_comma : bool;
-	mutable output_last_col : int;
-	mutable output_current_col : int;
-}
-
 type ctx = {
 	com : Common.context;
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
-	smap : sourcemap;
-	js_modern : bool;
-	js_flatten : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -64,9 +48,7 @@ type object_store = {
 	mutable os_fields : object_store list;
 }
 
-let get_exposed ctx path meta =
-	if not ctx.js_modern then []
-	else try
+let get_exposed ctx path meta = try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
 			| [ EConst (String s), _ ] -> [s]
@@ -84,7 +66,7 @@ let flat_path (p,s) =
 	| [] -> escape s
 	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
 
-let s_path ctx = if ctx.js_flatten then flat_path else dot_path
+let s_path ctx = dot_path
 
 let kwds =
 	let h = Hashtbl.create 0 in
@@ -136,96 +118,17 @@ let static_field s =
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
-let handle_newlines ctx str =
-	if ctx.com.debug then
-		let rec loop from =
-			try begin
-				let next = String.index_from str from '\n' + 1 in
-				Buffer.add_char ctx.smap.mappings ';';
-				ctx.smap.output_last_col <- 0;
-				ctx.smap.print_comma <- false;
-				loop next
-			end with Not_found ->
-				ctx.smap.output_current_col <- String.length str - from
-		in
-		loop 0
-	else ()
-
 let spr ctx s =
 	ctx.separator <- false;
-	handle_newlines ctx s;
 	Buffer.add_string ctx.buf s
 
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
-		handle_newlines ctx s;
 		Buffer.add_string ctx.buf s
 	end)
 
 let unsupported p = error "This expression cannot be compiled to Javascript" p
-
-let add_mapping ctx e =
-	if not ctx.com.debug || e.epos.pmin < 0 then () else
-	let pos = e.epos in
-	let smap = ctx.smap in
-	let file = try
-		Hashtbl.find smap.sources_hash pos.pfile
-	with Not_found ->
-		let length = DynArray.length smap.sources in
-		Hashtbl.replace smap.sources_hash pos.pfile length;
-		DynArray.add smap.sources pos.pfile;
-		length
-	in
-	let line, col = Lexer.find_pos pos in
-	let line = line - 1 in
-	let col = col - 1 in
-	if smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
-		if smap.print_comma then
-			Buffer.add_char smap.mappings ','
-		else
-			smap.print_comma <- true;
-
-		let base64_vlq number =
-			let encode_digit digit =
-				let chars = [|
-					'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-					'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-					'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-					'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-				|] in
-				Array.unsafe_get chars digit
-			in
-			let to_vlq number =
-				if number < 0 then
-					((-number) lsl 1) + 1
-				else
-					number lsl 1
-			in
-			let rec loop vlq =
-				let shift = 5 in
-				let base = 1 lsl shift in
-				let mask = base - 1 in
-				let continuation_bit = base in
-				let digit = vlq land mask in
-				let next = vlq asr shift in
-				Buffer.add_char smap.mappings (encode_digit (
-					if next > 0 then digit lor continuation_bit else digit));
-				if next > 0 then loop next else ()
-			in
-			loop (to_vlq number)
-		in
-
-		base64_vlq (smap.output_current_col - smap.output_last_col);
-		base64_vlq (file - smap.source_last_file);
-		base64_vlq (line - smap.source_last_line);
-		base64_vlq (col - smap.source_last_col);
-
-		smap.source_last_file <- file;
-		smap.source_last_line <- line;
-		smap.source_last_col <- col;
-		smap.output_last_col <- smap.output_current_col
-	end
 
 let basename path =
 	try
@@ -233,32 +136,6 @@ let basename path =
 		String.sub path (idx + 1) (String.length path - idx - 1)
 	with Not_found -> path
 
-let write_mappings ctx =
-	let basefile = basename ctx.com.file in
-	print ctx "\n//# sourceMappingURL=%s.map" basefile;
-	let channel = open_out_bin (ctx.com.file ^ ".map") in
-	let sources = DynArray.to_list ctx.smap.sources in
-	let to_url file =
-		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Common.get_full_path file)
-	in
-	output_string channel "{\n";
-	output_string channel "\"version\":3,\n";
-	output_string channel ("\"file\":\"" ^ (String.concat "\\\\" (ExtString.String.nsplit basefile "\\")) ^ "\",\n");
-	output_string channel ("\"sourceRoot\":\"file:///\",\n");
-	output_string channel ("\"sources\":[" ^
-		(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
-		"],\n");
-	if Common.defined ctx.com Define.SourceMapContent then begin
-		output_string channel ("\"sourcesContent\":[" ^
-			(String.concat "," (List.map (fun s -> try "\"" ^ Ast.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
-			"],\n");
-	end;
-	output_string channel "\"names\":[],\n";
-	output_string channel "\"mappings\":\"";
-	Buffer.output_buffer channel ctx.smap.mappings;
-	output_string channel "\"\n";
-	output_string channel "}";
-	close_out channel
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -468,7 +345,6 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")"
 
 and gen_expr ctx e =
-	add_mapping ctx e;
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -778,7 +654,6 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	add_mapping ctx e;
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
@@ -898,17 +773,10 @@ let generate_package_create ctx (p,_) =
 		| p :: l ->
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
-			| [] ->
-				if ctx.js_modern then
-					print ctx "var %s = {}" p
-				else
-					print ctx "var %s = %s || {}" p p
+			| [] -> print ctx "var %s = {}" p
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
-				if ctx.js_modern then
-					print ctx "%s = {}" p
-				else
-					print ctx "if(!%s) %s = {}" p p
+                print ctx "%s = {}" p
 			);
 			ctx.separator <- true;
 			newline ctx;
@@ -985,14 +853,8 @@ let generate_class ctx c =
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	let hxClasses = has_feature ctx "Type.resolveClass" in
-	if ctx.js_flatten then
-		print ctx "var "
-	else
-		generate_package_create ctx c.cl_path;
-	if ctx.js_modern || not hxClasses then
-		print ctx "%s = " p
-	else
-		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
+    generate_package_create ctx c.cl_path;
+    print ctx "%s = " p;
 	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 	(match c.cl_kind with
 		| KAbstractImpl _ ->
@@ -1004,7 +866,7 @@ let generate_class ctx c =
 			| _ -> (print ctx "function() { }"); ctx.separator <- true)
 	);
 	newline ctx;
-	if ctx.js_modern && hxClasses then begin
+	if hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 		newline ctx;
 	end;
@@ -1072,10 +934,7 @@ let generate_class ctx c =
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
-	if ctx.js_flatten then
-		print ctx "var "
-	else
-		generate_package_create ctx e.e_path;
+    generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
 	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
 	print ctx "{";
@@ -1131,10 +990,7 @@ let generate_require ctx c =
 	let _, args, mp = Meta.get Meta.JsRequire c.cl_meta in
 	let p = (s_path ctx c.cl_path) in
 
-	if ctx.js_flatten then
-		spr ctx "var "
-	else
-		generate_package_create ctx c.cl_path;
+    generate_package_create ctx c.cl_path;
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
@@ -1162,7 +1018,7 @@ let generate_type ctx = function
 			generate_class ctx c
 		else if (Meta.has Meta.JsRequire c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then
 			generate_require ctx c
-		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
+		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path)
@@ -1179,19 +1035,6 @@ let alloc_ctx com =
 		com = com;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
-		smap = {
-			source_last_line = 0;
-			source_last_col = 0;
-			source_last_file = 0;
-			print_comma = false;
-			output_last_col = 0;
-			output_current_col = 0;
-			sources = DynArray.create();
-			sources_hash = Hashtbl.create 0;
-			mappings = Buffer.create 16;
-		};
-		js_modern = not (Common.defined com Define.JsClassic);
-		js_flatten = Common.defined com Define.JsFlatten;
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -1285,7 +1128,7 @@ let generate com =
 		closureArgs
 	in
 
-	if ctx.js_modern then begin
+	begin
 		(* Additional ES5 strict mode keywords. *)
 		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
 
@@ -1308,13 +1151,9 @@ let generate com =
 		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
 
-	(* If ctx.js_modern, console is defined in closureArgs. *)
-	if (not ctx.js_modern) && (not (Common.defined com Define.JsEs5)) then
-		spr ctx "var console = Function(\"return typeof console != 'undefined' ? console : {log:function(){}}\")();\n";
-
 	(* TODO: fix $estr *)
 	let vars = [] in
-	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
+    let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ "{}") :: vars else vars) in
 	let vars = if has_feature ctx "may_print_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
@@ -1367,7 +1206,7 @@ let generate com =
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
-	if ctx.js_modern then begin
+	begin
 		print ctx "})(%s)" (String.concat ", " (List.map snd closureArgs));
 		newline ctx;
 		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
@@ -1383,7 +1222,6 @@ let generate com =
 			) !toplevelExposed
 		);
 	end;
-	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch);
