@@ -101,32 +101,39 @@ import cs.system.WeakReference;
 			var i = k & mask, nProbes = 0;
 
 			//for speed up
-			if (isEither(hashes[i])) {
+			var delKey = -1;
+			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
 				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEither(flag = hashes[i]) || (flag == k && entries[i].keyEquals(key) )) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && entries[i].keyEquals(key) )) )
 				{
+					if (delKey == -1 && isDel(flag))
+						delKey = i;
+
 					var entry = entries[i];
 					if (entry.Target == null)
 					{
-						entry.reuse(key,k);
-						hashes[i] = k;
-						break;
+						hashes[i] = FLAG_DEL;
+						entries[i] = null;
+						--size;
+						if (delKey == -1)
+							delKey = i;
 					}
+
 					i = (i + ++nProbes) & mask;
-					if (i == last)
-					{
-						//all
-					}
 #if DEBUG_HASHTBL
 					probeTimes++;
 					if (i == last)
 						throw "assert";
 #end
 				}
-				x = i;
+
+				if (isEmpty(flag) && delKey != -1)
+					x = delKey;
+				else
+					x = i;
 			}
 
 #if DEBUG_HASHTBL

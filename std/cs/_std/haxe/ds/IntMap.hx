@@ -85,7 +85,7 @@ import cs.NativeArray;
 				var last = i;
 				while (! (flagIsEmpty(flags, i) || _keys[i] == key) )
 				{
-					if (delKey != -1 && flagIsDel(flags,i))
+					if (delKey == -1 && flagIsDel(flags,i))
 						delKey = i;
 					i = (i + inc) & mask;
 #if DEBUG_HASHTBL

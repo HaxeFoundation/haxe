@@ -79,7 +79,7 @@ import java.NativeArray;
 				var last = i;
 				while (! (flagIsEmpty(flags, i) || _keys[i] == key) )
 				{
-					if (flagIsDel(flags,i) && delKey != -1)
+					if (flagIsDel(flags,i) && delKey == -1)
 						delKey = i;
 					i = (i + inc) & mask;
 #if DEBUG_HASHTBL

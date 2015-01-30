@@ -88,7 +88,7 @@ import java.NativeArray;
 				var last = i, flag;
 				while(! (isEmpty(flag = hashes[i]) || (flag == k && untyped keys[i].equals(key))) )
 				{
-					if (isDel(flag) && delKey != -1)
+					if (isDel(flag) && delKey == -1)
 						delKey = i;
 					i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
