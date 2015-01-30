@@ -191,11 +191,7 @@ let rec follow_basic t =
 		| TAbstract ({ a_path = ([],"Float") },[])
 		| TAbstract ({ a_path = [],"UInt" },[])
 		| TAbstract ({ a_path = ([],"Bool") },[])
-		| TInst ({ cl_path = (["haxe"],"Int32") },[])
-		| TInst ({ cl_path = ([],"Int") },[])
-		| TInst ({ cl_path = ([],"Float") },[])
-		| TType ({ t_path = [],"UInt" },[])
-		| TEnum ({ e_path = ([],"Bool") },[]) -> t
+		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
 	| TType ({ t_path = ["flash";"utils"],"Object" },[])
 	| TType ({ t_path = ["flash";"utils"],"Function" },[])

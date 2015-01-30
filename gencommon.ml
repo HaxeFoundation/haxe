@@ -263,7 +263,6 @@ let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
 let mk_mt_access mt pos = { eexpr = TTypeExpr(mt); etype = anon_of_mt mt; epos = pos }
 
 let is_void t = match follow t with
-	| TEnum({ e_path = ([], "Void") }, [])
 	| TAbstract ({ a_path = ([], "Void") },[]) ->
 			true
 	| _ -> false
@@ -3706,7 +3705,6 @@ struct
 					in
 
 					let may_cast = match follow call_expr.etype with
-						| TEnum({ e_path = ([], "Void")}, [])
 						| TAbstract ({ a_path = ([], "Void") },[]) -> (fun e -> e)
 						| _ -> mk_cast call_expr.etype
 					in
@@ -3757,7 +3755,6 @@ struct
 						let vo, _ = List.nth args (i * 2 + 1) in
 
 						let needs_cast, is_float = match t, like_float t && not (like_i64 t) with
-							| TInst({ cl_path = ([], "Float") }, []), _
 							| TAbstract({ a_path = ([], "Float") },[]), _ -> false, true
 							| _, true -> true, true
 							| _ -> false,false
@@ -5253,7 +5250,6 @@ struct
 
 	let add_assign gen add_statement expr =
 		match expr.eexpr, follow expr.etype with
-			| _, TEnum({ e_path = ([],"Void") },[])
 			| _, TAbstract ({ a_path = ([],"Void") },[])
 			| TThrow _, _ ->
 				add_statement expr;
@@ -5290,7 +5286,6 @@ struct
 				right
 			| _ ->
 				match follow right.etype with
-					| TEnum( { e_path = ([], "Void") }, [] )
 					| TAbstract ({ a_path = ([], "Void") },[]) ->
 						right
 					| _ -> trace (debug_expr right); assert false (* a statement is required *)
@@ -8377,7 +8372,6 @@ struct
 			(* as Array<Dynamic> *)
 			let args, ret = get_args t in
 			let ret = match follow ret with
-				| TEnum({ e_path = ([], "Void") }, [])
 				| TAbstract ({ a_path = ([], "Void") },[]) -> ret
 				| _ -> ret
 			in
@@ -9318,7 +9312,7 @@ struct
 		let conforms_cfs has_next next =
 			try (match follow has_next.cf_type with
 				| TFun([],ret) when
-					(match follow ret with | TEnum({ e_path = ([], "Bool") }, []) -> () | _ -> raise Not_found) ->
+					(match follow ret with | TAbstract({ a_path = ([], "Bool") }, []) -> () | _ -> raise Not_found) ->
 						()
 				| _ -> raise Not_found);
 			(match follow next.cf_type with

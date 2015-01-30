@@ -566,10 +566,6 @@ and type_string_suff suffix haxe_type =
    | TAbstract ({ a_path = ([],"Float") },[]) -> "Float"
    | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
-   | TEnum ({ e_path = ([],"Void") },[]) -> "Void"
-   | TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
-   | TInst ({ cl_path = ([],"Float") },[]) -> "Float"
-   | TInst ({ cl_path = ([],"Int") },[]) -> "int"
    | TEnum (enum,params) ->  "::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
    | TInst (klass,params) ->  (class_string klass suffix params)
    | TType (type_def,params) ->
@@ -2665,8 +2661,6 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          visited := in_type :: !visited;
          begin match follow in_type with
          | TMono r -> (match !r with None -> () | Some t -> visit_type t)
-         (*| TEnum ({ e_path = ([],"Void") },[]) -> ()
-         | TEnum ({ e_path = ([],"Bool") },[]) -> () *)
          | TEnum (enum,params) -> add_type enum.e_path
          (* If a class has a template parameter, then we treat it as dynamic - except
             for the Array, Class, FastIterator or Pointer classes, for which we do a fully typed object *)
@@ -4179,7 +4173,6 @@ let rec s_type t =
 and s_fun t void =
    match follow t with
    | TFun _ -> "(" ^ s_type t ^ ")"
-   | TEnum ({ e_path = ([],"Void") },[]) when void -> "(" ^ s_type t ^ ")"
    | TAbstract ({ a_path = ([],"Void") },[]) when void -> "(" ^ s_type t ^ ")"
    | TMono r -> (match !r with | None -> s_type t | Some t -> s_fun t void)
    | TLazy f -> s_fun (!f()) void
