@@ -9169,40 +9169,6 @@ struct
 
 		let priority = solve_deps name [DBefore TArrayTransform.priority]
 
-		let ensure_local gen cond =
-			let exprs_before, new_cond = match cond.eexpr with
-				| TLocal v ->
-					[], cond
-				| _ ->
-					let v = mk_temp gen "cond" cond.etype in
-					[ { eexpr = TVar(v, Some cond); etype = gen.gcon.basic.tvoid; epos = cond.epos } ], mk_local v cond.epos
-			in
-			exprs_before, new_cond
-
-		let get_index gen cond cls tparams =
-			{ (mk_field_access gen { cond with etype = TInst(cls, tparams) } "index" cond.epos) with etype = gen.gcon.basic.tint }
-
-		(* stolen from Hugh's hxcpp sources *)
-		let tmatch_params_to_vars params =
-			(match params with
-			| None | Some [] -> []
-			| Some l ->
-				let n = ref (-1) in
-				List.fold_left
-					(fun acc v -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l)
-
-(*		 let tmatch_params_to_exprs gen params cond_local =
-			let vars = tmatch_params_to_vars params in
-			let cond_array = { (mk_field_access gen cond_local "params" cond_local.epos) with etype = gen.gcon.basic.tarray t_empty } in
-			let tvars = List.map (fun (v, n) ->
-				(v, Some({ eexpr = TArray(cond_array, mk_int gen n cond_array.epos); etype = t_dynamic; epos = cond_array.epos }))
-			) vars in
-			match vars with
-				| [] ->
-						[]
-				| _ ->
-						[ { eexpr = TVar(tvars); etype = gen.gcon.basic.tvoid; epos = cond_local.epos } ]
- *)
 		let traverse gen t opt_get_native_enum_tag =
 			let rec run e =
 				let get_converted_enum_type et =
