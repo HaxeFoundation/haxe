@@ -1056,7 +1056,9 @@ let run com tctx main =
 				else
 					fun e ->
 						let save = save_locals tctx in
-						let e = try snd (Analyzer.Simplifier.apply com (Typecore.gen_local tctx) e) with Exit -> e in
+						let timer = timer "analyzer-simplify-apply" in
+						let e = try snd (Analyzer.Simplifier.apply com e) with Exit -> e in
+						timer();
 						save();
 					e );
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize com;
