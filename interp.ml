@@ -66,6 +66,7 @@ and vabstract =
 	| ANekoBuffer of value
 	| ACacheRef of value
 	| AInt32Kind
+	| ATls of value ref
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -1813,6 +1814,24 @@ let std_lib =
 		"utf8_compare", Fun2 (fun s1 s2 ->
 			VInt (UTF8.compare (vstring s1) (vstring s2))
 		);
+	(* thread *)
+		"thread_create", Fun2 (fun f p ->
+			exc (VString "Can't create thread from within a macro");
+		);
+		"tls_create", Fun0 (fun() ->
+			VAbstract (ATls (ref VNull))
+		);
+		"tls_get", Fun1 (fun t ->
+			match t with
+			| VAbstract (ATls r) -> !r
+			| _ -> error();
+		);
+		"tls_set", Fun2 (fun t v ->
+			match t with
+			| VAbstract (ATls r) -> r := v; VNull
+			| _ -> error();
+		);
+		(* lock, mutex, deque : not implemented *)
 	(* xml *)
 		"parse_xml", (match neko with
 		| None -> Fun2 (fun str o ->
@@ -1852,7 +1871,7 @@ let std_lib =
 			let parse_xml = neko.load "std@parse_xml" 2 in
 			Fun2 (fun str o -> neko.call parse_xml [str;o])
 		);
-	(* memory, module, thread : not planned *)
+	(* memory, module : not planned *)
 	]
 	(* process *)
 	@ (match neko with
