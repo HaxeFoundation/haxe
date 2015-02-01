@@ -21,7 +21,9 @@
  */
 package haxe.io;
 
+#if js
 import js.html.compat.Float32Array;
+#end
 
 typedef Float32ArrayData = #if js js.html.Float32Array #else ArrayBufferView.ArrayBufferViewData #end
 
