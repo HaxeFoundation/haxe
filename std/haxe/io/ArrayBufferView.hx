@@ -22,6 +22,11 @@ class ArrayBufferViewImpl {
 
 abstract ArrayBufferView(ArrayBufferViewData) {
 
+	public static var EMULATED(get,never) : Bool;
+	static #if !js inline #end function get_EMULATED() {
+		return #if js (cast js.html.ArrayBuffer) == js.html.compat.ArrayBuffer #else false #end;
+	}
+
 	public var buffer(get,never) : haxe.io.Bytes;
 	public var byteOffset(get, never) : Int;
 	public var byteLength(get, never) : Int;

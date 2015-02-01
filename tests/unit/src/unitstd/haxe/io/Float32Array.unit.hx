@@ -1,3 +1,6 @@
+
+var emulated = haxe.io.ArrayBufferView.EMULATED;
+
 var b = new haxe.io.Float32Array(5);
 b[0] == 0;
 b[4] == 0;
@@ -7,9 +10,11 @@ b.length == 5;
 b[1] = 1.25;
 b[1] == 1.25;
 
-// check loss of precision
-b[1] = 8589934592.;
-b[1] == 8589934592.;
+// check loss of precision due to 32 bits
+if( !emulated ) {
+	b[1] = 8589934591.;
+	b[1] == 8589934592.;
+}
 
 // set
 for( i in 0...5 )
@@ -31,9 +36,11 @@ b2[2] == 4;
 b2.length == 3;
 
 // check memory sharing
-b2[0] = 0xCC;
-b2[0] == 0xCC;
-b[1] == 0xCC;
+if( !emulated ) {
+	b2[0] = 0xCC;
+	b2[0] == 0xCC;
+	b[1] == 0xCC;
+}
 
 // should we allow writing past bounds ?
 try b2[-1] = 0xBB catch( e : Dynamic ) {};

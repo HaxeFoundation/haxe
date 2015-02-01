@@ -1,3 +1,6 @@
+
+var emulated = haxe.io.ArrayBufferView.EMULATED;
+
 var b = new haxe.io.Uint8Array(5);
 b[0] == 0;
 b[4] == 0;
@@ -9,7 +12,7 @@ b[0] == 1;
 b[0] = -2;
 b[0] == 254;
 
-// vheck write for big int
+// check write for big int
 b[1] = 65535 * 65534 * 65533;
 b[1] == 0xFA;
 
@@ -33,9 +36,11 @@ b2[2] == 4;
 b2.length == 3;
 
 // check memory sharing
-b2[0] = 0xCC;
-b2[0] == 0xCC;
-b[1] == 0xCC;
+if( !emulated ) {
+	b2[0] = 0xCC;
+	b2[0] == 0xCC;
+	b[1] == 0xCC;
+}
 
 // should we allow writing past bounds ?
 try b2[-1] = 0xBB catch( e : Dynamic ) {};

@@ -59,7 +59,7 @@ abstract Uint8Array(Uint8ArrayData) {
 	
 	@:arrayAccess public inline function set( index : Int, value : Int ) : Int {
 		#if js
-		return this[index] = value;
+		return this[index] = value & 0xFF; // &0xFF necessary for html compat
 		#else
 		if( index >= 0 && index < length ) {
 			this.bytes.set(index + this.byteOffset, value);
