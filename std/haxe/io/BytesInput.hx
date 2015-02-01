@@ -22,7 +22,7 @@
 package haxe.io;
 
 class BytesInput extends Input {
-	var b : BytesData;
+	var b : #if js js.html.Uint8Array #else BytesData #end;
 	#if !flash9
 	var pos : Int;
 	var len : Int;
@@ -50,7 +50,7 @@ class BytesInput extends Input {
 			this.b = ba;
 		this.b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#else
-		this.b = b.getData();
+		this.b = #if js @:privateAccess b.b #else b.getData() #end;
 		this.pos = pos;
 		this.len = len;
 		this.totlen = len;
@@ -144,7 +144,7 @@ class BytesInput extends Input {
 			untyped __php__("$buf->b = substr($buf->b, 0, $pos) . substr($this->b, $this->pos, $len) . substr($buf->b, $pos+$len)");
 			#else
 			var b1 = b;
-			var b2 = buf.getData();
+			var b2 = #if js @:privateAccess buf.b #else buf.getData() #end;
 			for( i in 0...len )
 				b2[pos+i] = b1[this.pos+i];
 			#end
