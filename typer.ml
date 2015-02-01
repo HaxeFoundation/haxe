@@ -672,7 +672,7 @@ let is_forced_inline c cf =
 	| _ when Meta.has Meta.Extern cf.cf_meta -> true
 	| _ -> false
 
-let rec unify_call_args' ctx el args r p inline force_inline =
+let rec unify_call_args' ctx el args r callp inline force_inline =
 	let call_error err p =
 		raise (Error (Call_error err,p))
 	in
@@ -681,26 +681,26 @@ let rec unify_call_args' ctx el args r p inline force_inline =
 		call_error (Could_not_unify err) p
 	in
 	let mk_pos_infos t =
-		let infos = mk_infos ctx p [] in
+		let infos = mk_infos ctx callp [] in
 		type_expr ctx infos (WithType t)
 	in
 	let rec default_value name t =
 		if is_pos_infos t then
 			mk_pos_infos t
 		else
-			null (ctx.t.tnull t) p
+			null (ctx.t.tnull t) callp
 	in
 	let skipped = ref [] in
 	let skip name ul t =
 		if not ctx.com.config.pf_can_skip_non_nullable_argument && not (is_nullable t) then
-			call_error (Cannot_skip_non_nullable name) p;
+			call_error (Cannot_skip_non_nullable name) callp;
 		skipped := (name,ul) :: !skipped;
 		default_value name t
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
 	let type_against t e =
 		let e = type_expr ctx e (WithTypeResume t) in
-		(try Codegen.AbstractCast.cast_or_unify_raise ctx t e p with Error (Unify l,p) -> raise (WithTypeError (l,p)));
+		(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)));
 	in
 	let rec loop el args = match el,args with
 		| [],[] ->
@@ -713,7 +713,7 @@ let rec unify_call_args' ctx el args r p inline force_inline =
 					assert false
 			end
 		| [],(_,false,_) :: _ ->
-			call_error Not_enough_arguments p
+			call_error Not_enough_arguments callp
 		| [],(name,true,t) :: args ->
 			begin match loop [] args with
 				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
