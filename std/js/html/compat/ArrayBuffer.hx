@@ -53,7 +53,7 @@ class ArrayBuffer {
 	}
 
 	static function __init__() untyped {
-		var ArrayBuffer = __js__('typeof(window) != "undefined" && window.ArrayBuffer') || ArrayBuffer;
+		var ArrayBuffer = __js__('typeof(window) != "undefined" && window.ArrayBuffer') || __js__('typeof(global) != "undefined" && global.ArrayBuffer') || ArrayBuffer;
 		if( ArrayBuffer.prototype.slice == null ) ArrayBuffer.prototype.slice = sliceImpl; // IE10
 	}
 }
