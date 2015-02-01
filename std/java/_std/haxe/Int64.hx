@@ -21,122 +21,189 @@
  */
 package haxe;
 using haxe.Int64;
-import java.StdTypes.Int64 in NativeInt64;
+
+private typedef __Int64 = java.StdTypes.Int64;
 
 @:coreApi
-@:nativeGen class Int64
+abstract Int64(__Int64) from __Int64 to __Int64
 {
-	@:extern private static inline function asNative(i:Int64):NativeInt64 return untyped i;
-	@:extern private static inline function ofNative(i:NativeInt64):Int64 return untyped i;
-	@:extern private static inline function mkNative(i:Int):NativeInt64 return cast i;
 
-	public static inline function make( high : Int, low : Int ) : Int64
-	{
-		return ((cast(high, NativeInt64) << 32 ) | (low & untyped __java__('0xffffffffL'))).ofNative();
-	}
+	public static inline function make( high : Int32, low : Int32 ) : Int64
+		return new Int64( (cast(high, __Int64) << 32) | (low & untyped __java__('0xffffffffL')) );
 
-	public static inline function getLow( x : Int64 ) : Int
-	{
-		return cast (x.asNative() & (untyped __java__("0xFFFFFFFFL")), Int);
-	}
+	private inline function new(x : __Int64)
+		this = x;
 
-	public static inline function getHigh( x : Int64 ) : Int {
-		return cast(cast(x,NativeInt64) >>> 32, Int);
-	}
+	private var val( get, set ) : __Int64;
+	inline function get_val() : __Int64 return this;
+	inline function set_val( x : __Int64 ) : __Int64 return this = x;
 
-	public static inline function ofInt( x : Int ) : Int64 {
+	public inline function copy():Int64
+		return new Int64( this );
+
+	@:from public static inline function ofInt( x : Int ) : Int64
 		return cast x;
+
+	public static inline function toInt( x : Int64 ) : Int {
+		if( x.val < 0x80000000 || x.val > 0x7FFFFFFF )
+			throw "Overflow";
+		return cast x.val;
 	}
 
-	public static inline function toInt( x : Int64 ) : Int
-	{
-		return cast x;
-	}
+	public static inline function getHigh( x : Int64 ) : Int32
+		return cast( x.val >> 32 );
 
-	public static inline function add( a : Int64, b : Int64 ) : Int64
-	{
-		return (a.asNative() + b.asNative()).ofNative();
-	}
+	public static inline function getLow( x : Int64 ) : Int32
+		return cast( x.val );
 
-	public static inline function sub( a : Int64, b : Int64 ) : Int64
-	{
-		return (a.asNative() - b.asNative()).ofNative();
-	}
+	public static inline function isNeg( x : Int64 ) : Bool
+		return x.val < 0;
 
-	public static inline function mul( a : Int64, b : Int64 ) : Int64 {
-		return (a.asNative() * b.asNative()).ofNative();
-	}
-
-	static function divMod( modulus : Int64, divisor : Int64 ) : { quotient : Int64, modulus : Int64 }
-	{
-		var q:Int64 = (modulus.asNative() / divisor.asNative()).ofNative();
-		var m:Int64 = (modulus.asNative() % divisor.asNative()).ofNative();
-		return { quotient : q, modulus : m };
-	}
-
-	public static inline function div( a : Int64, b : Int64 ) : Int64 {
-		return (a.asNative() / b.asNative()).ofNative();
-	}
-
-	public static inline function mod( a : Int64, b : Int64 ) : Int64 {
-		return (a.asNative() % b.asNative()).ofNative();
-	}
-
-	public static inline function shl( a : Int64, b : Int ) : Int64 {
-		return (a.asNative() << b).ofNative();
-	}
-
-	public static inline function shr( a : Int64, b : Int ) : Int64 {
-		return (a.asNative() >> b).ofNative();
-	}
-
-	public static inline function ushr( a : Int64, b : Int ) : Int64 {
-		return ( a.asNative() >>> b).ofNative();
-	}
-
-	public static inline function and( a : Int64, b : Int64 ) : Int64
-	{
-		return (a.asNative() & b.asNative()).ofNative();
-	}
-
-	public static inline function or( a : Int64, b : Int64 ) : Int64
-	{
-		return (a.asNative() | b.asNative()).ofNative();
-	}
-
-	public static inline function xor( a : Int64, b : Int64 ) : Int64
-	{
-		return (a.asNative() ^ b.asNative()).ofNative();
-	}
-
-	public static inline function neg( a : Int64 ) : Int64
-	{
-		return (-(a.asNative())).ofNative();
-	}
-
-	public static inline function isNeg( a : Int64 ) : Bool
-	{
-		return (a.asNative() < 0.mkNative());
-	}
-
-	public static inline function isZero( a : Int64 ) : Bool
-	{
-		return (a.asNative() == 0.mkNative());
-	}
+	public static inline function isZero( x : Int64 ) : Bool
+		return x.val == 0;
 
 	public static inline function compare( a : Int64, b : Int64 ) : Int
 	{
-		return (a.asNative() < b.asNative()) ? -1 : (a.asNative() > b.asNative()) ? 1 : 0;
+		if( a.val < b.val ) return -1;
+		if( a.val > b.val ) return 1;
+		return 0;
 	}
 
-	public static function ucompare( a : Int64, b : Int64 ) : Int
-	{
-		if (a.asNative() < 0.mkNative())
-			return (b.asNative() < 0.mkNative()) ? compare( (~(a.asNative())).ofNative(), (~(b.asNative())).ofNative()) : 1;
-		return (b.asNative() < 0.mkNative()) ? -1 : compare(a, b);
+	public static inline function ucompare( a : Int64, b : Int64 ) : Int {
+		if( a.val < 0 )
+			return ( b.val < 0 ) ? compare( a, b ) : 1;
+		return ( b.val < 0 ) ? -1 : compare( a, b );
 	}
 
-	public static inline function toStr( a : Int64 ) : String {
-		return a + "";
-	}
+	public static inline function toStr( x : Int64 ) : String
+		return x.val + "";
+
+	public static inline function divMod( dividend : Int64, divisor : Int64 ) : { quotient : Int64, modulus : Int64 }
+		return {quotient:0,modulus:0};//{ quotient: dividend / divisor, modulus: dividend % divisor };
+
+	private inline function toString() : String
+		return this + "";
+
+	@:op(-A) public static function neg( x : Int64 ) : Int64
+		return -x.val;
+
+	@:op(++A) private inline function preIncrement() : Int64
+		return ++this;
+
+	@:op(A++) private inline function postIncrement() : Int64
+		return this++;
+
+	@:op(--A) private inline function preDecrement() : Int64
+		return --this;
+
+	@:op(A--) private inline function postDecrement() : Int64
+		return this--;
+	
+	@:op(A + B) public static inline function add( a : Int64, b : Int64 ) : Int64
+		return a.val + b.val;
+
+	@:op(A + B) @:commutative private static inline function addInt( a : Int64, b : Int ) : Int64
+		return a.val + b;
+
+	@:op(A - B) public static inline function sub( a : Int64, b : Int64 ) : Int64
+		return a.val - b.val;
+
+	@:op(A - B) private static inline function subInt( a : Int64, b : Int ) : Int64
+		return a.val - b;
+
+	@:op(A - B) private static inline function intSub( a : Int, b : Int64 ) : Int64
+		return a - b.val;
+
+	@:op(A * B) public static inline function mul( a : Int64, b : Int64 ) : Int64
+		return a.val * b.val;
+
+	@:op(A * B) @:commutative private static inline function mulInt( a : Int64, b : Int ) : Int64
+		return a.val * b;
+
+	@:op(A / B) public static inline function div( a : Int64, b : Int64 ) : Int64
+		return a.val / b.val;
+
+	@:op(A / B) private static inline function divInt( a : Int64, b : Int ) : Int64
+		return a.val / b;
+
+	@:op(A / B) private static inline function intDiv( a : Int, b : Int64 ) : Int64
+		return a / b.val;
+
+	@:op(A % B) public static inline function mod( a : Int64, b : Int64 ) : Int64
+		return a.val % b.val;
+
+	@:op(A % B) private static inline function modInt( a : Int64, b : Int ) : Int64
+		return a.val % b;
+
+	@:op(A % B) private static inline function intMod( a : Int, b : Int64 ) : Int64
+		return a % b.val;
+
+	@:op(A == B) public static inline function eq( a : Int64, b : Int64 ) : Bool
+		return a.val == b.val;
+
+	@:op(A == B) @:commutative private static inline function eqInt( a : Int64, b : Int ) : Bool
+		return a.val == b;
+
+	@:op(A != B) public static inline function neq( a : Int64, b : Int64 ) : Bool
+		return a.val != b.val;
+
+	@:op(A != B) @:commutative private static inline function neqInt( a : Int64, b : Int ) : Bool
+		return a.val != b;
+
+	@:op(A < B) private static inline function lt( a : Int64, b : Int64 ) : Bool
+		return a.val < b.val;
+
+	@:op(A < B) private static inline function ltInt( a : Int64, b : Int ) : Bool
+		return a.val < b;
+
+	@:op(A < B) private static inline function intLt( a : Int, b : Int64 ) : Bool
+		return a < b.val;
+
+	@:op(A <= B) private static inline function lte( a : Int64, b : Int64 ) : Bool
+		return a.val <= b.val;
+
+	@:op(A <= B) private static inline function lteInt( a : Int64, b : Int ) : Bool
+		return a.val <= b;
+
+	@:op(A <= B) private static inline function intLte( a : Int, b : Int64 ) : Bool
+		return a <= b.val;
+
+	@:op(A > B) private static inline function gt( a : Int64, b : Int64 ) : Bool
+		return a.val > b.val;
+
+	@:op(A > B) private static inline function gtInt( a : Int64, b : Int ) : Bool
+		return a.val > b;
+
+	@:op(A > B) private static inline function intGt( a : Int, b : Int64 ) : Bool
+		return a > b.val;
+
+	@:op(A >= B) private static inline function gte( a : Int64, b : Int64 ) : Bool
+		return a.val >= b.val;
+
+	@:op(A >= B) private static inline function gteInt( a : Int64, b : Int ) : Bool
+		return a.val >= b;
+
+	@:op(A >= B) private static inline function intGte( a : Int, b : Int64 ) : Bool
+		return a >= b.val;
+
+	@:op(~A) private static inline function complement( x : Int64 ) : Int64
+		return ~x.val;
+
+	@:op(A & B) public static inline function and( a : Int64, b : Int64 ) : Int64
+		return a.val & b.val;
+
+	@:op(A | B) public static inline function or( a : Int64, b : Int64 ) : Int64
+		return a.val | b.val;
+
+	@:op(A ^ B) public static inline function xor( a : Int64, b : Int64 ) : Int64
+		return a.val ^ b.val;
+
+	@:op(A << B) public static inline function shl( a : Int64, b : Int ) : Int64
+		return a.val << b;
+
+	@:op(A >> B) public static inline function shr( a : Int64, b : Int ) : Int64
+		return a.val >> b;
+
+	@:op(A >>> B) public static inline function ushr( a : Int64, b : Int ) : Int64
+		return a.val >>> b;
 }
