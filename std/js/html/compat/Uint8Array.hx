@@ -60,7 +60,7 @@ class Uint8Array {
 				arr.buffer = new ArrayBuffer(arr);
 			}
 		} else
-			throw "TODO";
+			throw "TODO "+arg1;
 		untyped {
 			arr.subarray = _subarray;
 			arr.set = _set;

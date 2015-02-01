@@ -31,8 +31,13 @@ class ArrayBuffer {
 		if( Std.is(a,Array) ) {
 			this.a = a;
 			byteLength = a.length;
-		} else
-			throw "TODO";
+		} else {
+			var len : Int = a;
+			this.a = [];
+			for( i in 0...len )
+				this.a[i] = 0;
+			byteLength = len;
+		}
 	}
 	
 	public function slice(begin,?end) {
