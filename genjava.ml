@@ -1451,8 +1451,9 @@ let configure gen =
 							write w "case ";
 							in_value := true;
 							(match e.eexpr with
-								| TField(_,FEnum(e,ef)) ->
-									write w ef.ef_name
+								| TField(_, FEnum(e, ef)) ->
+                           let changed_name = change_id ef.ef_name in
+									write w changed_name
 								| _ ->
 									expr_s w e);
 							write w ":";

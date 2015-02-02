@@ -116,18 +116,24 @@ class Socket {
 
 		var s = new Socket();
 		s.sock = ret;
+		try
+		{
+			s.output = new java.io.NativeOutput(ret.getOutputStream());
+			s.input = new java.io.NativeInput(ret.getInputStream());
+		}
+		catch(e:Dynamic) throw e;
 
 		return s;
 	}
 
 	public function peer() : { host : Host, port : Int }
 	{
-		var rem:java.net.InetSocketAddress = cast sock.getInetAddress();
+		var rem:java.net.InetAddress = cast sock.getInetAddress();
 		if (rem == null) return null;
 
 		var host = new Host(null);
-		host.wrapped = rem.getAddress();
-		return { host: host, port: rem.getPort() };
+		host.wrapped = rem;
+		return { host: host, port: sock.getPort() };
 	}
 
 	public function host() : { host : Host, port : Int }
@@ -136,7 +142,11 @@ class Socket {
 		var host = new Host(null);
 		host.wrapped = local;
 
-		return { host: host, port: sock.getPort() };
+		if (boundAddr != null)
+		{
+			return { host: host, port: server.getLocalPort() };
+		}
+		return { host: host, port: sock.getLocalPort() };
 	}
 
 	public function setTimeout( timeout : Float ) : Void
