@@ -368,9 +368,9 @@ class RecordMacros {
 			var relatedKey = relatedInf.key[0];
 			var relatedKeyType = switch(relatedInf.hfields.get(relatedKey).t)
 				{
-					case DId | DInt: DInt;
-					case DUId | DUInt: DUInt;
-					case DBigId | DBigId: DBigInt;
+					case DId: DInt;
+					case DUId: DUInt;
+					case DBigId: DBigInt;
 					case t = DString(_): t;
 					case t: error("Unexpected id type $t for the relation. Use either SId, SInt, SUId, SUInt, SBigID, SBigInt or SString", field.pos);
 				}
@@ -401,6 +401,20 @@ class RecordMacros {
 					i.key.push(id);
 				}
 				if( i.key.length == 0 ) error("Invalid :id", m.pos);
+				if (i.key.length == 1 )
+				{
+					var field = i.hfields.get(i.key[0]);
+					switch(field.t)
+					{
+						case DInt:
+							field.t = DId;
+						case DUInt:
+							field.t = DUId;
+						case DBigInt:
+							field.t = DBigId;
+						case _:
+					}
+				}
 			case ":index":
 				var idx = [];
 				for( p in m.params ) idx.push(makeIdent(p));
