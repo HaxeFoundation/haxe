@@ -46,12 +46,6 @@ class FPHelper {
 		static var _float_bytes = neko.Lib.load("std","float_bytes",2);
 		static var _double_bytes = neko.Lib.load("std","double_bytes",2);
 		#end
-	#elseif cpp
-		static var helper = haxe.io.Bytes.alloc(8);
-		static var _float_of_bytes = cpp.Lib.load("std","float_of_bytes",2);
-		static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
-		static var _float_bytes = cpp.Lib.load("std","float_bytes",2);
-		static var _double_bytes = cpp.Lib.load("std","double_bytes",2);
 	#elseif flash9
 		static var helper = {
 			var b = new flash.utils.ByteArray();
@@ -80,13 +74,7 @@ class FPHelper {
 			return _float_of_bytes(helper,false);
 			#end
 		#elseif cpp
-			// TODO : more direct version
-			var helper = helper;
-			helper.set(0,i);
-			helper.set(1,i>>8);
-			helper.set(2,i>>16);
-			helper.set(3,i>>>24);
-			return _float_of_bytes(helper.getData(),false);
+			return untyped __global__.__hxcpp_reinterpret_le_int32_as_float32(i);
 		#elseif cs
 			var helper = new SingleHelper(0);
 			if( cs.system.BitConverter.IsLittleEndian )
@@ -127,9 +115,7 @@ class FPHelper {
 			return untyped $sget(r,0) | ($sget(r,1)<<8) | ($sget(r,2)<<16) | ($sget(r,3)<<24);
 			#end
 		#elseif cpp
-			// TODO : no allocation version
-			var r = haxe.io.Bytes.ofData(_float_bytes(f,false));
-			return r.getI32(0);
+			return untyped __global__.__hxcpp_reinterpret_float32_as_le_int32(f);
 		#elseif cs
 			var helper = new SingleHelper(f);
 			if( cs.system.BitConverter.IsLittleEndian )
@@ -179,17 +165,7 @@ class FPHelper {
 			return _double_of_bytes(helper,false);
 			#end
 		#elseif cpp
-			// TODO : more direct version
-			var helper = helper;
-			helper.set(0,low);
-			helper.set(1,low>>8);
-			helper.set(2,low>>16);
-			helper.set(3,low>>>24);
-			helper.set(4,high);
-			helper.set(5,high>>8);
-			helper.set(6,high>>16);
-			helper.set(7,high>>>24);
-			return _double_of_bytes(helper.getData(),false);
+			return untyped __global__.__hxcpp_reinterpret_le_int32s_as_float64(low,high);
 		#elseif cs
 			var helper = new FloatHelper(0);
 			if( cs.system.BitConverter.IsLittleEndian )
@@ -256,11 +232,10 @@ class FPHelper {
 			return i64;
 			#end
 		#elseif cpp
-			// TODO : no allocation version
-			var r = haxe.io.Bytes.ofData(_double_bytes(v,false)), i64 = i64tmp;
+			var i64 = i64tmp;
 			@:privateAccess {
-				i64.low = r.getI32(0);
-				i64.high = r.getI32(4);
+				i64.low = untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_low(v);
+				i64.high = untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_high(v);
 			}
 			return i64;
 		#elseif java
