@@ -27,6 +27,7 @@ import haxe.macro.Type.VarAccess;
 import haxe.macro.Context;
 using haxe.macro.TypeTools;
 #end
+using Lambda;
 
 private typedef SqlFunction = {
 	var name : String;
@@ -359,16 +360,19 @@ class RecordMacros {
 		}
 		// create fields for undeclared relations keys :
 		for( r in i.relations ) {
+			var field = fields.find(function(f) return f.name == r.prop);
 			var f = i.hfields.get(r.key);
 			var relatedInf = getRecordInfos(makeRecord(resolveType(r.type)));
+			if (relatedInf.key.length > 1)
+				error('The relation ${r.prop} is invalid: Type ${r.type} has multiple keys, which is not supported',field.pos);
 			var relatedKey = relatedInf.key[0];
 			var relatedKeyType = switch(relatedInf.hfields.get(relatedKey).t)
 				{
-					case DId: DInt;
-					case DUId: DUInt;
-					case DBigId: DBigInt;
+					case DId | DInt: DInt;
+					case DUId | DUInt: DUInt;
+					case DBigId | DBigId: DBigInt;
 					case t = DString(_): t;
-					default: throw "Unexpected id type, use either SId, SUId, SBigID or SString";
+					case t: error("Unexpected id type $t for the relation. Use either SId, SInt, SUId, SUInt, SBigID, SBigInt or SString", field.pos);
 				}
 
 			if( f == null ) {

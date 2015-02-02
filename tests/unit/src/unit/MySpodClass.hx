@@ -42,9 +42,9 @@ import sys.db.Types;
 	}
 }
 
-@:keep class OtherSpodClass extends Object
+@:id(theid) @:keep class OtherSpodClass extends Object
 {
-	public var theid:SId;
+	public var theid:SInt;
 	public var name:SString<255>;
 
 	public function new(name:String)
