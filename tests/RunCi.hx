@@ -570,7 +570,7 @@ class RunCi {
 					setupFlashPlayerDebugger();
 
 					//setup flex sdk
-					var flexVersion = "4.13.0";
+					var flexVersion = "4.14.0";
 					runCommand("wget", ['http://mirror.cc.columbia.edu/pub/software/apache/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 					runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 					var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
