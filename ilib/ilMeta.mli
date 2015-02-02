@@ -1107,6 +1107,7 @@ and nativesig =
 		(* custom (<class_str>, <cookie_str>) *)
 	| NError (* 0x2D *)
 		(* maps in32 to VT_HRESULT *)
+  | NCustom of int
 
 and variantsig =
 	| VT_EMPTY (* 0x00 *)

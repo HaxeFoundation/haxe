@@ -1434,7 +1434,7 @@ let rec read_nativesig ctx s pos : int * nativesig =
 			(* FIXME: read TypeRef *)
 			pos, NCustomMarshaler (guid_val,unmanaged)
 		| 0x2D -> pos, NError (* 0x2D *)
-		| _ -> assert false
+		| i -> pos, NCustom i
 
 let read_blob_idx ctx s pos =
 	let metapos,i = if ctx.blob_offset = 2 then
