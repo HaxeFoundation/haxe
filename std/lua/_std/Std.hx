@@ -32,7 +32,7 @@ import lua.Boot;
 		return untyped __instanceof__(value, c) ? cast value : null;
 	}
 
-	public static function string( s : Dynamic ) : String {
+	inline public static function string( s : Dynamic ) : String {
 		return untyped lua.Boot.__string_rec(s,"");
 	}
 

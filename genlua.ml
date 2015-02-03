@@ -74,7 +74,7 @@ let kwds =
 		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
 		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
 		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
+		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "nil"; "package"; "private"; "protected";
 		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
 		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"; "yield"
 	];
@@ -137,10 +137,7 @@ let basename path =
 	with Not_found -> path
 
 
-let newline ctx =
-	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs
-	| _ -> print ctx ";\n%s" ctx.tabs
+let newline ctx = print ctx "\n%s" ctx.tabs
 
 let newprop ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -230,12 +227,64 @@ let is_dynamic_iterator ctx e =
 	| _ ->
 		false
 
+
+(* from genphp *)
+let rec is_uncertain_type t =
+	match follow t with
+	| TInst (c, _) -> c.cl_interface
+	| TMono _ -> true
+	| TAnon a ->
+	  (match !(a.a_status) with
+	  | Statics _
+	  | EnumStatics _ -> false
+	  | _ -> true)
+	| TDynamic _ -> true
+	| _ -> false
+
+let is_uncertain_expr e =
+	is_uncertain_type e.etype
+
+let rec is_anonym_type t =
+	match follow t with
+	| TAnon a ->
+	  (match !(a.a_status) with
+	  | Statics _
+	  | EnumStatics _ -> false
+	  | _ -> true)
+	| TDynamic _ -> true
+	| _ -> false
+
+let is_anonym_expr e = is_anonym_type e.etype
+
+let rec is_unknown_type t =
+	match follow t with
+	| TMono r ->
+		(match !r with
+		| None -> true
+		| Some t -> is_unknown_type t)
+	| _ -> false
+
+let is_unknown_expr e =	is_unknown_type e.etype
+
+let rec is_string_type t =
+	match follow t with
+	| TInst ({cl_path = ([], "String")}, _) -> true
+	| TAnon a ->
+	   (match !(a.a_status) with
+	   | Statics ({cl_path = ([], "String")}) -> true
+	   | _ -> false)
+	| TAbstract (a,pl) -> is_string_type (Abstract.get_underlying_type a pl)
+	| _ -> false
+
+let is_string_expr e = is_string_type e.etype
+(* /from genphp *)
+
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
 	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
-	| TNull -> spr ctx "null"
+	| TNull -> spr ctx "nil"
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert false
 
@@ -288,7 +337,7 @@ let rec gen_call ctx e el in_value =
 		gen_value ctx t;
 		spr ctx ")";
 	| TLocal { v_name = "__typeof__" },  [o] ->
-		spr ctx "typeof(";
+		spr ctx "type(";
 		gen_value ctx o;
 		spr ctx ")";
 	| TLocal { v_name = "__strict_eq__" } , [x;y] ->
@@ -334,7 +383,7 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx infos;
 			spr ctx ")";
 		end else begin
-			spr ctx "console.log(";
+			spr ctx "print(";
 			gen_value ctx e;
 			spr ctx ")";
 		end
@@ -356,15 +405,27 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
-	| TBinop (op,{ eexpr = TField (x,f) },e2) when field_name f = "iterator" ->
-		gen_value ctx x;
-		spr ctx (field "iterator");
-		print ctx " %s " (Ast.s_binop op);
-		gen_value ctx e2;
 	| TBinop (op,e1,e2) ->
-		gen_value ctx e1;
-		print ctx " %s " (Ast.s_binop op);
-		gen_value ctx e2;
+        (match e1 with
+            | { eexpr = TField (x,f) } when field_name f = "iterator" ->
+                gen_value ctx x;
+                spr ctx (field "iterator");
+            |_ -> 
+                gen_value ctx e1);
+        (match op with 
+            | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) -> print ctx " .. "
+            | Ast.OpNotEq -> print ctx " ~= "
+            | Ast.OpBoolAnd -> print ctx " and "
+            | Ast.OpBoolOr -> print ctx " or "
+            | Ast.OpAssignOp(op2) -> 
+                    spr ctx " = ";
+                gen_value ctx e1;
+                (match op2 with 
+                | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) -> print ctx " .. "
+                | _ -> print ctx "%s" (Ast.s_binop op2));
+            | _ -> print ctx " %s " (Ast.s_binop op));
+        gen_value ctx e2;
+
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$iterator";
 		print ctx "$iterator(";
@@ -393,7 +454,7 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
-		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
+            gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField (x,f) ->
@@ -423,18 +484,17 @@ and gen_expr ctx e =
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock el ->
-		print ctx "{";
 		let bend = open_block ctx in
 		List.iter (gen_block_element ctx) el;
 		bend();
 		newline ctx;
-		print ctx "}";
 	| TFunction f ->
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
 		gen_expr ctx (fun_block ctx f e.epos);
+        spr ctx "end";
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
@@ -448,7 +508,7 @@ and gen_expr ctx e =
 		spr ctx "throw ";
 		gen_value ctx e;
 	| TVar (v,eo) ->
-		spr ctx "var ";
+		spr ctx "local ";
 		check_var_declaration v;
 		spr ctx (ident v.v_name);
 		begin match eo with
@@ -469,17 +529,23 @@ and gen_expr ctx e =
 	| TIf (cond,e,eelse) ->
 		spr ctx "if";
 		gen_value ctx cond;
-		spr ctx " ";
+		spr ctx " then ";
 		gen_expr ctx e;
+        newline ctx;
 		(match eelse with
-		| None -> ()
+		| None -> print ctx "end";
 		| Some e2 ->
 			(match e.eexpr with
 			| TObjectDecl _ -> ctx.separator <- false
-			| _ -> ());
-			semicolon ctx;
-			spr ctx " else ";
-			gen_expr ctx e2);
+			| _ ->());
+			spr ctx "else ";
+            newline ctx;
+            let bend = open_block ctx in 
+            gen_expr ctx e2;
+            bend();
+            newline ctx;
+            spr ctx "end";
+            newline ctx);
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -488,22 +554,24 @@ and gen_expr ctx e =
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let handle_break = handle_break ctx e in
-		spr ctx "while";
+		spr ctx "while ";
 		gen_value ctx cond;
-		spr ctx " ";
+		spr ctx " do ";
 		gen_expr ctx e;
 		handle_break();
+		spr ctx "end ";
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
-		spr ctx "do ";
 		gen_expr ctx e;
-		semicolon ctx;
-		spr ctx " while";
+		spr ctx "while ";
 		gen_value ctx cond;
+		spr ctx " do ";
+		gen_expr ctx e;
 		handle_break();
+		spr ctx "end ";
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
 		spr ctx "}";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
@@ -590,28 +658,17 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "}";
 	| TSwitch (e,cases,def) ->
-		spr ctx "switch";
-		gen_value ctx e;
-		spr ctx " {";
-		newline ctx;
-		List.iter (fun (el,e2) ->
-			List.iter (fun e ->
-				match e.eexpr with
-				| TConst(c) when c = TNull ->
-					spr ctx "case null: case undefined:";
-				| _ ->
-					spr ctx "case ";
-					gen_value ctx e;
-					spr ctx ":"
+		List.iteri (fun cnt (el,e2) ->
+			List.iter (fun e3 ->
+                if cnt == 0 then spr ctx "if " else spr ctx "else if";
+                gen_value ctx e;
+                spr ctx " == ";
+                gen_value ctx e3;
+                spr ctx "then "
 			) el;
-			let bend = open_block ctx in
 			gen_block_element ctx e2;
-			if not (has_return e2) then begin
-				newline ctx;
-				print ctx "break";
-			end;
-			bend();
 			newline ctx;
+            spr ctx "end";
 		) cases;
 		(match def with
 		| None -> ()
@@ -622,7 +679,6 @@ and gen_expr ctx e =
 			bend();
 			newline ctx;
 		);
-		spr ctx "}"
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
@@ -645,7 +701,7 @@ and gen_block_element ?(after=false) ctx e =
 			| [e] -> gen_block_element ~after ctx e
 			| _ -> assert false)
 	| TFunction _ ->
-		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+            gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| _ ->
@@ -727,7 +783,7 @@ and gen_value ctx e =
 		let v = value() in
 		let rec loop = function
 			| [] ->
-				spr ctx "return null";
+				spr ctx "return nil";
 			| [e] ->
 				gen_expr ctx (assign e);
 			| e :: l ->
@@ -749,7 +805,7 @@ and gen_value ctx e =
 		gen_value ctx e;
 		spr ctx ":";
 		(match eo with
-		| None -> spr ctx "null"
+		| None -> spr ctx "nil"
 		| Some e -> gen_value ctx e);
 	| TSwitch (cond,cases,def) ->
 		let v = value() in
@@ -773,7 +829,7 @@ let generate_package_create ctx (p,_) =
 		| p :: l ->
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
-			| [] -> print ctx "var %s = {}" p
+			| [] -> print ctx "local %s = {}" p
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
                 print ctx "%s = {}" p
@@ -783,7 +839,7 @@ let generate_package_create ctx (p,_) =
 			loop (p :: acc) l
 	in
 	match p with
-	| [] -> print ctx "var "
+	| [] -> print ctx "local "
 	| _ -> loop [] p
 
 let check_field_name c f =
@@ -799,16 +855,14 @@ let gen_class_static_field ctx c f =
 	| None when is_extern_field f ->
 		()
 	| None ->
-		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field f.cf_name);
+		print ctx "%s%s = nil" (s_path ctx c.cl_path) (static_field f.cf_name);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
 			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
-			let dot_path = (dot_path c.cl_path) ^ (static_field f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
-			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 			gen_value ctx e;
 			newline ctx;
 		| _ ->
@@ -826,7 +880,7 @@ let gen_class_field ctx c f =
 	| None ->
 		newprop ctx;
 		print ctx "%s: " (anon_field f.cf_name);
-		print ctx "null";
+		print ctx "nil";
 	| Some e ->
 		newprop ctx;
 		print ctx "%s: " (anon_field f.cf_name);
@@ -855,7 +909,6 @@ let generate_class ctx c =
 	let hxClasses = has_feature ctx "Type.resolveClass" in
     generate_package_create ctx c.cl_path;
     print ctx "%s = " p;
-	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
 	(match c.cl_kind with
 		| KAbstractImpl _ ->
 			(* abstract implementations only contain static members and don't need to have constructor functions *)
@@ -863,7 +916,7 @@ let generate_class ctx c =
 		| _ ->
 			(match c.cl_constructor with
 			| Some { cf_expr = Some e } -> gen_expr ctx e
-			| _ -> (print ctx "function() { }"); ctx.separator <- true)
+			| _ -> (print ctx "{}"); ctx.separator <- true)
 	);
 	newline ctx;
 	if hxClasses then begin
@@ -1074,82 +1127,6 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
-	let exposed = List.concat (List.map (fun t ->
-		match t with
-			| TClassDecl c ->
-				let path = dot_path c.cl_path in
-				let class_exposed = get_exposed ctx path c.cl_meta in
-				let static_exposed = List.map (fun f ->
-					get_exposed ctx (path ^ static_field f.cf_name) f.cf_meta
-				) c.cl_ordered_statics in
-				List.concat (class_exposed :: static_exposed)
-			| _ -> []
-		) com.types) in
-	let anyExposed = exposed <> [] in
-	let exportMap = ref (PMap.create String.compare) in
-	let exposedObject = { os_name = ""; os_fields = [] } in
-	let toplevelExposed = ref [] in
-	List.iter (fun path -> (
-		let parts = ExtString.String.nsplit path "." in
-		let rec loop p pre = match p with
-			| f :: g :: ls ->
-				let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
-				if not (PMap.exists path !exportMap) then (
-					let elts = { os_name = f; os_fields = [] } in
-					exportMap := PMap.add path elts !exportMap;
-					let cobject = match pre with "" -> exposedObject | pre -> PMap.find pre !exportMap in
-					cobject.os_fields <- elts :: cobject.os_fields
-				);
-				loop (g :: ls) path;
-			| f :: [] when pre = "" ->
-				toplevelExposed := f :: !toplevelExposed;
-			| _ -> ()
-		in loop parts "";
-	)) exposed;
-
-
-	let closureArgs = [] in
-	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
-		(
-			"$hx_exports",
-			(* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
-			"typeof window != \"undefined\" ? window : exports"
-		) :: closureArgs
-	else
-		closureArgs
-	in
-	(* Provide console for environments that may not have it. *)
-	let closureArgs = if (not (Common.defined com Define.JsEs5)) then
-		(
-			"console",
-			"typeof console != \"undefined\" ? console : {log:function(){}}"
-		) :: closureArgs
-	else
-		closureArgs
-	in
-
-	begin
-		(* Additional ES5 strict mode keywords. *)
-		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
-
-		(* Wrap output in a closure *)
-		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
-			print ctx "var $hx_exports = $hx_exports || {}";
-			ctx.separator <- true;
-			newline ctx
-		);
-		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
-		newline ctx;
-		let rec print_obj f root = (
-			let path = root ^ "." ^ f.os_name in
-			print ctx "%s = %s || {}" path path;
-			ctx.separator <- true;
-			newline ctx;
-			concat ctx ";" (fun g -> print_obj g path) f.os_fields
-		)
-		in
-		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
-	end;
 
 	(* TODO: fix $estr *)
 	let vars = [] in
@@ -1160,20 +1137,22 @@ let generate com =
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
-		print ctx "var %s" (String.concat "," vl);
+		print ctx "local %s" (String.concat "," vl);
 		ctx.separator <- true;
 		newline ctx
 	);
-	if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
-		print ctx "function $extend(from, fields) {
-	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
-	for (var name in fields) proto[name] = fields[name];
-	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
-	return proto;
+
+	(* TODO : lua version *)
+        if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
+            print ctx "function $extend(from, fields) {
+        function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
+        for (var name in fields) proto[name] = fields[name];
+        if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
+        return proto;
 }
 ";
 	end;
-	List.iter (generate_type ctx) com.types;
+	List.iter (generate_type ctx) (List.rev com.types);
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
 		match e.eexpr with
@@ -1192,7 +1171,7 @@ let generate com =
 	if has_feature ctx "use.$bind" then begin
 		print ctx "var $_, $fid = 0";
 		newline ctx;
-		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
+		print ctx "function $bind(o,m) { if( m == nil ) return nil; if( m.__id__ == nil ) m.__id__ = $fid++; var f; if( o.hx__closures__ == nil ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == nil ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPushClosure" then begin
@@ -1206,22 +1185,6 @@ let generate com =
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
-	begin
-		print ctx "})(%s)" (String.concat ", " (List.map snd closureArgs));
-		newline ctx;
-		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
-			List.iter (fun f ->
-				print ctx "var %s = $hx_exports.%s" f.os_name f.os_name;
-				ctx.separator <- true;
-				newline ctx
-			) exposedObject.os_fields;
-			List.iter (fun f ->
-				print ctx "var %s = $hx_exports.%s" f f;
-				ctx.separator <- true;
-				newline ctx
-			) !toplevelExposed
-		);
-	end;
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch);
