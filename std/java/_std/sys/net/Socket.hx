@@ -116,18 +116,20 @@ class Socket {
 
 		var s = new Socket();
 		s.sock = ret;
+		s.output = new java.io.NativeOutput(ret.getOutputStream());
+		s.input = new java.io.NativeInput(ret.getInputStream());
 
 		return s;
 	}
 
 	public function peer() : { host : Host, port : Int }
 	{
-		var rem:java.net.InetSocketAddress = cast sock.getInetAddress();
+		var rem = sock.getInetAddress();
 		if (rem == null) return null;
 
 		var host = new Host(null);
-		host.wrapped = rem.getAddress();
-		return { host: host, port: rem.getPort() };
+		host.wrapped = rem;
+		return { host: host, port: sock.getPort() };
 	}
 
 	public function host() : { host : Host, port : Int }
