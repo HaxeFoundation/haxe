@@ -1251,11 +1251,24 @@ module LocalDce = struct
 			| _ -> false
 		in
 		let use v = v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta in
-		let has_side_effect e = match e.eexpr with
-			| TVar(v,None) -> is_used v
-			| TVar(v,Some e1) -> is_used v || Optimizer.has_side_effect e1
-			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) -> is_used v || Optimizer.has_side_effect e2 || is_ref_type v.v_type
-			| _ -> Optimizer.has_side_effect e
+		let rec has_side_effect e =
+			let rec loop e =
+				match e.eexpr with
+				| TLocal v when Meta.has Meta.CompilerGenerated v.v_meta -> raise Exit
+				| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) when is_used v || Optimizer.has_side_effect e2 || is_ref_type v.v_type -> raise Exit
+				| TVar(v,None) when is_used v -> raise Exit
+				| TVar(v,Some e1) when is_used v || Optimizer.has_side_effect e1 -> raise Exit
+				| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
+				| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
+				| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
+				| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
+				| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
+				| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
+			in
+			try
+				loop e; false
+			with Exit ->
+				true
 		in
 		let rec collect e = match e.eexpr with
 			| TLocal v ->
