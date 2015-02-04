@@ -21,34 +21,28 @@
  */
 @:coreApi class Reflect {
 
-   @:analyzer(ignore)
 	public  static function hasField( o : Dynamic, field : String ) : Bool untyped {
 		return o!=null && o.__HasField(field);
 	}
 
-   @:analyzer(ignore)
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		return (o==null) ? null : o.__Field(field,untyped __cpp__("hx::paccNever") );
 	}
 
-   @:analyzer(ignore)
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		if (o!=null)
 			o.__SetField(field,value,untyped __cpp__("hx::paccNever") );
 	}
 
-   @:analyzer(ignore)
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
 		return (o==null) ? null : o.__Field(field,untyped __cpp__("hx::paccAlways") );
 	}
 
-   @:analyzer(ignore)
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 		if (o!=null)
 			o.__SetField(field,value,untyped __cpp__("hx::paccAlways") );
 	}
 
-   @:analyzer(ignore)
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 			if (func!=null && func.__GetType()==__global__.vtString)
 				func = o.__Field(func,untyped __cpp__("hx::paccDynamic"));
@@ -56,7 +50,6 @@
          return untyped func.__Run(args);
 	}
 
-   @:analyzer(ignore)
 	public static function fields( o : Dynamic ) : Array<String> untyped {
 		if( o == null ) return new Array();
 		var a : Array<String> = [];
@@ -64,17 +57,14 @@
 		return a;
 	}
 
-   @:analyzer(ignore)
 	public static function isFunction( f : Dynamic ) : Bool untyped {
 		return f!=null && f.__GetType() ==  __global__.vtFunction;
 	}
 
-   @:analyzer(ignore)
 	public static function compare<T>( a : T, b : T ) : Int {
 		return ( a == b ) ? 0 : (((a:Dynamic) > (b:Dynamic)) ? 1 : -1);
 	}
 
-   @:analyzer(ignore)
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
 		if( f1 == f2 )
 			return true;
@@ -83,7 +73,6 @@
 		return untyped __global__.__hxcpp_same_closure(f1,f2);
 	}
 
-   @:analyzer(ignore)
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		if (v==null) return false;
 		var t:Int = v.__GetType();
@@ -91,18 +80,15 @@
 				t==__global__.vtArray;
 	}
 
-   @:analyzer(ignore)
 	public static function isEnumValue( v : Dynamic ) : Bool untyped {
 		return v!=null && v.__GetType() == __global__.vtEnum;
 	}
 
-   @:analyzer(ignore)
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
 		if (o==null) return false;
 		return untyped __global__.__hxcpp_anon_remove(o,field);
 	}
 
-   @:analyzer(ignore)
 	public static function copy<T>( o : T ) : T {
 		if (o==null) return null;
 		if(untyped o.__GetType()==__global__.vtString ) return o;
@@ -114,7 +100,6 @@
 		return o2;
 	}
 
-   @:analyzer(ignore)
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		return untyped __global__.__hxcpp_create_var_args(f);

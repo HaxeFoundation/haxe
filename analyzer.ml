@@ -203,6 +203,7 @@ module Simplifier = struct
 				| TField(_,(FStatic(c,cf) | FInstance(c,_,cf))) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification -> ()
 				| TField({eexpr = TLocal _},_) when allow_tlocal -> ()
 				| TCall({eexpr = TField(_,(FStatic(c,cf) | FInstance(c,_,cf)))},el) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification -> ()
+				| TCall({eexpr =  TLocal { v_name = "__cpp__" } },_) -> ()
 				| TField(_,FEnum _) -> ()
 				| TField(_,FDynamic _) -> ()
 				| _ when (try ignore(awkward_get_enum_index com e); true with Not_found -> false) -> ()
