@@ -2431,7 +2431,7 @@ let configure gen =
 			let evts = List.map (fun(_,v) -> !v) events in
 			let ret = List.map (fun (_,v) -> !v) !props in
 			let ret = List.filter (function | (_,_,None,None) -> false | _ -> true) ret in
-			evts, ret, !nonprops
+			evts, ret, List.rev !nonprops
 		in
 
 		let fevents, fprops, fnonprops = partition cl cl.cl_ordered_fields in
