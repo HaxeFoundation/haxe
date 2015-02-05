@@ -114,15 +114,14 @@ class Context {
 	}
 
 	/**
-		Returns the constructor arguments that are used to construct the
-		current `@:genericBuild` class, if available.
+		Returns the call arguments that lead to the invocation of the current
+		`@:genericBuild` macro, if available.
 
-		Returns `null` if the current macro is not a build-macro which was
-		called from constructing a `@:genericBuild` instance.
+		Returns `null` if the current macro is not a `@:genericBuild` macro.
 	**/
 	@:require(haxe_ver >= 3.2)
-	public static function getConstructorArguments():Null<Array<Expr>> {
-		return load("constructor_arguments", 0)();
+	public static function getCallArguments():Null<Array<Expr>> {
+		return load("call_arguments", 0)();
 	}
 
 	/**
@@ -225,19 +224,19 @@ class Context {
 		var d = load("defined_value", 1)(untyped key.__s);
 		return d == null ? null : new String(d);
 	}
-	
+
 	/**
 		Returns a map of all compiler directives that have been set.
-		
+
 		Compiler directives are set using the `-D` command line parameter, or
 		by calling `haxe.macro.Compiler.define`.
-		
+
 		Modifying the returned map has no effect on the compiler.
 	 */
 	public static function getDefines() : Map<String,String> {
 		return load("get_defines", 0)();
 	}
-	
+
 	/**
 		Resolves a type identified by `name`.
 

@@ -3282,9 +3282,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				error "Constructor is not a function" p
 		in
 		let t = try
-			ctx.constructor_argument_stack <- el :: ctx.constructor_argument_stack;
+			ctx.call_argument_stack <- el :: ctx.call_argument_stack;
 			let t = follow (Typeload.load_instance ctx t p true) in
-			ctx.constructor_argument_stack <- List.tl ctx.constructor_argument_stack;
+			ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 			(* Try to properly build @:generic classes here (issue #2016) *)
 			begin match t with
 				| TInst({cl_kind = KGeneric } as c,tl) -> follow (Codegen.build_generic ctx c p tl)
@@ -4358,8 +4358,8 @@ let make_macro_api ctx p =
 				| (WithType t | WithTypeResume t) :: _ -> Some t
 				| _ -> None
 		);
-		Interp.get_constructor_arguments = (fun() ->
-			match ctx.constructor_argument_stack with
+		Interp.get_call_arguments = (fun() ->
+			match ctx.call_argument_stack with
 				| [] -> None
 				| el :: _ -> Some el
 		);
@@ -4823,7 +4823,7 @@ let rec create com =
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
-		constructor_argument_stack = [];
+		call_argument_stack = [];
 		pass = PBuildModule;
 		macro_depth = 0;
 		untyped = false;

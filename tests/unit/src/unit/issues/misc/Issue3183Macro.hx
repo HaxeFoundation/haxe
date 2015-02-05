@@ -14,7 +14,7 @@ class Issue3183Macro {
 			case TInst(c, args):
 				var arity = args.length;
 				if (arity == 0) {
-					var el = Context.getConstructorArguments();
+					var el = Context.getCallArguments();
 					if (el != null && el.length > 0) {
 						args = [for (e in el) Context.typeof(e)];
 						arity = args.length;
