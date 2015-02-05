@@ -296,7 +296,7 @@ class CallStack {
 						var line = Std.parseInt(rie10.matched(3));
 						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line ));
 					} else
-						m.push(Module(line)); // A little weird, but better than nothing
+						m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
 				}
 				return m;
 			} else {
