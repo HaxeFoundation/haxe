@@ -3346,8 +3346,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			if with_type <> NoValue then error "Type parameters are not supported for rvalue functions" p
 		end;
 		List.iter (fun tp -> if tp.tp_constraints <> [] then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
-		let old = ctx.type_params in
+		let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 		ctx.type_params <- params @ ctx.type_params;
+		ctx.in_loop <- false;
 		let rt = Typeload.load_type_opt ctx p f.f_type in
 		let args = List.map (fun (s,opt,t,c) ->
 			let t = Typeload.load_type_opt ctx p t in
@@ -3397,7 +3398,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| _ -> FunMemberClassLocal
 		in
 		let e , fargs = Typeload.type_function ctx args rt curfun f false p in
-		ctx.type_params <- old;
+		ctx.type_params <- old_tp;
+		ctx.in_loop <- old_in_loop;
 		let f = {
 			tf_args = fargs;
 			tf_type = rt;
