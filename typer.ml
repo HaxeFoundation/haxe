@@ -3399,7 +3399,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let e , fargs = Typeload.type_function ctx args rt curfun f false p in
 		ctx.type_params <- old_tp;
-		ctx.in_loop <- old_in_loop;
+		if not inline then ctx.in_loop <- old_in_loop;
 		let f = {
 			tf_args = fargs;
 			tf_type = rt;
