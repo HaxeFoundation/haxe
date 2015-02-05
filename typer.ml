@@ -3716,9 +3716,12 @@ and handle_display ctx e_ast iscall p =
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
 		let t = if iscall then
-			match follow e.etype with
-			| TFun _ -> e.etype
-			| _ -> t_dynamic
+			let rec loop t = match follow t with
+				| TFun _ -> t
+				| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> loop (Abstract.get_underlying_type a tl)
+				| _ -> t_dynamic
+			in
+			loop e.etype
 		else
 			let get_field acc f =
 				List.fold_left (fun acc f ->

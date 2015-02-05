@@ -2737,7 +2737,11 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					TLazy r
 				end else
 					error "Missing underlying type declaration or @:coreType declaration" p;
-			end else t in
+			end else begin
+				if Meta.has Meta.Callable a.a_meta then
+					error "@:coreType abstracts cannot be @:callable" p;
+				t
+			end in
 			t
 		in
 		List.iter (function
