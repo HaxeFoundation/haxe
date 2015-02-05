@@ -1354,7 +1354,7 @@ module Config = struct
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 			check_has_effect = (Common.raw_defined com "analyzer-check-has-effect");
 			check = not (Common.raw_defined com "analyzer-no-check");
-			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
+			local_dce = not (Common.raw_defined com "analyzer-no-local-dce") && not (Common.defined com Define.As3);
 			ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");
 			simplifier_unapply = not (Common.raw_defined com "analyzer-no-simplify-unapply");
 		}
