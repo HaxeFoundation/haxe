@@ -3346,9 +3346,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			if with_type <> NoValue then error "Type parameters are not supported for rvalue functions" p
 		end;
 		List.iter (fun tp -> if tp.tp_constraints <> [] then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
+		let inline, v = (match name with
+			| None -> false, None
+			| Some v when ExtString.String.starts_with v "inline_" -> true, Some (String.sub v 7 (String.length v - 7))
+			| Some v -> false, Some v
+		) in
 		let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 		ctx.type_params <- params @ ctx.type_params;
-		ctx.in_loop <- false;
+		if not inline then ctx.in_loop <- false;
 		let rt = Typeload.load_type_opt ctx p f.f_type in
 		let args = List.map (fun (s,opt,t,c) ->
 			let t = Typeload.load_type_opt ctx p t in
@@ -3381,11 +3386,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		| _ ->
 			());
 		let ft = TFun (fun_args args,rt) in
-		let inline, v = (match name with
-			| None -> false, None
-			| Some v when ExtString.String.starts_with v "inline_" -> true, Some (String.sub v 7 (String.length v - 7))
-			| Some v -> false, Some v
-		) in
+
 		let v = (match v with
 			| None -> None
 			| Some v ->
@@ -3399,7 +3400,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let e , fargs = Typeload.type_function ctx args rt curfun f false p in
 		ctx.type_params <- old_tp;
-		if not inline then ctx.in_loop <- old_in_loop;
+		ctx.in_loop <- old_in_loop;
 		let f = {
 			tf_args = fargs;
 			tf_type = rt;
