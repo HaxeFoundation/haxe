@@ -406,25 +406,33 @@ and gen_expr ctx e =
 		gen_value ctx e2;
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
-        (match e1 with
-            | { eexpr = TField (x,f) } when field_name f = "iterator" ->
-                gen_value ctx x;
-                spr ctx (field "iterator");
-            |_ -> 
-                gen_value ctx e1);
-        (match op with 
-            | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) -> print ctx " .. "
-            | Ast.OpNotEq -> print ctx " ~= "
-            | Ast.OpBoolAnd -> print ctx " and "
-            | Ast.OpBoolOr -> print ctx " or "
-            | Ast.OpAssignOp(op2) -> 
-                    spr ctx " = ";
+        (match op with
+            | Ast.OpAssignOp(op2) ->
+                spr ctx "(function() ";
                 gen_value ctx e1;
-                (match op2 with 
+                spr ctx " = ";
+                gen_value ctx e1;
+                (match op2 with
                 | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) -> print ctx " .. "
-                | _ -> print ctx "%s" (Ast.s_binop op2));
-            | _ -> print ctx " %s " (Ast.s_binop op));
-        gen_value ctx e2;
+                | _ -> print ctx " %s " (Ast.s_binop op2));
+                gen_value ctx e2;
+                spr ctx " return ";
+                gen_value ctx e1;
+                spr ctx " end)()";
+            | _ ->
+                (match e1 with
+                    | { eexpr = TField (x,f) } when field_name f = "iterator" ->
+                        gen_value ctx x;
+                        spr ctx (field "iterator");
+                    |_ ->
+                        gen_value ctx e1);
+                (match op with
+                    | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) -> print ctx " .. "
+                    | Ast.OpNotEq -> print ctx " ~= "
+                    | Ast.OpBoolAnd -> print ctx " and "
+                    | Ast.OpBoolOr -> print ctx " or "
+                    | _ -> print ctx " %s " (Ast.s_binop op));
+                gen_value ctx e2);
 
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$iterator";
@@ -540,12 +548,24 @@ and gen_expr ctx e =
 			| _ ->());
 			spr ctx "else ";
             newline ctx;
-            let bend = open_block ctx in 
+            let bend = open_block ctx in
             gen_expr ctx e2;
             bend();
             newline ctx;
             spr ctx "end";
             newline ctx);
+    | TUnop ((Increment|Decrement) as op,unop_flag, e) ->
+        spr ctx "(function() ";
+        gen_value ctx e;
+        spr ctx " = ";
+        gen_value ctx e;
+        (match op with
+        |Increment -> spr ctx " +"
+        |Decrement -> spr ctx " -"
+        |_-> print ctx " %s" (Ast.s_unop op));
+        spr ctx " 1 return ";
+        gen_value ctx e;
+        spr ctx " end)()";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
