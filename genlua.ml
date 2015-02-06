@@ -122,6 +122,7 @@ let spr ctx s =
 	ctx.separator <- false;
 	Buffer.add_string ctx.buf s
 
+
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
@@ -406,34 +407,7 @@ and gen_expr ctx e =
 		gen_value ctx e2;
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
-        (match op with
-            | Ast.OpAssignOp(op2) ->
-                spr ctx "(function() ";
-                gen_value ctx e1;
-                spr ctx " = ";
-                gen_value ctx e1;
-                (match op2 with
-                | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) -> print ctx " .. "
-                | _ -> print ctx " %s " (Ast.s_binop op2));
-                gen_value ctx e2;
-                spr ctx " return ";
-                gen_value ctx e1;
-                spr ctx " end)()";
-            | _ ->
-                (match e1 with
-                    | { eexpr = TField (x,f) } when field_name f = "iterator" ->
-                        gen_value ctx x;
-                        spr ctx (field "iterator");
-                    |_ ->
-                        gen_value ctx e1);
-                (match op with
-                    | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) -> print ctx " .. "
-                    | Ast.OpNotEq -> print ctx " ~= "
-                    | Ast.OpBoolAnd -> print ctx " and "
-                    | Ast.OpBoolOr -> print ctx " or "
-                    | _ -> print ctx " %s " (Ast.s_binop op));
-                gen_value ctx e2);
-
+        gen_tbinop ctx op e1 e2;
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$iterator";
 		print ctx "$iterator(";
@@ -566,6 +540,13 @@ and gen_expr ctx e =
         spr ctx " 1 return ";
         gen_value ctx e;
         spr ctx " end)()";
+	| TUnop (Not,unop_flag,e) ->
+        spr ctx "not ";
+        gen_value ctx e;
+	| TUnop (NegBits,unop_flag,e) ->
+        spr ctx "bit.bnot(";
+        gen_value ctx e;
+        spr ctx ")";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -841,6 +822,42 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v()
+
+and gen_tbinop ctx op e1 e2 =
+    ( match op with
+    | Ast.OpAssignOp(op2) ->
+        spr ctx "(function() "; gen_value ctx e1;
+        spr ctx " = "; gen_tbinop ctx op2 e1 e2;
+        spr ctx " return "; gen_value ctx e1;
+        spr ctx " end)()";
+    | Ast.OpXor | Ast.OpAnd  | Ast.OpShl | Ast.OpShr | Ast.OpUShr | Ast.OpOr ->
+        gen_bitop ctx op e1 e2;
+    | _->
+        gen_value ctx e1;
+        (match op with
+            | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
+                    print ctx " .. "
+            | Ast.OpNotEq -> print ctx " ~= "
+            | Ast.OpBoolAnd -> print ctx " and "
+            | Ast.OpBoolOr -> print ctx " or "
+            | _ -> print ctx " %s " (Ast.s_binop op));
+        gen_value ctx e2)
+
+and gen_bitop ctx op e1 e2 =
+    print ctx "bit.%s(" (match op with
+        | Ast.OpXor  ->  "bxor"
+        | Ast.OpAnd  ->  "band"
+        | Ast.OpShl  ->  "lshift"
+        | Ast.OpShr  ->  "rshift"
+        | Ast.OpUShr ->  "arshift"
+        | Ast.OpOr   ->  "bor"
+        | _ -> "");
+    gen_value ctx e1;
+    spr ctx ",";
+    gen_value ctx e2;
+    spr ctx ")";;
+
+
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
@@ -1146,6 +1163,11 @@ let generate com =
 
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
+
+    spr ctx "pcall(require, 'bit32')"; newline ctx;
+    spr ctx "pcall(require, 'bit')"; newline ctx; newline ctx;
+    spr ctx "if(bit == nil)then bit = bit32"; newline ctx;
+    spr ctx "elseif(bit32 == nil)then bit32 = bit end"; newline ctx; newline ctx;
 
 
 	(* TODO: fix $estr *)
