@@ -1626,33 +1626,37 @@ let read_custom_attr ctx attr_type s pos =
 	(* 	printf "%x " (sget s x) *)
 	(* done; *)
 	(* printf "\n"; *)
-	(* for x = 0 to 10 do *)
+	(* let len = String.length s - pos - 1 in *)
+	(* let len = if len > 10 then 10 else len in *)
+	(* for x = 0 to len do *)
 	(* 	printf "%x " (sget s (pos + x)) *)
 	(* done; *)
 	(* printf "\n"; *)
 	let pos, nnamed = read_compressed_i32 s pos in
 	let pos = if nnamed > 0 then pos+1 else pos in
-	let rec read_named acc pos n =
-		if n = nnamed then
-			pos, List.rev acc
-		else
-			let pos, forp = sread_ui8 s pos in
-			let is_prop = if forp = 0x53 then
-					false
-				else if forp = 0x54 then
-					true
-				else
-					error (sprintf "named custom attribute error: expected 0x53 or 0x54 - got 0x%x" forp)
-			in
-			let pos, t = read_ilsig ctx s pos in
-			let pos, len = read_compressed_i32 s pos in
-			let name = String.sub s pos len in
-			let pos = pos+len in
-			let pos, inst = read_instance t pos in
-			read_named ( (is_prop, name, inst) :: acc ) pos (n+1)
-	in
-	let pos, named = read_named [] pos 0 in
-	pos, (fixed, named)
+	(* FIXME: this is a hack / quick fix around #3485 . We need to actually read named arguments *)
+	(* let rec read_named acc pos n = *)
+	(* 	if n = nnamed then *)
+	(* 		pos, List.rev acc *)
+	(* 	else *)
+	(* 		let pos, forp = sread_ui8 s pos in *)
+	(* 		let is_prop = if forp = 0x53 then *)
+	(* 				false *)
+	(* 			else if forp = 0x54 then *)
+	(* 				true *)
+	(* 			else *)
+	(* 				error (sprintf "named custom attribute error: expected 0x53 or 0x54 - got 0x%x" forp) *)
+	(* 		in *)
+	(* 		let pos, t = read_ilsig ctx s pos in *)
+	(* 		let pos, len = read_compressed_i32 s pos in *)
+	(* 		let name = String.sub s pos len in *)
+	(* 		let pos = pos+len in *)
+	(* 		let pos, inst = read_instance t pos in *)
+	(* 		read_named ( (is_prop, name, inst) :: acc ) pos (n+1) *)
+	(* in *)
+	(* let pos, named = read_named [] pos 0 in *)
+	pos, (fixed, [])
+	(* pos, (fixed, named) *)
 
 let read_custom_attr_idx ctx ca attr_type pos =
 	let s = ctx.meta_stream in
