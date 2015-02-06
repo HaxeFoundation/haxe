@@ -496,4 +496,18 @@ class TestBasetypes extends Test {
 		var a = new unit.MyAbstract.MySpecialString("My debugging abstract");
 		eq("debugging abstract", a.substr(3));
 	}
+
+	@:analyzer(no_local_dce)
+	function testOptionalStructureFields() {
+		var a:{?f:Int} = {};
+		eq(a.f, null);
+
+		var o:Dynamic = {};
+		var a:{?f:Int} = o;
+		eq(a.f, null);
+
+		var i:Dynamic = 1;
+		var a:{?f:Int} = i;
+		unspec(function() a.f);
+	}
 }
