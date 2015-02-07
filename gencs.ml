@@ -3322,6 +3322,8 @@ let convert_ilfield ctx p field =
 		| CInitOnly | CLiteral -> true, acc
 		| _ -> readonly,acc
 	) (false,[cff_access]) field.fflags.ff_contract in
+	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+		Printf.printf "\t%sfield %s : %s\n" (if List.mem AStatic acc then "static " else "") cff_name (IlMetaDebug.ilsig_s field.fsig.ssig);
 	let kind = match readonly with
 		| true ->
 			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm), None)
@@ -3359,6 +3361,8 @@ let convert_ilevent ctx p ev =
 			else
 				acc
 	in
+	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+		Printf.printf "\tevent %s : %s\n" name (IlMetaDebug.ilsig_s ev.esig.ssig);
 	let acc = add_m acc ev.eadd in
 	let acc = add_m acc ev.eremove in
 	let acc = add_m acc ev.eraise in
@@ -3395,8 +3399,6 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		| _ ->
 			raise Exit
 	in
-	if PMap.mem "net_loader_debug" ctx.ncom.defines then
-		Printf.printf "\tname %s : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 	let is_static = ref false in
 	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
 		| CMStatic when cff_name <> "new" -> is_static := true; AStatic :: acc, is_final
@@ -3404,6 +3406,8 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
 	) ([acc],None) m.mflags.mf_contract in
+	if PMap.mem "net_loader_debug" ctx.ncom.defines then
+		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
 	let meta = [Meta.Overload, [], p] in
 	let meta = if is_explicit_impl then
@@ -3508,6 +3512,7 @@ let convert_ilprop ctx p prop is_explicit_impl =
 		| Some { mf_access = FAPublic } -> APublic
 		| _ -> raise Exit (* non-public / protected fields don't interest us *)
 	in
+	let access acc = acc.mf_access in
 	let cff_access = match pmflags with
 		| Some m when List.mem CMStatic m.mf_contract ->
 			[AStatic;cff_access]
@@ -3517,12 +3522,20 @@ let convert_ilprop ctx p prop is_explicit_impl =
 		| None -> "never"
 		| Some(s,_) when String.length s <= 4 || String.sub s 0 4 <> "get_" ->
 			raise Exit (* special (?) getter; not used *)
+		| Some(_,m) when access m <> FAPublic -> (match access m with
+			| FAFamily
+			| FAFamOrAssem -> "null"
+			| _ -> "never")
 		| Some _ -> "get"
 	in
 	let set = match prop.pset with
 		| None -> "never"
 		| Some(s,_) when String.length s <= 4 || String.sub s 0 4 <> "set_" ->
 			raise Exit (* special (?) getter; not used *)
+		| Some(_,m) when access m <> FAPublic -> (match access m with
+			| FAFamily
+			| FAFamOrAssem -> "null"
+			| _ -> "never");
 		| Some _ -> "set"
 	in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines then
@@ -3961,10 +3974,10 @@ let normalize_ilcls ctx cls =
 
 	let all_fields = ref [] in
 	let all_events_name = Hashtbl.create 0 in
+	(* avoid naming collision between events and functions *)
 	let add_cls_events_collision cls =
-		List.iter (fun ev -> Hashtbl.replace all_events_name ev.ename true) cls.cevents;
-		List.iter (fun f -> if not (List.mem CStatic f.fflags.ff_contract) then Hashtbl.replace all_events_name f.fname true) cls.cfields;
 		List.iter (fun m -> if not (List.mem CMStatic m.mflags.mf_contract) then Hashtbl.replace all_events_name m.mname true) cls.cmethods;
+		List.iter (fun p -> if not (is_static (IlProp p)) then Hashtbl.replace all_events_name p.pname true) cls.cprops;
 	in
 
 	let rec loop cls = try
@@ -3985,7 +3998,7 @@ let normalize_ilcls ctx cls =
 			all_fields := get_all_fields cls @ !all_fields;
 
 			add_cls_events_collision cls;
-			List.iter (fun p -> if not (is_static (IlProp p)) then Hashtbl.replace all_events_name p.pname true) cls.cprops;
+			List.iter (fun ev -> Hashtbl.replace all_events_name ev.ename true) cls.cevents;
 
 			loop cls
 		with | Not_found -> ()

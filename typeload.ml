@@ -2199,7 +2199,38 @@ let init_class ctx c p context_init herits fields =
 			let check_method m t req_name =
 				if ctx.com.display <> DMNone then () else
 				try
-					let _, t2, f2 = (if stat then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
+					let overloads =
+						(* on pf_overload platforms, the getter/setter may have been defined as an overloaded function; get all overloads *)
+						if ctx.com.config.pf_overload then
+							if stat then
+								let f = PMap.find m c.cl_statics in
+								(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
+							else
+								get_overloads c m
+						else
+							[ if stat then
+								let f = PMap.find m c.cl_statics in
+								f.cf_type, f
+							else match class_field c (List.map snd c.cl_params) m with
+								| _, t,f -> t,f ]
+					in
+					(* choose the correct overload if and only if there is more than one overload found *)
+					let rec get_overload overl = match overl with
+						| [tf] -> tf
+						| (t2,f2) :: overl ->
+							if type_iseq t t2 then
+								(t2,f2)
+							else
+								get_overload overl
+						| [] ->
+							if c.cl_interface then
+								raise Not_found
+							else
+								raise (Error (Custom
+									(Printf.sprintf "No overloaded method named %s was compatible with the property %s with expected type %s" m name (s_type (print_context()) t)
+								), p))
+					in
+					let t2, f2 = get_overload overloads in
 					(* accessors must be public on As3 (issue #1872) *)
 					if Common.defined ctx.com Define.As3 then f2.cf_meta <- (Meta.Public,[],p) :: f2.cf_meta;
 					(match f2.cf_kind with
