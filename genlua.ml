@@ -58,38 +58,14 @@ let get_exposed ctx path meta = try
 
 let dot_path = Ast.s_type_path
 
-let flat_path (p,s) =
-	(* Replace _ with _$ in paths to prevent name collisions. *)
-	let escape str = String.concat "_$" (ExtString.String.nsplit str "_") in
-
-	match p with
-	| [] -> escape s
-	| _ -> String.concat "_" (List.map escape p) ^ "_" ^ (escape s)
-
 let s_path ctx = dot_path
 
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
-		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
-		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "nil"; "package"; "private"; "protected";
-		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"; "yield"
-	];
-	h
-
-(* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
-   but are escaped upon declaration. *)
-let kwds2 =
-	let h = Hashtbl.create 0 in
-	List.iter (fun s -> Hashtbl.add h s ()) [
-		(* https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects *)
-		"Infinity"; "NaN"; "decodeURI"; "decodeURIComponent"; "encodeURI"; "encodeURIComponent";
-		"escape"; "eval"; "isFinite"; "isNaN"; "parseFloat"; "parseInt"; "undefined"; "unescape";
-
-		"JSON"; "Number"; "Object"; "console"; "window"; "require";
+        "and"; "break"; "do"; "else"; "elseif"; "end"; "false"; "for";
+        "function"; "if"; "in"; "local"; "nil"; "not"; "or"; "repeat";
+        "return"; "then"; "true"; "until"; "while";
 	];
 	h
 
@@ -107,7 +83,6 @@ let valid_js_ident s =
 
 let field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
-let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 let static_field s =
@@ -491,7 +466,6 @@ and gen_expr ctx e =
 		gen_value ctx e;
 	| TVar (v,eo) ->
 		spr ctx "local ";
-		check_var_declaration v;
 		spr ctx (ident v.v_name);
 		begin match eo with
 			| None -> ()
@@ -576,7 +550,6 @@ and gen_expr ctx e =
 		spr ctx "}";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
-		check_var_declaration v;
 		let handle_break = handle_break ctx e in
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
@@ -601,11 +574,11 @@ and gen_expr ctx e =
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
-		let vname = (match catchs with [(v,_)] -> check_var_declaration v; v.v_name | _ ->
+		let vname =
 			let id = ctx.id_counter in
 			ctx.id_counter <- ctx.id_counter + 1;
 			"$e" ^ string_of_int id
-		) in
+		in
 		print ctx " catch( %s ) {" vname;
 		let bend = open_block ctx in
 		let last = ref false in
