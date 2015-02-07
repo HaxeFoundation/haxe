@@ -1154,8 +1154,8 @@ let generate com =
 
     spr ctx "pcall(require, 'bit32')"; newline ctx;
     spr ctx "pcall(require, 'bit')"; newline ctx; newline ctx;
-    spr ctx "if(bit == nil)then bit = bit32"; newline ctx;
-    spr ctx "elseif(bit32 == nil)then bit32 = bit end"; newline ctx; newline ctx;
+    spr ctx "bit = bit or bit32"; newline ctx;
+    spr ctx "bit32 = bit"; newline ctx; newline ctx;
 
 
 	(* TODO: fix $estr *)
