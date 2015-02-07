@@ -403,9 +403,9 @@ and gen_expr ctx e =
 		spr ctx (field s)
 	| TArray (e1,e2) ->
 		gen_value ctx e1;
-		spr ctx "[";
+		spr ctx "{";
 		gen_value ctx e2;
-		spr ctx "]";
+		spr ctx "}";
 	| TBinop (op,e1,e2) ->
         gen_tbinop ctx op e1 e2;
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
@@ -483,9 +483,9 @@ and gen_expr ctx e =
 	| TCall (e,el) ->
 		gen_call ctx e el false
 	| TArrayDecl el ->
-		spr ctx "[";
+		spr ctx "{";
 		concat ctx "," (gen_value ctx) el;
-		spr ctx "]"
+		spr ctx "}"
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
@@ -661,16 +661,16 @@ and gen_expr ctx e =
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 			List.iter (fun e3 ->
-                if cnt == 0 then spr ctx "if " else spr ctx "else if";
+                if cnt == 0 then spr ctx "if " else spr ctx "elseif";
                 gen_value ctx e;
                 spr ctx " == ";
                 gen_value ctx e3;
-                spr ctx "then "
+                spr ctx " then "
 			) el;
 			gen_block_element ctx e2;
 			newline ctx;
-            spr ctx "end";
 		) cases;
+        spr ctx "end";
 		(match def with
 		| None -> ()
 		| Some e ->
