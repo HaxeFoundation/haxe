@@ -3960,6 +3960,13 @@ let normalize_ilcls ctx cls =
 	let no_overrides = ref no_overrides in
 
 	let all_fields = ref [] in
+	let all_events_name = Hashtbl.create 0 in
+	let add_cls_events_collision cls =
+		List.iter (fun ev -> Hashtbl.replace all_events_name ev.ename true) cls.cevents;
+		List.iter (fun f -> if not (List.mem CStatic f.fflags.ff_contract) then Hashtbl.replace all_events_name f.fname true) cls.cfields;
+		List.iter (fun m -> if not (List.mem CMStatic m.mflags.mf_contract) then Hashtbl.replace all_events_name m.mname true) cls.cmethods;
+	in
+
 	let rec loop cls = try
 		match cls.csuper with
 		| Some { snorm = LClass((["System"],[],"Object"),_) }
@@ -3976,10 +3983,16 @@ let normalize_ilcls ctx cls =
 				not is_override_here
 			) !no_overrides;
 			all_fields := get_all_fields cls @ !all_fields;
+
+			add_cls_events_collision cls;
+			List.iter (fun p -> if not (is_static (IlProp p)) then Hashtbl.replace all_events_name p.pname true) cls.cprops;
+
 			loop cls
 		with | Not_found -> ()
 	in
 	loop cls;
+
+	add_cls_events_collision cls;
 	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
 	let added = ref [] in
 
@@ -4066,6 +4079,7 @@ let normalize_ilcls ctx cls =
 		cfields = List.map (function | (IlField f,_,_,_) -> f | _ -> assert false) fields;
 		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
 		cmethods = methods;
+		cevents = List.filter (fun ev -> not (Hashtbl.mem all_events_name ev.ename)) cls.cevents;
 	}
 
 let add_net_std com file =
