@@ -3152,8 +3152,10 @@ let get_classes_zip zip =
 		| { Zip.is_directory = false; Zip.filename = f } when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" ->
 				(match List.rev (String.nsplit f "/") with
 				| clsname :: pack ->
-						let path = jpath_to_hx (List.rev pack, clsname) in
+					if not (String.contains clsname '$') then begin
+						let path = jpath_to_hx (List.rev pack, String.sub clsname 0 (String.length clsname - 6)) in
 						ret := path :: !ret
+					end
 				| _ ->
 						ret := ([], jname_to_hx f) :: !ret)
 		| _ -> ()
