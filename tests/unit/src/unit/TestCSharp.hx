@@ -34,7 +34,7 @@ class TestCSharp extends Test
 		var didRun = false;
 		try
 		{
-			a.Property = "hello";
+			eq(a.Property, "should not succeed");
 		}
 		catch(e:Dynamic)
 		{
