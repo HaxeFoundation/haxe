@@ -836,6 +836,7 @@ let check_overriding ctx c =
 		| [] -> ()
 		| i :: _ ->
 			display_error ctx ("Field " ^ i.cf_name ^ " is declared 'override' but doesn't override any field") i.cf_pos)
+	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> () (* -net-lib specific: do not check overrides on extern CsNative classes *)
 	| Some (csup,params) ->
 		PMap.iter (fun i f ->
 			let p = f.cf_pos in
@@ -1725,6 +1726,24 @@ let init_class ctx c p context_init herits fields =
 			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 	in
 
+	let rec get_declared f = function
+		| None -> None
+		| Some (c,a) when PMap.exists f c.cl_fields ->
+			Some (c,a)
+		| Some (c,_) ->
+			let ret = get_declared f c.cl_super in
+			match ret with
+				| Some r -> Some r
+				| None ->
+					let rec loop ifaces = match ifaces with
+						| [] -> None
+						| i :: ifaces -> match get_declared f (Some i) with
+							| Some r -> Some r
+							| None -> loop ifaces
+					in
+					loop c.cl_implements
+	in
+
 	(match c.cl_super with None -> () | Some _ -> delay ctx PForce (fun() -> check_overriding ctx c));
 	if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c);
 
@@ -1779,7 +1798,13 @@ let init_class ctx c p context_init herits fields =
 
 	let bind_var ctx cf e stat inline =
 		let p = cf.cf_pos in
-		if not stat && has_field cf.cf_name c.cl_super then error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed") p;
+		if not stat then begin match get_declared cf.cf_name c.cl_super with
+				| None -> ()
+				| Some (csup,_) ->
+					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
+					if not (csup.cl_interface && Meta.has Meta.CsNative c.cl_meta) then
+						error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (Ast.s_type_path csup.cl_path) ) p
+		end;
 		let t = cf.cf_type in
 
 		match e with

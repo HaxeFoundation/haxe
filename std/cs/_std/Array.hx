@@ -99,7 +99,7 @@ import cs.NativeArray;
 		{
 			return -1;
 		}
-		return cs.system.Array._IndexOf(__a, x, i, len - i);
+		return cs.system.Array.IndexOf(__a, x, i, len - i);
 	}
 
 	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int

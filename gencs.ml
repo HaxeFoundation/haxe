@@ -3397,6 +3397,8 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			APrivate
 		| FAPublic -> APublic
 		| _ ->
+			if PMap.mem "net_loader_debug" ctx.ncom.defines then
+				Printf.printf "\tmethod %s (skipped) : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 			raise Exit
 	in
 	let is_static = ref false in
@@ -3721,8 +3723,11 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 	| _ ->
 		let flags = ref [HExtern] in
 		(* todo: instead of CsNative, use more specific definitions *)
-		if PMap.mem "net_loader_debug" ctx.ncom.defines then
-			print_endline ("converting " ^ ilpath_s ilcls.cpath);
+		if PMap.mem "net_loader_debug" ctx.ncom.defines then begin
+			let sup = match ilcls.csuper with | None -> [] | Some c -> [IlMetaDebug.ilsig_s c.ssig] in
+			let sup = sup @ List.map (fun i -> IlMetaDebug.ilsig_s i.ssig) ilcls.cimplements in
+			print_endline ("converting " ^ ilpath_s ilcls.cpath ^ " : " ^ (String.concat ", " sup))
+		end;
 		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
 
 		let is_interface = ref false in
@@ -4022,7 +4027,7 @@ let normalize_ilcls ctx cls =
 				| (f,_,name,false) as ff ->
 					(* look for compatible fields *)
 					if not (List.exists (function
-						| (f2,_,name2,false) when name = name2 ->
+						| (f2,_,name2,false) when (name = name2 || String.ends_with name2 ("." ^ name)) -> (* consider explicit implementations as implementations *)
 							compatible_field f f2
 						| _ -> false
 					) !current_all) then begin
