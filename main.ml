@@ -1124,7 +1124,8 @@ try
 			Genswf.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
-			arg_delays := (fun () -> Genjava.add_java_lib com file false) :: !arg_delays;
+			let std = file = "lib/hxjava-std.jar" in
+			arg_delays := (fun () -> Genjava.add_java_lib com file std) :: !arg_delays;
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
 			let file, is_std = match ExtString.String.nsplit file "@" with
@@ -1182,11 +1183,13 @@ try
 				List.iter (fun (_,_,extract) ->
 					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
 				) com.swf_libs;
-				List.iter (fun (_,_,_,all_files,_) ->
-					List.iter (fun path -> classes := path :: !classes) (all_files())
+				List.iter (fun (_,std,_,all_files,_) ->
+					if not std then
+						List.iter (fun path -> classes := path :: !classes) (all_files())
 				) com.java_libs;
-				List.iter (fun (_,_,all_files,_) ->
-					List.iter (fun path -> classes := path :: !classes) (all_files())
+				List.iter (fun (_,std,all_files,_) ->
+					if not std then
+						List.iter (fun path -> classes := path :: !classes) (all_files())
 				) com.net_libs;
 			) :: !pre_compilation;
 			xml_out := Some "hx"
