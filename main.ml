@@ -1182,6 +1182,12 @@ try
 				List.iter (fun (_,_,extract) ->
 					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
 				) com.swf_libs;
+				List.iter (fun (_,_,_,all_files,_) ->
+					List.iter (fun path -> classes := path :: !classes) (all_files())
+				) com.java_libs;
+				List.iter (fun (_,_,all_files,_) ->
+					List.iter (fun path -> classes := path :: !classes) (all_files())
+				) com.net_libs;
 			) :: !pre_compilation;
 			xml_out := Some "hx"
 		),": generate hx headers for all input classes");

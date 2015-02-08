@@ -4128,13 +4128,16 @@ let add_net_lib com file std =
 			close_in (r.PeReader.ch);
 			if PMap.mem "net_loader_debug" com.defines then
 				print_endline ("for lib " ^ file);
+			let il_typedefs = Hashtbl.copy meta.il_typedefs in
+			Hashtbl.clear meta.il_typedefs;
+
 			Hashtbl.iter (fun _ td ->
 				let path = IlMetaTools.get_path (TypeDef td) in
 				if PMap.mem "net_loader_debug" com.defines then
 					Printf.printf "found %s\n" (path_s (netpath_to_hx path));
-				Hashtbl.add com.net_path_map (netpath_to_hx path) path;
+				Hashtbl.replace com.net_path_map (netpath_to_hx path) path;
 				Hashtbl.replace meta.il_typedefs path td
-			) meta.il_typedefs;
+			) il_typedefs;
 			let meta = { nstd = std; ncom = com; nil = meta } in
 			ilctx := Some meta;
 			meta
