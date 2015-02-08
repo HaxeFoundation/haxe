@@ -976,6 +976,7 @@ let rec check_interface ctx c intf params =
 let check_interfaces ctx c =
 	match c.cl_path with
 	| "Proxy" :: _ , _ -> ()
+	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> ()
 	| _ ->
 	List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
 

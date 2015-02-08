@@ -102,4 +102,24 @@ public class Base
 	}
 }
 
+// Issue #3474
+
+public interface ITextFile
+{
+	string Property { get; }
+}
+
+public interface ITextBuffer : ITextFile
+{
+}
+
+public interface IEditableTextFile : ITextFile
+{
+	new string Property { get; set; }
+}
+
+public interface IEditableTextBuffer : IEditableTextFile, ITextBuffer
+{
+}
+
 }

@@ -4,6 +4,7 @@ import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
 import haxe.test.TEnumWithValue;
+import haxe.test.IEditableTextBuffer;
 import NoPackage;
 #if unsafe
 import cs.Pointer;
@@ -24,6 +25,23 @@ class TestCSharp extends Test
 		eq(Base._untyped, 45);
 		Base._untyped = 40;
 		eq(Base._untyped, 40);
+	}
+
+	function testIssue3474()
+	{
+		var a:IEditableTextBuffer = null;
+		eq(a,null);
+		var didRun = false;
+		try
+		{
+			a.Property = "hello";
+		}
+		catch(e:Dynamic)
+		{
+			didRun = true;
+		}
+
+		t(didRun);
 	}
 
 #if unsafe
