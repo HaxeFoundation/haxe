@@ -466,13 +466,11 @@ and gen_expr ctx e =
 		gen_value ctx e;
 	| TVar (v,eo) ->
 		spr ctx "local ";
-		spr ctx (ident v.v_name);
-		begin match eo with
-			| None -> ()
+		(match eo with
+			| None -> spr ctx (ident v.v_name);
 			| Some e ->
-				spr ctx " = ";
-				gen_value ctx e
-		end
+                            let ve = mk (TLocal v) t_dynamic e.epos in
+                            gen_tbinop ctx OpAssign ve e);
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		print ctx "[]"
 	| TNew (c,_,el) ->
@@ -797,7 +795,19 @@ and gen_value ctx e =
 		v()
 
 and gen_tbinop ctx op e1 e2 =
-    ( match op with
+    (match op with
+    | Ast.OpAssign ->
+        gen_value ctx e1;
+        (match e2.eexpr with
+        | TBinop(OpAssign as op, e3, e4) ->
+            spr ctx " = (function() ";
+            gen_tbinop ctx op e3 e4;
+            spr ctx " return ";
+            gen_value ctx e3;
+            spr ctx " end)() "
+        | _ ->
+            print ctx " %s " (Ast.s_binop op);
+            gen_value ctx e2);
     | Ast.OpAssignOp(op2) ->
         spr ctx "(function() "; gen_value ctx e1;
         spr ctx " = "; gen_tbinop ctx op2 e1 e2;
