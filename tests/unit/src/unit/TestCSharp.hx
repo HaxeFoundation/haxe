@@ -5,6 +5,8 @@ import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
 import haxe.test.TEnumWithValue;
 import haxe.test.IEditableTextBuffer;
+import haxe.test.LowerCaseClass;
+
 import NoPackage;
 #if unsafe
 import cs.Pointer;
@@ -42,6 +44,12 @@ class TestCSharp extends Test
 		}
 
 		t(didRun);
+	}
+
+	function testLowerCase()
+	{
+		var l = new LowerCaseClass();
+		t(l.works);
 	}
 
 #if unsafe

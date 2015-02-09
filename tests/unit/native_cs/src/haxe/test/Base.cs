@@ -122,4 +122,13 @@ public interface IEditableTextBuffer : IEditableTextFile, ITextBuffer
 {
 }
 
+public class lowerCaseClass
+{
+	public bool works;
+	public lowerCaseClass()
+	{
+		works = true;
+	}
+}
+
 }

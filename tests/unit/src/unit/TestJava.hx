@@ -5,6 +5,7 @@ import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base___InnerClass3__;
 import haxe.test.Base.Base___InnerClass3___InnerClass4__;
 import haxe.test.TEnum;
+import haxe.test.LowerCaseClass;
 import java.util.EnumSet;
 import java.vm.*;
 
@@ -24,6 +25,12 @@ class TestJava extends Test
       hx.excTest()
     catch(e:Dynamic) throw e; //shouldn't throw any exception
   }
+
+	function testLowerCase()
+	{
+		var l = new LowerCaseClass();
+		t(l.works);
+	}
 
 	function testNameCase()
 	{
