@@ -416,7 +416,7 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
-            gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
+		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField (x,f) ->
@@ -456,7 +456,7 @@ and gen_expr ctx e =
 		ctx.in_loop <- false;
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
 		gen_expr ctx (fun_block ctx f e.epos);
-        spr ctx "end";
+		spr ctx "end";
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
@@ -490,7 +490,7 @@ and gen_expr ctx e =
 		gen_value ctx cond;
 		spr ctx " then ";
 		gen_expr ctx e;
-        newline ctx;
+		newline ctx;
 		(match eelse with
 		| None -> print ctx "end";
 		| Some e2 ->
@@ -498,32 +498,32 @@ and gen_expr ctx e =
 			| TObjectDecl _ -> ctx.separator <- false
 			| _ ->());
 			spr ctx "else ";
-            newline ctx;
-            let bend = open_block ctx in
-            gen_expr ctx e2;
-            bend();
-            newline ctx;
-            spr ctx "end";
-            newline ctx);
-    | TUnop ((Increment|Decrement) as op,unop_flag, e) ->
-        spr ctx "(function() ";
-        gen_value ctx e;
-        spr ctx " = ";
-        gen_value ctx e;
-        (match op with
-        |Increment -> spr ctx " +"
-        |Decrement -> spr ctx " -"
-        |_-> print ctx " %s" (Ast.s_unop op));
-        spr ctx " 1 return ";
-        gen_value ctx e;
-        spr ctx " end)()";
-	| TUnop (Not,unop_flag,e) ->
-        spr ctx "not ";
-        gen_value ctx e;
-	| TUnop (NegBits,unop_flag,e) ->
-        spr ctx "bit.bnot(";
-        gen_value ctx e;
-        spr ctx ")";
+		newline ctx;
+		let bend = open_block ctx in
+		gen_expr ctx e2;
+		bend();
+		newline ctx;
+		spr ctx "end";
+		newline ctx);
+	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
+		spr ctx "(function() ";
+		gen_value ctx e;
+		spr ctx " = ";
+		gen_value ctx e;
+		(match op with
+		|Increment -> spr ctx " +"
+		|Decrement -> spr ctx " -"
+		|_-> print ctx " %s" (Ast.s_unop op));
+		spr ctx " 1 return ";
+		gen_value ctx e;
+		spr ctx " end)()";
+		| TUnop (Not,unop_flag,e) ->
+			spr ctx "not ";
+		gen_value ctx e;
+		| TUnop (NegBits,unop_flag,e) ->
+			spr ctx "bit.bnot(";
+		gen_value ctx e;
+		spr ctx ")";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -636,26 +636,28 @@ and gen_expr ctx e =
 		spr ctx "}";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
-			List.iter (fun e3 ->
-                if cnt == 0 then spr ctx "if " else spr ctx "elseif";
-                gen_value ctx e;
-                spr ctx " == ";
-                gen_value ctx e3;
-                spr ctx " then "
-			) el;
-			gen_block_element ctx e2;
-			newline ctx;
+		    List.iter (fun e3 ->
+			if cnt == 0 then spr ctx "if " else spr ctx "elseif ";
+			gen_value ctx e;
+			spr ctx " == ";
+			gen_value ctx e3;
+			spr ctx " then "
+		    ) el;
+		    let bend = open_block ctx in
+		    gen_block_element ctx e2;
+		    bend();
+		    newline ctx;
 		) cases;
-        spr ctx "end";
 		(match def with
 		| None -> ()
 		| Some e ->
-			spr ctx "default:";
+			spr ctx "else ";
 			let bend = open_block ctx in
 			gen_block_element ctx e;
 			bend();
 			newline ctx;
 		);
+        spr ctx "end";
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
