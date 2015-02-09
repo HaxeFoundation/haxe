@@ -93,6 +93,63 @@ let constant_s = function
 	| IString s -> "\"" ^ s ^ "\""
 	| INull -> "null"
 
+let path_s = function
+	| [],[], s -> s
+	| ns,[], s -> String.concat "." ns ^ "." ^ s
+	| [],enc, s -> String.concat "@" enc ^ "." ^ s
+	| ns,enc,s -> String.concat "." ns ^ "." ^ String.concat "@" enc ^ "." ^ s
+
+let rec ilsig_s = function
+	| SBoxed -> "boxed"
+	| SEnum e -> "enum " ^ e
+	| SType -> "System.Type"
+	| SVoid -> "void"
+	| SBool -> "bool"
+	| SChar -> "char"
+	| SInt8 -> "int8"
+	| SUInt8 -> "uint8"
+	| SInt16 -> "int16"
+	| SUInt16 -> "uint16"
+	| SInt32 -> "int32"
+	| SUInt32 -> "uint32"
+	| SInt64 -> "int64"
+	| SUInt64 -> "uint64"
+	| SFloat32 -> "float"
+	| SFloat64 -> "double"
+	| SString -> "string"
+	| SPointer s -> ilsig_s s ^ "*"
+	| SManagedPointer s -> ilsig_s s ^ "&"
+	| SValueType td -> "valuetype " ^ path_s (get_path td)
+	| SClass cl -> "classtype " ^ path_s (get_path cl)
+	| STypeParam t | SMethodTypeParam t -> "!" ^ string_of_int t
+	| SArray (s,opts) ->
+		ilsig_s s ^ "[" ^ String.concat "," (List.map (function
+			| Some i,None when i <> 0 ->
+				string_of_int i ^ "..."
+			| None, Some i when i <> 0 ->
+				string_of_int i
+			| Some s, Some b when b = 0 && s <> 0 ->
+				string_of_int s ^ "..."
+			| Some s, Some b when s <> 0 || b <> 0 ->
+				let b = if b > 0 then b - 1 else b in
+				string_of_int s ^ "..." ^ string_of_int (s + b)
+			| _ ->
+				""
+		) (Array.to_list opts)) ^ "]"
+	| SGenericInst (t,tl) ->
+		"generic " ^ (ilsig_s t) ^ "<" ^ String.concat ", " (List.map ilsig_s tl) ^ ">"
+	| STypedReference -> "typedreference"
+	| SIntPtr -> "native int"
+	| SUIntPtr -> "native unsigned int"
+	| SFunPtr (callconv,ret,args) ->
+		"function " ^ ilsig_s ret ^ "(" ^ String.concat ", " (List.map ilsig_s args) ^ ")"
+	| SObject -> "object"
+	| SVector s -> ilsig_s s ^ "[]"
+	| SReqModifier (_,s) -> "modreq() " ^ ilsig_s s
+	| SOptModifier (_,s) -> "modopt() " ^ ilsig_s s
+	| SSentinel -> "..."
+	| SPinned s -> "pinned " ^ ilsig_s s
+
 let rec instance_s = function
 	| InstConstant c -> constant_s c
 	| InstBoxed b -> "boxed " ^ instance_s b
@@ -266,12 +323,18 @@ let convert_method ctx m =
 		(* print_endline m.m_name; *)
 		(* print_endline (Printf.sprintf "%d vs %d" (List.length args) (List.length m.m_param_list)); *)
 		(* print_endline (String.concat ", " (List.map (fun p ->string_of_int p.p_sequence ^ ":" ^ p.p_name) m.m_param_list)); *)
+		(* print_endline (String.concat ", " (List.map (ilsig_s) args)); *)
 		(* print_endline "\n"; *)
 		(* TODO: find out WHY this happens *)
 		let param_list = List.filter (fun p -> p.p_sequence > 0) m.m_param_list in
-		ilsig_t ret, List.map2 (fun p s ->
-			p.p_name, p.p_flags, ilsig_t s
-		) param_list args
+		if List.length param_list <> List.length args then
+			let i = ref 0 in
+			ilsig_t ret, List.map (fun s ->
+				incr i; "arg" ^ (string_of_int !i), { pf_io = []; pf_reserved = [] }, ilsig_t s) args
+		else
+			ilsig_t ret, List.map2 (fun p s ->
+				p.p_name, p.p_flags, ilsig_t s
+			) param_list args
 	| _ -> assert false
 	in
 
