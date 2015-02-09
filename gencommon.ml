@@ -9181,12 +9181,12 @@ struct
 				in
 
 				match e.eexpr with
-					| TCall ({eexpr = TField(_, FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}))}, [f]) ->
+					| TCall (({eexpr = TField(_, FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}))} as left), [f]) ->
 						let f = run f in
 						(try
 							mk_field_access gen {f with etype = get_converted_enum_type f.etype} "index" e.epos
 						with Not_found ->
-							e)
+							{ e with eexpr = TCall(left, [f]) })
 					| TEnumParameter(f, _,i) ->
 						let f = run f in
 						(* check if en was converted to class *)
