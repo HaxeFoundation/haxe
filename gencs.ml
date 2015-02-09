@@ -1083,6 +1083,12 @@ let configure gen =
 			| _ -> gen.gcon.error ("This function argument " ^ explain ^ " must be a local variable.") e.epos; e
 	in
 
+	let get_field f = match f with
+		| FInstance(_,_,cf) -> Some cf
+		| FStatic(_,cf) -> Some cf
+		| _ -> None
+	in
+
 	let last_line = ref (-1) in
 	let begin_block w = write w "{"; push_indent w; newline w; last_line := -1 in
 	let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w; last_line := -1 in
@@ -1160,7 +1166,7 @@ let configure gen =
 						write w " += ";
 						expr_s w ev
 					end else
-						do_call w e [ev]
+						do_call (get_field f) w e [ev]
 				| TCall( ({ eexpr = TField(ef,f) } as e), [ev] ) when String.starts_with (field_name f) "remove_" ->
 					let name = field_name f in
 					let propname = String.sub name 7 (String.length name - 7) in
@@ -1171,7 +1177,7 @@ let configure gen =
 						write w " -= ";
 						expr_s w ev
 					end else
-						do_call w e [ev]
+						do_call (get_field f) w e [ev]
 				| TCall( ({ eexpr = TField(ef,f) } as e), [] ) when String.starts_with (field_name f) "get_" ->
 					let name = field_name f in
 					let propname = String.sub name 4 (String.length name - 4) in
@@ -1180,7 +1186,7 @@ let configure gen =
 						write w ".";
 						write_field w propname
 					end else
-						do_call w e []
+						do_call (get_field f) w e []
 				| TCall( ({ eexpr = TField(ef,f) } as e), [v] ) when String.starts_with (field_name f) "set_" ->
 					let name = field_name f in
 					let propname = String.sub name 4 (String.length name - 4) in
@@ -1191,7 +1197,7 @@ let configure gen =
 						write w " = ";
 						expr_s w v
 					end else
-						do_call w e [v]
+						do_call (get_field f) w e [v]
 				| TField (e, (FStatic(_, cf) | FInstance(_, _, cf))) when Meta.has Meta.Native cf.cf_meta ->
 					let rec loop meta = match meta with
 						| (Meta.Native, [EConst (String s), _],_) :: _ ->
@@ -1398,14 +1404,16 @@ let configure gen =
 					(match elr with
 					| [e1;e2] ->
 						expr_s w { e with eexpr = TBinop(PMap.find cf.cf_name binops_names, e1, e2) }
-					| _ -> do_call w e el)
+					| _ -> do_call (Some cf) w e el)
 				| TCall({ eexpr = TField(ef, FStatic(_,cf)) }, el) when PMap.mem cf.cf_name unops_names ->
 					(match extract_tparams [] el with
 					| _, [e1] ->
 						expr_s w { e with eexpr = TUnop(PMap.find cf.cf_name unops_names, Ast.Prefix,e1) }
-					| _ -> do_call w e el)
+					| _ -> do_call (Some cf) w e el)
+				| TCall (({ eexpr = TField(_, (FStatic(_,cf) | FInstance(_,_,cf))) } as e), el) ->
+					do_call (Some cf) w e el
 				| TCall (e, el) ->
-					do_call w e el
+					do_call None w e el
 				| TNew (({ cl_path = (["cs"], "NativeArray") } as cl), params, [ size ]) ->
 					let rec check_t_s t times =
 						match real_type t with
@@ -1582,7 +1590,11 @@ let configure gen =
 				| TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
 				| TEnumParameter _ -> write w "[ enum parameter not supported ]"; if !strict_mode then assert false
 		)
-		and do_call w e el =
+		and do_call cf_opt w e el =
+			let is_native = match cf_opt with
+				| None -> false
+				| Some cf -> Meta.has Meta.CsNative cf.cf_meta
+			in
 			let params, el = extract_tparams [] el in
 			let params = List.rev params in
 
@@ -1605,9 +1617,12 @@ let configure gen =
 					write w ">"
 			);
 
-			let rec loop acc elist tlist =
+			let rec loop in_pad acc elist tlist =
 				match elist, tlist with
+					| { eexpr = TMeta( (Meta.Padded,_,_), _ ) } :: etl, (_,_,t) :: ttl when is_native ->
+						loop true acc etl ttl
 					| e :: etl, (_,_,t) :: ttl ->
+						if in_pad then gen.gcon.error "Native C# optional arguments cannot be skipped" e.epos;
 						(if acc <> 0 then write w ", ");
 						(match real_type t with
 							| TType({ t_path = (["cs"], "Ref") }, _)
@@ -1623,11 +1638,11 @@ let configure gen =
 							| _ ->
 								expr_s w e
 						);
-						loop (acc + 1) etl ttl
+						loop in_pad (acc + 1) etl ttl
 					| e :: etl, [] ->
 						(if acc <> 0 then write w ", ");
 						expr_s w e;
-						loop (acc + 1) etl []
+						loop in_pad (acc + 1) etl []
 					| _ -> ()
 			in
 			write w "(";
@@ -1636,7 +1651,7 @@ let configure gen =
 				| _ -> []
 			in
 
-			loop 0 el ft;
+			loop false 0 el ft;
 
 			write w ")"
 		in
@@ -2641,7 +2656,10 @@ let configure gen =
 		path_param_s (TClassDecl c) c.cl_path tl ^ "." ^ fname
 	in
 	FixOverrides.configure ~explicit_fn_name:explicit_fn_name gen;
-	Normalize.configure gen ~metas:(Hashtbl.create 0);
+	let metas = Hashtbl.create 1 in
+
+	Hashtbl.add metas Meta.Padded true;
+	Normalize.configure gen ~metas;
 
 	AbstractImplementationFix.configure gen;
 
@@ -3416,7 +3434,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	if PMap.mem "net_loader_debug" ctx.ncom.defines then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
-	let meta = [Meta.Overload, [], p] in
+	let meta = [Meta.Overload, [], p; Meta.CsNative, [], p] in
 	let meta = if is_explicit_impl then
 			(Meta.NoCompletion,[],p) :: (Meta.SkipReflection,[],p) :: meta
 		else
@@ -3461,7 +3479,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 				| _ ->
 					convert_signature ctx p (change_sig s.snorm)
 			in
-			name,false,Some t,None) m.margs
+			name,List.mem POpt flag.pf_io,Some t,None) m.margs
 		in
 		let ret = convert_signature ctx p (change_sig ret) in
 		let types = List.map (fun t ->
