@@ -273,6 +273,10 @@ let null_param_flags = param_flags_of_int 0
 let callconv_of_int i =
 	let basic = match i land 0xF with
 		| 0x0 -> CallDefault (* 0x0 *)
+		| 0x1 -> CallCDecl
+		| 0x2 -> CallStdCall
+		| 0x3 -> CallThisCall
+		| 0x4 -> CallFastCall
 		| 0x5 -> CallVararg (* 0x5 *)
 		| 0x6 -> CallField (* 0x6 *)
 		| 0x7 -> CallLocal (* 0x7 *)

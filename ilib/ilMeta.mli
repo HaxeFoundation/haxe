@@ -1011,6 +1011,10 @@ and ilsig =
 
 and callconv =
 	| CallDefault (* 0x0 *)
+	| CallCDecl (* 0x1 *)
+	| CallStdCall (* 0x2 *)
+	| CallThisCall (* 0x3 *)
+	| CallFastCall (* 0x4 *)
 	| CallVararg (* 0x5 *)
 	| CallField (* 0x6 *)
 		(* field call *)
