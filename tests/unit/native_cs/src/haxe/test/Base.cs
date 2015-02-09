@@ -26,6 +26,29 @@ public class Base
 		return -1;
 	}
 
+	public string prop 
+	{
+		get
+		{
+			return "SomeValue";
+		}
+	}
+
+	public int this[int i]
+	{
+		get { return i * 20; }
+	}
+
+	public int this[int i, int j]
+	{
+		get { return i * j; }
+	}
+
+	public int optional(int i=42)
+	{
+		return i * 10;
+	}
+
 	public virtual int nameClash()
 	{
 		return 1;

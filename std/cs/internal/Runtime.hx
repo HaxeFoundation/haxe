@@ -302,6 +302,9 @@ import cs.system.Object;
 			if (prop == null)
 			{
 				System.Reflection.MemberInfo[] m = t.GetMember(field, bf);
+				if (m.Length == 0 && (field == "__get" || field == "__set"))
+					m = t.GetMember(field == "__get" ? "get_Item" : "set_Item", bf);
+
 				if (m.Length > 0)
 				{
 					return new haxe.lang.Closure(obj != null ? obj : t, field, 0);
@@ -566,9 +569,23 @@ import cs.system.Object;
 		int last = 0;
 		for (int i = 0; i < mis.Length; i++)
 		{
-			if (mis[i].Name.Equals(field))
+			string name = mis[i].Name;
+			if (name.Equals(field))
 			{
 				mis[last++] = mis[i];
+			}
+		}
+
+		if (last == 0 && (field == "__get" || field == "__set"))
+		{
+			field = field == "__get" ? "get_Item" : "set_Item";
+			for (int i = 0; i < mis.Length; i++)
+			{
+				string name = mis[i].Name;
+				if (name.Equals(field))
+				{
+					mis[last++] = mis[i];
+				}
 			}
 		}
 

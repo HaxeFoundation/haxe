@@ -52,6 +52,37 @@ class TestCSharp extends Test
 		t(l.works);
 	}
 
+	function testGetItem()
+	{
+		var b = new Base();
+		eq(b[1], 20);
+		eq(b.get_Item(2,3), 6);
+		var dyn:Dynamic = b;
+		eq(dyn[1], 20);
+		eq(dyn.get_Item(2,3), 6);
+
+		var b:Base = new Base_InnerClass();
+		eq(b[1], 20);
+		eq(b.get_Item(2,3), 6);
+		var dyn:Dynamic = b;
+		eq(dyn[1], 20);
+		eq(dyn.get_Item(2,3), 6);
+	}
+
+	// function testOptional()
+	// {
+	// 	eq(new Base().optional(), 420);
+	// 	eq(new Base().optional(10), 100);
+	// }
+
+	function testProp()
+	{
+		var b = new Base();
+		eq(b.prop, "SomeValue");
+		var dyn:Dynamic = b;
+		eq(dyn.prop, "SomeValue");
+	}
+
 #if unsafe
 	@:unsafe function testBoxedPointer()
 	{
