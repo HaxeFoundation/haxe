@@ -278,7 +278,7 @@ import cs.system.Object;
 
 		System.Type t = obj as System.Type;
 		System.Reflection.BindingFlags bf;
-        if (t == null)
+    if (t == null)
 		{
 			string s = obj as string;
 			if (s != null)
@@ -309,6 +309,19 @@ import cs.system.Object;
 				{
 					return new haxe.lang.Closure(obj != null ? obj : t, field, 0);
 				} else {
+					// COM object handling
+					if (t.IsCOMObject)
+					{
+						try
+						{
+							return t.InvokeMember(field, System.Reflection.BindingFlags.GetProperty, null, obj, new object[0]);
+						}
+						catch (System.Exception e)
+						{
+							//Closures of COM objects not supported currently
+						}
+					}
+
 					if (throwErrors)
 						throw HaxeException.wrap("Cannot access field \'" + field + "\'.");
 					else
@@ -356,7 +369,7 @@ import cs.system.Object;
 
 		System.Type t = obj as System.Type;
 		System.Reflection.BindingFlags bf;
-        if (t == null)
+		if (t == null)
 		{
 			t = obj.GetType();
 			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
@@ -379,6 +392,18 @@ import cs.system.Object;
 			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
 			if (prop == null)
 			{
+				// COM object handling
+				if (t.IsCOMObject)
+				{
+					try
+					{
+						return t.InvokeMember(field, System.Reflection.BindingFlags.SetProperty, null, obj, new object[] { value });
+					}
+					catch (System.Exception e)
+					{
+						//Closures of COM objects not supported currently
+					}
+				}
 				throw haxe.lang.HaxeException.wrap("Field \'" + field + "\' not found for writing from Class " + t);
 			}
 
@@ -589,6 +614,16 @@ import cs.system.Object;
 			}
 		}
 
+		if (last == 0 && t.IsCOMObject)
+		{
+			object[] oargs = new object[arrLen(args)];
+			for (int i = 0; i < oargs.Length; i++)
+			{
+				oargs[i] = args[i];
+			}
+			return t.InvokeMember(field, System.Reflection.BindingFlags.InvokeMethod, null, obj, oargs);
+		}
+
 		if (last == 0)
 		{
 			throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
@@ -599,6 +634,11 @@ import cs.system.Object;
 	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
 	{
 		throw "not implemented";
+	}
+
+	@:private static function arrLen(arr:Array<Dynamic>):Int
+	{
+		return arr.length;
 	}
 
 	@:functionCode('
