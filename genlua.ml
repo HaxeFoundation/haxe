@@ -499,7 +499,7 @@ and gen_expr ctx e =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
-		spr ctx "if";
+		spr ctx "if ";
 		gen_value ctx cond;
 		spr ctx " then ";
 		gen_expr ctx e;
@@ -786,19 +786,32 @@ and gen_value ctx e =
 		loop el;
 		v();
 	| TIf (cond,e,eo) ->
-		(* remove parenthesis unless it's an operation with higher precedence than ?: *)
-		let cond = (match cond.eexpr with
-			| TParenthesis { eexpr = TBinop ((Ast.OpAssign | Ast.OpAssignOp _),_,_) | TIf _ } -> cond
-			| TParenthesis e -> e
-			| _ -> cond
-		) in
+		let v = value() in
+		spr ctx "if ";
 		gen_value ctx cond;
-		spr ctx "?";
-		gen_value ctx e;
-		spr ctx ":";
-		(match eo with
-		| None -> spr ctx "nil"
-		| Some e -> gen_value ctx e);
+		spr ctx " then ";
+		gen_value ctx (assign e);
+		let rec gen_elseif ctx e =
+		(match e with
+		| None->();
+		| Some e2->
+		    (match e2.eexpr with
+		    | TIf(cond3, e3, eo3) ->
+			spr ctx " elseif ";
+			gen_value ctx cond3;
+			spr ctx " then ";
+			gen_expr ctx (assign e3);
+			semicolon ctx;
+			gen_elseif ctx eo3;
+		    | _ ->
+			spr ctx " else ";
+			gen_expr ctx (assign e2);
+			semicolon ctx;
+		    ));
+		in
+		gen_elseif ctx eo;
+		spr ctx " end";
+		v()
 	| TSwitch (cond,cases,def) ->
 		let v = value() in
 		gen_expr ctx (mk (TSwitch (cond,
@@ -858,9 +871,7 @@ and gen_bitop ctx op e1 e2 =
     gen_value ctx e1;
     spr ctx ",";
     gen_value ctx e2;
-    spr ctx ")";;
-
-
+    spr ctx ")"
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
