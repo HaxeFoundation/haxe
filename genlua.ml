@@ -710,24 +710,24 @@ and gen_value ctx e =
 	in
 	let value() =
 		let old = ctx.in_value, ctx.in_loop in
-		let r = alloc_var "$r" t_dynamic in
+		let r_id = ctx.id_counter in
+		ctx.id_counter <- ctx.id_counter + 1;
+		let r = alloc_var ("r" ^ string_of_int r_id) t_dynamic in
 		ctx.in_value <- Some r;
 		ctx.in_loop <- false;
-		spr ctx "(function($this) ";
-		spr ctx "{";
+		spr ctx "(function() ";
 		let b = open_block ctx in
 		newline ctx;
-		spr ctx "var $r";
+		spr ctx ("local r" ^ string_of_int r_id);
 		newline ctx;
 		(fun() ->
 			newline ctx;
-			spr ctx "return $r";
+			spr ctx ("return r" ^ string_of_int r_id);
 			b();
 			newline ctx;
-			spr ctx "}";
 			ctx.in_value <- fst old;
 			ctx.in_loop <- snd old;
-			print ctx "(%s))" (this ctx)
+			spr ctx "end )()"
 		)
 	in
 	match e.eexpr with
