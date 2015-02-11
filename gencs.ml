@@ -3151,7 +3151,6 @@ let escape_chars =
 			"_x" ^ (string_of_int (Char.code chr)) ^ "_")
 
 let netcl_to_hx cl =
-	let cl = escape_chars cl in
 	let cl = if String.length cl > 0 && String.get cl 0 >= 'a' && String.get cl 0 <= 'z' then
 			Char.escaped (Char.uppercase (String.get cl 0)) ^ (String.sub cl 1 (String.length cl - 1))
 		else
@@ -3159,9 +3158,9 @@ let netcl_to_hx cl =
 	in
 	try
 		let cl, nargs = String.split cl "`" in
-		cl ^ "_" ^ nargs
+		(escape_chars cl) ^ "_" ^ nargs
 	with | Invalid_string ->
-		cl
+		escape_chars cl
 
 let netpath_to_hx std = function
 	| [],[], cl -> [], netcl_to_hx cl
