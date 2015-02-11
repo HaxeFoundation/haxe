@@ -21,6 +21,7 @@
  */
 package js;
 
+@:dox(ignore)
 class Boot {
 
 	private static function __unhtml(s : String) {
