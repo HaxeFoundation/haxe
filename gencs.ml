@@ -3143,7 +3143,15 @@ let add_cs = function
 	| "system" :: ns -> "cs" :: "system" :: ns
 	| ns -> ns
 
+let escape_chars =
+	String.replace_chars (fun chr ->
+		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' then
+			Char.escaped chr
+		else
+			"_x" ^ (string_of_int (Char.code chr)) ^ "_")
+
 let netcl_to_hx cl =
+	let cl = escape_chars cl in
 	let cl = if String.length cl > 0 && String.get cl 0 >= 'a' && String.get cl 0 <= 'z' then
 			Char.escaped (Char.uppercase (String.get cl 0)) ^ (String.sub cl 1 (String.length cl - 1))
 		else
@@ -3158,11 +3166,11 @@ let netcl_to_hx cl =
 let netpath_to_hx std = function
 	| [],[], cl -> [], netcl_to_hx cl
 	| ns,[], cl ->
-		let ns = (List.map String.lowercase ns) in
+		let ns = (List.map (fun s -> String.lowercase (escape_chars s)) ns) in
 		add_cs ns, netcl_to_hx cl
 	| ns,(nhd :: ntl as nested), cl ->
 		let nested = List.map (netcl_to_hx) nested in
-		let ns = (List.map String.lowercase ns) @ [nhd] in
+		let ns = (List.map (fun s -> String.lowercase (escape_chars s)) ns) @ [nhd] in
 		add_cs ns, String.concat "_" nested ^ "_" ^ netcl_to_hx cl
 
 let lookup_ilclass std com ilpath =
