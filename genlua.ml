@@ -288,7 +288,7 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__js__" } -> false | _ -> true) ->
+	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__lua__" } -> false | _ -> true) ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
@@ -305,35 +305,13 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString "this") }] ->
-		spr ctx (this ctx)
-	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
+	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TLocal { v_name = "__js__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
 		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
-	| TLocal { v_name = "__instanceof__" },  [o;t] ->
-		spr ctx "(";
-		gen_value ctx o;
-		print ctx " instanceof ";
-		gen_value ctx t;
-		spr ctx ")";
-	| TLocal { v_name = "__typeof__" },  [o] ->
+	| TLocal { v_name = "__type__" },  [o] ->
 		spr ctx "type(";
 		gen_value ctx o;
-		spr ctx ")";
-	| TLocal { v_name = "__strict_eq__" } , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") === ";
-		gen_value ctx y;
-		spr ctx ")";
-	| TLocal { v_name = "__strict_neq__" } , [x;y] ->
-		(* add extra parenthesis here because of operator precedence *)
-		spr ctx "((";
-		gen_value ctx x;
-		spr ctx ") !== ";
-		gen_value ctx y;
 		spr ctx ")";
 	| TLocal ({v_name = "__define_feature__"}), [_;e] ->
 		gen_expr ctx e
@@ -896,7 +874,7 @@ let generate_package_create ctx (p,_) =
 let check_field_name c f =
 	match f.cf_name with
 	| "prototype" | "__proto__" | "constructor" ->
-		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
 let gen_class_static_field ctx c f =
@@ -940,7 +918,7 @@ let gen_class_field ctx c f =
 		ctx.separator <- false
 
 let generate_class___name__ ctx c =
-	if has_feature ctx "js.Boot.isClass" then begin
+	if has_feature ctx "lua.Boot.isClass" then begin
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__name__ = " p;
 		if has_feature ctx "Type.getClassName" then
@@ -997,7 +975,7 @@ let generate_class ctx c =
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
-	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
+	let has_class = has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
 	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
 	if has_prototype then begin
 		(match c.cl_super with
@@ -1042,7 +1020,7 @@ let generate_enum ctx e =
 	print ctx "%s = " p;
 	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
 	print ctx "{";
-	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
+	if has_feature ctx "lua.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
 	newline ctx;
@@ -1091,7 +1069,7 @@ let generate_static ctx (c,f,e) =
 	newline ctx
 
 let generate_require ctx c =
-	let _, args, mp = Meta.get Meta.JsRequire c.cl_meta in
+	let _, args, mp = Meta.get Meta.LuaRequire c.cl_meta in
 	let p = (s_path ctx c.cl_path) in
 
     generate_package_create ctx c.cl_path;
@@ -1102,7 +1080,7 @@ let generate_require ctx c =
 	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
 		print ctx "%s = require(\"%s\").%s" p module_name object_path
 	| _ ->
-		error "Unsupported @:jsRequire format" mp);
+		error "Unsupported @:luaRequire format" mp);
 
 	newline ctx
 
@@ -1120,7 +1098,7 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if (Meta.has Meta.JsRequire c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then
+		else if (Meta.has Meta.LuaRequire c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then
 			generate_require ctx c
 		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
@@ -1154,7 +1132,7 @@ let alloc_ctx com =
 	ctx.type_accessor <- (fun t ->
 		let p = t_path t in
 		match t with
-		| TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.JsRequire c.cl_meta)
+		| TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.LuaRequire c.cl_meta)
 			-> dot_path p
 		| TEnumDecl { e_extern = true }
 			-> dot_path p
@@ -1169,24 +1147,21 @@ let gen_single_expr ctx e expr =
 	str
 
 let generate com =
-	let t = Common.timer "generate js" in
-	(match com.js_gen with
-	| Some g -> g()
-	| None ->
+	let t = Common.timer "generate lua" in
 	let ctx = alloc_ctx com in
 
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
-    spr ctx "pcall(require, 'bit32')"; newline ctx;
-    spr ctx "pcall(require, 'bit')"; newline ctx; newline ctx;
-    spr ctx "bit = bit or bit32"; newline ctx;
-    spr ctx "bit32 = bit"; newline ctx; newline ctx;
+	spr ctx "pcall(require, 'bit32')"; newline ctx;
+	spr ctx "pcall(require, 'bit')"; newline ctx; newline ctx;
+	spr ctx "bit = bit or bit32"; newline ctx;
+	spr ctx "bit32 = bit"; newline ctx; newline ctx;
 
 
 	(* TODO: fix $estr *)
 	let vars = [] in
-    let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ "{}") :: vars else vars) in
+	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ "{}") :: vars else vars) in
 	let vars = if has_feature ctx "may_print_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
@@ -1243,6 +1218,6 @@ let generate com =
 	| Some e -> gen_expr ctx e; newline ctx);
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
-	close_out ch);
+	close_out ch;
 	t()
 
