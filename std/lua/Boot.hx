@@ -51,57 +51,59 @@ class Boot {
 	}
 
 	static inline function isClass(o:Dynamic) : Bool {
-		return untyped __define_feature__("js.Boot.isClass", o.__name__);
+		return untyped __define_feature__("lua.Boot.isClass", o.__name__);
 	}
 
 	static inline function isEnum(e:Dynamic) : Bool {
-		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
+		return untyped __define_feature__("lua.Boot.isEnum", e.__ename__);
 	}
 
 	static inline function getClass(o:Dynamic) : Dynamic {
-		if (Std.is(o, Array))
-			return Array;
-		else {
-			var cl = untyped __define_feature__("js.Boot.getClass", o.__class__);
-			if (cl != null)
-				return cl;
-			var name = __nativeClassName(o);
-			if (name != null)
-				return __resolveNativeClass(name);
-			return null;
-		}
+	    return null;
 	}
 
 	@:ifFeature("may_print_enum")
 	private static function __string_rec(o,s:String) {
 		untyped {
-		    // TODO: Lua impl
-		    return o + "";
-        }
-    }
-
-	static var __toStr = untyped __js__("{}.toString");
-	// get native JS [[Class]]
-	static function __nativeClassName(o:Dynamic):String {
-		var name = untyped __toStr.call(o).slice(8, -1);
-		// exclude general Object and Function
-		// also exclude Math and JSON, because instanceof cannot be called on them
-		if (name == "Object" || name == "Function" || name == "Math" || name == "JSON")
-			return null;
-		return name;
-	}
-
-	// check for usable native JS object
-	static function __isNativeObj(o:Dynamic):Bool {
-		return __nativeClassName(o) != null;
-	}
-
-	// resolve native JS class (with window or global):
-	static function __resolveNativeClass(name:String) untyped {
-		if (__js__("typeof window") != "undefined")
-			return window[name];
+			switch(__type__(o)){
+				case "nil": return "null";
+				case "boolean", "number" : return o + '';
+				case "string": return o;
+				case "userdata": return "<userdata>";
+				case "function": return "<function>";
+				case "thread": return "<thread>";
+				case "table": { __lua__("local result = '';
+		if next(o) == nil then return '{}'
+		elseif o[1] ~= nil then
+			result = result .. '[';
+			local first = true
+			for i, v in ipairs(o) do
+				if (first) then first = false
+				else result = result .. ','
+				end
+				result = result .. lua.Boot.__string_rec(v);
+			end
+			result = result .. ']';
 		else
-			return global[name];
-	}
+			result = result .. '{ ';
+			local first = true
+			for i, v in pairs(o) do
+				if type(i) == 'string' then
+					if (first) then first = false
+					else result = result .. ','
+					end
+					result = result .. i .. ' => ' .. lua.Boot.__string_rec(v);
+				end
+			end
+			result = result .. ' }';
+		end
+				");
+				return result;
+				}
+				default : throw "Unknown Lua type";
+		    }
+		}
+	};
+
 
 }
