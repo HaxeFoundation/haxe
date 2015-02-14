@@ -27,7 +27,7 @@ let has_analyzer_option meta s =
 			| (Meta.Analyzer,el,_) :: ml ->
 				if List.exists (fun (e,p) ->
 					match e with
-						| EConst(Ident s2) when flag_ignore = s2 -> true
+						| EConst(Ident s2) when s = s2 -> true
 						| _ -> false
 				) el then
 					true
@@ -48,7 +48,7 @@ let is_ignored meta =
 			| (Meta.Analyzer,el,_) :: ml ->
 				if List.exists (fun (e,p) ->
 					match e with
-						| EConst(Ident s2) when "ignore" = s2 -> true
+						| EConst(Ident s2) when flag_ignore = s2 -> true
 						| _ -> false
 				) el then
 					true
