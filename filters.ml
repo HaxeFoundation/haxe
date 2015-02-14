@@ -338,13 +338,13 @@ let captured_vars com e =
 			method captured_type t = TInst (cnativearray,[t])
 
 			method mk_ref v ve p =
-				let earg = match ve with
-					| None ->
-						let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
-						mk (TConst TNull) t p (* generator will do the right thing for the non-nullable types *)
-					| Some e -> e
-				in
-				{ (Optimizer.mk_untyped_call "__array__" p [earg]) with etype = v.v_type }
+				match ve with
+				| None ->
+					let eone = mk (TConst (TInt (Int32.of_int 1))) t.tint p in
+					let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
+					mk (TNew (cnativearray,[t],[eone])) v.v_type p
+				| Some e ->
+					{ (Optimizer.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
 
 			method mk_ref_access e v =
 				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
