@@ -6431,6 +6431,10 @@ struct
 					let e1 = run ~just_type:true e1 in
 					let e2 = handle (run e2) e1.etype e2.etype in
 					{ e with eexpr = TBinop(op, clean_cast e1, e2) }
+				| TBinop ( (Ast.OpShl | Ast.OpShr | Ast.OpUShr as op), e1, e2 ) ->
+					let e1 = run e1 in
+					let e2 = handle (run e2) (gen.gcon.basic.tint) e2.etype in
+					{ e with eexpr = TBinop(op, e1, e2) }
 				| TField(ef, f) ->
 					handle_type_parameter gen None e (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f [] calls_parameters_explicitly
 				| TArrayDecl el ->
