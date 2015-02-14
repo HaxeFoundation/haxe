@@ -68,7 +68,7 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
-	static inline function getClass(o:Dynamic) : Dynamic {
+	static function getClass(o:Dynamic) : Dynamic {
 		if (Std.is(o, Array))
 			return Array;
 		else {
