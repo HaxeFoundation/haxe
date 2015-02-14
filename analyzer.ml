@@ -1351,6 +1351,12 @@ module LocalDce = struct
 				let e2 = loop need_val e2 in
 				let e1 = loop false e1 in
 				{e with eexpr = TIf(e1,e2,e3)}
+			| TArrayDecl el ->
+				let el = List.map (loop true) el in
+				{e with eexpr = TArrayDecl el}
+			| TObjectDecl fl ->
+				let fl = List.map (fun (s,e) -> s,loop true e) fl in
+				{e with eexpr = TObjectDecl fl}
 			| _ ->
 				Type.map_expr (loop false) e
 		in
