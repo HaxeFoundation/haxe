@@ -1246,7 +1246,7 @@ end
 
 module LocalDce = struct
 	let apply e =
-		let is_used v = Meta.has Meta.Used v.v_meta || type_has_analyzer_option v.v_type flag_no_local_dce in
+		let is_used v = Meta.has Meta.Used v.v_meta || type_has_analyzer_option v.v_type flag_no_local_dce || v.v_capture in
 		let is_ref_type t = match t with
 			| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
 			| _ -> false
