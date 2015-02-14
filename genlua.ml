@@ -151,13 +151,6 @@ let open_block ctx =
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
-let rec has_return e =
-	match e.eexpr with
-	| TBlock [] -> false
-	| TBlock el -> has_return (List.hd (List.rev el))
-	| TReturn _ -> true
-	| _ -> false
-
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
@@ -361,11 +354,11 @@ and gen_expr ctx e =
 		spr ctx (field s)
 	| TArray (e1,e2) ->
 		gen_value ctx e1;
-		spr ctx "{";
+		spr ctx "[";
 		gen_value ctx e2;
-		spr ctx "}";
+		spr ctx "]";
 	| TBinop (op,e1,e2) ->
-        gen_tbinop ctx op e1 e2;
+		gen_tbinop ctx op e1 e2;
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$iterator";
 		print ctx "$iterator(";
@@ -424,16 +417,31 @@ and gen_expr ctx e =
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock el ->
+		print ctx "(function()";
 		let bend = open_block ctx in
-		List.iter (gen_block_element ctx) el;
+		let rev = List.rev el in
+		let ret = List.hd rev in
+		let elfix = List.rev (List.tl rev) in
+		List.iter (gen_block_element ctx) elfix;
+		newline ctx;
+		spr ctx "return ";
+		gen_value ctx ret;
 		bend();
 		newline ctx;
+		print ctx " end)()";
 	| TFunction f ->
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
-		gen_expr ctx (fun_block ctx f e.epos);
+		let fblock = fun_block ctx f e.epos in
+		(match fblock.eexpr with
+		| TBlock el ->
+		    let bend = open_block ctx in
+		    List.iter (gen_block_element ctx) el;
+		    bend();
+		    newline ctx;
+		|_ -> ());
 		spr ctx "end";
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
@@ -646,9 +654,8 @@ and gen_expr ctx e =
 			let bend = open_block ctx in
 			gen_block_element ctx e;
 			bend();
-			newline ctx;
-		);
-        spr ctx "end";
+			newline ctx);
+		spr ctx "end"
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
