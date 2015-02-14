@@ -80,6 +80,7 @@ module Meta = struct
 		| GenericInstance
 		| Getter
 		| Hack
+		| HasUntyped
 		| HaxeGeneric
 		| HeaderClassCode
 		| HeaderCode

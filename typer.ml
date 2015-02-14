@@ -3434,6 +3434,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
+		if not (Meta.has Meta.HasUntyped ctx.curfield.cf_meta) then ctx.curfield.cf_meta <- (Meta.HasUntyped,[],p) :: ctx.curfield.cf_meta;
 		let e = type_expr ctx e with_type in
 		ctx.untyped <- old;
 		{

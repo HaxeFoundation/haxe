@@ -27,12 +27,35 @@ let has_analyzer_option meta s =
 			| (Meta.Analyzer,el,_) :: ml ->
 				if List.exists (fun (e,p) ->
 					match e with
-						| EConst(Ident s2) when s = s2 -> true
+						| EConst(Ident s2) when flag_ignore = s2 -> true
 						| _ -> false
 				) el then
 					true
 				else
 					loop ml
+			| _ :: ml ->
+				loop ml
+			| [] ->
+				false
+		in
+		loop meta
+	with Not_found ->
+		false
+
+let is_ignored meta =
+	try
+		let rec loop ml = match ml with
+			| (Meta.Analyzer,el,_) :: ml ->
+				if List.exists (fun (e,p) ->
+					match e with
+						| EConst(Ident s2) when "ignore" = s2 -> true
+						| _ -> false
+				) el then
+					true
+				else
+					loop ml
+			| (Meta.HasUntyped,_,_) :: _ ->
+				true
 			| _ :: ml ->
 				loop ml
 			| [] ->
@@ -1433,7 +1456,7 @@ module Run = struct
 
 	let run_on_field ctx config cf =
 		match cf.cf_expr with
-		| Some e when not (has_analyzer_option cf.cf_meta flag_ignore) && not (Codegen.is_removable_field ctx cf) ->
+		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta config cf.cf_meta in
 			let is_var_expression = match cf.cf_kind with
 				| Var _ -> true
@@ -1458,7 +1481,7 @@ module Run = struct
 
 	let run_on_type ctx config t =
 		match t with
-		| TClassDecl c when (has_analyzer_option c.cl_meta flag_ignore) -> ()
+		| TClassDecl c when (is_ignored c.cl_meta) -> ()
 		| TClassDecl c -> run_on_class ctx config c
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
