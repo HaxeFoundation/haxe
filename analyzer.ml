@@ -453,13 +453,15 @@ module Simplifier = struct
 									let e1 = extract_cond e1 in
 									e1,{e2 with eexpr = TBlock el},NormalWhile
 								| _ ->
-									begin match List.rev el with
+									e1,e2,flag
+									(* issue 3844 *)
+(* 									begin match List.rev el with
 										| {eexpr = TMeta((Meta.Custom ":whileCond",_,_),e1)} :: el ->
 											let e1 = extract_cond e1 in
 											e1,{e2 with eexpr = TBlock (List.rev el)},DoWhile
 										| _ ->
 											e1,e2,flag
-									end
+									end *)
 							end
 						| _ ->
 							e1,e2,flag
