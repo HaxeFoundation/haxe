@@ -156,7 +156,7 @@ EXTERN char *buffer_to_string( buffer b ) {
 	char *v = (char*)malloc(b->totlen + 1);
 	stringitem it = b->data;
 	char *s = v + b->totlen;
-	s[1] = 0;
+	*s = 0;
 	while( it != NULL ) {
 		stringitem tmp;
 		s -= it->len;
