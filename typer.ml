@@ -2243,6 +2243,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
 							let e = if not swapped then
 								make e1 e2
+							else if not (Optimizer.has_side_effect e1) && not (Optimizer.has_side_effect e2) then
+								make e1 e2
 							else
 								let v1,v2 = gen_local ctx t1, gen_local ctx t2 in
 								let ev1,ev2 = mk (TVar(v1,Some e1)) ctx.t.tvoid p,mk (TVar(v2,Some e2)) ctx.t.tvoid p in
