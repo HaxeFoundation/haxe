@@ -2324,7 +2324,7 @@ and type_unop ctx op flag e p =
 							if type_iseq (tfun [e.etype] m) tcf then cf,tcf,m else loop opl
 					| _ :: opl -> loop opl
 				in
-				let cf,t,r = try loop a.a_unops with Not_found -> error "Invalid operation" p in
+				let cf,t,r = try loop a.a_unops with Not_found -> raise Not_found in
 				(match cf.cf_expr with
 				| None ->
 					let e = {e with etype = apply_params a.a_params pl a.a_this} in
