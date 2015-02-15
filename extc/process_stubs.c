@@ -153,9 +153,10 @@ EXTERN void buffer_append_char( buffer b, char c ) {
 }
 
 EXTERN char *buffer_to_string( buffer b ) {
-	char *v = (char*)malloc(b->totlen);
+	char *v = (char*)malloc(b->totlen + 1);
 	stringitem it = b->data;
-	char *s = (char*)val_string(v) + b->totlen;
+	char *s = v + b->totlen;
+	s[1] = 0;
 	while( it != NULL ) {
 		stringitem tmp;
 		s -= it->len;
@@ -294,8 +295,15 @@ CAMLprim value process_run( value cmd, value vargs ) {
 		CloseHandle(oread);
 		CloseHandle(eread);
 		CloseHandle(iwrite);
-		if( !CreateProcess(NULL,val_string(sargs),NULL,NULL,TRUE,0,NULL,NULL,&sinf,&p->pinf) )
+		
+		if( !CreateProcess(NULL,val_string(sargs),NULL,NULL,TRUE,0,NULL,NULL,&sinf,&p->pinf) ) {
+			CloseHandle(p->eread);
+			CloseHandle(p->oread);
+			CloseHandle(p->iwrite);
+			free(sargs);
 			neko_error();
+		}
+		free(sargs);
 		// close unused pipes
 		CloseHandle(sinf.hStdOutput);
 		CloseHandle(sinf.hStdError);
