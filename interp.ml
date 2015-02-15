@@ -47,6 +47,7 @@ and vobject = {
 }
 
 and vabstract =
+	| ADeallocated of int ref
 	| AKind of vabstract
 	| AHash of (value, value) Hashtbl.t
 	| ARandom of Random.State.t ref
@@ -67,6 +68,7 @@ and vabstract =
 	| ACacheRef of value
 	| AInt32Kind
 	| ATls of value ref
+	| AProcess of Process.process
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -1050,6 +1052,11 @@ let builtins =
 (* ---------------------------------------------------------------------- *)
 (* STD LIBRARY *)
 
+let free_abstract a =
+	match a with
+	| VAbstract vp -> Obj.set_tag (Obj.repr vp) 0 (* this will mute it as Deallocated *)
+	| _ -> assert false
+
 let std_lib =
 	let p = { psource = "<stdlib>"; pline = 0 } in
 	let error() =
@@ -1427,10 +1434,10 @@ let std_lib =
 					| _ -> error())
 			| _ -> error()
 		);
-		"file_close", Fun1 (fun f ->
-			(match f with
-			| VAbstract (AFRead f) -> close_in f
-			| VAbstract (AFWrite f) -> close_out f
+		"file_close", Fun1 (fun vf ->
+			(match vf with
+			| VAbstract (AFRead f) -> close_in f; free_abstract vf;
+			| VAbstract (AFWrite f) -> close_out f; free_abstract vf;
 			| _ -> error());
 			VNull
 		);
@@ -1508,9 +1515,9 @@ let std_lib =
 			| VBool b -> VAbstract (ASocket (Unix.socket PF_INET (if b then SOCK_DGRAM else SOCK_STREAM) 0));
 			| _ -> error()
 		);
-		"socket_close", Fun1 (fun s ->
-			match s with
-			| VAbstract (ASocket s) -> Unix.close s; VNull
+		"socket_close", Fun1 (fun vs ->
+			match vs with
+			| VAbstract (ASocket s) -> Unix.close s; free_abstract vs; VNull
 			| _ -> error()
 		);
 		"socket_send_char", Fun2 (fun s c ->
@@ -1832,6 +1839,47 @@ let std_lib =
 			| _ -> error();
 		);
 		(* lock, mutex, deque : not implemented *)
+	(* process *)
+		"process_run", (Fun2 (fun p args ->
+			match p, args with
+			| VString p, VArray args -> VAbstract (AProcess (Process.run p (Array.map vstring args)))
+			| _ -> error()
+		));
+		"process_stdout_read", (Fun4 (fun p str pos len ->
+			match p, str, pos, len with
+			| VAbstract (AProcess p), VString str, VInt pos, VInt len -> VInt (Process.read_stdout p str pos len)
+			| _ -> error()
+		));
+		"process_stderr_read", (Fun4 (fun p str pos len ->
+			match p, str, pos, len with
+			| VAbstract (AProcess p), VString str, VInt pos, VInt len -> VInt (Process.read_stderr p str pos len)
+			| _ -> error()
+		));
+		"process_stdin_write", (Fun4 (fun p str pos len ->
+			match p, str, pos, len with
+			| VAbstract (AProcess p), VString str, VInt pos, VInt len -> VInt (Process.write_stdin p str pos len)
+			| _ -> error()
+		));
+		"process_stdin_close", (Fun1 (fun p ->
+			match p with
+			| VAbstract (AProcess p) -> Process.close_stdin p; VNull
+			| _ -> error()
+		));
+		"process_exit", (Fun1 (fun p ->
+			match p with
+			| VAbstract (AProcess p) -> VInt (Process.exit p)
+			| _ -> error()
+		));
+		"process_pid", (Fun1 (fun p ->
+			match p with
+			| VAbstract (AProcess p) -> VInt (Process.pid p)
+			| _ -> error()
+		));
+		"process_close", (Fun1 (fun vp ->
+			match vp with
+			| VAbstract (AProcess p) -> Process.close p; free_abstract vp; VNull
+			| _ -> error()
+		));
 	(* xml *)
 		"parse_xml", (match neko with
 		| None -> Fun2 (fun str o ->
@@ -1877,24 +1925,8 @@ let std_lib =
 	@ (match neko with
 	| None -> []
 	| Some neko ->
-		let p_run = neko.load "std@process_run" 2 in
-		let p_stdout_read = neko.load "std@process_stdout_read" 4 in
-		let p_stderr_read = neko.load "std@process_stderr_read" 4 in
-		let p_stdin_write = neko.load "std@process_stdin_write" 4 in
-		let p_stdin_close = neko.load "std@process_stdin_close" 1 in
-		let p_exit = neko.load "std@process_exit" 1 in
-		let p_pid = neko.load "std@process_pid" 1 in
-		let p_close = neko.load "std@process_close" 1 in
 		let win_ec = (try Some (neko.load "std@win_env_changed" 0) with _ -> None) in
 	[
-		"process_run", (Fun2 (fun a b -> neko.call p_run [a;b]));
-		"process_stdout_read", (Fun4 (fun a b c d -> neko.call p_stdout_read [a;VAbstract (ANekoBuffer b);c;d]));
-		"process_stderr_read", (Fun4 (fun a b c d -> neko.call p_stderr_read [a;VAbstract (ANekoBuffer b);c;d]));
-		"process_stdin_write", (Fun4 (fun a b c d -> neko.call p_stdin_write [a;b;c;d]));
-		"process_stdin_close", (Fun1 (fun p -> neko.call p_stdin_close [p]));
-		"process_exit", (Fun1 (fun p -> neko.call p_exit [p]));
-		"process_pid", (Fun1 (fun p -> neko.call p_pid [p]));
-		"process_close", (Fun1 (fun p -> neko.call p_close [p]));
 		"win_env_changed", (Fun0 (fun() -> match win_ec with None -> error() | Some f -> neko.call f []));
 	]))
 
@@ -2038,14 +2070,14 @@ let z_lib =
 			let z = Extc.zlib_deflate_init (match f with VInt i -> i | _ -> error()) in
 			VAbstract (AZipD { z = z; z_flush = Extc.Z_NO_FLUSH })
 		);
-		"deflate_end", Fun1 (fun z ->
-			match z with
-			| VAbstract (AZipD z) -> Extc.zlib_deflate_end z.z; VNull;
+		"deflate_end", Fun1 (fun vz ->
+			match vz with
+			| VAbstract (AZipD z) -> Extc.zlib_deflate_end z.z; free_abstract vz; VNull;
 			| _ -> error()
 		);
-		"inflate_end", Fun1 (fun z ->
-			match z with
-			| VAbstract (AZipI z) -> Extc.zlib_inflate_end z.z; VNull;
+		"inflate_end", Fun1 (fun vz ->
+			match vz with
+			| VAbstract (AZipI z) -> Extc.zlib_inflate_end z.z; free_abstract vz; VNull;
 			| _ -> error()
 		);
 		"set_flush_mode", Fun2 (fun z f ->
