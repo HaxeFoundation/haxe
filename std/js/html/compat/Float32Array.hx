@@ -22,42 +22,51 @@
 package js.html.compat;
 
 @:keep
-class Uint8Array {
+class Float32Array {
 
-	static var BYTES_PER_ELEMENT = 1;
+	static var BYTES_PER_ELEMENT = 4;
 
 	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) : Dynamic {
-		var arr;
+		var arr : Array<Float>;
 		if( untyped __typeof__(arg1) == 'number' ) {
 			arr = new Array();
 			for( i in 0...arg1 )
 				arr[i] = 0;
 			untyped {
-				arr.byteLength = arr.length;
+				arr.byteLength = arr.length << 2;
 				arr.byteOffset = 0;
-				arr.buffer = new ArrayBuffer(arr);
+				arr.buffer = new ArrayBuffer([for( i in 0...arr.length << 2 ) 0]); // no sync
 			}
 		} else if( Std.is(arg1,ArrayBuffer) ) {
 			var buffer : ArrayBuffer = arg1;
 			if( offset == null ) offset = 0;
-			if( length == null ) length = buffer.byteLength - offset;
-			if( offset == 0 )
-				arr = cast @:privateAccess buffer.a;
-			else
-				// here we are losing the fact that we should reference the same data,
-				// but I don't see another way to have this behaviour while keeping [] access
-				arr = cast @:privateAccess buffer.a.slice(offset, offset+length);
+			if( length == null ) length = (buffer.byteLength - offset) >> 2;
+			arr = [];
+			// decode buffer
+			for( i in 0...length ) {
+				var val = untyped buffer.a[offset++] | (buffer.a[offset++] << 8) | (buffer.a[offset++] << 16) | (buffer.a[offset++] << 24);  
+				arr.push(haxe.io.FPHelper.i32ToFloat(val));
+			}
 			untyped {
-				arr.byteLength = arr.length;
+				arr.byteLength = arr.length<<2;
 				arr.byteOffset = offset;
 				arr.buffer = buffer;
 			}
 		} else if( Std.is(arg1, Array) ) {
-			arr = (arg1 : Array<Int>).copy();
+			arr = (arg1 : Array<Float>).copy();
+			// loss of memory sync between buffer and array
+			var buffer = [];
+			for( f in arr ) {
+				var i = haxe.io.FPHelper.floatToI32(f);
+				buffer.push(i&0xFF);
+				buffer.push((i>>8)&0xFF);
+				buffer.push((i>>16)&0xFF);
+				buffer.push(i>>>24);
+			}
 			untyped {
-				arr.byteLength = arr.length;
+				arr.byteLength = arr.length << 2;
 				arr.byteOffset = 0;
-				arr.buffer = new ArrayBuffer(arr);
+				arr.buffer = new ArrayBuffer(buffer);
 			}
 		} else
 			throw "TODO "+arg1;
@@ -89,12 +98,12 @@ class Uint8Array {
 	static function _subarray( start : Int, ?end : Int ) {
 		var t : Dynamic = untyped __js__("this");
 		var a = _new(t.slice(start,end));
-		a.byteOffset = start;
+		a.byteOffset = start * 4;
 		return a;
 	}
 
 	static function __init__() untyped {
-		var Uint8Array = __js__('typeof(window) != "undefined" && window.Uint8Array') || (__js__('typeof(global) != "undefined" && global.Uint8Array')) || _new;
+		var Float32Array = __js__('typeof(window) != "undefined" && window.Float32Array') || (__js__('typeof(global) != "undefined" && global.Float32Array')) || _new;
 	}
 
 }

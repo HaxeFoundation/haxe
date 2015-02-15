@@ -102,6 +102,11 @@ class BytesBuffer {
 		b.Write(src.getData(), 0, src.length);
 		#elseif java
 		b.write(src.getData(), 0, src.length);
+		#elseif js
+		var b1 = b;
+		var b2 = @:privateAccess src.b;
+		for( i in 0...src.length )
+			b.push(b2[i]);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -158,6 +163,11 @@ class BytesBuffer {
 		b.Write(src.getData(), pos, len);
 		#elseif java
 		b.write(src.getData(), pos, len);
+		#elseif js
+		var b1 = b;
+		var b2 = @:privateAccess src.b;
+		for( i in pos...pos+len )
+			b.push(b2[i]);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -189,7 +199,7 @@ class BytesBuffer {
 		var buf = python.lib.Builtin.bytearray(b);
 		var bytes = new Bytes(buf.length, buf);
 		#elseif js
-		var bytes = new Bytes(b.length,new BytesData(b));
+		var bytes = new Bytes(new js.html.Uint8Array(b).buffer);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

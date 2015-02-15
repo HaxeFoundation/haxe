@@ -592,7 +592,7 @@ class RunCi {
 					getCppDependencies();
 					//getOpenFLDependencies();
 
-					testPolygonalDs();
+					//testPolygonalDs();
 					// if (systemName == "Linux") testFlambe(); //#3439
 					testHxTemplo();
 					testMUnit();
