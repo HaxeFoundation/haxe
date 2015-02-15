@@ -2627,7 +2627,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		let build() =
 			c.cl_build <- (fun()->());
 			set_heritance ctx c herits p;
-			init_class ctx c p do_init d.d_flags d.d_data
+			init_class ctx c p do_init d.d_flags d.d_data;
+			List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
 		in
 		ctx.pass <- PBuildClass;
 		ctx.curclass <- c;
