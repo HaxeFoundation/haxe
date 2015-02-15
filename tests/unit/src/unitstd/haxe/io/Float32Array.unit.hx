@@ -52,7 +52,7 @@ b[4] == 5;
 
 b.view == b.view; // no alloc
 
-b.view.buffer == b2.view.buffer;
+if( !emulated ) b.view.buffer == b2.view.buffer;
 b.view.byteLength == 20;
 b.view.byteOffset == 0;
 b2.view.byteLength == 12;

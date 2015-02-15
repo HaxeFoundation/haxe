@@ -26,7 +26,7 @@ class Float32Array {
 
 	static var BYTES_PER_ELEMENT = 4;
 
-	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) {
+	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) : Dynamic {
 		var arr : Array<Float>;
 		if( untyped __typeof__(arg1) == 'number' ) {
 			arr = new Array();
@@ -97,7 +97,9 @@ class Float32Array {
 
 	static function _subarray( start : Int, ?end : Int ) {
 		var t : Dynamic = untyped __js__("this");
-		return _new(t.slice(start,end));
+		var a = _new(t.slice(start,end));
+		a.byteOffset = start * 4;
+		return a;
 	}
 
 	static function __init__() untyped {
