@@ -1327,10 +1327,12 @@ module LocalDce = struct
 				| TVar(v,Some e1) when is_used v || has_side_effect e1 -> raise Exit
 				| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
 				| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
+				| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}}),el) -> ()
 				| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
 				| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 				| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-				| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
+				| TFor _ -> raise Exit
+				| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
 				| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
 			in
 			try
