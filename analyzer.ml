@@ -1084,8 +1084,11 @@ module ConstPropagation = struct
 				e
  		| TEnumParameter(e1,ef,i) when not (ssa.com.platform = Php) ->
 			let ev = value ssa true e1 in
-			begin try semi_awkward_enum_value ssa ev i
-			with Not_found -> e end
+			begin try
+				value ssa force (semi_awkward_enum_value ssa ev i)
+			with Not_found ->
+				e
+			end
 		| _ ->
 			e
 
