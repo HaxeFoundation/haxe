@@ -1013,9 +1013,8 @@ module ConstPropagation = struct
 			with Not_found ->
 				false
 			end
-		(* issues with duplicate vars in switch cases *)
-(* 		| TEnumParameter _ ->
-			true *)
+		| TEnumParameter _ ->
+			true
 		| _ ->
 			false
 
