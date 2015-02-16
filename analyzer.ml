@@ -1064,7 +1064,7 @@ module ConstPropagation = struct
 				e
 			else
 				value ssa force e'
-		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}}),el) ->
+		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}} as ephi),el) ->
 			let el = List.map (value ssa force) el in
 			begin match el with
 				| [] -> assert false
@@ -1072,7 +1072,7 @@ module ConstPropagation = struct
 					if List.for_all (fun e2 -> expr_eq e1 e2) el then
 						value ssa force e1
 					else
-						{e with eexpr = TCall(e1,el)}
+						{e with eexpr = TCall(ephi, e1 :: el)}
 			end
 		| TParenthesis e1 | TMeta(_,e1) ->
 			value ssa force e1
