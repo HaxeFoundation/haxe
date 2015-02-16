@@ -406,10 +406,12 @@ and gen_expr ctx e =
 		if ctx.in_value <> None then unsupported e.epos;
 		(match eo with
 		| None ->
-			spr ctx "return"
+			spr ctx "do return end"
 		| Some e ->
-			spr ctx "return ";
-			gen_value ctx e);
+			spr ctx "do return ";
+			gen_value ctx e;
+			spr ctx " end";
+			);
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
 		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
@@ -417,18 +419,10 @@ and gen_expr ctx e =
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock el ->
-		print ctx "(function()";
 		let bend = open_block ctx in
-		let rev = List.rev el in
-		let ret = List.hd rev in
-		let elfix = List.rev (List.tl rev) in
-		List.iter (gen_block_element ctx) elfix;
-		newline ctx;
-		spr ctx "return ";
-		gen_value ctx ret;
+		List.iter (gen_block_element ctx) el;
 		bend();
 		newline ctx;
-		print ctx " end)()";
 	| TFunction f ->
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
@@ -668,6 +662,8 @@ and gen_expr ctx e =
 
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
+	| TLocal l -> ()
+	| TConst c -> ()
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
 	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
