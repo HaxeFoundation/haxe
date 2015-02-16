@@ -523,6 +523,7 @@ module Ssa = struct
 		mutable var_conds : (condition list) IntMap.t;
 		mutable loop_stack : (join_node * join_node) list;
 		mutable exception_stack : join_node list;
+		mutable block_depth : int;
 	}
 
 	let s_cond = function
@@ -634,6 +635,7 @@ module Ssa = struct
 			v.v_extra <- old
 		) :: ctx.cleanup;
 		ctx.cur_data.nd_var_map <- IntMap.add v.v_id v ctx.cur_data.nd_var_map;
+		v.v_meta <- ((Meta.Custom ":blockDepth",[EConst (Int (string_of_int ctx.block_depth)),p],p)) :: v.v_meta;
 		set_origin_var v v p
 
 	let assign_var ctx v e p =
@@ -926,7 +928,10 @@ module Ssa = struct
 							let e = loop ctx e in
 							e :: (loop2 el)
 				in
-				{e with eexpr = TBlock(loop2 el)}
+				ctx.block_depth <- ctx.block_depth + 1;
+				let el = loop2 el in
+				ctx.block_depth <- ctx.block_depth - 1;
+				{e with eexpr = TBlock(el)}
 			| _ ->
 				begin match ctx.exception_stack with
 					| join :: _ when can_throw e -> add_branch join ctx.cur_data e.epos
@@ -941,6 +946,7 @@ module Ssa = struct
 			loop_stack = [];
 			exception_stack = [];
 			cleanup = [];
+			block_depth = 0;
 		} in
 		let e = loop ctx e in
 		e,ctx
@@ -978,7 +984,16 @@ module ConstPropagation = struct
 		| _ ->
 			false
 
-	let can_be_inlined com e = match e.eexpr with
+	let get_block_depth v = try
+		let i = match Meta.get (Meta.Custom ":blockDepth") v.v_meta with
+			| _,[EConst(Int s),_],_ -> int_of_string s
+			| _ -> raise Not_found
+		in
+		i
+		with Not_found ->
+			-1
+
+	let can_be_inlined com d e = match e.eexpr with
 		| TConst ct ->
 			begin match ct with
 				| TThis | TSuper -> false
@@ -987,6 +1002,20 @@ module ConstPropagation = struct
 				| TNull when (match com.platform with Php | Cpp -> true | _ -> false) -> false
 				| _ -> true
 			end
+		| TLocal v ->
+			not (Meta.has Meta.CompilerGenerated v.v_meta) &&
+			begin try
+				let v' = Ssa.get_origin_var v in
+				begin match v'.v_extra with
+					| Some ([],_) -> get_block_depth v <= d
+					| _ -> false
+				end
+			with Not_found ->
+				false
+			end
+		(* issues with duplicate vars in switch cases *)
+(* 		| TEnumParameter _ ->
+			true *)
 		| _ ->
 			false
 
@@ -994,7 +1023,7 @@ module ConstPropagation = struct
 		| TCall({eexpr = TField(_,FEnum _)},el) -> (try List.nth el i with Failure _ -> raise Not_found)
 		| _ -> raise Not_found
 
-	let rec local ssa v e =
+	let rec local ssa force v e =
 		begin try
 			if v.v_capture then raise Not_found;
 			if type_has_analyzer_option v.v_type flag_no_const_propagation then raise Not_found;
@@ -1005,7 +1034,7 @@ module ConstPropagation = struct
 			let e = Ssa.get_var_value v in
 			let old = v.v_extra in
 			v.v_extra <- None;
-			let e = value ssa e in
+			let e = value ssa force e in
 			v.v_extra <- old;
 			Ssa.set_var_value v e;
 			e
@@ -1013,44 +1042,49 @@ module ConstPropagation = struct
 			e
 		end
 
-	and value ssa e = match e.eexpr with
+	(* force must only be true if the value is not used in the output *)
+	and value ssa force e = match e.eexpr with
 		| TUnop((Increment | Decrement),_,_)
 		| TBinop(OpAssignOp _,_,_)
 		| TBinop(OpAssign,_,_) ->
 			e
 		| TBinop(op,e1,e2) ->
-			let e1 = value ssa e1 in
-			let e2 = value ssa e2 in
+			let e1 = value ssa force e1 in
+			let e2 = value ssa force e2 in
 			let e = {e with eexpr = TBinop(op,e1,e2)} in
 			let e' = Optimizer.optimize_binop e op e1 e2 in
 			if e == e' then
 				e
 			else
-				value ssa e'
+				value ssa force e'
 		| TUnop(op,flag,e1) ->
-			let e1 = value ssa e1 in
+			let e1 = value ssa force e1 in
 			let e = {e with eexpr = TUnop(op,flag,e1)} in
 			let e' = Optimizer.optimize_unop e op flag e1 in
 			if e == e' then
 				e
 			else
-				value ssa e'
+				value ssa force e'
 		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}}),el) ->
-			let el = List.map (value ssa) el in
+			let el = List.map (value ssa force) el in
 			begin match el with
 				| [] -> assert false
 				| e1 :: el ->
 					if List.for_all (fun e2 -> expr_eq e1 e2) el then
-						value ssa e1
+						value ssa force e1
 					else
 						{e with eexpr = TCall(e1,el)}
 			end
 		| TParenthesis e1 | TMeta(_,e1) ->
-			value ssa e1
+			value ssa force e1
 		| TLocal v ->
-			local ssa v e
+			let e' = local ssa force v e in
+			if force || can_be_inlined ssa.com (get_block_depth v) e' then
+				e'
+			else
+				e
  		| TEnumParameter(e1,ef,i) ->
-			let ev = value ssa e1 in
+			let ev = value ssa true e1 in
 			begin try semi_awkward_enum_value ssa ev i
 			with Not_found -> e end
 		| _ ->
@@ -1059,7 +1093,7 @@ module ConstPropagation = struct
 	(* TODO: the name is quite accurate *)
 	let awkward_get_enum_index ssa e =
 		let e = awkward_get_enum_index ssa.com e in
-		let ev = (value ssa e) in
+		let ev = (value ssa true e) in
 		match ev.eexpr with
 			| TField(_,FEnum(_,ef)) -> TInt (Int32.of_int ef.ef_index)
 			| TCall({eexpr = TField(_,FEnum(_,ef))},_) -> TInt (Int32.of_int ef.ef_index)
@@ -1074,8 +1108,8 @@ module ConstPropagation = struct
 				had_function := true;
 				{e with eexpr = TFunction {tf with tf_expr = loop tf.tf_expr}}
 			| TLocal v ->
-				let e' = local ssa v e in
-				if can_be_inlined ssa.com e' then
+				let e' = local ssa false v e in
+				if can_be_inlined ssa.com (get_block_depth v) e' then
 					e'
 				else
 					e
@@ -1285,7 +1319,7 @@ module LocalDce = struct
 		let rec has_side_effect e =
 			let rec loop e =
 				match e.eexpr with
-				| TLocal v when Meta.has Meta.CompilerGenerated v.v_meta -> raise Exit
+				| TLocal v when Meta.has Meta.CompilerGenerated v.v_meta -> (try loop (Ssa.get_var_value v) with Not_found -> ())
 				| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) when is_used v || Optimizer.has_side_effect e2 || is_ref_type v.v_type -> raise Exit
 				| TVar(v,None) when is_used v -> raise Exit
 				| TVar(v,Some e1) when is_used v || Optimizer.has_side_effect e1 -> raise Exit
@@ -1310,7 +1344,8 @@ module LocalDce = struct
 			| _ ->
 				Type.iter collect e
 		in
-		let rec loop need_val e = match e.eexpr with
+		let rec loop need_val e =
+			match e.eexpr with
 			| TLocal v ->
 				use v;
 				e
@@ -1321,7 +1356,7 @@ module LocalDce = struct
 				else
 					{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v},e2)}
 			| TVar(v,Some e1) when not (is_used v) ->
-				let e1 = loop true e1 in
+				let e1 = if has_side_effect e1 then loop true e1 else e1 in
 				e1
 			| TWhile(e1,e2,flag) ->
 				collect e2;
