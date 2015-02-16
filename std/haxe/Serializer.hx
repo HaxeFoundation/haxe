@@ -261,7 +261,7 @@ class Serializer {
 				#if (flash9 || python)
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash9 || php || cs || java || python) v.length #elseif cpp v.__length() #else v[untyped "length"] #end;
+				var l = #if (neko || flash9 || php || cs || java || python) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -496,7 +496,7 @@ class Serializer {
 			} else
 				serializeString(v[0]);
 			buf.add(":");
-			var l = v[untyped "length"];
+			var l = __getField(v, "length");
 			buf.add(l - 2);
 			for( i in 2...l )
 				serialize(v[i]);
@@ -515,6 +515,8 @@ class Serializer {
 			throw "Cannot serialize "+Std.string(v);
 		}
 	}
+
+	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return untyped o[f];
 
 	public function serializeException( e : Dynamic ) {
 		buf.add("x");
