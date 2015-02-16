@@ -1276,7 +1276,12 @@ module LocalDce = struct
 			| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
 			| _ -> false
 		in
-		let use v = v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta in
+		let rec use v =
+			if not (Meta.has Meta.Used v.v_meta) then begin
+				v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta;
+				try use (Ssa.get_origin_var v) with Not_found -> ()
+			end
+		in
 		let rec has_side_effect e =
 			let rec loop e =
 				match e.eexpr with
@@ -1444,13 +1449,13 @@ module Run = struct
 					let e,ssa = with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply com e) in
 					let e = if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ssa e) else e in
 					(* let e = if config.check then with_timer "analyzer-checker" (fun () -> Checker.apply ssa e) else e in *)
+					let e = if config.local_dce && config.analyzer_use && not has_unbound && not is_var_expression then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 					let e = if config.ssa_unapply then with_timer "analyzer-ssa-unapply" (fun () -> Ssa.unapply com e) else e in
 					List.iter (fun f -> f()) ssa.Ssa.cleanup;
 					e
 			end else
 				e
 			in
-			let e = if config.local_dce && config.analyzer_use && not has_unbound && not is_var_expression then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 			let e = if not do_simplify && not (Common.raw_defined com "analyzer-no-simplify-unapply") then
 				with_timer "analyzer-simplify-unapply" (fun () -> Simplifier.unapply com e)
 			else
