@@ -29,7 +29,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 {
 
 	public static inline function make( high : Int32, low : Int32 ) : Int64
-		return new Int64( (cast(high, __Int64) << 32) | (low & untyped __java__('0xffffffffL')) );
+		return new Int64( (cast(high, __Int64) << 32) | (cast(low, __Int64)& untyped __java__('0xffffffffL')) );
 
 	private inline function new(x : __Int64)
 		this = x;
@@ -76,13 +76,13 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	}
 
 	public static inline function toStr( x : Int64 ) : String
-		return x.val + "";
+		return '${x.val}';
 
 	public static inline function divMod( dividend : Int64, divisor : Int64 ) : { quotient : Int64, modulus : Int64 }
-		return {quotient:0,modulus:0};//{ quotient: dividend / divisor, modulus: dividend % divisor };
+		return { quotient: dividend / divisor, modulus: dividend % divisor };
 
 	private inline function toString() : String
-		return this + "";
+		return '$this';
 
 	@:op(-A) public static function neg( x : Int64 ) : Int64
 		return -x.val;
