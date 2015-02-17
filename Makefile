@@ -33,7 +33,7 @@ NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz -cclib libs/objsize/c_objsi
 RELDIR=../../..
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
-codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
+codegen gencommon genas3 gencpp rbuffer genjs genneko genphp genswf8 \
 	genswf9 genswf genjava gencs interp dce filters typer matcher version main
 
 ADD_REVISION=0
