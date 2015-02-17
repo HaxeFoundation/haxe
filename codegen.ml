@@ -1637,10 +1637,11 @@ struct
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
 
-(* 	let s_options rated =
-		String.concat ",\n" (List.map (fun ((_,t),rate) ->
+	let s_options rated =
+		String.concat ",\n" (List.map (fun ((elist,t,_),rate) ->
+			"( " ^ (String.concat "," (List.map (fun(e,_) -> s_expr (s_type (print_context())) e) elist)) ^ " ) => " ^
 			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
-		) rated) *)
+		) rated)
 
 	let count_optionals elist =
 		List.fold_left (fun acc (_,is_optional) -> if is_optional then acc + 1 else acc) 0 elist
@@ -1678,6 +1679,9 @@ struct
 					with | Not_found -> ())
 				| _ -> assert false
 			) compatible;
+
+			print_endline "=====";
+			print_endline (s_options (!rated));
 
 			let rec loop best rem = match best, rem with
 				| _, [] -> best
