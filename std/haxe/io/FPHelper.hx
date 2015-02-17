@@ -232,12 +232,8 @@ class FPHelper {
 			return i64;
 			#end
 		#elseif cpp
-			var i64 = i64tmp;
-			@:privateAccess {
-				i64.low = untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_low(v);
-				i64.high = untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_high(v);
-			}
-			return i64;
+			return Int64.make(untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_high(v),
+				               untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_low(v) );
 		#elseif java
 			return java.lang.Double.doubleToRawLongBits(v);
 		#elseif cs
