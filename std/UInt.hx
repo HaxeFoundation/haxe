@@ -275,7 +275,7 @@ abstract UInt(Int) from Int to Int {
 		return this;
 	}
 
-	@:to private #if !js inline #end function toFloat():Float {
+	@:to private #if (!js || analyzer) inline #end function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
 			return 4294967296.0 + int;
