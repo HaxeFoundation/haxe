@@ -358,6 +358,33 @@ class TestPython extends Test {
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t.length, 2);
+
+		var t = Tup3.create(1, 2, 3);
+		eq(t._1, 1);
+		eq(t._2, 2);
+		eq(t._3, 3);
+		eq(t.length, 3);
+
+		var t = Tup4.create(1, 2, 3, 4);
+		eq(t._1, 1);
+		eq(t._2, 2);
+		eq(t._3, 3);
+		eq(t._4, 4);
+		eq(t.length, 4);
+
+		var t = Tup5.create(1, 2, 3, 4, 5);
+		eq(t._1, 1);
+		eq(t._2, 2);
+		eq(t._3, 3);
+		eq(t._4, 4);
+		eq(t._5, 5);
+		eq(t.length, 5);
+
+		var t = new Tuple([1,2,3]);
+		eq(t[0], 1);
+		eq(t[1], 2);
+		eq(t[2], 3);
+		eq(t.length, 3);
 	}
 
 }

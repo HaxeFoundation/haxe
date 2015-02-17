@@ -70,10 +70,10 @@ extern class Builtin {
 	//public static function property():Void;
 
 
-
+	/*
 	@:overload(function <X>():Tuple<X> {})
 	public static function tuple<X>(a:Array<X>):Tuple<X>;
-
+	*/
 
 
 
