@@ -949,7 +949,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 	let evalue = match e2o with None -> assert false | Some e -> e in
 	match cf.cf_expr with
 		| None ->
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array get method" p;
+			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| Some _ ->
