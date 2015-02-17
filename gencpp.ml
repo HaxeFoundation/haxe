@@ -449,6 +449,7 @@ let is_interface_type t =
    | _ -> false
 ;;
 
+
 let is_cpp_function_instance haxe_type =
    match follow haxe_type with
    | TInst (klass,params) ->
@@ -1279,6 +1280,15 @@ let cast_if_required ctx expr to_type =
    if (is_dynamic_in_cpp ctx expr) then
       ctx.ctx_output (".Cast< " ^ to_type ^ " >()" )
 ;;
+
+
+let is_matching_interface_type t0 t1 =
+    (match (follow t0),(follow t1) with
+    | TInst (k0,_), TInst(k1,_) -> k0==k1
+    | _ -> false
+    )
+;;
+
 
 
 let default_value_string = function
@@ -4375,6 +4385,12 @@ let is_template_type t =
    false
 ;;
 
+let rec is_dynamic_in_cppia ctx expr =
+   match expr.eexpr with
+   | TCast(_,None) -> true
+   | _ -> is_dynamic_in_cpp ctx expr
+;;
+
 
 class script_writer common_ctx ctx filename =
    object(this)
@@ -4524,11 +4540,16 @@ class script_writer common_ctx ctx filename =
       true;
    in
    let was_cast =
-      if (is_interface_type toType) && not (is_interface_type expr.etype) then begin
-         write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeText expr.etype) )
+      if (is_interface_type toType) then begin
+         if (is_dynamic_in_cppia ctx expr) then begin
+            write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeTextString "Dynamic") )
+         end else if (not (is_matching_interface_type toType expr.etype)) then begin
+            write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeText expr.etype) )
+         end else
+            false
       end else begin
         let get_array_expr_type expr =
-            if is_dynamic_in_cpp ctx expr then
+            if is_dynamic_in_cppia ctx expr then
                ArrayNone
             else
                this#get_array_type expr.etype
@@ -4561,6 +4582,13 @@ class script_writer common_ctx ctx filename =
       this#gen_expression expr;
    end
    method gen_expression expr =
+   (* Redefine to allow different interpretation of cast *)
+   let rec remove_parens expression =
+      match expression.eexpr with
+      | TParenthesis e -> remove_parens e
+      | TMeta(_,e) -> remove_parens e
+      | _ -> expression
+   in
    let expression = remove_parens expr in
    this#begin_expr;
    this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);
@@ -4570,7 +4598,7 @@ class script_writer common_ctx ctx filename =
             this#write (indent ^ indent_str );
             this#writeVar arg;
             match init with
-            | Some const when const <> TNull -> this#write ("1 " ^ (this#constText const) ^ "\n")
+            | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
             | _ -> this#write "0\n";
          ) function_def.tf_args;
          let pop = this#pushReturn function_def.tf_type in
@@ -4796,7 +4824,7 @@ class script_writer common_ctx ctx filename =
             this#write "\n";
             this#gen_expression catch_expr;
          ) catches;
-   | TCast (cast,None) -> error "Unexpected cast" expression.epos
+   | TCast (cast,None) -> this#checkCast expression.etype cast true true;
    | TCast (cast,Some _) -> this#checkCast expression.etype cast true true;
    | TParenthesis _ -> error "Unexpected parens" expression.epos
    | TMeta(_,_) -> error "Unexpected meta" expression.epos
