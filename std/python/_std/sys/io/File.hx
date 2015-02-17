@@ -84,6 +84,6 @@ class File {
 
 	public static function copy( srcPath : String, dstPath : String ) : Void
 	{
-		return python.lib.ShUtil.copy(srcPath, dstPath);
+		return python.lib.Shutil.copy(srcPath, dstPath);
 	}
 }

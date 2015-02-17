@@ -19,21 +19,21 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import python.lib.datetime.DateTime;
-import python.lib.datetime.TimeDelta;
+import python.lib.datetime.Datetime;
+import python.lib.datetime.Timedelta;
 import python.Syntax;
 
 @:coreApi class Date
 {
-	static var EPOCH = DateTime.fromtimestamp(0, python.lib.datetime.Timezone.utc);
+	static var EPOCH = Datetime.fromtimestamp(0, python.lib.datetime.Timezone.utc);
 
-	private var date:DateTime;
+	private var date:Datetime;
 
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void
 	{
-		if (year < DateTime.min.year) year = DateTime.min.year;
+		if (year < Datetime.min.year) year = Datetime.min.year;
 		if (day == 0) day = 1;
-		date = new DateTime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
+		date = new Datetime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
 	}
 
 	public inline function getTime() : Float
@@ -96,25 +96,25 @@ import python.Syntax;
 	static public function now() : Date
 	{
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = DateTime.now(python.lib.datetime.Timezone.utc);
+		d.date = Datetime.now(python.lib.datetime.Timezone.utc);
 		return d;
 	}
 
 	static public function fromTime( t : Float ) : Date
 	{
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = DateTime.fromtimestamp(t / 1000.0, python.lib.datetime.Timezone.utc);
+		d.date = Datetime.fromtimestamp(t / 1000.0, python.lib.datetime.Timezone.utc);
 		return d;
 	}
 
 	static function UTC( year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Float
 	{
-		var dt = new DateTime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
+		var dt = new Datetime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
 		return datetimeTimestamp(dt);
 	}
 
-	static function datetimeTimestamp(dt:DateTime):Float {
-		return (Syntax.binop(dt, "-", EPOCH) : TimeDelta).total_seconds() * 1000;
+	static function datetimeTimestamp(dt:Datetime):Float {
+		return (Syntax.binop(dt, "-", EPOCH) : Timedelta).total_seconds() * 1000;
 	}
 
 	static public function fromString( s : String ) : Date

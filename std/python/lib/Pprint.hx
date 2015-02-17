@@ -2,7 +2,7 @@
 package python.lib;
 
 @:pythonImport("pprint")
-extern class PPrint {
+extern class Pprint {
 
 
 	public static function pprint (x:Dynamic):Void;

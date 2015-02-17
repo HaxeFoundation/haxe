@@ -1,11 +1,11 @@
 package python.lib.datetime;
 
 @:pythonImport("datetime", "timedelta")
-extern class TimeDelta {
+extern class Timedelta {
 
-	static var min : TimeDelta;
-	static var max : TimeDelta;
-	static var resolution : TimeDelta;
+	static var min : Timedelta;
+	static var max : Timedelta;
+	static var resolution : Timedelta;
 
 	var days : Int;
 	var seconds : Int;

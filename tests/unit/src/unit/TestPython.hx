@@ -11,7 +11,7 @@ import python.NativeArrayTools;
 import python.NativeStringTools;
 
 import python.lib.Codecs;
-import python.lib.FuncTools;
+import python.lib.Functools;
 import python.lib.Glob;
 import python.lib.Inspect;
 import python.lib.Json;
@@ -19,11 +19,11 @@ import python.lib.Json;
 import python.lib.Math;
 import python.lib.Msvcrt;
 import python.lib.Os;
-import python.lib.PPrint;
+import python.lib.Pprint;
 import python.lib.Random;
 import python.lib.Re;
 import python.lib.Set;
-import python.lib.ShUtil;
+import python.lib.Shutil;
 import python.lib.Subprocess;
 import python.lib.Sys;
 import python.lib.Tempfile;
@@ -34,10 +34,10 @@ import python.lib.Traceback;
 import python.lib.Tty;
 import python.lib.Tuple;
 
-import python.lib.datetime.DateTime;
-import python.lib.datetime.TimeDelta;
+import python.lib.datetime.Datetime;
+import python.lib.datetime.Timedelta;
 import python.lib.datetime.Timezone;
-import python.lib.datetime.TzInfo;
+import python.lib.datetime.Tzinfo;
 
 import python.lib.io.BufferedIOBase;
 import python.lib.io.BufferedRWPair;
