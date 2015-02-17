@@ -119,7 +119,7 @@ class TestJava extends Test
 		var c = new TestMyClass();
 		c.normalOverload(true);
 		t(c.boolCalled);
-		c.normalOverload(10);
+		c.normalOverload(6161);
 		t(c.intCalled);
 		c.normalOverload(haxe.Int64.ofInt(0));
 		t(c.int64Called);
