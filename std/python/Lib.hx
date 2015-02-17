@@ -22,20 +22,44 @@ class Lib {
 		PySys.stdout.flush();
 	}
 
-	public static function dictToAnon (v:Dict<String, Dynamic>):Dynamic
-	{
+	/**
+	 	Returns an anonymous Object which holds the same data as the Dictionary `v`.
+	**/
+	public static function dictToAnon (v:Dict<String, Dynamic>):Dynamic {
 		return new AnonObject(v.copy());
 	}
 
 
-	public static function anonToDict (o:{}):Dict<String, Dynamic>
-	{
+	/**
+	 	Returns a flat copy of the underlying Dictionary of `o`.
+	**/
+	public static function anonToDict (o:{}):Dict<String, Dynamic> {
 		return if (python.lib.Builtin.isinstance(o, AnonObject))
 		{
 			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>).copy();
 		}
 		else null;
 
+	}
+
+	/**
+	 	Returns the underlying Dictionary of the anonymous object `o`.
+	 	Modifications to this dictionary are reflected in the anonymous Object too.
+	**/
+	public static function anonAsDict (o:{}):Dict<String, Dynamic> {
+		return if (python.lib.Builtin.isinstance(o, AnonObject))
+		{
+			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>);
+		}
+		else null;
+	}
+
+	/**
+	 	Returns the Dictionary `d` as an anonymous Object.
+	 	Modifications to the object are reflected in the Dictionary too.
+	**/
+	public static function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
+		return new AnonObject(d);
 	}
 
 	public static function toPythonIterable <T>(it:Iterable<T>):python.NativeIterable<T> {

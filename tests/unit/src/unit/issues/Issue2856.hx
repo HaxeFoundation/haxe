@@ -3,7 +3,7 @@ package unit.issues;
 class Issue2856 extends Test {
 	#if python
 	function test() {
-		function x (args:python.KwArgs) {
+		function x (args:python.KwArgs<Dynamic>) {
 			var dict = args.toDict();
 			var acc = [];
 			for (key in dict.keys()) {

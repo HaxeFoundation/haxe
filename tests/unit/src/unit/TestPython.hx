@@ -216,7 +216,7 @@ class TestPython extends Test {
 	}
 
 	function testKwArgsAfterVarArgs () {
-		function test (va:VarArgs, kw:KwArgs) {
+		function test (va:VarArgs, kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
 			eq(1,a[0]);
@@ -229,7 +229,7 @@ class TestPython extends Test {
 	}
 
 	function testOptionalVarArgs () {
-		function test (?va:VarArgs, ?kw:KwArgs) {
+		function test (?va:VarArgs, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
 			eq(0,a.length);
@@ -238,12 +238,12 @@ class TestPython extends Test {
 	}
 
 	function testOptionalKwArgs () {
-		function test (?kw:KwArgs) eq(0,kw.toDict().length());
+		function test (?kw:KwArgs<Dynamic>) eq(0,kw.toDict().length());
 		test();
 	}
 
 	function testOptionalKwArgsAfterOptionalVarArgs () {
-		function test (?va:VarArgs, ?kw:KwArgs) {
+		function test (?va:VarArgs, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
 			eq(1,a[0]);
@@ -254,7 +254,7 @@ class TestPython extends Test {
 		var x = [1,2];
 		test(x);
 
-		function test (?va:VarArgs, ?kw:KwArgs) {
+		function test (?va:VarArgs, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 			eq(0,a.length);
 			eq(1, kw.get("a",null));
@@ -266,7 +266,7 @@ class TestPython extends Test {
 	}
 
 	function testKwArgs () {
-		function x (args:KwArgs) {
+		function x (args:KwArgs<Dynamic>) {
 			var a = args.get("a", 0);
 			var b = args.get("b", 0);
 			return a + b;
@@ -280,6 +280,23 @@ class TestPython extends Test {
 		var res2 = python.Syntax.callNamedUntyped(x, { a : 3, b : 5});
 
 		eq(8, res2);
+	}
+
+	function testTypedKwArgs () {
+		function x (args:KwArgs<{ a : Int, b : Int}>) {
+			var x = args.typed();
+
+			return x.a + x.b;
+		}
+
+		var a = { a : 1, b : 2};
+		var res = x( a );
+
+		eq(3, res);
+
+		var res = x( { a : 1, b : 2} );
+
+		eq(3, res);
 	}
 
 	function testNonLocal() {
