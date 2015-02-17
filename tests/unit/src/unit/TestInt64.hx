@@ -112,4 +112,103 @@ class TestInt64 extends Test {
 		eq(Std.string(ofInt(-100)),Std.string(neg(ofInt(100))));
 		eq(Std.string(make(-2147483648, 1)), Std.string(neg(make(2147483647, -1)))); // -9223372036854775807 == neg(9223372036854775807)
 	}
+
+	public function testFromString()
+	{
+		for (v in ["0", "1", "-1", "9223372036854775807", "-9223372036854775808"]) {
+			eq(Std.string(fromString(v)), v);
+		}
+
+		// trims the string:
+		eq("-23", Std.string(fromString("  -23 ")));
+
+
+		// overflow and underflow raise exceptions:
+		try
+		{
+			fromString("9223372036854775808");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+		try
+		{
+			fromString("-9223372036854775809");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			fromString("--1");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			fromString("asd1");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			fromString("1asdf");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+	}
+
+	public function testFromFloat()
+	{
+		for (v in [0.0, 1.0, -1.0, 9007199254740991, -9007199254740991]) {
+			eq(Std.parseFloat(Std.string(fromFloat(v))), v);
+		}
+
+		try
+		{
+			fromFloat(9007199254740992);
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			fromFloat(-9007199254740992);
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		var nan = Math.NaN;
+		try
+		{
+			fromFloat(nan);
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+	}
 }
