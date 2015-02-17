@@ -7,7 +7,7 @@ import haxe.io.Input;
 import python.io.IInput;
 import python.io.IoTools;
 import python.lib.Builtin;
-import python.lib.ByteArray;
+import python.lib.Bytearray;
 import python.lib.io.RawIOBase;
 import python.lib.io.IOBase.SeekSet;
 
@@ -36,7 +36,7 @@ class NativeBytesInput extends NativeInput<RawIOBase> implements IInput {
 		return IoTools.seekInBinaryMode(stream, p, pos);
 	}
 
-	override function readinto (b:ByteArray):Int {
+	override function readinto (b:Bytearray):Int {
 		return stream.readinto(b);
 	}
 

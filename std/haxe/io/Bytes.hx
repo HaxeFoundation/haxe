@@ -207,8 +207,8 @@ class Bytes {
 		return length - other.length;
 		#end
 	}
-	
-	
+
+
 	/**
 		Returns the IEEE double precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
@@ -291,8 +291,8 @@ class Bytes {
 		setI32(pos, FPHelper.floatToI32(v));
 		#end
 	}
-	
-	/** 
+
+	/**
 		Returns the 32 bit integer at given position (in low endian encoding).
 	**/
 	public inline function getI32( pos : Int ) : Int {
@@ -433,7 +433,7 @@ class Bytes {
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
-		return new Bytes(length, python.lib.Builtin.bytearray(length));
+		return new Bytes(length, new python.lib.Bytearray(length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -468,7 +468,7 @@ class Bytes {
 		catch (e:Dynamic) throw e;
 
 		#elseif python
-			var b:BytesData = python.lib.Builtin.bytearray(s, "UTF-8");
+			var b:BytesData = new python.lib.Bytearray(s, "UTF-8");
 			return new Bytes(b.length, b);
 
 		#else

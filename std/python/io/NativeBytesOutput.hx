@@ -4,6 +4,7 @@ package python.io;
 import haxe.io.Output;
 
 import python.lib.Builtin;
+import python.lib.Bytearray;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 
@@ -25,6 +26,6 @@ class NativeBytesOutput extends NativeOutput<RawIOBase>{
 
 	override public function writeByte(c:Int):Void
 	{
-		stream.write(Builtin.bytearray([c]));
+		stream.write(new Bytearray([c]));
 	}
 }

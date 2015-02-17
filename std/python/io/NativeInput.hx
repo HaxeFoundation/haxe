@@ -4,7 +4,7 @@ package python.io;
 import haxe.io.Eof;
 import haxe.io.Input;
 import python.lib.Builtin;
-import python.lib.ByteArray;
+import python.lib.Bytearray;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 
@@ -45,7 +45,7 @@ class NativeInput<T:IOBase> extends Input{
 		return wasEof;
 	}
 
-	function readinto (b:ByteArray):Int {
+	function readinto (b:Bytearray):Int {
 		throw "abstract method, should be overriden";
 	}
 
@@ -55,7 +55,7 @@ class NativeInput<T:IOBase> extends Input{
 			throw haxe.io.Error.OutsideBounds;
 
 		stream.seek(pos, python.lib.io.IOBase.SeekSet.SeekCur);
-		var ba = Builtin.bytearray(len);
+		var ba = new Bytearray(len);
 		var ret = readinto(ba);
 		s.blit(pos, haxe.io.Bytes.ofData(ba) ,0,len);
 		if (ret == 0)

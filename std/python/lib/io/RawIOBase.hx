@@ -8,6 +8,6 @@ extern class RawIOBase extends IOBase{
 
 	public function readall():Bytes;
 	public function read(n:Int=-1):Null<Bytes>;
-	public function write(b:ByteArray):Null<Int>;
-	public function readinto(b:ByteArray):Null<Int>;
+	public function write(b:Bytearray):Null<Int>;
+	public function readinto(b:Bytearray):Null<Int>;
 }

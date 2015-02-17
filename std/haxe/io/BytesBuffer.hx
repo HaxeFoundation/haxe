@@ -136,7 +136,7 @@ class BytesBuffer {
 		add(b.getBytes());
 		#end
 	}
-	
+
 	public inline function addDouble( v : Float ) {
 		#if neko
 		untyped StringBuf.__add(b, Output._double_bytes(v, false));
@@ -148,7 +148,7 @@ class BytesBuffer {
 		add(b.getBytes());
 		#end
 	}
-	
+
 	public inline function addBytes( src : Bytes, pos : Int, len : Int ) {
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
@@ -196,7 +196,7 @@ class BytesBuffer {
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
 		#elseif python
-		var buf = python.lib.Builtin.bytearray(b);
+		var buf = new python.lib.Bytearray(b);
 		var bytes = new Bytes(buf.length, buf);
 		#elseif js
 		var bytes = new Bytes(new js.html.Uint8Array(b).buffer);
