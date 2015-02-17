@@ -3,6 +3,7 @@ package python.lib;
 import python.lib.Builtin;
 import python.Syntax;
 
+@:pythonImport("builtins", "bytearray")
 extern class ByteArray implements ArrayAccess<Int> {
 	public var length(get, null):Int;
 	public inline function get_length ():Int {

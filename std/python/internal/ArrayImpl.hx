@@ -22,7 +22,7 @@
 
 package python.internal;
 
-import python.lib.FuncTools;
+import python.lib.Functools;
 import python.lib.Builtin;
 
 @:allow(Array)
@@ -110,7 +110,7 @@ class ArrayImpl {
 	}
 
 	public static inline function sort<T>(x:Array<T>, f:T->T->Int) : Void {
-		Syntax.callNamedUntyped(Syntax.field(x, "sort"), { key : python.lib.FuncTools.cmp_to_key(f) });
+		Syntax.callNamedUntyped(Syntax.field(x, "sort"), { key : Functools.cmp_to_key(f) });
 	}
 
 	public static inline function splice<T>(x:Array<T>, pos : Int, len : Int ) : Array<T> {
