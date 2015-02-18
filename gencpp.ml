@@ -2832,13 +2832,14 @@ let generate_dummy_main common_ctx =
    generate_startup "__lib__" false
    ;;
 
-let generate_boot common_ctx boot_classes nonboot_classes init_classes =
+let generate_boot common_ctx boot_enums boot_classes nonboot_classes init_classes =
    (* Write boot class too ... *)
    let base_dir = common_ctx.file in
    let boot_file = new_cpp_file common_ctx base_dir ([],"__boot__") in
    let output_boot = (boot_file#write) in
    output_boot "#include <hxcpp.h>\n\n";
-   List.iter ( fun class_path -> boot_file#add_include class_path ) (boot_classes @ nonboot_classes);
+   List.iter ( fun class_path -> boot_file#add_include class_path )
+      (boot_enums @ boot_classes @ nonboot_classes);
 
    output_boot "\nvoid __files__boot();\n";
    output_boot "\nvoid __boot_all()\n{\n";
@@ -2846,12 +2847,17 @@ let generate_boot common_ctx boot_classes nonboot_classes init_classes =
    output_boot "hx::RegisterResources( hx::GetResources() );\n";
    List.iter ( fun class_path ->
       output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__register();\n") )
-         (boot_classes @ nonboot_classes);
+         (boot_enums @ boot_classes @ nonboot_classes);
+
+   let dump_boot =
+      List.iter ( fun class_path ->
+         output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__boot();\n") ) in
+
+   dump_boot boot_enums;
+
    List.iter ( fun class_path ->
       output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__init__();\n") ) (List.rev init_classes);
-   let dump_boot =
-   List.iter ( fun class_path ->
-      output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__boot();\n") ) in
+
    dump_boot (List.filter  (fun path -> is_cpp_class path )  (List.rev boot_classes));
    dump_boot (List.filter  (fun path -> not (is_cpp_class path) )  (List.rev boot_classes));
 
@@ -4984,6 +4990,7 @@ let generate_source common_ctx =
    let debug = 1 in
    let exe_classes = ref [] in
    let boot_classes = ref [] in
+   let boot_enums = ref [] in
    let nonboot_classes = ref [] in
    let init_classes = ref [] in
    let file_info = ref PMap.empty in
@@ -5025,7 +5032,7 @@ let generate_source common_ctx =
             let meta = Codegen.build_metadata common_ctx object_def in
             if (enum_def.e_extern) then
                (if (debug>1) then print_endline ("external enum " ^ name ));
-            boot_classes := enum_def.e_path :: !boot_classes;
+            boot_enums := enum_def.e_path :: !boot_enums;
             let deps = generate_enum_files common_ctx enum_def super_deps meta file_info in
             exe_classes := (enum_def.e_path, deps) :: !exe_classes;
          end
@@ -5043,7 +5050,7 @@ let generate_source common_ctx =
       generate_main common_ctx member_types super_deps class_def file_info
    );
 
-   generate_boot common_ctx !boot_classes !nonboot_classes !init_classes;
+   generate_boot common_ctx !boot_enums !boot_classes !nonboot_classes !init_classes;
 
    generate_files common_ctx file_info;
 
