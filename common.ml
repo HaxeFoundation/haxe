@@ -871,6 +871,17 @@ let add_feature com f =
 let has_dce com =
 	(try defined_value com Define.Dce <> "no" with Not_found -> false)
 
+(*
+	TODO: The has_dce check is there because we mark types with @:directlyUsed in the DCE filter,
+	which is not run in dce=no and thus we can't know if a type is used directly or not,
+	so we just assume that they are.
+
+	If we had dce filter always running (even with dce=no), we would have types marked with @:directlyUsed
+	and we wouldn't need to generate unnecessary imports in dce=no, but that's good enough for now.
+*)
+let is_directly_used_class com c =
+	not (has_dce com) || Ast.Meta.has Ast.Meta.DirectlyUsed c.cl_meta
+
 let rec has_feature com f =
 	try
 		Hashtbl.find com.features f

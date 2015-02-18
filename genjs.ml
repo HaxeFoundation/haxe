@@ -1160,7 +1160,7 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if (Meta.has Meta.JsRequire c.cl_meta) && (Meta.has Meta.DirectlyUsed c.cl_meta) then
+		else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used_class ctx.com c then
 			generate_require ctx c
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
