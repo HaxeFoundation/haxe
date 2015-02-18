@@ -1251,7 +1251,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
    ctx.ctx_dbgout ("/* ts:"^tstr^"*/");
    match tstr with
       (* Internal classes have no dynamic members *)
-      | "::String" | "Null" | "hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_dbgout ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
+      | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_dbgout ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
       | "Dynamic" -> true
       | name ->
             let full_name = name ^ "." ^ member in
@@ -1276,7 +1276,7 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
       let tstr = type_string field_object.etype in
       (match tstr with
          (* Internal classes have no dynamic members *)
-         | "::String" | "Null" | "hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
+         | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
          | "Dynamic" -> ctx.ctx_dbgout "/*D*/"; true
          | name ->
                let full_name = name ^ "." ^ member in
