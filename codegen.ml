@@ -930,6 +930,39 @@ module PatternMatchConversion = struct
 			| [] -> cases
 			| tmp -> ((tmp,ldt) :: cases)
 
+	let replace_locals e =
+		let v_known = ref [] in
+		let copy v =
+			let v' = alloc_var v.v_name v.v_type in
+			v_known := (v,v') :: !v_known;
+			v'
+		in
+		let rec loop e = match e.eexpr with
+			| TVar(v,e1) ->
+				let v' = copy v in
+				let e1 = match e1 with None -> None | Some e -> Some (loop e) in
+				{e with eexpr = TVar(v',e1)}
+			| TFor(v,e1,e2) ->
+				let v' = copy v in
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				{e with eexpr = TFor(v',e1,e2)}
+			| TTry(e1,catches) ->
+				let e1 = loop e1 in
+				let catches = List.map (fun (v,e) ->
+					let v' = copy v in
+					let e = loop e in
+					v',e
+				) catches in
+				{e with eexpr = TTry(e1,catches)}
+			| TLocal v ->
+				let v' = try List.assq v !v_known with Not_found -> v in
+				{e with eexpr = TLocal v'}
+			| _ ->
+				Type.map_expr loop e
+		in
+		loop e
+
 	let rec convert_dt cctx dt =
 		match dt with
 		| DTBind (bl,dt) ->
@@ -956,7 +989,7 @@ module PatternMatchConversion = struct
 		| DTSwitch(e_st,cl,dto) ->
 			let def = match dto with None -> None | Some dt -> Some (convert_dt cctx dt) in
 			let cases = group_cases cl in
-			let cases = List.map (fun (cl,dt) -> cl,convert_dt cctx dt) cases in
+			let cases = List.map (fun (cl,dt) -> cl,replace_locals (convert_dt cctx dt)) cases in
 			mk (TSwitch(e_st,cases,def)) (mk_mono()) e_st.epos
 
 	let to_typed_ast ctx dt p =
