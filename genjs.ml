@@ -42,6 +42,7 @@ type sourcemap = {
 type ctx = {
 	com : Common.context;
 	buf : Rbuffer.t;
+	chan : out_channel;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;
@@ -151,6 +152,10 @@ let handle_newlines ctx str =
 		loop 0
 	else ()
 
+let flush ctx =
+	output_string ctx.chan (Rbuffer.unsafe_contents ctx.buf);
+	Rbuffer.clear ctx.buf
+
 let spr ctx s =
 	ctx.separator <- false;
 	handle_newlines ctx s;
@@ -257,7 +262,8 @@ let write_mappings ctx =
 let newline ctx =
 	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
 	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs
-	| _ -> print ctx ";\n%s" ctx.tabs
+	| _ -> print ctx ";\n%s" ctx.tabs;
+	flush ctx
 
 let newprop ctx =
 	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
@@ -1177,6 +1183,7 @@ let alloc_ctx com =
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
+		chan = open_out_bin com.file;
 		packages = Hashtbl.create 0;
 		smap = {
 			source_last_line = 0;
@@ -1389,6 +1396,7 @@ let generate com =
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	let ch = open_out_bin com.file in
 	Rbuffer.output_buffer ch ctx.buf;
+	flush ctx;
 	close_out ch);
 	t()
 
