@@ -183,6 +183,7 @@ module Define = struct
 		| DumpDependencies
 		| DumpIgnoreVarIds
 		| Fdb
+		| FileExtension
 		| FlashStrict
 		| FlashUseStage
 		| FormatWarning
@@ -264,6 +265,7 @@ module Define = struct
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
 		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Dump files do not contain variable IDs (helps with diff)")
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
+		| FileExtension -> ("file_extension","Output filename extension for cpp source code")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")

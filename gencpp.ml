@@ -169,7 +169,16 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
    cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension));;
 
 
-let new_cpp_file common_ctx base_dir = new_source_file common_ctx base_dir "src" ".cpp";;
+
+let source_file_extension common_ctx =
+   try
+     "." ^ (Common.defined_value common_ctx Define.FileExtension)
+   with
+     Not_found -> ".cpp"
+;;
+
+
+let new_cpp_file common_ctx base_dir = new_source_file common_ctx base_dir "src" (source_file_extension common_ctx);;
 
 let new_header_file common_ctx base_dir =
    new_source_file common_ctx base_dir "include" ".h";;
@@ -321,7 +330,9 @@ let remap_class_path class_path =
 ;;
 
 let join_class_path_remap path separator =
-   join_class_path (remap_class_path path) separator
+   match join_class_path (remap_class_path path) separator with
+   | "Class" -> "hx::Class"
+   | x -> x
 ;;
 
 let get_meta_string meta key =
@@ -541,7 +552,7 @@ let rec class_string klass suffix params =
    | _ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
    |  ([],"#Int") -> "/* # */int"
    |  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
-   |  ([],"Class") -> "::Class"
+   |  ([],"Class") -> "hx::Class"
    |  ([],"EnumValue") -> "Dynamic"
    |  ([],"Null") -> (match params with
          | [t] ->
@@ -1240,7 +1251,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
    ctx.ctx_dbgout ("/* ts:"^tstr^"*/");
    match tstr with
       (* Internal classes have no dynamic members *)
-      | "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_dbgout ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
+      | "::String" | "Null" | "hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_dbgout ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
       | "Dynamic" -> true
       | name ->
             let full_name = name ^ "." ^ member in
@@ -1265,7 +1276,7 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
       let tstr = type_string field_object.etype in
       (match tstr with
          (* Internal classes have no dynamic members *)
-         | "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
+         | "::String" | "Null" | "hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
          | "Dynamic" -> ctx.ctx_dbgout "/*D*/"; true
          | name ->
                let full_name = name ^ "." ^ member in
@@ -2929,7 +2940,7 @@ let new_placed_cpp_file common_ctx class_path =
       make_class_directories base_dir ("src"::[]);
       cached_source_writer common_ctx
          ( base_dir ^ "/src/" ^ ( String.concat "-" (fst class_path) ) ^ "-" ^
-         (snd class_path) ^ ".cpp")
+         (snd class_path) ^ (source_file_extension common_ctx) )
    end else
       new_cpp_file common_ctx common_ctx.file class_path;;
 
@@ -3058,7 +3069,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
    output_cpp "static ::String sMemberFields[] = { ::String(null()) };\n";
 
-   output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
+   output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
    output_cpp ("Dynamic __Create_" ^ class_name ^ "() { return new " ^ class_name ^ "; }\n\n");
 
@@ -3809,7 +3820,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       let class_name_text = match class_path with
          | path -> join_class_path path "." in
 
-      output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
+      output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
          (match class_def.cl_constructor with
             | Some field  ->
@@ -3845,7 +3856,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    end else begin
       let class_name_text = join_class_path class_path "." in
 
-      output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
+      output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
       output_cpp ("\thx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
@@ -4058,7 +4069,7 @@ let write_build_data common_ctx filename classes main_deps build_extra exe_name 
    let add_class_to_buildfile class_def =
       let class_path = fst class_def in
       let deps = snd class_def in
-      let cpp = (join_class_path class_path "/") ^ ".cpp" in
+      let cpp = (join_class_path class_path "/") ^ (source_file_extension common_ctx) in
       output_string buildfile ( "  <file name=\"src/" ^ cpp ^ "\">\n" );
       let project_deps = List.filter (fun path -> not (is_internal_class path) ) deps in
       List.iter (fun path-> output_string buildfile ("   <depend name=\"" ^
