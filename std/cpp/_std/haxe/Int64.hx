@@ -29,7 +29,7 @@ extern class Int64Struct { }
 abstract Int64( Int64Struct )
 {
    public function toString() : String {
-      return untyped this.value;
+		return untyped __cpp__("String( (cpp::Int64)({0}) )", this);
   }
 
 	public static inline function make( high : Int, low : Int ) : Int64 {
@@ -60,7 +60,7 @@ abstract Int64( Int64Struct )
 	}
 
 	public static function getHigh( x : Int64 ) : Int {
-		return  untyped __cpp__("(({0}).value)>>32",x);
+		return  untyped __cpp__("((cpp::Int64)({0}))>>32",x);
 	}
 
 	public static inline function add( a : Int64, b : Int64 ) : Int64 {
@@ -132,7 +132,7 @@ abstract Int64( Int64Struct )
 	}
 
 	public static function toStr( a : Int64 ) : String {
-		return untyped new String(a.value);
+		return untyped __cpp__("String( (cpp::Int64)({0}) )", a);
 	}
 
 }
