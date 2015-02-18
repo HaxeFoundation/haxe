@@ -59,6 +59,7 @@ module Meta = struct
 		| Delegate
 		| Depend
 		| Deprecated
+		| DirectlyUsed
 		| DynamicObject
 		| Enum
 		| EnumConstructorParam
@@ -127,7 +128,6 @@ module Meta = struct
 		| Public
 		| PublicFields
 		| ReadOnly
-		| ReallyUsed
 		| RealPath
 		| Remove
 		| Require
