@@ -643,7 +643,12 @@ and parse_import s p1 =
 	let rec loop acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
-			if is_resuming p then raise (TypePath (List.rev (List.map fst acc),None));
+			let resume() =
+				match acc with
+				| (n,_) :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev (List.map fst l),Some (n,false)));
+				| _ -> raise (TypePath (List.rev (List.map fst acc),None));
+			in
+			if is_resuming p then resume();
 			(match s with parser
 			| [< '(Const (Ident k),p) >] ->
 				loop ((k,p) :: acc)
@@ -653,7 +658,7 @@ and parse_import s p1 =
 				p2, List.rev acc, IAll
 			| [< '(Binop OpOr,_) when do_resume() >] ->
 				set_resume p;
-				raise (TypePath (List.rev (List.map fst acc),None))
+				resume()
 			| [< >] ->
 				serror());
 		| [< '(Semicolon,p2) >] ->
