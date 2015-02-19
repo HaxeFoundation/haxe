@@ -204,7 +204,7 @@ and tclass = {
 	mutable cl_init : texpr option;
 	mutable cl_overrides : tclass_field list;
 
-	mutable cl_build : unit -> unit;
+	mutable cl_build : unit -> bool;
 	mutable cl_restore : unit -> unit;
 }
 
@@ -372,7 +372,7 @@ let mk_class m path pos =
 		cl_constructor = None;
 		cl_init = None;
 		cl_overrides = [];
-		cl_build = (fun() -> ());
+		cl_build = (fun() -> true);
 		cl_restore = (fun() -> ());
 	}
 

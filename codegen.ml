@@ -198,7 +198,7 @@ let extend_remoting ctx c t p async prot =
 		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
 	) in
 	match t with
-	| TClassDecl c2 when c2.cl_params = [] -> c2.cl_build(); c.cl_super <- Some (c2,[]);
+	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
 	| _ -> error "Remoting proxy must be a class without parameters" p
 
 (* -------------------------------------------------------------------------- *)
@@ -325,7 +325,7 @@ let rec build_generic ctx c p tl =
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
 		let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in
-		c.cl_build(); (* make sure the super class is already setup *)
+		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
@@ -418,7 +418,7 @@ let rec build_generic ctx c p tl =
 						(* extended type parameter: concrete type must have a constructor, but generic base class must not have one *)
 						begin match follow t,c.cl_constructor with
 							| TInst(cs,_),None ->
-								cs.cl_build();
+								ignore(cs.cl_build());
 								begin match cs.cl_constructor with
 									| None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
 									| _ -> ()
@@ -623,7 +623,7 @@ let build_macro_build ctx c pl cfl p =
 let build_instance ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
-		if ctx.pass > PBuildClass then c.cl_build();
+		if ctx.pass > PBuildClass then ignore(c.cl_build());
 		let build f s =
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in

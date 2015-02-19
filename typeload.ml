@@ -1138,6 +1138,7 @@ let rec add_constructor ctx c force_constructor p =
 
 let set_heritance ctx c herits p =
 	let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
+	let old_meta = c.cl_meta in
 	let process_meta csup =
 		List.iter (fun m ->
 			match m with
@@ -1145,6 +1146,16 @@ let set_heritance ctx c herits p =
 			| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,p) :: m :: c.cl_meta
 			| _ -> ()
 		) csup.cl_meta
+	in
+	let cancel_build csup =
+		(* for macros reason, our super class is not yet built - see #2177 *)
+		(* let's reset our build and delay it until we are done *)
+		c.cl_meta <- old_meta;
+		c.cl_array_access <- None;
+		c.cl_dynamic <- None;
+		c.cl_implements <- [];
+		c.cl_super <- None;
+		raise Exit
 	in
 	let has_interf = ref false in
 	let rec loop = function
@@ -1154,7 +1165,7 @@ let set_heritance ctx c herits p =
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			let t = load_instance ctx t p false in
 			let csup,params = check_extends ctx c t p in
-			csup.cl_build();
+			if not (csup.cl_build()) then cancel_build csup;
 			process_meta csup;
 			if c.cl_interface then begin
 				if not csup.cl_interface then error "Cannot extend by using a class" p;
@@ -1174,7 +1185,7 @@ let set_heritance ctx c herits p =
 				if c.cl_array_access <> None then error "Duplicate array access" p;
 				c.cl_array_access <- Some t
 			| TInst (intf,params) ->
-				intf.cl_build();
+				if not (intf.cl_build()) then cancel_build intf;
 				if is_parent c intf then error "Recursive class" p;
 				if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 				if not intf.cl_interface then error "You can only implement an interface" p;
@@ -2523,7 +2534,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				let name = (match name with None -> s | Some n -> n) in
 				match resolve_typedef t with
 				| TClassDecl c ->
-					c.cl_build();
+					ignore(c.cl_build());
 					ignore(PMap.find s c.cl_statics);
 					ctx.m.module_globals <- PMap.add name (TClassDecl c,s) ctx.m.module_globals
 				| TEnumDecl e ->
@@ -2579,7 +2590,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					match resolve_typedef t with
 					| TClassDecl c
 					| TAbstractDecl {a_impl = Some c} ->
-						c.cl_build();
+						ignore(c.cl_build());
 						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name) ctx.m.module_globals) c.cl_statics
 					| TEnumDecl e ->
 						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name) ctx.m.module_globals) e.e_constrs
@@ -2624,18 +2635,28 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
-		let build() =
-			c.cl_build <- (fun()->());
-			set_heritance ctx c herits p;
-			init_class ctx c p do_init d.d_flags d.d_data;
-			List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
+		let rec build() =
+			c.cl_build <- (fun()-> false);
+			try
+				set_heritance ctx c herits p;
+				init_class ctx c p do_init d.d_flags d.d_data;
+				c.cl_build <- (fun()-> true);
+				List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
+				true;
+			with Exit ->
+				c.cl_build <- make_pass ctx build;
+				delay ctx PTypeField (fun() -> ignore(c.cl_build())); (* delay after PBuildClass, not very good but better than forgotten *)
+				false
+			| exn ->
+				c.cl_build <- (fun()-> true);
+				raise exn
 		in
 		ctx.pass <- PBuildClass;
 		ctx.curclass <- c;
 		c.cl_build <- make_pass ctx build;
 		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
-		delay ctx PBuildClass (fun() -> c.cl_build());
+		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
 	| EEnum d ->
 		let e = (match get_type d.d_name with TEnumDecl e -> e | _ -> assert false) in
 		let ctx = { ctx with type_params = e.e_params } in

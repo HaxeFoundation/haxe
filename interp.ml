@@ -4435,7 +4435,7 @@ and encode_class_kind k =
 	enc_enum IClassKind tag pl
 
 and encode_tclass c =
-	c.cl_build();
+	ignore(c.cl_build());
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", VBool c.cl_extern;
