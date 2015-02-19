@@ -220,7 +220,7 @@ abstract Vector<T>(VectorData<T>) {
 		#end
 	}
 	
-	/**
+/**
 		make a shallow copy of requested vector
 	**/
 	public inline function copy<T>() : Vector<T> {
@@ -233,8 +233,9 @@ abstract Vector<T>(VectorData<T>) {
 		iterates other the elements of `v` applying the function `f`.
 	**/
 	public inline function iter<T>(f:T->Void ) : Void {
-		for( vs in this)
-			f(vs);
+		var len = length;
+		for( i in 0...len)
+			f(get(i));
 	}
 	
 	/**
@@ -246,11 +247,11 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		var b = new StringBuf();
 		var i = 0;
-		for( vs in this) {
-			b.add( Std.string(vs) );
-			if( i < this.length-1)
+		var len = length;
+		for( i in 0...len) {
+			b.add( Std.string(get(i)) );
+			if( i < len-1)
 				b.add(sep);
-			i++;
 		}
 		return b.toString();
 		#end
@@ -263,10 +264,9 @@ abstract Vector<T>(VectorData<T>) {
 	public inline function map<T>(f:T->T) : Vector<T> {
 		var r = new Vector(length);
 		var i = 0;
-		for( vs in this){
-			r[i] = f( vs );
-			i++;
-		}
+		var len = length;
+		for( i in 0...len) 
+			r[i] = f( get(i) );
 		return r;
 	}
 	
