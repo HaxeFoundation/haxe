@@ -87,7 +87,7 @@ let valid_js_ident s =
 		false
 
 let field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
-let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
+let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 let static_field s =
