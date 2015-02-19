@@ -2426,15 +2426,8 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
    let decl = get_meta_string field.cf_meta Meta.Decl in
    let has_decl = decl <> "" in
    if (is_interface) then begin
-      (* Just the dynamic glue ... *)
-      match follow field.cf_type, field.cf_kind  with
-      | _, Method MethDynamic  -> ()
-      | TFun (args,result), Method _  ->
-         if (is_static) then output "STATIC_";
-         let ret = if ((type_string result ) = "Void" ) then "" else "return " in
-         output ("HX_DEFINE_DYNAMIC_FUNC" ^ (string_of_int (List.length args)) ^
-            "(" ^ class_name ^ "," ^ remap_name ^ "," ^ ret ^ ")\n\n");
-      | _ -> ()
+      (* Just the dynamic glue  - not even that ... *)
+      ()
    end else (match  field.cf_expr with
    (* Function field *)
    | Some { eexpr = TFunction function_def } ->
@@ -2589,7 +2582,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (gen_tfun_interface_arg_list args);
          output (if (not is_static) then ")=0;\n" else ");\n");
          output (if is_static then "\t\tstatic " else "\t\t");
-         output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
+         output ("virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
       | _  ->  ( )
    end else begin
    let decl = get_meta_string field.cf_meta Meta.Decl in
