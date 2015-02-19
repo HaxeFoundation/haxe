@@ -955,6 +955,22 @@ let check_void_field ctx t = match t with
 	| _ ->
 		()
 
+(* Interfaces have no 'super', but can extend many other interfaces.
+   This makes the first extended (implemented) interface the super for efficiency reasons (you can get one for 'free')
+   and leaves the remaining ones as 'implemented' *)
+let promote_first_interface_to_super ctx t = match t with
+	| TClassDecl c when c.cl_interface ->
+		begin match c.cl_implements with
+		| ({ cl_path = ["cpp";"rtti"],_ },_ ) :: _ -> ()
+		| first_interface  :: remaining ->
+			c.cl_super <- Some first_interface;
+			c.cl_implements <- remaining
+		| _ -> ()
+		end
+	| _ ->
+		()
+
+
 (* PASS 3 end *)
 
 let run_expression_filters ctx filters t =
@@ -1115,5 +1131,6 @@ let run com tctx main =
 		(match com.platform with | Java | Cs -> (fun _ _ -> ()) | _ -> add_field_inits);
 		add_meta_field;
 		check_void_field;
+		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
 	] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types
