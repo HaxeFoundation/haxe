@@ -220,7 +220,6 @@ abstract Vector<T>(VectorData<T>) {
 		#end
 	}
 
-	#if !cs
 	/**
 		Returns a shallow copy of `this` Vector.
 
@@ -301,6 +300,4 @@ abstract Vector<T>(VectorData<T>) {
 		this.sort(f);
 		#end
 	}
-
-	#end
 }
