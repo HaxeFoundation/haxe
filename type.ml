@@ -1238,6 +1238,25 @@ let rec fast_eq a b =
 	| _ , _ ->
 		false
 
+let rec fast_eq_mono ml a b =
+	if a == b then
+		true
+	else match a , b with
+	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq_mono ml t1 t2) l1 l2 && fast_eq_mono ml r1 r2
+	| TType (t1,l1), TType (t2,l2) ->
+		t1 == t2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TEnum (e1,l1), TEnum (e2,l2) ->
+		e1 == e2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TInst (c1,l1), TInst (c2,l2) ->
+		c1 == c2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TAbstract (a1,l1), TAbstract (a2,l2) ->
+		a1 == a2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TMono _, _ ->
+		List.memq a ml
+	| _ , _ ->
+		false
+
 (* perform unification with subtyping.
    the first type is always the most down in the class hierarchy
    it's also the one that is pointed by the position.
@@ -1413,6 +1432,7 @@ let type_iseq a b =
 
 let unify_stack = ref []
 let abstract_cast_stack = ref []
+let unify_new_monos = ref []
 
 let rec unify a b =
 	if a == b then
@@ -1509,13 +1529,37 @@ let rec unify a b =
 			| _ -> ());
 		(try
 			PMap.iter (fun n f2 ->
-				let _, ft, f1 = (try class_field c tl n with Not_found -> error [has_no_field a n]) in
+				(*
+					introducing monomorphs while unifying might create infinite loops - see #2315
+					let's store these monomorphs and make sure we reach a fixed point
+				*)
+				let monos = ref [] in
+				let make_type f =
+					match f.cf_params with
+					| [] -> f.cf_type
+					| l ->
+						let ml = List.map (fun _ -> mk_mono()) l in
+						monos := ml;
+						apply_params f.cf_params ml f.cf_type
+				in
+				let _, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
+				let ft = apply_params c.cl_params tl ft in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
-				(try
-					unify_with_access (apply_params c.cl_params tl ft) f2
-				with
-					Unify_error l -> error (invalid_field n :: l));
+				let old_monos = !unify_new_monos in
+				unify_new_monos := !monos @ !unify_new_monos;
+				if not (List.exists (fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2) (!unify_stack)) then begin
+					unify_stack := (ft,f2.cf_type) :: !unify_stack;
+					(try
+						unify_with_access ft f2
+					with
+						Unify_error l ->
+							unify_new_monos := old_monos;
+							unify_stack := List.tl !unify_stack;
+							error (invalid_field n :: l));
+					unify_stack := List.tl !unify_stack;
+				end;
+				unify_new_monos := old_monos;
 				List.iter (fun f2o ->
 					if not (List.exists (fun f1o -> type_iseq f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
 					then error [Missing_overload (f1, f2o.cf_type)]
