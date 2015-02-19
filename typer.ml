@@ -389,7 +389,7 @@ let eval ctx s =
 		| Some path -> path
 	in
 	ignore(Typeload.type_module ctx path_module "eval" decls p);
-	flush_pass ctx PBuildClass "load_module"
+	flush_pass ctx PBuildClass "eval"
 
 let parse_expr_string ctx s p inl =
 	let head = "class X{static function main() " in

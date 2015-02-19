@@ -369,6 +369,9 @@ let rec flush_pass ctx p (where:string) =
 
 let make_pass ctx f = f
 
+let init_class_done ctx =
+	ctx.pass <- PTypeField
+
 let exc_protect ctx f (where:string) =
 	let rec r = ref (fun() ->
 		try
@@ -410,6 +413,10 @@ let context_ident ctx =
 
 let debug ctx str =
 	if Common.raw_defined ctx.com "cdebug" then prerr_endline (context_ident ctx ^ !delay_tabs ^ str)
+
+let init_class_done ctx =
+	debug ctx ("init_class_done " ^ Ast.s_type_path ctx.curclass.cl_path);
+	init_class_done ctx
 
 let ctx_pos ctx =
 	let inf = Ast.s_type_path ctx.m.curmod.m_path in

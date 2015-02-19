@@ -2435,7 +2435,7 @@ let init_class ctx c p context_init herits fields =
 	| _ -> ());
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->
-		ctx.pass <- PTypeField;
+		init_class_done ctx;
 		(match r with
 		| None -> ()
 		| Some r -> delay ctx PTypeField (fun() -> ignore((!r)())))
