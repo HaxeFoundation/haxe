@@ -1067,16 +1067,12 @@ let generate_class ctx c =
 				print ctx "__properties__: {%s}" (gen_props props));
 		end;
 
-		bend();
-		print ctx "\n}";
-		(match c.cl_super with None -> ctx.separator <- true | _ -> print ctx ")");
 		newline ctx
 	end
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
-    generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
 	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
 	print ctx "{";
@@ -1132,7 +1128,7 @@ let generate_require ctx c =
 	let _, args, mp = Meta.get Meta.LuaRequire c.cl_meta in
 	let p = (s_path ctx c.cl_path) in
 
-    generate_package_create ctx c.cl_path;
+	generate_package_create ctx c.cl_path;
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
@@ -1167,6 +1163,19 @@ let generate_type ctx = function
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e -> generate_enum ctx e
+	| TTypeDecl _ | TAbstractDecl _ -> ()
+
+let generate_type_forward ctx = function
+	| TClassDecl c ->
+		generate_package_create ctx c.cl_path;
+		let p = s_path ctx c.cl_path in
+		print ctx "%s = {} " p;
+	| TEnumDecl e when e.e_extern ->
+		()
+	| TEnumDecl e ->
+		generate_package_create ctx e.e_path;
+		let p = s_path ctx e.e_path in
+		print ctx "%s = {} " p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let set_current_class ctx c =
@@ -1223,7 +1232,7 @@ let generate com =
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ "{}") :: vars else vars) in
 	let vars = if has_feature ctx "may_print_enum"
-		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
+		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(self,''); }") :: vars
 		else vars in
 	(match List.rev vars with
 	| [] -> ()
@@ -1233,17 +1242,9 @@ let generate com =
 		newline ctx
 	);
 
-	(* TODO : lua version *)
-        if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
-            print ctx "function $extend(from, fields) {
-        function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
-        for (var name in fields) proto[name] = fields[name];
-        if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
-        return proto;
-}
-";
-	end;
-	List.iter (generate_type ctx) (List.rev com.types);
+	List.iter (generate_type_forward ctx) com.types;
+	newline ctx;
+	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
 		match e.eexpr with
