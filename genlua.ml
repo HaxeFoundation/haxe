@@ -445,9 +445,12 @@ and gen_expr ctx e =
 	| TCall (e,el) ->
 		gen_call ctx e el false
 	| TArrayDecl el ->
-		spr ctx "{";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx "}"
+		spr ctx "{ _hxarray = true";
+		List.iteri (fun i e ->
+		    if (i == 0) then spr ctx ",[0]="
+		    else spr ctx ", ";
+		    gen_value ctx e) el;
+		spr ctx " }";
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
