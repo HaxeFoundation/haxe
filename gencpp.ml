@@ -2577,7 +2577,7 @@ let gen_member_def ctx class_def is_static is_interface field =
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
       | TFun (args,return_type), Method _  ->
-         output ( (if (not is_static) then "virtual " else "" ) ^ type_string return_type);
+         output ( (if (not is_static) then "		virtual " else "		" ) ^ type_string return_type);
          output (" " ^ remap_name ^ "( " );
          output (gen_tfun_interface_arg_list args);
          output (if (not is_static) then ")=0;\n" else ");\n");
@@ -3745,7 +3745,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       let name = keyword_remap field.cf_name in
       let vtable =  "__scriptVTable[" ^ (string_of_int (idx+1) ) ^ "] " in
       let args_varray = (List.fold_left (fun l n -> l ^ ".Add(" ^ n ^ ")") "Array<Dynamic>()" names) in
-      output_cpp ("   " ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) { ");
+      output_cpp ("	" ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) { ");
       output_cpp ("\n\tif (" ^ vtable ^ ") {\n" );
       output_cpp ("\t\thx::CppiaCtx *__ctx = hx::CppiaCtx::getCurrent();\n" );
       output_cpp ("\t\thx::AutoStack __as(__ctx);\n" );
@@ -3764,7 +3764,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
             output_cpp ("->__Run(" ^ args_varray ^ ");");
       end else
          output_cpp (class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ ");");
-      output_cpp ("return null(); }\n\n");
+      output_cpp ("return null(); }\n");
+      if (class_def.cl_interface) then begin
+      output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever); }\n\n");
+
+      end
       in
 
       let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || class_def.cl_interface in
@@ -3985,7 +3989,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       match follow field.cf_type, field.cf_kind  with
       | _, Method MethDynamic -> ()
       | TFun (args,return_type), Method _ ->
-         (* TODO : virtual ? *)
          let remap_name = keyword_remap field.cf_name in
          output_h ( "virtual "  ^ (type_string return_type) ^ " " ^ remap_name ^ "( " );
          output_h (gen_tfun_interface_arg_list args);
