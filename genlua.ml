@@ -182,7 +182,7 @@ let handle_break ctx e =
 				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
 			)
 
-let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
+let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
 
 let is_dynamic_iterator ctx e =
 	let check x =
@@ -268,7 +268,7 @@ let rec gen_call ctx e el in_value =
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "%s.call(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			print ctx "self = %s:new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -289,12 +289,12 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
-		print ctx "new %s(" cl;
+		print ctx "%s.new(" cl;
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
 	| TLocal { v_name = "__new__" }, e :: params ->
-		spr ctx "new ";
 		gen_value ctx e;
+		spr ctx ".new";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
@@ -348,6 +348,8 @@ let rec gen_call ctx e el in_value =
 and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
+	| TLocal v when v.v_name = "this" ->
+	    spr ctx "self";
 	| TLocal v -> spr ctx (ident v.v_name)
 	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
 		gen_value ctx e1;
@@ -469,13 +471,8 @@ and gen_expr ctx e =
 				    spr ctx " = ";
 				    gen_value ctx e;
 		end
-	| TNew ({ cl_path = [],"Array" },_,[]) ->
-		print ctx "[]"
 	| TNew (c,_,el) ->
-		(match c.cl_constructor with
-		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
-		| _ -> print ctx "new ");
-		print ctx "%s(" (ctx.type_accessor (TClassDecl c));
+		print ctx "%s.new(" (ctx.type_accessor (TClassDecl c));
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
@@ -864,7 +861,7 @@ let generate_package_create ctx (p,_) =
 			| [] -> print ctx "local %s = {}" p
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
-                print ctx "%s = {}" p
+				print ctx "%s = {}" p
 			);
 			ctx.separator <- true;
 			newline ctx;
@@ -906,19 +903,55 @@ let can_gen_class_field ctx = function
 	| f ->
 		not (is_extern_field f)
 
-let gen_class_field ctx c f =
+let gen_class_field ctx c f p =
 	check_field_name c f;
 	match f.cf_expr with
 	| None ->
-		newprop ctx;
-		print ctx "%s: " (anon_field f.cf_name);
+		print ctx "%s.%s = " p (anon_field f.cf_name);
 		print ctx "nil";
+		newline ctx;
 	| Some e ->
-		newprop ctx;
-		print ctx "%s: " (anon_field f.cf_name);
 		ctx.id_counter <- 0;
-		gen_value ctx e;
-		ctx.separator <- false
+		(match e.eexpr with
+		| TFunction f2 ->
+		    let old = ctx.in_value, ctx.in_loop in
+		    ctx.in_value <- None;
+		    ctx.in_loop <- false;
+		    print ctx "function %s:%s" p (anon_field f.cf_name);
+		    print ctx "(%s) " (String.concat "," (List.map ident (List.map arg_name f2.tf_args)));
+		    newline ctx;
+		    let fblock = fun_block ctx f2 e.epos in
+		    (match fblock.eexpr with
+		    | TBlock el ->
+			let rec loop ctx el = (match el with
+			    | [hd] -> (match hd.eexpr with
+				    | TReturn eo ->
+					    if ctx.in_value <> None then unsupported e.epos;
+					    (match eo with
+					    | None ->
+						    print ctx "return"
+					    | Some e ->
+						    print ctx "return ";
+						    gen_value ctx e)
+				    | _ -> gen_block_element ctx hd);
+			    | hd :: tl ->
+				    gen_block_element ctx hd;
+				    loop ctx tl
+			    |[] ->()
+			    ) in
+			let bend = open_block ctx in
+			loop ctx el;
+			bend();
+			newline ctx;
+		    |_ -> ());
+		    spr ctx "end";
+		    newline ctx;
+		    ctx.in_value <- fst old;
+		    ctx.in_loop <- snd old;
+		    ctx.separator <- true;
+		| _ -> gen_value ctx e);
+		ctx.separator <- false;
+		newline ctx
 
 let generate_class___name__ ctx c =
 	if has_feature ctx "lua.Boot.isClass" then begin
@@ -935,19 +968,42 @@ let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
 	(match c.cl_path with
-	| [],"Function" -> error "This class redefine a native one" c.cl_pos
+	| [],"Function" -> error "This class redefines a native one" c.cl_pos
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	let hxClasses = has_feature ctx "Type.resolveClass" in
-    generate_package_create ctx c.cl_path;
-    print ctx "%s = " p;
+	newline ctx;
+	print ctx "%s.new = " p;
 	(match c.cl_kind with
 		| KAbstractImpl _ ->
 			(* abstract implementations only contain static members and don't need to have constructor functions *)
 			print ctx "{}"; ctx.separator <- true
 		| _ ->
 			(match c.cl_constructor with
-			| Some { cf_expr = Some e } -> gen_expr ctx e
+			| Some { cf_expr = Some e } ->
+				(match e.eexpr with
+				| TFunction f ->
+				    let old = ctx.in_value, ctx.in_loop in
+				    ctx.in_value <- None;
+				    ctx.in_loop <- false;
+				    print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+				    let fblock = fun_block ctx f e.epos in
+				    (match fblock.eexpr with
+				    | TBlock el ->
+					let bend = open_block ctx in
+					newline ctx;
+					spr ctx "self = {}";
+					List.iter (gen_block_element ctx) el;
+					newline ctx;
+					spr ctx "return self";
+					bend();
+					newline ctx;
+				    |_ -> ());
+				    spr ctx "end";
+				    ctx.in_value <- fst old;
+				    ctx.in_loop <- snd old;
+				    ctx.separator <- true
+				| _ -> gen_expr ctx e);
 			| _ -> (print ctx "{}"); ctx.separator <- true)
 	);
 	newline ctx;
@@ -982,16 +1038,14 @@ let generate_class ctx c =
 	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
 	if has_prototype then begin
 		(match c.cl_super with
-		| None -> print ctx "%s.prototype = {" p;
+		| None -> ()
 		| Some (csup,_) ->
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx;
-			print ctx "%s.prototype = $extend(%s.prototype,{" p psup;
 		);
 
-		let bend = open_block ctx in
-		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
+		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f p) c.cl_ordered_fields;
 		if has_class then begin
 			newprop ctx;
 			print ctx "__class__: %s" p;
