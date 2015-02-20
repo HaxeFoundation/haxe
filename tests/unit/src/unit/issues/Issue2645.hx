@@ -12,6 +12,5 @@ class Issue2645 extends unit.Test
 
 private abstract Maybe<T>(Null<T>) from T
 {
-	    public inline function or(defaultValue:T):T return this != null ? this : defaultValue;
+	public inline function or(defaultValue:T):T return this != null ? this : defaultValue;
 }
-

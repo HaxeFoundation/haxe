@@ -864,29 +864,50 @@ module AbstractCast = struct
 				end
 			| TCall(e1, el) ->
 				begin try
-					begin match e1.eexpr with
+					let rec find_abstract e = match follow e.etype,e.eexpr with
+						| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
+						| _,TCast(e1,None) -> find_abstract e1
+						| _ -> raise Not_found
+					in
+					let rec find_field e1 =
+						match e1.eexpr with
+						| TCast(e2,None) ->
+							{e1 with eexpr = TCast(find_field e2,None)}
 						| TField(e2,fa) ->
-							begin match follow e2.etype with
-								| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-									let m = Abstract.get_underlying_type a pl in
-									let fname = field_name fa in
-									let el = List.map (loop ctx) el in
-									begin try
-										let ef = mk (TField({e2 with etype = m},quick_field m fname)) e1.etype e2.epos in
-										make_call ctx ef el e.etype e.epos
-									with Not_found ->
-										(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
-										match follow m with
-										| TAbstract({a_impl = Some c} as a,pl) ->
-											let cf = PMap.find fname c.cl_statics in
-											make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
-										| _ -> raise Not_found
-									end
+							let a,pl,e2 = find_abstract e2 in
+							let m = Abstract.get_underlying_type a pl in
+							let fname = field_name fa in
+							let el = List.map (loop ctx) el in
+							begin try
+								let fa = quick_field m fname in
+								let get_fun_type t = match follow t with
+									| TFun(_,tr) as tf -> tf,tr
+									| _ -> raise Not_found
+								in
+								let tf,tr = match fa with
+									| FStatic(_,cf) -> get_fun_type cf.cf_type
+									| FInstance(c,tl,cf) -> get_fun_type (apply_params c.cl_params tl cf.cf_type)
+									| FAnon cf -> get_fun_type cf.cf_type
+									| _ -> raise Not_found
+								in
+								let ef = mk (TField({e2 with etype = m},fa)) tf e2.epos in
+								let ecall = make_call ctx ef el tr e.epos in
+								if not (type_iseq ecall.etype e.etype) then
+									mk (TCast(ecall,None)) e.etype e.epos
+								else
+									ecall
+							with Not_found ->
+								(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
+								match follow m with
+								| TAbstract({a_impl = Some c} as a,pl) ->
+									let cf = PMap.find fname c.cl_statics in
+									make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
 								| _ -> raise Not_found
 							end
 						| _ ->
 							raise Not_found
-					end
+					in
+					find_field e1
 				with Not_found ->
 					Type.map_expr (loop ctx) e
 				end
