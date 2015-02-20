@@ -39,6 +39,8 @@ let rec is_cs_basic_type t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
+		| TAbstract ({ a_path = (["cs"], "Int64") },[])
+		| TAbstract ({ a_path = (["cs"], "UInt64") },[]) 
 		| TAbstract ({ a_path = ([], "Int") },[])
 		| TAbstract ({ a_path = ([], "Float") },[])
 		| TAbstract ({ a_path = ([], "Bool") },[]) ->
