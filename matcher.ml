@@ -1059,7 +1059,7 @@ let convert_switch mctx st cases loop =
 		| _ -> DTSwitch(e, List.map (fun (c,dt) -> convert_con ctx c, loop dt) cases, !def)
 	in
 	match !null with
-	| None when is_explicit_null st.st_type ->
+	| None when is_explicit_null st.st_type && (!def <> None || not mctx.need_val) ->
 		let econd = mk (TBinop(OpNotEq,e_st,mk (TConst TNull) (mk_mono()) p)) ctx.t.tbool p in
 		DTGuard(econd,dt,!def)
 	| None ->
