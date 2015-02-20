@@ -681,10 +681,10 @@ let rename_local_vars ctx e =
 	loop e;
 	e
 
-let check_unification com e t =
+let check_unification ctx e t =
 	begin match follow e.etype,follow t with
 		| TEnum _,TDynamic _ ->
-			add_feature com "may_print_enum";
+			Hashtbl.replace ctx.curclass.cl_module.m_extra.m_features "may_print_enum" true;
 		| _ ->
 			()
 	end;
@@ -970,6 +970,11 @@ let promote_first_interface_to_super ctx t = match t with
 	| _ ->
 		()
 
+let commit_features ctx t =
+	let m = (t_infos t).mt_module in
+	Hashtbl.iter (fun k v ->
+		Common.add_feature ctx.com k;
+	) m.m_extra.m_features
 
 (* PASS 3 end *)
 
@@ -1044,7 +1049,7 @@ let run com tctx main =
 	if use_static_analyzer then begin
 		(* PASS 1: general expression filters *)
 		let filters = [
-			Codegen.UnificationCallback.run (check_unification com);
+			Codegen.UnificationCallback.run (check_unification tctx);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			Optimizer.inline_constructors tctx;
 			Optimizer.reduce_expression tctx;
@@ -1063,7 +1068,7 @@ let run com tctx main =
 	end else begin
 		(* PASS 1: general expression filters *)
 		let filters = [
-			Codegen.UnificationCallback.run (check_unification com);
+			Codegen.UnificationCallback.run (check_unification tctx);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			blockify_ast;
 			( if (Common.defined com Define.NoSimplify) || (Common.defined com Define.Cppia) ||
@@ -1132,5 +1137,6 @@ let run com tctx main =
 		add_meta_field;
 		check_void_field;
 		(match com.platform with | Cpp -> promote_first_interface_to_super | _ -> (fun _ _ -> ()) );
+		commit_features;
 	] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types
