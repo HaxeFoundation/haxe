@@ -25,7 +25,7 @@ abstract IntMap3<V>(Dynamic<V>) {
 private abstract IntKey(String) to String {
 	static public var fromList = "";
 	public inline function new(s) this = s;
-    @:from static function fromInt(i:Int):IntKey {
+	@:from static function fromInt(i:Int):IntKey {
 		fromList += i + ";";
 		return new IntKey(Std.string(i));
 	}
@@ -36,7 +36,7 @@ private abstract IntKey(String) to String {
 
 class Issue3347 extends Test {
 	function test() {
-        var m = new IntMap();
+		var m = new IntMap();
 		m[0] = 1;
 		eq("0;", IntKey.fromList);
 		eq(1, m[0]);
