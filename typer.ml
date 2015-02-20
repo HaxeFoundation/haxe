@@ -2634,6 +2634,8 @@ and type_access ctx e p mode =
 				apply_params pl tl (loop (TInst (c,stl)))
 			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t
+			| TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
+				t_dynamic
 			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
 				loop (apply_params a.a_params tl a.a_this)
 			| _ ->
