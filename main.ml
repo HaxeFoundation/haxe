@@ -718,7 +718,10 @@ and wait_loop boot_com host port =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
 	in
 	let check_module_path com m p =
-		m.m_extra.m_file = Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
+		if m.m_extra.m_file <> Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
+			if verbose then print_endline ("Module path " ^ s_type_path m.m_path ^ " has been changed");
+			raise Not_found;
+		end
 	in
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in
@@ -744,22 +747,32 @@ and wait_loop boot_com host port =
 					| MExtern ->
 						(* if we have a file then this will override our extern type *)
 						let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
-						if has_file then raise Not_found;
+						if has_file then begin
+							if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path);
+							raise Not_found;
+						end;
 						let rec loop = function
-							| [] -> raise Not_found (* no extern registration *)
+							| [] ->
+								if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path);
+								raise Not_found (* no extern registration *)
 							| load :: l ->
 								match load m.m_path p with
 								| None -> loop l
-								| Some (file,_) -> if Common.unique_full_path file <> m.m_extra.m_file then raise Not_found
+								| Some (file,_) ->
+									if Common.unique_full_path file <> m.m_extra.m_file then begin
+										if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path);
+										raise Not_found;
+									end
 						in
 						loop com2.load_extern_type
-					| MCode -> if not (check_module_path com2 m p) then raise Not_found;
-					| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
+					| MCode -> check_module_path com2 m p
+					| MMacro when ctx.Typecore.in_macro -> check_module_path com2 m p
 					| MMacro ->
 						let _, mctx = Typer.get_macro_context ctx p in
-						if not (check_module_path mctx.Typecore.com m p) then raise Not_found;
+						check_module_path mctx.Typecore.com m p
 					);
 					if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
+						if verbose then print_endline ("File " ^ m.m_extra.m_file ^ (if m.m_extra.m_time = -1. then " not cached (macro-in-macro)" else " has been modified"));
 						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
 						raise Not_found;
 					end;
