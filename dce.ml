@@ -427,7 +427,7 @@ let run com main full =
 		List.iter (fun (s,v) ->
 			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
 			else Hashtbl.add dce.features s [v]
-		) m.m_extra.m_features;
+		) m.m_extra.m_if_feature;
 	) com.modules;
 	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
 	List.iter (fun t -> match t with

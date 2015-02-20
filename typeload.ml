@@ -2370,7 +2370,7 @@ let init_class ctx c p context_init herits fields =
 				let _,args,_ = Meta.get Meta.IfFeature f.cf_meta in
 				List.iter (fun e -> match fst e with
 					| EConst(String s) ->
-						ctx.m.curmod.m_extra.m_features <- (s,(c,f,is_static)) :: ctx.m.curmod.m_extra.m_features;
+						ctx.m.curmod.m_extra.m_if_feature <- (s,(c,f,is_static)) :: ctx.m.curmod.m_extra.m_if_feature;
 					| _ ->
 						error "String expected" (pos e)
 				) args
