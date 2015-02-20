@@ -3573,8 +3573,9 @@ let create com api =
 
 
 
-let do_reuse ctx =
-	ctx.is_reused <- false
+let do_reuse ctx api =
+	ctx.is_reused <- false;
+	ctx.curapi <- api
 
 let can_reuse ctx types =
 	let has_old_version t =

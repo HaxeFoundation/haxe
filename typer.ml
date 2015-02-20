@@ -4518,7 +4518,7 @@ let create_macro_interp ctx mctx =
 			let mint = Interp.create com2 (make_macro_api ctx Ast.null_pos) in
 			mint, (fun() -> init_macro_interp ctx mctx mint)
 		| Some mint ->
-			Interp.do_reuse mint;
+			Interp.do_reuse mint (make_macro_api ctx Ast.null_pos);
 			mint, (fun() -> ())
 	) in
 	let on_error = com2.error in
