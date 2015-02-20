@@ -29,7 +29,7 @@ enum StackItem {
 	Module( m : String );
 	FilePos( s : Null<StackItem>, file : String, line : Int );
 	Method( classname : String, method : String );
-	LocalFunction( v : Int );
+	LocalFunction( ?v : Int );
 }
 
 /**
@@ -76,10 +76,14 @@ class CallStack {
 				}
 				return stack;
 			}
-			var a = makeStack(untyped __new__("Error").stack);
-			a.shift(); // remove Stack.callStack()
-			(untyped Error).prepareStackTrace = oldValue;
-			return a;
+			try {
+				throw untyped __new__("Error");
+			} catch( e : Dynamic ) {
+				var a = makeStack(e.stack);
+				if( a != null ) a.shift(); // remove Stack.callStack()
+				(untyped Error).prepareStackTrace = oldValue;
+				return a;
+			}
 		#elseif java
 			var stack = [];
 			for ( el in java.lang.Thread.currentThread().getStackTrace() ) {
@@ -293,9 +297,18 @@ class CallStack {
 			if ((untyped __js__("typeof"))(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
+				if( stack[0] == "Error" ) stack.shift(); 
 				var m = [];
+				var rie10 = ~/^   at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
 				for( line in stack ) {
-					m.push(Module(line)); // A little weird, but better than nothing
+					if( rie10.match(line) ) {
+						var path = rie10.matched(1).split(".");
+						var meth = path.pop();
+						var file = rie10.matched(2);
+						var line = Std.parseInt(rie10.matched(3));
+						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line ));
+					} else
+						m.push(Module(line)); // A little weird, but better than nothing
 				}
 				return m;
 			} else {
