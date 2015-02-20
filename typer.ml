@@ -981,11 +981,14 @@ let rec acc_get ctx g p =
 			let tcallb = TFun (args,ret) in
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
 			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
-			let args = List.map (fun (n,_,t) -> if n = "" then gen_local ctx t else alloc_var n t) args in
+			let args = List.map (fun (n,o,t) ->
+				let t = if o then ctx.t.tnull t else t in
+				o,if n = "" then gen_local ctx t else alloc_var n t
+			) args in
 			let ve = alloc_var "_e" e.etype in
-			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: args)) ret p in
+			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
 			let ecallb = mk (TFunction {
-				tf_args = List.map (fun v -> v,None) args;
+				tf_args = List.map (fun (o,v) -> v,if o then Some TNull else None) args;
 				tf_type = ret;
 				tf_expr = mk (TReturn (Some ecall)) t_dynamic p;
 			}) tcallb p in
