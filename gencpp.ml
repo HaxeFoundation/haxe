@@ -3338,7 +3338,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
             Hashtbl.add implemented_hash interface_name ();
             List.iter descend_interface (fst interface).cl_implements;
-         end
+         end;
+         match (fst interface).cl_super with
+         | Some (interface,params) -> descend_interface (interface,params)
+         | _ -> ()
       in descend_interface imp
    ) (real_interfaces class_def.cl_implements);
    let implemented = hash_keys implemented_hash in
