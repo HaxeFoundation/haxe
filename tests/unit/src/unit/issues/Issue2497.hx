@@ -14,6 +14,6 @@ private class Object1 {
 class Issue2497 extends Test {
 	function test() {
 		var obj1 = new Object1();
-		eq("hello world null", obj1.sayHelloTo("world"));
+		eq("hello world !", obj1.sayHelloTo("world"));
 	}
 }
