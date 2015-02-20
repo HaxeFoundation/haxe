@@ -2206,14 +2206,10 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		in
 		(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		   it with the first type to preserve comparison semantics. *)
-		begin match op with
-			| (OpEq | OpNotEq) ->
-				begin match follow e1.etype,follow e2.etype with
-					| TMono _,_ | _,TMono _ ->
-						Type.unify e1.etype e2.etype
-					| _ ->
-						()
-				end
+		let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
+		if is_eq_op then begin match follow e1.etype,follow e2.etype with
+			| TMono _,_ | _,TMono _ ->
+				Type.unify e1.etype e2.etype
 			| _ ->
 				()
 		end;
@@ -2244,6 +2240,16 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 								Codegen.AbstractCast.cast_or_unify_raise ctx t1 e1 p,e2
 							end in
 							check_constraints ctx "" cf.cf_params monos (apply_params a.a_params tl) false cf.cf_pos;
+							let check_null e t = if is_eq_op then match e.eexpr with
+								| TConst TNull when not (is_explicit_null t) -> raise (Unify_error [])
+								| _ -> ()
+							in
+							(* If either expression is `null` we only allow operator resolving if the argument type
+							   is explicitly Null<T> (issue #3376) *)
+							if is_eq_op then begin
+								check_null e2 t2;
+								check_null e1 t1;
+							end;
 							let e = if not swapped then
 								make e1 e2
 							else if not (Optimizer.has_side_effect e1) && not (Optimizer.has_side_effect e2) then
