@@ -448,6 +448,8 @@ module Simplifier = struct
 										let e = loop e in
 										e :: loop2 el
 								end
+							| TReturn (Some e1) when (match follow e1.etype with TAbstract({a_path=[],"Void"},_) -> true | _ -> false) ->
+								[(loop e1);{e with eexpr = TReturn None}]
 							| _ ->
 								let e = loop e in
 								e :: loop2 el
