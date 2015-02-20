@@ -1157,7 +1157,16 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 		(match make_constant_expression ctx e1 with
 		| None -> None
 		| Some e1 -> Some {e with eexpr = TCast(e1,None)})
-	| TParenthesis e | TMeta(_,e) -> Some e
+	| TParenthesis e1 ->
+		begin match make_constant_expression ctx ~concat_strings e1 with
+			| None -> None
+			| Some e1 -> Some {e with eexpr = TParenthesis e1}
+		end
+	| TMeta(m,e1) ->
+		begin match make_constant_expression ctx ~concat_strings e1 with
+			| None -> None
+			| Some e1 -> Some {e with eexpr = TMeta(m,e1)}
+		end
 	| TTypeExpr _ -> Some e
 	(* try to inline static function calls *)
 	| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
