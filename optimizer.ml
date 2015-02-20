@@ -1549,6 +1549,8 @@ let optimize_completion_expr e =
 					with Not_found ->
 						(* not found locals are most likely to be member/static vars *)
 						e)
+				| EFunction (_,f) ->
+					Ast.map_expr (subst_locals { r = PMap.foldi (fun n i acc -> if List.exists (fun (a,_,_,_) -> a = n) f.f_args then acc else PMap.add n i acc) locals.r PMap.empty }) e
 				| _ ->
 					Ast.map_expr (subst_locals locals) e
 			in
