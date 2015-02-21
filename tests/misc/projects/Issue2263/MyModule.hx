@@ -5,4 +5,7 @@ class MyModule {
     static var privV = 10;
 }
 
-class OtherType {}
+class OtherType {
+    public static function pubM() {}
+    public static var pubV = 10;
+}
