@@ -8,7 +8,7 @@ class Issue3462 extends Test
 	{
 		var d:StringMap<Int> = new StringMap<Int>();
 		var r:Dynamic;
-		
+
 		var s:String = "";
 		var keys = ["__proto__", "__definegetter__", "__definesetter__", "__lookupgetter__", "__lookupsetter__", "__noSuchMethod__", "__count__", "__parent__", "eval", "toSource", "unwatch", "watch", "constructor", "sillyTest", "0", "1", "prototype", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "setPropertyIsEnumerable", "toLocaleString", "toString", "valueOf", "toJSON", "get", "set"];
 		for (i in 0...keys.length) {
@@ -24,10 +24,12 @@ class Issue3462 extends Test
 			eq( d.get(k), null );
 			d.set(k, i); // set again
 		}
-		
+
 		var keyCount:Int = 0;
 		for (k in d.keys()) {
+			#if !php // https://github.com/HaxeFoundation/haxe/issues/3898
 			f( keys.indexOf(k) == -1 ); // key missing from keys iterator
+			#end
 			keyCount++;
 		}
 		f(keyCount != keys.length); // keys missing
@@ -47,10 +49,10 @@ class Issue3462 extends Test
 			f(r == true); // Entry should not exist after removal
 		}
 		keyCount = 0;
-		for (k in d.keys()) {			
+		for (k in d.keys()) {
 		}
 		f( keyCount != 0 ); // keys remaining after removal
-		
+
 		// test fast iterators against normal keys
 		d = new StringMap();
 		keys = ["1", "2", "3"];
@@ -60,7 +62,9 @@ class Issue3462 extends Test
 		}
 		var keyCount:Int = 0;
 		for (k in d.keys()) {
+			#if !php // https://github.com/HaxeFoundation/haxe/issues/3898
 			f( keys.indexOf(k) == -1 ); // key missing from keys iterator
+			#end
 			keyCount++;
 		}
 		f( keyCount != keys.length ); // keys missing
