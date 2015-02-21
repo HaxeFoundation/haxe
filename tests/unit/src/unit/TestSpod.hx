@@ -122,15 +122,21 @@ class TestSpod extends Test
 		c2.insert();
 
 		var scls = getDefaultClass();
+		var scls1 = scls;
 		scls.relation = c1;
 		scls.insert();
 		var id1 = scls.theId;
 		scls = getDefaultClass();
 		scls.relation = c1;
 		scls.insert();
+
+		scls1.next = scls;
+		scls1.update();
+
 		var id2 = scls.theId;
 		scls = getDefaultClass();
 		scls.relation = c1;
+		scls.next = scls1;
 		scls.anEnum = FirstValue;
 		scls.insert();
 		var id3 = scls.theId;
@@ -142,6 +148,8 @@ class TestSpod extends Test
 		var r2s = MySpodClass.manager.search($anEnum == FirstValue);
 		eq(r2s.length,1);
 		eq(r2s.first().theId,id3);
+		eq(r2s.first().next.theId,id1);
+		eq(r2s.first().next.next.theId,id2);
 
 		var fv = getSecond();
 		var r1s = [ for (c in MySpodClass.manager.search($anEnum == fv,{orderBy:theId})) c.theId ];

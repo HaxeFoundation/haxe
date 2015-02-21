@@ -283,6 +283,7 @@ class RecordMacros {
 			relations : [],
 			indexes : [],
 		};
+		g.cache.set(cname, i);
 		var c = c.get();
 		var fieldsPos = new haxe.ds.StringMap();
 		var fields = c.fields.get();
@@ -437,7 +438,6 @@ class RecordMacros {
 		// check primary key defined
 		if( i.key == null )
 			error("Table is missing unique id, use either SId, SUId, SBigID or @:id", c.pos);
-		g.cache.set(cname, i);
 		return i;
 	}
 
