@@ -27,6 +27,9 @@ using haxe.Int64;
 	A cross-platform signed 64-bit integer.
 	Int64 instances can be created from two 32-bit words using `Int64.make()`.
  **/
+#if flash
+@:notNull
+#end
 abstract Int64(__Int64) from __Int64 to __Int64
 {
 	private inline function new( x : __Int64 )
