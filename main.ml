@@ -1686,10 +1686,14 @@ with
 				)
 		| Some (c,cur_package) ->
 			try
+				let sl_pack,s_module = match List.rev p with
+					| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
+					| _ -> p,c
+				in
 				let ctx = Typer.create com in
 				let rec lookup p =
 					try
-						Typeload.load_module ctx (p,c) Ast.null_pos
+						Typeload.load_module ctx (p,s_module) Ast.null_pos
 					with e ->
 						if cur_package then
 							match List.rev p with
@@ -1698,19 +1702,20 @@ with
 						else
 							raise e
 				in
-				let m = lookup p in
+				let m = lookup sl_pack in
 				let statics = ref None in
 				let public_types = List.filter (fun t ->
 					let tinfos = t_infos t in
-					if is_import && snd tinfos.mt_path = c then begin match t with
+					let is_module_type = snd tinfos.mt_path = c in
+					if is_import && is_module_type then begin match t with
 						| TClassDecl c ->
 							ignore(c.cl_build());
 							statics := Some c.cl_ordered_statics
 						| _ -> ()
 					end;
-					not tinfos.mt_private
+					snd tinfos.mt_path <> s_module && not tinfos.mt_private
 				) m.m_types in
-				let types = List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") public_types in
+				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") public_types in
 				let ctx = print_context() in
 				let make_field_doc cf =
 					cf.cf_name,
