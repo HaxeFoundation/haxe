@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+from distutils import dir_util
+import glob
+import os
+import shutil
+import subprocess
+
+import WebIDL
+import Haxe
+
+CONFIG = {
+	"MOZ_BUILD_APP": "browser",
+	"MOZ_EME": True,
+	"MOZ_GAMEPAD": True,
+	"MOZ_WEBSPEECH": True,
+	"MOZ_WEBRTC": True,
+
+	"MOZ_AUDIO_CHANNEL_MANAGER": False,
+	"MOZ_B2G_BT": False,
+	"MOZ_B2G_FM": False,
+	"MOZ_B2G_RIL": False,
+	"MOZ_DEBUG": False,
+	"MOZ_NFC": False,
+	"MOZ_WIDGET_TOOLKIT": False,
+}
+MOZ_WHITELIST = set([
+	"ErrorEvent.webidl",
+	"TrackEvent.webidl",
+])
+MOZ_BLACKLIST = set([
+	"EventListener.webidl",
+	"LegacyQueryInterface.webidl",
+])
+execfile("webidl/mozilla/moz.build")
+
+parser = WebIDL.Parser()
+def parse (file):
+	print("Parsing %s..." % file)
+	defines = []
+	for key, value in CONFIG.iteritems():
+		if value:
+			defines += ["-D", key]
+	process = subprocess.Popen(["cpp"] + defines + ["-C", "-P", file], stdout=subprocess.PIPE)
+	stdout, stderr = process.communicate()
+	parser.parse(stdout, os.path.relpath(file, "webidl"))
+	return
+
+# Include all files in webidl
+for file in glob.glob("webidl/*.webidl"):
+	parse(file)
+
+# Include all files from mozilla
+for file in (set(WEBIDL_FILES + PREPROCESSED_WEBIDL_FILES) | MOZ_WHITELIST) - MOZ_BLACKLIST:
+	parse("webidl/mozilla/"+file)
+
+idls = parser.finish()
+
+haxe = Haxe.Program(idls)
+with open("CSS.txt") as file:
+	haxe.cssProperties += file.readlines()
+
+stdDir = "../../std"
+shutil.rmtree(stdDir+"/js/html")
+haxe.generate(stdDir)
+dir_util.copy_tree("haxe", stdDir)
