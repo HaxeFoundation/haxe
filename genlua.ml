@@ -552,20 +552,21 @@ and gen_expr ctx e =
 			| _ ->
 				let id = ctx.id_counter in
 				ctx.id_counter <- ctx.id_counter + 1;
-				let name = "$it" ^ string_of_int id in
-				print ctx "var %s = " name;
+				let name = "_it" ^ string_of_int id in
+				print ctx "local %s = " name;
 				gen_value ctx it;
 				newline ctx;
 				name
 		) in
-		print ctx "while( %s.hasNext() ) {" it;
+		print ctx "while( %s.hasNext() ) do" it;
 		let bend = open_block ctx in
 		newline ctx;
-		print ctx "var %s = %s.next()" (ident v.v_name) it;
+		print ctx "local %s = %s.next()" (ident v.v_name) it;
 		gen_block_element ctx e;
 		bend();
 		newline ctx;
-		spr ctx "}";
+		spr ctx "end";
+		newline ctx;
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
