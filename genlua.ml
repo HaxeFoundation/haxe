@@ -74,7 +74,7 @@ let kwds =
 	];
 	h
 
-let valid_js_ident s =
+let valid_lua_ident s =
 	try
 		for i = 0 to String.length s - 1 do
 			match String.unsafe_get s i with
@@ -86,10 +86,10 @@ let valid_js_ident s =
 	with Exit ->
 		false
 
-let field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
+let field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 
-let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
+let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "'" ^ s ^ "'" else s
 let static_field s =
 	match s with
 	| "length" | "name" -> ".$" ^ s
@@ -351,7 +351,7 @@ and gen_expr ctx e =
 	| TLocal v when v.v_name = "this" ->
 	    spr ctx "self";
 	| TLocal v -> spr ctx (ident v.v_name)
-	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
+	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_lua_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
 		gen_value ctx e1;
 		spr ctx (field s)
 	| TArray (e1,e2) ->
@@ -600,7 +600,7 @@ and gen_expr ctx e =
 				if !else_block then print ctx "{";
 				if vname <> v.v_name then begin
 					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
+					print ctx "local %s = %s" v.v_name vname;
 				end;
 				gen_block_element ctx e;
 				if !else_block then begin
@@ -609,13 +609,13 @@ and gen_expr ctx e =
 				end
 			| Some t ->
 				if not !else_block then newline ctx;
-				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) vname;
+				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) vname;
 				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
 				spr ctx ") ) {";
 				let bend = open_block ctx in
 				if vname <> v.v_name then begin
 					newline ctx;
-					print ctx "var %s = %s" v.v_name vname;
+					print ctx "local %s = %s" v.v_name vname;
 				end;
 				gen_block_element ctx e;
 				bend();
@@ -653,7 +653,7 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -674,12 +674,13 @@ and gen_block_element ?(after=false) ctx e =
 			| [e] -> gen_block_element ~after ctx e
 			| _ -> assert false)
 	| TFunction _ ->
-            gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| _ ->
 		if not after then newline ctx;
 		gen_expr ctx e;
+		spr ctx ";";
 		if after then newline ctx
 
 and gen_value ctx e =
@@ -737,7 +738,7 @@ and gen_value ctx e =
 	| TCast (e1, None) ->
 		gen_value ctx e1
 	| TCast (e1, Some t) ->
-		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
+		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
 		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
@@ -1086,7 +1087,7 @@ let generate_enum ctx e =
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			print ctx "function(%s) { local $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 			if has_feature ctx "may_print_enum" then
 				spr ctx " $x.toString = $estr;";
 			spr ctx " return $x; }";
@@ -1219,8 +1220,8 @@ let generate com =
 	let t = Common.timer "generate lua" in
 	let ctx = alloc_ctx com in
 
-	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
-	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
+	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
+	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
 	spr ctx "pcall(require, 'bit32')"; newline ctx;
 	spr ctx "pcall(require, 'bit')"; newline ctx; newline ctx;
@@ -1232,7 +1233,7 @@ let generate com =
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ "{}") :: vars else vars) in
 	let vars = if has_feature ctx "may_print_enum"
-		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(self,''); }") :: vars
+		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) ^ ".__string_rec(self,''); }") :: vars
 		else vars in
 	(match List.rev vars with
 	| [] -> ()
