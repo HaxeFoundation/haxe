@@ -1702,7 +1702,7 @@ with
 				let statics = ref None in
 				let public_types = List.filter (fun t ->
 					let tinfos = t_infos t in
-					if snd tinfos.mt_path = c then begin match t with
+					if is_import && snd tinfos.mt_path = c then begin match t with
 						| TClassDecl c ->
 							ignore(c.cl_build());
 							statics := Some c.cl_ordered_statics
