@@ -615,7 +615,7 @@ let rec is_nullable = function
 	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		not (Meta.has Meta.NotNull a.a_meta)
 	| TAbstract (a,tl) ->
-		is_nullable (apply_params a.a_params tl a.a_this)
+		not (Meta.has Meta.NotNull a.a_meta) && is_nullable (apply_params a.a_params tl a.a_this)
 	| _ ->
 		true
 
