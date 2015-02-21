@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,97 +20,40 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/Event.webidl line 15:0. Do not edit!
+
 package js.html;
 
-/** <p>This chapter describes the DOM Event Model. The <a class="external" rel="external" href="http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event" title="http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event" target="_blank">Event</a> interface itself is described, as well as the interfaces for event registration on nodes in the DOM, and <a title="en/DOM/element.addEventListener" rel="internal" href="https://developer.mozilla.org/en/DOM/element.addEventListener">event listeners</a>, and several longer examples that show how the various event interfaces relate to one another.</p>
-<p>There is an excellent diagram that clearly explains the three phases of event flow through the DOM in the <a class="external" title="http://www.w3.org/TR/DOM-Level-3-Events/#dom-event-architecture" rel="external" href="http://www.w3.org/TR/DOM-Level-3-Events/#dom-event-architecture" target="_blank">DOM Level 3 Events draft</a>.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/event">MDN</a>. */
 @:native("Event")
 extern class Event
 {
-	static inline var AT_TARGET : Int = 2;
-
-	static inline var BLUR : Int = 8192;
-
-	static inline var BUBBLING_PHASE : Int = 3;
-
-	static inline var CAPTURING_PHASE : Int = 1;
-
-	static inline var CHANGE : Int = 32768;
-
-	static inline var CLICK : Int = 64;
-
-	static inline var DBLCLICK : Int = 128;
-
-	static inline var DRAGDROP : Int = 2048;
-
-	static inline var FOCUS : Int = 4096;
-
-	static inline var KEYDOWN : Int = 256;
-
-	static inline var KEYPRESS : Int = 1024;
-
-	static inline var KEYUP : Int = 512;
-
-	static inline var MOUSEDOWN : Int = 1;
-
-	static inline var MOUSEDRAG : Int = 32;
-
-	static inline var MOUSEMOVE : Int = 16;
-
-	static inline var MOUSEOUT : Int = 8;
-
-	static inline var MOUSEOVER : Int = 4;
-
-	static inline var MOUSEUP : Int = 2;
-
 	static inline var NONE : Int = 0;
-
-	static inline var SELECT : Int = 16384;
-
-	/** A boolean indicating whether the event bubbles up through the DOM or not. */
-	var bubbles(default,null) : Bool;
-
-	/** A boolean indicating whether the bubbling of the event has been canceled or not. */
-	var cancelBubble : Bool;
-
-	/** A boolean indicating whether the event is cancelable. */
-	var cancelable(default,null) : Bool;
-
-	var clipboardData(default,null) : Clipboard;
-
-	/** A reference to the currently registered target for the event. */
-	var currentTarget(default,null) : EventTarget;
-
-	/** Indicates whether or not <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/event.preventDefault">event.preventDefault()</a></code>
- has been called on the event. */
-	var defaultPrevented(default,null) : Bool;
-
-	/** Indicates which phase of the event flow is being processed. */
-	var eventPhase(default,null) : Int;
-
-	var returnValue : Bool;
-
-	var srcElement(default,null) : EventTarget;
-
-	/** A reference to the target to which the event was originally dispatched. */
-	var target(default,null) : EventTarget;
-
-	/** The time that the event was created. */
-	var timeStamp(default,null) : Int;
-
-	/** The name of the event (case-insensitive). */
+	static inline var CAPTURING_PHASE : Int = 1;
+	static inline var AT_TARGET : Int = 2;
+	static inline var BUBBLING_PHASE : Int = 3;
+	static inline var ALT_MASK : Int = 1;
+	static inline var CONTROL_MASK : Int = 2;
+	static inline var SHIFT_MASK : Int = 4;
+	static inline var META_MASK : Int = 8;
+	
 	var type(default,null) : String;
-
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
-	function initEvent( eventTypeArg : String, canBubbleArg : Bool, cancelableArg : Bool ) : Void;
-
-	function preventDefault() : Void;
-
-	function stopImmediatePropagation() : Void;
-
+	var target(default,null) : EventTarget;
+	var currentTarget(default,null) : EventTarget;
+	var eventPhase(default,null) : Int;
+	var bubbles(default,null) : Bool;
+	var cancelable(default,null) : Bool;
+	var defaultPrevented(default,null) : Bool;
+	var isTrusted(default,null) : Bool;
+	var timeStamp(default,null) : Float;
+	var originalTarget(default,null) : EventTarget;
+	var explicitOriginalTarget(default,null) : EventTarget;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : EventInit ) : Void;
 	function stopPropagation() : Void;
-
+	function stopImmediatePropagation() : Void;
+	function preventDefault() : Void;
+	/** @throws DOMError */
+	function initEvent( type : String, bubbles : Bool, cancelable : Bool ) : Void;
+	function getPreventDefault() : Bool;
 }

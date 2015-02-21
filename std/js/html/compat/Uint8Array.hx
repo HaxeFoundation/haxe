@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ class Uint8Array {
 
 	static var BYTES_PER_ELEMENT = 1;
 
-	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) : Dynamic {
+	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) {
 		var arr;
 		if( untyped __typeof__(arg1) == 'number' ) {
 			arr = new Array();
@@ -60,7 +60,7 @@ class Uint8Array {
 				arr.buffer = new ArrayBuffer(arr);
 			}
 		} else
-			throw "TODO "+arg1;
+			throw "TODO";
 		untyped {
 			arr.subarray = _subarray;
 			arr.set = _set;
@@ -88,13 +88,11 @@ class Uint8Array {
 
 	static function _subarray( start : Int, ?end : Int ) {
 		var t : Dynamic = untyped __js__("this");
-		var a = _new(t.slice(start,end));
-		a.byteOffset = start;
-		return a;
+		return _new(t.buffer, start + t.byteOffset, (end == null ? null : end - start));
 	}
 
 	static function __init__() untyped {
-		var Uint8Array = __js__('typeof(window) != "undefined" && window.Uint8Array') || (__js__('typeof(global) != "undefined" && global.Uint8Array')) || _new;
+		var Uint8Array = __js__('typeof(window) != "undefined" && window.Uint8Array') || _new;
 	}
 
 }

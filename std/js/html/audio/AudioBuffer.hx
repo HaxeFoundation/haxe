@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/AudioBuffer.webidl line 13:0. Do not edit!
+
 package js.html.audio;
 
 @:native("AudioBuffer")
 extern class AudioBuffer
 {
-	var duration(default,null) : Float;
-
-	var gain : Float;
-
-	var length(default,null) : Int;
-
-	var numberOfChannels(default,null) : Int;
-
 	var sampleRate(default,null) : Float;
-
-	function getChannelData( channelIndex : Int ) : js.html.Float32Array;
-
+	var length(default,null) : Int;
+	var duration(default,null) : Float;
+	var numberOfChannels(default,null) : Int;
+	
+	/** @throws DOMError */
+	function getChannelData( channel : Int ) : js.html.Float32Array;
+	/** @throws DOMError */
+	function copyFromChannel( destination : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
+	/** @throws DOMError */
+	function copyToChannel( source : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
 }

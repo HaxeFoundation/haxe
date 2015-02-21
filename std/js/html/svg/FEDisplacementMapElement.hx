@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,32 +20,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFEDisplacementMapElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The pixel value of an input image i2 is used to displace the original image i1.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/feDisplacementMap">MDN</a>. */
 @:native("SVGFEDisplacementMapElement")
 extern class FEDisplacementMapElement extends Element
 {
-	static inline var SVG_CHANNEL_A : Int = 4;
-
-	static inline var SVG_CHANNEL_B : Int = 3;
-
-	static inline var SVG_CHANNEL_G : Int = 2;
-
-	static inline var SVG_CHANNEL_R : Int = 1;
-
 	static inline var SVG_CHANNEL_UNKNOWN : Int = 0;
-
+	static inline var SVG_CHANNEL_R : Int = 1;
+	static inline var SVG_CHANNEL_G : Int = 2;
+	static inline var SVG_CHANNEL_B : Int = 3;
+	static inline var SVG_CHANNEL_A : Int = 4;
+	
 	var in1(default,null) : AnimatedString;
-
 	var in2(default,null) : AnimatedString;
-
 	var scale(default,null) : AnimatedNumber;
-
 	var xChannelSelector(default,null) : AnimatedEnumeration;
-
 	var yChannelSelector(default,null) : AnimatedEnumeration;
-
+	var x(default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var result(default,null) : AnimatedString;
+	
 }

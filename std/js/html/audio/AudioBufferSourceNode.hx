@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,39 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/AudioBufferSourceNode.webidl line 13:0. Do not edit!
+
 package js.html.audio;
 
 @:native("AudioBufferSourceNode")
-extern class AudioBufferSourceNode extends AudioSourceNode
+extern class AudioBufferSourceNode extends AudioNode
 {
-	static inline var FINISHED_STATE : Int = 3;
-
-	static inline var PLAYING_STATE : Int = 2;
-
-	static inline var SCHEDULED_STATE : Int = 1;
-
-	static inline var UNSCHEDULED_STATE : Int = 0;
-
-	/** Setter throws DOMException. */
 	var buffer : AudioBuffer;
-
-	var gain(default,null) : AudioGain;
-
-	var loop : Bool;
-
-	var loopEnd : Float;
-
-	var loopStart : Float;
-
 	var playbackRate(default,null) : AudioParam;
-
-	var playbackState(default,null) : Int;
-
-	@:overload( function( when : Float ) :Void {} )
-	@:overload( function( when : Float, grainOffset : Float ) :Void {} )
-	function start( when : Float, grainOffset : Float, grainDuration : Float ) : Void;
-
-	function stop( when : Float ) : Void;
-
+	var loop : Bool;
+	var loopStart : Float;
+	var loopEnd : Float;
+	var onended : haxe.Constraints.Function;
+	
+	/** @throws DOMError */
+	function start( ?when : Float = 0.0, ?grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
+	/** @throws DOMError */
+	function stop( ?when : Float = 0.0 ) : Void;
 }

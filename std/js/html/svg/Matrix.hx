@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,54 +20,33 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGMatrix.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** <p>Many of SVG's graphics operations utilize 2x3 matrices of the form:</p>
-<pre>[a c e]
-[b d f]</pre>
-<p>which, when expanded into a 3x3 matrix for the purposes of matrix arithmetic, become:</p>
-<pre>[a c e]
-[b d f]
-[0 0 1]
-</pre>
-<p>An <code>SVGMatrix</code> object can be designated as read only, which means that attempts to modify the object will result in an exception being thrown.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGMatrix">MDN</a>. */
 @:native("SVGMatrix")
 extern class Matrix
 {
 	var a : Float;
-
 	var b : Float;
-
 	var c : Float;
-
 	var d : Float;
-
 	var e : Float;
-
 	var f : Float;
-
-	function flipX() : Matrix;
-
-	function flipY() : Matrix;
-
-	function inverse() : Matrix;
-
+	
 	function multiply( secondMatrix : Matrix ) : Matrix;
-
-	function rotate( angle : Float ) : Matrix;
-
-	function rotateFromVector( x : Float, y : Float ) : Matrix;
-
-	function scale( scaleFactor : Float ) : Matrix;
-
-	function scaleNonUniform( scaleFactorX : Float, scaleFactorY : Float ) : Matrix;
-
-	function skewX( angle : Float ) : Matrix;
-
-	function skewY( angle : Float ) : Matrix;
-
+	/** @throws DOMError */
+	function inverse() : Matrix;
 	function translate( x : Float, y : Float ) : Matrix;
-
+	function scale( scaleFactor : Float ) : Matrix;
+	function scaleNonUniform( scaleFactorX : Float, scaleFactorY : Float ) : Matrix;
+	function rotate( angle : Float ) : Matrix;
+	/** @throws DOMError */
+	function rotateFromVector( x : Float, y : Float ) : Matrix;
+	function flipX() : Matrix;
+	function flipY() : Matrix;
+	/** @throws DOMError */
+	function skewX( angle : Float ) : Matrix;
+	/** @throws DOMError */
+	function skewY( angle : Float ) : Matrix;
 }

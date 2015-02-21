@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 70:0. Do not edit!
+
 package js.html.webgl;
 
 @:native("WebGLActiveInfo")
 extern class ActiveInfo
 {
-	var name(default,null) : String;
-
 	var size(default,null) : Int;
-
 	var type(default,null) : Int;
-
+	var name(default,null) : String;
+	
 }

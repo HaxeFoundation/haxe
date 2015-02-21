@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/PageTransitionEvent.webidl line 8:0. Do not edit!
+
 package js.html;
 
 @:native("PageTransitionEvent")
 extern class PageTransitionEvent extends Event
 {
 	var persisted(default,null) : Bool;
-
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : PageTransitionEventInit ) : Void;
 }

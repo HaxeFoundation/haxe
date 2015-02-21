@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SharedWorker.webidl line 9:0. Do not edit!
+
 package js.html;
 
-/** Not yet implemented by Firefox.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/En/DOM/SharedWorker">MDN</a>. */
 @:native("SharedWorker")
-extern class SharedWorker extends AbstractWorker
+extern class SharedWorker extends EventTarget
 {
 	var port(default,null) : MessagePort;
-
-	function new( scriptURL : String, name : String ) : Void;
-
+	var onerror : haxe.Constraints.Function;
+	
+	/** @throws DOMError */
+	function new( scriptURL : String, ?name : String ) : Void;
 }

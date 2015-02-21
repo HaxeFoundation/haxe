@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,31 +20,38 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFEBlendElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>feBlend</code> filter composes two objects together ruled by a certain blending mode. This is similar to what is known from image editing software when blending two layers. The mode is defined by the 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/mode" class="new">mode</a></code> attribute.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/feBlend">MDN</a>. */
 @:native("SVGFEBlendElement")
 extern class FEBlendElement extends Element
 {
-	static inline var SVG_FEBLEND_MODE_DARKEN : Int = 4;
-
-	static inline var SVG_FEBLEND_MODE_LIGHTEN : Int = 5;
-
-	static inline var SVG_FEBLEND_MODE_MULTIPLY : Int = 2;
-
-	static inline var SVG_FEBLEND_MODE_NORMAL : Int = 1;
-
-	static inline var SVG_FEBLEND_MODE_SCREEN : Int = 3;
-
 	static inline var SVG_FEBLEND_MODE_UNKNOWN : Int = 0;
-
+	static inline var SVG_FEBLEND_MODE_NORMAL : Int = 1;
+	static inline var SVG_FEBLEND_MODE_MULTIPLY : Int = 2;
+	static inline var SVG_FEBLEND_MODE_SCREEN : Int = 3;
+	static inline var SVG_FEBLEND_MODE_DARKEN : Int = 4;
+	static inline var SVG_FEBLEND_MODE_LIGHTEN : Int = 5;
+	static inline var SVG_FEBLEND_MODE_OVERLAY : Int = 6;
+	static inline var SVG_FEBLEND_MODE_COLOR_DODGE : Int = 7;
+	static inline var SVG_FEBLEND_MODE_COLOR_BURN : Int = 8;
+	static inline var SVG_FEBLEND_MODE_HARD_LIGHT : Int = 9;
+	static inline var SVG_FEBLEND_MODE_SOFT_LIGHT : Int = 10;
+	static inline var SVG_FEBLEND_MODE_DIFFERENCE : Int = 11;
+	static inline var SVG_FEBLEND_MODE_EXCLUSION : Int = 12;
+	static inline var SVG_FEBLEND_MODE_HUE : Int = 13;
+	static inline var SVG_FEBLEND_MODE_SATURATION : Int = 14;
+	static inline var SVG_FEBLEND_MODE_COLOR : Int = 15;
+	static inline var SVG_FEBLEND_MODE_LUMINOSITY : Int = 16;
+	
 	var in1(default,null) : AnimatedString;
-
 	var in2(default,null) : AnimatedString;
-
 	var mode(default,null) : AnimatedEnumeration;
-
+	var x(default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var result(default,null) : AnimatedString;
+	
 }

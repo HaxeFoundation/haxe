@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/AnimationEvent.webidl line 15:0. Do not edit!
+
 package js.html;
 
-/** <code>AnimationEvent</code> objects provide information about events that occur related to <a rel="internal" href="/api/js/html/Animation" title="en/CSS/CSS_animations">CSS animations</a>.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/event/AnimationEvent">MDN</a>. */
 @:native("AnimationEvent")
 extern class AnimationEvent extends Event
 {
-	/** The name of the animation on which the animation event occurred. */
 	var animationName(default,null) : String;
-
-	/** The amount of time, in seconds, the animation had been running at the time the event occurred. */
 	var elapsedTime(default,null) : Float;
-
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
+	var pseudoElement(default,null) : String;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : AnimationEventInit ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,27 +20,25 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/MediaSource.webidl line 25:0. Do not edit!
+
 package js.html;
 
 @:native("MediaSource")
 extern class MediaSource extends EventTarget
 {
-	var activeSourceBuffers(default,null) : SourceBufferList;
-
-	/** Setter throws DOMException. */
-	var duration : Float;
-
-	var readyState(default,null) : String;
-
+	static function isTypeSupported( type : String ) : Bool;
 	var sourceBuffers(default,null) : SourceBufferList;
-
+	var activeSourceBuffers(default,null) : SourceBufferList;
+	var readyState(default,null) : MediaSourceReadyState;
+	var duration : Float;
+	
+	/** @throws DOMError */
 	function new() : Void;
-
+	/** @throws DOMError */
 	function addSourceBuffer( type : String ) : SourceBuffer;
-
-	function endOfStream( error : String ) : Void;
-
-	function removeSourceBuffer( buffer : SourceBuffer ) : Void;
-
+	/** @throws DOMError */
+	function removeSourceBuffer( sourceBuffer : SourceBuffer ) : Void;
+	/** @throws DOMError */
+	function endOfStream( ?error : MediaSourceEndOfStreamError ) : Void;
 }

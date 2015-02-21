@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/WheelEvent.webidl line 14:0. Do not edit!
+
 package js.html;
 
 @:native("WheelEvent")
 extern class WheelEvent extends MouseEvent
 {
-	var directionInvertedFromDevice(default,null) : Bool;
-
-	var wheelDelta(default,null) : Int;
-
-	var wheelDeltaX(default,null) : Int;
-
-	var wheelDeltaY(default,null) : Int;
-
-	function initWheelEvent( wheelDeltaX : Int, wheelDeltaY : Int, view : DOMWindow, screenX : Int, screenY : Int, clientX : Int, clientY : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool ) : Void;
-
+	static inline var DOM_DELTA_PIXEL : Int = 0;
+	static inline var DOM_DELTA_LINE : Int = 1;
+	static inline var DOM_DELTA_PAGE : Int = 2;
+	
+	var deltaX(default,null) : Float;
+	var deltaY(default,null) : Float;
+	var deltaZ(default,null) : Float;
+	var deltaMode(default,null) : Int;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : WheelEventInit ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGSymbolElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGSymbolElement</code> interface corresponds to the <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/symbol">&lt;symbol&gt;</a></code>
- element.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGSymbolElement">MDN</a>. */
 @:native("SVGSymbolElement")
 extern class SymbolElement extends Element
 {
+	var viewBox(default,null) : AnimatedRect;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
+	var requiredFeatures(default,null) : StringList;
+	var requiredExtensions(default,null) : StringList;
+	var systemLanguage(default,null) : StringList;
+	
+	function hasExtension( extension : String ) : Bool;
 }

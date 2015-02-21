@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,37 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGMaskElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGMaskElement</code> interface provides access to the properties of <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/mask">&lt;mask&gt;</a></code>
- elements, as well as methods to manipulate them.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGMaskElement">MDN</a>. */
 @:native("SVGMaskElement")
 extern class MaskElement extends Element
 {
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/height">height</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/mask">&lt;mask&gt;</a></code>
- element. */
-	var height(default,null) : AnimatedLength;
-
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/maskContentUnits" class="new">maskContentUnits</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/mask">&lt;mask&gt;</a></code>
- element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code> */
-	var maskContentUnits(default,null) : AnimatedEnumeration;
-
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/maskUnits" class="new">maskUnits</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/mask">&lt;mask&gt;</a></code>
- element. Takes one of the constants defined in <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGUnitTypes" class="new">SVGUnitTypes</a></code> */
+	static inline var SVG_MASKTYPE_LUMINANCE : Int = 0;
+	static inline var SVG_MASKTYPE_ALPHA : Int = 1;
+	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
+	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
+	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
+	
 	var maskUnits(default,null) : AnimatedEnumeration;
-
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/width">width</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/mask">&lt;mask&gt;</a></code>
- element. */
-	var width(default,null) : AnimatedLength;
-
+	var maskContentUnits(default,null) : AnimatedEnumeration;
 	var x(default,null) : AnimatedLength;
-
 	var y(default,null) : AnimatedLength;
-
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	
 }

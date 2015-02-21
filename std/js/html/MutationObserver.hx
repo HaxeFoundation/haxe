@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/MutationObserver.webidl line 34:0. Do not edit!
+
 package js.html;
 
 @:native("MutationObserver")
 extern class MutationObserver
 {
-	function new( ?arg0 : Dynamic ) : Void;
-
+	/** @throws DOMError */
+	function new( mutationCallback : Array<MutationRecord> -> MutationObserver -> Void ) : Void;
+	/** @throws DOMError */
+	function observe( target : Node, ?options : MutationObserverInit ) : Void;
 	function disconnect() : Void;
-
-	function observe( target : Node, options : Dynamic ) : Void;
-
-	function takeRecords() : Array<js.html.MutationRecord>;
-
+	function takeRecords() : Array<MutationRecord>;
 }
