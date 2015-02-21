@@ -337,7 +337,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			(* never inline a function which contain a delayed macro because its bound
 				to its variables and not the calling method *)
 			if v.v_name = "__dollar__delay_call" then cancel_inlining := true;
-			{ e with eexpr = TLocal l.i_subst }
+			let e = { e with eexpr = TLocal l.i_subst } in
+			if Meta.has Meta.This v.v_meta then mk (TCast(e,None)) v.v_type e.epos else e
 		| TConst TThis ->
 			let l = read_local vthis in
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
@@ -417,12 +418,15 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| TParenthesis e1 ->
 			let e1 = map term e1 in
 			mk (TParenthesis e1) e1.etype e.epos
-		| TUnop ((Increment|Decrement),_,{ eexpr = TLocal v }) ->
-			(read_local v).i_write <- true;
-			Type.map_expr (map false) e
-		| TBinop ((OpAssign | OpAssignOp _),{ eexpr = TLocal v },_) ->
-			(read_local v).i_write <- true;
-			Type.map_expr (map false) e;
+		| TUnop ((Increment|Decrement) as op,flag,({ eexpr = TLocal v } as e1)) ->
+			let l = read_local v in
+			l.i_write <- true;
+			{e with eexpr = TUnop(op,flag,{e1 with eexpr = TLocal l.i_subst})}
+		| TBinop ((OpAssign | OpAssignOp _) as op,({ eexpr = TLocal v } as e1),e2) ->
+			let l = read_local v in
+			l.i_write <- true;
+			let e2 = map false e2 in
+			{e with eexpr = TBinop(op,{e1 with eexpr = TLocal l.i_subst},e2)}
 		| TFunction f ->
 			(match f.tf_args with [] -> () | _ -> has_vars := true);
 			let old = save_locals ctx and old_fun = !in_local_fun in
@@ -1267,6 +1271,11 @@ let inline_constructors ctx e =
 		| _ -> ());
 		vars := PMap.remove v.v_id !vars;
 	in
+	let rec skip_to_var e = match e.eexpr with
+		| TLocal v when v.v_id < 0 -> Some v
+		| TCast(e1,None) | TMeta(_,e1) | TParenthesis(e1) -> skip_to_var e1
+		| _ -> None
+	in
 	let rec find_locals e =
 		match e.eexpr with
 		| TVar (v,eo) ->
@@ -1315,12 +1324,16 @@ let inline_constructors ctx e =
 					end
 				| None -> ()
 			end
-		| TField({eexpr = TLocal v}, (FInstance(_, _, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
-			()
-		| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
-			let (_,_,fields,_,_) = PMap.find (-v.v_id) !vars in
-			let i = Int32.to_int i in
-			if i < 0 || i >= List.length fields then cancel v
+		| TField(e1, (FInstance(_, _, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
+			(match skip_to_var e1 with None -> find_locals e1 | Some _ -> ())
+		| TArray (e1,{eexpr = TConst (TInt i)}) ->
+			begin match skip_to_var e1 with
+				| None -> find_locals e1
+				| Some v ->
+					let (_,_,fields,_,_) = PMap.find (-v.v_id) !vars in
+					let i = Int32.to_int i in
+					if i < 0 || i >= List.length fields then cancel v
+			end
 		| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
 			begin match e1.eexpr with
 	 			| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
@@ -1349,6 +1362,38 @@ let inline_constructors ctx e =
 		) vars in
 		let el_b = ref [] in
 		let append e = el_b := e :: !el_b in
+		let inline_field c cf v =
+			let (_, vars),el_init = PMap.find (-v.v_id) vfields in
+			(try
+				let v = PMap.find cf.cf_name vars in
+				mk (TLocal v) v.v_type e.epos
+			with Not_found ->
+				if (c.cl_path = ([],"Array") && cf.cf_name = "length") then begin
+					(* this can only occur for inlined array declarations, so we can use the statically known length here (issue #2568)*)
+					let l = PMap.fold (fun _ i -> i + 1) vars 0 in
+					mk (TConst (TInt (Int32.of_int l))) ctx.t.tint e.epos
+				end else
+					(* the variable was not set in the constructor, assume null *)
+					mk (TConst TNull) e.etype e.epos)
+		in
+		let inline_anon_field cf v =
+			let (_, vars),_ = PMap.find (-v.v_id) vfields in
+			(try
+				let v = PMap.find cf.cf_name vars in
+				mk (TLocal v) v.v_type e.epos
+			with Not_found ->
+				(* this could happen in untyped code, assume null *)
+				mk (TConst TNull) e.etype e.epos)
+		in
+		let inline_array_access i v =
+			let (_, vars),_ = PMap.find (-v.v_id) vfields in
+			(try
+				let v = PMap.find (Int32.to_string i) vars in
+				mk (TLocal v) v.v_type e.epos
+			with Not_found ->
+				(* probably out-of-bounds, assume null *)
+				mk (TConst TNull) e.etype e.epos)
+		in
 		let rec subst e =
 			match e.eexpr with
 			| TBlock el ->
@@ -1369,35 +1414,21 @@ let inline_constructors ctx e =
 				in
 				List.iter (fun (v,e) -> append (mk (TVar(v,Some (subst e))) ctx.t.tvoid e.epos)) (List.rev vars);
 				mk (TVar (v_first, Some (subst e_first))) ctx.t.tvoid e.epos
-			| TField ({ eexpr = TLocal v },FInstance (c,_,cf)) when v.v_id < 0 ->
-				let (_, vars),el_init = PMap.find (-v.v_id) vfields in
-				(try
-					let v = PMap.find cf.cf_name vars in
-					mk (TLocal v) v.v_type e.epos
-				with Not_found ->
-					if (c.cl_path = ([],"Array") && cf.cf_name = "length") then begin
-						(* this can only occur for inlined array declarations, so we can use the statically known length here (issue #2568)*)
-						let l = PMap.fold (fun _ i -> i + 1) vars 0 in
-						mk (TConst (TInt (Int32.of_int l))) ctx.t.tint e.epos
-					end else
-						(* the variable was not set in the constructor, assume null *)
-						mk (TConst TNull) e.etype e.epos)
-			| TArray ({eexpr = TLocal v},{eexpr = TConst (TInt i)}) when v.v_id < 0 ->
-				let (_, vars),_ = PMap.find (-v.v_id) vfields in
-				(try
-					let v = PMap.find (Int32.to_string i) vars in
-					mk (TLocal v) v.v_type e.epos
-				with Not_found ->
-					(* probably out-of-bounds, assume null *)
-					mk (TConst TNull) e.etype e.epos)
-			| TField({eexpr = TLocal v},FAnon(cf)) when v.v_id < 0 ->
-				let (_, vars),_ = PMap.find (-v.v_id) vfields in
-				(try
-					let v = PMap.find cf.cf_name vars in
-					mk (TLocal v) v.v_type e.epos
-				with Not_found ->
-					(* this could happen in untyped code, assume null *)
-					mk (TConst TNull) e.etype e.epos)
+			| TField (e1,FInstance (c,_,cf)) ->
+				begin match skip_to_var e1 with
+					| None -> Type.map_expr subst e
+					| Some v -> inline_field c cf v
+				end
+			| TArray (e1,{eexpr = TConst (TInt i)}) ->
+				begin match skip_to_var e1 with
+					| None -> Type.map_expr subst e
+					| Some v -> inline_array_access i v
+				end
+			| TField (e1,FAnon(cf)) ->
+				begin match skip_to_var e1 with
+					| None -> Type.map_expr subst e
+					| Some v -> inline_anon_field cf v
+				end
 			| _ ->
 				Type.map_expr subst e
 		in
