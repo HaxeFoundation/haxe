@@ -2791,6 +2791,25 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
    ;;
 
 
+let generate_main_header output_main =
+   output_main "#include <hxcpp.h>\n\n";
+   output_main "#include <stdio.h>\n\n";
+   output_main "extern \"C\" void __hxcpp_main();\n\n";
+   output_main "extern \"C\" void __hxcpp_lib_main();\n\n"
+;;
+
+let generate_main_footer1 output_main =
+   output_main "void __hxcpp_main() {\n";;
+
+let generate_main_footer2 output_main =
+   output_main "	}\n\n";
+   output_main "void __hxcpp_lib_main() {\n";
+   output_main "	HX_TOP_OF_STACK\n";
+   output_main "	hx::Boot();\n";
+   output_main "	__boot_all();\n";
+   output_main "	__hxcpp_main();\n";
+   output_main "	}\n"
+;;
 
 
 let generate_main common_ctx member_types super_deps class_def file_info =
@@ -2806,16 +2825,17 @@ let generate_main common_ctx member_types super_deps class_def file_info =
       let cpp_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
       let output_main = (cpp_file#write) in
 
-      output_main "#include <hxcpp.h>\n\n";
-      output_main "#include <stdio.h>\n\n";
+      generate_main_header output_main;
 
       List.iter ( add_include cpp_file ) depend_referenced;
       output_main "\n\n";
 
-      output_main ( if is_main then "HX_BEGIN_MAIN\n\n" else "HX_BEGIN_LIB_MAIN\n\n" );
+      if is_main then output_main "\n#include <hx/HxcppMain.h>\n\n";
+
+      generate_main_footer1 output_main;
       gen_expression (new_context common_ctx cpp_file 1 file_info) false main_expression;
       output_main ";\n";
-      output_main ( if is_main then "HX_END_MAIN\n\n" else "HX_END_LIB_MAIN\n\n" );
+      generate_main_footer2 output_main;
       cpp_file#close;
    in
    generate_startup "__main__" true;
@@ -2826,10 +2846,10 @@ let generate_dummy_main common_ctx =
    let generate_startup filename is_main =
       let main_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
       let output_main = (main_file#write) in
-      output_main "#include <hxcpp.h>\n\n";
-      output_main "#include <stdio.h>\n\n";
-      output_main ( if is_main then "HX_BEGIN_MAIN\n\n" else "HX_BEGIN_LIB_MAIN\n\n" );
-      output_main ( if is_main then "HX_END_MAIN\n\n" else "HX_END_LIB_MAIN\n\n" );
+      generate_main_header output_main;
+      if is_main then output_main "\n#include <hx/HxcppMain.h\n\n";
+      generate_main_footer1 output_main;
+      generate_main_footer2 output_main;
       main_file#close;
    in
    generate_startup "__main__" true;
