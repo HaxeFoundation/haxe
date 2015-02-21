@@ -2537,7 +2537,7 @@ and type_access ctx e p mode =
 									raise (Error (Module_not_found (List.rev !path,name),p))
 								with
 									Not_found ->
-										if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None));
+										if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
 										raise e)
 				| (_,false,_) as x :: path ->
 					loop (x :: acc) path
@@ -3538,7 +3538,7 @@ and handle_display ctx e_ast iscall p =
 	let e = try
 		type_expr ctx e_ast Value
 	with Error (Unknown_ident n,_) when not iscall ->
-		raise (Parser.TypePath ([n],None))
+		raise (Parser.TypePath ([n],None,false))
 	| Error (Unknown_ident "trace",_) ->
 		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
 	| Error (Type_not_found (path,_),_) as err ->
@@ -4267,7 +4267,7 @@ let make_macro_api ctx p =
 			| DisplayTypes tl ->
 				let pctx = print_context() in
 				String.concat "," (List.map (s_type pctx) tl)
-			| Parser.TypePath (p,sub) ->
+			| Parser.TypePath (p,sub,_) ->
 				(match sub with
 				| None ->
 					"path(" ^ String.concat "." p ^ ")"

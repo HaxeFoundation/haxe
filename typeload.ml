@@ -1350,7 +1350,7 @@ let type_function ctx args ret fmode f do_display p =
 			if Common.defined ctx.com Define.NoCOpt then raise Exit;
 			type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
 		with
-		| Parser.TypePath (_,None) | Exit ->
+		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
 		| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
 			type_expr ctx (if ctx.com.display = DMToplevel then find_enclosing ctx.com e else e) NoValue
