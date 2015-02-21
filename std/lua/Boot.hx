@@ -62,44 +62,47 @@ class Boot {
 	    return null;
 	}
 
+	@:keep
+	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic> {
+		tabobj.length = length;
+		tabobj._hxarray = true;
+		untyped __lua__("setmetatable(self, {__newindex = function (tab, key, value)
+		rawset(tab,key,value)
+		if key + 1> tab.length then
+			tab.length = key + 1
+		end
+	end })");
+		return tabobj;
+	}
+
 	@:ifFeature("may_print_enum")
-	private static function __string_rec(o,s:String) {
+	private static function __string_rec(o, s = '') {
 		untyped {
 			switch(__type__(o)){
 				case "nil": return "null";
-				case "boolean", "number" : return o + '';
+				case"number" : return untyped tostring(o);
+				case "boolean" : return untyped tostring(o);
 				case "string": return o;
 				case "userdata": return "<userdata>";
 				case "function": return "<function>";
 				case "thread": return "<thread>";
 				case "table": { __lua__("local result = '';
-		if next(o) == nil then return '{}'
-		elseif o[1] ~= nil then
-			result = result .. '[';
-			local first = true
-			for i, v in ipairs(o) do
-				if (first) then first = false
-				else result = result .. ','
-				end
-				result = result .. lua.Boot.__string_rec(v);
-			end
-			result = result .. ']';
+
+		if o.toString ~= nil then result = o.toString()
+		elseif o.__tostring ~= nil then result = tostring(o)
+		elseif next(o) == nil then return '{}'
 		else
 			result = result .. '{ ';
 			local first = true
 			for i, v in pairs(o) do
-				if type(i) == 'string' then
-					if (first) then first = false
-					else result = result .. ','
-					end
-					result = result .. i .. ' => ' .. lua.Boot.__string_rec(v);
+				if (first) then first = false
+				else result = result .. ','
 				end
+				result = result .. i .. ' => ' .. lua.Boot.__string_rec(v, s .. 'o');
 			end
 			result = result .. ' }';
-		end
-				");
-				return result;
-				}
+		end ");
+				return result; }
 				default : throw "Unknown Lua type";
 		    }
 		}

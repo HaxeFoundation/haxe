@@ -445,12 +445,14 @@ and gen_expr ctx e =
 	| TCall (e,el) ->
 		gen_call ctx e el false
 	| TArrayDecl el ->
-		spr ctx "{ _hxarray = true";
+		spr ctx "lua.Boot.defArray({";
+		let count = ref 0 in
 		List.iteri (fun i e ->
-		    if (i == 0) then spr ctx ",[0]="
+		    incr count;
+		    if (i == 0) then spr ctx "[0]="
 		    else spr ctx ", ";
 		    gen_value ctx e) el;
-		spr ctx " }";
+		print ctx " }, %i)" !count;
 	| TThrow e ->
 		spr ctx "throw ";
 		gen_value ctx e;
