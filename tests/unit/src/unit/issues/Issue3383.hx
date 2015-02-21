@@ -6,7 +6,7 @@ class Issue3383 extends Test {
 		var i:Int = cast null,
 				f:Float = cast null,
 				s:Single = cast null,
-				i64:haxe.Int64 = null,
+				i64:haxe.Int64 = cast null,
 				span:cs.system.TimeSpan = null,
 				ui:UInt = cast null,
 				n:cs.system.Nullable_1<Int> = null;
@@ -14,7 +14,7 @@ class Issue3383 extends Test {
 			eq(i, cast null);
 			eq(f, cast null);
 			eq(s, cast null);
-			eq(i64, null);
+			eq(i64, cast null);
 			eq(span, null);
 			eq(ui, cast null);
 			eq(n, null);

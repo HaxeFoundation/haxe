@@ -690,7 +690,10 @@ module AbstractCast = struct
 			if (Meta.has Meta.MultiType a.a_meta) then
 				mk_cast eright tleft p
 			else match a.a_impl with
-				| Some c -> recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
+				| Some c -> recurse cf (fun () ->
+					let ret = make_static_call ctx c cf a tl [eright] tleft p in
+					{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
+				)
 				| None -> assert false
 		in
 		if type_iseq tleft eright.etype then
@@ -1546,6 +1549,13 @@ struct
 		List.iter2 (fun f a -> if not (type_iseq f a) then incr acc) tlfun tlarg;
 		!acc
 
+	(**
+		The rate function returns an ( int * int ) type.
+		The smaller the int, the best rated the caller argument is in comparison with the callee.
+
+		The first int refers to how many "conversions" would be necessary to convert from the callee to the caller type, and
+		the second refers to the type parameters.
+	**)
 	let rec rate_conv cacc tfun targ =
 		match simplify_t tfun, simplify_t targ with
 		| TInst({ cl_interface = true } as cf, tlf), TInst(ca, tla) ->
@@ -1637,10 +1647,11 @@ struct
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
 
-(* 	let s_options rated =
-		String.concat ",\n" (List.map (fun ((_,t),rate) ->
+	let s_options rated =
+		String.concat ",\n" (List.map (fun ((elist,t,_),rate) ->
+			"( " ^ (String.concat "," (List.map (fun(e,_) -> s_expr (s_type (print_context())) e) elist)) ^ " ) => " ^
 			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
-		) rated) *)
+		) rated)
 
 	let count_optionals elist =
 		List.fold_left (fun acc (_,is_optional) -> if is_optional then acc + 1 else acc) 0 elist
@@ -1667,7 +1678,14 @@ struct
 				| [], [] -> acc
 				| (_,true) :: elist, _ :: args -> mk_rate acc elist args
 				| (e,false) :: elist, (n,o,t) :: args ->
-					mk_rate (rate_conv 0 t e.etype :: acc) elist args
+					(* if the argument is an implicit cast, we need to start with a penalty *)
+					(* The penalty should be higher than any other implicit cast - other than Dynamic *)
+					(* since Dynamic has a penalty of max_int, we'll impose max_int - 1 to it *)
+					(match e.eexpr with
+						| TMeta( (Meta.ImplicitCast,_,_), _) ->
+							mk_rate ((max_int - 1, 0) :: acc) elist args
+						| _ ->
+							mk_rate (rate_conv 0 t e.etype :: acc) elist args)
 				| _ -> assert false
 			in
 

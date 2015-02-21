@@ -24,7 +24,7 @@ package java;
 @:notNull @:runtimeValue @:coreType abstract Int8 from Int {}
 @:notNull @:runtimeValue @:coreType abstract Int16 from Int {}
 @:notNull @:runtimeValue @:coreType abstract Char16 from Int {}
-@:notNull @:runtimeValue @:coreType abstract Int64 from Int from Float from haxe.Int64
+@:notNull @:runtimeValue @:coreType abstract Int64 from Int from Float
 {
 	@:op(A+B) public static function addI(lhs:Int64, rhs:Int):Int64;
 	@:op(A+B) public static function add(lhs:Int64, rhs:Int64):Int64;
@@ -56,4 +56,9 @@ package java;
 
 	@:op(~A) public static function bneg(t:Int64):Int64;
 	@:op(-A) public static function neg(t:Int64):Int64;
+
+	@:op(++A) public static function preIncrement(t:Int64):Int64;
+	@:op(A++) public static function postIncrement(t:Int64):Int64;
+	@:op(--A) public static function preDecrement(t:Int64):Int64;
+	@:op(A--) public static function postDecrement(t:Int64):Int64;
 }

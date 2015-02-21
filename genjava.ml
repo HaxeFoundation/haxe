@@ -84,7 +84,7 @@ let is_java_basic_type t =
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
 		| TAbstract( { a_path = ([], "Single") }, [] )
-		| TAbstract( { a_path = (["java"], ("Int8" | "Int16" | "Char16")) }, [] )
+		| TAbstract( { a_path = (["java"], ("Int8" | "Int16" | "Char16" | "Int64")) }, [] )
 		| TAbstract( { a_path =	([], "Int") }, [] )
 		| TAbstract( { a_path =	([], "Float") }, [] )
 		| TAbstract( { a_path =	([], "Bool") }, [] ) ->
@@ -234,6 +234,8 @@ struct
 							mk_is true obj i16_md
 						| TAbstractDecl{ a_path = (["java"], "Char16") } ->
 							mk_is true obj c16_md
+						| TAbstractDecl{ a_path = (["java"], "Int64") } ->
+							mk_is true obj i64_md
 						| TClassDecl{ cl_path = (["haxe"], "Int64") } ->
 							mk_is true obj i64_md
 						| TAbstractDecl{ a_path = ([], "Dynamic") }

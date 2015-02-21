@@ -26,7 +26,7 @@ package cs;
 @:notNull @:runtimeValue @:coreType abstract Char16 from Int {}
 @:notNull @:runtimeValue @:coreType abstract UInt8 to Int from Int {}
 @:notNull @:runtimeValue @:coreType abstract UInt16 to Int {}
-@:notNull @:runtimeValue @:coreType abstract Int64 from Int from Float from haxe.Int64
+@:notNull @:runtimeValue @:coreType abstract Int64 from Int from Float
 {
 	@:op(A+B) public static function addI(lhs:Int64, rhs:Int):Int64;
 	@:op(A+B) public static function add(lhs:Int64, rhs:Int64):Int64;
@@ -56,6 +56,11 @@ package cs;
 
 	@:op(~A) public static function bneg(t:Int64):Int64;
 	@:op(-A) public static function neg(t:Int64):Int64;
+
+	@:op(++A) public static function preIncrement(t:Int64):Int64;
+	@:op(A++) public static function postIncrement(t:Int64):Int64;
+	@:op(--A) public static function preDecrement(t:Int64):Int64;
+	@:op(A--) public static function postDecrement(t:Int64):Int64;
 }
 @:notNull @:runtimeValue @:coreType abstract UInt64 from Int from Int64 from Float from haxe.Int64
 {
@@ -87,4 +92,9 @@ package cs;
 
 	@:op(~A) public static function bneg(t:UInt64):UInt64;
 	@:op(-A) public static function neg(t:UInt64):UInt64;
+
+	@:op(++A) public static function preIncrement(t:UInt64):UInt64;
+	@:op(A++) public static function postIncrement(t:UInt64):UInt64;
+	@:op(--A) public static function preDecrement(t:UInt64):UInt64;
+	@:op(A--) public static function postDecrement(t:UInt64):UInt64;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,77 +21,112 @@
  */
 package haxe;
 
-class Int64 {
+using haxe.Int64;
 
-	var high : Int;
-	var low : Int;
+ /**
+	A cross-platform signed 64-bit integer.
+	Int64 instances can be created from two 32-bit words using `Int64.make()`.
+ **/
+abstract Int64(__Int64) from __Int64 to __Int64
+{
+	private inline function new( x : __Int64 )
+		this = x;
 
-	inline function new(high, low) {
-		this.high = i32(high);
-		this.low = i32(low);
+	/**
+		Makes a copy of `this` Int64.
+	**/
+	public inline function copy():Int64
+		return make( high, low );
+
+	/**
+		Construct an Int64 from two 32-bit words `high` and `low`.
+	**/
+	public static inline function make( high:Int32, low:Int32 ) : Int64
+		return new Int64( new __Int64(high, low) );
+
+	/**
+		Returns an Int64 with the value of the Int `x`.
+		`x` is sign-extended to fill 64 bits.
+	**/
+	@:from public static inline function ofInt( x : Int ) : Int64
+		return make( x >> 31, x );
+
+	/**
+		Returns an Int with the value of the Int64 `x`.
+		Throws an exception  if `x` cannot be represented in 32 bits.
+	**/
+	public static inline function toInt( x : Int64 ) : Int {
+		if( x.high != x.low >> 31 )
+			throw "Overflow";
+
+		return x.low;
 	}
 
-	#if php
-	/*
-		private function to correctly handle 32-bit integer overflow on php
-		see: http://stackoverflow.com/questions/300840/force-php-integer-overflow
-	*/
-	private static function i32php(value:Int):Int {
-			value = (value & untyped __php__("0xFFFFFFFF"));
- 		    if ( (value & untyped __php__("0x80000000"))!=0 )
-		        value = -(((~value) & untyped __php__("0xFFFFFFFF")) + 1);
-		    return value;
-	}
-	#end
+	/**
+		Returns the high 32-bit word of `x`.
+	**/
+	public static inline function getHigh( x : Int64 ) : Int32
+		return x.high;
 
-	/*
-		private function to correctly handle 32-bit ushr on php
-		see: https://github.com/HaxeFoundation/haxe/commit/1a878aa90708040a41b0dd59f518d83b09ede209
-	*/
-	private static inline function ushr32(v:Int,n:Int):Int {
-		#if php
-		 	return (v >> n) & (untyped __php__("0x7fffffff") >> (n-1));
-		#else
-			return v>>>n;
-		#end
-	}
+	/**
+		Returns the low 32-bit word of `x`.
+	**/
+	public static inline function getLow( x : Int64 ) : Int32
+		return x.low;
 
-	@:extern static inline function i32(i) {
-		#if (js || flash8)
-			return i | 0;
-		#elseif php
-			return i32php(i); // handle overflow of 32-bit integers correctly
-		#elseif python
-			return (i + python.Syntax.opPow(2, 31)) % python.Syntax.opPow(2, 32) - python.Syntax.opPow(2, 31);
-		#else
-			return i;
-		#end
+	/**
+		Returns `true` if `x` is less than zero.
+	**/
+	public static inline function isNeg( x : Int64) : Bool
+		return x.high < 0;
+
+	/**
+		Returns `true` if `x` is exactly zero.
+	**/
+	public static inline function isZero( x : Int64 ) : Bool
+		return x == 0;
+
+	/**
+		Compares `a` and `b` in signed mode.
+		Returns a negative value if `a < b`, positive if `a > b`,
+		or 0 if `a == b`.
+	**/
+	public static inline function compare( a : Int64, b : Int64 ) : Int {
+		var v = a.high - b.high;
+		v = if( v != 0 ) v else Int32.ucompare(a.low, b.low);
+		return a.high < 0 ? (b.high < 0 ? v : -1) : (b.high >= 0 ? v : 1);
 	}
 
-	@:extern static inline function i32mul(a:Int,b:Int) {
-		#if (php || js || flash8)
-		/*
-			We can't simply use i32(a*b) since we might overflow (52 bits precision in doubles)
-		*/
-		return i32(i32((a * (b >>> 16)) << 16) + (a * (b&0xFFFF)));
-		#else
-		return a * b;
-		#end
+	/**
+		Compares `a` and `b` in unsigned mode.
+		Returns a negative value if `a < b`, positive if `a > b`,
+		or 0 if `a == b`.
+	**/
+	public static inline function ucompare( a : Int64, b : Int64 ) : Int {
+		var v = Int32.ucompare(a.high, b.high);
+		return if( v != 0 ) v else Int32.ucompare(a.low, b.low);
 	}
 
-	#if as3 public #end function toString() {
-		if ((high|low) == 0 )
+	/**
+		Returns a signed decimal `String` representation of `x`.
+	**/
+	public static inline function toStr(x:Int64) : String
+		return x.toString();
+
+	#if as3 public #else private #end function toString() : String
+	{
+		var i : Int64 = cast this;
+		if ( i == 0 )
 			return "0";
 		var str = "";
 		var neg = false;
-		var i = this;
-		if( isNeg(i) ) {
+		if( i.isNeg() ) {
 			neg = true;
-			i = Int64.neg(i);
+			i = -i;
 		}
-		var ten = ofInt(10);
-		while( !isZero(i) ) {
-			var r = divMod(i, ten);
+		var ten : Int64 = 10;
+		while( i != 0 ) {
+			var r = i.divMod( ten );
 			str = r.modulus.low + str;
 			i = r.quotient;
 		}
@@ -99,176 +134,308 @@ class Int64 {
 		return str;
 	}
 
-	public static inline function make( high : Int, low : Int ) : Int64 {
-		return new Int64(high, low);
-	}
-
-	public static inline function ofInt( x : Int ) : Int64 {
-		return new Int64(x >> 31,x);
-	}
-
-	public static function toInt( x : Int64 ) : Int {
-		if( x.high != 0 ) {
-			if( x.high < 0 )
-				return -toInt(neg(x));
-			throw "Overflow";
+	/**
+		Performs signed integer divison of `dividend` by `divisor`.
+		Returns `{ quotient : Int64, modulus : Int64 }`.
+	**/
+	public static function divMod( dividend : Int64, divisor : Int64 ) : { quotient : Int64, modulus : Int64 }
+	{
+		// Handle special cases of 0 and 1
+		if( divisor.high == 0 )
+		{
+			switch( divisor.low ) {
+				case 0: throw "divide by zero";
+				case 1: return { quotient : dividend.copy(), modulus : 0 };
+			}
 		}
-		return x.low;
+
+		var divSign = dividend.isNeg() != divisor.isNeg();
+
+		var modulus = dividend.isNeg() ? -dividend : dividend.copy();
+		divisor = divisor.isNeg() ? -divisor : divisor;
+
+		var quotient : Int64 = 0;
+		var mask : Int64 = 1;
+
+		while( !divisor.isNeg() ) {
+			var cmp = ucompare( divisor, modulus );
+			divisor <<= 1;
+			mask <<= 1;
+			if( cmp >= 0 ) break;
+		}
+
+		while( mask != 0 ) {
+			if( ucompare(modulus, divisor) >= 0 ) {
+				quotient |= mask;
+				modulus -= divisor;
+			}
+			mask >>>= 1;
+			divisor >>>= 1;
+		}
+
+		if( divSign ) quotient = -quotient;
+		if( dividend.isNeg() ) modulus = -modulus;
+
+		return {
+			quotient : quotient,
+			modulus  : modulus
+		};
 	}
 
-	public static function getLow( x : Int64 ) : Int {
-		return x.low;
-	}
-
-	public static function getHigh( x : Int64 ) : Int {
-		return x.high;
-	}
-
-	public static function add( a : Int64, b : Int64 ) : Int64 {
-		var high = i32(a.high + b.high);
-		var low = i32(a.low + b.low);
-		if( uicompare(low,a.low) < 0 )
+	/**
+		Returns the negative of `x`.
+	**/
+	@:op(-A) public static inline function neg( x : Int64 ) : Int64 {
+		var high = ~x.high;
+		var low = -x.low;
+		if( low == 0 )
 			high++;
-		return new Int64(high, low);
+		return make( high, low );
 	}
 
-	public static function sub( a : Int64, b : Int64 ) : Int64 {
-		var high = i32(a.high - b.high); // i32() call required to match add
-		var low = i32(a.low - b.low); // i32() call required to match add
-		if( uicompare(a.low,b.low) < 0 )
-			high--;
-		return new Int64(high, low);
+	@:op(++A) private inline function preIncrement() : Int64 {
+		this.low++;
+		if( this.low == 0 ) this.high++;
+		return cast this;
 	}
 
-	public static function mul( a : Int64, b : Int64 ) : Int64 {
+	@:op(A++) private inline function postIncrement() : Int64 {
+		var ret = copy();
+		preIncrement();
+		return ret;
+	}
+
+	@:op(--A) private inline function preDecrement() : Int64 {
+		if( this.low == 0 ) this.high--;
+		this.low--;
+		return cast this;
+	}
+
+	@:op(A--) private inline function postDecrement() : Int64 {
+		var ret = copy();
+		preDecrement();
+		return ret;
+	}
+
+	/**
+		Returns the sum of `a` and `b`.
+	**/
+	@:op(A + B) public static inline function add( a : Int64, b : Int64 ) : Int64 {
+		var high = a.high + b.high;
+		var low = a.low + b.low;
+		if( Int32.ucompare( low, a.low ) < 0 ) high++;
+		return make( high, low );
+	}
+
+	@:op(A + B) @:commutative private static inline function addInt( a : Int64, b : Int ) : Int64
+		return add( a, b );
+
+	/**
+		Returns `a` minus `b`.
+	**/
+	@:op(A - B) public static inline function sub( a : Int64, b : Int64 ) : Int64 {
+		var high = a.high - b.high;
+		var low = a.low - b.low;
+		if( Int32.ucompare( a.low, b.low ) < 0 ) high--;
+        return make( high, low );
+	}
+
+	@:op(A - B) private static inline function subInt( a : Int64, b : Int ) : Int64
+		return sub( a, b );
+
+	@:op(A - B) private static inline function intSub( a : Int, b : Int64 ) : Int64
+		return sub( a, b );
+
+	/**
+		Returns the product of `a` and `b`.
+	**/
+	@:op(A * B) public static inline function mul( a : Int64, b : Int64 ) : Int64 {
 		var mask = 0xFFFF;
-		var al = a.low & mask, ah = ushr32(a.low , 16);
-		var bl = b.low & mask, bh = ushr32(b.low , 16);
+		var al = a.low & mask, ah = a.low >>> 16;
+		var bl = b.low & mask, bh = b.low >>> 16;
 		var p00 = al * bl;
 		var p10 = ah * bl;
 		var p01 = al * bh;
 		var p11 = ah * bh;
 		var low = p00;
-		var high = i32(p11 + ushr32(p01 , 16) + ushr32(p10 , 16));
-		p01 = i32(p01 << 16); low = i32(low + p01); if( uicompare(low, p01) < 0 ) high = i32(high + 1);
-		p10 = i32(p10 << 16); low = i32(low + p10); if( uicompare(low, p10) < 0 ) high = i32(high + 1);
-		high = i32(high + i32mul(a.low,b.high));
-		high = i32(high + i32mul(a.high,b.low));
-		return new Int64(high, low);
+		var high = p11 + (p01 >>> 16) + (p10 >>> 16);
+		p01 <<= 16;
+		low += p01;
+		if( Int32.ucompare(low, p01) < 0 ) high++;
+		p10 <<= 16;
+		low += p10;
+		if( Int32.ucompare(low, p10) < 0 ) high++;
+		high += a.low * b.high + a.high * b.low;
+		return make( high, low );
 	}
 
-	static function divMod( modulus : Int64, divisor : Int64 ) {
-		var quotient = new Int64(0, 0);
-		var mask = new Int64(0, 1);
-		divisor = new Int64(divisor.high, divisor.low);
-		while( divisor.high >= 0 ) {
-			var cmp = ucompare(divisor, modulus);
-			divisor.high = i32( i32(divisor.high << 1) | ushr32(divisor.low , 31) );
-			divisor.low = i32(divisor.low << 1);
-			mask.high = i32( i32(mask.high << 1) | ushr32(mask.low , 31) );
-			mask.low = i32(mask.low << 1);
-			if( cmp >= 0 ) break;
-		}
-		while( i32(mask.low | mask.high) != 0 ) {
-			if( ucompare(modulus, divisor) >= 0 ) {
-				quotient.high= i32(quotient.high | mask.high);
-				quotient.low= i32(quotient.low | mask.low);
-				modulus = sub(modulus,divisor);
-			}
-			mask.low = i32( ushr32(mask.low , 1) | i32(mask.high << 31) );
-			mask.high = ushr32(mask.high , 1);
+	@:op(A * B) @:commutative private static inline function mulInt( a : Int64, b : Int ) : Int64
+		return mul( a, b );
 
-			divisor.low = i32( ushr32(divisor.low , 1) | i32(divisor.high << 31) );
-			divisor.high = ushr32(divisor.high , 1);
-		}
-		return { quotient : quotient, modulus : modulus };
-	}
+	/**
+		Returns the quotient of `a` divided by `b`.
+	**/
+	@:op(A / B) public static inline function div( a : Int64, b : Int64 ) : Int64
+		return divMod(a, b).quotient;
 
-	public static function div( a : Int64, b : Int64 ) : Int64 {
-		if(b.high==0) // handle special cases of 0 and 1
-			switch(b.low) {
-			case 0:	throw "divide by zero";
-			case 1: return new Int64(a.high,a.low);
-			}
-		var sign = ((a.high<0) || (b.high<0)) && (!( (a.high<0) && (b.high<0))); // make sure we get the correct sign
-		if( a.high < 0 ) a = neg(a);
-		if( b.high < 0 ) b = neg(b);
-		var q = divMod(a, b).quotient;
-		return sign ? neg(q) : q;
-	}
+	@:op(A / B) private static inline function divInt( a : Int64, b : Int ) : Int64
+		return div( a, b );
 
-	public static function mod( a : Int64, b : Int64 ) : Int64 {
-		if(b.high==0) // handle special cases of 0 and 1
-			switch(b.low) {
-			case 0:	throw "modulus by zero";
-			case 1: return ofInt(0);
-			}
-		var sign = a.high<0; // the sign of a modulus is the sign of the value being mod'ed
-		if( a.high < 0 ) a = neg(a);
-		if( b.high < 0 ) b = neg(b);
-		var m = divMod(a, b).modulus;
-		return sign ? neg(m) : m;
-	}
+	@:op(A / B) private static inline function intDiv( a : Int, b : Int64 ) : Int64
+		return div( a, b ).toInt();
 
-	public static inline function shl( a : Int64, b : Int ) : Int64 {
-		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( (a.high << b) | ushr32(a.low, i32(32-(b&63))), a.low << b ) else new Int64( a.low << i32(b - 32), 0 );
-	}
+	/**
+		Returns the modulus of `a` divided by `b`.
+	**/
+	@:op(A % B) public static inline function mod( a : Int64, b : Int64 ) : Int64
+		return divMod(a, b).modulus;
 
-	public static inline function shr( a : Int64, b : Int ) : Int64 {
-		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( a.high >> b, ushr32(a.low,b) | (a.high << i32(32 - (b&63))) ) else new Int64( a.high >> 31, a.high >> i32(b - 32) );
-	}
+	@:op(A % B) private static inline function modInt( a : Int64, b : Int ) : Int64
+		return mod( a, b ).toInt();
 
-	public static inline function ushr( a : Int64, b : Int ) : Int64 {
-		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( ushr32(a.high, b), ushr32(a.low, b) | (a.high << i32(32 - (b&63))) ) else new Int64( 0, ushr32(a.high, i32(b - 32)) );
-	}
+	@:op(A % B) private static inline function intMod( a : Int, b : Int64 ) : Int64
+		return mod( a, b ).toInt();
 
-	public static inline function and( a : Int64, b : Int64 ) : Int64 {
-		return new Int64( a.high & b.high, a.low & b.low );
-	}
+	/**
+		Returns `true` if `a` is equal to `b`.
+	**/
+	@:op(A == B) public static inline function eq( a : Int64, b : Int64 ) : Bool
+		return a.high == b.high && a.low == b.low;
 
-	public static inline function or( a : Int64, b : Int64 ) : Int64 {
-		return new Int64( a.high | b.high, a.low | b.low );
-	}
+	@:op(A == B) @:commutative private static inline function eqInt( a : Int64, b : Int ) : Bool
+		return eq( a, b );
 
-	public static inline function xor( a : Int64, b : Int64 ) : Int64 {
-		return new Int64( a.high ^ b.high, a.low ^ b.low );
-	}
+	/**
+		Returns `true` if `a` is not equal to `b`.
+	**/
+	@:op(A != B) public static inline function neq( a : Int64, b : Int64 ) : Bool
+		return a.high != b.high || a.low != b.low;
 
-	public static inline function neg( a : Int64 ) : Int64 {
-		var high = i32(~a.high);
-		var low = i32(-a.low);
-		if( low == 0 )
-			high++;
-		return new Int64(high,low);
-	}
+	@:op(A != B) @:commutative private static inline function neqInt( a : Int64, b : Int ) : Bool
+		return neq(a, b);
 
-	public static inline function isNeg( a : Int64 ) : Bool {
-		return a.high < 0;
-	}
+	@:op(A < B) private static inline function lt( a : Int64, b : Int64 ) : Bool
+		return compare(a, b) < 0;
 
-	public static inline function isZero( a : Int64 ) : Bool {
-		return (a.high | a.low) == 0;
-	}
+	@:op(A < B) private static inline function ltInt( a : Int64, b : Int ) : Bool
+		return lt(a, b);
 
-	static function uicompare( a : Int, b : Int ) {
-		return a < 0 ? (b < 0 ? i32(~b - ~a) : 1) : (b < 0 ? -1 : i32(a - b));
-	}
+	@:op(A < B) private static inline function intLt( a : Int, b : Int64 ) : Bool
+		return lt(a, b);
 
-	public static inline function compare( a : Int64, b : Int64 ) : Int {
-		var v = i32(a.high - b.high);
-		return if( v != 0 ) v else uicompare(a.low,b.low);
+	@:op(A <= B) private static inline function lte( a : Int64, b : Int64 ) : Bool
+		return compare(a, b) <= 0;
+
+	@:op(A <= B) private static inline function lteInt( a : Int64, b : Int ) : Bool
+		return lte(a, b);
+
+	@:op(A <= B) private static inline function intLte( a : Int, b : Int64 ) : Bool
+		return lte(a, b);
+
+	@:op(A > B) private static inline function gt( a : Int64, b : Int64 ) : Bool
+		return compare(a, b) > 0;
+
+	@:op(A > B) private static inline function gtInt( a : Int64, b : Int ) : Bool
+		return gt(a, b);
+
+	@:op(A > B) private static inline function intGt( a : Int, b : Int64 ) : Bool
+		return gt( a, b );
+
+	@:op(A >= B) private static inline function gte( a : Int64, b : Int64 ) : Bool
+		return compare(a, b) >= 0;
+
+	@:op(A >= B) private static inline function gteInt( a : Int64, b : Int ) : Bool
+		return gte(a, b);
+
+	@:op(A >= B) private static inline function intGte( a : Int, b : Int64 ) : Bool
+		return gte(a, b);
+
+	/**
+		Returns the bitwise NOT of `a`.
+	**/
+	@:op(~A) private static inline function complement( a : Int64 ) : Int64
+		return make( ~a.high, ~a.low );
+
+	/**
+		Returns the bitwise AND of `a` and `b`.
+	**/
+	@:op(A & B) public static inline function and( a : Int64, b : Int64 ) : Int64
+		return make( a.high & b.high, a.low & b.low );
+
+	/**
+		Returns the bitwise OR of `a` and `b`.
+	**/
+	@:op(A | B) public static inline function or( a : Int64, b : Int64 ) : Int64
+		return make( a.high | b.high, a.low | b.low );
+
+	/**
+		Returns the bitwise XOR of `a` and `b`.
+	**/
+	@:op(A ^ B) public static inline function xor( a : Int64, b : Int64 ) : Int64
+		return make( a.high ^ b.high, a.low ^ b.low );
+
+	/**
+		Returns `a` left-shifted by `b` bits.
+	**/
+	@:op(A << B) public static inline function shl( a : Int64, b : Int ) : Int64 {
+		b &= 63;
+		return if( b == 0 ) a.copy()
+			else if( b < 32 ) make( (a.high << b) | (a.low >>> (32-b)), a.low << b)
+			else make( a.low << (b-32), 0 );
 	}
 
 	/**
-		Compare two Int64 in unsigned mode.
+		Returns `a` right-shifted by `b` bits in signed mode.
+		`a` is sign-extended.
 	**/
-	public static inline function ucompare( a : Int64, b : Int64 ) : Int {
-		var v = uicompare(a.high,b.high);
-		return if( v != 0 ) v else uicompare(a.low, b.low);
+	@:op(A >> B) public static inline function shr( a : Int64, b : Int) : Int64 {
+		b &= 63;
+		return if( b == 0 ) a.copy()
+			else if( b < 32 ) make( a.high >> b, (a.high << (32-b)) | (a.low >>> b) )
+			else make( a.high >> 31, a.high >> (b - 32) );
 	}
 
-	public static inline function toStr( a : Int64 ) : String {
-		return a.toString();
+	/**
+		Returns `a` right-shifted by `b` bits in unsigned mode.
+		`a` is padded with zeroes.
+	**/
+	@:op(A >>> B) public static inline function ushr( a : Int64, b : Int ) : Int64 {
+		b &= 63;
+		return if( b == 0 ) a.copy()
+			else if( b < 32 ) make( a.high >>> b, (a.high << (32-b)) | (a.low >>> b) )
+			else make( 0, a.high >>> (b - 32) );
 	}
 
+	private var high(get,set) : Int32;
+	private inline function get_high() return this.high;
+	private inline function set_high(x) return this.high = x;
+
+	private var low(get,set) : Int32;
+	private inline function get_low() return this.low;
+	private inline function set_low(x) return this.low = x;
+}
+
+/**
+  * This typedef will fool @:coreApi into thinking that we are using
+  * the same underlying type, even though it might be different on
+  * specific platforms.
+  */
+private typedef __Int64 = ___Int64;
+
+private class ___Int64 {
+	public var high : Int32;
+	public var low : Int32;
+
+	public inline function new( high, low ) {
+		this.high = high;
+		this.low = low;
+	}
+
+	/**
+		We also define toString here to ensure we always get a pretty string
+		when tracing or calling Std.string. This tends not to happen when
+		toString is only in the abstract.
+	**/
+	public function toString() : String
+		return Int64.toStr( cast this );
 }

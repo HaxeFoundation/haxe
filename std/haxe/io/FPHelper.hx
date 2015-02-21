@@ -257,8 +257,8 @@ class FPHelper {
 			helper.position = 0;
 			var i64 = i64tmp;
 			@:privateAccess {
-				i64.low = helper.readUnsignedInt();
-				i64.high = helper.readUnsignedInt();
+				i64.low = cast helper.readUnsignedInt();
+				i64.high = cast helper.readUnsignedInt();
 			}
 			return i64;
 		#elseif php
