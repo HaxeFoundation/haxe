@@ -443,7 +443,12 @@ class Context {
 	}
 
 	/**
-		Defines a new module with several `TypeDefinition` `types`.
+		Defines a new module as `modulePath` with several `TypeDefinition`
+		`types`. This is analogous to defining a .hx file.
+
+		The individial `types` can reference each other and any identifier
+		respects the `imports` and `usings` as usual, expect that imports are
+		not allowed to have `.*` wildcards or `in s` shorthands.
 	**/
 	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?imports: Array<ImportExpr>, ?usings : Array<TypePath> ) : Void {
 		if (imports == null) imports = [];
