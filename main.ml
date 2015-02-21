@@ -1212,7 +1212,7 @@ try
 		("--display", Arg.String (fun file_pos ->
 			match file_pos with
 			| "classes" ->
-				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
+				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true))) :: !pre_compilation;
 			| "keywords" ->
 				complete_fields com (Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [])
 			| "memory" ->
@@ -1673,7 +1673,7 @@ with
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
-	| Parser.TypePath (p,c) ->
+	| Parser.TypePath (p,c,is_import) ->
 		(match c with
 		| None ->
 			let packs, classes = read_type_path com p in
@@ -1699,7 +1699,30 @@ with
 							raise e
 				in
 				let m = lookup p in
-				complete_fields com (List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
+				let statics = ref None in
+				let public_types = List.filter (fun t ->
+					let tinfos = t_infos t in
+					if snd tinfos.mt_path = c then begin match t with
+						| TClassDecl c ->
+							ignore(c.cl_build());
+							statics := Some c.cl_ordered_statics
+						| _ -> ()
+					end;
+					not tinfos.mt_private
+				) m.m_types in
+				let types = List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") public_types in
+				let ctx = print_context() in
+				let make_field_doc cf =
+					cf.cf_name,
+					s_type ctx cf.cf_type,
+					Some (match cf.cf_kind with Method _ -> Typer.FKMethod | Var _ -> Typer.FKVar),
+					(match cf.cf_doc with Some s -> s | None -> "")
+				in
+				let types = match !statics with
+					| None -> types
+					| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
+				in
+				complete_fields com types
 			with Completion c ->
 				raise (Completion c)
 			| _ ->

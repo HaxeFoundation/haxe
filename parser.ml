@@ -32,7 +32,7 @@ type error_msg =
 	| Custom of string
 
 exception Error of error_msg * pos
-exception TypePath of string list * (string * bool) option
+exception TypePath of string list * (string * bool) option * bool (* in import *)
 exception Display of expr
 
 let error_msg = function
@@ -566,17 +566,17 @@ and parse_type_decls pack acc s =
 		match s with parser
 		| [< v = parse_type_decl; l = parse_type_decls pack (v :: acc) >] -> l
 		| [< >] -> List.rev acc
-	with TypePath ([],Some (name,false)) ->
+	with TypePath ([],Some (name,false),b) ->
 		(* resolve imports *)
 		List.iter (fun d ->
 			match fst d with
 			| EImport (t,_) ->
 				(match List.rev t with
-				| (n,_) :: path when n = name && List.for_all (fun (i,_) -> is_lower_ident i) path -> raise (TypePath (List.map fst (List.rev path),Some (name,false)))
+				| (n,_) :: path when n = name && List.for_all (fun (i,_) -> is_lower_ident i) path -> raise (TypePath (List.map fst (List.rev path),Some (name,false),b))
 				| _ -> ())
 			| _ -> ()
 		) acc;
-		raise (TypePath (pack,Some(name,true)))
+		raise (TypePath (pack,Some(name,true),b))
 
 and parse_type_decl s =
 	match s with parser
@@ -645,8 +645,8 @@ and parse_import s p1 =
 		| [< '(Dot,p) >] ->
 			let resume() =
 				match acc with
-				| (n,_) :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev (List.map fst l),Some (n,false)));
-				| _ -> raise (TypePath (List.rev (List.map fst acc),None));
+				| (n,_) :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev (List.map fst l),Some (n,false),true));
+				| _ -> raise (TypePath (List.rev (List.map fst acc),None,true));
 			in
 			if is_resuming p then resume();
 			(match s with parser
@@ -835,7 +835,7 @@ and parse_type_path1 pack = parser
 			(match s with parser
 			| [< '(Dot,p) >] ->
 				if is_resuming p then
-					raise (TypePath (List.rev (name :: pack),None))
+					raise (TypePath (List.rev (name :: pack),None,false))
 				else
 					parse_type_path1 (name :: pack) s
 			| [< '(Semicolon,_) >] ->
@@ -845,12 +845,12 @@ and parse_type_path1 pack = parser
 			let sub = (match s with parser
 				| [< '(Dot,p); s >] ->
 					(if is_resuming p then
-						raise (TypePath (List.rev pack,Some (name,false)))
+						raise (TypePath (List.rev pack,Some (name,false),false))
 					else match s with parser
 						| [< '(Const (Ident name),_) when not (is_lower_ident name) >] -> Some name
 						| [< '(Binop OpOr,_) when do_resume() >] ->
 							set_resume p;
-							raise (TypePath (List.rev pack,Some (name,false)))
+							raise (TypePath (List.rev pack,Some (name,false),false))
 						| [< >] -> serror())
 				| [< >] -> None
 			) in
@@ -865,7 +865,7 @@ and parse_type_path1 pack = parser
 				tsub = sub;
 			}
 	| [< '(Binop OpOr,_) when do_resume() >] ->
-		raise (TypePath (List.rev pack,None))
+		raise (TypePath (List.rev pack,None,false))
 
 and type_name = parser
 	| [< '(Const (Ident name),p) >] ->
