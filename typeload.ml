@@ -25,6 +25,8 @@ open Type
 open Common
 open Typecore
 
+let locate_macro_error = ref true
+
 (*
 	Build module structure : should be atomic - no type loading is possible
 *)
@@ -1665,9 +1667,10 @@ let init_class ctx c p context_init herits fields =
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
-			if ep.pfile <> c.cl_pos.pfile then ctx.com.error "Defined in this class" c.cl_pos
+			if !locate_macro_error && (ep.pfile <> c.cl_pos.pfile || ep.pmax < c.cl_pos.pmin || ep.pmin > c.cl_pos.pmax) then ctx.com.error "Defined in this class" c.cl_pos
 		);
 	} in
+	locate_macro_error := true;
 	incr stats.s_classes_built;
 	let fields = patch_class ctx c fields in
 	let fields = ref fields in

@@ -3941,9 +3941,14 @@ and build_call ctx acc el (with_type:with_type) p =
 		ctx.with_type_stack <- List.tl ctx.with_type_stack;
 		let old = ctx.on_error in
 		ctx.on_error <- (fun ctx msg ep ->
-			old ctx msg ep;
 			(* display additional info in the case the error is not part of our original call *)
-			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then old ctx "Called from macro here" p
+			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
+				Typeload.locate_macro_error := false;
+				old ctx msg ep;
+				Typeload.locate_macro_error := true;
+				ctx.com.error "Called from macro here" p;
+			end else
+				old ctx msg ep;
 		);
 		let e = try
 			f()
