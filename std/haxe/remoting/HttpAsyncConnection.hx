@@ -46,11 +46,47 @@ class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncCon
 		#if (neko && no_remoting_shutdown)
 			h.noShutdown = true;
 		#end
+		
+		var files	= new List();
+		function isFile( p : Dynamic ) {
+			try{
+				if ( p.param != null && p.filename != null && p.bytes != null  )	return true;
+			}catch( e : Dynamic ){}
+			return false;
+		}
+		function searchFile( o : Dynamic ) {
+			if ( Std.is( o, Array ) ) {
+				var a	: Array<Dynamic>	= cast o;
+				for ( i in 0...a.length ) {
+					var p	= a [ i ];
+					if ( isFile( p ) ) {
+						files.add( cast p );
+						a[ i ]	= '__file__${ p.param }';
+					}else if ( Std.is( p, Array ) || ( Reflect.isObject( p ) ) ) {
+						searchFile( p );
+					}
+				}
+			}else if ( Reflect.isObject( o ) && !Std.is( o, String ) ) {
+				for ( k in Reflect.fields( o ) ) {
+					var p	= Reflect.getProperty( o, k );
+					if ( isFile( p ) ) {
+						files.add( cast p );
+						Reflect.setProperty( o, k ,'__file__${ p.param }' );
+					}else if ( Std.is( p, Array ) || ( Reflect.isObject( p ) ) ) {
+						searchFile( p );
+					}
+				}
+			}
+		}
+		for( p in params ){
+			searchFile( p );
+		}
 		var s = new haxe.Serializer();
 		s.serialize(__path);
 		s.serialize(params);
 		h.setHeader("X-Haxe-Remoting","1");
-		h.setParameter("__x",s.toString());
+		h.setParameter("__x", s.toString());
+		for ( file in files )	h.addFileTransfer( file.param, file.filename, file.bytes, file.mimeType );
 		var error = __data.error;
 		h.onData = function( response : String ) {
 			var ok = true;
