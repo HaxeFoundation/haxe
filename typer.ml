@@ -2879,11 +2879,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		| WithType t | WithTypeResume t ->
 			(match follow t with
 			| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
-			| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) && a.a_from <> [] ->
+			(* issues with https://github.com/HaxeFoundation/haxe/issues/3437 *)
+(* 			| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) && a.a_from <> [] ->
 				begin match follow (Abstract.get_underlying_type a tl) with
 					| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
 					| _ -> None
-				end
+				end *)
 			| TDynamic t when (follow t != t_dynamic) ->
 				dynamic_parameter := Some t;
 				Some {
