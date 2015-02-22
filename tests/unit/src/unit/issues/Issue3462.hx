@@ -27,9 +27,7 @@ class Issue3462 extends Test
 
 		var keyCount:Int = 0;
 		for (k in d.keys()) {
-			#if !php // https://github.com/HaxeFoundation/haxe/issues/3898
 			f( keys.indexOf(k) == -1 ); // key missing from keys iterator
-			#end
 			keyCount++;
 		}
 		f(keyCount != keys.length); // keys missing
@@ -62,9 +60,7 @@ class Issue3462 extends Test
 		}
 		var keyCount:Int = 0;
 		for (k in d.keys()) {
-			#if !php // https://github.com/HaxeFoundation/haxe/issues/3898
 			f( keys.indexOf(k) == -1 ); // key missing from keys iterator
-			#end
 			keyCount++;
 		}
 		f( keyCount != keys.length ); // keys missing

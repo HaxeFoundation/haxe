@@ -26,42 +26,38 @@ package haxe.ds;
 	private var h : ArrayAccess<T>;
 
 	public function new() : Void {
-		h = untyped __php__("new stdClass");
+		h = untyped __call__('array');
 	}
 
 	public function set( key : String, value : T ) : Void {
-		untyped __php__("$this->h->$key = $value");
+		untyped h[key] = value;
 	}
 
 	public function get( key : String ) : Null<T> {
-		if (untyped __call__("property_exists", h, key))
-			return untyped __php__("$this->h->$key");
+		if (untyped __call__("array_key_exists", key, h))
+			return untyped h[key];
 		else
 			return null;
 	}
 
 	public function exists( key : String ) : Bool {
-		return untyped __call__("property_exists", h, key);
+		return untyped __call__("array_key_exists", key, h);
 	}
 
 	public function remove( key : String ) : Bool {
-		if (untyped __call__("property_exists", h, key)) {
-			untyped __php__("unset($this->h->$key)");
+		if (untyped __call__("array_key_exists", key, h)) {
+			untyped __call__("unset", h[key]);
 			return true;
 		} else
 			return false;
 	}
 
 	public function keys() : Iterator<String> {
-		var arr = untyped __call__("array");
-		untyped __php__("foreach ($this->h as $key => $val) $arr[] = $key");
-		return untyped __call__("new _hx_array_iterator", arr);
+		return untyped __call__("new _hx_array_iterator", __call__("array_map", "strval", __call__("array_keys", h)));
 	}
 
 	public function iterator() : Iterator<T> {
-		var arr = untyped __call__("array");
-		untyped __php__("foreach ($this->h as $key => $val) $arr[] = $val");
-		return untyped __call__("new _hx_array_iterator", arr);
+		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
 	}
 
 	public function toString() : String {
