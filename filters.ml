@@ -81,6 +81,7 @@ let promote_complex_rhs com e =
 			| TVar(v,eo) ->
 				begin match eo with
 					| Some e when is_complex e ->
+						let e = find e in
 						r := (loop (fun e -> mk (TBinop(OpAssign,mk (TLocal v) v.v_type e.epos,e)) v.v_type e.epos) e)
 							:: ((mk (TVar (v,None)) com.basic.tvoid e.epos))
 							:: !r
