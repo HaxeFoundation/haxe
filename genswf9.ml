@@ -1633,10 +1633,15 @@ and gen_binop ctx retval op e1 e2 t p =
 		gen_expr ctx true e2;
 		write_op op;
 		setvar ctx wacc (if retval then Some (classify ctx e1.etype) else None)
-	| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
+	| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpMod ->
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		write_op op
+	| OpShl | OpShr	| OpUShr ->
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write_op op;
+		coerce ctx (classify ctx e1.etype)
 	| OpEq ->
 		gen_eq()
 	| OpNotEq ->
