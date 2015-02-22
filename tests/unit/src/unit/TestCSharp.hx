@@ -69,11 +69,11 @@ class TestCSharp extends Test
 		eq(dyn.get_Item(2,3), 6);
 	}
 
-	// function testOptional()
-	// {
-	// 	eq(new Base().optional(), 420);
-	// 	eq(new Base().optional(10), 100);
-	// }
+	function testOptional()
+	{
+		eq(new Base().optional(), 420);
+		eq(new Base().optional(10), 100);
+	}
 
 	function testProp()
 	{

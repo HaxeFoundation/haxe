@@ -9709,6 +9709,20 @@ struct
 					gen.ghandle_cast to_t e_null_t (unwrap_null e)
 		in
 
+		let extract_meta e =
+			let meta = ref None in
+			let rec loop e = match e.eexpr with
+				| TParenthesis(_) | TCast(_) ->
+					Type.map_expr loop e
+				| TMeta(m,e) ->
+					meta := Some m;
+					e
+				| _ -> e
+			in
+			let ret = loop e in
+			!meta, ret
+		in
+
 		let handle_wrap e t =
 			match e.eexpr with
 				| TConst(TNull) ->
@@ -9782,6 +9796,18 @@ struct
 				| TCall(ecall, params) when is_some (is_null_t ecall.etype) ->
 					let to_t = get (is_null_t ecall.etype) in
 					{ e with eexpr = TCall(handle_unwrap to_t (run ecall), List.map run params) }
+				| TCall(ec, args) ->
+					(* this will only happen on CsNative classes, which never return a Null<T> *)
+					let ec = run ec in
+					let args = List.map (fun arg ->
+						let meta, arg = extract_meta arg in
+						match meta with
+							| None ->
+								run arg
+							| Some meta ->
+								{ arg with eexpr = TMeta(meta, run arg) }
+					) args in
+					{ e with eexpr = TCall(ec,args) }
 				| TArray(earray, p) when is_some (is_null_t earray.etype) ->
 					let to_t = get (is_null_t earray.etype) in
 					{ e with eexpr = TArray(handle_unwrap to_t (run earray), p) }
@@ -10419,6 +10445,8 @@ struct
 						} ); etype = TFun(!args, ret) } );
 						cf.cf_type <- TFun(!args, ret)
 
+					| true, None when Meta.has Meta.CsNative cf.cf_meta ->
+							args := List.map (fun (n,o,t) -> if o then (n,o,follow t) else (n,o,t) ) !args
 					| _ -> ()
 				);
 				(if !found then cf.cf_type <- TFun(!args, ret))
@@ -11066,8 +11094,11 @@ struct
 	let default_implementation gen ~metas =
 		let rec run e =
 			match e.eexpr with
-			| TMeta(entry, e) when not (Hashtbl.mem metas entry) ->
+			| TMeta((entry,_,_), e) when not (Hashtbl.mem metas entry) ->
 				run e
+			| TMeta(entry,e) ->
+				let e = run e in
+				{ e with eexpr = TMeta(entry,e); }
 			| _ ->
 				map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
 		in

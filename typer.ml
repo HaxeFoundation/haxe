@@ -688,7 +688,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		if is_pos_infos t then
 			mk_pos_infos t
 		else
-			null (ctx.t.tnull t) callp
+			{ eexpr = TMeta( (Meta.Padded,[],callp), null (ctx.t.tnull t) callp ); etype = t; epos = callp }
 	in
 	let skipped = ref [] in
 	let skip name ul t =
@@ -4692,7 +4692,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				(* get back our index and real expression *)
 				| TArray ({ eexpr = TArrayDecl [e] }, { eexpr = TConst (TInt index) }) -> List.nth el (Int32.to_int index), e
 				(* added by unify_call_args *)
-				| TConst TNull -> (EConst (Ident "null"),e.epos), e
+				| TMeta( (Meta.Padded,_,_), { eexpr = TConst TNull } ) -> (EConst (Ident "null"),e.epos), e
 				| _ -> assert false
 			) in
 			if ise then
