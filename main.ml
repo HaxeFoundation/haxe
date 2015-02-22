@@ -1589,6 +1589,8 @@ try
 with
 	| Abort ->
 		()
+	| Ast.Error (m,p) ->
+		error ctx m p
 	| Typecore.Fatal_error (m,p) ->
 		error ctx m p
 	| Common.Abort (m,p) ->
