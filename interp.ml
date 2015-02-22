@@ -1468,10 +1468,10 @@ let std_lib =
 		"file_seek", Fun3 (fun f pos mode ->
 			match f, pos, mode with
 			| VAbstract (AFRead f), VInt pos, VInt mode ->
-				seek_in f (match mode with 0 -> pos | 1 -> pos_in f + pos | 2 -> in_channel_length f - pos | _ -> error());
+				seek_in f (match mode with 0 -> pos | 1 -> pos_in f + pos | 2 -> in_channel_length f + pos | _ -> error());
 				VNull;
 			| VAbstract (AFWrite f), VInt pos, VInt mode ->
-				seek_out f (match mode with 0 -> pos | 1 -> pos_out f + pos | 2 -> out_channel_length f - pos | _ -> error());
+				seek_out f (match mode with 0 -> pos | 1 -> pos_out f + pos | 2 -> out_channel_length f + pos | _ -> error());
 				VNull;
 			| _ -> error()
 		);
