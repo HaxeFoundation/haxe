@@ -627,7 +627,11 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> (match e.eexpr with
+			| TMeta((Meta.QuotedField,_,_),e) -> print ctx "'%s' : " f;
+			| _ -> print ctx "%s : " (anon_field f));
+			gen_value ctx e
+		) fields;
 		spr ctx "}";
 		ctx.separator <- true
 	| TFor (v,it,e) ->

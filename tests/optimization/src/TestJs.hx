@@ -105,4 +105,30 @@ class TestJs {
 	}
 
 	static inline function verify(s1) return s1 == "foo";
+
+	@:js('
+		var object = { \'hello\' : "world"};
+		TestJs["use"](object);
+	')
+	static function testQuotedStructureFields1() {
+		var object = {
+			"hello": "world"
+		}
+		use(object);
+	}
+
+	@:js('
+		var object = { \'hello\' : "world", world : "hello", \'another\' : "quote"};
+		TestJs["use"](object);
+	')
+	static function testQuotedStructureFields2() {
+		var object = {
+			'hello': "world",
+			world: "hello",
+			"another": "quote"
+		}
+		use(object);
+	}
+
+	static function use<T>(t:T) { }
 }

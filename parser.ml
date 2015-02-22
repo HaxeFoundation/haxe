@@ -50,7 +50,14 @@ let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert fals
 let quoted_ident_prefix = "@$__hx__"
 
 let quote_ident s =
-	try
+	quoted_ident_prefix ^ s
+
+let unquote_ident f =
+	let pf = quoted_ident_prefix in
+	let pflen = String.length pf in
+	let is_quoted = String.length f >= pflen && String.sub f 0 pflen = pf in
+	let s = if is_quoted then String.sub f pflen (String.length f - pflen) else f in
+	let is_valid = not is_quoted || try
 		for i = 0 to String.length s - 1 do
 			match String.unsafe_get s i with
 			| 'a'..'z' | 'A'..'Z' | '_' -> ()
@@ -58,14 +65,11 @@ let quote_ident s =
 			| _ -> raise Exit
 		done;
 		if Hashtbl.mem Lexer.keywords s then raise Exit;
-		s
+		true
 	with Exit ->
-		quoted_ident_prefix ^ s
-
-let unquote_ident f =
-	let pf = quoted_ident_prefix in
-	let pflen = String.length pf in
-	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
+		false
+	in
+	s,is_quoted,is_valid
 
 let cache = ref (DynArray.create())
 let last_doc = ref None
