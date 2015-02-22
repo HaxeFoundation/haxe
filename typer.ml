@@ -4922,6 +4922,12 @@ let rec create com =
 		)) m.m_types;
 		assert false
 	with Exit -> ());
+
+	let m = Typeload.load_module ctx (["haxe"],"ArrayTools") null_pos in
+	(match m.m_types with
+	| [TClassDecl c1] -> ctx.g.global_using <- c1 :: ctx.g.global_using
+	| _ -> assert false);
+
 	let m = Typeload.load_module ctx (["haxe"],"EnumTools") null_pos in
 	(match m.m_types with
 	| [TClassDecl c1;TClassDecl c2] -> ctx.g.global_using <- c1 :: c2 :: ctx.g.global_using
