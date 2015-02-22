@@ -50,7 +50,7 @@ class FileSystem {
 		return new String(file_full_path(untyped relPath.__s));
 	}
 
-	public static function absPath ( relPath : String ) : String {
+	public static function absolutePath ( relPath : String ) : String {
 		if (haxe.io.Path.isAbsolute(relPath)) return relPath;
 		return haxe.io.Path.join([Sys.getCwd(), relPath]);
 	}
