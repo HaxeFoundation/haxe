@@ -165,4 +165,6 @@ map["bar"] = map["foo"] = 9;
 map["bar"] == 9;
 map["foo"] == 9;
 
-['' => ''].keys().next() == '';
+/*
+ * ['' => ''].keys().next() == '';
+*/
