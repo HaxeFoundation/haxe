@@ -158,6 +158,11 @@ class TestSpod extends Test
 		eq(r2s.length,1);
 		eq(r2s.first().theId,id3);
 
+		var ids = [id1,id2,id3];
+		var s = [ for (c in MySpodClass.manager.search( $anEnum == SecondValue || $theId in ids )) c.theId ];
+		s.sort(Reflect.compare);
+		eq([id1,id2,id3].join(','),s.join(','));
+
 		r2s.first().delete();
 		for (v in MySpodClass.manager.search($anEnum == fv)) v.delete();
 	}
