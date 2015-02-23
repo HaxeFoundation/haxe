@@ -112,7 +112,7 @@ let kwds2 =
 	h
 
 let valid_js_ident s =
-	try
+	String.length s > 0 && try
 		for i = 0 to String.length s - 1 do
 			match String.unsafe_get s i with
 			| 'a'..'z' | 'A'..'Z' | '$' | '_' -> ()
