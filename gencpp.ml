@@ -4427,10 +4427,177 @@ let rec is_dynamic_in_cppia ctx expr =
    | _ -> is_dynamic_in_cpp ctx expr
 ;;
 
+type cppia_op =
+	| IaFunction
+	| IaVar
+	| IaToInterface
+	| IaToDynArray
+	| IaToDataArray
+	| IaToInterfaceArray
+	| IaFun
+	| IaCast
+	| IaBlock
+	| IaBreak
+	| IaContinue
+	| IaIsNull
+	| IaNotNull
+	| IaSet
+	| IaCall
+	| IaCallGlobal
+	| IaCallStatic
+	| IaCallMember
+	| IaCallSuper
+	| IaCallThis
+	| IaCallSuperNew
+	| IaCreateEnum
+	| IaADef
+	| IaIf
+	| IaIfElse
+	| IaFStatic
+	| IaFName
+	| IaFThisInst
+	| IaFLink
+	| IaFThisName
+	| IaFEnum
+	| IaThrow
+	| IaArrayI
+	| IaPlusPlus
+	| IaPlusPlusPost
+	| IaMinusMinus
+	| IaMinusMinusPost
+	| IaNeg
+	| IaBitNot
+	| IaLogicNot
+	| IaTVars
+	| IaVarDecl
+	| IaVarDeclI
+	| IaNew
+	| IaReturn
+	| IaRetVal
+	| IaPosInfo
+	| IaObjDef
+	| IaClassOf
+	| IaWhile
+	| IaFor
+	| IaEnumI
+	| IaSwitch
+	| IaTry
+	| IaImplDynamic
+	| IaBinOp of Ast.binop
+;;
 
-class script_writer common_ctx ctx filename =
+let cppia_op_info = function
+	| IaFunction -> ("FUNCTION", 1)
+	| IaVar      -> ("VAR", 2)
+	| IaToInterface -> ("TOINTERFACE", 3)
+	| IaToDynArray -> ("TODYNARRAY", 4)
+	| IaToDataArray -> ("TODATAARRAY", 5)
+	| IaToInterfaceArray -> ("TOINTERFACEARRAY", 6)
+	| IaFun -> ("FUN", 7)
+	| IaCast -> ("CAST", 8)
+	| IaBlock -> ("BLOCK", 9)
+	| IaBreak -> ("BREAK", 10)
+	| IaContinue -> ("CONTINUE", 11)
+	| IaIsNull -> ("ISNULL", 12)
+	| IaNotNull -> ("NOTNULL", 13)
+	| IaSet -> ("SET", 14)
+	| IaCall -> ("CALL", 15)
+	| IaCallGlobal -> ("CALLGLOBAL", 16)
+	| IaCallStatic -> ("CALLSTATIC", 17)
+	| IaCallMember -> ("CALLMEMBER", 18)
+	| IaCallSuper -> ("CALLSUPER", 19)
+	| IaCallThis -> ("CALLTHIS", 20)
+	| IaCallSuperNew -> ("CALLSUPERNEW", 21)
+	| IaCreateEnum -> ("CREATEENUM", 22)
+	| IaADef -> ("ADEF", 23)
+	| IaIf -> ("IF", 24)
+	| IaIfElse -> ("IFELSE", 25)
+	| IaFName -> ("FNAME", 27)
+	| IaFStatic -> ("FSTATIC", 28)
+	| IaFThisInst -> ("FTHISINST", 29)
+	| IaFLink -> ("FLINK", 30)
+	| IaFThisName -> ("FTHISNAME", 31)
+	| IaFEnum -> ("FENUM", 32)
+	| IaThrow -> ("THROW", 33)
+	| IaArrayI -> ("ARRAYI", 34)
+	| IaPlusPlus -> ("++", 35)
+	| IaPlusPlusPost -> ("+++", 36)
+	| IaMinusMinus -> ("--", 37)
+	| IaMinusMinusPost -> ("---", 38)
+	| IaNeg -> ("NEG", 39)
+	| IaBitNot -> ("~", 40)
+	| IaLogicNot -> ("!", 41)
+	| IaTVars -> ("TVARS", 42)
+	| IaVarDecl -> ("VARDECL", 43)
+	| IaVarDeclI -> ("VARDECLI", 44)
+	| IaNew -> ("NEW", 45)
+	| IaReturn -> ("RETURN", 46)
+	| IaRetVal -> ("RETVAL", 47)
+	| IaPosInfo -> ("POSINFO", 48)
+	| IaObjDef -> ("OBJDEF", 49)
+	| IaClassOf -> ("CLASSOF", 50)
+	| IaWhile -> ("WHILE", 51)
+	| IaFor -> ("FOR", 52)
+	| IaEnumI -> ("ENUMI", 53)
+	| IaSwitch -> ("SWITCH", 54)
+	| IaTry -> ("TRY", 55)
+	| IaImplDynamic -> ("IMPLDYNAMIC", 56)
+
+
+	| IaBinOp OpAdd -> ("+", 101)
+	| IaBinOp OpMult -> ("*", 102)
+	| IaBinOp OpDiv -> ("/", 103)
+	| IaBinOp OpSub -> ("-", 104)
+	| IaBinOp OpAssign -> ("=", 105)
+	| IaBinOp OpEq -> ("==", 106)
+	| IaBinOp OpNotEq -> ("!=", 107)
+	| IaBinOp OpGte -> (">=", 108)
+	| IaBinOp OpLte -> ("<=", 109)
+	| IaBinOp OpGt -> (">", 110)
+	| IaBinOp OpLt -> ("<", 111)
+	| IaBinOp OpAnd -> ("&", 112)
+	| IaBinOp OpOr -> ("|", 113)
+	| IaBinOp OpXor -> ("^", 114)
+	| IaBinOp OpBoolAnd -> ("&&", 115)
+	| IaBinOp OpBoolOr -> ("||", 116)
+	| IaBinOp OpShr -> (">>", 117)
+	| IaBinOp OpUShr -> (">>>", 118)
+	| IaBinOp OpShl -> ("<<", 119)
+	| IaBinOp OpMod -> ("%", 120)
+	| IaBinOp OpInterval -> ("...", 121)
+	| IaBinOp OpArrow -> ("=>", 122)
+	| IaBinOp OpAssignOp OpAdd -> ("+=", 201)
+	| IaBinOp OpAssignOp OpMult -> ("*=", 202)
+	| IaBinOp OpAssignOp OpDiv -> ("/=", 203)
+	| IaBinOp OpAssignOp OpSub -> ("-=", 204)
+
+
+	| IaBinOp OpAssignOp OpAnd -> ("&=", 212)
+	| IaBinOp OpAssignOp OpOr -> ("|=", 213)
+	| IaBinOp OpAssignOp OpXor -> ("^=", 214)
+	| IaBinOp OpAssignOp OpBoolAnd -> ("&&=", 215)
+	| IaBinOp OpAssignOp OpBoolOr -> ("||=", 216)
+	| IaBinOp OpAssignOp OpShr -> (">>=", 217)
+	| IaBinOp OpAssignOp OpUShr -> (">>>=", 218)
+	| IaBinOp OpAssignOp OpShl -> ("<<=", 219)
+	| IaBinOp OpAssignOp OpMod -> ("%=", 220)
+
+	| IaBinOp OpAssignOp OpInterval
+	| IaBinOp OpAssignOp OpAssign
+	| IaBinOp OpAssignOp OpEq
+	| IaBinOp OpAssignOp OpNotEq
+	| IaBinOp OpAssignOp OpGte
+	| IaBinOp OpAssignOp OpLte
+	| IaBinOp OpAssignOp OpGt
+	| IaBinOp OpAssignOp OpLt
+	| IaBinOp OpAssignOp OpAssignOp _
+	| IaBinOp OpAssignOp OpArrow -> assert false
+;;
+
+class script_writer common_ctx ctx filename asciiOut =
    object(this)
-   val indent_str = "\t"
+   val debug = asciiOut
+   val indent_str = if asciiOut then "\t" else ""
    val mutable indent = ""
    val mutable indents = []
    val mutable just_finished_block = false
@@ -4440,6 +4607,7 @@ class script_writer common_ctx ctx filename =
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
    val identBuffer = Buffer.create 0
+
    method stringId name =
       try ( Hashtbl.find identTable name )
       with Not_found -> begin
@@ -4449,10 +4617,12 @@ class script_writer common_ctx ctx filename =
          size;
       end
    method incClasses = classCount <- classCount +1
+
    method stringText name = (string_of_int (this#stringId name)) ^ " "
    val typeTable = Hashtbl.create 0
    val typeBuffer = Buffer.create 0
    method typeId name =
+      let name = if name="::hx::Class" then "::Class" else name in
       try ( Hashtbl.find typeTable name )
       with Not_found -> begin
          let size = Hashtbl.length typeTable in
@@ -4501,10 +4671,11 @@ class script_writer common_ctx ctx filename =
    | TInt i -> Printf.sprintf "i%ld " i
    | TFloat f -> "f" ^ f ^ " "
    | TString s -> "s" ^ (this#stringText s)
-   | TBool b -> if b then "true " else "false "
-   | TNull -> "NULL "
-   | TThis -> "THIS "
-   | TSuper -> "SUPER "
+   | TBool true -> if debug then "true " else "t "
+   | TBool false -> if debug then "false " else "f "
+   | TNull -> if debug then "NULL " else "N "
+   | TThis -> if debug then "THIS " else "T "
+   | TSuper -> if debug then "SUPER " else "S "
 
    method get_array_type t =
       match follow t with
@@ -4536,12 +4707,16 @@ class script_writer common_ctx ctx filename =
    method get_indent = indent
    method begin_expr = this#push_indent
    method end_expr = if not just_finished_block then this#write "\n"; this#pop_indent; just_finished_block <- true
+   method op x = match cppia_op_info x with
+      | (name,index) -> (if debug then name else string_of_int index) ^ " "
+   method writeOp o = this#write (this#op o)
+   method writeOpLine o = this#write ((this#op o) ^ "\n")
    method voidFunc isStatic isDynamic funcName fieldExpression =
-      this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
+      this#write ( (this#op IaFunction) ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
       this#write ((this#typeTextString "Void") ^ "0\n");
          this#gen_expression fieldExpression
    method func isStatic isDynamic funcName ret args isInterface fieldExpression =
-      this#write ("FUNCTION " ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
+      this#write ( (this#op IaFunction) ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
       this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
       List.iter (fun (name,opt,typ) -> this#write ( (this#stringText name) ^ (this#boolText opt) ^ " " ^ (this#typeText typ) ^ " " )) args;
       this#write "\n";
@@ -4551,20 +4726,21 @@ class script_writer common_ctx ctx filename =
          | _ -> print_endline ("Missing function body for " ^ funcName );
       end
    method var readAcc writeAcc isExtern isStatic name varType varExpr =
-      this#write ("VAR " ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^
+      this#write ( (this#op IaVar) ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^
          (this#boolText isExtern) ^ " " ^ (this#stringText name)^ (this#typeText varType) ^
          (match varExpr with Some _ -> "1\n" | _ -> "0\n" ) );
       match varExpr with
       | Some expression -> this#gen_expression expression
       | _ -> ()
-   method implDynamic = this#write "IMPLDYNAMIC\n";
+   method implDynamic = this#writeOpLine IaImplDynamic;
    method writeVar v =
       this#ident v.v_name;
       this#wint v.v_id;
       this#writeBool v.v_capture;
       this#writeType v.v_type;
    method writeList prefix len = this#write (prefix ^" "  ^ (string_of_int (len)) ^ "\n");
-   method writePos expr = this#write ( (this#fileText expr.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expr.epos) ) ^ indent);
+   method writePos expr = if debug then
+      this#write ( (this#fileText expr.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expr.epos) ) ^ indent);
    method checkCast toType expr forceCast fromGenExpression=
    let write_cast text =
       if (not fromGenExpression) then
@@ -4578,9 +4754,9 @@ class script_writer common_ctx ctx filename =
    let was_cast =
       if (is_interface_type toType) then begin
          if (is_dynamic_in_cppia ctx expr) then begin
-            write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeTextString "Dynamic") )
+            write_cast ( (this#op IaToInterface) ^ (this#typeText toType) ^ " " ^ (this#typeTextString "Dynamic") )
          end else if (not (is_matching_interface_type toType expr.etype)) then begin
-            write_cast ("TOINTERFACE " ^ (this#typeText toType) ^ " " ^ (this#typeText expr.etype) )
+            write_cast ( (this#op IaToInterface) ^ (this#typeText toType) ^ " " ^ (this#typeText expr.etype) )
          end else
             false
       end else begin
@@ -4592,12 +4768,12 @@ class script_writer common_ctx ctx filename =
             in
          match (this#get_array_type toType), (get_array_expr_type expr) with
          | ArrayAny, _ -> false
-         | ArrayObject, ArrayData _ -> write_cast ("TODYNARRAY")
+         | ArrayObject, ArrayData _ -> write_cast (this#op IaToDynArray)
          | ArrayData t, ArrayNone
          | ArrayData t, ArrayObject
-         | ArrayData t, ArrayAny -> write_cast ("TODATAARRAY " ^ (this#typeTextString ("Array." ^ t)))
+         | ArrayData t, ArrayAny -> write_cast ((this#op IaToDataArray)  ^ (this#typeTextString ("Array." ^ t)))
          | ArrayInterface t, ArrayNone
-         | ArrayInterface t, ArrayAny -> write_cast ("TOINTERFACEARRAY " ^ (string_of_int t))
+         | ArrayInterface t, ArrayAny -> write_cast ((this#op IaToInterfaceArray) ^ (string_of_int t))
          | _,_ -> (* a0,a1 ->
                let arrayString a =
                   match a with
@@ -4613,8 +4789,10 @@ class script_writer common_ctx ctx filename =
    in
 
    if (not was_cast) then begin
-      if (forceCast) then
-         this#write ("CAST\n");
+      if (forceCast) then begin
+         let toType = (type_string expr.etype) in
+         this#write (if toType="int" then "CASTINT\n" else if toType=="bool" then "CASTBOOL\n" else  "CAST\n");
+      end;
       this#gen_expression expr;
    end
    method gen_expression expr =
@@ -4627,9 +4805,10 @@ class script_writer common_ctx ctx filename =
    in
    let expression = remove_parens expr in
    this#begin_expr;
-   this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);
+   (*this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);*)
+   this#writePos expression;
    (match expression.eexpr with
-   | TFunction function_def -> this#write ("FUN " ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length function_def.tf_args)) ^ "\n" );
+   | TFunction function_def -> this#write ( (this#op IaFun) ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length function_def.tf_args)) ^ "\n" );
          List.iter (fun(arg,init) ->
             this#write (indent ^ indent_str );
             this#writeVar arg;
@@ -4640,40 +4819,40 @@ class script_writer common_ctx ctx filename =
          let pop = this#pushReturn function_def.tf_type in
          this#gen_expression function_def.tf_expr;
          pop ();
-   | TBlock expr_list -> this#writeList "BLOCK" (List.length expr_list);
+   | TBlock expr_list -> this#writeList (this#op IaBlock) (List.length expr_list);
          List.iter this#gen_expression expr_list;
    | TConst const -> this#write (this#constText const)
-   | TBreak -> this#write "BREAK ";
-   | TContinue -> this#write "CONTINUE ";
+   | TBreak -> this#writeOp IaBreak
+   | TContinue -> this#writeOp IaContinue
 
    | TBinop (op,e1,e2) when op=OpAssign ->
-      this#write ("SET \n");
+      this#writeOpLine IaSet;
       this#gen_expression e1;
       this#checkCast e1.etype e2 false false;
-   | TBinop (OpEq ,e1, { eexpr = TConst TNull } ) -> this#write "ISNULL\n";
+   | TBinop (OpEq ,e1, { eexpr = TConst TNull } ) -> this#writeOpLine IaIsNull;
       this#gen_expression e1;
-   | TBinop (OpNotEq ,e1, { eexpr = TConst TNull }) -> this#write "NOTNULL\n";
+   | TBinop (OpNotEq ,e1, { eexpr = TConst TNull }) -> this#writeOpLine IaNotNull;
       this#gen_expression e1;
-   | TBinop (OpEq , { eexpr = TConst TNull }, e1) -> this#write "ISNULL\n";
+   | TBinop (OpEq , { eexpr = TConst TNull }, e1) -> this#writeOpLine IaIsNull;
       this#gen_expression e1;
-   | TBinop (OpNotEq, { eexpr = TConst TNull }, e1) -> this#write "NOTNULL\n";
+   | TBinop (OpNotEq, { eexpr = TConst TNull }, e1) -> this#writeOpLine IaNotNull;
       this#gen_expression e1;
-   | TBinop (op,e1,e2) -> this#write ((Ast.s_binop op) ^ "\n");
+   | TBinop (op,e1,e2) -> this#writeOpLine (IaBinOp op);
       this#gen_expression e1;
       this#gen_expression e2;
-   | TThrow e -> this#write "THROW\n";
+   | TThrow e -> this#writeOpLine IaThrow;
       this#gen_expression e;
    | TArrayDecl expr_list ->
-      this#write ("ADEF " ^ (this#typeText expression.etype) ^ " " ^(string_of_int (List.length expr_list))^"\n");
+      this#write ( (this#op IaADef) ^ (this#typeText expression.etype) ^ " " ^(string_of_int (List.length expr_list))^"\n");
       List.iter this#gen_expression expr_list;
    | TIf (e,e1,e2) ->
       (match e2 with
       | None ->
-         this#write "IF\n";
+         this#writeOpLine IaIf;
          this#gen_expression e;
          this#gen_expression e1;
       | Some elze ->
-         this#write "IFELSE\n";
+         this#writeOpLine IaIfElse;
          this#gen_expression e;
          this#gen_expression e1;
          this#gen_expression elze; )
@@ -4687,27 +4866,27 @@ class script_writer common_ctx ctx filename =
       let gen_call () =
          (match (remove_parens func).eexpr with
          | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
-                  this#write ("CALLGLOBAL " ^ (this#stringText (field_name field)) ^ argN ^ "\n");
+                  this#write ( (this#op IaCallGlobal) ^ (this#stringText (field_name field)) ^ argN ^ "\n");
          | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
-                  this#write ("CALLSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
+                  this#write ( (this#op IaCallStatic) ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
          | TField (obj,FInstance (_,_,field) ) when (is_this obj) && (is_real_function field) ->
-                  this#write ("CALLTHIS " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  this#write ( (this#op IaCallThis) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
          | TField (obj,FInstance (_,_,field) ) when is_super obj ->
-                  this#write ("CALLSUPER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  this#write ( (this#op IaCallSuper) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
          | TField (obj,FInstance (_,_,field) ) when is_real_function field ->
-                  this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
+                  this#write ( (this#op IaCallMember) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
                   this#gen_expression obj;
          | TField (obj,FDynamic (name) )  when (is_internal_member name || (type_string obj.etype = "::String" && name="cca") ) ->
-                  this#write ("CALLMEMBER " ^ (this#typeText obj.etype) ^ " " ^ (this#stringText name) ^
+                  this#write ( (this#op IaCallMember) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText name) ^
                      argN ^ "\n");
                   this#gen_expression obj;
-         | TConst TSuper -> this#write ("CALLSUPERNEW " ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
-         | TField (_,FEnum (enum,field)) -> this#write ("CREATEENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
-         | _ -> this#write ("CALL " ^ argN ^ "\n");
+         | TConst TSuper -> this#write ((this#op IaCallSuperNew) ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
+         | TField (_,FEnum (enum,field)) -> this#write ((this#op IaCreateEnum) ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
+         | _ -> this#write ( (this#op IaCall) ^ argN ^ "\n");
                   this#gen_expression func;
          );
          let matched_args = match func.etype with
@@ -4725,13 +4904,13 @@ class script_writer common_ctx ctx filename =
          | TField(obj,field) when is_array_or_dyn_array obj.etype && (field_name field)="map" ->
             (match this#get_array_type expression.etype with
             | ArrayData t ->
-                this#write ("TODATAARRAY " ^ (this#typeTextString ("Array." ^ t)) ^ "\n");
+                this#write ( (this#op IaToDataArray) ^ (this#typeTextString ("Array." ^ t)) ^ "\n");
                 this#begin_expr;
                 this#writePos func;
                 gen_call();
                 this#end_expr;
             | ArrayInterface t ->
-                this#write ("TOINTERFACEARRAY " ^ (string_of_int t) ^ "\n");
+                this#write ( (this#op IaToInterfaceArray) ^ (string_of_int t) ^ "\n");
                 this#begin_expr;
                 this#writePos func;
                 gen_call();
@@ -4743,52 +4922,52 @@ class script_writer common_ctx ctx filename =
    | TField (obj, acc) ->
       let typeText = this#typeText obj.etype in
       (match acc with
-      | FDynamic name -> this#write ("FNAME " ^ typeText ^ " " ^ (this#stringText name) ^ "\n");
+      | FDynamic name -> this#write ( (this#op IaFName) ^ typeText ^ " " ^ (this#stringText name) ^ "\n");
             this#gen_expression obj;
-      | FStatic (class_def,field) -> this#write ("FSTATIC " ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) );
-      | FInstance (_,_,field) when is_this obj -> this#write ("FTHISINST " ^ typeText ^ " " ^ (this#stringText field.cf_name) );
-      | FInstance (_,_,field) -> this#write ("FLINK " ^ typeText ^ " " ^ (this#stringText field.cf_name) ^ "\n");
+      | FStatic (class_def,field) -> this#write ( (this#op IaFStatic)  ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) );
+      | FInstance (_,_,field) when is_this obj -> this#write ( (this#op IaFThisInst) ^ typeText ^ " " ^ (this#stringText field.cf_name) );
+      | FInstance (_,_,field) -> this#write ( (this#op IaFLink) ^ typeText ^ " " ^ (this#stringText field.cf_name) ^ "\n");
             this#gen_expression obj;
 
-      | FClosure (_,field) when is_this obj -> this#write ("FTHISNAME " ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")
-      | FAnon (field) when is_this obj -> this#write ("FTHISNAME " ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")
+      | FClosure (_,field) when is_this obj -> this#write ( (this#op IaFThisName) ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")
+      | FAnon (field) when is_this obj -> this#write ( (this#op IaFThisName) ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")
 
       | FClosure (_,field)
-      | FAnon (field) -> this#write ("FNAME " ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n");
+      | FAnon (field) -> this#write ( (this#op IaFName) ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n");
             this#gen_expression obj;
 
-      | FEnum (enum,field) -> this#write ("FENUM " ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) );
+      | FEnum (enum,field) -> this#write ( (this#op IaFEnum)  ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) );
       )
-   | TArray (e1, e2) -> this#write ("ARRAYI " ^ (this#typeText e1.etype) ^ "\n");
+   | TArray (e1, e2) -> this#write ((this#op IaArrayI) ^ (this#typeText e1.etype) ^ "\n");
       this#gen_expression e1;
       this#gen_expression e2;
    | TUnop (op, flag, e) ->
-      this#write ((match op,flag with
-      | Increment, Prefix -> "++"
-      | Increment, _ -> "+++"
-      | Decrement, Prefix -> "--"
-      | Decrement, _ -> "---"
-      | Not, _ -> "!"
-      | Neg, _ -> "NEG"
-      | NegBits, _ -> "~" ) ^ "\n");
+      this#writeOpLine (match op,flag with
+      | Increment, Prefix -> IaPlusPlus
+      | Increment, _ -> IaPlusPlusPost
+      | Decrement, Prefix -> IaMinusMinus
+      | Decrement, _ -> IaMinusMinusPost
+      | Not, _ -> IaLogicNot
+      | Neg, _ -> IaNeg
+      | NegBits, _ -> IaBitNot );
       this#gen_expression e;
    (* TODO - lval op-assign local/member/array *)
-   | TLocal var -> this#write ("VAR " ^ (string_of_int var.v_id) );
+   | TLocal var -> this#write ((this#op IaVar) ^ (string_of_int var.v_id) );
 
    | TVar (tvar,optional_init) ->
-         this#write ("TVARS " ^ (string_of_int (1)) ^ "\n");
+         this#write ( (this#op IaTVars) ^ (string_of_int (1)) ^ "\n");
             this#write ("\t\t" ^ indent);
             (match optional_init with
-            | None -> this#write ("VARDECL ");
+            | None -> this#writeOp IaVarDecl;
                      this#writeVar tvar;
-            | Some init ->this#write ("VARDECLI ");
+            | Some init ->this#writeOp IaVarDeclI;
                      let init = remove_parens init in
                      this#writeVar tvar;
                      this#write (" " ^ (this#typeText init.etype));
                      this#write "\n";
                      this#checkCast tvar.v_type init false false);
    | TNew (clazz,params,arg_list) ->
-      this#write ("NEW " ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
+      this#write ((this#op IaNew) ^ (this#typeText (TInst(clazz,params))) ^ (string_of_int (List.length arg_list)) ^ "\n");
       let rec matched_args clazz = match clazz.cl_constructor, clazz.cl_super with
          | None, Some super -> matched_args (fst super)
          | None, _ -> false
@@ -4806,8 +4985,8 @@ class script_writer common_ctx ctx filename =
          List.iter this#gen_expression arg_list;
 
    | TReturn optval -> (match optval with
-         | None -> this#write "RETURN\n"
-         | Some value -> this#write ("RETVAL " ^ (this#typeText value.etype) ^ "\n");
+         | None -> this#writeOpLine IaReturn;
+         | Some value -> this#write ( (this#op IaRetVal) ^ (this#typeText value.etype) ^ "\n");
               this#checkCast return_type value false false;
          )
    | TObjectDecl (
@@ -4815,21 +4994,21 @@ class script_writer common_ctx ctx filename =
          ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
             ("className" , { eexpr = (TConst (TString class_name)) }) ::
                ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
-            this#write ("POSINFO " ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
+            this#write ( (this#op IaPosInfo) ^ (this#stringText file) ^ (Printf.sprintf "%ld" line) ^ " " ^
                         (this#stringText class_name) ^ " " ^  (this#stringText meth))
 
-   | TObjectDecl values ->this#write ("OBJDEF " ^ (string_of_int (List.length values)));
+   | TObjectDecl values ->this#write ( (this#op IaObjDef) ^ (string_of_int (List.length values)));
          this#write " ";
          List.iter (fun (name,_) -> this#write (this#stringText name)  ) values;
          this#write "\n";
          List.iter (fun (_,e) -> this#gen_expression e ) values;
    | TTypeExpr type_expr ->
          let klass = "::" ^ (join_class_path_remap (t_path type_expr) "::" ) in
-         this#write ("CLASSOF " ^ (string_of_int (this#typeId klass)))
-   | TWhile (e1,e2,flag) -> this#write ("WHILE " ^ (if flag=NormalWhile then "1" else "0" ) ^ "\n");
+         this#write ((this#op IaClassOf) ^ (string_of_int (this#typeId klass)))
+   | TWhile (e1,e2,flag) -> this#write ( (this#op IaWhile) ^ (if flag=NormalWhile then "1" else "0" ) ^ "\n");
          this#gen_expression e1;
          this#gen_expression e2;
-   | TFor (tvar,init,loop) -> this#write ("FOR ");
+   | TFor (tvar,init,loop) -> this#writeOp IaFor;
          this#writeVar tvar;
          this#write "\n";
          this#gen_expression init;
@@ -4839,10 +5018,10 @@ class script_writer common_ctx ctx filename =
             | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
             | _ -> assert false
          in
-         this#write ("ENUMI " ^ (this#typeText (TEnum(enum,[])) ) ^ (string_of_int i) ^ "\n");
+         this#write ( (this#op IaEnumI) ^ (this#typeText (TEnum(enum,[])) ) ^ (string_of_int i) ^ "\n");
          this#gen_expression expr;
    | TSwitch (condition,cases,optional_default)  ->
-         this#write ("SWITCH " ^ (string_of_int (List.length cases)) ^ " " ^
+         this#write ( (this#op IaSwitch) ^ (string_of_int (List.length cases)) ^ " " ^
                            (match optional_default with None -> "0" | Some _ -> "1") ^ "\n");
          this#gen_expression condition;
          List.iter (fun (cases_list,expression) ->
@@ -4852,7 +5031,7 @@ class script_writer common_ctx ctx filename =
          ) cases;
          (match optional_default with None -> () | Some expr -> this#gen_expression expr);
    | TTry (e,catches)  ->
-         this#writeList "TRY " (List.length catches);
+         this#writeList (this#op IaTry) (List.length catches);
          this#gen_expression e;
          List.iter ( fun (tvar,catch_expr) ->
             this#write ("\t\t\t"^indent);
@@ -4963,7 +5142,7 @@ let generate_cppia common_ctx =
    let null_file = new source_writer common_ctx ignore (fun () -> () ) in
    let ctx = new_context common_ctx null_file debug (ref PMap.empty) in
    ctx.ctx_class_member_types <- create_member_types common_ctx;
-   let script = new script_writer common_ctx ctx common_ctx.file in
+   let script = new script_writer common_ctx ctx common_ctx.file true in
    ignore (script#stringId "");
    ignore (script#typeId "");
 
