@@ -498,8 +498,7 @@ and gen_expr ctx e =
 		gen_expr ctx e2;
 		bend();
 		newline ctx;
-		spr ctx "end";
-		newline ctx);
+		spr ctx "end");
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		spr ctx "(function() ";
 		gen_value ctx e;
@@ -568,8 +567,8 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "end";
-		newline ctx;
 		handle_break();
+		newline ctx;
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
@@ -683,8 +682,8 @@ and gen_block_element ?(after=false) ctx e =
 	| _ ->
 		if not after then newline ctx;
 		gen_expr ctx e;
-		spr ctx ";";
-		if after then newline ctx
+		semicolon ctx;
+		if after then newline ctx;
 
 and gen_value ctx e =
 	let assign e =
