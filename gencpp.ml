@@ -2362,7 +2362,7 @@ and gen_expression ctx retval expression =
       if (class_name="Array") then
          output ("hx::TCastToArray(" )
       else
-         output ("hx::TCast< " ^ class_name ^ " >::cast(" );
+         output ("hx::TCast< ::" ^ class_name ^ " >::cast(" );
       gen_expression ctx true e1;
       output ")";
    );;
