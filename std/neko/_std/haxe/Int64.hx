@@ -550,6 +550,12 @@ private class ___Int64 {
 	static function __init__()
 	{
 		var mk = try Lib.load('std','int64_make',2) catch(e:Dynamic) null;
+		if (mk != null) try {
+			mk(0,0);
+		} catch(e:Dynamic) {
+			mk = null;
+		}
+
 		if (mk != null)
 		{
 			make = mk;
