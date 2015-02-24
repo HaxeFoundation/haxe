@@ -134,8 +134,8 @@ let read_ecd filename ic =
     let newlen = min (toread + len) 256 in
     (* Search for magic number *)
     let ofs = strrstr "PK\005\006" buf 0 newlen in
-    if ofs < 0 || newlen < 22 || 
-       (let comment_len = 
+    if ofs < 0 || newlen < 22 ||
+       (let comment_len =
           Char.code buf.[ofs + 20] lor (Char.code buf.[ofs + 21] lsl 8) in
         newpos + ofs + 22 + comment_len <> filelen) then
       find_ecd newpos newlen
@@ -307,7 +307,7 @@ let read_entry ifile e =
         res
   with End_of_file ->
     raise (Error(ifile.if_filename, e.filename, "truncated data"))
-    
+
 (* Write the contents of an entry into an out channel *)
 
 let copy_entry_to_channel ifile e oc =
@@ -346,7 +346,7 @@ let copy_entry_to_channel ifile e oc =
           raise (Error(ifile.if_filename, e.filename, "CRC mismatch"))
   with End_of_file ->
     raise (Error(ifile.if_filename, e.filename, "truncated data"))
-    
+
 (* Write the contents of an entry to a file *)
 
 let copy_entry_to_file ifile e outfilename =
@@ -471,7 +471,7 @@ let add_data_descriptor ofile crc compr_size uncompr_size entry =
 
 (* Add an entry with the contents of a string *)
 
-let add_entry data ofile ?(extra = "") ?(comment = "") 
+let add_entry data ofile ?(extra = "") ?(comment = "")
                          ?(level = 6) ?(mtime = Unix.time()) name =
   let e = add_entry_header ofile extra comment level mtime name in
   let crc = Zlib.update_crc Int32.zero data 0 (String.length data) in
@@ -502,7 +502,7 @@ let add_entry data ofile ?(extra = "") ?(comment = "")
 
 (* Add an entry with the contents of an in channel *)
 
-let copy_channel_to_entry ic ofile ?(extra = "") ?(comment = "") 
+let copy_channel_to_entry ic ofile ?(extra = "") ?(comment = "")
                                    ?(level = 6) ?(mtime = Unix.time()) name =
   let e = add_entry_header ofile extra comment level mtime name in
   let crc = ref Int32.zero in
@@ -529,7 +529,7 @@ let copy_channel_to_entry ic ofile ?(extra = "") ?(comment = "")
                crc := Zlib.update_crc !crc buf 0 r;
                in_pos := !in_pos + r;
                r)
-            (fun buf n ->            
+            (fun buf n ->
                output ofile.of_channel buf 0 n;
                out_pos := !out_pos + n);
           (!out_pos, !in_pos)
@@ -540,11 +540,11 @@ let copy_channel_to_entry ic ofile ?(extra = "") ?(comment = "")
 
 (* Add an entry with the contents of a file *)
 
-let copy_file_to_entry infilename ofile ?(extra = "") ?(comment = "") 
+let copy_file_to_entry infilename ofile ?(extra = "") ?(comment = "")
                                         ?(level = 6) ?mtime name =
   let ic = open_in_bin infilename in
   let mtime' =
-    match mtime with 
+    match mtime with
       Some t -> mtime
     | None ->
         try Some((Unix.stat infilename).Unix.st_mtime)
