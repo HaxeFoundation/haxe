@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import cs.internal.Function;
+import cs.system.reflection.*;
 /*
  * Copyright (c) 2005, The Haxe Project Contributors
  * All rights reserved.
@@ -124,12 +125,26 @@ import cs.internal.Function;
 		} else if (o is System.Type) {
 			return Type.getClassFields( (System.Type) o);
 		} else {
-			return Type.getInstanceFields( (System.Type) o );
+			return instanceFields( (System.Type) o );
 		}
 	')
 	public static function fields( o : Dynamic ) : Array<String>
 	{
 		return null;
+	}
+
+	private static function instanceFields( c : Class<Dynamic> ) : Array<String>
+	{
+		var c = cs.Lib.toNativeType(c);
+		var ret = [];
+		var bindingFlags:BindingFlags = cast cast(BindingFlags.Public, Int) | cast(BindingFlags.Instance, Int) | cast(BindingFlags.FlattenHierarchy,Int);
+		var mis = c.GetFields(bindingFlags);
+		for (i in 0...mis.Length)
+		{
+			var i = mis[i];
+			ret.push(i.Name);
+		}
+		return ret;
 	}
 
 	@:functionCode('
