@@ -928,7 +928,7 @@ module PatternMatchConversion = struct
 	let is_declared cctx v =
 		let rec loop sl = match sl with
 			| stack :: sl ->
-				List.exists (fun ((v2,_),_) -> v == v2) stack || loop sl
+				List.exists (fun ((v2,_),_) -> v.v_id = v2.v_id) stack || loop sl
 			| [] ->
 				false
 		in
@@ -980,7 +980,7 @@ module PatternMatchConversion = struct
 				) catches in
 				{e with eexpr = TTry(e1,catches)}
 			| TLocal v ->
-				let v' = try List.assq v !v_known with Not_found -> v in
+				let v' = try snd (List.find (fun (v2,_) -> v2.v_id = v.v_id) !v_known) with Not_found -> v in
 				{e with eexpr = TLocal v'}
 			| _ ->
 				Type.map_expr loop e

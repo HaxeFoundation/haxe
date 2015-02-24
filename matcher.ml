@@ -770,7 +770,7 @@ let column_sigma mctx st pmat =
 		if not g then Hashtbl.replace unguarded c.c_def true;
 	in
 	let bind_st out st v =
-		if not (List.exists (fun ((v2,p),_) -> v2.v_id == (fst v).v_id) !bindings) then bindings := (v,st) :: !bindings
+		if not (List.exists (fun ((v2,p),_) -> v2.v_id = (fst v).v_id) !bindings) then bindings := (v,st) :: !bindings
 	in
 	let rec loop pmat = match pmat with
 		| (pv,out) :: pr ->

@@ -188,7 +188,7 @@ module Simplifier = struct
 							let e_v',e1 = loop e_v e1 in
 							let e1 = assign e_v e1 in
 							begin match e1.eexpr with
-								| TBinop(OpAssign,{eexpr = TLocal v1},e2) when v == v1 ->
+								| TBinop(OpAssign,{eexpr = TLocal v1},e2) when v.v_id = v1.v_id ->
 									declare (Some e2)
 								| _ ->
 									declare None;
@@ -410,7 +410,7 @@ module Simplifier = struct
 	let unapply com e =
 		let var_map = ref IntMap.empty in
 		let rec get_assignment_to v e = match e.eexpr with
-			| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v == v2 -> Some e2
+			| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v.v_id = v2.v_id -> Some e2
 			| TBlock [e] -> get_assignment_to v e
 			| _ -> None
 		in
@@ -428,7 +428,7 @@ module Simplifier = struct
 								end
 							| TVar(v,None) when not (com.platform = Php) ->
 								begin match el with
-									| {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v == v2 ->
+									| {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v.v_id = v2.v_id ->
 										let e = {e with eexpr = TVar(v,Some e2)} in
 										loop2 (e :: el)
 									| ({eexpr = TIf(e1,e2,Some e3)} as e_if) :: el ->
@@ -716,7 +716,7 @@ module Ssa = struct
 					IntMap.iter (fun i v ->
 						try
 							let vl = IntMap.find i !vars in
-							if not (List.exists (fun (v',_) -> v == v') vl) then
+							if not (List.exists (fun (v',_) -> v.v_id = v'.v_id) vl) then
 								vars := IntMap.add i ((v,p) :: vl) !vars
 						with Not_found ->
 							()
@@ -1270,7 +1270,7 @@ module Checker = struct
 		let resolve_value v =
 			let e' = Ssa.get_var_value v in
 			begin match e'.eexpr with
-				| TLocal v' when v == v' -> e'
+				| TLocal v' when v.v_id = v'.v_id -> e'
 				| _ -> e'
 			end
 		in
@@ -1285,7 +1285,7 @@ module Checker = struct
 		let can_be_null v =
 			not (has_meta Meta.NotNull v.v_meta)
 			&& try not (List.exists (fun cond -> match cond with
-				| NotEqual(v',e) when v == v' && is_null_expr e -> true
+				| NotEqual(v',e) when v.v_id = v'.v_id && is_null_expr e -> true
 				| _ -> false
 			) (IntMap.find v.v_id ssa.var_conds)) with Not_found -> true
 		in
