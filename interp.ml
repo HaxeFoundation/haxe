@@ -4602,6 +4602,7 @@ and encode_tvar v =
 		"capture", VBool v.v_capture;
 		"extra", vopt f_extra v.v_extra;
 		"meta", encode_meta_content v.v_meta;
+		"$", VAbstract (AUnsafe (Obj.repr v));
 	]
 
 and encode_module_type mt =
@@ -4711,17 +4712,9 @@ let decode_type_params v =
 	List.map (fun v -> dec_string (field v "name"),decode_type (field v "t")) (dec_array v)
 
 let decode_tvar v =
-	let f_extra v =
-		decode_type_params (field v "params"),opt decode_texpr (field v "expr")
-	in
-	{
-		v_id = (match (field v "id") with VInt i -> i | _ -> raise Invalid_expr);
-		v_name = dec_string (field v "name");
-		v_type = decode_type (field v "t");
-		v_capture = dec_bool (field v "capture");
-		v_extra = opt f_extra (field v "extra");
-		v_meta = decode_meta_content (field v "meta")
-	}
+	match field v "$" with
+	| VAbstract (AUnsafe t) -> Obj.obj t
+	| _ -> raise Invalid_expr
 
 let decode_var_access v =
 	match decode_enum v with
