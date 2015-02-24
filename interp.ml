@@ -2201,7 +2201,7 @@ let macro_lib =
 			match s with
 			| VString s ->
 				(match (get_ctx()).curapi.get_type s with
-				| None -> VNull
+				| None -> failwith ("Type not found '" ^ s ^ "'")
 				| Some t -> encode_type t)
 			| _ -> error()
 		);

@@ -243,7 +243,7 @@ class Context {
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
 
-		If no type can be found, null is returned.
+		If no type can be found, an exception of type `String` is thrown.
 	**/
 	public static function getType( name : String ) : Type {
 		return load("get_type", 1)(untyped name.__s);
