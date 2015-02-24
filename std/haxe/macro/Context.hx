@@ -465,6 +465,24 @@ class Context {
 		return load("get_typed_expr",1)(t);
 	}
 
+
+	/**
+		Store typed expression `t` internally and give a syntax-level expression
+		that can be returned from a macro and will be replaced by the stored
+		typed expression.
+
+		If `t` is null or invalid, an exception is thrown.
+
+		NOTE: the returned value references an internally stored typed expression
+		that is reset between compilations, so care should be taken when storing
+		the expression returned by this method in a static variable and using the
+		compilation server.
+	**/
+	@:require(haxe_ver >= 3.2)
+	public static function storeTypedExpr( t : Type.TypedExpr ) : Expr {
+		return load("store_typed_expr",1)(t);
+	}
+
 	/**
 		Manually adds a dependency between module `modulePath` and an external
 		file `externFile`.
