@@ -72,6 +72,7 @@
 	macro : [breaking] extended TAnonymous structures now have AExtend status instead of AClosed
 	macro : added Context.getDefines
 	macro : fixed file_seek from end (position was inversed)
+	macro : added Context.storeTypedExpr
 
 	Deprecations:
 

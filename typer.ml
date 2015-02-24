@@ -3524,10 +3524,60 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.Analyzer,_,_) ->
 				let e = e() in
 				{e with eexpr = TMeta(m,e)}
+			| (Meta.StoredTypedExpr,_,_) ->
+				let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
+				get_stored_typed_expr ctx.com id
 			| _ -> e()
 		in
 		ctx.meta <- old;
 		e
+
+and get_next_stored_typed_expr_id =
+	let uid = ref 0 in
+	(fun() -> incr uid; !uid)
+
+and get_stored_typed_expr com id =
+	let vars = Hashtbl.create 0 in
+	let copy_var v =
+		let v2 = alloc_var v.v_name v.v_type in
+		v2.v_meta <- v.v_meta;
+		Hashtbl.add vars v.v_id v2;
+		v2;
+	in
+	let rec build_expr e =
+		match e.eexpr with
+		| TVar (v,eo) ->
+			let v2 = copy_var v in
+			{e with eexpr = TVar(v2, Option.map build_expr eo)}
+		| TFor (v,e1,e2) ->
+			let v2 = copy_var v in
+			{e with eexpr = TFor(v2, build_expr e1, build_expr e2)}
+		| TTry (e1,cl) ->
+			let cl = List.map (fun (v,e) ->
+				let v2 = copy_var v in
+				v2, build_expr e
+			) cl in
+			{e with eexpr = TTry(build_expr e1, cl)}
+		| TFunction f ->
+			let args = List.map (fun (v,c) -> copy_var v, c) f.tf_args in
+			let f = {
+				tf_args = args;
+				tf_type = f.tf_type;
+				tf_expr = build_expr f.tf_expr;
+			} in
+			{e with eexpr = TFunction f}
+		| TLocal v ->
+			(try
+				let v2 = Hashtbl.find vars v.v_id in
+				{e with eexpr = TLocal v2}
+			with _ ->
+				e)
+		| _ ->
+			map_expr build_expr e
+	in
+	let e = PMap.find id com.stored_typed_exprs in
+	build_expr  e
+
 
 and handle_display ctx e_ast iscall p =
 	let old = ctx.in_display in
@@ -4243,6 +4293,13 @@ let make_macro_api ctx p =
 		Interp.parse_string = parse_expr_string;
 		Interp.type_expr = (fun e ->
 			typing_timer ctx (fun() -> (type_expr ctx e Value))
+		);
+		Interp.store_typed_expr = (fun te ->
+			let p = te.epos in
+			let id = get_next_stored_typed_expr_id() in
+			ctx.com.stored_typed_exprs <- PMap.add id te ctx.com.stored_typed_exprs;
+			let eid = (EConst (Int (string_of_int id))), p in
+			(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
 		);
 		Interp.get_display = (fun s ->
 			let is_displaying = ctx.com.display <> DMNone in

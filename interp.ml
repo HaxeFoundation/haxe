@@ -106,6 +106,7 @@ type extern_api = {
 	on_type_not_found : (string -> value) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	type_expr : Ast.expr -> Type.texpr;
+	store_typed_expr : Type.texpr -> Ast.expr;
 	get_display : string -> string;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -2627,6 +2628,10 @@ let macro_lib =
 		"get_typed_expr", Fun1 (fun e ->
 			let e = decode_texpr e in
 			encode_expr (make_ast e)
+		);
+		"store_typed_expr", Fun1 (fun e ->
+			let e = try decode_texpr e with Invalid_expr -> error() in
+			encode_expr ((get_ctx()).curapi.store_typed_expr e)
 		);
 		"get_output", Fun0 (fun() ->
 			VString (ccom()).file
