@@ -695,7 +695,7 @@ module Ssa = struct
 			IntMap.find v.v_id ctx.cur_data.nd_var_map
 		with Not_found ->
 			if not (has_meta Meta.Unbound v.v_meta) then
-				ctx.com.warning (Printf.sprintf "Unbound variable %s" v.v_name) p;
+				error (Printf.sprintf "Unbound variable %s" v.v_name) p;
 			v
 
 	let close_join_node ctx node p =
