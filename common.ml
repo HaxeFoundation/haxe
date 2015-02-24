@@ -935,16 +935,17 @@ let find_file ctx f =
 	with Exit ->
 		raise Not_found
 	| Not_found ->
-		let rec loop = function
-			| [] -> raise Not_found
+		let rec loop had_empty = function
+			| [] when had_empty -> raise Not_found
+			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
 				if Sys.file_exists file then
 					file
 				else
-					loop l
+					loop (had_empty || p = "") l
 		in
-		let r = (try Some (loop ctx.class_path) with Not_found -> None) in
+		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
 		(match r with
 		| None -> raise Not_found
