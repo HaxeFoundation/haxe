@@ -124,7 +124,7 @@ import cs.internal.Function;
 		} else if (o is System.Type) {
 			return Type.getClassFields( (System.Type) o);
 		} else {
-			return new Array<object>();
+			return Type.getInstanceFields( (System.Type) o );
 		}
 	')
 	public static function fields( o : Dynamic ) : Array<String>
