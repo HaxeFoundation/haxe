@@ -74,8 +74,6 @@ type out_file =
     mutable of_entries: entry list;
     of_comment: string }
 
-exception Error of string * string * string
-
 (* Return the position of the last occurrence of s1 in s2, or -1 if not
    found. *)
 
