@@ -544,7 +544,7 @@ let rec class_string klass suffix params =
    |  (["cpp"],"ConstPointer") ->
         "::cpp::Pointer< " ^ (String.concat "," (List.map type_string params) ) ^ " >"
    |  (["cpp"],"RawPointer") ->
-        " " ^ (String.concat "," (List.map type_string params) ) ^ " "
+        " " ^ (String.concat "," (List.map type_string params) ) ^ " * "
    |  (["cpp"],"RawConstPointer") ->
         " const " ^ (String.concat "," (List.map type_string params) ) ^ " * "
    |  (["cpp"],"Function") ->
