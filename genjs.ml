@@ -1289,6 +1289,10 @@ let generate com =
 		closureArgs
 	in
 
+	if Common.raw_defined com "nodejs" then
+		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
+		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
+
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)
 		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
