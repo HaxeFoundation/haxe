@@ -1,1 +1,2 @@
-MainVar.hx:3: characters 2-5 : Missing variable identifier
+MainVar.hx:3: characters 10-11 : expression expected after =
+MainVar.hx:3: characters 12-13 : Unexpected ;
