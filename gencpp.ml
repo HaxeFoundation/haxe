@@ -4483,6 +4483,29 @@ type cppia_op =
 	| IaSwitch
 	| IaTry
 	| IaImplDynamic
+   | IaConstInt
+   | IaConstFloat
+   | IaConstString
+   | IaConstFalse
+   | IaConstTrue
+   | IaConstNull
+   | IaConsThis
+   | IaConstSuper
+   | IaCastInt
+   | IaCastBool
+   | IaInterface
+   | IaClass
+   | IaAccessNormal
+   | IaAccessNot
+   | IaAccessResolve
+   | IaAccessCall
+   | IaEnum
+   | IaInline
+   | IaMain
+   | IaNoMain
+   | IaResources
+   | IaReso
+
 	| IaBinOp of Ast.binop
 ;;
 
@@ -4542,7 +4565,29 @@ let cppia_op_info = function
 	| IaSwitch -> ("SWITCH", 54)
 	| IaTry -> ("TRY", 55)
 	| IaImplDynamic -> ("IMPLDYNAMIC", 56)
-
+   | IaConstInt -> ("i", 57)
+   | IaConstFloat -> ("f", 58)
+   | IaConstString -> ("s", 59)
+   | IaConstFalse -> ("false", 60)
+   | IaConstTrue -> ("true", 61)
+   | IaConstNull -> ("NULL", 62)
+   | IaConsThis -> ("THIS", 63)
+   | IaConstSuper -> ("SUPER", 64)
+   | IaCastInt -> ("CASTINT", 65)
+   | IaCastBool -> ("CASTBOOL", 66)
+   | IaInterface -> ("INTERFACE", 67)
+   | IaClass -> ("CLASS", 68)
+   | IaAccessNormal -> ("N", 69)
+   | IaAccessNot  -> ("n", 70)
+   | IaAccessResolve  -> ("R", 71)
+   | IaAccessCall -> ("C", 72)
+   | IaEnum -> ("ENUM", 73)
+   | IaInline -> ("INLINE", 74)
+   | IaMain -> ("MAIN", 75)
+   | IaNoMain -> ("NOMAIN", 76)
+   | IaResources -> ("RESOURCES", 77)
+   | IaReso -> ("RESO", 78)
+ 
 
 	| IaBinOp OpAdd -> ("+", 101)
 	| IaBinOp OpMult -> ("*", 102)
@@ -4630,13 +4675,34 @@ class script_writer common_ctx ctx filename asciiOut =
          Buffer.add_string typeBuffer ((string_of_int (String.length name)) ^ " " ^ name ^ "\n");
          size;
       end
+   method write str = if asciiOut then
+          Buffer.add_string buffer str
+      else begin
+         let push i = Buffer.add_char buffer (Char.chr i) in
+         let pushI32 i = push (Int32.to_int (Int32.logand i (Int32.of_int 255))) in
+         List.iter (fun i ->
+            if ((Int32.compare i Int32.zero) >= 0) && ((Int32.compare i (Int32.of_int 254)) < 0) then
+               pushI32 i
+            else if ((Int32.compare i Int32.zero) >= 0) && ((Int32.compare i (Int32.of_int 65536)) < 0) then begin
+               push 254;
+               pushI32 i;
+               pushI32 (Int32.shift_right i 8);
+            end else begin
+               push 255;
+               pushI32 i;
+               pushI32 (Int32.shift_right i 8);
+               pushI32 (Int32.shift_right i 16);
+               pushI32 (Int32.shift_right i 24);
+            end
+         ) (List.map Int32.of_string (Str.split (Str.regexp "[\n\t ]+") str) );
+      end;
+      just_finished_block <- false
    method typeTextString typeName = (string_of_int (this#typeId typeName)) ^ " "
    method typeText typeT = (string_of_int (this#typeId (script_type_string typeT))) ^ " "
    method writeType typeT = this#write (this#typeText typeT)
    method boolText value = if value then "1" else "0"
    method writeBool value = this#write (if value then "1 " else "0 ")
-   method staticText value = if value then "s" else "m"
-   method write str = Buffer.add_string buffer str ; just_finished_block <- false
+   method staticText value = if value then "1" else "0"
    method writeData str = Buffer.add_string buffer str;
    method wint ival = this#write ((string_of_int ival)^" ")
    method ident name = this#wint (this#stringId name)
@@ -4648,7 +4714,7 @@ class script_writer common_ctx ctx filename asciiOut =
    method enumName e = this#write (this#enumText e)
    method close =
       let out_file = open_out_bin filename in
-      output_string out_file "CPPIA\n";
+      output_string out_file (if asciiOut then "CPPIA\n" else "CPPIB\n");
       let idents =  Buffer.contents identBuffer in
       output_string out_file ((string_of_int (Hashtbl.length identTable)) ^ "\n");
       output_string out_file idents;
@@ -4668,14 +4734,14 @@ class script_writer common_ctx ctx filename asciiOut =
          result;
       end
    method constText c = match c with
-   | TInt i -> Printf.sprintf "i%ld " i
-   | TFloat f -> "f" ^ f ^ " "
-   | TString s -> "s" ^ (this#stringText s)
-   | TBool true -> if debug then "true " else "t "
-   | TBool false -> if debug then "false " else "f "
-   | TNull -> if debug then "NULL " else "N "
-   | TThis -> if debug then "THIS " else "T "
-   | TSuper -> if debug then "SUPER " else "S "
+   | TInt i -> (this#op IaConstInt) ^ (Printf.sprintf "%ld " i)
+   | TFloat f -> (this#op IaConstFloat) ^ (this#stringText f)
+   | TString s -> (this#op IaConstString) ^ (this#stringText s)
+   | TBool true -> (this#op IaConstTrue)
+   | TBool false -> (this#op IaConstFalse)
+   | TNull -> (this#op IaConstNull)
+   | TThis ->  (this#op IaConsThis)
+   | TSuper ->  (this#op IaConstSuper)
 
    method get_array_type t =
       match follow t with
@@ -4726,7 +4792,7 @@ class script_writer common_ctx ctx filename asciiOut =
          | _ -> print_endline ("Missing function body for " ^ funcName );
       end
    method var readAcc writeAcc isExtern isStatic name varType varExpr =
-      this#write ( (this#op IaVar) ^ (this#staticText isStatic) ^ " " ^ readAcc ^ " " ^ writeAcc ^ " " ^
+      this#write ( (this#op IaVar) ^ (this#staticText isStatic) ^ " " ^ (this#op readAcc) ^ (this#op writeAcc) ^
          (this#boolText isExtern) ^ " " ^ (this#stringText name)^ (this#typeText varType) ^
          (match varExpr with Some _ -> "1\n" | _ -> "0\n" ) );
       match varExpr with
@@ -4791,7 +4857,7 @@ class script_writer common_ctx ctx filename asciiOut =
    if (not was_cast) then begin
       if (forceCast) then begin
          let toType = (type_string expr.etype) in
-         this#write (if toType="int" then "CASTINT\n" else if toType=="bool" then "CASTBOOL\n" else  "CAST\n");
+         this#writeOpLine (if toType="int" then IaCastInt else if toType=="bool" then IaCastBool else IaCast);
       end;
       this#gen_expression expr;
    end
@@ -5049,7 +5115,7 @@ end;;
 
 let generate_script_class common_ctx script class_def =
    script#incClasses;
-   script#write (if class_def.cl_interface then "INTERFACE " else "CLASS ");
+   script#writeOp (if class_def.cl_interface then IaInterface else IaClass );
    script#instName class_def;
    (match class_def.cl_super with
       | None -> script#ident ""
@@ -5078,16 +5144,16 @@ let generate_script_class common_ctx script class_def =
    let generate_field isStatic field =
       match field.cf_kind, follow field.cf_type with
       | Var { v_read = AccInline; v_write = AccNever },_ ->
-         script#write "INLINE\n";
+         script#writeOpLine IaInline;
       | Var v,_ ->
          let mode_code mode = match mode with
-         | AccNormal -> "N"
-         | AccNo -> "!"
-         | AccNever -> "!"
-         | AccResolve -> "R"
-         | AccCall -> "C"
-         | AccInline -> "N"
-         | AccRequire (_,_) -> "?"
+         | AccNormal -> IaAccessNormal
+         | AccNo -> IaAccessNot
+         | AccNever -> IaAccessNot
+         | AccResolve -> IaAccessResolve
+         | AccCall -> IaAccessCall
+         | AccInline -> IaAccessNormal
+         | AccRequire (_,_) -> IaAccessNormal
          in
          let isExtern = is_extern_field field in
          script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic field.cf_name field.cf_type field.cf_expr
@@ -5117,7 +5183,7 @@ let generate_script_class common_ctx script class_def =
 let generate_script_enum common_ctx script enum_def meta =
    script#incClasses;
    let sorted_items = List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) in
-   script#writeList ("ENUM " ^ (script#enumText enum_def)) (List.length sorted_items);
+   script#writeList ((script#op IaEnum) ^ (script#enumText enum_def)) (List.length sorted_items);
 
    List.iter (fun constructor ->
       let name = script#stringText constructor.ef_name in
@@ -5142,7 +5208,7 @@ let generate_cppia common_ctx =
    let null_file = new source_writer common_ctx ignore (fun () -> () ) in
    let ctx = new_context common_ctx null_file debug (ref PMap.empty) in
    ctx.ctx_class_member_types <- create_member_types common_ctx;
-   let script = new script_writer common_ctx ctx common_ctx.file true in
+   let script = new script_writer common_ctx ctx common_ctx.file common_ctx.debug in
    ignore (script#stringId "");
    ignore (script#typeId "");
 
@@ -5175,14 +5241,14 @@ let generate_cppia common_ctx =
    ) common_ctx.types;
 
    (match common_ctx.main with
-   | None -> script#write "NOMAIN\n"
-   | Some e -> script#write "MAIN\n";
+   | None -> script#writeOpLine IaNoMain;
+   | Some e -> script#writeOpLine IaMain;
          script#gen_expression e
    );
 
-   script#write ("RESOURCES " ^ (string_of_int (Hashtbl.length common_ctx.resources)) ^ "\n");
+   script#write ( (script#op IaResources) ^ (string_of_int (Hashtbl.length common_ctx.resources)) ^ "\n");
    Hashtbl.iter (fun name data ->
-      script#write ("RESO " ^ (script#stringText name) ^  (string_of_int (String.length data)) ^ "\n");
+      script#write ((script#op IaReso) ^ (script#stringText name) ^  (string_of_int (String.length data)) ^ "\n");
    ) common_ctx.resources;
    Hashtbl.iter (fun _ data -> script#writeData data) common_ctx.resources;
 

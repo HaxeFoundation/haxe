@@ -8,7 +8,7 @@ class Issue3226 extends Test {
 		untyped __js__("{0} = {0} + {1}", a, v);
 		eq(3, a);
 	}
-	#elseif cpp
+	#elseif (cpp && !cppia)
 	function testCpp() {
 		var a = 1;
 		var v = 2;
