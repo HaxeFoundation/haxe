@@ -53,7 +53,7 @@ and vabstract =
 	| ARandom of Random.State.t ref
 	| ABuffer of Buffer.t
 	| APos of Ast.pos
-	| AFRead of in_channel
+	| AFRead of (in_channel * bool ref)
 	| AFWrite of out_channel
 	| AReg of regexp
 	| AZipI of zlib
@@ -1426,8 +1426,8 @@ let std_lib =
 			| VString f, VString r ->
 				let perms = 0o666 in
 				VAbstract (match r with
-					| "r" -> AFRead (open_in_gen [Open_rdonly] 0 f)
-					| "rb" -> AFRead (open_in_gen [Open_rdonly;Open_binary] 0 f)
+					| "r" -> AFRead (open_in_gen [Open_rdonly] 0 f,ref false)
+					| "rb" -> AFRead (open_in_gen [Open_rdonly;Open_binary] 0 f,ref false)
 					| "w" -> AFWrite (open_out_gen [Open_wronly;Open_creat;Open_trunc] perms f)
 					| "wb" -> AFWrite (open_out_gen [Open_wronly;Open_creat;Open_trunc;Open_binary] perms f)
 					| "a" -> AFWrite (open_out_gen [Open_append] perms f)
@@ -1437,7 +1437,7 @@ let std_lib =
 		);
 		"file_close", Fun1 (fun vf ->
 			(match vf with
-			| VAbstract (AFRead f) -> close_in f; free_abstract vf;
+			| VAbstract (AFRead (f,_)) -> close_in f; free_abstract vf;
 			| VAbstract (AFWrite f) -> close_out f; free_abstract vf;
 			| _ -> error());
 			VNull
@@ -1450,9 +1450,12 @@ let std_lib =
 		);
 		"file_read", Fun4 (fun f s p l ->
 			match f, s, p, l with
-			| VAbstract (AFRead f), VString s, VInt p, VInt l ->
+			| VAbstract (AFRead (f,r)), VString s, VInt p, VInt l ->
 				let n = input f s p l in
-				if n = 0 then exc (VArray [|VString "file_read"|]);
+				if n = 0 then begin
+					r := true;
+					exc (VArray [|VString "file_read"|]);
+				end;
 				VInt n
 			| _ -> error()
 		);
@@ -1463,12 +1466,12 @@ let std_lib =
 		);
 		"file_read_char", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) -> VInt (int_of_char (try input_char f with _ -> exc (VArray [|VString "file_read_char"|])))
+			| VAbstract (AFRead (f,r)) -> VInt (int_of_char (try input_char f with _ -> r := true; exc (VArray [|VString "file_read_char"|])))
 			| _ -> error()
 		);
 		"file_seek", Fun3 (fun f pos mode ->
 			match f, pos, mode with
-			| VAbstract (AFRead f), VInt pos, VInt mode ->
+			| VAbstract (AFRead (f,_)), VInt pos, VInt mode ->
 				seek_in f (match mode with 0 -> pos | 1 -> pos_in f + pos | 2 -> in_channel_length f + pos | _ -> error());
 				VNull;
 			| VAbstract (AFWrite f), VInt pos, VInt mode ->
@@ -1478,19 +1481,14 @@ let std_lib =
 		);
 		"file_tell", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) -> VInt (pos_in f)
+			| VAbstract (AFRead (f,_)) -> VInt (pos_in f)
 			| VAbstract (AFWrite f) -> VInt (pos_out f)
 			| _ -> error()
 		);
 		"file_eof", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) ->
-				VBool (try
-					ignore(input_char f);
-					seek_in f (pos_in f - 1);
-					false
-				with End_of_file ->
-					true)
+			| VAbstract (AFRead (f,r)) ->
+				VBool !r
 			| _ -> error()
 		);
 		"file_flush", Fun1 (fun f ->
@@ -1504,7 +1502,7 @@ let std_lib =
 			| VString f -> VString (Std.input_file ~bin:true f)
 			| _ -> error()
 		);
-		"file_stdin", Fun0 (fun() -> VAbstract (AFRead Pervasives.stdin));
+		"file_stdin", Fun0 (fun() -> VAbstract (AFRead (Pervasives.stdin, ref false)));
 		"file_stdout", Fun0 (fun() -> VAbstract (AFWrite Pervasives.stdout));
 		"file_stderr", Fun0 (fun() -> VAbstract (AFWrite Pervasives.stderr));
 	(* serialize *)
