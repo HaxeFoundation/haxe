@@ -94,8 +94,11 @@ typedef Iterator<T> = {
 	/**
 		Returns the current item of the Iterator and advances to the next one.
 
-		This method is not required to check hasNext() first. A call to this
-		method while hasNext() is false yields unspecified behavior.
+		This method is not required to check `hasNext` first. A call to this
+		method while `hasNext` is false yields unspecified behavior.
+
+		On the other hand iterators should not require a call to `hasNext`
+		before the first call to `next` if an element is available.
 	**/
 	function next() : T;
 
