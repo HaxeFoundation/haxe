@@ -82,7 +82,24 @@ class Lib {
 
 	public static function rethrow(inExp:Dynamic) { throw inExp; }
 
-	public static function stringReference(inExp:Dynamic) { throw inExp; }
+	public static function stringReference(inBytes:haxe.io.Bytes) : String
+   {
+      var result:String = "";
+      untyped __global__.__hxcpp_string_of_bytes(inBytes.b, result, 0, 0, true);
+      return result;
+   }
+
+	/**
+		Returns bytes referencing the content of a string.
+      Use with extreme caution - changing constant strings will crash.
+      Changing one string can cause others to change unexpectedly.
+      Only really safe if you are using it read-only or if it comes from stringReference above
+	**/
+	public inline static function bytesReference( s : String ) : haxe.io.Bytes {
+      var bytes = new haxe.io.BytesData();
+      untyped bytes.__unsafeStringReference(s);
+		return haxe.io.Bytes.ofData(bytes);
+	}
 
 	/**
 		Print the specified value on the default output.
