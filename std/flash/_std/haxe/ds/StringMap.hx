@@ -145,8 +145,8 @@ private class StringMapKeysIterator {
 		this.h = h;
 		this.rh = rh;
 		this.index = 0;
-		this.nextIndex = 0;
 		isReserved = false;
+		hasNext();
 	}
 
 	public inline function hasNext():Bool {
@@ -183,7 +183,7 @@ private class StringMapValuesIterator<T> {
 		this.h = h;
 		this.rh = rh;
 		this.index = 0;
-		this.nextIndex = 0;
+		hasNext();
 	}
 
 	public inline function hasNext():Bool {
