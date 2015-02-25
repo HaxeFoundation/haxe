@@ -1304,7 +1304,7 @@ let is_matching_interface_type t0 t1 =
 
 let default_value_string = function
    | TInt i -> Printf.sprintf "%ld" i
-   | TFloat float_as_string -> float_as_string
+   | TFloat float_as_string -> "((Float)" ^ float_as_string ^ ")"
    | TString s -> str s
    | TBool b -> (if b then "true" else "false")
    | TNull -> "null()"
@@ -2044,7 +2044,7 @@ and gen_expression ctx retval expression =
       (match const with
       | TInt i when  ctx.ctx_for_extern -> output (Printf.sprintf "%ld" i)
       | TInt i -> output (Printf.sprintf "(int)%ld"  i)
-      | TFloat float_as_string -> output float_as_string
+      | TFloat float_as_string -> output ("((Float)" ^ float_as_string ^")")
       | TString s when ctx.ctx_for_extern -> output ("\"" ^ (escape_extern s) ^ "\"")
       | TString s -> output (str s)
       | TBool b -> output (if b then "true" else "false")
