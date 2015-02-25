@@ -96,6 +96,8 @@ type platform_config = {
 	pf_pattern_matching : bool;
 	(** can the platform use default values for non-nullable arguments *)
 	pf_can_skip_non_nullable_argument : bool;
+	(** type paths that are reserved on the platform *)
+	pf_reserved_type_paths : path list;
 }
 
 type display_mode =
@@ -533,6 +535,7 @@ let default_config =
 		pf_overload = false;
 		pf_pattern_matching = false;
 		pf_can_skip_non_nullable_argument = true;
+		pf_reserved_type_paths = [];
 	}
 
 let get_config com =
@@ -553,6 +556,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 	| Js ->
 		{
@@ -567,6 +571,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [([],"Object")];
 		}
 	| Neko ->
 		{
@@ -581,6 +586,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -595,6 +601,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
+			pf_reserved_type_paths = [];
 		}
 	| Flash ->
 		{
@@ -609,6 +616,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
+			pf_reserved_type_paths = [([],"Object")];
 		}
 	| Php ->
 		{
@@ -623,6 +631,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 	| Cpp ->
 		{
@@ -637,6 +646,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 	| Cs ->
 		{
@@ -651,6 +661,7 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 	| Java ->
 		{
@@ -665,6 +676,7 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 	| Python ->
 		{
@@ -679,6 +691,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 
 let memory_marker = [|Unix.time()|]
