@@ -2907,7 +2907,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				let cf = mk_field f e.etype e.epos in
 				let e = if is_quoted then wrap_quoted_meta e else e in
 				((f,e) :: l, if is_valid then begin
-					if f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
+					if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 					PMap.add f cf acc
 				end else acc)
 			in
@@ -2932,7 +2932,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					type_expr ctx e Value
 				in
 				if is_valid then begin
-					if n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
+					if String.length n > 0 && n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 					let cf = mk_field n e.etype e.epos in
 					fields := PMap.add n cf !fields;
 				end;
