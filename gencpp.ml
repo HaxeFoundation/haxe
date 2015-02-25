@@ -264,7 +264,7 @@ let include_class_header = function
 
 let is_cpp_class = function
    | ("cpp"::_ , _)  -> true
-   | ( [] , "Xml" )  -> true
+   | ( ["cpp"] , "Xml" )  -> true
    | ( [] , "EReg" )  -> true
    | ( ["haxe"] , "Log" )  -> true
    | _ -> false;;
@@ -4587,7 +4587,7 @@ let cppia_op_info = function
    | IaNoMain -> ("NOMAIN", 76)
    | IaResources -> ("RESOURCES", 77)
    | IaReso -> ("RESO", 78)
- 
+
 
 	| IaBinOp OpAdd -> ("+", 101)
 	| IaBinOp OpMult -> ("*", 102)

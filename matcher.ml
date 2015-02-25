@@ -1163,7 +1163,7 @@ let match_expr ctx e cases def with_type p =
 			let e = type_expr ctx e Value in
 			begin match follow e.etype with
 			(* TODO: get rid of the XmlType check *)
-			| TEnum(en,_) when (en.e_path = ([],"XmlType")) || Meta.has Meta.FakeEnum en.e_meta ->
+			| TEnum(en,_) when (match en.e_path with (["neko" | "php" | "flash" | "cpp"],"XmlType") -> true | _ -> Meta.has Meta.FakeEnum en.e_meta) ->
 				raise Exit
 			| TAbstract({a_path=[],("Int" | "Float" | "Bool")},_) | TInst({cl_path = [],"String"},_) when (Common.defined ctx.com Common.Define.NoPatternMatching) ->
 				raise Exit;

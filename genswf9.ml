@@ -120,6 +120,14 @@ let tid (x : 'a index) : int = Obj.magic x
 let ethis = mk (TConst TThis) (mk_mono()) null_pos
 let dynamic_prop = HMMultiNameLate [HNPublic (Some "")]
 
+let is_special_compare e1 e2 =
+	match e1.eexpr, e2.eexpr with
+	| TConst TNull, _  | _ , TConst TNull -> None
+	| _ ->
+	match follow e1.etype, follow e2.etype with
+	| TInst ({ cl_path = ["flash"],"NativeXml" } as c,_) , _ | _ , TInst ({ cl_path = ["flash"],"NativeXml" } as c,_) -> Some c
+	| _ -> None
+
 let write ctx op =
 	DynArray.add ctx.code op;
 	ctx.infos.ipos <- ctx.infos.ipos + 1;
@@ -227,7 +235,7 @@ let rec type_id ctx t =
 		type_path ctx ([],"Function")
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
-	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		HMPath ([],"String")
 	| TEnum (e,_) ->
 		let rec loop = function
@@ -259,7 +267,7 @@ let classify ctx t =
 		KBool
 	| TAbstract ({ a_path = [],"Void" },_) | TEnum ({ e_path = [],"Void" },_) ->
 		KDynamic
-	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		let rec loop = function
@@ -1602,7 +1610,12 @@ and gen_binop ctx retval op e1 e2 t p =
 		write ctx (HOp o)
 	in
 	let gen_eq() =
-		gen_op A3OEq
+		match is_special_compare e1 e2 with
+		| None ->
+			gen_op A3OEq
+		| Some c ->
+			let f = FStatic (c,try PMap.find "compare" c.cl_statics with Not_found -> assert false) in
+			gen_expr ctx true (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic p,f)) t_dynamic p,[e1;e2])) ctx.com.basic.tbool p);
 	in
 	match op with
 	| OpAssign ->
@@ -1709,8 +1722,8 @@ and jump_expr_gen ctx e jif jfun =
 			jfun (if jif then t else f)
 		in
 		(match op with
-		| OpEq -> j J3Eq J3Neq
-		| OpNotEq -> j J3Neq J3Eq
+		| OpEq when is_special_compare e1 e2 = None -> j J3Eq J3Neq
+		| OpNotEq when is_special_compare e1 e2 = None -> j J3Neq J3Eq
 		| OpGt -> j J3Gt J3NotGt
 		| OpGte -> j J3Gte J3NotGte
 		| OpLt -> j J3Lt J3NotLt
