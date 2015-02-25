@@ -1315,7 +1315,7 @@ let inline_constructors ctx e =
 								match e.eexpr with
 								| TBlock el ->
 									List.iter get_assigns el
-								| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,_,cf)); etype = t }, e) when v.v_id = vv.v_id ->
+								| TBinop (OpAssign, { eexpr = TField ({ eexpr = TLocal vv },FInstance(_,_,cf)); etype = t }, e) when v == vv ->
 									assigns := (cf.cf_name,e,t) :: !assigns
 								| _ ->
 									raise Exit

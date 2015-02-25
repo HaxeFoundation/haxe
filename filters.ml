@@ -583,7 +583,7 @@ let rename_local_vars ctx e =
 				the same variable twice. In that case do not perform a rename since
 				we are sure it's actually the same variable
 			*)
-			if v.v_id = v2.v_id then raise Not_found;
+			if v == v2 then raise Not_found;
 			rename look_vars v;
 		with Not_found ->
 			());
@@ -600,7 +600,7 @@ let rename_local_vars ctx e =
 			let vars = if cfg.pf_locals_scope then vars else all_vars in
 			(try
 				let v = PMap.find name !vars in
-				if v.v_id = vtemp.v_id then raise Not_found; (* ignore *)
+				if v == vtemp then raise Not_found; (* ignore *)
 				rename (!vars) v;
 				rebuild_vars := true;
 				vars := PMap.add v.v_name v !vars

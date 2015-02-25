@@ -1868,7 +1868,7 @@ let init_class ctx c p context_init herits fields =
 								let rec has_this e = match e.eexpr with
 									| TConst TThis ->
 										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| TLocal v when (match ctx.vthis with Some v2 -> v.v_id = v2.v_id | None -> false) ->
+									| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
 										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
 									| _ ->
 									Type.iter has_this e
