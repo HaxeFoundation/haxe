@@ -287,10 +287,16 @@ and mark_directly_used_class c =
 	if not (Meta.has Meta.DirectlyUsed c.cl_meta) then
 		c.cl_meta <- (Meta.DirectlyUsed,[],c.cl_pos) :: c.cl_meta
 
+and mark_directly_used_enum e =
+	if not (Meta.has Meta.DirectlyUsed e.e_meta) then
+		e.e_meta <- (Meta.DirectlyUsed,[],e.e_pos) :: e.e_meta
+
 and mark_directly_used_mt mt =
 	match mt with
 	| TClassDecl c ->
 		mark_directly_used_class c
+	| TEnumDecl e ->
+		mark_directly_used_enum e
 	| _ ->
 		()
 

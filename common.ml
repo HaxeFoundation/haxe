@@ -897,8 +897,8 @@ let has_dce com =
 	If we had dce filter always running (even with dce=no), we would have types marked with @:directlyUsed
 	and we wouldn't need to generate unnecessary imports in dce=no, but that's good enough for now.
 *)
-let is_directly_used_class com c =
-	not (has_dce com) || Ast.Meta.has Ast.Meta.DirectlyUsed c.cl_meta
+let is_directly_used com meta =
+	not (has_dce com) || Ast.Meta.has Ast.Meta.DirectlyUsed meta
 
 let rec has_feature com f =
 	try

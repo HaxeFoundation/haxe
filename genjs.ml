@@ -1131,14 +1131,14 @@ let generate_static ctx (c,f,e) =
 	gen_value ctx e;
 	newline ctx
 
-let generate_require ctx c =
-	let _, args, mp = Meta.get Meta.JsRequire c.cl_meta in
-	let p = (s_path ctx c.cl_path) in
+let generate_require ctx path meta =
+	let _, args, mp = Meta.get Meta.JsRequire meta in
+	let p = (s_path ctx path) in
 
 	if ctx.js_flatten then
 		spr ctx "var "
 	else
-		generate_package_create ctx c.cl_path;
+		generate_package_create ctx path;
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
@@ -1164,14 +1164,15 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used_class ctx.com c then
-			generate_require ctx c
+		else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
+			generate_require ctx c.cl_path c.cl_meta
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path)
 	| TEnumDecl e when e.e_extern ->
-		()
+		if Meta.has Meta.JsRequire e.e_meta && is_directly_used ctx.com e.e_meta then
+			generate_require ctx e.e_path e.e_meta
 	| TEnumDecl e -> generate_enum ctx e
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
@@ -1213,7 +1214,7 @@ let alloc_ctx com =
 		match t with
 		| TClassDecl ({ cl_extern = true } as c) when not (Meta.has Meta.JsRequire c.cl_meta)
 			-> dot_path p
-		| TEnumDecl { e_extern = true }
+		| TEnumDecl ({ e_extern = true } as e) when not (Meta.has Meta.JsRequire e.e_meta)
 			-> dot_path p
 		| _ -> s_path ctx p);
 	ctx
