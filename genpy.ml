@@ -2137,8 +2137,9 @@ module Generator = struct
 				end else
 					","
 				in
-				print ctx "%s'%s': open('%%s.%%s'%%(__file__,'%s'),'rb').read()" prefix k k;
-				Std.output_file (ctx.com.file ^ "." ^ k) v
+				let k_enc = Base64.str_encode k in
+				print ctx "%s\"%s\": open('%%s.%%s'%%(__file__,'%s'),'rb').read()" prefix (Ast.s_escape k) k_enc;
+				Std.output_file (ctx.com.file ^ "." ^ k_enc) v
 			) ctx.com.resources;
 			spr ctx "}"
 		end

@@ -30,6 +30,7 @@ package haxe;
 	}
 
 	public static function getString( name : String ) : String {
+		name = haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(name));
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
@@ -38,6 +39,7 @@ package haxe;
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
+		name = haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(name));
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
