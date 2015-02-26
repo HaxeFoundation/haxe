@@ -21,6 +21,9 @@
  */
 package haxe;
 
+import haxe.io.Bytes;
+import haxe.crypto.Base64;
+
 @:coreApi
 class Resource {
 
@@ -33,14 +36,14 @@ class Resource {
 	}
 
 	static function getPath(name : String) : String {
-		return getDir()+'/'+cleanName(name);
+		return getDir()+'/'+Base64.encode(Bytes.ofString(name));
 	}
 
 	public static function listNames() : Array<String> {
 		var a = sys.FileSystem.readDirectory(getDir());
 		if(a[0] == '.') a.shift();
 		if(a[0] == '..') a.shift();
-		return a;
+		return a.map(function(s) return Base64.decode(s).toString());
 	}
 
 	public static function getString( name : String ) : String {
