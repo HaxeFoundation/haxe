@@ -47,7 +47,7 @@ extern class Syntax {
 	@:noUsing
 	macro public static function pythonCode(b:ExprOf<String>, rest:Array<Expr>):Expr {
 		if (rest == null) rest = [];
-		return macro @:pos(Context.currentPos()) $self._pythonCode($b, $a{rest});
+		return macro @:pos(Context.currentPos()) untyped $self._pythonCode($b, $a{rest});
 	};
 
 	#if !macro
