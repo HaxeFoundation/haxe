@@ -127,7 +127,7 @@ class Reflect {
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return function (v:VarArgs) {
+		return function (v:VarArgs<Dynamic>) {
 			return f(v);
 		}
 	}

@@ -216,7 +216,7 @@ class TestPython extends Test {
 	}
 
 	function testKwArgsAfterVarArgs () {
-		function test (va:VarArgs, kw:KwArgs<Dynamic>) {
+		function test (va:VarArgs<Dynamic>, kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
 			eq(1,a[0]);
@@ -229,7 +229,7 @@ class TestPython extends Test {
 	}
 
 	function testOptionalVarArgs () {
-		function test (?va:VarArgs, ?kw:KwArgs<Dynamic>) {
+		function test (?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
 			eq(0,a.length);
@@ -243,7 +243,7 @@ class TestPython extends Test {
 	}
 
 	function testOptionalKwArgsAfterOptionalVarArgs () {
-		function test (?va:VarArgs, ?kw:KwArgs<Dynamic>) {
+		function test (?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 
 			eq(1,a[0]);
@@ -254,7 +254,7 @@ class TestPython extends Test {
 		var x = [1,2];
 		test(x);
 
-		function test (?va:VarArgs, ?kw:KwArgs<Dynamic>) {
+		function test (?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
 			eq(0,a.length);
 			eq(1, kw.get("a",null));
