@@ -1917,13 +1917,13 @@ module Generator = struct
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 
-	let gen_import ctx c =
-		gen_pre_code_meta ctx c.cl_meta;
+	let gen_import ctx path meta =
+		gen_pre_code_meta ctx meta;
 
-		if Meta.has Meta.PythonImport c.cl_meta && is_directly_used ctx.com c.cl_meta then begin
-			let _, args, mp = Meta.get Meta.PythonImport c.cl_meta in
+		if Meta.has Meta.PythonImport meta && is_directly_used ctx.com meta then begin
+			let _, args, mp = Meta.get Meta.PythonImport meta in
 
-			let class_name = match c.cl_path with
+			let class_name = match path with
 				| [],name -> name
 				| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
 			in
@@ -2119,7 +2119,7 @@ module Generator = struct
 
 	let gen_type ctx mt = match mt with
 		| TClassDecl c -> gen_class ctx c
-		| TEnumDecl en -> gen_enum ctx en
+		| TEnumDecl en when not en.e_extern -> gen_enum ctx en
 		| TAbstractDecl {a_path = [],"UInt"} -> ()
 		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> gen_abstract ctx a
 		| _ -> ()
@@ -2146,7 +2146,8 @@ module Generator = struct
 	let gen_imports ctx =
 		List.iter (fun mt ->
 			match mt with
-			| TClassDecl c when c.cl_extern -> gen_import ctx c
+			| TClassDecl c when c.cl_extern -> gen_import ctx c.cl_path c.cl_meta
+			| TEnumDecl e when e.e_extern -> gen_import ctx e.e_path e.e_meta
 			| _ -> ()
 		) ctx.com.types;
 		newline ctx
