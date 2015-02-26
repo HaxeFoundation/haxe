@@ -3524,6 +3524,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.Analyzer,_,_) ->
 				let e = e() in
 				{e with eexpr = TMeta(m,e)}
+			| (Meta.MergeBlock,_,_) ->
+				begin match fst e1 with
+				| EBlock el -> type_block ctx el with_type p
+				| _ -> e()
+				end
 			| (Meta.StoredTypedExpr,_,_) ->
 				let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
 				get_stored_typed_expr ctx.com id
