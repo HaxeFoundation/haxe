@@ -124,17 +124,13 @@ extern class Date
 
 #if flash
 	private static function __init__() : Void untyped {
-		var d #if !swf_mark : Dynamic #end = Date;
+		var d : Dynamic = Date;
 		d.now = function() {
 			return __new__(Date);
 		};
 		d.fromTime = function(t){
 			var d : Date = __new__(Date);
-			#if flash9
 			d.setTime(t);
-			#else
-			d["setTime"]( t );
-			#end
 			return d;
 		};
 		d.fromString = function(s : String) {
@@ -142,17 +138,10 @@ extern class Date
 			case 8: // hh:mm:ss
 				var k = s.split(":");
 				var d : Date = __new__(Date);
-				#if flash9
 				d.setTime(0);
 				d.setUTCHours(k[0]);
 				d.setUTCMinutes(k[1]);
 				d.setUTCSeconds(k[2]);
-				#else
-				d["setTime"](0);
-				d["setUTCHours"](k[0]);
-				d["setUTCMinutes"](k[1]);
-				d["setUTCSeconds"](k[2]);
-				#end
 				return d;
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
@@ -180,11 +169,6 @@ extern class Date
 				+":"+(if( mi < 10 ) "0"+mi else ""+mi)
 				+":"+(if( s < 10 ) "0"+s else ""+s);
 		};
-		#if flash9
-		#elseif flash
-		d.prototype[__unprotect__("__class__")] = d;
-		d[__unprotect__("__name__")] = ["Date"];
-		#end
 	}
 #end
 }

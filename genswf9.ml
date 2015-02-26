@@ -627,6 +627,16 @@ let debug_infos ?(is_min=true) ctx p =
 		end
 	end
 
+let to_utf8 str =
+	try
+		UTF8.validate str;
+		str;
+	with
+		UTF8.Malformed_code ->
+			let b = UTF8.Buf.create 0 in
+			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			UTF8.Buf.contents b
+
 let gen_constant ctx c t p =
 	match c with
 	| TInt i ->
@@ -640,7 +650,7 @@ let gen_constant ctx c t p =
 		let f = float_of_string f in
 		write ctx (HFloat f);
 	| TString s ->
-		write ctx (HString (Genswf8.to_utf8 s));
+		write ctx (HString (to_utf8 s));
 	| TBool b ->
 		write ctx (if b then HTrue else HFalse);
 	| TNull ->

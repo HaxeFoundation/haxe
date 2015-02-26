@@ -4,7 +4,6 @@ class TestEReg extends Test {
 
 
 	function test() {
-		#if !flash8
 		var r = ~/a+(b)?(c*)a+/;
 		f( r.match("") );
 		f( r.match("xxyy") );
@@ -124,7 +123,6 @@ class TestEReg extends Test {
 
 		var r = ~/a/;
 		exc(function() r.matched(0));
-		#end
 	}
 
 }

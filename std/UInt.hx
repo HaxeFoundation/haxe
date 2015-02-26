@@ -20,9 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#if ((flash9 || flash9doc || cs) && !doc_gen)
+#if ((flash || flash9doc || cs) && !doc_gen)
 /**
-	The unsigned Int type is only defined for Flash9 and C#. It's currently
+	The unsigned Int type is only defined for Flash and C#. It's currently
 	handled the same as a normal Int.
 **/
 @:coreType
@@ -92,7 +92,7 @@ abstract UInt to Int from Int
 }
 #else
 /**
-	The unsigned Int type is only defined for Flash9 and C#.
+	The unsigned Int type is only defined for Flash and C#.
 	Simulate it for other platforms.
 **/
 abstract UInt(Int) from Int to Int {

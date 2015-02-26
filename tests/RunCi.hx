@@ -26,7 +26,6 @@ private typedef TravisConfig = {
 	var Java = "java";
 	var Cs = "cs";
 	var Python = "python";
-	var Flash8 = "flash8";
 	var ThirdParty = "third-party";
 }
 
@@ -647,10 +646,6 @@ class RunCi {
 					setupFlashPlayerDebugger();
 					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
 					runFlash("bin/unit9.swf");
-				case Flash8:
-					setupFlashPlayerDebugger();
-					runCommand("haxe", ["compile-flash8.hxml", "-D", "fdb"]);
-					runFlash("bin/unit8.swf");
 				case As3:
 					setupFlashPlayerDebugger();
 

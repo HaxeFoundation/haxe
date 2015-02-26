@@ -1549,7 +1549,6 @@ and type_field ?(resume=false) ctx e i p mode =
 			field_access ctx mode f (FAnon f) (Type.field_type f) e p
 		)
 	| TMono r ->
-		if ctx.untyped && (match ctx.com.platform with Flash8 -> Common.defined ctx.com Define.SwfMark | _ -> false) then ctx.com.warning "Mark" p;
 		let f = {
 			cf_name = i;
 			cf_type = mk_mono();

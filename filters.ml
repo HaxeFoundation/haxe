@@ -631,7 +631,7 @@ let rename_local_vars ctx e =
 			let old = save() in
 			(* we have to look ahead for vars on these targets (issue #3344) *)
 			begin match ctx.com.platform with
-				| Js | Flash8 ->
+				| Js ->
 					let rec check_var e = match e.eexpr with
 						| TVar (v,eo) ->
 							(match eo with None -> () | Some e -> loop e);
@@ -1098,7 +1098,7 @@ let run com tctx main =
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			blockify_ast;
 			( if (Common.defined com Define.NoSimplify) || (Common.defined com Define.Cppia) ||
-						( match com.platform with Cpp | Flash8 -> false | _ -> true ) then
+						( match com.platform with Cpp -> false | _ -> true ) then
 					fun e -> e
 				else
 					fun e ->

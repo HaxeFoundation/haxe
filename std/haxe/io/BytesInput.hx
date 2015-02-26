@@ -23,7 +23,7 @@ package haxe.io;
 
 class BytesInput extends Input {
 	var b : #if js js.html.Uint8Array #else BytesData #end;
-	#if !flash9
+	#if !flash
 	var pos : Int;
 	var len : Int;
 	var totlen : Int;
@@ -39,7 +39,7 @@ class BytesInput extends Input {
 		if( pos == null ) pos = 0;
 		if( len == null ) len = b.length - pos;
 		if( pos < 0 || len < 0 || pos + len > b.length ) throw Error.OutsideBounds;
-		#if flash9
+		#if flash
 		var ba = b.getData();
 		ba.position = pos;
 		if( len != ba.bytesAvailable ) {
@@ -61,7 +61,7 @@ class BytesInput extends Input {
 	}
 
 	inline function get_position() : Int {
-		#if flash9
+		#if flash
 		return b.position;
 		#else
 		return pos;
@@ -69,7 +69,7 @@ class BytesInput extends Input {
 	}
 
 	inline function get_length() : Int {
-		#if flash9
+		#if flash
 		return b.length;
 		#else
 		return totlen;
@@ -79,7 +79,7 @@ class BytesInput extends Input {
 	function set_position( p : Int ) : Int {
 		if( p < 0 ) p = 0;
 		else if( p > length ) p = length;
-		#if flash9
+		#if flash
 		return b.position = p;
 		#else
 		len = totlen - p;
@@ -88,7 +88,7 @@ class BytesInput extends Input {
 	}
 
 	public override function readByte() : Int {
-		#if flash9
+		#if flash
 			return try b.readUnsignedByte() catch( e : Dynamic ) throw new Eof();
 		#else
 			if( this.len == 0 )
@@ -113,7 +113,7 @@ class BytesInput extends Input {
 			if( pos < 0 || len < 0 || pos + len > buf.length )
 				throw Error.OutsideBounds;
 		#end
-		#if flash9
+		#if flash
 			var avail : Int = b.bytesAvailable;
 			if( len > avail && avail > 0 ) len = avail;
 			try b.readBytes(buf.getData(),pos,len) catch( e : Dynamic ) throw new Eof();
@@ -154,7 +154,7 @@ class BytesInput extends Input {
 		return len;
 	}
 
-	#if flash9
+	#if flash
 	@:dox(hide)
 	override function set_bigEndian(e) {
 		bigEndian = e;

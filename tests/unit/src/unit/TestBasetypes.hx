@@ -186,7 +186,7 @@ class TestBasetypes extends Test {
 		eq( Std.int( 2147483647.001), 0x7FFFFFFF );
 
 
-		#if (flash9 && !as3)
+		#if (flash && !as3)
 		eq( Math.floor( -10000000000.7), 0xABF41BFF);
 		eq( Math.ceil( -10000000000.7), 0xABF41C00);
 		eq( Math.round( -10000000000.7), 0xABF41BFF);
@@ -319,8 +319,6 @@ class TestBasetypes extends Test {
 	}
 
 	function testAbstractCast() {
-		// flash 8 cannot handle Templates
-		#if !flash8
 		var s = "Abstract casting ::t::";
 		// var from
 		var tpl:unit.MyAbstract.TemplateWrap = s;
@@ -384,7 +382,6 @@ class TestBasetypes extends Test {
 		// array to
 		var arr:Array<String> = [tpl];
 		eq(arr[0], "Abstract casting really works!");
-		#end
 
 		// cast to return
 		function returnAbstractCast():String {

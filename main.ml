@@ -168,7 +168,7 @@ let htmlescape s =
 	s
 
 let reserved_flags = [
-	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"cross";"js";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
 
@@ -1031,7 +1031,7 @@ try
 		if com.platform <> Cross then failwith "Multiple targets";
 		Common.init_platform com pf;
 		com.file <- file;
-		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
+		if (pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let process_ref = ref (fun args -> ()) in
@@ -1421,28 +1421,18 @@ try
 			(* no platform selected *)
 			set_platform Cross "";
 			"?"
-		| Flash8 | Flash ->
-			if com.flash_version >= 9. then begin
-				let rec loop = function
-					| [] -> ()
-					| (v,_) :: _ when v > com.flash_version -> ()
-					| (v,def) :: l ->
-						Common.raw_define com ("flash" ^ def);
-						loop l
-				in
-				loop Common.flash_versions;
-				Common.raw_define com "flash";
-				com.defines <- PMap.remove "flash8" com.defines;
-				com.package_rules <- PMap.remove "flash" com.package_rules;
-				add_std "flash";
-			end else begin
-				com.package_rules <- PMap.add "flash" (Directory "flash8") com.package_rules;
-				com.package_rules <- PMap.add "flash8" Forbidden com.package_rules;
-				Common.raw_define com "flash";
-				Common.raw_define com ("flash" ^ string_of_int (int_of_float com.flash_version));
-				com.platform <- Flash8;
-				add_std "flash8";
-			end;
+		| Flash ->
+			let rec loop = function
+				| [] -> ()
+				| (v,_) :: _ when v > com.flash_version -> ()
+				| (v,def) :: l ->
+					Common.raw_define com ("flash" ^ def);
+					loop l
+			in
+			loop Common.flash_versions;
+			Common.raw_define com "flash";
+			com.package_rules <- PMap.remove "flash" com.package_rules;
+			add_std "flash";
 			"swf"
 		| Neko ->
 			add_std "neko";
@@ -1549,10 +1539,10 @@ try
 			end;
 		| Cross ->
 			()
-		| Flash8 | Flash when Common.defined com Define.As3 ->
+		| Flash when Common.defined com Define.As3 ->
 			Common.log com ("Generating AS3 in : " ^ com.file);
 			Genas3.generate com;
-		| Flash8 | Flash ->
+		| Flash ->
 			Common.log com ("Generating swf : " ^ com.file);
 			Genswf.generate com !swf_header;
 		| Neko ->

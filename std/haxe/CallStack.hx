@@ -45,12 +45,10 @@ class CallStack {
 			var a = makeStack(untyped __dollar__callstack());
 			a.shift(); // remove Stack.callStack()
 			return a;
-		#elseif flash9
+		#elseif flash
 			var a = makeStack( new flash.errors.Error().getStackTrace() );
 			a.shift(); // remove Stack.callStack()
 			return a;
-		#elseif flash
-			return makeStack("$s");
 		#elseif php
 			return makeStack("%s");
 		#elseif cpp
@@ -129,7 +127,7 @@ class CallStack {
 			return makeStack(untyped __dollar__excstack());
 		#elseif as3
 			return new Array();
-		#elseif flash9
+		#elseif flash
 			var err : flash.errors.Error = untyped flash.Boot.lastError;
 			if( err == null ) return new Array();
 			var a = makeStack( err.getStackTrace() );
@@ -143,8 +141,6 @@ class CallStack {
 				i--;
 			}
 			return a;
-		#elseif flash
-			return makeStack("$e");
 		#elseif php
 			return makeStack("%e");
 		#elseif cpp
@@ -241,7 +237,7 @@ class CallStack {
 					a.unshift(FilePos(null,new String(untyped x[0]),untyped x[1]));
 			}
 			return a;
-		#elseif flash9
+		#elseif flash
 			var a = new Array();
 			var r = ~/at ([^\/]+?)\$?(\/[^\(]+)?\(\)(\[(.*?):([0-9]+)\])?/;
 			var rlambda = ~/^MethodInfo-([0-9]+)$/g;
@@ -262,14 +258,6 @@ class CallStack {
 				s = r.matchedRight();
 			}
 			return a;
-		#elseif flash
-			var a : Array<String> = untyped __eval__(s);
-			var m = new Array();
-			for( i in 0...a.length - if(s == "$s") 2 else 0 ) {
-				var d = a[i].split("::");
-				m.unshift(Method(d[0],d[1]));
-			}
-			return m;
 		#elseif php
 			if (!untyped __call__("isset", __var__("GLOBALS", s)))
 				return [];
@@ -297,7 +285,7 @@ class CallStack {
 			if ((untyped __js__("typeof"))(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
-				if( stack[0] == "Error" ) stack.shift(); 
+				if( stack[0] == "Error" ) stack.shift();
 				var m = [];
 				var rie10 = ~/^   at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
 				for( line in stack ) {

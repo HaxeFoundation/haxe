@@ -67,7 +67,7 @@ abstract Int32(Int) from Int to Int {
 
 	@:op(A - B) public static function floatSub(a:Float, b:Int32):Float;
 
-	#if (as3 || flash8 || js || php || python)
+	#if (as3 || js || php || python)
 
 	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
 		return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
@@ -186,7 +186,7 @@ abstract Int32(Int) from Int to Int {
 
 	static inline function clamp( x : Int ) : Int {
 		// force to-int conversion on platforms that require it
-		#if (as3 || flash8 || js)
+		#if (as3 || js)
 		return x | 0;
 		#elseif php
 		// we might be on 64-bit php, so sign extend from 32-bit
