@@ -264,7 +264,6 @@ let include_class_header = function
 
 let is_cpp_class = function
    | ("cpp"::_ , _)  -> true
-   | ( ["cpp"] , "Xml" )  -> true
    | ( [] , "EReg" )  -> true
    | ( ["haxe"] , "Log" )  -> true
    | _ -> false;;
