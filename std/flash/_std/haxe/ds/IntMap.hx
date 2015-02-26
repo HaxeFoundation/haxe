@@ -105,7 +105,7 @@ private class IntMapKeysIterator {
 	inline function new(h:flash.utils.Dictionary):Void {
 		this.h = h;
 		this.index = 0;
-		this.nextIndex = 0;
+		hasNext();
 	}
 
 	public inline function hasNext():Bool {
@@ -132,7 +132,7 @@ private class IntMapValuesIterator<T> {
 	inline function new(h:flash.utils.Dictionary):Void {
 		this.h = h;
 		this.index = 0;
-		this.nextIndex = 0;
+		hasNext();
 	}
 
 	public inline function hasNext():Bool {
