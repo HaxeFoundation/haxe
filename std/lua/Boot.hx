@@ -64,7 +64,8 @@ class Boot {
 
 	@:keep
 	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic> {
-		untyped __lua__("setmetatable(tabobj, Array.mt)");
+		untyped __lua__("tabobj.__methods = {Array.mt};
+			setmetatable(tabobj, {__index = lua.Boot.resolveMethod})");
 		tabobj.length = length;
 		return tabobj;
 	}
@@ -89,8 +90,7 @@ class Boot {
 				case "function": return "<function>";
 				case "thread": return "<thread>";
 				case "table": { __lua__("local result = '';
-
-		if o.toString ~= nil then result = o.toString()
+		if o.toString ~= nil then result = o:toString()
 		elseif o.__tostring ~= nil then result = tostring(o)
 		elseif next(o) == nil then return '{}'
 		else
