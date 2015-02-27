@@ -346,12 +346,12 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TField (e, ((FInstance _ | FAnon _) as ef)), el ->
-		gen_value ctx e;
-		spr ctx ":";
-		print ctx "%s" (field_name ef);
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		gen_value ctx e; 
+		spr ctx ":"; 
+		print ctx "%s" (field_name ef); 
+		spr ctx "("; 
+		concat ctx "," (gen_value ctx) el; 
+		spr ctx ")" 
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -760,11 +760,6 @@ and gen_value ctx e =
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1
-	| TCall ({eexpr = TField(e,(FInstance _ as ef)) }, el) ->
-		gen_value ctx e;
-		print ctx ":%s(" (field_name ef);
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
 	| TCall (e,el) ->
 		gen_call ctx e el true
 	| TReturn _
