@@ -44,8 +44,20 @@ package haxe;
 		return content.copy();
 	}
 
+	private static function unescapeName( name : String ) : String
+	{
+		var regex = ~/-x([0-9]+)/g;
+		return regex.map(name, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
+	}
+
+	private static function escapeName( name : String ) : String
+	{
+		var regex = ~/[^A-Za-z0-9_\/]/g;
+		return regex.map(name, function(v) return '-x' + v.matched(0).charCodeAt(0));
+	}
+
 	public static function getString( name : String ) : String {
-		name = haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(name));
+		name = escapeName(name);
 		var path = getPaths().get(name);
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)
@@ -54,7 +66,7 @@ package haxe;
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		name = haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(name));
+		name = escapeName(name);
 		var path = getPaths().get(name);
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)

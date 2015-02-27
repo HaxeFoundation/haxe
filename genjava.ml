@@ -2256,7 +2256,7 @@ let configure gen =
 	let res = ref [] in
 	Hashtbl.iter (fun name v ->
 		res := { eexpr = TConst(TString name); etype = gen.gcon.basic.tstring; epos = Ast.null_pos } :: !res;
-		let name = Base64.str_encode name in
+		let name = Codegen.escape_res_name name true in
 		let full_path = gen.gcon.file ^ "/src/" ^ name in
 		mkdir_from_path full_path;
 

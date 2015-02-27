@@ -3018,7 +3018,7 @@ let configure gen =
 				gen.gcon.file ^ "/src/Resources"
 		in
 		Hashtbl.iter (fun name v ->
-			let name = Base64.str_encode name in
+			let name = Codegen.escape_res_name name true in
 			let full_path = src ^ "/" ^ name in
 			mkdir_from_path full_path;
 

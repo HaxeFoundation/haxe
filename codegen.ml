@@ -121,6 +121,15 @@ let is_removable_field ctx f =
 		| Method MethMacro -> not ctx.in_macro
 		| _ -> false)
 
+let escape_res_name name allow_dirs =
+	ExtString.String.replace_chars (fun chr ->
+		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' then
+			Char.escaped chr
+		else if chr = '/' && allow_dirs then
+			"/"
+		else
+			"-x" ^ (string_of_int (Char.code chr))) name
+
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 
