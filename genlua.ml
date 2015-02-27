@@ -277,7 +277,7 @@ let rec gen_call ctx e el in_value =
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
-			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
+			print ctx "%s.mt%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -731,6 +731,11 @@ and gen_value ctx e =
 		gen_expr ctx e
 	| TMeta (_,e1) ->
 		gen_value ctx e1
+	| TCall ({eexpr = TField(e,(FInstance _ as ef)) }, el) ->
+		gen_value ctx e;
+		print ctx ":%s(" (field_name ef);
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")"
 	| TCall (e,el) ->
 		gen_call ctx e el true
 	| TReturn _
@@ -909,12 +914,12 @@ let can_gen_class_field ctx = function
 	| f ->
 		not (is_extern_field f)
 
-let gen_class_field ctx c f p =
+let gen_class_field ctx c f =
 	check_field_name c f;
 	match f.cf_expr with
 	| None ->
-		print ctx "%s.%s = " p (anon_field f.cf_name);
-		print ctx "nil";
+		print ctx "%s = nil" (anon_field f.cf_name);
+		spr ctx ",";
 		newline ctx;
 	| Some e ->
 		ctx.id_counter <- 0;
@@ -923,8 +928,8 @@ let gen_class_field ctx c f p =
 		    let old = ctx.in_value, ctx.in_loop in
 		    ctx.in_value <- None;
 		    ctx.in_loop <- false;
-		    print ctx "function %s:%s" p (anon_field f.cf_name);
-		    print ctx "(%s) " (String.concat "," (List.map ident (List.map arg_name f2.tf_args)));
+		    print ctx "%s = function" (anon_field f.cf_name);
+		    print ctx "(%s) " (String.concat "," ("self"::(List.map ident (List.map arg_name f2.tf_args))));
 		    newline ctx;
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with
@@ -950,13 +955,12 @@ let gen_class_field ctx c f p =
 			bend();
 			newline ctx;
 		    |_ -> ());
-		    spr ctx "end";
+		    spr ctx "end,";
 		    newline ctx;
 		    ctx.in_value <- fst old;
 		    ctx.in_loop <- snd old;
 		    ctx.separator <- true;
 		| _ -> gen_value ctx e);
-		ctx.separator <- false;
 		newline ctx
 
 let generate_class___name__ ctx c =
@@ -999,7 +1003,14 @@ let generate_class ctx c =
 					let bend = open_block ctx in
 					newline ctx;
 					spr ctx "self = {}";
+					newline ctx;
+					spr ctx "self.__methods = {}";
+					newline ctx;
+					spr ctx "setmetatable(self, {__index = lua.Boot.resolveMethod })";
+					newline ctx;
 					List.iter (gen_block_element ctx) el;
+					newline ctx;
+					print ctx "table.insert(self.__methods, %s.mt)" p;
 					newline ctx;
 					spr ctx "return self";
 					bend();
@@ -1044,14 +1055,18 @@ let generate_class ctx c =
 	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
 	if has_prototype then begin
 		(match c.cl_super with
-		| None -> ()
+		| None ->
+			print ctx "%s.mt = {" p;
+			newline ctx;
 		| Some (csup,_) ->
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx;
+			print ctx "%s.mt = {" p;
+			newline ctx;
 		);
 
-		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f p) c.cl_ordered_fields;
+		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
 		if has_class then begin
 			newprop ctx;
 			print ctx "__class__: %s" p;
@@ -1070,6 +1085,7 @@ let generate_class ctx c =
 				print ctx "__properties__: {%s}" (gen_props props));
 		end;
 
+		print ctx "\n}";
 		newline ctx
 	end
 

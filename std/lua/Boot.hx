@@ -64,15 +64,17 @@ class Boot {
 
 	@:keep
 	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic> {
+		untyped __lua__("setmetatable(tabobj, Array.mt)");
 		tabobj.length = length;
-		tabobj._hxarray = true;
-		untyped __lua__("setmetatable(self, {__newindex = function (tab, key, value)
-		rawset(tab,key,value)
-		if key + 1> tab.length then
-			tab.length = key + 1
-		end
-	end })");
 		return tabobj;
+	}
+
+	@:keep
+	public static function resolveMethod(table : Dynamic,  key:Dynamic){
+		untyped __lua__("for index, value in ipairs(table.__methods) do
+		if value[key] ~= nil then return value[key] end
+	end
+	return nil");
 	}
 
 	@:ifFeature("may_print_enum")
