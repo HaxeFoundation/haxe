@@ -134,10 +134,12 @@ let make_module ctx mpath file tdecls loadp =
 				a.a_this <- t_dynamic;
 				acc
 			| fields ->
+				let a_t =
+					let params = List.map (fun t -> TPType (CTPath { tname = t.tp_name; tparams = []; tsub = None; tpackage = [] })) d.d_params in
+					CTPath { tpackage = []; tname = d.d_name; tparams = params; tsub = None }
+				in
 				let rec loop = function
-					| [] ->
-						let params = List.map (fun t -> TPType (CTPath { tname = t.tp_name; tparams = []; tsub = None; tpackage = [] })) d.d_params in
-						CTPath { tpackage = []; tname = d.d_name; tparams = params; tsub = None }
+					| [] -> a_t
 					| AIsType t :: _ -> t
 					| _ :: l -> loop l
 				in
@@ -155,7 +157,9 @@ let make_module ctx mpath file tdecls loadp =
 						f
 					| FFun fu when f.cff_name = "new" && not stat ->
 						let init p = (EVars ["this",Some this_t,None],p) in
-						let ret p = (EReturn (Some (EConst (Ident "this"),p)),p) in
+						let cast e = (ECast(e,None)),pos e in
+						let check_type e ct = (ECheckType(e,ct)),pos e in
+						let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 						if Meta.has Meta.MultiType a.a_meta then begin
 							if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 							if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
@@ -172,11 +176,11 @@ let make_module ctx mpath file tdecls loadp =
 							f_expr = (match fu.f_expr with
 							| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
 							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) when not (has_call e) ->
-								Some (EReturn (Some e), pos e)
+								Some (EReturn (Some (cast (check_type e this_t))), pos e)
 							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
 							| Some e -> Some (EBlock [init p;e;ret p],p)
 							);
-							f_type = Some this_t;
+							f_type = Some a_t;
 						} in
 						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 					| FFun fu when not stat ->
