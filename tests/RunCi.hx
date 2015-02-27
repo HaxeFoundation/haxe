@@ -563,6 +563,11 @@ class RunCi {
 							runExe("bin/cs_unsafe/bin/Test-Debug.exe");
 					}
 
+					changeDirectory(sysDir);
+					runCommand("haxe", ["compile-cs.hxml"]);
+					changeDirectory("bin/cs");
+					runCommand("bin/Main-Debug.exe", args);
+
 				case Flash9:
 					setupFlashPlayerDebugger();
 					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
