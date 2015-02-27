@@ -458,6 +458,9 @@ class RunCi {
 							haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
 					}
 
+					changeDirectory(sysDir);
+					runCommand("haxe", ["compile-macro.hxml"]);
+
 					//BYTECODE
 					switch (ci) {
 						case null:
