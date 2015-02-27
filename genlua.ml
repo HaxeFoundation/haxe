@@ -263,12 +263,12 @@ let gen_constant ctx p = function
 	| TSuper -> assert false
 
 let rec gen_call ctx e el in_value =
-	match e.eexpr , el with
+	(match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "self = %s:new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			print ctx "self = %s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -277,6 +277,7 @@ let rec gen_call ctx e el in_value =
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
+			(* TODO: use nonconflict var instead of mt *)
 			print ctx "%s.mt%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
@@ -339,15 +340,28 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx e;
 			spr ctx ")";
 		end
+	| TCall ({eexpr = TField(e,((FInstance _ | FAnon _) as ef)) }, _), el ->
+		gen_value ctx e;
+		print ctx ":%s(" (field_name ef);
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")";
+	| TField (e, ((FInstance _ | FAnon _) as ef)), el ->
+		gen_value ctx e;
+		spr ctx ":";
+		print ctx "%s" (field_name ef);
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")"
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		spr ctx ")");
 
 and gen_expr ctx e =
 	match e.eexpr with
-	| TConst c -> gen_constant ctx e.epos c
+	 TConst c ->
+		gen_constant ctx e.epos c;
 	| TLocal v when v.v_name = "this" ->
 	    spr ctx "self";
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -1010,6 +1024,7 @@ let generate_class ctx c =
 					newline ctx;
 					List.iter (gen_block_element ctx) el;
 					newline ctx;
+					(* TODO: use nonconflict var instead of mt *)
 					print ctx "table.insert(self.__methods, %s.mt)" p;
 					newline ctx;
 					spr ctx "return self";
@@ -1056,12 +1071,14 @@ let generate_class ctx c =
 	if has_prototype then begin
 		(match c.cl_super with
 		| None ->
+			(* TODO: use nonconflict var instead of mt *)
 			print ctx "%s.mt = {" p;
 			newline ctx;
 		| Some (csup,_) ->
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx;
+			(* TODO: use nonconflict var instead of mt *)
 			print ctx "%s.mt = {" p;
 			newline ctx;
 		);

@@ -103,7 +103,7 @@ class Boot {
 				result = result .. i .. ' => ' .. lua.Boot.__string_rec(v, s .. 'o');
 			end
 			result = result .. ' }';
-		end ");
+		end");
 				return result; }
 				default : throw "Unknown Lua type";
 		    }

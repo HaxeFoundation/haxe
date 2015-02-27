@@ -93,8 +93,8 @@ class Log {
 			cs.system.Console.WriteLine(str);
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
-            #elseif lua
-            untyped print(str);
+			#elseif lua
+			untyped print(lua.Boot.__string_rec(str));
 			#end
 		#elseif (python)
 			var str:String = null;
