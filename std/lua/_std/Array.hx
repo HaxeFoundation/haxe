@@ -20,54 +20,74 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi
-extern class Array<T> {
+class Array<T> {
 
-	var length(default,null) : Int;
+	public var length(default,null) : Int;
 
-	function new() : Void;
-	function concat( a : Array<T> ) : Array<T>;
-	function join( sep : String ) : String;
-	function pop() : Null<T>;
-	function push(x : T) : Int;
-	function reverse() : Void;
-	function shift() : Null<T>;
-	function slice( pos : Int, ?end : Int ) : Array<T>;
-	function sort( f : T -> T -> Int ) : Void;
-	function splice( pos : Int, len : Int ) : Array<T>;
-	function toString() : String;
-	function unshift( x : T ) : Void;
+	public function new() : Void  {
+		this.length = 0;
+		untyped __lua__("self.__newindex = function (tab, key, value)
+		rawset(tab, key,value)
+		if key + 1> tab.length then
+			tab.length = key + 1
+		end
+		end");
+	}
+	public function concat( a : Array<T> ) : Array<T> return [];
+	public function join( sep : String ) : String {
+		var sb = new StringBuf();
+		var first = true;
+		for (i in iterator()){
+			if (first) first = false;
+			else sb.add(sep);
+			sb.add(Std.string(i));
+		}
+		return sb.toString();
+	}
 
-	inline function insert( pos : Int, x : T ) : Void {
+	public function pop() : Null<T> return null;
+	public function push(x : T) : Int {
+		this[this.length++] = x;
+		return this.length;
+	}
+	public function reverse() : Void return;
+	public function shift() : Null<T> return null;
+	public function slice( pos : Int, ?end : Int ) : Array<T> return [];
+	public function sort( f : T -> T -> Int ) : Void return;
+	public function splice( pos : Int, len : Int ) : Array<T> return [];
+	public function toString() : String {
+		var sb = new StringBuf();
+		sb.add("[");
+		sb.add(join(", "));
+		sb.add("]");
+		return sb.toString();
+	}
+	public function unshift( x : T ) : Void return;
+
+	public inline function insert( pos : Int, x : T ) : Void {
 		(untyped this).splice(pos,0,x);
 	}
 
-	inline function remove( x : T ) : Bool {
-		return @:privateAccess HxOverrides.remove(this,x);
+	public inline function remove( x : T ) : Bool {
+		return true;
 	}
 
-#if js_es5
-	function indexOf( x : T, ?fromIndex:Int ) : Int;
-	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
+	public function indexOf( x : T, ?fromIndex:Int ) : Int return 1;
+	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int return 1;
 
-#else
-	inline function indexOf( x : T, ?fromIndex:Int ) : Int {
-		return @:privateAccess HxOverrides.indexOf(this,x,(fromIndex!=null)?fromIndex:0);
-	}
 
-	inline function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
-		return @:privateAccess HxOverrides.lastIndexOf(this,x,(fromIndex!=null)?fromIndex:length-1);
-	}
-#end
-
-	inline function copy() : Array<T> {
+	public inline function copy() : Array<T> {
 		return (untyped this).slice();
 	}
 
-	function map<S>(f:T->S):Array<S>;
-	function filter(f:T->Bool):Array<T>;
-
-	@:runtime inline function iterator() : Iterator<T> {
-		return untyped HxOverrides.iter(this);
+	public function map<S>(f:T->S):Array<S> return [];
+	public function filter(f:T->Bool):Array<T> return [];
+	public inline function iterator() : Iterator<T> {
+		var cur_length = 0;
+		return {
+			hasNext : function() return cur_length < length,
+			next : function() return untyped this[cur_length++]
+		}
 	}
 
 }
