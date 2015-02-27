@@ -1471,7 +1471,8 @@ let std_lib =
 		);
 		"file_seek", Fun3 (fun f pos mode ->
 			match f, pos, mode with
-			| VAbstract (AFRead (f,_)), VInt pos, VInt mode ->
+			| VAbstract (AFRead (f,r)), VInt pos, VInt mode ->
+				r := false;
 				seek_in f (match mode with 0 -> pos | 1 -> pos_in f + pos | 2 -> in_channel_length f + pos | _ -> error());
 				VNull;
 			| VAbstract (AFWrite f), VInt pos, VInt mode ->
