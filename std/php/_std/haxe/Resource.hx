@@ -35,15 +35,26 @@ class Resource {
 		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
 	}
 
+	private static function unescapeName( name : String ) : String
+	{
+		var regex = ~/-x([0-9]+)/g;
+		return regex.map(name, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
+	}
+
+	private static function escapeName( name : String ) : String {
+		var regex = ~/[^A-Za-z0-9_]/g;
+		return regex.map(name, function(v) return '-x' + v.matched(0).charCodeAt(0));
+	}
+
 	static function getPath(name : String) : String {
-		return getDir()+'/'+Base64.encode(Bytes.ofString(name));
+		return getDir()+'/'+escapeName(name);
 	}
 
 	public static function listNames() : Array<String> {
 		var a = sys.FileSystem.readDirectory(getDir());
 		if(a[0] == '.') a.shift();
 		if(a[0] == '..') a.shift();
-		return a.map(function(s) return Base64.decode(s).toString());
+		return a.map(function(s) return unescapeName(s));
 	}
 
 	public static function getString( name : String ) : String {
