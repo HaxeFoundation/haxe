@@ -45,6 +45,7 @@ package haxe;
 	}
 
 	public static function getString( name : String ) : String {
+		name = haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(name));
 		var path = getPaths().get(name);
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)
@@ -53,6 +54,7 @@ package haxe;
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
+		name = haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(name));
 		var path = getPaths().get(name);
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)

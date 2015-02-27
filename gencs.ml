@@ -40,7 +40,7 @@ let rec is_cs_basic_type t =
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
 		| TInst( { cl_path = (["haxe"], "Int64") }, [] )
 		| TAbstract ({ a_path = (["cs"], "Int64") },[])
-		| TAbstract ({ a_path = (["cs"], "UInt64") },[]) 
+		| TAbstract ({ a_path = (["cs"], "UInt64") },[])
 		| TAbstract ({ a_path = ([], "Int") },[])
 		| TAbstract ({ a_path = ([], "Float") },[])
 		| TAbstract ({ a_path = ([], "Bool") },[]) ->
@@ -3018,6 +3018,7 @@ let configure gen =
 				gen.gcon.file ^ "/src/Resources"
 		in
 		Hashtbl.iter (fun name v ->
+			let name = Base64.str_encode name in
 			let full_path = src ^ "/" ^ name in
 			mkdir_from_path full_path;
 
