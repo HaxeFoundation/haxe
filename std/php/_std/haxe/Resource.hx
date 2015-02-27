@@ -37,7 +37,7 @@ class Resource {
 
 	private static function unescapeName( name : String ) : String
 	{
-		var regex = ~/-x([0-9]+)/g;
+		var regex = ~/-x([0-9]{2})/g;
 		return regex.map(name, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
 	}
 
