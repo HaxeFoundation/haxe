@@ -217,13 +217,14 @@ class RunCi {
 		Sys.exit(1);
 	}
 
-	static function runExe(exe:String):Void {
+	static function runExe(exe:String, ?args:Array<String>):Void {
+		if (args == null) args = [];
 		exe = FileSystem.fullPath(exe);
 		switch (systemName) {
 			case "Linux", "Mac":
-				runCommand("mono", [exe]);
+				runCommand("mono", [exe].concat(args));
 			case "Windows":
-				runCommand(exe, []);
+				runCommand(exe, args);
 		}
 	}
 
@@ -566,7 +567,7 @@ class RunCi {
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cs.hxml"]);
 					changeDirectory("bin/cs");
-					runCommand("bin/Main-Debug.exe", args);
+					runExe("bin/Main-Debug.exe", args);
 
 				case Flash9:
 					setupFlashPlayerDebugger();
