@@ -4,18 +4,23 @@ class TestSys extends haxe.unit.TestCase {
 		assertEquals(3, args.length);
 		assertEquals("foo", args[0]);
 		assertEquals("12", args[1]);
-		assertEquals("a b  %PATH% $HOME c\\&<>[\"]#{}|%$", args[2]);		
+		assertEquals("a b  %PATH% $HOME c\\&<>[\"]#{}|%$", args[2]);
 	}
 
 	function testEnv() {
+		#if !java
 		Sys.putEnv("foo", "value");
 		assertEquals("value", Sys.getEnv("foo"));
+		#end
 		assertEquals(null, Sys.getEnv("doesn't exist"));
 
+		#if !java
 		var env = Sys.environment();
 		assertEquals("value", env.get("foo"));
+		#end
 	}
 
+	#if !java
 	function testCwd() {
 		var cur = Sys.getCwd();
 		Sys.setCwd("../");
@@ -25,4 +30,5 @@ class TestSys extends haxe.unit.TestCase {
 		}
 		assertEquals(normalize(newCwd), normalize(Sys.getCwd()));
 	}
+	#end
 }
