@@ -540,6 +540,11 @@ class RunCi {
 					getJavaDependencies();
 					runCommand("haxe", ["compile-java.hxml"]);
 					runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
+
+					changeDirectory(sysDir);
+					runCommand("haxe", ["compile-java.hxml"]);
+					changeDirectory("bin/java");
+					runCommand("java", ["-jar", "Main-Debug.jar"].concat(args));
 				case Cs:
 					getCsDependencies();
 
@@ -557,7 +562,7 @@ class RunCi {
 							runCommand("haxe", ["compile-cs-unsafe.hxml"]);
 							runExe("bin/cs_unsafe/bin/Test-Debug.exe");
 					}
-					
+
 				case Flash9:
 					setupFlashPlayerDebugger();
 					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
