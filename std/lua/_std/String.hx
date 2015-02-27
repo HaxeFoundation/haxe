@@ -19,25 +19,49 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi extern class String {
-	var length(default,null) : Int;
 
-	function new(string:String) : Void;
-	function toUpperCase() : String;
-	function toLowerCase() : String;
-	function charAt( index : Int) : String;
-	function indexOf( str : String, ?startIndex : Int ) : Int;
-	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
-	function split( delimiter : String ) : Array<String>;
-	function toString() : String;
-	function substring( startIndex : Int, ?endIndex : Int ) : String;
+extern class String {
+	var length(get,null) : Int;
 
+	function new(string:String) {
+		this = string;
+	}
+
+	inline function toUpperCase() : String return untyped this.upper();
+	inline function toLowerCase() : String return untyped this.lower();
+	inline function indexOf( str : String, ?startIndex : Int ) : Int {
+		if (startIndex == null) startIndex = 1;
+		else startIndex += 1;
+		return lua.LuaStringTools.find(this, str, startIndex, str.length, true);
+	}
+	inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+		return 0;
+	}
+	inline function split( delimiter : String ) : Array<String> {
+		return [];
+	}
+	inline function toString() : String {
+		return this;
+	}
+	inline function substring( startIndex : Int, ?endIndex : Int ) : String {
+		startIndex +=1;
+		if (endIndex == null) endIndex = this.length;
+		else endIndex += 1;
+		return untyped this.sub(startIndex,endIndex);
+	}
+
+	inline function get_length() : Int {
+		return lua.LuaStringTools.len(this);
+	}
+	inline function charAt( index : Int) : String {
+		return lua.LuaStringTools.sub(this,index+1, index+1);
+	}
 	inline function charCodeAt( index : Int) : Null<Int> {
-		return untyped HxOverrides.cca(this, index);
+		return lua.LuaStringTools.byte(this,index+1);
 	}
 
 	inline function substr( pos : Int, ?len : Int ) : String {
-		return untyped HxOverrides.substr(this, pos, len);
+		return lua.LuaStringTools.substr(this, pos, len);
 	}
 
 	static function fromCharCode( code : Int ) : String;
