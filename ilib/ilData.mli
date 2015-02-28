@@ -60,6 +60,7 @@ type ilclass = {
 	(* cevents :  *)
 	cenclosing : ilpath option;
 	cnested : ilpath list;
+  cattrs : meta_custom_attribute list;
 }
 
 and type_param = {

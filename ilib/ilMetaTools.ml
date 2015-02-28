@@ -433,25 +433,27 @@ let convert_class ctx path =
 	let cfields = List.map (convert_field ctx) td.td_field_list in
 	let cmethods = List.map (convert_method ctx) td.td_method_list in
 	let enclosing = Option.map (fun t -> get_path (TypeDef t)) td.td_extra_enclosing in
-	let impl, types, nested, props, events =
-		List.fold_left (fun (impl,types,nested,props,events) -> function
+	let impl, types, nested, props, events, attrs =
+		List.fold_left (fun (impl,types,nested,props,events,attrs) -> function
 			| InterfaceImpl ii ->
-				(ilsig_t (ilsig_of_tdef_ref ii.ii_interface)) :: impl,types,nested, props, events
+				(ilsig_t (ilsig_of_tdef_ref ii.ii_interface)) :: impl,types,nested, props, events, attrs
 			| GenericParam gp ->
-				(impl, (convert_generic ctx gp) :: types, nested, props,events)
+				(impl, (convert_generic ctx gp) :: types, nested, props,events, attrs)
 			| NestedClass nc ->
 				assert (nc.nc_enclosing.td_id = td.td_id);
-				(impl,types,(get_path (TypeDef nc.nc_nested)) :: nested, props,events)
+				(impl,types,(get_path (TypeDef nc.nc_nested)) :: nested, props, events, attrs)
 			| PropertyMap pm ->
 				assert (props = []);
-				impl,types,nested,List.map (convert_prop ctx) pm.pm_property_list,events
+				impl,types,nested,List.map (convert_prop ctx) pm.pm_property_list, events, attrs
 			| EventMap em ->
 				assert (events = []);
-				(impl,types,nested,props,List.map (convert_event ctx) em.em_event_list)
+				(impl,types,nested,props,List.map (convert_event ctx) em.em_event_list, attrs)
+			| CustomAttribute a ->
+				impl,types,nested,props,events,(a :: attrs)
 			| _ ->
-				(impl,types,nested,props,events)
+				(impl,types,nested,props,events,attrs)
 		)
-		([],[],[],[],[])
+		([],[],[],[],[],[])
 		(Hashtbl.find_all ctx.il_relations (ITypeDef, td.td_id))
 	in
 	{
@@ -466,4 +468,5 @@ let convert_class ctx path =
 		ctypes = types;
 		cenclosing = enclosing;
 		cnested = nested;
+		cattrs = attrs;
 	}
