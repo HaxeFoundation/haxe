@@ -110,6 +110,7 @@ module Meta = struct
 		| NativeChildren
 		| NativeGen
 		| NativeGeneric
+		| NativeProperty
 		| NoCompletion
 		| NoDebug
 		| NoDoc

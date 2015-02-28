@@ -3542,18 +3542,27 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          end;
       in
 
+      let checkPropCall field = if ( (has_meta_key class_def.cl_meta Meta.NativeProperty) ||
+                                     (has_meta_key field.cf_meta Meta.NativeProperty) ||
+                                     (Common.defined common_ctx Define.ForceNativeProperty) )
+         then
+            "inCallProp != hx::paccNever"
+         else
+            "inCallProp == hx::paccAlways"
+      in
+
+
 
       if (has_get_field class_def) then begin
-         let checkPropCall field = "inCallProp != hx::paccNever" in
          (* Dynamic "Get" Field function - string version *)
          output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
          let get_field_dat = List.map (fun f ->
-            (f.cf_name, String.length f.cf_name, "return " ^
+            (f.cf_name, String.length f.cf_name, 
                (match f.cf_kind with
-               | Var { v_read = AccCall } when is_extern_field f -> (keyword_remap ("get_" ^ f.cf_name)) ^ "()"
-               | Var { v_read = AccCall } -> (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
+               | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") return " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "()"
+               | Var { v_read = AccCall } -> "return " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
                      ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
-               | _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
+               | _ -> "return " ^ ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
                ) ^ ";"
             ) )
          in
@@ -3595,10 +3604,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          end;
       end;
 
-
       (* Dynamic "Set" Field function *)
       if (has_set_field class_def) then begin
-         let checkPropCall field = "inCallProp != hx::paccNever" in
 
          output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,hx::PropertyAccess inCallProp)\n{\n");
 
@@ -3608,9 +3615,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                   " return inValue;" in
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
-               | Var { v_write = AccCall } when is_extern_field f -> "return " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue);"
                | Var { v_write = AccCall } -> "if (" ^ (checkPropCall f) ^ ") return " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue);"
-                  ^ default_action
+                  ^ ( if is_extern_field f then "" else default_action )
                | _ -> default_action
                )
             )
