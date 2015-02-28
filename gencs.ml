@@ -540,6 +540,19 @@ struct
 					else
 						ret
 
+				| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod|OpAnd|OpOr|OpXor) as op, e1, e2) ->
+					(*
+						https://msdn.microsoft.com/en-us/library/aa691330(v=vs.71).aspx
+						"if either operand is of type uint and the other operand is of type sbyte, short, or int, both operands are converted to type long."
+						that conflicts with haxe behaviour so we have to cast back to uint there
+					*)
+					let is_uint t = match follow t with TAbstract ({a_path=[],"UInt"}, _) -> true | _ -> false in
+					let e = {e with eexpr = TBinop(op, run e1, run e2)} in
+					if is_uint e.etype && ((is_uint e1.etype && not (is_uint e2.etype)) || (is_uint e2.etype && not (is_uint e1.etype))) then
+						{e with eexpr = TCast(e, None)}
+					else
+						e
+
 				| _ -> Type.map_expr run e
 		in
 		run
