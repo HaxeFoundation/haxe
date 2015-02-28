@@ -65,4 +65,19 @@ class Lib {
 	static inline function get_undefined() : Dynamic {
 		return untyped __js__("undefined");
 	}
+
+	/**
+		`jsThis` is the JavaScript `this`, which is semantically different from the Haxe `this`.
+		Use `jsThis` only when working with external JavaScript code.
+
+		In Haxe, `this` is always bound to a class instance.
+		In JavaScript, `this` in a function can be bound to an arbitrary variable when 
+		the function is called using `func.call(thisObj, ...)` or `func.apply(thisObj, [...])`.
+
+		Read more at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/this
+	**/
+	public static var jsThis(get,never) : Dynamic;
+	@:extern static inline function get_jsThis() : Dynamic {
+		return untyped __js__("this");
+	}
 }
