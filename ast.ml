@@ -754,3 +754,9 @@ let get_value_meta meta =
 		end
 	with Not_found ->
 		PMap.empty
+
+let rec string_list_of_expr_path_raise (e,p) =
+	match e with
+	| EConst (Ident i) -> [i]
+	| EField (e,f) -> f :: string_list_of_expr_path_raise e
+	| _ -> raise Exit

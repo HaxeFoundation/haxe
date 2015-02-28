@@ -1597,12 +1597,6 @@ let patch_class ctx c fields =
 		in
 		List.rev (loop [] fields)
 
-let rec string_list_of_expr_path_raise (e,p) =
-	match e with
-	| EConst (Ident i) -> [i]
-	| EField (e,f) -> f :: string_list_of_expr_path_raise e
-	| _ -> raise Exit
-
 let string_list_of_expr_path (e,p) =
 	try string_list_of_expr_path_raise (e,p)
 	with Exit -> error "Invalid path" p

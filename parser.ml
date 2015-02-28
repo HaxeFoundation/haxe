@@ -88,6 +88,10 @@ let do_resume() = !resume_display <> null_pos
 
 let display e = raise (Display e)
 
+let type_path sl in_import = match sl with
+	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import));
+	| _ -> raise (TypePath (List.rev sl,None,in_import))
+
 let is_resuming p =
 	let p2 = !resume_display in
 	p.pmax = p2.pmin && !use_parser_resume && Common.unique_full_path p.pfile = p2.pfile
@@ -648,9 +652,7 @@ and parse_import s p1 =
 		match s with parser
 		| [< '(Dot,p) >] ->
 			let resume() =
-				match acc with
-				| (n,_) :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev (List.map fst l),Some (n,false),true));
-				| _ -> raise (TypePath (List.rev (List.map fst acc),None,true));
+				type_path (List.map fst acc) true
 			in
 			if is_resuming p then resume();
 			(match s with parser
@@ -773,8 +775,21 @@ and parse_common_flags = parser
 	| [< '(Kwd Extern,_); l = parse_common_flags >] -> (HExtern, EExtern) :: l
 	| [< >] -> []
 
+and parse_meta_argument_expr s =
+	try
+		expr s
+	with Display e -> match fst e with
+		| EDisplay(e,_) ->
+			begin try
+				type_path (string_list_of_expr_path_raise e) false
+			with Exit ->
+				e
+			end
+		| _ ->
+			e
+
 and parse_meta_params pname s = match s with parser
-	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep Comma expr; '(PClose,_); >] -> params
+	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep Comma parse_meta_argument_expr; '(PClose,_); >] -> params
 	| [< >] -> []
 
 and parse_meta_entry = parser

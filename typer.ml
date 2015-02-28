@@ -3809,7 +3809,7 @@ and handle_display ctx e_ast iscall p =
 			in
 			let fields = List.fold_left get_field [] fields in
 			let fields = try
-				let sl = Typeload.string_list_of_expr_path_raise e_ast in
+				let sl = string_list_of_expr_path_raise e_ast in
 				fields @ get_submodule_fields (List.tl sl,List.hd sl)
 			with Exit | Not_found ->
 				fields
