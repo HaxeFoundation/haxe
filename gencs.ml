@@ -547,8 +547,9 @@ struct
 						that conflicts with haxe behaviour so we have to cast back to uint there
 					*)
 					let is_uint t = match follow t with TAbstract ({a_path=[],"UInt"}, _) -> true | _ -> false in
+					let is_signed t = match follow t with TAbstract ({a_path=(["cs"],("Int8"|"Int16"))|([],"Int")}, _) -> true | _ -> false in
 					let e = {e with eexpr = TBinop(op, run e1, run e2)} in
-					if is_uint e.etype && ((is_uint e1.etype && not (is_uint e2.etype)) || (is_uint e2.etype && not (is_uint e1.etype))) then
+					if is_uint e.etype && ((is_uint e1.etype && is_signed e2.etype) || (is_uint e2.etype && is_signed e1.etype)) then
 						{e with eexpr = TCast(e, None)}
 					else
 						e
