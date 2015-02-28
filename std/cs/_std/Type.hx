@@ -177,14 +177,14 @@ using StringTools;
 	@:functionCode('
 		if (name == "Bool") return typeof(bool);
 		System.Type t = resolveClass(name);
-		if (t != null && (t.BaseType.Equals(typeof(System.Enum)) || t.BaseType.Equals(typeof(haxe.lang.Enum))))
+		if (t != null && (t.BaseType.Equals(typeof(System.Enum)) || (typeof(haxe.lang.Enum)).IsAssignableFrom(t)))
 			return t;
 		return null;
 	')
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped
 	{
-		if (name == "Bool") return Bool;
-		return cast resolveClass(name);
+		return null;
+		// if (ret != null && (ret.BaseType.Equals(cs.Lib.toNativeType(cs.system.Enum)) || ret.IsAssignableFrom(cs.Lib.toNativeType(haxe.
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
@@ -385,7 +385,7 @@ using StringTools;
 	}
 
 	@:functionCode('
-		return ( e is System.Enum ) ? new Array<object>() : ((haxe.lang.Enum) e).@params;
+		return ( e is System.Enum ) ? new Array<object>() : ((haxe.lang.Enum) e).getParams();
 	')
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
 	{

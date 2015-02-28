@@ -119,7 +119,7 @@
 	@:functionCode('
 		if ("Bool".equals(name)) return boolean.class;
 		Class r = resolveClass(name);
-		if (r != null && (r.getSuperclass() == java.lang.Enum.class || r.getSuperclass() == haxe.lang.Enum.class))
+		if (r != null && (r.getSuperclass() == java.lang.Enum.class || haxe.lang.Enum.class.isAssignableFrom(r)))
 			return r;
 		return null;
 	')
@@ -398,7 +398,7 @@
 	}
 
 	@:functionCode('
-		return ( e instanceof java.lang.Enum ) ? new haxe.root.Array() : ((haxe.lang.Enum) e).params;
+		return ( e instanceof java.lang.Enum ) ? new haxe.root.Array() : ((haxe.lang.Enum) e).getParams();
 	')
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
 	{

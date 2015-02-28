@@ -1917,7 +1917,9 @@ let configure gen =
 
 	ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
 
-	EnumToClass.configure gen (None) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) false false;
+	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
+	let param_enum_base = (get_cl (get_type gen (["haxe";"lang"],"ParamEnum")) ) in
+	EnumToClass.configure gen (None) false true enum_base param_enum_base false false;
 
 	InterfaceVarsDeleteModf.configure gen;
 

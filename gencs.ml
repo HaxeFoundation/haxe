@@ -2653,7 +2653,9 @@ let configure gen =
 
 	ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
 
-	EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) true false;
+	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
+	let param_enum_base = (get_cl (get_type gen (["haxe";"lang"],"ParamEnum")) ) in
+	EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) true true enum_base param_enum_base true false;
 
 	InterfaceVarsDeleteModf.configure gen;
 	InterfaceProps.configure gen;
@@ -3271,7 +3273,12 @@ let get_cls = function
 	| _,_,c -> c
 
 let convert_ilenum ctx p ilcls =
-	let meta = ref [Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p ] in
+	let meta = ref [
+		Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p;
+		Meta.Enum, [], p;
+		Meta.CsNative, [], p;
+		Meta.Extern, [], p; (* abstracts can't be externs *)
+	] in
 	let data = ref [] in
 	List.iter (fun f -> match f.fname with
 		| "value__" -> ()

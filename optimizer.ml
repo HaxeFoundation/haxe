@@ -53,10 +53,21 @@ let mk_untyped_call name p params =
 
 let api_inline ctx c field params p =
 	match c.cl_path, field, params with
-	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] ->
-		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p)
+	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] -> (match ctx.com.platform with
+		| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
+			(* We don't want to optimize enums from external sources; as they might change unexpectedly *)
+			(* and since native C# enums don't have the concept of index - they have rather a value, *)
+			(* which can't be mapped to a native API - this kind of substitution is dangerous *)
+			None
+		| _ ->
+			Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p))
 	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TField (_,FEnum (en,f)) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
-		Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p)
+		(match ctx.com.platform with
+			| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
+				(* see comment above *)
+				None
+			| _ ->
+				Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p))
 	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->

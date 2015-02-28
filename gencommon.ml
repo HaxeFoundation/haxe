@@ -631,6 +631,9 @@ and gen_classes =
 	cl_dyn : tclass;
 
 	t_iterator : tdef;
+
+	a_vector : tabstract;
+	tvector : Type.t -> Type.t;
 }
 
 (* add here all reflection transformation additions *)
@@ -687,6 +690,9 @@ let new_ctx con =
 			cl_dyn = cl_dyn;
 
 			t_iterator = get_tdef (get_type con.types ([], "Iterator"));
+
+			a_vector = get_abstract (get_type con.types (["haxe";"ds"],"Vector"));
+			tvector = (fun t -> TAbstract(gen.gclasses.a_vector,[t]));
 		};
 		gtools = {
 			r_create_empty = (fun eclass t ->
@@ -8939,6 +8945,7 @@ struct
 		dependencies:
 			Should run before ReflectionCFs, in order to enable proper reflection access.
 			Should run before TypeParams.RealTypeParams.RealTypeParamsModf, since generic enums must be first converted to generic classes
+			It needs that the target platform implements __array__() as a shortcut to declare haxe.ds.Vector
 	*)
 
 	module EnumToClassModf =
@@ -8954,7 +8961,7 @@ struct
 			let has_meta meta = List.exists (fun (m,_,_) -> match m with Meta.Custom _ -> true | _ -> false) meta in
 			has_meta en.e_meta || pmap_exists (fun _ ef -> has_meta ef.ef_meta) en.e_constrs
 
-		let convert gen t base_class en should_be_hxgen handle_type_params =
+		let convert gen t base_class base_param_class en should_be_hxgen handle_type_params =
 			let basic = gen.gcon.basic in
 			let pos = en.e_pos in
 
@@ -8971,7 +8978,9 @@ struct
 				| _ -> ()
 			);
 
-			cl.cl_super <- Some(base_class,[]);
+			let super, has_params = if Meta.has Meta.FlatEnum en.e_meta then base_class, false else base_param_class, true in
+
+			cl.cl_super <- Some(super,[]);
 			cl.cl_extern <- en.e_extern;
 			en.e_extern <- true;
 			en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
@@ -9019,7 +9028,12 @@ struct
 						cf.cf_meta <- [];
 
 						let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
-						let arr_decl = { eexpr = TArrayDecl(List.map (fun (v,_) -> mk_local v pos) tf_args); etype = basic.tarray t_empty; epos = pos } in
+						let special = alloc_var "__array__" t_dynamic in
+						let arr_decl = {
+							eexpr = TCall(mk_local special pos, List.map (fun (v,_) -> mk_local v pos) tf_args);
+							etype = gen.gclasses.tvector t_dynamic;
+							epos = pos
+						} in
 						let expr = {
 							eexpr = TFunction({
 								tf_args = tf_args;
@@ -9036,10 +9050,15 @@ struct
 							| TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_dynamic) p)
 							| _ -> assert false
 						in
-						let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
-						cf.cf_meta <- [];
+						let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+						let args = if has_params then
+							[mk_int gen old_i pos; null (gen.gclasses.tvector t_dynamic) pos]
+						else
+							[mk_int gen old_i pos]
+						in
+						cf.cf_meta <- [Meta.ReadOnly,[],pos];
 						cf.cf_expr <- Some {
-							eexpr = TNew(cl, List.map (fun _ -> t_empty) cl.cl_params, [mk_int gen old_i pos; { eexpr = TArrayDecl []; etype = basic.tarray t_empty; epos = pos }]);
+							eexpr = TNew(cl, List.map (fun _ -> t_empty) cl.cl_params, args);
 							etype = TInst(cl, List.map (fun _ -> t_empty) cl.cl_params);
 							epos = pos;
 						};
@@ -9090,32 +9109,7 @@ struct
 			cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
 			cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
 
-			(if should_be_hxgen then
-				cl.cl_meta <- (Meta.HxGen,[],cl.cl_pos) :: cl.cl_meta
-			else begin
-				(* create the constructor *)
-				let tf_args = [ alloc_var "index" basic.tint, None; alloc_var "params" (basic.tarray t_empty), None ] in
-				let ftype = TFun(fun_args tf_args, basic.tvoid) in
-				let ctor = mk_class_field "new" ftype true pos (Method MethNormal) [] in
-				let me = TInst(cl, List.map snd cl.cl_params) in
-				ctor.cf_expr <-
-				Some {
-					eexpr = TFunction(
-					{
-						tf_args = tf_args;
-						tf_type = basic.tvoid;
-						tf_expr = mk_block {
-							eexpr = TCall({ eexpr = TConst TSuper; etype = me; epos = pos }, List.map (fun (v,_) -> mk_local v pos) tf_args);
-							etype = basic.tvoid;
-							epos = pos;
-						}
-					});
-					etype = ftype;
-					epos = pos
-				};
-
-				cl.cl_constructor <- Some ctor
-			end);
+			if should_be_hxgen then cl.cl_meta <- (Meta.HxGen,[],cl.cl_pos) :: cl.cl_meta;
 			gen.gadd_to_module (TClassDecl cl) (max_dep);
 
 			TEnumDecl en
@@ -9128,8 +9122,8 @@ struct
 				enum_base_class : tclass - the enum base class.
 				should_be_hxgen : bool - should the created enum be hxgen?
 		*)
-		let traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen handle_tparams =
-			let convert e = convert gen t enum_base_class e should_be_hxgen handle_tparams in
+		let traverse gen t convert_all convert_if_has_meta enum_base_class param_enum_class should_be_hxgen handle_tparams =
+			let convert e = convert gen t enum_base_class param_enum_class e should_be_hxgen handle_tparams in
 			let run md = match md with
 				| TEnumDecl e when is_hxgen md ->
 					if convert_all then
@@ -9202,7 +9196,7 @@ struct
 						with Not_found ->
 							f
 						in
-						let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gcon.basic.tarray t_empty } in
+						let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.tvector t_dynamic } in
 						{ e with eexpr = TArray(cond_array, mk_int gen i cond_array.epos); }
 					| _ -> Type.map_expr run e
 			in
@@ -9215,9 +9209,9 @@ struct
 
 	end;;
 
-	let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class should_be_hxgen handle_tparams =
+	let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class param_enum_class should_be_hxgen handle_tparams =
 		let t = new_t () in
-		EnumToClassModf.configure gen (EnumToClassModf.traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen handle_tparams);
+		EnumToClassModf.configure gen (EnumToClassModf.traverse gen t convert_all convert_if_has_meta enum_base_class param_enum_class should_be_hxgen handle_tparams);
 		EnumToClassExprf.configure gen (EnumToClassExprf.traverse gen t opt_get_native_enum_tag)
 
 end;;

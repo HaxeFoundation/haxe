@@ -4,6 +4,7 @@ import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
 import haxe.test.TEnumWithValue;
+import haxe.test.TEnumWithBigValue;
 import haxe.test.IEditableTextBuffer;
 import haxe.test.LowerCaseClass;
 
@@ -302,32 +303,34 @@ class TestCSharp extends Test
 		}
 		eq("TA",Type.enumConstructor(e));
 
-		eq(0, Type.enumIndex(TEnum.TA));
-		eq(0, Type.enumIndex(getTA()));
-		eq(3, Type.enumIndex(TEnumWithValue.TVA));
-		eq(3, Type.enumIndex(getTVA()));
+		eq(Type.enumIndex(getTA()), Type.enumIndex(TEnum.TA));
+		eq(Type.enumIndex(getTVA()), Type.enumIndex(TEnumWithValue.TVA));
+		eq(Type.enumIndex(getTBA()), Type.enumIndex(TEnumWithBigValue.TBA));
 
-		eq(0, Type.enumIndex(TEnumWithValue.TVB));
-		eq(0, Type.enumIndex(getTVB()));
-		eq(1, Type.enumIndex(TEnum.TB));
-		eq(1, Type.enumIndex(getTB()));
+		eq(Type.enumIndex(getTVB()), Type.enumIndex(TEnumWithValue.TVB));
+		eq(Type.enumIndex(getTBB()), Type.enumIndex(TEnumWithBigValue.TBB));
+		eq(Type.enumIndex(getTB()), Type.enumIndex(TEnum.TB));
 
-		eq(2, Type.enumIndex(TEnum.TC));
-		eq(2, Type.enumIndex(getTC()));
-		eq(2, Type.enumIndex(TEnumWithValue.TVC));
-		eq(2, Type.enumIndex(getTVC()));
+		eq(Type.enumIndex(getTC()), Type.enumIndex(TEnum.TC));
+		eq(Type.enumIndex(getTVC()), Type.enumIndex(TEnumWithValue.TVC));
+		eq(Type.enumIndex(getTBC()), Type.enumIndex(TEnumWithBigValue.TBC));
 
-		eq(1, Type.enumIndex(TEnumWithValue.TVD));
-		eq(1, Type.enumIndex(getTVD()));
+		eq(Type.enumIndex(getTVD()), Type.enumIndex(TEnumWithValue.TVD));
+		eq(Type.enumIndex(getTBD()), Type.enumIndex(TEnumWithBigValue.TBD));
 
-		checkEnum(TEnum,0,TEnum.TA);
-		checkEnum(TEnum,1,TEnum.TB);
-		checkEnum(TEnum,2,TEnum.TC);
+		checkEnum(TEnum,TEnum.TA);
+		checkEnum(TEnum,TEnum.TB);
+		checkEnum(TEnum,TEnum.TC);
 
-		checkEnum(TEnumWithValue,3,TEnumWithValue.TVA);
-		checkEnum(TEnumWithValue,0,TEnumWithValue.TVB);
-		checkEnum(TEnumWithValue,2,TEnumWithValue.TVC);
-		checkEnum(TEnumWithValue,1,TEnumWithValue.TVD);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVA);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVB);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVC);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVD);
+
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBA);
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBB);
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBC);
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBD);
 	}
 
 	private static function getArray(arr:cs.system.Array)
@@ -335,18 +338,23 @@ class TestCSharp extends Test
 		return [ for (i in 0...arr.Length) arr.GetValue(i) ];
 	}
 
-	function checkEnum<T>(e:Enum<T>,idx:Int,v:T,?pos:haxe.PosInfos)
+	function checkEnum<T : EnumValue>(e:Enum<T>,v:T,?pos:haxe.PosInfos)
 	{
+		var idx = Type.enumIndex(v);
 		eq(v,Type.createEnumIndex(e,idx),pos);
 	}
 
 	function getTA() return TEnum.TA;
 	function getTVA() return TEnumWithValue.TVA;
+	function getTBA() return TEnumWithBigValue.TBA;
 	function getTB() return TEnum.TB;
 	function getTVB() return TEnumWithValue.TVB;
+	function getTBB() return TEnumWithBigValue.TBB;
 	function getTC() return TEnum.TC;
 	function getTVC() return TEnumWithValue.TVC;
+	function getTBC() return TEnumWithBigValue.TBC;
 	function getTVD() return TEnumWithValue.TVD;
+	function getTBD() return TEnumWithBigValue.TBD;
 
 	@:skipReflection private function refTest(i:cs.Ref<Int>):Void
 	{

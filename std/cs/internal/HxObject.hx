@@ -21,6 +21,7 @@
  */
 package cs.internal;
 import cs.system.Type;
+import haxe.ds.Vector;
 private typedef StdType = std.Type;
 
 @:keep @:native('haxe.lang.HxObject')
@@ -67,27 +68,52 @@ private class DynamicObject extends HxObject implements Dynamic
 {
 }
 
-@:native('haxe.lang.Enum')
-@:keep @:skipCtor
+@:keep @:native('haxe.lang.Enum') @:nativeGen
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
 private class Enum
 {
 	@:readOnly private var index(default,never):Int;
-	@:readOnly private var params(default,never):Array<{}>;
 
-	public function new(index:Int, params:Array<{}>)
+	public function new(index:Int)
 	{
 		untyped this.index = index;
-		untyped this.params = params;
 	}
+
 	public function getTag():String
 	{
-		var cl:Dynamic = StdType.getClass(this);
-		return cl.constructs[index];
+		return throw 'Not Implemented';
 	}
+
+	public function getParams():Array<{}>
+	{
+		return [];
+	}
+
 	public function toString():String
+	{
+		return getTag();
+	}
+}
+
+@:keep @:native('haxe.lang.ParamEnum') @:nativeGen
+private class ParamEnum extends Enum
+{
+	@:readOnly private var params(default,never):Vector<Dynamic>;
+
+	public function new(index:Int, params:Vector<Dynamic>)
+	{
+		super(index);
+		untyped this.params = params;
+	}
+
+	override public function getParams():Array<{}>
+	{
+		return params == null ? [] : cs.Lib.array(params.toData());
+	}
+
+	override public function toString():String
 	{
 		if (params == null || params.length == 0) return getTag();
 		var ret = new StringBuf();
@@ -104,11 +130,12 @@ private class Enum
 		ret.add(")");
 		return ret.toString();
 	}
+
 	public function Equals(obj:Dynamic)
 	{
 		if (obj == this) //we cannot use == as .Equals !
 			return true;
-		var obj:Enum = cast obj;
+		var obj:ParamEnum = Std.instance(obj, ParamEnum);
 		var ret = obj != null && Std.is(obj, StdType.getClass(this)) && obj.index == this.index;
 		if (!ret)
 			return false;
@@ -127,12 +154,12 @@ private class Enum
 
 	public function GetHashCode():Int
 	{
-		var h = 19;
+		var h:Int = 19;
 		if (params != null) for (p in params)
 		{
 			h = h * 31;
 			if (p != null)
-				h += untyped p.GetHashCode();
+				untyped h += p.GetHashCode();
 		}
 		h += index;
 		return h;
