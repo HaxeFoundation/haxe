@@ -299,6 +299,16 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
+	| TLocal { v_name = "__callself__" }, { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
+		print ctx "%s:%s" head tail;
+		spr ctx "(";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx ")";
+	| TLocal { v_name = "__call__" }, { eexpr = TConst (TString code) } :: el ->
+		spr ctx code;
+		spr ctx "(";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx ")";
 	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
@@ -351,7 +361,7 @@ let rec gen_call ctx e el in_value =
 		print ctx "%s" (field_name ef); 
 		spr ctx "("; 
 		concat ctx "," (gen_value ctx) el; 
-		spr ctx ")" 
+		spr ctx ")"
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
