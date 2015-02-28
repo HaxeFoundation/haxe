@@ -47,6 +47,13 @@ let binop op a b t p =
 let index com e index t p =
 	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.basic.tint p)) t p
 
+let maybe_cast e t =
+	try
+		type_eq EqDoNotFollowNull e.etype t;
+		e
+	with
+		Unify_error _ -> mk (TCast(e,None)) t e.epos
+
 let type_constant com c p =
 	let t = com.basic in
 	match c with

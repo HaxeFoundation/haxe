@@ -2198,7 +2198,9 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 								error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 					end;
 				end;
-				mk_cast (Codegen.binop op e1 e2 tret p) tret p
+				let e = Codegen.binop op e1 e2 tret p in
+				mk_cast e tret p
+				(* Codegen.maybe_cast e tret *)
 			end else begin
 				let e = make_static_call ctx c cf map [e1;e2] tret p in
 				e
