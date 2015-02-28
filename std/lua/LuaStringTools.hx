@@ -1,5 +1,5 @@
 package lua;
-@:native("string") 
+@:native("_G.string") 
 extern class LuaStringTools {
 	public static function len(str:String) : Int;
 	public static function sub(str:String, start:Int, end:Int) : String;

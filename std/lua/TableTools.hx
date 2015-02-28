@@ -1,6 +1,6 @@
 package lua;
 
-@:native("table") 
+@:native("_G.table") 
 extern class TableTools {
 	@:overload(function(table:Dynamic):Void{})
 	public static function concat(table:Dynamic, ?sep:String) : String;
