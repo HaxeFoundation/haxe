@@ -79,11 +79,16 @@ class Boot {
 	}
 
 	@:ifFeature("may_print_enum")
-	private static function __string_rec(o, s = '') {
+	private static function __string_rec(o : Dynamic, s = '') {
 		untyped {
 			switch(__type__(o)){
 				case "nil": return "null";
-				case"number" : return untyped tostring(o);
+				case"number" : {
+					if (o == Math.INFINITY) return "Infinity";
+					else if (o == Math.NEGATIVE_INFINITY) return "-Infinity";
+					else if (o != o) return "NaN";
+					else return untyped tostring(o);
+				}
 				case "boolean" : return untyped tostring(o);
 				case "string": return o;
 				case "userdata": return "<userdata>";

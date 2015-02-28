@@ -24,23 +24,27 @@ package;
 // Can't enable @:coreApi because some fields are now inline getters
 // @:coreApi
 @:keepInit
+@:native("_G.math")
 extern class Math
 {
-	static var PI(default,null) : Float;
+	static var PI(get,null) : Float;
+	private static inline function get_PI () : Float {
+		return untyped Math.pi;
+	}
 
 	static var NEGATIVE_INFINITY(get, null) : Float;
 	private static inline function get_NEGATIVE_INFINITY () : Float {
-		return -(untyped __js__("Infinity"));
+		return untyped Math.huge; 
 	}
 
 	static var POSITIVE_INFINITY(get,null) : Float;
 	private static inline function get_POSITIVE_INFINITY () : Float {
-		return (untyped __js__("Infinity"));
+		return untyped -Math.huge; 
 	}
 
 	static var NaN(get, null) : Float;
 	private static inline function get_NaN () : Float {
-		return (untyped __js__("NaN"));
+		return 0/0; 
 	}
 
 	static function abs(v:Float):Float;
@@ -57,7 +61,9 @@ extern class Math
 	static function min(a:Float, b:Float):Float;
 	static function pow(v:Float, exp:Float):Float;
 	static function random() : Float;
-	static function round(v:Float):Int;
+	static inline function round(v:Float):Int {
+		return Std.int(v + 0.5);
+	}
 	static function sin(v:Float):Float;
 	static function sqrt(v:Float):Float;
 	static function tan(v:Float):Float;
@@ -75,11 +81,11 @@ extern class Math
 	}
 
 	static inline function isFinite( f : Float ) : Bool {
-		return (untyped __js__("isFinite"))(f);
+		return (f > Math.NEGATIVE_INFINITY && f < Math.POSITIVE_INFINITY);
 	}
 
 	static inline function isNaN( f : Float ) : Bool {
-		return (untyped __js__("isNaN"))(f);
+		return (f != f);
 	}
 
 	static function __init__() : Void {
