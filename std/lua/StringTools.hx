@@ -1,6 +1,6 @@
 package lua;
 @:native("_G.string") 
-extern class LuaStringTools {
+extern class StringTools {
 	public static function len(str:String) : Int;
 	public static function sub(str:String, start:Int, end:Int) : String;
 	public static function charCodeAt(str:String, index:Int) : Int;
