@@ -331,6 +331,15 @@ class TestCSharp extends Test
 		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBB);
 		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBC);
 		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBD);
+
+		//issue #2308
+		var fn = getEnumValue;
+		eq(0x100, Reflect.callMethod(null, fn, [TEnumWithValue.TVA]));
+	}
+
+	static function getEnumValue(e:TEnumWithValue):Int
+	{
+		return cast e;
 	}
 
 	private static function getArray(arr:cs.system.Array)
