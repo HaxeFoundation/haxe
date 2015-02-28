@@ -123,7 +123,7 @@ let is_removable_field ctx f =
 
 let escape_res_name name allow_dirs =
 	ExtString.String.replace_chars (fun chr ->
-		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' then
+		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
 			Char.escaped chr
 		else if chr = '/' && allow_dirs then
 			"/"

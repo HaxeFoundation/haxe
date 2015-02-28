@@ -29,20 +29,9 @@ package haxe;
 		return content.copy();
 	}
 
-	private static function unescapeName( name : String ) : String
-	{
-		var regex = ~/-x([0-9]+)/g;
-		return regex.map(name, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
-	}
-
-	private static function escapeName( name : String ) : String
-	{
-		var regex = ~/[^A-Za-z0-9_\/]/g;
-		return regex.map(name, function(v) return '-x' + v.matched(0).charCodeAt(0));
-	}
-
+	@:access(haxe.io.Path.escape)
 	public static function getString( name : String ) : String {
-		name = escapeName(name);
+		name = haxe.io.Path.escape(name, true);
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
@@ -50,8 +39,9 @@ package haxe;
 		return stream.readAll().toString();
 	}
 
+	@:access(haxe.io.Path.escape)
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		name = escapeName(name);
+		name = haxe.io.Path.escape(name, true);
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
