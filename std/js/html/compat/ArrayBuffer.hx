@@ -25,7 +25,7 @@ package js.html.compat;
 class ArrayBuffer {
 
 	public var byteLength : Int;
-	var a : Array<Dynamic>;
+	var a : Array<Int>;
 	
 	public function new( ?a : Dynamic ) {
 		if( Std.is(a,Array) ) {

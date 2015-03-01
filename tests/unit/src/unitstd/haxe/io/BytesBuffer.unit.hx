@@ -1,6 +1,4 @@
 
-if( !haxe.io.ArrayBufferView.EMULATED ) { // TODO : to reenable once we have html compat for IE8/DataView
-
 var out = new haxe.io.BytesBuffer();
 
 out.length == 0;
@@ -20,7 +18,6 @@ var str = "ABCDEF\x01\x02\x03\x04\x05BCD";
 b.length == str.length;
 for( i in 0...str.length )
 	b.get(i) == str.charCodeAt(i);
-
 
 var out = new haxe.io.BytesBuffer();
 out.addInt32(0xABCDEF00);
@@ -45,5 +42,3 @@ b.get(5) == 102;
 b.get(9) == 51;
 b.get(17) == 0xD1;
 b.get(22) == 0xEF;
-
-}

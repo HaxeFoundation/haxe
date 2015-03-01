@@ -21,6 +21,7 @@
  */
 package haxe.io;
 import js.html.compat.Uint8Array;
+import js.html.compat.DataView;
 
 @:coreApi
 class Bytes {
