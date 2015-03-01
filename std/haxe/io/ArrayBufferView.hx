@@ -1,8 +1,7 @@
 package haxe.io;
 
-typedef ArrayBufferViewData = #if js js.html.ArrayBufferView #else ArrayBufferViewImpl #end
+typedef ArrayBufferViewData = ArrayBufferViewImpl;
 
-#if !js
 class ArrayBufferViewImpl {
 	public var bytes : haxe.io.Bytes;
 	public var byteOffset : Int;
@@ -17,14 +16,18 @@ class ArrayBufferViewImpl {
 		if( begin < 0 || length < 0 || begin + length > byteLength ) throw Error.OutsideBounds;
 		return new ArrayBufferViewImpl(bytes, byteOffset + begin, length);
 	}
+	public function subarray( ?begin : Int, ?end : Int ) {
+		if( begin == null ) begin = 0;
+		if( end == null ) end = byteLength - begin;
+		return sub(begin, end - begin);
+	}
 }
-#end
 
 abstract ArrayBufferView(ArrayBufferViewData) {
 
 	public static var EMULATED(get,never) : Bool;
-	static #if !js inline #end function get_EMULATED() {
-		return #if js (cast js.html.ArrayBuffer) == js.html.compat.ArrayBuffer #else false #end;
+	static inline function get_EMULATED() : Bool {
+		return false;
 	}
 
 	public var buffer(get,never) : haxe.io.Bytes;
@@ -32,37 +35,33 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 	public var byteLength(get, never) : Int;
 
 	public inline function new( size : Int ) {
-		#if js
-		this = new js.html.Uint8Array(size);
-		#else
 		this = new ArrayBufferViewData(haxe.io.Bytes.alloc(size), 0, size);
-		#end
 	}
 
-	inline function get_byteOffset() return this.byteOffset;
-	inline function get_byteLength() return this.byteLength;
-	function get_buffer() : haxe.io.Bytes {
-		#if js
-		return haxe.io.Bytes.ofData(this.buffer);
-		#else
-		return this.bytes;
-		#end
-	}
+	inline function get_byteOffset() : Int return this.byteOffset;
+	inline function get_byteLength() : Int return this.byteLength;
+	inline function get_buffer() : haxe.io.Bytes return this.bytes;
 
-	public inline function sub( begin : Int, ?length : Int ) {
-		#if js
-		return fromData(new js.html.Uint8Array(this.buffer.slice(begin, length == null ? null : begin+length)));
-		#else
+	public inline function sub( begin : Int, ?length : Int ) : ArrayBufferView {
 		return fromData(this.sub(begin,length));
-		#end
 	}
-	
+
+	public inline function subarray( ?begin : Int, ?end : Int ) : ArrayBufferView {
+		return fromData(this.subarray(begin,end));
+	}
+
 	public inline function getData() : ArrayBufferViewData {
 		return this;
 	}
-	
+
 	public static inline function fromData( a : ArrayBufferViewData ) : ArrayBufferView {
 		return cast a;
+	}
+
+	public static function fromBytes( bytes : haxe.io.Bytes, pos = 0, ?length : Int ) : ArrayBufferView {
+		if( length == null ) length = bytes.length - pos;
+		if( pos < 0 || length < 0 || pos + length > bytes.length ) throw Error.OutsideBounds;
+		return fromData(new ArrayBufferViewData(bytes, pos, length));
 	}
 
 }

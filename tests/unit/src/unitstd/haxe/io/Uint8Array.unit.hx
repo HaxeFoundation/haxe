@@ -6,7 +6,7 @@ b[0] == 0;
 b[4] == 0;
 b.length == 5;
 
-// check write mod 255 
+// check write mod 255
 b[0] = 513;
 b[0] == 1;
 b[0] = -2;
@@ -57,4 +57,25 @@ b.view.byteOffset == 0;
 b2.view.byteLength == 3;
 b2.view.byteOffset == 1;
 
+
+// check sub
+var sub = b.sub(1);
+sub.length == 4;
+sub[0] == 0xCC;
+sub[0] = 0xDD;
+if( !emulated ) b[1] == 0xDD;
+
+var sub = b.subarray(2,3);
+sub.length == 1;
+sub[0] == 3;
+sub[0] = 0xEE;
+if( !emulated ) b[2] == 0xEE;
+
+// from bytes
+var b3 = haxe.io.UInt8Array.fromBytes(b.view.buffer, 2, 3);
+b3.length == 3;
+for( i in 0...3 )
+	b3[i] == b[i+2];
+b3[0] = b3[0] + 1;
+if( !emulated ) b3[0] == b[2];
 

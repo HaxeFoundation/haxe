@@ -57,3 +57,24 @@ b.view.byteLength == 20;
 b.view.byteOffset == 0;
 b2.view.byteLength == 12;
 b2.view.byteOffset == 4;
+
+// check sub
+var sub = b.sub(1);
+sub.length == 4;
+sub[0] == 0xCC;
+sub[0] = 0xDD;
+if( !emulated ) b[1] == 0xDD;
+
+var sub = b.subarray(2,3);
+sub.length == 1;
+sub[0] == 3;
+sub[0] = 0xEE;
+if( !emulated ) b[2] == 0xEE;
+
+// from bytes
+var b3 = haxe.io.Float32Array.fromBytes(b.view.buffer, 2*4, 3);
+b3.length == 3;
+for( i in 0...3 )
+	b3[i] == b[i+2];
+b3[0] = b[3] + 1;
+if( !emulated ) b3[0] == b[2];
