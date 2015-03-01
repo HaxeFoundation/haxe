@@ -94,7 +94,7 @@ class Bytes {
 		initData();
 		data.setFloat32(pos, v, true);
 	}
-	
+
 	public function getInt32( pos : Int ) : Int {
 		initData();
 		return data.getInt32(pos, true);
@@ -110,10 +110,10 @@ class Bytes {
 	}
 
 	public function setInt64( pos : Int, v : haxe.Int64 ) : Void {
-		setInt32(pos, haxe.Int64.getLow(v));
-		setInt32(pos + 4, haxe.Int64.getHigh(v));
+		setInt32(pos, v.low);
+		setInt32(pos + 4, v.high);
 	}
-	
+
 	public function getString( pos : Int, len : Int ) : String {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 		var s = "";
