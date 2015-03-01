@@ -18,6 +18,7 @@ extern class Event {
 	static var ACTIVATE : String;
 	static var ADDED : String;
 	static var ADDED_TO_STAGE : String;
+	@:require(flash15) static var BROWSER_ZOOM_CHANGE : String;
 	static var CANCEL : String;
 	static var CHANGE : String;
 	static var CHANNEL_MESSAGE : String;
