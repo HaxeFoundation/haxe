@@ -33,14 +33,14 @@ private class HxObject implements IHxObject
 
 @:native('haxe.lang.IHxObject')
 @:keep
-private interface IHxObject
+interface IHxObject
 {
 }
 
 @:native('haxe.lang.DynamicObject')
 @:replaceReflection
 @:keep
-private class DynamicObject extends HxObject implements Dynamic
+class DynamicObject extends HxObject implements Dynamic
 {
 	@:skipReflection public function toString():String
 	{
@@ -67,7 +67,7 @@ private class DynamicObject extends HxObject implements Dynamic
 }
 
 @:keep @:native('haxe.lang.Enum') @:nativeGen
-private class Enum
+class Enum
 {
 	@:readOnly private var index(default,never):Int;
 

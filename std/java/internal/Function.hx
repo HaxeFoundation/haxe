@@ -29,7 +29,7 @@ import java.internal.Runtime;
  *
  * @author waneck
  */
-@:abstract @:nativeGen @:native("haxe.lang.Function") @:keep private class Function
+@:abstract @:nativeGen @:native("haxe.lang.Function") @:keep class Function
 {
 	function new(arity:Int, type:Int)
 	{
