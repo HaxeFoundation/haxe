@@ -137,8 +137,7 @@ import cs.system.reflection.*;
 	{
 		var c = cs.Lib.toNativeType(c);
 		var ret = [];
-		var bindingFlags:BindingFlags = cast cast(BindingFlags.Public, Int) | cast(BindingFlags.Instance, Int) | cast(BindingFlags.FlattenHierarchy,Int);
-		var mis = c.GetFields(bindingFlags);
+		var mis = c.GetFields(new cs.Flags(BindingFlags.Public) | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
 		for (i in 0...mis.Length)
 		{
 			var i = mis[i];

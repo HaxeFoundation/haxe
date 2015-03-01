@@ -257,8 +257,7 @@ using StringTools;
 
 		var c = cs.Lib.toNativeType(c);
 		var ret = [];
-		var bindingFlags:BindingFlags = cast cast(BindingFlags.Public, Int) | cast(BindingFlags.Instance, Int) | cast(BindingFlags.FlattenHierarchy,Int);
-		var mis = c.GetMembers(bindingFlags);
+		var mis = c.GetMembers(new cs.Flags(BindingFlags.Public) | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
 		for (i in 0...mis.Length)
 		{
 			var i = mis[i];
