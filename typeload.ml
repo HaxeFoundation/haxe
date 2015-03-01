@@ -2437,13 +2437,15 @@ let init_class ctx c p context_init herits fields =
 	(* check overloaded constructors *)
 	(if ctx.com.config.pf_overload then match c.cl_constructor with
 	| Some ctor ->
-		List.iter (fun f ->
-			try
-				(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
-				ignore(List.find (fun f2 -> f != f2 && same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
-				display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
-			with Not_found -> ()
-		) (ctor :: ctor.cf_overloads)
+		delay ctx PTypeField (fun() ->
+			List.iter (fun f ->
+				try
+					(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
+					ignore(List.find (fun f2 -> f != f2 && same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
+					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
+				with Not_found -> ()
+			) (ctor :: ctor.cf_overloads)
+		)
 	| _ -> ());
 	(* push delays in reverse order so they will be run in correct order *)
 	List.iter (fun (ctx,r) ->

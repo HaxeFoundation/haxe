@@ -21,13 +21,6 @@
  */
 import cs.NativeArray;
 
-@:classCode('
-	public Array(T[] native)
-	{
-		this.__a = native;
-		this.length = native.Length;
-	}
-')
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
@@ -53,10 +46,16 @@ import cs.NativeArray;
 		return null;
 	}
 
-	public function new() : Void
+	@:overload public function new() : Void
 	{
 		this.length = 0;
 		this.__a = new NativeArray(0);
+	}
+
+	@:overload private function new(native:NativeArray<T>)
+	{
+		this.length = native.Length;
+		this.__a = native;
 	}
 
 	public function concat( a : Array<T> ) : Array<T>
