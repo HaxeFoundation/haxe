@@ -58,8 +58,11 @@ class NativeInput<T:IOBase> extends Input{
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw haxe.io.Error.OutsideBounds;
 
+
 		if (canSeek) {
 			seek(pos, SeekBegin);
+		} else if (pos > 0) {
+			throw "Cannot call readBytes for pos > 0 (" + pos + ") on not seekable stream";
 		}
 		var ba = new Bytearray(len);
 		var ret = readinto(ba);
