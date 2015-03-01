@@ -60,8 +60,8 @@ b2.view.byteOffset == 1;
 
 // check sub
 var sub = b.sub(1);
-sub.length == 4;
-sub[0] == 0xCC;
+sub.length == b.length - 1;
+sub[0] == (emulated ? 2 : 0xCC);
 sub[0] = 0xDD;
 if( !emulated ) b[1] == 0xDD;
 
