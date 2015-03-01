@@ -297,8 +297,7 @@ let rec is_value_type = function
 	| _ ->
 		false
 
-(* 	Determines if a type allows null-matching. This is similar to is_nullable, but it infers Null<T> on monomorphs,
-	and enums are not considered nullable *)
+(* 	Determines if a type allows null-matching. This is similar to is_nullable, but it infers Null<T> on monomorphs *)
 let rec matches_null ctx t = match t with
 	| TMono r ->
 		(match !r with None -> r := Some (ctx.t.tnull (mk_mono())); true | Some t -> matches_null ctx t)
@@ -308,7 +307,7 @@ let rec matches_null ctx t = match t with
 		matches_null ctx (!f())
 	| TType (t,tl) ->
 		matches_null ctx (apply_params t.t_params tl t.t_type)
-	| TFun _ | TEnum _ ->
+	| TFun _ ->
 		false
 	| TAbstract (a,_) -> not (Meta.has Meta.NotNull a.a_meta)
 	| _ ->
@@ -1060,12 +1059,17 @@ let convert_switch mctx st cases loop =
 	in
 	match !null with
 	| None when is_explicit_null st.st_type && (!def <> None || not mctx.need_val) ->
-		let econd = mk (TBinop(OpNotEq,e_st,mk (TConst TNull) (mk_mono()) p)) ctx.t.tbool p in
+		let econd = mk (TBinop(OpNotEq,e_st,mk (TConst TNull) st.st_type p)) ctx.t.tbool p in
 		DTGuard(econd,dt,!def)
 	| None ->
 		dt
 	| Some dt_null ->
-		let econd = mk (TBinop(OpEq,e_st,mk (TConst TNull) (mk_mono()) p)) ctx.t.tbool p in
+		let t = match ctx.t.tnull ctx.t.tint with
+			| TType(t,_) ->TType(t,[st.st_type])
+			| t -> t
+		in
+		let e_null = mk (TConst TNull) t p in
+		let econd = mk (TBinop(OpEq,e_st, e_null)) ctx.t.tbool p in
 		DTGuard(econd,dt_null,Some dt)
 
 (* Decision tree compilation *)
