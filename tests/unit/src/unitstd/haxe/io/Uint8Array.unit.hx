@@ -1,7 +1,7 @@
 
 var emulated = haxe.io.ArrayBufferView.EMULATED;
 
-var b = new haxe.io.Uint8Array(5);
+var b = new haxe.io.UInt8Array(5);
 b[0] == 0;
 b[4] == 0;
 b.length == 5;

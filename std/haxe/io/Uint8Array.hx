@@ -21,9 +21,9 @@
  */
 package haxe.io;
 
-typedef Uint8ArrayData = #if js js.html.Uint8Array #else ArrayBufferView.ArrayBufferViewData #end
+typedef UInt8ArrayData = #if js js.html.Uint8Array #else ArrayBufferView.ArrayBufferViewData #end
 
-abstract Uint8Array(Uint8ArrayData) {
+abstract UInt8Array(UInt8ArrayData) {
 
 	public static inline var BYTES_PER_ELEMENT = 1;
 	public var length(get,never) : Int;
@@ -31,7 +31,7 @@ abstract Uint8Array(Uint8ArrayData) {
 
 	public inline function new( elements : Int ) {
 		#if js
-		this = new Uint8ArrayData(elements * BYTES_PER_ELEMENT);
+		this = new UInt8ArrayData(elements * BYTES_PER_ELEMENT);
 		#else
 		this = new ArrayBufferView(elements * BYTES_PER_ELEMENT).getData();
 		#end
@@ -77,22 +77,22 @@ abstract Uint8Array(Uint8ArrayData) {
 		#end
 	}
 	
-	public inline function getData() : Uint8ArrayData {
+	public inline function getData() : UInt8ArrayData {
 		return this;
 	}
 		
-	public static function fromData( d : Uint8ArrayData ) : Uint8Array {
+	public static function fromData( d : UInt8ArrayData ) : UInt8Array {
 		return cast d;
 	}
 	
-	public static function fromArray( a : Array<Int>, pos = 0, ?length ) : Uint8Array {
+	public static function fromArray( a : Array<Int>, pos = 0, ?length ) : UInt8Array {
 		if( length == null ) length = a.length - pos;
 		if( pos < 0 || length < 0 || pos + length > a.length ) throw Error.OutsideBounds;
 		#if js
 		if( pos == 0 && length == a.length )
-			return fromData(new Uint8ArrayData(a));
+			return fromData(new UInt8ArrayData(a));
 		#end
-		var i = new Uint8Array(a.length);
+		var i = new UInt8Array(a.length);
 		for( idx in 0...length )
 			i[idx] = a[idx + pos];
 		return i;
