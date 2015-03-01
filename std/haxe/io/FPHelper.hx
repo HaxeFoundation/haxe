@@ -62,7 +62,7 @@ class FPHelper {
 	public static function i32ToFloat( i : Int ) : Float {
 		#if neko
 			#if neko_v21
-			return untyped $itof(i);
+			return untyped $itof(i,false);
 			#else
 			var helper = helperf.value;
 			if( helper == null )
@@ -109,7 +109,7 @@ class FPHelper {
 	public static function floatToI32( f : Float ) : Int {
 		#if neko
 			#if neko_v21
-			return untyped $ftoi(f);
+			return untyped $ftoi(f,false);
 			#else
 			var r = _float_bytes(f,false);
 			return untyped $sget(r,0) | ($sget(r,1)<<8) | ($sget(r,2)<<16) | ($sget(r,3)<<24);
@@ -149,7 +149,7 @@ class FPHelper {
 	public static function i64ToDouble( low : Int, high : Int ) : Float {
 		#if neko
 			#if neko_v21
-			return untyped $itod(low,high);
+			return untyped $itod(low,high,false);
 			#else
 			var helper = helperd.value;
 			if( helper == null )
@@ -215,7 +215,7 @@ class FPHelper {
 				helper[1] = haxe.Int64.ofInt(0);
 			}
 			var i64 : haxe.Int64 = helper[1], int2 = helper[0];
-			untyped $dtoi(v,int2);
+			untyped $dtoi(v,int2,false);
 			@:privateAccess {
 				i64.low = int2[0];
 				i64.high = int2[1];

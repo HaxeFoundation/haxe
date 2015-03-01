@@ -224,7 +224,7 @@ class Bytes {
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_double(b,pos);
 		#else
-		return FPHelper.i64ToDouble(getI32(pos),getI32(pos+4));
+		return FPHelper.i64ToDouble(getInt32(pos),getInt32(pos+4));
 		#end
 	}
 
@@ -295,7 +295,7 @@ class Bytes {
 	/**
 		Returns the 32 bit integer at given position (in low endian encoding).
 	**/
-	public inline function getI32( pos : Int ) : Int {
+	public inline function getInt32( pos : Int ) : Int {
 		#if neko_v21
 		return untyped $sget32(b, pos, false);
 		#else
@@ -306,7 +306,7 @@ class Bytes {
 	/**
 		Store the 32 bit integer at given position (in low endian encoding).
 	**/
-	public inline function setI32( pos : Int, value : Int ) : Void {
+	public inline function setInt32( pos : Int, value : Int ) : Void {
 		#if neko_v21
 		untyped $sset32(b, pos, value, false);
 		#else
