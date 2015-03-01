@@ -25,6 +25,7 @@ package flash.display3D;
 	function setColorMask(red : Bool, green : Bool, blue : Bool, alpha : Bool) : Void;
 	function setCulling(triangleFaceToCull : Context3DTriangleFace) : Void;
 	function setDepthTest(depthMask : Bool, passCompareMode : Context3DCompareMode) : Void;
+	@:require(flash16) function setFillMode( fillMode : Context3DFillMode ) : Void;
 	function setProgram(program : Program3D) : Void;
 	@:require(flash11_2) function setProgramConstantsFromByteArray(programType : Context3DProgramType, firstRegister : Int, numRegisters : Int, data : flash.utils.ByteArray, byteArrayOffset : UInt) : Void;
 	function setProgramConstantsFromMatrix(programType : Context3DProgramType, firstRegister : Int, matrix : flash.geom.Matrix3D, transposedMatrix : Bool = false) : Void;
