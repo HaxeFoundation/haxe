@@ -25,7 +25,9 @@ import python.Syntax;
 
 @:coreApi class Date
 {
-	static var EPOCH = Datetime.fromtimestamp(0, python.lib.datetime.Timezone.utc);
+	static var EPOCH = Datetime.fromtimestamp(0);
+
+	var epoch : Datetime;
 
 	private var date:Datetime;
 
@@ -33,7 +35,7 @@ import python.Syntax;
 	{
 		if (year < Datetime.min.year) year = Datetime.min.year;
 		if (day == 0) day = 1;
-		date = new Datetime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
+		date = new Datetime(year, month+1, day, hour, min, sec, 0);
 	}
 
 	public inline function getTime() : Float
@@ -96,21 +98,15 @@ import python.Syntax;
 	static public function now() : Date
 	{
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = Datetime.now(python.lib.datetime.Timezone.utc);
+		d.date = Datetime.now();
 		return d;
 	}
 
 	static public function fromTime( t : Float ) : Date
 	{
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = Datetime.fromtimestamp(t / 1000.0, python.lib.datetime.Timezone.utc);
+		d.date = Datetime.fromtimestamp(t / 1000.0);
 		return d;
-	}
-
-	static function UTC( year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Float
-	{
-		var dt = new Datetime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
-		return datetimeTimestamp(dt);
 	}
 
 	static function datetimeTimestamp(dt:Datetime):Float {
