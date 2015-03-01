@@ -22,6 +22,7 @@
 import cs.Lib;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
+import cs.internal.Function;
 import cs.Flags;
 import cs.system.Object;
 import cs.system.reflection.*;
@@ -267,59 +268,50 @@ using StringTools;
 		return cs.Lib.array(cs.system.Enum.GetNames(untyped e));
 	}
 
-	@:functionCode('
+	public static function typeof( v : Dynamic ) : ValueType {
 		if (v == null) return ValueType.TNull;
 
-        System.Type t = v as System.Type;
-        if (t != null)
-        {
-            //class type
-            return ValueType.TObject;
-        }
+		var t:cs.system.Type = cs.Lib.as(v, cs.system.Type);
+		if (t != null) {
+			//class type
+			return ValueType.TObject;
+		}
 
-        t = v.GetType();
-        if (t.IsEnum)
-            return ValueType.TEnum(t);
-        if (t.IsValueType)
-        {
-            System.IConvertible vc = v as System.IConvertible;
-            if (vc != null)
-            {
-                switch (vc.GetTypeCode())
-                {
-                    case System.TypeCode.Boolean: return ValueType.TBool;
-                    case System.TypeCode.Double:
-						double d = vc.ToDouble(null);
-						if (d >= int.MinValue && d <= int.MaxValue && d == vc.ToInt32(null))
+		t = v.GetType();
+		if (t.IsEnum)
+			return ValueType.TEnum(cast t);
+		if (t.IsValueType) {
+			var vc:cs.system.IConvertible = cast v;
+			if (vc != null) {
+				switch (vc.GetTypeCode()) {
+					case cs.system.TypeCode.Boolean: return ValueType.TBool;
+					case cs.system.TypeCode.Double:
+						var d:Float = vc.ToDouble(null);
+						if (d >= cs.system.Int32.MinValue && d <= cs.system.Int32.MaxValue && d == vc.ToInt32(null))
 							return ValueType.TInt;
 						else
 							return ValueType.TFloat;
-                    case System.TypeCode.Int32:
-                        return ValueType.TInt;
-                    default:
-                        return ValueType.TClass(t);
-                }
-            } else {
-                return ValueType.TClass(t);
-            }
-        }
+					case cs.system.TypeCode.Int32:
+						return ValueType.TInt;
+					default:
+						return ValueType.TClass(cast t);
+				}
+			} else {
+				return ValueType.TClass(cast t);
+			}
+		}
 
-        if (v is haxe.lang.IHxObject)
-        {
-            if (v is haxe.lang.DynamicObject)
-                return ValueType.TObject;
-            else if (v is haxe.lang.Enum)
-                return ValueType.TEnum(t);
-            return ValueType.TClass(t);
-        } else if (v is haxe.lang.Function) {
-            return ValueType.TFunction;
-        } else {
-            return ValueType.TClass(t);
-        }
-	')
-	public static function typeof( v : Dynamic ) : ValueType
-	{
-		return null;
+		if (Std.is(v, IHxObject)) {
+			if (Std.is(v, DynamicObject))
+				return ValueType.TObject;
+			else if (Std.is(v, HxEnum))
+				return ValueType.TEnum(cast t);
+			return ValueType.TClass(cast t);
+		} else if (Std.is(v, Function)) {
+			return ValueType.TFunction;
+		} else {
+			return ValueType.TClass(cast t);
+		}
 	}
 
 	public static function enumEq<T>( a : T, b : T ) : Bool

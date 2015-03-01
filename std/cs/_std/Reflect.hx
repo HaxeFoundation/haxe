@@ -122,41 +122,30 @@ import cs.system.reflection.*;
 		return cs.internal.Runtime.compare(a, b);
 	}
 
-	@:functionCode('
+	@:access(cs.internal.Closure)
+	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
+	{
 		if (f1 == f2)
 			return true;
 
-		if (f1 is haxe.lang.Closure && f2 is haxe.lang.Closure)
+		if (Std.is(f1, Closure) && Std.is(f2, Closure))
 		{
-			haxe.lang.Closure f1c = (haxe.lang.Closure) f1;
-			haxe.lang.Closure f2c = (haxe.lang.Closure) f2;
+			var f1c:Closure = cast f1;
+			var f2c:Closure = cast f2;
 
-			return haxe.lang.Runtime.refEq(f1c.obj, f2c.obj) && f1c.field.Equals(f2c.field);
+			return Runtime.refEq(f1c.obj, f2c.obj) && f1c.field == f2c.field;
 		}
 
 		return false;
-	')
-	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
-	{
-		return false;
 	}
 
-	@:functionCode('
-		return v != null && !(v is haxe.lang.Enum || v is haxe.lang.Function || v is System.ValueType);
-	')
 	public static function isObject( v : Dynamic ) : Bool
 	{
-		return false;
+		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, cs.system.ValueType));
 	}
 
-	@:functionCode('
-		return v != null && (v is haxe.lang.Enum || v is System.Enum);
-	')
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return switch(Type.typeof(v)) {
-			case TEnum(_): true;
-			case _: false;
-		}
+		return v != null && (Std.is(v, HxEnum) || Std.is(v, cs.system.Enum));
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool
