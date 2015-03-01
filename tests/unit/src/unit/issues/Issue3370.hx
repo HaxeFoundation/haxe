@@ -15,7 +15,7 @@ abstract FunInt64(Int64)
     {
         if (k >= 63)
         {
-            return (Int64.getHigh(j) < 0) ? NEGATIVE_ONE : ZERO;
+            return ((j : Int64).high < 0) ? NEGATIVE_ONE : ZERO;
         }
         return new FunInt64(Int64.shr(j, k));
     }

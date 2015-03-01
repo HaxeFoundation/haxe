@@ -6,8 +6,8 @@ class Issue2752 extends Test {
 	function test() {
 		var big : Int64 = Int64.make(2000,1000);
 		var call = function(){
-			eq(big.getHigh(),2000);
-			eq(big.getLow(),1000);
+			eq(big.high,2000);
+			eq(big.low,1000);
 		}
 		call();
 	}

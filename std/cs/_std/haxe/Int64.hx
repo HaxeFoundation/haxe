@@ -38,6 +38,12 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	inline function get_val() : __Int64 return this;
 	inline function set_val( x : __Int64 ) : __Int64 return this = x;
 
+	public var high( get, never ):Int32;
+	public inline function get_high():Int32 return cast(this >> 32);
+
+	public var low( get, never ):Int32;
+	public inline function get_low():Int32 return cast this;
+
 	public inline function copy():Int64
 		return new Int64( this );
 
@@ -98,7 +104,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 
 	@:op(A--) private inline function postDecrement() : Int64
 		return this--;
-	
+
 	@:op(A + B) public static inline function add( a : Int64, b : Int64 ) : Int64
 		return a.val + b.val;
 

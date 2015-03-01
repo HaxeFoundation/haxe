@@ -68,12 +68,14 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	/**
 		Returns the high 32-bit word of `x`.
 	**/
+	@:deprecated("Use high instead")
 	public static inline function getHigh( x : Int64 ) : Int32
 		return x.high;
 
 	/**
 		Returns the low 32-bit word of `x`.
 	**/
+	@:deprecated("Use low instead")
 	public static inline function getLow( x : Int64 ) : Int32
 		return x.low;
 
@@ -409,11 +411,11 @@ abstract Int64(__Int64) from __Int64 to __Int64
 			else make( 0, a.high >>> (b - 32) );
 	}
 
-	private var high(get,set) : Int32;
+	public var high(get, never) : Int32;
 	private inline function get_high() return this.high;
 	private inline function set_high(x) return this.high = x;
 
-	private var low(get,set) : Int32;
+	public var low(get, never) : Int32;
 	private inline function get_low() return this.low;
 	private inline function set_low(x) return this.low = x;
 }

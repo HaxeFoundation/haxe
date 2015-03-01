@@ -10,31 +10,31 @@ class TestInt64 extends Test {
 
 		// Test creation and fields
 		a = Int64.make(10,0xFFFFFFFF);
-		eq( a.getHigh(), 10 );
-		eq( a.getLow(), 0xFFFFFFFF );
+		eq( a.high, 10 );
+		eq( a.low, 0xFFFFFFFF );
 
 		// Int casts
 		a = 1;
 		eq( a.toInt(), 1 );
 
 		a = -1;
-		eq( a.getHigh(), 0xFFFFFFFF );
-		eq( a.getLow(), 0xFFFFFFFF );
+		eq( a.high, 0xFFFFFFFF );
+		eq( a.low, 0xFFFFFFFF );
 		eq( a.toInt(), -1 );
 
 		a = Int64.make(0,0x80000000);
-		eq( a.getHigh(), 0 );
-		eq( a.getLow(), 0x80000000 );
+		eq( a.high, 0 );
+		eq( a.low, 0x80000000 );
 		exc( tryOverflow.bind(a) );	// Throws Overflow
 
 		a = Int64.make(0xFFFFFFFF,0x80000000);
-		eq( a.getHigh(), 0xFFFFFFFF );
-		eq( a.getLow(), 0x80000000 );
+		eq( a.high, 0xFFFFFFFF );
+		eq( a.low, 0x80000000 );
 		eq( a.toInt(), -2147483648 );
 
 		a = Int64.make(0xFFFFFFFF,0x7FFFFFFF);
-		eq( a.getHigh(), 0xFFFFFFFF );
-		eq( a.getLow(), 0x7FFFFFFF );
+		eq( a.high, 0xFFFFFFFF );
+		eq( a.low, 0x7FFFFFFF );
 		exc( tryOverflow.bind(a) );	// Throws Overflow
 	}
 
@@ -44,18 +44,18 @@ class TestInt64 extends Test {
 		var arr:Array<Int64> = [];
 		arr.push(1);
 		arr.push(Int64.make(0xFFFFFFFF,0x80000000));
-		eq(arr[0].getHigh(), 0);
-		eq(arr[0].getLow(), 1);
-		eq(arr[1].getHigh(), 0xFFFFFFFF);
-		eq(arr[1].getLow(), 0x80000000);
+		eq(arr[0].high, 0);
+		eq(arr[0].low, 1);
+		eq(arr[1].high, 0xFFFFFFFF);
+		eq(arr[1].low, 0x80000000);
 
 		var n:Null<Int64> = null;
 		eq(n, null);
 		var dyn:Dynamic = n;
 		eq(dyn, null);
 		n = Int64.make(0xf0f0f0f0, 0xefefefef);
-		eq(n.getHigh(), 0xf0f0f0f0);
-		eq(n.getLow(), 0xefefefef);
+		eq(n.high, 0xf0f0f0f0);
+		eq(n.low, 0xefefefef);
 	}
 
 	function tryOverflow( a : Int64 )
@@ -343,13 +343,13 @@ class TestInt64 extends Test {
 		var a = Int64.make(0xFF00FF00,0xF0F0F0F0),
 		    b = Int64.make(0xFF00FF00,0xF0F0F0F0);
 		eq(a.compare(b), 0);
-		eq(a.getHigh(), 0xFF00FF00);
+		eq(a.high, 0xFF00FF00);
 		function test() return Int64.compare(a,Int64.make(0xFF00FF00,0xF0F0F0F0));
 		eq(test(),0);
 		function testSet(v:Int64) b = v;
 		testSet( make(0xFF00FF00, 0xFF0) );
 		eq(b.compare(make(0xFF00FF00,0xFF0)),0);
-		eq(b.getHigh(), 0xFF00FF00);
+		eq(b.high, 0xFF00FF00);
 	}
 
 	public function testMath() {

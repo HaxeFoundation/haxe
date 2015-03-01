@@ -217,8 +217,8 @@ class FPHelper {
 			var i64 : haxe.Int64 = helper[1], int2 = helper[0];
 			untyped $dtoi(v,int2,false);
 			@:privateAccess {
-				i64.low = int2[0];
-				i64.high = int2[1];
+				i64.set_low(int2[0]);
+				i64.set_high(int2[1]);
 			}
 			return i64;
 			#else
@@ -226,8 +226,8 @@ class FPHelper {
 			if( i64 == null )
 				i64 = i64tmp.value = haxe.Int64.ofInt(0);
 			@:privateAccess {
-				i64.low = untyped $sget(r,0) | ($sget(r,1)<<8) | ($sget(r,2)<<16) | ($sget(r,3)<<24);
-				i64.high =  untyped $sget(r,4) | ($sget(r,5)<<8) | ($sget(r,6)<<16) | ($sget(r,7)<<24);
+				i64.set_low(untyped $sget(r,0) | ($sget(r,1)<<8) | ($sget(r,2)<<16) | ($sget(r,3)<<24));
+				i64.set_high(untyped $sget(r,4) | ($sget(r,5)<<8) | ($sget(r,6)<<16) | ($sget(r,7)<<24));
 			}
 			return i64;
 			#end
@@ -257,24 +257,24 @@ class FPHelper {
 			helper.position = 0;
 			var i64 = i64tmp;
 			@:privateAccess {
-				i64.low = cast helper.readUnsignedInt();
-				i64.high = cast helper.readUnsignedInt();
+				i64.set_low(cast helper.readUnsignedInt());
+				i64.set_high(cast helper.readUnsignedInt());
 			}
 			return i64;
 		#elseif php
 			var a = untyped __call__('unpack',isLittleEndian ? 'V2' : 'N2',__call__('pack', 'd', v));
 			var i64 = i64tmp;
 			@:privateAccess {
-				i64.low = a[isLittleEndian ? 1 : 2];
-				i64.high = a[isLittleEndian ? 2 : 1];
+				i64.set_low(a[isLittleEndian ? 1 : 2]);
+				i64.set_high(a[isLittleEndian ? 2 : 1]);
 			}
 			return i64;
 		#else
 			var i64 = i64tmp;
 			if( v == 0 ) {
 				@:privateAccess {
-					i64.low = 0;
-					i64.high = 0;
+					i64.set_low(0);
+					i64.set_high(0);
 				}
 			} else {
 				var av = v < 0 ? -v : v;
@@ -283,8 +283,8 @@ class FPHelper {
 				var sig_l = Std.int(sig);
 				var sig_h = Std.int(sig / 4294967296.0);
 				@:privateAccess {
-					i64.low = sig_l;
-					i64.high = (v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | sig_h;
+					i64.set_low(sig_l);
+					i64.set_high((v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | sig_h);
 				}
 			}
 			return i64;
