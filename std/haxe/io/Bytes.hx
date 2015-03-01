@@ -266,8 +266,8 @@ class Bytes {
 		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
 		#else
 		var i = FPHelper.doubleToI64(v);
-		setI32(pos, haxe.Int64.getLow(i));
-		setI32(pos + 4, haxe.Int64.getHigh(i));
+		setInt32(pos, haxe.Int64.getLow(i));
+		setInt32(pos + 4, haxe.Int64.getHigh(i));
 		#end
 	}
 
@@ -288,7 +288,7 @@ class Bytes {
 		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
 		untyped __global__.__hxcpp_memory_set_float(b,pos,v);
 		#else
-		setI32(pos, FPHelper.floatToI32(v));
+		setInt32(pos, FPHelper.floatToI32(v));
 		#end
 	}
 
@@ -304,17 +304,32 @@ class Bytes {
 	}
 
 	/**
+		Returns the 64 bit integer at given position (in low endian encoding).
+	**/
+	public inline function getInt64( pos : Int ) : haxe.Int64 {
+		return haxe.Int64.make(getInt32(pos+4),getInt32(pos));
+	}
+
+	/**
 		Store the 32 bit integer at given position (in low endian encoding).
 	**/
-	public inline function setInt32( pos : Int, value : Int ) : Void {
+	public inline function setInt32( pos : Int, v : Int ) : Void {
 		#if neko_v21
-		untyped $sset32(b, pos, value, false);
+		untyped $sset32(b, pos, v, false);
 		#else
-		set(pos, value);
-		set(pos + 1, value >> 8);
-		set(pos + 2, value >> 16);
-		set(pos + 3, value >>> 24);
+		set(pos, v);
+		set(pos + 1, v >> 8);
+		set(pos + 2, v >> 16);
+		set(pos + 3, v >>> 24);
 		#end
+	}
+
+	/**
+		Store the 64 bit integer at given position (in low endian encoding).
+	**/
+	public inline function setInt64( pos : Int, v : haxe.Int64 ) : Void {
+		setInt32(pos, haxe.Int64.getLow(v));
+		setInt32(pos + 4, haxe.Int64.getHigh(v));
 	}
 
 	public function getString( pos : Int, len : Int ) : String {

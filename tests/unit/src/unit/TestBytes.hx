@@ -98,21 +98,6 @@ class TestBytes extends Test {
 		exc(function() bs.sub(1,10));
 	}
 
-	function testBuffer() {
-		var out = new haxe.io.BytesBuffer();
-		eq( out.length, 0 );
-		out.add( haxe.io.Bytes.ofString("ABCDEF") );
-		for( i in 1...6 )
-			out.addByte(i);
-		out.addBytes( haxe.io.Bytes.ofString("ABCDEF"),1,3 );
-		eq( out.length, 14 );
-		var b = out.getBytes();
-		var str = "ABCDEF\x01\x02\x03\x04\x05BCD";
-		eq( b.length, str.length );
-		for( i in 0...str.length )
-			eq( b.get(i), str.charCodeAt(i) );
-	}
-
 	function testInput() {
 		var bs = haxe.io.Bytes.ofString("One é accent");
 		var input = new haxe.io.BytesInput(bs);

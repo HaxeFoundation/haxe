@@ -95,14 +95,23 @@ class Bytes {
 		data.setFloat32(pos, v, true);
 	}
 	
-	public function getI32( pos : Int ) : Int {
+	public function getInt32( pos : Int ) : Int {
 		initData();
-		return data.getInt32(pos);
+		return data.getInt32(pos, true);
 	}
 
-	public function setI32( pos : Int, value : Int ) : Void {
+	public function setInt32( pos : Int, v : Int ) : Void {
 		initData();
-		data.setInt32(pos, value);
+		data.setInt32(pos, v, true);
+	}
+
+	public function getInt64( pos : Int ) : haxe.Int64 {
+		return Int64.make(getInt32(pos + 4),getInt32(pos));
+	}
+
+	public function setInt64( pos : Int, v : haxe.Int64 ) : Void {
+		setInt32(pos, haxe.Int64.getLow(v));
+		setInt32(pos + 4, haxe.Int64.getHigh(v));
 	}
 	
 	public function getString( pos : Int, len : Int ) : String {

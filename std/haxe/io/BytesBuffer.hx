@@ -127,7 +127,7 @@ class BytesBuffer {
 	
 	public #if flash9 inline #end function addInt32( v : Int ) {
 		#if flash9
-		b.writeUInt32(v);
+		b.writeUnsignedInt(v);
 		#else
 		addByte(v&0xFF);
 		addByte((v>>8)&0xFF);
