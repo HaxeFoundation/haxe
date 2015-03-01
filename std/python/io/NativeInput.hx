@@ -58,7 +58,9 @@ class NativeInput<T:IOBase> extends Input{
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw haxe.io.Error.OutsideBounds;
 
-		seek(pos, SeekBegin);
+		if (canSeek) {
+			seek(pos, SeekBegin);
+		}
 		var ba = new Bytearray(len);
 		var ret = readinto(ba);
 		s.blit(pos, haxe.io.Bytes.ofData(ba) ,0,len);
