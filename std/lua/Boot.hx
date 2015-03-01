@@ -63,10 +63,21 @@ class Boot {
 	}
 
 	@:keep
-	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic> {
-		untyped __lua__("tabobj.__methods = {Array.mt};
-			setmetatable(tabobj, {__index = lua.Boot.resolveMethod})");
+	public static function arrayNewIndex(tab:Dynamic, key:Int, value:Dynamic){
+		untyped rawset(tab, key, value);
+		if (key+1 > tab.length){
+			tab.length = key + 1;
+		}
+	}
+
+	@:keep
+	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic>  untyped {
+		tabobj.__methods = __lua__("{Array.mt}");
 		tabobj.length = length;
+		setmetatable(tabobj, {
+			__index : lua.Boot.resolveMethod,
+			__newindex : lua.Boot.arrayNewIndex
+		});
 		return tabobj;
 	}
 

@@ -25,15 +25,13 @@ class Array<T> {
 	public var length(default,null) : Int;
 
 	public function new() : Void  {
-		this.length = 0;
-		untyped __lua__("self.__newindex = function (tab, key, value)
-		rawset(tab, key,value)
-		if key + 1> tab.length then
-			tab.length = key + 1
-		end
-		end");
+		lua.Boot.defArray(this,0);
 	}
-	public function concat( a : Array<T> ) : Array<T> return [];
+	public function concat( a : Array<T> ) : Array<T> {
+		var ret = this.copy();
+		for (i in a) ret.push(i);
+		return ret;
+	}
 	public function join( sep : String ) : String {
 		var sb = new StringBuf();
 		var first = true;
@@ -45,12 +43,23 @@ class Array<T> {
 		return sb.toString();
 	}
 
-	public function pop() : Null<T> return null;
+	public function pop() : Null<T> {
+		return this.length == 0 ? null : this[this.length-- -1];
+	}
 	public function push(x : T) : Int {
 		this[this.length++] = x;
 		return this.length;
 	}
-	public function reverse() : Void return;
+	public function reverse() : Void {
+		var tmp:T;
+		var i = 0;
+		while(i < Std.int(this.length/2)){
+			tmp = this[i];
+			this[i] = this[this.length-i-1];
+			this[this.length-i-1] = tmp;
+			i++;
+		}
+	}
 	public function shift() : Null<T> return null;
 	public function slice( pos : Int, ?end : Int ) : Array<T> return [];
 	public function sort( f : T -> T -> Int ) : Void return;
@@ -74,14 +83,15 @@ class Array<T> {
 
 	public function indexOf( x : T, ?fromIndex:Int ) : Int return 1;
 	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int return 1;
-
-
 	public inline function copy() : Array<T> {
-		return (untyped this).slice();
+		return [for (i in this) i];
 	}
-
-	public function map<S>(f:T->S):Array<S> return [];
-	public function filter(f:T->Bool):Array<T> return [];
+	public function map<S>(f:T->S):Array<S> {
+		return [for (i in this) f(i)];
+	}
+	public function filter(f:T->Bool):Array<T> {
+		return [for (i in this) if (f(i)) i];
+	}
 	public inline function iterator() : Iterator<T> {
 		var cur_length = 0;
 		return {
