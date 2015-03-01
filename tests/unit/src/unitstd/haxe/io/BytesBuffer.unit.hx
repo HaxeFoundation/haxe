@@ -17,7 +17,7 @@ var str = "ABCDEF\x01\x02\x03\x04\x05BCD";
 b.length == str.length;
 for( i in 0...str.length )
 	b.get(i) == str.charCodeAt(i);
-	
+
 
 var out = new haxe.io.BytesBuffer();
 out.addInt32(0xABCDEF00);
@@ -34,7 +34,7 @@ b.getInt32(0) == 0xABCDEF00;
 b.get(4) == 42;
 b.getFloat(5) == 1.2999999523162842;
 b.getDouble(9) == 2.4;
-b.getInt64(17) == haxe.Int64.make(0xABCDEF00,0xCAFFEED1);
+t(b.getInt64(17) == haxe.Int64.make(0xABCDEF00,0xCAFFEED1));
 
 // check correct low endian encoding
 b.get(3) == 0xAB;

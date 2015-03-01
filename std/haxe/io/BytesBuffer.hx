@@ -124,7 +124,7 @@ class BytesBuffer {
 		add(Bytes.ofString(v));
 		#end
 	}
-	
+
 	public #if flash9 inline #end function addInt32( v : Int ) {
 		#if flash9
 		b.writeUnsignedInt(v);
@@ -135,10 +135,10 @@ class BytesBuffer {
 		addByte(v>>>24);
 		#end
 	}
-	
+
 	public #if flash9 inline #end function addInt64( v : haxe.Int64 ) {
-		addInt32(haxe.Int64.getLow(v));
-		addInt32(haxe.Int64.getHigh(v));
+		addInt32(v.low);
+		addInt32(v.high);
 	}
 
 	public inline function addFloat( v : Float ) {

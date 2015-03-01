@@ -328,8 +328,8 @@ class Bytes {
 		Store the 64 bit integer at given position (in low endian encoding).
 	**/
 	public inline function setInt64( pos : Int, v : haxe.Int64 ) : Void {
-		setInt32(pos, haxe.Int64.getLow(v));
-		setInt32(pos + 4, haxe.Int64.getHigh(v));
+		setInt32(pos, v.low);
+		setInt32(pos + 4, v.high);
 	}
 
 	public function getString( pos : Int, len : Int ) : String {
