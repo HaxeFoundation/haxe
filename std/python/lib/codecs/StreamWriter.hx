@@ -10,7 +10,7 @@ extern class StreamWriter extends Codec implements ICodec {
 }
 
 
-extern interface IStreamWriter extends ICodec {
+@:remove extern interface IStreamWriter extends ICodec {
 	public function write(object:Dynamic):Void;
 	public function writelines(list:Array<String>):Void;
 	public function reset():Void;
