@@ -124,28 +124,36 @@ class BytesBuffer {
 		add(Bytes.ofString(v));
 		#end
 	}
+	
+	public #if flash9 inline #end function addInt32( v : Int ) {
+		#if flash9
+		b.writeUInt32(v);
+		#else
+		addByte(v&0xFF);
+		addByte((v>>8)&0xFF);
+		addByte((v>>16)&0xFF);
+		addByte(v>>>24);
+		#end
+	}
+	
+	public #if flash9 inline #end function addInt64( v : haxe.Int64 ) {
+		addInt32(haxe.Int64.getLow(v));
+		addInt32(haxe.Int64.getHigh(v));
+	}
 
 	public inline function addFloat( v : Float ) {
-		#if neko
-		untyped StringBuf.__add(b, Output._float_bytes(v, false));
-		#elseif flash9
+		#if flash9
 		b.writeFloat(v);
 		#else
-		var b = new BytesOutput();
-		b.writeFloat(v);
-		add(b.getBytes());
+		addInt32(FPHelper.floatToI32(v));
 		#end
 	}
 
 	public inline function addDouble( v : Float ) {
-		#if neko
-		untyped StringBuf.__add(b, Output._double_bytes(v, false));
-		#elseif flash9
+		#if flash9
 		b.writeDouble(v);
 		#else
-		var b = new BytesOutput();
-		b.writeDouble(v);
-		add(b.getBytes());
+		addInt64(FPHelper.doubleToI64(v));
 		#end
 	}
 
