@@ -3,8 +3,6 @@ open Type
 open Common
 open Typecore
 
-module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
-
 let s_expr = s_expr (s_type (print_context()))
 let s_expr_pretty = s_expr_pretty "" (s_type (print_context()))
 let debug e = print_endline (s_expr e)

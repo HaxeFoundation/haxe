@@ -971,10 +971,10 @@ module PatternMatchConversion = struct
 			| tmp -> ((tmp,ldt) :: cases)
 
 	let replace_locals e =
-		let v_known = ref [] in
+		let v_known = ref IntMap.empty in
 		let copy v =
 			let v' = alloc_var v.v_name v.v_type in
-			v_known := (v,v') :: !v_known;
+			v_known := IntMap.add v.v_id v' !v_known;
 			v'
 		in
 		let rec loop e = match e.eexpr with
@@ -996,7 +996,7 @@ module PatternMatchConversion = struct
 				) catches in
 				{e with eexpr = TTry(e1,catches)}
 			| TLocal v ->
-				let v' = try List.assq v !v_known with Not_found -> v in
+				let v' = try IntMap.find v.v_id !v_known with Not_found -> v in
 				{e with eexpr = TLocal v'}
 			| _ ->
 				Type.map_expr loop e
@@ -1029,7 +1029,14 @@ module PatternMatchConversion = struct
 		| DTSwitch(e_st,cl,dto) ->
 			let def = match dto with None -> None | Some dt -> Some (convert_dt cctx dt) in
 			let cases = group_cases cl in
-			let cases = List.map (fun (cl,dt) -> cl,replace_locals (convert_dt cctx dt)) cases in
+			let cases = List.map (fun (cl,dt) ->
+				let e = convert_dt cctx dt in
+				(* The macro interpreter does not care about unique locals and
+				   we don't run the analyzer on the output, so let's save some
+				   time here (issue #3937) *)
+				let e = if cctx.ctx.in_macro then e else replace_locals e in
+				cl,e
+			) cases in
 			mk (TSwitch(e_st,cases,def)) (mk_mono()) e_st.epos
 
 	let to_typed_ast ctx dt p =

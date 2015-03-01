@@ -26,6 +26,8 @@ type pos = {
 	pmax : int;
 }
 
+module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
+
 module Meta = struct
 	type strict_meta =
 		| Abstract
