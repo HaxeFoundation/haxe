@@ -788,6 +788,7 @@ import cs.system.Object;
 	}*/
 }
 
+@:nativeGen
 @:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
 {
 	EMPTY;
