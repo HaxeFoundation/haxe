@@ -844,6 +844,8 @@ let configure gen =
 		let ret = match t with
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				real_type (Abstract.get_underlying_type a pl)
+			| TAbstract ({ a_path = (["cs";"_Flags"], "EnumUnderlying") }, [t]) ->
+				real_type t
 			| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
 			| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
 			| TAbstract( { a_path = [],"Class" }, _ )
@@ -3272,13 +3274,38 @@ let ilpath_s = function
 let get_cls = function
 	| _,_,c -> c
 
-let convert_ilenum ctx p ilcls =
+(* TODO: When possible on Haxe, use this to detect flag enums, and make an abstract with @:op() *)
+(* that behaves like an enum, and with an enum as its underlying type *)
+let enum_is_flag ilcls =
+	let check_flag name ns = name = "FlagsAttribute" && ns = ["System"] in
+	List.exists (fun a ->
+		match a.ca_type with
+			| TypeRef r ->
+				check_flag r.tr_name r.tr_namespace
+			| TypeDef d ->
+				check_flag d.td_name d.td_namespace
+			| Method m ->
+				(match m.m_declaring with
+					| Some d ->
+						check_flag d.td_name d.td_namespace
+					| _ -> false)
+			| MemberRef r ->
+				(match r.memr_class with
+					| TypeRef r ->
+						check_flag r.tr_name r.tr_namespace
+					| TypeDef d ->
+						check_flag d.td_name d.td_namespace
+					| _ -> false)
+			| _ ->
+				false
+	) ilcls.cattrs
+
+let convert_ilenum ctx p ?(is_flag=false) ilcls =
 	let meta = ref [
 		Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p;
-		Meta.Enum, [], p;
 		Meta.CsNative, [], p;
-		Meta.Extern, [], p; (* abstracts can't be externs *)
 	] in
+
 	let data = ref [] in
 	List.iter (fun f -> match f.fname with
 		| "value__" -> ()
@@ -3302,8 +3329,9 @@ let convert_ilenum ctx p ilcls =
 	let data = List.stable_sort (fun (_,i1) (_,i2) -> Int64.compare i1 i2) (List.rev !data) in
 
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
+	let name = netname_to_hx c in
 	EEnum {
-		d_name = netname_to_hx c;
+		d_name = if is_flag then name ^ "_FlagsEnum" else name;
 		d_doc = None;
 		d_params = []; (* enums never have type parameters *)
 		d_meta = !meta;

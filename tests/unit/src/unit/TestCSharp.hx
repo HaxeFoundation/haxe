@@ -5,8 +5,12 @@ import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
 import haxe.test.TEnumWithValue;
 import haxe.test.TEnumWithBigValue;
+import haxe.test.TEnumWithFlag;
+import haxe.test.TEnumWithBigFlag;
 import haxe.test.IEditableTextBuffer;
 import haxe.test.LowerCaseClass;
+
+import cs.Flags;
 
 import NoPackage;
 #if unsafe
@@ -289,6 +293,55 @@ class TestCSharp extends Test
 		eq(21,c.SomeProp);
 		t(c.getCalled);
 		eq(21,c.SomeProp2);
+	}
+
+	function testEnumFlags()
+	{
+		var flags = new Flags(TFA) | TFC;
+		t(flags.has(TFA));
+		t(flags.has(TFC));
+		f(flags.has(TFB));
+		f(flags.has(TFD));
+		flags = new Flags();
+		f(flags.has(TFA));
+		f(flags.has(TFB));
+		f(flags.has(TFC));
+		f(flags.has(TFD));
+
+		flags |= TFB;
+		t(flags.has(TFB));
+		eq(flags & TFB,flags);
+		flags |= TFA;
+
+		f(flags.has(TFD));
+		t(flags.hasAny(new Flags(TFD) | TFB));
+		f(flags.hasAny(new Flags(TFD) | TFC));
+		f(flags.hasAll(new Flags(TFD) | TFB));
+		t(flags.hasAll(new Flags(TFB)));
+		t(flags.hasAll(new Flags(TFA) | TFB));
+
+		var flags = new Flags(TFBA) | TFBC;
+		t(flags.has(TFBA));
+		t(flags.has(TFBC));
+		f(flags.has(TFBB));
+		f(flags.has(TFBD));
+		flags = new Flags();
+		f(flags.has(TFBA));
+		f(flags.has(TFBB));
+		f(flags.has(TFBC));
+		f(flags.has(TFBD));
+
+		flags |= TFBB;
+		t(flags.has(TFBB));
+		eq(flags & TFBB,flags);
+		flags |= TFBA;
+
+		f(flags.has(TFBD));
+		t(flags.hasAny(new Flags(TFBD) | TFBB));
+		f(flags.hasAny(new Flags(TFBD) | TFBC));
+		f(flags.hasAll(new Flags(TFBD) | TFBB));
+		t(flags.hasAll(new Flags(TFBB)));
+		t(flags.hasAll(new Flags(TFBA) | TFBB));
 	}
 
 	function testEnum()
