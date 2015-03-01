@@ -1,4 +1,3 @@
-package;
 /*
  * Copyright (C)2005-2012 Haxe Foundation
  *
