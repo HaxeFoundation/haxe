@@ -25,7 +25,8 @@ import python.Syntax;
 
 @:coreApi class Date
 {
-	static var EPOCH = Datetime.fromtimestamp(0);
+	static var EPOCH_UTC = Datetime.fromtimestamp(0, python.lib.datetime.Timezone.utc);
+	static var EPOCH_LOCAL = Datetime.fromtimestamp(0);
 
 	var epoch : Datetime;
 
@@ -40,7 +41,7 @@ import python.Syntax;
 
 	public inline function getTime() : Float
 	{
-		return datetimeTimestamp(date);
+		return datetimeTimestamp(date, EPOCH_LOCAL);
 	}
 
 	public inline function getHours() : Int
@@ -109,8 +110,16 @@ import python.Syntax;
 		return d;
 	}
 
-	static function datetimeTimestamp(dt:Datetime):Float {
-		return (Syntax.binop(dt, "-", EPOCH) : Timedelta).total_seconds() * 1000;
+
+	static function UTC( year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Float
+	{
+		var dt = new Datetime(year, month+1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
+		return datetimeTimestamp(dt, EPOCH_UTC);
+	}
+
+
+	static function datetimeTimestamp(dt:Datetime, epoch:Datetime):Float {
+		return (Syntax.binop(dt, "-", epoch) : Timedelta).total_seconds() * 1000;
 	}
 
 	static public function fromString( s : String ) : Date
