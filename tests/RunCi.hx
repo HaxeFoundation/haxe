@@ -559,11 +559,23 @@ class RunCi {
 
 							runCommand("haxe", ["compile-cs-unsafe-travis.hxml"]);
 							runExe("bin/cs_unsafe/bin/Test-Debug.exe");
+
+							runCommand("haxe", ["compile-cs-travis.hxml","-D","erase_generics"]);
+							runExe("bin/cs/bin/Test-Debug.exe");
+
+							runCommand("haxe", ["compile-cs-unsafe-travis.hxml","-D","erase_generics"]);
+							runExe("bin/cs_unsafe/bin/Test-Debug.exe");
 						case _:
 							runCommand("haxe", ["compile-cs.hxml"]);
 							runExe("bin/cs/bin/Test-Debug.exe");
 
 							runCommand("haxe", ["compile-cs-unsafe.hxml"]);
+							runExe("bin/cs_unsafe/bin/Test-Debug.exe");
+
+							runCommand("haxe", ["compile-cs.hxml","-D","erase_generics"]);
+							runExe("bin/cs/bin/Test-Debug.exe");
+
+							runCommand("haxe", ["compile-cs-unsafe.hxml","-D","erase_generics"]);
 							runExe("bin/cs_unsafe/bin/Test-Debug.exe");
 					}
 

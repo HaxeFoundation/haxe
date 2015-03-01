@@ -1435,7 +1435,7 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
 					| None -> None
 					| Some(cf,t,dt,_,cl,_,_) -> Some(cf,t,dt,cl)
 				in
-				Hashtbl.add gen.greal_field_types (orig_cl.cl_path, hashtbl_field) ret;
+				if ret <> None then Hashtbl.add gen.greal_field_types (orig_cl.cl_path, hashtbl_field) ret;
 				ret
 			in
 			(match types with
@@ -2070,10 +2070,11 @@ struct
 		let ensure_simple_expr gen e =
 			let rec iter e = match e.eexpr with
 				| TConst _ | TLocal _ | TArray _ | TBinop _
-				| TField _ | TTypeExpr _ | TParenthesis _
+				| TField _ | TTypeExpr _ | TParenthesis _ | TCast _
 				| TCall _ | TNew _ | TUnop _ ->
 					Type.iter iter e
 				| _ ->
+					print_endline (debug_expr e);
 					gen.gcon.error "Expression is too complex for a readonly variable initialization" e.epos
 			in
 			iter e
@@ -3252,6 +3253,10 @@ struct
 			let path = (fst ft.fgen.gcurrent_path, Printf.sprintf "%s_%s_%d__Fun" (snd ft.fgen.gcurrent_path) cfield cur_line) in
 			let cls = mk_class (get ft.fgen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
 			if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],Ast.null_pos) :: cls.cl_meta;
+
+			if Common.defined gen.gcon Define.EraseGenerics then begin
+				cls.cl_meta <- (Meta.HaxeGeneric,[],Ast.null_pos) :: cls.cl_meta
+			end;
 			cls.cl_module <- (get ft.fgen.gcurrent_class).cl_module;
 			cls.cl_params <- cltypes;
 
@@ -4215,15 +4220,39 @@ struct
 				| TInst(_, params) -> List.fold_left (fun acc t -> acc || has_type_params t) false params
 				| _ -> false
 
-		let is_hxgeneric = function
+		let rec follow_all_md md =
+			match md with
+			| TClassDecl { cl_kind = KAbstractImpl a } ->
+				follow_all_md (TAbstractDecl a)
+			| TAbstractDecl a -> if Meta.has Meta.CoreType a.a_meta then
+				None
+			else (
+				match follow (apply_params a.a_params (List.map snd a.a_params) a.a_this) with
+					| TInst(c,_) -> follow_all_md (TClassDecl c)
+					| TEnum(e,_) -> follow_all_md (TEnumDecl e)
+					| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
+					| TType(t,_) -> follow_all_md (TTypeDecl t)
+					| _ -> None)
+			| TTypeDecl t -> (
+				match follow (apply_params t.t_params (List.map snd t.t_params) t.t_type) with
+				| TInst(c,_) -> follow_all_md (TClassDecl c)
+				| TEnum(e,_) -> follow_all_md (TEnumDecl e)
+				| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
+				| TType(t,_) -> follow_all_md (TTypeDecl t)
+				| _ -> None)
+			| md -> Some md
+
+		let rec is_hxgeneric md =
+			match md with
+			| TClassDecl { cl_kind = KAbstractImpl a } ->
+				is_hxgeneric (TAbstractDecl a)
 			| TClassDecl(cl) ->
 				not (Meta.has Meta.NativeGeneric cl.cl_meta)
 			| TEnumDecl(e) ->
 				not (Meta.has Meta.NativeGeneric e.e_meta)
-			| TTypeDecl(t) ->
-				not (Meta.has Meta.NativeGeneric t.t_meta)
-			| TAbstractDecl a ->
-				not (Meta.has Meta.NativeGeneric a.a_meta)
+			| md -> match follow_all_md md with
+				| Some md -> is_hxgeneric md
+				| None -> true
 
 		let rec set_hxgeneric gen mds isfirst md =
 			let path = t_path md in
@@ -4351,10 +4380,41 @@ struct
 			end
 
 		let set_hxgeneric gen md =
-			match set_hxgeneric gen [] true md with
-				| None ->
-					get (set_hxgeneric gen [] false md)
-				| Some v -> v
+			let ret = match md with
+				| TClassDecl { cl_kind = KAbstractImpl a } -> (match follow_all_md md with
+					| Some md ->
+						let ret = set_hxgeneric gen [] true md in
+						if ret = None then get (set_hxgeneric gen [] false md) else get ret
+					| None ->
+						true)
+				| _ -> match set_hxgeneric gen [] true md with
+					| None ->
+						get (set_hxgeneric gen [] false md)
+					| Some v ->
+						v
+			in
+			if not ret then begin
+				match md with
+				| TClassDecl c ->
+					let set_hxgeneric (_,param) = match follow param with
+						| TInst(c,_) ->
+							c.cl_meta <- (Meta.NativeGeneric, [], c.cl_pos) :: c.cl_meta
+						| _ -> ()
+					in
+					List.iter set_hxgeneric c.cl_params;
+					let rec handle_field cf =
+						List.iter set_hxgeneric cf.cf_params;
+						List.iter handle_field cf.cf_overloads
+					in
+					(match c.cl_kind with
+						| KAbstractImpl a ->
+							List.iter set_hxgeneric a.a_params;
+						| _ -> ());
+					List.iter handle_field c.cl_ordered_fields;
+					List.iter handle_field c.cl_ordered_statics
+				| _ -> ()
+			end;
+			ret
 
 		let params_has_tparams params =
 			List.fold_left (fun acc t -> acc || has_type_params t) false params
@@ -4377,6 +4437,14 @@ struct
 
 		module RealTypeParamsModf =
 		struct
+
+			let set_only_hxgeneric gen =
+				let rec run md =
+					match md with
+						| TTypeDecl _ | TAbstractDecl _ -> md
+						| _ -> ignore (set_hxgeneric gen md); md
+				in
+				run
 
 			let name = "real_type_params_modf"
 
@@ -8701,6 +8769,7 @@ struct
 		let configure = if is_synf then DynamicFieldAccess.configure_as_synf else DynamicFieldAccess.configure in
 		let maybe_hash = if ctx.rcf_optimize then fun str pos -> Some (hash_field_i32 ctx pos str) else fun str pos -> None in
 		configure gen (DynamicFieldAccess.abstract_implementation gen is_dynamic
+			(* print_endline *)
 			(fun expr fexpr field set is_unsafe ->
 				let hash = maybe_hash field fexpr.epos in
 				ctx.rcf_on_getset_field expr fexpr field hash set is_unsafe

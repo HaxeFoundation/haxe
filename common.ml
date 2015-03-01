@@ -185,6 +185,7 @@ module Define = struct
 		| Dump
 		| DumpDependencies
 		| DumpIgnoreVarIds
+		| EraseGenerics
 		| Fdb
 		| FileExtension
 		| FlashStrict
@@ -268,6 +269,7 @@ module Define = struct
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
 		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Dump files do not contain variable IDs (helps with diff)")
+		| EraseGenerics -> ("erase_generics","Erase generic classes on C#")
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| FileExtension -> ("file_extension","Output filename extension for cpp source code")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")

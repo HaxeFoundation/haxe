@@ -60,16 +60,23 @@ class Lib
 	@:extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
 		var ret = new cs.NativeArray(arr.length);
+#if erase_generics
+		for (i in 0...arr.length)
+			ret[i] = arr[i];
+#else
 		p_nativeArray(arr,ret);
+#end
 		return ret;
 	}
 
+#if !erase_generics
 	static function p_nativeArray<T>(arr:Array<T>, ret:cs.system.Array):Void
 	{
 		var native:NativeArray<T> = untyped arr.__a;
 		var len = arr.length;
 		cs.system.Array.Copy(native, 0, ret, 0, len);
 	}
+#end
 
 	/**
 		Provides support for the "as" keyword in C#.
@@ -120,14 +127,30 @@ class Lib
 		return untyped obj.GetType();
 	}
 
+#if erase_generics
+	inline private static function mkDynamic<T>(native:NativeArray<T>):NativeArray<Dynamic>
+	{
+		var ret = new cs.NativeArray<Dynamic>(native.Length);
+		for (i in 0...native.Length)
+			ret[i] = native[i];
+		return ret;
+	}
+#end
+
 	/**
 		Returns a Haxe Array of a native Array.
-		It won't copy the contents of the native array, so unless any operation triggers an array resize,
-		all changes made to the Haxe array will affect the native array argument.
+		Unless `erase_generics` is defined, it won't copy the contents of the native array,
+		so unless any operation triggers an array resize, all changes made to the Haxe array
+		will affect the native array argument.
 	**/
-	public static function array<T>(native:cs.NativeArray<T>):Array<T>
+	inline public static function array<T>(native:cs.NativeArray<T>):Array<T>
 	{
+#if erase_generics
+		var dyn:NativeArray<Dynamic> = mkDynamic(native);
+		return untyped Array.ofNative(dyn);
+#else
 		return untyped Array.ofNative(native);
+#end
 	}
 
 	/**

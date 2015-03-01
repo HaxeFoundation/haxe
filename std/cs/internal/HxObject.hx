@@ -25,12 +25,12 @@ import haxe.ds.Vector;
 private typedef StdType = std.Type;
 
 @:keep @:native('haxe.lang.HxObject')
-private class HxObject implements IHxObject
+class HxObject implements IHxObject
 {
 }
 
 @:keep @:native('haxe.lang.IHxObject')
-private interface IHxObject
+interface IHxObject
 {
 }
 
@@ -38,7 +38,7 @@ private interface IHxObject
 @:meta(System.Serializable)
 #end
 @:keep @:native('haxe.lang.DynamicObject')
-private class DynamicObject extends HxObject implements Dynamic
+class DynamicObject extends HxObject implements Dynamic
 {
 	@:skipReflection public function toString():String
 	{
@@ -72,7 +72,7 @@ private class DynamicObject extends HxObject implements Dynamic
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-private class Enum
+class HxEnum
 {
 	@:readOnly private var index(default,never):Int;
 
@@ -98,7 +98,7 @@ private class Enum
 }
 
 @:keep @:native('haxe.lang.ParamEnum') @:nativeGen
-private class ParamEnum extends Enum
+private class ParamEnum extends HxEnum
 {
 	@:readOnly private var params(default,never):Vector<Dynamic>;
 

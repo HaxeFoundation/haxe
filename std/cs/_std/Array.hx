@@ -24,26 +24,20 @@ import cs.NativeArray;
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-@:final @:coreApi class Array<T> implements ArrayAccess<T> {
+@:final class Array<T> implements ArrayAccess<T> {
 
 	public var length(default,null) : Int;
 
 	private var __a:NativeArray<T>;
 
-	@:functionCode('
-			return new Array<X>(native);
-	')
-	private static function ofNative<X>(native:NativeArray<X>):Array<X>
+	inline private static function ofNative<X>(native:NativeArray<X>):Array<X>
 	{
-		return null;
+		return new Array(native);
 	}
 
-	@:functionCode('
-			return new Array<Y>(new Y[size]);
-	')
-	private static function alloc<Y>(size:Int):Array<Y>
+	inline private static function alloc<Y>(size:Int):Array<Y>
 	{
-		return null;
+		return new Array(new NativeArray(size));
 	}
 
 	@:overload public function new() : Void

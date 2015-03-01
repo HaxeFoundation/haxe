@@ -29,6 +29,7 @@ import cs.system.IConvertible;
 import cs.system.IComparable;
 import cs.system.reflection.MethodBase;
 import cs.system.reflection.MethodInfo;
+import cs.system.reflection.*;
 import cs.system.Type;
 import cs.system.Object;
 
@@ -70,7 +71,7 @@ import cs.system.Object;
 ')
 @:keep class Runtime
 {
-	public static var undefined(default, never):Dynamic = { };
+	@:readOnly public static var undefined(default, never):Dynamic = new cs.system.Object();
 
 	@:functionCode('
 		return new haxe.lang.Closure(obj, field, hash);
@@ -104,28 +105,16 @@ import cs.system.Object;
 			if (t1 == cs.system.TypeCode.String || t2 == cs.system.TypeCode.String)
 				return false;
 
-			switch(t1)
+			switch [t1,t2]
 			{
-				case Decimal:
+				case [Decimal, _] | [_, Decimal]:
 					return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-				case UInt64 | Int64:
-					if (t2 == Decimal)
-						return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-					else
-						return v1c.ToUInt64(null) == v2c.ToUInt64(null);
-				default:
-					switch(t2)
-					{
-						case Decimal:
-							return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-						case UInt64 | Int64:
-							if (t2 == Decimal)
-								return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-							else
-								return v1c.ToUInt64(null) == v2c.ToUInt64(null);
-						default:
-							return v1c.ToDouble(null) == v2c.ToDouble(null);
-					}
+				case [UInt64 | Int64 | DateTime, _] | [_, UInt64 | Int64 | DateTime]:
+					return v1c.ToUInt64(null) == v2c.ToUInt64(null);
+				case [Double | Single, _] | [_, Double | Single]:
+					return v1c.ToDouble(null) == v2c.ToDouble(null);
+				case _:
+					return v1c.ToInt32(null) == v2c.ToInt32(null);
 			}
 		}
 
@@ -253,6 +242,12 @@ import cs.system.Object;
 	{
 		if (Std.is(v1,String) || Std.is(v2,String))
 			return Std.string(v1) + Std.string(v2);
+
+		if (v1 == null)
+		{
+			if (v2 == null) return null;
+			v1 = 0;
+		} else if (v2 == null) v2 = 0;
 
 		var cv1 = Lib.as(v1, IConvertible);
 		if (cv1 != null)
@@ -555,6 +550,7 @@ import cs.system.Object;
 		}
 	}
 
+#if !erase_generics
 	@:functionCode('
 		if (nullableType.ContainsGenericParameters)
 			return haxe.lang.Null<object>.ofDynamic<object>(obj);
@@ -564,50 +560,119 @@ import cs.system.Object;
 	{
 		return null;
 	}
+#else
+	public static function mkNullable(obj:Dynamic, nullable:Type):Dynamic
+	{
+		return obj; //do nothing
+	}
+#end
 
-	@:functionCode('
-		if (field == "toString")
+	// @:functionCode('
+	// 	if (field == "toString")
+	// 	{
+	// 		if (args == null)
+	// 			return obj.ToString();
+	// 		field = "ToString";
+	// 	}
+	// 	if (args == null) args = new Array<object>();
+
+	// 	System.Reflection.BindingFlags bf;
+	// 	System.Type t = obj as System.Type;
+	// 	if (t == null)
+	// 	{
+	// 		string s = obj as string;
+	// 		if (s != null)
+	// 			return haxe.lang.StringRefl.handleCallField(s, field, args);
+	// 		t = obj.GetType();
+	// 		bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
+	// 	} else {
+	// 		if (t == typeof(string) && field.Equals("fromCharCode"))
+	// 			return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
+	// 		obj = null;
+	// 		bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
+	// 	}
+
+	// 	System.Reflection.MethodInfo[] mis = t.GetMethods(bf);
+	// 	int last = 0;
+	// 	for (int i = 0; i < mis.Length; i++)
+	// 	{
+	// 		string name = mis[i].Name;
+	// 		if (name.Equals(field))
+	// 		{
+	// 			mis[last++] = mis[i];
+	// 		}
+	// 	}
+
+	// 	if (last == 0 && (field == "__get" || field == "__set"))
+	// 	{
+	// 		field = field == "__get" ? "get_Item" : "set_Item";
+	// 		for (int i = 0; i < mis.Length; i++)
+	// 		{
+	// 			string name = mis[i].Name;
+	// 			if (name.Equals(field))
+	// 			{
+	// 				mis[last++] = mis[i];
+	// 			}
+	// 		}
+	// 	}
+
+	// 	if (last == 0 && t.IsCOMObject)
+	// 	{
+	// 		object[] oargs = new object[arrLen(args)];
+	// 		for (int i = 0; i < oargs.Length; i++)
+	// 		{
+	// 			oargs[i] = args[i];
+	// 		}
+	// 		return t.InvokeMember(field, System.Reflection.BindingFlags.InvokeMethod, null, obj, oargs);
+	// 	}
+
+	// 	if (last == 0)
+	// 	{
+	// 		throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
+	// 	}
+
+	// 	return haxe.lang.Runtime.callMethod(obj, mis, last, args);
+	// ')
+	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	{
+		if (field == "toString" && (args == null || args.length == 0))
 		{
-			if (args == null)
-				return obj.ToString();
-			field = "ToString";
+			return obj.ToString();
 		}
-		if (args == null) args = new Array<object>();
+		if (args == null) args = [];
 
-		System.Reflection.BindingFlags bf;
-		System.Type t = obj as System.Type;
+		var bf:BindingFlags;
+		var t = Lib.as(obj,cs.system.Type);
 		if (t == null)
 		{
-			string s = obj as string;
+			var s = Lib.as(obj,String);
 			if (s != null)
-				return haxe.lang.StringRefl.handleCallField(s, field, args);
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
+				return cs.internal.StringExt.StringRefl.handleCallField(untyped s, untyped field, args);
+			t = untyped obj.GetType();
+			bf = new Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
 		} else {
-			if (t == typeof(string) && field.Equals("fromCharCode"))
-				return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
+			if (t == Lib.toNativeType(String) && field == 'fromCharCode')
+				return cs.internal.StringExt.fromCharCode(toInt(args[0]));
 			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
+			bf = new Flags(BindingFlags.Static) | BindingFlags.Public;
 		}
 
-		System.Reflection.MethodInfo[] mis = t.GetMethods(bf);
-		int last = 0;
-		for (int i = 0; i < mis.Length; i++)
+		var mis:NativeArray<MethodBase> = untyped t.GetMethods(bf);
+		var last = 0;
+		for (i in 0...mis.Length)
 		{
-			string name = mis[i].Name;
-			if (name.Equals(field))
-			{
+			var name = mis[i].Name;
+			if (name == field)
 				mis[last++] = mis[i];
-			}
 		}
 
 		if (last == 0 && (field == "__get" || field == "__set"))
 		{
 			field = field == "__get" ? "get_Item" : "set_Item";
-			for (int i = 0; i < mis.Length; i++)
+			for (i in 0...mis.Length)
 			{
-				string name = mis[i].Name;
-				if (name.Equals(field))
+				var name = mis[i].Name;
+				if (name == field)
 				{
 					mis[last++] = mis[i];
 				}
@@ -616,29 +681,20 @@ import cs.system.Object;
 
 		if (last == 0 && t.IsCOMObject)
 		{
-			object[] oargs = new object[arrLen(args)];
-			for (int i = 0; i < oargs.Length; i++)
+			var oargs = new NativeArray(args.length);
+			for (i in 0...oargs.Length)
 			{
 				oargs[i] = args[i];
 			}
-			return t.InvokeMember(field, System.Reflection.BindingFlags.InvokeMethod, null, obj, oargs);
+			return t.InvokeMember(field, BindingFlags.InvokeMethod, null, obj, oargs);
 		}
 
 		if (last == 0)
 		{
-			throw haxe.lang.HaxeException.wrap("Method \'" + field + "\' not found on type " + t);
+			throw 'Method "$field" not found on type $t';
 		}
 
-		return haxe.lang.Runtime.callMethod(obj, mis, last, args);
-	')
-	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
-	{
-		throw "not implemented";
-	}
-
-	@:private static function arrLen(arr:Array<Dynamic>):Int
-	{
-		return arr.length;
+		return Runtime.callMethod(obj, mis, last, args);
 	}
 
 	@:functionCode('
@@ -735,6 +791,7 @@ import cs.system.Object;
 	}
 
 
+#if !erase_generics
 	@:functionCode('
 		if (obj is To)
 			return (To) obj;
@@ -755,6 +812,7 @@ import cs.system.Object;
 	{
 		return null;
 	}
+#end
 
 	@:functionCode('
 		return (s1 == null ? "null" : s1) + (s2 == null ? "null" : s2);

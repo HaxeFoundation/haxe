@@ -27,7 +27,7 @@ package cs.internal;
  in modules (untested).
 **/
 
-@:keep @:abstract @:nativeGen @:native("haxe.lang.Function") private class Function
+@:keep @:abstract @:nativeGen @:native("haxe.lang.Function") class Function
 {
 	function new(arity:Int, type:Int)
 	{
