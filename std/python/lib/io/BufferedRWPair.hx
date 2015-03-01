@@ -1,8 +1,9 @@
 
 package python.lib.io;
 
-extern class BufferedRWPair {
+@:pythonImport("io", "BufferedRWPair")
+extern class BufferedRWPair extends BufferedIOBase {
 
-	
+
 
 }

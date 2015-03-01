@@ -1,6 +1,10 @@
 
 package sys.io;
 
+import python.io.IoTools;
+import python.lib.io.BufferedReader;
+import python.lib.io.BufferedWriter;
+import python.lib.io.TextIOWrapper;
 import python.lib.Subprocess;
 import python.lib.subprocess.Popen;
 
@@ -16,10 +20,9 @@ class Process {
 
 		p = Popen.create([cmd].concat(args), { stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
 
-
-		this.stdout = new FileInput (cast p.stdout);
-		this.stderr = new FileInput (cast p.stderr);
-		this.stdin =  new FileOutput(cast p.stdin);
+		this.stdout = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stdout)));
+		this.stderr = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stderr)));
+		this.stdin =  IoTools.createFileOutputFromText(new TextIOWrapper(new BufferedWriter(p.stdin)));
 	}
 
 	public function getPid() : Int {

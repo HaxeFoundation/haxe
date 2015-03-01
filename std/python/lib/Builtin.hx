@@ -4,6 +4,7 @@ package python.lib;
 
 import python.lib.io.FileIO;
 import python.lib.Dict;
+import python.lib.io.IOBase;
 import python.NativeIterable;
 import python.NativeIterator;
 
@@ -41,7 +42,7 @@ extern class Builtin {
 	@:overload(function (f:Tuple<Dynamic>):Int {})
 	public static function len(x:String):Int;
 
-	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):FileIO;
+	public static function open(file:String, mode:String, ?buffering:Int = -1, ?encoding:String = null, ?errors : String, ?newline:String, ?closefd:Bool, ?opener:String->Int->FileDescriptor):IOBase;
 
 	//public static function divmod():Void;
 	//public static function input():Void;

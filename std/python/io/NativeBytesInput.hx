@@ -30,7 +30,7 @@ class NativeBytesInput extends NativeInput<RawIOBase> implements IInput {
 		return ret.get(0);
 	}
 
-	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
+	override public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
 		wasEof = false;
 		return IoTools.seekInBinaryMode(stream, p, pos);

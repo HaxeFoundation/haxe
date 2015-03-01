@@ -44,6 +44,7 @@ class IoTools {
  				p = tell() + p;
  				SeekSet;
  		}
+
  		stream.seek(p, pos);
 	}
 

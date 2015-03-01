@@ -49,12 +49,16 @@ class NativeInput<T:IOBase> extends Input{
 		throw "abstract method, should be overriden";
 	}
 
+	function seek (p:Int, mode:sys.io.FileSeek) {
+		throw "abstract method, should be overriden";
+	}
+
 	override public function readBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int
 	{
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw haxe.io.Error.OutsideBounds;
 
-		stream.seek(pos, python.lib.io.IOBase.SeekSet.SeekCur);
+		seek(pos, SeekBegin);
 		var ba = new Bytearray(len);
 		var ret = readinto(ba);
 		s.blit(pos, haxe.io.Bytes.ofData(ba) ,0,len);

@@ -29,7 +29,7 @@ class NativeTextInput extends NativeInput<TextIOBase> implements IInput {
 		return ret.charCodeAt(0);
 	}
 
-	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
+	override public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
 		wasEof = false;
 		IoTools.seekInTextMode(stream, tell, p, pos);

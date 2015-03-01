@@ -2,6 +2,7 @@
 package python.lib.subprocess;
 
 import python.lib.io.BufferedReader;
+import python.lib.io.FileIO;
 import python.lib.io.TextIOBase;
 import python.lib.Subprocess.StartupInfo;
 import python.lib.Tuple;
@@ -65,9 +66,9 @@ extern class Popen {
 	public function poll ():Null<Int>;
 	public function terminate ():Void;
 
-	public var stdout : BufferedReader;
-	public var stderr : BufferedReader;
-	public var stdin : BufferedReader;
+	public var stdout : FileIO;
+	public var stderr : FileIO;
+	public var stdin : FileIO;
 	public var returncode : Int;
 	public var pid:Int;
 
