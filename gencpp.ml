@@ -319,6 +319,8 @@ let keyword_remap name =
    | "bool" | "const_cast" | "dynamic_cast" | "explicit" | "export" | "mutable" | "namespace"
    | "reinterpret_cast" | "static_cast" | "typeid" | "typename" | "virtual"
    | "_Complex" | "INFINITY" | "NAN"
+   | "INT_MIN" | "INT_MAX" | "INT8_MIN" | "INT8_MAX" | "UINT8_MAX" | "INT16_MIN"
+   | "INT16_MAX" | "UINT16_MAX" | "INT32_MIN" | "INT32_MAX" | "UINT32_MAX"
    | "struct" -> "_" ^ name
    | "asm" -> "_asm_"
    | x -> x
