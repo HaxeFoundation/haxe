@@ -118,16 +118,13 @@ import java.Boot;
 
 	public static function isObject( v : Dynamic ) : Bool
 	{
-		return v != null && !(Std.is(v, Enum) || Std.is(v, Function) || Std.is(v, java.lang.Enum) || Std.is(v, java.lang.Number) || Std.is(v, java.lang.Boolean));
+		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, java.lang.Enum) || Std.is(v, java.lang.Number) || Std.is(v, java.lang.Boolean));
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return v != null && (Std.is(v, Enum) || Std.is(v, java.lang.Enum));
+		return v != null && (Std.is(v, HxEnum) || Std.is(v, java.lang.Enum));
 	}
 
-	//@:functionCode('
-		//return (o instanceof haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(field));
-	//')
 	public static function deleteField( o : Dynamic, field : String ) : Bool
 	{
 		return (Std.is(o, DynamicObject) && (o : DynamicObject).__hx_deleteField(field));

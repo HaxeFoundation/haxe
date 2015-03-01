@@ -67,7 +67,7 @@ class DynamicObject extends HxObject implements Dynamic
 }
 
 @:keep @:native('haxe.lang.Enum') @:nativeGen
-class Enum
+class HxEnum
 {
 	@:readOnly private var index(default,never):Int;
 
@@ -93,7 +93,7 @@ class Enum
 }
 
 @:keep @:native('haxe.lang.ParamEnum') @:nativeGen
-private class ParamEnum extends Enum
+private class ParamEnum extends HxEnum
 {
 	@:readOnly private var params(default,never):Vector<Dynamic>;
 
