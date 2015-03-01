@@ -360,6 +360,19 @@ let get_code meta key =
    if (code<>"") then code ^ "\n" else code
 ;;
 
+(*
+let dump_meta meta = 
+   List.iter (fun m -> match m with | (k,_,_) -> print_endline ((fst (MetaInfo.to_string k)) ^ "=" ^ (get_meta_string meta k) ) | _ -> () ) meta;;
+*)
+
+let get_class_code class_def key = match class_def.cl_kind with
+    | KAbstractImpl abstract_def ->
+       let value = (get_code abstract_def.a_meta key) in
+       value
+    | _ -> get_code class_def.cl_meta key
+;;
+
+
 (* Add include to source code *)
 let add_include writer class_path =
    writer#add_include class_path;;
@@ -3368,12 +3381,12 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    if (scriptable) then
       output_cpp "#include <hx/Scriptable.h>\n";
 
-   output_cpp ( get_code class_def.cl_meta Meta.CppFileCode );
+   output_cpp ( get_class_code class_def Meta.CppFileCode );
 
    gen_open_namespace output_cpp class_path;
    output_cpp "\n";
 
-   output_cpp ( get_code class_def.cl_meta Meta.CppNamespaceCode );
+   output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
    if (not class_def.cl_interface) then begin
       output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
@@ -3935,11 +3948,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
    List.iter ( gen_forward_decl h_file ) referenced;
 
-   output_h ( get_code class_def.cl_meta Meta.HeaderCode );
+   output_h ( get_class_code class_def Meta.HeaderCode );
 
    gen_open_namespace output_h class_path;
    output_h "\n\n";
-   output_h ( get_code class_def.cl_meta Meta.HeaderNamespaceCode );
+   output_h ( get_class_code class_def Meta.HeaderNamespaceCode );
 
    let extern_class =  Common.defined common_ctx Define.DllExport in
    let attribs = "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES " in
@@ -4007,7 +4020,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    List.iter (gen_member_def ctx class_def false interface) (List.filter should_implement_field class_def.cl_ordered_fields);
    List.iter (gen_member_def ctx class_def true interface)  (List.filter should_implement_field class_def.cl_ordered_statics);
 
-   output_h ( get_code class_def.cl_meta Meta.HeaderClassCode );
+   output_h ( get_class_code class_def Meta.HeaderClassCode );
 
    output_h "};\n\n";
 
@@ -5291,7 +5304,7 @@ let generate_source common_ctx =
          if (is_internal || (is_macro class_def.cl_meta)) then
             ( if (debug>1) then print_endline (" internal class " ^ name ))
          else begin
-            build_xml := !build_xml ^ (get_code class_def.cl_meta Meta.BuildXml);
+            build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
             if (has_init_field class_def) then
                init_classes := class_def.cl_path ::  !init_classes;
             if (has_boot_field class_def) then
