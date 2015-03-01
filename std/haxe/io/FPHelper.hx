@@ -138,9 +138,9 @@ class FPHelper {
 		#else
 			if( f == 0 ) return 0;
 			var af = f < 0 ? -f : f;
-			var exp = Math.round(Math.log(af) / LN2);
+			var exp = Math.floor(Math.log(af) / LN2);
 			if( exp < -127 ) exp = -127 else if( exp > 128 ) exp = 128;
-			var sig = Math.round(af / Math.pow(2, exp) * 0x800000) & 0x7FFFFF;
+			var sig = Math.round((af / Math.pow(2, exp) - 1) * 0x800000) & 0x7FFFFF;
 			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig;
 		#end
 	}
@@ -278,8 +278,8 @@ class FPHelper {
 				}
 			} else {
 				var av = v < 0 ? -v : v;
-				var exp = Math.round(Math.log(av) / LN2);
-				var sig = Math.fround((av / Math.pow(2, exp)) * 4503599627370496.); // 2^52
+				var exp = Math.floor(Math.log(av) / LN2);
+				var sig = Math.fround(((av / Math.pow(2, exp)) - 1) * 4503599627370496.); // 2^52
 				var sig_l = Std.int(sig);
 				var sig_h = Std.int(sig / 4294967296.0);
 				@:privateAccess {
