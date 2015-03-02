@@ -1215,6 +1215,9 @@ and expr = parser
 		| [< '(POpen,pp); e = expr; s >] ->
 			(match s with parser
 			| [< '(Comma,_); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
+			| [< t = parse_type_hint; '(PClose,p2); s >] ->
+				let ep = EParenthesis (ECheckType(e,t),punion p1 p2), punion p1 p2 in
+				expr_next (ECast (ep,None),punion p1 (pos ep)) s
 			| [< '(PClose,p2); s >] ->
 				let ep = expr_next (EParenthesis(e),punion pp p2) s in
 				expr_next (ECast (ep,None),punion p1 (pos ep)) s
