@@ -2128,7 +2128,18 @@ module Generator = struct
 
 	let gen_resources ctx =
 		if Hashtbl.length ctx.com.resources > 0 then begin
-			spr ctx "def _hx_resources__():\n\treturn {";
+			let slash_index = try (String.rindex ctx.com.file '/')+1 with Not_found -> 0 in
+			let len = String.length ctx.com.file - slash_index in
+			let file_name = String.sub ctx.com.file slash_index len in
+			spr ctx "def _hx_resources__():";
+			spr ctx "\n\timport inspect";
+			spr ctx "\n\timport sys";
+			spr ctx "\n\tif not hasattr(sys.modules[__name__], '__file__'):";
+			print ctx "\n\t\t_file = '%s'" file_name;
+			spr ctx "\n\telse:";
+			spr ctx "\n\t\t_file = __file__";
+
+			spr ctx "\n\treturn {";
 			let first = ref true in
 			Hashtbl.iter (fun k v ->
 				let prefix = if !first then begin
@@ -2138,10 +2149,7 @@ module Generator = struct
 					","
 				in
 				let k_enc = Codegen.escape_res_name k false in
-				let slash_index = try (String.rindex ctx.com.file '/')+1 with Not_found -> 0 in
-				let len = String.length ctx.com.file - slash_index in
-				let file_name = String.sub ctx.com.file slash_index len in
-				print ctx "%s\"%s\": open('%%s.%%s'%%('%s','%s'),'rb').read()" prefix (Ast.s_escape k) file_name k_enc;
+				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (Ast.s_escape k) k_enc;
 				Std.output_file (ctx.com.file ^ "." ^ k_enc) v
 			) ctx.com.resources;
 			spr ctx "}"
