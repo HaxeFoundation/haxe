@@ -46,6 +46,7 @@
 	all : allowed variance on interface variables
 	all : allowed pattern matching on arrays if they are typed as Dynamic
 	all : allowed pattern matching on fields of parent classes
+	all : -D doc-gen no longer implies -dce no
 	flash/js: optimized haxe.ds.StringMap
 	neko : create output directory if it does not exist
 	js : inline Math methods and fields

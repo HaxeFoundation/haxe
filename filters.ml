@@ -1110,7 +1110,7 @@ let run com tctx main =
 	(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
 	List.iter (check_remove_metadata tctx) com.types;
 	(* DCE *)
-	let dce_mode = if Common.defined com Define.As3 || Common.defined com Define.DocGen then
+	let dce_mode = if Common.defined com Define.As3 then
 		"no"
 	else
 		(try Common.defined_value com Define.Dce with _ -> "no")
