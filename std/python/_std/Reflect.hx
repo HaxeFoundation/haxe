@@ -82,7 +82,7 @@ class Reflect {
 
 	public static function isFunction( f : Dynamic ) : Bool
 	{
-		return Inspect.isfunction(f) || Inspect.ismethod(f);
+		return Inspect.isfunction(f) || Inspect.ismethod(f) || Builtin.hasattr(f, "func_code");
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {

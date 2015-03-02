@@ -2138,7 +2138,10 @@ module Generator = struct
 					","
 				in
 				let k_enc = Base64.str_encode k in
-				print ctx "%s\"%s\": open('%%s.%%s'%%(__file__,'%s'),'rb').read()" prefix (Ast.s_escape k) k_enc;
+				let slash_index = try (String.rindex ctx.com.file '/')+1 with Not_found -> 0 in
+				let len = String.length ctx.com.file - slash_index in
+				let file_name = String.sub ctx.com.file slash_index len in
+				print ctx "%s\"%s\": open('%%s.%%s'%%('%s','%s'),'rb').read()" prefix (Ast.s_escape k) file_name k_enc;
 				Std.output_file (ctx.com.file ^ "." ^ k_enc) v
 			) ctx.com.resources;
 			spr ctx "}"
