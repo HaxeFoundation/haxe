@@ -10,7 +10,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	public function new() {
 	}
 
-	static var out = sys.io.File.write("debug.txt", false);
+	//static var out = sys.io.File.write("debug.txt", false);
 
 	static inline function incrCount(?pos:haxe.PosInfos) {
 		++count;
@@ -362,7 +362,7 @@ class Test #if swf_mark implements mt.Protect #end {
 
 		trace("SUCCESS: " + success);
 
-		out.close();
+		//out.close();
 
 		#if js
 		if (js.Browser.supported) {
