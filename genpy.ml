@@ -1417,6 +1417,8 @@ module Printer = struct
 					handle_base_type (t_infos (TClassDecl c))
 				| TEnum(en,_) ->
 					handle_base_type (t_infos (TEnumDecl en))
+				| TAbstract(a,_) ->
+					handle_base_type (t_infos (TAbstractDecl a))
 				| _ ->
 					assert false
 		in
