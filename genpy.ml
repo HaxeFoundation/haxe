@@ -2137,7 +2137,7 @@ module Generator = struct
 				end else
 					","
 				in
-				let k_enc = Base64.str_encode k in
+				let k_enc = Codegen.escape_res_name k false in
 				let slash_index = try (String.rindex ctx.com.file '/')+1 with Not_found -> 0 in
 				let len = String.length ctx.com.file - slash_index in
 				let file_name = String.sub ctx.com.file slash_index len in
