@@ -335,10 +335,10 @@ using StringTools;
 			var ret:Array<String> = java.Lib.array(untyped e.__hx_constructs);
 			return ret.copy();
 		}
-    var vals:java.NativeArray<java.lang.Enum<Dynamic>> = untyped e.values(), ret = [];
-    for (i in 0...vals.length)
-      ret[i] = vals[i].name();
-    return ret;
+		var vals:java.NativeArray<java.lang.Enum<Dynamic>> = untyped e.values(), ret = [];
+		for (i in 0...vals.length)
+			ret[i] = vals[i].name();
+		return ret;
 	}
 
 	@:functionCode('
