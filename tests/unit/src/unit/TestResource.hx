@@ -7,9 +7,10 @@ class TestResource extends Test {
 	function testResources() {
 		var names = haxe.Resource.listNames();
 		eq( names.length, 2 );
-		if( names[0] == "re/s?!%[]))(\"'1.txt" )
+		if( names[0] == "re/s?!%[]))(\"'1.txt" ) {
 			eq( names[1], "re/s?!%[]))(\"'1.bin" );
-		else {
+			eq( names[1], "re/s?!%[]))(\"'1.bin" );
+		} else {
 			eq( names[0], "re/s?!%[]))(\"'1.bin" );
 			eq( names[1], "re/s?!%[]))(\"'1.txt" );
 		}
