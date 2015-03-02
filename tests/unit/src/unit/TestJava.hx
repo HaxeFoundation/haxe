@@ -1,6 +1,7 @@
 package unit;
 import haxe.io.Bytes;
 import haxe.test.Base;
+import haxe.test.MyClass;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base___InnerClass3__;
 import haxe.test.Base.Base___InnerClass3___InnerClass4__;
@@ -10,6 +11,8 @@ import java.util.EnumSet;
 import java.vm.*;
 
 #if java
+@:strict(haxe.test.MyClass.MyClass_MyAnnotation({ author:"John Doe", someEnum: TB }))
+@:strict(MyClass_ParameterLessAnnotation)
 class TestJava extends Test
 {
   function testException()
@@ -25,6 +28,24 @@ class TestJava extends Test
       hx.excTest()
     catch(e:Dynamic) throw e; //shouldn't throw any exception
   }
+
+	@:strict(MyClass_MyAnnotation({ author:"author", currentRevision: 2 }))
+	public function testAnnotations()
+	{
+		var cl = java.Lib.toNativeType(TestJava);
+		var a = cl.getAnnotation(java.Lib.toNativeType(MyClass_MyAnnotation));
+		t(a != null);
+		eq(a.author(), "John Doe");
+		eq(a.someEnum(), TB);
+		eq(a.currentRevision(), 1);
+		t(cl.getAnnotation(java.Lib.toNativeType(MyClass_ParameterLessAnnotation)) != null);
+		var m = cl.getMethod("testAnnotations", new java.NativeArray(0));
+		a = m.getAnnotation(java.Lib.toNativeType(MyClass_MyAnnotation));
+		t(a != null);
+		eq(a.author(), "author");
+		eq(a.someEnum(), TC);
+		eq(a.currentRevision(), 2);
+	}
 
 	function testLowerCase()
 	{

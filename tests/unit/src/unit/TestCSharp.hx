@@ -11,6 +11,7 @@ import haxe.test.IEditableTextBuffer;
 import haxe.test.LowerCaseClass;
 
 import cs.Flags;
+import cs.system.componentmodel.DescriptionAttribute;
 
 import NoPackage;
 #if unsafe
@@ -663,7 +664,7 @@ class TestCSharp extends Test
 	}
 }
 
-@:meta(System.ComponentModel.Description("Type description test"))
+@:strict(DescriptionAttribute("Type description test"))
 typedef StringWithDescription = String;
 
 private class HxClass extends NativeClass
@@ -687,7 +688,7 @@ private class HxClass extends NativeClass
 	}
 }
 
-@:meta(System.ComponentModel.Description("MyClass Description"))
+@:strict(cs.system.componentmodel.DescriptionAttribute("MyClass Description"))
 private class TestMyClass extends haxe.test.MyClass
 {
 	@:overload public function new()
@@ -709,7 +710,7 @@ private class TestMyClass extends haxe.test.MyClass
 	public var dynamicCalled:Bool;
 	public var getCalled:Bool;
 
-	@:meta(System.ComponentModel.Description("Argument description"))
+	@:strict(DescriptionAttribute("Argument description"))
 	@:keep public function argumentDescription(arg:StringWithDescription)
 	{
 	}

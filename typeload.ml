@@ -1070,6 +1070,177 @@ let type_function_arg_value ctx t c =
 			in
 			loop e
 
+(**** strict meta ****)
+let get_native_repr md pos =
+	let path, meta = match md with
+		| TClassDecl cl -> cl.cl_path, cl.cl_meta
+		| TEnumDecl e -> e.e_path, e.e_meta
+		| TTypeDecl t -> t.t_path, t.t_meta
+		| TAbstractDecl a -> a.a_path, a.a_meta
+	in
+	let rec loop acc = function
+		| (Meta.JavaCanonical,[EConst(String pack),_; EConst(String name),_],_) :: _ ->
+			ExtString.String.nsplit pack ".", name
+		| (Meta.Native,[EConst(String name),_],_) :: meta ->
+			loop (Ast.parse_path name) meta
+		| _ :: meta ->
+			loop acc meta
+		| [] ->
+			acc
+	in
+	let pack, name = loop path meta in
+	match pack with
+		| [] ->
+			(EConst(Ident(name)), pos)
+		| hd :: tl ->
+			let rec loop pack expr = match pack with
+				| hd :: tl ->
+					loop tl (EField(expr,hd),pos)
+				| [] ->
+					(EField(expr,name),pos)
+			in
+			loop tl (EConst(Ident(hd)),pos)
+
+let rec process_meta_argument ?(toplevel=true) ctx expr = match expr.eexpr with
+	| TField(e,f) ->
+		(EField(process_meta_argument ~toplevel:false ctx e,field_name f),expr.epos)
+	| TConst(TInt i) ->
+		(EConst(Int (Int32.to_string i)), expr.epos)
+	| TConst(TFloat f) ->
+		(EConst(Float f), expr.epos)
+	| TConst(TString s) ->
+		(EConst(String s), expr.epos)
+	| TConst TNull ->
+		(EConst(Ident "null"), expr.epos)
+	| TConst(TBool b) ->
+		(EConst(Ident (string_of_bool b)), expr.epos)
+	| TCast(e,_) | TMeta(_,e) | TParenthesis(e) ->
+		process_meta_argument ~toplevel ctx e
+	| TTypeExpr md when toplevel ->
+		let p = expr.epos in
+		if ctx.com.platform = Cs then
+			(ECall( (EConst(Ident "typeof"), p), [get_native_repr md expr.epos] ), p)
+		else
+			(EField(get_native_repr md expr.epos, "class"), p)
+	| TTypeExpr md ->
+		get_native_repr md expr.epos
+	| _ ->
+		display_error ctx "This expression is too complex to be a strict metadata argument" expr.epos;
+		(EConst(Ident "null"), expr.epos)
+
+let make_meta ctx texpr extra =
+	match texpr.eexpr with
+		| TNew(c,_,el) ->
+			ECall(get_native_repr (TClassDecl c) texpr.epos, (List.map (process_meta_argument ctx) el) @ extra), texpr.epos
+		| TTypeExpr(md) ->
+			ECall(get_native_repr md texpr.epos, extra), texpr.epos
+		| _ ->
+			display_error ctx "Unexpected expression" texpr.epos; assert false
+
+let field_to_type_path ctx e =
+	let rec loop e pack name = match e with
+		| EField(e,f),p when Char.lowercase (String.get f 0) <> String.get f 0 -> (match name with
+			| [] | _ :: [] ->
+				loop e pack (f :: name)
+			| _ -> (* too many name paths *)
+				display_error ctx ("Unexpected " ^ f) p;
+				raise Exit)
+		| EField(e,f),_ ->
+			loop e (f :: pack) name
+		| EConst(Ident f),_ ->
+			let pack, name, sub = match name with
+				| [] ->
+					let fchar = String.get f 0 in
+					if Char.uppercase fchar = fchar then
+						pack, f, None
+					else begin
+						display_error ctx "A class name must start with an uppercase character" (snd e);
+						raise Exit
+					end
+				| [name] ->
+					f :: pack, name, None
+				| [name; sub] ->
+					f :: pack, name, Some sub
+				| _ ->
+					assert false
+			in
+			{ tpackage=pack; tname=name; tparams=[]; tsub=sub }
+		| _,pos ->
+			display_error ctx "Unexpected expression when building strict meta" pos;
+			raise Exit
+	in
+	loop e [] []
+
+let handle_fields ctx fields_to_check with_type_expr =
+	List.map (fun (name,expr) ->
+		let pos = snd expr in
+		let field = (EField(with_type_expr,name), pos) in
+		let fieldexpr = (EConst(Ident name),pos) in
+		let left_side = match ctx.com.platform with
+			| Cs -> field
+			| Java -> (ECall(field,[]),pos)
+			| _ -> assert false
+		in
+
+		let left = type_expr ctx left_side NoValue in
+		let right = type_expr ctx expr (WithType left.etype) in
+		unify ctx left.etype right.etype (snd expr);
+		(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
+	) fields_to_check
+
+let get_strict_meta ctx params pos =
+	let pf = ctx.com.platform in
+	let changed_expr, fields_to_check, ctype = match params with
+		| [ECall(ef, el),p] ->
+			(* check last argument *)
+			let el, fields = match List.rev el with
+				| (EObjectDecl(decl),_) :: el ->
+					List.rev el, decl
+				| _ ->
+					el, []
+			in
+			let tpath = field_to_type_path ctx ef in
+			if pf = Cs then
+				(ENew(tpath, el), p), fields, CTPath tpath
+			else
+				ef, fields, CTPath tpath
+		| [EConst(Ident i),p as expr] ->
+			let tpath = { tpackage=[]; tname=i; tparams=[]; tsub=None } in
+			if pf = Cs then
+				(ENew(tpath, []), p), [], CTPath tpath
+			else
+				expr, [], CTPath tpath
+		| [ (EField(_),p as field) ] ->
+			let tpath = field_to_type_path ctx field in
+			if pf = Cs then
+				(ENew(tpath, []), p), [], CTPath tpath
+			else
+				field, [], CTPath tpath
+		| _ ->
+			display_error ctx "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
+			raise Exit
+	in
+	let texpr = type_expr ctx changed_expr NoValue in
+	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), ctype ), pos) in
+	let extra = handle_fields ctx fields_to_check with_type_expr in
+	Meta.Meta, [make_meta ctx texpr extra], pos
+
+let check_strict_meta ctx metas =
+	let pf = ctx.com.platform in
+	match pf with
+		| Cs | Java ->
+			let ret = ref [] in
+			List.iter (function
+				| Meta.Strict,params,pos -> (try
+					ret := get_strict_meta ctx params pos :: !ret
+				with | Exit -> ())
+				| _ -> ()
+			) metas;
+			!ret
+		| _ -> []
+
+(**** end of strict meta handling *****)
+
 let rec add_constructor ctx c force_constructor p =
 	match c.cl_constructor, c.cl_super with
 	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern && not (Meta.has Meta.CompilerGenerated cfsup.cf_meta) ->
@@ -2664,6 +2835,21 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		ctx.pass <- PBuildModule;
 		ctx.curclass <- null_class;
 		delay ctx PBuildClass (fun() -> ignore(c.cl_build()));
+		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not c.cl_extern then
+			delay ctx PTypeField (fun () ->
+				let metas = check_strict_meta ctx c.cl_meta in
+				if metas <> [] then c.cl_meta <- metas @ c.cl_meta;
+				let rec run_field cf =
+					let metas = check_strict_meta ctx cf.cf_meta in
+					if metas <> [] then cf.cf_meta <- metas @ cf.cf_meta;
+					List.iter run_field cf.cf_overloads
+				in
+				List.iter run_field c.cl_ordered_statics;
+				List.iter run_field c.cl_ordered_fields;
+				match c.cl_constructor with
+					| Some f -> run_field f
+					| _ -> ()
+			);
 	| EEnum d ->
 		let e = (match get_type d.d_name with TEnumDecl e -> e | _ -> assert false) in
 		let ctx = { ctx with type_params = e.e_params } in
@@ -2786,6 +2972,16 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			a_status = ref (EnumStatics e);
 		};
 		if !is_flat then e.e_meta <- (Meta.FlatEnum,[],e.e_pos) :: e.e_meta;
+
+		if (ctx.com.platform = Java || ctx.com.platform = Cs) && not e.e_extern then
+			delay ctx PTypeField (fun () ->
+				let metas = check_strict_meta ctx e.e_meta in
+				e.e_meta <- metas @ e.e_meta;
+				PMap.iter (fun _ ef ->
+					let metas = check_strict_meta ctx ef.ef_meta in
+					if metas <> [] then ef.ef_meta <- metas @ ef.ef_meta
+				) e.e_constrs
+			);
 	| ETypedef d ->
 		let t = (match get_type d.d_name with TTypeDecl t -> t | _ -> assert false) in
 		check_global_metadata ctx (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
@@ -2804,6 +3000,11 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 			| None -> r := Some tt;
 			| Some _ -> assert false);
 		| _ -> assert false);
+		if ctx.com.platform = Cs && t.t_meta <> [] then
+			delay ctx PTypeField (fun () ->
+				let metas = check_strict_meta ctx t.t_meta in
+				if metas <> [] then t.t_meta <- metas @ t.t_meta;
+			);
 	| EAbstract d ->
 		let a = (match get_type d.d_name with TAbstractDecl a -> a | _ -> assert false) in
 		check_global_metadata ctx (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;

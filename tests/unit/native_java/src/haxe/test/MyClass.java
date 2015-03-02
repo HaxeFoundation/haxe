@@ -1,4 +1,5 @@
 package haxe.test;
+import java.lang.annotation.*;
 
 public class MyClass
 {
@@ -105,4 +106,17 @@ public class MyClass
 			}
 		}
 	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface MyAnnotation {
+		String author();
+		int currentRevision() default 1;
+		String lastModified() default "N/A";
+		TEnum someEnum() default TEnum.TC;
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ParameterLessAnnotation {
+	}
 }
+

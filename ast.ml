@@ -148,6 +148,7 @@ module Meta = struct
 		| SkipReflection
 		| Sound
 		| StoredTypedExpr
+		| Strict
 		| Struct
 		| StructAccess
 		| SuppressWarnings
