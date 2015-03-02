@@ -158,7 +158,7 @@ class Lib
 	**/
 	public static function arrayAlloc<T>(size:Int):Array<T>
 	{
-		return untyped Array.alloc(size);
+		return @:privateAccess Array.alloc(size);
 	}
 
 	/**
