@@ -4,7 +4,7 @@ class Issue2042 extends Test
 {
 	public function test()
 	{
-		#if !php
+		#if (!php && !as3)
 		var m = haxe.rtti.Meta.getType(WithMeta);
 		t(m.someMeta != null);
 		eq(m.someMeta[0],1);
