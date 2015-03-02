@@ -1213,6 +1213,15 @@ let mk_temp gen name t =
 		let name = gen.gmk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
 		alloc_var name t
 
+let mk_vector_decl =
+	let v_vector = alloc_var "__array__" t_dynamic in
+	fun gen t el pos ->
+	{
+		eexpr = TCall(mk_local v_vector pos, el);
+		etype = gen.gclasses.tvector t;
+		epos = pos;
+	}
+
 let ensure_local gen block name e =
 	match e.eexpr with
 		| TLocal _ -> e
@@ -9098,12 +9107,7 @@ struct
 						cf.cf_meta <- [];
 
 						let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
-						let special = alloc_var "__array__" t_dynamic in
-						let arr_decl = {
-							eexpr = TCall(mk_local special pos, List.map (fun (v,_) -> mk_local v pos) tf_args);
-							etype = gen.gclasses.tvector t_dynamic;
-							epos = pos
-						} in
+						let arr_decl = mk_vector_decl gen t_dynamic (List.map (fun (v,_) -> mk_local v pos) tf_args) pos in
 						let expr = {
 							eexpr = TFunction({
 								tf_args = tf_args;
@@ -9137,13 +9141,9 @@ struct
 				cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
 				cf
 			) en.e_names in
-			let constructs_cf = mk_class_field "constructs" (basic.tarray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
-			constructs_cf.cf_meta <- [];
-			constructs_cf.cf_expr <- Some {
-				eexpr = TArrayDecl (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names);
-				etype = basic.tarray basic.tstring;
-				epos = pos;
-			};
+			let constructs_cf = mk_class_field "constructs" (gen.gclasses.tvector basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+			constructs_cf.cf_meta <- [Meta.ReadOnly,[],pos];
+			constructs_cf.cf_expr <- Some (mk_vector_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
 
 			cl.cl_ordered_statics <- constructs_cf :: cfs @ cl.cl_ordered_statics ;
 			cl.cl_statics <- PMap.add "constructs" constructs_cf cl.cl_statics;
@@ -9160,9 +9160,8 @@ struct
 							let e_constructs = mk_static_field_access_infer cl "constructs" pos [] in
 							let e_this = mk (TConst TThis) (TInst (cl,[])) pos in
 							let e_index = mk_field_access gen e_this "index" pos in
-							let e_unsafe_get = mk_field_access gen e_constructs "__unsafe_get" pos in
 							{
-								eexpr = TCall (e_unsafe_get, [e_index]);
+								eexpr = TArray(e_constructs,e_index);
 								etype = basic.tstring;
 								epos = pos;
 							}
