@@ -606,7 +606,6 @@ let build_macro_type ctx pl p =
 	let path, field, args = (match pl with
 		| [TInst ({ cl_kind = KExpr (ECall (e,args),_) },_)]
 		| [TInst ({ cl_kind = KExpr (EArrayDecl [ECall (e,args),_],_) },_)] ->
-			ctx.com.warning ("haxe.macro.MacroType is deprecated, consider using @:genericBuild instead") p;
 			get_macro_path ctx e args p
 		| _ ->
 			error "MacroType requires a single expression call parameter" p
