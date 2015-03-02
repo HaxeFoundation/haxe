@@ -10,8 +10,15 @@ class Test #if swf_mark implements mt.Protect #end {
 	public function new() {
 	}
 
+	static var out = sys.io.File.write("debug.txt", false);
+
+	static inline function incrCount(?pos:haxe.PosInfos) {
+		++count;
+		//out.writeString(pos.methodName +":" +pos.lineNumber + "\n");
+	}
+
 	function eq<T>( v : T, v2 : T, ?pos ) {
-		count++;
+		incrCount(pos);
 		if( v != v2 ) {
 			report(Std.string(v)+" should be "+Std.string(v2),pos);
 			success = false;
@@ -19,7 +26,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function feq( v : Float, v2 : Float, ?pos ) {
-		count++;
+		incrCount(pos);
 		if (!Math.isFinite(v) || !Math.isFinite(v2))
 			eq(v, v2, pos);
 		else if ( Math.abs(v - v2) > 1e-10 ) {
@@ -41,7 +48,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function exc( f : Void -> Void, ?pos ) {
-		count++;
+		incrCount(pos);
 		try {
 			f();
 			report("No exception occured",pos);
@@ -51,7 +58,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function unspec( f : Void -> Void, ?pos ) {
-		count++;
+		incrCount(pos);
 		try {
 			f();
 		} catch( e : Dynamic ) {
@@ -59,7 +66,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function allow<T>( v : T, values : Array<T>, ?pos ) {
-		count++;
+		incrCount(pos);
 		for( v2 in values )
 			if( v == v2 )
 				return;
@@ -68,7 +75,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function hf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (!Lambda.has(Type.getInstanceFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should have member field " +n, pos);
 			success = false;
@@ -76,7 +83,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function nhf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (Lambda.has(Type.getInstanceFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should not have member field " +n, pos);
 			success = false;
@@ -84,7 +91,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function hsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (!Lambda.has(Type.getClassFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should have static field " +n, pos);
 			success = false;
@@ -92,7 +99,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (Lambda.has(Type.getClassFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should not have static field " +n, pos);
 			success = false;
@@ -110,7 +117,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		}
 		asyncWaits.push(pos);
 		f(args,function(v2) {
-			count++;
+			incrCount(pos);
 			if( !asyncWaits.remove(pos) ) {
 				report("Double async result",pos);
 				success = false;
@@ -131,7 +138,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		}
 		asyncWaits.push(pos);
 		seterror(function(e) {
-			count++;
+			incrCount(pos);
 			if( asyncWaits.remove(pos) )
 				checkDone();
 			else {
@@ -140,7 +147,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			}
 		});
 		f(args,function(v) {
-			count++;
+			incrCount(pos);
 			if( asyncWaits.remove(pos) ) {
 				report("No exception occured",pos);
 				success = false;
@@ -352,6 +359,8 @@ class Test #if swf_mark implements mt.Protect #end {
 		#end
 
 		trace("SUCCESS: " + success);
+
+		out.close();
 
 		#if js
 		if (js.Browser.supported) {
