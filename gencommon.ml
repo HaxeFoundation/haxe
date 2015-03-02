@@ -4226,7 +4226,9 @@ struct
 				| TInst( { cl_kind = KTypeParameter _ }, _) -> true
 				| TAbstract(_, params)
 				| TEnum(_, params)
-				| TInst(_, params) -> List.fold_left (fun acc t -> acc || has_type_params t) false params
+				| TInst(_, params) -> List.exists (fun t -> has_type_params t) params
+				| TFun(args,ret) ->
+					List.exists (fun (n,o,t) -> has_type_params t) args || has_type_params ret
 				| _ -> false
 
 		let rec follow_all_md md =
@@ -4848,7 +4850,24 @@ struct
 
 							iface_cf.cf_type <- cast_cf.cf_type;
 							iface.cl_fields <- PMap.add name iface_cf iface.cl_fields;
-							iface.cl_ordered_fields <- [iface_cf];
+							let fields = List.filter (fun cf -> match cf.cf_kind with
+								| Var _ | Method MethDynamic -> false
+								| _ ->
+									let is_override = List.memq cf cl.cl_overrides in
+									let cf_type = if is_override && not (Meta.has Meta.Overload cf.cf_meta) then
+										match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with
+											| FClassField(_,_,_,_,_,actual_t,_) -> actual_t
+											| _ -> assert false
+									else
+										cf.cf_type
+									in
+
+									not (has_type_params cf_type)) cl.cl_ordered_fields
+							in
+							let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type f.cf_public f.cf_pos f.cf_kind f.cf_params) fields in
+							let fields = iface_cf :: fields in
+							iface.cl_ordered_fields <- fields;
+							List.iter (fun f -> iface.cl_fields <- PMap.add f.cf_name f iface.cl_fields) fields;
 
 							add_iface iface;
 							md
