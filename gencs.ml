@@ -2884,6 +2884,11 @@ let configure gen =
 		| _ -> assert false
 	in
 
+	let is_undefined e = match e.eexpr with
+		| TLocal { v_name = "__undefined__" } | TField(_,FStatic({cl_path=["haxe";"lang"],"Runtime"},{cf_name="undefined"})) -> true
+		| _ -> false
+	in
+
 	DynamicOperators.configure gen
 		(DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
 			| TBinop (Ast.OpEq, e1, e2)
@@ -2895,7 +2900,7 @@ let configure gen =
 						false
 					| _, TConst(TNull) when (not (is_tparam e1.etype) && is_dynamic e1.etype) || is_null_expr e1 ->
 						false
-					| _, TLocal { v_name = "__undefined__" } ->
+					| _ when is_undefined e1 || is_undefined e2 ->
 						false
 					| _ ->
 						should_handle_opeq e1.etype || should_handle_opeq e2.etype
