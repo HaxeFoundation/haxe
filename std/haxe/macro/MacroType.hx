@@ -25,6 +25,5 @@ package haxe.macro;
 	This type is meant to be used to generate custom types using a macro.
 	For instance by doing MacroType<[my.Class.myMacro(55)]>
 **/
-@:deprecated("haxe.macro.MacroType is deprecated, consider using @:genericBuild instead")
 extern class MacroType<Const> {
 }
