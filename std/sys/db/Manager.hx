@@ -362,6 +362,11 @@ class Manager<T : Object> {
 						val = haxe.io.Bytes.ofString(val);
 					case DString(_) | DTinyText | DSmallText | DText if(!Std.is(val,String)):
 						val = val + "";
+#if (cs && erase_generics)
+					// on C#, SQLite Ints are returned as Int64
+					case DInt if (!Std.is(val,Int)):
+						val = cast(val,Int);
+#end
 					case DBool if (!Std.is(val,Bool)):
 						if (Std.is(val,Int))
 							val = val != 0;
