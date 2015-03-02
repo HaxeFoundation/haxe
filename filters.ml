@@ -8,7 +8,7 @@ open Typecore
 let rec verify_ast e = match e.eexpr with
 	| TField(_) ->
 		()
-	| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl _}) ->
+	| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
 		error "Cannot use abstract as value" e.epos
 	| _ ->
 		Type.iter verify_ast e
