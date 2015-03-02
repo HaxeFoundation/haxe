@@ -4,6 +4,7 @@ class Issue2042 extends Test
 {
 	public function test()
 	{
+		#if !php
 		var m = haxe.rtti.Meta.getType(WithMeta);
 		t(m.someMeta != null);
 		eq(m.someMeta[0],1);
@@ -11,6 +12,7 @@ class Issue2042 extends Test
 		eq(m.otherMeta[0],2);
 		t(haxe.rtti.Meta.getFields(WithMeta).testing != null);
 		eq(haxe.rtti.Meta.getFields(WithMeta).testing.varMeta[0], 3);
+		#end
 	}
 }
 
