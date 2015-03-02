@@ -753,6 +753,7 @@ let configure gen =
 			| [] when is_hxgen md -> ["haxe";"root"], params
 			| [] -> (match md with
 				| TClassDecl { cl_path = ([],"Std" | [],"Math") } -> ["haxe";"root"], params
+				| TClassDecl { cl_meta = m } when Meta.has Meta.Enum m -> ["haxe";"root"], params
 				| _ -> [], params)
 			| ns when params = [] -> List.map change_id ns, params
 			| ns ->
