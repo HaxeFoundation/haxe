@@ -263,8 +263,10 @@ using StringTools;
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		if (Reflect.hasField(e, "constructs"))
-			return untyped e.constructs.copy();
+		if (Reflect.hasField(e, "__hx_constructs")) {
+			var ret:Array<String> = cs.Lib.array(untyped e.__hx_constructs);
+			return ret.copy();
+		}
 		return cs.Lib.array(cs.system.Enum.GetNames(untyped e));
 	}
 
