@@ -9141,12 +9141,12 @@ struct
 				cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
 				cf
 			) en.e_names in
-			let constructs_cf = mk_class_field "constructs" (gen.gclasses.tvector basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+			let constructs_cf = mk_class_field "__hx_constructs" (gen.gclasses.tvector basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 			constructs_cf.cf_meta <- [Meta.ReadOnly,[],pos];
 			constructs_cf.cf_expr <- Some (mk_vector_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
 
 			cl.cl_ordered_statics <- constructs_cf :: cfs @ cl.cl_ordered_statics ;
-			cl.cl_statics <- PMap.add "constructs" constructs_cf cl.cl_statics;
+			cl.cl_statics <- PMap.add "__hx_constructs" constructs_cf cl.cl_statics;
 
 			let getTag_cf_type = tfun [] basic.tstring in
 			let getTag_cf = mk_class_field "getTag" getTag_cf_type true pos (Method MethNormal) [] in
@@ -9157,7 +9157,7 @@ struct
 					tf_type = basic.tstring;
 					tf_expr = {
 						eexpr = TReturn (Some (
-							let e_constructs = mk_static_field_access_infer cl "constructs" pos [] in
+							let e_constructs = mk_static_field_access_infer cl "__hx_constructs" pos [] in
 							let e_this = mk (TConst TThis) (TInst (cl,[])) pos in
 							let e_index = mk_field_access gen e_this "index" pos in
 							{
