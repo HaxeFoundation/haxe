@@ -559,22 +559,22 @@ class RunCi {
 							"";
 					};
 
-					runCommand("haxe", ["compile-cs$compl.hxml"]);
+					runCommand("haxe", ['compile-cs$compl.hxml']);
 					runExe("bin/cs/bin/Test-Debug.exe");
 
-					runCommand("haxe", ["compile-cs-unsafe$compl.hxml"]);
+					runCommand("haxe", ['compile-cs-unsafe$compl.hxml']);
 					runExe("bin/cs_unsafe/bin/Test-Debug.exe");
 
-					runCommand("haxe", ["compile-cs$compl.hxml","-D","erase_generics"]);
+					runCommand("haxe", ['compile-cs$compl.hxml',"-D","erase_generics"]);
 					runExe("bin/cs/bin/Test-Debug.exe");
 
-					runCommand("haxe", ["compile-cs-unsafe$compl.hxml","-D","erase_generics"]);
+					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","erase_generics"]);
 					runExe("bin/cs_unsafe/bin/Test-Debug.exe");
 
-					runCommand("haxe", ["compile-cs$compl.hxml","-D","no_root"]);
+					runCommand("haxe", ['compile-cs$compl.hxml',"-D","no_root"]);
 					runExe("bin/cs/bin/Test-Debug.exe");
 
-					runCommand("haxe", ["compile-cs-unsafe$compl.hxml","-D","no_root","-D","erase_generics"]);
+					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","no_root","-D","erase_generics"]);
 					runExe("bin/cs_unsafe/bin/Test-Debug.exe");
 
 					changeDirectory(sysDir);
