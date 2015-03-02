@@ -2563,7 +2563,10 @@ let gen_field_init ctx field =
    | _ -> (match field.cf_expr with
       | Some expr ->
          find_local_functions_and_return_blocks_ctx ctx true expr;
-         output ( match remap_name with "__meta__" -> "\t__mClass->__meta__=" | _ -> "\t" ^ remap_name ^ "= ");
+         output ( match remap_name with
+                  | "__meta__" -> "\t__mClass->__meta__="
+                  | "__rtti" -> "\t__mClass->__rtti__="
+                  | _ -> "\t" ^ remap_name ^ "= ");
          gen_expression ctx true expr;
          output ";\n"
       | _ -> ( )
@@ -3263,7 +3266,7 @@ let reflective class_def field = not (
 )
 ;;
 
-let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics);;
+let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") class_def.cl_ordered_statics);;
 
 let has_set_field class_def =
    implement_dynamic_here class_def || (
