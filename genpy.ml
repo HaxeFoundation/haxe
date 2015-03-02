@@ -1398,7 +1398,7 @@ module Printer = struct
 				let res = if t = "String" then
 					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, str):\n%s\t%s\t%s" indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				else
-					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, %s):\n%s\t%s\t%s" t indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if Std._hx_is(_hx_e1, %s):\n%s\t%s\t%s" t indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				in
 				if i > 0 then
 					indent ^ "el" ^ res
@@ -1425,7 +1425,7 @@ module Printer = struct
 		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
 		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
-		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
+		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if python_lib_Builtin.isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
 		let catch_str = String.concat (Printf.sprintf "\n") (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
 		let except_end = if not has_catch_all then Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent else "" in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
