@@ -332,6 +332,7 @@ and gen_expr ctx e =
 				let path = (match follow v.v_type with
 					| TInst (c,_) -> Some c.cl_path
 					| TEnum (e,_) -> Some e.e_path
+					| TAbstract (a,_) -> Some a.a_path
 					| TDynamic _ -> None
 					| _ -> assert false
 				) in

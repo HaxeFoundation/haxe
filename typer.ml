@@ -3215,6 +3215,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| [] ->
 				()
 		in
+		let check_catch_type path params =
+			List.iter (fun pt ->
+				if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
+			) params;
+			(match path with
+			| x :: _ , _ -> x
+			| [] , name -> name)
+		in
 		let catches = List.fold_left (fun acc (v,t,e) ->
 			let t = Typeload.load_complex_type ctx (pos e) t in
 			let rec loop t = match follow t with
@@ -3222,12 +3230,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					error "Cannot catch non-generic type parameter" p
 				| TInst ({ cl_path = path },params)
 				| TEnum ({ e_path = path },params) ->
-					List.iter (fun pt ->
-						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
-					) params;
-					(match path with
-					| x :: _ , _ -> x
-					| [] , name -> name),t
+					check_catch_type path params,t
+				| TAbstract(a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
+					check_catch_type a.a_path params,t
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					loop (Abstract.get_underlying_type a tl)
 				| TDynamic _ -> "",t
