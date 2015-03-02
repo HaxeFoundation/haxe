@@ -330,8 +330,11 @@ using StringTools;
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		if (Reflect.hasField(e, "constructs"))
-			return untyped e.constructs.copy();
+		if (Reflect.hasField(e, "__hx_constructs"))
+		{
+			var ret:Array<String> = java.Lib.array(untyped e.__hx_constructs);
+			return ret.copy();
+		}
     var vals:java.NativeArray<java.lang.Enum<Dynamic>> = untyped e.values(), ret = [];
     for (i in 0...vals.length)
       ret[i] = vals[i].name();
