@@ -3056,6 +3056,7 @@ let configure gen =
 	);
 
 	DefaultArguments.configure gen (DefaultArguments.traverse gen);
+	InterfaceMetas.configure gen;
 
 	CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
 	CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);

@@ -2240,6 +2240,7 @@ let configure gen =
 	);
 
 	DefaultArguments.configure gen (DefaultArguments.traverse gen);
+	InterfaceMetas.configure gen;
 
 	JavaSpecificSynf.configure gen (JavaSpecificSynf.traverse gen runtime_cl);
 	JavaSpecificESynf.configure gen (JavaSpecificESynf.traverse gen runtime_cl);
