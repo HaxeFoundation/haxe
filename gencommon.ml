@@ -9055,6 +9055,7 @@ struct
 			en.e_meta <- (Meta.Class, [], pos) :: en.e_meta;
 			cl.cl_module <- en.e_module;
 			cl.cl_meta <- ( Meta.Enum, [], pos ) :: cl.cl_meta;
+
 			(match gen.gcon.platform with
 				| Cs when Common.defined gen.gcon Define.CoreApiSerialize ->
 					cl.cl_meta <- ( Meta.Meta, [ (EField( (EConst (Ident "System"), null_pos ), "Serializable" ), null_pos) ], null_pos ) :: cl.cl_meta
@@ -9178,7 +9179,10 @@ struct
 			cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
 			cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
 
-			if should_be_hxgen then cl.cl_meta <- (Meta.HxGen,[],cl.cl_pos) :: cl.cl_meta;
+			if should_be_hxgen then
+				cl.cl_meta <- (Meta.HxGen,[],cl.cl_pos) :: cl.cl_meta
+			else
+				cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
 			gen.gadd_to_module (TClassDecl cl) (max_dep);
 
 			TEnumDecl en

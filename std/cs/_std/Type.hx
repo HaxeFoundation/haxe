@@ -278,7 +278,7 @@ using StringTools;
 		}
 
 		t = v.GetType();
-		if (t.IsEnum)
+		if (t.IsEnum || Std.is(v, HxEnum))
 			return ValueType.TEnum(cast t);
 		if (t.IsValueType) {
 			var vc:cs.system.IConvertible = cast v;
