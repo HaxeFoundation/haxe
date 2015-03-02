@@ -1395,10 +1395,15 @@ module Printer = struct
 			let assign = if is_empty_expr then "" else Printf.sprintf "%s = _hx_e1\n%s" v.v_name indent in
 			let handle_base_type bt =
 				let t = print_base_type bt in
-				let res = if t = "String" then
-					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, str):\n%s\t%s\t%s" indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
-				else
-					Printf.sprintf "if Std._hx_is(_hx_e1, %s):\n%s\t%s\t%s" t indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+				let print_type_check t_str =
+					Printf.sprintf "if python_lib_Builtin.isinstance(_hx_e1, %s):\n%s\t%s\t%s" t_str indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+				in
+				let res = match t with
+				| "String" -> print_type_check "python_lib_Builtin.str"
+				| "Bool" -> print_type_check "python_lib_Builtin.bool"
+				| "Int" -> print_type_check "python_lib_Builtin.int"
+				| "Float" -> print_type_check "python_lib_Builtin.float"
+				| t -> print_type_check t
 				in
 				if i > 0 then
 					indent ^ "el" ^ res
