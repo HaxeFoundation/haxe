@@ -892,6 +892,7 @@ and type_name = parser
 			error (Custom "Type name should start with an uppercase letter") p
 		else
 			name
+	| [< '(Dollar name,_) >] -> "$" ^ name
 
 and parse_type_path_or_const = parser
 	(* we can't allow (expr) here *)

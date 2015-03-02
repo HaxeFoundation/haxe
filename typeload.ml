@@ -53,6 +53,7 @@ let make_module ctx mpath file tdecls loadp =
 				display_error ctx "import and using may not appear after a type declaration" p;
 				error "Previous type declaration found here" pt)
 		| EClass d ->
+			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path d.d_name priv in
@@ -64,6 +65,7 @@ let make_module ctx mpath file tdecls loadp =
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
+			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path d.d_name priv in
@@ -92,6 +94,7 @@ let make_module ctx mpath file tdecls loadp =
 			decls := (TEnumDecl e, decl) :: !decls;
 			acc
 		| ETypedef d ->
+			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path d.d_name priv in
@@ -108,6 +111,7 @@ let make_module ctx mpath file tdecls loadp =
 			decls := (TTypeDecl t, decl) :: !decls;
 			acc
 		 | EAbstract d ->
+		 	if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			let priv = List.mem APrivAbstract d.d_flags in
 			let path = make_path d.d_name priv in
 			let a = {
