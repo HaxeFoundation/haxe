@@ -82,7 +82,7 @@ let parse_constant max idx ch =
     (* TODO: correctly decode modified UTF8 *)
     KUtf8String str
   | 15 ->
-  	let reft = get_reference_type (read_ui16 ch) idx in
+  	let reft = get_reference_type (IO.read_byte ch) idx in
   	let dynref = index() in
   	KMethodHandle (reft, dynref)
   | 16 ->
