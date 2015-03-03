@@ -40,6 +40,13 @@ let is_boxed_type t = match follow t with
 	| TInst ({ cl_path = (["java";"lang"], "Short") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Character") }, [])
 	| TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> true
+	| TAbstract ({ a_path = (["java";"lang"], "Boolean") }, [])
+	| TAbstract ({ a_path = (["java";"lang"], "Double") }, [])
+	| TAbstract ({ a_path = (["java";"lang"], "Integer") }, [])
+	| TAbstract ({ a_path = (["java";"lang"], "Byte") }, [])
+	| TAbstract ({ a_path = (["java";"lang"], "Short") }, [])
+	| TAbstract ({ a_path = (["java";"lang"], "Character") }, [])
+	| TAbstract ({ a_path = (["java";"lang"], "Float") }, []) -> true
 	| _ -> false
 
 let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
@@ -50,6 +57,13 @@ let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
 	| TInst ({ cl_path = (["java";"lang"], "Short") }, []) -> tshort
 	| TInst ({ cl_path = (["java";"lang"], "Character") }, []) -> tchar
 	| TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> tfloat
+	| TAbstract ({ a_path = (["java";"lang"], "Boolean") }, []) -> gen.gcon.basic.tbool
+	| TAbstract ({ a_path = (["java";"lang"], "Double") }, []) -> gen.gcon.basic.tfloat
+	| TAbstract ({ a_path = (["java";"lang"], "Integer") }, []) -> gen.gcon.basic.tint
+	| TAbstract ({ a_path = (["java";"lang"], "Byte") }, []) -> tbyte
+	| TAbstract ({ a_path = (["java";"lang"], "Short") }, []) -> tshort
+	| TAbstract ({ a_path = (["java";"lang"], "Character") }, []) -> tchar
+	| TAbstract ({ a_path = (["java";"lang"], "Float") }, []) -> tfloat
 	| _ -> assert false
 
 let rec t_has_type_param t = match follow t with
@@ -2533,14 +2547,15 @@ and convert_signature ctx p jsig =
 	| TBool -> mk_type_path ctx ([], "Bool") []
 	| TObject ( (["haxe";"root"], name), args ) -> mk_type_path ctx ([], name) (List.map (convert_arg ctx p) args)
 	(** nullable types *)
-	| TObject ( (["java";"lang"], "Integer"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Int") []) ]
-	| TObject ( (["java";"lang"], "Double"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Float") []) ]
-	| TObject ( (["java";"lang"], "Single"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Single") []) ]
-	| TObject ( (["java";"lang"], "Boolean"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Bool") []) ]
-	| TObject ( (["java";"lang"], "Byte"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Int8") []) ]
-	| TObject ( (["java";"lang"], "Character"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Char16") []) ]
-	| TObject ( (["java";"lang"], "Short"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Int16") []) ]
-	| TObject ( (["java";"lang"], "Long"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["haxe"], "Int64") []) ]
+	(* replaced from Null<Type> to the actual abstract type to fix #2738 *)
+	(* | TObject ( (["java";"lang"], "Integer"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Int") []) ] *)
+	(* | TObject ( (["java";"lang"], "Double"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Float") []) ] *)
+	(* | TObject ( (["java";"lang"], "Float"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Single") []) ] *)
+	(* | TObject ( (["java";"lang"], "Boolean"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx ([], "Bool") []) ] *)
+	(* | TObject ( (["java";"lang"], "Byte"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Int8") []) ] *)
+	(* | TObject ( (["java";"lang"], "Character"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Char16") []) ] *)
+	(* | TObject ( (["java";"lang"], "Short"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["java";"types"], "Int16") []) ] *)
+	(* | TObject ( (["java";"lang"], "Long"), [] ) -> mk_type_path ctx ([], "Null") [ TPType (mk_type_path ctx (["haxe"], "Int64") []) ] *)
 	(** other std types *)
 	| TObject ( (["java";"lang"], "Object"), [] ) -> mk_type_path ctx ([], "Dynamic") []
 	| TObject ( (["java";"lang"], "String"), [] ) -> mk_type_path ctx ([], "String") []
@@ -3468,7 +3483,7 @@ let add_java_lib com file std =
 			end
 		with
 		| JReader.Error_message msg ->
-			if com.verbose then prerr_endline ("Class reader failed: " ^ msg);
+			prerr_endline ("Class reader failed: " ^ msg);
 			None
 		| e ->
 			if com.verbose then begin

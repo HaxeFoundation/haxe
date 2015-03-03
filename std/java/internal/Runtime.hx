@@ -575,7 +575,7 @@ package java.internal;
 
 	public static function isFinite(v:Float):Bool
 	{
-		return (v == v) && !java.lang.Double._isInfinite(v);
+		return (v == v) && !java.lang.Double.DoubleClass._isInfinite(v);
 	}
 }
 

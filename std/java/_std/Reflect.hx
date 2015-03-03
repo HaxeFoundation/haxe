@@ -118,7 +118,7 @@ import java.Boot;
 
 	public static function isObject( v : Dynamic ) : Bool
 	{
-		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, java.lang.Enum) || Std.is(v, java.lang.Number) || Std.is(v, java.lang.Boolean));
+		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, java.lang.Enum) || Std.is(v, java.lang.Number) || Std.is(v, java.lang.Boolean.BooleanClass));
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
