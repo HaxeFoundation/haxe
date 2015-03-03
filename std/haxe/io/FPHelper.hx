@@ -86,7 +86,7 @@ class FPHelper {
 
 			return helper.f;
 		#elseif java
-			return java.lang.Float.intBitsToFloat(i);
+			return java.lang.Float.FloatClass.intBitsToFloat(i);
 		#elseif php
 			return untyped  __call__('unpack', 'f', __call__('pack', 'l', i))[1];
 		#elseif flash9
@@ -126,7 +126,7 @@ class FPHelper {
 				return ((i >>> 24) & 0xFF) | (((i >> 16) & 0xFF) << 8) | (((i >> 8) & 0xFF) << 16) | ((i & 0xFF) << 24);
 			}
 		#elseif java
-			return java.lang.Float.floatToRawIntBits(f);
+			return java.lang.Float.FloatClass.floatToRawIntBits(f);
 		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
@@ -180,7 +180,7 @@ class FPHelper {
 			}
 			return helper.f;
 		#elseif java
-			return java.lang.Double.longBitsToDouble( Int64.make(high,low) );
+			return java.lang.Double.DoubleClass.longBitsToDouble( Int64.make(high,low) );
 		#elseif flash9
 			var helper = helper;
 			helper.position = 0;
@@ -235,7 +235,7 @@ class FPHelper {
 			return Int64.make(untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_high(v),
 				               untyped __global__.__hxcpp_reinterpret_float64_as_le_int32_low(v) );
 		#elseif java
-			return java.lang.Double.doubleToRawLongBits(v);
+			return java.lang.Double.DoubleClass.doubleToRawLongBits(v);
 		#elseif cs
 			var helper = new FloatHelper(v);
 			if( cs.system.BitConverter.IsLittleEndian )
