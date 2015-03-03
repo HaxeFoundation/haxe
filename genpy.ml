@@ -1554,11 +1554,20 @@ module Printer = struct
 	and print_exprs pctx sep el =
 		String.concat sep (List.map (print_expr pctx) el)
 
+	and last_debug_comment = ref ("")
+
 	and print_block_exprs pctx sep print_debug_comment el =
 		if print_debug_comment then begin
 			let el = List.fold_left (fun acc e ->
 				let line = Lexer.get_error_line e.epos in
-				(print_expr pctx e) :: (Printf.sprintf "# %s:%i" e.epos.pfile line) :: acc
+				let debug_line = (Printf.sprintf "# %s:%i" e.epos.pfile line) in
+				let res = if (!last_debug_comment) <> debug_line then
+					(print_expr pctx e) :: debug_line :: acc
+				else
+					(print_expr pctx e) :: acc
+				in
+				last_debug_comment := debug_line;
+				res
 			) [] el in
 			String.concat sep (List.rev el)
 		end else
