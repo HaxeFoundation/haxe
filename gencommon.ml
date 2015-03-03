@@ -7173,10 +7173,10 @@ struct
 				*)
 				let mk_splice arr at_pos = {
 					eexpr = TCall(
-						mk_field_access gen arr "splice" pos,
+						mk_field_access gen arr "spliceVoid" pos,
 						[at_pos; { eexpr = TConst(TInt Int32.one); etype = basic.tint; epos = pos }]
 					);
-					etype = arr.etype;
+					etype = basic.tvoid;
 					epos = pos
 				} in
 
@@ -7250,10 +7250,10 @@ struct
 			} in
 			let mk_splice arr at_pos = {
 				eexpr = TCall(
-					mk_field_access gen arr "splice" pos,
+					mk_field_access gen arr "spliceVoid" pos,
 					[at_pos; { eexpr = TConst(TInt Int32.one); etype = basic.tint; epos = pos }]
 				);
-				etype = arr.etype;
+				etype = basic.tvoid;
 				epos = pos
 			} in
 			(*
