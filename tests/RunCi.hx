@@ -386,15 +386,33 @@ class RunCi {
 		gotOpenFLDependencies = true;
 	}
 
-	static function getPythonDependencies() {
+	/**
+		Install python and return the names of the installed pythons.
+	*/
+	static function getPythonDependencies():Array<String> {
 		switch (systemName) {
 			case "Linux":
 				runCommand("sudo", ["apt-get", "install", "python3", "-qq"], true);
+				runCommand("python3", ["-V"]);
+
+				var pypyVersion = "pypy3-2.4.0-linux64";
+				runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
+				runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
+				var pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
+				runCommand(pypy, ["-V"]);
+
+				return ["python3", pypy];
 			case "Mac":
 				runCommand("brew", ["install", "python3"], true);
+				runCommand("python3", ["-V"]);
+
+				runCommand("brew", ["install", "pypy3"], true);
+				runCommand("pypy3", ["-V"]);
+
+				return ["python3", "pypy3"];
 		}
 
-		runCommand("python3", ["-V"]);
+		return [];
 	}
 
 	static var ci(default, never):Null<Ci> =
@@ -490,18 +508,25 @@ class RunCi {
 					runCommand("haxe", ["compile-php.hxml"]);
 					runCommand("php", ["bin/php/index.php"]);
 				case Python:
-					getPythonDependencies();
+					var pys = getPythonDependencies();
+
 					runCommand("haxe", ["compile-python.hxml"]);
-					runCommand("python3", ["bin/unit.py"]);
+					for (py in pys) {
+						runCommand(py, ["bin/unit.py"]);
+					}
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-python.hxml"]);
 					changeDirectory("bin/python");
-					runCommand("python3", ["sys.py"].concat(args));
+					for (py in pys) {
+						runCommand(py, ["sys.py"].concat(args));
+					}
 
 					changeDirectory(miscDir + "pythonImport");
 					runCommand("haxe", ["compile.hxml"]);
-					runCommand("python3", ["test.py"]);
+					for (py in pys) {
+						runCommand(py, ["test.py"]);
+					}
 				case Cpp:
 					getCppDependencies();
 					runCommand("haxe", ["compile-cpp.hxml"]);
