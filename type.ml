@@ -957,7 +957,7 @@ let rec s_expr s_type e =
 	| TParenthesis e ->
 		sprintf "Parenthesis %s" (loop e)
 	| TObjectDecl fl ->
-		sprintf "ObjectDecl {%s)" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
+		sprintf "ObjectDecl {%s}" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
 	| TArrayDecl el ->
 		sprintf "ArrayDecl [%s]" (slist loop el)
 	| TCall (e,el) ->
