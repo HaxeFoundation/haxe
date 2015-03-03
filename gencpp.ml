@@ -3268,13 +3268,21 @@ let reflective class_def field = not (
 
 let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") class_def.cl_ordered_statics);;
 
-let has_set_field class_def =
+let has_set_member_field class_def =
    implement_dynamic_here class_def || (
-      let reflect_fields = List.filter (reflective class_def) ((statics_except_meta class_def) @ class_def.cl_ordered_fields) in
+      let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
       let reflect_writable = List.filter (is_writable class_def) reflect_fields in
       List.exists variable_field reflect_writable
    )
 ;;
+
+
+let has_set_static_field class_def =
+      let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
+      let reflect_writable = List.filter (is_writable class_def) reflect_fields in
+      List.exists variable_field reflect_writable
+;;
+
 
 let has_get_fields class_def =
    implement_dynamic_here class_def || (
@@ -3283,12 +3291,19 @@ let has_get_fields class_def =
    )
 ;;
 
-let has_get_field class_def =
+let has_get_member_field class_def =
    implement_dynamic_here class_def || (
-      let reflect_fields = List.filter (reflective class_def) ((statics_except_meta class_def) @ class_def.cl_ordered_fields) in
+      let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
       List.exists (is_readable class_def) reflect_fields
    )
 ;;
+
+
+let has_get_static_field class_def =
+      let reflect_fields = List.filter (reflective class_def) (statics_except_meta class_def) in
+      List.exists (is_readable class_def) reflect_fields
+;;
+
 
 
 
@@ -3358,7 +3373,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    output_cpp "#include <hxcpp.h>\n\n";
 
-   let force_field = scriptable && (has_get_field class_def) in
+   let force_field = scriptable && (has_get_member_field class_def) in
    let field_integer_dynamic = force_field || (has_field_integer_lookup class_def) in
    let field_integer_numeric = force_field || (has_field_integer_numeric_lookup class_def) in
 
@@ -3536,11 +3551,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       end;
 
 
+      let reflect_member_fields = List.filter (reflective class_def) class_def.cl_ordered_fields in
+      let reflect_member_readable = List.filter (is_readable class_def) reflect_member_fields in
+      let reflect_member_writable = List.filter (is_writable class_def) reflect_member_fields in
+      let reflect_write_member_variables = List.filter variable_field reflect_member_writable in
 
-      let reflect_fields = List.filter (reflective class_def) (statics_except_meta @ class_def.cl_ordered_fields) in
-      let reflect_writable = List.filter (is_writable class_def) reflect_fields in
-      let reflect_readable = List.filter (is_readable class_def) reflect_fields in
-      let reflect_write_variables = List.filter variable_field reflect_writable in
+      let reflect_static_fields = List.filter (reflective class_def) (statics_except_meta) in
+      let reflect_static_readable = List.filter (is_readable class_def) reflect_static_fields in
+      let reflect_static_writable = List.filter (is_writable class_def) reflect_static_fields in
+      let reflect_write_static_variables = List.filter variable_field reflect_static_writable in
 
       let dump_quick_field_test fields =
          if ( (List.length fields) > 0) then begin
@@ -3571,7 +3590,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 
-      if (has_get_field class_def) then begin
+      if (has_get_member_field class_def) then begin
          (* Dynamic "Get" Field function - string version *)
          output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
          let get_field_dat = List.map (fun f ->
@@ -3584,7 +3603,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                ) ^ ";"
             ) )
          in
-         dump_quick_field_test (get_field_dat reflect_readable);
+         dump_quick_field_test (get_field_dat reflect_member_readable);
          if (implement_dynamic) then
             output_cpp "\tHX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
          output_cpp ("\treturn super::__Field(inName,inCallProp);\n}\n\n");
@@ -3596,7 +3615,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
                               (field.cf_name) ^ "\");\n");
                ) in
-            List.iter dump_static_ids reflect_readable;
+            List.iter dump_static_ids reflect_member_readable;
             output_cpp "\n\n";
 
 
@@ -3611,7 +3630,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                   | _ -> (remap_name ^ if ( variable_field f) then "" else "_dyn()")
                   ) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
                ) in
-            List.iter dump_field_test (List.filter (fun f -> all_fields || (is_numeric_field f)) reflect_readable);
+            List.iter dump_field_test (List.filter (fun f -> all_fields || (is_numeric_field f)) reflect_member_readable);
             if (implement_dynamic) then
                output_cpp "\tHX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
             output_cpp ("\treturn super::" ^ function_name ^ "(inFieldID);\n}\n\n");
@@ -3622,8 +3641,24 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          end;
       end;
 
+      if (has_get_static_field class_def) then begin
+         output_cpp ("bool " ^ class_name ^ "::__GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp)\n{\n");
+         let get_field_dat = List.map (fun f ->
+            (f.cf_name, String.length f.cf_name, 
+               (match f.cf_kind with
+               | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") { outValue = " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "(); return true; }"
+               | Var { v_read = AccCall } -> "outValue = " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
+                     ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()") ^ "; return true;";
+               | _ -> "outValue = " ^ ((keyword_remap f.cf_name) ^ (if (variable_field f) then "" else "_dyn()") ^ "; return true; ")
+               )
+            ) )
+         in
+         dump_quick_field_test (get_field_dat reflect_static_readable);
+         output_cpp ("\treturn false;\n}\n\n");
+      end;
+
       (* Dynamic "Set" Field function *)
-      if (has_set_field class_def) then begin
+      if (has_set_member_field class_def) then begin
 
          output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,hx::PropertyAccess inCallProp)\n{\n");
 
@@ -3640,7 +3675,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
             )
          ) in
 
-         dump_quick_field_test (set_field_dat reflect_write_variables);
+         dump_quick_field_test (set_field_dat reflect_write_member_variables);
          if (implement_dynamic) then begin
             output_cpp ("\ttry { return super::__SetField(inName,inValue,inCallProp); }\n");
             output_cpp ("\tcatch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
@@ -3648,6 +3683,29 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          end else
             output_cpp ("\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
       end;
+
+      if (has_set_static_field class_def) then begin
+
+         output_cpp ("bool " ^ class_name ^ "::__SetStatic(const ::String &inName,Dynamic &ioValue,hx::PropertyAccess inCallProp)\n{\n");
+
+         let set_field_dat = List.map (fun f ->
+            let default_action =
+               (keyword_remap f.cf_name) ^ "=ioValue.Cast< " ^ (type_string f.cf_type) ^ " >(); return true;" in
+            (f.cf_name, String.length f.cf_name,
+               (match f.cf_kind with
+               | Var { v_write = AccCall } -> "if (" ^ (checkPropCall f) ^ ")  ioValue = " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(ioValue);"
+                  ^ ( if is_extern_field f then "" else " else " ^ default_action ) 
+               | _ -> default_action
+               )
+            )
+         ) in
+
+         dump_quick_field_test (set_field_dat reflect_write_static_variables);
+         output_cpp ("\treturn false;\n}\n\n");
+      end;
+
+
+
 
       (* For getting a list of data members (eg, for serialization) *)
       if (has_get_fields class_def) then begin
@@ -3885,15 +3943,23 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       in
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-      output_cpp ("\thx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
-            ", hx::TCanCast< " ^ class_name ^ "> ," ^ sStaticFields ^ "," ^ sMemberFields ^ ",\n");
-      output_cpp ("\t&__CreateEmpty, &__Create,\n");
-      output_cpp ("\t&super::__SGetClass(), 0, sMarkStatics\n");
-      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatics\n#endif\n");
-      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n    , sMemberStorageInfo, sStaticStorageInfo \n#endif\n");
-      output_cpp (");\n");
-      if (scriptable) then
-            output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
+      output_cpp ("\thx::Static(__mClass) = new hx::Class_obj();\n");
+      output_cpp ("\t__mClass->mName = " ^  (str class_name_text)  ^ ";\n");
+      output_cpp ("\t__mClass->mSuper = &super::__SGetClass();\n");
+      output_cpp ("\t__mClass->mConstructEmpty = &__CreateEmpty;\n");
+      output_cpp ("\t__mClass->mConstructArgs = &__Create;\n");
+      output_cpp ("\t__mClass->mGetStaticField = &" ^ (
+         if (has_get_static_field class_def) then class_name ^ "::__GetStatic;\n" else "hx::Class_obj::GetNoStaticField;\n" ));
+      output_cpp ("\t__mClass->mSetStaticField = &" ^ (
+         if (has_set_static_field class_def) then class_name ^ "::__SetStatic;\n" else "hx::Class_obj::SetNoStaticField;\n" ));
+      output_cpp ("\t__mClass->mMarkFunc = sMarkStatics;\n");
+      output_cpp ("\t__mClass->mStatics = hx::Class_obj::dupFunctions(" ^ sStaticFields ^ ");\n");
+      output_cpp ("\t__mClass->mMembers = hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
+      output_cpp ("\t__mClass->mCanCast = hx::TCanCast< " ^ class_name ^ " >;\n");
+      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = sVisitStatics;\n#endif\n");
+      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mMemberStorageInfo = sMemberStorageInfo;\n#endif\n");
+      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mStaticStorageInfo = sStaticStorageInfo;\n#endif\n");
+      output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
       output_cpp ("}\n\n");
 
    end else begin
@@ -3902,13 +3968,16 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
-      output_cpp ("\thx::Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
-            ", hx::TCanCast< " ^ class_name ^ "> ,0," ^ sMemberFields ^ ",\n");
-      output_cpp ("\t0, 0,\n");
-      output_cpp ("\t&super::__SGetClass(), 0, sMarkStatics\n");
-      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatics\n#endif\n");
-      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n    , 0\n#endif\n");
-      output_cpp (");\n");
+
+      output_cpp ("\thx::Static(__mClass) = new hx::Class_obj();\n");
+      output_cpp ("\t__mClass->mName = " ^  (str class_name_text)  ^ ";\n");
+      output_cpp ("\t__mClass->mSuper = &super::__SGetClass();\n");
+      output_cpp ("\t__mClass->mMarkFunc = sMarkStatics;\n");
+      (*output_cpp ("\t__mClass->mStatics = hx::Class_obj::dupFunctions(" ^ sStaticFields ^ ");\n");*)
+      output_cpp ("\t__mClass->mMembers = hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
+      output_cpp ("\t__mClass->mCanCast = hx::TCanCast< " ^ class_name ^ " >;\n");
+      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = sVisitStatics;\n#endif\n");
+      output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
       if (scriptable) then
          output_cpp ("  HX_SCRIPTABLE_REGISTER_INTERFACE(\""^class_name_text^"\"," ^ class_name ^ ");\n");
       output_cpp ("}\n\n");
@@ -3981,10 +4050,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          output_h ("\t\tstatic hx::ScriptFunction __script_construct;\n");
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
       output_h ("\t\tHX_DO_RTTI_ALL;\n");
-      if (has_get_field class_def) then
+      if (has_get_member_field class_def) then
          output_h ("Dynamic __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
-      if (has_set_field class_def) then
+      if (has_get_static_field class_def) then
+         output_h ("static bool __GetStatic(const ::String &inString, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
+      if (has_set_member_field class_def) then
          output_h ("Dynamic __SetField(const ::String &inString,const Dynamic &inValue, hx::PropertyAccess inCallProp);\n");
+      if (has_set_static_field class_def) then
+         output_h ("static bool __SetStatic(const ::String &inString, Dynamic &ioValue, hx::PropertyAccess inCallProp);\n");
       if (has_get_fields class_def) then
          output_h ("void __GetFields(Array< ::String> &outFields);\n");
 
