@@ -1516,6 +1516,89 @@ let configure gen =
 		expr_s w e
 	in
 
+	let rec gen_fpart_attrib w = function
+		| EConst( Ident i ), _ ->
+			write w i
+		| EField( ef, f ), _ ->
+			gen_fpart_attrib w ef;
+			write w ".";
+			write w f
+		| _, p ->
+			gen.gcon.error "Invalid expression inside @:meta metadata" p
+	in
+
+	let rec gen_spart w = function
+		| EConst c, p -> (match c with
+			| Int s | Float s | Ident s ->
+				write w s
+			| String s ->
+				write w "\"";
+				write w (escape s);
+				write w "\""
+			| _ -> gen.gcon.error "Invalid expression inside @:meta metadata" p)
+		| EField( ef, f ), _ ->
+			gen_spart w ef;
+			write w ".";
+			write w f
+		| EBinop( Ast.OpAssign, (EConst (Ident s), _), e2 ), _ ->
+			write w s;
+			write w " = ";
+			gen_spart w e2
+		| EArrayDecl( el ), _ ->
+			write w "{";
+			let fst = ref true in
+			List.iter (fun e ->
+				if !fst then fst := false else write w ", ";
+				gen_spart w e
+			) el;
+			write w "}"
+		| ECall(fpart,args), _ ->
+			gen_fpart_attrib w fpart;
+			write w "(";
+			let fst = ref true in
+			List.iter (fun e ->
+				if !fst then fst := false else write w ", ";
+				gen_spart w e
+			) args;
+			write w ")"
+		| _, p ->
+			gen.gcon.error "Invalid expression inside @:meta metadata" p
+	in
+
+	let gen_annotations w ?(add_newline=true) metadata =
+		List.iter (function
+			| Meta.Meta, [meta], _ ->
+				write w "@";
+				gen_spart w meta;
+				if add_newline then newline w else write w " ";
+			| _ -> ()
+		) metadata
+	in
+
+	let argt_s p t =
+		let w = new_source_writer () in
+		let rec run t =
+			match t with
+				| TType (tdef,p) ->
+					gen_annotations w ~add_newline:false tdef.t_meta;
+					run (follow_once t)
+				| TMono r ->
+					(match !r with
+					| Some t -> run t
+					| _ -> () (* avoid infinite loop / should be the same in this context *))
+				| TLazy f ->
+					run (!f())
+				| _ -> ()
+		in
+		run t;
+		let ret = t_s p t in
+		let c = contents w in
+		if c <> "" then
+			c ^ " " ^ ret
+		else
+			ret
+	in
+
 	let get_string_params cl_params =
 		match cl_params with
 			| [] ->
@@ -1621,6 +1704,7 @@ let configure gen =
 				in
 
 				(if is_override && not is_interface then write w "@Override ");
+				gen_annotations w cf.cf_meta;
 				(* public static void funcName *)
 				let params, _ = get_string_params cf.cf_params in
 
@@ -1629,9 +1713,9 @@ let configure gen =
 				(* <T>(string arg1, object arg2) with T : object *)
 				(match cf.cf_expr with
 					| Some { eexpr = TFunction tf } ->
-							print w "(%s)" (String.concat ", " (List.map2 (fun (var,_) (_,_,t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id var.v_name)) tf.tf_args args))
+							print w "(%s)" (String.concat ", " (List.map2 (fun (var,_) (_,_,t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id var.v_name)) tf.tf_args args))
 					| _ ->
-							print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
+							print w "(%s)" (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (argt_s cf.cf_pos (run_follow gen t)) (change_id name)) args))
 				);
 				if is_interface || List.mem "native" modifiers then
 					write w ";"
@@ -1726,6 +1810,7 @@ let configure gen =
 		) suppress_warnings;
 		write w "})";
 		newline w;
+		gen_annotations w cl.cl_meta;
 
 		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
 		let is_final = Meta.has Meta.Final cl.cl_meta in
@@ -1826,6 +1911,7 @@ let configure gen =
 				false
 		in
 
+		gen_annotations w e.e_meta;
 		print w "public enum %s" (change_clname (snd e.e_path));
 		begin_block w;
 		write w (String.concat ", " (List.map (change_id) e.e_names));
