@@ -7534,10 +7534,6 @@ struct
 						If class has @:$DynamicObject meta, also create another new() class with its parameters as constructor arguments
 				*)
 
-				List.iter (fun cf ->
-					cf.cf_expr <- Some({ eexpr = TArrayDecl([]); etype = cf.cf_type; epos = cf.cf_pos })
-				) new_fields;
-
 				cl.cl_ordered_fields <- cl.cl_ordered_fields @ (delete :: new_fields);
 				if is_override then cl.cl_overrides <- delete :: cl.cl_overrides
 			end
