@@ -3180,7 +3180,7 @@ let normalize_jclass com cls =
 	let all_methods = cmethods @ super_methods in
 
 	(* look for interfaces and add missing implementations (may happen on abstracts or by vmsig differences *)
-	(* (no_check): even with nocheck enabled, we need to add these missing fields - otherwise we won't be able to use them from Haxe *)
+	(* (libType): even with libType enabled, we need to add these missing fields - otherwise we won't be able to use them from Haxe *)
 	let added_interface_fields = ref [] in
 	let rec loop_interface abstract cls iface = try
 		match iface with

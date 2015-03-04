@@ -1318,6 +1318,7 @@ let rec add_constructor ctx c force_constructor p =
 		()
 
 let set_heritance ctx c herits p =
+	let is_lib = Meta.has Meta.LibType c.cl_meta in
 	let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
 	let old_meta = c.cl_meta in
 	let process_meta csup =
@@ -1352,7 +1353,7 @@ let set_heritance ctx c herits p =
 				if not csup.cl_interface then error "Cannot extend by using a class" p;
 				c.cl_implements <- (csup,params) :: c.cl_implements;
 				if not !has_interf then begin
-					delay ctx PForce (fun() -> check_interfaces ctx c);
+					if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
 					has_interf := true;
 				end
 			end else begin
@@ -1372,7 +1373,7 @@ let set_heritance ctx c herits p =
 				if not intf.cl_interface then error "You can only implement an interface" p;
 				process_meta intf;
 				c.cl_implements <- (intf, params) :: c.cl_implements;
-				if not !has_interf && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
+				if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
 					delay ctx PForce (fun() -> check_interfaces ctx c);
 					has_interf := true;
 				end
@@ -1826,6 +1827,12 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	loop meta
 
 let init_class ctx c p context_init herits fields =
+	(* a lib type will skip most checks *)
+	let is_lib = Meta.has Meta.LibType c.cl_meta in
+	if is_lib && not c.cl_extern then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
+	(* a native type will skip one check: the static vs non-static field *)
+	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
+
 	let ctx = {
 		ctx with
 		curclass = c;
@@ -1932,8 +1939,8 @@ let init_class ctx c p context_init herits fields =
 					loop c.cl_implements
 	in
 
-	(match c.cl_super with None -> () | Some _ -> delay ctx PForce (fun() -> check_overriding ctx c));
-	if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c);
+	if not is_lib then (match c.cl_super with None -> () | Some _ -> delay ctx PForce (fun() -> check_overriding ctx c));
+	if ctx.com.config.pf_overload && not is_lib then delay ctx PForce (fun() -> check_overloads ctx c);
 
 	(* ----------------------- COMPLETION ----------------------------- *)
 
@@ -1978,6 +1985,7 @@ let init_class ctx c p context_init herits fields =
 			()
 		else begin
 			cf.cf_type <- TLazy r;
+			(* is_lib ? *)
 			delayed_expr := (ctx,Some r) :: !delayed_expr;
 		end
 	in
@@ -1986,7 +1994,7 @@ let init_class ctx c p context_init herits fields =
 
 	let bind_var ctx cf e stat inline =
 		let p = cf.cf_pos in
-		if not stat then begin match get_declared cf.cf_name c.cl_super with
+		if not stat && not is_lib then begin match get_declared cf.cf_name c.cl_super with
 				| None -> ()
 				| Some (csup,_) ->
 					(* this can happen on -net-lib generated classes if a combination of explicit interfaces and variables with the same name happens *)
@@ -2078,11 +2086,6 @@ let init_class ctx c p context_init herits fields =
 
 	(* ----------------------- FIELD INIT ----------------------------- *)
 
-	(* a lib type will skip most checks *)
-	let is_lib = Meta.has Meta.LibType c.cl_meta in
-	(* a native type will skip one check: the static vs non-static field *)
-	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
-
 	let loop_cf f =
 		let name = f.cff_name in
 		check_global_metadata ctx (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
@@ -2126,6 +2129,7 @@ let init_class ctx c p context_init herits fields =
 				| None ->
 					mk_mono()
 				| Some t ->
+					(* TODO is_lib: only load complex type if needed *)
 					let old = ctx.type_params in
 					if stat then ctx.type_params <- [];
 					let t = load_complex_type ctx p t in
@@ -2206,9 +2210,11 @@ let init_class ctx c p context_init herits fields =
 				| _ ->
 					if stat then params else params @ ctx.type_params);
 			let constr = (name = "new") in
+			(* TODO is_lib: avoid forcing the return type to be typed *)
 			let ret = if constr then ctx.t.tvoid else type_opt ctx p fd.f_type in
 			let rec loop args = match args with
 				| (name,opt,t,ct) :: args ->
+					(* TODO is_lib: avoid forcing the field to be typed *)
 					let t, ct = type_function_arg ctx (type_opt ctx p t) ct opt p in
 					delay ctx PTypeField (fun() -> match follow t with
 						| TAbstract({a_path = ["haxe"],"Rest"},_) ->
@@ -2379,6 +2385,7 @@ let init_class ctx c p context_init herits fields =
 							if constr then FunConstructor else if stat then FunStatic else FunMember
 					) in
 					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
+					(* TODO is_lib: avoid typing function here ? *)
 					let e , fargs = type_function ctx args ret fmode fd display_field p in
 					let f = {
 						tf_args = fargs;
@@ -2401,6 +2408,7 @@ let init_class ctx c p context_init herits fields =
 			| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
 				ctx.type_params <- a.a_params;
 			| _ -> ());
+			(* TODO is_lib: lazify load_complex_type *)
 			let ret = (match t, eo with
 				| None, None -> error (f.cff_name ^ ": Property must either define a type or a default value") p;
 				| None, _ -> mk_mono()
@@ -2484,7 +2492,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let get = if get = "get" then "get_" ^ name else get in
-					delay ctx PTypeField (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
+					if not is_lib then delay ctx PTypeField (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 					AccCall
 			) in
 			let set = (match set with
@@ -2499,7 +2507,7 @@ let init_class ctx c p context_init herits fields =
 				| "default" -> AccNormal
 				| _ ->
 					let set = if set = "set" then "set_" ^ name else set in
-					delay ctx PTypeField (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
+					if not is_lib then delay ctx PTypeField (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 					AccCall
 			) in
 			if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (f.cff_name ^ ": Unsupported property combination") p;
@@ -2545,7 +2553,7 @@ let init_class ctx c p context_init herits fields =
 		try
 			let fd , constr, f, do_add = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
-			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
+			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" && not is_lib then error "You can't declare static fields in interfaces" p;
 			begin try
 				let _,args,_ = Meta.get Meta.IfFeature f.cf_meta in
 				List.iter (fun e -> match fst e with
@@ -2614,7 +2622,7 @@ let init_class ctx c p context_init herits fields =
 	(* add_constructor does not deal with overloads correctly *)
 	if not ctx.com.config.pf_overload then add_constructor ctx c !force_constructor p;
 	(* check overloaded constructors *)
-	(if ctx.com.config.pf_overload then match c.cl_constructor with
+	(if ctx.com.config.pf_overload && not is_lib then match c.cl_constructor with
 	| Some ctor ->
 		delay ctx PTypeField (fun() ->
 			List.iter (fun f ->
