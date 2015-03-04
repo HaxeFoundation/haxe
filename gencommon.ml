@@ -1209,9 +1209,9 @@ let mk_int gen i pos = { eexpr = TConst(TInt ( Int32.of_int i)); etype = gen.gco
 let mk_return e = { eexpr = TReturn (Some e); etype = e.etype; epos = e.epos }
 
 let mk_temp gen name t =
-		incr tmp_count;
-		let name = gen.gmk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
-		alloc_var name t
+	incr tmp_count;
+	let name = gen.gmk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
+	alloc_var name t
 
 let mk_vector_decl =
 	let v_vector = alloc_var "__array__" t_dynamic in
