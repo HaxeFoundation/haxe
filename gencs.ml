@@ -713,6 +713,11 @@ let rec get_fun_modifiers meta access modifiers =
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
 (* so 'configure' is almost 'top-level' and will have all functions needed to make this work *)
 let configure gen =
+	let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
+	gen.gclasses.nativearray <- (fun t -> TInst(native_arr_cl,[t]));
+	gen.gclasses.nativearray_type <- (function TInst(_,[t]) -> t | _ -> assert false);
+	gen.gclasses.nativearray_len <- (fun e p -> mk_field_access gen e "Length" p);
+
 	let basic = gen.gcon.basic in
 
 	let erase_generics = Common.defined gen.gcon Define.EraseGenerics in
@@ -3041,7 +3046,6 @@ let configure gen =
 
 	UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen false true true false);
 
-	let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
 	ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
 
 	let goto_special = alloc_var "__goto__" t_dynamic in

@@ -632,8 +632,9 @@ and gen_classes =
 
 	t_iterator : tdef;
 
-	a_vector : tabstract;
-	tvector : Type.t -> Type.t;
+	mutable nativearray_len : texpr -> pos -> texpr;
+	mutable nativearray_type : Type.t -> Type.t;
+	mutable nativearray : Type.t -> Type.t;
 }
 
 (* add here all reflection transformation additions *)
@@ -691,8 +692,9 @@ let new_ctx con =
 
 			t_iterator = get_tdef (get_type con.types ([], "Iterator"));
 
-			a_vector = get_abstract (get_type con.types (["haxe";"ds"],"Vector"));
-			tvector = (fun t -> TAbstract(gen.gclasses.a_vector,[t]));
+			nativearray = (fun _ -> assert false);
+			nativearray_type = (fun _ -> assert false);
+			nativearray_len = (fun _ -> assert false);
 		};
 		gtools = {
 			r_create_empty = (fun eclass t ->
@@ -1213,12 +1215,11 @@ let mk_temp gen name t =
 	let name = gen.gmk_internal_name "temp" (name ^ (string_of_int !tmp_count)) in
 	alloc_var name t
 
-let mk_vector_decl =
-	let v_vector = alloc_var "__array__" t_dynamic in
-	fun gen t el pos ->
+let v_nativearray = alloc_var "__array__" t_dynamic
+let mk_nativearray_decl gen t el pos =
 	{
-		eexpr = TCall(mk_local v_vector pos, el);
-		etype = gen.gclasses.tvector t;
+		eexpr = TCall(mk_local v_nativearray pos, el);
+		etype = gen.gclasses.nativearray t;
 		epos = pos;
 	}
 
@@ -9130,7 +9131,7 @@ struct
 						cf.cf_meta <- [];
 
 						let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
-						let arr_decl = mk_vector_decl gen t_dynamic (List.map (fun (v,_) -> mk_local v pos) tf_args) pos in
+						let arr_decl = mk_nativearray_decl gen t_dynamic (List.map (fun (v,_) -> mk_local v pos) tf_args) pos in
 						let expr = {
 							eexpr = TFunction({
 								tf_args = tf_args;
@@ -9149,7 +9150,7 @@ struct
 						in
 						let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 						let args = if has_params then
-							[mk_int gen old_i pos; null (gen.gclasses.tvector t_dynamic) pos]
+							[mk_int gen old_i pos; null (gen.gclasses.nativearray t_dynamic) pos]
 						else
 							[mk_int gen old_i pos]
 						in
@@ -9164,9 +9165,9 @@ struct
 				cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics;
 				cf
 			) en.e_names in
-			let constructs_cf = mk_class_field "__hx_constructs" (gen.gclasses.tvector basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
+			let constructs_cf = mk_class_field "__hx_constructs" (gen.gclasses.nativearray basic.tstring) true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 			constructs_cf.cf_meta <- [Meta.ReadOnly,[],pos];
-			constructs_cf.cf_expr <- Some (mk_vector_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
+			constructs_cf.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun s -> { eexpr = TConst(TString s); etype = basic.tstring; epos = pos }) en.e_names) pos);
 
 			cl.cl_ordered_statics <- constructs_cf :: cfs @ cl.cl_ordered_statics ;
 			cl.cl_statics <- PMap.add "__hx_constructs" constructs_cf cl.cl_statics;
@@ -9291,7 +9292,7 @@ struct
 						with Not_found ->
 							f
 						in
-						let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.tvector t_dynamic } in
+						let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
 						{ e with eexpr = TArray(cond_array, mk_int gen i cond_array.epos); }
 					| _ -> Type.map_expr run e
 			in
