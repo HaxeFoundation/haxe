@@ -85,6 +85,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	var context(default,null) : Element;
 	var length(default, null) : Int;
 
+	@:selfCall
 	@:overload(function(j:JQuery):Void{})
 	@:overload(function(j:Window):Void{})
 	@:overload(function(j:Element):Void{})
