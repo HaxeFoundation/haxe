@@ -1180,6 +1180,15 @@ module ConstPropagation = struct
 				in
 				let el = Codegen.UnificationCallback.check_call check el e1.etype in
 				{e with eexpr = TCall(e1,el)}
+			| TField(e1,fa) ->
+				let e1' = loop e1 in
+				let fa = if e1' != e1 then
+					begin try quick_field e1'.etype (field_name fa)
+					with Not_found -> fa end
+				else
+					fa
+				in
+				{e with eexpr = TField(e1',fa)}
 			| TUnop((Increment | Decrement),_,_) ->
 				e
 			| TBinop(OpAssignOp op,e1,e2) ->
