@@ -1041,7 +1041,7 @@ module ConstPropagation = struct
 		with Not_found ->
 			-1
 
-	let can_be_inlined com v0 e = match e.eexpr with
+	let can_be_inlined com v0 e = type_iseq v0.v_type e.etype && match e.eexpr with
 		| TConst ct ->
 			begin match ct with
 				| TThis | TSuper -> false
@@ -1055,7 +1055,7 @@ module ConstPropagation = struct
 			begin try
 				let v' = Ssa.get_origin_var v in
 				begin match v'.v_extra with
-					| Some ([],_) -> get_block_depth v <= get_block_depth v0 && type_iseq v0.v_type v.v_type
+					| Some ([],_) -> get_block_depth v <= get_block_depth v0
 					| _ -> false
 				end
 			with Not_found ->
@@ -1180,7 +1180,7 @@ module ConstPropagation = struct
 				in
 				let el = Codegen.UnificationCallback.check_call check el e1.etype in
 				{e with eexpr = TCall(e1,el)}
-			| TField(e1,fa) ->
+(* 			| TField(e1,fa) ->
 				let e1' = loop e1 in
 				let fa = if e1' != e1 then
 					begin try quick_field e1'.etype (field_name fa)
@@ -1188,7 +1188,7 @@ module ConstPropagation = struct
 				else
 					fa
 				in
-				{e with eexpr = TField(e1',fa)}
+				{e with eexpr = TField(e1',fa)} *)
 			| TUnop((Increment | Decrement),_,_) ->
 				e
 			| TBinop(OpAssignOp op,e1,e2) ->
