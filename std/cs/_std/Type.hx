@@ -61,11 +61,8 @@ using StringTools;
 	{
 		var t:cs.system.Type = Lib.toNativeType(c);
 		var base = t.BaseType;
-		if (base == null || (base + "") == ("haxe.lang.HxObject") || (base + "") == ("System.Object"))
-		{
+		if (base == null || base.ToString() == "haxe.lang.HxObject" || base.ToString() == "System.Object")
 			return null;
-		}
-
 		return Lib.fromNativeType(base);
 	}
 

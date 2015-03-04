@@ -19,6 +19,7 @@ Type.getEnum(null) == null;
 
 // getSuperClass
 Type.getSuperClass(String) == null;
+Type.getSuperClass(ClassWithToString) == null;
 Type.getSuperClass(ClassWithToStringChild) == ClassWithToString;
 //Type.getSuperClass(null) == null;
 
