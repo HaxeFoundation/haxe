@@ -550,16 +550,28 @@ class RunCi {
 					}
 
 					if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
-						//https://saucelabs.com/opensource/travis
+						var scVersion = "sc-4.3-linux";
+						runCommand("wget", ['https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
+						runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
+						
+						//start sauce-connect
+						var scReadyFile = "sauce-connect-ready-" + Std.random(100);
+						var sc = new Process('${scVersion}/bin/sc', [
+							"-i", Sys.getEnv("TRAVIS_JOB_NUMBER"),
+							"-f", scReadyFile
+						]);
+						while(!FileSystem.exists(scReadyFile)) {
+							Sys.sleep(0.5);
+						}
+
 						runCommand("npm", ["install", "wd", "q"], true);
-						runCommand("wget", ["-nv", "https://gist.github.com/santiycr/5139565/raw/sauce_connect_setup.sh"], true);
-						runCommand("chmod", ["a+x", "sauce_connect_setup.sh"]);
-						runCommand("./sauce_connect_setup.sh", []);
 						haxelibInstallGit("dionjwa", "nodejs-std", "master", null, true, "nodejs");
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
 						runCommand("node", ["bin/RunSauceLabs.js", "unit-js.html"]);
+						
 						server.close();
+						sc.close();
 					}
 
 					infoMsg("Test optimization:");

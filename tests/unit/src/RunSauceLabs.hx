@@ -162,7 +162,8 @@ class RunSauceLabs {
 		if (Sys.getEnv("TRAVIS") != null)
 			tags.push("TravisCI");
 
-		var timeout = 30000; //30s
+		var maxDuration = 60 * 5; //5 min
+		var commandTimeout = 30;  //30s
 
 		function testBrowser(caps:Dynamic, trials = 3):Dynamic {
 			console.log('========================================================');
@@ -171,6 +172,9 @@ class RunSauceLabs {
 
 			caps.setField("name", Sys.getEnv("TRAVIS") != null ? Sys.getEnv("TRAVIS_REPO_SLUG") : "haxe");
 			caps.setField("tags", tags);
+			caps.setField("maxDuration", maxDuration);
+			caps.setField("commandTimeout", commandTimeout);
+			caps.setField("avoidProxy", true);
 			if (Sys.getEnv("TRAVIS") != null) {
 				caps.setField("tunnel-identifier", Sys.getEnv("TRAVIS_JOB_NUMBER"));
 				caps.setField("build", Sys.getEnv("TRAVIS_BUILD_NUMBER"));
@@ -185,7 +189,7 @@ class RunSauceLabs {
 					return browser
 						.sauceJobUpdate({ passed: true, tags: tags.concat(["errored"]) })
 						.then(function() return browser.quit())
-						.timeout(timeout)
+						.timeout(commandTimeout * 1000)
 						.fail(onErrored)
 						.then(function() return testBrowser(caps, trials));
 				} else {
@@ -218,7 +222,7 @@ class RunSauceLabs {
 						});
 				})
 				.then(function()
-					return browser.setAsyncScriptTimeout(timeout))
+					return browser.setAsyncScriptTimeout(commandTimeout * 1000))
 				.then(function(){
 					return urls.fold(function(url:String, promise:Promise):Promise {
 						return promise.then(function(){
@@ -229,7 +233,7 @@ class RunSauceLabs {
 									console.log("[debug] waiting for test to exit");
 									return 
 										until("return (typeof window.success === 'boolean');")
-										.timeout(timeout);
+										.timeout(commandTimeout * 1000);
 								})
 								.then(function() {
 									console.log("[debug] test exited");
@@ -252,7 +256,7 @@ class RunSauceLabs {
 											}
 										});
 								})
-								.timeout(60000 * 5); //5 min
+								.timeout(maxDuration * 1000);
 						});
 					}, q());
 				})
