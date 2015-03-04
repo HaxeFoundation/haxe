@@ -6825,11 +6825,17 @@ struct
 			its only needed features is that it should return the index of the key if found, and the
 			complement of the index of where it should be inserted if not found (Ints).
 
-			hash->hash_array->returning expression
+			hash->hash_array->length->returning expression
 		*)
-		mutable rcf_hash_function : texpr->texpr->texpr;
+		mutable rcf_hash_function : texpr->texpr->texpr->texpr;
 
 		mutable rcf_lookup_function : texpr->texpr;
+
+		(* hash_array->length->pos->value *)
+		mutable rcf_insert_function : texpr->texpr->texpr->texpr->texpr;
+
+		(* hash_array->length->pos->value *)
+		mutable rcf_remove_function : texpr->texpr->texpr->texpr;
 
 		(*
 			class_cl is the real class for Class<> instances.
@@ -6859,7 +6865,7 @@ struct
 		mutable rcf_handle_statics : bool;
 	}
 
-	let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function handle_statics =
+	let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function handle_statics =
 		{
 			rcf_gen = gen;
 			rcf_ft = ft;
@@ -6880,6 +6886,9 @@ struct
 
 			rcf_hash_function = hash_function;
 			rcf_lookup_function = lookup_function;
+
+			rcf_insert_function = insert_function;
+			rcf_remove_function = remove_function;
 
 			rcf_class_cl = None;
 			rcf_class_eager_creation = false;
@@ -7044,21 +7053,18 @@ struct
 		let basic = gen.gcon.basic in
 		let pos = cl.cl_pos in
 
-		let vtmp = mk_temp gen "i" basic.tint in
-		let vlen = mk_temp gen "len" basic.tint in
+		let vtmp = alloc_var "i" basic.tint in
 
-		let mk_for arr =
+		let mk_for arr len =
 			let t = if ctx.rcf_optimize then basic.tint else basic.tstring in
 			let convert_str e = if ctx.rcf_optimize then ctx.rcf_lookup_function e else e in
-			let lenlocal = mk_local vlen pos in
 			let tmpinc = { eexpr = TUnop(Ast.Increment, Ast.Postfix, mk_local vtmp pos); etype = basic.tint; epos = pos } in
 			{
 				eexpr = TBlock [
 					{ eexpr = TBinop(OpAssign, mk_local vtmp pos, mk_int ctx 0 pos); etype = basic.tint; epos = pos };
-					{ eexpr = TBinop(OpAssign, lenlocal, mk_field_access gen arr "length" pos); etype = basic.tint; epos = pos };
 					{
 						eexpr = TWhile (
-							{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, lenlocal); etype = basic.tbool; epos = pos },
+							{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, len); etype = basic.tbool; epos = pos },
 							mk_block (when_found (convert_str { eexpr = TArray (arr, tmpinc); etype = t; epos = pos })),
 							Ast.NormalWhile
 						);
@@ -7074,18 +7080,16 @@ struct
 		let this_t = TInst(cl, List.map snd cl.cl_params) in
 		let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
-		[
-			{ eexpr = TVar (vtmp,None); etype = basic.tvoid; epos = pos };
-			{ eexpr = TVar (vlen,None); etype = basic.tvoid; epos = pos };
-		]
-		@
+
+		{ eexpr = TVar (vtmp,None); etype = basic.tvoid; epos = pos }
+		::
 		if ctx.rcf_optimize then
 		[
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (basic.tarray basic.tint));
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray basic.tint));
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint);
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint);
 		] else [
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (basic.tarray basic.tstring));
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray basic.tstring));
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint);
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint);
 		]
 
 	(* *********************
@@ -7105,13 +7109,18 @@ struct
 		let basic = gen.gcon.basic in
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 		let a_t = if ctx.rcf_optimize then basic.tint else basic.tstring in
-		let hx_hashes = mk_this (gen.gmk_internal_name "hx" "hashes") (basic.tarray a_t) in
-		let hx_hashes_f = mk_this (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray a_t) in
-		let hx_dynamics = mk_this (gen.gmk_internal_name "hx" "dynamics") (basic.tarray t_empty) in
-		let hx_dynamics_f = mk_this (gen.gmk_internal_name "hx" "dynamics_f") (basic.tarray basic.tfloat) in
+		let hx_hashes = mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray a_t) in
+		let hx_hashes_f = mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray a_t) in
+		let hx_dynamics = mk_this (gen.gmk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) in
+		let hx_dynamics_f = mk_this (gen.gmk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) in
+		let hx_length = mk_this (gen.gmk_internal_name "hx" "length") (basic.tint) in
+		let hx_length_f = mk_this (gen.gmk_internal_name "hx" "length_f") (basic.tint) in
 		let res = alloc_var "res" basic.tint in
-		let fst_hash, snd_hash, fst_dynamics, snd_dynamics =
-			if is_float then hx_hashes_f, hx_hashes, hx_dynamics_f, hx_dynamics else hx_hashes, hx_hashes_f, hx_dynamics, hx_dynamics_f
+		let fst_hash, snd_hash, fst_dynamics, snd_dynamics, fst_length, snd_length =
+			if is_float then
+				hx_hashes_f, hx_hashes, hx_dynamics_f, hx_dynamics, hx_length_f, hx_length
+			else
+				hx_hashes, hx_hashes_f, hx_dynamics, hx_dynamics_f, hx_length, hx_length_f
 		in
 		let res_local = mk_local res pos in
 		let gte = {
@@ -7119,12 +7128,10 @@ struct
 			etype = basic.tbool;
 			epos = pos;
 		} in
-		let get_array_t t = match follow t with | TInst({ cl_path = ([],"Array") },[arrtype]) -> arrtype | _ -> assert false in
 		let mk_tarray arr idx =
-			let t = get_array_t arr.etype in
 			{
 				eexpr = TArray(arr, idx);
-				etype = t;
+				etype = gen.gclasses.nativearray_type arr.etype;
 				epos = pos;
 			}
 		in
@@ -7147,11 +7154,11 @@ struct
 				*)
 				let block =
 				[
-					{ eexpr = TVar(res, Some(ctx.rcf_hash_function hash_local fst_hash)); etype = basic.tvoid; epos = pos };
+					{ eexpr = TVar(res, Some(ctx.rcf_hash_function hash_local fst_hash fst_length)); etype = basic.tvoid; epos = pos };
 					{ eexpr = TIf(gte, mk_return (mk_tarray fst_dynamics res_local), Some({
 						eexpr = TBlock(
 						[
-							{ eexpr = TBinop(Ast.OpAssign, res_local, ctx.rcf_hash_function hash_local snd_hash); etype = basic.tint; epos = pos };
+							{ eexpr = TBinop(Ast.OpAssign, res_local, ctx.rcf_hash_function hash_local snd_hash snd_length); etype = basic.tint; epos = pos };
 							{ eexpr = TIf(gte, mk_return (mk_tarray snd_dynamics res_local), None); etype = ret_t; epos = pos }
 						]);
 						etype = ret_t;
@@ -7180,23 +7187,6 @@ struct
 					__hx_dynamics/_f.insert(~res, value_local);
 					return value_local;
 				*)
-				let mk_splice arr at_pos = {
-					eexpr = TCall(
-						mk_field_access gen arr "spliceVoid" pos,
-						[at_pos; { eexpr = TConst(TInt Int32.one); etype = basic.tint; epos = pos }]
-					);
-					etype = basic.tvoid;
-					epos = pos
-				} in
-
-				let mk_insert arr at_pos value = {
-					eexpr = TCall(
-						mk_field_access gen arr "insert" pos,
-						[at_pos; value]);
-					etype = basic.tvoid;
-					epos = pos
-				} in
-
 				let neg_res = { eexpr = TUnop(Ast.NegBits, Ast.Prefix, res_local); etype = basic.tint; epos = pos } in
 
 				let res2 = alloc_var "res2" basic.tint in
@@ -7209,16 +7199,17 @@ struct
 
 				let block =
 				[
-					{ eexpr = TVar(res, Some(ctx.rcf_hash_function hash_local fst_hash)); etype = basic.tvoid; epos = pos };
+					{ eexpr = TVar(res, Some(ctx.rcf_hash_function hash_local fst_hash fst_length)); etype = basic.tvoid; epos = pos };
 					{
 						eexpr = TIf(gte,
 							mk_return { eexpr = TBinop(Ast.OpAssign, mk_tarray fst_dynamics res_local, value_local); etype = value_local.etype; epos = pos },
 							Some({ eexpr = TBlock([
-								{ eexpr = TVar( res2, Some(ctx.rcf_hash_function hash_local snd_hash)); etype = basic.tvoid; epos = pos };
+								{ eexpr = TVar( res2, Some(ctx.rcf_hash_function hash_local snd_hash snd_length)); etype = basic.tvoid; epos = pos };
 								{
 									eexpr = TIf(gte2, { eexpr = TBlock([
-										mk_splice snd_hash res2_local;
-										mk_splice snd_dynamics res2_local
+										ctx.rcf_remove_function snd_hash snd_length res2_local;
+										ctx.rcf_remove_function snd_dynamics snd_length res2_local;
+										mk (TUnop(Decrement,Postfix,snd_length)) basic.tint pos
 									]); etype = t_dynamic; epos = pos }, None);
 									etype = t_dynamic;
 									epos = pos;
@@ -7227,8 +7218,9 @@ struct
 						etype = t_dynamic;
 						epos = pos;
 					};
-					mk_insert fst_hash neg_res hash_local;
-					mk_insert fst_dynamics neg_res value_local;
+					ctx.rcf_insert_function fst_hash fst_length neg_res hash_local;
+					ctx.rcf_insert_function fst_dynamics fst_length neg_res value_local;
+					mk (TUnop(Increment,Postfix,fst_length)) basic.tint pos;
 					mk_return value_local
 				] in
 				block
@@ -7246,24 +7238,18 @@ struct
 		let body = if is_dynamic then begin
 			let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
 			let a_t = if ctx.rcf_optimize then basic.tint else basic.tstring in
-			let hx_hashes = mk_this (gen.gmk_internal_name "hx" "hashes") (basic.tarray a_t) in
-			let hx_hashes_f = mk_this (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray a_t) in
-			let hx_dynamics = mk_this (gen.gmk_internal_name "hx" "dynamics") (basic.tarray t_empty) in
-			let hx_dynamics_f = mk_this (gen.gmk_internal_name "hx" "dynamics_f") (basic.tarray basic.tfloat) in
+			let hx_hashes = mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray a_t) in
+			let hx_hashes_f = mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray a_t) in
+			let hx_dynamics = mk_this (gen.gmk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) in
+			let hx_dynamics_f = mk_this (gen.gmk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) in
+			let hx_length = mk_this (gen.gmk_internal_name "hx" "length") (basic.tint) in
+			let hx_length_f = mk_this (gen.gmk_internal_name "hx" "length_f") (basic.tint) in
 			let res = alloc_var "res" basic.tint in
 			let res_local = mk_local res pos in
 			let gte = {
 				eexpr = TBinop(Ast.OpGte, res_local, { eexpr = TConst(TInt(Int32.zero)); etype = basic.tint; epos = pos });
 				etype = basic.tbool;
 				epos = pos;
-			} in
-			let mk_splice arr at_pos = {
-				eexpr = TCall(
-					mk_field_access gen arr "spliceVoid" pos,
-					[at_pos; { eexpr = TConst(TInt Int32.one); etype = basic.tint; epos = pos }]
-				);
-				etype = basic.tvoid;
-				epos = pos
 			} in
 			(*
 				var res = lookup(this.__hx_hashes, hash);
@@ -7287,17 +7273,19 @@ struct
 				return false;
 			*)
 			[
-				{ eexpr = TVar(res,Some(ctx.rcf_hash_function local_switch_var hx_hashes)); etype = basic.tvoid; epos = pos };
+				{ eexpr = TVar(res,Some(ctx.rcf_hash_function local_switch_var hx_hashes hx_length)); etype = basic.tvoid; epos = pos };
 				{
 					eexpr = TIf(gte, { eexpr = TBlock([
-						mk_splice hx_hashes res_local;
-						mk_splice hx_dynamics res_local;
+						ctx.rcf_remove_function hx_hashes hx_length res_local;
+						ctx.rcf_remove_function hx_dynamics hx_length res_local;
+						mk (TUnop(Decrement,Postfix,hx_length)) basic.tint pos;
 						mk_return { eexpr = TConst(TBool true); etype = basic.tbool; epos = pos }
 					]); etype = t_dynamic; epos = pos }, Some({ eexpr = TBlock([
-						{ eexpr = TBinop(Ast.OpAssign, res_local, ctx.rcf_hash_function local_switch_var hx_hashes_f); etype = basic.tint; epos = pos };
+						{ eexpr = TBinop(Ast.OpAssign, res_local, ctx.rcf_hash_function local_switch_var hx_hashes_f hx_length_f); etype = basic.tint; epos = pos };
 						{ eexpr = TIf(gte, { eexpr = TBlock([
-							mk_splice hx_hashes_f res_local;
-							mk_splice hx_dynamics_f res_local;
+							ctx.rcf_remove_function hx_hashes_f hx_length_f res_local;
+							ctx.rcf_remove_function hx_dynamics_f hx_length_f res_local;
+							mk (TUnop(Decrement,Postfix,hx_length_f)) basic.tint pos;
 							mk_return { eexpr = TConst(TBool true); etype = basic.tbool; epos = pos }
 						]); etype = t_dynamic; epos = pos }, None); etype = t_dynamic; epos = pos }
 					]); etype = t_dynamic; epos = pos }));
@@ -7370,16 +7358,26 @@ struct
 		let basic = gen.gcon.basic in
 		let hasht = if ctx.rcf_optimize then basic.tint else basic.tstring in
 
+		let hashes_field = gen.gmk_internal_name "hx" "hashes", gen.gclasses.nativearray hasht in
+		let hashes_f_field = gen.gmk_internal_name "hx" "hashes_f", gen.gclasses.nativearray hasht in
+		let dynamics_field = gen.gmk_internal_name "hx" "dynamics", gen.gclasses.nativearray t_empty in
+		let dynamics_f_field = gen.gmk_internal_name "hx" "dynamics_f", gen.gclasses.nativearray basic.tfloat in
 		let fields =
 		[
-			gen.gmk_internal_name "hx" "hashes", basic.tarray hasht;
-			gen.gmk_internal_name "hx" "dynamics", basic.tarray t_empty;
-			gen.gmk_internal_name "hx" "hashes_f", basic.tarray hasht;
-			gen.gmk_internal_name "hx" "dynamics_f", basic.tarray basic.tfloat;
+			hashes_field;
+			dynamics_field;
+			hashes_f_field;
+			dynamics_f_field;
 		] in
-		let tf_args = List.map (fun (name, t) ->
-			alloc_var name t, None
-		) fields in
+
+		let hashes_var = alloc_var (fst hashes_field) (snd hashes_field) in
+		let hashes_f_var = alloc_var (fst hashes_f_field) (snd hashes_f_field) in
+		let tf_args = [
+			hashes_var, None;
+			alloc_var (fst dynamics_field) (snd dynamics_field), None;
+			hashes_f_var, None;
+			alloc_var (fst dynamics_f_field) (snd dynamics_f_field), None;
+		] in
 
 		let this = { eexpr = TConst TThis; etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in
 		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
@@ -7392,9 +7390,16 @@ struct
 				tf_type = basic.tvoid;
 				tf_expr =
 				{
-					eexpr = TBlock(List.map (fun (v,_) ->
+					eexpr = TBlock(
+						List.map (fun (v,_) ->
 							{ eexpr = TBinop(Ast.OpAssign, mk_this v.v_name v.v_type, mk_local v pos); etype = v.v_type; epos = pos }
-						) tf_args);
+						) tf_args
+						@
+						[
+							mk (TBinop(OpAssign, mk_this (gen.gmk_internal_name "hx" "length") basic.tint, gen.gclasses.nativearray_len (mk_local hashes_var pos) pos)) basic.tint pos;
+							mk (TBinop(OpAssign, mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint, gen.gclasses.nativearray_len (mk_local hashes_f_var pos) pos)) basic.tint pos;
+						]
+					);
 					etype = basic.tvoid;
 					epos = pos
 				}
@@ -7412,7 +7417,7 @@ struct
 				tf_args = [];
 				tf_expr = {
 					eexpr = TBlock(List.map (fun (f,t) ->
-						{ eexpr = TBinop(Ast.OpAssign, mk_this f t,{ eexpr = TArrayDecl([]); etype = t; epos = pos; }); etype = t; epos = pos }
+						{ eexpr = TBinop(Ast.OpAssign, mk_this f t,{ eexpr = TCall(mk_local v_nativearray pos, []); etype = t; epos = pos; }); etype = t; epos = pos }
 					) fields);
 					etype = basic.tvoid;
 					epos = pos;
@@ -7474,14 +7479,13 @@ struct
 
 			let odecl, odecl_f = List.sort sort_fn odecl, List.sort sort_fn odecl_f in
 
-			let mk_arrdecl el t = { eexpr = TArrayDecl(el); etype = t; epos = pos } in
 			let ret = {
 				e with eexpr = TNew(cl,[],
 					[
-						mk_arrdecl (List.map fst odecl) (basic.tarray hasht);
-						mk_arrdecl (List.map snd odecl) (basic.tarray t_empty);
-						mk_arrdecl (List.map fst odecl_f) (basic.tarray hasht);
-						mk_arrdecl (List.map snd odecl_f) (basic.tarray basic.tfloat)
+						mk_nativearray_decl gen hasht (List.map fst odecl) pos;
+						mk_nativearray_decl gen t_empty (List.map snd odecl) pos;
+						mk_nativearray_decl gen hasht (List.map fst odecl_f) pos;
+						mk_nativearray_decl gen basic.tfloat (List.map snd odecl_f) pos;
 					]);
 			} in
 			match !exprs_before with
@@ -7510,20 +7514,27 @@ struct
 
 				let new_fields =
 				[
-					mk_class_field (gen.gmk_internal_name "hx" "hashes") (basic.tarray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
-					mk_class_field (gen.gmk_internal_name "hx" "dynamics") (basic.tarray t_empty) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
-					mk_class_field (gen.gmk_internal_name "hx" "hashes_f") (basic.tarray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
-					mk_class_field (gen.gmk_internal_name "hx" "dynamics_f") (basic.tarray basic.tfloat) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+					mk_class_field (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+					mk_class_field (gen.gmk_internal_name "hx" "dynamics") (gen.gclasses.nativearray t_empty) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+					mk_class_field (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray hasht) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+					mk_class_field (gen.gmk_internal_name "hx" "dynamics_f") (gen.gclasses.nativearray basic.tfloat) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
 				] in
 
 				(if cl.cl_path <> (["haxe"; "lang"], "DynamicObject") then
-					List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TArrayDecl([]); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
+					List.iter (fun cf -> cf.cf_expr <- Some { eexpr = TCall(mk_local v_nativearray pos, []); etype = cf.cf_type; epos = cf.cf_pos }) new_fields
 				);
 
 				let delete = get_delete_field ctx cl true in
+
+				let new_fields = new_fields @ [
+					mk_class_field (gen.gmk_internal_name "hx" "length") (basic.tint) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+					mk_class_field (gen.gmk_internal_name "hx" "length_f") (basic.tint) false pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
+					delete;
+				] in
+
 				List.iter (fun cf ->
 					cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
-				) (delete :: new_fields);
+				) new_fields;
 
 		(*
 				let rec last_ctor cl =
@@ -7540,10 +7551,10 @@ struct
 					This will consist of different parts:
 						Check if there are constructors. If not, create one and add initialization to it (calling super, ok)
 						If there are, add as first statement (or second if there is a super() call in the first)
-						If class has @:$DynamicObject meta, also create another new() class with its parameters as constructor arguments
+						If class has @:dynamicObject meta, also create another new() class with its parameters as constructor arguments
 				*)
 
-				cl.cl_ordered_fields <- cl.cl_ordered_fields @ (delete :: new_fields);
+				cl.cl_ordered_fields <- cl.cl_ordered_fields @ new_fields;
 				if is_override then cl.cl_overrides <- delete :: cl.cl_overrides
 			end
 		end else if not is_override then begin

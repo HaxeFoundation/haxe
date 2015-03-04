@@ -2046,6 +2046,14 @@ let configure gen =
 
 	let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
 	(*let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in*)
+	let get_specialized_postfix t = match t with
+		| TAbstract({a_path = [],"Float"}, _) -> "Float"
+		| TInst({cl_path = [],"String"},_) -> "String"
+		| TAnon _ | TDynamic _ -> "Dynamic"
+		| _ -> print_endline (debug_type t); assert false
+	in
+	let rcf_static_insert t = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) Ast.null_pos [t] in
+	let rcf_static_remove t = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) Ast.null_pos [t] in
 
 	let can_be_float t = like_float (real_type t) in
 
@@ -2101,9 +2109,28 @@ let configure gen =
 		mk_cast ecall.etype { ecall with eexpr = TCall(infer, call_args); etype = t_dynamic }
 	in
 
-	let rcf_ctx = ReflectionCFs.new_ctx gen closure_t object_iface false rcf_on_getset_field rcf_on_call_field (fun hash hash_array ->
-		{ hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
-	) (fun hash -> hash ) false in
+	let rcf_ctx =
+		ReflectionCFs.new_ctx
+			gen
+			closure_t
+			object_iface
+			false
+			rcf_on_getset_field
+			rcf_on_call_field
+			(fun hash hash_array length -> { hash with eexpr = TCall(rcf_static_find, [hash; hash_array; length]); etype=basic.tint })
+			(fun hash -> hash)
+			(fun hash_array length pos value ->
+				{ hash_array with
+					eexpr = TBinop(OpAssign,
+								hash_array,
+								mk (TCall(rcf_static_insert value.etype, [hash_array; length; pos; value])) hash_array.etype hash_array.epos)
+			})
+			(fun hash_array length pos ->
+				let t = gen.gclasses.nativearray_type hash_array.etype in
+				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
+			)
+			false
+		in
 
 	ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
 

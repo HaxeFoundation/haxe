@@ -21,6 +21,8 @@
  */
 package java.internal;
 
+import java.lang.System;
+
 @:native('haxe.lang.FieldLookup')
 @:keep
 @:static private class FieldLookup
@@ -34,10 +36,10 @@ package java.internal;
 		return 0;
 	}
 
-	public static function findHash(hash:String, hashs:Array<String>):Int
+	public static function findHash(hash:String, hashs:java.NativeArray<String>, length:Int):Int
 	{
 		var min = 0;
-		var max = hashs.length;
+		var max = length;
 
 		while (min < max)
 		{
@@ -56,4 +58,67 @@ package java.internal;
 		return ~min;
 	}
 
+	static function removeString(a:java.NativeArray<String>, length:Int, pos:Int) {
+		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = null;
+	}
+
+	static function removeFloat(a:java.NativeArray<Float>, length:Int, pos:Int) {
+		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = 0;
+	}
+
+	static function removeDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int) {
+		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = null;
+	}
+
+	@:extern
+	static inline function __insert<T>(a:java.NativeArray<T>, length:Int, pos:Int, x:T):java.NativeArray<T>
+	{
+		var capacity = a.length;
+		if (pos == length)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				System.arraycopy(a, 0, newarr, 0, a.length);
+				a = newarr;
+			}
+		}
+		else if (pos == 0)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				System.arraycopy(a, 0, newarr, 1, length);
+				a = newarr;
+			}
+			else
+			{
+				System.arraycopy(a, 0, a, 1, length);
+			}
+		}
+		else
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				System.arraycopy(a, 0, newarr, 0, pos);
+				System.arraycopy(a, pos, newarr, pos + 1, length - pos);
+				a = newarr;
+			}
+			else
+			{
+				System.arraycopy(a, pos, a, pos + 1, length - pos);
+				System.arraycopy(a, 0, a, 0, pos);
+			}
+		}
+		a[pos] = x;
+		return a;
+	}
+
+	static function insertString(a:java.NativeArray<String>, length:Int, pos:Int, x:String):java.NativeArray<String> return __insert(a, length, pos, x);
+	static function insertFloat(a:java.NativeArray<Float>, length:Int, pos:Int, x:Float):java.NativeArray<Float> return __insert(a, length, pos, x);
+	static function insertDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):java.NativeArray<Dynamic> return __insert(a, length, pos, x);
 }
