@@ -2078,6 +2078,10 @@ let init_class ctx c p context_init herits fields =
 
 	(* ----------------------- FIELD INIT ----------------------------- *)
 
+	(* a lib type will skip most checks *)
+	let is_lib = Meta.has Meta.LibType c.cl_meta in
+	(* a native type will skip one check: the static vs non-static field *)
+	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
 
 	let loop_cf f =
 		let name = f.cff_name in
@@ -2569,7 +2573,7 @@ let init_class ctx c p context_init herits fields =
 								display_error ctx "Duplicate constructor" p
 			end else if not is_static || f.cf_name <> "__init__" then begin
 				let dup = if is_static then PMap.exists f.cf_name c.cl_fields || has_field f.cf_name c.cl_super else PMap.exists f.cf_name c.cl_statics in
-				if dup then error ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
+				if not is_native && dup then error ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
 				if List.mem AOverride fd.cff_access then c.cl_overrides <- f :: c.cl_overrides;
 				let is_var f = match f.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then

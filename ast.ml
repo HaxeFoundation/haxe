@@ -103,6 +103,7 @@ module Meta = struct
 		| Keep
 		| KeepInit
 		| KeepSub
+		| LibType
 		| Meta
 		| Macro
 		| MaybeUsed
