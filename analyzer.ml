@@ -1055,7 +1055,7 @@ module ConstPropagation = struct
 			begin try
 				let v' = Ssa.get_origin_var v in
 				begin match v'.v_extra with
-					| Some ([],_) -> get_block_depth v <= get_block_depth v0
+					| Some ([],_) -> get_block_depth v <= get_block_depth v0 && type_iseq v0.v_type v.v_type
 					| _ -> false
 				end
 			with Not_found ->
