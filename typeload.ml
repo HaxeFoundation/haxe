@@ -812,7 +812,12 @@ let same_overload_args t1 t2 f1 f2 =
 let rec get_overloads c i =
 	let ret = try
 			let f = PMap.find i c.cl_fields in
-			(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
+			match f.cf_kind with
+				| Var _ ->
+					(* @:libType may generate classes that have a variable field in a superclass of an overloaded method *)
+					[]
+				| Method _ ->
+					(f.cf_type, f) :: (List.map (fun f -> f.cf_type, f) f.cf_overloads)
 		with | Not_found -> []
 	in
 	let rsup = match c.cl_super with
