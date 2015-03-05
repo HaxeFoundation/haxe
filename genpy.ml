@@ -1777,18 +1777,6 @@ module Generator = struct
 
 	(* Generating functions *)
 
-	let gen_pre_code_meta ctx metadata =
-		try
-			begin match Meta.get (Meta.Custom ":preCode") metadata with
-				| _,[(EConst(String s)),_],_ ->
-					newline ctx;
-					spr ctx s
-				| _ ->
-					raise Not_found
-			end
-		with Not_found ->
-			()
-
 	let gen_py_metas ctx metas indent =
 		List.iter (fun (n,el,_) ->
 			match el with
@@ -1981,8 +1969,6 @@ module Generator = struct
 				ctx.class_inits <- f :: ctx.class_inits
 
 	let gen_import ctx path meta =
-		gen_pre_code_meta ctx meta;
-
 		if Meta.has Meta.PythonImport meta && is_directly_used ctx.com meta then begin
 			let _, args, mp = Meta.get Meta.PythonImport meta in
 
@@ -2032,8 +2018,6 @@ module Generator = struct
 		end
 
 	let gen_class ctx c =
-		gen_pre_code_meta ctx c.cl_meta;
-		(* print ctx "# print %s.%s\n" (s_type_path c.cl_module.m_path) (snd c.cl_path); *)
 		if not c.cl_extern then begin
 			newline ctx;
 			newline ctx;
@@ -2211,8 +2195,6 @@ module Generator = struct
 		gen_enum_metadata ctx en p
 
 	let gen_abstract ctx a =
-		gen_pre_code_meta ctx a.a_meta;
-		(* print ctx "# print %s.%s\n" (s_type_path a.a_module.m_path) (snd a.a_path); *)
 		newline ctx;
 		newline ctx;
 		newline ctx;
