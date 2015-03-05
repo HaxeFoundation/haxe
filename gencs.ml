@@ -3187,6 +3187,10 @@ type net_lib_ctx = {
 	nil : IlData.ilctx;
 }
 
+let is_haxe_keyword = function
+	| "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+	| _ -> false
+
 let hxpath_to_net ctx path =
 	try
 		Hashtbl.find ctx.ncom.net_path_map path
@@ -3478,6 +3482,7 @@ let convert_ilevent ctx p ev =
 
 let convert_ilmethod ctx p m is_explicit_impl =
 	if not (Common.defined ctx.ncom Define.Unsafe) && has_unmanaged m.msig.snorm then raise Exit;
+	let force_check = Common.defined ctx.ncom Define.ForceLibCheck in
 	let p = { p with pfile =	p.pfile ^" (" ^m.mname ^")" } in
 	let cff_doc = None in
 	let cff_pos = p in
@@ -3513,6 +3518,12 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
 	let meta = [Meta.Overload, [], p] in
+	let meta = match is_final with
+		| None | Some true when not force_check ->
+			(Meta.Final,[],p) :: meta
+		| _ ->
+			meta
+	in
 	let meta = if is_explicit_impl then
 			(Meta.NoCompletion,[],p) :: (Meta.SkipReflection,[],p) :: meta
 		else
@@ -3830,6 +3841,9 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			print_endline ("converting " ^ ilpath_s ilcls.cpath ^ " : " ^ (String.concat ", " sup))
 		end;
 		let meta = ref [Meta.CsNative, [], p; Meta.Native, [EConst (String (ilpath_s ilcls.cpath) ), p], p] in
+		let force_check = Common.defined ctx.ncom Define.ForceLibCheck in
+		if not force_check then
+			meta := (Meta.LibType,[],p) :: !meta;
 
 		let is_interface = ref false in
 		List.iter (fun f -> match f with
@@ -4058,6 +4072,7 @@ let get_all_fields cls =
 	all_fields
 
 let normalize_ilcls ctx cls =
+	let force_check = Common.defined ctx.ncom Define.ForceLibCheck in
 	(* first filter out overloaded fields of same signature *)
 	let rec loop acc = function
 		| [] -> acc
@@ -4093,7 +4108,7 @@ let normalize_ilcls ctx cls =
 		| Some s ->
 			let cls, params = ilcls_from_ilsig ctx s.snorm in
 			let cls = ilcls_with_params ctx cls params in
-			no_overrides := List.filter (fun v ->
+			if force_check then no_overrides := List.filter (fun v ->
 				let m = !v in
 				let is_override_here = List.exists (fun m2 ->
 					m2.mname = m.mname && not (List.mem CMStatic m2.mflags.mf_contract) && compatible_methods m.msig.snorm m2.msig.snorm
@@ -4112,7 +4127,7 @@ let normalize_ilcls ctx cls =
 	loop cls;
 
 	add_cls_events_collision cls;
-	List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
+	if force_check then List.iter (fun v -> v := { !v with moverride = None }) !no_overrides;
 	let added = ref [] in
 
 	let current_all = ref (get_all_fields cls @ !all_fields) in
@@ -4148,55 +4163,68 @@ let normalize_ilcls ctx cls =
 	in
 	List.iter (loop_interface cls) cls.cimplements;
 	let added = List.map (function
-		| (IlMethod m,a,name,b) ->
+		| (IlMethod m,a,name,b) when m.mflags.mf_access <> FAPublic ->
 			(IlMethod { m with mflags = { m.mflags with mf_access = FAPublic } },a,name,b)
-		| (IlField f,a,name,b) ->
+		| (IlField f,a,name,b) when f.fflags.ff_access <> FAPublic ->
 			(IlField { f with fflags = { f.fflags with ff_access = FAPublic } },a,name,b)
 		| s -> s
 	) !added in
 
 	(* filter out properties that were already declared *)
-	let props = List.filter (function
-		| p ->
-			let static = is_static (IlProp p) in
-			let name = p.pname in
-			not (List.exists (function (IlProp _,_,n,s) -> s = static && name = n | _ -> false) !all_fields)
-		(* | _ -> false *)
-	) cls.cprops in
+	let props = if force_check then List.filter (function
+			| p ->
+				let static = is_static (IlProp p) in
+				let name = p.pname in
+				not (List.exists (function (IlProp _,_,n,s) -> s = static && name = n | _ -> false) !all_fields)
+			(* | _ -> false *)
+		) cls.cprops
+		else
+			cls.cprops
+	in
 	let cls = { cls with cmethods = List.map (fun v -> !v) meths; cprops = props } in
 
-	let clsfields = added @ (get_all_fields cls) in
+	let clsfields = (get_all_fields cls) @ added in
 	let super_fields = !all_fields in
 	all_fields := clsfields @ !all_fields;
 	let refclsfields = (List.map (fun v -> ref v) clsfields) in
 	(* search static / non-static name clash *)
 	(* change field name to not collide with haxe keywords *)
-	let iter_field v =
+	let fold_field acc v =
 		let f, p, name, is_static = !v in
-		let change = match name with
-		| "callback" | "cast" | "extern" | "function" | "in" | "typedef" | "using" | "var" | "untyped" | "inline" -> true
+		let change, copy = match name with
+		| _ when is_haxe_keyword name ->
+			true, false
 		| _ ->
-			(is_static && List.exists (function | (f,_,n,false) -> name = n | _ -> false) !all_fields) ||
-			not is_static && match f with (* filter methods that have the same name as fields *)
+			((is_static && List.exists (function | (f,_,n,false) -> name = n | _ -> false) !all_fields) ||
+			(not is_static && match f with (* filter methods that have the same name as fields *)
 			| IlMethod _ ->
 				List.exists (function | ( (IlProp _ | IlField _),_,n,false) -> name = n | _ -> false) super_fields ||
 				List.exists (function | ( (IlProp _ | IlField _),_,n,s) -> name = n | _ -> false) clsfields
-			| _ -> false
+			| _ -> false)), true
 		in
-		if change then
+		if change then begin
 			let name = "%" ^ name in
-			v := change_name name f, p, name, is_static
+			let changed = change_name name f, p, name, is_static in
+			if not copy then
+				v := changed;
+			if copy then
+				v :: ref changed :: acc
+			else
+				v :: acc
+		end else
+			v :: acc
 	in
-	List.iter iter_field refclsfields;
+	let refclsfields = List.fold_left fold_field [] refclsfields in
 
-	let clsfields = List.map (fun v -> !v) refclsfields in
-	let fields = List.filter (function | (IlField _,_,_,_) -> true | _ -> false) clsfields in
-	let methods = List.filter (function | (IlMethod _,_,_,_) -> true | _ -> false) clsfields in
-	let props = List.filter (function | (IlProp _,_,_,_) -> true | _ -> false) clsfields in
-	let methods = List.map (function | (IlMethod f,_,_,_) -> f | _ -> assert false) methods in
+	let rec fold (fields,methods,props) f = match !f with
+		| IlField f,_,_,_ -> f :: fields,methods,props
+		| IlMethod m,_,_,_ -> fields,m :: methods,props
+		| IlProp p,_,_,_ -> fields,methods,p :: props
+	in
+	let fields, methods, props = List.fold_left fold ([],[],[]) refclsfields in
 	{ cls with
-		cfields = List.map (function | (IlField f,_,_,_) -> f | _ -> assert false) fields;
-		cprops = List.map (function | (IlProp f,_,_,_) -> f | _ -> assert false) props;
+		cfields = fields;
+		cprops = props;
 		cmethods = methods;
 		cevents = List.filter (fun ev -> not (Hashtbl.mem all_events_name ev.ename)) cls.cevents;
 	}
