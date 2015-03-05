@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import python.lib.Builtin;
+import python.internal.UBuiltins;
 import python.lib.Re;
 import python.lib.Re.MatchObject;
 import python.lib.Re.Pattern;
@@ -210,7 +210,7 @@ class EReg {
 			var g = x.groups();
 			for (i in 0...g.length) {
 
-				res = res.split("$"+Builtin.str(i+1)).join(g[i]);
+				res = res.split("$"+UBuiltins.str(i+1)).join(g[i]);
 			}
 			res = res.split("_hx_#repl#__").join("$");
 			return res;

@@ -34,7 +34,7 @@ import haxe.io.BytesData;
 	}
 
 	public static inline function listNames() : Array<String> {
-		return python.lib.Builtin.list(getContent().keys());
+		return python.internal.UBuiltins.list(getContent().keys());
 	}
 
 	public static function getString( name : String ) : String {

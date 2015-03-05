@@ -54,8 +54,9 @@ class Lib {
 	/**
 	 	Returns a flat copy of the underlying Dictionary of `o`.
 	**/
+	@:access(python.Boot.isAnonObject)
 	public static function anonToDict (o:{}):Dict<String, Dynamic> {
-		return if (python.lib.Builtin.isinstance(o, AnonObject))
+		return if (Boot.isAnonObject(o))
 		{
 			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>).copy();
 		}
@@ -67,8 +68,9 @@ class Lib {
 	 	Returns the underlying Dictionary of the anonymous object `o`.
 	 	Modifications to this dictionary are reflected in the anonymous Object too.
 	**/
+	@:access(python.Boot.isAnonObject)
 	public static function anonAsDict (o:{}):Dict<String, Dynamic> {
-		return if (python.lib.Builtin.isinstance(o, AnonObject))
+		return if (Boot.isAnonObject(o))
 		{
 			(Syntax.field(o, "__dict__"):Dict<String,Dynamic>);
 		}

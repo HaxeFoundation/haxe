@@ -23,7 +23,6 @@ package python.io;
 
 import haxe.io.Output;
 
-import python.lib.Builtin;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 

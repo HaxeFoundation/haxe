@@ -21,21 +21,20 @@
  */
 package python.lib;
 
-import python.lib.Builtin;
 import python.Syntax;
 
 @:pythonImport("builtins", "bytearray")
 extern class Bytearray implements ArrayAccess<Int> {
 
-	public var length(get, null):Int;
+	public var length(get,never):Int;
 
 	@:overload(function (it:Array<Int>):Void {})
 	@:overload(function (it:NativeIterable<Int>):Void {})
 	@:overload(function (size:Int):Void {})
 	public function new (source:String,encoding:String,?errors:Dynamic):Void;
 
-	public inline function get_length ():Int {
-		return Builtin.len(this);
+	inline function get_length ():Int {
+		return python.internal.UBuiltins.len(this);
 	}
 
 	public inline function get(i:Int):Int {

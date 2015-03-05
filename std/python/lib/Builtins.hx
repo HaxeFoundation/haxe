@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,7 +29,7 @@ import python.NativeIterable;
 import python.NativeIterator;
 
 @:pythonImport("builtins")
-extern class Builtin {
+extern class Builtins {
 
 
 
@@ -80,9 +80,7 @@ extern class Builtin {
 	//public static function basestring():Void;
 	//public static function execfile():Void;
 
-	public static inline function print(o:Dynamic):Void {
-		python.Syntax.field(Builtin, "print")(o);
-	}
+	public static function print(o:Dynamic):Void;
 
 	//public static function super():Void;
 	//public static function bin():Void;

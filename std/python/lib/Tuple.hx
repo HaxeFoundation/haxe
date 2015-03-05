@@ -21,7 +21,7 @@
  */
 package python.lib;
 
-import python.lib.Builtin;
+import python.internal.UBuiltins;
 import python.Syntax;
 
 @:pythonImport("builtins", "tuple")
@@ -30,15 +30,15 @@ extern class Tuple<X> implements ArrayAccess<X> {
 	@:overload(function ():Void {})
 	public function new (a:Array<X>):Void;
 
-	public var length(get_length, null):Int;
+	public var length(get_length,never):Int;
 
 	inline function get_length():Int {
-		return Builtin.len(this);
+		return UBuiltins.len(this);
 	}
 
 	public inline function toArray ():Array<X>
 	{
-		return Builtin.list(this);
+		return UBuiltins.list(this);
 	}
 
 }

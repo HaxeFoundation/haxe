@@ -21,19 +21,26 @@
  */
 package python.internal;
 
-@:keep
+@:ifFeature("has_enum", "Enum.*")
 @:native("Enum")
 class EnumImpl {
+	@:ifFeature("has_enum", "Enum.*")
 	public var tag:String;
+
+	@:ifFeature("has_enum", "Enum.*")
 	public var index:Int;
+
+	@:ifFeature("has_enum", "Enum.*")
 	public var params:Array<Dynamic>;
 
+	@:ifFeature("has_enum", "Enum.*")
 	public function new(tag, index, params) {
 		this.tag = tag;
 		this.index = index;
 		this.params = params;
 	}
 
+	@:ifFeature("has_enum", "Enum.*")
 	function __str__() {
 		return if (params == null) {
 			tag;
