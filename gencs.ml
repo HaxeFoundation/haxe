@@ -2616,7 +2616,7 @@ let configure gen =
 
 	let tp_v = alloc_var "$type_param" t_dynamic in
 	let mk_tp t pos = { eexpr = TLocal(tp_v); etype = t; epos = pos } in
-	if not erase_generics then TypeParams.configure gen (fun ecall efield params elist ->
+	TypeParams.configure gen (fun ecall efield params elist ->
 		match efield.eexpr with
 		| TField(_, FEnum _) ->
 				{ ecall with eexpr = TCall(efield, elist) }

@@ -4291,9 +4291,12 @@ struct
 							Some false
 						else if Meta.has Meta.HaxeGeneric cl.cl_meta then
 							Some true
-						else if cl.cl_params = [] then
+						else if cl.cl_params = [] && is_hxgen md then
 							(cl.cl_meta <- (Meta.HaxeGeneric,[],cl.cl_pos) :: cl.cl_meta;
 							Some true)
+						else if cl.cl_params = [] then
+							(cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
+							Some false)
 						else if not (is_hxgen md) then
 							(cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
 							Some false)
@@ -4311,8 +4314,11 @@ struct
 									(* see if it's a generic class *)
 									match cl.cl_params with
 										| [] ->
-											(* if it's not, then it will be hxgeneric *)
-											cl.cl_meta <- (Meta.HaxeGeneric, [], cl.cl_pos) :: cl.cl_meta;
+											(* if it's not, then it will follow hxgen *)
+											if is_hxgen (TClassDecl cl) then
+												cl.cl_meta <- (Meta.HaxeGeneric, [], cl.cl_pos) :: cl.cl_meta
+											else
+												cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
 											Some true
 										| _ ->
 											(* if it is, loop through all fields + statics and look for non-hxgeneric
