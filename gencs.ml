@@ -3884,8 +3884,8 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			) ilcls.cimplements;
 			(* this is needed because of explicit interfaces. see http://msdn.microsoft.com/en-us/library/aa288461(v=vs.71).aspx *)
 			(* explicit interfaces can't be mapped into Haxe in any way - since their fields can't be accessed directly, but they still implement that interface *)
-			if !has_explicit_ifaces then
-				meta := (Meta.Custom "$do_not_check_interf",[],p) :: !meta;
+			if !has_explicit_ifaces && force_check then (* do not check on this specific case *)
+				meta := (Meta.LibType,[],p) :: !meta;
 
 			(* ArrayAccess *)
 			ignore (List.exists (function
