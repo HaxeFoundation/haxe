@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,13 +21,7 @@
  */
 package python.internal;
 
-import python.Syntax;
-
-@:keep
-@:nativeGen
 @:native("_hx_AnonObject")
 class AnonObject {
-    public function new(fields) {
-        Syntax.assign(Internal.fieldDict(this), fields);
-    }
+	public function new(fields:python.lib.Dict<String, Dynamic>) {}
 }

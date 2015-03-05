@@ -45,5 +45,5 @@ abstract NativeIterable<T>(NativeIterableRaw<T>) to NativeIterableRaw<T> from Na
     Native python iterable protocol.
 **/
 typedef NativeIterableRaw<T> = {
-	function __iter__():NativeIterator<T>;
+	private function __iter__():NativeIterator<T>;
 }

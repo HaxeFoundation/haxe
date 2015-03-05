@@ -3842,7 +3842,7 @@ and type_call ctx e el (with_type:with_type) p =
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
-		if platform ctx.com Js && el = [] && has_dce ctx.com then
+		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e Value in
 			let infos = type_expr ctx infos Value in
 			let e = match follow e.etype with

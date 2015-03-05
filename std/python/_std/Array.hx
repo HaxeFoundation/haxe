@@ -26,15 +26,12 @@ import python.NativeIterator;
 
 @:native("list")
 @:coreApi
-extern class Array<T> implements ArrayAccess<T> extends ArrayImpl {
+extern class Array<T> implements ArrayAccess<T> {
 
 	public var length(default,null) : Int;
 
-	private inline function get_length ():Int return ArrayImpl.get_length(this);
-
 
 	public function new() : Void;
-
 
 	public inline function concat( a : Array<T>) : Array<T> {
 

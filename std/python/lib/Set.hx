@@ -32,7 +32,7 @@ extern class Set <T>
 
 	public inline function length ():Int
 	{
-		return python.lib.Builtin.len(this);
+		return python.internal.UBuiltins.len(this);
 	}
 
 	public inline function has (v:T):Bool

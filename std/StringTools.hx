@@ -396,7 +396,7 @@ class StringTools {
 		#elseif js
 		return (untyped s).charCodeAt(index);
 		#elseif python
-		return if (index >= s.length) -1 else python.lib.Builtin.ord(python.Syntax.arrayAccess(s, index));
+		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#else
 		return untyped s.cca(index);
 		#end

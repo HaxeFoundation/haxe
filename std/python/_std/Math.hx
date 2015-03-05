@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import python.lib.Builtin;
+import python.internal.UBuiltins;
 
 @:pythonImport("math")
 @:coreApi
@@ -39,12 +39,12 @@ extern class Math
 	}
 
 	public static inline function min(a:Float, b:Float):Float {
-		return if (isNaN(a)) a else if (isNaN(b)) b else Builtin.min(a,b);
+		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.min(a,b);
 	}
 
 	public static inline function max(a:Float, b:Float):Float
 	{
-		return if (isNaN(a)) a else if (isNaN(b)) b else Builtin.max(a,b);
+		return if (isNaN(a)) a else if (isNaN(b)) b else UBuiltins.max(a,b);
 	}
 
 	public static inline function sin(v:Float):Float {
@@ -132,9 +132,9 @@ extern class Math
 	}
 
 	static function __init__():Void {
-		NEGATIVE_INFINITY = Builtin.float('-inf');
-		POSITIVE_INFINITY = Builtin.float('inf');
-		NaN = Builtin.float("nan");
+		NEGATIVE_INFINITY = UBuiltins.float('-inf');
+		POSITIVE_INFINITY = UBuiltins.float('inf');
+		NaN = UBuiltins.float("nan");
 		PI = python.lib.Math.pi;
 	}
 

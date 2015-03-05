@@ -21,20 +21,21 @@
  */
 package python.lib;
 
-import python.lib.Builtin;
+import python.internal.UBuiltins;
 import python.lib.Tuple;
 import python.NativeIterator;
 import python.Syntax;
 
 
 extern class DictView<T> {
+	private function __iter__():NativeIterator<T>;
 	public inline function iter ():NativeIterator<T>
 	{
-		return Builtin.iter(this);
+		return UBuiltins.iter(this);
 	}
 	public inline function length ():Int
 	{
-		return Builtin.len(this);
+		return UBuiltins.len(this);
 	}
 
 	public inline function iterator ():Iterator<T>
@@ -50,7 +51,7 @@ extern class Dict <K, V>
 
 	public inline function length ():Int
 	{
-		return python.lib.Builtin.len(this);
+		return UBuiltins.len(this);
 	}
 
 	public inline function hasKey (k:K):Bool {
@@ -81,7 +82,7 @@ extern class Dict <K, V>
 	{
 		return values().iter();
 	}
-	public function __iter__():NativeIterator<K>;
+	private function __iter__():NativeIterator<K>;
 }
 
 class DictImpl {

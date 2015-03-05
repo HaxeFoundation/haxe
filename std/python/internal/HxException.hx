@@ -21,12 +21,14 @@
  */
 package python.internal;
 
-@:keep
+@:ifFeature("has_throw")
 @:native("_HxException")
 class HxException extends python.lib.Exceptions.Exception {
+	@:ifFeature("has_throw")
 	public var val:Dynamic;
+	@:ifFeature("has_throw")
 	public function new(val) {
-		var message = Std.string(val);
+		var message = UBuiltins.str(val);
 		super(message);
 		this.val = val;
 	}

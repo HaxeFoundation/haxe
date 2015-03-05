@@ -21,7 +21,7 @@
  */
 package python;
 
-import python.lib.Builtin.list;
+import python.internal.UBuiltins.list;
 
 /**
 	This type represents python `*args` feature, supporting

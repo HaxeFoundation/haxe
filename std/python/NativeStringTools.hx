@@ -31,7 +31,7 @@ class NativeStringTools {
 		return python.Syntax.field(s, "format")(python.Syntax.varArgs(args));
 	}
 
-	@:keep public static inline function encode(s:String, encoding:String="utf-8", errors:String="strict"):Bytes {
+	public static inline function encode(s:String, encoding:String="utf-8", errors:String="strict"):Bytes {
 		return (python.Syntax.callField(s, "encode", encoding, errors):Bytes);
 	}
 
