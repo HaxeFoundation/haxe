@@ -1300,7 +1300,7 @@ let inline_constructors ctx e =
 	in
 	let rec skip_to_var e = match e.eexpr with
 		| TLocal v when v.v_id < 0 -> Some v
-		| TCast(e1,None) | TMeta(_,e1) | TParenthesis(e1) -> skip_to_var e1
+		(* | TCast(e1,None) | TMeta(_,e1) | TParenthesis(e1) -> skip_to_var e1 *)
 		| _ -> None
 	in
 	let rec find_locals e =
