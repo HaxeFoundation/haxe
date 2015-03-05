@@ -2391,18 +2391,25 @@ let init_class ctx c p context_init herits fields =
 					) in
 					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
 					(* TODO is_lib: avoid typing function here ? *)
-					let e , fargs = type_function ctx args ret fmode fd display_field p in
-					let f = {
-						tf_args = fargs;
-						tf_type = ret;
-						tf_expr = e;
-					} in
-					if stat && name = "__init__" then
-						(match e.eexpr with
-						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-						| _ -> c.cl_init <- Some e);
-					cf.cf_expr <- Some (mk (TFunction f) t p);
-					cf.cf_type <- t;
+					match ctx.com.platform with
+						| Java when Meta.has Meta.Native cf.cf_meta ->
+							if fd.f_expr <> None then
+								ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
+							cf.cf_expr <- None;
+							cf.cf_type <- t
+						| _ ->
+							let e , fargs = type_function ctx args ret fmode fd display_field p in
+							let f = {
+								tf_args = fargs;
+								tf_type = ret;
+								tf_expr = e;
+							} in
+							if stat && name = "__init__" then
+								(match e.eexpr with
+								| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+								| _ -> c.cl_init <- Some e);
+							cf.cf_expr <- Some (mk (TFunction f) t p);
+							cf.cf_type <- t;
 				end;
 				t
 			) "type_fun" in
