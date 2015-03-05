@@ -23,6 +23,53 @@ public class MyClass
 
 	}
 
+	public int boolTest1(Boolean value)
+	{
+		if (value == null)
+			return 100;
+		return value.booleanValue() ? 1 : 0;
+	}
+
+	public boolean boolTest1(boolean i)
+	{
+		return i;
+	}
+
+	public int boolTest2(Boolean value)
+	{
+		if (value == null)
+			return 100;
+		return value.booleanValue() ? 1 : 0;
+	}
+
+	public int intTest2(Integer value)
+	{
+		if (value == null)
+			return 100;
+		return value.intValue();
+	}
+
+	public int intTest1(Integer value)
+	{
+		if (value == null)
+			return 100;
+		return value.intValue();
+	}
+
+	public long intTest1(Long value)
+	{
+		if (value == null)
+			return -100L;
+		return -value.longValue();
+	}
+
+	public long longTest(Long value)
+	{
+		if (value == null)
+			return 100L;
+		return value.longValue();
+	}
+
 	public void normalOverload(long a)
 	{
 

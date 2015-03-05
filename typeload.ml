@@ -1798,6 +1798,12 @@ let build_enum_abstract ctx c a fields p =
 	) fields;
 	EVars ["",Some (CTAnonymous fields),None],p
 
+let is_java_native_function meta = try
+	match Meta.get Meta.Native meta with
+		| (Meta.Native,[],_) -> true
+		| _ -> false
+	with | Not_found -> false
+
 let build_module_def ctx mt meta fvars context_init fbuild =
 	let rec loop = function
 		| (Meta.Build,args,p) :: l ->
@@ -2391,7 +2397,7 @@ let init_class ctx c p context_init herits fields =
 					) in
 					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
 					match ctx.com.platform with
-						| Java when Meta.has Meta.Native cf.cf_meta ->
+						| Java when is_java_native_function cf.cf_meta ->
 							if fd.f_expr <> None then
 								ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
 							cf.cf_expr <- None;

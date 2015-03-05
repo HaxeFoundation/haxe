@@ -111,6 +111,14 @@ let is_bool t =
 			true
 		| _ -> false
 
+let like_bool t =
+	match follow t with
+		| TAbstract ({ a_path = ([], "Bool") },[])
+		| TAbstract ({ a_path = (["java";"lang"],"Boolean") },[])
+		| TInst ({ cl_path = (["java";"lang"],"Boolean") },[]) ->
+			true
+		| _ -> false
+
 let is_int_float gen t =
 	match follow (gen.greal_type t) with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
@@ -544,10 +552,10 @@ struct
 
 	let traverse gen runtime_cl =
 		let basic = gen.gcon.basic in
-		let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in
-		let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in
-		let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in
-		let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in
+		(* let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in *)
+		(* let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in *)
+		(* let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in *)
+		(* let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in *)
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 
 		let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
@@ -585,9 +593,9 @@ struct
 (*				 | TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, { cf_name = ("toString") })) }, [] ) ->
 					run ef *)
 
-				| TCast(expr, m) when is_boxed_type e.etype ->
-					(* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *)
-					run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle }
+				(* | TCast(expr, m) when is_boxed_type e.etype -> *)
+				(* 	(* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *) *)
+				(* 	run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle } *)
 
 				| TCast(expr, _) when is_bool e.etype ->
 					{

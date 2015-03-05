@@ -29,6 +29,42 @@ class TestJava extends Test
     catch(e:Dynamic) throw e; //shouldn't throw any exception
   }
 
+	public function testIssue2964()
+	{
+		var cl = new MyClass();
+		var bbool:java.lang.Boolean = null;
+		eq(cl.boolTest1(bbool), 100);
+		eq(cl.boolTest1(true), true);
+		eq(cl.boolTest1(false), false);
+		bbool = true;
+		eq(cl.boolTest1(bbool), 1);
+		bbool = false;
+		eq(cl.boolTest1(bbool), 0);
+		eq(cl.boolTest2(null), 100);
+		eq(cl.boolTest2(true), 1);
+		eq(cl.boolTest2(false), 0);
+
+		var i:java.lang.Integer = null;
+		eq(cl.intTest1(i), 100);
+		eq(cl.intTest1(cast(-1, java.lang.Integer)),-1);
+		eq(cl.intTest1(cast(1000, java.lang.Integer)),1000);
+		i = -1;
+		eq(cl.intTest1(i), -1);
+		i = null;
+		eq(cl.intTest2(i), 100);
+		eq(cl.intTest2(-1),-1);
+		eq(cl.intTest2(1000),1000);
+		i = -1;
+		eq(cl.intTest2(i), -1);
+
+		var i:java.lang.Long = null;
+		eq(cl.longTest(i), 100);
+		eq(cl.longTest(haxe.Int64.ofInt(-1)),-1);
+		eq(cl.longTest(haxe.Int64.ofInt(1000)),1000);
+		i = 10;
+		eq(cl.longTest(i), 10);
+	}
+
 	public function testVarClash()
 	{
 		var ic = new Base_InnerClass2();
