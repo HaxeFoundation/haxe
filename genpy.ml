@@ -2055,10 +2055,15 @@ module Generator = struct
 			newline ctx;
 			print ctx "class %s" p;
 			(match p_super with Some p -> print ctx "(%s)" p | _ -> ());
-			spr ctx ":\n";
+			spr ctx ":";
+
+			let use_pass = ref true in
 
 			if not is_nativegen then begin
-				if has_feature ctx "python._hx_class_name" then print ctx "\t_hx_class_name = \"%s\"\n" p_name;
+				if has_feature ctx "python._hx_class_name" then begin
+					use_pass := false;
+					print ctx "\n\t_hx_class_name = \"%s\"" p_name
+				end;
 
 				let print_field names field quote =
 					if has_feature ctx ("python." ^ field) then try
@@ -2070,7 +2075,8 @@ module Generator = struct
 							| _ ->
 								"[" ^ (String.concat ", " (List.map q names)) ^ "]"
 						in
-						print ctx "\t%s = %s\n" field s
+						use_pass := false;
+						print ctx "\n\t%s = %s" field s
 					with Exit -> ()
 				in
 
@@ -2082,7 +2088,9 @@ module Generator = struct
 
 				if has_feature ctx "python._hx_super" then (match p_super with
 					| None -> ()
-					| Some ps -> print ctx "\t_hx_super = %s\n" ps
+					| Some ps ->
+						use_pass := false;
+						print ctx "\n\t_hx_super = %s\n" ps
 				);
 
 			end;
@@ -2104,14 +2112,11 @@ module Generator = struct
 					has_feature ctx "Type.createEmptyInstance"
 			in
 
-			let use_pass = (not has_inner_static) && (not has_empty_constructor) && match x.cfd_methods with
+			let use_pass = !use_pass && (not has_inner_static) && (not has_empty_constructor) && match x.cfd_methods with
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
-			if use_pass then begin
-				newline ctx;
-				spr ctx "\tpass";
-			end;
+			if use_pass then spr ctx "\n\tpass";
 
 			if not is_nativegen then begin
 				if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
@@ -2140,18 +2145,20 @@ module Generator = struct
 
 		newline ctx;
 		newline ctx;
-		print ctx "class %s(Enum):\n" p;
+		print ctx "class %s(Enum):" p;
 
-		if has_feature ctx "python._hx_class_name" then print ctx "\t_hx_class_name = \"%s\"\n" p_name;
+		let use_pass = ref true in
+
+		if has_feature ctx "python._hx_class_name" then begin
+			use_pass := false;
+			print ctx "\n\t_hx_class_name = \"%s\"" p_name
+		end;
 		if has_feature ctx "python._hx_constructs" then begin
 			let fix = match enum_constructs with [] -> "" | _ -> "\"" in
 			let enum_constructs_str = fix ^ (String.concat ("\", \"") (List.map (fun ef -> ef.ef_name) enum_constructs)) ^ fix in
-			print ctx "\t_hx_constructs = [%s]" enum_constructs_str;
+			use_pass := false;
+			print ctx "\n\t_hx_constructs = [%s]" enum_constructs_str;
 		end;
-
-
-		spr ctx "\n\tdef __init__(self, t, i, p):\n";
-		print ctx "\t\tsuper(%s,self).__init__(t, i, p)" p;
 
 		let const_constructors,param_constructors = List.partition (fun ef ->
 			match follow ef.ef_type with
@@ -2185,8 +2192,11 @@ module Generator = struct
 				newline ctx;
 				print ctx "\t@staticmethod\n\tdef %s(%s):\n" f param_str;
 				print ctx "\t\treturn %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
+				use_pass := false;
 			| _ -> assert false
 		) param_constructors;
+
+		if !use_pass then spr ctx "\n\tpass";
 
 		List.iter (fun ef ->
 			(* TODO: haxe source has api.quoteString for ef.ef_name *)
@@ -2209,20 +2219,27 @@ module Generator = struct
 		let mt = (t_infos (TAbstractDecl a)) in
 		let p = get_path mt in
 		let p_name = get_full_name mt in
-		print ctx "class %s:\n" p;
+		print ctx "class %s:" p;
 
-		if has_feature ctx "python._hx_class_name" then print ctx "\t_hx_class_name = \"%s\"\n" p_name;
+		let use_pass = ref true in
+
+		if has_feature ctx "python._hx_class_name" then begin
+			use_pass := false;
+			print ctx "\n\t_hx_class_name = \"%s\"" p_name
+		end;
 
 		(match a.a_impl with
 		| Some c ->
 			List.iter (fun cf ->
+				use_pass := false;
 				if cf.cf_name = "_new" then
 					gen_class_constructor ctx c cf
 				else
 					gen_class_field ctx c p cf
 			) c.cl_ordered_statics
-		| None ->
-			spr ctx "\n\tpass");
+		| None -> ());
+
+		if !use_pass then spr ctx "\n\tpass";
 
 		if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
 		if has_feature ctx "python._hx_classes" then print ctx "\n_hx_classes[\"%s\"] = %s" p_name p
