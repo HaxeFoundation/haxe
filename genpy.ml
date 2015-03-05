@@ -1968,59 +1968,8 @@ module Generator = struct
 				in
 				ctx.class_inits <- f :: ctx.class_inits
 
-	let gen_import ctx path meta =
-		if Meta.has Meta.PythonImport meta && is_directly_used ctx.com meta then begin
-			let _, args, mp = Meta.get Meta.PythonImport meta in
-
-			let class_name = match path with
-				| [],name -> name
-				| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
-			in
-
-			let import_type,ignore_error = match args with
-				| [(EConst(String(module_name)), _)]
-				| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
-					IModule module_name, false
-
-				| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
-					IModule module_name,true
-
-				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)]
-				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
-					IObject (module_name,object_name), false
-
-				| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
-					IObject (module_name,object_name), true
-				| _ ->
-					error "Unsupported @:pythonImport format" mp
-			in
-
-			let import = match import_type with
-				| IModule module_name ->
-					(* importing whole module *)
-					"import " ^ module_name ^ " as " ^ class_name
-
-				| IObject (module_name,object_name) ->
-					if String.contains object_name '.' then
-						(* importing nested class *)
-						"import " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
-					else
-						(* importing a class from a module *)
-						"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
-			in
-			if ignore_error then begin
-				spr_line ctx "try:";
-				spr ctx "\t";
-				spr_line ctx import;
-				spr_line ctx "except:\n\tpass"
-			end else
-				spr_line ctx import
-		end
-
 	let gen_class ctx c =
 		if not c.cl_extern then begin
-			newline ctx;
-			newline ctx;
 			let is_nativegen = Meta.has Meta.NativeGen c.cl_meta in
 			let mt = (t_infos (TClassDecl c)) in
 			let p = get_path mt in
@@ -2036,6 +1985,8 @@ module Generator = struct
 				get_path (t_infos (TClassDecl c))
 			) c.cl_implements in
 
+			newline ctx;
+			newline ctx;
 			newline ctx;
 			print ctx "class %s" p;
 			(match p_super with Some p -> print ctx "(%s)" p | _ -> ());
@@ -2250,6 +2201,9 @@ module Generator = struct
 			let slash_index = try (String.rindex ctx.com.file '/')+1 with Not_found -> 0 in
 			let len = String.length ctx.com.file - slash_index in
 			let file_name = String.sub ctx.com.file slash_index len in
+			newline ctx;
+			newline ctx;
+			newline ctx;
 			spr ctx "def _hx_resources__():";
 			spr ctx "\n\timport inspect";
 			spr ctx "\n\timport sys";
@@ -2275,13 +2229,61 @@ module Generator = struct
 		end
 
 	let gen_imports ctx =
+		let import path meta =
+			if Meta.has Meta.PythonImport meta && is_directly_used ctx.com meta then begin
+				let _, args, mp = Meta.get Meta.PythonImport meta in
+
+				let class_name = match path with
+					| [],name -> name
+					| path,name -> (ExtString.String.join "_" path) ^ "_" ^ name
+				in
+
+				let import_type,ignore_error = match args with
+					| [(EConst(String(module_name)), _)]
+					| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
+						IModule module_name, false
+
+					| [(EConst(String(module_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
+						IModule module_name,true
+
+					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _)]
+					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("false")),_)),_)] ->
+						IObject (module_name,object_name), false
+
+					| [(EConst(String(module_name)), _); (EConst(String(object_name)), _); (EBinop(OpAssign, (EConst(Ident("ignoreError")),_), (EConst(Ident("true")),_)),_)] ->
+						IObject (module_name,object_name), true
+					| _ ->
+						error "Unsupported @:pythonImport format" mp
+				in
+
+				let import = match import_type with
+					| IModule module_name ->
+						(* importing whole module *)
+						"import " ^ module_name ^ " as " ^ class_name
+
+					| IObject (module_name,object_name) ->
+						if String.contains object_name '.' then
+							(* importing nested class *)
+							"import " ^ module_name ^ " as _hx_temp_import; " ^ class_name ^ " = _hx_temp_import." ^ object_name ^ "; del _hx_temp_import"
+						else
+							(* importing a class from a module *)
+							"from " ^ module_name ^ " import " ^ object_name ^ " as " ^ class_name
+				in
+				newline ctx;
+				if ignore_error then begin
+					spr ctx "try:\n\t";
+					spr_line ctx import;
+					spr ctx "except:\n\tpass"
+				end else
+					spr ctx import
+			end
+		in
 		List.iter (fun mt ->
 			match mt with
-			| TClassDecl c when c.cl_extern -> gen_import ctx c.cl_path c.cl_meta
-			| TEnumDecl e when e.e_extern -> gen_import ctx e.e_path e.e_meta
+			| TClassDecl c when c.cl_extern -> import c.cl_path c.cl_meta
+			| TEnumDecl e when e.e_extern -> import e.e_path e.e_meta
 			| _ -> ()
-		) ctx.com.types;
-		newline ctx
+		) ctx.com.types
 
 	let gen_types ctx =
 		let used_paths = Hashtbl.create 0 in
@@ -2292,7 +2294,10 @@ module Generator = struct
 		let need_anon_for_trace = (has_feature ctx "has_anon_trace") && (has_feature ctx "haxe.Log.trace") in
 		if (has_feature ctx "has_anon") || (has_feature ctx "_hx_AnonObject") || need_anon_for_trace then begin
 			let with_body = (has_feature ctx "has_anon") || need_anon_for_trace in
-			spr ctx "\n\nclass _hx_AnonObject:\n";
+			newline ctx;
+			newline ctx;
+			newline ctx;
+			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
 				spr ctx "\tdef __init__(self,fields):\n";
 				spr ctx "\t\tself.__dict__ = fields"
@@ -2300,8 +2305,12 @@ module Generator = struct
 				spr ctx "\tpass";
 			Hashtbl.add used_paths ([],"_hx_AnonObject") true;
 		end;
-		if has_feature ctx "python._hx_classes" then
-			spr ctx "\n\n_hx_classes = {}";
+		if has_feature ctx "python._hx_classes" then begin
+			newline ctx;
+			newline ctx;
+			newline ctx;
+			spr ctx "_hx_classes = {}";
+		end;
 		if has_feature ctx "Boot.*" then
 			gen_type ctx (find_type (["python"],"Boot"));
 		if has_feature ctx "has_enum" || has_feature ctx "Enum.*" then
@@ -2314,9 +2323,11 @@ module Generator = struct
 		) ctx.com.types
 
 	let gen_static_inits ctx =
+		newline ctx;
 		List.iter (fun f -> f()) (List.rev ctx.static_inits)
 
 	let gen_class_inits ctx =
+		newline ctx;
 		List.iter (fun f -> f()) (List.rev ctx.class_inits)
 
 	let gen_main ctx =
@@ -2324,6 +2335,7 @@ module Generator = struct
 			| None ->
 				()
 			| Some e ->
+				newline ctx;
 				newline ctx;
 				gen_expr ctx e "" ""
 
@@ -2335,7 +2347,6 @@ module Generator = struct
 		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;
-		newline ctx;
 		gen_class_inits ctx;
 		gen_static_inits ctx;
 		gen_main ctx;
