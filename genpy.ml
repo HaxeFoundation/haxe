@@ -1772,7 +1772,7 @@ module Generator = struct
 		end)
 
 	let newline ctx =
-		spr ctx "\n"
+		if not (Buffer.length ctx.buf = 0) then spr ctx "\n"
 
 
 	(* Generating functions *)
