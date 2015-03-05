@@ -22,7 +22,7 @@
 package python.lib.net;
 
 import haxe.io.BytesData;
-import python.lib.Tuple;
+import python.Tuple;
 
 /**
     A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
@@ -36,7 +36,7 @@ typedef Selectable = {
 @:pythonImport("select")
 extern class Select {
 
-    static function select<T>(reads:Array<T>,writes:Array<T>,xs:Array<T>,timeout:Float):Tup3<Array<T>,Array<T>,Array<T>>;
+    static function select<T>(reads:Array<T>,writes:Array<T>,xs:Array<T>,timeout:Float):Tuple3<Array<T>,Array<T>,Array<T>>;
 
 }
 
@@ -345,7 +345,7 @@ extern class Socket {
     /**
         Accept a new connected client. This will return a connected socket on which you can read/write some data.
     **/
-    function accept() : Tup2<Socket,Address>;
+    function accept() : Tuple2<Socket,Address>;
 
     /**
         Return the informations about the other side of a connected socket.

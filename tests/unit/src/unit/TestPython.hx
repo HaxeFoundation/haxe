@@ -32,7 +32,7 @@ import python.lib.ThreadLowLevel;
 import python.lib.Time;
 import python.lib.Traceback;
 import python.lib.Tty;
-import python.lib.Tuple;
+import python.Tuple;
 
 import python.lib.datetime.Datetime;
 import python.lib.datetime.Timedelta;
@@ -371,25 +371,29 @@ class TestPython extends Test {
 	}
 
 	function testTupleCreation() {
-		var t = Tup2.create(1, 2);
+		var t = Tuple1.create(1);
+		eq(t._1, 1);
+		eq(t.length, 1);
+
+		var t = Tuple2.create(1, 2);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t.length, 2);
 
-		var t = Tup3.create(1, 2, 3);
+		var t = Tuple3.create(1, 2, 3);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t._3, 3);
 		eq(t.length, 3);
 
-		var t = Tup4.create(1, 2, 3, 4);
+		var t = Tuple4.create(1, 2, 3, 4);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t._3, 3);
 		eq(t._4, 4);
 		eq(t.length, 4);
 
-		var t = Tup5.create(1, 2, 3, 4, 5);
+		var t = Tuple5.create(1, 2, 3, 4, 5);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t._3, 3);

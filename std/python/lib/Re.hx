@@ -21,7 +21,7 @@
  */
 package python.lib;
 
-import python.lib.Tuple;
+import python.Tuple;
 
 
 private abstract Choice <A,B>(Dynamic) {
@@ -62,7 +62,7 @@ extern class MatchObject
 	@:overload(function (x:String):Int {})
 	public function end (?i:Int = 0):Int;
 
-	public function span (?i:Int):Tup2<Int, Int>;
+	public function span (?i:Int):Tuple2<Int, Int>;
 
 
 	public inline function groupById(s:String):String {

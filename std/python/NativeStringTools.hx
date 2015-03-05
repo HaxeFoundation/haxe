@@ -22,7 +22,7 @@
 package python;
 
 import python.lib.Bytes;
-import python.lib.Tuple;
+import python.Tuple;
 
 class NativeStringTools {
 
@@ -44,7 +44,7 @@ class NativeStringTools {
 		return python.Syntax.field(s, "strip")(chars);
 	}
 
-	public static inline function rpartition (s:String, sep:String):Tup3<String, String, String>
+	public static inline function rpartition (s:String, sep:String):Tuple3<String, String, String>
 	{
 		return python.Syntax.field(s, "rpartition")(sep);
 	}

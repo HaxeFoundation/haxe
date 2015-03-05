@@ -23,7 +23,7 @@ package python.lib;
 
 import python.lib.Sys;
 import python.lib.Sys.Frame;
-import python.lib.Tuple;
+import python.Tuple;
 
 @:pythonImport("traceback")
 extern class Traceback {
@@ -33,4 +33,4 @@ extern class Traceback {
 
 }
 
-private typedef StackItem = Tup4<String, Int, String, String>;
+private typedef StackItem = Tuple4<String, Int, String, String>;

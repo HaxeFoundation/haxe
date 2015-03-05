@@ -21,4 +21,4 @@
  */
 package python.lib.net;
 
-typedef Address = python.lib.Tuple.Tup2<String,Int>;
+typedef Address = python.Tuple.Tuple2<String,Int>;

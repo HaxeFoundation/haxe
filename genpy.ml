@@ -79,7 +79,7 @@ module KeywordHandler = struct
 		let h = Hashtbl.create 0 in
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"len"; "int"; "float"; "list"; "bool"; "str"; "isinstance"; "print"; "min"; "max";
-			"hasattr"; "getattr"; "setattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter"
+			"hasattr"; "getattr"; "setattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter"; "tuple";
 		];
 		h
 
@@ -1549,7 +1549,11 @@ module Printer = struct
 			| "python_Syntax.field",[e1;{eexpr = TConst(TString id)}] ->
 				Printf.sprintf "%s.%s" (print_expr pctx e1) id
 			| "python_Syntax._tuple", [{eexpr = TArrayDecl el}] ->
-				Printf.sprintf "(%s)" (print_exprs pctx ", " el)
+				(match el with
+				| [e] ->
+					Printf.sprintf "(%s,)" (print_expr pctx e)
+				| _ ->
+					Printf.sprintf "(%s)" (print_exprs pctx ", " el))
 			| "python_Syntax._arrayAccess", e1 :: {eexpr = TArrayDecl el} :: etrail ->
 				let trailing_colon = match etrail with
 					| [{eexpr = TConst(TBool(true))}] -> true

@@ -22,7 +22,7 @@
 package python.lib;
 
 import python.internal.UBuiltins;
-import python.lib.Tuple;
+import python.Tuple;
 import python.NativeIterator;
 import python.Syntax;
 
@@ -66,7 +66,7 @@ extern class Dict <K, V>
 
 	public function keys ():DictView<K>;
 	public function values ():DictView<V>;
-	public function items ():DictView<Tup2<K,V>>;
+	public function items ():DictView<Tuple2<K,V>>;
 
 
 	public inline function set (key:K, val:V):Void {
