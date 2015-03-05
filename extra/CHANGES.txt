@@ -12,6 +12,7 @@
 	flash : flash player 12-14 support
 	js : added @:jsRequire and js.Lib.require
 	cs : added @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
+	cs : added -D erase_generics
 
 	Bugfixes:
 
@@ -34,6 +35,7 @@
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
 	php : fixed Reflect.compare and string comparison for numeric strings
+	java/cs : fixed various issues with -java-lib and -net-lib
 
 	General improvements and optimizations:
 
