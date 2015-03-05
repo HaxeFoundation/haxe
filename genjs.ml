@@ -29,7 +29,7 @@ type pos = Ast.pos
 type sourcemap = {
 	sources : (string) DynArray.t;
 	sources_hash : (string, int) Hashtbl.t;
-	mappings : Buffer.t;
+	mappings : Rbuffer.t;
 
 	mutable source_last_line : int;
 	mutable source_last_col : int;
@@ -41,7 +41,7 @@ type sourcemap = {
 
 type ctx = {
 	com : Common.context;
-	buf : Buffer.t;
+	buf : Rbuffer.t;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;
@@ -141,7 +141,7 @@ let handle_newlines ctx str =
 		let rec loop from =
 			try begin
 				let next = String.index_from str from '\n' + 1 in
-				Buffer.add_char ctx.smap.mappings ';';
+				Rbuffer.add_char ctx.smap.mappings ';';
 				ctx.smap.output_last_col <- 0;
 				ctx.smap.print_comma <- false;
 				loop next
@@ -154,13 +154,13 @@ let handle_newlines ctx str =
 let spr ctx s =
 	ctx.separator <- false;
 	handle_newlines ctx s;
-	Buffer.add_string ctx.buf s
+	Rbuffer.add_string ctx.buf s
 
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
 		handle_newlines ctx s;
-		Buffer.add_string ctx.buf s
+		Rbuffer.add_string ctx.buf s
 	end)
 
 let unsupported p = error "This expression cannot be compiled to Javascript" p
@@ -182,7 +182,7 @@ let add_mapping ctx e =
 	let col = col - 1 in
 	if smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
 		if smap.print_comma then
-			Buffer.add_char smap.mappings ','
+			Rbuffer.add_char smap.mappings ','
 		else
 			smap.print_comma <- true;
 
@@ -209,7 +209,7 @@ let add_mapping ctx e =
 				let continuation_bit = base in
 				let digit = vlq land mask in
 				let next = vlq asr shift in
-				Buffer.add_char smap.mappings (encode_digit (
+				Rbuffer.add_char smap.mappings (encode_digit (
 					if next > 0 then digit lor continuation_bit else digit));
 				if next > 0 then loop next else ()
 			in
@@ -255,23 +255,23 @@ let write_mappings ctx =
 	end;
 	output_string channel "\"names\":[],\n";
 	output_string channel "\"mappings\":\"";
-	Buffer.output_buffer channel ctx.smap.mappings;
+	Rbuffer.output_buffer channel ctx.smap.mappings;
 	output_string channel "\"\n";
 	output_string channel "}";
 	close_out channel
 
 let newline ctx =
-	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
+	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
 	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
 let newprop ctx =
-	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
+	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
 	| '{' -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx "\n%s," ctx.tabs
 
 let semicolon ctx =
-	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
+	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
 	| '}' when not ctx.separator -> ()
 	| _ -> spr ctx ";"
 
@@ -1182,7 +1182,7 @@ let set_current_class ctx c =
 let alloc_ctx com =
 	let ctx = {
 		com = com;
-		buf = Buffer.create 16000;
+		buf = Rbuffer.create 16000;
 		packages = Hashtbl.create 0;
 		smap = {
 			source_last_line = 0;
@@ -1193,7 +1193,7 @@ let alloc_ctx com =
 			output_current_col = 0;
 			sources = DynArray.create();
 			sources_hash = Hashtbl.create 0;
-			mappings = Buffer.create 16;
+			mappings = Rbuffer.create 16;
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = Common.defined com Define.JsFlatten;
@@ -1221,8 +1221,8 @@ let alloc_ctx com =
 
 let gen_single_expr ctx e expr =
 	if expr then gen_expr ctx e else gen_value ctx e;
-	let str = Buffer.contents ctx.buf in
-	Buffer.reset ctx.buf;
+	let str = Rbuffer.unsafe_contents ctx.buf in
+	Rbuffer.reset ctx.buf;
 	ctx.id_counter <- 0;
 	str
 
@@ -1394,7 +1394,7 @@ let generate com =
 	end;
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	let ch = open_out_bin com.file in
-	output_string ch (Buffer.contents ctx.buf);
+	Rbuffer.output_buffer ch ctx.buf;
 	close_out ch);
 	t()
 
