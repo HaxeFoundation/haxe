@@ -570,6 +570,7 @@ and gen_expr ctx e =
 		spr ctx " do ";
 		gen_expr ctx e;
 		handle_break();
+		newline ctx;
 		spr ctx "end ";
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
