@@ -730,6 +730,8 @@ class Manager<T : Object> {
 		return v + " IN (" + b.toString() + ")";
 	}
 
+	// We need Bytes.toString to not be DCE'd. See #1937
+	@:keep static function __depends() { return haxe.io.Bytes.alloc(0).toString(); }
 }
 
 private typedef CacheType<T> = Dynamic;
