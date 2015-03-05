@@ -1692,10 +1692,11 @@ struct
 	let rec prev_ctor c tl =
 		match c.cl_super with
 		| None -> raise Not_found
-		| Some (sup,stl) -> let stl = List.map (apply_params c.cl_params tl) stl in
-		match sup.cl_constructor with
-		| None -> prev_ctor sup stl
-		| Some ctor -> ctor, sup, stl
+		| Some (sup,stl) ->
+			let stl = List.map (apply_params c.cl_params tl) stl in
+			match sup.cl_constructor with
+			| None -> prev_ctor sup stl
+			| Some ctor -> ctor, sup, stl
 
 	(* replaces super() call with last static constructor call *)
 	let replace_super_call gen name c tl with_params me p =
@@ -2016,10 +2017,10 @@ struct
 							in
 							let args,_ = get_fun sctor.cf_type in
 							let best = loop sctor.cf_overloads (sctor, List.length args) in
-							let args,_ = get_fun best.cf_type in
+							let args,_ = get_fun (apply_params sup.cl_params stl best.cf_type) in
 							[{
 								eexpr = TCall(
-									{ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = cl.cl_pos },
+									{ eexpr = TConst TSuper; etype = TInst(sup, stl); epos = cl.cl_pos },
 									List.map (fun (n,o,t) -> null t cl.cl_pos) args);
 								etype = basic.tvoid;
 								epos = cl.cl_pos
@@ -6265,7 +6266,8 @@ struct
 			let is_empty_call = Type.type_iseq t empty_t in
 			let ret = List.filter (fun cf -> match follow cf.cf_type with
 			(* | TFun([_,_,t],_) -> incr count; true *)
-			| TFun([_,_,t],_) -> replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
+			| TFun([_,_,t],_) ->
+				replace_mono t; incr count; is_empty_call = (Type.type_iseq t empty_t)
 			| _ -> false) ctors in
 			ret, !count > 1
 		| _ ->
@@ -6278,12 +6280,13 @@ struct
 			| [], [] -> true
 			| (_,_,t) :: arglist, et :: elist -> (try
 				let t = run_follow gen t in
-				unify et t;
+				unify t et;
 				check_arg arglist elist
 			with | Unify_error el ->
 				(* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) p) el; *)
 				false)
-			| _ -> false
+			| _ ->
+				false
 		in
 		let rec check_cf cf =
 			let t = apply_params sup.cl_params stl cf.cf_type in
@@ -6573,7 +6576,8 @@ struct
 				(* the TNew and TSuper code was modified at r6497 *)
 				| TCall( { eexpr = TConst TSuper } as ef, eparams ) ->
 					let cl, tparams = match follow ef.etype with
-					| TInst(cl,p) -> cl, p
+					| TInst(cl,p) ->
+						cl,p
 					| _ -> assert false in
 					(try
 						let is_overload, cf, sup, stl = choose_ctor gen cl tparams (List.map (fun e -> e.etype) eparams) maybe_empty_t e.epos in

@@ -56,6 +56,7 @@ using StringTools;
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic>
 	{
+		var c = java.Lib.toNativeType(c);
 		var cl:java.lang.Class<Dynamic> = c == null ? null : untyped c.getSuperclass();
 		if (cl != null && cl.getName() != "haxe.lang.HxObject" && cl.getName() != "java.lang.Object") {
 			return cast cl;
