@@ -187,7 +187,7 @@ package cs.internal;
 	}
 
 	@:extern
-	static inline function __insert<T>(a:cs.Ref<cs.NativeArray<T>>, length:Int, pos:Int, x:T)
+	static inline function __insert<T>(a:cs.NativeArray<T>, length:Int, pos:Int, x:T):cs.NativeArray<T>
 	{
 		var capacity = a.Length;
 		if (pos == length)
@@ -228,10 +228,11 @@ package cs.internal;
 			}
 		}
 		a[pos] = x;
+		return a;
 	}
 
-	static function insertInt(a:cs.Ref<cs.NativeArray<Int>>, length:Int, pos:Int, x:Int) __insert(a, length, pos, x);
-	static function insertFloat(a:cs.Ref<cs.NativeArray<Float>>, length:Int, pos:Int, x:Float) __insert(a, length, pos, x);
-	static function insertDynamic(a:cs.Ref<cs.NativeArray<Dynamic>>, length:Int, pos:Int, x:Dynamic) __insert(a, length, pos, x);
+	static function insertInt(a:cs.NativeArray<Int>, length:Int, pos:Int, x:Int):cs.NativeArray<Int> return __insert(a, length, pos, x);
+	static function insertFloat(a:cs.NativeArray<Float>, length:Int, pos:Int, x:Float):cs.NativeArray<Float> return __insert(a, length, pos, x);
+	static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic> return __insert(a, length, pos, x);
 	#end
 }

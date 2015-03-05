@@ -2717,7 +2717,7 @@ let configure gen =
 	let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
 
 	let rcf_static_insert, rcf_static_remove =
-		if Common.defined gen.gcon Define.EraseGenerics then begin
+		if erase_generics then begin
 			let get_specialized_postfix t = match t with
 				| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
 				| TAnon _ | TDynamic _ -> "Dynamic"
@@ -2800,7 +2800,10 @@ let configure gen =
 			rcf_on_call_field
 			(fun hash hash_array length -> { hash with eexpr = TCall(rcf_static_find, [hash; hash_array; length]); etype=basic.tint })
 			(fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring })
-			(fun hash_array length pos value -> { value with eexpr = TCall(rcf_static_insert value.etype, [hash_array; length; pos; value]); etype = gen.gcon.basic.tvoid })
+			(fun hash_array length pos value ->
+				let ecall = mk (TCall(rcf_static_insert value.etype, [hash_array; length; pos; value])) (if erase_generics then hash_array.etype else basic.tvoid) hash_array.epos in
+				if erase_generics then { ecall with eexpr = TBinop(OpAssign, hash_array, ecall) } else ecall
+			)
 			(fun hash_array length pos ->
 				let t = gen.gclasses.nativearray_type hash_array.etype in
 				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
