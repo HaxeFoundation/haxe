@@ -26,6 +26,7 @@ import python.lib.io.FileIO;
 import python.lib.io.TextIOBase;
 import python.lib.Subprocess.StartupInfo;
 import python.Tuple;
+import python.Dict;
 
 typedef PopenOptions = {
 	?bufsize : Int,

@@ -25,6 +25,7 @@ import python.Tuple.Tuple2;
 
 import python.NativeIterable;
 import python.NativeIterator;
+import python.Dict;
 
 extern class XMLParser {
 

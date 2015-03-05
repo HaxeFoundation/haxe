@@ -23,5 +23,5 @@ package python.internal;
 
 @:native("_hx_AnonObject")
 class AnonObject {
-	public function new(fields:python.lib.Dict<String, Dynamic>) {}
+	public function new(fields:python.Dict<String, Dynamic>) {}
 }

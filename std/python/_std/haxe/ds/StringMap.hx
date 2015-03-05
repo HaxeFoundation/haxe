@@ -23,7 +23,7 @@ package haxe.ds;
 
 
 import python.Syntax;
-import python.lib.Dict;
+import python.Dict;
 
 class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	private var h : Dict<String,T>;

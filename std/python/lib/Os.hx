@@ -24,6 +24,7 @@ package python.lib;
 
 import python.lib.Exceptions.OSError;
 import python.Tuple;
+import python.Dict;
 
 extern class Stat {
 	public var st_mode:Int;

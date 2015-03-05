@@ -26,9 +26,9 @@ import haxe.io.BytesData;
 
 @:coreApi class Resource {
 
-	static var content : python.lib.Dict<String, BytesData> = null;
+	static var content:python.Dict<String,BytesData>;
 
-	static function getContent ():python.lib.Dict<String, BytesData> {
+	static function getContent():python.Dict<String,BytesData> {
 		if (content == null) content = untyped _hx_resources__();
 		return content;
 	}

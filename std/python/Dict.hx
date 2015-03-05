@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib;
+package python;
 
 import python.internal.UBuiltins;
 import python.Tuple;
@@ -44,9 +44,8 @@ extern class DictView<T> {
 	}
 }
 
-@:pythonImport("builtins", "dict")
-extern class Dict <K, V>
-{
+@:native("dict")
+extern class Dict<K,V> {
 	public function new ():Void;
 
 	public inline function length ():Int

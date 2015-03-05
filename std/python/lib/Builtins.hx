@@ -23,7 +23,7 @@ package python.lib;
 
 
 import python.lib.io.FileIO;
-import python.lib.Dict;
+import python.Dict;
 import python.lib.io.IOBase;
 import python.NativeIterable;
 import python.NativeIterator;

@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-import python.lib.Dict;
+import python.Dict;
 import python.Syntax;
 
 class IntMap<T> implements haxe.Constraints.IMap<Int, T> {

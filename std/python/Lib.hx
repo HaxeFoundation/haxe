@@ -22,7 +22,7 @@
 package python;
 
 import python.internal.AnonObject;
-import python.lib.Dict;
+import python.Dict;
 import python.NativeStringTools;
 
 typedef PySys = python.lib.Sys;

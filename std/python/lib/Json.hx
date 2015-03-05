@@ -22,7 +22,7 @@
 package python.lib;
 
 import python.KwArgs;
-import python.lib.Dict;
+import python.Dict;
 import python.Tuple.Tuple2;
 
 @:pythonImport("json")

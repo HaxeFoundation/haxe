@@ -21,7 +21,7 @@
  */
 package python;
 
-import python.lib.Dict;
+import python.Dict;
 
 /**
 	This type represents python `**kwargs` feature, supporting

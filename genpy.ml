@@ -79,7 +79,8 @@ module KeywordHandler = struct
 		let h = Hashtbl.create 0 in
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"len"; "int"; "float"; "list"; "bool"; "str"; "isinstance"; "print"; "min"; "max";
-			"hasattr"; "getattr"; "setattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter"; "tuple";
+			"hasattr"; "getattr"; "setattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter";
+			"tuple"; "dict";
 		];
 		h
 
@@ -2297,7 +2298,7 @@ module Generator = struct
 			newline ctx;
 			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
-				spr ctx "\tdef __init__(self,fields):\n";
+				spr ctx "\tdef __init__(self, fields):\n";
 				spr ctx "\t\tself.__dict__ = fields"
 			end else
 				spr ctx "\tpass";

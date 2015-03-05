@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-import python.lib.Dict;
+import python.Dict;
 
 class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K, V> {
 
