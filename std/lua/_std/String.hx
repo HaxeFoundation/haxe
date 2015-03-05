@@ -35,7 +35,13 @@ extern class String {
 		return lua.StringTools.find(this, str, startIndex, str.length, true);
 	}
 	inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
-		return 0;
+		var i = 0;
+		var ret = 0;
+		while(i != null){
+			i = this.indexOf(str, i);
+			if (i != null) ret = i;
+		}
+		return ret-1;
 	}
 	inline function split( delimiter : String ) : Array<String> {
 		return [];
@@ -61,8 +67,10 @@ extern class String {
 	}
 
 	inline function substr( pos : Int, ?len : Int ) : String {
-		return lua.StringTools.substr(this, pos, len);
+		if (len == null || len > pos + this.length) len = this.length;
+		return lua.StringTools.sub(this, pos + 1, pos+len + 1);
 	}
 
 	static function fromCharCode( code : Int ) : String;
 }
+

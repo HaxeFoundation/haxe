@@ -1,4 +1,8 @@
 package lua;
+/**
+  These are all externs for the base Lua "string" class.  Note that all
+  relevant indexes are "1" based.
+ **/
 @:native("_G.string") 
 extern class StringTools {
 	public static function len(str:String) : Int;
@@ -8,6 +12,6 @@ extern class StringTools {
 	public static function byte(str:String, index:Int) : Int;
 
 	@:overload(function(pos:Int):String{})
-	public static function substr(str:String, pos:Int, len:Int) : String;
 	//TODO: The rest
 }
+
