@@ -371,29 +371,29 @@ class TestPython extends Test {
 	}
 
 	function testTupleCreation() {
-		var t = Tuple1.create(1);
+		var t = Tuple1.make(1);
 		eq(t._1, 1);
 		eq(t.length, 1);
 
-		var t = Tuple2.create(1, 2);
+		var t = Tuple2.make(1, 2);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t.length, 2);
 
-		var t = Tuple3.create(1, 2, 3);
+		var t = Tuple3.make(1, 2, 3);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t._3, 3);
 		eq(t.length, 3);
 
-		var t = Tuple4.create(1, 2, 3, 4);
+		var t = Tuple4.make(1, 2, 3, 4);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t._3, 3);
 		eq(t._4, 4);
 		eq(t.length, 4);
 
-		var t = Tuple5.create(1, 2, 3, 4, 5);
+		var t = Tuple5.make(1, 2, 3, 4, 5);
 		eq(t._1, 1);
 		eq(t._2, 2);
 		eq(t._3, 3);
