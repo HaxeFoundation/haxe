@@ -29,6 +29,20 @@ class TestJava extends Test
     catch(e:Dynamic) throw e; //shouldn't throw any exception
   }
 
+	public function testVarClash()
+	{
+		var ic = new Base_InnerClass2();
+		eq(ic.varNameClash2(), 1);
+		eq(ic.varNameClash2(2),2.2);
+		var iface:Base_VarNameClash = ic;
+		eq(iface.varNameClash2(), 1);
+		eq(iface.varNameClash2(2),2.2);
+		var base:Base = ic;
+		eq(base.varNameClash2,0);
+		base.varNameClash2 = 2;
+		eq(base.varNameClash2,2);
+	}
+
 	@:strict(MyClass_MyAnnotation({ author:"author", currentRevision: 2 }))
 	public function testAnnotations()
 	{

@@ -1351,6 +1351,8 @@ type tfield_access =
 	| FDynamicField of t
 	| FNotFound
 
+let is_var f = match f.cf_kind with | Var _ -> true | _ -> false
+
 let find_first_declared_field gen orig_cl ?exact_field field =
 	let chosen = ref None in
 	let is_overload = ref false in
@@ -1359,7 +1361,7 @@ let find_first_declared_field gen orig_cl ?exact_field field =
 			let ret = PMap.find field c.cl_fields in
 			if Meta.has Meta.Overload ret.cf_meta then is_overload := true;
 			match !chosen, exact_field with
-			| Some(d,_,_,_,_), _ when depth <= d -> ()
+			| Some(d,f,_,_,_), _ when depth <= d || (is_var ret && not (is_var f)) -> ()
 			| _, None ->
 				chosen := Some(depth,ret,c,tl,tlch)
 			| _, Some f2 ->
