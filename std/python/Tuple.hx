@@ -42,14 +42,14 @@ extern class Tuple<X> implements ArrayAccess<X> {
 
 @:native("tuple")
 extern class Tuple1<A> extends Tuple<Dynamic> {
-	static inline function create<A>(a:A):Tuple1<A> return Syntax.tuple(a);
+	static inline function make<A>(a:A):Tuple1<A> return Syntax.tuple(a);
 	var _1(get, null):A;
 	inline function get__1():A return this[0];
 }
 
 @:native("tuple")
 extern class Tuple2<A,B> extends Tuple<Dynamic> {
-	static inline function create <A,B>(a:A, b:B):Tuple2<A,B> return Syntax.tuple(a,b);
+	static inline function make <A,B>(a:A, b:B):Tuple2<A,B> return Syntax.tuple(a,b);
 	var _1(get, null):A;
 	inline function get__1():A return this[0];
 	var _2(get, null):B;
@@ -58,7 +58,7 @@ extern class Tuple2<A,B> extends Tuple<Dynamic> {
 
 @:native("tuple")
 extern class Tuple3<A,B,C> extends Tuple<Dynamic> {
-	static inline function create <A,B,C>(a:A, b:B,c:C):Tuple3<A,B,C> return Syntax.tuple(a,b,c);
+	static inline function make <A,B,C>(a:A, b:B,c:C):Tuple3<A,B,C> return Syntax.tuple(a,b,c);
 	var _1(get, null):A;
 	inline function get__1():A return this[0];
 	var _2(get, null):B;
@@ -69,7 +69,7 @@ extern class Tuple3<A,B,C> extends Tuple<Dynamic> {
 
 @:native("tuple")
 extern class Tuple4<A,B,C,D> extends Tuple<Dynamic> {
-	static inline function create <A,B,C,D>(a:A, b:B,c:C,d:D):Tuple4<A,B,C,D> return Syntax.tuple(a,b,c,d);
+	static inline function make <A,B,C,D>(a:A, b:B,c:C,d:D):Tuple4<A,B,C,D> return Syntax.tuple(a,b,c,d);
 	var _1(get, null):A;
 	inline function get__1():A return this[0];
 	var _2(get, null):B;
@@ -82,7 +82,7 @@ extern class Tuple4<A,B,C,D> extends Tuple<Dynamic> {
 
 @:native("tuple")
 extern class Tuple5<A,B,C,D,E> extends Tuple<Dynamic> {
-	static inline function create <A,B,C,D,E>(a:A, b:B,c:C,d:D,e:E):Tuple5<A,B,C,D,E> return Syntax.tuple(a,b,c,d,e);
+	static inline function make <A,B,C,D,E>(a:A, b:B,c:C,d:D,e:E):Tuple5<A,B,C,D,E> return Syntax.tuple(a,b,c,d,e);
 	var _1(get, null):A;
 	inline function get__1():A return this[0];
 	var _2(get, null):B;
