@@ -553,7 +553,7 @@ class RunCi {
 						var scVersion = "sc-4.3-linux";
 						runCommand("wget", ['https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
 						runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
-						
+
 						//start sauce-connect
 						var scReadyFile = "sauce-connect-ready-" + Std.random(100);
 						var sc = new Process('${scVersion}/bin/sc', [
@@ -569,7 +569,7 @@ class RunCi {
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
 						runCommand("node", ["bin/RunSauceLabs.js", "unit-js.html"]);
-						
+
 						server.close();
 						sc.close();
 					}
@@ -586,6 +586,22 @@ class RunCi {
 					runCommand("haxe", ["compile-java.hxml"]);
 					changeDirectory("bin/java");
 					runCommand("java", ["-jar", "Main-Debug.jar"].concat(args));
+
+					infoMsg("Testing java-lib extras");
+					changeDirectory('$unitDir/bin');
+					runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
+					for (dir in FileSystem.readDirectory('java-lib-tests'))
+					{
+						var path = 'java-lib-tests/$dir';
+						if (FileSystem.isDirectory(path)) for (file in FileSystem.readDirectory(path))
+						{
+							if (file.endsWith('.hxml'))
+							{
+								runCommand("haxe", ["--cwd",'java-lib-tests/$dir',file]);
+							}
+						}
+					}
+
 				case Cs:
 					getCsDependencies();
 
