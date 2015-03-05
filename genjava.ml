@@ -1140,6 +1140,7 @@ let configure gen =
 		match e.eexpr with
 			| TLocal { v_name = "__fallback__" }
 			| TCall ({ eexpr = TLocal( { v_name = "__label__" } ) }, [ { eexpr = TConst(TInt _) } ] ) -> false
+			| TCall ({ eexpr = TLocal( { v_name = "__lock__" } ) }, _ ) -> false
 			| TBlock _ | TFor _ | TSwitch _ | TTry _ | TIf _ -> false
 			| TWhile (_,_,flag) when flag = Ast.NormalWhile -> false
 			| _ -> true
@@ -1303,7 +1304,16 @@ let configure gen =
 					Codegen.interpolate_code gen.gcon s tl (write w) (expr_s w) e.epos
 				| TCall ({ eexpr = TLocal( { v_name = "__lock__" } ) }, [ eobj; eblock ] ) ->
 					write w "synchronized(";
-					expr_s w eobj;
+					let rec loop eobj = match eobj.eexpr with
+						| TTypeExpr md ->
+							expr_s w eobj;
+							write w ".class"
+						| TMeta(_,e) | TParenthesis(e) ->
+							loop e
+						| _ ->
+							expr_s w eobj
+					in
+					loop eobj;
 					write w ")";
 					(match eblock.eexpr with
 					| TBlock(_ :: _) ->
