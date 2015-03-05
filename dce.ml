@@ -317,7 +317,7 @@ and check_anon_optional_write dce fa =
 
 and is_array t = match follow t with
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> is_array (Abstract.get_underlying_type a tl)
-	| TInst({ cl_path = ([], ("list" | "Array"))},_) -> true
+	| TInst({ cl_path = ([], "Array")},_) -> true
 	| _ -> false
 
 and is_dynamic t = match follow t with
@@ -327,7 +327,7 @@ and is_dynamic t = match follow t with
 
 and is_string t = match follow t with
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> is_string (Abstract.get_underlying_type a tl)
-	| TInst( { cl_path = ([], ("str" | "String"))}, _) -> true
+	| TInst( { cl_path = ([], "String")}, _) -> true
 	| _ -> false
 
 and is_const_string e = match e.eexpr with
