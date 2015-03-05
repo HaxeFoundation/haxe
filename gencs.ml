@@ -713,6 +713,11 @@ let rec get_fun_modifiers meta access modifiers =
 (* this was the way I found to pass the generator context to be accessible across all functions here *)
 (* so 'configure' is almost 'top-level' and will have all functions needed to make this work *)
 let configure gen =
+	let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
+	gen.gclasses.nativearray <- (fun t -> TInst(native_arr_cl,[t]));
+	gen.gclasses.nativearray_type <- (function TInst(_,[t]) -> t | _ -> assert false);
+	gen.gclasses.nativearray_len <- (fun e p -> mk_field_access gen e "Length" p);
+
 	let basic = gen.gcon.basic in
 
 	let erase_generics = Common.defined gen.gcon Define.EraseGenerics in
@@ -2711,6 +2716,20 @@ let configure gen =
 	let rcf_static_find = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "findHash" Ast.null_pos [] in
 	let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" Ast.null_pos [] in
 
+	let rcf_static_insert, rcf_static_remove =
+		if erase_generics then begin
+			let get_specialized_postfix t = match t with
+				| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
+				| TAnon _ | TDynamic _ -> "Dynamic"
+				| _ -> print_endline (debug_type t); assert false
+			in
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) Ast.null_pos []),
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) Ast.null_pos [])
+		end else
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "insert" Ast.null_pos [t]),
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "remove" Ast.null_pos [t])
+	in
+
 	let can_be_float = like_float in
 
 	let rcf_on_getset_field main_expr field_expr field may_hash may_set is_unsafe =
@@ -2771,9 +2790,26 @@ let configure gen =
 		TypeParams.RealTypeParams.RealTypeParamsModf.configure gen (TypeParams.RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen)
 	end;
 
-	let rcf_ctx = ReflectionCFs.new_ctx gen closure_t object_iface true rcf_on_getset_field rcf_on_call_field (fun hash hash_array ->
-		{ hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
-	) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) false in
+	let rcf_ctx =
+		ReflectionCFs.new_ctx
+			gen
+			closure_t
+			object_iface
+			true
+			rcf_on_getset_field
+			rcf_on_call_field
+			(fun hash hash_array length -> { hash with eexpr = TCall(rcf_static_find, [hash; hash_array; length]); etype=basic.tint })
+			(fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring })
+			(fun hash_array length pos value ->
+				let ecall = mk (TCall(rcf_static_insert value.etype, [hash_array; length; pos; value])) (if erase_generics then hash_array.etype else basic.tvoid) hash_array.epos in
+				if erase_generics then { ecall with eexpr = TBinop(OpAssign, hash_array, ecall) } else ecall
+			)
+			(fun hash_array length pos ->
+				let t = gen.gclasses.nativearray_type hash_array.etype in
+				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
+			)
+			false
+	in
 
 	ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
 
@@ -3041,7 +3077,6 @@ let configure gen =
 
 	UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen false true true false);
 
-	let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
 	ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
 
 	let goto_special = alloc_var "__goto__" t_dynamic in

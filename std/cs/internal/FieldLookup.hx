@@ -98,10 +98,10 @@ package cs.internal;
 		return key;
 	}
 
-	public static function findHash(hash:Int, hashs:Array<Int>):Int
+	public static function findHash(hash:Int, hashs:cs.NativeArray<Int>, length:Int):Int
 	{
 		var min = 0;
-		var max = hashs.length;
+		var max = length;
 
 		while (min < max)
 		{
@@ -120,4 +120,119 @@ package cs.internal;
 		return ~min;
 	}
 
+	#if !erase_generics
+	static function remove<T>(a:cs.NativeArray<T>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = null;
+	}
+
+	static function insert<T>(a:cs.Ref<cs.NativeArray<T>>, length:Int, pos:Int, x:T)
+	{
+		var capacity = a.Length;
+		if (pos == length)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				a.CopyTo(newarr, 0);
+				a = newarr;
+			}
+		}
+		else if (pos == 0)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 1, length);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, 0, a, 1, length);
+			}
+		}
+		else
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 0, pos);
+				cs.system.Array.Copy(a, pos, newarr, pos + 1, length - pos);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, pos, a, pos + 1, length - pos);
+				cs.system.Array.Copy(a, 0, a, 0, pos);
+			}
+		}
+		a[pos] = x;
+	}
+	#else
+	static function removeInt(a:cs.NativeArray<Int>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = 0;
+	}
+	static function removeFloat(a:cs.NativeArray<Float>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = 0;
+	}
+	static function removeDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = null;
+	}
+
+	@:extern
+	static inline function __insert<T>(a:cs.NativeArray<T>, length:Int, pos:Int, x:T):cs.NativeArray<T>
+	{
+		var capacity = a.Length;
+		if (pos == length)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				a.CopyTo(newarr, 0);
+				a = newarr;
+			}
+		}
+		else if (pos == 0)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 1, length);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, 0, a, 1, length);
+			}
+		}
+		else
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 0, pos);
+				cs.system.Array.Copy(a, pos, newarr, pos + 1, length - pos);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, pos, a, pos + 1, length - pos);
+				cs.system.Array.Copy(a, 0, a, 0, pos);
+			}
+		}
+		a[pos] = x;
+		return a;
+	}
+
+	static function insertInt(a:cs.NativeArray<Int>, length:Int, pos:Int, x:Int):cs.NativeArray<Int> return __insert(a, length, pos, x);
+	static function insertFloat(a:cs.NativeArray<Float>, length:Int, pos:Int, x:Float):cs.NativeArray<Float> return __insert(a, length, pos, x);
+	static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic> return __insert(a, length, pos, x);
+	#end
 }
