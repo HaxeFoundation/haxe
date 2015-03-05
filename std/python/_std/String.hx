@@ -33,8 +33,8 @@
 #if !macro
 import python.internal.StringImpl;
 #end
-@:pythonImport("builtins", "str")
 @:coreApi
+@:native("str")
 extern class String {
 	/**
 		The number of characters in [this] String.

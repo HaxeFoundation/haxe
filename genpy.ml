@@ -791,7 +791,7 @@ module Transformer = struct
 
 		| (is_value, TSwitch(e, cases, edef)) ->
 			begin match follow e.etype with
-				| TInst({cl_path = [],"String"},_) ->
+				| TInst({cl_path = [],"str"},_) ->
 					transform_string_switch ae is_value e cases edef
 				| _ ->
 					transform_switch ae is_value e cases edef
@@ -842,7 +842,7 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s)},e2)) ->
 			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 in
 			transform_expr ~is_value:is_value e
-		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("String" | "list")},_),cf))) ->
+		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str" | "list")},_),cf))) ->
 			let e = dynamic_field_read e1 cf.cf_name in
 			transform_expr ~is_value:is_value e
 		| (is_value, TBinop(OpAssign, left, right))->
@@ -1006,7 +1006,7 @@ module Printer = struct
 		)
 
 	let is_underlying_string t = match follow t with
-		| TAbstract(a,tl) -> (is_type1 "" "String")(Abstract.get_underlying_type a tl)
+		| TAbstract(a,tl) -> (is_type1 "" "str")(Abstract.get_underlying_type a tl)
 		| _ -> false
 	let is_underlying_array t = match follow t with
 		| TAbstract(a,tl) -> (is_type1 "" "list")(Abstract.get_underlying_type a tl)
@@ -1235,7 +1235,7 @@ module Printer = struct
 					   see: https://github.com/HaxeFoundation/haxe/issues/2952
 					*)
 					(* Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2) *)
-				| TAbstract({a_path = [],("String")}, []),TAbstract({a_path = [],("String")}, []) when (is_type1 "" "String") (e.etype)->
+				| TInst({cl_path = [],("str")}, []),TInst({cl_path = [],("str")}, []) when (is_type1 "" "str") (e.etype)->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TInst({cl_path = [],("list")},_), _ ->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
@@ -1250,7 +1250,7 @@ module Printer = struct
 				Printf.sprintf "HxOverrides.modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpUShr,e1,e2) ->
 				Printf.sprintf "HxOverrides.rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
-			| TBinop(OpAdd,e1,e2) when (is_type1 "" "String")(e.etype) || is_underlying_string e.etype ->
+			| TBinop(OpAdd,e1,e2) when (is_type1 "" "str")(e.etype) || is_underlying_string e.etype ->
 				let follow_parens e = match e.eexpr with
 					| TParenthesis e -> e
 					| _ -> e
@@ -1269,15 +1269,15 @@ module Printer = struct
 				let rec safe_string ex =
 					match ex.eexpr, ex.etype with
 						| e, _ when is_safe_string ex -> print_expr pctx ex
-						| TBinop(OpAdd, e1, e2), x when (is_type1 "" "String")(x) -> Printf.sprintf "(%s + %s)" (safe_string e1) (safe_string e2)
-						| (TLocal(_)),x when (is_type1 "" "String")(x) ->
+						| TBinop(OpAdd, e1, e2), x when (is_type1 "" "str")(x) -> Printf.sprintf "(%s + %s)" (safe_string e1) (safe_string e2)
+						| (TLocal(_)),x when (is_type1 "" "str")(x) ->
 							(*
 								we could add this pattern too, but is it sideeffect free??
 								| TField({ eexpr = TLocal(_)},_)
 							*)
 							let s = (print_expr pctx ex) in
 							Printf.sprintf "(\"null\" if %s is None else %s)" s s
-						| _,x when (is_type1 "" "String")(x) -> Printf.sprintf "HxOverrides.stringOrNull(%s)" (print_expr pctx ex)
+						| _,x when (is_type1 "" "str")(x) -> Printf.sprintf "HxOverrides.stringOrNull(%s)" (print_expr pctx ex)
 						| _,_ ->
 							if has_feature pctx "Std.string" then
 								Printf.sprintf "Std.string(%s)" (print_expr pctx ex)
@@ -1409,9 +1409,9 @@ module Printer = struct
 			(* we need to get rid of these cases in the transformer, how is this handled in js *)
 			| FInstance(c,_,{cf_name = "length"}) when (is_type "" "list")(TClassDecl c) ->
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
-			| FInstance(c,_,{cf_name = "length"}) when (is_type "" "String")(TClassDecl c) ->
+			| FInstance(c,_,{cf_name = "length"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
-			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "String")(TClassDecl c) ->
+			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "HxString.fromCharCode"
 			| FStatic({cl_path = ["python";"internal"],"UBuiltins"},{cf_name = s}) ->
 				s
@@ -1451,7 +1451,7 @@ module Printer = struct
 					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s\t%s\t%s" t_str indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
 				in
 				let res = match t with
-				| "String" -> print_type_check "str"
+				| "str" -> print_type_check "str"
 				| "Bool" -> print_type_check "bool"
 				| "Int" -> print_type_check "int"
 				| "Float" -> print_type_check "float"
