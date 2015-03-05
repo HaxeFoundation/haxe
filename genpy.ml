@@ -1235,8 +1235,6 @@ module Printer = struct
 					   see: https://github.com/HaxeFoundation/haxe/issues/2952
 					*)
 					(* Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2) *)
-				| TInst({cl_path = [],("str")}, []),TInst({cl_path = [],("str")}, []) when (is_type1 "" "str") (e.etype)->
-					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TInst({cl_path = [],("list")},_), _ ->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TDynamic _, TDynamic _ ->
