@@ -2390,7 +2390,6 @@ let init_class ctx c p context_init herits fields =
 							if constr then FunConstructor else if stat then FunStatic else FunMember
 					) in
 					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
-					(* TODO is_lib: avoid typing function here ? *)
 					match ctx.com.platform with
 						| Java when Meta.has Meta.Native cf.cf_meta ->
 							if fd.f_expr <> None then
