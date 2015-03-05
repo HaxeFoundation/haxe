@@ -86,6 +86,10 @@ let rec check_feature dce s =
 	with Not_found ->
 		()
 
+and check_and_add_feature dce s =
+	check_feature dce s;
+	Common.add_feature dce.com s;
+
 (* mark a field as kept *)
 and mark_field dce c cf stat =
 	let add cf =
@@ -137,6 +141,7 @@ end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
 	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
+	check_and_add_feature dce "has_enum";
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end
@@ -177,7 +182,7 @@ and mark_t dce p t =
 			List.iter (mark_t dce p) pl;
 			if not (Meta.has Meta.CoreType a.a_meta) then
 				mark_t dce p (Abstract.get_underlying_type a pl)
-		| TLazy _ | TDynamic _ | TAnon _ | TType _ | TMono _ -> ()
+		| TLazy _ | TDynamic _ | TType _ | TAnon _ | TMono _ -> ()
 		end;
 		dce.t_stack <- List.tl dce.t_stack
 	end
@@ -300,6 +305,35 @@ and mark_directly_used_mt mt =
 	| _ ->
 		()
 
+and check_dynamic_write dce fa =
+	let n = field_name fa in
+	check_and_add_feature dce ("dynamic_write");
+	check_and_add_feature dce ("dynamic_write." ^ n)
+
+and check_anon_optional_write dce fa =
+	let n = field_name fa in
+	check_and_add_feature dce ("anon_optional_write");
+	check_and_add_feature dce ("anon_optional_write." ^ n)
+
+and is_array t = match follow t with
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> is_array (Abstract.get_underlying_type a tl)
+	| TInst({ cl_path = ([], ("list" | "Array"))},_) -> true
+	| _ -> false
+
+and is_dynamic t = match follow t with
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> is_dynamic (Abstract.get_underlying_type a tl)
+	| TDynamic _ -> true
+	| _ -> false
+
+and is_string t = match follow t with
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> is_string (Abstract.get_underlying_type a tl)
+	| TInst( { cl_path = ([], ("str" | "String"))}, _) -> true
+	| _ -> false
+
+and is_const_string e = match e.eexpr with
+	| TConst(TString(_)) -> true
+	| _ -> false
+
 and expr dce e =
 	mark_t dce e.epos e.etype;
 	match e.eexpr with
@@ -317,6 +351,9 @@ and expr dce e =
 		mark_mt dce mt;
 		mark_directly_used_mt mt;
 		expr dce e;
+	| TObjectDecl(vl) ->
+		check_and_add_feature dce "has_anon";
+		List.iter (fun (_,e) -> expr dce e) vl;
 	| TTypeExpr mt ->
 		mark_mt dce mt;
 		mark_directly_used_mt mt;
@@ -327,10 +364,15 @@ and expr dce e =
 			expr dce e;
 			mark_t dce e.epos v.v_type;
 		) vl;
+	| TCall ({eexpr = TLocal ({v_name = "`trace"})},[p;{ eexpr = TObjectDecl(v)}]) ->
+		check_and_add_feature dce "has_anon_trace";
+		List.iter (fun (_,e) -> expr dce e) v;
+		expr dce p;
 	| TCall ({eexpr = TLocal ({v_name = "__define_feature__"})},[{eexpr = TConst (TString ft)};e]) ->
 		Hashtbl.replace dce.curclass.cl_module.m_extra.m_features ft true;
 		check_feature dce ft;
-		expr dce e
+		expr dce e;
+
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
@@ -356,6 +398,62 @@ and expr dce e =
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
 		mark_t dce e.epos e.etype;
 		List.iter (expr dce) el;
+	| TBinop(OpAdd,e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
+		check_and_add_feature dce "add_dynamic";
+		expr dce e1;
+		expr dce e2;
+	| TBinop( (OpAdd | (OpAssignOp OpAdd)),e1,e2) when ((is_string e1.etype || is_string e2.etype) && not ( is_const_string e1 && is_const_string e2)) ->
+		check_and_add_feature dce "unsafe_string_concat";
+		expr dce e1;
+		expr dce e2;
+	| TArray(({etype = TDynamic t} as e1),e2) when t == t_dynamic ->
+		check_and_add_feature dce "dynamic_array_read";
+		expr dce e1;
+		expr dce e2;
+	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = TDynamic t},_)} as e1), e2) when t == t_dynamic ->
+		check_and_add_feature dce "dynamic_array_write";
+		expr dce e1;
+		expr dce e2;
+	| TArray(({etype = t} as e1),e2) when is_array t ->
+		check_and_add_feature dce "array_read";
+		expr dce e1;
+		expr dce e2;
+	| TBinop( (OpAssign | OpAssignOp _), ({eexpr = TArray({etype = t},_)} as e1), e2) when is_array t ->
+		check_and_add_feature dce "array_write";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpAssign,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
+		check_dynamic_write dce fa;
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpAssign,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) when Meta.has Meta.Optional cf.cf_meta ->
+		check_anon_optional_write dce fa;
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpAssignOp op,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
+		check_dynamic_write dce fa;
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpAssignOp op,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) when Meta.has Meta.Optional cf.cf_meta ->
+		check_anon_optional_write dce fa;
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
+		check_and_add_feature dce "dynamic_binop_==";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
+		check_and_add_feature dce "dynamic_binop_!=";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpMod,e1,e2) ->
+		check_and_add_feature dce "binop_%";
+		expr dce e1;
+		expr dce e2;
+	| TBinop(OpUShr,e1,e2) ->
+		check_and_add_feature dce "binop_>>>";
+		expr dce e1;
+		expr dce e2;
 	| TField(e,fa) ->
 		begin match fa with
 			| FStatic(c,cf) ->
@@ -365,7 +463,16 @@ and expr dce e =
 				mark_class dce c;
 				mark_field dce c cf false;
 			| _ ->
+
 				let n = field_name fa in
+				(match fa with
+				| FAnon cf when Meta.has Meta.Optional cf.cf_meta ->
+					check_and_add_feature dce "anon_optional_read";
+					check_and_add_feature dce ("anon_optional_read." ^ n);
+				| FDynamic _ ->
+					check_and_add_feature dce "dynamic_read";
+					check_and_add_feature dce ("dynamic_read." ^ n);
+				| _ -> ());
 				begin match follow e.etype with
 					| TInst(c,_) ->
 						mark_class dce c;
@@ -376,11 +483,14 @@ and expr dce e =
 							mark_class dce c;
 							field dce c n true;
 						| _ -> ())
+
+
 					| _ -> ()
 				end;
 		end;
 		expr dce e;
 	| TThrow e ->
+		check_and_add_feature dce "has_throw";
 		to_string dce e.etype;
 		expr dce e
 	| _ ->
