@@ -1856,8 +1856,8 @@ module Generator = struct
 	let gen_class_constructor ctx c cf =
 		let member_inits = get_members_with_init_expr c in
 		let py_metas = filter_py_metas cf.cf_meta in
-		begin match member_inits,cf.cf_expr with
-			| _,Some ({eexpr = TFunction f} as ef) ->
+		begin match cf.cf_expr with
+			| Some ({eexpr = TFunction f} as ef) ->
 				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_params)) cf.cf_pos in
 				let member_data = List.map (fun cf ->
 					let ef = mk (TField(ethis,FInstance(c,[],cf))) cf.cf_type cf.cf_pos in (* TODO *)
@@ -1866,8 +1866,7 @@ module Generator = struct
 				let e = {f.tf_expr with eexpr = TBlock (member_data @ [f.tf_expr])} in
 				cf.cf_expr <- Some {ef with eexpr = TFunction {f with tf_expr = e}};
 			| _ ->
-				(* TODO: is this correct? *)
-				()
+				assert false
 		end;
 		newline ctx;
 		newline ctx;
