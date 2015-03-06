@@ -238,7 +238,7 @@ class TestPython extends Test {
 	}
 
 	function testOptionalKwArgs () {
-		function test (?kw:KwArgs<Dynamic>) eq(0,kw.toDict().length());
+		function test (?kw:KwArgs<Dynamic>) eq(0,kw.toDict().length);
 		test();
 	}
 
@@ -249,7 +249,7 @@ class TestPython extends Test {
 			eq(1,a[0]);
 			eq(2,a[1]);
 
-			eq(0, kw.toDict().length());
+			eq(0, kw.toDict().length);
 		}
 		var x = [1,2];
 		test(x);
