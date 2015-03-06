@@ -21,7 +21,7 @@
  */
 package python.lib.io;
 
-import python.lib.Exceptions.IOError;
+import python.Exceptions.IOError;
 
 @:pythonImport("io", "UnsupportedOperation")
 class UnsupportedOperation extends IOError {

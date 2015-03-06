@@ -21,7 +21,7 @@
  */
 package python.lib.io;
 
-import python.lib.Exceptions.IOError;
+import python.Exceptions.IOError;
 
 @:pythonImport("io", "BlockingIOError")
 class BlockingIOError extends IOError {

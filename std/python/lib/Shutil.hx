@@ -25,7 +25,7 @@ package python.lib;
 @:pythonImport("shutil")
 extern class Shutil {
 
-	public static function rmtree(path:String, ?ignore_errors:Bool=false, ?onerror:python.lib.Exceptions.BaseException->Void):Void;
+	public static function rmtree(path:String, ?ignore_errors:Bool=false, ?onerror:python.Exceptions.BaseException->Void):Void;
 
 	public static function copyfile (src:String, dst:String):Void;
 

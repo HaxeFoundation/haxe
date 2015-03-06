@@ -21,7 +21,7 @@
  */
 package python;
 
-import python.lib.Exceptions.StopIteration;
+import python.Exceptions.StopIteration;
 import python.NativeIterator;
 
 class HaxeIterator<T> {

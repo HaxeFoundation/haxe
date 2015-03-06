@@ -23,7 +23,7 @@ package python.internal;
 
 @:ifFeature("has_throw")
 @:native("_HxException")
-class HxException extends python.lib.Exceptions.Exception {
+class HxException extends python.Exceptions.Exception {
 	@:ifFeature("has_throw")
 	public var val:Dynamic;
 	@:ifFeature("has_throw")

@@ -24,7 +24,7 @@ package sys.net;
 import haxe.io.Error;
 import haxe.io.Bytes;
 import haxe.io.BytesData;
-import python.lib.Exceptions;
+import python.Exceptions;
 import python.Tuple;
 import python.lib.net.Socket in PSocket;
 import python.lib.net.Socket.Select in Select;

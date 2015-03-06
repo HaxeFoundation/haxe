@@ -22,7 +22,7 @@
 package python.lib;
 
 
-import python.lib.Exceptions.OSError;
+import python.Exceptions.OSError;
 import python.Tuple;
 import python.Dict;
 
