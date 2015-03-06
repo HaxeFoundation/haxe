@@ -1369,6 +1369,61 @@ module Checker = struct
 		loop e;
 end
 
+let rec lrev_iter f el = match el with
+	| e :: el ->
+		lrev_iter f el;
+		f e
+	| [] ->
+		()
+
+let rev_iter f e = match e.eexpr with
+	| TConst _
+	| TLocal _
+	| TBreak
+	| TContinue
+	| TTypeExpr _ ->
+		()
+	| TArray (e1,e2)
+	| TBinop (_,e1,e2)
+	| TFor (_,e1,e2)
+	| TWhile (e1,e2,_) ->
+		f e2;
+		f e1;
+	| TThrow e
+	| TField (e,_)
+	| TEnumParameter (e,_,_)
+	| TParenthesis e
+	| TCast (e,_)
+	| TUnop (_,_,e)
+	| TMeta(_,e) ->
+		f e
+	| TArrayDecl el
+	| TNew (_,_,el)
+	| TBlock el ->
+		lrev_iter f el
+	| TObjectDecl fl ->
+		lrev_iter (fun (_,e) -> f e) fl
+	| TCall (e,el) ->
+		f e;
+		lrev_iter f el
+	| TVar (v,eo) ->
+		(match eo with None -> () | Some e -> f e)
+	| TFunction fu ->
+		f fu.tf_expr
+	| TIf (e,e1,e2) ->
+		(match e2 with None -> () | Some e -> f e);
+		f e1;
+		f e;
+	| TSwitch (e,cases,def) ->
+		(match def with None -> () | Some e -> f e);
+		lrev_iter (fun (el,e2) -> lrev_iter f el; f e2) cases;
+		f e;
+	| TTry (e,catches) ->
+		lrev_iter (fun (_,e) -> f e) catches;
+		f e;
+	| TReturn eo ->
+		(match eo with None -> () | Some e -> f e)
+
 module LocalDce = struct
 	let apply e =
 		let is_used v = Meta.has Meta.Used v.v_meta || type_has_analyzer_option v.v_type flag_no_local_dce || v.v_capture in
@@ -1412,7 +1467,7 @@ module LocalDce = struct
 				(* TODO: this is probably dangerous *)
 				()
 			| _ ->
-				Type.iter collect e
+				rev_iter collect e
 		in
 		let rec loop need_val e =
 			match e.eexpr with
@@ -1453,8 +1508,8 @@ module LocalDce = struct
 				in
 				{e with eexpr = TBlock (block el)}
 			| TCall(e1, el) ->
+				let el = List.rev_map (loop true) (List.rev el) in
 				let e1 = loop false e1 in
-				let el = List.map (loop true) el in
 				{e with eexpr = TCall(e1,el)}
 			| TIf(e1,e2,e3) ->
 				let e3 = match e3 with None -> None | Some e -> Some (loop need_val e) in
@@ -1462,10 +1517,10 @@ module LocalDce = struct
 				let e1 = loop false e1 in
 				{e with eexpr = TIf(e1,e2,e3)}
 			| TArrayDecl el ->
-				let el = List.map (loop true) el in
+				let el = List.rev_map (loop true) (List.rev el) in
 				{e with eexpr = TArrayDecl el}
 			| TObjectDecl fl ->
-				let fl = List.map (fun (s,e) -> s,loop true e) fl in
+				let fl = List.rev_map (fun (s,e) -> s,loop true e) (List.rev fl) in
 				{e with eexpr = TObjectDecl fl}
 			| _ ->
 				Type.map_expr (loop false) e
