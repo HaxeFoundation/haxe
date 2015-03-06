@@ -1863,14 +1863,16 @@ module Generator = struct
 					let ef = mk (TField(ethis,FInstance(c,[],cf))) cf.cf_type cf.cf_pos in (* TODO *)
 					mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos
 				) member_inits in
-				let e = {f.tf_expr with eexpr = TBlock (member_data @ [f.tf_expr])} in
-				cf.cf_expr <- Some {ef with eexpr = TFunction {f with tf_expr = e}};
+				let e = concat (mk (TBlock member_data) ctx.com.basic.tvoid cf.cf_pos) f.tf_expr in
+				let ef = {ef with eexpr = TFunction {f with tf_expr = e}} in
+				cf.cf_expr <- Some ef;
+
+				newline ctx;
+				newline ctx;
+				gen_func_expr ctx ef c "__init__" py_metas ["self"] "\t" false cf.cf_pos
 			| _ ->
 				assert false
-		end;
-		newline ctx;
-		newline ctx;
-		gen_func_expr ctx (match cf.cf_expr with None -> assert false | Some e -> e) c "__init__" py_metas ["self"] "\t" false cf.cf_pos
+		end
 
 	let gen_class_field ctx c p cf =
 		let field = handle_keywords cf.cf_name in
