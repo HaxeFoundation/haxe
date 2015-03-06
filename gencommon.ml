@@ -4922,7 +4922,7 @@ struct
 							in
 							let unifies = unifies && not (PMap.mem "cs_safe_casts" gen.gcon.defines) in
 							(match follow t with
-								| TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) && not unifies ->
+								| TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) && not unifies && not (Meta.has Meta.Enum cl.cl_meta) ->
 									let iface = Hashtbl.find ifaces cl.cl_path in
 									mk_cast e.etype (change_expr (Type.map_expr run cast_expr) cl iface (p1 :: pl))
 								| _ -> Type.map_expr run e
