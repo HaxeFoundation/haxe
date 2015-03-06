@@ -80,7 +80,7 @@ module KeywordHandler = struct
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"len"; "int"; "float"; "list"; "bool"; "str"; "isinstance"; "print"; "min"; "max";
 			"hasattr"; "getattr"; "setattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter";
-			"tuple"; "dict";
+			"tuple"; "dict"; "set";
 		];
 		h
 

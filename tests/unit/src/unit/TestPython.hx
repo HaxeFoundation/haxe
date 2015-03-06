@@ -22,7 +22,6 @@ import python.lib.Os;
 import python.lib.Pprint;
 import python.lib.Random;
 import python.lib.Re;
-import python.lib.Set;
 import python.lib.Shutil;
 import python.lib.Subprocess;
 import python.lib.Sys;
@@ -33,6 +32,7 @@ import python.lib.Time;
 import python.lib.Traceback;
 import python.lib.Tty;
 import python.Tuple;
+import python.Set;
 
 import python.lib.datetime.Datetime;
 import python.lib.datetime.Timedelta;

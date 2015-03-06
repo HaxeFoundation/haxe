@@ -30,7 +30,6 @@ import python.internal.HxException;
 import python.internal.AnonObject;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
-import python.lib.Set;
 
 import python.Syntax;
 
