@@ -9704,7 +9704,7 @@ struct
 	let traverse gen (change_expr:texpr->module_type->texpr) =
 		let rec run e =
 			match e.eexpr with
-					| TCall( ({ eexpr = TLocal(v) } as local), calls ) when String.get v.v_name 0 = '_' && Hashtbl.mem gen.gspecial_vars v.v_name ->
+					| TCall( ({ eexpr = TLocal({ v_name = ("__is__" | "__as__") } as v) } as local), calls ) when Hashtbl.mem gen.gspecial_vars v.v_name ->
 						{ e with eexpr = TCall(local, List.map (fun e ->
 							match e.eexpr with
 							| TTypeExpr _ -> e
