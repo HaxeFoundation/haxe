@@ -28,8 +28,9 @@ package java;
 
 @:nativeGen extern class NativeArray<T> implements ArrayAccess<T>
 {
+	public static function array<T>(elements:haxe.Rest<T>):NativeArray<T>;
+
 	public var length(default, null):Int;
 
 	public function new(len:Int):Void;
-
 }

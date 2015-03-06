@@ -1174,6 +1174,13 @@ let configure gen =
 		| _ -> t
 	in
 
+	let rec extract_tparams params el =
+		match el with
+			| ({ eexpr = TLocal({ v_name = "$type_param" }) } as tp) :: tl ->
+				extract_tparams (tp.etype :: params) tl
+			| _ -> (params, el)
+	in
+
 	let line_directive =
 		if Common.defined gen.gcon Define.RealPosition then
 			fun w p -> ()
@@ -1261,7 +1268,9 @@ let configure gen =
 				| TMeta (_,e) ->
 					expr_s w e
 				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "array" })) }, el)
 				| TArrayDecl el when t_has_type_param e.etype ->
+					let _, el = extract_tparams [] el in
 					print w "( (%s) (new %s " (t_s e.epos e.etype) (t_s e.epos (replace_type_param e.etype));
 					write w "{";
 					ignore (List.fold_left (fun acc e ->
@@ -1271,7 +1280,9 @@ let configure gen =
 					) 0 el);
 					write w "}) )"
 				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "array" })) }, el)
 				| TArrayDecl el ->
+					let _, el = extract_tparams [] el in
 					print w "new %s" (param_t_s e.epos (transform_nativearray_t e.etype));
 					let is_double = match follow e.etype with
 					 | TInst(_,[ t ]) -> if like_float t && not (like_int t) then Some t else None
@@ -1332,12 +1343,6 @@ let configure gen =
 					expr_s w expr;
 					write w ".class"
 				| TCall (e, el) ->
-					let rec extract_tparams params el =
-						match el with
-							| ({ eexpr = TLocal({ v_name = "$type_param" }) } as tp) :: tl ->
-								extract_tparams (tp.etype :: params) tl
-							| _ -> (params, el)
-					in
 					let params, el = extract_tparams [] el in
 
 					expr_s w e;

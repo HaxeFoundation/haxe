@@ -23,12 +23,34 @@ package cs;
 
 extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
 {
-	// public var Length(default, null):Int;
-
+	public static function array<T>(elements:haxe.Rest<T>):NativeArray<T>;
 	public function new(len:Int):Void;
+	public var length(get,never):Int;
 
-	// @:overload(function(arr:cs.system.Array, destIndex:haxe.Int64):Void {} )
-	// public function CopyTo(arr:cs.system.Array, destIndex:Int):Void;
+	@:extern inline private function get_length():Int return this.Length;
 
 	static function Reverse(arr:cs.system.Array):Void;
+
+	@:extern inline public function iterator():NativeArrayIterator<T>
+		return new NativeArrayIterator(this);
+}
+
+@:nativeGen private class NativeArrayIterator<T>
+{
+	public var arr(default,null):NativeArray<T>;
+	public var idx(default,null):UInt;
+
+	inline public function new(arr)
+	{
+		this.arr = arr;
+		this.idx = 0;
+	}
+
+	inline public function hasNext():Bool
+		return this.idx < this.arr.Length;
+
+	inline public function next():T
+	{
+		return this.arr[this.idx++];
+	}
 }
