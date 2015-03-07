@@ -234,8 +234,13 @@ class TestSpod extends Test
 		eq(scls.relationNullable,null);
 		eq(scls.abstractType,null);
 		eq(scls.anEnum,null);
-		scls.delete();
+		Manager.cleanup();
 
+		scls = new NullableSpodClass();
+		scls.theId = id;
+		t( untyped NullableSpodClass.manager.getUpdateStatement( scls ) != null );
+
+		scls.delete();
 	}
 
 	public function testSpodTypes()
