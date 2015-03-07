@@ -112,6 +112,10 @@ extern class Element extends Node
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
+	var onfullscreenchange : haxe.Constraints.Function;
+	var onfullscreenerror : haxe.Constraints.Function;
+	var onpointerlockchange : haxe.Constraints.Function;
+	var onpointerlockerror : haxe.Constraints.Function;
 	var previousElementSibling(default,null) : Element;
 	var nextElementSibling(default,null) : Element;
 	var onerror : haxe.Constraints.Function;
@@ -147,6 +151,7 @@ extern class Element extends Node
 	function releasePointerCapture( pointerId : Int ) : Void;
 	function setCapture( ?retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
+	function requestPointerLock() : Void;
 	function getAttributeNode( name : String ) : Attr;
 	/** @throws DOMError */
 	function setAttributeNode( newAttr : Attr ) : Attr;

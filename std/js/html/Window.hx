@@ -138,6 +138,10 @@ extern class Window extends EventTarget
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
+	var onfullscreenchange : haxe.Constraints.Function;
+	var onfullscreenerror : haxe.Constraints.Function;
+	var onpointerlockchange : haxe.Constraints.Function;
+	var onpointerlockerror : haxe.Constraints.Function;
 	var indexedDB(default,null) : js.html.idb.Factory;
 	var onerror : haxe.EitherType<Event,String> -> String -> Int -> Int -> Dynamic -> Bool;
 	var speechSynthesis(default,null) : SpeechSynthesis;

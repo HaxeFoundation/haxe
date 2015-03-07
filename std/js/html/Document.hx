@@ -52,6 +52,10 @@ extern class Document extends Node
 	var onbeforescriptexecute : haxe.Constraints.Function;
 	var onafterscriptexecute : haxe.Constraints.Function;
 	var currentScript(default,null) : Element;
+	var fullScreenEnabled(default,null) : Bool;
+	var fullScreenElement(default,null) : Element;
+	var fullScreen(default,null) : Bool;
+	var pointerLockElement(default,null) : Element;
 	var hidden(default,null) : Bool;
 	var visibilityState(default,null) : VisibilityState;
 	var styleSheets(default,null) : StyleSheetList;
@@ -123,6 +127,10 @@ extern class Document extends Node
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
+	var onfullscreenchange : haxe.Constraints.Function;
+	var onfullscreenerror : haxe.Constraints.Function;
+	var onpointerlockchange : haxe.Constraints.Function;
+	var onpointerlockerror : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	var children(default,null) : HTMLCollection;
 	var firstElementChild(default,null) : Element;
@@ -168,6 +176,8 @@ extern class Document extends Node
 	/** @throws DOMError */
 	function hasFocus() : Bool;
 	function releaseCapture() : Void;
+	function cancelFullScreen() : Void;
+	function exitPointerLock() : Void;
 	/** @throws DOMError */
 	function registerElement( name : String, ?options : ElementRegistrationOptions ) : Dynamic;
 	function enableStyleSheetsForSet( name : String ) : Void;
