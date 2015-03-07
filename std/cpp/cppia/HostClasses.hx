@@ -4,16 +4,15 @@ import haxe.macro.Compiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 
-#if (!cppia)
-import Sys;
-#end
-
 #if !macro
   #if cppia
   @:build(cpp.cppia.HostClasses.exclude())
   #end
 class HostClasses { }
 #else
+
+import Sys;
+import haxe.Constraints;
 
 @:noPackageRestrict
 class HostClasses
@@ -135,6 +134,7 @@ class HostClasses
    {
       var externs = new Map<String,Bool>();
       externs.set("Sys",true);
+      externs.set("haxe.IMap",true);
       for(e in classes)
          externs.set(e,true);
       for(path in Context.getClassPath())
@@ -187,6 +187,7 @@ class HostClasses
    // Ensure that the standard classes are included in the host
    public static function include()
    {
+      Compiler.keep("haxe.IMap");
       for(cls in classes)
       {
          Context.getModule(cls);
