@@ -25,17 +25,25 @@ import js.html.Storage;
 import js.html.XMLHttpRequest;
 
 class Browser {
+	/** The global window object. */
 	public static var window(get, never):js.html.Window;
 	inline static function get_window() return untyped __js__("window");
 
+	/** Shortcut to Window.document. */
 	public static var document(get, never):js.html.HTMLDocument;
 	inline static function get_document() return untyped __js__("window.document");
 
+	/** Shortcut to Window.location. */
 	public static var location(get, never):js.html.Location;
 	inline static function get_location() return untyped __js__("window.location");
 
+	/** Shortcut to Window.navigator. */
 	public static var navigator(get, never):js.html.Navigator;
 	inline static function get_navigator() return untyped __js__("window.navigator");
+
+	/** Shortcut to Window.console. */
+	public static var console(get, never):js.html.Console;
+	inline static function get_console() return untyped __js__("window.console");
 
 	/**
 	 * True if a window object exists, false otherwise.
