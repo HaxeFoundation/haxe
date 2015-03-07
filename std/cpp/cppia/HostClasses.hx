@@ -40,6 +40,7 @@ class HostClasses
    "sys.db.Sqlite",
    "sys.db.Object",
    "sys.db.Manager",
+   "sys.db.Connection",
    "sys.FileSystem",
    "sys.io.File",
    "sys.io.FileInput",
@@ -98,6 +99,7 @@ class HostClasses
    "haxe.Resource",
    "haxe.Utf8",
    "haxe.Int64",
+   "haxe.Int32",
    "haxe.Serializer",
    "haxe.Unserializer",
 
@@ -135,6 +137,11 @@ class HostClasses
       var externs = new Map<String,Bool>();
       externs.set("Sys",true);
       externs.set("haxe.IMap",true);
+      externs.set("haxe.crypto.HashMethod",true);
+      externs.set("haxe._Int64.Int64_Impl_",true);
+      externs.set("haxe._Int64.___Int64",true);
+      externs.set("haxe._Int32.Int32_Impl_",true);
+      externs.set("haxe._Int32.___Int32",true);
       for(e in classes)
          externs.set(e,true);
       for(path in Context.getClassPath())
@@ -188,6 +195,11 @@ class HostClasses
    public static function include()
    {
       Compiler.keep("haxe.IMap");
+      Compiler.keep("haxe.crypto.HashMethod");
+      Compiler.keep("haxe._Int64.Int64_Impl_");
+      Compiler.keep("haxe._Int32.Int32_Impl_");
+      Compiler.keep("haxe._Int64.___Int64");
+      Compiler.keep("haxe._Int32.___Int32");
       for(cls in classes)
       {
          Context.getModule(cls);
