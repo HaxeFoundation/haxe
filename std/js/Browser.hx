@@ -91,4 +91,10 @@ class Browser {
 		throw "Unable to create XMLHttpRequest object.";
 	}
 
+	/**
+		Display an alert message box containing the given message. See also `Window.alert()`.
+	**/
+	public static function alert( v : Dynamic ) {
+		@:privateAccess window.alert(Boot.__string_rec(v,""));
+	}
 }

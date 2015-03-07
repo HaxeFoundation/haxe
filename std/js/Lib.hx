@@ -32,9 +32,9 @@ class Lib {
 
 	/**
 		Display an alert message box containing the given message.
-		@deprecated Use Browser.window.alert() instead.
+		@deprecated Use Browser.alert() instead.
 	**/
-	@:deprecated("Lib.alert() is deprecated, use Browser.window.alert() instead")
+	@:deprecated("Lib.alert() is deprecated, use Browser.alert() instead")
 	public static function alert( v : Dynamic ) {
 		untyped __js__("alert")(js.Boot.__string_rec(v,""));
 	}
