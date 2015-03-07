@@ -4603,6 +4603,7 @@ type cppia_op =
    | IaNoMain
    | IaResources
    | IaReso
+   | IaNoCast
 
 	| IaBinOp of Ast.binop
 ;;
@@ -4685,7 +4686,7 @@ let cppia_op_info = function
    | IaNoMain -> ("NOMAIN", 76)
    | IaResources -> ("RESOURCES", 77)
    | IaReso -> ("RESO", 78)
-
+	| IaNoCast -> ("NOCAST", 79)
 
 	| IaBinOp OpAdd -> ("+", 101)
 	| IaBinOp OpMult -> ("*", 102)
@@ -4954,8 +4955,13 @@ class script_writer common_ctx ctx filename asciiOut =
 
    if (not was_cast) then begin
       if (forceCast) then begin
-         let toType = (type_string expr.etype) in
-         this#writeOpLine (if toType="int" then IaCastInt else if toType=="bool" then IaCastBool else IaCast);
+         let op =match (type_string expr.etype) with
+         | "int" -> IaCastInt
+         | "bool" -> IaCastBool
+         | _ when is_interface_type toType -> IaNoCast
+         | _ -> IaCast
+         in
+         this#writeOpLine op;
       end;
       this#gen_expression expr;
    end

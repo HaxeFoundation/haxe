@@ -213,7 +213,7 @@ class Bytes {
 		Returns the IEEE double precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
 	**/
-	#if (neko_v21 || cpp) inline #end
+	#if (neko_v21 || (cpp && !cppia)) inline #end
 	public function getDouble( pos : Int ) : Float {
 		#if neko_v21
 		return untyped $sgetd(b, pos, false);
@@ -232,7 +232,7 @@ class Bytes {
 		Returns the IEEE single precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
 	**/
-	#if (neko_v21 || cpp) inline #end
+	#if (neko_v21 || (cpp && !cppia)) inline #end
 	public function getFloat( pos : Int ) : Float {
 		#if neko_v21
 		return untyped $sgetf(b, pos, false);
