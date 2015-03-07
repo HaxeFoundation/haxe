@@ -6214,8 +6214,9 @@ struct
 		let rec check_arg arglist elist =
 			match arglist, elist with
 				| [], [] -> true (* it is valid *)
+				| (_,_,TAbstract({ a_path = (["haxe"],"Rest") }, [t])) :: [], elist ->
+					List.for_all (fun (_,_,et) -> Type.type_iseq (clean_t et) (clean_t t)) elist
 				| (_,_,t) :: arglist, (_,_,et) :: elist when Type.type_iseq (clean_t et) (clean_t t) ->
-
 					check_arg arglist elist
 				| _ -> false
 		in
@@ -6301,6 +6302,18 @@ struct
 			| _ ->
 				is_overload, List.find check_cf ctors, sup, ret_stl
 
+	let change_rest tfun elist =
+		let rec loop acc arglist elist = match arglist, elist with
+			| (_,_,TAbstract({ a_path = (["haxe"],"Rest") },[t])) :: [], elist ->
+				List.rev (List.map (fun _ -> "rest",false,t) elist @ acc)
+			| (n,o,t) :: arglist, _ :: elist ->
+				loop ((n,o,t) :: acc) arglist elist
+			| _, _ ->
+				List.rev acc
+		in
+		let args,ret = get_fun tfun in
+		TFun(loop [] args elist, ret)
+
 	(*
 
 		Type parameter handling
@@ -6339,8 +6352,9 @@ struct
 		| FClassField (cl, params, _, cf, is_static, actual_t, declared_t) when e <> None && (cf.cf_kind = Method MethNormal || cf.cf_kind = Method MethInline) ->
 				(* C# target changes params with a real_type function *)
 				let params = match follow clean_ef.etype with
-				| TInst(_,params) -> params
-				| _ -> params in
+					| TInst(_,params) -> params
+					| _ -> params
+				in
 				let ecall = get e in
 				let ef = ref ef in
 				let is_overload = cf.cf_overloads <> [] || Meta.has Meta.Overload cf.cf_meta || (is_static && is_static_overload cl (field_name f)) in
@@ -6369,6 +6383,7 @@ struct
 							gen.gcon.warning "Overloaded classfield typed as anonymous" ecall.epos;
 							(cf, actual_t, true), true
 					in
+
 					if not (is_static || error) then match find_first_declared_field gen cl ~exact_field:{ cf with cf_type = actual_t } cf.cf_name with
 					| Some(cf_orig,actual_t,_,_,declared_cl,tl,tlch) ->
 						let rec is_super e = match e.eexpr with
@@ -6393,6 +6408,9 @@ struct
 					else
 						cf,actual_t,error
 				in
+
+				(* take off Rest param *)
+				let actual_t = change_rest actual_t elist in
 				(* set the real (selected) class field *)
 				let f = match f with
 					| FInstance(c,tl,_) -> FInstance(c,tl,cf)
@@ -6410,6 +6428,7 @@ struct
 					(* infer arguments *)
 					(* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
 					let called_t = match follow e1.etype with | TFun _ -> e1.etype | _ -> TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype)	in (* workaround for issue #1742 *)
+					let called_t = change_rest called_t elist in
 					let fparams = TypeParams.infer_params gen ecall.epos (get_fun (apply_params cl.cl_params params actual_t)) (get_fun called_t) cf.cf_params calls_parameters_explicitly in
 					(* get what the backend actually sees *)
 					(* actual field's function *)
@@ -11156,6 +11175,7 @@ struct
 	| TType(t,tl) -> TType(t,List.map filter_param tl)
 	| TInst(c,tl) -> TInst(c,List.map filter_param tl)
 	| TEnum(e,tl) -> TEnum(e,List.map filter_param tl)
+	| TAbstract({ a_path = (["haxe"],"Rest") } as a,tl) -> TAbstract(a, List.map filter_param tl)
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		filter_param (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) -> TAbstract(a, List.map filter_param tl)

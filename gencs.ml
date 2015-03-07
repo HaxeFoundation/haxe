@@ -124,6 +124,12 @@ let is_bool t =
 			true
 		| _ -> false
 
+let is_exactly_bool gen t =
+	match gen.gfollow#run_f t with
+		| TAbstract ({ a_path = ([], "Bool") },[]) ->
+			true
+		| _ -> false
+
 let is_dynamic gen t =
 	match follow (gen.greal_type t) with
 		| TDynamic _ -> true
@@ -476,7 +482,7 @@ struct
 							{ e with eexpr = TNew(boxed_ptr,[],[expr]) }
 						| Some e ->
 							run e)
-				| TCast(expr, _) when is_bool e.etype && not (is_bool expr.etype) ->
+				| TCast(expr, _) when is_bool e.etype && not (is_exactly_bool gen expr.etype) ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
@@ -874,6 +880,7 @@ let configure gen =
 			| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
 			| TAbstract( { a_path = [],"Class" }, _ )
 			| TAbstract( { a_path = [],"Enum" }, _ )
+			| TAbstract( { a_path = ["haxe"],"Rest" }, _ )
 			| TInst( { cl_path = ([], "Class") }, _ )
 			| TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
 			| TInst( ({ cl_kind = KTypeParameter _ } as cl), _ ) when erase_generics && not (Meta.has Meta.NativeGeneric cl.cl_meta) ->
