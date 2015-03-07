@@ -1196,7 +1196,7 @@ let alloc_ctx com =
 			mappings = Rbuffer.create 16;
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
-		js_flatten = Common.defined com Define.JsFlatten;
+		js_flatten = not (Common.defined com Define.JsUnflatten);
 		statics = [];
 		inits = [];
 		current = null_class;
