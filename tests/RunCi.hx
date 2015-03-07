@@ -505,7 +505,7 @@ class RunCi {
 					runCommand("neko", ["sys.n"].concat(args));
 				case Php:
 					getPhpDependencies();
-					runCommand("haxe", ["compile-php.hxml"]);
+					runCommand("haxe", ["compile-php.hxml","-D","travis"]);
 					runCommand("php", ["bin/php/index.php"]);
 				case Python:
 					var pys = getPythonDependencies();

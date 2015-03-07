@@ -331,6 +331,10 @@ class TestSpod extends Test
 			c.delete();
 		for (c in OtherSpodClass.manager.all())
 			c.delete();
+
+		//issue #3598
+		var inexistent = MySpodClass.manager.get(1000,false);
+		eq(inexistent,null);
 	}
 
 	public function testDateQuery()

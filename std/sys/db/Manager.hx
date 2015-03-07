@@ -242,7 +242,7 @@ class Manager<T : Object> {
 			var vc : Dynamic = Reflect.field(cache,name);
 			if( cache == null || v != vc ) {
 				switch( f.t ) {
-				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: 
+				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
 					if ( !hasBinaryChanged(v,vc) )
 						continue;
 				case DData:
@@ -446,7 +446,8 @@ class Manager<T : Object> {
 			lock = true;
 			sql += getLockMode();
 		}
-		var r = unsafeExecute(sql).next();
+		var r = unsafeExecute(sql);
+		var r = r.hasNext() ? r.next() : null;
 		if( r == null )
 			return null;
 		normalizeCache(r);
