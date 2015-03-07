@@ -1268,7 +1268,7 @@ let configure gen =
 				| TMeta (_,e) ->
 					expr_s w e
 				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
-				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "array" })) }, el)
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el when t_has_type_param e.etype ->
 					let _, el = extract_tparams [] el in
 					print w "( (%s) (new %s " (t_s e.epos e.etype) (t_s e.epos (replace_type_param e.etype));
@@ -1280,7 +1280,7 @@ let configure gen =
 					) 0 el);
 					write w "}) )"
 				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
-				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "array" })) }, el)
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["java"],"NativeArray") }, { cf_name = "make" })) }, el)
 				| TArrayDecl el ->
 					let _, el = extract_tparams [] el in
 					print w "new %s" (param_t_s e.epos (transform_nativearray_t e.etype));

@@ -21,21 +21,43 @@
  */
 package cs;
 
+/**
+	Represents a C# fixed-size Array (`T[]`)
+**/
 extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
 {
-	public static function array<T>(elements:haxe.Rest<T>):NativeArray<T>;
+	/**
+		Creates a new array with the specified elements.
+
+		Usage:
+		```haxe
+		var elements = NativeArray.make(1,2,3,4,5,6);
+		```
+	 **/
+	public static function make<T>(elements:haxe.Rest<T>):NativeArray<T>;
+
+	/**
+		Allocates a new array with size `len`
+	 **/
 	public function new(len:Int):Void;
+
+	/**
+		Alias to array's `Length` property. Returns the size of the array
+	 **/
 	public var length(get,never):Int;
 
 	@:extern inline private function get_length():Int return this.Length;
 
 	static function Reverse(arr:cs.system.Array):Void;
 
+	/**
+		Returns an iterator so it's possible to use `for` with C#'s `NativeArray`
+	 **/
 	@:extern inline public function iterator():NativeArrayIterator<T>
 		return new NativeArrayIterator(this);
 }
 
-@:nativeGen private class NativeArrayIterator<T>
+@:dce private class NativeArrayIterator<T>
 {
 	public var arr(default,null):NativeArray<T>;
 	public var idx(default,null):UInt;

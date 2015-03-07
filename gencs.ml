@@ -1331,7 +1331,7 @@ let configure gen =
 						expr_s w e
 				| TArrayDecl el
 				| TCall ({ eexpr = TLocal { v_name = "__array__" } }, el)
-				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["cs"],"NativeArray") }, { cf_name = "array" })) }, el) ->
+				| TCall ({ eexpr = TField(_, FStatic({ cl_path = (["cs"],"NativeArray") }, { cf_name = "make" })) }, el) ->
 					let _, el = extract_tparams [] el in
 					print w "new %s" (t_s e.etype);
 					write w "{";
