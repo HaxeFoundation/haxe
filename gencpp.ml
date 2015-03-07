@@ -3960,6 +3960,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mMemberStorageInfo = sMemberStorageInfo;\n#endif\n");
       output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mStaticStorageInfo = sStaticStorageInfo;\n#endif\n");
       output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
+      if (scriptable) then
+         output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
       output_cpp ("}\n\n");
 
    end else begin
@@ -5427,15 +5429,23 @@ let generate_source common_ctx =
 
    write_resources common_ctx;
 
-   (* Output class list if requested *)
+   (* Output class info if requested *)
    if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
-      let filename = match Common.defined_value_safe common_ctx Define.DllExport with
-         | "" -> "exe.classes"
-         | x -> x
+      let filename =
+         try Common.defined_value common_ctx Define.DllExport
+         with Not_found -> "export_classes.info"
       in
-      let exeClasses = open_out filename in
-      List.iter (fun x -> output_string exeClasses ((join_class_path (fst x) ".") ^ "\n") ) !exe_classes;
-      close_out exeClasses;
+      if (filename <> "") then begin
+         let exeClasses = open_out filename in
+         List.iter (fun x -> output_string exeClasses ((join_class_path (fst x) ".") ^ "\n") ) !exe_classes;
+
+         (* Output file info top *)
+         List.iter ( fun file ->
+               let full_path = Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
+               output_string exeClasses (file^"|"^full_path^"\n") )
+            ( List.sort String.compare ( pmap_keys !file_info) );
+         close_out exeClasses;
+     end;
    end;
 
    let output_name = match  common_ctx.main_class with
