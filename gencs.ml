@@ -476,7 +476,7 @@ struct
 							{ e with eexpr = TNew(boxed_ptr,[],[expr]) }
 						| Some e ->
 							run e)
-				| TCast(expr, _) when is_bool e.etype ->
+				| TCast(expr, _) when is_bool e.etype && not (is_bool expr.etype) ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
