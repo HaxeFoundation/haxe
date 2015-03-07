@@ -13,7 +13,7 @@ class Host
    {
       var script = Sys.args()[0];
       #if (cpp && !scriptable)
-      #error "Please define scriptable to use cppia"
+      //#error "Please define scriptable to use cppia"
       #end
       if (script==null)
       {
