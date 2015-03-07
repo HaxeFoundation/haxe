@@ -77,4 +77,18 @@ package cs.internal;
 	{
 		return Runtime.callField(obj, field, hash, dynArgs);
 	}
+
+	public function Equals(obj:Dynamic):Bool
+	{
+		if (obj == null)
+			return false;
+
+		var c:Closure = cast obj;
+		return (c.obj == this.obj && c.field == this.field);
+	}
+
+	public function GetHashCode():Int
+	{
+		return obj.GetHashCode() ^ untyped field.GetHashCode();
+	}
 }

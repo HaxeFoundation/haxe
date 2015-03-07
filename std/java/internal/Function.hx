@@ -77,4 +77,18 @@ import java.internal.Runtime;
 	{
 		return Runtime.callField(obj, field, dynArgs);
 	}
+
+	public function equals(obj:Dynamic):Bool
+	{
+		if (obj == null)
+			return false;
+
+		var c:Closure = cast obj;
+		return (c.obj == this.obj && c.field == this.field);
+	}
+
+	public function hashCode():Int
+	{
+		return obj.hashCode() ^ untyped field.hashCode();
+	}
 }
