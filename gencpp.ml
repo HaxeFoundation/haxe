@@ -4604,6 +4604,7 @@ type cppia_op =
    | IaResources
    | IaReso
    | IaNoCast
+   | IaAccessCallNative
 
 	| IaBinOp of Ast.binop
 ;;
@@ -4687,6 +4688,7 @@ let cppia_op_info = function
    | IaResources -> ("RESOURCES", 77)
    | IaReso -> ("RESO", 78)
 	| IaNoCast -> ("NOCAST", 79)
+   | IaAccessCallNative -> ("V", 80)
 
 	| IaBinOp OpAdd -> ("+", 101)
 	| IaBinOp OpMult -> ("*", 102)
@@ -5255,7 +5257,10 @@ let generate_script_class common_ctx script class_def =
          | AccNo -> IaAccessNot
          | AccNever -> IaAccessNot
          | AccResolve -> IaAccessResolve
-         | AccCall -> IaAccessCall
+         | AccCall -> if ( (has_meta_key class_def.cl_meta Meta.NativeProperty) ||
+                           (has_meta_key field.cf_meta Meta.NativeProperty) ||
+                           (Common.defined common_ctx Define.ForceNativeProperty) )
+                         then IaAccessCallNative else IaAccessCall;
          | AccInline -> IaAccessNormal
          | AccRequire (_,_) -> IaAccessNormal
          in
