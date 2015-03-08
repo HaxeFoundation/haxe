@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,4 +29,4 @@ package haxe.extern;
     representing that arbitrary number of arguments of given type can be
     passed to that method.
 **/
-abstract Rest<T>(Array<T>) { }
+abstract Rest<T>(Array<T>) {}
