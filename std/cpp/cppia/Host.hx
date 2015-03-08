@@ -12,8 +12,8 @@ class Host
    public static function main()
    {
       var script = Sys.args()[0];
-      #if (cpp && !scriptable)
-      //#error "Please define scriptable to use cppia"
+      #if (!scriptable && !doc_gen)
+      #error "Please define scriptable to use cppia"
       #end
       if (script==null)
       {
