@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package haxe;
+package haxe.extern;
 
 /**
     A special abstract type that represents "rest" function argument.

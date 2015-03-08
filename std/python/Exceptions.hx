@@ -21,11 +21,12 @@
  */
 package python;
 
+import haxe.extern.Rest;
 
 @:native("BaseException")
 extern class BaseException
 {
-	function new(args:haxe.Rest<Dynamic>):Void;
+	function new(args:Rest<Dynamic>):Void;
 }
 
 

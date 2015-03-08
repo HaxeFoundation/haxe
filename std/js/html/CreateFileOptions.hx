@@ -26,6 +26,6 @@ package js.html;
 
 typedef CreateFileOptions =
 {
-	@:optional var data : haxe.EitherType<String,haxe.EitherType<Blob,haxe.EitherType<ArrayBuffer,ArrayBufferView>>>;
+	@:optional var data : haxe.extern.EitherType<String,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ArrayBuffer,ArrayBufferView>>>;
 	@:optional var ifExists : Dynamic/*MISSING CreateIfExistsMode*/;
 }

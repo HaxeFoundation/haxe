@@ -28,10 +28,10 @@ package js.html;
 extern class Directory
 {
 	var name(default,null) : String;
-	
+
 	function createFile( path : String, ?options : CreateFileOptions ) : Promise/*<File (Wrapper)>*/;
 	function createDirectory( path : String ) : Promise/*<Directory (Wrapper)>*/;
 	function get( path : String ) : Promise/*<FileOrDirectory>*/;
-	function remove( path : haxe.EitherType<String,haxe.EitherType<File,Directory>> ) : Promise/*<Boolean>*/;
-	function removeDeep( path : haxe.EitherType<String,haxe.EitherType<File,Directory>> ) : Promise/*<Boolean>*/;
+	function remove( path : haxe.extern.EitherType<String,haxe.extern.EitherType<File,Directory>> ) : Promise/*<Boolean>*/;
+	function removeDeep( path : haxe.extern.EitherType<String,haxe.extern.EitherType<File,Directory>> ) : Promise/*<Boolean>*/;
 }

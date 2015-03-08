@@ -21,6 +21,7 @@
  */
 package python;
 
+import haxe.extern.Rest;
 import python.internal.UBuiltins;
 import python.NativeIterator;
 import python.NativeIterable;
@@ -49,15 +50,15 @@ extern class Set<T> {
 	inline function issuperset_proper(other:Set<T>):Bool {
 		return Syntax.binop(this, ">", other);
 	}
-	function union(other:Set<T>, others:haxe.Rest<Set<T>>):Set<T>;
-	function intersection(other:Set<T>, others:haxe.Rest<Set<T>>):Set<T>;
-	function difference(other:Set<T>, others:haxe.Rest<Set<T>>):Set<T>;
+	function union(other:Set<T>, others:Rest<Set<T>>):Set<T>;
+	function intersection(other:Set<T>, others:Rest<Set<T>>):Set<T>;
+	function difference(other:Set<T>, others:Rest<Set<T>>):Set<T>;
 	function symmetric_difference(other:Set<T>):Set<T>;
 	function copy():Set<T>;
 
-	function update(other:Set<T>, others:haxe.Rest<Set<T>>):Set<T>;
-	function intersection_update(other:Set<T>, others:haxe.Rest<Set<T>>):Set<T>;
-	function difference_update(other:Set<T>, others:haxe.Rest<Set<T>>):Set<T>;
+	function update(other:Set<T>, others:Rest<Set<T>>):Set<T>;
+	function intersection_update(other:Set<T>, others:Rest<Set<T>>):Set<T>;
+	function difference_update(other:Set<T>, others:Rest<Set<T>>):Set<T>;
 	function symmetric_difference_update(other:Set<T>):Set<T>;
 
 	function add(elem:T):Void;

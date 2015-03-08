@@ -21,6 +21,7 @@
  */
 package python.lib.os;
 
+import haxe.extern.Rest;
 import python.Tuple;
 
 @:pythonImport("os", "path")
@@ -63,7 +64,7 @@ extern class Path {
 
 	public static function ismount (path:String):Bool;
 
-	public static function join (path:String, paths:haxe.Rest<String>):String;
+	public static function join (path:String, paths:Rest<String>):String;
 
 	public static function normpath (path:String):String;
 

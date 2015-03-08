@@ -1,4 +1,4 @@
-package haxe;
+package haxe.extern;
 
 /**
     An abstract type allowing values to be either of `T1` or `T2` type.

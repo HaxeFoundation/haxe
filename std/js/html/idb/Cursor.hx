@@ -27,11 +27,11 @@ package js.html.idb;
 @:native("IDBCursor")
 extern class Cursor
 {
-	var source(default,null) : haxe.EitherType<ObjectStore,Index>;
+	var source(default,null) : haxe.extern.EitherType<ObjectStore,Index>;
 	var direction(default,null) : CursorDirection;
 	var key(default,null) : Dynamic;
 	var primaryKey(default,null) : Dynamic;
-	
+
 	/** @throws DOMError */
 	function update( value : Dynamic ) : Request;
 	/** @throws DOMError */

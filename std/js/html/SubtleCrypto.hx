@@ -28,27 +28,27 @@ package js.html;
 extern class SubtleCrypto
 {
 	/** @throws DOMError */
-	function encrypt( algorithm : haxe.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
+	function encrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function decrypt( algorithm : haxe.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
+	function decrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function sign( algorithm : haxe.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
+	function sign( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function verify( algorithm : haxe.EitherType<Dynamic,String>, key : CryptoKey, signature : haxe.EitherType<ArrayBufferView,ArrayBuffer>, data : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
+	function verify( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, signature : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function digest( algorithm : haxe.EitherType<Dynamic,String>, data : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
+	function digest( algorithm : haxe.extern.EitherType<Dynamic,String>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function generateKey( algorithm : haxe.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
+	function generateKey( algorithm : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function deriveKey( algorithm : haxe.EitherType<Dynamic,String>, baseKey : CryptoKey, derivedKeyType : haxe.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
+	function deriveKey( algorithm : haxe.extern.EitherType<Dynamic,String>, baseKey : CryptoKey, derivedKeyType : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function deriveBits( algorithm : haxe.EitherType<Dynamic,String>, baseKey : CryptoKey, length : Int ) : Promise/*<Any>*/;
+	function deriveBits( algorithm : haxe.extern.EitherType<Dynamic,String>, baseKey : CryptoKey, length : Int ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function importKey( format : String, keyData : Dynamic, algorithm : haxe.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
+	function importKey( format : String, keyData : Dynamic, algorithm : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
 	function exportKey( format : String, key : CryptoKey ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function wrapKey( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : haxe.EitherType<Dynamic,String> ) : Promise/*<Any>*/;
+	function wrapKey( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : haxe.extern.EitherType<Dynamic,String> ) : Promise/*<Any>*/;
 	/** @throws DOMError */
-	function unwrapKey( format : String, wrappedKey : haxe.EitherType<ArrayBufferView,ArrayBuffer>, unwrappingKey : CryptoKey, unwrapAlgorithm : haxe.EitherType<Dynamic,String>, unwrappedKeyAlgorithm : haxe.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
+	function unwrapKey( format : String, wrappedKey : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, unwrappingKey : CryptoKey, unwrapAlgorithm : haxe.extern.EitherType<Dynamic,String>, unwrappedKeyAlgorithm : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise/*<Any>*/;
 }

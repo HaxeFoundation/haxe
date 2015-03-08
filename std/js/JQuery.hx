@@ -67,7 +67,7 @@ extern class JQueryHelper {
 	@:overload(function(j:Window):JQuery{})
 	@:overload(function(j:Element):JQuery { } )
 
-	public static inline function J( html : haxe.EitherType<String,haxe.EitherType<JQuery,haxe.EitherType<Window,Element>>> ) : JQuery {
+	public static inline function J( html : haxe.extern.EitherType<String,haxe.extern.EitherType<JQuery,haxe.extern.EitherType<Window,Element>>> ) : JQuery {
         return new JQuery(cast html);
     }
 

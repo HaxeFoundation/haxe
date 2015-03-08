@@ -29,9 +29,9 @@ extern class TextDecoder
 {
 	var encoding(default,null) : String;
 	var fatal(default,null) : Bool;
-	
+
 	/** @throws DOMError */
 	function new( ?label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
 	/** @throws DOMError */
-	function decode( ?input : haxe.EitherType<ArrayBufferView,ArrayBuffer>, ?options : TextDecodeOptions ) : String;
+	function decode( ?input : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, ?options : TextDecodeOptions ) : String;
 }

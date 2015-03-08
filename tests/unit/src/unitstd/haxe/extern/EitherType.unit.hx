@@ -1,4 +1,4 @@
-var e:haxe.EitherType<Int,String> = "string";
+var e:haxe.extern.EitherType<Int,String> = "string";
 var s:String = e;
 s == "string";
 e = 1;

@@ -48,7 +48,7 @@ extern class Navigator
 	var language(default,null) : String;
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
-	
+
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
 	/** @throws DOMError */
@@ -56,7 +56,7 @@ extern class Navigator
 	/** @throws DOMError */
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
-	function sendBeacon( url : String, ?data : haxe.EitherType<ArrayBufferView,haxe.EitherType<Blob,haxe.EitherType<String,FormData>>> ) : Bool;
+	function sendBeacon( url : String, ?data : haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<String,FormData>>> ) : Bool;
 	function requestMediaKeySystemAccess( keySystem : String, ?supportedConfigurations : Array<MediaKeySystemOptions> ) : Promise/*<MediaKeySystemAccess (Wrapper)>*/;
 	/** @throws DOMError */
 	function registerProtocolHandler( scheme : String, url : String, title : String ) : Void;

@@ -6214,7 +6214,7 @@ struct
 		let rec check_arg arglist elist =
 			match arglist, elist with
 				| [], [] -> true (* it is valid *)
-				| (_,_,TAbstract({ a_path = (["haxe"],"Rest") }, [t])) :: [], elist ->
+				| (_,_,TAbstract({ a_path = (["haxe";"extern"],"Rest") }, [t])) :: [], elist ->
 					List.for_all (fun (_,_,et) -> Type.type_iseq (clean_t et) (clean_t t)) elist
 				| (_,_,t) :: arglist, (_,_,et) :: elist when Type.type_iseq (clean_t et) (clean_t t) ->
 					check_arg arglist elist
@@ -6304,7 +6304,7 @@ struct
 
 	let change_rest tfun elist =
 		let rec loop acc arglist elist = match arglist, elist with
-			| (_,_,TAbstract({ a_path = (["haxe"],"Rest") },[t])) :: [], elist ->
+			| (_,_,TAbstract({ a_path = (["haxe";"extern"],"Rest") },[t])) :: [], elist ->
 				List.rev (List.map (fun _ -> "rest",false,t) elist @ acc)
 			| (n,o,t) :: arglist, _ :: elist ->
 				loop ((n,o,t) :: acc) arglist elist
@@ -11175,7 +11175,7 @@ struct
 	| TType(t,tl) -> TType(t,List.map filter_param tl)
 	| TInst(c,tl) -> TInst(c,List.map filter_param tl)
 	| TEnum(e,tl) -> TEnum(e,List.map filter_param tl)
-	| TAbstract({ a_path = (["haxe"],"Rest") } as a,tl) -> TAbstract(a, List.map filter_param tl)
+	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) -> TAbstract(a, List.map filter_param tl)
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		filter_param (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) -> TAbstract(a, List.map filter_param tl)

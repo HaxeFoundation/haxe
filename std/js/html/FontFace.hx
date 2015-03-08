@@ -36,9 +36,9 @@ extern class FontFace
 	var featureSettings : String;
 	var status(default,null) : FontFaceLoadStatus;
 	var loaded(default,null) : Promise/*<FontFace (Wrapper)>*/;
-	
+
 	/** @throws DOMError */
-	function new( family : String, source : haxe.EitherType<String,haxe.EitherType<ArrayBuffer,ArrayBufferView>>, ?descriptors : FontFaceDescriptors ) : Void;
+	function new( family : String, source : haxe.extern.EitherType<String,haxe.extern.EitherType<ArrayBuffer,ArrayBufferView>>, ?descriptors : FontFaceDescriptors ) : Void;
 	/** @throws DOMError */
 	function load() : Promise/*<FontFace (Wrapper)>*/;
 }

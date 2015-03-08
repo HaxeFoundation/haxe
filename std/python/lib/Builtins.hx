@@ -21,6 +21,7 @@
  */
 package python.lib;
 
+import haxe.extern.Rest;
 
 import python.lib.io.FileIO;
 import python.Dict;
@@ -134,8 +135,8 @@ extern class Builtins {
 	//public static function xrange():Void;
 	//public static function cmp():Void;
 	//public static function globals():Void;
-	@:overload(function (a1:Float, a2:Float, rest:haxe.Rest<Float>):Float {})
-	public static function max(a1:Int, a2:Int, rest:haxe.Rest<Int>):Int;
+	@:overload(function (a1:Float, a2:Float, rest:Rest<Float>):Float {})
+	public static function max(a1:Int, a2:Int, rest:Rest<Int>):Int;
 	//public static function reversed():Void;
 	//public static function zip():Void;
 	//public static function compile():Void;
@@ -145,8 +146,8 @@ extern class Builtins {
 	//public static function __import__():Void;
 	//public static function complex():Void;
 	//public static function hash():Void;
-	@:overload(function (a1:Float, a2:Float, rest:haxe.Rest<Float>):Float {})
-	public static function min(a1:Int, a2:Int, rest:haxe.Rest<Int>):Int;
+	@:overload(function (a1:Float, a2:Float, rest:Rest<Float>):Float {})
+	public static function min(a1:Int, a2:Int, rest:Rest<Int>):Int;
 	//public static function set():Void;
 	//public static function apply():Void;
 	public static function delattr(o:Dynamic, attr:String):Void;

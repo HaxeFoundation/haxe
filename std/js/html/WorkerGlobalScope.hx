@@ -30,13 +30,13 @@ extern class WorkerGlobalScope extends EventTarget
 	var self(default,null) : WorkerGlobalScope;
 	var console(default,null) : Console;
 	var location(default,null) : WorkerLocation;
-	var onerror : haxe.EitherType<Event,String> -> String -> Int -> Int -> Dynamic -> Bool;
+	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Dynamic -> Bool;
 	var onoffline : haxe.Constraints.Function;
 	var ononline : haxe.Constraints.Function;
 	var navigator(default,null) : WorkerNavigator;
 	var onclose : haxe.Constraints.Function;
 	var performance(default,null) : Performance;
-	
+
 	function close() : Void;
 	/** @throws DOMError */
 	function importScripts( ?urls : String ) : Void;

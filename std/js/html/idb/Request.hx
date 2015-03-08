@@ -29,10 +29,10 @@ extern class Request extends js.html.EventTarget
 {
 	var result(default,null) : Dynamic;
 	var error(default,null) : js.html.DOMError;
-	var source(default,null) : haxe.EitherType<ObjectStore,haxe.EitherType<Index,Cursor>>;
+	var source(default,null) : haxe.extern.EitherType<ObjectStore,haxe.extern.EitherType<Index,Cursor>>;
 	var transaction(default,null) : Transaction;
 	var readyState(default,null) : RequestReadyState;
 	var onsuccess : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
-	
+
 }

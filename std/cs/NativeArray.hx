@@ -21,6 +21,8 @@
  */
 package cs;
 
+import haxe.extern.Rest;
+
 /**
 	Represents a C# fixed-size Array (`T[]`)
 **/
@@ -34,7 +36,7 @@ extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
 		var elements = NativeArray.make(1,2,3,4,5,6);
 		```
 	 **/
-	public static function make<T>(elements:haxe.Rest<T>):NativeArray<T>;
+	public static function make<T>(elements:Rest<T>):NativeArray<T>;
 
 	/**
 		Allocates a new array with size `len`

@@ -26,10 +26,10 @@ package js.html;
 
 typedef MediaStreamConstraints =
 {
-	@:optional var audio : haxe.EitherType<Bool,Dynamic/*MISSING MediaTrackConstraints*/>;
+	@:optional var audio : haxe.extern.EitherType<Bool,Dynamic/*MISSING MediaTrackConstraints*/>;
 	@:optional var fake : Bool;
 	@:optional var fakeTracks : Bool;
 	@:optional var peerIdentity : String;
 	@:optional var picture : Bool;
-	@:optional var video : haxe.EitherType<Bool,Dynamic/*MISSING MediaTrackConstraints*/>;
+	@:optional var video : haxe.extern.EitherType<Bool,Dynamic/*MISSING MediaTrackConstraints*/>;
 }

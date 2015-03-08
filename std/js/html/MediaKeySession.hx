@@ -32,10 +32,10 @@ extern class MediaKeySession extends EventTarget
 	var sessionId(default,null) : String;
 	var expiration(default,null) : Float;
 	var closed(default,null) : Promise/*<Void>*/;
-	
-	function generateRequest( initDataType : String, initData : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
+
+	function generateRequest( initDataType : String, initData : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
 	function load( sessionId : String ) : Promise/*<Boolean>*/;
-	function update( response : haxe.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
+	function update( response : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
 	function close() : Promise/*<Void>*/;
 	function remove() : Promise/*<Void>*/;
 	function getUsableKeyIds() : Promise/*<ArrayBufferSequence>*/;

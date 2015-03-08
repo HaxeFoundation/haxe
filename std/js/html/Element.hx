@@ -123,7 +123,7 @@ extern class Element extends Node
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
-	
+
 	function getAttribute( name : String ) : String;
 	function getAttributeNS( namespace_ : String, localName : String ) : String;
 	/** @throws DOMError */
@@ -182,9 +182,9 @@ extern class Element extends Node
 	function getAnimationPlayers() : Array<AnimationPlayer>;
 	function remove() : Void;
 	/** @throws DOMError */
-	function convertQuadFromNode( quad : DOMQuad, from : haxe.EitherType<Text,haxe.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.EitherType<Text,haxe.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertPointFromNode( point : DOMPointInit, from : haxe.EitherType<Text,haxe.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
 }

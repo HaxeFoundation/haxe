@@ -27,8 +27,8 @@ package js.html;
 @:native("TrackEvent")
 extern class TrackEvent extends Event
 {
-	var track(default,null) : haxe.EitherType<VideoTrack,haxe.EitherType<AudioTrack,TextTrack>>;
-	
+	var track(default,null) : haxe.extern.EitherType<VideoTrack,haxe.extern.EitherType<AudioTrack,TextTrack>>;
+
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : TrackEventInit ) : Void;
 }

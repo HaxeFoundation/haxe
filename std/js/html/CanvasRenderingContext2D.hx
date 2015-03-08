@@ -30,8 +30,8 @@ extern class CanvasRenderingContext2D
 	var canvas(default,null) : CanvasElement;
 	var globalAlpha : Float;
 	var globalCompositeOperation : String;
-	var strokeStyle : haxe.EitherType<String,haxe.EitherType<CanvasGradient,CanvasPattern>>;
-	var fillStyle : haxe.EitherType<String,haxe.EitherType<CanvasGradient,CanvasPattern>>;
+	var strokeStyle : haxe.extern.EitherType<String,haxe.extern.EitherType<CanvasGradient,CanvasPattern>>;
+	var fillStyle : haxe.extern.EitherType<String,haxe.extern.EitherType<CanvasGradient,CanvasPattern>>;
 	var shadowOffsetX : Float;
 	var shadowOffsetY : Float;
 	var shadowBlur : Float;
@@ -45,7 +45,7 @@ extern class CanvasRenderingContext2D
 	var font : String;
 	var textAlign : String;
 	var textBaseline : String;
-	
+
 	function save() : Void;
 	function restore() : Void;
 	/** @throws DOMError */
@@ -64,7 +64,7 @@ extern class CanvasRenderingContext2D
 	/** @throws DOMError */
 	function createRadialGradient( x0 : Float, y0 : Float, r0 : Float, x1 : Float, y1 : Float, r1 : Float ) : CanvasGradient;
 	/** @throws DOMError */
-	function createPattern( image : haxe.EitherType<ImageElement,haxe.EitherType<CanvasElement,VideoElement>>, repetition : String ) : CanvasPattern;
+	function createPattern( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, repetition : String ) : CanvasPattern;
 	function clearRect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	function fillRect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	function strokeRect( x : Float, y : Float, w : Float, h : Float ) : Void;
@@ -88,9 +88,9 @@ extern class CanvasRenderingContext2D
 	/** @throws DOMError */
 	function measureText( text : String ) : TextMetrics;
 	/** @throws DOMError */
-	@:overload( function( image : haxe.EitherType<ImageElement,haxe.EitherType<CanvasElement,VideoElement>>, dx : Float, dy : Float ) : Void {} )
-	@:overload( function( image : haxe.EitherType<ImageElement,haxe.EitherType<CanvasElement,VideoElement>>, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
-	function drawImage( image : haxe.EitherType<ImageElement,haxe.EitherType<CanvasElement,VideoElement>>, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
+	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, dx : Float, dy : Float ) : Void {} )
+	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
+	function drawImage( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
 	/** @throws DOMError */
 	function addHitRegion( ?options : HitRegionOptions ) : Void;
 	function removeHitRegion( id : String ) : Void;

@@ -30,9 +30,9 @@ extern class MessageEvent extends Event
 	var data(default,null) : Dynamic;
 	var origin(default,null) : String;
 	var lastEventId(default,null) : String;
-	var source(default,null) : haxe.EitherType<Window,MessagePort>;
+	var source(default,null) : haxe.extern.EitherType<Window,MessagePort>;
 	var ports(default,null) : MessagePortList;
-	
+
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : MessageEventInit ) : Void;
 }

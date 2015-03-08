@@ -705,9 +705,9 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	let rec loop el args = match el,args with
 		| [],[] ->
 			[]
-		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe"],"Rest"},_) -> true | _ -> false) ->
+		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe";"extern"],"Rest"},_) -> true | _ -> false) ->
 			begin match follow t with
-				| TAbstract({a_path=(["haxe"],"Rest")},[t]) ->
+				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
 					(try List.map (fun e -> type_against t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
 				| _ ->
 					assert false

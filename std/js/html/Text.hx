@@ -28,15 +28,15 @@ package js.html;
 extern class Text extends CharacterData
 {
 	var wholeText(default,null) : String;
-	
+
 	/** @throws DOMError */
 	function new( ?data : String = "" ) : Void;
 	/** @throws DOMError */
 	function splitText( offset : Int ) : Text;
 	/** @throws DOMError */
-	function convertQuadFromNode( quad : DOMQuad, from : haxe.EitherType<Text,haxe.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.EitherType<Text,haxe.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertPointFromNode( point : DOMPointInit, from : haxe.EitherType<Text,haxe.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
 }

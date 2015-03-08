@@ -35,7 +35,7 @@ extern class VTTCue extends EventTarget
 	var region : VTTRegion;
 	var vertical : DirectionSetting;
 	var snapToLines : Bool;
-	var line : haxe.EitherType<Int,Dynamic/*MISSING AutoKeyword*/>;
+	var line : haxe.extern.EitherType<Int,Dynamic/*MISSING AutoKeyword*/>;
 	var lineAlign : AlignSetting;
 	var position : Int;
 	var positionAlign : AlignSetting;
@@ -44,7 +44,7 @@ extern class VTTCue extends EventTarget
 	var text : String;
 	var onenter : haxe.Constraints.Function;
 	var onexit : haxe.Constraints.Function;
-	
+
 	/** @throws DOMError */
 	function new( startTime : Float, endTime : Float, text : String ) : Void;
 	function getCueAsHTML() : DocumentFragment;

@@ -21,6 +21,7 @@
  */
 package python.lib.io;
 
+import haxe.extern.EitherType;
 import python.lib.io.BufferedIOBase;
 import python.lib.io.IOBase;
 
@@ -29,7 +30,7 @@ extern class TextIOBase extends IOBase implements ITextIOBase {
 
 	public var encoding:String;
 	public var error:String;
-	public var newlines:Null<haxe.EitherType<String, Tuple<String>>>;
+	public var newlines:Null<EitherType<String, Tuple<String>>>;
 
 	public function detach ():BufferedIOBase;
 
@@ -45,7 +46,7 @@ extern class TextIOBase extends IOBase implements ITextIOBase {
 
 	public var encoding:String;
 	public var error:String;
-	public var newlines:Null<haxe.EitherType<String, Tuple<String>>>;
+	public var newlines:Null<EitherType<String, Tuple<String>>>;
 
 	public var buffer:BufferedIOBase;
 

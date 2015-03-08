@@ -2228,7 +2228,7 @@ let init_class ctx c p context_init herits fields =
 					(* TODO is_lib: avoid forcing the field to be typed *)
 					let t, ct = type_function_arg ctx (type_opt ctx p t) ct opt p in
 					delay ctx PTypeField (fun() -> match follow t with
-						| TAbstract({a_path = ["haxe"],"Rest"},_) ->
+						| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
 							if not c.cl_extern then error "Rest argument are only supported for extern methods" p;
 							if opt then error "Rest argument cannot be optional" p;
 							if ct <> None then error "Rest argument cannot have default value" p;
