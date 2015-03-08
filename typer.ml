@@ -749,9 +749,23 @@ let unify_call_args ctx el args r p inline force_inline =
 	List.map fst el,tf
 
 let unify_field_call ctx fa el args ret p inline =
-	let map_cf map cf = map (monomorphs cf.cf_params cf.cf_type),cf in
+	let map_cf cf0 map cf =
+		let t = map (monomorphs cf.cf_params cf.cf_type) in
+		begin match cf.cf_expr,cf.cf_kind with
+		| None,Method MethInline when not ctx.com.config.pf_overload ->
+			(* This is really awkward and shouldn't be here. We'll keep it for
+			   3.2 in order to not break code that relied on the quirky behavior
+			   in 3.1.3, but it should really be reviewed afterwards.
+			   Related issue: https://github.com/HaxeFoundation/haxe/issues/3846
+			*)
+			cf.cf_expr <- cf0.cf_expr;
+		| _ ->
+			()
+		end;
+		t,cf
+	in
 	let expand_overloads map cf =
-		(TFun(args,ret),cf) :: (List.map (map_cf map) cf.cf_overloads)
+		(TFun(args,ret),cf) :: (List.map (map_cf cf map) cf.cf_overloads)
 	in
 	let candidates,co,cf,mk_fa = match fa with
 		| FStatic(c,cf) ->
@@ -761,7 +775,7 @@ let unify_field_call ctx fa el args ret p inline =
 		| FInstance(c,tl,cf) ->
 			let map = apply_params c.cl_params tl in
 			let cfl = if cf.cf_name = "new" || not (Meta.has Meta.Overload cf.cf_meta && ctx.com.config.pf_overload) then
-				List.map (map_cf map) cf.cf_overloads
+				List.map (map_cf cf map) cf.cf_overloads
 			else
 				List.map (fun (t,cf) -> map (monomorphs cf.cf_params t),cf) (Typeload.get_overloads c cf.cf_name)
 			in
