@@ -151,6 +151,7 @@ extern class Element extends Node
 	function releasePointerCapture( pointerId : Int ) : Void;
 	function setCapture( ?retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
+	function requestFullScreen( ?fsOptions : RequestFullscreenOptions ) : Void;
 	function requestPointerLock() : Void;
 	function getAttributeNode( name : String ) : Attr;
 	/** @throws DOMError */
