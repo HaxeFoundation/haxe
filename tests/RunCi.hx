@@ -433,7 +433,7 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var args = ["foo", "12", "a b  %PATH% $HOME c\\&<>[\"]#{}|%$"];
+		var args = File.getContent('$sysDir/args.txt').split("\n");
 
 		var tests:Array<TEST> = switch (ci) {
 			case null:
@@ -478,6 +478,7 @@ class RunCi {
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-macro.hxml"]);
+					runCommand("haxe", ["compile-each.hxml", "--run", "Main"].concat(args));
 
 					//BYTECODE
 					switch (ci) {

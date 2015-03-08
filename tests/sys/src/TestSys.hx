@@ -3,11 +3,12 @@ class TestSys extends haxe.unit.TestCase {
 	#if !interp
 	function testArgs() {
 		var args = Sys.args();
-		trace(args);
-		assertEquals(3, args.length);
-		assertEquals("foo", args[0]);
-		assertEquals("12", args[1]);
-		assertEquals("a b  %PATH% $HOME c\\&<>[\"]#{}|%$", args[2]);
+		var expectedArgs = haxe.Resource.getString("args.txt").split("\n");
+		// trace(args);
+		assertEquals(expectedArgs.length, args.length);
+		for (i in 0...expectedArgs.length) {
+			assertEquals(expectedArgs[i], args[i]);
+		}
 	}
 	#end
 
