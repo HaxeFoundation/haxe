@@ -28,5 +28,5 @@ private typedef Selectable = haxe.extern.EitherType<Int,{function fileno():Int;}
 
 @:pythonImport("select")
 extern class Select {
-    static function select(rlist:Array<Selectable>, wlist:Array<Selectable>, xlist:Array<Selectable>, ?timeout:Float):Tuple3<Array<Selectable>,Array<Selectable>,Array<Selectable>>;
+    static function select<T>(rlist:Array<T>, wlist:Array<T>, xlist:Array<T>, ?timeout:Float):Tuple3<Array<T>,Array<T>,Array<T>>;
 }
