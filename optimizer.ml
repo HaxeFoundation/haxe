@@ -1310,7 +1310,7 @@ let inline_constructors ctx e =
 			begin match eo with
 				| Some n ->
 					begin match get_inline_ctor_info n with
-					| IKCtor (f,cst,c,tl,pl,el_init) ->
+					| IKCtor (f,cst,c,tl,pl,el_init) when type_iseq v.v_type n.etype ->
 						(* inline the constructor *)
 						(match (try type_inline ctx cst f (mk (TLocal v) (TInst (c,tl)) n.epos) pl ctx.t.tvoid None n.epos true with Error (Custom _,_) -> None) with
 						| None -> ()
@@ -1346,10 +1346,10 @@ let inline_constructors ctx e =
 					| IKStructure fl ->
 						vars := PMap.add v.v_id (v,[],List.map (fun (s,e) -> s,e,e.etype) fl, false, n.epos) !vars;
 						v.v_id <- -v.v_id;
-					| IKNone ->
+					| _ ->
 						()
 					end
-				| None -> ()
+				| _ -> ()
 			end
 		| TField(e1, (FInstance(_, _, {cf_kind = Var _; cf_name = s}) | FAnon({cf_kind = Var _; cf_name = s}))) ->
 			(match skip_to_var e1 with None -> find_locals e1 | Some _ -> ())

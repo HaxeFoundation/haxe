@@ -18,8 +18,8 @@ class Issue3967 extends Test {
 		f(a == b);
 	}
 
-	//function testNicolas() {
-		//var x:{ var test(default,never) : Void -> String; } = new A("foo");
-		//eq("foo", x.test());
-	//}
+	function testNicolas() {
+		var x:{ var test(default,never) : Void -> String; } = new A("foo");
+		eq("foo", x.test());
+	}
 }
