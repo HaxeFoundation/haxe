@@ -27,8 +27,8 @@ import haxe.io.BytesData;
 import python.Exceptions;
 import python.Tuple;
 import python.lib.net.Socket in PSocket;
-import python.lib.net.Socket.Select in Select;
 import python.lib.net.Address in PAddress;
+import python.lib.Select;
 
 private class SocketInput extends haxe.io.Input {
 
