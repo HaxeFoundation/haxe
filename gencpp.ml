@@ -4223,9 +4223,11 @@ let write_build_data common_ctx filename classes main_deps build_extra exe_name 
 
 let write_build_options common_ctx filename defines =
    let writer = cached_source_writer common_ctx filename in
-   writer#write ( defines ^ "\n");
+   PMap.iter ( fun name value -> match name with
+      | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
+      | _ ->  writer#write (name ^ "="^(escape_command value)^ "\n" ) ) defines;
    let cmd = Unix.open_process_in "haxelib path hxcpp" in
-   writer#write (Pervasives.input_line cmd);
+   writer#write ("hxcpp=" ^ (Pervasives.input_line cmd));
    Pervasives.ignore (Unix.close_process_in cmd);
    writer#close;;
 
@@ -5468,7 +5470,7 @@ let generate_source common_ctx =
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
       | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines;
-   write_build_options common_ctx (common_ctx.file ^ "/Options.txt") !cmd_defines;
+   write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
