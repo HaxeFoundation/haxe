@@ -28,18 +28,6 @@ import python.Tuple;
     A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
 **/
 
-typedef Selectable = {
-    function fileno():Int;
-}
-
-@:native("select")
-@:pythonImport("select")
-extern class Select {
-
-    static function select<T>(reads:Array<T>,writes:Array<T>,xs:Array<T>,timeout:Float):Tuple3<Array<T>,Array<T>,Array<T>>;
-
-}
-
 @:pythonImport("socket", "socket")
 extern class Socket {
 
