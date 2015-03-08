@@ -759,6 +759,7 @@ let unify_field_call ctx fa el args ret p inline =
 			   Related issue: https://github.com/HaxeFoundation/haxe/issues/3846
 			*)
 			cf.cf_expr <- cf0.cf_expr;
+			cf.cf_kind <- cf0.cf_kind;
 		| _ ->
 			()
 		end;

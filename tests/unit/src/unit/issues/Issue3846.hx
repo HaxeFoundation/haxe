@@ -6,11 +6,12 @@ package unit.issues;
 private class Extern {
 
 	@:keep
-	static function mytest(a:Dynamic) {
+	static public function mytest(a:Dynamic) {
 		return a;
 	}
 
     @:overload( function (a:Int):Dynamic {})
+	@:extern
     inline public static function test(a:String):Dynamic {
         return mytest(a);
     }
