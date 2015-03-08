@@ -518,10 +518,12 @@ let dollar_ident_macro pack = parser
 	| [< '(Const (Ident i),p) >] -> i,p
 	| [< '(Dollar i,p) >] -> ("$" ^ i),p
 	| [< '(Kwd Macro,p) when pack <> [] >] -> "macro", p
+	| [< '(Kwd Extern,p) when pack <> [] >] -> "extern", p
 
 let lower_ident_or_macro = parser
 	| [< '(Const (Ident i),p) when is_lower_ident i >] -> i
 	| [< '(Kwd Macro,_) >] -> "macro"
+	| [< '(Kwd Extern,_) >] -> "extern"
 
 let any_enum_ident = parser
 	| [< i = ident >] -> i
@@ -660,6 +662,8 @@ and parse_import s p1 =
 				loop ((k,p) :: acc)
 			| [< '(Kwd Macro,p) >] ->
 				loop (("macro",p) :: acc)
+			| [< '(Kwd Extern,p) >] ->
+				loop (("extern",p) :: acc)
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< '(Binop OpOr,_) when do_resume() >] ->
