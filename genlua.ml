@@ -671,13 +671,14 @@ and gen_expr ctx e =
 		spr ctx "}";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
-		    List.iter (fun e3 ->
-			if cnt == 0 then spr ctx "if " else spr ctx "elseif ";
+		    if cnt == 0 then spr ctx "if " else spr ctx "elseif ";
+		    List.iteri (fun ccnt e3 ->
+			if ccnt > 0 then spr ctx " or ";
 			gen_value ctx e;
 			spr ctx " == ";
 			gen_value ctx e3;
-			spr ctx " then "
 		    ) el;
+		    spr ctx " then ";
 		    let bend = open_block ctx in
 		    gen_block_element ctx e2;
 		    bend();
