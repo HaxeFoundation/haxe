@@ -227,14 +227,8 @@ let add_mapping ctx e =
 		smap.output_last_col <- smap.output_current_col
 	end
 
-let basename path =
-	try
-		let idx = String.rindex path '/' in
-		String.sub path (idx + 1) (String.length path - idx - 1)
-	with Not_found -> path
-
 let write_mappings ctx =
-	let basefile = basename ctx.com.file in
+	let basefile = Filename.basename ctx.com.file in
 	print ctx "\n//# sourceMappingURL=%s.map" basefile;
 	let channel = open_out_bin (ctx.com.file ^ ".map") in
 	let sources = DynArray.to_list ctx.smap.sources in
