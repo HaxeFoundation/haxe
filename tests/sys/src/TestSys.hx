@@ -3,7 +3,7 @@ class TestSys extends haxe.unit.TestCase {
 	#if !interp
 	function testArgs() {
 		var args = Sys.args();
-		var expectedArgs = haxe.Resource.getString("args.txt").split("\n");
+		var expectedArgs = ~/\r?\n/g.split(haxe.Resource.getString("args.txt"));
 		// trace(args);
 		assertEquals(expectedArgs.length, args.length);
 		for (i in 0...expectedArgs.length) {

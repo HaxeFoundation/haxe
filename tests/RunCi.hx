@@ -433,7 +433,7 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var args = File.getContent('$sysDir/args.txt').split("\n");
+		var args = ~/\r?\n/g.split(File.getContent('$sysDir/args.txt'));
 
 		var tests:Array<TEST> = switch (ci) {
 			case null:
