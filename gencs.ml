@@ -1165,6 +1165,45 @@ let configure gen =
 		| _ -> false
 	in
 
+	let extract_statements expr =
+		let ret = ref [] in
+		let rec loop expr = match expr.eexpr with
+			| TCall ({ eexpr = TLocal {
+					v_name = "__is__" | "__typeof__" | "__array__" | "__sizeof__" | "__delegate__"
+				} }, el) ->
+				List.iter loop el
+			| TNew ({ cl_path = (["cs"], "NativeArray") }, params, [ size ]) ->
+				()
+			| TUnop (Ast.Increment, _, _)
+			| TUnop (Ast.Decrement, _, _)
+			| TBinop (Ast.OpAssign, _, _)
+			| TBinop (Ast.OpAssignOp _, _, _)
+			| TLocal { v_name = "__fallback__" }
+			| TLocal { v_name = "__sbreak__" } ->
+				ret := expr :: !ret
+			| TConst _
+			| TLocal _
+			| TArray _
+			| TBinop _
+			| TField _
+			| TEnumParameter _
+			| TTypeExpr _
+			| TObjectDecl _
+			| TArrayDecl _
+			| TCast _
+			| TMeta _
+			| TParenthesis _
+			| TUnop _ ->
+				Type.iter loop expr
+			| TFunction _ -> () (* do not extract parameters from inside of it *)
+			| _ ->
+				ret := expr :: !ret
+		in
+		loop expr;
+		(* [expr] *)
+		List.rev !ret
+	in
+
 	let expr_s w e =
 		last_line := -1;
 		in_value := false;
@@ -1515,11 +1554,13 @@ let configure gen =
 				| TBlock el ->
 					begin_block w;
 					List.iter (fun e ->
-						line_directive w e.epos;
-						in_value := false;
-						expr_s w e;
-						(if has_semicolon e then write w ";");
-						newline w
+						List.iter (fun e ->
+							line_directive w e.epos;
+							in_value := false;
+							expr_s w e;
+							(if has_semicolon e then write w ";");
+							newline w
+						) (extract_statements e)
 					) el;
 					end_block w
 				| TIf (econd, e1, Some(eelse)) when was_in_value ->
