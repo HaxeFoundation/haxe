@@ -34,7 +34,7 @@ class HxOverrides {
 	// this two cases iterator and shift are like all methods in String and Array and are already handled in Reflect
 	// we need to modify the transformer to call Reflect directly
 
-	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator")
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
 	static public function iterator(x) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).iterator();
@@ -61,7 +61,7 @@ class HxOverrides {
 		return Syntax.callField(x, "shift");
 	}
 
-	@:ifFeature("dynamic_read.pop", "anon_optional_read.pop")
+	@:ifFeature("dynamic_read.pop", "anon_optional_read.pop", "anon_read.pop")
 	static public function pop(x) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).pop();
@@ -69,7 +69,7 @@ class HxOverrides {
 		return Syntax.callField(x, "pop");
 	}
 
-	@:ifFeature("dynamic_read.push", "anon_optional_read.push")
+	@:ifFeature("dynamic_read.push", "anon_optional_read.push", "anon_read.push")
 	static public function push(x, e) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).push(e);
@@ -77,7 +77,7 @@ class HxOverrides {
 		return Syntax.callField(x, "push", e);
 	}
 
-	@:ifFeature("dynamic_read.join", "anon_optional_read.join")
+	@:ifFeature("dynamic_read.join", "anon_optional_read.join", "anon_read.join")
 	static public function join(x, sep) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).join(sep);
@@ -85,7 +85,7 @@ class HxOverrides {
 		return Syntax.callField(x, "join", sep);
 	}
 
-	@:ifFeature("dynamic_read.filter", "anon_optional_read.filter")
+	@:ifFeature("dynamic_read.filter", "anon_optional_read.filter", "anon_read.filter")
 	static public function filter(x, f) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).filter(f);
@@ -93,7 +93,7 @@ class HxOverrides {
 		return Syntax.callField(x, "filter", f);
 	}
 
-	@:ifFeature("dynamic_read.map", "anon_optional_read.map")
+	@:ifFeature("dynamic_read.map", "anon_optional_read.map", "anon_read.map")
 	static public function map(x, f) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).map(f);
@@ -101,7 +101,7 @@ class HxOverrides {
 		return Syntax.callField(x, "map", f);
 	}
 
-	@:ifFeature("dynamic_read.toUpperCase", "anon_optional_read.toUpperCase")
+	@:ifFeature("dynamic_read.toUpperCase", "anon_optional_read.toUpperCase", "anon_read.toUpperCase")
 	static public function toUpperCase(x) {
 		if (Boot.isString(x)) {
 			return (x:String).toUpperCase();
@@ -109,7 +109,7 @@ class HxOverrides {
 		return Syntax.callField(x, "toUpperCase");
 	}
 
-	@:ifFeature("dynamic_read.toLowerCase", "anon_optional_read.toLowerCase")
+	@:ifFeature("dynamic_read.toLowerCase", "anon_optional_read.toLowerCase", "anon_read.toLowerCase")
 	static public function toLowerCase(x) {
 		if (Boot.isString(x)) {
 			return (x:String).toLowerCase();
