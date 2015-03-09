@@ -478,8 +478,9 @@ and gen_expr ctx e =
 		    gen_value ctx e) el;
 		print ctx " }, %i)" !count;
 	| TThrow e ->
-		spr ctx "throw ";
+		spr ctx "error(";
 		gen_value ctx e;
+		spr ctx ")";
 	| TVar (v,eo) ->
 		begin match eo with
 			| None ->
