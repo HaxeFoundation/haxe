@@ -1336,7 +1336,7 @@ module Printer = struct
 			| TIf(econd,eif,eelse) ->
 				print_if_else pctx econd eif eelse false
 			| TWhile(econd,e1,NormalWhile) ->
-				Printf.sprintf "while %s:\n%s\t%s" (print_expr pctx econd) indent (print_expr_indented e1)
+				Printf.sprintf "while %s:\n%s\t%s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
 				error "Currently not supported" e.epos
 			| TTry(e1,catches) ->
@@ -1383,7 +1383,7 @@ module Printer = struct
 			opt eelse (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent}) (Printf.sprintf "else:\n%s\t" indent)
 		in
 		let else_str = if else_str = "" then "" else "\n" ^ indent ^ else_str in
-		Printf.sprintf "if %s:\n%s\t%s%s" (print_expr pctx econd1) indent if_str else_str
+		Printf.sprintf "if %s:\n%s\t%s%s" (print_expr pctx (remove_outer_parens econd1)) indent if_str else_str
 
 	and print_field pctx e1 fa is_assign =
 		let obj = match e1.eexpr with
