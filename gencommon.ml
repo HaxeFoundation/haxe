@@ -1354,7 +1354,8 @@ type tfield_access =
 
 let is_var f = match f.cf_kind with | Var _ -> true | _ -> false
 
-let find_first_declared_field gen orig_cl ?exact_field field =
+let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
+	let get_vmtype = match get_vmtype with None -> (fun t -> t) | Some f -> f in
 	let chosen = ref None in
 	let is_overload = ref false in
 	let rec loop_cl depth c tl tlch =
@@ -1368,7 +1369,7 @@ let find_first_declared_field gen orig_cl ?exact_field field =
 			| _, Some f2 ->
 				List.iter (fun f ->
 					let declared_t = apply_params c.cl_params tl f.cf_type in
-					if Typeload.same_overload_args declared_t f2.cf_type f f2 then
+					if Typeload.same_overload_args ~get_vmtype declared_t f2.cf_type f f2 then
 						chosen := Some(depth,f,c,tl,tlch)
 				) (ret :: ret.cf_overloads)
 		with | Not_found -> ());
@@ -10935,7 +10936,7 @@ struct
 		specify a explicit_fn_name function (tclass->string->string)
 		Otherwise, it expects the platform to be able to handle covariant return types
 	*)
-	let run ~explicit_fn_name gen =
+	let run ~explicit_fn_name ~get_vmtype gen =
 		let implement_explicitly = is_some explicit_fn_name in
 		let run md = match md with
 			| TClassDecl ( { cl_interface = true; cl_extern = false } as c ) ->
@@ -10969,7 +10970,7 @@ struct
 								| (_, cf) :: _ when Meta.has Meta.Overload cf.cf_meta -> (* overloaded function *)
 									(* try to find exact function *)
 									List.find (fun (t,f2) ->
-										Typeload.same_overload_args ftype t f f2
+										Typeload.same_overload_args ~get_vmtype ftype t f f2
 									) overloads
 								| _ :: _ ->
 									(match field_access gen (TInst(c, List.map snd c.cl_params)) f.cf_name with
@@ -10985,7 +10986,7 @@ struct
 								if List.length f.cf_params <> List.length f2.cf_params then raise Not_found;
 								replace_mono t2;
 								match follow (apply_params f2.cf_params (List.map snd f.cf_params) t2), follow real_ftype with
-								| TFun(a1,r1), TFun(a2,r2) when not implement_explicitly && not (type_iseq r1 r2) && Typeload.same_overload_args real_ftype t2 f f2 ->
+								| TFun(a1,r1), TFun(a2,r2) when not implement_explicitly && not (type_iseq r1 r2) && Typeload.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
 									(* different return types are the trickiest cases to deal with *)
 									(* check for covariant return type *)
 									let is_covariant = match follow r1, follow r2 with
@@ -11011,7 +11012,7 @@ struct
 								| TFun(a1,r1), TFun(a2,r2) ->
 									(* just implement a function that will call the main one *)
 									let name, is_explicit = match explicit_fn_name with
-										| Some fn when not (type_iseq r1 r2) && Typeload.same_overload_args real_ftype t2 f f2 ->
+										| Some fn when not (type_iseq r1 r2) && Typeload.same_overload_args ~get_vmtype real_ftype t2 f f2 ->
 												fn iface itl f.cf_name, true
 										| _ -> f.cf_name, false
 									in
@@ -11061,13 +11062,13 @@ struct
 					(* find the first declared field *)
 					let is_overload = Meta.has Meta.Overload f.cf_meta in
 					let decl = if is_overload then
-						find_first_declared_field gen c ~exact_field:f f.cf_name
+						find_first_declared_field gen c ~get_vmtype ~exact_field:f f.cf_name
 					else
-						find_first_declared_field gen c f.cf_name
+						find_first_declared_field gen c ~get_vmtype f.cf_name
 					in
 					match decl with
 					| Some(f2,actual_t,_,t,declared_cl,_,_)
-						when not (Typeload.same_overload_args actual_t (get_real_fun gen f.cf_type) f2 f) ->
+						when not (Typeload.same_overload_args ~get_vmtype actual_t (get_real_fun gen f.cf_type) f2 f) ->
 							if Meta.has Meta.Overload f.cf_meta then begin
 								(* if it is overload, create another field with the requested type *)
 								let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
@@ -11132,12 +11133,12 @@ struct
 		in
 		run
 
-	let configure ?explicit_fn_name gen =
+	let configure ?explicit_fn_name ~get_vmtype gen =
 		let delay () =
 			Hashtbl.clear gen.greal_field_types
 		in
 		gen.gafter_mod_filters_ended <- delay :: gen.gafter_mod_filters_ended;
-		let run = run ~explicit_fn_name:explicit_fn_name gen in
+		let run = run ~explicit_fn_name ~get_vmtype gen in
 		let map md = Some(run md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 end;;

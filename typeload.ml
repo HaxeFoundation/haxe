@@ -772,7 +772,11 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
-let same_overload_args t1 t2 f1 f2 =
+let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
+	let get_vmtype = match get_vmtype with
+		| None -> (fun f -> f)
+		| Some f -> f
+	in
 	if List.length f1.cf_params <> List.length f2.cf_params then
 		false
 	else
@@ -790,13 +794,13 @@ let same_overload_args t1 t2 f1 f2 =
 		| _ -> t
 	in
 	let same_arg t1 t2 =
-	let t1 = follow_skip_null t1 in
-	let t2 = follow_skip_null t2 in
-	match follow_skip_null t1, follow_skip_null t2 with
-		| TType _, TType _ -> type_iseq t1 t2
-		| TType _, _
-		| _, TType _ -> false
-		| _ -> type_iseq t1 t2
+		let t1 = get_vmtype (follow_skip_null t1) in
+		let t2 = get_vmtype (follow_skip_null t2) in
+		match t1, t2 with
+			| TType _, TType _ -> type_iseq t1 t2
+			| TType _, _
+			| _, TType _ -> false
+			| _ -> type_iseq t1 t2
 	in
 
 	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
