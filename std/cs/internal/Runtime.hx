@@ -260,128 +260,125 @@ import cs.system.Object;
 		throw new cs.system.ArgumentException("Cannot dynamically add " + v1 + " and " + v2);
 	}
 
-	@:functionCode('
-
+	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
+	{
 		if (obj == null)
 			if (throwErrors)
-				throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
+				throw new cs.system.NullReferenceException("Cannot access field \'" + field + "\' of null.");
 			else
 				return null;
 
-		System.Type t = obj as System.Type;
-		System.Reflection.BindingFlags bf;
-    if (t == null)
-		{
-			string s = obj as string;
-			if (s != null)
-				return haxe.lang.StringRefl.handleGetField(s, field, throwErrors);
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
-		} else {
-			if (t == typeof(string) && field.Equals("fromCharCode"))
-				return new haxe.lang.Closure(typeof(haxe.lang.StringExt), field, 0);
+		var t = Lib.as(obj, cs.system.Type);
+		var bf =
+			if (t == null)
+			{
+				var s = Lib.as(obj, String);
+				if (s != null)
+					return cs.internal.StringExt.StringRefl.handleGetField(s, field, throwErrors);
+				t = obj.GetType();
+				new cs.Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
+			} else {
+				if (t == Lib.toNativeType(String) && field == "fromCharCode")
+					return new cs.internal.Function.Closure(StringExt, field, 0);
 
-			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-		}
+				obj = null;
+				new cs.Flags(BindingFlags.Static) | BindingFlags.Public;
+			}
 
-		System.Reflection.FieldInfo f = t.GetField(field, bf);
+		var f = t.GetField(field, bf);
 		if (f != null)
 		{
-			return haxe.lang.Runtime.unbox(f.GetValue(obj));
-		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
+			return unbox(f.GetValue(obj));
+		}
+		else
+		{
+			var prop = t.GetProperty(field, bf);
 			if (prop == null)
 			{
-				System.Reflection.MemberInfo[] m = t.GetMember(field, bf);
-				if (m.Length == 0 && (field == "__get" || field == "__set"))
+				var m = t.GetMember(field, bf);
+				if (m.length == 0 && (field == "__get" || field == "__set"))
 					m = t.GetMember(field == "__get" ? "get_Item" : "set_Item", bf);
 
 				if (m.Length > 0)
 				{
-					return new haxe.lang.Closure(obj != null ? obj : t, field, 0);
-				} else {
+					return new cs.internal.Function.Closure(obj != null ? obj : t, field, 0);
+				}
+				else
+				{
 					// COM object handling
 					if (t.IsCOMObject)
 					{
 						try
 						{
-							return t.InvokeMember(field, System.Reflection.BindingFlags.GetProperty, null, obj, new object[0]);
+							return t.InvokeMember(field, BindingFlags.GetProperty, null, obj, new cs.NativeArray(0));
 						}
-						catch (System.Exception e)
+						catch (e:cs.system.Exception)
 						{
 							//Closures of COM objects not supported currently
 						}
 					}
 
 					if (throwErrors)
-						throw HaxeException.wrap("Cannot access field \'" + field + "\'.");
+						throw "Cannot access field \'" + field + "\'.";
 					else
 						return null;
 				}
 			}
-			return haxe.lang.Runtime.unbox(prop.GetValue(obj, null));
+			return unbox(prop.GetValue(obj, null));
 		}
-
-	')
-	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
-	{
-		return null;
 	}
 
-	@:functionCode('
-		if (obj == null) return false;
-		System.Type t = obj as System.Type;
-		System.Reflection.BindingFlags bf;
-        if (t == null)
-		{
-			string s = obj as string;
-			if (s != null)
-				return haxe.lang.StringRefl.handleGetField(s, field, false) != null;
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
-		} else {
-			if (t == typeof(string))
-				return field.Equals("fromCharCode");
-			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-		}
-
-		System.Reflection.MemberInfo[] mi = t.GetMember(field, bf);
-		return mi != null && mi.Length > 0;
-	')
 	public static function slowHasField(obj:Dynamic, field:String):Bool
 	{
-		return false;
+		if (obj == null) return false;
+		var t = Lib.as(obj, cs.system.Type);
+		var bf =
+			if (t == null) {
+				var s = Lib.as(obj, String);
+				if (s != null)
+					return cs.internal.StringExt.StringRefl.handleGetField(s, field, false) != null;
+				t = obj.GetType();
+				new cs.Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
+			} else {
+				if (t == Lib.toNativeType(String))
+					return field == "fromCharCode";
+				obj = null;
+				new cs.Flags(BindingFlags.Static) | BindingFlags.Public;
+			}
+		var mi = t.GetMember(field, bf);
+		return mi != null && mi.length > 0;
 	}
 
-	@:functionCode('
+	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic
+	{
 		if (obj == null)
-			throw new System.NullReferenceException("Cannot access field \'" + field + "\' of null.");
+			throw new cs.system.NullReferenceException("Cannot access field \'" + field + "\' of null.");
 
-		System.Type t = obj as System.Type;
-		System.Reflection.BindingFlags bf;
-		if (t == null)
-		{
-			t = obj.GetType();
-			bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy;
-		} else {
-			obj = null;
-			bf = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public;
-		}
+		var t = Lib.as(obj, cs.system.Type);
+		var bf =
+			if (t == null)
+			{
+				t = obj.GetType();
+				new cs.Flags(BindingFlags.Instance) | BindingFlags.Public | BindingFlags.FlattenHierarchy;
+			} else {
+				obj = null;
+				new cs.Flags(BindingFlags.Static) | BindingFlags.Public;
+			}
 
-		System.Reflection.FieldInfo f = t.GetField(field, bf);
+		var f = t.GetField(field, bf);
 		if (f != null)
 		{
 			if (f.FieldType.ToString().StartsWith("haxe.lang.Null"))
 			{
-				@value = haxe.lang.Runtime.mkNullable(@value, f.FieldType);
+				value = mkNullable(value, f.FieldType);
 			}
 
-			f.SetValue(obj, @value);
-			return @value;
-		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, bf);
+			f.SetValue(obj, value);
+			return value;
+		}
+		else
+		{
+			var prop = t.GetProperty(field, bf);
 			if (prop == null)
 			{
 				// COM object handling
@@ -389,30 +386,24 @@ import cs.system.Object;
 				{
 					try
 					{
-						return t.InvokeMember(field, System.Reflection.BindingFlags.SetProperty, null, obj, new object[] { value });
+						return t.InvokeMember(field, BindingFlags.SetProperty, null, obj, cs.NativeArray.make(value));
 					}
-					catch (System.Exception e)
+					catch (e:cs.system.Exception)
 					{
 						//Closures of COM objects not supported currently
 					}
 				}
-				throw haxe.lang.HaxeException.wrap("Field \'" + field + "\' not found for writing from Class " + t);
+				throw "Field \'" + field + "\' not found for writing from Class " + t;
 			}
 
 			if (prop.PropertyType.ToString().StartsWith("haxe.lang.Null"))
 			{
-				@value = haxe.lang.Runtime.mkNullable(@value, prop.PropertyType);
+				value = mkNullable(value, prop.PropertyType);
 			}
-			prop.SetValue(obj, @value, null);
+			prop.SetValue(obj, value, null);
 
-			return @value;
+			return value;
 		}
-
-	')
-	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic
-	{
-		//not implemented yet;
-		throw "Not implemented";
 	}
 
 	public static function callMethod(obj:Dynamic, methods:NativeArray<MethodBase>, methodLength:Int, args:Array<Dynamic>):Dynamic
