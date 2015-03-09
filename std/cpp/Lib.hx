@@ -149,6 +149,11 @@ class Lib {
    }
    #end
 
+   public static function setFloatFormat(inFormat:String):Void
+   {
+      untyped __global__.__hxcpp_set_float_format(inFormat);
+   }
+
    public static macro function loadPrime(inModule:String, inName:String, inSig:String,inAllowFail:Bool = false)
    {
       var parts = inSig.split("");
