@@ -52,6 +52,7 @@ module Meta = struct
 		| CoreApi
 		| CoreType
 		| CppFileCode
+		| CppInclude
 		| CppNamespaceCode
 		| CsNative
 		| Dce
@@ -87,6 +88,7 @@ module Meta = struct
 		| HaxeGeneric
 		| HeaderClassCode
 		| HeaderCode
+		| HeaderInclude
 		| HeaderNamespaceCode
 		| HxGen
 		| IfFeature
@@ -148,6 +150,7 @@ module Meta = struct
 		| SkipCtor
 		| SkipReflection
 		| Sound
+		| SourceFile
 		| StoredTypedExpr
 		| Strict
 		| Struct

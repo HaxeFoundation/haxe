@@ -108,7 +108,7 @@ class source_writer common_ctx write_func close_func =
 
    method add_include class_path =
       ( match class_path with
-         | (["@verbatim"],file) -> this#write ("#include <" ^ file ^ ">\n");
+         | (["@verbatim"],file) -> this#write ("#include \"" ^ file ^ "\"\n");
          | _ ->
             let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx true in
             this#write ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
@@ -3424,6 +3424,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp "#include <hx/Scriptable.h>\n";
 
    output_cpp ( get_class_code class_def Meta.CppFileCode );
+   let inc = get_meta_string_path ctx class_def.cl_meta Meta.CppInclude in
+   if (inc<>"") then
+      output_cpp ("#include \"" ^ inc ^ "\"\n");
 
    gen_open_namespace output_cpp class_path;
    output_cpp "\n";
@@ -4047,6 +4050,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    List.iter ( gen_forward_decl h_file ) referenced;
 
    output_h ( get_class_code class_def Meta.HeaderCode );
+   let inc = get_meta_string_path ctx class_def.cl_meta Meta.HeaderInclude in
+   if (inc<>"") then
+      output_h ("#include \"" ^ inc ^ "\"\n");
 
    gen_open_namespace output_h class_path;
    output_h "\n\n";
@@ -4123,7 +4129,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    List.iter (gen_member_def ctx class_def true interface)  (List.filter should_implement_field class_def.cl_ordered_statics);
 
    output_h ( get_class_code class_def Meta.HeaderClassCode );
-
    output_h "};\n\n";
 
    if (class_def.cl_interface) then begin
@@ -4222,7 +4227,7 @@ let write_resources common_ctx =
 
 
 
-let write_build_data common_ctx filename classes main_deps build_extra exe_name =
+let write_build_data common_ctx filename classes main_deps build_extra extern_src exe_name =
    let buildfile = open_out filename in
    let include_prefix = get_include_prefix common_ctx true in
    let add_class_to_buildfile class_def =
@@ -4264,6 +4269,9 @@ let write_build_data common_ctx filename classes main_deps build_extra exe_name 
       output_string buildfile ("<file name=\"src/resources/" ^ id ^ ".cpp\" />\n");
       incr idx;
    ) common_ctx.resources;
+   output_string buildfile "</files>\n";
+   output_string buildfile "<files id=\"__externs__\">\n";
+   List.iter (fun src -> output_string buildfile ("<file name=\"" ^src^ "\" />\n") ) extern_src;
    output_string buildfile "</files>\n";
    output_string buildfile ("<set name=\"HAXE_OUTPUT\" value=\"" ^ exe_name ^ "\" />\n");
    output_string buildfile "<include name=\"${HXCPP}/build-tool/BuildCommon.xml\"/>\n";
@@ -5435,12 +5443,17 @@ let generate_source common_ctx =
    let super_deps = create_super_dependencies common_ctx in
    let constructor_deps = create_constructor_dependencies common_ctx in
    let main_deps = ref [] in
+   let extern_src = ref [] in
    let build_xml = ref "" in
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
 
    List.iter (fun object_def ->
       (match object_def with
-      | TClassDecl class_def when is_extern_class class_def -> ()
+      | TClassDecl class_def when is_extern_class class_def ->
+         build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
+         let source = get_meta_string_path common_ctx class_def.cl_meta Meta.SourceFile in
+         if (source<>"") then
+            extern_src := source :: !extern_src;
       | TClassDecl class_def ->
          let name =  class_text class_def.cl_path in
          let is_internal = is_internal_class class_def.cl_path in
@@ -5515,7 +5528,7 @@ let generate_source common_ctx =
    | Some path -> (snd path)
    | _ -> "output" in
 
-   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml output_name;
+   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml !extern_src output_name;
    let cmd_defines = ref "" in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
