@@ -178,10 +178,10 @@ class TestJava extends Test
 
 	function testNameClash()
 	{
-		eq(Base._nameClash(null), -1);
+		eq(Base.nameClash(null), -1);
 		eq(new Base().nameClash(), 1);
 		eq(new Base().varNameClash(1), 1);
-		eq(Base._varNameClash(10.4), 10.4);
+		eq(Base.varNameClash(10.4), 10.4);
 
 	}
 

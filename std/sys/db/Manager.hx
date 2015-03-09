@@ -651,6 +651,7 @@ class Manager<T : Object> {
 			Reflect.setField(x,key,null);
 		else
 			Reflect.setField(x,key,Reflect.field(v,table_keys[0]));
+		return v;
 	}
 
 	#end
