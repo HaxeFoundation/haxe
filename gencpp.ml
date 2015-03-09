@@ -345,6 +345,28 @@ let get_meta_string meta key =
    loop meta
 ;;
 
+
+
+let get_meta_string_path ctx meta key =
+   let rec loop = function
+      | [] -> ""
+      | (k,[Ast.EConst (Ast.String name),_], pos) :: _  when k=key->
+           (try
+           if (String.sub name 0 2) = "./" then begin
+              let base = if (Filename.is_relative pos.pfile) then
+                 Filename.concat (Sys.getcwd()) pos.pfile
+              else
+                 pos.pfile
+              in
+              Gencommon.normalize (Filename.concat (Filename.dirname base) (String.sub name 2 ((String.length name) -2)  ))
+           end else
+              name
+           with Invalid_argument _ -> name)
+      | _ :: l -> loop l
+      in
+   loop meta
+;;
+
 let has_meta_key meta key =
    List.exists (fun m -> match m with | (k,_,_) when k=key-> true | _ -> false ) meta
 ;;
@@ -2680,7 +2702,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
       end
    in
    let add_extern_class klass =
-      let include_file = get_meta_string klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
+      let include_file = get_meta_string_path ctx klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
       if (include_file<>"") then
          add_type ( path_of_string include_file )
       else if (not for_depends) && (has_meta_key klass.cl_meta Meta.Include) then
