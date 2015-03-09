@@ -4167,30 +4167,50 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let depend_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false true false in
    depend_referenced;;
 
+
 let write_resources common_ctx =
-   let resource_file = new_cpp_file common_ctx common_ctx.file ([],"__resources__") in
-   resource_file#write "#include <hxcpp.h>\n\n";
 
    let idx = ref 0 in
+
    Hashtbl.iter (fun _ data ->
-      resource_file#write_i ("static unsigned char __res_" ^ (string_of_int !idx) ^ "[] = {\n");
+      let id = "__res_" ^ (string_of_int !idx) in
+      let resource_file = new_cpp_file common_ctx common_ctx.file (["resources"],id) in
+      resource_file#write "namespace hx {\n";
+      resource_file#write_i ("unsigned char " ^ id ^ "[] = {\n");
       resource_file#write_i "0xff, 0xff, 0xff, 0xff,\n";
       for i = 0 to String.length data - 1 do
       let code = Char.code (String.unsafe_get data i) in
-         resource_file#write  (Printf.sprintf "0x%.2x, " code);
+         resource_file#write  (Printf.sprintf "%d," code);
          if ( (i mod 10) = 9) then resource_file#write "\n";
       done;
       resource_file#write ("0x00 };\n");
       incr idx;
+      resource_file#write ("}\n");
+      resource_file#close;
    ) common_ctx.resources;
+
+
+   let resource_file = new_cpp_file common_ctx common_ctx.file ([],"__resources__") in
+   resource_file#write "#include <hxcpp.h>\n\n";
+   resource_file#write "namespace hx { \n\n";
+
+   idx := 0;
+   Hashtbl.iter (fun _ data ->
+      let id = "__res_" ^ (string_of_int !idx) in
+      resource_file#write_i ("extern unsigned char " ^ id ^ "[];\n");
+      incr idx;
+   ) common_ctx.resources;
+
+   resource_file#write "}\n\n";
 
    idx := 0;
    resource_file#write "hx::Resource __Resources[] =";
    resource_file#begin_block;
    Hashtbl.iter (fun name data ->
+      let id = "__res_" ^ (string_of_int !idx) in
       resource_file#write_i
          ("{ " ^ (str name) ^ "," ^ (string_of_int (String.length data)) ^ "," ^
-            "__res_" ^ (string_of_int !idx) ^ " + 4 },\n");
+            "hx::" ^ id ^ " + 4 },\n");
       incr idx;
    ) common_ctx.resources;
 
@@ -4236,6 +4256,14 @@ let write_build_data common_ctx filename classes main_deps build_extra exe_name 
    output_string buildfile "<files id=\"__main__\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
    add_class_to_buildfile (  ( [] , "__main__") , main_deps );
+   output_string buildfile "</files>\n";
+   output_string buildfile "<files id=\"__resources__\">\n";
+   let idx = ref 0 in
+   Hashtbl.iter (fun _ data ->
+      let id = "__res_" ^ (string_of_int !idx) in
+      output_string buildfile ("<file name=\"src/resources/" ^ id ^ ".cpp\" />\n");
+      incr idx;
+   ) common_ctx.resources;
    output_string buildfile "</files>\n";
    output_string buildfile ("<set name=\"HAXE_OUTPUT\" value=\"" ^ exe_name ^ "\" />\n");
    output_string buildfile "<include name=\"${HXCPP}/build-tool/BuildCommon.xml\"/>\n";
