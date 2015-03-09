@@ -19,60 +19,69 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class EReg {
+import lua.Rex;
+import lua.Table;
+import lua.Boot;
+import lua.TableTools;
+// @:coreApi
+class EReg {
 
-	var r : HaxeRegExp;
+	var r : Rex; // the Rex extern instance.
+	var global : Bool;  // whether the regex is in global mode.
+	var s : String; // the last matched string
+	var m : Table<Int,Dynamic>; // the [start:Int, end:Int, and submatches:String (matched groups)] as a single table.
 
 	public function new( r : String, opt : String ) : Void {
-		opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
-		this.r = new HaxeRegExp(r, opt);
+		var ropt = new StringBuf();
+		for (i in 0...opt.length){
+			switch(opt.charAt(i)){
+				case "i", "m", "s" : ropt.add(opt.charAt(i));
+				case "g" : global = true;
+				default : null;
+			}
+		}
+		if (global == null) global = false;
+		this.r = new Rex(r, ropt.toString());
 	}
 
-	public function match( s : String ) : Bool {
-		if( r.global ) r.lastIndex = 0;
-		r.m = r.exec(s);
-		r.s = s;
-		return (r.m != null);
+	public function match( str : String ) : Bool {
+		m = untyped Boot.unpack(r.exec(str));
+		s = str;
+		return m[0] != null;
 	}
 
 	public function matched( n : Int ) : String {
-		return if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
+		if (m == null || n < 0) throw "EReg::matched";
+		else if (n == 0) {
+			// TODO: Figure out how to use lua 1-based indexing where appropriate,
+			// 	while also providing the lua.Table utility abstract.
+			return untyped __lua__("string.sub(self.s, self.m[1], self.m[2])");
+		} else {
+			var mn = 2 * (n - 1);
+			return untyped __lua__("string.sub(self.s, self.m[3][mn + 1], self.m[3][mn + 2])");
+		}
 	}
 
 	public function matchedLeft() : String {
-		if( r.m == null ) throw "No string matched";
-		return r.s.substr(0,r.m.index);
+		if( m == null ) throw "No string matched";
+		return untyped __lua__("string.sub(self.s, 1, self.m[1]-1)");
 	}
 
 	public function matchedRight() : String {
-		if( r.m == null ) throw "No string matched";
-		var sz = r.m.index+r.m[0].length;
-		return r.s.substr(sz,r.s.length-sz);
+		if( m == null ) throw "No string matched";
+		return untyped __lua__("string.sub(self.s, self.m[2]+1)");
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		if( r.m == null ) throw "No string matched";
-		return { pos : r.m.index, len : r.m[0].length };
+		if( m == null ) throw "No string matched";
+		return {
+			pos : m[0]-1,
+			len : m[1]- m[0]+ 1
+		}
 	}
 
-	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		return if (r.global) {
-			r.lastIndex = pos;
-			r.m = r.exec(len < 0 ? s : s.substr(0, pos + len));
-			var b = r.m != null;
-			if (b) {
-				r.s = s;
-			}
-			b;
-		} else {
-			// TODO: check some ^/$ related corner cases
-			var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
-			if (b) {
-				r.s = s;
-				r.m.index += pos;
-			}
-			b;
-		}
+	public inline function matchSub( s : String, pos : Int, ?len : Int):Bool {
+		return match(s.substr(pos, len));
 	}
 
 	public function split( s : String ) : Array<String> {
@@ -82,7 +91,12 @@
 	}
 
 	public function replace( s : String, by : String ) : String {
-		return untyped s.replace(r,by);
+		if (global){
+			return split(s).join(by);
+		} else {
+			if (match(s)) return matchedLeft() + by + matchedRight();
+			else return s;
+		}
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
@@ -104,15 +118,11 @@
 			}
 			else
 				offset = p.pos + p.len;
-		} while (r.global);
-		if (!r.global && offset > 0 && offset < s.length)
+		} while (global);
+		if (!global && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+
 }
 
-@:native("RegExp")
-private extern class HaxeRegExp extends js.RegExp {
-	var m:js.RegExp.RegExpMatch;
-	var s:String;
-}
