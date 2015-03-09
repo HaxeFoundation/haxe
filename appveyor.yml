@@ -36,7 +36,6 @@ install:
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/wodi%WODI_ARCH%/bin'
     # Install neko
     - cinst make
-    - cinst SQLite -version 3.8.5
     - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
     - 'cd %NEKO_ROOT%'
     - set PATH=%PATH%;%NEKO_ROOT%/bin
