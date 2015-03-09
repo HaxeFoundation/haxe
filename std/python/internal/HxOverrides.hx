@@ -53,7 +53,7 @@ class HxOverrides {
 		return if (s == null) "null" else s;
 	}
 
-	@:ifFeature("dynamic_read.shift", "anon_optional_read.shift")
+	@:ifFeature("dynamic_read.shift", "anon_optional_read.shift", "anon_read.shift")
 	static public function shift(x) {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).shift();
