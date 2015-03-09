@@ -1306,9 +1306,6 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types;
 	newline ctx;
 
-	(* add the unpack function. *)
-	spr ctx "lua.Boot.unpack = function(...) return arg end"; newline ctx;
-
 	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";

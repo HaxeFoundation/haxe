@@ -22,6 +22,7 @@
 package lua;
 
 class Boot {
+	public static var unpack : Dynamic->lua.Table<Int,Dynamic> = untyped __lua__("function(...) return {...} end");
 
 	private static function __unhtml(s : String) {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
