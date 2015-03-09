@@ -315,6 +315,11 @@ and check_anon_optional_write dce fa =
 	check_and_add_feature dce ("anon_optional_write");
 	check_and_add_feature dce ("anon_optional_write." ^ n)
 
+and check_anon_write dce fa =
+	let n = field_name fa in
+	check_and_add_feature dce ("anon_write");
+	check_and_add_feature dce ("anon_write." ^ n)
+
 and is_array t = match follow t with
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) -> is_array (Abstract.get_underlying_type a tl)
 	| TInst({ cl_path = ([], "Array")},_) -> true
@@ -426,16 +431,22 @@ and expr dce e =
 		check_dynamic_write dce fa;
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpAssign,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) when Meta.has Meta.Optional cf.cf_meta ->
-		check_anon_optional_write dce fa;
+	| TBinop(OpAssign,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) ->
+		if Meta.has Meta.Optional cf.cf_meta then
+			check_anon_optional_write dce fa
+		else
+			check_anon_write dce fa;
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpAssignOp op,({eexpr = TField(_,(FDynamic _ as fa) )} as e1),e2) ->
 		check_dynamic_write dce fa;
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpAssignOp op,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) when Meta.has Meta.Optional cf.cf_meta ->
-		check_anon_optional_write dce fa;
+	| TBinop(OpAssignOp op,({eexpr = TField(_,(FAnon cf as fa) )} as e1),e2) ->
+		if Meta.has Meta.Optional cf.cf_meta then
+			check_anon_optional_write dce fa
+		else
+			check_anon_write dce fa;
 		expr dce e1;
 		expr dce e2;
 	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
@@ -466,9 +477,14 @@ and expr dce e =
 
 				let n = field_name fa in
 				(match fa with
-				| FAnon cf when Meta.has Meta.Optional cf.cf_meta ->
-					check_and_add_feature dce "anon_optional_read";
-					check_and_add_feature dce ("anon_optional_read." ^ n);
+				| FAnon cf ->
+					if Meta.has Meta.Optional cf.cf_meta then begin
+						check_and_add_feature dce "anon_optional_read";
+						check_and_add_feature dce ("anon_optional_read." ^ n);
+					end else begin
+						check_and_add_feature dce "anon_read";
+						check_and_add_feature dce ("anon_read." ^ n);
+					end
 				| FDynamic _ ->
 					check_and_add_feature dce "dynamic_read";
 					check_and_add_feature dce ("dynamic_read." ^ n);
