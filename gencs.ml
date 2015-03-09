@@ -3162,7 +3162,7 @@ let configure gen =
 			let full_path = src ^ "/" ^ name in
 			mkdir_from_path full_path;
 
-			let f = open_out full_path in
+			let f = open_out_bin full_path in
 			output_string f v;
 			close_out f;
 
