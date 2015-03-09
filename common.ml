@@ -382,7 +382,7 @@ module MetaInfo = struct
 		| CoreApi -> ":coreApi",("Identifies this class as a core api class (forces Api check)",[UsedOnEither [TClass;TEnum;TTypedef;TAbstract]])
 		| CoreType -> ":coreType",("Identifies an abstract as core type so that it requires no implementation",[UsedOn TAbstract])
 		| CppFileCode -> ":cppFileCode",("Code to be injected into generated cpp file",[Platform Cpp])
-		| CppInclude -> ":cppFileCode",("File to be included in generated cpp file",[Platform Cpp])
+		| CppInclude -> ":cppInclude",("File to be included in generated cpp file",[Platform Cpp])
 		| CppNamespaceCode -> ":cppNamespaceCode",("",[Platform Cpp])
 		| CsNative -> ":csNative",("Automatically added by -net-lib on classes generated from .NET DLL files",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
 		| Dce -> ":dce",("Forces dead code elimination even when -dce full is not specified",[UsedOnEither [TClass;TEnum]])
