@@ -2,16 +2,19 @@ package lua;
 
 @:native("_G.table") 
 extern class TableTools {
-	@:overload(function(table:Dynamic):Void{})
-	public static function concat(table:Dynamic, ?sep:String) : String;
+	@:overload(function<A,B>(table:Table<A,B>):Void{})
+	public static function concat<A,B>(table:Table<A,B>, ?sep:String) : String;
 
-	public static function foreach(table:Dynamic, f:Dynamic->Dynamic->Void) : Void;
-	public static function foreachi(table:Dynamic, f:Dynamic->Int->Void) : Void;
-	public static function sort(table:Dynamic) : Void;
+	public static function foreach<A,B>(table:Table<A,B>, f:A->B->Void) : Void;
+	public static function foreachi<A,B>(table:Table<A,B>, f:A->B->Int->Void) : Void;
 
-	@:overload(function(table:Dynamic, value:Dynamic):Void{})
-	public static function insert(table:Dynamic, pos:Int, value:Dynamic) : Void;
+	public static function sort<A,B>(table:Table<A,B>, ?order : A->A->Bool) : Void;
 
-	@:overload(function(table:Dynamic):Void{})
-	public static function remove(table:Dynamic, ?pos:Int) : Void;
+	@:overload(function<B>(table:Table<Int,B>, value:B):Void{})
+	public static function insert<B>(table:Table<Int,B>, pos:Int, value:B) : Void;
+
+	@:overload(function<B>(table:Table<Int,B>):Void{})
+	public static function remove<B>(table:Table<Int,B>, ?pos:Int) : Void;
+
+	public static function getn<B>(table: Table<Int,B>) : Int;
 }
