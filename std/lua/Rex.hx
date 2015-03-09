@@ -43,7 +43,7 @@ extern class Rex {
 	 returns an iterator for repeated matching of the pattern patt in the
 	 string subj, subject to flags cf and ef.
 	 **/
-	public static function gmatch(subj : String, ?cf : Int, ?ef : Int) : lua.Iterator;
+	public static function gmatch(subj : String, ?cf : Int, ?ef : Int) : Dynamic; // TODO: Extern a lua iterator
 
 	/**
 	  This function searches for all matches of the pattern patt in the string subj
