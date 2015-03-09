@@ -73,12 +73,9 @@ import cs.system.Object;
 {
 	@:readOnly public static var undefined(default, never):Dynamic = new cs.system.Object();
 
-	@:functionCode('
-		return new haxe.lang.Closure(obj, field, hash);
-	')
 	public static function closure(obj:Dynamic, hash:Int, field:String):Dynamic
 	{
-		return null;
+		return new cs.internal.Function.Closure(obj, field, hash);
 	}
 
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool
@@ -697,72 +694,48 @@ import cs.system.Object;
 		return Runtime.callMethod(obj, mis, last, args);
 	}
 
-	@:functionCode('
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, args);
-
-		return slowCallField(obj, field, args);
-	')
 	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:Array<Dynamic>):Dynamic
 	{
-		return null;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_invokeField(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, args);
+		return slowCallField(obj, field, args);
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
-
-		return slowGetField(obj, field, throwErrors);
-
-	')
 	public static function getField(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Dynamic
 	{
-		return null;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_getField(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, throwErrors, false, false);
+
+		return slowGetField(obj, field, throwErrors);
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, throwErrors, false);
-
-		return toDouble(slowGetField(obj, field, throwErrors));
-
-	')
 	public static function getField_f(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Float
 	{
-		return 0.0;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_getField_f(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, throwErrors, false);
+
+		return toDouble(slowGetField(obj, field, throwErrors));
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
-
-		return slowSetField(obj, field, value);
-
-	')
 	public static function setField(obj:Dynamic, field:String, fieldHash:Int, value:Dynamic):Dynamic
 	{
-		return null;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_setField(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, value, false);
+
+		return slowSetField(obj, field, value);
 	}
 
-	@:functionCode('
-
-		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
-		if (hxObj != null)
-			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, value, false);
-
-		return toDouble(slowSetField(obj, field, value));
-
-	')
 	public static function setField_f(obj:Dynamic, field:String, fieldHash:Int, value:Float):Float
 	{
-		return 0.0;
+		var hxObj = Lib.as(obj, HxObject);
+		if (hxObj != null)
+			return untyped hxObj.__hx_setField_f(field, (fieldHash == 0) ? FieldLookup.hash(field) : fieldHash, value, false);
+
+		return toDouble(slowSetField(obj, field, value));
 	}
 
 	public static function toString(obj:Dynamic):String
@@ -822,12 +795,9 @@ import cs.system.Object;
 		return null;
 	}
 
-	@:functionCode('
-		return dyn == null ? false : ((bool) dyn);
-	')
 	public static function toBool(dyn:Dynamic):Bool
 	{
-		return false;
+		return if (dyn == null) false else untyped __cs__("(bool){0}", dyn);
 	}
 
 
