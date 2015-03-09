@@ -50,10 +50,8 @@ extern class String {
 		return this;
 	}
 	inline function substring( startIndex : Int, ?endIndex : Int ) : String {
-		startIndex +=1;
 		if (endIndex == null) endIndex = this.length;
-		else endIndex += 1;
-		return untyped this.sub(startIndex,endIndex);
+		return untyped lua.StringTools.sub(this, startIndex + 1,endIndex + 1);
 	}
 
 	inline function get_length() : Int {
