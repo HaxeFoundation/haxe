@@ -135,12 +135,15 @@ class JsonParser {
 
 	function parseString() {
 		var start = pos;
-		var buf = new StringBuf();
+		var buf = null;
 		while( true ) {
 			var c = nextChar();
 			if( c == '"'.code )
 				break;
 			if( c == '\\'.code ) {
+				if (buf == null) {
+					buf = new StringBuf();
+				}
 				buf.addSub(str,start, pos - start - 1);
 				c = nextChar();
 				switch( c ) {
@@ -190,8 +193,13 @@ class JsonParser {
 			else if( StringTools.isEof(c) )
 				throw "Unclosed string";
 		}
-		buf.addSub(str,start, pos - start - 1);
-		return buf.toString();
+		if (buf == null) {
+			return str.substr(start, pos - start - 1);
+		}
+		else {
+			buf.addSub(str,start, pos - start - 1);
+			return buf.toString();
+		}
 	}
 
 	inline function parseNumber( c : Int ) : Dynamic {
