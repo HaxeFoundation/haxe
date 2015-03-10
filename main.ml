@@ -1198,7 +1198,7 @@ try
 				) com.swf_libs;
 				List.iter (fun (_,std,_,all_files,_) ->
 					if not std then
-						List.iter (fun path -> classes := path :: !classes) (all_files())
+						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) (all_files())
 				) com.java_libs;
 				List.iter (fun (_,std,all_files,_) ->
 					if not std then

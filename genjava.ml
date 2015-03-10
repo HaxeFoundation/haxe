@@ -2604,8 +2604,11 @@ let mk_type_path ctx path params =
 		| [], ("Bool" as c)
 		| [], ("Dynamic" as c)
 		| [], ("Iterator" as c)
+		| [], ("ArrayAccess" as c)
 		| [], ("Iterable" as c) ->
 			[], Some c, "StdTypes"
+		| [], ("String" as c) ->
+			["std"], None, c
 		| _ ->
 			pack, sub, name
 	in
