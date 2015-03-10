@@ -217,18 +217,23 @@ private class PHPNativeStrategy extends TypeStrategy {
 			} else
 				return "string";
 		}
+		var pdo_type_str:Int = untyped __php__("PDO::PARAM_STR");
+		var pdo_type : Int = untyped data["pdo_type"];
+
 		var type : String = untyped data[KEY];
 		type = type.toLowerCase();
 		switch(type)
 		{
 			case "float", "decimal", "double", "newdecimal":
 				return "float";
-			case "date", "datetime":
+			case "date", "datetime", "timestamp":
 				return "date";
 			case "bool", "tinyint(1)", "tiny":
 				return "bool";
 			case "int", "int24", "int32", "long", "longlong", "short":
 				return "int";
+			case _ if (pdo_type == pdo_type_str):
+			 	return "string";
 			case "blob":
 				return "blob";
 			default:
