@@ -742,16 +742,13 @@ import cs.system.Object;
 		return untyped obj.ToString();
 	}
 
-	@:functionCode('
-			if (t1 == null || t2 == null)
-				return t1 == t2;
-			string n1 = Type.getClassName(t1);
-			string n2 = Type.getClassName(t2);
-			return n1.Equals(n2);
-	')
 	public static function typeEq(t1:Type, t2:Type):Bool
 	{
-		return false;
+		if (t1 == null || t2 == null)
+			return t1 == t2;
+		var n1 = std.Type.getClassName(cast t1);
+		var n2 = std.Type.getClassName(cast t2);
+		return n1 == n2;
 	}
 
 
