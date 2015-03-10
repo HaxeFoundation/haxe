@@ -232,7 +232,7 @@ private class PHPNativeStrategy extends TypeStrategy {
 				return "bool";
 			case "int", "int24", "int32", "long", "longlong", "short":
 				return "int";
-			case _ if (pdo_type == pdo_type_str):
+			case "blob" if (pdo_type == pdo_type_str):
 			 	return "string";
 			case "blob":
 				return "blob";
