@@ -1,4 +1,4 @@
-(*
+(* gencommon.$(MODULE_EXT)
  * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -385,7 +385,7 @@ let get_code meta key =
 ;;
 
 (*
-let dump_meta meta = 
+let dump_meta meta =
    List.iter (fun m -> match m with | (k,_,_) -> print_endline ((fst (MetaInfo.to_string k)) ^ "=" ^ (get_meta_string meta k) ) | _ -> () ) meta;;
 *)
 
@@ -3619,7 +3619,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          (* Dynamic "Get" Field function - string version *)
          output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
          let get_field_dat = List.map (fun f ->
-            (f.cf_name, String.length f.cf_name, 
+            (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
                | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") return " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "()"
                | Var { v_read = AccCall } -> "return " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
@@ -3669,7 +3669,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       if (has_get_static_field class_def) then begin
          output_cpp ("bool " ^ class_name ^ "::__GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp)\n{\n");
          let get_field_dat = List.map (fun f ->
-            (f.cf_name, String.length f.cf_name, 
+            (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
                | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") { outValue = " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "(); return true; }"
                | Var { v_read = AccCall } -> "outValue = " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
@@ -3719,7 +3719,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
                | Var { v_write = AccCall } -> "if (" ^ (checkPropCall f) ^ ")  ioValue = " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(ioValue);"
-                  ^ ( if is_extern_field f then "" else " else " ^ default_action ) 
+                  ^ ( if is_extern_field f then "" else " else " ^ default_action )
                | _ -> default_action
                )
             )
