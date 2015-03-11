@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ServiceWorkerGlobalScope.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/ServiceWorkerGlobalScope.webidl line 46:0. Do not edit!
 
 package js.html;
 
@@ -38,5 +38,5 @@ extern class ServiceWorkerGlobalScope extends WorkerGlobalScope
 	
 	function update() : Void;
 	/** @throws DOMError */
-	function unregister() : Promise/*<Boolean>*/;
+	function unregister() : Promise<Bool>;
 }

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLMediaElement.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/HTMLMediaElement.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -76,5 +76,5 @@ extern class MediaElement extends HTMLElement
 	/** @throws DOMError */
 	function pause() : Void;
 	function addTextTrack( kind : TextTrackKind, ?label : String = "", ?language : String = "" ) : TextTrack;
-	function setMediaKeys( mediaKeys : MediaKeys ) : Promise/*<Void>*/;
+	function setMediaKeys( mediaKeys : MediaKeys ) : Promise<Void>;
 }

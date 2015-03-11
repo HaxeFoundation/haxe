@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaKeySystemAccess.webidl line 30:0. Do not edit!
+// This file is generated from mozilla/MediaKeySystemAccess.webidl line 59:0. Do not edit!
 
 package js.html;
 
@@ -29,5 +29,5 @@ extern class MediaKeySystemAccess
 {
 	var keySystem(default,null) : String;
 	
-	function createMediaKeys() : Promise/*<MediaKeys (Wrapper)>*/;
+	function createMediaKeys() : Promise<MediaKeys>;
 }

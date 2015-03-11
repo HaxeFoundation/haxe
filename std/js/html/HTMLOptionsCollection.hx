@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLOptionsCollection.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/HTMLOptionsCollection.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -28,7 +28,7 @@ package js.html;
 extern class HTMLOptionsCollection extends HTMLCollection
 {
 	var selectedIndex : Int;
-
+	
 	/** @throws DOMError */
 	function add( element : haxe.extern.EitherType<OptionElement,OptGroupElement>, ?before : haxe.extern.EitherType<HTMLElement,Int> ) : Void;
 	/** @throws DOMError */

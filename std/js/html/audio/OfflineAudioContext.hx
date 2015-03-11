@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/OfflineAudioContext.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/OfflineAudioContext.webidl line 46:0. Do not edit!
 
 package js.html.audio;
 
@@ -32,5 +32,5 @@ extern class OfflineAudioContext extends AudioContext
 	/** @throws DOMError */
 	function new( numberOfChannels : Int, length : Int, sampleRate : Float ) : Void;
 	/** @throws DOMError */
-	function startRendering() : Promise/*<AudioBuffer (Wrapper)>*/;
+	function startRendering() : Promise<AudioBuffer>;
 }

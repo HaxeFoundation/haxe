@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ServiceWorkerClients.webidl line 12:0. Do not edit!
+// This file is generated from mozilla/ServiceWorkerClients.webidl line 43:0. Do not edit!
 
 package js.html;
 
@@ -28,7 +28,7 @@ package js.html;
 extern class ServiceWorkerClients
 {
 	/** @throws DOMError */
-	function getServiced() : Promise/*<ServiceWorkerClient (Wrapper)SequenceOrNull>*/;
+	function getServiced() : Promise<Array<ServiceWorkerClient>>;
 	/** @throws DOMError */
-	function reloadAll() : Promise/*<Any>*/;
+	function reloadAll() : Promise<Dynamic>;
 }

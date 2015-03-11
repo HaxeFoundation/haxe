@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Document.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/Document.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -136,7 +136,7 @@ extern class Document extends Node
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
-
+	
 	/** @throws DOMError */
 	function new() : Void;
 	function getElementsByTagName( localName : String ) : HTMLCollection;

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Text.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/Text.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -28,7 +28,7 @@ package js.html;
 extern class Text extends CharacterData
 {
 	var wholeText(default,null) : String;
-
+	
 	/** @throws DOMError */
 	function new( ?data : String = "" ) : Void;
 	/** @throws DOMError */

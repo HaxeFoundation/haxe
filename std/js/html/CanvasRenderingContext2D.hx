@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CanvasRenderingContext2D.webidl line 28:0. Do not edit!
+// This file is generated from mozilla/CanvasRenderingContext2D.webidl line 56:0. Do not edit!
 
 package js.html;
 
@@ -45,7 +45,7 @@ extern class CanvasRenderingContext2D
 	var font : String;
 	var textAlign : String;
 	var textBaseline : String;
-
+	
 	function save() : Void;
 	function restore() : Void;
 	/** @throws DOMError */

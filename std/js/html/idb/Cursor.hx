@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBCursor.webidl line 17:0. Do not edit!
+// This file is generated from mozilla/IDBCursor.webidl line 47:0. Do not edit!
 
 package js.html.idb;
 
@@ -31,7 +31,7 @@ extern class Cursor
 	var direction(default,null) : CursorDirection;
 	var key(default,null) : Dynamic;
 	var primaryKey(default,null) : Dynamic;
-
+	
 	/** @throws DOMError */
 	function update( value : Dynamic ) : Request;
 	/** @throws DOMError */

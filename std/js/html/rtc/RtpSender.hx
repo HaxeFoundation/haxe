@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCRtpSender.webidl line 12:0. Do not edit!
+// This file is generated from mozilla/RTCRtpSender.webidl line 43:0. Do not edit!
 
 package js.html.rtc;
 
@@ -29,5 +29,5 @@ extern class RtpSender
 {
 	var track(default,null) : js.html.MediaStreamTrack;
 	
-	function replaceTrack( track : js.html.MediaStreamTrack ) : Promise/*<Void>*/;
+	function replaceTrack( track : js.html.MediaStreamTrack ) : Promise<Void>;
 }

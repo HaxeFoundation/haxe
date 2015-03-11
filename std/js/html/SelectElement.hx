@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLSelectElement.webidl line 10:0. Do not edit!
+// This file is generated from mozilla/HTMLSelectElement.webidl line 41:0. Do not edit!
 
 package js.html;
 
@@ -43,7 +43,7 @@ extern class SelectElement extends HTMLElement implements ArrayAccess<Element>
 	var willValidate(default,null) : Bool;
 	var validity(default,null) : ValidityState;
 	var validationMessage(default,null) : String;
-
+	
 	function namedItem( name : String ) : OptionElement;
 	/** @throws DOMError */
 	function add( element : haxe.extern.EitherType<OptionElement,OptGroupElement>, ?before : haxe.extern.EitherType<HTMLElement,Int> ) : Void;

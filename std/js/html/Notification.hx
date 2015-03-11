@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Notification.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/Notification.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -32,7 +32,7 @@ extern class Notification extends EventTarget
 	/** @throws DOMError */
 	static function requestPermission( ?permissionCallback : NotificationPermission -> Void ) : Void;
 	/** @throws DOMError */
-	static function get( ?filter : GetNotificationOptions ) : Promise/*<Notification (Wrapper)Sequence>*/;
+	static function get( ?filter : GetNotificationOptions ) : Promise<Array<Notification>>;
 	var onclick : haxe.Constraints.Function;
 	var onshow : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;

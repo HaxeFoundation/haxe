@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/FontFace.webidl line 32:0. Do not edit!
+// This file is generated from mozilla/FontFace.webidl line 60:0. Do not edit!
 
 package js.html;
 
@@ -35,10 +35,10 @@ extern class FontFace
 	var variant : String;
 	var featureSettings : String;
 	var status(default,null) : FontFaceLoadStatus;
-	var loaded(default,null) : Promise/*<FontFace (Wrapper)>*/;
-
+	var loaded(default,null) : Promise<FontFace>;
+	
 	/** @throws DOMError */
 	function new( family : String, source : haxe.extern.EitherType<String,haxe.extern.EitherType<ArrayBuffer,ArrayBufferView>>, ?descriptors : FontFaceDescriptors ) : Void;
 	/** @throws DOMError */
-	function load() : Promise/*<FontFace (Wrapper)>*/;
+	function load() : Promise<FontFace>;
 }

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Window.webidl line 28:11. Do not edit!
+// This file is generated from mozilla/Window.webidl line 58:11. Do not edit!
 
 package js.html;
 
@@ -160,7 +160,7 @@ extern class Window extends EventTarget
 	var onunload : haxe.Constraints.Function;
 	var localStorage(default,null) : Storage;
 	var sessionStorage(default,null) : Storage;
-
+	
 	/** @throws DOMError */
 	function close() : Void;
 	/** @throws DOMError */

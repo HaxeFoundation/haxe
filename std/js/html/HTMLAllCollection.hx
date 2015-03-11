@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLAllCollection.webidl line 6:0. Do not edit!
+// This file is generated from mozilla/HTMLAllCollection.webidl line 37:0. Do not edit!
 
 package js.html;
 
@@ -28,7 +28,7 @@ package js.html;
 extern class HTMLAllCollection
 {
 	var length(default,null) : Int;
-
+	
 	@:overload( function( index : Int ) : Node {} )
 	function item( name : String ) : haxe.extern.EitherType<Node,HTMLCollection>;
 	function namedItem( name : String ) : haxe.extern.EitherType<Node,HTMLCollection>;
