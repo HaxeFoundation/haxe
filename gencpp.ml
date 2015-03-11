@@ -429,7 +429,6 @@ List.filter (function (t,pl) ->
 let rec is_function_expr expr =
    match expr.eexpr with
    | TParenthesis expr | TMeta(_,expr) -> is_function_expr expr
-   | TCast (e,None) -> is_function_expr e
    | TFunction _ -> true
    | _ -> false;;
 
@@ -474,13 +473,22 @@ let is_numeric = function
 
 
 let rec remove_parens expression =
-   match expression.eexpr with
-   | TParenthesis e -> remove_parens e
-   | TMeta(_,e) -> remove_parens e
-   | TCast ( e,None) -> remove_parens e
-   | _ -> expression
+      match expression.eexpr with
+      | TParenthesis e -> remove_parens e
+      | TMeta(_,e) -> remove_parens e
+      | _ -> expression
 ;;
 
+
+(*
+let rec remove_parens_cast expression =
+   match expression.eexpr with
+   | TParenthesis e -> remove_parens_cast e
+   | TMeta(_,e) -> remove_parens_cast e
+   | TCast ( e,None) -> remove_parens_cast e
+   | _ -> expression
+;;
+*)
 
 let cant_be_null type_string =
    is_numeric type_string
@@ -1266,7 +1274,7 @@ let rec is_dynamic_in_cpp ctx expr =
                | _ -> ctx.ctx_dbgout "/* not TFun */";  true
          );
       | TParenthesis(expr) | TMeta(_,expr) -> is_dynamic_in_cpp ctx expr
-      | TCast (e,None) -> is_dynamic_in_cpp ctx e
+      | TCast (e,None) -> (type_string expr.etype) = "Dynamic"
       | TLocal { v_name = "__global__" } -> false
       | TConst TNull -> true
       | _ -> ctx.ctx_dbgout "/* other */";  false (* others ? *) )
@@ -1960,7 +1968,6 @@ and gen_expression ctx retval expression =
       | TField _ | TEnumParameter _ -> false
       | TLocal { v_name = "__global__" } -> false
       | TParenthesis p | TMeta(_,p) -> is_variable p
-      | TCast (e,None) -> is_variable e
       | _ -> true
       in
       let expr_type = type_string expression.etype in
@@ -2388,11 +2395,13 @@ and gen_expression ctx retval expression =
          output "HX_STACK_DO_THROW(";
          gen_expression ctx true expression;
          output ")";
-   | TCast (cast,None) ->
-      let void_cast = retval && ((type_string expression.etype)="Void" ) in
-      if (void_cast) then output "Void(";
+   | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
       gen_expression ctx retval cast;
-      if (void_cast) then output ")";
+   | TCast (cast,None) ->
+      let ret_type = type_string expression.etype in
+      output ("( " ^ ret_type ^ "(");
+      gen_expression ctx true cast;
+      output "))";
    | TCast (e1,Some t) ->
       let class_name = (join_class_path_remap (t_path t) "::" ) in
       if (class_name="Array") then
@@ -5028,13 +5037,6 @@ class script_writer common_ctx ctx filename asciiOut =
       this#gen_expression expr;
    end
    method gen_expression expr =
-   (* Redefine to allow different interpretation of cast *)
-   let rec remove_parens expression =
-      match expression.eexpr with
-      | TParenthesis e -> remove_parens e
-      | TMeta(_,e) -> remove_parens e
-      | _ -> expression
-   in
    let expression = remove_parens expr in
    this#begin_expr;
    (*this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);*)
