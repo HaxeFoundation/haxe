@@ -21,5 +21,5 @@
  */
 package haxe.ds;
 
-typedef IntMap<T> = Map<Int,T>; 
+typedef IntMap<T> = lua.Map<Int,T>; 
 

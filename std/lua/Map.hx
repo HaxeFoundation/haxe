@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package lua;
 class Map<A,B> implements haxe.Constraints.IMap<A,B> {
 
 	private var h : Dynamic;

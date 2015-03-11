@@ -1,3 +1,3 @@
 package haxe.ds;
-typedef StringMap<T> = Map<String,T>;
+typedef StringMap<T> = lua.Map<String,T>;
 
