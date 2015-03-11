@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/TextDecoder.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/TextDecoder.webidl line 46:0. Do not edit!
 
 package js.html;
 
@@ -29,7 +29,7 @@ extern class TextDecoder
 {
 	var encoding(default,null) : String;
 	var fatal(default,null) : Bool;
-
+	
 	/** @throws DOMError */
 	function new( ?label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
 	/** @throws DOMError */

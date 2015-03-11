@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/VTTCue.webidl line 28:0. Do not edit!
+// This file is generated from mozilla/VTTCue.webidl line 56:0. Do not edit!
 
 package js.html;
 
@@ -44,7 +44,7 @@ extern class VTTCue extends EventTarget
 	var text : String;
 	var onenter : haxe.Constraints.Function;
 	var onexit : haxe.Constraints.Function;
-
+	
 	/** @throws DOMError */
 	function new( startTime : Float, endTime : Float, text : String ) : Void;
 	function getCueAsHTML() : DocumentFragment;

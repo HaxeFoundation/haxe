@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MessageEvent.webidl line 12:0. Do not edit!
+// This file is generated from mozilla/MessageEvent.webidl line 43:0. Do not edit!
 
 package js.html;
 
@@ -32,7 +32,7 @@ extern class MessageEvent extends Event
 	var lastEventId(default,null) : String;
 	var source(default,null) : haxe.extern.EitherType<Window,MessagePort>;
 	var ports(default,null) : MessagePortList;
-
+	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : MessageEventInit ) : Void;
 }

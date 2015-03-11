@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/TrackEvent.webidl line 11:0. Do not edit!
+// This file is generated from mozilla/TrackEvent.webidl line 42:0. Do not edit!
 
 package js.html;
 
@@ -28,7 +28,7 @@ package js.html;
 extern class TrackEvent extends Event
 {
 	var track(default,null) : haxe.extern.EitherType<VideoTrack,haxe.extern.EitherType<AudioTrack,TextTrack>>;
-
+	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : TrackEventInit ) : Void;
 }

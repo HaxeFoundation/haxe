@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl line 199:0. Do not edit!
+// This file is generated from typedarray.webidl line 194:0. Do not edit!
 
 package js.html;
 

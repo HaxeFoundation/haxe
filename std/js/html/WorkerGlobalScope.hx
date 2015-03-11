@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WorkerGlobalScope.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/WorkerGlobalScope.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -36,7 +36,7 @@ extern class WorkerGlobalScope extends EventTarget
 	var navigator(default,null) : WorkerNavigator;
 	var onclose : haxe.Constraints.Function;
 	var performance(default,null) : Performance;
-
+	
 	function close() : Void;
 	/** @throws DOMError */
 	function importScripts( ?urls : String ) : Void;

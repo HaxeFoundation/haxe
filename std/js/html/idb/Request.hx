@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBRequest.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/IDBRequest.webidl line 46:0. Do not edit!
 
 package js.html.idb;
 
@@ -34,5 +34,5 @@ extern class Request extends js.html.EventTarget
 	var readyState(default,null) : RequestReadyState;
 	var onsuccess : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
-
+	
 }

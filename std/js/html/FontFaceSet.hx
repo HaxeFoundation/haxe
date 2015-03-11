@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/FontFaceSet.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/FontFaceSet.webidl line 48:0. Do not edit!
 
 package js.html;
 
@@ -30,7 +30,7 @@ extern class FontFaceSet extends EventTarget
 	var onloading : haxe.Constraints.Function;
 	var onloadingdone : haxe.Constraints.Function;
 	var onloadingerror : haxe.Constraints.Function;
-	var ready(default,null) : Promise/*<Void>*/;
+	var ready(default,null) : Promise<Void>;
 	var status(default,null) : FontFaceSetLoadStatus;
 	var length(default,null) : Int;
 	
@@ -42,5 +42,5 @@ extern class FontFaceSet extends EventTarget
 	function delete_( font : FontFace ) : Bool;
 	function clear() : Void;
 	/** @throws DOMError */
-	function load( font : String, ?text : String = " " ) : Promise/*<FontFace (Wrapper)Sequence>*/;
+	function load( font : String, ?text : String = " " ) : Promise<Array<FontFace>>;
 }

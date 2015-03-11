@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Blob.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/Blob.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -29,7 +29,7 @@ extern class Blob
 {
 	var size(default,null) : Int;
 	var type(default,null) : String;
-
+	
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
 	function new( blobParts : Array<haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,String>>>>, ?options : BlobPropertyBag ) : Void;

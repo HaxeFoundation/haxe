@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaKeys.webidl line 17:0. Do not edit!
+// This file is generated from mozilla/MediaKeys.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -28,8 +28,8 @@ package js.html;
 extern class MediaKeys
 {
 	var keySystem(default,null) : String;
-
+	
 	/** @throws DOMError */
 	function createSession( ?sessionType : SessionType = "temporary" ) : MediaKeySession;
-	function setServerCertificate( serverCertificate : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
+	function setServerCertificate( serverCertificate : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Void>;
 }

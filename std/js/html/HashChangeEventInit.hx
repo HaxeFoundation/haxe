@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HashChangeEvent.webidl line 21:0. Do not edit!
+// This file is generated from mozilla/HashChangeEvent.webidl line 50:0. Do not edit!
 
 package js.html;
 
