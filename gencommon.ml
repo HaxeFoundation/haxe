@@ -2251,7 +2251,7 @@ struct
 										let rec add_fn e = match e.eexpr with
 											| TBlock(hd :: tl) -> (match hd.eexpr with
 												| TCall({ eexpr = TConst TSuper }, _) ->
-													if is_hxgen (TClassDecl cl) then
+													if not (OverloadingConstructor.descends_from_native_or_skipctor cl) then
 														{ e with eexpr = TBlock(vars @ (hd :: (funs @ tl))) }
 													else
 														{ e with eexpr = TBlock(hd :: (vars @ funs @ tl)) }
