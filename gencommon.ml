@@ -6282,7 +6282,7 @@ struct
 			| [], [] -> true
 			| (_,_,t) :: arglist, et :: elist -> (try
 				let t = run_follow gen t in
-				unify t et;
+				unify et t;
 				check_arg arglist elist
 			with | Unify_error el ->
 				(* List.iter (fun el -> gen.gcon.warning (Typecore.unify_error_msg (print_context()) el) p) el; *)
