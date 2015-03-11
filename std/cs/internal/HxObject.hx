@@ -110,7 +110,7 @@ private class ParamEnum extends HxEnum
 
 	override public function getParams():Array<{}>
 	{
-		return params == null ? [] : cs.Lib.array(params.toData());
+		return params == null ? [] : cs.Lib.array(cast params.toData());
 	}
 
 	override public function toString():String

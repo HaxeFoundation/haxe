@@ -147,9 +147,9 @@ class Lib
 	{
 #if erase_generics
 		var dyn:NativeArray<Dynamic> = mkDynamic(native);
-		return untyped Array.ofNative(dyn);
+		return @:privateAccess Array.ofNative(dyn);
 #else
-		return untyped Array.ofNative(native);
+		return @:privateAccess Array.ofNative(native);
 #end
 	}
 
