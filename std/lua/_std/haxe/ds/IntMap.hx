@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,6 +20,71 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
+class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
-typedef IntMap<T> = lua.Map<Int,T>; 
+	private var h : Dynamic;
+	private var k : Dynamic;
+
+	public inline function new() : Void {
+		h = {};
+		k = {};
+	}
+
+	public inline function set( key : Int, value : T ) : Void untyped {
+		 h[key] = value;
+		 k[key] = true;
+	}
+
+	public inline function get( key : Int ) : Null<T> untyped {
+		return h[key];
+	}
+
+	public inline function exists( key : Int ) : Bool untyped {
+		return k[key] != null;
+	}
+
+	public function remove( key : Int ) : Bool untyped {
+		if ( k[key] == null) return false;
+		k[key] = null;
+		h[key] = null;
+		return true;
+	}
+
+	public function keys() : Iterator<Int> untyped {
+		var cur = next(k,null);
+		return {
+			next : function() {
+				var ret = cur; 
+				cur = untyped next(k, cur);
+				return ret;
+			},
+			hasNext : function() return cur != null
+		}
+	}
+
+	public function iterator() : Iterator<T> {
+		return untyped {
+			ref : h,
+			it : keys(),
+			hasNext : function() { return __this__.it.hasNext(); },
+			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
+		};
+	}
+
+	public function toString() : String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keys();
+		for( i in it ) {
+			s.add(i);
+			s.add(" => ");
+			s.add(Std.string(get(i)));
+			if( it.hasNext() )
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+
+}
 

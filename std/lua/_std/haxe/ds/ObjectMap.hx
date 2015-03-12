@@ -1,14 +1,14 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of h software and associated documentation files (the "Software"),
+ * copy of this software and associated documentation files (the "Software"),
  * to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and h permission notice shall be included in
+ * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,7 +19,72 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 package haxe.ds;
+class ObjectMap<A,B> implements haxe.Constraints.IMap<A,B> {
 
-typedef ObjectMap<K,V> = lua.Map<K,V>;
+	private var h : Dynamic;
+	private var k : Dynamic;
+
+	public inline function new() : Void {
+		h = {};
+		k = {};
+	}
+
+	public inline function set( key : A, value : B ) : Void untyped {
+		 h[key] = value;
+		 k[key] = true;
+	}
+
+	public inline function get( key : A ) : Null<B> untyped {
+		return h[key];
+	}
+
+	public inline function exists( key : A ) : Bool untyped {
+		return k[key] != null;
+	}
+
+	public function remove( key : A ) : Bool untyped {
+		if ( k[key] == null) return false;
+		k[key] = null;
+		h[key] = null;
+		return true;
+	}
+
+	public function keys() : Iterator<A> untyped {
+		var cur = next(k,null);
+		return {
+			next : function() {
+				var ret = cur; 
+				cur = untyped next(k, cur);
+				return ret;
+			},
+			hasNext : function() return cur != null
+		}
+	}
+
+	public function iterator() : Iterator<B> {
+		return untyped {
+			ref : h,
+			it : keys(),
+			hasNext : function() { return __this__.it.hasNext(); },
+			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
+		};
+	}
+
+	public function toString() : String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keys();
+		for( i in it ) {
+			s.add(i);
+			s.add(" => ");
+			s.add(Std.string(get(i)));
+			if( it.hasNext() )
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+
+}
+
