@@ -29,4 +29,5 @@ extern class PaintRequestList implements ArrayAccess<PaintRequest>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : PaintRequest;
 }

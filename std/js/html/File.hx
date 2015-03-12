@@ -30,7 +30,7 @@ extern class File extends Blob
 	var name(default,null) : String;
 	var lastModified(default,null) : Int;
 	var lastModifiedDate(default,null) : Date;
-
+	
 	/** @throws DOMError */
 	@:overload( function( fileBits : Array<haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,String>>>>, fileName : String, ?options : FilePropertyBag ) : Void {} )
 	@:overload( function( fileBits : Blob, ?options : ChromeFilePropertyBag ) : Void {} )

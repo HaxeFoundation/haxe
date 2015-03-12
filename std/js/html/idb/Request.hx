@@ -34,5 +34,5 @@ extern class Request extends js.html.EventTarget
 	var readyState(default,null) : RequestReadyState;
 	var onsuccess : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
-
+	
 }

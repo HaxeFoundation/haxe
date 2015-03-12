@@ -123,7 +123,7 @@ extern class Element extends Node
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
-
+	
 	function getAttribute( name : String ) : String;
 	function getAttributeNS( namespace_ : String, localName : String ) : String;
 	/** @throws DOMError */

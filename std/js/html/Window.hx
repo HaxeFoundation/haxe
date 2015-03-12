@@ -160,7 +160,7 @@ extern class Window extends EventTarget
 	var onunload : haxe.Constraints.Function;
 	var localStorage(default,null) : Storage;
 	var sessionStorage(default,null) : Storage;
-
+	
 	/** @throws DOMError */
 	function close() : Void;
 	/** @throws DOMError */

@@ -28,8 +28,8 @@ package js.html;
 extern class MediaKeys
 {
 	var keySystem(default,null) : String;
-
+	
 	/** @throws DOMError */
 	function createSession( ?sessionType : SessionType = "temporary" ) : MediaKeySession;
-	function setServerCertificate( serverCertificate : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise/*<Void>*/;
+	function setServerCertificate( serverCertificate : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Void>;
 }

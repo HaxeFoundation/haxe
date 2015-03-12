@@ -35,6 +35,8 @@ extern class TransformList implements ArrayAccess<Transform>
 	/** @throws DOMError */
 	function initialize( newItem : Transform ) : Transform;
 	/** @throws DOMError */
+	function getItem( index : Int ) : Transform;
+	/** @throws DOMError */
 	function insertItemBefore( newItem : Transform, index : Int ) : Transform;
 	/** @throws DOMError */
 	function replaceItem( newItem : Transform, index : Int ) : Transform;

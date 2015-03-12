@@ -28,7 +28,7 @@ package js.html;
 extern class ServiceWorkerClients
 {
 	/** @throws DOMError */
-	function getServiced() : Promise/*<ServiceWorkerClient (Wrapper)SequenceOrNull>*/;
+	function getServiced() : Promise<Array<ServiceWorkerClient>>;
 	/** @throws DOMError */
-	function reloadAll() : Promise/*<Any>*/;
+	function reloadAll() : Promise<Dynamic>;
 }

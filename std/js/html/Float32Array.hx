@@ -36,6 +36,8 @@ extern class Float32Array extends ArrayBufferView implements ArrayAccess<Float>
 	@:overload( function( array : Float32Array ) : Void {} )
 	@:overload( function( array : Array<Float> ) : Void {} )
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int ) : Void;
+	function get( index : Int ) : Float;
+	@:overload( function( index : Int, value : Float ) : Void {} )
 	@:overload( function( array : Float32Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Float>, ?offset : Int ) : Void;
 	function subarray( start : Int, end : Int ) : Float32Array;

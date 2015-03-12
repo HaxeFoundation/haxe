@@ -28,7 +28,7 @@ package js.html;
 extern class HTMLOptionsCollection extends HTMLCollection
 {
 	var selectedIndex : Int;
-
+	
 	/** @throws DOMError */
 	function add( element : haxe.extern.EitherType<OptionElement,OptGroupElement>, ?before : haxe.extern.EitherType<HTMLElement,Int> ) : Void;
 	/** @throws DOMError */

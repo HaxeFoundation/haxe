@@ -29,4 +29,5 @@ extern class SpeechRecognitionResultList implements ArrayAccess<SpeechRecognitio
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : SpeechRecognitionResult;
 }

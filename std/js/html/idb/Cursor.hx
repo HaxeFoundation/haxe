@@ -31,7 +31,7 @@ extern class Cursor
 	var direction(default,null) : CursorDirection;
 	var key(default,null) : Dynamic;
 	var primaryKey(default,null) : Dynamic;
-
+	
 	/** @throws DOMError */
 	function update( value : Dynamic ) : Request;
 	/** @throws DOMError */

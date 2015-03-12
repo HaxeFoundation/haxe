@@ -25,6 +25,6 @@
 package js.html;
 
 @:native("DOMStringMap")
-extern class DOMStringMap
+extern class DOMStringMap implements Dynamic<String>
 {
 }

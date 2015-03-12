@@ -32,6 +32,8 @@ extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */
+	function item( index : Int ) : SpeechGrammar;
+	/** @throws DOMError */
 	function addFromURI( src : String, ?weight : Float ) : Void;
 	/** @throws DOMError */
 	function addFromString( string : String, ?weight : Float ) : Void;

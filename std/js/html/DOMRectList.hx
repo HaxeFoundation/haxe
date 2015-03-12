@@ -29,4 +29,5 @@ extern class DOMRectList implements ArrayAccess<DOMRect>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : DOMRect;
 }

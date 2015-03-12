@@ -29,6 +29,7 @@ extern class DOMTokenList implements ArrayAccess<String>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : String;
 	/** @throws DOMError */
 	function contains( token : String ) : Bool;
 	/** @throws DOMError */

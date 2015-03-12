@@ -29,5 +29,6 @@ extern class MimeTypeArray implements ArrayAccess<MimeType>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : MimeType;
 	function namedItem( name : String ) : MimeType;
 }

@@ -37,7 +37,7 @@ extern class AudioContext extends js.html.EventTarget
 	function new( audioChannelType : js.html.AudioChannel ) : Void;
 	/** @throws DOMError */
 	function createBuffer( numberOfChannels : Int, length : Int, sampleRate : Float ) : AudioBuffer;
-	function decodeAudioData( audioData : js.html.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : Void -> Void ) : Promise/*<AudioBuffer (Wrapper)>*/;
+	function decodeAudioData( audioData : js.html.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : Void -> Void ) : Promise<AudioBuffer>;
 	function createBufferSource() : AudioBufferSourceNode;
 	/** @throws DOMError */
 	function createMediaStreamDestination() : MediaStreamAudioDestinationNode;

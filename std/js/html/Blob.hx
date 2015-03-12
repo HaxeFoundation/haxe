@@ -29,7 +29,7 @@ extern class Blob
 {
 	var size(default,null) : Int;
 	var type(default,null) : String;
-
+	
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
 	function new( blobParts : Array<haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,String>>>>, ?options : BlobPropertyBag ) : Void;

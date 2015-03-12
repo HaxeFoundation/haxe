@@ -44,7 +44,7 @@ extern class VTTCue extends EventTarget
 	var text : String;
 	var onenter : haxe.Constraints.Function;
 	var onexit : haxe.Constraints.Function;
-
+	
 	/** @throws DOMError */
 	function new( startTime : Float, endTime : Float, text : String ) : Void;
 	function getCueAsHTML() : DocumentFragment;

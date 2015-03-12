@@ -29,6 +29,7 @@ extern class PluginArray implements ArrayAccess<Plugin>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : Plugin;
 	function namedItem( name : String ) : Plugin;
 	function refresh( ?reloadDocuments : Bool = false ) : Void;
 }

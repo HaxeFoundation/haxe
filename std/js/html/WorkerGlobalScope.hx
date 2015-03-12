@@ -36,7 +36,7 @@ extern class WorkerGlobalScope extends EventTarget
 	var navigator(default,null) : WorkerNavigator;
 	var onclose : haxe.Constraints.Function;
 	var performance(default,null) : Performance;
-
+	
 	function close() : Void;
 	/** @throws DOMError */
 	function importScripts( ?urls : String ) : Void;

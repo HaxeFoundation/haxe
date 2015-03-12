@@ -35,6 +35,8 @@ extern class NumberList implements ArrayAccess<Number>
 	/** @throws DOMError */
 	function initialize( newItem : Number ) : Number;
 	/** @throws DOMError */
+	function getItem( index : Int ) : Number;
+	/** @throws DOMError */
 	function insertItemBefore( newItem : Number, index : Int ) : Number;
 	/** @throws DOMError */
 	function replaceItem( newItem : Number, index : Int ) : Number;

@@ -33,5 +33,6 @@ extern class Plugin implements ArrayAccess<MimeType>
 	var name(default,null) : String;
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : MimeType;
 	function namedItem( name : String ) : MimeType;
 }

@@ -29,5 +29,6 @@ extern class DOMStringList implements ArrayAccess<String>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : String;
 	function contains( string : String ) : Bool;
 }

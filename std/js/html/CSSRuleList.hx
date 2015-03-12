@@ -29,4 +29,5 @@ extern class CSSRuleList implements ArrayAccess<Dynamic/*MISSING CSSRule*/>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : Dynamic/*MISSING CSSRule*/;
 }

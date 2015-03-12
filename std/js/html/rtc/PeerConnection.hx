@@ -50,17 +50,17 @@ extern class PeerConnection extends js.html.EventTarget
 	function new( ?configuration : Configuration, ?constraints : Dynamic ) : Void;
 	function setIdentityProvider( provider : String, ?protocol : String, ?username : String ) : Void;
 	function getIdentityAssertion() : Void;
-	@:overload( function( ?options : OfferOptions ) : Promise/*<mozRTCSessionDescription (Wrapper)>*/ {} )
-	function createOffer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void, ?options : OfferOptions ) : Promise/*<Void>*/;
-	@:overload( function() : Promise/*<mozRTCSessionDescription (Wrapper)>*/ {} )
-	function createAnswer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void ) : Promise/*<Void>*/;
-	@:overload( function( description : SessionDescription ) : Promise/*<Void>*/ {} )
-	function setLocalDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise/*<Void>*/;
-	@:overload( function( description : SessionDescription ) : Promise/*<Void>*/ {} )
-	function setRemoteDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise/*<Void>*/;
+	@:overload( function( ?options : OfferOptions ) : Promise<SessionDescription> {} )
+	function createOffer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void, ?options : OfferOptions ) : Promise<Void>;
+	@:overload( function() : Promise<SessionDescription> {} )
+	function createAnswer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
+	@:overload( function( description : SessionDescription ) : Promise<Void> {} )
+	function setLocalDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
+	@:overload( function( description : SessionDescription ) : Promise<Void> {} )
+	function setRemoteDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
 	function updateIce( ?configuration : Configuration ) : Void;
-	@:overload( function( candidate : IceCandidate ) : Promise/*<Void>*/ {} )
-	function addIceCandidate( candidate : IceCandidate, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise/*<Void>*/;
+	@:overload( function( candidate : IceCandidate ) : Promise<Void> {} )
+	function addIceCandidate( candidate : IceCandidate, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
 	function getConfiguration() : Configuration;
 	function getLocalStreams() : Array<js.html.MediaStream>;
 	function getRemoteStreams() : Array<js.html.MediaStream>;
@@ -72,7 +72,7 @@ extern class PeerConnection extends js.html.EventTarget
 	function getSenders() : Array<RtpSender>;
 	function getReceivers() : Array<RtpReceiver>;
 	function close() : Void;
-	@:overload( function( selector : js.html.MediaStreamTrack ) : Promise/*<RTCStatsReport (Wrapper)>*/ {} )
-	function getStats( selector : js.html.MediaStreamTrack, successCallback : StatsReport -> Void, failureCallback : js.html.DOMError -> Void ) : Promise/*<Void>*/;
+	@:overload( function( selector : js.html.MediaStreamTrack ) : Promise<StatsReport> {} )
+	function getStats( selector : js.html.MediaStreamTrack, successCallback : StatsReport -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
 	function createDataChannel( label : String, ?dataChannelDict : DataChannelInit ) : Dynamic/*MISSING RTCDataChannel*/;
 }

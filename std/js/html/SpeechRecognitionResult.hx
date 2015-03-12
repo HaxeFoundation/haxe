@@ -31,4 +31,5 @@ extern class SpeechRecognitionResult implements ArrayAccess<SpeechRecognitionAlt
 	@:native("final")
 	var final_(default,null) : Bool;
 	
+	function item( index : Int ) : SpeechRecognitionAlternative;
 }

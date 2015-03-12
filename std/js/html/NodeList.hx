@@ -29,4 +29,5 @@ extern class NodeList implements ArrayAccess<Node>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : Node;
 }

@@ -29,4 +29,5 @@ extern class MessagePortList implements ArrayAccess<MessagePort>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : MessagePort;
 }

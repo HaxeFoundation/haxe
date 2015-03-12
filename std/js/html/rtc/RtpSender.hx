@@ -29,5 +29,5 @@ extern class RtpSender
 {
 	var track(default,null) : js.html.MediaStreamTrack;
 	
-	function replaceTrack( track : js.html.MediaStreamTrack ) : Promise/*<Void>*/;
+	function replaceTrack( track : js.html.MediaStreamTrack ) : Promise<Void>;
 }

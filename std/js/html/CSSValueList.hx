@@ -29,4 +29,5 @@ extern class CSSValueList extends CSSValue implements ArrayAccess<CSSValue>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : CSSValue;
 }

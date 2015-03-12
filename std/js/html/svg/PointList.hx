@@ -35,6 +35,8 @@ extern class PointList implements ArrayAccess<Point>
 	/** @throws DOMError */
 	function initialize( newItem : Point ) : Point;
 	/** @throws DOMError */
+	function getItem( index : Int ) : Point;
+	/** @throws DOMError */
 	function insertItemBefore( newItem : Point, index : Int ) : Point;
 	/** @throws DOMError */
 	function replaceItem( newItem : Point, index : Int ) : Point;

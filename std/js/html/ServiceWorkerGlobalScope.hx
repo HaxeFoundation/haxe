@@ -38,5 +38,5 @@ extern class ServiceWorkerGlobalScope extends WorkerGlobalScope
 	
 	function update() : Void;
 	/** @throws DOMError */
-	function unregister() : Promise/*<Boolean>*/;
+	function unregister() : Promise<Bool>;
 }

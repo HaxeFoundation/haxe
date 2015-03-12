@@ -28,7 +28,7 @@ package js.html;
 extern class TrackEvent extends Event
 {
 	var track(default,null) : haxe.extern.EitherType<VideoTrack,haxe.extern.EitherType<AudioTrack,TextTrack>>;
-
+	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : TrackEventInit ) : Void;
 }

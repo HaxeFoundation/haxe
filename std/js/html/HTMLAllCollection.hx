@@ -28,7 +28,7 @@ package js.html;
 extern class HTMLAllCollection
 {
 	var length(default,null) : Int;
-
+	
 	@:overload( function( index : Int ) : Node {} )
 	function item( name : String ) : haxe.extern.EitherType<Node,HTMLCollection>;
 	function namedItem( name : String ) : haxe.extern.EitherType<Node,HTMLCollection>;

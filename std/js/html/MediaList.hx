@@ -30,6 +30,7 @@ extern class MediaList implements ArrayAccess<String>
 	var mediaText : String;
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : String;
 	/** @throws DOMError */
 	function deleteMedium( oldMedium : String ) : Void;
 	/** @throws DOMError */

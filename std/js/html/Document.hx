@@ -136,7 +136,7 @@ extern class Document extends Node
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
-
+	
 	/** @throws DOMError */
 	function new() : Void;
 	function getElementsByTagName( localName : String ) : HTMLCollection;

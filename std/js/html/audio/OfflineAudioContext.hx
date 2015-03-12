@@ -32,5 +32,5 @@ extern class OfflineAudioContext extends AudioContext
 	/** @throws DOMError */
 	function new( numberOfChannels : Int, length : Int, sampleRate : Float ) : Void;
 	/** @throws DOMError */
-	function startRendering() : Promise/*<AudioBuffer (Wrapper)>*/;
+	function startRendering() : Promise<AudioBuffer>;
 }

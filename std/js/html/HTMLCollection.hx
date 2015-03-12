@@ -29,5 +29,6 @@ extern class HTMLCollection implements ArrayAccess<Element>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : Element;
 	function namedItem( name : String ) : Element;
 }

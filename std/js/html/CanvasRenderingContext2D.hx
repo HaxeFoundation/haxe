@@ -37,6 +37,7 @@ extern class CanvasRenderingContext2D
 	var shadowBlur : Float;
 	var shadowColor : String;
 	var filter : String;
+	var imageSmoothingEnabled : Bool;
 	var lineWidth : Float;
 	var lineCap : String;
 	var lineJoin : String;
@@ -45,7 +46,7 @@ extern class CanvasRenderingContext2D
 	var font : String;
 	var textAlign : String;
 	var textBaseline : String;
-
+	
 	function save() : Void;
 	function restore() : Void;
 	/** @throws DOMError */

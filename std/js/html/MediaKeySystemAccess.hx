@@ -29,5 +29,5 @@ extern class MediaKeySystemAccess
 {
 	var keySystem(default,null) : String;
 	
-	function createMediaKeys() : Promise/*<MediaKeys (Wrapper)>*/;
+	function createMediaKeys() : Promise<MediaKeys>;
 }

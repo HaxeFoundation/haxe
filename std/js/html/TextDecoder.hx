@@ -29,7 +29,7 @@ extern class TextDecoder
 {
 	var encoding(default,null) : String;
 	var fatal(default,null) : Bool;
-
+	
 	/** @throws DOMError */
 	function new( ?label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
 	/** @throws DOMError */

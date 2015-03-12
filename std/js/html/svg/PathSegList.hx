@@ -35,6 +35,8 @@ extern class PathSegList implements ArrayAccess<PathSeg>
 	/** @throws DOMError */
 	function initialize( newItem : PathSeg ) : PathSeg;
 	/** @throws DOMError */
+	function getItem( index : Int ) : PathSeg;
+	/** @throws DOMError */
 	function insertItemBefore( newItem : PathSeg, index : Int ) : PathSeg;
 	/** @throws DOMError */
 	function replaceItem( newItem : PathSeg, index : Int ) : PathSeg;

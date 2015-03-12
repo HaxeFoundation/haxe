@@ -35,6 +35,8 @@ extern class LengthList implements ArrayAccess<Length>
 	/** @throws DOMError */
 	function initialize( newItem : Length ) : Length;
 	/** @throws DOMError */
+	function getItem( index : Int ) : Length;
+	/** @throws DOMError */
 	function insertItemBefore( newItem : Length, index : Int ) : Length;
 	/** @throws DOMError */
 	function replaceItem( newItem : Length, index : Int ) : Length;

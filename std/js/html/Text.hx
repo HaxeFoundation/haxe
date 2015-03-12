@@ -28,7 +28,7 @@ package js.html;
 extern class Text extends CharacterData
 {
 	var wholeText(default,null) : String;
-
+	
 	/** @throws DOMError */
 	function new( ?data : String = "" ) : Void;
 	/** @throws DOMError */

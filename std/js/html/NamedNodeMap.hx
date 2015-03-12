@@ -34,6 +34,7 @@ extern class NamedNodeMap implements ArrayAccess<Attr>
 	function setNamedItem( arg : Attr ) : Attr;
 	/** @throws DOMError */
 	function removeNamedItem( name : String ) : Attr;
+	function item( index : Int ) : Attr;
 	function getNamedItemNS( namespaceURI : String, localName : String ) : Attr;
 	/** @throws DOMError */
 	function setNamedItemNS( arg : Attr ) : Attr;

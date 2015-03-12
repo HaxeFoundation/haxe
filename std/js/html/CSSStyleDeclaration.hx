@@ -702,6 +702,7 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	/** Shorthand for the "z-index" CSS property. */
 	var zIndex :String;
 	
+	function item( index : Int ) : String;
 	/** @throws DOMError */
 	function getPropertyValue( property : String ) : String;
 	/** @throws DOMError */

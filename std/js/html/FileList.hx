@@ -29,4 +29,5 @@ extern class FileList implements ArrayAccess<File>
 {
 	var length(default,null) : Int;
 	
+	function item( index : Int ) : File;
 }
