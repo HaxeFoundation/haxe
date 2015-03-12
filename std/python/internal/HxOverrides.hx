@@ -150,6 +150,7 @@ class HxOverrides {
 	@:ifFeature("python._KwArgs.KwArgs_Impl_.fromT")
 	static public function mapKwArgs(a:{}, v:Dict<String,String>)
 	{
+		var a = python.Lib.dictAsAnon(python.Lib.anonToDict(a));
 		for (k in v.keys()) {
 			var val = v.get(k);
 			if (Builtins.hasattr(a, k)) {
