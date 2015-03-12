@@ -1131,8 +1131,9 @@ let configure gen =
 	let last_line = ref (-1) in
 	let begin_block w = write w "{"; push_indent w; newline w; last_line := -1 in
 	let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w; last_line := -1 in
+	let skip_line_directives = (not gen.gcon.debug && not (Common.defined gen.gcon Define.NoCompilation)) || Common.defined gen.gcon Define.RealPosition in
 	let line_directive =
-		if (not gen.gcon.debug && not (Common.defined gen.gcon Define.NoCompilation)) || Common.defined gen.gcon Define.RealPosition then
+		if skip_line_directives then
 			fun w p -> ()
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
@@ -1140,6 +1141,12 @@ let configure gen =
 			let line = if Common.defined gen.gcon Define.Unity46LineNumbers then cur_line - 1 else cur_line in
 			if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" line (Ast.s_escape file); newline w end;
 			last_line := cur_line
+	in
+	let line_reset_directive =
+		if skip_line_directives then
+			fun w -> ()
+		else fun w ->
+			print w "#line default"
 	in
 
 	let rec extract_tparams params el =
@@ -2120,7 +2127,7 @@ let configure gen =
 										let t = Common.timer "expression to string" in
 										expr_s w e;
 										t();
-										if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
+										line_reset_directive w;
 										if unchecked then end_block w
 									| _ ->
 										assert false
@@ -2415,7 +2422,7 @@ let configure gen =
 			| Some init ->
 				print w "static %s() " (snd cl.cl_path);
 				expr_s w (mk_block init);
-				if not (Common.defined gen.gcon Define.RealPosition) then write w "#line default";
+				line_reset_directive w;
 				newline w;
 				newline w
 		);
