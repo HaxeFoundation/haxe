@@ -706,10 +706,6 @@ and gen_expr ctx e =
 
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
-	| TLocal _ | TLocal _ ->
-		spr ctx "(function() return ";
-		gen_expr ctx e;
-		spr ctx " end)()";
 	| TBinop (Ast.OpEq as op,e1,e2) ->
 		spr ctx "(function() return ";
 		gen_tbinop ctx op e1 e2;
@@ -1220,7 +1216,7 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if (Meta.has Meta.LuaRequire c.cl_meta) && (Meta.has Meta.ReallyUsed c.cl_meta) then
+		else if (Meta.has Meta.LuaRequire c.cl_meta) then
 			generate_require ctx c
 		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
