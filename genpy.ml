@@ -1496,7 +1496,7 @@ module Printer = struct
 			| "__define_feature__",[_;e] ->
 				print_expr pctx e
 			| "super",_ ->
-				let s_el = print_exprs pctx ", " el in
+				let s_el = (print_call_args pctx e1 el) in
 				Printf.sprintf "super().__init__(%s)" s_el
 			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}] ->
 				let exprs = Array.of_list tl in
