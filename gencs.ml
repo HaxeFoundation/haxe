@@ -3459,6 +3459,7 @@ let convert_ilenum ctx p ?(is_flag=false) ilcls =
 	let data = ref [] in
 	List.iter (fun f -> match f.fname with
 		| "value__" -> ()
+		| _ when not (List.mem CStatic f.fflags.ff_contract) -> ()
 		| _ ->
 			let meta, const = match f.fconstant with
 				| Some IChar i
