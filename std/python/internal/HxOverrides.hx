@@ -21,6 +21,7 @@
  */
 package python.internal;
 
+import python.lib.Builtins;
 import python.Syntax;
 
 import python.Syntax.pythonCode in py;
@@ -144,6 +145,20 @@ class HxOverrides {
 			Syntax.assign(Syntax.arrayAccess(a, i), v);
 			return v;
 		}
+	}
+
+	@:ifFeature("python._KwArgs.KwArgs_Impl_.fromT")
+	static public function mapKwArgs(a:{}, v:Dict<String,String>)
+	{
+		for (k in v.keys()) {
+			var val = v.get(k);
+			if (Builtins.hasattr(a, k)) {
+				var x = Builtins.getattr(a, k);
+				Builtins.setattr(a, val, x);
+				Builtins.delattr(a, k);
+			}
+		}
+		return a;
 	}
 
 }

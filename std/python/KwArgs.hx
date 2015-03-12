@@ -45,7 +45,7 @@ abstract KwArgs<T:{}>(Dict<String,Dynamic>) {
 		return new KwArgs(d);
 	}
 
-	@:from static inline function fromT<T:{}>(d:T):KwArgs<T> {
+	@:from static function fromT<T:{}>(d:T):KwArgs<T> {
 		return new KwArgs(Lib.anonAsDict(d));
 	}
 

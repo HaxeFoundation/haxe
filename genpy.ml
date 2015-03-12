@@ -1308,7 +1308,7 @@ module Printer = struct
 			| TArrayDecl el ->
 				Printf.sprintf "[%s]" (print_exprs pctx ", " el)
 			| TCall(e1,el) ->
-				print_call pctx e1 el
+				print_call pctx e1 el e
 			| TNew(c,_,el) ->
 				let id = print_base_type (t_infos (TClassDecl c)) in
 				Printf.sprintf "%s(%s)" id (print_exprs pctx ", " el)
@@ -1481,7 +1481,11 @@ module Printer = struct
 		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
 		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
-		let except = Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent in
+		let except = if has_feature pctx "has_throw" then
+			Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent
+		else
+			Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e\n%s\t" indent indent
+		in
 		let catch_str = String.concat (Printf.sprintf "\n") (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
 		let except_end = if not has_catch_all then Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent else "" in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
@@ -1580,7 +1584,25 @@ module Printer = struct
 			| _,el ->
 				Printf.sprintf "%s(%s)" id (print_call_args pctx e1 el)
 
-	and print_call pctx e1 el =
+	and print_call pctx e1 el call_expr =
+		let get_native_fields t = match follow t with
+		| TAbstract(abst, [tx]) ->
+			(match follow tx with
+			| TAnon(a) ->
+				let fold f cf acc =
+					if Meta.has Meta.Native cf.cf_meta then begin
+						let _, args, mp = Meta.get Meta.Native cf.cf_meta in
+						match args with
+						| [( EConst(String s),_)] -> PMap.add f s acc
+						| _ -> acc
+					end else acc
+				in
+				let mapping = PMap.foldi fold a.a_fields PMap.empty in
+				mapping
+			| _ -> PMap.empty)
+		| _ ->
+			assert false
+		in
 		match e1.eexpr, el with
 			| TLocal { v_name = "`trace" }, [e;infos] ->
 				if has_feature pctx "haxe.Log.trace" then begin
@@ -1592,6 +1614,18 @@ module Printer = struct
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
 			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
+			| TField(_, (FStatic({cl_path = ["python"; "_KwArgs"], "KwArgs_Impl_"},{ cf_name="fromT" }))), [e2]  ->
+				let native_fields = get_native_fields call_expr.etype in
+				if PMap.is_empty native_fields then
+					print_call2 pctx e1 el
+				else
+					let fold_dict k v acc =
+						let prefix = if acc = "" then "" else "," in
+						Printf.sprintf "%s%s\"%s\":\"%s\"" acc prefix (handle_keywords k) v
+					in
+					let native_map = PMap.foldi fold_dict native_fields ""
+					in
+					Printf.sprintf "python__KwArgs_KwArgs_Impl_.fromT(HxOverrides.mapKwArgs(%s, {%s}))" (print_expr pctx e2) native_map
 			| _,_ ->
 				print_call2 pctx e1 el
 
