@@ -3011,7 +3011,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
    let class_path = enum_def.e_path in
    let just_class_name =  (snd class_path) in
    let class_name =  just_class_name ^ "_obj" in
-   let smart_class_name =  ("::" ^ (join_class_path class_path "::") )  in
+   let remap_class_name =  ("::" ^ (join_class_path_remap class_path "::") )  in
    (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
    let cpp_file = new_placed_cpp_file common_ctx class_path in
    let output_cpp = (cpp_file#write) in
@@ -3035,7 +3035,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
       let name = keyword_remap constructor.ef_name in
       match constructor.ef_type with
       | TFun (args,_) ->
-         output_cpp (smart_class_name ^ "  " ^ class_name ^ "::" ^ name ^ "(" ^
+         output_cpp (remap_class_name ^ "  " ^ class_name ^ "::" ^ name ^ "(" ^
             (gen_tfun_arg_list args) ^")\n");
          output_cpp ("\t{ return hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^ "," ^
             (string_of_int constructor.ef_index) ^ ",hx::DynamicArray(0," ^
@@ -3044,7 +3044,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
          output_cpp "); }\n\n"
 
       | _ ->
-         output_cpp ( smart_class_name ^ " " ^ class_name ^ "::" ^ name ^ ";\n\n" )
+         output_cpp ( remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ ";\n\n" )
    ) enum_def.e_constrs;
 
 
@@ -3199,14 +3199,14 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
    PMap.iter (fun _ constructor ->
       let name = keyword_remap constructor.ef_name in
-      output_h ( "\t\tstatic " ^  smart_class_name ^ " " ^ name );
+      output_h ( "\t\tstatic " ^  remap_class_name ^ " " ^ name );
       match constructor.ef_type with
       | TFun (args,_) ->
          output_h ( "(" ^ (gen_tfun_arg_list args) ^");\n");
          output_h ( "\t\tstatic Dynamic " ^ name ^ "_dyn();\n");
       | _ ->
          output_h ";\n";
-         output_h ( "\t\tstatic inline " ^  smart_class_name ^ " " ^ name ^
+         output_h ( "\t\tstatic inline " ^  remap_class_name ^ " " ^ name ^
                   "_dyn() { return " ^name ^ "; }\n" );
    ) enum_def.e_constrs;
 
