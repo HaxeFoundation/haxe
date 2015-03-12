@@ -1008,7 +1008,7 @@ let generate_class___name__ ctx c =
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__name__ = " p;
 		if has_feature ctx "Type.getClassName" then
-			print ctx "[%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
+			print ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
 		else
 			print ctx "true";
 		newline ctx;
@@ -1066,7 +1066,8 @@ let generate_class ctx c =
 	);
 	newline ctx;
 	if hxClasses then begin
-		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
+		(* TODO: better namespace for _hxClasses *)
+		print ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 		newline ctx;
 	end;
 	generate_class___name__ ctx c;
@@ -1136,7 +1137,7 @@ let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
 	print ctx "%s = " p;
-	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
+	if has_feature ctx "Type.resolveEnum" then print ctx "_hxClasses[\"%s\"] = " (dot_path e.e_path);
 	print ctx "{";
 	if has_feature ctx "lua.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1150,14 +1151,15 @@ let generate_enum ctx e =
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
 			print ctx "function(%s) { local $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 			if has_feature ctx "may_print_enum" then
-				spr ctx " $x.toString = $estr;";
+				(* TODO: better namespacing for _estr *)
+				spr ctx " $x.toString = _estr;";
 			spr ctx " return $x; }";
 			ctx.separator <- true;
 		| _ ->
 			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "may_print_enum" then begin
-				print ctx "%s%s.toString = $estr" p (field f.ef_name);
+				print ctx "%s%s.toString = _estr" p (field f.ef_name);
 				newline ctx;
 			end;
 			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
@@ -1292,16 +1294,15 @@ let generate com =
 	spr ctx "bit32 = bit"; newline ctx; newline ctx;
 
 
-	(* TODO: fix $estr *)
 	let vars = [] in
-	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ "{}") :: vars else vars) in
+	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in
 	let vars = if has_feature ctx "may_print_enum"
-		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) ^ ".__string_rec(self,''); }") :: vars
+		then ("_estr = function()  return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) ^ ".__string_rec(self,''); end") :: vars
 		else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
-		print ctx "local %s" (String.concat "," vl);
+		print ctx "local %s" (String.concat ";" vl);
 		ctx.separator <- true;
 		newline ctx
 	);
