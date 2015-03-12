@@ -30,10 +30,17 @@ import cs.NativeArray;
 
 	private var __a:NativeArray<T>;
 
+#if erase_generics
+	inline private static function ofNative<X>(native:NativeArray<Dynamic>):Array<X>
+	{
+		return new Array(native);
+	}
+#else
 	inline private static function ofNative<X>(native:NativeArray<X>):Array<X>
 	{
 		return new Array(native);
 	}
+#end
 
 	inline private static function alloc<Y>(size:Int):Array<Y>
 	{
@@ -46,11 +53,19 @@ import cs.NativeArray;
 		this.__a = new NativeArray(0);
 	}
 
+#if erase_generics
+	@:overload private function new(native:NativeArray<Dynamic>)
+	{
+		this.length = native.Length;
+		this.__a = untyped native;
+	}
+#else
 	@:overload private function new(native:NativeArray<T>)
 	{
 		this.length = native.Length;
 		this.__a = native;
 	}
+#end
 
 	public function concat( a : Array<T> ) : Array<T>
 	{
