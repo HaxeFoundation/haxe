@@ -1132,7 +1132,7 @@ let configure gen =
 	let begin_block w = write w "{"; push_indent w; newline w; last_line := -1 in
 	let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w; last_line := -1 in
 	let line_directive =
-		if Common.defined gen.gcon Define.RealPosition then
+		if (not gen.gcon.debug && not (Common.defined gen.gcon Define.NoCompilation)) || Common.defined gen.gcon Define.RealPosition then
 			fun w p -> ()
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
