@@ -22,6 +22,9 @@
 package lua;
 
 class Boot {
+	static function __init__(){
+		untyped __lua__("setmetatable(_G.string, String.mt)");
+	}
 	public static var unpack : Dynamic->lua.Table<Int,Dynamic> = untyped __lua__("function(...) return {...} end");
 
 	private static function __unhtml(s : String) {

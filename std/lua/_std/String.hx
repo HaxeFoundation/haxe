@@ -20,21 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-extern class String {
-	var length(get,null) : Int;
+@:coreApi
+class String {
+	public var length(default,null) : Int;
 
-	function new(string:String) {
-		this = string;
+	public function new(string:String) untyped {
+		// TODO: extern this somehow
+		__lua__("self = str");
 	}
 
-	inline function toUpperCase() : String return untyped this.upper();
-	inline function toLowerCase() : String return untyped this.lower();
-	inline function indexOf( str : String, ?startIndex : Int ) : Int {
+	public function toUpperCase() : String return untyped this.upper();
+	public function toLowerCase() : String return untyped this.lower();
+	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
 		return lua.StringTools.find(this, str, startIndex, str.length, true);
 	}
-	inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var i = 0;
 		var ret = 0;
 		while(i != null){
@@ -43,32 +45,34 @@ extern class String {
 		}
 		return ret-1;
 	}
-	inline function split( delimiter : String ) : Array<String> {
+	public function split( delimiter : String ) : Array<String> {
 		return [];
 	}
-	inline function toString() : String {
+	public function toString() : String {
 		return this;
 	}
-	inline function substring( startIndex : Int, ?endIndex : Int ) : String {
+	public function substring( startIndex : Int, ?endIndex : Int ) : String {
 		if (endIndex == null) endIndex = this.length;
 		return untyped lua.StringTools.sub(this, startIndex + 1,endIndex + 1);
 	}
 
-	inline function get_length() : Int {
+	function get_length() : Int {
 		return lua.StringTools.len(this);
 	}
-	inline function charAt( index : Int) : String {
+	public function charAt( index : Int) : String {
 		return lua.StringTools.sub(this,index+1, index+1);
 	}
-	inline function charCodeAt( index : Int) : Null<Int> {
+	public function charCodeAt( index : Int) : Null<Int> {
 		return lua.StringTools.byte(this,index+1);
 	}
 
-	inline function substr( pos : Int, ?len : Int ) : String {
+	public function substr( pos : Int, ?len : Int ) : String {
 		if (len == null || len > pos + this.length) len = this.length;
 		return lua.StringTools.sub(this, pos + 1, pos+len + 1);
 	}
 
-	static function fromCharCode( code : Int ) : String;
+	public static function fromCharCode( code : Int ) : String {
+		return untyped String.char(code);
+	}
 }
 

@@ -37,7 +37,7 @@ import lua.Boot;
 	}
 
 	public static inline function int( x : Float ) : Int {
-		return cast(x) | 0;
+		return cast(x, Int) | 0;
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
