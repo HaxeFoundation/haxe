@@ -228,9 +228,9 @@ private class PHPNativeStrategy extends TypeStrategy {
 				return "float";
 			case "date", "datetime", "timestamp":
 				return "date";
-			case "bool", "tinyint(1)", "tiny":
+			case "bool", "tinyint(1)":
 				return "bool";
-			case "int", "int24", "int32", "long", "longlong", "short":
+			case "int", "int24", "int32", "long", "longlong", "short", "tiny":
 				return "int";
 			case "blob" if (pdo_type == pdo_type_str):
 			 	return "string";
