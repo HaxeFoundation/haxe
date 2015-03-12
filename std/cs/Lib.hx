@@ -121,8 +121,18 @@ class Lib
 
 	/**
 		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
+		[deprecated] - use `getNativeType` instead
 	**/
+	@:deprecated('The function `nativeType` is deprecated and will be removed in later versions. Please use `getNativeType` instead')
 	public static function nativeType(obj:Dynamic):Type
+	{
+		return untyped obj.GetType();
+	}
+
+	/**
+		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
+	**/
+	public static function getNativeType(obj:Dynamic):Type
 	{
 		return untyped obj.GetType();
 	}

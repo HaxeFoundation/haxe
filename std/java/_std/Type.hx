@@ -43,7 +43,7 @@ using StringTools;
 		if (o == null || Std.is(o, DynamicObject) || Std.is(o, java.lang.Class)) {
 			return null;
 		}
-		return cast java.Lib.nativeType(o);
+		return cast java.Lib.getNativeType(o);
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic>

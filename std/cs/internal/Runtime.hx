@@ -202,14 +202,14 @@ import cs.system.Object;
 
 			if (cv2 == null)
 			{
-				throw new cs.system.ArgumentException("Cannot compare " + nativeType(v1).ToString() + " and " + nativeType(v2).ToString());
+				throw new cs.system.ArgumentException("Cannot compare " + getNativeType(v1).ToString() + " and " + getNativeType(v2).ToString());
 			}
 
 			switch(cv1.GetTypeCode())
 			{
 				case cs.system.TypeCode.String:
 					if (cv2.GetTypeCode() != cs.system.TypeCode.String)
-						throw new cs.system.ArgumentException("Cannot compare " + nativeType(v1).ToString() + " and " + nativeType(v2).ToString());
+						throw new cs.system.ArgumentException("Cannot compare " + getNativeType(v1).ToString() + " and " + getNativeType(v2).ToString());
 					var s1 = Lib.as(v1,String);
 					var s2 = Lib.as(v2,String);
 					return String.Compare(s1,s2, cs.system.StringComparison.Ordinal);
@@ -229,7 +229,7 @@ import cs.system.Object;
 
 		if (c1 == null || c2 == null)
 		{
-			throw new cs.system.ArgumentException("Cannot compare " + nativeType(v1).ToString() + " and " + nativeType(v2).ToString());
+			throw new cs.system.ArgumentException("Cannot compare " + getNativeType(v1).ToString() + " and " + getNativeType(v2).ToString());
 		}
 
 		return c1.CompareTo(c2);
@@ -252,7 +252,7 @@ import cs.system.Object;
 			var cv2 = Lib.as(v2, IConvertible);
 			if (cv2 == null)
 			{
-				throw new cs.system.ArgumentException("Cannot dynamically add " + cs.Lib.nativeType(v1).ToString() + " and " + cs.Lib.nativeType(v2).ToString());
+				throw new cs.system.ArgumentException("Cannot dynamically add " + cs.Lib.getNativeType(v1).ToString() + " and " + cs.Lib.getNativeType(v2).ToString());
 			}
 			return cv1.ToDouble(null) + cv2.ToDouble(null);
 		}
@@ -418,7 +418,7 @@ import cs.system.Object;
 		{
 			oargs[i] = args[i];
 			if (args[i] != null)
-				ts[i] = Lib.nativeType(args[i]);
+				ts[i] = Lib.getNativeType(args[i]);
 		}
 
 		var last = 0;
@@ -498,7 +498,7 @@ import cs.system.Object;
 				if (arg == null) {
 					if (param.IsValueType)
 						oargs[i] = Activator.CreateInstance(param);
-				} else if (!cs.Lib.nativeType(arg).IsAssignableFrom(param)) {
+				} else if (!cs.Lib.getNativeType(arg).IsAssignableFrom(param)) {
 					oargs[i] = cast(arg, IConvertible).ToType(param, null);
 				}
 			}
@@ -530,7 +530,7 @@ import cs.system.Object;
 
 	public static function unbox(dyn:Dynamic):Dynamic
 	{
-		if (dyn != null && untyped (Lib.nativeType(dyn) + "").StartsWith("haxe.lang.Null"))
+		if (dyn != null && untyped (Lib.getNativeType(dyn) + "").StartsWith("haxe.lang.Null"))
 		{
 			return dyn.toDynamic();
 		} else {

@@ -47,7 +47,7 @@ import cs.internal.Exceptions;
 				return true;
 		}
 
-		return clt.IsAssignableFrom(cs.Lib.nativeType(v));
+		return clt.IsAssignableFrom(cs.Lib.getNativeType(v));
 	}
 
 	public static function string( s : Dynamic ) : String {
