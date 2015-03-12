@@ -21,6 +21,23 @@
  */
 package python.lib.json;
 
+import python.Tuple;
+
+typedef JSONEncoderOptions = {
+	@:optional var skipkeys : Bool;
+	@:optional var ensure_ascii : Bool;
+	@:optional var check_circular : Bool;
+	@:optional var allow_nan : Bool;
+	@:optional var sort_keys:Bool;
+	@:optional var indent : String;
+	@:optional var separators:Tuple2<String,String>;
+	@:optional @:native("default") var def:Dynamic->String;
+}
 @:pythonImport("json", "JSONEncoder")
 extern class JSONEncoder {
+	public function new (?options:KwArgs<JSONEncoderOptions>):Void;
+
+	@:native("default") public function def (o:Dynamic):Dynamic;
+
+	public function encode (o:Dynamic):String;
 }
