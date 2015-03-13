@@ -38,6 +38,7 @@ extern class UBuiltins {
     static function hasattr(o:Dynamic, a:String):Bool;
     static function getattr(o:Dynamic, a:String):Dynamic;
     static function setattr(o:Dynamic, a:String, v:Dynamic):Void;
+    static function delattr(o:Dynamic, attr:String):Void;
     static function callable(x:Dynamic):Bool;
     static function type(o:Dynamic):Dynamic;
     static function ord(s:String):Int;
