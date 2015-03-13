@@ -79,7 +79,7 @@ module KeywordHandler = struct
 		let h = Hashtbl.create 0 in
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"len"; "int"; "float"; "list"; "bool"; "str"; "isinstance"; "print"; "min"; "max";
-			"hasattr"; "getattr"; "setattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter";
+			"hasattr"; "getattr"; "setattr"; "delattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter";
 			"tuple"; "dict"; "set";
 		];
 		h
