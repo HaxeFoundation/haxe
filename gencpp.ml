@@ -3954,12 +3954,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 
+   let class_name_text = join_class_path class_path "." in
+
    (* Initialise static in boot function ... *)
    if (not class_def.cl_interface) then begin
       (* Remap the specialised "extern" classes back to the generic names *)
-      let class_name_text = match class_path with
-         | path -> join_class_path path "." in
-
       output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
          (match class_def.cl_constructor with
@@ -4004,8 +4003,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp ("}\n\n");
 
    end else begin
-      let class_name_text = join_class_path class_path "." in
-
       output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
@@ -4085,8 +4082,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_h ("\t\tVoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h "\n\tpublic:\n";
       let new_arg = if (has_gc_references class_def) then "true" else "false" in
-      output_h ("\t\tinline void *operator new( size_t inSize, bool inContainer=" ^ new_arg ^")\n" );
-      output_h ("\t\t\t{ return hx::Object::operator new(inSize,inContainer); }\n" );
+      output_h ("\t\tinline void *operator new( size_t inSize, bool inContainer=" ^ new_arg
+         ^",const char *inName=" ^ (const_char_star class_name_text )^ ")\n" );
+      output_h ("\t\t\t{ return hx::Object::operator new(inSize,inContainer,inName); }\n" );
       output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
       output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
       output_h ("\t\tstatic Dynamic __Create(hx::DynamicArray inArgs);\n");
