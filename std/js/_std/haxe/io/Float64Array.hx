@@ -21,17 +21,19 @@
  */
 package haxe.io;
 
-typedef UInt8ArrayData = js.html.Uint8Array;
+import js.html.compat.Float64Array;
+
+typedef Float64ArrayData = js.html.Float64Array;
 
 @:coreApi
-abstract UInt8Array(UInt8ArrayData) {
+abstract Float64Array(Float64ArrayData) {
 
-	public static inline var BYTES_PER_ELEMENT = 1;
+	public static inline var BYTES_PER_ELEMENT = 4;
 	public var length(get,never) : Int;
 	public var view(get,never) : ArrayBufferView;
 
-	public inline function new( elements : Int ) {
-		this = new UInt8ArrayData(elements);
+	public inline function new( elements : Int ) : Void {
+		this = new Float64ArrayData(elements);
 	}
 
 	inline function get_length() : Int {
@@ -42,44 +44,43 @@ abstract UInt8Array(UInt8ArrayData) {
 		return ArrayBufferView.fromData(this);
 	}
 
-	@:arrayAccess public inline function get( index : Int ) : Int {
+	@:arrayAccess public inline function get( index : Int ) : Float {
 		return this[index];
 	}
 
-	@:arrayAccess public inline function set( index : Int, value : Int ) : Int {
-		return this[index] = value & 0xFF; // &0xFF necessary for html compat
+	@:arrayAccess public inline function set( index : Int, value : Float ) : Float {
+		return this[index] = value;
 	}
 
-	public inline function sub( begin : Int, ?length : Int ) : UInt8Array {
+	public inline function sub( begin : Int, ?length : Int ) : Float64Array {
 		return fromData(this.subarray(begin, length == null ? this.length : begin+length));
 	}
 
-	public inline function subarray( ?begin : Int, ?end : Int ) : UInt8Array {
+	public inline function subarray( ?begin : Int, ?end : Int ) : Float64Array {
 		return fromData(this.subarray(begin, end));
 	}
 
-	public inline function getData() : UInt8ArrayData {
+	public inline function getData() : Float64ArrayData {
 		return this;
 	}
 
-	public static function fromData( d : UInt8ArrayData ) : UInt8Array {
+	public static function fromData( d : Float64ArrayData ) : Float64Array {
 		return cast d;
 	}
 
-	public static function fromArray( a : Array<Int>, pos : Int = 0, ?length : Int ) : UInt8Array {
+	public static function fromArray( a : Array<Float>, pos : Int = 0, ?length : Int ) : Float64Array {
 		if( length == null ) length = a.length - pos;
 		if( pos < 0 || length < 0 || pos + length > a.length ) throw Error.OutsideBounds;
 		if( pos == 0 && length == a.length )
-			return fromData(new UInt8ArrayData(a));
-		var i = new UInt8Array(a.length);
+			return fromData(new Float64ArrayData(a));
+		var i = new Float64Array(a.length);
 		for( idx in 0...length )
 			i[idx] = a[idx + pos];
 		return i;
 	}
 
-	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : UInt8Array {
-		return fromData(new UInt8ArrayData(bytes.getData(), bytePos, length));
+	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : Float64Array {
+		return fromData(new Float64ArrayData(bytes.getData(), bytePos, length));
 	}
-
 }
 

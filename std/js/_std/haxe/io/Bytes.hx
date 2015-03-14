@@ -96,6 +96,16 @@ class Bytes {
 		data.setFloat32(pos, v, true);
 	}
 
+	public function getUInt16( pos : Int ) : Int {
+		initData();
+		return data.getUint16(pos, true);
+	}
+
+	public function setUInt16( pos : Int, v : Int ) : Void {
+		initData();
+		data.setUint16(pos, v, true);
+	}
+
 	public function getInt32( pos : Int ) : Int {
 		initData();
 		return data.getInt32(pos, true);

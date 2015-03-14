@@ -293,6 +293,29 @@ class Bytes {
 	}
 
 	/**
+		Returns the 16 bit unsignged integer at given position (in low endian encoding).
+	**/
+	public inline function getUInt16( pos : Int ) : Int {
+		#if neko_v21
+		return untyped $sget16(b, pos, false);
+		#else
+		return get(pos) | (get(pos + 1) << 8);
+		#end
+	}
+
+	/**
+		Returns the 16 bit unsignged integer at given position (in low endian encoding).
+	**/
+	public inline function setUInt16( pos : Int, v : Int ) : Void {
+		#if neko_v21
+		untyped $sset16(b, pos, v, false);
+		#else
+		set(pos, v);
+		set(pos + 1, v >> 8);
+		#end
+	}
+
+	/**
 		Returns the 32 bit integer at given position (in low endian encoding).
 	**/
 	public inline function getInt32( pos : Int ) : Int {
