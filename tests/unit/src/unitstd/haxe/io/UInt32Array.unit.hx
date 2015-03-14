@@ -1,6 +1,8 @@
 
 var emulated = haxe.io.ArrayBufferView.EMULATED;
 
+if( emulated ) return;
+
 var b = new haxe.io.UInt32Array(5);
 b[0] == 0;
 b[4] == 0;
