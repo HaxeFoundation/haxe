@@ -575,7 +575,9 @@ let is_dynamic_type_param class_kind =
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
    pointer class or the pointee (_obj class *)
-let rec class_string klass suffix params =
+let rec class_string klass suffix params remap =
+   let type_string = type_string_remap remap in
+   let join_class_path_remap = if remap then join_class_path_remap else join_class_path in
    (match klass.cl_path with
    (* Array class *)
    |  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic"
@@ -614,16 +616,18 @@ let rec class_string klass suffix params =
             (join_class_path_remap klass.cl_path "::") ^ suffix
    | _ -> "::" ^ (join_class_path_remap klass.cl_path "::") ^ suffix
    )
-and type_string_suff suffix haxe_type =
+and type_string_suff suffix haxe_type remap =
+   let type_string = type_string_remap remap in
+   let join_class_path_remap = if remap then join_class_path_remap else join_class_path in
    (match haxe_type with
-   | TMono r -> (match !r with None -> "Dynamic" ^ suffix | Some t -> type_string_suff suffix t)
+   | TMono r -> (match !r with None -> "Dynamic" ^ suffix | Some t -> type_string_suff suffix t remap)
    | TAbstract ({ a_path = ([],"Void") },[]) -> "Void"
    | TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
    | TAbstract ({ a_path = ([],"Float") },[]) -> "Float"
    | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
    | TEnum (enum,params) ->  "::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
-   | TInst (klass,params) ->  (class_string klass suffix params)
+   | TInst (klass,params) ->  (class_string klass suffix params remap)
    | TType (type_def,params) ->
       (match type_def.t_path with
       | [] , "Null" ->
@@ -636,11 +640,11 @@ and type_string_suff suffix haxe_type =
             | TInst ({ cl_path = [],"Int" },_)
             | TInst ({ cl_path = [],"Float" },_)
             | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic" ^ suffix
-            | _ -> type_string_suff suffix t)
+            | _ -> type_string_suff suffix t remap)
          | _ -> assert false);
       | [] , "Array" ->
          (match params with
-         | [t] when (type_string (follow t)) = "Dynamic" -> "Dynamic"
+         | [t] when (type_string (follow t) ) = "Dynamic" -> "Dynamic"
          | [t] -> "Array< " ^ (type_string (follow t) ) ^ " >"
          | _ -> assert false)
       | ["cpp"] , "FastIterator" ->
@@ -661,7 +665,7 @@ and type_string_suff suffix haxe_type =
          | [t] -> "const " ^ (type_string (follow t) ) ^ " *"
          | _ -> assert false)
       | ["cpp"] , "Function" -> "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
-      | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type)
+      | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type) remap
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
    | TAnon a -> "Dynamic"
@@ -672,14 +676,19 @@ and type_string_suff suffix haxe_type =
       | _ -> "Dynamic"  ^ suffix )
       *)
    | TDynamic haxe_type -> "Dynamic" ^ suffix
-   | TLazy func -> type_string_suff suffix ((!func)())
+   | TLazy func -> type_string_suff suffix ((!func)()) remap
    | TAbstract (abs,pl) when abs.a_impl <> None ->
-      type_string_suff suffix (Abstract.get_underlying_type abs pl)
+      type_string_suff suffix (Abstract.get_underlying_type abs pl) remap
    | TAbstract (abs,pl) ->
       "::" ^ (join_class_path_remap abs.a_path "::") ^ suffix
    )
+
+and type_string_remap remap haxe_type =
+   type_string_suff "" haxe_type remap
+
 and type_string haxe_type =
-   type_string_suff "" haxe_type
+   type_string_suff "" haxe_type true
+
 and array_element_type haxe_type =
    match type_string haxe_type with
    | x when cant_be_null x -> x
@@ -794,10 +803,6 @@ let rec is_cpp_function_member func =
 let gen_type ctx haxe_type =
    ctx.ctx_output (type_string haxe_type)
 ;;
-
-(* Get the type and output it to the stream *)
-let gen_type_suff ctx haxe_type suff =
-   ctx.ctx_output (type_string_suff suff haxe_type);;
 
 let member_type ctx field_object member =
    let name = (if (is_array field_object.etype) then "::Array"
@@ -1220,7 +1225,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
       | TConst TSuper
       | TConst TThis ->
          if  ((not (Hashtbl.mem declarations "this")) && allow_this) then
-            Hashtbl.replace undeclared "this" (type_string_suff this_suffix expression.etype)
+            Hashtbl.replace undeclared "this" (type_string_suff this_suffix expression.etype true)
       | TBlock expr_list ->
          let old_decs = Hashtbl.copy declarations in
          List.iter (find_undeclared_variables undeclared declarations this_suffix allow_this ) expr_list;
@@ -2168,11 +2173,11 @@ and gen_expression ctx retval expression =
    | TObjectDecl decl_list -> gen_local_block_call()
    | TArrayDecl decl_list ->
       (* gen_type output expression.etype; *)
-      let tstr = (type_string_suff "_obj" expression.etype) in
+      let tstr = (type_string_suff "_obj" expression.etype true) in
       if tstr="Dynamic" then
          output "Dynamic( Array_obj<Dynamic>::__new()"
       else
-         output ( (type_string_suff "_obj" expression.etype) ^ "::__new()");
+         output ( (type_string_suff "_obj" expression.etype true) ^ "::__new()");
       List.iter ( fun elem -> output ".Add(";
                      gen_expression ctx true elem;
                      output ")" ) decl_list;
@@ -2187,7 +2192,7 @@ and gen_expression ctx retval expression =
          if (klass.cl_path = ([],"String")) then
             output "::String("
          else
-            output ( ( class_string klass "_obj" params) ^ "::__new(" );
+            output ( ( class_string klass "_obj" params true) ^ "::__new(" );
          gen_expression_list expressions;
          output ")"
       end
@@ -3249,7 +3254,7 @@ let rec has_gc_references class_def =
 
 let rec find_next_super_iteration class_def =
    match class_def.cl_super with
-   | Some  (klass,params) when has_new_gc_references klass -> class_string klass "_obj" params
+   | Some  (klass,params) when has_new_gc_references klass -> class_string klass "_obj" params true
    | Some  (klass,_) -> find_next_super_iteration klass
    | _ -> "";
 ;;
@@ -3374,7 +3379,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let ctx = new_context common_ctx cpp_file debug file_info in
    ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
    ctx.ctx_class_super_name <- (match class_def.cl_super with
-      | Some (klass, params) -> class_string klass "_obj" params
+      | Some (klass, params) -> class_string klass "_obj" params true
       | _ -> "");
    ctx.ctx_class_member_types <- member_types;
    if (debug>1) then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
@@ -3417,7 +3422,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    List.iter (fun imp ->
       let rec descend_interface interface =
          let imp_path = (fst interface).cl_path in
-         let interface_name = "::" ^ (join_class_path imp_path "::" ) in
+         let interface_name = "::" ^ (join_class_path_remap imp_path "::" ) in
          if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
             Hashtbl.add implemented_hash interface_name ();
             List.iter descend_interface (fst interface).cl_implements;
@@ -4033,7 +4038,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    let h_file = new_header_file common_ctx common_ctx.file class_path in
    let super = match class_def.cl_super with
-      | Some (klass,params) -> (class_string klass "_obj" params)
+      | Some (klass,params) -> (class_string klass "_obj" params true)
       | _ -> if (class_def.cl_interface) then "hx::Interface" else "hx::Object"
       in
    let output_h = (h_file#write) in
@@ -4239,9 +4244,7 @@ let write_resources common_ctx =
 let write_build_data common_ctx filename classes main_deps build_extra extern_src exe_name =
    let buildfile = open_out filename in
    let include_prefix = get_include_prefix common_ctx true in
-   let add_class_to_buildfile class_def =
-      let class_path = fst class_def in
-      let deps = snd class_def in
+   let add_class_to_buildfile class_path deps  =
       let cpp = (join_class_path class_path "/") ^ (source_file_extension common_ctx) in
       output_string buildfile ( "  <file name=\"src/" ^ cpp ^ "\">\n" );
       let project_deps = List.filter (fun path -> not (is_internal_class path) ) deps in
@@ -4252,24 +4255,25 @@ let write_build_data common_ctx filename classes main_deps build_extra extern_sr
       ^ "\"/>\n") ) project_deps;
       output_string buildfile ( "  </file>\n" )
    in
+   let add_classdef_to_buildfile (class_path, deps, _)  = add_class_to_buildfile class_path deps in
 
    output_string buildfile "<xml>\n";
    output_string buildfile ("<set name=\"HXCPP_API_LEVEL\" value=\"" ^
             (Common.defined_value common_ctx Define.HxcppApiLevel) ^ "\" />\n");
    output_string buildfile "<files id=\"haxe\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-   List.iter add_class_to_buildfile classes;
-   add_class_to_buildfile (  ( [] , "__boot__") , [] );
-   add_class_to_buildfile (  ( [] , "__files__") , [] );
-   add_class_to_buildfile (  ( [] , "__resources__") , [] );
+   List.iter add_classdef_to_buildfile classes;
+   add_class_to_buildfile ( [] , "__boot__")  [];
+   add_class_to_buildfile ( [] , "__files__")  [];
+   add_class_to_buildfile ( [] , "__resources__")  [];
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__lib__\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-   add_class_to_buildfile (  ( [] , "__lib__") , main_deps );
+   add_class_to_buildfile ( [] , "__lib__") main_deps;
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__main__\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-   add_class_to_buildfile (  ( [] , "__main__") , main_deps );
+   add_class_to_buildfile  ( [] , "__main__") main_deps;
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__resources__\">\n";
    let idx = ref 0 in
@@ -4559,7 +4563,7 @@ let rec script_type_string haxe_type =
       | TInst ({cl_path=[],"Array"},params) ->
          (match params with
          | [t] ->
-            (match type_string_suff "" t with
+            (match type_string_suff "" t false with
             | "int" -> "Array.int"
             | "Float" -> "Array.Float"
             | "bool" -> "Array.bool"
@@ -4573,7 +4577,7 @@ let rec script_type_string haxe_type =
      | TAbstract (abs,pl) when abs.a_impl <> None ->
          script_type_string  (Abstract.get_underlying_type abs pl);
      | _ ->
-         type_string_suff "" haxe_type
+         type_string_suff "" haxe_type false
 ;;
 
 type array_of =
@@ -4916,7 +4920,7 @@ class script_writer common_ctx ctx filename asciiOut =
    method get_array_type t =
       match follow t with
       | TInst ({cl_path=[],"Array"},[param]) ->
-            let typeName = type_string_suff "" param in
+            let typeName = type_string_suff "" param false in
             (match typeName with
             | "::String"  -> ArrayData "String"
             | "int" | "Float" | "bool" | "String" | "unsigned char" ->
@@ -5237,7 +5241,7 @@ class script_writer common_ctx ctx filename asciiOut =
          this#write "\n";
          List.iter (fun (_,e) -> this#gen_expression e ) values;
    | TTypeExpr type_expr ->
-         let klass = "::" ^ (join_class_path_remap (t_path type_expr) "::" ) in
+         let klass = "::" ^ (join_class_path (t_path type_expr) "::" ) in
          this#write ((this#op IaClassOf) ^ (string_of_int (this#typeId klass)))
    | TWhile (e1,e2,flag) -> this#write ( (this#op IaWhile) ^ (if flag=NormalWhile then "1" else "0" ) ^ "\n");
          this#gen_expression e1;
@@ -5471,7 +5475,7 @@ let generate_source common_ctx =
                nonboot_classes := class_def.cl_path ::  !nonboot_classes;
             let deps = generate_class_files common_ctx
                member_types super_deps constructor_deps class_def file_info scriptable in
-            exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
+            exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
          end
       | TEnumDecl enum_def when enum_def.e_extern -> ()
       | TEnumDecl enum_def ->
@@ -5485,7 +5489,7 @@ let generate_source common_ctx =
                (if (debug>1) then print_endline ("external enum " ^ name ));
             boot_enums := enum_def.e_path :: !boot_enums;
             let deps = generate_enum_files common_ctx enum_def super_deps meta file_info in
-            exe_classes := (enum_def.e_path, deps) :: !exe_classes;
+            exe_classes := (enum_def.e_path, deps, object_def) :: !exe_classes;
          end
       | TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
       );
@@ -5510,17 +5514,124 @@ let generate_source common_ctx =
    (* Output class info if requested *)
    if (scriptable || (Common.defined common_ctx Define.DllExport) ) then begin
       let filename =
-         try Common.defined_value common_ctx Define.DllExport
+         try
+            let value = Common.defined_value common_ctx Define.DllExport in
+            if value="1" then raise Not_found;
+            value
          with Not_found -> "export_classes.info"
       in
       if (filename <> "") then begin
-         let exeClasses = open_out filename in
-         List.iter (fun x -> output_string exeClasses ((join_class_path (fst x) ".") ^ "\n") ) !exe_classes;
+         let escape s = 
+            let b = Buffer.create 0 in
+            for i = 0 to String.length s - 1 do
+               let c = String.unsafe_get s i in
+               match c with
+               | '\\' -> Buffer.add_char b c; Buffer.add_char b c;
+               | ' ' -> Buffer.add_char b '\\'; Buffer.add_char b 's';
+               | '\n' -> Buffer.add_char b '\\'; Buffer.add_char b 'n';
+               | _ -> Buffer.add_char b c;
+            done;
+            Buffer.contents b;
+         in
 
-         (* Output file info top *)
+         let exeClasses = open_out filename in
+         let out = output_string exeClasses in
+         let outline str = output_string exeClasses (str ^ "\n") in
+         let spath path = (join_class_path path ".") in
+         let rec stype = function
+            | TMono r -> (match !r with None -> "Dynamic" | Some t -> stype t)
+            | TAbstract ({ a_path = ([],"Void") },[]) -> "void"
+            | TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
+            | TAbstract ({ a_path = ([],"Float") },[]) -> "float"
+            | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
+            | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
+            | TEnum (enum,params) -> spath enum.e_path
+            | TInst (klass,params) -> 
+               (match klass.cl_path, params with
+               (* Array class *)
+               (*|  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic" *)
+               | _,_ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
+               | ([],"Array"), [t] -> "Array<" ^ (stype t) ^ ">"
+               | (["haxe";"io"],"Unsigned_char__"),_ -> "uint8"
+               | ([],"EnumValue"),_ -> "Dynamic"
+               | ([],"Null"),[t] when cant_be_null (type_string t) -> "Null<" ^ (stype t) ^ ">"
+               | ([],"Null"),[t] -> (stype t)
+               | _ -> spath klass.cl_path
+               )
+            | TType (type_def,params) ->
+               (match type_def.t_path, params with
+               | ([],"Null"),[t] when cant_be_null (type_string t) -> "Null<" ^ (stype t) ^ ">"
+               | ([],"Array"), [t] -> "Array< " ^ (stype (follow t) ) ^ " >"
+               | _,_ ->  stype (apply_params type_def.t_params params type_def.t_type)
+               )
+            | TLazy func -> stype ((!func)())
+            | TAbstract (abs,pl) when abs.a_impl <> None ->
+               stype (Abstract.get_underlying_type abs pl)
+            | TAbstract (abs,_) -> spath abs.a_path
+            | TFun (args,ret) -> "fun<" ^ (List.fold_left (fun s (_,opt,t) -> s ^ (if opt then "?" else "") ^ (stype t) ^ ",") "" args) ^ (stype ret) ^ ">"
+            | _ -> "Dynamic"
+            in
+         List.iter (fun (name,_,def) ->
+            match def with
+            | TClassDecl class_def ->
+                outline ((if class_def.cl_interface then "interface " else "class ") ^ (spath name) );
+                (match class_def.cl_super with
+                | Some (super,_) -> outline ("super " ^ (spath super.cl_path) )
+                | _ -> () );
+                List.iter ( fun(c,_) -> out ("implements " ^ (spath c.cl_path) ^ "\n") ) class_def.cl_implements;
+                (match class_def.cl_dynamic with None -> () | Some t -> outline ("implementsdynamic " ^ (stype t)));
+                (match class_def.cl_array_access with None -> () | Some t -> outline ("arrayaccess " ^ (stype t)));
+
+                let args  = function
+                   | TFun (args,_) ->
+                       List.iter  (fun (name,opt,t) ->
+                          outline ("arg " ^ name ^ (if opt then " ? " else " : ") ^ (stype t) )
+                       ) args;
+                   | _ -> () in
+                let ret  = function  TFun (_,ret) -> stype ret | _ -> "Dynamic" in
+
+                let print_field stat f =
+                   let pub = if f.cf_public then "pub " else "priv " in
+                   let stat = pub ^ ( if stat then "s " else "m " ) in
+                   (match f.cf_kind, f.cf_name with
+                   | Var { v_read = AccInline; v_write = AccNever },_ ->
+                        outline ("inlinevar " ^ f.cf_name ^ " " ^ (stype f.cf_type) )
+                   | Var { v_read = AccNormal; v_write = AccNormal },_ ->
+                        outline ("var " ^ stat ^ f.cf_name ^ " " ^ (stype f.cf_type) )
+                   | Var v,_ ->
+                        let saccess = function | AccNormal -> "v" | AccNo -> "0" | AccNever -> "!"
+                           | AccResolve -> "r" | AccCall -> "c" | AccInline -> "i" | AccRequire (_,_) -> "v" in
+                        outline ("property " ^ stat ^ (saccess v.v_read) ^ " " ^ (saccess v.v_write)
+                           ^ " " ^ f.cf_name ^ " " ^ (stype f.cf_type) )
+                   | Method _, "new" ->
+                        outline ("function " ^ stat ^ "new " ^ (ret f.cf_type) );
+                        args f.cf_type
+                   | Method MethDynamic, _  ->
+                        outline ("dynamicfunction " ^ stat ^ f.cf_name ^ " " ^ (ret f.cf_type) );
+                        args f.cf_type
+                   | Method _, _  ->
+                        outline ("function " ^ stat ^ f.cf_name ^ " " ^ (ret f.cf_type) );
+                        args f.cf_type
+                  ) in
+                (match class_def.cl_constructor with | None -> () | Some f -> print_field false f);
+                List.iter (print_field false) class_def.cl_ordered_fields;
+                List.iter (print_field true) class_def.cl_ordered_statics;
+            | TEnumDecl enum_def ->
+                out ("enum " ^ (spath name) ^ "\n");
+                let sorted_items = List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) in
+                List.iter (fun constructor ->
+                   outline ("constructor " ^ constructor.ef_name);
+                   match constructor.ef_type with
+                   | TFun (args,_) -> List.iter (fun (arg,_,t) -> outline ("eparam " ^ arg ^ " " ^ (stype t) ) ) args;
+                   | _ -> ()
+                ) sorted_items;
+            | _ -> ()
+            ) !exe_classes;
+
+         (* Output file info too *)
          List.iter ( fun file ->
                let full_path = Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
-               output_string exeClasses (file^"|"^full_path^"\n") )
+               out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
             ( List.sort String.compare ( pmap_keys !file_info) );
          close_out exeClasses;
      end;

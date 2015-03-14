@@ -132,6 +132,27 @@ class HostClasses
    ];
 
 
+   static function parseClassInfo(externs:Map<String,Bool>, filename:String)
+   {
+      if (sys.FileSystem.exists(filename))
+      {
+         var file = sys.io.File.read(filename);
+         try
+         {
+            while(true)
+            {
+               var line = file.readLine();
+               var parts = line.split(" ");
+               if (parts[0]=="class" || parts[0]=="interface" || parts[0]=="enum")
+                  externs.set(parts[1],true);
+            }
+         } catch( e : Dynamic ) { }
+         if (file!=null)
+            file.close();
+      }
+   }
+
+
    static function onGenerateCppia(types:Array<Type>):Void
    {
       var externs = new Map<String,Bool>();
@@ -144,27 +165,22 @@ class HostClasses
       externs.set("haxe._Int32.___Int32",true);
       for(e in classes)
          externs.set(e,true);
-      for(path in Context.getClassPath())
+
+
+      var define = Context.defined("dll_import") ? Context.definedValue("dll_import") : "1";
+      if (define!="1")
+         parseClassInfo(externs,define);
+      else
       {
-         var filename = path + "/export_classes.info";
-         if (sys.FileSystem.exists(filename))
-         {
-            try
+         var tried = new Map<String, Bool>();
+         for(path in Context.getClassPath())
+            if (!tried.exists(path))
             {
-               var contents = sys.io.File.getContent(filename);
-               contents = contents.split("\r").join("");
-               for(cls in contents.split("\n"))
-               {
-                  if (cls!="")
-                  {
-                     var parts = cls.split("|");
-                     if (parts.length==1)
-                        externs.set(cls,true);
-                  }
-               }
-            } catch( e : Dynamic ) { }
-         }
+                tried.set(path,true);
+                parseClassInfo(externs,path + "/export_classes.info");
+            }
       }
+
       for(type in types)
       {
          switch(type)
