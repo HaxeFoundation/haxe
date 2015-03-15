@@ -119,6 +119,7 @@ import cs.system.Object;
 		if (v1v != null)
 		{
 			return v1.Equals(v2);
+#if !erase_generics
 		} else {
 			var v1t = Lib.as(v1, Type);
 			if (v1t != null)
@@ -128,6 +129,7 @@ import cs.system.Object;
 					return typeEq(v1t, v2t);
 				return false;
 			}
+#end
 		}
 
 		return false;
@@ -135,8 +137,10 @@ import cs.system.Object;
 
 	public static function refEq(v1: { }, v2: { } ):Bool
 	{
+#if !erase_generics
 		if (Std.is(v1, Type))
 			return typeEq(Lib.as(v1,Type), Lib.as(v2,Type));
+#end
 		return Object.ReferenceEquals(v1,v2);
 	}
 
@@ -752,15 +756,46 @@ import cs.system.Object;
 		return untyped obj.ToString();
 	}
 
+#if erase_generics
+	inline
+#end
 	public static function typeEq(t1:Type, t2:Type):Bool
 	{
 		if (t1 == null || t2 == null)
 			return t1 == t2;
-		var n1 = std.Type.getClassName(cast t1);
-		var n2 = std.Type.getClassName(cast t2);
-		return n1 == n2;
+#if !erase_generics
+		var t1i = t1.IsInterface,
+		    t2i = t2.IsInterface;
+		if (t1i != t2i)
+		{
+			if (t1i)
+			{
+				var g = getGenericAttr(t1);
+				if (g != null)
+					t1 = g.generic;
+			} else {
+				var g = getGenericAttr(t2);
+				if (g != null)
+					t2 = g.generic;
+			}
+		}
+
+#end
+		if (t1.GetGenericArguments().Length > 0) t1 = t1.GetGenericTypeDefinition();
+		if (t2.GetGenericArguments().Length > 0) t2 = t2.GetGenericTypeDefinition();
+		return Object.ReferenceEquals(t1,t2);
 	}
 
+
+#if !erase_generics
+	private static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
+	{
+		for (attr in t.GetCustomAttributes(true))
+			if (Std.is(attr,cs.internal.HxObject.GenericInterface))
+				return cast attr;
+		return null;
+	}
+#end
 
 #if !erase_generics
 	@:functionCode('

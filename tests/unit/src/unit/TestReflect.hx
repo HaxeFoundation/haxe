@@ -153,6 +153,13 @@ class TestReflect extends Test {
 		t( Std.is(v,Dynamic), pos );
 	}
 
+	public function testTypeEq()
+	{
+		eq(cast Array, Type.resolveClass("Array"));
+		eq(cast Array, Type.getClass([]));
+		eq(cast Array, Type.getClass([1]));
+	}
+
 	public function testTypeof() {
 		typeof(null,TNull);
 		typeof(0,TInt);

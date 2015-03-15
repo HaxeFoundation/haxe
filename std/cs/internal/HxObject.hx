@@ -64,9 +64,22 @@ class DynamicObject extends HxObject implements Dynamic
 	}
 }
 
+#if !erase_generics
 @:keep @:native('haxe.lang.IGenericObject') interface IGenericObject
 {
 }
+
+@:nativeGen @:keep @:native('haxe.lang.GenericInterface') class GenericInterface extends cs.system.Attribute
+{
+	@:readOnly public var generic(default,never):cs.system.Type;
+
+	public function new(generic)
+	{
+		super();
+		untyped this.generic = generic;
+	}
+}
+#end
 
 @:keep @:native('haxe.lang.Enum') @:nativeGen
 #if core_api_serialize

@@ -1789,6 +1789,11 @@ let configure gen =
 
 	let gen_attributes w metadata =
 		List.iter (function
+			| Meta.Meta, [EConst(String s), _], _ ->
+				write w "[";
+				write w s;
+				write w "]";
+				newline w
 			| Meta.Meta, [meta], _ ->
 				write w "[";
 				gen_spart w meta;

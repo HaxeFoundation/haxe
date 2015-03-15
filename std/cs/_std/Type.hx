@@ -127,18 +127,17 @@ using StringTools;
 				case #if no_root "haxe.root.String" #else "String" #end: return cast String;
 				default: return null;
 			}
+#if !erase_generics
 		} else if (t.IsInterface && cast(untyped __typeof__(IGenericObject), cs.system.Type).IsAssignableFrom(t)) {
-			t = null;
-			var i = 0;
-			var ts = "";
-			while (t == null && i < 18)
+			for (attr in t.GetCustomAttributes(true))
 			{
-				i++;
-				ts += (i == 1 ? "" : ",") + "System.Object";
-				t = cs.system.Type._GetType(name + "`" + i + "[" + ts + "]");
+				var g = cs.Lib.as(attr, cs.internal.HxObject.GenericInterface);
+				if (g != null)
+					return Lib.fromNativeType(g.generic);
 			}
 
 			return Lib.fromNativeType(t);
+#end
 		} else {
 			return Lib.fromNativeType(t);
 		}
