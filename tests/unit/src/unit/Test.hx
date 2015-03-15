@@ -35,6 +35,20 @@ class Test #if swf_mark implements mt.Protect #end {
 		}
 	}
 
+	function aeq<T>(expected:Array<T>, actual:Array<T>, ?pos:haxe.PosInfos) {
+		if (expected.length != actual.length) {
+			report('Array length differs (${actual.length} should be ${expected.length})', pos);
+			success = false;
+		} else {
+			for (i in 0...expected.length) {
+				if (expected[i] != actual[i]) {
+					report('[${i}] ${actual[i]} should be ${expected[i]}', pos);
+					success = false;
+				}
+			}
+		}
+	}
+
 	function t( v, ?pos ) {
 		eq(v,true,pos);
 	}
