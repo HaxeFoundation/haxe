@@ -6124,7 +6124,7 @@ struct
 			| TEnum(en, params_to), TInst(cl, params_from)
 				| TInst(cl, params_to), TEnum(en, params_from) ->
 					(* this is here for max compatibility with EnumsToClass module *)
-				if en.e_path = cl.cl_path && en.e_extern then begin
+				if en.e_path = cl.cl_path && Meta.has Meta.Class en.e_meta then begin
 					(try
 						List.iter2 (type_eq gen (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
 						e
