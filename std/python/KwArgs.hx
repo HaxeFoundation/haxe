@@ -38,6 +38,12 @@ abstract KwArgs<T:{}>(Dict<String,Dynamic>) {
 	}
 
 	@:to public inline function toDict():Dict<String,Dynamic> {
+		// pass null, it's just to have the type information available in genpy
+		return toDictHelper(null);
+	}
+	// this is a helper method (hack) which is matched in genpy to extract the type information for reverse mapping
+	// of keyword fields.
+	function toDictHelper(x:T):Dict<String,Dynamic> {
 		return this;
 	}
 

@@ -161,4 +161,20 @@ class HxOverrides {
 		return a;
 	}
 
+	@:ifFeature("python._KwArgs.KwArgs_Impl_.toDictHelper")
+	static public function reverseMapKwArgs(a:Dict<String,Dynamic>, v:Dict<String,String>)
+	{
+		var a = a.copy();
+		for (k in v.keys()) {
+
+			var val = v.get(k);
+			if (a.hasKey(val)) {
+				var x = a.get(val, null);
+				a.set(k, x);
+				a.remove(val);
+			}
+		}
+		return a;
+	}
+
 }

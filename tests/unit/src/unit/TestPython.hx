@@ -228,6 +228,21 @@ class TestPython extends Test {
 		test(x,a);
 	}
 
+	function testSoftKeywords () {
+		function test (len:String, bytes:String) {
+			eq(len.length,bytes.length);
+		}
+		test("x", "x");
+	}
+
+	function testKwArgsNativeNames () {
+		function test (?kw:KwArgs<{ @:native("default") var def:Int; }>) {
+			eq(1, kw.typed().def);
+		}
+
+		test({ def : 1});
+	}
+
 	function testOptionalVarArgs () {
 		function test (?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
