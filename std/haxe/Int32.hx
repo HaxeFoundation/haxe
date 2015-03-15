@@ -28,39 +28,39 @@
 abstract Int32(Int) from Int to Int {
 	@:op(-A) private function negate():Int32;
 
-	@:op(++A) private inline function preIncrement():Int32
+	@:extern @:op(++A) private inline function preIncrement():Int32
 		return this = clamp(++this);
 
-	@:op(A++) private inline function postIncrement():Int32 {
+	@:extern @:op(A++) private inline function postIncrement():Int32 {
 		var ret = this++;
 		this = clamp(this);
 		return ret;
 	}
 
-	@:op(--A) private inline function preDecrement():Int32
+	@:extern @:op(--A) private inline function preDecrement():Int32
 		return this = clamp(--this);
 
-	@:op(A--) private inline function postDecrement():Int32 {
+	@:extern @:op(A--) private inline function postDecrement():Int32 {
 		var ret = this--;
 		this = clamp(this);
 		return ret;
 	}
 
-	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
+	@:extern @:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
 		return clamp( (a : Int) + (b : Int) );
 
-	@:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
+	@:extern @:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
 		return clamp( (a : Int) + (b : Int) );
 
 	@:op(A + B) @:commutative private static function addFloat(a:Int32, b:Float):Float;
 
-	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
+	@:extern @:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
 		return clamp( (a : Int) - (b : Int) );
 
-	@:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
+	@:extern @:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
 		return clamp( (a : Int) - (b : Int) );
 
-	@:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
+	@:extern @:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
 		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
@@ -72,7 +72,7 @@ abstract Int32(Int) from Int to Int {
 	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
 		return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
 
-	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
+	@:extern @:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
 		return mul(a, b);
 
 	#else
@@ -151,13 +151,13 @@ abstract Int32(Int) from Int to Int {
 	#if (php || python)
 
 	// PHP may be 64-bit, so shifts must be clamped
-	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
+	@:extern @:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
 		return clamp( (a : Int) << (b : Int) );
 
-	@:op(A << B) private static inline function shlInt(a:Int32, b:Int):Int32
+	@:extern @:op(A << B) private static inline function shlInt(a:Int32, b:Int):Int32
 		return clamp( (a : Int) << b );
 
-	@:op(A << B) private static inline function intShl(a:Int, b:Int32):Int32
+	@:extern @:op(A << B) private static inline function intShl(a:Int, b:Int32):Int32
 		return clamp( a << (b : Int) );
 
 	#else
@@ -168,7 +168,7 @@ abstract Int32(Int) from Int to Int {
 
 	#end
 
-	@:to private inline function toFloat():Float
+	@:extern @:to private inline function toFloat():Float
 		return this;
 
 	/**
@@ -184,7 +184,7 @@ abstract Int32(Int) from Int to Int {
 	static var extraBits : Int = untyped __php__("PHP_INT_SIZE") * 8 - 32;
 	#end
 
-	static inline function clamp( x : Int ) : Int {
+	@:extern static inline function clamp( x : Int ) : Int {
 		// force to-int conversion on platforms that require it
 		#if (as3 || flash8 || js)
 		return x | 0;
