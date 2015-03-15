@@ -163,6 +163,12 @@ class Test #if swf_mark implements mt.Protect #end {
 		haxe.Log.trace(msg,pos);
 	}
 
+   static function logVerbose(msg:String) {
+      #if (cpp || neko || php)
+      Sys.println(msg);
+      #end
+   }
+
 	static var count = 0;
 	static var reportInfos = null;
 	static var reportCount = 0;
@@ -235,6 +241,8 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	static function main() {
+      var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
+
 		#if cs //"Turkey Test" - Issue #996
 		cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
 		cs.Lib.applyCultureChanges();
@@ -319,6 +327,8 @@ class Test #if swf_mark implements mt.Protect #end {
 				database : "haxe_test" })));
 		}
 		#end
+      if (verbose)
+         logVerbose("Setup sqlite");
 		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
 		#end
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
@@ -331,8 +341,12 @@ class Test #if swf_mark implements mt.Protect #end {
 			asyncWaits.push(null);
 			for( inst in classes ) {
 				current = Type.getClass(inst);
+            if (verbose)
+               logVerbose("Class " + Std.string(current) );
 				for( f in Type.getInstanceFields(current) )
 					if( f.substr(0,4) == "test" ) {
+                  if (verbose)
+                     logVerbose("   " + f);
 						#if fail_eager
 						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
 						#else
