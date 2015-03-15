@@ -535,6 +535,8 @@ type generator_ctx =
 	gfollow : (t, t) rule_dispatcher;
 
 	gtypes : (path, module_type) Hashtbl.t;
+	mutable gtypes_list : module_type list;
+	mutable gmodules : Type.module_def list;
 
 	(* cast detection helpers / settings *)
 	(* this is a cache for all field access types *)
@@ -731,6 +733,8 @@ let new_ctx con =
 		gsyntax_filters = new rule_map_dispatcher "gsyntax_filters";
 		gfollow = new rule_dispatcher "gfollow" false;
 		gtypes = types;
+		gtypes_list = con.types;
+		gmodules = con.modules;
 
 		greal_field_types = Hashtbl.create 0;
 		ghandle_cast = (fun to_t from_t e -> mk_cast to_t e);
@@ -741,12 +745,12 @@ let new_ctx con =
 
 		gadd_type = (fun md should_filter ->
 			if should_filter then begin
-				con.types <- md :: con.types;
-				con.modules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: con.modules;
+				gen.gtypes_list <- md :: gen.gtypes_list;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			end else gen.gafter_filters_ended <- (fun () ->
-				con.types <- md :: con.types;
-				con.modules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: con.modules;
+				gen.gtypes_list <- md :: gen.gtypes_list;
+				gen.gmodules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: gen.gmodules;
 				Hashtbl.add gen.gtypes (t_path md) md;
 			) :: gen.gafter_filters_ended;
 		);
@@ -808,15 +812,14 @@ let reorder_modules gen =
 	let modules = Hashtbl.create 20 in
 	List.iter (fun md ->
 		Hashtbl.add modules ( (t_infos md).mt_module ).m_path md
-	) gen.gcon.types;
+	) gen.gtypes_list;
 
-	let con = gen.gcon in
-	con.modules <- [];
+	gen.gmodules <- [];
 	let processed = Hashtbl.create 20 in
 	Hashtbl.iter (fun md_path md ->
 		if not (Hashtbl.mem processed md_path) then begin
 			Hashtbl.add processed md_path true;
-			con.modules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = (t_infos md).mt_module.m_extra } :: con.modules
+			gen.gmodules <- { m_id = alloc_mid(); m_path = md_path; m_types = List.rev ( Hashtbl.find_all modules md_path ); m_extra = (t_infos md).mt_module.m_extra } :: gen.gmodules
 		end
 	) modules
 
@@ -872,7 +875,7 @@ let run_filters gen =
 					let filters = [ filter#run_f ] in
 					let added_types = ref [] in
 					gen.gadd_to_module <- (fun md_type priority ->
-						gen.gcon.types <- md_type :: gen.gcon.types;
+						gen.gtypes_list <- md_type :: gen.gtypes_list;
 						added_types := (md_type, priority) :: !added_types
 					);
 
@@ -900,7 +903,7 @@ let run_filters gen =
 
 					loop (added_types @ (md :: acc)) tl
 		in
-		List.rev (loop [] gen.gcon.types)
+		List.rev (loop [] gen.gtypes_list)
 	in
 
 	let run_mod_filter filter =
@@ -932,21 +935,21 @@ let run_filters gen =
 					processed
 		in
 
-		let filtered = loop [] gen.gcon.types in
+		let filtered = loop [] gen.gtypes_list in
 		gen.gadd_to_module <- last_add_to_module;
-		gen.gcon.types <- List.rev (filtered)
+		gen.gtypes_list <- List.rev (filtered)
 	in
 
 	run_mod_filter gen.gmodule_filters;
 	List.iter (fun fn -> fn()) gen.gafter_mod_filters_ended;
 
 	let last_add_to_module = gen.gadd_to_module in
-	gen.gcon.types <- run_filters gen.gexpr_filters;
+	gen.gtypes_list <- run_filters gen.gexpr_filters;
 	gen.gadd_to_module <- last_add_to_module;
 
 	List.iter (fun fn -> fn()) gen.gafter_expr_filters_ended;
-	(* Codegen.post_process gen.gcon.types [gen.gexpr_filters#run_f]; *)
-	gen.gcon.types <- run_filters gen.gsyntax_filters;
+	(* Codegen.post_process gen.gtypes_list [gen.gexpr_filters#run_f]; *)
+	gen.gtypes_list <- run_filters gen.gsyntax_filters;
 	List.iter (fun fn -> fn()) gen.gafter_filters_ended;
 
 	reorder_modules gen;
@@ -1052,7 +1055,7 @@ let dump_descriptor gen name path_s module_s =
 					SourceWriter.newline w
 				| _ -> () (* still no typedef or abstract is generated *)
 		) md_def.m_types
-	) gen.gcon.modules;
+	) gen.gmodules;
 	SourceWriter.write w "end modules";
 	SourceWriter.newline w;
 	(* dump all resources *)
@@ -1162,7 +1165,7 @@ let generate_modules gen extension source_dir (module_gen : SourceWriter.source_
 			let path = path_of_md_def md_def in
 			write_file gen w source_dir path extension out_files
 		end
-	) gen.gcon.modules
+	) gen.gmodules
 
 let generate_modules_t gen extension source_dir change_path (module_gen : SourceWriter.source_writer->module_type->bool) out_files =
 	let source_dir = gen.gcon.file ^ "/" ^ source_dir in
@@ -1174,7 +1177,7 @@ let generate_modules_t gen extension source_dir change_path (module_gen : Source
 			let path = change_path (t_path md) in
 			write_file gen w (source_dir ^ "/" ^ (String.concat "/" (fst path))) path extension out_files;
 		end
-	) gen.gcon.types
+	) gen.gtypes_list
 
 (*
 	various helper functions
@@ -1623,7 +1626,7 @@ struct
 					| TAbstractDecl a -> a.a_meta <- (meta, [], a.a_pos) :: a.a_meta
 			end
 		in
-		List.iter filter gen.gcon.types
+		List.iter filter gen.gtypes_list
 
 end;;
 
@@ -1899,7 +1902,7 @@ struct
 			let basic = gen.gcon.basic in
 			let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
 			let static_ctor_name = gen.gmk_internal_name "hx" "ctor" in
-			let msize = List.length gen.gcon.types in
+			let msize = List.length gen.gtypes_list in
 			let processed, empty_ctors = Hashtbl.create msize, Hashtbl.create msize in
 
 
@@ -5001,7 +5004,7 @@ struct
 
 				| _ -> ()
 
-			) gen.gcon.types
+			) gen.gtypes_list
 
 	end;;
 

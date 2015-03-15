@@ -2670,7 +2670,7 @@ let configure gen =
 			 cl.cl_super <- Option.map super_map cl.cl_super;
 			 cl.cl_implements <- List.map super_map cl.cl_implements
 		| _ -> ()
-		) gen.gcon.types;
+		) gen.gtypes_list;
 
 	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
 
@@ -3291,14 +3291,15 @@ let configure gen =
 let generate con =
 	(try
 
+		let gen = new_ctx con in
+		let basic = con.basic in
+
 		if Common.defined_value con Define.Dce = "no" then begin
 			let m = { null_module with m_id = alloc_mid(); m_path = ["haxe";"lang"],"DceNo" } in
 			let cl = mk_class m (["haxe";"lang"],"DceNo") null_pos in
-			con.types <- (TClassDecl cl) :: con.types
+			gen.gtypes_list <- (TClassDecl cl) :: gen.gtypes_list;
+			Hashtbl.add gen.gtypes cl.cl_path (TClassDecl cl)
 		end;
-
-		let gen = new_ctx con in
-		let basic = con.basic in
 
 		(* make the basic functions in C# *)
 		let type_cl = get_cl ( get_type gen (["System"], "Type")) in

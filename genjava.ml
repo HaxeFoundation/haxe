@@ -1873,7 +1873,7 @@ let configure gen =
 			| TAbstractDecl { a_path = ([],c) } ->
 					imports := ([],c) :: !imports
 			| _ -> ()
-		) gen.gcon.types;
+		) gen.gtypes_list;
 
 		newline w;
 		write w "@SuppressWarnings(value={";
@@ -2055,7 +2055,7 @@ let configure gen =
 			 cl.cl_super <- Option.map super_map cl.cl_super;
 			 cl.cl_implements <- List.map super_map cl.cl_implements
 		| _ -> ()
-		) gen.gcon.types;
+		) gen.gtypes_list;
 
 	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
 
