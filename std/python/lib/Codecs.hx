@@ -21,7 +21,7 @@
  */
 package python.lib;
 
-import python.lib.Bytes;
+import python.Bytes;
 import python.lib.codecs.StreamReaderWriter;
 
 @:pythonImport("codecs")

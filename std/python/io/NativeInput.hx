@@ -23,7 +23,7 @@ package python.io;
 
 import haxe.io.Eof;
 import haxe.io.Input;
-import python.lib.Bytearray;
+import python.Bytearray;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 

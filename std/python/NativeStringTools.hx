@@ -21,7 +21,7 @@
  */
 package python;
 
-import python.lib.Bytes;
+import python.Bytes;
 import python.Tuple;
 
 class NativeStringTools {

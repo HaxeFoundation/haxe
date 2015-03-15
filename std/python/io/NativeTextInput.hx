@@ -27,7 +27,7 @@ import haxe.io.Input;
 import python.io.IInput;
 import python.io.IoTools;
 import python.io.NativeInput;
-import python.lib.Bytearray;
+import python.Bytearray;
 import python.lib.io.RawIOBase;
 import python.lib.io.IOBase.SeekSet;
 import python.lib.io.TextIOBase;

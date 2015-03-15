@@ -21,7 +21,7 @@
  */
 package python.lib.io;
 
-import python.lib.Bytearray;
+import python.Bytearray;
 import python.lib.io.BufferedIOBase;
 
 @:pythonImport("io", "BufferedWriter")

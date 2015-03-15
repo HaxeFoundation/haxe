@@ -19,33 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.lib;
+package python;
 
-import python.Syntax;
+import python.Bytearray;
 
-@:pythonImport("builtins", "bytearray")
-extern class Bytearray implements ArrayAccess<Int> {
+@:native("bytes")
+extern class Bytes extends Bytearray {
 
-	public var length(get,never):Int;
+	//public function decode(encoding:String="utf-8", errors:String="strict"):String;
 
-	@:overload(function (it:Array<Int>):Void {})
-	@:overload(function (it:NativeIterable<Int>):Void {})
-	@:overload(function (size:Int):Void {})
-	public function new (source:String,encoding:String,?errors:Dynamic):Void;
-
-	inline function get_length ():Int {
-		return python.internal.UBuiltins.len(this);
-	}
-
-	public inline function get(i:Int):Int {
-		return Syntax.arrayAccess(this, i);
-	}
-
-	public inline function set(i:Int,v:Int):Void {
-        this.__setitem__(i,v);
-    }
-
-    public function __setitem__(i:Int,v:Int):Void;
-
-	public function decode(encoding:String="utf-8", errors:String="strict"):String;
 }

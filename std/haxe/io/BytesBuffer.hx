@@ -204,7 +204,7 @@ class BytesBuffer {
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
 		#elseif python
-		var buf = new python.lib.Bytearray(b);
+		var buf = new python.Bytearray(b);
 		var bytes = new Bytes(buf.length, buf);
 		#elseif js
 		var bytes = new Bytes(new js.html.Uint8Array(b).buffer);

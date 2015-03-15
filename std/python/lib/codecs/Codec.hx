@@ -21,7 +21,7 @@
  */
 package python.lib.codecs;
 
-import python.lib.Bytes;
+import python.Bytes;
 import python.Tuple.Tuple2;
 
 @:pythonImport("codecs", "Codec")

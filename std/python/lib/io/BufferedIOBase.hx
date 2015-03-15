@@ -24,7 +24,7 @@ package python.lib.io;
 import python.lib.io.IOBase;
 
 import python.lib.io.RawIOBase;
-import python.lib.Bytearray;
+import python.Bytearray;
 
 @:pythonImport("io", "BufferedIOBase")
 extern class BufferedIOBase extends IOBase implements IBufferedIOBase {

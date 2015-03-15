@@ -474,7 +474,7 @@ class Bytes {
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
-		return new Bytes(length, new python.lib.Bytearray(length));
+		return new Bytes(length, new python.Bytearray(length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -509,7 +509,7 @@ class Bytes {
 		catch (e:Dynamic) throw e;
 
 		#elseif python
-			var b:BytesData = new python.lib.Bytearray(s, "UTF-8");
+			var b:BytesData = new python.Bytearray(s, "UTF-8");
 			return new Bytes(b.length, b);
 
 		#else

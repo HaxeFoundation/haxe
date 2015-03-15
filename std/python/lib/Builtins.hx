@@ -101,10 +101,10 @@ extern class Builtins {
 
 	public static function type():Void;
 	/*
-	@:overload(function (it:Array<Int>):python.lib.ByteArray {})
-	@:overload(function (it:NativeIterable<Int>):python.lib.ByteArray {})
-	@:overload(function (size:Int):python.lib.ByteArray {})
-	public static function bytearray(source:String,encoding:String,?errors:Dynamic):python.lib.ByteArray;
+	@:overload(function (it:Array<Int>):python.Bytearray {})
+	@:overload(function (it:NativeIterable<Int>):python.Bytearray {})
+	@:overload(function (size:Int):python.Bytearray {})
+	public static function bytearray(source:String,encoding:String,?errors:Dynamic):python.Bytearray;
 	*/
 	public static function float(x:Dynamic):Float;
 
