@@ -34,6 +34,71 @@ package cs.internal;
 		length = fieldIds.Length;
 	}
 
+	private static function addFields(nids:cs.NativeArray<Int>, nfields:cs.NativeArray<String>):Void
+	{
+		// first see if we need to add anything
+		var cids = fieldIds,
+		    cfields = fields;
+		var nlen = nids.Length;
+		var clen = length;
+		if (nfields.Length != nlen) throw 'Different fields length: $nlen and ${nfields.Length}';
+
+		//TODO optimize
+		var needsChange = false;
+		for (i in nids)
+		{
+			if (findHash(i, cids, clen) < 0)
+			{
+				needsChange = true;
+				break;
+			}
+		}
+
+		// if we do, lock and merge
+		if (needsChange)
+		{
+			cs.Lib.lock(FieldLookup, {
+				// trace(cs.Lib.array(nids), cs.Lib.array(cids));
+				var ansIds = new cs.NativeArray(clen + nlen),
+				    ansFields = new cs.NativeArray(clen + nlen);
+				var ci = 0, ni = 0, ansi = 0;
+				while (ci < clen && ni < nlen)
+				{
+					if (cids[ci] < nids[ni])
+					{
+						ansIds[ansi] = cids[ci];
+						ansFields[ansi] = cfields[ci];
+						++ci;
+					} else {
+						ansIds[ansi] = nids[ni];
+						ansFields[ansi] = nfields[ni];
+						++ni;
+					}
+					++ansi;
+				}
+
+				if (ci < clen)
+				{
+					cs.system.Array.Copy(cids, ci, ansIds, ansi, clen - ci);
+					cs.system.Array.Copy(cfields, ci, ansFields, ansi, clen - ci);
+					ansi += clen - ci;
+				}
+
+				if (ni < nlen)
+				{
+					cs.system.Array.Copy(nids, ni, ansIds, ansi, nlen - ni);
+					cs.system.Array.Copy(nfields, ni, ansFields, ansi, nlen - ni);
+					ansi += nlen - ni;
+				}
+
+				// trace(cs.Lib.array(ansIds));
+				fieldIds = ansIds;
+				fields = ansFields;
+				length = ansi;
+			});
+		}
+	}
+
 	//s cannot be null here
 	private static inline function doHash(s:String):Int
 	{

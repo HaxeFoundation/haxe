@@ -3202,11 +3202,46 @@ let configure gen =
 		else i
 	in
 
-	let hashes = Hashtbl.fold (fun i s acc -> (normalize_i i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
+	let nhash = ref 0 in
+	let hashes = Hashtbl.fold (fun i s acc -> incr nhash; (normalize_i i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
 	let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
 
 	let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
+	let haxe_libs = List.filter (function (_,_,_,lookup) -> is_some (lookup (["haxe";"lang"], "DceNo"))) gen.gcon.net_libs in
 	(try
+		(* first let's see if we're adding a -net-lib that has already a haxe.lang.FieldLookup *)
+		let name,_,_,_ = List.find (function (_,_,_,lookup) -> is_some (lookup (["haxe";"lang"], "FieldLookup"))) gen.gcon.net_libs in
+		if not (Common.defined gen.gcon Define.DllImport) then begin
+			gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly. Please define `-D dll_import` to handle Haxe-generated dll import correctly") null_pos;
+			raise Not_found
+		end;
+		if not (List.exists (function (n,_,_,_) -> n = name) haxe_libs) then
+			gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
+		(* it has; in this case, we need to add the used fields on each __init__ *)
+		flookup_cl.cl_extern <- true;
+		let hashs_by_path = Hashtbl.create !nhash in
+		Hashtbl.iter (fun (path,i) s -> Hashtbl.add hashs_by_path path (i,s)) rcf_ctx.rcf_hash_paths;
+		Hashtbl.iter (fun _ md -> match md with
+			| TClassDecl ({ cl_extern = false; cl_interface = false } as c) -> (try
+				let all = Hashtbl.find_all hashs_by_path c.cl_path in
+				let all = List.map (fun (i,s) -> normalize_i i, s) all in
+				let all = List.sort (fun (i,s) (i2,s2) -> compare i i2) all in
+
+				if all <> [] then begin
+					let add = mk_static_field_access_infer flookup_cl "addFields" c.cl_pos [] in
+					let expr = { eexpr = TCall(add, [
+						mk_nativearray_decl gen basic.tint (List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = c.cl_pos }) all) c.cl_pos;
+						mk_nativearray_decl gen basic.tstring (List.map (fun (i,s) -> { eexpr = TConst(TString (s)); etype = basic.tstring; epos = c.cl_pos }) all) c.cl_pos;
+					]); etype = basic.tvoid; epos = c.cl_pos } in
+					match c.cl_init with
+						| None -> c.cl_init <- Some expr
+						| Some e ->
+							c.cl_init <- Some { eexpr = TBlock([expr;e]); etype = basic.tvoid; epos = e.epos }
+				end
+			with | Not_found -> ())
+			| _ -> ()) gen.gtypes;
+
+	with | Not_found -> try
 		let basic = gen.gcon.basic in
 		let cl = flookup_cl in
 		let field_ids = PMap.find "fieldIds" cl.cl_statics in
@@ -3218,6 +3253,15 @@ let configure gen =
 	with | Not_found ->
 		gen.gcon.error "Fields 'fieldIds' and 'fields' were not found in class haxe.lang.FieldLookup" flookup_cl.cl_pos
 	);
+
+	if Common.defined gen.gcon Define.DllImport then begin
+		Hashtbl.iter (fun _ md -> match md with
+			| TClassDecl ({ cl_extern = false } as c) -> (try
+				ignore (List.find (function (_,_,_,lookup) -> is_some (lookup c.cl_path)) haxe_libs);
+				c.cl_extern <- true;
+			with | Not_found -> ())
+			| _ -> ()) gen.gtypes
+	end;
 
 	TypeParams.RenameTypeParameters.run gen;
 
@@ -3246,6 +3290,13 @@ let configure gen =
 
 let generate con =
 	(try
+
+		if Common.defined_value con Define.Dce = "no" then begin
+			let m = { null_module with m_id = alloc_mid(); m_path = ["haxe";"lang"],"DceNo" } in
+			let cl = mk_class m (["haxe";"lang"],"DceNo") null_pos in
+			con.types <- (TClassDecl cl) :: con.types
+		end;
+
 		let gen = new_ctx con in
 		let basic = con.basic in
 

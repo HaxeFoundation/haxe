@@ -738,10 +738,12 @@ let new_ctx con =
 		gadd_type = (fun md should_filter ->
 			if should_filter then begin
 				con.types <- md :: con.types;
-				con.modules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: con.modules
+				con.modules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: con.modules;
+				Hashtbl.add gen.gtypes (t_path md) md;
 			end else gen.gafter_filters_ended <- (fun () ->
 				con.types <- md :: con.types;
-				con.modules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: con.modules
+				con.modules <- { m_id = alloc_mid(); m_path = (t_path md); m_types = [md]; m_extra = module_extra "" "" 0. MFake } :: con.modules;
+				Hashtbl.add gen.gtypes (t_path md) md;
 			) :: gen.gafter_filters_ended;
 		);
 		gadd_to_module = (fun md pr -> failwith "module added outside expr filters");
@@ -6873,6 +6875,8 @@ struct
 
 		rcf_hash_fields : (int, string) Hashtbl.t;
 
+		rcf_hash_paths : (path * int, string) Hashtbl.t;
+
 		(*
 			main expr -> field expr -> field string -> possible hash int (if optimize) -> possible set expr -> should_throw_exceptions -> changed expression
 
@@ -6914,6 +6918,7 @@ struct
 			rcf_class_eager_creation = false;
 
 			rcf_hash_fields = Hashtbl.create 100;
+			rcf_hash_paths = Hashtbl.create 100;
 
 			rcf_on_getset_field = dynamic_getset_field;
 			rcf_on_call_field = dynamic_call_field;
@@ -6972,10 +6977,11 @@ struct
 	let hash_field ctx f pos =
 		let h = hash f in
 		(try
-			let f2 = Hashtbl.find ctx.rcf_hash_fields h in
+			let f2 = Hashtbl.find ctx.rcf_hash_paths (ctx.rcf_gen.gcurrent_path, h) in
 			if f <> f2 then ctx.rcf_gen.gcon.error ("Field conflict between " ^ f ^ " and " ^ f2) pos
 		with Not_found ->
-			Hashtbl.add ctx.rcf_hash_fields h f);
+			Hashtbl.add ctx.rcf_hash_paths (ctx.rcf_gen.gcurrent_path, h) f;
+			Hashtbl.replace ctx.rcf_hash_fields h f);
 		h
 
 	(* ( tf_args, switch_var ) *)

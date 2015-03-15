@@ -636,6 +636,10 @@ class RunCi {
 					changeDirectory("bin/cs");
 					runExe("bin/Main-Debug.exe", args);
 
+					changeDirectory(miscDir + "csTwoLibs");
+					runCommand("haxe", ["compile.hxml"]);
+					runExe("bin/main/bin/Main.exe");
+
 				case Flash9:
 					setupFlashPlayerDebugger();
 					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
