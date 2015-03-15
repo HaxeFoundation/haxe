@@ -138,7 +138,7 @@ class Socket {
 		var host = new Host(null);
 		host.wrapped = local;
 
-		return { host: host, port: sock.getPort() };
+		return { host: host, port: sock.getLocalPort() };
 	}
 
 	public function setTimeout( timeout : Float ) : Void
