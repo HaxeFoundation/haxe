@@ -92,7 +92,7 @@ class Bytes {
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
 		#elseif python
-		python.Syntax.pythonCode("self.b[pos:pos+len] = src.b[srcpos:srcpos+len]");
+		python.Syntax.pythonCode("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
 		b.blit(pos, src.b, srcpos, len);
 		#else
@@ -380,7 +380,7 @@ class Bytes {
 			return new String(b, pos, len, "UTF-8")
 		catch (e:Dynamic) throw e;
 		#elseif python
-		return python.Syntax.pythonCode("self.b[pos:pos+len].decode('UTF-8','replace')");
+		return python.Syntax.pythonCode("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#else
 		var s = "";
 		var b = b;

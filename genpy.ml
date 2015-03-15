@@ -1091,6 +1091,7 @@ module Printer = struct
 		let had_kw_args = ref false in
 		let sl = List.map (fun (v,cto) ->
 			let check_err () = if !had_var_args || !had_kw_args then error "Arguments after KwArgs/VarArgs are not allowed" p in
+			KeywordHandler.check_var_declaration v;
 			let name = handle_keywords v.v_name in
 			match follow v.v_type with
 				| TAbstract({a_path = ["python"],"KwArgs"},_) ->
