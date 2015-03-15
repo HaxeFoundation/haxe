@@ -3208,22 +3208,12 @@ let configure gen =
 	let flookup_cl = get_cl (get_type gen (["haxe";"lang"], "FieldLookup")) in
 	(try
 		let basic = gen.gcon.basic in
-		let change_array = ArrayDeclSynf.default_implementation gen native_arr_cl in
 		let cl = flookup_cl in
 		let field_ids = PMap.find "fieldIds" cl.cl_statics in
 		let fields = PMap.find "fields" cl.cl_statics in
 
-		field_ids.cf_expr <- Some (change_array {
-			eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = field_ids.cf_pos }) hashes);
-			etype = basic.tarray basic.tint;
-			epos = field_ids.cf_pos
-		});
-
-		fields.cf_expr <- Some (change_array {
-			eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TString s); etype = basic.tstring; epos = fields.cf_pos }) hashes);
-			etype = basic.tarray basic.tstring;
-			epos = fields.cf_pos
-		})
+		field_ids.cf_expr <- Some (mk_nativearray_decl gen basic.tint (List.map (fun (i,s) -> { eexpr = TConst(TInt (i)); etype = basic.tint; epos = field_ids.cf_pos }) hashes) field_ids.cf_pos);
+		fields.cf_expr <- Some (mk_nativearray_decl gen basic.tstring (List.map (fun (i,s) -> { eexpr = TConst(TString s); etype = basic.tstring; epos = fields.cf_pos }) hashes) fields.cf_pos);
 
 	with | Not_found ->
 		gen.gcon.error "Fields 'fieldIds' and 'fields' were not found in class haxe.lang.FieldLookup" flookup_cl.cl_pos
