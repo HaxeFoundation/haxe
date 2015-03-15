@@ -2004,7 +2004,7 @@ let configure gen =
 				end;
 				(not cl.cl_extern)
 			| TEnumDecl e ->
-				if not e.e_extern then begin
+				if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 					gen_enum w e;
 					newline w;
 					newline w

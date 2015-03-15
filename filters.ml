@@ -703,24 +703,44 @@ let check_unification ctx e t =
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
 let save_class_state ctx t = match t with
 	| TClassDecl c ->
-		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
-		let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
-		let cst = c.cl_constructor and over = c.cl_overrides in
-		let oflk = List.map (fun f -> f.cf_kind,f.cf_expr,f.cf_type) ofl in
-		let ostk = List.map (fun f -> f.cf_kind,f.cf_expr,f.cf_type) ost in
+		let mk_field_restore f =
+			let rec mk_overload_restore f =
+				f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta
+			in
+			( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
+		in
+		let restore_field (f,res,overloads) =
+			let restore_field (f,(kind,expr,t,meta)) =
+				f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta;
+				f
+			in
+			let f = restore_field (f,res) in
+			f.cf_overloads <- List.map restore_field overloads;
+			f
+		in
+		let mk_pmap lst =
+			List.fold_left (fun pmap f -> PMap.add f.cf_name f pmap) PMap.empty lst
+		in
+
+		let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern and over = c.cl_overrides in
+		let sup = c.cl_super and impl = c.cl_implements in
+		let csr = Option.map (mk_field_restore) c.cl_constructor in
+		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
+		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
+		let init = c.cl_init in
 		c.cl_restore <- (fun() ->
+			c.cl_super <- sup;
+			c.cl_implements <- impl;
 			c.cl_meta <- meta;
 			c.cl_extern <- ext;
 			c.cl_path <- path;
-			c.cl_fields <- fl;
-			c.cl_ordered_fields <- ofl;
-			c.cl_statics <- st;
-			c.cl_ordered_statics <- ost;
-			c.cl_constructor <- cst;
+			c.cl_init <- init;
+			c.cl_ordered_fields <- List.map restore_field ofr;
+			c.cl_ordered_statics <- List.map restore_field osr;
+			c.cl_fields <- mk_pmap c.cl_ordered_fields;
+			c.cl_statics <- mk_pmap c.cl_ordered_statics;
+			c.cl_constructor <- Option.map restore_field csr;
 			c.cl_overrides <- over;
-			(* DCE might modify the cf_kind, so let's restore it as well *)
-			List.iter2 (fun f (k,e,t) -> f.cf_kind <- k; f.cf_expr <- e; f.cf_type <- t;) ofl oflk;
-			List.iter2 (fun f (k,e,t) -> f.cf_kind <- k; f.cf_expr <- e; f.cf_type <- t;) ost ostk;
 		)
 	| _ ->
 		()
