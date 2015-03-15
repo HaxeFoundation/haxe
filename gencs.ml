@@ -3257,7 +3257,13 @@ let configure gen =
 	if Common.defined gen.gcon Define.DllImport then begin
 		Hashtbl.iter (fun _ md -> match md with
 			| TClassDecl ({ cl_extern = false } as c) -> (try
-				ignore (List.find (function (_,_,_,lookup) -> is_some (lookup c.cl_path)) haxe_libs);
+				let extra = match c.cl_params with
+					| _ :: _ when not erase_generics -> "_" ^ string_of_int (List.length c.cl_params)
+					| _ -> ""
+				in
+				let path = (fst c.cl_path, snd c.cl_path ^ extra) in
+				ignore (List.find (function (_,_,_,lookup) ->
+					is_some (lookup path)) haxe_libs);
 				c.cl_extern <- true;
 			with | Not_found -> ())
 			| _ -> ()) gen.gtypes

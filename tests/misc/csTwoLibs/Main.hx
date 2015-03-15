@@ -2,7 +2,7 @@ class Main
 {
 	public static function main()
 	{
-		var asm = cs.system.reflection.Assembly.LoadFile("bin/lib1/bin/lib1.dll");
+		var asm = cs.system.reflection.Assembly.LoadFile(sys.FileSystem.fullPath("bin/lib1/bin/lib1.dll"));
 		var tp:Dynamic = asm.GetType("Lib1");
 		var obj = tp.test();
 		trace(obj);
