@@ -1,6 +1,8 @@
 package unit.issues;
 import haxe.ds.StringMap;
 
+#if (java || cs)
+
 class Issue3173 extends Test
 {
 	public function test()
@@ -31,3 +33,9 @@ private class O<T>
 		return 0;
 	}
 }
+
+#else
+
+class Issue3173 extends Test { }
+
+#end
