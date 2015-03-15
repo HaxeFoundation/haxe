@@ -854,7 +854,8 @@ let configure gen =
 										TType(nulltdef, [f_t])
 									(*| TType ({ t_path = [], "Null"*)
 									| TInst (cl, ((_ :: _) as p)) when cl.cl_path <> (["java"],"NativeArray") ->
-										TInst(cl, List.map (fun _ -> t_dynamic) p)
+										(* TInst(cl, List.map (fun _ -> t_dynamic) p) *)
+										TInst(cl,p)
 									| TEnum (e, ((_ :: _) as p)) ->
 										TEnum(e, List.map (fun _ -> t_dynamic) p)
 									| _ -> t
@@ -2068,7 +2069,16 @@ let configure gen =
 
 	StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
 
-	FixOverrides.configure gen;
+	let get_vmtype t = match real_type t with
+		| TInst({ cl_path = ["java"],"NativeArray" }, tl) -> t
+		| TInst(c,tl) -> TInst(c,List.map (fun _ -> t_dynamic) tl)
+		| TEnum(e,tl) -> TEnum(e, List.map (fun _ -> t_dynamic) tl)
+		| TType(t,tl) -> TType(t, List.map (fun _ -> t_dynamic) tl)
+		| TAbstract(a,tl) -> TAbstract(a, List.map (fun _ -> t_dynamic) tl)
+		| t -> t
+	in
+
+	FixOverrides.configure ~get_vmtype gen;
 	Normalize.configure gen ~metas:(Hashtbl.create 0);
 	AbstractImplementationFix.configure gen;
 
