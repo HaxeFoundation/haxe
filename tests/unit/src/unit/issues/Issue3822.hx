@@ -8,18 +8,18 @@ class Issue3822 extends Test
 		arr.sort(function(_,_) return 1);
 		arr.sort(function(_,_) return -1);
 		arr.sort(Reflect.compare);
-		eq(arr.toString(),'[0,1,2]');
+		aeq(arr,[0,1,2]);
 
 		arr = [2,1,0,4,6,65,4,3,6,7,8,2];
 		arr.sort(function(_,_) return 1);
 		arr.sort(function(_,_) return -1);
 		arr.sort(Reflect.compare);
-		eq(arr.toString(),'[0,1,2,2,3,4,4,6,6,7,8,65]');
+		aeq(arr, [0,1,2,2,3,4,4,6,6,7,8,65]);
 
 		arr = [2,1,0,4,6,10,3,6,7,8,2];
 		arr.sort(function(_,_) return 1);
 		arr.sort(function(_,_) return -1);
 		arr.sort(Reflect.compare);
-		eq(arr.toString(),'[0,1,2,2,3,4,6,6,7,8,10]');
+		aeq(arr, [0,1,2,2,3,4,6,6,7,8,10]);
 	}
 }
