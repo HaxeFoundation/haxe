@@ -172,7 +172,7 @@ package cs.internal;
 			if (len != length) //race condition which will very rarely happen - other thread modified sooner.
 				return hash(s); //since we already own the lock, this second try will always succeed
 
-#if eraseGenerics
+#if erase_generics
 			fieldIds = insertInt(fieldIds, length, min, key);
 			fields = insertString(fields, length, min, s);
 #else
