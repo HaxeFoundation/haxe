@@ -34,7 +34,7 @@
 	its methods.
 
 	A detailed explanation of the supported operations is available at
-	http://haxe.org/doc/cross/regexp
+	http://haxe.org/manual/std-regex.html
 **/
 class EReg {
 
@@ -131,7 +131,7 @@ class EReg {
 
 		If `s` is null, the result is unspecified.
 	**/
-	public function matchSub( s : String, pos : Int, len : Int = 0):Bool {
+	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
 		return false;
 	}
 

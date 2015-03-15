@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html.webgl;
 
-@:native("OESVertexArrayObject")
-extern class OESVertexArrayObject
-{
-	static inline var VERTEX_ARRAY_BINDING_OES : Int = 0x85B5;
-
-	function bindVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
-
-	function createVertexArrayOES() : VertexArrayObjectOES;
-
-	function deleteVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Void;
-
-	function isVertexArrayOES( arrayObject : VertexArrayObjectOES ) : Bool;
-
-}
+/** @deprecated Use ExtensionVertexArray instead. */
+@:deprecated("OESVertexArrayObject is deprecated, use ExtensionVertexArray instead")
+typedef OESVertexArrayObject = ExtensionVertexArray;

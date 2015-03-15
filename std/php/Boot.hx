@@ -792,7 +792,7 @@ class _hx_type {
 		if($r->hasProperty($n))
 			return $r->getStaticPropertyValue($n);
 		else if($r->hasMethod($n))
-			return array($r, $n);
+			return array($r->name, $n);
 		else
 			return null;
 	}

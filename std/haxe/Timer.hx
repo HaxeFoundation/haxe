@@ -36,7 +36,7 @@ package haxe;
 	the child class.
 **/
 class Timer {
-	#if (flash || js || java)
+	#if (flash || js || java || python)
 
 	#if (flash || js)
 		private var id : Null<Int>;
@@ -185,7 +185,7 @@ private class TimerTask extends java.util.TimerTask {
 		this.timer = timer;
 	}
 
-	@:overload public function run():Void {
+	@:overload override public function run():Void {
 		timer.run();
 	}
 }

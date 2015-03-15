@@ -6,5 +6,5 @@
 compile-each.hxml
 -main unit.Test
 -D unsafe
--cs cs_unsafe
+-cs bin/cs_unsafe
 -net-lib native_cs/bin/native_cs.dll

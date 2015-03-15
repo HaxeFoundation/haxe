@@ -48,5 +48,9 @@
 -D xmldoc
 
 --next
+-python all_python
+-xml python.xml
+
+--next
 
 -xml cross.xml

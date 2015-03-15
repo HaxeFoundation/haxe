@@ -53,10 +53,7 @@
 			return untyped __php__("$o->$field = $value");
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
-		if (__call__("is_string", o) && !__call__("is_array", func)) {
-			return __call__("call_user_func_array", field(o, func), __field__(args, "a"));
-		}
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 		return __call__("call_user_func_array", __call__("is_callable", func) ? func : __call__("array", o, func), (null == args ? __call__("array") : __field__(args, "a")));
 	}
 
@@ -74,7 +71,7 @@
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
-		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+		return ( a == b ) ? 0 : untyped __php__("is_string($a)") ? untyped __php__("strcmp($a, $b)") : (((cast a) > (cast b)) ? 1 : -1);
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {

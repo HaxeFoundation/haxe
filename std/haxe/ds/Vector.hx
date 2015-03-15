@@ -54,7 +54,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `length` is less than or equal to 0, the result is unspecified.
 	**/
 	public inline function new(length:Int) {
-		#if flash9
+		#if flash10
 			this = new flash.Vector<T>(length, true);
 		#elseif neko
 			this = untyped __dollar__amake(length);
@@ -65,7 +65,10 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif java
 			this = new java.NativeArray(length);
 		#elseif cpp
-			this = untyped (new Array<T>()).__SetSizeExact(length);
+			this = new Array<T>();
+			untyped this.__SetSizeExact(length);
+		#elseif python
+			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
 		#else
 			this = [];
 			untyped this.length = length;
@@ -78,9 +81,11 @@ abstract Vector<T>(VectorData<T>) {
 		If `index` is negative or exceeds `this.length`, the result is
 		unspecified.
 	**/
-	@:arrayAccess public inline function get(index:Int):Null<T> {
+	@:arrayAccess public inline function get(index:Int):T {
 		#if cpp
 		return this.unsafeGet(index);
+		#elseif python
+		return python.internal.ArrayImpl.unsafeGet(this, index);
 		#else
 		return this[index];
 		#end
@@ -95,6 +100,8 @@ abstract Vector<T>(VectorData<T>) {
 	@:arrayAccess public inline function set(index:Int, val:T):T {
 		#if cpp
 		return this.unsafeSet(index,val);
+		#elseif python
+		return python.internal.ArrayImpl.unsafeSet(this, index, val);
 		#else
 		return this[index] = val;
 		#end
@@ -111,6 +118,8 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cs
 			return this.Length;
 		#elseif java
+			return this.length;
+		#elseif python
 			return this.length;
 		#else
 			return untyped this.length;
@@ -147,6 +156,8 @@ abstract Vector<T>(VectorData<T>) {
 	**/
 	public #if (flash || cpp) inline #end function toArray():Array<T> {
 		#if cpp
+			return this.copy();
+		#elseif python
 			return this.copy();
 		#else
 			var a = new Array();
@@ -192,10 +203,20 @@ abstract Vector<T>(VectorData<T>) {
 	**/
 	#if as3 @:extern #end
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
+		#if python
+		return cast array.copy();
+		#elseif flash9
+		return fromData(flash.Vector.ofArray(array));
+		#elseif java
+		return fromData(java.Lib.nativeArray(array,false));
+		#elseif cs
+		return fromData(cs.Lib.nativeArray(array,false));
+		#else
 		// TODO: Optimize this for flash (and others?)
 		var vec = new Vector<T>(array.length);
 		for (i in 0...array.length)
 			vec.set(i, array[i]);
 		return vec;
+		#end
 	}
 }

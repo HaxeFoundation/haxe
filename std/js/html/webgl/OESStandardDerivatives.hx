@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html.webgl;
 
-@:native("OESStandardDerivatives")
-extern class OESStandardDerivatives
-{
-	static inline var FRAGMENT_SHADER_DERIVATIVE_HINT_OES : Int = 0x8B8B;
-
-}
+/** @deprecated Use ExtensionStandardDerivatives instead. */
+@:deprecated("OESStandardDerivatives is deprecated, use ExtensionStandardDerivatives instead")
+typedef OESStandardDerivatives = ExtensionStandardDerivatives;

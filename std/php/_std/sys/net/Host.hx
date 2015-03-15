@@ -46,7 +46,7 @@ class Host {
 	}
 
 	public function reverse() : String {
-		return untyped __call__('gethostbyaddress', _ip);
+		return untyped __call__('gethostbyaddr', _ip);
 	}
 
 	public static function localhost() : String {

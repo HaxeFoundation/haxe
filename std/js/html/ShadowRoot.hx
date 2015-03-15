@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,31 +20,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/ShadowRoot.webidl line 14:0. Do not edit!
+
 package js.html;
 
 @:native("ShadowRoot")
 extern class ShadowRoot extends DocumentFragment
 {
-	var activeElement(default,null) : Element;
-
-	var applyAuthorStyles : Bool;
-
-	/** Setter throws DOMException. */
 	var innerHTML : String;
-
-	var resetStyleInheritance : Bool;
-
-	function new( host : Element ) : Void;
-
-	function getElementById( elementId : String ) : Element;
-
-	function getElementsByClassName( className : String ) : NodeList;
-
-	function getElementsByTagName( tagName : String ) : NodeList;
-
-	function getElementsByTagNameNS( ?namespaceURI : String, localName : String ) : NodeList;
-
-	function getSelection() : DOMSelection;
-
+	var host(default,null) : Element;
+	var olderShadowRoot(default,null) : ShadowRoot;
+	var applyAuthorStyles : Bool;
+	var styleSheets(default,null) : StyleSheetList;
+	
+	function getElementsByTagName( localName : String ) : HTMLCollection;
+	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	function getElementsByClassName( classNames : String ) : HTMLCollection;
 }

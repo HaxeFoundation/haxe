@@ -1,0 +1,3 @@
+Main.hx:3: characters 17-18 : expression expected after =
+Main.hx:3: characters 19-69 : Unnamed lvalue functions are not supported
+Main.hx:4: characters 8-12 : Unknown identifier : func

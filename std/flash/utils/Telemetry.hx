@@ -1,15 +1,10 @@
 package flash.utils;
 
-@:require(flash11_2) extern class Telemetry extends flash.events.EventDispatcher {
-	var bufferLength : UInt;
-	var connected(default,null) : Bool;
-	function new() : Void;
-	function enableMetric(metric : String, enable : Bool) : Void;
-	function flush() : Void;
-	function isMetricEnabled(metric : String) : Bool;
-	function registerMethod(functionId : String, f : Dynamic) : Void;
-	function sendMetric(metric : String, value : Dynamic) : Void;
-	function sendSpanMetric(metric : String, startMarker : Float) : Void;
-	static var marker(default,null) : Float;
-	static var telemetry(default,null) : Telemetry;
+@:require(flash11_4) @:native("flash.profiler.Telemetry") extern class Telemetry extends flash.events.EventDispatcher {
+	static var connected(default,null) : Bool;
+	static var spanMarker(default,null) : Float;
+	static function registerCommandHandler(commandName : String, handler : Dynamic) : Bool;
+	static function unregisterCommandHandler(commandName : String) : Bool;
+	static function sendMetric(metric : String, value : Dynamic) : Void;
+	static function sendSpanMetric(metric : String, startMarker : Float) : Void;
 }

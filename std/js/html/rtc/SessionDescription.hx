@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/RTCSessionDescription.webidl line 24:0. Do not edit!
+
 package js.html.rtc;
 
 @:native("RTCSessionDescription")
 extern class SessionDescription
 {
-	/** Setter throws DOMException. */
+	var type : SdpType;
 	var sdp : String;
-
-	/** Setter throws DOMException. */
-	var type : String;
-
-	function new( dictionary : Dynamic ) : Void;
-
+	
+	/** @throws DOMError */
+	function new( ?descriptionInitDict : SessionDescriptionInit ) : Void;
 }

@@ -28,10 +28,10 @@ enum LoaderHandle {
 }
 
 /**
-	Loaders can be used to dynamicly load Neko primitives stored in NDLL libraries.
+	Loaders can be used to dynamically load Neko primitives stored in NDLL libraries.
 
 
-	Loaders can be used to dynamicly load other Neko modules (.n bytecode files).
+	Loaders can be used to dynamically load other Neko modules (.n bytecode files).
 	Modules are referenced by names. To lookup the corresponding bytecode file, the
 	default loader first look in its cache, then eventually adds the .n extension
 	to the name and lookup the bytecode in its path.
@@ -79,10 +79,10 @@ class Loader {
 		The default loader contains a cache of already loaded modules. It's
 		ensuring that the same module does not get loaded twice when circular
 		references are occuring. The same module can eventually be loaded twice
-		but with different names, for example with two relatives paths reprensenting
+		but with different names, for example with two relative paths reprensenting
 		the same file, since the cache is done on a by-name basic.
 	**/
-	public function getCache() : haxe.ds.StringMap<Module> {
+	public function getCache() : Map<String,Module> {
 		var h = new haxe.ds.StringMap<Module>();
 		var cache = untyped l.cache;
 		for( f in Reflect.fields(cache) )

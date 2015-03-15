@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html;
 
-@:native("FormData")
-extern class DOMFormData
-{
-	function new( ?arg0 : Dynamic ) : Void;
-
-	function append( name : String, value : String, filename : String ) : Void;
-
-}
+/** @deprecated Use FormData instead. */
+@:deprecated("DOMFormData is deprecated, use FormData instead")
+typedef DOMFormData = FormData;

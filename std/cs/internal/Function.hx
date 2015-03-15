@@ -27,7 +27,7 @@ package cs.internal;
  in modules (untested).
 **/
 
-@:keep @:abstract @:nativeGen @:native("haxe.lang.Function") private class Function
+@:keep @:abstract @:nativeGen @:native("haxe.lang.Function") class Function
 {
 	function new(arity:Int, type:Int)
 	{
@@ -40,7 +40,6 @@ package cs.internal;
 	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		throw "Abstract implementation";
-		return null;
 	}
 }
 
@@ -77,5 +76,19 @@ package cs.internal;
 	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
 	{
 		return Runtime.callField(obj, field, hash, dynArgs);
+	}
+
+	public function Equals(obj:Dynamic):Bool
+	{
+		if (obj == null)
+			return false;
+
+		var c:Closure = cast obj;
+		return (c.obj == this.obj && c.field == this.field);
+	}
+
+	public function GetHashCode():Int
+	{
+		return obj.GetHashCode() ^ untyped field.GetHashCode();
 	}
 }

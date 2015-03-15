@@ -1,5 +1,7 @@
 package java.vm;
 import java.Lib;
+import java.lang.System;
+using haxe.Int64;
 
 @:native('haxe.java.vm.Lock') class Lock
 {
@@ -10,7 +12,6 @@ import java.Lib;
 	**/
 	public function new()
 	{
-
 	}
 
 	/**
@@ -20,35 +21,48 @@ import java.Lib;
 	public function wait(?timeout : Float) : Bool
 	{
 		var ret = false;
-		untyped __lock__(this,
+		java.Lib.lock(this,
 		{
-			if (--releasedCount >= 0)
-				return true;
-			if (timeout == null)
+			if (--releasedCount < 0)
 			{
-				try
+				if (timeout == null)
 				{
-					untyped __java__("this.wait()");
-				}
-				catch(e:Dynamic) {
-					throw e;
-				}
-			} else {
-				var t:Dynamic = this;
-				try
-				{
-					var t:haxe.Int64 = cast timeout * 1000;
-					untyped __java__("this.wait(t)");
-				}
-				catch(e:Dynamic) {
-					throw e;
+					// since .notify() is asynchronous, this `while` is needed
+					// because there is a very remote possibility of release() awaking a thread,
+					// but before it releases, another thread calls wait - and since the release count
+					// is still positive, it will get the lock.
+					while( releasedCount < 0 )
+					{
+						try
+						{
+							untyped __java__("this.wait()");
+						}
+						catch(e:java.lang.InterruptedException)
+						{
+						}
+					}
+				} else {
+					var timeout:haxe.Int64 = cast timeout * 1000;
+					var cur = System.currentTimeMillis(),
+					    max = cur.add(timeout);
+					// see above comment about this while loop
+					while ( releasedCount < 0 && cur.compare(max) < 0 )
+					{
+						try
+						{
+							var t = max.sub(cur);
+							untyped __java__("this.wait({0})",t);
+							cur = System.currentTimeMillis();
+						}
+						catch(e:java.lang.InterruptedException)
+						{
+						}
+					}
 				}
 			}
 			ret = this.releasedCount >= 0;
-			if (!ret && ++this.releasedCount == 0) //even if timeout failed, we should release the lock; Other locks may be released then
-			{
-				untyped this.notify();
-			}
+			if (!ret)
+				this.releasedCount++; //timed out
 		});
 		return ret;
 	}

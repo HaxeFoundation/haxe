@@ -26,20 +26,26 @@ type pos = {
 	pmax : int;
 }
 
+module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
+
 module Meta = struct
 	type strict_meta =
+		| Abi
 		| Abstract
 		| Access
 		| Accessor
 		| Allow
+		| Analyzer
 		| Annotation
 		| ArrayAccess
 		| Ast
 		| AutoBuild
 		| Bind
 		| Bitmap
+		| BridgeProperties
 		| Build
 		| BuildXml
+		| Callable
 		| Class
 		| ClassCode
 		| Commutative
@@ -47,6 +53,7 @@ module Meta = struct
 		| CoreApi
 		| CoreType
 		| CppFileCode
+		| CppInclude
 		| CppNamespaceCode
 		| CsNative
 		| Dce
@@ -56,6 +63,7 @@ module Meta = struct
 		| Delegate
 		| Depend
 		| Deprecated
+		| DirectlyUsed
 		| DynamicObject
 		| Enum
 		| EnumConstructorParam
@@ -74,34 +82,45 @@ module Meta = struct
 		| FunctionTailCode
 		| Generic
 		| GenericBuild
+		| GenericInstance
 		| Getter
 		| Hack
+		| HasUntyped
 		| HaxeGeneric
 		| HeaderClassCode
 		| HeaderCode
+		| HeaderInclude
 		| HeaderNamespaceCode
 		| HxGen
 		| IfFeature
 		| Impl
+		| PythonImport
+		| ImplicitCast
 		| Include
 		| InitPackage
 		| Internal
 		| IsVar
+		| JavaCanonical
 		| JavaNative
+		| JsRequire
 		| Keep
 		| KeepInit
 		| KeepSub
+		| LibType
 		| Meta
 		| Macro
 		| MaybeUsed
 		| MergeBlock
 		| MultiType
 		| Native
+		| NativeChildren
 		| NativeGen
 		| NativeGeneric
+		| NativeProperty
 		| NoCompletion
 		| NoDebug
 		| NoDoc
+		| NoExpr
 		| NoImportGlobal
 		| NoPackageRestrict
 		| NoStack
@@ -116,20 +135,27 @@ module Meta = struct
 		| Protected
 		| Public
 		| PublicFields
+		| QuotedField
 		| ReadOnly
 		| RealPath
 		| Remove
 		| Require
 		| RequiresAssign
+		(* | Resolve *)
 		| ReplaceReflection
 		| Rtti
 		| Runtime
 		| RuntimeValue
+		| SelfCall
 		| Setter
 		| SkipCtor
 		| SkipReflection
 		| Sound
+		| SourceFile
+		| StoredTypedExpr
+		| Strict
 		| Struct
+		| StructAccess
 		| SuppressWarnings
 		| This
 		| Throws
@@ -144,6 +170,8 @@ module Meta = struct
 		| Unsafe
 		| Usage
 		| Used
+		| Value
+		| Void
 		| Last
 		(* do not put any custom metadata after Last *)
 		| Dollar of string
@@ -419,6 +447,8 @@ type type_decl = type_def * pos
 
 type package = string list * type_decl list
 
+exception Error of string * pos
+
 let is_lower_ident i =
 	let rec loop p =
 		match String.unsafe_get i p with
@@ -431,7 +461,7 @@ let is_lower_ident i =
 let pos = snd
 
 let rec is_postfix (e,_) op = match op with
-	| Increment | Decrement -> (match e with EConst _ | EField _ | EArray _ -> true | EMeta(_,e1) -> is_postfix e1 op | _ -> false)
+	| Increment | Decrement -> true
 	| Not | Neg | NegBits -> false
 
 let is_prefix = function
@@ -619,16 +649,17 @@ let unescape s =
 					inext := !inext + 2;
 				| 'u' ->
 					let (u, a) =
-					  (try
-					      (int_of_string ("0x" ^ String.sub s (i+1) 4), 4)
-					    with
-					      _ -> try
-						assert (s.[i+1] = '{');
-						let l = String.index_from s (i+3) '}' - (i+2) in
-						let u = int_of_string ("0x" ^ String.sub s (i+2) l) in
-						assert (u <= 0x10FFFF);
-						(u, l+2)
-					      with _ -> raise Exit) in
+						try
+							(int_of_string ("0x" ^ String.sub s (i+1) 4), 4)
+						with _ -> try
+							assert (s.[i+1] = '{');
+							let l = String.index_from s (i+3) '}' - (i+2) in
+							let u = int_of_string ("0x" ^ String.sub s (i+2) l) in
+							assert (u <= 0x10FFFF);
+							(u, l+2)
+						with _ ->
+							raise Exit
+					in
 					let ub = UTF8.Buf.create 0 in
 					UTF8.Buf.add_char ub (UChar.uchar_of_int u);
 					Buffer.add_string b (UTF8.Buf.contents ub);
@@ -719,4 +750,21 @@ let rec s_expr (e,_) =
 	| EArrayDecl el -> "[" ^ (String.concat "," (List.map s_expr el)) ^ "]"
 	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr e)) fl)) ^ "}"
 	| EBinop (op,e1,e2) -> s_expr e1 ^ s_binop op ^ s_expr e2
+	| ECall (e,el) -> s_expr e ^ "(" ^ (String.concat ", " (List.map s_expr el)) ^ ")"
+	| EField (e,f) -> s_expr e ^ "." ^ f
 	| _ -> "'???'"
+
+let get_value_meta meta =
+	try
+		begin match Meta.get Meta.Value meta with
+			| (_,[EObjectDecl values,_],_) -> List.fold_left (fun acc (s,e) -> PMap.add s e acc) PMap.empty values
+			| _ -> raise Not_found
+		end
+	with Not_found ->
+		PMap.empty
+
+let rec string_list_of_expr_path_raise (e,p) =
+	match e with
+	| EConst (Ident i) -> [i]
+	| EField (e,f) -> f :: string_list_of_expr_path_raise e
+	| _ -> raise Exit

@@ -27,14 +27,65 @@ typedef Ref<T> = {
 }
 
 enum Type {
+	/**
+		Represents a monomorph.
+
+		@see http://haxe.org/manual/types-monomorph.html
+	**/
 	TMono( t : Ref<Null<Type>> );
+
+	/**
+		Represents an enum instance.
+
+		@see http://haxe.org/manual/types-enum-instance.html
+	**/
 	TEnum( t : Ref<EnumType>, params : Array<Type> );
+
+	/**
+		Represents a class instance.
+
+		@see http://haxe.org/manual/types-class-instance.html
+	**/
 	TInst( t : Ref<ClassType>, params : Array<Type> );
+
+	/**
+		Represents a typedef.
+
+		@see http://haxe.org/manual/type-system-typedef.html
+	**/
 	TType( t : Ref<DefType>, params : Array<Type> );
+
+	/**
+		Represents a function type.
+
+		@see http://haxe.org/manual/types-function.html
+	**/
 	TFun( args : Array<{ name : String, opt : Bool, t : Type }>, ret : Type );
+
+	/**
+		Represents an anonymous structure type.
+
+		@see http://haxe.org/manual/types-anonymous-structure.html
+	**/
 	TAnonymous( a : Ref<AnonType> );
+
+	/**
+		Represents Dynamic.
+
+		@see http://haxe.org/manual/types-dynamic.html
+	**/
 	TDynamic( t : Null<Type> );
+
+	/**
+		Used internally by the compiler to delay some typing.
+	**/
 	TLazy( f : Void -> Type );
+
+	/**
+		Represents an abstract type.
+
+		@see http://haxe.org/manual/types-abstract.html
+	**/
 	TAbstract( t : Ref<AbstractType>, params : Array<Type> );
 }
 
@@ -47,6 +98,7 @@ enum AnonStatus {
 	AClosed;
 	AOpened;
 	AConst;
+	AExtend( tl:Ref<Array<Type>> );
 	AClassStatics( t : Ref<ClassType> );
 	AEnumStatics( t : Ref<EnumType> );
 	AAbstractStatics( t : Ref<AbstractType> );
@@ -119,7 +171,7 @@ typedef EnumField = {
 }
 
 typedef EnumType = {> BaseType,
-	var constructs : haxe.ds.StringMap<EnumField>;
+	var constructs : Map<String,EnumField>;
 	var names : Array<String>;
 }
 
@@ -149,6 +201,15 @@ typedef MetaAccess = {
 		The `add` and `remove` methods can be used for that.
 	**/
 	function get() : Expr.Metadata;
+
+	/**
+		Extract metadata entries by given `name`.
+
+		If there's no metadata with such name, empty array is returned.
+
+		If `name` is null, compilation fails with an error.
+	**/
+	function extract( name : String ) : Array<Expr.MetadataEntry>;
 
 	/**
 		Adds the metadata specified by `name`, `params` and `pos` to the origin
@@ -218,11 +279,11 @@ enum TConstant {
 }
 
 typedef TVar = {
-	id: Int,
-	name: String,
-	t: Type,
-	capture: Bool,
-	extra: Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>
+	public var id(default, never):Int;
+	public var name(default, never):String;
+	public var t(default, never):Type;
+	public var capture(default, never):Bool;
+	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>;
 }
 
 enum ModuleType {
@@ -267,7 +328,6 @@ enum TypedExprDef {
 	TIf(econd:TypedExpr, eif:TypedExpr, eelse:Null<TypedExpr>);
 	TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool);
 	TSwitch(e:TypedExpr, cases:Array<{values:Array<TypedExpr>, expr:TypedExpr}>, edef:Null<TypedExpr>);
-	TPatMatch;
 	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>);
 	TReturn(e:Null<TypedExpr>);
 	TBreak;

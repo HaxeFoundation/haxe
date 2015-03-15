@@ -68,8 +68,8 @@ class TestRunner {
 			var d;
             if( __js__("typeof")(document) != "undefined"
                     && (d = document.getElementById("haxe:trace")) != null ) {
-                msg = msg.split("\n").join("<br/>");
-                d.innerHTML += StringTools.htmlEscape(msg)+"<br/>";
+                msg = StringTools.htmlEscape(msg).split("\n").join("<br/>");
+                d.innerHTML += msg+"<br/>";
             }
 			else if (  __js__("typeof process") != "undefined"
 					&& __js__("process").stdout != null
@@ -84,6 +84,8 @@ class TestRunner {
 		#elseif java
 			var str:String = v;
 			untyped __java__("java.lang.System.out.print(str)");
+		#elseif python
+			python.Lib.print(v);
 		#end
 	}
 

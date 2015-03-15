@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2014 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,30 +22,45 @@
 package haxe.io;
 
 /**
-	An Input is an abstract reader. See other classes in the [haxe.io] package
+	An Input is an abstract reader. See other classes in the `haxe.io` package
 	for several possible implementations.
 **/
 class Input {
 
+	/**
+		Endianness (word byte order) used when reading numbers.
+
+		If `true`, big-endian is used, otherwise `little-endian` is used.
+	**/
 	public var bigEndian(default,set) : Bool;
+
 	#if cs
 	private var helper:BytesData;
 	#elseif java
 	private var helper:java.nio.ByteBuffer;
 	#end
 
+	/**
+		Read and return one byte.
+	**/
 	public function readByte() : Int {
 	#if cpp
 		throw "Not implemented";
-		return 0;
 	#else
 		return throw "Not implemented";
 	#end
 	}
 
+	/**
+		Read `len` bytes and write them into `s` to the position specified by `pos`.
+
+		Returns the actual length of read data that can be smaller than `len`.
+
+		See `readFullBytes` that tries to read the exact amount of specified bytes.
+	**/
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
-		var b = s.getData();
+		var b = #if js @:privateAccess s.b #else s.getData() #end;
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
 		while( k > 0 ) {
@@ -64,16 +79,27 @@ class Input {
 		return len;
 	}
 
-	public function close() {
+	/**
+		Close the input source.
+
+		Behaviour while reading after calling this method is unspecified.
+	**/
+	public function close() : Void {
 	}
 
-	function set_bigEndian(b) {
+	function set_bigEndian( b : Bool ) : Bool {
 		bigEndian = b;
 		return b;
 	}
 
 	/* ------------------ API ------------------ */
 
+	/**
+		Read and return all available data.
+
+		The `bufsize` optional argument specifies the size of chunks by
+		which data is read. Its default value is target-specific.
+	**/
 	public function readAll( ?bufsize : Int ) : Bytes {
 		if( bufsize == null )
 		#if php
@@ -96,7 +122,12 @@ class Input {
 		return total.getBytes();
 	}
 
-	public function readFullBytes( s : Bytes, pos : Int, len : Int ) {
+	/**
+		Read `len` bytes and write them into `s` to the position specified by `pos`.
+
+		Unlike `readBytes`, this method tries to read the exact `len` amount of bytes.
+	**/
+	public function readFullBytes( s : Bytes, pos : Int, len : Int ) : Void {
 		while( len > 0 ) {
 			var k = readBytes(s,pos,len);
 			pos += k;
@@ -104,6 +135,9 @@ class Input {
 		}
 	}
 
+	/**
+		Read and return `nbytes` bytes.
+	**/
 	public function read( nbytes : Int ) : Bytes {
 		var s = Bytes.alloc(nbytes);
 		var p = 0;
@@ -116,6 +150,11 @@ class Input {
 		return s;
 	}
 
+	/**
+		Read a string until a character code specified by `end` is occurred.
+
+		The final character is not included in the resulting string.
+	**/
 	public function readUntil( end : Int ) : String {
 		var buf = new StringBuf();
 		var last : Int;
@@ -124,6 +163,11 @@ class Input {
 		return buf.toString();
 	}
 
+	/**
+		Read a line of text separated by CR and/or LF bytes.
+
+		The CR/LF characters are not included in the resulting string.
+	**/
 	public function readLine() : String {
 		var buf = new StringBuf();
 		var last : Int;
@@ -141,141 +185,42 @@ class Input {
 		return s;
 	}
 
-	public function readFloat() : Float {
-		#if neko
-			return _float_of_bytes(untyped read(4).b,bigEndian);
-		#elseif cpp
-			return _float_of_bytes(read(4).getData(),bigEndian);
-		#elseif php
-			var a = untyped __call__('unpack', 'f', readString(4));
-			return a[1];
-		#elseif cs
-			if (helper == null) helper = new cs.NativeArray(8);
+	/**
+		Read a 32-bit floating point number.
 
-			var helper = helper;
-			if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
-			{
-				helper[0] = readByte();
-				helper[1] = readByte();
-				helper[2] = readByte();
-				helper[3] = readByte();
-			} else {
-				helper[3] = readByte();
-				helper[2] = readByte();
-				helper[1] = readByte();
-				helper[0] = readByte();
-			}
-
-			return cs.system.BitConverter.ToSingle(helper, 0);
-		#elseif java
-			if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
-			var helper = helper;
-			helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-
-			helper.put(0, cast readByte());
-			helper.put(1, cast readByte());
-			helper.put(2, cast readByte());
-			helper.put(3, cast readByte());
-
-			return helper.getFloat(0);
-		#else
-			var bytes = [];
-			bytes.push(cast readByte());
-			bytes.push(cast readByte());
-			bytes.push(cast readByte());
-			bytes.push(cast readByte());
-			if (!bigEndian)
-				bytes.reverse();
-			var sign = 1 - ((bytes[0] >> 7) << 1);
-			var exp = (((bytes[0] << 1) & 0xFF) | (bytes[1] >> 7)) - 127;
-			var sig = ((bytes[1] & 0x7F) << 16) | (bytes[2] << 8) | bytes[3];
-			if (sig == 0 && exp == -127)
-				return 0.0;
-			return sign*(1 + Math.pow(2, -23)*sig) * Math.pow(2, exp);
-		#end
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public #if !(flash || python) inline #end function readFloat() : Float {
+		return FPHelper.i32ToFloat(readInt32());
 	}
 
+	/**
+		Read a 64-bit double-precision floating point number.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
 	public function readDouble() : Float {
-		#if neko
-			return _double_of_bytes(untyped read(8).b,bigEndian);
-		#elseif cpp
-			return _double_of_bytes(read(8).getData(),bigEndian);
-		#elseif php
-			var a = untyped __call__('unpack', 'd', readString(8));
-			return a[1];
-		#elseif (flash || js)
-		var bytes = [];
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		if (!bigEndian)
-			bytes.reverse();
-
-		var sign = 1 - ((bytes[0] >> 7) << 1); // sign = bit 0
-		var exp = (((bytes[0] << 4) & 0x7FF) | (bytes[1] >> 4)) - 1023; // exponent = bits 1..11
-		var sig = getDoubleSig(bytes);
-		if (sig == 0 && exp == -1023)
-			return 0.0;
-		return sign * (1.0 + Math.pow(2, -52) * sig) * Math.pow(2, exp);
-		#elseif cs
-		if (helper == null) helper = new cs.NativeArray(8);
-
-		var helper = helper;
-		if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
-		{
-			helper[0] = readByte();
-			helper[1] = readByte();
-			helper[2] = readByte();
-			helper[3] = readByte();
-			helper[4] = readByte();
-			helper[5] = readByte();
-			helper[6] = readByte();
-			helper[7] = readByte();
-		} else {
-			helper[7] = readByte();
-			helper[6] = readByte();
-			helper[5] = readByte();
-			helper[4] = readByte();
-			helper[3] = readByte();
-			helper[2] = readByte();
-			helper[1] = readByte();
-			helper[0] = readByte();
-		}
-
-		return cs.system.BitConverter.ToDouble(helper, 0);
-		#elseif java
-		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
-		var helper = helper;
-		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-
-		helper.put(0, cast readByte());
-		helper.put(1, cast readByte());
-		helper.put(2, cast readByte());
-		helper.put(3, cast readByte());
-		helper.put(4, cast readByte());
-		helper.put(5, cast readByte());
-		helper.put(6, cast readByte());
-		helper.put(7, cast readByte());
-
-		return helper.getDouble(0);
-		#else
-		return throw "not implemented";
-		#end
+		var i1 = readInt32();
+		var i2 = readInt32();
+		return bigEndian ? FPHelper.i64ToDouble(i2,i1) : FPHelper.i64ToDouble(i1,i2);
 	}
 
-	public function readInt8() {
+	/**
+		Read a 8-bit signed integer.
+	**/
+	public function readInt8() : Int {
 		var n = readByte();
 		if( n >= 128 )
 			return n - 256;
 		return n;
 	}
 
-	public function readInt16() {
+	/**
+		Read a 16-bit signed integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readInt16() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var n = bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
@@ -284,13 +229,23 @@ class Input {
 		return n;
 	}
 
-	public function readUInt16() {
+	/**
+		Read a 16-bit unsigned integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readUInt16() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		return bigEndian ? ch2 | (ch1 << 8) : ch1 | (ch2 << 8);
 	}
 
-	public function readInt24() {
+	/**
+		Read a 24-bit signed integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readInt24() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
@@ -300,19 +255,29 @@ class Input {
 		return n;
 	}
 
-	public function readUInt24() {
+	/**
+		Read a 24-bit unsigned integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readUInt24() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
 		return bigEndian ? ch3 | (ch2 << 8) | (ch1 << 16) : ch1 | (ch2 << 8) | (ch3 << 16);
 	}
 
-	public function readInt32() {
+	/**
+		Read a 32-bit signed integer.
+
+		Endianness is specified by the `bigEndian` property.
+	**/
+	public function readInt32() : Int {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();
 		var ch4 = readByte();
-#if php
+#if (php || python)
         // php will overflow integers.  Convert them back to signed 32-bit ints.
         var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
         if (n & 0x80000000 != 0)
@@ -323,6 +288,9 @@ class Input {
 #end
 	}
 
+	/**
+		Read and `len` bytes as a string.
+	**/
 	public function readString( len : Int ) : String {
 		var b = Bytes.alloc(len);
 		readFullBytes(b,0,len);
@@ -344,7 +312,7 @@ class Input {
 	static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 #end
 
-#if (flash || js)
+#if (flash || js || python)
 	function getDoubleSig(bytes:Array<Int>)
     {
         return (((bytes[1]&0xF) << 16) | (bytes[2] << 8) | bytes[3] ) * 4294967296. +

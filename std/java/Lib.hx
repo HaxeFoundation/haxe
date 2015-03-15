@@ -35,7 +35,7 @@ package java;
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	@:generic public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
 		var ret = new NativeArray(arr.length);
 		for (i in 0...arr.length)
@@ -46,24 +46,106 @@ package java;
 	}
 
 	/**
-		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
+		Gets the native `java.lang.Class` from the supplied object. Will throw an exception in case of null being passed.
+		[deprecated] - use `getNativeType` instead
 	**/
-	@:functionCode('
-		return (java.lang.Class<T>) obj.getClass();
-	')
-	public static function nativeType<T>(obj:T):java.lang.Class<T>
+	@:deprecated('The function `nativeType` is deprecated and will be removed in later versions. Please use `getNativeType` instead')
+	inline public static function nativeType<T>(obj:T):java.lang.Class<T>
 	{
-		return null;
+		return untyped obj.getClass();
+	}
+
+	/**
+		Gets the native `java.lang.Class` from the supplied object. Will throw an exception in case of null being passed.
+		[deprecated] - use `getNativeType` instead
+	**/
+	inline public static function getNativeType<T>(obj:T):java.lang.Class<T>
+	{
+		return untyped obj.getClass();
+	}
+
+	/**
+		Returns a Class<> equivalent to the native java.lang.Class type.
+	**/
+	public static inline function fromNativeType<T>(t:java.lang.Class<T>):Class<T>
+	{
+		return untyped t;
+	}
+
+	/**
+		Returns a java.lang.Class equivalent to the Haxe Class<> type.
+	**/
+	public static inline function toNativeType<T>(cl:Class<T>):java.lang.Class<T>
+	{
+		return untyped cl;
+	}
+
+	/**
+		Returns a java.lang.Class equivalent to the Haxe Enum<> type.
+	**/
+	public static inline function toNativeEnum<T>(cl:Enum<T>):java.lang.Class<T>
+	{
+		return untyped cl;
 	}
 
 	/**
 		Returns a Haxe Array of a native Array.
-		It won't copy the contents of the native array, so unless any operation triggers an array resize,
-		all changes made to the Haxe array will affect the native array argument.
+		Unless `copy` is true, it won't copy the contents of the native array,
+		so unless any operation triggers an array resize, all changes made to the Haxe array will affect the native array argument.
 	**/
-	public static function array<T>(native:java.NativeArray<T>):Array<T>
+	@:generic public static function array<T>(native:java.NativeArray<T>):Array<T>
 	{
 		return untyped Array.ofNative(native);
+	}
+
+	@:extern inline private static function doArray<T>(native:java.NativeArray<T>):Array<T>
+	{
+		var ret:NativeArray<Dynamic> = new NativeArray(native.length);
+		for (i in 0...native.length)
+		{
+			ret[i] = native[i];
+		}
+		return untyped Array.ofNative(ret);
+	}
+
+	public static function array_Int(native:java.NativeArray<Int>):Array<Int>
+	{
+		return doArray(native);
+	}
+
+	public static function array_Float(native:java.NativeArray<Float>):Array<Float>
+	{
+		return doArray(native);
+	}
+
+	public static function array_Bool(native:java.NativeArray<Bool>):Array<Bool>
+	{
+		return doArray(native);
+	}
+
+	public static function array_java_Int8(native:java.NativeArray<java.StdTypes.Int8>):Array<java.StdTypes.Int8>
+	{
+		return doArray(native);
+	}
+
+	public static function array_java_Int16(native:java.NativeArray<java.StdTypes.Int16>):Array<java.StdTypes.Int16>
+	{
+		return doArray(native);
+	}
+
+	public static function array_java_Char16(native:java.NativeArray<java.StdTypes.Char16>):Array<java.StdTypes.Char16>
+	{
+		return doArray(native);
+	}
+
+	public static function array_Single(native:java.NativeArray<Single>):Array<Single>
+	{
+		return doArray(native);
+	}
+
+	public static function array_haxe_Int64(native:java.NativeArray<haxe.Int64>):Array<haxe.Int64>
+	{
+		return doArray(native);
 	}
 
 	/**

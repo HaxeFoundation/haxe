@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/Gamepad.webidl line 18:0. Do not edit!
+
 package js.html;
 
 @:native("Gamepad")
 extern class Gamepad
 {
-	var axes(default,null) : Array<Float>;
-
-	var buttons(default,null) : Array<Float>;
-
 	var id(default,null) : String;
-
 	var index(default,null) : Int;
-
-	var timestamp(default,null) : Int;
-
+	var mapping(default,null) : GamepadMappingType;
+	var connected(default,null) : Bool;
+	var buttons(default,null) : Array<GamepadButton>;
+	var axes(default,null) : Array<Float>;
+	var timestamp(default,null) : Float;
+	
 }

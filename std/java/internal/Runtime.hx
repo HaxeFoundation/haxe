@@ -406,6 +406,9 @@ package java.internal;
 			{
 				cls[i] = java.lang.Number.class;
 				isNum = hasNumber = true;
+			} else if (o instanceof java.lang.Boolean) {
+				cls[i] = java.lang.Boolean.class;
+				isNum = true;
 			}
 
 			msl = realMsl;
@@ -572,7 +575,7 @@ package java.internal;
 
 	public static function isFinite(v:Float):Bool
 	{
-		return (v == v) && !java.lang.Double._isInfinite(v);
+		return (v == v) && !java.lang.Double.DoubleClass._isInfinite(v);
 	}
 }
 

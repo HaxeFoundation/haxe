@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/ProcessingInstruction.webidl line 13:0. Do not edit!
+
 package js.html;
 
-/** <p>A processing instruction provides an opportunity for application-specific instructions to be embedded within XML and which can be ignored by XML processors which do not support processing their instructions (outside of their having a place in the DOM).</p>
-<p>A Processing instruction is distinct from a <a title="en/XML/XML_Declaration" rel="internal" href="https://developer.mozilla.org/en/XML/XML_Declaration" class="new ">XML Declaration</a> which is used for other information about the document such as encoding and which appear (if it does) as the first item in the document.</p>
-<p>User-defined processing instructions cannot begin with 'xml', as these are reserved (e.g., as used in &lt;?<a title="en/XML/xml-stylesheet" rel="internal" href="https://developer.mozilla.org/en/XML/xml-stylesheet" class="new ">xml-stylesheet</a>&nbsp;?&gt;).</p>
-<p>Also inherits methods and properties from <a class="internal" title="En/DOM/Node" rel="internal" href="/api/js/html/Node"><code>Node</code></a>.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/ProcessingInstruction">MDN</a>. */
 @:native("ProcessingInstruction")
-extern class ProcessingInstruction extends Node
+extern class ProcessingInstruction extends CharacterData
 {
-	/** Setter throws DOMException. */
-	var data : String;
-
-	var sheet(default,null) : StyleSheet;
-
 	var target(default,null) : String;
-
+	
 }

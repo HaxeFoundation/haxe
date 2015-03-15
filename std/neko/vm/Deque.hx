@@ -32,7 +32,7 @@ class Deque<T> {
 	public function push( i : T ) {
 		deque_push(q,i);
 	}
-	public function pop( block : Bool ) : T {
+	public function pop( block : Bool ) : Null<T> {
 		return deque_pop(q,block);
 	}
 	static var deque_create = neko.Lib.loadLazy("std","deque_create",0);

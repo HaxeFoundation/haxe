@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,21 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLCollection.webidl line 13:0. Do not edit!
+
 package js.html;
 
-/** <p><code>HTMLCollection</code> is an interface representing a generic collection of elements (in document order) and offers methods and properties for traversing the list.</p>
-<div class="note"><strong>Note:</strong> This interface is called <code>HTMLCollection</code> for historical reasons (before DOM4, collections implementing this interface could only have HTML elements as their items).</div>
-<p><code>HTMLCollection</code>s in the HTML DOM are live; they are automatically updated when the underlying document is changed.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLCollection">MDN</a>. */
 @:native("HTMLCollection")
-extern class HTMLCollection implements ArrayAccess<Node>
+extern class HTMLCollection implements ArrayAccess<Element>
 {
-	/** The number of items in the collection. <strong>Read only</strong>. */
 	var length(default,null) : Int;
-
-	function item( index : Int ) : Node;
-
-	function namedItem( name : String ) : Node;
-
+	
+	function item( index : Int ) : Element;
+	function namedItem( name : String ) : Element;
 }

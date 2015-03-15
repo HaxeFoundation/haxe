@@ -29,9 +29,11 @@ import java.io.IOException;
 
 class FileInput extends Input {
 	var f:java.io.RandomAccessFile;
+	var _eof:Bool;
 	public function new(f)
 	{
 		this.f = f;
+		this._eof = false;
 	}
 
 	override public function close()
@@ -47,6 +49,7 @@ class FileInput extends Input {
 		}
 
 		catch (e:EOFException) {
+			_eof = true;
 			throw new Eof();
 		}
 
@@ -64,6 +67,7 @@ class FileInput extends Input {
 		}
 
 		catch (e:EOFException) {
+			_eof = true;
 			throw new Eof();
 		}
 
@@ -71,14 +75,17 @@ class FileInput extends Input {
 			throw haxe.io.Error.Custom(e);
 		}
 
-		if (ret == -1)
+		if (ret == -1) {
+			_eof = true;
 			throw new Eof();
+		}
 
 		return ret;
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void
 	{
+		_eof = false;
 		try
 		{
 			switch(pos)
@@ -90,6 +97,7 @@ class FileInput extends Input {
 		}
 
 		catch (e:EOFException) {
+			_eof = true;
 			throw new Eof();
 		}
 
@@ -110,15 +118,8 @@ class FileInput extends Input {
 		}
 	}
 
-	public function eof() : Bool
+	public inline function eof() : Bool
 	{
-		try
-		{
-			return f.getFilePointer() == f.length();
-		}
-
-		catch (e:IOException) {
-			throw haxe.io.Error.Custom(e);
-		}
+		return _eof;
 	}
 }

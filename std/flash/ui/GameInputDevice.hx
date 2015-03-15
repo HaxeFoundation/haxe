@@ -1,6 +1,6 @@
 package flash.ui;
 
-@:final @:require(flash11_2) extern class GameInputDevice {
+@:final @:require(flash11_8) extern class GameInputDevice {
 	var enabled : Bool;
 	var id(default,null) : String;
 	var name(default,null) : String;

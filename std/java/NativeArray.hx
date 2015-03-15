@@ -21,15 +21,30 @@
  */
 package java;
 
-/**
- * ...
- * @author waneck
- */
+import haxe.extern.Rest;
 
+/**
+	Represents a java fixed-size Array (`T[]`)
+**/
 @:nativeGen extern class NativeArray<T> implements ArrayAccess<T>
 {
+	/**
+		Creates a new array with the specified elements.
+
+		Usage:
+		```haxe
+		var elements = NativeArray.make(1,2,3,4,5,6);
+		```
+	 **/
+	public static function make<T>(elements:Rest<T>):NativeArray<T>;
+
+	/**
+		The length of the array
+	 **/
 	public var length(default, null):Int;
 
+	/**
+		Allocates a new array with size `len`
+	 **/
 	public function new(len:Int):Void;
-
 }

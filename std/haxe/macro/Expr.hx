@@ -21,7 +21,7 @@
  */
 package haxe.macro;
 
-#if macro
+#if (macro && !doc_gen)
 extern enum Position {
 }
 #else
@@ -333,4 +333,15 @@ class Error {
 	function toString() {
 		return message;
 	}
+}
+
+enum ImportMode {
+	INormal;
+	IAsName(alias:String);
+	IAll;
+}
+
+typedef ImportExpr = {
+	var path: Array< { pos: Position, name: String } >;
+	var mode: ImportMode;
 }

@@ -23,6 +23,8 @@ package sys.db;
 
 class Mysql {
 
+	static var init = false;
+
 	public static function connect( params : {
 		host : String,
 		?port : Int,
@@ -31,8 +33,25 @@ class Mysql {
 		?socket : String,
 		database : String
 	} ) : sys.db.Connection {
-		throw "Not implemented for this platform";
-		return null;
+		if (!init)
+		{
+			java.lang.Class.forName("com.mysql.jdbc.Driver");
+			init = true;
+		}
+		var url = new StringBuf();
+		url.add('jdbc:mysql:');
+		if (params.socket != null)
+		{
+			url.add(params.socket);
+		} else {
+			url.add('//');
+			url.add(params.host);
+			if (params.port != null)
+				url.add(':${params.port}');
+		}
+		url.add('/${params.database}');
+		var cnx = java.sql.DriverManager.getConnection(url.toString(), params.user, params.pass);
+		return java.db.Jdbc.create(cnx);
 	}
 
 }

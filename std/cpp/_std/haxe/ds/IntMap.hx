@@ -21,13 +21,28 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements Map.IMap<Int,T> {
+@:headerClassCode("
+  inline void set(int key, ::null value) { __int_hash_set(h,key,value); }
+  inline void set(int key, bool value) { __int_hash_set(h,key,value); }
+  inline void set(int key, char value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, unsigned char value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, signed char value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, short value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, unsigned short value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, int value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, unsigned int value) { __int_hash_set_int(h,key,value); }
+  inline void set(int key, float value) { __int_hash_set_float(h,key,value); }
+  inline void set(int key, double value) { __int_hash_set_float(h,key,value); }
+  inline void set(int key, ::String value) { __int_hash_set_string(h,key,value); }
 
-	private var h : Dynamic;
+  template<typename VALUE>
+  inline Void set(Dynamic &key, const VALUE &value) { set( (int)key, value ); return null(); }
+")
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
-	public function new() : Void {
-		h = untyped __global__.__int_hash_create();
-	}
+	@:ifFeature("haxe.ds.IntMap.*") private var h : Dynamic;
+
+	public function new() : Void { }
 
 	public function set( key : Int, value : T ) : Void {
 		untyped __global__.__int_hash_set(h,key,value);
@@ -56,18 +71,6 @@ package haxe.ds;
 	}
 
 	public function toString() : String {
-		var s = new StringBuf();
-		s.add("{");
-		var it = keys();
-		for( i in it ) {
-			s.add(i);
-			s.add(" => ");
-			s.add(Std.string(get(i)));
-			if( it.hasNext() )
-				s.add(", ");
-		}
-		s.add("}");
-		return s.toString();
+		return untyped __global__.__int_hash_to_string(h);
 	}
-
 }

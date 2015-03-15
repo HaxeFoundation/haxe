@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,36 +20,30 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFETurbulenceElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The filter primitive creates a perturbation image, like cloud or marble textures.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/feTurbulence">MDN</a>. */
 @:native("SVGFETurbulenceElement")
 extern class FETurbulenceElement extends Element
 {
-	static inline var SVG_STITCHTYPE_NOSTITCH : Int = 2;
-
-	static inline var SVG_STITCHTYPE_STITCH : Int = 1;
-
-	static inline var SVG_STITCHTYPE_UNKNOWN : Int = 0;
-
-	static inline var SVG_TURBULENCE_TYPE_FRACTALNOISE : Int = 1;
-
-	static inline var SVG_TURBULENCE_TYPE_TURBULENCE : Int = 2;
-
 	static inline var SVG_TURBULENCE_TYPE_UNKNOWN : Int = 0;
-
+	static inline var SVG_TURBULENCE_TYPE_FRACTALNOISE : Int = 1;
+	static inline var SVG_TURBULENCE_TYPE_TURBULENCE : Int = 2;
+	static inline var SVG_STITCHTYPE_UNKNOWN : Int = 0;
+	static inline var SVG_STITCHTYPE_STITCH : Int = 1;
+	static inline var SVG_STITCHTYPE_NOSTITCH : Int = 2;
+	
 	var baseFrequencyX(default,null) : AnimatedNumber;
-
 	var baseFrequencyY(default,null) : AnimatedNumber;
-
 	var numOctaves(default,null) : AnimatedInteger;
-
 	var seed(default,null) : AnimatedNumber;
-
 	var stitchTiles(default,null) : AnimatedEnumeration;
-
 	var type(default,null) : AnimatedEnumeration;
-
+	var x(default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var result(default,null) : AnimatedString;
+	
 }

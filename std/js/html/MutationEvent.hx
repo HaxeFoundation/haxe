@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,28 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/MutationEvent.webidl line 12:0. Do not edit!
+
 package js.html;
 
 @:native("MutationEvent")
 extern class MutationEvent extends Event
 {
-	static inline var ADDITION : Int = 2;
-
 	static inline var MODIFICATION : Int = 1;
-
+	static inline var ADDITION : Int = 2;
 	static inline var REMOVAL : Int = 3;
-
-	var attrChange(default,null) : Int;
-
-	var attrName(default,null) : String;
-
-	var newValue(default,null) : String;
-
-	var prevValue(default,null) : String;
-
+	
 	var relatedNode(default,null) : Node;
-
+	var prevValue(default,null) : String;
+	var newValue(default,null) : String;
+	var attrName(default,null) : String;
+	var attrChange(default,null) : Int;
+	
+	/** @throws DOMError */
 	function initMutationEvent( type : String, canBubble : Bool, cancelable : Bool, relatedNode : Node, prevValue : String, newValue : String, attrName : String, attrChange : Int ) : Void;
-
 }

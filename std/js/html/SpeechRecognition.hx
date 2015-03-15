@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,50 +20,35 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SpeechRecognition.webidl line 15:0. Do not edit!
+
 package js.html;
 
 @:native("SpeechRecognition")
 extern class SpeechRecognition extends EventTarget
 {
-	var continuous : Bool;
-
 	var grammars : SpeechGrammarList;
-
-	var interimResults : Bool;
-
 	var lang : String;
-
+	var continuous : Bool;
+	var interimResults : Bool;
 	var maxAlternatives : Int;
-
-	var onaudioend : EventListener;
-
-	var onaudiostart : EventListener;
-
-	var onend : EventListener;
-
-	var onerror : EventListener;
-
-	var onnomatch : EventListener;
-
-	var onresult : EventListener;
-
-	var onsoundend : EventListener;
-
-	var onsoundstart : EventListener;
-
-	var onspeechend : EventListener;
-
-	var onspeechstart : EventListener;
-
-	var onstart : EventListener;
-
+	var serviceURI : String;
+	var onaudiostart : haxe.Constraints.Function;
+	var onsoundstart : haxe.Constraints.Function;
+	var onspeechstart : haxe.Constraints.Function;
+	var onspeechend : haxe.Constraints.Function;
+	var onsoundend : haxe.Constraints.Function;
+	var onaudioend : haxe.Constraints.Function;
+	var onresult : haxe.Constraints.Function;
+	var onnomatch : haxe.Constraints.Function;
+	var onerror : haxe.Constraints.Function;
+	var onstart : haxe.Constraints.Function;
+	var onend : haxe.Constraints.Function;
+	
+	/** @throws DOMError */
 	function new() : Void;
-
-	function abort() : Void;
-
-	function start() : Void;
-
+	/** @throws DOMError */
+	function start( ?stream : MediaStream ) : Void;
 	function stop() : Void;
-
+	function abort() : Void;
 }

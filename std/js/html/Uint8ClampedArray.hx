@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,17 +20,25 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from typedarray.webidl line 79:0. Do not edit!
+
 package js.html;
 
 @:native("Uint8ClampedArray")
-extern class Uint8ClampedArray extends Uint8Array implements ArrayAccess<Int>
+extern class Uint8ClampedArray extends ArrayBufferView implements ArrayAccess<Int>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 1;
-
+	
+	var length(default,null) : Int;
+	
+	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
-	@:overload( function( array : Array<Int> ) : Void {} )
 	@:overload( function( array : Uint8ClampedArray ) : Void {} )
+	@:overload( function( array : Array<Int> ) : Void {} )
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int ) : Void;
-
+	function get( index : Int ) : Int;
+	@:overload( function( index : Int, value : Int ) : Void {} )
+	@:overload( function( array : Uint8ClampedArray, ?offset : Int ) : Void {} )
+	function set( array : Array<Int>, ?offset : Int ) : Void;
+	function subarray( start : Int, end : Int ) : Uint8ClampedArray;
 }

@@ -23,6 +23,8 @@ package sys.io;
 import haxe.io.BytesInput;
 import cs.system.io.StreamReader;
 import cs.system.io.StreamWriter;
+import cs.system.diagnostics.Process as NativeProcess;
+import cs.system.diagnostics.ProcessStartInfo as NativeStartInfo;
 
 @:coreApi
 class Process {
@@ -38,6 +40,7 @@ class Process {
 	{
 		this.native = new NativeProcess();
 		native.StartInfo.FileName = cmd;
+		native.StartInfo.CreateNoWindow = true;
 		var buf = new StringBuf();
 		for (arg in args)
 		{
@@ -76,36 +79,5 @@ class Process {
 	{
 		native.Kill();
 	}
-
-}
-
-/*
-FIXME: The actual process class is much more complex than this, so here it is included a very simplified version.
-*/
-@:native('System.Diagnostics.Process') private extern class NativeProcess
-{
-	var ExitCode(default, null):Int;
-	var Id(default, null):Int;
-	var StartInfo(default, null):NativeStartInfo;
-	var StandardError(default, null):StreamReader;
-	var StandardInput(default, null):StreamWriter;
-	var StandardOutput(default, null):StreamReader;
-
-	function new():Void;
-	function Close():Void;
-	function Kill():Void;
-	function Start():Void;
-	function WaitForExit():Void;
-}
-
-@:native('System.Diagnostics.ProcessStartInfo') private extern class NativeStartInfo
-{
-	var Arguments:String;
-	var FileName:String;
-	var RedirectStandardError:Bool;
-	var RedirectStandardInput:Bool;
-	var RedirectStandardOutput:Bool;
-	var UseShellExecute:Bool;
-	function new(filename:String, args:String):Void;
 
 }

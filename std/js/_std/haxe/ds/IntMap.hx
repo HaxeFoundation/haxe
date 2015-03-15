@@ -21,23 +21,23 @@
  */
 package haxe.ds;
 
-@:coreApi class IntMap<T> implements Map.IMap<Int,T> {
+@:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
 	private var h : Dynamic;
 
-	public function new() : Void {
+	public inline function new() : Void {
 		h = {};
 	}
 
-	public function set( key : Int, value : T ) : Void {
+	public inline function set( key : Int, value : T ) : Void {
 		untyped h[key] = value;
 	}
 
-	public function get( key : Int ) : Null<T> {
+	public inline function get( key : Int ) : Null<T> {
 		return untyped h[key];
 	}
 
-	public function exists( key : Int ) : Bool {
+	public inline function exists( key : Int ) : Bool {
 		return untyped h.hasOwnProperty(key);
 	}
 

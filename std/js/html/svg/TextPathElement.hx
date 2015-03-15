@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,33 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGTextPathElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** In addition to text drawn in a straight line, SVG also includes the ability to place text along the shape of a <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/path">&lt;path&gt;</a></code>
- element. To specify that a block of text is to be rendered along the shape of a <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/path">&lt;path&gt;</a></code>
-, include the given text within a <code>textPath</code> element which includes an <code>xlink:href</code> attribute with a reference to a <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/path">&lt;path&gt;</a></code>
- element.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/textPath">MDN</a>. */
 @:native("SVGTextPathElement")
 extern class TextPathElement extends TextContentElement
 {
-	static inline var TEXTPATH_METHODTYPE_ALIGN : Int = 1;
-
-	static inline var TEXTPATH_METHODTYPE_STRETCH : Int = 2;
-
 	static inline var TEXTPATH_METHODTYPE_UNKNOWN : Int = 0;
-
-	static inline var TEXTPATH_SPACINGTYPE_AUTO : Int = 1;
-
-	static inline var TEXTPATH_SPACINGTYPE_EXACT : Int = 2;
-
+	static inline var TEXTPATH_METHODTYPE_ALIGN : Int = 1;
+	static inline var TEXTPATH_METHODTYPE_STRETCH : Int = 2;
 	static inline var TEXTPATH_SPACINGTYPE_UNKNOWN : Int = 0;
-
-	var method(default,null) : AnimatedEnumeration;
-
-	var spacing(default,null) : AnimatedEnumeration;
-
+	static inline var TEXTPATH_SPACINGTYPE_AUTO : Int = 1;
+	static inline var TEXTPATH_SPACINGTYPE_EXACT : Int = 2;
+	
 	var startOffset(default,null) : AnimatedLength;
-
+	var method(default,null) : AnimatedEnumeration;
+	var spacing(default,null) : AnimatedEnumeration;
+	var href(default,null) : AnimatedString;
+	
 }

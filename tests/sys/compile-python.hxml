@@ -1,0 +1,2 @@
+compile-each.hxml
+-python bin/python/sys.py

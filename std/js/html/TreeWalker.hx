@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,38 +20,30 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/TreeWalker.webidl line 13:0. Do not edit!
+
 package js.html;
 
-/** <p>The <code>TreeWalker</code> object represents the nodes of a document subtree and a position within them.</p>
-<p>A TreeWalker can be created using the <code><a title="en/DOM/document.createTreeWalker" rel="internal" href="https://developer.mozilla.org/en/DOM/document.createTreeWalker">createTreeWalker()</a></code> method of the <code><a title="en/DOM/document" rel="internal" href="/api/js/html/Document">document</a></code> object.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/Treewalker">MDN</a>. */
 @:native("TreeWalker")
 extern class TreeWalker
 {
-	/** Setter throws DOMException. */
-	var currentNode : Node;
-
-	var expandEntityReferences(default,null) : Bool;
-
-	var filter(default,null) : NodeFilter;
-
 	var root(default,null) : Node;
-
 	var whatToShow(default,null) : Int;
-
-	function firstChild() : Node;
-
-	function lastChild() : Node;
-
-	function nextNode() : Node;
-
-	function nextSibling() : Node;
-
+	var filter(default,null) : NodeFilter;
+	var currentNode : Node;
+	
+	/** @throws DOMError */
 	function parentNode() : Node;
-
-	function previousNode() : Node;
-
+	/** @throws DOMError */
+	function firstChild() : Node;
+	/** @throws DOMError */
+	function lastChild() : Node;
+	/** @throws DOMError */
 	function previousSibling() : Node;
-
+	/** @throws DOMError */
+	function nextSibling() : Node;
+	/** @throws DOMError */
+	function previousNode() : Node;
+	/** @throws DOMError */
+	function nextNode() : Node;
 }

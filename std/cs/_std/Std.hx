@@ -47,7 +47,7 @@ import cs.internal.Exceptions;
 				return true;
 		}
 
-		return clt.IsAssignableFrom(cs.Lib.nativeType(v));
+		return clt.IsAssignableFrom(cs.Lib.getNativeType(v));
 	}
 
 	public static function string( s : Dynamic ) : String {
@@ -165,6 +165,7 @@ import cs.internal.Exceptions;
 				if (div != 0.0)
 					break;
 				div = 1.0;
+				foundAny = true;
 
 				continue;
 			}
@@ -232,8 +233,8 @@ import cs.internal.Exceptions;
 		}
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return Std.is(value, c) ? cast value : null;
+	@:extern inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return cs.Lib.as(value,c);
 	}
 
 	public static function random( x : Int ) : Int {

@@ -37,7 +37,7 @@ import js.Boot;
 	}
 
 	public static inline function int( x : Float ) : Int {
-		return cast(x) | 0;
+		return (cast x) | 0;
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
@@ -50,7 +50,7 @@ import js.Boot;
 		return cast v;
 	}
 
-	public static function parseFloat( x : String ) : Float {
+	public static inline function parseFloat( x : String ) : Float {
 		return untyped __js__("parseFloat")(x);
 	}
 

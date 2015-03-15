@@ -47,6 +47,16 @@ public class MyClass
 	{
 	}
 
+	public void outTest(out int i)
+	{
+		i = 42;
+	}
+
+	public void refTest(ref int i)
+	{
+		i *= 42;
+	}
+
 	public void dispatch()
 	{
 		if (voidvoid != null)
@@ -64,6 +74,13 @@ public class MyClass
 	}
 
 	public event VoidVoid voidvoid;
+	public static event VoidVoid voidvoid2;
+
+	public static void dispatch2()
+	{
+		if (voidvoid2 != null)
+			voidvoid2.Invoke();
+	}
 
 }
 

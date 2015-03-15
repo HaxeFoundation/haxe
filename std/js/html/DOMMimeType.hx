@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html;
 
-@:native("MimeType")
-extern class DOMMimeType
-{
-	var description(default,null) : String;
-
-	var enabledPlugin(default,null) : DOMPlugin;
-
-	var suffixes(default,null) : String;
-
-	var type(default,null) : String;
-
-}
+/** @deprecated Use MimeType instead. */
+@:deprecated("DOMMimeType is deprecated, use MimeType instead")
+typedef DOMMimeType = MimeType;

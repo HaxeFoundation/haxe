@@ -3,6 +3,7 @@ package flash.media;
 extern class AVCaptionStyle {
 	var backgroundColor : String;
 	var backgroundOpacity : String;
+	var bottomInset : String;
 	var edgeColor : String;
 	var fillColor : String;
 	var fillOpacity : String;

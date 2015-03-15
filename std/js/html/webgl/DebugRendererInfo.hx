@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html.webgl;
 
-@:native("WebGLDebugRendererInfo")
-extern class DebugRendererInfo
-{
-	static inline var UNMASKED_RENDERER_WEBGL : Int = 0x9246;
-
-	static inline var UNMASKED_VENDOR_WEBGL : Int = 0x9245;
-
-}
+/** @deprecated Use ExtensionDebugRendererInfo instead. */
+@:deprecated("DebugRendererInfo is deprecated, use ExtensionDebugRendererInfo instead")
+typedef DebugRendererInfo = ExtensionDebugRendererInfo;

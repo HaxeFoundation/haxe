@@ -41,7 +41,7 @@ class Compiler {
 	}
 
 	public static function define( flag : String, ?value : String ) untyped {
-		var v = flag + (value == null ? "" : "= " + value);
+		var v = flag + (value == null ? "" : "=" + value);
 		load("define", 1)(v.__s);
 	}
 
@@ -90,15 +90,27 @@ class Compiler {
 	}
 
 	/**
+		Adds an argument to be passed to the native compiler (eg : -javac-arg for Java)
+	 **/
+	public static function addNativeArg( argument : String )
+	{
+		untyped load("add_native_arg",1)(argument.__s);
+	}
+
+	/**
 		Includes all modules in package `pack` in the compilation.
 
 		In order to include single modules, their paths can be listed directly
 		on command line: `haxe ... ModuleName pack.ModuleName`.
+		
+		By default `Compiler.include` will search for modules in the directories defined with `-cp`.
+		If you want to specify a different set of paths to search for modules, you can use the optional
+		argument `classPath`.
 
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
-		@param classPaths Array of additional class paths to check. This can be
-		    used to add packages outside the usual class paths.
+		@param classPaths An alternative array of paths (directory names) to use to search for modules to include.
+		       Note that if you pass this argument, only the specified paths will be used for inclusion.  
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {
 		var skip = if( ignore == null ) {
@@ -106,11 +118,15 @@ class Compiler {
 		} else {
 			function(c) return Lambda.has(ignore, c);
 		}
+		var displayValue = Context.definedValue("display");
 		if( classPaths == null ) {
 			classPaths = Context.getClassPath();
 			// do not force inclusion when using completion
-			if( Context.defined("display") )
-				return;
+			switch (displayValue) {
+				case null:
+				case "usage":
+				case _: return;
+			}
 			// normalize class path
 			for( i in 0...classPaths.length ) {
 				var cp = StringTools.replace(classPaths[i], "\\", "/");
@@ -139,6 +155,19 @@ class Compiler {
 	}
 
 	/**
+		Exclude a class or a enum without changing it to @:nativeGen.
+	**/
+	static function excludeBaseType( baseType : Type.BaseType ) : Void {
+		if (!baseType.isExtern) {
+			var meta = baseType.meta;
+			if (!meta.has(":nativeGen")) {
+				meta.add(":hxGen", [], baseType.pos);
+			}
+			baseType.exclude();
+		}
+	}
+
+	/**
 		Exclude a given class or a complete package from being generated.
 	**/
 	public static function exclude( pack : String, ?rec = true ) {
@@ -156,7 +185,7 @@ class Compiler {
 				}
 				var p = b.pack.join(".");
 				if( (p == pack || name == pack) || (rec && StringTools.startsWith(p, pack + ".")) )
-					b.exclude();
+					excludeBaseType(b);
 			}
 		});
 	}
@@ -180,8 +209,8 @@ class Compiler {
 		Context.onGenerate(function(types) {
 			for( t in types ) {
 				switch( t ) {
-				case TInst(c, _): if( classes.exists(c.toString()) ) c.get().exclude();
-				case TEnum(e, _): if( classes.exists(e.toString()) ) e.get().exclude();
+				case TInst(c, _): if( classes.exists(c.toString()) ) excludeBaseType(c.get());
+				case TEnum(e, _): if( classes.exists(e.toString()) ) excludeBaseType(e.get());
 				default:
 				}
 			}
@@ -249,84 +278,39 @@ class Compiler {
 		including the containing module has to be used
 		(e.g. msignal.Signal.Signal0).
 
+		This operation has no effect if the type has already been loaded, e.g.
+		through `Context.getType`.
+
 		@param path A package, module or sub-type dot path to keep.
 		@param paths An Array of package, module or sub-type dot paths to keep.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
-	public static function keep(?path : String, ?paths : Array<String>, ?recursive:Bool = true)
-	{
+	public static function keep(?path : String, ?paths : Array<String>, ?recursive:Bool = true) {
 		if (null == paths)
 			paths = [];
 		if (null != path)
 			paths.push(path);
 		for (path in paths) {
-			var found:Bool = false;
-			var moduleRoot = (path.indexOf(".") < 0)?"":path.substring(0, path.lastIndexOf("."));
-
-			for ( classPath in Context.getClassPath() ) {
-				var moduleRootPath = (moduleRoot == "")?"":(classPath + moduleRoot.split(".").join("/") + ".hx");
-				var fullPath = classPath + path.split(".").join("/");
-				var isValidDirectory:Bool = (sys.FileSystem.exists(fullPath) && sys.FileSystem.isDirectory(fullPath));
-				var isValidModule:Bool = !isValidDirectory && sys.FileSystem.exists(fullPath + ".hx");
-				var isValidSubType:Bool = !isValidModule && (moduleRootPath != "" && sys.FileSystem.exists(moduleRootPath));
-				if ( !isValidDirectory && !isValidModule && !isValidSubType)
-					continue;
-				else
-					found = true;
-
-				if(isValidDirectory) {
-					for( file in sys.FileSystem.readDirectory(fullPath) ) {
-						if( StringTools.endsWith(file, ".hx") ) {
-							var module = path + "." + file.substr(0, file.length - 3);
-							keepModule(module);
-						} else if( recursive && sys.FileSystem.isDirectory(fullPath + "/" + file) )
-							keep(path + "." + file, true);
-					}
-				} else if(isValidModule){
-					keepModule(path);
-				} else if(isValidSubType){
-					keepSubType(path);
-				}
-			}
-
-			if (!found)
-				Context.warning("file or directory not found, can't keep: "+path, Context.currentPos());
+			addGlobalMetadata(path, "@:keep", recursive, true, true);
 		}
 	}
 
-	private static function keepSubType( path : String )
-	{
-		var module = path.substring(0, path.lastIndexOf("."));
-		var subType = module.substring(0, module.lastIndexOf(".")) + "." + path.substring(path.lastIndexOf(".") + 1);
-		var types = Context.getModule(module);
-		var found:Bool = false;
-		for (type in types) {
-			switch(type) {
-				case TInst(cls, _):
-					if (cls.toString() == subType) {
-						found = true;
-						cls.get().meta.add(":keep", [], cls.get().pos);
-					}
-				default:
-					//
-			}
-		}
+	/**
+		Adds metadata `meta` to all types (if `toTypes = true`) or fields (if
+		`toFields = true`) whose dot-path matches `pathFilter`.
 
-		if (!found)
-			Context.warning("subtype not found, can't keep: "+path, Context.currentPos());
-	}
+		If `recursive` is true a dot-path is considered matched if it starts
+		with `pathFilter`. This automatically applies to path filters of
+		packages. Otherwise an exact match is required.
 
-	private static function keepModule( path : String )
-	{
-		var types = Context.getModule(path);
-		for (type in types) {
-			switch(type) {
-				case TInst(cls, _):
-					cls.get().meta.add(":keep", [], cls.get().pos);
-				default:
-					//
-			}
-		}
+		If `pathFilter` is the empty String `""` it matches everything (if
+		`recursive = true`) or only top-level types (if `recursive = false`).
+
+		This operation has no effect if the type has already been loaded, e.g.
+		through `Context.getType`.
+	**/
+	public static function addGlobalMetadata(pathFilter:String, meta:String, ?recursive:Bool = true, ?toTypes:Bool = true, ?toFields:Bool = false) {
+		untyped load("add_global_metadata",5)(untyped pathFilter.__s, meta.__s, recursive, toTypes, toFields);
 	}
 
 	/**

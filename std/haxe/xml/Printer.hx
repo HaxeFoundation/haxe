@@ -30,64 +30,71 @@ package haxe.xml;
 
 class Printer {
 
-	static public function print(xml:Xml) {
-		var printer = new Printer();
+	static public function print(xml:Xml, ?pretty = false) {
+		var printer = new Printer(pretty);
 		printer.writeNode(xml, "");
 		return printer.output.toString();
 	}
 
 	var output:StringBuf;
+	var pretty:Bool;
 
-	function new() {
+	function new(pretty) {
 		output = new StringBuf();
+		this.pretty = pretty;
 	}
 
 	function writeNode(value:Xml, tabs:String) {
 		switch (value.nodeType) {
-			case Xml.CData:
+			case CData:
 				write(tabs + "<![CDATA[");
 				write(StringTools.trim(value.nodeValue));
 				write("]]>");
 				newline();
-			case Xml.Comment:
+			case Comment:
 				var commentContent:String = value.nodeValue;
 				commentContent = ~/[\n\r\t]+/g.replace(commentContent, "");
+				commentContent = "<!--" + commentContent + "-->";
 				write(tabs);
 				write(StringTools.trim(commentContent));
 				newline();
-			case Xml.Document:
+			case Document:
 				for (child in value) {
 					writeNode(child, tabs);
 				}
-			case Xml.Element:
+			case Element:
 				write(tabs + "<");
 				write(value.nodeName);
 				for (attribute in value.attributes()) {
 					write(" " + attribute + "=\"");
-					write(value.get(attribute));
+					write(StringTools.htmlEscape(value.get(attribute), true));
 					write("\"");
 				}
 				if (hasChildren(value)) {
 					write(">");
 					newline();
 					for (child in value) {
-						writeNode(child, tabs + "\t");
+						writeNode(child, pretty ? tabs + "\t" : tabs);
 					}
 					write(tabs + "</");
 					write(value.nodeName);
 					write(">");
 					newline();
 				} else {
-					write(" />");
+					write("/>");
 					newline();
 				}
-		case Xml.PCData:
-			var nodeValue:String = StringTools.trim(value.nodeValue);
+			case PCData:
+				var nodeValue:String = value.nodeValue;
 				if (nodeValue.length != 0) {
-					write(tabs + nodeValue);
+					write(tabs + StringTools.htmlEscape(nodeValue));
 					newline();
 				}
-			}
+			case ProcessingInstruction:
+				write("<?" + value.nodeValue + "?>");
+			case DocType:
+				write("<!DOCTYPE " + value.nodeValue + ">");
+		}
 	}
 
 	inline function write(input:String) {
@@ -95,18 +102,21 @@ class Printer {
 	}
 
 	inline function newline() {
-		output.add("\n");
+		if (pretty) {
+			output.add("");
+		}
 	}
 
 	function hasChildren(value:Xml):Bool {
 		for (child in value) {
 			switch (child.nodeType) {
-				case Xml.Element:
+				case Xml.Element, Xml.PCData:
 					return true;
-				case Xml.CData, Xml.Comment, Xml.PCData:
+				case Xml.CData, Xml.Comment:
 					if (StringTools.ltrim(child.nodeValue).length != 0) {
 						return true;
 					}
+				case _:
 			}
 		}
 		return false;

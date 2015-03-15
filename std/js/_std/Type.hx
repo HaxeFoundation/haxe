@@ -33,10 +33,8 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped {
-		if( o == null )
-			return null;
-		return js.Boot.getClass(o);
+	public static inline function getClass<T>( o : T ) : Class<T> {
+		return if (o == null) null else @:privateAccess js.Boot.getClass(o);
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
@@ -52,6 +50,8 @@ enum ValueType {
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 		var a : Array<String> = untyped c.__name__;
+		if (a == null)
+			return null;
 		return a.join(".");
 	}
 
@@ -108,7 +108,7 @@ enum ValueType {
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
-		var f = Reflect.field(e,constr);
+		var f:Dynamic = Reflect.field(e,constr);
 		if( f == null ) throw "No such constructor "+constr;
 		if( Reflect.isFunction(f) ) {
 			if( params == null ) throw "Constructor "+constr+" need parameters";
@@ -139,6 +139,7 @@ enum ValueType {
 		a.remove("__interfaces__");
 		a.remove("__properties__");
 		a.remove("__super__");
+		a.remove("__meta__");
 		a.remove("prototype");
 		return a;
 	}

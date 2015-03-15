@@ -19,6 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import java.internal.HxObject;
+
+using StringTools;
+
 @:keep enum ValueType {
 	TNull;
 	TInt;
@@ -33,40 +38,34 @@
 
 @:keep @:coreApi class Type {
 
-	@:functionCode('
-		if (o == null || o instanceof haxe.lang.DynamicObject || o instanceof java.lang.Class)
+	public static function getClass<T>( o : T ) : Class<T>
+	{
+		if (o == null || Std.is(o, DynamicObject) || Std.is(o, java.lang.Class)) {
 			return null;
+		}
+		return cast java.Lib.getNativeType(o);
+	}
 
-		return (java.lang.Class<T>) o.getClass();
-	')
-	public static function getClass<T>( o : T ) : Class<T> untyped
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic>
 	{
+		if (Std.is(o, java.lang.Enum) || Std.is(o, HxEnum)) {
+			return untyped o.getClass();
+		}
 		return null;
 	}
 
-	@:functionCode('
-		if (o instanceof java.lang.Enum || o instanceof haxe.lang.Enum)
-			return o.getClass();
-		return null;
-	')
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped
+	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic>
 	{
+		var c = java.Lib.toNativeType(c);
+		var cl:java.lang.Class<Dynamic> = c == null ? null : untyped c.getSuperclass();
+		if (cl != null && cl.getName() != "haxe.lang.HxObject" && cl.getName() != "java.lang.Object") {
+			return cast cl;
+		}
 		return null;
 	}
 
-	@:functionCode('
-		java.lang.Class cl = (c == null) ? null : c.getSuperclass();
-		if (cl != null && !cl.getName().equals("haxe.lang.HxObject") && !cl.getName().equals("java.lang.Object") )
-			return cl;
-		return null;
-	')
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped
-	{
-		return null;
-	}
-
-	public static function getClassName( c : Class<Dynamic> ) : String untyped {
-		var c : java.lang.Class<Dynamic> = c;
+	public static function getClassName( c : Class<Dynamic> ) : String {
+		var c : java.lang.Class<Dynamic> = cast c;
 		var name:String = c.getName();
 		if (name.startsWith("haxe.root."))
 			return name.substr(10);
@@ -82,8 +81,8 @@
 		}
 	}
 
-	public static function getEnumName( e : Enum<Dynamic> ) : String untyped {
-		var c : java.lang.Class<Dynamic> = e;
+	public static function getEnumName( e : Enum<Dynamic> ) : String {
+		var c : java.lang.Class<Dynamic> = cast e;
 		var ret:String = c.getName();
 		if (ret.startsWith("haxe.root."))
 			return ret.substr(10);
@@ -93,33 +92,31 @@
 		return ret;
 	}
 
-	@:functionCode('
-		try {
-			if (name.indexOf(".") == -1)
-				name = "haxe.root." + name;
-			return java.lang.Class.forName(name);
-		}
-		catch (java.lang.ClassNotFoundException e)
-		{
-			if (name.equals("haxe.root.Int")) return int.class;
-			else if (name.equals("haxe.root.Float")) return double.class;
-			else if (name.equals("haxe.root.String")) return java.lang.String.class;
-			else if (name.equals("haxe.root.Math")) return java.lang.Math.class;
-			else if (name.equals("haxe.root.Class")) return java.lang.Class.class;
-			else if (name.equals("haxe.root.Dynamic")) return java.lang.Object.class;
-			return null;
-		}
-	')
-	public static function resolveClass( name : String ) : Class<Dynamic> untyped
+	public static function resolveClass( name : String ) : Class<Dynamic>
 	{
-		return null;
+		try {
+			if (name.indexOf(".") == -1) {
+				name = "haxe.root." +name;
+			}
+			return cast java.lang.Class.forName(name);
+		} catch (e:java.lang.ClassNotFoundException) {
+			return untyped switch (name) {
+				case "haxe.root.Int": Int;
+				case "haxe.root.Float": Float;
+				case "haxe.root.String": String;
+				case "haxe.root.Math": java.lang.Math;
+				case "haxe.root.Class": java.lang.Class;
+				case "haxe.root.Dynamic": java.lang.Object;
+				case _: null;
+			}
+		}
 	}
 
 
 	@:functionCode('
 		if ("Bool".equals(name)) return boolean.class;
 		Class r = resolveClass(name);
-		if (r != null && (r.getSuperclass() == java.lang.Enum.class || r.getSuperclass() == haxe.lang.Enum.class))
+		if (r != null && (r.getSuperclass() == java.lang.Enum.class || haxe.lang.Enum.class.isAssignableFrom(r)))
 			return r;
 		return null;
 	')
@@ -334,12 +331,15 @@
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		if (Reflect.hasField(e, "constructs"))
-			return untyped e.constructs.copy();
-    var vals:java.NativeArray<java.lang.Enum<Dynamic>> = untyped e.values(), ret = [];
-    for (i in 0...vals.length)
-      ret[i] = vals[i].name();
-    return ret;
+		if (Reflect.hasField(e, "__hx_constructs"))
+		{
+			var ret:Array<String> = java.Lib.array(untyped e.__hx_constructs);
+			return ret.copy();
+		}
+		var vals:java.NativeArray<java.lang.Enum<Dynamic>> = untyped e.values(), ret = [];
+		for (i in 0...vals.length)
+			ret[i] = vals[i].name();
+		return ret;
 	}
 
 	@:functionCode('
@@ -398,7 +398,7 @@
 	}
 
 	@:functionCode('
-		return ( e instanceof java.lang.Enum ) ? new haxe.root.Array() : ((haxe.lang.Enum) e).params;
+		return ( e instanceof java.lang.Enum ) ? new haxe.root.Array() : ((haxe.lang.Enum) e).getParams();
 	')
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
 	{

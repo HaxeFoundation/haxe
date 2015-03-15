@@ -47,30 +47,30 @@ abstract Int32(Int) from Int to Int {
 	}
 
 	@:op(A + B) private static inline function add(a:Int32, b:Int32):Int32
-		return clamp( a + b );
+		return clamp( (a : Int) + (b : Int) );
 
 	@:op(A + B) @:commutative private static inline function addInt(a:Int32, b:Int):Int32
-		return clamp( (a : Int) + b );
+		return clamp( (a : Int) + (b : Int) );
 
 	@:op(A + B) @:commutative private static function addFloat(a:Int32, b:Float):Float;
 
 	@:op(A - B) private static inline function sub(a:Int32, b:Int32):Int32
-		return clamp( a - b );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static inline function subInt(a:Int32, b:Int):Int32
-		return clamp( (a : Int) - b );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static inline function intSub(a:Int, b:Int32):Int32
-		return clamp( a - (b : Int) );
+		return clamp( (a : Int) - (b : Int) );
 
 	@:op(A - B) private static function subFloat(a:Int32, b:Float):Float;
 
 	@:op(A - B) public static function floatSub(a:Float, b:Int32):Float;
 
-	#if (as3 || flash8 || js || php)
+	#if (as3 || flash8 || js || php || python)
 
 	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
-		return clamp( a * (b & 0xFFFF) + clamp( a * (b >>> 16) << 16 ) );
+		return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
 
 	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
 		return mul(a, b);
@@ -148,17 +148,17 @@ abstract Int32(Int) from Int to Int {
 	@:op(A >>> B) private static function ushrInt(a:Int32, b:Int):Int32;
 	@:op(A >>> B) private static function intUshr(a:Int, b:Int32):Int32;
 
-	#if php
+	#if (php || python)
 
 	// PHP may be 64-bit, so shifts must be clamped
 	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
-		return clamp( a << b );
+		return clamp( (a : Int) << (b : Int) );
 
 	@:op(A << B) private static inline function shlInt(a:Int32, b:Int):Int32
-		return clamp( a << b );
+		return clamp( (a : Int) << b );
 
-	@:op(A << B) private static inline function intShl(a:Int32, b:Int):Int32
-		return clamp( a << b );
+	@:op(A << B) private static inline function intShl(a:Int, b:Int32):Int32
+		return clamp( a << (b : Int) );
 
 	#else
 
@@ -191,6 +191,8 @@ abstract Int32(Int) from Int to Int {
 		#elseif php
 		// we might be on 64-bit php, so sign extend from 32-bit
 		return (x << extraBits) >> extraBits;
+		#elseif python
+		return (x + python.Syntax.opPow(2, 31)) % python.Syntax.opPow(2, 32) - python.Syntax.opPow(2, 31);
 		#else
 		return (x);
 		#end

@@ -1,2 +1,3 @@
+-cp src
 -main RunExe
--neko runexe.n
+-neko bin/runexe.n

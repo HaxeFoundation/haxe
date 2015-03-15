@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/IDBCursor.webidl line 41:0. Do not edit!
+
 package js.html.idb;
 
 @:native("IDBCursorWithValue")
 extern class CursorWithValue extends Cursor
 {
 	var value(default,null) : Dynamic;
-
+	
 }

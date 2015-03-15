@@ -26,6 +26,29 @@ public class Base
 		return -1;
 	}
 
+	public string prop 
+	{
+		get
+		{
+			return "SomeValue";
+		}
+	}
+
+	public int this[int i]
+	{
+		get { return i * 20; }
+	}
+
+	public int this[int i, int j]
+	{
+		get { return i * j; }
+	}
+
+	public int optional(int i=42)
+	{
+		return i * 10;
+	}
+
 	public virtual int nameClash()
 	{
 		return 1;
@@ -99,6 +122,35 @@ public class Base
 		{
 			return a1;
 		}
+	}
+}
+
+// Issue #3474
+
+public interface ITextFile
+{
+	string Property { get; }
+}
+
+public interface ITextBuffer : ITextFile
+{
+}
+
+public interface IEditableTextFile : ITextFile
+{
+	new string Property { get; set; }
+}
+
+public interface IEditableTextBuffer : IEditableTextFile, ITextBuffer
+{
+}
+
+public class lowerCaseClass
+{
+	public bool works;
+	public lowerCaseClass()
+	{
+		works = true;
 	}
 }
 

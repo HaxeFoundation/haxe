@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,33 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGEllipseElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGEllipseElement</code> interface provides access to the properties of <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
- elements, as well as methods to manipulate them.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGEllipseElement">MDN</a>. */
 @:native("SVGEllipseElement")
-extern class EllipseElement extends Element
+extern class EllipseElement extends GraphicsElement
 {
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cx">cx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
- element. */
 	var cx(default,null) : AnimatedLength;
-
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/cy">cy</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
- element. */
 	var cy(default,null) : AnimatedLength;
-
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/rx">rx</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
- element. */
 	var rx(default,null) : AnimatedLength;
-
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/ry">ry</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/ellipse">&lt;ellipse&gt;</a></code>
- element. */
 	var ry(default,null) : AnimatedLength;
-
+	
 }

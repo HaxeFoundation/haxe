@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,28 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/NodeIterator.webidl line 13:0. Do not edit!
+
 package js.html;
 
 @:native("NodeIterator")
 extern class NodeIterator
 {
-	var expandEntityReferences(default,null) : Bool;
-
-	var filter(default,null) : NodeFilter;
-
-	var pointerBeforeReferenceNode(default,null) : Bool;
-
-	var referenceNode(default,null) : Node;
-
 	var root(default,null) : Node;
-
+	var referenceNode(default,null) : Node;
+	var pointerBeforeReferenceNode(default,null) : Bool;
 	var whatToShow(default,null) : Int;
-
-	function detach() : Void;
-
+	var filter(default,null) : NodeFilter;
+	
+	/** @throws DOMError */
 	function nextNode() : Node;
-
+	/** @throws DOMError */
 	function previousNode() : Node;
-
+	function detach() : Void;
 }

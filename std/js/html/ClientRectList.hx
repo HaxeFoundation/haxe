@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html;
 
-@:native("ClientRectList")
-extern class ClientRectList implements ArrayAccess<ClientRect>
-{
-	var length(default,null) : Int;
-
-	function item( index : Int ) : ClientRect;
-
-}
+/** @deprecated Use DOMRectList instead. */
+@:deprecated("ClientRectList is deprecated, use DOMRectList instead")
+typedef ClientRectList = DOMRectList;

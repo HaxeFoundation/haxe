@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGMPathElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGMPathElement</code> interface corresponds to the <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/mpath">&lt;mpath&gt;</a></code>
- element.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGMPathElement">MDN</a>. */
 @:native("SVGMPathElement")
 extern class MPathElement extends Element
 {
+	var href(default,null) : AnimatedString;
+	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGDocument.webidl line 10:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGDocument")
 extern class Document extends js.html.Document
 {
-	var rootElement(default,null) : SVGElement;
-
+	var domain(default,null) : String;
+	var rootElement(default,null) : Element;
+	
 }

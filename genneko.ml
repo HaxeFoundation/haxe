@@ -332,6 +332,7 @@ and gen_expr ctx e =
 				let path = (match follow v.v_type with
 					| TInst (c,_) -> Some c.cl_path
 					| TEnum (e,_) -> Some e.e_path
+					| TAbstract (a,_) -> Some a.a_path
 					| TDynamic _ -> None
 					| _ -> assert false
 				) in
@@ -369,74 +370,6 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ~vtmp:"@tmp" ctx.com e1 t e.etype e.epos)
- 	| TPatMatch dt ->
-		let num_labels = Array.length dt.dt_dt_lookup in
-		let lc = ctx.label_count in
-		ctx.label_count <- ctx.label_count + num_labels + 1;
-		let get_label i ="label_" ^ (string_of_int (lc + i)) in
-		let goto i = call p (builtin p "goto") [ident p (get_label i)] in
-		let state = Hashtbl.create 0 in
-		let v_name v = "v" ^ (string_of_int v.v_id) in
-		let get_locals e =
-			let locals = Hashtbl.create 0 in
-			let rec loop e = match e.eexpr with
-				| TLocal v -> Hashtbl.replace locals v true
-				| _ -> Type.iter loop e
-			in
-			loop e;
-			Hashtbl.fold (fun v _ l -> if Hashtbl.mem locals v then (v.v_name, Some (field p (ident p "@state") (v_name v))) :: l else l) state []
-		in
-		let rec loop d = match d with
-			| DTGoto i ->
-				goto i
-			| DTBind (bl,dt) ->
-				let block = List.map (fun ((v,_),est) ->
-					let est = gen_expr ctx est in
-					let field = field p (ident p "@state") (v_name v) in
-					Hashtbl.replace state v field;
-					(EBinop ("=",field,est),p)
-				) bl in
-				EBlock (block @ [loop dt]),p
-			| DTExpr e ->
-				let block = [
-					(EBinop ("=",ident p "@ret",gen_expr ctx e),p);
-					goto num_labels;
-				] in
-				(match get_locals e with [] -> EBlock block,p | el -> EBlock ((EVars(el),p) :: block),p)
-			| DTGuard (e,dt1,dt2) ->
-				let eg = match dt2 with
- 					| None -> (EIf (gen_expr ctx e,loop dt1,None),p)
-					| Some dt -> (EIf (gen_expr ctx e,loop dt1,Some (loop dt)),p)
-				in
-				(match get_locals e with [] -> eg | el -> EBlock [(EVars(el),p);eg],p)
-			| DTSwitch (e,cl,dto) ->
-				let e = gen_expr ctx e in
-				let def = match dto with None -> None | Some dt -> Some (loop dt) in
-				let cases = List.map (fun (e,dt) -> gen_expr ctx e,loop dt) cl in
-				EBlock [
-					(ESwitch (e,cases,def),p);
-					goto num_labels;
-				],p
-		in
-		let acc = DynArray.create () in
-		for i = num_labels -1 downto 0 do
-			let e = loop dt.dt_dt_lookup.(i) in
-			DynArray.add acc (ELabel (get_label i),p);
-			DynArray.add acc e;
-		done;
-		DynArray.add acc (ELabel (get_label num_labels),p);
-		DynArray.add acc (ident p "@ret");
-		let el = DynArray.to_list acc in
-		let var_init = List.fold_left (fun acc (v,eo) -> (v.v_name,(match eo with None -> None | Some e -> Some (gen_expr ctx e))) :: acc) [] dt.dt_var_init in
-		let state_init = Hashtbl.fold (fun v _ l -> (v_name v,null p) :: l) state [] in
-		let init = match var_init,state_init with
-			| [], [] -> []
-			| el, [] -> el
-			| [], vl -> ["@state",Some (EObject vl,p)]
-			| el, vl -> ("@state",Some (EObject vl,p)) :: el
-		in
-		let el = match init with [] -> (goto dt.dt_first) :: el | _ -> (EVars init,p) :: (goto dt.dt_first) :: el in
-		EBlock el,p
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
@@ -490,9 +423,9 @@ let gen_class ctx c =
 	let stpath = gen_type_path p c.cl_path in
 	let fnew = (match c.cl_constructor with
 	| Some f ->
-		(match follow f.cf_type with
-		| TFun (args,_) ->
-			let params = List.map (fun (n,_,_) -> n) args in
+		(match f.cf_expr with
+		| Some {eexpr = TFunction tf} ->
+			let params = List.map (fun (v,_) -> v.v_name) tf.tf_args in
 			gen_method ctx p f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
 				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
@@ -730,9 +663,17 @@ let generate_libs_init = function
 			var @b = if( @s == "Windows" )
 				@env("HAXEPATH") + "\\lib\\"
 				else try $loader.loadprim("std@file_contents",1)(@env("HOME")+"/.haxelib") + "/"
-				catch e if( @s == "Linux" ) "/usr/lib/haxe/lib/" else "/usr/local/lib/haxe/lib/";
+				catch e
+					if( @s == "Linux" )
+						if( $loader(loadprim("std@sys_exists",1))("/usr/lib/haxe/lib") )
+							"/usr/lib/haxe/lib"
+						else
+							"/usr/share/haxe/lib/"
+					else
+						"/usr/local/lib/haxe/lib/";
+			if( try $loader.loadprim("std@sys_file_type",1)(".haxelib") == "dir" catch e false ) @b = $loader.loadprim("std@file_full_path",1)(".haxelib") + "/";
 			if( $loader.loadprim("std@sys_is64",0)() ) @s = @s + 64;
-			@s = @s + "/"
+			@b = @b + "/"
 		*)
 		let p = null_pos in
 		let es = ident p "@s" in
@@ -752,12 +693,15 @@ let generate_libs_init = function
 						op "+" (call p (loadp "file_contents" 1) [op "+" (call p (ident p "@env") [str p "HOME"]) (str p "/.haxelib")]) (str p "/"),
 						"e",
 						(EIf (op "==" es (str p "Linux"),
-							str p "/usr/lib/haxe/lib/",
+							(EIf (call p (loadp "sys_exists" 1) [ str p "/usr/lib/haxe/lib" ],
+								str p "/usr/lib/haxe/lib/",
+								Some (str p "/usr/share/haxe/lib/")),p),
 							Some (str p "/usr/local/lib/haxe/lib/")
 						),p)
 					),p)
 				),p);
 			],p);
+			(EIf ((ETry (op "==" (call p (loadp "sys_file_type" 1) [str p ".haxelib"]) (str p "dir"),"e",(EConst False,p)),p),op "=" (ident p "@b") (op "+" (call p (loadp "file_full_path" 1) [str p ".haxelib"]) (str p "/")), None),p);
 			(EIf (call p (loadp "sys_is64" 0) [],op "=" es (op "+" es (int p 64)),None),p);
 			op "=" es (op "+" es (str p "/"));
 		] in
@@ -767,7 +711,7 @@ let generate_libs_init = function
 			let dstr = str p dir in
 			(*
 				// for each lib dir
-				$loader.path = $array($loader.path,dir+@s);
+				$loader.path = $array($loader.path,@b+dir+@s);
 			*)
 			op "=" lpath (call p (builtin p "array") [op "+" (if full_path then dstr else op "+" (ident p "@b") dstr) (ident p "@s"); lpath])
 		) libs
@@ -848,6 +792,7 @@ let generate com =
 	let use_nekoc = Common.defined com Define.UseNekoc in
 	if not use_nekoc then begin
 		try
+			mkdir_from_path com.file;
 			let ch = IO.output_channel (open_out_bin com.file) in
 			Nbytecode.write ch (Ncompile.compile ctx.version e);
 			IO.close_out ch;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,36 +20,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGNumberList.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** <p>The <code>SVGNumberList</code> defines a list of <code><a rel="custom" href="/api/js/html/svg/Number">SVGNumber</a></code>
- objects.</p>
-<p>An <code>SVGNumberList</code> object can be designated as read only, which means that attempts to modify the object will result in an exception being thrown.</p>
-<div class="geckoVersionNote"> <p>
-</p><div class="geckoVersionHeading">Gecko 5.0 note<div>(Firefox 5.0 / Thunderbird 5.0 / SeaMonkey 2.2)
-</div></div>
-<p></p> <p>Starting in Gecko 5.0 (Firefox 5.0 / Thunderbird 5.0 / SeaMonkey 2.2)
-,the <code>SVGNumberList</code> DOM interface is now indexable and can be accessed like arrays</p>
-</div><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGNumberList">MDN</a>. */
 @:native("SVGNumberList")
-extern class NumberList
+extern class NumberList implements ArrayAccess<Number>
 {
 	var numberOfItems(default,null) : Int;
-
-	function appendItem( item : Number ) : Number;
-
+	var length(default,null) : Int;
+	
+	/** @throws DOMError */
 	function clear() : Void;
-
+	/** @throws DOMError */
+	function initialize( newItem : Number ) : Number;
+	/** @throws DOMError */
 	function getItem( index : Int ) : Number;
-
-	function initialize( item : Number ) : Number;
-
-	function insertItemBefore( item : Number, index : Int ) : Number;
-
+	/** @throws DOMError */
+	function insertItemBefore( newItem : Number, index : Int ) : Number;
+	/** @throws DOMError */
+	function replaceItem( newItem : Number, index : Int ) : Number;
+	/** @throws DOMError */
 	function removeItem( index : Int ) : Number;
-
-	function replaceItem( item : Number, index : Int ) : Number;
-
+	/** @throws DOMError */
+	function appendItem( newItem : Number ) : Number;
 }

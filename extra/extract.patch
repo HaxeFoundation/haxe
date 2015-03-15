@@ -879,7 +879,7 @@ flash.globalization.StringTools.lastOperationStatus : LastOperationStatus;
 @:require(flash10_2) flash.media.Microphone.enhancedOptions;
 @:require(flash10_2) static flash.media.Microphone.getEnhancedMicrophone;
 
-@:require(flash11) static flash.system.Capabilities.allowsFullScreen;
+@:require(flash10_2) flash.system.Capabilities.allowsFullScreen;
 
 @:require(flash10_2) static flash.ui.Keyboard.AUDIO;
 @:require(flash10_2) static flash.ui.Keyboard.BACK;
@@ -937,7 +937,6 @@ enum flash.display.FocusDirection;
 
 @:require(flash11) flash.display.MovieClip.isPlaying;
 
-@:require(flash11) flash.display.Stage.allowsFullScreen;
 @:require(flash11) flash.display.Stage.displayContextInfo;
 @:require(flash11) flash.display.Stage.softKeyboardRect;
 @:require(flash11) flash.display.Stage.stage3Ds;
@@ -1073,15 +1072,15 @@ enum flash.display.BitmapCompressColorSpace;
 
 @:require(flash11_2) flash.display.StageWorker;
 @:require(flash11_2) flash.display.Worker;
-@:require(flash11_2) flash.events.GameInputEvent;
+@:require(flash11_8) flash.events.GameInputEvent;
 @:require(flash11_2) flash.events.ThrottleEvent;
 
 flash.events.ThrottleEvent.$type : ThrottleType;
 
 enum flash.events.ThrottleType;
 
-@:require(flash11_2) flash.ui.GameInput;
-@:require(flash11_2) flash.ui.GameInputDevice;
+@:require(flash11_8) flash.ui.GameInput;
+@:require(flash11_8) flash.ui.GameInputDevice;
 -flash.ui.GameInput.new;
 
 @:require(flash11_2) flash.utils.Telemetry;
@@ -1223,4 +1222,15 @@ flash.display3D.Context3D.$mipfilter : Context3DMipFilter;
 
 @:require(flash11_8) flash.display.DisplayObjectContainer.stopAllMovieClips
 @:require(flash11_8) flash.display3D.Context3D.createRectangleTexture
+
+@:require(flash12) flash.display.Stage3D.requestContext3DMatchingProfiles
+@:require(flash12) flash.display3D.Context3D.profile
+
+flash.display3D.Context3D.$bufferUsage : Context3DBufferUsage
+enum flash.display3D.Context3DBufferUsage
+
+@:native("flash.profiler.Telemetry") flash.utils.Telemetry
+
+@:require(flash12) flash.display3D.Context3DBufferUsage
+
 

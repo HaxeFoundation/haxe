@@ -29,7 +29,7 @@ enum StackItem {
 	Module( m : String );
 	FilePos( s : Null<StackItem>, file : String, line : Int );
 	Method( classname : String, method : String );
-	LocalFunction( v : Int );
+	LocalFunction( ?v : Int );
 }
 
 /**
@@ -76,10 +76,14 @@ class CallStack {
 				}
 				return stack;
 			}
-			var a = makeStack(untyped __new__("Error").stack);
-			a.shift(); // remove Stack.callStack()
-			(untyped Error).prepareStackTrace = oldValue;
-			return a;
+			try {
+				throw untyped __new__("Error");
+			} catch( e : Dynamic ) {
+				var a = makeStack(e.stack);
+				if( a != null ) a.shift(); // remove Stack.callStack()
+				(untyped Error).prepareStackTrace = oldValue;
+				return a;
+			}
 		#elseif java
 			var stack = [];
 			for ( el in java.lang.Thread.currentThread().getStackTrace() ) {
@@ -101,6 +105,14 @@ class CallStack {
 			return stack;
 		#elseif cs
 			return makeStack(new cs.system.diagnostics.StackTrace(1, true));
+		#elseif python
+			var stack = [];
+			var infos = python.lib.Traceback.extract_stack();
+			infos.pop();
+			infos.reverse();
+			for (elem in infos)
+				stack.push(FilePos(null, elem._1, elem._2));
+			return stack;
 		#else
 			return []; // Unsupported
 		#end
@@ -159,6 +171,17 @@ class CallStack {
 			return stack;
 		#elseif cs
 			return makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
+		#elseif python
+			var stack = [];
+			var exc = python.lib.Sys.exc_info();
+			if (exc._3 != null)
+			{
+				var infos = python.lib.Traceback.extract_tb(exc._3);
+				infos.reverse();
+				for (elem in infos)
+					stack.push(FilePos(null, elem._1, elem._2));
+			}
+			return stack;
 		#else
 			return []; // Unsupported
 		#end
@@ -263,20 +286,29 @@ class CallStack {
 			for(func in stack) {
 				var words = func.split("::");
 				if (words.length==0)
-					m.unshift(CFunction)
+					m.push(CFunction)
 				else if (words.length==2)
-					m.unshift(Method(words[0],words[1]));
+					m.push(Method(words[0],words[1]));
 				else if (words.length==4)
-					m.unshift(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
+					m.push(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
 			}
 			return m;
 		#elseif js
 			if ((untyped __js__("typeof"))(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
+				if( stack[0] == "Error" ) stack.shift(); 
 				var m = [];
+				var rie10 = ~/^   at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
 				for( line in stack ) {
-					m.push(Module(line)); // A little weird, but better than nothing
+					if( rie10.match(line) ) {
+						var path = rie10.matched(1).split(".");
+						var meth = path.pop();
+						var file = rie10.matched(2);
+						var line = Std.parseInt(rie10.matched(3));
+						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line ));
+					} else
+						m.push(Module(line)); // A little weird, but better than nothing
 				}
 				return m;
 			} else {

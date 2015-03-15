@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/CanvasRenderingContext2D.webidl line 285:0. Do not edit!
+
 package js.html;
 
-/** This is an opaque object representing a gradient and returned by <a title="en/DOM/CanvasRenderingContext2D" rel="internal" href="/api/js/html/CanvasRenderingContext2D">CanvasRenderingContext2D</a>'s <a title="en/DOM/CanvasRenderingContext2D.createLinearGradient" rel="internal" href="/api/js/html/CanvasRenderingContext2D">createLinearGradient</a> or <a title="en/DOM/CanvasRenderingContext2D.createRadialGradient" rel="internal" href="/api/js/html/CanvasRenderingContext2D">createRadialGradient</a> methods.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/CanvasGradient">MDN</a>. */
 @:native("CanvasGradient")
 extern class CanvasGradient
 {
+	/** @throws DOMError */
 	function addColorStop( offset : Float, color : String ) : Void;
-
 }

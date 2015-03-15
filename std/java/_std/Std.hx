@@ -170,6 +170,7 @@ import java.internal.Exceptions;
 				if (div != 0.0)
 					break;
 				div = 1.0;
+				foundAny = true;
 
 				continue;
 			}
@@ -240,7 +241,7 @@ import java.internal.Exceptions;
 		return 0.0;
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return Std.is(value, c) ? cast value : null;
 	}
 

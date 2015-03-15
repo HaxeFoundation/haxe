@@ -1,0 +1,2 @@
+compile-each.hxml
+-cpp bin/cpp

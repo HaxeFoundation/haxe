@@ -24,7 +24,7 @@ import cs.system.text.regularexpressions.Match;
 import cs.system.text.regularexpressions.RegexOptions;
 import cs.system.text.regularexpressions.*;
 
-class EReg {
+@:coreApi @:final class EReg {
 
 	private var regex : Regex;
 	private var m : Match;
@@ -42,8 +42,10 @@ class EReg {
 					isGlobal = true;
 				case 'm'.code:
 					opts |= cast(Multiline, Int);
+#if (!unity && !unity_std_target)
 				case 'c'.code:
 					opts |= cast(Compiled, Int);
+#end
 			}
 		}
 

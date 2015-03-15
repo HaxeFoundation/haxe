@@ -1,0 +1,7 @@
+<list>
+<i n="f1" k="var"><t>Int</t><d></d></i>
+<i n="f2" k="method"><t>Void -&gt; Void</t><d></d></i>
+<i n="AnotherOne" k="type"><t>AnotherOne</t><d></d></i>
+<i n="OtherType" k="type"><t>OtherType</t><d></d></i>
+</list>
+

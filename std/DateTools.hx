@@ -45,6 +45,8 @@ class DateTools {
 				__format(d,"%m/%d/%y");
 			case "e":
 				untyped Std.string(d.getDate());
+			case "F":
+				__format(d,"%Y-%m-%d");
 			case "H","k":
 				untyped StringTools.lpad(Std.string(d.getHours()),if( e == "H" ) "0" else " ",2);
 			case "I","l":
@@ -200,12 +202,12 @@ class DateTools {
 		return o.ms + 1000.0 * (o.seconds + 60.0 * (o.minutes + 60.0 * (o.hours + 24.0 * o.days)));
 	}
 
-	#if (js || flash || php || cpp)
+	#if (js || flash || php || cpp || python)
 	/**
 		Retrieve Unix timestamp value from Date components. Takes same argument sequence as the Date constructor.
 	**/
 	public static #if (js || flash || php) inline #end function makeUtc(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ):Float {
-	    #if (js || flash)
+	    #if (js || flash || python)
 		   return untyped Date.UTC(year, month, day, hour, min, sec);
 		#elseif php
 		   return untyped __call__("gmmktime", hour, min, sec, month + 1, day, year) * 1000;

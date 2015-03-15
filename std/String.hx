@@ -141,7 +141,7 @@ extern class String {
 	function substr( pos : Int, ?len : Int ) : String;
 
 	/**
-		Returns the part of `this` String from `startIndex` to `endIndex`.
+		Returns the part of `this` String from `startIndex` to but not including `endIndex`.
 
 		If `startIndex` or `endIndex` are negative, 0 is used instead.
 

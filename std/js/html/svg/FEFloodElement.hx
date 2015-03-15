@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFEFloodElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The filter fills the filter subregion with the color and opacity defined by 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/flood-color">flood-color</a></code> and 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/flood-opacity">flood-opacity</a></code>.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/feFlood">MDN</a>. */
 @:native("SVGFEFloodElement")
 extern class FEFloodElement extends Element
 {
+	var x(default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var result(default,null) : AnimatedString;
+	
 }

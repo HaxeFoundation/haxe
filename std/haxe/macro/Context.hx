@@ -114,6 +114,17 @@ class Context {
 	}
 
 	/**
+		Returns the call arguments that lead to the invocation of the current
+		`@:genericBuild` macro, if available.
+
+		Returns `null` if the current macro is not a `@:genericBuild` macro.
+	**/
+	@:require(haxe_ver >= 3.2)
+	public static function getCallArguments():Null<Array<Expr>> {
+		return load("call_arguments", 0)();
+	}
+
+	/**
 		Returns the current class in which the macro was called.
 
 		If no such class exists, null is returned.
@@ -175,8 +186,18 @@ class Context {
 
 		Modifying the returned map has no effect on the compiler.
 	**/
-	public static function getLocalVars() : haxe.ds.StringMap<Type> {
-		return load("local_vars", 0)();
+	@:deprecated("Use Context.getLocalTVars() instead")
+	public static function getLocalVars() : Map<String,Type> {
+		return load("local_vars", 1)(false);
+	}
+
+	/**
+		Similar to `getLocalVars`, but returns elements of type `TVar` instead
+		of `Type`.
+	**/
+	@:require(haxe_ver >= 3.102)
+	public static function getLocalTVars() : Map<String,Type.TVar> {
+		return load("local_vars", 1)(true);
 	}
 
 	/**
@@ -205,12 +226,24 @@ class Context {
 	}
 
 	/**
+		Returns a map of all compiler directives that have been set.
+
+		Compiler directives are set using the `-D` command line parameter, or
+		by calling `haxe.macro.Compiler.define`.
+
+		Modifying the returned map has no effect on the compiler.
+	 */
+	public static function getDefines() : Map<String,String> {
+		return load("get_defines", 0)();
+	}
+
+	/**
 		Resolves a type identified by `name`.
 
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
 
-		If no type can be found, null is returned.
+		If no type can be found, an exception of type `String` is thrown.
 	**/
 	public static function getType( name : String ) : Type {
 		return load("get_type", 1)(untyped name.__s);
@@ -231,6 +264,9 @@ class Context {
 
 	/**
 		Parses `expr` as haxe code, returning the corresponding AST.
+
+		String interpolation of single quote strings within `expr` is not
+		supported.
 
 		The provided `Position` `pos` is used for all generated inner AST nodes.
 	**/
@@ -370,7 +406,7 @@ class Context {
 		Modifying the returned map has no effect on the compilation, use
 		`haxe.macro.Context.addResource` to add new resources to the compilation unit.
 	**/
-	public static function getResources():haxe.ds.StringMap<haxe.io.Bytes> {
+	public static function getResources():Map<String,haxe.io.Bytes> {
 		var x:haxe.ds.StringMap<neko.NativeString> = load("get_resources",0)();
 		var r = new haxe.ds.StringMap();
 		for (k in x.keys()) {
@@ -407,10 +443,17 @@ class Context {
 	}
 
 	/**
-		Defines a new module with several `TypeDefinition` `types`.
+		Defines a new module as `modulePath` with several `TypeDefinition`
+		`types`. This is analogous to defining a .hx file.
+
+		The individial `types` can reference each other and any identifier
+		respects the `imports` and `usings` as usual, expect that imports are
+		not allowed to have `.*` wildcards or `in s` shorthands.
 	**/
-	public static function defineModule( modulePath : String, types : Array<TypeDefinition> ) : Void {
-		load("define_module", 2)(untyped modulePath.__s,untyped types.__neko());
+	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?imports: Array<ImportExpr>, ?usings : Array<TypePath> ) : Void {
+		if (imports == null) imports = [];
+		if (usings == null) usings = [];
+		load("define_module", 4)(untyped modulePath.__s, untyped types.__neko(), untyped imports.__neko(), untyped usings.__neko());
 	}
 
 	/**
@@ -420,6 +463,24 @@ class Context {
 	**/
 	public static function getTypedExpr( t : Type.TypedExpr ) : Expr {
 		return load("get_typed_expr",1)(t);
+	}
+
+
+	/**
+		Store typed expression `t` internally and give a syntax-level expression
+		that can be returned from a macro and will be replaced by the stored
+		typed expression.
+
+		If `t` is null or invalid, an exception is thrown.
+
+		NOTE: the returned value references an internally stored typed expression
+		that is reset between compilations, so care should be taken when storing
+		the expression returned by this method in a static variable and using the
+		compilation server.
+	**/
+	@:require(haxe_ver >= 3.2)
+	public static function storeTypedExpr( t : Type.TypedExpr ) : Expr {
+		return load("store_typed_expr",1)(t);
 	}
 
 	/**

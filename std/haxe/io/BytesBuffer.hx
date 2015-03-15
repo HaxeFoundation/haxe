@@ -102,6 +102,11 @@ class BytesBuffer {
 		b.Write(src.getData(), 0, src.length);
 		#elseif java
 		b.write(src.getData(), 0, src.length);
+		#elseif js
+		var b1 = b;
+		var b2 = @:privateAccess src.b;
+		for( i in 0...src.length )
+			b.push(b2[i]);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -120,30 +125,38 @@ class BytesBuffer {
 		#end
 	}
 
+	public #if flash9 inline #end function addInt32( v : Int ) {
+		#if flash9
+		b.writeUnsignedInt(v);
+		#else
+		addByte(v&0xFF);
+		addByte((v>>8)&0xFF);
+		addByte((v>>16)&0xFF);
+		addByte(v>>>24);
+		#end
+	}
+
+	public #if flash9 inline #end function addInt64( v : haxe.Int64 ) {
+		addInt32(v.low);
+		addInt32(v.high);
+	}
+
 	public inline function addFloat( v : Float ) {
-		#if neko
-		untyped StringBuf.__add(b, Output._float_bytes(v, false));
-		#elseif flash9
+		#if flash9
 		b.writeFloat(v);
 		#else
-		var b = new BytesOutput();
-		b.writeFloat(v);
-		add(b.getBytes());
+		addInt32(FPHelper.floatToI32(v));
 		#end
 	}
-	
+
 	public inline function addDouble( v : Float ) {
-		#if neko
-		untyped StringBuf.__add(b, Output._double_bytes(v, false));
-		#elseif flash9
+		#if flash9
 		b.writeDouble(v);
 		#else
-		var b = new BytesOutput();
-		b.writeDouble(v);
-		add(b.getBytes());
+		addInt64(FPHelper.doubleToI64(v));
 		#end
 	}
-	
+
 	public inline function addBytes( src : Bytes, pos : Int, len : Int ) {
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
@@ -158,6 +171,11 @@ class BytesBuffer {
 		b.Write(src.getData(), pos, len);
 		#elseif java
 		b.write(src.getData(), pos, len);
+		#elseif js
+		var b1 = b;
+		var b2 = @:privateAccess src.b;
+		for( i in pos...pos+len )
+			b.push(b2[i]);
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -185,6 +203,11 @@ class BytesBuffer {
 		#elseif java
 		var buf = b.toByteArray();
 		var bytes = new Bytes(buf.length, buf);
+		#elseif python
+		var buf = new python.Bytearray(b);
+		var bytes = new Bytes(buf.length, buf);
+		#elseif js
+		var bytes = new Bytes(new js.html.Uint8Array(b).buffer);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

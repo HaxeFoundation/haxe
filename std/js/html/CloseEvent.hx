@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,23 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/CloseEvent.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** A <code>CloseEvent</code> is sent to clients using WebSockets when the connection is closed. This is delivered to the listener indicated by the <code>WebSocket</code> object's <code>onclose</code> attribute.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/WebSockets/WebSockets_reference/CloseEvent">MDN</a>. */
 @:native("CloseEvent")
 extern class CloseEvent extends Event
 {
-	/** The WebSocket connection close code provided by the server. See <a title="en/XPCOM_Interface_Reference/nsIWebSocketChannel#Status_codes" rel="internal" href="https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIWebSocketChannel#Status_codes">Status codes</a> for possible values. */
-	var code(default,null) : Int;
-
-	/** A string indicating the reason the server closed the connection. This is specific to the particular server and sub-protocol. */
-	var reason(default,null) : String;
-
-	/** Indicates whether or not the connection was cleanly closed. */
 	var wasClean(default,null) : Bool;
-
-	function new( type : String, canBubble : Bool = true, cancelable : Bool = true ) : Void;
-
+	var code(default,null) : Int;
+	var reason(default,null) : String;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : CloseEventInit ) : Void;
+	/** @throws DOMError */
+	function initCloseEvent( aType : String, aCanBubble : Bool, aCancelable : Bool, aWasClean : Bool, aReasonCode : Int, aReason : String ) : Void;
 }

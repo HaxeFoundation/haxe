@@ -63,7 +63,6 @@ class Utf8 {
 	**/
 	public static function encode( s : String ) : String {
 		throw "Not implemented";
-		return s;
 	}
 
 	/**
@@ -72,7 +71,6 @@ class Utf8 {
 	**/
 	public static function decode( s : String ) : String {
 		throw "Not implemented";
-		return s;
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,37 +20,31 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/DataChannel.webidl line 18:0. Do not edit!
+
 package js.html.rtc;
 
-@:native("RTCDataChannel")
+@:native("DataChannel")
 extern class DataChannel extends js.html.EventTarget
 {
-	/** Setter throws DOMException. */
-	var binaryType : String;
-
-	var bufferedAmount(default,null) : Int;
-
 	var label(default,null) : String;
-
-	var onclose : js.html.EventListener;
-
-	var onerror : js.html.EventListener;
-
-	var onmessage : js.html.EventListener;
-
-	var onopen : js.html.EventListener;
-
-	var readyState(default,null) : String;
-
 	var reliable(default,null) : Bool;
-
+	var readyState(default,null) : DataChannelState;
+	var bufferedAmount(default,null) : Int;
+	var onopen : haxe.Constraints.Function;
+	var onerror : haxe.Constraints.Function;
+	var onclose : haxe.Constraints.Function;
+	var onmessage : haxe.Constraints.Function;
+	var binaryType : DataChannelType;
+	var protocol(default,null) : String;
+	var ordered(default,null) : Bool;
+	var id(default,null) : Int;
+	var stream(default,null) : Int;
+	
 	function close() : Void;
-
-	/** Throws DOMException. */
-	@:overload( function( data : js.html.ArrayBuffer ) :Void {} )
-	@:overload( function( data : js.html.ArrayBufferView ) :Void {} )
-	@:overload( function( data : js.html.Blob ) :Void {} )
-	function send( data : String ) : Void;
-
+	/** @throws DOMError */
+	@:overload( function( data : String ) : Void {} )
+	@:overload( function( data : js.html.Blob ) : Void {} )
+	@:overload( function( data : js.html.ArrayBuffer ) : Void {} )
+	function send( data : js.html.ArrayBufferView ) : Void;
 }

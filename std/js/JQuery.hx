@@ -21,7 +21,7 @@
  */
 package js;
 
-import js.html.DOMWindow;
+import js.html.Window;
 import js.html.Element;
 
 typedef JqEvent = {
@@ -64,16 +64,17 @@ typedef JqEvent = {
 
 extern class JQueryHelper {
 	@:overload(function(j:JQuery):JQuery{})
-	@:overload(function(j:DOMWindow):JQuery{})
-	@:overload(function(j:Element):JQuery{})
-	public static inline function J( html : String ) : JQuery {
-		return new JQuery(html);
-	}
+	@:overload(function(j:Window):JQuery{})
+	@:overload(function(j:Element):JQuery { } )
+
+	public static inline function J( html : haxe.extern.EitherType<String,haxe.extern.EitherType<JQuery,haxe.extern.EitherType<Window,Element>>> ) : JQuery {
+        return new JQuery(cast html);
+    }
 
 	public static var JTHIS(get, null) : JQuery;
 
 	static inline function get_JTHIS() : JQuery {
-		return untyped __js__("$(this)");
+		return new JQuery(js.Lib.nativeThis);
 	}
 
 }
@@ -84,8 +85,9 @@ extern class JQuery implements ArrayAccess<Element> {
 	var context(default,null) : Element;
 	var length(default, null) : Int;
 
+	@:selfCall
 	@:overload(function(j:JQuery):Void{})
-	@:overload(function(j:DOMWindow):Void{})
+	@:overload(function(j:Window):Void{})
 	@:overload(function(j:Element):Void{})
 	function new( html : String ) : Void;
 
@@ -390,7 +392,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	//static function is*, makeArray, map, merge, noop, now, param, proxy, sub, trim, type, unique
 
 	private static inline function get_cur() : JQuery {
-		return untyped $(__js__("this"));
+		return new js.JQuery(js.Lib.nativeThis);
 	}
 
 	private static function __init__() : Void untyped {
@@ -399,6 +401,7 @@ extern class JQuery implements ArrayAccess<Element> {
 			haxe.macro.Compiler.includeFile("js/jquery-latest.min.js");
 		#end
 		var q : Dynamic = (untyped js.Browser.window).jQuery;
+		untyped __js__("var js = js || {}");
 		js.JQuery = q;
 		__feature__('js.JQuery.iterator',
 			q.fn.iterator = function() return { pos : 0, j : __this__, hasNext : function() return __this__.pos < __this__.j.length, next : function() return $(__this__.j[__this__.pos++]) }

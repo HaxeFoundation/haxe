@@ -6,4 +6,5 @@ package flash.display3D;
 	BGR_PACKED;
 	COMPRESSED;
 	COMPRESSED_ALPHA;
+	RGBA_HALF_FLOAT;
 }

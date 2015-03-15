@@ -76,7 +76,7 @@ class Lib {
 		return untyped __call__("new _hx_array", a);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr : NativeArray) : haxe.ds.StringMap<T> {
+	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Map<String,T> {
 		var h = new haxe.ds.StringMap<T>();
 		untyped h.h = arr;
 		return h;

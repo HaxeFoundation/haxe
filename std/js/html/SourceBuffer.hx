@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,25 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SourceBuffer.webidl line 19:0. Do not edit!
+
 package js.html;
 
 @:native("SourceBuffer")
-extern class SourceBuffer
+extern class SourceBuffer extends EventTarget
 {
-	/** Getter throws DOMException. */
+	var mode : SourceBufferAppendMode;
+	var updating(default,null) : Bool;
 	var buffered(default,null) : TimeRanges;
-
-	/** Setter throws DOMException. */
 	var timestampOffset : Float;
-
+	var appendWindowStart : Float;
+	var appendWindowEnd : Float;
+	
+	/** @throws DOMError */
+	@:overload( function( data : ArrayBuffer ) : Void {} )
+	function appendBuffer( data : ArrayBufferView ) : Void;
+	/** @throws DOMError */
 	function abort() : Void;
-
-	function append( data : Uint8Array ) : Void;
-
+	/** @throws DOMError */
+	function remove( start : Float, end : Float ) : Void;
 }

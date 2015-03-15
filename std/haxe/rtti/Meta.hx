@@ -30,23 +30,40 @@ class Meta {
 		Returns the metadata that were declared for the given type (class or enum)
 	**/
 	public static function getType( t : Dynamic ) : Dynamic<Array<Dynamic>> {
-		#if (java || cs)
-		var meta : Dynamic = Reflect.field(t, "__meta__");
-		#else
-		var meta : Dynamic = untyped t.__meta__;
-		#end
+		var meta = getMeta(t);
 		return (meta == null || meta.obj == null) ? {} : meta.obj;
+	}
+
+	private static function getMeta(t:Dynamic):Dynamic
+	{
+#if (java || cs)
+		var ret = Reflect.field(t, "__meta__");
+		if (ret == null && Std.is(t,Class))
+		{
+#if java
+			var interf = java.Lib.toNativeType(t).isInterface();
+#elseif cs
+			var interf = cs.Lib.toNativeType(t).IsInterface;
+#end
+			if (interf)
+			{
+				var name = Type.getClassName(t),
+				    cls = Type.resolveClass(name + '_HxMeta');
+				if (cls != null)
+					return Reflect.field(cls, "__meta__");
+			}
+		}
+		return ret;
+#else
+		return untyped t.__meta__;
+#end
 	}
 
 	/**
 		Returns the metadata that were declared for the given class static fields
 	**/
 	public static function getStatics( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
-		#if (java || cs)
-		var meta : Dynamic = Reflect.field(t, "__meta__");
-		#else
-		var meta : Dynamic = untyped t.__meta__;
-		#end
+		var meta = getMeta(t);
 		return (meta == null || meta.statics == null) ? {} : meta.statics;
 	}
 
@@ -54,11 +71,7 @@ class Meta {
 		Returns the metadata that were declared for the given class fields or enum constructors
 	**/
 	public static function getFields( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
-		#if (java || cs)
-		var meta : Dynamic = Reflect.field(t, "__meta__");
-		#else
-		var meta : Dynamic = untyped t.__meta__;
-		#end
+		var meta = getMeta(t);
 		return (meta == null || meta.fields == null) ? {} : meta.fields;
 	}
 

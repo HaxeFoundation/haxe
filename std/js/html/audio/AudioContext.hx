@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,64 +20,48 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/AudioContext.webidl line 18:0. Do not edit!
+
 package js.html.audio;
 
 @:native("AudioContext")
 extern class AudioContext extends js.html.EventTarget
 {
-	var activeSourceCount(default,null) : Int;
-
-	var currentTime(default,null) : Float;
-
 	var destination(default,null) : AudioDestinationNode;
-
-	var listener(default,null) : AudioListener;
-
-	var oncomplete : js.html.EventListener;
-
 	var sampleRate(default,null) : Float;
-
-	function new() : Void;
-
-	function createAnalyser() : AnalyserNode;
-
-	function createBiquadFilter() : BiquadFilterNode;
-
-	/** Throws DOMException. */
-	@:overload( function( numberOfChannels : Int, numberOfFrames : Int, sampleRate : Float ) :AudioBuffer {} )
-	function createBuffer( buffer : js.html.ArrayBuffer, mixToMono : Bool ) : AudioBuffer;
-
+	var currentTime(default,null) : Float;
+	var listener(default,null) : AudioListener;
+	
+	/** @throws DOMError */
+	@:overload( function() : Void {} )
+	function new( audioChannelType : js.html.AudioChannel ) : Void;
+	/** @throws DOMError */
+	function createBuffer( numberOfChannels : Int, length : Int, sampleRate : Float ) : AudioBuffer;
+	function decodeAudioData( audioData : js.html.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : Void -> Void ) : Promise<AudioBuffer>;
 	function createBufferSource() : AudioBufferSourceNode;
-
-	function createChannelMerger( ?numberOfInputs : Int ) : ChannelMergerNode;
-
-	function createChannelSplitter( ?numberOfOutputs : Int ) : ChannelSplitterNode;
-
-	function createConvolver() : ConvolverNode;
-
-	function createDelay( ?maxDelayTime : Float ) : DelayNode;
-
-	function createDynamicsCompressor() : DynamicsCompressorNode;
-
-	function createGain() : GainNode;
-
+	/** @throws DOMError */
+	function createMediaStreamDestination() : MediaStreamAudioDestinationNode;
+	/** @throws DOMError */
+	function createScriptProcessor( ?bufferSize : Int = 0, ?numberOfInputChannels : Int = 2, ?numberOfOutputChannels : Int = 2 ) : ScriptProcessorNode;
+	function createStereoPanner() : StereoPannerNode;
+	function createAnalyser() : AnalyserNode;
+	/** @throws DOMError */
 	function createMediaElementSource( mediaElement : js.html.MediaElement ) : MediaElementAudioSourceNode;
-
-	function createMediaStreamSource( mediaStream : js.html.rtc.MediaStream ) : MediaStreamAudioSourceNode;
-
-	function createOscillator() : OscillatorNode;
-
-	function createPanner() : PannerNode;
-
-	function createScriptProcessor( bufferSize : Int, ?numberOfInputChannels : Int, ?numberOfOutputChannels : Int ) : ScriptProcessorNode;
-
+	/** @throws DOMError */
+	function createMediaStreamSource( mediaStream : js.html.MediaStream ) : MediaStreamAudioSourceNode;
+	function createGain() : GainNode;
+	/** @throws DOMError */
+	function createDelay( ?maxDelayTime : Float = 1.0 ) : DelayNode;
+	function createBiquadFilter() : BiquadFilterNode;
 	function createWaveShaper() : WaveShaperNode;
-
-	function createWaveTable( real : js.html.Float32Array, imag : js.html.Float32Array ) : WaveTable;
-
-	function decodeAudioData( audioData : js.html.ArrayBuffer, successCallback : AudioBufferCallback, ?errorCallback : AudioBufferCallback ) : Void;
-
-	function startRendering() : Void;
-
+	function createPanner() : PannerNode;
+	function createConvolver() : ConvolverNode;
+	/** @throws DOMError */
+	function createChannelSplitter( ?numberOfOutputs : Int = 6 ) : ChannelSplitterNode;
+	/** @throws DOMError */
+	function createChannelMerger( ?numberOfInputs : Int = 6 ) : ChannelMergerNode;
+	function createDynamicsCompressor() : DynamicsCompressorNode;
+	function createOscillator() : OscillatorNode;
+	/** @throws DOMError */
+	function createPeriodicWave( real : js.html.Float32Array, imag : js.html.Float32Array ) : PeriodicWave;
 }

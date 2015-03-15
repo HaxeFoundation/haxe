@@ -57,6 +57,7 @@ type platform =
 	| Cpp
 	| Cs
 	| Java
+	| Python
 
 (**
 	The capture policy tells which handling we make of captured locals
@@ -95,16 +96,18 @@ type platform_config = {
 	pf_pattern_matching : bool;
 	(** can the platform use default values for non-nullable arguments *)
 	pf_can_skip_non_nullable_argument : bool;
-	(** generator ignores TCast(_,None) *)
-	pf_ignore_unsafe_cast : bool;
+	(** type paths that are reserved on the platform *)
+	pf_reserved_type_paths : path list;
 }
 
 type display_mode =
 	| DMNone
 	| DMDefault
 	| DMUsage
-	| DMMetadata
 	| DMPosition
+	| DMToplevel
+	| DMResolve of string
+	| DMType
 
 type context = {
 	(* config *)
@@ -132,6 +135,7 @@ type context = {
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
+	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -149,6 +153,7 @@ type context = {
 	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
+	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
 	mutable basic : basic_types;
@@ -164,9 +169,11 @@ module Define = struct
 	type strict_defined =
 		| AbsolutePath
 		| AdvancedTelemetry
+		| Analyzer
 		| As3
 		| CheckXmlProxy
 		| CoreApi
+		| CoreApiSerialize
 		| Cppia
 		| Dce
 		| DceDebug
@@ -177,9 +184,14 @@ module Define = struct
 		| DocGen
 		| Dump
 		| DumpDependencies
+		| DumpIgnoreVarIds
+		| EraseGenerics
 		| Fdb
+		| FileExtension
 		| FlashStrict
 		| FlashUseStage
+		| ForceLibCheck
+		| ForceNativeProperty
 		| FormatWarning
 		| GencommonDebug
 		| HaxeBoot
@@ -190,7 +202,9 @@ module Define = struct
 		| JavaVer
 		| JsClassic
 		| JsEs5
-		| JsFlatten
+		| JsUnflatten
+		| KeepOldOutput
+		| LoopUnrollMaxCost
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -207,6 +221,7 @@ module Define = struct
 		| NoOpt
 		| NoPatternMatching
 		| NoRoot
+		| NoSimplify
 		| NoSwfCompress
 		| NoTraces
 		| PhpPrefix
@@ -227,6 +242,7 @@ module Define = struct
 		| SwfScriptTimeout
 		| SwfUseDoAbc
 		| Sys
+		| Unity46LineNumbers
 		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
@@ -237,9 +253,11 @@ module Define = struct
 	let infos = function
 		| AbsolutePath -> ("absolute_path","Print absolute file path in trace output")
 		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
+		| Analyzer -> ("analyzer","Use static analyzer for optimization (experimental)")
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
+		| CoreApiSerialize -> ("core_api_serialize","Sets so some generated core api classes be marked with the Serializable attribute on C#")
 		| Cppia -> ("cppia", "Generate experimental cpp instruction assembly")
 		| Dce -> ("dce","The current DCE mode")
 		| DceDebug -> ("dce_debug","Show DCE log")
@@ -250,9 +268,15 @@ module Define = struct
 		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies")
+		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Dump files do not contain variable IDs (helps with diff)")
+		| EraseGenerics -> ("erase_generics","Erase generic classes on C#")
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
+		| FileExtension -> ("file_extension","Output filename extension for cpp source code")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")
 		| FlashUseStage -> ("flash_use_stage","Keep the SWF library initial stage")
+		(* force_lib_check is only here as a debug facility - compiler checking allows errors to be found more easily *)
+		| ForceLibCheck -> ("force_lib_check","Force the compiler to check -net-lib and -java-lib added classes (internal)")
+		| ForceNativeProperty -> ("force_native_property","Tag all properties with :nativeProperty metadata for 3.1 compatibility")
 		| FormatWarning -> ("format_warning","Print a warning for each formated string, for 2.x compatibility")
 		| GencommonDebug -> ("gencommon_debug","GenCommon internal")
 		| HaxeBoot -> ("haxe_boot","Given the name 'haxe' to the flash boot class instead of a generated name")
@@ -263,7 +287,9 @@ module Define = struct
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
 		| JsEs5 -> ("js_es5","Generate JS for ES5-compliant runtimes")
-		| JsFlatten -> ("js_flatten","Generate classes to use fewer object property lookups")
+		| JsUnflatten -> ("js_unflatten","Generate nested objects for packages and types")
+		| KeepOldOutput -> ("keep_old_output","Keep old source files in the output directory (for C#/Java)")
+		| LoopUnrollMaxCost -> ("loop_unroll_max_cost","Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)")
 		| Macro -> ("macro","Defined when we compile code in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
@@ -271,7 +297,7 @@ module Define = struct
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
-		| NoCompilation -> ("no-compilation","Disable CPP final compilation")
+		| NoCompilation -> ("no-compilation","Disable final compilation for Cs, Cpp and Java")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")
 		| NoDeprecationWarnings -> ("no-deprecation-warnings","Do not warn if fields annotated with @:deprecated are used")
@@ -279,8 +305,9 @@ module Define = struct
 		| NoOpt -> ("no_opt","Disable optimizations")
 		| NoPatternMatching -> ("no_pattern_matching","Disable pattern matching")
 		| NoInline -> ("no_inline","Disable inlining")
-		| NoRoot -> ("no_root","GenCS internal")
+		| NoRoot -> ("no_root","Generate top-level types into haxe.root namespace")
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
+		| NoSimplify -> "no_simplify",("Disable simplification filter")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
@@ -291,16 +318,18 @@ module Define = struct
 		| SourceMapContent -> ("source-map-content","Include the hx sources as part of the JS source map")
 		| Swc -> ("swc","Output a SWC instead of a SWF")
 		| SwfCompressLevel -> ("swf_compress_level","<level:1-9> Set the amount of compression for the SWF output")
-		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging.")
+		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging")
 		| SwfDirectBlit -> ("swf_direct_blit", "Use hardware acceleration to blit graphics")
 		| SwfGpu -> ("swf_gpu", "Use GPU compositing features when drawing graphics")
 		| SwfMark -> ("swf_mark","GenSWF8 internal")
-		| SwfMetadata -> ("swf_metadata", "=<file> Include contents of <file> as metadata in the swf.")
+		| SwfMetadata -> ("swf_metadata", "=<file> Include contents of <file> as metadata in the swf")
 		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
 		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
 		| SwfUseDoAbc -> ("swf_use_doabc", "Use DoAbc swf-tag instead of DoAbcDefine")
 		| Sys -> ("sys","Defined for all system platforms")
+		(* see https://github.com/HaxeFoundation/haxe/issues/3759 *)
+		| Unity46LineNumbers -> ("unity46_line_numbers", "Fixes line numbers in generated C# files for Unity 4.6 Mono compiler")
 		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
@@ -329,38 +358,44 @@ module MetaInfo = struct
 		| Internal
 
 	let to_string = function
+		| Abi -> ":abi",("Function ABI/calling convention",[Platforms [Cpp]])
 		| Abstract -> ":abstract",("Sets the underlying class implementation as 'abstract'",[Platforms [Java;Cs]])
 		| Access -> ":access",("Forces private access to package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
 		| Accessor -> ":accessor",("Used internally by DCE to mark property accessors",[UsedOn TClassField;Internal])
 		| Allow -> ":allow",("Allows private access from package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
+		| Analyzer -> ":analyzer",("Used to configure the static analyzer",[])
 		| Annotation -> ":annotation",("Annotation (@interface) definitions on -java-lib imports will be annotated with this metadata. Has no effect on types compiled by Haxe",[Platform Java; UsedOn TClass])
 		| ArrayAccess -> ":arrayAccess",("Allows [] access on an abstract",[UsedOnEither [TAbstract;TAbstractField]])
 		| Ast -> ":ast",("Internally used to pass the AST source into the typed AST",[Internal])
 		| AutoBuild -> ":autoBuild",("Extends @:build metadata to all extending and implementing classes",[HasParam "Build macro call";UsedOn TClass])
 		| Bind -> ":bind",("Override Swf class declaration",[Platform Flash;UsedOn TClass])
 		| Bitmap -> ":bitmap",("Embeds given bitmap data into the class (must extend flash.display.BitmapData)",[HasParam "Bitmap file path";UsedOn TClass;Platform Flash])
+		| BridgeProperties -> ":bridgeProperties",("Creates native property bridges for all Haxe properties in this class",[UsedOn TClass;Platform Cs])
 		| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
-		| BuildXml -> ":buildXml",("",[Platform Cpp])
+		| BuildXml -> ":buildXml",("Specify xml data to be injected into Build.xml",[Platform Cpp])
+		| Callable -> ":callable",("Abstract forwards call to its underlying type",[UsedOn TAbstract])
 		| Class -> ":class",("Used internally to annotate an enum that will be generated as a class",[Platforms [Java;Cs]; UsedOn TEnum; Internal])
 		| ClassCode -> ":classCode",("Used to inject platform-native code into a class",[Platforms [Java;Cs]; UsedOn TClass])
 		| Commutative -> ":commutative",("Declares an abstract operator as commutative",[UsedOn TAbstractField])
 		| CompilerGenerated -> ":compilerGenerated",("Marks a field as generated by the compiler. Shouldn't be used by the end user",[Platforms [Java;Cs]])
 		| CoreApi -> ":coreApi",("Identifies this class as a core api class (forces Api check)",[UsedOnEither [TClass;TEnum;TTypedef;TAbstract]])
 		| CoreType -> ":coreType",("Identifies an abstract as core type so that it requires no implementation",[UsedOn TAbstract])
-		| CppFileCode -> ":cppFileCode",("",[Platform Cpp])
+		| CppFileCode -> ":cppFileCode",("Code to be injected into generated cpp file",[Platform Cpp])
+		| CppInclude -> ":cppInclude",("File to be included in generated cpp file",[Platform Cpp])
 		| CppNamespaceCode -> ":cppNamespaceCode",("",[Platform Cpp])
 		| CsNative -> ":csNative",("Automatically added by -net-lib on classes generated from .NET DLL files",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
-		| Dce -> ":dce",("Forces dead code elimination even when not -dce full is specified",[UsedOnEither [TClass;TEnum]])
+		| Dce -> ":dce",("Forces dead code elimination even when -dce full is not specified",[UsedOnEither [TClass;TEnum]])
 		| Debug -> ":debug",("Forces debug information to be generated into the Swf even without -debug",[UsedOnEither [TClass;TClassField]; Platform Flash])
 		| Decl -> ":decl",("",[Platform Cpp])
 		| DefParam -> ":defParam",("?",[])
 		| Delegate -> ":delegate",("Automatically added by -net-lib on delegates",[Platform Cs; UsedOn TAbstract])
 		| Depend -> ":depend",("",[Platform Cpp])
-		| Deprecated -> ":deprecated",("Automatically added by -java-lib on class fields annotated with @Deprecated annotation. Has no effect on types compiled by Haxe.",[Platform Java; UsedOnEither [TClass;TEnum;TClassField]])
+		| Deprecated -> ":deprecated",("Automatically added by -java-lib on class fields annotated with @Deprecated annotation. Has no effect on types compiled by Haxe",[Platform Java; UsedOnEither [TClass;TEnum;TClassField]])
+		| DirectlyUsed -> ":directlyUsed",("Marks types that are directly referenced by non-extern code",[Internal])
 		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
 		| Enum -> ":enum",("Used internally to annotate a class that was generated from an enum",[Platforms [Java;Cs]; UsedOn TClass; Internal])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
-		| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe.",[Platform Cs; UsedOn TClassField])
+		| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe",[Platform Cs; UsedOn TClassField])
 		| Exhaustive -> ":exhaustive",("",[Internal])
 		| Expose -> ":expose",("Makes the class available on the window object",[HasParam "?Name=Class path";UsedOn TClass;Platform Js])
 		| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
@@ -375,36 +410,47 @@ module MetaInfo = struct
 		| FunctionTailCode -> ":functionTailCode",("",[Platform Cpp])
 		| Generic -> ":generic",("Marks a class or class field as generic so each type parameter combination generates its own type/field",[UsedOnEither [TClass;TClassField]])
 		| GenericBuild -> ":genericBuild",("Builds instances of a type using the specified macro",[UsedOn TClass])
+		| GenericInstance -> ":genericInstance",("Internally used to mark instances of @:generic methods",[UsedOn TClassField;Internal])
 		| Getter -> ":getter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 		| Hack -> ":hack",("Allows extending classes marked as @:final",[UsedOn TClass])
+		| HasUntyped -> (":has_untyped",("Used by the typer to mark fields that have untyped expressions",[Internal]))
 		| HaxeGeneric -> ":haxeGeneric",("Used internally to annotate non-native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
-		| HeaderClassCode -> ":headerClassCode",("",[Platform Cpp])
-		| HeaderCode -> ":headerCode",("",[Platform Cpp])
+		| HeaderClassCode -> ":headerClassCode",("Code to be injected into the generated class, in the header",[Platform Cpp])
+		| HeaderCode -> ":headerCode",("Code to be injected into the generated header file",[Platform Cpp])
+		| HeaderInclude -> ":headerInclude",("File to be included in generated header file",[Platform Cpp])
 		| HeaderNamespaceCode -> ":headerNamespaceCode",("",[Platform Cpp])
 		| HxGen -> ":hxGen",("Annotates that an extern class was generated by Haxe",[Platforms [Java;Cs]; UsedOnEither [TClass;TEnum]])
 		| IfFeature -> ":ifFeature",("Causes a field to be kept by DCE if the given feature is part of the compilation",[HasParam "Feature name";UsedOn TClassField])
 		| Impl -> ":impl",("Used internally to mark abstract implementation fields",[UsedOn TAbstractField; Internal])
+		| PythonImport -> ":pythonImport",("Generates python import statement for extern classes",[Platforms [Python]; UsedOn TClass])
+		| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[Internal; UsedOn TExpr])
 		| Include -> ":include",("",[Platform Cpp])
 		| InitPackage -> ":initPackage",("?",[])
 		| Meta.Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 		| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
+		| JavaCanonical -> ":javaCanonical",("Used by the Java target to annotate the canonical path of the type",[HasParam "Output type package";HasParam "Output type name";UsedOnEither [TClass;TEnum]; Platform Java])
 		| JavaNative -> ":javaNative",("Automatically added by -java-lib on classes generated from JAR/class files",[Platform Java; UsedOnEither[TClass;TEnum]; Internal])
+		| JsRequire -> ":jsRequire",("Generate javascript module require expression for given extern",[Platform Js; UsedOn TClass])
 		| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
 		| KeepInit -> ":keepInit",("Causes a class to be kept by DCE even if all its field are removed",[UsedOn TClass])
 		| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
+		| LibType -> ":libType",("Used by -net-lib and -java-lib to mark a class that shouldn't be checked (overrides, interfaces, etc) by the type loader",[Internal; UsedOn TClass; Platforms [Java;Cs]])
 		| Meta -> ":meta",("Internally used to mark a class field as being the metadata field",[])
 		| Macro -> ":macro",("(deprecated)",[])
 		| MaybeUsed -> ":maybeUsed",("Internally used by DCE to mark fields that might be kept",[Internal])
-		| MergeBlock -> ":mergeBlock",("Internally used by typer to mark block that should be merged into the outer scope",[Internal])
+		| MergeBlock -> ":mergeBlock",("Merge the annotated block into the current scope",[UsedOn TExpr])
 		| MultiType -> ":multiType",("Specifies that an abstract chooses its this-type from its @:to functions",[UsedOn TAbstract; HasParam "Relevant type parameters"])
 		| Native -> ":native",("Rewrites the path of a class or enum during generation",[HasParam "Output type path";UsedOnEither [TClass;TEnum]])
-		| NativeGen -> ":nativeGen",("Annotates that a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum]])
+		| NativeChildren -> ":nativeChildren",("Annotates that all children from a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs]; UsedOn TClass])
+		| NativeGen -> ":nativeGen",("Annotates that a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs;Python]; UsedOnEither[TClass;TEnum]])
 		| NativeGeneric -> ":nativeGeneric",("Used internally to annotate native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
+		| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
 		| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
 		| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
+		| NoExpr -> ":noExpr",("Internally used to mark abstract fields which have no expression by design",[Internal])
 		| NoImportGlobal -> ":noImportGlobal",("Prevents a static field from being imported with import Class.*",[UsedOn TAnyField])
-		| NoPackageRestrict -> ":noPackageRestrict",("?",[])
+		| NoPackageRestrict -> ":noPackageRestrict",("Allows a module to be accessed across all targets if found on its first type",[Internal])
 		| NoStack -> ":noStack",("",[Platform Cpp])
 		| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
 		| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
@@ -414,6 +460,7 @@ module MetaInfo = struct
 		| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
 		| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField])
 		| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
+		| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[Internal])
 		| PrivateAccess -> ":privateAccess",("Allow private access to anything for the annotated expression",[UsedOn TExpr])
 		| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField])
 		| Property -> ":property",("Marks a property field to be compiled as a native C# property",[UsedOn TClassField;Platform Cs])
@@ -422,17 +469,23 @@ module MetaInfo = struct
 		| Remove -> ":remove",("Causes an interface to be removed from all implementing classes before generation",[UsedOn TClass])
 		| Require -> ":require",("Allows access to a field only if the specified compiler flag is set",[HasParam "Compiler flag to check";UsedOn TClassField])
 		| RequiresAssign -> ":requiresAssign",("Used internally to mark certain abstract operator overloads",[Internal])
+		(* | Resolve -> ":resolve",("Abstract fields marked with this metadata can be used to resolve unknown fields",[UsedOn TClassField]) *)
 		| ReplaceReflection -> ":replaceReflection",("Used internally to specify a function that should replace its internal __hx_functionName counterpart",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum]; Internal])
 		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
 		| Runtime -> ":runtime",("?",[])
 		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
+		| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platform Js])
 		| Setter -> ":setter",("Generates a native getter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
+		| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[Internal])
 		| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; Internal])
 		| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; Internal])
 		| Sound -> ":sound",( "Includes a given .wav or .mp3 file into the target Swf and associates it with the class (must extend flash.media.Sound)",[HasParam "File path";UsedOn TClass;Platform Flash])
-		| Struct -> ":struct",("Marks a class definition as a struct.",[Platform Cs; UsedOn TClass])
+		| SourceFile -> ":sourceFile",("Source code filename for external class",[Platform Cpp])
+		| Strict -> ":strict",("Used to declare a native C# attribute or a native Java metadata. Is type checked",[Platforms [Java;Cs]])
+		| Struct -> ":struct",("Marks a class definition as a struct",[Platform Cs; UsedOn TClass])
+		| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
 		| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
-		| Throws -> ":throws",("Adds a 'throws' declaration to the generated function.",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
+		| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
 		| This -> ":this",("Internally used to pass a 'this' expression to macros",[Internal; UsedOn TExpr])
 		| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
 		| ToString -> ":toString",("Internally used",[Internal])
@@ -445,6 +498,8 @@ module MetaInfo = struct
 		| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
 		| Usage -> ":usage",("?",[])
 		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[Internal])
+		| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
+		| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
 		| Last -> assert false
 		(* do not put any custom metadata after Last *)
 		| Dollar s -> "$" ^ s,("",[])
@@ -492,7 +547,7 @@ let default_config =
 		pf_overload = false;
 		pf_pattern_matching = false;
 		pf_can_skip_non_nullable_argument = true;
-		pf_ignore_unsafe_cast = false;
+		pf_reserved_type_paths = [];
 	}
 
 let get_config com =
@@ -513,7 +568,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
+			pf_reserved_type_paths = [];
 		}
 	| Js ->
 		{
@@ -528,7 +583,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = true;
+			pf_reserved_type_paths = [([],"Object")];
 		}
 	| Neko ->
 		{
@@ -543,7 +598,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = true;
+			pf_reserved_type_paths = [];
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -558,7 +613,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
-			pf_ignore_unsafe_cast = false;
+			pf_reserved_type_paths = [];
 		}
 	| Flash ->
 		{
@@ -573,7 +628,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
-			pf_ignore_unsafe_cast = false;
+			pf_reserved_type_paths = [([],"Object")];
 		}
 	| Php ->
 		{
@@ -588,7 +643,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
+			pf_reserved_type_paths = [];
 		}
 	| Cpp ->
 		{
@@ -603,7 +658,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
+			pf_reserved_type_paths = [];
 		}
 	| Cs ->
 		{
@@ -618,7 +673,7 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
+			pf_reserved_type_paths = [];
 		}
 	| Java ->
 		{
@@ -633,7 +688,22 @@ let get_config com =
 			pf_overload = true;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_ignore_unsafe_cast = false;
+			pf_reserved_type_paths = [];
+		}
+	| Python ->
+		{
+			pf_static = false;
+			pf_sys = true;
+			pf_locals_scope = false;
+			pf_captured_scope = false;
+			pf_unique_locals = false;
+			pf_capture_policy = CPLoopVars;
+			pf_pad_nulls = false;
+			pf_add_final_return = false;
+			pf_overload = false;
+			pf_pattern_matching = false;
+			pf_can_skip_non_nullable_argument = true;
+			pf_reserved_type_paths = [];
 		}
 
 let memory_marker = [|Unix.time()|]
@@ -673,6 +743,7 @@ let create v args =
 		net_libs = [];
 		net_std = [];
 		net_path_map = Hashtbl.create 0;
+		c_args = [];
 		neko_libs = [];
 		php_prefix = None;
 		js_gen = None;
@@ -691,6 +762,7 @@ let create v args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		stored_typed_exprs = PMap.empty;
 		memory_marker = memory_marker;
 	}
 
@@ -737,6 +809,7 @@ let platforms = [
 	Cpp;
 	Cs;
 	Java;
+	Python;
 ]
 
 let platform_name = function
@@ -749,12 +822,13 @@ let platform_name = function
 	| Cpp -> "cpp"
 	| Cs -> "cs"
 	| Java -> "java"
+	| Python -> "python"
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
 	let min = int_of_float (mod_float (v *. 10.) 10.) in
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
-) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;12.1;12.2;12.3;12.4;12.5]
+) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0]
 
 let flash_version_tag = function
 	| 6. -> 6
@@ -775,11 +849,11 @@ let flash_version_tag = function
 	| 11.8 -> 21
 	| 11.9 -> 22
 	| 12.0 -> 23
-	| 12.1 -> 24
-	| 12.2 -> 25
-	| 12.3 -> 26
-	| 12.4 -> 27
-	| 12.5 -> 28
+	| 13.0 -> 24
+	| 14.0 -> 25
+	| 15.0 -> 26
+	| 16.0 -> 27
+	| 17.0 -> 28
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
 let raw_defined ctx v =
@@ -826,6 +900,17 @@ let add_feature com f =
 
 let has_dce com =
 	(try defined_value com Define.Dce <> "no" with Not_found -> false)
+
+(*
+	TODO: The has_dce check is there because we mark types with @:directlyUsed in the DCE filter,
+	which is not run in dce=no and thus we can't know if a type is used directly or not,
+	so we just assume that they are.
+
+	If we had dce filter always running (even with dce=no), we would have types marked with @:directlyUsed
+	and we wouldn't need to generate unnecessary imports in dce=no, but that's good enough for now.
+*)
+let is_directly_used com meta =
+	not (has_dce com) || Ast.Meta.has Ast.Meta.DirectlyUsed meta
 
 let rec has_feature com f =
 	try
@@ -878,16 +963,17 @@ let find_file ctx f =
 	with Exit ->
 		raise Not_found
 	| Not_found ->
-		let rec loop = function
-			| [] -> raise Not_found
+		let rec loop had_empty = function
+			| [] when had_empty -> raise Not_found
+			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
 				if Sys.file_exists file then
 					file
 				else
-					loop l
+					loop (had_empty || p = "") l
 		in
-		let r = (try Some (loop ctx.class_path) with Not_found -> None) in
+		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
 		(match r with
 		| None -> raise Not_found
@@ -919,6 +1005,14 @@ let rec mkdir_recursive base dir_list =
 			if not (Sys.file_exists path) then
 				Unix.mkdir path 0o755;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
+
+let mkdir_from_path path =
+	let parts = Str.split_delim (Str.regexp "[\\/]+") path in
+	match parts with
+		| [] -> (* path was "" *) ()
+		| _ ->
+			let dir_list = List.rev (List.tl (List.rev parts)) in
+			mkdir_recursive "" dir_list
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])

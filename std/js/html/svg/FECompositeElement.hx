@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,42 +20,32 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFECompositeElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** <p>Two input images are joined by means of an 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/operator" class="new">operator</a></code> applied to each input pixel together with an arithmetic operation</p>
-<pre>result = k1*in1*in2 + k2*in1 + k3*in2 + k4</pre><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/feComposite">MDN</a>. */
 @:native("SVGFECompositeElement")
 extern class FECompositeElement extends Element
 {
-	static inline var SVG_FECOMPOSITE_OPERATOR_ARITHMETIC : Int = 6;
-
-	static inline var SVG_FECOMPOSITE_OPERATOR_ATOP : Int = 4;
-
-	static inline var SVG_FECOMPOSITE_OPERATOR_IN : Int = 2;
-
-	static inline var SVG_FECOMPOSITE_OPERATOR_OUT : Int = 3;
-
-	static inline var SVG_FECOMPOSITE_OPERATOR_OVER : Int = 1;
-
 	static inline var SVG_FECOMPOSITE_OPERATOR_UNKNOWN : Int = 0;
-
+	static inline var SVG_FECOMPOSITE_OPERATOR_OVER : Int = 1;
+	static inline var SVG_FECOMPOSITE_OPERATOR_IN : Int = 2;
+	static inline var SVG_FECOMPOSITE_OPERATOR_OUT : Int = 3;
+	static inline var SVG_FECOMPOSITE_OPERATOR_ATOP : Int = 4;
 	static inline var SVG_FECOMPOSITE_OPERATOR_XOR : Int = 5;
-
+	static inline var SVG_FECOMPOSITE_OPERATOR_ARITHMETIC : Int = 6;
+	
 	var in1(default,null) : AnimatedString;
-
 	var in2(default,null) : AnimatedString;
-
-	var k1(default,null) : AnimatedNumber;
-
-	var k2(default,null) : AnimatedNumber;
-
-	var k3(default,null) : AnimatedNumber;
-
-	var k4(default,null) : AnimatedNumber;
-
 	var operator(default,null) : AnimatedEnumeration;
-
+	var k1(default,null) : AnimatedNumber;
+	var k2(default,null) : AnimatedNumber;
+	var k3(default,null) : AnimatedNumber;
+	var k4(default,null) : AnimatedNumber;
+	var x(default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var result(default,null) : AnimatedString;
+	
 }

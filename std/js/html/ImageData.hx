@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,19 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/ImageData.webidl line 16:0. Do not edit!
+
 package js.html;
 
-/** Used with the <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/canvas">&lt;canvas&gt;</a></code>
- element. Returned by <a title="en/DOM/CanvasRenderingContext2D" rel="internal" href="/api/js/html/CanvasRenderingContext2D">CanvasRenderingContext2D</a>'s <a title="en/DOM/CanvasRenderingContext2D.createImageData" rel="internal" href="https://developer.mozilla.org/en/DOM/CanvasRenderingContext2D.createImageData" class="new ">createImageData</a> and <a title="en/DOM/CanvasRenderingContext2D.getImageData" rel="internal" href="https://developer.mozilla.org/en/DOM/CanvasRenderingContext2D.getImageData" class="new ">getImageData</a> (and accepted as first argument in <a title="en/DOM/CanvasRenderingContext2D.putImageData" rel="internal" href="https://developer.mozilla.org/en/DOM/CanvasRenderingContext2D.putImageData" class="new ">putImageData</a>)<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/ImageData">MDN</a>. */
 @:native("ImageData")
 extern class ImageData
 {
-	var data(default,null) : Uint8ClampedArray;
-
-	var height(default,null) : Int;
-
 	var width(default,null) : Int;
-
+	var height(default,null) : Int;
+	var data(default,null) : Uint8ClampedArray;
+	
+	/** @throws DOMError */
+	@:overload( function( sw : Int, sh : Int ) : Void {} )
+	function new( data : Uint8ClampedArray, sw : Int, ?sh : Int ) : Void;
 }

@@ -23,5 +23,6 @@ compile-java-runner.hxml
 --next compile-cpp.hxml
 --next compile-java.hxml
 --next compile-cs.hxml
+--next compile-python.hxml
 --next compile-macro.hxml
 --next compile-cs-unsafe.hxml

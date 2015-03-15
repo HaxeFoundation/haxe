@@ -26,26 +26,26 @@
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		return (o==null) ? null : o.__Field(field,false);
+		return (o==null) ? null : o.__Field(field,untyped __cpp__("hx::paccNever") );
 	}
 
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		if (o!=null)
-			o.__SetField(field,value,false);
+			o.__SetField(field,value,untyped __cpp__("hx::paccNever") );
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
-		return (o==null) ? null : o.__Field(field,true);
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
+		return (o==null) ? null : o.__Field(field,untyped __cpp__("hx::paccAlways") );
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 		if (o!=null)
-			o.__SetField(field,value,true);
+			o.__SetField(field,value,untyped __cpp__("hx::paccAlways") );
 	}
 
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
 			if (func!=null && func.__GetType()==__global__.vtString)
-				func = o.__Field(func,true);
+				func = o.__Field(func,untyped __cpp__("hx::paccDynamic"));
 			untyped func.__SetThis(o);
          return untyped func.__Run(args);
 	}
@@ -62,7 +62,7 @@
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
-		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+		return ( a == b ) ? 0 : (((a:Dynamic) > (b:Dynamic)) ? 1 : -1);
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
@@ -93,7 +93,7 @@
 		if (o==null) return null;
 		if(untyped o.__GetType()==__global__.vtString ) return o;
 		if(untyped o.__GetType()==__global__.vtArray )
-			return untyped o.__Field("copy",true)();
+			return untyped o.__Field("copy", untyped __cpp__("hx::paccDynamic"))();
 		var o2 : Dynamic = {};
 		for( f in Reflect.fields(o) )
 			Reflect.setField(o2,f,Reflect.field(o,f));

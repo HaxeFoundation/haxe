@@ -40,7 +40,7 @@ class Bytes {
 
 	public inline function get( pos : Int ) : Int {
 		#if neko
-		return untyped __dollar__sget(b,pos);
+		return untyped $sget(b,pos);
 		#elseif flash9
 		return b[pos];
 		#elseif php
@@ -49,6 +49,8 @@ class Bytes {
 		return untyped b[pos];
 		#elseif java
 		return untyped b[pos] & 0xFF;
+		#elseif python
+		return python.Syntax.arrayAccess(b, pos);
 		#else
 		return b[pos];
 		#end
@@ -56,7 +58,7 @@ class Bytes {
 
 	public inline function set( pos : Int, v : Int ) : Void {
 		#if neko
-		untyped __dollar__sset(b,pos,v);
+		untyped $sset(b,pos,v);
 		#elseif flash9
 		b[pos] = v;
 		#elseif php
@@ -67,6 +69,8 @@ class Bytes {
 		b[pos] = cast v;
 		#elseif cs
 		b[pos] = cast v;
+		#elseif python
+		python.Syntax.arraySet(b, pos, v & 0xFF);
 		#else
 		b[pos] = v & 0xFF;
 		#end
@@ -77,7 +81,7 @@ class Bytes {
 		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw Error.OutsideBounds;
 		#end
 		#if neko
-		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
+		try untyped $sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif php
 		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
 		#elseif flash9
@@ -87,6 +91,8 @@ class Bytes {
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
 		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
+		#elseif python
+		python.Syntax.pythonCode("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
 		b.blit(pos, src.b, srcpos, len);
 		#else
@@ -145,6 +151,8 @@ class Bytes {
 		var newarr = new cs.NativeArray(len);
 		cs.system.Array.Copy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
+		#elseif python
+		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos+len) );
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -200,9 +208,15 @@ class Bytes {
 		#end
 	}
 
+
+	/**
+		Returns the IEEE double precision value at given position (in low endian encoding).
+		Result is unspecified if reading outside of the bounds
+	**/
+	#if (neko_v21 || (cpp && !cppia)) inline #end
 	public function getDouble( pos : Int ) : Float {
-		#if neko
-		return untyped Input._double_of_bytes(sub(pos,8).b,false);
+		#if neko_v21
+		return untyped $sgetd(b, pos, false);
 		#elseif flash9
 		b.position = pos;
 		return b.readDouble();
@@ -210,14 +224,18 @@ class Bytes {
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_double(b,pos);
 		#else
-		var b = new haxe.io.BytesInput(this,pos,8);
-		return b.readDouble();
+		return FPHelper.i64ToDouble(getInt32(pos),getInt32(pos+4));
 		#end
 	}
 
+	/**
+		Returns the IEEE single precision value at given position (in low endian encoding).
+		Result is unspecified if reading outside of the bounds
+	**/
+	#if (neko_v21 || (cpp && !cppia)) inline #end
 	public function getFloat( pos : Int ) : Float {
-		#if neko
-		return untyped Input._float_of_bytes(sub(pos,4).b,false);
+		#if neko_v21
+		return untyped $sgetf(b, pos, false);
 		#elseif flash9
 		b.position = pos;
 		return b.readFloat();
@@ -230,9 +248,16 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Store the IEEE double precision value at given position in low endian encoding.
+		Result is unspecified if writing outside of the bounds.
+	**/
+	#if neko_v21 inline #end
 	public function setDouble( pos : Int, v : Float ) : Void {
-		#if neko
-		untyped $sblit(b, pos, Output._double_bytes(v,false), 0, 8);
+		#if neko_v21
+		untyped $ssetd(b, pos, v, false);
+		#elseif neko
+		untyped $sblit(b, pos, FPHelper._double_bytes(v,false), 0, 8);
 		#elseif flash9
 		b.position = pos;
 		b.writeDouble(v);
@@ -240,13 +265,22 @@ class Bytes {
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
 		#else
-		throw "Not supported";
+		var i = FPHelper.doubleToI64(v);
+		setInt32(pos, i.low);
+		setInt32(pos + 4, i.high);
 		#end
 	}
 
+	/**
+		Store the IEEE single precision value at given position in low endian encoding.
+		Result is unspecified if writing outside of the bounds.
+	**/
+	#if neko_v21 inline #end
 	public function setFloat( pos : Int, v : Float ) : Void {
-		#if neko
-		untyped $sblit(b, pos, Output._float_bytes(v,false), 0, 4);
+		#if neko_v21
+		untyped $ssetf(b, pos, v, false);
+		#elseif neko
+		untyped $sblit(b, pos, FPHelper._float_bytes(v,false), 0, 4);
 		#elseif flash9
 		b.position = pos;
 		b.writeFloat(v);
@@ -254,8 +288,74 @@ class Bytes {
 		if( pos < 0 || pos + 4 > length ) throw Error.OutsideBounds;
 		untyped __global__.__hxcpp_memory_set_float(b,pos,v);
 		#else
-		throw "Not supported";
+		setInt32(pos, FPHelper.floatToI32(v));
 		#end
+	}
+
+	/**
+		Returns the 16 bit unsignged integer at given position (in low endian encoding).
+	**/
+	public inline function getUInt16( pos : Int ) : Int {
+		#if neko_v21
+		return untyped $sget16(b, pos, false);
+		#else
+		return get(pos) | (get(pos + 1) << 8);
+		#end
+	}
+
+	/**
+		Returns the 16 bit unsignged integer at given position (in low endian encoding).
+	**/
+	public inline function setUInt16( pos : Int, v : Int ) : Void {
+		#if neko_v21
+		untyped $sset16(b, pos, v, false);
+		#else
+		set(pos, v);
+		set(pos + 1, v >> 8);
+		#end
+	}
+
+	/**
+		Returns the 32 bit integer at given position (in low endian encoding).
+	**/
+	public inline function getInt32( pos : Int ) : Int {
+		#if neko_v21
+		return untyped $sget32(b, pos, false);
+		#elseif (php || python)
+		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
+        return if( v & 0x80000000 != 0 ) v | 0x80000000 else v;
+		#else
+		return get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos+3) << 24);
+		#end
+	}
+
+	/**
+		Returns the 64 bit integer at given position (in low endian encoding).
+	**/
+	public inline function getInt64( pos : Int ) : haxe.Int64 {
+		return haxe.Int64.make(getInt32(pos+4),getInt32(pos));
+	}
+
+	/**
+		Store the 32 bit integer at given position (in low endian encoding).
+	**/
+	public inline function setInt32( pos : Int, v : Int ) : Void {
+		#if neko_v21
+		untyped $sset32(b, pos, v, false);
+		#else
+		set(pos, v);
+		set(pos + 1, v >> 8);
+		set(pos + 2, v >> 16);
+		set(pos + 3, v >>> 24);
+		#end
+	}
+
+	/**
+		Store the 64 bit integer at given position (in low endian encoding).
+	**/
+	public inline function setInt64( pos : Int, v : haxe.Int64 ) : Void {
+		setInt32(pos, v.low);
+		setInt32(pos + 4, v.high);
 	}
 
 	public function getString( pos : Int, len : Int ) : String {
@@ -279,6 +379,8 @@ class Bytes {
 		try
 			return new String(b, pos, len, "UTF-8")
 		catch (e:Dynamic) throw e;
+		#elseif python
+		return python.Syntax.pythonCode("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#else
 		var s = "";
 		var b = b;
@@ -371,6 +473,8 @@ class Bytes {
 		return new Bytes(length, new cs.NativeArray(length));
 		#elseif java
 		return new Bytes(length, new java.NativeArray(length));
+		#elseif python
+		return new Bytes(length, new python.Bytearray(length));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -403,6 +507,11 @@ class Bytes {
 			return new Bytes(b.length, b);
 		}
 		catch (e:Dynamic) throw e;
+
+		#elseif python
+			var b:BytesData = new python.Bytearray(s, "UTF-8");
+			return new Bytes(b.length, b);
+
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode

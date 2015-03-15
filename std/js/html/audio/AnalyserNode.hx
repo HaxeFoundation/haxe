@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,27 +20,21 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/AnalyserNode.webidl line 13:0. Do not edit!
+
 package js.html.audio;
 
 @:native("AnalyserNode")
 extern class AnalyserNode extends AudioNode
 {
-	/** Setter throws DOMException. */
 	var fftSize : Int;
-
 	var frequencyBinCount(default,null) : Int;
-
-	var maxDecibels : Float;
-
 	var minDecibels : Float;
-
+	var maxDecibels : Float;
 	var smoothingTimeConstant : Float;
-
-	function getByteFrequencyData( array : js.html.Uint8Array ) : Void;
-
-	function getByteTimeDomainData( array : js.html.Uint8Array ) : Void;
-
+	
 	function getFloatFrequencyData( array : js.html.Float32Array ) : Void;
-
+	function getByteFrequencyData( array : js.html.Uint8Array ) : Void;
+	function getFloatTimeDomainData( array : js.html.Float32Array ) : Void;
+	function getByteTimeDomainData( array : js.html.Uint8Array ) : Void;
 }

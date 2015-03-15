@@ -1,7 +1,44 @@
+/*
+ * Copyright (C)2005-2014 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 package haxe.format;
 
+/**
+	An implementation of JSON printer in Haxe.
+
+	This class is used by `haxe.Json` when native JSON implementation
+	is not available.
+**/
 class JsonPrinter {
 
+	/**
+		Encodes `o` value and returns the resulting JSON string.
+
+		If `replacer` is given and is not null, it is used to retrieve
+		actual object to be encoded. The `replacer` function two parameters,
+		the key and the value being encoded. Initial key value is an empty string.
+
+		If `space` is given and is not null, the result will be pretty-printed.
+		Successive levels will be indented by this string.
+	**/
 	static public function print(o:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String) : String {
 		var printer = new JsonPrinter(replacer, space);
 		printer.write("", o);
@@ -13,7 +50,7 @@ class JsonPrinter {
 	var indent:String;
 	var pretty:Bool;
 	var nind:Int;
-	
+
 	function new(replacer:Dynamic -> Dynamic -> Dynamic, space:String) {
 		this.replacer = replacer;
 		this.indent = space;
@@ -28,11 +65,11 @@ class JsonPrinter {
 		buf = new StringBuf();
 		#end
 	}
-	
+
 	inline function ipad ():Void {
 		if (pretty) add(StringTools.lpad('', indent, nind * indent.length));
 	}
-	
+
 	inline function newl ():Void {
 		if (pretty) addChar('\n'.code);
 	}
@@ -129,11 +166,12 @@ class JsonPrinter {
 		addChar('{'.code);
 		var len = fields.length;
 		var last = len - 1;
+		var first = true;
 		for( i in 0...len ) {
 			var f = fields[i];
 			var value = Reflect.field(v,f);
 			if( Reflect.isFunction(value) ) continue;
-			if( i > 0 ) addChar(','.code) else nind++;
+			if( first ) { nind++; first = false; } else addChar(','.code);
 			newl();
 			ipad();
 			quote(f);

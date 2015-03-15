@@ -115,7 +115,7 @@ class GenericStack<T> {
 		If no matching element is found, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
-		var prev = null;
+		var prev:GenericCell<T> = null;
 		var l = head;
 		while( l != null ) {
 			if( l.elt == v ) {

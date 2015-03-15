@@ -1,0 +1,32 @@
+package unit.issues;
+
+class Issue2688 extends Test {
+    function test() {
+			var called = false;
+			function isCalled() {
+				called = true;
+			}
+			var child = new Child(test);
+			child.task([1,2,3,4]);
+			t(called);
+    }
+}
+
+@:nativeGen private class NativeGen
+{
+	public function new()
+	{
+	}
+}
+
+@:hxGen private class Child<A> extends NativeGen
+{
+	public var task:Array<A> -> Void;
+	public function new(tsk:Void->Void)
+	{
+		super();
+		task = function(x) {
+			tsk();
+		};
+	}
+}

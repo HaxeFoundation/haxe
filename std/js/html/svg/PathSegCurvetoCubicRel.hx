@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGPathSeg.webidl line 87:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGPathSegCurvetoCubicRel")
 extern class PathSegCurvetoCubicRel extends PathSeg
 {
 	var x : Float;
-
-	var x1 : Float;
-
-	var x2 : Float;
-
 	var y : Float;
-
+	var x1 : Float;
 	var y1 : Float;
-
+	var x2 : Float;
 	var y2 : Float;
-
+	
 }

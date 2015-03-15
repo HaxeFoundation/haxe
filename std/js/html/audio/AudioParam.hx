@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,34 +20,26 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/AudioParam.webidl line 13:0. Do not edit!
+
 package js.html.audio;
 
 @:native("AudioParam")
 extern class AudioParam
 {
-	var defaultValue(default,null) : Float;
-
-	var maxValue(default,null) : Float;
-
-	var minValue(default,null) : Float;
-
-	var name(default,null) : String;
-
-	var units(default,null) : Int;
-
 	var value : Float;
-
+	var defaultValue(default,null) : Float;
+	
+	/** @throws DOMError */
+	function setValueAtTime( value : Float, startTime : Float ) : Void;
+	/** @throws DOMError */
+	function linearRampToValueAtTime( value : Float, endTime : Float ) : Void;
+	/** @throws DOMError */
+	function exponentialRampToValueAtTime( value : Float, endTime : Float ) : Void;
+	/** @throws DOMError */
+	function setTargetAtTime( target : Float, startTime : Float, timeConstant : Float ) : Void;
+	/** @throws DOMError */
+	function setValueCurveAtTime( values : js.html.Float32Array, startTime : Float, duration : Float ) : Void;
+	/** @throws DOMError */
 	function cancelScheduledValues( startTime : Float ) : Void;
-
-	function exponentialRampToValueAtTime( value : Float, time : Float ) : Void;
-
-	function linearRampToValueAtTime( value : Float, time : Float ) : Void;
-
-	function setTargetAtTime( target : Float, time : Float, timeConstant : Float ) : Void;
-
-	function setValueAtTime( value : Float, time : Float ) : Void;
-
-	function setValueCurveAtTime( values : js.html.Float32Array, time : Float, duration : Float ) : Void;
-
 }

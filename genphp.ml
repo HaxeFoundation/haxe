@@ -111,10 +111,6 @@ and type_string_suff suffix haxe_type =
 	| TAbstract ({ a_path = [],"Float" },[]) -> "double"
 	| TAbstract ({ a_path = [],"Bool" },[]) -> "bool"
 	| TAbstract ({ a_path = [],"Void" },[]) -> "Void"
-	| TEnum ({ e_path = ([],"Void") },[]) -> "Void"
-	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
-	| TInst ({ cl_path = ([],"Float") },[]) -> "double"
-	| TInst ({ cl_path = ([],"Int") },[]) -> "int"
 	| TEnum (enum,params) ->  (join_class_path enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
 	| TAbstract (abs,params) ->  (join_class_path abs.a_path "::") ^ suffix
@@ -133,7 +129,7 @@ and type_string_suff suffix haxe_type =
 			(match params with
 			| [t] -> "Array<" ^ (type_string (follow t) ) ^ " >"
 			| _ -> assert false)
-		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
+		| _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type)
 		)
 	| TFun (args,haxe_type) -> "Dynamic"
 	| TAnon anon -> "Dynamic"
@@ -208,7 +204,7 @@ let rec is_string_type t =
 	   (match !(a.a_status) with
 	   | Statics ({cl_path = ([], "String")}) -> true
 	   | _ -> false)
-	| TAbstract (a,pl) -> is_string_type (Codegen.Abstract.get_underlying_type a pl)
+	| TAbstract (a,pl) -> is_string_type (Abstract.get_underlying_type a pl)
 	| _ -> false
 
 let is_string_expr e = is_string_type e.etype
@@ -336,14 +332,10 @@ let create_directory com ldir =
  	(List.iter (fun p -> atm_path := !atm_path ^ "/" ^ p; if not (Sys.file_exists !atm_path) then (Unix.mkdir !atm_path 0o755);) ldir)
 
 let write_resource dir name data =
-	let i = ref 0 in
-	String.iter (fun c ->
-		if c = '\\' || c = '/' || c = ':' || c = '*' || c = '?' || c = '"' || c = '<' || c = '>' || c = '|' then String.blit "_" 0 name !i 1;
-		incr i
-	) name;
 	let rdir = dir ^ "/res" in
 	if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
 	if not (Sys.file_exists rdir) then Unix.mkdir rdir 0o755;
+	let name = Codegen.escape_res_name name false in
 	let ch = open_out_bin (rdir ^ "/" ^ name) in
 	output_string ch data;
 	close_out ch
@@ -1227,13 +1219,29 @@ and gen_expr ctx e =
 				gen_field_op ctx e2;
 				spr ctx ")";
 			end
+		| Ast.OpGt | Ast.OpGte | Ast.OpLt | Ast.OpLte when is_string_expr e1 ->
+			spr ctx "(strcmp(";
+			gen_field_op ctx e1;
+			spr ctx ", ";
+			gen_field_op ctx e2;
+			spr ctx ")";
+			let op_str = match op with
+				| Ast.OpGt -> ">"
+				| Ast.OpGte -> ">="
+				| Ast.OpLt -> "<"
+				| Ast.OpLte -> "<="
+				| _ -> assert false
+			in
+			print ctx "%s 0)" op_str
 		| _ ->
 			leftside e1;
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 		));
 	| TEnumParameter(e1,_,i) ->
+		spr ctx "_hx_deref(";
 		gen_value ctx e1;
+		spr ctx ")";
 		print ctx "->params[%d]" i;
 	| TField (e1,s) ->
 		gen_tfield ctx e e1 (field_name s)
@@ -1270,7 +1278,7 @@ and gen_expr ctx e =
 	| TContinue ->
 		if ctx.in_loop then spr ctx "continue" else print ctx "continue %d" ctx.nested_loops
 	| TBlock [] ->
-		spr ctx ""
+		spr ctx "{}"
 	| TBlock el ->
 		let old_l = ctx.inv_locals in
 		let b = save_locals ctx in
@@ -1309,7 +1317,6 @@ and gen_expr ctx e =
 				| TThrow _
 				| TWhile _
 				| TFor _
-				| TPatMatch _
 				| TTry _
 				| TBreak
 				| TBlock _ ->
@@ -1323,7 +1330,6 @@ and gen_expr ctx e =
 					| TThrow _
 					| TWhile _
 					| TFor _
-					| TPatMatch _
 					| TTry _
 					| TBlock _ -> ()
 					| _ ->
@@ -1454,7 +1460,7 @@ and gen_expr ctx e =
 			);
 		| TField (e1,s) ->
 			spr ctx (Ast.s_unop op);
-			gen_field_access ctx true e1 (field_name s)
+			gen_tfield ctx e e1 (field_name s)
 		| _ ->
 			spr ctx (Ast.s_unop op);
 			gen_value ctx e)
@@ -1516,6 +1522,9 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "while($%s->hasNext()) {" tmp;
 		let bend = open_block ctx in
+		newline ctx;
+		(* unset loop variable (issue #2900) *)
+		print ctx "unset($%s)" v;
 		newline ctx;
 		print ctx "$%s = $%s->next()" v tmp;
 		gen_while_expr ctx e;
@@ -1587,7 +1596,6 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}"
-	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		let old_loop = ctx.in_loop in
 		ctx.in_loop <- false;
@@ -1778,7 +1786,6 @@ and gen_value ctx e =
 	| TThrow _
 	| TSwitch _
 	| TFor _
-	| TPatMatch _
 	| TIf _
 	| TTry _ ->
 		inline_block ctx e
@@ -1990,7 +1997,7 @@ let generate_inline_method ctx c m =
 let generate_class ctx c =
 	let requires_constructor = ref true in
 	ctx.curclass <- c;
-	ctx.local_types <- List.map snd c.cl_types;
+	ctx.local_types <- List.map snd c.cl_params;
 
 	print ctx "%s %s " (if c.cl_interface then "interface" else "class") (s_path ctx c.cl_path c.cl_extern c.cl_pos);
 	(match c.cl_super with
@@ -2133,7 +2140,7 @@ let generate_main ctx c =
 		newline ctx
 
 let generate_enum ctx e =
-	ctx.local_types <- List.map snd e.e_types;
+	ctx.local_types <- List.map snd e.e_params;
 	let pack = open_block ctx in
 	let ename = s_path ctx e.e_path e.e_extern e.e_pos in
 
