@@ -1,4 +1,4 @@
-2015-??-??: 3.2.0
+2015-03-15: 3.2.0-RC1
 
 	New features:
 
@@ -8,10 +8,11 @@
 	all : allowed pattern matching on getters
 	all : allowed @:native on class fields
 	all : added static analyzer with constant propagation
+	all : added Haxe-based XML implementation
 	python : added python target
 	flash : flash player 12-14 support
 	js : added @:jsRequire and js.Lib.require
-	cs : added @:bridgeProperties, which creates native property bridges for all haxe properties in the annotated class
+	cs : added @:bridgeProperties
 	cs : added -D erase_generics
 
 	Bugfixes:
@@ -31,6 +32,11 @@
 	all : fixed various @:generic issues
 	all : fixed default cases on @:enum abstract being omitted
 	all : fixed various expression positions
+	all : disallowed break/continue in closures in loops
+	all : disallowed inline functions in value places
+	all : fixed parsing of cast followed by parentheses
+	all : fixed resource naming in case of invalid file system characters
+	all : fixed issue with inlined array declarations with field access
 	cpp : fixed issue with the side-effect handler
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
@@ -49,6 +55,7 @@
 	all : allowed pattern matching on arrays if they are typed as Dynamic
 	all : allowed pattern matching on fields of parent classes
 	all : -D doc-gen no longer implies -dce no
+	all : allowed matching against null on any enum instance
 	flash/js: optimized haxe.ds.StringMap
 	neko : create output directory if it does not exist
 	js : inline Math methods and fields
@@ -60,22 +67,27 @@
 
 	Standard Library:
 
+	all : added typed arrays to haxe.io package
 	all : added haxe.ds.Either
-	all : added haxe.Rest type for representing "rest" arguments in extern method signatures
-	all : added haxe.EitherType abstract type for dealing with externs for dynamic targets
+	all : added haxe.extern.Rest type for representing "rest" arguments in extern method signatures
+	all : added haxe.extern.EitherType abstract type for dealing with externs for dynamic targets
 	all : added haxe.DynamicAccess type for working with dynamic anonymous structures using a Map-like interface
 	all : [breaking] changed haxe.ds.Vector.get to return T instead of Null<T>
 	all : added haxe.macro.Compiler.addGlobalMetadata
+	all : changed haxe.Int64 to be an abstract type instead of a class
+	js : updated HTML externs
 
 	Macro features and changes:
 
 	macro : added Context.getLocalTVars
 	macro : added TypedExprTools.iter
+	macro : added Context.getCallArguments
 	macro : changed @:genericBuild macros to prefer ComplexType returns
 	macro : [breaking] extended TAnonymous structures now have AExtend status instead of AClosed
 	macro : added Context.getDefines
 	macro : fixed file_seek from end (position was inversed)
 	macro : added Context.storeTypedExpr
+	macro : allowed type name reification
 
 	Deprecations:
 
