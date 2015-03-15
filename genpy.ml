@@ -1611,8 +1611,9 @@ module Printer = struct
 			| TLocal { v_name = "`trace" }, [e;infos] ->
 				if has_feature pctx "haxe.Log.trace" then begin
 					"haxe_Log.trace(" ^ (print_expr pctx e) ^ "," ^ (print_expr pctx infos) ^ ")"
-				end else begin
-					"print(str(" ^ (print_expr pctx e) ^ "))"
+				end else begin match e.eexpr with
+				| TConst(TString(s)) -> "print(\"" ^ s ^ "\")"
+				| _ -> "print(str(" ^ (print_expr pctx e) ^ "))"
 				end
 			| TField(e1,((FAnon {cf_name = (("join" | "push" | "map" | "filter") as s)}) | FDynamic (("join" | "push" | "map" | "filter") as s))), [x] ->
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
