@@ -1,3 +1,11 @@
+# Preparing related projects
+
+- Check that haxelib is working
+- Make sure to update the haxelib submodule
+- Check that the run-time haxelibs are ready for release: hxcpp, hxjava, hxcs
+
+# Making the release
+
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in main.ml has the correct value.
 - Merge development branch into master.
@@ -15,4 +23,3 @@
 - Update http://haxe.org/file/CHANGES.txt
 - Write announcement post.
 - Post announcement post.
-
