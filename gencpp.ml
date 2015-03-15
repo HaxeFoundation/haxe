@@ -664,7 +664,8 @@ and type_string_suff suffix haxe_type remap =
          (match params with
          | [t] -> "const " ^ (type_string (follow t) ) ^ " *"
          | _ -> assert false)
-      | ["cpp"] , "Function" -> "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
+      | ["cpp"] , "Function" ->
+         "::cpp::Function< " ^ (cpp_function_signature_params params ) ^ " >"
       | _ ->  type_string_suff suffix (apply_params type_def.t_params params type_def.t_type) remap
       )
    | TFun (args,haxe_type) -> "Dynamic" ^ suffix
@@ -708,14 +709,19 @@ and is_dynamic_array_param haxe_type =
          )
    | _ -> false
    )
-and cpp_function_signature tfun =
+and cpp_function_signature tfun abi =
    match follow tfun with
-   | TFun(args,ret) -> (type_string ret) ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
+   | TFun(args,ret) -> (type_string ret) ^ " " ^ abi ^ "( " ^ (gen_tfun_interface_arg_list args) ^ ")"
    | _ -> "void *"
 
 and cpp_function_signature_params params = match params with
-   | [t] -> cpp_function_signature t
-   | _ ->  assert false;
+   | [t; abi] -> (match follow abi with
+       | TInst (klass,_) -> cpp_function_signature t (get_meta_string klass.cl_meta Meta.Abi)
+       | _ -> print_endline (type_string abi);
+           assert false )
+   | _ -> 
+      print_endline ("Params:" ^ (String.concat "," (List.map type_string params) ));
+      assert false;
 
 and gen_interface_arg_type_name name opt typ =
    let type_str = (type_string typ) in
@@ -1954,7 +1960,7 @@ and gen_expression ctx retval expression =
    | TCall (func, arg_list) when is_fromStaticFunction_call func ->
       (match arg_list with
          | [ {eexpr = TField( _, FStatic(klass,field)) } ] ->
-            let signature = cpp_function_signature field.cf_type in
+            let signature = cpp_function_signature field.cf_type "" in
             let name = keyword_remap field.cf_name in
             let void_cast = has_meta_key field.cf_meta Meta.Void in
             output ("::cpp::Function<" ^ signature ^">(");

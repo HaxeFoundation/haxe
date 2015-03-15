@@ -52,7 +52,7 @@ class Lib {
 
    @:analyzer(no_simplification)
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
-		var factory:Function< RawConstPointer<Char> -> RawPointer<Object> > =
+		var factory:Callable< RawConstPointer<Char> -> RawPointer<Object> > =
                untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
       if (factory!=null)
       {
@@ -167,7 +167,7 @@ class Lib {
       var typeString = parts.length==1 ? "Void" : codeToType(parts.shift());
       for(p in parts)
          typeString += "->" + codeToType(p);
-      typeString = "cpp.Function<" + typeString + ">";
+      typeString = "cpp.Callable<" + typeString + ">";
       var expr = 'new $typeString(cpp.Lib._loadPrime("$inModule","$inName","$inSig",$inAllowFail))';
       return Context.parse( expr, Context.currentPos() );
    }

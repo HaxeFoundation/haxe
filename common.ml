@@ -358,6 +358,7 @@ module MetaInfo = struct
 		| Internal
 
 	let to_string = function
+		| Abi -> ":abi",("Function ABI/calling convention",[Platforms [Cpp]])
 		| Abstract -> ":abstract",("Sets the underlying class implementation as 'abstract'",[Platforms [Java;Cs]])
 		| Access -> ":access",("Forces private access to package, type or field",[HasParam "Target path";UsedOnEither [TClass;TClassField]])
 		| Accessor -> ":accessor",("Used internally by DCE to mark property accessors",[UsedOn TClassField;Internal])
