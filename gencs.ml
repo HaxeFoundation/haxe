@@ -3261,7 +3261,12 @@ let configure gen =
 					| _ :: _ when not erase_generics -> "_" ^ string_of_int (List.length c.cl_params)
 					| _ -> ""
 				in
-				let path = (fst c.cl_path, snd c.cl_path ^ extra) in
+				let pack = match c.cl_path with
+					| ([], _) when no_root && is_hxgen (TClassDecl c) ->
+						["haxe";"root"]
+					| (p,_) -> p
+				in
+				let path = (pack, snd c.cl_path ^ extra) in
 				ignore (List.find (function (_,_,_,lookup) ->
 					is_some (lookup path)) haxe_libs);
 				c.cl_extern <- true;
