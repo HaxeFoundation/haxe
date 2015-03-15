@@ -3167,9 +3167,6 @@ let configure gen =
 	(* copy resource files *)
 	if Hashtbl.length gen.gcon.resources > 0 then begin
 		let src =
-			if Common.defined gen.gcon Define.UnityStdTarget then
-				Common.defined_value gen.gcon Define.UnityStdTarget ^ "/../Resources"
-			else
 				gen.gcon.file ^ "/src/Resources"
 		in
 		Hashtbl.iter (fun name v ->
@@ -3240,11 +3237,11 @@ let configure gen =
 	mkdir_recursive "" parts;
 	generate_modules gen "cs" "src" module_gen out_files;
 
-	if not (Common.defined gen.gcon Define.KeepOldOutput ||  Common.defined gen.gcon Define.UnityStdTarget) then
+	if not (Common.defined gen.gcon Define.KeepOldOutput) then
 		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
 	dump_descriptor gen ("hxcs_build.txt") path_s module_s;
-	if ( not (Common.defined gen.gcon Define.NoCompilation || Common.defined gen.gcon Define.UnityStdTarget) ) then begin
+	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
 		let cmd = "haxelib run hxcs hxcs_build.txt --haxe-version " ^ (string_of_int gen.gcon.version) ^ " --feature-level 1" in

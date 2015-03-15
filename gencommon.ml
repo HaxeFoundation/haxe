@@ -1144,30 +1144,8 @@ let is_relative cwd rel =
 	See that it will write a whole module
 *)
 let generate_modules gen extension source_dir (module_gen : SourceWriter.source_writer->module_def->bool) out_files =
-	let cwd = Common.unique_full_path (Sys.getcwd()) in
 	List.iter (fun md_def ->
 		let source_dir =
-			if Common.defined gen.gcon Define.UnityStdTarget then
-				let file = md_def.m_extra.m_file in
-				let file = if file = "" then "." else file in
-				if is_relative cwd file then
-					let base_path = try
-							let last = Str.search_backward path_regex file (String.length file - 1) in
-							String.sub file 0 last
-						with | Not_found ->
-							"."
-					in
-					match List.rev (fst md_def.m_path) with
-						| "editor" :: _ ->
-							base_path ^ "/" ^ gen.gcon.file ^ "/Editor"
-						| _ ->
-							base_path ^ "/" ^ gen.gcon.file
-				else match List.rev (fst md_def.m_path) with
-					| "editor" :: _ ->
-						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Editor/" ^ (String.concat "/" (fst md_def.m_path))
-					| _ ->
-						Common.defined_value gen.gcon Define.UnityStdTarget ^ "/Haxe-Std/" ^ (String.concat "/" (fst md_def.m_path))
-			else
 				gen.gcon.file ^ "/" ^ source_dir ^ "/" ^ (String.concat "/" (fst (path_of_md_def md_def)))
 		in
 		let w = SourceWriter.new_source_writer () in
