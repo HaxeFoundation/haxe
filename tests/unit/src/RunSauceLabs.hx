@@ -116,12 +116,12 @@ class RunSauceLabs {
 				"version": "8.1",
 				"device-orientation": "portrait"
 			},
-			{
-				"browserName": "android",
-				"platform": "Linux",
-				"version": "4.0",
-				"device-orientation": "portrait"
-			},
+			//{
+				//"browserName": "android",
+				//"platform": "Linux",
+				//"version": "4.0",
+				//"device-orientation": "portrait"
+			//},
 			{
 				"browserName": "android",
 				"platform": "Linux",
@@ -231,7 +231,7 @@ class RunSauceLabs {
 							return browser.get(url)
 								.then(function() {
 									console.log("[debug] waiting for test to exit");
-									return 
+									return
 										until("return (typeof window.success === 'boolean');")
 										.timeout(commandTimeout * 1000);
 								})
