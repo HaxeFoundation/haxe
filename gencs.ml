@@ -753,7 +753,7 @@ let configure gen =
 			let needed,params = loop 0 [] params in
 			let part = change_id part in
 			(part ^ "<" ^ (String.concat ", " needed) ^ ">")::ns, params
-		with _ ->
+		with _ -> (* Invalid_string / int_of_string *)
 			(change_id nspart)::ns, params
 		) ([],params) ns
 		in
@@ -3418,8 +3418,8 @@ let rec convert_signature ctx p = function
 
 let ilpath_s = function
 	| ns,[], name -> path_s (ns,name)
-	| [],nested,name -> String.concat "#" nested ^ "." ^ name
-	| ns, nested, name -> String.concat "." ns ^ "." ^ String.concat "#" nested ^ "." ^ name
+	| [],nested,name -> String.concat "." nested ^ "." ^ name
+	| ns, nested, name -> String.concat "." ns ^ "." ^ String.concat "." nested ^ "." ^ name
 
 let get_cls = function
 	| _,_,c -> c
