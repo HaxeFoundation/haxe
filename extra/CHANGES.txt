@@ -48,6 +48,7 @@
 	php : fixed Reflect.compare and string comparison for numeric strings
 	cs/java : fixed various issues with -java-lib and -net-lib. 
 	cs/java : added @:libType to skip checking on -java-lib / -net-lib types
+	cs/java : compilation server now works with C#/Java [experimental support]
 	cs : fixed Type.enumIndex / switch on C# native enums
 	cs : fixed reflection on COM types
 	java : fixed sys.net.Socket server implementation
