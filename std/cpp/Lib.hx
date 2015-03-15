@@ -25,12 +25,17 @@ package cpp;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import haxe.macro.Expr;
-#end
+#else
 
 using cpp.NativeString;
 using cpp.RawConstPointer;
 using cpp.Char;
 
+#end
+
+#if macro
+@:noPackageRestrict
+#end
 class Lib {
 
    #if !macro
@@ -142,7 +147,7 @@ class Lib {
          case "s" : return "String";
          case "o" : return "cpp.Object";
          case "v" : return "cpp.Void";
-         case "c" : return "cpp.RawConstPtr<cpp.Char> ";
+         case "c" : return "cpp.ConstCharStar";
          default:
             throw "Unknown signature type :" + code;
       }

@@ -2404,7 +2404,7 @@ and gen_expression ctx retval expression =
       gen_expression ctx retval cast;
    | TCast (cast,None) ->
       let ret_type = type_string expression.etype in
-      output ("( " ^ ret_type ^ "(");
+      output ("((" ^ ret_type ^ ")(");
       gen_expression ctx true cast;
       output "))";
    | TCast (e1,Some t) ->
