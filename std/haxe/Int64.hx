@@ -66,6 +66,12 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	}
 
 	/**
+		Returns whether the value `val` is of type `haxe.Int64`
+	**/
+	inline public static function is( val : Dynamic ) : Bool
+		return Std.is(val,__Int64);
+
+	/**
 		Returns the high 32-bit word of `x`.
 	**/
 	@:deprecated("Use high instead")

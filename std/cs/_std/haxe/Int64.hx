@@ -56,6 +56,9 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		return cast x.val;
 	}
 
+	inline public static function is( val : Dynamic ) : Bool
+		return Std.is(val,cs.system.Int64);
+
 	public static inline function getHigh( x : Int64 ) : Int32
 		return cast( x.val >> 32 );
 

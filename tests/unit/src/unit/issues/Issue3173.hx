@@ -20,7 +20,10 @@ private class O2 extends O<StringMap<Int>>
 	{
 	}
 
-	@:overload override public function foo(t:StringMap<Int>):Int
+#if (java || cs)
+	@:overload
+#end
+	override public function foo(t:StringMap<Int>):Int
 	{
 		return 1;
 	}
@@ -28,7 +31,10 @@ private class O2 extends O<StringMap<Int>>
 
 private class O<T>
 {
-	@:overload public function foo(t:T):Int
+#if (java || cs)
+	@:overload
+#end
+	public function foo(t:T):Int
 	{
 		return 0;
 	}
