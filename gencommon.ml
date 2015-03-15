@@ -4975,22 +4975,45 @@ struct
 					| _ -> assert false
 			in
 
-			let iter_types (_,t) =
+			let iter_types (nt,t) =
 				let cls = get_cls t in
-				check_type (snd cls.cl_path) (fun name -> cls.cl_path <- (fst cls.cl_path, name))
+				let orig = cls.cl_path in
+				check_type (snd orig) (fun name -> cls.cl_path <- (fst orig, name))
+			in
+
+			let save_params save params =
+				List.fold_left (fun save (_,t) ->
+					let cls = get_cls t in
+					(cls.cl_path,t) :: save) save params
 			in
 
 			List.iter (function
 				| TClassDecl cl ->
 					i := 0;
 
+					let save = [] in
+
 					found_types := PMap.empty;
+					let save = save_params save cl.cl_params in
 					List.iter iter_types cl.cl_params;
 					let cur_found_types = !found_types in
+					let save = ref save in
 					List.iter (fun cf ->
 						found_types := cur_found_types;
+						save := save_params !save cf.cf_params;
 						List.iter iter_types cf.cf_params
-					) (cl.cl_ordered_fields @ cl.cl_ordered_statics)
+					) (cl.cl_ordered_fields @ cl.cl_ordered_statics);
+
+					if !save <> [] then begin
+						let save = !save in
+						let res = cl.cl_restore in
+						cl.cl_restore <- (fun () ->
+							res();
+							List.iter (fun (path,t) ->
+								let cls = get_cls t in
+								cls.cl_path <- path) save
+						);
+					end
 
 				| TEnumDecl ( ({ e_params = hd :: tl }) ) ->
 					i := 0;
