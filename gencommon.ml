@@ -6569,6 +6569,8 @@ struct
 						| _ -> assert false
 					in
 					handle e t real_t
+				| TCast( { eexpr = TConst TNull }, _ ) ->
+					{ e with eexpr = TConst TNull }
 				| TCast( { eexpr = TCall( { eexpr = TLocal { v_name = "__delegate__" } } as local, [del] ) } as e2, _) ->
 					{ e with eexpr = TCast({ e2 with eexpr = TCall(local, [Type.map_expr run del]) }, None) }
 
