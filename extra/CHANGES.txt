@@ -14,6 +14,10 @@
 	js : added @:jsRequire and js.Lib.require
 	cs : added @:bridgeProperties
 	cs : added -D erase_generics
+	cs : added -D dll_import to import haxe-generated dlls
+	java/cs : added `sys.db` package
+	java/cs : clean unused files in output folder, unless `-D keep_old_output` is defined
+	java/cs : added `-c-arg` to add C#/Java compiler arguments
 	cpp : inititial implementation of cppia scripting
 
 	Bugfixes:
@@ -42,7 +46,12 @@
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
 	php : fixed Reflect.compare and string comparison for numeric strings
-	java/cs : fixed various issues with -java-lib and -net-lib
+	cs/java : fixed various issues with -java-lib and -net-lib. 
+	cs/java : added @:libType to skip checking on -java-lib / -net-lib types
+	cs : fixed Type.enumIndex / switch on C# native enums
+	cs : fixed reflection on COM types
+	java : fixed sys.net.Socket server implementation
+	spod : various fixes - working now on cpp, java, neko, php and c#
 	cpp : improved boot order, with enums constants first
 
 	General improvements and optimizations:
@@ -63,8 +72,10 @@
 	js : inline Math methods and fields
 	cs/java : optimized Reflect.fields on dynamic structures
 	cs/java : haxe will now clear output directory of old files (use -D keep-old-output to keep them)
+	cs : optimized field lookup structure
 	cs : optimized casting of parametrized types
 	cs : beautify c# code output
+	cs : added `cs.Flags` to manipulate C# enums that can be also flags
 	xml : improved documentation generation and fixed missing entity escaping
 	cpp : property access via Dynamic variables now requires property to be declared with @:nativeProperty
 	cpp : allow injection of code from relative paths using @:sourceFile and @:cppInclude
@@ -104,6 +115,7 @@
 
 	all : deprecated structurally extending classes and interfaces
 	sys : Sys.command shell special chars (&|<>#;*?(){}$) are now properly escaped
+	java/cs : Lib.nativeType is now renamed to Lib.getNativeType
 
 2014-04-13: 3.1.3
 
