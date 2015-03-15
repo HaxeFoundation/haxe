@@ -14,6 +14,7 @@
 	js : added @:jsRequire and js.Lib.require
 	cs : added @:bridgeProperties
 	cs : added -D erase_generics
+	cpp : inititial implementation of cppia scripting
 
 	Bugfixes:
 
@@ -42,6 +43,7 @@
 	php : fixed issue with invalid references for closures in for-loops
 	php : fixed Reflect.compare and string comparison for numeric strings
 	java/cs : fixed various issues with -java-lib and -net-lib
+	cpp : improved boot order, with enums constants first
 
 	General improvements and optimizations:
 
@@ -64,6 +66,15 @@
 	cs : optimized casting of parametrized types
 	cs : beautify c# code output
 	xml : improved documentation generation and fixed missing entity escaping
+	cpp : property access via Dynamic variables now requires property to be declared with @:nativeProperty
+	cpp : allow injection of code from relative paths using @:sourceFile and @:cppInclude
+	cpp : stronger typing of native functions via cpp.Function + cpp.Callable
+	cpp : moved 'Class' implementation to hx namespace to improve objective C interaction
+	cpp : added file_extension define to change the output filename extension (eg, ".mm")
+	cpp : added pre-calculated hashes to string constants to allow faster lookups
+	cpp : map implementation allows strongly typed interactions in some cases (avoids boxing)
+	cpp : added native WeakMap implementation
+	cpp : put each resource into own cpp file to allow more data/smaller files
 
 	Standard Library:
 
