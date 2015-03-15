@@ -372,6 +372,11 @@ import cs.system.Object;
 			{
 				value = mkNullable(value, f.FieldType);
 			}
+			if (Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
+			{
+				var ic = Lib.as(value, IConvertible);
+				value = ic.ToType(f.FieldType, null);
+			}
 
 			f.SetValue(obj, value);
 			return value;
@@ -399,6 +404,11 @@ import cs.system.Object;
 			if (prop.PropertyType.ToString().StartsWith("haxe.lang.Null"))
 			{
 				value = mkNullable(value, prop.PropertyType);
+			}
+			if (Object.ReferenceEquals(Lib.toNativeType(cs.system.Double), Lib.getNativeType(value)) && !Object.ReferenceEquals(t, f.FieldType))
+			{
+				var ic = Lib.as(value, IConvertible);
+				value = ic.ToType(f.FieldType, null);
 			}
 			prop.SetValue(obj, value, null);
 
