@@ -355,6 +355,15 @@ let rec gen_call ctx e el in_value =
 		print ctx ":%s(" (field_name ef);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
+	| TField ( { eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)), el ->
+		spr ctx "(function(x) return x";
+		spr ctx ":";
+		print ctx "%s" (field_name ef);
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ") end )(";
+		gen_value ctx e;
+		spr ctx ")";
 	| TField (e, ((FInstance _ | FAnon _) as ef)), el ->
 		gen_value ctx e;
 		spr ctx ":";
