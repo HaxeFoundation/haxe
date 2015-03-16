@@ -1,4 +1,3 @@
-#if !flash8
 // normal
 var tpl = new haxe.Template("My name is <strong>::name::</strong> and I'm <em>::age::</em> years old.");
 var output = tpl.execute( { name : "John", age : 33 } );
@@ -33,4 +32,3 @@ out3 == "_a:#b";
 tpl = new haxe.Template( "$$a($$b(::a::,b))" );
 var out4 = tpl.execute({a:"abc"}, mcr);
 out4 == "#_abc:b";
-#end

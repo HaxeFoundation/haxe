@@ -348,7 +348,7 @@ class TestMisc extends Test {
 		eq( opt2().x, 5 );
 		eq( opt2().y, "hello" );
 
-		#if !(flash9 || cpp || cs || java)
+		#if !(flash || cpp || cs || java)
 		eq( opt2(null, null).x, 5 );
 		#end
 		eq( opt2(0, null).y, "hello" );
@@ -371,14 +371,14 @@ class TestMisc extends Test {
 		eq( opt3(7.4).y, 7.4 );
 
 		eq( opt4(), 11 );
-		#if !(flash9 || cpp || cs || java)
+		#if !(flash || cpp || cs || java)
 		eq( opt4(null), 11 );
 		#end
 
 		var opt4b : ?Int -> Null<Int> = opt4;
 		eq( opt4b(), 11 );
 		eq( opt4b(3), 4 );
-		#if !(flash9 || cpp || cs || java)
+		#if !(flash || cpp || cs || java)
 		eq( opt4b(null), 11 );
 		#end
 

@@ -38,7 +38,7 @@ class SocketWrapper {
 		var o = {};
 		Reflect.setField(o,"close",cnx.close);
 		ctx.addObject("api",o);
-		#if flash9
+		#if flash
 		var connected = false;
 		s.addEventListener(flash.events.Event.CONNECT,function(_) {
 			connected = true;
@@ -56,16 +56,6 @@ class SocketWrapper {
 		s.addEventListener(flash.events.DataEvent.DATA,function(e:flash.events.DataEvent) {
 			cnx.api.onData.call([e.data]);
 		});
-		#elseif flash
-		s.onConnect = function(b) {
-			cnx.api.onConnect.call([b]);
-		};
-		s.onData = function(data) {
-			cnx.api.onData.call([data]);
-		};
-		s.onClose = function() {
-			cnx.api.onClose.call([]);
-		};
 		#end
 		return id;
 	}

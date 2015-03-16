@@ -33,7 +33,7 @@ class Bytes {
 	function new(length,b) {
 		this.length = length;
 		this.b = b;
-		#if flash9
+		#if flash
 		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#end
 	}
@@ -41,7 +41,7 @@ class Bytes {
 	public inline function get( pos : Int ) : Int {
 		#if neko
 		return untyped $sget(b,pos);
-		#elseif flash9
+		#elseif flash
 		return b[pos];
 		#elseif php
 		return untyped __call__("ord", b[pos]);
@@ -59,7 +59,7 @@ class Bytes {
 	public inline function set( pos : Int, v : Int ) : Void {
 		#if neko
 		untyped $sset(b,pos,v);
-		#elseif flash9
+		#elseif flash
 		b[pos] = v;
 		#elseif php
 		b[pos] = untyped __call__("chr", v);
@@ -84,7 +84,7 @@ class Bytes {
 		try untyped $sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif php
 		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		if( len > 0 ) b.writeBytes(src.b,srcpos,len);
 		#elseif java
@@ -112,7 +112,7 @@ class Bytes {
 	}
 
 	public function fill( pos : Int, len : Int, value : Int ) {
-		#if flash9
+		#if flash
 		var v4 = value&0xFF;
 		v4 |= v4<<8;
 		v4 |= v4<<16;
@@ -136,7 +136,7 @@ class Bytes {
 		#end
 		#if neko
 		return try new Bytes(len,untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		var b2 = new flash.utils.ByteArray();
 		b.readBytes(b2,0,len);
@@ -161,7 +161,7 @@ class Bytes {
 	public function compare( other : Bytes ) : Int {
 		#if neko
 		return untyped __dollar__compare(b,other.b);
-		#elseif flash9
+		#elseif flash
 		var len = (length < other.length) ? length : other.length;
 		var b1 = b;
 		var b2 = other.b;
@@ -199,11 +199,7 @@ class Bytes {
 		var len = (length < other.length) ? length : other.length;
 		for( i in 0...len )
 			if( b1[i] != b2[i] )
-				#if cpp
 				return untyped b1[i] - untyped b2[i];
-				#else
-				return untyped b1[i] - untyped b2[i];
-				#end
 		return length - other.length;
 		#end
 	}
@@ -217,7 +213,7 @@ class Bytes {
 	public function getDouble( pos : Int ) : Float {
 		#if neko_v21
 		return untyped $sgetd(b, pos, false);
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		return b.readDouble();
 		#elseif cpp
@@ -236,7 +232,7 @@ class Bytes {
 	public function getFloat( pos : Int ) : Float {
 		#if neko_v21
 		return untyped $sgetf(b, pos, false);
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		return b.readFloat();
 		#elseif cpp
@@ -258,7 +254,7 @@ class Bytes {
 		untyped $ssetd(b, pos, v, false);
 		#elseif neko
 		untyped $sblit(b, pos, FPHelper._double_bytes(v,false), 0, 8);
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		b.writeDouble(v);
 		#elseif cpp
@@ -281,7 +277,7 @@ class Bytes {
 		untyped $ssetf(b, pos, v, false);
 		#elseif neko
 		untyped $sblit(b, pos, FPHelper._float_bytes(v,false), 0, 4);
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		b.writeFloat(v);
 		#elseif cpp
@@ -364,7 +360,7 @@ class Bytes {
 		#end
 		#if neko
 		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
-		#elseif flash9
+		#elseif flash
 		b.position = pos;
 		return b.readUTFBytes(len);
 		#elseif php
@@ -420,7 +416,7 @@ class Bytes {
 	public function toString() : String {
 		#if neko
 		return new String(untyped __dollar__ssub(b,0,length));
-		#elseif flash9
+		#elseif flash
 		b.position = 0;
 		return b.readUTFBytes(length);
 		#elseif php
@@ -459,7 +455,7 @@ class Bytes {
 	public static function alloc( length : Int ) : Bytes {
 		#if neko
 		return new Bytes(length,untyped __dollar__smake(length));
-		#elseif flash9
+		#elseif flash
 		var b = new flash.utils.ByteArray();
 		b.length = length;
 		return new Bytes(length,b);
@@ -486,7 +482,7 @@ class Bytes {
 	public static function ofString( s : String ) : Bytes {
 		#if neko
 		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));
-		#elseif flash9
+		#elseif flash
 		var b = new flash.utils.ByteArray();
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
@@ -542,7 +538,7 @@ class Bytes {
 	}
 
 	public static function ofData( b : BytesData ) {
-		#if flash9
+		#if flash
 		return new Bytes(b.length,b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b),b);
@@ -562,7 +558,7 @@ class Bytes {
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
 		#if neko
 		return untyped __dollar__sget(b,pos);
-		#elseif flash9
+		#elseif flash
 		return b[pos];
 		#elseif php
 		return untyped __call__("ord", b[pos]);

@@ -136,7 +136,6 @@ class Http {
 		return this;
 	}
 
-	#if !flash8
 	/**
 		Sets the post data of `this` Http request to `data`.
 
@@ -151,13 +150,12 @@ class Http {
 		postData = data;
 		return this;
 	}
-	#end
 
-	#if (js || flash9)
+	#if (js || flash)
 
 	#if js
 	var req:js.html.XMLHttpRequest;
-	#elseif flash9
+	#elseif flash
 	var req:flash.net.URLLoader;
 	#end
 
@@ -170,7 +168,7 @@ class Http {
 		if (req == null) return;
 		#if js
 		req.abort();
-		#elseif flash9
+		#elseif flash
 		req.close();
 		#end
 		req = null;
@@ -271,7 +269,7 @@ class Http {
 		r.send(uri);
 		if( !async )
 			onreadystatechange(null);
-	#elseif flash9
+	#elseif flash
 		me.responseData = null;
 		var loader = req = new flash.net.URLLoader();
 		loader.addEventListener( "complete", function(e) {
@@ -330,44 +328,6 @@ class Http {
 			me.req = null;
 			onError("Exception: "+Std.string(e));
 		}
-	#elseif flash
-		me.responseData = null;
-		var r = new flash.LoadVars();
-		// on Firefox 1.5, onData is not called if host/port invalid (!)
-		r.onData = function(data) {
-			if( data == null ) {
-				me.onError("Failed to retrieve url");
-				return;
-			}
-			me.responseData = data;
-			me.onData(data);
-		};
-		#if flash8
-		r.onHTTPStatus = function(status) {
-			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
-			if( status != 0 )
-				me.onStatus(status);
-		};
-		untyped ASSetPropFlags(r,"onHTTPStatus",7);
-		#end
-		untyped ASSetPropFlags(r,"onData",7);
-		for( h in headers )
-			r.addRequestHeader(h.header,h.value);
-		var param = false;
-		for( p in params ) {
-			param = true;
-			Reflect.setField(r,p.param,p.value);
-		}
-		var small_url = url;
-		if( param && !post ) {
-			var k = url.split("?");
-			if( k.length > 1 ) {
-				small_url = k.shift();
-				r.decode(k.join("?"));
-			}
-		}
-		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
-			onError("Failed to initialize Connection");
 	#elseif sys
 		var me = this;
 		var output = new haxe.io.BytesOutput();

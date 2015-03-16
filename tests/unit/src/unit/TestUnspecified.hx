@@ -8,7 +8,7 @@ class TestUnspecified extends Test
 			exc(function() 1 % 0);
 		#elseif cpp
 			// Crashes
-		#elseif (php || flash9)
+		#elseif (php || flash)
 			eq(1 % 0, 0);
 		#else
 			t(Math.isNaN(1 % 0));
@@ -18,7 +18,7 @@ class TestUnspecified extends Test
 	public function testMonoAdd()
 	{
 		var x : Array<Dynamic> = ["4", 1];
-		#if (php || flash9)
+		#if (php || flash)
 			t(Std.is(x[0] + x[0], Int));
 			t(Std.is(x[0] + x[1], Int));
 		#else

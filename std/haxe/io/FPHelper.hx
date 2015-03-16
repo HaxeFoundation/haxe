@@ -46,7 +46,7 @@ class FPHelper {
 		static var _float_bytes = neko.Lib.load("std","float_bytes",2);
 		static var _double_bytes = neko.Lib.load("std","double_bytes",2);
 		#end
-	#elseif flash9
+	#elseif flash
 		static var helper = {
 			var b = new flash.utils.ByteArray();
 			b.endian = flash.utils.Endian.LITTLE_ENDIAN;
@@ -89,7 +89,7 @@ class FPHelper {
 			return java.lang.Float.FloatClass.intBitsToFloat(i);
 		#elseif php
 			return untyped  __call__('unpack', 'f', __call__('pack', 'l', i))[1];
-		#elseif flash9
+		#elseif flash
 			var helper = helper;
 			helper.position = 0;
 			helper.writeUnsignedInt(i);
@@ -127,7 +127,7 @@ class FPHelper {
 			}
 		#elseif java
 			return java.lang.Float.FloatClass.floatToRawIntBits(f);
-		#elseif flash9
+		#elseif flash
 			var helper = helper;
 			helper.position = 0;
 			helper.writeFloat(f);
@@ -181,7 +181,7 @@ class FPHelper {
 			return helper.f;
 		#elseif java
 			return java.lang.Double.DoubleClass.longBitsToDouble( Int64.make(high,low) );
-		#elseif flash9
+		#elseif flash
 			var helper = helper;
 			helper.position = 0;
 			helper.writeUnsignedInt(low);
@@ -250,7 +250,7 @@ class FPHelper {
 
 				return haxe.Int64.make(j1,j2);
 			}
-		#elseif flash9
+		#elseif flash
 			var helper = helper;
 			helper.position = 0;
 			helper.writeDouble(v);

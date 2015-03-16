@@ -225,10 +225,8 @@ class Path {
 		}
 
 		var tmp = target.join(slash);
-		#if !flash8
 		var regex = ~/([^:])\/+/g;
 		var result = regex.replace(tmp, "$1" +slash);
-		#else
 		var acc = new StringBuf();
 		var colon = false;
 		var slashes = false;
@@ -249,7 +247,6 @@ class Path {
 			}
 		}
 		var result = acc.toString();
-		#end
 		return result;
 	}
 

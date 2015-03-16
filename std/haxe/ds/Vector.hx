@@ -205,7 +205,7 @@ abstract Vector<T>(VectorData<T>) {
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		#if python
 		return cast array.copy();
-		#elseif flash9
+		#elseif flash
 		return fromData(flash.Vector.ofArray(array));
 		#elseif java
 		return fromData(java.Lib.nativeArray(array,false));

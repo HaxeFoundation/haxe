@@ -14,7 +14,6 @@ compile-java-runner.hxml
 
 # targets
 
---next compile-flash8.hxml
 --next compile-flash9.hxml
 --next compile-js.hxml
 --next compile-neko.hxml

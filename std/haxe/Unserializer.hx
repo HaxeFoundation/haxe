@@ -66,7 +66,7 @@ class Unserializer {
 
 	static function initCodes() {
 		var codes =
-			#if flash9
+			#if flash
 				new flash.utils.ByteArray();
 			#else
 				new Array();
@@ -168,7 +168,7 @@ class Unserializer {
  			k *= -1;
  		return k;
  	}
-	
+
 	function readFloat() {
 		var p1 = pos;
  		while( true ) {

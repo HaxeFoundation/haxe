@@ -31,10 +31,8 @@ class LocalConnection implements AsyncConnection implements Dynamic<AsyncConnect
 		results : haxe.ds.IntMap<{ error : Dynamic -> Void, result : Dynamic -> Void }>,
 		error : Dynamic -> Void,
 		target : String,
-		#if flash9
+		#if flash
 		cnx : flash.net.LocalConnection,
-		#elseif flash
-		cnx : flash.LocalConnection,
 		#else
 		cnx : Dynamic,
 		#end
@@ -58,7 +56,7 @@ class LocalConnection implements AsyncConnection implements Dynamic<AsyncConnect
 	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) : Void {
 		try {
 			var id = ID++;
-			#if flash9
+			#if flash
 			__data.cnx.send(__data.target,"remotingCall",id,__path.join("."),haxe.Serializer.run(params));
 			#else
 			if( !__data.cnx.send(__data.target,"remotingCall",id,__path.join("."),haxe.Serializer.run(params)) )
@@ -107,11 +105,7 @@ class LocalConnection implements AsyncConnection implements Dynamic<AsyncConnect
 
 	#if flash
 	public static function connect( name : String, ?ctx : Context, ?allowDomains : Array<String> ) {
-		#if flash9
-			var l = new flash.net.LocalConnection();
-		#else
-			var l = new flash.LocalConnection();
-		#end
+		var l = new flash.net.LocalConnection();
 		var recv = name + "_recv";
 		var c = new LocalConnection({
 			ctx : ctx,
@@ -120,44 +114,23 @@ class LocalConnection implements AsyncConnection implements Dynamic<AsyncConnect
 			cnx : l,
 			target : recv,
 		},[]);
-		#if flash9
-			l.client = {
-				remotingCall : remotingCall.bind(c),
-				remotingResult : remotingResult.bind(c),
-			};
-			l.addEventListener(flash.events.StatusEvent.STATUS, function(s:flash.events.StatusEvent) {
-				if( s.level != "status" )
-					c.__data.error("Failed to send data on LocalConnection");
-			});
-			try
-				l.connect(name)
-			catch( e : Dynamic ) {
-				l.connect(recv);
-				c.__data.target = name;
-			}
-			if( allowDomains != null )
-				for( d in allowDomains )
-					l.allowDomain(d);
-		#else
-			Reflect.setField(l,"remotingCall",remotingCall.bind(c));
-			Reflect.setField(l,"remotingResult",remotingResult.bind(c));
-			l.onStatus = function(s:Dynamic) {
-				if( s[untyped "level"] != "status" )
-					c.__data.error("Failed to send data on LocalConnection");
-			};
-			if( !l.connect(name) ) {
-				if( !l.connect(recv) )
-					throw "Could not assign a LocalConnection to the name "+name;
-				c.__data.target = name;
-			}
-			if( allowDomains != null )
-				l.allowDomain = function(dom) {
-					for( d in allowDomains )
-						if( d == dom )
-							return true;
-					return false;
-				};
-		#end
+		l.client = {
+			remotingCall : remotingCall.bind(c),
+			remotingResult : remotingResult.bind(c),
+		};
+		l.addEventListener(flash.events.StatusEvent.STATUS, function(s:flash.events.StatusEvent) {
+			if( s.level != "status" )
+				c.__data.error("Failed to send data on LocalConnection");
+		});
+		try
+			l.connect(name)
+		catch( e : Dynamic ) {
+			l.connect(recv);
+			c.__data.target = name;
+		}
+		if( allowDomains != null )
+			for( d in allowDomains )
+				l.allowDomain(d);
 		return c;
 	}
 	#end
