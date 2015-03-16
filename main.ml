@@ -142,6 +142,7 @@ let deprecated = [
 	"Class not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
 	"Class not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
 	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
+	"Module js.html.HtmlElement is loaded with a different case than js.html.HTMLElement", "HtmlElement is now HTMLElement, please replace all occurences accordingly"
 ]
 
 let limit_string s offset =
