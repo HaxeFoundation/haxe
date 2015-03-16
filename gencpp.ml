@@ -1514,6 +1514,7 @@ let rec define_local_function_ctx ctx func_name func_def =
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ (list_num typed_vars) ^ "(" ^
          (if has_this then "hx::LocalThisFunc," else "hx::LocalFunc,") ^ func_name_sep ^
                   (String.concat "," typed_vars) ^ ")\n" );
+      output_i ("int __ArgCount() const { return " ^ (string_of_int (List.length func_def.tf_args)) ^"; }\n");
 
       (* actual function, called "run" *)
       let args_and_types = List.map
