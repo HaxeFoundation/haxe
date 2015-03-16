@@ -39,6 +39,8 @@ extern class MouseEvent extends UIEvent
 	var buttons(default,null) : Int;
 	var relatedTarget(default,null) : EventTarget;
 	var region(default,null) : String;
+	var movementX(default,null) : Int;
+	var movementY(default,null) : Int;
 	
 	/** @throws DOMError */
 	function new( typeArg : String, ?mouseEventInitDict : MouseEventInit ) : Void;
