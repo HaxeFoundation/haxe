@@ -4,7 +4,7 @@
 - Make sure to update the haxelib submodule
 - Check that the run-time haxelibs are ready for release: hxcpp, hxjava, hxcs
 
-# Making the release
+# Building the binaries and installers
 
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in main.ml has the correct value.
@@ -12,14 +12,20 @@
 - Wait for Travis to greenlight master.
 - Tag master as MAJOR.MINOR.PATCH.
 - Wait for builds.haxe.org to build master.
-- If required, tell Caue to fix builds.haxe.org.
 - Get https://github.com/waneck/hxbuilds/tree/master/release-helper
 - Run it with the fileName corresponding to the latest master file name on builds.haxe.org.
-- Upload generated files to some place.
-- Update Haxe download page.
+
+# Making the release
+
+- Push the generated binaries and installers to haxe.org.
+- Copy relevant changelog part to CHANGES.md.
+- Write announcement post.
+- Copy announcement post to RELEASE.md.
+- Update versions.json
+
+# Announcing the release
+
 - Update Github README page.
-- Double-check that you got the links right.
 - Regenerate and upload API documentation.
 - Update http://haxe.org/file/CHANGES.txt
-- Write announcement post.
-- Post announcement post.
+- Post announcement post to haxelang.
