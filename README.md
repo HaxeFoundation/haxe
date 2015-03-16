@@ -1,7 +1,7 @@
 
 # [<img src="http://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](http://haxe.org) - [The Cross-Platform Toolkit](http://haxe.org)
 [![TravisCI Build Status](https://travis-ci.org/HaxeFoundation/haxe.svg?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/Simn/haxe)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
 [![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/HaxeFoundation/haxe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
