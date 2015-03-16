@@ -33,7 +33,10 @@ class Bytes {
 	function new(b:BytesData) {
 		this.length = b.byteLength;
 		this.b = new js.html.Uint8Array(b);
-		untyped b.hxBytes = this;
+		untyped {
+			b.hxBytes = this;
+			b.bytes = b;
+		}
 	}
 
 	public inline function get( pos : Int ) : Int {
