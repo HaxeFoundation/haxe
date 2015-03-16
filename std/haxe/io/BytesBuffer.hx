@@ -25,7 +25,7 @@ class BytesBuffer {
 
 	#if neko
 	var b : Dynamic; // neko string buffer
-	#elseif flash9
+	#elseif flash
 	var b : flash.utils.ByteArray;
 	#elseif php
 	var b : String;
@@ -45,7 +45,7 @@ class BytesBuffer {
 	public function new() {
 		#if neko
 		b = untyped StringBuf.__make();
-		#elseif flash9
+		#elseif flash
 		b = new flash.utils.ByteArray();
 		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#elseif php
@@ -76,7 +76,7 @@ class BytesBuffer {
 	public inline function addByte( byte : Int ) {
 		#if neko
 		untyped StringBuf.__add_char(b,byte);
-		#elseif flash9
+		#elseif flash
 		b.writeByte(byte);
 		#elseif php
 		b += untyped __call__("chr", byte);
@@ -94,7 +94,7 @@ class BytesBuffer {
 	public inline function add( src : Bytes ) {
 		#if neko
 		untyped StringBuf.__add(b,src.getData());
-		#elseif flash9
+		#elseif flash
 		b.writeBytes(src.getData());
 		#elseif php
 		b += cast src.getData();
@@ -118,15 +118,15 @@ class BytesBuffer {
 	public inline function addString( v : String ) {
 		#if neko
 		untyped StringBuf.__add(b, v.__s);
-		#elseif flash9
+		#elseif flash
 		b.writeUTFBytes(v);
 		#else
 		add(Bytes.ofString(v));
 		#end
 	}
 
-	public #if flash9 inline #end function addInt32( v : Int ) {
-		#if flash9
+	public #if flash inline #end function addInt32( v : Int ) {
+		#if flash
 		b.writeUnsignedInt(v);
 		#else
 		addByte(v&0xFF);
@@ -136,13 +136,13 @@ class BytesBuffer {
 		#end
 	}
 
-	public #if flash9 inline #end function addInt64( v : haxe.Int64 ) {
+	public #if flash inline #end function addInt64( v : haxe.Int64 ) {
 		addInt32(v.low);
 		addInt32(v.high);
 	}
 
 	public inline function addFloat( v : Float ) {
-		#if flash9
+		#if flash
 		b.writeFloat(v);
 		#else
 		addInt32(FPHelper.floatToI32(v));
@@ -150,7 +150,7 @@ class BytesBuffer {
 	}
 
 	public inline function addDouble( v : Float ) {
-		#if flash9
+		#if flash
 		b.writeDouble(v);
 		#else
 		addInt64(FPHelper.doubleToI64(v));
@@ -163,7 +163,7 @@ class BytesBuffer {
 		#end
 		#if neko
 		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
-		#elseif flash9
+		#elseif flash
 		if( len > 0 ) b.writeBytes(src.getData(),pos,len);
 		#elseif php
 		b += untyped __call__("substr", src.b, pos, len);
@@ -192,7 +192,7 @@ class BytesBuffer {
 		#if neko
 		var str = StringBuf.__to_string(b);
 		var bytes = new Bytes(__dollar__ssize(str),str);
-		#elseif flash9
+		#elseif flash
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;
 		#elseif php

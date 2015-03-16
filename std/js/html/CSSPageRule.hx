@@ -20,18 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CSSStyleSheet.webidl line 12:0. Do not edit!
+// This file is generated from cssrule.webidl line 47:2. Do not edit!
 
 package js.html;
 
-@:native("CSSStyleSheet")
-extern class CSSStyleSheet extends StyleSheet
+@:native("CSSPageRule")
+extern class CSSPageRule extends CSSRule
 {
-	var ownerRule(default,null) : CSSRule;
-	var cssRules(default,null) : CSSRuleList;
+	var selectorText : String;
+	var style(default,null) : CSSStyleDeclaration;
 	
-	/** @throws DOMError */
-	function insertRule( rule : String, index : Int ) : Int;
-	/** @throws DOMError */
-	function deleteRule( index : Int ) : Void;
 }

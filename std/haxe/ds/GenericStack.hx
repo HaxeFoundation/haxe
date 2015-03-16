@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-#if (flash9 || cpp)
+#if (flash || cpp)
 @:generic
 #end
 class GenericCell<T> {
@@ -54,7 +54,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 	The generated name is an implementation detail and should not be relied
 	upon.
 **/
-#if (flash9 || cpp)
+#if (flash || cpp)
 @:generic
 #end
 class GenericStack<T> {

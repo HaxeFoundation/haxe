@@ -5,7 +5,7 @@ package unit;
 #if as3
 @:publicFields
 #end
-class Test #if swf_mark implements mt.Protect #end {
+class Test {
 
 	public function new() {
 	}
@@ -273,13 +273,10 @@ class Test #if swf_mark implements mt.Protect #end {
 		trace("Generated at: " + TestType.getCompilationDate());
 		#end
 		trace("START");
-		#if flash9
+		#if flash
 		var tf : flash.text.TextField = untyped flash.Boot.getTrace();
 		tf.selectable = true;
 		tf.mouseEnabled = true;
-		#elseif flash
-		var tf : flash.TextField = untyped flash.Boot.getTrace();
-		tf.selectable = true;
 		#end
 		var classes = [
 			new TestOps(),

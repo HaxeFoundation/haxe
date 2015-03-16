@@ -22,10 +22,8 @@
 package haxe.remoting;
 
 typedef Socket =
-	#if flash9
+	#if flash
 		flash.net.XMLSocket
-	#elseif flash
-		flash.XMLSocket
 	#elseif js
 		js.XMLSocket
 	#elseif sys

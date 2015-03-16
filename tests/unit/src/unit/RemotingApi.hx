@@ -1,6 +1,6 @@
 package unit;
 
-class RemotingApi #if swf_mark implements mt.Protect #end {
+class RemotingApi {
 
 	var sub : RemotingApi;
 

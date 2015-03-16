@@ -8,13 +8,6 @@
 
 --next
 
--swf all.swf
--swf-version 8
--xml flash8.xml
--D flash_lite
-
---next
-
 -js all.js
 -xml js.xml
 

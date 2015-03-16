@@ -45,13 +45,9 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		connections.remove(__data.name);
 	}
 
-	#if flash9
+	#if flash
 	static function escapeString( s : String ) {
 		return s.split("\\").join("\\\\");
-	}
-	#elseif flash
-	static function escapeString( s : String ) {
-		return s.split("\\").join("\\\\").split("&").join("&amp;");
 	}
 	#else
 	static inline function escapeString(s) {
@@ -123,11 +119,7 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 	public static function jsConnect( name : String, ?ctx : Context ) {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
-		#if flash9
 		try flash.external.ExternalInterface.addCallback("externalRemotingCall",doCall) catch( e : Dynamic ) {};
-		#else
-		flash.external.ExternalInterface.addCallback("externalRemotingCall",null,doCall);
-		#end
 		var cnx = new ExternalConnection({ name : name, ctx : ctx },[]);
 		connections.set(name,cnx);
 		return cnx;

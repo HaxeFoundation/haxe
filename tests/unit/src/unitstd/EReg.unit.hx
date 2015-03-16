@@ -1,4 +1,3 @@
-#if !flash8
 var r = ~/a/;
 var rg = ~/a/g;
 var rg2 = ~/aa/g;
@@ -102,4 +101,3 @@ pos.len == 2;
 ~/(Hello)/.map("Hello", function(e) return "Hallo") == "Hallo";
 ~/(World)/.map("Hello World", function(e) return "Hallo") == "Hello Hallo";
 ~/(Hola)/.map("Hello World", function(e) return throw "not called") == "Hello World";
-#end

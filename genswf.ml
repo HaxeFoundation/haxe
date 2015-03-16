@@ -730,35 +730,6 @@ let remove_classes toremove lib hcl =
 			toremove := List.filter (fun p -> not (List.mem p classes)) !toremove;
 			fst lib, tags (snd lib)
 
-let build_swf8 com codeclip exports =
-	let code, clips = Genswf8.generate com in
-	let cid = ref 0 in
-	let clips = List.fold_left (fun acc m ->
-		let ename = Ast.s_type_path m in
-		if Hashtbl.mem exports ename then
-			acc
-		else begin
-			incr cid;
-			tag ~ext:true (TClip { c_id = !cid; c_frame_count = 1; c_tags = [] }) ::
-			tag ~ext:true (TExport [{ exp_id = !cid; exp_name = ename }]) ::
-			acc
-		end;
-	) [] clips in
-	let code = (match codeclip with
-		| None -> List.map tag code
-		| Some link ->
-			incr cid;
-			[
-				tag (TClip {
-					c_id = !cid;
-					c_frame_count = 1;
-					c_tags = List.map tag code @ [tag TShowFrame];
-				});
-				tag (TExport [{ exp_id = !cid; exp_name = link }]);
-			]
-	) in
-	clips @ code
-
 type file_format =
 	| BJPG
 	| BPNG
@@ -1062,7 +1033,6 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 			classes := !classes @ List.map (fun e -> { f9_cid = Some e.exp_id; f9_classname = e.exp_name }) el;
 			false
 		| TF9Classes el when !nframe = 0 ->
-			if com.flash_version < 9. then failwith "You can't use AS3 SWF with Flash8 target";
 			classes := !classes @ List.filter (fun e -> e.f9_cid <> None) el;
 			false
 		| _ -> true
@@ -1108,9 +1078,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 
 let generate com swf_header =
 	let t = Common.timer "generate swf" in
-	let isf9 = com.flash_version >= 9. in
 	let swc = if Common.defined com Define.Swc then Some (ref "") else None in
-	if swc <> None && not isf9 then failwith "SWC support is only available for Flash9+";
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
 	(* list exports *)
 	let exports = Hashtbl.create 0 in
@@ -1144,7 +1112,7 @@ let generate com swf_header =
 		) tags;
 	) com.swf_libs;
 	(* build haxe swf *)
-	let tags = if isf9 then build_swf9 com file swc else build_swf8 com codeclip exports in
+	let tags = build_swf9 com file swc in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 	let swf_debug_password = try
@@ -1152,7 +1120,7 @@ let generate com swf_header =
 	with Not_found ->
 		""
 	in
-	let debug = (if isf9 && Common.defined com Define.Fdb then [tag (TEnableDebugger2 (0, swf_debug_password))] else []) in
+	let debug = (if Common.defined com Define.Fdb then [tag (TEnableDebugger2 (0, swf_debug_password))] else []) in
 	let meta_data =
 		try
 			let file = Common.defined_value com Define.SwfMetadata in
@@ -1165,7 +1133,7 @@ let generate com swf_header =
 	let fattr = (if com.flash_version < 8. then [] else
 		[tag (TFilesAttributes {
 			fa_network = Common.defined com Define.NetworkSandbox;
-			fa_as3 = isf9;
+			fa_as3 = true;
 			fa_metadata = meta_data <> [];
 			fa_gpu = com.flash_version > 9. && Common.defined com Define.SwfGpu;
 			fa_direct_blt = com.flash_version > 9. && Common.defined com Define.SwfDirectBlit;

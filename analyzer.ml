@@ -1589,7 +1589,7 @@ module Run = struct
 	let run_on_expr com config is_var_expression e =
 		let do_simplify = (not (Common.defined com Define.NoSimplify) ) && match com.platform with
 			| Cpp when Common.defined com Define.Cppia -> false
-			| Cpp | Flash8 | Python -> true
+			| Cpp | Python -> true
 			| _ -> false
 		in
 		let with_timer s f =

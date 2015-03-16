@@ -69,8 +69,7 @@ class TestBytes extends Test {
 		unspec(function() bs.getString(1,5)); // the handling of \0 might vary
 		/**
 		 	HANDLING of 0x00 in string :
-				Flash8 : ignore
-				Flash9 : cut string
+				Flash : cut string
 				JS/FFOX, JS/IE7, Neko : ok (\0 displayed as ? on Firefox, string cut on IE7)
 				JS/IE6 : todo
 				JS/Safari : todo

@@ -21,7 +21,7 @@ o.exists(k2) == true;
 o.exists(k3) == true;
 
 // the __id__ field should not appear in Reflect.fields
-#if (js || flash8)
+#if js
 var fields = Reflect.fields(k1);
 fields == ["i"];
 #end

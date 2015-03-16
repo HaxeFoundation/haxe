@@ -23,6 +23,7 @@ package cs.internal;
 
 @:native('haxe.lang.FieldLookup')
 @:final @:nativeGen
+@:classCode("#pragma warning disable 628\n")
 @:keep @:static class FieldLookup
 {
 	@:protected private static var fieldIds:cs.NativeArray<Int>;

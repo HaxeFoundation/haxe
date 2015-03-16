@@ -20,18 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CSSStyleSheet.webidl line 12:0. Do not edit!
-
 package js.html;
 
-@:native("CSSStyleSheet")
-extern class CSSStyleSheet extends StyleSheet
-{
-	var ownerRule(default,null) : CSSRule;
-	var cssRules(default,null) : CSSRuleList;
-	
-	/** @throws DOMError */
-	function insertRule( rule : String, index : Int ) : Int;
-	/** @throws DOMError */
-	function deleteRule( index : Int ) : Void;
-}
+/** @deprecated Use DataTransfer instead. */
+@:deprecated("Clipboard is deprecated, use DataTransfer instead")
+typedef Clipboard = DataTransfer;

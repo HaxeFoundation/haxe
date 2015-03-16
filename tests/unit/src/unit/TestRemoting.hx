@@ -12,9 +12,9 @@ class TestRemoting extends Test {
 	static var _ : Dynamic = init();
 	static var ecnx : haxe.remoting.ExternalConnection;
 	static var ecnx2 : haxe.remoting.ExternalConnection;
-	static var ecnx3 : haxe.remoting.ExternalConnection;
+	// static var ecnx3 : haxe.remoting.ExternalConnection;
 	static var lcnx : haxe.remoting.LocalConnection;
-	static var fjscnx : haxe.remoting.FlashJsConnection;
+	// static var fjscnx : haxe.remoting.FlashJsConnection;
 
 	static function staticMethod( a : Int, b : Int ) {
 		return a + b;
@@ -27,11 +27,11 @@ class TestRemoting extends Test {
 		ecnx = haxe.remoting.ExternalConnection.jsConnect("cnx",ctx);
 		ecnx3 = haxe.remoting.ExternalConnection.jsConnect("unknown",ctx);
 		lcnx = haxe.remoting.LocalConnection.connect("local",ctx,[HOST]);
-		fjscnx = haxe.remoting.FlashJsConnection.connect("cnx",#if flash9 "haxeFlash8" #else "haxeFlash9" #end,ctx);
+		// fjscnx = haxe.remoting.FlashJsConnection.connect("cnx",#if flash9 "haxeFlash8" #else "haxeFlash9" #end,ctx);
 		#elseif js
-		ecnx = haxe.remoting.ExternalConnection.flashConnect("cnx","haxeFlash8",ctx);
+		// ecnx = haxe.remoting.ExternalConnection.flashConnect("cnx","haxeFlash8",ctx);
 		ecnx2 = haxe.remoting.ExternalConnection.flashConnect("cnx","haxeFlash9",ctx);
-		ecnx3 = haxe.remoting.ExternalConnection.flashConnect("nothing","haxeFlash8",ctx);
+		// ecnx3 = haxe.remoting.ExternalConnection.flashConnect("nothing","haxeFlash8",ctx);
 		#end
 	}
 
@@ -55,7 +55,7 @@ class TestRemoting extends Test {
 		// local connection
 		doTestAsyncConnection(lcnx);
 		// flash-flash through-js connection
-		doTestAsyncConnection(fjscnx);
+		// doTestAsyncConnection(fjscnx);
 		#end
 		#if (js || neko || php)
 		// http sync connection
@@ -80,12 +80,7 @@ class TestRemoting extends Test {
 		#if (flash || neko || php)
 		async( doConnect, new Socket(), true );
 		#elseif js
-		async( doConnect, new Socket("haxeFlash8"), true );
 		async( doConnect, new Socket("haxeFlash9"), true );
-		#end
-
-		#if swf_mark
-		return;
 		#end
 
 		var actx = new haxe.remoting.ContextAll();
@@ -99,7 +94,7 @@ class TestRemoting extends Test {
 
 	function doConnect( s : Socket, onResult : Bool -> Void ) {
 		var me = this;
-		#if flash9
+		#if flash
 		var connected = false;
 		s.addEventListener(flash.events.Event.CONNECT,function(e) {
 			connected = true;
@@ -114,7 +109,7 @@ class TestRemoting extends Test {
 				onResult(false);
 		});
 		s.connect(HOST,PORT);
-		#elseif (flash || js)
+		#elseif js
 		s.onConnect = function(success) {
 			if( success ) me.doTestSocket(s);
 			onResult(success);

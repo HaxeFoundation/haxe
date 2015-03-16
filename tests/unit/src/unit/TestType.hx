@@ -212,7 +212,7 @@ class TestType extends Test {
 
 		typedAs([ { x : new Child1() }, { x : new Child2() } ], [{ x: new Base() }]);
 
-		#if flash9
+		#if flash
 		typedAs(function() { return 0; var v:UInt = 0; return v; } (), 1);
 		#end
 	}
@@ -296,7 +296,7 @@ class TestType extends Test {
 
 		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
-		#if (flash9)
+		#if flash
 		t(typeError(foo.bind(_)));
 		#else
 		var l = foo.bind(_);
@@ -566,19 +566,14 @@ class TestType extends Test {
 		gf1("foo");
 		gf1(true);
 
-		#if !flash8
-		// no support for flash8
 		gf1(new haxe.Template("foo"));
-		#end
 
 		gf1(new haxe.ds.GenericStack<Int>());
 		hsf(TestType, "gf1_Int");
 		hsf(TestType, "gf1_String");
 		hsf(TestType, "gf1_Bool");
 
-		#if !flash8
 		hsf(TestType, "gf1_haxe_Template");
-		#end
 
 		hsf(TestType, "gf1_haxe_ds_GenericStack_Int");
 		t(typeError(gf1(null))); // monos don't work
@@ -595,12 +590,10 @@ class TestType extends Test {
 		eq(a[2], "foo");
 		hsf(TestType, "gf3_String_Array_String");
 
-		#if !flash8
 		var t = new haxe.Template("foo");
 		var ta = gf3(t, [])[0];
 		f(t == ta);
 		hsf(TestType, "gf3_haxe_Template_Array_haxe_Template");
-		#end
 
 		eq(overloadFake(1), 1);
 		eq(overloadFake("bar"), "barfoo");
@@ -678,9 +671,7 @@ class TestType extends Test {
 		exc(function() { throw null; return 1; } );
 		exc(function() { throw null; return "foo"; } );
 		exc(function() { throw null; return MyEnum.A; } );
-		#if !flash8
 		exc(function() { throw null; return new haxe.Template("foo"); } );
-		#end
 		exc(function() { throw null; return null; } );
 		exc(function() { throw null; return { foo: 1}; } );
 	}

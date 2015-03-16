@@ -49,7 +49,6 @@ type stats = {
 
 type platform =
 	| Cross
-	| Flash8
 	| Js
 	| Neko
 	| Flash
@@ -235,7 +234,6 @@ module Define = struct
 		| SwfDebugPassword
 		| SwfDirectBlit
 		| SwfGpu
-		| SwfMark
 		| SwfMetadata
 		| SwfPreloaderFrame
 		| SwfProtected
@@ -321,7 +319,6 @@ module Define = struct
 		| SwfDebugPassword -> ("swf_debug_password", "Set a password for debugging")
 		| SwfDirectBlit -> ("swf_direct_blit", "Use hardware acceleration to blit graphics")
 		| SwfGpu -> ("swf_gpu", "Use GPU compositing features when drawing graphics")
-		| SwfMark -> ("swf_mark","GenSWF8 internal")
 		| SwfMetadata -> ("swf_metadata", "=<file> Include contents of <file> as metadata in the swf")
 		| SwfPreloaderFrame -> ("swf_preloader_frame", "Insert empty first frame in swf")
 		| SwfProtected -> ("swf_protected","Compile Haxe private as protected in the SWF instead of public")
@@ -555,21 +552,6 @@ let get_config com =
 	match com.platform with
 	| Cross ->
 		default_config
-	| Flash8 ->
-		{
-			pf_static = false;
-			pf_sys = false;
-			pf_locals_scope = com.flash_version > 6.;
-			pf_captured_scope = false;
-			pf_unique_locals = false;
-			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
-		}
 	| Js ->
 		{
 			pf_static = false;
@@ -801,7 +783,6 @@ let file_extension file =
 	| [] -> ""
 
 let platforms = [
-	Flash8;
 	Js;
 	Neko;
 	Flash;
@@ -814,7 +795,6 @@ let platforms = [
 
 let platform_name = function
 	| Cross -> "cross"
-	| Flash8 -> "flash8"
 	| Js -> "js"
 	| Neko -> "neko"
 	| Flash -> "flash"

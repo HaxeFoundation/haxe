@@ -1,5 +1,7 @@
 2015-03-15: 3.2.0-RC1
 
+	This release removes support for Flash 8 target
+
 	New features:
 
 	all : added --display mode for toplevel completion
