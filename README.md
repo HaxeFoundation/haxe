@@ -13,6 +13,7 @@ Haxe is an open source toolkit that allows you to easily build cross-platform to
 
 Haxe allows you to compile for the following targets:
 
+ * ActionScript 3
  * C++
  * C#
  * Flash
@@ -20,6 +21,7 @@ Haxe allows you to compile for the following targets:
  * JavaScript
  * NekoVM
  * PHP
+ * Python
 
 You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
 
