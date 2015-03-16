@@ -25,9 +25,9 @@
 package js.html;
 
 @:native("CSSRuleList")
-extern class CSSRuleList implements ArrayAccess<Dynamic/*MISSING CSSRule*/>
+extern class CSSRuleList implements ArrayAccess<CSSRule>
 {
 	var length(default,null) : Int;
 	
-	function item( index : Int ) : Dynamic/*MISSING CSSRule*/;
+	function item( index : Int ) : CSSRule;
 }

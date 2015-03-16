@@ -29,7 +29,7 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 {
 	var cssText : String;
 	var length(default,null) : Int;
-	var parentRule(default,null) : Dynamic/*MISSING CSSRule*/;
+	var parentRule(default,null) : CSSRule;
 	
 	/** Shorthand for the "align-content" CSS property. */
 	var alignContent :String;
