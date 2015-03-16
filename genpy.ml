@@ -1163,6 +1163,21 @@ module Printer = struct
 		| TField ({eexpr=(TConst TThis | TLocal _)},_) -> handle_index
 		| _ -> default
 
+	and is_safe_string pctx x =
+		let follow_parens e = match e.eexpr with
+			| TParenthesis e -> e
+			| _ -> e
+		in
+		match (follow_parens x).eexpr with
+		| TBinop(OpAdd, e1, e2) -> is_safe_string pctx e1 && is_safe_string pctx e2
+		| TCall (e1,_) ->
+			let id = print_expr pctx (follow_parens e1) in
+			(match id with
+			| "Std.string" -> true
+			| _ -> false)
+		| TConst (TString s) -> true
+		| _ -> false
+
 	and print_expr pctx e =
 		let indent = pctx.pc_indent in
 		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
@@ -1251,24 +1266,9 @@ module Printer = struct
 			| TBinop(OpUShr,e1,e2) ->
 				Printf.sprintf "HxOverrides.rshift(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpAdd,e1,e2) when (is_type1 "" "str")(e.etype) || is_underlying_string e.etype ->
-				let follow_parens e = match e.eexpr with
-					| TParenthesis e -> e
-					| _ -> e
-				in
-				let rec is_safe_string x =
-					match (follow_parens x).eexpr with
-					| TBinop(OpAdd, e1, e2) -> is_safe_string e1 && is_safe_string e2
-					| TCall (e1,_) ->
-						let id = print_expr pctx (follow_parens e1) in
-						(match id with
-						| "Std.string" -> true
-						| _ -> false)
-					| TConst (TString s) -> true
-					| _ -> false
-				in
 				let rec safe_string ex =
 					match ex.eexpr, ex.etype with
-						| e, _ when is_safe_string ex -> print_expr pctx ex
+						| e, _ when is_safe_string pctx ex -> print_expr pctx ex
 						| TBinop(OpAdd, e1, e2), x when (is_type1 "" "str")(x) -> Printf.sprintf "(%s + %s)" (safe_string e1) (safe_string e2)
 						| (TLocal(_)),x when (is_type1 "" "str")(x) ->
 							(*
@@ -1611,9 +1611,10 @@ module Printer = struct
 			| TLocal { v_name = "`trace" }, [e;infos] ->
 				if has_feature pctx "haxe.Log.trace" then begin
 					"haxe_Log.trace(" ^ (print_expr pctx e) ^ "," ^ (print_expr pctx infos) ^ ")"
-				end else begin
+				end else if is_safe_string pctx e then
+					"print(" ^ (print_expr pctx e) ^ ")"
+				else
 					"print(str(" ^ (print_expr pctx e) ^ "))"
-				end
 			| TField(e1,((FAnon {cf_name = (("join" | "push" | "map" | "filter") as s)}) | FDynamic (("join" | "push" | "map" | "filter") as s))), [x] ->
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
 			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
