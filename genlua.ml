@@ -356,11 +356,11 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TField (e, ((FInstance _ | FAnon _) as ef)), el ->
-		gen_value ctx e; 
-		spr ctx ":"; 
-		print ctx "%s" (field_name ef); 
-		spr ctx "("; 
-		concat ctx "," (gen_value ctx) el; 
+		gen_value ctx e;
+		spr ctx ":";
+		print ctx "%s" (field_name ef);
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| _ ->
 		gen_value ctx e;
@@ -611,15 +611,22 @@ and gen_expr ctx e =
 		handle_break();
 		newline ctx;
 	| TTry (e,catchs) ->
-		spr ctx "try ";
+		(* TODO: add temp variables *)
+		spr ctx "local _expected_result = {}";
+		newline ctx;
+		spr ctx "local _status, _result = pcall(function() ";
 		gen_expr ctx e;
 		let vname =
 			let id = ctx.id_counter in
 			ctx.id_counter <- ctx.id_counter + 1;
-			"$e" ^ string_of_int id
+			(* TODO : More temp var cleanup *)
+			"_e" ^ string_of_int id
 		in
-		print ctx " catch( %s ) {" vname;
+		spr ctx " return _expected_result end)"; newline ctx;
+		spr ctx " if not _status then ";
 		let bend = open_block ctx in
+		newline ctx;
+		print ctx "local %s = _result" vname;
 		let last = ref false in
 		let else_block = ref false in
 		List.iter (fun (v,e) ->
@@ -666,10 +673,10 @@ and gen_expr ctx e =
 				spr ctx "} else ";
 				else_block := true
 		) catchs;
-		if not !last then print ctx "throw(%s)" vname;
+		if not !last then print ctx "error(%s)" vname;
 		bend();
 		newline ctx;
-		spr ctx "}";
+		spr ctx " elseif _result ~= _expected_result then return _result end";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if " else spr ctx "elseif ";
