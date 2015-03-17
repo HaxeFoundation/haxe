@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTableElement")
-extern class TableElement extends HTMLElement
+extern class TableElement extends Element
 {
 	var caption : TableCaptionElement;
 	var tHead : TableSectionElement;
@@ -42,15 +42,15 @@ extern class TableElement extends HTMLElement
 	var cellPadding : String;
 	var cellSpacing : String;
 	
-	function createCaption() : HTMLElement;
+	function createCaption() : Element;
 	function deleteCaption() : Void;
-	function createTHead() : HTMLElement;
+	function createTHead() : Element;
 	function deleteTHead() : Void;
-	function createTFoot() : HTMLElement;
+	function createTFoot() : Element;
 	function deleteTFoot() : Void;
-	function createTBody() : HTMLElement;
+	function createTBody() : Element;
 	/** @throws DOMError */
-	function insertRow( ?index : Int = -1 ) : HTMLElement;
+	function insertRow( ?index : Int = -1 ) : Element;
 	/** @throws DOMError */
 	function deleteRow( index : Int ) : Void;
 }

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTextAreaElement")
-extern class TextAreaElement extends HTMLElement
+extern class TextAreaElement extends Element
 {
 	var autofocus : Bool;
 	var cols : Int;

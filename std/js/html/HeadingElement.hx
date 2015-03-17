@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLHeadingElement")
-extern class HeadingElement extends HTMLElement
+extern class HeadingElement extends Element
 {
 	var align : String;
 	

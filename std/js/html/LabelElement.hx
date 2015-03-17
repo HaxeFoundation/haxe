@@ -25,10 +25,10 @@
 package js.html;
 
 @:native("HTMLLabelElement")
-extern class LabelElement extends HTMLElement
+extern class LabelElement extends Element
 {
 	var form(default,null) : FormElement;
 	var htmlFor : String;
-	var control(default,null) : HTMLElement;
+	var control(default,null) : Element;
 	
 }

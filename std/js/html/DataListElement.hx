@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLDataListElement")
-extern class DataListElement extends HTMLElement
+extern class DataListElement extends Element
 {
 	var options(default,null) : HTMLCollection;
 	

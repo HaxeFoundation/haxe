@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLMetaElement")
-extern class MetaElement extends HTMLElement
+extern class MetaElement extends Element
 {
 	var name : String;
 	var httpEquiv : String;

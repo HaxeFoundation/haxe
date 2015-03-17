@@ -29,7 +29,7 @@ extern class HTMLDocument extends Document
 {
 	var domain : String;
 	var cookie : String;
-	var body : HTMLElement;
+	var body : Element;
 	var head(default,null) : HeadElement;
 	var images(default,null) : HTMLCollection;
 	var embeds(default,null) : HTMLCollection;
@@ -193,7 +193,7 @@ extern class HTMLDocument extends Document
 	/** Shorthand for creating an HTML <br> element. */
 	inline function createBRElement() : BRElement { return cast createElement("br"); }
 	/** Shorthand for creating an HTML <html> element. */
-	inline function createHtmlElement() : HTMLHtmlElement { return cast createElement("html"); }
+	inline function createHtmlElement() : HtmlElement { return cast createElement("html"); }
 	/** Shorthand for creating an HTML <textarea> element. */
 	inline function createTextAreaElement() : TextAreaElement { return cast createElement("textarea"); }
 	/** Shorthand for creating an HTML <media> element. */

@@ -25,6 +25,6 @@
 package js.html;
 
 @:native("HTMLPictureElement")
-extern class PictureElement extends HTMLElement
+extern class PictureElement extends Element
 {
 }

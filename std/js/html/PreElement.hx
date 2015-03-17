@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLPreElement")
-extern class PreElement extends HTMLElement
+extern class PreElement extends Element
 {
 	var width : Int;
 	

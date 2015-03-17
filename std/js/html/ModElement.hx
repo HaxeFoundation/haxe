@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLModElement")
-extern class ModElement extends HTMLElement
+extern class ModElement extends Element
 {
 	var cite : String;
 	var dateTime : String;

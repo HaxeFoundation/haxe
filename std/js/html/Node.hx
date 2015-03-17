@@ -51,7 +51,7 @@ extern class Node extends EventTarget
 	var baseURI(default,null) : String;
 	var ownerDocument(default,null) : Document;
 	var parentNode(default,null) : Node;
-	var parentElement(default,null) : Element;
+	var parentElement(default,null) : DOMElement;
 	var childNodes(default,null) : NodeList;
 	var firstChild(default,null) : Node;
 	var lastChild(default,null) : Node;

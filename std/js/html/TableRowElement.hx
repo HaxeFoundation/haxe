@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTableRowElement")
-extern class TableRowElement extends HTMLElement
+extern class TableRowElement extends Element
 {
 	var rowIndex(default,null) : Int;
 	var sectionRowIndex(default,null) : Int;
@@ -37,7 +37,7 @@ extern class TableRowElement extends HTMLElement
 	var bgColor : String;
 	
 	/** @throws DOMError */
-	function insertCell( ?index : Int = -1 ) : HTMLElement;
+	function insertCell( ?index : Int = -1 ) : Element;
 	/** @throws DOMError */
 	function deleteCell( index : Int ) : Void;
 }

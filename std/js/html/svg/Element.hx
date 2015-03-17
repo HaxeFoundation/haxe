@@ -25,7 +25,7 @@
 package js.html.svg;
 
 @:native("SVGElement")
-extern class Element extends js.html.Element
+extern class Element extends js.html.DOMElement
 {
 	var ownerSVGElement(default,null) : SVGElement;
 	var viewportElement(default,null) : Element;

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLHRElement")
-extern class HRElement extends HTMLElement
+extern class HRElement extends Element
 {
 	var align : String;
 	var color : String;

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLAreaElement")
-extern class AreaElement extends HTMLElement
+extern class AreaElement extends Element
 {
 	var alt : String;
 	var coords : String;

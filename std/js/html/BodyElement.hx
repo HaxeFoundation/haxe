@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLBodyElement")
-extern class BodyElement extends HTMLElement
+extern class BodyElement extends Element
 {
 	var text : String;
 	var link : String;

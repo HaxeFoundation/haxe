@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLMapElement")
-extern class MapElement extends HTMLElement
+extern class MapElement extends Element
 {
 	var name : String;
 	var areas(default,null) : HTMLCollection;

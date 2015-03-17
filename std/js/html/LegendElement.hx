@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLLegendElement")
-extern class LegendElement extends HTMLElement
+extern class LegendElement extends Element
 {
 	var form(default,null) : FormElement;
 	var align : String;

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTableColElement")
-extern class TableColElement extends HTMLElement
+extern class TableColElement extends Element
 {
 	var span : Int;
 	var align : String;

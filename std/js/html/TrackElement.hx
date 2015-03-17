@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTrackElement")
-extern class TrackElement extends HTMLElement
+extern class TrackElement extends Element
 {
 	static inline var NONE : Int = 0;
 	static inline var LOADING : Int = 1;

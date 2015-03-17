@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLInputElement")
-extern class InputElement extends HTMLElement
+extern class InputElement extends Element
 {
 	var accept : String;
 	var alt : String;
@@ -43,7 +43,7 @@ extern class InputElement extends HTMLElement
 	var formTarget : String;
 	var height : Int;
 	var indeterminate : Bool;
-	var list(default,null) : HTMLElement;
+	var list(default,null) : Element;
 	var max : String;
 	var maxLength : Int;
 	var min : String;

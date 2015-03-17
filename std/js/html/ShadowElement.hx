@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLShadowElement")
-extern class ShadowElement extends HTMLElement
+extern class ShadowElement extends Element
 {
 	var olderShadowRoot(default,null) : ShadowRoot;
 	

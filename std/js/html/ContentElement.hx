@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLContentElement")
-extern class ContentElement extends HTMLElement
+extern class ContentElement extends Element
 {
 	var select : String;
 	

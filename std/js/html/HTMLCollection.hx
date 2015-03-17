@@ -25,10 +25,10 @@
 package js.html;
 
 @:native("HTMLCollection")
-extern class HTMLCollection implements ArrayAccess<Element>
+extern class HTMLCollection implements ArrayAccess<DOMElement>
 {
 	var length(default,null) : Int;
 	
-	function item( index : Int ) : Element;
-	function namedItem( name : String ) : Element;
+	function item( index : Int ) : DOMElement;
+	function namedItem( name : String ) : DOMElement;
 }

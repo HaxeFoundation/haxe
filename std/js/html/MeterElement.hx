@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLMeterElement")
-extern class MeterElement extends HTMLElement
+extern class MeterElement extends Element
 {
 	var value : Float;
 	var min : Float;

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLAppletElement")
-extern class AppletElement extends HTMLElement
+extern class AppletElement extends Element
 {
 	var align : String;
 	var alt : String;

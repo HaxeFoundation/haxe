@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTemplateElement")
-extern class TemplateElement extends HTMLElement
+extern class TemplateElement extends Element
 {
 	var content(default,null) : DocumentFragment;
 	

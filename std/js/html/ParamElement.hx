@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLParamElement")
-extern class ParamElement extends HTMLElement
+extern class ParamElement extends Element
 {
 	var name : String;
 	var value : String;

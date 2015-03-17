@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLEmbedElement")
-extern class EmbedElement extends HTMLElement
+extern class EmbedElement extends Element
 {
 	var src : String;
 	var type : String;
