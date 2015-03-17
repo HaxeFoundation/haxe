@@ -36,6 +36,10 @@ extern class Document extends Node
 	var doctype(default,null) : DocumentType;
 	var documentElement(default,null) : Element;
 	var inputEncoding(default,null) : String;
+	var fullscreenEnabled(default,null) : Bool;
+	var fullscreenElement(default,null) : Element;
+	var onfullscreenchange : haxe.Constraints.Function;
+	var onfullscreenerror : haxe.Constraints.Function;
 	var location(default,null) : Location;
 	var referrer(default,null) : String;
 	var lastModified(default,null) : String;
@@ -52,9 +56,6 @@ extern class Document extends Node
 	var onbeforescriptexecute : haxe.Constraints.Function;
 	var onafterscriptexecute : haxe.Constraints.Function;
 	var currentScript(default,null) : Element;
-	var fullScreenEnabled(default,null) : Bool;
-	var fullScreenElement(default,null) : Element;
-	var fullScreen(default,null) : Bool;
 	var pointerLockElement(default,null) : Element;
 	var hidden(default,null) : Bool;
 	var visibilityState(default,null) : VisibilityState;
@@ -127,8 +128,6 @@ extern class Document extends Node
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
-	var onfullscreenchange : haxe.Constraints.Function;
-	var onfullscreenerror : haxe.Constraints.Function;
 	var onpointerlockchange : haxe.Constraints.Function;
 	var onpointerlockerror : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
@@ -136,6 +135,10 @@ extern class Document extends Node
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
+	var ontouchstart : haxe.Constraints.Function;
+	var ontouchend : haxe.Constraints.Function;
+	var ontouchmove : haxe.Constraints.Function;
+	var ontouchcancel : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function new() : Void;
@@ -173,10 +176,10 @@ extern class Document extends Node
 	function createAttribute( name : String ) : Attr;
 	/** @throws DOMError */
 	function createAttributeNS( namespace_ : String, name : String ) : Attr;
+	function exitFullscreen() : Void;
 	/** @throws DOMError */
 	function hasFocus() : Bool;
 	function releaseCapture() : Void;
-	function cancelFullScreen() : Void;
 	function exitPointerLock() : Void;
 	/** @throws DOMError */
 	function registerElement( name : String, ?options : ElementRegistrationOptions ) : Dynamic;
@@ -187,6 +190,10 @@ extern class Document extends Node
 	function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
 	function querySelectorAll( selectors : String ) : NodeList;
+	function createTouch( ?view : Window, ?target : EventTarget, ?identifier : Int = 0, ?pageX : Int = 0, ?pageY : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?radiusX : Int = 0, ?radiusY : Int = 0, ?rotationAngle : Float = 0.0, ?force : Float = 0.0 ) : Touch;
+	@:overload( function( touch : Touch, ?touches : Touch ) : TouchList {} )
+	@:overload( function() : TouchList {} )
+	function createTouchList( touches : Array<Touch> ) : TouchList;
 	/** @throws DOMError */
 	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */

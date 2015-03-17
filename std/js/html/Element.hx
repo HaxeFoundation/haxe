@@ -112,8 +112,6 @@ extern class Element extends Node
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
-	var onfullscreenchange : haxe.Constraints.Function;
-	var onfullscreenerror : haxe.Constraints.Function;
 	var onpointerlockchange : haxe.Constraints.Function;
 	var onpointerlockerror : haxe.Constraints.Function;
 	var previousElementSibling(default,null) : Element;
@@ -123,6 +121,10 @@ extern class Element extends Node
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
+	var ontouchstart : haxe.Constraints.Function;
+	var ontouchend : haxe.Constraints.Function;
+	var ontouchmove : haxe.Constraints.Function;
+	var ontouchcancel : haxe.Constraints.Function;
 	
 	function getAttribute( name : String ) : String;
 	function getAttributeNS( namespace_ : String, localName : String ) : String;
@@ -151,7 +153,6 @@ extern class Element extends Node
 	function releasePointerCapture( pointerId : Int ) : Void;
 	function setCapture( ?retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
-	function requestFullScreen( ?fsOptions : RequestFullscreenOptions ) : Void;
 	function requestPointerLock() : Void;
 	function getAttributeNode( name : String ) : Attr;
 	/** @throws DOMError */
@@ -161,6 +162,7 @@ extern class Element extends Node
 	function getAttributeNodeNS( namespaceURI : String, localName : String ) : Attr;
 	/** @throws DOMError */
 	function setAttributeNodeNS( newAttr : Attr ) : Attr;
+	function requestFullscreen() : Void;
 	function getClientRects() : DOMRectList;
 	function getBoundingClientRect() : DOMRect;
 	@:overload( function( top : Bool ) : Void {} )
