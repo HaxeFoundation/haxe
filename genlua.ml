@@ -326,7 +326,7 @@ let rec gen_call ctx e el in_value =
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
-		spr ctx "[";
+		spr ctx "{";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
 			spr ctx "name : ";
@@ -335,7 +335,7 @@ let rec gen_call ctx e el in_value =
 			gen_constant ctx e.epos (TString (Codegen.bytes_serialize data));
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
-		spr ctx "]";
+		spr ctx "}";
 	| TLocal { v_name = "`trace" }, [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
@@ -420,7 +420,7 @@ and gen_expr ctx e =
 			print ctx ",$bind($_,$_%s))" (field f.cf_name))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
-		print ctx "[%i]" (i + 2)
+		print ctx "{%i}" (i + 2)
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
 		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
@@ -1153,10 +1153,14 @@ let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
 	print ctx "%s = " p;
-	if has_feature ctx "Type.resolveEnum" then print ctx "_hxClasses[\"%s\"] = " (dot_path e.e_path);
+	if has_feature ctx "Type.resolveEnum" then
+	    spr ctx "_hxClasses[\"%s\"]";
+	    newline ctx;
+	    print ctx "_hxClasses[\"%s\"] = " (dot_path e.e_path);
+
 	print ctx "{";
-	if has_feature ctx "lua.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
-	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	if has_feature ctx "lua.Boot.isEnum" then print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
+	print ctx " __constructs__ = {%s} }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
 	newline ctx;
 	List.iter (fun n ->
@@ -1165,14 +1169,15 @@ let generate_enum ctx e =
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) { local $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			(* TODO: better tmp variable for _x, _estr *)
+			print ctx "function(%s)  local _x = {\"%s\",%d,%s}; _x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
-				spr ctx " $x.toString = _estr;";
-			spr ctx " return $x; }";
+				spr ctx " _x.toString = _estr;";
+			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
+			print ctx "{\"%s\",%d}" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "may_print_enum" then begin
 				print ctx "%s%s.toString = _estr" p (field f.ef_name);
@@ -1189,7 +1194,7 @@ let generate_enum ctx e =
 				| TFun _ -> false
 				| _ -> true
 		) e.e_names in
-		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
+		print ctx "%s.__empty_constructs__ = {%s}" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		newline ctx
 	end;
 	match Codegen.build_metadata ctx.com (TEnumDecl e) with
