@@ -204,18 +204,52 @@ CAMLprim value get_full_path( value f ) {
 CAMLprim value get_real_path( value path ) {
 #ifdef _WIN32
 	// this will ensure the full class path with proper casing
-	char tmp[MAX_PATH];
 	char out[MAX_PATH];
 	if( GetFullPathName(String_val(path),MAX_PATH,out,NULL) == 0 )
 		failwith("get_real_path");
-	// GetLongPath name will ignore parts that are > 8 chars since it assume they are already "long" (sic)
-	// let's first reduce our path to short form before expanding it again
-	if( GetShortPathName(out,tmp,MAX_PATH) == 0 )
-		failwith("get_real_path");
-	if( GetLongPathName(tmp,out,MAX_PATH) == 0 )
-		failwith("get_real_path");
-	if( out[1] == ':' && out[0] >= 'a' && out[0] <= 'z' )
-		out[0] += 'A' - 'a';
+
+	const char sep = '\\';
+	size_t len = strlen(out);
+	size_t i = 0;
+
+	if (len >= 2 && out[1] == ':') {
+		// convert drive letter to uppercase
+		if (out[0] >= 'a' && out[0] <= 'z')
+			out[0] += 'A' - 'a';
+		if (len >= 3 && out[2] == sep)
+			i = 3;
+		else
+			i = 2;
+	}
+
+	size_t last = i;
+
+	while (i < len) {
+		// skip until separator
+		while (i < len && out[i] != sep)
+			i++;
+
+		// temporarily strip string to last found component
+		out[i] = 0;
+
+		// get actual file/dir name with proper case
+		WIN32_FIND_DATA data;
+		HANDLE handle;
+		if ((handle = FindFirstFile(out, &data)) != INVALID_HANDLE_VALUE) {
+			// replace the component with proper case
+			memcpy(out + last, data.cFileName, i - last);
+			FindClose(handle);
+		}
+
+		// if we're not at the end, restore the path
+		if (i < len)
+			out[i] = sep;
+
+		// advance
+		i++;
+		last = i;
+	}
+
 	return caml_copy_string(out);
 #else
 	return path;
