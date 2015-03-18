@@ -1396,7 +1396,6 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	(try ignore(Common.find_file com "mt/Include.hx"); Common.raw_define com "mt"; with Not_found -> ());
 	if com.display <> DMNone then begin
 		com.warning <- message ctx;
 		com.error <- error ctx;
