@@ -367,11 +367,6 @@ let get_meta_string_path ctx meta key =
    loop meta
 ;;
 
-let has_meta_key meta key =
-   List.exists (fun m -> match m with | (k,_,_) when k=key-> true | _ -> false ) meta
-;;
-
-
 let get_field_access_meta field_access key =
 match field_access with
    | FInstance(_,_,class_field)
@@ -383,6 +378,19 @@ let get_code meta key =
    let code = get_meta_string meta key in
    if (code<>"") then code ^ "\n" else code
 ;;
+
+let has_meta_key meta key =
+   List.exists (fun m -> match m with | (k,_,_) when k=key-> true | _ -> false ) meta
+;;
+
+let type_has_meta_key haxe_type key =
+   match follow haxe_type with
+   | TInst (klass,_) -> has_meta_key klass.cl_meta key
+   | TType (type_def,_) -> has_meta_key type_def.t_meta key
+   | TEnum (enum_def,_) -> has_meta_key enum_def.e_meta key
+   | _ -> false
+;;
+
 
 (*
 let dump_meta meta =
@@ -489,15 +497,6 @@ let rec remove_parens_cast expression =
    | _ -> expression
 ;;
 *)
-
-let cant_be_null type_string =
-   is_numeric type_string
-;;
-
-let is_object type_string =
-   not (is_numeric type_string || type_string="::String");
-;;
-
 let is_interface_type t =
    match follow t with
    | TInst (klass,params) -> klass.cl_interface
@@ -609,6 +608,7 @@ let rec class_string klass suffix params remap =
             | TInst ({ cl_path = [],"Int" },_)
             | TInst ({ cl_path = [],"Float" },_)
             | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+            | t when type_has_meta_key t Meta.NotNull -> "Dynamic"
             | _ -> "/*NULL*/" ^ (type_string t) )
          | _ -> assert false);
    (* Normal class *)
@@ -640,6 +640,7 @@ and type_string_suff suffix haxe_type remap =
             | TInst ({ cl_path = [],"Int" },_)
             | TInst ({ cl_path = [],"Float" },_)
             | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic" ^ suffix
+            | t when type_has_meta_key t Meta.NotNull -> "Dynamic" ^ suffix
             | _ -> type_string_suff suffix t remap)
          | _ -> assert false);
       | [] , "Array" ->
@@ -692,7 +693,7 @@ and type_string haxe_type =
 
 and array_element_type haxe_type =
    match type_string haxe_type with
-   | x when cant_be_null x -> x
+   | x when cant_be_null haxe_type -> x
    | x when is_interface_type (follow haxe_type) -> x
    | "::String" -> "::String"
    | _ -> "::Dynamic"
@@ -725,15 +726,20 @@ and cpp_function_signature_params params = match params with
 
 and gen_interface_arg_type_name name opt typ =
    let type_str = (type_string typ) in
-   (if (opt && (cant_be_null type_str) ) then
+   (if (opt && (cant_be_null typ) ) then
       "hx::Null< " ^ type_str ^ " > "
    else
       type_str )
    ^ " " ^ (keyword_remap name)
 and gen_tfun_interface_arg_list args =
    String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
+and cant_be_null haxe_type =
+   is_numeric (type_string haxe_type) || (type_has_meta_key haxe_type Meta.NotNull )
 ;;
 
+let is_object type_string =
+   not (is_numeric type_string || type_string="::String");
+;;
 
 
 
@@ -867,7 +873,7 @@ let gen_arg_type_name name default_val arg_type prefix =
    let type_str = (type_string arg_type) in
    match default_val with
    | Some TNull  -> (type_str,remap_name)
-   | Some constant when (cant_be_null type_str) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
+   | Some constant when (cant_be_null arg_type) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
    | Some constant  -> (type_str,prefix ^ remap_name)
    | _ -> (type_str,remap_name);;
 
@@ -1830,7 +1836,7 @@ and gen_expression ctx retval expression =
       | TInst (klass,[element]) ->
          ( match type_string element with
          | _ when is_struct_access element -> ()
-         | x when cant_be_null x -> ()
+         | x when cant_be_null element -> ()
          | _ when is_interface_type element -> ()
          | "::String" | "Dynamic" -> ()
          | real_type -> gen_array_cast cast_name real_type call
@@ -2411,9 +2417,14 @@ and gen_expression ctx retval expression =
       gen_expression ctx retval cast;
    | TCast (cast,None) ->
       let ret_type = type_string expression.etype in
-      output ("((" ^ ret_type ^ ")(");
-      gen_expression ctx true cast;
-      output "))";
+      let from_type = if is_dynamic_in_cpp ctx cast then "Dynamic" else type_string cast.etype in
+      if (from_type = ret_type) then begin
+         gen_expression ctx true cast
+      end else begin
+         output ("((" ^ ret_type ^ ")(");
+         gen_expression ctx true cast;
+         output "))";
+      end;
    | TCast (e1,Some t) ->
       let class_name = (join_class_path_remap (t_path t) "::" ) in
       if (class_name="Array") then
@@ -5559,13 +5570,13 @@ let generate_source common_ctx =
                | ([],"Array"), [t] -> "Array<" ^ (stype t) ^ ">"
                | (["haxe";"io"],"Unsigned_char__"),_ -> "uint8"
                | ([],"EnumValue"),_ -> "Dynamic"
-               | ([],"Null"),[t] when cant_be_null (type_string t) -> "Null<" ^ (stype t) ^ ">"
+               | ([],"Null"),[t] when cant_be_null t -> "Null<" ^ (stype t) ^ ">"
                | ([],"Null"),[t] -> (stype t)
                | _ -> spath klass.cl_path
                )
             | TType (type_def,params) ->
                (match type_def.t_path, params with
-               | ([],"Null"),[t] when cant_be_null (type_string t) -> "Null<" ^ (stype t) ^ ">"
+               | ([],"Null"),[t] when cant_be_null t -> "Null<" ^ (stype t) ^ ">"
                | ([],"Array"), [t] -> "Array< " ^ (stype (follow t) ) ^ " >"
                | _,_ ->  stype (apply_params type_def.t_params params type_def.t_type)
                )
