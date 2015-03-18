@@ -727,7 +727,7 @@ and gen_block_element ?(after=false) ctx e =
 		spr ctx "(function() return ";
 		gen_tbinop ctx op e1 e2;
 		spr ctx " end)()";
-	| TConst c -> ()
+	| TConst _ | TLocal _ -> ()
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
 	| TCall ({ eexpr = TLocal { v_name = "__feature__" } }, { eexpr = TConst (TString f) } :: eif :: eelse) ->
