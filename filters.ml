@@ -705,13 +705,13 @@ let save_class_state ctx t = match t with
 	| TClassDecl c ->
 		let mk_field_restore f =
 			let rec mk_overload_restore f =
-				f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
+				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
 			in
 			( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
 		in
 		let restore_field (f,res,overloads) =
-			let restore_field (f,(kind,expr,t,meta,params)) =
-				f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
+			let restore_field (f,(name,kind,expr,t,meta,params)) =
+				f.cf_name <- name; f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
 				f
 			in
 			let f = restore_field (f,res) in
