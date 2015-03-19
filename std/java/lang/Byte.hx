@@ -30,3 +30,6 @@ package java.lang;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Byte;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String, param2 : Int) : Byte;
 }
+
+@:realPath("java.lang.Byte_ByteCache") @:javaNative @:native("java.lang.Byte$ByteCache") @:javaCanonical("java.lang","Byte.ByteCache") extern class Byte_ByteCache {
+}

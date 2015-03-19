@@ -48,3 +48,5 @@ package java.lang;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Integer;
 }
 
+@:realPath("java.lang.Integer_IntegerCache") @:javaNative @:native("java.lang.Integer$IntegerCache") @:javaCanonical("java.lang","Integer.IntegerCache") extern class Integer_IntegerCache {
+}

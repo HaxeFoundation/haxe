@@ -30,5 +30,7 @@ package java.lang;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String, param2 : Int) : Short;
 	@:overload static function valueOf(param1 : java.types.Int16) : Short;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Short;
+}
 
+@:realPath("java.lang.Short_ShortCache") @:javaNative @:native("java.lang.Short$ShortCache") @:javaCanonical("java.lang","Short.ShortCache") extern class Short_ShortCache {
 }
