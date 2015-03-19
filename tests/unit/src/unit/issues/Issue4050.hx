@@ -2,7 +2,7 @@ package unit.issues;
 
 private interface IObject {}
 
-private class Object implements IObject {
+private class OObject implements IObject {
    public function new() {}
 }
 
@@ -14,7 +14,7 @@ class Issue4050 extends Test {
 		f(tmp == null);
 
 		// Test 2: ObjectMap with Interface as keytype and keys()-loop with value access
-		var myObject = new Object();
+		var myObject = new OObject();
 		var tmp2 = new Map<IObject, Array<String>>();
 
 		tmp2.set(myObject, ["foo", "bar"]);
