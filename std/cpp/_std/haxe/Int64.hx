@@ -26,8 +26,11 @@ package haxe;
 @:notNull
 
 @:native("cpp::Int64Struct")
-extern class __Int64 { public function get():cpp.Int64; }
+private extern class ___Int64 { public function get():cpp.Int64; }
 
+private typedef __Int64 = ___Int64;
+
+@:coreApi
 abstract Int64( __Int64 ) from __Int64 to __Int64
 {
    /**
@@ -36,7 +39,7 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 	public #if !cppua inline #end function copy():Int64 return this;
 
 
-	public static #if !cppia inline #end function make( high : Int, low : Int ) : Int64 {
+	public static #if !cppia inline #end function make( high : Int32, low : Int32 ) : Int64 {
       return untyped __cpp__("cpp::Int64Struct(( ( (cpp::Int64)((unsigned int){0}) ) << 32 ) | ((unsigned int){1}))",high, low);
 	}
 
@@ -124,7 +127,7 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 	public static function divMod( dividend : Int64, divisor : Int64 ) : { quotient : Int64, modulus : Int64 }
 	{
       var q = dividend/divisor;
-      
+
       if (isZero(divisor))
 	       throw "divide by zero";
 
