@@ -50,8 +50,8 @@ install:
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% tools"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% OCAMLOPT=ocamlopt.opt"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% OCAMLOPT=ocamlopt.opt tools"'
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
     - haxelib setup "%HAXELIB_ROOT%"
