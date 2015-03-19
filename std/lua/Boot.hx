@@ -27,11 +27,11 @@ class Boot {
 	}
 	public static var unpack : Dynamic->lua.Table<Int,Dynamic> = untyped __lua__("function(...) return {...} end");
 
-	private static function __unhtml(s : String) {
+	static function __unhtml(s : String) {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
 
-	private static function __trace(v,i : haxe.PosInfos) {
+	static function __trace(v,i : haxe.PosInfos) {
 		untyped {
 			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
 			msg += __string_rec(v, "");
@@ -46,7 +46,7 @@ class Boot {
 		}
 	}
 
-	private static function __clear_trace() {
+	static function __clear_trace() {
 		untyped {
 			var d = document.getElementById("haxe:trace");
 			if( d != null )
@@ -93,8 +93,19 @@ class Boot {
 	return nil");
 	}
 
+	public static function urlEncode(str:String){
+	if (str != null) {
+		str = lua.StringTools.gsub(str, "\n", "\r\n");
+		str = lua.StringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
+			return lua.StringTools.format("%%%02X", lua.StringTools.byte(c) + '');
+		});
+		str = lua.StringTools.gsub(str, " ", "+");
+	}
+	return str;
+	}
+
 	@:ifFeature("may_print_enum")
-	private static function __string_rec(o : Dynamic, s = '') {
+	static function __string_rec(o : Dynamic, s = '') {
 		untyped {
 			switch(__type__(o)){
 				case "nil": return "null";
