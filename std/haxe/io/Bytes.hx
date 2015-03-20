@@ -450,7 +450,6 @@ class Bytes {
 
 	#if php @:extern #end public inline function getData() : BytesData {
 		#if php
-		var r = this;
 		return untyped __php__("&{0}->b", this);
 		#else
 		return b;
