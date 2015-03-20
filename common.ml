@@ -565,7 +565,7 @@ let get_config com =
 			pf_overload = false;
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [([],"Object")];
+			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
 	| Neko ->
 		{
