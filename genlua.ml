@@ -358,8 +358,7 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")";
 	| TField ( { eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)), el ->
 		(* TODO: Come up with better workaround for dealing with invoked methods on constants e.g. "foo".charAt(0); *)
-		spr ctx "(function(x) return x";
-		spr ctx ":";
+		spr ctx "(function(x) return x:";
 		print ctx "%s" (field_name ef);
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
@@ -408,10 +407,10 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		print ctx ")"
 	| TField (x,FClosure (_,f)) ->
-		add_feature ctx "use.$bind";
+		add_feature ctx "use._bind";
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
-			print ctx "$bind(";
+			print ctx "_bind(";
 			gen_value ctx x;
 			print ctx ",";
 			gen_value ctx x;
@@ -677,7 +676,7 @@ and gen_expr ctx e =
 				if not !else_block then newline ctx;
 				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) vname;
 				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
-				spr ctx ") ) {";
+				spr ctx ") ) then ";
 				let bend = open_block ctx in
 				if vname <> v.v_name then begin
 					newline ctx;
@@ -1345,21 +1344,21 @@ let generate com =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
 		match e.eexpr with
 		| TField (_,FClosure _) ->
-			add_feature ctx "use.$bind"
+			add_feature ctx "use._bind"
 		| _ ->
 			Type.iter chk_features e
 	in
 	List.iter chk_features ctx.inits;
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use.$iterator" then begin
-		add_feature ctx "use.$bind";
-		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }";
+		add_feature ctx "use._bind";
+		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _bind(o,o.iterator) : o.iterator; }";
 		newline ctx;
 	end;
-	if has_feature ctx "use.$bind" then begin
+	if has_feature ctx "use._bind" then begin
 		print ctx "var $_, $fid = 0";
 		newline ctx;
-		print ctx "function $bind(o,m) { if( m == nil ) return nil; if( m.__id__ == nil ) m.__id__ = $fid++; var f; if( o.hx__closures__ == nil ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == nil ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
+		print ctx "function _bind(o,m) { if( m == nil ) return nil; if( m.__id__ == nil ) m.__id__ = $fid++; var f; if( o.hx__closures__ == nil ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == nil ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPushClosure" then begin
