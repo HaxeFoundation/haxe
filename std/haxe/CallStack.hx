@@ -36,6 +36,38 @@ enum StackItem {
 	Get informations about the call stack.
 **/
 class CallStack {
+	#if js
+	static var lastException:js.Error;
+
+	static function getStack(e:js.Error):Array<StackItem> {
+		// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
+		var oldValue = (untyped Error).prepareStackTrace;
+		(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {
+			var stack = [];
+			for (site in callsites) {
+				if (wrapCallSite != null) site = wrapCallSite(site);
+				var method = null;
+				var fullName :String = site.getFunctionName();
+				if (fullName != null) {
+					var idx = fullName.lastIndexOf(".");
+					if (idx >= 0) {
+						var className = fullName.substr(0, idx);
+						var methodName = fullName.substr(idx+1);
+						method = Method(className, methodName);
+					}
+				}
+				stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
+			}
+			return stack;
+		}
+		var a = makeStack(e.stack);
+		(untyped Error).prepareStackTrace = oldValue;
+		return a;
+	}
+
+	// support for source-map-support module
+	public static var wrapCallSite:Dynamic->Dynamic;
+	#end
 
 	/**
 		Return the call stack elements, or an empty array if not available.
@@ -55,33 +87,14 @@ class CallStack {
 			var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 			return makeStack(s);
 		#elseif js
-			// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
-			var oldValue = (untyped Error).prepareStackTrace;
-			(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {
-				var stack = [];
-				for (site in callsites) {
-					var method = null;
-					var fullName :String = site.getFunctionName();
-					if (fullName != null) {
-						var idx = fullName.lastIndexOf(".");
-						if (idx >= 0) {
-							var className = fullName.substr(0, idx);
-							var methodName = fullName.substr(idx+1);
-							method = Method(className, methodName);
-						}
-					}
-					stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
-				}
-				return stack;
-			}
 			try {
-				throw untyped __new__("Error");
+				throw new js.Error();
 			} catch( e : Dynamic ) {
-				var a = makeStack(e.stack);
-				if( a != null ) a.shift(); // remove Stack.callStack()
-				(untyped Error).prepareStackTrace = oldValue;
+				var a = getStack(e);
+				a.shift(); // remove Stack.callStack()
 				return a;
 			}
+
 		#elseif java
 			var stack = [];
 			for ( el in java.lang.Thread.currentThread().getStackTrace() ) {
@@ -178,6 +191,8 @@ class CallStack {
 					stack.push(FilePos(null, elem._1, elem._2));
 			}
 			return stack;
+		#elseif js
+			return untyped __define_feature__("haxe.CallStack.exceptionStack", getStack(lastException));
 		#else
 			return []; // Unsupported
 		#end
@@ -282,7 +297,9 @@ class CallStack {
 			}
 			return m;
 		#elseif js
-			if ((untyped __js__("typeof"))(s) == "string") {
+			if (s == null) {
+				return [];
+			} else if ((untyped __js__("typeof"))(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
 				if( stack[0] == "Error" ) stack.shift();
@@ -296,7 +313,7 @@ class CallStack {
 						var line = Std.parseInt(rie10.matched(3));
 						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line ));
 					} else
-						m.push(Module(line)); // A little weird, but better than nothing
+						m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
 				}
 				return m;
 			} else {

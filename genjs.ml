@@ -663,6 +663,17 @@ and gen_expr ctx e =
 		let bend = open_block ctx in
 		let last = ref false in
 		let else_block = ref false in
+
+		if (has_feature ctx "haxe.CallStack.exceptionStack") then begin
+			newline ctx;
+			print ctx "%s.lastException = %s" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["haxe"],"CallStack" })) vname
+		end;
+
+		if (has_feature ctx "js.Boot.HaxeError") then begin
+			newline ctx;
+			print ctx "if (%s instanceof %s) %s = %s.val" vname (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js";"_Boot"],"HaxeError" })) vname vname;
+		end;
+
 		List.iter (fun (v,e) ->
 			if !last then () else
 			let t = (match follow v.v_type with
