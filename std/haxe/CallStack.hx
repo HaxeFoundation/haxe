@@ -45,6 +45,7 @@ class CallStack {
 		(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {
 			var stack = [];
 			for (site in callsites) {
+				if (wrapCallSite != null) site = wrapCallSite(site);
 				var method = null;
 				var fullName :String = site.getFunctionName();
 				if (fullName != null) {
@@ -63,6 +64,9 @@ class CallStack {
 		(untyped Error).prepareStackTrace = oldValue;
 		return a;
 	}
+
+	// support for source-map-support module
+	public static var wrapCallSite:Dynamic->Dynamic;
 	#end
 
 	/**
