@@ -143,10 +143,11 @@ let rec wrap_js_exceptions com e =
 	let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
 	let cerr = match terr with TClassDecl c -> c | _ -> assert false in
 
-	let rec is_error = function
-	| TInst ({cl_path = (["js"],"Error")},_) -> true
-	| TInst ({cl_super = Some (csup,tl)}, _) -> is_error (TInst (csup,tl))
-	| _ -> false
+	let rec is_error t =
+		match follow t with
+		| TInst ({cl_path = (["js"],"Error")},_) -> true
+		| TInst ({cl_super = Some (csup,tl)}, _) -> is_error (TInst (csup,tl))
+		| _ -> false
 	in
 
 	let rec loop e =
