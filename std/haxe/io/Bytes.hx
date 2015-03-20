@@ -44,7 +44,7 @@ class Bytes {
 		#elseif flash
 		return b[pos];
 		#elseif php
-		return untyped __call__("ord", b[pos]);
+		return b.get(pos);
 		#elseif cpp
 		return untyped b[pos];
 		#elseif java
@@ -62,7 +62,7 @@ class Bytes {
 		#elseif flash
 		b[pos] = v;
 		#elseif php
-		b[pos] = untyped __call__("chr", v);
+		b.set(pos, v);
 		#elseif cpp
 		untyped b[pos] = v;
 		#elseif java
@@ -83,7 +83,7 @@ class Bytes {
 		#if neko
 		try untyped $sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif php
-		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
+		b.blit(pos, src.b, srcpos, len);
 		#elseif flash
 		b.position = pos;
 		if( len > 0 ) b.writeBytes(src.b,srcpos,len);
@@ -142,7 +142,7 @@ class Bytes {
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
 		#elseif php
-		return new Bytes(len, untyped __call__("substr", b, pos, len));
+		return new Bytes(len, b.sub(pos, len));
 		#elseif java
 		var newarr = new java.NativeArray(len);
 		java.lang.System.arraycopy(b, pos, newarr, 0, len);
@@ -188,7 +188,7 @@ class Bytes {
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
 		#elseif php
-		return untyped __php__("$this->b < $other->b ? -1 : ($this->b == $other->b ? 0 : 1)");
+		return b.compare(other.b);
 		//#elseif cs
 		//TODO: memcmp if unsafe flag is on
 		#elseif cpp
@@ -364,7 +364,7 @@ class Bytes {
 		b.position = pos;
 		return b.readUTFBytes(len);
 		#elseif php
-		return untyped __call__("substr", b, pos, len);
+		return b.getString(pos, len);
 		#elseif cpp
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
@@ -420,7 +420,7 @@ class Bytes {
 		b.position = 0;
 		return b.readUTFBytes(length);
 		#elseif php
-		return cast b;
+		return b.toString();
 		#elseif cs
 		return cs.system.text.Encoding.UTF8.GetString(b, 0, length);
 		#elseif java
@@ -460,7 +460,7 @@ class Bytes {
 		b.length = length;
 		return new Bytes(length,b);
 		#elseif php
-		return new Bytes(length, untyped __call__("str_repeat", __call__("chr", 0), length));
+		return new Bytes(length, BytesData.alloc(length));
 		#elseif cpp
 		var a = new BytesData();
 		if (length>0) a[length-1] = untyped 0;
@@ -487,8 +487,8 @@ class Bytes {
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
 		#elseif php
-		return new Bytes(untyped __call__("strlen", s), cast s);
-//		return ofData(untyped __call__("new _hx_array", __call__("array_values", __call__("unpack", "C*",  s))));
+		var x = BytesData.ofString(s);
+		return new Bytes(x.length, x);
 		#elseif cpp
 		var a = new BytesData();
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
@@ -543,7 +543,7 @@ class Bytes {
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b),b);
 		#elseif php
-		return new Bytes(untyped __call__("strlen", b), b);
+		return new Bytes(b.length, b);
 		#elseif cs
 		return new Bytes(b.Length,b);
 		#else
@@ -561,7 +561,7 @@ class Bytes {
 		#elseif flash
 		return b[pos];
 		#elseif php
-		return untyped __call__("ord", b[pos]);
+		return b.get(pos);
 		#elseif cpp
 		return untyped b.unsafeGet(pos);
 		#elseif java

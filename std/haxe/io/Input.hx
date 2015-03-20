@@ -67,7 +67,7 @@ class Input {
 			#if neko
 				untyped __dollar__sset(b,pos,readByte());
 			#elseif php
-				b[pos] = untyped __call__("chr", readByte());
+				b.set(pos, readByte());
 			#elseif cpp
 				b[pos] = untyped readByte();
 			#else
