@@ -2,7 +2,7 @@
 
 	Bugfixes:
 
-	js : function accepting a variable number of arguments now use haxe.extern.Rest
+	js : added variable number of arguments support in js.html.* classes
 
 2015-03-15: 3.2.0-RC1
 
