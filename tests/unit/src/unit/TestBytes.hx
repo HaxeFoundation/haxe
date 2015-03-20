@@ -1,5 +1,7 @@
 ﻿package unit;
 
+import haxe.io.Bytes.fastGet as fget;
+
 class TestBytes extends Test {
 
 	function test() {
@@ -102,5 +104,26 @@ class TestBytes extends Test {
 		var input = new haxe.io.BytesInput(bs);
 		//readAll
 		eq(input.readAll().toString(), "One é accent");
+	}
+
+	function testFastGet() {
+		var b = haxe.io.Bytes.alloc(10);
+		var bd = b.getData();
+		for( i in 0...10 )
+			eq(fget(bd, i),0);
+		b.set(1,20);
+		eq(fget(bd, 1), 20);
+		b.set(1,0xF756);
+		eq(fget(bd, 1), 0x56);
+		var b2 = haxe.io.Bytes.ofString("ABCD");
+		var bd2 = b2.getData();
+		eq(fget(bd2, 0), "A".code);
+		eq(fget(bd2, 1), "B".code);
+		eq(fget(bd2, 2), "C".code);
+		eq(fget(bd2, 3), "D".code);
+		var b3 = haxe.io.Bytes.ofString("é");
+		var bd3 = b3.getData();
+		eq(fget(bd3, 0), 0xC3);
+		eq(fget(bd3, 1), 0xA9);
 	}
 }
