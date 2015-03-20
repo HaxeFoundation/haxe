@@ -116,12 +116,12 @@ class RunSauceLabs {
 				"version": "8.1",
 				"device-orientation": "portrait"
 			},
-			//{
-				//"browserName": "android",
-				//"platform": "Linux",
-				//"version": "4.0",
-				//"device-orientation": "portrait"
-			//},
+			{
+				"browserName": "android",
+				"platform": "Linux",
+				"version": "4.0",
+				"device-orientation": "portrait"
+			},
 			{
 				"browserName": "android",
 				"platform": "Linux",
