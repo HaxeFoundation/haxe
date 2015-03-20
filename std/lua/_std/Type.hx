@@ -63,7 +63,8 @@ enum ValueType {
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		var cl : Class<Dynamic> = $hxClasses[name];
+		// TODO: better tmp name for _hxClasses
+		var cl : Class<Dynamic> = _hxClasses[name];
 		// ensure that this is a class
 		if( cl == null || !lua.Boot.isClass(cl) )
 			return null;
@@ -71,7 +72,8 @@ enum ValueType {
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
-		var e : Dynamic = $hxClasses[name];
+		// TODO: better tmp name for _hxClasses
+		var e : Dynamic = _hxClasses[name];
 		// ensure that this is an enum
 		if( e == null || !lua.Boot.isEnum(e) )
 			return null;
