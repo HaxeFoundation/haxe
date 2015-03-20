@@ -1,3 +1,9 @@
+2015-??-??: 3.2.0
+
+	Bugfixes:
+
+	js : function accepting a variable number of arguments now use haxe.extern.Rest
+
 2015-03-15: 3.2.0-RC1
 
 	This release removes support for Flash 8 target
