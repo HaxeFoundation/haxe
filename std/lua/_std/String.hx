@@ -26,7 +26,7 @@ class String {
 
 	public function new(string:String) untyped {
 		// TODO: extern this somehow
-		__lua__("self = str");
+		__lua__("self = string");
 	}
 
 	public function toUpperCase() : String return untyped this.upper();
