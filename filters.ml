@@ -1019,9 +1019,14 @@ let commit_features ctx t =
 	) m.m_extra.m_features
 
 let check_reserved_type_paths ctx t =
-	let m = t_infos t in
-	if List.mem m.mt_path ctx.com.config.pf_reserved_type_paths then
-		ctx.com.warning ("Type path " ^ (s_type_path m.mt_path) ^ " is reserved on this target") m.mt_pos
+	let check path pos =
+		if List.mem path ctx.com.config.pf_reserved_type_paths then
+			ctx.com.warning ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+	in
+	match t with
+	| TClassDecl c when not c.cl_extern -> check c.cl_path c.cl_pos
+	| TEnumDecl e when not e.e_extern -> check e.e_path e.e_pos
+	| _ -> ()
 
 (* PASS 3 end *)
 
