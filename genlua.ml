@@ -38,6 +38,7 @@ type ctx = {
 	mutable in_loop : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
+	mutable continue_counter : int;
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
 	mutable found_expose : bool;
@@ -453,7 +454,7 @@ and gen_expr ctx e =
 		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
-		spr ctx "continue"
+		print ctx "goto _hx_continue_%i" ctx.continue_counter;
 	| TBlock el ->
 		let bend = open_block ctx in
 		List.iter (gen_block_element ctx) el;
@@ -576,13 +577,18 @@ and gen_expr ctx e =
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let handle_break = handle_break ctx e in
+		ctx.continue_counter <- ctx.continue_counter + 1;
+		let id = ctx.continue_counter in
 		spr ctx "while ";
 		gen_value ctx cond;
 		spr ctx " do ";
 		gen_expr ctx e;
 		handle_break();
 		newline ctx;
+		print ctx "::_hx_continue_%i::" id;
+		newline ctx;
 		spr ctx "end ";
+		ctx.continue_counter <- ctx.continue_counter - 1;
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
 		gen_expr ctx e;
@@ -1034,6 +1040,7 @@ let generate_class___name__ ctx c =
 let generate_class ctx c =
 	ctx.current <- c;
 	ctx.id_counter <- 0;
+	ctx.continue_counter <- 0;
 	(match c.cl_path with
 	| [],"Function" -> error "This class redefines a native one" c.cl_pos
 	| _ -> ());
@@ -1282,6 +1289,7 @@ let alloc_ctx com =
 		in_loop = false;
 		handle_break = false;
 		id_counter = 0;
+		continue_counter = 0;
 		type_accessor = (fun _ -> assert false);
 		separator = false;
 		found_expose = false;
