@@ -22,6 +22,8 @@ environment:
         #     WODI_ARCH: 64
         #     MINGW_ARCH: x86_64
 
+skip_tags: true
+
 init:
     - 'echo System architecture: %PLATFORM%'
 
