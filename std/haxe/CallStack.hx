@@ -66,6 +66,7 @@ class CallStack {
 	}
 
 	// support for source-map-support module
+	@:noCompletion
 	public static var wrapCallSite:Dynamic->Dynamic;
 	#end
 
