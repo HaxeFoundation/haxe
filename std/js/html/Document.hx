@@ -191,7 +191,7 @@ extern class Document extends Node
 	/** @throws DOMError */
 	function querySelectorAll( selectors : String ) : NodeList;
 	function createTouch( ?view : Window, ?target : EventTarget, ?identifier : Int = 0, ?pageX : Int = 0, ?pageY : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?radiusX : Int = 0, ?radiusY : Int = 0, ?rotationAngle : Float = 0.0, ?force : Float = 0.0 ) : Touch;
-	@:overload( function( touch : Touch, ?touches : Touch ) : TouchList {} )
+	@:overload( function( touch : Touch, touches : haxe.extern.Rest<Touch> ) : TouchList {} )
 	@:overload( function() : TouchList {} )
 	function createTouchList( touches : Array<Touch> ) : TouchList;
 	/** @throws DOMError */

@@ -27,22 +27,22 @@ package js.html;
 @:native("Console")
 extern class Console
 {
-	function log( ?data : Dynamic ) : Void;
-	function info( ?data : Dynamic ) : Void;
-	function warn( ?data : Dynamic ) : Void;
-	function error( ?data : Dynamic ) : Void;
-	function exception( ?data : Dynamic ) : Void;
-	function debug( ?data : Dynamic ) : Void;
-	function table( ?data : Dynamic ) : Void;
+	function log( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function info( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function warn( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function error( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function exception( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function debug( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function table( data : haxe.extern.Rest<Dynamic> ) : Void;
 	function trace() : Void;
-	function dir( ?data : Dynamic ) : Void;
-	function group( ?data : Dynamic ) : Void;
-	function groupCollapsed( ?data : Dynamic ) : Void;
-	function groupEnd( ?data : Dynamic ) : Void;
+	function dir( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function group( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function groupCollapsed( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function groupEnd( data : haxe.extern.Rest<Dynamic> ) : Void;
 	function time( ?time : Dynamic ) : Void;
 	function timeEnd( ?time : Dynamic ) : Void;
-	function profile( ?data : Dynamic ) : Void;
-	function profileEnd( ?data : Dynamic ) : Void;
-	function assert( condition : Bool, ?data : Dynamic ) : Void;
-	function count( ?data : Dynamic ) : Void;
+	function profile( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function profileEnd( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function assert( condition : Bool, data : haxe.extern.Rest<Dynamic> ) : Void;
+	function count( data : haxe.extern.Rest<Dynamic> ) : Void;
 }
