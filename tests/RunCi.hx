@@ -565,6 +565,7 @@ class RunCi {
 						}
 
 						runCommand("npm", ["install", "wd", "q"], true);
+						runCommand("npm", ["install", "source-map-support", "q"], true);
 						haxelibInstallGit("dionjwa", "nodejs-std", "master", null, true, "nodejs");
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
