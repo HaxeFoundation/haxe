@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTitleElement")
-extern class TitleElement extends HTMLElement
+extern class TitleElement extends Element
 {
 	var text : String;
 	

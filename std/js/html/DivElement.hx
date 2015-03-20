@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLDivElement")
-extern class DivElement extends HTMLElement
+extern class DivElement extends Element
 {
 	var align : String;
 	

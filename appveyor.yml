@@ -35,7 +35,7 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip"'
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/wodi%WODI_ARCH%/bin'
     # Install neko
-    - cinst make
+    - cinst make -y
     - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
     - 'cd %NEKO_ROOT%'
     - set PATH=%PATH%;%NEKO_ROOT%/bin
@@ -50,8 +50,8 @@ install:
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH%"'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% tools"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% OCAMLOPT=ocamlopt.opt"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -f Makefile.win WODI=wodi%WODI_ARCH% OCAMLOPT=ocamlopt.opt tools"'
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
     - haxelib setup "%HAXELIB_ROOT%"

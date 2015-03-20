@@ -21,6 +21,17 @@
  */
 package js;
 
+private class HaxeError extends js.Error {
+
+	var val:Dynamic;
+
+	public function new(val:Dynamic) {
+		super();
+		this.val = untyped __define_feature__("js.Boot.HaxeError", val);
+		untyped if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
+	}
+}
+
 @:dox(hide)
 class Boot {
 

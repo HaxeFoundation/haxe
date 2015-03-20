@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLUListElement")
-extern class UListElement extends HTMLElement
+extern class UListElement extends Element
 {
 	var compact : Bool;
 	var type : String;

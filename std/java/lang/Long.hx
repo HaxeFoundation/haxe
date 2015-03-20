@@ -47,3 +47,6 @@ package java.lang;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String, param2 : Int) : Long;
 	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Long;
 }
+
+@:realPath("java.lang.Long_LongCache") @:javaNative @:native("java.lang.Long$LongCache") @:javaCanonical("java.lang","Long.LongCache") extern class Long_LongCache {
+}

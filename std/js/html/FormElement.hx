@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLFormElement")
-extern class FormElement extends HTMLElement
+extern class FormElement extends Element
 {
 	var acceptCharset : String;
 	var action : String;

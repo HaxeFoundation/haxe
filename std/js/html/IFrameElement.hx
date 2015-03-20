@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLIFrameElement")
-extern class IFrameElement extends HTMLElement
+extern class IFrameElement extends Element
 {
 	var src : String;
 	var srcdoc : String;

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLFieldSetElement")
-extern class FieldSetElement extends HTMLElement
+extern class FieldSetElement extends Element
 {
 	var disabled : Bool;
 	var form(default,null) : FormElement;

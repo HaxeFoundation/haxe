@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLOutputElement")
-extern class OutputElement extends HTMLElement
+extern class OutputElement extends Element
 {
 	var htmlFor(default,null) : DOMSettableTokenList;
 	var form(default,null) : FormElement;

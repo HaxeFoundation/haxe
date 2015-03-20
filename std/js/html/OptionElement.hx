@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLOptionElement")
-extern class OptionElement extends HTMLElement
+extern class OptionElement extends Element
 {
 	var disabled : Bool;
 	var form(default,null) : FormElement;

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLParagraphElement")
-extern class ParagraphElement extends HTMLElement
+extern class ParagraphElement extends Element
 {
 	var align : String;
 	

@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTableSectionElement")
-extern class TableSectionElement extends HTMLElement
+extern class TableSectionElement extends Element
 {
 	var rows(default,null) : HTMLCollection;
 	var align : String;
@@ -34,7 +34,7 @@ extern class TableSectionElement extends HTMLElement
 	var vAlign : String;
 	
 	/** @throws DOMError */
-	function insertRow( ?index : Int = -1 ) : HTMLElement;
+	function insertRow( ?index : Int = -1 ) : Element;
 	/** @throws DOMError */
 	function deleteRow( index : Int ) : Void;
 }

@@ -545,7 +545,7 @@ class RunCi {
 					getJSDependencies();
 
 					for (flatten in [true, false]) {
-						runCommand("haxe", ["compile-js.hxml"].concat(flatten ? ["-D", "js-flatten"] : []));
+						runCommand("haxe", ["compile-js.hxml"].concat(flatten ? [] : ["-D", "js-unflatten"]));
 						runCommand("node", ["-e", "var unit = require('./bin/unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 					}
 

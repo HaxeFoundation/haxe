@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLProgressElement")
-extern class ProgressElement extends HTMLElement
+extern class ProgressElement extends Element
 {
 	var value : Float;
 	var max : Float;

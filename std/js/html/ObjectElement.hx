@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLObjectElement")
-extern class ObjectElement extends HTMLElement
+extern class ObjectElement extends Element
 {
 	var data : String;
 	var type : String;

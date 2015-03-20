@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLOptGroupElement")
-extern class OptGroupElement extends HTMLElement
+extern class OptGroupElement extends Element
 {
 	var disabled : Bool;
 	var label : String;

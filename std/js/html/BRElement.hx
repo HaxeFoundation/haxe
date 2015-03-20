@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLBRElement")
-extern class BRElement extends HTMLElement
+extern class BRElement extends Element
 {
 	var clear : String;
 	

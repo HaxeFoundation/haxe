@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLLinkElement")
-extern class LinkElement extends HTMLElement
+extern class LinkElement extends Element
 {
 	var disabled : Bool;
 	var href : String;

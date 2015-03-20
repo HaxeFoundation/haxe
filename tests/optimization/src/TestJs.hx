@@ -74,13 +74,13 @@ class TestJs {
 		forEach(function(x) trace(x + 2));
 	}
 
-	@:js('var a = "";var tmp;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":tmp = 0;break;default:throw false;}var e = tmp;')
+	@:js('var a = "";var tmp;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":tmp = 0;break;default:throw new Error();}var e = tmp;')
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
 		var e = switch (a) {
 			case _.toLowerCase() => "e": 0;
-			default: throw false;
+			default: throw new js.Error();
 		}
 	}
 

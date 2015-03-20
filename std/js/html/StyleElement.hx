@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLStyleElement")
-extern class StyleElement extends HTMLElement
+extern class StyleElement extends Element
 {
 	var disabled : Bool;
 	var media : String;

@@ -30,7 +30,6 @@ extern class StyleElement extends Element
 	var xmlspace : String;
 	var type : String;
 	var media : String;
-	var title : String;
 	var scoped : Bool;
 	
 }

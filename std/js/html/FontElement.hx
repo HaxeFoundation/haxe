@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLFontElement")
-extern class FontElement extends HTMLElement
+extern class FontElement extends Element
 {
 	var color : String;
 	var face : String;

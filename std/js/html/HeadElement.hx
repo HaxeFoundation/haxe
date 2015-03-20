@@ -25,6 +25,6 @@
 package js.html;
 
 @:native("HTMLHeadElement")
-extern class HeadElement extends HTMLElement
+extern class HeadElement extends Element
 {
 }

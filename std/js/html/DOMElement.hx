@@ -20,52 +20,61 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Document.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/Element.webidl line 16:0. Do not edit!
 
 package js.html;
 
-@:native("Document")
-extern class Document extends Node
+@:native("Element")
+extern class DOMElement extends Node
 {
-	var implementation(default,null) : DOMImplementation;
-	var URL(default,null) : String;
-	var documentURI(default,null) : String;
-	var compatMode(default,null) : String;
-	var characterSet(default,null) : String;
-	var contentType(default,null) : String;
-	var doctype(default,null) : DocumentType;
-	var documentElement(default,null) : DOMElement;
-	var inputEncoding(default,null) : String;
-	var fullscreenEnabled(default,null) : Bool;
-	var fullscreenElement(default,null) : DOMElement;
-	var onfullscreenchange : haxe.Constraints.Function;
-	var onfullscreenerror : haxe.Constraints.Function;
-	var location(default,null) : Location;
-	var referrer(default,null) : String;
-	var lastModified(default,null) : String;
-	var readyState(default,null) : String;
-	var title : String;
-	var dir : String;
-	var defaultView(default,null) : Window;
-	var activeElement(default,null) : DOMElement;
-	var onreadystatechange : haxe.Constraints.Function;
+	var tagName(default,null) : String;
+	var id : String;
+	var className : String;
+	var classList(default,null) : DOMTokenList;
+	var attributes(default,null) : NamedNodeMap;
 	var onwheel : haxe.Constraints.Function;
+	var title : String;
+	var lang : String;
+	var dir : String;
+	var dataset(default,null) : DOMStringMap;
+	var itemScope : Bool;
+	var itemType(default,null) : DOMSettableTokenList;
+	var itemId : String;
+	var itemRef(default,null) : DOMSettableTokenList;
+	var itemProp(default,null) : DOMSettableTokenList;
+	var properties(default,null) : HTMLPropertiesCollection;
+	var itemValue : Dynamic;
+	var hidden : Bool;
+	var tabIndex : Int;
+	var accessKey : String;
+	var accessKeyLabel(default,null) : String;
+	var draggable : Bool;
+	var contentEditable : String;
+	var isContentEditable(default,null) : Bool;
+	var contextMenu(default,null) : MenuElement;
+	var spellcheck : Bool;
+	var style(default,null) : CSSStyleDeclaration;
 	var oncopy : haxe.Constraints.Function;
 	var oncut : haxe.Constraints.Function;
 	var onpaste : haxe.Constraints.Function;
-	var onbeforescriptexecute : haxe.Constraints.Function;
-	var onafterscriptexecute : haxe.Constraints.Function;
-	var currentScript(default,null) : DOMElement;
-	var pointerLockElement(default,null) : DOMElement;
-	var hidden(default,null) : Bool;
-	var visibilityState(default,null) : VisibilityState;
-	var styleSheets(default,null) : StyleSheetList;
-	var selectedStyleSheetSet : String;
-	var lastStyleSheetSet(default,null) : String;
-	var preferredStyleSheetSet(default,null) : String;
-	var styleSheetSets(default,null) : DOMStringList;
-	var timeline(default,null) : AnimationTimeline;
-	var fonts(default,null) : FontFaceSet;
+	var offsetParent(default,null) : DOMElement;
+	var offsetTop(default,null) : Int;
+	var offsetLeft(default,null) : Int;
+	var offsetWidth(default,null) : Int;
+	var offsetHeight(default,null) : Int;
+	var scrollTop : Int;
+	var scrollLeft : Int;
+	var scrollWidth(default,null) : Int;
+	var scrollHeight(default,null) : Int;
+	var clientTop(default,null) : Int;
+	var clientLeft(default,null) : Int;
+	var clientWidth(default,null) : Int;
+	var clientHeight(default,null) : Int;
+	var scrollTopMax(default,null) : Int;
+	var scrollLeftMax(default,null) : Int;
+	var innerHTML : String;
+	var outerHTML : String;
+	var shadowRoot(default,null) : ShadowRoot;
 	var onabort : haxe.Constraints.Function;
 	var onblur : haxe.Constraints.Function;
 	var onfocus : haxe.Constraints.Function;
@@ -130,6 +139,8 @@ extern class Document extends Node
 	var onlostpointercapture : haxe.Constraints.Function;
 	var onpointerlockchange : haxe.Constraints.Function;
 	var onpointerlockerror : haxe.Constraints.Function;
+	var previousElementSibling(default,null) : DOMElement;
+	var nextElementSibling(default,null) : DOMElement;
 	var onerror : haxe.Constraints.Function;
 	var children(default,null) : HTMLCollection;
 	var firstElementChild(default,null) : DOMElement;
@@ -140,69 +151,73 @@ extern class Document extends Node
 	var ontouchmove : haxe.Constraints.Function;
 	var ontouchcancel : haxe.Constraints.Function;
 	
+	function getAttribute( name : String ) : String;
+	function getAttributeNS( namespace_ : String, localName : String ) : String;
 	/** @throws DOMError */
-	function new() : Void;
+	function setAttribute( name : String, value : String ) : Void;
+	/** @throws DOMError */
+	function setAttributeNS( namespace_ : String, name : String, value : String ) : Void;
+	/** @throws DOMError */
+	function removeAttribute( name : String ) : Void;
+	/** @throws DOMError */
+	function removeAttributeNS( namespace_ : String, localName : String ) : Void;
+	function hasAttribute( name : String ) : Bool;
+	function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
+	function hasAttributes() : Bool;
+	/** @throws DOMError */
+	function closest( selector : String ) : DOMElement;
+	/** @throws DOMError */
+	function matches( selector : String ) : Bool;
 	function getElementsByTagName( localName : String ) : HTMLCollection;
 	/** @throws DOMError */
 	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
 	function getElementsByClassName( classNames : String ) : HTMLCollection;
-	function getElementById( elementId : String ) : DOMElement;
 	/** @throws DOMError */
-	@:overload( function( localName : String ) : DOMElement {} )
-	function createElement( localName : String, typeExtension : String ) : DOMElement;
+	function setPointerCapture( pointerId : Int ) : Void;
 	/** @throws DOMError */
-	@:overload( function( namespace_ : String, qualifiedName : String ) : DOMElement {} )
-	function createElementNS( namespace_ : String, qualifiedName : String, typeExtension : String ) : DOMElement;
-	function createDocumentFragment() : DocumentFragment;
-	function createTextNode( data : String ) : Text;
-	function createComment( data : String ) : Comment;
-	/** @throws DOMError */
-	function createProcessingInstruction( target : String, data : String ) : ProcessingInstruction;
-	/** @throws DOMError */
-	function importNode( node : Node, ?deep : Bool = false ) : Node;
-	/** @throws DOMError */
-	function adoptNode( node : Node ) : Node;
-	/** @throws DOMError */
-	function createEvent( interface_ : String ) : Event;
-	/** @throws DOMError */
-	function createRange() : Range;
-	/** @throws DOMError */
-	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter ) : NodeIterator;
-	/** @throws DOMError */
-	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter ) : TreeWalker;
-	/** @throws DOMError */
-	function createCDATASection( data : String ) : CDATASection;
-	/** @throws DOMError */
-	function createAttribute( name : String ) : Attr;
-	/** @throws DOMError */
-	function createAttributeNS( namespace_ : String, name : String ) : Attr;
-	function exitFullscreen() : Void;
-	/** @throws DOMError */
-	function hasFocus() : Bool;
+	function releasePointerCapture( pointerId : Int ) : Void;
+	function setCapture( ?retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
-	function exitPointerLock() : Void;
+	function requestPointerLock() : Void;
+	function getAttributeNode( name : String ) : Attr;
 	/** @throws DOMError */
-	function registerElement( name : String, ?options : ElementRegistrationOptions ) : Dynamic;
-	function enableStyleSheetsForSet( name : String ) : Void;
-	function elementFromPoint( x : Float, y : Float ) : DOMElement;
-	function caretPositionFromPoint( x : Float, y : Float ) : CaretPosition;
+	function setAttributeNode( newAttr : Attr ) : Attr;
+	/** @throws DOMError */
+	function removeAttributeNode( oldAttr : Attr ) : Attr;
+	function getAttributeNodeNS( namespaceURI : String, localName : String ) : Attr;
+	/** @throws DOMError */
+	function setAttributeNodeNS( newAttr : Attr ) : Attr;
+	function requestFullscreen() : Void;
+	function click() : Void;
+	/** @throws DOMError */
+	function focus() : Void;
+	/** @throws DOMError */
+	function blur() : Void;
+	function getClientRects() : DOMRectList;
+	function getBoundingClientRect() : DOMRect;
+	@:overload( function( top : Bool ) : Void {} )
+	function scrollIntoView( ?options : ScrollIntoViewOptions ) : Void;
+	@:overload( function( x : Float, y : Float ) : Void {} )
+	function scroll( ?options : ScrollToOptions ) : Void;
+	@:overload( function( x : Float, y : Float ) : Void {} )
+	function scrollTo( ?options : ScrollToOptions ) : Void;
+	@:overload( function( x : Float, y : Float ) : Void {} )
+	function scrollBy( ?options : ScrollToOptions ) : Void;
+	/** @throws DOMError */
+	function insertAdjacentHTML( position : String, text : String ) : Void;
 	/** @throws DOMError */
 	function querySelector( selectors : String ) : DOMElement;
 	/** @throws DOMError */
 	function querySelectorAll( selectors : String ) : NodeList;
-	function createTouch( ?view : Window, ?target : EventTarget, ?identifier : Int = 0, ?pageX : Int = 0, ?pageY : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?radiusX : Int = 0, ?radiusY : Int = 0, ?rotationAngle : Float = 0.0, ?force : Float = 0.0 ) : Touch;
-	@:overload( function( touch : Touch, ?touches : Touch ) : TouchList {} )
-	@:overload( function() : TouchList {} )
-	function createTouchList( touches : Array<Touch> ) : TouchList;
+	/** @throws DOMError */
+	function createShadowRoot() : ShadowRoot;
+	function getDestinationInsertionPoints() : NodeList;
+	function getAnimationPlayers() : Array<AnimationPlayer>;
+	function remove() : Void;
 	/** @throws DOMError */
 	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
 	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
 	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
-	/** @throws DOMError */
-	function createExpression( expression : String, resolver : XPathNSResolver ) : XPathExpression;
-	function createNSResolver( nodeResolver : Node ) : Node;
-	/** @throws DOMError */
-	function evaluate( expression : String, contextNode : Node, resolver : XPathNSResolver, type : Int, result : Dynamic ) : XPathResult;
 }

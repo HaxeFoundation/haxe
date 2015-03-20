@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTableCaptionElement")
-extern class TableCaptionElement extends HTMLElement
+extern class TableCaptionElement extends Element
 {
 	var align : String;
 	

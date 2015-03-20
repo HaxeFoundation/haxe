@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLAnchorElement")
-extern class AnchorElement extends HTMLElement
+extern class AnchorElement extends Element
 {
 	var target : String;
 	var download : String;

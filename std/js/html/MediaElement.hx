@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLMediaElement")
-extern class MediaElement extends HTMLElement
+extern class MediaElement extends Element
 {
 	static inline var NETWORK_EMPTY : Int = 0;
 	static inline var NETWORK_IDLE : Int = 1;

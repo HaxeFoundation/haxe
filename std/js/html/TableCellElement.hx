@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLTableCellElement")
-extern class TableCellElement extends HTMLElement
+extern class TableCellElement extends Element
 {
 	var colSpan : Int;
 	var rowSpan : Int;

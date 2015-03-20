@@ -139,6 +139,28 @@ let rec add_final_return e =
 			{ e with eexpr = TFunction f }
 		| _ -> e
 
+let rec wrap_js_exceptions com e =
+	let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
+	let cerr = match terr with TClassDecl c -> c | _ -> assert false in
+
+	let rec is_error t =
+		match follow t with
+		| TInst ({cl_path = (["js"],"Error")},_) -> true
+		| TInst ({cl_super = Some (csup,tl)}, _) -> is_error (TInst (csup,tl))
+		| _ -> false
+	in
+
+	let rec loop e =
+		match e.eexpr with
+		| TThrow eerr when not (is_error eerr.etype) ->
+			let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
+			{ e with eexpr = TThrow ewrap }
+		| _ ->
+			Type.map_expr loop e
+	in
+
+	loop e
+
 (* -------------------------------------------------------------------------- *)
 (* CHECK LOCAL VARS INIT *)
 
@@ -705,13 +727,13 @@ let save_class_state ctx t = match t with
 	| TClassDecl c ->
 		let mk_field_restore f =
 			let rec mk_overload_restore f =
-				f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
+				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
 			in
 			( f,mk_overload_restore f, List.map (fun f -> f,mk_overload_restore f) f.cf_overloads )
 		in
 		let restore_field (f,res,overloads) =
-			let restore_field (f,(kind,expr,t,meta,params)) =
-				f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
+			let restore_field (f,(name,kind,expr,t,meta,params)) =
+				f.cf_name <- name; f.cf_kind <- kind; f.cf_expr <- expr; f.cf_type <- t; f.cf_meta <- meta; f.cf_params <- params;
 				f
 			in
 			let f = restore_field (f,res) in
@@ -998,9 +1020,14 @@ let commit_features ctx t =
 	) m.m_extra.m_features
 
 let check_reserved_type_paths ctx t =
-	let m = t_infos t in
-	if List.mem m.mt_path ctx.com.config.pf_reserved_type_paths then
-		ctx.com.warning ("Type path " ^ (s_type_path m.mt_path) ^ " is reserved on this target") m.mt_pos
+	let check path pos =
+		if List.mem path ctx.com.config.pf_reserved_type_paths then
+			ctx.com.warning ("Type path " ^ (s_type_path path) ^ " is reserved on this target") pos
+	in
+	match t with
+	| TClassDecl c when not c.cl_extern -> check c.cl_path c.cl_pos
+	| TEnumDecl e when not e.e_extern -> check e.e_path e.e_pos
+	| _ -> ()
 
 (* PASS 3 end *)
 
@@ -1088,6 +1115,7 @@ let run com tctx main =
 		let filters = [
 			Optimizer.sanitize com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
+			if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
 			rename_local_vars tctx;
 		] in
 		List.iter (run_expression_filters tctx filters) new_types;
@@ -1113,6 +1141,7 @@ let run com tctx main =
 			captured_vars com;
 			promote_complex_rhs com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
+			if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
 			rename_local_vars tctx;
 		] in
 		List.iter (run_expression_filters tctx filters) new_types;

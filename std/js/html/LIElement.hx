@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLLIElement")
-extern class LIElement extends HTMLElement
+extern class LIElement extends Element
 {
 	var value : Int;
 	var type : String;

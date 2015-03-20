@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLButtonElement")
-extern class ButtonElement extends HTMLElement
+extern class ButtonElement extends Element
 {
 	var autofocus : Bool;
 	var disabled : Bool;

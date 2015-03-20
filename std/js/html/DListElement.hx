@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLDListElement")
-extern class DListElement extends HTMLElement
+extern class DListElement extends Element
 {
 	var compact : Bool;
 	

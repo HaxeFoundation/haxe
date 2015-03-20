@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLOListElement")
-extern class OListElement extends HTMLElement
+extern class OListElement extends Element
 {
 	var reversed : Bool;
 	var start : Int;
