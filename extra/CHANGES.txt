@@ -14,6 +14,7 @@
 	python : added python target
 	flash : flash player 12-14 support
 	js : added @:jsRequire and js.Lib.require
+	js : support haxe.CallStack.exceptionStack
 	cs : added @:bridgeProperties
 	cs : added -D erase_generics
 	cs : added -D dll_import to import haxe-generated dlls
