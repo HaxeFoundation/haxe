@@ -589,6 +589,8 @@ and gen_call ctx e el =
 	| TLocal { v_name = "__php__" }, [{ eexpr = TConst (TString code) }] ->
 		(*--php-prefix*)
 		spr ctx (prefix_init_replace ctx.com code)
+	| TLocal { v_name = "__php__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
 	| TLocal { v_name = "__instanceof__" },  [e1;{ eexpr = TConst (TString t) }] ->
 		gen_value ctx e1;
 		print ctx " instanceof %s" t;

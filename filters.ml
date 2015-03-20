@@ -705,12 +705,6 @@ let rename_local_vars ctx e =
 	e
 
 let check_unification ctx e t =
-	begin match follow e.etype,follow t with
-		| TEnum _,TDynamic _ ->
-			Hashtbl.replace ctx.curclass.cl_module.m_extra.m_features "may_print_enum" true;
-		| _ ->
-			()
-	end;
 	begin match e.eexpr,t with
 		| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
 			(* TODO: this smells of hack, but we have to deal with it somehow *)
