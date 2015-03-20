@@ -47,6 +47,12 @@ script:
   - haxe -neko RunCi.n -main RunCi -lib hx-yaml
   - neko RunCi.n
 
+branches:
+  except:
+    # A hack to prevent building for tags, assuming they all start with a number.
+    # https://github.com/travis-ci/travis-ci/issues/1532
+    - /^[0-9]/
+
 notifications:
   webhooks:
     urls:
