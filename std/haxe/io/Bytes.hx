@@ -448,9 +448,23 @@ class Bytes {
 		return s.toString();
 	}
 
-	public inline function getData() : BytesData {
+	#if php @:extern #end public inline function getData() : BytesData {
+		#if php
+		var r = this;
+		return untyped __php__("&haxe_io_Bytes_getData($r)");
+		#else
 		return b;
+		#end
 	}
+	
+	#if php
+	static function __init__() {
+		untyped __php__("
+function &haxe_io_Bytes_getData($__hx__this) {
+	return $__hx__this->b;
+}");
+	}
+	#end
 
 	public static function alloc( length : Int ) : Bytes {
 		#if neko
