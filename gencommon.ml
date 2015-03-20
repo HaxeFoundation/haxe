@@ -975,7 +975,7 @@ let write_file gen w source_dir path extension out_files =
 	end else true in
 
 	if should_write then begin
-		let f = open_out s_path in
+		let f = open_out_bin s_path in
 		output_string f contents;
 		close_out f
 	end;
