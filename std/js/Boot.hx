@@ -28,7 +28,7 @@ private class HaxeError extends js.Error {
 	public function new(val:Dynamic) {
 		super();
 		this.val = untyped __define_feature__("js.Boot.HaxeError", val);
-		untyped js.Error.captureStackTrace(this, HaxeError);
+		untyped if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
 	}
 }
 
