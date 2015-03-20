@@ -692,10 +692,14 @@ and gen_expr ctx e =
 				gen_block_element ctx e;
 				bend();
 				newline ctx;
-				spr ctx "} else ";
+				spr ctx " else ";
 				else_block := true
 		) catchs;
-		if not !last then print ctx "error(%s)" vname;
+		if not !last then begin
+		    print ctx "error(%s)" vname;
+		    newline ctx;
+		    spr ctx "end";
+		end;
 		bend();
 		newline ctx;
 		spr ctx " elseif _result ~= _expected_result then return _result end";
