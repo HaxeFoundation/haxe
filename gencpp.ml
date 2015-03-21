@@ -2565,12 +2565,18 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let func_name = "__default_" ^ (remap_name) in
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type;
-         output (" run(" ^ (gen_arg_list function_def.tf_args "") ^ ")");
+         output (" run(" ^ (gen_arg_list function_def.tf_args "__o_") ^ ")");
          ctx.ctx_dump_src_pos <- dump_src;
          if (is_void) then begin
-            ctx.ctx_writer#begin_block;
+            ctx.ctx_writer#begin_block;  
+            generate_default_values ctx function_def.tf_args "__o_";
             gen_expression ctx false function_def.tf_expr;
             output "return null();\n";
+            ctx.ctx_writer#end_block;
+         end else if (has_default_values function_def.tf_args) then begin
+            ctx.ctx_writer#begin_block;  
+            generate_default_values ctx function_def.tf_args "__o_";
+            gen_expression ctx false function_def.tf_expr;
             ctx.ctx_writer#end_block;
          end else
             gen_expression ctx false (to_block function_def.tf_expr);
