@@ -240,7 +240,6 @@ module Define = struct
 		| SwfScriptTimeout
 		| SwfUseDoAbc
 		| Sys
-		| Unity46LineNumbers
 		| Unsafe
 		| UseNekoc
 		| UseRttiDoc
@@ -325,8 +324,6 @@ module Define = struct
 		| SwfScriptTimeout -> ("swf_script_timeout", "Maximum ActionScript processing time before script stuck dialog box displays (in seconds)")
 		| SwfUseDoAbc -> ("swf_use_doabc", "Use DoAbc swf-tag instead of DoAbcDefine")
 		| Sys -> ("sys","Defined for all system platforms")
-		(* see https://github.com/HaxeFoundation/haxe/issues/3759 *)
-		| Unity46LineNumbers -> ("unity46_line_numbers", "Fixes line numbers in generated C# files for Unity 4.6 Mono compiler")
 		| Unsafe -> ("unsafe","Allow unsafe code when targeting C#")
 		| UseNekoc -> ("use_nekoc","Use nekoc compiler instead of internal one")
 		| UseRttiDoc -> ("use_rtti_doc","Allows access to documentation during compilation")
