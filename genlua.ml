@@ -1116,7 +1116,7 @@ let generate_class ctx c =
 	);
 
 	let gen_props props =
-		String.concat "," (List.map (fun (p,v) -> p ^":\""^v^"\"") props) in
+		String.concat "," (List.map (fun (p,v) -> p ^"=\""^v^"\"") props) in
 	let has_property_reflection =
 		(has_feature ctx "Reflect.getProperty") || (has_feature ctx "Reflect.setProperty") in
 
@@ -1160,10 +1160,10 @@ let generate_class ctx c =
 			| Some (csup,_) when Codegen.has_properties csup ->
 				newprop ctx;
 				let psup = s_path ctx csup.cl_path in
-				print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
+				print ctx "__properties__ =  _extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
 			| _ ->
 				newprop ctx;
-				print ctx "__properties__: {%s}" (gen_props props));
+				print ctx "__properties__ =  {%s}" (gen_props props));
 		end;
 
 		print ctx "\n}";
