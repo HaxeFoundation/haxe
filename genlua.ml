@@ -446,16 +446,7 @@ and gen_expr ctx e =
 		spr ctx ")";
 	| TMeta (_,e) ->
 		gen_expr ctx e
-	| TReturn eo ->
-		if ctx.in_value <> None then unsupported e.epos;
-		(match eo with
-		| None ->
-			spr ctx "do return end"
-		| Some e ->
-			spr ctx "do return ";
-			gen_value ctx e;
-			spr ctx " end";
-			);
+	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
 		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
@@ -936,6 +927,24 @@ and gen_bitop ctx op e1 e2 =
     gen_value ctx e2;
     spr ctx ")"
 
+and gen_return ctx e eo =
+    if ctx.in_value <> None then unsupported e.epos;
+    (match eo with
+    | None ->
+	    spr ctx "do return end"
+    | Some e ->
+	    spr ctx "do return ";
+	    (match e.eexpr with
+		| TBinop(OpAssign, e1, e2) ->
+			spr ctx "(function() ";
+			gen_value ctx e;
+			spr ctx " return ";
+			gen_value ctx e1;
+			spr ctx " end)()";
+		| _ -> gen_value ctx e;
+	    );
+	    spr ctx " end")
+
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
 		| [] -> ()
@@ -1010,14 +1019,7 @@ let gen_class_field ctx c f =
 		    | TBlock el ->
 			let rec loop ctx el = (match el with
 			    | [hd] -> (match hd.eexpr with
-				    | TReturn eo ->
-					    if ctx.in_value <> None then unsupported e.epos;
-					    (match eo with
-					    | None ->
-						    print ctx "return"
-					    | Some e ->
-						    print ctx "return ";
-						    gen_value ctx e)
+				    | TReturn eo -> gen_return ctx e eo;
 				    | _ -> gen_block_element ctx hd);
 			    | hd :: tl ->
 				    gen_block_element ctx hd;
