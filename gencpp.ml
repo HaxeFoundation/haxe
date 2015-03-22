@@ -3507,16 +3507,16 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^")\n");
 
       let create_result () =
-         output_cpp ("{  " ^ ptr_name ^ " result = new " ^ class_name ^ "();\n");
+         output_cpp ("{  " ^ ptr_name ^ " _result_ = new " ^ class_name ^ "();\n");
          in
       create_result ();
-      output_cpp ("\tresult->__construct(" ^ constructor_args ^ ");\n");
-      output_cpp ("\treturn result;}\n\n");
+      output_cpp ("\t_result_->__construct(" ^ constructor_args ^ ");\n");
+      output_cpp ("\treturn _result_;}\n\n");
 
       output_cpp ("Dynamic " ^ class_name ^ "::__Create(hx::DynamicArray inArgs)\n");
       create_result ();
-      output_cpp ("\tresult->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
-      output_cpp ("\treturn result;}\n\n");
+      output_cpp ("\t_result_->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
+      output_cpp ("\treturn _result_;}\n\n");
       if ( (List.length implemented) > 0 ) then begin
          output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const hx::type_info &inType) {\n");
          List.iter (fun interface_name ->
