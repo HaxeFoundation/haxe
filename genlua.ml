@@ -592,7 +592,6 @@ and gen_expr ctx e =
 		print ctx "::_hx_continue_%i::" id;
 		newline ctx;
 		spr ctx "end ";
-		ctx.continue_counter <- ctx.continue_counter - 1;
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
 		gen_expr ctx e;
