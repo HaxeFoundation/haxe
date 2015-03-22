@@ -716,14 +716,18 @@ and gen_expr ctx e =
 		    newline ctx;
 		) cases;
 		(match def with
-		| None -> ()
+		| None -> spr ctx "end"
 		| Some e ->
-			spr ctx "else ";
+			begin
+			if (List.length(cases) > 0) then
+			    spr ctx "else";
 			let bend = open_block ctx in
 			gen_block_element ctx e;
 			bend();
-			newline ctx);
-		spr ctx "end"
+			newline ctx;
+			if (List.length(cases) > 0) then
+			    spr ctx "end";
+			end;);
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
