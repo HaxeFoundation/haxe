@@ -140,19 +140,17 @@ let rec add_final_return e =
 		| _ -> e
 
 let rec wrap_js_exceptions com e =
-	let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
-	let cerr = match terr with TClassDecl c -> c | _ -> assert false in
-
 	let rec is_error t =
 		match follow t with
 		| TInst ({cl_path = (["js"],"Error")},_) -> true
 		| TInst ({cl_super = Some (csup,tl)}, _) -> is_error (TInst (csup,tl))
 		| _ -> false
 	in
-
 	let rec loop e =
 		match e.eexpr with
 		| TThrow eerr when not (is_error eerr.etype) ->
+			let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
+			let cerr = match terr with TClassDecl c -> c | _ -> assert false in
 			let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
 			{ e with eexpr = TThrow ewrap }
 		| _ ->
