@@ -527,18 +527,18 @@ and gen_expr ctx e =
 		gen_expr ctx e;
 		newline ctx;
 		(match eelse with
-		| None -> print ctx "end";
+		| None -> ();
 		| Some e2 ->
 			(match e.eexpr with
 			| TObjectDecl _ -> ctx.separator <- false
 			| _ ->());
-			spr ctx "else ";
-		newline ctx;
-		let bend = open_block ctx in
-		gen_expr ctx e2;
-		bend();
-		newline ctx;
-		spr ctx "end");
+			spr ctx "else";
+			newline ctx;
+			let bend = open_block ctx in
+			gen_expr ctx e2;
+			bend();
+			newline ctx);
+		spr ctx "end";
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		spr ctx "(function() ";
 		(match unop_flag with
