@@ -425,12 +425,18 @@ and gen_expr ctx e =
 		print ctx "{%i}" (i + 2)
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
 		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
-	| TField ( { eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
+	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
 		spr ctx "(function(x) return x.";
 		print ctx "%s" (field_name ef);
 		spr ctx " end )(";
 		gen_value ctx e;
 		spr ctx ")";
+	| TField ({ eexpr = TObjectDecl fields }, ef ) ->
+		spr ctx "(function(x) return x.";
+		print ctx "%s" (field_name ef);
+		spr ctx " end )({";
+		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
+		spr ctx "})";
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 		(* TODO: Come up with better workaround for dealing with invoked methods on constants e.g. "foo".charAt(0); *)
