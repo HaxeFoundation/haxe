@@ -2,6 +2,7 @@
 
 	Bugfixes:
 
+	all : fixed detection of @:generic classes with constructor constraints
 	js : added variable number of arguments support in js.html.* classes
 	js : fixed DCE issue related to printing enums
 

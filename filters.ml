@@ -761,7 +761,15 @@ let save_class_state ctx t = match t with
 
 (* PASS 2 begin *)
 
-let is_removable_class c = c.cl_kind = KGeneric && (Codegen.has_ctor_constraint c || Meta.has Meta.Remove c.cl_meta)
+let is_removable_class c =
+	c.cl_kind = KGeneric &&
+	(Meta.has Meta.Remove c.cl_meta ||
+	List.exists (fun (_,t) -> match follow t with
+		| TInst(c,_) ->
+			Codegen.has_ctor_constraint c
+		| _ ->
+			false
+	) c.cl_params)
 
 let remove_generic_base ctx t = match t with
 	| TClassDecl c when is_removable_class c ->
