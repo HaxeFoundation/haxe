@@ -2160,7 +2160,8 @@ and gen_expression ctx retval expression =
       end
    (* Get precidence matching haxe ? *)
    | TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
-   | TField (expr,_) | TEnumParameter (expr,_,_) when (is_null expr) -> output "Dynamic()"
+   | TField (expr,_) | TEnumParameter (expr,_,_) when (is_null expr) ->
+         output "hx::Throw(HX_CSTRING(\"Invalid field access on null object\"))"
    | TEnumParameter (expr,ef,i) ->
       let enum = match follow ef.ef_type with
          | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
