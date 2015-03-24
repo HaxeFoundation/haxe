@@ -3,6 +3,7 @@
 	Bugfixes:
 
 	all : fixed detection of @:generic classes with constructor constraints
+	all : fixed variable initialization check issue in loop condition
 	js : added variable number of arguments support in js.html.* classes
 	js : fixed DCE issue related to printing enums
 
