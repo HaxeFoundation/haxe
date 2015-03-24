@@ -471,7 +471,10 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var args = ~/\r?\n/g.split(File.getContent('$sysDir/args.txt'));
+		var args = [
+			for (arg in new haxe.xml.Fast(Xml.parse(File.getContent('$sysDir/args.xml'))).node.args.nodes.arg)
+			arg.innerData
+		];
 
 		var tests:Array<TEST> = switch (ci) {
 			case null:

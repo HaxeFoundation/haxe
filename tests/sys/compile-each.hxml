@@ -1,4 +1,4 @@
 -debug
 -cp src
--resource args.txt
+-resource args.xml
 -main Main

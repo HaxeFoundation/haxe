@@ -1,0 +1,9 @@
+<args>
+
+<arg><![CDATA[foo]]></arg>
+
+<arg><![CDATA[12]]></arg>
+
+<arg><![CDATA[a b  %PATH% $HOME c\&<>[\"]#{}|%$\""]]></arg>
+
+</args>

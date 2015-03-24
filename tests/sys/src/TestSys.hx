@@ -3,7 +3,10 @@ class TestSys extends haxe.unit.TestCase {
 	#if !interp
 	function testArgs() {
 		var args = Sys.args();
-		var expectedArgs = ~/\r?\n/g.split(haxe.Resource.getString("args.txt"));
+		var expectedArgs = [
+			for (arg in new haxe.xml.Fast(Xml.parse(haxe.Resource.getString("args.xml"))).node.args.nodes.arg)
+			arg.innerData
+		];
 		// trace(args);
 		assertEquals(expectedArgs.length, args.length);
 		for (i in 0...expectedArgs.length) {
