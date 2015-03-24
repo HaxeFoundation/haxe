@@ -43,7 +43,7 @@ enum Ci {
 
 	AppVeyor:
 	Setting file: "appveyor.yml".
-	Build result: https://ci.appveyor.com/project/Simn/haxe
+	Build result: https://ci.appveyor.com/project/HaxeFoundation/haxe
 */
 class RunCi {
 	static function successMsg(msg:String):Void {
@@ -93,7 +93,7 @@ class RunCi {
 		var name:String = (altName == null) ? repository : altName;
 		try {
 			getHaxelibPath(name);
-			infoMsg('Warning: $name has already been installed.');
+			infoMsg('$name has already been installed.');
 		} catch (e:Dynamic) {
 			var args:Array<String> = ["git", name, 'https://github.com/$account/$repository'];
 			if (branch != null) {
@@ -110,7 +110,7 @@ class RunCi {
 	static function haxelibInstall(library:String):Void {
 		try {
 			getHaxelibPath(library);
-			infoMsg('Warning: $library has already been installed.');
+			infoMsg('$library has already been installed.');
 		} catch (e:Dynamic) {
 			runCommand("haxelib", ["install", library]);
 		}
@@ -290,11 +290,21 @@ class RunCi {
 		}
 	}
 
+	static function commandSucceed(cmd:String, args:Array<String>):Bool {
+		return try {
+			new Process(cmd, args).exitCode() == 0;
+		} catch(e:Dynamic) false;
+	}
+
 	static function getPhpDependencies() {
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "php5", "-qq"], true);
-				runCommand("sudo", ["apt-get", "install", "php5-mysql", "php5-sqlite", "-qq"], true);
+				if (commandSucceed("php", ["-v"])) {
+					infoMsg('php has already been installed.');
+				} else {
+					runCommand("sudo", ["apt-get", "install", "php5", "-qq"], true);
+					runCommand("sudo", ["apt-get", "install", "php5-mysql", "php5-sqlite", "-qq"], true);
+				}
 			case "Mac":
 				//pass
 		}
@@ -315,13 +325,18 @@ class RunCi {
 
 
 		//install and build hxcpp
-		haxelibInstallGit("HaxeFoundation", "hxcpp", true);
-		var oldDir = Sys.getCwd();
-		changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/tools/hxcpp/");
-		runCommand("haxe", ["compile.hxml"]);
-		changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
-		runCommand("neko", ["build.n"]);
-		changeDirectory(oldDir);
+		try {
+			getHaxelibPath("hxcpp");
+			infoMsg('hxcpp has already been installed.');
+		} catch(e:Dynamic) {
+			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+			var oldDir = Sys.getCwd();
+			changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/tools/hxcpp/");
+			runCommand("haxe", ["compile.hxml"]);
+			changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
+			runCommand("neko", ["build.n"]);
+			changeDirectory(oldDir);
+		}
 
 		gotCppDependencies = true;
 	}
@@ -335,7 +350,11 @@ class RunCi {
 	static function getJSDependencies() {
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "nodejs", "-qq"], true);
+				if (commandSucceed("node", ["-v"])) {
+					infoMsg('node has already been installed.');
+				} else {
+					runCommand("sudo", ["apt-get", "install", "nodejs", "-qq"], true);
+				}
 			case "Mac":
 				//pass
 		}
@@ -346,10 +365,16 @@ class RunCi {
 	static function getCsDependencies() {
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-qq"], true);
+				if (commandSucceed("mono", ["--version"]))
+					infoMsg('mono has already been installed.');
+				else
+					runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-qq"], true);
 				runCommand("mono", ["--version"]);
 			case "Mac":
-				runCommand("brew", ["install", "mono"], true);
+				if (commandSucceed("mono", ["--version"]))
+					infoMsg('mono has already been installed.');
+				else
+					runCommand("brew", ["install", "mono"], true);
 				runCommand("mono", ["--version"]);
 			case "Windows":
 				//pass
@@ -391,21 +416,35 @@ class RunCi {
 	static function getPythonDependencies():Array<String> {
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "python3", "-qq"], true);
+				if (commandSucceed("python3", ["-V"]))
+					infoMsg('python3 has already been installed.');
+				else
+					runCommand("sudo", ["apt-get", "install", "python3", "-qq"], true);
 				runCommand("python3", ["-V"]);
 
-				var pypyVersion = "pypy3-2.4.0-linux64";
-				runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
-				runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
-				var pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
+				var pypy = "pypy3";
+				if (commandSucceed(pypy, ["-V"])) {
+					infoMsg('pypy3 has already been installed.');
+				} else {
+					var pypyVersion = "pypy3-2.4.0-linux64";
+					runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
+					runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
+					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
+				}
 				runCommand(pypy, ["-V"]);
 
 				return ["python3", pypy];
 			case "Mac":
-				runCommand("brew", ["install", "python3"], true);
+				if (commandSucceed("python3", ["-V"]))
+					infoMsg('python3 has already been installed.');
+				else
+					runCommand("brew", ["install", "python3"], true);
 				runCommand("python3", ["-V"]);
 
-				runCommand("brew", ["install", "pypy3"], true);
+				if (commandSucceed("pypy3", ["-V"]))
+					infoMsg('pypy3 has already been installed.');
+				else
+					runCommand("brew", ["install", "pypy3"], true);
 				runCommand("pypy3", ["-V"]);
 
 				return ["python3", "pypy3"];
@@ -650,16 +689,20 @@ class RunCi {
 					setupFlashPlayerDebugger();
 
 					//setup flex sdk
-					var flexVersion = "4.14.0";
-					runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
-					runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
-					var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
-					Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
-					var playerglobalswcFolder = flexsdkPath + "/player";
-					FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-					runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
-					File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
-					runCommand("mxmlc", ["--version"]);
+					if (commandSucceed("mxmlc", ["--version"])) {
+						infoMsg('mxmlc has already been installed.');
+					} else {
+						var flexVersion = "4.14.0";
+						runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+						runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
+						var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
+						Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
+						var playerglobalswcFolder = flexsdkPath + "/player";
+						FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
+						runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
+						File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
+						runCommand("mxmlc", ["--version"]);
+					}
 
 					runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
 					runFlash("bin/unit9_as3.swf");
