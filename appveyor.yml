@@ -24,13 +24,11 @@ environment:
 
 skip_tags: true
 
-init:
-    - 'echo System architecture: %PLATFORM%'
-
 install:
     - 'git submodule update --init --recursive'
     # Install ocaml using wodi
-    - '%CYG_ROOT%/setup-%CYG_ARCH%.exe -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ >NUL'
+    - appveyor DownloadFile "http://cygwin.com/setup-%CYG_ARCH%.exe" -FileName "%CYG_ROOT%\setup.exe"
+    - '%CYG_ROOT%/setup.exe -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ >log.txt || type log.txt'
     - '%CYG_ROOT%/bin/bash -lc "cygcheck -dc cygwin"'
     - '%CYG_ROOT%/bin/bash -lc "wget -q http://ml.ignorelist.com/wodi/8/wodi%WODI_ARCH%.tar.xz -O /tmp/wodi%WODI_ARCH%.tar.xz"'
     - '%CYG_ROOT%/bin/bash -lc "cd /tmp && rm -rf wodi%WODI_ARCH% && tar -xf wodi%WODI_ARCH%.tar.xz && bash wodi%WODI_ARCH%/install.sh"'
