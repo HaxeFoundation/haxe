@@ -124,12 +124,12 @@ class RunCi {
 		var proc = new Process("haxelib", ["path", libName]);
 		var result;
 		var code = proc.exitCode();
-		while(true) {
+		do {
 			result = proc.stdout.readLine();
 			if (!result.startsWith("-L")) {
 				break;
 			}
-		}
+		} while(true);
 		proc.close();
 		if (code != 0) {
 			throw 'Failed to get haxelib path ($result)';
