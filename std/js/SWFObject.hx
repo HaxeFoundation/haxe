@@ -32,9 +32,6 @@ extern class SWFObject {
 	function setAttribute( id : String, value : String ) : Void;
 
 	private static function __init__() : Void untyped {
-		#if embed_js
-		haxe.macro.Compiler.includeFile("js/swfobject-1.5.js");
-		#end
 		js.SWFObject = deconcept.SWFObject;
 	}
 
