@@ -52,11 +52,11 @@ class Lib {
 
    @:analyzer(no_simplification)
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
-		var factory:Callable< RawConstPointer<Char> -> RawPointer<Object> > =
+		var factory:Callable< ConstCharStar -> Object > =
                untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
       if (factory!=null)
       {
-         var func:Dynamic = factory.call(signature.raw());
+         var func:Dynamic = factory.call(signature);
          if (func==null && !quietFail)
             throw '$prim does not have signature $signature';
          return func;
