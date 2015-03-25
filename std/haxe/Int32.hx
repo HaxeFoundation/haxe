@@ -192,7 +192,7 @@ abstract Int32(Int) from Int to Int {
 		// we might be on 64-bit php, so sign extend from 32-bit
 		return (x << extraBits) >> extraBits;
 		#elseif python
-		return (x + python.Syntax.opPow(2, 31)) % python.Syntax.opPow(2, 32) - python.Syntax.opPow(2, 31);
+		return python.Syntax.pythonCode("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) - python.Syntax.opPow(2, 31);
 		#else
 		return (x);
 		#end
