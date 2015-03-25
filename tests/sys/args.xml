@@ -8,8 +8,6 @@ We may compare and update the test cases of other popular langs/libs: https://gi
 
 <arg><![CDATA[12]]></arg>
 
-<arg><![CDATA[a b  %PATH% $HOME c\&<>[\"]#{}|%$\""]]></arg>
-
 <!-- symbols -->
 <arg><![CDATA[&]]></arg>
 <arg><![CDATA[&&]]></arg>
@@ -33,10 +31,10 @@ We may compare and update the test cases of other popular langs/libs: https://gi
 <!-- <arg><![CDATA[\']]></arg> -->
 
 <!-- double quote -->
-<arg><![CDATA["]]></arg>
+<!-- <arg><![CDATA["]]></arg> -->
 
 <!-- kind of an escaped double quote -->
-<arg><![CDATA[\"]]></arg>
+<!-- <arg><![CDATA[\"]]></arg> -->
 
 <!-- space -->
 <arg><![CDATA[ ]]></arg>
@@ -52,6 +50,9 @@ We may compare and update the test cases of other popular langs/libs: https://gi
 ]]></arg> -->
 
 <!-- Chinese, Japanese -->
-<arg><![CDATA[中文，にほんご]]></arg>
+<!-- <arg><![CDATA[中文，にほんご]]></arg> -->
+
+<!-- complex stuff -->
+<!-- <arg><![CDATA[a b  %PATH% $HOME c\&<>[\"]#{}|%$\""]]></arg> -->
 
 </args>
