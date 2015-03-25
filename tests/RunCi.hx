@@ -216,7 +216,7 @@ class RunCi {
 		Sys.exit(1);
 	}
 
-	static function runExe(exe:String, ?args:Array<String>):Void {
+	static function runCs(exe:String, ?args:Array<String>):Void {
 		if (args == null) args = [];
 		exe = FileSystem.fullPath(exe);
 		switch (systemName) {
@@ -225,6 +225,12 @@ class RunCi {
 			case "Windows":
 				runCommand(exe, args);
 		}
+	}
+
+	static function runCpp(bin:String, ?args:Array<String>):Void {
+		if (args == null) args = [];
+		bin = FileSystem.fullPath(bin);
+		runCommand(bin, args);
 	}
 
 	static function parseCommand(cmd:String) {
@@ -331,9 +337,9 @@ class RunCi {
 		} catch(e:Dynamic) {
 			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
 			var oldDir = Sys.getCwd();
-			changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/tools/hxcpp/");
+			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
 			runCommand("haxe", ["compile.hxml"]);
-			changeDirectory(Sys.getEnv("HOME") + "/haxelib/hxcpp/git/project/");
+			changeDirectory(getHaxelibPath("hxcpp") + "project/");
 			runCommand("neko", ["build.n"]);
 			changeDirectory(oldDir);
 		}
@@ -482,7 +488,7 @@ class RunCi {
 			case TravisCI:
 				[Sys.getEnv("TEST")];
 			case AppVeyor:
-				[Neko, Cs, Macro];
+				[Neko, Cs, Java, Cpp, Macro];
 		}
 		Sys.println('Going to test: $tests');
 
@@ -572,17 +578,17 @@ class RunCi {
 				case Cpp:
 					getCppDependencies();
 					runCommand("haxe", ["compile-cpp.hxml"]);
-					runCommand("./bin/cpp/Test-debug", []);
+					runCpp("bin/cpp/Test-debug", []);
 
 					runCommand("rm", ["-rf", "cpp"]);
 
 					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"]);
-					runCommand("./bin/cpp/Test-debug", []);
+					runCpp("bin/cpp/Test-debug", []);
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cpp.hxml"]);
 					changeDirectory("bin/cpp");
-					runCommand("./Main-debug", args);
+					runCpp("Main-debug", args);
 				case Js:
 					getJSDependencies();
 
@@ -655,33 +661,33 @@ class RunCi {
 					};
 
 					runCommand("haxe", ['compile-cs$compl.hxml']);
-					runExe("bin/cs/bin/Test-Debug.exe");
+					runCs("bin/cs/bin/Test-Debug.exe");
 
 					runCommand("haxe", ['compile-cs-unsafe$compl.hxml']);
-					runExe("bin/cs_unsafe/bin/Test-Debug.exe");
+					runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 
 					runCommand("haxe", ['compile-cs$compl.hxml',"-D","erase_generics"]);
-					runExe("bin/cs/bin/Test-Debug.exe");
+					runCs("bin/cs/bin/Test-Debug.exe");
 
 					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","erase_generics"]);
-					runExe("bin/cs_unsafe/bin/Test-Debug.exe");
+					runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 
 					runCommand("haxe", ['compile-cs$compl.hxml',"-D","no_root"]);
-					runExe("bin/cs/bin/Test-Debug.exe");
+					runCs("bin/cs/bin/Test-Debug.exe");
 
 					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","no_root","-D","erase_generics"]);
-					runExe("bin/cs_unsafe/bin/Test-Debug.exe");
+					runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cs.hxml"]);
 					changeDirectory("bin/cs");
-					runExe("bin/Main-Debug.exe", args);
+					runCs("bin/Main-Debug.exe", args);
 
 					changeDirectory(miscDir + "csTwoLibs");
 					for (i in 1...5)
 					{
 						runCommand("haxe", ['compile-$i.hxml']);
-						runExe("bin/main/bin/Main.exe");
+						runCs("bin/main/bin/Main.exe");
 					}
 
 				case Flash9:
