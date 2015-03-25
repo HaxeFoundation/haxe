@@ -94,6 +94,15 @@ class Lib {
       return result;
    }
 
+	public static function pushDllSearchPath(inPath:String) : Void
+      untyped __global__.__hxcpp_push_dll_path(inPath);
+
+	public static function getDllExtension() : String
+      return untyped __global__.__hxcpp_get_dll_extension();
+
+	public static function getBinDirectory() : String
+      return untyped __global__.__hxcpp_get_bin_dir();
+
 	/**
 		Returns bytes referencing the content of a string.
       Use with extreme caution - changing constant strings will crash.
