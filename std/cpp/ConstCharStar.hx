@@ -7,7 +7,7 @@ abstract ConstCharStar( RawConstPointer<Char> ) to(RawConstPointer<Char>)
    @:from
    static public inline function fromString(s:String) return new ConstCharStar(s);
 
-    @:to
+    @:to @:extern
     public inline function toPointer() return this;
 }
 
