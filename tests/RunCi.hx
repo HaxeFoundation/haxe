@@ -502,24 +502,24 @@ class RunCi {
 					changeDirectory(miscDir);
 					runCommand("haxe", ["compile.hxml"]);
 
-					//generate documentation
-					haxelibInstallGit("Simn", "hxparse", "development", "src", true);
-					haxelibInstallGit("Simn", "hxtemplo", true);
-					haxelibInstallGit("Simn", "hxargs", true);
-					haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
-
-					haxelibInstallGit("HaxeFoundation", "hxcpp", true);
-					haxelibInstallGit("HaxeFoundation", "hxjava", true);
-					haxelibInstallGit("HaxeFoundation", "hxcs", true);
-
-					haxelibInstallGit("dpeek", "dox", true);
-					changeDirectory(getHaxelibPath("dox"));
-					runCommand("haxe", ["run.hxml"]);
-					runCommand("haxe", ["gen.hxml"]);
 					switch (ci) {
 						case AppVeyor:
-							//do not build zip to save time
+							//save time...
 						case _:
+							//generate documentation
+							haxelibInstallGit("Simn", "hxparse", "development", "src", true);
+							haxelibInstallGit("Simn", "hxtemplo", true);
+							haxelibInstallGit("Simn", "hxargs", true);
+							haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
+
+							haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+							haxelibInstallGit("HaxeFoundation", "hxjava", true);
+							haxelibInstallGit("HaxeFoundation", "hxcs", true);
+
+							haxelibInstallGit("dpeek", "dox", true);
+							changeDirectory(getHaxelibPath("dox"));
+							runCommand("haxe", ["run.hxml"]);
+							runCommand("haxe", ["gen.hxml"]);
 							haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
 					}
 
@@ -580,10 +580,14 @@ class RunCi {
 					runCommand("haxe", ["compile-cpp.hxml"]);
 					runCpp("bin/cpp/Test-debug", []);
 
-					runCommand("rm", ["-rf", "cpp"]);
-
-					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"]);
-					runCpp("bin/cpp/Test-debug", []);
+					switch (ci) {
+						case AppVeyor:
+							//save time...
+						case _:
+							runCommand("rm", ["-rf", "cpp"]);
+							runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"]);
+							runCpp("bin/cpp/Test-debug", []);
+					}
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cpp.hxml"]);
