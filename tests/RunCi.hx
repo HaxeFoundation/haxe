@@ -317,7 +317,8 @@ class RunCi {
 				if (commandSucceed("php", ["-v"])) {
 					infoMsg('php has already been installed.');
 				} else {
-					runCommand("cinst", ["php", "-y"], true);
+					runCommand("cinst", ["php", "-version", "5.6.3", "-y"], true);
+					Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + "C:\\tools\\php");
 				}
 		}
 		runCommand("php", ["-v"]);
