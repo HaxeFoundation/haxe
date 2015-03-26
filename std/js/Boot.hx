@@ -25,10 +25,11 @@ private class HaxeError extends js.Error {
 
 	var val:Dynamic;
 
-	public function new(val:Dynamic) {
+	public function new(val:Dynamic) untyped {
 		super();
-		this.val = untyped __define_feature__("js.Boot.HaxeError", val);
-		untyped if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
+		this.val = __define_feature__("js.Boot.HaxeError", val);
+		this.message = String(val);
+		if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
 	}
 }
 
