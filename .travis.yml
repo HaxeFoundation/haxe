@@ -44,7 +44,7 @@ script:
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
   - haxe -version
-  - haxe -neko RunCi.n -main RunCi -lib hx-yaml
+  - haxe RunCi.hxml
   - neko RunCi.n
 
 branches:

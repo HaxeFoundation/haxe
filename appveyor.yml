@@ -60,5 +60,5 @@ build_script:
 test_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - haxe -version
-    - haxe -neko RunCi.n -main RunCi -lib hx-yaml
+    - haxe RunCi.hxml
     - neko RunCi.n

@@ -1,0 +1,3 @@
+-neko RunCi.n
+-main RunCi
+-lib hx-yaml

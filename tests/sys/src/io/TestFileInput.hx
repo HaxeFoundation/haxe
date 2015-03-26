@@ -16,7 +16,7 @@ class TestFileInput extends haxe.unit.TestCase {
 
 	public function new() {
 		super();
-		path = 'testcase-test-file';
+		path = 'testcase-test-file.txt';
 	}
 
 	override public function setup() {
@@ -24,7 +24,7 @@ class TestFileInput extends haxe.unit.TestCase {
 	}
 
 	override public function tearDown() {
-		//FileSystem.deleteFile(path);
+		FileSystem.deleteFile(path);
 	}
 
 	public function testRead() {
@@ -129,6 +129,7 @@ class TestFileInput extends haxe.unit.TestCase {
 		file.close();
 	}
 
+	#if !php
 	public function testSeekEofLast() {
 		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
@@ -213,6 +214,7 @@ class TestFileInput extends haxe.unit.TestCase {
 		}
 		file.close();
 	}
+	#end
 
 }
 

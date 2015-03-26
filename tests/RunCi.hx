@@ -477,11 +477,6 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var args = [
-			for (arg in new haxe.xml.Fast(Xml.parse(File.getContent('$sysDir/args.xml'))).node.args.nodes.arg)
-			arg.innerData
-		];
-
 		var tests:Array<TEST> = switch (ci) {
 			case null:
 				[Sys.getEnv("TEST") == null ? Macro : Sys.getEnv("TEST")];
@@ -525,7 +520,7 @@ class RunCi {
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-macro.hxml"]);
-					runCommand("haxe", ["compile-each.hxml", "--run", "Main"].concat(args));
+					runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 
 					//BYTECODE
 					switch (ci) {
@@ -549,12 +544,15 @@ class RunCi {
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-neko.hxml"]);
-					changeDirectory("bin/neko");
-					runCommand("neko", ["sys.n"].concat(args));
+					runCommand("neko", ["bin/neko/sys.n"]);
 				case Php:
 					getPhpDependencies();
 					runCommand("haxe", ["compile-php.hxml","-D","travis"]);
 					runCommand("php", ["bin/php/index.php"]);
+
+					changeDirectory(sysDir);
+					runCommand("haxe", ["compile-php.hxml"]);
+					runCommand("php", ["bin/php/Main/index.php"]);
 				case Python:
 					var pys = getPythonDependencies();
 
@@ -565,9 +563,8 @@ class RunCi {
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-python.hxml"]);
-					changeDirectory("bin/python");
 					for (py in pys) {
-						runCommand(py, ["sys.py"].concat(args));
+						runCommand(py, ["bin/python/sys.py"]);
 					}
 
 					changeDirectory(miscDir + "pythonImport");
@@ -591,8 +588,7 @@ class RunCi {
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cpp.hxml"]);
-					changeDirectory("bin/cpp");
-					runCpp("Main-debug", args);
+					runCpp("bin/cpp/Main-debug", []);
 				case Js:
 					getJSDependencies();
 
@@ -636,8 +632,7 @@ class RunCi {
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-java.hxml"]);
-					changeDirectory("bin/java");
-					runCommand("java", ["-jar", "Main-Debug.jar"].concat(args));
+					runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
 					infoMsg("Testing java-lib extras");
 					changeDirectory('$unitDir/bin');
@@ -684,8 +679,7 @@ class RunCi {
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cs.hxml"]);
-					changeDirectory("bin/cs");
-					runCs("bin/Main-Debug.exe", args);
+					runCs("bin/cs/bin/Main-Debug.exe", []);
 
 					changeDirectory(miscDir + "csTwoLibs");
 					for (i in 1...5)

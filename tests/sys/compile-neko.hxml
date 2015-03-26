@@ -1,2 +1,13 @@
 compile-each.hxml
+-main Main
 -neko bin/neko/sys.n
+
+--next
+compile-each.hxml
+-main TestArguments
+-neko bin/neko/TestArguments.n
+
+--next
+compile-each.hxml
+-main ExitCode
+-neko bin/neko/ExitCode.n

@@ -1,28 +1,87 @@
 class TestSys extends haxe.unit.TestCase {
-	// it receives the arguments passed to Haxe command line
-	#if !interp
-	function testArgs() {
-		var args = Sys.args();
-		var expectedArgs = [
-			for (arg in new haxe.xml.Fast(Xml.parse(haxe.Resource.getString("args.xml"))).node.args.nodes.arg)
-			arg.innerData
-		];
-		// trace(args);
-		assertEquals(expectedArgs.length, args.length);
-		for (i in 0...expectedArgs.length) {
-			assertEquals(expectedArgs[i], args[i]);
+	function testCommand() {
+		var bin = TestArguments.bin;
+		var args = TestArguments.expectedArgs;
+
+		var exitCode = Sys.command("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
+		assertEquals(0, exitCode);
+
+		var exitCode =
+			#if (macro || interp)
+				Sys.command("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
+			#elseif cpp
+				Sys.command(bin, args);
+			#elseif cs
+				switch (Sys.systemName()) {
+					case "Windows":
+						Sys.command(bin, args);
+					case _:
+						Sys.command("mono", [bin].concat(args));
+				}
+			#elseif java
+				Sys.command("java", ["-jar", bin].concat(args));
+			#elseif python
+				Sys.command("python3", [bin].concat(args));
+			#elseif neko
+				Sys.command("neko", [bin].concat(args));
+			#elseif php
+				Sys.command("php", [bin].concat(args));
+			#else
+				-1;
+			#end
+		assertEquals(0, exitCode);
+	}
+
+	function testExitCode() {
+		var bin = ExitCode.bin;
+
+		// Just test only a few to save time.
+		// They have special meanings: http://tldp.org/LDP/abs/html/exitcodes.html
+		var codes = [0, 1, 2, 126, 127, 128, 130, 255];
+
+		for (code in codes) {
+			var args = [Std.string(code)];
+			var exitCode = Sys.command("haxe", ["compile-each.hxml", "--run", "ExitCode"].concat(args));
+			assertEquals(code, exitCode);
+		}
+
+		for (code in codes) {
+			var args = [Std.string(code)];
+			var exitCode =
+				#if (macro || interp)
+					Sys.command("haxe", ["compile-each.hxml", "--run", "ExitCode"].concat(args));
+				#elseif cpp
+					Sys.command(bin, args);
+				#elseif cs
+					switch (Sys.systemName()) {
+						case "Windows":
+							Sys.command(bin, args);
+						case _:
+							Sys.command("mono", [bin].concat(args));
+					}
+				#elseif java
+					Sys.command("java", ["-jar", bin].concat(args));
+				#elseif python
+					Sys.command("python3", [bin].concat(args));
+				#elseif neko
+					Sys.command("neko", [bin].concat(args));
+				#elseif php
+					Sys.command("php", [bin].concat(args));
+				#else
+					-1;
+				#end
+			assertEquals(code, exitCode);
 		}
 	}
-	#end
 
 	function testEnv() {
-		#if !java
+		#if !(java || php)
 		Sys.putEnv("foo", "value");
 		assertEquals("value", Sys.getEnv("foo"));
 		#end
 		assertEquals(null, Sys.getEnv("doesn't exist"));
 
-		#if !java
+		#if !(java || php)
 		var env = Sys.environment();
 		assertEquals("value", env.get("foo"));
 		#end
@@ -37,6 +96,7 @@ class TestSys extends haxe.unit.TestCase {
 			return haxe.io.Path.addTrailingSlash(haxe.io.Path.normalize(path));
 		}
 		assertEquals(normalize(newCwd), normalize(Sys.getCwd()));
+		Sys.setCwd(cur);
 	}
 	#end
 }

@@ -6,8 +6,8 @@ We have a number of test suites, which are placed in their own folders in this d
 
  1. Change to this directory.
  2. Install lib used by the script: `haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src`.
- 3. Compile the script: `haxe -neko RunCi.n -main RunCi -lib hx-yaml`.
- 4. Define the test target by `export TEST=$TARGET`, where `$TARGET` should be one of `macro`, `neko`, `js`, `php`, `cpp`, `flash9`, `as3`, `java`, `cs`, `python`, or `third-party`. However, `flash9`, `as3`, and `third-party` are not likely to work on local machines (TODO).
+ 3. Compile the script: `haxe RunCi.hxml`.
+ 4. Define the test target by `export TEST=$TARGET` (or `set "TEST=$TARGET"` on Windows), where `$TARGET` should be one of `macro`, `neko`, `js`, `php`, `cpp`, `flash9`, `as3`, `java`, `cs`, `python`, or `third-party`. However, `flash9`, `as3`, and `third-party` are not likely to work on local machines (TODO).
  5. Run it: `neko RunCi.n`.
 
 Note that the script will try to look for test dependencies and install them if they are not found. Look at the `getXXXDependencies` functions for the details.
@@ -22,3 +22,12 @@ Assuming all test dependencies has been installed, we compile and run the unit t
  2. Compile: `haxe compile.hxml`.
  3. Start a dev server: `nekotools server`.
  4. Open `http://localhost:2000/unit.html` in your browser.
+
+## Sys tests
+
+The "sys" folder contains tests for the system targets. It can also be run separately instead of using "RunCi.hx".
+
+Assuming all test dependencies has been installed, we compile and run the sys tests for all targets at once as follows:
+
+ 1. Change to the "sys" directory.
+ 2. If you're on Windows, comment out the relevant lines in "run.hxml". `haxe run.hxml`.

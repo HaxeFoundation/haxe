@@ -1,13 +1,13 @@
 compile-each.hxml
 -main Main
--python bin/python/sys.py
+-php bin/php/Main
 
 --next
 compile-each.hxml
 -main TestArguments
--python bin/python/TestArguments.py
+-php bin/php/TestArguments
 
 --next
 compile-each.hxml
 -main ExitCode
--python bin/python/ExitCode.py
+-php bin/php/ExitCode
