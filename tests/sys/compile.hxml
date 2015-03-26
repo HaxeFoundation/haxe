@@ -6,3 +6,4 @@
 --next compile-cpp.hxml
 --next compile-cs.hxml
 --next compile-java.hxml
+--next compile-php.hxml

@@ -1,6 +1,7 @@
 class TestSys extends haxe.unit.TestCase {
+	#if !php //https://github.com/HaxeFoundation/haxe/issues/3603#issuecomment-86437474
 	function testCommand() {
-		var bin = TestArguments.bin;
+		var bin = sys.FileSystem.fullPath(TestArguments.bin);
 		var args = TestArguments.expectedArgs;
 
 		var exitCode = Sys.command("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
@@ -33,7 +34,7 @@ class TestSys extends haxe.unit.TestCase {
 	}
 
 	function testExitCode() {
-		var bin = ExitCode.bin;
+		var bin = sys.FileSystem.fullPath(ExitCode.bin);
 
 		// Just test only a few to save time.
 		// They have special meanings: http://tldp.org/LDP/abs/html/exitcodes.html
@@ -73,6 +74,7 @@ class TestSys extends haxe.unit.TestCase {
 			assertEquals(code, exitCode);
 		}
 	}
+	#end
 
 	function testEnv() {
 		#if !(java || php)

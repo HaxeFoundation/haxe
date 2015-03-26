@@ -5,7 +5,7 @@ import sys.io.Process;
 class TestProcess extends haxe.unit.TestCase {
 	#if !(python || php)
 	function testArguments() {
-		var bin = TestArguments.bin;
+		var bin = sys.FileSystem.fullPath(TestArguments.bin);
 		var args = TestArguments.expectedArgs;
 
 		var process = new Process("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
@@ -40,7 +40,7 @@ class TestProcess extends haxe.unit.TestCase {
 
 	#if !python
 	function testExitCode() {
-		var bin = ExitCode.bin;
+		var bin = sys.FileSystem.fullPath(ExitCode.bin);
 
 		// Just test only a few to save time.
 		// They have special meanings: http://tldp.org/LDP/abs/html/exitcodes.html

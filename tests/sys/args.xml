@@ -40,7 +40,7 @@ We may compare and update the test cases of other popular langs/libs: https://gi
 <arg><![CDATA[ ]]></arg>
 
 <!-- kind of an escaped space -->
-<arg><![CDATA[\ ]]></arg>
+<!-- <arg><![CDATA[\ ]]></arg> -->
 
 <!-- empty string -->
 <!-- <arg><![CDATA[]]></arg> -->

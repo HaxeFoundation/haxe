@@ -313,6 +313,12 @@ class RunCi {
 				}
 			case "Mac":
 				//pass
+			case "Windows":
+				if (commandSucceed("php", ["-v"])) {
+					infoMsg('php has already been installed.');
+				} else {
+					runCommand("cinst", ["php", "-y"], true);
+				}
 		}
 		runCommand("php", ["-v"]);
 	}
@@ -483,7 +489,7 @@ class RunCi {
 			case TravisCI:
 				[Sys.getEnv("TEST")];
 			case AppVeyor:
-				[Neko, Cs, Java, Cpp, Macro];
+				[Neko, Cs, Java, Cpp, Php, Macro];
 		}
 		Sys.println('Going to test: $tests');
 
