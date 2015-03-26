@@ -561,7 +561,13 @@ class RunCi {
 					runCommand("neko", ["bin/neko/sys.n"]);
 				case Php:
 					getPhpDependencies();
-					runCommand("haxe", ["compile-php.hxml","-D","travis"]);
+					var args = switch (ci) {
+						case TravisCI:
+							["-D","travis"];
+						case _:
+							[];
+					}
+					runCommand("haxe", ["compile-php.hxml"].concat(args));
 					runCommand("php", ["bin/php/index.php"]);
 
 					changeDirectory(sysDir);
