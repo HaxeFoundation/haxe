@@ -129,7 +129,6 @@ class TestFileInput extends haxe.unit.TestCase {
 		file.close();
 	}
 
-	#if !php
 	public function testSeekEofLast() {
 		var file : FileInput = File.read(path);
 		assertEquals(116, file.readByte());
@@ -214,7 +213,5 @@ class TestFileInput extends haxe.unit.TestCase {
 		}
 		file.close();
 	}
-	#end
-
 }
 

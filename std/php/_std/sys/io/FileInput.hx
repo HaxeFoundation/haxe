@@ -32,8 +32,8 @@ class FileInput extends haxe.io.Input {
 	}
 
 	public override function readByte() : Int {
-		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
 		var r = untyped __call__('fread', __f, 1);
+		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
 		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
 		return untyped __call__('ord', r);
 	}
