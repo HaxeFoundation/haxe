@@ -302,6 +302,15 @@ class RunCi {
 		} catch(e:Dynamic) false;
 	}
 
+	static function addToPATH(path:String):Void {
+		switch (systemName) {
+			case "Windows":
+				Sys.putEnv("PATH", Sys.getEnv("PATH") + ";" + path);
+			case "Mac", "Linux":
+				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + path);
+		}
+	}
+
 	static function getPhpDependencies() {
 		switch (systemName) {
 			case "Linux":
@@ -318,7 +327,7 @@ class RunCi {
 					infoMsg('php has already been installed.');
 				} else {
 					runCommand("cinst", ["php", "-version", "5.6.3", "-y"], true);
-					Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + "C:\\tools\\php");
+					addToPATH("C:\\tools\\php");
 				}
 		}
 		runCommand("php", ["-v"]);
@@ -708,7 +717,7 @@ class RunCi {
 						runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 						runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 						var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
-						Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + flexsdkPath + "/bin");
+						addToPATH(flexsdkPath + "/bin");
 						var playerglobalswcFolder = flexsdkPath + "/player";
 						FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
 						runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
