@@ -326,6 +326,26 @@ let to_pattern ctx e t =
 		tctx.pc_locals <- PMap.add s (v,p) tctx.pc_locals;
 		v
 	in
+	let check_texpr_pattern e t p =
+		let ec = match Optimizer.make_constant_expression ctx ~concat_strings:true e with Some e -> e | None -> e in
+		match ec.eexpr with
+			| TField (_,FEnum (en,ef)) ->
+				begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
+				begin try
+					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t;
+				with Unify_error l ->
+					error (error_msg (Unify l)) p
+				end;
+				mk_con_pat (CEnum(en,ef)) [] t p
+			| TConst c | TCast({eexpr = TConst c},None) ->
+				begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
+				unify ctx ec.etype t p;
+				mk_con_pat (CConst c) [] t p
+			| TTypeExpr mt ->
+				mk_type_pat ctx mt t p
+			| _ ->
+				raise Not_found
+	in
 	let rec loop pctx e t =
 		let p = pos e in
 		match fst e with
@@ -362,7 +382,13 @@ let to_pattern ctx e t =
 			| TTypeExpr mt ->
 				mk_type_pat ctx mt t p
 			| TField(_, FStatic(_,cf)) when is_value_type cf.cf_type ->
-				mk_con_pat (CExpr e) [] cf.cf_type p
+				ignore (follow cf.cf_type);
+				begin match cf.cf_expr with
+				| Some e ->
+					(try check_texpr_pattern e t p with Not_found -> mk_con_pat (CExpr e) [] cf.cf_type p)
+				| None ->
+					mk_con_pat (CExpr e) [] cf.cf_type p
+				end
 			| TField(_, FEnum(en,ef)) ->
 				begin try
 					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t
@@ -449,24 +475,7 @@ let to_pattern ctx e t =
 						ctx.untyped <- old;
 						e
 				in
-				let ec = match Optimizer.make_constant_expression ctx ~concat_strings:true ec with Some e -> e | None -> ec in
-				(match ec.eexpr with
-					| TField (_,FEnum (en,ef)) ->
-						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
-						begin try
-							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t;
-						with Unify_error l ->
-							error (error_msg (Unify l)) p
-						end;
-						mk_con_pat (CEnum(en,ef)) [] t p
-					| TConst c | TCast({eexpr = TConst c},None) ->
-						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
-						unify ctx ec.etype t p;
-						mk_con_pat (CConst c) [] t p
-					| TTypeExpr mt ->
-						mk_type_pat ctx mt t p
-					| _ ->
-						raise Not_found);
+				check_texpr_pattern ec t p
 			with Not_found ->
 				begin match get_tuple_params t with
 					| Some tl ->
