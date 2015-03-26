@@ -3,7 +3,7 @@ package io;
 import sys.io.Process;
 
 class TestProcess extends haxe.unit.TestCase {
-	#if !(python || php)
+	#if !php
 	function testArguments() {
 		var bin = sys.FileSystem.absolutePath(TestArguments.bin);
 		var args = TestArguments.expectedArgs;
@@ -38,7 +38,6 @@ class TestProcess extends haxe.unit.TestCase {
 	}
 	#end
 
-	#if !python
 	function testExitCode() {
 		var bin = sys.FileSystem.absolutePath(ExitCode.bin);
 
@@ -80,5 +79,4 @@ class TestProcess extends haxe.unit.TestCase {
 			assertEquals(code, process.exitCode());
 		}
 	}
-	#end
 }
