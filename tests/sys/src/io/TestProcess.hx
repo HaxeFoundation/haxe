@@ -9,7 +9,10 @@ class TestProcess extends haxe.unit.TestCase {
 		var args = TestArguments.expectedArgs;
 
 		var process = new Process("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
-		assertEquals(0, process.exitCode());
+		var exitCode = process.exitCode();
+		if (exitCode != 0)
+			trace(sys.io.File.getContent(TestArguments.log));
+		assertEquals(0, exitCode);
 
 		var process =
 			#if (macro || interp)
@@ -34,7 +37,10 @@ class TestProcess extends haxe.unit.TestCase {
 			#else
 				null;
 			#end
-		assertEquals(0, process.exitCode());
+		var exitCode = process.exitCode();
+		if (exitCode != 0)
+			trace(sys.io.File.getContent(TestArguments.log));
+		assertEquals(0, exitCode);
 	}
 	#end
 

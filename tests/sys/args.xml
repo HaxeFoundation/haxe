@@ -1,5 +1,5 @@
 <!-- 
-This file is read by RunCi.hx at run-time and the sys test at compile-time via `-resource`.
+This file is read by the sys test at compile-time via `-resource`.
 We may compare and update the test cases of other popular langs/libs: https://gist.github.com/andyli/d55ae9ea1327bbbf749d
 -->
 <args>

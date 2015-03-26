@@ -5,6 +5,8 @@ class TestSys extends haxe.unit.TestCase {
 		var args = TestArguments.expectedArgs;
 
 		var exitCode = Sys.command("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
+		if (exitCode != 0)
+			trace(sys.io.File.getContent(TestArguments.log));
 		assertEquals(0, exitCode);
 
 		var exitCode =
@@ -30,6 +32,8 @@ class TestSys extends haxe.unit.TestCase {
 			#else
 				-1;
 			#end
+		if (exitCode != 0)
+			trace(sys.io.File.getContent(TestArguments.log));
 		assertEquals(0, exitCode);
 	}
 

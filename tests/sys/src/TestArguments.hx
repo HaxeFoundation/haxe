@@ -1,5 +1,6 @@
 /**
 	This test is intented to be used by TestSys and io.TestProcess.
+	It will write the result to "temp/TestArguments.txt" (for debugging).
 */
 class TestArguments extends haxe.unit.TestCase {
 	static public var expectedArgs(get, null):Array<String>;
@@ -39,6 +40,8 @@ class TestArguments extends haxe.unit.TestCase {
 		null;
 	#end
 
+	static public var log = "temp/TestArguments.txt";
+
 	function testArgs() {
 		var args = Sys.args();
 		// trace(args);
@@ -49,7 +52,8 @@ class TestArguments extends haxe.unit.TestCase {
 	}
 
 	static function main():Void {
-		var log = sys.io.File.write("TestArguments.txt");
+		var log = sys.io.File.write(log);
+		log.writeString(haxe.Json.stringify(Sys.args()) + "\n");
 		haxe.unit.TestRunner.print = function(v){
 			log.writeString(v);
 		};
