@@ -484,13 +484,11 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var tests:Array<TEST> = switch (ci) {
+		var tests:Array<TEST> = switch (Sys.getEnv("TEST")) {
 			case null:
-				[Sys.getEnv("TEST") == null ? Macro : Sys.getEnv("TEST")];
-			case TravisCI:
-				[Sys.getEnv("TEST")];
-			case AppVeyor:
-				[Neko, Cs, Java, Cpp, Php, Macro];
+				[Macro];
+			case env:
+				[for (v in env.split(",")) v.trim().toLowerCase()];
 		}
 		Sys.println('Going to test: $tests');
 

@@ -11,16 +11,12 @@ environment:
     global:
         NEKO_ROOT: C:/projects/neko
         HAXELIB_ROOT: C:/projects/haxelib
-    matrix:
-        -   CYG_ARCH: x86
-            CYG_ROOT: C:/cygwin
-            CYG_SETUP: C:/cygwin/setup-x86.exe
-            WODI_ARCH: 32
-            MINGW_ARCH: i686
-        # -   CYG_ARCH: x86_64
-        #     CYG_ROOT: C:/cygwin64
-        #     WODI_ARCH: 64
-        #     MINGW_ARCH: x86_64
+        CYG_ARCH: x86
+        CYG_ROOT: C:/cygwin
+        CYG_SETUP: C:/cygwin/setup-x86.exe
+        WODI_ARCH: 32
+        MINGW_ARCH: i686
+        TEST: "neko,cs,java,cpp,php,macro"
 
 skip_tags: true
 
