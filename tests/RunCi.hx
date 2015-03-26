@@ -280,21 +280,21 @@ class RunCi {
 		return args;
 	}
 
-	static function parseTravisFile(path:String, ignoreBeforeInstall = false) {
-		var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
-		if (!ignoreBeforeInstall) {
-			for (code in yaml.before_install) {
-				var args = parseCommand(code);
-				var cmd = args.shift();
-				runCommand(cmd, args);
-			}
-		}
-		for (code in yaml.script) {
-			var args = parseCommand(code);
-			var cmd = args.shift();
-			runCommand(cmd, args);
-		}
-	}
+	//static function parseTravisFile(path:String, ignoreBeforeInstall = false) {
+		//var yaml:TravisConfig = yaml.Yaml.read(path, Parser.options().useObjects());
+		//if (!ignoreBeforeInstall) {
+			//for (code in yaml.before_install) {
+				//var args = parseCommand(code);
+				//var cmd = args.shift();
+				//runCommand(cmd, args);
+			//}
+		//}
+		//for (code in yaml.script) {
+			//var args = parseCommand(code);
+			//var cmd = args.shift();
+			//runCommand(cmd, args);
+		//}
+	//}
 
 	static function commandSucceed(cmd:String, args:Array<String>):Bool {
 		return try {
@@ -797,25 +797,25 @@ class RunCi {
 		runCommand("sh", ["flambe/bin/run-travis"]);
 	}
 
-	static function testOpenflSamples() {
-		infoMsg("Test OpenFL Samples:");
-
-		changeDirectory(unitDir);
-
-		haxelibInstallGit("jgranick", "actuate");
-		haxelibInstallGit("jgranick", "box2d");
-		haxelibInstallGit("jgranick", "layout");
-		haxelibInstallGit("openfl", "swf");
-		haxelibInstallGit("openfl", "openfl-samples");
-
-		var path = getHaxelibPath("openfl-samples");
-		var old = Sys.getEnv("pwd");
-		Sys.putEnv("pwd", path);
-		parseTravisFile(haxe.io.Path.join([path, ".travis.yml"]), true);
-		if (old != null) {
-			Sys.putEnv("pwd", old);
-		}
-	}
+	//static function testOpenflSamples() {
+		//infoMsg("Test OpenFL Samples:");
+//
+		//changeDirectory(unitDir);
+//
+		//haxelibInstallGit("jgranick", "actuate");
+		//haxelibInstallGit("jgranick", "box2d");
+		//haxelibInstallGit("jgranick", "layout");
+		//haxelibInstallGit("openfl", "swf");
+		//haxelibInstallGit("openfl", "openfl-samples");
+//
+		//var path = getHaxelibPath("openfl-samples");
+		//var old = Sys.getEnv("pwd");
+		//Sys.putEnv("pwd", path);
+		//parseTravisFile(haxe.io.Path.join([path, ".travis.yml"]), true);
+		//if (old != null) {
+			//Sys.putEnv("pwd", old);
+		//}
+	//}
 
 	static function testFlixelDemos() {
 		infoMsg("Test Flixel Demos:");
