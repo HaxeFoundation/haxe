@@ -3553,6 +3553,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.StoredTypedExpr,_,_) ->
 				let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
 				get_stored_typed_expr ctx.com id
+			| (Meta.NoPrivateAccess,_,_) ->
+				ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
+				e()
 			| _ -> e()
 		in
 		ctx.meta <- old;

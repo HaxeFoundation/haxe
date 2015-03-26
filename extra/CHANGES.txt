@@ -1,5 +1,9 @@
 2015-??-??: 3.2.0
 
+	New features:
+
+	all : added @:noPrivateAccess to re-enable access restrictions within @:privateAccess
+
 	Bugfixes:
 
 	all : fixed detection of @:generic classes with constructor constraints
