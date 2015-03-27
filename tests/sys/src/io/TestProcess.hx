@@ -3,7 +3,7 @@ package io;
 import sys.io.Process;
 
 class TestProcess extends haxe.unit.TestCase {
-	#if !php //should be fixed
+	#if !php //FIXME
 	function testArguments() {
 		var bin = sys.FileSystem.absolutePath(TestArguments.bin);
 		var args = TestArguments.expectedArgs;
@@ -43,6 +43,7 @@ class TestProcess extends haxe.unit.TestCase {
 		assertEquals(0, exitCode);
 	}
 
+	#if !(neko || cpp || cs) //FIXME
 	function testCommandName() {
 		// This is just a script that behaves like ExitCode.hx, 
 		// which exits with the code same as the first given argument. 
@@ -53,30 +54,6 @@ class TestProcess extends haxe.unit.TestCase {
 				'#!/bin/sh\nexit $1';
 		}
 		for (name in FileNames.names) {
-			//call without ext
-			var scriptExt = switch (Sys.systemName()) {
-				case "Windows":
-					".bat";
-				case "Mac", "Linux", _:
-					"";
-			}
-			var path = "temp/" + name + scriptExt;
-			sys.io.File.saveContent(path, scriptContent);
-
-			switch (Sys.systemName()) {
-				case "Mac", "Linux":
-					var exitCode = Sys.command("chmod", ["a+x", path]);
-					assertEquals(0, exitCode);
-				case "Windows":
-					//pass
-			}
-
-			var random = Std.random(256);
-			var exitCode = new Process(path, [Std.string(random)]).exitCode();
-			assertEquals(random, exitCode);
-			sys.FileSystem.deleteFile(path);
-
-
 			//call with ext
 			var scriptExt = switch (Sys.systemName()) {
 				case "Windows":
@@ -84,7 +61,7 @@ class TestProcess extends haxe.unit.TestCase {
 				case "Mac", "Linux", _:
 					".sh";
 			}
-			var path = "temp/" + name + scriptExt;
+			var path = sys.FileSystem.absolutePath("temp/" + name + scriptExt);
 			sys.io.File.saveContent(path, scriptContent);
 
 			switch (Sys.systemName()) {
@@ -97,11 +74,42 @@ class TestProcess extends haxe.unit.TestCase {
 
 			var random = Std.random(256);
 			var exitCode = new Process(path, [Std.string(random)]).exitCode();
+			if (exitCode != random)
+				trace(name);
+			assertEquals(random, exitCode);
+			sys.FileSystem.deleteFile(path);
+
+
+
+			//call without ext
+			var scriptExt = switch (Sys.systemName()) {
+				case "Windows":
+					".bat";
+				case "Mac", "Linux", _:
+					"";
+			}
+			var path = sys.FileSystem.absolutePath("temp/" + name + scriptExt);
+			sys.io.File.saveContent(path, scriptContent);
+
+			switch (Sys.systemName()) {
+				case "Mac", "Linux":
+					var exitCode = Sys.command("chmod", ["a+x", path]);
+					assertEquals(0, exitCode);
+				case "Windows":
+					//pass
+			}
+
+			var random = Std.random(256);
+			var exitCode = new Process(path, [Std.string(random)]).exitCode();
+			if (exitCode != random)
+				trace(name);
 			assertEquals(random, exitCode);
 			sys.FileSystem.deleteFile(path);
 		}
 	}
-	#end
+	#end //!neko
+
+	#end //!php
 
 	function testExitCode() {
 		var bin = sys.FileSystem.absolutePath(ExitCode.bin);

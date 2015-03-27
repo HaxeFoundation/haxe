@@ -1,3 +1,8 @@
+#if php
+// php's haxe.Utf8 uses mbstring
+if (untyped __call__("extension_loaded", "mbstring")) {
+#end
+
 #if false
 // disabled tests with outside BMP chars (will be reenabled when we support them)
 var str = "あ𠀀い";
@@ -38,3 +43,8 @@ haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 0), "") == 0;
 
 // unspecify outside of range Utf8.sub
 // haxe.Utf8.compare(haxe.Utf8.sub(str, 9, 0), "") == 0;
+
+
+#if php
+}
+#end

@@ -48,6 +48,11 @@ class TestJson extends Test {
 
     // TODO: test pretty-printing (also with objects with skipped function fields!)
     function testHaxeJson() {
+        #if php
+        // php's haxe.Utf8 uses mbstring
+        if (untyped __call__("extension_loaded", "mbstring")) {
+        #end
+
         var str = haxe.format.JsonPrinter.print( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"], b : function() {} } );
         str = str.substr(1, str.length - 2); // remove {}
         var parts = str.split(",");
@@ -89,6 +94,10 @@ class TestJson extends Test {
         eq(haxe.format.JsonPrinter.print(Math.NaN), "null");
         eq(haxe.format.JsonPrinter.print(function() {}), "\"<fun>\"");
         eq(haxe.format.JsonPrinter.print({a: function() {}, b: 1}), "{\"b\":1}");
+
+        #if php
+        }
+        #end
     }
 
 	function test3690() {
