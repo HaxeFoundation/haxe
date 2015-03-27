@@ -39,6 +39,8 @@ private class SocketOutput extends haxe.io.Output {
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Blocked;
+			else if ( e == "EOF" )
+				throw new haxe.io.Eof();
 			else
 				throw Custom(e);
 		}
@@ -151,6 +153,10 @@ class Socket {
 		} catch( s : String ) {
 			if( s == "std@socket_connect" )
 				throw "Failed to connect on "+host.toString()+":"+port;
+			else if ( s == "Blocking" ) {
+				// Do nothing, this is not a real error, it simply indicates
+				// that a non-blocking connect is in progress
+			}
 			else
 				neko.Lib.rethrow(s);
 		}
@@ -179,6 +185,9 @@ class Socket {
 
 	public function peer() : { host : Host, port : Int } {
 		var a : Dynamic = socket_peer(__s);
+		if (a == null) {
+			return null;
+		}
 		var h = new Host("127.0.0.1");
 		untyped h.ip = a[0];
 		return { host : h, port : a[1] };
@@ -186,6 +195,9 @@ class Socket {
 
 	public function host() : { host : Host, port : Int } {
 		var a : Dynamic = socket_host(__s);
+		if (a == null) {
+			return null;
+		}
 		var h = new Host("127.0.0.1");
 		untyped h.ip = a[0];
 		return { host : h, port : a[1] };
