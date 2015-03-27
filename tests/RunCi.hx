@@ -547,10 +547,11 @@ class RunCi {
 							changeDirectory(unitDir);
 							runCommand("haxe", ["compile-macro.hxml"]);
 						case AppVeyor:
-							changeDirectory(repoDir);
-							runCommand(Sys.getEnv("CYG_ROOT") + "/bin/bash", ["-lc", 'cd \"$$OLDPWD\" && make -s -f Makefile.win WODI=wodi${Sys.getEnv("WODI_ARCH")} OCAMLC=ocamlc.opt BYTECODE=1']);
-							changeDirectory(unitDir);
-							runCommand("haxe", ["compile-macro.hxml"]);
+							// save time...
+							// changeDirectory(repoDir);
+							// runCommand(Sys.getEnv("CYG_ROOT") + "/bin/bash", ["-lc", 'cd \"$$OLDPWD\" && make -s -f Makefile.win WODI=wodi${Sys.getEnv("WODI_ARCH")} OCAMLC=ocamlc.opt BYTECODE=1']);
+							// changeDirectory(unitDir);
+							// runCommand("haxe", ["compile-macro.hxml"]);
 					}
 				case Neko:
 					runCommand("haxe", ["compile-neko.hxml"]);
