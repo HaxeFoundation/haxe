@@ -61,6 +61,9 @@ let dot_path = Ast.s_type_path
 
 let s_path ctx = dot_path
 
+let debug_expression expression  =
+	"/* " ^ Type.s_expr_kind expression  ^ " */";;
+
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
@@ -270,9 +273,9 @@ let rec gen_call ctx e el in_value =
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "self = %s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			print ctx "setmetatable(self, %s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
-			spr ctx ")";
+			spr ctx "))";
 		);
 	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.current.cl_super with
@@ -954,6 +957,18 @@ and gen_return ctx e eo =
 	    );
 	    spr ctx " end")
 
+and has_class ctx c =
+    has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
+
+and has_metatable ctx c =
+    c.cl_super <> None || (has_class ctx c) || List.exists (can_gen_class_field ctx) c.cl_ordered_fields
+
+and can_gen_class_field ctx = function
+	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
+		false
+	| f ->
+		not (is_extern_field f)
+
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
 		| [] -> ()
@@ -1000,11 +1015,6 @@ let gen_class_static_field ctx c f =
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
-let can_gen_class_field ctx = function
-	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
-		false
-	| f ->
-		not (is_extern_field f)
 
 let gen_class_field ctx c f =
 	check_field_name c f;
@@ -1088,17 +1098,11 @@ let generate_class ctx c =
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					spr ctx "self = {}";
-					newline ctx;
-					spr ctx "self.__methods = {}";
-					newline ctx;
-					spr ctx "setmetatable(self, {__index = lua.Boot.resolveMethod })";
-					newline ctx;
+					if (has_metatable ctx c) then
+					    print ctx "self = %s.mt" p;
 					List.iter (gen_block_element ctx) el;
 					newline ctx;
 					(* TODO: use nonconflict var instead of mt *)
-					print ctx "table.insert(self.__methods, %s.mt)" p;
-					newline ctx;
 					spr ctx "return self";
 					bend();
 					newline ctx;
@@ -1139,25 +1143,21 @@ let generate_class ctx c =
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
-	let has_class = has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
-	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
-	if has_prototype then begin
+	newline ctx;
+	if (has_metatable ctx c) then begin
 		(match c.cl_super with
-		| None ->
-			(* TODO: use nonconflict var instead of mt *)
-			print ctx "%s.mt = {" p;
-			newline ctx;
+		| None -> ()
 		| Some (csup,_) ->
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx;
 			(* TODO: use nonconflict var instead of mt *)
-			print ctx "%s.mt = {" p;
-			newline ctx;
 		);
+		print ctx "%s.mt = {" p;
+		newline ctx;
 
 		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
-		if has_class then begin
+		if (has_class ctx c) then begin
 			newprop ctx;
 			print ctx "__class__: %s" p;
 		end;
