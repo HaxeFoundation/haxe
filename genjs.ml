@@ -153,7 +153,7 @@ let handle_newlines ctx str =
 	else ()
 
 let flush ctx =
-	output_string ctx.chan (Rbuffer.unsafe_contents ctx.buf);
+	Rbuffer.output_buffer ctx.chan ctx.buf;
 	Rbuffer.clear ctx.buf
 
 let spr ctx s =
