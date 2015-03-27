@@ -761,12 +761,12 @@ let save_class_state ctx t = match t with
 
 (* PASS 2 begin *)
 
-let is_removable_class c =
+let rec is_removable_class c =
 	match c.cl_kind with
 	| KGeneric ->
 		(Meta.has Meta.Remove c.cl_meta ||
 		(match c.cl_super with
-			| Some ({cl_kind = KTypeParameter _},_) -> true
+			| Some (c,_) -> is_removable_class c
 			| _ -> false) ||
 		List.exists (fun (_,t) -> match follow t with
 			| TInst(c,_) ->
