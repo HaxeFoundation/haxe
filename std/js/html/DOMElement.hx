@@ -57,6 +57,7 @@ extern class DOMElement extends Node
 	var oncopy : haxe.Constraints.Function;
 	var oncut : haxe.Constraints.Function;
 	var onpaste : haxe.Constraints.Function;
+	var innerText : String;
 	var offsetParent(default,null) : DOMElement;
 	var offsetTop(default,null) : Int;
 	var offsetLeft(default,null) : Int;
