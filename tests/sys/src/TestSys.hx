@@ -37,6 +37,65 @@ class TestSys extends haxe.unit.TestCase {
 		assertEquals(0, exitCode);
 	}
 
+	function testCommandName() {
+		// This is just a script that behaves like ExitCode.hx, 
+		// which exits with the code same as the first given argument. 
+		var scriptContent = switch (Sys.systemName()) {
+			case "Windows":
+				'@echo off\nexit /b %1';
+			case "Mac", "Linux", _:
+				'#!/bin/sh\nexit $1';
+		}
+		for (name in FileNames.names) {
+			//call without ext
+			var scriptExt = switch (Sys.systemName()) {
+				case "Windows":
+					".bat";
+				case "Mac", "Linux", _:
+					"";
+			}
+			var path = "temp/" + name + scriptExt;
+			sys.io.File.saveContent(path, scriptContent);
+
+			switch (Sys.systemName()) {
+				case "Mac", "Linux":
+					var exitCode = Sys.command("chmod", ["a+x", path]);
+					assertEquals(0, exitCode);
+				case "Windows":
+					//pass
+			}
+
+			var random = Std.random(256);
+			var exitCode = Sys.command(path, [Std.string(random)]);
+			assertEquals(random, exitCode);
+			sys.FileSystem.deleteFile(path);
+
+
+			//call with ext
+			var scriptExt = switch (Sys.systemName()) {
+				case "Windows":
+					".bat";
+				case "Mac", "Linux", _:
+					".sh";
+			}
+			var path = "temp/" + name + scriptExt;
+			sys.io.File.saveContent(path, scriptContent);
+
+			switch (Sys.systemName()) {
+				case "Mac", "Linux":
+					var exitCode = Sys.command("chmod", ["a+x", path]);
+					assertEquals(0, exitCode);
+				case "Windows":
+					//pass
+			}
+
+			var random = Std.random(256);
+			var exitCode = Sys.command(path, [Std.string(random)]);
+			assertEquals(random, exitCode);
+			sys.FileSystem.deleteFile(path);
+		}
+	}
+
 	function testExitCode() {
 		var bin = sys.FileSystem.absolutePath(ExitCode.bin);
 
