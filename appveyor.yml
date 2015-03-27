@@ -16,7 +16,7 @@ environment:
         CYG_SETUP: C:/cygwin/setup-x86.exe
         WODI_ARCH: 32
         MINGW_ARCH: i686
-        TEST: "neko,cs,java,cpp,php,macro"
+        TEST: "neko,cs,java,cpp,macro"
 
 skip_tags: true
 
