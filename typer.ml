@@ -3994,7 +3994,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
 			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = type_block ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
 			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
-			| Some e -> (fun() -> type_expr ctx (EMeta((Meta.PrivateAccess,[],snd e),e),snd e) with_type))
+			| Some e -> (fun() -> type_expr ctx e with_type))
 		| _ ->
 			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
 			(match follow ethis.etype with
