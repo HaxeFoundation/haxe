@@ -203,14 +203,18 @@ CAMLprim value get_full_path( value f ) {
 
 CAMLprim value get_real_path( value path ) {
 #ifdef _WIN32
-	// this will ensure the full class path with proper casing
+	const char sep = '\\';
+	size_t len, i, last;
+	WIN32_FIND_DATA data;
+	HANDLE handle;
 	char out[MAX_PATH];
+
+	// this will ensure the full class path with proper casing
 	if( GetFullPathName(String_val(path),MAX_PATH,out,NULL) == 0 )
 		failwith("get_real_path");
 
-	const char sep = '\\';
-	size_t len = strlen(out);
-	size_t i = 0;
+	len = strlen(out);
+	i = 0;
 
 	if (len >= 2 && out[1] == ':') {
 		// convert drive letter to uppercase
@@ -222,7 +226,7 @@ CAMLprim value get_real_path( value path ) {
 			i = 2;
 	}
 
-	size_t last = i;
+	last = i;
 
 	while (i < len) {
 		// skip until separator
@@ -233,8 +237,6 @@ CAMLprim value get_real_path( value path ) {
 		out[i] = 0;
 
 		// get actual file/dir name with proper case
-		WIN32_FIND_DATA data;
-		HANDLE handle;
 		if ((handle = FindFirstFile(out, &data)) != INVALID_HANDLE_VALUE) {
 			// replace the component with proper case
 			memcpy(out + last, data.cFileName, i - last);
