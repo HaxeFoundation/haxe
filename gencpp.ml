@@ -406,7 +406,7 @@ let get_code meta key =
       end else
          code
       in
-   if (code<>"") then code ^ "\n" else code
+   if (code<>"") then String.concat "\n" (ExtString.String.nsplit code "\r\n") ^ "\n" else code
 ;;
 
 let has_meta_key meta key =
@@ -750,7 +750,7 @@ and cpp_function_signature_params params = match params with
        | TInst (klass,_) -> cpp_function_signature t (get_meta_string klass.cl_meta Meta.Abi)
        | _ -> print_endline (type_string abi);
            assert false )
-   | _ -> 
+   | _ ->
       print_endline ("Params:" ^ (String.concat "," (List.map type_string params) ));
       assert false;
 
@@ -2599,13 +2599,13 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output (" run(" ^ (gen_arg_list function_def.tf_args "__o_") ^ ")");
          ctx.ctx_dump_src_pos <- dump_src;
          if (is_void) then begin
-            ctx.ctx_writer#begin_block;  
+            ctx.ctx_writer#begin_block;
             generate_default_values ctx function_def.tf_args "__o_";
             gen_expression ctx false function_def.tf_expr;
             output "return null();\n";
             ctx.ctx_writer#end_block;
          end else if (has_default_values function_def.tf_args) then begin
-            ctx.ctx_writer#begin_block;  
+            ctx.ctx_writer#begin_block;
             generate_default_values ctx function_def.tf_args "__o_";
             gen_expression ctx false function_def.tf_expr;
             ctx.ctx_writer#end_block;
@@ -5574,7 +5574,7 @@ let generate_source common_ctx =
          with Not_found -> "export_classes.info"
       in
       if (filename <> "") then begin
-         let escape s = 
+         let escape s =
             let b = Buffer.create 0 in
             for i = 0 to String.length s - 1 do
                let c = String.unsafe_get s i in
@@ -5599,7 +5599,7 @@ let generate_source common_ctx =
             | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
             | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
             | TEnum (enum,params) -> spath enum.e_path
-            | TInst (klass,params) -> 
+            | TInst (klass,params) ->
                (match klass.cl_path, params with
                (* Array class *)
                (*|  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic" *)
