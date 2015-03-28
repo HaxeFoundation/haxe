@@ -38,5 +38,10 @@ class Issue4094 extends Test {
         eq( comment.parent, div );
         eq( innerDiv.parent, div );
         eq( divText.parent, div );
+
+        // Test addChild() moves a current child to the end.
+
+        div.addChild( span );
+        eq( div.toString(), '<div>Text1<!--Comment--><div/>Div<span>Span</span></div>' );
     }
 }

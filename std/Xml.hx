@@ -266,14 +266,12 @@ class Xml {
 	/**
 		Adds a child node to the Document or Element.
 		A child node can only be inside one given parent node, which is indicated by the [parent] property.
-		If the child is already inside this Document or Element, there will be no effect.
+		If the child is already inside this Document or Element, it will be moved to the last position among the Document or Element's children.
 		If the child node was previously inside a different node, it will be moved to this Document or Element.
 	**/
 	public function addChild( x : Xml ) : Void {
 		ensureElementType();
-		if (x.parent == this) {
-			return;
-		} else if (x.parent != null) {
+		if (x.parent != null) {
 			x.parent.removeChild(x);
 		}
 		children.push(x);
@@ -296,7 +294,7 @@ class Xml {
 	/**
 		Inserts a child at the given position among the other childs.
 		A child node can only be inside one given parent node, which is indicated by the [parent] property.
-		If the child is already inside this Document or Element, it will be removed and added at the new position.
+		If the child is already inside this Document or Element, it will be moved to the new position among the Document or Element's children.
 		If the child node was previously inside a different node, it will be moved to this Document or Element.
 	**/
 	public function insertChild( x : Xml, pos : Int ) : Void {
