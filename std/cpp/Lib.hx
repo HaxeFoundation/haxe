@@ -35,6 +35,14 @@ class Lib {
 		#end
 	}
 
+	/**
+		Unloaded all dynamic libraries in reverse order of loading.
+		Returns the number of libraries unloaded.
+	**/
+	public static function unloadAllLibraries() : Int {
+		return untyped __global__.__hxcpp_unload_all_libraries();
+	}
+
    @:analyzer(no_simplification)
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
 		var factory:Callable< ConstCharStar -> Object > =
