@@ -749,7 +749,7 @@ let s_expr e =
 		match e with
 		| EConst c -> s_constant c
 		| EArray (e1,e2) -> s_expr_inner tabs e1 ^ "[" ^ s_expr_inner tabs e2 ^ "]"
-		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ s_binop op ^ s_expr_inner tabs e2
+		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ " " ^ s_binop op ^ " " ^ s_expr_inner tabs e2
 		| EField (e,f) -> s_expr_inner tabs e ^ "." ^ f
 		| EParenthesis e -> "(" ^ (s_expr_inner tabs e) ^ ")"
 		| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr_inner tabs e)) fl)) ^ "}"
@@ -762,7 +762,7 @@ let s_expr e =
 		| EFunction (None,f) -> "function" ^ s_func tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
 		| EBlock [] -> "{ }"
-		| EBlock el -> s_block tabs el "{" "}"
+		| EBlock el -> s_block tabs el "{" "\n" "}"
 		| EFor (e1,e2) -> "for (" ^ s_expr_inner tabs e1 ^ ") " ^ s_expr_inner tabs e2
 		| EIn (e1,e2) -> s_expr_inner tabs e1 ^ " in " ^ s_expr_inner tabs e2
 		| EIf (e,e1,None) -> "if (" ^ s_expr_inner tabs e ^ ") " ^ s_expr_inner tabs e1
@@ -848,13 +848,13 @@ let s_expr e =
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
 	and s_catch tabs (n,t,e) =
-		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ")" ^ s_expr_inner tabs e
-	and s_block tabs el opn cls =
-		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";\n" ^ tabs ^ cls
+		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
+	and s_block tabs el opn nl cls =
+		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls
 	and s_expr_omit_block tabs e =
 		match e with
 		| (EBlock [],_) -> ""
-		| (EBlock el,_) -> s_block (tabs ^ "\t") el "" ""
+		| (EBlock el,_) -> s_block (tabs ^ "\t") el "" "" ""
 		| _ -> s_expr_inner (tabs ^ "\t") e ^ ";"
 	in s_expr_inner "" e
 
