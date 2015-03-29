@@ -65,10 +65,11 @@ let s_path ctx = dot_path
 let debug_expression expression  =
     " --[[ " ^ Type.s_expr_kind expression  ^ " --]] ";;
 
+(* TODO: are all these kwds necessary for field quotes *and* id escapes? *)
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
+		""; "abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
 		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
 		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
 		"interface"; "is"; "let"; "long"; "namespace"; "native"; "new"; "nil"; "package"; "private"; "protected";
