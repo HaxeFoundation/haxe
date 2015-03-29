@@ -762,7 +762,7 @@ let s_expr e =
 		| EFunction (None,f) -> "function" ^ s_func tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
 		| EBlock [] -> "{ }"
-		| EBlock el -> "{\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";\n" ^ tabs ^"}"
+		| EBlock el -> s_block tabs el "{" "}"
 		| EFor (e1,e2) -> "for (" ^ s_expr_inner tabs e1 ^ ") " ^ s_expr_inner tabs e2
 		| EIn (e1,e2) -> s_expr_inner tabs e1 ^ " in " ^ s_expr_inner tabs e2
 		| EIf (e,e1,None) -> "if (" ^ s_expr_inner tabs e ^ ") " ^ s_expr_inner tabs e1
@@ -771,7 +771,7 @@ let s_expr e =
 		| EWhile (econd,e,DoWhile) -> "do " ^ s_expr_inner tabs e ^ " while (" ^ s_expr_inner tabs econd ^ ")"
 		| ESwitch (e,cases,def) -> "switch " ^ s_expr_inner tabs e ^ " {\n\t" ^ tabs ^ String.concat ("\n\t" ^ tabs) (List.map (s_case tabs) cases) ^
 			(match def with None -> "" | Some def -> "\n\t" ^ tabs ^ "default:" ^
-			(match def with None -> "" | Some def -> s_expr_inner (tabs ^ "\t") def ^ ";")) ^ "\n" ^ tabs ^ "}" 
+			(match def with None -> "" | Some def -> s_expr_omit_block tabs def)) ^ "\n" ^ tabs ^ "}" 
 		| ETry (e,catches) -> "try " ^ s_expr_inner tabs e ^ String.concat "" (List.map (s_catch tabs) catches)
 		| EReturn e -> "return" ^ s_opt_expr tabs e " "
 		| EBreak -> "break"
@@ -846,9 +846,16 @@ let s_expr e =
 	and s_case tabs (el,e1,e2) =
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
-		(match e2 with None -> "" | Some e -> s_expr_inner (tabs ^ "\t") e ^ ";")
+		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
 	and s_catch tabs (n,t,e) =
 		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ")" ^ s_expr_inner tabs e
+	and s_block tabs el opn cls =
+		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";\n" ^ tabs ^ cls
+	and s_expr_omit_block tabs e =
+		match e with
+		| (EBlock [],_) -> ""
+		| (EBlock el,_) -> s_block (tabs ^ "\t") el "" ""
+		| _ -> s_expr_inner (tabs ^ "\t") e ^ ";"
 	in s_expr_inner "" e
 
 let get_value_meta meta =
