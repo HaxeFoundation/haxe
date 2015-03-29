@@ -749,10 +749,13 @@ and gen_expr ctx e =
 
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
-	| TBinop (Ast.OpEq as op,e1,e2) ->
-		gen_iife_return ctx (gen_tbinop ctx op e1 e2);
-	| TField _ ->
-		gen_iife_return ctx (gen_expr ctx e);
+	| TCast _ -> ();
+	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
+		let f () = gen_tbinop ctx op e1 e2 in
+		gen_iife_assign ctx f;
+	| TField _ | TArray _ ->
+		let f () = gen_expr ctx e in
+		gen_iife_assign ctx f;
 	| TConst _ | TLocal _ -> ()
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
