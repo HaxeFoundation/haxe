@@ -36,7 +36,7 @@ type ctx = {
 	mutable tabs : string;
 	mutable in_value : tvar option;
 	mutable in_loop : bool;
-	mutable in_conditional : bool;
+	mutable iife_assign : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
 	mutable continue_counter : int;
@@ -269,6 +269,7 @@ let gen_constant ctx p = function
 	| TSuper -> assert false
 
 let rec gen_call ctx e el in_value =
+	ctx.iife_assign <- true;
 	(match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.current.cl_super with
@@ -382,6 +383,7 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")");
+	ctx.iife_assign <- false;
 
 and gen_expr ctx e =
 	match e.eexpr with
@@ -525,7 +527,7 @@ and gen_expr ctx e =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
-		ctx.in_conditional <- true;
+		ctx.iife_assign <- true;
 		spr ctx "if ";
 		gen_cond ctx cond;
 		spr ctx " then ";
@@ -544,7 +546,7 @@ and gen_expr ctx e =
 			bend();
 			newline ctx);
 		spr ctx "end";
-		ctx.in_conditional <- false;
+		ctx.iife_assign <- false;
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		spr ctx "(function() ";
 		(match unop_flag with
@@ -899,7 +901,7 @@ and gen_value ctx e =
 and gen_tbinop ctx op e1 e2 =
     (match op with
     | Ast.OpAssign ->
-	    if ctx.in_conditional then spr ctx "(function() ";
+	    if ctx.iife_assign then spr ctx "(function() ";
 	    (match e2.eexpr with
 	    | TBinop(OpAssign as op, e3, e4) ->
 		gen_tbinop ctx op e3 e4;
@@ -911,7 +913,7 @@ and gen_tbinop ctx op e1 e2 =
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2);
-	    if ctx.in_conditional then begin
+	    if ctx.iife_assign then begin
 		spr ctx " return ";
 		gen_value ctx e1;
 		spr ctx " end)()";
@@ -966,15 +968,15 @@ and gen_return ctx e eo =
 	    );
 	    spr ctx " end")
 
-and gen_iife_return ctx f =
+and gen_iife_assign ctx f =
     spr ctx "(function() return ";
-    f;
+    f();
     spr ctx " end)()";
 
 and gen_cond ctx cond =
-    ctx.in_conditional <- true;
+    ctx.iife_assign <- true;
     gen_value ctx cond;
-    ctx.in_conditional <- false;
+    ctx.iife_assign <- false;
 
 and has_class ctx c =
     has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
@@ -1327,7 +1329,7 @@ let alloc_ctx com =
 		current = null_class;
 		tabs = "";
 		in_value = None;
-		in_conditional = false;
+		iife_assign = false;
 		in_loop = false;
 		handle_break = false;
 		id_counter = 0;
