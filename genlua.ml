@@ -36,6 +36,7 @@ type ctx = {
 	mutable tabs : string;
 	mutable in_value : tvar option;
 	mutable in_loop : bool;
+	mutable in_conditional : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
 	mutable continue_counter : int;
@@ -524,8 +525,9 @@ and gen_expr ctx e =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
+		ctx.in_conditional <- true;
 		spr ctx "if ";
-		gen_value ctx cond;
+		gen_cond ctx cond;
 		spr ctx " then ";
 		gen_expr ctx e;
 		newline ctx;
@@ -542,6 +544,7 @@ and gen_expr ctx e =
 			bend();
 			newline ctx);
 		spr ctx "end";
+		ctx.in_conditional <- false;
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		spr ctx "(function() ";
 		(match unop_flag with
@@ -587,7 +590,7 @@ and gen_expr ctx e =
 		ctx.continue_counter <- ctx.continue_counter + 1;
 		let id = ctx.continue_counter in
 		spr ctx "while ";
-		gen_value ctx cond;
+		gen_cond ctx cond;
 		spr ctx " do ";
 		gen_expr ctx e;
 		handle_break();
@@ -599,7 +602,7 @@ and gen_expr ctx e =
 		let handle_break = handle_break ctx e in
 		gen_expr ctx e;
 		spr ctx "while ";
-		gen_value ctx cond;
+		gen_cond ctx cond;
 		spr ctx " do ";
 		gen_expr ctx e;
 		handle_break();
@@ -854,7 +857,7 @@ and gen_value ctx e =
 	| TIf (cond,e,eo) ->
 		let v = value() in
 		spr ctx "if ";
-		gen_value ctx cond;
+		gen_cond ctx cond;
 		spr ctx " then ";
 		gen_value ctx (assign e);
 		let rec gen_elseif ctx e =
@@ -864,7 +867,7 @@ and gen_value ctx e =
 		    (match e2.eexpr with
 		    | TIf(cond3, e3, eo3) ->
 			spr ctx " elseif ";
-			gen_value ctx cond3;
+			gen_cond ctx cond3;
 			spr ctx " then ";
 			gen_expr ctx (assign e3);
 			semicolon ctx;
@@ -896,17 +899,23 @@ and gen_value ctx e =
 and gen_tbinop ctx op e1 e2 =
     (match op with
     | Ast.OpAssign ->
-        (match e2.eexpr with
-        | TBinop(OpAssign as op, e3, e4) ->
-            gen_tbinop ctx op e3 e4;
-	    newline ctx;
-            gen_value ctx e1;
-	    spr ctx " = ";
-	    gen_value ctx e3;
-        | _ ->
-	    gen_value ctx e1;
-            print ctx " %s " (Ast.s_binop op);
-            gen_value ctx e2);
+	    if ctx.in_conditional then spr ctx "(function() ";
+	    (match e2.eexpr with
+	    | TBinop(OpAssign as op, e3, e4) ->
+		gen_tbinop ctx op e3 e4;
+		newline ctx;
+		gen_value ctx e1;
+		spr ctx " = ";
+		gen_value ctx e3;
+	    | _ ->
+		gen_value ctx e1;
+		print ctx " %s " (Ast.s_binop op);
+		gen_value ctx e2);
+	    if ctx.in_conditional then begin
+		spr ctx " return ";
+		gen_value ctx e1;
+		spr ctx " end)()";
+	    end;
     | Ast.OpAssignOp(op2) ->
         spr ctx "(function() "; gen_value ctx e1;
         spr ctx " = "; gen_tbinop ctx op2 e1 e2;
@@ -961,6 +970,11 @@ and gen_iife_return ctx f =
     spr ctx "(function() return ";
     f;
     spr ctx " end)()";
+
+and gen_cond ctx cond =
+    ctx.in_conditional <- true;
+    gen_value ctx cond;
+    ctx.in_conditional <- false;
 
 and has_class ctx c =
     has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
@@ -1313,6 +1327,7 @@ let alloc_ctx com =
 		current = null_class;
 		tabs = "";
 		in_value = None;
+		in_conditional = false;
 		in_loop = false;
 		handle_break = false;
 		id_counter = 0;
