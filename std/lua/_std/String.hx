@@ -23,10 +23,16 @@
 @:coreApi
 class String {
 	public var length(default,null) : Int;
+	public function new(string:String) untyped {}
 
-	public function new(string:String) untyped {
-		// TODO: extern this somehow
-		__lua__("self = string");
+	static function __init__() : Void{
+		untyped __lua__("setmetatable(_G.string, String.mt)");
+	}
+
+	@:keep
+	function __index(k:String) : Dynamic {
+		if (k == "length") return untyped __lua__("#self");
+		else return null;
 	}
 
 	public function toUpperCase() : String return untyped this.upper();

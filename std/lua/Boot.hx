@@ -22,9 +22,6 @@
 package lua;
 
 class Boot {
-	static function __init__(){
-		untyped __lua__("setmetatable(_G.string, String.mt)");
-	}
 	public static var unpack : Dynamic->lua.Table<Int,Dynamic> = untyped __lua__("function(...) return {...} end");
 
 	static function __unhtml(s : String) {
@@ -76,10 +73,9 @@ class Boot {
 
 	@:keep
 	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic>  untyped {
-		tabobj.__methods = __lua__("{Array.mt}");
 		tabobj.length = length;
 		setmetatable(tabobj, {
-			__index : lua.Boot.resolveMethod,
+			__index : __lua__("Array.mt"),
 			__newindex : lua.Boot.arrayNewIndex
 		});
 		return tabobj;
