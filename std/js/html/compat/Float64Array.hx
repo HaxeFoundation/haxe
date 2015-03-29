@@ -110,7 +110,7 @@ class Float64Array {
 	}
 
 	static function __init__() untyped {
-		var Float64Array = __js__('typeof(window) != "undefined" && window.Float64Array') || (__js__('typeof(global) != "undefined" && global.Float64Array')) || _new;
+		var Float64Array = __js__('typeof(window) != "undefined" && window.Float64Array') || __js__('typeof(window) != "undefined" && window.Float32Array && "notsupported"') || (__js__('typeof(global) != "undefined" && global.Float64Array')) || _new;
 	}
 
 }
