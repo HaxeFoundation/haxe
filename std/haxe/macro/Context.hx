@@ -341,7 +341,7 @@ class Context {
 	/**
 		Types expression `e` and returns its type.
 
-		Typing the expression may result in an compiler error which can be
+		Typing the expression may result in a compiler error which can be
 		caught using `try ... catch`.
 	**/
 	public static function typeof( e : Expr ) : Type {
@@ -351,7 +351,7 @@ class Context {
 	/**
 		Types expression `e` and returns the corresponding `TypedExpr`.
 
-		Typing the expression may result in an compiler error which can be
+		Typing the expression may result in a compiler error which can be
 		caught using `try ... catch`.
 	**/
 	@:require(haxe_ver >= 3.1)
