@@ -744,9 +744,9 @@ and gen_expr ctx e =
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
 	| TBinop (Ast.OpEq as op,e1,e2) ->
-		spr ctx "(function() return ";
-		gen_tbinop ctx op e1 e2;
-		spr ctx " end)()";
+		gen_iife_return ctx (gen_tbinop ctx op e1 e2);
+	| TField _ ->
+		gen_iife_return ctx (gen_expr ctx e);
 	| TConst _ | TLocal _ -> ()
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
@@ -956,6 +956,11 @@ and gen_return ctx e eo =
 		| _ -> gen_value ctx e;
 	    );
 	    spr ctx " end")
+
+and gen_iife_return ctx f =
+    spr ctx "(function() return ";
+    f;
+    spr ctx " end)()";
 
 and has_class ctx c =
     has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
