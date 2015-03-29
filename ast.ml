@@ -752,7 +752,7 @@ let s_expr e =
 		| EBinop (op,e1,e2) -> s_expr_inner tabs e1 ^ " " ^ s_binop op ^ " " ^ s_expr_inner tabs e2
 		| EField (e,f) -> s_expr_inner tabs e ^ "." ^ f
 		| EParenthesis e -> "(" ^ (s_expr_inner tabs e) ^ ")"
-		| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr_inner tabs e)) fl)) ^ "}"
+		| EObjectDecl fl -> "{ " ^ (String.concat ", " (List.map (fun (n,e) -> n ^ " : " ^ (s_expr_inner tabs e)) fl)) ^ " }"
 		| EArrayDecl el -> "[" ^ s_expr_list tabs el ", " ^ "]"
 		| ECall (e,el) -> s_expr_inner tabs e ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
