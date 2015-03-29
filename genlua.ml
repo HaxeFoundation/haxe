@@ -63,7 +63,7 @@ let dot_path = Ast.s_type_path
 let s_path ctx = dot_path
 
 let debug_expression expression  =
-	"/* " ^ Type.s_expr_kind expression  ^ " */";;
+    " --[[ " ^ Type.s_expr_kind expression  ^ " --]] ";;
 
 let kwds =
 	let h = Hashtbl.create 0 in
@@ -597,6 +597,7 @@ and gen_expr ctx e =
 		gen_expr ctx e;
 		handle_break();
 		newline ctx;
+		(* TODO: generate this label conditionally *)
 		print ctx "::_hx_continue_%i::" id;
 		newline ctx;
 		spr ctx "end ";
