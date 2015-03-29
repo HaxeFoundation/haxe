@@ -729,7 +729,7 @@ let map_expr loop (e,p) =
 	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
 	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
 	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e) -> List.map loop el, opt loop eg, opt loop e) cases, opt (opt loop) def)
-	| ETry (e, catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,ctype t,loop e) catches)
+	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,ctype t,loop e) catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
 	| EContinue -> EContinue
@@ -747,13 +747,120 @@ let map_expr loop (e,p) =
 let rec s_expr (e,_) =
 	match e with
 	| EConst c -> s_constant c
-	| EParenthesis e -> "(" ^ (s_expr e) ^ ")"
-	| EArrayDecl el -> "[" ^ (String.concat "," (List.map s_expr el)) ^ "]"
-	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr e)) fl)) ^ "}"
+	| EArray (e1,e2) -> s_expr e1 ^ "[" ^ s_expr e2 ^ "]"
 	| EBinop (op,e1,e2) -> s_expr e1 ^ s_binop op ^ s_expr e2
-	| ECall (e,el) -> s_expr e ^ "(" ^ (String.concat ", " (List.map s_expr el)) ^ ")"
 	| EField (e,f) -> s_expr e ^ "." ^ f
-	| _ -> "'???'"
+	| EParenthesis e -> "(" ^ (s_expr e) ^ ")"
+	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (s_expr e)) fl)) ^ "}"
+	| EArrayDecl el -> "[" ^ s_expr_list el ", " ^ "]"
+	| ECall (e,el) -> s_expr e ^ "(" ^ s_expr_list el ", " ^ ")"
+	| ENew (t,el) -> "new " ^ s_complex_type_path t ^ "(" ^ s_expr_list el ", " ^ ")"
+	| EUnop (op,Postfix,e) -> s_expr e ^ s_unop op
+	| EUnop (op,Prefix,e) -> s_unop op ^ s_expr e
+	| EFunction (Some n,f) -> "function " ^ n ^ s_func f
+	| EFunction (None,f) -> "function" ^ s_func f
+	| EVars vl -> "var " ^ String.concat ", " (List.map s_var vl)
+	| EBlock [] -> "{ }"
+	| EBlock el -> "{\n\t" ^ s_expr_list el ";\n\t" ^ ";\n\t}"
+	| EFor (e1,e2) -> "for (" ^ s_expr e1 ^ ") " ^ s_expr e2
+	| EIn (e1,e2) -> s_expr e1 ^ " in " ^ s_expr e2
+	| EIf (e,e1,None) -> "if (" ^ s_expr e ^ ") " ^ s_expr e1
+	| EIf (e,e1,Some e2) -> "if (" ^ s_expr e ^ ") " ^ s_expr e1 ^ " else " ^ s_expr e2
+	| EWhile (econd,e,NormalWhile) -> "while (" ^ s_expr econd ^ ") " ^ s_expr e
+	| EWhile (econd,e,DoWhile) -> "do " ^ s_expr e ^ " while (" ^ s_expr econd ^ ")"
+	| ESwitch (e,cases,def) -> "switch " ^ s_expr e ^ "{\n\t" ^ String.concat "\n\t" (List.map s_case cases) ^
+		(match def with None -> "" | Some def -> "\n\tdefault:" ^ (match def with None -> "" | Some def -> s_expr def ^ ";")) ^ "\n\t}" 
+	| ETry (e,catches) -> "try " ^ s_expr e ^ String.concat "" (List.map s_catch catches)
+	| EReturn e -> "return" ^ s_opt_expr e " "
+	| EBreak -> "break"
+	| EContinue -> "continue"
+	| EUntyped e -> "untyped " ^ s_expr e
+	| EThrow e -> "throw " ^ s_expr e
+	| ECast (e,Some t) -> "cast (" ^ s_expr e ^ ", " ^ s_complex_type t ^ ")"
+	| ECast (e,None) -> "cast " ^ s_expr e
+	| ETernary (e1,e2,e3) -> s_expr e1 ^ " ? " ^ s_expr e2 ^ " : " ^ s_expr e3
+	| ECheckType (e,t) -> "(" ^ s_expr e ^ " : " ^ s_complex_type t ^ ")"
+	| EMeta (m,e) -> s_metadata m ^ " " ^ s_expr e
+	| _ -> ""
+
+and s_expr_list el sep =
+	(String.concat sep (List.map s_expr el))
+
+and s_complex_type_path t =
+	(String.concat "." t.tpackage) ^ if List.length t.tpackage > 0 then "." else "" ^
+	t.tname ^
+	match t.tsub with
+	| Some s -> "." ^ s
+	| None -> "" ^
+	s_type_param_or_consts t.tparams
+
+and s_type_param_or_consts pl =
+	if List.length pl > 0
+	then "<" ^ (String.concat "," (List.map s_type_param_or_const pl)) ^ ">"
+	else ""
+
+and s_type_param_or_const = function
+	| TPType t -> s_complex_type t
+	| TPExpr e -> s_expr e
+
+and s_complex_type = function
+	| CTPath t -> s_complex_type_path t
+	| CTFunction (cl,c) -> if List.length cl > 0 then String.concat " -> " (List.map s_complex_type cl) else "Void" ^ " -> " ^ s_complex_type c
+	| CTAnonymous fl -> "{ " ^ String.concat "; " (List.map s_class_field fl) ^ "}";
+	| CTParent t -> "(" ^ s_complex_type t ^ ")"
+	| CTOptional t -> "?" ^ s_complex_type t
+	| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map s_complex_type_path tl) ^ ", " ^ String.concat ", " (List.map s_class_field fl) ^ " }"
+
+and s_class_field f =
+	match f.cff_doc with
+	| Some s -> "/**\n\t" ^ s ^ "\n**/\n"
+	| None -> "" ^
+	if List.length f.cff_meta > 0 then String.concat "\n\t" (List.map s_metadata f.cff_meta) else "" ^
+	if List.length f.cff_access > 0 then String.concat " " (List.map s_access f.cff_access) else "" ^
+	match f.cff_kind with
+	| FVar (t,e) -> "var " ^ f.cff_name ^ s_opt_complex_type t " : " ^ s_opt_expr e " = "
+	| FProp (get,set,t,e) -> "var " ^ f.cff_name ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_complex_type t " : " ^ s_opt_expr e " = "
+	| FFun func -> "function " ^ f.cff_name ^ s_func func
+
+and s_metadata (s,e,_) =
+	"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list e ", " ^ ")" else ""
+	
+and s_opt_complex_type t pre =
+	match t with
+	| Some s -> pre ^ s_complex_type s
+	| None -> ""
+
+and s_opt_expr e pre =
+	match e with
+	| Some s -> pre ^ s_expr s
+	| None -> ""
+
+and s_func f =
+	s_type_param_list f.f_params ^
+	"(" ^ String.concat ", " (List.map s_func_arg f.f_args) ^ ")" ^
+	s_opt_complex_type f.f_type ":" ^
+	s_opt_expr f.f_expr " "
+
+and s_type_param t =
+	t.tp_name ^ s_type_param_list t.tp_params ^
+	if List.length t.tp_constraints > 0 then ":(" ^ String.concat ", " (List.map s_complex_type t.tp_constraints) ^ ")" else ""
+
+and s_type_param_list tl =
+	if List.length tl > 0 then "<" ^ String.concat ", " (List.map s_type_param tl) ^ ">" else ""
+
+and s_func_arg (n,o,t,e) =
+	if o then "?" else "" ^ n ^ s_opt_complex_type t ":" ^ s_opt_expr e " = "
+
+and s_var (n,t,e) =
+	n ^ s_opt_complex_type t ":" ^ s_opt_expr e " = "
+
+and s_case (el,e1,e2) =
+	"case " ^ s_expr_list el ", " ^
+	(match e1 with None -> ":" | Some e -> " if (" ^ s_expr e ^ "):") ^
+	(match e2 with None -> "" | Some e -> s_expr e ^ ";")
+
+and s_catch (n,t,e) =
+	" catch(" ^ n ^ ":" ^ s_complex_type t ^ ")" ^ s_expr e
 
 let get_value_meta meta =
 	try
