@@ -2080,7 +2080,7 @@ and gen_expression ctx retval expression =
          match func.eexpr with
             | TField(obj,field) when is_array obj.etype ->
                (match field_name field with
-                  | "pop" | "shift" -> check_array_element_cast obj.etype ".StaticCast" "()"
+                  | "pop" | "shift" | "__unsafe_get" | "__unsafe_set" -> check_array_element_cast obj.etype ".StaticCast" "()"
                   | "map" -> check_array_cast expression.etype
                   | _ -> ()
                )
