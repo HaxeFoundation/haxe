@@ -8,6 +8,10 @@ extern class NativeArray {
 	untyped ioDestArray.blit(inDestElement, inSourceArray, inSourceElement, inElementCount);
 	};
 
+	public static inline function getBase( inArray:Array<Dynamic> ) : ArrayBase {
+      return untyped inArray;
+   }
+
 	public static inline function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void {
 		untyped ioDestArray.zero(inFirst, inElements);
 	};
