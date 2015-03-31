@@ -51,7 +51,6 @@ build_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
     - haxelib setup "%HAXELIB_ROOT%"
-    - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
 
 test_script:
     - cd %APPVEYOR_BUILD_FOLDER%/tests/

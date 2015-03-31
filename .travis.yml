@@ -42,7 +42,6 @@ script:
   - sudo make install -s
   - cd tests/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
-  - haxelib git hx-yaml https://github.com/mikestead/hx-yaml master src
   - haxe -version
   - haxe RunCi.hxml
   - neko RunCi.n
