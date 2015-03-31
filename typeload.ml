@@ -1000,8 +1000,16 @@ let check_interfaces ctx c =
 	List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
 
 let rec return_flow ctx e =
-	let error() = display_error ctx "A return is missing here" e.epos; raise Exit in
+	let error() =
+		display_error ctx (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
+	in
 	let return_flow = return_flow ctx in
+	let rec uncond e = match e.eexpr with
+		| TIf _ | TWhile _ | TSwitch _ | TTry _ -> ()
+		| TReturn _ | TThrow _ -> raise Exit
+		| _ -> Type.iter uncond e
+	in
+	let has_unconditional_flow e = try uncond e; false with Exit -> true in
 	match e.eexpr with
 	| TReturn _ | TThrow _ -> ()
 	| TParenthesis e | TMeta(_,e) ->
@@ -1010,7 +1018,7 @@ let rec return_flow ctx e =
 		let rec loop = function
 			| [] -> error()
 			| [e] -> return_flow e
-			| { eexpr = TReturn _ } :: _ | { eexpr = TThrow _ } :: _ -> ()
+			| e :: _ when has_unconditional_flow e -> ()
 			| _ :: l -> loop l
 		in
 		loop el
@@ -1550,21 +1558,25 @@ let type_function ctx args ret fmode f do_display p =
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
 		| _ -> e
 	in
-	let rec loop e =
-		match e.eexpr with
-		| TReturn (Some e) -> (match follow e.etype with TAbstract({a_path = [],"Void"},[]) -> () | _ -> raise Exit)
-		| TFunction _ -> ()
-		| _ -> Type.iter loop e
+	let has_return e =
+		let rec loop e =
+			match e.eexpr with
+			| TReturn (Some _) -> raise Exit
+			| TFunction _ -> ()
+			| _ -> Type.iter loop e
+		in
+		try loop e; false with Exit -> true
 	in
-	let have_ret = (try loop e; false with Exit -> true) in
-	if have_ret then
-		(try return_flow ctx e with Exit -> ())
-	else (try type_eq EqStrict ret ctx.t.tvoid with Unify_error _ ->
-		match e.eexpr with
-		(* accept final throw (issue #1923) *)
-		| TThrow _ -> ()
-		| TBlock el when (match List.rev el with ({eexpr = TThrow _} :: _) -> true | _ -> false) -> ()
-		| _ -> display_error ctx ("Missing return " ^ (s_type (print_context()) ret)) p);
+	begin match follow ret with
+		| TAbstract({a_path=[],"Void"},_) -> ()
+		(* We have to check for the presence of return expressions here because
+		   in the case of Dynamic ctx.ret is still a monomorph. If we indeed
+		   don't have a return expression we can link the monomorph to Void. We
+		   can _not_ use type_iseq to avoid the Void check above because that
+		   would turn Dynamic returns to Void returns. *)
+		| TMono t when not (has_return e) -> ignore(link t ret ctx.t.tvoid)
+		| _ -> (try return_flow ctx e with Exit -> ())
+	end;
 	let rec loop e =
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
