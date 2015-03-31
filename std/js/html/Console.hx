@@ -45,4 +45,5 @@ extern class Console
 	function profileEnd( data : haxe.extern.Rest<Dynamic> ) : Void;
 	function assert( condition : Bool, data : haxe.extern.Rest<Dynamic> ) : Void;
 	function count( data : haxe.extern.Rest<Dynamic> ) : Void;
+	function clear() : Void;
 }
