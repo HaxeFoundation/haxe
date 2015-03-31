@@ -78,7 +78,7 @@ class Array<T> {
 	}
 
 	public inline function remove( x : T ) : Bool {
-		return true;
+		return untyped this.remove(x);
 	}
 
 	public function indexOf( x : T, ?fromIndex:Int ) : Int return 1;
