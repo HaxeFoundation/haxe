@@ -1,5 +1,6 @@
 package java.lang;
 
+@:native("") // workaround for #4113
 @:forward abstract Double(DoubleClass) from DoubleClass to DoubleClass
 {
 	@:to @:extern inline public function toFloat():Float
