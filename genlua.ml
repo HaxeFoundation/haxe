@@ -604,8 +604,9 @@ and gen_expr ctx e =
 		spr ctx "end ";
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
+		spr ctx "while true do ";
 		gen_expr ctx e;
-		spr ctx "while ";
+		spr ctx "break end while ";
 		gen_cond ctx cond;
 		spr ctx " do ";
 		gen_expr ctx e;
