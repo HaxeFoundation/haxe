@@ -15,7 +15,8 @@ Reflect.field(c, "prop") == "prop";
 Reflect.field(c, "func")() == "foo";
 // As3 invokes the getter
 Reflect.field(c, "propAcc") == #if as3 "1" #else "0" #end;
-Reflect.field(null, null) == null;
+var n = null;
+Reflect.field(n, n) == null;
 Reflect.field(1, "foo") == null;
 
 // setField
