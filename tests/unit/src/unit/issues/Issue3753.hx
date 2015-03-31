@@ -42,20 +42,20 @@ private abstract D(Map<String, String>) from Map<String, String> {
 
 class Issue3753 extends Test {
 	function test() {
-		//var a:A = ["foo" => "bar", "bar" => "baz"];
-		//eq("bar", a.foo);
-		//eq("baz", a.bar);
-//
-		//var a:B = ["foo" => "bar", "bar" => "baz"];
-		//eq("bar", a.foo);
-		//eq("baz", a.bar);
-//
-		//var a:C = ["foo" => "bar", "bar" => "baz"];
-		//eq("bar", a.foo);
-		//eq("baz", a.bar);
-//
-		//var a:D = ["foo" => "bar", "bar" => "baz"];
-		//eq("bar", a.foo);
-		//eq("baz", a.bar);
+		var a:A = ["foo" => "bar", "bar" => "baz"];
+		eq("bar", a.foo);
+		eq("baz", a.bar);
+
+		var a:B = ["foo" => "bar", "bar" => "baz"];
+		eq("bar", a.foo);
+		eq("baz", a.bar);
+
+		var a:C = ["foo" => "bar", "bar" => "baz"];
+		eq("bar", a.foo);
+		eq("baz", a.bar);
+
+		var a:D = ["foo" => "bar", "bar" => "baz"];
+		eq("bar", a.foo);
+		eq("baz", a.bar);
 	}
 }

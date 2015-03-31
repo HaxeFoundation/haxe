@@ -1633,14 +1633,14 @@ and type_field ?(resume=false) ctx e i p mode =
 			(match ctx.curfun, e.eexpr with
 			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 			| _ -> raise Not_found)
-(* 		with Not_found -> try
+		with Not_found -> try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let cf = PMap.find "resolve" c.cl_statics in
 			if not (Meta.has Meta.Resolve cf.cf_meta) then raise Not_found;
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
 			let ef = mk (TField (et,FStatic (c,cf))) t p in
-			AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p) *)
+			AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p)
 		with Not_found ->
 			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 			else no_field())

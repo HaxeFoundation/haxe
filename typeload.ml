@@ -2374,7 +2374,7 @@ let init_class ctx c p context_init herits fields =
 									display_error ctx ("First argument of implementation function must be " ^ (s_type (print_context()) tthis)) f.cff_pos
 							end;
 							loop ml
-(* 						| (Meta.Resolve,_,_) :: _ ->
+						| (Meta.Resolve,_,_) :: _ ->
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							begin match follow t with
 								| TFun([(_,_,t1);(_,_,t2)],_) ->
@@ -2384,7 +2384,7 @@ let init_class ctx c p context_init herits fields =
 									end
 								| _ ->
 									error ("Field type of resolve must be " ^ (s_type (print_context()) targ) ^ " -> String -> T") f.cff_pos
-							end *)
+							end
 						| _ :: ml ->
 							loop ml
 						| [] ->
