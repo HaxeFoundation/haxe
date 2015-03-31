@@ -1,3 +1,2 @@
 -cp src
--D MISC_TEST_FILTER=Issue4114
 --run Main

@@ -1322,8 +1322,8 @@ let unify_kind k1 k2 =
 			| MethDynamic -> direct_access v.v_read && direct_access v.v_write
 			| MethMacro -> false
 			| MethNormal | MethInline ->
-				match v.v_write with
-				| AccNo | AccNever -> true
+				match v.v_read,v.v_write with
+				| AccNormal,(AccNo | AccNever) -> true
 				| _ -> false)
 		| Method m1, Method m2 ->
 			match m1,m2 with
