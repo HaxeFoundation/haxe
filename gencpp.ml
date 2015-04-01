@@ -2003,7 +2003,7 @@ and gen_expression ctx retval expression =
             let signature = cpp_function_signature field.cf_type "" in
             let name = keyword_remap field.cf_name in
             let void_cast = has_meta_key field.cf_meta Meta.Void in
-            output ("::cpp::Function<" ^ signature ^">(");
+            output ("::cpp::Function< " ^ signature ^">(");
             if (void_cast) then output "hx::AnyCast(";
             output ("&::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name );
             if (void_cast) then output ")";
