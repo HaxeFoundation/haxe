@@ -2113,7 +2113,7 @@ struct
 				let init = List.fold_left (fun acc cf ->
 					match cf.cf_kind, should_handle_dynamic_functions with
 						| (Var v, _) when Meta.has Meta.ReadOnly cf.cf_meta && readonly_support ->
-								if v.v_write <> AccNever then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+								if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 								(match cf.cf_expr with
 									| None -> gen.gcon.warning "Uninitialized readonly variable" cf.cf_pos; acc
 									| Some e -> ensure_simple_expr gen e; acc)
@@ -2154,7 +2154,7 @@ struct
 					let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->
 						match cf.cf_kind with
 							| Var v when Meta.has Meta.ReadOnly cf.cf_meta && readonly_support ->
-									if v.v_write <> AccNever then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+									if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 									(match cf.cf_expr with
 										| None -> (acc_vars,acc_funs)
 										| Some e -> ensure_simple_expr gen e; (acc_vars,acc_funs))
