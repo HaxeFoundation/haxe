@@ -2362,6 +2362,22 @@ let configure gen =
 				begin_block w;
 				true
 		in
+
+		(try
+			let _,m,_ = Meta.get (Meta.Custom "generic_iface") cl.cl_meta in
+			let rec loop i acc =
+				if i == 0 then
+					acc
+				else
+					"object" :: (loop (pred i) acc)
+			in
+			let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> assert false) [] in
+			cl.cl_meta <- (Meta.Meta, [
+				EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))") ), cl.cl_pos
+			], cl.cl_pos) :: cl.cl_meta
+		with Not_found ->
+			());
+
 		gen_attributes w cl.cl_meta;
 
 		let is_main =

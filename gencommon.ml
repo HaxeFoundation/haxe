@@ -4815,13 +4815,12 @@ struct
 							let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
 							iface.cl_array_access <- Option.map (apply_params (cl.cl_params) (List.map (fun _ -> t_dynamic) cl.cl_params)) cl.cl_array_access;
 							iface.cl_module <- cl.cl_module;
-							iface.cl_meta <- (Meta.HxGen, [], cl.cl_pos) :: iface.cl_meta;
-							if gen.gcon.platform = Cs then begin
-								let tparams = List.map (fun _ -> "object") cl.cl_params in
-								iface.cl_meta <- (Meta.Meta, [
-									EConst( String("haxe.lang.GenericInterface(typeof(" ^ path_s cl.cl_path ^ "<" ^ String.concat ", " tparams ^">))") ), cl.cl_pos
-								], cl.cl_pos) :: iface.cl_meta
-							end;
+							iface.cl_meta <-
+								(Meta.HxGen, [], cl.cl_pos)
+								::
+								(Meta.Custom "generic_iface", [(EConst(Int(string_of_int(List.length cl.cl_params))), cl.cl_pos)], cl.cl_pos)
+								::
+								iface.cl_meta;
 							Hashtbl.add ifaces cl.cl_path iface;
 
 							iface.cl_implements <- (base_generic, []) :: iface.cl_implements;
