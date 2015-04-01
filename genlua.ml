@@ -907,7 +907,8 @@ and gen_value ctx e =
 and gen_tbinop ctx op e1 e2 =
     (match op with
     | Ast.OpAssign ->
-	    if ctx.iife_assign then spr ctx "(function() ";
+	    let iife_assign = ctx.iife_assign in
+	    if iife_assign then spr ctx "(function() ";
 	    (match e2.eexpr with
 	    | TBinop(OpAssign as op, e3, e4) ->
 		gen_tbinop ctx op e3 e4;
@@ -919,7 +920,7 @@ and gen_tbinop ctx op e1 e2 =
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2);
-	    if ctx.iife_assign then begin
+	    if iife_assign then begin
 		spr ctx " return ";
 		gen_value ctx e1;
 		spr ctx " end)()";
