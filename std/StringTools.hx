@@ -29,9 +29,6 @@
 #if cpp
 using cpp.NativeString;
 #end
-#if cs
-@:keep
-#end
 class StringTools {
 	/**
 		Encode an URL by using the standard format.
