@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+	Allows a connection to an AMF Remoting server such as Flash Media Server or AMFPHP.
+*/
 class AMFConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	var __data : {
