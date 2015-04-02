@@ -514,6 +514,7 @@ class RunCi {
 					runCommand("haxe", ["compile-macro.hxml"]);
 
 					changeDirectory(miscDir);
+					getCsDependencies();
 					runCommand("haxe", ["compile.hxml"]);
 
 					switch (ci) {
