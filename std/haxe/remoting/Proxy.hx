@@ -22,7 +22,7 @@
 package haxe.remoting;
 
 /**
-	This class is magic. When you extend it with a class C, it will automaticaly
+	When you extend it with a class C, it will automatically
 	create a stub class with all public methods forwarding remoting messages over
 	the connection.
 **/
