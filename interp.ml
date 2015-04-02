@@ -4775,7 +4775,9 @@ let decode_field_access v =
 	| 1, [c;cf] -> FStatic(decode_ref c,decode_ref cf)
 	| 2, [cf] -> FAnon(decode_ref cf)
 	| 3, [s] -> FDynamic(dec_string s)
-	| 4, [co;cf] -> FClosure(opt decode_ref co,decode_ref cf)
+	| 4, [co;cf] ->
+		let co = opt decode_ref co in
+		FClosure(Option.map (fun c -> c, List.map snd c.cl_params) co, decode_ref cf) (* TODO: breaking change? *)
 	| 5, [e;ef] -> FEnum(decode_ref e,decode_efield ef)
 	| _ -> raise Invalid_expr
 
