@@ -47,7 +47,7 @@ private typedef ExprToken = {
 	String, and to have some basic logic.
 
 	A complete documentation of the supported syntax is available at:
-	http://haxe.org/doc/cross/template
+	<a href="http://haxe.org/manual/std-template.html">http://haxe.org/manual/std-template.html</a>
 **/
 class Template {
 
