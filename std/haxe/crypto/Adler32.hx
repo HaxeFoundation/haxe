@@ -21,6 +21,9 @@
  */
 package haxe.crypto;
 
+/**
+    Calculates the Adler32 of the given Bytes.
+*/
 class Adler32 {
 
 	var a1 : Int;
