@@ -84,6 +84,10 @@ Math.isNaN(Std.parseFloat(null)) == true;
 Std.parseFloat("5.3 ") == 5.3;
 Std.parseFloat("0.0") == 0.;
 Std.parseFloat("5.3 1") == 5.3;
+Std.parseFloat("2.426670815e+12") == 2.426670815e+12;
+Std.parseFloat("2.426670815E+12") == 2.426670815e+12;
+Std.parseFloat("2.426670815e-12") == 2.426670815e-12;
+Std.parseFloat("2.426670815E-12") == 2.426670815e-12;
 
 // random
 var x = Std.random(2);
