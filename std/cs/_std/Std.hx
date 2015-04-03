@@ -134,7 +134,7 @@ import cs.internal.Exceptions;
 	public static function parseFloat( x : String ) : Float {
 		if (x == null) return Math.NaN;
 		x = StringTools.ltrim(x);
-		var found = false, isHex = false, hasDot = false, hasE = false, hasNeg = false, hasENeg = false;
+		var found = false, isHex = false, hasDot = false, hasE = false, hasNeg = false, hasESign = false;
 		var i = -1;
 		inline function getch(i:Int):Int return cast ((untyped x : cs.system.String)[i]);
 
@@ -163,8 +163,8 @@ import cs.internal.Exceptions;
 					hasDot = true;
 				case '-'.code if (!found && !hasNeg):
 					hasNeg = true;
-				case '-'.code if (found && !hasENeg && hasE):
-					hasENeg = true;
+				case '-'.code | '+'.code if (found && !hasESign && hasE):
+					hasESign = true;
 				case _:
 					break;
 			}
