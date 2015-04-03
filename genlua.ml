@@ -532,7 +532,7 @@ and gen_expr ctx e =
 		spr ctx "if ";
 		gen_cond ctx cond;
 		spr ctx " then ";
-		gen_expr ctx e;
+		gen_block_element ctx e;
 		newline ctx;
 		(match eelse with
 		| None -> ();
@@ -543,7 +543,7 @@ and gen_expr ctx e =
 			spr ctx "else";
 			newline ctx;
 			let bend = open_block ctx in
-			gen_expr ctx e2;
+			gen_block_element ctx e2;
 			bend();
 			newline ctx);
 		spr ctx "end";
@@ -867,7 +867,7 @@ and gen_value ctx e =
 		spr ctx "if ";
 		gen_cond ctx cond;
 		spr ctx " then ";
-		gen_value ctx (assign e);
+		gen_block_element ctx (assign e);
 		let rec gen_elseif ctx e =
 		(match e with
 		| None->();
@@ -877,7 +877,7 @@ and gen_value ctx e =
 			spr ctx " elseif ";
 			gen_cond ctx cond3;
 			spr ctx " then ";
-			gen_expr ctx (assign e3);
+			gen_block_element ctx (assign e3);
 			semicolon ctx;
 			gen_elseif ctx eo3;
 		    | _ ->
