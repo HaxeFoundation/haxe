@@ -69,6 +69,10 @@ Std.parseInt("0XFF") == 255;
 Std.parseInt("0X123") == 291;
 Std.parseInt("0X01") == 1;
 Std.parseInt("0x01") == 1;
+Std.parseInt("0x C") == 0;
+Std.parseInt("0x+A") == 0;
+Std.parseInt(String.fromCharCode(11) + "1") == 1;
+Std.parseInt(String.fromCharCode(12) + "1") == 1;
 
 // parseFloat
 Std.parseFloat("0") == 0.;
@@ -88,6 +92,12 @@ Std.parseFloat("2.426670815e+12") == 2.426670815e+12;
 Std.parseFloat("2.426670815E+12") == 2.426670815e+12;
 Std.parseFloat("2.426670815e-12") == 2.426670815e-12;
 Std.parseFloat("2.426670815E-12") == 2.426670815e-12;
+Std.parseFloat("+7") == 7;
+Std.parseFloat("6e") == 6;
+Std.parseFloat("6E") == 6;
+Std.parseFloat("0x0") == 0;
+Std.parseFloat(String.fromCharCode(11) + "1") == 1;
+Std.parseFloat(String.fromCharCode(12) + "1") == 1;
 
 // random
 var x = Std.random(2);
