@@ -21,6 +21,10 @@
  */
 package haxe.macro;
 
+/*
+    Warning: Some of these types correspond to compiler-internal data structures
+    and might change in minor Haxe releases in order to adapt to internal changes.
+*/
 typedef Ref<T> = {
 	public function get() : T;
 	public function toString() : String;
