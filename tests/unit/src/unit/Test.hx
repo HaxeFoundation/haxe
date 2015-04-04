@@ -1,5 +1,12 @@
 package unit;
 
+#if (!macro && emscripten)
+import cpp.link.StaticStd;
+import cpp.link.StaticRegexp;
+import cpp.link.StaticSqlite;
+import cpp.link.StaticZlib;
+#end
+
 @:expose("unit.Test")
 @:keepSub
 #if as3
