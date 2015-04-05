@@ -45,16 +45,19 @@ class Issue4130 extends Test
 
         var int2Ptr = new haxe.ds.IntMap< cpp.Pointer<Int> >();
         int2Ptr.set( 42, valPtr );
+        var key:Dynamic = 42;
         int2Ptr.set( key, valPtr );
         eq( int2Ptr.get(42), valPtr);
         eq( int2Ptr.get(key), valPtr);
 
         var string2Ptr = new haxe.ds.StringMap< cpp.Pointer<Int> >();
         string2Ptr.set( "42", valPtr );
+        var key:Dynamic = "42";
         string2Ptr.set( key, valPtr );
         eq( string2Ptr.get("42"), valPtr );
         eq( string2Ptr.get(key), valPtr );
 
+        var key = new TestKey();
         var obj2Ptr = new haxe.ds.ObjectMap<TestKey, cpp.Pointer<Int> >();
         obj2Ptr.set( key, valPtr );
         eq( obj2Ptr.get(key), valPtr );
