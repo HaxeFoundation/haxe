@@ -410,8 +410,8 @@ and gen_expr ctx e =
 		print ctx ")";
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
 		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
-		add_feature ctx "use.$arrayPushClosure";
-		print ctx "$arrayPushClosure(";
+		add_feature ctx "use._arrayPushClosure";
+		print ctx "_arrayPushClosure(";
 		gen_value ctx x;
 		print ctx ")"
 	| TField (x,FClosure (_,f)) ->
@@ -1413,8 +1413,8 @@ let generate com =
 		print ctx "function _bind(o,m) { if( m == nil ) return nil; if( m.__id__ == nil ) m.__id__ = $fid++; var f; if( o.hx__closures__ == nil ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == nil ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
-	if has_feature ctx "use.$arrayPushClosure" then begin
-		print ctx "function $arrayPushClosure(a) {";
+	if has_feature ctx "use._arrayPushClosure" then begin
+		print ctx "function _arrayPushClosure(a) {";
 		print ctx " return function(x) { a.push(x); }; ";
 		print ctx "}";
 		newline ctx
