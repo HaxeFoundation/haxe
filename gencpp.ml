@@ -4151,15 +4151,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
       output_h ("\t\tHX_DO_RTTI_ALL;\n");
       if (has_get_member_field class_def) then
-         output_h ("Dynamic __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tDynamic __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
       if (has_get_static_field class_def) then
-         output_h ("static bool __GetStatic(const ::String &inString, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tstatic bool __GetStatic(const ::String &inString, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
       if (has_set_member_field class_def) then
-         output_h ("Dynamic __SetField(const ::String &inString,const Dynamic &inValue, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tDynamic __SetField(const ::String &inString,const Dynamic &inValue, hx::PropertyAccess inCallProp);\n");
       if (has_set_static_field class_def) then
-         output_h ("static bool __SetStatic(const ::String &inString, Dynamic &ioValue, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tstatic bool __SetStatic(const ::String &inString, Dynamic &ioValue, hx::PropertyAccess inCallProp);\n");
       if (has_get_fields class_def) then
-         output_h ("void __GetFields(Array< ::String> &outFields);\n");
+         output_h ("\t\tvoid __GetFields(Array< ::String> &outFields);\n");
 
       if (field_integer_dynamic) then output_h "\t\tDynamic __IField(int inFieldID);\n";
       if (field_integer_numeric) then output_h "\t\tdouble __INumField(int inFieldID);\n";
