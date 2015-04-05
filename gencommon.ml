@@ -2805,6 +2805,8 @@ struct
 									( (v,catch_map v (run catch)) :: nowrap_catches, must_wrap_catches, catchall )
 						) ([], [], None) catches
 						in
+						(* temp (?) fix for https://github.com/HaxeFoundation/haxe/issues/4134 *)
+						let must_wrap_catches = List.rev must_wrap_catches in
 						(*
 							1st catch all nowrap "the easy way"
 							2nd see if there are any must_wrap or catchall. If there is,
