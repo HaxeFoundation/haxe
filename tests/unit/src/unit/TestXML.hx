@@ -216,4 +216,18 @@ class TestXML extends Test {
 		var c = a.firstChild();
 		eq('event=Hit.Eject\r\n"onHit', c.get("e"));
 	}
+
+	function testIssue4139() {
+		function doXml(data:String)
+		{
+			var xml = Xml.parse(data);
+			var first = xml.firstElement();
+			var thing = first.firstChild();
+			return "blah = " + thing.get("blah");
+		}
+		var fancyData = '<?xml version="1.0" encoding="utf-8" ?><data><thing blah="abc&def"/></data>';
+		eq("blah = abc&def", doXml(fancyData));
+		var plainData = '<data><thing blah="abc&def"/></data>';
+		eq("blah = abc&def", doXml(plainData));
+	}
 }

@@ -358,7 +358,7 @@ class Parser
 						buf.addChar("&".code);
 						buf.addSub(str, start, p - start);
 						p--;
-						start = p;
+						start = p + 1;
 						state = escapeNext;
 					}
 			}
