@@ -38,6 +38,8 @@ package haxe.ds;
   template<typename V, typename H>
   inline void set(String key, const ::cpp::Struct<V,H> &value) {__string_hash_set(h,key,value); }
   template<typename V>
+  inline void set(String key, const ::cpp::Function<V> &value) {__string_hash_set(h,key,(Dynamic)value ); }
+  template<typename V>
   inline void set(String key, const ::cpp::Pointer<V> &value) {__string_hash_set(h,key,(Dynamic)value ); }
 
   template<typename VALUE>

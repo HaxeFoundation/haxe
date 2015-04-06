@@ -37,6 +37,8 @@ package haxe.ds;
 
   template<typename V, typename H>
   inline void set(int key, const ::cpp::Struct<V,H> &value) {__int_hash_set(h,key,value); }
+  template<typename F>
+  inline void set(int key, const ::cpp::Function<F> &value) {__int_hash_set(h,key,value); }
   template<typename V>
   inline void set(int key, const ::cpp::Pointer<V> &value) {__int_hash_set(h,key,(Dynamic)value ); }
 

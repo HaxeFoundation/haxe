@@ -39,6 +39,8 @@ package haxe.ds;
   inline void set(Dynamic key, const ::cpp::Struct<V,H> &value) {__object_hash_set(h,key,value,true); }
   template<typename V>
   inline void set(Dynamic key, const ::cpp::Pointer<V> &value) {__object_hash_set(h,key,(Dynamic)value,true ); }
+  template<typename V>
+  inline void set(Dynamic key, const ::cpp::Function<V> &value) {__object_hash_set(h,key,(Dynamic)value,true ); }
 ")
 @:coreApi
 class WeakMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
