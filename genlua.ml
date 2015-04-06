@@ -337,9 +337,9 @@ let rec gen_call ctx e el in_value =
 		spr ctx "{";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
-			spr ctx "name : ";
+			spr ctx "name = ";
 			gen_constant ctx e.epos (TString name);
-			spr ctx ", data : ";
+			spr ctx ", data = ";
 			gen_constant ctx e.epos (TString (Codegen.bytes_serialize data));
 			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
@@ -601,17 +601,29 @@ and gen_expr ctx e =
 		(* TODO: generate this label conditionally *)
 		print ctx "::_hx_continue_%i::" id;
 		newline ctx;
-		spr ctx "end ";
+		spr ctx " end ";
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
+		ctx.continue_counter <- ctx.continue_counter + 1;
+		let id = ctx.continue_counter in
 		spr ctx "while true do ";
 		gen_expr ctx e;
-		spr ctx "break end while ";
+		spr ctx "break end";
+		newline ctx;
+		print ctx "::_hx_continue_%i::" id;
+		newline ctx;
+		ctx.continue_counter <- ctx.continue_counter + 1;
+		let id2 = ctx.continue_counter in
+		spr ctx " while ";
 		gen_cond ctx cond;
 		spr ctx " do ";
 		gen_expr ctx e;
 		handle_break();
-		spr ctx "end ";
+		newline ctx;
+		(* TODO: generate this label conditionally *)
+		print ctx "::_hx_continue_%i::" id2;
+		newline ctx;
+		spr ctx " end ";
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
@@ -677,7 +689,7 @@ and gen_expr ctx e =
 			match t with
 			| None ->
 				last := true;
-				if !else_block then print ctx "{";
+				if !else_block then print ctx "";
 				if vname <> v.v_name then begin
 					newline ctx;
 					print ctx "local %s = %s" v.v_name vname;
@@ -685,7 +697,7 @@ and gen_expr ctx e =
 				gen_block_element ctx e;
 				if !else_block then begin
 					newline ctx;
-					print ctx "}";
+					print ctx " end ";
 				end
 			| Some t ->
 				if not !else_block then newline ctx;
@@ -700,7 +712,7 @@ and gen_expr ctx e =
 				gen_block_element ctx e;
 				bend();
 				newline ctx;
-				spr ctx " else ";
+				spr ctx " else";
 				else_block := true
 		) catchs;
 		if not !last then begin
@@ -750,8 +762,8 @@ and gen_expr ctx e =
 
 
 and gen_block_element ?(after=false) ctx e =
-	match e.eexpr with
-	| TCast _ -> ();
+    begin match e.eexpr with
+	| TTypeExpr _ | TCast _ -> ();
 	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
 		let f () = gen_tbinop ctx op e1 e2 in
 		gen_iife_assign ctx f;
@@ -774,9 +786,11 @@ and gen_block_element ?(after=false) ctx e =
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| _ ->
 		if not after then newline ctx;
+		spr ctx (debug_expression e);
 		gen_expr ctx e;
 		semicolon ctx;
 		if after then newline ctx;
+    end;
 
 and gen_value ctx e =
 	let assign e =
@@ -1408,15 +1422,16 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use._bind" then begin
-		print ctx "var $_, $fid = 0";
+		(* TODO:  figure out bind *)
+		(* print ctx "var _, _fid = 0"; *)
 		newline ctx;
-		print ctx "function _bind(o,m) { if( m == nil ) return nil; if( m.__id__ == nil ) m.__id__ = $fid++; var f; if( o.hx__closures__ == nil ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == nil ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
+		(* print ctx "function _bind(o,m) { if( m == nil ) return nil; if( m.__id__ == nil ) m.__id__ = _fid +1; var f; if( o.hx__closures__ == nil ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == nil ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"; *)
 		newline ctx;
 	end;
 	if has_feature ctx "use._arrayPushClosure" then begin
-		print ctx "function _arrayPushClosure(a) {";
-		print ctx " return function(x) { a.push(x); }; ";
-		print ctx "}";
+		print ctx "function _arrayPushClosure(a) ";
+		print ctx " return function(x) a.push(x); end; ";
+		print ctx "end";
 		newline ctx
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);

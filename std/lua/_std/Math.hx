@@ -89,6 +89,6 @@ extern class Math
 	}
 
 	static function __init__() : Void {
-		untyped __feature__("Type.resolveClass", $hxClasses["Math"] = Math);
+		untyped __feature__("Type.resolveClass", _hxClasses["Math"] = Math);
 	}
 }

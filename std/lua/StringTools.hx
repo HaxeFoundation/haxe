@@ -3,7 +3,7 @@ package lua;
   These are all externs for the base Lua "string" class.  Note that all
   relevant indexes are "1" based.
  **/
-@:native("_G.string") 
+@:native("_G.string")
 extern class StringTools {
 	public static function len(str : String): Int;
 	public static function sub(str : String, start : Int, end : Int): String;
