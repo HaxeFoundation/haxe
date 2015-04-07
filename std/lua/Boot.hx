@@ -28,29 +28,6 @@ class Boot {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
 
-	static function __trace(v,i : haxe.PosInfos) {
-		untyped {
-			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-			msg += __string_rec(v, "");
-			if( i != null && i.customParams != null )
-				for( v in i.customParams )
-					msg += "," + __string_rec(v, "");
-			var d;
-			if( __js__("typeof")(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null )
-				d.innerHTML += __unhtml(msg)+"<br/>";
-			else if( __js__("typeof console") != "undefined" && __js__("console").log != null )
-				__js__("console").log(msg);
-		}
-	}
-
-	static function __clear_trace() {
-		untyped {
-			var d = document.getElementById("haxe:trace");
-			if( d != null )
-				d.innerHTML = "";
-		}
-	}
-
 	static inline function isClass(o:Dynamic) : Bool {
 		return untyped __define_feature__("lua.Boot.isClass", o.__name__);
 	}
