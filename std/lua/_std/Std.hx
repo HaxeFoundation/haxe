@@ -37,21 +37,21 @@ import lua.Boot;
 	}
 
 	public static inline function int( x : Float ) : Int {
-		return cast(x, Int) | 0;
+		return Math.floor(x + .5); 
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		var v = untyped __js__("parseInt")(x, 10);
-		// parse again if hexadecimal
+		var v = null;
 		if( v == 0 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
-			v = untyped __js__("parseInt")(x);
-		if( untyped __js__("isNaN")(v) )
-			return null;
+			v = Std.int(untyped tonumber(x,16)); 
+		else 
+			v = Std.int(untyped tonumber(x)); 
+		if(Math.isNaN(v)) return null;
 		return cast v;
 	}
 
 	public static inline function parseFloat( x : String ) : Float {
-		return untyped __js__("parseFloat")(x);
+		return untyped tonumber(x); 
 	}
 
 	public static function random( x : Int ) : Int {
@@ -64,8 +64,9 @@ import lua.Boot;
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
 		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
 		__feature__("Date.*", {
-			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["Date"] = __js__('Date'),__js__('Date')));
-			__feature__("js.Boot.isClass",__js__('Date').__name__ = ["Date"]);
+			var Date = {};
+			__feature__("js.Boot.getClass", _hxClasses["Date"] = {}, {});
+			__feature__("js.Boot.isClass", Date.__name__ = ["Date"]);
 		});
 		__feature__("Int.*",{
 			var Int = __feature__("Type.resolveClass", _hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
@@ -74,11 +75,11 @@ import lua.Boot;
 			var Dynamic = __feature__("Type.resolveClass", _hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
 		});
 		__feature__("Float.*",{
-			var Float = __feature__("Type.resolveClass", _hxClasses["Float"] = __js__("Number"), __js__("Number"));
+			var Float = __feature__("Type.resolveClass", _hxClasses["Float"]={}, {});
 			Float.__name__ = ["Float"];
 		});
 		__feature__("Bool.*",{
-			var Bool = __feature__("Type.resolveEnum",_hxClasses["Bool"] = __js__("Boolean"), __js__("Boolean"));
+			var Bool = __feature__("Type.resolveEnum",_hxClasses["Bool"] = {}, {});
 			Bool.__ename__ = ["Bool"];
 		});
 		__feature__("Class.*",{
