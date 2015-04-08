@@ -61,7 +61,7 @@ else
 endif
 
 ifneq ($(ADD_REVISION),0)
-	VERSION_EXTRA="let version_extra = Some \"(git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always))\""
+	VERSION_EXTRA="let version_extra = Some \"(git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git rev-parse --short HEAD))\""
 else
 	VERSION_EXTRA="let version_extra = None"
 endif
