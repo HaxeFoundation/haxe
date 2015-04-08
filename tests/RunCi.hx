@@ -601,7 +601,7 @@ class RunCi {
 					}
 				case Cpp:
 					getCppDependencies();
-					runCommand("haxe", ["compile-cpp.hxml"]);
+					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"]);
 					runCpp("bin/cpp/Test-debug", []);
 
 					switch (ci) {
