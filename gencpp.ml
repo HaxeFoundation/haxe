@@ -612,7 +612,8 @@ let rec class_string klass suffix params remap =
    let join_class_path_remap = if remap then join_class_path_remap else join_class_path in
    (match klass.cl_path with
    (* Array class *)
-   |  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic"
+   |  ([],"Array") when is_dynamic_array_param (List.hd params) ->
+           "cpp::ArrayBase" ^ suffix (* "Dynamic" *)
    |  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "< " ^ (String.concat ","
                (List.map array_element_type params) ) ^ " >"
    (* FastIterator class *)
@@ -1883,7 +1884,7 @@ and gen_expression ctx retval expression =
       | x when is_interface_type x -> ()
       | TInst (klass,[element]) ->
          let name = type_string element in
-         if ( is_object name ) then
+         if ( is_object name && not (is_interface_type element) ) then
             gen_array_cast ".StaticCast" "Array<Dynamic>" "()"
          else
             gen_array_cast ".StaticCast" (type_string array_type) "()"
@@ -1936,6 +1937,13 @@ and gen_expression ctx retval expression =
                output ( "." ^ remap_name )
             else begin
                cast_if_required ctx field_object (type_string field_object.etype);
+               let remap_name = if (type_string field_object.etype)="cpp::ArrayBase" then
+                   match remap_name with
+                   | "length" -> remap_name
+                   | _ -> "__" ^ remap_name
+               else
+                  remap_name
+               in
                output ( "->" ^ remap_name );
                if (calling && (is_array field_object.etype) && remap_name="iterator" ) then
                   check_array_element_cast field_object.etype "Fast" "";
@@ -2027,7 +2035,7 @@ and gen_expression ctx retval expression =
          let cpp_type = member_type ctx obj field.cf_name in
          (not (is_scalar cpp_type)) && (
             let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
-               (cpp_type<>expr_type) && (expr_type<>"Void") in
+               (cpp_type<>expr_type) && (expr_type<>"Void") && (cpp_type<>"cpp::ArrayBase") in
             if (fixed && (ctx.ctx_debug_level>1) ) then begin
                output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
             end;
@@ -2075,7 +2083,7 @@ and gen_expression ctx retval expression =
       end;
       if (cast_result) then output (")");
       if ( (is_variable func) && (not (is_cpp_function_member func) ) &&
-           (expr_type<>"Dynamic") && (not is_super) && (not is_block_call)) then
+           (expr_type<>"Dynamic" && expr_type<>"cpp::ArrayBase" ) && (not is_super) && (not is_block_call)) then
          ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 
       let rec cast_array_output func =
@@ -2157,7 +2165,7 @@ and gen_expression ctx retval expression =
    | TLocal v -> output (keyword_remap v.v_name);
    | TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
    | TArray (array_expr,index) ->
-      let dynamic =  is_dynamic_in_cpp ctx array_expr in
+      let dynamic =  is_dynamic_in_cpp ctx array_expr || (type_string array_expr.etype) = "cpp::ArrayBase" in
       if ( assigning && (not dynamic) ) then begin
          if (is_array_implementer array_expr.etype) then begin
             output "hx::__ArrayImplRef(";
