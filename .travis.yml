@@ -37,7 +37,7 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew install neko --HEAD; fi
 
 script:
-  - make OCAMLOPT=ocamlopt.opt -s
+  - make OCAMLOPT=ocamlopt.opt ADD_REVISION=1 -s
   - make tools -s
   - sudo make install -s
   - cd tests/
