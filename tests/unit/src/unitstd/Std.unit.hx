@@ -98,6 +98,8 @@ Std.parseFloat("6E") == 6;
 Std.parseFloat("0x0") == 0;
 Std.parseFloat(String.fromCharCode(11) + "1") == 1;
 Std.parseFloat(String.fromCharCode(12) + "1") == 1;
+Std.parseFloat("Infinity") == Math.POSITIVE_INFINITY;
+Std.parseFloat("-Infinity") == Math.NEGATIVE_INFINITY;
 
 // random
 var x = Std.random(2);
