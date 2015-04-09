@@ -22,7 +22,7 @@
 package haxe.remoting;
 
 /**
-    Allows remoting communications over a LocalConnection
+    Allows communications to a different application that runs on the same client device
 */
 class LocalConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
