@@ -78,6 +78,7 @@ abstract UInt32Array(UInt32ArrayData) {
 	}
 
 	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : UInt32Array {
+		if( length == null ) length = (bytes.length - bytePos) >> 2;
 		return fromData(new UInt32ArrayData(bytes.getData(), bytePos, length));
 	}
 

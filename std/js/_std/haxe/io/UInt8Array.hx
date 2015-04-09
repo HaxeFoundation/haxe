@@ -78,6 +78,7 @@ abstract UInt8Array(UInt8ArrayData) {
 	}
 
 	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : UInt8Array {
+		if( length == null ) length = bytes.length - bytePos;
 		return fromData(new UInt8ArrayData(bytes.getData(), bytePos, length));
 	}
 
