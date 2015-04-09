@@ -1287,7 +1287,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 let rec is_dynamic_in_cpp ctx expr =
    let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
    ctx.ctx_dbgout ( "/* idic: " ^ expr_type ^ " */" );
-   if ( expr_type="Dynamic" ) then
+   if ( expr_type="Dynamic" || expr_type="cpp::ArrayBase") then
       true
    else begin
       let result = (
@@ -1365,18 +1365,18 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
    | TTypeExpr t ->
          let full_name = "::" ^ (join_class_path (t_path t) "::" ) ^ "." ^ member in
          ctx.ctx_dbgout ("/*static:"^ full_name^"*/");
-         ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
+         ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic"||mem_type="cpp::ArrayBase" )
          with Not_found -> true )
    | _ ->
       let tstr = type_string field_object.etype in
       (match tstr with
          (* Internal classes have no dynamic members *)
          | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
-         | "Dynamic" -> ctx.ctx_dbgout "/*D*/"; true
+         | "Dynamic" | "cpp::ArrayBase" -> ctx.ctx_dbgout "/*D*/"; true
          | name ->
                let full_name = name ^ "." ^ member in
                ctx.ctx_dbgout ("/*R:"^full_name^"*/");
-               try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
+               try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic"||mem_type="cpp::ArrayBase" )
                with Not_found -> true )
 ;;
 
@@ -4989,7 +4989,7 @@ class script_writer common_ctx ctx filename asciiOut =
             | "::String"  -> ArrayData "String"
             | "int" | "Float" | "bool" | "String" | "unsigned char" ->
                ArrayData typeName
-            | "Dynamic" -> ArrayAny
+            | "cpp::ArrayBase" | "Dynamic" -> ArrayAny
             | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
             | _ -> ArrayObject
             )
