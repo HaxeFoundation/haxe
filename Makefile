@@ -60,12 +60,6 @@ else
 	export HAXE_STD_PATH=$(CURDIR)/std
 endif
 
-ifneq ($(ADD_REVISION),0)
-	VERSION_EXTRA="let version_extra = Some \"(git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git rev-parse --short HEAD))\""
-else
-	VERSION_EXTRA="let version_extra = None"
-endif
-
 all: libs haxe
 
 libs:
@@ -176,7 +170,7 @@ lexer.$(MODULE_EXT): ast.$(MODULE_EXT)
 ast.$(MODULE_EXT):
 
 version.$(MODULE_EXT):
-	echo $(VERSION_EXTRA) > version.ml
+	$(MAKE) -f Makefile.version_extra -s ADD_REVISION=$(ADD_REVISION) > version.ml
 	$(COMPILER) $(CFLAGS) -c version.ml
 
 # Clean
