@@ -84,7 +84,7 @@ let valid_lua_ident s =
 	try
 		for i = 0 to String.length s - 1 do
 			match String.unsafe_get s i with
-			| 'a'..'z' | 'A'..'Z' | '$' | '_' -> ()
+			| 'a'..'z' | 'A'..'Z' | '_' -> ()
 			| '0'..'9' when i > 0 -> ()
 			| _ -> raise Exit
 		done;
@@ -98,7 +98,7 @@ let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ s ^ "']" else s
 let static_field s =
 	match s with
-	| "length" | "name" -> ".$" ^ s
+	| "length" | "name" -> "._" ^ s
 	| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
@@ -404,8 +404,8 @@ and gen_expr ctx e =
 	| TBinop (op,e1,e2) ->
 		gen_tbinop ctx op e1 e2;
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
-		add_feature ctx "use.$iterator";
-		print ctx "$iterator(";
+		add_feature ctx "use._iterator";
+		print ctx "_iterator(";
 		gen_value ctx x;
 		print ctx ")";
 	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
@@ -424,9 +424,9 @@ and gen_expr ctx e =
 			gen_value ctx x;
 			print ctx "%s)" (field f.cf_name)
 		| _ ->
-			print ctx "($_=";
+			print ctx "(__=";
 			gen_value ctx x;
-			print ctx ",_bind($_,$_%s))" (field f.cf_name))
+			print ctx ",_bind(__,__%s))" (field f.cf_name))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "{%i}" (i + 2)
@@ -1409,7 +1409,7 @@ let generate com =
 
 	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
-		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
+		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
 		match e.eexpr with
 		| TField (_,FClosure _) ->
 			add_feature ctx "use._bind"
@@ -1418,9 +1418,9 @@ let generate com =
 	in
 	List.iter chk_features ctx.inits;
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
-	if has_feature ctx "use.$iterator" then begin
+	if has_feature ctx "use._iterator" then begin
 		add_feature ctx "use._bind";
-		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _bind(o,o.iterator) : o.iterator; }";
+		print ctx "function _iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _bind(o,o.iterator) : o.iterator; }";
 		newline ctx;
 	end;
 	if has_feature ctx "use._bind" then begin
