@@ -169,9 +169,31 @@ lexer.$(MODULE_EXT): ast.$(MODULE_EXT)
 
 ast.$(MODULE_EXT):
 
-version.$(MODULE_EXT):
-	$(MAKE) -f Makefile.version_extra -s ADD_REVISION=$(ADD_REVISION) > version.ml
+version_info:
+	$(if $(APPVEYOR),\
+		$(eval BRANCH:=$(APPVEYOR_REPO_BRANCH)),\
+		$(if $(TRAVIS),\
+			$(eval BRANCH:=$(TRAVIS_BRANCH)),\
+			$(eval BRANCH:=$(shell git rev-parse --abbrev-ref HEAD))))
+	$(eval COMMIT_SHA:=$(shell git rev-parse --short HEAD))
+	$(eval COMMIT_DATE:=$(shell git show -s --format=%ci HEAD | grep -oh ....-..-..))
+	$(eval PACKAGE_FILE_NAME:=haxe_$(COMMIT_DATE)_$(BRANCH)_$(COMMIT_SHA))
+
+version.$(MODULE_EXT): version_info
+	$(MAKE) -f Makefile.version_extra -s ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > version.ml
 	$(COMPILER) $(CFLAGS) -c version.ml
+
+# Package
+
+package_bin: version_info
+	mkdir -p out
+	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
+	# Copy the package contents to $(PACKAGE_FILE_NAME)
+	mkdir -p $(PACKAGE_FILE_NAME)
+	cp -r $(OUTPUT) haxelib$(EXTENSION) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
+	# archive
+	tar -zcf out/$(PACKAGE_FILE_NAME).tar.gz $(PACKAGE_FILE_NAME)
+	rm -r $(PACKAGE_FILE_NAME)
 
 # Clean
 

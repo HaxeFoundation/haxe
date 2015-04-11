@@ -5,8 +5,6 @@ os: unstable #http://help.appveyor.com/discussions/suggestions/427-pre-install-c
 platform:
     - Win32
 
-clone_folder: C:/projects/haxe
-
 environment:
     global:
         NEKO_ROOT: C:/projects/neko
@@ -14,22 +12,25 @@ environment:
         CYG_ARCH: x86
         CYG_ROOT: C:/cygwin
         CYG_SETUP: C:/cygwin/setup-x86.exe
-        WODI_ARCH: 32
         MINGW_ARCH: i686
+        WODI: wodi32
+        ADD_REVISION: 1
+        OCAMLOPT: ocamlopt.opt
         TEST: "neko,cs,java,cpp,macro"
 
 skip_tags: true
 
 install:
     - 'git submodule update --init --recursive'
+    - cinst 7zip.commandline -y
     # Install ocaml using wodi
     - appveyor DownloadFile "http://cygwin.com/setup-%CYG_ARCH%.exe" -FileName "%CYG_ROOT%\setup.exe"
     - '%CYG_ROOT%/setup.exe -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ > log.txt || type log.txt'
     - '%CYG_ROOT%/bin/bash -lc "cygcheck -dc cygwin" > log.txt || type log.txt'
-    - '%CYG_ROOT%/bin/bash -lc "wget -q http://ml.ignorelist.com/wodi/8/wodi%WODI_ARCH%.tar.xz -O /tmp/wodi%WODI_ARCH%.tar.xz" > log.txt || type log.txt'
-    - '%CYG_ROOT%/bin/bash -lc "cd /tmp && rm -rf wodi%WODI_ARCH% && tar -xf wodi%WODI_ARCH%.tar.xz && bash wodi%WODI_ARCH%/install.sh" > log.txt || type log.txt'
+    - '%CYG_ROOT%/bin/bash -lc "wget -q http://ml.ignorelist.com/wodi/8/%WODI%.tar.xz -O /tmp/%WODI%.tar.xz" > log.txt || type log.txt'
+    - '%CYG_ROOT%/bin/bash -lc "cd /tmp && rm -rf %WODI% && tar -xf %WODI%.tar.xz && bash %WODI%/install.sh" > log.txt || type log.txt'
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip" > log.txt || type log.txt'
-    - 'set PATH=%PATH%;%CYG_ROOT%/opt/wodi%WODI_ARCH%/bin'
+    - 'set PATH=%PATH%;%CYG_ROOT%/opt/%WODI%/bin'
     # Install neko
     - cinst make -y
     - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
@@ -46,8 +47,10 @@ install:
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win WODI=wodi%WODI_ARCH% OCAMLOPT=ocamlopt.opt ADD_REVISION=1"'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win WODI=wodi%WODI_ARCH% OCAMLOPT=ocamlopt.opt tools"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win tools"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
+    - dir %APPVEYOR_BUILD_FOLDER%\out
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - mkdir "%HAXELIB_ROOT%"
     - haxelib setup "%HAXELIB_ROOT%"
@@ -57,3 +60,6 @@ test_script:
     - haxe -version
     - haxe RunCi.hxml
     - neko RunCi.n
+
+artifacts:
+    - path: out/haxe_*.zip

@@ -6,6 +6,7 @@
 *.a
 *.exe
 .*.swp
+/out
 
 /extra/hxclasses
 /extra/*.swf
