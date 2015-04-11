@@ -1,3 +1,6 @@
 compile-each.hxml
-unit.Test
+-main unit.Test
 -lua bin/unit.lua
+-cmd lua bin/unit.lua
+
+

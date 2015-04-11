@@ -19,6 +19,7 @@ private typedef TravisConfig = {
 	var Macro = "macro";
 	var Neko = "neko";
 	var Js = "js";
+	var Lua = "lua";
 	var Php = "php";
 	var Cpp = "cpp";
 	var Flash9 = "flash9";
