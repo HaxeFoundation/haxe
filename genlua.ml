@@ -276,9 +276,9 @@ let rec gen_call ctx e el in_value =
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "setmetatable(self, %s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			print ctx "setmetatable(self, {__index = %s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
-			spr ctx "))";
+			spr ctx ")})";
 		);
 	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.current.cl_super with
@@ -286,7 +286,7 @@ let rec gen_call ctx e el in_value =
 		| Some (c,_) ->
 			let name = field_name f in
 			(* TODO: use nonconflict var instead of mt *)
-			print ctx "%s.mt%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
+			print ctx "%s.mt%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -1141,7 +1141,7 @@ let generate_class ctx c =
 					let bend = open_block ctx in
 					newline ctx;
 					if (has_metatable ctx c) then
-					    print ctx "self = %s.mt" p;
+					    print ctx "local self = %s.mt" p;
 					List.iter (gen_block_element ctx) el;
 					newline ctx;
 					(* TODO: use nonconflict var instead of mt *)
