@@ -132,7 +132,7 @@ package cs.internal;
 				return fields[mid];
 			}
 		}
-		//if not found, it's definately an error
+		//if not found, it's definitely an error
 		throw "Field not found for hash " + key;
 	}
 
