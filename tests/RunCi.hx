@@ -548,14 +548,14 @@ class RunCi {
 							//pass
 						case TravisCI:
 							changeDirectory(repoDir);
-							runCommand("make", ["BYTECODE=1", "OCAMLOPT=ocamlopt.opt", "ADD_REVISION=1", "-s"]);
+							runCommand("make", ["BYTECODE=1", "-s"]);
 							runCommand("sudo", ["make", "install", "-s"]);
 							changeDirectory(unitDir);
 							runCommand("haxe", ["compile-macro.hxml"]);
 						case AppVeyor:
 							// save time...
 							// changeDirectory(repoDir);
-							// runCommand(Sys.getEnv("CYG_ROOT") + "/bin/bash", ["-lc", 'cd \"$$OLDPWD\" && make -s -f Makefile.win WODI=wodi${Sys.getEnv("WODI_ARCH")} OCAMLC=ocamlc.opt ADD_REVISION=1 BYTECODE=1']);
+							// runCommand(Sys.getEnv("CYG_ROOT") + "/bin/bash", ["-lc", 'cd \"$$OLDPWD\" && make -s -f Makefile.win BYTECODE=1']);
 							// changeDirectory(unitDir);
 							// runCommand("haxe", ["compile-macro.hxml"]);
 					}

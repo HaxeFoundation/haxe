@@ -6,6 +6,10 @@ os:
 
 env:
   global:
+    # make variables
+    - OCAMLC=ocamlc.opt
+    - OCAMLOPT=ocamlopt.opt
+    - ADD_REVISION=1
     # SAUCE_USERNAME
     - secure: SjyKefmjUEXi0IKHGGpcbLAajU0mLHONg8aA8LoY7Q9nAkSN6Aql+fzS38Boq7w1jWn+2FOpr+4jy0l6wVd/bftsF+huFfYpFJmdh8BlKmE0K71zZAral0H1c7YxkuQpPiJCIFGXqtkvev7SWTy0z31u7kuuQeEyW27boXe5cDA=
     # SAUCE_ACCESS_KEY
@@ -27,17 +31,37 @@ matrix:
   # fast_finish: true #https://github.com/travis-ci/travis-ci/issues/1696
 
 before_script:
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then mysql -u root -e "CREATE DATABASE haxe_test;"; fi
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+    mysql -u root -e "CREATE DATABASE haxe_test;";
+    fi
 
 install:
-  - if [ -z "${TRAVIS_OS_NAME}" ]; then export TRAVIS_OS_NAME=linux; fi; # for our forks that do not have mult-os enabled.
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then travis_retry sudo apt-get update -qq; travis_retry sudo apt-get install ocaml-native-compilers zlib1g-dev libgc-dev -qq; fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew update; travis_retry brew install caskroom/cask/brew-cask; travis_retry brew install ocaml camlp4; fi
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko && cd ~/neko && make os=${TRAVIS_OS_NAME} -s && sudo make install -s && cd $TRAVIS_BUILD_DIR; fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then travis_retry brew install neko --HEAD; fi
+  # For our forks that do not have mult-os enabled...
+  - if [ -z "${TRAVIS_OS_NAME}" ]; then
+    export TRAVIS_OS_NAME=linux;
+    fi
+  # Install haxe and neko dependencies
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+    travis_retry sudo apt-get update -qq;
+    travis_retry sudo apt-get install ocaml-native-compilers zlib1g-dev libgc-dev -qq;
+    fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+    travis_retry brew update;
+    travis_retry brew install caskroom/cask/brew-cask;
+    travis_retry brew install ocaml camlp4;
+    fi
+  # Install neko
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+    travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
+    cd ~/neko && make os=${TRAVIS_OS_NAME} -s && sudo make install -s;
+    cd $TRAVIS_BUILD_DIR;
+    fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+    travis_retry brew install neko --HEAD;
+    fi
 
 script:
-  - make OCAMLOPT=ocamlopt.opt ADD_REVISION=1 -s
+  - make -s
   - make tools -s
   - sudo make install -s
   - cd tests/
