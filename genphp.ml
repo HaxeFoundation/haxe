@@ -1309,9 +1309,7 @@ and gen_expr ctx e =
 			end) in
 		let remaining = ref (List.length el) in
 		let build e =
-			(match e.eexpr with
-			| TBlock [] -> ()
-			| _ -> newline ctx);
+			newline ctx;
 			if (in_block && !remaining = 1) then begin
 				(match e.eexpr with
 				| TIf _
