@@ -1224,18 +1224,20 @@ let generate_class ctx c =
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
+
 	if has_feature ctx "Type.resolveEnum" then begin
 	    newline ctx;
 	    print ctx "_hxClasses[\"%s\"] = " (dot_path e.e_path);
+	    print ctx "%s = _hxClasses[\"%s\"];" p (dot_path e.e_path);
+	end else begin
+	    print ctx "%s = {" p; 
+	    if has_feature ctx "lua.Boot.isEnum" then  begin
+		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
+	    end;
+	    print ctx " __constructs__ = {%s} }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	    ctx.separator <- true;
 	end;
 
-	print ctx "{";
-	if has_feature ctx "lua.Boot.isEnum" then print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
-	print ctx " __constructs__ = {%s} }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
-	ctx.separator <- true;
-	newline ctx;
-	print ctx "%s = " p;
-	print ctx "_hxClasses[\"%s\"]" (dot_path e.e_path);
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
