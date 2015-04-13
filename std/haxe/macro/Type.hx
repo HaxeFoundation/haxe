@@ -304,11 +304,11 @@ typedef TFunc = {
 }
 
 enum FieldAccess {
-	FInstance(c:Ref<ClassType>, cf:Ref<ClassField>);
+	FInstance(c:Ref<ClassType>, params:Array<Type>, cf:Ref<ClassField>);
 	FStatic(c:Ref<ClassType>, cf:Ref<ClassField>);
 	FAnon(cf:Ref<ClassField>);
 	FDynamic(s:String);
-	FClosure(c:Null<Ref<ClassType>>, cf:Ref<ClassField>);
+	FClosure(c:Null<{c:Ref<ClassType>, params:Array<Type>}>, cf:Ref<ClassField>);
 	FEnum(e:Ref<EnumType>, ef:EnumField);
 }
 
