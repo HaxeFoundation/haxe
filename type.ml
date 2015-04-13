@@ -1115,7 +1115,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 		let sfa = match fa with
 			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); cf.cf_name]
 			| FStatic(c,cf) -> tag "FStatic" ~extra_tabs:"\t" [s_type_path c.cl_path; cf.cf_name]
-			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some (c,_) -> s_type_path c.cl_path); cf.cf_name]
+			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl))); cf.cf_name]
 			| FAnon cf -> tag "FAnon" ~extra_tabs:"\t" [cf.cf_name]
 			| FDynamic s -> tag "FDynamic" ~extra_tabs:"\t" [s]
 			| FEnum(en,ef) -> tag "FEnum" ~extra_tabs:"\t" [s_type_path en.e_path; ef.ef_name]
