@@ -37,7 +37,52 @@ class Boot {
 	}
 
 	static inline function getClass(o:Dynamic) : Dynamic {
-	    return null;
+		if (Std.is(o, Array)) return Array;
+		else {
+			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
+			if (cl != null) return cl;
+			else return null;
+		}
+	}
+
+	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+		if( cl == null )
+			return false;
+		switch( cl ) {
+		case Int:
+			return (untyped __lua__("bitor(o,0) == o"));
+		case Float:
+			return untyped __type__(o) == "number";
+		case Bool:
+			return untyped __type__(o) == "boolean";
+		case String:
+			return untyped __type__(o) == "string";
+		case Array:
+			// TODO: Better array check
+			return untyped __type__(o) == "table" && o.__enum__ == null;
+		case Dynamic:
+			return true;
+		default:
+			if( o != null ) {
+				// Check if o is an instance of a Haxe class or a native JS object
+				if (untyped __type__(cl) == "table" ) {
+					// TODO: Fixme
+					return true;
+				}
+			} else {
+				return false;
+			}
+
+			// do not use isClass/isEnum here
+			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
+			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
+			return o.__enum__ == cl;
+		}
+	}
+
+	@:ifFeature("typed_cast") private static function __cast(o : Dynamic, t : Dynamic) {
+		if (__instanceof(o, t)) return o;
+		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
 	@:keep
