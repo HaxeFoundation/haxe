@@ -11,6 +11,7 @@ kill:
 # allow Ocaml/Mingw as well
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 
+# use make WODI=wodi32 -f Makefile.win to build using WODI 32bit
 ifdef WODI
 NATIVE_LIBS += -I "/opt/${WODI}/lib"
 endif
@@ -34,7 +35,7 @@ CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exi
 CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-package_bin: version_info
+package_bin:
 	mkdir -p out
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).zip temp.zip
 	# Copy the package contents to $(PACKAGE_FILE_NAME)

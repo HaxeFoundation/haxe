@@ -16,8 +16,8 @@ INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 
 OUTPUT=haxe
 EXTENSION=
-OCAMLOPT=ocamlopt
-OCAMLC=ocamlc
+OCAMLOPT?=ocamlopt
+OCAMLC?=ocamlc
 LFLAGS=
 
 CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize
@@ -51,7 +51,12 @@ MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen gencommon genas3 gencpp genjs genneko genphp \
 	genswf9 genswf genjava gencs genpy interp dce analyzer filters typer matcher version main
 
-ADD_REVISION=0
+ADD_REVISION?=0
+
+BRANCH=$(shell echo $$APPVEYOR_REPO_NAME | grep -q /haxe && echo $$APPVEYOR_REPO_BRANCH || echo $$TRAVIS_REPO_SLUG | grep -q /haxe && echo $$TRAVIS_BRANCH || git rev-parse --abbrev-ref HEAD)
+COMMIT_SHA=$(shell git rev-parse --short HEAD)
+COMMIT_DATE=$(shell git show -s --format=%ci HEAD | grep -oh ....-..-..)
+PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(BRANCH)_$(COMMIT_SHA)
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT
@@ -169,23 +174,13 @@ lexer.$(MODULE_EXT): ast.$(MODULE_EXT)
 
 ast.$(MODULE_EXT):
 
-version_info:
-	$(if $(APPVEYOR),\
-		$(eval BRANCH:=$(APPVEYOR_REPO_BRANCH)),\
-		$(if $(TRAVIS),\
-			$(eval BRANCH:=$(TRAVIS_BRANCH)),\
-			$(eval BRANCH:=$(shell git rev-parse --abbrev-ref HEAD))))
-	$(eval COMMIT_SHA:=$(shell git rev-parse --short HEAD))
-	$(eval COMMIT_DATE:=$(shell git show -s --format=%ci HEAD | grep -oh ....-..-..))
-	$(eval PACKAGE_FILE_NAME:=haxe_$(COMMIT_DATE)_$(BRANCH)_$(COMMIT_SHA))
-
-version.$(MODULE_EXT): version_info
+version.$(MODULE_EXT):
 	$(MAKE) -f Makefile.version_extra -s ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > version.ml
 	$(COMPILER) $(CFLAGS) -c version.ml
 
 # Package
 
-package_bin: version_info
+package_bin:
 	mkdir -p out
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
