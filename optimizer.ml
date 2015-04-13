@@ -1618,6 +1618,9 @@ let optimize_completion_expr e =
 						e)
 				| EFunction (_,f) ->
 					Ast.map_expr (subst_locals { r = PMap.foldi (fun n i acc -> if List.exists (fun (a,_,_,_) -> a = n) f.f_args then acc else PMap.add n i acc) locals.r PMap.empty }) e
+				| EObjectDecl [] ->
+					(* this probably comes from {| completion so we need some context} *)
+					raise Exit
 				| _ ->
 					Ast.map_expr (subst_locals locals) e
 			in

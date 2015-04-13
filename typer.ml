@@ -3511,7 +3511,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) ->
-		handle_display ctx e iscall p
+		handle_display ctx e iscall with_type p
 	| EDisplayNew t ->
 		let t = Typeload.load_instance ctx t p true in
 		(match follow t with
@@ -3608,7 +3608,7 @@ and get_stored_typed_expr com id =
 	build_expr  e
 
 
-and handle_display ctx e_ast iscall p =
+and handle_display ctx e_ast iscall with_type p =
 	let old = ctx.in_display in
 	ctx.in_display <- true;
 	let get_submodule_fields path =
@@ -3757,6 +3757,11 @@ and handle_display ctx e_ast iscall p =
 					end else
 						acc
 				) c.cl_statics fields
+			| TAnon a when PMap.is_empty a.a_fields ->
+				begin match with_type with
+				| WithType t | WithTypeResume t -> get_fields t
+				| _ -> a.a_fields
+				end
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c ->
