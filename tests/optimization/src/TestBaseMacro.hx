@@ -41,7 +41,7 @@ class TestBaseMacro {
 
 	static function checkExpr(e:TypedExpr) {
 		switch (e.expr) {
-			case TCall({ expr: TField(_, FInstance(_, _.get() => {name: "assertEqualsConst"}))}, el):
+			case TCall({ expr: TField(_, FInstance(_, _, _.get() => {name: "assertEqualsConst"}))}, el):
 				switch [el[0].expr, el[1].expr] {
 					case [TConst(tc1), TConst(tc2)]:
 						if (!constEquals(tc1, tc2)) {
@@ -50,7 +50,7 @@ class TestBaseMacro {
 					case [e1, e2]:
 						Context.warning('$e2 should be $e1', e.pos);
 				}
-			case TCall({ expr: TField(_, FInstance(_, _.get() => {name: "assertEquals"}))}, el):
+			case TCall({ expr: TField(_, FInstance(_, _, _.get() => {name: "assertEquals"}))}, el):
 				for (e in el) {
 					checkExpr(e);
 				}

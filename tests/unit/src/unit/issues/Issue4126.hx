@@ -16,7 +16,9 @@ class Issue4126 extends Test {
 		eq("A<String, Int>", getFieldAccessString(a.v));
 		eq("A<String, Int>", getFieldAccessString(a.f));
 		eq("String", getFieldAccessString("foo".length));
+		#if !python
 		eq("String", getFieldAccessString("foo".charAt));
+		#end
 		var t:T = null;
 		eq("null", getFieldAccessString(t.f));
 	}
