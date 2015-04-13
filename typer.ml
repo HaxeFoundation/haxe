@@ -3337,7 +3337,20 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 				let ct, f = get_constructor ctx c monos p in
 				ignore (unify_constructor_call c monos f ct);
-				Codegen.build_generic ctx c p monos
+				begin try
+					Codegen.build_generic ctx c p monos
+				with Codegen.Generic_Exception _ as exc ->
+					(* If we have an expected type, just use that (issue #3804) *)
+					begin match with_type with
+						| WithType t | WithTypeResume t ->
+							begin match follow t with
+								| TMono _ -> raise exc
+								| t -> t
+							end
+						| _ ->
+							raise exc
+					end
+				end
 			| mt ->
 				error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 		in
