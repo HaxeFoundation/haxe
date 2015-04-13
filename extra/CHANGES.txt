@@ -13,6 +13,7 @@
 
 	General improvements and optimizations:
 
+	all : --macro keep no longer causes types to be included for compilation
 	php : support interpolation in __php__ code
 
 2015-03-15: 3.2.0-RC1
