@@ -31,7 +31,7 @@ enum HashMethod {
 }
 
 /**
-    Calculates a Hmac of the given Bytes using a HasMethod.
+    Calculates a Hmac of the given Bytes using a HashMethod.
 */
 class Hmac {
 	
