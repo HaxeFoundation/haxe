@@ -69,6 +69,7 @@ typedef RecordRelation = {
 	var prop : String;
 	var key : String;
 	var type : String;
+	var module : String;
 	var cascade : Bool;
 	var lock : Bool;
 	var isNull : Bool;
