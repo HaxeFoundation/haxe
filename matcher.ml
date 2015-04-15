@@ -1004,6 +1004,9 @@ let convert_con ctx con = match con.c_def with
 	| CConst c -> mk_const ctx con.c_pos c
 	| CType mt -> mk (TTypeExpr mt) t_dynamic con.c_pos
 	| CExpr e -> e
+	| CEnum(e,ef) when Meta.has Meta.FakeEnum e.e_meta ->
+		let e_mt = !type_module_type_ref ctx (TEnumDecl e) None con.c_pos in
+		mk (TField(e_mt,FEnum(e,ef))) con.c_type con.c_pos
 	| CEnum(e,ef) -> mk_const ctx con.c_pos (TInt (Int32.of_int ef.ef_index))
 	| CArray i -> mk_const ctx con.c_pos (TInt (Int32.of_int i))
 	| CAny | CFields _ -> assert false
@@ -1027,6 +1030,8 @@ let convert_switch mctx st cases loop =
 			e
 	in
 	let e = match follow st.st_type with
+	| TEnum(en,_) when Meta.has Meta.FakeEnum en.e_meta ->
+		wrap_exhaustive (e_st)
 	| TEnum(_) ->
 		wrap_exhaustive (mk_index_call())
 	| TAbstract(a,pl) when (match Abstract.get_underlying_type a pl with TEnum(_) -> true | _ -> false) ->
@@ -1176,7 +1181,7 @@ let match_expr ctx e cases def with_type p =
 			let e = type_expr ctx e Value in
 			begin match follow e.etype with
 			(* TODO: get rid of the XmlType check *)
-			| TEnum(en,_) when (match en.e_path with (["neko" | "php" | "flash" | "cpp"],"XmlType") -> true | _ -> Meta.has Meta.FakeEnum en.e_meta) ->
+			| TEnum(en,_) when (match en.e_path with (["neko" | "php" | "flash" | "cpp"],"XmlType") -> true | _ -> false) ->
 				raise Exit
 			| TAbstract({a_path=[],("Int" | "Float" | "Bool")},_) | TInst({cl_path = [],"String"},_) when (Common.defined ctx.com Common.Define.NoPatternMatching) ->
 				raise Exit;
