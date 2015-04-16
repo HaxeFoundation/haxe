@@ -28,7 +28,7 @@ package haxe.macro;
 
 /**
 	Represents a reference to internal compiler structure. It exists because
-	encoding compiler structures for use in macro is quite expensive. 
+	encoding compiler structures for use in macros is quite expensive. 
 	A structure is only encoded when user requests it through `ref.get()`.
 */
 typedef Ref<T> = {
