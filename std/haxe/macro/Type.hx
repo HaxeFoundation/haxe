@@ -25,6 +25,12 @@ package haxe.macro;
     Warning: Some of these types correspond to compiler-internal data structures
     and might change in minor Haxe releases in order to adapt to internal changes.
 */
+
+/**
+	Represents a reference to internal compiler structure. It exists because
+	encoding compiler structures for use in macro is quite expensive. 
+	A structure is only encoded when user requests it through `ref.get()`.
+*/
 typedef Ref<T> = {
 	public function get() : T;
 	public function toString() : String;
@@ -374,15 +380,15 @@ enum FieldAccess {
 */
 enum TypedExprDef {
 	/**
-		Represents a constant expression.
+		Represents a constant definition.
 	**/
 	TConst(c:TConstant);
 	/**
-		Represents a local expression.
+		Represents a local definition.
 	**/
 	TLocal(v:TVar);
 	/**
-		Represents an array expression.
+		Represents an array definition.
 	**/
 	TArray(e1:TypedExpr, e2:TypedExpr);
 	/**
@@ -417,7 +423,7 @@ enum TypedExprDef {
 	**/
 	TNew(c:Ref<ClassType>, params: Array<Type>, el:Array<TypedExpr>);
 	/**
-		Represents an operator declaration.
+		Represents an unary operation declaration.
 	**/
 	TUnop(op:Expr.Unop, postFix:Bool, e:TypedExpr);
 	/**
@@ -441,7 +447,9 @@ enum TypedExprDef {
 	**/
 	TIf(econd:TypedExpr, eif:TypedExpr, eelse:Null<TypedExpr>);
 	/**
-		Represents a `while`-statement declaration.
+		Represents a `while`-statement declaration. 
+		When `normalWhile` is `true` it's `while (...)`
+		When `normalWhile` is `false` it's `do {...} while (...)`
 	**/
 	TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool);
 	/**
