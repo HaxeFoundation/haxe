@@ -31,7 +31,7 @@ typedef Ref<T> = {
 }
 
 /**
-	Represents a type in macro context
+	Represents a type 
 */
 enum Type {
 	/**
@@ -97,7 +97,7 @@ enum Type {
 }
 
 /**
-	Represents anonymous type in macro context
+	Represents an anonymous type 
 */
 typedef AnonType = {
 	var fields : Array<ClassField>;
@@ -115,7 +115,7 @@ enum AnonStatus {
 }
 
 /**
-	Represents type parameters in macro context
+	Represents type parameters 
 */
 typedef TypeParameter = {
 	var name: String;
@@ -123,7 +123,7 @@ typedef TypeParameter = {
 }
 
 /**
-	Represents a base type in macro context
+	Represents a base type 
 */
 typedef BaseType = {
 	var pack : Array<String>;
@@ -139,7 +139,7 @@ typedef BaseType = {
 }
 
 /**
-	Represents a class field in macro context
+	Represents a class field 
 */
 typedef ClassField = {
 	var name : String;
@@ -154,7 +154,7 @@ typedef ClassField = {
 }
 
 /**
-	Represents a class kind in macro context
+	Represents a class kind 
 */
 enum ClassKind {
 	KNormal;
@@ -169,7 +169,7 @@ enum ClassKind {
 }
 
 /**
-	Represents a class tyoe in macro context
+	Represents a class type 
 */
 typedef ClassType = {> BaseType,
 	var kind : ClassKind;
@@ -186,7 +186,7 @@ typedef ClassType = {> BaseType,
 }
 
 /**
-	Represents a enum fiedl in macro context
+	Represents an enum field 
 */
 typedef EnumField = {
 	var name : String;
@@ -199,7 +199,7 @@ typedef EnumField = {
 }
 
 /**
-	Represents a enum type in macro context
+	Represents an enum type 
 */
 typedef EnumType = {> BaseType,
 	var constructs : Map<String,EnumField>;
@@ -207,14 +207,14 @@ typedef EnumType = {> BaseType,
 }
 
 /**
-	Represents a typedef in macro context
+	Represents a typedef 
 */
 typedef DefType = {> BaseType,
 	var type : Type;
 }
 
 /**
-	Represents an abstract type in macro context
+	Represents an abstract type 
 */
 typedef AbstractType = {>BaseType,
 	var type : Type;
@@ -284,7 +284,7 @@ typedef MetaAccess = {
 }
 
 /**
-	Represents a field kind in macro context
+	Represents a field kind 
 */
 enum FieldKind {
 	FVar( read : VarAccess, write : VarAccess );
@@ -292,7 +292,7 @@ enum FieldKind {
 }
 
 /**
-	Represents the variable accessor in macro context
+	Represents the variable accessor 
 */
 enum VarAccess {
 	AccNormal;
@@ -305,7 +305,7 @@ enum VarAccess {
 }
 
 /**
-	Represents the method kind in macro context
+	Represents the method kind 
 */
 enum MethodKind {
 	MethNormal;
@@ -315,7 +315,7 @@ enum MethodKind {
 }
 
 /**
-	Represents typed constant in macro context
+	Represents typed constant 
 */
 enum TConstant {
 	TInt(i:Int);
@@ -328,7 +328,7 @@ enum TConstant {
 }
 
 /**
-	Represents type variable in macro context
+	Represents type variable 
 */
 typedef TVar = {
 	public var id(default, never):Int;
@@ -339,7 +339,7 @@ typedef TVar = {
 }
 
 /**
-	Represents a type module in macro context
+	Represents a type module 
 */
 enum ModuleType {
 	TClassDecl(c:Ref<ClassType>);
@@ -349,7 +349,7 @@ enum ModuleType {
 }
 
 /**
-	Represents a type function in macro context
+	Represents a type function 
 */
 typedef TFunc = {
 	args: Array<{v:TVar, value:Null<TConstant>}>,
@@ -358,7 +358,7 @@ typedef TFunc = {
 }
 
 /**
-	Represents the field accessor in macro context
+	Represents the field accessor 
 */
 enum FieldAccess {
 	FInstance(c:Ref<ClassType>, params:Array<Type>, cf:Ref<ClassField>);
@@ -370,7 +370,7 @@ enum FieldAccess {
 }
 
 /**
-	Represents a typed expression definition in macro context
+	Represents a typed expression definition 
 */
 enum TypedExprDef {
 	/**
@@ -382,11 +382,11 @@ enum TypedExprDef {
 	**/
 	TLocal(v:TVar);
 	/**
-		Represents a array expression.
+		Represents an array expression.
 	**/
 	TArray(e1:TypedExpr, e2:TypedExpr);
 	/**
-		Represents a operator.
+		Represents an operator.
 	**/
 	TBinop(op:Expr.Binop, e1:TypedExpr, e2:TypedExpr);
 	/**
@@ -402,11 +402,11 @@ enum TypedExprDef {
 	**/
 	TParenthesis(e:TypedExpr);
 	/**
-		Represents a object declaration.
+		Represents an object declaration.
 	**/
 	TObjectDecl(fields:Array<{name:String, expr:TypedExpr}>);
 	/**
-		Represents a array declaration.
+		Represents an array declaration.
 	**/
 	TArrayDecl(el:Array<TypedExpr>);
 	
@@ -417,7 +417,7 @@ enum TypedExprDef {
 	**/
 	TNew(c:Ref<ClassType>, params: Array<Type>, el:Array<TypedExpr>);
 	/**
-		Represents a operator declaration.
+		Represents an operator declaration.
 	**/
 	TUnop(op:Expr.Unop, postFix:Bool, e:TypedExpr);
 	/**
@@ -475,17 +475,17 @@ enum TypedExprDef {
 	**/
 	TCast(e:TypedExpr, m:Null<ModuleType>);
 	/**
-		Represents a metatag declaration.
+		Represents a metadata declaration.
 	**/
 	TMeta(m:Expr.MetadataEntry, e1:TypedExpr);
 	/**
-		Represents a enum parameter declaration.
+		Represents an enum parameter declaration.
 	**/
 	TEnumParameter(e1:TypedExpr, ef:EnumField, index:Int);
 }
 
 /**
-	Represents a typed expression in macro context
+	Represents expression typed for specified target
 */
 typedef TypedExpr = {
 	expr: TypedExprDef,
