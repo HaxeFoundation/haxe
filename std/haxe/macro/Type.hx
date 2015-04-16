@@ -415,7 +415,9 @@ enum TypedExprDef {
 		Represents an array declaration.
 	**/
 	TArrayDecl(el:Array<TypedExpr>);
-	
+	/**
+		Represents a function call declaration.
+	**/
 	TCall(e:TypedExpr, el:Array<TypedExpr>);
 	/**
 		Represents a `new` function statement declaration with 
