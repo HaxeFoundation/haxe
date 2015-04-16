@@ -22,12 +22,9 @@
 
 package haxe.macro;
 
-import haxe.macro.Context;
 import haxe.macro.Type;
 
 class TypedExprTools {
-	#if macro
-
 	static function with(e:TypedExpr, ?edef:TypedExprDef, ?t:Type) {
 		return {
 			expr: edef == null ? e.expr : edef,
@@ -152,8 +149,9 @@ class TypedExprTools {
 		}
 	}
 
+	#if macro
 	static public function toString(t:TypedExpr, ?pretty = false):String {
-		return new String(Context.load("s_expr", 2)(t, pretty));
+		return new String(haxe.macro.Context.load("s_expr", 2)(t, pretty));
 	}
 	#end
 }
