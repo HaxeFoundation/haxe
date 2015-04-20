@@ -34,9 +34,9 @@ extern class Text extends CharacterData
 	/** @throws DOMError */
 	function splitText( offset : Int ) : Text;
 	/** @throws DOMError */
-	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
 }

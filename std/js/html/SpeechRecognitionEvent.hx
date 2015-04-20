@@ -30,7 +30,7 @@ extern class SpeechRecognitionEvent extends Event
 	var resultIndex(default,null) : Int;
 	var results(default,null) : Dynamic/*MISSING nsISupports*/;
 	var interpretation(default,null) : String;
-	var emma(default,null) : Document;
+	var emma(default,null) : HTMLDocument;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : SpeechRecognitionEventInit ) : Void;

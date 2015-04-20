@@ -29,7 +29,7 @@ extern class Window extends EventTarget
 {
 	var window(default,null) : Window;
 	var self(default,null) : Window;
-	var document(default,null) : Document;
+	var document(default,null) : HTMLDocument;
 	var name : String;
 	var location(default,null) : Location;
 	var history(default,null) : History;
@@ -46,7 +46,7 @@ extern class Window extends EventTarget
 	var top(default,null) : Window;
 	var opener : Dynamic;
 	var parent(default,null) : Window;
-	var frameElement(default,null) : DOMElement;
+	var frameElement(default,null) : Element;
 	var navigator(default,null) : Navigator;
 	var applicationCache(default,null) : ApplicationCache;
 	var orientation(default,null) : Int;
@@ -189,7 +189,7 @@ extern class Window extends EventTarget
 	/** @throws DOMError */
 	function getSelection() : Selection;
 	/** @throws DOMError */
-	function getComputedStyle( elt : DOMElement, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
+	function getComputedStyle( elt : Element, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
 	/** @throws DOMError */
 	function matchMedia( query : String ) : MediaQueryList;
 	/** @throws DOMError */
@@ -211,7 +211,7 @@ extern class Window extends EventTarget
 	/** @throws DOMError */
 	function cancelAnimationFrame( handle : Int ) : Void;
 	/** @throws DOMError */
-	function getDefaultComputedStyle( elt : DOMElement, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
+	function getDefaultComputedStyle( elt : Element, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
 	function scrollByLines( numLines : Int, ?options : ScrollOptions ) : Void;
 	function scrollByPages( numPages : Int, ?options : ScrollOptions ) : Void;
 	/** @throws DOMError */

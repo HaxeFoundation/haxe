@@ -32,9 +32,9 @@ extern class XSLTProcessor
 	/** @throws DOMError */
 	function importStylesheet( style : Node ) : Void;
 	/** @throws DOMError */
-	function transformToFragment( source : Node, output : Document ) : DocumentFragment;
+	function transformToFragment( source : Node, output : HTMLDocument ) : DocumentFragment;
 	/** @throws DOMError */
-	function transformToDocument( source : Node ) : Document;
+	function transformToDocument( source : Node ) : HTMLDocument;
 	/** @throws DOMError */
 	function setParameter( namespaceURI : String, localName : String, value : Dynamic ) : Void;
 	/** @throws DOMError */

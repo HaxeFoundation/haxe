@@ -31,5 +31,5 @@ extern class DOMParser
 	@:overload( function() : Void {} )
 	function new( prin : Dynamic/*MISSING Principal*/, ?documentURI : Dynamic/*MISSING URI*/, ?baseURI : Dynamic/*MISSING URI*/ ) : Void;
 	/** @throws DOMError */
-	function parseFromString( str : String, type : SupportedType ) : Document;
+	function parseFromString( str : String, type : SupportedType ) : HTMLDocument;
 }

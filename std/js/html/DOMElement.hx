@@ -58,7 +58,7 @@ extern class DOMElement extends Node
 	var oncut : haxe.Constraints.Function;
 	var onpaste : haxe.Constraints.Function;
 	var innerText : String;
-	var offsetParent(default,null) : DOMElement;
+	var offsetParent(default,null) : Element;
 	var offsetTop(default,null) : Int;
 	var offsetLeft(default,null) : Int;
 	var offsetWidth(default,null) : Int;
@@ -140,12 +140,12 @@ extern class DOMElement extends Node
 	var onlostpointercapture : haxe.Constraints.Function;
 	var onpointerlockchange : haxe.Constraints.Function;
 	var onpointerlockerror : haxe.Constraints.Function;
-	var previousElementSibling(default,null) : DOMElement;
-	var nextElementSibling(default,null) : DOMElement;
+	var previousElementSibling(default,null) : Element;
+	var nextElementSibling(default,null) : Element;
 	var onerror : haxe.Constraints.Function;
 	var children(default,null) : HTMLCollection;
-	var firstElementChild(default,null) : DOMElement;
-	var lastElementChild(default,null) : DOMElement;
+	var firstElementChild(default,null) : Element;
+	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
 	var ontouchstart : haxe.Constraints.Function;
 	var ontouchend : haxe.Constraints.Function;
@@ -166,7 +166,7 @@ extern class DOMElement extends Node
 	function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
 	function hasAttributes() : Bool;
 	/** @throws DOMError */
-	function closest( selector : String ) : DOMElement;
+	function closest( selector : String ) : Element;
 	/** @throws DOMError */
 	function matches( selector : String ) : Bool;
 	function getElementsByTagName( localName : String ) : HTMLCollection;
@@ -207,7 +207,7 @@ extern class DOMElement extends Node
 	/** @throws DOMError */
 	function insertAdjacentHTML( position : String, text : String ) : Void;
 	/** @throws DOMError */
-	function querySelector( selectors : String ) : DOMElement;
+	function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
 	function querySelectorAll( selectors : String ) : NodeList;
 	/** @throws DOMError */
@@ -216,9 +216,9 @@ extern class DOMElement extends Node
 	function getAnimationPlayers() : Array<AnimationPlayer>;
 	function remove() : Void;
 	/** @throws DOMError */
-	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<DOMElement,Document>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
 }

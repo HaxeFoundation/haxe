@@ -30,6 +30,6 @@ extern class Attr extends Node
 	var value : String;
 	var name(default,null) : String;
 	var specified(default,null) : Bool;
-	var ownerElement(default,null) : DOMElement;
+	var ownerElement(default,null) : Element;
 	
 }

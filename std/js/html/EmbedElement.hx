@@ -34,5 +34,5 @@ extern class EmbedElement extends Element
 	var align : String;
 	var name : String;
 	
-	function getSVGDocument() : Document;
+	function getSVGDocument() : HTMLDocument;
 }

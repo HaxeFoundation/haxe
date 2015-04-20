@@ -29,8 +29,8 @@ extern class CharacterData extends Node
 {
 	var data : String;
 	var length(default,null) : Int;
-	var previousElementSibling(default,null) : DOMElement;
-	var nextElementSibling(default,null) : DOMElement;
+	var previousElementSibling(default,null) : Element;
+	var nextElementSibling(default,null) : Element;
 	
 	/** @throws DOMError */
 	function substringData( offset : Int, count : Int ) : String;

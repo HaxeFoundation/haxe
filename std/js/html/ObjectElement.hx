@@ -35,7 +35,7 @@ extern class ObjectElement extends Element
 	var form(default,null) : FormElement;
 	var width : String;
 	var height : String;
-	var contentDocument(default,null) : Document;
+	var contentDocument(default,null) : HTMLDocument;
 	var contentWindow(default,null) : Window;
 	var willValidate(default,null) : Bool;
 	var validity(default,null) : ValidityState;
@@ -53,5 +53,5 @@ extern class ObjectElement extends Element
 	
 	function checkValidity() : Bool;
 	function setCustomValidity( error : String ) : Void;
-	function getSVGDocument() : Document;
+	function getSVGDocument() : HTMLDocument;
 }
