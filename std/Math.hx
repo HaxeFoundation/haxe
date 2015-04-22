@@ -197,7 +197,7 @@ extern class Math
 		is `NaN`.
 		If `v` is `POSITIVE_INFINITY`, the result is `POSITIVE_INFINITY`.
 		If `v` is `0.0`, the result is `0.0`.
-	**/tr
+	**/
 	static function sqrt(v:Float):Float;
 
 	/**
