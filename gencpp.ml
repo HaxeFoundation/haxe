@@ -893,6 +893,27 @@ let is_struct_access t =
    | _ -> false
 ;;
 
+let is_non_core_abstract t = match Type.follow t with
+  | TAbstract(a,pl) ->
+    not (Meta.has Meta.CoreType a.a_meta)
+  | _ -> false
+;;
+
+let is_same_underlying_type tabstract tunderlying =
+  let tabstract_underlying = match Type.follow tabstract with
+    | TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+       follow tabstract
+    | t -> t
+  in
+  match tabstract_underlying, follow tunderlying with
+    | TInst(c1,_), TInst(c2,_) -> c1 == c2
+    | TEnum(e1,_), TEnum(e2,_) -> e1 == e2
+    | TType(t1,_), TType(t2,_) -> t1 == t2
+    | TAbstract(a1,_), TAbstract(a2, _) -> a1 == a2
+    | TDynamic _, TDynamic _ -> true
+    | _ -> false
+;;
+
 
 
 let rec is_dynamic_accessor name acc field class_def =
@@ -2455,6 +2476,8 @@ and gen_expression ctx retval expression =
          output "HX_STACK_DO_THROW(";
          gen_expression ctx true expression;
          output ")";
+   | TCast (cast, _) when is_non_core_abstract cast.etype && is_same_underlying_type cast.etype expression.etype && is_struct_access expression.etype ->
+      gen_expression ctx retval cast
    | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
       gen_expression ctx retval cast;
    | TCast (cast,None) ->
