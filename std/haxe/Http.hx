@@ -383,7 +383,11 @@ class Http {
 				#elseif java
 				sock = new java.net.SslSocket();
 				#elseif hxssl
+				#if neko
 				sock = new neko.tls.Socket();
+				#else
+				sock = new sys.ssl.Socket();
+				#end
 				#else
 				throw "Https is only supported with -lib hxssl";
 				#end
