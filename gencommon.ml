@@ -6569,6 +6569,20 @@ struct
 		 | _ -> e
 		in
 
+		let get_abstract_impl t = match t with
+			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				Abstract.get_underlying_type a pl
+			| t -> t
+		in
+
+		let rec is_abstract_to_struct t = match t with
+			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				is_abstract_to_struct (Abstract.get_underlying_type a pl)
+			| TInst(c,_) when Meta.has Meta.Struct c.cl_meta ->
+					true
+			| _ -> false
+		in
+
 		let rec run ?(just_type = false) e =
 			let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
 			let was_in_value = !in_value in
@@ -6748,12 +6762,15 @@ struct
 						| TParenthesis e | TMeta(_,e) -> get_null e
 						| _ -> None
 					in
+
 					(match get_null expr with
 					| Some enull ->
 							if gen.gcon.platform = Cs then
 								{ enull with etype = gen.greal_type e.etype }
 							else
 								mk_cast (gen.greal_type e.etype) enull
+					| _ when is_abstract_to_struct expr.etype && type_iseq gen e.etype (get_abstract_impl expr.etype) ->
+						run { expr with etype = expr.etype }
 					| _ ->
 						let last_unsafe = gen.gon_unsafe_cast in
 						gen.gon_unsafe_cast <- (fun t t2 pos -> ());
@@ -6769,6 +6786,7 @@ struct
 				| TFunction f ->
 					in_value := false;
 					Type.map_expr run e
+
 				| _ -> Type.map_expr run e
 		in
 		run
