@@ -1,16 +1,18 @@
 package unit.issues;
 
-#if cs
 class Issue4045 extends Test
 {
+#if cs
 	public function test()
 	{
 		var t = new TestS();
 		t.a = 10;
 		eq(10, t.a);
 	}
+#end
 }
 
+#if cs
 private abstract TestS(TestClass)
 {
     inline public function new()
