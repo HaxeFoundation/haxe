@@ -23,7 +23,7 @@
 import python.internal.AnonObject;
 import python.internal.EnumImpl;
 import python.internal.Internal;
-import python.lib.Builtin;
+import python.internal.UBuiltins;
 import python.Syntax;
 
 enum ValueType {
@@ -53,7 +53,7 @@ enum ValueType {
 		if (Internal.hasClass(o)) {
 			return Internal.fieldClass(o);
 		}
-		if (Builtin.hasattr(o, "__class__")) {
+		if (UBuiltins.hasattr(o, "__class__")) {
 			return Syntax.field(o, "__class__");
 		} else {
 			return null;
@@ -188,7 +188,7 @@ enum ValueType {
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		if (Builtin.hasattr(e, Internal.constructsVal())) {
+		if (UBuiltins.hasattr(e, Internal.constructsVal())) {
 			var x:Array<String> = Internal.fieldConstructs(e);
 			return x.copy();
 		} else {
@@ -201,25 +201,25 @@ enum ValueType {
 	public static function typeof( v : Dynamic ) : ValueType {
 		if (v == null) {
 			return TNull;
-		} else if (Builtin.isinstance(v, Builtin.bool )) {
+		} else if (UBuiltins.isinstance(v, UBuiltins.bool )) {
 			return TBool;
-		} else if (Builtin.isinstance(v, Builtin.int)) {
+		} else if (UBuiltins.isinstance(v, UBuiltins.int)) {
 			return TInt;
-		} else if (Builtin.isinstance(v, Builtin.float)) {
+		} else if (UBuiltins.isinstance(v, UBuiltins.float)) {
 			return TFloat;
-		} else if (Builtin.isinstance(v, String)) {
+		} else if (UBuiltins.isinstance(v, String)) {
 			return TClass(String);
-		} else if (Builtin.isinstance(v, Array)) {
+		} else if (UBuiltins.isinstance(v, Array)) {
 			return TClass(Array);
-		} else if (Builtin.isinstance(v, AnonObject) || python.lib.Inspect.isclass(v)) {
+		} else if (UBuiltins.isinstance(v, AnonObject) || python.lib.Inspect.isclass(v)) {
 			return TObject;
 		}
-		else if (Builtin.isinstance(v, Enum)) {
+		else if (UBuiltins.isinstance(v, Enum)) {
 			return TEnum(Syntax.field(v, "__class__"));
 		}
-		else if (Builtin.isinstance(v, Builtin.type) || Internal.hasClass(v)) {
+		else if (UBuiltins.isinstance(v, UBuiltins.type) || Internal.hasClass(v)) {
 			return TClass(Syntax.field(v, "__class__"));
-		} else if (Builtin.callable(v)) {
+		} else if (UBuiltins.callable(v)) {
 			return TFunction;
 		} else {
 			return TUnknown;

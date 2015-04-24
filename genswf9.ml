@@ -120,6 +120,14 @@ let tid (x : 'a index) : int = Obj.magic x
 let ethis = mk (TConst TThis) (mk_mono()) null_pos
 let dynamic_prop = HMMultiNameLate [HNPublic (Some "")]
 
+let is_special_compare e1 e2 =
+	match e1.eexpr, e2.eexpr with
+	| TConst TNull, _  | _ , TConst TNull -> None
+	| _ ->
+	match follow e1.etype, follow e2.etype with
+	| TInst ({ cl_path = ["flash"],"NativeXml" } as c,_) , _ | _ , TInst ({ cl_path = ["flash"],"NativeXml" } as c,_) -> Some c
+	| _ -> None
+
 let write ctx op =
 	DynArray.add ctx.code op;
 	ctx.infos.ipos <- ctx.infos.ipos + 1;
@@ -191,11 +199,7 @@ let rec follow_basic t =
 		| TAbstract ({ a_path = ([],"Float") },[])
 		| TAbstract ({ a_path = [],"UInt" },[])
 		| TAbstract ({ a_path = ([],"Bool") },[])
-		| TInst ({ cl_path = (["haxe"],"Int32") },[])
-		| TInst ({ cl_path = ([],"Int") },[])
-		| TInst ({ cl_path = ([],"Float") },[])
-		| TType ({ t_path = [],"UInt" },[])
-		| TEnum ({ e_path = ([],"Bool") },[]) -> t
+		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
 	| TType ({ t_path = ["flash";"utils"],"Object" },[])
 	| TType ({ t_path = ["flash";"utils"],"Function" },[])
@@ -231,7 +235,7 @@ let rec type_id ctx t =
 		type_path ctx ([],"Function")
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
-	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		HMPath ([],"String")
 	| TEnum (e,_) ->
 		let rec loop = function
@@ -263,7 +267,7 @@ let classify ctx t =
 		KBool
 	| TAbstract ({ a_path = [],"Void" },_) | TEnum ({ e_path = [],"Void" },_) ->
 		KDynamic
-	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
+	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		let rec loop = function
@@ -623,6 +627,16 @@ let debug_infos ?(is_min=true) ctx p =
 		end
 	end
 
+let to_utf8 str =
+	try
+		UTF8.validate str;
+		str;
+	with
+		UTF8.Malformed_code ->
+			let b = UTF8.Buf.create 0 in
+			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			UTF8.Buf.contents b
+
 let gen_constant ctx c t p =
 	match c with
 	| TInt i ->
@@ -636,7 +650,7 @@ let gen_constant ctx c t p =
 		let f = float_of_string f in
 		write ctx (HFloat f);
 	| TString s ->
-		write ctx (HString (Genswf8.to_utf8 s));
+		write ctx (HString (to_utf8 s));
 	| TBool b ->
 		write ctx (if b then HTrue else HFalse);
 	| TNull ->
@@ -1606,7 +1620,12 @@ and gen_binop ctx retval op e1 e2 t p =
 		write ctx (HOp o)
 	in
 	let gen_eq() =
-		gen_op A3OEq
+		match is_special_compare e1 e2 with
+		| None ->
+			gen_op A3OEq
+		| Some c ->
+			let f = FStatic (c,try PMap.find "compare" c.cl_statics with Not_found -> assert false) in
+			gen_expr ctx true (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic p,f)) t_dynamic p,[e1;e2])) ctx.com.basic.tbool p);
 	in
 	match op with
 	| OpAssign ->
@@ -1637,10 +1656,15 @@ and gen_binop ctx retval op e1 e2 t p =
 		gen_expr ctx true e2;
 		write_op op;
 		setvar ctx wacc (if retval then Some (classify ctx e1.etype) else None)
-	| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
+	| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpMod ->
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		write_op op
+	| OpShl | OpShr	| OpUShr ->
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write_op op;
+		coerce ctx (classify ctx e1.etype)
 	| OpEq ->
 		gen_eq()
 	| OpNotEq ->
@@ -1708,8 +1732,8 @@ and jump_expr_gen ctx e jif jfun =
 			jfun (if jif then t else f)
 		in
 		(match op with
-		| OpEq -> j J3Eq J3Neq
-		| OpNotEq -> j J3Neq J3Eq
+		| OpEq when is_special_compare e1 e2 = None -> j J3Eq J3Neq
+		| OpNotEq when is_special_compare e1 e2 = None -> j J3Neq J3Eq
 		| OpGt -> j J3Gt J3NotGt
 		| OpGte -> j J3Gte J3NotGte
 		| OpLt -> j J3Lt J3NotLt

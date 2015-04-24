@@ -22,27 +22,30 @@
 
 package python.internal;
 
-import python.lib.FuncTools;
-import python.lib.Builtin;
+import python.lib.Functools;
 
 @:allow(Array)
-@:keep
 class ArrayImpl {
 
-	public static inline function get_length <T>(x:Array<T>):Int return Builtin.len(x);
+	@:ifFeature("dynamic_read.length", "anon_optional_read.length")
+	public static inline function get_length <T>(x:Array<T>):Int return UBuiltins.len(x);
 
+	@:ifFeature("dynamic_read.concat", "anon_optional_read.concat")
 	public static inline function concat<T>(a1:Array<T>, a2 : Array<T>) : Array<T> {
 		return Syntax.binop(a1, "+", a2);
 	}
 
+	@:ifFeature("dynamic_read.copy", "anon_optional_read.copy")
 	public static inline function copy<T>(x:Array<T>) : Array<T> {
-		return Builtin.list(x);
+		return UBuiltins.list(x);
 	}
 
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator")
 	public static inline function iterator<T>(x:Array<T>) : Iterator<T> {
 		return new HaxeIterator(Syntax.callField(x, "__iter__"));
 	}
 
+	@:ifFeature("dynamic_read.indexOf", "anon_optional_read.indexOf")
 	public static function indexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
 		var len = a.length;
 		var l =
@@ -56,6 +59,7 @@ class ArrayImpl {
 		return -1;
 	}
 
+	@:ifFeature("dynamic_read.lastIndexOf", "anon_optional_read.lastIndexOf")
 	public static function lastIndexOf<T>(a:Array<T>, x : T, ?fromIndex:Int) : Int {
 		var len = a.length;
 		var l =
@@ -70,27 +74,33 @@ class ArrayImpl {
 	}
 
 	@:access(python.Boot)
+	@:ifFeature("dynamic_read.join", "anon_optional_read.join")
 	public static inline function join<T>(x:Array<T>, sep : String ) : String {
 		return Boot.arrayJoin(x, sep);
 	}
 
+	@:ifFeature("dynamic_read.toString", "anon_optional_read.toString")
 	public static inline function toString<T>(x:Array<T>) : String {
 		return "[" + join(x, ",") + "]";
 	}
 
+	@:ifFeature("dynamic_read.pop", "anon_optional_read.pop")
 	public static inline function pop<T>(x:Array<T>) : Null<T> {
 		return if (x.length == 0) null else Syntax.callField(x, "pop");
 	}
 
+	@:ifFeature("dynamic_read.push", "anon_optional_read.push")
 	public static inline function push<T>(x:Array<T>, e:T) : Int {
 		Syntax.callField(x, "append", e);
-		return get_length(x);
+		return x.length;
 	}
 
+	@:ifFeature("dynamic_read.unshift", "anon_optional_read.unshift")
 	public static inline function unshift<T>(x:Array<T>,e : T) : Void {
 		x.insert(0,e);
 	}
 
+	@:ifFeature("dynamic_read.remove", "anon_optional_read.remove")
 	public static function remove<T>(x:Array<T>,e : T) : Bool {
 		try {
 			Syntax.callField(x, "remove", e);
@@ -100,19 +110,22 @@ class ArrayImpl {
 		}
 	}
 
+	@:ifFeature("dynamic_read.shift", "anon_optional_read.shift")
 	public static inline function shift<T>(x:Array<T>) : Null<T> {
 		if (x.length == 0) return null;
 		return Syntax.callField(x, "pop", 0);
 	}
 
+	@:ifFeature("dynamic_read.slice", "anon_optional_read.slice")
 	public static inline function slice<T>(x:Array<T>, pos : Int, ?end : Int ) : Array<T> {
 		return Syntax.arrayAccess(x, pos, end);
 	}
-
+	@:ifFeature("dynamic_read.sort", "anon_optional_read.sort")
 	public static inline function sort<T>(x:Array<T>, f:T->T->Int) : Void {
-		Syntax.callNamedUntyped(Syntax.field(x, "sort"), { key : python.lib.FuncTools.cmp_to_key(f) });
+		Syntax.callNamedUntyped(Syntax.field(x, "sort"), { key : Functools.cmp_to_key(f) });
 	}
 
+	@:ifFeature("dynamic_read.splice", "anon_optional_read.splice")
 	public static inline function splice<T>(x:Array<T>, pos : Int, len : Int ) : Array<T> {
 		if (pos < 0) pos = x.length+pos;
 		if (pos < 0) pos = 0;
@@ -121,26 +134,31 @@ class ArrayImpl {
 		return res;
 	}
 
+	@:ifFeature("dynamic_read.map", "anon_optional_read.map")
 	public static inline function map<S,T>(x:Array<T>, f : T -> S) : Array<S> {
-		return Builtin.list(Builtin.map(f, cast x));
+		return UBuiltins.list(UBuiltins.map(f, cast x));
 	}
 
+	@:ifFeature("dynamic_read.filter", "anon_optional_read.filter")
 	public static inline function filter<T>(x:Array<T>, f : T -> Bool) : Array<T> {
-		return Builtin.list(Builtin.filter(f, cast x));
+		return UBuiltins.list(UBuiltins.filter(f, cast x));
 	}
 
+	@:ifFeature("dynamic_read.insert", "anon_optional_read.insert")
 	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {
 		Syntax.callField(a, "insert", pos, x);
 	}
-
+	@:ifFeature("dynamic_read.reverse", "anon_optional_read.reverse")
 	public static inline function reverse<T>(a:Array<T>) : Void {
 		Syntax.callField(a, "reverse");
 	}
 
+	@:ifFeature("array_read")
 	private static inline function _get<T>(x:Array<T>, idx:Int):T {
 		return if (idx > -1 && idx < x.length) unsafeGet(x, idx) else null;
 	}
 
+	@:ifFeature("array_write")
 	private static inline function _set<T>(x:Array<T>, idx:Int, v:T):T {
 		var l = x.length;
 		while (l < idx) {

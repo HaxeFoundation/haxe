@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,31 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFilterElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>filter</code> element serves as container for atomic filter operations. It is never rendered directly. A filter is referenced by using the 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/filter" class="new">filter</a></code> attribute on the target SVG element.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/filter">MDN</a>. */
 @:native("SVGFilterElement")
 extern class FilterElement extends Element
 {
-	var filterResX(default,null) : AnimatedInteger;
-
-	var filterResY(default,null) : AnimatedInteger;
-
+	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
+	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
+	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
+	
 	var filterUnits(default,null) : AnimatedEnumeration;
-
-	var height(default,null) : AnimatedLength;
-
 	var primitiveUnits(default,null) : AnimatedEnumeration;
-
-	var width(default,null) : AnimatedLength;
-
 	var x(default,null) : AnimatedLength;
-
 	var y(default,null) : AnimatedLength;
-
-	function setFilterRes( filterResX : Int, filterResY : Int ) : Void;
-
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var href(default,null) : AnimatedString;
+	
 }

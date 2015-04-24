@@ -26,7 +26,9 @@ import cs.internal.Function;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
 import cs.internal.Iterator;
+#if !erase_generics
 import cs.internal.Null;
+#end
 import cs.internal.StringExt;
 #if unsafe
 import cs.internal.BoxedPointer;

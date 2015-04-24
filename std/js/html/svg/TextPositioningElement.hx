@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,32 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGTextPositioningElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGTextPositioningElement</code> interface is inherited by text-related interfaces: <code><a rel="custom" href="/api/js/html/svg/TextElement">SVGTextElement</a></code>
-, <code><a rel="custom" href="/api/js/html/svg/TSpanElement">SVGTSpanElement</a></code>
-, <code><a rel="custom" href="/api/js/html/svg/TRefElement">SVGTRefElement</a></code>
- and <code><a rel="internal" href="https://developer.mozilla.org/Article_not_found?uri=en/DOM/SVGAltGlyphElement" class="new">SVGAltGlyphElement</a></code>
-.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGTextPositioningElement">MDN</a>. */
 @:native("SVGTextPositioningElement")
 extern class TextPositioningElement extends TextContentElement
 {
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/dx" class="new">dx</a></code> on the given element. */
-	var dx(default,null) : AnimatedLengthList;
-
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/dy" class="new">dy</a></code> on the given element. */
-	var dy(default,null) : AnimatedLengthList;
-
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/rotate" class="new">rotate</a></code> on the given element. */
-	var rotate(default,null) : AnimatedNumberList;
-
 	var x(default,null) : AnimatedLengthList;
-
 	var y(default,null) : AnimatedLengthList;
-
+	var dx(default,null) : AnimatedLengthList;
+	var dy(default,null) : AnimatedLengthList;
+	var rotate(default,null) : AnimatedNumberList;
+	
 }

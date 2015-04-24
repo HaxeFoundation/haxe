@@ -1,11 +1,21 @@
 package flash.media;
 
 extern class AVSegmentedSource extends AVSource {
+	var cookieHeader(null,default) : String;
+	var masterUpdateInterval(null,default) : Int;
+	var networkingParams : AVNetworkingParams;
+	var useRedirectedUrl(null,default) : Bool;
 	function new() : Void;
+	function clearPauseAtPeriodEnd(periodIndex : Int) : AVResult;
 	function getABRProfileCount(periodIndex : Int) : Int;
 	function getABRProfileInfoAtIndex(periodIndex : Int, abrProfileIndex : Int) : AVABRProfileInfo;
+	function getBackgroundPeriodInfo(periodIndex : Int) : AVPeriodInfo;
+	function getBackgroundTimeline() : AVTimeline;
 	function getCuePoint(periodIndex : Int, cuePointIndex : Int) : AVCuePoint;
+	function getPerceivedBandwidth() : UInt;
 	function getPeriodInfo(periodIndex : Int) : AVPeriodInfo;
+	function getSubscribedTag(periodIndex : Int, tagDataIndex : Int) : AVTagData;
+	function getSubscribedTagForBackgroundManifest(periodIndex : Int, tagDataIndex : Int) : AVTagData;
 	function getTimeline() : AVTimeline;
 	function getTrackCount(periodIndex : Int, payloadType : String) : Int;
 	function getTrackInfo(periodIndex : Int, payloadType : String, trackIndex : Int) : AVTrackInfo;
@@ -13,15 +23,27 @@ extern class AVSegmentedSource extends AVSource {
 	function insertByVirtualTime(insertionTime : Float, handle : Int, userData : Int = 0, replaceDuration : Float = 0) : AVInsertionResult;
 	function load(url : String, ?containerType : String, userData : Int = 0) : AVResult;
 	function loadManifest(uri : String, userData : Int = 0, ?containerType : String) : AVResult;
+	function loadWithBackgroundManifest(url : String, containerType : String, userData : Int, backgroundManifest : String) : AVResult;
 	function releaseManifest(handle : Int) : AVResult;
-	function removeByLocalTime(periodIndex : Int, timeStart : Float, timeEnd : Float) : AVResult;
+	function removeByLocalTime(periodIndex : Int, timeStart : Float, timeEnd : Float, replaceWithMainMedia : Bool) : AVResult;
 	function removeByVirtualTime(virtualTimeStart : Float, virtualTimeEnd : Float) : AVResult;
 	function selectTrack(periodIndex : Int, payloadType : String, trackIndex : Int) : AVResult;
+	function selectTrackString(periodIndex : Int, payloadType : String, trackString : String) : AVResult;
 	function setABRParameters(params : AVABRParameters) : AVResult;
 	function setBandwidth(bitsPerSecond : Int) : AVResult;
+	function setCuePointTags(tagArray : Array<Dynamic>) : AVResult;
 	function setHoldAt(time : Float) : AVResult;
+	function setPauseAtPeriodEnd(periodIndex : Int, userData : Int = 0) : AVResult;
+	function setSubscribedTags(tagArray : Array<Dynamic>) : AVResult;
+	function setSubscribedTagsForBackgroundManifest(tagArray : Array<Dynamic>) : AVResult;
 	static var AUDIO : String;
+	static var AUDIO_DESCRIPTION : String;
+	static var AUDIO_LANGUAGE : String;
+	static var AUDIO_PID : String;
+	static var DASH : String;
 	static var DATA : String;
+	static var DATA_DESCRIPTION : String;
 	static var HLS : String;
 	static var VIDEO : String;
+	static var VIDEO_DESCRIPTION : String;
 }

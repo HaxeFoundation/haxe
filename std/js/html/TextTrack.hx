@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,28 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/TextTrack.webidl line 25:0. Do not edit!
+
 package js.html;
 
 @:native("TextTrack")
 extern class TextTrack extends EventTarget
 {
-	var activeCues(default,null) : TextTrackCueList;
-
-	var cues(default,null) : TextTrackCueList;
-
-	var kind(default,null) : String;
-
+	var kind(default,null) : TextTrackKind;
 	var label(default,null) : String;
-
 	var language(default,null) : String;
-
-	var mode : String;
-
-	var oncuechange : EventListener;
-
-	function addCue( cue : TextTrackCue ) : Void;
-
-	function removeCue( cue : TextTrackCue ) : Void;
-
+	var id(default,null) : String;
+	var inBandMetadataTrackDispatchType(default,null) : String;
+	var mode : TextTrackMode;
+	var cues(default,null) : TextTrackCueList;
+	var activeCues(default,null) : TextTrackCueList;
+	
+	function addCue( cue : VTTCue ) : Void;
+	/** @throws DOMError */
+	function removeCue( cue : VTTCue ) : Void;
 }

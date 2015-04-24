@@ -111,10 +111,6 @@ and type_string_suff suffix haxe_type =
 	| TAbstract ({ a_path = [],"Float" },[]) -> "double"
 	| TAbstract ({ a_path = [],"Bool" },[]) -> "bool"
 	| TAbstract ({ a_path = [],"Void" },[]) -> "Void"
-	| TEnum ({ e_path = ([],"Void") },[]) -> "Void"
-	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
-	| TInst ({ cl_path = ([],"Float") },[]) -> "double"
-	| TInst ({ cl_path = ([],"Int") },[]) -> "int"
 	| TEnum (enum,params) ->  (join_class_path enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
 	| TAbstract (abs,params) ->  (join_class_path abs.a_path "::") ^ suffix
@@ -336,14 +332,10 @@ let create_directory com ldir =
  	(List.iter (fun p -> atm_path := !atm_path ^ "/" ^ p; if not (Sys.file_exists !atm_path) then (Unix.mkdir !atm_path 0o755);) ldir)
 
 let write_resource dir name data =
-	let i = ref 0 in
-	String.iter (fun c ->
-		if c = '\\' || c = '/' || c = ':' || c = '*' || c = '?' || c = '"' || c = '<' || c = '>' || c = '|' then String.blit "_" 0 name !i 1;
-		incr i
-	) name;
 	let rdir = dir ^ "/res" in
 	if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
 	if not (Sys.file_exists rdir) then Unix.mkdir rdir 0o755;
+	let name = Codegen.escape_res_name name false in
 	let ch = open_out_bin (rdir ^ "/" ^ name) in
 	output_string ch data;
 	close_out ch

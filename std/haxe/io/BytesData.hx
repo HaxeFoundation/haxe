@@ -23,7 +23,7 @@ package haxe.io;
 
 #if neko
 	typedef BytesData =	neko.NativeString;
-#elseif flash9
+#elseif flash
 	typedef BytesData =	flash.utils.ByteArray;
 #elseif php
 	typedef BytesData =	php.NativeString;
@@ -35,9 +35,9 @@ package haxe.io;
 #elseif cs
 	typedef BytesData = cs.NativeArray<cs.StdTypes.UInt8>;
 #elseif python
-	typedef BytesData = python.lib.ByteArray;
+	typedef BytesData = python.Bytearray;
 #elseif js
-	typedef BytesData = js.html.Uint8Array;
+	typedef BytesData = js.html.ArrayBuffer;
 #else
 	typedef BytesData = Array<Int>;
 #end

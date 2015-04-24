@@ -83,14 +83,17 @@ import cs.NativeArray;
 			k = hash(key);
 			var i = k & mask, nProbes = 0;
 
+			var delKey = -1;
 			//for speed up
-			if (isEither(hashes[i])) {
+			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
 				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEither(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && _keys[i] == key)) )
 				{
+					if (isDel(flag) && delKey == -1)
+						delKey = i;
 					i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
 					probeTimes++;
@@ -98,7 +101,11 @@ import cs.NativeArray;
 						throw "assert";
 #end
 				}
-				x = i;
+
+				if (isEmpty(flag) && delKey != -1)
+					x = delKey;
+				else
+					x = i;
 			}
 
 #if DEBUG_HASHTBL

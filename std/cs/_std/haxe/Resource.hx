@@ -44,7 +44,9 @@ package haxe;
 		return content.copy();
 	}
 
+	@:access(haxe.io.Path.escape)
 	public static function getString( name : String ) : String {
+		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)
@@ -52,7 +54,9 @@ package haxe;
 		return null;
 	}
 
+	@:access(haxe.io.Path.escape)
 	public static function getBytes( name : String ) : haxe.io.Bytes {
+		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)

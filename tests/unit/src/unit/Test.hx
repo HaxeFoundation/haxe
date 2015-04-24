@@ -5,13 +5,20 @@ package unit;
 #if as3
 @:publicFields
 #end
-class Test #if swf_mark implements mt.Protect #end {
+class Test {
 
 	public function new() {
 	}
 
+	//static var out = sys.io.File.write("debug.txt", false);
+
+	static inline function incrCount(?pos:haxe.PosInfos) {
+		++count;
+		//out.writeString(pos.methodName +":" +pos.lineNumber + "\n");
+	}
+
 	function eq<T>( v : T, v2 : T, ?pos ) {
-		count++;
+		incrCount(pos);
 		if( v != v2 ) {
 			report(Std.string(v)+" should be "+Std.string(v2),pos);
 			success = false;
@@ -19,12 +26,26 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function feq( v : Float, v2 : Float, ?pos ) {
-		count++;
+		incrCount(pos);
 		if (!Math.isFinite(v) || !Math.isFinite(v2))
 			eq(v, v2, pos);
 		else if ( Math.abs(v - v2) > 1e-10 ) {
 			report(v+" should be "+v2,pos);
 			success = false;
+		}
+	}
+
+	function aeq<T>(expected:Array<T>, actual:Array<T>, ?pos:haxe.PosInfos) {
+		if (expected.length != actual.length) {
+			report('Array length differs (${actual.length} should be ${expected.length})', pos);
+			success = false;
+		} else {
+			for (i in 0...expected.length) {
+				if (expected[i] != actual[i]) {
+					report('[${i}] ${actual[i]} should be ${expected[i]}', pos);
+					success = false;
+				}
+			}
 		}
 	}
 
@@ -41,7 +62,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function exc( f : Void -> Void, ?pos ) {
-		count++;
+		incrCount(pos);
 		try {
 			f();
 			report("No exception occured",pos);
@@ -51,7 +72,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function unspec( f : Void -> Void, ?pos ) {
-		count++;
+		incrCount(pos);
 		try {
 			f();
 		} catch( e : Dynamic ) {
@@ -59,7 +80,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function allow<T>( v : T, values : Array<T>, ?pos ) {
-		count++;
+		incrCount(pos);
 		for( v2 in values )
 			if( v == v2 )
 				return;
@@ -68,7 +89,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function hf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (!Lambda.has(Type.getInstanceFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should have member field " +n, pos);
 			success = false;
@@ -76,7 +97,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function nhf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (Lambda.has(Type.getInstanceFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should not have member field " +n, pos);
 			success = false;
@@ -84,7 +105,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function hsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (!Lambda.has(Type.getClassFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should have static field " +n, pos);
 			success = false;
@@ -92,7 +113,7 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.count++;
+		Test.incrCount(pos);
 		if (Lambda.has(Type.getClassFields(c), n)) {
 			Test.report(Type.getClassName(c) + " should not have static field " +n, pos);
 			success = false;
@@ -110,7 +131,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		}
 		asyncWaits.push(pos);
 		f(args,function(v2) {
-			count++;
+			incrCount(pos);
 			if( !asyncWaits.remove(pos) ) {
 				report("Double async result",pos);
 				success = false;
@@ -131,7 +152,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		}
 		asyncWaits.push(pos);
 		seterror(function(e) {
-			count++;
+			incrCount(pos);
 			if( asyncWaits.remove(pos) )
 				checkDone();
 			else {
@@ -140,7 +161,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			}
 		});
 		f(args,function(v) {
-			count++;
+			incrCount(pos);
 			if( asyncWaits.remove(pos) ) {
 				report("No exception occured",pos);
 				success = false;
@@ -155,6 +176,12 @@ class Test #if swf_mark implements mt.Protect #end {
 	function log( msg, ?pos : haxe.PosInfos ) {
 		haxe.Log.trace(msg,pos);
 	}
+
+   static function logVerbose(msg:String) {
+      #if (cpp || neko || php)
+      Sys.println(msg);
+      #end
+   }
 
 	static var count = 0;
 	static var reportInfos = null;
@@ -228,6 +255,8 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	static function main() {
+      var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
+
 		#if cs //"Turkey Test" - Issue #996
 		cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
 		cs.Lib.applyCultureChanges();
@@ -244,13 +273,10 @@ class Test #if swf_mark implements mt.Protect #end {
 		trace("Generated at: " + TestType.getCompilationDate());
 		#end
 		trace("START");
-		#if flash9
+		#if flash
 		var tf : flash.text.TextField = untyped flash.Boot.getTrace();
 		tf.selectable = true;
 		tf.mouseEnabled = true;
-		#elseif flash
-		var tf : flash.TextField = untyped flash.Boot.getTrace();
-		tf.selectable = true;
 		#end
 		var classes = [
 			new TestOps(),
@@ -300,8 +326,8 @@ class Test #if swf_mark implements mt.Protect #end {
 			//new TestRemoting(),
 		];
 		// SPOD tests
-		#if ( (neko || php || java || cpp || (cs && travis)) && !macro && !interp)
-		#if !(cpp || cs)
+		#if ( (neko || (php && (travis || php_sqlite)) || java || cpp || (cs && travis)) && !macro && !interp)
+		#if ( travis && !(cpp || cs) )
 		if (Sys.getEnv("CI") != null && Sys.systemName() == "Linux")
 		{
 			classes.push(new TestSpod(sys.db.Mysql.connect({
@@ -312,9 +338,12 @@ class Test #if swf_mark implements mt.Protect #end {
 				database : "haxe_test" })));
 		}
 		#end
+      if (verbose)
+         logVerbose("Setup sqlite");
 		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
 		#end
-		TestIssues.addIssueClasses();
+		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
+		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 		var current = null;
 		#if (!fail_eager)
 		try
@@ -323,8 +352,12 @@ class Test #if swf_mark implements mt.Protect #end {
 			asyncWaits.push(null);
 			for( inst in classes ) {
 				current = Type.getClass(inst);
+            if (verbose)
+               logVerbose("Class " + Std.string(current) );
 				for( f in Type.getInstanceFields(current) )
 					if( f.substr(0,4) == "test" ) {
+                  if (verbose)
+                     logVerbose("   " + f);
 						#if fail_eager
 						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
 						#else
@@ -351,6 +384,8 @@ class Test #if swf_mark implements mt.Protect #end {
 		#end
 
 		trace("SUCCESS: " + success);
+
+		//out.close();
 
 		#if js
 		if (js.Browser.supported) {

@@ -201,23 +201,23 @@ import java.NativeArray;
 
 	private function quicksort( lo : Int, hi : Int, f : T -> T -> Int ) : Void
 	{
-        var buf = __a;
+		var buf = __a;
 		var i = lo, j = hi;
-        var p = buf[(i + j) >> 1];
+		var p = buf[(i + j) >> 1];
 		while ( i <= j )
 		{
-			while ( f(buf[i], p) < 0 ) i++;
-            while ( f(buf[j], p) > 0 ) j--;
+			while ( i < hi && f(buf[i], p) < 0 ) i++;
+			while ( j > lo && f(buf[j], p) > 0 ) j--;
 			if ( i <= j )
 			{
-                var t = buf[i];
-                buf[i++] = buf[j];
-                buf[j--] = t;
-            }
+				var t = buf[i];
+				buf[i++] = buf[j];
+				buf[j--] = t;
+			}
 		}
 
 		if( lo < j ) quicksort( lo, j, f );
-        if( i < hi ) quicksort( i, hi, f );
+		if( i < hi ) quicksort( i, hi, f );
 	}
 
 	public function splice( pos : Int, len : Int ) : Array<T>

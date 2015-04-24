@@ -225,10 +225,8 @@ class Path {
 		}
 
 		var tmp = target.join(slash);
-		#if !flash8
 		var regex = ~/([^:])\/+/g;
 		var result = regex.replace(tmp, "$1" +slash);
-		#else
 		var acc = new StringBuf();
 		var colon = false;
 		var slashes = false;
@@ -249,7 +247,6 @@ class Path {
 			}
 		}
 		var result = acc.toString();
-		#end
 		return result;
 	}
 
@@ -303,9 +300,20 @@ class Path {
 	/**
 		Returns true if the path is an absolute path, and false otherwise.
 	**/
+	@:require(haxe_ver >= 3.2)
 	public static function isAbsolute ( path : String ) : Bool {
 		if (StringTools.startsWith(path, '/')) return true;
 		if (path.charAt(1) == ':') return true;
 		return false;
+	}
+
+	private static function unescape( path : String ) : String {
+		var regex = ~/-x([0-9][0-9])/g;
+		return regex.map(path, function(regex) return String.fromCharCode(Std.parseInt(regex.matched(1))));
+	}
+
+	private static function escape( path : String, allowSlashes : Bool = false ) : String {
+		var regex = allowSlashes ? ~/[^A-Za-z0-9_\/\\\.]/g : ~/[^A-Za-z0-9_\.]/g;
+		return regex.map(path, function(v) return '-x' + v.matched(0).charCodeAt(0));
 	}
 }

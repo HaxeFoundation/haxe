@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,40 +20,31 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGTransformList.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** <p>The <code>SVGTransformList</code> defines a list of <code><a rel="custom" href="/api/js/html/svg/Transform">SVGTransform</a></code>
- objects.</p>
-<p>An <code>SVGTransformList</code> object can be designated as read only, which means that attempts to modify the object will result in an exception being thrown.</p>
-<div class="geckoVersionNote"> <p>
-</p><div class="geckoVersionHeading">Gecko 9.0 note<div>(Firefox 9.0 / Thunderbird 9.0 / SeaMonkey 2.6)
-</div></div>
-<p></p> <p>Starting in Gecko 9.0 (Firefox 9.0 / Thunderbird 9.0 / SeaMonkey 2.6)
-,the <code>SVGTransformList</code> DOM interface is now indexable and can be accessed like Arrays</p>
-</div><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGTransformList">MDN</a>. */
 @:native("SVGTransformList")
-extern class TransformList
+extern class TransformList implements ArrayAccess<Transform>
 {
 	var numberOfItems(default,null) : Int;
-
-	function appendItem( item : Transform ) : Transform;
-
+	var length(default,null) : Int;
+	
+	/** @throws DOMError */
 	function clear() : Void;
-
-	function consolidate() : Transform;
-
-	function createSVGTransformFromMatrix( matrix : Matrix ) : Transform;
-
+	/** @throws DOMError */
+	function initialize( newItem : Transform ) : Transform;
+	/** @throws DOMError */
 	function getItem( index : Int ) : Transform;
-
-	function initialize( item : Transform ) : Transform;
-
-	function insertItemBefore( item : Transform, index : Int ) : Transform;
-
+	/** @throws DOMError */
+	function insertItemBefore( newItem : Transform, index : Int ) : Transform;
+	/** @throws DOMError */
+	function replaceItem( newItem : Transform, index : Int ) : Transform;
+	/** @throws DOMError */
 	function removeItem( index : Int ) : Transform;
-
-	function replaceItem( item : Transform, index : Int ) : Transform;
-
+	/** @throws DOMError */
+	function appendItem( newItem : Transform ) : Transform;
+	function createSVGTransformFromMatrix( matrix : Matrix ) : Transform;
+	/** @throws DOMError */
+	function consolidate() : Transform;
 }

@@ -28,7 +28,6 @@ package haxe.io;
 	Output.
 **/
 class Output {
-	private static var LN2 = Math.log(2);
 
 	/**
 		Endianness (word byte order) used when writing numbers.
@@ -131,58 +130,8 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeFloat( x : Float ) {
-		#if neko
-		write(untyped new Bytes(4,_float_bytes(x,bigEndian)));
-		#elseif cpp
-		write(Bytes.ofData(_float_bytes(x,bigEndian)));
-		#elseif php
-		write(untyped Bytes.ofString(__call__('pack', 'f', x)));
-		#elseif cs
-		var bytes = cs.system.BitConverter.GetBytes(cast(x, Single));
-		if (bigEndian == cs.system.BitConverter.IsLittleEndian)
-		{
-			writeByte(bytes[3]);
-			writeByte(bytes[2]);
-			writeByte(bytes[1]);
-			writeByte(bytes[0]);
-		} else {
-			writeByte(bytes[0]);
-			writeByte(bytes[1]);
-			writeByte(bytes[2]);
-			writeByte(bytes[3]);
-		}
-		#elseif java
-		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
-		var helper = helper;
-		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-
-		helper.putFloat(0, x);
-		writeByte(untyped helper.get(0));
-		writeByte(untyped helper.get(1));
-		writeByte(untyped helper.get(2));
-		writeByte(untyped helper.get(3));
-		#else
-		if (x == 0.0)
-		{
-			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
-			return;
-		}
-		var exp = Math.floor(Math.log(Math.abs(x)) / LN2);
-		var sig = (Math.floor(Math.abs(x) / Math.pow(2, exp) * (2 << 22)) & 0x7FFFFF);
-		var b4 = (exp + 0x7F) >> 1 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
-			b3 = (exp + 0x7F) << 7 & 0xFF | (sig >> 16 & 0x7F),
-			b2 = (sig >> 8) & 0xFF,
-			b1 = sig & 0xFF;
-		if (bigEndian)
-		{
-			writeByte(b4); writeByte(b3); writeByte(b2); writeByte(b1);
-		}
-		else
-		{
-			writeByte(b1); writeByte(b2); writeByte(b3); writeByte(b4);
-		}
-		#end
+	public #if !(flash || python) inline #end function writeFloat( x : Float ) {
+		writeInt32(FPHelper.floatToI32(x));
 	}
 
 	/**
@@ -191,80 +140,14 @@ class Output {
 		Endianness is specified by the `bigEndian` property.
 	**/
 	public function writeDouble( x : Float ) {
-		#if neko
-		write(untyped new Bytes(8,_double_bytes(x,bigEndian)));
-		#elseif cpp
-		write(Bytes.ofData(_double_bytes(x,bigEndian)));
-		#elseif php
-		write(untyped Bytes.ofString(__call__('pack', 'd', x)));
-		#elseif cs
-		var bytes = cs.system.BitConverter.GetBytes(x);
-		if (bigEndian == cs.system.BitConverter.IsLittleEndian)
-		{
-			writeByte(bytes[7]);
-			writeByte(bytes[6]);
-			writeByte(bytes[5]);
-			writeByte(bytes[4]);
-			writeByte(bytes[3]);
-			writeByte(bytes[2]);
-			writeByte(bytes[1]);
-			writeByte(bytes[0]);
+		var i64 = FPHelper.doubleToI64(x);
+		if( bigEndian ) {
+			writeInt32(i64.high);
+			writeInt32(i64.low);
 		} else {
-			writeByte(bytes[0]);
-			writeByte(bytes[1]);
-			writeByte(bytes[2]);
-			writeByte(bytes[3]);
-			writeByte(bytes[4]);
-			writeByte(bytes[5]);
-			writeByte(bytes[6]);
-			writeByte(bytes[7]);
+			writeInt32(i64.low);
+			writeInt32(i64.high);
 		}
-		#elseif java
-		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
-		var helper = helper;
-		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-
-		helper.putDouble(0, x);
-
-		writeByte(untyped helper.get(0));
-		writeByte(untyped helper.get(1));
-		writeByte(untyped helper.get(2));
-		writeByte(untyped helper.get(3));
-		writeByte(untyped helper.get(4));
-		writeByte(untyped helper.get(5));
-		writeByte(untyped helper.get(6));
-		writeByte(untyped helper.get(7));
-		#else
-		if (x == 0.0)
-		{
-			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
-			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
-			return;
-		}
-
-		var exp = Math.floor(Math.log(Math.abs(x)) / LN2);
-		var sig : Int = Math.floor(Math.abs(x) / Math.pow(2, exp) * Math.pow(2, 52));
-		var sig_h = (sig & cast 34359738367);
-		var sig_l = Math.floor((sig / Math.pow(2,32)));
-		var b8 = (exp + 0x3FF) >> 4 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
-			b7 = (exp + 0x3FF) << 4 & 0xFF | (sig_l >> 16 & 0xF),
-			b6 = (sig_l >> 8) & 0xFF,
-			b5 = sig_l & 0xFF,
-			b4 = (sig_h >> 24) & 0xFF,
-			b3 = (sig_h >> 16) & 0xFF,
-			b2 = (sig_h >> 8) & 0xFF,
-			b1 = sig_h & 0xFF;
-		if (bigEndian)
-		{
-			writeByte(b8); writeByte(b7); writeByte(b6); writeByte(b5);
-			writeByte(b4); writeByte(b3); writeByte(b2); writeByte(b1);
-		}
-		else
-		{
-			writeByte(b1); writeByte(b2); writeByte(b3); writeByte(b4);
-			writeByte(b5); writeByte(b6); writeByte(b7); writeByte(b8);
-		}
-		#end
 	}
 
 	/**
@@ -400,14 +283,9 @@ class Output {
 	}
 
 #if neko
-	static var _float_bytes = neko.Lib.load("std","float_bytes",2);
-	static var _double_bytes = neko.Lib.load("std","double_bytes",2);
 	static function __init__() untyped {
 		Output.prototype.bigEndian = false;
 	}
-#elseif cpp
-	static var _float_bytes = cpp.Lib.load("std","float_bytes",2);
-	static var _double_bytes = cpp.Lib.load("std","double_bytes",2);
 #end
 
 }

@@ -21,7 +21,7 @@
  */
 package haxe.ds;
 
-#if (flash9 || cpp)
+#if (flash || cpp)
 @:generic
 #end
 class GenericCell<T> {
@@ -54,7 +54,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 	The generated name is an implementation detail and should not be relied
 	upon.
 **/
-#if (flash9 || cpp)
+#if (flash || cpp)
 @:generic
 #end
 class GenericStack<T> {
@@ -115,7 +115,7 @@ class GenericStack<T> {
 		If no matching element is found, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
-		var prev = null;
+		var prev:GenericCell<T> = null;
 		var l = head;
 		while( l != null ) {
 			if( l.elt == v ) {

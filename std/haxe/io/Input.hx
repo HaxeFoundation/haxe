@@ -60,7 +60,7 @@ class Input {
 	**/
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
-		var b = s.getData();
+		var b = #if js @:privateAccess s.b #else s.getData() #end;
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
 		while( k > 0 ) {
@@ -190,58 +190,8 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function readFloat() : Float {
-		#if neko
-			return _float_of_bytes(untyped read(4).b,bigEndian);
-		#elseif cpp
-			return _float_of_bytes(read(4).getData(),bigEndian);
-		#elseif php
-			var a = untyped __call__('unpack', 'f', readString(4));
-			return a[1];
-		#elseif cs
-			if (helper == null) helper = new cs.NativeArray(8);
-
-			var helper = helper;
-			if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
-			{
-				helper[0] = readByte();
-				helper[1] = readByte();
-				helper[2] = readByte();
-				helper[3] = readByte();
-			} else {
-				helper[3] = readByte();
-				helper[2] = readByte();
-				helper[1] = readByte();
-				helper[0] = readByte();
-			}
-
-			return cs.system.BitConverter.ToSingle(helper, 0);
-		#elseif java
-			if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
-			var helper = helper;
-			helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-
-			helper.put(0, cast readByte());
-			helper.put(1, cast readByte());
-			helper.put(2, cast readByte());
-			helper.put(3, cast readByte());
-
-			return helper.getFloat(0);
-		#else
-			var bytes = [];
-			bytes.push(cast readByte());
-			bytes.push(cast readByte());
-			bytes.push(cast readByte());
-			bytes.push(cast readByte());
-			if (!bigEndian)
-				bytes.reverse();
-			var sign = 1 - ((bytes[0] >> 7) << 1);
-			var exp = (((bytes[0] << 1) & 0xFF) | (bytes[1] >> 7)) - 127;
-			var sig = ((bytes[1] & 0x7F) << 16) | (bytes[2] << 8) | bytes[3];
-			if (sig == 0 && exp == -127)
-				return 0.0;
-			return sign*(1 + Math.pow(2, -23)*sig) * Math.pow(2, exp);
-		#end
+	public #if !(flash || python) inline #end function readFloat() : Float {
+		return FPHelper.i32ToFloat(readInt32());
 	}
 
 	/**
@@ -250,76 +200,9 @@ class Input {
 		Endianness is specified by the `bigEndian` property.
 	**/
 	public function readDouble() : Float {
-		#if neko
-			return _double_of_bytes(untyped read(8).b,bigEndian);
-		#elseif cpp
-			return _double_of_bytes(read(8).getData(),bigEndian);
-		#elseif php
-			var a = untyped __call__('unpack', 'd', readString(8));
-			return a[1];
-		#elseif (flash || js || python)
-		var bytes = [];
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		bytes.push(readByte());
-		if (!bigEndian)
-			bytes.reverse();
-
-		var sign = 1 - ((bytes[0] >> 7) << 1); // sign = bit 0
-		var exp = (((bytes[0] << 4) & 0x7FF) | (bytes[1] >> 4)) - 1023; // exponent = bits 1..11
-		var sig = getDoubleSig(bytes);
-		if (sig == 0 && exp == -1023)
-			return 0.0;
-		return sign * (1.0 + Math.pow(2, -52) * sig) * Math.pow(2, exp);
-		#elseif cs
-		if (helper == null) helper = new cs.NativeArray(8);
-
-		var helper = helper;
-		if (bigEndian == !cs.system.BitConverter.IsLittleEndian)
-		{
-			helper[0] = readByte();
-			helper[1] = readByte();
-			helper[2] = readByte();
-			helper[3] = readByte();
-			helper[4] = readByte();
-			helper[5] = readByte();
-			helper[6] = readByte();
-			helper[7] = readByte();
-		} else {
-			helper[7] = readByte();
-			helper[6] = readByte();
-			helper[5] = readByte();
-			helper[4] = readByte();
-			helper[3] = readByte();
-			helper[2] = readByte();
-			helper[1] = readByte();
-			helper[0] = readByte();
-		}
-
-		return cs.system.BitConverter.ToDouble(helper, 0);
-		#elseif java
-		if (helper == null) helper = java.nio.ByteBuffer.allocateDirect(8);
-		var helper = helper;
-		helper.order(bigEndian ? java.nio.ByteOrder.BIG_ENDIAN : java.nio.ByteOrder.LITTLE_ENDIAN);
-
-		helper.put(0, cast readByte());
-		helper.put(1, cast readByte());
-		helper.put(2, cast readByte());
-		helper.put(3, cast readByte());
-		helper.put(4, cast readByte());
-		helper.put(5, cast readByte());
-		helper.put(6, cast readByte());
-		helper.put(7, cast readByte());
-
-		return helper.getDouble(0);
-		#else
-		return throw "not implemented";
-		#end
+		var i1 = readInt32();
+		var i2 = readInt32();
+		return bigEndian ? FPHelper.i64ToDouble(i2,i1) : FPHelper.i64ToDouble(i1,i2);
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html.webgl;
 
-@:native("EXTTextureFilterAnisotropic")
-extern class EXTTextureFilterAnisotropic
-{
-	static inline var MAX_TEXTURE_MAX_ANISOTROPY_EXT : Int = 0x84FF;
-
-	static inline var TEXTURE_MAX_ANISOTROPY_EXT : Int = 0x84FE;
-
-}
+/** @deprecated Use ExtensionTextureFilterAnisotropic instead. */
+@:deprecated("EXTTextureFilterAnisotropic is deprecated, use ExtensionTextureFilterAnisotropic instead")
+typedef EXTTextureFilterAnisotropic = ExtensionTextureFilterAnisotropic;

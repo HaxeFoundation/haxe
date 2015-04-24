@@ -23,11 +23,82 @@ package cs.internal;
 
 @:native('haxe.lang.FieldLookup')
 @:final @:nativeGen
-@:keep @:static private class FieldLookup
+@:classCode("#pragma warning disable 628\n")
+@:keep @:static class FieldLookup
 {
+	@:protected private static var fieldIds:cs.NativeArray<Int>;
+	@:protected private static var fields:cs.NativeArray<String>;
+	@:protected private static var length:Int;
 
-	@:private private static var fieldIds:Array<Int>;
-	@:private private static var fields:Array<String>;
+	static function __init__()
+	{
+		length = fieldIds.Length;
+	}
+
+	private static function addFields(nids:cs.NativeArray<Int>, nfields:cs.NativeArray<String>):Void
+	{
+		// first see if we need to add anything
+		var cids = fieldIds,
+		    cfields = fields;
+		var nlen = nids.Length;
+		var clen = length;
+		if (nfields.Length != nlen) throw 'Different fields length: $nlen and ${nfields.Length}';
+
+		//TODO optimize
+		var needsChange = false;
+		for (i in nids)
+		{
+			if (findHash(i, cids, clen) < 0)
+			{
+				needsChange = true;
+				break;
+			}
+		}
+
+		// if we do, lock and merge
+		if (needsChange)
+		{
+			cs.Lib.lock(FieldLookup, {
+				// trace(cs.Lib.array(nids), cs.Lib.array(cids));
+				var ansIds = new cs.NativeArray(clen + nlen),
+				    ansFields = new cs.NativeArray(clen + nlen);
+				var ci = 0, ni = 0, ansi = 0;
+				while (ci < clen && ni < nlen)
+				{
+					if (cids[ci] < nids[ni])
+					{
+						ansIds[ansi] = cids[ci];
+						ansFields[ansi] = cfields[ci];
+						++ci;
+					} else {
+						ansIds[ansi] = nids[ni];
+						ansFields[ansi] = nfields[ni];
+						++ni;
+					}
+					++ansi;
+				}
+
+				if (ci < clen)
+				{
+					cs.system.Array.Copy(cids, ci, ansIds, ansi, clen - ci);
+					cs.system.Array.Copy(cfields, ci, ansFields, ansi, clen - ci);
+					ansi += clen - ci;
+				}
+
+				if (ni < nlen)
+				{
+					cs.system.Array.Copy(nids, ni, ansIds, ansi, nlen - ni);
+					cs.system.Array.Copy(nfields, ni, ansFields, ansi, nlen - ni);
+					ansi += nlen - ni;
+				}
+
+				// trace(cs.Lib.array(ansIds));
+				fieldIds = ansIds;
+				fields = ansFields;
+				length = ansi;
+			});
+		}
+	}
 
 	//s cannot be null here
 	private static inline function doHash(s:String):Int
@@ -46,7 +117,7 @@ package cs.internal;
 		//start of binary search algorithm
 		var ids = fieldIds;
 		var min = 0;
-		var max = ids.length;
+		var max = length;
 
 		while (min < max)
 		{
@@ -72,9 +143,12 @@ package cs.internal;
 		var key = doHash(s);
 
 		//start of binary search algorithm
-		var ids = fieldIds;
+		var ids = fieldIds,
+		    fld = fields;
 		var min = 0;
-		var max = ids.length;
+		var max = length;
+
+		var len = length;
 
 		while (min < max)
 		{
@@ -86,22 +160,37 @@ package cs.internal;
 			} else if (key > imid) {
 				min = mid + 1;
 			} else {
-				var field = fields[mid];
+				var field = fld[mid];
 				if (field != s)
 					return ~key; //special case
 				return key;
 			}
 		}
+
 		//if not found, min holds the value where we should insert the key
-		ids.insert(min, key);
-		fields.insert(min, s);
+		//ensure thread safety:
+		cs.Lib.lock(FieldLookup, {
+			if (len != length) //race condition which will very rarely happen - other thread modified sooner.
+				return hash(s); //since we already own the lock, this second try will always succeed
+
+#if erase_generics
+			fieldIds = insertInt(fieldIds, length, min, key);
+			fields = insertString(fields, length, min, s);
+#else
+			insert(fieldIds, length, min, key);
+			insert(fields, length, min, s);
+			// ids.insert(min, key);
+			// fields.insert(min, s);
+#end
+			++length;
+		});
 		return key;
 	}
 
-	public static function findHash(hash:Int, hashs:Array<Int>):Int
+	public static function findHash(hash:Int, hashs:cs.NativeArray<Int>, length:Int):Int
 	{
 		var min = 0;
-		var max = hashs.length;
+		var max = length;
 
 		while (min < max)
 		{
@@ -120,4 +209,120 @@ package cs.internal;
 		return ~min;
 	}
 
+	#if !erase_generics
+	static function remove<T>(a:cs.NativeArray<T>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = null;
+	}
+
+	static function insert<T>(a:cs.Ref<cs.NativeArray<T>>, length:Int, pos:Int, x:T)
+	{
+		var capacity = a.Length;
+		if (pos == length)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				a.CopyTo(newarr, 0);
+				a = newarr;
+			}
+		}
+		else if (pos == 0)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 1, length);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, 0, a, 1, length);
+			}
+		}
+		else
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 0, pos);
+				cs.system.Array.Copy(a, pos, newarr, pos + 1, length - pos);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, pos, a, pos + 1, length - pos);
+				cs.system.Array.Copy(a, 0, a, 0, pos);
+			}
+		}
+		a[pos] = x;
+	}
+	#else
+	static function removeInt(a:cs.NativeArray<Int>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = 0;
+	}
+	static function removeFloat(a:cs.NativeArray<Float>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = 0;
+	}
+	static function removeDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int)
+	{
+		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
+		a[length - 1] = null;
+	}
+
+	@:extern
+	static inline function __insert<T>(a:cs.NativeArray<T>, length:Int, pos:Int, x:T):cs.NativeArray<T>
+	{
+		var capacity = a.Length;
+		if (pos == length)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				a.CopyTo(newarr, 0);
+				a = newarr;
+			}
+		}
+		else if (pos == 0)
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 1, length);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, 0, a, 1, length);
+			}
+		}
+		else
+		{
+			if (capacity == length)
+			{
+				var newarr = new NativeArray((length << 1) + 1);
+				cs.system.Array.Copy(a, 0, newarr, 0, pos);
+				cs.system.Array.Copy(a, pos, newarr, pos + 1, length - pos);
+				a = newarr;
+			}
+			else
+			{
+				cs.system.Array.Copy(a, pos, a, pos + 1, length - pos);
+				cs.system.Array.Copy(a, 0, a, 0, pos);
+			}
+		}
+		a[pos] = x;
+		return a;
+	}
+
+	static function insertInt(a:cs.NativeArray<Int>, length:Int, pos:Int, x:Int):cs.NativeArray<Int> return __insert(a, length, pos, x);
+	static function insertFloat(a:cs.NativeArray<Float>, length:Int, pos:Int, x:Float):cs.NativeArray<Float> return __insert(a, length, pos, x);
+	static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic> return __insert(a, length, pos, x);
+	static function insertString(a:cs.NativeArray<String>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<String> return __insert(a, length, pos, x);
+	#end
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,19 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/EventTarget.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** An <code>EventTarget</code> is a DOM interface implemented by objects that can receive DOM events and have listeners for them. The most common <code>EventTarget</code>s are <a rel="internal" href="/api/js/html/Element" title="en/DOM/element">DOM elements</a>, although other objects can be <code>EventTarget</code>s too, for example <a rel="internal" href="/api/js/html/Document" title="en/DOM/document">document</a>, <a rel="internal" href="/api/js/html/DOMWindow" title="en/DOM/window">window</a>, <a rel="internal" href="/api/js/html/XMLHttpRequest" title="en/XMLHttpRequest">XMLHttpRequest</a>, and others.
-<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/EventTarget">MDN</a>. */
 @:native("EventTarget")
 extern class EventTarget
 {
-	function addEventListener( type : String, listener : EventListener, ?useCapture : Bool ) : Void;
-
+	/** @throws DOMError */
+	@:overload( function( type : String, listener : EventListener, ?capture : Bool = false, ?wantsUntrusted : Bool ) : Void {} )
+	function addEventListener( type : String, listener : haxe.Constraints.Function, ?capture : Bool = false ) : Void;
+	/** @throws DOMError */
+	@:overload( function( type : String, listener : EventListener, ?capture : Bool = false ) : Void {} )
+	function removeEventListener( type : String, listener : haxe.Constraints.Function, ?capture : Bool = false ) : Void;
+	/** @throws DOMError */
 	function dispatchEvent( event : Event ) : Bool;
-
-	function removeEventListener( type : String, listener : EventListener, ?useCapture : Bool ) : Void;
-
 }

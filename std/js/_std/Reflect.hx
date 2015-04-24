@@ -25,8 +25,8 @@
 		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
 	}
 
-	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		return try o[field] catch( e : Dynamic ) null;
+	public static function field( o : Dynamic, field : String ) : Dynamic {
+		try return untyped o[field] catch( e : Dynamic ) return null;
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {

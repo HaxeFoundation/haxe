@@ -25,10 +25,8 @@ class AMFConnection implements AsyncConnection implements Dynamic<AsyncConnectio
 
 	var __data : {
 		error : Dynamic -> Void,
-		#if flash9
+		#if flash
 		cnx : flash.net.NetConnection,
-		#elseif flash
-		cnx : flash.NetConnection,
 		#else
 		cnx : Dynamic,
 		#end
@@ -57,7 +55,7 @@ class AMFConnection implements AsyncConnection implements Dynamic<AsyncConnectio
 	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) : Void {
 		if( onResult == null ) onResult = function(e) {};
 		var p = params.copy();
-		#if flash9
+		#if flash
 		p.unshift(new flash.net.Responder(onResult,__data.error));
 		#else
 		p.unshift({ onStatus : __data.error, onResult : onResult });
@@ -68,7 +66,6 @@ class AMFConnection implements AsyncConnection implements Dynamic<AsyncConnectio
 
 	#if flash
 	public static function urlConnect( gatewayUrl : String ) {
-		#if flash9
 		var c = new flash.net.NetConnection();
 		var cnx = new AMFConnection({ cnx : c, error : function(e) throw e },[]);
 		c.addEventListener(flash.events.NetStatusEvent.NET_STATUS,function(e:flash.events.NetStatusEvent) {
@@ -76,24 +73,15 @@ class AMFConnection implements AsyncConnection implements Dynamic<AsyncConnectio
 		});
 		c.connect(gatewayUrl);
 		return cnx;
-		#else
-		var c = new flash.NetConnection();
-		if( !c.connect(gatewayUrl) )
-			throw "Could not connected to gateway url "+gatewayUrl;
-		return new AMFConnection({ cnx : c, error : function(e) throw e },[]);
-		#end
 	}
 
 	public static function connect( nc ) {
 		return new AMFConnection({ cnx : nc, error : function(e) throw e },[]);
 	}
 
-	#if flash9
 	public static function registerClassAlias( s : String, cl : Class<Dynamic> ) {
 		untyped __global__[ "flash.net.registerClassAlias" ]( s, cl );
 	}
-	#end
-
 	#end
 
 }

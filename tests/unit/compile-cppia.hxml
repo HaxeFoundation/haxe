@@ -1,0 +1,6 @@
+compile-each.hxml
+-main unit.Test
+-cpp unit.cppia
+-D cppia
+-D NO_PRECOMPILED_HEADERS
+--macro cpp.cppia.HostClasses.exclude()

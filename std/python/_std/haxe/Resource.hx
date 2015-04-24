@@ -26,36 +26,41 @@ import haxe.io.BytesData;
 
 @:coreApi class Resource {
 
-	static var content : python.lib.Dict<String, BytesData> = untyped _hx_resources__();
+	static var content:python.Dict<String,BytesData>;
+
+	static function getContent():python.Dict<String,BytesData> {
+		if (content == null) content = untyped _hx_resources__();
+		return content;
+	}
 
 	public static inline function listNames() : Array<String> {
-		return python.lib.Builtin.list(content.keys());
+		return python.internal.UBuiltins.list(getContent().keys());
 	}
 
 	public static function getString( name : String ) : String {
         #if embed_resources
-		for (k in content.keys().iter()) {
+		for (k in getContent().keys().iter()) {
 			if (k == name) {
-				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
+				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(getContent().get(k, null));
 				return b.toString();
 			}
 		}
 		return null;
         #else
-        return content.hasKey(name) ? Bytes.ofData(content.get(name, null)).toString() : null;
+        return getContent().hasKey(name) ? Bytes.ofData(getContent().get(name, null)).toString() : null;
         #end
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
         #if embed_resources
-		for( k in content.keys().iter() )
+		for( k in getContent().keys().iter() )
 			if( k == name ) {
-				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(content.get(k, null));
+				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(getContent().get(k, null));
 				return b;
 
 			}
         #else
-        return Bytes.ofData(content.get(name,null));
+        return Bytes.ofData(getContent().get(name,null));
         #end
 	}
 }

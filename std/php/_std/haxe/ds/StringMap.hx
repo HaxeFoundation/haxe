@@ -53,7 +53,7 @@ package haxe.ds;
 	}
 
 	public function keys() : Iterator<String> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
+		return untyped __call__("new _hx_array_iterator", __call__("array_map", "strval", __call__("array_keys", h)));
 	}
 
 	public function iterator() : Iterator<T> {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLPreElement.webidl line 15:0. Do not edit!
+
 package js.html;
 
-/** This element represents preformatted text. Text within this element is typically displayed in a non-proportional font exactly as it is laid out in the file. Whitespaces inside this element are displayed as typed.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/HTML/Element/pre">MDN</a>. */
 @:native("HTMLPreElement")
 extern class PreElement extends Element
 {
 	var width : Int;
-
-	var wrap : Bool;
-
+	
 }

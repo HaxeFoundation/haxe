@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,26 +20,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGPathSegList.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGPathSegList")
-extern class PathSegList
+extern class PathSegList implements ArrayAccess<PathSeg>
 {
 	var numberOfItems(default,null) : Int;
-
-	function appendItem( newItem : PathSeg ) : PathSeg;
-
+	var length(default,null) : Int;
+	
+	/** @throws DOMError */
 	function clear() : Void;
-
-	function getItem( index : Int ) : PathSeg;
-
+	/** @throws DOMError */
 	function initialize( newItem : PathSeg ) : PathSeg;
-
+	/** @throws DOMError */
+	function getItem( index : Int ) : PathSeg;
+	/** @throws DOMError */
 	function insertItemBefore( newItem : PathSeg, index : Int ) : PathSeg;
-
-	function removeItem( index : Int ) : PathSeg;
-
+	/** @throws DOMError */
 	function replaceItem( newItem : PathSeg, index : Int ) : PathSeg;
-
+	/** @throws DOMError */
+	function removeItem( index : Int ) : PathSeg;
+	/** @throws DOMError */
+	function appendItem( newItem : PathSeg ) : PathSeg;
 }

@@ -25,12 +25,17 @@ package cpp;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import haxe.macro.Expr;
-#end
+#else
 
 using cpp.NativeString;
 using cpp.RawConstPointer;
 using cpp.Char;
 
+#end
+
+#if macro
+@:noPackageRestrict
+#end
 class Lib {
 
    #if !macro
@@ -47,7 +52,7 @@ class Lib {
 
    @:analyzer(no_simplification)
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
-		var factory:Function< RawConstPointer<Char> -> RawPointer<Object> > =
+		var factory:Callable< RawConstPointer<Char> -> RawPointer<Object> > =
                untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
       if (factory!=null)
       {
@@ -82,7 +87,24 @@ class Lib {
 
 	public static function rethrow(inExp:Dynamic) { throw inExp; }
 
-	public static function stringReference(inExp:Dynamic) { throw inExp; }
+	public static function stringReference(inBytes:haxe.io.Bytes) : String
+   {
+      var result:String = "";
+      untyped __global__.__hxcpp_string_of_bytes(inBytes.b, result, 0, 0, true);
+      return result;
+   }
+
+	/**
+		Returns bytes referencing the content of a string.
+      Use with extreme caution - changing constant strings will crash.
+      Changing one string can cause others to change unexpectedly.
+      Only really safe if you are using it read-only or if it comes from stringReference above
+	**/
+	public inline static function bytesReference( s : String ) : haxe.io.Bytes {
+      var bytes = new haxe.io.BytesData();
+      untyped bytes.__unsafeStringReference(s);
+		return haxe.io.Bytes.ofData(bytes);
+	}
 
 	/**
 		Print the specified value on the default output.
@@ -125,12 +147,17 @@ class Lib {
          case "s" : return "String";
          case "o" : return "cpp.Object";
          case "v" : return "cpp.Void";
-         case "c" : return "cpp.RawConstPtr<cpp.Char> ";
+         case "c" : return "cpp.ConstCharStar";
          default:
             throw "Unknown signature type :" + code;
       }
    }
    #end
+
+   public static function setFloatFormat(inFormat:String):Void
+   {
+      untyped __global__.__hxcpp_set_float_format(inFormat);
+   }
 
    public static macro function loadPrime(inModule:String, inName:String, inSig:String,inAllowFail:Bool = false)
    {
@@ -140,7 +167,7 @@ class Lib {
       var typeString = parts.length==1 ? "Void" : codeToType(parts.shift());
       for(p in parts)
          typeString += "->" + codeToType(p);
-      typeString = "cpp.Function<" + typeString + ">";
+      typeString = "cpp.Callable<" + typeString + ">";
       var expr = 'new $typeString(cpp.Lib._loadPrime("$inModule","$inName","$inSig",$inAllowFail))';
       return Context.parse( expr, Context.currentPos() );
    }

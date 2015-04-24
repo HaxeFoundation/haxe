@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,15 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLTitleElement.webidl line 10:0. Do not edit!
+
 package js.html;
 
-/** The <code>title</code> object exposes the <a target="_blank" class=" external" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-79243169" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-79243169">HTMLTitleElement</a> interface which contains the title for a document.&nbsp; This element inherits all of the properties and methods described in the <a title="en/DOM/element" class="internal" rel="internal" href="/api/js/html/Element">element</a> section.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLTitleElement">MDN</a>. */
 @:native("HTMLTitleElement")
 extern class TitleElement extends Element
 {
-	/** Gets or sets the text content of the document's title. */
 	var text : String;
-
+	
 }

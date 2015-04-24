@@ -204,7 +204,7 @@ and tclass = {
 	mutable cl_init : texpr option;
 	mutable cl_overrides : tclass_field list;
 
-	mutable cl_build : unit -> unit;
+	mutable cl_build : unit -> bool;
 	mutable cl_restore : unit -> unit;
 }
 
@@ -290,7 +290,8 @@ and module_def_extra = {
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
 	mutable m_macro_calls : string list;
-	mutable m_features : (string *(tclass * tclass_field * bool)) list;
+	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
+	mutable m_features : (string,bool) Hashtbl.t;
 }
 
 and module_kind =
@@ -372,7 +373,7 @@ let mk_class m path pos =
 		cl_constructor = None;
 		cl_init = None;
 		cl_overrides = [];
-		cl_build = (fun() -> ());
+		cl_build = (fun() -> true);
 		cl_restore = (fun() -> ());
 	}
 
@@ -389,7 +390,8 @@ let module_extra file sign time kind =
 		m_kind = kind;
 		m_binded_res = PMap.empty;
 		m_macro_calls = [];
-		m_features = [];
+		m_if_feature = [];
+		m_features = Hashtbl.create 0;
 	}
 
 
@@ -613,7 +615,7 @@ let rec is_nullable = function
 	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		not (Meta.has Meta.NotNull a.a_meta)
 	| TAbstract (a,tl) ->
-		is_nullable (apply_params a.a_params tl a.a_this)
+		not (Meta.has Meta.NotNull a.a_meta) && is_nullable (apply_params a.a_params tl a.a_this)
 	| _ ->
 		true
 
@@ -666,6 +668,12 @@ let concat e1 e2 =
 	mk e e2.etype (punion e1.epos e2.epos)
 
 let is_closed a = !(a.a_status) <> Opened
+
+let type_of_module_type = function
+	| TClassDecl c -> TInst (c,List.map snd c.cl_params)
+	| TEnumDecl e -> TEnum (e,List.map snd e.e_params)
+	| TTypeDecl t -> TType (t,List.map snd t.t_params)
+	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
 
 (* ======= Field utility ======= *)
 
@@ -949,7 +957,7 @@ let rec s_expr s_type e =
 	| TParenthesis e ->
 		sprintf "Parenthesis %s" (loop e)
 	| TObjectDecl fl ->
-		sprintf "ObjectDecl {%s)" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
+		sprintf "ObjectDecl {%s}" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
 	| TArrayDecl el ->
 		sprintf "ArrayDecl [%s]" (slist loop el)
 	| TCall (e,el) ->
@@ -1119,10 +1127,14 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TArrayDecl el -> tag "ArrayDecl" (List.map loop el)
 	| TCall (e1,el) -> tag "Call" (loop e1 :: (List.map loop el))
 	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
-	| TFunction f -> tag "Function" [loop f.tf_expr]
+	| TFunction f ->
+		let arg (v,cto) =
+			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v] | Some ct -> [local v;const ct])
+		in
+		tag "Function" ((List.map arg f.tf_args) @ [loop f.tf_expr])
 	| TVar (v,eo) -> var v (match eo with None -> [] | Some e -> [loop e])
 	| TBlock el -> tag "Block" (List.map loop el)
-	| TIf (e,e1,e2) -> tag "If" (loop e :: ("Then " ^ loop e1) :: (match e2 with None -> [] | Some e -> ["Else " ^ (loop e)]))
+	| TIf (e,e1,e2) -> tag "If" (loop e :: (Printf.sprintf "[Then:%s] %s" (s_type e1.etype) (loop e1)) :: (match e2 with None -> [] | Some e -> [Printf.sprintf "[Else:%s] %s" (s_type e.etype) (loop e)]))
 	| TCast (e1,None) -> tag "Cast" [loop e1]
 	| TCast (e1,Some mt) -> tag "Cast" [loop e1; module_type mt]
 	| TThrow e1 -> tag "Throw" [loop e1]
@@ -1229,6 +1241,25 @@ let rec fast_eq a b =
 		c1 == c2 && List.for_all2 fast_eq l1 l2
 	| TAbstract (a1,l1), TAbstract (a2,l2) ->
 		a1 == a2 && List.for_all2 fast_eq l1 l2
+	| _ , _ ->
+		false
+
+let rec fast_eq_mono ml a b =
+	if a == b then
+		true
+	else match a , b with
+	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq_mono ml t1 t2) l1 l2 && fast_eq_mono ml r1 r2
+	| TType (t1,l1), TType (t2,l2) ->
+		t1 == t2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TEnum (e1,l1), TEnum (e2,l2) ->
+		e1 == e2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TInst (c1,l1), TInst (c2,l2) ->
+		c1 == c2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TAbstract (a1,l1), TAbstract (a2,l2) ->
+		a1 == a2 && List.for_all2 (fast_eq_mono ml) l1 l2
+	| TMono _, _ ->
+		List.memq a ml
 	| _ , _ ->
 		false
 
@@ -1407,6 +1438,7 @@ let type_iseq a b =
 
 let unify_stack = ref []
 let abstract_cast_stack = ref []
+let unify_new_monos = ref []
 
 let rec unify a b =
 	if a == b then
@@ -1503,13 +1535,37 @@ let rec unify a b =
 			| _ -> ());
 		(try
 			PMap.iter (fun n f2 ->
-				let _, ft, f1 = (try class_field c tl n with Not_found -> error [has_no_field a n]) in
+				(*
+					introducing monomorphs while unifying might create infinite loops - see #2315
+					let's store these monomorphs and make sure we reach a fixed point
+				*)
+				let monos = ref [] in
+				let make_type f =
+					match f.cf_params with
+					| [] -> f.cf_type
+					| l ->
+						let ml = List.map (fun _ -> mk_mono()) l in
+						monos := ml;
+						apply_params f.cf_params ml f.cf_type
+				in
+				let _, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
+				let ft = apply_params c.cl_params tl ft in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
-				(try
-					unify_with_access (apply_params c.cl_params tl ft) f2
-				with
-					Unify_error l -> error (invalid_field n :: l));
+				let old_monos = !unify_new_monos in
+				unify_new_monos := !monos @ !unify_new_monos;
+				if not (List.exists (fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2) (!unify_stack)) then begin
+					unify_stack := (ft,f2.cf_type) :: !unify_stack;
+					(try
+						unify_with_access ft f2
+					with
+						Unify_error l ->
+							unify_new_monos := old_monos;
+							unify_stack := List.tl !unify_stack;
+							error (invalid_field n :: l));
+					unify_stack := List.tl !unify_stack;
+				end;
+				unify_new_monos := old_monos;
 				List.iter (fun f2o ->
 					if not (List.exists (fun f1o -> type_iseq f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
 					then error [Missing_overload (f1, f2o.cf_type)]
@@ -1813,10 +1869,8 @@ module Abstract = struct
 			let t = match follow t with
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					if List.mem a !underlying_type_stack then begin
-						(* let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in *)
-						(* technically this should be done at type declaration level *)
-						(* error ("Abstract chain detected: " ^ s) a.a_pos *)
-						assert false
+						let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in
+						raise (Error("Abstract chain detected: " ^ s,a.a_pos))
 					end;
 					get_underlying_type a tl
 				| _ ->

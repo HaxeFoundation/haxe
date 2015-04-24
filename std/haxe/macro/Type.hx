@@ -279,11 +279,11 @@ enum TConstant {
 }
 
 typedef TVar = {
-	id: Int,
-	name: String,
-	t: Type,
-	capture: Bool,
-	extra: Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>
+	public var id(default, never):Int;
+	public var name(default, never):String;
+	public var t(default, never):Type;
+	public var capture(default, never):Bool;
+	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>;
 }
 
 enum ModuleType {

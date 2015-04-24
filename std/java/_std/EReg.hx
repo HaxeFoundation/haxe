@@ -45,7 +45,7 @@ import java.util.regex.*;
 			}
 		}
 
-		matcher = Pattern._compile(convert(r), flags).matcher("");
+		matcher = Pattern.compile(convert(r), flags).matcher("");
 		pattern = r;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,25 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGStyleElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGStyleElement</code> interface corresponds to the SVG <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/style">&lt;style&gt;</a></code>
- element.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGStyleElement">MDN</a>. */
 @:native("SVGStyleElement")
 extern class StyleElement extends Element
 {
-	var disabled : Bool;
-
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/media" class="new">media</a></code> on the given element. A <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOMException">DOMException</a></code>
- is raised with code <code>NO_MODIFICATION_ALLOWED_ERR</code> on an attempt to change the value of a read only attribut. Setter throws DOMException. */
-	var media : String;
-
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/type" class="new">type</a></code> on the given element. A <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOMException">DOMException</a></code>
- is raised with code <code>NO_MODIFICATION_ALLOWED_ERR</code> on an attempt to change the value of a read only attribut. Setter throws DOMException. */
+	var xmlspace : String;
 	var type : String;
-
+	var media : String;
+	var scoped : Bool;
+	
 }

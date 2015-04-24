@@ -29,13 +29,46 @@ enum StackItem {
 	Module( m : String );
 	FilePos( s : Null<StackItem>, file : String, line : Int );
 	Method( classname : String, method : String );
-	LocalFunction( v : Int );
+	LocalFunction( ?v : Int );
 }
 
 /**
 	Get informations about the call stack.
 **/
 class CallStack {
+	#if js
+	static var lastException:js.Error;
+
+	static function getStack(e:js.Error):Array<StackItem> {
+		// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
+		var oldValue = (untyped Error).prepareStackTrace;
+		(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {
+			var stack = [];
+			for (site in callsites) {
+				if (wrapCallSite != null) site = wrapCallSite(site);
+				var method = null;
+				var fullName :String = site.getFunctionName();
+				if (fullName != null) {
+					var idx = fullName.lastIndexOf(".");
+					if (idx >= 0) {
+						var className = fullName.substr(0, idx);
+						var methodName = fullName.substr(idx+1);
+						method = Method(className, methodName);
+					}
+				}
+				stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
+			}
+			return stack;
+		}
+		var a = makeStack(e.stack);
+		(untyped Error).prepareStackTrace = oldValue;
+		return a;
+	}
+
+	// support for source-map-support module
+	@:noCompletion
+	public static var wrapCallSite:Dynamic->Dynamic;
+	#end
 
 	/**
 		Return the call stack elements, or an empty array if not available.
@@ -45,41 +78,24 @@ class CallStack {
 			var a = makeStack(untyped __dollar__callstack());
 			a.shift(); // remove Stack.callStack()
 			return a;
-		#elseif flash9
+		#elseif flash
 			var a = makeStack( new flash.errors.Error().getStackTrace() );
 			a.shift(); // remove Stack.callStack()
 			return a;
-		#elseif flash
-			return makeStack("$s");
 		#elseif php
 			return makeStack("%s");
 		#elseif cpp
 			var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
 			return makeStack(s);
 		#elseif js
-			// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
-			var oldValue = (untyped Error).prepareStackTrace;
-			(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {
-				var stack = [];
-				for (site in callsites) {
-					var method = null;
-					var fullName :String = site.getFunctionName();
-					if (fullName != null) {
-						var idx = fullName.lastIndexOf(".");
-						if (idx >= 0) {
-							var className = fullName.substr(0, idx);
-							var methodName = fullName.substr(idx+1);
-							method = Method(className, methodName);
-						}
-					}
-					stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
-				}
-				return stack;
+			try {
+				throw new js.Error();
+			} catch( e : Dynamic ) {
+				var a = getStack(e);
+				a.shift(); // remove Stack.callStack()
+				return a;
 			}
-			var a = makeStack(untyped __new__("Error").stack);
-			a.shift(); // remove Stack.callStack()
-			(untyped Error).prepareStackTrace = oldValue;
-			return a;
+
 		#elseif java
 			var stack = [];
 			for ( el in java.lang.Thread.currentThread().getStackTrace() ) {
@@ -125,7 +141,7 @@ class CallStack {
 			return makeStack(untyped __dollar__excstack());
 		#elseif as3
 			return new Array();
-		#elseif flash9
+		#elseif flash
 			var err : flash.errors.Error = untyped flash.Boot.lastError;
 			if( err == null ) return new Array();
 			var a = makeStack( err.getStackTrace() );
@@ -139,8 +155,6 @@ class CallStack {
 				i--;
 			}
 			return a;
-		#elseif flash
-			return makeStack("$e");
 		#elseif php
 			return makeStack("%e");
 		#elseif cpp
@@ -178,6 +192,8 @@ class CallStack {
 					stack.push(FilePos(null, elem._1, elem._2));
 			}
 			return stack;
+		#elseif js
+			return untyped __define_feature__("haxe.CallStack.exceptionStack", getStack(lastException));
 		#else
 			return []; // Unsupported
 		#end
@@ -237,7 +253,7 @@ class CallStack {
 					a.unshift(FilePos(null,new String(untyped x[0]),untyped x[1]));
 			}
 			return a;
-		#elseif flash9
+		#elseif flash
 			var a = new Array();
 			var r = ~/at ([^\/]+?)\$?(\/[^\(]+)?\(\)(\[(.*?):([0-9]+)\])?/;
 			var rlambda = ~/^MethodInfo-([0-9]+)$/g;
@@ -258,14 +274,6 @@ class CallStack {
 				s = r.matchedRight();
 			}
 			return a;
-		#elseif flash
-			var a : Array<String> = untyped __eval__(s);
-			var m = new Array();
-			for( i in 0...a.length - if(s == "$s") 2 else 0 ) {
-				var d = a[i].split("::");
-				m.unshift(Method(d[0],d[1]));
-			}
-			return m;
 		#elseif php
 			if (!untyped __call__("isset", __var__("GLOBALS", s)))
 				return [];
@@ -282,20 +290,31 @@ class CallStack {
 			for(func in stack) {
 				var words = func.split("::");
 				if (words.length==0)
-					m.unshift(CFunction)
+					m.push(CFunction)
 				else if (words.length==2)
-					m.unshift(Method(words[0],words[1]));
+					m.push(Method(words[0],words[1]));
 				else if (words.length==4)
-					m.unshift(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
+					m.push(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
 			}
 			return m;
 		#elseif js
-			if ((untyped __js__("typeof"))(s) == "string") {
+			if (s == null) {
+				return [];
+			} else if ((untyped __js__("typeof"))(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
+				if( stack[0] == "Error" ) stack.shift();
 				var m = [];
+				var rie10 = ~/^   at ([A-Za-z0-9_. ]+) \(([^)]+):([0-9]+):([0-9]+)\)$/;
 				for( line in stack ) {
-					m.push(Module(line)); // A little weird, but better than nothing
+					if( rie10.match(line) ) {
+						var path = rie10.matched(1).split(".");
+						var meth = path.pop();
+						var file = rie10.matched(2);
+						var line = Std.parseInt(rie10.matched(3));
+						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line ));
+					} else
+						m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
 				}
 				return m;
 			} else {

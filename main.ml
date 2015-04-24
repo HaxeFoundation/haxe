@@ -142,6 +142,7 @@ let deprecated = [
 	"Class not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
 	"Class not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
 	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
+	"Module js.html.HtmlElement is loaded with a different case than js.html.HTMLElement", "htmlelement"
 ]
 
 let limit_string s offset =
@@ -158,7 +159,10 @@ let limit_string s offset =
 
 let error ctx msg p =
 	let msg = try List.assoc msg deprecated with Not_found -> msg in
-	message ctx msg p;
+	if msg = "htmlelement" then
+		message ctx "There was a problem with HtmlElement, please refer to https://github.com/HaxeFoundation/html-externs/blob/master/README.md#htmlelement" null_pos
+	else
+		message ctx msg p;
 	ctx.has_error <- true
 
 let htmlescape s =
@@ -168,7 +172,7 @@ let htmlescape s =
 	s
 
 let reserved_flags = [
-	"cross";"flash8";"js";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"cross";"js";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
 
@@ -718,7 +722,10 @@ and wait_loop boot_com host port =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
 	in
 	let check_module_path com m p =
-		m.m_extra.m_file = Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
+		if m.m_extra.m_file <> Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
+			if verbose then print_endline ("Module path " ^ s_type_path m.m_path ^ " has been changed");
+			raise Not_found;
+		end
 	in
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in
@@ -744,22 +751,32 @@ and wait_loop boot_com host port =
 					| MExtern ->
 						(* if we have a file then this will override our extern type *)
 						let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in
-						if has_file then raise Not_found;
+						if has_file then begin
+							if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path);
+							raise Not_found;
+						end;
 						let rec loop = function
-							| [] -> raise Not_found (* no extern registration *)
+							| [] ->
+								if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path);
+								raise Not_found (* no extern registration *)
 							| load :: l ->
 								match load m.m_path p with
 								| None -> loop l
-								| Some (file,_) -> if Common.unique_full_path file <> m.m_extra.m_file then raise Not_found
+								| Some (file,_) ->
+									if Common.unique_full_path file <> m.m_extra.m_file then begin
+										if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path);
+										raise Not_found;
+									end
 						in
 						loop com2.load_extern_type
-					| MCode -> if not (check_module_path com2 m p) then raise Not_found;
-					| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
+					| MCode -> check_module_path com2 m p
+					| MMacro when ctx.Typecore.in_macro -> check_module_path com2 m p
 					| MMacro ->
 						let _, mctx = Typer.get_macro_context ctx p in
-						if not (check_module_path mctx.Typecore.com m p) then raise Not_found;
+						check_module_path mctx.Typecore.com m p
 					);
 					if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
+						if verbose then print_endline ("File " ^ m.m_extra.m_file ^ (if m.m_extra.m_time = -1. then " not cached (macro-in-macro)" else " has been modified"));
 						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
 						raise Not_found;
 					end;
@@ -965,7 +982,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s %s- (C)2005-2014 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"Haxe Compiler %s %s- (C)2005-2015 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		s_version (match Version.version_extra with None -> "" | Some v -> v) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -985,7 +1002,7 @@ try
 	let swf_version = ref false in
 	let evals = ref [] in
 	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 1000.));
-	Common.define_value com Define.HxcppApiLevel "313";
+	Common.define_value com Define.HxcppApiLevel "321";
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
@@ -1009,7 +1026,7 @@ try
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
-				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";""]
+				com.class_path <- ["/usr/lib/haxe/std/";"/usr/share/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";""]
 			else
 				let base_path = normalize_path (get_real_path (try executable_path() with _ -> "./")) in
 				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
@@ -1018,7 +1035,7 @@ try
 		if com.platform <> Cross then failwith "Multiple targets";
 		Common.init_platform com pf;
 		com.file <- file;
-		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
+		if (pf = Flash) && file_extension file = "swc" then Common.define com Define.Swc;
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let process_ref = ref (fun args -> ()) in
@@ -1124,7 +1141,8 @@ try
 			Genswf.add_swf_lib com file true
 		),"<file> : use the SWF library for type checking");
 		("-java-lib",Arg.String (fun file ->
-			arg_delays := (fun () -> Genjava.add_java_lib com file false) :: !arg_delays;
+			let std = file = "lib/hxjava-std.jar" in
+			arg_delays := (fun () -> Genjava.add_java_lib com file std) :: !arg_delays;
 		),"<file> : add an external JAR or class directory library");
 		("-net-lib",Arg.String (fun file ->
 			let file, is_std = match ExtString.String.nsplit file "@" with
@@ -1182,6 +1200,14 @@ try
 				List.iter (fun (_,_,extract) ->
 					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
 				) com.swf_libs;
+				List.iter (fun (_,std,_,all_files,_) ->
+					if not std then
+						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) (all_files())
+				) com.java_libs;
+				List.iter (fun (_,std,all_files,_) ->
+					if not std then
+						List.iter (fun path -> classes := path :: !classes) (all_files())
+				) com.net_libs;
 			) :: !pre_compilation;
 			xml_out := Some "hx"
 		),": generate hx headers for all input classes");
@@ -1190,7 +1216,7 @@ try
 		("--display", Arg.String (fun file_pos ->
 			match file_pos with
 			| "classes" ->
-				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
+				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true))) :: !pre_compilation;
 			| "keywords" ->
 				complete_fields com (Hashtbl.fold (fun k _ acc -> (k,"",None,"") :: acc) Lexer.keywords [])
 			| "memory" ->
@@ -1370,16 +1396,11 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	(try ignore(Common.find_file com "mt/Include.hx"); Common.raw_define com "mt"; with Not_found -> ());
 	if com.display <> DMNone then begin
 		com.warning <- message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
 		let real = get_real_path (!Parser.resume_display).Ast.pfile in
-		(* try to fix issue on windows when get_real_path fails (8.3 DOS names disabled) *)
-		let real = (match List.rev (ExtString.String.nsplit real path_sep) with
-		| file :: path when String.length file > 0 && file.[0] >= 'a' && file.[1] <= 'z' -> file.[0] <- char_of_int (int_of_char file.[0] - int_of_char 'a' + int_of_char 'A'); String.concat path_sep (List.rev (file :: path))
-		| _ -> real) in
 		classes := lookup_classes com real;
 		if !classes = [] then begin
 			if not (Sys.file_exists real) then failwith "Display file does not exist";
@@ -1399,28 +1420,18 @@ try
 			(* no platform selected *)
 			set_platform Cross "";
 			"?"
-		| Flash8 | Flash ->
-			if com.flash_version >= 9. then begin
-				let rec loop = function
-					| [] -> ()
-					| (v,_) :: _ when v > com.flash_version -> ()
-					| (v,def) :: l ->
-						Common.raw_define com ("flash" ^ def);
-						loop l
-				in
-				loop Common.flash_versions;
-				Common.raw_define com "flash";
-				com.defines <- PMap.remove "flash8" com.defines;
-				com.package_rules <- PMap.remove "flash" com.package_rules;
-				add_std "flash";
-			end else begin
-				com.package_rules <- PMap.add "flash" (Directory "flash8") com.package_rules;
-				com.package_rules <- PMap.add "flash8" Forbidden com.package_rules;
-				Common.raw_define com "flash";
-				Common.raw_define com ("flash" ^ string_of_int (int_of_float com.flash_version));
-				com.platform <- Flash8;
-				add_std "flash8";
-			end;
+		| Flash ->
+			let rec loop = function
+				| [] -> ()
+				| (v,_) :: _ when v > com.flash_version -> ()
+				| (v,def) :: l ->
+					Common.raw_define com ("flash" ^ def);
+					loop l
+			in
+			loop Common.flash_versions;
+			Common.raw_define com "flash";
+			com.package_rules <- PMap.remove "flash" com.package_rules;
+			add_std "flash";
 			"swf"
 		| Neko ->
 			add_std "neko";
@@ -1435,12 +1446,18 @@ try
 			add_std "cpp";
 			"cpp"
 		| Cs ->
+			let old_flush = ctx.flush in
+			ctx.flush <- (fun () ->
+				com.net_libs <- [];
+				old_flush()
+			);
 			Gencs.before_generate com;
 			add_std "cs"; "cs"
 		| Java ->
 			let old_flush = ctx.flush in
 			ctx.flush <- (fun () ->
 				List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
+				com.java_libs <- [];
 				old_flush()
 			);
 			Genjava.before_generate com;
@@ -1527,10 +1544,10 @@ try
 			end;
 		| Cross ->
 			()
-		| Flash8 | Flash when Common.defined com Define.As3 ->
+		| Flash when Common.defined com Define.As3 ->
 			Common.log com ("Generating AS3 in : " ^ com.file);
 			Genas3.generate com;
-		| Flash8 | Flash ->
+		| Flash ->
 			Common.log com ("Generating swf : " ^ com.file);
 			Genswf.generate com !swf_header;
 		| Neko ->
@@ -1557,8 +1574,8 @@ try
 		);
 	end;
 	Sys.catch_break false;
+	List.iter (fun f -> f()) (List.rev com.final_filters);
 	if not !no_output then begin
-		List.iter (fun f -> f()) (List.rev com.final_filters);
 		List.iter (fun c ->
 			let r = run_command ctx c in
 			if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
@@ -1567,6 +1584,8 @@ try
 with
 	| Abort ->
 		()
+	| Ast.Error (m,p) ->
+		error ctx m p
 	| Typecore.Fatal_error (m,p) ->
 		error ctx m p
 	| Common.Abort (m,p) ->
@@ -1651,7 +1670,7 @@ with
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
-	| Parser.TypePath (p,c) ->
+	| Parser.TypePath (p,c,is_import) ->
 		(match c with
 		| None ->
 			let packs, classes = read_type_path com p in
@@ -1664,10 +1683,14 @@ with
 				)
 		| Some (c,cur_package) ->
 			try
+				let sl_pack,s_module = match List.rev p with
+					| s :: sl when s.[0] >= 'A' && s.[0] <= 'Z' -> List.rev sl,s
+					| _ -> p,c
+				in
 				let ctx = Typer.create com in
 				let rec lookup p =
 					try
-						Typeload.load_module ctx (p,c) Ast.null_pos
+						Typeload.load_module ctx (p,s_module) Ast.null_pos
 					with e ->
 						if cur_package then
 							match List.rev p with
@@ -1676,8 +1699,32 @@ with
 						else
 							raise e
 				in
-				let m = lookup p in
-				complete_fields com (List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
+				let m = lookup sl_pack in
+				let statics = ref None in
+				let public_types = List.filter (fun t ->
+					let tinfos = t_infos t in
+					let is_module_type = snd tinfos.mt_path = c in
+					if is_import && is_module_type then begin match t with
+						| TClassDecl c ->
+							ignore(c.cl_build());
+							statics := Some c.cl_ordered_statics
+						| _ -> ()
+					end;
+					not tinfos.mt_private
+				) m.m_types in
+				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") public_types in
+				let ctx = print_context() in
+				let make_field_doc cf =
+					cf.cf_name,
+					s_type ctx cf.cf_type,
+					Some (match cf.cf_kind with Method _ -> Typer.FKMethod | Var _ -> Typer.FKVar),
+					(match cf.cf_doc with Some s -> s | None -> "")
+				in
+				let types = match !statics with
+					| None -> types
+					| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
+				in
+				complete_fields com types
 			with Completion c ->
 				raise (Completion c)
 			| _ ->

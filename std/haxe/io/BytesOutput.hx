@@ -23,7 +23,7 @@ package haxe.io;
 
 class BytesOutput extends Output {
 
-	#if flash9
+	#if flash
 	var b : flash.utils.ByteArray;
 	#else
 	var b : BytesBuffer;
@@ -33,7 +33,7 @@ class BytesOutput extends Output {
 	public var length(get,never) : Int;
 
 	public function new() {
-		#if flash9
+		#if flash
 		b = new flash.utils.ByteArray();
 		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#else
@@ -49,7 +49,7 @@ class BytesOutput extends Output {
 	}
 
 	override function writeByte(c) {
-		#if flash9
+		#if flash
 		b.writeByte(c);
 		#else
 		b.addByte(c);
@@ -57,7 +57,7 @@ class BytesOutput extends Output {
 	}
 
 	override function writeBytes( buf : Bytes, pos, len ) : Int {
-		#if flash9
+		#if flash
 		if( pos < 0 || len < 0 || pos + len > buf.length ) throw Error.OutsideBounds;
 		b.writeBytes(buf.getData(),pos,len);
 		#else
@@ -66,7 +66,7 @@ class BytesOutput extends Output {
 		return len;
 	}
 
-	#if flash9
+	#if flash
 	// optimized operations
 
 	@:dox(hide)
@@ -123,7 +123,7 @@ class BytesOutput extends Output {
 	#end
 
 	public function getBytes() : Bytes {
-		#if flash9
+		#if flash
 		var bytes = b;
 		b = null;
 		return untyped new Bytes(bytes.length,bytes);

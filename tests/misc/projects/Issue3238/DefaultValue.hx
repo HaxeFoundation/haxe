@@ -1,5 +1,5 @@
 private extern class A {
-    function f(a:haxe.Rest<String> = null):Void;
+    function f(a:haxe.extern.Rest<String> = null):Void;
 }
 
 class DefaultValue {

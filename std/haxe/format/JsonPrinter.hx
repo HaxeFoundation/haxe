@@ -45,7 +45,7 @@ class JsonPrinter {
 		return printer.buf.toString();
 	}
 
-	var buf : #if flash9 flash.utils.ByteArray #else StringBuf #end;
+	var buf : #if flash flash.utils.ByteArray #else StringBuf #end;
 	var replacer : Dynamic -> Dynamic -> Dynamic;
 	var indent:String;
 	var pretty:Bool;
@@ -57,7 +57,7 @@ class JsonPrinter {
 		this.pretty = space != null;
 		this.nind = 0;
 
-		#if flash9
+		#if flash
 		buf = new flash.utils.ByteArray();
 		buf.endian = flash.utils.Endian.BIG_ENDIAN;
 		buf.position = 0;
@@ -120,7 +120,7 @@ class JsonPrinter {
 				var v : Date = v;
 				quote(v.toString());
 			} else
-				#if flash9
+				#if flash
 				classString(v);
 				#else
 				objString(v);
@@ -136,7 +136,7 @@ class JsonPrinter {
 	}
 
 	@:extern inline function addChar(c:Int) {
-		#if flash9
+		#if flash
 		buf.writeByte(c);
 		#else
 		buf.addChar(c);
@@ -144,7 +144,7 @@ class JsonPrinter {
 	}
 
 	@:extern inline function add(v:String) {
-		#if flash9
+		#if flash
 		// argument is not always a string but will be automatically casted
 		buf.writeUTFBytes(v);
 		#else
@@ -152,7 +152,7 @@ class JsonPrinter {
 		#end
 	}
 
-	#if flash9
+	#if flash
 	function classString ( v : Dynamic ) {
 		fieldsString(v,Type.getInstanceFields(Type.getClass(v)));
 	}
@@ -209,7 +209,7 @@ class JsonPrinter {
 			case 8: add('\\b');
 			case 12: add('\\f');
 			default:
-				#if flash9
+				#if flash
 				if( c >= 128 ) add(String.fromCharCode(c)) else addChar(c);
 				#else
 				addChar(c);

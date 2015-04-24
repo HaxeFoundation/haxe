@@ -23,7 +23,7 @@
 package;
 
 import python.internal.Internal;
-import python.lib.Builtin;
+import python.internal.UBuiltins;
 import python.lib.Inspect;
 import python.Boot;
 import python.Syntax;
@@ -33,7 +33,7 @@ import python.Syntax;
 
 	public static inline function instance<T:{}, S:T>( value : T, c : Class<S> ) : S {
 		try {
-			return Builtin.isinstance(value,c) ? cast value : null;
+			return UBuiltins.isinstance(value,c) ? cast value : null;
 		} catch (e:Dynamic) {
 			return null;
 		}
@@ -57,27 +57,27 @@ import python.Syntax;
 		if (isMetaType(t,Dynamic)) {
 			return true;
 		}
-		var isBool = Builtin.isinstance(v, Builtin.bool);
+		var isBool = UBuiltins.isinstance(v, UBuiltins.bool);
 
 		if (isMetaType(t, Bool) && isBool) {
 			return true;
 		}
-		if (!isBool && !isMetaType(t, Bool) && isMetaType(t,Int) && Builtin.isinstance(v, Builtin.int )) {
+		if (!isBool && !isMetaType(t, Bool) && isMetaType(t,Int) && UBuiltins.isinstance(v, UBuiltins.int )) {
 			return true;
 		}
-		var vIsFloat = Builtin.isinstance(v, Builtin.float);
+		var vIsFloat = UBuiltins.isinstance(v, UBuiltins.float);
 
 		if (!isBool && vIsFloat && isMetaType(t,Int) && Math.isFinite(v) && v == Std.int(v) && v <= 2147483647 && v >= -2147483648) {
 			return true;
 		}
 
 
-		if (!isBool &&  isMetaType(t,Float) && ( Builtin.isinstance(v, python.Syntax.pythonCode("(float,int)")))) {
+		if (!isBool &&  isMetaType(t,Float) && ( UBuiltins.isinstance(v, python.Syntax.tuple(UBuiltins.float, UBuiltins.int)))) {
 			return true;
 		}
 
-		if ( isMetaType(t, Builtin.str)) {
-			return Builtin.isinstance(v, String);
+		if ( isMetaType(t, UBuiltins.str)) {
+			return UBuiltins.isinstance(v, String);
 		}
 		var isEnumType = isMetaType(t,Enum);
 		if (isEnumType && Inspect.isclass(v) && Internal.hasConstructs(v)) return true;
@@ -85,11 +85,11 @@ import python.Syntax;
 		if (isEnumType) return false;
 
 		var isClassType = isMetaType(t,Class);
-		if (isClassType && !Builtin.isinstance(v, Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
+		if (isClassType && !UBuiltins.isinstance(v, Enum) && Inspect.isclass(v) && Internal.hasClassName(v) && !Internal.hasConstructs(v)) return true;
 
 		if (isClassType) return false;
 
-		if (try Builtin.isinstance(v, t) catch (e:Dynamic) false) {
+		if (try UBuiltins.isinstance(v, t) catch (e:Dynamic) false) {
 			return true;
 		}
 
@@ -128,7 +128,6 @@ import python.Syntax;
 	}
 
 	@:access(python.Boot)
-	@:keep
 	public static function string( s : Dynamic ) : String
 	{
 		return python.Boot.toString(s);
@@ -137,7 +136,7 @@ import python.Syntax;
 	public static inline function int( x : Float ) : Int
 	{
 		try {
-			return Builtin.int(x);
+			return UBuiltins.int(x);
 		} catch (e:Dynamic) {
 			return null;
 		}
@@ -146,13 +145,13 @@ import python.Syntax;
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
 		try {
-			return Builtin.int(x);
+			return UBuiltins.int(x);
 		} catch (e:Dynamic) {
 			try {
 				var prefix = x.substr(0,2).toLowerCase();
 
 				if (prefix == "0x") {
-					return Builtin.int(x,16);
+					return UBuiltins.int(x,16);
 				}
 				throw "fail";
 			} catch (e:Dynamic) {
@@ -198,7 +197,7 @@ import python.Syntax;
 	public static function parseFloat( x : String ) : Float
 	{
 		try {
-			return Builtin.float(x);
+			return UBuiltins.float(x);
 		} catch (e:Dynamic) {
 
 			if (x != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,17 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGNumber.webidl line 15:0. Do not edit!
+
 package js.html.svg;
 
-/** <p>The <code>SVGNumber</code> interface correspond to the <a title="https://developer.mozilla.org/en/SVG/Content_type#Number" rel="internal" href="https://developer.mozilla.org/en/SVG/Content_type#Number">&lt;number&gt;</a> basic data type.</p>
-<p>An <code>SVGNumber</code> object can be designated as read only, which means that attempts to modify the object will result in an exception being thrown.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGNumber">MDN</a>. */
 @:native("SVGNumber")
 extern class Number
 {
-	/** <p>The value of the given attribute.</p> <p><strong>Exceptions on setting:</strong> a <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/DOMException">DOMException</a></code>
- with code <code>NO_MODIFICATION_ALLOWED_ERR</code> is Raised on an attempt to change the value of a read only attribute.</p> */
 	var value : Float;
-
+	
+	/** @throws DOMError */
+	@:overload( function() : Void {} )
+	function new( value : Float ) : Void;
 }

@@ -70,14 +70,17 @@ import java.NativeArray;
 			var k = hash(key);
 			var i = k & mask;
 
+			var delKey = -1;
 			//for speed up
 			if (flagIsEmpty(flags, i)) {
 				x = i;
 			} else {
 				var inc = getInc(k, mask);
 				var last = i;
-				while (! (isEither(flags, i) || _keys[i] == key) )
+				while (! (flagIsEmpty(flags, i) || _keys[i] == key) )
 				{
+					if (flagIsDel(flags,i) && delKey == -1)
+						delKey = i;
 					i = (i + inc) & mask;
 #if DEBUG_HASHTBL
 					if (i == last)
@@ -86,7 +89,11 @@ import java.NativeArray;
 					}
 #end
 				}
-				x = i;
+
+				if (flagIsEmpty(flags, i) && delKey != -1)
+					x = delKey;
+				else
+					x = i;
 			}
 		}
 

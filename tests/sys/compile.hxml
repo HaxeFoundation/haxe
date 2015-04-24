@@ -1,3 +1,5 @@
 --next compile-neko.hxml
 --next compile-python.hxml
 --next compile-cpp.hxml
+--next compile-cs.hxml
+--next compile-java.hxml

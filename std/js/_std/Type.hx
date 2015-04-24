@@ -33,10 +33,8 @@ enum ValueType {
 
 @:coreApi class Type {
 
-	public static function getClass<T>( o : T ) : Class<T> untyped {
-		if( o == null )
-			return null;
-		return js.Boot.getClass(o);
+	public static inline function getClass<T>( o : T ) : Class<T> {
+		return if (o == null) null else @:privateAccess js.Boot.getClass(o);
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {

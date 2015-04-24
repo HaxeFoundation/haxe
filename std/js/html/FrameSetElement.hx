@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,35 +20,27 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLFrameSetElement.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** <code>&lt;frameset&gt;</code> is an HTML element which is used to contain <code><a rel="custom" href="/api/js/html/FrameElement">&lt;frame&gt;</a></code>
- elements.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/HTML/Element/frameset">MDN</a>. */
 @:native("HTMLFrameSetElement")
 extern class FrameSetElement extends Element
 {
 	var cols : String;
-
-	var onbeforeunload : EventListener;
-
-	var onhashchange : EventListener;
-
-	var onmessage : EventListener;
-
-	var onoffline : EventListener;
-
-	var ononline : EventListener;
-
-	var onpopstate : EventListener;
-
-	var onresize : EventListener;
-
-	var onstorage : EventListener;
-
-	var onunload : EventListener;
-
 	var rows : String;
-
+	var onafterprint : haxe.Constraints.Function;
+	var onbeforeprint : haxe.Constraints.Function;
+	var onbeforeunload : Event -> String;
+	var onhashchange : haxe.Constraints.Function;
+	var onlanguagechange : haxe.Constraints.Function;
+	var onmessage : haxe.Constraints.Function;
+	var onoffline : haxe.Constraints.Function;
+	var ononline : haxe.Constraints.Function;
+	var onpagehide : haxe.Constraints.Function;
+	var onpageshow : haxe.Constraints.Function;
+	var onpopstate : haxe.Constraints.Function;
+	var onresize : haxe.Constraints.Function;
+	var onunload : haxe.Constraints.Function;
+	
 }

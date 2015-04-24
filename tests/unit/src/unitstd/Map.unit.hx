@@ -149,7 +149,6 @@ map.exists(c) == true;
 map.get(b) == null;
 
 // [] access
-/*
 var map = new Map();
 map["foo"] == null;
 map["foo"] = 12;
@@ -165,4 +164,12 @@ map[(function(s) return s + "o")("fo")] == 1;
 map["bar"] = map["foo"] = 9;
 map["bar"] == 9;
 map["foo"] == 9;
-*/
+
+#if !(java || cs)
+['' => ''].keys().next() == '';
+['' => ''].iterator().next() == '';
+[2 => 3].keys().next() == 2;
+[2 => 3].iterator().next() == 3;
+//[a => b].keys().next() == a;
+//[a => b].iterator().next() == b;
+#end

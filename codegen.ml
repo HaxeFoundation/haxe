@@ -47,6 +47,13 @@ let binop op a b t p =
 let index com e index t p =
 	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.basic.tint p)) t p
 
+let maybe_cast e t =
+	try
+		type_eq EqDoNotFollowNull e.etype t;
+		e
+	with
+		Unify_error _ -> mk (TCast(e,None)) t e.epos
+
 let type_constant com c p =
 	let t = com.basic in
 	match c with
@@ -120,6 +127,15 @@ let is_removable_field ctx f =
 		| Var {v_read = AccRequire (s,_)} -> true
 		| Method MethMacro -> not ctx.in_macro
 		| _ -> false)
+
+let escape_res_name name allow_dirs =
+	ExtString.String.replace_chars (fun chr ->
+		if (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || (chr >= '0' && chr <= '9') || chr = '_' || chr = '.' then
+			Char.escaped chr
+		else if chr = '/' && allow_dirs then
+			"/"
+		else
+			"-x" ^ (string_of_int (Char.code chr))) name
 
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
@@ -198,7 +214,7 @@ let extend_remoting ctx c t p async prot =
 		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
 	) in
 	match t with
-	| TClassDecl c2 when c2.cl_params = [] -> c2.cl_build(); c.cl_super <- Some (c2,[]);
+	| TClassDecl c2 when c2.cl_params = [] -> ignore(c2.cl_build()); c.cl_super <- Some (c2,[]);
 	| _ -> error "Remoting proxy must be a class without parameters" p
 
 (* -------------------------------------------------------------------------- *)
@@ -295,7 +311,7 @@ let get_short_name =
 	let i = ref (-1) in
 	(fun () ->
 		incr i;
-		Printf.sprintf "__hx_type_%i" !i
+		Printf.sprintf "Hx___short___hx_type_%i" !i
 	)
 
 let rec build_generic ctx c p tl =
@@ -325,7 +341,7 @@ let rec build_generic ctx c p tl =
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
 		let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in
-		c.cl_build(); (* make sure the super class is already setup *)
+		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
@@ -418,7 +434,7 @@ let rec build_generic ctx c p tl =
 						(* extended type parameter: concrete type must have a constructor, but generic base class must not have one *)
 						begin match follow t,c.cl_constructor with
 							| TInst(cs,_),None ->
-								cs.cl_build();
+								ignore(cs.cl_build());
 								begin match cs.cl_constructor with
 									| None -> error ("Cannot use " ^ (s_type_path cs.cl_path) ^ " as type parameter because it is extended and has no constructor") p
 									| _ -> ()
@@ -441,6 +457,7 @@ let rec build_generic ctx c p tl =
 		);
 		Typeload.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
+		cg.cl_meta <- (Meta.NoDoc,[],p) :: cg.cl_meta;
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
@@ -461,8 +478,7 @@ let rec build_generic ctx c p tl =
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in
-			let tp = fst cg.cl_path,n in
-			cg.cl_meta <- (Meta.Native,[EConst(String (s_type_path tp)),p],p) :: cg.cl_meta;
+			cg.cl_meta <- (Meta.Native,[EConst(String (n)),p],p) :: cg.cl_meta;
 		end;
 		TInst (cg,[])
 	end
@@ -544,7 +560,7 @@ let build_metadata com t =
 			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
 			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
-		) ml)) (api.tarray t_dynamic) p
+		) ml)) t_dynamic p
 	in
 	let make_meta l =
 		mk (TObjectDecl (List.map (fun (f,ml) -> f,make_meta_field ml) l)) t_dynamic p
@@ -623,7 +639,7 @@ let build_macro_build ctx c pl cfl p =
 let build_instance ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
-		if ctx.pass > PBuildClass then c.cl_build();
+		if ctx.pass > PBuildClass then ignore(c.cl_build());
 		let build f s =
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
@@ -690,7 +706,10 @@ module AbstractCast = struct
 			if (Meta.has Meta.MultiType a.a_meta) then
 				mk_cast eright tleft p
 			else match a.a_impl with
-				| Some c -> recurse cf (fun () -> make_static_call ctx c cf a tl [eright] tleft p)
+				| Some c -> recurse cf (fun () ->
+					let ret = make_static_call ctx c cf a tl [eright] tleft p in
+					{ ret with eexpr = TMeta( (Meta.ImplicitCast,[],ret.epos), ret) }
+				)
 				| None -> assert false
 		in
 		if type_iseq tleft eright.etype then
@@ -861,29 +880,50 @@ module AbstractCast = struct
 				end
 			| TCall(e1, el) ->
 				begin try
-					begin match e1.eexpr with
+					let rec find_abstract e = match follow e.etype,e.eexpr with
+						| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
+						| _,TCast(e1,None) -> find_abstract e1
+						| _ -> raise Not_found
+					in
+					let rec find_field e1 =
+						match e1.eexpr with
+						| TCast(e2,None) ->
+							{e1 with eexpr = TCast(find_field e2,None)}
 						| TField(e2,fa) ->
-							begin match follow e2.etype with
-								| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta ->
-									let m = Abstract.get_underlying_type a pl in
-									let fname = field_name fa in
-									let el = List.map (loop ctx) el in
-									begin try
-										let ef = mk (TField({e2 with etype = m},quick_field m fname)) e1.etype e2.epos in
-										make_call ctx ef el e.etype e.epos
-									with Not_found ->
-										(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
-										match follow m with
-										| TAbstract({a_impl = Some c} as a,pl) ->
-											let cf = PMap.find fname c.cl_statics in
-											make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
-										| _ -> raise Not_found
-									end
+							let a,pl,e2 = find_abstract e2 in
+							let m = Abstract.get_underlying_type a pl in
+							let fname = field_name fa in
+							let el = List.map (loop ctx) el in
+							begin try
+								let fa = quick_field m fname in
+								let get_fun_type t = match follow t with
+									| TFun(_,tr) as tf -> tf,tr
+									| _ -> raise Not_found
+								in
+								let tf,tr = match fa with
+									| FStatic(_,cf) -> get_fun_type cf.cf_type
+									| FInstance(c,tl,cf) -> get_fun_type (apply_params c.cl_params tl cf.cf_type)
+									| FAnon cf -> get_fun_type cf.cf_type
+									| _ -> raise Not_found
+								in
+								let ef = mk (TField({e2 with etype = m},fa)) tf e2.epos in
+								let ecall = make_call ctx ef el tr e.epos in
+								if not (type_iseq ecall.etype e.etype) then
+									mk (TCast(ecall,None)) e.etype e.epos
+								else
+									ecall
+							with Not_found ->
+								(* quick_field raises Not_found if m is an abstract, we have to replicate the 'using' call here *)
+								match follow m with
+								| TAbstract({a_impl = Some c} as a,pl) ->
+									let cf = PMap.find fname c.cl_statics in
+									make_static_call ctx c cf a pl (e2 :: el) e.etype e.epos
 								| _ -> raise Not_found
 							end
 						| _ ->
 							raise Not_found
-					end
+					in
+					find_field e1
 				with Not_found ->
 					Type.map_expr (loop ctx) e
 				end
@@ -930,6 +970,39 @@ module PatternMatchConversion = struct
 			| [] -> cases
 			| tmp -> ((tmp,ldt) :: cases)
 
+	let replace_locals e =
+		let v_known = ref IntMap.empty in
+		let copy v =
+			let v' = alloc_var v.v_name v.v_type in
+			v_known := IntMap.add v.v_id v' !v_known;
+			v'
+		in
+		let rec loop e = match e.eexpr with
+			| TVar(v,e1) ->
+				let v' = copy v in
+				let e1 = match e1 with None -> None | Some e -> Some (loop e) in
+				{e with eexpr = TVar(v',e1)}
+			| TFor(v,e1,e2) ->
+				let v' = copy v in
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				{e with eexpr = TFor(v',e1,e2)}
+			| TTry(e1,catches) ->
+				let e1 = loop e1 in
+				let catches = List.map (fun (v,e) ->
+					let v' = copy v in
+					let e = loop e in
+					v',e
+				) catches in
+				{e with eexpr = TTry(e1,catches)}
+			| TLocal v ->
+				let v' = try IntMap.find v.v_id !v_known with Not_found -> v in
+				{e with eexpr = TLocal v'}
+			| _ ->
+				Type.map_expr loop e
+		in
+		loop e
+
 	let rec convert_dt cctx dt =
 		match dt with
 		| DTBind (bl,dt) ->
@@ -956,7 +1029,14 @@ module PatternMatchConversion = struct
 		| DTSwitch(e_st,cl,dto) ->
 			let def = match dto with None -> None | Some dt -> Some (convert_dt cctx dt) in
 			let cases = group_cases cl in
-			let cases = List.map (fun (cl,dt) -> cl,convert_dt cctx dt) cases in
+			let cases = List.map (fun (cl,dt) ->
+				let e = convert_dt cctx dt in
+				(* The macro interpreter does not care about unique locals and
+				   we don't run the analyzer on the output, so let's save some
+				   time here (issue #3937) *)
+				let e = if cctx.ctx.in_macro then e else replace_locals e in
+				cl,e
+			) cases in
 			mk (TSwitch(e_st,cases,def)) (mk_mono()) e_st.epos
 
 	let to_typed_ast ctx dt p =
@@ -1513,6 +1593,13 @@ struct
 		List.iter2 (fun f a -> if not (type_iseq f a) then incr acc) tlfun tlarg;
 		!acc
 
+	(**
+		The rate function returns an ( int * int ) type.
+		The smaller the int, the best rated the caller argument is in comparison with the callee.
+
+		The first int refers to how many "conversions" would be necessary to convert from the callee to the caller type, and
+		the second refers to the type parameters.
+	**)
 	let rec rate_conv cacc tfun targ =
 		match simplify_t tfun, simplify_t targ with
 		| TInst({ cl_interface = true } as cf, tlf), TInst(ca, tla) ->
@@ -1604,10 +1691,11 @@ struct
 		| r :: ret ->
 			rm_duplicates (r :: acc) ret
 
-(* 	let s_options rated =
-		String.concat ",\n" (List.map (fun ((_,t),rate) ->
+	let s_options rated =
+		String.concat ",\n" (List.map (fun ((elist,t,_),rate) ->
+			"( " ^ (String.concat "," (List.map (fun(e,_) -> s_expr (s_type (print_context())) e) elist)) ^ " ) => " ^
 			"( " ^ (String.concat "," (List.map (fun (i,i2) -> string_of_int i ^ ":" ^ string_of_int i2) rate)) ^ " ) => " ^ (s_type (print_context()) t)
-		) rated) *)
+		) rated)
 
 	let count_optionals elist =
 		List.fold_left (fun acc (_,is_optional) -> if is_optional then acc + 1 else acc) 0 elist
@@ -1634,7 +1722,14 @@ struct
 				| [], [] -> acc
 				| (_,true) :: elist, _ :: args -> mk_rate acc elist args
 				| (e,false) :: elist, (n,o,t) :: args ->
-					mk_rate (rate_conv 0 t e.etype :: acc) elist args
+					(* if the argument is an implicit cast, we need to start with a penalty *)
+					(* The penalty should be higher than any other implicit cast - other than Dynamic *)
+					(* since Dynamic has a penalty of max_int, we'll impose max_int - 1 to it *)
+					(match e.eexpr with
+						| TMeta( (Meta.ImplicitCast,_,_), _) ->
+							mk_rate ((max_int - 1, 0) :: acc) elist args
+						| _ ->
+							mk_rate (rate_conv 0 t e.etype :: acc) elist args)
 				| _ -> assert false
 			in
 

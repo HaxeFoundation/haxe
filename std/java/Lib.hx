@@ -46,15 +46,24 @@ package java;
 	}
 
 	/**
-		Gets the native java.lang.Class from the supplied object. Will throw an exception in case of null being passed.
+		Gets the native `java.lang.Class` from the supplied object. Will throw an exception in case of null being passed.
+		[deprecated] - use `getNativeType` instead
 	**/
-	@:functionCode('
-		return (java.lang.Class<T>) obj.getClass();
-	')
-	public static function nativeType<T>(obj:T):java.lang.Class<T>
+	@:deprecated('The function `nativeType` is deprecated and will be removed in later versions. Please use `getNativeType` instead')
+	inline public static function nativeType<T>(obj:T):java.lang.Class<T>
 	{
-		return null;
+		return untyped obj.getClass();
 	}
+
+	/**
+		Gets the native `java.lang.Class` from the supplied object. Will throw an exception in case of null being passed.
+		[deprecated] - use `getNativeType` instead
+	**/
+	inline public static function getNativeType<T>(obj:T):java.lang.Class<T>
+	{
+		return untyped obj.getClass();
+	}
+
 	/**
 		Returns a Class<> equivalent to the native java.lang.Class type.
 	**/
@@ -81,8 +90,8 @@ package java;
 
 	/**
 		Returns a Haxe Array of a native Array.
-		It won't copy the contents of the native array, so unless any operation triggers an array resize,
-		all changes made to the Haxe array will affect the native array argument.
+		Unless `copy` is true, it won't copy the contents of the native array,
+		so unless any operation triggers an array resize, all changes made to the Haxe array will affect the native array argument.
 	**/
 	@:generic public static function array<T>(native:java.NativeArray<T>):Array<T>
 	{

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,17 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLParagraphElement.webidl line 15:0. Do not edit!
+
 package js.html;
 
-/** DOM p (paragraph) objects expose the <a title="http://www.w3.org/TR/html5/grouping-content.html#htmlparagraphelement" class=" external" rel="external nofollow" href="http://www.w3.org/TR/html5/grouping-content.html#htmlparagraphelement" target="_blank">HTMLParagraphElement</a> (or 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" rel="external nofollow" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-84675076" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-84675076" target="_blank"><code>HTMLParagraphElement</code></a>) interface, which provides special properties (beyond the regular <a rel="internal" href="/api/js/html/Element">element</a> object interface they also have available to them by inheritance) for manipulating div elements. In 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML/HTML5">HTML5</a></span>, this interface inherits from HTMLElement, but defines no additional members.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/Document_Object_Model_(DOM)/HTMLParagraphElement">MDN</a>. */
 @:native("HTMLParagraphElement")
 extern class ParagraphElement extends Element
 {
-	/** Enumerated attribute indicating alignment of the element's contents with respect to the surrounding context. */
 	var align : String;
-
+	
 }

@@ -20,9 +20,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#if ((flash9 || flash9doc || cs) && !doc_gen)
+#if ((flash || flash9doc || cs) && !doc_gen)
 /**
-	The unsigned Int type is only defined for Flash9 and C#. It's currently
+	The unsigned Int type is only defined for Flash and C#. It's currently
 	handled the same as a normal Int.
 **/
 @:coreType
@@ -34,40 +34,49 @@ abstract UInt to Int from Int
 	@:commutative @:op(A+B) private static function addI(lhs:UInt, rhs:Int):UInt;
 	@:commutative @:op(A+B) private static function addF(lhs:UInt, rhs:Float):Float;
 	@:op(A+B) private static function add(lhs:UInt, rhs:UInt):UInt;
+
 	@:commutative @:op(A*B) private static function mulI(lhs:UInt, rhs:Int):UInt;
 	@:commutative @:op(A*B) private static function mulF(lhs:UInt, rhs:Float):Float;
 	@:op(A*B) private static function mul(lhs:UInt, rhs:UInt):UInt;
-	@:commutative @:op(A%B) private static function modI(lhs:UInt, rhs:Int):UInt;
-	@:commutative @:op(A%B) private static function modF(lhs:UInt, rhs:Float):Float;
+
+	@:op(A%B) private static function modI(lhs:UInt, rhs:Int):UInt;
+	@:op(A%B) private static function modF(lhs:UInt, rhs:Float):Float;
 	@:op(A%B) private static function mod(lhs:UInt, rhs:UInt):UInt;
-	@:commutative @:op(A-B) private static function subI(lhs:UInt, rhs:Int):UInt;
-	@:commutative @:op(A-B) private static function subF(lhs:UInt, rhs:Float):Float;
+
+	@:op(A-B) private static function subI(lhs:UInt, rhs:Int):UInt;
+	@:op(A-B) private static function subF(lhs:UInt, rhs:Float):Float;
 	@:op(A-B) private static function sub(lhs:UInt, rhs:UInt):UInt;
-	@:commutative @:op(A/B) private static function divI(lhs:UInt, rhs:Int):Float;
-	@:commutative @:op(A/B) private static function divF(lhs:UInt, rhs:Float):Float;
+
+	@:op(A/B) private static function divI(lhs:UInt, rhs:Int):Float;
+	@:op(A/B) private static function divF(lhs:UInt, rhs:Float):Float;
 	@:op(A/B) private static function div(lhs:UInt, rhs:UInt):Float;
+
 	@:commutative @:op(A|B) private static function orI(lhs:UInt, rhs:Int):UInt;
 	@:op(A|B) private static function or(lhs:UInt, rhs:UInt):UInt;
+
 	@:commutative @:op(A^B) private static function xorI(lhs:UInt, rhs:Int):UInt;
 	@:op(A^B) private static function xor(lhs:UInt, rhs:UInt):UInt;
+
 	@:commutative @:op(A&B) private static function andI(lhs:UInt, rhs:Int):UInt;
 	@:op(A&B) private static function and(lhs:UInt, rhs:UInt):UInt;
-	@:commutative @:op(A<<B) private static function shlI(lhs:UInt, rhs:Int):UInt;
-	@:op(A<<B) private static function shl(lhs:UInt, rhs:UInt):UInt;
-	@:commutative @:op(A>>B) private static function shrI(lhs:UInt, rhs:Int):UInt;
-	@:op(A>>B) private static function shr(lhs:UInt, rhs:UInt):UInt;
-	@:commutative @:op(A>>>B) private static function ushrI(lhs:UInt, rhs:Int):UInt;
-	@:op(A>>>B) private static function ushr(lhs:UInt, rhs:UInt):UInt;
+
+	@:op(A<<B) private static function shl(lhs:UInt, rhs:Int):UInt;
+	@:op(A>>B) private static function shr(lhs:UInt, rhs:Int):UInt;
+	@:op(A>>>B) private static function ushr(lhs:UInt, rhs:Int):UInt;
 
 	@:op(A>B) private static function gt(lhs:UInt, rhs:UInt):Bool;
 	@:op(A>=B) private static function gte(lhs:UInt, rhs:UInt):Bool;
 	@:op(A<B) private static function lt(lhs:UInt, rhs:UInt):Bool;
 	@:op(A<=B) private static function lte(lhs:UInt, rhs:UInt):Bool;
 
-	@:commutative @:op(A>B) private static function gtf(lhs:UInt, rhs:Float):Bool;
-	@:commutative @:op(A>=B) private static function gtef(lhs:UInt, rhs:Float):Bool;
-	@:commutative @:op(A<B) private static function ltf(lhs:UInt, rhs:Float):Bool;
-	@:commutative @:op(A<=B) private static function ltef(lhs:UInt, rhs:Float):Bool;
+	@:op(A>B) private static function gtf(lhs:UInt, rhs:Float):Bool;
+	@:op(A>B) private static function gtf(lhs:Float, rhs:UInt):Bool;
+	@:op(A>=B) private static function gtef(lhs:UInt, rhs:Float):Bool;
+	@:op(A>=B) private static function gtef(lhs:Float, rhs:UInt):Bool;
+	@:op(A<B) private static function ltf(lhs:UInt, rhs:Float):Bool;
+	@:op(A<B) private static function ltf(lhs:Float, rhs:UInt):Bool;
+	@:op(A<=B) private static function ltef(lhs:UInt, rhs:Float):Bool;
+	@:op(A<=B) private static function ltef(lhs:Float, rhs:UInt):Bool;
 
 	@:op(~A) private static function bneg(t:UInt):UInt;
 
@@ -83,7 +92,7 @@ abstract UInt to Int from Int
 }
 #else
 /**
-	The unsigned Int type is only defined for Flash9 and C#.
+	The unsigned Int type is only defined for Flash and C#.
 	Simulate it for other platforms.
 **/
 abstract UInt(Int) from Int to Int {
@@ -144,12 +153,12 @@ abstract UInt(Int) from Int to Int {
 		return a.toInt() << b;
 	}
 
-	@:op(A >> B) private static inline function shr(a:UInt, b:UInt):UInt {
-		return a.toInt() >> b.toInt();
+	@:op(A >> B) private static inline function shr(a:UInt, b:Int):UInt {
+		return a.toInt() >> b;
 	}
 
-	@:op(A >>> B) private static inline function ushr(a:UInt, b:UInt):UInt {
-		return a.toInt() >>> b.toInt();
+	@:op(A >>> B) private static inline function ushr(a:UInt, b:Int):UInt {
+		return a.toInt() >>> b;
 	}
 
 	@:op(A % B) private static inline function mod(a:UInt, b:UInt):UInt {
@@ -266,7 +275,7 @@ abstract UInt(Int) from Int to Int {
 		return this;
 	}
 
-	@:to private #if !js inline #end function toFloat():Float {
+	@:to private #if (!js || analyzer) inline #end function toFloat():Float {
 		var int = toInt();
 		if (int < 0) {
 			return 4294967296.0 + int;

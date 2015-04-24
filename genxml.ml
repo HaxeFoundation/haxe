@@ -425,7 +425,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (fst (MetaInfo.to_string m))
@@ -441,9 +441,17 @@ let generate_type com t =
 		p "\t";
 		print_meta f.cf_meta;
 		if stat then p "static ";
+		let name = try (match Meta.get Meta.RealPath f.cf_meta with
+				| (Meta.RealPath, [EConst( String s ), _], _) ->
+					s
+				| _ ->
+					raise Not_found)
+			with Not_found ->
+				f.cf_name
+		in
 		(match f.cf_kind with
 		| Var v ->
-			p "var %s" f.cf_name;
+			p "var %s" name;
 			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access true v.v_read) (access false v.v_write);
 			p " : %s" (stype f.cf_type);
 		| Method m ->
@@ -473,7 +481,7 @@ let generate_type com t =
 					assert false
 			) in
 			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
-			p "function %s%s(%s) : %s" f.cf_name tparams (String.concat ", " (List.map sparam params)) (stype ret);
+			p "function %s%s(%s) : %s" name tparams (String.concat ", " (List.map sparam params)) (stype ret);
 		);
 		p ";\n";
 		if Meta.has Meta.Overload f.cf_meta then List.iter (fun f -> print_field stat f) f.cf_overloads

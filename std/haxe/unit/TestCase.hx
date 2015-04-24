@@ -24,7 +24,7 @@ import haxe.PosInfos;
 
 @:keepSub
 @:publicFields
-class TestCase #if mt_build implements mt.Protect #end {
+class TestCase {
 	public var currentTest : TestStatus;
 
 	public function new( ) {

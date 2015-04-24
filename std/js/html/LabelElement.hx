@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,25 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLLabelElement.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** DOM Label objects inherit all of the properties and methods of DOM <a title="en/DOM/element" rel="internal" href="/api/js/html/Element">element</a>, and also expose the <a title="http://dev.w3.org/html5/spec/forms.html#htmllabelelement" class=" external" rel="external" href="http://dev.w3.org/html5/spec/forms.html#htmllabelelement" target="_blank">HTMLLabelElement</a>(or 
-<span><a rel="custom" href="https://developer.mozilla.org/en/HTML">HTML 4</a></span> <a class=" external" title="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-13691394" rel="external" href="http://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-13691394" target="_blank">HTMLLabelElement</a>) interface.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLLabelElement">MDN</a>. */
 @:native("HTMLLabelElement")
 extern class LabelElement extends Element
 {
-	/** The labeled control. */
-	var control(default,null) : Element;
-
-	/** The form owner of this label. */
 	var form(default,null) : FormElement;
-
-	/** The ID of the labeled control. Reflects the 
-
-<code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/label#attr-for">for</a></code>
- attribute. */
 	var htmlFor : String;
-
+	var control(default,null) : Element;
+	
 }

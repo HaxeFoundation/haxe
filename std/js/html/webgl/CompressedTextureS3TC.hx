@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
 package js.html.webgl;
 
-@:native("WebGLCompressedTextureS3TC")
-extern class CompressedTextureS3TC
-{
-	static inline var COMPRESSED_RGBA_S3TC_DXT1_EXT : Int = 0x83F1;
-
-	static inline var COMPRESSED_RGBA_S3TC_DXT3_EXT : Int = 0x83F2;
-
-	static inline var COMPRESSED_RGBA_S3TC_DXT5_EXT : Int = 0x83F3;
-
-	static inline var COMPRESSED_RGB_S3TC_DXT1_EXT : Int = 0x83F0;
-
-}
+/** @deprecated Use ExtensionCompressedTextureS3TC instead. */
+@:deprecated("CompressedTextureS3TC is deprecated, use ExtensionCompressedTextureS3TC instead")
+typedef CompressedTextureS3TC = ExtensionCompressedTextureS3TC;

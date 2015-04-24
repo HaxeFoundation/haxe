@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,47 +20,32 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/Notification.webidl line 16:0. Do not edit!
+
 package js.html;
 
-/** <div class="geckoMinversionHeaderTemplate"><p>Mobile Only in Gecko 2.0</p><p>Available only in Firefox Mobile as of Gecko 2.0 (Firefox 4 / Thunderbird 3.3 / SeaMonkey 2.1)
-</p></div>
-
-<div><p>Non-standard</p></div><p></p>
-<p>The notification object, which you create using the <code><a rel="custom" href="https://developer.mozilla.org/en/DOM/navigator.mozNotification">navigator.mozNotification</a></code>
-&nbsp;object's <code>createNotification()</code>&nbsp;method, is used to configure and display desktop notifications to the user.</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/notification">MDN</a>. */
 @:native("Notification")
 extern class Notification extends EventTarget
 {
-	var dir : String;
-
-	/** &nbsp;A function to call when the notification is clicked. */
-	var onclick : EventListener;
-
-	/** &nbsp;A function to call when the notification is dismissed. */
-	var onclose : EventListener;
-
-	var ondisplay : EventListener;
-
-	var onerror : EventListener;
-
-	var onshow : EventListener;
-
-	var permission(default,null) : String;
-
-	var replaceId : String;
-
-	var tag : String;
-
-	function new( title : String, options : Dynamic ) : Void;
-
-	function cancel() : Void;
-
+	static var permission(default,null) : NotificationPermission;
+	
+	/** @throws DOMError */
+	static function requestPermission( ?permissionCallback : NotificationPermission -> Void ) : Void;
+	/** @throws DOMError */
+	static function get( ?filter : GetNotificationOptions ) : Promise<Array<Notification>>;
+	var onclick : haxe.Constraints.Function;
+	var onshow : haxe.Constraints.Function;
+	var onerror : haxe.Constraints.Function;
+	var onclose : haxe.Constraints.Function;
+	var title(default,null) : String;
+	var dir(default,null) : NotificationDirection;
+	var lang(default,null) : String;
+	var body(default,null) : String;
+	var tag(default,null) : String;
+	var icon(default,null) : String;
+	var data(default,null) : Dynamic;
+	
+	/** @throws DOMError */
+	function new( title : String, ?options : NotificationOptions ) : Void;
 	function close() : Void;
-
-	static function requestPermission( callback_ : NotificationPermissionCallback ) : Void;
-
-	function show() : Void;
-
 }

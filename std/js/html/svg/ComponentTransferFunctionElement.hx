@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,36 +20,26 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGComponentTransferFunctionElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGComponentTransferFunctionElement")
 extern class ComponentTransferFunctionElement extends Element
 {
-	static inline var SVG_FECOMPONENTTRANSFER_TYPE_DISCRETE : Int = 3;
-
-	static inline var SVG_FECOMPONENTTRANSFER_TYPE_GAMMA : Int = 5;
-
-	static inline var SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY : Int = 1;
-
-	static inline var SVG_FECOMPONENTTRANSFER_TYPE_LINEAR : Int = 4;
-
-	static inline var SVG_FECOMPONENTTRANSFER_TYPE_TABLE : Int = 2;
-
 	static inline var SVG_FECOMPONENTTRANSFER_TYPE_UNKNOWN : Int = 0;
-
-	var amplitude(default,null) : AnimatedNumber;
-
-	var exponent(default,null) : AnimatedNumber;
-
-	var intercept(default,null) : AnimatedNumber;
-
-	var offset(default,null) : AnimatedNumber;
-
-	var slope(default,null) : AnimatedNumber;
-
-	var tableValues(default,null) : AnimatedNumberList;
-
+	static inline var SVG_FECOMPONENTTRANSFER_TYPE_IDENTITY : Int = 1;
+	static inline var SVG_FECOMPONENTTRANSFER_TYPE_TABLE : Int = 2;
+	static inline var SVG_FECOMPONENTTRANSFER_TYPE_DISCRETE : Int = 3;
+	static inline var SVG_FECOMPONENTTRANSFER_TYPE_LINEAR : Int = 4;
+	static inline var SVG_FECOMPONENTTRANSFER_TYPE_GAMMA : Int = 5;
+	
 	var type(default,null) : AnimatedEnumeration;
-
+	var tableValues(default,null) : AnimatedNumberList;
+	var slope(default,null) : AnimatedNumber;
+	var intercept(default,null) : AnimatedNumber;
+	var amplitude(default,null) : AnimatedNumber;
+	var exponent(default,null) : AnimatedNumber;
+	var offset(default,null) : AnimatedNumber;
+	
 }

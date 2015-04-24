@@ -142,7 +142,7 @@ class Web {
 		switch(r) {
 			case 100: code = "100 Continue";
 			case 101: code = "101 Switching Protocols";
-			case 200: code = "200 Continue";
+			case 200: code = "200 OK";
 			case 201: code = "201 Created";
 			case 202: code = "202 Accepted";
 			case 203: code = "203 Non-Authoritative Information";

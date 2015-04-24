@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,26 +20,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGPointList.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGPointList")
-extern class PointList
+extern class PointList implements ArrayAccess<Point>
 {
 	var numberOfItems(default,null) : Int;
-
-	function appendItem( item : Point ) : Point;
-
+	var length(default,null) : Int;
+	
+	/** @throws DOMError */
 	function clear() : Void;
-
+	/** @throws DOMError */
+	function initialize( newItem : Point ) : Point;
+	/** @throws DOMError */
 	function getItem( index : Int ) : Point;
-
-	function initialize( item : Point ) : Point;
-
-	function insertItemBefore( item : Point, index : Int ) : Point;
-
+	/** @throws DOMError */
+	function insertItemBefore( newItem : Point, index : Int ) : Point;
+	/** @throws DOMError */
+	function replaceItem( newItem : Point, index : Int ) : Point;
+	/** @throws DOMError */
 	function removeItem( index : Int ) : Point;
-
-	function replaceItem( item : Point, index : Int ) : Point;
-
+	/** @throws DOMError */
+	function appendItem( newItem : Point ) : Point;
 }

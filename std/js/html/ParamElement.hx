@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,24 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLParamElement.webidl line 16:0. Do not edit!
+
 package js.html;
 
-/** <strong>Parameter </strong>element which defines parameters for <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/object">&lt;object&gt;</a></code>
-.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/HTML/Element/param">MDN</a>. */
 @:native("HTMLParamElement")
 extern class ParamElement extends Element
 {
-	/** Name of the parameter. */
 	var name : String;
-
-	/** Only used if the <code>valuetype</code> is set to "ref". Specifies the type of values found at the URI specified by value. */
-	var type : String;
-
-	/** Value of the parameter. */
 	var value : String;
-
+	var type : String;
 	var valueType : String;
-
+	
 }

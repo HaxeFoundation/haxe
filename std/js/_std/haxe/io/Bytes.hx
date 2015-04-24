@@ -21,17 +21,22 @@
  */
 package haxe.io;
 import js.html.compat.Uint8Array;
+import js.html.compat.DataView;
 
 @:coreApi
 class Bytes {
 
 	public var length(default,null) : Int;
-	var b : BytesData;
+	var b : js.html.Uint8Array;
 	var data : js.html.DataView;
 
-	function new(length:Int,b:BytesData) {
-		this.length = length;
-		this.b = b;
+	function new(data:BytesData) {
+		this.length = data.byteLength;
+		this.b = new js.html.Uint8Array(data);
+		untyped {
+			data.hxBytes = this;
+			data.bytes = this.b;
+		}
 	}
 
 	public inline function get( pos : Int ) : Int {
@@ -57,7 +62,7 @@ class Bytes {
 
 	public function sub( pos : Int, len : Int ) : Bytes {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
-		return new Bytes(len,new BytesData(b.buffer.slice(pos+b.byteOffset,pos+b.byteOffset+len)));
+		return new Bytes(b.buffer.slice(pos+b.byteOffset,pos+b.byteOffset+len));
 	}
 
 	public function compare( other : Bytes ) : Int {
@@ -92,6 +97,35 @@ class Bytes {
 	public function setFloat( pos : Int, v : Float ) : Void {
 		initData();
 		data.setFloat32(pos, v, true);
+	}
+
+	public function getUInt16( pos : Int ) : Int {
+		initData();
+		return data.getUint16(pos, true);
+	}
+
+	public function setUInt16( pos : Int, v : Int ) : Void {
+		initData();
+		data.setUint16(pos, v, true);
+	}
+
+	public function getInt32( pos : Int ) : Int {
+		initData();
+		return data.getInt32(pos, true);
+	}
+
+	public function setInt32( pos : Int, v : Int ) : Void {
+		initData();
+		data.setInt32(pos, v, true);
+	}
+
+	public function getInt64( pos : Int ) : haxe.Int64 {
+		return Int64.make(getInt32(pos + 4),getInt32(pos));
+	}
+
+	public function setInt64( pos : Int, v : haxe.Int64 ) : Void {
+		setInt32(pos, v.low);
+		setInt32(pos + 4, v.high);
 	}
 
 	public function getString( pos : Int, len : Int ) : String {
@@ -149,11 +183,11 @@ class Bytes {
 	}
 
 	public inline function getData() : BytesData {
-		return b;
+		return b.buffer;
 	}
 
 	public static function alloc( length : Int ) : Bytes {
-		return new Bytes(length,new BytesData(length));
+		return new Bytes(new BytesData(length));
 	}
 
 	public static function ofString( s : String ) : Bytes {
@@ -181,15 +215,18 @@ class Bytes {
 				a.push( 0x80 | (c & 63) );
 			}
 		}
-		return new Bytes(a.length,new BytesData(a));
+		return new Bytes(new js.html.Uint8Array(a).buffer);
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
-		return new Bytes(b.length,b);
+		var hb = untyped b.hxBytes;
+		if( hb != null ) return hb;
+		return new Bytes(b);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
-		return b[pos];
+		// this requires that we have wrapped it with haxe.io.Bytes beforehand
+		return untyped b.bytes[pos];
 	}
 
 }

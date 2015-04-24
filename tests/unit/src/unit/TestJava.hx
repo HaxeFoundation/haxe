@@ -1,14 +1,18 @@
 package unit;
 import haxe.io.Bytes;
 import haxe.test.Base;
+import haxe.test.MyClass;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base___InnerClass3__;
 import haxe.test.Base.Base___InnerClass3___InnerClass4__;
 import haxe.test.TEnum;
+import haxe.test.LowerCaseClass;
 import java.util.EnumSet;
 import java.vm.*;
 
 #if java
+@:strict(haxe.test.MyClass.MyClass_MyAnnotation({ author:"John Doe", someEnum: TB }))
+@:strict(MyClass_ParameterLessAnnotation)
 class TestJava extends Test
 {
   function testException()
@@ -24,6 +28,80 @@ class TestJava extends Test
       hx.excTest()
     catch(e:Dynamic) throw e; //shouldn't throw any exception
   }
+
+	public function testIssue2964()
+	{
+		var cl = new MyClass();
+		var bbool:java.lang.Boolean = null;
+		eq(cl.boolTest1(bbool), 100);
+		eq(cl.boolTest1(true), true);
+		eq(cl.boolTest1(false), false);
+		bbool = true;
+		eq(cl.boolTest1(bbool), 1);
+		bbool = false;
+		eq(cl.boolTest1(bbool), 0);
+		eq(cl.boolTest2(null), 100);
+		eq(cl.boolTest2(true), 1);
+		eq(cl.boolTest2(false), 0);
+
+		var i:java.lang.Integer = null;
+		eq(cl.intTest1(i), 100);
+		eq(cl.intTest1(cast(-1, java.lang.Integer)),-1);
+		eq(cl.intTest1(cast(1000, java.lang.Integer)),1000);
+		i = -1;
+		eq(cl.intTest1(i), -1);
+		i = null;
+		eq(cl.intTest2(i), 100);
+		eq(cl.intTest2(-1),-1);
+		eq(cl.intTest2(1000),1000);
+		i = -1;
+		eq(cl.intTest2(i), -1);
+
+		var i:java.lang.Long = null;
+		eq(cl.longTest(i), 100);
+		eq(cl.longTest(haxe.Int64.ofInt(-1)),-1);
+		eq(cl.longTest(haxe.Int64.ofInt(1000)),1000);
+		i = 10;
+		eq(cl.longTest(i), 10);
+	}
+
+	public function testVarClash()
+	{
+		var ic = new Base_InnerClass2();
+		eq(ic.varNameClash2(), 1);
+		eq(ic.varNameClash2(2),2.2);
+		var iface:Base_VarNameClash = ic;
+		eq(iface.varNameClash2(), 1);
+		eq(iface.varNameClash2(2),2.2);
+		var base:Base = ic;
+		eq(base.varNameClash2,0);
+		base.varNameClash2 = 2;
+		eq(base.varNameClash2,2);
+	}
+
+	@:strict(MyClass_MyAnnotation({ author:"author", currentRevision: 2 }))
+	public function testAnnotations()
+	{
+		var cl = java.Lib.toNativeType(TestJava);
+		var a = cl.getAnnotation(java.Lib.toNativeType(MyClass_MyAnnotation));
+		t(a != null);
+		eq(a.author(), "John Doe");
+		eq(a.someEnum(), TB);
+		eq(a.currentRevision(), 1);
+		t(cl.getAnnotation(java.Lib.toNativeType(MyClass_ParameterLessAnnotation)) != null);
+		var m = cl.getMethod("testAnnotations", new java.NativeArray(0));
+		a = m.getAnnotation(java.Lib.toNativeType(MyClass_MyAnnotation));
+		t(a != null);
+		eq(a.author(), "author");
+		eq(a.someEnum(), TC);
+		eq(a.currentRevision(), 2);
+	}
+
+	function testLowerCase()
+	{
+		var l = new LowerCaseClass();
+		t(l.works);
+	}
 
 	function testNameCase()
 	{
@@ -100,10 +178,10 @@ class TestJava extends Test
 
 	function testNameClash()
 	{
-		eq(Base._nameClash(null), -1);
+		eq(Base.nameClash(null), -1);
 		eq(new Base().nameClash(), 1);
 		eq(new Base().varNameClash(1), 1);
-		eq(Base._varNameClash(10.4), 10.4);
+		eq(Base.varNameClash(10.4), 10.4);
 
 	}
 
@@ -112,7 +190,7 @@ class TestJava extends Test
 		var c = new TestMyClass();
 		c.normalOverload(true);
 		t(c.boolCalled);
-		c.normalOverload(10);
+		c.normalOverload(6161);
 		t(c.intCalled);
 		c.normalOverload(haxe.Int64.ofInt(0));
 		t(c.int64Called);

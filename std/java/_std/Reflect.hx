@@ -21,155 +21,113 @@
  */
 
 import java.internal.Function;
+import java.internal.HxObject;
+import java.internal.Runtime;
 import java.Boot;
 
 @:keep @:coreApi class Reflect {
 
-	@:functionCode('
-		if (o instanceof haxe.lang.IHxObject)
-		return ((haxe.lang.IHxObject) o).__hx_getField(field, false, true, false) != haxe.lang.Runtime.undefined;
-
-		return haxe.lang.Runtime.slowHasField(o, field);
-	')
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
-		return false;
+		if (Std.is(o, IHxObject)) {
+			return untyped (o : IHxObject).__hx_getField(field, false, true, false) != Runtime.undefined;
+		}
+		return Runtime.slowHasField(o, field);
 	}
 
-	@:functionCode('
-		if (o instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, false);
-
-		return haxe.lang.Runtime.slowGetField(o, field, false);
-	')
 	public static function field( o : Dynamic, field : String ) : Dynamic
 	{
-		return null;
+		if (Std.is(o, IHxObject)) {
+			return untyped (o : IHxObject).__hx_getField(field, false, false, false);
+		}
+		return Runtime.slowGetField(o, field, false);
 	}
 
-	@:functionCode('
-		if (o instanceof haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, value, false);
-		else
-			haxe.lang.Runtime.slowSetField(o, field, value);
-	')
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-
+		if (Std.is(o, IHxObject)) {
+			untyped (o : IHxObject).__hx_setField(field, value, false);
+		} else {
+			Runtime.slowSetField(o, field, value);
+		}
 	}
 
-	@:functionCode('
-		if (o instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true);
-
-		if (haxe.lang.Runtime.slowHasField(o, "get_" + field))
-			return haxe.lang.Runtime.slowCallField(o, "get_" + field, null);
-
-		return haxe.lang.Runtime.slowGetField(o, field, false);
-	')
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
-		return null;
+		if (Std.is(o, IHxObject)) {
+			return untyped (o : IHxObject).__hx_getField(field, false, false, true);
+		}
+		if (Runtime.slowHasField(o, "get_" + field)) {
+			return Runtime.slowCallField(o, "get_" + field, null);
+		}
+		return Runtime.slowGetField(o, field, false);
 	}
 
-	@:functionCode('
-		if (o instanceof haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, value, true);
-		else if (haxe.lang.Runtime.slowHasField(o, "set_" + field))
-			haxe.lang.Runtime.slowCallField(o, "set_" + field, new Array( new java.lang.Object[]{value} ));
-		else
-			haxe.lang.Runtime.slowSetField(o, field, value);
-	')
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-
+		if (Std.is(o, IHxObject)) {
+			untyped (o : IHxObject).__hx_setField(field, value, true);
+		} else if (Runtime.slowHasField(o, "set_" + field)) {
+			Runtime.slowCallField(o, "set_" + field, [value]);
+		} else {
+			Runtime.slowSetField(o, field, value);
+		}
 	}
 
-	@:functionCode('
-		return ((haxe.lang.Function) func).__hx_invokeDynamic(args);
-	')
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
-		return null;
+		return untyped (func : Function).__hx_invokeDynamic(args);
 	}
 
-	@:functionCode('
-		if (o instanceof haxe.lang.IHxObject)
-		{
-			Array<String> ret = new Array<String>();
-				((haxe.lang.IHxObject) o).__hx_getFields(ret);
-			return ret;
-		} else if (o instanceof java.lang.Class) {
-			return Type.getClassFields( (java.lang.Class) o);
-		} else {
-			return new Array<String>();
-		}
-	')
 	public static function fields( o : Dynamic ) : Array<String>
 	{
-		return null;
+		if (Std.is(o, IHxObject)) {
+			var ret:Array<String> = [];
+			untyped (o : IHxObject).__hx_getFields(ret);
+			return ret;
+		} else if (Std.is(o, java.lang.Class)) {
+			return Type.getClassFields(cast o);
+		} else {
+			return [];
+		}
 	}
 
-	@:functionCode('
-		return f instanceof haxe.lang.Function;
-	')
 	public static function isFunction( f : Dynamic ) : Bool
 	{
-		return false;
+		return Std.is(f, Function);
 	}
 
-	@:functionCode('
-		return haxe.lang.Runtime.compare(a, b);
-	')
 	public static function compare<T>( a : T, b : T ) : Int
 	{
-		return 0;
+		return Runtime.compare(a, b);
 	}
 
-	@:functionCode('
-		if (f1 == f2)
-			return true;
-
-		if (f1 instanceof haxe.lang.Closure && f2 instanceof haxe.lang.Closure)
-		{
-			haxe.lang.Closure f1c = (haxe.lang.Closure) f1;
-			haxe.lang.Closure f2c = (haxe.lang.Closure) f2;
-
-			return haxe.lang.Runtime.refEq(f1c.obj, f2c.obj) && f1c.field.equals(f2c.field);
-		}
-
-
-		return false;
-	')
+	@:access(java.internal.Closure)
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
 	{
+		if (f1 == f2) {
+			return true;
+		}
+		if (Std.is(f1, Closure) && Std.is(f2, Closure)) {
+			var f1c:Closure = cast f1;
+			var f2c:Closure = cast f2;
+			return Runtime.refEq(f1c.obj, f2c.obj) && f1c.field == f2c.field;
+		}
 		return false;
 	}
 
-	@:functionCode('
-		return v != null && !(v instanceof haxe.lang.Enum || v instanceof haxe.lang.Function || v instanceof java.lang.Enum || v instanceof java.lang.Number || v instanceof java.lang.Boolean);
-	')
 	public static function isObject( v : Dynamic ) : Bool
 	{
-		return false;
+		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, java.lang.Enum) || Std.is(v, java.lang.Number) || Std.is(v, java.lang.Boolean.BooleanClass));
 	}
 
-	@:functionCode('
-		return v != null && (v instanceof haxe.lang.Enum || v instanceof java.lang.Enum);
-	')
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return switch(Type.typeof(v)) {
-			case TEnum(_): true;
-			case _: false;
-		}
+		return v != null && (Std.is(v, HxEnum) || Std.is(v, java.lang.Enum));
 	}
 
-	@:functionCode('
-		return (o instanceof haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(field));
-	')
 	public static function deleteField( o : Dynamic, field : String ) : Bool
 	{
-		return false;
+		return (Std.is(o, DynamicObject) && (o : DynamicObject).__hx_deleteField(field));
 	}
 
 	public static function copy<T>( o : T ) : T

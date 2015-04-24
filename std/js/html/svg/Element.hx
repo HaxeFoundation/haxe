@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,24 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** All of the SVG DOM interfaces that correspond directly to elements in the SVG language derive from the <code>SVGElement</code> interface.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGElement">MDN</a>. */
 @:native("SVGElement")
-extern class Element extends js.html.Element
+extern class Element extends js.html.DOMElement
 {
-	/** The nearest ancestor <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/svg">&lt;svg&gt;</a></code>
- element. <code>Null</code> if the given element is the outermost svg element. */
 	var ownerSVGElement(default,null) : SVGElement;
-
-	/** The element which established the current viewport. Often, the nearest ancestor <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/svg">&lt;svg&gt;</a></code>
- element. <code>Null</code> if the given element is the outermost svg element. */
 	var viewportElement(default,null) : Element;
-
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/xml%3Abase" class="new">xml:base</a></code> on the given element. Setter throws DOMException. */
-	var xmlbase : String;
-
+	
 }

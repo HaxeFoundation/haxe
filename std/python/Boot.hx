@@ -1,3 +1,24 @@
+/*
+ * Copyright (C)2005-2012 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 package python;
 
 import python.internal.ArrayImpl;
@@ -7,113 +28,42 @@ import python.internal.EnumImpl;
 import python.internal.HxOverrides;
 import python.internal.HxException;
 import python.internal.AnonObject;
-import python.lib.Builtin;
+import python.internal.UBuiltins;
 import python.lib.Inspect;
-import python.lib.Set;
 
 import python.Syntax;
 
-typedef HxClassBase = {
-    _hx_class:Dynamic,
-    _hx_class_name:String
-}
-
-private typedef HxAbstract = {
-    >HxClassBase,
-}
-
-private typedef HxEnum = {
-    >HxClassBase,
-    _hx_constructs:Array<String>
-}
-
-private typedef HxClass = {
-    >HxClassBase,
-    _hx_fields:Array<String>,
-    _hx_props:Array<String>,
-    _hx_methods:Array<String>,
-    _hx_statics:Array<String>,
-    _hx_interfaces:Array<HxClassBase>,
-    _hx_super:HxClass
-}
-
-@:keep
-@:nativeGen
-@:native("_hx_ClassRegistry")
-private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
-    function _register(cls:HxClassBase, name:String):Void {
-        cls._hx_class = cls;
-        cls._hx_class_name = name;
-        set(name, cls);
-    }
-
-    function registerAbstract(name:String):HxAbstract->HxAbstract {
-        function wrapper(cls:HxAbstract):HxAbstract {
-            _register(cls, name);
-            return cls;
-        }
-        return wrapper;
-    }
-
-    function registerEnum(name:String, constructs:Array<String>):HxEnum->HxEnum {
-        function wrapper(cls:HxEnum):HxEnum {
-            _register(cls, name);
-            cls._hx_constructs = constructs;
-            return cls;
-        }
-        return wrapper;
-    }
-
-    function registerClass(name:String, ?fields:Array<String>, ?props:Array<String>, ?methods:Array<String>, ?statics:Array<String>, ?interfaces:Array<HxClassBase>, ?superClass:HxClass):HxClass->HxClass {
-        if (fields == null) fields = [];
-        if (props == null) props = [];
-        if (methods == null) methods = [];
-        if (statics == null) statics = [];
-        if (interfaces == null) interfaces = [];
-        function wrapper(cls:HxClass):HxClass {
-            _register(cls, name);
-            cls._hx_fields = fields;
-            cls._hx_props = props;
-            cls._hx_methods = methods;
-            cls._hx_statics = statics;
-            cls._hx_interfaces = interfaces;
-            if (superClass != null)
-                cls._hx_super = superClass;
-            return cls;
-        }
-        return wrapper;
-    }
-}
-
-@:preCode("_hx_classes = _hx_ClassRegistry()")
-@:keep class Boot {
+class Boot {
 
 	static var keywords:Set<String> = new Set(
 	[
-		"and",      "del",      "from",     "not",      "while",
-		"as",       "elif",     "global",   "or",       "with",
-		"assert",   "else",     "if",       "pass",     "yield",
-		"break",    "except",   "import",   "print",    "float",
-		"class",    "exec",     "in",       "raise",
-		"continue", "finally",  "is",       "return",
-		"def",      "for",      "lambda",   "try",
-		"None",     "list",     "True",     "False"
+		"and",      "del",      "from",     "not",      "with",
+		"as",       "elif",     "global",   "or",       "yield",
+		"assert",   "else",     "if",       "pass",     "None",
+		"break",    "except",   "import",   "raise",    "True",
+		"class",    "exec",     "in",       "return",   "False",
+		"continue", "finally",  "is",       "try",
+		"def",      "for",      "lambda",   "while",
 	]);
 
 	inline static function arrayJoin <T>(x:Array<T>, sep:String):String {
 		return Syntax.field(sep, "join")(Syntax.pythonCode("[{0}(x1,'') for x1 in {1}]", python.Boot.toString1, x));
 	}
 
+	inline static function safeJoin (x:Array<String>, sep:String):String {
+		return Syntax.field(sep, "join")(Syntax.pythonCode("[x1 for x1 in {0}]", x));
+	}
+
 	inline static function isPyBool(o:Dynamic):Bool {
-		return Builtin.isinstance(o, Builtin.bool);
+		return UBuiltins.isinstance(o, UBuiltins.bool);
 	}
 
 	inline static function isPyInt(o:Dynamic):Bool {
-		return Builtin.isinstance(o, Builtin.int);
+		return UBuiltins.isinstance(o, UBuiltins.int);
 	}
 
 	inline static function isPyFloat(o:Dynamic):Bool {
-		return Builtin.isinstance(o, Builtin.float);
+		return UBuiltins.isinstance(o, UBuiltins.float);
 	}
 
 	static inline function isClass(o:Dynamic) : Bool {
@@ -121,11 +71,14 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 	}
 
 	static inline function isAnonObject(o:Dynamic) {
-		return Builtin.isinstance(o, AnonObject);
+		return UBuiltins.isinstance(o, AnonObject);
 	}
 
-	private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic {
-		if (Builtin.isinstance(a, String) || Builtin.isinstance(b, String)) {
+	@:ifFeature("add_dynamic") private static function _add_dynamic(a:Dynamic,b:Dynamic):Dynamic {
+		if (UBuiltins.isinstance(a, String) && UBuiltins.isinstance(b, String)) {
+			return Syntax.binop(a, "+", b);
+		}
+		if (UBuiltins.isinstance(a, String) || UBuiltins.isinstance(b, String)) {
 			return Syntax.binop(toString1(a,""), "+", toString1(b,""));
 		}
 		return Syntax.binop(a, "+", b);
@@ -148,24 +101,25 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			if ((o:Bool)) return "true" else return "false";
 		}
 		if (isPyInt(o)) {
-			return Builtin.str(o);
+			return UBuiltins.str(o);
 		}
 		// 1.0 should be printed as 1
 		if (isPyFloat(o)) {
 			try {
-				if ( (o:Float) == Builtin.int(o)) {
-					return Builtin.str(Math.round(o));
+				if ( (o:Float) == UBuiltins.int(o)) {
+					return UBuiltins.str(Math.round(o));
 				} else {
-					return Builtin.str(o);
+					return UBuiltins.str(o);
 				}
 			} catch (e:Dynamic) {
-				return Builtin.str(o);
+				return UBuiltins.str(o);
 			}
 		}
 
 		if (isArray(o))
 		{
 			var o1:Array<Dynamic> = o;
+
 			var l = o1.length;
 
 			var st = "[";
@@ -182,14 +136,14 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 		}
 
 		try {
-			if (Builtin.hasattr(o, "toString"))
+			if (UBuiltins.hasattr(o, "toString"))
 				return Syntax.callField(o, "toString");
 		} catch (e:Dynamic) {
 		}
 
 		if (Inspect.isfunction(o) || Inspect.ismethod(o)) return "<function>";
 
-		if (Builtin.hasattr(o, "__class__"))
+		if (UBuiltins.hasattr(o, "__class__"))
 		{
 
 			if (isAnonObject(o))
@@ -198,8 +152,8 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 				try
 				{
 					var fields = fields(o);
-					var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
-					toStr = "{ " + arrayJoin(fieldsStr, ", ") + " }";
+					var fieldsStr = [for (f in fields) '$f : ${toString1(simpleField(o,f), s+"\t")}'];
+					toStr = "{ " + safeJoin(fieldsStr, ", ") + " }";
 				}
 				catch (e:Dynamic) {
 					return "{ ... }";
@@ -215,11 +169,11 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 				}
 
 			}
-			if (Builtin.isinstance(o, Enum)) {
+			if (UBuiltins.isinstance(o, Enum)) {
 
-				var o:EnumImpl = o;
+				var o:EnumImpl = (o:EnumImpl);
 
-				var l = Builtin.len(o.params);
+				var l = UBuiltins.len(o.params);
 				var hasParams = l > 0;
 				if (hasParams) {
 					var paramsStr = "";
@@ -239,14 +193,14 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 			if (Internal.hasClassName(o)) {
 				if (Syntax.field(Syntax.field(o, "__class__"), "__name__") != "type") {
 					var fields = getInstanceFields(o);
-					var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
+					var fieldsStr = [for (f in fields) '$f : ${toString1(simpleField(o,f), s+"\t")}'];
 
-					var toStr = Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
+					var toStr = (Internal.fieldClassName(o):String) + "( " + safeJoin(fieldsStr, ", ") + " )";
 					return toStr;
 				} else {
 					var fields = getClassFields(o);
-					var fieldsStr = [for (f in fields) '$f : ${toString1(field(o,f), s+"\t")}'];
-					var toStr = "#" + Internal.fieldClassName(o) + "( " + arrayJoin(fieldsStr, ", ") + " )";
+					var fieldsStr = [for (f in fields) '$f : ${toString1(simpleField(o,f), s+"\t")}'];
+					var toStr = "#" + (Internal.fieldClassName(o):String) + "( " + safeJoin(fieldsStr, ", ") + " )";
 					return toStr;
 				}
 			}
@@ -259,25 +213,25 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 				return "#Array";
 			}
 
-			if (Builtin.callable(o)) {
+			if (UBuiltins.callable(o)) {
 				return "function";
 			}
 			try {
-				if (Builtin.hasattr(o, "__repr__")) {
+				if (UBuiltins.hasattr(o, "__repr__")) {
 					return Syntax.callField(o, "__repr__");
 				}
 			} catch (e:Dynamic) {}
 
-			if (Builtin.hasattr(o, "__str__")) {
+			if (UBuiltins.hasattr(o, "__str__")) {
 				return Syntax.callField(o, "__str__", []);
 			}
 
-			if (Builtin.hasattr(o, "__name__")) {
+			if (UBuiltins.hasattr(o, "__name__")) {
 				return Syntax.field(o, "__name__");
 			}
 			return "???";
 		} else {
-			return Builtin.str(o);
+			return UBuiltins.str(o);
 		}
 	}
 
@@ -302,7 +256,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 				Syntax.pythonCode("for k in keys:");
 				Syntax.pythonCode("	a.append(handler(k))");
 			}
-			else if (Builtin.hasattr(o, "__dict__")) {
+			else if (UBuiltins.hasattr(o, "__dict__")) {
 				var a = [];
 				var d = Syntax.field(o, "__dict__");
 				var keys1  = Syntax.callField(d, "keys");
@@ -315,11 +269,18 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 	}
 
 	static inline function isString (o:Dynamic):Bool {
-		return Builtin.isinstance(o, Builtin.str);
+		return UBuiltins.isinstance(o, UBuiltins.str);
 	}
 
 	static inline function isArray (o:Dynamic):Bool {
-		return Builtin.isinstance(o, Builtin.list);
+		return UBuiltins.isinstance(o, UBuiltins.list);
+	}
+
+	static function simpleField( o : Dynamic, field : String ) : Dynamic {
+		if (field == null) return null;
+
+		var field = handleKeywords(field);
+		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
 
 	static function field( o : Dynamic, field : String ) : Dynamic {
@@ -361,29 +322,27 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 
 
 		var field = handleKeywords(field);
-		return if (Builtin.hasattr(o, field)) Builtin.getattr(o, field) else null;
+		return if (UBuiltins.hasattr(o, field)) UBuiltins.getattr(o, field) else null;
 	}
 
 
 	static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var f = if (Internal.hasFields(c)) {
-			var x:Array<String> = Internal.fieldFields(c);
-			var x2:Array<String> = Internal.fieldMethods(c);
-			x.concat(x2);
-		} else {
-			[];
-		}
+		var f = if (Internal.hasFields(c)) Internal.fieldFields(c) else [];
+		if (Internal.hasMethods(c))
+			f = f.concat(Internal.fieldMethods(c));
 
 		var sc = getSuperClass(c);
 
 		if (sc == null) {
 			return f;
 		} else {
+
 			var scArr = getInstanceFields(sc);
-			var scMap = [for (f in scArr) f => f];
+			var scMap = new Set(scArr);
+			//var scMap = [for (f in scArr) f => f];
 			var res = [];
 			for (f1 in f) {
-				if (!scMap.exists(f1)) {
+				if (!scMap.has(f1)) {
 					scArr.push(f1);
 				}
 			}
@@ -420,7 +379,7 @@ private class ClassRegistry extends python.lib.Dict<String, HxClassBase> {
 
 
 	static inline function unsafeFastCodeAt (s, index) {
-		return Builtin.ord(python.Syntax.arrayAccess(s, index));
+		return UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 	}
 
 	static inline function handleKeywords(name:String):String {

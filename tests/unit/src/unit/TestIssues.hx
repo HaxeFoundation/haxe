@@ -3,11 +3,17 @@ package unit;
 using StringTools;
 
 class TestIssues {
-	macro static public function addIssueClasses() {
-		var dir = sys.FileSystem.readDirectory("src/unit/issues");
+	macro static public function addIssueClasses(dir:String, pack:String) {
+		var dir = sys.FileSystem.readDirectory(dir);
 		var el = [];
 		function add(className:String) {
-			el.push(macro classes.push(new unit.issues.$className()));
+			var tp = {
+				pack: pack.split("."),
+				name: className,
+				sub: null,
+				params: null
+			}
+			el.push(macro classes.push(new $tp()));
 		}
 		for (file in dir) {
 			if (!file.endsWith(".hx")) {

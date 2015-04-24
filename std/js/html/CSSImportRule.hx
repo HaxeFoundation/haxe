@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from cssrule.webidl line 55:2. Do not edit!
+
 package js.html;
 
 @:native("CSSImportRule")
 extern class CSSImportRule extends CSSRule
 {
 	var href(default,null) : String;
-
 	var media(default,null) : MediaList;
-
 	var styleSheet(default,null) : CSSStyleSheet;
-
+	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from cssrule.webidl line 31:2. Do not edit!
+
 package js.html;
 
-/** An object representing a single CSS media rule.&nbsp;<code>CSSMediaRule</code>&nbsp;implements the&nbsp;<code><a href="https://developer.mozilla.org/en/DOM/CSSRule" rel="custom">CSSRule</a></code>&nbsp;interface.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/cssMediaRule">MDN</a>. */
 @:native("CSSMediaRule")
 extern class CSSMediaRule extends CSSRule
 {
-	/** Returns a <code><a title="en/DOM/CSSRuleList" rel="internal" href="https://developer.mozilla.org/en/DOM/CSSRuleList">CSSRuleList</a></code> of the CSS rules in the media rule. */
-	var cssRules(default,null) : CSSRuleList;
-
-	/** Specifies the intended destination medium for style information. */
 	var media(default,null) : MediaList;
-
-	function deleteRule( index : Int ) : Void;
-
+	var cssRules(default,null) : CSSRuleList;
+	
 	function insertRule( rule : String, index : Int ) : Int;
-
+	function deleteRule( index : Int ) : Void;
 }

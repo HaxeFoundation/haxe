@@ -69,8 +69,7 @@ class TestBytes extends Test {
 		unspec(function() bs.getString(1,5)); // the handling of \0 might vary
 		/**
 		 	HANDLING of 0x00 in string :
-				Flash8 : ignore
-				Flash9 : cut string
+				Flash : cut string
 				JS/FFOX, JS/IE7, Neko : ok (\0 displayed as ? on Firefox, string cut on IE7)
 				JS/IE6 : todo
 				JS/Safari : todo
@@ -96,21 +95,6 @@ class TestBytes extends Test {
 		exc(function() bs.sub(-1,3));
 		exc(function() bs.sub(1,-1));
 		exc(function() bs.sub(1,10));
-	}
-
-	function testBuffer() {
-		var out = new haxe.io.BytesBuffer();
-		eq( out.length, 0 );
-		out.add( haxe.io.Bytes.ofString("ABCDEF") );
-		for( i in 1...6 )
-			out.addByte(i);
-		out.addBytes( haxe.io.Bytes.ofString("ABCDEF"),1,3 );
-		eq( out.length, 14 );
-		var b = out.getBytes();
-		var str = "ABCDEF\x01\x02\x03\x04\x05BCD";
-		eq( b.length, str.length );
-		for( i in 0...str.length )
-			eq( b.get(i), str.charCodeAt(i) );
 	}
 
 	function testInput() {

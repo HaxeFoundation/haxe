@@ -7,8 +7,8 @@ class Issue3203 extends Test {
 		var i64 = I64(Int64.make(1,2));
 		switch (i64) {
 			case I64(x):
-				eq(x.getHigh(),1);
-				eq(x.getLow(),2);
+				eq(x.high,1);
+				eq(x.low,2);
 		}
 	}
 }

@@ -1,53 +1,32 @@
-
+/*
+ * Copyright (C)2005-2012 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 package python.lib;
 
-import python.lib.io.IOBase;
-import python.lib.io.RawIOBase;
-import python.lib.io.TextIOBase;
-import python.lib.Bytes;
-import python.lib.FileObject;
-import python.lib.Tuple.Tup2;
-
-extern interface Codec {
-	public function encode(input:Dynamic, ?errors:String = "strict"):Tup2<String, Int>;
-	public function decode(input:Dynamic, ?errors:String = "strict"):Tup2<Bytes, Int>;
-}
-
-extern interface StreamReader extends Codec {
-	public function read(?size:Int, ?chars:Int, ?firstline:Bool):String;
-	public function readline(?size:Int, ?keepsend:Bool = false):String;
-	public function readlines(?sizehint:Int, ?keepsend:Bool = false):Array<String>;
-	public function reset():Void;
-
-}
-
-extern interface StreamWriter extends Codec {
-	public function write(object:Dynamic):Void;
-	public function writelines(list:Array<String>):Void;
-	public function reset():Void;
-}
-
-extern class StreamReaderWriterText implements StreamReader implements StreamWriter  {
-	public function read(?size:Int, ?chars:Int, ?firstline:Bool):String;
-	public function readline(?size:Int, ?keepsend:Bool = false):String;
-	public function readlines(?sizehint:Int, ?keepsend:Bool = false):Array<String>;
-	public function reset():Void;
-
-	public function write(object:Dynamic):Void;
-	public function writelines(list:Array<String>):Void;
-
-	public function close():Void;
-
-	public function encode(input:Dynamic, ?errors:String = "strict"):Tup2<String, Int>;
-	public function decode(input:Dynamic, ?errors:String = "strict"):Tup2<Bytes, Int>;
-}
-
+import python.Bytes;
+import python.lib.codecs.StreamReaderWriter;
 
 @:pythonImport("codecs")
 extern class Codecs {
-
-	static function open(filename:String, mode:String, ?encoding:String, ?errors:String, ?buffering:Bool):StreamReaderWriterText;
+	static function open(filename:String, mode:String, ?encoding:String, ?errors:String, ?buffering:Bool):StreamReaderWriter;
 	static function encode(obj:String, ?encoding:String = "utf-8", errors:String = "strict"):Bytes;
 	static function decode(obj:Bytes, ?encoding:String = "utf-8", errors:String = "strict"):String;
-
 }

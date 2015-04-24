@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,15 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/XPathExpression.webidl line 7:0. Do not edit!
+
 package js.html;
 
-/** An XPathExpression is a compiled XPath query returned from <a rel="internal" href="https://developer.mozilla.org/en/DOM/document.createExpression" title="en/DOM/document.createExpression">document.createExpression()</a>. It has a method <code>evaluate()</code> which can be used to execute the compiled XPath.
-<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/XPathExpression">MDN</a>. */
 @:native("XPathExpression")
 extern class XPathExpression
 {
-	function evaluate( contextNode : Node, type : Int, inResult : XPathResult ) : XPathResult;
-
+	/** @throws DOMError */
+	function evaluate( contextNode : Node, type : Int, result : Dynamic ) : XPathResult;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGFEMergeElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The feMerge filter allows filter effects to be applied concurrently instead of sequentially. This is achieved by other filters storing their output via the 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/result" class="new">result</a></code> attribute and then accessing it in a <code><a rel="custom" href="/api/js/html/svg/FEMergeNodeElement">&lt;feMergeNode&gt;</a></code>
- child.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/feMerge">MDN</a>. */
 @:native("SVGFEMergeElement")
 extern class FEMergeElement extends Element
 {
+	var x(default,null) : AnimatedLength;
+	var y(default,null) : AnimatedLength;
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var result(default,null) : AnimatedString;
+	
 }

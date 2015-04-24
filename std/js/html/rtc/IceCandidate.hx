@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/RTCIceCandidate.webidl line 19:0. Do not edit!
+
 package js.html.rtc;
 
 @:native("RTCIceCandidate")
 extern class IceCandidate
 {
-	var candidate(default,null) : String;
-
-	var sdpMLineIndex(default,null) : Int;
-
-	var sdpMid(default,null) : String;
-
-	function new( dictionary : Dynamic ) : Void;
-
+	var candidate : String;
+	var sdpMid : String;
+	var sdpMLineIndex : Int;
+	
+	/** @throws DOMError */
+	function new( ?candidateInitDict : IceCandidateInit ) : Void;
 }

@@ -80,6 +80,8 @@ public class Base
 
 	public int varNameClash;
 
+	public int varNameClash2;
+
 	public static class InnerClass extends Base
 	{
 		private int privateField = 42;
@@ -100,6 +102,11 @@ public class Base
 			return oiface.someOverloadedMethod(42);
 		}
 
+		public int varNameClash2()
+		{
+			return 1;
+		}
+
 		public static class InnerInnerClass extends InnerClass2
 		{
 
@@ -111,8 +118,14 @@ public class Base
 			}
 		}
 	}
+	
+	public static interface VarNameClash
+	{
+		int varNameClash2();
+		double varNameClash2(int i);
+	}
 
-	public static class InnerClass2 extends InnerClass implements OverloadInterface1, OverloadInterface2
+	public static class InnerClass2 extends InnerClass implements OverloadInterface1, OverloadInterface2, VarNameClash
 	{
 		public void someOverloadedMethod(String a1)
 		{
@@ -122,6 +135,11 @@ public class Base
 		public int someOverloadedMethod(int a1)
 		{
 			return a1;
+		}
+
+		public double varNameClash2(int i)
+		{
+			return i * 1.1;
 		}
 	}
 

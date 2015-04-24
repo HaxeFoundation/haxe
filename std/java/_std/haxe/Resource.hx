@@ -29,7 +29,9 @@ package haxe;
 		return content.copy();
 	}
 
+	@:access(haxe.io.Path.escape)
 	public static function getString( name : String ) : String {
+		name = haxe.io.Path.escape(name, true);
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;
@@ -37,7 +39,9 @@ package haxe;
 		return stream.readAll().toString();
 	}
 
+	@:access(haxe.io.Path.escape)
 	public static function getBytes( name : String ) : haxe.io.Bytes {
+		name = haxe.io.Path.escape(name, true);
 		var stream = cast(Resource, java.lang.Class<Dynamic>).getResourceAsStream("/" + name);
 		if (stream == null)
 			return null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,43 +20,37 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLCanvasElement.webidl line 17:0. Do not edit!
+
 package js.html;
 
-/** DOM&nbsp;canvas elements expose the <code><a class="external" href="http://www.w3.org/TR/html5/the-canvas-element.html#htmlcanvaselement" rel="external nofollow" target="_blank" title="http://www.w3.org/TR/html5/the-canvas-element.html#htmlcanvaselement">HTMLCanvasElement</a></code> interface, which provides properties and methods for manipulating the layout and presentation of canvas elements. The <code>HTMLCanvasElement</code> interface inherits the properties and methods of the <code><a rel="custom" href="/api/js/html/Element">element</a></code>
- object interface.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLCanvasElement">MDN</a>. */
 @:native("HTMLCanvasElement")
 extern class CanvasElement extends Element
 {
-	/** Reflects the 
-
-<code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/canvas#attr-height">height</a></code>
- HTML attribute, specifying the height of the coordinate space in CSS pixels. */
-	var height : Int;
-
-	/** Reflects the 
-
-<code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/canvas#attr-width">width</a></code>
- HTML attribute, specifying the width of the coordinate space in CSS pixels. */
 	var width : Int;
-
-	function getContext( contextId : String ) : Dynamic;
-
-	function toDataURL( ?type : String ) : String;
-
-	/** A typed shortcut for <code>getContext("2d")</code>. */
-	public inline function getContext2d() : CanvasRenderingContext2D { return cast getContext("2d"); }
-
-	public inline function getContextWebGL( ?attribs :js.html.webgl.ContextAttributes ) :js.html.webgl.RenderingContext {
+	var height : Int;
+	
+	/** @throws DOMError */
+	function getContext( contextId : String, ?contextOptions : Dynamic ) : Dynamic/*MISSING nsISupports*/;
+	/** @throws DOMError */
+	function toDataURL( ?type : String = "", ?encoderOptions : Dynamic ) : String;
+	/** @throws DOMError */
+	function toBlob( callback : Blob -> Void, ?type : String = "", ?encoderOptions : Dynamic ) : Void;
+	
+	/** Shorthand for getting a CanvasRenderingContext2D. */
+	inline function getContext2d( ?attribs : {} ) : CanvasRenderingContext2D {
+		return cast getContext("2d", attribs);
+	}
+	/** Shorthand for getting a js.html.webgl.RenderingContext. */
+	inline function getContextWebGL( ?attribs : js.html.webgl.ContextAttributes ) : js.html.webgl.RenderingContext {
 		return CanvasUtil.getContextWebGL(this, attribs);
 	}
 }
 
 private class CanvasUtil {
-	public static function getContextWebGL( canvas :CanvasElement, attribs :Dynamic ) {
+	public static function getContextWebGL( canvas :CanvasElement, attribs :{} ) {
 		for (name in ["webgl", "experimental-webgl"]) {
-			var ctx = (untyped canvas).getContext(name, attribs);
+			var ctx = canvas.getContext(name, attribs);
 			if (ctx != null) return ctx;
 		}
 		return null;

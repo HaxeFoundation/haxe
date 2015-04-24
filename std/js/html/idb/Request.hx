@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,36 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/IDBRequest.webidl line 16:0. Do not edit!
+
 package js.html.idb;
 
-/** <p>The <code>IDBRequest</code> interface of the IndexedDB&nbsp;API provides access to results of asynchronous requests to databases and database objects using event handler attributes. Each reading and writing operation on a database is done using a request.</p>
-<p>The request object does not initially contain any information about the result of the operation, but once information becomes available, an event is fired on the request, and the information becomes available through the properties of the <code>IDBRequest</code> instance.</p>
-<p>Inherits from: <a title="en/DOM/EventTarget" rel="internal" href="/api/js/html/EventTarget">EventTarget</a></p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/IndexedDB/IDBRequest">MDN</a>. */
 @:native("IDBRequest")
 extern class Request extends js.html.EventTarget
 {
-	/** Getter throws DatabaseException. */
+	var result(default,null) : Dynamic;
 	var error(default,null) : js.html.DOMError;
-
-	/** Getter throws DatabaseException. */
-	var errorCode(default,null) : Int;
-
-	/** Getter throws DatabaseException. */
-	var errorMessage(default,null) : String;
-
-	var onerror : js.html.EventListener;
-
-	var onsuccess : js.html.EventListener;
-
-	var readyState(default,null) : String;
-
-	/** Getter throws DatabaseException. */
-	var result(default,null) : Any;
-
-	var source(default,null) : Any;
-
+	var source(default,null) : haxe.extern.EitherType<ObjectStore,haxe.extern.EitherType<Index,Cursor>>;
 	var transaction(default,null) : Transaction;
-
+	var readyState(default,null) : RequestReadyState;
+	var onsuccess : haxe.Constraints.Function;
+	var onerror : haxe.Constraints.Function;
+	
 }

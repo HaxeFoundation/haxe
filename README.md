@@ -1,7 +1,7 @@
 
 # [<img src="http://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](http://haxe.org) - [The Cross-Platform Toolkit](http://haxe.org)
 [![TravisCI Build Status](https://travis-ci.org/HaxeFoundation/haxe.svg?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/Simn/haxe)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
 [![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/HaxeFoundation/haxe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
@@ -13,6 +13,7 @@ Haxe is an open source toolkit that allows you to easily build cross-platform to
 
 Haxe allows you to compile for the following targets:
 
+ * ActionScript 3
  * C++
  * C#
  * Flash
@@ -20,6 +21,7 @@ Haxe allows you to compile for the following targets:
  * JavaScript
  * NekoVM
  * PHP
+ * Python
 
 You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
 
@@ -37,14 +39,14 @@ For the complete Haxe licenses, please see http://haxe.org/foundation/open-sourc
 
 ## Installing Haxe
 
-The latest stable release is [Haxe v3.1.3](http://haxe.org/download). Pre-built binaries are available for your platform:
+The latest stable release is [Haxe 3.2.0-rc1](http://haxe.org/download). Pre-built binaries are available for your platform:
 
- * **[Windows installer](http://haxe.org/file/haxe-3.1.3-win.exe)**
- * **[Windows binaries](http://haxe.org/file/haxe-3.1.3-win.zip)**
- * **[OSX installer](http://haxe.org/file/haxe-3.1.3-osx-installer.pkg)**
- * **[OSX binaries](http://haxe.org/file/haxe-3.1.3-osx.tar.gz)**
- * **[Linux 32-bit binaries](http://haxe.org/file/haxe-3.1.3-linux32.tar.gz)**
- * **[Linux 64-bit binaries](http://haxe.org/file/haxe-3.1.3-linux64.tar.gz)**
+ * **[Windows installer](http://haxe.org/download/file/3.2.0-rc.1/haxe-3.2.0-rc1-win.exe)**
+ * **[Windows binaries](http://haxe.org/download/file/3.2.0-rc.1/haxe-3.2.0-rc1-win.zip)**
+ * **[OSX installer](http://haxe.org/download/file/3.2.0-rc.1/haxe-3.2.0-rc1-osx-installer.pkg)**
+ * **[OSX binaries](http://haxe.org/download/file/3.2.0-rc.1/haxe-3.2.0-rc1-osx.tar.gz)**
+ * **[Linux 32-bit binaries](http://haxe.org/download/file/3.2.0-rc.1/haxe-3.2.0-rc1-linux32.tar.gz)**
+ * **[Linux 64-bit binaries](http://haxe.org/download/file/3.2.0-rc.1/haxe-3.2.0-rc1-linux64.tar.gz)**
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 

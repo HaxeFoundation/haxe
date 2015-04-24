@@ -47,12 +47,13 @@ and vobject = {
 }
 
 and vabstract =
+	| ADeallocated of int ref
 	| AKind of vabstract
 	| AHash of (value, value) Hashtbl.t
 	| ARandom of Random.State.t ref
 	| ABuffer of Buffer.t
 	| APos of Ast.pos
-	| AFRead of in_channel
+	| AFRead of (in_channel * bool ref)
 	| AFWrite of out_channel
 	| AReg of regexp
 	| AZipI of zlib
@@ -66,6 +67,8 @@ and vabstract =
 	| ANekoBuffer of value
 	| ACacheRef of value
 	| AInt32Kind
+	| ATls of value ref
+	| AProcess of Process.process
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -103,6 +106,7 @@ type extern_api = {
 	on_type_not_found : (string -> value) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	type_expr : Ast.expr -> Type.texpr;
+	store_typed_expr : Type.texpr -> Ast.expr;
 	get_display : string -> string;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -110,7 +114,7 @@ type extern_api = {
 	set_js_generator : (value -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
-	get_constructor_arguments : unit -> Ast.expr list option;
+	get_call_arguments : unit -> Ast.expr list option;
 	get_local_method : unit -> string;
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
@@ -1049,6 +1053,11 @@ let builtins =
 (* ---------------------------------------------------------------------- *)
 (* STD LIBRARY *)
 
+let free_abstract a =
+	match a with
+	| VAbstract vp -> Obj.set_tag (Obj.repr vp) 0 (* this will mute it as Deallocated *)
+	| _ -> assert false
+
 let std_lib =
 	let p = { psource = "<stdlib>"; pline = 0 } in
 	let error() =
@@ -1417,8 +1426,8 @@ let std_lib =
 			| VString f, VString r ->
 				let perms = 0o666 in
 				VAbstract (match r with
-					| "r" -> AFRead (open_in_gen [Open_rdonly] 0 f)
-					| "rb" -> AFRead (open_in_gen [Open_rdonly;Open_binary] 0 f)
+					| "r" -> AFRead (open_in_gen [Open_rdonly] 0 f,ref false)
+					| "rb" -> AFRead (open_in_gen [Open_rdonly;Open_binary] 0 f,ref false)
 					| "w" -> AFWrite (open_out_gen [Open_wronly;Open_creat;Open_trunc] perms f)
 					| "wb" -> AFWrite (open_out_gen [Open_wronly;Open_creat;Open_trunc;Open_binary] perms f)
 					| "a" -> AFWrite (open_out_gen [Open_append] perms f)
@@ -1426,10 +1435,10 @@ let std_lib =
 					| _ -> error())
 			| _ -> error()
 		);
-		"file_close", Fun1 (fun f ->
-			(match f with
-			| VAbstract (AFRead f) -> close_in f
-			| VAbstract (AFWrite f) -> close_out f
+		"file_close", Fun1 (fun vf ->
+			(match vf with
+			| VAbstract (AFRead (f,_)) -> close_in f; free_abstract vf;
+			| VAbstract (AFWrite f) -> close_out f; free_abstract vf;
 			| _ -> error());
 			VNull
 		);
@@ -1441,9 +1450,12 @@ let std_lib =
 		);
 		"file_read", Fun4 (fun f s p l ->
 			match f, s, p, l with
-			| VAbstract (AFRead f), VString s, VInt p, VInt l ->
+			| VAbstract (AFRead (f,r)), VString s, VInt p, VInt l ->
 				let n = input f s p l in
-				if n = 0 then exc (VArray [|VString "file_read"|]);
+				if n = 0 then begin
+					r := true;
+					exc (VArray [|VString "file_read"|]);
+				end;
 				VInt n
 			| _ -> error()
 		);
@@ -1454,34 +1466,30 @@ let std_lib =
 		);
 		"file_read_char", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) -> VInt (int_of_char (try input_char f with _ -> exc (VArray [|VString "file_read_char"|])))
+			| VAbstract (AFRead (f,r)) -> VInt (int_of_char (try input_char f with _ -> r := true; exc (VArray [|VString "file_read_char"|])))
 			| _ -> error()
 		);
 		"file_seek", Fun3 (fun f pos mode ->
 			match f, pos, mode with
-			| VAbstract (AFRead f), VInt pos, VInt mode ->
-				seek_in f (match mode with 0 -> pos | 1 -> pos_in f + pos | 2 -> in_channel_length f - pos | _ -> error());
+			| VAbstract (AFRead (f,r)), VInt pos, VInt mode ->
+				r := false;
+				seek_in f (match mode with 0 -> pos | 1 -> pos_in f + pos | 2 -> in_channel_length f + pos | _ -> error());
 				VNull;
 			| VAbstract (AFWrite f), VInt pos, VInt mode ->
-				seek_out f (match mode with 0 -> pos | 1 -> pos_out f + pos | 2 -> out_channel_length f - pos | _ -> error());
+				seek_out f (match mode with 0 -> pos | 1 -> pos_out f + pos | 2 -> out_channel_length f + pos | _ -> error());
 				VNull;
 			| _ -> error()
 		);
 		"file_tell", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) -> VInt (pos_in f)
+			| VAbstract (AFRead (f,_)) -> VInt (pos_in f)
 			| VAbstract (AFWrite f) -> VInt (pos_out f)
 			| _ -> error()
 		);
 		"file_eof", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) ->
-				VBool (try
-					ignore(input_char f);
-					seek_in f (pos_in f - 1);
-					false
-				with End_of_file ->
-					true)
+			| VAbstract (AFRead (f,r)) ->
+				VBool !r
 			| _ -> error()
 		);
 		"file_flush", Fun1 (fun f ->
@@ -1495,7 +1503,7 @@ let std_lib =
 			| VString f -> VString (Std.input_file ~bin:true f)
 			| _ -> error()
 		);
-		"file_stdin", Fun0 (fun() -> VAbstract (AFRead Pervasives.stdin));
+		"file_stdin", Fun0 (fun() -> VAbstract (AFRead (Pervasives.stdin, ref false)));
 		"file_stdout", Fun0 (fun() -> VAbstract (AFWrite Pervasives.stdout));
 		"file_stderr", Fun0 (fun() -> VAbstract (AFWrite Pervasives.stderr));
 	(* serialize *)
@@ -1507,9 +1515,9 @@ let std_lib =
 			| VBool b -> VAbstract (ASocket (Unix.socket PF_INET (if b then SOCK_DGRAM else SOCK_STREAM) 0));
 			| _ -> error()
 		);
-		"socket_close", Fun1 (fun s ->
-			match s with
-			| VAbstract (ASocket s) -> Unix.close s; VNull
+		"socket_close", Fun1 (fun vs ->
+			match vs with
+			| VAbstract (ASocket s) -> Unix.close s; free_abstract vs; VNull
 			| _ -> error()
 		);
 		"socket_send_char", Fun2 (fun s c ->
@@ -1813,6 +1821,65 @@ let std_lib =
 		"utf8_compare", Fun2 (fun s1 s2 ->
 			VInt (UTF8.compare (vstring s1) (vstring s2))
 		);
+	(* thread *)
+		"thread_create", Fun2 (fun f p ->
+			exc (VString "Can't create thread from within a macro");
+		);
+		"tls_create", Fun0 (fun() ->
+			VAbstract (ATls (ref VNull))
+		);
+		"tls_get", Fun1 (fun t ->
+			match t with
+			| VAbstract (ATls r) -> !r
+			| _ -> error();
+		);
+		"tls_set", Fun2 (fun t v ->
+			match t with
+			| VAbstract (ATls r) -> r := v; VNull
+			| _ -> error();
+		);
+		(* lock, mutex, deque : not implemented *)
+	(* process *)
+		"process_run", (Fun2 (fun p args ->
+			match p, args with
+			| VString p, VArray args -> VAbstract (AProcess (Process.run p (Array.map vstring args)))
+			| _ -> error()
+		));
+		"process_stdout_read", (Fun4 (fun p str pos len ->
+			match p, str, pos, len with
+			| VAbstract (AProcess p), VString str, VInt pos, VInt len -> VInt (Process.read_stdout p str pos len)
+			| _ -> error()
+		));
+		"process_stderr_read", (Fun4 (fun p str pos len ->
+			match p, str, pos, len with
+			| VAbstract (AProcess p), VString str, VInt pos, VInt len -> VInt (Process.read_stderr p str pos len)
+			| _ -> error()
+		));
+		"process_stdin_write", (Fun4 (fun p str pos len ->
+			match p, str, pos, len with
+			| VAbstract (AProcess p), VString str, VInt pos, VInt len -> VInt (Process.write_stdin p str pos len)
+			| _ -> error()
+		));
+		"process_stdin_close", (Fun1 (fun p ->
+			match p with
+			| VAbstract (AProcess p) -> Process.close_stdin p; VNull
+			| _ -> error()
+		));
+		"process_exit", (Fun1 (fun p ->
+			match p with
+			| VAbstract (AProcess p) -> VInt (Process.exit p)
+			| _ -> error()
+		));
+		"process_pid", (Fun1 (fun p ->
+			match p with
+			| VAbstract (AProcess p) -> VInt (Process.pid p)
+			| _ -> error()
+		));
+		"process_close", (Fun1 (fun vp ->
+			match vp with
+			| VAbstract (AProcess p) -> Process.close p; free_abstract vp; VNull
+			| _ -> error()
+		));
 	(* xml *)
 		"parse_xml", (match neko with
 		| None -> Fun2 (fun str o ->
@@ -1852,30 +1919,14 @@ let std_lib =
 			let parse_xml = neko.load "std@parse_xml" 2 in
 			Fun2 (fun str o -> neko.call parse_xml [str;o])
 		);
-	(* memory, module, thread : not planned *)
+	(* memory, module : not planned *)
 	]
 	(* process *)
 	@ (match neko with
 	| None -> []
 	| Some neko ->
-		let p_run = neko.load "std@process_run" 2 in
-		let p_stdout_read = neko.load "std@process_stdout_read" 4 in
-		let p_stderr_read = neko.load "std@process_stderr_read" 4 in
-		let p_stdin_write = neko.load "std@process_stdin_write" 4 in
-		let p_stdin_close = neko.load "std@process_stdin_close" 1 in
-		let p_exit = neko.load "std@process_exit" 1 in
-		let p_pid = neko.load "std@process_pid" 1 in
-		let p_close = neko.load "std@process_close" 1 in
 		let win_ec = (try Some (neko.load "std@win_env_changed" 0) with _ -> None) in
 	[
-		"process_run", (Fun2 (fun a b -> neko.call p_run [a;b]));
-		"process_stdout_read", (Fun4 (fun a b c d -> neko.call p_stdout_read [a;VAbstract (ANekoBuffer b);c;d]));
-		"process_stderr_read", (Fun4 (fun a b c d -> neko.call p_stderr_read [a;VAbstract (ANekoBuffer b);c;d]));
-		"process_stdin_write", (Fun4 (fun a b c d -> neko.call p_stdin_write [a;b;c;d]));
-		"process_stdin_close", (Fun1 (fun p -> neko.call p_stdin_close [p]));
-		"process_exit", (Fun1 (fun p -> neko.call p_exit [p]));
-		"process_pid", (Fun1 (fun p -> neko.call p_pid [p]));
-		"process_close", (Fun1 (fun p -> neko.call p_close [p]));
 		"win_env_changed", (Fun0 (fun() -> match win_ec with None -> error() | Some f -> neko.call f []));
 	]))
 
@@ -2019,14 +2070,14 @@ let z_lib =
 			let z = Extc.zlib_deflate_init (match f with VInt i -> i | _ -> error()) in
 			VAbstract (AZipD { z = z; z_flush = Extc.Z_NO_FLUSH })
 		);
-		"deflate_end", Fun1 (fun z ->
-			match z with
-			| VAbstract (AZipD z) -> Extc.zlib_deflate_end z.z; VNull;
+		"deflate_end", Fun1 (fun vz ->
+			match vz with
+			| VAbstract (AZipD z) -> Extc.zlib_deflate_end z.z; free_abstract vz; VNull;
 			| _ -> error()
 		);
-		"inflate_end", Fun1 (fun z ->
-			match z with
-			| VAbstract (AZipI z) -> Extc.zlib_inflate_end z.z; VNull;
+		"inflate_end", Fun1 (fun vz ->
+			match vz with
+			| VAbstract (AZipI z) -> Extc.zlib_inflate_end z.z; free_abstract vz; VNull;
 			| _ -> error()
 		);
 		"set_flush_mode", Fun2 (fun z f ->
@@ -2360,7 +2411,7 @@ let macro_lib =
 			VString (Type.s_type (print_context()) (decode_type v))
 		);
 		"s_expr", Fun2 (fun v b ->
-			let f = match b with VBool true -> Type.s_expr_pretty "" | _ -> Type.s_expr in
+			let f = match b with VBool true -> Type.s_expr_pretty "" | _ -> Type.s_expr_ast true "" in
 			VString (f (Type.s_type (print_context())) (decode_texpr v))
 		);
 		"is_fmt_string", Fun1 (fun v ->
@@ -2459,8 +2510,8 @@ let macro_lib =
 			| None -> VNull
 			| Some t -> encode_type t
 		);
-		"constructor_arguments", Fun0 (fun() ->
-			match (get_ctx()).curapi.get_constructor_arguments() with
+		"call_arguments", Fun0 (fun() ->
+			match (get_ctx()).curapi.get_call_arguments() with
 			| None -> VNull
 			| Some el -> enc_array (List.map encode_expr el)
 		);
@@ -2576,6 +2627,10 @@ let macro_lib =
 		"get_typed_expr", Fun1 (fun e ->
 			let e = decode_texpr e in
 			encode_expr (make_ast e)
+		);
+		"store_typed_expr", Fun1 (fun e ->
+			let e = try decode_texpr e with Invalid_expr -> error() in
+			encode_expr ((get_ctx()).curapi.store_typed_expr e)
 		);
 		"get_output", Fun0 (fun() ->
 			VString (ccom()).file
@@ -3522,8 +3577,9 @@ let create com api =
 
 
 
-let do_reuse ctx =
-	ctx.is_reused <- false
+let do_reuse ctx api =
+	ctx.is_reused <- false;
+	ctx.curapi <- api
 
 let can_reuse ctx types =
 	let has_old_version t =
@@ -4384,7 +4440,7 @@ and encode_class_kind k =
 	enc_enum IClassKind tag pl
 
 and encode_tclass c =
-	c.cl_build();
+	ignore(c.cl_build());
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", VBool c.cl_extern;
@@ -4547,6 +4603,7 @@ and encode_tvar v =
 		"capture", VBool v.v_capture;
 		"extra", vopt f_extra v.v_extra;
 		"meta", encode_meta_content v.v_meta;
+		"$", VAbstract (AUnsafe (Obj.repr v));
 	]
 
 and encode_module_type mt =
@@ -4656,17 +4713,9 @@ let decode_type_params v =
 	List.map (fun v -> dec_string (field v "name"),decode_type (field v "t")) (dec_array v)
 
 let decode_tvar v =
-	let f_extra v =
-		decode_type_params (field v "params"),opt decode_texpr (field v "expr")
-	in
-	{
-		v_id = (match (field v "id") with VInt i -> i | _ -> raise Invalid_expr);
-		v_name = dec_string (field v "name");
-		v_type = decode_type (field v "t");
-		v_capture = dec_bool (field v "capture");
-		v_extra = opt f_extra (field v "extra");
-		v_meta = decode_meta_content (field v "meta")
-	}
+	match field v "$" with
+	| VAbstract (AUnsafe t) -> Obj.obj t
+	| _ -> raise Invalid_expr
 
 let decode_var_access v =
 	match decode_enum v with

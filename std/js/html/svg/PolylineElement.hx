@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGPolylineElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>polyline</code> element is an SVG basic shape, used to create a series of straight lines connecting several points. Typically a <code>polyline</code> is used to create open shapes<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/polyline">MDN</a>. */
 @:native("SVGPolylineElement")
-extern class PolylineElement extends Element
+extern class PolylineElement extends GraphicsElement
 {
-	var animatedPoints(default,null) : PointList;
-
 	var points(default,null) : PointList;
-
+	var animatedPoints(default,null) : PointList;
+	
 }

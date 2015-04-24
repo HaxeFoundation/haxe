@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLDataListElement.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** DOM Datalist objects expose the <a class=" external" title="http://www.whatwg.org/specs/web-apps/current-work/multipage/the-button-element.html#the-datalist-element" rel="external" href="http://www.whatwg.org/specs/web-apps/current-work/multipage/the-button-element.html#the-datalist-element" target="_blank">HTMLDataListElement</a> interface, which provides special properties (beyond the <a href="/api/js/html/Element" rel="internal">element</a> object interface they also have available to them by inheritance) to manipulate <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/datalist">&lt;datalist&gt;</a></code>
- elements and their content.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/HTMLDataListElement">MDN</a>. */
 @:native("HTMLDataListElement")
 extern class DataListElement extends Element
 {
-	/** A collection of the contained option elements. */
 	var options(default,null) : HTMLCollection;
-
+	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,17 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/HTMLMapElement.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** The HTML <em>Map</em> element (<code>&lt;map&gt;</code>) is used with <code><a rel="custom" href="https://developer.mozilla.org/en/HTML/Element/area">&lt;area&gt;</a></code>
- elements to define a image map.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/HTML/Element/map">MDN</a>. */
 @:native("HTMLMapElement")
 extern class MapElement extends Element
 {
-	var areas(default,null) : HTMLCollection;
-
 	var name : String;
-
+	var areas(default,null) : HTMLCollection;
+	
 }

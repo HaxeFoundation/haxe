@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,46 +20,31 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGMarkerElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>marker</code> element defines the graphics that is to be used for drawing arrowheads or polymarkers on a given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/path">&lt;path&gt;</a></code>
-, <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/line">&lt;line&gt;</a></code>
-, <code><a rel="custom" href="/api/js/html/svg/PolylineElement">&lt;polyline&gt;</a></code>
- or <code><a rel="custom" href="/api/js/html/svg/PolygonElement">&lt;polygon&gt;</a></code>
- element.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/SVG/Element/marker">MDN</a>. */
 @:native("SVGMarkerElement")
 extern class MarkerElement extends Element
 {
-	static inline var SVG_MARKERUNITS_STROKEWIDTH : Int = 2;
-
 	static inline var SVG_MARKERUNITS_UNKNOWN : Int = 0;
-
 	static inline var SVG_MARKERUNITS_USERSPACEONUSE : Int = 1;
-
-	static inline var SVG_MARKER_ORIENT_ANGLE : Int = 2;
-
-	static inline var SVG_MARKER_ORIENT_AUTO : Int = 1;
-
+	static inline var SVG_MARKERUNITS_STROKEWIDTH : Int = 2;
 	static inline var SVG_MARKER_ORIENT_UNKNOWN : Int = 0;
-
-	var markerHeight(default,null) : AnimatedLength;
-
-	var markerUnits(default,null) : AnimatedEnumeration;
-
-	var markerWidth(default,null) : AnimatedLength;
-
-	var orientAngle(default,null) : AnimatedAngle;
-
-	var orientType(default,null) : AnimatedEnumeration;
-
+	static inline var SVG_MARKER_ORIENT_AUTO : Int = 1;
+	static inline var SVG_MARKER_ORIENT_ANGLE : Int = 2;
+	
 	var refX(default,null) : AnimatedLength;
-
 	var refY(default,null) : AnimatedLength;
-
-	function setOrientToAngle( angle : Angle ) : Void;
-
+	var markerUnits(default,null) : AnimatedEnumeration;
+	var markerWidth(default,null) : AnimatedLength;
+	var markerHeight(default,null) : AnimatedLength;
+	var orientType(default,null) : AnimatedEnumeration;
+	var orientAngle(default,null) : AnimatedAngle;
+	var viewBox(default,null) : AnimatedRect;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
+	
 	function setOrientToAuto() : Void;
-
+	/** @throws DOMError */
+	function setOrientToAngle( angle : Angle ) : Void;
 }

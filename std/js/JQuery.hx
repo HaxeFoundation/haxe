@@ -21,7 +21,7 @@
  */
 package js;
 
-import js.html.DOMWindow;
+import js.html.Window;
 import js.html.Element;
 
 typedef JqEvent = {
@@ -64,17 +64,17 @@ typedef JqEvent = {
 
 extern class JQueryHelper {
 	@:overload(function(j:JQuery):JQuery{})
-	@:overload(function(j:DOMWindow):JQuery{})
+	@:overload(function(j:Window):JQuery{})
 	@:overload(function(j:Element):JQuery { } )
 
-	public static inline function J( html : haxe.EitherType<String,haxe.EitherType<JQuery,haxe.EitherType<DOMWindow,Element>>> ) : JQuery {
+	public static inline function J( html : haxe.extern.EitherType<String,haxe.extern.EitherType<JQuery,haxe.extern.EitherType<Window,Element>>> ) : JQuery {
         return new JQuery(cast html);
     }
 
 	public static var JTHIS(get, null) : JQuery;
 
 	static inline function get_JTHIS() : JQuery {
-		return untyped __js__("$(this)");
+		return new JQuery(js.Lib.nativeThis);
 	}
 
 }
@@ -85,8 +85,9 @@ extern class JQuery implements ArrayAccess<Element> {
 	var context(default,null) : Element;
 	var length(default, null) : Int;
 
+	@:selfCall
 	@:overload(function(j:JQuery):Void{})
-	@:overload(function(j:DOMWindow):Void{})
+	@:overload(function(j:Window):Void{})
 	@:overload(function(j:Element):Void{})
 	function new( html : String ) : Void;
 
@@ -391,7 +392,7 @@ extern class JQuery implements ArrayAccess<Element> {
 	//static function is*, makeArray, map, merge, noop, now, param, proxy, sub, trim, type, unique
 
 	private static inline function get_cur() : JQuery {
-		return untyped js.JQuery(__js__("this"));
+		return new js.JQuery(js.Lib.nativeThis);
 	}
 
 	private static function __init__() : Void untyped {

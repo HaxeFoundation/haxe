@@ -26,7 +26,7 @@ LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
 	libs/extc/extc libs/neko/neko libs/javalib/java libs/ziplib/zip \
 	libs/ttflib/ttf libs/ilib/il libs/objsize/objsize
 
-NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz -cclib libs/objsize/c_objsize.o
+NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib libs/extc/process_stubs.o -cclib -lz -cclib libs/objsize/c_objsize.o
 
 ifeq ($(BYTECODE),1)
 	TARGET_FLAG = bytecode
@@ -48,7 +48,7 @@ CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(CFLAGS) -c parser.ml
 RELDIR=../../..
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
-	codegen gencommon genas3 gencpp genjs genneko genphp genswf8 \
+	codegen gencommon genas3 gencpp genjs genneko genphp \
 	genswf9 genswf genjava gencs genpy interp dce analyzer filters typer matcher version main
 
 ADD_REVISION=0
@@ -120,7 +120,7 @@ analyzer.$(MODULE_EXT): ast.$(MODULE_EXT) type.$(MODULE_EXT) common.$(MODULE_EXT
 
 codegen.$(MODULE_EXT): optimizer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) genxml.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-common.$(MODULE_EXT): type.$(MODULE_EXT) ast.$(MODULE_EXT)
+common.$(MODULE_EXT): type.$(MODULE_EXT) ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
 dce.$(MODULE_EXT): ast.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) type.$(MODULE_EXT)
 
@@ -128,11 +128,11 @@ filters.$(MODULE_EXT): ast.$(MODULE_EXT) analyzer.$(MODULE_EXT) common.$(MODULE_
 
 genas3.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-gencommon.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+gencommon.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
-gencpp.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+gencpp.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) gencommon.$(MODULE_EXT)
 
-gencs.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) gencommon.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+gencs.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) gencommon.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
 genjava.$(MODULE_EXT): type.$(MODULE_EXT) gencommon.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
@@ -144,19 +144,17 @@ genphp.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT
 
 genpy.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genswf.$(MODULE_EXT): type.$(MODULE_EXT) genswf9.$(MODULE_EXT) genswf8.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
+genswf.$(MODULE_EXT): type.$(MODULE_EXT) genswf9.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-genswf8.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
-
-genswf9.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) genswf8.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
+genswf9.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT)
 
 genxml.$(MODULE_EXT): type.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-interp.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) lexer.$(MODULE_EXT) genneko.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) genswf.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) parser.$(MODULE_EXT)
+interp.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) lexer.$(MODULE_EXT) genneko.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) genswf.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) parser.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
 matcher.$(MODULE_EXT): optimizer.$(MODULE_EXT) codegen.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) typer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-main.$(MODULE_EXT): filters.$(MODULE_EXT) matcher.$(MODULE_EXT) typer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genxml.$(MODULE_EXT) genswf.$(MODULE_EXT) genphp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) gencpp.$(MODULE_EXT) genas3.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) gencommon.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) genpy.$(MODULE_EXT) version.$(MODULE_EXT)
+main.$(MODULE_EXT): filters.$(MODULE_EXT) matcher.$(MODULE_EXT) typer.$(MODULE_EXT) typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genxml.$(MODULE_EXT) genswf.$(MODULE_EXT) genphp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) gencpp.$(MODULE_EXT) genas3.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) gencommon.$(MODULE_EXT) genjava.$(MODULE_EXT) gencs.$(MODULE_EXT) genpy.$(MODULE_EXT) version.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
 optimizer.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
@@ -169,7 +167,7 @@ typecore.$(MODULE_EXT): type.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT
 
 typeload.$(MODULE_EXT): typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) common.$(MODULE_EXT) ast.$(MODULE_EXT)
 
-typer.$(MODULE_EXT): typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) filters.$(MODULE_EXT)
+typer.$(MODULE_EXT): typeload.$(MODULE_EXT) typecore.$(MODULE_EXT) type.$(MODULE_EXT) parser.$(MODULE_EXT) optimizer.$(MODULE_EXT) lexer.$(MODULE_EXT) interp.$(MODULE_EXT) genneko.$(MODULE_EXT) genjs.$(MODULE_EXT) common.$(MODULE_EXT) codegen.$(MODULE_EXT) ast.$(MODULE_EXT) filters.$(MODULE_EXT) gencommon.$(MODULE_EXT)
 
 lexer.$(MODULE_EXT): lexer.ml
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/Comment.webidl line 14:0. Do not edit!
+
 package js.html;
 
-/** <p>A comment is used to add notations within markup; although it is generally not displayed, it is still available to be read in the source view (in Firefox:&nbsp;View -&gt; Page Source).&nbsp; These are represented in HTML and XML as content between <code>&lt;!--</code> and&nbsp; <code>--&gt; . </code>In XML, the character sequence "--" cannot be used within a comment.</p>
-<p>A comment has no special properties or methods of its own, but inherits those of <a title="En/DOM/CharacterData" rel="internal" href="/api/js/html/CharacterData">CharacterData</a> (which inherits from <a title="en/DOM/Node" rel="internal" href="/api/js/html/Node">Node</a>).</p><br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/Comment">MDN</a>. */
 @:native("Comment")
 extern class Comment extends CharacterData
 {
+	/** @throws DOMError */
+	function new( ?data : String = "" ) : Void;
 }

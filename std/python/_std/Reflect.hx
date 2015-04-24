@@ -23,8 +23,8 @@
 import python.internal.AnonObject;
 import python.internal.StringImpl;
 import python.internal.ArrayImpl;
+import python.internal.UBuiltins;
 
-import python.lib.Builtin;
 import python.lib.Inspect;
 import python.Syntax;
 import python.VarArgs;
@@ -35,17 +35,18 @@ import python.Boot.handleKeywords;
 class Reflect {
 
 	public static inline function hasField( o : Dynamic, field : String ) : Bool {
-		return Builtin.hasattr(o, handleKeywords(field));
+		return UBuiltins.hasattr(o, handleKeywords(field));
 	}
 
-	@:keep
-	public static inline function field( o : Dynamic, field : String ) : Dynamic {
+
+	@:ifFeature("dynamic_read", "anon_optional_read")
+	public static function field( o : Dynamic, field : String ) : Dynamic {
 		return python.Boot.field(o, field);
 	}
 
-	@:keep
+	@:ifFeature("dynamic_write", "anon_optional_write")
 	public static inline function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		Builtin.setattr(o, handleKeywords(field), value);
+		UBuiltins.setattr(o, handleKeywords(field), value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
@@ -55,7 +56,7 @@ class Reflect {
 
 		field = handleKeywords(field);
 		var tmp = Reflect.field(o, "get_" + field);
-		if (tmp != null && Builtin.callable(tmp))
+		if (tmp != null && UBuiltins.callable(tmp))
 			return tmp();
 		else
 			return Reflect.field(o, field);
@@ -64,15 +65,15 @@ class Reflect {
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 
 		var field = handleKeywords(field);
-		if (Builtin.hasattr(o, "set_" + field))
-			Builtin.getattr(o, "set_" + field)(value);
+		if (UBuiltins.hasattr(o, "set_" + field))
+			UBuiltins.getattr(o, "set_" + field)(value);
 		else
-			Builtin.setattr(o, field, value);
+			UBuiltins.setattr(o, field, value);
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
-		return if (Builtin.callable(func)) func(python.Syntax.varArgs(args)) else null;
+		return if (UBuiltins.callable(func)) func(python.Syntax.varArgs(args)) else null;
 	}
 
 	public static inline function fields( o : Dynamic ) : Array<String>
@@ -82,7 +83,7 @@ class Reflect {
 
 	public static function isFunction( f : Dynamic ) : Bool
 	{
-		return Inspect.isfunction(f) || Inspect.ismethod(f);
+		return Inspect.isfunction(f) || Inspect.ismethod(f) || UBuiltins.hasattr(f, "func_code");
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -109,7 +110,7 @@ class Reflect {
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return v != Enum && Builtin.isinstance(v, cast Enum);
+		return v != Enum && UBuiltins.isinstance(v, cast Enum);
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
@@ -127,7 +128,7 @@ class Reflect {
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return function (v:VarArgs) {
+		return function (v:VarArgs<Dynamic>) {
 			return f(v);
 		}
 	}

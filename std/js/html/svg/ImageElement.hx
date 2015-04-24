@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,32 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGImageElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGImageElement</code> interface corresponds to the <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/image">&lt;image&gt;</a></code>
- element.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGImageElement">MDN</a>. */
 @:native("SVGImageElement")
-extern class ImageElement extends Element
+extern class ImageElement extends GraphicsElement
 {
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/height">height</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/image">&lt;image&gt;</a></code>
- element. */
-	var height(default,null) : AnimatedLength;
-
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/preserveAspectRatio">preserveAspectRatio</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/image">&lt;image&gt;</a></code>
- element. */
-	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
-
-	/** Corresponds to attribute 
-<code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Attribute/width">width</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/image">&lt;image&gt;</a></code>
- element. */
-	var width(default,null) : AnimatedLength;
-
 	var x(default,null) : AnimatedLength;
-
 	var y(default,null) : AnimatedLength;
-
+	var width(default,null) : AnimatedLength;
+	var height(default,null) : AnimatedLength;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
+	var href(default,null) : AnimatedString;
+	
 }

@@ -122,15 +122,21 @@ class TestSpod extends Test
 		c2.insert();
 
 		var scls = getDefaultClass();
+		var scls1 = scls;
 		scls.relation = c1;
 		scls.insert();
 		var id1 = scls.theId;
 		scls = getDefaultClass();
 		scls.relation = c1;
 		scls.insert();
+
+		scls1.next = scls;
+		scls1.update();
+
 		var id2 = scls.theId;
 		scls = getDefaultClass();
 		scls.relation = c1;
+		scls.next = scls1;
 		scls.anEnum = FirstValue;
 		scls.insert();
 		var id3 = scls.theId;
@@ -142,6 +148,8 @@ class TestSpod extends Test
 		var r2s = MySpodClass.manager.search($anEnum == FirstValue);
 		eq(r2s.length,1);
 		eq(r2s.first().theId,id3);
+		eq(r2s.first().next.theId,id1);
+		eq(r2s.first().next.next.theId,id2);
 
 		var fv = getSecond();
 		var r1s = [ for (c in MySpodClass.manager.search($anEnum == fv,{orderBy:theId})) c.theId ];
@@ -149,6 +157,11 @@ class TestSpod extends Test
 		var r2s = MySpodClass.manager.search($anEnum == getFirst());
 		eq(r2s.length,1);
 		eq(r2s.first().theId,id3);
+
+		var ids = [id1,id2,id3];
+		var s = [ for (c in MySpodClass.manager.search( $anEnum == SecondValue || $theId in ids )) c.theId ];
+		s.sort(Reflect.compare);
+		eq([id1,id2,id3].join(','),s.join(','));
 
 		r2s.first().delete();
 		for (v in MySpodClass.manager.search($anEnum == fv)) v.delete();
@@ -221,8 +234,13 @@ class TestSpod extends Test
 		eq(scls.relationNullable,null);
 		eq(scls.abstractType,null);
 		eq(scls.anEnum,null);
-		scls.delete();
+		Manager.cleanup();
 
+		scls = new NullableSpodClass();
+		scls.theId = id;
+		t( untyped NullableSpodClass.manager.getUpdateStatement( scls ) != null );
+
+		scls.delete();
 	}
 
 	public function testSpodTypes()
@@ -313,6 +331,10 @@ class TestSpod extends Test
 			c.delete();
 		for (c in OtherSpodClass.manager.all())
 			c.delete();
+
+		//issue #3598
+		var inexistent = MySpodClass.manager.get(1000,false);
+		eq(inexistent,null);
 	}
 
 	public function testDateQuery()

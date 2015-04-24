@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGZoomAndPan.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
 @:native("SVGZoomAndPan")
 extern class ZoomAndPan
 {
-	static inline var SVG_ZOOMANDPAN_DISABLE : Int = 1;
-
-	static inline var SVG_ZOOMANDPAN_MAGNIFY : Int = 2;
-
 	static inline var SVG_ZOOMANDPAN_UNKNOWN : Int = 0;
-
+	static inline var SVG_ZOOMANDPAN_DISABLE : Int = 1;
+	static inline var SVG_ZOOMANDPAN_MAGNIFY : Int = 2;
+	
 	var zoomAndPan : Int;
-
+	
 }

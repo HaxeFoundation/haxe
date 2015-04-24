@@ -21,15 +21,16 @@
  */
 package cs.internal;
 import cs.system.Type;
+import haxe.ds.Vector;
 private typedef StdType = std.Type;
 
 @:keep @:native('haxe.lang.HxObject')
-private class HxObject implements IHxObject
+class HxObject implements IHxObject
 {
 }
 
 @:keep @:native('haxe.lang.IHxObject')
-private interface IHxObject
+interface IHxObject
 {
 }
 
@@ -37,7 +38,7 @@ private interface IHxObject
 @:meta(System.Serializable)
 #end
 @:keep @:native('haxe.lang.DynamicObject')
-private class DynamicObject extends HxObject implements Dynamic
+class DynamicObject extends HxObject implements Dynamic
 {
 	@:skipReflection public function toString():String
 	{
@@ -63,31 +64,69 @@ private class DynamicObject extends HxObject implements Dynamic
 	}
 }
 
+#if !erase_generics
 @:keep @:native('haxe.lang.IGenericObject') interface IGenericObject
 {
 }
 
-@:native('haxe.lang.Enum')
-@:keep @:skipCtor
+@:nativeGen @:keep @:native('haxe.lang.GenericInterface') class GenericInterface extends cs.system.Attribute
+{
+	@:readOnly public var generic(default,never):cs.system.Type;
+
+	public function new(generic)
+	{
+		super();
+		untyped this.generic = generic;
+	}
+}
+#end
+
+@:keep @:native('haxe.lang.Enum') @:nativeGen
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-private class Enum
+class HxEnum
 {
 	@:readOnly private var index(default,never):Int;
-	@:readOnly private var params(default,never):Array<{}>;
 
-	public function new(index:Int, params:Array<{}>)
+	public function new(index:Int)
 	{
 		untyped this.index = index;
+	}
+
+	public function getTag():String
+	{
+		return throw 'Not Implemented';
+	}
+
+	public function getParams():Array<{}>
+	{
+		return [];
+	}
+
+	public function toString():String
+	{
+		return getTag();
+	}
+}
+
+@:keep @:native('haxe.lang.ParamEnum') @:nativeGen
+private class ParamEnum extends HxEnum
+{
+	@:readOnly private var params(default,never):Vector<Dynamic>;
+
+	public function new(index:Int, params:Vector<Dynamic>)
+	{
+		super(index);
 		untyped this.params = params;
 	}
-	@:final public function getTag():String
+
+	override public function getParams():Array<{}>
 	{
-		var cl:Dynamic = StdType.getClass(this);
-		return cl.constructs[index];
+		return params == null ? [] : cs.Lib.array(cast params.toData());
 	}
-	public function toString():String
+
+	override public function toString():String
 	{
 		if (params == null || params.length == 0) return getTag();
 		var ret = new StringBuf();
@@ -104,11 +143,12 @@ private class Enum
 		ret.add(")");
 		return ret.toString();
 	}
+
 	public function Equals(obj:Dynamic)
 	{
 		if (obj == this) //we cannot use == as .Equals !
 			return true;
-		var obj:Enum = cast obj;
+		var obj:ParamEnum = Std.instance(obj, ParamEnum);
 		var ret = obj != null && Std.is(obj, StdType.getClass(this)) && obj.index == this.index;
 		if (!ret)
 			return false;
@@ -127,12 +167,12 @@ private class Enum
 
 	public function GetHashCode():Int
 	{
-		var h = 19;
+		var h:Int = 19;
 		if (params != null) for (p in params)
 		{
 			h = h * 31;
 			if (p != null)
-				h += untyped p.GetHashCode();
+				untyped h += p.GetHashCode();
 		}
 		h += index;
 		return h;

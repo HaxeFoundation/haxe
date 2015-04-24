@@ -21,6 +21,18 @@
  */
 package js;
 
+private class HaxeError extends js.Error {
+
+	var val:Dynamic;
+
+	public function new(val:Dynamic) {
+		super();
+		this.val = untyped __define_feature__("js.Boot.HaxeError", val);
+		untyped if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
+	}
+}
+
+@:dox(hide)
 class Boot {
 
 	private static function __unhtml(s : String) {
@@ -67,7 +79,7 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
-	static inline function getClass(o:Dynamic) : Dynamic {
+	static function getClass(o:Dynamic) : Dynamic {
 		if (Std.is(o, Array))
 			return Array;
 		else {

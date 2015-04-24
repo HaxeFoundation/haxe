@@ -25,14 +25,19 @@ package js.html.compat;
 class ArrayBuffer {
 
 	public var byteLength : Int;
-	var a : Array<Dynamic>;
+	var a : Array<Int>;
 	
 	public function new( ?a : Dynamic ) {
 		if( Std.is(a,Array) ) {
 			this.a = a;
 			byteLength = a.length;
-		} else
-			throw "TODO";
+		} else {
+			var len : Int = a;
+			this.a = [];
+			for( i in 0...len )
+				this.a[i] = 0;
+			byteLength = len;
+		}
 	}
 	
 	public function slice(begin,?end) {
@@ -48,7 +53,7 @@ class ArrayBuffer {
 	}
 
 	static function __init__() untyped {
-		var ArrayBuffer = __js__('typeof(window) != "undefined" && window.ArrayBuffer') || ArrayBuffer;
+		var ArrayBuffer = __js__('typeof(window) != "undefined" && window.ArrayBuffer') || __js__('typeof(global) != "undefined" && global.ArrayBuffer') || ArrayBuffer;
 		if( ArrayBuffer.prototype.slice == null ) ArrayBuffer.prototype.slice = sliceImpl; // IE10
 	}
 }

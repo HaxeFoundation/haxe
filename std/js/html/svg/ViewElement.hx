@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,19 +20,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGViewElement.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGViewElement</code> interface provides access to the properties of <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/view">&lt;view&gt;</a></code>
- elements, as well as methods to manipulate them.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/DOM/SVGViewElement">MDN</a>. */
 @:native("SVGViewElement")
 extern class ViewElement extends Element
 {
-	/** Corresponds to attribute 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/viewTarget" class="new">viewTarget</a></code> on the given <code><a rel="custom" href="https://developer.mozilla.org/en/SVG/Element/view">&lt;view&gt;</a></code>
- element. A list of DOMString values which contain the names listed in the 
-<code><a rel="internal" href="https://developer.mozilla.org/en/SVG/Attribute/viewTarget" class="new">viewTarget</a></code> attribute. Each of the DOMString values can be associated with the corresponding element using the getElementById() method call. */
+	static inline var SVG_ZOOMANDPAN_UNKNOWN : Int = 0;
+	static inline var SVG_ZOOMANDPAN_DISABLE : Int = 1;
+	static inline var SVG_ZOOMANDPAN_MAGNIFY : Int = 2;
+	
 	var viewTarget(default,null) : StringList;
-
+	var viewBox(default,null) : AnimatedRect;
+	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
+	var zoomAndPan : Int;
+	
 }

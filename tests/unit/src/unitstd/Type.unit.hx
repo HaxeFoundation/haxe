@@ -19,6 +19,7 @@ Type.getEnum(null) == null;
 
 // getSuperClass
 Type.getSuperClass(String) == null;
+Type.getSuperClass(ClassWithToString) == null;
 Type.getSuperClass(ClassWithToStringChild) == ClassWithToString;
 //Type.getSuperClass(null) == null;
 
@@ -87,6 +88,10 @@ Type.createEnumIndex(E, 0, null) == NoArgs;
 Type.enumEq(Type.createEnumIndex(E, 1, [1]), OneArg(1)) == true;
 Type.enumEq(Type.createEnumIndex(E, 2, [e]), RecArg(e)) == true;
 Type.enumEq(Type.createEnumIndex(E, 3, [1, "foo"]), MultipleArgs(1, "foo")) == true;
+var e = Type.createEnumIndex(EnumFlagTest, 0);
+e == EA;
+Type.createEnumIndex(EnumFlagTest, 1, []) == EB;
+Type.createEnumIndex(EnumFlagTest, 2, null) == EC;
 
 // getInstanceFields
 var fields = Type.getInstanceFields(C);
@@ -120,6 +125,7 @@ requiredFields == [];
 
 // getEnumConstructs
 Type.getEnumConstructs(E) == ["NoArgs", "OneArg", "RecArg", "MultipleArgs"];
+Type.getEnumConstructs(EnumFlagTest) == ["EA", "EB", "EC"];
 
 // typeof
 // not much to test here?
@@ -134,25 +140,31 @@ Type.enumEq(NoArgs, RecArg(NoArgs)) == false;
 Type.enumEq(NoArgs, MultipleArgs(1, "foo")) == false;
 Type.enumEq(OneArg(1), OneArg(2)) == false;
 Type.enumEq(RecArg(OneArg(1)), RecArg(OneArg(2))) == false;
+Type.enumEq(EA, EA) == true;
+Type.enumEq(EA, EB) == false;
 
 // enumConstructor
 Type.enumConstructor(NoArgs) == "NoArgs";
 Type.enumConstructor(OneArg(1)) == "OneArg";
 Type.enumConstructor(RecArg(OneArg(1))) == "RecArg";
 Type.enumConstructor(MultipleArgs(1, "foo")) == "MultipleArgs";
+Type.enumConstructor(EC) == "EC";
 
 // enumParameters
 Type.enumParameters(NoArgs) == [];
 Type.enumParameters(OneArg(1)) == [1];
 Type.enumParameters(RecArg(NoArgs)) == [NoArgs];
 Type.enumParameters(MultipleArgs(1, "foo")) == [1, "foo"];
+Type.enumParameters(EC) == [];
 
 // enumIndex
 Type.enumIndex(NoArgs) == 0;
 Type.enumIndex(OneArg(1)) == 1;
 Type.enumIndex(RecArg(OneArg(1))) == 2;
 Type.enumIndex(MultipleArgs(1, "foo")) == 3;
+Type.enumIndex(EB) == 1;
 
 // allEnums
 Type.allEnums(E) == [NoArgs];
 Type.allEnums(haxe.macro.Expr.ExprDef) == [EBreak, EContinue];
+Type.allEnums(EnumFlagTest) == [EA, EB, EC];

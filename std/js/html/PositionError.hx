@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/PositionError.webidl line 14:0. Do not edit!
+
 package js.html;
 
 @:native("PositionError")
 extern class PositionError
 {
 	static inline var PERMISSION_DENIED : Int = 1;
-
 	static inline var POSITION_UNAVAILABLE : Int = 2;
-
 	static inline var TIMEOUT : Int = 3;
-
+	
 	var code(default,null) : Int;
-
 	var message(default,null) : String;
-
+	
 }

@@ -1,3 +1,24 @@
+/*
+ * Copyright (C)2005-2012 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 package python.internal;
 #if macro
 import haxe.macro.Context;
@@ -14,7 +35,6 @@ class Internal {
 
 	static var _className = _prefix + "class_name";
 	static var _class = _prefix + "class";
-	static var _props = _prefix + "props";
 	static var _fields = _prefix + "fields";
 	static var _super = _prefix + "super";
 	static var _methods = _prefix + "methods";
@@ -41,11 +61,11 @@ class Internal {
 	}
 
 	static function fieldWithPos(o:Expr, x:String):Expr {
-		return macro @:pos(Context.currentPos()) python.Syntax.field($o, $v{x});
+		return macro @:pos(Context.currentPos()) (untyped __define_feature__($v{"python." + x}, python.Syntax.field($o, $v{x})));
 	}
 
 	static function has (o:Expr, field:String):Expr {
-		return macro python.lib.Builtin.hasattr($o, $v{field});
+		return macro (untyped __define_feature__($v{"python." + field}, python.internal.UBuiltins.hasattr($o, $v{field})) : Bool);
 	}
 
 	#end
@@ -58,7 +78,7 @@ class Internal {
 	}
 
 	macro public static function classRegistry ():Expr {
-		return macro (python.Syntax.pythonCode($v{_classes}) : python.lib.Dict<String, Class<Dynamic>>);
+		return macro (untyped __define_feature__($v{"python." + _classes}, python.Syntax.pythonCode($v{_classes})) : python.Dict<String, Class<Dynamic>>);
 	}
 
 	macro public static function callFieldPrefixed (o:Expr, x:String, params:Array<Expr>):Expr {
@@ -110,6 +130,10 @@ class Internal {
 		return has(o, _emptyInit);
 	}
 
+	macro public static function hasMethods (o:Expr):Expr {
+		return has(o, _methods);
+	}
+
 	macro public static function hasFields (o:Expr):Expr {
 		return has(o, _fields);
 	}
@@ -132,10 +156,6 @@ class Internal {
 
 	macro public static function classVal():Expr {
 		return withPos(_className);
-	}
-
-	macro public static function propsVal():Expr {
-		return withPos(_props);
 	}
 
 	macro public static function superVal():Expr {
@@ -190,16 +210,12 @@ class Internal {
 		return fieldWithPos(o, _fields);
 	}
 
-	macro public static function fieldProps (o:Expr):Expr {
-		return fieldWithPos(o, _props);
-	}
-
 	macro public static function fieldConstructs (o:Expr):Expr {
 		return fieldWithPos(o, _constructs);
 	}
 
 	macro public static function fieldDict (o:Expr):Expr {
-		return fieldWithPos(o, _dict);
+		return macro @:pos(Context.currentPos()) python.Syntax.field($o, $v{_dict});
 	}
 
 	macro public static function fieldEmptyInit (o:Expr):Expr {

@@ -240,8 +240,11 @@ class Manager<T : Object> {
 			    fieldName = getFieldName(f);
 			var v : Dynamic = Reflect.field(x,fieldName);
 			var vc : Dynamic = Reflect.field(cache,name);
-			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
+			if( cache == null || v != vc ) {
 				switch( f.t ) {
+				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
+					if ( !hasBinaryChanged(v,vc) )
+						continue;
 				case DData:
 					v = doUpdateCache(x, name, v);
 					if( !hasBinaryChanged(v,vc) )
@@ -255,7 +258,8 @@ class Manager<T : Object> {
 				s.add(quoteField(name));
 				s.add(" = ");
 				getCnx().addValue(s,v);
-				Reflect.setField(cache,name,v);
+				if ( cache != null )
+					Reflect.setField(cache,name,v);
 			}
 		}
 		if( !mod )
@@ -362,6 +366,11 @@ class Manager<T : Object> {
 						val = haxe.io.Bytes.ofString(val);
 					case DString(_) | DTinyText | DSmallText | DText if(!Std.is(val,String)):
 						val = val + "";
+#if (cs && erase_generics)
+					// on C#, SQLite Ints are returned as Int64
+					case DInt if (!Std.is(val,Int)):
+						val = cast(val,Int);
+#end
 					case DBool if (!Std.is(val,Bool)):
 						if (Std.is(val,Int))
 							val = val != 0;
@@ -437,7 +446,8 @@ class Manager<T : Object> {
 			lock = true;
 			sql += getLockMode();
 		}
-		var r = unsafeExecute(sql).next();
+		var r = unsafeExecute(sql);
+		var r = r.hasNext() ? r.next() : null;
 		if( r == null )
 			return null;
 		normalizeCache(r);
@@ -641,6 +651,7 @@ class Manager<T : Object> {
 			Reflect.setField(x,key,null);
 		else
 			Reflect.setField(x,key,Reflect.field(v,table_keys[0]));
+		return v;
 	}
 
 	#end
@@ -725,6 +736,8 @@ class Manager<T : Object> {
 		return v + " IN (" + b.toString() + ")";
 	}
 
+	// We need Bytes.toString to not be DCE'd. See #1937
+	@:keep static function __depends() { return haxe.io.Bytes.alloc(0).toString(); }
 }
 
 private typedef CacheType<T> = Dynamic;

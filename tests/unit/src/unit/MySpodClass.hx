@@ -18,6 +18,7 @@ import sys.db.Types;
 
   @:relation(rid) public var relation:OtherSpodClass;
   @:relation(rnid) public var relationNullable:Null<OtherSpodClass>;
+	@:relation(spid) public var next:Null<MySpodClass>;
 
   public var data:SData<Array<ComplexClass>>;
   public var anEnum:SEnum<SpodEnum>;
@@ -42,9 +43,9 @@ import sys.db.Types;
 	}
 }
 
-@:keep class OtherSpodClass extends Object
+@:id(theid) @:keep class OtherSpodClass extends Object
 {
-	public var theid:SId;
+	public var theid:SInt;
 	public var name:SString<255>;
 
 	public function new(name:String)

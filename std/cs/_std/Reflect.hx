@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,124 +20,101 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import cs.internal.Function;
-/*
- * Copyright (c) 2005, The Haxe Project Contributors
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *   - Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   - Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE HAXE PROJECT CONTRIBUTORS "AS IS" AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
- * DAMAGE.
- */
+import cs.system.reflection.*;
+
+import cs.internal.*;
+import cs.internal.HxObject;
+import cs.internal.Runtime;
+import cs.Flags;
+import cs.Lib;
+import cs.system.Object;
+import cs.system.reflection.*;
 
 @:keep @:coreApi class Reflect {
 
-	@:functionCode('
-		if (o is haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, true, false) != haxe.lang.Runtime.undefined;
-
-		return haxe.lang.Runtime.slowHasField(o, field);
-	')
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
-		return false;
+		var ihx:IHxObject = Lib.as(o,IHxObject);
+		if (ihx != null) return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, true, false) != Runtime.undefined;
+
+		return Runtime.slowHasField(o,field);
 	}
 
-	@:functionCode('
-		if (o is haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, false);
-
-		return haxe.lang.Runtime.slowGetField(o, field, false);
-	')
 	public static function field( o : Dynamic, field : String ) : Dynamic
 	{
-		return null;
+		var ihx:IHxObject = Lib.as(o,IHxObject);
+		if (ihx != null) return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, false);
+
+		return Runtime.slowGetField(o,field,false);
 	}
 
-	@:functionCode('
-		if (o is haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, false);
-		else
-			haxe.lang.Runtime.slowSetField(o, field, value);
-	')
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-
+		var ihx:IHxObject = Lib.as(o,IHxObject);
+		if (ihx != null)
+			untyped ihx.__hx_setField(field, FieldLookup.hash(field), value, false);
+		else
+			Runtime.slowSetField(o,field,value);
 	}
 
-	@:functionCode('
-		if (o is haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, haxe.lang.FieldLookup.hash(field), false, false, true);
-
-		if (haxe.lang.Runtime.slowHasField(o, "get_" + field))
-			return haxe.lang.Runtime.slowCallField(o, "get_" + field, null);
-
-		return haxe.lang.Runtime.slowGetField(o, field, false);
-	')
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
-		return null;
+		var ihx:IHxObject = Lib.as(o,IHxObject);
+		if (ihx != null) return untyped ihx.__hx_getField(field, FieldLookup.hash(field), false, false, true);
+
+		if (Runtime.slowHasField(o, "get_" + field))
+			return Runtime.slowCallField(o, "get_" + field, null);
+
+		return Runtime.slowGetField(o, field, false);
 	}
 
-	@:functionCode('
-		if (o is haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, haxe.lang.FieldLookup.hash(field), value, true);
-		else if (haxe.lang.Runtime.slowHasField(o, "set_" + field))
-			haxe.lang.Runtime.slowCallField(o, "set_" + field, new Array<object>(new object[]{value}));
-		else
-			haxe.lang.Runtime.slowSetField(o, field, value);
-	')
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
-
+		var ihx:IHxObject = Lib.as(o,IHxObject);
+		if (ihx != null)
+			untyped ihx.__hx_setField(field, FieldLookup.hash(field), value, true);
+		else if (Runtime.slowHasField(o, 'set_$field'))
+			Runtime.slowCallField(o, 'set_$field', [value]);
+		else
+			Runtime.slowSetField(o,field,value);
 	}
 
-	@:functionCode('
-		return ((haxe.lang.Function) func).__hx_invokeDynamic(args);
-	')
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
 	{
-		return null;
+		return untyped cast(func, Function).__hx_invokeDynamic(args);
 	}
 
-	@:functionCode('
-		if (o is haxe.lang.IHxObject)
-		{
-			Array<object> ret = new Array<object>();
-				((haxe.lang.IHxObject) o).__hx_getFields(ret);
-			return ret;
-		} else if (o is System.Type) {
-			return Type.getClassFields( (System.Type) o);
-		} else {
-			return new Array<object>();
-		}
-	')
 	public static function fields( o : Dynamic ) : Array<String>
 	{
-		return null;
+		var ihx = Lib.as(o,IHxObject);
+		if (o != null)
+		{
+			var ret = [];
+			untyped ihx.__hx_getFields(ret);
+			return ret;
+		} else if (Std.is(o, cs.system.Type)) {
+			return Type.getClassFields(o);
+		} else {
+			return instanceFields( untyped o.GetType() );
+		}
 	}
 
-	@:functionCode('
-		return f is haxe.lang.Function;
-	')
-	public static function isFunction( f : Dynamic ) : Bool
+	private static function instanceFields( c : Class<Dynamic> ) : Array<String>
 	{
-		return false;
+		var c = cs.Lib.toNativeType(c);
+		var ret = [];
+		var mis = c.GetFields(new cs.Flags(BindingFlags.Public) | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+		for (i in 0...mis.Length)
+		{
+			var i = mis[i];
+			ret.push(i.Name);
+		}
+		return ret;
+	}
+
+	inline public static function isFunction( f : Dynamic ) : Bool
+	{
+		return Std.is(f, Function);
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int
@@ -145,48 +122,37 @@ import cs.internal.Function;
 		return cs.internal.Runtime.compare(a, b);
 	}
 
-	@:functionCode('
+	@:access(cs.internal.Closure)
+	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
+	{
 		if (f1 == f2)
 			return true;
 
-		if (f1 is haxe.lang.Closure && f2 is haxe.lang.Closure)
+		if (Std.is(f1, Closure) && Std.is(f2, Closure))
 		{
-			haxe.lang.Closure f1c = (haxe.lang.Closure) f1;
-			haxe.lang.Closure f2c = (haxe.lang.Closure) f2;
+			var f1c:Closure = cast f1;
+			var f2c:Closure = cast f2;
 
-			return haxe.lang.Runtime.refEq(f1c.obj, f2c.obj) && f1c.field.Equals(f2c.field);
+			return Runtime.refEq(f1c.obj, f2c.obj) && f1c.field == f2c.field;
 		}
 
 		return false;
-	')
-	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
-	{
-		return false;
 	}
 
-	@:functionCode('
-		return v != null && !(v is haxe.lang.Enum || v is haxe.lang.Function || v is System.ValueType);
-	')
 	public static function isObject( v : Dynamic ) : Bool
 	{
-		return false;
+		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, cs.system.ValueType));
 	}
 
-	@:functionCode('
-		return v != null && (v is haxe.lang.Enum || v is System.Enum);
-	')
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return switch(Type.typeof(v)) {
-			case TEnum(_): true;
-			case _: false;
-		}
+		return v != null && (Std.is(v, HxEnum) || Std.is(v, cs.system.Enum));
 	}
 
-	@:functionCode('
-		return (o is haxe.lang.DynamicObject && ((haxe.lang.DynamicObject) o).__hx_deleteField(field, haxe.lang.FieldLookup.hash(field)));
-	')
 	public static function deleteField( o : Dynamic, field : String ) : Bool
 	{
+		var ihx = Lib.as(o,DynamicObject);
+		if (ihx != null)
+			return untyped ihx.__hx_deleteField(field, FieldLookup.hash(field));
 		return false;
 	}
 

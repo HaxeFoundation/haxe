@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,50 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/PannerNode.webidl line 24:0. Do not edit!
+
 package js.html.audio;
 
 @:native("PannerNode")
 extern class PannerNode extends AudioNode
 {
-	static inline var EQUALPOWER : Int = 0;
-
-	static inline var EXPONENTIAL_DISTANCE : Int = 2;
-
-	static inline var HRTF : Int = 1;
-
-	static inline var INVERSE_DISTANCE : Int = 1;
-
-	static inline var LINEAR_DISTANCE : Int = 0;
-
-	static inline var SOUNDFIELD : Int = 2;
-
-	var coneGain(default,null) : AudioGain;
-
-	var coneInnerAngle : Float;
-
-	var coneOuterAngle : Float;
-
-	var coneOuterGain : Float;
-
-	var distanceGain(default,null) : AudioGain;
-
-	/** Setter throws DOMException. */
-	var distanceModel : Int;
-
-	var maxDistance : Float;
-
-	/** Setter throws DOMException. */
-	var panningModel : Int;
-
+	var panningModel : PanningModelType;
+	var distanceModel : DistanceModelType;
 	var refDistance : Float;
-
+	var maxDistance : Float;
 	var rolloffFactor : Float;
-
-	function setOrientation( x : Float, y : Float, z : Float ) : Void;
-
+	var coneInnerAngle : Float;
+	var coneOuterAngle : Float;
+	var coneOuterGain : Float;
+	
 	function setPosition( x : Float, y : Float, z : Float ) : Void;
-
+	function setOrientation( x : Float, y : Float, z : Float ) : Void;
 	function setVelocity( x : Float, y : Float, z : Float ) : Void;
-
 }

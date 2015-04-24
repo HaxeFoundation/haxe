@@ -21,153 +21,143 @@
  */
 package cs.internal;
 import cs.internal.Function;
-private typedef NativeString = String;
+private typedef NativeString = cs.system.String;
 
-@:keep @:nativeGen @:native("haxe.lang.StringExt") private class StringExt
+@:keep @:nativeGen @:native("haxe.lang.StringExt") class StringExt
 {
+	@:readOnly static var empty(default,never) = new NativeString(cast 0,0);
 
-	@:functionCode('
-			if ( ((uint) index) >= me.Length)
-				return "";
-			else
-				return new string(me[index], 1);
-	')
 	public static function charAt(me:NativeString, index:Int):NativeString
 	{
-		return null;
+		if (cast(index,UInt) >= me.Length)
+			return empty;
+		else
+			return new NativeString(me[index], 1);
 	}
 
 	public static function charCodeAt(me:NativeString, index:Int):Null<Int>
 	{
-		if (cast(index,UInt) >= me.length)
+		if (cast(index,UInt) >= me.Length)
 			return null;
 		else
-			return cast me[index];
+			return cast(me[index], Int);
 	}
 
-	public static function indexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
+	public static function indexOf(me:NativeString, str:String, ?startIndex:Int):Int
 	{
 		var sIndex:Int = startIndex != null ? startIndex : 0;
-		if (sIndex >= me.length)
+		if (sIndex >= me.Length)
 			return -1;
 		return @:privateAccess me.IndexOf(str, sIndex, cs.system.StringComparison.Ordinal);
 	}
 
-	@:functionCode('
-			int sIndex = (startIndex.hasValue) ? (startIndex.@value) : (me.Length - 1);
-			if (sIndex >= me.Length)
-				sIndex = me.Length - 1;
-			else if (sIndex < 0)
-				return -1;
-
-			//TestBaseTypes.hx@133 fix
-			if (startIndex.hasValue)
-			{
-				for(int i = sIndex; i >= 0; i--)
-				{
-					bool found = true;
-					for(int j = 0; j < str.Length; j++)
-					{
-						if(me[i + j] != str[j])
-						{
-							found = false;
-							break;
-						}
-					}
-
-					if (found)
-						return i;
-				}
-
-				return -1;
-			} else {
-				return me.LastIndexOf(str, sIndex, System.StringComparison.Ordinal);
-			}
-	')
 	public static function lastIndexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
 	{
+		var sIndex:Int = startIndex == null ? me.Length - 1 : startIndex;
+		if (sIndex >= me.Length)
+			sIndex = me.Length - 1;
+		else if (sIndex < 0)
+			return -1;
+
+		//TestBaseTypes.hx@133 fix
+		if (startIndex != null)
+		{
+			var i = sIndex + 1;
+			while (i --> 0)
+			{
+				var found = true;
+				for (j in 0...str.Length)
+				{
+					if(me[i + j] != str[j])
+					{
+						found = false;
+						break;
+					}
+				}
+
+				if (found)
+					return i;
+			}
+
+			return -1;
+		} else {
+			return me.LastIndexOf(untyped str, sIndex, cs.system.StringComparison.Ordinal);
+		}
 		return -1;
 	}
 
-	@:functionCode('
-			string[] native;
-			if (delimiter.Length == 0)
-			{
-				int len = me.Length;
-				native = new string[len];
-				for (int i = 0; i < len; i++)
-					native[i] = new string(me[i], 1);
-			} else {
-				native = me.Split(new string[] { delimiter }, System.StringSplitOptions.None);
-			}
-			return new Array<object>(native);
-	')
-	public static function split(me:NativeString, delimiter:NativeString):Array<NativeString>
+	public static function split(me:NativeString, delimiter:NativeString):Array<String>
 	{
-		return null;
+		var native:NativeArray<String>;
+		if (delimiter.Length == 0)
+		{
+			var len = me.Length;
+			native = new NativeArray(len);
+			for (i in 0...len)
+				native[i] = untyped new NativeString(me[i],1);
+		} else {
+			var str = new NativeArray<String>(1);
+			str[0] = cast delimiter;
+
+			native = me.Split(str, cs.system.StringSplitOptions.None);
+		}
+
+		return cs.Lib.array(native);
 	}
 
-	@:functionCode('
-			int meLen = me.Length;
-			int targetLen = meLen;
-			if (len.hasValue)
-			{
-				targetLen = len.@value;
-				if (targetLen == 0)
-					return "";
-				if( pos != 0 && targetLen < 0 ){
-					return "";
-				}
-			}
-
-			if( pos < 0 ){
-				pos = meLen + pos;
-				if( pos < 0 ) pos = 0;
-			} else if( targetLen < 0 ){
-				targetLen = meLen + targetLen - pos;
-			}
-
-			if( pos + targetLen > meLen ){
-				targetLen = meLen - pos;
-			}
-
-			if ( pos < 0 || targetLen <= 0 ) return "";
-
-			return me.Substring(pos, targetLen);
-	')
-	public static function substr(me:NativeString, pos:Int, ?len:Int):NativeString
+	public static function substr(me:NativeString, pos:Int, ?len:Int):String
 	{
-		return null;
+		var meLen = me.Length;
+		var targetLen = meLen;
+		if (len != null)
+		{
+			targetLen = len;
+			if (targetLen == 0 || (pos != 0 && targetLen < 0))
+				return "";
+		}
+
+		if (pos < 0)
+		{
+			pos = meLen + pos;
+			if (pos < 0) pos = 0;
+		} else if (targetLen < 0) {
+			targetLen = meLen + targetLen - pos;
+		}
+
+		if (pos + targetLen > meLen)
+		{
+			targetLen = meLen - pos;
+		}
+
+		if (pos < 0 || targetLen <= 0) return "";
+
+		return me.Substring(pos, targetLen);
 	}
 
-	@:functionCode('
-		int endIdx;
-		int len = me.Length;
-		if ( !endIndex.hasValue ) {
+	public static function substring(me:NativeString, startIndex:Int, ?endIndex:Int):String
+	{
+		var len = me.Length;
+		var endIdx:Int;
+		if (endIndex == null)
 			endIdx = len;
-		} else if ( (endIdx = endIndex.@value) < 0 ) {
+		else if ( (endIdx = endIndex) < 0 )
 			endIdx = 0;
-		} else if ( endIdx > len ) {
+		else if (endIdx > len)
 			endIdx = len;
-		}
 
-		if ( startIndex < 0 ) {
+		if (startIndex < 0)
 			startIndex = 0;
-		} else if ( startIndex > len ) {
+		else if (startIndex > len)
 			startIndex = len;
-		}
 
-		if ( startIndex > endIdx ) {
-			int tmp = startIndex;
+		if (startIndex > endIdx)
+		{
+			var tmp = startIndex;
 			startIndex = endIdx;
 			endIdx = tmp;
 		}
 
 		return me.Substring(startIndex, endIdx - startIndex);
-	')
-	public static function substring(me:NativeString, startIndex:Int, ?endIndex:Int):NativeString
-	{
-		return null;
 	}
 
 	public static function toString(me:NativeString):NativeString
@@ -175,20 +165,14 @@ private typedef NativeString = String;
 		return me;
 	}
 
-	@:functionCode('
-			return me.ToLowerInvariant();
-	')
-	public static function toLowerCase(me:NativeString):NativeString
+	public static function toLowerCase(me:NativeString):String
 	{
-		return null;
+		return me.ToLowerInvariant();
 	}
 
-	@:functionCode('
-			return me.ToUpperInvariant();
-	')
-	public static function toUpperCase(me:NativeString):NativeString
+	public static function toUpperCase(me:NativeString):String
 	{
-		return null;
+		return me.ToUpperInvariant();
 	}
 
 	public static function toNativeString(me:NativeString):NativeString
@@ -196,12 +180,9 @@ private typedef NativeString = String;
 		return me;
 	}
 
-	@:functionCode('
-			return new string( (char) code, 1 );
-	')
 	public static function fromCharCode(code:Int):NativeString
 	{
-		return null;
+		return new NativeString( cast(code,cs.StdTypes.Char16), 1 );
 	}
 }
 
@@ -209,7 +190,7 @@ private typedef NativeString = String;
 {
 	public static var fields = ["length", "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "indexOf", "lastIndexOf", "split", "substr", "substring"];
 
-	public static function handleGetField(str:NativeString, f:NativeString, throwErrors:Bool):Dynamic
+	public static function handleGetField(str:String, f:String, throwErrors:Bool):Dynamic
 	{
 		switch(f)
 		{
@@ -224,7 +205,7 @@ private typedef NativeString = String;
 		}
 	}
 
-	public static function handleCallField(str:NativeString, f:NativeString, args:Array<Dynamic>):Dynamic
+	public static function handleCallField(str:NativeString, f:String, args:Array<Dynamic>):Dynamic
 	{
 		var _args:Array<Dynamic> = [str];
 		if (args == null)

@@ -7,8 +7,9 @@ extern class DRMManagerSession extends flash.events.EventDispatcher {
 	function checkStatus() : UInt;
 	function errorCodeToThrow(errorCode : UInt) : Void;
 	function getLastError() : UInt;
+	function getLastServerErrorString() : String;
 	function getLastSubErrorID() : UInt;
-	function issueDRMErrorEvent(metadata : DRMContentData, errorID : Int, subErrorID : Int, ?eventType : String) : Void;
+	function issueDRMErrorEvent(metadata : DRMContentData, errorID : Int, subErrorID : Int, serverErrorString : String) : Void;
 	function issueDRMStatusEvent(inMetadata : DRMContentData, voucher : DRMVoucher) : Dynamic;
 	function onSessionComplete() : Void;
 	function onSessionError() : Void;

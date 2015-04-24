@@ -93,7 +93,7 @@ class Gc
    }
 
    @:unreflective
-   inline static public function setFinalizer<T>(inObject:T, inFinalizer:cpp.Function<T->Void> ) : Void
+   inline static public function setFinalizer<T>(inObject:T, inFinalizer:cpp.Callable<T->Void> ) : Void
    {
       untyped __global__.__hxcpp_set_finalizer(inObject, inFinalizer);
    }

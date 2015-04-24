@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2015 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated, do not edit!
+// This file is generated from mozilla/SVGAnimatedBoolean.webidl line 13:0. Do not edit!
+
 package js.html.svg;
 
-/** The <code>SVGAnimatedBoolean</code> interface is used for attributes of type boolean which can be animated.<br><br>
-Documentation for this class was provided by <a href="https://developer.mozilla.org/en/Document_Object_Model_(DOM)/SVGAnimatedBoolean">MDN</a>. */
 @:native("SVGAnimatedBoolean")
 extern class AnimatedBoolean
 {
-	/** If the given attribute or property is being animated, contains the current animated value of the attribute or property. If the given attribute or property is not currently being animated, contains the same value as <code>baseVal</code>. */
-	var animVal(default,null) : Bool;
-
-	/** The base value of the given attribute before applying any animations. Setter throws DOMException. */
 	var baseVal : Bool;
-
+	var animVal(default,null) : Bool;
+	
 }

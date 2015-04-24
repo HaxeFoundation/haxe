@@ -4,10 +4,20 @@ import haxe.test.Base;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.TEnum;
 import haxe.test.TEnumWithValue;
+import haxe.test.TEnumWithBigValue;
+import haxe.test.TEnumWithFlag;
+import haxe.test.TEnumWithBigFlag;
+import haxe.test.IEditableTextBuffer;
+import haxe.test.LowerCaseClass;
+
+import cs.Flags;
+import cs.system.componentmodel.DescriptionAttribute;
+
 import NoPackage;
 #if unsafe
 import cs.Pointer;
 #end
+import cs.system.Action_1;
 
 //C#-specific tests, like unsafe code
 class TestCSharp extends Test
@@ -23,6 +33,60 @@ class TestCSharp extends Test
 		eq(Base._untyped, 45);
 		Base._untyped = 40;
 		eq(Base._untyped, 40);
+	}
+
+	function testIssue3474()
+	{
+		var a:IEditableTextBuffer = null;
+		eq(a,null);
+		var didRun = false;
+		try
+		{
+			eq(a.Property, "should not succeed");
+		}
+		catch(e:Dynamic)
+		{
+			didRun = true;
+		}
+
+		t(didRun);
+	}
+
+	function testLowerCase()
+	{
+		var l = new LowerCaseClass();
+		t(l.works);
+	}
+
+	function testGetItem()
+	{
+		var b = new Base();
+		eq(b[1], 20);
+		eq(b.get_Item(2,3), 6);
+		var dyn:Dynamic = b;
+		eq(dyn[1], 20);
+		eq(dyn.get_Item(2,3), 6);
+
+		var b:Base = new Base_InnerClass();
+		eq(b[1], 20);
+		eq(b.get_Item(2,3), 6);
+		var dyn:Dynamic = b;
+		eq(dyn[1], 20);
+		eq(dyn.get_Item(2,3), 6);
+	}
+
+	// function testOptional()
+	// {
+	// 	eq(new Base().optional(), 420);
+	// 	eq(new Base().optional(10), 100);
+	// }
+
+	function testProp()
+	{
+		var b = new Base();
+		eq(b.prop, "SomeValue");
+		var dyn:Dynamic = b;
+		eq(dyn.prop, "SomeValue");
 	}
 
 #if unsafe
@@ -232,6 +296,55 @@ class TestCSharp extends Test
 		eq(21,c.SomeProp2);
 	}
 
+	function testEnumFlags()
+	{
+		var flags = new Flags(TFA) | TFC;
+		t(flags.has(TFA));
+		t(flags.has(TFC));
+		f(flags.has(TFB));
+		f(flags.has(TFD));
+		flags = new Flags();
+		f(flags.has(TFA));
+		f(flags.has(TFB));
+		f(flags.has(TFC));
+		f(flags.has(TFD));
+
+		flags |= TFB;
+		t(flags.has(TFB));
+		eq(flags & TFB,flags);
+		flags |= TFA;
+
+		f(flags.has(TFD));
+		t(flags.hasAny(new Flags(TFD) | TFB));
+		f(flags.hasAny(new Flags(TFD) | TFC));
+		f(flags.hasAll(new Flags(TFD) | TFB));
+		t(flags.hasAll(new Flags(TFB)));
+		t(flags.hasAll(new Flags(TFA) | TFB));
+
+		var flags = new Flags(TFBA) | TFBC;
+		t(flags.has(TFBA));
+		t(flags.has(TFBC));
+		f(flags.has(TFBB));
+		f(flags.has(TFBD));
+		flags = new Flags();
+		f(flags.has(TFBA));
+		f(flags.has(TFBB));
+		f(flags.has(TFBC));
+		f(flags.has(TFBD));
+
+		flags |= TFBB;
+		t(flags.has(TFBB));
+		eq(flags & TFBB,flags);
+		flags |= TFBA;
+
+		f(flags.has(TFBD));
+		t(flags.hasAny(new Flags(TFBD) | TFBB));
+		f(flags.hasAny(new Flags(TFBD) | TFBC));
+		f(flags.hasAll(new Flags(TFBD) | TFBB));
+		t(flags.hasAll(new Flags(TFBB)));
+		t(flags.hasAll(new Flags(TFBA) | TFBB));
+	}
+
 	function testEnum()
 	{
 		var e = TEnum.TA;
@@ -244,32 +357,43 @@ class TestCSharp extends Test
 		}
 		eq("TA",Type.enumConstructor(e));
 
-		eq(0, Type.enumIndex(TEnum.TA));
-		eq(0, Type.enumIndex(getTA()));
-		eq(3, Type.enumIndex(TEnumWithValue.TVA));
-		eq(3, Type.enumIndex(getTVA()));
+		eq(Type.enumIndex(getTA()), Type.enumIndex(TEnum.TA));
+		eq(Type.enumIndex(getTVA()), Type.enumIndex(TEnumWithValue.TVA));
+		eq(Type.enumIndex(getTBA()), Type.enumIndex(TEnumWithBigValue.TBA));
 
-		eq(0, Type.enumIndex(TEnumWithValue.TVB));
-		eq(0, Type.enumIndex(getTVB()));
-		eq(1, Type.enumIndex(TEnum.TB));
-		eq(1, Type.enumIndex(getTB()));
+		eq(Type.enumIndex(getTVB()), Type.enumIndex(TEnumWithValue.TVB));
+		eq(Type.enumIndex(getTBB()), Type.enumIndex(TEnumWithBigValue.TBB));
+		eq(Type.enumIndex(getTB()), Type.enumIndex(TEnum.TB));
 
-		eq(2, Type.enumIndex(TEnum.TC));
-		eq(2, Type.enumIndex(getTC()));
-		eq(2, Type.enumIndex(TEnumWithValue.TVC));
-		eq(2, Type.enumIndex(getTVC()));
+		eq(Type.enumIndex(getTC()), Type.enumIndex(TEnum.TC));
+		eq(Type.enumIndex(getTVC()), Type.enumIndex(TEnumWithValue.TVC));
+		eq(Type.enumIndex(getTBC()), Type.enumIndex(TEnumWithBigValue.TBC));
 
-		eq(1, Type.enumIndex(TEnumWithValue.TVD));
-		eq(1, Type.enumIndex(getTVD()));
+		eq(Type.enumIndex(getTVD()), Type.enumIndex(TEnumWithValue.TVD));
+		eq(Type.enumIndex(getTBD()), Type.enumIndex(TEnumWithBigValue.TBD));
 
-		checkEnum(TEnum,0,TEnum.TA);
-		checkEnum(TEnum,1,TEnum.TB);
-		checkEnum(TEnum,2,TEnum.TC);
+		checkEnum(TEnum,TEnum.TA);
+		checkEnum(TEnum,TEnum.TB);
+		checkEnum(TEnum,TEnum.TC);
 
-		checkEnum(TEnumWithValue,3,TEnumWithValue.TVA);
-		checkEnum(TEnumWithValue,0,TEnumWithValue.TVB);
-		checkEnum(TEnumWithValue,2,TEnumWithValue.TVC);
-		checkEnum(TEnumWithValue,1,TEnumWithValue.TVD);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVA);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVB);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVC);
+		checkEnum(TEnumWithValue,TEnumWithValue.TVD);
+
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBA);
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBB);
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBC);
+		checkEnum(TEnumWithBigValue,TEnumWithBigValue.TBD);
+
+		//issue #2308
+		var fn = getEnumValue;
+		eq(0x100, Reflect.callMethod(null, fn, [TEnumWithValue.TVA]));
+	}
+
+	static function getEnumValue(e:TEnumWithValue):Int
+	{
+		return cast e;
 	}
 
 	private static function getArray(arr:cs.system.Array)
@@ -277,22 +401,32 @@ class TestCSharp extends Test
 		return [ for (i in 0...arr.Length) arr.GetValue(i) ];
 	}
 
-	function checkEnum<T>(e:Enum<T>,idx:Int,v:T,?pos:haxe.PosInfos)
+	function checkEnum<T : EnumValue>(e:Enum<T>,v:T,?pos:haxe.PosInfos)
 	{
+		var idx = Type.enumIndex(v);
 		eq(v,Type.createEnumIndex(e,idx),pos);
 	}
 
 	function getTA() return TEnum.TA;
 	function getTVA() return TEnumWithValue.TVA;
+	function getTBA() return TEnumWithBigValue.TBA;
 	function getTB() return TEnum.TB;
 	function getTVB() return TEnumWithValue.TVB;
+	function getTBB() return TEnumWithBigValue.TBB;
 	function getTC() return TEnum.TC;
 	function getTVC() return TEnumWithValue.TVC;
+	function getTBC() return TEnumWithBigValue.TBC;
 	function getTVD() return TEnumWithValue.TVD;
+	function getTBD() return TEnumWithBigValue.TBD;
 
 	@:skipReflection private function refTest(i:cs.Ref<Int>):Void
 	{
 		i *= 2;
+	}
+
+	@:skipReflection private function refTestAssign(i:cs.Ref<Int>):Void
+	{
+		i = 2;
 	}
 
 	@:skipReflection private function outTest(out:cs.Out<Int>, x:Int):Void
@@ -317,6 +451,10 @@ class TestCSharp extends Test
 
 	public function testRef()
 	{
+		var i = 10;
+		refTestAssign(i);
+		eq(i, 2);
+
 		var i = 10;
 		refTest(i);
 		eq(i, 20);
@@ -419,6 +557,50 @@ class TestCSharp extends Test
 		f(hasFired);
 	}
 
+	function testHaxeEvents() {
+		var c = new EventClass();
+		var sum = 0;
+		var cb:Action_1<Int> = function(x) sum += x;
+		c.add_Event1(cb);
+		c.invokeEvent1(1);
+		c.invokeEvent1(2);
+		c.remove_Event1(cb);
+		c.invokeEvent1(3);
+		eq(sum, 3);
+
+		c.add_Event2(cb);
+		eq(c.event2Counter, 1);
+		c.remove_Event2(cb);
+		eq(c.event2Counter, 0);
+
+		sum = 0;
+		EventClass.add_SEvent1(cb);
+		EventClass.invokeSEvent1(1);
+		EventClass.invokeSEvent1(2);
+		EventClass.remove_SEvent1(cb);
+		EventClass.invokeSEvent1(3);
+		eq(sum, 3);
+
+		EventClass.add_SEvent2(cb);
+		eq(EventClass.sEvent2Counter, 1);
+		EventClass.remove_SEvent2(cb);
+		eq(EventClass.sEvent2Counter, 0);
+
+		var i:IEventIface = c;
+		sum = 0;
+		i.add_IfaceEvent1(cb);
+		c.invokeIfaceEvent1(1);
+		c.invokeIfaceEvent1(2);
+		i.remove_IfaceEvent1(cb);
+		c.invokeIfaceEvent1(3);
+		eq(sum, 3);
+
+		i.add_IfaceEvent2(cb);
+		eq(c.ifaceEvent2Counter, 1);
+		i.remove_IfaceEvent2(cb);
+		eq(c.ifaceEvent2Counter, 0);
+	}
+
 #if unsafe
 
 	@:unsafe public function testUnsafe()
@@ -482,7 +664,7 @@ class TestCSharp extends Test
 	}
 }
 
-@:meta(System.ComponentModel.Description("Type description test"))
+@:strict(DescriptionAttribute("Type description test"))
 typedef StringWithDescription = String;
 
 private class HxClass extends NativeClass
@@ -506,7 +688,7 @@ private class HxClass extends NativeClass
 	}
 }
 
-@:meta(System.ComponentModel.Description("MyClass Description"))
+@:strict(cs.system.componentmodel.DescriptionAttribute("MyClass Description"))
 private class TestMyClass extends haxe.test.MyClass
 {
 	@:overload public function new()
@@ -528,7 +710,7 @@ private class TestMyClass extends haxe.test.MyClass
 	public var dynamicCalled:Bool;
 	public var getCalled:Bool;
 
-	@:meta(System.ComponentModel.Description("Argument description"))
+	@:strict(DescriptionAttribute("Argument description"))
 	@:keep public function argumentDescription(arg:StringWithDescription)
 	{
 	}
@@ -580,4 +762,51 @@ private class TestMyClass extends haxe.test.MyClass
 		this.int = i;
 		this.float = f;
 	}
+}
+
+private interface IEventIface {
+	@:keep
+    @:event private var IfaceEvent1:Action_1<Int>;
+    function add_IfaceEvent1(cb:Action_1<Int>):Void;
+    function remove_IfaceEvent1(cb:Action_1<Int>):Void;
+
+    @:keep
+    @:event private var IfaceEvent2:Action_1<Int>;
+    function add_IfaceEvent2(cb:Action_1<Int>):Void;
+    function remove_IfaceEvent2(cb:Action_1<Int>):Void;
+}
+
+@:publicFields
+private class EventClass implements IEventIface {
+	function new() {}
+
+    @:event private var Event1:Action_1<Int>;
+    function add_Event1(cb:Action_1<Int>) {}
+    function remove_Event1(cb:Action_1<Int>) {}
+    function invokeEvent1(i) if (Event1 != null) Event1.Invoke(i);
+
+    @:event private var Event2:Action_1<Int>;
+    var event2Counter = 0;
+    function add_Event2(cb:Action_1<Int>) event2Counter++;
+    function remove_Event2(cb:Action_1<Int>) event2Counter--;
+
+    @:event private static var SEvent1:Action_1<Int>;
+    static function add_SEvent1(cb:Action_1<Int>) {}
+    static function remove_SEvent1(cb:Action_1<Int>) {}
+    static function invokeSEvent1(i) if (SEvent1 != null) SEvent1.Invoke(i);
+
+    @:event private static var SEvent2:Action_1<Int>;
+    static var sEvent2Counter = 0;
+    static function add_SEvent2(cb:Action_1<Int>) sEvent2Counter++;
+    static function remove_SEvent2(cb:Action_1<Int>) sEvent2Counter--;
+
+    @:event private var IfaceEvent1:Action_1<Int>;
+    function add_IfaceEvent1(cb:Action_1<Int>) {}
+    function remove_IfaceEvent1(cb:Action_1<Int>) {}
+    function invokeIfaceEvent1(i) if (IfaceEvent1 != null) IfaceEvent1.Invoke(i);
+
+    @:event private var IfaceEvent2:Action_1<Int>;
+    var ifaceEvent2Counter = 0;
+    function add_IfaceEvent2(cb:Action_1<Int>) ifaceEvent2Counter++;
+    function remove_IfaceEvent2(cb:Action_1<Int>) ifaceEvent2Counter--;
 }

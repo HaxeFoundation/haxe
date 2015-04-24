@@ -91,7 +91,7 @@ import java.internal.Exceptions;
 					case \'-\':
 						isNeg = true;
 						continue;
-          case \'+\':
+					case \'+\':
 					case \'\\n\':
 					case \'\\t\':
 					case \'\\r\':
@@ -135,110 +135,52 @@ import java.internal.Exceptions;
 		return null;
 	}
 
-	@:functionCode('
-		if (x == null) return java.lang.Double.NaN;
-
-		x = x.trim();
-		double ret = 0.0;
-		double div = 0.0;
-		double e = 0.0;
-
-		int len = x.length();
-		boolean foundAny = false;
-		boolean isNeg = false;
-		for (int i = 0; i < len; i++)
-		{
-			char c = x.charAt(i);
-			if (!foundAny)
-			{
-				switch(c)
-				{
-					case \'-\':
-						isNeg = true;
-						continue;
-          case \'+\':
-					case \'\\n\':
-					case \'\\t\':
-					case \'\\r\':
-					case \' \':
-					if (isNeg) return java.lang.Double.NaN;
-						continue;
-				}
-			}
-
-			if (c == \'.\') {
-				if (div != 0.0)
-					break;
-				div = 1.0;
-				foundAny = true;
-
-				continue;
-			}
-
-			if (c >= \'0\' && c <= \'9\')
-			{
-				if (!foundAny && c == \'0\')
-				{
-					foundAny = true;
-					continue;
-				}
-				ret *= 10.0; foundAny = true; div *= 10.0;
-
-				ret += ((int) (c - \'0\'));
-			} else if (foundAny && c == \'E\' || c == \'e\') {
-				boolean eNeg = false;
-				boolean eFoundAny = false;
-
-				char next = x.charAt(i + 1);
-				if (i + 1 < len)
-				{
-					if (next == \'-\')
-					{
-						eNeg = true;
-						i++;
-					} else if (next == \'+\') {
-						i++;
-					}
-				}
-
-				while (++i < len)
-				{
-					c = x.charAt(i);
-					if (c >= \'0\' && c <= \'9\')
-					{
-						if (!eFoundAny && c == \'0\')
-							continue;
-						eFoundAny = true;
-						e *= 10.0;
-						e += ((int) (c - \'0\'));
-					} else {
-						break;
-					}
-				}
-
-				if (eNeg) e = -e;
-			} else {
-				break;
-			}
-		}
-
-		if (div == 0.0) div = 1.0;
-
-		if (foundAny)
-		{
-			ret = isNeg ? -(ret / div) : (ret / div);
-			if (e != 0.0)
-			{
-				return ret * Math.pow(10.0, e);
-			} else {
-				return ret;
-			}
-		} else {
-			return java.lang.Double.NaN;
-		}
-	')
 	public static function parseFloat( x : String ) : Float {
-		return 0.0;
+		if (x == null) return Math.NaN;
+		x = StringTools.ltrim(x);
+		var found = false, isHex = false, hasDot = false, hasE = false, hasNeg = false, hasENeg = false;
+		var i = -1;
+		inline function getch(i:Int):Int return cast (untyped x._charAt(i) : java.StdTypes.Char16);
+
+		while (++i < x.length)
+		{
+			var chr = getch(i);
+			if (chr >= '0'.code && chr <= '9'.code)
+			{
+				if ( !found && chr == '0'.code && (i+1) < x.length )
+				{
+					var next = getch(i+1);
+					if (next == 'x'.code || next == 'X'.code)
+					{
+						isHex = true;
+						i++;
+					}
+				}
+				found = true;
+			} else switch (chr) {
+				case 'a'.code | 'b'.code | 'c'.code | 'd'.code | 'e'.code | 'f'.code
+				   | 'A'.code | 'B'.code | 'C'.code | 'D'.code | 'E'.code | 'F'.code if (isHex):
+					//do nothing - it's alright
+				case 'e'.code | 'E'.code if(!hasE):
+					hasE = true;
+				case '.'.code if (!hasDot):
+					hasDot = true;
+				case '-'.code if (!found && !hasNeg):
+					hasNeg = true;
+				case '-'.code if (found && !hasENeg && hasE):
+					hasENeg = true;
+				case _:
+					break;
+			}
+		}
+		if (i != x.length)
+		{
+			x = x.substr(0,i);
+		}
+		return try
+			java.lang.Double.DoubleClass.parseDouble(x)
+		catch(e:Dynamic)
+			Math.NaN;
 	}
 
 	inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {

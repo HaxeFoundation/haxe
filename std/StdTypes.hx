@@ -48,7 +48,7 @@
 
 /**
 	`Null` can be useful in two cases. In order to document some methods
-	that accepts or can return a `null` value, or for the Flash9 compiler and AS3
+	that accepts or can return a `null` value, or for the Flash compiler and AS3
 	generator to distinguish between base values that can be null and others that
 	can't.
 **/
@@ -94,8 +94,11 @@ typedef Iterator<T> = {
 	/**
 		Returns the current item of the Iterator and advances to the next one.
 
-		This method is not required to check hasNext() first. A call to this
-		method while hasNext() is false yields unspecified behavior.
+		This method is not required to check `hasNext` first. A call to this
+		method while `hasNext` is false yields unspecified behavior.
+
+		On the other hand iterators should not require a call to `hasNext`
+		before the first call to `next` if an element is available.
 	**/
 	function next() : T;
 
