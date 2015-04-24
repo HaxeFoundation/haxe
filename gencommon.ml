@@ -6579,7 +6579,7 @@ struct
 			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				is_abstract_to_struct (Abstract.get_underlying_type a pl)
 			| TInst(c,_) when Meta.has Meta.Struct c.cl_meta ->
-					true
+				true
 			| _ -> false
 		in
 
@@ -6772,13 +6772,17 @@ struct
 					| _ when is_abstract_to_struct expr.etype && type_iseq gen e.etype (get_abstract_impl expr.etype) ->
 						run { expr with etype = expr.etype }
 					| _ ->
-						let last_unsafe = gen.gon_unsafe_cast in
-						gen.gon_unsafe_cast <- (fun t t2 pos -> ());
-						let ret = handle (run expr) e.etype expr.etype in
-						gen.gon_unsafe_cast <- last_unsafe;
-						match ret.eexpr with
-							| TCast _ -> ret
-							| _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
+						match gen.greal_type e.etype, gen.greal_type expr.etype with
+							| (TInst(c,tl) as tinst1), TAbstract({ a_path = ["cs"],"Pointer" }, [tinst2]) when type_iseq gen tinst1 (gen.greal_type tinst2) ->
+								run expr
+							| _ ->
+								let last_unsafe = gen.gon_unsafe_cast in
+								gen.gon_unsafe_cast <- (fun t t2 pos -> ());
+								let ret = handle (run expr) e.etype expr.etype in
+								gen.gon_unsafe_cast <- last_unsafe;
+								match ret.eexpr with
+									| TCast _ -> { ret with etype = gen.greal_type e.etype }
+									| _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
 					)
 				(*| TCast _ ->
 					(* if there is already a cast, we should skip this cast check *)
