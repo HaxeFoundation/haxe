@@ -1512,7 +1512,23 @@ let rec unify a b =
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+	| TFun (l1,r1) , TFun (l2,r2) ->
+		let l2 =
+			if List.length l1=List.length l2 then
+				l2
+			else
+				let rec loop acc = (function
+					| [] -> List.rev acc
+					| ((s,eo,t) as x)::xs ->
+						match follow t with
+						| TInst ({ cl_kind = KGenericInstance(_, tl) }, _) ->
+							let tl = List.map (fun t -> ("_", false, t)) tl in
+							loop (List.rev_append tl acc) xs
+						| _ -> loop (x::acc) xs)
+				in
+				loop [] l2
+		in
+		if List.length l1 <> List.length l2 then error [cannot_unify a b] else
 		let i = ref 0 in
 		(try
 			(match r2 with
