@@ -499,6 +499,16 @@ let map loop t =
 	| TDynamic t2 ->
 		if t == t2 then	t else TDynamic (loop t2)
 
+let follow_class = function
+	| { cl_kind = KGenericInstance(c, _)} -> c
+	| c -> c
+
+let get_type_list tl = function
+	| { cl_kind = KGenericInstance(_, tl) } -> tl
+	| _ -> tl
+
+let get_class_path c = (follow_class c).cl_path
+
 (* substitute parameters with other types *)
 let apply_params cparams params t =
 	match cparams with
@@ -534,6 +544,7 @@ let apply_params cparams params t =
 			| [] -> t
 			| _ -> TAbstract (a,List.map loop tl))
 		| TInst (c,tl) ->
+			let tl = get_type_list tl c in
 			(match tl with
 			| [] ->
 				t
@@ -1380,7 +1391,9 @@ let rec type_eq param a b =
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
 		List.iter2 (type_eq param) tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
-		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
+		let tl1 = get_type_list tl1 c1 in
+		let tl2 = get_type_list tl2 c2 in
+		if (follow_class c1) != (follow_class c2) && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
 		List.iter2 (type_eq param) tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		(try
@@ -1496,6 +1509,8 @@ let rec unify a b =
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
+		let tl1 = get_type_list tl1 c1 in
+		let tl2 = get_type_list tl2 c2 in
 		let rec loop c tl =
 			if c == c2 then begin
 				unify_type_params a b tl tl2;
@@ -1512,7 +1527,23 @@ let rec unify a b =
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+	| TFun (l1,r1) , TFun (l2,r2) ->
+		let l2 =
+			if List.length l1=List.length l2 then
+				l2
+			else
+				let rec loop acc = (function
+					| [] -> List.rev acc
+					| ((s,eo,t) as x)::xs ->
+						match follow t with
+						| TInst ({ cl_kind = KGenericInstance(_, tl) }, _) ->
+							let tl = List.map (fun t -> ("_", false, t)) tl in
+							loop (List.rev_append tl acc) xs
+						| _ -> loop (x::acc) xs)
+				in
+				loop [] l2
+		in
+		if List.length l1 <> List.length l2 then error [cannot_unify a b] else
 		let i = ref 0 in
 		(try
 			(match r2 with
