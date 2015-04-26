@@ -23,17 +23,23 @@
 @:coreApi
 class String {
 	public var length(default,null) : Int;
-	public function new(string:String) untyped {}
 
-	static function __init__() : Void{
-		untyped __lua__("setmetatable(_G.string, String.prototype)");
+
+	public function new(string:String) untyped {
+		if (string != null) __lua__("self = string");
+		else __lua__("self = ''");
+	}
+
+	static function __init__() : Void untyped{
+		__lua__("getmetatable('').__index = String.__index");
 	}
 
 	@:keep
-	function __index(k:String) : Dynamic {
-		if (k == "length") return untyped __lua__("#self");
+	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
+		if (k == "length") return untyped __lua__("#s");
 		else return null;
 	}
+
 
 	public function toUpperCase() : String return untyped this.upper();
 	public function toLowerCase() : String return untyped this.lower();

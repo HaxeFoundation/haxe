@@ -41,7 +41,7 @@ class EReg {
 			}
 		}
 		if (global == null) global = false;
-		this.r = new Rex(r, ropt.toString());
+		this.r = Rex.create(r, ropt.toString());
 	}
 
 	public function match( str : String ) : Bool {

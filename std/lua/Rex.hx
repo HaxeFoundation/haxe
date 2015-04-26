@@ -1,7 +1,10 @@
 package lua;
 @:luaRequire("rex_pcre")
 extern class Rex {
-	public function new(expr : String, flag : String);
+
+	inline public static function create(expr : String, flag : String) : Rex{
+		return untyped Rex['new'](expr, flag);
+	}
 
 	/**
 	  The function searches for the first match of the regexp patt in the

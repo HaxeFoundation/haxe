@@ -1073,7 +1073,7 @@ let gen_class_field ctx c f =
 		    ctx.in_value <- None;
 		    ctx.in_loop <- false;
 		    print ctx "%s = function" (anon_field f.cf_name);
-		    print ctx "(%s) " (String.concat "," (List.map ident (List.map arg_name f2.tf_args)));
+		    print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
 		    newline ctx;
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with
