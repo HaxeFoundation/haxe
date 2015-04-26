@@ -131,7 +131,7 @@ enum ValueType {
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		var a = [];
-		untyped __js__("for(var i in c.prototype) a.push(i)");
+		untyped __lua__("for i,v in c.mt do a:push(v) end");
 		a.remove("__class__");
 		a.remove("__properties__");
 		return a;
