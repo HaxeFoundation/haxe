@@ -46,37 +46,39 @@ class Boot {
 	}
 
 	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
-		if( cl == null )
-			return false;
-		switch( cl ) {
-		case Int:
-			return (untyped __lua__("bitor(o,0) == o"));
-		case Float:
-			return untyped __type__(o) == "number";
-		case Bool:
-			return untyped __type__(o) == "boolean";
-		case String:
-			return untyped __type__(o) == "string";
-		case Array:
-			// TODO: Better array check
-			return untyped __type__(o) == "table" && o.__enum__ == null;
-		case Dynamic:
-			return true;
-		default:
-			if( o != null ) {
-				// Check if o is an instance of a Haxe class or a native JS object
-				if (untyped __type__(cl) == "table" ) {
-					// TODO: Fixme
-					return true;
-				}
-			} else {
-				return false;
-			}
+		if( cl == null ) return false;
 
-			// do not use isClass/isEnum here
-			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
-			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
-			return o.__enum__ == cl;
+		switch( cl ) {
+			case Int:
+				return (untyped __lua__("bitor(o,0) == o"));
+			case Float:
+				return untyped __type__(o) == "number";
+			case Bool:
+				return untyped __type__(o) == "boolean";
+			case String:
+				return untyped __type__(o) == "string";
+			case Array:
+				// TODO: Better array check
+				return untyped __type__(o) == "table" 
+					&& o.__enum__ == null
+					&& o.length != null;
+			case Dynamic:
+				return true;
+			default:
+				if( o != null ) {
+					// Check if o is an instance of a Haxe class or a native JS object
+					if (untyped __type__(cl) == "table" ) {
+						// TODO: Fixme
+						return true;
+					}
+				} else {
+					return false;
+				}
+
+				// do not use isClass/isEnum here
+				untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
+				untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
+				return o.__enum__ == cl;
 		}
 	}
 
@@ -97,7 +99,7 @@ class Boot {
 	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic>  untyped {
 		tabobj.length = length;
 		setmetatable(tabobj, {
-			__index : __lua__("Array.mt"),
+			__index : __lua__("Array.prototype"),
 			__newindex : lua.Boot.arrayNewIndex
 		});
 		return tabobj;
@@ -138,6 +140,7 @@ class Boot {
 				case "userdata": return "<userdata>";
 				case "function": return "<function>";
 				case "thread": return "<thread>";
+				// TODO: come up with better fix for infinite recursive loop due to __class__
 				case "table": { __lua__("local result = '';
 		if o.toString ~= nil then result = o:toString()
 		elseif o.__tostring ~= nil then result = tostring(o)
@@ -146,10 +149,14 @@ class Boot {
 			result = result .. '{ ';
 			local first = true
 			for i, v in pairs(o) do
-				if (first) then first = false
-				else result = result .. ','
+				if i ~= '__class__' then
+					if (first) then 
+						first = false
+					else 
+						result = result .. ','
+					end
+					result = result .. i .. ' => ' .. lua.Boot.__string_rec(v, s .. 'o');
 				end
-				result = result .. i .. ' => ' .. lua.Boot.__string_rec(v, s .. 'o');
 			end
 			result = result .. ' }';
 		end");

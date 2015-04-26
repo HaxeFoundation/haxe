@@ -137,6 +137,7 @@ let semicolon ctx =
 	| '}' when not ctx.separator -> ()
 	| _ -> spr ctx ";"
 
+
 let rec concat ctx s f = function
 	| [] -> ()
 	| [x] -> f x
@@ -276,17 +277,17 @@ let rec gen_call ctx e el in_value =
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "setmetatable(self, {__index = %s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			print ctx "%s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
-			spr ctx ")})";
+			spr ctx ")";
 		);
 	| TField ({ eexpr = TConst TSuper },f) , params ->
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
-			(* TODO: use nonconflict var instead of mt *)
-			print ctx "%s.mt%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
+			(* TODO: use nonconflict var instead of prototype *)
+			print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -298,14 +299,13 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
-		print ctx "%s.new(" cl;
-		concat ctx "," (gen_value ctx) params;
+		print ctx "%s.new({}" cl;
+		List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 		spr ctx ")";
 	| TLocal { v_name = "__new__" }, e :: params ->
 		gen_value ctx e;
-		spr ctx ".new";
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) params;
+		spr ctx ".new({}";
+		List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 		spr ctx ")";
 	| TLocal { v_name = "__callself__" }, { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
 		print ctx "%s:%s" head tail;
@@ -524,8 +524,8 @@ and gen_expr ctx e =
 				    gen_value ctx e;
 		end
 	| TNew (c,_,el) ->
-		print ctx "%s.new(" (ctx.type_accessor (TClassDecl c));
-		concat ctx "," (gen_value ctx) el;
+		print ctx "%s.new({}" (ctx.type_accessor (TClassDecl c));
+			List.iter (fun p -> print ctx ","; gen_value ctx p) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
 		ctx.iife_assign <- true;
@@ -1002,7 +1002,7 @@ and gen_cond ctx cond =
 and has_class ctx c =
     has_feature ctx "lua.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None)
 
-and has_metatable ctx c =
+and has_prototype ctx c =
     c.cl_super <> None || (has_class ctx c) || List.exists (can_gen_class_field ctx) c.cl_ordered_fields
 
 and can_gen_class_field ctx = function
@@ -1073,7 +1073,7 @@ let gen_class_field ctx c f =
 		    ctx.in_value <- None;
 		    ctx.in_loop <- false;
 		    print ctx "%s = function" (anon_field f.cf_name);
-		    print ctx "(%s) " (String.concat "," ("self"::(List.map ident (List.map arg_name f2.tf_args))));
+		    print ctx "(%s) " (String.concat "," (List.map ident (List.map arg_name f2.tf_args)));
 		    newline ctx;
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with
@@ -1134,17 +1134,17 @@ let generate_class ctx c =
 				    let old = ctx.in_value, ctx.in_loop in
 				    ctx.in_value <- None;
 				    ctx.in_loop <- false;
-				    print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+				    print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
 				    let fblock = fun_block ctx f e.epos in
 				    (match fblock.eexpr with
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					if (has_metatable ctx c) then
-					    print ctx "local self = %s.mt" p;
+					if (has_prototype ctx c) then
+					    print ctx "setmetatable(self, {__index=%s.prototype}) " p;
 					List.iter (gen_block_element ctx) el;
 					newline ctx;
-					(* TODO: use nonconflict var instead of mt *)
+					(* TODO: use nonconflict var instead of prototype *)
 					spr ctx "return self";
 					bend();
 					newline ctx;
@@ -1186,16 +1186,8 @@ let generate_class ctx c =
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
 	newline ctx;
-	if (has_metatable ctx c) then begin
-		(match c.cl_super with
-		| None -> ()
-		| Some (csup,_) ->
-			let psup = ctx.type_accessor (TClassDecl csup) in
-			print ctx "%s.__super__ = %s" p psup;
-			newline ctx;
-			(* TODO: use nonconflict var instead of mt *)
-		);
-		print ctx "%s.mt = {" p;
+	if (has_prototype ctx c) then begin
+		print ctx "%s.prototype = {" p;
 		newline ctx;
 
 		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
@@ -1211,14 +1203,22 @@ let generate_class ctx c =
 			| Some (csup,_) when Codegen.has_properties csup ->
 				newprop ctx;
 				let psup = s_path ctx csup.cl_path in
-				print ctx "__properties__ =  {__index = %s.mt.__properties__,{%s}}" psup (gen_props props)
+				print ctx "__properties__ =  {__index = %s.prototype.__properties__,{%s}}" psup (gen_props props)
 			| _ ->
 				newprop ctx;
 				print ctx "__properties__ =  {%s}" (gen_props props));
 		end;
 
 		print ctx "\n}";
-		newline ctx
+		newline ctx;
+		(match c.cl_super with
+		| None -> ()
+		| Some (csup,_) ->
+			let psup = ctx.type_accessor (TClassDecl csup) in
+			print ctx "%s.__super__ = %s" p psup; newline ctx;
+			print ctx "setmetatable(%s.prototype,{__index=%s.prototype})" p psup; newline ctx;
+			(* TODO: use nonconflict var instead of prototype *)
+		);
 	end
 
 let generate_enum ctx e =

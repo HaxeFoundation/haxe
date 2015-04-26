@@ -26,7 +26,7 @@ class String {
 	public function new(string:String) untyped {}
 
 	static function __init__() : Void{
-		untyped __lua__("setmetatable(_G.string, String.mt)");
+		untyped __lua__("setmetatable(_G.string, String.prototype)");
 	}
 
 	@:keep
