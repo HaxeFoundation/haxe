@@ -760,10 +760,13 @@ and cpp_function_signature_params params = match params with
 
 and gen_interface_arg_type_name name opt typ =
    let type_str = (type_string typ) in
-   (if (opt && (cant_be_null typ) ) then
+   (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
+   (if (opt && (cant_be_null typ) && type_str<>"Dynamic" ) then
       "hx::Null< " ^ type_str ^ " > "
    else
       type_str )
+
+
    ^ " " ^ (keyword_remap name)
 and gen_tfun_interface_arg_list args =
    String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
