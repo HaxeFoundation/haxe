@@ -85,7 +85,7 @@
 
 	public static inline function fround(v:Float):Float
 	{
-		return cs.system.Math.Round(v);
+		return cs.system.Math.Floor(v + 0.5);
 	}
 
 	public static inline function ffloor(v:Float):Float

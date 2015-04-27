@@ -170,6 +170,21 @@ Math.round( -1.50001) == -2;
 Math.fround(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
 Math.fround(Math.NEGATIVE_INFINITY) == Math.NEGATIVE_INFINITY;
 Math.isNaN(Math.fround(Math.NaN)) == true;
+Math.fround(0.0) == 0.0;
+Math.fround(0.1) == 0.0;
+Math.fround(0.4999) == 0.0;
+Math.fround(0.5) == 1.0;
+Math.fround(1.0) == 1.0;
+Math.fround(1.499) == 1.0;
+Math.fround(1.5) == 2.0;
+Math.fround(-0.1) == -0.0;
+Math.fround(-0.4999) == -0.0;
+Math.fround(-0.5) == -0.0;
+Math.fround(-0.50001) == -1.0;
+Math.fround(-1.0) == -1.0;
+Math.fround(-1.499) == -1.0;
+Math.fround(-1.5) == -1.0;
+Math.fround( -1.50001) == -2.0;
 
 // floor
 Math.floor(0.0) == 0;
