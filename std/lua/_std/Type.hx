@@ -51,10 +51,8 @@ enum ValueType {
 
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
-		var a : Array<String> = untyped c.__name__;
-		if (a == null)
-			return null;
-		return a.join(".");
+		if (untyped c.__name__ == null) return null;
+		return lua.TableTools.concat(untyped c.__name__,'.');
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
@@ -131,7 +129,7 @@ enum ValueType {
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		var a = [];
-		untyped __lua__("for i,v in c.mt do a:push(v) end");
+		untyped __lua__("for i,v in pairs(c.prototype) do a:push(v) end");
 		a.remove("__class__");
 		a.remove("__properties__");
 		return a;
