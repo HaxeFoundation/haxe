@@ -21,7 +21,7 @@
  */
 package haxe;
 
-
+import haxe.Int64Helper;
 
 @:notNull
 
@@ -118,6 +118,14 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 	private function toString() : String
 	{
 		return untyped __cpp__("String( ({0}).get() )", this);
+	}
+
+	public static function fromString( sParam : String ) : Int64 {
+		return Int64Helper.fromString( sParam );
+	}
+
+	public static function fromFloat( f : Float ) : Int64 {
+		return Int64Helper.fromFloat( f );
 	}
 
 	/**

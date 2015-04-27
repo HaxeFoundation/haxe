@@ -22,6 +22,8 @@
 package haxe;
 using haxe.Int64;
 
+import haxe.Int64Helper;
+
 private typedef __Int64 = java.StdTypes.Int64;
 
 @:coreApi
@@ -92,6 +94,15 @@ abstract Int64(__Int64) from __Int64 to __Int64
 
 	private inline function toString() : String
 		return '$this';
+
+	public static function fromString( sParam : String ) : Int64 {
+		// can this be done?: return new Int64( java.lang.Long.LongClass.parseLong( sParam ) );
+		return Int64Helper.fromString( sParam );
+	}
+
+	public static function fromFloat( f : Float ) : Int64 {
+		return Int64Helper.fromFloat( f );
+	}
 
 	@:op(-A) public static function neg( x : Int64 ) : Int64
 		return -x.val;
