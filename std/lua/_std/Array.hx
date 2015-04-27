@@ -77,8 +77,16 @@ class Array<T> {
 		(untyped this).splice(pos,0,x);
 	}
 
-	public inline function remove( x : T ) : Bool {
-		return untyped this.remove(x);
+	public function remove( x : T ) : Bool {
+		for (i in 0...this.length){
+			var a = this[i];
+			if (a == x){
+				lua.TableTools.remove(cast this, i+1);
+				length-=1;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public function indexOf( x : T, ?fromIndex:Int ) : Int return 1;
