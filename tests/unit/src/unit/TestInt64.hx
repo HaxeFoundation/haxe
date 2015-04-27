@@ -89,6 +89,16 @@ class TestInt64 extends Test {
 
 		a = Int64.make(1,1);
 		eq( a.toStr(), "4294967297" );
+
+		// set a to 2^63 (overflows to the smallest negative number)
+		a = Int64.ofInt(2);
+		for (i in 0...62) {
+			a = Int64.mul(a, 2);
+		}
+
+		eq( Int64.add(a, -1).toStr(), "9223372036854775807" ); // largest positive
+		eq( Int64.add(a, 1).toStr(), "-9223372036854775807" ); // smallest negative - 1
+		eq( a.toStr(), "-9223372036854775808" ); // smallest negative
 	}
 
 	public function testComparison() {
