@@ -96,8 +96,8 @@ class Boot {
 	}
 
 	@:keep
-	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic>  untyped {
-		tabobj.length = length;
+	public static function defArray(tabobj: Dynamic, ?length : Int) : Array<Dynamic>  untyped {
+		tabobj.length = length != null ? length : lua.TableTools.getn(tabobj);
 		setmetatable(tabobj, {
 			__index : __lua__("Array.prototype"),
 			__newindex : lua.Boot.arrayNewIndex
