@@ -225,6 +225,19 @@ class Socket {
 		};
 	}
 
+    /**
+     * This version of select doesn't return anything; it modifies the input
+     * arrays, leaving only those Sockets which are readable in read,
+     * writeable in write, and other in others.
+     **/
+    public static function fast_select(read : Array<Socket>,
+                                       write : Array<Socket>,
+                                       others : Array<Socket>,
+                                       ?timeout : Float) : Void
+    {
+        socket_fast_select(read, write, others, timeout);
+    }
+
 	private static var socket_new = cpp.Lib.load("std","socket_new",1);
 	private static var socket_close = cpp.Lib.load("std","socket_close",1);
 	private static var socket_write = cpp.Lib.load("std","socket_write",2);
@@ -232,6 +245,7 @@ class Socket {
 	private static var socket_connect = cpp.Lib.load("std","socket_connect",3);
 	private static var socket_listen = cpp.Lib.load("std","socket_listen",2);
 	private static var socket_select = cpp.Lib.load("std","socket_select",4);
+	private static var socket_fast_select = cpp.Lib.load("std","socket_fast_select",4);
 	private static var socket_bind = cpp.Lib.load("std","socket_bind",3);
 	private static var socket_accept = cpp.Lib.load("std","socket_accept",1);
 	private static var socket_peer = cpp.Lib.load("std","socket_peer",1);

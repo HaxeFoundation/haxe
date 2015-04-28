@@ -245,6 +245,33 @@ class Socket {
 		};
 	}
 
+    public static function fast_select(read : Array<Socket>,
+                                       write : Array<Socket>,
+                                       others : Array<Socket>,
+                                       ?timeout : Float) : Void
+    {
+        // Compatible, but not fast
+        var ret = select(read, write, others, timeout);
+        if (read != null) {
+            read.splice(0, read.length);
+            while (ret.read.length > 0) {
+                read.push(ret.read.pop());
+            }
+        }
+        if (write != null) {
+            write.splice(0, write.length);
+            while (ret.write.length > 0) {
+                write.push(ret.write.pop());
+            }
+        }
+        if (others != null) {
+            others.splice(0, others.length);
+            while (ret.others.length > 0) {
+                others.push(ret.others.pop());
+            }
+        }
+    }
+
 	private static var socket_new = neko.Lib.load("std","socket_new",1);
 	private static var socket_close = neko.Lib.load("std","socket_close",1);
 	private static var socket_write = neko.Lib.load("std","socket_write",2);

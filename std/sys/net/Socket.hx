@@ -127,4 +127,13 @@ extern class Socket {
 	**/
 	static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> };
 
+    /**
+     * This version of select doesn't return anything; it modifies the input
+     * arrays, leaving only those Sockets which are readable in read,
+     * writeable in write, and other in others.
+     **/
+    static function fast_select(read : Array<Socket>,
+                                write : Array<Socket>,
+                                others : Array<Socket>,
+                                ?timeout : Float) : Void;
 }
