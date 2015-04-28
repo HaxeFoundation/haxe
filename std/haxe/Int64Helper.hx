@@ -41,22 +41,13 @@ class Int64Helper {
 		var len = s.length;
 
 		for (i in 0...len) {
-			var char = s.charAt(len - 1 - i);
-			var digit:Int64 = Int64.ofInt(0);
+			var digitInt = s.charCodeAt(len - 1 - i) - '0'.code;
 
-			switch (char) {
-				case "0": digit = Int64.ofInt(0);
-				case "1": digit = Int64.ofInt(1);
-				case "2": digit = Int64.ofInt(2);
-				case "3": digit = Int64.ofInt(3);
-				case "4": digit = Int64.ofInt(4);
-				case "5": digit = Int64.ofInt(5);
-				case "6": digit = Int64.ofInt(6);
-				case "7": digit = Int64.ofInt(7);
-				case "8": digit = Int64.ofInt(8);
-				case "9": digit = Int64.ofInt(9);
-				default: throw "NumberFormatError";
+			if (digitInt < 0 || digitInt > 9) {
+				throw "NumberFormatError";
 			}
+
+			var digit:Int64 = Int64.ofInt(digitInt);
 			if (sIsNegative) {
 				current = Int64.sub(current, Int64.mul(multiplier, digit));
 				if (!Int64.isNeg(current)) {
