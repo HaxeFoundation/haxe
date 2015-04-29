@@ -1,5 +1,6 @@
 package java.lang;
 
+@:native("") // make sure the generator won't see this
 @:forward abstract Character(CharacterClass) from CharacterClass to CharacterClass
 {
 	@:to @:extern inline public function toCharacter():java.types.Char16

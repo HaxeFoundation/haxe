@@ -1,5 +1,6 @@
 package java.lang;
 
+@:native("") // make sure the generator won't see this
 @:forward abstract Short(ShortClass) from ShortClass to ShortClass
 {
 	@:to @:extern inline public function toShort():java.types.Int16

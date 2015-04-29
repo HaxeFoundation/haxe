@@ -1,5 +1,6 @@
 package java.lang;
 
+@:native("") // make sure the generator won't see this
 @:forward abstract Boolean(BooleanClass) from BooleanClass to BooleanClass
 {
 	@:to @:extern inline public function toBool():Bool

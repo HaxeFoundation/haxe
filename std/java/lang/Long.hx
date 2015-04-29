@@ -1,5 +1,6 @@
 package java.lang;
 
+@:native("") // make sure the generator won't see this
 @:forward abstract Long(LongClass) from LongClass to LongClass
 {
 	@:to @:extern inline public function toLong():haxe.Int64

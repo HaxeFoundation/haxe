@@ -1,6 +1,6 @@
 package java.lang;
 
-@:native("") // workaround for #4113
+@:native("") // make sure the generator won't see this
 @:forward abstract Double(DoubleClass) from DoubleClass to DoubleClass
 {
 	@:to @:extern inline public function toFloat():Float
