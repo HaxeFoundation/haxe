@@ -79,7 +79,7 @@ import java.internal.Exceptions;
 			}
 		}
 
-		boolean foundAny = false;
+		boolean foundAny = i != 0;
 		boolean isNeg = false;
 		for (; i < len; i++)
 		{

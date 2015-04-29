@@ -88,6 +88,8 @@ Std.parseFloat("2.426670815e+12") == 2.426670815e+12;
 Std.parseFloat("2.426670815E+12") == 2.426670815e+12;
 Std.parseFloat("2.426670815e-12") == 2.426670815e-12;
 Std.parseFloat("2.426670815E-12") == 2.426670815e-12;
+Std.parseInt("0x C") == 0;
+Std.parseInt("0x+A") == 0;
 
 // random
 var x = Std.random(2);

@@ -81,7 +81,7 @@ import cs.internal.Exceptions;
 			}
 		}
 
-		var foundAny = false;
+		var foundAny = i != -1;
 		var isNeg = false;
 		while (++i < len)
 		{
