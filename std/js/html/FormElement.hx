@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLFormElement")
-extern class FormElement extends Element
+extern class FormElement extends Element implements ArrayAccess<Element>
 {
 	var acceptCharset : String;
 	var action : String;

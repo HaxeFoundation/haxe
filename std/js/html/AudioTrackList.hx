@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("AudioTrackList")
-extern class AudioTrackList extends EventTarget
+extern class AudioTrackList extends EventTarget implements ArrayAccess<AudioTrack>
 {
 	var length(default,null) : Int;
 	var onchange : haxe.Constraints.Function;
