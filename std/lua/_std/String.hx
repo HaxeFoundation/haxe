@@ -37,7 +37,7 @@ class String {
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
 		if (k == "length") return untyped __lua__("#s");
-		else return null;
+		else return untyped String.prototype[k];
 	}
 
 
@@ -80,7 +80,7 @@ class String {
 
 	public function substr( pos : Int, ?len : Int ) : String {
 		if (len == null || len > pos + this.length) len = this.length;
-		return lua.StringTools.sub(this, pos + 1, pos+len + 1);
+		return lua.StringTools.sub(this, pos + 1, pos+len);
 	}
 
 	public static function fromCharCode( code : Int ) : String {
