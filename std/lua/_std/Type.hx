@@ -128,8 +128,13 @@ enum ValueType {
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
+		var p = untyped c.prototype;
 		var a = [];
-		untyped __lua__("for i,v in pairs(c.prototype) do a:push(v) end");
+		while (p != null){
+			a = a.concat(Reflect.fields(untyped c.prototype));
+			p = untyped p.prototype;
+
+		}
 		a.remove("__class__");
 		a.remove("__properties__");
 		return a;
