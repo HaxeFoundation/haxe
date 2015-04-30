@@ -277,7 +277,7 @@ let rec gen_call ctx e el in_value =
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "%s.new(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			print ctx "%s.__construct(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -299,13 +299,13 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
-		print ctx "%s.new({}" cl;
-		List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+		print ctx "%s.new(" cl;
+		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
 	| TLocal { v_name = "__new__" }, e :: params ->
 		gen_value ctx e;
-		spr ctx ".new({}";
-		List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+		spr ctx ".new(";
+		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
 	| TLocal { v_name = "__callself__" }, { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
 		print ctx "%s:%s" head tail;
@@ -524,8 +524,8 @@ and gen_expr ctx e =
 				    gen_value ctx e;
 		end
 	| TNew (c,_,el) ->
-		print ctx "%s.new({}" (ctx.type_accessor (TClassDecl c));
-			List.iter (fun p -> print ctx ","; gen_value ctx p) el;
+		print ctx "%s.new(" (ctx.type_accessor (TClassDecl c));
+		    concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
 		ctx.iife_assign <- true;
@@ -1134,20 +1134,29 @@ let generate_class ctx c =
 				    let old = ctx.in_value, ctx.in_loop in
 				    ctx.in_value <- None;
 				    ctx.in_loop <- false;
-				    print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
+				    print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+				    newline ctx;
+				    print ctx "local self = {}";
 				    let fblock = fun_block ctx f e.epos in
 				    (match fblock.eexpr with
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					if (has_prototype ctx c) then
-					    print ctx "setmetatable(self, {__index=%s.prototype}) " p;
-					List.iter (gen_block_element ctx) el;
-					newline ctx;
+					if (has_prototype ctx c) then (
+					    print ctx "setmetatable(self, {__index=%s.prototype}) " p; newline ctx;
+					);
 					(* TODO: use nonconflict var instead of prototype *)
-					spr ctx "return self";
-					bend();
+					print ctx "%s.__construct(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					newline ctx;
+					spr ctx "return self"; newline ctx;
+					bend();
+					spr ctx "end"; newline ctx;
+					let bend = open_block ctx in
+					print ctx "%s.__construct = function(%s) " p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+					newline ctx;
+					List.iter (gen_block_element ctx) el; newline ctx;
+					newline ctx;
+					bend();
 				    |_ -> ());
 				    spr ctx "end";
 				    ctx.in_value <- fst old;
@@ -1230,7 +1239,7 @@ let generate_enum ctx e =
 	    print ctx "_hxClasses[\"%s\"] = " (dot_path e.e_path);
 	    print ctx "%s = _hxClasses[\"%s\"];" p (dot_path e.e_path);
 	end else begin
-	    print ctx "%s = {" p; 
+	    print ctx "%s = {" p;
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
 	    end;
