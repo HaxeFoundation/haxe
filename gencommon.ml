@@ -1606,8 +1606,6 @@ struct
 			| TAbstractDecl a -> (match follow a.a_this with
 				| TInst _ | TEnum _ | TAbstract _ ->
 					default_hxgen_func (t_to_md (follow a.a_this))
-				| TDynamic _ | TFun _ ->
-					true
 				| _ ->
 					not (Meta.has Meta.NativeGen a.a_meta))
 			| TTypeDecl t -> (* TODO see when would we use this *)
@@ -4226,28 +4224,19 @@ struct
 				| _ -> false
 
 		let rec follow_all_md md =
-			match md with
-			| TClassDecl { cl_kind = KAbstractImpl a } ->
-				follow_all_md (TAbstractDecl a)
-			| TAbstractDecl a -> if Meta.has Meta.CoreType a.a_meta then
-				None
-			else (
-				match follow (apply_params a.a_params (List.map snd a.a_params) a.a_this) with
-					| TInst(c,_) -> follow_all_md (TClassDecl c)
-					| TEnum(e,_) -> follow_all_md (TEnumDecl e)
-					| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
-					| TType(t,_) -> follow_all_md (TTypeDecl t)
-					| TDynamic _ -> Some (TClassDecl (null_class))
-					| _ -> None)
-			| TTypeDecl t -> (
-				match follow (apply_params t.t_params (List.map snd t.t_params) t.t_type) with
-				| TInst(c,_) -> follow_all_md (TClassDecl c)
-				| TEnum(e,_) -> follow_all_md (TEnumDecl e)
-				| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
-				| TType(t,_) -> follow_all_md (TTypeDecl t)
-				| TDynamic _ -> Some (TClassDecl (null_class))
-				| _ -> None)
-			| md -> Some md
+			let t = match md with
+				| TClassDecl { cl_kind = KAbstractImpl a } ->
+					TAbstract(a, List.map snd a.a_params)
+				| TClassDecl c ->
+					TInst(c, List.map snd c.cl_params)
+				| TEnumDecl e ->
+					TEnum(e, List.map snd e.e_params)
+				| TTypeDecl t ->
+					TType(t, List.map snd t.t_params)
+				| TAbstractDecl a ->
+					TAbstract(a, List.map snd a.a_params)
+			in
+			Abstract.follow_with_abstracts t
 
 		let rec is_hxgeneric md =
 			match md with
@@ -4257,9 +4246,13 @@ struct
 				not (Meta.has Meta.NativeGeneric cl.cl_meta)
 			| TEnumDecl(e) ->
 				not (Meta.has Meta.NativeGeneric e.e_meta)
+			| TAbstractDecl(a) when Meta.has Meta.NativeGeneric a.a_meta ->
+				not (Meta.has Meta.NativeGeneric a.a_meta)
 			| md -> match follow_all_md md with
-				| Some md -> is_hxgeneric md
-				| None -> true
+				| TInst(cl,_) -> is_hxgeneric (TClassDecl cl)
+				| TEnum(e,_) -> is_hxgeneric (TEnumDecl e)
+				| TAbstract(a,_) -> not (Meta.has Meta.NativeGeneric a.a_meta)
+				| _ -> true
 
 		let rec set_hxgeneric gen mds isfirst md =
 			let path = t_path md in
@@ -4395,11 +4388,16 @@ struct
 		let set_hxgeneric gen md =
 			let ret = match md with
 				| TClassDecl { cl_kind = KAbstractImpl a } -> (match follow_all_md md with
-					| Some md ->
+					| (TInst _ | TEnum _ as t) -> (
+						let md = match t with
+							| TInst(cl,_) -> TClassDecl cl
+							| TEnum(e,_) -> TEnumDecl e
+							| _ -> assert false
+						in
 						let ret = set_hxgeneric gen [] true md in
-						if ret = None then get (set_hxgeneric gen [] false md) else get ret
-					| None ->
-						true)
+						if ret = None then get (set_hxgeneric gen [] false md) else get ret)
+					| TAbstract(a,_) -> true
+					| _ -> true)
 				| _ -> match set_hxgeneric gen [] true md with
 					| None ->
 						get (set_hxgeneric gen [] false md)
