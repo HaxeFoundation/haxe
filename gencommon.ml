@@ -1606,8 +1606,10 @@ struct
 			| TAbstractDecl a -> (match follow a.a_this with
 				| TInst _ | TEnum _ | TAbstract _ ->
 					default_hxgen_func (t_to_md (follow a.a_this))
+				| TDynamic _ | TFun _ ->
+					true
 				| _ ->
-					Meta.has Meta.NativeGen a.a_meta)
+					not (Meta.has Meta.NativeGen a.a_meta))
 			| TTypeDecl t -> (* TODO see when would we use this *)
 				false
 
@@ -4235,6 +4237,7 @@ struct
 					| TEnum(e,_) -> follow_all_md (TEnumDecl e)
 					| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
 					| TType(t,_) -> follow_all_md (TTypeDecl t)
+					| TDynamic _ -> Some (TClassDecl (null_class))
 					| _ -> None)
 			| TTypeDecl t -> (
 				match follow (apply_params t.t_params (List.map snd t.t_params) t.t_type) with
@@ -4242,6 +4245,7 @@ struct
 				| TEnum(e,_) -> follow_all_md (TEnumDecl e)
 				| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
 				| TType(t,_) -> follow_all_md (TTypeDecl t)
+				| TDynamic _ -> Some (TClassDecl (null_class))
 				| _ -> None)
 			| md -> Some md
 
