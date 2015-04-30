@@ -166,7 +166,7 @@ class Lib
 	/**
 		Allocates a new Haxe Array with a predetermined size
 	**/
-	public static function arrayAlloc<T>(size:Int):Array<T>
+	inline public static function arrayAlloc<T>(size:Int):Array<T>
 	{
 		return @:privateAccess Array.alloc(size);
 	}
