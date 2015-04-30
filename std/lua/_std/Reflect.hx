@@ -49,12 +49,7 @@
 
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
-		if (o != null) untyped {
-			var hasOwnProperty = __js__('Object').prototype.hasOwnProperty;
-			__js__("for( var f in o ) {");
-			if( f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f) ) a.push(f);
-			__js__("}");
-		}
+		untyped __lua__("for i,v in pairs(o) do a:push(i) end");
 		return a;
 	}
 
