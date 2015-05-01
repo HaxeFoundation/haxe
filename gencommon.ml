@@ -3241,6 +3241,11 @@ struct
 			(* get all captured variables it uses *)
 			let captured_ht, tparams = get_captured fexpr in
 			let captured = Hashtbl.fold (fun _ e acc -> e :: acc) captured_ht [] in
+			let captured = List.sort (fun e1 e2 -> match e1, e2 with
+				| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
+					compare v1.v_name v2.v_name
+				| _ -> assert false) captured
+			in
 
 			(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
 			let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
