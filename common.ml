@@ -444,6 +444,7 @@ module MetaInfo = struct
 		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
 		| NoExpr -> ":noExpr",("Internally used to mark abstract fields which have no expression by design",[Internal])
 		| NoImportGlobal -> ":noImportGlobal",("Prevents a static field from being imported with import Class.*",[UsedOn TAnyField])
+		| NonVirtual -> ":nonVirtual",("Declares function to be non-virtual in cpp",[Platform Cpp])
 		| NoPackageRestrict -> ":noPackageRestrict",("Allows a module to be accessed across all targets if found on its first type",[Internal])
 		| NoPrivateAccess -> ":noPrivateAccess",("Disallow private access to anything for the annotated expression",[UsedOn TExpr])
 		| NoStack -> ":noStack",("",[Platform Cpp])

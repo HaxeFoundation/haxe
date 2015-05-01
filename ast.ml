@@ -122,6 +122,7 @@ module Meta = struct
 		| NoDoc
 		| NoExpr
 		| NoImportGlobal
+		| NonVirtual
 		| NoPackageRestrict
 		| NoPrivateAccess
 		| NoStack
