@@ -4145,6 +4145,19 @@ struct
 
 	let priority = max_dep -. 20.
 
+	let rec deep_follow gen t = match run_follow gen t with
+		| TInst(c,tl) ->
+			TInst(c,List.map (deep_follow gen) tl)
+		| TEnum(e,tl) ->
+			TEnum(e,List.map (deep_follow gen) tl)
+		| TAbstract(a,tl) ->
+			TAbstract(a,List.map (deep_follow gen) tl)
+		| TType(t,tl) ->
+			TType(t,List.map (deep_follow gen) tl)
+		| TFun(args,ret) ->
+			TFun(List.map (fun (n,o,t) -> n,o,deep_follow gen t) args, deep_follow gen ret)
+		| t -> t
+
 	(* this function will receive the original function argument, the applied function argument and the original function parameters. *)
 	(* from this info, it will infer the applied tparams for the function *)
 	(* this function is used by CastDetection module *)
@@ -4160,8 +4173,8 @@ struct
 
 			(try
 				List.iter2 (fun a o ->
-					let o = run_follow gen o in
-					let a = run_follow gen a in
+					let o = deep_follow gen o in
+					let a = deep_follow gen a in
 					unify a o
 					(* type_eq EqStrict a o *)
 				) applied original
