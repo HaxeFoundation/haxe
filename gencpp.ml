@@ -5211,7 +5211,7 @@ class script_writer common_ctx ctx filename asciiOut =
       let argN = (string_of_int (List.length arg_list)) ^ " " in
       let is_real_function field =
          match field.cf_kind with
-         | Method MethNormal -> true
+         | Method MethNormal | Method MethInline-> true
          | _ -> false;
       in
       let gen_call () =
