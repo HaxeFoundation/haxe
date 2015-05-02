@@ -8,7 +8,7 @@ class Issue3575 extends Test {
 }
 
 
-@:nativeGen private class Base
+#if !cpp @:nativeGen #end private class Base
 {
 #if (cs || java) @:overload #end
 	public function getName()
