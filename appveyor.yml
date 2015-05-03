@@ -27,7 +27,8 @@ install:
     - appveyor DownloadFile "http://cygwin.com/setup-%CYG_ARCH%.exe" -FileName "%CYG_ROOT%\setup.exe"
     - '%CYG_ROOT%/setup.exe -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ > log.txt || type log.txt'
     - '%CYG_ROOT%/bin/bash -lc "cygcheck -dc cygwin" > log.txt || type log.txt'
-    - '%CYG_ROOT%/bin/bash -lc "wget -q http://ml.ignorelist.com/wodi/8/%WODI%.tar.xz -O /tmp/%WODI%.tar.xz" > log.txt || type log.txt'
+    # The archive is a dropbox hosted version of https://github.com/fdopen/godi-repo/issues/7#issuecomment-98480339
+    - '%CYG_ROOT%/bin/bash -lc "wget -q https://dl.dropboxusercontent.com/u/2661116/wodi/%WODI%.tar.xz -O /tmp/%WODI%.tar.xz" > log.txt || type log.txt'
     - '%CYG_ROOT%/bin/bash -lc "cd /tmp && rm -rf %WODI% && tar -xf %WODI%.tar.xz && bash %WODI%/install.sh" > log.txt || type log.txt'
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip" > log.txt || type log.txt'
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/%WODI%/bin'
