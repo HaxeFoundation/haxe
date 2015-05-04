@@ -413,6 +413,15 @@ class StringTools {
 		return false;
 		#end
 	}
+	
+	/**
+		Converts the first character of the String `s` to upper case and the 
+		remaining characters to lower case.
+	**/	
+	public static function capitalize( s: String ) : String {
+		return s.charAt(0).toUpperCase() + s.substring(1, s.length).toLowerCase();
+	}
+
 
 	#if java
 	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx);
