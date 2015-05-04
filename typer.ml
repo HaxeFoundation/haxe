@@ -1919,7 +1919,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let ev = mk (TLocal v) e.etype p in
 			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) e2 true with_type p in
 			let e' = match get.eexpr with
-				| TBinop _ ->
+				| TBinop _ | TMeta((Meta.RequiresAssign,_,_),_) ->
 					unify ctx get.etype t p;
 					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 				| _ ->
