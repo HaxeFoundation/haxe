@@ -2085,6 +2085,18 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		| KUnk, KParam t ->
 			unify ctx e1.etype tfloat e1.epos;
 			tfloat
+		| KAbstract _,KFloat ->
+			unify ctx e1.etype tfloat e1.epos;
+			tfloat
+		| KFloat, KAbstract _ ->
+			unify ctx e2.etype tfloat e2.epos;
+			tfloat
+		| KAbstract _,KInt ->
+			unify ctx e1.etype ctx.t.tint e1.epos;
+			ctx.t.tint
+		| KInt, KAbstract _ ->
+			unify ctx e2.etype ctx.t.tint e2.epos;
+			ctx.t.tint
 		| KAbstract _,_
 		| _,KAbstract _
 		| KParam _, _
