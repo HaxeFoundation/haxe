@@ -25,7 +25,7 @@ class Array<T> {
 	public var length(default,null) : Int;
 
 	public function new() : Void  {
-		lua.Boot.defArray(this,0);
+		lua.Boot.defArray(this);
 	}
 	public function concat( a : Array<T> ) : Array<T> {
 		var ret = this.copy();
@@ -82,7 +82,7 @@ class Array<T> {
 			var a = this[i];
 			if (a == x){
 				lua.TableTools.remove(cast this, i+1);
-				length-=1;
+				this.length-=1;
 				return true;
 			}
 		}

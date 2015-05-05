@@ -16,5 +16,5 @@ extern class TableTools {
 	@:overload(function<B>(table:Table<Int,B>):Void{})
 	public static function remove<B>(table:Table<Int,B>, ?pos:Int) : Void;
 
-	public static function getn<B>(table: Table<Int,B>) : Int;
+	public static function maxn<B>(table: Table<Int,B>) : Int;
 }
