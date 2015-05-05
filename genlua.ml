@@ -492,11 +492,13 @@ and gen_expr ctx e =
 		gen_call ctx e el false
 	| TArrayDecl el ->
 		spr ctx "lua.Boot.defArray({";
+		let count = ref 0 in
 		List.iteri (fun i e ->
+		    incr count;
 		    if (i == 0) then spr ctx "[0]="
 		    else spr ctx ", ";
 		    gen_value ctx e) el;
-		print ctx " })";
+		print ctx " }, %i)" !count;
 	| TThrow e ->
 		spr ctx "error(";
 		gen_value ctx e;
