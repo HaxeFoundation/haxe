@@ -70,6 +70,7 @@ class Serializer {
 
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
+	var indices : ObjectMap<Int>;
 	var shash : haxe.ds.StringMap<Int>;
 	var scount : Int;
 
@@ -100,6 +101,7 @@ class Serializer {
 	public function new() {
 		buf = new StringBuf();
 		cache = new Array();
+		indices = new ObjectMap<Int>();
 		useCache = USE_CACHE;
 		useEnumIndex = USE_ENUM_INDEX;
 		shash = new haxe.ds.StringMap();
@@ -171,14 +173,9 @@ class Serializer {
 	function serializeRef(v) {
 		#if js
 		var vt = untyped __js__("typeof")(v);
-		#end
 		for( i in 0...cache.length ) {
-			#if js
 			var ci = cache[i];
 			if( untyped __js__("typeof")(ci) == vt && ci == v ) {
-			#else
-			if( cache[i] == v ) {
-			#end
 				buf.add("r");
 				buf.add(i);
 				return true;
@@ -186,6 +183,17 @@ class Serializer {
 		}
 		cache.push(v);
 		return false;
+		#else
+		if(!indices.exists(v)) {
+			indices.set(v, cache.length);
+			cache.push(v);
+			return false;
+		}
+		var i:Int = indices.get(v);
+		buf.add("r");
+		buf.add(i);
+		return true;
+		#end
 	}
 
 	#if flash
