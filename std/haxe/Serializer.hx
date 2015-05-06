@@ -70,7 +70,7 @@ class Serializer {
 
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
-	var indices : ObjectMap<Dynamic, Int>;
+	var indices : haxe.ds.ObjectMap<Dynamic, Int>;
 	var shash : haxe.ds.StringMap<Int>;
 	var scount : Int;
 
@@ -101,7 +101,7 @@ class Serializer {
 	public function new() {
 		buf = new StringBuf();
 		cache = new Array();
-		indices = new ObjectMap<Dynamic, Int>();
+		indices = new haxe.ds.ObjectMap<Dynamic, Int>();
 		useCache = USE_CACHE;
 		useEnumIndex = USE_ENUM_INDEX;
 		shash = new haxe.ds.StringMap();
@@ -184,7 +184,7 @@ class Serializer {
 		cache.push(v);
 		return false;
 		#else
-        var i:Null<Int> = indices.get(v);
+		var i:Null<Int> = indices.get(v);
 		if(i == null) {
 			indices.set(v, cache.length);
 			cache.push(v);
