@@ -323,6 +323,9 @@ class TestMisc extends Test {
 	function testUrlEncode() {
 		eq( StringTools.urlEncode("é"), "%C3%A9" );
 		eq( StringTools.urlDecode("%C3%A9"), "é" );
+
+		eq( StringTools.urlEncode("a/b+c"), "a%2Fb%2Bc");
+		eq( StringTools.urlDecode("a%2Fb%2Bc"), "a/b+c");
 	}
 
 	function opt1( ?x : Int, ?y : String ) {

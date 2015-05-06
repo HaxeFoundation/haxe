@@ -47,7 +47,7 @@ class StringTools {
 				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
 			catch (e:Dynamic) throw e;
 		#elseif cs
-			return untyped cs.system.Uri.EscapeUriString(s);
+			return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
 			return python.lib.urllib.Parse.quote(s);
 		#else
