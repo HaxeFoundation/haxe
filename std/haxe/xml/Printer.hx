@@ -103,7 +103,7 @@ class Printer {
 
 	inline function newline() {
 		if (pretty) {
-			output.add("");
+			output.add("\n");
 		}
 	}
 
