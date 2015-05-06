@@ -1,4 +1,4 @@
-(* gencommon.$(MODULE_EXT)
+(*
  * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
