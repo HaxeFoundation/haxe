@@ -16,7 +16,9 @@ environment:
         WODI: wodi32
         ADD_REVISION: 1
         OCAMLOPT: ocamlopt.opt
-        TEST: "neko,cs,java,cpp,macro"
+    matrix:
+        - TEST: "neko,cs,java,macro"
+        - TEST: "cpp"
 
 skip_tags: true
 
