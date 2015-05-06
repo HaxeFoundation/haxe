@@ -23,8 +23,7 @@ To set up AppVeyor:
 
  1. Head to AppVeyor, [add a new project](https://ci.appveyor.com/projects/new).
  2. Select the forked repo under your account.
- 3. The build worker provided by the AppVeyor free plan is very slow. In order to avoid reaching the 40 min build time limit for each build, it is recommanded to test only the targets you're interested. Go the *settings* page of the new project, select *Environment*. Click *Add variable* under *Environment variables*. Enter `TEST` in the *name* field, and a comma-seperated list of targets (e.g. `neko,macro`) in the *value* field.
- 4. Push to the repo to trigger a new build. The build result should be available at `https://ci.appveyor.com/project/<user_name>/haxe`.
+ 3. Push to the repo to trigger a new build. The build result should be available at `https://ci.appveyor.com/project/<user_name>/haxe`.
 
 ### SauceLabs
 
