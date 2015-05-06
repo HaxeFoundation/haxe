@@ -49,7 +49,7 @@ class StringTools {
 		#elseif cs
 			return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
-			return python.lib.urllib.Parse.quote(s);
+			return python.lib.urllib.Parse.quote(s, "");
 		#else
 			return null;
 		#end
