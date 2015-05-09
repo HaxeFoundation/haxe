@@ -4354,7 +4354,7 @@ let write_resources common_ctx =
 
 
 
-let write_build_data common_ctx filename classes main_deps build_extra extern_src exe_name =
+let write_build_data common_ctx filename classes main_deps boot_deps build_extra extern_src exe_name =
    let buildfile = open_out filename in
    let include_prefix = get_include_prefix common_ctx true in
    let add_class_to_buildfile class_path deps  =
@@ -4376,7 +4376,7 @@ let write_build_data common_ctx filename classes main_deps build_extra extern_sr
    output_string buildfile "<files id=\"haxe\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
    List.iter add_classdef_to_buildfile classes;
-   add_class_to_buildfile ( [] , "__boot__")  [];
+   add_class_to_buildfile ( [] , "__boot__")  boot_deps;
    add_class_to_buildfile ( [] , "__files__")  [];
    add_class_to_buildfile ( [] , "__resources__")  [];
    output_string buildfile "</files>\n";
@@ -5754,7 +5754,7 @@ let generate_source common_ctx =
    | Some path -> (snd path)
    | _ -> "output" in
 
-   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml !extern_src output_name;
+   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps (!boot_enums@ !boot_classes) !build_xml !extern_src output_name;
    let cmd_defines = ref "" in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
