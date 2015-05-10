@@ -103,7 +103,7 @@ class Float32Array {
 	}
 
 	static function __init__() untyped {
-		var Float32Array = __js__('typeof(window) != "undefined" && window.Float32Array') || (__js__('typeof(global) != "undefined" && global.Float32Array')) || _new;
+		var Float32Array = untyped __js__("Function(\"return typeof Float32Array != 'undefined' ? Float32Array : null\")") || _new;
 	}
 
 }
