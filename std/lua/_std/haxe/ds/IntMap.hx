@@ -63,11 +63,11 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	}
 
 	public function iterator() : Iterator<T> {
+		var ref = h;
+		var it = keys();
 		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
+			hasNext : function() { return keys.hasNext(); },
+			next : function() { var i = keys.next(); return h[i]; }
 		};
 	}
 
