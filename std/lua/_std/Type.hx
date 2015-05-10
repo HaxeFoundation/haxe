@@ -131,9 +131,8 @@ enum ValueType {
 		var p = untyped c.prototype;
 		var a = [];
 		while (p != null){
-			a = a.concat(Reflect.fields(untyped c.prototype));
+			for (f in Reflect.fields(p)) a.push(f);
 			p = untyped p.prototype;
-
 		}
 		a.remove("__class__");
 		a.remove("__properties__");

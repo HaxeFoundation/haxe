@@ -87,7 +87,7 @@
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
 		if( !hasField(o,field) ) return false;
-		__js__("delete")(o[field]);
+		o[field] = null;
 		return true;
 	}
 
