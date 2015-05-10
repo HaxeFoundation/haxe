@@ -516,12 +516,14 @@ and gen_expr ctx e =
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e1;
+				    spr ctx ";";
 
 				| _ ->
 				    spr ctx "local ";
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e;
+				    spr ctx ";";
 		end
 	| TNew (c,_,el) ->
 		print ctx "%s.new(" (ctx.type_accessor (TClassDecl c));
