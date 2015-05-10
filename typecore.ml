@@ -254,7 +254,7 @@ let unify_error_msg ctx = function
 		msg
 
 let rec error_msg = function
-	| Module_not_found m -> "Class not found : " ^ Ast.s_type_path m
+	| Module_not_found m -> "Type not found : " ^ Ast.s_type_path m
 	| Type_not_found (m,t) -> "Module " ^ Ast.s_type_path m ^ " does not define type " ^ t
 	| Unify l ->
 		let ctx = print_context() in
