@@ -81,7 +81,16 @@ class Array<T> {
 		for (i in 0...this.length){
 			var a = this[i];
 			if (a == x){
-				lua.TableTools.remove(cast this, i+1);
+				if (i == 0){
+					if (length == 1){
+						this[0] = null;
+					} else {
+						this[0] = this[1];
+						lua.TableTools.remove(cast this, 1);
+					}
+				} else {
+					lua.TableTools.remove(cast this, i);
+				}
 				this.length-=1;
 				return true;
 			}
