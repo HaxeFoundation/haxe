@@ -122,25 +122,25 @@ let message ctx msg p =
 	ctx.messages <- format msg p :: ctx.messages
 
 let deprecated = [
-	"Class not found : IntIter","IntIter was renamed to IntIterator";
+	"Type not found : IntIter","IntIter was renamed to IntIterator";
 	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
 	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
-	"Class not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
-	"Class not found : haxe.Md5","haxe.Md5 was moved to haxe.crypto.Md5";
-	"Class not found : haxe.SHA1","haxe.SHA1 was moved to haxe.crypto.SHA1";
-	"Class not found : Hash","Hash has been removed, use Map instead";
-	"Class not found : IntHash","IntHash has been removed, use Map instead";
-	"Class not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
+	"Type not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
+	"Type not found : haxe.Md5","haxe.Md5 was moved to haxe.crypto.Md5";
+	"Type not found : haxe.SHA1","haxe.SHA1 was moved to haxe.crypto.SHA1";
+	"Type not found : Hash","Hash has been removed, use Map instead";
+	"Type not found : IntHash","IntHash has been removed, use Map instead";
+	"Type not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
 	"#Std has no field format","Std.format has been removed, use single quote 'string ${escape}' syntax instead";
 	"Identifier 'EType' is not part of enum haxe.macro.ExprDef","EType has been removed, use EField instead";
 	"Identifier 'CType' is not part of enum haxe.macro.Constant","CType has been removed, use CIdent instead";
-	"Class not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
-	"Class not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
-	"Class not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
-	"Class not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
-	"Class not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
-	"Class not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
-	"Class not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
+	"Type not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
+	"Type not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
+	"Type not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
+	"Type not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
+	"Type not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
+	"Type not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
+	"Type not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
 	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction"
 ]
 
