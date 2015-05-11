@@ -3910,7 +3910,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let sMemberFields = if List.length reflective_members>0 then begin
       output_cpp "static ::String sMemberFields[] = {\n";
       List.iter dump_field_name  reflective_members;
-      output_cpp "\tString(null()) };\n\n";
+      output_cpp "\t::String(null()) };\n\n";
       "sMemberFields"
    end else
       "0 /* sMemberFields */";
@@ -4083,7 +4083,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       let sStaticFields = if List.length reflective_statics > 0 then begin
          output_cpp "static ::String sStaticFields[] = {\n";
          List.iter dump_field_name  reflective_statics;
-         output_cpp "\tString(null()) };\n\n";
+         output_cpp "\t::String(null()) };\n\n";
          "sStaticFields";
       end else
         "0 /* sStaticFields */"
@@ -4346,7 +4346,7 @@ let write_resources common_ctx =
       incr idx;
    ) common_ctx.resources;
 
-   resource_file#write_i "{String(null()),0,0}";
+   resource_file#write_i "{::String(null()),0,0}";
    resource_file#end_block_line;
    resource_file#write ";\n\n";
    resource_file#write "namespace hx { Resource *GetResources() { return __Resources; } } \n\n";
