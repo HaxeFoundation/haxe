@@ -3013,7 +3013,7 @@ let generate_dummy_main common_ctx =
       let main_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
       let output_main = (main_file#write) in
       generate_main_header output_main;
-      if is_main then output_main "\n#include <hx/HxcppMain.h\n\n";
+      if is_main then output_main "\n#include <hx/HxcppMain.h>\n\n";
       generate_main_footer1 output_main;
       generate_main_footer2 output_main;
       main_file#close;
