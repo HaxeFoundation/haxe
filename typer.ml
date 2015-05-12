@@ -540,36 +540,36 @@ let collect_toplevel_identifiers ctx =
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
-let rec base_params t =
-	let tl = ref [] in
-	let rec loop t = (match t with
-		| TInst(cl, params) ->
-			(match cl.cl_kind with
-			| KTypeParameter tl -> List.iter loop tl
-			| _ -> ());
-			List.iter (fun (ic, ip) ->
-				let t = apply_params cl.cl_params params (TInst (ic,ip)) in
-				loop t
-			) cl.cl_implements;
-			(match cl.cl_super with None -> () | Some (csup, pl) ->
-				let t = apply_params cl.cl_params params (TInst (csup,pl)) in
-				loop t);
-			tl := t :: !tl;
-		| TEnum(en,(_ :: _ as tl2)) ->
-			tl := (TEnum(en,List.map (fun _ -> t_dynamic) tl2)) :: !tl;
-			tl := t :: !tl;
-		| TType (td,pl) ->
-			loop (apply_params td.t_params pl td.t_type);
-			(* prioritize the most generic definition *)
-			tl := t :: !tl;
-		| TLazy f -> loop (!f())
-		| TMono r -> (match !r with None -> () | Some t -> loop t)
-		| _ -> tl := t :: !tl)
-	in
-	loop t;
-	!tl
-
 let rec unify_min_raise ctx (el:texpr list) : t =
+	let rec base_types t =
+		let tl = ref [] in
+		let rec loop t = (match t with
+			| TInst(cl, params) ->
+				(match cl.cl_kind with
+				| KTypeParameter tl -> List.iter loop tl
+				| _ -> ());
+				List.iter (fun (ic, ip) ->
+					let t = apply_params cl.cl_params params (TInst (ic,ip)) in
+					loop t
+				) cl.cl_implements;
+				(match cl.cl_super with None -> () | Some (csup, pl) ->
+					let t = apply_params cl.cl_params params (TInst (csup,pl)) in
+					loop t);
+				tl := t :: !tl;
+			| TEnum(en,(_ :: _ as tl2)) ->
+				tl := (TEnum(en,List.map (fun _ -> t_dynamic) tl2)) :: !tl;
+				tl := t :: !tl;
+			| TType (td,pl) ->
+				loop (apply_params td.t_params pl td.t_type);
+				(* prioritize the most generic definition *)
+				tl := t :: !tl;
+			| TLazy f -> loop (!f())
+			| TMono r -> (match !r with None -> () | Some t -> loop t)
+			| _ -> tl := t :: !tl)
+		in
+		loop t;
+		!tl
+	in
 	match el with
 	| [] -> mk_mono()
 	| [e] -> e.etype
@@ -631,7 +631,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 		with Not_found ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
-			let common_types = base_params t in
+			let common_types = base_types t in
 			let dyn_types = List.fold_left (fun acc t ->
 				let rec loop c =
 					Meta.has Meta.UnifyMinDynamic c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
