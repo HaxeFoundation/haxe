@@ -3,6 +3,7 @@
 	New features:
 
 	all : added @:noPrivateAccess to re-enable access restrictions within @:privateAccess
+	cpp : some support for @:nativeGen metadata
 
 	Bugfixes:
 
