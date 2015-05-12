@@ -3014,6 +3014,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let (tkey,tval,has_type),resume =
 			let get_map_params t = match follow t with
 				| TAbstract({a_path=[],"Map"},[tk;tv]) -> tk,tv,true
+				| TInst({cl_path=["haxe";"ds"],"IntMap"},[tv]) -> ctx.t.tint,tv,true
+				| TInst({cl_path=["haxe";"ds"],"StringMap"},[tv]) -> ctx.t.tstring,tv,true
+				| TInst({cl_path=["haxe";"ds"],("ObjectMap" | "EnumValueMap")},[tk;tv]) -> tk,tv,true
 				| _ -> mk_mono(),mk_mono(),false
 			in
 			match with_type with
