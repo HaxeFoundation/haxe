@@ -219,7 +219,7 @@ class Test {
 		if( asyncWaits.length != 0 ) return;
 		if( asyncCache.length == 0 ) {
 			report("DONE ["+count+" tests]");
-			trace("SUCCESS: " + success);
+			report("SUCCESS: " + success);
 
 			//out.close();
 
