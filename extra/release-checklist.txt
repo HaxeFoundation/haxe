@@ -17,15 +17,15 @@
 
 # Making the release
 
-- Push the generated binaries and installers to haxe.org.
 - Copy relevant changelog part to CHANGES.md.
 - Write announcement post.
 - Copy announcement post to RELEASE.md.
 - Update versions.json
+- Push the generated binaries and installers to haxe.org.
 
 # Announcing the release
 
 - Update Github README page.
-- Regenerate and upload API documentation.
+- Regenerate and upload API documentation (check --title and -D version values).
 - Update http://haxe.org/file/CHANGES.txt
 - Post announcement post to haxelang.
