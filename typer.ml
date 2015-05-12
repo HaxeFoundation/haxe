@@ -3011,34 +3011,60 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			mk (TLocal v) v.v_type p;
 		]) v.v_type p
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
-		let keys = Hashtbl.create 0 in
-		let (tkey,tval),resume =
+		let (tkey,tval,has_type),resume =
 			let get_map_params t = match follow t with
-				| TAbstract({a_path=[],"Map"},[tk;tv]) -> tk,tv
-				| _ -> mk_mono(),mk_mono()
+				| TAbstract({a_path=[],"Map"},[tk;tv]) -> tk,tv,true
+				| _ -> mk_mono(),mk_mono(),false
 			in
 			match with_type with
 			| WithType t -> get_map_params t,false
 			| WithTypeResume t -> get_map_params t,true
-			| _ -> (mk_mono(),mk_mono()),false
+			| _ -> (mk_mono(),mk_mono(),false),false
 		in
+		let keys = Hashtbl.create 0 in
 		let unify_with_resume ctx e t p =
 			if resume then try Codegen.AbstractCast.cast_or_unify_raise ctx t e p with Error (Unify l,p) -> raise (WithTypeError(l,p))
 			else Codegen.AbstractCast.cast_or_unify ctx t e p
 		in
-		let type_arrow e1 e2 =
-			let e1 = type_expr ctx e1 (WithType tkey) in
+		let check_key e_key =
 			try
-				let p = Hashtbl.find keys e1.eexpr in
-				display_error ctx "Duplicate key" e1.epos;
+				let p = Hashtbl.find keys e_key.eexpr in
+				display_error ctx "Duplicate key" e_key.epos;
 				error "Previously defined here" p
 			with Not_found ->
-				Hashtbl.add keys e1.eexpr e1.epos;
+				Hashtbl.add keys e_key.eexpr e_key.epos;
+		in
+		let el = e1 :: el in
+		let el_kv = List.map (fun e -> match fst e with
+			| EBinop(OpArrow,e1,e2) -> e1,e2
+			| _ -> error "Expected a => b" (pos e)
+		) el in
+		let el_k,el_v,tkey,tval = if has_type then begin
+			let el_k,el_v = List.fold_left (fun (el_k,el_v) (e1,e2) ->
+				let e1 = type_expr ctx e1 (WithType tkey) in
+				check_key e1;
 				let e1 = unify_with_resume ctx e1 tkey e1.epos in
 				let e2 = type_expr ctx e2 (WithType tval) in
 				let e2 = unify_with_resume ctx e2 tval e2.epos in
-				e1,e2
-		in
+				(e1 :: el_k,e2 :: el_v)
+			) ([],[]) el_kv in
+			el_k,el_v,tkey,tval
+		end else begin
+			let el_k,el_v = List.fold_left (fun (el_k,el_v) (e1,e2) ->
+				let e1 = type_expr ctx e1 Value in
+				check_key e1;
+				let e2 = type_expr ctx e2 Value in
+				(e1 :: el_k,e2 :: el_v)
+			) ([],[]) el_kv in
+			let unify_min_resume el = try
+				unify_min_raise ctx el
+			with Error (Unify l,p) when resume ->
+				 raise (WithTypeError(l,p))
+			in
+			let tkey = unify_min_resume el_k in
+			let tval = unify_min_resume el_v in
+			el_k,el_v,tkey,tval
+		end in
 		let m = Typeload.load_module ctx ([],"Map") null_pos in
 		let a,c = match m.m_types with
 			| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
@@ -3046,18 +3072,11 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		let tmap = TAbstract(a,[tkey;tval]) in
 		let cf = PMap.find "set" c.cl_statics in
-		let el = e1 :: el in
 		let v = gen_local ctx tmap in
 		let ev = mk (TLocal v) tmap p in
 		let ec = type_module_type ctx (TClassDecl c) None p in
 		let ef = mk (TField(ec,FStatic(c,cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
-		let el = ev :: List.fold_left (fun acc e -> match fst e with
-			| EBinop(OpArrow,e1,e2) ->
-				let e1,e2 = type_arrow e1 e2 in
-				(make_call ctx ef [ev;e1;e2] ctx.com.basic.tvoid p) :: acc
-			| _ ->
-				error "Expected a => b" (snd e)
-		) [] el in
+		let el = ev :: List.map2 (fun e1 e2 -> (make_call ctx ef [ev;e1;e2] ctx.com.basic.tvoid p)) el_k el_v in
 		let enew = mk (TNew(c,[tkey;tval],[])) tmap p in
 		let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 		mk (TBlock el) tmap p
