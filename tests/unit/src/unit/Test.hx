@@ -219,6 +219,20 @@ class Test {
 		if( asyncWaits.length != 0 ) return;
 		if( asyncCache.length == 0 ) {
 			report("DONE ["+count+" tests]");
+			trace("SUCCESS: " + success);
+
+			//out.close();
+
+			#if js
+			if (js.Browser.supported) {
+				untyped js.Browser.window.success = success;
+			}
+			#end
+
+			#if sys
+			Sys.exit(success ? 0 : 1);
+			#end
+
 			return;
 		}
 		resetTimer();
@@ -388,20 +402,6 @@ class Test {
 			asyncWaits.remove(null);
 			onError(e,"ABORTED",Type.getClassName(current));
 		}
-		#end
-
-		trace("SUCCESS: " + success);
-
-		//out.close();
-
-		#if js
-		if (js.Browser.supported) {
-			untyped js.Browser.window.success = success;
-		}
-		#end
-
-		#if sys
-		Sys.exit(success ? 0 : 1);
 		#end
 	}
 
