@@ -11,7 +11,7 @@ class Issue3248 extends Test {
 
 private class Foo {}
 
-@:nativeGen private class Bar<T>
+#if !cpp @:nativeGen #end private class Bar<T>
 {
 	public var arr:Vector<T>;
 	public function new(arr)

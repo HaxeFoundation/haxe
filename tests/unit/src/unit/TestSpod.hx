@@ -24,11 +24,13 @@ class TestSpod extends Test
 		try cnx.request('DROP TABLE NullableSpodClass') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE ClassWithStringId') catch(e:Dynamic) {}
 		try cnx.request('DROP TABLE ClassWithStringIdRef') catch(e:Dynamic) {}
+		try cnx.request('DROP TABLE IssueC3828') catch(e:Dynamic) {}
 		TableCreate.create(MySpodClass.manager);
 		TableCreate.create(OtherSpodClass.manager);
 		TableCreate.create(NullableSpodClass.manager);
 		TableCreate.create(ClassWithStringId.manager);
 		TableCreate.create(ClassWithStringIdRef.manager);
+		TableCreate.create(IssueC3828.manager);
 	}
 
 	private function setManager()
@@ -58,6 +60,24 @@ class TestSpod extends Test
 		scls.anEnum = SecondValue;
 
 		return scls;
+	}
+
+	public function testIssue3828()
+	{
+		setManager();
+		var u1 = new IssueC3828();
+		u1.insert();
+		var u2 = new IssueC3828();
+		u2.refUser = u1;
+		u2.insert();
+		var u1id = u1.id, u2id = u2.id;
+		u1 = null; u2 = null;
+		Manager.cleanup();
+
+		var u1 = IssueC3828.manager.get(u1id);
+		var u2 = IssueC3828.manager.search($refUser == u1).first();
+		eq(u1.id, u1id);
+		eq(u2.id, u2id);
 	}
 
 	public function testStringIdRel()

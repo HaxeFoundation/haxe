@@ -35,6 +35,13 @@ package haxe.ds;
   inline void set(String key, double value) { __string_hash_set_float(h,key,value); }
   inline void set(String key, ::String value) { __string_hash_set_string(h,key,value); }
 
+  template<typename V, typename H>
+  inline void set(String key, const ::cpp::Struct<V,H> &value) {__string_hash_set(h,key,value); }
+  template<typename V>
+  inline void set(String key, const ::cpp::Function<V> &value) {__string_hash_set(h,key,(Dynamic)value ); }
+  template<typename V>
+  inline void set(String key, const ::cpp::Pointer<V> &value) {__string_hash_set(h,key,(Dynamic)value ); }
+
   template<typename VALUE>
   inline Void set(Dynamic &key, const VALUE &value) { set( (String)key, value ); return null(); }
 ")

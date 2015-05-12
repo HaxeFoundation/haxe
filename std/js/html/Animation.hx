@@ -28,6 +28,6 @@ package js.html;
 extern class Animation
 {
 	var effect(default,null) : AnimationEffect;
-	var target(default,null) : DOMElement;
+	var target(default,null) : Element;
 	
 }

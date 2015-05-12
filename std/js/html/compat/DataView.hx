@@ -137,8 +137,8 @@ class DataView {
 		}
 	}
 
-	static function __init__() untyped {
-		var DataView = __js__('typeof(window) != "undefined" && window.DataView') || (__js__('typeof(global) != "undefined" && global.DataView')) || DataView;
+	static function __init__() {
+		var DataView = untyped Function("return typeof DataView != 'undefined' ? DataView : null")() || js.html.compat.DataView;
 	}
 
 }

@@ -36,7 +36,7 @@ extern class IFrameElement extends GraphicsElement
 	var src(default,null) : String;
 	var srcdoc(default,null) : String;
 	var sandbox(default,null) : js.html.DOMSettableTokenList;
-	var contentDocument(default,null) : js.html.Document;
+	var contentDocument(default,null) : js.html.HTMLDocument;
 	var contentWindow(default,null) : Window;
 	
 }

@@ -28,7 +28,7 @@ package js.html;
 extern class ShadowRoot extends DocumentFragment
 {
 	var innerHTML : String;
-	var host(default,null) : DOMElement;
+	var host(default,null) : Element;
 	var olderShadowRoot(default,null) : ShadowRoot;
 	var applyAuthorStyles : Bool;
 	var styleSheets(default,null) : StyleSheetList;

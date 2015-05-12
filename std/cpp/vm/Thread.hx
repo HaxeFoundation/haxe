@@ -62,7 +62,7 @@ class Thread {
 		return untyped __global__.__hxcpp_thread_read_message(block);
 	}
 
-	function __compare(t) : Int {
+	@:keep function __compare(t) : Int {
 		return handle == t.handle ? 0 : 1;
 	}
 

@@ -34,6 +34,15 @@ package haxe.ds;
   inline void set(Dynamic key, float value) { __object_hash_set_float(h,key,value); }
   inline void set(Dynamic key, double value) { __object_hash_set_float(h,key,value); }
   inline void set(Dynamic key, ::String value) { __object_hash_set_string(h,key,value); }
+
+
+  template<typename V, typename H>
+  inline void set(Dynamic key, const ::cpp::Struct<V,H> &value) {__object_hash_set(h,key,value); }
+  template<typename V>
+  inline void set(Dynamic key, const ::cpp::Function<V> &value) {__object_hash_set(h,key,(Dynamic)value ); }
+  template<typename V>
+  inline void set(Dynamic key, const ::cpp::Pointer<V> &value) {__object_hash_set(h,key,(Dynamic)value ); }
+
 ")
 @:coreApi
 class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {

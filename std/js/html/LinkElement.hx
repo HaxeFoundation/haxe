@@ -40,7 +40,7 @@ extern class LinkElement extends Element
 	var rev : String;
 	var target : String;
 	@:native("import")
-	var import_(default,null) : Document;
+	var import_(default,null) : HTMLDocument;
 	var sheet(default,null) : StyleSheet;
 	
 }

@@ -79,7 +79,7 @@ import java.internal.Exceptions;
 			}
 		}
 
-		boolean foundAny = false;
+		boolean foundAny = i != 0;
 		boolean isNeg = false;
 		for (; i < len; i++)
 		{
@@ -138,7 +138,8 @@ import java.internal.Exceptions;
 	public static function parseFloat( x : String ) : Float {
 		if (x == null) return Math.NaN;
 		x = StringTools.ltrim(x);
-		var found = false, isHex = false, hasDot = false, hasE = false, hasNeg = false, hasENeg = false;
+		var found = false, hasDot = false, hasSign = false,
+		    hasE = false, hasESign = false, hasEData = false;
 		var i = -1;
 		inline function getch(i:Int):Int return cast (untyped x._charAt(i) : java.StdTypes.Char16);
 
@@ -147,32 +148,31 @@ import java.internal.Exceptions;
 			var chr = getch(i);
 			if (chr >= '0'.code && chr <= '9'.code)
 			{
-				if ( !found && chr == '0'.code && (i+1) < x.length )
+				if (hasE)
 				{
-					var next = getch(i+1);
-					if (next == 'x'.code || next == 'X'.code)
-					{
-						isHex = true;
-						i++;
-					}
+					hasEData = true;
 				}
 				found = true;
 			} else switch (chr) {
-				case 'a'.code | 'b'.code | 'c'.code | 'd'.code | 'e'.code | 'f'.code
-				   | 'A'.code | 'B'.code | 'C'.code | 'D'.code | 'E'.code | 'F'.code if (isHex):
-					//do nothing - it's alright
 				case 'e'.code | 'E'.code if(!hasE):
 					hasE = true;
 				case '.'.code if (!hasDot):
 					hasDot = true;
-				case '-'.code if (!found && !hasNeg):
-					hasNeg = true;
-				case '-'.code if (found && !hasENeg && hasE):
-					hasENeg = true;
+				case '-'.code, '+'.code if (!found && !hasSign):
+					hasSign = true;
+				case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
+					hasESign = true;
 				case _:
 					break;
 			}
 		}
+		if (hasE && !hasEData)
+		{
+			i--;
+			if (hasESign)
+				i--;
+		}
+
 		if (i != x.length)
 		{
 			x = x.substr(0,i);

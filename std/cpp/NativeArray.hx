@@ -8,6 +8,22 @@ extern class NativeArray {
 	untyped ioDestArray.blit(inDestElement, inSourceArray, inSourceElement, inElementCount);
 	};
 
+	public static inline function getBase( inArray:Array<Dynamic> ) : ArrayBase {
+      return untyped inArray;
+   }
+
+	public static inline function address<T>( inArray:Array<T>,inIndex:Int ) : Pointer<T> {
+      return Pointer.arrayElem(inArray,inIndex);
+   }
+
+	public static inline function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
+      untyped inArray.setData(inData.raw,inElementCount);
+   }
+	public static inline function setUnmanagedData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
+      untyped inArray.setUnmanagedData(inData.raw,inElementCount);
+   }
+
+
 	public static inline function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void {
 		untyped ioDestArray.zero(inFirst, inElements);
 	};

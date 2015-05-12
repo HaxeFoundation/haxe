@@ -9,7 +9,7 @@ class Issue2570 extends unit.Test
 	}
 }
 
-@:nativeGen private class A
+#if !cpp @:nativeGen #end private class A
 {
 	public function new()
 	{

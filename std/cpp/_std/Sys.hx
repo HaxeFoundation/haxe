@@ -106,7 +106,7 @@
 	}
 
 	public static function exit( code : Int ) : Void {
-		sys_exit(code);
+		untyped __global__.__hxcpp_exit(code);
 	}
 
 	public static function time() : Float {
@@ -140,7 +140,6 @@
 	private static var set_cwd = cpp.Lib.load("std","set_cwd",1);
 	private static var sys_string = cpp.Lib.load("std","sys_string",0);
 	private static var sys_command = cpp.Lib.load("std","sys_command",1);
-	private static var sys_exit = cpp.Lib.load("std","sys_exit",1);
 	private static var sys_time = cpp.Lib.load("std","sys_time",0);
 	private static var sys_cpu_time = cpp.Lib.load("std","sys_cpu_time",0);
 	private static var sys_exe_path = cpp.Lib.load("std","sys_exe_path",0);

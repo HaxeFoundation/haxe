@@ -5,18 +5,13 @@ EXTENSION=.exe
 
 OCAMLOPT=ocamlopt.opt
 
-ifneq ($(ADD_REVISION),0)
-	VERSION_EXTRA=let version_extra = Some " (git build $(shell git rev-parse --abbrev-ref HEAD) @ $(shell git describe --always)) "
-else
-	VERSION_EXTRA=let version_extra = None
-endif
-
 kill:
 	-@taskkill /F /IM haxe.exe
 
 # allow Ocaml/Mingw as well
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 
+# use make WODI=wodi32 -f Makefile.win to build using WODI 32bit
 ifdef WODI
 NATIVE_LIBS += -I "/opt/${WODI}/lib"
 endif
@@ -39,3 +34,18 @@ ifdef FILTER
 CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
+
+package_bin:
+	mkdir -p out
+	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).zip temp.zip
+	# Copy the package contents to $(PACKAGE_FILE_NAME)
+	# Using poor man's cp (zip then unzip), because cp in cygwin is quite broken
+	mkdir -p $(PACKAGE_FILE_NAME)
+	7za a -y -tzip -mx0 temp.zip $(OUTPUT) haxelib$(EXTENSION) std > log.txt || type log.txt
+	cd extra && 7za a -y -tzip -mx0 ../temp.zip LICENSE.txt CONTRIB.txt CHANGES.txt > log.txt || type log.txt
+	7za x -y temp.zip -o$(PACKAGE_FILE_NAME) > log.txt || type log.txt
+	rm temp.zip
+	# archive
+	7za a -r -tzip out/$(PACKAGE_FILE_NAME).zip $(PACKAGE_FILE_NAME) > log.txt || type log.txt
+	rm -r $(PACKAGE_FILE_NAME)
+	rm log.txt extra/log.txt

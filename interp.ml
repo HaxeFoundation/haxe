@@ -4628,12 +4628,18 @@ and encode_tfunc func =
 	]
 
 and encode_field_access fa =
+	let encode_instance c tl =
+		enc_obj [
+			"c",encode_clref c;
+			"params",encode_tparams tl
+		]
+	in
 	let tag,pl = match fa with
-		| FInstance(c,_,cf) -> 0,[encode_clref c;encode_cfref cf] (* TODO: breaking change, kind of *)
+		| FInstance(c,tl,cf) -> 0,[encode_clref c;encode_tparams tl;encode_cfref cf]
 		| FStatic(c,cf) -> 1,[encode_clref c;encode_cfref cf]
 		| FAnon(cf) -> 2,[encode_cfref cf]
 		| FDynamic(s) -> 3,[enc_string s]
-		| FClosure(co,cf) -> 4,[(match co with Some (c,_) -> encode_clref c | None -> VNull);encode_cfref cf] (* TODO: breaking change, kind of, too *)
+		| FClosure(co,cf) -> 4,[(match co with Some (c,tl) -> encode_instance c tl | None -> VNull);encode_cfref cf]
 		| FEnum(en,ef) -> 5,[encode_enref en;encode_efield ef]
 	in
 	enc_enum IFieldAccess tag pl
@@ -4769,13 +4775,18 @@ let decode_efield v =
 
 let decode_field_access v =
 	match decode_enum v with
-	| 0, [c;cf] ->
+	| 0, [c;tl;cf] ->
 		let c = decode_ref c in
-		FInstance(c,List.map snd c.cl_params,decode_ref cf) (* TODO: breaking change? *)
+		FInstance(c,List.map decode_type (dec_array tl),decode_ref cf)
 	| 1, [c;cf] -> FStatic(decode_ref c,decode_ref cf)
 	| 2, [cf] -> FAnon(decode_ref cf)
 	| 3, [s] -> FDynamic(dec_string s)
-	| 4, [co;cf] -> FClosure(opt decode_ref co,decode_ref cf)
+	| 4, [co;cf] ->
+		let co = match co with
+			| VNull -> None
+			| _ -> Some (decode_ref (field co "c"),List.map decode_type (dec_array (field co "params")))
+		in
+		FClosure(co,decode_ref cf)
 	| 5, [e;ef] -> FEnum(decode_ref e,decode_efield ef)
 	| _ -> raise Invalid_expr
 

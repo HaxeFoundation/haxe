@@ -74,8 +74,8 @@ extern class CanvasRenderingContext2D
 	function fill( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
 	@:overload( function() : Void {} )
 	function stroke( path : Path2D ) : Void;
-	function drawFocusIfNeeded( element : DOMElement ) : Void;
-	function drawCustomFocusRing( element : DOMElement ) : Bool;
+	function drawFocusIfNeeded( element : Element ) : Void;
+	function drawCustomFocusRing( element : Element ) : Bool;
 	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
 	function clip( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
 	@:overload( function( x : Float, y : Float, ?winding : CanvasWindingRule = "nonzero" ) : Bool {} )

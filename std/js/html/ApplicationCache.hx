@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("ApplicationCache")
-extern class ApplicationCache extends EventTarget
+extern class ApplicationCache extends EventTarget implements ArrayAccess<String>
 {
 	static inline var UNCACHED : Int = 0;
 	static inline var IDLE : Int = 1;

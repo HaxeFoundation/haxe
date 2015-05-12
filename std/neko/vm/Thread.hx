@@ -63,7 +63,7 @@ class Thread {
 		return thread_read_message(block);
 	}
 
-	function __compare(t) {
+	@:keep function __compare(t) {
 		return untyped __dollar__compare(handle,t.handle);
 	}
 

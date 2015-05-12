@@ -93,8 +93,8 @@ class Uint8Array {
 		return a;
 	}
 
-	static function __init__() untyped {
-		var Uint8Array = __js__('typeof(window) != "undefined" && window.Uint8Array') || (__js__('typeof(global) != "undefined" && global.Uint8Array')) || _new;
+	static function __init__() {
+		var Uint8Array = untyped Function("return typeof Uint8Array != 'undefined' ? Uint8Array : null")() || _new;
 	}
 
 }

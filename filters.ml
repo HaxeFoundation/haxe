@@ -140,19 +140,17 @@ let rec add_final_return e =
 		| _ -> e
 
 let rec wrap_js_exceptions com e =
-	let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
-	let cerr = match terr with TClassDecl c -> c | _ -> assert false in
-
 	let rec is_error t =
 		match follow t with
 		| TInst ({cl_path = (["js"],"Error")},_) -> true
 		| TInst ({cl_super = Some (csup,tl)}, _) -> is_error (TInst (csup,tl))
 		| _ -> false
 	in
-
 	let rec loop e =
 		match e.eexpr with
 		| TThrow eerr when not (is_error eerr.etype) ->
+			let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
+			let cerr = match terr with TClassDecl c -> c | _ -> assert false in
 			let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
 			{ e with eexpr = TThrow ewrap }
 		| _ ->
@@ -705,12 +703,6 @@ let rename_local_vars ctx e =
 	e
 
 let check_unification ctx e t =
-	begin match follow e.etype,follow t with
-		| TEnum _,TDynamic _ ->
-			Hashtbl.replace ctx.curclass.cl_module.m_extra.m_features "may_print_enum" true;
-		| _ ->
-			()
-	end;
 	begin match e.eexpr,t with
 		| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
 			(* TODO: this smells of hack, but we have to deal with it somehow *)
@@ -769,7 +761,24 @@ let save_class_state ctx t = match t with
 
 (* PASS 2 begin *)
 
-let is_removable_class c = c.cl_kind = KGeneric && (Codegen.has_ctor_constraint c || Meta.has Meta.Remove c.cl_meta)
+let rec is_removable_class c =
+	match c.cl_kind with
+	| KGeneric ->
+		(Meta.has Meta.Remove c.cl_meta ||
+		(match c.cl_super with
+			| Some (c,_) -> is_removable_class c
+			| _ -> false) ||
+		List.exists (fun (_,t) -> match follow t with
+			| TInst(c,_) ->
+				Codegen.has_ctor_constraint c
+			| _ ->
+				false
+		) c.cl_params)
+	| KTypeParameter _ ->
+		(* this shouldn't happen, have to investigate (see #4092) *)
+		true
+	| _ ->
+		false
 
 let remove_generic_base ctx t = match t with
 	| TClassDecl c when is_removable_class c ->
@@ -1125,6 +1134,7 @@ let run com tctx main =
 			Codegen.UnificationCallback.run (check_unification tctx);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			blockify_ast;
+			check_local_vars_init;
 			( if (Common.defined com Define.NoSimplify) || (Common.defined com Define.Cppia) ||
 						( match com.platform with Cpp -> false | _ -> true ) then
 					fun e -> e
@@ -1137,7 +1147,6 @@ let run com tctx main =
 						save();
 					e );
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize com;
-			check_local_vars_init;
 			captured_vars com;
 			promote_complex_rhs com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
@@ -1179,7 +1188,7 @@ let run com tctx main =
 				not (Meta.has Meta.Enum cf.cf_meta)
 			in
 			(* also filter abstract implementation classes that have only @:enum fields (issue #2858) *)
-			if not (Meta.has Meta.Used c.cl_meta || Common.defined com Define.As3) || not (List.exists is_runtime_field c.cl_ordered_statics) then
+			if not (List.exists is_runtime_field c.cl_ordered_statics) then
 				c.cl_extern <- true
 		| _ -> ()
 	) com.types;

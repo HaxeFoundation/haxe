@@ -6,7 +6,7 @@ extern class ConstPointer<T>
 {
    // ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
    // Use value or ref to get dereferenced value
-	private var ptr:T;
+	public var ptr:T;
 
    @:analyzer(no_simplification)
 	public var value(get,never):T;
@@ -20,11 +20,12 @@ extern class ConstPointer<T>
 	public function gt(inOther:Pointer<T>):Bool;
 	public function geq(inOther:Pointer<T>):Bool;
 
-
+   public static function fromRaw<T>(ptr:RawConstPointer<T>) : ConstPointer<T>;
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : ConstPointer<T>;
 
 	public function reinterpret<Other>():Pointer<Other>;
+	public function rawCast<Other>():RawPointer<Other>;
 
    @:analyzer(no_simplification)
 	public function at(inIndex:Int):T;

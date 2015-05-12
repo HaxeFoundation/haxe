@@ -33,9 +33,9 @@ extern class DOMTokenList implements ArrayAccess<String>
 	/** @throws DOMError */
 	function contains( token : String ) : Bool;
 	/** @throws DOMError */
-	function add( ?tokens : String ) : Void;
+	function add( tokens : haxe.extern.Rest<String> ) : Void;
 	/** @throws DOMError */
-	function remove( ?tokens : String ) : Void;
+	function remove( tokens : haxe.extern.Rest<String> ) : Void;
 	/** @throws DOMError */
 	function toggle( token : String, ?force : Bool ) : Bool;
 }

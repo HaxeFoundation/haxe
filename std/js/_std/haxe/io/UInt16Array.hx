@@ -78,6 +78,7 @@ abstract UInt16Array(UInt16ArrayData) {
 	}
 
 	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : UInt16Array {
+		if( length == null ) length = (bytes.length - bytePos) >> 1;
 		return fromData(new UInt16ArrayData(bytes.getData(), bytePos, length));
 	}
 

@@ -309,14 +309,23 @@ class TestMisc extends Test {
 	}
 
 	function testBaseCode() {
+		// alternative base64
 		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
 		eq( b.encodeString("Héllow"), "iceFr6NLtM" );
 		eq( b.decodeString("iceFr6NLtM"), "Héllow" );
+
+		// base32-hex
+		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789ABCDEFGHIJKLMNOPQRSTUV"));
+		eq( b.encodeString("foo"), "CPNMU" );
+		eq( b.decodeString("CPNMU"), "foo" );
 	}
 
 	function testUrlEncode() {
 		eq( StringTools.urlEncode("é"), "%C3%A9" );
 		eq( StringTools.urlDecode("%C3%A9"), "é" );
+
+		eq( StringTools.urlEncode("a/b+c"), "a%2Fb%2Bc");
+		eq( StringTools.urlDecode("a%2Fb%2Bc"), "a/b+c");
 	}
 
 	function opt1( ?x : Int, ?y : String ) {

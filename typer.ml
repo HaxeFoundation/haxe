@@ -3010,9 +3010,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| WithTypeResume t -> get_map_params t,true
 			| _ -> (mk_mono(),mk_mono()),false
 		in
-		let unify_with_resume ctx a b p =
-			if resume then try unify_raise ctx a b p with Error (Unify l,p) -> raise (WithTypeError(l,p))
-			else unify ctx a b p
+		let unify_with_resume ctx e t p =
+			if resume then try Codegen.AbstractCast.cast_or_unify_raise ctx t e p with Error (Unify l,p) -> raise (WithTypeError(l,p))
+			else Codegen.AbstractCast.cast_or_unify ctx t e p
 		in
 		let type_arrow e1 e2 =
 			let e1 = type_expr ctx e1 (WithType tkey) in
@@ -3022,9 +3022,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				error "Previously defined here" p
 			with Not_found ->
 				Hashtbl.add keys e1.eexpr e1.epos;
-				unify_with_resume ctx e1.etype tkey e1.epos;
+				let e1 = unify_with_resume ctx e1 tkey e1.epos in
 				let e2 = type_expr ctx e2 (WithType tval) in
-				unify_with_resume ctx e2.etype tval e2.epos;
+				let e2 = unify_with_resume ctx e2 tval e2.epos in
 				e1,e2
 		in
 		let m = Typeload.load_module ctx ([],"Map") null_pos in
@@ -3553,6 +3553,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.StoredTypedExpr,_,_) ->
 				let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
 				get_stored_typed_expr ctx.com id
+			| (Meta.NoPrivateAccess,_,_) ->
+				ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
+				e()
 			| _ -> e()
 		in
 		ctx.meta <- old;

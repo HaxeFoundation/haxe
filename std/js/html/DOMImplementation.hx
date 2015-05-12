@@ -31,7 +31,7 @@ extern class DOMImplementation
 	/** @throws DOMError */
 	function createDocumentType( qualifiedName : String, publicId : String, systemId : String ) : DocumentType;
 	/** @throws DOMError */
-	function createDocument( namespace_ : String, qualifiedName : String, ?doctype : DocumentType ) : Document;
+	function createDocument( namespace_ : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
 	/** @throws DOMError */
-	function createHTMLDocument( ?title : String ) : Document;
+	function createHTMLDocument( ?title : String ) : HTMLDocument;
 }

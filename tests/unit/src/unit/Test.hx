@@ -1,5 +1,12 @@
 package unit;
 
+#if (!macro && emscripten)
+import cpp.link.StaticStd;
+import cpp.link.StaticRegexp;
+import cpp.link.StaticSqlite;
+import cpp.link.StaticZlib;
+#end
+
 @:expose("unit.Test")
 @:keepSub
 #if as3
@@ -212,6 +219,20 @@ class Test {
 		if( asyncWaits.length != 0 ) return;
 		if( asyncCache.length == 0 ) {
 			report("DONE ["+count+" tests]");
+			report("SUCCESS: " + success);
+
+			//out.close();
+
+			#if js
+			if (js.Browser.supported) {
+				untyped js.Browser.window.success = success;
+			}
+			#end
+
+			#if sys
+			Sys.exit(success ? 0 : 1);
+			#end
+
 			return;
 		}
 		resetTimer();
@@ -381,20 +402,6 @@ class Test {
 			asyncWaits.remove(null);
 			onError(e,"ABORTED",Type.getClassName(current));
 		}
-		#end
-
-		trace("SUCCESS: " + success);
-
-		//out.close();
-
-		#if js
-		if (js.Browser.supported) {
-			untyped js.Browser.window.success = success;
-		}
-		#end
-
-		#if sys
-		Sys.exit(success ? 0 : 1);
 		#end
 	}
 

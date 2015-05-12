@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("TextTrackList")
-extern class TextTrackList extends EventTarget
+extern class TextTrackList extends EventTarget implements ArrayAccess<TextTrack>
 {
 	var length(default,null) : Int;
 	var onchange : haxe.Constraints.Function;

@@ -49,7 +49,7 @@ class Process {
 		return p.pid;
 	}
 	public function exitCode() : Int {
-		return p.returncode;
+		return p.wait();
 	}
 	public function close() : Void {
 		p.terminate();

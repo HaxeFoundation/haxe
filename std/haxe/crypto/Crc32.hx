@@ -21,6 +21,9 @@
  */
 package haxe.crypto;
 
+/**
+    Calculates the Crc32 of the given Bytes.
+*/
 class Crc32 {
 
 	var crc : Int;

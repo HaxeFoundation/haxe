@@ -79,3 +79,9 @@ for( i in 0...3 )
 b3[0] = b3[0] + 1;
 if( !emulated ) b3[0] == b[2];
 
+var bytes = haxe.io.Bytes.alloc(50);
+var b4 = haxe.io.UInt8Array.fromBytes(bytes);
+b4.length == 50;
+b4.set(0,55);
+b4.get(0) == 55;
+if( !emulated ) bytes.get(0) == 55;

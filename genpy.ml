@@ -1260,7 +1260,12 @@ module Printer = struct
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| _,_ -> Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (snd ops) (print_expr pctx e2))
 			| TBinop(OpMod,e1,e2) when (is_type1 "" "Int")(e1.etype) && (is_type1 "" "Int")(e2.etype) ->
-				Printf.sprintf "(%s %% %s)" (print_expr pctx e1) (print_expr pctx e2)
+				(match e1.eexpr with
+				| TConst(TInt(x)) when (Int32.to_int x) >= 0 ->
+					(* constant optimization *)
+					Printf.sprintf "%s %% %s" (print_expr pctx e1) (print_expr pctx e2)
+				| _ ->
+					Printf.sprintf "HxOverrides.mod(%s, %s)" (print_expr pctx e1) (print_expr pctx e2))
 			| TBinop(OpMod,e1,e2) ->
 				Printf.sprintf "HxOverrides.modf(%s, %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| TBinop(OpUShr,e1,e2) ->

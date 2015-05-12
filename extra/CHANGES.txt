@@ -1,3 +1,36 @@
+2015-05-12: 3.2.0
+
+	New features:
+
+	all : added @:noPrivateAccess to re-enable access restrictions within @:privateAccess
+	cpp : some support for @:nativeGen metadata
+
+	Bugfixes:
+
+	all : fixed detection of @:generic classes with constructor constraints
+	all : fixed variable initialization check issue in loop condition
+	all : fixed pattern matching on @:enum abstracts via field access (#4084)
+	all : fixed missing implicit casts in Map literals (#4100)
+	all : fixed various minor issues in haxe.xml.Parser
+	all : fixed class path issue when HAXE_STD_PATH is set (#4163)
+	js : fixed DCE issue related to printing enums (#4197)
+	js : fixed various issues with the new Bytes implementation
+	php : fixed EOF handling in FileInput.readByte (#4082)
+	cs/java : fixed Math.fround implementation (#4177)
+	cs/java : fixed some cases of Std.parseInt failing (#4132)
+	cpp : fixed compilation without -main (#4199)
+
+	General improvements and optimizations:
+
+	all : --macro keep no longer causes types to be included for compilation
+	php : support interpolation in __php__ code
+	js : added variable number of arguments support in js.html.* classes
+	js : refined new HTML externs
+
+	Macro features and changes:
+
+	macro : [breaking] synced FClosure and FInstance with the compiler updates
+
 2015-03-15: 3.2.0-RC1
 
 	This release removes support for Flash 8 target
@@ -49,7 +82,7 @@
 	cpp : fixed issue with NativeArray in --no-inline mode
 	php : fixed issue with invalid references for closures in for-loops
 	php : fixed Reflect.compare and string comparison for numeric strings
-	cs/java : fixed various issues with -java-lib and -net-lib. 
+	cs/java : fixed various issues with -java-lib and -net-lib.
 	cs/java : added @:libType to skip checking on -java-lib / -net-lib types
 	cs/java : compilation server now works with C#/Java [experimental support]
 	cs : fixed Type.enumIndex / switch on C# native enums

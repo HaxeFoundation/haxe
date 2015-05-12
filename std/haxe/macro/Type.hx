@@ -21,6 +21,10 @@
  */
 package haxe.macro;
 
+/*
+    Warning: Some of these types correspond to compiler-internal data structures
+    and might change in minor Haxe releases in order to adapt to internal changes.
+*/
 typedef Ref<T> = {
 	public function get() : T;
 	public function toString() : String;
@@ -300,11 +304,11 @@ typedef TFunc = {
 }
 
 enum FieldAccess {
-	FInstance(c:Ref<ClassType>, cf:Ref<ClassField>);
+	FInstance(c:Ref<ClassType>, params:Array<Type>, cf:Ref<ClassField>);
 	FStatic(c:Ref<ClassType>, cf:Ref<ClassField>);
 	FAnon(cf:Ref<ClassField>);
 	FDynamic(s:String);
-	FClosure(c:Null<Ref<ClassType>>, cf:Ref<ClassField>);
+	FClosure(c:Null<{c:Ref<ClassType>, params:Array<Type>}>, cf:Ref<ClassField>);
 	FEnum(e:Ref<EnumType>, ef:EnumField);
 }
 

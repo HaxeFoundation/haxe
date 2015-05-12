@@ -1138,8 +1138,7 @@ let configure gen =
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
 			let file = Common.get_full_path p.pfile in
-			let line = if Common.defined gen.gcon Define.Unity46LineNumbers then cur_line - 1 else cur_line in
-			if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" line (Ast.s_escape file); newline w end;
+			if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
 			last_line := cur_line
 	in
 	let line_reset_directive =
@@ -2363,6 +2362,22 @@ let configure gen =
 				begin_block w;
 				true
 		in
+
+		(try
+			let _,m,_ = Meta.get (Meta.Custom "generic_iface") cl.cl_meta in
+			let rec loop i acc =
+				if i == 0 then
+					acc
+				else
+					"object" :: (loop (pred i) acc)
+			in
+			let tparams = loop (match m with [(EConst(Int s),_)] -> int_of_string s | _ -> assert false) [] in
+			cl.cl_meta <- (Meta.Meta, [
+				EConst(String("global::haxe.lang.GenericInterface(typeof(global::" ^ module_s (TClassDecl cl) ^ "<" ^ String.concat ", " tparams ^ ">))") ), cl.cl_pos
+			], cl.cl_pos) :: cl.cl_meta
+		with Not_found ->
+			());
+
 		gen_attributes w cl.cl_meta;
 
 		let is_main =

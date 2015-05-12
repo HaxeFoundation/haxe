@@ -21,7 +21,7 @@ class Issue4000 extends Test
 	}
 }
 
-@:nativeGen private class NativeGen
+#if !cpp @:nativeGen #end private class NativeGen
 {
 	public function new()
 	{

@@ -44,7 +44,7 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	var responseType : XMLHttpRequestResponseType;
 	var response(default,null) : Dynamic;
 	var responseText(default,null) : String;
-	var responseXML(default,null) : Document;
+	var responseXML(default,null) : HTMLDocument;
 	
 	/** @throws DOMError */
 	@:overload( function( ?params : Dynamic/*MISSING MozXMLHttpRequestParameters*/ ) : Void {} )
@@ -59,7 +59,7 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	@:overload( function( data : ArrayBuffer ) : Void {} )
 	@:overload( function( data : ArrayBufferView ) : Void {} )
 	@:overload( function( data : Blob ) : Void {} )
-	@:overload( function( data : Document ) : Void {} )
+	@:overload( function( data : HTMLDocument ) : Void {} )
 	@:overload( function( data : String ) : Void {} )
 	@:overload( function( data : FormData ) : Void {} )
 	function send( data : Dynamic/*MISSING InputStream*/ ) : Void;

@@ -28,15 +28,15 @@ package js.html;
 extern class DocumentFragment extends Node
 {
 	var children(default,null) : HTMLCollection;
-	var firstElementChild(default,null) : DOMElement;
-	var lastElementChild(default,null) : DOMElement;
+	var firstElementChild(default,null) : Element;
+	var lastElementChild(default,null) : Element;
 	var childElementCount(default,null) : Int;
 	
 	/** @throws DOMError */
 	function new() : Void;
-	function getElementById( elementId : String ) : DOMElement;
+	function getElementById( elementId : String ) : Element;
 	/** @throws DOMError */
-	function querySelector( selectors : String ) : DOMElement;
+	function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
 	function querySelectorAll( selectors : String ) : NodeList;
 }

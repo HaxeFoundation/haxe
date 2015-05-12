@@ -1,0 +1,58 @@
+<!-- 
+This file is read by the sys test at compile-time via `-resource`.
+We may compare and update the test cases of other popular langs/libs: https://gist.github.com/andyli/d55ae9ea1327bbbf749d
+-->
+<args>
+
+<arg><![CDATA[foo]]></arg>
+
+<arg><![CDATA[12]]></arg>
+
+<!-- symbols -->
+<arg><![CDATA[&]]></arg>
+<arg><![CDATA[&&]]></arg>
+<arg><![CDATA[|]]></arg>
+<arg><![CDATA[||]]></arg>
+<arg><![CDATA[.]]></arg>
+<arg><![CDATA[<]]></arg>
+<arg><![CDATA[>]]></arg>
+<arg><![CDATA[<<]]></arg>
+<arg><![CDATA[>>]]></arg>
+
+<!-- backslashes -->
+<!-- <arg><![CDATA[\]]></arg> -->
+<!-- <arg><![CDATA[\\]]></arg> -->
+<!-- <arg><![CDATA[\\\]]></arg> -->
+
+<!-- single quote -->
+<!-- <arg><![CDATA[']]></arg> -->
+
+<!-- kind of an escaped single quote -->
+<!-- <arg><![CDATA[\']]></arg> -->
+
+<!-- double quote -->
+<!-- <arg><![CDATA["]]></arg> -->
+
+<!-- kind of an escaped double quote -->
+<!-- <arg><![CDATA[\"]]></arg> -->
+
+<!-- space -->
+<arg><![CDATA[ ]]></arg>
+
+<!-- kind of an escaped space -->
+<!-- <arg><![CDATA[\ ]]></arg> -->
+
+<!-- empty string -->
+<!-- <arg><![CDATA[]]></arg> -->
+
+<!-- linebreak -->
+<!-- <arg><![CDATA[
+]]></arg> -->
+
+<!-- Chinese, Japanese -->
+<!-- <arg><![CDATA[中文，にほんご]]></arg> -->
+
+<!-- complex stuff -->
+<!-- <arg><![CDATA[a b  %PATH% $HOME c\&<>[\"]#{}|%$\""]]></arg> -->
+
+</args>

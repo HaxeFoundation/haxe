@@ -1,2 +1,13 @@
 compile-each.hxml
+-main Main
+-cpp bin/cpp
+
+--next
+compile-each.hxml
+-main TestArguments
+-cpp bin/cpp
+
+--next
+compile-each.hxml
+-main ExitCode
 -cpp bin/cpp

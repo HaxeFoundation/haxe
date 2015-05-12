@@ -102,7 +102,7 @@ class Compiler {
 
 		In order to include single modules, their paths can be listed directly
 		on command line: `haxe ... ModuleName pack.ModuleName`.
-		
+
 		By default `Compiler.include` will search for modules in the directories defined with `-cp`.
 		If you want to specify a different set of paths to search for modules, you can use the optional
 		argument `classPath`.
@@ -110,7 +110,7 @@ class Compiler {
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
 		@param classPaths An alternative array of paths (directory names) to use to search for modules to include.
-		       Note that if you pass this argument, only the specified paths will be used for inclusion.  
+		       Note that if you pass this argument, only the specified paths will be used for inclusion.
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {
 		var skip = if( ignore == null ) {
@@ -269,8 +269,7 @@ class Compiler {
 	}
 
 	/**
-		Marks types or packages to be kept by DCE and includes them for
-		compilation.
+		Marks types or packages to be kept by DCE.
 
 		This also extends to the sub-types of resolved modules.
 

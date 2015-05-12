@@ -80,6 +80,7 @@ abstract Float64Array(Float64ArrayData) {
 	}
 
 	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : Float64Array {
+		if( length == null ) length = (bytes.length - bytePos) >> 3;
 		return fromData(new Float64ArrayData(bytes.getData(), bytePos, length));
 	}
 }

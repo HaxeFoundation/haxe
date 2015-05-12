@@ -29,7 +29,7 @@ extern class Window extends EventTarget
 {
 	var window(default,null) : Window;
 	var self(default,null) : Window;
-	var document(default,null) : Document;
+	var document(default,null) : HTMLDocument;
 	var name : String;
 	var location(default,null) : Location;
 	var history(default,null) : History;
@@ -46,7 +46,7 @@ extern class Window extends EventTarget
 	var top(default,null) : Window;
 	var opener : Dynamic;
 	var parent(default,null) : Window;
-	var frameElement(default,null) : DOMElement;
+	var frameElement(default,null) : Element;
 	var navigator(default,null) : Navigator;
 	var applicationCache(default,null) : ApplicationCache;
 	var orientation(default,null) : Int;
@@ -189,7 +189,7 @@ extern class Window extends EventTarget
 	/** @throws DOMError */
 	function getSelection() : Selection;
 	/** @throws DOMError */
-	function getComputedStyle( elt : DOMElement, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
+	function getComputedStyle( elt : Element, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
 	/** @throws DOMError */
 	function matchMedia( query : String ) : MediaQueryList;
 	/** @throws DOMError */
@@ -211,7 +211,7 @@ extern class Window extends EventTarget
 	/** @throws DOMError */
 	function cancelAnimationFrame( handle : Int ) : Void;
 	/** @throws DOMError */
-	function getDefaultComputedStyle( elt : DOMElement, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
+	function getDefaultComputedStyle( elt : Element, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
 	function scrollByLines( numLines : Int, ?options : ScrollOptions ) : Void;
 	function scrollByPages( numPages : Int, ?options : ScrollOptions ) : Void;
 	/** @throws DOMError */
@@ -226,13 +226,13 @@ extern class Window extends EventTarget
 	/** @throws DOMError */
 	function atob( atob : String ) : String;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, ?arguments : Dynamic ) : Int {} )
-	function setTimeout( handler : String, ?timeout : Int = 0, ?unused : Dynamic ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
 	/** @throws DOMError */
 	function clearTimeout( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int, ?arguments : Dynamic ) : Int {} )
-	function setInterval( handler : String, ?timeout : Int, ?unused : Dynamic ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setInterval( handler : String, ?timeout : Int, unused : haxe.extern.Rest<Dynamic> ) : Int;
 	/** @throws DOMError */
 	function clearInterval( ?handle : Int = 0 ) : Void;
 }

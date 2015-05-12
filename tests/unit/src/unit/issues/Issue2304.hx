@@ -24,7 +24,7 @@ private class TestImpl extends BaseTest implements ITest
 	}
 }
 
-@:nativeGen
+#if !cpp @:nativeGen #end
 private class BaseTest
 {
 	public function new()

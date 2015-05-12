@@ -6,6 +6,7 @@
 *.a
 *.exe
 .*.swp
+/out
 
 /extra/hxclasses
 /extra/*.swf
@@ -70,3 +71,4 @@ tests/misc/projects/*/*.n
 tests/unit/bin/
 tests/*.n
 tests/misc/projects/Issue3756/cpp/
+tests/misc/projects/Issue4070/cpp/

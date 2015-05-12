@@ -67,7 +67,7 @@ extern class PeerConnection extends js.html.EventTarget
 	function getStreamById( streamId : String ) : js.html.MediaStream;
 	function addStream( stream : js.html.MediaStream ) : Void;
 	function removeStream( stream : js.html.MediaStream ) : Void;
-	function addTrack( track : js.html.MediaStreamTrack, stream : js.html.MediaStream, ?moreStreams : js.html.MediaStream ) : RtpSender;
+	function addTrack( track : js.html.MediaStreamTrack, stream : js.html.MediaStream, moreStreams : haxe.extern.Rest<js.html.MediaStream> ) : RtpSender;
 	function removeTrack( sender : RtpSender ) : Void;
 	function getSenders() : Array<RtpSender>;
 	function getReceivers() : Array<RtpReceiver>;

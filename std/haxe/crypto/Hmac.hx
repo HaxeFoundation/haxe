@@ -21,12 +21,18 @@
  */
 package haxe.crypto;
 
+/**
+    Hash methods for Hmac calculation.
+*/
 enum HashMethod {
 	MD5;
 	SHA1;
 	SHA256;
 }
 
+/**
+    Calculates a Hmac of the given Bytes using a HashMethod.
+*/
 class Hmac {
 	
 	var method : HashMethod;

@@ -96,7 +96,7 @@ let is_debug_run() =
 	try Sys.getenv "HAXEDEBUG" = "1" with _ -> false
 
 let s_version =
-	Printf.sprintf "%d.%d.%d" version_major version_minor version_revision
+	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
 let format msg p =
 	if p = Ast.null_pos then
@@ -122,27 +122,26 @@ let message ctx msg p =
 	ctx.messages <- format msg p :: ctx.messages
 
 let deprecated = [
-	"Class not found : IntIter","IntIter was renamed to IntIterator";
+	"Type not found : IntIter","IntIter was renamed to IntIterator";
 	"EReg has no field customReplace","EReg.customReplace was renamed to EReg.map";
 	"#StringTools has no field isEOF","StringTools.isEOF was renamed to StringTools.isEof";
-	"Class not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
-	"Class not found : haxe.Md5","haxe.Md5 was moved to haxe.crypto.Md5";
-	"Class not found : haxe.SHA1","haxe.SHA1 was moved to haxe.crypto.SHA1";
-	"Class not found : Hash","Hash has been removed, use Map instead";
-	"Class not found : IntHash","IntHash has been removed, use Map instead";
-	"Class not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
+	"Type not found : haxe.BaseCode","haxe.BaseCode was moved to haxe.crypto.BaseCode";
+	"Type not found : haxe.Md5","haxe.Md5 was moved to haxe.crypto.Md5";
+	"Type not found : haxe.SHA1","haxe.SHA1 was moved to haxe.crypto.SHA1";
+	"Type not found : Hash","Hash has been removed, use Map instead";
+	"Type not found : IntHash","IntHash has been removed, use Map instead";
+	"Type not found : haxe.FastList","haxe.FastList was moved to haxe.ds.GenericStack";
 	"#Std has no field format","Std.format has been removed, use single quote 'string ${escape}' syntax instead";
 	"Identifier 'EType' is not part of enum haxe.macro.ExprDef","EType has been removed, use EField instead";
 	"Identifier 'CType' is not part of enum haxe.macro.Constant","CType has been removed, use CIdent instead";
-	"Class not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
-	"Class not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
-	"Class not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
-	"Class not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
-	"Class not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
-	"Class not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
-	"Class not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
-	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
-	"Module js.html.HtmlElement is loaded with a different case than js.html.HTMLElement", "htmlelement"
+	"Type not found : haxe.rtti.Infos","Use @:rtti instead of implementing haxe.rtti.Infos";
+	"Type not found : haxe.rtti.Generic","Use @:generic instead of implementing haxe.Generic";
+	"Type not found : flash.utils.TypedDictionary","flash.utils.TypedDictionary has been removed, use Map instead";
+	"Type not found : haxe.Stack", "haxe.Stack has been renamed to haxe.CallStack";
+	"Type not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
+	"Type not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
+	"Type not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
+	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction"
 ]
 
 let limit_string s offset =
@@ -159,10 +158,7 @@ let limit_string s offset =
 
 let error ctx msg p =
 	let msg = try List.assoc msg deprecated with Not_found -> msg in
-	if msg = "htmlelement" then
-		message ctx "There was a problem with HtmlElement, please refer to https://github.com/HaxeFoundation/html-externs/blob/master/README.md#htmlelement" null_pos
-	else
-		message ctx msg p;
+	message ctx msg p;
 	ctx.has_error <- true
 
 let htmlescape s =
@@ -664,7 +660,7 @@ let rec process_params create pl =
 				(* already connected : skip *)
 				loop acc l)
 		| "--run" :: cl :: args ->
-			let acc = (cl ^ ".main()") :: "--macro" :: acc in
+			let acc = cl :: "-main" :: "--interp" :: acc in
 			let ctx = create (!each_params @ (List.rev acc)) in
 			ctx.com.sys_args <- args;
 			init ctx;
@@ -982,8 +978,8 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s %s- (C)2005-2015 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
-		s_version (match Version.version_extra with None -> "" | Some v -> v) (if Sys.os_type = "Win32" then ".exe" else "")
+		"Haxe Compiler %s - (C)2005-2015 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -1021,8 +1017,8 @@ try
 			| l ->
 				l
 		in
-		let parts = "" :: Str.split_delim (Str.regexp "[;:]") p in
-		com.class_path <- List.map normalize_path (loop parts)
+		let parts = Str.split_delim (Str.regexp "[;:]") p in
+		com.class_path <- "" :: List.map normalize_path (loop parts)
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then

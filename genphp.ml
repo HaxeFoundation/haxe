@@ -589,6 +589,8 @@ and gen_call ctx e el =
 	| TLocal { v_name = "__php__" }, [{ eexpr = TConst (TString code) }] ->
 		(*--php-prefix*)
 		spr ctx (prefix_init_replace ctx.com code)
+	| TLocal { v_name = "__php__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
+		Codegen.interpolate_code ctx.com code tl (spr ctx) (gen_expr ctx) p
 	| TLocal { v_name = "__instanceof__" },  [e1;{ eexpr = TConst (TString t) }] ->
 		gen_value ctx e1;
 		print ctx " instanceof %s" t;
@@ -1307,9 +1309,7 @@ and gen_expr ctx e =
 			end) in
 		let remaining = ref (List.length el) in
 		let build e =
-			(match e.eexpr with
-			| TBlock [] -> ()
-			| _ -> newline ctx);
+			newline ctx;
 			if (in_block && !remaining = 1) then begin
 				(match e.eexpr with
 				| TIf _

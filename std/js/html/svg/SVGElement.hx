@@ -65,5 +65,5 @@ extern class SVGElement extends GraphicsElement
 	function createSVGRect() : Rect;
 	function createSVGTransform() : Transform;
 	function createSVGTransformFromMatrix( matrix : Matrix ) : Transform;
-	function getElementById( elementId : String ) : js.html.DOMElement;
+	function getElementById( elementId : String ) : js.html.Element;
 }

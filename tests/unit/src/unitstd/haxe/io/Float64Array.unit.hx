@@ -1,6 +1,10 @@
 
 var emulated = haxe.io.ArrayBufferView.EMULATED;
 
+#if js
+if( untyped js.html.Float64Array == "notsupported" ) return;
+#end
+
 var b = new haxe.io.Float64Array(5);
 b[0] == 0;
 b[4] == 0;

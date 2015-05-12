@@ -12,19 +12,14 @@ import sys.io.FileSeek;
  */
 class TestFileInput extends haxe.unit.TestCase {
 
-	private var path : String;
-
-	public function new() {
-		super();
-		path = 'testcase-test-file';
-	}
+	private var path = 'temp/testcase-test-file.txt';
 
 	override public function setup() {
 		File.saveContent(path, "test\n1234");
 	}
 
 	override public function tearDown() {
-		//FileSystem.deleteFile(path);
+		FileSystem.deleteFile(path);
 	}
 
 	public function testRead() {
@@ -213,6 +208,5 @@ class TestFileInput extends haxe.unit.TestCase {
 		}
 		file.close();
 	}
-
 }
 

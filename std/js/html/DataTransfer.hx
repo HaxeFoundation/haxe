@@ -35,7 +35,7 @@ extern class DataTransfer
 	/** @throws DOMError */
 	function new( eventType : String, isExternal : Bool ) : Void;
 	/** @throws DOMError */
-	function setDragImage( image : DOMElement, x : Int, y : Int ) : Void;
+	function setDragImage( image : Element, x : Int, y : Int ) : Void;
 	/** @throws DOMError */
 	function getData( format : String ) : String;
 	/** @throws DOMError */
@@ -43,5 +43,5 @@ extern class DataTransfer
 	/** @throws DOMError */
 	function clearData( ?format : String ) : Void;
 	/** @throws DOMError */
-	function addElement( element : DOMElement ) : Void;
+	function addElement( element : Element ) : Void;
 }

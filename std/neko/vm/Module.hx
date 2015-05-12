@@ -193,6 +193,8 @@ class Module {
 				a.push("FLOAT:"+i.readUntil(0));
 			case 5:
 				a.push("DEBUG");
+			case 6:
+				a.push("VERSION "+i.readByte());
 			default:
 				throw "assert";
 			}

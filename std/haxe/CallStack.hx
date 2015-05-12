@@ -40,6 +40,7 @@ class CallStack {
 	static var lastException:js.Error;
 
 	static function getStack(e:js.Error):Array<StackItem> {
+		if (e == null) return [];
 		// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
 		var oldValue = (untyped Error).prepareStackTrace;
 		(untyped Error).prepareStackTrace = function (error, callsites :Array<Dynamic>) {

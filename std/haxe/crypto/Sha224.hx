@@ -21,6 +21,9 @@
  */
 package haxe.crypto;
 
+/**
+    Creates a Sha224 of a String.
+*/
 class Sha224 {
     
     public static function encode( s:String ) : String {

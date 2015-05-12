@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("FontFaceSet")
-extern class FontFaceSet extends EventTarget
+extern class FontFaceSet extends EventTarget implements ArrayAccess<FontFace>
 {
 	var onloading : haxe.Constraints.Function;
 	var onloadingdone : haxe.Constraints.Function;

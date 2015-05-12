@@ -1,4 +1,4 @@
-(* gencommon.$(MODULE_EXT)
+(*
  * Copyright (C)2005-2013 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -347,7 +347,7 @@ let get_meta_string meta key =
 
 
 
-let get_meta_string_path ctx meta key =
+let get_meta_string_path meta key =
    let rec loop = function
       | [] -> ""
       | (k,[Ast.EConst (Ast.String name),_], pos) :: _  when k=key->
@@ -367,6 +367,28 @@ let get_meta_string_path ctx meta key =
    loop meta
 ;;
 
+
+let get_meta_string_full_filename meta key =
+   let rec loop = function
+      | [] -> ""
+      | (k,_, pos) :: _  when k=key->
+           if (Filename.is_relative pos.pfile) then
+              Gencommon.normalize (Filename.concat (Sys.getcwd()) pos.pfile)
+           else
+              pos.pfile
+      | _ :: l -> loop l
+      in
+   loop meta
+;;
+
+let get_meta_string_full_dirname meta key =
+   let name = get_meta_string_full_filename meta key in
+   try
+      Gencommon.normalize (Filename.dirname name)
+   with Invalid_argument _ -> ""
+;;
+
+
 let get_field_access_meta field_access key =
 match field_access with
    | FInstance(_,_,class_field)
@@ -374,9 +396,20 @@ match field_access with
    | _ -> ""
 ;;
 
+let format_code code =
+	String.concat "\n" (ExtString.String.nsplit code "\r\n")
+
 let get_code meta key =
    let code = get_meta_string meta key in
-   if (code<>"") then code ^ "\n" else code
+   let magic_var = "${GENCPP_SOURCE_DIRECTORY}"  in
+   let code = if ExtString.String.exists code magic_var then begin
+         let source_directory = get_meta_string_full_dirname meta key in
+         let _,code = ExtString.String.replace code magic_var source_directory in
+         code
+      end else
+         code
+      in
+   if (code<>"") then format_code code ^ "\n" else code
 ;;
 
 let has_meta_key meta key =
@@ -579,7 +612,8 @@ let rec class_string klass suffix params remap =
    let join_class_path_remap = if remap then join_class_path_remap else join_class_path in
    (match klass.cl_path with
    (* Array class *)
-   |  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic"
+   |  ([],"Array") when is_dynamic_array_param (List.hd params) ->
+           "cpp::ArrayBase" ^ suffix (* "Dynamic" *)
    |  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "< " ^ (String.concat ","
                (List.map array_element_type params) ) ^ " >"
    (* FastIterator class *)
@@ -720,16 +754,19 @@ and cpp_function_signature_params params = match params with
        | TInst (klass,_) -> cpp_function_signature t (get_meta_string klass.cl_meta Meta.Abi)
        | _ -> print_endline (type_string abi);
            assert false )
-   | _ -> 
+   | _ ->
       print_endline ("Params:" ^ (String.concat "," (List.map type_string params) ));
       assert false;
 
 and gen_interface_arg_type_name name opt typ =
    let type_str = (type_string typ) in
-   (if (opt && (cant_be_null typ) ) then
+   (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
+   (if (opt && (cant_be_null typ) && type_str<>"Dynamic" ) then
       "hx::Null< " ^ type_str ^ " > "
    else
       type_str )
+
+
    ^ " " ^ (keyword_remap name)
 and gen_tfun_interface_arg_list args =
    String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
@@ -845,6 +882,15 @@ let is_extern_class class_def =
        | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.Extern)
        | _ -> false );
 ;;
+
+
+let is_native_gen_class class_def =
+   (has_meta_key class_def.cl_meta Meta.NativeGen) ||
+      (match class_def.cl_kind with
+       | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.NativeGen)
+       | _ -> false );
+;;
+
 
 let is_extern_class_instance obj =
    match follow obj.etype with
@@ -1253,7 +1299,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 let rec is_dynamic_in_cpp ctx expr =
    let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
    ctx.ctx_dbgout ( "/* idic: " ^ expr_type ^ " */" );
-   if ( expr_type="Dynamic" ) then
+   if ( expr_type="Dynamic" || expr_type="cpp::ArrayBase") then
       true
    else begin
       let result = (
@@ -1331,18 +1377,18 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
    | TTypeExpr t ->
          let full_name = "::" ^ (join_class_path (t_path t) "::" ) ^ "." ^ member in
          ctx.ctx_dbgout ("/*static:"^ full_name^"*/");
-         ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
+         ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic"||mem_type="cpp::ArrayBase" )
          with Not_found -> true )
    | _ ->
       let tstr = type_string field_object.etype in
       (match tstr with
          (* Internal classes have no dynamic members *)
          | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
-         | "Dynamic" -> ctx.ctx_dbgout "/*D*/"; true
+         | "Dynamic" | "cpp::ArrayBase" -> ctx.ctx_dbgout "/*D*/"; true
          | name ->
                let full_name = name ^ "." ^ member in
                ctx.ctx_dbgout ("/*R:"^full_name^"*/");
-               try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
+               try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic"||mem_type="cpp::ArrayBase" )
                with Not_found -> true )
 ;;
 
@@ -1850,7 +1896,7 @@ and gen_expression ctx retval expression =
       | x when is_interface_type x -> ()
       | TInst (klass,[element]) ->
          let name = type_string element in
-         if ( is_object name ) then
+         if ( is_object name && not (is_interface_type element) ) then
             gen_array_cast ".StaticCast" "Array<Dynamic>" "()"
          else
             gen_array_cast ".StaticCast" (type_string array_type) "()"
@@ -1903,6 +1949,13 @@ and gen_expression ctx retval expression =
                output ( "." ^ remap_name )
             else begin
                cast_if_required ctx field_object (type_string field_object.etype);
+               let remap_name = if (type_string field_object.etype)="cpp::ArrayBase" then
+                   match remap_name with
+                   | "length" -> remap_name
+                   | _ -> "__" ^ remap_name
+               else
+                  remap_name
+               in
                output ( "->" ^ remap_name );
                if (calling && (is_array field_object.etype) && remap_name="iterator" ) then
                   check_array_element_cast field_object.etype "Fast" "";
@@ -1934,9 +1987,9 @@ and gen_expression ctx retval expression =
          | TLocal { v_name = "__cpp__" } -> true
          | _ -> false) ->
       ( match arg_list with
-      | [{ eexpr = TConst (TString code) }] -> output code;
+      | [{ eexpr = TConst (TString code) }] -> output (format_code code);
       | ({ eexpr = TConst (TString code) } as ecode) :: tl ->
-         Codegen.interpolate_code ctx.ctx_common code tl output (gen_expression ctx true) ecode.epos
+         Codegen.interpolate_code ctx.ctx_common (format_code code) tl output (gen_expression ctx true) ecode.epos
       | _ -> error "__cpp__'s first argument must be a string" func.epos;
       )
    | TCall (func, arg_list) when tcall_expand_args->
@@ -1970,7 +2023,7 @@ and gen_expression ctx retval expression =
             let signature = cpp_function_signature field.cf_type "" in
             let name = keyword_remap field.cf_name in
             let void_cast = has_meta_key field.cf_meta Meta.Void in
-            output ("::cpp::Function<" ^ signature ^">(");
+            output ("::cpp::Function< " ^ signature ^">(");
             if (void_cast) then output "hx::AnyCast(";
             output ("&::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name );
             if (void_cast) then output ")";
@@ -1994,7 +2047,7 @@ and gen_expression ctx retval expression =
          let cpp_type = member_type ctx obj field.cf_name in
          (not (is_scalar cpp_type)) && (
             let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
-               (cpp_type<>expr_type) && (expr_type<>"Void") in
+               (cpp_type<>expr_type) && (expr_type<>"Void") && (cpp_type<>"cpp::ArrayBase") in
             if (fixed && (ctx.ctx_debug_level>1) ) then begin
                output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
             end;
@@ -2042,14 +2095,14 @@ and gen_expression ctx retval expression =
       end;
       if (cast_result) then output (")");
       if ( (is_variable func) && (not (is_cpp_function_member func) ) &&
-           (expr_type<>"Dynamic") && (not is_super) && (not is_block_call)) then
+           (expr_type<>"Dynamic" && expr_type<>"cpp::ArrayBase" ) && (not is_super) && (not is_block_call)) then
          ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 
       let rec cast_array_output func =
          match func.eexpr with
             | TField(obj,field) when is_array obj.etype ->
                (match field_name field with
-                  | "pop" | "shift" -> check_array_element_cast obj.etype ".StaticCast" "()"
+                  | "pop" | "shift" | "__unsafe_get" | "__unsafe_set" -> check_array_element_cast obj.etype ".StaticCast" "()"
                   | "map" -> check_array_cast expression.etype
                   | _ -> ()
                )
@@ -2124,7 +2177,7 @@ and gen_expression ctx retval expression =
    | TLocal v -> output (keyword_remap v.v_name);
    | TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
    | TArray (array_expr,index) ->
-      let dynamic =  is_dynamic_in_cpp ctx array_expr in
+      let dynamic =  is_dynamic_in_cpp ctx array_expr || (type_string array_expr.etype) = "cpp::ArrayBase" in
       if ( assigning && (not dynamic) ) then begin
          if (is_array_implementer array_expr.etype) then begin
             output "hx::__ArrayImplRef(";
@@ -2160,7 +2213,8 @@ and gen_expression ctx retval expression =
       end
    (* Get precidence matching haxe ? *)
    | TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
-   | TField (expr,_) | TEnumParameter (expr,_,_) when (is_null expr) -> output "Dynamic()"
+   | TField (expr,_) | TEnumParameter (expr,_,_) when (is_null expr) ->
+         output "hx::Throw(HX_CSTRING(\"Invalid field access on null object\"))"
    | TEnumParameter (expr,ef,i) ->
       let enum = match follow ef.ef_type with
          | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
@@ -2474,6 +2528,18 @@ let rec all_virtual_functions clazz =
    | _ -> [] )
 ;;
 
+let reflective class_def field = not (
+    (Meta.has Meta.NativeGen class_def.cl_meta) ||
+    (Meta.has Meta.Unreflective class_def.cl_meta) ||
+    (Meta.has Meta.Unreflective field.cf_meta) ||
+    (match field.cf_type with
+       | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
+       | _ -> false
+    )
+)
+;;
+
+
 
 
 
@@ -2493,6 +2559,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
    let remap_name = keyword_remap field.cf_name in
    let decl = get_meta_string field.cf_meta Meta.Decl in
    let has_decl = decl <> "" in
+   let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
    if (is_interface) then begin
       (* Just the dynamic glue  - not even that ... *)
       ()
@@ -2505,7 +2572,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       let ret = if is_void  then "(void)" else "return " in
       let output_i = ctx.ctx_writer#write_i in
       let orig_debug = ctx.ctx_debug_level in
-      let dump_src = if ((Meta.has Meta.NoStack field.cf_meta)||(Meta.has Meta.NoDebug field.cf_meta) || orig_debug<1) then begin
+      let dump_src = if ((Meta.has Meta.NoStack field.cf_meta)||(Meta.has Meta.NoDebug field.cf_meta) || orig_debug<1 || nativeGen) then begin
          ctx.ctx_debug_level <- 0;
          (fun()->())
       end else begin
@@ -2552,8 +2619,10 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          end;
 
          output "\n\n";
+         let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
+         let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
          (* generate dynamic version too ... *)
-         if ( not (is_override class_def field.cf_name ) ) then begin
+         if ( doDynamic ) then begin
             if (is_static) then output "STATIC_";
             output ("HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ "," ^
                      remap_name ^ "," ^ ret ^ ")\n\n");
@@ -2565,12 +2634,18 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let func_name = "__default_" ^ (remap_name) in
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type;
-         output (" run(" ^ (gen_arg_list function_def.tf_args "") ^ ")");
+         output (" run(" ^ (gen_arg_list function_def.tf_args "__o_") ^ ")");
          ctx.ctx_dump_src_pos <- dump_src;
          if (is_void) then begin
             ctx.ctx_writer#begin_block;
+            generate_default_values ctx function_def.tf_args "__o_";
             gen_expression ctx false function_def.tf_expr;
             output "return null();\n";
+            ctx.ctx_writer#end_block;
+         end else if (has_default_values function_def.tf_args) then begin
+            ctx.ctx_writer#begin_block;
+            generate_default_values ctx function_def.tf_args "__o_";
+            gen_expression ctx false function_def.tf_expr;
             ctx.ctx_writer#end_block;
          end else
             gen_expression ctx false (to_block function_def.tf_expr);
@@ -2643,6 +2718,7 @@ let has_field_init field =
 let gen_member_def ctx class_def is_static is_interface field =
    let output = ctx.ctx_output in
    let remap_name = keyword_remap field.cf_name in
+   let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
 
    if (is_interface) then begin
       match follow field.cf_type, field.cf_kind with
@@ -2652,8 +2728,10 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (" " ^ remap_name ^ "( " );
          output (gen_tfun_interface_arg_list args);
          output (if (not is_static) then ")=0;\n" else ");\n");
-         output (if is_static then "\t\tstatic " else "\t\t");
-         output ("virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
+         if not nativeGen then begin
+            output (if is_static then "\t\tstatic " else "\t\t");
+            output ("virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
+         end
       | _  ->  ( )
    end else begin
    let decl = get_meta_string field.cf_meta Meta.Decl in
@@ -2663,8 +2741,10 @@ let gen_member_def ctx class_def is_static is_interface field =
    output (if is_static then "\t\tstatic " else "\t\t");
    (match  field.cf_expr with
    | Some { eexpr = TFunction function_def } ->
+      let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
+      let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
       if ( is_dynamic_haxe_method field ) then begin
-         if ( not (is_override class_def field.cf_name ) ) then begin
+         if ( doDynamic ) then begin
             output ("Dynamic " ^ remap_name ^ ";\n");
             output (if is_static then "\t\tstatic " else "\t\t");
             output ("inline Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
@@ -2672,13 +2752,13 @@ let gen_member_def ctx class_def is_static is_interface field =
       end else begin
          let return_type = (type_string function_def.tf_type) in
 
-         if (not is_static) then output "virtual ";
+         if ( not is_static && not nonVirtual ) then output "virtual ";
          output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
 
          output (" " ^ remap_name ^ "( " );
          output (gen_arg_list function_def.tf_args "" );
          output ");\n";
-         if ( not (is_override class_def field.cf_name ) ) then begin
+         if ( doDynamic ) then begin
             output (if is_static then "\t\tstatic " else "\t\t");
             output ("Dynamic " ^ remap_name ^ "_dyn();\n" )
          end;
@@ -2694,6 +2774,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 
       (* Add a "dyn" function for variable to unify variable/function access *)
       (match follow field.cf_type with
+      | _ when nativeGen  -> ()
       | TFun (_,_) ->
          output (if is_static then "\t\tstatic " else "\t\t");
          gen_type ctx field.cf_type;
@@ -2734,11 +2815,20 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
       end
    in
    let add_extern_class klass =
-      let include_file = get_meta_string_path ctx klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
+      let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
       if (include_file<>"") then
          add_type ( path_of_string include_file )
       else if (not for_depends) && (has_meta_key klass.cl_meta Meta.Include) then
          add_type klass.cl_path
+   in
+   let add_native_gen_class klass =
+      let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
+      if (include_file<>"") then
+         add_type ( path_of_string include_file )
+      else if for_depends then
+         add_type klass.cl_path
+      else
+         add_type ( path_of_string ( (join_class_path klass.cl_path "/") ^ ".h") )
    in
    let visited = ref [] in
    let rec visit_type in_type =
@@ -2754,6 +2844,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
             | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator")
             | (["cpp"],"Pointer") | (["cpp"],"ConstPointer") | (["cpp"],"Function")
             | (["cpp"],"RawPointer") | (["cpp"],"RawConstPointer") -> List.iter visit_type params
+            | _ when is_native_gen_class klass -> add_native_gen_class klass
             | _ when is_extern_class klass -> add_extern_class klass
             | _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
             )
@@ -2770,6 +2861,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          (* Expand out TTypeExpr (ie, the name of a class, as used for static access etc ... *)
          (match expression.eexpr with
             | TTypeExpr type_def -> ( match type_def with
+               | TClassDecl class_def when is_native_gen_class class_def -> add_native_gen_class class_def
                | TClassDecl class_def when is_extern_class class_def -> add_extern_class class_def
                | _ -> add_type (t_path type_def)
                )
@@ -2832,7 +2924,10 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          List.iter visit_field (List.map (fun (a,_,_) -> a ) (all_virtual_functions class_def ));
 
       (* Add super & interfaces *)
-      add_type class_def.cl_path;
+      if is_native_gen_class class_def then
+         add_native_gen_class class_def
+      else
+         add_type class_def.cl_path;
    in
    let visit_enum enum_def =
       add_type enum_def.e_path;
@@ -2918,7 +3013,7 @@ let generate_dummy_main common_ctx =
       let main_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
       let output_main = (main_file#write) in
       generate_main_header output_main;
-      if is_main then output_main "\n#include <hx/HxcppMain.h\n\n";
+      if is_main then output_main "\n#include <hx/HxcppMain.h>\n\n";
       generate_main_footer1 output_main;
       generate_main_footer2 output_main;
       main_file#close;
@@ -3310,15 +3405,6 @@ let is_writable class_def field =
    | _ -> true)
 ;;
 
-let reflective class_def field = not (
-    (Meta.has Meta.Unreflective class_def.cl_meta) ||
-    (Meta.has Meta.Unreflective field.cf_meta) ||
-    (match field.cf_type with
-       | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-       | _ -> false
-    )
-)
-;;
 
 let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") class_def.cl_ordered_statics);;
 
@@ -3385,7 +3471,8 @@ let access_str a = match a with
 
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def file_info inScriptable =
    let class_path = class_def.cl_path in
-   let class_name = (snd class_path) ^ "_obj" in
+   let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
+   let class_name = (snd class_path) ^ (if nativeGen then "" else "_obj") in
    let dot_name = join_class_path class_path "." in
    let smart_class_name =  (snd class_path)  in
    (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
@@ -3395,6 +3482,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       then 0 else 1 in
    let scriptable = inScriptable && not class_def.cl_private in
    let ctx = new_context common_ctx cpp_file debug file_info in
+
+
    ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
    ctx.ctx_class_super_name <- (match class_def.cl_super with
       | Some (klass, params) -> class_string klass "_obj" params true
@@ -3456,7 +3545,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp "#include <hx/Scriptable.h>\n";
 
    output_cpp ( get_class_code class_def Meta.CppFileCode );
-   let inc = get_meta_string_path ctx class_def.cl_meta Meta.CppInclude in
+   let inc = get_meta_string_path class_def.cl_meta Meta.CppInclude in
    if (inc<>"") then
       output_cpp ("#include \"" ^ inc ^ "\"\n");
 
@@ -3465,7 +3554,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
-   if (not class_def.cl_interface) then begin
+   if (not class_def.cl_interface) && not nativeGen then begin
       output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
       (match class_def.cl_constructor with
          | Some definition ->
@@ -3501,16 +3590,16 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_cpp (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^")\n");
 
       let create_result () =
-         output_cpp ("{  " ^ ptr_name ^ " result = new " ^ class_name ^ "();\n");
+         output_cpp ("{  " ^ ptr_name ^ " _result_ = new " ^ class_name ^ "();\n");
          in
       create_result ();
-      output_cpp ("\tresult->__construct(" ^ constructor_args ^ ");\n");
-      output_cpp ("\treturn result;}\n\n");
+      output_cpp ("\t_result_->__construct(" ^ constructor_args ^ ");\n");
+      output_cpp ("\treturn _result_;}\n\n");
 
       output_cpp ("Dynamic " ^ class_name ^ "::__Create(hx::DynamicArray inArgs)\n");
       create_result ();
-      output_cpp ("\tresult->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
-      output_cpp ("\treturn result;}\n\n");
+      output_cpp ("\t_result_->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
+      output_cpp ("\treturn _result_;}\n\n");
       if ( (List.length implemented) > 0 ) then begin
          output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const hx::type_info &inType) {\n");
          List.iter (fun interface_name ->
@@ -3548,10 +3637,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       (gen_field ctx class_def class_name smart_class_name dot_name true class_def.cl_interface) statics_except_meta;
    output_cpp "\n";
 
-   let override_iteration = has_new_gc_references class_def in
+   let override_iteration = (not nativeGen) && (has_new_gc_references class_def) in
 
    (* Initialise non-static variables *)
-   if (not class_def.cl_interface) then begin
+   if ( (not class_def.cl_interface) && (not nativeGen) ) then begin
       output_cpp (class_name ^ "::" ^ class_name ^  "()\n{\n");
       if (implement_dynamic) then
          output_cpp "\tHX_INIT_IMPLEMENT_DYNAMIC;\n";
@@ -3821,31 +3910,33 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let sMemberFields = if List.length reflective_members>0 then begin
       output_cpp "static ::String sMemberFields[] = {\n";
       List.iter dump_field_name  reflective_members;
-      output_cpp "\tString(null()) };\n\n";
+      output_cpp "\t::String(null()) };\n\n";
       "sMemberFields"
    end else
       "0 /* sMemberFields */";
    in
 
-   (* Mark static variables as used *)
-   output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
-   output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
-   List.iter (fun field ->
-      if (is_data_member field) then
-         output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-      implemented_fields;
-   output_cpp "};\n\n";
+   if (not nativeGen) then begin
+      (* Mark static variables as used *)
+      output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
+      output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
+      List.iter (fun field ->
+         if (is_data_member field) then
+            output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
+         implemented_fields;
+      output_cpp "};\n\n";
 
-   (* Visit static variables *)
-   output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
-   output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
-   output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
-   List.iter (fun field ->
-      if (is_data_member field) then
-         output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-      implemented_fields;
-   output_cpp "};\n\n";
-   output_cpp "#endif\n\n";
+      (* Visit static variables *)
+      output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
+      output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
+      output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
+      List.iter (fun field ->
+         if (is_data_member field) then
+            output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
+         implemented_fields;
+      output_cpp "};\n\n";
+      output_cpp "#endif\n\n";
+   end;
 
    let script_type t optional = if optional then "Object" else
    match type_string t with
@@ -3894,7 +3985,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    in
 
 
-   if (scriptable ) then begin
+   if (scriptable && not nativeGen) then begin
       let dump_script_field idx (field,f_args,return_t) =
       let args = if (class_def.cl_interface) then
             gen_tfun_interface_arg_list f_args
@@ -3975,7 +4066,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let class_name_text = join_class_path class_path "." in
 
    (* Initialise static in boot function ... *)
-   if (not class_def.cl_interface) then begin
+   if (not class_def.cl_interface && not nativeGen) then begin
       (* Remap the specialised "extern" classes back to the generic names *)
       output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
       if (scriptable) then begin
@@ -3992,7 +4083,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       let sStaticFields = if List.length reflective_statics > 0 then begin
          output_cpp "static ::String sStaticFields[] = {\n";
          List.iter dump_field_name  reflective_statics;
-         output_cpp "\tString(null()) };\n\n";
+         output_cpp "\t::String(null()) };\n\n";
          "sStaticFields";
       end else
         "0 /* sStaticFields */"
@@ -4020,7 +4111,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
          output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
       output_cpp ("}\n\n");
 
-   end else begin
+   end else if not nativeGen then begin
       output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
       output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
@@ -4054,6 +4145,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let h_file = new_header_file common_ctx common_ctx.file class_path in
    let super = match class_def.cl_super with
       | Some (klass,params) -> (class_string klass "_obj" params true)
+      | _ when nativeGen -> ""
       | _ -> if (class_def.cl_interface) then "hx::Interface" else "hx::Object"
       in
    let output_h = (h_file#write) in
@@ -4079,7 +4171,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    List.iter ( gen_forward_decl h_file ) referenced;
 
    output_h ( get_class_code class_def Meta.HeaderCode );
-   let inc = get_meta_string_path ctx class_def.cl_meta Meta.HeaderInclude in
+   let inc = get_meta_string_path class_def.cl_meta Meta.HeaderInclude in
    if (inc<>"") then
       output_h ("#include \"" ^ inc ^ "\"\n");
 
@@ -4090,12 +4182,17 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let extern_class =  Common.defined common_ctx Define.DllExport in
    let attribs = "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES " in
 
-   output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super );
-   output_h "{\n\tpublic:\n";
-   output_h ("\t\ttypedef " ^ super ^ " super;\n");
-   output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
+   if (super="") then begin
+      output_h ("class " ^ attribs ^ " " ^ class_name);
+      output_h "{\n\tpublic:\n";
+   end else begin
+      output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super );
+      output_h "{\n\tpublic:\n";
+      output_h ("\t\ttypedef " ^ super ^ " super;\n");
+      output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
+   end;
 
-   if (not class_def.cl_interface) then begin
+   if (not class_def.cl_interface && not nativeGen) then begin
       output_h ("\t\t" ^ class_name ^  "();\n");
       output_h ("\t\tVoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h "\n\tpublic:\n";
@@ -4111,15 +4208,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
       output_h ("\t\tHX_DO_RTTI_ALL;\n");
       if (has_get_member_field class_def) then
-         output_h ("Dynamic __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tDynamic __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
       if (has_get_static_field class_def) then
-         output_h ("static bool __GetStatic(const ::String &inString, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tstatic bool __GetStatic(const ::String &inString, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
       if (has_set_member_field class_def) then
-         output_h ("Dynamic __SetField(const ::String &inString,const Dynamic &inValue, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tDynamic __SetField(const ::String &inString,const Dynamic &inValue, hx::PropertyAccess inCallProp);\n");
       if (has_set_static_field class_def) then
-         output_h ("static bool __SetStatic(const ::String &inString, Dynamic &ioValue, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\tstatic bool __SetStatic(const ::String &inString, Dynamic &ioValue, hx::PropertyAccess inCallProp);\n");
       if (has_get_fields class_def) then
-         output_h ("void __GetFields(Array< ::String> &outFields);\n");
+         output_h ("\t\tvoid __GetFields(Array< ::String> &outFields);\n");
 
       if (field_integer_dynamic) then output_h "\t\tDynamic __IField(int inFieldID);\n";
       if (field_integer_numeric) then output_h "\t\tdouble __INumField(int inFieldID);\n";
@@ -4142,7 +4239,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       if (has_init_field class_def) then
          output_h "\t\tstatic void __init__();\n\n";
       output_h ("\t\t::String __ToString() const { return " ^ (str smart_class_name) ^ "; }\n\n");
-   end else begin
+   end else if not nativeGen then begin
       output_h ("\t\tHX_DO_INTERFACE_RTTI;\n");
    end;
    if (has_boot_field class_def) then
@@ -4161,7 +4258,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    output_h ( get_class_code class_def Meta.HeaderClassCode );
    output_h "};\n\n";
 
-   if (class_def.cl_interface) then begin
+   if (class_def.cl_interface && not nativeGen) then begin
       output_h ("#define DELEGATE_" ^ (join_class_path class_path "_" ) ^ " \\\n");
       List.iter (fun field ->
       match follow field.cf_type, field.cf_kind  with
@@ -4249,7 +4346,7 @@ let write_resources common_ctx =
       incr idx;
    ) common_ctx.resources;
 
-   resource_file#write_i "{String(null()),0,0}";
+   resource_file#write_i "{::String(null()),0,0}";
    resource_file#end_block_line;
    resource_file#write ";\n\n";
    resource_file#write "namespace hx { Resource *GetResources() { return __Resources; } } \n\n";
@@ -4257,7 +4354,7 @@ let write_resources common_ctx =
 
 
 
-let write_build_data common_ctx filename classes main_deps build_extra extern_src exe_name =
+let write_build_data common_ctx filename classes main_deps boot_deps build_extra extern_src exe_name =
    let buildfile = open_out filename in
    let include_prefix = get_include_prefix common_ctx true in
    let add_class_to_buildfile class_path deps  =
@@ -4279,7 +4376,7 @@ let write_build_data common_ctx filename classes main_deps build_extra extern_sr
    output_string buildfile "<files id=\"haxe\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
    List.iter add_classdef_to_buildfile classes;
-   add_class_to_buildfile ( [] , "__boot__")  [];
+   add_class_to_buildfile ( [] , "__boot__")  boot_deps;
    add_class_to_buildfile ( [] , "__files__")  [];
    add_class_to_buildfile ( [] , "__resources__")  [];
    output_string buildfile "</files>\n";
@@ -4941,7 +5038,7 @@ class script_writer common_ctx ctx filename asciiOut =
             | "::String"  -> ArrayData "String"
             | "int" | "Float" | "bool" | "String" | "unsigned char" ->
                ArrayData typeName
-            | "Dynamic" -> ArrayAny
+            | "cpp::ArrayBase" | "Dynamic" -> ArrayAny
             | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
             | _ -> ArrayObject
             )
@@ -5114,7 +5211,7 @@ class script_writer common_ctx ctx filename asciiOut =
       let argN = (string_of_int (List.length arg_list)) ^ " " in
       let is_real_function field =
          match field.cf_kind with
-         | Method MethNormal -> true
+         | Method MethNormal | Method MethInline-> true
          | _ -> false;
       in
       let gen_call () =
@@ -5473,7 +5570,7 @@ let generate_source common_ctx =
       (match object_def with
       | TClassDecl class_def when is_extern_class class_def ->
          build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
-         let source = get_meta_string_path common_ctx class_def.cl_meta Meta.SourceFile in
+         let source = get_meta_string_path class_def.cl_meta Meta.SourceFile in
          if (source<>"") then
             extern_src := source :: !extern_src;
       | TClassDecl class_def ->
@@ -5487,7 +5584,7 @@ let generate_source common_ctx =
                init_classes := class_def.cl_path ::  !init_classes;
             if (has_boot_field class_def) then
                boot_classes := class_def.cl_path ::  !boot_classes
-            else
+            else if not (has_meta_key class_def.cl_meta Meta.NativeGen) then
                nonboot_classes := class_def.cl_path ::  !nonboot_classes;
             let deps = generate_class_files common_ctx
                member_types super_deps constructor_deps class_def file_info scriptable in
@@ -5537,7 +5634,7 @@ let generate_source common_ctx =
          with Not_found -> "export_classes.info"
       in
       if (filename <> "") then begin
-         let escape s = 
+         let escape s =
             let b = Buffer.create 0 in
             for i = 0 to String.length s - 1 do
                let c = String.unsafe_get s i in
@@ -5562,7 +5659,7 @@ let generate_source common_ctx =
             | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
             | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
             | TEnum (enum,params) -> spath enum.e_path
-            | TInst (klass,params) -> 
+            | TInst (klass,params) ->
                (match klass.cl_path, params with
                (* Array class *)
                (*|  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic" *)
@@ -5657,7 +5754,7 @@ let generate_source common_ctx =
    | Some path -> (snd path)
    | _ -> "output" in
 
-   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml !extern_src output_name;
+   write_build_data common_ctx (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps (!boot_enums@ !boot_classes) !build_xml !extern_src output_name;
    let cmd_defines = ref "" in
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()

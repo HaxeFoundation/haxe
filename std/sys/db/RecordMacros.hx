@@ -122,8 +122,18 @@ class RecordMacros {
 		#end
 	}
 
-	public dynamic function resolveType( name : String ) : haxe.macro.Type {
+	public dynamic function resolveType( name : String, ?module : String ) : haxe.macro.Type {
 		#if macro
+		if (module != null)
+		{
+			var m = Context.getModule(module);
+			for (t in m)
+			{
+				if (t.toString() == name)
+					return t;
+			}
+		}
+
 		return Context.getType(name);
 		#else
 		throw "not implemented";
@@ -317,10 +327,12 @@ class RecordMacros {
 						isNull = false;
 						var t = makeRecord(f.type);
 						if( t == null ) error("Relation type should be a sys.db.Object", f.pos);
+						var mod = t.get().module;
 						var r = {
 							prop : f.name,
 							key : params.shift().i,
 							type : t.toString(),
+							module : mod,
 							cascade : false,
 							lock : false,
 							isNull : isNull,
@@ -354,6 +366,16 @@ class RecordMacros {
 			default: fi.name == "id";
 			}
 			if( isId ) {
+				switch(fi.t)
+				{
+					case DInt:
+						fi.t = DId;
+					case DUInt:
+						fi.t = DUId;
+					case DBigInt:
+						fi.t = DBigId;
+					case _:
+				}
 				if( i.key == null ) i.key = [fi.name] else error("Multiple table id declaration", f.pos);
 			}
 			i.fields.push(fi);
@@ -363,7 +385,7 @@ class RecordMacros {
 		for( r in i.relations ) {
 			var field = fields.find(function(f) return f.name == r.prop);
 			var f = i.hfields.get(r.key);
-			var relatedInf = getRecordInfos(makeRecord(resolveType(r.type)));
+			var relatedInf = getRecordInfos(makeRecord(resolveType(r.type, r.module)));
 			if (relatedInf.key.length > 1)
 				error('The relation ${r.prop} is invalid: Type ${r.type} has multiple keys, which is not supported',field.pos);
 			var relatedKey = relatedInf.key[0];
@@ -373,7 +395,7 @@ class RecordMacros {
 					case DUId: DUInt;
 					case DBigId: DBigInt;
 					case t = DString(_): t;
-					case t: error("Unexpected id type $t for the relation. Use either SId, SInt, SUId, SUInt, SBigID, SBigInt or SString", field.pos);
+					case t: error('Unexpected id type $t for the relation. Use either SId, SInt, SUId, SUInt, SBigID, SBigInt or SString', field.pos);
 				}
 
 			if( f == null ) {

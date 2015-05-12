@@ -975,7 +975,7 @@ let write_file gen w source_dir path extension out_files =
 	end else true in
 
 	if should_write then begin
-		let f = open_out s_path in
+		let f = open_out_bin s_path in
 		output_string f contents;
 		close_out f
 	end;
@@ -1607,7 +1607,7 @@ struct
 				| TInst _ | TEnum _ | TAbstract _ ->
 					default_hxgen_func (t_to_md (follow a.a_this))
 				| _ ->
-					Meta.has Meta.NativeGen a.a_meta)
+					not (Meta.has Meta.NativeGen a.a_meta))
 			| TTypeDecl t -> (* TODO see when would we use this *)
 				false
 
@@ -2113,7 +2113,7 @@ struct
 				let init = List.fold_left (fun acc cf ->
 					match cf.cf_kind, should_handle_dynamic_functions with
 						| (Var v, _) when Meta.has Meta.ReadOnly cf.cf_meta && readonly_support ->
-								if v.v_write <> AccNever then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+								if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 								(match cf.cf_expr with
 									| None -> gen.gcon.warning "Uninitialized readonly variable" cf.cf_pos; acc
 									| Some e -> ensure_simple_expr gen e; acc)
@@ -2154,7 +2154,7 @@ struct
 					let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->
 						match cf.cf_kind with
 							| Var v when Meta.has Meta.ReadOnly cf.cf_meta && readonly_support ->
-									if v.v_write <> AccNever then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
+									if v.v_write <> AccNever && not (Meta.has Meta.CoreApi cl.cl_meta) then gen.gcon.warning "@:readOnly variable declared without `never` setter modifier" cf.cf_pos;
 									(match cf.cf_expr with
 										| None -> (acc_vars,acc_funs)
 										| Some e -> ensure_simple_expr gen e; (acc_vars,acc_funs))
@@ -2805,6 +2805,8 @@ struct
 									( (v,catch_map v (run catch)) :: nowrap_catches, must_wrap_catches, catchall )
 						) ([], [], None) catches
 						in
+						(* temp (?) fix for https://github.com/HaxeFoundation/haxe/issues/4134 *)
+						let must_wrap_catches = List.rev must_wrap_catches in
 						(*
 							1st catch all nowrap "the easy way"
 							2nd see if there are any must_wrap or catchall. If there is,
@@ -3239,6 +3241,11 @@ struct
 			(* get all captured variables it uses *)
 			let captured_ht, tparams = get_captured fexpr in
 			let captured = Hashtbl.fold (fun _ e acc -> e :: acc) captured_ht [] in
+			let captured = List.sort (fun e1 e2 -> match e1, e2 with
+				| { eexpr = TLocal v1 }, { eexpr = TLocal v2 } ->
+					compare v1.v_name v2.v_name
+				| _ -> assert false) captured
+			in
 
 			(*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
 			let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
@@ -4138,6 +4145,19 @@ struct
 
 	let priority = max_dep -. 20.
 
+	let rec deep_follow gen t = match run_follow gen t with
+		| TInst(c,tl) ->
+			TInst(c,List.map (deep_follow gen) tl)
+		| TEnum(e,tl) ->
+			TEnum(e,List.map (deep_follow gen) tl)
+		| TAbstract(a,tl) ->
+			TAbstract(a,List.map (deep_follow gen) tl)
+		| TType(t,tl) ->
+			TType(t,List.map (deep_follow gen) tl)
+		| TFun(args,ret) ->
+			TFun(List.map (fun (n,o,t) -> n,o,deep_follow gen t) args, deep_follow gen ret)
+		| t -> t
+
 	(* this function will receive the original function argument, the applied function argument and the original function parameters. *)
 	(* from this info, it will infer the applied tparams for the function *)
 	(* this function is used by CastDetection module *)
@@ -4153,8 +4173,8 @@ struct
 
 			(try
 				List.iter2 (fun a o ->
-					let o = run_follow gen o in
-					let a = run_follow gen a in
+					let o = deep_follow gen o in
+					let a = deep_follow gen a in
 					unify a o
 					(* type_eq EqStrict a o *)
 				) applied original
@@ -4222,26 +4242,19 @@ struct
 				| _ -> false
 
 		let rec follow_all_md md =
-			match md with
-			| TClassDecl { cl_kind = KAbstractImpl a } ->
-				follow_all_md (TAbstractDecl a)
-			| TAbstractDecl a -> if Meta.has Meta.CoreType a.a_meta then
-				None
-			else (
-				match follow (apply_params a.a_params (List.map snd a.a_params) a.a_this) with
-					| TInst(c,_) -> follow_all_md (TClassDecl c)
-					| TEnum(e,_) -> follow_all_md (TEnumDecl e)
-					| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
-					| TType(t,_) -> follow_all_md (TTypeDecl t)
-					| _ -> None)
-			| TTypeDecl t -> (
-				match follow (apply_params t.t_params (List.map snd t.t_params) t.t_type) with
-				| TInst(c,_) -> follow_all_md (TClassDecl c)
-				| TEnum(e,_) -> follow_all_md (TEnumDecl e)
-				| TAbstract(a,_) -> follow_all_md (TAbstractDecl a)
-				| TType(t,_) -> follow_all_md (TTypeDecl t)
-				| _ -> None)
-			| md -> Some md
+			let t = match md with
+				| TClassDecl { cl_kind = KAbstractImpl a } ->
+					TAbstract(a, List.map snd a.a_params)
+				| TClassDecl c ->
+					TInst(c, List.map snd c.cl_params)
+				| TEnumDecl e ->
+					TEnum(e, List.map snd e.e_params)
+				| TTypeDecl t ->
+					TType(t, List.map snd t.t_params)
+				| TAbstractDecl a ->
+					TAbstract(a, List.map snd a.a_params)
+			in
+			Abstract.follow_with_abstracts t
 
 		let rec is_hxgeneric md =
 			match md with
@@ -4251,9 +4264,13 @@ struct
 				not (Meta.has Meta.NativeGeneric cl.cl_meta)
 			| TEnumDecl(e) ->
 				not (Meta.has Meta.NativeGeneric e.e_meta)
+			| TAbstractDecl(a) when Meta.has Meta.NativeGeneric a.a_meta ->
+				not (Meta.has Meta.NativeGeneric a.a_meta)
 			| md -> match follow_all_md md with
-				| Some md -> is_hxgeneric md
-				| None -> true
+				| TInst(cl,_) -> is_hxgeneric (TClassDecl cl)
+				| TEnum(e,_) -> is_hxgeneric (TEnumDecl e)
+				| TAbstract(a,_) -> not (Meta.has Meta.NativeGeneric a.a_meta)
+				| _ -> true
 
 		let rec set_hxgeneric gen mds isfirst md =
 			let path = t_path md in
@@ -4389,11 +4406,16 @@ struct
 		let set_hxgeneric gen md =
 			let ret = match md with
 				| TClassDecl { cl_kind = KAbstractImpl a } -> (match follow_all_md md with
-					| Some md ->
+					| (TInst _ | TEnum _ as t) -> (
+						let md = match t with
+							| TInst(cl,_) -> TClassDecl cl
+							| TEnum(e,_) -> TEnumDecl e
+							| _ -> assert false
+						in
 						let ret = set_hxgeneric gen [] true md in
-						if ret = None then get (set_hxgeneric gen [] false md) else get ret
-					| None ->
-						true)
+						if ret = None then get (set_hxgeneric gen [] false md) else get ret)
+					| TAbstract(a,_) -> true
+					| _ -> true)
 				| _ -> match set_hxgeneric gen [] true md with
 					| None ->
 						get (set_hxgeneric gen [] false md)
@@ -4815,13 +4837,12 @@ struct
 							let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
 							iface.cl_array_access <- Option.map (apply_params (cl.cl_params) (List.map (fun _ -> t_dynamic) cl.cl_params)) cl.cl_array_access;
 							iface.cl_module <- cl.cl_module;
-							iface.cl_meta <- (Meta.HxGen, [], cl.cl_pos) :: iface.cl_meta;
-							if gen.gcon.platform = Cs then begin
-								let tparams = List.map (fun _ -> "object") cl.cl_params in
-								iface.cl_meta <- (Meta.Meta, [
-									EConst( String("haxe.lang.GenericInterface(typeof(" ^ path_s cl.cl_path ^ "<" ^ String.concat ", " tparams ^">))") ), cl.cl_pos
-								], cl.cl_pos) :: iface.cl_meta
-							end;
+							iface.cl_meta <-
+								(Meta.HxGen, [], cl.cl_pos)
+								::
+								(Meta.Custom "generic_iface", [(EConst(Int(string_of_int(List.length cl.cl_params))), cl.cl_pos)], cl.cl_pos)
+								::
+								iface.cl_meta;
 							Hashtbl.add ifaces cl.cl_path iface;
 
 							iface.cl_implements <- (base_generic, []) :: iface.cl_implements;
@@ -6568,6 +6589,20 @@ struct
 		 | _ -> e
 		in
 
+		let get_abstract_impl t = match t with
+			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				Abstract.get_underlying_type a pl
+			| t -> t
+		in
+
+		let rec is_abstract_to_struct t = match t with
+			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				is_abstract_to_struct (Abstract.get_underlying_type a pl)
+			| TInst(c,_) when Meta.has Meta.Struct c.cl_meta ->
+				true
+			| _ -> false
+		in
+
 		let rec run ?(just_type = false) e =
 			let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
 			let was_in_value = !in_value in
@@ -6747,20 +6782,27 @@ struct
 						| TParenthesis e | TMeta(_,e) -> get_null e
 						| _ -> None
 					in
+
 					(match get_null expr with
 					| Some enull ->
 							if gen.gcon.platform = Cs then
 								{ enull with etype = gen.greal_type e.etype }
 							else
 								mk_cast (gen.greal_type e.etype) enull
+					| _ when is_abstract_to_struct expr.etype && type_iseq gen e.etype (get_abstract_impl expr.etype) ->
+						run { expr with etype = expr.etype }
 					| _ ->
-						let last_unsafe = gen.gon_unsafe_cast in
-						gen.gon_unsafe_cast <- (fun t t2 pos -> ());
-						let ret = handle (run expr) e.etype expr.etype in
-						gen.gon_unsafe_cast <- last_unsafe;
-						match ret.eexpr with
-							| TCast _ -> ret
-							| _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
+						match gen.greal_type e.etype, gen.greal_type expr.etype with
+							| (TInst(c,tl) as tinst1), TAbstract({ a_path = ["cs"],"Pointer" }, [tinst2]) when type_iseq gen tinst1 (gen.greal_type tinst2) ->
+								run expr
+							| _ ->
+								let last_unsafe = gen.gon_unsafe_cast in
+								gen.gon_unsafe_cast <- (fun t t2 pos -> ());
+								let ret = handle (run expr) e.etype expr.etype in
+								gen.gon_unsafe_cast <- last_unsafe;
+								match ret.eexpr with
+									| TCast _ -> { ret with etype = gen.greal_type e.etype }
+									| _ -> { e with eexpr = TCast(ret,md); etype = gen.greal_type e.etype }
 					)
 				(*| TCast _ ->
 					(* if there is already a cast, we should skip this cast check *)
@@ -6768,6 +6810,7 @@ struct
 				| TFunction f ->
 					in_value := false;
 					Type.map_expr run e
+
 				| _ -> Type.map_expr run e
 		in
 		run

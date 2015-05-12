@@ -50,14 +50,14 @@ extern class HTMLDocument extends Document
 	function getElementsByName( elementName : String ) : NodeList;
 	function getItems( ?typeNames : String = "" ) : NodeList;
 	/** @throws DOMError */
-	@:overload( function( ?type : String = "text/html", ?replace : String = "" ) : Document {} )
+	@:overload( function( ?type : String = "text/html", ?replace : String = "" ) : HTMLDocument {} )
 	function open( url : String, name : String, features : String, ?replace : Bool = false ) : Window;
 	/** @throws DOMError */
 	function close() : Void;
 	/** @throws DOMError */
-	function write( ?text : String ) : Void;
+	function write( text : haxe.extern.Rest<String> ) : Void;
 	/** @throws DOMError */
-	function writeln( ?text : String ) : Void;
+	function writeln( text : haxe.extern.Rest<String> ) : Void;
 	/** @throws DOMError */
 	function execCommand( commandId : String, ?showUI : Bool = false, ?value : String = "" ) : Bool;
 	/** @throws DOMError */

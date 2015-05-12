@@ -19,25 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package;
-import cs.system.Random;
-
 @:coreApi @:nativeGen class Math
 {
-	public static inline function __init__():Void
-	{
-		PI = cs.system.Math.PI;
-		NaN = cs.system.Double.NaN;
-		NEGATIVE_INFINITY = cs.system.Double.NegativeInfinity;
-		POSITIVE_INFINITY = cs.system.Double.PositiveInfinity;
-		rand = new Random();
-	}
+	@:readOnly
+	private static var rand = new cs.system.Random();
 
-	private static var rand:Random;
-	public static var PI(default, null) : Float;
-	public static var NaN(default,null) : Float;
-	public static var NEGATIVE_INFINITY(default,null) : Float;
-	public static var POSITIVE_INFINITY(default,null) : Float;
+	@:readOnly
+	public static var PI(default,null) = cs.system.Math.PI;
+	@:readOnly
+	public static var NaN(default,null) = cs.system.Double.NaN;
+	@:readOnly
+	public static var NEGATIVE_INFINITY(default,null) = cs.system.Double.NegativeInfinity;
+	@:readOnly
+	public static var POSITIVE_INFINITY(default,null) = cs.system.Double.PositiveInfinity;
 
 	public static inline function abs(v:Float):Float
 	{
@@ -91,7 +85,7 @@ import cs.system.Random;
 
 	public static inline function fround(v:Float):Float
 	{
-		return cs.system.Math.Round(v);
+		return cs.system.Math.Floor(v + 0.5);
 	}
 
 	public static inline function ffloor(v:Float):Float

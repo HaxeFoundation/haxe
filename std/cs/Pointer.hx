@@ -43,7 +43,7 @@ import cs.StdTypes.Int64;
 #if !unsafe
 #error "You need to define 'unsafe' to be able to use unsafe code in hxcs"
 #else
-@:runtimeValue @:coreType abstract Pointer<T> from Int64
+@:runtimeValue @:coreType abstract Pointer<T> from Int64 from PointerAccess<T> to PointerAccess<T>
 {
 	@:op(A+B) public static function addIp<T>(lhs:Pointer<T>, rhs:Int):Pointer<T>;
 	@:op(A+B) public static function addp<T>(lhs:Pointer<T>, rhs:Int64):Pointer<T>;

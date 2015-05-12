@@ -26,6 +26,6 @@ package js.html;
 
 typedef HitRegionOptions =
 {
-	@:optional var control : DOMElement;
+	@:optional var control : Element;
 	@:optional var id : String;
 }

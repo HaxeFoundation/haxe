@@ -1,0 +1,28 @@
+# This is not run by CIs, just for convenience when testing manually.
+
+# Compile everything first.
+compile.hxml
+
+# Mac/Linux
+--next
+-cmd echo Neko   && neko bin/neko/sys.n
+-cmd echo Python && python3 bin/python/sys.py
+-cmd echo Cpp    && bin/cpp/Main-Debug
+-cmd echo CS     && mono bin/cs/bin/Main-Debug.exe
+-cmd echo Java   && java -jar bin/java/Main-Debug.jar
+-cmd echo Php    && php bin/php/Main/index.php
+
+# Windows
+# --next
+# -cmd echo Neko   && neko bin\neko\sys.n
+# -cmd echo Python && python3 bin\python\sys.py
+# -cmd echo Cpp    && bin\cpp\Main-Debug.exe
+# -cmd echo CS     && bin\cs\bin\Main-Debug.exe
+# -cmd echo Java   && java -jar bin\java\Main-Debug.jar
+# -cmd echo Php    && php bin\php\Main\index.php
+
+# Macro has to be placed at the end since it would exit the compilation process.
+--next
+-cmd echo Macro
+--next
+compile-macro.hxml

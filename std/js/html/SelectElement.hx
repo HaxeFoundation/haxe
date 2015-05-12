@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("HTMLSelectElement")
-extern class SelectElement extends Element implements ArrayAccess<DOMElement>
+extern class SelectElement extends Element implements ArrayAccess<Element>
 {
 	var autofocus : Bool;
 	var disabled : Bool;
@@ -44,7 +44,7 @@ extern class SelectElement extends Element implements ArrayAccess<DOMElement>
 	var validity(default,null) : ValidityState;
 	var validationMessage(default,null) : String;
 	
-	function item( index : Int ) : DOMElement;
+	function item( index : Int ) : Element;
 	function namedItem( name : String ) : OptionElement;
 	/** @throws DOMError */
 	function add( element : haxe.extern.EitherType<OptionElement,OptGroupElement>, ?before : haxe.extern.EitherType<Element,Int> ) : Void;

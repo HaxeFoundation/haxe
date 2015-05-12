@@ -487,7 +487,7 @@ import cs.system.Object;
 		if (methodLength == 0)
 			throw "Invalid calling parameters for method " + methods[0].Name;
 
-		var best = Math.POSITIVE_INFINITY;
+		var best = cs.system.Double.PositiveInfinity;
 		var bestMethod = 0;
 		for(i in 0...methodLength)
 		{

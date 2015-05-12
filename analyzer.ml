@@ -236,6 +236,7 @@ module Simplifier = struct
 			with Exit ->
 				begin match follow e.etype with
 					| TAbstract({a_path = [],"Void"},_) -> true
+					| TInst ({ cl_path = [],"Array" }, _) when com.platform = Cpp -> true
 					| _ -> false
 				end
 		in

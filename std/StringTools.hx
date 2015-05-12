@@ -29,9 +29,6 @@
 #if cpp
 using cpp.NativeString;
 #end
-#if cs
-@:keep
-#end
 class StringTools {
 	/**
 		Encode an URL by using the standard format.
@@ -50,9 +47,9 @@ class StringTools {
 				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
 			catch (e:Dynamic) throw e;
 		#elseif cs
-			return untyped cs.system.Uri.EscapeUriString(s);
+			return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
-			return python.lib.urllib.Parse.quote(s);
+			return python.lib.urllib.Parse.quote(s, "");
 		#else
 			return null;
 		#end

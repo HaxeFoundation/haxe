@@ -78,6 +78,7 @@ abstract Int32Array(Int32ArrayData) {
 	}
 
 	public static function fromBytes( bytes : haxe.io.Bytes, bytePos : Int = 0, ?length : Int ) : Int32Array {
+		if( length == null ) length = (bytes.length - bytePos) >> 2;
 		return fromData(new Int32ArrayData(bytes.getData(), bytePos, length));
 	}
 

@@ -13,6 +13,8 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
    public function set_ref(t:T) : T;
 
 
+   public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
+
    public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>;
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
