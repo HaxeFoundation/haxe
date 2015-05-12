@@ -41,12 +41,12 @@ For the complete Haxe licenses, please see http://haxe.org/foundation/open-sourc
 
 The latest stable release is [Haxe 3.2.0](http://haxe.org/download/version/3.2.0/). Pre-built binaries are available for your platform:
 
- * **[Windows installer](http://haxe.org/download/file/3.2.0-rc.2/haxe-3.2.0-win.exe)**
- * **[Windows binaries](http://haxe.org/download/file/3.2.0-rc.2/haxe-3.2.0-win.zip)**
- * **[OSX installer](http://haxe.org/download/file/3.2.0-rc.2/haxe-3.2.0-osx-installer.pkg)**
- * **[OSX binaries](http://haxe.org/download/file/3.2.0-rc.2/haxe-3.2.0-osx.tar.gz)**
- * **[Linux 32-bit binaries](http://haxe.org/download/file/3.2.0-rc.2/haxe-3.2.0-linux32.tar.gz)**
- * **[Linux 64-bit binaries](http://haxe.org/download/file/3.2.0-rc.2/haxe-3.2.0-linux64.tar.gz)**
+ * **[Windows installer](http://haxe.org/download/file/3.2.0/haxe-3.2.0-win.exe)**
+ * **[Windows binaries](http://haxe.org/download/file/3.2.0/haxe-3.2.0-win.zip)**
+ * **[OSX installer](http://haxe.org/download/file/3.2.0/haxe-3.2.0-osx-installer.pkg)**
+ * **[OSX binaries](http://haxe.org/download/file/3.2.0/haxe-3.2.0-osx.tar.gz)**
+ * **[Linux 32-bit binaries](http://haxe.org/download/file/3.2.0/haxe-3.2.0-linux32.tar.gz)**
+ * **[Linux 64-bit binaries](http://haxe.org/download/file/3.2.0/haxe-3.2.0-linux64.tar.gz)**
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 
