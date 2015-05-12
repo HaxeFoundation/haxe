@@ -1,3 +1,21 @@
+2015-??-??: 3.3.0
+
+	New features:
+
+	all : support @:resolve on abstracts (#3753)
+	all : support completion on { if the expected type is a structure (#3907)
+
+	Bugfixes:
+
+	all : properly disallowed assigning methods to structures with read-accessors (#3975)
+	all : fixed a bug related to abstract + Int/Float and implicit casts (#4122)
+
+	General improvements and optimizations:
+
+	all : added support for determining minimal types in Map literals (#4196)
+	all : allowed @:native on abstracts to set the name of the implementation class (#4158)
+	all : allowed creating closures on abstract inline methods (#4165)
+
 2015-05-12: 3.2.0
 
 	New features:
