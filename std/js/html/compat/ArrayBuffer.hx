@@ -53,7 +53,7 @@ class ArrayBuffer {
 	}
 
 	static function __init__() untyped {
-		var ArrayBuffer = untyped __js__("Function(\"return typeof ArrayBuffer != 'undefined' ? ArrayBuffer : null\")()") || js.html.compat.ArrayBuffer;
+		var ArrayBuffer = Function("return typeof ArrayBuffer != 'undefined' ? ArrayBuffer : null")() || js.html.compat.ArrayBuffer;
 		if( ArrayBuffer.prototype.slice == null ) ArrayBuffer.prototype.slice = sliceImpl; // IE10
 	}
 }
