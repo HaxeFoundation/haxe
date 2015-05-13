@@ -1001,7 +1001,7 @@ let rec acc_get ctx g p =
 			let ecallb = mk (TFunction {
 				tf_args = List.map (fun (o,v) -> v,if o then Some TNull else None) args;
 				tf_type = ret;
-				tf_expr = mk (TReturn (Some ecall)) t_dynamic p;
+				tf_expr = (match follow ret with | TAbstract ({a_path = [],"Void"},_) -> ecall | _ -> mk (TReturn (Some ecall)) t_dynamic p);
 			}) tcallb p in
 			let ewrap = mk (TFunction {
 				tf_args = [ve,None];
