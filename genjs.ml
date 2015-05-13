@@ -1232,7 +1232,6 @@ let gen_single_expr ctx e expr =
 	str
 
 let generate com =
-	let t = Common.timer "generate js" in
 	(match com.js_gen with
 	| Some g -> g()
 	| None ->
@@ -1400,6 +1399,5 @@ let generate com =
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	let ch = open_out_bin com.file in
 	Rbuffer.output_buffer ch ctx.buf;
-	close_out ch);
-	t()
+	close_out ch)
 

@@ -1076,8 +1076,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 	let tags = loop tags1 tags2 in
 	header, tags
 
-let generate com swf_header =
-	let t = Common.timer "generate swf" in
+let generate swf_header com =
 	let swc = if Common.defined com Define.Swc then Some (ref "") else None in
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
 	(* list exports *)
@@ -1165,7 +1164,6 @@ let generate com swf_header =
 		in
 		{header with h_frame_count = header.h_frame_count + 1},loop tags
 	| _ -> swf in
-	t();
 	(* write swf/swc *)
 	let t = Common.timer "write swf" in
 	let level = (try int_of_string (Common.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in

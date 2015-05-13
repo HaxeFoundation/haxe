@@ -3291,8 +3291,6 @@ let configure gen =
 
 	TypeParams.RenameTypeParameters.run gen;
 
-	let t = Common.timer "code generation" in
-
 	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
 	mkdir_recursive "" parts;
 	generate_modules gen "cs" "src" module_gen out_files;
@@ -3308,9 +3306,7 @@ let configure gen =
 		print_endline cmd;
 		if gen.gcon.run_command cmd <> 0 then failwith "Build failed";
 		Sys.chdir old_dir;
-	end;
-
-	t()
+	end
 
 (* end of configure function *)
 
