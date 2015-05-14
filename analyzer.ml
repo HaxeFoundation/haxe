@@ -1485,6 +1485,9 @@ module LocalDce = struct
 			| TVar(v,Some e1) when not (is_used v) ->
 				let e1 = if has_side_effect e1 then loop true e1 else e1 in
 				e1
+			| TVar(v,Some e1) ->
+				let e1 = loop true e1 in
+				{e with eexpr = TVar(v,Some e1)}
 			| TWhile(e1,e2,flag) ->
 				collect e2;
 				let e2 = loop false e2 in
