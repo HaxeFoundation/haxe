@@ -26,6 +26,10 @@ import haxe.macro.Expr;
 using Lambda;
 using StringTools;
 
+/**
+	This class provides some utility methods to convert elements from the 
+	macro context to a human-readable String representation.
+*/
 class Printer {
 	var tabs:String;
 	var tabString:String;
