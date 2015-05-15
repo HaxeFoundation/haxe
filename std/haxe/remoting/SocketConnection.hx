@@ -22,6 +22,9 @@
 package haxe.remoting;
 import haxe.remoting.SocketProtocol.Socket;
 
+/**
+	Allows remoting communications over a socket connection
+*/
 class SocketConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	var __path : Array<String>;

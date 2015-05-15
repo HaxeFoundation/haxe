@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+    Allows a synchronous connection to the given URL which should link to a Haxe server application.
+*/
 class HttpConnection implements Connection implements Dynamic<Connection> {
 
 	public static var TIMEOUT = 10.;

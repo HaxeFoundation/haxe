@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+    Allows communication between platforms. This is a shared API that can be called on the connection at the client code.
+*/
 class Context {
 
 	var objects : haxe.ds.StringMap<{ obj : Dynamic, rec : Bool }>;
