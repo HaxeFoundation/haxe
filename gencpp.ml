@@ -5785,6 +5785,7 @@ let generate_source common_ctx =
       | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
+      let t = Common.timer "generate cpp - native compilation" in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
       let cmd = ref "haxelib run hxcpp Build.xml haxe" in
@@ -5794,6 +5795,7 @@ let generate_source common_ctx =
       print_endline !cmd;
       if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
+      t()
    end
    ;;
 

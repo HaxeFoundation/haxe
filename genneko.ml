@@ -783,7 +783,6 @@ let build ctx types =
 
 let generate com =
 	let ctx = new_context com (if Common.defined com Define.NekoV1 then 1 else 2) false in
-	let t = Common.timer "neko generation" in
 	let libs = (EBlock (generate_libs_init com.neko_libs) , { psource = "<header>"; pline = 1; }) in
 	let el = build ctx com.types in
 	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
@@ -819,5 +818,4 @@ let generate com =
 		if command ("nekoc -p \"" ^ neko_file ^ "\"") <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
 		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
-	end;
-	t()
+	end

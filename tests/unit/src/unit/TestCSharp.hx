@@ -37,7 +37,7 @@ class TestCSharp extends Test
 
 	function testIssue3474()
 	{
-		var a:IEditableTextBuffer = null;
+		var a:IEditableTextBuffer = cast null;
 		eq(a,null);
 		var didRun = false;
 		try

@@ -1201,11 +1201,17 @@ and expr = parser
 			make_meta name params (secure_expr s) p
 		with Display e ->
 			display (make_meta name params e p))
-	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] ->
-		let e = (b,punion p1 p2) in
-		(match b with
-		| EObjectDecl _ -> expr_next e s
-		| _ -> e)
+	| [< '(BrOpen,p1); s >] ->
+		if is_resuming p1 then display (EDisplay ((EObjectDecl [],p1),false),p1);
+		(match s with parser
+		| [< '(Binop OpOr,p2) when do_resume() >] ->
+			set_resume p1;
+			display (EDisplay ((EObjectDecl [],p1),false),p1);
+		| [< b = block1; '(BrClose,p2); s >] ->
+			let e = (b,punion p1 p2) in
+			(match b with
+			| EObjectDecl _ -> expr_next e s
+			| _ -> e))
 	| [< '(Kwd Macro,p); s >] ->
 		parse_macro_expr p s
 	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
