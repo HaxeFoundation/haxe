@@ -6,7 +6,7 @@ class Issue3516 extends Test
 	{
 		var b = new B();
 		var c = b.uniqueFieldName(C);
-		t(Std.is(c, C));
+		t((c is C));
 		t(c != null);
 	}
 }

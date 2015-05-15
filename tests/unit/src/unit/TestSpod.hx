@@ -290,28 +290,28 @@ class TestSpod extends Test
 		f(cls1 == scls,pos());
 		scls = null;
 
-		t(Std.is(cls1.int, Int),pos());
+		t((cls1.int is Int),pos());
 		eq(cls1.int, 1,pos());
-		t(Std.is(cls1.double, Float),pos());
+		t((cls1.double is Float),pos());
 		eq(cls1.double, 2.0,pos());
-		t(Std.is(cls1.boolean, Bool),pos());
+		t((cls1.boolean is Bool),pos());
 		eq(cls1.boolean, true,pos());
-		t(Std.is(cls1.string, String),pos());
+		t((cls1.string is String),pos());
 		eq(cls1.string, "some string",pos());
-		t(Std.is(cls1.abstractType, String),pos());
+		t((cls1.abstractType is String),pos());
 		eq(cls1.abstractType.get(), "other string",pos());
 		t(cls1.date != null,pos());
-		t(Std.is(cls1.date, Date),pos());
+		t((cls1.date is Date),pos());
 		eq(cls1.date.getTime(), new Date(2012, 7, 30, 0, 0, 0).getTime(),pos());
 
-		t(Std.is(cls1.binary, Bytes),pos());
+		t((cls1.binary is Bytes),pos());
 		eq(cls1.binary.compare(Bytes.ofString("\x01\n\r'\x02")), 0,pos());
 		t(cls1.enumFlags.has(FirstValue),pos());
 		f(cls1.enumFlags.has(SecondValue),pos());
 		t(cls1.enumFlags.has(ThirdValue),pos());
 
-		t(Std.is(cls1.data, Array),pos());
-		t(Std.is(cls1.data[0], ComplexClass),pos());
+		t((cls1.data is Array),pos());
+		t((cls1.data[0] is ComplexClass),pos());
 
 		eq(cls1.data[0].val.name, "test",pos());
 		eq(cls1.data[0].val.array.length, 4,pos());
@@ -321,7 +321,7 @@ class TestSpod extends Test
 		eq(cls1.relationNullable.name, "second spod",pos());
 
 		eq(cls1.anEnum, SecondValue,pos());
-		t(Std.is(cls1.anEnum, SpodEnum),pos());
+		t((cls1.anEnum is SpodEnum),pos());
 
 		eq(cls1, MySpodClass.manager.select($anEnum == SecondValue),pos());
 

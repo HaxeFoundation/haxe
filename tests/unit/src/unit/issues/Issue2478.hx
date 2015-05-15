@@ -6,7 +6,7 @@ class Issue2478 extends Test {
 
 			switch (o) {
 				case Success(v):
-					t(Std.is(v,Int));
+					t((v is Int));
 				default:
 					throw "assert";
 			}

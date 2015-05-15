@@ -5,7 +5,7 @@ class Issue2989 extends Test
 	public function test()
 	{
 		var n = null;
-		Std.is(n, Array);
+		(n is Array);
 		new haxe.ds.Vector<Int>(10);
 	}
 }

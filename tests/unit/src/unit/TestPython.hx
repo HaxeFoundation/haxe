@@ -342,7 +342,7 @@ class TestPython extends Test {
     }
 
 	function testIsViaParentInterface() {
-		t(Std.is(new B(), IA));
+		t((new B() is IA));
 	}
 
 

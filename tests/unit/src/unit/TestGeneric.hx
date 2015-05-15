@@ -43,11 +43,11 @@ class TestGeneric extends Test {
 	function testBasic() {
 		var mg = new MyGeneric<Int>(12);
 		eq(mg.t, 12);
-		t(Std.is(mg.t, Int));
+		t((mg.t is Int));
 
 		var mg = new MyGeneric<String>("12");
 		eq(mg.t,"12");
-		t(Std.is(mg.t, String));
+		t((mg.t is String));
 	}
 
 	function testExtends() {

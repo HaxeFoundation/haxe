@@ -26,7 +26,7 @@ class TestSerialize extends Test {
 		// date
 		var d = Date.now();
 		var d2 = id(d);
-		t( Std.is(d2,Date) );
+		t( (d2 is Date) );
 		eq( d2.toString(), d.toString() );
 
 		// object
@@ -41,7 +41,7 @@ class TestSerialize extends Test {
 		c.intValue = 33;
 		c.stringValue = "Hello";
 		var c2 = id(c);
-		t( Std.is(c2,MyClass) );
+		t( (c2 is MyClass) );
 		f( c == c2 );
 		eq( c2.intValue, c.intValue );
 		eq( c2.stringValue, c.stringValue );
@@ -62,7 +62,7 @@ class TestSerialize extends Test {
 		h.set("keya",2);
 		h.set("kéyb",-465);
 		var h2 = id(h);
-		t( Std.is(h2,haxe.ds.StringMap) );
+		t( (h2 is haxe.ds.StringMap) );
 		eq( h2.get("keya"), 2 );
 		eq( h2.get("kéyb"), -465 );
 		eq( Lambda.count(h2), 2 );
@@ -72,7 +72,7 @@ class TestSerialize extends Test {
 		h.set(55,2);
 		h.set(-101,-465);
 		var h2 = id(h);
-		t( Std.is(h2,haxe.ds.IntMap) );
+		t( (h2 is haxe.ds.IntMap) );
 		eq( h2.get(55), 2 );
 		eq( h2.get(-101), -465 );
 		eq( Lambda.count(h2), 2 );
@@ -84,7 +84,7 @@ class TestSerialize extends Test {
 		h.set(a, b);
 		h.set(b, a);
 		var h2 = id(h);
-		t(Std.is(h2, haxe.ds.ObjectMap));
+		t((h2 is haxe.ds.ObjectMap));
 		// these are NOT the same objects
 		f(h2.exists(a));
 		f(h2.exists(b));
@@ -137,7 +137,7 @@ class TestSerialize extends Test {
 		var c = MyEnum.C(0,"hello");
 		t( Type.enumEq( id(c), c ) );
 		t( Type.enumEq( id(MyEnum.D(MyEnum.D(c))), MyEnum.D(MyEnum.D(c)) ) );
-		t( Std.is(id(c),MyEnum) );
+		t( (id(c) is MyEnum) );
 		t(switch( id(c) ) {
 			case C(_,_): true;
 			default: false;
@@ -157,7 +157,7 @@ class TestSerialize extends Test {
 			eq( a2[i], a[i] );
 		var l = Lambda.list(a);
 		var l2 = id(l);
-		t( Std.is(l2,List) );
+		t( (l2 is List) );
 		eq( l2.length, l.length );
 		var it = l.iterator();
 		for( x in l2 )
@@ -167,7 +167,7 @@ class TestSerialize extends Test {
 
 	function doTestBytes( b : haxe.io.Bytes ) {
 		var b2 = id(b);
-		t( Std.is(b2,haxe.io.Bytes) );
+		t( (b2 is haxe.io.Bytes) );
 		eq( b2.length, b.length );
 		for( i in 0...b.length )
 			eq( b2.get(i), b.get(i) );

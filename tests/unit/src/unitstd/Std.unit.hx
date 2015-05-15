@@ -1,19 +1,19 @@
 // is
 var known:String = null;
-Std.is(known, String) == false;
+(known is String) == false;
 
 var unknown = null;
-Std.is(unknown, String) == false;
-Std.is(null, String) == false;
-Std.is("foo", null) == false;
+(unknown is String) == false;
+(null is String) == false;
+//("foo" is null) == false;
 
-Std.is("", String) == true;
-Std.is(false, Bool) == true;
-Std.is(1, Int) == true;
-Std.is(1.5, Int) == false;
-Std.is(1.5, Float) == true;
-Std.is([], Array) == true;
-Std.is(cast unit.MyEnum.A, Array) == false;
+("" is String) == true;
+(false is Bool) == true;
+(1 is Int) == true;
+(1.5 is Int) == false;
+(1.5 is Float) == true;
+([] is Array) == true;
+(cast unit.MyEnum.A is Array) == false;
 
 // instance
 #if !js

@@ -6,6 +6,6 @@ class Issue2607 extends unit.Test {
 
     function test(v = CONST) {
         eq(v, -1);
-		t(Std.is(v, Float));
+		t((v is Float));
     }
 }

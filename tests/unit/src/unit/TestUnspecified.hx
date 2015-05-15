@@ -19,11 +19,11 @@ class TestUnspecified extends Test
 	{
 		var x : Array<Dynamic> = ["4", 1];
 		#if (php || flash)
-			t(Std.is(x[0] + x[0], Int));
-			t(Std.is(x[0] + x[1], Int));
+			t((x[0] + x[0] is Int));
+			t((x[0] + x[1] is Int));
 		#else
-			t(Std.is(x[0] + x[0], String));
-			t(Std.is(x[0] + x[1], String));
+			t((x[0] + x[0] is String));
+			t((x[0] + x[1] is String));
 		#end
 	}
 }

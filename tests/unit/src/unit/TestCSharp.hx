@@ -248,7 +248,7 @@ class TestCSharp extends Test
 		t(run);
 
 		//var dyn:Dynamic = v;
-		//t(Std.is(dyn, haxe.test.VoidVoid));
+		//t((dyn is haxe.test.VoidVoid));
 	}
 
 	var didRun = false;

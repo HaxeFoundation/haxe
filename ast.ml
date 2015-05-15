@@ -772,7 +772,7 @@ let s_expr e =
 		| EWhile (econd,e,DoWhile) -> "do " ^ s_expr_inner tabs e ^ " while (" ^ s_expr_inner tabs econd ^ ")"
 		| ESwitch (e,cases,def) -> "switch " ^ s_expr_inner tabs e ^ " {\n\t" ^ tabs ^ String.concat ("\n\t" ^ tabs) (List.map (s_case tabs) cases) ^
 			(match def with None -> "" | Some def -> "\n\t" ^ tabs ^ "default:" ^
-			(match def with None -> "" | Some def -> s_expr_omit_block tabs def)) ^ "\n" ^ tabs ^ "}" 
+			(match def with None -> "" | Some def -> s_expr_omit_block tabs def)) ^ "\n" ^ tabs ^ "}"
 		| ETry (e,catches) -> "try " ^ s_expr_inner tabs e ^ String.concat "" (List.map (s_catch tabs) catches)
 		| EReturn e -> "return" ^ s_opt_expr tabs e " "
 		| EBreak -> "break"
@@ -787,7 +787,7 @@ let s_expr e =
 		| _ -> ""
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
-	and s_complex_type_path tabs t =	
+	and s_complex_type_path tabs t =
 		(String.concat "." t.tpackage) ^ if List.length t.tpackage > 0 then "." else "" ^
 		t.tname ^
 		match t.tsub with
@@ -873,3 +873,11 @@ let rec string_list_of_expr_path_raise (e,p) =
 	| EConst (Ident i) -> [i]
 	| EField (e,f) -> f :: string_list_of_expr_path_raise e
 	| _ -> raise Exit
+
+let expr_of_type_path (sl,s) p =
+	match sl with
+	| [] -> (EConst(Ident s),p)
+	| s1 :: sl ->
+		let e1 = (EConst(Ident s1),p) in
+		let e = List.fold_left (fun e s -> (EField(e,s),p)) e1 sl in
+		EField(e,s),p

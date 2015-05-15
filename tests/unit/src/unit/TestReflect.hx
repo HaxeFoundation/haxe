@@ -150,7 +150,7 @@ class TestReflect extends Test {
 			eq( Std.is(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
 		}
 		infos(null);
-		t( Std.is(v,Dynamic), pos );
+		t( (v is Dynamic), pos );
 	}
 
 	public function testTypeEq()
@@ -222,11 +222,11 @@ class TestReflect extends Test {
 
 	function testCreate() {
 		var i = Type.createInstance(MyClass,[33]);
-		t( Std.is(i,MyClass) );
+		t( (i is MyClass) );
 		eq( i.get(), 33 );
 		eq( i.intValue, 55 );
 		var i = Type.createEmptyInstance(MyClass);
-		t( Std.is(i,MyClass) );
+		t( (i is MyClass) );
 		eq( i.get(), #if (flash || cpp || java || cs) 0 #else null #end );
 		eq( i.intValue, #if (flash || cpp || java || cs) 0 #else null #end );
 		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("A"));

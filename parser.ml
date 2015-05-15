@@ -154,6 +154,11 @@ let rec make_meta name params ((v,p2) as e) p1 =
 	| _ ->
 		EMeta((name,params,p1),e),punion p1 p2
 
+let make_is e t p =
+	let e_is = EField((EConst(Ident "Std"),p),"is"),p in
+	let e2 = expr_of_type_path (t.tpackage,t.tname) p in
+	ECall(e_is,[e;e2]),p
+
 let reify in_macro =
 	let cur_pos = ref None in
 	let mk_enum ename n vl p =
@@ -1228,6 +1233,9 @@ and expr = parser
 			| [< t = parse_type_hint; '(PClose,p2); s >] ->
 				let ep = EParenthesis (ECheckType(e,t),punion p1 p2), punion p1 p2 in
 				expr_next (ECast (ep,None),punion p1 (pos ep)) s
+			| [< '(Const (Ident "is"),_); t = parse_type_path; '(PClose,p2); >] ->
+				let e_is = make_is e t (punion p1 p2) in
+				expr_next (ECast (e_is,None),punion p1 (pos e_is)) s
 			| [< '(PClose,p2); s >] ->
 				let ep = expr_next (EParenthesis(e),punion pp p2) s in
 				expr_next (ECast (ep,None),punion p1 (pos ep)) s
@@ -1242,6 +1250,7 @@ and expr = parser
 	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
 		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 		| [< t = parse_type_hint; '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,t),punion p1 p2), punion p1 p2) s
+		| [< '(Const (Ident "is"),_); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2)) s
 		| [< >] -> serror())
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
