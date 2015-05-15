@@ -42,6 +42,7 @@ type sourcemap = {
 type ctx = {
 	com : Common.context;
 	buf : Rbuffer.t;
+	chan : out_channel;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;
@@ -150,6 +151,10 @@ let handle_newlines ctx str =
 		in
 		loop 0
 	else ()
+
+let flush ctx =
+	Rbuffer.output_buffer ctx.chan ctx.buf;
+	Rbuffer.clear ctx.buf
 
 let spr ctx s =
 	ctx.separator <- false;
@@ -1076,7 +1081,8 @@ let generate_class ctx c =
 		print ctx "\n}";
 		(match c.cl_super with None -> ctx.separator <- true | _ -> print ctx ")");
 		newline ctx
-	end
+	end;
+	flush ctx
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
@@ -1124,12 +1130,14 @@ let generate_enum ctx e =
 		print ctx "%s.__empty_constructs__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		newline ctx
 	end;
-	match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	begin match Codegen.build_metadata ctx.com (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "%s.__meta__ = " p;
 		gen_expr ctx e;
 		newline ctx
+	end;
+	flush ctx
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
@@ -1188,6 +1196,7 @@ let alloc_ctx com =
 	let ctx = {
 		com = com;
 		buf = Rbuffer.create 16000;
+		chan = open_out_bin com.file;
 		packages = Hashtbl.create 0;
 		smap = {
 			source_last_line = 0;
@@ -1397,7 +1406,6 @@ let generate com =
 		);
 	end;
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
-	let ch = open_out_bin com.file in
-	Rbuffer.output_buffer ch ctx.buf;
-	close_out ch)
+	flush ctx;
+	close_out ctx.chan)
 
