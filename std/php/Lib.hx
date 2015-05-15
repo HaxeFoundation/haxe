@@ -36,7 +36,7 @@ class Lib {
 	public static function println( v : Dynamic ) : Void {
 		print(v);
 		print("\n");
-	}e
+	}
 
 	/**
 		Displays structured information about one or more expressions 
