@@ -60,14 +60,14 @@ import lua.Boot;
 	}
 
 	static function __init__() : Void untyped {
-		__feature__("js.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
-		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
+		__feature__("lua.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
+		__feature__("lua.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
-		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
+		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
 		__feature__("Date.*", {
 			var Date = {};
-			__feature__("js.Boot.getClass", _hxClasses["Date"] = {}, {});
-			__feature__("js.Boot.isClass", Date.__name__ = ["Date"]);
+			__feature__("lua.Boot.getClass", _hxClasses["Date"] = {}, {});
+			__feature__("lua.Boot.isClass", Date.__name__ = ["Date"]);
 		});
 		__feature__("Int.*",{
 			var Int = __feature__("Type.resolveClass", _hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
