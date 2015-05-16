@@ -1106,7 +1106,13 @@ let generate_class ctx c =
 	pack();
 	newline ctx;
 	print ctx "}";
-	newline ctx
+	newline ctx;
+	if c.cl_interface && Ast.Meta.has (Ast.Meta.Custom ":hasMetadata") c.cl_meta then begin
+		(* we have to reference the metadata class in order for it to be compiled *)
+		let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
+		spr ctx (Ast.s_type_path path);
+		newline ctx
+	end
 
 let generate_main ctx inits =
 	ctx.curclass <- { null_class with cl_path = [],"__main__" };

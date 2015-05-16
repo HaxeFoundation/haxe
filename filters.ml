@@ -1016,8 +1016,25 @@ let add_meta_field ctx t = match t with
 		| Some e ->
 			let f = mk_field "__meta__" t_dynamic c.cl_pos in
 			f.cf_expr <- Some e;
-			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-			c.cl_statics <- PMap.add f.cf_name f c.cl_statics)
+			let can_deal_with_interface_metadata () = match ctx.com.platform with
+				| Flash when Common.defined ctx.com Define.As3 -> false
+				| Php -> false
+				| _ -> true
+			in
+			if c.cl_interface && not (can_deal_with_interface_metadata()) then begin
+				(* borrowed from gencommon, but I did wash my hands afterwards *)
+				let path = fst c.cl_path,snd c.cl_path ^ "_HxMeta" in
+				let ncls = mk_class c.cl_module path c.cl_pos in
+				let cf = mk_field "__meta__" e.etype e.epos in
+				cf.cf_expr <- Some e;
+				ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
+				ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
+				ctx.com.types <- (TClassDecl ncls) :: ctx.com.types;
+				c.cl_meta <- (Meta.Custom ":hasMetadata",[],e.epos) :: c.cl_meta
+			end else begin
+				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
+				c.cl_statics <- PMap.add f.cf_name f c.cl_statics
+			end)
 	| _ ->
 		()
 
