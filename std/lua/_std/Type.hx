@@ -105,8 +105,8 @@ enum ValueType {
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
-		__js__("function empty() {}; empty.prototype = cl.prototype");
-		return __js__("new empty()");
+		//TODO: do this.
+		return null;
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
