@@ -415,6 +415,9 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		print ctx ")"
 	| TField (x,FClosure (_,f)) ->
+		gen_value ctx x;
+		print ctx "%s" (field f.cf_name);
+		(* TODO: More _bind fixes:
 		add_feature ctx "use._bind";
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
@@ -427,6 +430,7 @@ and gen_expr ctx e =
 			print ctx "(__=";
 			gen_value ctx x;
 			print ctx ",_bind(__,__%s))" (field f.cf_name))
+			*)
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "{%i}" (i + 2)
