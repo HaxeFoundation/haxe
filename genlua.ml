@@ -1221,7 +1221,7 @@ let generate_class ctx c =
 		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
 		if (has_class ctx c) then begin
 			newprop ctx;
-			print ctx "__class__ =  %s" p;
+			print ctx "__class__ =  %s," p;
 		end;
 
 		if has_property_reflection then begin
