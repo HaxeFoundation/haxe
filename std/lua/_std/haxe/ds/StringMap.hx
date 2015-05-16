@@ -66,8 +66,8 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 		var ref = h;
 		var it = keys();
 		return untyped {
-			hasNext : function() { return keys.hasNext(); },
-			next : function() { var i = keys.next(); return h[i]; }
+			hasNext : function() { return it.hasNext(); },
+			next : function() { var i = it.next(); return h[i]; }
 		};
 	}
 
