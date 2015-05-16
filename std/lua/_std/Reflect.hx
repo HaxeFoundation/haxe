@@ -22,7 +22,8 @@
 @:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
+		// TODO: Lua can't detect fields that are set to null, figure out a workaround.
+		return untyped o[field] != null;
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
@@ -59,7 +60,7 @@
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __js__("typeof(f)") == "function" && !(lua.Boot.isClass(f) || lua.Boot.isEnum(f));
+		return __lua__("type(f)") == "function" && !(lua.Boot.isClass(f) || lua.Boot.isEnum(f));
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -77,8 +78,8 @@
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		if( v == null )
 			return false;
-		var t = __js__("typeof(v)");
-		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (lua.Boot.isClass(v) || lua.Boot.isEnum(v)) != null);
+		var t = __lua__("type(v)");
+		return (t == "string" || (t == "table" && v.__enum__ == null)) || (t == "function" && (lua.Boot.isClass(v) || lua.Boot.isEnum(v)) != null);
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
@@ -100,9 +101,8 @@
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return function() {
-			var a = untyped Array.prototype.slice.call(__js__("arguments"));
-			return f(a);
+		return function(a) {
+			return f(untyped __lua__("unpack")(a));
 		};
 	}
 
