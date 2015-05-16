@@ -1255,7 +1255,7 @@ let generate_enum ctx e =
 
 	if has_feature ctx "Type.resolveEnum" then begin
 	    newline ctx;
-	    print ctx "_hxClasses[\"%s\"] = " (dot_path e.e_path);
+	    print ctx "_hxClasses[\"%s\"] = %s" (dot_path e.e_path) p; semicolon ctx; newline ctx;
 	    print ctx "%s = _hxClasses[\"%s\"];" p (dot_path e.e_path);
 	end else begin
 	    print ctx "%s = {" p;
