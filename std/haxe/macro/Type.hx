@@ -25,11 +25,20 @@ package haxe.macro;
     Warning: Some of these types correspond to compiler-internal data structures
     and might change in minor Haxe releases in order to adapt to internal changes.
 */
+
+/**
+	Represents a reference to internal compiler structure. It exists because
+	encoding compiler structures for use in macros is quite expensive. 
+	A structure is only encoded when user requests it through `ref.get()`.
+*/
 typedef Ref<T> = {
 	public function get() : T;
 	public function toString() : String;
 }
 
+/**
+	Represents a type 
+*/
 enum Type {
 	/**
 		Represents a monomorph.
@@ -93,6 +102,9 @@ enum Type {
 	TAbstract( t : Ref<AbstractType>, params : Array<Type> );
 }
 
+/**
+	Represents an anonymous type 
+*/
 typedef AnonType = {
 	var fields : Array<ClassField>;
 	var status : AnonStatus;
@@ -108,11 +120,17 @@ enum AnonStatus {
 	AAbstractStatics( t : Ref<AbstractType> );
 }
 
+/**
+	Represents type parameters 
+*/
 typedef TypeParameter = {
 	var name: String;
 	var t: Type;
 }
 
+/**
+	Represents a base type 
+*/
 typedef BaseType = {
 	var pack : Array<String>;
 	var name : String;
@@ -126,6 +144,9 @@ typedef BaseType = {
 	function exclude() : Void;
 }
 
+/**
+	Represents a class field 
+*/
 typedef ClassField = {
 	var name : String;
 	var type : Type;
@@ -138,6 +159,9 @@ typedef ClassField = {
 	var doc : Null<String>;
 }
 
+/**
+	Represents a class kind 
+*/
 enum ClassKind {
 	KNormal;
 	KTypeParameter(constraints:Array<Type>);
@@ -150,6 +174,9 @@ enum ClassKind {
 	KGenericBuild;
 }
 
+/**
+	Represents a class type 
+*/
 typedef ClassType = {> BaseType,
 	var kind : ClassKind;
 	var isInterface : Bool;
@@ -164,6 +191,9 @@ typedef ClassType = {> BaseType,
 	var overrides : Array<Ref<ClassField>>;
 }
 
+/**
+	Represents an enum field 
+*/
 typedef EnumField = {
 	var name : String;
 	var type : Type;
@@ -174,15 +204,24 @@ typedef EnumField = {
 	var params : Array<TypeParameter>;
 }
 
+/**
+	Represents an enum type 
+*/
 typedef EnumType = {> BaseType,
 	var constructs : Map<String,EnumField>;
 	var names : Array<String>;
 }
 
+/**
+	Represents a typedef 
+*/
 typedef DefType = {> BaseType,
 	var type : Type;
 }
 
+/**
+	Represents an abstract type 
+*/
 typedef AbstractType = {>BaseType,
 	var type : Type;
 	var impl : Null<Ref<ClassType>>;
@@ -250,11 +289,17 @@ typedef MetaAccess = {
 	function has( name : String ) : Bool;
 }
 
+/**
+	Represents a field kind 
+*/
 enum FieldKind {
 	FVar( read : VarAccess, write : VarAccess );
 	FMethod( k : MethodKind );
 }
 
+/**
+	Represents the variable accessor 
+*/
 enum VarAccess {
 	AccNormal;
 	AccNo;
@@ -265,6 +310,9 @@ enum VarAccess {
 	AccRequire( r : String, ?msg : String );
 }
 
+/**
+	Represents the method kind 
+*/
 enum MethodKind {
 	MethNormal;
 	MethInline;
@@ -272,6 +320,9 @@ enum MethodKind {
 	MethMacro;
 }
 
+/**
+	Represents typed constant 
+*/
 enum TConstant {
 	TInt(i:Int);
 	TFloat(s:String);
@@ -282,6 +333,9 @@ enum TConstant {
 	TSuper;
 }
 
+/**
+	Represents type variable 
+*/
 typedef TVar = {
 	public var id(default, never):Int;
 	public var name(default, never):String;
@@ -290,6 +344,9 @@ typedef TVar = {
 	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>;
 }
 
+/**
+	Represents a type module 
+*/
 enum ModuleType {
 	TClassDecl(c:Ref<ClassType>);
 	TEnumDecl(e:Ref<EnumType>);
@@ -297,12 +354,18 @@ enum ModuleType {
 	TAbstract(a:Ref<AbstractType>);
 }
 
+/**
+	Represents a type function 
+*/
 typedef TFunc = {
 	args: Array<{v:TVar, value:Null<TConstant>}>,
 	t: Type,
 	expr: TypedExpr
 }
 
+/**
+	Represents the field accessor 
+*/
 enum FieldAccess {
 	FInstance(c:Ref<ClassType>, params:Array<Type>, cf:Ref<ClassField>);
 	FStatic(c:Ref<ClassType>, cf:Ref<ClassField>);
@@ -312,36 +375,128 @@ enum FieldAccess {
 	FEnum(e:Ref<EnumType>, ef:EnumField);
 }
 
+/**
+	Represents a typed expression definition 
+*/
 enum TypedExprDef {
+	/**
+		Represents a constant definition.
+	**/
 	TConst(c:TConstant);
+	/**
+		Represents a local definition.
+	**/
 	TLocal(v:TVar);
+	/**
+		Represents an array definition.
+	**/
 	TArray(e1:TypedExpr, e2:TypedExpr);
+	/**
+		Represents an operator.
+	**/
 	TBinop(op:Expr.Binop, e1:TypedExpr, e2:TypedExpr);
+	/**
+		Represents a field.
+	**/
 	TField(e:TypedExpr, fa:FieldAccess);
+	/**
+		Represents a type expression.
+	**/
 	TTypeExpr(m:ModuleType);
+	/**
+		Represents a parenthesis.
+	**/
 	TParenthesis(e:TypedExpr);
+	/**
+		Represents an object declaration.
+	**/
 	TObjectDecl(fields:Array<{name:String, expr:TypedExpr}>);
+	/**
+		Represents an array declaration.
+	**/
 	TArrayDecl(el:Array<TypedExpr>);
+	/**
+		Represents a function call.
+	**/
 	TCall(e:TypedExpr, el:Array<TypedExpr>);
+	/**
+		Represents a `new` function statement declaration with 
+		related params.
+	**/
 	TNew(c:Ref<ClassType>, params: Array<Type>, el:Array<TypedExpr>);
+	/**
+		Represents an unary operation declaration.
+	**/
 	TUnop(op:Expr.Unop, postFix:Bool, e:TypedExpr);
+	/**
+		Represents a `function` declaration.
+	**/
 	TFunction(tfunc:TFunc);
+	/**
+		Represents a `var` declaration.
+	**/
 	TVar(v:TVar, expr:Null<TypedExpr>);
+	/**
+		Represents a block declaration `{}`.
+	**/
 	TBlock(el:Array<TypedExpr>);
+	/**
+		Represents a `for`-statement declaration.
+	**/
 	TFor(v:TVar, e1:TypedExpr, e2:TypedExpr);
+	/**
+		Represents a condition declaration.
+	**/
 	TIf(econd:TypedExpr, eif:TypedExpr, eelse:Null<TypedExpr>);
+	/**
+		Represents a `while`-statement declaration. 
+		When `normalWhile` is `true` it's `while (...)`
+		When `normalWhile` is `false` it's `do {...} while (...)`
+	**/
 	TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool);
+	/**
+		Represents a `switch`-statement declaration with related 
+		cases.
+	**/
 	TSwitch(e:TypedExpr, cases:Array<{values:Array<TypedExpr>, expr:TypedExpr}>, edef:Null<TypedExpr>);
+	/**
+		Represents a `try`-statement declaration with related 
+		catches.
+	**/
 	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>);
+	/**
+		Represents a `return`-statement declaration. 
+	**/
 	TReturn(e:Null<TypedExpr>);
+	/**
+		Represents a `break`-statement declaration.
+	**/
 	TBreak;
+	/**
+		Represents a `continue`-statement declaration.
+	**/
 	TContinue;
+	/**
+		Represents a `throw`-statement declaration.
+	**/
 	TThrow(e:TypedExpr);
+	/**
+		Represents a `cast` declaration.
+	**/
 	TCast(e:TypedExpr, m:Null<ModuleType>);
+	/**
+		Represents a metadata declaration.
+	**/
 	TMeta(m:Expr.MetadataEntry, e1:TypedExpr);
+	/**
+		Represents an enum parameter declaration.
+	**/
 	TEnumParameter(e1:TypedExpr, ef:EnumField, index:Int);
 }
 
+/**
+	Represents expression typed for specified target
+*/
 typedef TypedExpr = {
 	expr: TypedExprDef,
 	pos: Expr.Position,
