@@ -30,32 +30,41 @@ class Lib {
 	}
 
 	/**
-		Print the specified value on the default output followed by a newline character.
+		Print the specified value on the default output followed by 
+		a newline character.
 	**/
 	public static function println( v : Dynamic ) : Void {
 		print(v);
 		print("\n");
 	}
 
+	/**
+		Displays structured information about one or more expressions 
+		that includes its type and value. Arrays and objects are 
+		explored recursively with values indented to show structure.
+	*/
 	public static function dump(v : Dynamic) : Void {
 		untyped __call__("var_dump", v);
 	}
 
 	/**
-		Serialize using native PHP serialization. This will return a Binary string that can be
-		stored for long term usage.
+		Serialize using native PHP serialization. This will return a binary 
+		`String` that can be stored for long term usage.
 	**/
 	public static function serialize( v : Dynamic ) : String {
 		return untyped __call__("serialize", v);
 	}
 
 	/**
-		Unserialize a string using native PHP serialization. See [serialize].
+		Unserialize a `String` using native PHP serialization. See `php.Lib.serialize()`.
 	**/
 	public static function unserialize( s : String ) : Dynamic {
 		return untyped __call__("unserialize", s);
 	}
 
+	/**
+		Find out whether an extension is loaded.
+	*/
 	public static function extensionLoaded(name : String) {
 		return untyped __call__("extension_loaded", name);
 	}
@@ -64,6 +73,9 @@ class Lib {
 		return untyped __php__("(0 == strncasecmp(PHP_SAPI, 'cli', 3))");
 	}
 
+	/**
+		Output file content from the given file name.
+	*/
 	public static function printFile(file : String) {
 		return untyped __call__("fpassthru", __call__("fopen", file,  "r"));
 	}
