@@ -790,6 +790,9 @@ and gen_block_element ?(after=false) ctx e =
 		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
+	| TVar (v,eo) ->
+		if not after then newline ctx;
+		gen_expr ctx e; (* these already generate semicolons*)
 	| _ ->
 		if not after then newline ctx;
 		spr ctx (debug_expression e);
