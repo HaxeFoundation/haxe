@@ -156,7 +156,7 @@ enum ValueType {
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
-		switch( __js__("typeof")(v) ) {
+		switch( __lua__("type")(v) ) {
 		case "boolean": return TBool;
 		case "string": return TClass(String);
 		case "number":
@@ -164,7 +164,7 @@ enum ValueType {
 			if( Math.ceil(v) == v%2147483648.0 )
 				return TInt;
 			return TFloat;
-		case "object":
+		case "table":
 			if( v == null )
 				return TNull;
 			var e = v.__enum__;
@@ -178,8 +178,6 @@ enum ValueType {
 			if( lua.Boot.isClass(v) || lua.Boot.isEnum(v) )
 				return TObject;
 			return TFunction;
-		case "undefined":
-			return TNull;
 		default:
 			return TUnknown;
 		}
