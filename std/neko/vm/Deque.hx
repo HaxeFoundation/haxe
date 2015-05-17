@@ -21,25 +21,28 @@
  */
 package neko.vm;
 
+/**
+	A message queue for multithread access.
+*/
 class Deque<T> {
 	var q : Dynamic;
 
 	/**
-		Create a message queue for multithread access
+		Create a message queue for multithread access.
 	*/
 	public function new() {
 		q = deque_create();
 	}
 
 	/**
-		Add a message at the end of the queue
+		Add a message at the end of the queue.
 	*/
 	public function add( i : T ) {
 		deque_add(q,i);
 	}
 
 	/**
-		Add a message at the head of the queue
+		Add a message at the head of the queue.
 	*/
 	public function push( i : T ) {
 		deque_push(q,i);
@@ -47,7 +50,7 @@ class Deque<T> {
 
 	/**
 		Pop a message from the queue head. Either block until a message 
-		is available or return immediately with `null`
+		is available or return immediately with `null`.
 	*/
 	public function pop( block : Bool ) : Null<T> {
 		return deque_pop(q,block);
