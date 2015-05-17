@@ -39,7 +39,7 @@ typedef Ref<T> = {
 }
 
 /**
-	Represents a type
+	Represents a type.
 */
 enum Type {
 	/**
@@ -170,7 +170,7 @@ enum AnonStatus {
 */
 typedef TypeParameter = {
 	/**
-		The name of the type parameter
+		The name of the type parameter.
 	**/
 	var name: String;
 
@@ -186,32 +186,32 @@ typedef TypeParameter = {
 */
 typedef ClassField = {
 	/**
-		The name of the class field
+		The name of the class field.
 	**/
 	var name : String;
 
 	/**
-		The type of the class field
+		The type of the class field.
 	**/
 	var type : Type;
 
 	/**
-		Whether or not the class field is public
+		Whether or not the class field is public.
 	**/
 	var isPublic : Bool;
 
 	/**
-		The type parameters of the class field
+		The type parameters of the class field.
 	**/
 	var params : Array<TypeParameter>;
 
 	/**
-		The metadata of the class field
+		The metadata of the class field.
 	**/
 	var meta : MetaAccess;
 
 	/**
-		The class field kind
+		The class field kind.
 	**/
 	var kind : FieldKind;
 
@@ -221,53 +221,53 @@ typedef ClassField = {
 	function expr() : Null<TypedExpr>;
 
 	/**
-		The position of the class field
+		The position of the class field.
 	**/
 	var pos : Expr.Position;
 
 	/**
-		The associated documentation of the class field
+		The associated documentation of the class field.
 	**/
 	var doc : Null<String>;
 }
 
 /**
-	Represents an enum constructor
+	Represents an enum constructor.
 */
 typedef EnumField = {
 	/**
-		The name of the enum constructor
+		The name of the enum constructor.
 	**/
 	var name : String;
 
 	/**
-		The type of the enum constructor
+		The type of the enum constructor.
 	**/
 	var type : Type;
 
 	/**
-		The position of the enum constructor
+		The position of the enum constructor.
 	**/
 	var pos : Expr.Position;
 
 	/**
-		The metadata of the enum constructor
+		The metadata of the enum constructor.
 	**/
 	var meta : MetaAccess;
 
 	/**
 		The index of the enum constructor, i.e. in which position it appears
-		in the syntax
+		in the syntax.
 	**/
 	var index : Int;
 
 	/**
-		The associated documentation of the enum constructor
+		The associated documentation of the enum constructor.
 	**/
 	var doc : Null<String>;
 
 	/**
-		The type parameters of the enum constructor
+		The type parameters of the enum constructor.
 	**/
 	var params : Array<TypeParameter>;
 }
@@ -278,40 +278,40 @@ typedef EnumField = {
 */
 enum ClassKind {
 	/**
-		A normal class
+		A normal class.
 	**/
 	KNormal;
 
 	/**
-		A type parameter class with a set of constraints
+		A type parameter class with a set of constraints.
 	**/
 	KTypeParameter(constraints:Array<Type>);
 
 	/**
-		A structurally extended class
+		A structurally extended class.
 
 		@deprecated
 	**/
 	KExtension(cl:Ref<ClassType>, params:Array<Type>);
 
 	/**
-		A special kind of class to encode expressions into type parameters
+		A special kind of class to encode expressions into type parameters.
 	**/
 	KExpr(expr:Expr);
 
 	/**
-		A `@:generic` base class
+		A `@:generic` base class.
 	**/
 	KGeneric;
 
 	/**
 		A concrete `@:generic` instance, referencing the original class and the
-		applied type parameters
+		applied type parameters.
 	**/
 	KGenericInstance(cl:Ref<ClassType>, params:Array<Type>);
 
 	/**
-		A special class for `haxe.macro.MacroType`
+		A special class for `haxe.macro.MacroType`.
 
 		@deprecated
 	**/
@@ -319,7 +319,7 @@ enum ClassKind {
 
 	/**
 		An implementation class of an abstract, i.e. where all its run-time code
-		is
+		is.
 	**/
 	KAbstractImpl(a:Ref<AbstractType>);
 
@@ -331,91 +331,91 @@ enum ClassKind {
 
 /**
 	The information that all types (`ClassType`, `EnumType`, `DefType`,
-	`AbstractType`) have in common
+	`AbstractType`) have in common.
 **/
 typedef BaseType = {
 	/**
-		The package of the type
+		The package of the type.
 	**/
 	var pack : Array<String>;
 
 	/**
-		The name of the type
+		The name of the type.
 	**/
 	var name : String;
 
 	/**
-		The module name of the type, which might be different
+		The module name of the type, which might be different.
 	**/
 	var module : String;
 
 	/**
-		The position of the type
+		The position of the type.
 	**/
 	var pos : Expr.Position;
 
 	/**
-		Whether or not the type is private
+		Whether or not the type is private.
 	**/
 	var isPrivate : Bool;
 
 	/**
-		Whether or not the type is extern
+		Whether or not the type is extern.
 	**/
 	var isExtern : Bool;
 
 	/**
-		The type parameters of the type
+		The type parameters of the type.
 	**/
 	var params : Array<TypeParameter>;
 
 	/**
-		The metadata of the type
+		The metadata of the type.
 	**/
 	var meta : MetaAccess;
 
 	/**
-		The associated documentation of the class field
+		The associated documentation of the class field.
 	**/
 	var doc : Null<String>;
 
 	/**
-		Allows excluding the type from compilation
+		Allows excluding the type from compilation.
 	**/
 	function exclude() : Void;
 }
 
 /**
-	Represents a class type
+	Represents a class type.
 */
 typedef ClassType = {> BaseType,
 	/**
-		The kind of the class
+		The kind of the class.
 	**/
 	var kind : ClassKind;
 
 	/**
-		If true the type is an interface, otherwise it is a class
+		If true the type is an interface, otherwise it is a class.
 	**/
 	var isInterface : Bool;
 
 	/**
-		The parent class and its type parameters, if available
+		The parent class and its type parameters, if available.
 	**/
 	var superClass : Null<{ t : Ref<ClassType>, params : Array<Type> }>;
 
 	/**
-		The implemented interfaces and their type parameters
+		The implemented interfaces and their type parameters.
 	**/
 	var interfaces : Array<{ t : Ref<ClassType>, params : Array<Type> }>;
 
 	/**
-		The member fields of the class
+		The member fields of the class.
 	**/
 	var fields : Ref<Array<ClassField>>;
 
 	/**
-		The static fields of the class
+		The static fields of the class.
 	**/
 	var statics : Ref<Array<ClassField>>;
 
@@ -423,86 +423,86 @@ typedef ClassType = {> BaseType,
 	//var arrayAccess : Null<Type>;
 
 	/**
-		The constructor of the class, if available
+		The constructor of the class, if available.
 	**/
 	var constructor : Null<Ref<ClassField>>;
 
 	/**
-		The `__init__` expression of the class, if available
+		The `__init__` expression of the class, if available.
 	**/
 	var init : Null<TypedExpr>;
 
 	/**
-		The list of fields that have override status
+		The list of fields that have override status.
 	**/
 	var overrides : Array<Ref<ClassField>>;
 }
 
 /**
-	Represents an enum type
+	Represents an enum type.
 */
 typedef EnumType = {> BaseType,
 	/**
-		The available enum constructors
+		The available enum constructors.
 	**/
 	var constructs : Map<String, EnumField>;
 
 	/**
-		An ordered list of enum constructor names
+		An ordered list of enum constructor names.
 	**/
 	var names : Array<String>;
 }
 
 /**
-	Represents a typedef
+	Represents a typedef.
 */
 typedef DefType = {> BaseType,
 	/**
-		The target type of the typedef
+		The target type of the typedef.
 	**/
 	var type : Type;
 }
 
 /**
-	Represents an abstract type
+	Represents an abstract type.
 */
 typedef AbstractType = {>BaseType,
 	/**
-		The underlying type of the abstract
+		The underlying type of the abstract.
 	**/
 	var type : Type;
 
 	/**
-		The implementation class of the abstract, if available
+		The implementation class of the abstract, if available.
 	**/
 	var impl : Null<Ref<ClassType>>;
 
 	/**
-		The defined binary operators of the abstract
+		The defined binary operators of the abstract.
 	**/
 	var binops : Array<{op:Expr.Binop, field:ClassField}>;
 
 	/**
-		The defined unary operators of the abstract
+		The defined unary operators of the abstract.
 	**/
 	var unops : Array<{op:Expr.Unop, postFix:Bool, field:ClassField}>;
 
 	/**
-		The available implicit from-casts of the abstract
+		The available implicit from-casts of the abstract.
 
 		@see http://haxe.org/manual/types-abstract-implicit-casts.html
 	**/
 	var from : Array<{t:Type, field:Null<ClassField>}>;
 
 	/**
-		The available implicit to-casts of the abstract
+		The available implicit to-casts of the abstract.
 
 		@see http://haxe.org/manual/types-abstract-implicit-casts.html
 	**/
 	var to : Array<{t:Type, field:Null<ClassField>}>;
 
 	/**
-		The defined array-access fields of the abstract
+		The defined array-access fields of the abstract.
 	**/
 	var array : Array<ClassField>;
 }
@@ -565,11 +565,11 @@ typedef MetaAccess = {
 }
 
 /**
-	Represents a field kind
+	Represents a field kind.
 */
 enum FieldKind {
 	/**
-		A variable of property, depending on the `read` and `write` values
+		A variable of property, depending on the `read` and `write` values.
 	**/
 	FVar( read : VarAccess, write : VarAccess );
 
@@ -580,110 +580,110 @@ enum FieldKind {
 }
 
 /**
-	Represents the variable accessor
+	Represents the variable accessor.
 */
 enum VarAccess {
 	/**
-		Normal access (`default`)
+		Normal access (`default`).
 	**/
 	AccNormal;
 
 	/**
-		Private access (`null`)
+		Private access (`null`).
 	**/
 	AccNo;
 
 	/**
-		No access (`never`)
+		No access (`never`).
 	**/
 	AccNever;
 
 	/**
-		Unused
+		Unused.
 	**/
 	AccResolve;
 
 	/**
-		Access through accessor function (`get`, `set`, `dynamic`)
+		Access through accessor function (`get`, `set`, `dynamic`).
 	**/
 	AccCall;
 
 	/**
-		Inline access (`inline`)
+		Inline access (`inline`).
 	**/
 	AccInline;
 
 	/**
-		Failed access due to a `@:require` metadata
+		Failed access due to a `@:require` metadata.
 	**/
 	AccRequire( r : String, ?msg : String );
 }
 
 /**
-	Represents the method kind
+	Represents the method kind.
 */
 enum MethodKind {
 	/**
-		A normal method
+		A normal method.
 	**/
 	MethNormal;
 
 	/**
-		An inline method
+		An inline method.
 
 		@see http://haxe.org/manual/class-field-inline.html
 	**/
 	MethInline;
 
 	/**
-		A dynamic, rebindable method
+		A dynamic, rebindable method.
 
 		@see http://haxe.org/manual/class-field-dynamic.html
 	**/
 	MethDynamic;
 
 	/**
-		A macro method
+		A macro method.
 	**/
 	MethMacro;
 }
 
 /**
-	Represents typed constant
+	Represents typed constant.
 */
 enum TConstant {
 	/**
-		An `Int` literal
+		An `Int` literal.
 	**/
 	TInt(i:Int);
 
 	/**
-		A `Float` literal, represented as String to avoid precision loss
+		A `Float` literal, represented as String to avoid precision loss.
 	**/
 	TFloat(s:String);
 
 	/**
-		A `String` literal
+		A `String` literal.
 	**/
 	TString(s:String);
 
 	/**
-		A `Bool` literal
+		A `Bool` literal.
 	**/
 	TBool(b:Bool);
 
 	/**
-		The constant `null`
+		The constant `null`.
 	**/
 	TNull;
 
 	/**
-		The constant `this`
+		The constant `this`.
 	**/
 	TThis;
 
 	/**
-		The constant `super`
+		The constant `super`.
 	**/
 	TSuper;
 }
@@ -693,27 +693,27 @@ enum TConstant {
 */
 typedef TVar = {
 	/**
-		The unique ID of the variable
+		The unique ID of the variable.
 	**/
 	public var id(default, never):Int;
 
 	/**
-		The name of the variable
+		The name of the variable.
 	**/
 	public var name(default, never):String;
 
 	/**
-		The type of the variable
+		The type of the variable.
 	**/
 	public var t(default, never):Type;
 
 	/**
-		Whether or not the variable has been captured by a closure
+		Whether or not the variable has been captured by a closure.
 	**/
 	public var capture(default, never):Bool;
 
 	/**
-		Special information which is internally used to keep track of closure
+		Special information which is internally used to keep track of closure.
 		information
 	**/
 	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>;
@@ -725,22 +725,22 @@ typedef TVar = {
 */
 enum ModuleType {
 	/**
-		A class
+		A class.
 	**/
 	TClassDecl(c:Ref<ClassType>);
 
 	/**
-		An enum
+		An enum.
 	**/
 	TEnumDecl(e:Ref<EnumType>);
 
 	/**
-		A typedef
+		A typedef.
 	**/
 	TTypeDecl(t:Ref<DefType>);
 
 	/**
-		An abstract
+		An abstract.
 	**/
 	TAbstract(a:Ref<AbstractType>);
 }
@@ -756,12 +756,12 @@ typedef TFunc = {
 	var args: Array<{v:TVar, value:Null<TConstant>}>;
 
 	/**
-		The return type of the function
+		The return type of the function.
 	**/
 	var t: Type;
 
 	/**
-		The expression of the function body
+		The expression of the function body.
 	**/
 	var expr: TypedExpr;
 }
@@ -772,94 +772,94 @@ typedef TFunc = {
 enum FieldAccess {
 	/**
 		Access of field `cf` on a class instance `c` with type parameters
-		`params`
+		`params`.
 	**/
 	FInstance(c:Ref<ClassType>, params:Array<Type>, cf:Ref<ClassField>);
 
 	/**
-		Static access of a field `cf` on a class `c`
+		Static access of a field `cf` on a class `c`.
 	**/
 	FStatic(c:Ref<ClassType>, cf:Ref<ClassField>);
 
 	/**
-		Access of field `cf` on an anonymous structure
+		Access of field `cf` on an anonymous structure.
 	**/
 	FAnon(cf:Ref<ClassField>);
 
 	/**
-		Dynamic field access of a field named `s`
+		Dynamic field access of a field named `s`.
 	**/
 	FDynamic(s:String);
 
 	/**
 		Closure field access of field `cf` on a class instance `c` with type
-		parameters `params`
+		parameters `params`.
 	**/
 	FClosure(c:Null<{c:Ref<ClassType>, params:Array<Type>}>, cf:Ref<ClassField>);
 
 	/**
-		Field access to an enum constructor `ef` of enum `e`
+		Field access to an enum constructor `ef` of enum `e`.
 	**/
 	FEnum(e:Ref<EnumType>, ef:EnumField);
 }
 
 /**
-	Represents kind of a node in the typed AST
+	Represents kind of a node in the typed AST.
 */
 enum TypedExprDef {
 	/**
-		A constant
+		A constant.
 	**/
 	TConst(c:TConstant);
 
 	/**
-		Reference to a local variable `v`
+		Reference to a local variable `v`.
 	**/
 	TLocal(v:TVar);
 
 	/**
-		Array access `e1[e2]`
+		Array access `e1[e2]`.
 	**/
 	TArray(e1:TypedExpr, e2:TypedExpr);
 
 	/**
-		Binary operator `e1 op e2`
+		Binary operator `e1 op e2`.
 	**/
 
 	TBinop(op:Expr.Binop, e1:TypedExpr, e2:TypedExpr);
 
 	/**
-		Field access on `e` according to `fa`
+		Field access on `e` according to `fa`.
 	**/
 	TField(e:TypedExpr, fa:FieldAccess);
 
 	/**
-		Reference to a module type `m`
+		Reference to a module type `m`.
 	**/
 	TTypeExpr(m:ModuleType);
 
 	/**
-		Parentheses `(e)`
+		Parentheses `(e)`.
 	**/
 	TParenthesis(e:TypedExpr);
 
 	/**
-		An object declaration
+		An object declaration.
 	**/
 	TObjectDecl(fields:Array<{name:String, expr:TypedExpr}>);
 
 	/**
-		An array declaration `[el]`
+		An array declaration `[el]`.
 	**/
 	TArrayDecl(el:Array<TypedExpr>);
 
 	/**
-		A call `e(el)`
+		A call `e(el)`.
 	**/
 	TCall(e:TypedExpr, el:Array<TypedExpr>);
 
 	/**
-		A constructor call `new c<params>(el)`
+		A constructor call `new c<params>(el)`.
 	**/
 	TNew(c:Ref<ClassType>, params: Array<Type>, el:Array<TypedExpr>);
 
@@ -877,12 +877,12 @@ enum TypedExprDef {
 	TUnop(op:Expr.Unop, postFix:Bool, e:TypedExpr);
 
 	/**
-		A function declaration
+		A function declaration.
 	**/
 	TFunction(tfunc:TFunc);
 
 	/**
-		A variable declaration `var v` or `var v = expr`
+		A variable declaration `var v` or `var v = expr`.
 	**/
 	TVar(v:TVar, expr:Null<TypedExpr>);
 
@@ -892,19 +892,19 @@ enum TypedExprDef {
 	TBlock(el:Array<TypedExpr>);
 
 	/**
-		A `for` expression
+		A `for` expression.
 	**/
 	TFor(v:TVar, e1:TypedExpr, e2:TypedExpr);
 
 	/**
-		An `if(econd) eif` or `if(econd) eif else eelse` expression
+		An `if(econd) eif` or `if(econd) eif else eelse` expression.
 	**/
 	TIf(econd:TypedExpr, eif:TypedExpr, eelse:Null<TypedExpr>);
 
 	/**
 		Represents a `while` expression.
-		When `normalWhile` is `true` it is `while (...)`
-		When `normalWhile` is `false` it is `do {...} while (...)`
+		When `normalWhile` is `true` it is `while (...)`.
+		When `normalWhile` is `false` it is `do {...} while (...)`.
 	**/
 	TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool);
 
@@ -920,57 +920,57 @@ enum TypedExprDef {
 	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>);
 
 	/**
-		A `return` or `return e` expression
+		A `return` or `return e` expression.
 	**/
 	TReturn(e:Null<TypedExpr>);
 
 	/**
-		A `break` expression
+		A `break` expression.
 	**/
 	TBreak;
 
 	/**
-		A `continue` expression
+		A `continue` expression.
 	**/
 	TContinue;
 
 	/**
-		A `throw e` expression
+		A `throw e` expression.
 	**/
 	TThrow(e:TypedExpr);
 
 	/**
-		A `cast e` or `cast (e, m)` expression
+		A `cast e` or `cast (e, m)` expression.
 	**/
 	TCast(e:TypedExpr, m:Null<ModuleType>);
 
 	/**
-		A `@m e1` expression
+		A `@m e1` expression.
 	**/
 	TMeta(m:Expr.MetadataEntry, e1:TypedExpr);
 
 	/**
-		Access to an enum parameter (generated by the pattern matcher)
+		Access to an enum parameter (generated by the pattern matcher).
 	**/
 	TEnumParameter(e1:TypedExpr, ef:EnumField, index:Int);
 }
 
 /**
-	Represents a typed AST node
+	Represents a typed AST node.
 */
 typedef TypedExpr = {
 	/**
-		The expression kind
+		The expression kind.
 	**/
 	var expr: TypedExprDef;
 
 	/**
-		The position of the expression
+		The position of the expression.
 	**/
 	var pos: Expr.Position;
 
 	/**
-		The type of the expression
+		The type of the expression.
 	**/
 	var t: Type;
 }
