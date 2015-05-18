@@ -84,17 +84,17 @@ let api_inline2 com c field params p =
 			None)
 	| ([],"Std"),"string",[{ eexpr = TIf (_,{ eexpr = TConst (TString _)},Some { eexpr = TConst (TString _) }) } as e] ->
 		Some e
- 	| ([],"Std"),"string",[{ eexpr = TLocal _ | TField({ eexpr = TLocal _ },_) } as v] when com.platform = Js || com.platform = Flash ->
-		let pos = v.epos in
+ 	| ([],"Std"),"string",[{ eexpr = TLocal v | TField({ eexpr = TLocal v },_) } as ev] when (com.platform = Js || com.platform = Flash) && not (Meta.has Meta.CompilerGenerated v.v_meta) ->
+		let pos = ev.epos in
 		let stringv() =
-			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) com.basic.tstring pos, v)) com.basic.tstring pos in
-			if com.platform = Js || is_nullable v.etype then
-				let chk_null = mk (TBinop (Ast.OpEq, v, mk (TConst TNull) t_dynamic pos)) com.basic.tbool pos in
+			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) com.basic.tstring pos, ev)) com.basic.tstring pos in
+			if com.platform = Js || is_nullable ev.etype then
+				let chk_null = mk (TBinop (Ast.OpEq, ev, mk (TConst TNull) t_dynamic pos)) com.basic.tbool pos in
 				mk (TIf (chk_null, mk (TConst (TString "null")) com.basic.tstring pos, Some to_str)) com.basic.tstring pos
 			else
 				to_str
 		in
-		(match follow v.etype with
+		(match follow ev.etype with
 		| TInst ({ cl_path = [],"String" }, []) ->
 			Some (stringv())
 		| TAbstract ({ a_path = [],"Float" }, []) ->
