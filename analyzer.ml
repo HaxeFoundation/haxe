@@ -1114,6 +1114,11 @@ module ConstPropagation = struct
 				e
 			else
 				value ssa force e'
+		| TCall ({ eexpr = TField ({eexpr = TTypeExpr (TClassDecl c) },fa)},el) ->
+			let el = List.map (value ssa force) el in
+			(match Optimizer.api_inline2 ssa.com c (field_name fa) el e.epos with
+			| None -> e
+			| Some e -> value ssa force e)
 		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}} as ephi),el) ->
 			let el = List.map (value ssa force) el in
 			begin match el with
@@ -1181,7 +1186,16 @@ module ConstPropagation = struct
 					else loop e
 				in
 				let el = Codegen.UnificationCallback.check_call check el e1.etype in
-				{e with eexpr = TCall(e1,el)}
+				let e = {e with eexpr = TCall(e1,el)} in
+				begin match e1.eexpr with
+					| TField({eexpr = TTypeExpr (TClassDecl c)},fa) ->
+						begin match Optimizer.api_inline2 ssa.com c (field_name fa) el e.epos with
+							| None -> e
+							| Some e -> loop e
+						end
+					| _ ->
+						e
+				end
 (* 			| TField(e1,fa) ->
 				let e1' = loop e1 in
 				let fa = if e1' != e1 then
