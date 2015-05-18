@@ -38,7 +38,6 @@ class Issue2236 {
 		var _g_pos = 0;
 		while(_g_pos < _g_a.length) {
 			var x = _g_a[_g_pos++];
-			x;
 		}
 	')
 	static function test() {
