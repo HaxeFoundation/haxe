@@ -162,6 +162,24 @@ let api_inline ctx c field params p =
 			None (* out range, keep platform-specific behavior *)
 		| _ ->
 			Some { eexpr = TConst (TInt (Int32.of_float f)); etype = ctx.t.tint; epos = p })
+	| ([],"Math"),"ceil",[{ eexpr = TConst (TFloat f) }] ->
+		let f = float_of_string f in
+		(match classify_float f with
+		| FP_infinite | FP_nan ->
+			None
+		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int ->
+			None (* out range, keep platform-specific behavior *)
+		| _ ->
+			Some { eexpr = TConst (TInt (Int32.of_float (ceil f))); etype = ctx.t.tint; epos = p })
+	| ([],"Math"),"floor",[{ eexpr = TConst (TFloat f) }] ->
+		let f = float_of_string f in
+		(match classify_float f with
+		| FP_infinite | FP_nan ->
+			None
+		| _ when f <= Int32.to_float Int32.min_int || f >= Int32.to_float Int32.max_int +. 1. ->
+			None (* out range, keep platform-specific behavior *)
+		| _ ->
+			Some { eexpr = TConst (TInt (Int32.of_float (floor f))); etype = ctx.t.tint; epos = p })
 	| (["cs"],"Lib"),("fixed" | "checked" | "unsafe"),[e] ->
 			Some (mk_untyped_call ("__" ^ field ^ "__") p [e])
 	| (["cs"],"Lib"),("lock"),[obj;block] ->
