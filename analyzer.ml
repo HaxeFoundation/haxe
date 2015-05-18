@@ -1065,6 +1065,8 @@ module ConstPropagation = struct
 			end
 		| TEnumParameter _ when not (com.platform = Php) ->
 			Ssa.get_var_usage_count v0 <= 1
+		| TField(_,FEnum _) ->
+			Ssa.get_var_usage_count v0 <= 1
 		| _ ->
 			false
 
