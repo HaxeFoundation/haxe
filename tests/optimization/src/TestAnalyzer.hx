@@ -700,6 +700,7 @@ class TestAnalyzer extends TestBase {
 		var s = "foo";
 		var bTrue = true;
 		var bFalse = false;
+		var eBreak = haxe.macro.Expr.ExprDef.EBreak;
 
 		var floor = Math.floor(f);
 		assertEqualsConst(3, floor);
@@ -721,6 +722,9 @@ class TestAnalyzer extends TestBase {
 
 		var fromCharCode = String.fromCharCode(i);
 		assertEqualsConst("A", fromCharCode);
+
+		var enumIndex = Type.enumIndex(eBreak);
+		assertEqualsConst(20, enumIndex);
 	}
 
 	function cond1() {

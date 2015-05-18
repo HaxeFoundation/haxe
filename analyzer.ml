@@ -1147,10 +1147,14 @@ module ConstPropagation = struct
 				e
 			end
 		| _ ->
-			e
+			try
+				let ct = awkward_get_enum_index2 ssa e in
+				{e with eexpr = TConst ct}
+			with Not_found ->
+				e
 
 	(* TODO: the name is quite accurate *)
-	let awkward_get_enum_index ssa e =
+	and awkward_get_enum_index2 ssa e =
 		let e = awkward_get_enum_index ssa.com e in
 		let ev = (value ssa true e) in
 		match ev.eexpr with
@@ -1251,7 +1255,7 @@ module ConstPropagation = struct
 				let rec check_constant e = match e.eexpr with
 					| TConst ct -> ct
 					| TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) -> check_constant e1
-					| _ -> awkward_get_enum_index ssa e
+					| _ -> raise Not_found
 				in
 				begin try
 					let ct = check_constant e1 in
@@ -1272,7 +1276,11 @@ module ConstPropagation = struct
 					{e with eexpr = TSwitch(e1,cases,edef)}
 				end
 			| _ ->
-				Type.map_expr loop e
+				try
+					let ct = awkward_get_enum_index2 ssa e in
+					{e with eexpr = TConst ct}
+				with Not_found ->
+					Type.map_expr loop e
 		in
 		loop e
 end
