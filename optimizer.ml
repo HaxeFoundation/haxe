@@ -51,46 +51,46 @@ let mk_untyped_call name p params =
 		epos = p;
 	}
 
-let api_inline ctx c field params p =
+let api_inline2 com c field params p =
 	match c.cl_path, field, params with
-	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] -> (match ctx.com.platform with
+	| ([],"Type"),"enumIndex",[{ eexpr = TField (_,FEnum (en,f)) }] -> (match com.platform with
 		| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
 			(* We don't want to optimize enums from external sources; as they might change unexpectedly *)
 			(* and since native C# enums don't have the concept of index - they have rather a value, *)
 			(* which can't be mapped to a native API - this kind of substitution is dangerous *)
 			None
 		| _ ->
-			Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p))
+			Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p))
 	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TField (_,FEnum (en,f)) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
-		(match ctx.com.platform with
+		(match com.platform with
 			| Cs when en.e_extern && not (Meta.has Meta.HxGen en.e_meta) ->
 				(* see comment above *)
 				None
 			| _ ->
-				Some (mk (TConst (TInt (Int32.of_int f.ef_index))) ctx.t.tint p))
+				Some (mk (TConst (TInt (Int32.of_int f.ef_index))) com.basic.tint p))
 	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
-		Some (mk (TConst (TString (String.make 1 (char_of_int (Int32.to_int i))))) ctx.t.tstring p)
+		Some (mk (TConst (TString (String.make 1 (char_of_int (Int32.to_int i))))) com.basic.tstring p)
 	| ([],"Std"),"string",[{ eexpr = TConst c } as e] ->
 		(match c with
 		| TString s ->
 			Some { e with epos = p }
 		| TInt i ->
-			Some { eexpr = TConst (TString (Int32.to_string i)); epos = p; etype = ctx.t.tstring }
+			Some { eexpr = TConst (TString (Int32.to_string i)); epos = p; etype = com.basic.tstring }
 		| TBool b ->
-			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = ctx.t.tstring }
+			Some { eexpr = TConst (TString (if b then "true" else "false")); epos = p; etype = com.basic.tstring }
 		| _ ->
 			None)
 	| ([],"Std"),"string",[{ eexpr = TIf (_,{ eexpr = TConst (TString _)},Some { eexpr = TConst (TString _) }) } as e] ->
 		Some e
- 	| ([],"Std"),"string",[{ eexpr = TLocal _ | TField({ eexpr = TLocal _ },_) } as v] when ctx.com.platform = Js || ctx.com.platform = Flash ->
+ 	| ([],"Std"),"string",[{ eexpr = TLocal _ | TField({ eexpr = TLocal _ },_) } as v] when com.platform = Js || com.platform = Flash ->
 		let pos = v.epos in
 		let stringv() =
-			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) ctx.t.tstring pos, v)) ctx.t.tstring pos in
-			if ctx.com.platform = Js || is_nullable v.etype then
-				let chk_null = mk (TBinop (Ast.OpEq, v, mk (TConst TNull) t_dynamic pos)) ctx.t.tbool pos in
-				mk (TIf (chk_null, mk (TConst (TString "null")) ctx.t.tstring pos, Some to_str)) ctx.t.tstring pos
+			let to_str = mk (TBinop (Ast.OpAdd, mk (TConst (TString "")) com.basic.tstring pos, v)) com.basic.tstring pos in
+			if com.platform = Js || is_nullable v.etype then
+				let chk_null = mk (TBinop (Ast.OpEq, v, mk (TConst TNull) t_dynamic pos)) com.basic.tbool pos in
+				mk (TIf (chk_null, mk (TConst (TString "null")) com.basic.tstring pos, Some to_str)) com.basic.tstring pos
 			else
 				to_str
 		in
@@ -107,6 +107,43 @@ let api_inline ctx c field params p =
 			Some (stringv())
 		| _ ->
 			None)
+	| ([],"Std"),"int",[{ eexpr = TConst (TFloat f) }] ->
+		let f = float_of_string f in
+		(match classify_float f with
+		| FP_infinite | FP_nan ->
+			None
+		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int +. 1. ->
+			None (* out range, keep platform-specific behavior *)
+		| _ ->
+			Some { eexpr = TConst (TInt (Int32.of_float f)); etype = com.basic.tint; epos = p })
+	| ([],"Math"),"ceil",[{ eexpr = TConst (TFloat f) }] ->
+		let f = float_of_string f in
+		(match classify_float f with
+		| FP_infinite | FP_nan ->
+			None
+		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int ->
+			None (* out range, keep platform-specific behavior *)
+		| _ ->
+			Some { eexpr = TConst (TInt (Int32.of_float (ceil f))); etype = com.basic.tint; epos = p })
+	| ([],"Math"),"floor",[{ eexpr = TConst (TFloat f) }] ->
+		let f = float_of_string f in
+		(match classify_float f with
+		| FP_infinite | FP_nan ->
+			None
+		| _ when f <= Int32.to_float Int32.min_int || f >= Int32.to_float Int32.max_int +. 1. ->
+			None (* out range, keep platform-specific behavior *)
+		| _ ->
+			Some { eexpr = TConst (TInt (Int32.of_float (floor f))); etype = com.basic.tint; epos = p })
+	| (["cs"],"Lib"),("fixed" | "checked" | "unsafe"),[e] ->
+			Some (mk_untyped_call ("__" ^ field ^ "__") p [e])
+	| (["cs"],"Lib"),("lock"),[obj;block] ->
+			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
+	| (["java"],"Lib"),("lock"),[obj;block] ->
+			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
+	| _ ->
+		None
+
+let api_inline ctx c field params p = match c.cl_path, field, params with
 	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let mk_local ctx n t pos =
 			mk (TLocal (try
@@ -153,39 +190,6 @@ let api_inline ctx c field params p =
 			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
 		| _ ->
 			None)
-	| ([],"Std"),"int",[{ eexpr = TConst (TFloat f) }] ->
-		let f = float_of_string f in
-		(match classify_float f with
-		| FP_infinite | FP_nan ->
-			None
-		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int +. 1. ->
-			None (* out range, keep platform-specific behavior *)
-		| _ ->
-			Some { eexpr = TConst (TInt (Int32.of_float f)); etype = ctx.t.tint; epos = p })
-	| ([],"Math"),"ceil",[{ eexpr = TConst (TFloat f) }] ->
-		let f = float_of_string f in
-		(match classify_float f with
-		| FP_infinite | FP_nan ->
-			None
-		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int ->
-			None (* out range, keep platform-specific behavior *)
-		| _ ->
-			Some { eexpr = TConst (TInt (Int32.of_float (ceil f))); etype = ctx.t.tint; epos = p })
-	| ([],"Math"),"floor",[{ eexpr = TConst (TFloat f) }] ->
-		let f = float_of_string f in
-		(match classify_float f with
-		| FP_infinite | FP_nan ->
-			None
-		| _ when f <= Int32.to_float Int32.min_int || f >= Int32.to_float Int32.max_int +. 1. ->
-			None (* out range, keep platform-specific behavior *)
-		| _ ->
-			Some { eexpr = TConst (TInt (Int32.of_float (floor f))); etype = ctx.t.tint; epos = p })
-	| (["cs"],"Lib"),("fixed" | "checked" | "unsafe"),[e] ->
-			Some (mk_untyped_call ("__" ^ field ^ "__") p [e])
-	| (["cs"],"Lib"),("lock"),[obj;block] ->
-			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
-	| (["java"],"Lib"),("lock"),[obj;block] ->
-			Some (mk_untyped_call ("__lock__") p [obj;mk_block block])
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
 	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
 			let platf = match ctx.com.platform with
@@ -212,7 +216,7 @@ let api_inline ctx c field params p =
 		with | Exit ->
 			None)
 	| _ ->
-		None
+		api_inline2 ctx.com c field params p
 
 (* ---------------------------------------------------------------------- *)
 (* INLINING *)
