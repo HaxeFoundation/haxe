@@ -33,12 +33,12 @@ typedef Position = {
 		Reference to the filename.
 	**/
 	var file : String;
-	
+
 	/**
 		Position of the first character.
 	**/
 	var min : Int;
-	
+
 	/**
 		Position of the last character.
 	**/
@@ -52,27 +52,33 @@ typedef Position = {
 **/
 enum Constant {
 	/**
-		Represents a integer literal.
+		Represents an integer literal.
 	**/
 	CInt( v : String );
-	
+
 	/*
 		Represents a float literal.
 	**/
 	CFloat( f : String );
-	
+
 	/*
 		Represents a string literal.
 	**/
 	CString( s : String );
-	
+
 	/*
-		Represents a indentifier literal.
+		Represents an indentifier.
 	**/
 	CIdent( s : String );
-	
+
 	/*
 		Represents a regular expression literal.
+		
+		Example: `~/haxe/i`  
+		 * The first argument _haxe_ is a string with regular expression pattern.
+		 * The second argument _i_ is a string with regular expression flags.
+		 
+		@see http://haxe.org/manual/std-regex.html
 	**/
 	CRegexp( r : String, opt : String );
 }
@@ -86,82 +92,102 @@ enum Binop {
 		`+`
 	**/
 	OpAdd;
+
 	/**
 		`*`
 	**/
 	OpMult;
+
 	/**
 		`/`
 	**/
 	OpDiv;
+
 	/**
 		`-`
 	**/
 	OpSub;
+
 	/**
 		`=`
 	**/
 	OpAssign;
+
 	/**
 		`==`
 	**/
 	OpEq;
+
 	/**
 		`!=`
 	**/
 	OpNotEq;
+
 	/**
 		`>`
 	**/
 	OpGt;
+
 	/**
 		`>=`
 	**/
 	OpGte;
+
 	/**
 		`<`
 	**/
 	OpLt;
+
 	/**
 		`<=`
 	**/
 	OpLte;
+
 	/**
 		`&`
 	**/
 	OpAnd;
+
 	/**
 		`|`
 	**/
 	OpOr;
+
 	/**
 		`^`
 	**/
 	OpXor;
+
 	/**
 		`&&`
 	**/
 	OpBoolAnd;
+
 	/**
 		`||`
 	**/
 	OpBoolOr;
+
 	/**
 		`<<`
 	**/
 	OpShl;
+
 	/**
 		`>>`
 	**/
 	OpShr;
+
 	/**
 		`>>>`
 	**/
 	OpUShr;
+
 	/**
 		`%`
 	**/
 	OpMod;
+
 	/**
 		`+=`
 		`-=`
@@ -176,10 +202,12 @@ enum Binop {
 		`%=`
 	**/
 	OpAssignOp( op : Binop );
+
 	/**
 		`...`
 	**/
 	OpInterval;
+
 	/**
 		`=>`
 	**/
@@ -195,18 +223,22 @@ enum Unop {
 		`++`
 	**/
 	OpIncrement;
+
 	/**
 		`--`
 	**/
 	OpDecrement;
+
 	/**
 		`!`
 	**/
 	OpNot;
+
 	/**
 		`-`
 	**/
 	OpNeg;
+
 	/**
 		`~`
 	**/
@@ -214,7 +246,7 @@ enum Unop {
 }
 
 /**
-	Represents a AST node for the AST.
+	Represents a node in the AST.
 	@see http://haxe.org/manual/macro-reification-expression.html
 **/
 typedef Expr = {
@@ -222,7 +254,7 @@ typedef Expr = {
 		The expression kind.
 	**/
 	var expr : ExprDef;
-	
+
 	/**
 		The position of the expression.
 	**/
@@ -237,7 +269,7 @@ typedef Expr = {
 typedef ExprOf<T> = Expr;
 
 /**
-	Represents a case for the AST.
+	Represents a switch case.
 	@see http://haxe.org/manual/expression-switch.html
 **/
 typedef Case = {
@@ -245,18 +277,20 @@ typedef Case = {
 		The value expressions of the case.
 	**/
 	var values : Array<Expr>;
+
 	/**
-		The guard expressions of the case. Guards restrict cases.
+		The optional guard expressions of the case, if available. 
 	**/
 	@:optional var guard : Null<Expr>;
+
 	/**
-		The expression of the case.
+		The expression of the case, if available.
 	**/
 	var expr: Null<Expr>;
 }
 
 /**
-	Represents a variable for the AST.
+	Represents a variable in the AST.
 	@see http://haxe.org/manual/expression-var.html
 **/
 typedef Var = {
@@ -264,29 +298,33 @@ typedef Var = {
 		The name of the variable.
 	**/
 	name : String,
+
 	/**
-		The type of the variable.
+		The type-hint of the variable, if available.
 	**/
 	type : Null<ComplexType>,
+
 	/**
-		The expression of the variable.
+		The expression of the variable, if available.
 	**/
 	expr : Null<Expr>
 }
 
 /**
-	Represents a catch for the AST.
+	Represents a catch in the AST.
 	@http://haxe.org/manual/expression-try-catch.html
 **/
 typedef Catch = {
 	/**
-		The name of the catch.
+		The name of the catch variable.
 	**/
 	name : String,
+
 	/**
 		The type of the catch.
 	**/
 	type : ComplexType,
+
 	/**
 		The expression of the catch.
 	**/
@@ -294,7 +332,7 @@ typedef Catch = {
 }
 
 /**
-	Represents kind of a node for the AST.
+	Represents the kind of a node in the AST.
 **/
 enum ExprDef {
 	/**
@@ -313,7 +351,7 @@ enum ExprDef {
 	EBinop( op : Binop, e1 : Expr, e2 : Expr );
 
 	/**
-		Field access on `e` according to `field`.
+		Field access on `e.field`.
 	**/
 	EField( e : Expr, field : String );
 
@@ -357,6 +395,8 @@ enum ExprDef {
 
 	/**
 		A variable declaration `var v` or `var v = expr`.
+		In this AST there can be multiple variables for `var x, y` notation, 
+		hence the Array argument.
 	**/
 	EVars( vars : Array<Var> );
 
@@ -366,7 +406,7 @@ enum ExprDef {
 	EFunction( name : Null<String>, f : Function );
 
 	/**
-		A block declaration `{exprs}`.
+		A block of expressions `{exprs}`.
 	**/
 	EBlock( exprs : Array<Expr> );
 
@@ -419,7 +459,7 @@ enum ExprDef {
 	EContinue;
 
 	/**
-		A `untyped e` expression.
+		An `untyped e` source code.
 	**/
 	EUntyped( e : Expr );
 
@@ -460,7 +500,7 @@ enum ExprDef {
 }
 
 /**
-	Represents a complex type for the AST.
+	Represents a type syntax in the AST.
 **/
 enum ComplexType {
 	/**
@@ -481,23 +521,26 @@ enum ComplexType {
 	TAnonymous( fields : Array<Field> );
 
 	/**
-		Represents the parent type.
+		Represents parentheses around a type, e.g. the `(Int -> Void)` part in
+		`(Int -> Void) -> String`.
 	**/
 	TParent( t : ComplexType );
 
 	/**
-		Represents the structure to the type inheritance structure.
+		Represents typedef extensions `> Iterable<T>`.
+		The array `p` holds the type paths to the given types.
+		@see http://haxe.org/manual/type-system-extensions.html
 	**/
 	TExtend( p : Array<TypePath>, fields : Array<Field> );
 
 	/**
-		Represents the optional type.
+		Represents an optional type.
 	**/
 	TOptional( t : ComplexType );
 }
 
 /**
-	Represents a type path for the AST.
+	Represents a type path in the AST.
 **/
 typedef TypePath = {
 	/**
@@ -516,48 +559,53 @@ typedef TypePath = {
 	@:optional var params : Array<TypeParam>;
 
 	/**
-		
+		Sub is set on module sub-type access:  
+		`pack.Module.Type` has name = Module, sub = Type, if available.
 	**/
 	@:optional var sub : Null<String>;
 }
 
 /**
-	Represents a type parameter for the AST.
+	Represents a concrete type parameters in the AST.
+	
+	Haxe allows expressions in concrete type parameters, e.g. 
+	`new YourType<["hello", "world"]>`. In that case the value is `TPExpr` while 
+	in the normal case it's `TPType`.
 **/
 enum TypeParam {
 	/**
-		The type of the parameter.
+		
 	**/
 	TPType( t : ComplexType );
 
 	/**
-		The expression node of the parameter.
+		
 	**/
 	TPExpr( e : Expr );
 }
 
 /**
-	Represents a type parameter declaration for the AST.
+	Represents a type parameter declaration in the AST.
 **/
 typedef TypeParamDecl = {
 	/**
-		The name of the type parameter declaration.
+		The name of the type parameter.
 	**/
 	var name : String;
 
 	/**
-		The constraints of the type parameter declaration.
+		The optional constraints of the type parameter.
 	**/
 	@:optional var constraints : Array<ComplexType>;
 
 	/**
-		The parameters of the type parameter declaration.
+		The optional parameters of the type parameter.
 	**/
 	@:optional var params : Array<TypeParamDecl>;
 }
 
 /**
-	Represents a function for the AST.
+	Represents a function in the AST.
 **/
 typedef Function = {
 	/**
@@ -566,12 +614,12 @@ typedef Function = {
 	var args : Array<FunctionArg>;
 
 	/**
-		The return type of the function.
+		The return type-hint of the function, if available.
 	**/
 	var ret : Null<ComplexType>;
 
 	/**
-		The expression of the function body.
+		The expression of the function body, if available.
 	**/
 	var expr : Null<Expr>;
 
@@ -582,7 +630,7 @@ typedef Function = {
 }
 
 /**
-	Represents a function argument for the AST.
+	Represents a function argument in the AST.
 **/
 typedef FunctionArg = {
 	/**
@@ -596,18 +644,18 @@ typedef FunctionArg = {
 	@:optional var opt : Bool;
 
 	/**
-		The type of the function argument.
+		The type-hint of the function argument, if available.
 	**/
 	var type : Null<ComplexType>;
 
 	/**
-		The optional value of the function argument.
+		The optional value of the function argument, if available.
 	**/
 	@:optional var value : Null<Expr>;
 }
 
 /**
-	Represents a metadata entry for the AST.
+	Represents a metadata entry in the AST.
 **/
 typedef MetadataEntry = {
 	/**
@@ -627,12 +675,12 @@ typedef MetadataEntry = {
 }
 
 /**
-	Represents metadata for the AST.
+	Represents metadata in the AST.
 **/
 typedef Metadata = Array<MetadataEntry>;
 
 /**
-	Represents a field for the AST.
+	Represents a field in the AST.
 **/
 typedef Field = {
 	/**
@@ -641,8 +689,8 @@ typedef Field = {
 	var name : String;
 
 	/**
-		The documentation of the field. If the field has no documentation, the 
-		value is `null`.
+		The documentation of the field, if available. If the field has no 
+		documentation, the value is `null`.
 	**/
 	@:optional var doc : Null<String>;
 
@@ -653,7 +701,7 @@ typedef Field = {
 	@:optional var access : Array<Access>;
 
 	/**
-		The type of the field.
+		The kind of the field.
 	**/
 	var kind : FieldType;
 
@@ -693,9 +741,8 @@ enum Access {
 	AStatic;
 
 	/**
-		Override access modifier, required when a field is declared which also 
-		exists on a parent class. This modifier is only allowed on 
-		method fields.
+		Override access modifier.
+		@see http://haxe.org/manual/class-field-override.html
 	**/
 	AOverride;
 
@@ -708,6 +755,7 @@ enum Access {
 	/**
 		Inline access modifier. Allows expressions to be directly inserted in 
 		place of calls to them.
+		@see http://haxe.org/manual/class-field-inline.html
 	**/
 	AInline;
 
@@ -719,27 +767,27 @@ enum Access {
 }
 
 /**
-	Represents the field type for the AST.
+	Represents the field type in the AST.
 **/
 enum FieldType {
 	/**
-		Represents a variable structure.
+		Represents a variable field type.
 	**/
 	FVar( t : Null<ComplexType>, ?e : Null<Expr> );
 
 	/**
-		Represents a function structure.
+		Represents a function field type.
 	**/
 	FFun( f : Function );
 
 	/**
-		Represents a property with getter and setter structure.
+		Represents a property with getter and setter field type.
 	**/
 	FProp( get : String, set : String, ?t : Null<ComplexType>, ?e : Null<Expr> );
 }
 
 /**
-	Represents a type definition for the AST.
+	Represents a type definition.
 **/
 typedef TypeDefinition = {
 	/**
@@ -758,7 +806,7 @@ typedef TypeDefinition = {
 	var pos : Position;
 
 	/**
-		The metadata of the type definition.
+		The optional metadata of the type definition.
 	**/
 	@:optional var meta : Metadata;
 
@@ -773,7 +821,7 @@ typedef TypeDefinition = {
 	@:optional var isExtern : Bool;
 
 	/**
-		The type kind of the type definition.
+		The kind of the type definition.
 	**/
 	var kind : TypeDefKind;
 
@@ -784,7 +832,7 @@ typedef TypeDefinition = {
 }
 
 /**
-	Represents a type definition kind for the AST.
+	Represents a type definition kind.
 **/
 enum TypeDefKind {
 	/**
@@ -803,7 +851,7 @@ enum TypeDefKind {
 	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool );
 
 	/**
-		Represents an alias kind.
+		Represents an alias/typedef kind.
 	**/
 	TDAlias( t : ComplexType ); // ignore TypeDefinition.fields
 
@@ -837,7 +885,7 @@ class Error {
 	}
 
 	/**
-		String representation of the error.
+		Returns the string representation of the error.
 	**/
 	function toString() {
 		return message;
@@ -855,7 +903,7 @@ enum ImportMode {
 	INormal;
 
 	/**
-		Represents the alias import `import c in alias`.
+		Represents the alias import `import c as alias`.
 	**/
 	IAsName(alias:String);
 
