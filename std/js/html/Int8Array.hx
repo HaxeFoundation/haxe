@@ -40,5 +40,5 @@ extern class Int8Array extends ArrayBufferView implements ArrayAccess<Int>
 	@:overload( function( index : Int, value : Int ) : Void {} )
 	@:overload( function( array : Int8Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
-	function subarray( start : Int, end : Int ) : Int8Array;
+	function subarray( start : Int, ?end : Int ) : Int8Array;
 }

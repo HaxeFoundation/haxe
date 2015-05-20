@@ -40,5 +40,5 @@ extern class Int32Array extends ArrayBufferView implements ArrayAccess<Int>
 	@:overload( function( index : Int, value : Int ) : Void {} )
 	@:overload( function( array : Int32Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
-	function subarray( start : Int, end : Int ) : Int32Array;
+	function subarray( start : Int, ?end : Int ) : Int32Array;
 }

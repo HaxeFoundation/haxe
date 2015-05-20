@@ -40,5 +40,5 @@ extern class Uint8ClampedArray extends ArrayBufferView implements ArrayAccess<In
 	@:overload( function( index : Int, value : Int ) : Void {} )
 	@:overload( function( array : Uint8ClampedArray, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
-	function subarray( start : Int, end : Int ) : Uint8ClampedArray;
+	function subarray( start : Int, ?end : Int ) : Uint8ClampedArray;
 }

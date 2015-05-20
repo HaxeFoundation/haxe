@@ -40,5 +40,5 @@ extern class Uint16Array extends ArrayBufferView implements ArrayAccess<Int>
 	@:overload( function( index : Int, value : Int ) : Void {} )
 	@:overload( function( array : Uint16Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
-	function subarray( start : Int, end : Int ) : Uint16Array;
+	function subarray( start : Int, ?end : Int ) : Uint16Array;
 }

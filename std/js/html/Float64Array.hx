@@ -40,5 +40,5 @@ extern class Float64Array extends ArrayBufferView implements ArrayAccess<Float>
 	@:overload( function( index : Int, value : Float ) : Void {} )
 	@:overload( function( array : Float64Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Float>, ?offset : Int ) : Void;
-	function subarray( start : Int, end : Int ) : Float64Array;
+	function subarray( start : Int, ?end : Int ) : Float64Array;
 }
