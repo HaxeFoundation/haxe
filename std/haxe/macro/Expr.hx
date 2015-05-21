@@ -394,9 +394,7 @@ enum ExprDef {
 	EUnop( op : Unop, postFix : Bool, e : Expr );
 
 	/**
-		A variable declaration `var v` or `var v = expr`.
-		In this AST there can be multiple variables for `var x, y` notation, 
-		hence the Array argument.
+		Variable declarations.
 	**/
 	EVars( vars : Array<Var> );
 
