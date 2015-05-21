@@ -3,10 +3,11 @@ package cs;
 /**
 	Use this type to have access to the bitwise operators of C# enums that have a `cs.system.FlagsAttribute` attribute.
 
+	Usage example:
 	```haxe
 		import cs.system.reflection.BindingFlags;
 
-		var binding = new Flags(BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+		var binding = new Flags(BindingFlags.Public) | BindingFlags.Static | BindingFlags.NonPublic;
 	```
  **/
 abstract Flags<T : EnumValue>(T) from T to T
