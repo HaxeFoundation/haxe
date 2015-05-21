@@ -62,6 +62,20 @@ let is_special_compare e1 e2 =
 	| TInst ({ cl_path = ["flash"],"NativeXml" } as c,_) , _ | _ , TInst ({ cl_path = ["flash"],"NativeXml" } as c,_) -> Some c
 	| _ -> None
 
+let is_fixed_override cf t =
+	let is_type_parameter c = match c.cl_kind with
+		| KTypeParameter _ -> true
+		| _ -> false
+	in
+	match follow cf.cf_type,follow t with
+	| TFun(_,r1),TFun(_,r2) ->
+		begin match follow r1,follow r2 with
+		| TInst(c1,_),TInst(c2,_) when c1 != c2 && not (is_type_parameter c1) && not (is_type_parameter c2) -> true
+		| _ -> false
+		end
+	| _ ->
+		false
+
 let protect name =
 	match name with
 	| "Error" | "Namespace" -> "_" ^ name
@@ -521,6 +535,14 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
+	| TField (e1,FInstance(_,_,cf)),el when is_fixed_override cf e.etype ->
+		let s = type_str ctx r e.epos in
+		spr ctx "((";
+		gen_value ctx e;
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")";
+		print ctx ") as %s)" s
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
