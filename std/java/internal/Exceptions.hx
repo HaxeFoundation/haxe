@@ -74,7 +74,7 @@ class Exceptions {
 		return "Haxe Exception: " + obj;
 	}
 	
-	override public function getMessage():String
+	@:overload override public function getMessage():String
 	{
 		return switch (super.getMessage())
 		{
