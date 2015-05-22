@@ -91,9 +91,9 @@ class Exceptions {
 		else if (Std.is(obj, String))
 			ret = new HaxeException(obj, obj, null);
  		else if (Std.is(obj, Throwable))
-			ret = new HaxeException(obj, null, obj);
+			ret = new HaxeException(obj, Std.string(obj), obj);
 		else
-			ret = new HaxeException(obj, null, null);
+			ret = new HaxeException(obj, Std.string(obj), null);
 		return ret;
 	}
 }
