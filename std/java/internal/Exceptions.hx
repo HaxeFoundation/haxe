@@ -73,6 +73,15 @@ class Exceptions {
 	{
 		return "Haxe Exception: " + obj;
 	}
+	
+	override public function getMessage():String
+	{
+		return switch (super.getMessage())
+		{
+			case null: Std.string(obj);
+			case message: message;
+		}
+	}
 
 	public static function wrap(obj:Dynamic):RuntimeException
 	{
