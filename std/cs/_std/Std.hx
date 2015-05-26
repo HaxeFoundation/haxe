@@ -173,7 +173,7 @@ import cs.internal.Exceptions;
 			x = x.substr(0,i);
 		}
 		return try
-			cs.system.Double.Parse(x, (null : cs.system.IFormatProvider))
+			cs.system.Double.Parse(x, cs.system.globalization.CultureInfo.InvariantCulture)
 		catch(e:Dynamic)
 			Math.NaN;
 	}
