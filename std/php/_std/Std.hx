@@ -21,7 +21,7 @@
  */
 @:coreApi class Std {
 
-	public inline static function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped untyped __call__("_hx_instanceof", v,t);
 	}
 
