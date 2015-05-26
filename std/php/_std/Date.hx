@@ -27,15 +27,15 @@
 		__t = untyped __call__("mktime", hour, min, sec, month+1, day, year);
 	}
 
-	public function getTime() : Float {
+	public inline function getTime() : Float {
 		return __t * 1000;
 	}
 
-	private function getPhpTime() : Float {
+	private inline function getPhpTime() : Float {
 		return __t;
 	}
 
-	public function getFullYear() : Int {
+	public inline function getFullYear() : Int {
 		return untyped __call__("intval", __call__("date", "Y", this.__t));
 	}
 
@@ -44,31 +44,31 @@
 		return -1 + m;
 	}
 
-	public function getDate() : Int {
+	public inline function getDate() : Int {
 		return untyped __call__("intval", __call__("date", "j", this.__t));
 	}
 
-	public function getHours() : Int {
+	public inline function getHours() : Int {
 		return untyped __call__("intval", __call__("date", "G", this.__t));
 	}
 
-	public function getMinutes() : Int {
+	public inline function getMinutes() : Int {
 		return untyped __call__("intval", __call__("date", "i", this.__t));
 	}
 
-	public function getSeconds() : Int {
+	public inline function getSeconds() : Int {
 		return untyped __call__("intval", __call__("date", "s", this.__t));
 	}
 
-	public function getDay() : Int {
+	public inline function getDay() : Int {
 		return untyped __call__("intval", __call__("date", "w", this.__t));
 	}
 
-	public function toString():String {
+	public inline function toString():String {
 		return untyped __call__("date", "Y-m-d H:i:s", this.__t);
 	}
 
-	public static function now() : Date {
+	public inline static function now() : Date {
 		return fromPhpTime(untyped __call__("round", __call__("microtime", true), 3));
 	}
 
@@ -84,7 +84,7 @@
 		return d;
 	}
 
-	public static function fromString( s : String ) : Date {
+	public inline static function fromString( s : String ) : Date {
 		return fromPhpTime(untyped __call__("strtotime", s));
 	}
 }
