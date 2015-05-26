@@ -21,15 +21,15 @@
  */
 @:coreApi class Std {
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+	public inline static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped untyped __call__("_hx_instanceof", v,t);
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public inline static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return Std.is(value, c) ? cast value : null;
 	}
 
-	public static function string( s : Dynamic ) : String {
+	public inline static function string( s : Dynamic ) : String {
 		return untyped __call__("_hx_string_rec", s, '');
 	}
 
@@ -59,7 +59,7 @@
 		return v;
 	}
 
-	public static function random( x : Int ) : Int {
+	public inline static function random( x : Int ) : Int {
 		return untyped x <= 0 ? 0 : __call__("mt_rand", 0, x-1);
 	}
 
