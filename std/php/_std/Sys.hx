@@ -21,32 +21,32 @@
  */
 @:coreApi class Sys {
 
-	public static function print( v : Dynamic ) : Void {
+	public inline static function print( v : Dynamic ) : Void {
 		untyped __call__("echo", Std.string(v));
 	}
 
-	public static function println( v : Dynamic ) : Void {
+	public inline static function println( v : Dynamic ) : Void {
 		print(v);
 		print("\n");
 	}
 
-	public static function args() : Array<String> {
+	public inline static function args() : Array<String> {
 		return untyped __call__('array_key_exists', 'argv', __var__('_SERVER')) ? __call__('new _hx_array', __call__('array_slice', __var__('_SERVER', 'argv'), 1)) : [];
 	}
 
-	public static function getEnv( s : String ) : String {
+	public inline static function getEnv( s : String ) : String {
 		return untyped __call__("getenv", s);
 	}
 
-	public static function putEnv( s : String, v : String ) : Void {
+	public inline static function putEnv( s : String, v : String ) : Void {
 		return untyped __call__("putenv", s + "=" + v);
 	}
 
-	public static function sleep( seconds : Float ) : Void {
+	public inline static function sleep( seconds : Float ) : Void {
 		return untyped __call__("usleep", seconds*1000000);
 	}
 
-	public static function setTimeLocale( loc : String ) : Bool {
+	public inline static function setTimeLocale( loc : String ) : Bool {
 		return untyped __call__("setlocale", __php__("LC_TIME"), loc) != false;
 	}
 
@@ -56,7 +56,7 @@
 		return cwd + (l == '/' || l == '\\' ? '' : '/');
 	}
 
-	public static function setCwd( s : String ) : Void {
+	public inline static function setCwd( s : String ) : Void {
 		untyped __call__("chdir", s);
 	}
 
@@ -95,35 +95,35 @@
 		return result;
 	}
 
-	public static function exit( code : Int ) : Void {
+	public inline static function exit( code : Int ) : Void {
 		untyped __call__("exit", code);
 	}
 
-	public static function time() : Float {
+	public inline static function time() : Float {
 		return untyped __call__("microtime", true);
 	}
 
-	public static function cpuTime() : Float {
+	public inline static function cpuTime() : Float {
 		return untyped __call__("microtime", true) - __php__("$_SERVER['REQUEST_TIME']");
 	}
 
-	public static function executablePath() : String {
+	public inline static function executablePath() : String {
 		return untyped __php__("$_SERVER['SCRIPT_FILENAME']");
 	}
 
-	public static function environment() : Map<String,String> {
+	public inline static function environment() : Map<String,String> {
 		return php.Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
 	}
 
-	public static function stdin() : haxe.io.Input {
+	public inline static function stdin() : haxe.io.Input {
 		return untyped new sys.io.FileInput(__call__('fopen', 'php://stdin', "r"));
 	}
 
-	public static function stdout() : haxe.io.Output {
+	public inline static function stdout() : haxe.io.Output {
 		return untyped new sys.io.FileOutput(__call__('fopen', 'php://stdout', "w"));
 	}
 
-	public static function stderr() : haxe.io.Output {
+	public inline static function stderr() : haxe.io.Output {
 		return untyped new sys.io.FileOutput(__call__('fopen', 'php://stderr', "w"));
 	}
 
