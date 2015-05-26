@@ -67,7 +67,7 @@
 		return x;
 	}
 
-	public function isEmpty() : Bool {
+	public inline function isEmpty() : Bool {
 		return (h == null);
 	}
 
@@ -97,7 +97,7 @@
 		return false;
 	}
 
-	public function iterator() : ListIterator<T> {
+	public inline function iterator() : ListIterator<T> {
 		return untyped __call__("new _hx_list_iterator", this);
 	}
 
@@ -154,7 +154,7 @@
 		return b;
 	}
 
-	function getIterator() : Iterator<T> {
+	inline function getIterator() : Iterator<T> {
 		return iterator();
 	}
 }
