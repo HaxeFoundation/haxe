@@ -1097,7 +1097,7 @@ try
 				| _ -> 	if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
 			end;
 			Common.raw_define com var;
-		),"<var> : define a conditional compilation flag");
+		),"<var[=value]> : define a conditional compilation flag");
 		("-v",Arg.Unit (fun () ->
 			com.verbose <- true
 		),": turn on verbose mode");
@@ -1112,7 +1112,7 @@ try
 			| "std" | "full" | "no" -> ()
 			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
 			Common.define_value com Define.Dce mode
-		),"[std|full|no] : set the dead code elimination mode");
+		),"[std|full|no] : set the dead code elimination mode (default std)");
 		("-swf-version",Arg.Float (fun v ->
 			if not !swf_version || com.flash_version < v then com.flash_version <- v;
 			swf_version := true;
