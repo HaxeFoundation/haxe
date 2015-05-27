@@ -41,11 +41,11 @@ class Host {
 		ip = untyped __call__('intval', __call__('sprintf', '%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
 	}
 
-	public inline function toString() : String {
+	public function toString() : String {
 		return _ip;
 	}
 
-	public inline function reverse() : String {
+	public function reverse() : String {
 		return untyped __call__('gethostbyaddr', _ip);
 	}
 
