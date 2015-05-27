@@ -25,7 +25,7 @@ package haxe.ds;
 @:coreApi
 class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	static inline function getId(key: { } ):String {
-		return untyped __php__("spl_object_hash({0})", key);
+		return untyped __call__("spl_object_hash", key);
 	}
 
 	@:analyzer(no_simplification)
