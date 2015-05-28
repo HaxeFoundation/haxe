@@ -49,7 +49,7 @@ class Host {
 		return untyped __call__('gethostbyaddr', _ip);
 	}
 
-	public static function localhost() : String {
+	public inline static function localhost() : String {
 		return untyped __var__('_SERVER', 'HTTP_HOST');
 	}
 }

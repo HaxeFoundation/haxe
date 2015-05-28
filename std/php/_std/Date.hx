@@ -84,7 +84,7 @@
 		return d;
 	}
 
-	public static function fromString( s : String ) : Date {
+	public inline static function fromString( s : String ) : Date {
 		return fromPhpTime(untyped __call__("strtotime", s));
 	}
 }

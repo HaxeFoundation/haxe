@@ -59,7 +59,7 @@
 		return v;
 	}
 
-	public static function random( x : Int ) : Int {
+	public inline static function random( x : Int ) : Int {
 		return untyped x <= 0 ? 0 : __call__("mt_rand", 0, x-1);
 	}
 

@@ -26,13 +26,13 @@
 	public static var POSITIVE_INFINITY(default,null) : Float;
 	public static var NEGATIVE_INFINITY(default,null) : Float;
 
-	public static function abs(v : Float) : Float      { return untyped __call__("abs", v); }
-	public static function min(a : Float,b : Float) : Float    { return untyped !isNaN(a) ? __call__("min", a, b) : NaN; }
-	public static function max(a : Float,b : Float) : Float    { return untyped !isNaN(b) ? __call__("max", a, b) : NaN; }
-	public static function sin(v : Float) : Float      { return untyped __call__("sin", v); }
-	public static function cos(v : Float) : Float      { return untyped __call__("cos", v); }
-	public static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
-	public static function tan(v : Float) : Float      { return untyped __call__("tan", v); }
+	public inline static function abs(v : Float) : Float      { return untyped __call__("abs", v); }
+	public inline static function min(a : Float,b : Float) : Float    { return untyped !isNaN(a) ? __call__("min", a, b) : NaN; }
+	public inline static function max(a : Float,b : Float) : Float    { return untyped !isNaN(b) ? __call__("max", a, b) : NaN; }
+	public inline static function sin(v : Float) : Float      { return untyped __call__("sin", v); }
+	public inline static function cos(v : Float) : Float      { return untyped __call__("cos", v); }
+	public inline static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
+	public inline static function tan(v : Float) : Float      { return untyped __call__("tan", v); }
 	public static function exp(v : Float) : Float      {
 		if(isNaN(v))
 			return NaN;
@@ -43,22 +43,22 @@
 		else
 			return 0.0;
 	}
-	public static function log(v : Float) : Float      { return untyped __call__("log", v); }
-	public static function sqrt(v : Float) : Float     { return untyped __call__("sqrt", v); }
-	public static function round(v : Float) : Int      { return untyped __call__("(int) floor", v + 0.5); }
-	public static function floor(v : Float) : Int      { return untyped __call__("(int) floor", v); }
-	public static function ceil(v : Float) : Int       { return untyped __call__("(int) ceil", v); }
-	public static function atan(v : Float) : Float     { return untyped __call__("atan", v); }
-	public static function asin(v : Float) : Float     { return untyped __call__("asin", v); }
-	public static function acos(v : Float) : Float     { return untyped __call__("acos", v); }
-	public static function pow(v : Float,exp : Float) : Float    { return untyped __call__("pow", v, exp); }
-	public static function random() : Float    { return untyped __call__("mt_rand") / __call__("mt_getrandmax"); }
-	public static function isNaN(f : Float) : Bool     { return untyped __call__("is_nan", f); }
-	public static function isFinite(f : Float) : Bool  { return untyped __call__("is_finite", f); }
+	public inline static function log(v : Float) : Float      { return untyped __call__("log", v); }
+	public inline static function sqrt(v : Float) : Float     { return untyped __call__("sqrt", v); }
+	public inline static function round(v : Float) : Int      { return untyped __call__("(int) floor", v + 0.5); }
+	public inline static function floor(v : Float) : Int      { return untyped __call__("(int) floor", v); }
+	public inline static function ceil(v : Float) : Int       { return untyped __call__("(int) ceil", v); }
+	public inline static function atan(v : Float) : Float     { return untyped __call__("atan", v); }
+	public inline static function asin(v : Float) : Float     { return untyped __call__("asin", v); }
+	public inline static function acos(v : Float) : Float     { return untyped __call__("acos", v); }
+	public inline static function pow(v : Float,exp : Float) : Float    { return untyped __call__("pow", v, exp); }
+	public inline static function random() : Float    { return untyped __call__("mt_rand") / __call__("mt_getrandmax"); }
+	public inline static function isNaN(f : Float) : Bool     { return untyped __call__("is_nan", f); }
+	public inline static function isFinite(f : Float) : Bool  { return untyped __call__("is_finite", f); }
 
-	public static function fround(v : Float) : Float      { return untyped __call__("floor", v + 0.5); }
-	public static function ffloor(v : Float) : Float      { return untyped __call__("floor", v); }
-	public static function fceil(v : Float) : Float       { return untyped __call__("ceil", v); }
+	public inline static function fround(v : Float) : Float      { return untyped __call__("floor", v + 0.5); }
+	public inline static function ffloor(v : Float) : Float      { return untyped __call__("floor", v); }
+	public inline static function fceil(v : Float) : Float       { return untyped __call__("ceil", v); }
 
 	static function __init__() : Void {
 	 	PI = untyped __php__("M_PI");

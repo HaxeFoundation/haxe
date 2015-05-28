@@ -29,7 +29,7 @@ package haxe.ds;
 		h = untyped __call__('array');
 	}
 
-	public function set( key : String, value : T ) : Void {
+	public inline function set( key : String, value : T ) : Void {
 		untyped h[key] = value;
 	}
 
@@ -40,7 +40,7 @@ package haxe.ds;
 			return null;
 	}
 
-	public function exists( key : String ) : Bool {
+	public inline function exists( key : String ) : Bool {
 		return untyped __call__("array_key_exists", key, h);
 	}
 
@@ -52,11 +52,11 @@ package haxe.ds;
 			return false;
 	}
 
-	public function keys() : Iterator<String> {
+	public inline function keys() : Iterator<String> {
 		return untyped __call__("new _hx_array_iterator", __call__("array_map", "strval", __call__("array_keys", h)));
 	}
 
-	public function iterator() : Iterator<T> {
+	public inline function iterator() : Iterator<T> {
 		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
 	}
 
@@ -77,7 +77,7 @@ package haxe.ds;
 		Implement IteratorAggregate for native php iteration
 	**/
 	#if php
-	function getIterator() : Iterator<T> {
+	inline function getIterator() : Iterator<T> {
 		return iterator();
 	}
 	#end
