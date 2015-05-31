@@ -153,9 +153,9 @@ class Boot {
 					if (first) then 
 						first = false
 					else 
-						result = result .. ','
+						result = result .. ', '
 					end
-					result = result .. i .. ' => ' .. lua.Boot.__string_rec(v, s .. 'o');
+					result = result .. i .. ': ' .. lua.Boot.__string_rec(v, s .. 'o');
 				end
 			end
 			result = result .. ' }';
