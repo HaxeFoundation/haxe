@@ -25,7 +25,9 @@
 
 # Announcing the release
 
-- Update Github README page.
+- Update Github README page:
+  - Installing Haxe: update "Latest stable version"
+  - Version compatibility: add/update the Haxe/Neko version
 - Regenerate and upload API documentation (check --title and -D version values).
 - Update http://haxe.org/file/CHANGES.txt
 - Post announcement post to haxelang.
