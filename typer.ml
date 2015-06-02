@@ -1056,6 +1056,9 @@ let rec acc_get ctx g p =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
+						| Statics {cl_extern = false} when Meta.has Meta.Extern f.cf_meta ->
+							display_error ctx "Cannot create closure on @:extern inline method" p;
+							e_def
 						| Statics c when chk_class c -> wrap_extern c
 						| _ -> e_def
 					end
