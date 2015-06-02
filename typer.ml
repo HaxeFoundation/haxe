@@ -3864,6 +3864,15 @@ and handle_display ctx e_ast iscall with_type p =
 		in
 		let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
 		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
+		let fields = match fst e_ast with
+			| EConst(String s) when String.length s = 1 ->
+				let cf = mk_field "code" ctx.t.tint e.epos in
+				cf.cf_doc <- Some "The character code of this String literal";
+				cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
+				PMap.add cf.cf_name cf fields
+			| _ ->
+				fields
+		in
 		let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
 		let t = if iscall then
 			let rec loop t = match follow t with
