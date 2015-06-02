@@ -2340,7 +2340,7 @@ let init_class ctx c p context_init herits fields =
 							) "@:to" in
 							delay ctx PForce (fun() -> ignore ((!r)()));
 							a.a_to_field <- (TLazy r, cf) :: a.a_to_field
-						| (Meta.ArrayAccess,_,_) :: _ ->
+						| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro array-access functions are not supported") p;
 							a.a_array <- cf :: a.a_array;
 							if Meta.has Meta.CoreType a.a_meta then check_bind();
