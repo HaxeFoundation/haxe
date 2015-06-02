@@ -1630,9 +1630,10 @@ and type_field ?(resume=false) ctx e i p mode =
 			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 			| _ -> raise Not_found)
 		with Not_found -> try
-			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
-			let cf = PMap.find "resolve" c.cl_statics in
-			if not (Meta.has Meta.Resolve cf.cf_meta) then raise Not_found;
+			let c,cf = match a.a_impl,a.a_resolve with
+				| Some c,Some cf -> c,cf
+				| _ -> raise Not_found
+			in
 			let et = type_module_type ctx (TClassDecl c) None p in
 			let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
 			let ef = mk (TField (et,FStatic (c,cf))) t p in

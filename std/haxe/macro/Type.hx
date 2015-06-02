@@ -505,6 +505,12 @@ typedef AbstractType = {>BaseType,
 		The defined array-access fields of the abstract.
 	**/
 	var array : Array<ClassField>;
+
+	/**
+		The method used for resolving unknown field access, if available.
+	**/
+	@:require(haxe_ver >= 3.3)
+	var resolve : Null<ClassField>;
 }
 
 /**

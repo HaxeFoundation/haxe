@@ -131,6 +131,7 @@ let make_module ctx mpath file tdecls loadp =
 				a_impl = None;
 				a_array = [];
 				a_this = mk_mono();
+				a_resolve = None;
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with
@@ -2375,6 +2376,7 @@ let init_class ctx c p context_init herits fields =
 							end;
 							loop ml
 						| (Meta.Resolve,_,_) :: _ ->
+							if a.a_resolve <> None then error "Multiple resolve methods are not supported" cf.cf_pos;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							begin match follow t with
 								| TFun([(_,_,t1);(_,_,t2)],_) ->
@@ -2384,7 +2386,8 @@ let init_class ctx c p context_init herits fields =
 									end
 								| _ ->
 									error ("Field type of resolve must be " ^ (s_type (print_context()) targ) ^ " -> String -> T") f.cff_pos
-							end
+							end;
+							a.a_resolve <- Some cf;
 						| _ :: ml ->
 							loop ml
 						| [] ->

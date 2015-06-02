@@ -9,7 +9,7 @@ private abstract A(Map<String, String>) from Map<String, String> {
 
 private abstract B(Map<String, String>) from Map<String, String> {
 	@:resolve
-	static function resolve(lhs:B, name:String) {
+	static function resolve2(lhs:B, name:String) {
 		return lhs.get()[name];
 	}
 
