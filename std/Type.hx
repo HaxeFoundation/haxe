@@ -284,7 +284,7 @@ extern class Type {
 		Returns a list of all constructors of enum `e` that require no
 		arguments.
 
-		This may return the empty Array [] if all constructors of `e` require
+		This may return the empty Array `[]` if all constructors of `e` require
 		arguments.
 
 		Otherwise an instance of `e` constructed through each of its non-

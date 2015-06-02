@@ -173,7 +173,7 @@ extern class Array<T> {
 
 		The result will include the individual elements' String representations
 		separated by comma. The enclosing [ ] may be missing on some platforms,
-		use Std.string() to get a String representation that is consistent
+		use `Std.string()` to get a String representation that is consistent
 		across platforms.
 	**/
 	function toString() : String;

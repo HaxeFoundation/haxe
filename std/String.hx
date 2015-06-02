@@ -22,10 +22,10 @@
 /**
 	The basic String class.
 
-	A haxe String is immutable, it is not possible to modify individual
+	A Haxe String is immutable, it is not possible to modify individual
 	characters. No method of this class changes the state of `this` String.
 
-	Strings can be constructed using the string literal syntax "string value".
+	Strings can be constructed using the String literal syntax "string value".
 
 	String can be concatenated by using the + operator. If an operand is not a
 	String, it is passed through Std.string() first.
@@ -59,7 +59,7 @@ extern class String {
 	/**
 		Returns the character at position `index` of `this` String.
 
-		If `index` is negative or exceeds `this.length`, the empty String ""
+		If `index` is negative or exceeds `this.length`, the empty String `""`
 		is returned.
 	**/
 	function charAt(index : Int) : String;
@@ -67,11 +67,11 @@ extern class String {
 	/**
 		Returns the character code at position `index` of `this` String.
 
-		If `index` is negative or exceeds `this.length`, null is returned.
+		If `index` is negative or exceeds `this.length`, `null` is returned.
 
-		To obtain the character code of a single character, "x".code can be used
-		instead to inline the character code at compile time. Note that this
-		only works on String literals of length 1.
+		To obtain the character code of a single character, `"x".code` can be
+		used instead to inline the character code at compile time. Note that
+		this only works on String literals of length 1.
 	**/
 	function charCodeAt( index : Int) : Null<Int>;
 
@@ -104,7 +104,7 @@ extern class String {
 	/**
 		Splits `this` String at each occurence of `delimiter`.
 
-		If `this` String is the empty String "", the result is not consistent
+		If `this` String is the empty String `""`, the result is not consistent
 		across targets and may either be `[]` (on Js, Cpp) or `[""]`.
 
 		If `delimiter` is the empty String "", `this` String is split into an

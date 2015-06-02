@@ -529,7 +529,7 @@ typedef MetaAccess = {
 	/**
 		Extract metadata entries by given `name`.
 
-		If there's no metadata with such name, empty array is returned.
+		If there's no metadata with such name, empty array `[]` is returned.
 
 		If `name` is null, compilation fails with an error.
 	**/

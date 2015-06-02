@@ -148,8 +148,8 @@ extern class Reflect {
 
 		- class instance
 		- structure
-		- Class<T>
-		- Enum<T>
+		- `Class<T>`
+		- `Enum<T>`
 
 		Otherwise, including if `v` is null, the result is false.
 	**/

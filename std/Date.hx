@@ -29,9 +29,9 @@
 	- `Date.fromTime()` with a given timestamp or
 	- `Date.fromString()` by parsing from a String.
 
-	There is some extra functions available in the `DateTools` class.
+	There are some extra functions available in the `DateTools` class.
 
-	In the context of haxe dates, a timestamp is defined as the number of
+	In the context of Haxe dates, a timestamp is defined as the number of
 	milliseconds elapsed since 1st January 1970.
 **/
 extern class Date
