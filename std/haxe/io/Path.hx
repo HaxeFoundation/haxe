@@ -140,7 +140,7 @@ class Path {
 	/**
 		Returns the directory of `path`.
 
-		If the directory is null, the empty String "" is returned.
+		If the directory is null, the empty String `""` is returned.
 
 		If `path` is null, the result is unspecified.
 	**/
@@ -154,7 +154,7 @@ class Path {
 	/**
 		Returns the extension of `path`.
 
-		If the extension is null, the empty String "" is returned.
+		If the extension is null, the empty String `""` is returned.
 
 		If `path` is null, the result is unspecified.
 	**/
@@ -258,7 +258,7 @@ class Path {
 
 		If the last slash in `path` is a slash, or if no slash is found, a slash
 		is appended to `path`. In particular, this applies to the empty String
-		"".
+		`""`.
 
 		If `path` is null, the result is unspecified.
 	**/

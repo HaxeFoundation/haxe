@@ -22,7 +22,7 @@
 
 /**
 	The `Lambda` class is a collection of methods to support functional
-	programming. It is ideally used with 'using Lambda' and then acts as an
+	programming. It is ideally used with `using Lambda` and then acts as an
 	extension to Iterable types.
 
 	On static platforms, working with the Iterable structure might be slower

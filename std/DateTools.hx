@@ -24,7 +24,7 @@
 	The DateTools class contains some extra functionalities for handling `Date`
 	instances and timestamps.
 
-	In the context of haxe dates, a timestamp is defined as the number of
+	In the context of Haxe dates, a timestamp is defined as the number of
 	milliseconds elapsed since 1st January 1970.
 **/
 class DateTools {

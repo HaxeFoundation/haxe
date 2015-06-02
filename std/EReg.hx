@@ -28,7 +28,7 @@
 	off to retain a certain level of performance.
 
 	EReg instances can be created by calling the constructor, or with the
-	special syntax ~/pattern/modifier
+	special syntax `~/pattern/modifier`
 
 	EReg instances maintain an internal state, which is affected by several of
 	its methods.
@@ -145,7 +145,7 @@ class EReg {
 		empty String "" entry.
 
 		If two matching substrings appear next to each other, the result
-		contains the empty String "" between them.
+		contains the empty String `""` between them.
 
 		By default, this method splits `s` into two parts at the first matched
 		substring. If the global g modifier is in place, `s` is split at each
