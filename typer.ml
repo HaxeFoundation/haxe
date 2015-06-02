@@ -3351,7 +3351,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| _ ->
 				error "Constructor is not a function" p
 		in
-		let t = try
+		let t = if t.tparams <> [] then
+			follow (Typeload.load_instance ctx t p false)
+		else try
 			ctx.call_argument_stack <- el :: ctx.call_argument_stack;
 			let t = follow (Typeload.load_instance ctx t p true) in
 			ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
