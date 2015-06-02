@@ -2375,7 +2375,7 @@ let init_class ctx c p context_init herits fields =
 									display_error ctx ("First argument of implementation function must be " ^ (s_type (print_context()) tthis)) f.cff_pos
 							end;
 							loop ml
-						| (Meta.Resolve,_,_) :: _ ->
+						| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
 							if a.a_resolve <> None then error "Multiple resolve methods are not supported" cf.cf_pos;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							begin match follow t with
