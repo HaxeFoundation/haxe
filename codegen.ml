@@ -770,8 +770,6 @@ module AbstractCast = struct
 		let ta = apply_params a.a_params pl a.a_this in
 		let rec loop cfl = match cfl with
 			| [] -> raise Not_found
-			| cf :: cfl when not (Ast.Meta.has Ast.Meta.ArrayAccess cf.cf_meta) ->
-				loop cfl
 			| cf :: cfl ->
 				let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 				let map t = apply_params a.a_params pl (apply_params cf.cf_params monos t) in
