@@ -70,13 +70,13 @@ abstract UInt to Int from Int
 	@:op(A<=B) private static function lte(lhs:UInt, rhs:UInt):Bool;
 
 	@:op(A>B) private static function gtf(lhs:UInt, rhs:Float):Bool;
-	@:op(A>B) private static function gtf(lhs:Float, rhs:UInt):Bool;
+	@:op(A>B) private static function gtf2(lhs:Float, rhs:UInt):Bool;
 	@:op(A>=B) private static function gtef(lhs:UInt, rhs:Float):Bool;
-	@:op(A>=B) private static function gtef(lhs:Float, rhs:UInt):Bool;
+	@:op(A>=B) private static function gtef2(lhs:Float, rhs:UInt):Bool;
 	@:op(A<B) private static function ltf(lhs:UInt, rhs:Float):Bool;
-	@:op(A<B) private static function ltf(lhs:Float, rhs:UInt):Bool;
+	@:op(A<B) private static function ltf2(lhs:Float, rhs:UInt):Bool;
 	@:op(A<=B) private static function ltef(lhs:UInt, rhs:Float):Bool;
-	@:op(A<=B) private static function ltef(lhs:Float, rhs:UInt):Bool;
+	@:op(A<=B) private static function ltef2(lhs:Float, rhs:UInt):Bool;
 
 	@:op(~A) private static function bneg(t:UInt):UInt;
 
