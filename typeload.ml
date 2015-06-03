@@ -2287,18 +2287,7 @@ let init_class ctx c p context_init herits fields =
 					let m = mk_mono() in
 					let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) in
 					let tthis = if Meta.has Meta.Impl f.cff_meta || Meta.has Meta.To f.cff_meta then monomorphs a.a_params a.a_this else a.a_this in
-					let check_bind () =
-						if fd.f_expr = None then begin
-							if inline then error (f.cff_name ^ ": Inline functions must have an expression") f.cff_pos;
-							begin match fd.f_type with
-								| None -> error (f.cff_name ^ ": Functions without expressions must have an explicit return type") f.cff_pos
-								| Some _ -> ()
-							end;
-							cf.cf_meta <- (Meta.NoExpr,[],cf.cf_pos) :: cf.cf_meta;
-							do_add := false;
-							do_bind := false;
-						end
-					in
+					let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
 					let rec loop ml = match ml with
 						| (Meta.From,_,_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro cast functions are not supported") p;
@@ -2344,7 +2333,6 @@ let init_class ctx c p context_init herits fields =
 						| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro array-access functions are not supported") p;
 							a.a_array <- cf :: a.a_array;
-							if Meta.has Meta.CoreType a.a_meta then check_bind();
 						| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro operator functions are not supported") p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
@@ -2360,13 +2348,13 @@ let init_class ctx c p context_init herits fields =
 							if not (left_eq || right_eq) then error (f.cff_name ^ ": The left or right argument type must be " ^ (s_type (print_context()) targ)) f.cff_pos;
 							if right_eq && Meta.has Meta.Commutative f.cff_meta then error (f.cff_name ^ ": @:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) f.cff_pos;
 							a.a_ops <- (op,cf) :: a.a_ops;
-							check_bind();
+							allows_no_expr := true;
 						| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
 							if is_macro then error (f.cff_name ^ ": Macro operator functions are not supported") p;
 							let targ = if Meta.has Meta.Impl f.cff_meta then tthis else ta in
 							(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),f.cff_pos)));
 							a.a_unops <- (op,flag,cf) :: a.a_unops;
-							check_bind();
+							allows_no_expr := true;
 						| (Meta.Impl,_,_) :: ml when f.cff_name <> "_new" && not is_macro ->
 							begin match follow t with
 								| TFun((_,_,t1) :: _, _) when type_iseq tthis t1 ->
@@ -2394,6 +2382,19 @@ let init_class ctx c p context_init herits fields =
 							()
 					in
 					loop f.cff_meta;
+					let check_bind () =
+						if fd.f_expr = None then begin
+							if inline then error (f.cff_name ^ ": Inline functions must have an expression") f.cff_pos;
+							begin match fd.f_type with
+								| None -> error (f.cff_name ^ ": Functions without expressions must have an explicit return type") f.cff_pos
+								| Some _ -> ()
+							end;
+							cf.cf_meta <- (Meta.NoExpr,[],cf.cf_pos) :: cf.cf_meta;
+							do_bind := false;
+							if not (Meta.has Meta.CoreType a.a_meta) then do_add := false;
+						end
+					in
+					if !allows_no_expr then check_bind();
 					if f.cff_name = "_new" && Meta.has Meta.MultiType a.a_meta then do_bind := false;
 				| _ ->
 					());
