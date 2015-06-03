@@ -292,6 +292,24 @@ let generic_substitute_expr gctx e =
 			let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c) gctx.p in
 			let t = f (List.map (generic_substitute_type gctx) tl) in
 			build_expr {e with eexpr = TField(e1,quick_field t cf.cf_name)}
+		| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter _;} as c)) when Meta.has Meta.Const c.cl_meta ->
+			let rec loop subst = match subst with
+				| (t1,t2) :: subst ->
+					begin match follow t1 with
+						| TInst(c2,_) when c == c2 -> t2
+						| _ -> loop subst
+					end
+				| [] -> raise Not_found
+			in
+			begin try
+				let t = loop gctx.subst in
+				begin match follow t with
+					| TInst({cl_kind = KExpr e},_) -> type_expr gctx.ctx e Value
+					| _ -> error "Only Const type parameters can be used as value" e.epos
+				end
+			with Not_found ->
+				e
+			end
 		| _ ->
 			map_expr_type build_expr (generic_substitute_type gctx) build_var e
 	in

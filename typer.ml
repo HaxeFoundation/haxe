@@ -2493,11 +2493,20 @@ and type_ident ctx i p mode =
 				let t = mk_mono() in
 				AKExpr (mk (TLocal (add_local ctx i t)) t p)
 			end else begin
-				if List.exists (fun (i2,_) -> i2 = i) ctx.type_params then
-					display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p
-				else
+				let e = try
+					let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
+					let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
+					if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then
+						AKExpr (type_module_type ctx (TClassDecl c) None p)
+					else begin
+						display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p;
+						AKExpr (mk (TConst TNull) t_dynamic p)
+					end
+				with Not_found ->
 					display_error ctx (error_msg err) p;
-				AKExpr (mk (TConst TNull) t_dynamic p)
+					AKExpr (mk (TConst TNull) t_dynamic p)
+				in
+				e
 			end
 		end
 
