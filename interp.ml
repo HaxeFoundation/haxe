@@ -2212,7 +2212,7 @@ let macro_lib =
 		);
 		"on_generate", Fun1 (fun f ->
 			match f with
-			| VFunction (Fun1 _) ->
+			| VFunction (Fun1 _) | VClosure _ ->
 				let ctx = get_ctx() in
 				ctx.curapi.on_generate (fun tl ->
 					ignore(catch_errors ctx (fun() -> ctx.do_call VNull f [enc_array (List.map encode_type tl)] null_pos));
