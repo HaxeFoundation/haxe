@@ -413,13 +413,23 @@ let rec load_instance ctx t p allow_no_params =
 			) t.tparams in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
-					let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
-					if isconst <> (name = "Const") && t != t_dynamic && name <> "Rest" then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
+					let check_const c =
+						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
+						let expects_expression = name = "Const" || Meta.has (Meta.Custom ":const") c.cl_meta in
+						let accepts_expression = name = "Rest" in
+						if is_expression then begin
+							if not expects_expression && not accepts_expression then
+								error "Constant value unexpected here" p
+						end else if expects_expression then
+							error "Constant value excepted as type parameter" p
+					in
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
-						| TInst ({ cl_kind = KTypeParameter [] }, []) when not is_generic ->
+						| TInst ({ cl_kind = KTypeParameter [] } as c, []) when not is_generic ->
+							check_const c;
 							t
 						| TInst (c,[]) ->
+							check_const c;
 							let r = exc_protect ctx (fun r ->
 								r := (fun() -> t);
 								delay ctx PCheckConstraint (fun() -> check_param_constraints ctx types t tparams c p);

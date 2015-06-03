@@ -1,6 +1,6 @@
 package unit.issues;
 
-private typedef Asset<Const> = String;
+private typedef Asset<@:const T> = String;
 
 class Issue2958 extends Test {
     function test() {
