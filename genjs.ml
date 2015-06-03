@@ -129,9 +129,9 @@ let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
-let static_field s =
+let static_field c s =
 	match s with
-	| "length" | "name" -> ".$" ^ s
+	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> ".$" ^ s
 	| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
@@ -522,7 +522,7 @@ and gen_expr ctx e =
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
-		spr ctx (match f with FStatic _ -> static_field name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+		spr ctx (match f with FStatic(c,_) -> static_field c name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -945,13 +945,13 @@ let gen_class_static_field ctx c f =
 	| None when is_extern_field f ->
 		()
 	| None ->
-		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field f.cf_name);
+		print ctx "%s%s = null" (s_path ctx c.cl_path) (static_field c f.cf_name);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
-			let dot_path = (dot_path c.cl_path) ^ (static_field f.cf_name) in
+			let path = (s_path ctx c.cl_path) ^ (static_field c f.cf_name) in
+			let dot_path = (dot_path c.cl_path) ^ (static_field c f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> print ctx "$hx_exports.%s = " s | _ -> ());
@@ -1140,7 +1140,7 @@ let generate_enum ctx e =
 	flush ctx
 
 let generate_static ctx (c,f,e) =
-	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
+	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field c f);
 	gen_value ctx e;
 	newline ctx
 
@@ -1255,7 +1255,7 @@ let generate com =
 				let path = dot_path c.cl_path in
 				let class_exposed = get_exposed ctx path c.cl_meta in
 				let static_exposed = List.map (fun f ->
-					get_exposed ctx (path ^ static_field f.cf_name) f.cf_meta
+					get_exposed ctx (path ^ static_field c f.cf_name) f.cf_meta
 				) c.cl_ordered_statics in
 				List.concat (class_exposed :: static_exposed)
 			| _ -> []
