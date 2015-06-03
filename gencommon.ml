@@ -1574,10 +1574,10 @@ struct
 		basically, everything that is extern is assumed to not be hxgen, unless meta :hxgen is set, and
 		everything that is not extern is assumed to be hxgen, unless meta :nativegen is set
 	*)
-	let rec default_hxgen_func md =
+	let rec default_hxgen_func gen md =
 		match md with
 			| TClassDecl { cl_kind = KAbstractImpl a } ->
-				default_hxgen_func (TAbstractDecl a)
+				default_hxgen_func gen (TAbstractDecl a)
 			| TClassDecl cl ->
 				let rec is_hxgen_class (c,_) =
 					if c.cl_extern then begin
@@ -1601,11 +1601,21 @@ struct
 				in
 
 				is_hxgen_class (cl,[])
-			| TEnumDecl e -> if e.e_extern then Meta.has Meta.HxGen e.e_meta else not (Meta.has Meta.NativeGen e.e_meta)
+			| TEnumDecl e -> if e.e_extern then Meta.has Meta.HxGen e.e_meta else
+				if Meta.has Meta.NativeGen e.e_meta then
+					if Meta.has Meta.FlatEnum e.e_meta then
+						false
+					else begin
+						gen.gcon.error "Only flat enums may be @:nativeGen" e.e_pos;
+						true
+					end
+				else
+					true
+				(* not (Meta.has Meta.NativeGen e.e_meta) *)
 			| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta -> not (Meta.has Meta.NativeGen a.a_meta)
 			| TAbstractDecl a -> (match follow a.a_this with
 				| TInst _ | TEnum _ | TAbstract _ ->
-					default_hxgen_func (t_to_md (follow a.a_this))
+					default_hxgen_func gen (t_to_md (follow a.a_this))
 				| _ ->
 					not (Meta.has Meta.NativeGen a.a_meta))
 			| TTypeDecl t -> (* TODO see when would we use this *)
@@ -1617,7 +1627,7 @@ struct
 	*)
 	let run_filter gen is_hxgen_func =
 		let filter md =
-			let meta = if is_hxgen_func md then Meta.HxGen else Meta.NativeGen in
+			let meta = if is_hxgen_func gen md then Meta.HxGen else Meta.NativeGen in
 			begin
 				match md with
 					| TClassDecl cl -> cl.cl_meta <- (meta, [], cl.cl_pos) :: cl.cl_meta
