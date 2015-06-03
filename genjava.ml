@@ -2711,6 +2711,7 @@ let convert_param ctx p parent param =
 			tp_name = name;
 			tp_params = [];
 			tp_constraints = List.map (convert_signature ctx p) constraints;
+			tp_meta = [];
 		}
 
 let get_type_path ctx ct = match ct with | CTPath p -> p | _ -> assert false
@@ -2831,12 +2832,14 @@ let convert_java_enum ctx p pe =
 								tp_name = name;
 								tp_params = [];
 								tp_constraints = List.map (convert_signature ctx p) (ext :: impl);
+								tp_meta = [];
 							}
 						| (name, None, impl) ->
 							{
 								tp_name = name;
 								tp_params = [];
 								tp_constraints = List.map (convert_signature ctx p) (impl);
+								tp_meta = [];
 							}
 					) field.jf_types in
 					ctx.jtparams <- old_types;

@@ -73,11 +73,11 @@ enum Constant {
 
 	/*
 		Represents a regular expression literal.
-		
-		Example: `~/haxe/i`  
+
+		Example: `~/haxe/i`
 		 * The first argument _haxe_ is a string with regular expression pattern.
 		 * The second argument _i_ is a string with regular expression flags.
-		 
+
 		@see http://haxe.org/manual/std-regex.html
 	**/
 	CRegexp( r : String, opt : String );
@@ -262,7 +262,7 @@ typedef Expr = {
 }
 
 /**
-	Represents a AST node identical to `Expr`, but it allows constraining the 
+	Represents a AST node identical to `Expr`, but it allows constraining the
 	type of accepted expressions.
 	@see http://haxe.org/manual/macro-ExprOf.html
 **/
@@ -279,7 +279,7 @@ typedef Case = {
 	var values : Array<Expr>;
 
 	/**
-		The optional guard expressions of the case, if available. 
+		The optional guard expressions of the case, if available.
 	**/
 	@:optional var guard : Null<Expr>;
 
@@ -382,7 +382,7 @@ enum ExprDef {
 
 	/**
 		An unary operator `op` on `e`:
-		
+
 		* e++ (op = OpIncrement, postFix = true)
 		* e-- (op = OpDecrement, postFix = true)
 		* ++e (op = OpIncrement, postFix = false)
@@ -542,7 +542,7 @@ enum ComplexType {
 **/
 typedef TypePath = {
 	/**
-		Represents the package of the type path. 
+		Represents the package of the type path.
 	**/
 	var pack : Array<String>;
 
@@ -557,7 +557,7 @@ typedef TypePath = {
 	@:optional var params : Array<TypeParam>;
 
 	/**
-		Sub is set on module sub-type access:  
+		Sub is set on module sub-type access:
 		`pack.Module.Type` has name = Module, sub = Type, if available.
 	**/
 	@:optional var sub : Null<String>;
@@ -565,19 +565,19 @@ typedef TypePath = {
 
 /**
 	Represents a concrete type parameters in the AST.
-	
-	Haxe allows expressions in concrete type parameters, e.g. 
-	`new YourType<["hello", "world"]>`. In that case the value is `TPExpr` while 
+
+	Haxe allows expressions in concrete type parameters, e.g.
+	`new YourType<["hello", "world"]>`. In that case the value is `TPExpr` while
 	in the normal case it's `TPType`.
 **/
 enum TypeParam {
 	/**
-		
+
 	**/
 	TPType( t : ComplexType );
 
 	/**
-		
+
 	**/
 	TPExpr( e : Expr );
 }
@@ -600,6 +600,11 @@ typedef TypeParamDecl = {
 		The optional parameters of the type parameter.
 	**/
 	@:optional var params : Array<TypeParamDecl>;
+
+	/**
+		The metadata of the type parameter.
+	**/
+	@:optional var meta : Metadata;
 }
 
 /**
@@ -687,7 +692,7 @@ typedef Field = {
 	var name : String;
 
 	/**
-		The documentation of the field, if available. If the field has no 
+		The documentation of the field, if available. If the field has no
 		documentation, the value is `null`.
 	**/
 	@:optional var doc : Null<String>;
@@ -727,14 +732,14 @@ enum Access {
 	APublic;
 
 	/**
-		Private access modifier, grants access to class and its sub-classes 
+		Private access modifier, grants access to class and its sub-classes
 		only.
 		@see http://haxe.org/manual/class-field-visibility.html
 	**/
 	APrivate;
 
 	/**
-		Static access modifier. 
+		Static access modifier.
 	**/
 	AStatic;
 
@@ -745,20 +750,20 @@ enum Access {
 	AOverride;
 
 	/**
-		Dynamic (re-)bindable access modifier. 
+		Dynamic (re-)bindable access modifier.
 		@see http://haxe.org/manual/class-field-dynamic.html
 	**/
 	ADynamic;
 
 	/**
-		Inline access modifier. Allows expressions to be directly inserted in 
+		Inline access modifier. Allows expressions to be directly inserted in
 		place of calls to them.
 		@see http://haxe.org/manual/class-field-inline.html
 	**/
 	AInline;
 
 	/**
-		Macros access modifier. Allows expression macro functions. These are 
+		Macros access modifier. Allows expression macro functions. These are
 		normal functions which are executed as soon as they are typed.
 	**/
 	AMacro;

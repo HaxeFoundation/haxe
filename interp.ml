@@ -3883,6 +3883,7 @@ and encode_tparam_decl tp =
 		"name", enc_string tp.tp_name;
 		"params", enc_array (List.map encode_tparam_decl tp.tp_params);
 		"constraints", enc_array (List.map encode_ctype tp.tp_constraints);
+		"meta", encode_meta_content tp.tp_meta;
 	]
 
 and encode_fun f =
@@ -4119,6 +4120,7 @@ and decode_tparam_decl v =
 		tp_name = dec_string (field v "name");
 		tp_constraints = (match field v "constraints" with VNull -> [] | a -> List.map decode_ctype (dec_array a));
 		tp_params = decode_tparams (field v "params");
+		tp_meta = decode_meta_content (field v "meta");
 	}
 
 and decode_fun v =

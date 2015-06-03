@@ -3738,6 +3738,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 				tp_name = "M" ^ string_of_int t.tnumber;
 				tp_params = [];
 				tp_constraints = [];
+				tp_meta = [];
 			}
 		) m.mtypes in
 		FFun {
@@ -3906,6 +3907,7 @@ let convert_delegate ctx p ilcls =
 			tp_name = "T" ^ string_of_int t.tnumber;
 			tp_params = [];
 			tp_constraints = [];
+			tp_meta = [];
 		}
 	) ilcls.ctypes in
 	let mk_op_fn op name p =
@@ -4087,6 +4089,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 					tp_name = "T" ^ string_of_int p.tnumber;
 					tp_params = [];
 					tp_constraints = [];
+					tp_meta = [];
 				}) ilcls.ctypes
 			in
 

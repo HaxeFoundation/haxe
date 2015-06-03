@@ -1427,6 +1427,7 @@ let rec type_type_params ?(enum_constructor=false) ctx path get_params p tp =
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) p in
 	c.cl_params <- List.map (type_type_params ctx c.cl_path get_params p) tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
+	c.cl_meta <- tp.Ast.tp_meta;
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],c.cl_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
 	match tp.tp_constraints with

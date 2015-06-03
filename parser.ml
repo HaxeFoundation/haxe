@@ -1050,7 +1050,7 @@ and parse_constraint_params = parser
 	| [< >] -> []
 
 and parse_constraint_param = parser
-	| [< name = type_name; s >] ->
+	| [< meta = parse_meta; name = type_name; s >] ->
 		let params = (match s with parser
 			| [< >] -> []
 		) in
@@ -1066,6 +1066,7 @@ and parse_constraint_param = parser
 			tp_name = name;
 			tp_params = params;
 			tp_constraints = ctl;
+			tp_meta = meta;
 		}
 
 and parse_class_herit = parser

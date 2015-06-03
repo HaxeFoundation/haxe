@@ -366,6 +366,7 @@ and type_param = {
 	tp_name : string;
 	tp_params :	type_param list;
 	tp_constraints : complex_type list;
+	tp_meta : metadata;
 }
 
 and documentation = string option
@@ -701,7 +702,7 @@ let map_expr loop (e,p) =
 		| CTExtend (tl,fl) -> CTExtend (List.map tpath tl, List.map cfield fl)
 		| CTOptional t -> CTOptional (ctype t)
 	and tparamdecl t =
-		{ tp_name = t.tp_name; tp_constraints = List.map ctype t.tp_constraints; tp_params = List.map tparamdecl t.tp_params }
+		{ tp_name = t.tp_name; tp_constraints = List.map ctype t.tp_constraints; tp_params = List.map tparamdecl t.tp_params; tp_meta = t.tp_meta }
 	and func f =
 		{
 			f_params = List.map tparamdecl f.f_params;
