@@ -1778,11 +1778,12 @@ module UnificationCallback = struct
 		| _ ->
 			List.map (fun e -> f e t_dynamic) el
 
-	let rec run f e =
+	let rec run ff e =
 		let f e t =
-			(* TODO: I don't think this should cause errors on Flash target *)
-			(* if not (type_iseq e.etype t) then f e t else e *)
-			f e t
+			if not (type_iseq e.etype t) then
+				ff e t
+			else
+				e
 		in
 		let check e = match e.eexpr with
 			| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
@@ -1837,7 +1838,7 @@ module UnificationCallback = struct
 				tf_stack := List.tl !tf_stack;
 				etf
 			| _ ->
-				check (Type.map_expr (run f) e)
+				check (Type.map_expr (run ff) e)
 end;;
 
 module DeprecationCheck = struct
