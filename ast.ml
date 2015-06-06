@@ -50,6 +50,7 @@ module Meta = struct
 		| ClassCode
 		| Commutative
 		| CompilerGenerated
+		| Const
 		| CoreApi
 		| CoreType
 		| CppFileCode

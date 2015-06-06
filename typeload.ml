@@ -415,7 +415,7 @@ let rec load_instance ctx t p allow_no_params =
 				| t :: tl1,(name,t2) :: tl2 ->
 					let check_const c =
 						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
-						let expects_expression = name = "Const" || Meta.has (Meta.Custom ":const") c.cl_meta in
+						let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
 						let accepts_expression = name = "Rest" in
 						if is_expression then begin
 							if not expects_expression && not accepts_expression then
