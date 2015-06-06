@@ -2601,6 +2601,12 @@ let init_class ctx c p context_init herits fields =
 		| _ :: l ->
 			check_require l
 	in
+	let rec check_if_feature = function
+		| [] -> []
+		| (Meta.IfFeature,el,_) :: _ -> List.map (fun (e,p) -> match e with EConst (String s) -> s | _ -> error "String expected" p) el
+		| _ :: l -> check_if_feature l
+	in
+	let cl_if_feature = check_if_feature c.cl_meta in
 	let cl_req = check_require c.cl_meta in
 	List.iter (fun f ->
 		let p = f.cff_pos in
@@ -2608,15 +2614,11 @@ let init_class ctx c p context_init herits fields =
 			let fd , constr, f, do_add = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
 			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" && not is_lib then error "You can't declare static fields in interfaces" p;
-			begin try
-				let _,args,_ = Meta.get Meta.IfFeature f.cf_meta in
-				List.iter (fun e -> match fst e with
-					| EConst(String s) ->
-						ctx.m.curmod.m_extra.m_if_feature <- (s,(c,f,is_static)) :: ctx.m.curmod.m_extra.m_if_feature;
-					| _ ->
-						error "String expected" (pos e)
-				) args
-			with Not_found -> () end;
+			let set_feature s =
+				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,f,is_static)) :: ctx.m.curmod.m_extra.m_if_feature
+			in
+			List.iter set_feature cl_if_feature;
+			List.iter set_feature (check_if_feature f.cf_meta);
 			let req = check_require fd.cff_meta in
 			let req = (match req with None -> if is_static || constr then cl_req else None | _ -> req) in
 			(match req with
