@@ -22,7 +22,7 @@
 package js.html.compat;
 import haxe.io.Error;
 
-@:keep
+@:ifFeature("haxe.io.Float32Array.*", "haxe.io.Float64Array.*")
 @:access(js.html.compat.ArrayBuffer)
 class DataView {
 
