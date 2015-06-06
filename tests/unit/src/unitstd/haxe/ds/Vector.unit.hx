@@ -100,3 +100,62 @@ for (e in vec1) {
 }
 eq(3, res);
 
+// copy
+
+var i0 = new IntWrap(1);
+var i1 = new IntWrap(1);
+var i2 = new IntWrap(5);
+
+var vec = new haxe.ds.Vector(3);
+vec[0] = i0;
+vec[1] = i1;
+vec[2] = i2;
+var vec2 = vec.copy();
+f(vec == vec2);
+vec[0] == vec2[0];
+vec[1] == vec2[1];
+vec[2] == vec2[2];
+
+// join
+
+var vec = new haxe.ds.Vector(0);
+vec.join(",") == "";
+
+var vec = new haxe.ds.Vector(1);
+vec.join(",") == "null";
+
+var vec = new haxe.ds.Vector(2);
+vec.join(",") == "null,null";
+
+var vec = new haxe.ds.Vector(2);
+vec[0] = "foo";
+vec[1] = "bar";
+vec.join(", ") == "foo, bar";
+
+
+// map
+
+//var vec = new haxe.ds.Vector(0);
+//vec.map(function(i) return throw false);
+//
+//var vec = new haxe.ds.Vector(2);
+//vec[0] = 12;
+//vec[1] = 13;
+//var vec2 = vec.map(function(i) return "value: " +i);
+//vec2[0] == "value: 12";
+//vec2[1] == "value: 13";
+
+// sort
+
+#if !(neko || cs || java)
+var vec = new haxe.ds.Vector(4);
+vec[0] = 99;
+vec[1] = 101;
+vec[2] = -12;
+vec[3] = 0;
+vec.sort(Reflect.compare);
+vec[0] == -12;
+vec[1] == 0;
+vec[2] == 99;
+vec[3] == 101;
+#end
