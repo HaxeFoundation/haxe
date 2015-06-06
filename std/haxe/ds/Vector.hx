@@ -219,4 +219,69 @@ abstract Vector<T>(VectorData<T>) {
 		return vec;
 		#end
 	}
+	
+/**
+		make a shallow copy of requested vector
+	**/
+	public inline function copy<T>() : Vector<T> {
+		var r = new Vector<T>(length);
+		Vector.blit(cast this, 0, r, 0, length);
+		return r;
+	}
+	
+	/**
+		iterates other the elements of `v` applying the function `f`.
+	**/
+	public inline function iter<T>(f:T->Void ) : Void {
+		var len = length;
+		for( i in 0...len)
+			f(get(i));
+	}
+	
+	/**
+		joins the string representation of `v` applying the separator `sep`.
+	**/
+	public inline function join<T>( sep:String ) : String {
+		#if (flash||cpp)
+		return this.join(sep);
+		#else
+		var b = new StringBuf();
+		var i = 0;
+		var len = length;
+		for( i in 0...len) {
+			b.add( Std.string(get(i)) );
+			if( i < len-1)
+				b.add(sep);
+		}
+		return b.toString();
+		#end
+	}
+	
+	/**
+		Creates a new Vector by using the elements of `v` through the application of function `f`.
+		This always creates a copy.
+	**/
+	public inline function map<T>(f:T->T) : Vector<T> {
+		var r = new Vector(length);
+		var i = 0;
+		var len = length;
+		for( i in 0...len) 
+			r[i] = f( get(i) );
+		return r;
+	}
+	
+	/**
+		Sorts the vector using provided callback
+		example:
+			var a = new Vector(10);
+			...
+			a.sort( Reflect.compare );
+	**/
+	public inline function sort<T>(f:T->T->Int) : Void{
+	#if(neko||cs||java)
+		throw "not yet supported";
+	#else
+		this.sort(f);
+	#end
+	}
 }
