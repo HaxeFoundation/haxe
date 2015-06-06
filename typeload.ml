@@ -1432,10 +1432,10 @@ let set_heritance ctx c herits p =
 	) herits in
 	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
 
-let rec type_type_params ?(enum_constructor=false) ctx path get_params p tp =
+let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	let n = tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) p in
-	c.cl_params <- List.map (type_type_params ctx c.cl_path get_params p) tp.tp_params;
+	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],c.cl_pos) :: c.cl_meta;
@@ -1464,11 +1464,17 @@ let rec type_type_params ?(enum_constructor=false) ctx path get_params p tp =
 		delay ctx PForce (fun () -> ignore(!r()));
 		n, TLazy r
 
+and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
+	let names = ref [] in
+	List.map (fun tp ->
+		if List.mem tp.tp_name !names then display_error ctx ("Duplicate type parameter name: " ^ tp.tp_name) p;
+		names := tp.tp_name :: !names;
+		type_type_param ~enum_constructor ctx path get_params p tp
+	) tpl
+
 let type_function_params ctx fd fname p =
 	let params = ref [] in
-	params := List.map (fun tp ->
-		type_type_params ctx ([],fname) (fun() -> !params) p tp
-	) fd.f_params;
+	params := type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
 let find_enclosing com e =
@@ -2968,7 +2974,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
-			params := List.map (fun tp -> type_type_params ~enum_constructor:true ctx ([],c.ec_name) (fun() -> !params) c.ec_pos tp) c.ec_params;
+			params := type_type_params ~enum_constructor:true ctx ([],c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
 			let params = !params in
 			let ctx = { ctx with type_params = params @ ctx.type_params } in
 			let rt = (match c.ec_type with
@@ -3158,13 +3164,13 @@ let type_module ctx m file ?(is_extern=false) tdecls p =
 	List.iter (fun d ->
 		match d with
 		| (TClassDecl c, (EClass d, p)) ->
-			c.cl_params <- List.map (type_type_params ctx c.cl_path (fun() -> c.cl_params) p) d.d_params;
+			c.cl_params <- type_type_params ctx c.cl_path (fun() -> c.cl_params) p d.d_params;
 		| (TEnumDecl e, (EEnum d, p)) ->
-			e.e_params <- List.map (type_type_params ctx e.e_path (fun() -> e.e_params) p) d.d_params;
+			e.e_params <- type_type_params ctx e.e_path (fun() -> e.e_params) p d.d_params;
 		| (TTypeDecl t, (ETypedef d, p)) ->
-			t.t_params <- List.map (type_type_params ctx t.t_path (fun() -> t.t_params) p) d.d_params;
+			t.t_params <- type_type_params ctx t.t_path (fun() -> t.t_params) p d.d_params;
 		| (TAbstractDecl a, (EAbstract d, p)) ->
-			a.a_params <- List.map (type_type_params ctx a.a_path (fun() -> a.a_params) p) d.d_params;
+			a.a_params <- type_type_params ctx a.a_path (fun() -> a.a_params) p d.d_params;
 		| _ ->
 			assert false
 	) decls;
