@@ -1,23 +1,20 @@
 package lua;
-/**
-  Abstract implementation of a standard Lua table.  Automatically converts to the
-  1-based indexing that Lua uses as default for int-keyed tables.
- **/
-abstract Table<A,B>({}) {
-	inline public function new() this = {};
-	@:arrayAccess inline function getIntV(k:Int) : B{
-		return untyped this[k+1];
-	}
-	@:arrayAccess inline function setIntV(k:Int, v:B){
-		untyped this[k+1] = v;
-		return v;
-	}
-	@:arrayAccess inline function getV(k:A) : B{
-		return untyped this[k];
-	}
-	@:arrayAccess inline function setV(k:A, v:B){
-		untyped this[k] = v;
-		return v;
-	}
-}
 
+@:native("_G.table") 
+extern class Table<A,B> implements ArrayAccess<B> {
+	@:overload(function<A,B>(table:Table<A,B>):Void{})
+	public static function concat<A,B>(table:Table<A,B>, ?sep:String) : String;
+
+	public static function foreach<A,B>(table:Table<A,B>, f:A->B->Void) : Void;
+	public static function foreachi<A,B>(table:Table<A,B>, f:A->B->Int->Void) : Void;
+
+	public static function sort<A,B>(table:Table<A,B>, ?order : A->A->Bool) : Void;
+
+	@:overload(function<B>(table:Table<Int,B>, value:B):Void{})
+	public static function insert<B>(table:Table<Int,B>, pos:Int, value:B) : Void;
+
+	@:overload(function<B>(table:Table<Int,B>):Void{})
+	public static function remove<B>(table:Table<Int,B>, ?pos:Int) : Void;
+
+	public static function maxn<B>(table: Table<Int,B>) : Int;
+}

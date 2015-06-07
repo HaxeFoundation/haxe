@@ -86,10 +86,10 @@ class Array<T> {
 						this[0] = null;
 					} else {
 						this[0] = this[1];
-						lua.TableTools.remove(cast this, 1);
+						lua.Table.remove(cast this, 1);
 					}
 				} else {
-					lua.TableTools.remove(cast this, i);
+					lua.Table.remove(cast this, i);
 				}
 				this.length-=1;
 				return true;

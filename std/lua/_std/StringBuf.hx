@@ -30,7 +30,7 @@
 	it can be passed as argument to functions which modify it by appending more
 	values. However, the internal buffer cannot be modified.
 **/
-import lua.TableTools;
+import lua.Table;
 
 class StringBuf {
 
@@ -66,7 +66,7 @@ class StringBuf {
 	**/
 	public inline function add<T>( x : T ) : Void {
 		var res = Std.string(x);
-		TableTools.insert(b, res);
+		Table.insert(b, res);
 		length +=  res.length;
 	}
 
@@ -77,7 +77,7 @@ class StringBuf {
 		unspecified.
 	**/
 	public inline function addChar( c : Int ) : Void {
-		TableTools.insert(b, String.fromCharCode(c));
+		Table.insert(b, String.fromCharCode(c));
 		length += 1;
 	}
 
@@ -95,7 +95,7 @@ class StringBuf {
 	**/
 	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
 		var part = len == null ? s.substr(pos) : s.substr(pos, len);
-		TableTools.insert(b, part);
+		Table.insert(b, part);
 		length += part.length;
 	}
 
@@ -105,7 +105,7 @@ class StringBuf {
 		The buffer is not emptied by this operation.
 	**/
 	public inline function toString() : String {
-		return TableTools.concat(b);
+		return Table.concat(b);
 	}
 
 }
