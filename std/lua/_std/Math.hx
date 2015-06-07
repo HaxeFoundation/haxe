@@ -21,72 +21,55 @@
  */
 package;
 
-// Can't enable @:coreApi because some fields are now inline getters
-// @:coreApi
-@:keepInit
-@:native("_G.math")
-extern class Math
+class Math
 {
-	static var PI(get,null) : Float;
-	private static inline function get_PI () : Float {
-		return untyped Math.pi;
-	}
+	public static var PI(get,null) : Float;
+	static inline function get_PI () : Float return lua.Math.pi;
 
-	static var NEGATIVE_INFINITY(get, null) : Float;
-	private static inline function get_NEGATIVE_INFINITY () : Float {
-		return untyped Math.huge; 
-	}
+	public static var NEGATIVE_INFINITY(get, null) : Float;
+	static inline function get_NEGATIVE_INFINITY () : Float return -lua.Math.huge; 
 
-	static var POSITIVE_INFINITY(get,null) : Float;
-	private static inline function get_POSITIVE_INFINITY () : Float {
-		return untyped -Math.huge; 
-	}
+	public static var POSITIVE_INFINITY(get,null) : Float;
+	static inline function get_POSITIVE_INFINITY () : Float return lua.Math.huge; 
 
-	static var NaN(get, null) : Float;
-	private static inline function get_NaN () : Float {
-		return 0/0; 
-	}
+	public static var NaN(get, null) : Float;
+	static inline function get_NaN () : Float return 0/0; 
 
-	static function abs(v:Float):Float;
-	static function acos(v:Float):Float;
-	static function asin(v:Float):Float;
-	static function atan(v:Float):Float;
-	static function atan2(y:Float, x:Float):Float;
-	static function ceil(v:Float):Int;
-	static function cos(v:Float):Float;
-	static function exp(v:Float):Float;
-	static function floor(v:Float):Int;
-	static function log(v:Float):Float;
-	static function max(a:Float, b:Float):Float;
-	static function min(a:Float, b:Float):Float;
-	static function pow(v:Float, exp:Float):Float;
-	static function random() : Float;
-	static inline function round(v:Float):Int {
-		return Std.int(v + 0.5);
-	}
-	static function sin(v:Float):Float;
-	static function sqrt(v:Float):Float;
-	static function tan(v:Float):Float;
-
-	static inline function ffloor( v : Float ) : Float {
-		return floor(v);
-	}
-
-	static inline function fceil( v : Float ) : Float {
-		return ceil(v);
-	}
-
-	static inline function fround( v : Float ) : Float {
-		return round(v);
-	}
-
-	static inline function isFinite( f : Float ) : Bool {
+	public static inline function isNaN( f : Float ) : Bool return (f != f);
+	public static inline function isFinite( f : Float ) : Bool {
 		return (f > Math.NEGATIVE_INFINITY && f < Math.POSITIVE_INFINITY);
 	}
 
-	static inline function isNaN( f : Float ) : Bool {
-		return (f != f);
+	public static inline function abs(v:Float) :Float return lua.Math.abs(v);
+	public static inline function acos(v:Float):Float return lua.Math.acos(v);
+	public static inline function asin(v:Float):Float return lua.Math.asin(v);
+	public static inline function atan(v:Float):Float return lua.Math.atan(v);
+	public static inline function ceil(v:Float):Int   return lua.Math.ceil(v);
+	public static inline function cos(v:Float):Float  return lua.Math.cos(v);
+	public static inline function exp(v:Float):Float  return lua.Math.exp(v);
+	public static inline function sin(v:Float):Float  return lua.Math.sin(v);
+	public static inline function sqrt(v:Float):Float return lua.Math.sqrt(v);
+	public static inline function tan(v:Float):Float  return lua.Math.tan(v);
+
+	public static inline function floor(v:Float):Int  return lua.Math.floor(v);
+	public static inline function log(v:Float):Float  return lua.Math.log(v);
+
+	public static inline function random() : Float    return lua.Math.random();
+
+	public static inline function atan2(y:Float, x:Float):Float return lua.Math.atan2(y,x);
+	public static inline function max(a:Float, b:Float):Float   return lua.Math.max(a,b);
+	public static inline function min(a:Float, b:Float):Float   return lua.Math.min(a,b);
+	public static inline function pow(v:Float, exp:Float):Float return lua.Math.pow(v,exp);
+
+	public static inline function round(v:Float):Int {
+		return Std.int(v + 0.5);
 	}
+
+	public static inline function ffloor( v : Float ) : Float return floor(v); 
+	public static inline function fceil( v : Float ) : Float return ceil(v);
+	public static inline function fround( v : Float ) : Float return round(v);
+
+
 
 	static function __init__() : Void {
 		untyped __feature__("Type.resolveClass", _hxClasses["Math"] = Math);
