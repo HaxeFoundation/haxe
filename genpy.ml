@@ -125,12 +125,12 @@ module Transformer = struct
 
 	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
-		let s = Type.s_expr_pretty "\t" s_type e in
+		let s = Type.s_expr_pretty "    " s_type e in
 		Printf.printf "%s\n" s
 
 	and debug_expr_with_type e =
 		let s_type = Type.s_type (print_context()) in
-		let es = Type.s_expr_pretty "\t" s_type e in
+		let es = Type.s_expr_pretty "    " s_type e in
 		let t = s_type e.etype in
 		Printf.printf "%s : %s\n" es t
 
@@ -1138,8 +1138,8 @@ module Printer = struct
 			| Some s -> handle_keywords s
 		in
 		let s_args = print_args tf.tf_args p in
-		let s_expr = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} tf.tf_expr in
-		Printf.sprintf "def %s(%s):\n%s\t%s" s_name s_args pctx.pc_indent s_expr
+		let s_expr = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} tf.tf_expr in
+		Printf.sprintf "def %s(%s):\n%s    %s" s_name s_args pctx.pc_indent s_expr
 
 	and print_tarray_list pctx e1 e2 =
 		let s1 = (print_expr pctx e1) in
@@ -1180,7 +1180,7 @@ module Printer = struct
 
 	and print_expr pctx e =
 		let indent = pctx.pc_indent in
-		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
+		let print_expr_indented e = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e in
 		match e.eexpr with
 			| TConst ct ->
 				print_constant ct
@@ -1342,7 +1342,7 @@ module Printer = struct
 			| TIf(econd,eif,eelse) ->
 				print_if_else pctx econd eif eelse false
 			| TWhile(econd,e1,NormalWhile) ->
-				Printf.sprintf "while %s:\n%s\t%s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
+				Printf.sprintf "while %s:\n%s    %s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
 				error "Currently not supported" e.epos
 			| TTry(e1,catches) ->
@@ -1381,15 +1381,15 @@ module Printer = struct
 			| TParenthesis e -> e
 			| _ -> econd
 		in
-		let if_str = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} eif in
+		let if_str = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} eif in
 		let indent = pctx.pc_indent in
 		let else_str = if as_elif then
 			opt eelse (print_expr pctx) "el"
 		else
-			opt eelse (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent}) (Printf.sprintf "else:\n%s\t" indent)
+			opt eelse (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent}) (Printf.sprintf "else:\n%s    " indent)
 		in
 		let else_str = if else_str = "" then "" else "\n" ^ indent ^ else_str in
-		Printf.sprintf "if %s:\n%s\t%s%s" (print_expr pctx (remove_outer_parens econd1)) indent if_str else_str
+		Printf.sprintf "if %s:\n%s    %s%s" (print_expr pctx (remove_outer_parens econd1)) indent if_str else_str
 
 	and print_field pctx e1 fa is_assign =
 		let obj = match e1.eexpr with
@@ -1453,7 +1453,7 @@ module Printer = struct
 			let handle_base_type bt =
 				let t = print_base_type bt in
 				let print_type_check t_str =
-					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s\t%s\t%s" t_str indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
 				in
 				let res = match t with
 				| "str" -> print_type_check "str"
@@ -1473,7 +1473,7 @@ module Printer = struct
 						Printf.sprintf "%s%s" assign (print_expr pctx e)
 					else
 						(* Dynamic is always the last block *)
-						Printf.sprintf "%selse:\n\t%s%s\t%s" indent indent assign (print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e)
+						Printf.sprintf "%selse:\n    %s%s    %s" indent indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
 					end
 				| TInst(c,_) ->
 					handle_base_type (t_infos (TClassDecl c))
@@ -1485,15 +1485,15 @@ module Printer = struct
 					assert false
 		in
 		let indent = pctx.pc_indent in
-		let print_expr_indented e = print_expr {pctx with pc_indent = "\t" ^ pctx.pc_indent} e in
-		let try_str = Printf.sprintf "try:\n%s\t%s\n%s" indent (print_expr_indented e1) indent in
+		let print_expr_indented e = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e in
+		let try_str = Printf.sprintf "try:\n%s    %s\n%s" indent (print_expr_indented e1) indent in
 		let except = if has_feature pctx "has_throw" then
-			Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s\t" indent indent
+			Printf.sprintf "except Exception as _hx_e:\n%s    _hx_e1 = _hx_e.val if isinstance(_hx_e, _HxException) else _hx_e\n%s    " indent indent
 		else
-			Printf.sprintf "except Exception as _hx_e:\n%s\t_hx_e1 = _hx_e\n%s\t" indent indent
+			Printf.sprintf "except Exception as _hx_e:\n%s    _hx_e1 = _hx_e\n%s    " indent indent
 		in
-		let catch_str = String.concat (Printf.sprintf "\n") (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "\t" ^ pctx.pc_indent} i catch) catches) in
-		let except_end = if not has_catch_all then Printf.sprintf "\n%s\telse:\n%s\t\traise _hx_e" indent indent else "" in
+		let catch_str = String.concat (Printf.sprintf "\n") (ExtList.List.mapi (fun i catch -> print_catch {pctx with pc_indent = "    " ^ pctx.pc_indent} i catch) catches) in
+		let except_end = if not has_catch_all then Printf.sprintf "\n%s    else:\n%s        raise _hx_e" indent indent else "" in
 		Printf.sprintf "%s%s%s%s" try_str except catch_str except_end
 
 	and print_call2 pctx e1 el =
@@ -1584,7 +1584,7 @@ module Printer = struct
 			| "python_Syntax.opPow", [e1;e2] ->
 				Printf.sprintf "(%s ** %s)" (print_expr pctx e1) (print_expr pctx e2)
  			| "python_Syntax._foreach",[e1;e2;e3] ->
-				let pctx = {pctx with pc_indent = "\t" ^ pctx.pc_indent} in
+				let pctx = {pctx with pc_indent = "    " ^ pctx.pc_indent} in
 				let i = pctx.pc_indent in
 				Printf.sprintf "for %s in %s:\n%s%s" (print_expr pctx e1) (print_expr pctx e2) i (print_expr pctx e3)
 			| _,el ->
@@ -1836,7 +1836,7 @@ module Generator = struct
 		) metas
 
 	let gen_expr ctx e field indent =
-		let pctx = Printer.create_context ("\t" ^ indent) ctx.com ctx.com.debug in
+		let pctx = Printer.create_context ("    " ^ indent) ctx.com ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
 				{e with eexpr = TBlock [e]}
@@ -1866,7 +1866,7 @@ module Generator = struct
 			| Some e1,e2 ->
 				let expr_string_1 = texpr_str e1 pctx in
 				let expr_string_2 = texpr_str e2 pctx in
-				print ctx "%sdef %s():\n\t%s" indent name expr_string_1;
+				print ctx "%sdef %s():\n    %s" indent name expr_string_1;
 				newline ctx;
 				print ctx "%s%s = %s" indent field expr_string_2;
 			| None,e2 ->
@@ -1919,7 +1919,7 @@ module Generator = struct
 
 				newline ctx;
 				newline ctx;
-				gen_func_expr ctx ef c "__init__" py_metas ["self"] "\t" false cf.cf_pos
+				gen_func_expr ctx ef c "__init__" py_metas ["self"] "    " false cf.cf_pos
 			| _ ->
 				assert false
 		end
@@ -1928,17 +1928,17 @@ module Generator = struct
 		let field = handle_keywords cf.cf_name in
 		begin match cf.cf_expr with
 			| None ->
-				()(* print ctx "\t# var %s" field *)
+				()(* print ctx "    # var %s" field *)
 			| Some e ->
 				newline ctx;
 				newline ctx;
 				begin match cf.cf_kind with
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
-						gen_func_expr ctx e c field py_metas ["self"] "\t" false cf.cf_pos;
+						gen_func_expr ctx e c field py_metas ["self"] "    " false cf.cf_pos;
 
 					| _ ->
-						gen_expr ctx e (Printf.sprintf "# var %s" field) "\t";
+						gen_expr ctx e (Printf.sprintf "# var %s" field) "    ";
 				end
 		end
 
@@ -1946,7 +1946,7 @@ module Generator = struct
 		if has_feature ctx "Type.createEmptyInstance" then begin
 			newline ctx;
 			newline ctx;
-			print ctx "\t@staticmethod\n\tdef _hx_empty_init(_hx_o):";
+			print ctx "    @staticmethod\n    def _hx_empty_init(_hx_o):";
 			let found_fields = ref false in
 			List.iter (fun cf -> match cf.cf_kind with
 					| Var ({v_read = AccResolve | AccCall}) ->
@@ -1954,12 +1954,12 @@ module Generator = struct
 					| Var _ ->
 						found_fields := true;
 						newline ctx;
-						print ctx "\t\t_hx_o.%s = None" (handle_keywords cf.cf_name)
+						print ctx "        _hx_o.%s = None" (handle_keywords cf.cf_name)
 					| _ ->
 						()
 			) cfl;
 			if not !found_fields then
-				spr ctx "\t\tpass"
+				spr ctx "        pass"
 		end else begin
 			newline ctx
 		end
@@ -1980,7 +1980,7 @@ module Generator = struct
 			| None ->
 				has_empty_static_vars := true;
 				newline ctx;
-				print ctx "\t%s = None" field
+				print ctx "    %s = None" field
 			| Some e ->
 				(let f = fun () ->
 					newline ctx;
@@ -1997,7 +1997,7 @@ module Generator = struct
 			let py_metas = filter_py_metas cf.cf_meta in
 			let e = match cf.cf_expr with Some e -> e | _ -> assert false in
 			newline ctx;
-			gen_func_expr ctx e c field py_metas [] "\t" true cf.cf_pos;
+			gen_func_expr ctx e c field py_metas [] "    " true cf.cf_pos;
 		) methods;
 
 		!has_static_methods || !has_empty_static_vars
@@ -2047,7 +2047,7 @@ module Generator = struct
 			if not is_nativegen then begin
 				if has_feature ctx "python._hx_class_name" then begin
 					use_pass := false;
-					print ctx "\n\t_hx_class_name = \"%s\"" p_name
+					print ctx "\n    _hx_class_name = \"%s\"" p_name
 				end;
 
 				let print_field names field quote =
@@ -2061,7 +2061,7 @@ module Generator = struct
 								"[" ^ (String.concat ", " (List.map q names)) ^ "]"
 						in
 						use_pass := false;
-						print ctx "\n\t%s = %s" field s
+						print ctx "\n    %s = %s" field s
 					with Exit -> ()
 				in
 
@@ -2075,7 +2075,7 @@ module Generator = struct
 					| None -> ()
 					| Some ps ->
 						use_pass := false;
-						print ctx "\n\t_hx_super = %s\n" ps
+						print ctx "\n    _hx_super = %s\n" ps
 				);
 
 			end;
@@ -2101,7 +2101,7 @@ module Generator = struct
 				| [] -> c.cl_constructor = None
 				| _ -> c.cl_interface
 			in
-			if use_pass then spr ctx "\n\tpass";
+			if use_pass then spr ctx "\n    pass";
 
 			if not is_nativegen then begin
 				if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
@@ -2136,13 +2136,13 @@ module Generator = struct
 
 		if has_feature ctx "python._hx_class_name" then begin
 			use_pass := false;
-			print ctx "\n\t_hx_class_name = \"%s\"" p_name
+			print ctx "\n    _hx_class_name = \"%s\"" p_name
 		end;
 		if has_feature ctx "python._hx_constructs" then begin
 			let fix = match enum_constructs with [] -> "" | _ -> "\"" in
 			let enum_constructs_str = fix ^ (String.concat ("\", \"") (List.map (fun ef -> ef.ef_name) enum_constructs)) ^ fix in
 			use_pass := false;
-			print ctx "\n\t_hx_constructs = [%s]" enum_constructs_str;
+			print ctx "\n    _hx_constructs = [%s]" enum_constructs_str;
 		end;
 
 		let const_constructors,param_constructors = List.partition (fun ef ->
@@ -2175,13 +2175,13 @@ module Generator = struct
 				let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
 				newline ctx;
 				newline ctx;
-				print ctx "\t@staticmethod\n\tdef %s(%s):\n" f param_str;
-				print ctx "\t\treturn %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
+				print ctx "    @staticmethod\n    def %s(%s):\n" f param_str;
+				print ctx "        return %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
 				use_pass := false;
 			| _ -> assert false
 		) param_constructors;
 
-		if !use_pass then spr ctx "\n\tpass";
+		if !use_pass then spr ctx "\n    pass";
 
 		List.iter (fun ef ->
 			(* TODO: haxe source has api.quoteString for ef.ef_name *)
@@ -2208,7 +2208,7 @@ module Generator = struct
 
 		if has_feature ctx "python._hx_class_name" then begin
 			use_pass := false;
-			print ctx "\n\t_hx_class_name = \"%s\"" p_name
+			print ctx "\n    _hx_class_name = \"%s\"" p_name
 		end;
 
 		(match a.a_impl with
@@ -2222,7 +2222,7 @@ module Generator = struct
 			) c.cl_ordered_statics
 		| None -> ());
 
-		if !use_pass then spr ctx "\n\tpass";
+		if !use_pass then spr ctx "\n    pass";
 
 		if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;
 		if has_feature ctx "python._hx_classes" then print ctx "\n_hx_classes[\"%s\"] = %s" p_name p
@@ -2255,14 +2255,14 @@ module Generator = struct
 			newline ctx;
 			newline ctx;
 			spr ctx "def _hx_resources__():";
-			spr ctx "\n\timport inspect";
-			spr ctx "\n\timport sys";
-			spr ctx "\n\tif not hasattr(sys.modules[__name__], '__file__'):";
-			print ctx "\n\t\t_file = '%s'" file_name;
-			spr ctx "\n\telse:";
-			spr ctx "\n\t\t_file = __file__";
+			spr ctx "\n    import inspect";
+			spr ctx "\n    import sys";
+			spr ctx "\n    if not hasattr(sys.modules[__name__], '__file__'):";
+			print ctx "\n        _file = '%s'" file_name;
+			spr ctx "\n    else:";
+			spr ctx "\n        _file = __file__";
 
-			spr ctx "\n\treturn {";
+			spr ctx "\n    return {";
 			let first = ref true in
 			Hashtbl.iter (fun k v ->
 				let prefix = if !first then begin
@@ -2321,9 +2321,9 @@ module Generator = struct
 				in
 				newline ctx;
 				if ignore_error then begin
-					spr ctx "try:\n\t";
+					spr ctx "try:\n    ";
 					spr_line ctx import;
-					spr ctx "except:\n\tpass"
+					spr ctx "except:\n    pass"
 				end else
 					spr ctx import
 			end
@@ -2349,10 +2349,10 @@ module Generator = struct
 			newline ctx;
 			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
-				spr ctx "\tdef __init__(self, fields):\n";
-				spr ctx "\t\tself.__dict__ = fields"
+				spr ctx "    def __init__(self, fields):\n";
+				spr ctx "        self.__dict__ = fields"
 			end else
-				spr ctx "\tpass";
+				spr ctx "    pass";
 			Hashtbl.add used_paths ([],"_hx_AnonObject") true;
 		end;
 		if has_feature ctx "python._hx_classes" then begin
