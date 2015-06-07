@@ -277,7 +277,7 @@ let rec gen_call ctx e el in_value =
 		(match ctx.current.cl_super with
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
-			print ctx "%s.__construct(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
+			print ctx "%s.super(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
@@ -605,7 +605,8 @@ and gen_expr ctx e =
 		handle_break();
 		newline ctx;
 		(* TODO: generate this label conditionally *)
-		print ctx "::_hx_continue_%i::" id;
+		if has_continue e then
+		    print ctx "::_hx_continue_%i::" id;
 		newline ctx;
 		spr ctx " end ";
 	| TWhile (cond,e,Ast.DoWhile) ->
@@ -1165,13 +1166,13 @@ let generate_class ctx c =
 					    print ctx "setmetatable(self, {__index=%s.prototype}) " p; newline ctx;
 					);
 					(* TODO: use nonconflict var instead of prototype *)
-					print ctx "%s.__construct(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+					print ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					newline ctx;
 					spr ctx "return self"; newline ctx;
 					bend();
 					spr ctx "end"; newline ctx;
 					let bend = open_block ctx in
-					print ctx "%s.__construct = function(%s) " p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+					print ctx "%s.super = function(%s) " p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					newline ctx;
 					List.iter (gen_block_element ctx) el; newline ctx;
 					newline ctx;
@@ -1369,6 +1370,18 @@ let generate_type_forward ctx = function
 		print ctx "%s = {} " p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
+let rec has_continue e =
+    let rec loop e = match e.eexpr with
+        | TContinue -> raise Exit
+        | TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
+        | _ -> Type.iter loop e
+    in
+    try
+        loop e;
+        false;
+    with Exit ->
+        true
+
 let set_current_class ctx c =
 	ctx.current <- c
 
@@ -1415,11 +1428,8 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
-	spr ctx "pcall(require, 'bit32')"; newline ctx;
-	spr ctx "pcall(require, 'bit')"; newline ctx; newline ctx;
-	spr ctx "bit = bit or bit32"; newline ctx;
-	spr ctx "bit32 = bit"; newline ctx; newline ctx;
-
+	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') bit = bit or bit32"; newline ctx;
+	spr ctx "print = print or (function()end)"; newline ctx;
 
 	let vars = [] in
 	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in
