@@ -105,14 +105,6 @@ class Boot {
 		return tabobj;
 	}
 
-	@:keep
-	public static function resolveMethod(table : Dynamic,  key:Dynamic){
-		untyped __lua__("for index, value in ipairs(table.__methods) do
-		if value[key] ~= nil then return value[key] end
-	end
-	return nil");
-	}
-
 	public static function urlEncode(str:String){
 	if (str != null) {
 		str = lua.StringTools.gsub(str, "\n", "\r\n");
