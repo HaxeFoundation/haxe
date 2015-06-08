@@ -870,6 +870,8 @@ let get_value_meta meta =
 	with Not_found ->
 		PMap.empty
 
+(* Type path related functions *)
+
 let rec string_list_of_expr_path_raise (e,p) =
 	match e with
 	| EConst (Ident i) -> [i]
@@ -883,3 +885,27 @@ let expr_of_type_path (sl,s) p =
 		let e1 = (EConst(Ident s1),p) in
 		let e = List.fold_left (fun e s -> (EField(e,s),p)) e1 sl in
 		EField(e,s),p
+
+let match_path recursive sl sl_pattern =
+	let rec loop sl1 sl2 = match sl1,sl2 with
+		| [],[] ->
+			true
+		(* always recurse into types of package paths *)
+		| (s1 :: s11 :: _),[s2] when is_lower_ident s2 && not (is_lower_ident s11)->
+			s1 = s2
+		| [_],[""] ->
+			true
+		| _,([] | [""]) ->
+			recursive
+		| [],_ ->
+			false
+		| (s1 :: sl1),(s2 :: sl2) ->
+			s1 = s2 && loop sl1 sl2
+	in
+	loop sl sl_pattern
+
+let full_dot_path mpath tpath =
+	if mpath = tpath then
+		(fst tpath) @ [snd tpath]
+	else
+		(fst mpath) @ [snd mpath;snd tpath]

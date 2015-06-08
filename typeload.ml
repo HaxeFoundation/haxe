@@ -1744,29 +1744,10 @@ let init_core_api ctx c =
 	| _ -> error "Constructor differs from core type" c.cl_pos)
 
 let check_global_metadata ctx f_add mpath tpath so =
-	let sl1 = if mpath = tpath then
-		(fst tpath) @ [snd tpath]
-	else
-		(fst mpath) @ [snd mpath;snd tpath]
-	in
+	let sl1 = full_dot_path mpath tpath in
 	let sl1,field_mode = match so with None -> sl1,false | Some s -> sl1 @ [s],true in
 	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
-		let rec loop sl1 sl2 = match sl1,sl2 with
-			| [],[] ->
-				true
-			(* always recurse into types of package paths *)
-			| (s1 :: s11 :: _),[s2] when is_lower_ident s2 && not (is_lower_ident s11)->
-				s1 = s2
-			| [_],[""] ->
-				true
-			| _,([] | [""]) ->
-				recursive
-			| [],_ ->
-				false
-			| (s1 :: sl1),(s2 :: sl2) ->
-				s1 = s2 && loop sl1 sl2
-		in
-		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (loop sl1 sl2) in
+		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.g.global_metadata
 

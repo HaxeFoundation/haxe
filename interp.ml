@@ -5012,17 +5012,7 @@ let rec make_ast e =
 		in
 		if snd mp = snd p then p else (fst mp) @ [snd mp],snd p
 	in
-	let mk_path (pack,name) p =
-		match List.rev pack with
-		| [] -> (EConst (Ident name),p)
-		| pl ->
-			let rec loop = function
-				| [] -> assert false
-				| [n] -> (EConst (Ident n),p)
-				| n :: l -> (EField (loop l, n),p)
-			in
-			(EField (loop pl,name),p)
-	in
+	let mk_path = expr_of_type_path in
 	let mk_const = function
 		| TInt i -> Int (Int32.to_string i)
 		| TFloat s -> Float s
