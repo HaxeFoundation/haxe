@@ -2711,8 +2711,10 @@ let configure gen =
 
 	if not erase_generics then HardNullableSynf.configure gen (HardNullableSynf.traverse gen
 		(fun e ->
-			match real_type e.etype with
-				| TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
+			match e.eexpr, real_type e.etype with
+				| TConst TThis, _ when gen.gcurrent_path = (["haxe";"lang"], "Null") ->
+					e
+				| _, TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
 					let e = { e with eexpr = TParenthesis(e) } in
 					{ (mk_field_access gen e "value" e.epos) with etype = t }
 				| _ ->
