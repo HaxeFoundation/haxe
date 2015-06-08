@@ -60,10 +60,44 @@ class Array<T> {
 			i++;
 		}
 	}
-	public function shift() : Null<T> return null;
-	public function slice( pos : Int, ?end : Int ) : Array<T> return [];
-	public function sort( f : T -> T -> Int ) : Void return;
-	public function splice( pos : Int, len : Int ) : Array<T> return [];
+	public function shift() : Null<T> {
+		if (this.length == 0) return null;
+		var ret = this[0];
+		for (i in 1...length){
+			this[i] = this[i+1];
+		}
+		return ret;
+	}
+	public function slice( pos : Int, ?end : Int ) : Array<T> {
+		if (end == null || end > length) end = length;
+		else if (end < 0) end = length-(-end % length);
+		if (pos < 0) pos = length -(-pos % length);
+		if (pos > end || pos > length) return [];
+
+		var ret = [];
+		for (i in pos...end){
+			ret.push(this[i]);
+		}
+		return ret;
+	}
+	public function sort( f : T -> T -> Int ) : Void {
+		return haxe.ds.ArraySort.sort(this,f);
+	}
+	public function splice( pos : Int, len : Int ) : Array<T> {
+		if (pos + len > this.length || len < 0) return [];
+		else if (pos < 0) pos = length -(-pos % length);
+		len = cast Math.min(len,this.length-pos);
+		var ret = [];
+		for (i in pos...(pos+len)){
+			ret.push(this[i]);
+			this[i] = this[i+len];
+		}
+		for (i in (pos+len)...length){
+			this[i] = this[i+len];
+		}
+		this.length-= len;
+		return ret;
+	}
 	public function toString() : String {
 		var sb = new StringBuf();
 		sb.add("[");
@@ -98,8 +132,21 @@ class Array<T> {
 		return false;
 	}
 
-	public function indexOf( x : T, ?fromIndex:Int ) : Int return 1;
-	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int return 1;
+	public function indexOf( x : T, ?fromIndex:Int ) : Int {
+		if (fromIndex == null) fromIndex = 0;
+		for (i in fromIndex...length){
+			if (x == this[i]) return i;
+		}
+		return -1;
+	}
+	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
+		if (fromIndex == null) fromIndex = 0;
+		var i = length;
+		while(i-- > fromIndex){
+			if (this[i] == x) return i;
+		}
+		return -1;
+	}
 	public inline function copy() : Array<T> {
 		return [for (i in this) i];
 	}
