@@ -94,6 +94,7 @@ class TestFileSystem extends haxe.unit.TestCase {
 
 	function testWindowsSpecialCases() {
 		if (Sys.systemName() != "Windows") {
+			assertTrue(true);
 			return;
 		}
 		var withSlash = "C:/";
