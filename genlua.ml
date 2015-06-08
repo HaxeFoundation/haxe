@@ -1031,6 +1031,18 @@ and can_gen_class_field ctx = function
 	| f ->
 		not (is_extern_field f)
 
+and has_continue e =
+    let rec loop e = match e.eexpr with
+        | TContinue -> raise Exit
+        | TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
+        | _ -> Type.iter loop e
+    in
+    try
+        loop e;
+        false;
+    with Exit ->
+        true
+
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
 		| [] -> ()
@@ -1370,17 +1382,6 @@ let generate_type_forward ctx = function
 		print ctx "%s = {} " p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
-let rec has_continue e =
-    let rec loop e = match e.eexpr with
-        | TContinue -> raise Exit
-        | TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
-        | _ -> Type.iter loop e
-    in
-    try
-        loop e;
-        false;
-    with Exit ->
-        true
 
 let set_current_class ctx c =
 	ctx.current <- c
