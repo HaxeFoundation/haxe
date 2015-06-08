@@ -55,16 +55,21 @@ package cs.internal;
 	@:readOnly public var hasValue(default,never):Bool;
 
 	@:functionCode('
-			if (!haxe.lang.NullMetadata<T>.IsValueType && System.Object.ReferenceEquals(v, default(T)))
-			{
-				hasValue = false;
-			}
-
-			this.@value = v;
-			this.hasValue = hasValue;
+		object obj = null;
+		if (hasValue && System.Object.ReferenceEquals(v, obj))
+		{
+			hasValue = false;
+		}
+		this.value = v;
+		this.hasValue = hasValue;
 	')
 	public function new(v:T, hasValue:Bool)
 	{
+		var obj:Dynamic = null;
+		if (hasValue && cs.system.Object.ReferenceEquals(v, obj))
+		{
+			hasValue = false;
+		}
 		untyped this.value = v;
 		untyped this.hasValue = hasValue;
 	}
