@@ -61,7 +61,7 @@ abstract UInt to Int from Int
 	@:op(A&B) private static function and(lhs:UInt, rhs:UInt):UInt;
 
 	@:op(A<<B) private static function shl(lhs:UInt, rhs:Int):UInt;
-	@:op(A>>B) private static function shr(lhs:UInt, rhs:Int):UInt;
+	@:op(A>>B) private static inline function shr(lhs:UInt, rhs:Int):UInt return lhs >>> rhs;
 	@:op(A>>>B) private static function ushr(lhs:UInt, rhs:Int):UInt;
 
 	@:op(A>B) private static function gt(lhs:UInt, rhs:UInt):Bool;
@@ -154,7 +154,7 @@ abstract UInt(Int) from Int to Int {
 	}
 
 	@:op(A >> B) private static inline function shr(a:UInt, b:Int):UInt {
-		return a.toInt() >> b;
+		return a.toInt() >>> b;
 	}
 
 	@:op(A >>> B) private static inline function ushr(a:UInt, b:Int):UInt {
