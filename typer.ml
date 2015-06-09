@@ -3573,7 +3573,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let t = Typeload.load_complex_type ctx p t in
 		let e = type_expr ctx e (WithType t) in
 		let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
-		if e.etype == t then e else mk (TCast (e,None)) t p
+		if type_iseq e.etype t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
 		let old = ctx.meta in
 		ctx.meta <- m :: ctx.meta;
