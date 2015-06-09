@@ -1956,3 +1956,44 @@ let interpolate_code com code tl f_string f_expr p =
 				err ("Unexpected " ^ x)
 	in
 	loop (Str.full_split regex code)
+
+(* Collection of functions that return expressions *)
+module ExprBuilder = struct
+	let make_static_this c p =
+		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		mk (TTypeExpr (TClassDecl c)) ta p
+
+	let make_int com i p =
+		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
+
+	let make_float com f p =
+		mk (TConst (TFloat f)) com.basic.tfloat p
+
+	let make_null t p =
+		mk (TConst TNull) t p
+
+	let make_local v p =
+		mk (TLocal v) v.v_type p
+
+	let make_const_texpr com ct p = match ct with
+		| TString s -> mk (TConst (TString s)) com.basic.tstring p
+		| TInt i -> mk (TConst (TInt i)) com.basic.tint p
+		| TFloat f -> mk (TConst (TFloat f)) com.basic.tfloat p
+		| TBool b -> mk (TConst (TBool b)) com.basic.tbool p
+		| TNull -> mk (TConst TNull) (com.basic.tnull (mk_mono())) p
+		| _ -> error "Unsupported constant" p
+end
+
+(* Static extensions for classes *)
+module ExtClass = struct
+
+	let add_cl_init c e = match c.cl_init with
+			| None -> c.cl_init <- Some e
+			| Some e' -> c.cl_init <- Some (concat e' e)
+
+	let add_static_init c cf e p =
+		let ethis = ExprBuilder.make_static_this c p in
+		let ef1 = mk (TField(ethis,FStatic(c,cf))) cf.cf_type p in
+		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
+		add_cl_init c e_assign
+end
