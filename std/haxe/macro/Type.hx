@@ -229,6 +229,11 @@ typedef ClassField = {
 		The associated documentation of the class field.
 	**/
 	var doc : Null<String>;
+
+	/**
+		The overload fields of the class field.
+	**/
+	var overloads : Ref<Array<ClassField>>;
 }
 
 /**

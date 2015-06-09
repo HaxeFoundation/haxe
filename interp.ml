@@ -277,7 +277,7 @@ let constants =
 	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
 	"gid";"uid";"atime";"mtime";"ctime";"dev";"ino";"nlink";"rdev";"size";"mode";"pos";"len";
 	"binops";"unops";"from";"to";"array";"op";"isPostfix";"impl";"resolve";
-	"id";"capture";"extra";"v";"ids";"vars";"en";"overrides";"status"];
+	"id";"capture";"extra";"v";"ids";"vars";"en";"overrides";"status";"overloads"];
 	h
 
 let h_get = hash "__get" and h_set = hash "__set"
@@ -4398,6 +4398,7 @@ and encode_cfield f =
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
 		"doc", null enc_string f.cf_doc;
+		"overloads", encode_ref f.cf_overloads (encode_array encode_cfield) (fun() -> "overloads");
 	]
 
 and encode_field_kind k =
@@ -4762,7 +4763,7 @@ let decode_cfield v =
 		cf_kind = decode_field_kind (field v "kind");
 		cf_params = decode_type_params (field v "params");
 		cf_expr = None;
-		cf_overloads = [];
+		cf_overloads = decode_ref (field v "overloads");
 	}
 
 let decode_efield v =
