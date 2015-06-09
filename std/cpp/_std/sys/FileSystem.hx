@@ -104,7 +104,7 @@ class FileSystem {
 	}
 
 	private static inline function makeCompatiblePath(path:String):String {
-		return if (path.charCodeAt(1) == ":".code) {
+		return if (path.charCodeAt(1) == ":".code && path.length <= 3) {
 			haxe.io.Path.addTrailingSlash(path);
 		} else {
 			haxe.io.Path.removeTrailingSlashes(path);
