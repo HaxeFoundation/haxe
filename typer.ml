@@ -713,7 +713,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 					assert false
 			end
 		| [],(_,false,_) :: _ ->
-			call_error Not_enough_arguments callp
+			call_error (Not_enough_arguments args) callp
 		| [],(name,true,t) :: args ->
 			begin match loop [] args with
 				| [] when not (inline && (ctx.g.doinline || force_inline)) && not ctx.com.config.pf_pad_nulls ->
