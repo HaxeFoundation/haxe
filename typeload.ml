@@ -665,6 +665,7 @@ let hide_params ctx =
 		module_using = [];
 		module_globals = PMap.empty;
 		wildcard_packages = [];
+		module_imports = [];
 	};
 	ctx.type_params <- [];
 	(fun() ->
@@ -2714,6 +2715,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 	in
 	match decl with
 	| EImport (path,mode) ->
+		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
 			| rest -> List.rev acc, rest
@@ -3114,6 +3116,7 @@ let type_module ctx m file ?(is_extern=false) tdecls p =
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
+			module_imports = [];
 		};
 		meta = [];
 		this_stack = [];

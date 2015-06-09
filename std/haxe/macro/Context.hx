@@ -178,6 +178,15 @@ class Context {
 	}
 
 	/**
+		Returns an `Array` of all imports in the context the macro was called.
+
+		Modifying the returned array has no effect on the compiler.
+	**/
+	public static function getLocalImports() :  Array<ImportExpr> {
+		return load("local_imports", 0)();
+	}
+
+	/**
 		Returns a map of local variables accessible in the context the macro was
 		called.
 

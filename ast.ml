@@ -439,12 +439,14 @@ type import_mode =
 	| IAsName of string
 	| IAll
 
+type import = (string * pos) list * import_mode
+
 type type_def =
 	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, complex_type) definition
 	| EAbstract of (abstract_flag, class_field list) definition
-	| EImport of (string * pos) list * import_mode
+	| EImport of import
 	| EUsing of type_path
 
 type type_decl = type_def * pos

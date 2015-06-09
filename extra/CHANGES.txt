@@ -33,6 +33,7 @@
 	Macro features and changes:
 
 	macro : added overloads field to ClassField (#3460)
+	macro : added Context.getLocalImports (#3560)
 
 2015-05-12: 3.2.0
 

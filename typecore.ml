@@ -87,6 +87,7 @@ and typer_module = {
 	mutable module_using : tclass list;
 	mutable module_globals : (string, (module_type * string)) PMap.t;
 	mutable wildcard_packages : string list list;
+	mutable module_imports : Ast.import list;
 }
 
 and typer = {
