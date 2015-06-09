@@ -5034,15 +5034,6 @@ let rec make_ast e =
 		if snd mp = snd p then p else (fst mp) @ [snd mp],snd p
 	in
 	let mk_path = expr_of_type_path in
-	let mk_const = function
-		| TInt i -> Int (Int32.to_string i)
-		| TFloat s -> Float s
-		| TString s -> String s
-		| TBool b -> Ident (if b then "true" else "false")
-		| TNull -> Ident "null"
-		| TThis -> Ident "this"
-		| TSuper -> Ident "super"
-	in
 	let mk_ident = function
 		| "`trace" -> Ident "trace"
 		| n -> Ident n
@@ -5050,7 +5041,7 @@ let rec make_ast e =
 	let eopt = function None -> None | Some e -> Some (make_ast e) in
 	((match e.eexpr with
 	| TConst c ->
-		EConst (mk_const c)
+		EConst (tconst_to_const c)
 	| TLocal v -> EConst (mk_ident v.v_name)
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
@@ -5063,7 +5054,7 @@ let rec make_ast e =
 	| TNew (c,pl,el) -> ENew ((match (try make_type (TInst (c,pl)) with Exit -> make_type (TInst (c,[]))) with CTPath p -> p | _ -> assert false),List.map make_ast el)
 	| TUnop (op,p,e) -> EUnop (op,p,make_ast e)
 	| TFunction f ->
-		let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
+		let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (tconst_to_const c),e.epos)) in
 		EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = Some (make_ast f.tf_expr) })
 	| TVar (v,eo) ->
 		EVars ([v.v_name, mk_ot v.v_type, eopt eo])

@@ -677,6 +677,15 @@ let type_of_module_type = function
 	| TTypeDecl t -> TType (t,List.map snd t.t_params)
 	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
 
+let tconst_to_const = function
+	| TInt i -> Int (Int32.to_string i)
+	| TFloat s -> Float s
+	| TString s -> String s
+	| TBool b -> Ident (if b then "true" else "false")
+	| TNull -> Ident "null"
+	| TThis -> Ident "this"
+	| TSuper -> Ident "super"
+
 (* ======= Field utility ======= *)
 
 let field_name f =

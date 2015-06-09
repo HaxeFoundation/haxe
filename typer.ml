@@ -3994,15 +3994,6 @@ and type_call ctx e el (with_type:with_type) p =
 		def ()
 
 and build_call ctx acc el (with_type:with_type) p =
-	let push_this e =
-		match e.eexpr with
-			| TConst (TInt _ | TFloat _ | TString _ | TBool _) ->
-				(Interp.make_ast e),fun () -> ()
-			| _ ->
-				ctx.this_stack <- e :: ctx.this_stack;
-				let er = EMeta((Meta.This,[],e.epos), (EConst(Ident "this"),e.epos)),e.epos in
-				er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
-	in
 	match acc with
  	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
 		type_generic_function ctx (ethis,fmode) el with_type p
@@ -4023,7 +4014,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
-			let eparam,f = push_this eparam in
+			let eparam,f = Codegen.push_this ctx eparam in
 			let e = build_call ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
 			f();
 			e
@@ -4064,7 +4055,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			| TInst (c,_) ->
 				let rec loop c =
 					if PMap.mem cf.cf_name c.cl_fields then
-						let eparam,f = push_this ethis in
+						let eparam,f = Codegen.push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
 							| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
