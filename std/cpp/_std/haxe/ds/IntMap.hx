@@ -47,7 +47,8 @@ package haxe.ds;
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
-	@:ifFeature("haxe.ds.IntMap.*") private var h : Dynamic;
+	@:ifFeature("haxe.ds.IntMap.*")
+	private var h : Dynamic;
 
 	public function new() : Void { }
 

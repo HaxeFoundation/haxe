@@ -46,6 +46,7 @@ package haxe.ds;
 ")
 @:coreApi
 class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
+	@:ifFeature("haxe.ds.ObjectMap.*")
 	private var h : Dynamic;
 
 	public function new() : Void { }

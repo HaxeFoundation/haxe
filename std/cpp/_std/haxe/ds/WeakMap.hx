@@ -44,6 +44,7 @@ package haxe.ds;
 ")
 @:coreApi
 class WeakMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
+	@:ifFeature("haxe.ds.WeakMap.*")
 	private var h : Dynamic;
 
 	public function new() : Void { }
