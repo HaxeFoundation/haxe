@@ -530,10 +530,6 @@ let lower_ident_or_macro = parser
 	| [< '(Kwd Macro,_) >] -> "macro"
 	| [< '(Kwd Extern,_) >] -> "extern"
 
-let any_enum_ident = parser
-	| [< i = ident >] -> i
-	| [< '(Kwd k,p) when Filename.basename p.pfile = "StdTypes.hx" >] -> s_keyword k, p
-
 let property_ident = parser
 	| [< i, _ = ident >] -> i
 	| [< '(Kwd Dynamic,_) >] -> "dynamic"
@@ -946,7 +942,7 @@ and parse_enum s =
 	let doc = get_doc s in
 	let meta = parse_meta s in
 	match s with parser
-	| [< name, p1 = any_enum_ident; params = parse_constraint_params; s >] ->
+	| [< name, p1 = ident; params = parse_constraint_params; s >] ->
 		let args = (match s with parser
 		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_) >] -> l
 		| [< >] -> []
