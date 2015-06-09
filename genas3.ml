@@ -1046,8 +1046,11 @@ let generate_field ctx static f =
 		let gen_init () = match f.cf_expr with
 			| None -> ()
 			| Some e ->
-				print ctx " = ";
-				gen_value ctx e
+				if not static || (match e.eexpr with | TConst _ | TFunction _ | TTypeExpr _ -> true | _ -> false) then begin
+					print ctx " = ";
+					gen_value ctx e
+				end else
+					Codegen.ExtClass.add_static_init ctx.curclass f e e.epos
 		in
 		if is_getset then begin
 			let t = type_str ctx f.cf_type p in
@@ -1122,12 +1125,26 @@ let generate_class ctx c =
 	);
 	List.iter (generate_field ctx false) c.cl_ordered_fields;
 	List.iter (generate_field ctx true) c.cl_ordered_statics;
+	let has_init = match c.cl_init with
+		| None -> false
+		| Some e ->
+			newline ctx;
+			spr ctx "static static_init function init() : void";
+			gen_expr ctx (mk_block e);
+			true;
+	in
 	cl();
 	newline ctx;
 	print ctx "}";
 	pack();
 	newline ctx;
 	print ctx "}";
+	if has_init then begin
+		newline ctx;
+		spr ctx "namespace static_init";
+		newline ctx;
+		print ctx "%s.static_init::init()" (s_path ctx true ctx.curclass.cl_path Ast.null_pos);
+	end;
 	newline ctx;
 	if c.cl_interface && Ast.Meta.has (Ast.Meta.Custom ":hasMetadata") c.cl_meta then begin
 		(* we have to reference the metadata class in order for it to be compiled *)
@@ -1242,11 +1259,10 @@ let generate com =
 				| ["flash"],"FlashXml__" -> { c with cl_path = [],"Xml" }
 				| (pack,name) -> { c with cl_path = (pack,protect name) }
 			) in
-			(match c.cl_init with
-			| None -> ()
-			| Some e -> inits := e :: !inits);
 			if c.cl_extern then
-				()
+				(match c.cl_init with
+				| None -> ()
+				| Some e -> inits := e :: !inits)
 			else
 				let ctx = init infos c.cl_path in
 				generate_class ctx c;

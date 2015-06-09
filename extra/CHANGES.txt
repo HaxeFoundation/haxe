@@ -16,6 +16,7 @@
 	php : fixed argument passing to closures (#2587)
 	neko/cpp : fixed various sys.Filesystem issues with Windows drive paths (#3266)
 	as3 : fixed problem with covariant return types (#4222)
+	as3 : fixed rare problem with static initialization order (#3563)
 
 	General improvements and optimizations:
 
