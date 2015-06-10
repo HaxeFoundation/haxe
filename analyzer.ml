@@ -780,11 +780,13 @@ module Ssa = struct
 
 	let apply_cond ctx = function
 		| Equal(v,e1) ->
-			let v' = assign_var ctx (get_origin_var v) (mk_loc v e1.epos) e1.epos in
-			append_cond ctx v' (Equal(v',e1)) e1.epos
+			(* let v' = assign_var ctx (get_origin_var v) (mk_loc v e1.epos) e1.epos in
+			append_cond ctx v' (Equal(v',e1)) e1.epos *)
+			()
 		| NotEqual(v,e1) ->
-			let v' = assign_var ctx (get_origin_var v) (mk_loc v e1.epos) e1.epos in
-			append_cond ctx v' (NotEqual(v',e1)) e1.epos
+			(* let v' = assign_var ctx (get_origin_var v) (mk_loc v e1.epos) e1.epos in
+			append_cond ctx v' (NotEqual(v',e1)) e1.epos *)
+			()
 
 	let apply_not_null_cond ctx v p =
 		apply_cond ctx (NotEqual(v,(mk (TConst TNull) t_dynamic p)))
@@ -1637,7 +1639,7 @@ module Run = struct
 					if config.check_has_effect then EffectChecker.run com is_var_expression e;
 					let e,ssa = with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply com e) in
 					let e = if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ssa e) else e in
-					let e = if config.check then with_timer "analyzer-checker" (fun () -> Checker.apply ssa e) else e in
+					(* let e = if config.check then with_timer "analyzer-checker" (fun () -> Checker.apply ssa e) else e in *)
 					let e = if config.local_dce && config.analyzer_use && not has_unbound && not is_var_expression then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
 					let e = if config.ssa_unapply then with_timer "analyzer-ssa-unapply" (fun () -> Ssa.unapply com e) else e in
 					List.iter (fun f -> f()) ssa.Ssa.cleanup;
