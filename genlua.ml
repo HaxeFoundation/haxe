@@ -775,7 +775,10 @@ and gen_block_element ?(after=false) ctx e =
 	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
 		let f () = gen_tbinop ctx op e1 e2 in
 		gen_iife_assign ctx f;
-	| TField _ | TArray _ ->
+	| TArray (e1,e2) ->
+		gen_block_element ctx e1;
+		gen_block_element ctx e2;
+	| TField _ ->
 		let f () = gen_expr ctx e in
 		gen_iife_assign ctx f;
 	| TConst _ | TLocal _ -> ()
