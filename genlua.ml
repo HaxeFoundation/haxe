@@ -770,7 +770,8 @@ and gen_expr ctx e =
 
 and gen_block_element ?(after=false) ctx e =
     begin match e.eexpr with
-	| TTypeExpr _ | TCast _ -> ();
+	| TTypeExpr _ -> ()
+	| TCast (ce,_) -> gen_block_element ctx ce
 	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
 		let f () = gen_tbinop ctx op e1 e2 in
 		gen_iife_assign ctx f;
