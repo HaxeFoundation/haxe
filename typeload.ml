@@ -2289,10 +2289,9 @@ let init_class ctx c p context_init herits fields =
 					let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
 					let rec loop ml = match ml with
 						| (Meta.From,_,_) :: _ ->
-							if is_macro then error (f.cff_name ^ ": Macro cast functions are not supported") p;
 							let r = fun () ->
 								(* the return type of a from-function must be the abstract, not the underlying type *)
-								(try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
+								if not is_macro then (try type_eq EqStrict ret ta with Unify_error l -> error (error_msg (Unify l)) p);
 								match t with
 									| TFun([_,_,t],_) -> t
 									| _ -> error (f.cff_name ^ ": @:from cast functions must accept exactly one argument") p

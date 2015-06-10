@@ -700,7 +700,21 @@ module AbstractCast = struct
 	let cast_stack = ref []
 
 	let make_static_call ctx c cf a pl args t p =
-		make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		if cf.cf_kind = Method MethMacro then begin
+			match args with
+				| [e] ->
+					let e,f = push_this ctx e in
+					ctx.with_type_stack <- (WithType t) :: ctx.with_type_stack;
+					let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
+						| Some e -> type_expr ctx e Value
+						| None ->  type_expr ctx (EConst (Ident "null"),p) Value
+					in
+					ctx.with_type_stack <- List.tl ctx.with_type_stack;
+					f();
+					e
+				| _ -> assert false
+		end else
+			make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
 	let do_check_cast ctx tleft eright p =
 		let recurse cf f =
@@ -1494,12 +1508,12 @@ let dump_types com =
 			| Some f -> print_field false f);
 			List.iter (print_field false) c.cl_ordered_fields;
 			List.iter (print_field true) c.cl_ordered_statics;
-            (match c.cl_init with
-            | None -> ()
-            | Some e ->
-                print "\n\n\t__init__ = ";
-                print "%s" (s_expr s_type e);
-                print "}\n");
+			(match c.cl_init with
+			| None -> ()
+			| Some e ->
+				print "\n\n\t__init__ = ";
+				print "%s" (s_expr s_type e);
+				print "}\n");
 			print "}";
 		| Type.TEnumDecl e ->
 			print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
