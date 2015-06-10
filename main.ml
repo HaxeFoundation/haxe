@@ -978,7 +978,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2015 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2015 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3|-cs|-java|-python] <output> [options]\n Options :"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
