@@ -64,7 +64,7 @@ class Boot {
 				return true;
 			default:
 				if( o != null ) {
-					// Check if o is an instance of a Haxe class or a native JS object
+					// Check if o is an instance of a Haxe class or a native Lua object
 					if (untyped __type__(cl) == "table" ) {
 						// TODO: Fixme
 						return true;
