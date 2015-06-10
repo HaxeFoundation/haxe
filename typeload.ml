@@ -3003,7 +3003,7 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 					| _ -> Var { v_read = AccNormal; v_write = AccNo }
 				);
 				cf_pos = e.e_pos;
-				cf_doc = None;
+				cf_doc = f.ef_doc;
 				cf_meta = no_meta;
 				cf_expr = None;
 				cf_params = f.ef_params;
