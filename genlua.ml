@@ -775,6 +775,15 @@ and gen_block_element ?(after=false) ctx e =
 	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
 		let f () = gen_tbinop ctx op e1 e2 in
 		gen_iife_assign ctx f;
+	| TUnop ((Increment|Decrement) as op,_,e) ->
+		newline ctx;
+		gen_expr ctx e;
+		print ctx " = ";
+		gen_expr ctx e;
+		(match op with
+			| Increment -> print ctx " + 1;"
+			| _ -> print ctx " - 1;"
+		)
 	| TArray (e1,e2) ->
 		gen_block_element ctx e1;
 		gen_block_element ctx e2;
