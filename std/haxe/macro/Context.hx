@@ -378,7 +378,7 @@ class Context {
 	}
 
 	/**
-		Returns true if `t1` and `t2` unify, false otherwise.
+		Tries to unify `t1` and `t2` and returns `true` if successful.
 	**/
 	public static function unify( t1 : Type, t2 : Type) : Bool {
 		return load("unify", 2)(t1, t2);
