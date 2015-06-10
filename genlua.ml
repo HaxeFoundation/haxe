@@ -846,6 +846,12 @@ and gen_value ctx e =
 		)
 	in
 	match e.eexpr with
+	| TBinop((OpAssignOp(_)|OpAssign),e1,e2) ->
+		spr ctx "((function()";
+		gen_expr ctx e;
+		spr ctx ";return ";
+		gen_expr ctx e1;
+		spr ctx ";end)())";
 	| TConst _
 	| TLocal _
 	| TArray _
@@ -1012,16 +1018,9 @@ and gen_return ctx e eo =
 	    spr ctx "do return end"
     | Some e ->
 	    spr ctx "do return ";
-	    (match e.eexpr with
-		| TBinop(OpAssign, e1, e2) ->
-			spr ctx "(function() ";
-			gen_value ctx e;
-			spr ctx " return ";
-			gen_value ctx e1;
-			spr ctx " end)()";
-		| _ -> gen_value ctx e;
-	    );
-	    spr ctx " end")
+	    gen_value ctx e;
+	    spr ctx " end"
+	)
 
 and gen_iife_assign ctx f =
     spr ctx "(function() return ";
