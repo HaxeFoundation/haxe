@@ -787,8 +787,7 @@ and gen_block_element ?(after=false) ctx e =
 			| [] -> ()
 			| [e] -> gen_block_element ~after ctx e
 			| _ -> assert false)
-	| TFunction _ ->
-		gen_block_element ~after ctx (mk (TParenthesis e) e.etype e.epos)
+	| TFunction _ -> ()
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| TVar (v,eo) ->
