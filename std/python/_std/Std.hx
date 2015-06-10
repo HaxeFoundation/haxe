@@ -45,6 +45,7 @@ import python.Syntax;
 	}
 
 	@:access(python.Boot)
+	@:ifFeature("typed_cast")
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 
 		if (v == null && t == null) {
