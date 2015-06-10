@@ -601,7 +601,7 @@ and gen_expr ctx e =
 		spr ctx "while ";
 		gen_cond ctx cond;
 		spr ctx " do ";
-		gen_expr ctx e;
+		gen_block_element ctx e;
 		handle_break();
 		newline ctx;
 		(* TODO: generate this label conditionally *)
