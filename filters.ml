@@ -10,6 +10,7 @@ let rec verify_ast ctx e =
 		| TConst TNull ->
 			(* TODO: https://github.com/HaxeFoundation/haxe/issues/4072 *)
 			(* display_error ctx ("Invalid null expression: " ^ (s_expr_pretty "" (s_type (print_context())) e)) e.epos *)
+			()
 		| _ -> ()
 	in
 	let rec loop e = match e.eexpr with
