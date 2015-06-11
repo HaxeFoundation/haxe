@@ -25,7 +25,7 @@ package haxe.crypto;
     Creates a Sha256 of a String.
 */
 class Sha256 {
-	
+
 	public static function encode( s:String ) : String {
 		#if php
 		return untyped __call__("hash", "sha256", s);
@@ -38,7 +38,7 @@ class Sha256 {
 
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
 		#if php
-		return haxe.io.Bytes.ofData(untyped __call__("hash", "sha256", b.getData(), true));
+		return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("hash", "sha256", b.getData().toString(), true)));
 		#else
 		var h = new Sha256().doEncode(bytes2blks(b), b.length*8);
 		var out = haxe.io.Bytes.alloc(32);
@@ -52,10 +52,10 @@ class Sha256 {
 		return out;
 		#end
 	}
-	
+
 	public function new() {
 	}
-	
+
 	function doEncode( m : Array<Int>, l : Int ) : Array<Int> {
 		var K : Array<Int> = [
 			0x428A2F98,0x71374491,0xB5C0FBCF,0xE9B5DBA5,0x3956C25B,
@@ -107,7 +107,7 @@ class Sha256 {
 		}
 		return HASH;
 	}
-	
+
 	/*
 		Convert a string to a sequence of 16-word blocks, stored as an array.
 		Append padding bits and the length, as described in the SHA1 standard.
@@ -149,41 +149,41 @@ class Sha256 {
 	function S(X, n) {
 		return ( X >>> n ) | (X << (32 - n));
 	}
-	
+
 	function R(X, n) {
 		return ( X >>> n );
 	}
-	
+
 	function Ch(x, y, z) {
 		return ((x & y) ^ ((~x) & z));
 	}
-	
+
 	function Maj(x, y, z) {
 		return ((x & y) ^ (x & z) ^ (y & z));
 	}
-	
+
 	function Sigma0256(x) {
 		return (S(x, 2) ^ S(x, 13) ^ S(x, 22));
 	}
-	
+
 	function Sigma1256(x) {
 		return (S(x, 6) ^ S(x, 11) ^ S(x, 25));
 	}
-	
+
 	function Gamma0256(x) {
 		return (S(x, 7) ^ S(x, 18) ^ R(x, 3));
 	}
-	
+
 	function Gamma1256(x) {
 		return (S(x, 17) ^ S(x, 19) ^ R(x, 10));
 	}
-	
+
 	function safeAdd(x, y) {
 		var lsw = (x & 0xFFFF) + (y & 0xFFFF);
 		var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
 		return (msw << 16) | (lsw & 0xFFFF);
 	}
-	
+
 	function hex( a : Array<Int> ){
 		var str = "";
 		for( num in a ) {

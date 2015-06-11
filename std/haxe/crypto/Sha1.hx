@@ -38,7 +38,7 @@ class Sha1 {
 
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
 		#if php
-		return haxe.io.Bytes.ofData(untyped __call__("sha1", b.getData(), true));
+		return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("sha1", b.getData().toString(), true)));
 		#else
 		var h = new Sha1().doEncode(bytes2blks(b));
 		var out = haxe.io.Bytes.alloc(20);

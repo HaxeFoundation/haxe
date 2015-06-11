@@ -97,7 +97,7 @@ class BytesInput extends Input {
 			#if neko
 			return untyped __dollar__sget(b,pos++);
 			#elseif php
-			return untyped __call__("ord", b[pos++]);
+			return b.get(pos++);
 			#elseif cpp
 			return untyped b[pos++];
 			#elseif java
@@ -141,7 +141,7 @@ class BytesInput extends Input {
 			#if neko
 			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 			#elseif php
-			untyped __php__("$buf->b = substr($buf->b, 0, $pos) . substr($this->b, $this->pos, $len) . substr($buf->b, $pos+$len)");
+			buf.getData().blit(pos, b, this.pos, len);
 			#else
 			var b1 = b;
 			var b2 = #if js @:privateAccess buf.b #else buf.getData() #end;
