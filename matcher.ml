@@ -299,7 +299,7 @@ let rec is_value_type = function
 let rec matches_null ctx t = match t with
 	| TMono r ->
 		(match !r with None -> r := Some (ctx.t.tnull (mk_mono())); true | Some t -> matches_null ctx t)
-	| TType ({ t_path = ([],"Null") },[_]) ->
+	| TAbstract ({ a_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
 		matches_null ctx (!f())
@@ -1072,8 +1072,8 @@ let convert_switch mctx st cases loop =
 	| None ->
 		dt
 	| Some dt_null ->
-		let t = match ctx.t.tnull ctx.t.tint with
-			| TType(t,_) ->TType(t,[st.st_type])
+		let t = match ctx.t.tnull st.st_type with
+			| TAbstract(a,_) -> TAbstract(a,[st.st_type])
 			| t -> t
 		in
 		let e_null = mk (TConst TNull) t p in

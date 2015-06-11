@@ -247,9 +247,19 @@ let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		(match follow t with
+		| TAbstract ({ a_path = [],"UInt" },_)
+		| TAbstract ({ a_path = [],"Int" },_)
+		| TAbstract ({ a_path = [],"Float" },_)
+		| TAbstract ({ a_path = [],"Bool" },_)
+		| TInst ({ cl_path = [],"Int" },_)
+		| TInst ({ cl_path = [],"Float" },_)
+		| TEnum ({ e_path = [],"Bool" },_) -> "*"
+		| _ -> type_str ctx t p)
 	| TAbstract (a,pl) when not (Ast.Meta.has Ast.Meta.CoreType a.a_meta) ->
 		type_str ctx (Abstract.get_underlying_type a pl) p
-	| TAbstract (a,_) ->
+	| TAbstract (a,args) ->
 		(match a.a_path with
 		| [], "Void" -> "void"
 		| [], "UInt" -> "uint"
@@ -291,19 +301,6 @@ let rec type_str ctx t p =
 	| TType (t,args) ->
 		(match t.t_path with
 		| [], "UInt" -> "uint"
-		| [] , "Null" ->
-			(match args with
-			| [t] ->
-				(match follow t with
-				| TAbstract ({ a_path = [],"UInt" },_)
-				| TAbstract ({ a_path = [],"Int" },_)
-				| TAbstract ({ a_path = [],"Float" },_)
-				| TAbstract ({ a_path = [],"Bool" },_)
-				| TInst ({ cl_path = [],"Int" },_)
-				| TInst ({ cl_path = [],"Float" },_)
-				| TEnum ({ e_path = [],"Bool" },_) -> "*"
-				| _ -> type_str ctx t p)
-			| _ -> assert false);
 		| _ -> type_str ctx (apply_params t.t_params args t.t_type) p)
 	| TLazy f ->
 		type_str ctx ((!f)()) p

@@ -52,7 +52,9 @@
 	generator to distinguish between base values that can be null and others that
 	can't.
 **/
-typedef Null<T> = T
+@:forward
+@:callable
+abstract Null<T>(T) from T to T { }
 
 /**
 	The standard Boolean type, which can either be true or false.

@@ -797,8 +797,8 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 			| _ -> t)
 		| TLazy f ->
 			follow_skip_null (!f())
-		| TType ({ t_path = [],"Null" } as t, [p]) ->
-			TType(t,[follow p])
+		| TAbstract ({ a_path = [],"Null" } as t, [p]) ->
+			TAbstract(t,[follow p])
 		| TType (t,tl) ->
 			follow_skip_null (apply_params t.t_params tl t.t_type)
 		| _ -> t
