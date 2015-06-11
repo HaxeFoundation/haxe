@@ -789,44 +789,50 @@ let unify_field_call ctx fa el args ret p inline =
 	in
 	let is_forced_inline = is_forced_inline co cf in
 	let is_overload = Meta.has Meta.Overload cf.cf_meta in
+	let attempt_call t cf = match follow t with
+		| TFun(args,ret) ->
+			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
+			let mk_call ethis p_field =
+				let ef = mk (TField(ethis,mk_fa cf)) tf p_field in
+				make_call ctx ef (List.map fst el) ret p
+			in
+			el,tf,mk_call
+		| _ ->
+			assert false
+	in
 	let rec loop candidates = match candidates with
 		| [] -> [],[]
 		| (t,cf) :: candidates ->
 			begin try
-				begin match follow t with
-					| TFun(args,ret) ->
-						let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-						let mk_call ethis p_field =
-							let ef = mk (TField(ethis,mk_fa cf)) tf p_field in
-							make_call ctx ef (List.map fst el) ret p
-						in
-						let candidate = (el,tf,mk_call) in
-						if ctx.com.config.pf_overload && is_overload then begin
-							let candidates,failures = loop candidates in
-							candidate :: candidates,failures
-						end else
-							[candidate],[]
-					| _ ->
-						assert false
-				end
+				let candidate = attempt_call t cf in
+				if ctx.com.config.pf_overload && is_overload then begin
+					let candidates,failures = loop candidates in
+					candidate :: candidates,failures
+				end else
+					[candidate],[]
 			with Error (Call_error _,_) as err ->
 				let candidates,failures = loop candidates in
 				candidates,err :: failures
 			end
 	in
-	let candidates,failures = loop candidates in
-	let fail () = match List.rev failures with
-		| err :: _ -> raise err
-		| _ -> assert false
-	in
-	if is_overload && ctx.com.config.pf_overload then begin match Codegen.Overloads.reduce_compatible candidates with
-		| [] -> fail()
-		| [el,tf,mk_call] -> List.map fst el,tf,mk_call
-		| _ -> error "Ambiguous overload" p
-	end else begin match List.rev candidates with
-		| [] -> fail()
-		| (el,tf,mk_call) :: _ -> List.map fst el,tf,mk_call
-	end
+	match candidates with
+	| [t,cf] ->
+		let el,tf,mk_call = attempt_call t cf in
+		List.map fst el,tf,mk_call
+	| _ ->
+		let candidates,failures = loop candidates in
+		let fail () = match List.rev failures with
+			| err :: _ -> raise err
+			| _ -> assert false
+		in
+		if is_overload && ctx.com.config.pf_overload then begin match Codegen.Overloads.reduce_compatible candidates with
+			| [] -> fail()
+			| [el,tf,mk_call] -> List.map fst el,tf,mk_call
+			| _ -> error "Ambiguous overload" p
+		end else begin match List.rev candidates with
+			| [] -> fail()
+			| (el,tf,mk_call) :: _ -> List.map fst el,tf,mk_call
+		end
 
 let fast_enum_field e ef p =
 	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
