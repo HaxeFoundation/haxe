@@ -24,6 +24,7 @@ package haxe.ds;
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
 	private var h : Dynamic;
+	private var ak : Array<Int>;
 
 	public inline function new() : Void {
 		h = {};
@@ -31,6 +32,7 @@ package haxe.ds;
 
 	public inline function set( key : Int, value : T ) : Void {
 		untyped h[key] = value;
+		ak = null;
 	}
 
 	public inline function get( key : Int ) : Null<T> {
@@ -44,10 +46,14 @@ package haxe.ds;
 	public function remove( key : Int ) : Bool {
 		if( untyped !h.hasOwnProperty(key) ) return false;
 		untyped  __js__("delete")(h[key]);
+		ak = null;
 		return true;
 	}
 
 	public function keys() : Iterator<Int> {
+		if( ak != null)
+			return ak.iterator();
+
 		var a = [];
 		untyped {
 			__js__("for( var key in this.h ) {");
@@ -55,6 +61,7 @@ package haxe.ds;
 					a.push(key|0);
 			__js__("}");
 		}
+		ak = a;
 		return a.iterator();
 	}
 

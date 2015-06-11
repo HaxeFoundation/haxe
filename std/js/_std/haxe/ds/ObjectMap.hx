@@ -36,6 +36,7 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	}
 
 	var h : { };
+	var ak : Array<K>;
 
 	public function new() : Void {
 		h = { };
@@ -46,6 +47,7 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		var id : Int = untyped key.__id__ || assignId(key);
 		h[id] = value;
 		h.__keys__[id] = key;
+		ak = null;
 	}
 
 	public inline function get(key:K):Null<V> {
@@ -61,10 +63,14 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		if ( untyped h.__keys__[id] == null ) return false;
 		untyped  __js__("delete")(h[id]);
 		untyped  __js__("delete")(h.__keys__[id]);
+		ak = null;
 		return true;
 	}
 
 	public function keys() : Iterator<K> {
+		if( ak != null )
+			return ak.iterator();
+
 		var a = [];
 		untyped {
 			__js__("for( var key in this.h.__keys__ ) {");
@@ -72,6 +78,7 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 					a.push(h.__keys__[key]);
 			__js__("}");
 		}
+		ak = a;
 		return a.iterator();
 	}
 

@@ -44,6 +44,7 @@ private class StringMapIterator<T> {
 
 	private var h : Dynamic;
 	private var rh : Dynamic;
+	private var ak : Array<String>;
 
 	public inline function new() : Void {
 		h = {};
@@ -54,10 +55,12 @@ private class StringMapIterator<T> {
 	}
 
 	public inline function set( key : String, value : T ) : Void {
-		if( isReserved(key) )
+		if( isReserved(key) ) {
 			setReserved(key, value);
-		else
+		} else {
 			h[cast key] = value;
+			ak = null;
+		}
 	}
 
 	public inline function get( key : String ) : Null<T> {
@@ -75,6 +78,7 @@ private class StringMapIterator<T> {
 	function setReserved( key : String, value : T ) : Void {
 		if( rh == null ) rh = {};
 		rh[cast "$"+key] = value;
+		ak = null;
 	}
 
 	function getReserved( key : String ) : Null<T> {
@@ -91,11 +95,13 @@ private class StringMapIterator<T> {
 			key = "$" + key;
 			if( rh == null || !rh.hasOwnProperty(key) ) return false;
 			untyped __js__("delete")(rh[key]);
+			ak = null;
 			return true;
 		} else {
 			if( !h.hasOwnProperty(key) )
 				return false;
 			untyped __js__("delete")(h[key]);
+			ak = null;
 			return true;
 		}
 	}
@@ -103,8 +109,11 @@ private class StringMapIterator<T> {
 	public function keys() : Iterator<String> {
 		return arrayKeys().iterator();
 	}
-	
+
 	function arrayKeys() : Array<String> {
+		if( ak != null )
+			return ak;
+
 		var out = [];
 		untyped {
 			__js__("for( var key in this.h ) {");
@@ -118,6 +127,7 @@ private class StringMapIterator<T> {
 					out.push(key.substr(1));
 			__js__("}");
 		}
+		ak = out;
 		return out;
 	}
 
