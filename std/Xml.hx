@@ -25,7 +25,7 @@
 **/
 @:enum abstract XmlType(Int) {
 	/**
-		Represents a XML element type.
+		Represents an XML element type.
 	**/
 	var Element = 0;
 	/**
@@ -37,19 +37,19 @@
 	**/
 	var CData = 2;
 	/**
-		Represents a XML comment type.
+		Represents an XML comment type.
 	**/
 	var Comment = 3;
 	/**
-		Represents a XML doctype element type.
+		Represents an XML doctype element type.
 	**/
 	var DocType = 4;
 	/**
-	 	Represents a XML processing instruction type.
+	 	Represents an XML processing instruction type.
 	**/
 	var ProcessingInstruction = 5;
 	/**
-		Represents a XML document type.
+		Represents an XML document type.
 	**/
 	var Document = 6;
 }
@@ -90,7 +90,7 @@ class Xml {
 	static public var Document(default,null) = XmlType.Document;
 
 	/**
-		Parses the String into an XML Document. 
+		Parses the String into an Xml document. 
 	**/
 	static public function parse( str : String ) : Xml {
 		return haxe.xml.Parser.parse(str);
