@@ -398,7 +398,7 @@ function _hx_field($o, $field) {
 							return $o->$field;
 						}
 					}
-				} else if(isset($o->__dynamics[$field])) {
+				} else if(isset($o->__dynamics) && isset($o->__dynamics[$field])) {
 					return $o->__dynamics[$field];
 				} else {
 					return array($o, $field);
