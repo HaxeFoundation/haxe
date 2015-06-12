@@ -11,14 +11,14 @@ extern class Rex {
 	  string subj, starting from offset init, subject to flags cf and ef.
 	  Returns matched string, or array of strings.
 	 **/
-	public function match(patt : String, ?init : Int, ?ef : Int) : Dynamic;
+	public static function match(patt : String, ?init : Int, ?ef : Int) : Dynamic;
 
 	/**
 	 The function searches for the first match of the regexp patt in the string
 	 subj, starting from offset init, subject to flags cf and ef. 
 	 Returns 
 	 **/
-	public function find(subj : String, ?init : Int, ?ef : Int) : Dynamic;
+	public static function find(subj : String, ?init : Int, ?ef : Int) : Dynamic;
 
 
 	/**
@@ -27,19 +27,17 @@ extern class Rex {
 	 parameter is a regular expression pattern representing separators between
 	 the sections. 
 	 **/
-	public function split(subj : String, sep : String, cf : Int, ef : Int) : lua.Table<Int,String>;
+	@:overload(   function(subj : String, sep : Rex, ?cf : Int, ?ef : Int) : Void->String{})
+	public static function split(subj : String, sep : String, ?cf : Int, ?ef : Int) : Void->String;
 
 
 	/**
 	  This function counts matches of the pattern patt in the string subj.
 	**/	
-	public function count(subj : String, patt : String, cf : Int, ef : Int) : Dynamic;
-
-	public function flags(tb:Dynamic) : Dynamic;
-
-	public function tfind(subj : String, ?init : Int, ?ef : Int) : Dynamic;
-
-	public function exec(subj : String, ?init : Int, ?ef : Int) : Dynamic;
+	public static function count(subj : String, patt : String, cf : Int, ef : Int) : Dynamic;
+	public static function flags(tb:Dynamic) : Dynamic;
+	public static function tfind(rex: Rex, subj : String, ?init : Int, ?ef : Int) : Dynamic;
+	public static function exec(rex: Rex, subj : String, ?init : Int, ?ef : Int) : Dynamic;
 
 	/**
 	 The function is intended for use in the generic for Lua construct. It
