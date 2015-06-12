@@ -58,7 +58,10 @@ class String {
 		return ret-1;
 	}
 	public function split( delimiter : String ) : Array<String> {
-		return [];
+		var ret : Array<String> = [];
+		var qd =  lua.Boot.patternQuote(delimiter);
+		lua.StringTools.gsub(this, qd, function(c) ret.push(c));
+		return ret;
 	}
 	public function toString() : String {
 		return this;
