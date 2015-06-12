@@ -26,6 +26,19 @@ class Boot {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
 
+	public static function patternQuote(str:String){
+		return lua.StringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
+	}
+
+	public static function luaIteratorToArray<T>(itr:Void->T) : Array<T> {
+		var i: T = null;
+		var ret : Array<T> = [];
+		while({i = itr(); i != null;}){
+			ret.push(i);
+		}
+		return ret;
+	}
+
 	static inline function isClass(o:Dynamic) : Bool {
 		return untyped __define_feature__("lua.Boot.isClass", o.__name__);
 	}
