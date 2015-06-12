@@ -402,7 +402,7 @@ module MetaInfo = struct
 		| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
 		| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])
 		| From -> ":from",("Specifies that the field of the abstract is a cast operation from the type identified in the function",[UsedOn TAbstractField])
-		| FunctionCode -> ":functionCode",("",[Platform Cpp])
+		| FunctionCode -> ":functionCode",("Used to inject platform-native code into a function",[Platforms [Cpp;Java;Cs]])
 		| FunctionTailCode -> ":functionTailCode",("",[Platform Cpp])
 		| Generic -> ":generic",("Marks a class or class field as generic so each type parameter combination generates its own type/field",[UsedOnEither [TClass;TClassField]])
 		| GenericBuild -> ":genericBuild",("Builds instances of a type using the specified macro",[UsedOn TClass])
