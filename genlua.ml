@@ -537,7 +537,9 @@ and gen_expr ctx e =
 		spr ctx "if ";
 		gen_cond ctx cond;
 		spr ctx " then ";
+		let bend = open_block ctx in
 		gen_block_element ctx e;
+		bend();
 		newline ctx;
 		(match eelse with
 		| None -> ();
@@ -546,7 +548,6 @@ and gen_expr ctx e =
 			| TObjectDecl _ -> ctx.separator <- false
 			| _ ->());
 			spr ctx "else";
-			newline ctx;
 			let bend = open_block ctx in
 			gen_block_element ctx e2;
 			bend();
@@ -600,13 +601,12 @@ and gen_expr ctx e =
 		spr ctx " do ";
 		gen_block_element ctx e;
 		handle_break();
-		(* TODO: generate this label conditionally *)
 		if has_continue e then begin
 		    newline ctx;
 		    spr ctx "::_hx_continue::";
 		end;
 		newline ctx;
-		spr ctx " end ";
+		spr ctx "end";
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
 		spr ctx "while true do ";
@@ -624,7 +624,7 @@ and gen_expr ctx e =
 		(* TODO: generate this label conditionally *)
 		spr ctx "::_hx_continue::";
 		newline ctx;
-		spr ctx " end ";
+		spr ctx "end";
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
@@ -763,6 +763,7 @@ and gen_expr ctx e =
 
 
 and gen_block_element ?(after=false) ctx e =
+    newline ctx;
     begin match e.eexpr with
 	| TTypeExpr _ -> ()
 	| TCast (ce,_) -> gen_block_element ctx ce
@@ -804,13 +805,11 @@ and gen_block_element ?(after=false) ctx e =
 	| TObjectDecl fl ->
 		List.iter (fun (_,e) -> gen_block_element ~after ctx e) fl
 	| TVar (v,eo) ->
-		if not after then newline ctx;
 		gen_expr ctx e; (* these already generate semicolons*)
 	| TMeta (_,e) ->
 		gen_block_element ctx e
 	| _ ->
-		if not after then newline ctx;
-		spr ctx (debug_expression e);
+		(* spr ctx (debug_expression e); *)
 		gen_expr ctx e;
 		semicolon ctx;
 		if after then newline ctx;
@@ -1118,13 +1117,15 @@ let gen_class_field ctx c f =
 		    ctx.in_loop <- false;
 		    print ctx "%s = function" (anon_field f.cf_name);
 		    print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
-		    newline ctx;
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with
 		    | TBlock el ->
 			let rec loop ctx el = (match el with
 			    | [hd] -> (match hd.eexpr with
-				    | TReturn eo -> gen_return ctx e eo;
+				    | TReturn eo -> begin
+					    newline ctx;
+					    gen_return ctx e eo;
+					end;
 				    | _ -> gen_block_element ctx hd);
 			    | hd :: tl ->
 				    gen_block_element ctx hd;
@@ -1183,7 +1184,7 @@ let generate_class ctx c =
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					print ctx "local self = {}";
+					print ctx "local self = {};";
 					newline ctx;
 					if (has_prototype ctx c) then (
 					    print ctx "setmetatable(self, {__index=%s.prototype}) " p; newline ctx;
