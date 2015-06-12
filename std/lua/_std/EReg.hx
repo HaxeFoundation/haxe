@@ -22,14 +22,13 @@
 import lua.Rex;
 import lua.Table;
 import lua.Boot;
-import lua.TableTools;
 // @:coreApi
 class EReg {
 
 	var r : Rex; // the Rex extern instance.
 	var global : Bool;  // whether the regex is in global mode.
 	var s : String; // the last matched string
-	var m : Table<Int,Dynamic>; // the [start:Int, end:Int, and submatches:String (matched groups)] as a single table.
+	var m : Table<Int,Int>; // the [start:Int, end:Int, and submatches:String (matched groups)] as a single table.
 
 	public function new( r : String, opt : String ) : Void {
 		var ropt = new StringBuf();
@@ -44,9 +43,9 @@ class EReg {
 		this.r = Rex.create(r, ropt.toString());
 	}
 
-	public function match( str : String ) : Bool {
-		m = untyped Boot.unpack(r.exec(str));
-		s = str;
+	public function match( s : String ) : Bool {
+		m = untyped Boot.unpack(Rex.exec(r,s));
+		this.s = s;
 		return m[0] != null;
 	}
 
@@ -80,14 +79,12 @@ class EReg {
 		}
 	}
 
-	public inline function matchSub( s : String, pos : Int, ?len : Int):Bool {
+	public function matchSub( s : String, pos : Int, ?len : Int = -1) : Bool {
 		return match(s.substr(pos, len));
 	}
 
 	public function split( s : String ) : Array<String> {
-		// we can't use directly s.split because it's ignoring the 'g' flag
-		var d = "#__delim__#";
-		return untyped s.replace(r,d).split(d);
+		return Boot.luaIteratorToArray(Rex.split(s, r));
 	}
 
 	public function replace( s : String, by : String ) : String {
