@@ -12,11 +12,8 @@ extern class StringTools {
 	public static function byte(str : String, ?index : Int) : Int;
 	public static function format(str : String, ?e1 : String, ?e2 : String, ?e3 : String, ?e4 : String): String;
 
+	@:overload(   function     (str : String, pattern : String, replace : String->Void,   ?n : Int): String {})
 	@:overload(   function     (str : String, pattern : String, replace : String->String, ?n : Int): String {})
 	public static function gsub(str : String, pattern : String, replace : String,		  ?n : Int): String;
-
-
-	@:overload(function(pos:Int):String{})
-	//TODO: The rest
 }
 
