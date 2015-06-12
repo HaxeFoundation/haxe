@@ -394,6 +394,15 @@ class Context {
 	}
 
 	/**
+		Follows a type, including abstracts' underlying implementation
+
+		See `haxe.macro.TypeTools.followWithAbstracts` for details.
+	**/
+	public static function followWithAbstracts(t : Type, once : Bool = false ) : Type {
+		return load("follow_with_abstracts", 2)(t,once);
+	}
+
+	/**
 		Returns the information stored in `Position` `p`.
 	**/
 	public static function getPosInfos( p : Position ) : { min : Int, max : Int, file : String } {

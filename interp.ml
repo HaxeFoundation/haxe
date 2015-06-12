@@ -2541,6 +2541,25 @@ let macro_lib =
 				PMap.iter (fun n v -> Hashtbl.replace h (VString n) (encode_type v.v_type)) vars;
 			enc_hash h
 		);
+		"follow_with_abstracts", Fun2 (fun v once ->
+			let t = decode_type v in
+			let follow_once t =
+				match t with
+				| TMono r ->
+					(match !r with
+					| None -> t
+					| Some t -> t)
+				| TAbstract (a,tl) when not (Ast.Meta.has Ast.Meta.CoreType a.a_meta) ->
+					Abstract.get_underlying_type a tl
+				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+					t
+				| TType (t,tl) ->
+					apply_params t.t_params tl t.t_type
+				| TLazy f ->
+					(!f)()
+			in
+			encode_type (match once with VNull | VBool false -> Abstract.follow_with_abstracts t | VBool true -> follow_once t | _ -> error())
+		);
 		"follow", Fun2 (fun v once ->
 			let t = decode_type v in
 			let follow_once t =
