@@ -774,7 +774,8 @@ module AbstractCast = struct
 
 	let cast_or_unify_raise ctx tleft eright p =
 		try
-			if ctx.com.display <> DMNone then raise Not_found;
+			(* can't do that anymore because this might miss macro calls (#4315) *)
+			(* if ctx.com.display <> DMNone then raise Not_found; *)
 			do_check_cast ctx tleft eright p
 		with Not_found ->
 			unify_raise ctx eright.etype tleft p;
