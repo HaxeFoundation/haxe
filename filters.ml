@@ -1187,6 +1187,7 @@ let run com tctx main =
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			blockify_ast;
 			check_local_vars_init;
+			Optimizer.inline_constructors tctx;
 			( if (Common.defined com Define.NoSimplify) || (Common.defined com Define.Cppia) ||
 						( match com.platform with Cpp -> false | _ -> true ) then
 					fun e -> e
@@ -1198,7 +1199,7 @@ let run com tctx main =
 						timer();
 						save();
 					e );
-			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx (Optimizer.inline_constructors tctx e)) else Optimizer.sanitize com;
+			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx e) else Optimizer.sanitize com;
 			captured_vars com;
 			promote_complex_rhs com;
 			if com.config.pf_add_final_return then add_final_return else (fun e -> e);
