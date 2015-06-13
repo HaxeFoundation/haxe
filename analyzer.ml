@@ -365,6 +365,7 @@ module Simplifier = struct
 				let e1 = match e1.eexpr with
 					| TFunction _ -> loop e1
 					| TArrayDecl [{eexpr = TFunction _}] -> loop e1
+					| TNew(_,_,el) when not (List.exists Optimizer.has_side_effect el) -> loop e1 (* issue #4322 *)
 					| _ -> bind ~allow_tlocal:true e1
 				in
 				{e with eexpr = TVar(v,Some e1)}
