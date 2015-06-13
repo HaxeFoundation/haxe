@@ -3813,7 +3813,7 @@ let convert_ilprop ctx p prop is_explicit_impl =
 			raise Exit (* special (?) getter; not used *)
 		| Some(_,m) when access m <> FAPublic -> (match access m with
 			| FAFamily
-			| FAFamOrAssem -> "null"
+			| FAFamOrAssem -> "never"
 			| _ -> "never");
 		| Some _ -> "set"
 	in

@@ -24,6 +24,14 @@ class TestCSharp extends Test
 {
 #if cs
 
+	function testIssue4325()
+	{
+		var b = new Base();
+		eq(b.Issue4325, 0);
+		b.setIssue4325(10);
+		eq(b.Issue4325, 10);
+	}
+
 	// -net-lib tests
 	function testHaxeKeywords()
 	{

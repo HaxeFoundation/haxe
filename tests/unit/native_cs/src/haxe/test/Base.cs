@@ -39,6 +39,13 @@ public class Base
 		get { return i * 20; }
 	}
 
+	public int Issue4325 { get; protected set; }
+
+	public void setIssue4325(int val)
+	{
+		this.Issue4325 = val;
+	}
+
 	public int this[int i, int j]
 	{
 		get { return i * j; }
