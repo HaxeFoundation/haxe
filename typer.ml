@@ -3226,17 +3226,25 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			type_switch_old ctx e1 cases def with_type p
 		end
 	| EReturn e ->
-		let e , t = (match e with
+		begin match e with
 			| None ->
 				let v = ctx.t.tvoid in
 				unify ctx v ctx.ret p;
-				None , v
+				mk (TReturn None) t_dynamic p
 			| Some e ->
 				let e = type_expr ctx e (WithType ctx.ret) in
 				let e = Codegen.AbstractCast.cast_or_unify ctx ctx.ret e p in
-				Some e , e.etype
-		) in
-		mk (TReturn e) t_dynamic p
+				begin match follow e.etype with
+				| TAbstract({a_path=[],"Void"},_) ->
+					(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
+					mk (TBlock [
+						e;
+						mk (TReturn None) t_dynamic p
+					]) e.etype e.epos;
+				| _ ->
+					mk (TReturn (Some e)) t_dynamic p
+				end
+		end
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx "Break outside loop" p;
 		mk TBreak t_dynamic p
