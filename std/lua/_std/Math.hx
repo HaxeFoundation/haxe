@@ -35,7 +35,7 @@ class Math
 	public static var NaN(get, null) : Float;
 	static inline function get_NaN () : Float return 0/0; 
 
-	public static inline function isNaN( f : Float ) : Bool return (f != f);
+	public static function isNaN( f : Float ) : Bool return (f != f);
 	public static inline function isFinite( f : Float ) : Bool {
 		return (f > Math.NEGATIVE_INFINITY && f < Math.POSITIVE_INFINITY);
 	}

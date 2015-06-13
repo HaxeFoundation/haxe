@@ -772,6 +772,7 @@ and gen_block_element ?(after=false) ctx e =
 	| TBinop (op,e1,e2) when op <> Ast.OpAssign ->
 		let f () = gen_tbinop ctx op e1 e2 in
 		gen_iife_assign ctx f;
+		semicolon ctx;
 	| TUnop ((Increment|Decrement) as op,_,e) ->
 		newline ctx;
 		gen_expr ctx e;
@@ -791,6 +792,7 @@ and gen_block_element ?(after=false) ctx e =
 	| TField _ ->
 		let f () = gen_expr ctx e in
 		gen_iife_assign ctx f;
+		semicolon ctx;
 	| TConst _ | TLocal _ -> ()
 	| TBlock el ->
 		List.iter (gen_block_element ~after ctx) el
