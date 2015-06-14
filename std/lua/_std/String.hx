@@ -46,7 +46,8 @@ class String {
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
-		return lua.StringTools.find(this, str, startIndex, str.length, true);
+		var r = lua.StringTools.find(this, str, startIndex, str.length, true);
+		return untyped r && (r - 1) || (-1);
 	}
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var i = 0;
