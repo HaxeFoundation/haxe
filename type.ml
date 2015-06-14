@@ -1351,6 +1351,8 @@ type eq_kind =
 	| EqBothDynamic
 	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 
+let type_eq_null_strict = ref true
+
 let rec type_eq param a b =
 	let can_follow t = match param with
 		| EqCoreType -> false
@@ -1370,6 +1372,14 @@ let rec type_eq param a b =
 		(match !t with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq param a t)
+
+	| TType ({ t_path = [],"Null" },[t1]), TType ({ t_path = [],"Null" },[t2]) when !type_eq_null_strict ->
+		type_eq param t1 t2
+	| TType ({ t_path = [],"Null" },[_]), _ when !type_eq_null_strict ->
+		error [cannot_unify a b]
+	| _, TType ({ t_path = [],"Null" },[_]) when !type_eq_null_strict ->
+		error [cannot_unify a b]
+
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		List.iter2 (type_eq param) tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->

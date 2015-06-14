@@ -1486,6 +1486,7 @@ try
 		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines [])));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
+		Type.type_eq_null_strict := Common.raw_defined com "nullstrict";
 		let tctx = Typer.create com in
 		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (Typer.eval tctx) !evals;
