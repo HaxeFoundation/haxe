@@ -3240,7 +3240,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					mk (TBlock [
 						e;
 						mk (TReturn None) t_dynamic p
-					]) e.etype e.epos;
+					]) t_dynamic e.epos;
 				| _ ->
 					mk (TReturn (Some e)) t_dynamic p
 				end
