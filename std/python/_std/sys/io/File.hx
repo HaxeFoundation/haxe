@@ -24,11 +24,6 @@ package sys.io;
 import python.io.IoTools;
 import sys.io.FileInput;
 
-/**
-	API for reading and writing to files.
-
-	See `sys.FileSystem` for the complementary file system API.
-**/
 @:coreApi
 class File {
 
