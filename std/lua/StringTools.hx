@@ -6,6 +6,7 @@ package lua;
 @:native("_G.string")
 extern class StringTools {
 	public static function len(str : String): Int;
+	public static function char(i: Int): String;
 	public static function sub(str : String, start : Int, end : Int): String;
 	public static function charCodeAt(str : String, index : Int): Int;
 	public static function find(str : String, target : String, start : Int, end : Int, plain : Bool): Int;

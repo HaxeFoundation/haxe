@@ -92,8 +92,8 @@ class String {
 		return lua.StringTools.sub(this, pos + 1, pos+len);
 	}
 
-	public static function fromCharCode( code : Int ) : String {
-		return untyped String.char(code);
+	public inline static function fromCharCode( code : Int ) : String {
+		return lua.StringTools.char(code);
 	}
 }
 
