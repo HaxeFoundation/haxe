@@ -25,10 +25,12 @@
 	A Haxe String is immutable, it is not possible to modify individual
 	characters. No method of this class changes the state of `this` String.
 
-	Strings can be constructed using the String literal syntax "string value".
+	Strings can be constructed using the String literal syntax `"string value"`.
 
-	String can be concatenated by using the + operator. If an operand is not a
-	String, it is passed through Std.string() first.
+	String can be concatenated by using the `+` operator. If an operand is not a
+	String, it is passed through `Std.string()` first.
+	
+	@see http://haxe.org/manual/std-String.html
 **/
 extern class String {
 
@@ -107,7 +109,7 @@ extern class String {
 		If `this` String is the empty String `""`, the result is not consistent
 		across targets and may either be `[]` (on Js, Cpp) or `[""]`.
 
-		If `delimiter` is the empty String "", `this` String is split into an
+		If `delimiter` is the empty String `""`, `this` String is split into an
 		Array of `this.length` elements, where the elements correspond to the
 		characters of `this` String.
 
@@ -117,9 +119,9 @@ extern class String {
 		If `delimiter` is null, the result is unspecified.
 
 		Otherwise, `this` String is split into parts at each occurence of
-		`delimiter`. If `this` String starts (or ends) with [delimiter}, the
-		result Array contains a leading (or trailing) empty String "" element.
-		Two subsequent delimiters also result in an empty String "" element.
+		`delimiter`. If `this` String starts (or ends) with `delimiter`, the
+		result `Array` contains a leading (or trailing) empty String `""` element.
+		Two subsequent delimiters also result in an empty String `""` element.
 	**/
 	function split( delimiter : String ) : Array<String>;
 
@@ -151,7 +153,7 @@ extern class String {
 		`this.length`, `this.length` is used instead.
 
 		If the (possibly swapped) `startIndex` exceeds `this.length`, the empty
-		String "" is returned.
+		String `""` is returned.
 	**/
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
