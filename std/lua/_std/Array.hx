@@ -101,7 +101,7 @@ class Array<T> {
 	public function toString() : String {
 		var sb = new StringBuf();
 		sb.add("[");
-		sb.add(join(", "));
+		sb.add(join(","));
 		sb.add("]");
 		return sb.toString();
 	}
