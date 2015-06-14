@@ -32,6 +32,7 @@ class String {
 
 	static function __init__() : Void untyped{
 		__lua__("getmetatable('').__index = String.__index");
+		__lua__("getmetatable('').__add = function(a,b) return Std.string(a)..Std.string(b) end");
 	}
 
 	@:keep
