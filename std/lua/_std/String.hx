@@ -52,12 +52,13 @@ class String {
 	}
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var i = 0;
-		var ret = 0;
-		while(i != null){
-			i = this.indexOf(str, i);
-			if (i != null) ret = i;
+		var ret = -1;
+		if( startIndex == null ) startIndex = length;
+		while( true ) {
+			var p = indexOf(str, ret+1);
+			if( p == -1 || p > startIndex ) return ret;
+			ret = p;
 		}
-		return ret-1;
 	}
 	public function split( delimiter : String ) : Array<String> {
 		var ret : Array<String> = [];
