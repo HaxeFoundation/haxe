@@ -38,7 +38,7 @@ import lua.Boot;
 	}
 
 	public static inline function int( x : Float ) : Int {
-		return Math.floor(x + .5); 
+		return x > 0 ? Math.floor(x) : Math.ceil(x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {

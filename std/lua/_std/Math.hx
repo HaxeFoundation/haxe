@@ -67,8 +67,6 @@ class Math
 	public static inline function fceil( v : Float ) : Float return ceil(v);
 	public static inline function fround( v : Float ) : Float return round(v);
 
-
-
 	static function __init__() : Void {
 		untyped __feature__("Type.resolveClass", _hxClasses["Math"] = Math);
 	}
