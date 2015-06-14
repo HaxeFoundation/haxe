@@ -85,6 +85,9 @@ class String {
 
 	public function substr( pos : Int, ?len : Int ) : String {
 		if (len == null || len > pos + this.length) len = this.length;
+		else if (len < 0) len = length + len;
+		if (pos < 0) pos = length + pos;
+		if (pos < 0) pos = 0;
 		return lua.StringTools.sub(this, pos + 1, pos+len);
 	}
 
