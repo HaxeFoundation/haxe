@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.ds;
+import lua.Lua;
+
 class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
 	private var h : Dynamic;
@@ -51,11 +53,11 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	}
 
 	public function keys() : Iterator<String> untyped {
-		var cur = next(k,null);
+		var cur = Lua.next(k,null);
 		return {
 			next : function() {
 				var ret = cur; 
-				cur = untyped next(k, cur);
+				cur = Lua.next(k, cur);
 				return ret;
 			},
 			hasNext : function() return cur != null

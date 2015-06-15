@@ -5,8 +5,9 @@ package lua;
 **/
 
 @:native("_G")
-extern Lua {
-	public static function unpack : Dynamic->Table<Int,Dynamic>; 
-	public static function setmetatable : Table->Table->Void; 
-	public static function setfenv : Int->Table->Void;
+extern class Lua {
+	public static function unpack(x: Dynamic) : Table<Int,Dynamic>;
+	public static function setmetatable(tbl: Table<Dynamic,Dynamic>, mtbl: Table<Dynamic, Dynamic>) : Void;
+	public static function setfenv(i : Int, tbl: Table<Dynamic, Dynamic>) : Void;
+	public static function next<T>(k:Table<Dynamic,T>, i:Null<Int>) : T;
 }
