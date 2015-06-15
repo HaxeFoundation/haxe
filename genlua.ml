@@ -976,24 +976,28 @@ and gen_tbinop ctx op e1 e2 =
         spr ctx " end)()";
     | Ast.OpXor | Ast.OpAnd  | Ast.OpShl | Ast.OpShr | Ast.OpUShr | Ast.OpOr ->
         gen_bitop ctx op e1 e2;
-    | _->
-        match op with
-            | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
-		    spr ctx "Std.string(";
-		    gen_value ctx e1;
-		    spr ctx ") ";
-		    print ctx " .. ";
-		    spr ctx "Std.string(";
-		    gen_value ctx e2;
-		    spr ctx ") ";
-	    | _ -> begin
-		    gen_value ctx e1;
-	    	    (match op with
-			| Ast.OpNotEq -> print ctx " ~= ";
-			| Ast.OpBoolAnd -> print ctx " and ";
-			| Ast.OpBoolOr -> print ctx " or ";
-			| _ -> print ctx " %s " (Ast.s_binop op));
-		    gen_value ctx e2;
+    | Ast.OpMod ->
+	spr ctx "_G.math.fmod(";
+	gen_expr ctx e1;
+	spr ctx ", ";
+	gen_expr ctx e2;
+	spr ctx ")";
+    | Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
+	    spr ctx "Std.string(";
+	    gen_value ctx e1;
+	    spr ctx ") ";
+	    print ctx " .. ";
+	    spr ctx "Std.string(";
+	    gen_value ctx e2;
+	    spr ctx ") ";
+    | _ -> begin
+	    gen_value ctx e1;
+	    (match op with
+		| Ast.OpNotEq -> print ctx " ~= ";
+		| Ast.OpBoolAnd -> print ctx " and ";
+		| Ast.OpBoolOr -> print ctx " or ";
+		| _ -> print ctx " %s " (Ast.s_binop op));
+	    gen_value ctx e2;
 	    end;
     );
 
