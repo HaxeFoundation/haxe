@@ -72,8 +72,12 @@ For information on on using Haxe, consult the [Haxe documentation](http://haxe.o
 
 You can get help and talk with fellow Haxers from around the world via:
 
+ * [Haxe on Stack Overflow](http://stackoverflow.com/questions/tagged/haxe)
  * the [official Haxe Google Group](https://groups.google.com/forum/#!forum/haxelang)
+ * [#Haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
  * the [Haxe IRC chatroom](http://unic0rn.github.io/tiramisu/haxe), #haxe on chat.freenode.net
+
+:+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) or [Google+](https://plus.google.com/+HaxeOrg)
 
 ## Version compatibility
 
