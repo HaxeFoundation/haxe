@@ -414,9 +414,6 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		print ctx ")"
 	| TField (x,FClosure (_,f)) ->
-		gen_value ctx x;
-		print ctx "%s" (field f.cf_name);
-		(* TODO: More _bind fixes:
 		add_feature ctx "use._bind";
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
@@ -429,7 +426,6 @@ and gen_expr ctx e =
 			print ctx "(__=";
 			gen_value ctx x;
 			print ctx ",_bind(__,__%s))" (field f.cf_name))
-			*)
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "{%i}" (i + 2)
@@ -1465,6 +1461,9 @@ let generate com =
 
 	List.iter (generate_type_forward ctx) com.types;
 	newline ctx;
+	(* TODO: inline this at the end *)
+	spr ctx "_bind = lua.Boot.bind";
+	newline ctx;
 
 	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
@@ -1478,15 +1477,12 @@ let generate com =
 	List.iter chk_features ctx.inits;
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
-		(* add_feature ctx "use._bind"; *)
+		add_feature ctx "use._bind";
 		print ctx "function _iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _bind(o,o.iterator) : o.iterator; }";
 		newline ctx;
 	end;
 	if has_feature ctx "use._bind" then begin
-		(* TODO:  figure out bind *)
-		(* print ctx "var _, _fid = 0"; *)
-		newline ctx;
-		(* print ctx "function _bind(o,m) { if( m == nil ) return nil; if( m.__id__ == nil ) m.__id__ = _fid +1; var f; if( o.hx__closures__ == nil ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == nil ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"; *)
+		print ctx "_bind = lua.Boot.bind";
 		newline ctx;
 	end;
 	if has_feature ctx "use._arrayPushClosure" then begin
