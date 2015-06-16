@@ -18,4 +18,5 @@ extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 
 	public static function maxn<B>(table: Table<Int,B>) : Int;
 	public static function pack(args:Dynamic) : Table<Dynamic,Dynamic>;
+	public static function unpack(arg:Dynamic) : Dynamic;
 }
