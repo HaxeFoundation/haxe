@@ -21,8 +21,14 @@
  */
 package lua;
 import lua.Table;
+import haxe.Constraints.Function;
 
 class Boot {
+
+	// Used temporarily for bind()
+	static var _;
+	static var _fid = 0;
+
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 
@@ -41,6 +47,22 @@ class Boot {
 			ret.push(i);
 		}
 		return ret;
+	}
+
+	@:keep
+	public static function bind(o:Dynamic, m: Function) : Function{
+		if (m == null) return null;
+		// if (m.__id.__ == nil) m.__id__ = _fid + 1;
+		var f: Function = null;
+		if ( o.hx__closures__ == null ) o.hx__closures__ = {};
+		else untyped f = o.hx__closures__[m];
+		if (f == null){
+			f = function(arg){
+				return m(o,lua.Table.unpack(arg));
+			};
+			untyped o.hx__closures__[m] = f;
+		}
+		return f;
 	}
 
 	static inline function isClass(o:Dynamic) : Bool {
