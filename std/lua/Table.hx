@@ -1,7 +1,7 @@
 package lua;
 
 @:native("_G.table") 
-extern class Table<A,B> implements ArrayAccess<B> {
+extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 	@:overload(function<A,B>(table:Table<A,B>):Void{})
 	public static function concat<A,B>(table:Table<A,B>, ?sep:String) : String;
 
@@ -17,4 +17,5 @@ extern class Table<A,B> implements ArrayAccess<B> {
 	public static function remove<B>(table:Table<Int,B>, ?pos:Int) : Void;
 
 	public static function maxn<B>(table: Table<Int,B>) : Int;
+	public static function pack(args:Dynamic) : Table<Dynamic,Dynamic>;
 }
