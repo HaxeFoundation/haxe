@@ -20,6 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+import lua.Lua;
+import lua.Table;
+import lua.Boot;
+
 @:coreApi
 class String {
 	public var length(default,null) : Int;
@@ -47,9 +51,10 @@ class String {
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
-		var r = lua.StringTools.find(this, str, startIndex, str.length, true);
+		var r = lua.StringTools.find(this, str, startIndex, true);
 		return untyped r && (r - 1) || (-1);
 	}
+
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var i = 0;
 		var ret = -1;
@@ -60,12 +65,14 @@ class String {
 			ret = p;
 		}
 	}
+
 	public function split( delimiter : String ) : Array<String> {
-		var ret : Array<String> = [];
-		var qd =  lua.Boot.patternQuote(delimiter);
-		lua.StringTools.gsub(this, qd, function(c) ret.push(c));
-		return ret;
+		var captures = (delimiter != "" ) ?
+			  "(.-)(" + Boot.patternQuote(delimiter) + ")"
+			: "(.)";
+		return Boot.luaIteratorToArray(lua.StringTools.gmatch(this, captures));
 	}
+
 	public function toString() : String {
 		return this;
 	}
