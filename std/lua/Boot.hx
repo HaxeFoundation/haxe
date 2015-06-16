@@ -20,14 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package lua;
+import lua.Table;
 
 class Boot {
-	static function __unhtml(s : String) {
+	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-	}
 
-	public static function patternQuote(str:String){
+	public static function patternQuote(str:String)
 		return lua.StringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
+
+	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
+		if (length == null) length = Table.maxn(t);
+		return cast defArray(t,length);
 	}
 
 	public static function luaIteratorToArray<T>(itr:Void->T) : Array<T> {
@@ -70,7 +74,7 @@ class Boot {
 				return untyped __type__(o) == "string";
 			case Array:
 				// TODO: Better array check
-				return untyped __type__(o) == "table" 
+				return untyped __type__(o) == "table"
 					&& o.__enum__ == null
 					&& o.length != null;
 			case Dynamic:
@@ -108,7 +112,7 @@ class Boot {
 
 	@:keep
 	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic>  untyped {
-		tabobj.length = length; 
+		tabobj.length = length;
 		setmetatable(tabobj, {
 			__index : __lua__("Array.prototype"),
 			__newindex : lua.Boot.arrayNewIndex
@@ -153,9 +157,9 @@ class Boot {
 			local first = true
 			for i, v in pairs(o) do
 				if i ~= '__class__' then
-					if (first) then 
+					if (first) then
 						first = false
-					else 
+					else
 						result = result .. ', '
 					end
 					result = result .. i .. ': ' .. lua.Boot.__string_rec(v, s .. 'o');
