@@ -1809,9 +1809,10 @@ module UnificationCallback = struct
 				e
 		in
 		let check e = match e.eexpr with
-			| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
+			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
+				assert false; (* this trigger #4347, to be fixed before enabling
 				let e2 = f e2 e1.etype in
-				{e with eexpr = TBinop(op,e1,e2)}
+				{e with eexpr = TBinop(op,e1,e2)} *)
 			| TVar(v,Some ev) ->
 				let eo = Some (f ev v.v_type) in
 				{ e with eexpr = TVar(v,eo) }

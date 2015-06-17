@@ -1163,7 +1163,6 @@ let run com tctx main =
 	if use_static_analyzer then begin
 		(* PASS 1: general expression filters *)
 		let filters = [
-			Codegen.UnificationCallback.run (check_unification tctx);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			Optimizer.inline_constructors tctx;
 			Optimizer.reduce_expression tctx;
@@ -1183,7 +1182,6 @@ let run com tctx main =
 	end else begin
 		(* PASS 1: general expression filters *)
 		let filters = [
-			Codegen.UnificationCallback.run (check_unification tctx);
 			Codegen.AbstractCast.handle_abstract_casts tctx;
 			blockify_ast;
 			check_local_vars_init;
