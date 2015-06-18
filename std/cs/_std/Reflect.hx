@@ -87,7 +87,7 @@ import cs.system.reflection.*;
 	public static function fields( o : Dynamic ) : Array<String>
 	{
 		var ihx = Lib.as(o,IHxObject);
-		if (o != null)
+		if (ihx != null)
 		{
 			var ret = [];
 			untyped ihx.__hx_getFields(ret);
