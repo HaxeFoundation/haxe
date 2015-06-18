@@ -3958,23 +3958,6 @@ let convert_delegate ctx p ilcls =
 		f_type = Some( mk_type_path ctx ilcls.cpath params );
 		f_expr = Some( EReturn( Some (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p] )), p);
 	} in
-	let i = ref 0 in
-	let j = ref 0 in
-	let fn_invoke = FFun {
-		f_params = [];
-		f_args = List.map (fun arg ->
-			incr i;
-			"arg" ^ string_of_int !i, false, Some (convert_fun_arg ctx p arg), None
-		) args;
-		f_type = Some(convert_signature ctx p ret);
-		f_expr = Some(
-			EReturn( Some (
-				mk_this_call "Invoke" p (List.map (fun arg ->
-					incr j; (EConst( Ident ("arg" ^ string_of_int !j) ), p)
-				) args )
-			)), p
-		);
-	} in
 	let fn_asdel = FFun {
 		f_params = [];
 		f_args = [];
@@ -3985,16 +3968,15 @@ let convert_delegate ctx p ilcls =
 	} in
 	let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in
 	let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.Extern;Meta.From] [APublic;AInline;AStatic] in
-	let fn_invoke = mk_abstract_fun "Invoke" p fn_invoke [Meta.Extern] [APublic;AInline] in
 	let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [Meta.Extern] [APublic;AInline] in
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	EAbstract {
 		d_name = netname_to_hx c;
 		d_doc = None;
 		d_params = types;
-		d_meta = mk_metas [Meta.Delegate] p;
+		d_meta = mk_metas [Meta.Delegate; Meta.Forward] p;
 		d_flags = [AIsType underlying_type];
-		d_data = [fn_new;fn_from_hx;fn_invoke;fn_asdel;mk_op Ast.OpAdd "Add";mk_op Ast.OpSub "Remove"];
+		d_data = [fn_new;fn_from_hx;fn_asdel;mk_op Ast.OpAdd "Add";mk_op Ast.OpSub "Remove"];
 	}
 
 let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
