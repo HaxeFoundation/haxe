@@ -2595,12 +2595,13 @@ let configure gen =
 	in
 
 	let module_type_gen w md_tp =
+		let requires_root = no_root && len w = 0 in
 		Codegen.map_source_header gen.gcon (fun s -> print w "// %s\n" s);
 		reset_temps();
 		match md_tp with
 			| TClassDecl cl ->
 				if not cl.cl_extern then begin
-					(if no_root && len w = 0 then write w "using haxe.root;\n"; newline w;);
+					(if requires_root then write w "using haxe.root;\n"; newline w;);
 					gen_class w cl;
 					newline w;
 					newline w
@@ -2608,7 +2609,7 @@ let configure gen =
 				(not cl.cl_extern)
 			| TEnumDecl e ->
 				if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
-					(if no_root && len w = 0 then write w "using haxe.root;\n"; newline w;);
+					(if requires_root then write w "using haxe.root;\n"; newline w;);
 					gen_enum w e;
 					newline w;
 					newline w
