@@ -316,6 +316,10 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
+	| TLocal { v_name = "__lua_table__" }, el ->
+		spr ctx "{";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx "}";
 	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
@@ -385,7 +389,7 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")");
 	ctx.iife_assign <- false;
 
-and gen_expr ctx e =
+and gen_expr ?(local=true) ctx e =
 	match e.eexpr with
 	 TConst c ->
 		gen_constant ctx e.epos c;
@@ -488,7 +492,10 @@ and gen_expr ctx e =
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
 	| TCall (e,el) ->
-		gen_call ctx e el false
+		begin
+		    spr ctx (debug_expression e);
+		    gen_call ctx e el false;
+		end;
 	| TArrayDecl el ->
 		spr ctx "lua.Boot.defArray({";
 		let count = ref 0 in
@@ -505,20 +512,23 @@ and gen_expr ctx e =
 	| TVar (v,eo) ->
 		begin match eo with
 			| None ->
-				spr ctx "local ";
+				if local then
+				    spr ctx "local ";
 				spr ctx (ident v.v_name);
 			| Some e ->
 				match e.eexpr with
 				| TBinop(OpAssign, e1, e2) ->
 				    gen_tbinop ctx OpAssign e1 e2;
-				    spr ctx "local ";
+				    if local then
+					spr ctx "local ";
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e1;
 				    spr ctx ";";
 
 				| _ ->
-				    spr ctx "local ";
+				    if local then
+					spr ctx "local ";
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e;
@@ -758,7 +768,49 @@ and gen_expr ctx e =
 		spr ctx ")"
 
 
-and gen_block_element ?(after=false) ctx e =
+
+and gen__static__hoist ctx e =
+    begin match e.eexpr with
+	| TVar (v,eo) ->
+		print ctx "local %s = {};" (ident v.v_name);
+	| TBlock el ->
+		List.iter (gen__static__hoist ctx) el
+	| TCall (e, el) ->
+		(match e.eexpr , el with
+		    | TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+			    (if has_feature ctx f then
+				    gen__static__hoist ctx eif
+			    else match eelse with
+				    | [] -> ()
+				    | e :: _ -> gen__static__hoist ctx e)
+		    |_->());
+	| _ -> ();
+    end
+
+and gen__static__impl ctx e =
+    begin match e.eexpr with
+	| TVar (v,eo) ->
+		gen_expr ~local:false ctx e
+	| TBlock el ->
+		List.iter (gen__static__impl ctx) el
+	| TCall (e, el) ->
+		(match e.eexpr , el with
+		    | TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+			    (if has_feature ctx f then
+				    gen__static__impl ctx eif
+			    else match eelse with
+				    | [] -> ()
+				    | e :: _ -> gen__static__impl ctx e)
+		    |_->
+			begin
+			    newline ctx;
+			    gen_call ctx e el false
+			end;
+		    	    );
+	| _ -> gen_block_element ctx e;
+    end
+
+and gen_block_element ?(after=false) ctx e  =
     newline ctx;
     begin match e.eexpr with
 	| TTypeExpr _ -> ()
@@ -807,7 +859,6 @@ and gen_block_element ?(after=false) ctx e =
 	| TMeta (_,e) ->
 		gen_block_element ctx e
 	| _ ->
-		(* spr ctx (debug_expression e); *)
 		gen_expr ctx e;
 		semicolon ctx;
 		if after then newline ctx;
@@ -844,11 +895,11 @@ and gen_value ctx e =
 	in
 	match e.eexpr with
 	| TBinop((OpAssignOp(_)|OpAssign),e1,e2) ->
-		spr ctx "((function()";
+		spr ctx "(function()";
 		gen_expr ctx e;
 		spr ctx ";return ";
 		gen_expr ctx e1;
-		spr ctx ";end)())";
+		spr ctx ";end)()";
 	| TConst _
 	| TLocal _
 	| TArray _
@@ -1384,6 +1435,10 @@ let generate_type ctx = function
 
 let generate_type_forward ctx = function
 	| TClassDecl c ->
+		(match c.cl_init with
+		| None -> ()
+		| Some e ->
+			ctx.inits <- e :: ctx.inits);
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
@@ -1459,10 +1514,18 @@ let generate com =
 		newline ctx
 	);
 
+	spr ctx "--[[begin type forwards--]]"; newline ctx;
 	List.iter (generate_type_forward ctx) com.types;
 	newline ctx;
-	(* TODO: inline this at the end *)
-	spr ctx "_bind = lua.Boot.bind";
+	spr ctx "--[[end type forwards--]]"; newline ctx;
+
+	spr ctx "--[[begin __static__ hoist --]]"; newline ctx;
+	List.iter (gen__static__hoist ctx) (List.rev ctx.inits);
+	ctx.inits <- []; (* reset inits *)
+	newline ctx;
+	spr ctx "--[[end __static__ hoist --]]"; newline ctx;
+
+	spr ctx "local _bind = {}";
 	newline ctx;
 
 	List.iter (generate_type ctx) com.types;
@@ -1491,8 +1554,15 @@ let generate com =
 		print ctx "end";
 		newline ctx
 	end;
-	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
+
+	spr ctx "--[[ begin __static__impl --]]"; newline ctx;
+	List.iter (gen__static__impl ctx) (List.rev ctx.inits);
+	spr ctx "--[[ end __static__impl --]]"; newline ctx;
+
+	spr ctx "--[[ begin static fields --]]"; newline ctx;
 	List.iter (generate_static ctx) (List.rev ctx.statics);
+	spr ctx "--[[ end static fields --]]"; newline ctx;
+
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
