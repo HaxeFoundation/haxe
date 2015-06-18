@@ -562,6 +562,13 @@ let is_fromStaticFunction_call func =
    | _ -> false
 ;;
 
+let is_objc_call field =
+  match field with
+  | FStatic(cl,_) | FInstance(cl,_,_) ->
+      cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
+  | _ -> false
+;;
+
 let is_addressOf_call func =
    match (remove_parens func).eexpr with
    | TField (_,FStatic ({cl_path=["cpp"],"Pointer"},{cf_name="addressOf"} ) ) -> true
@@ -645,6 +652,13 @@ let rec class_string klass suffix params remap =
             | t when type_has_meta_key t Meta.NotNull -> "Dynamic"
             | _ -> "/*NULL*/" ^ (type_string t) )
          | _ -> assert false);
+   (* Objective-C class *)
+   | path when klass.cl_extern && Meta.has Meta.Objc klass.cl_meta ->
+     let str = join_class_path_remap klass.cl_path "::" in
+     if suffix = "_obj" then
+       str
+     else
+       str ^ " *"
    (* Normal class *)
    | path when klass.cl_extern && (not (is_internal_class path) )->
             (join_class_path_remap klass.cl_path "::") ^ suffix
@@ -2030,6 +2044,39 @@ and gen_expression ctx retval expression =
             output (" )");
          | _ -> error "fromStaticFunction must take a static function" expression.epos;
       )
+    | TCall ({ eexpr = TField(fexpr,field) }, arg_list) when is_objc_call field ->
+      output "[ ";
+      (match field with
+      | FStatic(cl,_) ->
+          output (join_class_path_remap cl.cl_path "::")
+      | FInstance _ ->
+          gen_expression ctx true fexpr
+      | _ -> assert false);
+      let names = ExtString.String.nsplit (field_name field) ":" in
+      let field_name, arg_names = match names with
+        | name :: args -> name, args
+        | _ -> assert false (* per nsplit specs, this should never happen *)
+      in
+      output (" " ^ field_name);
+      (try match arg_list, arg_names with
+      | [], _ -> ()
+      | [single_arg], _ -> output ": "; gen_expression ctx true single_arg
+      | first_arg :: args, _ :: arg_names ->
+          gen_expression ctx true first_arg;
+          ctx.ctx_calling <- true;
+          List.iter2 (fun arg arg_name ->
+            output (", " ^ arg_name ^ ": ");
+            gen_expression ctx true arg) args arg_names
+      | _ -> raise Exit
+      with | Invalid_argument _ | Exit -> (* not all arguments names are known *)
+        error (
+          "The function called here with name " ^ (String.concat ":" names) ^
+          " does not contain the right amount of arguments' names as required" ^
+          " by the objective-c calling / naming convention:" ^
+          " expected " ^ (string_of_int (List.length arg_list)) ^
+          " and found " ^ (string_of_int (List.length arg_names)))
+        expression.epos);
+      output " ]"
 
    | TCall (func, [arg]) when is_addressOf_call func && not (is_lvalue arg) ->
       error "addressOf must take a local or member variable" expression.epos;
