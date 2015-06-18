@@ -147,7 +147,7 @@ let rec add_final_return e =
 				| TAbstract ({ a_path = [],"Bool" },_) -> TBool false
 				| _ -> TNull
 			) in
-			{ eexpr = TReturn (Some { eexpr = TConst c; epos = p; etype = t }); etype = t; epos = p }
+			{ eexpr = TReturn (Some { eexpr = TConst c; epos = p; etype = t }); etype = t_dynamic; epos = p }
 		in
 		match e.eexpr with
 		| TBlock el ->
@@ -169,7 +169,7 @@ let rec add_final_return e =
 		| TFunction f ->
 			let f = (match follow f.tf_type with
 				| TAbstract ({ a_path = [],"Void" },[]) -> f
-				| t -> { f with tf_expr = loop f.tf_expr t }
+				| _ -> { f with tf_expr = loop f.tf_expr f.tf_type }
 			) in
 			{ e with eexpr = TFunction f }
 		| _ -> e
