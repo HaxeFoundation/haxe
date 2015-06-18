@@ -87,7 +87,7 @@ class Boot {
 
 		switch( cl ) {
 			case Int:
-				return (untyped __lua__("bitor(o,0) == o"));
+				return (untyped __lua__("_G.bit.bor(o,0) == o"));
 			case Float:
 				return untyped __type__(o) == "number";
 			case Bool:
