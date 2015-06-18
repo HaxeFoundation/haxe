@@ -897,13 +897,8 @@ module Ssa = struct
 						close join;
 						Some e
 					| None ->
-						begin match e1.eexpr with
-							| TMeta((Meta.Exhaustive,_,_),_)
-							| TParenthesis({eexpr = TMeta((Meta.Exhaustive,_,_),_)}) ->
-								()
-							| _ ->
-								add_branch join ctx.cur_data e.epos;
-						end;
+						if not (Optimizer.is_exhaustive e1) then
+							add_branch join ctx.cur_data e.epos;
 						None
 				in
 				close_join_node ctx join e.epos;

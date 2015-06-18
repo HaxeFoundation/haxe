@@ -44,6 +44,11 @@ let has_side_effect e =
 	with Exit ->
 		true
 
+let rec is_exhaustive e1 = match e1.eexpr with
+	| TMeta((Meta.Exhaustive,_,_),_) -> true
+	| TMeta(_, e1) | TParenthesis e1 -> is_exhaustive e1
+	| _ -> false
+
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TLocal(alloc_unbound_var name t_dynamic); etype = t_dynamic; epos = p }, params);
@@ -404,7 +409,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
 		| TSwitch (e1,cases,def) when term ->
-			let term = term && def <> None in
+			let term = term && (def <> None || is_exhaustive e1) in
 			let cases = List.map (fun (el,e) ->
 				let el = List.map (map false) el in
 				el, map term e
@@ -481,6 +486,9 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
 		| TConst TSuper ->
 			error "Cannot inline function containing super" po
+		| TMeta(m,e1) ->
+			let e1 = map term e1 in
+			{e with eexpr = TMeta(m,e1)}
 		| _ ->
 			Type.map_expr (map false) e
 	in
