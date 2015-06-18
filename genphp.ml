@@ -361,7 +361,7 @@ let init com cwd path def_type =
 	let ch = open_out (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
-	{
+	let ctx = {
 		com = com;
 		stack = stack_init com false;
 		tabs = "";
@@ -390,7 +390,10 @@ let init com cwd path def_type =
 		inline_index = 0;
 		in_block = false;
 		lib_path = match com.php_lib with None -> "lib" | Some s -> s;
-	}
+	} in
+	Codegen.map_source_header com (fun s -> print ctx "// %s\n" s);
+	ctx
+
 let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ msg) p
 
 let newline ctx =

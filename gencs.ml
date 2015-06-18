@@ -2595,6 +2595,7 @@ let configure gen =
 	in
 
 	let module_type_gen w md_tp =
+		Codegen.map_source_header gen.gcon (fun s -> print w "// %s\n" s);
 		reset_temps();
 		match md_tp with
 			| TClassDecl cl ->

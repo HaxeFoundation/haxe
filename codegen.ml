@@ -1981,6 +1981,11 @@ let interpolate_code com code tl f_string f_expr p =
 	in
 	loop (Str.full_split regex code)
 
+let map_source_header com f =
+	match Common.defined_value_safe com Define.SourceHeader with
+	| "" -> ()
+	| s -> f s
+
 (* Collection of functions that return expressions *)
 module ExprBuilder = struct
 	let make_static_this c p =

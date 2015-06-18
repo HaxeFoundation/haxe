@@ -2394,6 +2394,7 @@ module Generator = struct
 	let run com =
 		Transformer.init com;
 		let ctx = mk_context com in
+		Codegen.map_source_header com (fun s -> print ctx "// %s\n" s);
 		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;
