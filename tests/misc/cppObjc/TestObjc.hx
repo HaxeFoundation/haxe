@@ -10,19 +10,32 @@ class TestObjc extends haxe.unit.TestCase
 
 	public function testCall()
 	{
+		assertEquals(TestClass.aStatic(), 42);
 		var cls = TestClass.alloc().init();
 		assertEquals(cls.getOtherThing(), 0);
 		cls.setOtherThing(42);
+		assertEquals(cls.otherThing, 42);
 		assertEquals(cls.getOtherThing(), 42);
+		assertEquals(cls.getOtherThingChar(), 42);
 		assertEquals(cls.isBiggerThan10(2), false);
 		assertEquals(cls.isBiggerThan10(12), true);
 		assertEquals(cls.isBiggerThan10Int(3), false);
 		assertEquals(cls.isBiggerThan10Int(14), true);
+		assertEquals(cls.isBiggerThan10Num(3).boolValue(), false);
+		assertEquals(cls.isBiggerThan10Num(14).boolValue(), true);
 		assertEquals(cls.addHello("World"), "Hello, World");
 		cls.something = " test";
 		assertEquals(cls.something, " test");
 		assertEquals(cls.addSomething("Hey,"), "Hey, test");
 		assertEquals(cls.addHelloAndString("World"," it works"), "Hello, World it works");
+	}
+
+	public function testVar()
+	{
+		var cls = TestClass.alloc().init();
+		cls.setOtherThing(142);
+		assertEquals(cls.otherThing, 142);
+		assertEquals(cls.getOtherThing(), 142);
 	}
 }
 
@@ -36,6 +49,7 @@ class TestObjc extends haxe.unit.TestCase
 	function init():TestClass;
 
 	var something(get,set):NSString;
+	var otherThing:Int;
 
 	@:native("something") private function get_something():NSString;
 	@:native("setSomething") private function set_something(value:NSString):NSString;
@@ -77,10 +91,14 @@ class TestObjc extends haxe.unit.TestCase
 
 	@:to @:extern inline public function toInt():Int
 		return this.intValue();
+
+	@:to @:extern inline public function toBool():Bool
+		return this.boolValue();
 }
 
 @:native("NSNumber") @:objc extern class _NSNumber
 {
 	static function numberWithInt(i:Int):NSNumber;
 	function intValue():Int;
+	function boolValue():Bool;
 }
