@@ -769,38 +769,38 @@ and gen_expr ?(local=true) ctx e =
 
 
 
-and gen__static__hoist ctx e =
+and gen__init__hoist ctx e =
     begin match e.eexpr with
 	| TVar (v,eo) ->
 		print ctx "local %s = {};" (ident v.v_name);
 	| TBlock el ->
-		List.iter (gen__static__hoist ctx) el
+		List.iter (gen__init__hoist ctx) el
 	| TCall (e, el) ->
 		(match e.eexpr , el with
 		    | TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
 			    (if has_feature ctx f then
-				    gen__static__hoist ctx eif
+				    gen__init__hoist ctx eif
 			    else match eelse with
 				    | [] -> ()
-				    | e :: _ -> gen__static__hoist ctx e)
+				    | e :: _ -> gen__init__hoist ctx e)
 		    |_->());
 	| _ -> ();
     end
 
-and gen__static__impl ctx e =
+and gen__init__impl ctx e =
     begin match e.eexpr with
 	| TVar (v,eo) ->
 		gen_expr ~local:false ctx e
 	| TBlock el ->
-		List.iter (gen__static__impl ctx) el
+		List.iter (gen__init__impl ctx) el
 	| TCall (e, el) ->
 		(match e.eexpr , el with
 		    | TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
 			    (if has_feature ctx f then
-				    gen__static__impl ctx eif
+				    gen__init__impl ctx eif
 			    else match eelse with
 				    | [] -> ()
-				    | e :: _ -> gen__static__impl ctx e)
+				    | e :: _ -> gen__init__impl ctx e)
 		    |_->
 			begin
 			    newline ctx;
@@ -1519,11 +1519,11 @@ let generate com =
 	newline ctx;
 	spr ctx "--[[end type forwards--]]"; newline ctx;
 
-	spr ctx "--[[begin __static__ hoist --]]"; newline ctx;
-	List.iter (gen__static__hoist ctx) (List.rev ctx.inits);
+	spr ctx "--[[begin __init__ hoist --]]"; newline ctx;
+	List.iter (gen__init__hoist ctx) (List.rev ctx.inits);
 	ctx.inits <- []; (* reset inits *)
 	newline ctx;
-	spr ctx "--[[end __static__ hoist --]]"; newline ctx;
+	spr ctx "--[[end __init__ hoist --]]"; newline ctx;
 
 	spr ctx "local _bind = {}";
 	newline ctx;
@@ -1555,9 +1555,9 @@ let generate com =
 		newline ctx
 	end;
 
-	spr ctx "--[[ begin __static__impl --]]"; newline ctx;
-	List.iter (gen__static__impl ctx) (List.rev ctx.inits);
-	spr ctx "--[[ end __static__impl --]]"; newline ctx;
+	spr ctx "--[[ begin __init__impl --]]"; newline ctx;
+	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
+	spr ctx "--[[ end __init__impl --]]"; newline ctx;
 
 	spr ctx "--[[ begin static fields --]]"; newline ctx;
 	List.iter (generate_static ctx) (List.rev ctx.statics);
