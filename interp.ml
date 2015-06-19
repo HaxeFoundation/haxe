@@ -106,6 +106,7 @@ type extern_api = {
 	on_type_not_found : (string -> value) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	type_expr : Ast.expr -> Type.texpr;
+	type_macro_expr : Ast.expr -> Type.texpr;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	get_display : string -> string;
 	allow_package : string -> unit;
@@ -214,6 +215,7 @@ let encode_tvar_ref = ref (fun _ -> assert false)
 let decode_path_ref = ref (fun _ -> assert false)
 let decode_import_ref = ref (fun _ -> assert false)
 let encode_import_ref = ref (fun _ -> assert false)
+let eval_expr_ref : (context -> texpr -> value option) ref = ref (fun _ _ -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let enc_array (l:value list) : value = (!enc_array_ref) l
 let dec_array (l:value) : value list = (!dec_array_ref) l
@@ -2689,6 +2691,13 @@ let macro_lib =
 			in
 			encode_type (apply_params tpl tl (map (decode_type t)))
 		);
+		"eval", Fun1 (fun v ->
+			let e = decode_expr v in
+			let e = ((get_ctx()).curapi.type_macro_expr e) in
+ 			match !eval_expr_ref (get_ctx()) e with
+			| Some v -> v
+			| None -> VNull
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -2732,7 +2741,11 @@ let get_ident ctx s =
 
 let no_env = [||]
 
-let rec eval ctx (e,p) =
+let rec eval_expr ctx e =
+	let e = Genneko.gen_expr ctx.gen e in
+	catch_errors ctx (fun() -> (eval ctx e)())
+
+and eval ctx (e,p) =
 	match e with
 	| EConst c ->
 		(match c with
@@ -3617,10 +3630,6 @@ let add_types ctx types ready =
 	List.iter ready types;
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
 	ignore(catch_errors ctx (fun() -> ignore((eval ctx e)())))
-
-let eval_expr ctx e =
-	let e = Genneko.gen_expr ctx.gen e in
-	catch_errors ctx (fun() -> (eval ctx e)())
 
 let get_path ctx path p =
 	let rec loop = function
@@ -5107,5 +5116,6 @@ encode_texpr_ref := encode_texpr;
 decode_texpr_ref := decode_texpr;
 encode_tvar_ref := encode_tvar;
 decode_path_ref := decode_path;
-decode_import_ref := decode_import;
 encode_import_ref := encode_import;
+decode_import_ref := decode_import;
+eval_expr_ref := eval_expr;
