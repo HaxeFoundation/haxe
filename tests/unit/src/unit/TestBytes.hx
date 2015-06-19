@@ -106,7 +106,6 @@ class TestBytes extends Test {
 		eq(input.readAll().toString(), "One é accent");
 	}
 
-	#if !php // https://github.com/HaxeFoundation/haxe/issues/4060
 	function testFastGet() {
 		var b = haxe.io.Bytes.alloc(10);
 		var bd = b.getData();
@@ -138,5 +137,4 @@ class TestBytes extends Test {
 		eq(b1.getString(0,2), b2.getString(0,2));
 
 	}
-	#end
 }
