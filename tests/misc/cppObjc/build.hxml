@@ -1,4 +1,4 @@
 -main TestObjc
 -cpp bin
--D file_extension=mm
 -debug
+-D objc

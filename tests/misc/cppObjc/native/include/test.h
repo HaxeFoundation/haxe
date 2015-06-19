@@ -1,3 +1,5 @@
+#ifndef TEST_H_INCLUDED
+#define TEST_H_INCLUDED
 #import <Foundation/Foundation.h>
 
 @interface TestClass : NSObject {
@@ -7,6 +9,8 @@
 @property (retain) NSString *something;
 
 + (int)aStatic;
+
++ (BOOL)isNull:(TestClass *)t;
 
 - (void)setOtherThing:(int) value;
 
@@ -32,3 +36,4 @@
 int some_c_call(TestClass *t);
 
 BOOL is_bigger_than_10(TestClass *t, int val);
+#endif

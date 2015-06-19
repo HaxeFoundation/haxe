@@ -2,16 +2,22 @@ class TestObjc extends haxe.unit.TestCase
 {
 	static function main()
 	{
+		var x:TestObjc = null;
+		trace(x);
+		var c:TestClass = null;
+		trace(c);
 		var runner = new haxe.unit.TestRunner();
 		runner.add(new TestObjc());
 		var code = runner.run() ? 0 : 1;
 		Sys.exit(code);
 	}
 
+	var cls:TestClass;
+
 	public function testCall()
 	{
 		assertEquals(TestClass.aStatic(), 42);
-		var cls = TestClass.alloc().init();
+		cls = TestClass.alloc().init();
 		assertEquals(cls.getOtherThing(), 0);
 		cls.setOtherThing(42);
 		assertEquals(cls.otherThing, 42);
@@ -28,14 +34,44 @@ class TestObjc extends haxe.unit.TestCase
 		assertEquals(cls.something, " test");
 		assertEquals(cls.addSomething("Hey,"), "Hey, test");
 		assertEquals(cls.addHelloAndString("World"," it works"), "Hello, World it works");
+		cls.release();
 	}
 
 	public function testVar()
 	{
-		var cls = TestClass.alloc().init();
+		cls = TestClass.alloc().init();
 		cls.setOtherThing(142);
 		assertEquals(cls.otherThing, 142);
 		assertEquals(cls.getOtherThing(), 142);
+		cls.release();
+	}
+
+	public function testBoxing()
+	{
+		cls = TestClass.alloc().init();
+
+		cls.setOtherThing(255);
+
+		var dyn:Dynamic = cls;
+		this.assertTrue(dyn != null);
+		this.assertTrue(cls != null);
+		cls.release();
+		cls = null;
+		this.assertTrue(cls == null);
+		cls = dyn;
+
+		assertEquals(cls.getOtherThing(), 255);
+		cls = null;
+		dyn = null;
+		dyn = cls;
+		assertTrue(dyn == null);
+		assertTrue(dyn == cls);
+	}
+
+	public function testNull()
+	{
+		this.assertTrue(TestClass.isNull(null));
+		this.assertFalse(TestClass.isNull(TestClass.alloc().init()));
 	}
 }
 
@@ -44,6 +80,7 @@ class TestObjc extends haxe.unit.TestCase
 @:objc extern class TestClass
 {
 	static function aStatic():Int;
+	static function isNull(t:TestClass):Bool;
 
 	static function alloc():TestClass;
 	function init():TestClass;
@@ -63,6 +100,8 @@ class TestObjc extends haxe.unit.TestCase
 	function isBiggerThan10(value:NSNumber):Bool;
 	function isBiggerThan10Num(value:NSNumber):NSNumber;
 	function isBiggerThan10Int(integer:Int):Bool;
+
+	function release():Void;
 
 	@:plain static function some_c_call(t:TestClass):Int;
 	@:plain static function is_bigger_than_10(t:TestClass, val:Int):Bool;

@@ -171,8 +171,11 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
 
 
 let source_file_extension common_ctx =
-   try
-     "." ^ (Common.defined_value common_ctx Define.FileExtension)
+   (* no need to -D file_extension if -D objc is defined *)
+   if Common.defined common_ctx Define.Objc then
+      ".mm"
+   else try
+      "." ^ (Common.defined_value common_ctx Define.FileExtension)
    with
      Not_found -> ".cpp"
 ;;
@@ -569,6 +572,11 @@ let is_objc_call field =
   | _ -> false
 ;;
 
+let is_objc_type t = match follow t with
+  | TInst(cl,_) -> cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
+  | _ -> false
+;;
+
 let is_addressOf_call func =
    match (remove_parens func).eexpr with
    | TField (_,FStatic ({cl_path=["cpp"],"Pointer"},{cf_name="addressOf"} ) ) -> true
@@ -653,7 +661,7 @@ let rec class_string klass suffix params remap =
             | _ -> "/*NULL*/" ^ (type_string t) )
          | _ -> assert false);
    (* Objective-C class *)
-   | path when klass.cl_extern && Meta.has Meta.Objc klass.cl_meta ->
+   | path when is_objc_type (TInst(klass,[])) ->
      let str = join_class_path_remap klass.cl_path "::" in
      if suffix = "_obj" then
        str
@@ -1815,6 +1823,20 @@ and gen_expression ctx retval expression =
          gen_expression_list remaining
       ) in
 
+   (* this will add a cast if boxing / unboxing an objective-c type *)
+   let check_objc_unbox expression to_type =
+     if is_objc_type to_type && not (is_objc_type expression.etype) then
+        { expression with eexpr = TCast(expression,None); etype = to_type }
+     else
+        expression
+   in
+   let check_objc_box expression to_type =
+     if is_objc_type expression.etype && not (is_objc_type to_type) then
+        { expression with eexpr = TCast(expression,None); etype = to_type }
+     else
+        expression
+   in
+
    let rec gen_bin_op_string expr1 op expr2 =
       let cast = (match op with
          | ">>" | "<<" | "&" | "|" | "^"  -> "int("
@@ -1846,6 +1868,11 @@ and gen_expression ctx retval expression =
       | _ -> ""
    in
    let rec gen_bin_op op expr1 expr2 =
+      let expr1, expr2 = match op with
+         | Ast.OpAssign | Ast.OpAssignOp _ -> expr1, check_objc_unbox expr2 expr1.etype
+         | Ast.OpEq | Ast.OpNotEq -> check_objc_box expr1 expr2.etype, check_objc_box expr2 expr1.etype
+         | _ -> expr1,expr2
+      in
       match op with
       | Ast.OpAdd when (is_const_string_term expr1) && (is_const_string_term expr2) ->
          output (str ((combine_string_terms expr1) ^ (combine_string_terms expr2)) )
@@ -2210,6 +2237,7 @@ and gen_expression ctx retval expression =
       | TString s -> output (str s)
       | TBool b -> output (if b then "true" else "false")
       (*| TNull -> output ("((" ^ (type_string expression.etype) ^ ")null())")*)
+      | TNull when is_objc_type expression.etype -> output "nil"
       | TNull -> output (if ctx.ctx_for_extern then "null" else "null()")
       | TThis -> output (if ctx.ctx_real_this_ptr then "hx::ObjectPtr<OBJ_>(this)" else "__this")
       | TSuper when calling ->
@@ -2514,6 +2542,11 @@ and gen_expression ctx retval expression =
          output "HX_STACK_DO_THROW(";
          gen_expression ctx true expression;
          output ")";
+   | TCast (cast,None) when is_objc_type expression.etype && not (is_objc_type cast.etype) ->
+     let ret_type = type_string expression.etype in
+     output ("( (" ^ ret_type ^ ") (NSObject *) (");
+     gen_expression ctx true cast;
+     output ") )"
    | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
       gen_expression ctx retval cast;
    | TCast (cast,None) ->
@@ -5638,6 +5671,12 @@ let generate_source common_ctx =
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
 
    List.iter (fun object_def ->
+      (* check if any @:objc class is referenced while '-D objc' is not defined
+         This will guard all code changes to this flag *)
+      (if not (Common.defined common_ctx Define.Objc) then match object_def with
+         | TClassDecl class_def when Meta.has Meta.Objc class_def.cl_meta ->
+            error "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
+         | _ -> ());
       (match object_def with
       | TClassDecl class_def when is_extern_class class_def ->
          build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);

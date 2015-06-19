@@ -9,6 +9,11 @@
 	return 42;
 }
 
++ (BOOL)isNull:(TestClass *)t
+{
+	return t == nil;
+}
+
 - (void)setOtherThing:(int) value
 {
 	self->otherThing = value;
