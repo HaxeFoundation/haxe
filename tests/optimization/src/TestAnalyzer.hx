@@ -677,7 +677,7 @@ class TestAnalyzer extends TestBase {
 		var b = B(0);
 		switch (b) {
 			case B(i):
-				assertEqualsConst(0, i);
+				assertEquals(0, i);
 			case A(_):
 		}
 	}

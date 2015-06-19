@@ -489,7 +489,7 @@ let map loop t =
 				a.a_fields <- fields;
 				t
 			| _ ->
-	 			TAnon {
+				TAnon {
 					a_fields = fields;
 					a_status = a.a_status;
 				}
@@ -559,7 +559,7 @@ let apply_params cparams params t =
 					a.a_fields <- fields;
 					t
 				| _ ->
-		 			TAnon {
+					TAnon {
 						a_fields = fields;
 						a_status = a.a_status;
 					}
@@ -1446,6 +1446,13 @@ let type_iseq a b =
 		true
 	with
 		Unify_error _ -> false
+
+let type_iseq_strict a b =
+	try
+		type_eq EqDoNotFollowNull a b;
+		true
+	with Unify_error _ ->
+		false
 
 let unify_stack = ref []
 let abstract_cast_stack = ref []
