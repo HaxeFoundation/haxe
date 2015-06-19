@@ -16,6 +16,8 @@
 
 - (NSString *)addHello:(NSString *)str;
 
+- (NSString *)addHello:(NSString *)str andString:(NSString *) str2;
+
 - (NSString *)addSomething:(NSString *)str;
 
 - (BOOL)isBiggerThan10:(NSNumber *)value;
@@ -23,6 +25,7 @@
 - (NSNumber *)isBiggerThan10Num:(NSNumber *)value;
 
 - (BOOL)isBiggerThan10Int:(int)integer;
+
 
 @end
 

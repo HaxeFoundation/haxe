@@ -2061,14 +2061,14 @@ and gen_expression ctx retval expression =
       (try match arg_list, arg_names with
       | [], _ -> ()
       | [single_arg], _ -> output ": "; gen_expression ctx true single_arg
-      | first_arg :: args, _ :: arg_names ->
+      | first_arg :: args, arg_names ->
+          output ": ";
           gen_expression ctx true first_arg;
           ctx.ctx_calling <- true;
           List.iter2 (fun arg arg_name ->
-            output (", " ^ arg_name ^ ": ");
+            output (" " ^ arg_name ^ ": ");
             gen_expression ctx true arg) args arg_names
-      | _ -> raise Exit
-      with | Invalid_argument _ | Exit -> (* not all arguments names are known *)
+      with | Invalid_argument _ -> (* not all arguments names are known *)
         error (
           "The function called here with name " ^ (String.concat ":" names) ^
           " does not contain the right amount of arguments' names as required" ^

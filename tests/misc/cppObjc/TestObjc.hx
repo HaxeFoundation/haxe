@@ -22,6 +22,7 @@ class TestObjc extends haxe.unit.TestCase
 		cls.something = " test";
 		assertEquals(cls.something, " test");
 		assertEquals(cls.addSomething("Hey,"), "Hey, test");
+		assertEquals(cls.addHelloAndString("World"," it works"), "Hello, World it works");
 	}
 }
 
@@ -43,6 +44,7 @@ class TestObjc extends haxe.unit.TestCase
 	function getOtherThing():Int;
 	function getOtherThingChar():cpp.Int8;
 	function addHello(str:NSString):NSString;
+	@:native("addHello:andString") function addHelloAndString(str:NSString, str2:NSString):NSString;
 	function addSomething(str:NSString):NSString;
 	function isBiggerThan10(value:NSNumber):Bool;
 	function isBiggerThan10Num(value:NSNumber):NSNumber;

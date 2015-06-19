@@ -29,6 +29,11 @@
 	return [@"Hello, " stringByAppendingString: str];
 }
 
+- (NSString *)addHello:(NSString *)str andString:(NSString *) str2
+{
+	return [[@"Hello, " stringByAppendingString: str] stringByAppendingString: str2];
+}
+
 - (NSString *)addSomething:(NSString *)str
 {
 	return [str stringByAppendingString: self->_something];
