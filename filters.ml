@@ -299,6 +299,9 @@ let check_local_vars_init e =
 		| TThrow e | TReturn (Some e) ->
 			loop vars e;
 			vars := PMap.map (fun _ -> true) !vars
+		| TFunction _ ->
+			(* do not recurse into functions, their code is only relevant when executed *)
+			()
 		| _ ->
 			Type.iter (loop vars) e
 	in
@@ -1164,6 +1167,7 @@ let run com tctx main =
 		(* PASS 1: general expression filters *)
 		let filters = [
 			Codegen.AbstractCast.handle_abstract_casts tctx;
+			check_local_vars_init;
 			Optimizer.inline_constructors tctx;
 			Optimizer.reduce_expression tctx;
 			blockify_ast;
