@@ -1909,10 +1909,30 @@ module Generator = struct
 		begin match cf.cf_expr with
 			| Some ({eexpr = TFunction f} as ef) ->
 				let ethis = mk (TConst TThis) (TInst(c,List.map snd c.cl_params)) cf.cf_pos in
-				let member_data = List.map (fun cf ->
-					let ef = mk (TField(ethis,FInstance(c,[],cf))) cf.cf_type cf.cf_pos in (* TODO *)
-					mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos
-				) member_inits in
+				let assigned_fields = ref [] in
+				(* Collect all fields that are assigned to but panic out as soon as `this`,
+				   `super`, `return` or `throw` appears (regardless of control flow). *)
+				let collect_assignments e =
+					let rec loop e = match e.eexpr with
+						| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis}, FInstance(_,_,cf))},e2) ->
+							loop e2;
+							assigned_fields := cf :: !assigned_fields
+						| TConst (TSuper | TThis) | TThrow _ | TReturn _ ->
+							raise Exit
+						| _ ->
+							Type.iter loop e
+					in
+					try loop e with Exit -> ()
+				in
+				collect_assignments f.tf_expr;
+				let member_data = List.fold_left (fun acc cf ->
+					if not (List.memq cf !assigned_fields) then begin
+						let ef = mk (TField(ethis,FInstance(c,[],cf))) cf.cf_type cf.cf_pos in (* TODO *)
+						let e = mk (TBinop(OpAssign,ef,null ef.etype ef.epos)) ef.etype ef.epos in
+						e :: acc
+					end else
+						acc
+				) [] member_inits in
 				let e = concat (mk (TBlock member_data) ctx.com.basic.tvoid cf.cf_pos) f.tf_expr in
 				let ef = {ef with eexpr = TFunction {f with tf_expr = e}} in
 				cf.cf_expr <- Some ef;
