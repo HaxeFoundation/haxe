@@ -44,7 +44,7 @@ class EReg {
 	}
 
 	public function match( s : String ) : Bool {
-		m = untyped Boot.unpack(Rex.exec(r,s));
+		m = Table.pack(r.exec(s));
 		this.s = s;
 		return m[0] != null;
 	}
