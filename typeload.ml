@@ -27,6 +27,52 @@ open Typecore
 
 let locate_macro_error = ref true
 
+let transform_abstract_field ctx this_t a_t a f =
+	let stat = List.mem AStatic f.cff_access in
+	let p = f.cff_pos in
+	match f.cff_kind with
+	| FProp (("get" | "never"),("set" | "never"),_,_) when not stat ->
+		(* TODO: hack to avoid issues with abstract property generation on As3 *)
+		if Common.defined ctx.com Define.As3 then f.cff_meta <- (Meta.Extern,[],p) :: f.cff_meta;
+		{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
+	| FProp _ when not stat ->
+		display_error ctx "Member property accessors must be get/set or never" p;
+		f
+	| FFun fu when f.cff_name = "new" && not stat ->
+		let init p = (EVars ["this",Some this_t,None],p) in
+		let cast e = (ECast(e,None)),pos e in
+		let check_type e ct = (ECheckType(e,ct)),pos e in
+		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
+		if Meta.has Meta.MultiType a.a_meta then begin
+			if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
+			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
+		end;
+		let has_call e =
+			let rec loop e = match fst e with
+				| ECall _ -> raise Exit
+				| _ -> Ast.map_expr loop e
+			in
+			try ignore(loop e); false with Exit -> true
+		in
+		let fu = {
+			fu with
+			f_expr = (match fu.f_expr with
+			| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
+			| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) when not (has_call e) ->
+				Some (EReturn (Some (cast (check_type e this_t))), pos e)
+			| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
+			| Some e -> Some (EBlock [init p;e;ret p],p)
+			);
+			f_type = Some a_t;
+		} in
+		{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
+	| FFun fu when not stat ->
+		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
+		let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else ("this",false,Some this_t,None) :: fu.f_args) } in
+		{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
+	| _ ->
+		f
+
 (*
 	Build module structure : should be atomic - no type loading is possible
 *)
@@ -149,52 +195,7 @@ let make_module ctx mpath file tdecls loadp =
 					| _ :: l -> loop l
 				in
 				let this_t = loop d.d_flags in
-				let fields = List.map (fun f ->
-					let stat = List.mem AStatic f.cff_access in
-					let p = f.cff_pos in
-					match f.cff_kind with
-					| FProp (("get" | "never"),("set" | "never"),_,_) when not stat ->
-						(* TODO: hack to avoid issues with abstract property generation on As3 *)
-						if Common.defined ctx.com Define.As3 then f.cff_meta <- (Meta.Extern,[],p) :: f.cff_meta;
-						{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
-					| FProp _ when not stat ->
-						display_error ctx "Member property accessors must be get/set or never" p;
-						f
-					| FFun fu when f.cff_name = "new" && not stat ->
-						let init p = (EVars ["this",Some this_t,None],p) in
-						let cast e = (ECast(e,None)),pos e in
-						let check_type e ct = (ECheckType(e,ct)),pos e in
-						let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
-						if Meta.has Meta.MultiType a.a_meta then begin
-							if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
-							if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
-						end;
-						let has_call e =
-							let rec loop e = match fst e with
-								| ECall _ -> raise Exit
-								| _ -> Ast.map_expr loop e
-							in
-							try ignore(loop e); false with Exit -> true
-						in
-						let fu = {
-							fu with
-							f_expr = (match fu.f_expr with
-							| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
-							| Some (EBlock [EBinop (OpAssign,(EConst (Ident "this"),_),e),_],_ | EBinop (OpAssign,(EConst (Ident "this"),_),e),_) when not (has_call e) ->
-								Some (EReturn (Some (cast (check_type e this_t))), pos e)
-							| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
-							| Some e -> Some (EBlock [init p;e;ret p],p)
-							);
-							f_type = Some a_t;
-						} in
-						{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
-					| FFun fu when not stat ->
-						if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
-						let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else ("this",false,Some this_t,None) :: fu.f_args) } in
-						{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
-					| _ ->
-						f
-				) fields in
+				let fields = List.map (transform_abstract_field ctx this_t a_t a) fields in
 				let meta = ref [] in
 				if has_meta Meta.Dce a.a_meta then meta := (Meta.Dce,[],p) :: !meta;
 				let acc = make_decl acc (EClass { d_name = d.d_name ^ "_Impl_"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta },p) in
