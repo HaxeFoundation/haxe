@@ -36,8 +36,9 @@ extern class Rex {
 	**/	
 	public static function count(subj : String, patt : String, cf : Int, ef : Int) : Dynamic;
 	public static function flags(tb:Dynamic) : Dynamic;
-	public static function tfind(rex: Rex, subj : String, ?init : Int, ?ef : Int) : Dynamic;
-	public static function exec(rex: Rex, subj : String, ?init : Int, ?ef : Int) : Dynamic;
+
+	public function tfind(subj : String, ?init : Int, ?ef : Int) : Dynamic;
+	public function exec(subj : String, ?init : Int, ?ef : Int) : Dynamic;
 
 	/**
 	 The function is intended for use in the generic for Lua construct. It
