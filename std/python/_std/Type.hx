@@ -81,12 +81,11 @@ enum ValueType {
 			if (c == String) return "String";
 
 			try {
-				var s :String = Syntax.field(c, "__name__");
-			} catch (e:Dynamic) {}
+				return Syntax.field(c, "__name__");
+			} catch (e:Dynamic) {
+				return null;
+			}
 		}
-		var res = null;
-
-		return res;
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
