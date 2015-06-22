@@ -197,18 +197,19 @@ module Transformer = struct
 		| _ ->
 			e
 
-	let dynamic_field_read e s =
-		Utils.mk_static_call_2 ((!c_reflect)()) "field" [e;mk (TConst (TString s)) !t_string e.epos] e.epos
+	let dynamic_field_read e s t =
+		let e = Utils.mk_static_call_2 ((!c_reflect)()) "field" [e;mk (TConst (TString s)) !t_string e.epos] e.epos in
+		{ e with etype = t }
 
 	let dynamic_field_write e1 s e2 =
 		Utils.mk_static_call_2 ((!c_reflect)()) "setField" [e1;mk (TConst (TString s)) !t_string e1.epos;e2] e1.epos
 
-	let dynamic_field_read_write next_id e1 s op e2 =
+	let dynamic_field_read_write next_id e1 s op e2 t = 
 		let id = next_id() in
 		let temp_var = to_tvar id e1.etype in
 		let temp_var_def = mk (TVar(temp_var,Some e1)) e1.etype e1.epos in
 		let temp_local = mk (TLocal temp_var) e1.etype e1.epos in
-		let e_field = dynamic_field_read temp_local s in
+		let e_field = dynamic_field_read temp_local s t in
 		let e_op = mk (TBinop(op,e_field,e2)) e_field.etype e_field.epos in
 		let e_set_field = dynamic_field_write temp_local s e_op in
 		mk (TBlock [
@@ -799,13 +800,13 @@ module Transformer = struct
 			end
 		(* anon field access on optional params *)
 		| (is_value, TField(e,FAnon cf)) when Meta.has Meta.Optional cf.cf_meta ->
-			let e = dynamic_field_read e cf.cf_name in
+			let e = dynamic_field_read e cf.cf_name ae.a_expr.etype in
 			transform_expr ~is_value:is_value e
 		| (is_value, TBinop(OpAssign,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
 			let e = dynamic_field_write e1 cf.cf_name e2 in
 			transform_expr ~is_value:is_value e
-		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf)},e2)) when Meta.has Meta.Optional cf.cf_meta ->
-			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 in
+		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf); etype = t},e2)) when Meta.has Meta.Optional cf.cf_meta ->
+			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 t in
 			transform_expr ~is_value:is_value e
 		(* TODO we need to deal with Increment, Decrement too!
 
@@ -835,16 +836,16 @@ module Transformer = struct
 			lift_expr ~blocks:e1.a_blocks r
 
 		| (is_value, TField(e,FDynamic s)) ->
-			let e = dynamic_field_read e s in
+			let e = dynamic_field_read e s ae.a_expr.etype in
 			transform_expr ~is_value:is_value e
 		| (is_value, TBinop(OpAssign,{eexpr = TField(e1,FDynamic s)},e2)) ->
 			let e = dynamic_field_write e1 s e2 in
 			transform_expr ~is_value:is_value e
-		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s)},e2)) ->
-			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 in
+		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FDynamic s); etype = t},e2)) ->
+			let e = dynamic_field_read_write ae.a_next_id e1 s op e2 t in
 			transform_expr ~is_value:is_value e
 		| (is_value, TField(e1, FClosure(Some ({cl_path = [],("str" | "list")},_),cf))) ->
-			let e = dynamic_field_read e1 cf.cf_name in
+			let e = dynamic_field_read e1 cf.cf_name ae.a_expr.etype in
 			transform_expr ~is_value:is_value e
 		| (is_value, TBinop(OpAssign, left, right))->
 			(let left = trans true [] left in
