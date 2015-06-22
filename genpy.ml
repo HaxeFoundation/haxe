@@ -204,7 +204,7 @@ module Transformer = struct
 	let dynamic_field_write e1 s e2 =
 		Utils.mk_static_call_2 ((!c_reflect)()) "setField" [e1;mk (TConst (TString s)) !t_string e1.epos;e2] e1.epos
 
-	let dynamic_field_read_write next_id e1 s op e2 t = 
+	let dynamic_field_read_write next_id e1 s op e2 t =
 		let id = next_id() in
 		let temp_var = to_tvar id e1.etype in
 		let temp_var_def = mk (TVar(temp_var,Some e1)) e1.etype e1.epos in
@@ -2086,6 +2086,25 @@ module Generator = struct
 					with Exit -> ()
 				in
 
+				(try (
+					let real_fields =
+						List.filter (fun f -> match f.cf_kind with
+							| Method MethDynamic -> raise Exit (* if a class has dynamic method, we can't use __slots__ because python will complain *)
+							| Var _ -> not (is_extern_field f)
+							| _ -> false
+						) c.cl_ordered_fields
+					in
+					let field_names = List.map (fun f -> handle_keywords f.cf_name) real_fields in
+					let field_names = match c.cl_dynamic with Some _ -> "__dict__" :: field_names | None -> field_names in
+					use_pass := false;
+					print ctx "\n    __slots__ = (";
+					(match field_names with
+					| [] -> ()
+					| [name] -> print ctx "\"%s\"," name
+					| names -> print ctx "\"%s\"" (String.concat "\", \"" names));
+					print ctx ")";
+				) with Exit -> ());
+
 				print_field x.cfd_fields "_hx_fields" true;
 				print_field x.cfd_methods "_hx_methods" true;
 				(* TODO: It seems strange to have a separation for member fields but a plain _hx_statics for static ones *)
@@ -2152,17 +2171,14 @@ module Generator = struct
 		newline ctx;
 		newline ctx;
 		print ctx "class %s(Enum):" p;
-
-		let use_pass = ref true in
+		print ctx "\n    __slots__ = ()";
 
 		if has_feature ctx "python._hx_class_name" then begin
-			use_pass := false;
 			print ctx "\n    _hx_class_name = \"%s\"" p_name
 		end;
 		if has_feature ctx "python._hx_constructs" then begin
 			let fix = match enum_constructs with [] -> "" | _ -> "\"" in
 			let enum_constructs_str = fix ^ (String.concat ("\", \"") (List.map (fun ef -> ef.ef_name) enum_constructs)) ^ fix in
-			use_pass := false;
 			print ctx "\n    _hx_constructs = [%s]" enum_constructs_str;
 		end;
 
@@ -2198,11 +2214,8 @@ module Generator = struct
 				newline ctx;
 				print ctx "    @staticmethod\n    def %s(%s):\n" f param_str;
 				print ctx "        return %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
-				use_pass := false;
 			| _ -> assert false
 		) param_constructors;
-
-		if !use_pass then spr ctx "\n    pass";
 
 		List.iter (fun ef ->
 			(* TODO: haxe source has api.quoteString for ef.ef_name *)
