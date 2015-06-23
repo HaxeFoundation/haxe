@@ -3,9 +3,7 @@ class TestObjc extends haxe.unit.TestCase
 	static function main()
 	{
 		var x:TestObjc = null;
-		trace(x);
 		var c:TestClass = null;
-		trace(c);
 		var runner = new haxe.unit.TestRunner();
 		runner.add(new TestObjc());
 		var code = runner.run() ? 0 : 1;
@@ -55,6 +53,15 @@ class TestObjc extends haxe.unit.TestCase
 		var dyn:Dynamic = cls;
 		this.assertTrue(dyn != null);
 		this.assertTrue(cls != null);
+
+		var someObjDecl = { a:10, b: cls };
+		dyn = someObjDecl; // don't let Haxe inline that TObjectDecl
+		assertEquals(someObjDecl.b.getOtherThing(), 255);
+		assertEquals(getFieldB(someObjDecl).getOtherThing(), 255);
+		cls = someObjDecl.b;
+		assertTrue(someObjDecl.b == cls);
+		dyn = cls;
+
 		cls.release();
 		cls = null;
 		this.assertTrue(cls == null);
@@ -65,8 +72,13 @@ class TestObjc extends haxe.unit.TestCase
 		dyn = null;
 		dyn = cls;
 		assertTrue(dyn == null);
+		assertEquals(dyn,null);
 		assertTrue(dyn == cls);
+		assertEquals(dyn,cls);
 	}
+
+	static function getFieldB<T>(d:{ a:Int, b: T }):T
+		return d.b;
 
 	public function testNull()
 	{
@@ -102,6 +114,7 @@ class TestObjc extends haxe.unit.TestCase
 	function isBiggerThan10Int(integer:Int):Bool;
 
 	function release():Void;
+	function retainCount():Int;
 
 	@:plain static function some_c_call(t:TestClass):Int;
 	@:plain static function is_bigger_than_10(t:TestClass, val:Int):Bool;

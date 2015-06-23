@@ -1836,6 +1836,19 @@ and gen_expression ctx retval expression =
      else
         expression
    in
+   let add_objc_cast_if_needed expression =
+      (* objc-specific: since all NSObject derived types are boxed to the same type,
+         we need to take one extra care when unboxing, and cast them to their
+         actual type *)
+      let is_cast =
+         retval && is_objc_type expression.etype && is_dynamic_in_cpp ctx expression
+      in
+      if is_cast then begin
+         output ("( (" ^ (type_string expression.etype) ^ ") (NSObject *) (");
+         ") )";
+      end else
+         ""
+   in
 
    let rec gen_bin_op_string expr1 op expr2 =
       let cast = (match op with
@@ -2109,6 +2122,7 @@ and gen_expression ctx retval expression =
       error "addressOf must take a local or member variable" expression.epos;
 
    | TCall (func, arg_list) ->
+      let after_cast = add_objc_cast_if_needed expression in
       let rec is_variable e = match e.eexpr with
       | TField _ | TEnumParameter _ -> false
       | TLocal { v_name = "__global__" } -> false
@@ -2184,6 +2198,7 @@ and gen_expression ctx retval expression =
             | _ -> ()
       in
       cast_array_output func;
+      output after_cast
 
    | TBlock expr_list ->
       if (retval) then
@@ -2299,7 +2314,9 @@ and gen_expression ctx retval expression =
       gen_expression ctx true expr;
       output ( "))->__Param(" ^ (string_of_int i) ^ ")")
    | TField (field_object,field) ->
-      gen_tfield field_object field
+      let after_cast = add_objc_cast_if_needed expression in
+      gen_tfield field_object field;
+      output after_cast
 
    | TParenthesis expr when not retval ->
          gen_expression ctx retval expr;
