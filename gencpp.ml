@@ -1839,14 +1839,14 @@ and gen_expression ctx retval expression =
         expression
    in
    let add_objc_cast_if_needed expression =
-      (* objc-specific: since all NSObject derived types are boxed to the same type,
+      (* objc-specific: since all `id` derived types are boxed to the same type,
          we need to take one extra care when unboxing, and cast them to their
          actual type *)
       let is_cast =
          retval && is_objc_type expression.etype && is_dynamic_in_cpp ctx expression
       in
       if is_cast then begin
-         output ("( (" ^ (type_string expression.etype) ^ ") (NSObject *) (");
+         output ("( (" ^ (type_string expression.etype) ^ ") (id) (");
          ") )";
       end else
          ""
@@ -2563,7 +2563,7 @@ and gen_expression ctx retval expression =
          output ")";
    | TCast (cast,None) when is_objc_type expression.etype && not (is_objc_type cast.etype) ->
      let ret_type = type_string expression.etype in
-     output ("( (" ^ ret_type ^ ") (NSObject *) (");
+     output ("( (" ^ ret_type ^ ") (id) (");
      gen_expression ctx true cast;
      output ") )"
    | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
