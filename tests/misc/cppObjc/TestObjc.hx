@@ -75,6 +75,7 @@ class TestObjc extends haxe.unit.TestCase
 		assertEquals(dyn,null);
 		assertTrue(dyn == cls);
 		assertEquals(dyn,cls);
+		cls.release();
 	}
 
 	static function getFieldB<T>(d:{ a:Int, b: T }):T
@@ -85,11 +86,49 @@ class TestObjc extends haxe.unit.TestCase
 		this.assertTrue(TestClass.isNull(null));
 		this.assertFalse(TestClass.isNull(TestClass.alloc().init()));
 	}
+
+	public function testInterface()
+	{
+		cls = TestClass.alloc().init();
+		cls.setOtherThing(21);
+		this.assertTrue(cls.getSelf() == cls);
+		this.assertEquals(cls.getSelf(), cls);
+
+		var iface:TestInterface = cls;
+		var obj:Dynamic = iface;
+		this.assertTrue(iface == cls);
+		this.assertEquals(iface, cls);
+		this.assertTrue(obj == cls);
+		this.assertEquals(obj, cls);
+		this.assertEquals(iface.getSelf(), cls);
+		this.assertEquals(iface.getSelf(), cls.getSelf());
+
+		this.assertEquals(iface.getOtherThing(), 21);
+		this.assertEquals(iface.getOtherThingChar(), 21);
+		cls.setOtherThing(100);
+		this.assertEquals(iface.getOtherThing(), 100);
+		this.assertEquals(iface.getOtherThingChar(), 100);
+
+		this.assertEquals("someOptionalMethod!",iface.someOptionalMethod());
+
+		cls.release();
+	}
+}
+
+@:include("./native/include/test.h")
+@:objc extern interface TestInterface
+{
+	function getSelf():TestInterface;
+	function getOtherThing():Int;
+	function getOtherThingChar():cpp.Int8;
+
+	@:optional function someOptionalMethod():NSString;
+	@:optional function unimplementedOptional():NSString;
 }
 
 @:include("./native/include/test.h")
 @:sourceFile("./native/test.m")
-@:objc extern class TestClass
+@:objc extern class TestClass implements TestInterface
 {
 	static function aStatic():Int;
 	static function isNull(t:TestClass):Bool;
@@ -115,6 +154,13 @@ class TestObjc extends haxe.unit.TestCase
 
 	function release():Void;
 	function retainCount():Int;
+
+	function getSelf():TestClass;
+
+	function someOptionalMethod():NSString;
+
+	@:deprecated('This method is not implemented on this class')
+	@:noCompletion @:optional function unimplementedOptional():NSString;
 
 	@:plain static function some_c_call(t:TestClass):Int;
 	@:plain static function is_bigger_than_10(t:TestClass, val:Int):Bool;

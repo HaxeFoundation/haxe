@@ -662,11 +662,13 @@ let rec class_string klass suffix params remap =
          | _ -> assert false);
    (* Objective-C class *)
    | path when is_objc_type (TInst(klass,[])) ->
-     let str = join_class_path_remap klass.cl_path "::" in
-     if suffix = "_obj" then
-       str
-     else
-       str ^ " *"
+      let str = join_class_path_remap klass.cl_path "::" in
+      if suffix = "_obj" then
+         str
+      else if klass.cl_interface then
+         "id <" ^ str ^ ">"
+      else
+         str ^ " *"
    (* Normal class *)
    | path when klass.cl_extern && (not (is_internal_class path) )->
             (join_class_path_remap klass.cl_path "::") ^ suffix

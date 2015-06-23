@@ -2,7 +2,23 @@
 #define TEST_H_INCLUDED
 #import <Foundation/Foundation.h>
 
-@interface TestClass : NSObject {
+@protocol TestInterface
+
+- (id <TestInterface>)getSelf;
+
+- (int)getOtherThing;
+
+- (char)getOtherThingChar;
+
+@optional
+
+- (NSString *)someOptionalMethod;
+
+- (NSString *)unimplementedOptional;
+
+@end
+
+@interface TestClass : NSObject <TestInterface> {
 	@public int otherThing;
 }
 
@@ -29,6 +45,10 @@
 - (NSNumber *)isBiggerThan10Num:(NSNumber *)value;
 
 - (BOOL)isBiggerThan10Int:(int)integer;
+
+- (TestClass *)getSelf;
+
+- (NSString *)someOptionalMethod;
 
 
 @end

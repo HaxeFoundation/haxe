@@ -59,6 +59,16 @@
 	return integer > 10;
 }
 
+- (TestClass *)getSelf
+{
+	return self;
+}
+
+- (NSString *)someOptionalMethod
+{
+	return @"someOptionalMethod!";
+}
+
 @end
 
 int some_c_call(TestClass *t)
