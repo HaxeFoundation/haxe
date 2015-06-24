@@ -114,7 +114,7 @@ let print ctx =
 		Buffer.add_string ctx.buf s
 	end)
 
-let unsupported p = error "This expression cannot be compiled to Javascript" p
+let unsupported p = error "This expression cannot be compiled to Lua" p
 
 let basename path =
 	try
@@ -394,7 +394,7 @@ and gen_expr ?(local=true) ctx e =
 	 TConst c ->
 		gen_constant ctx e.epos c;
 	| TLocal v when v.v_name = "this" ->
-	    spr ctx "self";
+		spr ctx "self";
 	| TLocal v -> spr ctx (ident v.v_name)
 	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_lua_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
 		gen_value ctx e1;
@@ -1351,9 +1351,9 @@ let generate_enum ctx e =
 		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
+			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			(* TODO: better tmp variable for _x, _estr *)
-			print ctx "function(%s)  local _x = {\"%s\",%d,%s}; _x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
+			print ctx "function(%s)  local _x = lua.Boot.defArray({\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
