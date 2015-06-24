@@ -375,7 +375,7 @@ let rec gen_call ctx e el in_value =
 		spr ctx ") end )(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TField (e, ((FInstance _ | FAnon _) as ef)), el ->
+	| TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
 		gen_value ctx e;
 		spr ctx ":";
 		print ctx "%s" (field_name ef);
