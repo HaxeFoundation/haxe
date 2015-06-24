@@ -20,8 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package lua;
+
 import lua.Table;
 import haxe.Constraints.Function;
+using lua.PairTools;
 
 class Boot {
 
@@ -82,12 +84,13 @@ class Boot {
 		}
 	}
 
-	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+	@:ifFeature("typed_catch")
+	private static function __instanceof(o : Dynamic,cl : Dynamic) {
 		if( cl == null ) return false;
 
 		switch( cl ) {
 			case Int:
-				return (untyped __lua__("_G.bit.bor(o,0) == o"));
+				return (untyped __type__(o) == "number" &&  __lua__("_G.bit.bor(o,0) == o"));
 			case Float:
 				return untyped __type__(o) == "number";
 			case Bool:
@@ -119,15 +122,16 @@ class Boot {
 		}
 	}
 
-	@:ifFeature("typed_cast") private static function __cast(o : Dynamic, t : Dynamic) {
+	@:ifFeature("typed_cast")
+	private static function __cast(o : Dynamic, t : Dynamic) {
 		if (__instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
 	@:keep
-	public static function arrayNewIndex(tab:Dynamic, key:Int, value:Dynamic){
+	public static function arrayNewIndex(tab:Dynamic, key:Dynamic, value:Dynamic){
 		untyped rawset(tab, key, value);
-		if (key+1 > tab.length){
+		if (Std.is(key,Int) && key+1 > tab.length){
 			tab.length = key + 1;
 		}
 	}
@@ -143,57 +147,69 @@ class Boot {
 	}
 
 	public static function urlEncode(str:String){
-	if (str != null) {
-		str = lua.StringTools.gsub(str, "\n", "\r\n");
-		str = lua.StringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
-			return lua.StringTools.format("%%%02X", lua.StringTools.byte(c) + '');
-		});
-		str = lua.StringTools.gsub(str, " ", "+");
+		if (str != null) {
+			str = lua.StringTools.gsub(str, "\n", "\r\n");
+			str = lua.StringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
+				return lua.StringTools.format("%%%02X", lua.StringTools.byte(c) + '');
+			});
+			str = lua.StringTools.gsub(str, " ", "+");
+		}
+		return str;
 	}
-	return str;
+
+	static function printEnum(e:Array<Dynamic>){
+		var params = e.slice(2).join(',');
+		var first = e[0];
+		return '$first($params)';
+	}
+
+	static function printClass(c:Table<String,Dynamic>, s : String) : String {
+		return '{${printClassRec(c,'',s)}}';
+
+	}
+
+	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
+		c.pairsEach(function(k,v){
+			if (result != "")
+				result += ", ";
+			result += '$k: ${__string_rec(v, s + 'o')}';
+		});
+		return result;
 	}
 
 	@:ifFeature("may_print_enum")
 	static function __string_rec(o : Dynamic, s = '') {
-		untyped {
-			switch(__type__(o)){
-				case "nil": return "null";
-				case"number" : {
-					if (o == Math.INFINITY) return "Infinity";
-					else if (o == Math.NEGATIVE_INFINITY) return "-Infinity";
-					else if (o != o) return "NaN";
-					else return untyped tostring(o);
+		return switch(untyped __type__(o)){
+			case "nil": "null";
+			case "number" : {
+				if (o == std.Math.POSITIVE_INFINITY) "Infinity";
+				else if (o == std.Math.NEGATIVE_INFINITY) "-Infinity";
+				else if (o != o) "NaN";
+				else untyped tostring(o);
+			}
+			case "boolean" : untyped tostring(o);
+			case "string"  : o;
+			case "userdata": "<userdata>";
+			case "function": "<function>";
+			case "thread"  : "<thread>";
+			case "table": {
+				var isArray = untyped Lua.getmetatable(o).__index == Array.prototype;
+				if (s.length > 5) isArray ? "[...]" : "{...}";
+				else if (Reflect.hasField(o,"toString")) o.toString();
+				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
+				else if (Reflect.hasField(o,"__enum__")) printEnum(o);
+				else if (Reflect.hasField(o,"__class__")) printClass(o,s);
+				else if (Lua.next(o) == null) "{}";
+				else {
+					throw "Unknown Lua type";
+					null;
 				}
-				case "boolean" : return untyped tostring(o);
-				case "string": return o;
-				case "userdata": return "<userdata>";
-				case "function": return "<function>";
-				case "thread": return "<thread>";
-				// TODO: come up with better fix for infinite recursive loop due to __class__
-				case "table": { __lua__("local result = '';
-		if o.toString ~= nil then result = o:toString()
-		elseif o.__tostring ~= nil then result = tostring(o)
-		elseif next(o) == nil then return '{}'
-		else
-			result = result .. '{ ';
-			local first = true
-			for i, v in pairs(o) do
-				if i ~= '__class__' then
-					if (first) then
-						first = false
-					else
-						result = result .. ', '
-					end
-					result = result .. i .. ': ' .. lua.Boot.__string_rec(v, s .. 'o');
-				end
-			end
-			result = result .. ' }';
-		end");
-				return result; }
-				default : throw "Unknown Lua type";
-		    }
+			};
+			default : {
+				throw "Unknown Lua type";
+				null;
+			}
 		}
-	};
 
-
+	}
 }
