@@ -2150,6 +2150,16 @@ module TExprToExpr = struct
 			(match !r with
 			| None -> raise Exit
 			| Some t -> convert_type t)
+		| TInst ({cl_private = true; cl_path=_,name},tl)
+		| TEnum ({e_private = true; e_path=_,name},tl)
+		| TType ({t_private = true; t_path=_,name},tl)
+		| TAbstract ({a_private = true; a_path=_,name},tl) ->
+			CTPath {
+				tpackage = [];
+				tname = name;
+				tparams = List.map (fun t -> TPType (convert_type t)) tl;
+				tsub = None;
+			}
 		| TEnum (e,pl) ->
 			tpath e.e_path e.e_module.m_path (List.map convert_type pl)
 		| TInst({cl_kind = KTypeParameter _} as c,pl) ->
