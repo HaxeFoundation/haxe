@@ -1860,18 +1860,21 @@ let init_class ctx c p context_init herits fields =
 	if is_lib && not c.cl_extern then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
 	(* a native type will skip one check: the static vs non-static field *)
 	let is_native = Meta.has Meta.JavaNative c.cl_meta || Meta.has Meta.CsNative c.cl_meta in
-
+	let abstract = match c.cl_kind with
+		| KAbstractImpl a -> Some a
+		| _ -> None
+	in
 	let ctx = {
 		ctx with
 		curclass = c;
 		type_params = c.cl_params;
 		pass = PBuildClass;
-		tthis = (match c.cl_kind with
-			| KAbstractImpl a ->
+		tthis = (match abstract with
+			| Some a ->
 				(match a.a_this with
 				| TMono r when !r = None -> TAbstract (a,List.map snd c.cl_params)
 				| t -> t)
-			| _ -> TInst (c,List.map snd c.cl_params));
+			| None -> TInst (c,List.map snd c.cl_params));
 		on_error = (fun ctx msg ep ->
 			ctx.com.error msg ep;
 			(* macros expressions might reference other code, let's recall which class we are actually compiling *)
@@ -2121,13 +2124,11 @@ let init_class ctx c p context_init herits fields =
 		if name.[0] = '$' && ctx.com.display = DMNone then error "Field names starting with a dollar are not allowed" p;
 		let stat = List.mem AStatic f.cff_access in
 		let extern = Meta.has Meta.Extern f.cff_meta || c.cl_extern in
-		let is_abstract,allow_inline =
-			match c.cl_kind, f.cff_kind with
-			| KAbstractImpl _, _ -> true,true
-			|_, FFun _ -> false,ctx.g.doinline || extern
-			| _ -> false,true
+		let allow_inline = abstract <> None || match f.cff_kind with
+			| FFun _ -> ctx.g.doinline || extern
+			| _ -> true
 		in
-		let inline = List.mem AInline f.cff_access && allow_inline in
+		let inline = allow_inline && List.mem AInline f.cff_access in
 		let override = List.mem AOverride f.cff_access in
 		let is_macro = Meta.has Meta.Macro f.cff_meta in
 		if is_macro then ctx.com.warning "@:macro should now be 'macro' accessor" p;
@@ -2147,7 +2148,7 @@ let init_class ctx c p context_init herits fields =
 		} in
 		match f.cff_kind with
 		| FVar (t,e) ->
-			if not stat && is_abstract then error (f.cff_name ^ ": Cannot declare member variable in abstract") p;
+			if not stat && abstract <> None then error (f.cff_name ^ ": Cannot declare member variable in abstract") p;
 			if inline && not stat then error (f.cff_name ^ ": Inline variable must be static") p;
 			if inline && e = None then error (f.cff_name ^ ": Inline variable must be initialized") p;
 
@@ -2232,8 +2233,8 @@ let init_class ctx c p context_init herits fields =
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error (f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
-			ctx.type_params <- (match c.cl_kind with
-				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
+			ctx.type_params <- (match abstract with
+				| Some a when Meta.has Meta.Impl f.cff_meta ->
 					params @ a.a_params
 				| _ ->
 					if stat then params else params @ ctx.type_params);
@@ -2282,8 +2283,8 @@ let init_class ctx c p context_init herits fields =
 			generate_value_meta ctx.com (Some c) cf fd.f_args;
 			let do_bind = ref (((not c.cl_extern || inline) && not c.cl_interface) || cf.cf_name = "__init__") in
 			let do_add = ref true in
-			(match c.cl_kind with
-				| KAbstractImpl a ->
+			(match abstract with
+				| Some a ->
 					let m = mk_mono() in
 					let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) in
 					let tthis = if Meta.has Meta.Impl f.cff_meta || Meta.has Meta.To f.cff_meta then monomorphs a.a_params a.a_this else a.a_this in
@@ -2405,13 +2406,13 @@ let init_class ctx c p context_init herits fields =
 					context_init();
 					incr stats.s_methods_typed;
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
-					let fmode = (match c.cl_kind with
-						| KAbstractImpl _ ->
+					let fmode = (match abstract with
+						| Some _ ->
 							(match args with
 							| ("this",_,_) :: _ -> FunMemberAbstract
 							| _ when name = "_new" -> FunMemberAbstract
 							| _ -> FunStatic)
-						| _ ->
+						| None ->
 							if constr then FunConstructor else if stat then FunStatic else FunMember
 					) in
 					let display_field = display_file && (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) in
@@ -2440,8 +2441,8 @@ let init_class ctx c p context_init herits fields =
 			if !do_bind then bind_type ctx cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro;
 			f, constr, cf, !do_add
 		| FProp (get,set,t,eo) ->
-			(match c.cl_kind with
-			| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
+			(match abstract with
+			| Some a when Meta.has Meta.Impl f.cff_meta ->
 				ctx.type_params <- a.a_params;
 			| _ -> ());
 			(* TODO is_lib: lazify load_complex_type *)
@@ -2450,8 +2451,8 @@ let init_class ctx c p context_init herits fields =
 				| None, _ -> mk_mono()
 				| Some t, _ -> load_complex_type ctx p t
 			) in
-			let t_get,t_set = match c.cl_kind with
-				| KAbstractImpl a when Meta.has Meta.Impl f.cff_meta ->
+			let t_get,t_set = match abstract with
+				| Some a when Meta.has Meta.Impl f.cff_meta ->
 					if Meta.has Meta.IsVar f.cff_meta then error (f.cff_name ^ ": Abstract properties cannot be real variables") f.cff_pos;
 					let ta = apply_params a.a_params (List.map snd a.a_params) a.a_this in
 					tfun [ta] ret, tfun [ta;ret] ret
@@ -2644,14 +2645,14 @@ let init_class ctx c p context_init herits fields =
 		with Error (Custom str,p2) when p = p2 ->
 			display_error ctx str p
 	) fields;
-	(match c.cl_kind with
-	| KAbstractImpl a ->
+	(match abstract with
+	| Some a ->
 		a.a_to_field <- List.rev a.a_to_field;
 		a.a_from_field <- List.rev a.a_from_field;
 		a.a_ops <- List.rev a.a_ops;
 		a.a_unops <- List.rev a.a_unops;
 		a.a_array <- List.rev a.a_array;
-	| _ -> ());
+	| None -> ());
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
 	(*
