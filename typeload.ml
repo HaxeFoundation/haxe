@@ -1889,15 +1889,24 @@ let init_class ctx c p context_init herits fields =
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields context_init (fun (e,p) ->
 		match e with
 		| EVars [_,Some (CTAnonymous f),None] ->
-			List.iter (fun f ->
+			let f = List.map (fun f ->
+				let f = match abstract with
+					| Some a ->
+						let a_t = TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)) in
+						let this_t = TExprToExpr.convert_type a.a_this in
+						transform_abstract_field ctx this_t a_t a f
+					| None ->
+						f
+				in
 				if List.mem AMacro f.cff_access then
 					(match ctx.g.macros with
 					| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
 						(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
 						if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem AMacro f2.cff_access) (!fields)) then
 							error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
-					| _ -> ())
-			) f;
+					| _ -> ());
+				f
+			) f in
 			fields := f
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
 	);
