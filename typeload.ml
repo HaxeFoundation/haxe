@@ -1822,37 +1822,41 @@ let is_java_native_function meta = try
 	with | Not_found -> false
 
 let build_module_def ctx mt meta fvars context_init fbuild =
-	let rec loop = function
-		| (Meta.Build,args,p) :: l ->
-			let epath, el = (match args with
-				| [ECall (epath,el),p] -> epath, el
-				| _ -> error "Invalid build parameters" p
-			) in
-			let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
-			if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your enum is not used in macro" p;
-			let old = ctx.g.get_build_infos in
-			ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
-			context_init();
-			let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
-			ctx.g.get_build_infos <- old;
-			(match r with
-			| None -> error "Build failure" p
-			| Some e -> fbuild e; loop l)
-		| (Meta.Enum,_,p) :: l ->
-			begin match mt with
-				| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
-					context_init();
-					let e = build_enum_abstract ctx c a (fvars()) p in
-					fbuild e;
-					loop l
-				| _ ->
-					loop l
-			end
-		| _ :: l -> loop l
-		| [] -> ()
+	let loop (f_build,f_enum) = function
+		| Meta.Build,args,p -> Some (fun () ->
+				let epath, el = (match args with
+					| [ECall (epath,el),p] -> epath, el
+					| _ -> error "Invalid build parameters" p
+				) in
+				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
+				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your enum is not used in macro" p;
+				let old = ctx.g.get_build_infos in
+				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
+				context_init();
+				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
+				ctx.g.get_build_infos <- old;
+				(match r with
+				| None -> error "Build failure" p
+				| Some e -> fbuild e)
+			),f_enum
+		| Meta.Enum,_,p -> f_build,Some (fun () ->
+				begin match mt with
+					| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
+						context_init();
+						let e = build_enum_abstract ctx c a (fvars()) p in
+						fbuild e;
+					| _ ->
+						()
+				end
+			)
+		| _ ->
+			f_build,f_enum
 	in
 	(* let errors go through to prevent resume if build fails *)
-	loop meta
+	let f_build,f_enum = List.fold_left loop (None,None) meta in
+	(match f_build with None -> () | Some f -> f());
+	(match f_enum with None -> () | Some f -> f())
+
 
 let init_class ctx c p context_init herits fields =
 	(* a lib type will skip most checks *)
