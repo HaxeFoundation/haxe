@@ -3215,7 +3215,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx e NoValue in
 		ctx.in_loop <- old_loop;
 		let cond = type_expr ctx cond Value in
-		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond p in
+		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		begin try
