@@ -432,7 +432,7 @@ and gen_expr ?(local=true) ctx e =
 			print ctx ",_bind(__,__%s))" (field f.cf_name))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
-		print ctx "{%i}" (i + 2)
+		print ctx "[%i]" (i + 2)
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
 		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
