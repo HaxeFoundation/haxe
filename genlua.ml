@@ -719,11 +719,11 @@ and gen_expr ?(local=true) ctx e =
 				gen_block_element ctx e;
 				bend();
 				newline ctx;
-				spr ctx " else";
+				spr ctx "else";
 				else_block := true
 		) catchs;
 		if not !last then begin
-		    print ctx "error(%s)" vname;
+		    print ctx " error(%s)" vname;
 		    newline ctx;
 		    spr ctx "end";
 		end;
@@ -990,7 +990,7 @@ and gen_value ctx e =
 	| TTry (b,catchs) ->
 		let v = value() in
 		let block e = mk (TBlock [e]) e.etype e.epos in
-		gen_expr ctx (mk (TTry (block (assign b),
+		gen_block_element ctx (mk (TTry (block (assign b),
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v()
@@ -1353,7 +1353,7 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s)  local _x = lua.Boot.defArray({\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
+			print ctx "function(%s)  local _x = lua.Boot.defArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
