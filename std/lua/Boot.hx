@@ -195,13 +195,13 @@ class Boot {
 			case "table": {
 				var mt : Dynamic = untyped Lua.getmetatable(o);
 				var isArray = mt != null && mt.__index == untyped Array.prototype;
-				if (s.length > 5) isArray ? "[...]" : "{...}";
-				else if (isArray) '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+"o")].join(", ")}]'
+			    if (Reflect.hasField(o,"__enum__")) printEnum(o);
+				else if (Lua.next(o) == null) "{}";
+				else if (s.length > 5) isArray ? "[...]" : "{...}";
+				else if (isArray) '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+"o")].join(",")}]'
 				else if (Reflect.hasField(o,"toString")) o.toString();
 				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
-				else if (Reflect.hasField(o,"__enum__")) printEnum(o);
 				else if (Reflect.hasField(o,"__class__")) printClass(o,s);
-				else if (Lua.next(o) == null) "{}";
 				else {
 					cast(o, Table<Dynamic,Dynamic>).pairsFold(function(a,b,c){
 						if (c != "{") c+= ", ";
