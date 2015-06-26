@@ -46,7 +46,7 @@ class EReg {
 	public function match( s : String ) : Bool {
 		m = Table.pack(r.exec(s));
 		this.s = s;
-		return m[0] != null;
+		return m[1] != null;
 	}
 
 	public function matched( n : Int ) : String {
@@ -74,8 +74,8 @@ class EReg {
 	public function matchedPos() : { pos : Int, len : Int } {
 		if( m == null ) throw "No string matched";
 		return {
-			pos : m[0]-1,
-			len : m[1]- m[0]+ 1
+			pos : m[1]-1,
+			len : m[2]- m[1]+ 1
 		}
 	}
 
