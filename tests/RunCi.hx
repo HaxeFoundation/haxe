@@ -619,9 +619,11 @@ class RunCi {
 				case Js:
 					getJSDependencies();
 
-					for (flatten in [true, false]) {
-						runCommand("haxe", ["compile-js.hxml"].concat(flatten ? [] : ["-D", "js-unflatten"]));
-						runCommand("node", ["-e", "var unit = require('./bin/unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+					for (es5 in [true, false]) {
+						for (flatten in [true, false]) {
+							runCommand("haxe", ["compile-js.hxml"].concat(flatten ? [] : ["-D", "js-unflatten"]).concat(es5 ? ["-D", "js-es5"] : []));
+							runCommand("node", ["-e", "var unit = require('./bin/unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+						}
 					}
 
 					if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
