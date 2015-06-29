@@ -626,12 +626,22 @@ class RunCi {
 				case Js:
 					getJSDependencies();
 
-					for (es5 in [true, false]) {
-						for (flatten in [true, false]) {
-							runCommand("haxe", ["compile-js.hxml"].concat(flatten ? [] : ["-D", "js-unflatten"]).concat(es5 ? ["-D", "js-es5"] : []));
-							runCommand("node", ["-e", "var unit = require('./bin/unit.js').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+					var jsOutputs = [
+						for (es5 in [[], ["-D", "js-es5"]])
+						for (unflatten in [[], ["-D", "js-unflatten"]])
+						{
+							var extras = [].concat(es5).concat(unflatten);
+
+							runCommand("haxe", ["compile-js.hxml"].concat(extras));
+
+							var output = "bin/unit" + extras.join("") + ".js";
+							if (extras.length > 0) {
+								File.copy("bin/unit.js", output);
+							}
+							runCommand("node", ["-e", "var unit = require('./" + output + "').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
+							output;
 						}
-					}
+					];
 
 					if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
 						var scVersion = "sc-4.3-linux";
@@ -652,7 +662,7 @@ class RunCi {
 						haxelibInstallGit("dionjwa", "nodejs-std", "master", null, true, "nodejs");
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
-						runCommand("node", ["bin/RunSauceLabs.js", "unit-js.html"]);
+						runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
 
 						server.close();
 						sc.close();

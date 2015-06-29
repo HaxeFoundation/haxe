@@ -7,7 +7,17 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
     <body id="haxe:trace">
-        <script src="bin/unit.js"></script>
-        <script>unit.Test.main();</script>
+        <script type="text/javascript" src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+        <script type="text/javascript">
+            // http://stackoverflow.com/questions/11582512/how-to-get-url-parameters-with-javascript
+            function getURLParameter(name) {
+                return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null
+            }
+
+            var js = getURLParameter("js") || "bin/unit.js";
+            $.getScript(js, function() {
+                unit.Test.main();
+            });
+        </script>
     </body>
 </html>
