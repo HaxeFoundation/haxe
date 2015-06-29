@@ -120,10 +120,8 @@ s.substr(0, 0) == "";
 s.substr(0, 1) == "x";
 s.substr(0, 2) == "xf";
 s.substr(0, 100) == "xfooxfooxxbarxbarxx";
-#if !js_es5
 s.substr(0, -1) == "xfooxfooxxbarxbarx";
 s.substr(0, -2) == "xfooxfooxxbarxbar";
-#end
 //s.substr(1, -2) == "fooxfooxxbarxbar";
 //s.substr(2, -2) == "ooxfooxxbarxbar";
 s.substr(0, -100) == "";

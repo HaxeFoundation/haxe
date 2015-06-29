@@ -64,9 +64,7 @@ class TestBasetypes extends Test {
 		eq(sentence.substr(-5), "jugs.");
 		eq(sentence.substr(-42), sentence);
 		eq(sentence.substr(4, 0), "");
-		#if !js_es5
 		eq(sentence.substr(0, -36), "Pack");
-		#end
 
 		// null should not be swallowed
 		eq("hello" +null, "hellonull");

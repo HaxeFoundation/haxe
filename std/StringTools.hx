@@ -244,12 +244,10 @@ class StringTools {
 
 		This is a convenience function for `ltrim(rtrim(s))`.
 	**/
-	public #if (cs || java || (js && js_es5)) inline #end static function trim( s : String ) : String {
+	public #if (cs || java) inline #end static function trim( s : String ) : String {
 		#if cs
 		return untyped s.Trim();
 		#elseif java
-		return untyped s.trim();
-		#elseif (js && js_es5)
 		return untyped s.trim();
 		#else
 		return ltrim(rtrim(s));

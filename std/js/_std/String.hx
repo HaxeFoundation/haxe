@@ -36,13 +36,9 @@
 		return untyped HxOverrides.cca(this, index);
 	}
 
-	#if js_es5
-	function substr( pos : Int, ?len : Int ) : String;
-	#else
 	inline function substr( pos : Int, ?len : Int ) : String {
 		return untyped HxOverrides.substr(this, pos, len);
 	}
-	#end
 
 	static function fromCharCode( code : Int ) : String;
 }
