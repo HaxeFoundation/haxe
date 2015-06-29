@@ -43,35 +43,52 @@ private class StringMapIterator<T> {
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
 	private var h : Dynamic;
+	#if !js_es5
 	private var rh : Dynamic;
+	#end
 
 	public inline function new() : Void {
+		#if js_es5
+		h = untyped Object.create(null);
+		#else
 		h = {};
+		#end
 	}
 
+	#if !js_es5
 	inline function isReserved(key:String) : Bool {
 		return untyped __js__("__map_reserved")[key] != null;
 	}
+	#end
 
 	public inline function set( key : String, value : T ) : Void {
+		#if !js_es5
 		if( isReserved(key) )
 			setReserved(key, value);
 		else
+		#end
 			h[cast key] = value;
 	}
 
 	public inline function get( key : String ) : Null<T> {
+		#if !js_es5
 		if( isReserved(key) )
 			return getReserved(key);
+		#end
 		return h[cast key];
 	}
 
 	public inline function exists( key : String ) : Bool {
+		#if js_es5
+		return untyped __js__("({0} in {1})", key, h);
+		#else
 		if( isReserved(key) )
 			return existsReserved(key);
 		return h.hasOwnProperty(key);
+		#end
 	}
 
+	#if !js_es5
 	function setReserved( key : String, value : T ) : Void {
 		if( rh == null ) rh = {};
 		rh[cast "$"+key] = value;
@@ -85,8 +102,15 @@ private class StringMapIterator<T> {
 		if( rh == null ) return false;
 		return untyped rh.hasOwnProperty("$"+key);
 	}
+	#end
 
 	public function remove( key : String ) : Bool {
+		#if js_es5
+		if (!exists(key))
+			return false;
+		untyped __js__("delete {0}", h[key]);
+		return true;
+		#else
 		if( isReserved(key) ) {
 			key = "$" + key;
 			if( rh == null || !rh.hasOwnProperty(key) ) return false;
@@ -98,12 +122,18 @@ private class StringMapIterator<T> {
 			untyped __js__("delete")(h[key]);
 			return true;
 		}
+		#end
 	}
 
 	public function keys() : Iterator<String> {
 		return arrayKeys().iterator();
 	}
-	
+
+	#if js_es5
+	@:extern inline function arrayKeys() : Array<String> {
+		return untyped Object.keys(h);
+	}
+	#else
 	function arrayKeys() : Array<String> {
 		var out = [];
 		untyped {
@@ -120,6 +150,7 @@ private class StringMapIterator<T> {
 		}
 		return out;
 	}
+	#end
 
 	public inline function iterator() : Iterator<T> {
 		return new StringMapIterator(this, arrayKeys());
@@ -141,8 +172,10 @@ private class StringMapIterator<T> {
 		return s.toString();
 	}
 
+	#if !js_es5
 	static function __init__() : Void {
 		untyped __js__("var __map_reserved = {}");
 	}
+	#end
 
 }
