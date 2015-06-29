@@ -67,14 +67,22 @@ class HxOverrides {
 	}
 
 	static function substr( s : String, pos : Int, ?len : Int ) : String {
-		if( pos != null && pos != 0 && len != null && len < 0 ) return "";
-		if( len == null ) len = s.length;
-		if( pos < 0 ){
-			pos = s.length + pos;
-			if( pos < 0 ) pos = 0;
-		}else if( len < 0 ){
-			len = s.length + len - pos;
+		if (len == null) {
+			len = s.length;
+		} else if (len < 0) {
+			if (pos == 0)
+				len = s.length + len;
+			else
+				return "";
 		}
+
+		#if !js_es5
+		if (pos < 0) {
+			pos = s.length + pos;
+			if (pos < 0)
+				pos = 0;
+		}
+		#end
 
 		return (untyped s).substr(pos, len);
 	}
