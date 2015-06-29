@@ -223,6 +223,7 @@ module Define = struct
 		| NoSimplify
 		| NoSwfCompress
 		| NoTraces
+		| Objc
 		| PhpPrefix
 		| RealPosition
 		| ReplaceFiles
@@ -308,6 +309,7 @@ module Define = struct
 		| NoSimplify -> "no_simplify",("Disable simplification filter")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
+		| Objc -> ("objc","Sets the hxcpp output to objective-c++ classes. Must be defined for interop")
 		| PhpPrefix -> ("php_prefix","Compiled with --php-prefix")
 		| RealPosition -> ("real_position","Disables haxe source mapping when targetting C#")
 		| ReplaceFiles -> ("replace_files","GenCommon internal")
@@ -455,6 +457,7 @@ module MetaInfo = struct
 		| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
 		| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
 		| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
+		| Objc -> ":objc",("Declares a class or interface that is used to interoperate with Objective-C code",[Platform Cpp;UsedOn TClass])
 		| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
 		| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
 		| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])

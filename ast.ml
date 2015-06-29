@@ -130,6 +130,7 @@ module Meta = struct
 		| NotNull
 		| NoUsing
 		| Ns
+		| Objc
 		| Op
 		| Optional
 		| Overload

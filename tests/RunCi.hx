@@ -616,6 +616,13 @@ class RunCi {
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cpp.hxml"]);
 					runCpp("bin/cpp/Main-debug", []);
+
+					if (Sys.systemName() == "Mac")
+					{
+						changeDirectory(miscDir + "cppObjc");
+						runCommand("haxe", ["build.hxml"]);
+						runCpp("bin/TestObjc-debug");
+					}
 				case Js:
 					getJSDependencies();
 

@@ -171,8 +171,11 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
 
 
 let source_file_extension common_ctx =
-   try
-     "." ^ (Common.defined_value common_ctx Define.FileExtension)
+   (* no need to -D file_extension if -D objc is defined *)
+   if Common.defined common_ctx Define.Objc then
+      ".mm"
+   else try
+      "." ^ (Common.defined_value common_ctx Define.FileExtension)
    with
      Not_found -> ".cpp"
 ;;
@@ -562,6 +565,18 @@ let is_fromStaticFunction_call func =
    | _ -> false
 ;;
 
+let is_objc_call field =
+  match field with
+  | FStatic(cl,_) | FInstance(cl,_,_) ->
+      cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
+  | _ -> false
+;;
+
+let is_objc_type t = match follow t with
+  | TInst(cl,_) -> cl.cl_extern && Meta.has Meta.Objc cl.cl_meta
+  | _ -> false
+;;
+
 let is_addressOf_call func =
    match (remove_parens func).eexpr with
    | TField (_,FStatic ({cl_path=["cpp"],"Pointer"},{cf_name="addressOf"} ) ) -> true
@@ -645,6 +660,15 @@ let rec class_string klass suffix params remap =
             | t when type_has_meta_key t Meta.NotNull -> "Dynamic"
             | _ -> "/*NULL*/" ^ (type_string t) )
          | _ -> assert false);
+   (* Objective-C class *)
+   | path when is_objc_type (TInst(klass,[])) ->
+      let str = join_class_path_remap klass.cl_path "::" in
+      if suffix = "_obj" then
+         str
+      else if klass.cl_interface then
+         "id <" ^ str ^ ">"
+      else
+         str ^ " *"
    (* Normal class *)
    | path when klass.cl_extern && (not (is_internal_class path) )->
             (join_class_path_remap klass.cl_path "::") ^ suffix
@@ -1801,6 +1825,33 @@ and gen_expression ctx retval expression =
          gen_expression_list remaining
       ) in
 
+   (* this will add a cast if boxing / unboxing an objective-c type *)
+   let check_objc_unbox expression to_type =
+     if is_objc_type to_type && not (is_objc_type expression.etype) then
+        { expression with eexpr = TCast(expression,None); etype = to_type }
+     else
+        expression
+   in
+   let check_objc_box expression to_type =
+     if is_objc_type expression.etype && not (is_objc_type to_type) then
+        { expression with eexpr = TCast(expression,None); etype = to_type }
+     else
+        expression
+   in
+   let add_objc_cast_if_needed expression =
+      (* objc-specific: since all `id` derived types are boxed to the same type,
+         we need to take one extra care when unboxing, and cast them to their
+         actual type *)
+      let is_cast =
+         retval && is_objc_type expression.etype && is_dynamic_in_cpp ctx expression
+      in
+      if is_cast then begin
+         output ("( (" ^ (type_string expression.etype) ^ ") (id) (");
+         ") )";
+      end else
+         ""
+   in
+
    let rec gen_bin_op_string expr1 op expr2 =
       let cast = (match op with
          | ">>" | "<<" | "&" | "|" | "^"  -> "int("
@@ -1832,6 +1883,11 @@ and gen_expression ctx retval expression =
       | _ -> ""
    in
    let rec gen_bin_op op expr1 expr2 =
+      let expr1, expr2 = match op with
+         | Ast.OpAssign | Ast.OpAssignOp _ -> expr1, check_objc_unbox expr2 expr1.etype
+         | Ast.OpEq | Ast.OpNotEq -> check_objc_box expr1 expr2.etype, check_objc_box expr2 expr1.etype
+         | _ -> expr1,expr2
+      in
       match op with
       | Ast.OpAdd when (is_const_string_term expr1) && (is_const_string_term expr2) ->
          output (str ((combine_string_terms expr1) ^ (combine_string_terms expr2)) )
@@ -2030,11 +2086,45 @@ and gen_expression ctx retval expression =
             output (" )");
          | _ -> error "fromStaticFunction must take a static function" expression.epos;
       )
+    | TCall ({ eexpr = TField(fexpr,field) }, arg_list) when is_objc_call field ->
+      output "[ ";
+      (match field with
+      | FStatic(cl,_) ->
+          output (join_class_path_remap cl.cl_path "::")
+      | FInstance _ ->
+          gen_expression ctx true fexpr
+      | _ -> assert false);
+      let names = ExtString.String.nsplit (field_name field) ":" in
+      let field_name, arg_names = match names with
+        | name :: args -> name, args
+        | _ -> assert false (* per nsplit specs, this should never happen *)
+      in
+      output (" " ^ field_name);
+      (try match arg_list, arg_names with
+      | [], _ -> ()
+      | [single_arg], _ -> output ": "; gen_expression ctx true single_arg
+      | first_arg :: args, arg_names ->
+          output ": ";
+          gen_expression ctx true first_arg;
+          ctx.ctx_calling <- true;
+          List.iter2 (fun arg arg_name ->
+            output (" " ^ arg_name ^ ": ");
+            gen_expression ctx true arg) args arg_names
+      with | Invalid_argument _ -> (* not all arguments names are known *)
+        error (
+          "The function called here with name " ^ (String.concat ":" names) ^
+          " does not contain the right amount of arguments' names as required" ^
+          " by the objective-c calling / naming convention:" ^
+          " expected " ^ (string_of_int (List.length arg_list)) ^
+          " and found " ^ (string_of_int (List.length arg_names)))
+        expression.epos);
+      output " ]"
 
    | TCall (func, [arg]) when is_addressOf_call func && not (is_lvalue arg) ->
       error "addressOf must take a local or member variable" expression.epos;
 
    | TCall (func, arg_list) ->
+      let after_cast = add_objc_cast_if_needed expression in
       let rec is_variable e = match e.eexpr with
       | TField _ | TEnumParameter _ -> false
       | TLocal { v_name = "__global__" } -> false
@@ -2110,6 +2200,7 @@ and gen_expression ctx retval expression =
             | _ -> ()
       in
       cast_array_output func;
+      output after_cast
 
    | TBlock expr_list ->
       if (retval) then
@@ -2163,6 +2254,7 @@ and gen_expression ctx retval expression =
       | TString s -> output (str s)
       | TBool b -> output (if b then "true" else "false")
       (*| TNull -> output ("((" ^ (type_string expression.etype) ^ ")null())")*)
+      | TNull when is_objc_type expression.etype -> output "nil"
       | TNull -> output (if ctx.ctx_for_extern then "null" else "null()")
       | TThis -> output (if ctx.ctx_real_this_ptr then "hx::ObjectPtr<OBJ_>(this)" else "__this")
       | TSuper when calling ->
@@ -2224,7 +2316,9 @@ and gen_expression ctx retval expression =
       gen_expression ctx true expr;
       output ( "))->__Param(" ^ (string_of_int i) ^ ")")
    | TField (field_object,field) ->
-      gen_tfield field_object field
+      let after_cast = add_objc_cast_if_needed expression in
+      gen_tfield field_object field;
+      output after_cast
 
    | TParenthesis expr when not retval ->
          gen_expression ctx retval expr;
@@ -2467,6 +2561,11 @@ and gen_expression ctx retval expression =
          output "HX_STACK_DO_THROW(";
          gen_expression ctx true expression;
          output ")";
+   | TCast (cast,None) when is_objc_type expression.etype && not (is_objc_type cast.etype) ->
+     let ret_type = type_string expression.etype in
+     output ("( (" ^ ret_type ^ ") (id) (");
+     gen_expression ctx true cast;
+     output ") )"
    | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
       gen_expression ctx retval cast;
    | TCast (cast,None) ->
@@ -5591,6 +5690,12 @@ let generate_source common_ctx =
    let scriptable = (Common.defined common_ctx Define.Scriptable) in
 
    List.iter (fun object_def ->
+      (* check if any @:objc class is referenced while '-D objc' is not defined
+         This will guard all code changes to this flag *)
+      (if not (Common.defined common_ctx Define.Objc) then match object_def with
+         | TClassDecl class_def when Meta.has Meta.Objc class_def.cl_meta ->
+            error "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
+         | _ -> ());
       (match object_def with
       | TClassDecl class_def when is_extern_class class_def ->
          build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
