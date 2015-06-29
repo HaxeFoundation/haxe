@@ -163,7 +163,7 @@ class RunSauceLabs {
 			tags.push("TravisCI");
 
 		var maxDuration = 60 * 5; //5 min
-		var commandTimeout = 30;  //30s
+		var commandTimeout = 60;  //60s
 
 		function testBrowser(caps:Dynamic, trials = 3):Dynamic {
 			console.log('========================================================');
