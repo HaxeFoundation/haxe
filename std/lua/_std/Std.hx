@@ -34,7 +34,7 @@ import lua.Boot;
 
 	@:keep
 	inline public static function string( s : Dynamic ) : String {
-		return untyped lua.Boot.__string_rec(s,"");
+		return untyped lua.Boot.__string_rec(s);
 	}
 
 	public static inline function int( x : Float ) : Int {

@@ -98,10 +98,9 @@ class Boot {
 			case String:
 				return untyped __type__(o) == "string";
 			case Array:
-				// TODO: Better array check
 				return untyped __type__(o) == "table"
-					&& o.__enum__ == null
-					&& o.length != null;
+					&& o.mt != null
+					&& o.mt__index == untyped Array.prototype;
 			case Dynamic:
 				return true;
 			default:
@@ -163,22 +162,22 @@ class Boot {
 		return '$first($params)';
 	}
 
-	static function printClass(c:Table<String,Dynamic>, s : String) : String {
+	static function printClass(c:Table<String,Dynamic>, s : Int) : String {
 		return '{${printClassRec(c,'',s)}}';
 
 	}
 
-	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
+	static function printClassRec(c:Table<String,Dynamic>, result='', s : Int) : String {
 		c.pairsEach(function(k,v){
 			if (result != "")
 				result += ", ";
-			result += '$k: ${__string_rec(v, s + 'o')}';
+			result += '$k: ${__string_rec(v, s + 1)}';
 		});
 		return result;
 	}
 
 	@:ifFeature("may_print_enum")
-	static function __string_rec(o : Dynamic, s = '') {
+	static function __string_rec(o : Dynamic, s = 0) {
 		return switch(untyped __type__(o)){
 			case "nil": "null";
 			case "number" : {
@@ -194,18 +193,21 @@ class Boot {
 			case "thread"  : "<thread>";
 			case "table": {
 				var mt : Dynamic = untyped Lua.getmetatable(o);
-				var isArray = mt != null && mt.__index == untyped Array.prototype;
 			    if (Reflect.hasField(o,"__enum__")) printEnum(o);
 				else if (Lua.next(o) == null) "{}";
-				else if (s.length > 5) isArray ? "[...]" : "{...}";
-				else if (isArray) '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+"o")].join(",")}]'
+				else if (__instanceof(o, Array)) {
+					if (s > 5) "[...]"
+					else '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
+				} else if (s > 5){
+					"{...}";
+				}
 				else if (Reflect.hasField(o,"toString")) o.toString();
 				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
-				else if (Reflect.hasField(o,"__class__")) printClass(o,s);
+				else if (Reflect.hasField(o,"__class__")) printClass(o,s+1);
 				else {
 					cast(o, Table<Dynamic,Dynamic>).pairsFold(function(a,b,c){
 						if (c != "{") c+= ", ";
-						return c + __string_rec(a,s + 'o') + ': ' + __string_rec(b, s + 'o');
+						return c + __string_rec(a,s + 1) + ': ' + __string_rec(b, s + 1);
 					},"{") + "}";
 				}
 			};
