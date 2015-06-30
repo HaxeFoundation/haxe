@@ -377,6 +377,10 @@ class Bytes {
 		catch (e:Dynamic) throw e;
 		#elseif python
 		return python.Syntax.pythonCode("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
+	        #elseif lua
+	        var begin = cast(Math.min(pos,b.length),Int);
+	        var end = cast(Math.min(pos+len,b.length),Int);
+	        return [for (i in begin...end) String.fromCharCode(b[i])].join("");
 		#else
 		var s = "";
 		var b = b;
@@ -509,6 +513,9 @@ class Bytes {
 			var b:BytesData = new python.Bytearray(s, "UTF-8");
 			return new Bytes(b.length, b);
 
+		#elseif lua
+			var bytes = [for (c in 0...s.length) StringTools.fastCodeAt(s,c)];
+			return new Bytes(bytes.length, bytes);
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode
