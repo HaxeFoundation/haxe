@@ -634,10 +634,17 @@ class RunCi {
 
 							runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
-							var output = "bin/unit" + extras.join("") + ".js";
-							if (extras.length > 0) {
-								File.copy("bin/unit.js", output);
+							var output = if (extras.length > 0) {
+								"bin/js/" + extras.join("") + "/unit.js";
+							} else {
+								"bin/js/default/unit.js";
 							}
+							var outputDir = Path.directory(output);
+							if (!FileSystem.exists(outputDir)) {
+								FileSystem.createDirectory(outputDir);
+							}
+							FileSystem.rename("bin/unit.js", output);
+							FileSystem.rename("bin/unit.js.map", output + ".map");
 							runCommand("node", ["-e", "var unit = require('./" + output + "').unit; unit.Test.main(); process.exit(unit.Test.success ? 0 : 1);"]);
 							output;
 						}
