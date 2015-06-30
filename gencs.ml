@@ -2595,8 +2595,10 @@ let configure gen =
 	in
 
 	let module_type_gen w md_tp =
-		let requires_root = no_root && len w = 0 in
-		Codegen.map_source_header gen.gcon (fun s -> print w "// %s\n" s);
+		let file_start = len w = 0 in
+		let requires_root = no_root && file_start in
+		if file_start then
+			Codegen.map_source_header gen.gcon (fun s -> print w "// %s\n" s);
 		reset_temps();
 		match md_tp with
 			| TClassDecl cl ->
