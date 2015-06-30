@@ -10,7 +10,7 @@ class Issue3462 extends Test
 		var r:Dynamic;
 
 		var s:String = "";
-		var keys = ["__proto__", "__definegetter__", "__definesetter__", "__lookupgetter__", "__lookupsetter__", "__noSuchMethod__", "__count__", "__parent__", "eval", "toSource", "unwatch", "watch", "constructor", "sillyTest", "0", "1", "prototype", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "setPropertyIsEnumerable", "toLocaleString", "toString", "valueOf", "toJSON", "get", "set"];
+		var keys = [/*"__proto__", */"__definegetter__", "__definesetter__", "__lookupgetter__", "__lookupsetter__", "__noSuchMethod__", "__count__", "__parent__", "eval", "toSource", "unwatch", "watch", "constructor", "sillyTest", "0", "1", "prototype", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "setPropertyIsEnumerable", "toLocaleString", "toString", "valueOf", "toJSON", "get", "set"];
 		for (i in 0...keys.length) {
 			var k = keys[i];
 			eq(d.exists(k), false);
