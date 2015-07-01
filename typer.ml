@@ -4644,19 +4644,9 @@ let make_macro_api ctx p =
 		Interp.define_type = (fun v ->
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			let add ctx =
-				let prev = (try Some (Hashtbl.find ctx.g.modules m) with Not_found -> None) in
 				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
-				add_dependency mnew ctx.m.curmod;
-				(* if we defined a type in an existing module, let's move the types here *)
-				(match prev with
-				| None ->
 					mnew.m_extra.m_kind <- MFake;
-				| Some mold ->
-					Hashtbl.replace ctx.g.modules mnew.m_path mold;
-					mold.m_types <- mold.m_types @ mnew.m_types;
-					mnew.m_extra.m_kind <- MSub;
-					add_dependency mold mnew;
-				);
+				add_dependency mnew ctx.m.curmod;
 			in
 			add ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
