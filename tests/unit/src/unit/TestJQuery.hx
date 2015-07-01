@@ -18,8 +18,8 @@ class TestJQuery extends Test {
     }
 
     function testIterator() {
-        var div = Lambda.find(new JQuery("<div></div>"), function(ele) return ele.tagName == "div");
-        eq(div.tagName, "div");
+        var div = Lambda.find(new JQuery("<div></div>"), function(ele) return ele.tagName.toLowerCase() == "div");
+        eq(div.tagName.toLowerCase(), "div");
     }
 
     function testHelper() {
