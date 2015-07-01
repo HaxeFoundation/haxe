@@ -20,10 +20,9 @@ package js.jquery;
 	/**
 		Returns value at named data store for the element, as set by <code>jQuery.data(element, name, value)</code>, or the full data store for the element.
 	**/
-	@:native("data")
 	@:overload(function(element:js.html.Element, key:String):Dynamic { })
 	@:overload(function(element:js.html.Element, key:String, value:Dynamic):Dynamic { })
-	static public function dataStatic(element:js.html.Element):Dynamic;
+	static public function data(element:js.html.Element):Dynamic;
 	/**
 		Determine whether the argument is a window.
 	**/
@@ -31,8 +30,7 @@ package js.jquery;
 	/**
 		Remove a previously-stored piece of data.
 	**/
-	@:native("removeData")
-	static public function removeDataStatic(element:js.html.Element, ?name:String):js.jquery.JQuery;
+	static public function removeData(element:js.html.Element, ?name:String):js.jquery.JQuery;
 	/**
 		Provides a way to execute callback functions based on one or more objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
 	**/
@@ -40,14 +38,12 @@ package js.jquery;
 	/**
 		A generic iterator function, which can be used to seamlessly iterate over both objects and arrays. Arrays and array-like objects with a length property (such as a function's arguments object) are iterated by numeric index, from 0 to length-1. Other objects are iterated via their named properties.
 	**/
-	@:native("each")
 	@:overload(function(object:Dynamic, callback:String -> Dynamic -> Void):Dynamic { })
-	static public function eachStatic(array:Array<Dynamic>, callback:Int -> Dynamic -> Void):Dynamic;
+	static public function each(array:Array<Dynamic>, callback:Int -> Dynamic -> Void):Dynamic;
 	/**
 		Execute the next function on the queue for the matched element.
 	**/
-	@:native("dequeue")
-	static public function dequeueStatic(element:js.html.Element, ?queueName:String):Void;
+	static public function dequeue(element:js.html.Element, ?queueName:String):Void;
 	/**
 		Search for a specified value within an array and return its index (or -1 if not found).
 	**/
@@ -99,16 +95,14 @@ package js.jquery;
 	/**
 		Translate all items in an array or object to new array of items.
 	**/
-	@:native("map")
 	@:overload(function(object:Dynamic, callback:Dynamic -> String -> Dynamic):Array<Dynamic> { })
-	static public function mapStatic(array:Array<Dynamic>, callback:Dynamic -> Int -> Dynamic):Array<Dynamic>;
+	static public function map(array:Array<Dynamic>, callback:Dynamic -> Int -> Dynamic):Array<Dynamic>;
 	/**
 		Show the queue of functions to be executed on the matched element.
 	**/
-	@:native("queue")
 	@:overload(function(element:js.html.Element, queueName:String, newQueue:Array<Void -> Void>):js.jquery.JQuery { })
 	@:overload(function(element:js.html.Element, queueName:String, callback:haxe.Constraints.Function):js.jquery.JQuery { })
-	static public function queueStatic(element:js.html.Element, ?queueName:String):Array<Void -> Void>;
+	static public function queue(element:js.html.Element, ?queueName:String):Array<Void -> Void>;
 	/**
 		Parses a string into an array of DOM nodes.
 	**/
@@ -121,8 +115,7 @@ package js.jquery;
 	/**
 		Takes a string and throws an exception containing it.
 	**/
-	@:native("error")
-	static public function errorStatic(message:String):Void;
+	static public function error(message:String):Void;
 	/**
 		Merge the contents of two arrays together into the first array. 
 	**/
@@ -215,9 +208,8 @@ package js.jquery;
 	/**
 		Load data from the server using a HTTP GET request.
 	**/
-	@:native("get")
 	@:overload(function(url:String, ?data:haxe.extern.EitherType<Dynamic, String>, ?success:Dynamic -> String -> js.jquery.JqXHR -> Void, ?dataType:String):js.jquery.JqXHR { })
-	static public function getStatic(settings:Dynamic):js.jquery.JqXHR;
+	static public function get(settings:Dynamic):js.jquery.JqXHR;
 	/**
 		Return a number representing the current time.
 	**/

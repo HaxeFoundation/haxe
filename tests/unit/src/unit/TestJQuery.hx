@@ -11,7 +11,7 @@ class TestJQuery extends Test {
     }
 
     function testRenamedStaticFields() {
-        JQuery.eachStatic([123], function(i, e) {
+        JQuery.each([123], function(i, e) {
             eq(i, 0);
             eq(e, 123);
         });
