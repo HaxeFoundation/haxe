@@ -225,10 +225,6 @@ let make_path f =
 		| [] ->
 			error "empty part"
 		| [x] ->
-			if String.length x = 0 then
-				error "empty part"
-			else if not (x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')) then
-				error "Class name must start with uppercase character";
 			invalid_char x;
 			[],x
 		| x :: l ->
@@ -241,6 +237,20 @@ let make_path f =
 			x :: path,name
 	in
 	loop cl
+
+let starts_uppercase x =
+	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
+
+let check_uppercase x =
+	if String.length x = 0 then
+		failwith "empty part"
+	else if not (starts_uppercase x) then
+		failwith "Class name must start with uppercase character"
+
+let make_type_path f =
+	let pack,name = make_path f in
+	check_uppercase name;
+	pack,name
 
 let unique l =
 	let rec _unique = function
@@ -380,7 +390,7 @@ let lookup_classes com spath =
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
 				(try
-					let path = make_path path in
+					let path = make_type_path path in
 					(match loop l with
 					| [x] when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> [x]
 					| _ -> [path])
@@ -1082,7 +1092,7 @@ try
 		),"<file> : generate XML types description");
 		("-main",Arg.String (fun cl ->
 			if com.main_class <> None then raise (Arg.Bad "Multiple -main");
-			let cpath = make_path cl in
+			let cpath = make_type_path cl in
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class> : select startup class");
@@ -1160,7 +1170,7 @@ try
 			let neko_file = file ^ ".n" in
 			set_platform Neko neko_file;
 			if com.main_class = None then begin
-				let cpath = make_path file in
+				let cpath = make_type_path file in
 				com.main_class <- Some cpath;
 				classes := cpath :: !classes
 			end;
@@ -1369,7 +1379,15 @@ try
 			did_something := true
 		),": print help for all compiler metadatas");
 	] in
-	let args_callback cl = classes := make_path cl :: !classes in
+	let args_callback cl =
+		let path,name = make_path cl in
+		if starts_uppercase name then
+			classes := (path,name) :: !classes
+		else begin
+			force_typing := true;
+			config_macros := (Printf.sprintf "include('%s')" cl) :: !config_macros;
+		end
+	in
 	let all_args_spec = basic_args_spec @ adv_args_spec in
 	let process args =
 		let current = ref 0 in
