@@ -19,6 +19,8 @@ package js.jquery;
 	static public function isXMLDoc(node:js.html.Element):Bool;
 	/**
 		Returns value at named data store for the element, as set by <code>jQuery.data(element, name, value)</code>, or the full data store for the element.
+		OR
+		Store arbitrary data associated with the specified element. Returns the value that was set.
 	**/
 	@:overload(function(element:js.html.Element, key:String):Dynamic { })
 	@:overload(function(element:js.html.Element, key:String, value:Dynamic):Dynamic { })
@@ -99,6 +101,8 @@ package js.jquery;
 	static public function map(array:Array<Dynamic>, callback:Dynamic -> Int -> Dynamic):Array<Dynamic>;
 	/**
 		Show the queue of functions to be executed on the matched element.
+		OR
+		Manipulate the queue of functions to be executed on the matched element.
 	**/
 	@:overload(function(element:js.html.Element, queueName:String, newQueue:Array<Void -> Void>):js.jquery.JQuery { })
 	@:overload(function(element:js.html.Element, queueName:String, callback:haxe.Constraints.Function):js.jquery.JQuery { })
@@ -228,6 +232,8 @@ package js.jquery;
 	public var jquery : String;
 	/**
 		Get the HTML contents of the first element in the set of matched elements.
+		OR
+		Set the HTML contents of each element in the set of matched elements.
 	**/
 	@:overload(function(htmlString:String):js.jquery.JQuery { })
 	@:overload(function(_function:Int -> String -> String):js.jquery.JQuery { })
@@ -251,6 +257,8 @@ package js.jquery;
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function mousedown():js.jquery.JQuery;
 	/**
+		Retrieve one of the elements matched by the jQuery object.
+		OR
 		Retrieve the elements matched by the jQuery object.
 	**/
 	@:overload(function(index:Int):js.html.Element { })
@@ -272,6 +280,8 @@ package js.jquery;
 	**/
 	public function ajaxSuccess(handler:js.jquery.Event -> js.jquery.JqXHR -> Dynamic -> Dynamic -> Void):js.jquery.JQuery;
 	/**
+		Set one or more attributes for the set of matched elements.
+		OR
 		Get the value of an attribute for the first element in the set of matched elements.
 	**/
 	@:overload(function(attributes:Dynamic):js.jquery.JQuery { })
@@ -298,6 +308,8 @@ package js.jquery;
 	@:overload(function(?duration:haxe.extern.EitherType<Float, String>, ?easing:String, ?complete:haxe.Constraints.Function):js.jquery.JQuery { })
 	public function slideDown(options:Dynamic):js.jquery.JQuery;
 	/**
+		Set the content of each element in the set of matched elements to the specified text.
+		OR
 		Get the combined text contents of each element in the set of matched elements, including their descendants.
 	**/
 	@:overload(function(text:haxe.extern.EitherType<String, haxe.extern.EitherType<Float, Bool>>):js.jquery.JQuery { })
@@ -315,6 +327,8 @@ package js.jquery;
 	@:overload(function(event:js.jquery.Event, ?extraParameters:haxe.extern.EitherType<Array<Dynamic>, Dynamic>):Dynamic { })
 	public function triggerHandler(eventType:String, ?extraParameters:haxe.extern.EitherType<Array<Dynamic>, Dynamic>):Dynamic;
 	/**
+		Set the CSS inner height of each element in the set of matched elements.
+		OR
 		Get the current computed height for the first element in the set of matched elements, including padding but not border.
 	**/
 	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
@@ -339,6 +353,12 @@ package js.jquery;
 	**/
 	public function parents(?selector:String):js.jquery.JQuery;
 	/**
+		A selector representing selector passed to jQuery(), if any, when creating the original set.
+	**/
+	public var selector : String;
+	/**
+		Set the current vertical position of the scroll bar for each of the set of matched elements.
+		OR
 		Get the current vertical position of the scroll bar for the first element in the set of matched elements or set the vertical position of the scroll bar for every matched element.
 	**/
 	@:overload(function(value:Float):js.jquery.JQuery { })
@@ -354,6 +374,8 @@ package js.jquery;
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function blur():js.jquery.JQuery;
 	/**
+		Set the CSS height of every matched element.
+		OR
 		Get the current computed height for the first element in the set of matched elements.
 	**/
 	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
@@ -404,8 +426,9 @@ package js.jquery;
 	/**
 		Bind an event handler to the "focusin" event.
 	**/
+	@:overload(function(handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
-	public function focusin(handler:js.jquery.Event -> Void):js.jquery.JQuery;
+	public function focusin():js.jquery.JQuery;
 	/**
 		Remove elements from the set of matched elements.
 	**/
@@ -419,7 +442,11 @@ package js.jquery;
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function mouseleave():js.jquery.JQuery;
 	/**
+		Creates DOM elements on the fly from the provided string of raw HTML.
+		OR
 		Accepts a string containing a CSS selector which is then used to match a set of elements.
+		OR
+		Binds a function to be executed when the DOM has finished loading.
 	**/
 	@:selfCall
 	@:overload(function(element:js.html.Element):Void { })
@@ -443,6 +470,8 @@ package js.jquery;
 	@:overload(function(events:String, ?selector:String, ?data:Dynamic, handler:js.jquery.Event -> haxe.extern.Rest<Dynamic> -> Void):js.jquery.JQuery { })
 	public function on(events:Dynamic, ?selector:String, ?data:Dynamic):js.jquery.JQuery;
 	/**
+		Get the current computed width for the first element in the set of matched elements, including padding and border.
+		OR
 		Set the CSS outer width of each element in the set of matched elements.
 	**/
 	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
@@ -456,6 +485,8 @@ package js.jquery;
 	public function resize():js.jquery.JQuery;
 	/**
 		Return the value at the named data store for the first element in the jQuery collection, as set by data(name, value) or by an HTML5 data-* attribute.
+		OR
+		Store arbitrary data associated with the matched elements.
 	**/
 	@:overload(function(key:String):Dynamic { })
 	@:overload(function(obj:Dynamic):js.jquery.JQuery { })
@@ -470,6 +501,8 @@ package js.jquery;
 	**/
 	public function removeProp(propertyName:String):js.jquery.JQuery;
 	/**
+		Set the value of each element in the set of matched elements.
+		OR
 		Get the current value of the first element in the set of matched elements.
 	**/
 	@:overload(function(value:haxe.extern.EitherType<String, haxe.extern.EitherType<Float, Array<String>>>):js.jquery.JQuery { })
@@ -491,6 +524,8 @@ package js.jquery;
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function error(handler:js.jquery.Event -> Void):js.jquery.JQuery;
 	/**
+		Bind two handlers to the matched elements, to be executed when the mouse pointer enters and leaves the elements.
+		OR
 		Bind a single handler to the matched elements, to be executed when the mouse pointer enters or leaves the elements.
 	**/
 	@:overload(function(handlerIn:js.jquery.Event -> Void, handlerOut:js.jquery.Event -> Void):js.jquery.JQuery { })
@@ -533,6 +568,8 @@ package js.jquery;
 	public function offsetParent():js.jquery.JQuery;
 	/**
 		Bind an event handler to the "load" JavaScript event.
+		OR
+		Load data from the server and place the returned HTML into the matched element.
 	**/
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	@:overload(function(url:String, ?data:haxe.extern.EitherType<Dynamic, String>, ?complete:String -> String -> js.jquery.JqXHR -> Void):js.jquery.JQuery { })
@@ -561,6 +598,8 @@ package js.jquery;
 	**/
 	public function promise(?type:String, ?target:Dynamic):js.jquery.Promise;
 	/**
+		Set the CSS width of each element in the set of matched elements.
+		OR
 		Get the current computed width for the first element in the set of matched elements.
 	**/
 	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
@@ -568,11 +607,15 @@ package js.jquery;
 	public function width():Float;
 	/**
 		Get the current coordinates of the first element in the set of matched elements, relative to the document.
+		OR
+		Set the current coordinates of every element in the set of matched elements, relative to the document.
 	**/
 	@:overload(function(coordinates:{ var top : Float; var left : Float; }):js.jquery.JQuery { })
 	@:overload(function(_function:Int -> { var top : Float; var left : Float; } -> Dynamic):js.jquery.JQuery { })
 	public function offset():{ var top : Float; var left : Float; };
 	/**
+		Get the current computed height for the first element in the set of matched elements, including padding, border, and optionally margin. Returns a number (without "px") representation of the value or null if called on an empty set of elements.
+		OR
 		Set the CSS outer Height of each element in the set of matched elements.
 	**/
 	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
@@ -720,8 +763,9 @@ package js.jquery;
 	/**
 		Bind an event handler to the "focusout" JavaScript event.
 	**/
+	@:overload(function(handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
-	public function focusout(handler:js.jquery.Event -> Void):js.jquery.JQuery;
+	public function focusout():js.jquery.JQuery;
 	/**
 		Reduce the set of matched elements to a subset specified by a range of indices.
 	**/
@@ -749,6 +793,8 @@ package js.jquery;
 	public function mouseover():js.jquery.JQuery;
 	/**
 		Show the queue of functions to be executed on the matched elements.
+		OR
+		Manipulate the queue of functions to be executed, once for each matched element.
 	**/
 	@:overload(function(?queueName:String, newQueue:Array<Void -> Void>):js.jquery.JQuery { })
 	@:overload(function(?queueName:String, callback:haxe.Constraints.Function -> Void):js.jquery.JQuery { })
@@ -870,6 +916,8 @@ package js.jquery;
 	**/
 	public function finish(?queue:String):js.jquery.JQuery;
 	/**
+		Set one or more properties for the set of matched elements.
+		OR
 		Get the value of a property for the first element in the set of matched elements.
 	**/
 	@:overload(function(properties:Dynamic):js.jquery.JQuery { })
@@ -888,12 +936,16 @@ package js.jquery;
 	public function eq(index:Int):js.jquery.JQuery;
 	/**
 		Get the current computed inner width for the first element in the set of matched elements, including padding but not border.
+		OR
+		Set the CSS inner width of each element in the set of matched elements.
 	**/
 	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
 	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
 	public function innerWidth():Float;
 	/**
 		Get the current horizontal position of the scroll bar for the first element in the set of matched elements.
+		OR
+		Set the current horizontal position of the scroll bar for each of the set of matched elements.
 	**/
 	@:overload(function(value:Float):js.jquery.JQuery { })
 	public function scrollLeft():Int;
@@ -911,6 +963,8 @@ package js.jquery;
 	@:overload(function(duration:haxe.extern.EitherType<Float, String>, ?easing:String, ?complete:haxe.Constraints.Function):js.jquery.JQuery { })
 	public function toggle(display:Bool):js.jquery.JQuery;
 	/**
+		Set one or more CSS properties for the set of matched elements.
+		OR
 		Get the computed style properties for the first element in the set of matched elements.
 	**/
 	@:overload(function(propertyNames:Array<String>):String { })
