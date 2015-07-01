@@ -54,6 +54,15 @@ type typer_pass =
 	| PForce				(* usually ensure that lazy have been evaluated *)
 	| PFinal				(* not used, only mark for finalize *)
 
+type typer_module = {
+	curmod : module_def;
+	mutable module_types : module_type list;
+	mutable module_using : tclass list;
+	mutable module_globals : (string, (module_type * string)) PMap.t;
+	mutable wildcard_packages : string list list;
+	mutable module_imports : Ast.import list;
+}
+
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
@@ -76,15 +85,6 @@ type typer_globals = {
 	do_load_module : typer -> path -> pos -> module_def;
 	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
-}
-
-and typer_module = {
-	curmod : module_def;
-	mutable module_types : module_type list;
-	mutable module_using : tclass list;
-	mutable module_globals : (string, (module_type * string)) PMap.t;
-	mutable wildcard_packages : string list list;
-	mutable module_imports : Ast.import list;
 }
 
 and typer = {

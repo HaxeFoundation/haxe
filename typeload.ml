@@ -1267,7 +1267,7 @@ let check_strict_meta ctx metas =
 
 (**** end of strict meta handling *****)
 
-let rec add_constructor ctx c force_constructor p =
+let add_constructor ctx c force_constructor p =
 	match c.cl_constructor, c.cl_super with
 	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
 		let cf = {
@@ -1412,7 +1412,7 @@ let set_heritance ctx c herits p =
 		resolve imports before calling build_inheritance, since it requires full paths.
 		that means that typedefs are not working, but that's a fair limitation
 	*)
-	let rec resolve_imports t =
+	let resolve_imports t =
 		match t.tpackage with
 		| _ :: _ -> t
 		| [] ->
@@ -2777,7 +2777,7 @@ let add_module ctx m p =
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
 	an expression into the context
 *)
-let rec init_module_type ctx context_init do_init (decl,p) =
+let init_module_type ctx context_init do_init (decl,p) =
 	let get_type name =
 		try List.find (fun t -> snd (t_infos t).mt_path = name) ctx.m.curmod.m_types with Not_found -> assert false
 	in
