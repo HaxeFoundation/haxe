@@ -17,6 +17,11 @@ class TestJQuery extends Test {
         });
     }
 
+    function testIterator() {
+        var div = Lambda.find(new JQuery("<div></div>"), function(ele) return ele.tagName == "div");
+        eq(div.tagName, "div");
+    }
+
     function testHelper() {
         var j = J("<div id='test'></div>");
         j.each(function(i,e){
