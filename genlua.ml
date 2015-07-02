@@ -1038,13 +1038,17 @@ and gen_tbinop ctx op e1 e2 =
 	    gen_value ctx e2;
 	    spr ctx ") ";
     | _ -> begin
+	    spr ctx "(";
 	    gen_value ctx e1;
+	    spr ctx ")";
 	    (match op with
 		| Ast.OpNotEq -> print ctx " ~= ";
 		| Ast.OpBoolAnd -> print ctx " and ";
 		| Ast.OpBoolOr -> print ctx " or ";
 		| _ -> print ctx " %s " (Ast.s_binop op));
+	    spr ctx "(";
 	    gen_value ctx e2;
+	    spr ctx ")";
 	    end;
     );
 
