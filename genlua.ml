@@ -508,7 +508,7 @@ and gen_expr ?(local=true) ctx e =
 	| TThrow e ->
 		spr ctx "error(";
 		gen_value ctx e;
-		spr ctx ")";
+		spr ctx ",0)";
 	| TVar (v,eo) ->
 		begin match eo with
 			| None ->
