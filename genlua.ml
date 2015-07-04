@@ -1053,7 +1053,7 @@ and gen_tbinop ctx op e1 e2 =
     );
 
 and gen_bitop ctx op e1 e2 =
-    print ctx "bit.%s(" (match op with
+    print ctx "_G.bit.%s(" (match op with
         | Ast.OpXor  ->  "bxor"
         | Ast.OpAnd  ->  "band"
         | Ast.OpShl  ->  "lshift"
