@@ -98,6 +98,7 @@ class Array<T> {
 		this.length-= len;
 		return ret;
 	}
+
 	public function toString() : String {
 		var sb = new StringBuf();
 		sb.add("[");
@@ -105,7 +106,12 @@ class Array<T> {
 		sb.add("]");
 		return sb.toString();
 	}
-	public function unshift( x : T ) : Void return;
+
+	public function unshift( x : T ) : Void {
+		var len = length;
+		for (i in 0...len) this[len - i] = this[len - i - 1];
+		this[0] = x;
+	}
 
 	public inline function insert( pos : Int, x : T ) : Void {
 		(untyped this).splice(pos,0,x);
