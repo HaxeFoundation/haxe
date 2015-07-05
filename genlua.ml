@@ -1057,8 +1057,8 @@ and gen_bitop ctx op e1 e2 =
         | Ast.OpXor  ->  "bxor"
         | Ast.OpAnd  ->  "band"
         | Ast.OpShl  ->  "lshift"
-        | Ast.OpShr  ->  "rshift"
-        | Ast.OpUShr ->  "arshift"
+        | Ast.OpShr  ->  "arshift"
+        | Ast.OpUShr ->  "rshift"
         | Ast.OpOr   ->  "bor"
         | _ -> "");
     gen_value ctx e1;
