@@ -90,7 +90,7 @@ class Boot {
 
 		switch( cl ) {
 			case Int:
-				return (untyped __type__(o) == "number" &&  __lua__("_G.bit.bor(o,0) == o"));
+				return (untyped __type__(o) == "number" &&  lua.Math.floor(o) == o);
 			case Float:
 				return untyped __type__(o) == "number";
 			case Bool:
@@ -101,23 +101,22 @@ class Boot {
 				return untyped __type__(o) == "table"
 					&& o.mt != null
 					&& o.mt__index == untyped Array.prototype;
+			case Table:
+				return untyped __type__(o) == "table";
 			case Dynamic:
 				return true;
-			default:
-				if( o != null ) {
-					// Check if o is an instance of a Haxe class or a native Lua object
-					if (untyped __type__(cl) == "table" ) {
-						// TODO: Fixme
-						return true;
+			default: {
+				if (   untyped __type__(o)  == "table"
+					&& untyped __type__(cl) == "table"){
+					while (Lua.getmetatable(o).__index != null){
+						if (Lua.getmetatable(o).__index == cl.prototype) return true;
+						o = Lua.getmetatable(o).__index;
 					}
-				} else {
 					return false;
 				}
 
-				// do not use isClass/isEnum here
-				untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
-				untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
-				return o.__enum__ == cl;
+				return false;
+			}
 		}
 	}
 
