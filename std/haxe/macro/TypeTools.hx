@@ -174,6 +174,22 @@ class TypeTools {
 		return Context.follow(t, once);
 
 	/**
+		Like `follow`, follows all typedefs of `t` to reach the actual type.
+
+		Will however follow also abstracts to their underlying implementation,
+		if they are not a @:coreType abstract
+
+		If `t` is null, an internal exception is thrown.
+
+		Usage example:
+			var t = Context.typeof(macro new Map<String, String>());
+			trace(t); // TAbstract(Map,[TInst(String,[]),TInst(String,[])])
+			trace(t.followWithAbstracts()); // TInst(haxe.ds.StringMap, [TInst(String,[])])
+	**/
+	static public inline function followWithAbstracts( t : Type, once : Bool = false ) : Type
+		return Context.followWithAbstracts(t, once);
+
+	/**
 		Returns true if `t1` and `t2` unify, false otherwise.
 	**/
 	static public inline function unify( t1 : Type, t2:Type ) : Bool

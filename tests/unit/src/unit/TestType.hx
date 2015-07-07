@@ -523,6 +523,15 @@ class TestType extends Test {
 		map[0];
 	}
 
+	public function testMacroFollowWithAbstracts()
+	{
+		#if !macro
+		eq(MyMacro.MyMacroHelper.followWithAbstracts(new Map<String,String>()), "TInst(haxe.ds.StringMap,[TInst(String,[])])");
+		eq(MyMacro.MyMacroHelper.followWithAbstractsOnce({ var x:TypedefToStringMap<String>; x; }), "TAbstract(Map,[TInst(String,[]),TInst(String,[])])");
+		eq(MyMacro.MyMacroHelper.followWithAbstracts(new TypedefToStringMap<String>()), "TInst(haxe.ds.StringMap,[TInst(String,[])])");
+		#end
+	}
+
 	public function testMacroRest() {
 		#if !macro
 		var r = MyMacro.MyRestMacro.testRest1(1, 2, 3);
@@ -876,3 +885,5 @@ class TestType extends Test {
 		typedAs(unit.MyAbstract.GADTEnumAbstract.B, expectedB);
 	}
 }
+
+typedef TypedefToStringMap<T> = Map<String,T>
