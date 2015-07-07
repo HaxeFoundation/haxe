@@ -22,7 +22,8 @@
 import lua.Rex;
 import lua.Table;
 import lua.Boot;
-// @:coreApi
+
+@:coreApi
 class EReg {
 
 	var r : Rex; // the Rex extern instance.
@@ -44,43 +45,62 @@ class EReg {
 	}
 
 	public function match( s : String ) : Bool {
-		m = Table.pack(r.exec(s));
+		this.m = Table.pack(r.exec(s));
 		this.s = s;
-		return m[1] != null;
+		return  m[1] != null;
 	}
 
 	public function matched( n : Int ) : String {
-		if (m == null || n < 0) throw "EReg::matched";
+		if (m[1] == null || n < 0) throw "EReg::matched";
 		else if (n == 0) {
-			// TODO: Figure out how to use lua 1-based indexing where appropriate,
-			// 	while also providing the lua.Table utility abstract.
-			return untyped __lua__("string.sub(self.s, self.m[1], self.m[2])");
-		} else {
+			var k =  lua.StringTools.sub(s, m[1], m[2]);
+			return k;
+		} else if (Std.is(m[3], lua.Table)){
 			var mn = 2 * (n - 1);
-			return untyped __lua__("string.sub(self.s, self.m[3][mn + 1], self.m[3][mn + 2])");
+			if (Std.is(untyped m[3][mn+1], Bool)) return null;
+			return lua.StringTools.sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]);
+		} else {
+			throw "EReg:matched";
 		}
 	}
 
 	public function matchedLeft() : String {
-		if( m == null ) throw "No string matched";
-		return untyped __lua__("string.sub(self.s, 1, self.m[1]-1)");
+		if( m[1] == null ) throw "No string matched";
+		return lua.StringTools.sub(s, 1, m[1]-1);
 	}
 
 	public function matchedRight() : String {
-		if( m == null ) throw "No string matched";
-		return untyped __lua__("string.sub(self.s, self.m[2]+1)");
+		if( m[1] == null ) throw "No string matched";
+		return lua.StringTools.sub(s, m[2]+1);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		if( m == null ) throw "No string matched";
+		if( m[1] == null ) throw "No string matched";
 		return {
 			pos : m[1]-1,
-			len : m[2]- m[1]+ 1
+			len : m[2]-m[1]+ 1
 		}
 	}
 
-	public function matchSub( s : String, pos : Int, ?len : Int = -1) : Bool {
-		return match(s.substr(pos, len));
+	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+
+		var ss = s.substr(0, len < 0 ? s.length : pos + len);
+
+		if (global){
+			m = Table.pack(r.exec(ss, pos + 1));
+			var b = m[1] != null;
+			if (b){
+				this.s = s;
+			}
+			return b;
+		} else {
+			m = Table.pack(r.exec(ss, pos + 1));
+			var b = m[1] != null;
+			if (b){
+				this.s = s;
+			}
+			return b;
+		}
 	}
 
 	public function split( s : String ) : Array<String> {
@@ -100,13 +120,15 @@ class EReg {
 		var offset = 0;
 		var buf = new StringBuf();
 		do {
-			if (offset >= s.length)
+			if (offset >= s.length){
 				break;
+			}
 			else if (!matchSub(s, offset)) {
 				buf.add(s.substr(offset));
 				break;
 			}
 			var p = matchedPos();
+
 			buf.add(s.substr(offset, p.pos - offset));
 			buf.add(f(this));
 			if (p.len == 0) {
@@ -115,10 +137,17 @@ class EReg {
 			}
 			else
 				offset = p.pos + p.len;
+
 		} while (global);
 		if (!global && offset > 0 && offset < s.length)
 			buf.add(s.substr(offset));
 		return buf.toString();
+	}
+
+	static function __init__() : Void {
+		if (Rex == null){
+			throw "Rex is missing.  Please install lrexlib-pcre.";
+		}
 	}
 
 }
