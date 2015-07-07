@@ -1526,7 +1526,7 @@ let configure gen =
 							in_value := true;
 							(match e.eexpr with
 								| TField(_, FEnum(e, ef)) ->
-                           let changed_name = change_id ef.ef_name in
+									let changed_name = change_id ef.ef_name in
 									write w changed_name
 								| _ ->
 									expr_s w e);
