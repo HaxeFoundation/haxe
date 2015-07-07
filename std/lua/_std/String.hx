@@ -46,8 +46,8 @@ class String {
 	}
 
 
-	public function toUpperCase() : String return untyped this.upper();
-	public function toLowerCase() : String return untyped this.lower();
+	public function toUpperCase() : String return lua.StringTools.upper(this);
+	public function toLowerCase() : String return lua.StringTools.lower(this);
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
