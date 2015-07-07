@@ -137,6 +137,11 @@ class Socket {
 		var local = sock.getLocalAddress();
 		var host = new Host(null);
 		host.wrapped = local;
+ 
+		if (boundAddr != null)
+		{
+			return { host: host, port: server.getLocalPort() };
+		}
 
 		return { host: host, port: sock.getLocalPort() };
 	}
