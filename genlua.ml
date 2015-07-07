@@ -616,21 +616,21 @@ and gen_expr ?(local=true) ctx e =
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let handle_break = handle_break ctx e in
 		spr ctx "while true do ";
-		gen_expr ctx e;
-		spr ctx "break end";
-		newline ctx;
-		spr ctx "::_hx_continue::";
+		gen_block_element ctx e;
 		newline ctx;
 		spr ctx " while ";
 		gen_cond ctx cond;
 		spr ctx " do ";
-		gen_expr ctx e;
+		gen_block_element ctx e;
 		handle_break();
 		newline ctx;
-		(* TODO: generate this label conditionally *)
-		spr ctx "::_hx_continue::";
+		if has_continue e then begin
+		    newline ctx;
+		    spr ctx "::_hx_continue::";
+		end;
 		newline ctx;
-		spr ctx "end";
+		spr ctx "end"; newline ctx;
+		spr ctx "break end";
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
@@ -790,6 +790,7 @@ and gen__init__hoist ctx e =
 and gen__init__impl ctx e =
     begin match e.eexpr with
 	| TVar (v,eo) ->
+		newline ctx;
 		gen_expr ~local:false ctx e
 	| TBlock el ->
 		List.iter (gen__init__impl ctx) el
