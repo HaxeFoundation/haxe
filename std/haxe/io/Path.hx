@@ -111,7 +111,7 @@ class Path {
 		If `this.directory` or `this.extension` is null, their representation
 		is the empty String "".
 	**/
-	public function toString() {
+	public function toString() : String {
 		return (if( dir == null ) "" else dir + if( backslash ) "\\" else "/") + file + (if( ext == null ) "" else "." + ext);
 	}
 
@@ -120,7 +120,7 @@ class Path {
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function withoutExtension( path : String ) {
+	public static function withoutExtension( path : String ) : String {
 		var s = new Path(path);
 		s.ext = null;
 		return s.toString();
@@ -131,7 +131,7 @@ class Path {
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function withoutDirectory( path ) {
+	public static function withoutDirectory( path ) : String {
 		var s = new Path(path);
 		s.dir = null;
 		return s.toString();
@@ -144,7 +144,7 @@ class Path {
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function directory( path ) {
+	public static function directory( path ) : String {
 		var s = new Path(path);
 		if( s.dir == null )
 			return "";
@@ -158,7 +158,7 @@ class Path {
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function extension( path ) {
+	public static function extension( path ) : String {
 		var s = new Path(path);
 		if( s.ext == null )
 			return "";
@@ -172,7 +172,7 @@ class Path {
 
 		If `path` or `ext` are null, the result is unspecified.
 	**/
-	public static function withExtension( path, ext ) {
+	public static function withExtension( path, ext ) : String {
 		var s = new Path(path);
 		s.ext = ext;
 		return s.toString();
