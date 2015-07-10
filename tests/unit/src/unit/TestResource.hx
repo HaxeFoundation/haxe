@@ -31,6 +31,9 @@ class TestResource extends Test {
 			eq( b.get(i), firsts[i]);
 		for( i in 0...lasts.length )
 			eq( b.get(b.length - lasts.length + i), lasts[i] );
+
+		eq(haxe.Resource.getString("nope"), null);
+		eq(haxe.Resource.getBytes("nope"), null);
 	}
 
 	#if neko
