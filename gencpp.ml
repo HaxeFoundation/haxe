@@ -3417,7 +3417,7 @@ let has_set_member_field class_def =
 
 
 let has_set_static_field class_def =
-      let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
+      let reflect_fields = List.filter (reflective class_def) (statics_except_meta class_def) in
       let reflect_writable = List.filter (is_writable class_def) reflect_fields in
       List.exists variable_field reflect_writable
 ;;
