@@ -1,7 +1,5 @@
 version: "{build}"
 
-os: unstable #http://help.appveyor.com/discussions/suggestions/427-pre-install-cygwin
-
 platform:
     - Win32
 
