@@ -421,7 +421,7 @@ class StringTools {
 		return c == 0;
 		#elseif js
 		return c != c; // fast NaN
-		#elseif neko
+		#elseif (neko || lua)
 		return c == null;
 		#elseif cs
 		return c == -1;
