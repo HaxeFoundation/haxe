@@ -67,10 +67,29 @@ class String {
 	}
 
 	public function split( delimiter : String ) : Array<String> {
-		var captures = (delimiter != "" ) ?
-			  "(.-)(" + Boot.patternQuote(delimiter) + ")"
-			: "(.)";
-		return Boot.luaIteratorToArray(lua.StringTools.gmatch(this, captures));
+		var idx = 1;
+		var ret = [];
+		var delim_offset = delimiter.length > 0 ? delimiter.length : 1;
+		while (idx != null){
+			var newidx = 0;
+			if (delimiter.length > 0){
+				newidx = lua.StringTools.find(this, delimiter, idx, true);
+			} else if (idx >= this.length){
+				newidx = null;
+			} else {
+				newidx = idx + 1;
+			}
+
+			if (newidx != null){
+				var match = lua.StringTools.sub(this, idx, newidx-1);
+				ret.push(match);
+				idx = newidx + delimiter.length;
+			} else {
+				ret.push(lua.StringTools.sub(this,idx,lua.StringTools.len(this)));
+				idx = null;
+			}
+		}
+		return ret;
 	}
 
 	public function toString() : String {
