@@ -65,7 +65,6 @@ import lua.Boot;
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
 		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
 		__feature__("Date.*", {
-			var Date = {};
 			__feature__("lua.Boot.getClass", _hxClasses["Date"] = {}, {});
 			__feature__("lua.Boot.isClass", Date.__name__ = ["Date"]);
 		});
