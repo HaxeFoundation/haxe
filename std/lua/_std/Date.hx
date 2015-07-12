@@ -19,33 +19,50 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi extern class Date {
+@:coreApi class Date {
+	var d : lua.Os.DateType;
+	var t : lua.Time;
 
-	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
-	function getTime() : Float;
-	function getHours() : Int;
-	function getMinutes() : Int;
-	function getSeconds() : Int;
-	function getFullYear() : Int;
-	function getMonth() : Int;
-	function getDate() : Int;
-	function getDay() : Int;
+	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) {
+		t =  lua.Os.time({
+			year  : year,
+			month : month,
+			day   : day,
+			hour  : hour,
+			min   : min,
+			sec   : sec
+		});
+		d =lua.Os.date("*t", t);
+	};
+	public function getTime()     : Float return cast t;
+	public function getHours()    : Int return d.hour;
+	public function getMinutes()  : Int return d.min;
+	public function getSeconds()  : Int return d.sec;
+	public function getFullYear() : Int return d.year;
+	public function getMonth()    : Int return d.month;
+	public function getDate()     : Int return d.day;
+	public function getDay()      : Int return d.wday;
 
-	inline function toString() : String {
-		return untyped HxOverrides.dateStr(this);
+	public inline function toString() : String {
+		return lua.Boot.dateStr(this);
 	}
 
-	static inline function now() : Date {
-		return untyped __new__(Date);
+	public static inline function now() : Date {
+		return fromTime(lua.Os.time());
 	}
 
-	static inline function fromTime( t : Float ) : Date {
-		var d : Date = untyped __new__(Date);
-		untyped d["setTime"]( t );
+	public static inline function fromTime( t : Float ) : Date {
+		var d : Dynamic = {}
+		untyped {
+			lua.Lua.setmetatable(d, untyped {__index : Date.prototype});
+			d.t = t;
+			d.d = lua.Os.date("*t", d.t);
+		}
 		return d;
 	}
 
-	static inline function fromString( s : String ) : Date {
-		return untyped HxOverrides.strDate(s);
+	public static inline function fromString( s : String ) : Date {
+		return lua.Boot.strDate(s);
 	}
 }
+
