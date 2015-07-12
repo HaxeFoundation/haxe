@@ -1519,10 +1519,10 @@ let generate com =
 		newline ctx
 	);
 
-	spr ctx "--[[begin type forwards--]]"; newline ctx;
+	spr ctx "--[[begin class hoists--]]"; newline ctx;
 	List.iter (generate_type_forward ctx) com.types;
 	newline ctx;
-	spr ctx "--[[end type forwards--]]"; newline ctx;
+	spr ctx "--[[end class hoists--]]"; newline ctx;
 
 	spr ctx "--[[begin __init__ hoist --]]"; newline ctx;
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits);
