@@ -60,7 +60,8 @@ class Boot {
 		else untyped f = o.hx__closures__[m];
 		if (f == null){
 			f = function(arg){
-				return m(o,lua.Table.unpack(arg));
+				return Std.is(arg,Table) ? m(o,lua.Table.unpack(arg))
+					: m(o,arg);
 			};
 			untyped o.hx__closures__[m] = f;
 		}
