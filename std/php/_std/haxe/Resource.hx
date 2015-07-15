@@ -49,11 +49,19 @@ class Resource {
 	}
 
 	public static function getString( name : String ) : String {
-		return sys.io.File.getContent(getPath(name));
+		var path = getPath(name);
+		return if (!sys.FileSystem.exists(path))
+			null;
+		else
+			sys.io.File.getContent(path);
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		return sys.io.File.getBytes(getPath(name));
+		var path = getPath(name);
+		return if (!sys.FileSystem.exists(path))
+			null;
+		else
+			sys.io.File.getBytes(path);
 	}
 
 }
