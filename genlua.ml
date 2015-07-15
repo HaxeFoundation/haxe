@@ -576,22 +576,37 @@ and gen_expr ?(local=true) ctx e =
 			spr ctx " end)()";
 		| Ast.Postfix ->
 			(* TODO: add guarantedd noconflict tmp variable instead of __x *)
-			spr ctx "local __x = ";
-			gen_value ctx e;
-			newline ctx;
-			gen_value ctx e;
-			spr ctx " = ";
-			gen_value ctx e;
-			(match op with
-			|Increment -> spr ctx " +"
-			|Decrement -> spr ctx " -"
-			|_-> print ctx " %s" (Ast.s_unop op));
-			spr ctx " 1 return __x end)()");
+			(match e.eexpr with
+			|TArray(e1,e2) ->
+			    spr ctx "local _idx = ";
+			    gen_value ctx e2;
+			    spr ctx " local ret =";
+			    gen_value ctx e1; spr ctx "[_idx]";
+			    gen_value ctx e1; spr ctx "[_idx] = ret";
+			    (match op with
+			    |Increment -> spr ctx " +"
+			    |Decrement -> spr ctx " -"
+			    |_-> print ctx " %s" (Ast.s_unop op));
+			    spr ctx " 1 return ret end)()";
+			| _ ->
+			    spr ctx "local _ = ";
+			    gen_value ctx e;
+			    newline ctx;
+			    gen_value ctx e;
+			    spr ctx " = ";
+			    gen_value ctx e;
+			    (match op with
+			    |Increment -> spr ctx " +"
+			    |Decrement -> spr ctx " -"
+			    |_-> print ctx " %s" (Ast.s_unop op));
+			    spr ctx " 1 return _ end)()";
+			);
+		)
 	| TUnop (Not,unop_flag,e) ->
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		spr ctx "bit.bnot(";
+		spr ctx "_G.bit.bnot(";
 		gen_value ctx e;
 		spr ctx ")";
 	| TUnop (op,Ast.Prefix,e) ->
