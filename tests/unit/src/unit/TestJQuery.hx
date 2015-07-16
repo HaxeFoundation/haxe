@@ -29,4 +29,11 @@ class TestJQuery extends Test {
         });
     }
 
+    function testVersion() {
+        var versionStr:String = JQuery.fn.jquery;
+        var v = versionStr.split(".");
+        eq(v.length, 3);
+        eq(haxe.macro.Compiler.getDefine("jquery_ver"), v[0] + StringTools.lpad(v[1], "0", 2) + StringTools.lpad(v[2], "0", 2));
+    }
+
 }

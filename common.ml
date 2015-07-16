@@ -199,6 +199,7 @@ module Define = struct
 		| IncludePrefix
 		| Interp
 		| JavaVer
+		| JqueryVer
 		| JsClassic
 		| JsEs5
 		| JsUnflatten
@@ -284,6 +285,7 @@ module Define = struct
 		| IncludePrefix -> ("include_prefix","prepend path to generated include files")
 		| Interp -> ("interp","The code is compiled to be run with --interp")
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
+		| JqueryVer -> ("jquery_ver", "The jQuery version supported by js.jquery.*. The version is encoded as an interger. e.g. 1.11.3 is encoded as 11103")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
 		| JsEs5 -> ("js_es5","Generate JS for ES5-compliant runtimes")
 		| JsUnflatten -> ("js_unflatten","Generate nested objects for packages and types")
