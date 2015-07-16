@@ -142,14 +142,20 @@ class Boot {
 		return tabobj;
 	}
 
+	public static function urlDecode(str:String){
+		str = lua.StringTools.gsub (str, "+", " ");
+		str = lua.StringTools.gsub (str, "%%(%x%x)",
+				function(h) {return lua.StringTools.char(lua.Lua.tonumber(h,16));});
+		str = lua.StringTools.gsub (str, "\r\n", "\n");
+		return str;
+	}
+
 	public static function urlEncode(str:String){
-		if (str != null) {
-			str = lua.StringTools.gsub(str, "\n", "\r\n");
-			str = lua.StringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
-				return lua.StringTools.format("%%%02X", lua.StringTools.byte(c) + '');
-			});
-			str = lua.StringTools.gsub(str, " ", "+");
-		}
+		str = lua.StringTools.gsub(str, "\n", "\r\n");
+		str = lua.StringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
+			return lua.StringTools.format("%%%02X", lua.StringTools.byte(c) + '');
+		});
+		str = lua.StringTools.gsub(str, " ", "+");
 		return str;
 	}
 

@@ -85,6 +85,8 @@ class StringTools {
 			var len = 0;
 			var b = @:privateAccess s.bytes.urlDecode(len);
 			return @:privateAccess String.__alloc__(b,len);
+		#elseif lua 
+			return lua.Boot.urlDecode(s);
 		#else
 			return null;
 		#end
