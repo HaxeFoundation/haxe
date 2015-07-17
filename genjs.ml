@@ -1287,6 +1287,16 @@ let generate com =
 		in loop parts "";
 	)) exposed;
 
+	let include_files = List.rev com.include_files in
+
+	List.iter (fun file ->
+		match file with
+		| path, "top" ->
+			let file_content = Std.input_file ~bin:true (fst file) in
+			print ctx "%s\n" file_content;
+			()
+		| _ -> ()
+	) include_files;
 
 	let closureArgs = [] in
 	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
@@ -1334,6 +1344,15 @@ let generate com =
 		in
 		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
+
+	List.iter (fun file ->
+		match file with
+		| path, "closure" ->
+			let file_content = Std.input_file ~bin:true (fst file) in
+			print ctx "%s\n" file_content;
+			()
+		| _ -> ()
+	) include_files;
 
 	(* If ctx.js_modern, console is defined in closureArgs. *)
 	if (not ctx.js_modern) && (not (Common.defined com Define.JsEs5)) then

@@ -144,6 +144,7 @@ type context = {
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	mutable neko_libs : string list;
+	mutable include_files : (string * string) list;
 	mutable php_front : string option;
 	mutable php_lib : string option;
 	mutable php_prefix : string option;
@@ -740,6 +741,7 @@ let create v args =
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_libs = [];
+		include_files = [];
 		php_prefix = None;
 		js_gen = None;
 		load_extern_type = [];

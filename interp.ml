@@ -2713,6 +2713,20 @@ let macro_lib =
 			| Some v -> v
 			| None -> VNull
 		);
+		"include_file", Fun2 (fun file position ->
+			match file, position with
+			| VString file, VString position ->
+				let file = if Sys.file_exists file then
+					file
+				else try Common.find_file (ccom()) file with
+					| Not_found ->
+						failwith ("unable to find file for inclusion: " ^ file)
+				in
+				(ccom()).include_files <- (file, position) :: (ccom()).include_files;
+				VNull
+			| _ ->
+				error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
