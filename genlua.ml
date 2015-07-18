@@ -493,7 +493,6 @@ and gen_expr ?(local=true) ctx e =
 		ctx.separator <- true
 	| TCall (e,el) ->
 		begin
-		    spr ctx (debug_expression e);
 		    gen_call ctx e el false;
 		end;
 	| TArrayDecl el ->
@@ -564,18 +563,33 @@ and gen_expr ?(local=true) ctx e =
 		spr ctx "(function() ";
 		(match unop_flag with
 		| Ast.Prefix ->
-			gen_value ctx e;
-			spr ctx " = ";
-			gen_value ctx e;
-			(match op with
-			|Increment -> spr ctx " +"
-			|Decrement -> spr ctx " -"
-			|_-> print ctx " %s" (Ast.s_unop op));
-			spr ctx " 1 return ";
-			gen_value ctx e;
-			spr ctx " end)()";
+			(match e.eexpr with
+			|TArray(e1,e2) ->
+			    spr ctx "local _idx = ";
+			    gen_value ctx e2;
+			    spr ctx " local ret =";
+			    gen_value ctx e1; spr ctx "[_idx]";
+			    gen_value ctx e1; spr ctx "[_idx] = ret";
+			    (match op with
+			    |Increment -> spr ctx " +"
+			    |Decrement -> spr ctx " -"
+			    |_-> print ctx " %s" (Ast.s_unop op));
+			    spr ctx " 1 return ";
+			    gen_value ctx e1; spr ctx "[_idx]";
+			    spr ctx "end)()";
+			| _ ->
+			    gen_value ctx e;
+			    spr ctx " = ";
+			    gen_value ctx e;
+			    (match op with
+			    |Increment -> spr ctx " +"
+			    |Decrement -> spr ctx " -"
+			    |_-> print ctx " %s" (Ast.s_unop op));
+			    spr ctx " 1 return ";
+			    gen_value ctx e;
+			    spr ctx " end)()";
+			);
 		| Ast.Postfix ->
-			(* TODO: add guarantedd noconflict tmp variable instead of __x *)
 			(match e.eexpr with
 			|TArray(e1,e2) ->
 			    spr ctx "local _idx = ";
@@ -913,9 +927,9 @@ and gen_value ctx e =
 	| TBinop((OpAssignOp(_)|OpAssign),e1,e2) ->
 		spr ctx "(function()";
 		gen_expr ctx e;
-		spr ctx ";return ";
+		spr ctx "; return ";
 		gen_expr ctx e1;
-		spr ctx ";end)()";
+		spr ctx "; end)()";
 	| TConst _
 	| TLocal _
 	| TArray _
