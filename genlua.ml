@@ -523,7 +523,7 @@ and gen_expr ?(local=true) ctx e =
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e1;
-				    spr ctx ";";
+				    semicolon ctx;
 
 				| _ ->
 				    if local then
@@ -531,7 +531,7 @@ and gen_expr ?(local=true) ctx e =
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e;
-				    spr ctx ";";
+				    semicolon ctx;
 		end
 	| TNew (c,_,el) ->
 		print ctx "%s.new(" (ctx.type_accessor (TClassDecl c));
@@ -574,7 +574,7 @@ and gen_expr ?(local=true) ctx e =
 			gen_value ctx e;
 		    | _, Ast.Postfix -> 
 			spr ctx "local _ = ";
-			gen_value ctx e; spr ctx "; "; 
+			gen_value ctx e; semicolon ctx;
 			gen_value ctx e;
 			spr ctx " = ";
 			gen_value ctx e);
@@ -903,9 +903,11 @@ and gen_value ctx e =
 	| TBinop((OpAssignOp(_)|OpAssign),e1,e2) ->
 		spr ctx "(function()";
 		gen_expr ctx e;
-		spr ctx "; return ";
+		semicolon ctx;
+		spr ctx " return ";
 		gen_expr ctx e1;
-		spr ctx "; end)()";
+		semicolon ctx;
+		spr ctx " end)()";
 	| TConst _
 	| TLocal _
 	| TArray _
