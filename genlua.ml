@@ -1024,22 +1024,29 @@ and gen_tbinop ctx op e1 e2 =
 		spr ctx " end)()";
 	    end;
     | Ast.OpAssignOp(op2), TArray(e3,e4) ->
+	    (* TODO: Figure out how to rewrite this expression more cleanly *)
 	    spr ctx "(function() "; newline ctx;
-	    spr ctx "_idx = "; gen_value ctx e4; semicolon ctx; newline ctx;
-	    gen_value ctx e3; spr ctx "[_idx] = ";
-	    gen_value ctx e3; spr ctx "[_idx] ";
-	    print ctx " %s " (Ast.s_binop op2);
-	    gen_value ctx e2; newline ctx;
+	    let t = e4.etype in
+	    let p = e4.epos in
+	    let idxa = alloc_var "_idx" t in
+	    let idxv = mk (TVar(idxa, Some(e4))) t p in
+	    let idxl = mk (TLocal idxa) t p in
+	    gen_expr ~local:true ctx idxv;
+	    let e3t = mk (TArray(e3, idxl )) e3.etype e3.epos in
+	    gen_expr ctx e3t;
+	    spr ctx " = ";
+	    gen_expr ~local:true ctx (mk (TBinop(op2, e3t, e2)) e3t.etype e3t.epos);
 	    spr ctx " return ";
-	    gen_value ctx e3; spr ctx "[_idx]"; newline ctx;
+	    gen_value ctx e3t;
 	    spr ctx " end)()";
     | Ast.OpAssignOp(op2),_ ->
+	    (* TODO: Rewrite expression *)
 	    spr ctx "(function() "; gen_value ctx e1;
 	    spr ctx " = "; gen_tbinop ctx op2 e1 e2;
 	    spr ctx " return "; gen_value ctx e1;
 	    spr ctx " end)()";
     | Ast.OpXor,_ | Ast.OpAnd,_  | Ast.OpShl,_ | Ast.OpShr,_ | Ast.OpUShr,_ | Ast.OpOr,_ ->
-        gen_bitop ctx op e1 e2;
+	gen_bitop ctx op e1 e2;
     | Ast.OpMod,_ ->
 	    spr ctx "_G.math.fmod(";
 	    gen_expr ctx e1;
