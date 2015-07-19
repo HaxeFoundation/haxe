@@ -1096,9 +1096,16 @@ and gen_return ctx e eo =
     | None ->
 	    spr ctx "do return end"
     | Some e ->
-	    spr ctx "do return ";
-	    gen_value ctx e;
-	    spr ctx " end"
+	    (match e.eexpr with
+	    | TBinop(OpAssign, e1, e2) ->
+		gen_expr ctx e;
+		spr ctx " do return ";
+		gen_value ctx e1;
+		spr ctx " end";
+	    | _ ->
+		spr ctx "do return ";
+		gen_value ctx e;
+		spr ctx " end");
 	)
 
 and gen_iife_assign ctx f =
