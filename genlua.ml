@@ -812,12 +812,13 @@ and gen__init__impl ctx e =
 			    newline ctx;
 			    gen_call ctx e el false
 			end;
-		    	    );
+			    );
 	| _ -> gen_block_element ctx e;
     end
 
 and gen_block_element ?(after=false) ctx e  =
     newline ctx;
+    spr ctx (debug_expression e);
     begin match e.eexpr with
 	| TTypeExpr _ -> ()
 	| TCast (ce,_) -> gen_block_element ctx ce
