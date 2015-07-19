@@ -561,18 +561,18 @@ and gen_expr ?(local=true) ctx e =
 		ctx.iife_assign <- false;
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		spr ctx "(function() ";
-		(match e.eexpr, unop_flag with 
+		(match e.eexpr, unop_flag with
 		    | TArray(e1,e2), _ ->
 			spr ctx "local _idx = ";
 			gen_value ctx e2;
 			spr ctx " local _ =";
 			gen_value ctx e1; spr ctx "[_idx]";
 			gen_value ctx e1; spr ctx "[_idx] = _";
-		    | _, Ast.Prefix -> 
+		    | _, Ast.Prefix ->
 			gen_value ctx e;
 			spr ctx " = ";
 			gen_value ctx e;
-		    | _, Ast.Postfix -> 
+		    | _, Ast.Postfix ->
 			spr ctx "local _ = ";
 			gen_value ctx e; semicolon ctx;
 			gen_value ctx e;
@@ -584,11 +584,11 @@ and gen_expr ?(local=true) ctx e =
 		    |_-> print ctx " %s 1;" (Ast.s_unop op));
 		spr ctx " return ";
 		(match unop_flag, e.eexpr with
-		    | Ast.Prefix, TArray(e1,e2) -> 
+		    | Ast.Prefix, TArray(e1,e2) ->
 			    gen_value ctx e1; spr ctx "[_idx]";
 		    | Ast.Prefix, _ ->
 			    gen_value ctx e;
-		    | Ast.Postfix, _ -> 
+		    | Ast.Postfix, _ ->
 			    spr ctx "_");
 		semicolon ctx;
 		spr ctx " end)()";
@@ -1064,13 +1064,13 @@ and gen_tbinop ctx op e1 e2 =
 
 and gen_bitop ctx op e1 e2 =
     print ctx "_G.bit.%s(" (match op with
-        | Ast.OpXor  ->  "bxor"
-        | Ast.OpAnd  ->  "band"
-        | Ast.OpShl  ->  "lshift"
-        | Ast.OpShr  ->  "arshift"
-        | Ast.OpUShr ->  "rshift"
-        | Ast.OpOr   ->  "bor"
-        | _ -> "");
+	| Ast.OpXor  ->  "bxor"
+	| Ast.OpAnd  ->  "band"
+	| Ast.OpShl  ->  "lshift"
+	| Ast.OpShr  ->  "arshift"
+	| Ast.OpUShr ->  "rshift"
+	| Ast.OpOr   ->  "bor"
+	| _ -> "");
     gen_value ctx e1;
     spr ctx ",";
     gen_value ctx e2;
@@ -1111,15 +1111,15 @@ and can_gen_class_field ctx = function
 
 and has_continue e =
     let rec loop e = match e.eexpr with
-        | TContinue -> raise Exit
-        | TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
-        | _ -> Type.iter loop e
+	| TContinue -> raise Exit
+	| TWhile(e1,_,_) | TFor(_,e1,_) -> loop e1 (* in theory there could be a continue there. Note that we don't want to recurse into the loop body because we do not care about inner continue expressions *)
+	| _ -> Type.iter loop e
     in
     try
-        loop e;
-        false;
+	loop e;
+	false;
     with Exit ->
-        true
+	true
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
@@ -1313,7 +1313,7 @@ let generate_class ctx c =
 		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
 		if (has_class ctx c) then begin
 			newprop ctx;
-			print ctx "__class__ =  %s," p;
+			print ctx "__class__ =	%s," p;
 		end;
 
 		if has_property_reflection then begin
