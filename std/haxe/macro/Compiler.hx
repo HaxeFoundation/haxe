@@ -331,22 +331,41 @@ class Compiler {
 
 	#if (js || macro)
 	/**
-		Embed an on-disk javascript file (can be called into an __init__ method)
+		Embed a JavaScript file at compile time (can be called by `--macro` or within an `__init__` method).
 	**/
-	public static macro function includeFile( fileName : Expr ) {
-		var str = switch( fileName.expr ) {
-		case EConst(c):
-			switch( c ) {
-			case CString(str): str;
-			default: null;
-			}
-		default: null;
+	public static macro function includeFile( file : String, position:IncludePosition = Top ) {
+		return switch ((position:String).toLowerCase()) {
+			case Inline:
+				if (Context.getLocalModule() == "")
+					Context.error("Cannot use inline mode when includeFile is called by `--macro`", Context.currentPos());
+
+				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch( e : Dynamic ) Context.error(Std.string(e), Context.currentPos());
+				var p = Context.currentPos();
+				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
+			case Top | Closure:
+				load("include_file", 2)(untyped file.__s, untyped position.__s);
+				macro {};
+			case _:
+				Context.error("unknown includeFile position: " + position, Context.currentPos());
 		}
-		if( str == null ) Context.error("Should be a constant string", fileName.pos);
-		var f = try sys.io.File.getContent(Context.resolvePath(str)) catch( e : Dynamic ) Context.error(Std.string(e), fileName.pos);
-		var p = Context.currentPos();
-		return { expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 	}
 	#end
 
+}
+
+@:enum abstract IncludePosition(String) from String to String {
+	/** 
+		Prepend the file content to the output file.
+	*/
+	var Top = "top";
+	/** 
+		Prepend the file content to the body of the top-level closure.
+
+		Since the closure is in strict-mode, there may be run-time error if the input is not strict-mode-compatible.
+	*/
+	var Closure = "closure";
+	/**
+		Directly inject the file content at the call site.
+	*/
+	var Inline = "inline";
 }
