@@ -61,7 +61,7 @@ class JsonHelper<T> {
 		}
         catch (msg:String)
         {
-            
+            trace(msg);
 		}
 	}
 }
