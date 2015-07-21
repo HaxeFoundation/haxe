@@ -289,7 +289,7 @@ class Bytes {
 	}
 
 	/**
-		Returns the 16 bit unsignged integer at given position (in low endian encoding).
+		Returns the 16 bit unsigned integer at given position (in low endian encoding).
 	**/
 	public inline function getUInt16( pos : Int ) : Int {
 		#if neko_v21
@@ -300,7 +300,7 @@ class Bytes {
 	}
 
 	/**
-		Returns the 16 bit unsignged integer at given position (in low endian encoding).
+		Store the 16 bit unsigned integer at given position (in low endian encoding).
 	**/
 	public inline function setUInt16( pos : Int, v : Int ) : Void {
 		#if neko_v21
