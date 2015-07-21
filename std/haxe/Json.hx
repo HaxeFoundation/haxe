@@ -53,5 +53,35 @@ class Json {
 	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space : String ) : String {
 		return haxe.format.JsonPrinter.print(value, replacer, space);
 	}
+	
+	/**
+		Parses the given JSON-encoded `text` and returns the given Class type
+		with the information found in the text.
+		
+		If given `text` is not valid JSON, an exception will be thrown.
+	**/
+	public static function encode<T>(cls:Class<Dynamic>, text:String):T
+	{
+		var casted = Type.createEmptyInstance(cls);
+		var obj = parse(text);
+        	var fields = Reflect.fields(obj);
+        	for (item in fields)
+        	{
+			trySetField(casted, item, Reflect.field(obj, item));
+		}
+        	return casted;
+	}
+	
+	private static function trySetField(obj:T, field:String, value:Dynamic):Void
+ 	{
+        	try
+        	{
+            		Reflect.setField(obj, field, value);
+		}
+        	catch (msg:String)
+        	{
+            
+		}
+	}
 
 }
