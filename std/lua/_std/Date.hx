@@ -26,7 +26,7 @@
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) {
 		t =  lua.Os.time({
 			year  : year,
-			month : month,
+			month : month+1,
 			day   : day,
 			hour  : hour,
 			min   : min,
@@ -39,10 +39,11 @@
 	public function getMinutes()  : Int return d.min;
 	public function getSeconds()  : Int return d.sec;
 	public function getFullYear() : Int return d.year;
-	public function getMonth()    : Int return d.month;
+	public function getMonth()    : Int return d.month-1;
 	public function getDate()     : Int return d.day;
-	public function getDay()      : Int return d.wday;
+	public function getDay()      : Int return d.wday-1;
 
+	@:keep
 	public inline function toString() : String {
 		return lua.Boot.dateStr(this);
 	}
