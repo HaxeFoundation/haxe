@@ -198,13 +198,13 @@ class Boot {
 				var mt : Dynamic = untyped Lua.getmetatable(o);
 			    if (Reflect.hasField(o,"__enum__")) printEnum(o);
 				else if (Lua.next(o) == null) "{}";
+				else if (Reflect.hasField(o,"toString") && !__instanceof(o,Array)) o.toString();
 				else if (__instanceof(o, Array)) {
 					if (s > 5) "[...]"
 					else '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
 				} else if (s > 5){
 					"{...}";
 				}
-				else if (Reflect.hasField(o,"toString")) o.toString();
 				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
 				else if (Reflect.hasField(o,"__class__")) printClass(o,s+1);
 				else {
@@ -223,7 +223,7 @@ class Boot {
 	}
 
 	public static function dateStr( date : std.Date ) : String {
-		var m = date.getMonth();
+		var m = date.getMonth() + 1;
 		var d = date.getDate();
 		var h = date.getHours();
 		var mi = date.getMinutes();
