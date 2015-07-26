@@ -166,7 +166,7 @@ class Array<T> {
 		var cur_length = 0;
 		return {
 			hasNext : function() return cur_length < length,
-			next : function() return untyped this[cur_length++]
+			next : function() return this[cur_length++]
 		}
 	}
 
