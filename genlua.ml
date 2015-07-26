@@ -1029,8 +1029,33 @@ and gen_value ctx e =
 		v()
 
 and gen_tbinop ctx op e1 e2 =
-    (match op, e1.eexpr with
-    | Ast.OpAssign, _ ->
+    (match op, e1.eexpr, e2.eexpr with
+    | Ast.OpAssign, TField(e3, FInstance(_,_,_) ), TFunction f ->
+	    gen_expr ctx e1;
+	    spr ctx " = " ;
+	    print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
+	    let fblock = fun_block ctx f e1.epos in
+	    (match fblock.eexpr with
+	    | TBlock el ->
+		    let rec loop ctx el = (match el with
+		    | [hd] -> (match hd.eexpr with
+			    | TReturn eo -> begin
+				    newline ctx;
+				    gen_return ctx e1 eo;
+				end;
+			    | _ -> gen_block_element ctx hd);
+		    | hd :: tl ->
+			    gen_block_element ctx hd;
+			    loop ctx tl
+		    |[] ->()
+		    ) in
+		    let bend = open_block ctx in
+		    loop ctx el;
+		    bend();
+		    newline ctx;
+	    | _ -> gen_value ctx e2);
+	    spr ctx " end"
+    | Ast.OpAssign, _, _ ->
 	    let iife_assign = ctx.iife_assign in
 	    if iife_assign then spr ctx "(function() ";
 	    (match e2.eexpr with
@@ -1049,7 +1074,7 @@ and gen_tbinop ctx op e1 e2 =
 		gen_value ctx e1;
 		spr ctx " end)()";
 	    end;
-    | Ast.OpAssignOp(op2), TArray(e3,e4) ->
+    | Ast.OpAssignOp(op2), TArray(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
 	    spr ctx "(function() "; newline ctx;
 	    let idx = alloc_var "idx" e4.etype in
@@ -1067,7 +1092,7 @@ and gen_tbinop ctx op e1 e2 =
 	    gen_tbinop ctx op2 arr_expr e2; semicolon ctx; newline ctx;
 	    spr ctx "return arr[idx]";
 	    spr ctx " end)()";
-    | Ast.OpAssignOp(op2), TField(e3,e4) ->
+    | Ast.OpAssignOp(op2), TField(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
 	    spr ctx "(function() "; newline ctx;
 	    let obj = alloc_var "obj" e3.etype in
@@ -1094,21 +1119,21 @@ and gen_tbinop ctx op e1 e2 =
 	    gen_tbinop ctx op2 obj_expr e2; semicolon ctx; newline ctx;
 	    spr ctx "return obj[fld]";
 	    spr ctx " end)()";
-    | Ast.OpAssignOp(op2),_ ->
+    | Ast.OpAssignOp(op2),_,_ ->
 	    (* TODO: Rewrite expression *)
 	    spr ctx "(function() "; gen_value ctx e1;
 	    spr ctx " = "; gen_tbinop ctx op2 e1 e2;
 	    spr ctx " return "; gen_value ctx e1;
 	    spr ctx " end)()";
-    | Ast.OpXor,_ | Ast.OpAnd,_  | Ast.OpShl,_ | Ast.OpShr,_ | Ast.OpUShr,_ | Ast.OpOr,_ ->
+    | Ast.OpXor,_,_ | Ast.OpAnd,_,_  | Ast.OpShl,_,_ | Ast.OpShr,_,_ | Ast.OpUShr,_,_ | Ast.OpOr,_,_ ->
 	gen_bitop ctx op e1 e2;
-    | Ast.OpMod,_ ->
+    | Ast.OpMod,_,_ ->
 	    spr ctx "_G.math.fmod(";
 	    gen_expr ctx e1;
 	    spr ctx ", ";
 	    gen_expr ctx e2;
 	    spr ctx ")";
-    | Ast.OpAdd,_ when (is_string_expr e1 || is_string_expr e2) ->
+    | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
 	    spr ctx "Std.string(";
 	    gen_value ctx e1;
 	    spr ctx ") ";
