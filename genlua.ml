@@ -560,14 +560,36 @@ and gen_expr ?(local=true) ctx e =
 		spr ctx "end";
 		ctx.iife_assign <- false;
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
-		spr ctx "(function() ";
+		(* TODO: Refactor this mess *)
+		spr ctx "(function() "; newline ctx;
 		(match e.eexpr, unop_flag with
 		    | TArray(e1,e2), _ ->
-			spr ctx "local _idx = ";
-			gen_value ctx e2;
-			spr ctx " local _ =";
-			gen_value ctx e1; spr ctx "[_idx]";
-			gen_value ctx e1; spr ctx "[_idx] = _";
+			spr ctx "local _idx = "; gen_value ctx e2; semicolon ctx; newline ctx;
+			spr ctx "local _arr ="; gen_value ctx e1; semicolon ctx; newline ctx;
+			(match unop_flag with
+			    | Ast.Postfix ->
+				    spr ctx "local _ = _arr[_idx]"; semicolon ctx; newline ctx;
+			    | _ -> ());
+			spr ctx "_arr[_idx] = _arr[_idx]";
+		    | TField(e1,e2), _ ->
+			spr ctx "local _obj = "; gen_value ctx e1; semicolon ctx; newline ctx;
+			spr ctx "local _fld = ";
+			(match e2 with
+			| FInstance(_,_,fld)
+			| FStatic(_,fld)
+			| FAnon fld
+			| FClosure(_,fld) ->
+				print ctx "'%s'" fld.cf_name;
+			| FDynamic name ->
+				print ctx "'%s'" name;
+			| FEnum(_,efld) ->
+				print ctx "'%s'" efld.ef_name);
+			semicolon ctx; newline ctx;
+			(match unop_flag with
+			    | Ast.Postfix ->
+				    spr ctx "local _ = _obj[_fld]"; semicolon ctx; newline ctx;
+			    | _ -> ());
+			spr ctx "_obj[_fld] = _obj[_fld] ";
 		    | _, Ast.Prefix ->
 			gen_value ctx e;
 			spr ctx " = ";
@@ -582,15 +604,19 @@ and gen_expr ?(local=true) ctx e =
 		    |Increment -> spr ctx " + 1;"
 		    |Decrement -> spr ctx " - 1;"
 		    |_-> print ctx " %s 1;" (Ast.s_unop op));
+		newline ctx;
 		spr ctx " return ";
 		(match unop_flag, e.eexpr with
-		    | Ast.Prefix, TArray(e1,e2) ->
-			    gen_value ctx e1; spr ctx "[_idx]";
-		    | Ast.Prefix, _ ->
-			    gen_value ctx e;
 		    | Ast.Postfix, _ ->
-			    spr ctx "_");
-		semicolon ctx;
+			    spr ctx "_";
+		    | _, TArray(e1,e2) ->
+			    spr ctx "_arr[_idx]";
+		    | _, TField(e1,e2) ->
+			    spr ctx "_obj[_fld]";
+		    | _, _ ->
+			    gen_value ctx e;
+		    );
+		semicolon ctx; newline ctx;
 		spr ctx " end)()";
 	| TUnop (Not,unop_flag,e) ->
 		spr ctx "not ";
@@ -1026,18 +1052,47 @@ and gen_tbinop ctx op e1 e2 =
     | Ast.OpAssignOp(op2), TArray(e3,e4) ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
 	    spr ctx "(function() "; newline ctx;
-	    let t = e4.etype in
-	    let p = e4.epos in
-	    let idxa = alloc_var "_idx" t in
-	    let idxv = mk (TVar(idxa, Some(e4))) t p in
-	    let idxl = mk (TLocal idxa) t p in
-	    gen_expr ~local:true ctx idxv;
-	    let e3t = mk (TArray(e3, idxl )) e3.etype e3.epos in
-	    gen_expr ctx e3t;
-	    spr ctx " = ";
-	    gen_expr ~local:true ctx (mk (TBinop(op2, e3t, e2)) e3t.etype e3t.epos);
-	    spr ctx " return ";
-	    gen_value ctx e3t;
+	    let idx = alloc_var "idx" e4.etype in
+	    let idx_var =  mk (TVar( idx , Some(e4))) e4.etype e4.epos in
+	    gen_expr ctx idx_var;
+	    let arr = alloc_var "arr" e3.etype in
+	    let arr_var = mk (TVar(arr, Some(e3))) e3.etype e3.epos in
+	    gen_expr ctx arr_var;
+	    newline ctx;
+	    let arr_expr = (mk (TArray(
+	    	(mk ( TLocal(arr)) e3.etype e3.epos),
+	    	(mk ( TLocal(idx)) e4.etype e4.epos)
+	    	)) e3.etype e3.epos) in
+	    spr ctx "arr[idx] = ";
+	    gen_tbinop ctx op2 arr_expr e2; semicolon ctx; newline ctx;
+	    spr ctx "return arr[idx]";
+	    spr ctx " end)()";
+    | Ast.OpAssignOp(op2), TField(e3,e4) ->
+	    (* TODO: Figure out how to rewrite this expression more cleanly *)
+	    spr ctx "(function() "; newline ctx;
+	    let obj = alloc_var "obj" e3.etype in
+	    spr ctx "local fld = ";
+	    (match e4 with
+	    | FInstance(_,_,fld)
+	    | FStatic(_,fld)
+	    | FAnon fld
+	    | FClosure(_,fld) ->
+		    print ctx "'%s'" fld.cf_name;
+	    | FDynamic name ->
+		    print ctx "'%s'" name;
+	    | FEnum(_,efld) ->
+		    print ctx "'%s'" efld.ef_name);
+	    semicolon ctx; newline ctx;
+	    let obj_var = mk (TVar(obj, Some(e3))) e3.etype e3.epos in
+	    gen_expr ctx obj_var;
+	    newline ctx;
+	    let obj_expr = (mk (TField(
+	    	(mk ( TLocal(obj)) e3.etype e3.epos),
+		e4
+	    	)) e3.etype e3.epos) in
+	    spr ctx "obj[fld] = ";
+	    gen_tbinop ctx op2 obj_expr e2; semicolon ctx; newline ctx;
+	    spr ctx "return obj[fld]";
 	    spr ctx " end)()";
     | Ast.OpAssignOp(op2),_ ->
 	    (* TODO: Rewrite expression *)
