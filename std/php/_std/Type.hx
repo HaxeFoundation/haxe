@@ -183,7 +183,7 @@ enum ValueType {
 			if($cls->getName() == $c->__tname__ && ($name = $p->getName()) !== '__properties__') $r[] = $name;
 		}
 		");
-		return untyped __php__("new _hx_array(array_unique($r))");
+		return untyped __php__("new _hx_array(array_values(array_unique($r)))");
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> untyped {
