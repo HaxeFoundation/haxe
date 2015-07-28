@@ -65,7 +65,7 @@ class Http {
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
 #elseif js
 	public var async : Bool;
-    public var withCredentials : Bool;
+	public var withCredentials : Bool;
 #end
 	var postData : String;
 	var headers : List<{ header:String, value:String }>;
@@ -93,7 +93,7 @@ class Http {
 
 		#if js
 		async = true;
-        withCredentials = false;
+		withCredentials = false;
 		#elseif sys
 		cnxTimeout = 10;
 		#end
@@ -199,7 +199,7 @@ class Http {
 	#if js
 		me.responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
-        r.withCredentials = this.withCredentials;
+		r.withCredentials = this.withCredentials;
 		var onreadystatechange = function(_) {
 			if( r.readyState != 4 )
 				return;
