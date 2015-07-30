@@ -86,11 +86,6 @@ class RunSauceLabs {
 			},
 			{
 				"browserName": "safari",
-				"platform": "OS X 10.6",
-				"version": "5"
-			},
-			{
-				"browserName": "safari",
 				"platform": "OS X 10.8",
 				"version": "6"
 			},
@@ -103,6 +98,11 @@ class RunSauceLabs {
 				"browserName": "safari",
 				"platform": "OS X 10.10",
 				"version": "8"
+			},
+			{
+				"browserName": "safari",
+				"platform": "OS X 10.11",
+				"version": "8.1"
 			},
 			{
 				"browserName": "iphone",
