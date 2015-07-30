@@ -1,6 +1,6 @@
 /* This file is generated, do not edit! Visit http://api.jquery.com/ for API documentation. */
 package js.jquery;
-@:final @:native("$") extern class JQuery implements ArrayAccess<js.html.Element> {
+@:native("$") extern class JQuery implements ArrayAccess<js.html.Element> {
 	/**
 		A multi-purpose callbacks list object that provides a powerful way to manage callback lists.
 	**/

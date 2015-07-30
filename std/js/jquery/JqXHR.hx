@@ -1,6 +1,6 @@
 /* This file is generated, do not edit! Visit http://api.jquery.com/ for API documentation. */
 package js.jquery;
-@:final @:native("$.JqXHR") extern class JqXHR extends js.html.XMLHttpRequest {
+@:native("$.JqXHR") extern class JqXHR extends js.html.XMLHttpRequest {
 	/**
 		 Add handlers to be called when the Deferred object is either resolved or rejected. 
 	**/

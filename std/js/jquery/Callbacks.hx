@@ -1,6 +1,6 @@
 /* This file is generated, do not edit! Visit http://api.jquery.com/ for API documentation. */
 package js.jquery;
-@:final @:native("$.Callbacks") extern class Callbacks {
+@:native("$.Callbacks") extern class Callbacks {
 	/**
 		Add a callback or a collection of callbacks to a callback list.
 	**/
