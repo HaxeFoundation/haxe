@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package js;
+package js.swfobject;
 
 import js.html.*;
 import haxe.extern.*;
@@ -128,7 +128,7 @@ extern class SWFObject {
 
 	private static function __init__():Void {
 		#if embed_js
-		haxe.macro.Compiler.includeFile("js/swfobject.js");
+		haxe.macro.Compiler.includeFile("js/swfobject/swfobject.js");
 		#end
 	}
 }
