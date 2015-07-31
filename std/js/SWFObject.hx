@@ -21,6 +21,7 @@
  */
 package js;
 
+@:deprecated("Use js.swfobject.SWFObject instead.")
 @:initPackage
 extern class SWFObject {
 
