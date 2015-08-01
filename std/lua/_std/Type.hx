@@ -155,31 +155,32 @@ enum ValueType {
 		return a.copy();
 	}
 
-	public static function typeof( v : Dynamic ) : ValueType untyped {
-		switch( __lua__("type")(v) ) {
-		case "boolean": return TBool;
-		case "string": return TClass(String);
-		case "number":
-			// this should handle all cases : NaN, +/-Inf and Floats outside range
-			if( Math.ceil(v) == v%2147483648.0 )
-				return TInt;
-			return TFloat;
-		case "table":
-			if( v == null )
-				return TNull;
-			var e = v.__enum__;
-			if( e != null )
-				return TEnum(e);
-			var c = lua.Boot.getClass(v);
-			if( c != null )
-				return TClass(c);
-			return TObject;
-		case "function":
-			if( lua.Boot.isClass(v) || lua.Boot.isEnum(v) )
-				return TObject;
-			return TFunction;
-		default:
-			return TUnknown;
+	public static function typeof( v : Dynamic ) : ValueType  {
+
+		switch( lua.Lua.type(v) ) {
+			case "boolean": return TBool;
+			case "string": return TClass(String);
+			case "number":
+						   // this should handle all cases : NaN, +/-Inf and Floats outside range
+						   if( Math.ceil(v) == v%2147483648.0 )
+							   return TInt;
+						   return TFloat;
+			case "table":
+						   if( v == null )
+							   return TNull;
+						   var e = v.__enum__;
+						   if( e != null )
+							   return TEnum(e);
+						   var c = lua.Boot.getClass(v);
+						   if( c != null )
+							   return TClass(c);
+						   return TObject;
+			case "function":
+						   if( lua.Boot.isClass(v) || lua.Boot.isEnum(v) )
+							   return TObject;
+						   return TFunction;
+			default:
+						   return TUnknown;
 		}
 	}
 
