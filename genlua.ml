@@ -1475,7 +1475,8 @@ let generate_enum ctx e =
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			print ctx "{\"%s\",%d}" f.ef_name f.ef_index;
+			(* TODO: Figure out how to use 1-based indexing for enum values. *)
+			print ctx "{[0]=\"%s\",%d}" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "may_print_enum" then begin
 				print ctx "%s%s.toString = _estr" p (field f.ef_name);
@@ -1616,8 +1617,9 @@ let generate com =
 	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') bit = bit or bit32"; newline ctx;
 	spr ctx "print = print or (function()end)"; newline ctx;
 
+	spr ctx "_hxClasses = {}"; semicolon ctx; newline ctx;
 	let vars = [] in
-	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in
+	(* let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in *)
 	let vars = if has_feature ctx "may_print_enum"
 		then ("_estr = function()  return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) ^ ".__string_rec(self,''); end") :: vars
 		else vars in
