@@ -65,12 +65,14 @@ class Boot {
 		return f;
 	}
 
-	static inline function isClass(o:Dynamic) : Bool {
-		return untyped __define_feature__("lua.Boot.isClass", o.__name__);
+	static inline public function isClass(o:Dynamic) : Bool {
+		if (Lua.type(o) != "table") return false;
+		else return untyped __define_feature__("lua.Boot.isClass", o.__name__);
 	}
 
-	static inline function isEnum(e:Dynamic) : Bool {
-		return untyped __define_feature__("lua.Boot.isEnum", e.__ename__);
+	static inline public function isEnum(e:Dynamic) : Bool {
+		if (Lua.type(e) != "table") return false;
+		else return untyped __define_feature__("lua.Boot.isEnum", e.__ename__);
 	}
 
 	static inline function getClass(o:Dynamic) : Dynamic {
@@ -159,10 +161,14 @@ class Boot {
 		return str;
 	}
 
-	static function printEnum(e:Array<Dynamic>){
-		var params = e.slice(2).join(',');
-		var first = e[0];
-		return '$first($params)';
+	static function printEnum(e:Table<String,Dynamic>){
+		var params = new Array<Dynamic>();
+		var first = '';
+		lua.PairTools.ipairsEach(e, function(i,x){
+			if (i == 1) first = x;
+			else params.push(x);
+		});
+		return '$first(${params.join(",")})';
 	}
 
 	static function printClass(c:Table<String,Dynamic>, s : Int) : String {
