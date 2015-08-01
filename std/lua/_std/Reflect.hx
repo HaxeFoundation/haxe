@@ -19,6 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import lua.Lua;
+import lua.Boot;
 @:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
@@ -59,8 +61,8 @@
 		return a;
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __lua__("type(f)") == "function" && !(lua.Boot.isClass(f) || lua.Boot.isEnum(f));
+	public static function isFunction( f : Dynamic ) : Bool {
+		return Lua.type(f) == "function" && !(Boot.isClass(f) || Boot.isEnum(f));
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
