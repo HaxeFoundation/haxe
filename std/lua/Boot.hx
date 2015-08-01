@@ -75,7 +75,7 @@ class Boot {
 		else return untyped __define_feature__("lua.Boot.isEnum", e.__ename__);
 	}
 
-	static inline function getClass(o:Dynamic) : Dynamic {
+	static inline public function getClass(o:Dynamic) : Dynamic {
 		if (Std.is(o, Array)) return Array;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
