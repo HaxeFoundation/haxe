@@ -425,10 +425,18 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| TBlock l ->
 			let old = save_locals ctx in
 			let t = ref e.etype in
-			let has_return e =
-				let rec loop e = match e.eexpr with
-					| TReturn _ -> raise Exit
-					| _ -> Type.iter loop e
+			let rec has_term_return e =
+				let rec loop e =
+					let r = match e.eexpr with
+					| TReturn _ -> true
+					| TIf (_,_,None) | TSwitch (_,_,None) | TFor _ | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
+					| TTry (a, catches) -> List.for_all has_term_return (a :: List.map snd catches)
+					| TIf (cond,a,Some b) -> has_term_return cond || (has_term_return a && has_term_return b)
+					| TSwitch (cond,cases,Some def) -> has_term_return cond || List.for_all has_term_return (def :: List.map snd cases)
+					| TBinop (OpBoolAnd,a,b) -> has_term_return a && has_term_return b
+					| _ -> Type.iter loop e; false
+					in
+					if r then raise Exit
 				in
 				try loop e; false with Exit -> true
 			in
@@ -441,7 +449,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					let e = map term e in
 					if term then t := e.etype;
 					[e]
-				| ({ eexpr = TIf (cond,e1,None) } as e) :: l when term && has_return e1 ->
+				| ({ eexpr = TIf (cond,e1,None) } as e) :: l when term && has_term_return e1 ->
 					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> assert false) }]
 				| e :: l ->
 					let e = map false e in
