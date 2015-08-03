@@ -885,6 +885,7 @@ let configure gen =
 			| TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
 			| TInst( ({ cl_kind = KTypeParameter _ } as cl), _ ) when erase_generics && not (Meta.has Meta.NativeGeneric cl.cl_meta) ->
 				t_dynamic
+			| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
 			| TEnum(_, [])
 			| TInst(_, []) -> t
 			| TInst(cl, params) when

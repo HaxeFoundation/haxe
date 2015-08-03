@@ -930,6 +930,7 @@ let configure gen =
 			| TEnum(e,params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
 			| TInst(c,params) when Meta.has Meta.Enum c.cl_meta ->
 				TInst(c, List.map (fun _ -> t_dynamic) params)
+			| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
 			| TInst _ -> t
 			| TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type (gen.gfollow#run_f t) -> t_dynamic
 			| TType({ t_path = ([], "Null") }, [t]) ->
