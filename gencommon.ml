@@ -10979,9 +10979,11 @@ struct
 			match md with
 				| TClassDecl ({ cl_kind = KAbstractImpl a } as c) ->
 						List.iter (function
-							| cf when Meta.has Meta.Impl cf.cf_meta ->
-									(* add type parameters to all implementation functions *)
-									cf.cf_params <- cf.cf_params @ a.a_params
+							| ({ cf_type = TFun( ("this",_,_) :: _, _ ) } as cf) when Meta.has Meta.Impl cf.cf_meta ->
+								(* add type parameters to all implementation functions *)
+								cf.cf_params <- cf.cf_params @ a.a_params
+							| ({ cf_name = "_new" } as cf) ->
+								cf.cf_params <- cf.cf_params @ a.a_params
 							| _ -> ()
 						) c.cl_ordered_statics;
 						Some md
