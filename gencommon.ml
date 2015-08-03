@@ -11119,10 +11119,10 @@ struct
 										epos = p;
 									};
 									(try
-										let fm = PMap.find f.cf_name c.cl_fields in
+										let fm = PMap.find name c.cl_fields in
 										fm.cf_overloads <- newf :: fm.cf_overloads
 									with | Not_found ->
-										c.cl_fields <- PMap.add f.cf_name newf c.cl_fields;
+										c.cl_fields <- PMap.add name newf c.cl_fields;
 										c.cl_ordered_fields <- newf :: c.cl_ordered_fields)
 								| _ -> assert false
 							end
