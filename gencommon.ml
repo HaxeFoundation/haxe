@@ -11116,17 +11116,12 @@ struct
 										etype = real_ftype;
 										epos = p;
 									};
-									(* delayed: add to class *)
-									let delay () =
-										try
-											let fm = PMap.find f.cf_name c.cl_fields in
-											fm.cf_overloads <- newf :: fm.cf_overloads
-										with | Not_found ->
-											c.cl_fields <- PMap.add f.cf_name newf c.cl_fields;
-											c.cl_ordered_fields <- newf :: c.cl_ordered_fields
-									in
-									(* gen.gafter_filters_ended <- delay :: gen.gafter_filters_ended *)
-									delay();
+									(try
+										let fm = PMap.find f.cf_name c.cl_fields in
+										fm.cf_overloads <- newf :: fm.cf_overloads
+									with | Not_found ->
+										c.cl_fields <- PMap.add f.cf_name newf c.cl_fields;
+										c.cl_ordered_fields <- newf :: c.cl_ordered_fields)
 								| _ -> assert false
 							end
 						with | Not_found -> ()
