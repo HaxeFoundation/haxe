@@ -8,13 +8,13 @@ package java.lang;
 	@:from @:extern inline public static function fromLong(b:haxe.Int64):Long
 		return LongClass.valueOf(b);
 
-	public static var MAX_VALUE(get,never):haxe.Int64;
+	@:extern public static var MAX_VALUE(get,never):haxe.Int64;
 	@:extern static inline function get_MAX_VALUE():haxe.Int64 return LongClass.MAX_VALUE;
-	public static var MIN_VALUE(get,never):haxe.Int64;
+	@:extern public static var MIN_VALUE(get,never):haxe.Int64;
 	@:extern static inline function get_MIN_VALUE():haxe.Int64 return LongClass.MIN_VALUE;
-	public static var SIZE(get,never):Int;
+	@:extern public static var SIZE(get,never):Int;
 	@:extern static inline function get_SIZE():Int return LongClass.SIZE;
-	public static var TYPE(get,set):Class<java.lang.Long>;
+	@:extern public static var TYPE(get,set):Class<java.lang.Long>;
 	@:extern static inline function get_TYPE():Class<java.lang.Long> return LongClass.TYPE;
 	@:extern static inline function set_TYPE(val:Class<java.lang.Long>):Class<java.lang.Long> return LongClass.TYPE = val;
 	@:extern @:overload inline public static function bitCount(param1:haxe.Int64):Int return LongClass.bitCount(param1);

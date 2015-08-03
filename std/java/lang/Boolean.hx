@@ -8,13 +8,13 @@ package java.lang;
 	@:from @:extern inline public static function fromBool(b:Bool):Boolean
 		return BooleanClass.valueOf(b);
 
-	public static var FALSE(get,set):Boolean;
+	@:extern public static var FALSE(get,set):Boolean;
 	@:extern static inline function get_FALSE():Boolean return BooleanClass.FALSE;
 	@:extern static inline function set_FALSE(val:Boolean):Boolean return BooleanClass.FALSE = val;
-	public static var TRUE(get,set):Boolean;
+	@:extern public static var TRUE(get,set):Boolean;
 	@:extern static inline function get_TRUE():Boolean return BooleanClass.TRUE;
 	@:extern static inline function set_TRUE(val:Boolean):Boolean return BooleanClass.TRUE = val;
-	public static var TYPE(get,set):Class<java.lang.Boolean>;
+	@:extern public static var TYPE(get,set):Class<java.lang.Boolean>;
 	@:extern static inline function get_TYPE():Class<java.lang.Boolean> return BooleanClass.TYPE;
 	@:extern static inline function set_TYPE(val:Class<java.lang.Boolean>):Class<java.lang.Boolean> return BooleanClass.TYPE = val;
 	@:extern @:overload inline public static function compare(param1:Bool, param2:Bool):Int return BooleanClass.compare(param1, param2);
