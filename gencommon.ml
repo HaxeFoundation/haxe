@@ -10969,11 +10969,13 @@ struct
 			match md with
 				| TClassDecl ({ cl_kind = KAbstractImpl a } as c) ->
 						List.iter (function
-							| ({ cf_type = TFun( ("this",_,_) :: _, _ ) } as cf) when Meta.has Meta.Impl cf.cf_meta ->
-								(* add type parameters to all implementation functions *)
-								cf.cf_params <- cf.cf_params @ a.a_params
 							| ({ cf_name = "_new" } as cf) ->
 								cf.cf_params <- cf.cf_params @ a.a_params
+							| cf when Meta.has Meta.Impl cf.cf_meta ->
+								(match cf.cf_expr with
+									| Some({ eexpr = TFunction({ tf_args = (v, _) :: _ }) }) when Meta.has Meta.This v.v_meta ->
+										cf.cf_params <- cf.cf_params @ a.a_params
+									| _ -> ())
 							| _ -> ()
 						) c.cl_ordered_statics;
 						Some md
