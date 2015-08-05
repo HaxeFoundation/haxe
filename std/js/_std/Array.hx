@@ -31,7 +31,6 @@ extern class Array<T> {
 	function push(x : T) : Int;
 	function reverse() : Void;
 	function shift() : Null<T>;
-	function slice( pos : Int, ?end : Int ) : Array<T>;
 	function sort( f : T -> T -> Int ) : Void;
 	function splice( pos : Int, len : Int ) : Array<T>;
 	function toString() : String;
@@ -48,7 +47,7 @@ extern class Array<T> {
 #if js_es5
 	function indexOf( x : T, ?fromIndex:Int ) : Int;
 	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
-
+	function slice( pos : Int, ?end : Int ) : Array<T>;
 #else
 	inline function indexOf( x : T, ?fromIndex:Int ) : Int {
 		return @:privateAccess HxOverrides.indexOf(this,x,(fromIndex!=null)?fromIndex:0);
@@ -56,6 +55,12 @@ extern class Array<T> {
 
 	inline function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
 		return @:privateAccess HxOverrides.lastIndexOf(this,x,(fromIndex!=null)?fromIndex:length-1);
+	}
+
+	// for IE8
+	// see https://github.com/HaxeFoundation/haxe/issues/4460#issuecomment-128156336
+	inline function slice( pos : Int, ?end : Int ) : Array<T> {
+		return (untyped this).slice(pos,(end!=null)?end:length);
 	}
 #end
 
