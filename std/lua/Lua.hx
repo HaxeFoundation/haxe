@@ -15,4 +15,5 @@ extern class Lua {
 	public static function pairs<A,B>(t: Table<A,B>): Void->A;
 	public static function tonumber(str:String, base:Int): Int;
 	public static function type(v:Dynamic): String;
+	public static function print(v:Dynamic) : Void;
 }
