@@ -165,7 +165,7 @@ class Boot {
 		var params = new Array<Dynamic>();
 		var first = '';
 		lua.PairTools.ipairsEach(e, function(i,x){
-			if (i == 1) first = x;
+			if (i == 1) first = e[0];
 			else params.push(x);
 		});
 		return '$first(${params.join(",")})';
