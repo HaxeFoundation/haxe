@@ -577,6 +577,8 @@ and gen_field_access ctx t s =
 			spr ctx "[\"mapHX\"]"
 		| [], "Array", "filter" ->
 			spr ctx "[\"filterHX\"]"
+		| [], "Array", "slice" ->
+			spr ctx "[\"sliceHX\"]"
 		| [], "Date", "toString" ->
 			print ctx "[\"toStringHX\"]"
 		| [], "String", "cca" ->
