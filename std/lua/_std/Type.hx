@@ -19,6 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import lua.Lua;
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -157,7 +159,7 @@ enum ValueType {
 
 	public static function typeof( v : Dynamic ) : ValueType  {
 
-		switch( lua.Lua.type(v) ) {
+		switch( Lua.type(v) ) {
 			case "boolean": return TBool;
 			case "string": return TClass(String);
 			case "number":
@@ -166,8 +168,6 @@ enum ValueType {
 							   return TInt;
 						   return TFloat;
 			case "table":
-						   if( v == null )
-							   return TNull;
 						   var e = v.__enum__;
 						   if( e != null )
 							   return TEnum(e);
@@ -179,6 +179,8 @@ enum ValueType {
 						   if( lua.Boot.isClass(v) || lua.Boot.isEnum(v) )
 							   return TObject;
 						   return TFunction;
+			case "nil":
+						   return TNull;
 			default:
 						   return TUnknown;
 		}
