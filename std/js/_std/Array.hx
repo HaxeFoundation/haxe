@@ -44,10 +44,15 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.remove(this,x);
 	}
 
+	// In case `?end` is `null` (not just `undefined`)
+	// see https://github.com/HaxeFoundation/haxe/issues/4460#issuecomment-128156336
+	inline function slice( pos : Int, ?end : Int ) : Array<T> {
+		return (untyped this).slice(pos,(end!=null)?end:length);
+	}
+
 #if js_es5
 	function indexOf( x : T, ?fromIndex:Int ) : Int;
 	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
-	function slice( pos : Int, ?end : Int ) : Array<T>;
 #else
 	inline function indexOf( x : T, ?fromIndex:Int ) : Int {
 		return @:privateAccess HxOverrides.indexOf(this,x,(fromIndex!=null)?fromIndex:0);
@@ -55,12 +60,6 @@ extern class Array<T> {
 
 	inline function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
 		return @:privateAccess HxOverrides.lastIndexOf(this,x,(fromIndex!=null)?fromIndex:length-1);
-	}
-
-	// for IE8
-	// see https://github.com/HaxeFoundation/haxe/issues/4460#issuecomment-128156336
-	inline function slice( pos : Int, ?end : Int ) : Array<T> {
-		return (untyped this).slice(pos,(end!=null)?end:length);
 	}
 #end
 
