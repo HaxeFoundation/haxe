@@ -5,7 +5,7 @@ class Issue4460 extends Test
 	public function test()
 	{
 		var arr = new LikeArray([1,2,3,4]);
-		arr = arr.slice(1);
+		arr = arr.slice(1, 2);
 		var arr2 = arr.arr();
 		eq(arr2[0], 2);
 	}
