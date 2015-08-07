@@ -65,17 +65,9 @@ class StringBuf {
 		If `x` is null, the String "null" is appended.
 	**/
 	public inline function add<T>( x : T ) : Void {
-		if (Std.is(x,String)){
-			Table.insert(b, x);
-			length +=  Std.string(x).length;
-		} else if  (Std.is(x,Int)){
-			Table.insert(b, x);
-			length++;
-		} else {
-			var str = Std.string(x);
-			Table.insert(b, str);
-			length += str.length;
-		}
+		var str = Std.string(x);
+		Table.insert(b, str);
+		length += str.length;
 	}
 
 	/**
