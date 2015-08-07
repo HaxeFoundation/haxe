@@ -337,16 +337,18 @@ let rec gen_call ctx e el in_value =
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
+		(* TODO: Array declaration helper *)
 		spr ctx "lua.Boot.defArray({";
 		let count = ref 0 in 
 		concat ctx "," (fun (name,data) ->
-			incr count;
+			if (!count == 0) then spr ctx "[0]=";
 			spr ctx "{ ";
 			spr ctx "name = ";
 			gen_constant ctx e.epos (TString name);
 			spr ctx ", data = ";
 			gen_constant ctx e.epos (TString (Codegen.bytes_serialize data));
-			spr ctx "}"
+			spr ctx "}";
+			incr count
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		print ctx "}, %i)" !count; 
 	| TLocal { v_name = "`trace" }, [e;infos] ->
