@@ -1254,6 +1254,8 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
+	let nodejs = Common.raw_defined com "nodejs" in
+
 	let exposed = List.concat (List.map (fun t ->
 		match t with
 			| TClassDecl c ->
@@ -1302,8 +1304,10 @@ let generate com =
 	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
 		(
 			"$hx_exports",
-			(* TODO(bruno): Remove runtime branching when standard node haxelib is available *)
-			"typeof window != \"undefined\" ? window : exports"
+			if nodejs then
+				"exports"
+			else
+				"typeof window != \"undefined\" ? window : exports"
 		) :: closureArgs
 	else
 		closureArgs
@@ -1318,7 +1322,7 @@ let generate com =
 		closureArgs
 	in
 
-	if Common.raw_defined com "nodejs" then
+	if nodejs then
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
 
