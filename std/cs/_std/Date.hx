@@ -29,6 +29,7 @@ import haxe.Int64;
 #end
 @:coreApi class Date
 {
+	@:readOnly private static var epochTicks:Int64 = new DateTime(1970, 1, 1).Ticks;
 	private var date:DateTime;
 
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void
@@ -40,7 +41,7 @@ import haxe.Int64;
 
 	public inline function getTime() : Float
 	{
-		return (cast(date.Ticks, Float) / cast(TimeSpan.TicksPerMillisecond, Float));
+		return cast(date.Ticks - epochTicks, Float) / cast(TimeSpan.TicksPerMillisecond, Float);
 	}
 
 	public inline function getHours() : Int
@@ -103,7 +104,7 @@ import haxe.Int64;
 	static public function fromTime( t : Float ) : Date
 	{
 		var d = new Date(0, 0, 0, 0, 0, 0);
-		d.date = new DateTime(cast(t * cast(TimeSpan.TicksPerMillisecond, Float), Int64));
+		d.date = new DateTime(cast(t * cast(TimeSpan.TicksPerMillisecond, Float), Int64) + epochTicks);
 		return d;
 	}
 
