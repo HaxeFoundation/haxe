@@ -272,7 +272,7 @@ private class AdoResultSet implements ResultSet
 			} else if (t == cs.system.DateTime || t == cs.system.TimeSpan) {
 				var d = reader.GetDateTime(i);
 				if (d != null)
-					val = Date.fromTime(cast(d.Ticks,Float) / cast(cs.system.TimeSpan.TicksPerMillisecond,Float));
+					val = @:privateAccess Date.fromNative(d);
 			} else if (t == cs.system.DBNull) {
 				val = null;
 			} else if (t == cs.system.Byte) {
