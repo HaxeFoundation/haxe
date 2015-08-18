@@ -461,7 +461,7 @@ and expr dce e =
 		check_and_add_feature dce "binop_%";
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpUShr,e1,e2) ->
+	| TBinop((OpUShr | OpAssignOp OpUShr),e1,e2) ->
 		check_and_add_feature dce "binop_>>>";
 		expr dce e1;
 		expr dce e2;
