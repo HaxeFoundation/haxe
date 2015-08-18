@@ -93,7 +93,7 @@ class TestFileSystem extends haxe.unit.TestCase {
 	}
 
 	function testWindowsSpecialCases() {
-		if (Sys.systemName() != "Windows") {
+		if (Sys.systemName() != "Windows" #if python || true #end) {
 			assertTrue(true);
 			return;
 		}

@@ -15,7 +15,7 @@ environment:
         ADD_REVISION: 1
         OCAMLOPT: ocamlopt.opt
     matrix:
-        - TEST: "neko,cs,java,macro"
+        - TEST: "neko,python,cs,java,macro"
         - TEST: "cpp"
 
 skip_tags: true
@@ -44,6 +44,9 @@ install:
     - neko ../boot/nekoc tools/install.neko
     - neko tools/install -nolibs > log.txt || type log.txt
     - neko -version
+    # setup python
+    - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
+    - set PATH=C:\Python34-x64;%PATH%
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'

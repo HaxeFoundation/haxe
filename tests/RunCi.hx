@@ -475,6 +475,13 @@ class RunCi {
 				runCommand("pypy3", ["-V"]);
 
 				return ["python3", "pypy3"];
+			case "Windows":
+				if (commandSucceed("python3", ["-V"]))
+					infoMsg('python3 has already been installed.');
+				else
+					throw "please install python 3.x and make it available as python3 in PATH";
+				runCommand("python3", ["-V"]);
+				return ["python3"];
 		}
 
 		return [];
