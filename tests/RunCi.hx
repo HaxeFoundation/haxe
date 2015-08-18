@@ -515,6 +515,7 @@ class RunCi {
 
 					changeDirectory(miscDir);
 					getCsDependencies();
+					getPythonDependencies();
 					runCommand("haxe", ["compile.hxml"]);
 
 					switch (ci) {
