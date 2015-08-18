@@ -35,7 +35,11 @@
 #	include <errno.h>
 #	include <string.h>
 #	ifndef __APPLE__
-#		include <wait.h>
+#		ifndef __FreeBSD__
+#			include <wait.h>
+#		else
+#			include <sys/wait.h>
+#		endif
 #	endif
 #endif
 
