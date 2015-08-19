@@ -173,7 +173,7 @@ private class PDOConnection implements Connection {
 
 	function base16_encode(str : String) {
 		str = untyped __call__("unpack", "H"+(2 * str.length), str);
-		str = untyped __call__("chunk_split", untyped str[1]);
+		str = untyped str[1];
 		return str;
 	}
 }
