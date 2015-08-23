@@ -107,7 +107,7 @@ class Main {
 				result = false;
 			}
 		}
-
+		proc.close();
 		return result;
 
 	}
