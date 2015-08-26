@@ -20,7 +20,7 @@ c_objsize.o: c_objsize.c
 	$(OCAMLC) $(CFLAGS) c_objsize.c
 
 clean:
-	rm -rf $(wildcard *.cma) $(wildcard *.cmxa) $(wildcard *.cmx) $(wildcard *.cmi) $(wildcard *.cmo) $(wildcard *.obj) $(wildcard *.o)
+	rm -rf $(wildcard *.cma) $(wildcard *.cmxa) $(wildcard *.cmx) $(wildcard *.cmi) $(wildcard *.cmo) $(wildcard *.obj) $(wildcard *.o) $(wildcard *.a)
 
 .PHONY: all bytecode native clean
 
