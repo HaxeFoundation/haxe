@@ -175,7 +175,7 @@ lexer.$(MODULE_EXT): ast.$(MODULE_EXT)
 ast.$(MODULE_EXT):
 
 version.$(MODULE_EXT):
-	$(MAKE) -f Makefile.version_extra -s ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > version.ml
+	$(MAKE) -f Makefile.version_extra -s --no-print-directory ADD_REVISION=$(ADD_REVISION) BRANCH=$(BRANCH) COMMIT_SHA=$(COMMIT_SHA) COMMIT_DATE=$(COMMIT_DATE) > version.ml
 	$(COMPILER) $(CFLAGS) -c version.ml
 
 # Package
@@ -207,10 +207,12 @@ clean_libs:
 	make -C libs/objsize clean
 
 clean_haxe:
-	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) $(MODULES:=.cmo) lexer.ml $(OUTPUT)
+	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) $(MODULES:=.cmo) lexer.ml version.ml $(OUTPUT)
 
 clean_tools:
 	rm -f $(OUTPUT) haxelib
+	rm -f extra/haxelib_src/bin/haxelib.n
+	rm -f extra/haxelib_src/bin/haxelib
 
 # SUFFIXES
 
