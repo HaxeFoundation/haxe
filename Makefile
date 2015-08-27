@@ -13,6 +13,7 @@
 INSTALL_DIR=$(DESTDIR)/usr
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
+INSTALL_STD_DIR=$(INSTALL_LIB_DIR)/std
 
 OUTPUT=haxe
 EXTENSION=
@@ -92,8 +93,8 @@ install:
 	rm -rf $(INSTALL_LIB_DIR)
 	mkdir -p $(INSTALL_BIN_DIR)
 	mkdir -p $(INSTALL_LIB_DIR)/lib
-	rm -rf $(INSTALL_LIB_DIR)/std
-	cp -rf std $(INSTALL_LIB_DIR)/std
+	rm -rf $(INSTALL_STD_DIR)
+	cp -rf std $(INSTALL_STD_DIR)
 	cp -rf extra $(INSTALL_LIB_DIR)
 	rm -f $(INSTALL_BIN_DIR)/haxe
 	cp haxe $(INSTALL_LIB_DIR)
