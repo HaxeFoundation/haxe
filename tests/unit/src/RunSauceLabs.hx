@@ -197,7 +197,6 @@ class RunSauceLabs {
 						.sauceJobUpdate({ passed: true, tags: tags.concat(["errored"]) })
 						.then(function() return browser.quit())
 						.timeout(commandTimeout * 1000)
-						.fail(onErrored)
 						.then(function() return testBrowser(caps, trials));
 				} else {
 					allSuccess = false;
@@ -274,9 +273,9 @@ class RunSauceLabs {
 				})
 				.then(function()
 					return browser.sauceJobUpdate({ passed: browserSuccess }))
+				.fail(onErrored)
 				.then(function()
-					return browser.quit())
-				.fail(onErrored);
+					return browser.quit());
 		}
 
 		browsers
