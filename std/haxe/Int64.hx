@@ -133,13 +133,18 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		var neg = false;
 		if( i.isNeg() ) {
 			neg = true;
-			i = -i;
+			// i = -i; cannot negate here as --9223372036854775808 = -9223372036854775808
 		}
 		var ten : Int64 = 10;
 		while( i != 0 ) {
 			var r = i.divMod( ten );
-			str = r.modulus.low + str;
-			i = r.quotient;
+			if (r.modulus.isNeg()) {
+				str = Int64.neg(r.modulus).low + str;
+				i = Int64.neg(r.quotient);
+			} else {
+				str = r.modulus.low + str;
+				i = r.quotient;
+			}
 		}
 		if( neg ) str = "-" + str;
 		return str;
