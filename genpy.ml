@@ -2307,7 +2307,10 @@ module Generator = struct
 				in
 				let k_enc = Codegen.escape_res_name k false in
 				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (Ast.s_escape k) k_enc;
-				Std.output_file (ctx.com.file ^ "." ^ k_enc) v
+
+				let f = open_out_bin (ctx.com.file ^ "." ^ k_enc) in
+				output_string f v;
+				close_out f
 			) ctx.com.resources;
 			spr ctx "}"
 		end
