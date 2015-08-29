@@ -34,6 +34,7 @@ class NativeInput<T:IOBase> extends Input{
 
 	function new (s:T) {
 		this.stream = s;
+		this.bigEndian = false;
 		wasEof = false;
 		if (!stream.readable()) throw "Write-only stream";
 	}

@@ -33,6 +33,7 @@ class NativeOutput<T:IOBase> extends Output {
 	public var canSeek(get_canSeek, null):Bool;
 
 	public function new (stream:T) {
+		this.bigEndian = false;
 		this.stream = stream;
 		if (!stream.writable()) throw "Read only stream";
 	}
