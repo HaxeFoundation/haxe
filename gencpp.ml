@@ -3683,23 +3683,23 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
       (* Destructor goes in the cpp file so we can "see" the full definition of the member vars *)
       output_cpp ( "//" ^ class_name ^ "::~" ^ class_name ^ "() { }\n\n");
-      output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return  new " ^ class_name ^ "; }\n");
+      output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return new " ^ class_name ^ "; }\n\n");
 
       output_cpp (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^")\n");
 
       let create_result () =
-         output_cpp ("{  " ^ ptr_name ^ " _result_ = new " ^ class_name ^ "();\n");
+         output_cpp ("{\n\t" ^ ptr_name ^ " _result_ = new " ^ class_name ^ "();\n");
          in
       create_result ();
       output_cpp ("\t_result_->__construct(" ^ constructor_args ^ ");\n");
-      output_cpp ("\treturn _result_;}\n\n");
+      output_cpp ("\treturn _result_;\n}\n\n");
 
       output_cpp ("Dynamic " ^ class_name ^ "::__Create(hx::DynamicArray inArgs)\n");
       create_result ();
       output_cpp ("\t_result_->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
-      output_cpp ("\treturn _result_;}\n\n");
+      output_cpp ("\treturn _result_;\n}\n\n");
       if ( (List.length implemented) > 0 ) then begin
-         output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const hx::type_info &inType) {\n");
+         output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const hx::type_info &inType)\n{\n");
          List.iter (fun interface_name ->
             output_cpp ("\tif (inType==typeid( " ^ interface_name ^ "_obj)) " ^
                "return operator " ^ interface_name ^ "_obj *();\n");
@@ -3708,8 +3708,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
          List.iter (fun interface_name ->
-            output_cpp (class_name ^ "::operator " ^ interface_name ^ "_obj *()\n\t" ^
-               "{ return new " ^ interface_name ^ "_delegate_< " ^ class_name ^" >(this); }\n" );
+            output_cpp (class_name ^ "::operator " ^ interface_name ^ "_obj *() { " ^
+               "return new " ^ interface_name ^ "_delegate_< " ^ class_name ^" >(this); }\n\n" );
          ) implemented;
       end;
 
