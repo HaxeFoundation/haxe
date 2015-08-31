@@ -1,3 +1,14 @@
+2015-08-30: 3.2.1
+
+	Bugfixes:
+
+	cs/java : fixed -dce no issues
+	cs/java : fixed how KExpr type parameters are generated
+	cs : fixed enum creation by reflection problem
+	cpp : do not rely in reflection to make interfaces work for non-first interface parents
+	cpp : fixed setting of static variables via reflection when class has no member variables
+	cpp : make sure StringMap's h field is kept if we use StringMap
+
 2015-05-12: 3.2.0
 
 	New features:
