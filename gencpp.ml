@@ -282,9 +282,6 @@ let is_scalar typename = match typename with
 
 let is_block exp = match exp.eexpr with | TBlock _ -> true | _ -> false ;;
 
-let to_block expression =
-   if is_block expression then expression else (mk_block expression);;
-
 (* todo - is this how it's done? *)
 let hash_keys hash =
    let key_list = ref [] in
@@ -1641,7 +1638,7 @@ let rec define_local_function_ctx ctx func_name func_def =
             gen_expression ctx false return_expression;
          | _ ->
             output_i "";
-            gen_expression ctx false (to_block func_def.tf_expr);
+            gen_expression ctx false (mk_block func_def.tf_expr);
          );
          output ";\n";
          output_i "return null();\n";
@@ -1778,7 +1775,7 @@ and define_local_return_block_ctx ctx expression name retval =
       | _ ->
          ctx.ctx_return_from_block <- false;
          ctx.ctx_return_from_internal_node <- return_data;
-         gen_expression ctx false (to_block expression);
+         gen_expression ctx false (mk_block expression);
       );
       output_i "return null();\n";
       writer#end_block;
@@ -2436,23 +2433,23 @@ and gen_expression ctx retval expression =
             output "if (";
             gen_expression ctx true condition;
             output ")";
-            gen_expression ctx false (to_block if_expr);
+            gen_expression ctx false (mk_block if_expr);
             output_i "else";
-            gen_expression ctx false (to_block else_expr);
+            gen_expression ctx false (mk_block else_expr);
          end
       | _ -> output "if (";
          gen_expression ctx true condition;
          output ")";
-         gen_expression ctx false (to_block if_expr);
+         gen_expression ctx false (mk_block if_expr);
       )
    | TWhile (condition, repeat, Ast.NormalWhile ) ->
          output  "while(";
          gen_expression ctx true condition;
          output ")";
-         gen_expression ctx false (to_block repeat)
+         gen_expression ctx false (mk_block repeat)
    | TWhile (condition, repeat, Ast.DoWhile ) ->
          output "do";
-         gen_expression ctx false (to_block repeat);
+         gen_expression ctx false (mk_block repeat);
          output "while(";
          gen_expression ctx true condition;
          output ")"
@@ -2474,14 +2471,14 @@ and gen_expression ctx retval expression =
                         gen_expression ctx true value;
                         output ": " ) cases_list;
             ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_expression ctx false (to_block expression);
+            gen_expression ctx false (mk_block expression);
             output_i ";break;\n";
             ) cases;
          (match optional_default with | None -> ()
          | Some default ->
             output_i "default: ";
             ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_expression ctx false (to_block default);
+            gen_expression ctx false (mk_block default);
          );
          ctx.ctx_writer#end_block;
       end else begin
@@ -2503,13 +2500,13 @@ and gen_expression ctx retval expression =
                   ) cases;
                output (")");
                ctx.ctx_return_from_block <- return_from_internal_node;
-               gen_expression ctx false (to_block expression);
+               gen_expression ctx false (mk_block expression);
                ) cases;
          (match optional_default with | None -> ()
          | Some default ->
             output_i ( !else_str ^ " ");
             ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_expression ctx false (to_block default);
+            gen_expression ctx false (mk_block default);
             output ";\n";
          );
       end
@@ -2525,7 +2522,7 @@ and gen_expression ctx retval expression =
       output_i("");
       (* Move this "inside" the try call ... *)
       ctx.ctx_return_from_block <-return_from_internal_node;
-      gen_expression ctx false (to_block expression);
+      gen_expression ctx false (mk_block expression);
       output_i "}\n";
       if (List.length catch_list > 0 ) then begin
          output_i "catch(Dynamic __e)";
@@ -2544,7 +2541,7 @@ and gen_expression ctx retval expression =
             output_i (type_name ^ " " ^ v.v_name ^ " = __e;");
             (* Move this "inside" the catch call too ... *)
             ctx.ctx_return_from_block <-return_from_internal_node;
-            gen_expression ctx false (to_block expression);
+            gen_expression ctx false (mk_block expression);
             ctx.ctx_writer#end_block;
             else_str := "else ";
             ) catch_list;
@@ -2709,7 +2706,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             if (add_block) then ctx.ctx_writer#begin_block;
             ctx.ctx_dump_src_pos <- dump_src;
             output code;
-            gen_expression ctx false (to_block function_def.tf_expr);
+            gen_expression ctx false (mk_block function_def.tf_expr);
             output tail_code;
             if (add_block) then begin
                if (fake_void) then output "return null();\n";
@@ -2747,7 +2744,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             gen_expression ctx false function_def.tf_expr;
             ctx.ctx_writer#end_block;
          end else
-            gen_expression ctx false (to_block function_def.tf_expr);
+            gen_expression ctx false (mk_block function_def.tf_expr);
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
          output ("HX_END_DEFAULT_FUNC\n\n");
@@ -3667,10 +3664,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
                   if (has_default_values function_def.tf_args) then begin
                      generate_default_values ctx function_def.tf_args "__o_";
-                     gen_expression ctx false (to_block function_def.tf_expr);
+                     gen_expression ctx false (mk_block function_def.tf_expr);
                      output_cpp ";\n";
                   end else begin
-                     gen_expression ctx false (to_block function_def.tf_expr);
+                     gen_expression ctx false (mk_block function_def.tf_expr);
                      output_cpp ";\n";
                      (*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
                   end;
@@ -3719,7 +3716,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    | Some expression ->
       output_cpp ("void " ^ class_name^ "::__init__() {\n");
       hx_stack_push ctx output_cpp dot_name "__init__" expression.epos;
-      gen_expression (new_context common_ctx cpp_file debug file_info) false (to_block expression);
+      gen_expression (new_context common_ctx cpp_file debug file_info) false (mk_block expression);
       output_cpp "}\n\n";
    | _ -> ());
 
