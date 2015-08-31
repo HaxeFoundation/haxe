@@ -62,7 +62,10 @@ let dot_path = Ast.s_type_path
 let s_path ctx = dot_path
 
 let debug_expression expression  =
-    " --[[ " ^ Type.s_expr_kind expression  ^ " --]] ";;
+    " --[[ " ^ Type.s_expr_kind expression  ^ " --]] "
+
+let debug_type t  =
+    " --[[ " ^ Type.s_type_kind t  ^ " --]] ";;
 
 (* TODO: are all these kwds necessary for field quotes *and* id escapes? *)
 let kwds =
@@ -339,7 +342,7 @@ let rec gen_call ctx e el in_value =
 	| TLocal { v_name = "__resources__" }, [] ->
 		(* TODO: Array declaration helper *)
 		spr ctx "lua.Boot.defArray({";
-		let count = ref 0 in 
+		let count = ref 0 in
 		concat ctx "," (fun (name,data) ->
 			if (!count == 0) then spr ctx "[0]=";
 			spr ctx "{ ";
@@ -350,7 +353,7 @@ let rec gen_call ctx e el in_value =
 			spr ctx "}";
 			incr count
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
-		print ctx "}, %i)" !count; 
+		print ctx "}, %i)" !count;
 	| TLocal { v_name = "`trace" }, [e;infos] ->
 		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
@@ -848,6 +851,7 @@ and gen__init__impl ctx e =
 
 and gen_block_element ?(after=false) ctx e  =
     newline ctx;
+    ctx.iife_assign <- false;
     spr ctx (debug_expression e);
     begin match e.eexpr with
 	| TTypeExpr _ -> ()
