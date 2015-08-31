@@ -3665,10 +3665,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                   if (has_default_values function_def.tf_args) then begin
                      generate_default_values ctx function_def.tf_args "__o_";
                      gen_expression ctx false (mk_block function_def.tf_expr);
-                     output_cpp ";\n";
+                     cpp_file#terminate_line;
                   end else begin
                      gen_expression ctx false (mk_block function_def.tf_expr);
-                     output_cpp ";\n";
+                     cpp_file#terminate_line;
                      (*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
                   end;
                   ctx.ctx_debug_level <- debug;
