@@ -2728,8 +2728,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (" " ^ remap_name ^ "( " );
          output (gen_tfun_interface_arg_list args);
          output (if (not is_static) then ")=0;\n" else ");\n");
-         if not nativeGen then begin
-            output (if is_static then "\t\tstatic " else "\t\t");
+         if reflective class_def field then begin
             output ("virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
          end
       | _  ->  ( )
@@ -3418,7 +3417,7 @@ let has_set_member_field class_def =
 
 
 let has_set_static_field class_def =
-      let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
+      let reflect_fields = List.filter (reflective class_def) (statics_except_meta class_def) in
       let reflect_writable = List.filter (is_writable class_def) reflect_fields in
       List.exists variable_field reflect_writable
 ;;
@@ -4251,29 +4250,31 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    | _ -> ());
 
 
-   let interface = class_def.cl_interface in
-   List.iter (gen_member_def ctx class_def false interface) (List.filter should_implement_field class_def.cl_ordered_fields);
-   List.iter (gen_member_def ctx class_def true interface)  (List.filter should_implement_field class_def.cl_ordered_statics);
+   List.iter (gen_member_def ctx class_def true class_def.cl_interface) (List.filter should_implement_field class_def.cl_ordered_statics);
+
+   if class_def.cl_interface then begin
+      let dumped = ref PMap.empty in
+      let rec dump_def interface =
+         List.iter (fun field -> try ignore (PMap.find field.cf_name !dumped) with Not_found ->
+         begin
+            dumped := PMap.add field.cf_name true !dumped;
+            gen_member_def ctx interface false true field
+         end
+         ) interface.cl_ordered_fields;
+         List.iter (fun impl -> dump_def (fst impl)) (real_interfaces interface.cl_implements);
+      in
+      (* Dump this class, not its super, but also its implements *)
+      dump_def class_def;
+      List.iter (fun impl -> dump_def (fst impl)) (real_interfaces class_def.cl_implements);
+   end else begin
+      List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field class_def.cl_ordered_fields);
+   end;
+
 
    output_h ( get_class_code class_def Meta.HeaderClassCode );
    output_h "};\n\n";
 
    if (class_def.cl_interface && not nativeGen) then begin
-      output_h ("#define DELEGATE_" ^ (join_class_path class_path "_" ) ^ " \\\n");
-      List.iter (fun field ->
-      match follow field.cf_type, field.cf_kind  with
-      | _, Method MethDynamic -> ()
-      | TFun (args,return_type), Method _ ->
-         let remap_name = keyword_remap field.cf_name in
-         output_h ( "virtual "  ^ (type_string return_type) ^ " " ^ remap_name ^ "( " );
-         output_h (gen_tfun_interface_arg_list args);
-         output_h (") { return mDelegate->" ^ remap_name^ "(");
-         output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
-         output_h ");}  \\\n";
-         output_h ("virtual Dynamic " ^ remap_name ^ "_dyn() { return mDelegate->" ^
-                  remap_name ^ "_dyn();}  \\\n");
-      | _ -> ()
-      ) class_def.cl_ordered_fields;
       output_h ("\n\n");
       output_h ("template<typename IMPL>\n");
       output_h ("class " ^ smart_class_name ^ "_delegate_ : public " ^ class_name^"\n");
@@ -4283,11 +4284,32 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_h ("\t\t" ^ smart_class_name ^ "_delegate_(IMPL *inDelegate) : mDelegate(inDelegate) {}\n");
       output_h ("\t\thx::Object *__GetRealObject() { return mDelegate; }\n");
       output_h ("\t\tvoid __Visit(HX_VISIT_PARAMS) { HX_VISIT_OBJECT(mDelegate); }\n");
+
+      let dumped = ref PMap.empty in
       let rec dump_delegate interface =
-         output_h ("\t\tDELEGATE_" ^ (join_class_path interface.cl_path "_" ) ^ "\n");
+         List.iter (fun field -> try ignore (PMap.find field.cf_name !dumped) with Not_found ->
+         begin
+            dumped := PMap.add field.cf_name true !dumped;
+            match follow field.cf_type, field.cf_kind  with
+            | _, Method MethDynamic -> ()
+            | TFun (args,return_type), Method _ ->
+               let remap_name = keyword_remap field.cf_name in
+               output_h ( "		"  ^ (type_string return_type) ^ " " ^ remap_name ^ "( " );
+               output_h (gen_tfun_interface_arg_list args);
+               output_h (") { return mDelegate->" ^ remap_name^ "(");
+               output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
+               output_h ");}\n";
+               if reflective interface field then
+                  output_h ("		Dynamic " ^ remap_name ^ "_dyn() { return mDelegate->" ^ remap_name ^ "_dyn();}\n");
+            | _ -> ()
+         end
+         ) interface.cl_ordered_fields;
+
          match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ();
+         List.iter (fun impl -> dump_delegate (fst impl)) (real_interfaces interface.cl_implements);
       in
       dump_delegate class_def;
+      List.iter (fun impl -> dump_delegate (fst impl)) (real_interfaces class_def.cl_implements);
       output_h "};\n\n";
    end;
 
@@ -4433,6 +4455,8 @@ let create_member_types common_ctx =
       | TClassDecl class_def ->
          let class_name = "::" ^ (join_class_path class_def.cl_path "::") in
          let rec add_all_fields class_def =
+            if class_def.cl_interface then
+               List.iter (fun impl -> add_all_fields (fst impl) ) class_def.cl_implements;
             (match  class_def.cl_super with Some super -> add_all_fields (fst super) | _->(););
             List.iter (add_member class_name class_def.cl_interface) class_def.cl_ordered_fields;
             List.iter (add_member class_name class_def.cl_interface) class_def.cl_ordered_statics

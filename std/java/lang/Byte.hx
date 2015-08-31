@@ -8,13 +8,13 @@ package java.lang;
 	@:from @:extern inline public static function fromByte(b:java.types.Int8):Byte
 		return ByteClass.valueOf(b);
 
-	public static var MAX_VALUE(get,never):java.types.Int8;
+	@:extern public static var MAX_VALUE(get,never):java.types.Int8;
 	@:extern static inline function get_MAX_VALUE():java.types.Int8 return ByteClass.MAX_VALUE;
-	public static var MIN_VALUE(get,never):java.types.Int8;
+	@:extern public static var MIN_VALUE(get,never):java.types.Int8;
 	@:extern static inline function get_MIN_VALUE():java.types.Int8 return ByteClass.MIN_VALUE;
-	public static var SIZE(get,never):Int;
+	@:extern public static var SIZE(get,never):Int;
 	@:extern static inline function get_SIZE():Int return ByteClass.SIZE;
-	public static var TYPE(get,set):Class<java.lang.Byte>;
+	@:extern public static var TYPE(get,set):Class<java.lang.Byte>;
 	@:extern static inline function get_TYPE():Class<java.lang.Byte> return ByteClass.TYPE;
 	@:extern static inline function set_TYPE(val:Class<java.lang.Byte>):Class<java.lang.Byte> return ByteClass.TYPE = val;
 	@:extern @:overload inline public static function compare(param1:java.types.Int8, param2:java.types.Int8):Int return ByteClass.compare(param1, param2);

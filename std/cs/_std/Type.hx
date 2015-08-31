@@ -196,7 +196,7 @@ using StringTools;
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
 	{
-		if (params == null || params[0] == null)
+		if (params == null || params.length == 0)
 		{
 			var ret = cs.internal.Runtime.slowGetField(e, constr, true);
 			if (Reflect.isFunction(ret))

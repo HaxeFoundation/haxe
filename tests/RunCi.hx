@@ -657,6 +657,9 @@ class RunCi {
 					runCommand("haxe", ["compile-java.hxml"]);
 					runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
 
+					runCommand("haxe", ["compile-java.hxml","-dce","no"]);
+					runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
+
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-java.hxml"]);
 					runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
@@ -687,6 +690,9 @@ class RunCi {
 					};
 
 					runCommand("haxe", ['compile-cs$compl.hxml']);
+					runCs("bin/cs/bin/Test-Debug.exe");
+
+					runCommand("haxe", ['compile-cs$compl.hxml','-dce','no']);
 					runCs("bin/cs/bin/Test-Debug.exe");
 
 					runCommand("haxe", ['compile-cs-unsafe$compl.hxml']);

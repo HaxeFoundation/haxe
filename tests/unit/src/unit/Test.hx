@@ -255,7 +255,7 @@ class Test {
 		#if (neko || php || cpp || java || cs || python)
 		#else
 		if( timer != null ) timer.stop();
-		timer = new haxe.Timer(10000);
+		timer = new haxe.Timer(30000);
 		timer.run = asyncTimeout;
 		#end
 	}

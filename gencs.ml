@@ -885,6 +885,7 @@ let configure gen =
 			| TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
 			| TInst( ({ cl_kind = KTypeParameter _ } as cl), _ ) when erase_generics && not (Meta.has Meta.NativeGeneric cl.cl_meta) ->
 				t_dynamic
+			| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
 			| TEnum(_, [])
 			| TInst(_, []) -> t
 			| TInst(cl, params) when
@@ -1136,9 +1137,15 @@ let configure gen =
 		if skip_line_directives then
 			fun w p -> ()
 		else fun w p ->
+			if p.pfile <> Ast.null_pos.pfile then (* Compiler Error CS1560 https://msdn.microsoft.com/en-us/library/z3t5e5sw(v=vs.90).aspx *)
 			let cur_line = Lexer.get_error_line p in
 			let file = Common.get_full_path p.pfile in
-			if cur_line <> ((!last_line)+1) then begin print w "#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
+			if cur_line <> ((!last_line)+1) then
+				let line = Ast.s_escape file in
+				if String.length line <= 256 then
+					begin print w "#line %d \"%s\"" cur_line line; newline w end
+				else (* Compiler Error CS1560 https://msdn.microsoft.com/en-us/library/z3t5e5sw(v=vs.90).aspx *)
+					begin print w "//line %d \"%s\"" cur_line line; newline w end;
 			last_line := cur_line
 	in
 	let line_reset_directive =

@@ -8,13 +8,13 @@ package java.lang;
 	@:from @:extern inline public static function fromShort(b:java.types.Int16):Short
 		return ShortClass.valueOf(b);
 
-	public static var MAX_VALUE(get,never):java.types.Int16;
+	@:extern public static var MAX_VALUE(get,never):java.types.Int16;
 	@:extern static inline function get_MAX_VALUE():java.types.Int16 return ShortClass.MAX_VALUE;
-	public static var MIN_VALUE(get,never):java.types.Int16;
+	@:extern public static var MIN_VALUE(get,never):java.types.Int16;
 	@:extern static inline function get_MIN_VALUE():java.types.Int16 return ShortClass.MIN_VALUE;
-	public static var SIZE(get,never):Int;
+	@:extern public static var SIZE(get,never):Int;
 	@:extern static inline function get_SIZE():Int return ShortClass.SIZE;
-	public static var TYPE(get,set):Class<java.lang.Short>;
+	@:extern public static var TYPE(get,set):Class<java.lang.Short>;
 	@:extern static inline function get_TYPE():Class<java.lang.Short> return ShortClass.TYPE;
 	@:extern static inline function set_TYPE(val:Class<java.lang.Short>):Class<java.lang.Short> return ShortClass.TYPE = val;
 	@:extern @:overload inline public static function compare(param1:java.types.Int16, param2:java.types.Int16):Int return ShortClass.compare(param1, param2);
