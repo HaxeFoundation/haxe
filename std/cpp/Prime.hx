@@ -99,7 +99,7 @@ class Prime {
 
       var cppMode = Context.defined("cpp");
 
-      var typeString = parts.length==1 ? codeToType("v",cppMode) : codeToType(parts.shift(),cppMode);
+      var typeString = parts.length==1 ? "Void" : codeToType(parts.shift(),cppMode);
       for(p in parts)
          typeString += "->" + codeToType(p,cppMode);
 
