@@ -27,13 +27,16 @@ class Math
 	static inline function get_PI () : Float return lua.Math.pi;
 
 	public static var NEGATIVE_INFINITY(get, null) : Float;
-	static inline function get_NEGATIVE_INFINITY () : Float return -lua.Math.huge; 
+	static inline function get_NEGATIVE_INFINITY () : Float return -lua.Math.huge;
 
 	public static var POSITIVE_INFINITY(get,null) : Float;
-	static inline function get_POSITIVE_INFINITY () : Float return lua.Math.huge; 
+	static inline function get_POSITIVE_INFINITY () : Float return lua.Math.huge;
 
 	public static var NaN(get, null) : Float;
-	static inline function get_NaN () : Float return 0/0; 
+
+	// Note: this has to be an untyped literal, otherwise the compiler tries
+	// to unify it to an Int, which defeats useful numeric reflection behavior.
+	static inline function get_NaN () : Float return untyped __lua__("0/0");
 
 	public static function isNaN( f : Float ) : Bool return (f != f);
 	public static inline function isFinite( f : Float ) : Bool {
@@ -63,7 +66,7 @@ class Math
 
 	public static inline function round(v:Float):Int return Math.floor(v + 0.5);
 
-	public static inline function ffloor( v : Float ) : Float return floor(v); 
+	public static inline function ffloor( v : Float ) : Float return floor(v);
 	public static inline function fceil( v : Float ) : Float return ceil(v);
 	public static inline function fround( v : Float ) : Float return round(v);
 
