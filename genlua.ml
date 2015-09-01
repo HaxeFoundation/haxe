@@ -937,7 +937,7 @@ and gen_value ctx e =
 	match e.eexpr with
 	| TBinop (OpAssign, e1, e2) ->
 		spr ctx "(function() ";
-		gen_expr ctx e;
+		gen_block_element ctx e;
 		spr ctx " return ";
 		gen_value ctx e1;
 		spr ctx " end)()";
@@ -987,9 +987,9 @@ and gen_value ctx e =
 			| [] ->
 				spr ctx "return nil";
 			| [e] ->
-				gen_expr ctx (assign e);
+				gen_block_element ctx (assign e);
 			| e :: l ->
-				gen_expr ctx e;
+				gen_block_element ctx e;
 				newline ctx;
 				loop l
 		in
