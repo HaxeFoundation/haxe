@@ -95,7 +95,8 @@ class RunCi {
 
 	static function requireAptPackages(packages:Array<String>):Void {
 		var notYetInstalled = [for (p in packages) if (!isAptPackageInstalled(p)) p];
-		runCommand("sudo", ["apt-get", "install", "-y"].concat(notYetInstalled), true);
+		if (notYetInstalled.length > 0)
+			runCommand("sudo", ["apt-get", "install", "-y"].concat(notYetInstalled), true);
 	}
 
 	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
