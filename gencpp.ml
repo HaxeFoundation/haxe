@@ -767,7 +767,7 @@ and is_dynamic_array_param haxe_type =
    )
 and cpp_function_signature tfun abi =
    match follow tfun with
-   | TFun(args,ret) -> (type_string ret) ^ " " ^ abi ^ "( " ^ (gen_tfun_interface_arg_list args) ^ ")"
+   | TFun(args,ret) -> (type_string ret) ^ " " ^ abi ^ "(" ^ (gen_tfun_interface_arg_list args) ^ ")"
    | _ -> "void *"
 
 and cpp_function_signature_params params = match params with
@@ -2684,9 +2684,9 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let real_void = is_void  && (has_meta_key field.cf_meta Meta.Void) in
          let fake_void = is_void  && not real_void in
          output (if real_void then "void" else return_type );
-         output (" " ^ class_name ^ "::" ^ remap_name ^ "( " );
+         output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
          output (gen_arg_list function_def.tf_args "__o_");
-         output ")";
+         output ")\n";
          ctx.ctx_real_this_ptr <- true;
          ctx.ctx_real_void <- real_void;
          ctx.ctx_dynamic_this_ptr <- false;
@@ -2699,7 +2699,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             output code;
             gen_expression ctx false function_def.tf_expr;
             output tail_code;
-            if (fake_void) then output "return null();\n";
+            if (fake_void) then output "\treturn null();\n";
             ctx.ctx_writer#end_block;
          end else begin
             let add_block = is_void || (code <> "") || (tail_code <> "") in
@@ -2709,7 +2709,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             gen_expression ctx false (mk_block function_def.tf_expr);
             output tail_code;
             if (add_block) then begin
-               if (fake_void) then output "return null();\n";
+               if (fake_void) then output "\treturn null();\n";
                ctx.ctx_writer#end_block;
             end;
          end;
@@ -2850,7 +2850,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          if ( not is_static && not nonVirtual ) then output "virtual ";
          output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
 
-         output (" " ^ remap_name ^ "( " );
+         output (" " ^ remap_name ^ "(" );
          output (gen_arg_list function_def.tf_args "" );
          output ");\n";
          if ( doDynamic ) then begin
@@ -3248,13 +3248,13 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
       let name = keyword_remap constructor.ef_name in
       match constructor.ef_type with
       | TFun (args,_) ->
-         output_cpp (remap_class_name ^ "  " ^ class_name ^ "::" ^ name ^ "(" ^
+         output_cpp (remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ "(" ^
             (gen_tfun_arg_list args) ^")\n");
-         output_cpp ("\t{ return hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^ "," ^
+         output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^ "," ^
             (string_of_int constructor.ef_index) ^ ",hx::DynamicArray(0," ^
             (string_of_int (List.length args)) ^  ")" );
          List.iter (fun (arg,_,_) -> output_cpp (".Add(" ^ (keyword_remap arg) ^ ")")) args;
-         output_cpp "); }\n\n"
+         output_cpp ");\n}\n\n"
 
       | _ ->
          output_cpp ( remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ ";\n\n" )
@@ -3316,7 +3316,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
 
     List.iter (fun name -> output_cpp ("\t" ^ (str name) ^ ",\n") ) sorted;
 
-   output_cpp "\t::String(null()) };\n\n";
+   output_cpp "\t::String(null())\n};\n\n";
 
    (* ENUM - Mark static as used by GC *)
    output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
@@ -3890,7 +3890,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") { outValue = " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "(); return true; }"
                | Var { v_read = AccCall } -> "outValue = " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
                      ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()") ^ "; return true;";
-               | _ -> "outValue = " ^ ((keyword_remap f.cf_name) ^ (if (variable_field f) then "" else "_dyn()") ^ "; return true; ")
+               | _ -> "outValue = " ^ ((keyword_remap f.cf_name) ^ (if (variable_field f) then "" else "_dyn()") ^ "; return true;")
                )
             ) )
          in
@@ -4178,7 +4178,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       let sStaticFields = if List.length reflective_statics > 0 then begin
          output_cpp "static ::String sStaticFields[] = {\n";
          List.iter dump_field_name  reflective_statics;
-         output_cpp "\t::String(null()) };\n\n";
+         output_cpp "\t::String(null())\n};\n\n";
          "sStaticFields";
       end else
         "0 /* sStaticFields */"
@@ -4275,14 +4275,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    output_h ( get_class_code class_def Meta.HeaderNamespaceCode );
 
    let extern_class =  Common.defined common_ctx Define.DllExport in
-   let attribs = "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES " in
+   let attribs = "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES" in
 
    if (super="") then begin
       output_h ("class " ^ attribs ^ " " ^ class_name);
-      output_h "{\n\tpublic:\n";
+      output_h "\n{\n\tpublic:\n";
    end else begin
       output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super );
-      output_h "{\n\tpublic:\n";
+      output_h "\n{\n\tpublic:\n";
       output_h ("\t\ttypedef " ^ super ^ " super;\n");
       output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
    end;
@@ -4292,7 +4292,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_h ("\t\tVoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h "\n\tpublic:\n";
       let new_arg = if (has_gc_references class_def) then "true" else "false" in
-      output_h ("\t\tinline void *operator new( size_t inSize, bool inContainer=" ^ new_arg
+      output_h ("\t\tinline void *operator new(size_t inSize, bool inContainer=" ^ new_arg
          ^",const char *inName=" ^ (const_char_star class_name_text )^ ")\n" );
       output_h ("\t\t\t{ return hx::Object::operator new(inSize,inContainer,inName); }\n" );
       output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
