@@ -1,8 +1,4 @@
-language: cpp
-
-os:
-  - linux
-  - osx
+language: generic
 
 env:
   global:
@@ -10,25 +6,89 @@ env:
     - OCAMLC=ocamlc.opt
     - OCAMLOPT=ocamlopt.opt
     - ADD_REVISION=1
-    # SAUCE_USERNAME
-    - secure: SjyKefmjUEXi0IKHGGpcbLAajU0mLHONg8aA8LoY7Q9nAkSN6Aql+fzS38Boq7w1jWn+2FOpr+4jy0l6wVd/bftsF+huFfYpFJmdh8BlKmE0K71zZAral0H1c7YxkuQpPiJCIFGXqtkvev7SWTy0z31u7kuuQeEyW27boXe5cDA=
-    # SAUCE_ACCESS_KEY
-    - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
-  matrix:
-    - TEST=third-party
-    - TEST=macro
-    - TEST=neko
-    - TEST=js
-    - TEST=php
-    - TEST=cpp
-    - TEST=flash9
-    - TEST=as3
-    - TEST=java
-    - TEST=cs
-    - TEST=python
+
+sudo: false
+addons:
+  apt:
+    packages: &apt_common
+      - ocaml-native-compilers
+      - camlp4
+      - zlib1g-dev
+      - libgc-dev
+
+apt_targets:
+  - &apt_cpp    [*apt_common, gcc-multilib, g++-multilib]
+  - &apt_php    [*apt_common, php5-cli, php5-mysql, php5-sqlite]
+  - &apt_cs     [*apt_common, mono-devel, mono-mcs]
+  - &apt_python [*apt_common, python3]
+  - &apt_flash  [*apt_common, libgd2-xpm, ia32-libs, ia32-libs-multiarch]
 
 matrix:
-  # fast_finish: true #https://github.com/travis-ci/travis-ci/issues/1696
+  include:
+    #########
+    # linux #
+    #########
+    - os: linux
+      env: TEST=third-party
+      addons: {apt: {packages: [*apt_php, *apt_cpp, *apt_cs, *apt_python]}}
+    - os: linux
+      env: TEST=macro
+      addons: {apt: {packages: *apt_cs}}
+    - os: linux
+      env: TEST=neko
+    - os: linux
+      env:
+        - TEST=js
+        # SAUCE_USERNAME and SAUCE_ACCESS_KEY
+        - secure: SjyKefmjUEXi0IKHGGpcbLAajU0mLHONg8aA8LoY7Q9nAkSN6Aql+fzS38Boq7w1jWn+2FOpr+4jy0l6wVd/bftsF+huFfYpFJmdh8BlKmE0K71zZAral0H1c7YxkuQpPiJCIFGXqtkvev7SWTy0z31u7kuuQeEyW27boXe5cDA=
+        - secure: sUvWUjCyPuWht4seNa4f2VG9DkvXkhZyLZfjJO9TUAHB2JndS16E2j/qrvKEjycyH6w8tU/B9vnjDRvvGrYXxEXcBEwsJVfkorFnRl9uwGCGIYrzjMhssEl3fMYZK7P304f+gAp5ULrDBX2gIaKeSa8lUNRtz2PsZOieE4kMdhk=
+      addons: {apt: {packages: *apt_common}, sauce_connect: true}
+    - os: linux
+      env: TEST=php
+      addons: {apt: {packages: *apt_php}}
+    - os: linux
+      env: TEST=cpp
+      addons: {apt: {packages: *apt_cpp}}
+    - os: linux
+      env: TEST=flash9
+      addons: {apt: {packages: *apt_flash}}
+    - os: linux
+      env: TEST=as3
+      addons: {apt: {packages: *apt_flash}}
+    - os: linux
+      env: TEST=java
+    - os: linux
+      env: TEST=cs
+      addons: {apt: {packages: *apt_cs}}
+    - os: linux
+      env: TEST=python
+      addons: {apt: {packages: *apt_python}}
+
+    #######
+    # osx #
+    #######
+    - os: osx
+      env: TEST=third-party
+    - os: osx
+      env: TEST=macro
+    - os: osx
+      env: TEST=neko
+    - os: osx
+      env: TEST=js
+    - os: osx
+      env: TEST=php
+    - os: osx
+      env: TEST=cpp
+    - os: osx
+      env: TEST=flash9
+    - os: osx
+      env: TEST=as3
+    - os: osx
+      env: TEST=java
+    - os: osx
+      env: TEST=cs
+    - os: osx
+      env: TEST=python
 
 before_script:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
@@ -36,15 +96,7 @@ before_script:
     fi
 
 install:
-  # For our forks that do not have mult-os enabled...
-  - if [ -z "${TRAVIS_OS_NAME}" ]; then
-    export TRAVIS_OS_NAME=linux;
-    fi
   # Install haxe and neko dependencies
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-    travis_retry sudo apt-get update -qq;
-    travis_retry sudo apt-get install ocaml-native-compilers zlib1g-dev libgc-dev -qq;
-    fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
     travis_retry brew update;
     travis_retry brew install caskroom/cask/brew-cask;
@@ -52,18 +104,22 @@ install:
     fi
   # Install neko
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-    travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
-    cd ~/neko && make os=${TRAVIS_OS_NAME} -s && sudo make install -s;
-    cd $TRAVIS_BUILD_DIR;
-    fi
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-    travis_retry brew install neko --HEAD;
+      travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
+      cd ~/neko;
+      make os=${TRAVIS_OS_NAME} -s;
+      export PATH="$PATH:$HOME/neko/bin";
+      export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/neko/bin";
+      export NEKOPATH="$HOME/neko/bin";
+      cd $TRAVIS_BUILD_DIR;
+    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      travis_retry brew install neko --HEAD;
     fi
 
 script:
   - make -s
   - make tools -s
-  - sudo make install -s
+  - export PATH="$PATH:$TRAVIS_BUILD_DIR"
+  - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
   - cd tests/
   - mkdir ~/haxelib && haxelib setup ~/haxelib
   - haxe -version

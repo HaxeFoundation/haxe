@@ -89,6 +89,15 @@ class RunCi {
 		Sys.exit(exitCode);
 	}
 
+	static function isAptPackageInstalled(aptPackage:String):Bool {
+		return commandSucceed("dpkg-query", ["-W", "-f='${Status}'", aptPackage]);
+	}
+
+	static function requireAptPackages(packages:Array<String>):Void {
+		var notYetInstalled = [for (p in packages) if (!isAptPackageInstalled(p)) p];
+		runCommand("sudo", ["apt-get", "install", "-y"].concat(notYetInstalled), true);
+	}
+
 	static function haxelibInstallGit(account:String, repository:String, ?branch:String, ?srcPath:String, useRetry:Bool = false, ?altName:String):Void {
 		var name:String = (altName == null) ? repository : altName;
 		try {
@@ -157,7 +166,7 @@ class RunCi {
 				Sys.putEnv("DISPLAY", ":99.0");
 				runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
 				Sys.putEnv("AUDIODEV", "null");
-				runCommand("sudo", ["apt-get", "install", "-qq", "libgd2-xpm", "ia32-libs", "ia32-libs-multiarch"], true);
+				requireAptPackages(["libgd2-xpm", "ia32-libs", "ia32-libs-multiarch"]);
 				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
 				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
@@ -298,7 +307,10 @@ class RunCi {
 
 	static function commandSucceed(cmd:String, args:Array<String>):Bool {
 		return try {
-			new Process(cmd, args).exitCode() == 0;
+			var p = new Process(cmd, args);
+			var succeed = p.exitCode() == 0;
+			p.close();
+			succeed;
 		} catch(e:Dynamic) false;
 	}
 
@@ -317,8 +329,7 @@ class RunCi {
 				if (commandSucceed("php", ["-v"])) {
 					infoMsg('php has already been installed.');
 				} else {
-					runCommand("sudo", ["apt-get", "install", "php5", "-qq"], true);
-					runCommand("sudo", ["apt-get", "install", "php5-mysql", "php5-sqlite", "-qq"], true);
+					requireAptPackages(["php5-cli", "php5-mysql", "php5-sqlite"]);
 				}
 			case "Mac":
 				//pass
@@ -340,7 +351,7 @@ class RunCi {
 		//hxcpp dependencies
 		switch (systemName) {
 			case "Linux":
-				runCommand("sudo", ["apt-get", "install", "gcc-multilib", "g++-multilib", "-qq"], true);
+				requireAptPackages(["gcc-multilib", "g++-multilib"]);
 			case "Mac":
 				//pass
 		}
@@ -380,7 +391,7 @@ class RunCi {
 				if (commandSucceed("node", ["-v"])) {
 					infoMsg('node has already been installed.');
 				} else {
-					runCommand("sudo", ["apt-get", "install", "nodejs", "-qq"], true);
+					requireAptPackages(["nodejs"]);
 				}
 			case "Mac":
 				//pass
@@ -395,7 +406,7 @@ class RunCi {
 				if (commandSucceed("mono", ["--version"]))
 					infoMsg('mono has already been installed.');
 				else
-					runCommand("sudo", ["apt-get", "install", "mono-devel", "mono-mcs", "-qq"], true);
+					requireAptPackages(["mono-devel", "mono-mcs"]);
 				runCommand("mono", ["--version"]);
 			case "Mac":
 				if (commandSucceed("mono", ["--version"]))
@@ -446,7 +457,7 @@ class RunCi {
 				if (commandSucceed("python3", ["-V"]))
 					infoMsg('python3 has already been installed.');
 				else
-					runCommand("sudo", ["apt-get", "install", "python3", "-qq"], true);
+					requireAptPackages(["python3"]);
 				runCommand("python3", ["-V"]);
 
 				var pypy = "pypy3";
@@ -557,7 +568,7 @@ class RunCi {
 						case TravisCI:
 							changeDirectory(repoDir);
 							runCommand("make", ["BYTECODE=1", "-s"]);
-							runCommand("sudo", ["make", "install", "-s"]);
+							// runCommand("sudo", ["make", "install", "-s"]);
 							changeDirectory(unitDir);
 							runCommand("haxe", ["compile-macro.hxml"]);
 						case AppVeyor:
@@ -658,20 +669,23 @@ class RunCi {
 						}
 					];
 
-					if (Sys.getEnv("TRAVIS_SECURE_ENV_VARS") == "true" && systemName == "Linux") {
-						var scVersion = "sc-4.3-linux";
-						runCommand("wget", ['https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
-						runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
+					var env = Sys.environment();
+					if (env.exists("SAUCE_USERNAME") && env.exists("SAUCE_ACCESS_KEY")) {
+						// sauce-connect should have been started
 
-						//start sauce-connect
-						var scReadyFile = "sauce-connect-ready-" + Std.random(100);
-						var sc = new Process('${scVersion}/bin/sc', [
-							"-i", Sys.getEnv("TRAVIS_JOB_NUMBER"),
-							"-f", scReadyFile
-						]);
-						while(!FileSystem.exists(scReadyFile)) {
-							Sys.sleep(0.5);
-						}
+						// var scVersion = "sc-4.3-linux";
+						// runCommand("wget", ['https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
+						// runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
+
+						// //start sauce-connect
+						// var scReadyFile = "sauce-connect-ready-" + Std.random(100);
+						// var sc = new Process('${scVersion}/bin/sc', [
+						// 	"-i", Sys.getEnv("TRAVIS_JOB_NUMBER"),
+						// 	"-f", scReadyFile
+						// ]);
+						// while(!FileSystem.exists(scReadyFile)) {
+						// 	Sys.sleep(0.5);
+						// }
 
 						runCommand("npm", ["install", "wd", "q"], true);
 						haxelibInstallGit("dionjwa", "nodejs-std", "master", null, true, "nodejs");
@@ -680,7 +694,7 @@ class RunCi {
 						runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
 
 						server.close();
-						sc.close();
+						// sc.close();
 					}
 
 					infoMsg("Test optimization:");
