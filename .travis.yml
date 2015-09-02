@@ -33,7 +33,7 @@ matrix:
       addons: {apt: {packages: [*apt_php, *apt_cpp, *apt_cs, *apt_python]}}
     - os: linux
       env: TEST=macro
-      addons: {apt: {packages: *apt_cs}}
+      addons: {apt: {packages: [*apt_cs, *apt_python]}}
     - os: linux
       env: TEST=neko
     - os: linux
