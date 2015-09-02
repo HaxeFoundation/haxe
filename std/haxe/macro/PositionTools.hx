@@ -10,7 +10,7 @@ class PositionTools {
 	macro public static function here():ExprOf<Position> {
 		var positionExpr = Context.makeExpr(Context.getPosInfos(Context.currentPos()), Context.currentPos());
 		if (Context.defined("macro")) {
-			return macro Context.makePosition($positionExpr);
+			return macro haxe.macro.Context.makePosition($positionExpr);
 		} else {
 			return positionExpr;
 		}
