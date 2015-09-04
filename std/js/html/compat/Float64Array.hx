@@ -110,7 +110,7 @@ class Float64Array {
 	}
 
 	static function __init__() {
-		var Float64Array = untyped Function("return typeof Float64Array != 'undefined' ? Float64Array : (typeof Float32Array != 'undefined' ? 'notsupported' : null)")() || _new;
+		var Float64Array = untyped js.Lib.global.Float64Array || (js.Lib.global.Float32Array ? 'notsupported' : null) || _new;
 	}
 
 }

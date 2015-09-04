@@ -94,7 +94,7 @@ class Uint8Array {
 	}
 
 	static function __init__() {
-		var Uint8Array = untyped Function("return typeof Uint8Array != 'undefined' ? Uint8Array : null")() || _new;
+		var Uint8Array = untyped js.Lib.global.Uint8Array || _new;
 	}
 
 }

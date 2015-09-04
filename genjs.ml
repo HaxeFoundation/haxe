@@ -1275,7 +1275,17 @@ let generate com =
 	)) exposed;
 
 
+	let var_global = (
+		"$global",
+		"typeof window != \"undefined\" ? window : typeof global != \"undefined\" ? global : typeof self != \"undefined\" ? self : this"
+	) in
+
 	let closureArgs = [] in
+	let closureArgs = if has_feature ctx "js.Lib.global" then
+		var_global :: closureArgs
+	else
+		closureArgs
+	in
 	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
 		(
 			"$hx_exports",
@@ -1324,7 +1334,13 @@ let generate com =
 
 	(* If ctx.js_modern, console is defined in closureArgs. *)
 	if (not ctx.js_modern) && (not (Common.defined com Define.JsEs5)) then
-		spr ctx "var console = Function(\"return typeof console != 'undefined' ? console : {log:function(){}}\")();\n";
+		add_feature ctx "js.Lib.global"; (* console polyfill will check console from $global *)
+
+	if (not ctx.js_modern) && (has_feature ctx "js.Lib.global") then
+		print ctx "var %s = %s;\n" (fst var_global) (snd var_global);
+
+	if (not ctx.js_modern) && (not (Common.defined com Define.JsEs5)) then
+		spr ctx "var console = $global.console || {log:function(){}};\n";
 
 	(* TODO: fix $estr *)
 	let vars = [] in
