@@ -66,8 +66,7 @@ type object_store = {
 }
 
 let get_exposed ctx path meta =
-	if not ctx.js_modern then []
-	else try
+	try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
 			| [ EConst (String s), _ ] -> [s]
@@ -1300,6 +1299,16 @@ let generate com =
 		| _ -> ()
 	) include_files;
 
+	let var_console = (
+		"console",
+		"typeof console != \"undefined\" ? console : {log:function(){}}"
+	) in
+
+	let var_exports = (
+		"$hx_exports",
+		"typeof window != \"undefined\" ? window : typeof exports != \"undefined\" ? exports : typeof self != \"undefined\" ? self : this"
+	) in
+
 	let var_global = (
 		"$global",
 		"typeof window != \"undefined\" ? window : typeof global != \"undefined\" ? global : typeof self != \"undefined\" ? self : this"
@@ -1312,22 +1321,13 @@ let generate com =
 		closureArgs
 	in
 	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
-		(
-			"$hx_exports",
-			if nodejs then
-				"exports"
-			else
-				"typeof window != \"undefined\" ? window : exports"
-		) :: closureArgs
+		var_exports :: closureArgs
 	else
 		closureArgs
 	in
 	(* Provide console for environments that may not have it. *)
 	let closureArgs = if (not (Common.defined com Define.JsEs5)) then
-		(
-			"console",
-			"typeof console != \"undefined\" ? console : {log:function(){}}"
-		) :: closureArgs
+		var_console :: closureArgs
 	else
 		closureArgs
 	in
@@ -1336,28 +1336,30 @@ let generate com =
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
 
+	if (anyExposed && ((Common.defined com Define.ShallowExpose) || not ctx.js_modern)) then (
+		print ctx "var %s = %s" (fst var_exports) (snd var_exports);
+		ctx.separator <- true;
+		newline ctx
+	);
+
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)
 		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
 
 		(* Wrap output in a closure *)
-		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
-			print ctx "var $hx_exports = $hx_exports || {}";
-			ctx.separator <- true;
-			newline ctx
-		);
 		print ctx "(function (%s) { \"use strict\"" (String.concat ", " (List.map fst closureArgs));
 		newline ctx;
-		let rec print_obj f root = (
-			let path = root ^ (path_to_brackets f.os_name) in
-			print ctx "%s = %s || {}" path path;
-			ctx.separator <- true;
-			newline ctx;
-			concat ctx ";" (fun g -> print_obj g path) f.os_fields
-		)
-		in
-		List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 	end;
+
+	let rec print_obj f root = (
+		let path = root ^ (path_to_brackets f.os_name) in
+		print ctx "%s = %s || {}" path path;
+		ctx.separator <- true;
+		newline ctx;
+		concat ctx ";" (fun g -> print_obj g path) f.os_fields
+	)
+	in
+	List.iter (fun f -> print_obj f "$hx_exports") exposedObject.os_fields;
 
 	List.iter (fun file ->
 		match file with
@@ -1436,19 +1438,21 @@ let generate com =
 	if ctx.js_modern then begin
 		print ctx "})(%s)" (String.concat ", " (List.map snd closureArgs));
 		newline ctx;
-		if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
-			List.iter (fun f ->
-				print ctx "var %s = $hx_exports%s" f.os_name (path_to_brackets f.os_name);
-				ctx.separator <- true;
-				newline ctx
-			) exposedObject.os_fields;
-			List.iter (fun f ->
-				print ctx "var %s = $hx_exports%s" f (path_to_brackets f);
-				ctx.separator <- true;
-				newline ctx
-			) !toplevelExposed
-		);
 	end;
+
+	if (anyExposed && (Common.defined com Define.ShallowExpose)) then (
+		List.iter (fun f ->
+			print ctx "var %s = $hx_exports%s" f.os_name (path_to_brackets f.os_name);
+			ctx.separator <- true;
+			newline ctx
+		) exposedObject.os_fields;
+		List.iter (fun f ->
+			print ctx "var %s = $hx_exports%s" f (path_to_brackets f);
+			ctx.separator <- true;
+			newline ctx
+		) !toplevelExposed
+	);
+
 	if com.debug then write_mappings ctx else (try Sys.remove (com.file ^ ".map") with _ -> ());
 	flush ctx;
 	close_out ctx.chan)
