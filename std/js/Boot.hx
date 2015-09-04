@@ -243,8 +243,8 @@ class Boot {
 	}
 
 	// resolve native JS class in the global scope:
-	static function __resolveNativeClass(name:String) untyped {
-		return untyped Function('return typeof $name != "undefined" ? $name : null')();
+	static function __resolveNativeClass(name:String) {
+		return untyped js.Lib.global[name];
 	}
 
 }

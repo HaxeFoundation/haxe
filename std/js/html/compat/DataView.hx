@@ -138,7 +138,7 @@ class DataView {
 	}
 
 	static function __init__() {
-		var DataView = untyped Function("return typeof DataView != 'undefined' ? DataView : null")() || js.html.compat.DataView;
+		var DataView = untyped js.Lib.global.DataView || js.html.compat.DataView;
 	}
 
 }
