@@ -4688,7 +4688,25 @@ and flush_macro_context mint ctx =
 	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [Codegen.AbstractCast.handle_abstract_casts mctx; Filters.captured_vars mctx.com; Filters.rename_local_vars mctx] in
-	let type_filters = [Filters.add_field_inits mctx; Filters.apply_native_paths mctx] in
+
+	(*
+		some filters here might cause side effects that would break compilation server.
+		let's save the minimal amount of information we need
+	*)
+	let minimal_restore t =
+		match t with
+		| TClassDecl c ->
+			let meta = c.cl_meta in
+			let path = c.cl_path in
+			c.cl_restore <- (fun() -> c.cl_meta <- meta; c.cl_path <- path);
+		| _ ->
+			()
+	in
+	let type_filters = [
+		Filters.add_field_inits mctx;
+		minimal_restore;
+		Filters.apply_native_paths mctx
+	] in
 	let ready = fun t ->
 		Filters.apply_filters_once mctx expr_filters t;
 		List.iter (fun f -> f t) type_filters
