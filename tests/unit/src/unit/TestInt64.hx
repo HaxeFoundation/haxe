@@ -63,12 +63,34 @@ class TestInt64 extends Test {
 		a.toInt();
 	}
 
-	public function testCopy() {
-		var a : Int64, b : Int64;
-		a = 1;
-		b = a.copy();
-		++b;
-		f( a == b );
+	public function testIncrement() {
+		var a : Int64, b : Int64, c : Int64;
+
+		// Int64 should act as a value type and be immutable.
+		// Increment ops should swap `this` to a new Int64 object.
+		a = 0; b = a;
+		a++;
+		f(a == b);
+
+		a = 0; b = a;
+		++a;
+		f(a == b);
+
+		a = 0; b = a;
+		a--;
+		f(a == b);
+
+		a = 0; b = a;
+		--a;
+		f(a == b);
+
+		a = Int64.make(0,0xFFFFFFFF);
+		b = a;
+		c = Int64.make(1,0);
+		int64eq( a++, b );
+		int64eq( a--, c );
+		int64eq( ++a, c );
+		int64eq( --a, b );
 	}
 
 	public function testToString() {
@@ -147,16 +169,6 @@ class TestInt64 extends Test {
 		t( a.ucompare(b) < 0 );
 
 
-	}
-
-	public function testIncrement() {
-		var a = Int64.make(0,0xFFFFFFFF);
-		var b = a.copy();
-		var c = Int64.make(1,0);
-		int64eq( a++, b );
-		int64eq( a--, c );
-		int64eq( ++a, c );
-		int64eq( --a, b );
 	}
 
 	public function testAddition() {
