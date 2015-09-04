@@ -197,7 +197,7 @@ class RunSauceLabs {
 						.sauceJobUpdate({ passed: true, tags: tags.concat(["errored"]) })
 						.then(function() return browser.quit())
 						.timeout(commandTimeout * 1000)
-						.then(function() return testBrowser(caps, trials));
+						.fin(function() return testBrowser(caps, trials));
 				} else {
 					allSuccess = false;
 					return null;
@@ -284,6 +284,9 @@ class RunSauceLabs {
 			}, q())
 			.then(function() {
 				Sys.exit(allSuccess ? 0 : 1);
+			})
+			.fail(function() {
+				Sys.exit(1);
 			});
 	}
 }

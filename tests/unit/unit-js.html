@@ -13,10 +13,15 @@
             function getURLParameter(name) {
                 return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null
             }
-
-            var js = getURLParameter("js") || "bin/unit.js";
-            $.getScript(js, function() {
-                unit.Test.main();
+            $.ajax({
+                url: getURLParameter("js") || "bin/unit.js",
+                dataType: "script",
+                success: function() {
+                    unit.Test.main();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    throw errorThrown;
+                }
             });
         </script>
     </body>

@@ -647,10 +647,11 @@ class RunCi {
 					getJSDependencies();
 
 					var jsOutputs = [
-						for (es5 in [[], ["-D", "js-es5"]])
+						for (es5 in       [[], ["-D", "js-es5"]])
 						for (unflatten in [[], ["-D", "js-unflatten"]])
+						for (classic in   [[], ["-D", "js-classic"]])
 						{
-							var extras = [].concat(es5).concat(unflatten);
+							var extras = [].concat(es5).concat(unflatten).concat(classic);
 
 							runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
@@ -671,7 +672,11 @@ class RunCi {
 					];
 
 					var env = Sys.environment();
-					if (env.exists("SAUCE_USERNAME") && env.exists("SAUCE_ACCESS_KEY")) {
+					if (
+						env.exists("SAUCE_USERNAME") && env.exists("SAUCE_ACCESS_KEY") &&
+						// only run on Linux build
+						(ci != null ? systemName == "Linux" : true)
+					) {
 						// sauce-connect should have been started
 
 						// var scVersion = "sc-4.3-linux";
