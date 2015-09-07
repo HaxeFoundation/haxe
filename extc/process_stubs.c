@@ -35,10 +35,10 @@
 #	include <errno.h>
 #	include <string.h>
 #	ifndef __APPLE__
-#		ifndef __FreeBSD__
-#			include <wait.h>
-#		else
+#		if defined(__FreeBSD__) || defined(__DragonFly__)
 #			include <sys/wait.h>
+#		else
+#			include <wait.h>
 #		endif
 #	endif
 #endif
