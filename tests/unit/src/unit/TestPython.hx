@@ -423,4 +423,11 @@ class TestPython extends Test {
 		eq(t.length, 3);
 	}
 
+	function testVectorEquality()
+	{
+        var v = new haxe.ds.Vector(1);
+        var v2 = v.copy();
+        eq(v == v2, false);
+    }
+
 }

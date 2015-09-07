@@ -1255,6 +1255,8 @@ module Printer = struct
 					(* Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2) *)
 				| TInst({cl_path = [],("list")},_), _ ->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
+				| x, _ when is_underlying_array x ->
+					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| TDynamic _, TDynamic _ ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| TDynamic _, x | x, TDynamic _ when is_list_or_anon x ->
