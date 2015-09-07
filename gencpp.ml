@@ -1463,52 +1463,6 @@ let get_return_type field =
 ;;
 
 
-(*
-let rec has_side_effects expr =
-   match expr.eexpr with
-   | TConst _ | TLocal _ | TFunction _ | TTypeExpr _ -> false
-   | TUnop(Increment,_,_) | TUnop(Decrement,_,_) | TBinop(OpAssign,_,_) | TBinop(OpAssignOp _,_,_) -> true
-   | TUnop(_,_,e) -> has_side_effects e
-   | TArray(e1,e2) | TBinop(_,e1,e2) -> has_side_effects e1 || has_side_effects e2
-   | TIf(cond,e1,Some e2) -> has_side_effects cond || has_side_effects e1 || has_side_effects e2
-   | TField(e,_) | TParenthesis e -> has_side_effects e
-   | TArrayDecl el -> List.exists has_side_effects el
-   | TObjectDecl decls -> List.exists (fun (_,e) -> has_side_effects e) decls
-   | TCast(e,_) -> has_side_effects e
-   | _ -> true
-;;
-
-let rec can_be_affected expr =
-   match expr.eexpr with
-   | TConst _ | TFunction _ | TTypeExpr _ -> false
-   | TLocal _ -> true
-   | TUnop(Increment,_,_) | TUnop(Decrement,_,_) -> true
-   | TUnop(_,_,e) -> can_be_affected e
-   | TBinop(OpAssign,_,_) | TBinop(OpAssignOp _,_,_) -> true
-   | TBinop(_,e1,e2) -> can_be_affected e1 || can_be_affected e2
-   | TField(e,_) -> can_be_affected e
-   | TParenthesis e -> can_be_affected e
-   | TCast(e,_) -> can_be_affected e
-   | TArrayDecl el -> List.exists can_be_affected el
-   | TObjectDecl decls -> List.exists (fun (_,e) -> can_be_affected e) decls
-   | _ -> true
-;;
-
-
-let call_has_side_effects func args =
-   let effects = (if has_side_effects func then 1 else 0) + (List.length (List.filter has_side_effects args)) in
-   let affected = (if can_be_affected func then 1 else 0) + (List.length (List.filter can_be_affected args)) in
-   effects + affected > 22;
-;;
-   The above code may be overly pessimistic - will have to check performance
-
-*)
-
-
-
-let has_side_effects expr = false;;
-let call_has_side_effects func args = false;;
-
 
 let has_default_values args =
    List.exists ( fun (_,o) -> match o with
@@ -1560,11 +1514,12 @@ let hx_stack_push ctx output clazz func_name pos =
    at the top for simplicity.
 *)
 
+let gen_expression_tree ctx retval expression_tree set_var tail_code =
+ let writer = ctx.ctx_writer in
+ let output_i = writer#write_i in
+ let output = ctx.ctx_output in
 
-let rec define_local_function_ctx ctx func_name func_def =
-   let writer = ctx.ctx_writer in
-   let output_i = writer#write_i in
-   let output = ctx.ctx_output in
+ let rec define_local_function_ctx func_name func_def =
    let remap_this = function | "this" -> "__this" | other -> other in
    let rec define_local_function func_name func_def =
       let declarations = Hashtbl.create 0 in
@@ -1621,24 +1576,24 @@ let rec define_local_function_ctx ctx func_name func_def =
 
       if (block) then begin
          output_i "";
-         gen_expression ctx false func_def.tf_expr;
+         gen_expression false func_def.tf_expr;
          output_i "return null();\n";
       end else begin
          (* Save old values, and equalize for new input ... *)
          let pop_names = push_anon_names ctx in
 
-         find_local_functions_and_return_blocks_ctx ctx false func_def.tf_expr;
+         find_local_functions_and_return_blocks_ctx false func_def.tf_expr;
 
          (match func_def.tf_expr.eexpr with
          | TReturn (Some return_expression) when (func_type<>"Void") ->
             output_i "return ";
-            gen_expression ctx true return_expression;
+            gen_expression true return_expression;
          | TReturn (Some return_expression) ->
             output_i "";
-            gen_expression ctx false return_expression;
+            gen_expression false return_expression;
          | _ ->
             output_i "";
-            gen_expression ctx false (mk_block func_def.tf_expr);
+            gen_block_expression func_def.tf_expr;
          );
          output ";\n";
          output_i "return null();\n";
@@ -1660,33 +1615,27 @@ let rec define_local_function_ctx ctx func_name func_def =
    in
    define_local_function func_name func_def
 
-and find_local_functions_and_return_blocks_ctx ctx retval expression =
-   let output = ctx.ctx_output in
+ and find_local_functions_and_return_blocks_ctx retval expression =
    let rec find_local_functions_and_return_blocks retval expression =
       match expression.eexpr with
       | TBlock _ ->
          if (retval) then begin
-            define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
+            define_local_return_block_ctx expression (next_anon_function_name ctx) true;
          end  (* else we are done *)
       | TTry (_, _)
       | TSwitch (_, _, _) when retval ->
-            define_local_return_block_ctx ctx expression (next_anon_function_name ctx) true;
+            define_local_return_block_ctx expression (next_anon_function_name ctx) true;
       | TObjectDecl ( ("fileName" , { eexpr = (TConst (TString file)) }) ::
          ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
             ("className" , { eexpr = (TConst (TString class_name)) }) ::
                ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) -> ()
       | TObjectDecl decl_list ->
             let name = next_anon_function_name ctx in
-            define_local_return_block_ctx ctx expression name true;
-      | TCall(func,args) when call_has_side_effects func args ->
-            define_local_return_block_ctx ctx expression (next_anon_function_name ctx) retval
-      (*| TCall (e,el) -> (* visit function object first, then args *)
-         find_local_functions_and_return_blocks e;
-         List.iter find_local_functions_and_return_blocks  el *)
+            define_local_return_block_ctx expression name true;
       | TFunction func ->
          let func_name = next_anon_function_name ctx in
          output "\n";
-         define_local_function_ctx ctx func_name func
+         define_local_function_ctx func_name func
       | TField (obj,_) | TEnumParameter (obj,_,_) when (is_null obj) -> ( )
       | TArray (obj,_) when (is_null obj) -> ( )
       | TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
@@ -1699,10 +1648,7 @@ and find_local_functions_and_return_blocks_ctx ctx retval expression =
       | _ -> iter_retval find_local_functions_and_return_blocks retval expression
    in find_local_functions_and_return_blocks retval expression
 
-and define_local_return_block_ctx ctx expression name retval =
-   let writer = ctx.ctx_writer in
-   let output_i = writer#write_i in
-   let output = ctx.ctx_output in
+ and define_local_return_block_ctx expression name retval =
    let check_this = function | "this" when not ctx.ctx_real_this_ptr -> "__this" | x -> x in
    let rec define_local_return_block expression  =
       let declarations = Hashtbl.create 0 in
@@ -1749,9 +1695,9 @@ and define_local_return_block_ctx ctx expression name retval =
          output_i "hx::Anon __result = hx::Anon_obj::Create();\n";
          let pop_names = push_anon_names ctx in
          List.iter (function (name,value) ->
-            find_local_functions_and_return_blocks_ctx ctx true value;
+            find_local_functions_and_return_blocks_ctx true value;
             output_i ( "__result->Add(" ^ (str name) ^ " , ");
-            gen_expression ctx true value;
+            gen_expression true value;
             output (if is_function_expr value then ",true" else ",false" );
             output (");\n");
          ) decl_list;
@@ -1761,21 +1707,21 @@ and define_local_return_block_ctx ctx expression name retval =
       | TBlock _ ->
          ctx.ctx_return_from_block <- return_data;
          ctx.ctx_return_from_internal_node <- false;
-         gen_expression ctx false expression;
+         gen_expression false expression;
       | TCall(func,args) ->
          writer#begin_block;
          let pop_names = push_anon_names ctx in
-         find_local_functions_and_return_blocks_ctx ctx true func;
-         List.iter (find_local_functions_and_return_blocks_ctx ctx true) args;
+         find_local_functions_and_return_blocks_ctx true func;
+         List.iter (find_local_functions_and_return_blocks_ctx true) args;
          ctx.ctx_tcall_expand_args <- true;
-         gen_expression ctx return_data expression;
+         gen_expression return_data expression;
          output ";\n";
          pop_names();
          writer#end_block;
       | _ ->
          ctx.ctx_return_from_block <- false;
          ctx.ctx_return_from_internal_node <- return_data;
-         gen_expression ctx false (mk_block expression);
+         gen_block_expression expression;
       );
       output_i "return null();\n";
       writer#end_block;
@@ -1786,10 +1732,7 @@ and define_local_return_block_ctx ctx expression name retval =
    define_local_return_block expression
 
 
-and gen_expression ctx retval expression =
-   let output = ctx.ctx_output in
-   let writer = ctx.ctx_writer in
-   let output_i = writer#write_i in
+ and gen_expression retval expression =
    let calling = ctx.ctx_calling in
    ctx.ctx_calling <- false;
    let assigning = ctx.ctx_assigning in
@@ -1815,9 +1758,9 @@ and gen_expression ctx retval expression =
    let rec gen_expression_list expressions =
       (match expressions with
       | [] -> ()
-      | [single] -> gen_expression ctx true single
+      | [single] -> gen_expression true single
       | first :: remaining ->
-         gen_expression ctx true first;
+         gen_expression true first;
          output ",";
          gen_expression_list remaining
       ) in
@@ -1857,13 +1800,13 @@ and gen_expression ctx retval expression =
          | _ -> "") in
       if (op <> "=") then output "(";
       if ( cast <> "") then output cast;
-      gen_expression ctx true expr1;
+      gen_expression true expr1;
       if ( cast <> "") then output ")";
 
       output (" " ^ op ^ " ");
 
       if ( cast <> "") then output cast;
-      gen_expression ctx true expr2;
+      gen_expression true expr2;
       if ( cast <> "") then output ")";
       if (op <> "=") then output ")";
    in
@@ -1892,15 +1835,15 @@ and gen_expression ctx retval expression =
                         gen_bin_op_string expr1 "=" expr2
       | Ast.OpUShr ->
          output "hx::UShr(";
-         gen_expression ctx true expr1;
+         gen_expression true expr1;
          output ",";
-         gen_expression ctx true expr2;
+         gen_expression true expr2;
          output ")";
       | Ast.OpMod ->
          output "hx::Mod(";
-         gen_expression ctx true expr1;
+         gen_expression true expr1;
          output ",";
-         gen_expression ctx true expr2;
+         gen_expression true expr2;
          output ")";
 
       | Ast.OpAssignOp bin_op ->
@@ -1918,9 +1861,9 @@ and gen_expression ctx retval expression =
             | Ast.OpMod  -> "hx::ModEq("
             | _ -> error "Unknown OpAssignOp" expression.epos );
          ctx.ctx_assigning <- true;
-         gen_expression ctx true expr1;
+         gen_expression true expr1;
          output ",";
-         gen_expression ctx true expr2;
+         gen_expression true expr2;
          output ")"
       | Ast.OpNotEq -> gen_bin_op_string expr1 "!=" expr2
       | Ast.OpEq -> gen_bin_op_string expr1 "==" expr2
@@ -1982,7 +1925,7 @@ and gen_expression ctx retval expression =
       | TConst TThis when ctx.ctx_real_this_ptr -> output ( "this->" ^ remap_name )
       | TConst TNull -> output "null()"
       | _ ->
-         gen_expression ctx true field_object;
+         gen_expression true field_object;
          ctx.ctx_dbgout "/* TField */";
          (* toString is the only internal member that can be set... *)
          let settingInternal = assigning && member="toString" in
@@ -2033,7 +1976,7 @@ and gen_expression ctx retval expression =
          )
    in
 
-   (match expression.eexpr with
+   match expression.eexpr with
    | TConst TNull when not retval ->
       output "Dynamic()";
    | TCall (func, arg_list) when (match func.eexpr with
@@ -2042,16 +1985,10 @@ and gen_expression ctx retval expression =
       ( match arg_list with
       | [{ eexpr = TConst (TString code) }] -> output (format_code code);
       | ({ eexpr = TConst (TString code) } as ecode) :: tl ->
-         Codegen.interpolate_code ctx.ctx_common (format_code code) tl output (gen_expression ctx true) ecode.epos
+         Codegen.interpolate_code ctx.ctx_common (format_code code) tl output (gen_expression true) ecode.epos
       | _ -> error "__cpp__'s first argument must be a string" func.epos;
       )
    | TCall (func, arg_list) when tcall_expand_args->
-      let use_temp_func = has_side_effects func in
-      if (use_temp_func) then begin
-         output_i "Dynamic __func = ";
-         gen_expression ctx true func;
-         output ";\n";
-      end;
       let arg_string = ref "" in
       let idx = ref 0 in
       List.iter (fun arg ->
@@ -2059,16 +1996,12 @@ and gen_expression ctx retval expression =
          arg_string := !arg_string ^ (if !arg_string<>"" then "," else "") ^ a_name;
          idx := !idx + 1;
          output_i ( (type_string arg.etype) ^ " " ^ a_name ^ " = ");
-         gen_expression ctx true arg;
+         gen_expression true arg;
          output ";\n";
       ) arg_list;
       output_i (if retval then "return " else "");
-      if use_temp_func then
-         output "__func"
-      else begin
-         ctx.ctx_calling <- true;
-         gen_expression ctx true func;
-      end;
+      ctx.ctx_calling <- true;
+      gen_expression true func;
       output ("(" ^ !arg_string ^ ");\n");
    | TCall (func, arg_list) when is_fromStaticFunction_call func ->
       (match arg_list with
@@ -2089,7 +2022,7 @@ and gen_expression ctx retval expression =
       | FStatic(cl,_) ->
           output (join_class_path_remap cl.cl_path "::")
       | FInstance _ ->
-          gen_expression ctx true fexpr
+          gen_expression true fexpr
       | _ -> assert false);
       let names = ExtString.String.nsplit (field_name field) ":" in
       let field_name, arg_names = match names with
@@ -2099,14 +2032,14 @@ and gen_expression ctx retval expression =
       output (" " ^ field_name);
       (try match arg_list, arg_names with
       | [], _ -> ()
-      | [single_arg], _ -> output ": "; gen_expression ctx true single_arg
+      | [single_arg], _ -> output ": "; gen_expression true single_arg
       | first_arg :: args, arg_names ->
           output ": ";
-          gen_expression ctx true first_arg;
+          gen_expression true first_arg;
           ctx.ctx_calling <- true;
           List.iter2 (fun arg arg_name ->
             output (" " ^ arg_name ^ ": ");
-            gen_expression ctx true arg) args arg_names
+            gen_expression true arg) args arg_names
       with | Invalid_argument _ -> (* not all arguments names are known *)
         error (
           "The function called here with name " ^ (String.concat ":" names) ^
@@ -2156,33 +2089,30 @@ and gen_expression ctx retval expression =
       in
       let is_super = (match func.eexpr with | TConst TSuper -> true | _ -> false ) in
       if (ctx.ctx_debug_level>1) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
-      let is_block_call = call_has_side_effects func arg_list in
       let cast_result =  (not is_super) && (is_fixed_override func) in
       if (cast_result) then output ("hx::TCast< " ^ expr_type ^ " >::cast(");
       let cast_result = cast_result || check_extern_pointer_cast func in
-      if (is_block_call) then
-         gen_local_block_call()
-      else begin
-         (* If a static function has @:native('new abc')
-             c++ new has lower precedence than in haxe so ( ) must be used *)
-         let paren_result =
-           if is_native_with_space func then
-              ( output "("; true )
-           else
-              false
-         in
-         ctx.ctx_calling <- true;
-         gen_expression ctx true func;
 
-         output "(";
-         gen_expression_list arg_list;
+      (* If a static function has @:native('new abc')
+          c++ new has lower precedence than in haxe so ( ) must be used *)
+      let paren_result =
+        if is_native_with_space func then
+           ( output "("; true )
+        else
+           false
+      in
+      ctx.ctx_calling <- true;
+      gen_expression true func;
+
+      output "(";
+      gen_expression_list arg_list;
+      output ")";
+      if paren_result then
          output ")";
-         if paren_result then
-            output ")";
-      end;
+
       if (cast_result) then output (")");
       if ( (is_variable func) && (not (is_cpp_function_member func) ) &&
-           (expr_type<>"Dynamic" && expr_type<>"cpp::ArrayBase" ) && (not is_super) && (not is_block_call)) then
+           (expr_type<>"Dynamic" && expr_type<>"cpp::ArrayBase" ) && (not is_super)  ) then
          ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 
       let rec cast_array_output func =
@@ -2210,13 +2140,13 @@ and gen_expression ctx retval expression =
          let remaining = ref (List.length expr_list) in
          List.iter (fun expression ->
             let want_value = (return_from_block && !remaining = 1) in
-            find_local_functions_and_return_blocks_ctx ctx want_value expression;
+            find_local_functions_and_return_blocks_ctx want_value expression;
             if (ctx.ctx_debug_level>0) then
                output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ ")\n" );
             output_i "";
             ctx.ctx_return_from_internal_node <- return_from_internal_node;
             if (want_value) then output "return ";
-            gen_expression ctx want_value expression;
+            gen_expression want_value expression;
             decr remaining;
             writer#terminate_line
             ) expr_list;
@@ -2234,11 +2164,11 @@ and gen_expression ctx retval expression =
       ( match optional_expr with
       | Some return_expression when ( (type_string expression.etype)="Void") ->
          output "return null(";
-         gen_expression ctx true return_expression;
+         gen_expression true return_expression;
          output ")";
       | Some return_expression ->
          output "return ";
-         gen_expression ctx true return_expression
+         gen_expression true return_expression
       | _ -> output (if ctx.ctx_real_void then "return" else "return null()")
       )
 
@@ -2270,32 +2200,32 @@ and gen_expression ctx retval expression =
       if ( assigning && (not dynamic) ) then begin
          if (is_array_implementer array_expr.etype) then begin
             output "hx::__ArrayImplRef(";
-            gen_expression ctx true array_expr;
+            gen_expression true array_expr;
             output ",";
-            gen_expression ctx true index;
+            gen_expression true index;
             output ")";
          end else begin
-            gen_expression ctx true array_expr;
+            gen_expression true array_expr;
             output "[";
-            gen_expression ctx true index;
+            gen_expression true index;
             output "]";
          end
       end else if (assigning) then begin
          (* output (" /*" ^ (type_string array_expr.etype) ^ " */ "); *)
          output "hx::IndexRef((";
-         gen_expression ctx true array_expr;
+         gen_expression true array_expr;
          output ").mPtr,";
-         gen_expression ctx true index;
+         gen_expression true index;
          output ")";
       end else if ( dynamic ) then begin
-         gen_expression ctx true array_expr;
+         gen_expression true array_expr;
          output "->__GetItem(";
-         gen_expression ctx true index;
+         gen_expression true index;
          output ")";
       end else begin
-         gen_expression ctx true array_expr;
+         gen_expression true array_expr;
          output "->__get(";
-         gen_expression ctx true index;
+         gen_expression true index;
          output ")";
          if not (is_pointer array_expr.etype true) then
             check_array_element_cast array_expr.etype ".StaticCast" "()";
@@ -2310,7 +2240,7 @@ and gen_expression ctx retval expression =
          | _ -> assert false
       in
       output (  "(::" ^ (join_class_path_remap enum.e_path "::") ^ "(");
-      gen_expression ctx true expr;
+      gen_expression true expr;
       output ( "))->__Param(" ^ (string_of_int i) ^ ")")
    | TField (field_object,field) ->
       let after_cast = add_objc_cast_if_needed expression in
@@ -2318,9 +2248,9 @@ and gen_expression ctx retval expression =
       output after_cast
 
    | TParenthesis expr when not retval ->
-         gen_expression ctx retval expr;
-   | TParenthesis expr -> output "("; gen_expression ctx retval expr; output ")"
-   | TMeta (_,expr) -> gen_expression ctx retval expr;
+         gen_expression retval expr;
+   | TParenthesis expr -> output "("; gen_expression retval expr; output ")"
+   | TMeta (_,expr) -> gen_expression retval expr;
    | TObjectDecl (
       ("fileName" , { eexpr = (TConst (TString file)) }) ::
          ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
@@ -2337,7 +2267,7 @@ and gen_expression ctx retval expression =
       else
          output ( (type_string_suff "_obj" expression.etype true) ^ "::__new()");
       List.iter ( fun elem -> output ".Add(";
-                     gen_expression ctx true elem;
+                     gen_expression true elem;
                      output ")" ) decl_list;
       if tstr="Dynamic" then output ")";
    | TNew (klass,params,expressions) ->
@@ -2356,18 +2286,18 @@ and gen_expression ctx retval expression =
       end
    | TUnop (Ast.NegBits,Ast.Prefix,expr) ->
       output "~(int)(";
-      gen_expression ctx true expr;
+      gen_expression true expr;
       output ")"
    | TUnop (op,Ast.Prefix,expr) ->
       ctx.ctx_assigning <- (match op with Ast.Increment | Ast.Decrement -> true | _ ->false);
       output (Ast.s_unop op);
       output "(";
-      gen_expression ctx true expr;
+      gen_expression true expr;
       output ")"
    | TUnop (op,Ast.Postfix,expr) ->
       ctx.ctx_assigning <- true;
       output "(";
-      gen_expression ctx true expr;
+      gen_expression true expr;
       output ")";
       output (Ast.s_unop op)
    | TFunction func ->
@@ -2386,7 +2316,7 @@ and gen_expression ctx retval expression =
       if (retval && !count==1) then
          (match optional_init with
          | None -> output "null()"
-         | Some expression -> gen_expression ctx true expression )
+         | Some expression -> gen_expression true expression )
       else begin
       let type_name = (type_string tvar.v_type) in
          output (if type_name="Void" then "Dynamic" else type_name );
@@ -2394,21 +2324,21 @@ and gen_expression ctx retval expression =
          output (" " ^ name );
          (match optional_init with
          | None -> ()
-         | Some expression -> output " = "; gen_expression ctx true expression);
+         | Some expression -> output " = "; gen_expression true expression);
          count := !count -1;
       if (ctx.ctx_debug_level>0) then
             output (";\t\tHX_STACK_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
          if (!count > 0) then begin output ";\n"; output_i "" end
       end
-| TFor (tvar, init, loop) ->
+   | TFor (tvar, init, loop) ->
       output ("for(::cpp::FastIterator_obj< " ^  (type_string tvar.v_type) ^
             " > *__it = ::cpp::CreateFastIterator< "^(type_string tvar.v_type) ^ " >(");
-      gen_expression ctx true init;
+      gen_expression true init;
       output (");  __it->hasNext(); )");
       ctx.ctx_writer#begin_block;
       output_i ( (type_string tvar.v_type) ^ " " ^ (keyword_remap tvar.v_name) ^ " = __it->next();\n" );
       output_i "";
-      gen_expression ctx false loop;
+      gen_expression false loop;
       output ";\n";
       ctx.ctx_writer#end_block;
    | TIf (condition, if_expr, optional_else_expr)  ->
@@ -2416,42 +2346,42 @@ and gen_expression ctx retval expression =
       | Some else_expr ->
          if (retval) then begin
             output "(  (";
-            gen_expression ctx true condition;
+            gen_expression true condition;
             output ") ? ";
             let type_str = match (type_string expression.etype) with
             | "Void" -> "Dynamic"
             | other -> other
             in
             output (type_str ^ "(");
-            gen_expression ctx true if_expr;
+            gen_expression true if_expr;
             output ") : ";
 
             output (type_str ^ "(");
-            gen_expression ctx true else_expr;
+            gen_expression true else_expr;
             output ") )";
          end else begin
             output "if (";
-            gen_expression ctx true condition;
+            gen_expression true condition;
             output ")";
-            gen_expression ctx false (mk_block if_expr);
+            gen_block_expression if_expr;
             output_i "else";
-            gen_expression ctx false (mk_block else_expr);
+            gen_block_expression else_expr;
          end
       | _ -> output "if (";
-         gen_expression ctx true condition;
+         gen_expression true condition;
          output ")";
-         gen_expression ctx false (mk_block if_expr);
+         gen_block_expression if_expr;
       )
    | TWhile (condition, repeat, Ast.NormalWhile ) ->
          output  "while(";
-         gen_expression ctx true condition;
+         gen_expression true condition;
          output ")";
-         gen_expression ctx false (mk_block repeat)
+         gen_block_expression repeat
    | TWhile (condition, repeat, Ast.DoWhile ) ->
          output "do";
-         gen_expression ctx false (mk_block repeat);
+         gen_block_expression repeat;
          output "while(";
-         gen_expression ctx true condition;
+         gen_expression true condition;
          output ")"
 
    (* These have already been defined in find_local_return_blocks ... *)
@@ -2462,29 +2392,29 @@ and gen_expression ctx retval expression =
       let switch_on_int_constants = (only_int_cases cases) && (not (contains_break expression)) in
       if (switch_on_int_constants) then begin
          output "switch( (int)";
-         gen_expression ctx true condition;
+         gen_expression true condition;
          output ")";
          ctx.ctx_writer#begin_block;
          List.iter (fun (cases_list,expression) ->
             output_i "";
             List.iter (fun value -> output "case ";
-                        gen_expression ctx true value;
+                        gen_expression true value;
                         output ": " ) cases_list;
             ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_expression ctx false (mk_block expression);
+            gen_block_expression expression;
             output_i ";break;\n";
             ) cases;
          (match optional_default with | None -> ()
          | Some default ->
             output_i "default: ";
             ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_expression ctx false (mk_block default);
+            gen_block_expression default;
          );
          ctx.ctx_writer#end_block;
       end else begin
          let tmp_name = get_switch_var ctx in
          output ( (type_string condition.etype) ^ " " ^ tmp_name ^ " = " );
-         gen_expression ctx true condition;
+         gen_expression true condition;
          output ";\n";
          let else_str = ref "" in
          if (List.length cases > 0) then
@@ -2494,19 +2424,19 @@ and gen_expression ctx retval expression =
                let or_str = ref "" in
                List.iter (fun value ->
                   output (!or_str ^ " ( " ^ tmp_name ^ "==");
-                  gen_expression ctx true value;
+                  gen_expression true value;
                   output ")";
                   or_str := " || ";
                   ) cases;
                output (")");
                ctx.ctx_return_from_block <- return_from_internal_node;
-               gen_expression ctx false (mk_block expression);
+               gen_block_expression expression;
                ) cases;
          (match optional_default with | None -> ()
          | Some default ->
             output_i ( !else_str ^ " ");
             ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_expression ctx false (mk_block default);
+            gen_block_expression default;
             output ";\n";
          );
       end
@@ -2522,7 +2452,7 @@ and gen_expression ctx retval expression =
       output_i("");
       (* Move this "inside" the try call ... *)
       ctx.ctx_return_from_block <-return_from_internal_node;
-      gen_expression ctx false (mk_block expression);
+      gen_block_expression expression;
       output_i "}\n";
       if (List.length catch_list > 0 ) then begin
          output_i "catch(Dynamic __e)";
@@ -2541,7 +2471,7 @@ and gen_expression ctx retval expression =
             output_i (type_name ^ " " ^ v.v_name ^ " = __e;");
             (* Move this "inside" the catch call too ... *)
             ctx.ctx_return_from_block <-return_from_internal_node;
-            gen_expression ctx false (mk_block expression);
+            gen_block_expression (mk_block expression);
             ctx.ctx_writer#end_block;
             else_str := "else ";
             ) catch_list;
@@ -2556,23 +2486,23 @@ and gen_expression ctx retval expression =
    | TContinue -> output "continue"
    | TThrow expression ->
          output "HX_STACK_DO_THROW(";
-         gen_expression ctx true expression;
+         gen_expression true expression;
          output ")";
    | TCast (cast,None) when is_objc_type expression.etype && not (is_objc_type cast.etype) ->
      let ret_type = type_string expression.etype in
      output ("( (" ^ ret_type ^ ") (id) (");
-     gen_expression ctx true cast;
+     gen_expression true cast;
      output ") )"
    | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
-      gen_expression ctx retval cast;
+      gen_expression retval cast;
    | TCast (cast,None) ->
       let ret_type = type_string expression.etype in
       let from_type = if is_dynamic_in_cpp ctx cast then "Dynamic" else type_string cast.etype in
       if (from_type = ret_type) then begin
-         gen_expression ctx true cast
+         gen_expression true cast
       end else begin
          output ("((" ^ ret_type ^ ")(");
-         gen_expression ctx true cast;
+         gen_expression true cast;
          output "))";
       end;
    | TCast (e1,Some t) ->
@@ -2581,9 +2511,19 @@ and gen_expression ctx retval expression =
          output ("hx::TCastToArray(" )
       else
          output ("hx::TCast< ::" ^ class_name ^ " >::cast(" );
-      gen_expression ctx true e1;
+      gen_expression true e1;
       output ")";
-   );;
+ and gen_block_expression expression =
+    gen_expression false (mk_block expression)
+ in
+
+ if (set_var<>"") then begin
+    find_local_functions_and_return_blocks_ctx true expression_tree;
+    output set_var;
+ end;
+ gen_expression retval expression_tree;
+ output tail_code
+;;
 
 
 
@@ -2697,8 +2637,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             generate_default_values ctx function_def.tf_args "__o_";
             dump_src();
             output code;
-            gen_expression ctx false function_def.tf_expr;
-            output tail_code;
+            gen_expression_tree ctx false function_def.tf_expr "" tail_code;
             if (fake_void) then output "\treturn null();\n";
             ctx.ctx_writer#end_block;
          end else begin
@@ -2706,8 +2645,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
             if (add_block) then ctx.ctx_writer#begin_block;
             ctx.ctx_dump_src_pos <- dump_src;
             output code;
-            gen_expression ctx false (mk_block function_def.tf_expr);
-            output tail_code;
+            gen_expression_tree ctx false (mk_block function_def.tf_expr) "" tail_code;
             if (add_block) then begin
                if (fake_void) then output "\treturn null();\n";
                ctx.ctx_writer#end_block;
@@ -2735,16 +2673,16 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          if (is_void) then begin
             ctx.ctx_writer#begin_block;
             generate_default_values ctx function_def.tf_args "__o_";
-            gen_expression ctx false function_def.tf_expr;
+            gen_expression_tree ctx false function_def.tf_expr "" "";
             output "return null();\n";
             ctx.ctx_writer#end_block;
          end else if (has_default_values function_def.tf_args) then begin
             ctx.ctx_writer#begin_block;
             generate_default_values ctx function_def.tf_args "__o_";
-            gen_expression ctx false function_def.tf_expr;
+            gen_expression_tree ctx false function_def.tf_expr "" "";
             ctx.ctx_writer#end_block;
          end else
-            gen_expression ctx false (mk_block function_def.tf_expr);
+            gen_expression_tree ctx false (mk_block function_def.tf_expr) "" "";
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
          output ("HX_END_DEFAULT_FUNC\n\n");
@@ -2787,13 +2725,11 @@ let gen_field_init ctx field =
    (* Data field *)
    | _ -> (match field.cf_expr with
       | Some expr ->
-         find_local_functions_and_return_blocks_ctx ctx true expr;
-         output ( match remap_name with
+         let var_name = ( match remap_name with
                   | "__meta__" -> "\t__mClass->__meta__="
                   | "__rtti" -> "\t__mClass->__rtti__="
-                  | _ -> "\t" ^ remap_name ^ "= ");
-         gen_expression ctx true expr;
-         output ";\n"
+                  | _ -> "\t" ^ remap_name ^ "= ") in
+         gen_expression_tree ctx true expr var_name ";\n";
       | _ -> ( )
       );
    )
@@ -3094,8 +3030,7 @@ let generate_main common_ctx member_types super_deps class_def file_info =
       if is_main then output_main "\n#include <hx/HxcppMain.h>\n\n";
 
       generate_main_footer1 output_main;
-      gen_expression (new_context common_ctx cpp_file 1 file_info) false main_expression;
-      output_main ";\n";
+      gen_expression_tree (new_context common_ctx cpp_file 1 file_info) false main_expression "" ";\n";
       generate_main_footer2 output_main;
       cpp_file#close;
    in
@@ -3361,10 +3296,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
    (match meta with
       | Some expr ->
          let ctx = new_context common_ctx cpp_file 1 file_info in
-         find_local_functions_and_return_blocks_ctx ctx true expr;
-         output_cpp ("__mClass->__meta__ = ");
-         gen_expression ctx true expr;
-         output_cpp ";\n"
+         gen_expression_tree ctx true expr  "__mClass->__meta__ = " ";\n";
       | _ -> () );
    PMap.iter (fun _ constructor ->
       let name = constructor.ef_name in
@@ -3664,13 +3596,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
                   if (has_default_values function_def.tf_args) then begin
                      generate_default_values ctx function_def.tf_args "__o_";
-                     gen_expression ctx false (mk_block function_def.tf_expr);
-                     cpp_file#terminate_line;
-                  end else begin
-                     gen_expression ctx false (mk_block function_def.tf_expr);
-                     cpp_file#terminate_line;
-                     (*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
                   end;
+                  gen_expression_tree ctx false (mk_block function_def.tf_expr) "" "";
+                  cpp_file#terminate_line;
                   ctx.ctx_debug_level <- debug;
                | _ -> ()
                )
@@ -3716,7 +3644,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    | Some expression ->
       output_cpp ("void " ^ class_name^ "::__init__() {\n");
       hx_stack_push ctx output_cpp dot_name "__init__" expression.epos;
-      gen_expression (new_context common_ctx cpp_file debug file_info) false (mk_block expression);
+      gen_expression_tree (new_context common_ctx cpp_file debug file_info) false (mk_block expression) "" "";
       output_cpp "}\n\n";
    | _ -> ());
 
