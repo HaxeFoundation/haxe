@@ -34,7 +34,7 @@ package js.jquery;
 	/**
 		 Add handlers to be called when the Deferred object generates progress notifications.
 	**/
-	public function progress(progressCallbacks:haxe.extern.EitherType<haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, Array<Dynamic>>, ?progressCallbacks:haxe.extern.EitherType<haxe.extern.EitherType<haxe.Constraints.Function, Array<haxe.Constraints.Function>>, Array<Dynamic>>):js.jquery.Deferred;
+	public function progress(progressCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, haxe.extern.EitherType<Array<Dynamic>, Array<haxe.Constraints.Function>>>, ?progressCallbacks:haxe.extern.EitherType<haxe.Constraints.Function, haxe.extern.EitherType<Array<Dynamic>, Array<haxe.Constraints.Function>>>):js.jquery.Deferred;
 	/**
 		 Return a Deferred's Promise object. 
 	**/

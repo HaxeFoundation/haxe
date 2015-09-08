@@ -78,12 +78,12 @@ package js.jquery;
 	/**
 		Load data from the server using a HTTP GET request.
 	**/
-	@:overload(function(url:String, ?data:haxe.extern.EitherType<Dynamic, String>, ?success:Dynamic -> String -> js.jquery.JqXHR -> Void, ?dataType:String):js.jquery.JqXHR { })
+	@:overload(function(url:String, ?data:Dynamic, ?success:Dynamic -> String -> js.jquery.JqXHR -> Void, ?dataType:String):js.jquery.JqXHR { })
 	static public function get(settings:Dynamic):js.jquery.JqXHR;
 	/**
 		Load JSON-encoded data from the server using a GET HTTP request.
 	**/
-	static public function getJSON(url:String, ?data:haxe.extern.EitherType<Dynamic, String>, ?success:Dynamic -> String -> js.jquery.JqXHR -> Void):js.jquery.JqXHR;
+	static public function getJSON(url:String, ?data:Dynamic, ?success:Dynamic -> String -> js.jquery.JqXHR -> Void):js.jquery.JqXHR;
 	/**
 		Load a JavaScript file from the server using a GET HTTP request, then execute it.
 	**/
@@ -164,8 +164,8 @@ package js.jquery;
 	/**
 		Create a serialized representation of an array, a plain object, or a jQuery object suitable for use in a URL query string or Ajax request. In case a jQuery object is passed, it should contain input elements with name/value properties.
 	**/
-	@:overload(function(obj:haxe.extern.EitherType<Array<Dynamic>, haxe.extern.EitherType<Dynamic, js.jquery.JQuery>>, traditional:Bool):String { })
-	static public function param(obj:haxe.extern.EitherType<Array<Dynamic>, haxe.extern.EitherType<Dynamic, js.jquery.JQuery>>):String;
+	@:overload(function(obj:Dynamic, traditional:Bool):String { })
+	static public function param(obj:Dynamic):String;
 	/**
 		Parses a string into an array of DOM nodes.
 	**/
@@ -173,7 +173,7 @@ package js.jquery;
 	/**
 		Takes a well-formed JSON string and returns the resulting JavaScript value.
 	**/
-	static public function parseJSON(json:String):haxe.extern.EitherType<String, haxe.extern.EitherType<Float, haxe.extern.EitherType<Dynamic, haxe.extern.EitherType<Array<Dynamic>, Bool>>>>;
+	static public function parseJSON(json:String):Dynamic;
 	/**
 		Parses a string into an XML document.
 	**/
@@ -181,7 +181,7 @@ package js.jquery;
 	/**
 		Load data from the server using a HTTP POST request.
 	**/
-	@:overload(function(url:String, ?data:haxe.extern.EitherType<Dynamic, String>, ?success:Dynamic -> String -> js.jquery.JqXHR -> Void, ?dataType:String):js.jquery.JqXHR { })
+	@:overload(function(url:String, ?data:Dynamic, ?success:Dynamic -> String -> js.jquery.JqXHR -> Void, ?dataType:String):js.jquery.JqXHR { })
 	static public function post(settings:Dynamic):js.jquery.JqXHR;
 	/**
 		Takes a function and returns a new one that will always have a particular context.
@@ -242,9 +242,9 @@ package js.jquery;
 	/**
 		Insert content, specified by the parameter, after each element in the set of matched elements.
 	**/
-	@:overload(function(_function:Int -> String -> haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>):js.jquery.JQuery { })
-	@:overload(function(content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
-	public function after(_function:Int -> haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>):js.jquery.JQuery;
+	@:overload(function(_function:Int -> String -> haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery { })
+	@:overload(function(content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
+	public function after(_function:Int -> haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Register a handler to be called when Ajax requests complete. This is an <a href="/Ajax_Events/">AjaxEvent</a>.
 	**/
@@ -281,27 +281,27 @@ package js.jquery;
 	/**
 		Insert content, specified by the parameter, to the end of each element in the set of matched elements.
 	**/
-	@:overload(function(content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
-	public function append(_function:Int -> String -> haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>):js.jquery.JQuery;
+	@:overload(function(content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
+	public function append(_function:Int -> String -> haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Insert every element in the set of matched elements to the end of the target.
 	**/
-	public function appendTo(target:haxe.extern.EitherType<String, haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, js.jquery.JQuery>>>>):js.jquery.JQuery;
+	public function appendTo(target:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
 		Set one or more attributes for the set of matched elements.
 		OR
 		Get the value of an attribute for the first element in the set of matched elements.
 	**/
 	@:overload(function(attributes:Dynamic):js.jquery.JQuery { })
-	@:overload(function(attributeName:String, value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
-	@:overload(function(attributeName:String, _function:Int -> String -> haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
+	@:overload(function(attributeName:String, value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
+	@:overload(function(attributeName:String, _function:Int -> String -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	public function attr(attributeName:String):String;
 	/**
 		Insert content, specified by the parameter, before each element in the set of matched elements.
 	**/
-	@:overload(function(_function:Int -> String -> haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>):js.jquery.JQuery { })
-	@:overload(function(content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
-	public function before(_function:Int -> haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>):js.jquery.JQuery;
+	@:overload(function(_function:Int -> String -> haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery { })
+	@:overload(function(content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
+	public function before(_function:Int -> haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Attach a handler to an event for the elements.
 	**/
@@ -361,8 +361,8 @@ package js.jquery;
 	**/
 	@:overload(function(propertyNames:Array<String>):String { })
 	@:overload(function(properties:Dynamic):js.jquery.JQuery { })
-	@:overload(function(propertyName:String, value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
-	@:overload(function(propertyName:String, _function:Int -> String -> haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
+	@:overload(function(propertyName:String, value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
+	@:overload(function(propertyName:String, _function:Int -> String -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	public function css(propertyName:String):String;
 	/**
 		Return the value at the named data store for the first element in the jQuery collection, as set by data(name, value) or by an HTML5 data-* attribute.
@@ -434,8 +434,8 @@ package js.jquery;
 	/**
 		Adjust the opacity of the matched elements.
 	**/
-	@:overload(function(duration:haxe.extern.EitherType<String, Float>, opacity:Float, ?easing:String, ?complete:haxe.Constraints.Function):js.jquery.JQuery { })
-	public function fadeTo(duration:haxe.extern.EitherType<String, Float>, opacity:Float, ?complete:haxe.Constraints.Function):js.jquery.JQuery;
+	@:overload(function(duration:haxe.extern.EitherType<Float, String>, opacity:Float, ?easing:String, ?complete:haxe.Constraints.Function):js.jquery.JQuery { })
+	public function fadeTo(duration:haxe.extern.EitherType<Float, String>, opacity:Float, ?complete:haxe.Constraints.Function):js.jquery.JQuery;
 	/**
 		Display or hide the matched elements by animating their opacity.
 	**/
@@ -500,8 +500,8 @@ package js.jquery;
 		OR
 		Get the current computed height for the first element in the set of matched elements.
 	**/
-	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
-	@:overload(function(_function:Int -> Int -> haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
+	@:overload(function(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Int -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	public function height():Float;
 	/**
 		Hide the matched elements.
@@ -536,25 +536,25 @@ package js.jquery;
 		OR
 		Get the current computed height for the first element in the set of matched elements, including padding but not border.
 	**/
-	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
-	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
+	@:overload(function(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	public function innerHeight():Float;
 	/**
 		Get the current computed inner width for the first element in the set of matched elements, including padding but not border.
 		OR
 		Set the CSS inner width of each element in the set of matched elements.
 	**/
-	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
-	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
+	@:overload(function(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	public function innerWidth():Float;
 	/**
 		Insert every element in the set of matched elements after the target.
 	**/
-	public function insertAfter(target:haxe.extern.EitherType<String, haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, js.jquery.JQuery>>>>):js.jquery.JQuery;
+	public function insertAfter(target:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
 		Insert every element in the set of matched elements before the target.
 	**/
-	public function insertBefore(target:haxe.extern.EitherType<String, haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, js.jquery.JQuery>>>>):js.jquery.JQuery;
+	public function insertBefore(target:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
 		Check the current matched set of elements against a selector, element, or jQuery object and return <code>true</code> if at least one of these elements matches the given arguments.
 	**/
@@ -598,7 +598,7 @@ package js.jquery;
 		Load data from the server and place the returned HTML into the matched element.
 	**/
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
-	@:overload(function(url:String, ?data:haxe.extern.EitherType<Dynamic, String>, ?complete:String -> String -> js.jquery.JqXHR -> Void):js.jquery.JQuery { })
+	@:overload(function(url:String, ?data:Dynamic, ?complete:String -> String -> js.jquery.JqXHR -> Void):js.jquery.JQuery { })
 	public function load(handler:js.jquery.Event -> Void):js.jquery.JQuery;
 	/**
 		Pass each element in the current matched set through a function, producing a new jQuery object containing the return values.
@@ -681,7 +681,7 @@ package js.jquery;
 	**/
 	@:overload(function(selection:js.jquery.JQuery):js.jquery.JQuery { })
 	@:overload(function(_function:Int -> js.html.Element -> Bool):js.jquery.JQuery { })
-	public function not(selector:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, Array<js.html.Element>>>):js.jquery.JQuery;
+	public function not(selector:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, String>>):js.jquery.JQuery;
 	/**
 		Remove an event handler.
 	**/
@@ -719,7 +719,7 @@ package js.jquery;
 	**/
 	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
 	@:overload(function(?includeMargin:Bool):Float { })
-	public function outerHeight(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery;
+	public function outerHeight(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery;
 	/**
 		Get the current computed width for the first element in the set of matched elements, including padding and border.
 		OR
@@ -727,7 +727,7 @@ package js.jquery;
 	**/
 	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
 	@:overload(function(?includeMargin:Bool):Float { })
-	public function outerWidth(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery;
+	public function outerWidth(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery;
 	/**
 		Get the parent of each element in the current set of matched elements, optionally filtered by a selector.
 	**/
@@ -748,12 +748,12 @@ package js.jquery;
 	/**
 		Insert content, specified by the parameter, to the beginning of each element in the set of matched elements.
 	**/
-	@:overload(function(content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
-	public function prepend(_function:Int -> String -> haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>):js.jquery.JQuery;
+	@:overload(function(content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>, ?content:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<Array<js.jquery.JQuery>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.NodeList, haxe.extern.EitherType<String, js.jquery.JQuery>>>>>>):js.jquery.JQuery { })
+	public function prepend(_function:Int -> String -> haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Insert every element in the set of matched elements to the beginning of the target.
 	**/
-	public function prependTo(target:haxe.extern.EitherType<String, haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, js.jquery.JQuery>>>>):js.jquery.JQuery;
+	public function prependTo(target:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
 		Get the immediately preceding sibling of each element in the set of matched elements, optionally filtered by a selector.
 	**/
@@ -822,12 +822,12 @@ package js.jquery;
 	/**
 		Replace each target element with the set of matched elements.
 	**/
-	public function replaceAll(target:haxe.extern.EitherType<String, haxe.extern.EitherType<js.jquery.JQuery, haxe.extern.EitherType<Array<js.html.Element>, js.html.Element>>>):js.jquery.JQuery;
+	public function replaceAll(target:haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
 		Replace each element in the set of matched elements with the provided new content and return the set of elements that was removed.
 	**/
 	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
-	public function replaceWith(newContent:haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, js.jquery.JQuery>>>):js.jquery.JQuery;
+	public function replaceWith(newContent:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
 		Bind an event handler to the "resize" JavaScript event, or trigger that event on an element.
 	**/
@@ -925,7 +925,7 @@ package js.jquery;
 		OR
 		Get the combined text contents of each element in the set of matched elements, including their descendants.
 	**/
-	@:overload(function(text:haxe.extern.EitherType<String, haxe.extern.EitherType<Float, Bool>>):js.jquery.JQuery { })
+	@:overload(function(text:haxe.extern.EitherType<Float, haxe.extern.EitherType<Bool, String>>):js.jquery.JQuery { })
 	@:overload(function(_function:Int -> String -> String):js.jquery.JQuery { })
 	public function text():String;
 	/**
@@ -949,13 +949,13 @@ package js.jquery;
 	/**
 		Execute all handlers and behaviors attached to the matched elements for the given event type.
 	**/
-	@:overload(function(event:js.jquery.Event, ?extraParameters:haxe.extern.EitherType<Array<Dynamic>, Dynamic>):js.jquery.JQuery { })
-	public function trigger(eventType:String, ?extraParameters:haxe.extern.EitherType<Array<Dynamic>, Dynamic>):js.jquery.JQuery;
+	@:overload(function(event:js.jquery.Event, ?extraParameters:Dynamic):js.jquery.JQuery { })
+	public function trigger(eventType:String, ?extraParameters:Dynamic):js.jquery.JQuery;
 	/**
 		Execute all handlers attached to an element for an event.
 	**/
-	@:overload(function(event:js.jquery.Event, ?extraParameters:haxe.extern.EitherType<Array<Dynamic>, Dynamic>):Dynamic { })
-	public function triggerHandler(eventType:String, ?extraParameters:haxe.extern.EitherType<Array<Dynamic>, Dynamic>):Dynamic;
+	@:overload(function(event:js.jquery.Event, ?extraParameters:Dynamic):Dynamic { })
+	public function triggerHandler(eventType:String, ?extraParameters:Dynamic):Dynamic;
 	/**
 		Remove a previously-attached event handler from the elements.
 	**/
@@ -985,32 +985,32 @@ package js.jquery;
 		OR
 		Get the current value of the first element in the set of matched elements.
 	**/
-	@:overload(function(value:haxe.extern.EitherType<String, haxe.extern.EitherType<Float, Array<String>>>):js.jquery.JQuery { })
+	@:overload(function(value:haxe.extern.EitherType<Float, haxe.extern.EitherType<Array<String>, String>>):js.jquery.JQuery { })
 	@:overload(function(_function:Int -> String -> String):js.jquery.JQuery { })
-	public function val():haxe.extern.EitherType<String, haxe.extern.EitherType<Float, Array<Dynamic>>>;
+	public function val():haxe.extern.EitherType<Float, haxe.extern.EitherType<Array<Dynamic>, String>>;
 	/**
 		Set the CSS width of each element in the set of matched elements.
 		OR
 		Get the current computed width for the first element in the set of matched elements.
 	**/
-	@:overload(function(value:haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
-	@:overload(function(_function:Int -> Int -> haxe.extern.EitherType<String, Float>):js.jquery.JQuery { })
+	@:overload(function(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Int -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	public function width():Float;
 	/**
 		Wrap an HTML structure around each element in the set of matched elements.
 	**/
 	@:overload(function(_function:Int -> haxe.extern.EitherType<String, js.jquery.JQuery>):js.jquery.JQuery { })
-	public function wrap(wrappingElement:haxe.extern.EitherType<String, haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>>):js.jquery.JQuery;
+	public function wrap(wrappingElement:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Wrap an HTML structure around all elements in the set of matched elements.
 	**/
 	@:overload(function(_function:Int -> haxe.extern.EitherType<String, js.jquery.JQuery>):js.jquery.JQuery { })
-	public function wrapAll(wrappingElement:haxe.extern.EitherType<String, haxe.extern.EitherType<String, haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>>>):js.jquery.JQuery;
+	public function wrapAll(wrappingElement:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Wrap an HTML structure around the content of each element in the set of matched elements.
 	**/
 	@:overload(function(_function:Int -> String):js.jquery.JQuery { })
-	public function wrapInner(wrappingElement:haxe.extern.EitherType<String, haxe.extern.EitherType<String, haxe.extern.EitherType<js.jquery.JQuery, js.html.Element>>>):js.jquery.JQuery;
+	public function wrapInner(wrappingElement:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Haxe iterator.
 	**/
