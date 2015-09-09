@@ -32,5 +32,5 @@ package haxe.extern;
 	}
 	```
 */
-@:genericBuild(haxe.CallbackBuilder.build())
+@:genericBuild(haxe.macro.CallbackBuilder.build())
 interface Callback<T:haxe.Constraints.Function> {}

@@ -1,9 +1,9 @@
-package haxe;
+package haxe.macro;
 
-import haxe.macro.*;
 import haxe.macro.Expr;
 
 class CallbackBuilder {
+	#if macro
 	static public function build() {
 		switch (Context.getLocalType()) {
 			case TInst(_, [Context.follow(_) => TFun(args, ret)]):
@@ -24,6 +24,7 @@ class CallbackBuilder {
 		}
 		return null;
 	}
+	#end
 
 	static function either(types:Array<ComplexType>):ComplexType {
 		return switch (types.length) {
