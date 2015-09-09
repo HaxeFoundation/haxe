@@ -528,7 +528,9 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
-	static var gitInfo(default, never) = {
+	static var gitInfo(get, never):{repo:String, branch:String, commit:String, date:String};
+	static var _gitInfo:{repo:String, branch:String, commit:String, date:String};
+	static function get_gitInfo() return if (_gitInfo != null) _gitInfo else _gitInfo = {
 		repo: switch (ci) {
 			case TravisCI:
 				Sys.getEnv("TRAVIS_REPO_SLUG");
