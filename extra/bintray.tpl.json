@@ -19,7 +19,8 @@
 
     "files":
         [
-            {"includePattern": "out/(.*)", "uploadPattern": "::os::/$1"}
+            {"includePattern": "out/(.*)_src\\.(.*)", "uploadPattern": "::os::/haxe_::versionName::_src.$2"},
+            {"includePattern": "out/(.*)_bin\\.(.*)", "uploadPattern": "::os::/haxe_::versionName::_bin.$2"}
         ],
     "publish": true
 }

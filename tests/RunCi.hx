@@ -548,23 +548,16 @@ class RunCi {
 		commit: commandResult("git", ["rev-parse", "HEAD"]).stdout.trim(),
 		date: {
 			var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
-			var tz = DateTools.format(Date.now(), "%z");
-			var tzd =
-				// +/-
-				(tz.charCodeAt(0) == '+'.code ? 1 : -1) * 
-				(
-					// hour
-					(Std.parseInt(tz.substr(1,2)) * 60 * 60 * 1000) +
-					// min
-					(Std.parseInt(tz.substr(3)) * 60 * 1000)
-				);
+			var tzd = {
+				var z = Date.fromTime(0);
+				z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
+			}
 			var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
 			DateTools.format(time, "%FT%TZ");
 		}
 	}
 	static var haxeVer(default, never) = {
 		var haxe_ver = haxe.macro.Compiler.getDefine("haxe_ver");
-		trace(haxe_ver);
 		switch (haxe_ver.split(".")) {
 			case [major]:
 				major;
@@ -579,15 +572,18 @@ class RunCi {
 		}
 	}
 
-	static function main():Void {
-		Sys.putEnv("OCAMLRUNPARAM", "b");
-
-		// bintray config
-		if (Sys.getEnv("BINTRAY") != null) {
+	static function bintray():Void {
+		if (
+			Sys.getEnv("BINTRAY") != null &&
+			Sys.getEnv("BINTRAY_USERNAME") != null &&
+			Sys.getEnv("BINTRAY_API_KEY") != null
+		) {
+			// generate bintray config
 			var tpl = new Template(File.getContent("../extra/bintray.tpl.json"));
+			var compatDate = ~/[^0-9]/g.replace(gitInfo.date, "");
 			var json = tpl.execute({
 				os: systemName.toLowerCase(),
-				versionName: '${haxeVer}~${gitInfo.date}_${gitInfo.commit.substr(0,7)}',
+				versionName: '${haxeVer}+${compatDate}.${gitInfo.commit.substr(0,7)}',
 				versionDesc: "Automated CI build.",
 				gitRepo: gitInfo.repo,
 				gitBranch: gitInfo.branch,
@@ -599,6 +595,12 @@ class RunCi {
 			infoMsg("saved " + FileSystem.absolutePath(path) + " with content:");
 			Sys.println(json);
 		}
+	}
+
+	static function main():Void {
+		Sys.putEnv("OCAMLRUNPARAM", "b");
+
+		bintray();
 
 		var tests:Array<TEST> = switch (Sys.getEnv("TEST")) {
 			case null:

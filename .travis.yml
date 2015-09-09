@@ -6,6 +6,9 @@ env:
     - OCAMLC=ocamlc.opt
     - OCAMLOPT=ocamlopt.opt
     - ADD_REVISION=1
+    # BINTRAY_USERNAME and BINTRAY_API_KEY
+    - secure: "siKPFDGCgWXLnUQCDXzYMnpTw7EfsLsTPqL9gS3DRlHTnqkQKGJb/HnsMRrfFSgvwesmZx+3ZPhNocdIpGBuokKgkp7Rubpa1yoKmutf1+Lbatii2/c/4/LIZW2E5xqPCLGT87BYTy/peu9Bf0rspnrqqJw7MrytOBVTRR2XSe8="
+    - secure: "VBJDQNJ9uvdt0aszo7oU3txuRvjkuLmuHZGOkrd4wE/5B4sX5jzx/+dnrKcNTXJCmQ/rVLuMu9GyxqVjNHlzce678voxdQNOtNkNgpkr1qN9/A9rRnCp77hH27ErdthpWxbmcnE62hAJ83TIKSvn//5lAkx4sMCKS1NXEWQ5qec="
 
 sudo: false
 addons:
@@ -151,7 +154,7 @@ deploy:
   provider: bintray
   on:
     all_branches: true
-    condition: "-n ${BINTRAY}"
+    condition: "-e extra/bintray.json"
   skip_cleanup: true
   file: "extra/bintray.json"
   user: "${BINTRAY_USERNAME}"

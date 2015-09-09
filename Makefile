@@ -58,8 +58,14 @@ ADD_REVISION?=0
 
 BRANCH=$(shell echo $$APPVEYOR_REPO_NAME | grep -q /haxe && echo $$APPVEYOR_REPO_BRANCH || echo $$TRAVIS_REPO_SLUG | grep -q /haxe && echo $$TRAVIS_BRANCH || git rev-parse --abbrev-ref HEAD)
 COMMIT_SHA=$(shell git rev-parse --short HEAD)
-COMMIT_DATE=$(shell git show -s --format=%ci HEAD | grep -oh ....-..-..)
-PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(BRANCH)_$(COMMIT_SHA)
+COMMIT_DATE=$(shell \
+	if [ "$$(uname)" == "Darwin" ]; then \
+		date -u -r $$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S; \
+	else \
+		date -u -d @$$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S; \
+	fi \
+)
+PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT
@@ -187,7 +193,7 @@ package_src:
 	mkdir -p $(PACKAGE_OUT_DIR)
 	# use git-archive-all since we have submodules
 	# https://github.com/Kentzo/git-archive-all
-	curl -s https://raw.githubusercontent.com/Kentzo/git-archive-all/master/git-archive-all | python - $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_source$(PACKAGE_SRC_EXTENSION)
+	curl -s https://raw.githubusercontent.com/Kentzo/git-archive-all/master/git-archive-all | python - $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_src$(PACKAGE_SRC_EXTENSION)
 
 package_bin:
 	mkdir -p $(PACKAGE_OUT_DIR)
@@ -196,7 +202,7 @@ package_bin:
 	mkdir -p $(PACKAGE_FILE_NAME)
 	cp -r $(OUTPUT) haxelib$(EXTENSION) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
 	# archive
-	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME).tar.gz $(PACKAGE_FILE_NAME)
+	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
 
 # Clean
