@@ -315,6 +315,21 @@ class RunCi {
 		} catch(e:Dynamic) false;
 	}
 
+	static function commandResult(cmd:String, args:Array<String>):{
+		stdout:String,
+		stderr:String,
+		exitCode:Int
+	} {
+		var p = new Process(cmd, args);
+		var out = {
+			stdout: p.stdout.readAll().toString(),
+			stderr: p.stderr.readAll().toString(),
+			exitCode: p.exitCode()
+		}
+		p.close();
+		return out;
+	}
+
 	static function addToPATH(path:String):Void {
 		switch (systemName) {
 			case "Windows":
@@ -513,9 +528,77 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
+	static var gitInfo(default, never) = {
+		repo: switch (ci) {
+			case TravisCI:
+				Sys.getEnv("TRAVIS_REPO_SLUG");
+			case AppVeyor:
+				Sys.getEnv("APPVEYOR_PROJECT_SLUG");
+			case _:
+				commandResult("git", ["config", "--get", "remote.origin.url"]).stdout.trim();
+		},
+		branch: switch (ci) {
+			case TravisCI:
+				Sys.getEnv("TRAVIS_BRANCH");
+			case AppVeyor:
+				Sys.getEnv("APPVEYOR_REPO_BRANCH");
+			case _:
+				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
+		},
+		commit: commandResult("git", ["rev-parse", "HEAD"]).stdout.trim(),
+		date: {
+			var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
+			var tz = DateTools.format(Date.now(), "%z");
+			var tzd =
+				// +/-
+				(tz.charCodeAt(0) == '+'.code ? 1 : -1) * 
+				(
+					// hour
+					(Std.parseInt(tz.substr(1,2)) * 60 * 60 * 1000) +
+					// min
+					(Std.parseInt(tz.substr(3)) * 60 * 1000)
+				);
+			var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
+			DateTools.format(time, "%FT%TZ");
+		}
+	}
+	static var haxeVer(default, never) = {
+		var haxe_ver = haxe.macro.Compiler.getDefine("haxe_ver");
+		trace(haxe_ver);
+		switch (haxe_ver.split(".")) {
+			case [major]:
+				major;
+			case [major, minor] if (minor.length == 1):
+				'${major}.${minor}';
+			case [major, minor] if (minor.length > 1):
+				var minor = minor.charAt(0);
+				var patch = Std.parseInt(minor.substr(1));
+				'${major}.${minor}.${patch}';
+			case _:
+				throw haxe_ver;
+		}
+	}
 
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
+
+		// bintray config
+		if (Sys.getEnv("BINTRAY") != null) {
+			var tpl = new Template(File.getContent("../extra/bintray.tpl.json"));
+			var json = tpl.execute({
+				os: systemName.toLowerCase(),
+				versionName: '${haxeVer}~${gitInfo.date}_${gitInfo.branch}_${gitInfo.commit.substr(0,7)}',
+				versionDesc: "Automated CI build.",
+				gitRepo: gitInfo.repo,
+				gitBranch: gitInfo.branch,
+				gitCommit: gitInfo.commit,
+				gitDate: gitInfo.date,
+			});
+			var path = "../extra/bintray.json";
+			File.saveContent("../extra/bintray.json", json);
+			infoMsg("saved " + FileSystem.absolutePath(path) + " with content:");
+			Sys.println(json);
+		}
 
 		var tests:Array<TEST> = switch (Sys.getEnv("TEST")) {
 			case null:

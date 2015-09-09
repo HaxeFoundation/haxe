@@ -1,0 +1,25 @@
+{
+    "package": {
+        "name": "haxe",
+        "repo": "development",
+        "subject": "andyli"
+    },
+
+    "version": {
+        "name": "::versionName::",
+        "desc": "::versionDesc::",
+        "released": "::gitDate::",
+        "attributes": [
+            {"name": "repo",   "values" : ["::gitRepo::"], "type": "string"},
+            {"name": "branch", "values" : ["::gitBranch::"], "type": "string"},
+            {"name": "commit", "values" : ["::gitCommit::"], "type": "string"}
+        ],
+        "gpgSign": false
+    },
+
+    "files":
+        [
+            {"includePattern": "out/(.*)", "uploadPattern": "::os::/$1"}
+        ],
+    "publish": true
+}
