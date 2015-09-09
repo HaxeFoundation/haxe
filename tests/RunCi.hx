@@ -587,7 +587,7 @@ class RunCi {
 			var tpl = new Template(File.getContent("../extra/bintray.tpl.json"));
 			var json = tpl.execute({
 				os: systemName.toLowerCase(),
-				versionName: '${haxeVer}~${gitInfo.date}_${gitInfo.branch}_${gitInfo.commit.substr(0,7)}',
+				versionName: '${haxeVer}~${gitInfo.date}_${gitInfo.commit.substr(0,7)}',
 				versionDesc: "Automated CI build.",
 				gitRepo: gitInfo.repo,
 				gitBranch: gitInfo.branch,
