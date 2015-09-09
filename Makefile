@@ -14,6 +14,8 @@ INSTALL_DIR=$(DESTDIR)/usr
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 INSTALL_STD_DIR=$(INSTALL_LIB_DIR)/std
+PACKAGE_OUT_DIR=out
+PACKAGE_SRC_EXTENSION=.tar.gz
 
 OUTPUT=haxe
 EXTENSION=
@@ -181,19 +183,25 @@ version.$(MODULE_EXT):
 
 # Package
 
+package_src:
+	mkdir -p $(PACKAGE_OUT_DIR)
+	# use git-archive-all since we have submodules
+	# https://github.com/Kentzo/git-archive-all
+	curl -s https://raw.githubusercontent.com/Kentzo/git-archive-all/master/git-archive-all | python /dev/stdin $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_source$(PACKAGE_SRC_EXTENSION)
+
 package_bin:
-	mkdir -p out
+	mkdir -p $(PACKAGE_OUT_DIR)
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	mkdir -p $(PACKAGE_FILE_NAME)
 	cp -r $(OUTPUT) haxelib$(EXTENSION) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
 	# archive
-	tar -zcf out/$(PACKAGE_FILE_NAME).tar.gz $(PACKAGE_FILE_NAME)
+	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME).tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
 
 # Clean
 
-clean: clean_libs clean_haxe clean_tools
+clean: clean_libs clean_haxe clean_tools clean_package
 
 clean_libs:
 	make -C libs/extlib clean
@@ -214,6 +222,9 @@ clean_tools:
 	rm -f $(OUTPUT) haxelib
 	rm -f extra/haxelib_src/bin/haxelib.n
 	rm -f extra/haxelib_src/bin/haxelib
+
+clean_package:
+	rm -rf $(PACKAGE_OUT_DIR)
 
 # SUFFIXES
 
