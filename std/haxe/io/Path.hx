@@ -26,7 +26,7 @@ package haxe.io;
 	common path formats:
 
 	- directory1/directory2/filename.extension
-	- directory1\directory2\filename.excention
+	- directory1\directory2\filename.extension
 **/
 class Path {
 
