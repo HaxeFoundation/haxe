@@ -987,7 +987,7 @@ package js.jquery;
 	**/
 	@:overload(function(value:haxe.extern.EitherType<Float, haxe.extern.EitherType<Array<String>, String>>):js.jquery.JQuery { })
 	@:overload(function(_function:Int -> String -> String):js.jquery.JQuery { })
-	public function val():haxe.extern.EitherType<Float, haxe.extern.EitherType<Array<Dynamic>, String>>;
+	public function val():Dynamic;
 	/**
 		Set the CSS width of each element in the set of matched elements.
 		OR
