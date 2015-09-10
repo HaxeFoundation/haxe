@@ -59,6 +59,7 @@ private class MathImpl {
 		M.fceil = try Lib.load("std", "math_fceil", 1) catch( e : Dynamic ) M.ceil;
 		M.ffloor = try Lib.load("std", "math_ffloor", 1) catch( e : Dynamic ) M.floor;
 		M.fround = try Lib.load("std", "math_fround", 1) catch( e : Dynamic ) M.round;
+		M.random = random;
 	}
 }
 
