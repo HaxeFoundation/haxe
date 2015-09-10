@@ -51,27 +51,35 @@ class RunSauceLabs {
 		var connectPort = "4445";
 		var urls = [];
 
+		// hide "Stop running this script?" dialogs
+		// https://support.saucelabs.com/customer/portal/articles/2057026-how-to-hide-%22stop-running-this-script-%22-dialogs
+		var hideLongRunningScriptWarning = "https://support.saucelabs.com/customer/portal/kb_article_attachments/59514/original.bat";
+
 		//https://saucelabs.com/platforms
 		var browsers:Array<Dynamic> = [
 			// {
 			// 	"browserName": "internet explorer",
 			// 	"platform": "Windows XP",
-			// 	"version": "6"
+			// 	"version": "6",
+			//  "prerun": hideLongRunningScriptWarning
 			// },
 			// {
 			// 	"browserName": "internet explorer",
 			// 	"platform": "Windows XP",
-			// 	"version": "7"
+			// 	"version": "7",
+			//  "prerun": hideLongRunningScriptWarning
 			// },
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows XP",
-				"version": "8"
+				"version": "8",
+				"prerun": hideLongRunningScriptWarning
 			},
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows 7",
-				"version": "9"
+				"version": "9",
+				"prerun": hideLongRunningScriptWarning
 			},
 			{
 				"browserName": "internet explorer",
