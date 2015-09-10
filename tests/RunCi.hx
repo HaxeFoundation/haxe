@@ -579,10 +579,16 @@ class RunCi {
 			Sys.getEnv("BINTRAY_USERNAME") != null &&
 			Sys.getEnv("BINTRAY_API_KEY") != null
 		) {
+			changeDirectory(repoDir);
+
 			// generate bintray config
-			var tpl = new Template(File.getContent("../extra/bintray.tpl.json"));
+			var tpl = new Template(File.getContent("extra/bintray.tpl.json"));
 			var compatDate = ~/[^0-9]/g.replace(gitInfo.date, "");
 			var json = tpl.execute({
+				packageSubject: {
+					var sub = Sys.getEnv("BINTRAY_SUBJECT");
+					sub != null ? sub : Sys.getEnv("BINTRAY_USERNAME");
+				},
 				os: systemName.toLowerCase(),
 				versionName: '${haxeVer}+${compatDate}.${gitInfo.commit.substr(0,7)}',
 				versionDesc: "Automated CI build.",
@@ -591,10 +597,14 @@ class RunCi {
 				gitCommit: gitInfo.commit,
 				gitDate: gitInfo.date,
 			});
-			var path = "../extra/bintray.json";
-			File.saveContent("../extra/bintray.json", json);
+			var path = "extra/bintray.json";
+			File.saveContent("extra/bintray.json", json);
 			infoMsg("saved " + FileSystem.absolutePath(path) + " with content:");
 			Sys.println(json);
+
+			// generate doc
+			runCommand("make", ["-s", "install_dox"]);
+			runCommand("make", ["-s", "package_doc"]);
 		}
 	}
 
@@ -651,27 +661,6 @@ class RunCi {
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-neko.hxml"]);
 					runCommand("neko", ["bin/neko/sys.n"]);
-
-					switch (ci) {
-						case AppVeyor:
-							//save time...
-						case _:
-							//generate documentation
-							haxelibInstallGit("Simn", "hxparse", "development", "src", true);
-							haxelibInstallGit("Simn", "hxtemplo", true);
-							haxelibInstallGit("Simn", "hxargs", true);
-							haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
-
-							haxelibInstallGit("HaxeFoundation", "hxcpp", true);
-							haxelibInstallGit("HaxeFoundation", "hxjava", true);
-							haxelibInstallGit("HaxeFoundation", "hxcs", true);
-
-							haxelibInstallGit("dpeek", "dox", true);
-							changeDirectory(getHaxelibPath("dox"));
-							runCommand("haxe", ["run.hxml"]);
-							runCommand("haxe", ["gen.hxml"]);
-							haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
-					}
 				case Php:
 					getPhpDependencies();
 					var args = switch (ci) {

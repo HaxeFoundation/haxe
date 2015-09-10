@@ -59,7 +59,7 @@ ADD_REVISION?=0
 BRANCH=$(shell echo $$APPVEYOR_REPO_NAME | grep -q /haxe && echo $$APPVEYOR_REPO_BRANCH || echo $$TRAVIS_REPO_SLUG | grep -q /haxe && echo $$TRAVIS_BRANCH || git rev-parse --abbrev-ref HEAD)
 COMMIT_SHA=$(shell git rev-parse --short HEAD)
 COMMIT_DATE=$(shell \
-	if [ "$$(uname)" == "Darwin" ]; then \
+	if [ "$$(uname)" = "Darwin" ]; then \
 		date -u -r $$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S; \
 	else \
 		date -u -d @$$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S; \
@@ -204,6 +204,21 @@ package_bin:
 	# archive
 	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
+
+
+install_dox:
+	haxelib git hxparse https://github.com/Simn/hxparse development src
+	haxelib git hxtemplo https://github.com/Simn/hxtemplo
+	haxelib git hxargs https://github.com/Simn/hxargs
+	haxelib git markdown https://github.com/dpeek/haxe-markdown master src
+	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
+	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
+	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
+	haxelib git dox https://github.com/dpeek/dox
+
+package_doc:
+	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml
+	haxelib run dox --title "Haxe API" -o $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i $$(haxelib path dox | head -n 1)bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
 
 # Clean
 

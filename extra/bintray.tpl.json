@@ -1,8 +1,8 @@
 {
     "package": {
         "name": "haxe",
-        "repo": "development",
-        "subject": "andyli"
+        "repo": "snapshot",
+        "subject": "::packageSubject::"
     },
 
     "version": {
@@ -19,8 +19,9 @@
 
     "files":
         [
-            {"includePattern": "out/(.*)_src\\.(.*)", "uploadPattern": "::os::/haxe_::versionName::_src.$2"},
-            {"includePattern": "out/(.*)_bin\\.(.*)", "uploadPattern": "::os::/haxe_::versionName::_bin.$2"}
+            {"includePattern": "out/(.*)_src\\.(.*)", "uploadPattern": "::os::/::gitBranch::/haxe_::versionName::_src.$2"},
+            {"includePattern": "out/(.*)_bin\\.(.*)", "uploadPattern": "::os::/::gitBranch::/haxe_::versionName::_bin.$2"},
+            {"includePattern": "out/(.*)_doc\\.(.*)", "uploadPattern": "::os::/::gitBranch::/haxe_::versionName::_doc.$2"}
         ],
     "publish": true
 }
