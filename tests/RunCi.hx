@@ -748,9 +748,9 @@ class RunCi {
 
 					var env = Sys.environment();
 					if (
-						env.exists("SAUCE_USERNAME") && env.exists("SAUCE_ACCESS_KEY") &&
-						// only run on Linux build
-						(ci != null ? systemName == "Linux" : true)
+						env.exists("SAUCE") && 
+						env.exists("SAUCE_USERNAME") && 
+						env.exists("SAUCE_ACCESS_KEY")
 					) {
 						// sauce-connect should have been started
 
