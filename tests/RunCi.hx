@@ -528,9 +528,8 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
-	static var gitInfo(get, never):{repo:String, branch:String, commit:String, date:String};
-	static var _gitInfo:{repo:String, branch:String, commit:String, date:String};
-	static function get_gitInfo() return if (_gitInfo != null) _gitInfo else _gitInfo = {
+	static var gitInfo(get, null):{repo:String, branch:String, commit:String, date:String};
+	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
 		repo: switch (ci) {
 			case TravisCI:
 				Sys.getEnv("TRAVIS_REPO_SLUG");
@@ -624,27 +623,6 @@ class RunCi {
 					getPythonDependencies();
 					runCommand("haxe", ["compile.hxml"]);
 
-					switch (ci) {
-						case AppVeyor:
-							//save time...
-						case _:
-							//generate documentation
-							haxelibInstallGit("Simn", "hxparse", "development", "src", true);
-							haxelibInstallGit("Simn", "hxtemplo", true);
-							haxelibInstallGit("Simn", "hxargs", true);
-							haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
-
-							haxelibInstallGit("HaxeFoundation", "hxcpp", true);
-							haxelibInstallGit("HaxeFoundation", "hxjava", true);
-							haxelibInstallGit("HaxeFoundation", "hxcs", true);
-
-							haxelibInstallGit("dpeek", "dox", true);
-							changeDirectory(getHaxelibPath("dox"));
-							runCommand("haxe", ["run.hxml"]);
-							runCommand("haxe", ["gen.hxml"]);
-							haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
-					}
-
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-macro.hxml"]);
 					runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
@@ -673,6 +651,27 @@ class RunCi {
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-neko.hxml"]);
 					runCommand("neko", ["bin/neko/sys.n"]);
+
+					switch (ci) {
+						case AppVeyor:
+							//save time...
+						case _:
+							//generate documentation
+							haxelibInstallGit("Simn", "hxparse", "development", "src", true);
+							haxelibInstallGit("Simn", "hxtemplo", true);
+							haxelibInstallGit("Simn", "hxargs", true);
+							haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
+
+							haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+							haxelibInstallGit("HaxeFoundation", "hxjava", true);
+							haxelibInstallGit("HaxeFoundation", "hxcs", true);
+
+							haxelibInstallGit("dpeek", "dox", true);
+							changeDirectory(getHaxelibPath("dox"));
+							runCommand("haxe", ["run.hxml"]);
+							runCommand("haxe", ["gen.hxml"]);
+							haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
+					}
 				case Php:
 					getPhpDependencies();
 					var args = switch (ci) {

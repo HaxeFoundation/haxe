@@ -35,12 +35,12 @@ matrix:
       env: TEST=third-party
       addons: {apt: {packages: [*apt_php, *apt_cpp, *apt_cs, *apt_python]}}
     - os: linux
-      env:
-        - TEST=macro
-        - BINTRAY=1
+      env: TEST=macro
       addons: {apt: {packages: [*apt_cs, *apt_python]}}
     - os: linux
-      env: TEST=neko
+      env:
+        - TEST=neko
+        - BINTRAY=1
     - os: linux
       env:
         - TEST=js
@@ -75,11 +75,11 @@ matrix:
     - os: osx
       env: TEST=third-party
     - os: osx
-      env:
-        - TEST=macro
-        - BINTRAY=1
+      env: TEST=macro
     - os: osx
-      env: TEST=neko
+      env:
+        - TEST=neko
+        - BINTRAY=1
     - os: osx
       env: TEST=js
     - os: osx
