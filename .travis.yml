@@ -6,6 +6,10 @@ env:
     - OCAMLC=ocamlc.opt
     - OCAMLOPT=ocamlopt.opt
     - ADD_REVISION=1
+    # Bintray
+    - secure: "ETbwZaeRq8wIVZVyUk1IsNctYVuQa/U2biRkF9pQkz3MEXpaneynclVzNjm8rnm8JqfKcjUDUvQJBP1KYrJYq3tAJFhl31YUnS0FsF3sgLIcnHkhbRA24xJdIlCwHP6QUPoiyPbkec43NRwrF0071KOMD51vgUToXRtAe3o/15g="
+    - secure: "siKPFDGCgWXLnUQCDXzYMnpTw7EfsLsTPqL9gS3DRlHTnqkQKGJb/HnsMRrfFSgvwesmZx+3ZPhNocdIpGBuokKgkp7Rubpa1yoKmutf1+Lbatii2/c/4/LIZW2E5xqPCLGT87BYTy/peu9Bf0rspnrqqJw7MrytOBVTRR2XSe8="
+    - secure: "VBJDQNJ9uvdt0aszo7oU3txuRvjkuLmuHZGOkrd4wE/5B4sX5jzx/+dnrKcNTXJCmQ/rVLuMu9GyxqVjNHlzce678voxdQNOtNkNgpkr1qN9/A9rRnCp77hH27ErdthpWxbmcnE62hAJ83TIKSvn//5lAkx4sMCKS1NXEWQ5qec="
 
 sudo: false
 addons:
@@ -35,7 +39,9 @@ matrix:
       env: TEST=macro
       addons: {apt: {packages: [*apt_cs, *apt_python]}}
     - os: linux
-      env: TEST=neko
+      env:
+        - TEST=neko
+        - BINTRAY=1
     - os: linux
       env:
         - TEST=js
@@ -72,7 +78,9 @@ matrix:
     - os: osx
       env: TEST=macro
     - os: osx
-      env: TEST=neko
+      env:
+        - TEST=neko
+        - BINTRAY=1
     - os: osx
       env: TEST=js
     - os: osx
@@ -116,8 +124,10 @@ install:
     fi
 
 script:
+  - make package_src -s
   - make -s
   - make tools -s
+  - make package_bin -s
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
   - cd tests/
@@ -125,6 +135,7 @@ script:
   - haxe -version
   - haxe RunCi.hxml
   - neko RunCi.n
+  - cd $TRAVIS_BUILD_DIR
 
 branches:
   except:
@@ -139,3 +150,13 @@ notifications:
     on_success: change  # options: [always|never|change] default: always
     on_failure: always  # options: [always|never|change] default: always
     on_start: false     # default: false
+
+deploy:
+  provider: bintray
+  on:
+    all_branches: true
+    condition: "-e extra/bintray.json"
+  skip_cleanup: true
+  file: "extra/bintray.json"
+  user: "${BINTRAY_USERNAME}"
+  key: "${BINTRAY_API_KEY}"

@@ -11,6 +11,7 @@
 /extra/hxclasses
 /extra/*.swf
 /extra/*.swc
+/extra/bintray.json
 
 /version.ml
 /haxe

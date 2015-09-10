@@ -14,6 +14,8 @@ INSTALL_DIR=$(DESTDIR)/usr
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 INSTALL_STD_DIR=$(INSTALL_LIB_DIR)/std
+PACKAGE_OUT_DIR=out
+PACKAGE_SRC_EXTENSION=.tar.gz
 
 OUTPUT=haxe
 EXTENSION=
@@ -56,8 +58,14 @@ ADD_REVISION?=0
 
 BRANCH=$(shell echo $$APPVEYOR_REPO_NAME | grep -q /haxe && echo $$APPVEYOR_REPO_BRANCH || echo $$TRAVIS_REPO_SLUG | grep -q /haxe && echo $$TRAVIS_BRANCH || git rev-parse --abbrev-ref HEAD)
 COMMIT_SHA=$(shell git rev-parse --short HEAD)
-COMMIT_DATE=$(shell git show -s --format=%ci HEAD | grep -oh ....-..-..)
-PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(BRANCH)_$(COMMIT_SHA)
+COMMIT_DATE=$(shell \
+	if [ "$$(uname)" = "Darwin" ]; then \
+		date -u -r $$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S; \
+	else \
+		date -u -d @$$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S; \
+	fi \
+)
+PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT
@@ -181,19 +189,40 @@ version.$(MODULE_EXT):
 
 # Package
 
+package_src:
+	mkdir -p $(PACKAGE_OUT_DIR)
+	# use git-archive-all since we have submodules
+	# https://github.com/Kentzo/git-archive-all
+	curl -s https://raw.githubusercontent.com/Kentzo/git-archive-all/master/git-archive-all | python - $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_src$(PACKAGE_SRC_EXTENSION)
+
 package_bin:
-	mkdir -p out
+	mkdir -p $(PACKAGE_OUT_DIR)
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	mkdir -p $(PACKAGE_FILE_NAME)
 	cp -r $(OUTPUT) haxelib$(EXTENSION) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
 	# archive
-	tar -zcf out/$(PACKAGE_FILE_NAME).tar.gz $(PACKAGE_FILE_NAME)
+	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
+
+
+install_dox:
+	haxelib git hxparse https://github.com/Simn/hxparse development src
+	haxelib git hxtemplo https://github.com/Simn/hxtemplo
+	haxelib git hxargs https://github.com/Simn/hxargs
+	haxelib git markdown https://github.com/dpeek/haxe-markdown master src
+	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
+	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
+	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
+	haxelib git dox https://github.com/dpeek/dox
+
+package_doc:
+	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml
+	haxelib run dox --title "Haxe API" -o $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i $$(haxelib path dox | head -n 1)bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
 
 # Clean
 
-clean: clean_libs clean_haxe clean_tools
+clean: clean_libs clean_haxe clean_tools clean_package
 
 clean_libs:
 	make -C libs/extlib clean
@@ -214,6 +243,9 @@ clean_tools:
 	rm -f $(OUTPUT) haxelib
 	rm -f extra/haxelib_src/bin/haxelib.n
 	rm -f extra/haxelib_src/bin/haxelib
+
+clean_package:
+	rm -rf $(PACKAGE_OUT_DIR)
 
 # SUFFIXES
 

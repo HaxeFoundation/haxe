@@ -25,7 +25,7 @@ install:
     - cinst 7zip.commandline -version 15.05 -y
     # Install ocaml using wodi
     - appveyor DownloadFile "http://cygwin.com/setup-%CYG_ARCH%.exe" -FileName "%CYG_ROOT%\setup.exe"
-    - '%CYG_ROOT%/setup.exe -g -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ > log.txt || type log.txt'
+    - '%CYG_ROOT%/setup.exe -g -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ -P git > log.txt || type log.txt'
     - '%CYG_ROOT%/bin/bash -lc "cygcheck -dc cygwin" > log.txt || type log.txt'
     # The archive is a dropbox hosted version of https://github.com/fdopen/godi-repo/issues/7#issuecomment-98480339
     - '%CYG_ROOT%/bin/bash -lc "wget -q https://dl.dropboxusercontent.com/u/2661116/wodi/%WODI%.tar.xz -O /tmp/%WODI%.tar.xz" > log.txt || type log.txt'
@@ -46,11 +46,12 @@ install:
     - neko -version
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
-    - set PATH=C:\Python34-x64;%PATH%
+    - set PATH=%PATH%;C:\Python34-x64
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_src"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win tools"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
@@ -66,4 +67,4 @@ test_script:
     - neko RunCi.n
 
 artifacts:
-    - path: out/haxe_*.zip
+    - path: out/*

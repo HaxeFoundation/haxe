@@ -1,0 +1,27 @@
+{
+    "package": {
+        "name": "haxe",
+        "repo": "snapshot",
+        "subject": "::packageSubject::"
+    },
+
+    "version": {
+        "name": "::versionName::",
+        "desc": "::versionDesc::",
+        "released": "::gitDate::",
+        "attributes": [
+            {"name": "repo",   "values" : ["::gitRepo::"], "type": "string"},
+            {"name": "branch", "values" : ["::gitBranch::"], "type": "string"},
+            {"name": "commit", "values" : ["::gitCommit::"], "type": "string"}
+        ],
+        "gpgSign": false
+    },
+
+    "files":
+        [
+            {"includePattern": "out/(.*)_src\\.(.*)", "uploadPattern": "::os::/::gitBranch::/haxe_::versionName::_src.$2"},
+            {"includePattern": "out/(.*)_bin\\.(.*)", "uploadPattern": "::os::/::gitBranch::/haxe_::versionName::_bin.$2"},
+            {"includePattern": "out/(.*)_doc\\.(.*)", "uploadPattern": "::os::/::gitBranch::/haxe_::versionName::_doc.$2"}
+        ],
+    "publish": true
+}

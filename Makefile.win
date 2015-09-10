@@ -2,6 +2,7 @@ include Makefile
 
 OUTPUT=haxe.exe
 EXTENSION=.exe
+PACKAGE_SRC_EXTENSION=.zip
 
 OCAMLOPT=ocamlopt.opt
 
@@ -46,6 +47,6 @@ package_bin:
 	7za x -y temp.zip -o$(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm temp.zip
 	# archive
-	7za a -r -tzip out/$(PACKAGE_FILE_NAME).zip $(PACKAGE_FILE_NAME) > log.txt || type log.txt
+	7za a -r -tzip out/$(PACKAGE_FILE_NAME)_bin.zip $(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm -r $(PACKAGE_FILE_NAME)
 	rm log.txt extra/log.txt

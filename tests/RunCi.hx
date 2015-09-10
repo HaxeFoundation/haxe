@@ -315,6 +315,21 @@ class RunCi {
 		} catch(e:Dynamic) false;
 	}
 
+	static function commandResult(cmd:String, args:Array<String>):{
+		stdout:String,
+		stderr:String,
+		exitCode:Int
+	} {
+		var p = new Process(cmd, args);
+		var out = {
+			stdout: p.stdout.readAll().toString(),
+			stderr: p.stderr.readAll().toString(),
+			exitCode: p.exitCode()
+		}
+		p.close();
+		return out;
+	}
+
 	static function addToPATH(path:String):Void {
 		switch (systemName) {
 			case "Windows":
@@ -513,9 +528,90 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
+	static var gitInfo(get, null):{repo:String, branch:String, commit:String, date:String};
+	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
+		repo: switch (ci) {
+			case TravisCI:
+				Sys.getEnv("TRAVIS_REPO_SLUG");
+			case AppVeyor:
+				Sys.getEnv("APPVEYOR_PROJECT_SLUG");
+			case _:
+				commandResult("git", ["config", "--get", "remote.origin.url"]).stdout.trim();
+		},
+		branch: switch (ci) {
+			case TravisCI:
+				Sys.getEnv("TRAVIS_BRANCH");
+			case AppVeyor:
+				Sys.getEnv("APPVEYOR_REPO_BRANCH");
+			case _:
+				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
+		},
+		commit: commandResult("git", ["rev-parse", "HEAD"]).stdout.trim(),
+		date: {
+			var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
+			var tzd = {
+				var z = Date.fromTime(0);
+				z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
+			}
+			var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
+			DateTools.format(time, "%FT%TZ");
+		}
+	}
+	static var haxeVer(default, never) = {
+		var haxe_ver = haxe.macro.Compiler.getDefine("haxe_ver");
+		switch (haxe_ver.split(".")) {
+			case [major]:
+				major;
+			case [major, minor] if (minor.length == 1):
+				'${major}.${minor}';
+			case [major, minor] if (minor.length > 1):
+				var minor = minor.charAt(0);
+				var patch = Std.parseInt(minor.substr(1));
+				'${major}.${minor}.${patch}';
+			case _:
+				throw haxe_ver;
+		}
+	}
+
+	static function bintray():Void {
+		if (
+			Sys.getEnv("BINTRAY") != null &&
+			Sys.getEnv("BINTRAY_USERNAME") != null &&
+			Sys.getEnv("BINTRAY_API_KEY") != null
+		) {
+			changeDirectory(repoDir);
+
+			// generate bintray config
+			var tpl = new Template(File.getContent("extra/bintray.tpl.json"));
+			var compatDate = ~/[^0-9]/g.replace(gitInfo.date, "");
+			var json = tpl.execute({
+				packageSubject: {
+					var sub = Sys.getEnv("BINTRAY_SUBJECT");
+					sub != null ? sub : Sys.getEnv("BINTRAY_USERNAME");
+				},
+				os: systemName.toLowerCase(),
+				versionName: '${haxeVer}+${compatDate}.${gitInfo.commit.substr(0,7)}',
+				versionDesc: "Automated CI build.",
+				gitRepo: gitInfo.repo,
+				gitBranch: gitInfo.branch,
+				gitCommit: gitInfo.commit,
+				gitDate: gitInfo.date,
+			});
+			var path = "extra/bintray.json";
+			File.saveContent("extra/bintray.json", json);
+			infoMsg("saved " + FileSystem.absolutePath(path) + " with content:");
+			Sys.println(json);
+
+			// generate doc
+			runCommand("make", ["-s", "install_dox"]);
+			runCommand("make", ["-s", "package_doc"]);
+		}
+	}
 
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
+
+		bintray();
 
 		var tests:Array<TEST> = switch (Sys.getEnv("TEST")) {
 			case null:
@@ -536,27 +632,6 @@ class RunCi {
 					getCsDependencies();
 					getPythonDependencies();
 					runCommand("haxe", ["compile.hxml"]);
-
-					switch (ci) {
-						case AppVeyor:
-							//save time...
-						case _:
-							//generate documentation
-							haxelibInstallGit("Simn", "hxparse", "development", "src", true);
-							haxelibInstallGit("Simn", "hxtemplo", true);
-							haxelibInstallGit("Simn", "hxargs", true);
-							haxelibInstallGit("dpeek", "haxe-markdown", "master", "src", true, "markdown");
-
-							haxelibInstallGit("HaxeFoundation", "hxcpp", true);
-							haxelibInstallGit("HaxeFoundation", "hxjava", true);
-							haxelibInstallGit("HaxeFoundation", "hxcs", true);
-
-							haxelibInstallGit("dpeek", "dox", true);
-							changeDirectory(getHaxelibPath("dox"));
-							runCommand("haxe", ["run.hxml"]);
-							runCommand("haxe", ["gen.hxml"]);
-							haxelibRun(["dox", "-o", "bin/api.zip", "-i", "bin/xml"]);
-					}
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-macro.hxml"]);
