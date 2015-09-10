@@ -3582,7 +3582,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
 
    if (not class_def.cl_interface) && not nativeGen then begin
-      output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
+      output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
       (match class_def.cl_constructor with
          | Some definition ->
                (match  definition.cf_expr with
@@ -3597,17 +3597,19 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                   if (has_default_values function_def.tf_args) then begin
                      generate_default_values ctx function_def.tf_args "__o_";
                   end;
+                  let oldVoid = ctx.ctx_real_void in
+                  ctx.ctx_real_void <- true;
                   gen_expression_tree ctx false (mk_block function_def.tf_expr) "" "";
                   cpp_file#terminate_line;
+                  ctx.ctx_real_void <- oldVoid;
+
                   ctx.ctx_debug_level <- debug;
                | _ -> ()
                )
          | _ -> ());
-         output_cpp "\treturn null();\n";
          output_cpp "}\n\n";
 
       (* Destructor goes in the cpp file so we can "see" the full definition of the member vars *)
-      output_cpp ( "//" ^ class_name ^ "::~" ^ class_name ^ "() { }\n\n");
       output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return new " ^ class_name ^ "; }\n\n");
 
       output_cpp (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^")\n");
@@ -4217,7 +4219,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    if (not class_def.cl_interface && not nativeGen) then begin
       output_h ("\t\t" ^ class_name ^  "();\n");
-      output_h ("\t\tVoid __construct(" ^ constructor_type_args ^ ");\n");
+      output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h "\n\tpublic:\n";
       let new_arg = if (has_gc_references class_def) then "true" else "false" in
       output_h ("\t\tinline void *operator new(size_t inSize, bool inContainer=" ^ new_arg
