@@ -58,8 +58,8 @@ type ttype =
 	| TF32
 	| TF64
 	| TBool
-	| TFun of ttype list * ttype
 	| TAny
+	| TFun of ttype list * ttype
 
 (*
 
@@ -83,7 +83,7 @@ type global = int
 type opcode =
 	| OMov of reg * reg
 	| OInt of reg * int32
-	| OFloat of reg * float
+	| OFloat of reg * int
 	| OBool of reg * bool
 	| OAdd of reg * reg * reg
 	| OSub of reg * reg * reg
@@ -95,7 +95,7 @@ type opcode =
 	| OCall3 of reg * global * reg * reg * reg
 	| OCallN of reg * reg * reg list
 	| OGetGlobal of reg * global
-	| OSetGlobal of global * reg
+	| OSetGlobal of reg * global
 	| OEq of reg * reg * reg
 	| ONotEq of reg * reg * reg
 	| OLt of reg * reg * reg
@@ -118,6 +118,7 @@ type code = {
 	version : int;
 	entrypoint : global;
 	globals : ttype array;
+	floats : float array;
 	functions : fundecl array;
 	natives : (string * int) array;
 }
@@ -131,6 +132,8 @@ type method_context = {
 type context = {
 	com : Common.context;
 	mutable hglobals : (string, int) PMap.t;
+	mutable hfloats : (float, int) PMap.t;
+	cfloats : float DynArray.t;
 	cglobals : ttype DynArray.t;
 	cfunctions : fundecl DynArray.t;
 	cnatives : (string * int) DynArray.t;
@@ -147,6 +150,10 @@ let rec tstr t =
 	| TBool -> "bool"
 	| TAny -> "any"
 	| TFun (args,ret) -> "(" ^ String.concat "," (List.map tstr args) ^ "):" ^ tstr ret
+
+let iteri f l =
+	let p = ref (-1) in
+	List.iter (fun v -> incr p; f !p v) l
 
 let method_context() =
 	{
@@ -205,6 +212,15 @@ let alloc_reg ctx v =
 		ctx.m.hregs <- PMap.add v.v_id rid ctx.m.hregs;
 		rid
 
+let alloc_float ctx f =
+	try
+		PMap.find f ctx.hfloats
+	with Not_found ->
+		let fid = DynArray.length ctx.cfloats in
+		DynArray.add ctx.cfloats f;
+		ctx.hfloats <- PMap.add f fid ctx.hfloats;
+		fid
+
 let alloc_tmp ctx t =
 	let rid = DynArray.length ctx.m.mregs in
 	DynArray.add ctx.m.mregs t;
@@ -231,7 +247,7 @@ let rec eval_expr ctx e =
 			r
 		| TFloat f ->
 			let r = alloc_tmp ctx TF64 in
-			op ctx (OFloat (r,float_of_string f));
+			op ctx (OFloat (r,alloc_float ctx (float_of_string f)));
 			r
 		| Type.TBool b ->
 			let r = alloc_tmp ctx TBool in
@@ -351,7 +367,7 @@ let make_fun ctx f idx =
 			match c with
 			| TNull | TThis | TSuper -> assert false
 			| TInt i -> op ctx (OInt (r, i))
-			| TFloat s -> op ctx (OFloat (r, float_of_string s))
+			| TFloat s -> op ctx (OFloat (r, alloc_float ctx (float_of_string s)))
 			| Type.TBool b -> op ctx (OBool (r, b))
 			| TString s -> assert false (* TODO *)
 	) f.tf_args;
@@ -423,35 +439,6 @@ let rec str v =
 	| VAny (v,t) -> "any(" ^ str v ^ ":" ^ tstr t ^ ")"
 	| VNativeFun _ -> "native"
 
-let ostr o =
-	match o with
-	| OMov (a,b) -> Printf.sprintf "mov %d,%d" a b
-	| OInt (r,i) -> Printf.sprintf "int %d,%ld" r i
-	| OFloat (r,f) -> Printf.sprintf "float %d,%f" r f
-	| OBool (r,b) -> if b then Printf.sprintf "true %d" r else Printf.sprintf "false %d" r
-	| OAdd (r,a,b) -> Printf.sprintf "add %d,%d,%d" r a b
-	| OSub (r,a,b) -> Printf.sprintf "sub %d,%d,%d" r a b
-	| OIncr r -> Printf.sprintf "incr %d" r
-	| ODecr r -> Printf.sprintf "decr %d" r
-	| OCall0 (r,g) -> Printf.sprintf "call %d, %d()" r g
-	| OCall1 (r,g,a) -> Printf.sprintf "call %d, %d(%d)" r g a
-	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, %d(%d,%d)" r g a b
-	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, %d(%d,%d,%d)" r g a b c
-	| OCallN (r,g,rl) -> Printf.sprintf "call %d, %d(%s)" r g (String.concat "," (List.map string_of_int rl))
-	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
-	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
-	| OEq (r,a,b) -> Printf.sprintf "eq %d,%d,%d" r a b
-	| ONotEq (r,a,b)  -> Printf.sprintf "noteq %d,%d,%d" r a b
-	| OLt (r,a,b) -> Printf.sprintf "lt %d,%d,%d" r a b
-	| OGte (r,a,b) -> Printf.sprintf "gte %d,%d,%d" r a b
-	| ORet r -> Printf.sprintf "ret %d" r
-	| OJTrue (r,d) -> Printf.sprintf "jtrue %d,%d" r d
-	| OJFalse (r,d) -> Printf.sprintf "jfalse %d,%d" r d
-	| OJNull (r,d) -> Printf.sprintf "jnull %d,%d" r d
-	| OJNotNull (r,d) -> Printf.sprintf "jnotnull %d,%d" r d
-	| OJAlways d -> Printf.sprintf "jalways %d" d
-	| OToAny (r,a) -> Printf.sprintf "toany %d,%d" r a
-
 let interp code =
 
 	let check f =
@@ -485,7 +472,7 @@ let interp code =
 		let can_jump delta =
 			if !pos + 1 + delta < 0 || !pos + 1 + delta >= Array.length f.code then failwith "Jump outside function bounds";
 		in
-		List.iteri reg targs;
+		iteri reg targs;
 		Array.iteri (fun i op ->
 			pos := i;
 			match op with
@@ -496,8 +483,9 @@ let interp code =
 				| TUI8 -> if Int32.to_int i < 0 || Int32.to_int i > 0xFF then reg r TI32
 				| TI32 -> ()
 				| _ -> reg r TI32)
-			| OFloat (r,_) ->
-				if rtype r <> TF32 then reg r TF64
+			| OFloat (r,i) ->
+				if rtype r <> TF32 then reg r TF64;
+				if i < 0 || i >= Array.length code.floats then failwith "float outside range"
 			| OBool (r,_) ->
 				reg r TBool
 			| OAdd (r,a,b) ->
@@ -524,7 +512,7 @@ let interp code =
 				(match rtype f with
 				| TFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
 				| _ -> reg f (TFun(List.map rtype rl,rtype r)))
-			| OGetGlobal (r,g) | OSetGlobal (g,r) ->
+			| OGetGlobal (r,g) | OSetGlobal (r,g) ->
 				reg r code.globals.(g)
 			| OEq (r,a,b) | ONotEq (r, a, b) | OLt (r, a, b) | OGte (r, a, b) ->
 				reg r TBool;
@@ -550,7 +538,7 @@ let interp code =
 
 	let rec call f args =
 		let regs = Array.map default f.regs in
-		List.iteri (fun i v -> regs.(i) <- v) args;
+		iteri (fun i v -> regs.(i) <- v) args;
 		let pos = ref 0 in
 		let rtype i = f.regs.(i) in
 		let set r v = Array.unsafe_set regs r v in
@@ -592,7 +580,7 @@ let interp code =
 			(match op with
 			| OMov (a,b) -> set a (get b)
 			| OInt (r,i) -> set r (VInt i)
-			| OFloat (r,f) -> set r (VFloat f)
+			| OFloat (r,i) -> set r (VFloat (Array.unsafe_get code.floats i))
 			| OBool (r,b) -> set r (VBool b)
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
 			| OSub (r,a,b) -> set r (numop Int32.sub ( -. ) a b)
@@ -608,7 +596,7 @@ let interp code =
 				| VNativeFun f -> set r (f (List.map get rl))
 				| _ -> assert false)
 			| OGetGlobal (r,g) -> set r (global g)
-			| OSetGlobal (g,r) -> Array.unsafe_set globals g (get r)
+			| OSetGlobal (r,g) -> Array.unsafe_set globals g (get r)
 			| OEq (r,a,b) -> set r (VBool (get a = get b))
 			| ONotEq (r,a,b) -> set r (VBool (get a <> get b))
 			| OGte (r,a,b) -> set r (VBool (get a >= get b))
@@ -641,6 +629,234 @@ let interp code =
 	| _ -> assert false
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
+(* WRITE *)
+
+let write_code ch code =
+	IO.write_string ch "HLB";
+	IO.write_byte ch code.version;
+	IO.write_i32 ch code.entrypoint;
+	IO.write_i32 ch (Array.length code.globals);
+	IO.write_i32 ch (Array.length code.functions);
+	IO.write_i32 ch (Array.length code.natives);
+
+	let b = IO.write_byte ch in
+	let byte = b in
+
+	(* 	from -500M to +500M
+		0[7] = 0-127
+		10[+/-][5] [8] = -x2000/+x2000
+		11[+/-][5] [24] = -x20000000/+x20000000
+	*)
+	let write_index i =
+		if i < 0 then
+			let i = -i in
+			if i < 0x2000 then begin
+				b ((i lsr 8) lor 0xA0);
+				b (i land 0xFF);
+			end else if i >= 0x20000000 then assert false else begin
+				b ((i lsr 24) lor 0xE0);
+				b ((i lsr 16) land 0xFF);
+				b ((i lsr 8) land 0xFF);
+				b (i land 0xFF);
+			end
+		else if i < 0x80 then
+			b i
+		else if i < 0x2000 then begin
+			b ((i lsr 8) lor 0x80);
+			b (i land 0xFF);
+		end else if i >= 0x20000000 then assert false else begin
+			b ((i lsr 24) lor 0xC0);
+			b ((i lsr 16) land 0xFF);
+			b ((i lsr 8) land 0xFF);
+			b (i land 0xFF);
+		end
+	in
+
+	let rec write_type = function
+		| TVoid -> b 0
+		| TUI8	-> b 1
+		| TI32	-> b 2
+		| TF32 	-> b 3
+		| TF64	-> b 4
+		| TBool	-> b 5
+		| TAny -> b 6
+		| TFun (tl,t) ->
+			let nargs = List.length tl in
+			if nargs > 0xFF then assert false;
+			if nargs < 5 then b (7 + nargs) else begin b 12; b nargs; end;
+			List.iter write_type tl;
+			write_type t
+	in
+
+	let reg = write_index in
+
+	let binop i r ra rb =
+		if r < 8 && ra < 8 && rb < 8 && i < 64 then begin
+			(* short format : 2 bytes instead of 4 *)
+			b (((i lsl 1) lor 0x80) lor (if r > 4 then 1 else 0));
+			b (((r land 3) lsl 6) lor (ra lsl 3) lor rb);
+		end else begin
+			b i;
+			reg r;
+			reg ra;
+			reg rb;
+		end
+	in
+
+	let unop i r =
+		b i;
+		reg r
+	in
+
+	let write_op = function
+		| OMov (a,b) ->
+			byte 0;
+			reg a;
+			reg b;
+		| OInt (r, i) when i >= 0l && i <= 0xFFl ->
+			b 1;
+			reg r;
+			b (Int32.to_int i);
+		| OInt (r, i) ->
+			b 2;
+			reg r;
+			IO.write_real_i32 ch i
+		| OFloat (r,i) ->
+			b 3;
+			reg r;
+			write_index i
+		| OBool (r, f) ->
+			b (if f then 4 else 5);
+			reg r
+		| OAdd (r,a,b) ->
+			binop 6 r a b
+		| OSub (r,a,b) ->
+			binop 7 r a b
+		| OIncr r ->
+			unop 8 r
+		| ODecr r ->
+			unop 9 r
+		| OCall0 (r, g) ->
+			b 10;
+			reg r;
+			write_index g
+		| OCall1 (r,g,a) ->
+			b 11;
+			reg r;
+			write_index g;
+			reg a
+		| OCall2 (r,g,a,b) ->
+			byte 12;
+			reg r;
+			write_index g;
+			reg a;
+			reg b;
+		| OCall3 (r,g,a,b,c) ->
+			byte 12;
+			reg r;
+			write_index g;
+			reg a;
+			reg b;
+			reg c;
+		| OCallN (r, f, pl) ->
+			byte 13;
+			reg r;
+			reg f;
+			let n = List.length pl in
+			if n > 0xFF then assert false;
+			b n;
+			List.iter reg pl
+		| OGetGlobal (r, g) ->
+			b 14;
+			reg r;
+			write_index g
+		| OSetGlobal (r, g) ->
+			b 15;
+			write_index g;
+			reg r
+		| OEq (r,a,b) ->
+			binop 16 r a b
+		| ONotEq (r,a,b) ->
+			binop 17 r a b
+		| OLt (r,a,b) ->
+			binop 18 r a b
+		| OGte (r,a,b) ->
+			binop 20 r a b
+		| ORet r ->
+			unop 21 r
+		| OJTrue (r,i) ->
+			b 22;
+			reg r;
+			write_index i
+		| OJFalse (r, i) ->
+			b 23;
+			reg r;
+			write_index i
+		| OJNull (r, i) ->
+			b 24;
+			reg r;
+			write_index i
+		| OJNotNull (r, i) ->
+			b 25;
+			reg r;
+			write_index i
+		| OJAlways i ->
+			b 26;
+			write_index i
+		| OToAny (a,b) ->
+			byte 27;
+			reg a;
+			reg b
+	in
+	Array.iter write_type code.globals;
+	Array.iter (fun f ->
+		write_index f.index;
+		write_index (Array.length f.regs);
+		write_index (Array.length f.code);
+		Array.iter write_type f.regs;
+		Array.iter write_op f.code;
+	) code.functions;
+	Array.iter (fun (n,nargs) ->
+		let len = String.length n in
+		if len > 0xFF then assert false;
+		if nargs > 0xFF then assert false;
+		b len;
+		IO.write_string ch n;
+		b nargs;
+	) code.natives
+
+
+(* --------------------------------------------------------------------------------------------------------------------- *)
+(* DUMP *)
+
+let ostr o =
+	match o with
+	| OMov (a,b) -> Printf.sprintf "mov %d,%d" a b
+	| OInt (r,i) -> Printf.sprintf "int %d,%ld" r i
+	| OFloat (r,i) -> Printf.sprintf "float %d,@%d" r i
+	| OBool (r,b) -> if b then Printf.sprintf "true %d" r else Printf.sprintf "false %d" r
+	| OAdd (r,a,b) -> Printf.sprintf "add %d,%d,%d" r a b
+	| OSub (r,a,b) -> Printf.sprintf "sub %d,%d,%d" r a b
+	| OIncr r -> Printf.sprintf "incr %d" r
+	| ODecr r -> Printf.sprintf "decr %d" r
+	| OCall0 (r,g) -> Printf.sprintf "call %d, %d()" r g
+	| OCall1 (r,g,a) -> Printf.sprintf "call %d, %d(%d)" r g a
+	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, %d(%d,%d)" r g a b
+	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, %d(%d,%d,%d)" r g a b c
+	| OCallN (r,g,rl) -> Printf.sprintf "call %d, %d(%s)" r g (String.concat "," (List.map string_of_int rl))
+	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
+	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
+	| OEq (r,a,b) -> Printf.sprintf "eq %d,%d,%d" r a b
+	| ONotEq (r,a,b)  -> Printf.sprintf "noteq %d,%d,%d" r a b
+	| OLt (r,a,b) -> Printf.sprintf "lt %d,%d,%d" r a b
+	| OGte (r,a,b) -> Printf.sprintf "gte %d,%d,%d" r a b
+	| ORet r -> Printf.sprintf "ret %d" r
+	| OJTrue (r,d) -> Printf.sprintf "jtrue %d,%d" r d
+	| OJFalse (r,d) -> Printf.sprintf "jfalse %d,%d" r d
+	| OJNull (r,d) -> Printf.sprintf "jnull %d,%d" r d
+	| OJNotNull (r,d) -> Printf.sprintf "jnotnull %d,%d" r d
+	| OJAlways d -> Printf.sprintf "jalways %d" d
+	| OToAny (r,a) -> Printf.sprintf "toany %d,%d" r a
 
 let dump code =
 	let lines = ref [] in
@@ -652,6 +868,10 @@ let dump code =
 	Array.iteri (fun i g ->
 		pr ("	@" ^ string_of_int i ^ " : " ^ tstr g);
 	) code.globals;
+	pr (string_of_int (Array.length code.floats) ^ " floats");
+	Array.iteri (fun i f ->
+		pr ("	@" ^ string_of_int i ^ " : " ^ string_of_float f);
+	) code.floats;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr ("	fun " ^ string_of_int f.index ^ " : " ^ (try tstr code.globals.(f.index) with _ -> "???"));
@@ -680,6 +900,8 @@ let generate com =
 		cfunctions = DynArray.create();
 		cnatives = DynArray.create();
 		hglobals = PMap.empty;
+		hfloats = PMap.empty;
+		cfloats = DynArray.create();
 	} in
 	List.iter (generate_type ctx) com.types;
 	let ep = (match com.main_class with
@@ -691,9 +913,16 @@ let generate com =
 		version = 1;
 		entrypoint = ep;
 		globals = DynArray.to_array ctx.cglobals;
+		floats = DynArray.to_array ctx.cfloats;
 		functions = DynArray.to_array ctx.cfunctions;
 		natives = DynArray.to_array ctx.cnatives;
 	} in
 	prerr_endline (dump code);
+	let ch = IO.output_string() in
+	write_code ch code;
+	let str = IO.close_out ch in
+	let ch = open_out_bin com.file in
+	output_string ch str;
+	close_out ch;
 	ignore(interp code)
 
