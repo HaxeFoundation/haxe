@@ -23,7 +23,7 @@ OCAMLOPT?=ocamlopt
 OCAMLC?=ocamlc
 LFLAGS=
 
-CFLAGS= -rectypes -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize
+CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize
 
 LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
 	libs/extc/extc libs/neko/neko libs/javalib/java libs/ziplib/zip \
