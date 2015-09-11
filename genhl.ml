@@ -51,9 +51,7 @@ open Common
 
 *)
 
-type tindex = int
-
-type 'a ttype =
+type ttype =
 	| TVoid
 	| TUI8
 	| TI32
@@ -61,9 +59,7 @@ type 'a ttype =
 	| TF64
 	| TBool
 	| TAny
-	| TFun of 'a list * 'a
-
-type rtype = rtype ttype (* need -rectypes *)
+	| TFun of ttype list * ttype
 
 (*
 
@@ -114,45 +110,43 @@ type opcode =
 
 type fundecl = {
 	index : global;
-	regs : tindex array;
+	regs : ttype array;
 	code : opcode array;
 }
 
 type code = {
 	version : int;
 	entrypoint : global;
-	types : (tindex ttype) array;
-	globals : tindex array;
+	globals : ttype array;
 	floats : float array;
 	natives : (string * global) array;
 	functions : fundecl array;
 }
 
-
 (* compiler *)
 
+type ('a,'b) lookup = {
+	arr : 'b DynArray.t;
+	mutable map : ('a, int) PMap.t;
+}
+
 type method_context = {
-	mregs : tindex DynArray.t;
+	mregs : (int, ttype) lookup;
 	mops : opcode DynArray.t;
-	mutable hregs : (int, int) PMap.t;
 }
 
 type context = {
 	com : Common.context;
-	mutable hglobals : (string, global) PMap.t;
-	mutable hfloats : (float, int) PMap.t;
-	mutable htypes : (tindex ttype, tindex) PMap.t;
-	ctypes : tindex ttype DynArray.t;
-	cfloats : float DynArray.t;
-	cglobals : tindex DynArray.t;
+	cglobals : (string, ttype) lookup;
+	cfloats : (float, float) lookup;
+	cnatives : (string, (string * global)) lookup;
 	cfunctions : fundecl DynArray.t;
-	cnatives : (string * global) DynArray.t;
 	mutable m : method_context;
 }
 
 (* --- *)
 
-let rec tstr f t =
+let rec tstr t =
 	match t with
 	| TVoid -> "void"
 	| TUI8 -> "ui8"
@@ -161,37 +155,48 @@ let rec tstr f t =
 	| TF64 -> "f64"
 	| TBool -> "bool"
 	| TAny -> "any"
-	| TFun (args,ret) -> "(" ^ String.concat "," (List.map f args) ^ "):" ^ f ret
+	| TFun (args,ret) -> "(" ^ String.concat "," (List.map tstr args) ^ "):" ^ tstr ret
 
 let iteri f l =
 	let p = ref (-1) in
 	List.iter (fun v -> incr p; f !p v) l
 
+let new_lookup() =
+	{
+		arr = DynArray.create();
+		map = PMap.empty;
+	}
+
+let lookup l v fb =
+	try
+		PMap.find v l.map
+	with Not_found ->
+		let id = DynArray.length l.arr in
+		l.map <- PMap.add v id l.map;
+		DynArray.add l.arr (fb());
+		id
+
 let method_context() =
 	{
-		mregs = DynArray.create();
+		mregs = new_lookup();
 		mops = DynArray.create();
-		hregs = PMap.empty;
 	}
 
 let field_name c f =
 	s_type_path c.cl_path ^ ":" ^ f.cf_name
 
-let rec to_type ctx t : tindex ttype =
-	let loop t =
-		alloc_ttype ctx (to_type ctx t)
-	in
+let rec to_type t =
 	match t with
 	| TMono r ->
 		(match !r with
 		| None -> TAny
-		| Some t -> to_type ctx t)
+		| Some t -> to_type t)
 	| TType (t,tl) ->
-		to_type ctx (apply_params t.t_params tl t.t_type)
+		to_type (apply_params t.t_params tl t.t_type)
 	| TLazy f ->
-		to_type ctx (!f())
+		to_type (!f())
 	| Type.TFun (args, ret) ->
-		TFun (List.map (fun (_,_,t) -> loop t) args, loop ret)
+		TFun (List.map (fun (_,_,t) -> to_type t) args, to_type ret)
 	| TAnon _ ->
 		TAny
 	| TDynamic _ ->
@@ -207,50 +212,20 @@ let rec to_type ctx t : tindex ttype =
 			| [], "Int" -> TI32
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
-			to_type ctx (Abstract.get_underlying_type a pl)
-
-and alloc_ttype ctx (t : tindex ttype) : tindex =
-	try
-		PMap.find t ctx.htypes
-	with Not_found ->
-		let tid = DynArray.length ctx.ctypes in
-		DynArray.add ctx.ctypes t;
-		ctx.htypes <- PMap.add t tid ctx.htypes;
-		tid
-
-let alloc_type ctx t =
-	alloc_ttype ctx (to_type ctx t)
+			to_type (Abstract.get_underlying_type a pl)
 
 let alloc_global ctx name t =
-	try
-		PMap.find name ctx.hglobals
-	with Not_found ->
-		let gid = DynArray.length ctx.cglobals in
-		DynArray.add ctx.cglobals (alloc_type ctx t);
-		ctx.hglobals <- PMap.add name gid ctx.hglobals;
-		gid
+	lookup ctx.cglobals name (fun() -> to_type t)
 
 let alloc_reg ctx v =
-	try
-		PMap.find v.v_id ctx.m.hregs
-	with Not_found ->
-		let rid = DynArray.length ctx.m.mregs in
-		DynArray.add ctx.m.mregs (alloc_type ctx v.v_type);
-		ctx.m.hregs <- PMap.add v.v_id rid ctx.m.hregs;
-		rid
+	lookup ctx.m.mregs v.v_id (fun() -> to_type v.v_type)
 
 let alloc_float ctx f =
-	try
-		PMap.find f ctx.hfloats
-	with Not_found ->
-		let fid = DynArray.length ctx.cfloats in
-		DynArray.add ctx.cfloats f;
-		ctx.hfloats <- PMap.add f fid ctx.hfloats;
-		fid
+	lookup ctx.cfloats f (fun() -> f)
 
 let alloc_tmp ctx t =
-	let rid = DynArray.length ctx.m.mregs in
-	DynArray.add ctx.m.mregs (alloc_ttype ctx t);
+	let rid = DynArray.length ctx.m.mregs.arr in
+	DynArray.add ctx.m.mregs.arr t;
 	rid
 
 let op ctx o =
@@ -262,9 +237,24 @@ let jump ctx f =
 	(fun() -> DynArray.set ctx.m.mops pos (f (DynArray.length ctx.m.mops - pos - 1)))
 
 let rtype ctx r =
-	DynArray.get ctx.ctypes (DynArray.get ctx.m.mregs r)
+	DynArray.get ctx.m.mregs.arr r
 
-let rec eval_expr ctx e =
+let rec eval_to ctx e (t:ttype) =
+	let r = eval_expr ctx e in
+	cast_to ctx r t
+
+and cast_to ctx (r:reg) (t:ttype) =
+	let rt = rtype ctx r in
+	if t = rt then r else
+	match rt, t with
+	| _ , TAny ->
+		let tmp = alloc_tmp ctx TAny in
+		op ctx (OToAny (tmp, r));
+		tmp
+	| _ ->
+		failwith ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t)
+
+and eval_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
 		(match c with
@@ -306,14 +296,14 @@ let rec eval_expr ctx e =
 	| TCall (ec,el) ->
 		let r = eval_expr ctx ec in
 		let el = List.map2 (fun e t -> eval_to ctx e t) el (match rtype ctx r with TFun (args,_) -> args | _ -> assert false) in
-		let ret = alloc_tmp ctx (to_type ctx e.etype) in
+		let ret = alloc_tmp ctx (to_type e.etype) in
 		op ctx (OCallN (ret, r, el));
 		ret
 	| TField (f,a) ->
 		(match a with
 		| FStatic (c,f) ->
 			let g = alloc_global ctx (field_name c f) f.cf_type in
-			let r = alloc_tmp ctx (to_type ctx f.cf_type) in
+			let r = alloc_tmp ctx (to_type f.cf_type) in
 			op ctx (OGetGlobal (r,g));
 			r
 		| _ -> assert false)
@@ -321,7 +311,7 @@ let rec eval_expr ctx e =
 		(* TODO *)
 		alloc_tmp ctx TVoid
 	| TIf (cond,eif,eelse) ->
-		let out = alloc_tmp ctx (to_type ctx e.etype) in
+		let out = alloc_tmp ctx (to_type e.etype) in
 		let r = eval_expr ctx cond in
 		let j = jump ctx (fun i -> OJFalse (r,i)) in
 		op ctx (OMov (out,eval_expr ctx eif));
@@ -342,7 +332,7 @@ let rec eval_expr ctx e =
 			op ctx (OGte (r,b,a));
 			r
 		| OpAdd ->
-			let t = to_type ctx e.etype in
+			let t = to_type e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
 			| TI32 ->
@@ -353,7 +343,7 @@ let rec eval_expr ctx e =
 			| _ ->
 				assert false)
 		| OpSub ->
-			let t = to_type ctx e.etype in
+			let t = to_type e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
 			| TI32 ->
@@ -367,20 +357,6 @@ let rec eval_expr ctx e =
 			failwith ("TODO " ^ s_expr (s_type (print_context())) e))
 	| _ ->
 		failwith ("TODO " ^ s_expr (s_type (print_context())) e)
-
-and eval_to ctx e t =
-	let r = eval_expr ctx e in
-	cast_to ctx r t
-
-and cast_to ctx (r:tindex ttype) (t:tindex ttype) =
-	let rt = rtype ctx r in
-	if t = rt then r else
-	match rt, t with
-	| _ , TAny ->
-		let tmp = alloc_tmp ctx TAny in
-		op ctx (OToAny (tmp, r));
-		tmp
-	| _ -> failwith ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t)
 
 let make_fun ctx f idx =
 	let old = ctx.m in
@@ -402,7 +378,7 @@ let make_fun ctx f idx =
 	if to_type f.tf_type = TVoid then op ctx (ORet (alloc_tmp ctx TVoid));
 	let f = {
 		index = idx;
-		regs = DynArray.to_array ctx.m.mregs;
+		regs = DynArray.to_array ctx.m.mregs.arr;
 		code = DynArray.to_array ctx.m.mops;
 	} in
 	ctx.m <- old;
@@ -422,8 +398,7 @@ let generate_type ctx t =
 			List.iter (fun (name,args,pos) ->
 				match name, args with
 				| Meta.Custom ":hlNative", [EConst(String(name)),_] ->
-					let g = alloc_global ctx (field_name c f) f.cf_type in
-					DynArray.add ctx.cnatives (name,g);
+					ignore(lookup ctx.cnatives name (fun() -> (name,alloc_global ctx (field_name c f) f.cf_type)));
 				| _ -> ()
 			) f.cf_meta
 		) c.cl_ordered_statics
@@ -658,62 +633,45 @@ let interp code =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* WRITE *)
 
-let write_code ch code =
-	IO.write_string ch "HLB";
-	IO.write_byte ch code.version;
-	IO.write_i32 ch (Array.length code.globals);
-	IO.write_i32 ch (Array.length code.floats);
-	IO.write_i32 ch (Array.length code.natives);
-	IO.write_i32 ch (Array.length code.functions);
-	IO.write_i32 ch code.entrypoint;
 
-	let b = IO.write_byte ch in
-	let byte = b in
-
-	(* 	from -500M to +500M
-		0[7] = 0-127
-		10[+/-][5] [8] = -x2000/+x2000
-		11[+/-][5] [24] = -x20000000/+x20000000
-	*)
-	let write_index i =
-		if i < 0 then
-			let i = -i in
-			if i < 0x2000 then begin
-				b ((i lsr 8) lor 0xA0);
-				b (i land 0xFF);
-			end else if i >= 0x20000000 then assert false else begin
-				b ((i lsr 24) lor 0xE0);
-				b ((i lsr 16) land 0xFF);
-				b ((i lsr 8) land 0xFF);
-				b (i land 0xFF);
-			end
-		else if i < 0x80 then
-			b i
-		else if i < 0x2000 then begin
-			b ((i lsr 8) lor 0x80);
+(* 	from -500M to +500M
+	0[7] = 0-127
+	10[+/-][5] [8] = -x2000/+x2000
+	11[+/-][5] [24] = -x20000000/+x20000000
+*)
+let write_index_gen b i =
+	if i < 0 then
+		let i = -i in
+		if i < 0x2000 then begin
+			b ((i lsr 8) lor 0xA0);
 			b (i land 0xFF);
 		end else if i >= 0x20000000 then assert false else begin
-			b ((i lsr 24) lor 0xC0);
+			b ((i lsr 24) lor 0xE0);
 			b ((i lsr 16) land 0xFF);
 			b ((i lsr 8) land 0xFF);
 			b (i land 0xFF);
 		end
-	in
+	else if i < 0x80 then
+		b i
+	else if i < 0x2000 then begin
+		b ((i lsr 8) lor 0x80);
+		b (i land 0xFF);
+	end else if i >= 0x20000000 then assert false else begin
+		b ((i lsr 24) lor 0xC0);
+		b ((i lsr 16) land 0xFF);
+		b ((i lsr 8) land 0xFF);
+		b (i land 0xFF);
+	end
 
-	let rec write_type = function
-		| TVoid -> b 0
-		| TUI8	-> b 1
-		| TI32	-> b 2
-		| TF32 	-> b 3
-		| TF64	-> b 4
-		| TBool	-> b 5
-		| TAny -> b 6
-		| TFun (tl,t) ->
-			let nargs = List.length tl in
-			if nargs > 0xFF then assert false;
-			if nargs < 5 then b (7 + nargs) else begin b 12; b nargs; end;
-			List.iter write_type tl;
-			write_type t
+let write_code ch code =
+
+	let types = new_lookup() in
+	let b = IO.write_byte ch in
+	let byte = b in
+	let write_index = write_index_gen b in
+
+	let rec write_type t =
+		write_index (lookup types t (fun() -> assert false))
 	in
 
 	let reg = write_index in
@@ -836,6 +794,47 @@ let write_code ch code =
 			reg a;
 			reg b
 	in
+
+	IO.write_string ch "HLB";
+	IO.write_byte ch code.version;
+
+	let calc_types() =
+		let tmp_ch = IO.output_string() in
+		let b = IO.write_byte tmp_ch in
+		let rec get_type t =
+			lookup types t (fun() -> write_type t)
+		and write_type = function
+			| TVoid -> b 0
+			| TUI8 -> b 1
+			| TI32 -> b 2
+			| TF32 -> b 3
+			| TF64 -> b 4
+			| TBool -> b 5
+			| TAny -> b 6
+			| TFun (args,ret) ->
+				let n = List.length args in
+				if n > 0xFF then assert false;
+				b 7;
+				b n;
+				List.iter write_type_ref args;
+				write_type_ref ret
+		and write_type_ref t =
+			write_index_gen b (get_type t)
+		in
+		List.iter (fun t -> ignore(get_type t)) [TVoid; TUI8; TI32; TF32; TF64; TBool; TAny]; (* make sure all basic types get lower indexes *)
+		Array.iter (fun g -> ignore(get_type g)) code.globals;
+		Array.iter (fun f -> Array.iter (fun r -> ignore(get_type r)) f.regs) code.functions;
+		IO.close_out tmp_ch
+	in
+	let types_data = calc_types() in
+	write_index (DynArray.length types.arr);
+	write_index (Array.length code.globals);
+	write_index (Array.length code.floats);
+	write_index (Array.length code.natives);
+	write_index (Array.length code.functions);
+	write_index code.entrypoint;
+
+	IO.write_string ch types_data;
 	Array.iter write_type code.globals;
 	Array.iter (IO.write_double ch) code.floats;
 	Array.iter (fun (n,nargs) ->
@@ -924,12 +923,10 @@ let generate com =
 	let ctx = {
 		com = com;
 		m = method_context();
-		cglobals = DynArray.create();
+		cglobals = new_lookup();
+		cfloats = new_lookup();
+		cnatives = new_lookup();
 		cfunctions = DynArray.create();
-		cnatives = DynArray.create();
-		hglobals = PMap.empty;
-		hfloats = PMap.empty;
-		cfloats = DynArray.create();
 	} in
 	List.iter (generate_type ctx) com.types;
 	let ep = (match com.main_class with
@@ -940,9 +937,9 @@ let generate com =
 	let code = {
 		version = 1;
 		entrypoint = ep;
-		globals = DynArray.to_array ctx.cglobals;
-		floats = DynArray.to_array ctx.cfloats;
-		natives = DynArray.to_array ctx.cnatives;
+		globals = DynArray.to_array ctx.cglobals.arr;
+		floats = DynArray.to_array ctx.cfloats.arr;
+		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
 	} in
 	prerr_endline (dump code);
