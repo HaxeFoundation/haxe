@@ -105,6 +105,8 @@ class Log {
 				str = v;
 			}
 			python.Lib.println(str);
+		#elseif hl
+			hl.Boot.log(v);
 		#end
 	}
 
