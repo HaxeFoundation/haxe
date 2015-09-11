@@ -79,11 +79,13 @@ only implements what's needed for Haxe ! -- KISS
 
 type reg = int
 type global = int
+type sindex = int
+type findex = int
 
 type opcode =
 	| OMov of reg * reg
 	| OInt of reg * int32
-	| OFloat of reg * int
+	| OFloat of reg * findex
 	| OBool of reg * bool
 	| OAdd of reg * reg * reg
 	| OSub of reg * reg * reg
@@ -117,9 +119,10 @@ type fundecl = {
 type code = {
 	version : int;
 	entrypoint : global;
-	globals : ttype array;
+	strings : string array;
 	floats : float array;
-	natives : (string * global) array;
+	globals : ttype array;
+	natives : (sindex * global) array;
 	functions : fundecl array;
 }
 
@@ -138,8 +141,9 @@ type method_context = {
 type context = {
 	com : Common.context;
 	cglobals : (string, ttype) lookup;
+	cstrings : (string, string) lookup;
 	cfloats : (float, float) lookup;
-	cnatives : (string, (string * global)) lookup;
+	cnatives : (string, (sindex * global)) lookup;
 	cfunctions : fundecl DynArray.t;
 	mutable m : method_context;
 }
@@ -222,6 +226,9 @@ let alloc_reg ctx v =
 
 let alloc_float ctx f =
 	lookup ctx.cfloats f (fun() -> f)
+
+let alloc_string ctx s =
+	lookup ctx.cstrings s (fun() -> s)
 
 let alloc_tmp ctx t =
 	let rid = DynArray.length ctx.m.mregs.arr in
@@ -398,7 +405,7 @@ let generate_type ctx t =
 			List.iter (fun (name,args,pos) ->
 				match name, args with
 				| Meta.Custom ":hlNative", [EConst(String(name)),_] ->
-					ignore(lookup ctx.cnatives name (fun() -> (name,alloc_global ctx (field_name c f) f.cf_type)));
+					ignore(lookup ctx.cnatives name (fun() -> (alloc_string ctx name,alloc_global ctx (field_name c f) f.cf_type)));
 				| _ -> ()
 			) f.cf_meta
 		) c.cl_ordered_statics
@@ -625,7 +632,7 @@ let interp code =
 	in
 	Array.iter check code.functions;
 	Array.iter (fun f -> globals.(f.index) <- VFun f) code.functions;
-	Array.iter (fun (name,idx) -> globals.(idx) <- load_native name) code.natives;
+	Array.iter (fun (name,idx) -> globals.(idx) <- load_native code.strings.(name)) code.natives;
 	match code.globals.(code.entrypoint), globals.(code.entrypoint) with
 	| TFun ([],_), VFun f -> call f []
 	| _ -> assert false
@@ -795,7 +802,7 @@ let write_code ch code =
 			reg b
 	in
 
-	IO.write_string ch "HLB";
+	IO.nwrite ch "HLB";
 	IO.write_byte ch code.version;
 
 	let calc_types() =
@@ -827,23 +834,26 @@ let write_code ch code =
 		IO.close_out tmp_ch
 	in
 	let types_data = calc_types() in
+	write_index (Array.length code.strings);
+	write_index (Array.length code.floats);
 	write_index (DynArray.length types.arr);
 	write_index (Array.length code.globals);
-	write_index (Array.length code.floats);
 	write_index (Array.length code.natives);
 	write_index (Array.length code.functions);
 	write_index code.entrypoint;
 
-	IO.write_string ch types_data;
-	Array.iter write_type code.globals;
+	let str_length = ref 0 in
+	Array.iter (fun str -> str_length := !str_length + String.length str + 1) code.strings;
+	IO.write_i32 ch !str_length;
+	Array.iter (IO.write_string ch) code.strings;
+	Array.iter (fun str -> write_index (String.length str)) code.strings;
+
 	Array.iter (IO.write_double ch) code.floats;
-	Array.iter (fun (n,nargs) ->
-		let len = String.length n in
-		if len > 0xFF then assert false;
-		if nargs > 0xFF then assert false;
-		b len;
-		IO.write_string ch n;
-		b nargs;
+	IO.nwrite ch types_data;
+	Array.iter write_type code.globals;
+	Array.iter (fun (name_index,global_index) ->
+		write_index name_index;
+		write_index global_index;
 	) code.natives;
 	Array.iter (fun f ->
 		write_index f.index;
@@ -890,19 +900,29 @@ let dump code =
 	let pr s =
 		lines := s :: !lines
 	in
+	let str idx =
+		try
+			code.strings.(idx)
+		with _ ->
+			"INVALID:" ^ string_of_int idx
+	in
 	pr ("hl v" ^ string_of_int code.version);
 	pr ("entry @" ^ string_of_int code.entrypoint);
-	pr (string_of_int (Array.length code.globals) ^ " globals");
-	Array.iteri (fun i g ->
-		pr ("	@" ^ string_of_int i ^ " : " ^ tstr g);
-	) code.globals;
+	pr (string_of_int (Array.length code.strings) ^ " strings");
+	Array.iteri (fun i s ->
+		pr ("	@" ^ string_of_int i ^ " : " ^ s);
+	) code.strings;
 	pr (string_of_int (Array.length code.floats) ^ " floats");
 	Array.iteri (fun i f ->
 		pr ("	@" ^ string_of_int i ^ " : " ^ string_of_float f);
 	) code.floats;
+	pr (string_of_int (Array.length code.globals) ^ " globals");
+	Array.iteri (fun i g ->
+		pr ("	@" ^ string_of_int i ^ " : " ^ tstr g);
+	) code.globals;
 	pr (string_of_int (Array.length code.natives) ^ " natives");
 	Array.iter (fun (name,index) ->
-		pr ("	native " ^ name ^ " @" ^ string_of_int index ^ " : " ^ (try tstr code.globals.(index) with _ -> "???"));
+		pr ("	native " ^ str name ^ " @" ^ string_of_int index ^ " : " ^ (try tstr code.globals.(index) with _ -> "???"));
 	) code.natives;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
@@ -923,11 +943,13 @@ let generate com =
 	let ctx = {
 		com = com;
 		m = method_context();
-		cglobals = new_lookup();
+		cstrings = new_lookup();
 		cfloats = new_lookup();
+		cglobals = new_lookup();
 		cnatives = new_lookup();
 		cfunctions = DynArray.create();
 	} in
+	ignore(alloc_string ctx "");
 	List.iter (generate_type ctx) com.types;
 	let ep = (match com.main_class with
 		| None -> assert false (* TODO *)
@@ -937,8 +959,9 @@ let generate com =
 	let code = {
 		version = 1;
 		entrypoint = ep;
-		globals = DynArray.to_array ctx.cglobals.arr;
+		strings = DynArray.to_array ctx.cstrings.arr;
 		floats = DynArray.to_array ctx.cfloats.arr;
+		globals = DynArray.to_array ctx.cglobals.arr;
 		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
 	} in
