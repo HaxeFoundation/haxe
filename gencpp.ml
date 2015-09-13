@@ -1470,13 +1470,17 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 let hx_stack_push ctx output clazz func_name pos =
    if ctx.ctx_debug_level > 0 then begin
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
-      let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
+      let esc_file = (Ast.s_escape stripped_file) in
       ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
       if (ctx.ctx_debug_level>0) then begin
+         let full_name = clazz ^ "." ^ func_name ^ (
+           if (clazz="*") then
+             (" (" ^ esc_file ^ ":" ^ (string_of_int (Lexer.get_error_line pos) ) ^ ")")
+           else "") in
          let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
          let hash_file = gen_hash 0 stripped_file in
          output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
-               clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
+               full_name ^ "\",\"" ^ esc_file ^ "\"," ^
                (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
       end
    end
