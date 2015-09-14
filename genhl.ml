@@ -95,7 +95,6 @@ type opcode =
 	| OCall0 of reg * global
 	| OCall1 of reg * global * reg
 	| OCall2 of reg * global * reg * reg
-	| OCall3 of reg * global * reg * reg * reg
 	| OCallN of reg * reg * reg list
 	| OGetGlobal of reg * global
 	| OSetGlobal of reg * global
@@ -523,8 +522,6 @@ let interp code =
 				call f [a] r
 			| OCall2 (r, f, a, b) ->
 				call f [a;b] r
-			| OCall3 (r, f, a, b, c) ->
-				call f [a;b;c] r
 			| OCallN (r,f,rl) ->
 				(match rtype f with
 				| TFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
@@ -606,7 +603,6 @@ let interp code =
 			| OCall0 (r,f) -> set r (call (match global f with VFun f -> f | _ -> assert false) [])
 			| OCall1 (r,f,r1) -> set r (call (match global f with VFun f -> f | _ -> assert false) [get r1])
 			| OCall2 (r,f,r1,r2) -> set r (call (match global f with VFun f -> f | _ -> assert false) [get r1;get r2])
-			| OCall3 (r,f,r1,r2,r3) -> set r (call (match global f with VFun f -> f | _ -> assert false) [get r1;get r2;get r3])
 			| OCallN (r,f,rl) ->
 				(match get f with
 				| VFun f -> set r (call f (List.map get rl))
@@ -688,27 +684,49 @@ let write_code ch code =
 		write_index (lookup types t (fun() -> assert false))
 	in
 
-	let reg = write_index in
-
 	let write_op op =
+
 		let o = Obj.repr op in
 		let oid = Obj.tag o in
-		let field n = (Obj.magic (Obj.field o n) : int) in
-		match Obj.size o with
-		| 1 ->
-			let a = field 0 in
-			assert false
-		| 2 ->
-			let a = field 0 in
-			let b = field 1 in
-			assert false
-		| 3 ->
-			let a = field 0 in
-			let b = field 1 in
-			let c = field 2 in
-			assert false
-		| n ->
-			assert false
+
+		match op with
+		| OCall2 (r,g,a,b) ->
+			byte oid;
+			write_index r;
+			write_index g;
+			write_index a;
+			write_index b;
+		| OCallN (r,f,rl) ->
+			byte oid;
+			write_index r;
+			write_index f;
+			let n = List.length rl in
+			if n > 0xFF then assert false;
+			byte n;
+			List.iter write_index rl
+		| _ ->
+			let field n = (Obj.magic (Obj.field o n) : int) in
+			match Obj.size o with
+			| 1 ->
+				let a = field 0 in
+				byte oid;
+				write_index a;
+			| 2 ->
+				let a = field 0 in
+				let b = field 1 in
+				byte oid;
+				write_index a;
+				write_index b;
+			| 3 ->
+				let a = field 0 in
+				let b = field 1 in
+				let c = field 2 in
+				byte oid;
+				write_index a;
+				write_index b;
+				write_index c;
+			| _ ->
+				assert false
 	in
 
 	IO.nwrite ch "HLB";
@@ -743,14 +761,17 @@ let write_code ch code =
 		IO.close_out tmp_ch
 	in
 	let types_data = calc_types() in
-	write_index (Array.length code.strings);
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
+	write_index (Array.length code.strings);
 	write_index (DynArray.length types.arr);
 	write_index (Array.length code.globals);
 	write_index (Array.length code.natives);
 	write_index (Array.length code.functions);
 	write_index code.entrypoint;
+
+	Array.iter (IO.write_real_i32 ch) code.ints;
+	Array.iter (IO.write_double ch) code.floats;
 
 	let str_length = ref 0 in
 	Array.iter (fun str -> str_length := !str_length + String.length str + 1) code.strings;
@@ -758,8 +779,6 @@ let write_code ch code =
 	Array.iter (IO.write_string ch) code.strings;
 	Array.iter (fun str -> write_index (String.length str)) code.strings;
 
-	Array.iter (IO.write_real_i32 ch) code.ints;
-	Array.iter (IO.write_double ch) code.floats;
 	IO.nwrite ch types_data;
 	Array.iter write_type code.globals;
 	Array.iter (fun (name_index,global_index) ->
@@ -790,7 +809,6 @@ let ostr o =
 	| OCall0 (r,g) -> Printf.sprintf "call %d, %d()" r g
 	| OCall1 (r,g,a) -> Printf.sprintf "call %d, %d(%d)" r g a
 	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, %d(%d,%d)" r g a b
-	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, %d(%d,%d,%d)" r g a b c
 	| OCallN (r,g,rl) -> Printf.sprintf "call %d, %d(%s)" r g (String.concat "," (List.map string_of_int rl))
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
