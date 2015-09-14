@@ -81,10 +81,11 @@ type reg = int
 type global = int
 type sindex = int
 type findex = int
+type iindex = int
 
 type opcode =
 	| OMov of reg * reg
-	| OInt of reg * int32
+	| OInt of reg * iindex
 	| OFloat of reg * findex
 	| OBool of reg * bool
 	| OAdd of reg * reg * reg
@@ -120,6 +121,7 @@ type code = {
 	version : int;
 	entrypoint : global;
 	strings : string array;
+	ints : int32 array;
 	floats : float array;
 	globals : ttype array;
 	natives : (sindex * global) array;
@@ -143,6 +145,7 @@ type context = {
 	cglobals : (string, ttype) lookup;
 	cstrings : (string, string) lookup;
 	cfloats : (float, float) lookup;
+	cints : (int32, int32) lookup;
 	cnatives : (string, (sindex * global)) lookup;
 	cfunctions : fundecl DynArray.t;
 	mutable m : method_context;
@@ -227,6 +230,9 @@ let alloc_reg ctx v =
 let alloc_float ctx f =
 	lookup ctx.cfloats f (fun() -> f)
 
+let alloc_i32 ctx i =
+	lookup ctx.cints i (fun() -> i)
+
 let alloc_string ctx s =
 	lookup ctx.cstrings s (fun() -> s)
 
@@ -267,7 +273,7 @@ and eval_expr ctx e =
 		(match c with
 		| TInt i ->
 			let r = alloc_tmp ctx TI32 in
-			op ctx (OInt (r,i));
+			op ctx (OInt (r,alloc_i32 ctx i));
 			r
 		| TFloat f ->
 			let r = alloc_tmp ctx TF64 in
@@ -376,7 +382,7 @@ let make_fun ctx f idx =
 			op ctx (OJNotNull (r,1));
 			match c with
 			| TNull | TThis | TSuper -> assert false
-			| TInt i -> op ctx (OInt (r, i))
+			| TInt i -> op ctx (OInt (r, alloc_i32 ctx i))
 			| TFloat s -> op ctx (OFloat (r, alloc_float ctx (float_of_string s)))
 			| Type.TBool b -> op ctx (OBool (r, b))
 			| TString s -> assert false (* TODO *)
@@ -489,7 +495,9 @@ let interp code =
 				reg a (rtype b)
 			| OInt (r,i) ->
 				(match rtype r with
-				| TUI8 -> if Int32.to_int i < 0 || Int32.to_int i > 0xFF then reg r TI32
+				| TUI8 ->
+					let i = code.ints.(i) in
+					if Int32.to_int i < 0 || Int32.to_int i > 0xFF then reg r TI32
 				| TI32 -> ()
 				| _ -> reg r TI32)
 			| OFloat (r,i) ->
@@ -588,7 +596,7 @@ let interp code =
 			incr pos;
 			(match op with
 			| OMov (a,b) -> set a (get b)
-			| OInt (r,i) -> set r (VInt i)
+			| OInt (r,i) -> set r (VInt code.ints.(i))
 			| OFloat (r,i) -> set r (VFloat (Array.unsafe_get code.floats i))
 			| OBool (r,b) -> set r (VBool b)
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
@@ -673,9 +681,8 @@ let write_index_gen b i =
 let write_code ch code =
 
 	let types = new_lookup() in
-	let b = IO.write_byte ch in
-	let byte = b in
-	let write_index = write_index_gen b in
+	let byte = IO.write_byte ch in
+	let write_index = write_index_gen byte in
 
 	let rec write_type t =
 		write_index (lookup types t (fun() -> assert false))
@@ -683,123 +690,25 @@ let write_code ch code =
 
 	let reg = write_index in
 
-	let binop i r ra rb =
-		if r < 8 && ra < 8 && rb < 8 && i < 64 then begin
-			(* short format : 2 bytes instead of 4 *)
-			b (((i lsl 1) lor 0x80) lor (if r > 4 then 1 else 0));
-			b (((r land 3) lsl 6) lor (ra lsl 3) lor rb);
-		end else begin
-			b i;
-			reg r;
-			reg ra;
-			reg rb;
-		end
-	in
-
-	let unop i r =
-		b i;
-		reg r
-	in
-
-	let write_op = function
-		| OMov (a,b) ->
-			byte 0;
-			reg a;
-			reg b;
-		| OInt (r, i) when i >= 0l && i <= 0xFFl ->
-			b 1;
-			reg r;
-			b (Int32.to_int i);
-		| OInt (r, i) ->
-			b 2;
-			reg r;
-			IO.write_real_i32 ch i
-		| OFloat (r,i) ->
-			b 3;
-			reg r;
-			write_index i
-		| OBool (r, f) ->
-			b (if f then 4 else 5);
-			reg r
-		| OAdd (r,a,b) ->
-			binop 6 r a b
-		| OSub (r,a,b) ->
-			binop 7 r a b
-		| OIncr r ->
-			unop 8 r
-		| ODecr r ->
-			unop 9 r
-		| OCall0 (r, g) ->
-			b 10;
-			reg r;
-			write_index g
-		| OCall1 (r,g,a) ->
-			b 11;
-			reg r;
-			write_index g;
-			reg a
-		| OCall2 (r,g,a,b) ->
-			byte 12;
-			reg r;
-			write_index g;
-			reg a;
-			reg b;
-		| OCall3 (r,g,a,b,c) ->
-			byte 12;
-			reg r;
-			write_index g;
-			reg a;
-			reg b;
-			reg c;
-		| OCallN (r, f, pl) ->
-			byte 13;
-			reg r;
-			reg f;
-			let n = List.length pl in
-			if n > 0xFF then assert false;
-			b n;
-			List.iter reg pl
-		| OGetGlobal (r, g) ->
-			b 14;
-			reg r;
-			write_index g
-		| OSetGlobal (r, g) ->
-			b 15;
-			write_index g;
-			reg r
-		| OEq (r,a,b) ->
-			binop 16 r a b
-		| ONotEq (r,a,b) ->
-			binop 17 r a b
-		| OLt (r,a,b) ->
-			binop 18 r a b
-		| OGte (r,a,b) ->
-			binop 20 r a b
-		| ORet r ->
-			unop 21 r
-		| OJTrue (r,i) ->
-			b 22;
-			reg r;
-			write_index i
-		| OJFalse (r, i) ->
-			b 23;
-			reg r;
-			write_index i
-		| OJNull (r, i) ->
-			b 24;
-			reg r;
-			write_index i
-		| OJNotNull (r, i) ->
-			b 25;
-			reg r;
-			write_index i
-		| OJAlways i ->
-			b 26;
-			write_index i
-		| OToAny (a,b) ->
-			byte 27;
-			reg a;
-			reg b
+	let write_op op =
+		let o = Obj.repr op in
+		let oid = Obj.tag o in
+		let field n = (Obj.magic (Obj.field o n) : int) in
+		match Obj.size o with
+		| 1 ->
+			let a = field 0 in
+			assert false
+		| 2 ->
+			let a = field 0 in
+			let b = field 1 in
+			assert false
+		| 3 ->
+			let a = field 0 in
+			let b = field 1 in
+			let c = field 2 in
+			assert false
+		| n ->
+			assert false
 	in
 
 	IO.nwrite ch "HLB";
@@ -835,6 +744,7 @@ let write_code ch code =
 	in
 	let types_data = calc_types() in
 	write_index (Array.length code.strings);
+	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
 	write_index (DynArray.length types.arr);
 	write_index (Array.length code.globals);
@@ -848,6 +758,7 @@ let write_code ch code =
 	Array.iter (IO.write_string ch) code.strings;
 	Array.iter (fun str -> write_index (String.length str)) code.strings;
 
+	Array.iter (IO.write_real_i32 ch) code.ints;
 	Array.iter (IO.write_double ch) code.floats;
 	IO.nwrite ch types_data;
 	Array.iter write_type code.globals;
@@ -869,7 +780,7 @@ let write_code ch code =
 let ostr o =
 	match o with
 	| OMov (a,b) -> Printf.sprintf "mov %d,%d" a b
-	| OInt (r,i) -> Printf.sprintf "int %d,%ld" r i
+	| OInt (r,i) -> Printf.sprintf "int %d,@%d" r i
 	| OFloat (r,i) -> Printf.sprintf "float %d,@%d" r i
 	| OBool (r,b) -> if b then Printf.sprintf "true %d" r else Printf.sprintf "false %d" r
 	| OAdd (r,a,b) -> Printf.sprintf "add %d,%d,%d" r a b
@@ -912,6 +823,10 @@ let dump code =
 	Array.iteri (fun i s ->
 		pr ("	@" ^ string_of_int i ^ " : " ^ s);
 	) code.strings;
+	pr (string_of_int (Array.length code.ints) ^ " ints");
+	Array.iteri (fun i v ->
+		pr ("	@" ^ string_of_int i ^ " : " ^ Int32.to_string v);
+	) code.ints;
 	pr (string_of_int (Array.length code.floats) ^ " floats");
 	Array.iteri (fun i f ->
 		pr ("	@" ^ string_of_int i ^ " : " ^ string_of_float f);
@@ -943,6 +858,7 @@ let generate com =
 	let ctx = {
 		com = com;
 		m = method_context();
+		cints = new_lookup();
 		cstrings = new_lookup();
 		cfloats = new_lookup();
 		cglobals = new_lookup();
@@ -960,6 +876,7 @@ let generate com =
 		version = 1;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
+		ints = DynArray.to_array ctx.cints.arr;
 		floats = DynArray.to_array ctx.cfloats.arr;
 		globals = DynArray.to_array ctx.cglobals.arr;
 		natives = DynArray.to_array ctx.cnatives.arr;
