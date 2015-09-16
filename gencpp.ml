@@ -4372,7 +4372,7 @@ let write_resources common_ctx =
 
    let resource_file = new_cpp_file common_ctx common_ctx.file ([],"__resources__") in
    resource_file#write "#include <hxcpp.h>\n\n";
-   resource_file#write "namespace hx { \n\n";
+   resource_file#write "namespace hx {\n";
 
    idx := 0;
    Hashtbl.iter (fun _ data ->
@@ -4384,7 +4384,7 @@ let write_resources common_ctx =
    resource_file#write "}\n\n";
 
    idx := 0;
-   resource_file#write "hx::Resource __Resources[] =";
+   resource_file#write "hx::Resource __Resources[] = ";
    resource_file#begin_block;
    Hashtbl.iter (fun name data ->
       let id = "__res_" ^ (string_of_int !idx) in
@@ -4394,10 +4394,10 @@ let write_resources common_ctx =
       incr idx;
    ) common_ctx.resources;
 
-   resource_file#write_i "{::String(null()),0,0}";
+   resource_file#write_i "{ ::String(null()),0,0 }\n";
    resource_file#end_block_line;
    resource_file#write ";\n\n";
-   resource_file#write "namespace hx { Resource *GetResources() { return __Resources; } } \n\n";
+   resource_file#write "namespace hx { Resource *GetResources() { return __Resources; } }\n";
    resource_file#close;;
 
 
