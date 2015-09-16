@@ -12,6 +12,7 @@
 /extra/*.swf
 /extra/*.swc
 /extra/bintray.json
+/extra/git-archive-all
 
 /version.ml
 /haxe
