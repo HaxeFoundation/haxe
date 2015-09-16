@@ -62,7 +62,7 @@ abstract UInt32Array(UInt32ArrayData) {
 		return this;
 	}
 
-	public static function fromData( d : UInt32ArrayData ) : UInt32Array {
+	public static inline function fromData( d : UInt32ArrayData ) : UInt32Array {
 		return cast d;
 	}
 

@@ -64,7 +64,7 @@ abstract Float32Array(Float32ArrayData) {
 		return this;
 	}
 
-	public static function fromData( d : Float32ArrayData ) : Float32Array {
+	public inline static function fromData( d : Float32ArrayData ) : Float32Array {
 		return cast d;
 	}
 

@@ -62,7 +62,7 @@ abstract Int32Array(Int32ArrayData) {
 		return this;
 	}
 
-	public static function fromData( d : Int32ArrayData ) : Int32Array {
+	public static inline function fromData( d : Int32ArrayData ) : Int32Array {
 		return cast d;
 	}
 

@@ -62,7 +62,7 @@ abstract UInt8Array(UInt8ArrayData) {
 		return this;
 	}
 
-	public static function fromData( d : UInt8ArrayData ) : UInt8Array {
+	public static inline function fromData( d : UInt8ArrayData ) : UInt8Array {
 		return cast d;
 	}
 

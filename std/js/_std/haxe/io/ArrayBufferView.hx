@@ -5,7 +5,7 @@ typedef ArrayBufferViewData = js.html.ArrayBufferView;
 abstract ArrayBufferView(ArrayBufferViewData) {
 
 	public static var EMULATED(get,never) : Bool;
-	static function get_EMULATED() {
+	static inline function get_EMULATED() {
 		return (cast js.html.ArrayBuffer) == js.html.compat.ArrayBuffer;
 	}
 
@@ -19,16 +19,12 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 
 	inline function get_byteOffset() return this.byteOffset;
 	inline function get_byteLength() return this.byteLength;
-	function get_buffer() : haxe.io.Bytes {
+	inline function get_buffer() : haxe.io.Bytes {
 		return haxe.io.Bytes.ofData(this.buffer);
 	}
 
 	public inline function sub( begin : Int, ?length : Int ) {
-		#if js
 		return fromData(new js.html.Uint8Array(this.buffer.slice(begin, length == null ? null : begin+length)));
-		#else
-		return fromData(this.sub(begin,length));
-		#end
 	}
 
 	public inline function getData() : ArrayBufferViewData {

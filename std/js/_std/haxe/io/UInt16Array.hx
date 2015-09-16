@@ -62,7 +62,7 @@ abstract UInt16Array(UInt16ArrayData) {
 		return this;
 	}
 
-	public static function fromData( d : UInt16ArrayData ) : UInt16Array {
+	public static inline function fromData( d : UInt16ArrayData ) : UInt16Array {
 		return cast d;
 	}
 

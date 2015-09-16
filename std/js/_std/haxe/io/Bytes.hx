@@ -187,7 +187,7 @@ class Bytes {
 		return untyped b.bufferValue;
 	}
 
-	public static function alloc( length : Int ) : Bytes {
+	public static inline function alloc( length : Int ) : Bytes {
 		return new Bytes(new BytesData(length));
 	}
 
