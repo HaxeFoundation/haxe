@@ -23,34 +23,6 @@ open Ast
 open Type
 open Common
 
-(*
-
-	Steps
-
-	- compile Main.fib into bytecode
-	- add debug informations (reg names, etc.)
-	- compact output bytecode format + dump
-	- load in C + interp?
-	- jit x86 / x86_64
-	- GC
-	- complete opcodes
-	- FFI / Dynlink
-	- pass unit tests (closures etc.)
-
-	Design problems :
-
-	- declaring all regs in each function : easy, but can take too much space ? (what about array before we get a pointer ?)
-			using ORegs/OPopRegs for several register spaces is good, but needs tracking wrt to jumps
-			what about register allocation ?
-
-	- which regs should be selected for native regs ?
-			first ones : might lose some slots because some args are not used
-			last ones : will often require to mov args there
-			we need them sorted by order of importance ! (# of native regs vary, easier to assign)
-			--> each arg needs an index into reg table, IE not direct matching ?
-
-*)
-
 type ttype =
 	| TVoid
 	| TUI8
@@ -60,22 +32,6 @@ type ttype =
 	| TBool
 	| TAny
 	| TFun of ttype list * ttype
-
-(*
-
-only implements what's needed for Haxe ! -- KISS
-
-	| TType
-	| TDynamic
-	| TAbstract of string
-	| TStruct of (string * ttype) list
-	| TArray of ttype * int
-	| TSlice of ttype
-	| TRef of ttype
-	| TNull of ttype
-	| TNamed of string * ttype
-
-*)
 
 type reg = int
 type global = int
@@ -95,6 +51,8 @@ type opcode =
 	| OCall0 of reg * global
 	| OCall1 of reg * global * reg
 	| OCall2 of reg * global * reg * reg
+	| OCall3 of reg * global * reg * reg * reg
+	| OCall4 of reg * global * reg * reg * reg * reg
 	| OCallN of reg * reg * reg list
 	| OGetGlobal of reg * global
 	| OSetGlobal of reg * global
@@ -107,6 +65,10 @@ type opcode =
 	| OJFalse of reg * int
 	| OJNull of reg * int
 	| OJNotNull of reg * int
+	| OJLt of reg * reg * int
+	| OJGte of reg * reg * int
+	| OJEq of reg * reg * int
+	| OJNeq of reg * reg * int
 	| OJAlways of int
 	| OToAny of reg * reg
 
@@ -266,6 +228,44 @@ and cast_to ctx (r:reg) (t:ttype) =
 	| _ ->
 		failwith ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t)
 
+and get_global ctx e =
+	match e.eexpr with
+	| TField (f, a) ->
+		(match a with
+		| FStatic (c,f) ->
+			Some (alloc_global ctx (field_name c f) f.cf_type)
+		| _ ->
+			None)
+	| TParenthesis e ->
+		get_global ctx e
+	| _ ->
+		None
+
+and jump_expr ctx e jcond =
+	match e.eexpr with
+	| TParenthesis e ->
+		jump_expr ctx e jcond
+	| TBinop (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte as op, e1, e2) ->
+		let r1 = eval_expr ctx e1 in
+		let r2 = eval_expr ctx e2 in
+		jump ctx (fun i ->
+			match op with
+			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNeq (r1,r2,i)
+			| OpNotEq -> if jcond then OJNeq (r1,r2,i) else OJEq (r1,r2,i)
+			| OpGt -> if jcond then OJLt (r2,r1,i) else OJGte (r2,r1,i)
+			| OpGte -> if jcond then OJGte (r1,r2,i) else OJLt (r1,r2,i)
+			| OpLt -> if jcond then OJLt (r1,r2,i) else OJGte (r1,r2,i)
+			| OpLte -> if jcond then OJGte (r2,r1,i) else OJLt (r2,r1,i)
+			| _ -> assert false
+		)
+	| TBinop (OpAnd, e1, e2) ->
+		assert false
+	| TBinop (OpOr, e1, e2) ->
+		assert false
+	| _ ->
+		let r = eval_expr ctx e in
+		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
+
 and eval_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
@@ -306,11 +306,24 @@ and eval_expr ctx e =
 		in
 		loop el
 	| TCall (ec,el) ->
-		let r = eval_expr ctx ec in
-		let el = List.map2 (fun e t -> eval_to ctx e t) el (match rtype ctx r with TFun (args,_) -> args | _ -> assert false) in
-		let ret = alloc_tmp ctx (to_type e.etype) in
-		op ctx (OCallN (ret, r, el));
-		ret
+		(match get_global ctx ec with
+		| Some g when List.length el < 5 ->
+			let el = List.map2 (fun e t -> eval_to ctx e t) el (match to_type ec.etype with TFun (args,_) -> args | _ -> assert false) in
+			let ret = alloc_tmp ctx (to_type e.etype) in
+			(match el with
+			| [] -> op ctx (OCall0 (ret, g))
+			| [a] -> op ctx (OCall1 (ret, g, a))
+			| [a;b] -> op ctx (OCall2 (ret, g, a, b))
+			| [a;b;c] -> op ctx (OCall3 (ret, g, a, b, c))
+			| [a;b;c;d] -> op ctx (OCall4 (ret, g, a, b, c, d))
+			| _ -> assert false);
+			ret
+		| _ ->
+			let r = eval_expr ctx ec in
+			let el = List.map2 (fun e t -> eval_to ctx e t) el (match rtype ctx r with TFun (args,_) -> args | _ -> assert false) in
+			let ret = alloc_tmp ctx (to_type e.etype) in
+			op ctx (OCallN (ret, r, el));
+			ret)
 	| TField (f,a) ->
 		(match a with
 		| FStatic (c,f) ->
@@ -324,8 +337,7 @@ and eval_expr ctx e =
 		alloc_tmp ctx TVoid
 	| TIf (cond,eif,eelse) ->
 		let out = alloc_tmp ctx (to_type e.etype) in
-		let r = eval_expr ctx cond in
-		let j = jump ctx (fun i -> OJFalse (r,i)) in
+		let j = jump_expr ctx cond false in
 		op ctx (OMov (out,eval_expr ctx eif));
 		(match eelse with
 		| None -> j()
@@ -522,6 +534,10 @@ let interp code =
 				call f [a] r
 			| OCall2 (r, f, a, b) ->
 				call f [a;b] r
+			| OCall3 (r, f, a, b, c) ->
+				call f [a;b;c] r
+			| OCall4 (r, f, a, b, c, d) ->
+				call f [a;b;c;d] r
 			| OCallN (r,f,rl) ->
 				(match rtype f with
 				| TFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
@@ -538,6 +554,9 @@ let interp code =
 				can_jump delta
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
 				ignore(rtype r);
+				can_jump delta
+			| OJGte (a,b,delta) | OJLt (a,b,delta) | OJEq (a,b,delta) | OJNeq (a,b,delta) ->
+				reg a (rtype b);
 				can_jump delta
 			| OJAlways d ->
 				can_jump d
@@ -588,6 +607,12 @@ let interp code =
 			| _ ->
 				assert false
 		in
+		let vcall v args =
+			match v with
+			| VFun f -> call f args
+			| VNativeFun f -> f args
+			| _ -> assert false
+		in
 		let rec loop() =
 			let op = f.code.(!pos) in
 			incr pos;
@@ -600,14 +625,12 @@ let interp code =
 			| OSub (r,a,b) -> set r (numop Int32.sub ( -. ) a b)
 			| OIncr r -> set r (iunop (fun i -> Int32.add i 1l) r)
 			| ODecr r -> set r (iunop (fun i -> Int32.sub i 1l) r)
-			| OCall0 (r,f) -> set r (call (match global f with VFun f -> f | _ -> assert false) [])
-			| OCall1 (r,f,r1) -> set r (call (match global f with VFun f -> f | _ -> assert false) [get r1])
-			| OCall2 (r,f,r1,r2) -> set r (call (match global f with VFun f -> f | _ -> assert false) [get r1;get r2])
-			| OCallN (r,f,rl) ->
-				(match get f with
-				| VFun f -> set r (call f (List.map get rl))
-				| VNativeFun f -> set r (f (List.map get rl))
-				| _ -> assert false)
+			| OCall0 (r,f) -> set r (vcall (global f) [])
+			| OCall1 (r,f,r1) -> set r (vcall (global f) [get r1])
+			| OCall2 (r,f,r1,r2) -> set r (vcall (global f) [get r1;get r2])
+			| OCall3 (r,f,r1,r2,r3) -> set r (vcall (global f) [get r1;get r2;get r3])
+			| OCall4 (r,f,r1,r2,r3,r4) -> set r (vcall (global f) [get r1;get r2;get r3;get r4])
+			| OCallN (r,f,rl) -> set r (vcall (get f) (List.map get rl))
 			| OGetGlobal (r,g) -> set r (global g)
 			| OSetGlobal (r,g) -> Array.unsafe_set globals g (get r)
 			| OEq (r,a,b) -> set r (VBool (get a = get b))
@@ -619,6 +642,10 @@ let interp code =
 			| ORet r -> raise (Return regs.(r))
 			| OJNull (r,i) -> if get r == VNull then pos := !pos + i
 			| OJNotNull (r,i) -> if get r != VNull then pos := !pos + i
+			| OJLt (a,b,i) -> if get a < get b then pos := !pos + i
+			| OJGte (a,b,i) -> if get a >= get b then pos := !pos + i
+			| OJEq (a,b,i) -> if get a = get b then pos := !pos + i
+			| OJNeq (a,b,i) -> if get a <> get b then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OToAny (r,a) -> set r (VAny (get a, f.regs.(a)))
 			);
@@ -696,6 +723,21 @@ let write_code ch code =
 			write_index g;
 			write_index a;
 			write_index b;
+		| OCall3 (r,g,a,b,c) ->
+			byte oid;
+			write_index r;
+			write_index g;
+			write_index a;
+			write_index b;
+			write_index c;
+		| OCall4 (r,g,a,b,c,d) ->
+			byte oid;
+			write_index r;
+			write_index g;
+			write_index a;
+			write_index b;
+			write_index c;
+			write_index d;
 		| OCallN (r,f,rl) ->
 			byte oid;
 			write_index r;
@@ -809,7 +851,9 @@ let ostr o =
 	| OCall0 (r,g) -> Printf.sprintf "call %d, %d()" r g
 	| OCall1 (r,g,a) -> Printf.sprintf "call %d, %d(%d)" r g a
 	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, %d(%d,%d)" r g a b
-	| OCallN (r,g,rl) -> Printf.sprintf "call %d, %d(%s)" r g (String.concat "," (List.map string_of_int rl))
+	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, %d(%d,%d,%d)" r g a b c
+	| OCall4 (r,g,a,b,c,d) -> Printf.sprintf "call %d, %d(%d,%d,%d,%d)" r g a b c d
+	| OCallN (r,g,rl) -> Printf.sprintf "call %d, [%d](%s)" r g (String.concat "," (List.map string_of_int rl))
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| OEq (r,a,b) -> Printf.sprintf "eq %d,%d,%d" r a b
@@ -821,6 +865,10 @@ let ostr o =
 	| OJFalse (r,d) -> Printf.sprintf "jfalse %d,%d" r d
 	| OJNull (r,d) -> Printf.sprintf "jnull %d,%d" r d
 	| OJNotNull (r,d) -> Printf.sprintf "jnotnull %d,%d" r d
+	| OJLt (a,b,i) -> Printf.sprintf "jlt %d,%d,%d" a b i
+	| OJGte (a,b,i) -> Printf.sprintf "jgte %d,%d,%d" a b i
+	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
+	| OJNeq (a,b,i) -> Printf.sprintf "jneq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
 	| OToAny (r,a) -> Printf.sprintf "toany %d,%d" r a
 
