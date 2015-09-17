@@ -8,6 +8,7 @@
 	all : allowed passing package dot-paths on command line (#4227)
 	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.11.3 / 2.1.4 (#4377)
 	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
+	js : added js.Lib.rethrow (#4551)
 
 	Bugfixes:
 

@@ -434,6 +434,8 @@ let rec gen_call ctx e el in_value =
 		else match eelse with
 			| [] -> ()
 			| e :: _ -> gen_value ctx e)
+	| TLocal { v_name = "__rethrow__" }, [] ->
+		spr ctx "throw $hx_rethrow";
 	| TLocal { v_name = "__resources__" }, [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
@@ -671,6 +673,20 @@ and gen_expr ctx e =
 		if (has_feature ctx "haxe.CallStack.exceptionStack") then begin
 			newline ctx;
 			print ctx "%s.lastException = %s" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["haxe"],"CallStack" })) vname
+		end;
+
+		if (has_feature ctx "js.Lib.rethrow") then begin
+			let has_rethrow (_,e) =
+				let rec loop e = match e.eexpr with 
+				| TCall({eexpr = TLocal {v_name = "__rethrow__"}}, []) -> raise Exit
+				| _ -> Type.iter loop e
+				in
+				try (loop e; false) with Exit -> true
+			in
+			if List.exists has_rethrow catchs then begin
+				newline ctx;
+				print ctx "var $hx_rethrow = %s" vname;
+			end
 		end;
 
 		if (has_feature ctx "js.Boot.HaxeError") then begin
