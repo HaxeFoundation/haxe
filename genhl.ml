@@ -46,6 +46,8 @@ type opcode =
 	| OBool of reg * bool
 	| OAdd of reg * reg * reg
 	| OSub of reg * reg * reg
+	| OMul of reg * reg * reg
+	| ODiv of reg * reg * reg
 	| OIncr of reg
 	| ODecr of reg
 	| OCall0 of reg * global
@@ -178,6 +180,7 @@ let rec to_type t =
 			(match a.a_path with
 			| [], "Void" -> TVoid
 			| [], "Int" -> TI32
+			| [], "Float" -> TF64
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
 			to_type (Abstract.get_underlying_type a pl)
@@ -284,6 +287,14 @@ and eval_expr ctx e =
 			r
 		| _ ->
 			failwith ("TODO " ^ s_const c))
+	| TVar (v,e) ->
+		let r = alloc_reg ctx v in
+		(match e with
+		| None -> ()
+		| Some e ->
+			let ri = eval_expr ctx e in
+			op ctx (OMov (r,ri)));
+		r
 	| TLocal v ->
 		alloc_reg ctx v
 	| TReturn None ->
@@ -359,21 +370,24 @@ and eval_expr ctx e =
 			let t = to_type e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
-			| TI32 ->
-				let a = eval_expr ctx e1 in
-				let b = eval_expr ctx e2 in
+			| TI32 | TF32 | TF64 | TUI8 ->
+				let a = eval_to ctx e1 t in
+				let b = eval_to ctx e2 t in
 				op ctx (OAdd (r,a,b));
 				r
 			| _ ->
 				assert false)
-		| OpSub ->
+		| OpSub | OpMult ->
 			let t = to_type e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
-			| TI32 ->
-				let a = eval_expr ctx e1 in
-				let b = eval_expr ctx e2 in
-				op ctx (OSub (r,a,b));
+			| TI32 | TF32 | TF64 | TUI8 ->
+				let a = eval_to ctx e1 t in
+				let b = eval_to ctx e2 t in
+				(match bop with
+				| OpSub -> op ctx (OSub (r,a,b))
+				| OpMult -> op ctx (OMul (r,a,b))
+				| _ -> assert false);
 				r
 			| _ ->
 				assert false)
@@ -516,11 +530,7 @@ let interp code =
 				if i < 0 || i >= Array.length code.floats then failwith "float outside range"
 			| OBool (r,_) ->
 				reg r TBool
-			| OAdd (r,a,b) ->
-				numeric r;
-				reg a (rtype r);
-				reg b (rtype r);
-			| OSub (r,a,b) ->
+			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | ODiv (r,a,b) ->
 				numeric r;
 				reg a (rtype r);
 				reg b (rtype r);
@@ -623,6 +633,8 @@ let interp code =
 			| OBool (r,b) -> set r (VBool b)
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
 			| OSub (r,a,b) -> set r (numop Int32.sub ( -. ) a b)
+			| OMul (r,a,b) -> set r (numop Int32.mul ( *. ) a b)
+			| ODiv (r,a,b) -> set r (numop Int32.div ( /. ) a b)
 			| OIncr r -> set r (iunop (fun i -> Int32.add i 1l) r)
 			| ODecr r -> set r (iunop (fun i -> Int32.sub i 1l) r)
 			| OCall0 (r,f) -> set r (vcall (global f) [])
@@ -846,6 +858,8 @@ let ostr o =
 	| OBool (r,b) -> if b then Printf.sprintf "true %d" r else Printf.sprintf "false %d" r
 	| OAdd (r,a,b) -> Printf.sprintf "add %d,%d,%d" r a b
 	| OSub (r,a,b) -> Printf.sprintf "sub %d,%d,%d" r a b
+	| OMul (r,a,b) -> Printf.sprintf "mul %d,%d,%d" r a b
+	| ODiv (r,a,b) -> Printf.sprintf "div %d,%d,%d" r a b
 	| OIncr r -> Printf.sprintf "incr %d" r
 	| ODecr r -> Printf.sprintf "decr %d" r
 	| OCall0 (r,g) -> Printf.sprintf "call %d, %d()" r g
