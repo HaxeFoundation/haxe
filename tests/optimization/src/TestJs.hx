@@ -137,8 +137,6 @@ class TestJs {
 		use(object);
 	}
 
-	//@:analyzer(no_const_propagation)
-	//@:analyzer(no_check_has_effect)
 	@:analyzer(no_local_dce)
 	@:js('var v0_x = 0;var v1_x = 1;var vRand = Math.random();')
 	static function testInlineFunctionNew() {
