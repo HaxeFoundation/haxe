@@ -185,6 +185,7 @@ module Define = struct
 		| Dump
 		| DumpDependencies
 		| DumpIgnoreVarIds
+		| DynamicInterfaceClosures
 		| EraseGenerics
 		| Fdb
 		| FileExtension
@@ -270,6 +271,7 @@ module Define = struct
 		| Dump -> ("dump","Dump the complete typed AST for internal debugging in a dump subdirectory - use dump=pretty for Haxe-like formatting")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies in a dump subdirectory")
 		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Remove variable IDs from non-pretty dumps (helps with diff)")
+		| DynamicInterfaceClosures -> ("dynamic_interface_closures","Use slow path for interface closures to save space")
 		| EraseGenerics -> ("erase_generics","Erase generic classes on C#")
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| FileExtension -> ("file_extension","Output filename extension for cpp source code")

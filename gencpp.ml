@@ -2760,69 +2760,72 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (" " ^ remap_name ^ "( " );
          output (gen_tfun_interface_arg_list args);
          output (if (not is_static) then ")=0;\n" else ");\n");
-         if reflective class_def field then begin
-            output ("virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
+         if (reflective class_def field) then begin
+            if (Common.defined ctx.ctx_common Define.DynamicInterfaceClosures) then
+               output ("		inline Dynamic " ^ remap_name ^ "_dyn() { return __Field( " ^ (str field.cf_name) ^ ", hx::paccDynamic); }\n" )
+            else
+               output ("		virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
          end
       | _  ->  ( )
    end else begin
-   let decl = get_meta_string field.cf_meta Meta.Decl in
-   let has_decl = decl <> "" in
-   if (has_decl) then
-      output ( "      typedef " ^ decl ^ ";\n" );
-   output (if is_static then "\t\tstatic " else "\t\t");
-   (match  field.cf_expr with
-   | Some { eexpr = TFunction function_def } ->
-      let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
-      let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
-      if ( is_dynamic_haxe_method field ) then begin
-         if ( doDynamic ) then begin
-            output ("Dynamic " ^ remap_name ^ ";\n");
-            output (if is_static then "\t\tstatic " else "\t\t");
-            output ("inline Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
-         end
-      end else begin
-         let return_type = (type_string function_def.tf_type) in
-
-         if ( not is_static && not nonVirtual ) then output "virtual ";
-         output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
-
-         output (" " ^ remap_name ^ "(" );
-         output (gen_arg_list function_def.tf_args "" );
-         output ");\n";
-         if ( doDynamic ) then begin
-            output (if is_static then "\t\tstatic " else "\t\t");
-            output ("Dynamic " ^ remap_name ^ "_dyn();\n" )
+      let decl = get_meta_string field.cf_meta Meta.Decl in
+      let has_decl = decl <> "" in
+      if (has_decl) then
+         output ( "      typedef " ^ decl ^ ";\n" );
+      output (if is_static then "\t\tstatic " else "\t\t");
+      (match  field.cf_expr with
+      | Some { eexpr = TFunction function_def } ->
+         let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
+         let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
+         if ( is_dynamic_haxe_method field ) then begin
+            if ( doDynamic ) then begin
+               output ("Dynamic " ^ remap_name ^ ";\n");
+               output (if is_static then "\t\tstatic " else "\t\t");
+               output ("inline Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
+            end
+         end else begin
+            let return_type = (type_string function_def.tf_type) in
+   
+            if ( not is_static && not nonVirtual ) then output "virtual ";
+            output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
+   
+            output (" " ^ remap_name ^ "(" );
+            output (gen_arg_list function_def.tf_args "" );
+            output ");\n";
+            if ( doDynamic ) then begin
+               output (if is_static then "\t\tstatic " else "\t\t");
+               output ("Dynamic " ^ remap_name ^ "_dyn();\n" )
+            end;
          end;
-      end;
-      output "\n";
-   | _ when has_decl ->
-      output ( remap_name ^ "_decl " ^ remap_name ^ ";\n" );
-      (* Variable access *)
-   | _ ->
-      (* Variable access *)
-      gen_type ctx field.cf_type;
-      output (" " ^ remap_name ^ ";\n" );
-
-      (* Add a "dyn" function for variable to unify variable/function access *)
-      (match follow field.cf_type with
-      | _ when nativeGen  -> ()
-      | TFun (_,_) ->
-         output (if is_static then "\t\tstatic " else "\t\t");
+         output "\n";
+      | _ when has_decl ->
+         output ( remap_name ^ "_decl " ^ remap_name ^ ";\n" );
+         (* Variable access *)
+      | _ ->
+         (* Variable access *)
          gen_type ctx field.cf_type;
-         output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
-      | _ ->  (match field.cf_kind with
-         | Var { v_read = AccCall } when (not is_static) && (is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def) ->
-            output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
-         | _ -> ()
-         );
-         (match field.cf_kind with
-         | Var { v_write = AccCall } when (not is_static) &&  (is_dynamic_accessor ("set_" ^ field.cf_name) "set" field class_def) ->
-            output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
-         | _ -> ()
+         output (" " ^ remap_name ^ ";\n" );
+   
+         (* Add a "dyn" function for variable to unify variable/function access *)
+         (match follow field.cf_type with
+         | _ when nativeGen  -> ()
+         | TFun (_,_) ->
+            output (if is_static then "\t\tstatic " else "\t\t");
+            gen_type ctx field.cf_type;
+            output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
+         | _ ->  (match field.cf_kind with
+            | Var { v_read = AccCall } when (not is_static) && (is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def) ->
+               output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
+            | _ -> ()
+            );
+            (match field.cf_kind with
+            | Var { v_write = AccCall } when (not is_static) &&  (is_dynamic_accessor ("set_" ^ field.cf_name) "set" field class_def) ->
+               output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
+            | _ -> ()
+            )
          )
-      )
-   );
-   end
+      );
+      end
    ;;
 
 let path_of_string path =
@@ -3550,6 +3553,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false scriptable in
    List.iter ( add_include cpp_file  ) all_referenced;
 
+   let dynamic_interface_closures =  (Common.defined common_ctx Define.DynamicInterfaceClosures) in
 
    (* All interfaces (and sub-interfaces) implemented *)
    let implemented_hash = Hashtbl.create 0 in
@@ -4042,8 +4046,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       end else
          output_cpp (class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ ");");
       output_cpp ("return null(); }\n");
-      if (class_def.cl_interface) then begin
-      output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever); }\n\n");
+      if (class_def.cl_interface) && not dynamic_interface_closures then begin
+         output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever); }\n\n");
 
       end
       in
@@ -4325,17 +4329,16 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                output_h (") { return mDelegate->" ^ remap_name^ "(");
                output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
                output_h ");}\n";
-               if reflective interface field then
+               if (reflective interface field) &&  not dynamic_interface_closures then
                   output_h ("		Dynamic " ^ remap_name ^ "_dyn() { return mDelegate->" ^ remap_name ^ "_dyn();}\n");
             | _ -> ()
          end
          ) interface.cl_ordered_fields;
 
-         match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ();
+         (match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ());
          List.iter (fun impl -> dump_delegate (fst impl)) (real_interfaces interface.cl_implements);
       in
       dump_delegate class_def;
-      List.iter (fun impl -> dump_delegate (fst impl)) (real_interfaces class_def.cl_implements);
       output_h "};\n\n";
    end;
 
