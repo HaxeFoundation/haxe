@@ -73,6 +73,7 @@ type opcode =
 	| OJNeq of reg * reg * int
 	| OJAlways of int
 	| OToAny of reg * reg
+	| OLabel
 
 type fundecl = {
 	index : global;
@@ -449,39 +450,10 @@ let generate_type ctx t =
 	| TEnumDecl _ | TAbstractDecl _ ->
 		failwith (s_type_path (t_infos t).mt_path)
 
-(* ------------------------------- INTERP --------------------------------------------- *)
+(* ------------------------------- CHECK ---------------------------------------------- *)
 
-type value =
-	| VNull
-	| VInt of int32
-	| VFloat of float
-	| VFun of fundecl
-	| VBool of bool
-	| VAny of value * ttype
-	| VNativeFun of (value list -> value)
-
-exception Return of value
-
-let rec default t =
-	match t with
-	| TVoid | TFun _ | TAny -> VNull
-	| TI32 | TUI8 -> VInt Int32.zero
-	| TF32 | TF64 -> VFloat 0.
-	| TBool -> VBool false
-
-let rec str v =
-	match v with
-	| VNull -> "null"
-	| VInt i -> Int32.to_string i ^ "i"
-	| VFloat f -> string_of_float f ^ "f"
-	| VFun f -> "fun#" ^ string_of_int f.index
-	| VBool b -> if b then "true" else "false"
-	| VAny (v,t) -> "any(" ^ str v ^ ":" ^ tstr t ^ ")"
-	| VNativeFun _ -> "native"
-
-let interp code =
-
-	let check f =
+let check code =
+	let check_fun f =
 		let pos = ref 0 in
 		let error msg =
 			failwith ("In function " ^ string_of_int f.index ^ "@" ^ string_of_int (!pos) ^ " : " ^ msg)
@@ -511,6 +483,7 @@ let interp code =
 		in
 		let can_jump delta =
 			if !pos + 1 + delta < 0 || !pos + 1 + delta >= Array.length f.code then failwith "Jump outside function bounds";
+			if delta < 0 && Array.get f.code (!pos + 1 + delta) <> OLabel then failwith "Jump back without Label";
 		in
 		iteri reg targs;
 		Array.iteri (fun i op ->
@@ -573,9 +546,44 @@ let interp code =
 			| OToAny (r,a) ->
 				ignore(rtype a);
 				reg r TAny
+			| OLabel ->
+				()
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
+	Array.iter check_fun code.functions
+
+(* ------------------------------- INTERP --------------------------------------------- *)
+
+type value =
+	| VNull
+	| VInt of int32
+	| VFloat of float
+	| VFun of fundecl
+	| VBool of bool
+	| VAny of value * ttype
+	| VNativeFun of (value list -> value)
+
+exception Return of value
+
+let rec default t =
+	match t with
+	| TVoid | TFun _ | TAny -> VNull
+	| TI32 | TUI8 -> VInt Int32.zero
+	| TF32 | TF64 -> VFloat 0.
+	| TBool -> VBool false
+
+let rec str v =
+	match v with
+	| VNull -> "null"
+	| VInt i -> Int32.to_string i ^ "i"
+	| VFloat f -> string_of_float f ^ "f"
+	| VFun f -> "fun#" ^ string_of_int f.index
+	| VBool b -> if b then "true" else "false"
+	| VAny (v,t) -> "any(" ^ str v ^ ":" ^ tstr t ^ ")"
+	| VNativeFun _ -> "native"
+
+let interp code =
 
 	let globals = Array.map default code.globals in
 
@@ -660,6 +668,7 @@ let interp code =
 			| OJNeq (a,b,i) -> if get a <> get b then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OToAny (r,a) -> set r (VAny (get a, f.regs.(a)))
+			| OLabel -> ()
 			);
 			loop()
 		in
@@ -673,7 +682,6 @@ let interp code =
 		| "std@log" -> VNativeFun (fun args -> print_endline (str (List.hd args)); VNull);
 		| _ -> failwith ("Unresolved native " ^ name)
 	in
-	Array.iter check code.functions;
 	Array.iter (fun f -> globals.(f.index) <- VFun f) code.functions;
 	Array.iter (fun (name,idx) -> globals.(idx) <- load_native code.strings.(name)) code.natives;
 	match code.globals.(code.entrypoint), globals.(code.entrypoint) with
@@ -724,6 +732,10 @@ let write_code ch code =
 	in
 
 	let write_op op =
+
+		if op = OLabel then
+			byte (Obj.magic op)
+		else
 
 		let o = Obj.repr op in
 		let oid = Obj.tag o in
@@ -885,6 +897,7 @@ let ostr o =
 	| OJNeq (a,b,i) -> Printf.sprintf "jneq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
 	| OToAny (r,a) -> Printf.sprintf "toany %d,%d" r a
+	| OLabel -> "label"
 
 let dump code =
 	let lines = ref [] in
@@ -962,12 +975,14 @@ let generate com =
 		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
 	} in
-	prerr_endline (dump code);
+	check code;
 	let ch = IO.output_string() in
 	write_code ch code;
 	let str = IO.close_out ch in
 	let ch = open_out_bin com.file in
 	output_string ch str;
 	close_out ch;
-	ignore(interp code)
+(*	prerr_endline (dump code);
+	ignore(interp code); *)
+	()
 
