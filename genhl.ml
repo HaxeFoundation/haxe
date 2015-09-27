@@ -23,6 +23,13 @@ open Ast
 open Type
 open Common
 
+type reg = int
+type global = int
+type sindex = int
+type findex = int
+type iindex = int
+type pindex = int
+
 type ttype =
 	| TVoid
 	| TUI8
@@ -32,12 +39,18 @@ type ttype =
 	| TBool
 	| TAny
 	| TFun of ttype list * ttype
+	| TObj of class_proto
 
-type reg = int
-type global = int
-type sindex = int
-type findex = int
-type iindex = int
+and class_proto = {
+	pname : string;
+	pid : int;
+	mutable psuper : class_proto option;
+	mutable pproto : (string * sindex * ttype * global) array;
+	mutable pfields : (string * sindex * ttype) array;
+	mutable pindex : (string, int) PMap.t;
+}
+
+type unused = int
 
 type opcode =
 	| OMov of reg * reg
@@ -73,7 +86,12 @@ type opcode =
 	| OJNeq of reg * reg * int
 	| OJAlways of int
 	| OToAny of reg * reg
-	| OLabel
+	| OLabel of unused
+	| ONew of reg
+	| OField of reg * reg * pindex
+	| OSetField of reg * pindex * reg
+	| OGetThis of reg * pindex
+	| OSetThis of pindex * reg
 
 type fundecl = {
 	index : global;
@@ -87,6 +105,7 @@ type code = {
 	strings : string array;
 	ints : int32 array;
 	floats : float array;
+	(* types : ttype array // only in bytecode, rebuilt on save() *)
 	globals : ttype array;
 	natives : (sindex * global) array;
 	functions : fundecl array;
@@ -112,12 +131,19 @@ type context = {
 	cints : (int32, int32) lookup;
 	cnatives : (string, (sindex * global)) lookup;
 	cfunctions : fundecl DynArray.t;
+	overrides : (string * path, bool) Hashtbl.t;
+	mutable cached_types : (path, ttype) PMap.t;
 	mutable m : method_context;
 }
 
 (* --- *)
 
-let rec tstr t =
+type global_access =
+	| GNone
+	| GStatic of int
+	| GInstance of texpr * int
+
+let rec tstr ?(detailed=false) t =
 	match t with
 	| TVoid -> "void"
 	| TUI8 -> "ui8"
@@ -126,7 +152,12 @@ let rec tstr t =
 	| TF64 -> "f64"
 	| TBool -> "bool"
 	| TAny -> "any"
-	| TFun (args,ret) -> "(" ^ String.concat "," (List.map tstr args) ^ "):" ^ tstr ret
+	| TFun (args,ret) -> "(" ^ String.concat "," (List.map (tstr ~detailed) args) ^ "):" ^ tstr ~detailed ret
+	| TObj o when not detailed -> "#" ^ o.pname
+	| TObj o ->
+		let fields = "{" ^ String.concat "," (List.map (fun(s,_,t) -> s ^ " : " ^ tstr ~detailed:false t) (Array.to_list o.pfields)) ^ "}" in
+		let proto = "{"  ^ String.concat "," (List.map (fun(s,_,t,g) -> s ^ "@" ^  string_of_int g ^ " : " ^ tstr ~detailed:false t) (Array.to_list o.pproto)) ^ "}" in
+		"#" ^ o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]"
 
 let iteri f l =
 	let p = ref (-1) in
@@ -156,41 +187,11 @@ let method_context() =
 let field_name c f =
 	s_type_path c.cl_path ^ ":" ^ f.cf_name
 
-let rec to_type t =
-	match t with
-	| TMono r ->
-		(match !r with
-		| None -> TAny
-		| Some t -> to_type t)
-	| TType (t,tl) ->
-		to_type (apply_params t.t_params tl t.t_type)
-	| TLazy f ->
-		to_type (!f())
-	| Type.TFun (args, ret) ->
-		TFun (List.map (fun (_,_,t) -> to_type t) args, to_type ret)
-	| TAnon _ ->
-		TAny
-	| TDynamic _ ->
-		TAny
-	| TEnum (e,_) ->
-		assert false
-	| TInst (c,_) ->
-		assert false
-	| TAbstract (a,pl) ->
-		if Meta.has Meta.CoreType a.a_meta then
-			(match a.a_path with
-			| [], "Void" -> TVoid
-			| [], "Int" -> TI32
-			| [], "Float" -> TF64
-			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
-		else
-			to_type (Abstract.get_underlying_type a pl)
+let global_type ctx g =
+	DynArray.get ctx.cglobals.arr g
 
-let alloc_global ctx name t =
-	lookup ctx.cglobals name (fun() -> to_type t)
-
-let alloc_reg ctx v =
-	lookup ctx.m.mregs v.v_id (fun() -> to_type v.v_type)
+let is_overriden ctx c f =
+	Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
 
 let alloc_float ctx f =
 	lookup ctx.cfloats f (fun() -> f)
@@ -200,6 +201,89 @@ let alloc_i32 ctx i =
 
 let alloc_string ctx s =
 	lookup ctx.cstrings s (fun() -> s)
+
+let member_fun c t =
+	match follow t with
+	| Type.TFun (args, ret) -> Type.TFun (("this",false,TInst(c,[])) :: args, ret)
+	| _ -> assert false
+
+let rec to_type ctx t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| None -> TAny
+		| Some t -> to_type ctx t)
+	| TType (t,tl) ->
+		to_type ctx (apply_params t.t_params tl t.t_type)
+	| TLazy f ->
+		to_type ctx (!f())
+	| Type.TFun (args, ret) ->
+		TFun (List.map (fun (_,_,t) -> to_type ctx t) args, to_type ctx ret)
+	| TAnon _ ->
+		TAny
+	| TDynamic _ ->
+		TAny
+	| TEnum (e,_) ->
+		assert false
+	| TInst (c,_) ->
+		class_type ctx c
+	| TAbstract (a,pl) ->
+		if Meta.has Meta.CoreType a.a_meta then
+			(match a.a_path with
+			| [], "Void" -> TVoid
+			| [], "Int" -> TI32
+			| [], "Float" -> TF64
+			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
+		else
+			to_type ctx (Abstract.get_underlying_type a pl)
+
+and class_type ctx c =
+	try
+		PMap.find c.cl_path ctx.cached_types
+	with Not_found ->
+		let pname = s_type_path c.cl_path in
+		let p = {
+			pname = pname;
+			pid = alloc_string ctx pname;
+			psuper = None;
+			pproto = [||];
+			pfields = [||];
+			pindex = PMap.empty;
+		} in
+		let t = TObj p in
+		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
+		(match c.cl_super with
+		| None -> ()
+		| Some (c,_) ->
+			(match class_type ctx c with
+			| TObj p -> p.psuper <- Some p
+			| _ -> assert false));
+		let fa = DynArray.create() and pa = DynArray.create() in
+		List.iter (fun f ->
+			if is_extern_field f then () else
+			match f.cf_kind with
+			| Var _ | Method MethDynamic ->
+				let t = to_type ctx f.cf_type in
+				p.pindex <- PMap.add f.cf_name (DynArray.length fa) p.pindex;
+				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, t);
+			| Method _ when is_overriden ctx c f ->
+				let g = alloc_field ctx c f false in
+				(* can't use global_type here *)
+				DynArray.add pa (f.cf_name, alloc_string ctx f.cf_name, to_type ctx (member_fun c f.cf_type), g)
+			| _ -> ()
+		) c.cl_ordered_fields;
+		p.pfields <- DynArray.to_array fa;
+		p.pproto <- DynArray.to_array pa;
+		t
+
+and alloc_field ctx c f isStatic =
+	alloc_global ctx (field_name c f) (if isStatic then f.cf_type else member_fun c f.cf_type)
+
+and alloc_global ctx name t =
+	lookup ctx.cglobals name (fun() -> to_type ctx t)
+
+let alloc_reg ctx v =
+	lookup ctx.m.mregs v.v_id (fun() -> to_type ctx v.v_type)
 
 let alloc_tmp ctx t =
 	let rid = DynArray.length ctx.m.mregs.arr in
@@ -217,6 +301,21 @@ let jump ctx f =
 let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
+let rec resolve_field ctx p fname =
+	(* each class contains only its own fields, so let's get absolute index *)
+	let rec loop id sup =
+		match sup with
+		| None -> id
+		| Some p -> loop (id + Array.length p.pfields) p.psuper
+	in
+	try
+		let fid = PMap.find fname p.pindex in
+		loop fid p.psuper
+	with Not_found ->
+		match p.psuper with
+		| None -> assert false
+		| Some p -> resolve_field ctx p fname
+
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
 	cast_to ctx r t
@@ -232,18 +331,20 @@ and cast_to ctx (r:reg) (t:ttype) =
 	| _ ->
 		failwith ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t)
 
-and get_global ctx e =
+and get_global_fun ctx e =
 	match e.eexpr with
-	| TField (f, a) ->
-		(match a with
-		| FStatic (c,f) ->
-			Some (alloc_global ctx (field_name c f) f.cf_type)
+	| TField (ethis, a) ->
+		(match a, follow ethis.etype with
+		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
+			GStatic (alloc_field ctx c f true)
+		| FInstance (cdef,_,({ cf_kind = Method _ } as f)), TInst (c,_) when not (is_overriden ctx c f) ->
+			GInstance (ethis, alloc_field ctx cdef f false)
 		| _ ->
-			None)
+			GNone)
 	| TParenthesis e ->
-		get_global ctx e
+		get_global_fun ctx e
 	| _ ->
-		None
+		GNone
 
 and jump_expr ctx e jcond =
 	match e.eexpr with
@@ -270,6 +371,9 @@ and jump_expr ctx e jcond =
 		let r = eval_expr ctx e in
 		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
 
+and eval_args ctx el t =
+	List.map2 (fun e t -> eval_to ctx e t) el (match t with TFun (args,_) -> args | _ -> assert false)
+
 and eval_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
@@ -286,6 +390,8 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx TBool in
 			op ctx (OBool (r,b));
 			r
+		| TThis ->
+			0 (* first reg *)
 		| _ ->
 			failwith ("TODO " ^ s_const c))
 	| TVar (v,e) ->
@@ -318,10 +424,10 @@ and eval_expr ctx e =
 		in
 		loop el
 	| TCall (ec,el) ->
-		(match get_global ctx ec with
-		| Some g when List.length el < 5 ->
-			let el = List.map2 (fun e t -> eval_to ctx e t) el (match to_type ec.etype with TFun (args,_) -> args | _ -> assert false) in
-			let ret = alloc_tmp ctx (to_type e.etype) in
+		(match get_global_fun ctx ec with
+		| GStatic g when List.length el < 5 ->
+			let el = eval_args ctx el (to_type ctx ec.etype) in
+			let ret = alloc_tmp ctx (to_type ctx e.etype) in
 			(match el with
 			| [] -> op ctx (OCall0 (ret, g))
 			| [a] -> op ctx (OCall1 (ret, g, a))
@@ -330,25 +436,66 @@ and eval_expr ctx e =
 			| [a;b;c;d] -> op ctx (OCall4 (ret, g, a, b, c, d))
 			| _ -> assert false);
 			ret
+		| GInstance (ethis, g) when List.length el < 4 ->
+			let el = eval_expr ctx ethis :: eval_args ctx el (to_type ctx ec.etype) in
+			let ret = alloc_tmp ctx (to_type ctx e.etype) in
+			(match el with
+			| [a] -> op ctx (OCall1 (ret, g, a))
+			| [a;b] -> op ctx (OCall2 (ret, g, a, b))
+			| [a;b;c] -> op ctx (OCall3 (ret, g, a, b, c))
+			| [a;b;c;d] -> op ctx (OCall4 (ret, g, a, b, c, d))
+			| _ -> assert false);
+			ret
 		| _ ->
 			let r = eval_expr ctx ec in
-			let el = List.map2 (fun e t -> eval_to ctx e t) el (match rtype ctx r with TFun (args,_) -> args | _ -> assert false) in
-			let ret = alloc_tmp ctx (to_type e.etype) in
+			let el = eval_args ctx el (rtype ctx r) in
+			let ret = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (OCallN (ret, r, el));
 			ret)
-	| TField (f,a) ->
+	| TField (eobj,a) ->
 		(match a with
 		| FStatic (c,f) ->
-			let g = alloc_global ctx (field_name c f) f.cf_type in
-			let r = alloc_tmp ctx (to_type f.cf_type) in
+			let g = alloc_field ctx c f true in
+			let r = alloc_tmp ctx (to_type ctx f.cf_type) in
 			op ctx (OGetGlobal (r,g));
 			r
+		| FInstance (c,_,f) ->
+			(match class_type ctx c with
+			| TObj p ->
+				let fid = resolve_field ctx p f.cf_name in
+				let r = alloc_tmp ctx (to_type ctx e.etype) in
+				let robj = eval_expr ctx eobj in
+				op ctx (match eobj.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
+				r
+			| _ -> assert false)
 		| _ -> assert false)
 	| TObjectDecl o ->
 		(* TODO *)
 		alloc_tmp ctx TVoid
+	| TNew (c,pl,el) ->
+		let r = alloc_tmp ctx (class_type ctx c) in
+		op ctx (ONew r);
+		(match c.cl_constructor with
+		| None -> ()
+		| Some { cf_expr = None } -> assert false
+		| Some ({ cf_expr = Some { eexpr = TFunction({ tf_expr = { eexpr = TBlock([]) } }) } }) when el = [] -> ()
+		| Some ({ cf_expr = Some cexpr } as constr) ->
+			let rl = eval_args ctx el (to_type ctx cexpr.etype) in
+			let ret = alloc_tmp ctx TVoid in
+			let g = alloc_field ctx c constr false in
+			op ctx (match rl with
+			| [] -> OCall1 (ret,g,r)
+			| [a] -> OCall2 (ret,g,r,a)
+			| [a;b] -> OCall3 (ret,g,r,a,b)
+			| [a;b;c] -> OCall4 (ret,g,r,a,b,c)
+			| _ ->
+				let rf = alloc_tmp ctx (global_type ctx g) in
+				op ctx (OGetGlobal (rf,g));
+				OCallN (ret,rf,r :: rl));
+		);
+		r
 	| TIf (cond,eif,eelse) ->
-		let out = alloc_tmp ctx (to_type e.etype) in
+		let out = alloc_tmp ctx (to_type ctx e.etype) in
 		let j = jump_expr ctx cond false in
 		op ctx (OMov (out,eval_expr ctx eif));
 		(match eelse with
@@ -368,7 +515,7 @@ and eval_expr ctx e =
 			op ctx (OGte (r,b,a));
 			r
 		| OpAdd ->
-			let t = to_type e.etype in
+			let t = to_type ctx e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
 			| TI32 | TF32 | TF64 | TUI8 ->
@@ -379,7 +526,7 @@ and eval_expr ctx e =
 			| _ ->
 				assert false)
 		| OpSub | OpMult ->
-			let t = to_type e.etype in
+			let t = to_type ctx e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
 			| TI32 | TF32 | TF64 | TUI8 ->
@@ -392,14 +539,32 @@ and eval_expr ctx e =
 				r
 			| _ ->
 				assert false)
+		| OpAssign ->
+			let value = eval_to ctx e2 (to_type ctx e1.etype) in
+			(match e1.eexpr with
+			| TField (ec,FStatic (c,f)) ->
+				op ctx (OSetGlobal (alloc_field ctx c f true,value))
+			| TField (ethis,FInstance (_,_,f)) ->
+				let rthis = eval_expr ctx ethis in
+				(match rtype ctx rthis with
+				| TObj p ->
+					let fid = resolve_field ctx p f.cf_name in
+					op ctx (match ethis.eexpr with TConst TThis -> OSetThis (fid,value) | _ -> OSetField (rthis, fid, value))
+				| _ -> assert false)
+			| TLocal v -> op ctx (OMov (alloc_reg ctx v, value))
+			| _ -> assert false);
+			value
 		| _ ->
 			failwith ("TODO " ^ s_expr (s_type (print_context())) e))
 	| _ ->
 		failwith ("TODO " ^ s_expr (s_type (print_context())) e)
 
-let make_fun ctx f idx =
+let make_fun ctx f idx cthis =
 	let old = ctx.m in
 	ctx.m <- method_context();
+	(match cthis with
+	| None -> ()
+	| Some c -> ignore(alloc_tmp ctx (to_type ctx (TInst (c,[])))));
 	List.iter (fun (v,o) ->
 		let r = alloc_reg ctx v in
 		match o with
@@ -414,7 +579,7 @@ let make_fun ctx f idx =
 			| TString s -> assert false (* TODO *)
 	) f.tf_args;
 	ignore(eval_expr ctx f.tf_expr);
-	if to_type f.tf_type = TVoid then op ctx (ORet (alloc_tmp ctx TVoid));
+	if to_type ctx f.tf_type = TVoid then op ctx (ORet (alloc_tmp ctx TVoid));
 	let f = {
 		index = idx;
 		regs = DynArray.to_array ctx.m.mregs.arr;
@@ -428,7 +593,14 @@ let generate_static ctx c f =
 	| Var v -> assert false
 	| Method m ->
 		let gid = alloc_global ctx (field_name c f) f.cf_type in
-		make_fun ctx (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) gid
+		make_fun ctx (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) gid None
+
+let generate_member ctx c f =
+	match f.cf_kind with
+	| Var _ -> ()
+	| Method m ->
+		let gid = alloc_global ctx (field_name c f) (member_fun c f.cf_type) in
+		make_fun ctx (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) gid (Some c)
 
 let generate_type ctx t =
 	match t with
@@ -442,7 +614,11 @@ let generate_type ctx t =
 			) f.cf_meta
 		) c.cl_ordered_statics
 	| TClassDecl c ->
-		List.iter (generate_static ctx c) c.cl_ordered_statics
+		List.iter (generate_static ctx c) c.cl_ordered_statics;
+		(match c.cl_constructor with
+		| None -> ()
+		| Some f -> generate_member ctx c f);
+		List.iter (generate_member ctx c) c.cl_ordered_fields;
 	| TTypeDecl _ ->
 		()
 	| TAbstractDecl a when a.a_impl = None ->
@@ -460,8 +636,15 @@ let check code =
 		in
 		let targs, tret = (match code.globals.(f.index) with TFun (args,ret) -> args, ret | _ -> assert false) in
 		let rtype i = f.regs.(i) in
+		let rec same_type t1 t2 =
+			if t1 == t2 then true else
+			match t1, t2 with
+			| TFun (args1,ret1), TFun (args2,ret2) -> List.for_all2 same_type args1 args2 && same_type ret1 ret2
+			| TObj p1, TObj p2 -> p1.pname = p2.pname
+			| _ -> false
+		in
 		let reg r t =
-			if rtype r <> t then error ("Register " ^ string_of_int r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
+			if not (same_type (rtype r) t) then error ("Register " ^ string_of_int r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
 		in
 		let numeric r =
 			match rtype r with
@@ -483,7 +666,35 @@ let check code =
 		in
 		let can_jump delta =
 			if !pos + 1 + delta < 0 || !pos + 1 + delta >= Array.length f.code then failwith "Jump outside function bounds";
-			if delta < 0 && Array.get f.code (!pos + 1 + delta) <> OLabel then failwith "Jump back without Label";
+			if delta < 0 && Array.get f.code (!pos + 1 + delta) <> OLabel 0 then failwith "Jump back without Label";
+		in
+		let is_obj r =
+			match rtype r with
+			| TObj _ -> ()
+			| _ -> error ("Register " ^ string_of_int r ^ " should be object")
+		in
+		let tfield o id =
+			match rtype o with
+			| TObj p ->
+				let rec loop pl p =
+					let pl = p :: pl in
+					match p.psuper with
+					| None ->
+						let rec fetch id = function
+							| [] -> assert false
+							| p :: pl ->
+								let d = id - Array.length p.pfields in
+								if d < 0 then p.pfields.(id) else fetch d pl
+						in
+						fetch id pl
+					| Some p ->
+						loop pl p
+				in
+				let _,_,t = loop [] p in
+				t
+			| _ ->
+				is_obj o;
+				TVoid
 		in
 		iteri reg targs;
 		Array.iteri (fun i op ->
@@ -546,8 +757,14 @@ let check code =
 			| OToAny (r,a) ->
 				ignore(rtype a);
 				reg r TAny
-			| OLabel ->
+			| OLabel _ ->
 				()
+			| ONew r ->
+				is_obj r
+			| OField (r,o,fid) | OSetField (o,fid,r) ->
+				reg r (tfield o fid)
+			| OGetThis (r,fid) | OSetThis(fid,r) ->
+				reg r (tfield 0 fid)
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -563,12 +780,18 @@ type value =
 	| VBool of bool
 	| VAny of value * ttype
 	| VNativeFun of (value list -> value)
+	| VObj of vobject
+
+and vobject = {
+	vproto : class_proto;
+	vfields : value array;
+}
 
 exception Return of value
 
 let rec default t =
 	match t with
-	| TVoid | TFun _ | TAny -> VNull
+	| TVoid | TFun _ | TAny | TObj _ -> VNull
 	| TI32 | TUI8 -> VInt Int32.zero
 	| TF32 | TF64 -> VFloat 0.
 	| TBool -> VBool false
@@ -582,10 +805,21 @@ let rec str v =
 	| VBool b -> if b then "true" else "false"
 	| VAny (v,t) -> "any(" ^ str v ^ ":" ^ tstr t ^ ")"
 	| VNativeFun _ -> "native"
+	| VObj o -> o.vproto.pname
+
+exception Runtime_error of string
 
 let interp code =
 
 	let globals = Array.map default code.globals in
+
+	let new_obj t =
+		match t with
+		| TObj p -> { vproto = p; vfields = Array.map (fun(_,_,t) -> default t) p.pfields }
+		| _ -> assert false
+	in
+
+	let error msg = raise (Runtime_error msg) in
 
 	let rec call f args =
 		let regs = Array.map default f.regs in
@@ -629,6 +863,7 @@ let interp code =
 			match v with
 			| VFun f -> call f args
 			| VNativeFun f -> f args
+			| VNull -> error "Uninitialized method"
 			| _ -> assert false
 		in
 		let rec loop() =
@@ -668,7 +903,21 @@ let interp code =
 			| OJNeq (a,b,i) -> if get a <> get b then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OToAny (r,a) -> set r (VAny (get a, f.regs.(a)))
-			| OLabel -> ()
+			| OLabel _ -> ()
+			| ONew r -> set r (VObj (new_obj (rtype r)))
+			| OField (r,o,fid) ->
+				set r (match get o with VObj v -> v.vfields.(fid) | VNull -> error "Null access" | _ -> assert false)
+			| OSetField (o,fid,r) ->
+				(match get o with
+				| VObj v -> v.vfields.(fid) <- get r
+				| VNull -> error "Null access"
+				| _ -> assert false)
+			| OGetThis (r, fid) ->
+				set r (match get 0 with VObj v -> v.vfields.(fid) | _ -> assert false)
+			| OSetThis (fid, r) ->
+				(match get 0 with
+				| VObj v -> v.vfields.(fid) <- get r
+				| _ -> assert false)
 			);
 			loop()
 		in
@@ -680,7 +929,7 @@ let interp code =
 	let load_native name =
 		match name with
 		| "std@log" -> VNativeFun (fun args -> print_endline (str (List.hd args)); VNull);
-		| _ -> failwith ("Unresolved native " ^ name)
+		| _ -> error ("Unresolved native " ^ name)
 	in
 	Array.iter (fun f -> globals.(f.index) <- VFun f) code.functions;
 	Array.iter (fun (name,idx) -> globals.(idx) <- load_native code.strings.(name)) code.natives;
@@ -733,14 +982,12 @@ let write_code ch code =
 
 	let write_op op =
 
-		if op = OLabel then
-			byte (Obj.magic op)
-		else
-
 		let o = Obj.repr op in
 		let oid = Obj.tag o in
 
 		match op with
+		| OLabel _ ->
+			byte oid
 		| OCall2 (r,g,a,b) ->
 			byte oid;
 			write_index r;
@@ -801,6 +1048,7 @@ let write_code ch code =
 	let calc_types() =
 		let tmp_ch = IO.output_string() in
 		let b = IO.write_byte tmp_ch in
+		let idx = write_index_gen b in
 		let rec get_type t =
 			lookup types t (fun() -> write_type t)
 		and write_type = function
@@ -814,12 +1062,23 @@ let write_code ch code =
 			| TFun (args,ret) ->
 				let n = List.length args in
 				if n > 0xFF then assert false;
+				let iargs = List.map get_type args in
+				let iret = get_type ret in
 				b 7;
 				b n;
-				List.iter write_type_ref args;
-				write_type_ref ret
-		and write_type_ref t =
-			write_index_gen b (get_type t)
+				List.iter idx iargs;
+				idx iret
+			| TObj p ->
+				let psup = (match p.psuper with None -> 0 | Some p -> 1 + get_type (TObj p)) in
+				let fields = Array.map (fun (_,n,t) -> n, get_type t) p.pfields in
+				let proto = Array.map (fun (_,n,t,g) -> n, get_type t, g) p.pproto in
+				b 8;
+				idx p.pid;
+				idx psup;
+				idx (Array.length fields);
+				idx (Array.length proto);
+				Array.iter (fun (n,t) -> idx n; idx t) fields;
+				Array.iter (fun (n,t,g) -> idx n; idx t; idx g) proto;
 		in
 		List.iter (fun t -> ignore(get_type t)) [TVoid; TUI8; TI32; TF32; TF64; TBool; TAny]; (* make sure all basic types get lower indexes *)
 		Array.iter (fun g -> ignore(get_type g)) code.globals;
@@ -897,7 +1156,12 @@ let ostr o =
 	| OJNeq (a,b,i) -> Printf.sprintf "jneq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
 	| OToAny (r,a) -> Printf.sprintf "toany %d,%d" r a
-	| OLabel -> "label"
+	| OLabel _ -> "label"
+	| ONew r -> Printf.sprintf "new %d" r
+	| OField (r,o,i) -> Printf.sprintf "field %d,%d[%d]" r o i
+	| OSetField (o,i,r) -> Printf.sprintf "setfield %d[%d],%d" o i r
+	| OGetThis (r,i) -> Printf.sprintf "getthis %d,[%d]" r i
+	| OSetThis (i,r) -> Printf.sprintf "setthis [%d],%d" i r
 
 let dump code =
 	let lines = ref [] in
@@ -957,8 +1221,23 @@ let generate com =
 		cglobals = new_lookup();
 		cnatives = new_lookup();
 		cfunctions = DynArray.create();
+		overrides = Hashtbl.create 0;
+		cached_types = PMap.empty;
 	} in
 	ignore(alloc_string ctx "");
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c ->
+			let rec loop p f =
+				match p with
+				| Some (p,_) when PMap.mem f.cf_name p.cl_fields ->
+					Hashtbl.replace ctx.overrides (f.cf_name,p.cl_path) true;
+					loop p.cl_super f
+				| _ -> ()
+			in
+			List.iter (fun f -> loop c.cl_super f) c.cl_overrides
+ 		| _ -> ()
+	) com.types;
 	List.iter (generate_type ctx) com.types;
 	let ep = (match com.main_class with
 		| None -> assert false (* TODO *)
@@ -975,6 +1254,7 @@ let generate com =
 		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
 	} in
+	if Common.defined com Define.Dump then prerr_endline (dump code);
 	check code;
 	let ch = IO.output_string() in
 	write_code ch code;
@@ -982,7 +1262,5 @@ let generate com =
 	let ch = open_out_bin com.file in
 	output_string ch str;
 	close_out ch;
-(*	prerr_endline (dump code);
-	ignore(interp code); *)
-	()
+	if Common.defined com Define.Interp then ignore(interp code)
 
