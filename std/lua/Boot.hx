@@ -204,7 +204,7 @@ class Boot {
 				var mt : Dynamic = untyped Lua.getmetatable(o);
 			    if (Reflect.hasField(o,"__enum__")) printEnum(o);
 				else if (Lua.next(o) == null) "{}";
-				else if (Reflect.hasField(o,"toString") && !__instanceof(o,Array)) o.toString();
+				else if (o.toString != null && !__instanceof(o,Array)) o.toString();
 				else if (__instanceof(o, Array)) {
 					if (s > 5) "[...]"
 					else '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
@@ -240,6 +240,10 @@ class Boot {
 			+" "+(if( h < 10 ) "0"+h else ""+h)
 			+":"+(if( mi < 10 ) "0"+mi else ""+mi)
 			+":"+(if( s < 10 ) "0"+s else ""+s);
+	}
+
+	public static inline function i32 (i : Float) : Int {
+		return untyped _i32(i);
 	}
 
 	public static function strDate( s : String ) : std.Date {

@@ -291,7 +291,15 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		p10 <<= 16;
 		low += p10;
 		if( Int32.ucompare(low, p10) < 0 ) high++;
+		trace(high + " is the value for high");
+		trace(a.high + " is the value for a.high");
+		trace(a.low + " is the value for a.low");
+		trace(b.high + " is the value for b.high");
+		trace(b.low + " is the value for b.low");
+		trace((a.low * b.high) + " is the value for (a.low * b.high)");
+		trace((a.high * b.low) + " is the value for (a.high * b.low)");
 		high += a.low * b.high + a.high * b.low;
+		trace(high + " is the value for high");
 		return make( high, low );
 	}
 
@@ -450,7 +458,7 @@ private typedef __Int64 = ___Int64;
 
 private class ___Int64 {
 	public var high : Int32;
-	public var low : Int32;
+	public var low : Int32; 
 
 	public inline function new( high, low ) {
 		this.high = high;

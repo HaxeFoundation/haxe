@@ -250,6 +250,7 @@ let rec is_unknown_type t =
 
 let is_unknown_expr e =	is_unknown_type e.etype
 
+
 let rec is_string_type t =
 	match follow t with
 	| TInst ({cl_path = ([], "String")}, _) -> true
@@ -262,6 +263,30 @@ let rec is_string_type t =
 
 let is_string_expr e = is_string_type e.etype
 (* /from genphp *)
+
+
+let rec is_int_type ctx t =
+    match follow t with
+	| TInst ({cl_path = ([], "Int")}, _) -> true
+	| TAnon a ->
+		(match !(a.a_status) with
+	    | Statics ({cl_path = ([], "Int")}) -> true
+	    | _ -> false)
+		| TAbstract ({a_path = ([],"Float")}, pl) -> false
+	| TAbstract ({a_path = ([],"Int")}, pl) -> true
+	| TAbstract (a,pl) -> is_int_type ctx (Abstract.get_underlying_type a pl)
+	| _ -> false
+
+let rec should_wrap_int_op ctx op e1 e2 =
+    match op with
+    | Ast.OpAdd | Ast.OpMult | Ast.OpDiv | Ast.OpSub | Ast.OpAnd | Ast.OpOr
+    | Ast.OpXor | Ast.OpShl  | Ast.OpShr | Ast.OpUShr ->
+	    is_int_type ctx e1.etype && is_int_type ctx e2.etype
+    | _ -> false
+
+
+
+
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -396,7 +421,7 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")");
 	ctx.iife_assign <- false;
 
-and gen_expr ?(local=true) ctx e =
+and gen_expr ?(local=true) ctx e = begin
 	match e.eexpr with
 	 TConst c ->
 		gen_constant ctx e.epos c;
@@ -629,9 +654,9 @@ and gen_expr ?(local=true) ctx e =
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		spr ctx "_G.bit.bnot(";
+		spr ctx "_i32(_G.bit.bnot(";
 		gen_value ctx e;
-		spr ctx ")";
+		spr ctx "))";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -803,7 +828,8 @@ and gen_expr ?(local=true) ctx e =
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")"
+		spr ctx ")";
+end;
 
 
 
@@ -852,7 +878,6 @@ and gen__init__impl ctx e =
 and gen_block_element ?(after=false) ctx e  =
     newline ctx;
     ctx.iife_assign <- false;
-    spr ctx (debug_expression e);
     begin match e.eexpr with
 	| TTypeExpr _ -> ()
 	| TCast (ce,_) -> gen_block_element ctx ce
@@ -1037,6 +1062,8 @@ and gen_value ctx e =
 		v()
 
 and gen_tbinop ctx op e1 e2 =
+    if should_wrap_int_op ctx op e1 e2 then
+	spr ctx "_i32(";
     (match op, e1.eexpr, e2.eexpr with
     | Ast.OpAssign, TField(e3, FInstance(_,_,_) ), TFunction f ->
 	    gen_expr ctx e1;
@@ -1134,7 +1161,7 @@ and gen_tbinop ctx op e1 e2 =
 	    spr ctx " return "; gen_value ctx e1;
 	    spr ctx " end)()";
     | Ast.OpXor,_,_ | Ast.OpAnd,_,_  | Ast.OpShl,_,_ | Ast.OpShr,_,_ | Ast.OpUShr,_,_ | Ast.OpOr,_,_ ->
-	gen_bitop ctx op e1 e2;
+	    gen_bitop ctx op e1 e2;
     | Ast.OpMod,_,_ ->
 	    spr ctx "_G.math.fmod(";
 	    gen_expr ctx e1;
@@ -1142,13 +1169,9 @@ and gen_tbinop ctx op e1 e2 =
 	    gen_expr ctx e2;
 	    spr ctx ")";
     | Ast.OpAdd,_,_ when (is_string_expr e1 || is_string_expr e2) ->
-	    spr ctx "Std.string(";
 	    gen_value ctx e1;
-	    spr ctx ") ";
 	    print ctx " .. ";
-	    spr ctx "Std.string(";
 	    gen_value ctx e2;
-	    spr ctx ") ";
     | _ -> begin
 	    spr ctx "(";
 	    gen_value ctx e1;
@@ -1163,9 +1186,20 @@ and gen_tbinop ctx op e1 e2 =
 	    spr ctx ")";
 	    end;
     );
+    if should_wrap_int_op ctx op e1 e2 then spr ctx ")";
+
+
+and gen_wrap_tbinop ctx e=
+    match e.eexpr with
+    | TBinop _  ->
+	    spr ctx "(";
+	    gen_value ctx e;
+	    spr ctx ")";
+    | _ ->
+	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
-    print ctx "_G.bit.%s(" (match op with
+    print ctx "_i32(_G.bit.%s(" (match op with
 	| Ast.OpXor  ->  "bxor"
 	| Ast.OpAnd  ->  "band"
 	| Ast.OpShl  ->  "lshift"
@@ -1176,7 +1210,7 @@ and gen_bitop ctx op e1 e2 =
     gen_value ctx e1;
     spr ctx ",";
     gen_value ctx e2;
-    spr ctx ")"
+    spr ctx "))"
 
 and gen_return ctx e eo =
     if ctx.in_value <> None then unsupported e.epos;
@@ -1365,7 +1399,6 @@ let generate_class ctx c =
 					if (has_prototype ctx c) then (
 					    print ctx "setmetatable(self, {__index=%s.prototype}) " p; newline ctx;
 					);
-					(* TODO: use nonconflict var instead of prototype *)
 					print ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					newline ctx;
 					spr ctx "return self";
@@ -1624,6 +1657,11 @@ let generate com =
 
 	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') bit = bit or bit32"; newline ctx;
 	spr ctx "print = print or (function()end)"; newline ctx;
+	spr ctx "local _i32 =
+	    function(n)
+		return _G.bit.band(n,2147483647) - _G.bit.band(n,2147483648);
+	    end;";
+	newline ctx;
 
 	spr ctx "_hxClasses = {}"; semicolon ctx; newline ctx;
 	let vars = [] in
