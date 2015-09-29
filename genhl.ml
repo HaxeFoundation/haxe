@@ -277,7 +277,7 @@ and class_type ctx c =
 				p.pindex <- PMap.add f.cf_name (DynArray.length fa) p.pindex;
 				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, t);
 			| Method _ when is_overriden ctx c f ->
-				let g = alloc_field ctx c f in
+				let g = alloc_fid ctx c f in
 				p.pindex <- PMap.add f.cf_name (DynArray.length pa) p.pindex;
 				(* can't use global_type here *)
 				DynArray.add pa (f.cf_name, alloc_string ctx f.cf_name, g)
@@ -287,15 +287,19 @@ and class_type ctx c =
 		p.pproto <- DynArray.to_array pa;
 		t
 
-and alloc_field ctx c f =
+and alloc_fid ctx c f =
 	match f.cf_kind with
 	| Var _ | Method MethDynamic -> assert false
 	| _ -> lookup ctx.cfids (f.cf_name, c.cl_path) (fun() -> ())
+
+and alloc_function_name ctx f =
+	lookup ctx.cfids (f, ([],"")) (fun() -> ())
 
 let alloc_global ctx name t =
 	lookup ctx.cglobals name (fun() -> to_type ctx t)
 
 let alloc_reg ctx v =
+	if v.v_capture then assert false;
 	lookup ctx.m.mregs v.v_id (fun() -> to_type ctx v.v_type)
 
 let alloc_tmp ctx t =
@@ -351,11 +355,11 @@ and get_access ctx e =
 		| FStatic (c,({ cf_kind = Var _ | Method MethDynamic } as f)), _ ->
 			AGlobal (alloc_global ctx (field_name c f) f.cf_type)
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
-			AStaticFun (alloc_field ctx c f)
+			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,_), ({ cf_kind = Method m } as f)), TInst (c,_)
 		| FInstance (cdef,_,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic ->
 			if not (is_overriden ctx c f) then
-				AInstanceFun (ethis, alloc_field ctx cdef f)
+				AInstanceFun (ethis, alloc_fid ctx cdef f)
 			else (match class_type ctx cdef with
 			| TObj p -> AInstanceProto (ethis, resolve_field ctx p f.cf_name true)
 			| _ -> assert false)
@@ -449,10 +453,18 @@ and eval_expr ctx e =
 				loop l
 		in
 		loop el
-	| TCall ({ eexpr = TConst TSuper }, el) ->
-		let r = alloc_tmp ctx TVoid in
-		prerr_endline "TODO:super()";
-		r
+	| TCall ({ eexpr = TConst TSuper } as s, el) ->
+		(match follow s.etype with
+		| TInst (csup,_) ->
+			(match csup.cl_constructor with
+			| None -> assert false
+			| Some f ->
+				let r = alloc_tmp ctx TVoid in
+				let el = eval_args ctx el (to_type ctx f.cf_type) in
+				op ctx (OCallN (r, alloc_fid ctx csup f, 0 :: el));
+				r
+			)
+		| _ -> assert false);
 	| TCall (ec,el) ->
 		let ret = alloc_tmp ctx (to_type ctx e.etype) in
 		let el = eval_args ctx el (to_type ctx ec.etype) in
@@ -512,7 +524,7 @@ and eval_expr ctx e =
 		| Some ({ cf_expr = Some cexpr } as constr) ->
 			let rl = eval_args ctx el (to_type ctx cexpr.etype) in
 			let ret = alloc_tmp ctx TVoid in
-			let g = alloc_field ctx c constr in
+			let g = alloc_fid ctx c constr in
 			op ctx (match rl with
 			| [] -> OCall1 (ret,g,r)
 			| [a] -> OCall2 (ret,g,r,a)
@@ -585,10 +597,16 @@ and eval_expr ctx e =
 			value
 		| _ ->
 			failwith ("TODO " ^ s_expr (s_type (print_context())) e))
+	| TFunction f ->
+		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfunctions)) in
+		make_fun ctx fid f None;
+		let r = alloc_tmp ctx (to_type ctx e.etype) in
+		op ctx (OGetFunction (r, fid));
+		r
 	| _ ->
 		failwith ("TODO " ^ s_expr (s_type (print_context())) e)
 
-let make_fun ctx fidx f cthis =
+and make_fun ctx fidx f cthis =
 	let old = ctx.m in
 	ctx.m <- method_context();
 	let tthis = (match cthis with
@@ -623,22 +641,20 @@ let make_fun ctx fidx f cthis =
 		code = DynArray.to_array ctx.m.mops;
 	} in
 	ctx.m <- old;
-	f
+	DynArray.add ctx.cfunctions f
 
 let generate_static ctx c f =
 	match f.cf_kind with
 	| Var _ | Method MethDynamic ->
-		assert false (* TODO : alloc global + init at startup *)
+		()
 	| Method m ->
-		let fd = make_fun ctx (alloc_field ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None in
-		DynArray.add ctx.cfunctions fd
+		make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None
 
 let generate_member ctx c f =
 	match f.cf_kind with
 	| Var _ -> ()
 	| Method m ->
-		let fd = make_fun ctx (alloc_field ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) (Some c) in
-		DynArray.add ctx.cfunctions fd
+		make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) (Some c)
 
 let generate_type ctx t =
 	match t with
@@ -647,7 +663,7 @@ let generate_type ctx t =
 			List.iter (fun (name,args,pos) ->
 				match name, args with
 				| Meta.Custom ":hlNative", [EConst(String(name)),_] ->
-					ignore(lookup ctx.cnatives name (fun() -> (alloc_string ctx name,to_type ctx f.cf_type,alloc_field ctx c f)));
+					ignore(lookup ctx.cnatives name (fun() -> (alloc_string ctx name,to_type ctx f.cf_type,alloc_fid ctx c f)));
 				| _ -> ()
 			) f.cf_meta
 		) c.cl_ordered_statics
@@ -663,6 +679,40 @@ let generate_type ctx t =
 		()
 	| TEnumDecl _ | TAbstractDecl _ ->
 		failwith (s_type_path (t_infos t).mt_path)
+
+let generate_static_init ctx =
+	let exprs = ref [] in
+	let t_void = ctx.com.basic.tvoid in
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c ->
+			List.iter (fun f ->
+				match f.cf_kind, f.cf_expr with
+				| Var _, Some e | Method MethDynamic, Some e ->
+					let p = e.epos in
+					let e = mk (TBinop (OpAssign,(mk (TField (mk (TTypeExpr t) t_dynamic p,FStatic (c,f))) f.cf_type p), e)) f.cf_type p in
+					exprs := e :: !exprs;
+				| _ ->
+					()
+			) c.cl_ordered_statics;
+		| _ -> ()
+	) ctx.com.types;
+	(match ctx.com.main_class with
+	| None -> ()
+	| Some m ->
+		let t = (try List.find (fun t -> t_path t = m) ctx.com.types with Not_found -> assert false) in
+		match t with
+		| TClassDecl c ->
+			let f = (try PMap.find "main" c.cl_statics with Not_found -> assert false) in
+			let p = f.cf_pos in
+			exprs := mk (TCall (mk (TField (mk (TTypeExpr t) t_dynamic p, FStatic (c,f))) f.cf_type p,[])) t_void p :: !exprs
+		| _ ->
+			assert false
+	);
+	let fid = alloc_function_name ctx "<entry>" in
+	make_fun ctx fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None;
+	fid
+
 
 (* ------------------------------- CHECK ---------------------------------------------- *)
 
@@ -1407,15 +1457,7 @@ let generate com =
  		| _ -> ()
 	) com.types;
 	List.iter (generate_type ctx) com.types;
-	let ep = (match com.main_class with
-		| None -> assert false (* TODO *)
-		| Some c ->
-			try
-				let c = Hashtbl.find all_classes c in
-				alloc_field ctx c (PMap.find "main" c.cl_statics)
-			with Not_found ->
-				assert false
-	) in
+	let ep = generate_static_init ctx in
 	let code = {
 		version = 1;
 		entrypoint = ep;
