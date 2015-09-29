@@ -184,8 +184,9 @@ let lookup l v fb =
 		PMap.find v l.map
 	with Not_found ->
 		let id = DynArray.length l.arr in
+		DynArray.add l.arr (Obj.magic 0);
 		l.map <- PMap.add v id l.map;
-		DynArray.add l.arr (fb());
+		DynArray.set l.arr id (fb());
 		id
 
 let method_context() =
@@ -1193,7 +1194,7 @@ let write_code ch code =
 			write_index b;
 			write_index c;
 			write_index d;
-		| OCallN (r,f,rl) ->
+		| OCallN (r,f,rl) | OCallClosure (r,f,rl) | OCallMethod (r,f,rl) ->
 			byte oid;
 			write_index r;
 			write_index f;
@@ -1229,47 +1230,25 @@ let write_code ch code =
 	IO.nwrite ch "HLB";
 	IO.write_byte ch code.version;
 
-	let calc_types() =
-		let tmp_ch = IO.output_string() in
-		let b = IO.write_byte tmp_ch in
-		let idx = write_index_gen b in
-		let rec get_type t =
-			lookup types t (fun() -> write_type t)
-		and write_type = function
-			| TVoid -> b 0
-			| TUI8 -> b 1
-			| TI32 -> b 2
-			| TF32 -> b 3
-			| TF64 -> b 4
-			| TBool -> b 5
-			| TAny -> b 6
-			| TFun (args,ret) ->
-				let n = List.length args in
-				if n > 0xFF then assert false;
-				let iargs = List.map get_type args in
-				let iret = get_type ret in
-				b 7;
-				b n;
-				List.iter idx iargs;
-				idx iret
+	let rec get_type t =
+		ignore(lookup types t (fun() ->
+			(match t with
+			| TFun (args, ret) ->
+				List.iter get_type args;
+				get_type ret
 			| TObj p ->
-				let psup = (match p.psuper with None -> 0 | Some p -> 1 + get_type (TObj p)) in
-				let fields = Array.map (fun (_,n,t) -> n, get_type t) p.pfields in
-				b 8;
-				idx p.pid;
-				idx psup;
-				idx (Array.length fields);
-				idx (Array.length p.pproto);
-				Array.iter (fun (n,t) -> idx n; idx t) fields;
-				Array.iter (fun (_,n,g) -> idx n; idx g) p.pproto;
-		in
-		List.iter (fun t -> ignore(get_type t)) [TVoid; TUI8; TI32; TF32; TF64; TBool; TAny]; (* make sure all basic types get lower indexes *)
-		Array.iter (fun g -> ignore(get_type g)) code.globals;
-		Array.iter (fun (_,t,_) -> ignore(get_type t)) code.natives;
-		Array.iter (fun f -> ignore(get_type f.ftype); Array.iter (fun r -> ignore(get_type r)) f.regs) code.functions;
-		IO.close_out tmp_ch
+				(match p.psuper with None -> () | Some p -> get_type (TObj p));
+				Array.iter (fun (_,n,t) -> get_type t) p.pfields
+			| _ ->
+				());
+			t
+		));
 	in
-	let types_data = calc_types() in
+	List.iter (fun t -> get_type t) [TVoid; TUI8; TI32; TF32; TF64; TBool; TAny]; (* make sure all basic types get lower indexes *)
+	Array.iter (fun g -> get_type g) code.globals;
+	Array.iter (fun (_,t,_) -> get_type t) code.natives;
+	Array.iter (fun f -> get_type f.ftype; Array.iter (fun r -> get_type r) f.regs) code.functions;
+
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
 	write_index (Array.length code.strings);
@@ -1288,7 +1267,34 @@ let write_code ch code =
 	Array.iter (IO.write_string ch) code.strings;
 	Array.iter (fun str -> write_index (String.length str)) code.strings;
 
-	IO.nwrite ch types_data;
+	DynArray.iter (fun t ->
+		match t with
+		| TVoid -> byte 0
+		| TUI8 -> byte 1
+		| TI32 -> byte 2
+		| TF32 -> byte 3
+		| TF64 -> byte 4
+		| TBool -> byte 5
+		| TAny -> byte 6
+		| TFun (args,ret) ->
+			let n = List.length args in
+			if n > 0xFF then assert false;
+			byte 7;
+			byte n;
+			List.iter write_type args;
+			write_type ret
+		| TObj p ->
+			byte 8;
+			write_index p.pid;
+			(match p.psuper with
+			| None -> write_index (-1)
+			| Some t -> write_type (TObj t));
+			write_index (Array.length p.pfields);
+			write_index (Array.length p.pproto);
+			Array.iter (fun (_,n,t) -> write_index n; write_type t) p.pfields;
+			Array.iter (fun (_,n,g) -> write_index n; write_index g) p.pproto;
+	) types.arr;
+
 	Array.iter write_type code.globals;
 	Array.iter (fun (name_index,ttype,findex) ->
 		write_index name_index;
