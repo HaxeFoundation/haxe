@@ -43,9 +43,17 @@ and class_proto = {
 	pname : string;
 	pid : int;
 	mutable psuper : class_proto option;
-	mutable pproto : (string * string index * functable index) array;
+	mutable pvirtuals : int array;
+	mutable pproto : field_proto array;
 	mutable pfields : (string * string index * ttype) array;
 	mutable pindex : (string, int) PMap.t;
+}
+
+and field_proto = {
+	fname : string;
+	fid : int;
+	fmethod : functable index;
+	fvirtual : int option;
 }
 
 type unused = int
@@ -166,7 +174,7 @@ let rec tstr ?(detailed=false) t =
 	| TObj o when not detailed -> "#" ^ o.pname
 	| TObj o ->
 		let fields = "{" ^ String.concat "," (List.map (fun(s,_,t) -> s ^ " : " ^ tstr ~detailed:false t) (Array.to_list o.pfields)) ^ "}" in
-		let proto = "{"  ^ String.concat "," (List.map (fun(s,_,g) -> s ^ "@" ^  string_of_int g) (Array.to_list o.pproto)) ^ "}" in
+		let proto = "{"  ^ String.concat "," (List.map (fun p -> (match p.fvirtual with None -> "" | Some _ -> "virtual ") ^ p.fname ^ "@" ^  string_of_int p.fmethod) (Array.to_list o.pproto)) ^ "}" in
 		"#" ^ o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]"
 
 let iteri f l =
@@ -260,32 +268,45 @@ and class_type ctx c =
 			pproto = [||];
 			pfields = [||];
 			pindex = PMap.empty;
+			pvirtuals = [||];
 		} in
 		let t = TObj p in
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
-		(match c.cl_super with
-		| None -> ()
-		| Some (c,_) ->
-			(match class_type ctx c with
-			| TObj psup -> p.psuper <- Some psup
-			| _ -> assert false));
-		let fa = DynArray.create() and pa = DynArray.create() in
+		let start_field, virtuals = (match c.cl_super with
+			| None -> 0, [||]
+			| Some (c,_) ->
+				match class_type ctx c with
+				| TObj psup ->
+					p.psuper <- Some psup;
+					p.pindex <- psup.pindex;
+					Array.length p.pfields, p.pvirtuals
+				| _ -> assert false
+		) in
+		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		List.iter (fun f ->
 			if is_extern_field f then () else
 			match f.cf_kind with
 			| Var _ | Method MethDynamic ->
 				let t = to_type ctx f.cf_type in
-				p.pindex <- PMap.add f.cf_name (DynArray.length fa) p.pindex;
+				p.pindex <- PMap.add f.cf_name (DynArray.length fa + start_field) p.pindex;
 				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, t);
-			| Method _ when is_overriden ctx c f ->
+			| Method _ ->
 				let g = alloc_fid ctx c f in
-				p.pindex <- PMap.add f.cf_name (DynArray.length pa) p.pindex;
-				(* can't use global_type here *)
-				DynArray.add pa (f.cf_name, alloc_string ctx f.cf_name, g)
-			| _ -> ()
+				let virt = if List.memq f c.cl_overrides then
+					Some (try PMap.find f.cf_name p.pindex with Not_found -> assert false)
+				else if is_overriden ctx c f then begin
+					let vid = DynArray.length virtuals in
+					DynArray.add virtuals g;
+					p.pindex <- PMap.add f.cf_name vid p.pindex;
+					Some vid
+				end else
+					None
+				in
+				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; }
 		) c.cl_ordered_fields;
 		p.pfields <- DynArray.to_array fa;
 		p.pproto <- DynArray.to_array pa;
+		p.pvirtuals <- DynArray.to_array virtuals;
 		t
 
 and alloc_fid ctx c f =
@@ -319,20 +340,8 @@ let jump ctx f =
 let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
-let rec resolve_field ctx p fname proto =
-	(* each class contains only its own fields, so let's get absolute index *)
-	let rec loop id sup =
-		match sup with
-		| None -> id
-		| Some p -> loop (id + (if proto then Array.length p.pproto else Array.length p.pfields)) p.psuper
-	in
-	try
-		let fid = PMap.find fname p.pindex in
-		loop fid p.psuper
-	with Not_found ->
-		match p.psuper with
-		| None -> assert false
-		| Some p -> resolve_field ctx p fname proto
+let resolve_field ctx p fname proto =
+	try PMap.find fname p.pindex with Not_found -> assert false
 
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
@@ -719,6 +728,7 @@ let generate_static_init ctx =
 
 let check code =
 	let ftypes = Array.create (Array.length code.natives + Array.length code.functions) TVoid in
+	let is_native_fun = Hashtbl.create 0 in
 
 	let check_fun f =
 		let pos = ref 0 in
@@ -780,13 +790,6 @@ let check code =
 					| None ->
 						let rec fetch id = function
 							| [] -> assert false
-							| p :: pl when proto ->
-								let d = id - Array.length p.pproto in
-								if d < 0 then
-									let _, _, fid = p.pproto.(id) in
-									ftypes.(fid)
-								else
-									fetch d pl
 							| p :: pl ->
 								let d = id - Array.length p.pfields in
 								if d < 0 then
@@ -799,7 +802,7 @@ let check code =
 					| Some p ->
 						loop pl p
 				in
-				loop [] p
+				if proto then ftypes.(p.pvirtuals.(id)) else loop [] p
 			| _ ->
 				is_obj o;
 				TVoid
@@ -899,8 +902,16 @@ let check code =
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
-	Array.iter (fun fd -> ftypes.(fd.findex) <- fd.ftype) code.functions;
-	Array.iter (fun (_,t,idx) -> ftypes.(idx) <- t) code.natives;
+	Array.iter (fun fd ->
+		if ftypes.(fd.findex) <> TVoid then failwith "Duplicate function bind";
+		ftypes.(fd.findex) <- fd.ftype;
+	) code.functions;
+	Array.iter (fun (_,t,idx) ->
+		if ftypes.(idx) <> TVoid then failwith "Duplicate function bind";
+		Hashtbl.add is_native_fun idx true;
+		ftypes.(idx) <- t
+	) code.natives;
+	(* TODO : check that no object type has a virtual native in his proto *)
 	Array.iter check_fun code.functions
 
 (* ------------------------------- INTERP --------------------------------------------- *)
@@ -967,7 +978,7 @@ let interp code =
 			Hashtbl.find cached_protos p.pname
 		with Not_found ->
 			let meths, fields = (match p.psuper with None -> [||],[||] | Some p -> let p,f = get_proto p in p.vmethods, f) in
-			let meths = Array.append meths (Array.map (fun(_,_,f) -> functions.(f)) p.pproto) in
+			let meths = Array.append meths (Array.map (fun f -> functions.(f)) p.pvirtuals) in
 			let fields = Array.append fields (Array.map (fun (_,_,t) -> t) p.pfields) in
 			let proto = ({ vclass = p; vmethods = meths },fields) in
 			Hashtbl.replace cached_protos p.pname proto;
@@ -1292,7 +1303,7 @@ let write_code ch code =
 			write_index (Array.length p.pfields);
 			write_index (Array.length p.pproto);
 			Array.iter (fun (_,n,t) -> write_index n; write_type t) p.pfields;
-			Array.iter (fun (_,n,g) -> write_index n; write_index g) p.pproto;
+			Array.iter (fun f -> write_index f.fid; write_index f.fmethod; write_index (match f.fvirtual with None -> -1 | Some i -> i)) p.pproto;
 	) types.arr;
 
 	Array.iter write_type code.globals;
@@ -1423,8 +1434,8 @@ let dump code =
 			pr ("		  @" ^ string_of_int i ^ " " ^ str id ^ " " ^ tstr t)
 		) p.pfields;
 		pr ("		" ^ string_of_int (Array.length p.pproto) ^ " methods");
-		Array.iteri (fun i (_,id,m) ->
-			pr ("		  @" ^ string_of_int i ^ " " ^ str id ^ " fun@" ^ string_of_int m)
+		Array.iteri (fun i f ->
+			pr ("		  @" ^ string_of_int i ^ " " ^ str f.fid ^ " fun@" ^ string_of_int f.fmethod ^ (match f.fvirtual with None -> "" | Some p -> "[" ^ string_of_int p ^ "]"))
 		) p.pproto;
 	) protos;
 	String.concat "\n" (List.rev !lines)
