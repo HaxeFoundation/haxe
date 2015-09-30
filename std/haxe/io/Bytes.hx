@@ -463,7 +463,7 @@ class Bytes {
 		return new Bytes(length, BytesData.alloc(length));
 		#elseif cpp
 		var a = new BytesData();
-		if (length>0) a[length-1] = untyped 0;
+		if (length>0) cpp.NativeArray.setSize(a, length);
 		return new Bytes(length, a);
 		#elseif cs
 		return new Bytes(length, new cs.NativeArray(length));
