@@ -77,6 +77,7 @@ type opcode =
 	| OCall4 of reg * functable index * reg * reg * reg * reg
 	| OCallN of reg * functable index * reg list
 	| OCallMethod of reg * field index * reg list
+	| OCallThis of reg * field index * reg list
 	| OCallClosure of reg * reg * reg list
 	| OGetFunction of reg * functable index (* closure *)
 	| OClosure of reg * functable index * reg (* closure *)
@@ -495,6 +496,8 @@ and eval_expr ctx e =
 			| [a;b;c] -> op ctx (OCall3 (ret, f, a, b, c))
 			| [a;b;c;d] -> op ctx (OCall4 (ret, f, a, b, c, d))
 			| _ -> op ctx (OCallN (ret, f, el)));
+		| AInstanceProto ({ eexpr = TConst TThis }, fid) ->
+			op ctx (OCallThis (ret, fid, el))
 		| AInstanceProto (ethis, fid) ->
 			let el = eval_expr ctx ethis :: el in
 			op ctx (OCallMethod (ret, fid, el))
@@ -845,6 +848,10 @@ let check code =
 				call f [a;b;c;d] r
 			| OCallN (r,f,rl) ->
 				call f rl r
+			| OCallThis (r, m, rl) ->
+				(match tfield 0 m true with
+				| TFun (tobj :: targs, tret) when List.length targs = List.length rl -> reg 0 tobj; List.iter2 reg rl targs; reg r tret
+				| t -> check t (TFun (rtype 0 :: List.map rtype rl, rtype r)));
 			| OCallMethod (r, m, rl) ->
 				(match rl with
 				| [] -> assert false
@@ -1096,6 +1103,10 @@ let interp code =
 				| VObj v -> set r (fcall v.vproto.vmethods.(m) (List.map get rl))
 				| VNull -> error "Null access"
 				| _ -> assert false)
+			| OCallThis (r,m,rl) ->
+				(match get 0 with
+				| VObj v as o -> set r (fcall v.vproto.vmethods.(m) (o :: List.map get rl))
+				| _ -> assert false)
 			| OCallClosure (r,v,rl) ->
 				(match get v with
 				| VClosure (f,None) -> set r (fcall f (List.map get rl))
@@ -1205,7 +1216,7 @@ let write_code ch code =
 			write_index b;
 			write_index c;
 			write_index d;
-		| OCallN (r,f,rl) | OCallClosure (r,f,rl) | OCallMethod (r,f,rl) ->
+		| OCallN (r,f,rl) | OCallClosure (r,f,rl) | OCallMethod (r,f,rl) | OCallThis (r,f,rl) ->
 			byte oid;
 			write_index r;
 			write_index f;
@@ -1345,6 +1356,7 @@ let ostr o =
 	| OCallMethod (r,f,[]) -> "callmethod ???"
 	| OCallMethod (r,f,o :: rl) -> Printf.sprintf "callmethod %d, %d[%d](%s)" r o f (String.concat "," (List.map string_of_int rl))
 	| OCallClosure (r,f,rl) -> Printf.sprintf "callclosure %d, %d(%s)" r f (String.concat "," (List.map string_of_int rl))
+	| OCallThis (r,f,rl) -> Printf.sprintf "callthis %d, [%d](%s)" r f (String.concat "," (List.map string_of_int rl))
 	| OGetFunction (r,f) -> Printf.sprintf "getfunction %d, f%d" r f
 	| OClosure (r,f,v) -> Printf.sprintf "closure %d, f%d(%d)" r f v
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
