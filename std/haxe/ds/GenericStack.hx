@@ -54,7 +54,7 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 	The generated name is an implementation detail and should not be relied
 	upon.
 **/
-#if (flash || cpp)
+#if (!display && (flash || cpp))
 @:generic
 #end
 class GenericStack<T> {
