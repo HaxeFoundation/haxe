@@ -318,6 +318,22 @@ class TestMisc extends Test {
 		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789ABCDEFGHIJKLMNOPQRSTUV"));
 		eq( b.encodeString("foo"), "CPNMU" );
 		eq( b.decodeString("CPNMU"), "foo" );
+
+		// base32 class
+		eq( haxe.crypto.Base32.encode(Bytes.ofString("")), "" );
+		eq( haxe.crypto.Base32.decode("" ).toString(), "");
+		eq( haxe.crypto.Base32.encode(Bytes.ofString("a")), "ME======" );
+		eq( haxe.crypto.Base32.decode("ME======" ).toString(), "a");
+		eq( haxe.crypto.Base32.encode(Bytes.ofString("ab")), "MFRA====" );
+		eq( haxe.crypto.Base32.decode("MFRA====" ).toString(), "ab");
+        eq( haxe.crypto.Base32.encode(Bytes.ofString("abc")), "MFRGG===" );
+		eq( haxe.crypto.Base32.decode("MFRGG===" ).toString(), "abc");
+		eq( haxe.crypto.Base32.encode(Bytes.ofString("abcd")), "MFRGGZA=" );
+		eq( haxe.crypto.Base32.decode("MFRGGZA=" ).toString(), "abcd");
+		eq( haxe.crypto.Base32.encode(Bytes.ofString("abcde")), "MFRGGZDF" );
+		eq( haxe.crypto.Base32.decode("MFRGGZDF" ).toString(), "abcde");
+		eq( haxe.crypto.Base32.encode(Bytes.ofString("abcdef")), "MFRGGZDFMY======" );
+		eq( haxe.crypto.Base32.decode("MFRGGZDFMY======" ).toString(), "abcdef");
 	}
 
 	function testUrlEncode() {
