@@ -152,6 +152,7 @@ type context = {
 	cfids : (string * path, unit) lookup;
 	cfunctions : fundecl DynArray.t;
 	overrides : (string * path, bool) Hashtbl.t;
+	defined_funs : (int,unit) Hashtbl.t;
 	mutable cached_types : (path, ttype) PMap.t;
 	mutable m : method_context;
 }
@@ -661,7 +662,7 @@ and eval_expr ctx e =
 				assert false);
 			value
 		| _ ->
-			failwith ("TODO " ^ s_expr (s_type (print_context())) e))
+			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos)
 	| TFunction f ->
 		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfunctions)) in
 		make_fun ctx fid f None;
@@ -672,7 +673,7 @@ and eval_expr ctx e =
 		op ctx (OThrow (eval_expr ctx v));
 		alloc_tmp ctx (to_type ctx e.etype) (* not initialized *)
 	| _ ->
-		failwith ("TODO " ^ s_expr (s_type (print_context())) e)
+		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
 and make_fun ctx fidx f cthis =
 	let old = ctx.m in
@@ -709,6 +710,7 @@ and make_fun ctx fidx f cthis =
 		code = DynArray.to_array ctx.m.mops;
 	} in
 	ctx.m <- old;
+	Hashtbl.add ctx.defined_funs fidx ();
 	DynArray.add ctx.cfunctions f
 
 let generate_static ctx c f =
@@ -740,7 +742,11 @@ let generate_type ctx t =
 			List.iter (fun (name,args,pos) ->
 				match name, args with
 				| Meta.Custom ":hlNative", [EConst(String(name)),_] ->
-					ignore(lookup ctx.cnatives name (fun() -> (alloc_string ctx name,to_type ctx f.cf_type,alloc_fid ctx c f)));
+					ignore(lookup ctx.cnatives name (fun() ->
+						let fid = alloc_fid ctx c f in
+						Hashtbl.add ctx.defined_funs fid ();
+						(alloc_string ctx name,to_type ctx f.cf_type,fid)
+					));
 				| _ -> ()
 			) f.cf_meta
 		) c.cl_ordered_statics
@@ -755,7 +761,8 @@ let generate_type ctx t =
 	| TAbstractDecl a when a.a_impl = None ->
 		()
 	| TEnumDecl _ | TAbstractDecl _ ->
-		failwith (s_type_path (t_infos t).mt_path)
+		let inf = t_infos t in
+		error ("Unsupported generation for " ^ s_type_path inf.mt_path) inf.mt_pos
 
 let generate_static_init ctx =
 	let exprs = ref [] in
@@ -1527,7 +1534,7 @@ let dump code =
 	) code.natives;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
-		pr ("	@" ^ string_of_int f.findex ^ " fun " ^ tstr f.ftype);
+		pr (Printf.sprintf "	@%d(%Xh) fun %s" f.findex f.findex (tstr f.ftype));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
@@ -1569,6 +1576,7 @@ let generate com =
 		overrides = Hashtbl.create 0;
 		cached_types = PMap.empty;
 		cfids = new_lookup();
+		defined_funs = Hashtbl.create 0;
 	} in
 	ignore(alloc_string ctx "");
 	let all_classes = Hashtbl.create 0 in
@@ -1588,6 +1596,9 @@ let generate com =
 	) com.types;
 	List.iter (generate_type ctx) com.types;
 	let ep = generate_static_init ctx in
+	PMap.iter (fun (s,p) fid ->
+		if not (Hashtbl.mem ctx.defined_funs fid) then failwith ("Unresolved method " ^ s_type_path p ^ ":" ^ s)
+	) ctx.cfids.map;
 	let code = {
 		version = 1;
 		entrypoint = ep;
