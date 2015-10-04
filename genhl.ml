@@ -35,7 +35,7 @@ type ttype =
 	| TF32
 	| TF64
 	| TBool
-	| TAny
+	| TAny of ttype option
 	| TFun of ttype list * ttype
 	| TObj of class_proto
 
@@ -170,7 +170,8 @@ let rec tstr ?(detailed=false) t =
 	| TF32 -> "f32"
 	| TF64 -> "f64"
 	| TBool -> "bool"
-	| TAny -> "any"
+	| TAny None -> "any"
+	| TAny (Some t) -> "any(" ^ tstr t ^ ")"
 	| TFun (args,ret) -> "(" ^ String.concat "," (List.map (tstr ~detailed) args) ^ "):" ^ tstr ~detailed ret
 	| TObj o when not detailed -> "#" ^ o.pname
 	| TObj o ->
@@ -231,7 +232,7 @@ let rec to_type ctx t =
 	match t with
 	| TMono r ->
 		(match !r with
-		| None -> TAny
+		| None -> TAny None
 		| Some t -> to_type ctx t)
 	| TType (t,tl) ->
 		to_type ctx (apply_params t.t_params tl t.t_type)
@@ -240,9 +241,9 @@ let rec to_type ctx t =
 	| Type.TFun (args, ret) ->
 		TFun (List.map (fun (_,_,t) -> to_type ctx t) args, to_type ctx ret)
 	| TAnon _ ->
-		TAny
+		TAny None
 	| TDynamic _ ->
-		TAny
+		TAny None
 	| TEnum (e,_) ->
 		assert false
 	| TInst (c,_) ->
@@ -352,8 +353,10 @@ and cast_to ctx (r:reg) (t:ttype) =
 	let rt = rtype ctx r in
 	if t = rt then r else
 	match rt, t with
-	| _ , TAny ->
-		let tmp = alloc_tmp ctx TAny in
+	| TAny _, TAny _ ->
+		r
+	| _ , TAny _ ->
+		let tmp = alloc_tmp ctx (TAny (Some rt)) in
 		op ctx (OToAny (tmp, r));
 		tmp
 	| _ ->
@@ -744,6 +747,8 @@ let check code =
 			if t1 == t2 then true else
 			match t1, t2 with
 			| TFun (args1,ret1), TFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 same_type args1 args2 && same_type ret1 ret2
+			| TAny _, TAny None -> true
+			| TAny (Some t1), TAny (Some t2) -> t1 == t2
 			| TObj p1, TObj p2 ->
 				let rec loop p =
 					p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
@@ -882,8 +887,7 @@ let check code =
 			| OJAlways d ->
 				can_jump d
 			| OToAny (r,a) ->
-				ignore(rtype a);
-				reg r TAny
+				reg r (TAny (Some (rtype a)))
 			| OLabel _ ->
 				()
 			| ONew r ->
@@ -950,7 +954,7 @@ exception Return of value
 
 let default t =
 	match t with
-	| TVoid | TFun _ | TAny | TObj _ -> VNull
+	| TVoid | TFun _ | TAny _ | TObj _ -> VNull
 	| TI32 | TUI8 -> VInt Int32.zero
 	| TF32 | TF64 -> VFloat 0.
 	| TBool -> VBool false
@@ -1261,12 +1265,14 @@ let write_code ch code =
 			| TObj p ->
 				(match p.psuper with None -> () | Some p -> get_type (TObj p));
 				Array.iter (fun (_,n,t) -> get_type t) p.pfields
+			| TAny (Some t) ->
+				get_type t
 			| _ ->
 				());
 			t
 		));
 	in
-	List.iter (fun t -> get_type t) [TVoid; TUI8; TI32; TF32; TF64; TBool; TAny]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [TVoid; TUI8; TI32; TF32; TF64; TBool; TAny None]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f -> get_type f.ftype; Array.iter (fun r -> get_type r) f.regs) code.functions;
@@ -1297,7 +1303,10 @@ let write_code ch code =
 		| TF32 -> byte 3
 		| TF64 -> byte 4
 		| TBool -> byte 5
-		| TAny -> byte 6
+		| TAny None -> byte 6
+		| TAny (Some t) ->
+			byte 0x86;
+			write_type t
 		| TFun (args,ret) ->
 			let n = List.length args in
 			if n > 0xFF then assert false;
