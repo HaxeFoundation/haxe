@@ -24,9 +24,12 @@ package sys.net;
 @:coreApi
 class Host {
 
+	public var host(default,null) : String;
+
 	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
+		host = name;
 		ip = host_resolve(name);
 	}
 

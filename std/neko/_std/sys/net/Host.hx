@@ -25,9 +25,12 @@ package sys.net;
 @:keepInit
 class Host {
 
+	public var host(default,null) : String;
+
 	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
+		host = name;
 		ip = host_resolve(untyped name.__s);
 	}
 

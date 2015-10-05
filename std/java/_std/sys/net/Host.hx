@@ -23,12 +23,14 @@ package sys.net;
 import java.net.InetAddress;
 
 class Host {
+	public var host(default,null) : String;
 	public var ip(default,null) : Int;
 
 	@:allow(sys.net) private var wrapped:InetAddress;
 
 	public function new( name : String ) : Void
 	{
+		host = name;
 		try
 			this.wrapped = InetAddress.getByName(name)
 		catch(e:Dynamic) throw e;

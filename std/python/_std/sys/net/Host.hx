@@ -22,11 +22,13 @@
 package sys.net;
 
 class Host {
+	public var host(default,null) : String;
 	public var ip(default,null) : Int;
 
 	var name:String;
 	
 	public function new( name : String ) : Void {
+		host = name;
 		this.name = name;
     	}
 

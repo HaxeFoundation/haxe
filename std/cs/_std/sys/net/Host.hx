@@ -18,6 +18,11 @@ class Host {
 	public var ipAddress(default, null) : IPAddress;
 
 	/**
+		The provided host string.
+	**/
+	var host(default,null) : String;
+
+	/**
 		The actual IP corresponding to the host.
 	**/
 	public var ip(get, null) : Int;
@@ -30,6 +35,7 @@ class Host {
 		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
 	**/
 	public function new( name : String ) : Void {
+		host = name;
 		hostEntry = Dns.GetHostEntry(name);
 		for (i in 0...hostEntry.AddressList.Length) {
 			if (hostEntry.AddressList[i].AddressFamily == InterNetwork) {

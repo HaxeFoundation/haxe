@@ -27,6 +27,11 @@ package sys.net;
 extern class Host {
 
 	/**
+		The provided host string.
+	**/
+	var host(default,null) : String;
+
+	/**
 		The actual IP corresponding to the host.
 	**/
 	var ip(default,null) : Int;
