@@ -126,7 +126,7 @@ type code = {
 	floats : float array;
 	(* types : ttype array // only in bytecode, rebuilt on save() *)
 	globals : ttype array;
-	natives : (string index * ttype * functable index) array;
+	natives : (string index * string index * ttype * functable index) array;
 	functions : fundecl array;
 }
 
@@ -148,7 +148,7 @@ type context = {
 	cstrings : (string, string) lookup;
 	cfloats : (float, float) lookup;
 	cints : (int32, int32) lookup;
-	cnatives : (string, (string index * ttype * functable index)) lookup;
+	cnatives : (string, (string index * string index * ttype * functable index)) lookup;
 	cfids : (string * path, unit) lookup;
 	cfunctions : fundecl DynArray.t;
 	overrides : (string * path, bool) Hashtbl.t;
@@ -741,11 +741,11 @@ let generate_type ctx t =
 		List.iter (fun f ->
 			List.iter (fun (name,args,pos) ->
 				match name, args with
-				| Meta.Custom ":hlNative", [EConst(String(name)),_] ->
-					ignore(lookup ctx.cnatives name (fun() ->
+				| Meta.Custom ":hlNative", [(EConst(String(lib)),_);(EConst(String(name)),_)] ->
+					ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
 						let fid = alloc_fid ctx c f in
 						Hashtbl.add ctx.defined_funs fid ();
-						(alloc_string ctx name,to_type ctx f.cf_type,fid)
+						(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
 					));
 				| _ -> ()
 			) f.cf_meta
@@ -995,7 +995,7 @@ let check code =
 		if ftypes.(fd.findex) <> HVoid then failwith "Duplicate function bind";
 		ftypes.(fd.findex) <- fd.ftype;
 	) code.functions;
-	Array.iter (fun (_,t,idx) ->
+	Array.iter (fun (_,_,t,idx) ->
 		if idx >= Array.length ftypes then failwith ("Invalid native function index " ^ string_of_int idx);
 		if ftypes.(idx) <> HVoid then failwith "Duplicate function bind";
 		Hashtbl.add is_native_fun idx true;
@@ -1228,13 +1228,13 @@ let interp code =
 		with
 			Return v -> v
 	in
-	let load_native name =
-		FNativeFun (name,match name with
-		| "std@log" -> (fun args -> print_endline (vstr (List.hd args)); VNull);
+	let load_native lib name =
+		FNativeFun (lib ^ "@" ^ name,match lib, name with
+		| "std", "log" -> (fun args -> print_endline (vstr (List.hd args)); VNull);
 		| _ -> (fun args -> error ("Unresolved native " ^ name))
 		)
 	in
-	Array.iter (fun (name,_,idx) -> functions.(idx) <- load_native code.strings.(name)) code.natives;
+	Array.iter (fun (lib,name,_,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name)) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	match functions.(code.entrypoint) with
 	| FFun f when f.ftype = HFun([],HVoid) -> call f []
@@ -1366,7 +1366,7 @@ let write_code ch code =
 	in
 	List.iter (fun t -> get_type t) [HVoid; HUI8; HI32; HF32; HF64; HBool; HDyn None]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
-	Array.iter (fun (_,t,_) -> get_type t) code.natives;
+	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f -> get_type f.ftype; Array.iter (fun r -> get_type r) f.regs) code.functions;
 
 	write_index (Array.length code.ints);
@@ -1423,7 +1423,8 @@ let write_code ch code =
 	) types.arr;
 
 	Array.iter write_type code.globals;
-	Array.iter (fun (name_index,ttype,findex) ->
+	Array.iter (fun (lib_index, name_index,ttype,findex) ->
+		write_index lib_index;
 		write_index name_index;
 		write_type ttype;
 		write_index findex;
@@ -1529,8 +1530,8 @@ let dump code =
 		pr ("	@" ^ string_of_int i ^ " : " ^ tstr g);
 	) code.globals;
 	pr (string_of_int (Array.length code.natives) ^ " natives");
-	Array.iter (fun (name,t,fidx) ->
-		pr ("	@" ^ string_of_int fidx ^ " native " ^ str name ^ " " ^ tstr t);
+	Array.iter (fun (lib,name,t,fidx) ->
+		pr ("	@" ^ string_of_int fidx ^ " native " ^ str lib ^ "@" ^ str name ^ " " ^ tstr t);
 	) code.natives;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
