@@ -128,13 +128,12 @@ private class StringMapIterator<T> {
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");
-		var keys = arrayKeys();
-		for( i in 0...keys.length ) {
-			var k = keys[i];
-			s.add(k);
+		var it = keys();
+		for( i in it ) {
+			s.add(i);
 			s.add(" => ");
-			s.add(Std.string(get(k)));
-			if( i < keys.length )
+			s.add(Std.string(get(i)));
+			if( it.hasNext() )
 				s.add(", ");
 		}
 		s.add("}");
