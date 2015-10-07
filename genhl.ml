@@ -72,6 +72,7 @@ type opcode =
 	| OSub of reg * reg * reg
 	| OMul of reg * reg * reg
 	| ODiv of reg * reg * reg
+	| ONeg of reg * reg
 	| OIncr of reg
 	| ODecr of reg
 	| OCall0 of reg * functable index
@@ -102,6 +103,8 @@ type opcode =
 	| OJNeq of reg * reg * int
 	| OJAlways of int
 	| OToDyn of reg * reg
+	| OToFloat of reg * reg
+	| OToInt of reg * reg
 	| OLabel of unused
 	| ONew of reg
 	| OField of reg * reg * field index
@@ -187,6 +190,16 @@ let rec tstr ?(detailed=false) t =
 		"#" ^ o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]"
 	| HArray t ->
 		"array(" ^ tstr t ^ ")"
+
+let to_utf8 str =
+	try
+		UTF8.validate str;
+		str;
+	with
+		UTF8.Malformed_code ->
+			let b = UTF8.Buf.create 0 in
+			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			UTF8.Buf.contents b
 
 let iteri f l =
 	let p = ref (-1) in
@@ -348,6 +361,16 @@ and alloc_fun_path ctx path name =
 and alloc_function_name ctx f =
 	lookup ctx.cfids (f, ([],"")) (fun() -> ())
 
+let is_int ctx t =
+	match to_type ctx t with
+	| HUI8 | HI32 -> true
+	| _ -> false
+
+let is_float ctx t =
+	match to_type ctx t with
+	| HF32 | HF64 -> true
+	| _ -> false
+
 let alloc_global ctx name t =
 	lookup ctx.cglobals name (fun() -> to_type ctx t)
 
@@ -376,9 +399,9 @@ let resolve_field ctx p fname proto =
 
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
-	cast_to ctx r t
+	cast_to ctx r t e.epos
 
-and cast_to ctx (r:reg) (t:ttype) =
+and cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
 	if t = rt then r else
 	match rt, t with
@@ -388,8 +411,12 @@ and cast_to ctx (r:reg) (t:ttype) =
 		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
 		op ctx (OToDyn (tmp, r));
 		tmp
+	| (HUI8 | HI32), (HF32 | HF64) ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToFloat (tmp, r));
+		tmp
 	| _ ->
-		failwith ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t)
+		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
 and get_access ctx e =
 	match e.eexpr with
@@ -423,11 +450,23 @@ and jump_expr ctx e jcond =
 	match e.eexpr with
 	| TParenthesis e ->
 		jump_expr ctx e jcond
-	| TBinop (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte as op, e1, e2) ->
+	| TBinop (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
 		let r1 = eval_expr ctx e1 in
 		let r2 = eval_expr ctx e2 in
+		let r1, r2 = (match rtype ctx r1, rtype ctx r2 with
+			| (HI32 | HUI8), ((HF32 | HF64) as t) ->
+				let tmp = alloc_tmp ctx t in
+				op ctx (OToFloat (tmp,r1));
+				tmp, r2
+			| ((HF32 | HF64) as t), (HI32 | HUI8) ->
+				let tmp = alloc_tmp ctx t in
+				op ctx (OToFloat (tmp,r2));
+				r1, tmp
+			| t1, t2 ->
+				if t1 == t2 then r1, r2 else error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) e.epos
+		) in
 		jump ctx (fun i ->
-			match op with
+			match jop with
 			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNeq (r1,r2,i)
 			| OpNotEq -> if jcond then OJNeq (r1,r2,i) else OJEq (r1,r2,i)
 			| OpGt -> if jcond then OJLt (r2,r1,i) else OJGte (r2,r1,i)
@@ -464,10 +503,11 @@ and eval_expr ctx e =
 			op ctx (OBool (r,b));
 			r
 		| TString s ->
+			let s = to_utf8 s in
 			let r = alloc_tmp ctx HBytes in
 			op ctx (OString (r,alloc_string ctx s));
 			let len = alloc_tmp ctx HI32 in
-			op ctx (OInt (len,alloc_i32 ctx (Int32.of_int (String.length s))));
+			op ctx (OInt (len,alloc_i32 ctx (Int32.of_int (UTF8.length s))));
 			let s = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (OCall2 (s,alloc_fun_path ctx ([],"String") "alloc",r,len));
 			s
@@ -528,6 +568,14 @@ and eval_expr ctx e =
 				r
 			| _ ->
 				assert false)
+		| "$int", [{ eexpr = TBinop (OpDiv, e1, e2) }] when is_int ctx e1.etype && is_int ctx e2.etype ->
+			let tmp = alloc_tmp ctx HI32 in
+			op ctx (ODiv (tmp, eval_to ctx e1 HI32, eval_to ctx e2 HI32));
+			tmp
+		| "$int", [e] ->
+			let tmp = alloc_tmp ctx HI32 in
+			op ctx (OToInt (tmp, eval_expr ctx e));
+			tmp
 		| _ -> error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
 		let ret = alloc_tmp ctx (to_type ctx e.etype) in
@@ -633,7 +681,7 @@ and eval_expr ctx e =
 				r
 			| _ ->
 				assert false)
-		| OpSub | OpMult ->
+		| OpSub | OpMult | OpDiv ->
 			let t = to_type ctx e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
@@ -643,6 +691,7 @@ and eval_expr ctx e =
 				(match bop with
 				| OpSub -> op ctx (OSub (r,a,b))
 				| OpMult -> op ctx (OMul (r,a,b))
+				| OpDiv -> op ctx (ODiv (r,a,b))
 				| _ -> assert false);
 				r
 			| _ ->
@@ -663,6 +712,12 @@ and eval_expr ctx e =
 			value
 		| _ ->
 			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos)
+	| TUnop (Neg,_,v) ->
+		let t = to_type ctx e.etype in
+		let tmp = alloc_tmp ctx t in
+		let r = eval_to ctx v t in
+		op ctx (ONeg (tmp,r));
+		tmp
 	| TFunction f ->
 		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfunctions)) in
 		make_fun ctx fid f None;
@@ -671,7 +726,7 @@ and eval_expr ctx e =
 		r
 	| TThrow v ->
 		op ctx (OThrow (eval_expr ctx v));
-		alloc_tmp ctx (to_type ctx e.etype) (* not initialized *)
+		alloc_tmp ctx HVoid (* not initialized *)
 	| _ ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
@@ -840,6 +895,11 @@ let check code =
 			| HUI8 | HI32 -> ()
 			| _ -> error ("Register " ^ string_of_int r ^ " should be integral")
 		in
+		let float r =
+			match rtype r with
+			| HF32 | HF64 -> ()
+			| _ -> error ("Register " ^ string_of_int r ^ " should be float")
+		in
 		let call f args r =
 			match ftypes.(f) with
 			| HFun (targs, tret) ->
@@ -912,6 +972,9 @@ let check code =
 				numeric r;
 				reg a (rtype r);
 				reg b (rtype r);
+			| ONeg (r,a) ->
+				numeric r;
+				reg a (rtype r);
 			| OIncr r ->
 				int r
 			| ODecr r ->
@@ -963,6 +1026,12 @@ let check code =
 				can_jump d
 			| OToDyn (r,a) ->
 				reg r (HDyn (Some (rtype a)))
+			| OToFloat (a,b) ->
+				int b;
+				float a;
+			| OToInt (a,b) ->
+				int a;
+				float b;
 			| OLabel _ ->
 				()
 			| ONew r ->
@@ -1151,7 +1220,8 @@ let interp code =
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
 			| OSub (r,a,b) -> set r (numop Int32.sub ( -. ) a b)
 			| OMul (r,a,b) -> set r (numop Int32.mul ( *. ) a b)
-			| ODiv (r,a,b) -> set r (numop Int32.div ( /. ) a b)
+			| ODiv (r,a,b) -> set r (numop (fun a b -> if b = 0l then 0l else Int32.div a b) ( /. ) a b)
+			| ONeg (r,v) -> set r (match get v with VInt v -> VInt (Int32.neg v) | VFloat f -> VFloat (-. f) | _ -> assert false)
 			| OIncr r -> set r (iunop (fun i -> Int32.add i 1l) r)
 			| ODecr r -> set r (iunop (fun i -> Int32.sub i 1l) r)
 			| OCall0 (r,f) -> set r (fcall (func f) [])
@@ -1177,6 +1247,8 @@ let interp code =
 			| OJNeq (a,b,i) -> if get a <> get b then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OToDyn (r,a) -> set r (VDyn (get a, f.regs.(a)))
+			| OToFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | _ -> assert false)
+			| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | _ -> assert false)
 			| OLabel _ -> ()
 			| ONew r -> set r (VObj (new_obj (rtype r)))
 			| OField (r,o,fid) ->
@@ -1453,6 +1525,7 @@ let ostr o =
 	| OSub (r,a,b) -> Printf.sprintf "sub %d,%d,%d" r a b
 	| OMul (r,a,b) -> Printf.sprintf "mul %d,%d,%d" r a b
 	| ODiv (r,a,b) -> Printf.sprintf "div %d,%d,%d" r a b
+	| ONeg (r,v) -> Printf.sprintf "neg %d,%d" r v
 	| OIncr r -> Printf.sprintf "incr %d" r
 	| ODecr r -> Printf.sprintf "decr %d" r
 	| OCall0 (r,g) -> Printf.sprintf "call %d, f%d()" r g
@@ -1484,6 +1557,8 @@ let ostr o =
 	| OJNeq (a,b,i) -> Printf.sprintf "jneq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
 	| OToDyn (r,a) -> Printf.sprintf "todyn %d,%d" r a
+	| OToFloat (r,a) -> Printf.sprintf "tofloat %d,%d" r a
+	| OToInt (r,a) -> Printf.sprintf "toint %d,%d" r a
 	| OLabel _ -> "label"
 	| ONew r -> Printf.sprintf "new %d" r
 	| OField (r,o,i) -> Printf.sprintf "field %d,%d[%d]" r o i
@@ -1610,6 +1685,7 @@ let generate com =
 		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
 	} in
+	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if Common.defined com Define.Dump then print_endline (dump code);
 	check code;
 	let ch = IO.output_string() in

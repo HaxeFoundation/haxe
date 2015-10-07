@@ -21,4 +21,9 @@
  */
 
 class Std {
+
+	public static inline function int( v : Float ) : Int {
+		return untyped $int(v);
+	}
+
 }
