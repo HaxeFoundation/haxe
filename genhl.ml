@@ -30,7 +30,8 @@ type functable
 
 type ttype =
 	| HVoid
-	| HUI8
+	| HI8
+	| HI16
 	| HI32
 	| HF32
 	| HF64
@@ -71,7 +72,11 @@ type opcode =
 	| OAdd of reg * reg * reg
 	| OSub of reg * reg * reg
 	| OMul of reg * reg * reg
-	| ODiv of reg * reg * reg
+	| OSDiv of reg * reg * reg
+	| OUDiv of reg * reg * reg
+	| OShl of reg * reg * reg
+	| OSShr of reg * reg * reg
+	| OUShr of reg * reg * reg
 	| ONeg of reg * reg
 	| OIncr of reg
 	| ODecr of reg
@@ -90,15 +95,19 @@ type opcode =
 	| OSetGlobal of reg * global
 	| OEq of reg * reg * reg
 	| ONotEq of reg * reg * reg
-	| OLt of reg * reg * reg
-	| OGte of reg * reg * reg
+	| OSLt of reg * reg * reg
+	| OSGte of reg * reg * reg
+	| OULt of reg * reg * reg
+	| OUGte of reg * reg * reg
 	| ORet of reg
 	| OJTrue of reg * int
 	| OJFalse of reg * int
 	| OJNull of reg * int
 	| OJNotNull of reg * int
-	| OJLt of reg * reg * int
-	| OJGte of reg * reg * int
+	| OJSLt of reg * reg * int
+	| OJSGte of reg * reg * int
+	| OJULt of reg * reg * int
+	| OJUGte of reg * reg * int
 	| OJEq of reg * reg * int
 	| OJNeq of reg * reg * int
 	| OJAlways of int
@@ -174,7 +183,8 @@ type access =
 let rec tstr ?(detailed=false) t =
 	match t with
 	| HVoid -> "void"
-	| HUI8 -> "ui8"
+	| HI8 -> "i8"
+	| HI16 -> "i16"
 	| HI32 -> "i32"
 	| HF32 -> "f32"
 	| HF64 -> "f64"
@@ -250,6 +260,12 @@ let member_fun c t =
 	| TFun (args, ret) -> TFun (("this",false,TInst(c,[])) :: args, ret)
 	| _ -> assert false
 
+let rec unsigned t =
+	match follow t with
+	| TAbstract ({ a_path = ["hl";"types"],("UI32"|"UI16"|"UI8") },_) -> true
+	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
+	| _ -> false
+
 let rec to_type ctx t =
 	match t with
 	| TMono r ->
@@ -260,7 +276,7 @@ let rec to_type ctx t =
 		(match t.t_path with
 		| [], "Null" ->
 			(match to_type ctx (apply_params t.t_params tl t.t_type) with
-			| HUI8 | HI32 | HF32 | HF64 | HBool as t -> HDyn (Some t)
+			| HI8 | HI16 | HI32 | HF32 | HF64 | HBool as t -> HDyn (Some t)
 			| t -> t)
 		| _ ->
 			to_type ctx (apply_params t.t_params tl t.t_type))
@@ -363,7 +379,7 @@ and alloc_function_name ctx f =
 
 let is_int ctx t =
 	match to_type ctx t with
-	| HUI8 | HI32 -> true
+	| HI8 | HI16 | HI32 -> true
 	| _ -> false
 
 let is_float ctx t =
@@ -411,7 +427,7 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
 		op ctx (OToDyn (tmp, r));
 		tmp
-	| (HUI8 | HI32), (HF32 | HF64) ->
+	| (HI8 | HI16 | HI32), (HF32 | HF64) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToFloat (tmp, r));
 		tmp
@@ -454,25 +470,28 @@ and jump_expr ctx e jcond =
 		let r1 = eval_expr ctx e1 in
 		let r2 = eval_expr ctx e2 in
 		let r1, r2 = (match rtype ctx r1, rtype ctx r2 with
-			| (HI32 | HUI8), ((HF32 | HF64) as t) ->
+			| (HI8 | HI16 | HI32), ((HF32 | HF64) as t) ->
 				let tmp = alloc_tmp ctx t in
 				op ctx (OToFloat (tmp,r1));
 				tmp, r2
-			| ((HF32 | HF64) as t), (HI32 | HUI8) ->
+			| ((HF32 | HF64) as t), (HI8 | HI16 | HI32) ->
 				let tmp = alloc_tmp ctx t in
 				op ctx (OToFloat (tmp,r2));
 				r1, tmp
 			| t1, t2 ->
 				if t1 == t2 then r1, r2 else error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) e.epos
 		) in
+		let unsigned = unsigned e1.etype && unsigned e2.etype in
 		jump ctx (fun i ->
+			let lt a b = if unsigned then OJULt (a,b,i) else OJSLt (a,b,i) in
+			let gte a b = if unsigned then OJUGte (a,b,i) else OJSGte (a,b,i) in
 			match jop with
 			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNeq (r1,r2,i)
 			| OpNotEq -> if jcond then OJNeq (r1,r2,i) else OJEq (r1,r2,i)
-			| OpGt -> if jcond then OJLt (r2,r1,i) else OJGte (r2,r1,i)
-			| OpGte -> if jcond then OJGte (r1,r2,i) else OJLt (r1,r2,i)
-			| OpLt -> if jcond then OJLt (r1,r2,i) else OJGte (r1,r2,i)
-			| OpLte -> if jcond then OJGte (r2,r1,i) else OJLt (r2,r1,i)
+			| OpGt -> if jcond then lt r2 r1 else gte r2 r1
+			| OpGte -> if jcond then gte r1 r2 else lt r1 r2
+			| OpLt -> if jcond then lt r1 r2 else gte r1 r2
+			| OpLte -> if jcond then gte r2 r1 else lt r2 r1
 			| _ -> assert false
 		)
 	| TBinop (OpAnd, e1, e2) ->
@@ -570,7 +589,7 @@ and eval_expr ctx e =
 				assert false)
 		| "$int", [{ eexpr = TBinop (OpDiv, e1, e2) }] when is_int ctx e1.etype && is_int ctx e2.etype ->
 			let tmp = alloc_tmp ctx HI32 in
-			op ctx (ODiv (tmp, eval_to ctx e1 HI32, eval_to ctx e2 HI32));
+			op ctx (if unsigned e1.etype && unsigned e2.etype then OUDiv (tmp, eval_to ctx e1 HI32, eval_to ctx e2 HI32) else OSDiv (tmp, eval_to ctx e1 HI32, eval_to ctx e2 HI32));
 			tmp
 		| "$int", [e] ->
 			let tmp = alloc_tmp ctx HI32 in
@@ -663,18 +682,48 @@ and eval_expr ctx e =
 			jexit());
 		out
 	| TBinop (bop, e1, e2) ->
+		let gte r a b =
+			if unsigned e1.etype && unsigned e2.etype then
+				OUGte (r,a,b)
+			else
+				OSGte (r,a,b)
+		in
+		let lt r a b =
+			if unsigned e1.etype && unsigned e2.etype then
+				OULt (r,a,b)
+			else
+				OSLt (r,a,b)
+		in
 		(match bop with
 		| OpLte ->
 			let r = alloc_tmp ctx HBool in
 			let a = eval_expr ctx e1 in
 			let b = eval_expr ctx e2 in
-			op ctx (OGte (r,b,a));
+			op ctx (gte r b a);
+			r
+		| OpGt ->
+			let r = alloc_tmp ctx HBool in
+			let a = eval_expr ctx e1 in
+			let b = eval_expr ctx e2 in
+			op ctx (lt r b a);
+			r
+		| OpGte ->
+			let r = alloc_tmp ctx HBool in
+			let a = eval_expr ctx e1 in
+			let b = eval_expr ctx e2 in
+			op ctx (gte r a b);
+			r
+		| OpLt ->
+			let r = alloc_tmp ctx HBool in
+			let a = eval_expr ctx e1 in
+			let b = eval_expr ctx e2 in
+			op ctx (lt r a b);
 			r
 		| OpAdd ->
 			let t = to_type ctx e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
-			| HI32 | HF32 | HF64 | HUI8 ->
+			| HI8 | HI16 | HI32 | HF32 | HF64 ->
 				let a = eval_to ctx e1 t in
 				let b = eval_to ctx e2 t in
 				op ctx (OAdd (r,a,b));
@@ -685,14 +734,29 @@ and eval_expr ctx e =
 			let t = to_type ctx e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
-			| HI32 | HF32 | HF64 | HUI8 ->
+			| HI8 | HI16 | HI32 | HF32 | HF64 ->
 				let a = eval_to ctx e1 t in
 				let b = eval_to ctx e2 t in
 				(match bop with
 				| OpSub -> op ctx (OSub (r,a,b))
 				| OpMult -> op ctx (OMul (r,a,b))
-				| OpDiv -> op ctx (ODiv (r,a,b))
+				| OpDiv -> op ctx (if unsigned e1.etype && unsigned e2.etype then OUDiv (r,a,b) else OSDiv (r,a,b))
 				| _ -> assert false);
+				r
+			| _ ->
+				assert false)
+		| OpShl | OpShr | OpUShr ->
+			let t = to_type ctx e.etype in
+			let r = alloc_tmp ctx t in
+			(match t with
+			| HI8 | HI16 | HI32 ->
+				let a = eval_to ctx e1 t in
+				let b = eval_to ctx e2 t in
+				(match bop with
+				| OpShl -> op ctx (OShl (r,a,b))
+				| OpShr -> op ctx (if unsigned e1.etype then OUShr (r,a,b) else OSShr (r,a,b))
+				| OpUShr -> op ctx (OUShr (r,a,b))
+				| _ -> ());
 				r
 			| _ ->
 				assert false)
@@ -887,12 +951,12 @@ let check code =
 		in
 		let numeric r =
 			match rtype r with
-			| HUI8 | HI32 | HF32 | HF64 -> ()
+			| HI8 | HI16 | HI32 | HF32 | HF64 -> ()
 			| _ -> error ("Register " ^ string_of_int r ^ " should be numeric")
 		in
 		let int r =
 			match rtype r with
-			| HUI8 | HI32 -> ()
+			| HI8 | HI16 | HI32 -> ()
 			| _ -> error ("Register " ^ string_of_int r ^ " should be integral")
 		in
 		let float r =
@@ -950,12 +1014,8 @@ let check code =
 			| OMov (a,b) ->
 				reg b (rtype a)
 			| OInt (r,i) ->
-				let i = code.ints.(i) in
-				(match rtype r with
-				| HUI8 ->
-					if Int32.to_int i < 0 || Int32.to_int i > 0xFF then reg r HI32
-				| HI32 -> ()
-				| _ -> reg r HI32)
+				ignore(code.ints.(i));
+				int r
 			| OFloat (r,i) ->
 				if rtype r <> HF32 then reg r HF64;
 				if i < 0 || i >= Array.length code.floats then error "float outside range";
@@ -968,13 +1028,17 @@ let check code =
 				(match rtype r with
 				| HObj _ | HDyn _ -> ()
 				| t -> error (tstr t ^ " is not nullable"))
-			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | ODiv (r,a,b) ->
+			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | OSDiv (r,a,b) | OUDiv (r,a,b) ->
 				numeric r;
 				reg a (rtype r);
 				reg b (rtype r);
 			| ONeg (r,a) ->
 				numeric r;
 				reg a (rtype r);
+			| OShl (r,a,b) | OSShr (r,a,b) | OUShr (r,a,b) ->
+				int r;
+				reg a (rtype r);
+				reg b (rtype r);
 			| OIncr r ->
 				int r
 			| ODecr r ->
@@ -1008,7 +1072,7 @@ let check code =
 				| _ -> reg f (HFun(List.map rtype rl,rtype r)))
 			| OGetGlobal (r,g) | OSetGlobal (r,g) ->
 				reg r code.globals.(g)
-			| OEq (r,a,b) | ONotEq (r, a, b) | OLt (r, a, b) | OGte (r, a, b) ->
+			| OEq (r,a,b) | ONotEq (r, a, b) | OSLt (r, a, b) | OULt (r, a, b) | OSGte (r, a, b) | OUGte (r, a, b) ->
 				reg r HBool;
 				reg a (rtype b)
 			| ORet r ->
@@ -1019,7 +1083,7 @@ let check code =
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
 				ignore(rtype r);
 				can_jump delta
-			| OJGte (a,b,delta) | OJLt (a,b,delta) | OJEq (a,b,delta) | OJNeq (a,b,delta) ->
+			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJEq (a,b,delta) | OJNeq (a,b,delta) ->
 				reg a (rtype b);
 				can_jump delta
 			| OJAlways d ->
@@ -1104,7 +1168,7 @@ exception Return of value
 let default t =
 	match t with
 	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ -> VNull
-	| HI32 | HUI8 -> VInt Int32.zero
+	| HI8 | HI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
 
@@ -1179,11 +1243,8 @@ let interp code =
 		let global g = Array.unsafe_get globals g in
 		let numop iop fop a b =
 			match rtype a with
-			| HUI8 ->
-				(match regs.(a), regs.(b) with
-				| VInt a, VInt b -> VInt (Int32.logand (iop a b) 0xFFl)
-				| _ -> assert false)
-			| HI32 ->
+			(* todo : sign-extend and mask after result for HI8/16 *)
+			| HI8 | HI16 | HI32 ->
 				(match regs.(a), regs.(b) with
 				| VInt a, VInt b -> VInt (iop a b)
 				| _ -> assert false)
@@ -1194,18 +1255,31 @@ let interp code =
 			| _ ->
 				assert false
 		in
+		let iop f a b =
+			match rtype a with
+			(* todo : sign-extend and mask after result for HI8/16 *)
+			| HI8 | HI16 | HI32 ->
+				(match regs.(a), regs.(b) with
+				| VInt a, VInt b -> VInt (f a b)
+				| _ -> assert false)
+			| _ ->
+				assert false
+		in
 		let iunop iop r =
 			match rtype r with
-			| HUI8 ->
-				(match regs.(r) with
-				| VInt a -> VInt (Int32.logand (iop a) 0xFFl)
-				| _ -> assert false)
-			| HI32 ->
+			| HI8 | HI16 | HI32 ->
 				(match regs.(r) with
 				| VInt a -> VInt (iop a)
 				| _ -> assert false)
 			| _ ->
 				assert false
+		in
+		let ucompare a b =
+			match a, b with
+			| VInt a, VInt b ->
+				let d = Int32.sub (Int32.shift_right_logical a 16) (Int32.shift_right_logical b 16) in
+				Int32.to_int (if d = 0l then Int32.sub (Int32.logand a 0xFFFFl) (Int32.logand b 0xFFFFl) else d)
+			| _ -> assert false
 		in
 		let rec loop() =
 			let op = f.code.(!pos) in
@@ -1220,7 +1294,11 @@ let interp code =
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
 			| OSub (r,a,b) -> set r (numop Int32.sub ( -. ) a b)
 			| OMul (r,a,b) -> set r (numop Int32.mul ( *. ) a b)
-			| ODiv (r,a,b) -> set r (numop (fun a b -> if b = 0l then 0l else Int32.div a b) ( /. ) a b)
+			| OSDiv (r,a,b) -> set r (numop (fun a b -> if b = 0l then 0l else Int32.div a b) ( /. ) a b)
+			| OUDiv (r,a,b) -> set r (iop (fun a b -> if b = 0l then 0l else assert false (* TODO : unsigned div *)) a b)
+			| OShl (r,a,b) -> set r (iop (fun a b -> Int32.shift_left a (Int32.to_int b)) a b)
+			| OSShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right a (Int32.to_int b)) a b)
+			| OUShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right_logical a (Int32.to_int b)) a b)
 			| ONeg (r,v) -> set r (match get v with VInt v -> VInt (Int32.neg v) | VFloat f -> VFloat (-. f) | _ -> assert false)
 			| OIncr r -> set r (iunop (fun i -> Int32.add i 1l) r)
 			| ODecr r -> set r (iunop (fun i -> Int32.sub i 1l) r)
@@ -1234,15 +1312,19 @@ let interp code =
 			| OSetGlobal (r,g) -> Array.unsafe_set globals g (get r)
 			| OEq (r,a,b) -> set r (VBool (get a = get b))
 			| ONotEq (r,a,b) -> set r (VBool (get a <> get b))
-			| OGte (r,a,b) -> set r (VBool (get a >= get b))
-			| OLt (r,a,b) -> set r (VBool (get a < get b))
+			| OSGte (r,a,b) -> set r (VBool (get a >= get b))
+			| OSLt (r,a,b) -> set r (VBool (get a < get b))
+			| OUGte (r,a,b) -> set r (VBool (ucompare (get a) (get b) >= 0))
+			| OULt (r,a,b) -> set r (VBool (ucompare (get a) (get b) < 0))
 			| OJTrue (r,i) -> if get r = VBool true then pos := !pos + i
 			| OJFalse (r,i) -> if get r = VBool false then pos := !pos + i
 			| ORet r -> raise (Return regs.(r))
 			| OJNull (r,i) -> if get r == VNull then pos := !pos + i
 			| OJNotNull (r,i) -> if get r != VNull then pos := !pos + i
-			| OJLt (a,b,i) -> if get a < get b then pos := !pos + i
-			| OJGte (a,b,i) -> if get a >= get b then pos := !pos + i
+			| OJSLt (a,b,i) -> if get a < get b then pos := !pos + i
+			| OJSGte (a,b,i) -> if get a >= get b then pos := !pos + i
+			| OJULt (a,b,i) -> if ucompare (get a) (get b) < 0 then pos := !pos + i
+			| OJUGte (a,b,i) -> if ucompare (get a) (get b) >= 0 then pos := !pos + i
 			| OJEq (a,b,i) -> if get a = get b then pos := !pos + i
 			| OJNeq (a,b,i) -> if get a <> get b then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
@@ -1436,7 +1518,7 @@ let write_code ch code =
 			t
 		));
 	in
-	List.iter (fun t -> get_type t) [HVoid; HUI8; HI32; HF32; HF64; HBool; HDyn None]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HDyn None]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f -> get_type f.ftype; Array.iter (fun r -> get_type r) f.regs) code.functions;
@@ -1462,25 +1544,26 @@ let write_code ch code =
 	DynArray.iter (fun t ->
 		match t with
 		| HVoid -> byte 0
-		| HUI8 -> byte 1
-		| HI32 -> byte 2
-		| HF32 -> byte 3
-		| HF64 -> byte 4
-		| HBool -> byte 5
-		| HBytes -> byte 9
-		| HDyn None -> byte 6
+		| HI8 -> byte 1
+		| HI16 -> byte 2
+		| HI32 -> byte 3
+		| HF32 -> byte 4
+		| HF64 -> byte 5
+		| HBool -> byte 6
+		| HBytes -> byte 7
+		| HDyn None -> byte 8
 		| HDyn (Some t) ->
-			byte 0x86;
+			byte 0x88;
 			write_type t
 		| HFun (args,ret) ->
 			let n = List.length args in
 			if n > 0xFF then assert false;
-			byte 7;
+			byte 9;
 			byte n;
 			List.iter write_type args;
 			write_type ret
 		| HObj p ->
-			byte 8;
+			byte 10;
 			write_index p.pid;
 			(match p.psuper with
 			| None -> write_index (-1)
@@ -1490,7 +1573,7 @@ let write_code ch code =
 			Array.iter (fun (_,n,t) -> write_index n; write_type t) p.pfields;
 			Array.iter (fun f -> write_index f.fid; write_index f.fmethod; write_index (match f.fvirtual with None -> -1 | Some i -> i)) p.pproto;
 		| HArray t ->
-			byte 10;
+			byte 11;
 			write_type t
 	) types.arr;
 
@@ -1524,7 +1607,11 @@ let ostr o =
 	| OAdd (r,a,b) -> Printf.sprintf "add %d,%d,%d" r a b
 	| OSub (r,a,b) -> Printf.sprintf "sub %d,%d,%d" r a b
 	| OMul (r,a,b) -> Printf.sprintf "mul %d,%d,%d" r a b
-	| ODiv (r,a,b) -> Printf.sprintf "div %d,%d,%d" r a b
+	| OSDiv (r,a,b) -> Printf.sprintf "sdiv %d,%d,%d" r a b
+	| OUDiv (r,a,b) -> Printf.sprintf "udiv %d,%d,%d" r a b
+	| OShl (r,a,b) -> Printf.sprintf "shl %d,%d,%d" r a b
+	| OSShr (r,a,b) -> Printf.sprintf "sshr %d,%d,%d" r a b
+	| OUShr (r,a,b) -> Printf.sprintf "ushr %d,%d,%d" r a b
 	| ONeg (r,v) -> Printf.sprintf "neg %d,%d" r v
 	| OIncr r -> Printf.sprintf "incr %d" r
 	| ODecr r -> Printf.sprintf "decr %d" r
@@ -1544,15 +1631,19 @@ let ostr o =
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| OEq (r,a,b) -> Printf.sprintf "eq %d,%d,%d" r a b
 	| ONotEq (r,a,b)  -> Printf.sprintf "noteq %d,%d,%d" r a b
-	| OLt (r,a,b) -> Printf.sprintf "lt %d,%d,%d" r a b
-	| OGte (r,a,b) -> Printf.sprintf "gte %d,%d,%d" r a b
+	| OSLt (r,a,b) -> Printf.sprintf "slt %d,%d,%d" r a b
+	| OSGte (r,a,b) -> Printf.sprintf "sgte %d,%d,%d" r a b
+	| OULt (r,a,b) -> Printf.sprintf "ult %d,%d,%d" r a b
+	| OUGte (r,a,b) -> Printf.sprintf "ugte %d,%d,%d" r a b
 	| ORet r -> Printf.sprintf "ret %d" r
 	| OJTrue (r,d) -> Printf.sprintf "jtrue %d,%d" r d
 	| OJFalse (r,d) -> Printf.sprintf "jfalse %d,%d" r d
 	| OJNull (r,d) -> Printf.sprintf "jnull %d,%d" r d
 	| OJNotNull (r,d) -> Printf.sprintf "jnotnull %d,%d" r d
-	| OJLt (a,b,i) -> Printf.sprintf "jlt %d,%d,%d" a b i
-	| OJGte (a,b,i) -> Printf.sprintf "jgte %d,%d,%d" a b i
+	| OJSLt (a,b,i) -> Printf.sprintf "jslt %d,%d,%d" a b i
+	| OJSGte (a,b,i) -> Printf.sprintf "jsgte %d,%d,%d" a b i
+	| OJULt (a,b,i) -> Printf.sprintf "jult %d,%d,%d" a b i
+	| OJUGte (a,b,i) -> Printf.sprintf "jugte %d,%d,%d" a b i
 	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
 	| OJNeq (a,b,i) -> Printf.sprintf "jneq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
