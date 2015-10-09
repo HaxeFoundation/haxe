@@ -134,7 +134,7 @@ private class StringMapIterator<T> {
 			s.add(k);
 			s.add(" => ");
 			s.add(Std.string(get(k)));
-			if( i < keys.length )
+			if( i < keys.length-1 )
 				s.add(", ");
 		}
 		s.add("}");
