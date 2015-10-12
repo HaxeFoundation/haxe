@@ -407,6 +407,11 @@ let jump ctx f =
 	DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
 	(fun() -> DynArray.set ctx.m.mops pos (f (DynArray.length ctx.m.mops - pos - 1)))
 
+let jump_back ctx =
+	let pos = DynArray.length ctx.m.mops in
+	DynArray.add ctx.m.mops (OLabel 0);
+	(fun() -> DynArray.add ctx.m.mops (OJAlways (pos - DynArray.length ctx.m.mops - 1)))
+
 let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
@@ -494,10 +499,16 @@ and jump_expr ctx e jcond =
 			| OpLte -> if jcond then gte r2 r1 else lt r2 r1
 			| _ -> assert false
 		)
-	| TBinop (OpAnd, e1, e2) ->
-		assert false
-	| TBinop (OpOr, e1, e2) ->
-		assert false
+	| TBinop (OpBoolAnd, e1, e2) ->
+		let j = jump_expr ctx e1 false in
+		let j2 = jump_expr ctx e2 jcond in
+		if jcond then j();
+		(fun() -> if not jcond then j(); j2());
+	| TBinop (OpBoolOr, e1, e2) ->
+		let j = jump_expr ctx e1 true in
+		let j2 = jump_expr ctx e2 jcond in
+		if not jcond then j();
+		(fun() -> if jcond then j(); j2());
 	| _ ->
 		let r = eval_expr ctx e in
 		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
@@ -670,15 +681,16 @@ and eval_expr ctx e =
 		);
 		r
 	| TIf (cond,eif,eelse) ->
-		let out = alloc_tmp ctx (to_type ctx e.etype) in
+		let t = to_type ctx e.etype in
+		let out = alloc_tmp ctx t in
 		let j = jump_expr ctx cond false in
-		op ctx (OMov (out,eval_expr ctx eif));
+		if t = HVoid then ignore(eval_expr ctx eif) else op ctx (OMov (out,eval_to ctx eif t));
 		(match eelse with
 		| None -> j()
 		| Some e ->
 			let jexit = jump ctx (fun i -> OJAlways i) in
 			j();
-			op ctx (OMov (out,eval_expr ctx e));
+			if t = HVoid then ignore(eval_expr ctx e) else op ctx (OMov (out,eval_to ctx e t));
 			jexit());
 		out
 	| TBinop (bop, e1, e2) ->
@@ -774,6 +786,28 @@ and eval_expr ctx e =
 			| ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ ->
 				assert false);
 			value
+		| OpBoolOr ->
+			let r = alloc_tmp ctx HBool in
+			let j = jump_expr ctx e1 true in
+			let j2 = jump_expr ctx e2 true in
+			op ctx (OBool (r,false));
+			let jend = jump ctx (fun b -> OJAlways b) in
+			j();
+			j2();
+			op ctx (OBool (r,true));
+			jend();
+			r
+		| OpBoolAnd ->
+			let r = alloc_tmp ctx HBool in
+			let j = jump_expr ctx e1 false in
+			let j2 = jump_expr ctx e2 false in
+			op ctx (OBool (r,true));
+			let jend = jump ctx (fun b -> OJAlways b) in
+			j();
+			j2();
+			op ctx (OBool (r,false));
+			jend();
+			r
 		| _ ->
 			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos)
 	| TUnop (Neg,_,v) ->
@@ -782,6 +816,20 @@ and eval_expr ctx e =
 		let r = eval_to ctx v t in
 		op ctx (ONeg (tmp,r));
 		tmp
+	| TUnop (Increment|Decrement as uop,fix,v) ->
+		let unop r = if uop = Increment then op ctx (OIncr r) else op ctx (ODecr r) in
+		(match get_access ctx v, fix with
+		| ALocal r, Prefix ->
+			unop r;
+			r
+		| ALocal r, Postfix ->
+			let r2 = alloc_tmp ctx (rtype ctx r) in
+			op ctx (OMov (r2,r));
+			unop r;
+			r2
+		| _ ->
+			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
+		);
 	| TFunction f ->
 		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfunctions)) in
 		make_fun ctx fid f None;
@@ -791,6 +839,22 @@ and eval_expr ctx e =
 	| TThrow v ->
 		op ctx (OThrow (eval_expr ctx v));
 		alloc_tmp ctx HVoid (* not initialized *)
+	| TWhile (cond,eloop,NormalWhile) ->
+		let ret = jump_back ctx in
+		let j = jump_expr ctx cond false in
+		ignore(eval_expr ctx eloop);
+		ret();
+		j();
+		alloc_tmp ctx HVoid
+	| TWhile (cond,eloop,DoWhile) ->
+		let start = jump ctx (fun p -> OJAlways p) in
+		let ret = jump_back ctx in
+		let j = jump_expr ctx cond false in
+		start();
+		ignore(eval_expr ctx eloop);
+		ret();
+		j();
+		alloc_tmp ctx HVoid
 	| _ ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
