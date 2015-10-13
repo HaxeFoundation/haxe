@@ -2489,7 +2489,6 @@ let macro_lib =
 				Hashtbl.replace (ccom()).resources name data;
 				if name = "" then failwith "Empty resource name";
 				let m = if name.[0] = '$' then (get_ctx()).curapi.current_macro_module() else (get_ctx()).curapi.current_module() in
-				prerr_endline ("RES : " ^ Ast.s_type_path m.m_path);
 				m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
 				VNull
 			| _ -> error()
