@@ -117,7 +117,7 @@ package js.jquery;
 	**/
 	static public function isEmptyObject(object:Dynamic):Bool;
 	/**
-		Determine if the argument passed is a JavaScript function object. 
+		Determine if the argument passed is a JavaScript function object.
 	**/
 	static public function isFunction(obj:Dynamic):Bool;
 	/**
@@ -146,7 +146,7 @@ package js.jquery;
 	@:overload(function(object:Dynamic, callback:Dynamic -> String -> Dynamic):Array<Dynamic> { })
 	static public function map(array:Array<Dynamic>, callback:Dynamic -> Int -> Dynamic):Array<Dynamic>;
 	/**
-		Merge the contents of two arrays together into the first array. 
+		Merge the contents of two arrays together into the first array.
 	**/
 	static public function merge(first:haxe.extern.EitherType<Array<Dynamic>, js.html.NodeList>, second:haxe.extern.EitherType<Array<Dynamic>, js.html.NodeList>):Array<Dynamic>;
 	/**
@@ -398,7 +398,7 @@ package js.jquery;
 	**/
 	public function detach(?selector:String):js.jquery.JQuery;
 	/**
-		Iterate over a jQuery object, executing a function for each matched element. 
+		Iterate over a jQuery object, executing a function for each matched element.
 	**/
 	public function each(_function:Int -> js.html.Element -> Void):js.jquery.JQuery;
 	/**
@@ -442,7 +442,7 @@ package js.jquery;
 	@:overload(function(?duration:haxe.extern.EitherType<Float, String>, ?easing:String, ?complete:haxe.Constraints.Function):js.jquery.JQuery { })
 	public function fadeToggle(options:Dynamic):js.jquery.JQuery;
 	/**
-		Reduce the set of matched elements to those that match the selector or pass the function's test. 
+		Reduce the set of matched elements to those that match the selector or pass the function's test.
 	**/
 	@:overload(function(elements:js.html.Element):js.jquery.JQuery { })
 	@:overload(function(selection:js.jquery.JQuery):js.jquery.JQuery { })
@@ -591,7 +591,7 @@ package js.jquery;
 	/**
 		The number of elements in the jQuery object.
 	**/
-	public var length : Int;
+	public var length(default,null) : Int;
 	/**
 		Bind an event handler to the "load" JavaScript event.
 		OR
@@ -768,7 +768,7 @@ package js.jquery;
 	@:overload(function(?element:haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>, ?filter:String):js.jquery.JQuery { })
 	public function prevUntil(?selector:String, ?filter:String):js.jquery.JQuery;
 	/**
-		 Return a Promise object to observe when all actions of a certain type bound to the collection, queued or not, have finished. 
+		 Return a Promise object to observe when all actions of a certain type bound to the collection, queued or not, have finished.
 	**/
 	public function promise(?type:String, ?target:Dynamic):js.jquery.Promise;
 	/**
@@ -1016,6 +1016,14 @@ package js.jquery;
 	**/
 	@:runtime
 	inline public function iterator():js.jquery.JqIterator return new js.jquery.JqIterator(js.Lib.nativeThis);
+
+
+	/**
+		Haxe iterator.
+	**/
+	@:runtime
+	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(js.Lib.nativeThis);
+
 	static function __init__():Void {
 		js.jquery.Helper.embed();
 	}
