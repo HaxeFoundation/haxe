@@ -77,7 +77,11 @@ type opcode =
 	| OShl of reg * reg * reg
 	| OSShr of reg * reg * reg
 	| OUShr of reg * reg * reg
+	| OAnd of reg * reg * reg
+	| OOr of reg * reg * reg
+	| OXor of reg * reg * reg
 	| ONeg of reg * reg
+	| ONot of reg * reg
 	| OIncr of reg
 	| ODecr of reg
 	| OCall0 of reg * functable index
@@ -471,6 +475,8 @@ and jump_expr ctx e jcond =
 	match e.eexpr with
 	| TParenthesis e ->
 		jump_expr ctx e jcond
+	| TUnop (Not,_,e) ->
+		jump_expr ctx e (not jcond)
 	| TBinop (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
 		let r1 = eval_expr ctx e1 in
 		let r2 = eval_expr ctx e2 in
@@ -757,7 +763,7 @@ and eval_expr ctx e =
 				r
 			| _ ->
 				assert false)
-		| OpShl | OpShr | OpUShr ->
+		| OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
 			let t = to_type ctx e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
@@ -768,6 +774,9 @@ and eval_expr ctx e =
 				| OpShl -> op ctx (OShl (r,a,b))
 				| OpShr -> op ctx (if unsigned e1.etype then OUShr (r,a,b) else OSShr (r,a,b))
 				| OpUShr -> op ctx (OUShr (r,a,b))
+				| OpAnd -> op ctx (OAnd (r,a,b))
+				| OpOr -> op ctx (OOr (r,a,b))
+				| OpXor -> op ctx (OXor (r,a,b))
 				| _ -> ());
 				r
 			| _ ->
@@ -810,14 +819,43 @@ and eval_expr ctx e =
 			r
 		| _ ->
 			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos)
+	| TUnop (Not,_,v) ->
+		let tmp = alloc_tmp ctx HBool in
+		let r = eval_to ctx v HBool in
+		op ctx (ONot (tmp,r));
+		tmp
 	| TUnop (Neg,_,v) ->
 		let t = to_type ctx e.etype in
 		let tmp = alloc_tmp ctx t in
 		let r = eval_to ctx v t in
 		op ctx (ONeg (tmp,r));
 		tmp
+	| TUnop (NegBits,_,v) ->
+		let t = to_type ctx e.etype in
+		let tmp = alloc_tmp ctx t in
+		let r = eval_to ctx v t in
+		let mask = (match t with
+			| HI8 -> 0xFFl
+			| HI16 -> 0xFFFFl
+			| HI32 -> 0xFFFFFFFFl
+			| _ -> assert false
+		) in
+		let r2 = alloc_tmp ctx t in
+		op ctx (OInt (r2,alloc_i32 ctx mask));
+		op ctx (OXor (tmp,r,r2));
+		tmp
 	| TUnop (Increment|Decrement as uop,fix,v) ->
-		let unop r = if uop = Increment then op ctx (OIncr r) else op ctx (ODecr r) in
+		let unop r =
+			match rtype ctx r with
+			| HI8 | HI16 | HI32 ->
+				if uop = Increment then op ctx (OIncr r) else op ctx (ODecr r)
+			| HF32 | HF64 as t ->
+				let tmp = alloc_tmp ctx t in
+				op ctx (OFloat (tmp,alloc_float ctx 1.));
+				if uop = Increment then op ctx (OAdd (r,r,tmp)) else op ctx (OSub (r,r,tmp))
+			| _ ->
+				assert false
+		in
 		(match get_access ctx v, fix with
 		| ALocal r, Prefix ->
 			unop r;
@@ -1099,7 +1137,7 @@ let check code =
 			| ONeg (r,a) ->
 				numeric r;
 				reg a (rtype r);
-			| OShl (r,a,b) | OSShr (r,a,b) | OUShr (r,a,b) ->
+			| OShl (r,a,b) | OSShr (r,a,b) | OUShr (r,a,b) | OAnd (r,a,b) | OOr (r,a,b) | OXor (r,a,b) ->
 				int r;
 				reg a (rtype r);
 				reg b (rtype r);
@@ -1107,6 +1145,9 @@ let check code =
 				int r
 			| ODecr r ->
 				int r
+			| ONot (a,b) ->
+				reg a HBool;
+				reg b HBool;
 			| OCall0 (r,f) ->
 				call f [] r
 			| OCall1 (r, f, a) ->
@@ -1363,7 +1404,11 @@ let interp code =
 			| OShl (r,a,b) -> set r (iop (fun a b -> Int32.shift_left a (Int32.to_int b)) a b)
 			| OSShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right a (Int32.to_int b)) a b)
 			| OUShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right_logical a (Int32.to_int b)) a b)
+			| OAnd (r,a,b) -> set r (iop Int32.logand a b)
+			| OOr (r,a,b) -> set r (iop Int32.logor a b)
+			| OXor (r,a,b) -> set r (iop Int32.logxor a b)
 			| ONeg (r,v) -> set r (match get v with VInt v -> VInt (Int32.neg v) | VFloat f -> VFloat (-. f) | _ -> assert false)
+			| ONot (r,v) -> set r (match get v with VBool b -> VBool (not b) | _ -> assert false)
 			| OIncr r -> set r (iunop (fun i -> Int32.add i 1l) r)
 			| ODecr r -> set r (iunop (fun i -> Int32.sub i 1l) r)
 			| OCall0 (r,f) -> set r (fcall (func f) [])
@@ -1676,7 +1721,11 @@ let ostr o =
 	| OShl (r,a,b) -> Printf.sprintf "shl %d,%d,%d" r a b
 	| OSShr (r,a,b) -> Printf.sprintf "sshr %d,%d,%d" r a b
 	| OUShr (r,a,b) -> Printf.sprintf "ushr %d,%d,%d" r a b
+	| OAnd (r,a,b) -> Printf.sprintf "and %d,%d,%d" r a b
+	| OOr (r,a,b) -> Printf.sprintf "or %d,%d,%d" r a b
+	| OXor (r,a,b) -> Printf.sprintf "xor %d,%d,%d" r a b
 	| ONeg (r,v) -> Printf.sprintf "neg %d,%d" r v
+	| ONot (r,v) -> Printf.sprintf "not %d,%d" r v
 	| OIncr r -> Printf.sprintf "incr %d" r
 	| ODecr r -> Printf.sprintf "decr %d" r
 	| OCall0 (r,g) -> Printf.sprintf "call %d, f%d()" r g
