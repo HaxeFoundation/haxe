@@ -4634,6 +4634,7 @@ let make_macro_api ctx p =
 		Interp.current_module = (fun() ->
 			ctx.m.curmod
 		);
+		Interp.current_macro_module = (fun () -> assert false);
 		Interp.delayed_macro = (fun i ->
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
 			let f = (try DynArray.get mctx.g.delayed_macros i with _ -> failwith "Delayed macro retrieve failure") in
@@ -4777,6 +4778,7 @@ let load_macro ctx cpath f p =
 	) in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	let mloaded = Typeload.load_module mctx m p in
+	api.Interp.current_macro_module <- (fun() -> mloaded);
 	mctx.m <- {
 		curmod = mloaded;
 		module_types = [];

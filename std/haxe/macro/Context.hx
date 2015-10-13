@@ -439,6 +439,11 @@ class Context {
 		The resource is then available using the `haxe.macro.Resource` API.
 
 		If a previous resource was bound to `name`, it is overwritten.
+		
+		Compilation server : when using the compilation server, the resource is bound
+		to the Haxe module which calls the macro, so it will be included again if
+		that module is reused. If this resource concerns several modules, prefix your
+		ressource name with a $ sign, this will bind it to the macro module instead.
 	**/
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
 		load("add_resource",2)(untyped name.__s,data.getData());

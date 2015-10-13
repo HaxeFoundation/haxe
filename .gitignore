@@ -74,3 +74,5 @@ tests/unit/bin/
 tests/*.n
 tests/misc/projects/Issue3756/cpp/
 tests/misc/projects/Issue4070/cpp/
+
+/*.manifest

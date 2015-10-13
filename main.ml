@@ -799,7 +799,7 @@ and wait_loop boot_com host port =
 				(match m0.m_extra.m_kind, m.m_extra.m_kind with
 				| MCode, MMacro | MMacro, MCode ->
 					(* this was just a dependency to check : do not add to the context *)
-					()
+					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 				| _ ->
 					if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.m_path);
 					m.m_extra.m_added <- !compilation_step;
@@ -820,7 +820,7 @@ and wait_loop boot_com host port =
 						| _ -> ()
 					) m.m_types;
 					if m.m_extra.m_kind <> MSub then Typeload.add_module ctx m p;
-					PMap.iter (Hashtbl.add com2.resources) m.m_extra.m_binded_res;
+					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
 					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
 			end

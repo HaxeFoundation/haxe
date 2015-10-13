@@ -126,6 +126,7 @@ type extern_api = {
 	define_module : string -> value list -> ((string * Ast.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
+	mutable current_macro_module : unit -> module_def;
 	delayed_macro : int -> (unit -> (unit -> value));
 	use_cache : unit -> bool;
 	format_string : string -> Ast.pos -> Ast.expr;
@@ -2486,7 +2487,9 @@ let macro_lib =
 			match name, data with
 			| VString name, VString data ->
 				Hashtbl.replace (ccom()).resources name data;
-				let m = (get_ctx()).curapi.current_module() in
+				if name = "" then failwith "Empty resource name";
+				let m = if name.[0] = '$' then (get_ctx()).curapi.current_macro_module() else (get_ctx()).curapi.current_module() in
+				prerr_endline ("RES : " ^ Ast.s_type_path m.m_path);
 				m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
 				VNull
 			| _ -> error()
