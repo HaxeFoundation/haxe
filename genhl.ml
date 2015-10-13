@@ -126,6 +126,7 @@ type opcode =
 	| OGetThis of reg * field index
 	| OSetThis of field index * reg
 	| OThrow of reg
+	| OSetByte of reg * reg * reg
 
 type fundecl = {
 	findex : functable index;
@@ -381,6 +382,16 @@ and alloc_fun_path ctx path name =
 and alloc_function_name ctx f =
 	lookup ctx.cfids (f, ([],"")) (fun() -> ())
 
+let alloc_std ctx name args ret =
+	let lib = "std" in
+	let nid = lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
+		let fid = lookup ctx.cfids (name, ([],"std")) (fun() -> ()) in
+		Hashtbl.add ctx.defined_funs fid ();
+		(alloc_string ctx lib, alloc_string ctx name,HFun (args,ret),fid)
+	) in
+	let _,_,_,fid = DynArray.get ctx.cnatives.arr nid in
+	fid
+
 let is_int ctx t =
 	match to_type ctx t with
 	| HI8 | HI16 | HI32 -> true
@@ -428,7 +439,7 @@ let rec eval_to ctx e (t:ttype) =
 
 and cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
-	if t = rt then r else
+	if t == rt then r else
 	match rt, t with
 	| HDyn _, HDyn _ ->
 		r
@@ -440,6 +451,8 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToFloat (tmp, r));
 		tmp
+	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 && List.for_all2 (fun a b -> a == b) args1 args2 && ret1 == ret2 ->
+		r
 	| _ ->
 		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
@@ -542,10 +555,12 @@ and eval_expr ctx e =
 			let s = to_utf8 s in
 			let r = alloc_tmp ctx HBytes in
 			op ctx (OString (r,alloc_string ctx s));
+			let size = alloc_tmp ctx HI32 in
+			op ctx (OInt (size,alloc_i32 ctx (Int32.of_int (String.length s))));
 			let len = alloc_tmp ctx HI32 in
 			op ctx (OInt (len,alloc_i32 ctx (Int32.of_int (UTF8.length s))));
 			let s = alloc_tmp ctx (to_type ctx e.etype) in
-			op ctx (OCall2 (s,alloc_fun_path ctx ([],"String") "alloc",r,len));
+			op ctx (OCall3 (s,alloc_fun_path ctx ([],"String") "__alloc__",r,size,len));
 			s
 		| TThis ->
 			0 (* first reg *)
@@ -612,7 +627,24 @@ and eval_expr ctx e =
 			let tmp = alloc_tmp ctx HI32 in
 			op ctx (OToInt (tmp, eval_expr ctx e));
 			tmp
-		| _ -> error ("Unknown native call " ^ v.v_name) e.epos)
+		| "$balloc", [e] ->
+			let f = alloc_std ctx "balloc" [HI32] HBytes in
+			let tmp = alloc_tmp ctx HBytes in
+			op ctx (OCall1 (tmp, f, eval_to ctx e HI32));
+			tmp
+		| "$bblit", [b;dp;src;sp;len] ->
+			let f = alloc_std ctx "bblit" [HBytes;HI32;HBytes;HI32;HI32] HVoid in
+			let tmp = alloc_tmp ctx HVoid in
+			op ctx (OCallN (tmp, f, [eval_to ctx b HBytes;eval_to ctx dp HI32;eval_to ctx src HBytes;eval_to ctx sp HI32; eval_to ctx len HI32]));
+			tmp
+		| "$bset", [b;pos;v] ->
+			let b = eval_to ctx b HBytes in
+			let pos = eval_to ctx pos HI32 in
+			let r = eval_to ctx v HI32 in
+			op ctx (OSetByte (b, pos, r));
+			r
+		| _ ->
+			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
 		let ret = alloc_tmp ctx (to_type ctx e.etype) in
 		let el = eval_args ctx el (to_type ctx ec.etype) in
@@ -745,6 +777,9 @@ and eval_expr ctx e =
 				let a = eval_to ctx e1 t in
 				let b = eval_to ctx e2 t in
 				op ctx (OAdd (r,a,b));
+				r
+			| HObj { pname = "String" } ->
+				op ctx (OCall2 (r,alloc_fun_path ctx ([],"String") "__add__",eval_to ctx e1 t,eval_to ctx e2 t));
 				r
 			| _ ->
 				assert false)
@@ -893,6 +928,8 @@ and eval_expr ctx e =
 		ret();
 		j();
 		alloc_tmp ctx HVoid
+	| TCast (v,None) ->
+		eval_to ctx v (to_type ctx e.etype)
 	| _ ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
@@ -979,7 +1016,7 @@ let generate_type ctx t =
 		List.iter (generate_member ctx c) c.cl_ordered_fields;
 	| TTypeDecl _ ->
 		()
-	| TAbstractDecl a when a.a_impl = None ->
+	| TAbstractDecl a when has_meta Meta.CoreType a.a_meta  ->
 		()
 	| TEnumDecl _ | TAbstractDecl _ ->
 		let inf = t_infos t in
@@ -1069,7 +1106,7 @@ let check code =
 		let call f args r =
 			match ftypes.(f) with
 			| HFun (targs, tret) ->
-				if List.length args <> List.length targs then assert false;
+				if List.length args <> List.length targs then error (tstr (HFun (List.map rtype args, rtype r)) ^ " should be " ^ tstr ftypes.(f));
 				List.iter2 reg args targs;
 				reg r tret
 			| _ -> assert false
@@ -1225,6 +1262,10 @@ let check code =
 				| _ -> assert false);
 			| OThrow r ->
 				ignore(rtype r)
+			| OSetByte (r,p,v) ->
+				reg r HBytes;
+				reg p HI32;
+				reg v HI32;
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -1253,6 +1294,7 @@ type value =
 	| VObj of vobject
 	| VClosure of vfunction * value option
 	| VBytes of string
+	| VArray of value array
 
 and vfunction =
 	| FFun of fundecl
@@ -1323,11 +1365,12 @@ let interp code =
 			(match !fid with
 			| None -> p
 			| Some f -> p ^ ":" ^ vstr (fcall (func f) [v]))
-		| VBytes b -> "bytes(" ^ b ^ ")"
+		| VBytes b -> "bytes(" ^ (if String.length b > 0 && String.get b (String.length b - 1) = '\x00' then String.sub b 0 (String.length b - 1) else b) ^ ")"
 		| VClosure (f,o) ->
 			(match o with
 			| None -> fstr f
 			| Some v -> fstr f ^ "(" ^ vstr v ^ ")")
+		| VArray a -> "array(" ^ String.concat "," (Array.to_list (Array.map vstr a)) ^ ")"
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -1393,7 +1436,7 @@ let interp code =
 			| OMov (a,b) -> set a (get b)
 			| OInt (r,i) -> set r (VInt code.ints.(i))
 			| OFloat (r,i) -> set r (VFloat (Array.unsafe_get code.floats i))
-			| OString (r,s) -> set r (VBytes code.strings.(s))
+			| OString (r,s) -> set r (VBytes (code.strings.(s) ^ "\x00"))
 			| OBool (r,b) -> set r (VBool b)
 			| ONull r -> set r VNull
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
@@ -1483,6 +1526,10 @@ let interp code =
 				| _ -> assert false)
 			| OThrow r ->
 				raise (InterpThrow (get r))
+			| OSetByte (r,p,v) ->
+				(match get r, get p, get v with
+				| VBytes b, VInt p, VInt v -> String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF))
+				| _ -> assert false)
 			);
 			loop()
 		in
@@ -1494,6 +1541,16 @@ let interp code =
 	let load_native lib name =
 		FNativeFun (lib ^ "@" ^ name,match lib, name with
 		| "std", "log" -> (fun args -> print_endline (vstr (List.hd args)); VNull);
+		| "std", "balloc" ->
+			(function
+			| [VInt i] -> VBytes (String.create (Int32.to_int i))
+			| _ -> assert false)
+		| "std", "bblit" ->
+			(function
+			| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
+				String.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
+				VNull
+			| _ -> assert false)
 		| _ -> (fun args -> error ("Unresolved native " ^ name))
 		)
 	in
@@ -1771,6 +1828,7 @@ let ostr o =
 	| OGetThis (r,i) -> Printf.sprintf "getthis %d,[%d]" r i
 	| OSetThis (i,r) -> Printf.sprintf "setthis [%d],%d" i r
 	| OThrow r -> Printf.sprintf "throw %d" r
+	| OSetByte (r,p,v) -> Printf.sprintf "setbyte %d,%d,%d" r p v
 
 let dump code =
 	let lines = ref [] in
