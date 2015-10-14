@@ -41,6 +41,7 @@ type ttype =
 	| HFun of ttype list * ttype
 	| HObj of class_proto
 	| HArray of ttype
+	| HType
 
 and class_proto = {
 	pname : string;
@@ -127,6 +128,12 @@ type opcode =
 	| OSetThis of field index * reg
 	| OThrow of reg
 	| OSetByte of reg * reg * reg
+	| OSetArray of reg * reg * reg
+	| OGetArray of reg * reg * reg
+	| OUnsafeCast of reg * reg
+	| OArraySize of reg * reg
+	| OError of string index
+	| OType of reg * ttype
 
 type fundecl = {
 	findex : functable index;
@@ -172,6 +179,7 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	mutable cached_types : (path, ttype) PMap.t;
 	mutable m : method_context;
+	array_impl : tclass;
 }
 
 (* --- *)
@@ -205,6 +213,30 @@ let rec tstr ?(detailed=false) t =
 		"#" ^ o.pname ^ "[" ^ (match o.psuper with None -> "" | Some p -> ">" ^ p.pname ^ " ") ^ "fields=" ^ fields ^ " proto=" ^ proto ^ "]"
 	| HArray t ->
 		"array(" ^ tstr t ^ ")"
+	| HType ->
+		"type"
+
+let rec tsame t1 t2 =
+	if t1 == t2 then true else
+	match t1, t2 with
+	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+	| HObj p1, HObj p2 -> p1.pname = p2.pname
+	| HDyn None, HDyn None -> true
+	| HDyn (Some t1), HDyn (Some t2) -> tsame t1 t2
+	| HArray t1, HArray t2 -> tsame t1 t2
+	| _ -> false
+
+let rec safe_cast t1 t2 =
+	if t1 == t2 then true else
+	match t1, t2 with
+	| (HDyn _ | HObj _ | HFun _ | HArray _), HDyn None -> true
+	| HDyn (Some t1), HDyn (Some t2) -> tsame t1 t2
+	| HObj p1, HObj p2 ->
+		let rec loop p =
+			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
+		in
+		loop p1
+	| _ -> tsame t1 t2
 
 let to_utf8 str =
 	try
@@ -295,6 +327,10 @@ let rec to_type ctx t =
 		HDyn None
 	| TEnum (e,_) ->
 		assert false
+	| TInst ({ cl_path = [],"Array" },[t]) ->
+		(match to_type ctx t with
+		| HObj _ | HDyn _ | HFun _ | HArray _ -> class_type ctx ctx.array_impl
+		| t -> failwith ("No support for Array<" ^ tstr t ^ "> yet"))
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KTypeParameter _ -> HDyn None
@@ -433,16 +469,19 @@ let rtype ctx r =
 let resolve_field ctx p fname proto =
 	try PMap.find fname p.pindex with Not_found -> assert false
 
+let reg_int ctx v =
+	let r = alloc_tmp ctx HI32 in
+	op ctx (OInt (r,alloc_i32 ctx (Int32.of_int v)));
+	r
+
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
 	cast_to ctx r t e.epos
 
 and cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
-	if t == rt then r else
+	if safe_cast rt t then r else
 	match rt, t with
-	| HDyn _, HDyn _ ->
-		r
 	| _ , HDyn _ ->
 		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
 		op ctx (OToDyn (tmp, r));
@@ -451,8 +490,6 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToFloat (tmp, r));
 		tmp
-	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 && List.for_all2 (fun a b -> a == b) args1 args2 && ret1 == ret2 ->
-		r
 	| _ ->
 		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
@@ -555,10 +592,8 @@ and eval_expr ctx e =
 			let s = to_utf8 s in
 			let r = alloc_tmp ctx HBytes in
 			op ctx (OString (r,alloc_string ctx s));
-			let size = alloc_tmp ctx HI32 in
-			op ctx (OInt (size,alloc_i32 ctx (Int32.of_int (String.length s))));
-			let len = alloc_tmp ctx HI32 in
-			op ctx (OInt (len,alloc_i32 ctx (Int32.of_int (UTF8.length s))));
+			let size = reg_int ctx (String.length s) in
+			let len = reg_int ctx (UTF8.length s) in
 			let s = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (OCall3 (s,alloc_fun_path ctx ([],"String") "__alloc__",r,size,len));
 			s
@@ -642,6 +677,10 @@ and eval_expr ctx e =
 			let pos = eval_to ctx pos HI32 in
 			let r = eval_to ctx v HI32 in
 			op ctx (OSetByte (b, pos, r));
+			r
+		| "$asize", [e] ->
+			let r = alloc_tmp ctx HI32 in
+			op ctx (OArraySize (r, eval_to ctx e (HArray (HDyn None))));
 			r
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
@@ -930,6 +969,50 @@ and eval_expr ctx e =
 		alloc_tmp ctx HVoid
 	| TCast (v,None) ->
 		eval_to ctx v (to_type ctx e.etype)
+	| TArrayDecl el ->
+		let r = alloc_tmp ctx (to_type ctx e.etype) in
+		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> assert false) in
+		(match et with
+		| HObj _ | HFun _ | HDyn _ | HArray _ ->
+			let a = alloc_tmp ctx (HArray (HDyn None)) in
+			let rt = alloc_tmp ctx HType in
+			op ctx (OType (rt,et));
+			let size = reg_int ctx (List.length el) in
+			op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] (HArray (HDyn None)),rt,size));
+			List.iteri (fun i e ->
+				let r = eval_to ctx e et in
+				op ctx (OSetArray (a,reg_int ctx i,r));
+			) el;
+			op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayImpl") "alloc", a))
+		| _ -> assert false);
+		r
+	| TArray (a,i) ->
+		let ra = eval_expr ctx a in
+		let ri = eval_to ctx i HI32 in
+		let at = (match follow a.etype with TInst ({ cl_path = [],"Array" },[t]) -> to_type ctx t | _ -> assert false) in
+		(match at with
+		| HFun _ | HObj _ | HArray _ | HDyn _ ->
+			let harr = alloc_tmp ctx (HArray (HDyn None)) in
+
+			(* TODO : check NULL ! *)
+
+			op ctx (OField (harr, ra, 0));
+
+			(* check bounds *)
+			let size = alloc_tmp ctx HI32 in
+			op ctx (OArraySize (size,harr));
+			let r = alloc_tmp ctx at in
+			let j = jump ctx (fun i -> OJULt (ri,size,i)) in
+			op ctx (ONull r);
+			let jend = jump ctx (fun i -> OJAlways i) in
+			j();
+			let tmp = alloc_tmp ctx (HDyn None) in
+			op ctx (OGetArray (tmp,harr,ri));
+			op ctx (OUnsafeCast (r,tmp));
+			jend();
+			r
+		| _ ->
+			assert false)
 	| _ ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
@@ -1069,24 +1152,11 @@ let check code =
 		in
 		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> assert false) in
 		let rtype i = f.regs.(i) in
-		let rec same_type t1 t2 =
-			if t1 == t2 then true else
-			match t1, t2 with
-			| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 same_type args1 args2 && same_type ret2 ret1
-			| HDyn _, HDyn None -> true
-			| HDyn (Some t1), HDyn (Some t2) -> t1 == t2
-			| HObj p1, HObj p2 ->
-				let rec loop p =
-					p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
-				in
-				loop p1
-			| _ -> false
-		in
 		let check t1 t2 =
-			if not (same_type t1 t2) then error (tstr t1 ^ " should be " ^ tstr t2)
+			if not (safe_cast t1 t2) then error (tstr t1 ^ " should be " ^ tstr t2)
 		in
 		let reg r t =
-			if not (same_type (rtype r) t) then error ("Register " ^ string_of_int r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
+			if not (safe_cast (rtype r) t) then error ("Register " ^ string_of_int r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
 		in
 		let numeric r =
 			match rtype r with
@@ -1231,6 +1301,7 @@ let check code =
 			| OJAlways d ->
 				can_jump d
 			| OToDyn (r,a) ->
+				if safe_cast (rtype a) (HDyn None) then reg a HI32; (* don't wrap as dynamic types that can safely be cast to it *)
 				reg r (HDyn (Some (rtype a)))
 			| OToFloat (a,b) ->
 				int b;
@@ -1266,6 +1337,26 @@ let check code =
 				reg r HBytes;
 				reg p HI32;
 				reg v HI32;
+			| OSetArray (a,i,v) ->
+				(match rtype a with
+				| HArray t -> reg v t
+				| _ -> reg a (HArray (HDyn None)));
+				reg i HI32;
+			| OGetArray (v,a,i) ->
+				reg a (HArray (rtype v));
+				reg i HI32;
+			| OUnsafeCast (a,b) ->
+				ignore(rtype a);
+				ignore(rtype b);
+			| OArraySize (r,a) ->
+				(match rtype a with
+				| HArray _ -> ()
+				| _ -> reg a (HArray (HDyn None)));
+				reg r HI32
+			| OError s ->
+				ignore(code.strings.(s));
+			| OType (r,_) ->
+				reg r HType
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -1294,7 +1385,9 @@ type value =
 	| VObj of vobject
 	| VClosure of vfunction * value option
 	| VBytes of string
-	| VArray of value array
+	| VArray of value array * ttype
+	| VUndef
+	| VType of ttype
 
 and vfunction =
 	| FFun of fundecl
@@ -1314,7 +1407,7 @@ exception Return of value
 
 let default t =
 	match t with
-	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ -> VNull
+	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ | HType -> VNull
 	| HI8 | HI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
@@ -1370,7 +1463,9 @@ let interp code =
 			(match o with
 			| None -> fstr f
 			| Some v -> fstr f ^ "(" ^ vstr v ^ ")")
-		| VArray a -> "array(" ^ String.concat "," (Array.to_list (Array.map vstr a)) ^ ")"
+		| VArray (a,t) -> "array<" ^ tstr t ^ ">(" ^ String.concat "," (Array.to_list (Array.map vstr a)) ^ ")"
+		| VUndef -> "undef"
+		| VType t -> "type(" ^ tstr t ^ ")"
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -1382,7 +1477,7 @@ let interp code =
 		| FNativeFun (_,f) -> f args
 
 	and call f args =
-		let regs = Array.map default f.regs in
+		let regs = Array.create (Array.length f.regs) VUndef in
 		iteri (fun i v -> regs.(i) <- v) args;
 		let pos = ref 0 in
 		let rtype i = f.regs.(i) in
@@ -1530,6 +1625,24 @@ let interp code =
 				(match get r, get p, get v with
 				| VBytes b, VInt p, VInt v -> String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF))
 				| _ -> assert false)
+			| OSetArray (a,i,v) ->
+				(match get a, get i with
+				| VArray (a,_), VInt i -> a.(Int32.to_int i) <- get v
+				| _ -> assert false);
+			| OGetArray (r,a,i) ->
+				(match get a, get i with
+				| VArray (a,_), VInt i -> set r a.(Int32.to_int i)
+				| _ -> assert false);
+			| OUnsafeCast (r,v) ->
+				set r (get v)
+			| OArraySize (r,a) ->
+				(match get a with
+				| VArray (a,_) -> set r (VInt (Int32.of_int (Array.length a)));
+				| _ -> assert false)
+			| OError s ->
+				raise (InterpThrow (VDyn (VBytes (code.strings.(s) ^ "\x00"),HBytes)))
+			| OType (r,t) ->
+				set r (VType t)
 			);
 			loop()
 		in
@@ -1545,6 +1658,10 @@ let interp code =
 			(function
 			| [VInt i] -> VBytes (String.create (Int32.to_int i))
 			| _ -> assert false)
+		| "std", "aalloc" ->
+			(function
+			| [VType t;VInt i] -> VArray (Array.create (Int32.to_int i) VNull,t)
+			| _ -> assert false)
 		| "std", "bblit" ->
 			(function
 			| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
@@ -1557,7 +1674,7 @@ let interp code =
 	Array.iter (fun (lib,name,_,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name)) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	match functions.(code.entrypoint) with
-	| FFun f when f.ftype = HFun([],HVoid) -> call f []
+	| FFun f when f.ftype = HFun([],HVoid) -> (try call f [] with InterpThrow v -> error ("Uncaught exception " ^ vstr v))
 	| _ -> assert false
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
@@ -1640,6 +1757,10 @@ let write_code ch code =
 			if n > 0xFF then assert false;
 			byte n;
 			List.iter write_index rl
+		| OType (r,t) ->
+			byte oid;
+			write_index r;
+			write_type t
 		| _ ->
 			let field n = (Obj.magic (Obj.field o n) : int) in
 			match Obj.size o with
@@ -1684,7 +1805,7 @@ let write_code ch code =
 			t
 		));
 	in
-	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HDyn None]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HType; HDyn None]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f -> get_type f.ftype; Array.iter (fun r -> get_type r) f.regs) code.functions;
@@ -1741,6 +1862,8 @@ let write_code ch code =
 		| HArray t ->
 			byte 11;
 			write_type t
+		| HType ->
+			byte 12
 	) types.arr;
 
 	Array.iter write_type code.globals;
@@ -1829,6 +1952,12 @@ let ostr o =
 	| OSetThis (i,r) -> Printf.sprintf "setthis [%d],%d" i r
 	| OThrow r -> Printf.sprintf "throw %d" r
 	| OSetByte (r,p,v) -> Printf.sprintf "setbyte %d,%d,%d" r p v
+	| OSetArray (a,i,v) -> Printf.sprintf "setarray %d[%d],%d" a i v
+	| OGetArray (r,a,i) -> Printf.sprintf "getarray %d,%d[%d]" r a i
+	| OUnsafeCast (r,v) -> Printf.sprintf "unsafecast %d,%d" r v
+	| OArraySize (r,a) -> Printf.sprintf "arraysize %d,%d" r a
+	| OError s -> Printf.sprintf "error @%d" s
+	| OType (r,t) -> Printf.sprintf "type %d,%s" r (tstr t)
 
 let dump code =
 	let lines = ref [] in
@@ -1902,6 +2031,15 @@ let dump code =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
 let generate com =
+	let get_class name =
+		try
+			match List.find (fun t -> (t_infos t).mt_path = (["hl";"types"],name)) com.types with
+			| TClassDecl c -> c
+			| _ -> assert false
+		with
+			Not_found ->
+				assert false
+	in
 	let ctx = {
 		com = com;
 		m = method_context();
@@ -1915,6 +2053,7 @@ let generate com =
 		cached_types = PMap.empty;
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
+		array_impl = get_class "ArrayImpl";
 	} in
 	ignore(alloc_string ctx "");
 	let all_classes = Hashtbl.create 0 in

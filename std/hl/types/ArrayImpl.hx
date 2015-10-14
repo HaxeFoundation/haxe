@@ -1,8 +1,9 @@
+package hl.types;
 
-@:coreApi
-class Array<T> {
+@:keep
+class ArrayImpl<T> {
 
-	var array : hl.types.ArrayObject<T>;
+	var array : hl.types.ArrayObject<Dynamic>;
 	public var length(default,null) : Int;
 
 	public function new() {
@@ -51,10 +52,17 @@ class Array<T> {
 		return null;
 	}
 
+	/*
 	public function toString() : String {
-		throw "TODO";
-		return null;
-	}
+		var b = new StringBuf();
+		b.addChar("[".code);
+		for( i in 0...length ) {
+			if( i > 0 ) b.addChar(",".code);
+			b.add(array[i]);
+		}
+		b.addChar("]".code);
+		return b.toString();
+	}*/
 
 	public function unshift( x : T ) : Void {
 		throw "TODO";
@@ -99,4 +107,11 @@ class Array<T> {
 		return null;
 	}
 	
+	public static function alloc( a : hl.types.ArrayObject<Dynamic> ) {
+		var arr : ArrayImpl<Dynamic> = untyped $new(ArrayImpl);
+		arr.array = a;
+		arr.length = a.length;
+		return arr;
+	}
+
 }
