@@ -15,4 +15,6 @@ package hl.types;
 		untyped $aset(this,pos,value);
 		return value;
 	}
+	@:hlNative("std","ablit") public function blit( pos : Int, src : ArrayObject<T>, srcPos : Int, srcLen : Int ) : Void {
+	}
 }

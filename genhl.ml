@@ -192,6 +192,7 @@ type access =
 	| AInstanceFun of texpr * fundecl index
 	| AInstanceProto of texpr * field index
 	| AInstanceField of texpr * field index
+	| AArray of texpr * texpr
 
 let rec tstr ?(detailed=false) t =
 	match t with
@@ -518,6 +519,8 @@ and get_access ctx e =
 		ALocal (alloc_reg ctx v)
 	| TParenthesis e ->
 		get_access ctx e
+	| TArray (a,i) ->
+		AArray (a,i)
 	| _ ->
 		ANone
 
@@ -571,6 +574,16 @@ and jump_expr ctx e jcond =
 
 and eval_args ctx el t =
 	List.map2 (fun e t -> eval_to ctx e t) el (match t with HFun (args,_) -> args | _ -> assert false)
+
+and eval_null_check ctx e =
+	let r = eval_expr ctx e in
+	(match e.eexpr with
+	| TConst TThis -> ()
+	| _ ->
+		let j = jump ctx (fun i -> OJNotNull (r,i)) in
+		op ctx (OError (alloc_string ctx "Null access"));
+		j());
+	r
 
 and eval_expr ctx e =
 	match e.eexpr with
@@ -682,6 +695,18 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx HI32 in
 			op ctx (OArraySize (r, eval_to ctx e (HArray (HDyn None))));
 			r
+		| "$aalloc", [esize] ->
+			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"ArrayObject" },[t]) -> to_type ctx t | _ -> assert false) in
+			(match et with
+			| HObj _ | HArray _ | HFun _ | HDyn _ ->
+				let a = alloc_tmp ctx (HArray (HDyn None)) in
+				let rt = alloc_tmp ctx HType in
+				op ctx (OType (rt,et));
+				let size = eval_to ctx esize HI32 in
+				op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] (HArray (HDyn None)),rt,size));
+				a
+			| _ ->
+				assert false)
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
@@ -697,7 +722,7 @@ and eval_expr ctx e =
 			| [a;b;c;d] -> op ctx (OCall4 (ret, f, a, b, c, d))
 			| _ -> op ctx (OCallN (ret, f, el)));
 		| AInstanceFun (ethis, f) ->
-			let el = eval_expr ctx ethis :: el in
+			let el = eval_null_check ctx ethis :: el in
 			(match el with
 			| [a] -> op ctx (OCall1 (ret, f, a))
 			| [a;b] -> op ctx (OCall2 (ret, f, a, b))
@@ -707,7 +732,7 @@ and eval_expr ctx e =
 		| AInstanceProto ({ eexpr = TConst TThis }, fid) ->
 			op ctx (OCallThis (ret, fid, el))
 		| AInstanceProto (ethis, fid) ->
-			let el = eval_expr ctx ethis :: el in
+			let el = eval_null_check ctx ethis :: el in
 			op ctx (OCallMethod (ret, fid, el))
 		| _ ->
 			let r = eval_expr ctx ec in
@@ -722,14 +747,14 @@ and eval_expr ctx e =
 		| AStaticFun f ->
 			op ctx (OGetFunction (r,f));
 		| AInstanceFun (ethis, f) ->
-			op ctx (OClosure (r, f, eval_expr ctx ethis))
+			op ctx (OClosure (r, f, eval_null_check ctx ethis))
 		| AInstanceField (ethis,fid) ->
-			let robj = eval_expr ctx ethis in
+			let robj = eval_null_check ctx ethis in
 			op ctx (match ethis.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
 		| AInstanceProto (ethis,fid) ->
-			let robj = eval_expr ctx ethis in
+			let robj = eval_null_check ctx ethis in
 			op ctx (OMethod (r,robj,fid));
-		| ANone | ALocal _ ->
+		| ANone | ALocal _ | AArray _ ->
 			error "Invalid access" e.epos);
 		r
 	| TObjectDecl o ->
@@ -856,19 +881,41 @@ and eval_expr ctx e =
 			| _ ->
 				assert false)
 		| OpAssign ->
-			let value = eval_to ctx e2 (to_type ctx e1.etype) in
+			let value() = eval_to ctx e2 (to_type ctx e1.etype) in
 			(match get_access ctx e1 with
 			| AGlobal g ->
-				op ctx (OSetGlobal (g,value))
+				let r = value() in
+				op ctx (OSetGlobal (g,r));
+				r
 			| AInstanceField ({ eexpr = TConst TThis }, fid) ->
-				op ctx (OSetThis (fid,value))
+				let r = value() in
+				op ctx (OSetThis (fid,r));
+				r
 			| AInstanceField (ethis, fid) ->
-				op ctx (OSetField (eval_expr ctx ethis, fid, value))
-			| ALocal r ->
-				op ctx (OMov (r, value))
+				let rthis = eval_null_check ctx ethis in
+				let r = value() in
+				op ctx (OSetField (rthis, fid, r));
+				r
+			| ALocal l ->
+				let r = value() in
+				op ctx (OMov (l, r));
+				r
+			| AArray (a,idx) ->
+				let a = eval_null_check ctx a in
+				let idx = eval_to ctx idx HI32 in
+				let v = value() in
+				(* bounds check against length *)
+				let len = alloc_tmp ctx HI32 in
+				op ctx (OField (len,a,1));
+				let j = jump ctx (fun i -> OJULt (idx,len,i)) in
+				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl";"types"],"ArrayImpl") "__expand", a, idx));
+				j();
+				let arr = alloc_tmp ctx (HArray (HDyn None)) in
+				op ctx (OField (arr,a,0));
+				op ctx (OSetArray (arr,idx,v));
+				v
 			| ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ ->
-				assert false);
-			value
+				assert false)
 		| OpBoolOr ->
 			let r = alloc_tmp ctx HBool in
 			let j = jump_expr ctx e1 true in
@@ -987,15 +1034,12 @@ and eval_expr ctx e =
 		| _ -> assert false);
 		r
 	| TArray (a,i) ->
-		let ra = eval_expr ctx a in
+		let ra = eval_null_check ctx a in
 		let ri = eval_to ctx i HI32 in
 		let at = (match follow a.etype with TInst ({ cl_path = [],"Array" },[t]) -> to_type ctx t | _ -> assert false) in
 		(match at with
 		| HFun _ | HObj _ | HArray _ | HDyn _ ->
 			let harr = alloc_tmp ctx (HArray (HDyn None)) in
-
-			(* TODO : check NULL ! *)
-
 			op ctx (OField (harr, ra, 0));
 
 			(* check bounds *)
@@ -1059,7 +1103,20 @@ let generate_static ctx c f =
 	| Var _ | Method MethDynamic ->
 		()
 	| Method m ->
-		make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None
+		let rec loop = function
+			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
+				ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
+					let fid = alloc_fid ctx c f in
+					Hashtbl.add ctx.defined_funs fid ();
+					(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
+				));
+			| [] ->
+				make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None
+			| _ :: l ->
+				loop l
+		in
+		loop f.cf_meta
+
 
 let generate_member ctx c f =
 	match f.cf_kind with
@@ -1081,13 +1138,8 @@ let generate_type ctx t =
 	| TClassDecl c when c.cl_extern ->
 		List.iter (fun f ->
 			List.iter (fun (name,args,pos) ->
-				match name, args with
-				| Meta.Custom ":hlNative", [(EConst(String(lib)),_);(EConst(String(name)),_)] ->
-					ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
-						let fid = alloc_fid ctx c f in
-						Hashtbl.add ctx.defined_funs fid ();
-						(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
-					));
+				match name with
+				| Meta.Custom ":hlNative" -> generate_static ctx c f
 				| _ -> ()
 			) f.cf_meta
 		) c.cl_ordered_statics
@@ -1653,7 +1705,8 @@ let interp code =
 	in
 	let load_native lib name =
 		FNativeFun (lib ^ "@" ^ name,match lib, name with
-		| "std", "log" -> (fun args -> print_endline (vstr (List.hd args)); VNull);
+		| "std", "log" ->
+			(fun args -> print_endline (vstr (List.hd args)); VNull);
 		| "std", "balloc" ->
 			(function
 			| [VInt i] -> VBytes (String.create (Int32.to_int i))
@@ -1661,6 +1714,12 @@ let interp code =
 		| "std", "aalloc" ->
 			(function
 			| [VType t;VInt i] -> VArray (Array.create (Int32.to_int i) VNull,t)
+			| _ -> assert false)
+		| "std", "ablit" ->
+			(function
+			| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->
+				Array.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
+				VNull
 			| _ -> assert false)
 		| "std", "bblit" ->
 			(function

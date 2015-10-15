@@ -107,6 +107,21 @@ class ArrayImpl<T> {
 		return null;
 	}
 	
+	// called by compiler when accessing the array outside of its bounds, might trigger resize
+	function __expand( index : Int ) {
+		if( index < 0 ) throw "Invalid array access";
+		var newlen = index + 1;
+		var size : Int = array.length; 
+		if( newlen > size ) {
+			var next = (size * 3) >> 1;
+			if( next < newlen ) next = newlen;
+			var arr2 = new hl.types.ArrayObject<Dynamic>(next);
+			arr2.blit(0,array,0,length);
+			array = arr2;
+		}
+		length = newlen;
+	}
+	
 	public static function alloc( a : hl.types.ArrayObject<Dynamic> ) {
 		var arr : ArrayImpl<Dynamic> = untyped $new(ArrayImpl);
 		arr.array = a;
