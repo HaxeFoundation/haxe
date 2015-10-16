@@ -6,7 +6,7 @@ package js.jquery;
 	**/
 	static public function Callbacks(flags:String):js.jquery.Callbacks;
 	/**
-		 A factory function that returns a chainable utility object with methods to register multiple callbacks into callback queues, invoke callback queues, and relay the success or failure state of any synchronous or asynchronous function.
+		A factory function that returns a chainable utility object with methods to register multiple callbacks into callback queues, invoke callback queues, and relay the success or failure state of any synchronous or asynchronous function.
 	**/
 	static public function Deferred(?beforeStart:js.jquery.Deferred -> Void):js.jquery.Deferred;
 	/**
@@ -591,7 +591,7 @@ package js.jquery;
 	/**
 		The number of elements in the jQuery object.
 	**/
-	public var length(default,null) : Int;
+	public var length(default, null) : Int;
 	/**
 		Bind an event handler to the "load" JavaScript event.
 		OR
@@ -768,7 +768,7 @@ package js.jquery;
 	@:overload(function(?element:haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>, ?filter:String):js.jquery.JQuery { })
 	public function prevUntil(?selector:String, ?filter:String):js.jquery.JQuery;
 	/**
-		 Return a Promise object to observe when all actions of a certain type bound to the collection, queued or not, have finished.
+		Return a Promise object to observe when all actions of a certain type bound to the collection, queued or not, have finished.
 	**/
 	public function promise(?type:String, ?target:Dynamic):js.jquery.Promise;
 	/**
@@ -1016,14 +1016,11 @@ package js.jquery;
 	**/
 	@:runtime
 	inline public function iterator():js.jquery.JqIterator return new js.jquery.JqIterator(js.Lib.nativeThis);
-
-
 	/**
 		Haxe iterator.
 	**/
 	@:runtime
 	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(js.Lib.nativeThis);
-
 	static function __init__():Void {
 		js.jquery.Helper.embed();
 	}
