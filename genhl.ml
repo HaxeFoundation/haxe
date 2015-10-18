@@ -42,6 +42,7 @@ type ttype =
 	| HObj of class_proto
 	| HArray of ttype
 	| HType
+	| HRef of ttype
 
 and class_proto = {
 	pname : string;
@@ -134,6 +135,9 @@ type opcode =
 	| OArraySize of reg * reg
 	| OError of string index
 	| OType of reg * ttype
+	| ORef of reg * reg
+	| OUnref of reg * reg
+	| OSetref of reg * reg
 
 type fundecl = {
 	findex : functable index;
@@ -216,6 +220,8 @@ let rec tstr ?(detailed=false) t =
 		"array(" ^ tstr t ^ ")"
 	| HType ->
 		"type"
+	| HRef t ->
+		"ref(" ^ tstr t ^ ")"
 
 let rec tsame t1 t2 =
 	if t1 == t2 then true else
@@ -225,14 +231,15 @@ let rec tsame t1 t2 =
 	| HDyn None, HDyn None -> true
 	| HDyn (Some t1), HDyn (Some t2) -> tsame t1 t2
 	| HArray t1, HArray t2 -> tsame t1 t2
+	| HRef t1, HRef t2 -> tsame t1 t2
 	| _ -> false
 
 let rec safe_cast t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
 	| (HDyn _ | HObj _ | HFun _ | HArray _), HDyn None -> true
-	| HDyn (Some t1), HDyn (Some t2) -> tsame t1 t2
 	| HObj p1, HObj p2 ->
+		(* allow subtyping *)
 		let rec loop p =
 			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
 		in
@@ -491,6 +498,24 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToFloat (tmp, r));
 		tmp
+	| (HI8 | HI16 | HI32), HObj { pname = "String" } ->
+		let out = alloc_tmp ctx t in
+		let len = alloc_tmp ctx HI32 in
+		let lref = alloc_tmp ctx (HRef HI32) in
+		let bytes = alloc_tmp ctx HBytes in
+		op ctx (ORef (lref,len));
+		op ctx (OCall2 (bytes,alloc_std ctx "itos" [HI32;HRef HI32] HBytes,cast_to ctx r HI32 p,lref));
+		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
+		out
+	| (HF32 | HF64), HObj { pname = "String" } ->
+		let out = alloc_tmp ctx t in
+		let len = alloc_tmp ctx HI32 in
+		let lref = alloc_tmp ctx (HRef HI32) in
+		let bytes = alloc_tmp ctx HBytes in
+		op ctx (ORef (lref,len));
+		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
+		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
+		out
 	| _ ->
 		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
@@ -1409,6 +1434,14 @@ let check code =
 				ignore(code.strings.(s));
 			| OType (r,_) ->
 				reg r HType
+			| ORef (r,v) ->
+				reg r (HRef (rtype v))
+			| OUnref (v,r) ->
+				(match rtype r with
+				| HRef t -> reg v t
+				| _ -> reg r (HRef (rtype v)))
+			| OSetref (r,v) ->
+				reg r (HRef (rtype v));
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -1440,6 +1473,7 @@ type value =
 	| VArray of value array * ttype
 	| VUndef
 	| VType of ttype
+	| VRef of value array * int
 
 and vfunction =
 	| FFun of fundecl
@@ -1459,7 +1493,7 @@ exception Return of value
 
 let default t =
 	match t with
-	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ | HType -> VNull
+	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ | HType | HRef _ -> VNull
 	| HI8 | HI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
@@ -1518,6 +1552,7 @@ let interp code =
 		| VArray (a,t) -> "array<" ^ tstr t ^ ">(" ^ String.concat "," (Array.to_list (Array.map vstr a)) ^ ")"
 		| VUndef -> "undef"
 		| VType t -> "type(" ^ tstr t ^ ")"
+		| VRef (regs,i) -> "ref(" ^ vstr regs.(i) ^ ")"
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -1695,6 +1730,16 @@ let interp code =
 				raise (InterpThrow (VDyn (VBytes (code.strings.(s) ^ "\x00"),HBytes)))
 			| OType (r,t) ->
 				set r (VType t)
+			| ORef (r,v) ->
+				set r (VRef (regs,v))
+			| OUnref (v,r) ->
+				set v (match get r with
+				| VRef (regs,i) -> Array.unsafe_get regs i
+				| _ -> assert false)
+			| OSetref (r,v) ->
+				(match get r with
+				| VRef (regs,i) -> Array.unsafe_set regs i (get v)
+				| _ -> assert false)
 			);
 			loop()
 		in
@@ -1727,6 +1772,20 @@ let interp code =
 				String.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
 				VNull
 			| _ -> assert false)
+		| "std", "itos" ->
+			(function
+			| [VInt v; VRef (regs,i)] ->
+				let str = Int32.to_string v in
+				regs.(i) <- VInt (Int32.of_int (String.length str));
+				VBytes (str ^ "\x00")
+			| _ -> assert false);
+		| "std", "ftos" ->
+			(function
+			| [VFloat v; VRef (regs,i)] ->
+				let str = string_of_float v in
+				regs.(i) <- VInt (Int32.of_int (String.length str));
+				VBytes (str ^ "\x00")
+			| _ -> assert false);
 		| _ -> (fun args -> error ("Unresolved native " ^ name))
 		)
 	in
@@ -1857,7 +1916,7 @@ let write_code ch code =
 			| HObj p ->
 				(match p.psuper with None -> () | Some p -> get_type (HObj p));
 				Array.iter (fun (_,n,t) -> get_type t) p.pfields
-			| HDyn (Some t) | HArray t ->
+			| HDyn (Some t) | HArray t | HRef t ->
 				get_type t
 			| _ ->
 				());
@@ -1923,6 +1982,9 @@ let write_code ch code =
 			write_type t
 		| HType ->
 			byte 12
+		| HRef t ->
+			byte 13;
+			write_type t
 	) types.arr;
 
 	Array.iter write_type code.globals;
@@ -2017,6 +2079,9 @@ let ostr o =
 	| OArraySize (r,a) -> Printf.sprintf "arraysize %d,%d" r a
 	| OError s -> Printf.sprintf "error @%d" s
 	| OType (r,t) -> Printf.sprintf "type %d,%s" r (tstr t)
+	| ORef (r,v) -> Printf.sprintf "ref %d,&%d" r v
+	| OUnref (v,r) -> Printf.sprintf "unref %d,*%d" v r
+	| OSetref (r,v) -> Printf.sprintf "setref *%d,%d" r v
 
 let dump code =
 	let lines = ref [] in
