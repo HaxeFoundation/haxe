@@ -43,6 +43,8 @@ type ttype =
 	| HArray of ttype
 	| HType
 	| HRef of ttype
+	| HVirtual of virtual_proto
+	| HDynObj
 
 and class_proto = {
 	pname : string;
@@ -51,7 +53,7 @@ and class_proto = {
 	mutable pvirtuals : int array;
 	mutable pproto : field_proto array;
 	mutable pfields : (string * string index * ttype) array;
-	mutable pindex : (string, int) PMap.t;
+	mutable pindex : (string, int * ttype) PMap.t;
 }
 
 and field_proto = {
@@ -59,6 +61,11 @@ and field_proto = {
 	fid : int;
 	fmethod : functable index;
 	fvirtual : int option;
+}
+
+and virtual_proto = {
+	mutable vfields : (string * string index * ttype) array;
+	mutable vindex : (string, int) PMap.t;
 }
 
 type unused = int
@@ -138,6 +145,7 @@ type opcode =
 	| ORef of reg * reg
 	| OUnref of reg * reg
 	| OSetref of reg * reg
+	| OToVirtual of reg * reg
 
 type fundecl = {
 	findex : functable index;
@@ -183,6 +191,7 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	mutable cached_types : (path, ttype) PMap.t;
 	mutable m : method_context;
+	mutable anons_cache : (tanon * ttype) list;
 	array_impl : tclass;
 }
 
@@ -222,12 +231,26 @@ let rec tstr ?(detailed=false) t =
 		"type"
 	| HRef t ->
 		"ref(" ^ tstr t ^ ")"
+	| HVirtual v ->
+		"virtual(" ^ String.concat "," (List.map (fun (f,_,t) -> f ^":"^tstr t) (Array.to_list v.vfields)) ^ ")"
+	| HDynObj ->
+		"dynobj"
 
 let rec tsame t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
 	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
 	| HObj p1, HObj p2 -> p1.pname = p2.pname
+	| HVirtual v1, HVirtual v2 ->
+		if v1 == v2 then true else
+		if Array.length v1.vfields <> Array.length v2.vfields then false else
+		let rec loop i =
+			if i = Array.length v1.vfields then true else
+			let _, i1, t1 = v1.vfields.(i) in
+			let _, i2, t2 = v2.vfields.(i) in
+			if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
+		in
+		loop 0
 	| HDyn None, HDyn None -> true
 	| HDyn (Some t1), HDyn (Some t2) -> tsame t1 t2
 	| HArray t1, HArray t2 -> tsame t1 t2
@@ -237,7 +260,7 @@ let rec tsame t1 t2 =
 let rec safe_cast t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
-	| (HDyn _ | HObj _ | HFun _ | HArray _), HDyn None -> true
+	| (HDyn _ | HObj _ | HFun _ | HArray _ | HVirtual _), HDyn None -> true
 	| HObj p1, HObj p2 ->
 		(* allow subtyping *)
 		let rec loop p =
@@ -329,16 +352,34 @@ let rec to_type ctx t =
 		to_type ctx (!f())
 	| TFun (args, ret) ->
 		HFun (List.map (fun (_,_,t) -> to_type ctx t) args, to_type ctx ret)
-	| TAnon _ ->
-		HDyn None
+	| TAnon a ->
+		(try
+			(* can't use physical comparison in PMap since addresses might change in GC compact,
+				maybe add an uid to tanon if too slow ? *)
+			List.assq a ctx.anons_cache
+		with Not_found ->
+			let vp = {
+				vfields = [||];
+				vindex = PMap.empty;
+			} in
+			let t = HVirtual vp in
+			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
+			let fields = PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) a.a_fields [] in
+			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
+			vp.vfields <- Array.of_list fields;
+			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
+			t
+		)
 	| TDynamic _ ->
 		HDyn None
 	| TEnum (e,_) ->
 		assert false
 	| TInst ({ cl_path = [],"Array" },[t]) ->
-		(match to_type ctx t with
-		| HObj _ | HDyn _ | HFun _ | HArray _ -> class_type ctx ctx.array_impl
-		| t -> failwith ("No support for Array<" ^ tstr t ^ "> yet"))
+		let t = to_type ctx t in
+		if safe_cast t (HDyn None) then
+			class_type ctx ctx.array_impl
+		else
+			failwith ("No support for Array<" ^ tstr t ^ "> yet")
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KTypeParameter _ -> HDyn None
@@ -350,6 +391,7 @@ let rec to_type ctx t =
 			| [], "Int" -> HI32
 			| [], "Float" -> HF64
 			| [], "Bool" -> HBool
+			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], "Bytes" -> HBytes
 			| ["hl";"types"], "ArrayObject" -> HArray (to_type ctx (List.hd pl))
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
@@ -388,16 +430,16 @@ and class_type ctx c =
 			match f.cf_kind with
 			| Var _ | Method MethDynamic ->
 				let t = to_type ctx f.cf_type in
-				p.pindex <- PMap.add f.cf_name (DynArray.length fa + start_field) p.pindex;
+				p.pindex <- PMap.add f.cf_name (DynArray.length fa + start_field, t) p.pindex;
 				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, t);
 			| Method _ ->
 				let g = alloc_fid ctx c f in
 				let virt = if List.memq f c.cl_overrides then
-					Some (try PMap.find f.cf_name p.pindex with Not_found -> assert false)
+					Some (try fst (PMap.find f.cf_name p.pindex) with Not_found -> assert false)
 				else if is_overriden ctx c f then begin
 					let vid = DynArray.length virtuals in
 					DynArray.add virtuals g;
-					p.pindex <- PMap.add f.cf_name vid p.pindex;
+					p.pindex <- PMap.add f.cf_name (vid,HVoid) p.pindex;
 					Some vid
 				end else
 					None
@@ -475,7 +517,7 @@ let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
 let resolve_field ctx p fname proto =
-	try PMap.find fname p.pindex with Not_found -> assert false
+	try fst (PMap.find fname p.pindex) with Not_found -> assert false
 
 let reg_int ctx v =
 	let r = alloc_tmp ctx HI32 in
@@ -516,6 +558,10 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
 		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
 		out
+	| HObj _ , HVirtual _ ->
+		let out = alloc_tmp ctx t in
+		op ctx (OToVirtual (out,r));
+		out
 	| _ ->
 		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
@@ -538,8 +584,17 @@ and get_access ctx e =
 			(match class_type ctx cdef with
 			| HObj p -> AInstanceField (ethis, resolve_field ctx p f.cf_name false)
 			| _ -> assert false)
-		| _ ->
-			ANone)
+		| FClosure (None,_), _ ->
+			assert false
+		| FAnon cf, _ ->
+			(match to_type ctx ethis.etype with
+			| HVirtual v -> AInstanceField (ethis, try PMap.find cf.cf_name v.vindex with Not_found -> assert false)
+			| _ -> assert false)
+		| FDynamic _, _ ->
+			assert false
+		| FEnum _, _ ->
+			assert false
+		)
 	| TLocal v ->
 		ALocal (alloc_reg ctx v)
 	| TParenthesis e ->
@@ -646,7 +701,7 @@ and eval_expr ctx e =
 		(match e with
 		| None -> ()
 		| Some e ->
-			let ri = eval_expr ctx e in
+			let ri = eval_to ctx e (rtype ctx r) in
 			op ctx (OMov (r,ri)));
 		r
 	| TLocal v ->
@@ -722,16 +777,20 @@ and eval_expr ctx e =
 			r
 		| "$aalloc", [esize] ->
 			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"ArrayObject" },[t]) -> to_type ctx t | _ -> assert false) in
-			(match et with
-			| HObj _ | HArray _ | HFun _ | HDyn _ ->
+			if safe_cast et (HDyn None) then begin
 				let a = alloc_tmp ctx (HArray (HDyn None)) in
 				let rt = alloc_tmp ctx HType in
 				op ctx (OType (rt,et));
 				let size = eval_to ctx esize HI32 in
 				op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] (HArray (HDyn None)),rt,size));
 				a
-			| _ ->
-				assert false)
+			end else
+				assert false
+		| "$ref", [v] ->
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+			let rv = (match rtype ctx r with HRef t -> eval_to ctx v t | _ -> assert false) in
+			op ctx (ORef (r,rv));
+			r
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
@@ -1044,8 +1103,7 @@ and eval_expr ctx e =
 	| TArrayDecl el ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> assert false) in
-		(match et with
-		| HObj _ | HFun _ | HDyn _ | HArray _ ->
+		if safe_cast et (HDyn None) then begin
 			let a = alloc_tmp ctx (HArray (HDyn None)) in
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,et));
@@ -1056,14 +1114,15 @@ and eval_expr ctx e =
 				op ctx (OSetArray (a,reg_int ctx i,r));
 			) el;
 			op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayImpl") "alloc", a))
-		| _ -> assert false);
+		end else begin
+			assert false
+		end;
 		r
 	| TArray (a,i) ->
 		let ra = eval_null_check ctx a in
 		let ri = eval_to ctx i HI32 in
 		let at = (match follow a.etype with TInst ({ cl_path = [],"Array" },[t]) -> to_type ctx t | _ -> assert false) in
-		(match at with
-		| HFun _ | HObj _ | HArray _ | HDyn _ ->
+		if safe_cast at (HDyn None) then begin
 			let harr = alloc_tmp ctx (HArray (HDyn None)) in
 			op ctx (OField (harr, ra, 0));
 
@@ -1080,8 +1139,8 @@ and eval_expr ctx e =
 			op ctx (OUnsafeCast (r,tmp));
 			jend();
 			r
-		| _ ->
-			assert false)
+		end else
+			assert false
 	| _ ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
@@ -1289,6 +1348,9 @@ let check code =
 						loop pl p
 				in
 				if proto then ftypes.(p.pvirtuals.(id)) else loop [] p
+			| HVirtual v when not proto ->
+				let _,_, t = v.vfields.(id) in
+				t
 			| _ ->
 				is_obj o;
 				HVoid
@@ -1312,7 +1374,7 @@ let check code =
 				if i < 0 || i >= Array.length code.strings then error "string outside range";
 			| ONull r ->
 				(match rtype r with
-				| HObj _ | HDyn _ -> ()
+				| HObj _ | HDyn _ | HVirtual _ -> ()
 				| t -> error (tstr t ^ " is not nullable"))
 			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | OSDiv (r,a,b) | OUDiv (r,a,b) ->
 				numeric r;
@@ -1441,7 +1503,14 @@ let check code =
 				| HRef t -> reg v t
 				| _ -> reg r (HRef (rtype v)))
 			| OSetref (r,v) ->
-				reg r (HRef (rtype v));
+				reg r (HRef (rtype v))
+			| OToVirtual (r,v) ->
+				(match rtype r with
+				| HVirtual _ -> ()
+				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
+				(match rtype v with
+				| HObj _ | HDynObj -> ()
+				| _ -> reg v HDynObj)
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -1474,26 +1543,34 @@ type value =
 	| VUndef
 	| VType of ttype
 	| VRef of value array * int
+	| VVirtual of vvirtual
 
 and vfunction =
 	| FFun of fundecl
 	| FNativeFun of string * (value list -> value)
 
 and vobject = {
-	vproto : vproto;
-	vfields : value array;
+	oproto : vproto;
+	ofields : value array;
 }
 
 and vproto = {
-	vclass : class_proto;
-	vmethods : vfunction array;
+	pclass : class_proto;
+	pmethods : vfunction array;
+}
+
+and vvirtual = {
+	vtype : virtual_proto;
+	vindexes : int array;
+	vtable : value array;
+	vvalue : value;
 }
 
 exception Return of value
 
 let default t =
 	match t with
-	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ | HType | HRef _ -> VNull
+	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ | HType | HRef _ | HVirtual _ | HDynObj -> VNull
 	| HI8 | HI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
@@ -1512,10 +1589,10 @@ let interp code =
 		try
 			Hashtbl.find cached_protos p.pname
 		with Not_found ->
-			let meths, fields = (match p.psuper with None -> [||],[||] | Some p -> let p,f = get_proto p in p.vmethods, f) in
+			let meths, fields = (match p.psuper with None -> [||],[||] | Some p -> let p,f = get_proto p in p.pmethods, f) in
 			let meths = Array.append meths (Array.map (fun f -> functions.(f)) p.pvirtuals) in
 			let fields = Array.append fields (Array.map (fun (_,_,t) -> t) p.pfields) in
-			let proto = ({ vclass = p; vmethods = meths },fields) in
+			let proto = ({ pclass = p; pmethods = meths },fields) in
 			Hashtbl.replace cached_protos p.pname proto;
 			proto
 	in
@@ -1524,7 +1601,7 @@ let interp code =
 		match t with
 		| HObj p ->
 			let p, fields = get_proto p in
-			{ vproto = p; vfields = Array.map default fields }
+			{ oproto = p; ofields = Array.map default fields }
 		| _ -> assert false
 	in
 
@@ -1538,9 +1615,9 @@ let interp code =
 		| VBool b -> if b then "true" else "false"
 		| VDyn (v,t) -> "dyn(" ^ vstr v ^ ")"
 		| VObj o ->
-			let p = "#" ^ o.vproto.vclass.pname in
+			let p = "#" ^ o.oproto.pclass.pname in
 			let fid = ref None in
-			Array.iter (fun p -> if p.fname = "__string" then fid := Some p.fmethod) o.vproto.vclass.pproto;
+			Array.iter (fun p -> if p.fname = "__string" then fid := Some p.fmethod) o.oproto.pclass.pproto;
 			(match !fid with
 			| None -> p
 			| Some f -> p ^ ":" ^ vstr (fcall (func f) [v]))
@@ -1553,6 +1630,7 @@ let interp code =
 		| VUndef -> "undef"
 		| VType t -> "type(" ^ tstr t ^ ")"
 		| VRef (regs,i) -> "ref(" ^ vstr regs.(i) ^ ")"
+		| VVirtual v -> "virtual(" ^ vstr v.vvalue ^ ")"
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -1668,26 +1746,31 @@ let interp code =
 			| OLabel _ -> ()
 			| ONew r -> set r (VObj (new_obj (rtype r)))
 			| OField (r,o,fid) ->
-				set r (match get o with VObj v -> v.vfields.(fid) | VNull -> error "Null access" | _ -> assert false)
+				set r (match get o with
+					| VObj v -> v.ofields.(fid)
+					| VVirtual v -> v.vtable.(v.vindexes.(fid))
+					| VNull -> error "Null access"
+					| _ -> assert false)
 			| OSetField (o,fid,r) ->
 				(match get o with
-				| VObj v -> v.vfields.(fid) <- get r
+				| VObj v -> v.ofields.(fid) <- get r
+				| VVirtual v -> v.vtable.(v.vindexes.(fid)) <- get r
 				| VNull -> error "Null access"
 				| _ -> assert false)
 			| OGetThis (r, fid) ->
-				set r (match get 0 with VObj v -> v.vfields.(fid) | _ -> assert false)
+				set r (match get 0 with VObj v -> v.ofields.(fid) | _ -> assert false)
 			| OSetThis (fid, r) ->
 				(match get 0 with
-				| VObj v -> v.vfields.(fid) <- get r
+				| VObj v -> v.ofields.(fid) <- get r
 				| _ -> assert false)
 			| OCallMethod (r,m,rl) ->
 				(match get (List.hd rl) with
-				| VObj v -> set r (fcall v.vproto.vmethods.(m) (List.map get rl))
+				| VObj v -> set r (fcall v.oproto.pmethods.(m) (List.map get rl))
 				| VNull -> error "Null access"
 				| _ -> assert false)
 			| OCallThis (r,m,rl) ->
 				(match get 0 with
-				| VObj v as o -> set r (fcall v.vproto.vmethods.(m) (o :: List.map get rl))
+				| VObj v as o -> set r (fcall v.oproto.pmethods.(m) (o :: List.map get rl))
 				| _ -> assert false)
 			| OCallClosure (r,v,rl) ->
 				(match get v with
@@ -1703,7 +1786,7 @@ let interp code =
 				set r (VClosure (f,Some (get v)))
 			| OMethod (r, o, m) ->
 				(match get o with
-				| VObj v as obj -> set r (VClosure (v.vproto.vmethods.(m), Some obj))
+				| VObj v as obj -> set r (VClosure (v.oproto.pmethods.(m), Some obj))
 				| VNull -> error "Null access"
 				| _ -> assert false)
 			| OThrow r ->
@@ -1739,6 +1822,28 @@ let interp code =
 			| OSetref (r,v) ->
 				(match get r with
 				| VRef (regs,i) -> Array.unsafe_set regs i (get v)
+				| _ -> assert false)
+			| OToVirtual (r,rv) ->
+				let v = get rv in
+				set r (match v, rtype r with
+				| VNull, _ -> VNull
+				| VObj o, HVirtual vp ->
+					let indexes = Array.mapi (fun i (n,_,t) ->
+						try
+							(* TODO : handle correctly virtual and member functions *)
+							let idx, ft = PMap.find n o.oproto.pclass.pindex in
+							if not (tsame t ft) then raise (Runtime_error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)"));
+							idx
+						with Not_found ->
+							raise (Runtime_error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(missing " ^ n ^ ")"))
+					) vp.vfields in
+					let v = {
+						vtype = vp;
+						vindexes = indexes;
+						vtable = o.ofields;
+						vvalue = v;
+					} in
+					VVirtual v
 				| _ -> assert false)
 			);
 			loop()
@@ -1918,6 +2023,8 @@ let write_code ch code =
 				Array.iter (fun (_,n,t) -> get_type t) p.pfields
 			| HDyn (Some t) | HArray t | HRef t ->
 				get_type t
+			| HVirtual v ->
+				Array.iter (fun (_,_,t) -> get_type t) v.vfields
 			| _ ->
 				());
 			t
@@ -1985,6 +2092,12 @@ let write_code ch code =
 		| HRef t ->
 			byte 13;
 			write_type t
+		| HVirtual v ->
+			byte 14;
+			write_index (Array.length v.vfields);
+			Array.iter (fun (_,sid,t) -> write_index sid; write_type t) v.vfields
+		| HDynObj ->
+			byte 15
 	) types.arr;
 
 	Array.iter write_type code.globals;
@@ -2082,6 +2195,7 @@ let ostr o =
 	| ORef (r,v) -> Printf.sprintf "ref %d,&%d" r v
 	| OUnref (v,r) -> Printf.sprintf "unref %d,*%d" v r
 	| OSetref (r,v) -> Printf.sprintf "setref *%d,%d" r v
+	| OToVirtual (r,v) -> Printf.sprintf "tovirtual %d,%d" r v
 
 let dump code =
 	let lines = ref [] in
@@ -2178,6 +2292,7 @@ let generate com =
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
 		array_impl = get_class "ArrayImpl";
+		anons_cache = [];
 	} in
 	ignore(alloc_string ctx "");
 	let all_classes = Hashtbl.create 0 in
