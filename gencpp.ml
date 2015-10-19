@@ -4288,18 +4288,19 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    if class_def.cl_interface then begin
       let dumped = ref PMap.empty in
-      let rec dump_def interface =
+      let rec dump_def interface superToo =
          List.iter (fun field -> try ignore (PMap.find field.cf_name !dumped) with Not_found ->
          begin
             dumped := PMap.add field.cf_name true !dumped;
             gen_member_def ctx interface false true field
          end
          ) interface.cl_ordered_fields;
-         List.iter (fun impl -> dump_def (fst impl)) (real_interfaces interface.cl_implements);
+
+         if superToo then
+            (match interface.cl_super with | Some super -> dump_def (fst super) true | _ -> ());
+         List.iter (fun impl -> dump_def (fst impl) true) (real_interfaces interface.cl_implements);
       in
-      (* Dump this class, not its super, but also its implements *)
-      dump_def class_def;
-      List.iter (fun impl -> dump_def (fst impl)) (real_interfaces class_def.cl_implements);
+      dump_def class_def false;
    end else begin
       List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field class_def.cl_ordered_fields);
    end;
