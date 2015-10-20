@@ -54,6 +54,7 @@ and class_proto = {
 	mutable pproto : field_proto array;
 	mutable pfields : (string * string index * ttype) array;
 	mutable pindex : (string, int * ttype) PMap.t;
+	mutable pfunctions : (string, int) PMap.t;
 }
 
 and field_proto = {
@@ -206,6 +207,7 @@ type access =
 	| AInstanceProto of texpr * field index
 	| AInstanceField of texpr * field index
 	| AArray of texpr * texpr
+	| AVirtualMethod of texpr * field index
 
 let rec tstr ?(detailed=false) t =
 	match t with
@@ -411,6 +413,7 @@ and class_type ctx c =
 			pfields = [||];
 			pindex = PMap.empty;
 			pvirtuals = [||];
+			pfunctions = PMap.empty;
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
@@ -421,6 +424,7 @@ and class_type ctx c =
 				| HObj psup ->
 					p.psuper <- Some psup;
 					p.pindex <- psup.pindex;
+					p.pfunctions <- psup.pfunctions;
 					Array.length p.pfields, p.pvirtuals
 				| _ -> assert false
 		) in
@@ -434,6 +438,7 @@ and class_type ctx c =
 				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, t);
 			| Method _ ->
 				let g = alloc_fid ctx c f in
+				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
 				let virt = if List.memq f c.cl_overrides then
 					Some (try fst (PMap.find f.cf_name p.pindex) with Not_found -> assert false)
 				else if is_overriden ctx c f then begin
@@ -588,6 +593,7 @@ and get_access ctx e =
 			assert false
 		| FAnon cf, _ ->
 			(match to_type ctx ethis.etype with
+			| HVirtual v when cf.cf_kind = Method MethNormal -> AVirtualMethod (ethis, try PMap.find cf.cf_name v.vindex with Not_found -> assert false)
 			| HVirtual v -> AInstanceField (ethis, try PMap.find cf.cf_name v.vindex with Not_found -> assert false)
 			| _ -> assert false)
 		| FDynamic _, _ ->
@@ -835,7 +841,7 @@ and eval_expr ctx e =
 		| AInstanceField (ethis,fid) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (match ethis.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
-		| AInstanceProto (ethis,fid) ->
+		| AInstanceProto (ethis,fid) | AVirtualMethod (ethis, fid) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (OMethod (r,robj,fid));
 		| ANone | ALocal _ | AArray _ ->
@@ -998,7 +1004,7 @@ and eval_expr ctx e =
 				op ctx (OField (arr,a,0));
 				op ctx (OSetArray (arr,idx,v));
 				v
-			| ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ ->
+			| ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				assert false)
 		| OpBoolOr ->
 			let r = alloc_tmp ctx HBool in
@@ -1459,11 +1465,19 @@ let check code =
 			| OGetFunction (r,f) ->
 				reg r ftypes.(f)
 			| OMethod (r,o,fid) ->
-				(match tfield o fid true with
-				| HFun (t :: tl, tret) ->
-					reg o t;
-					reg r (HFun (tl,tret));
-				| _ -> assert false)
+				(match rtype o with
+				| HObj _ ->
+					(match tfield o fid true with
+					| HFun (t :: tl, tret) ->
+						reg o t;
+						reg r (HFun (tl,tret));
+					| _ ->
+						assert false)
+				| HVirtual v ->
+					let _,_, t = v.vfields.(fid) in
+					reg r t;
+				| _ ->
+					is_obj o)
 			| OClosure (r,f,arg) ->
 				(match ftypes.(f) with
 				| HFun (t :: tl, tret) ->
@@ -1561,10 +1575,14 @@ and vproto = {
 
 and vvirtual = {
 	vtype : virtual_proto;
-	vindexes : int array;
+	vindexes : vfield array;
 	vtable : value array;
 	vvalue : value;
 }
+
+and vfield =
+	| VFNone
+	| VFIndex of int
 
 exception Return of value
 
@@ -1748,13 +1766,16 @@ let interp code =
 			| OField (r,o,fid) ->
 				set r (match get o with
 					| VObj v -> v.ofields.(fid)
-					| VVirtual v -> v.vtable.(v.vindexes.(fid))
+					| VVirtual v -> (match v.vindexes.(fid) with VFNone -> VNull | VFIndex i -> v.vtable.(i))
 					| VNull -> error "Null access"
 					| _ -> assert false)
 			| OSetField (o,fid,r) ->
 				(match get o with
 				| VObj v -> v.ofields.(fid) <- get r
-				| VVirtual v -> v.vtable.(v.vindexes.(fid)) <- get r
+				| VVirtual v ->
+					(match v.vindexes.(fid) with
+					| VFNone -> assert false (* TODO *)
+					| VFIndex i -> v.vtable.(i) <- get r)
 				| VNull -> error "Null access"
 				| _ -> assert false)
 			| OGetThis (r, fid) ->
@@ -1785,9 +1806,16 @@ let interp code =
 				let f = functions.(fid) in
 				set r (VClosure (f,Some (get v)))
 			| OMethod (r, o, m) ->
-				(match get o with
-				| VObj v as obj -> set r (VClosure (v.oproto.pmethods.(m), Some obj))
+				set r (match get o with
+				| VObj v as obj -> VClosure (v.oproto.pmethods.(m), Some obj)
 				| VNull -> error "Null access"
+				| VVirtual v ->
+					let name, _, _ = v.vtype.vfields.(m) in
+					(match v.vvalue with
+					| VObj o as obj ->
+						let m = (try PMap.find name o.oproto.pclass.pfunctions with Not_found -> assert false) in
+						VClosure (functions.(m), Some obj)
+					| _ -> assert false)
 				| _ -> assert false)
 			| OThrow r ->
 				raise (InterpThrow (get r))
@@ -1830,12 +1858,11 @@ let interp code =
 				| VObj o, HVirtual vp ->
 					let indexes = Array.mapi (fun i (n,_,t) ->
 						try
-							(* TODO : handle correctly virtual and member functions *)
 							let idx, ft = PMap.find n o.oproto.pclass.pindex in
 							if not (tsame t ft) then raise (Runtime_error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)"));
-							idx
+							VFIndex idx
 						with Not_found ->
-							raise (Runtime_error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(missing " ^ n ^ ")"))
+							VFNone (* most likely a method *)
 					) vp.vfields in
 					let v = {
 						vtype = vp;
