@@ -147,6 +147,10 @@ type opcode =
 	| OUnref of reg * reg
 	| OSetref of reg * reg
 	| OToVirtual of reg * reg
+	| OUnVirtual of reg * reg
+	| ODynAlloc of reg
+	| ODynGet of reg * reg * string index
+	| ODynSet of reg * string index * reg
 
 type fundecl = {
 	findex : functable index;
@@ -208,6 +212,7 @@ type access =
 	| AInstanceField of texpr * field index
 	| AArray of texpr * texpr
 	| AVirtualMethod of texpr * field index
+	| ADynamic of texpr * string index
 
 let rec tstr ?(detailed=false) t =
 	match t with
@@ -262,7 +267,15 @@ let rec tsame t1 t2 =
 let rec safe_cast t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
-	| (HDyn _ | HObj _ | HFun _ | HArray _ | HVirtual _), HDyn None -> true
+	| (HDyn _ | HObj _ | HFun _ | HArray _ | HDynObj), HDyn None -> true
+	| HVirtual v1, HVirtual v2 when Array.length v2.vfields < Array.length v1.vfields ->
+		let rec loop i =
+			if i = Array.length v2.vfields then true else
+			let n1, _, t1 = v1.vfields.(i) in
+			let n2, _, t2 = v2.vfields.(i) in
+			if n1 = n2 && tsame t1 t2 then loop (i + 1) else false
+		in
+		loop 0
 	| HObj p1, HObj p2 ->
 		(* allow subtyping *)
 		let rec loop p =
@@ -366,7 +379,22 @@ let rec to_type ctx t =
 			} in
 			let t = HVirtual vp in
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
-			let fields = PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) a.a_fields [] in
+			let fields = PMap.fold (fun cf acc ->
+				match cf.cf_kind with
+				| Var { v_read = AccNo } | Var { v_write = AccNo } ->
+					(*
+						if there's read-only/write-only fields, it will allow variance, so let's
+						handle the field access as fully Dynamic
+					*)
+					acc
+				| Var _ when has_meta Meta.Optional cf.cf_meta && not (safe_cast (to_type ctx (follow cf.cf_type)) (HDyn None)) ->
+					(*
+						for not nullable optional types, we might also have a variance between T and Null<T>
+					*)
+					acc
+				| _ ->
+					(cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc
+			) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
 			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
@@ -537,6 +565,14 @@ and cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
 	if safe_cast rt t then r else
 	match rt, t with
+	| HVirtual _, HDyn _ ->
+		let tmp = alloc_tmp ctx (HDyn None) in
+		op ctx (OUnVirtual (tmp,r));
+		tmp
+	| HVirtual _, HVirtual _ ->
+		let tmp = alloc_tmp ctx (HDyn None) in
+		op ctx (OUnVirtual (tmp,r));
+		cast_to ctx tmp t p
 	| _ , HDyn _ ->
 		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
 		op ctx (OToDyn (tmp, r));
@@ -563,7 +599,7 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
 		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
 		out
-	| HObj _ , HVirtual _ ->
+	| (HObj _ | HDynObj | HDyn _) , HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OToVirtual (out,r));
 		out
@@ -594,10 +630,10 @@ and get_access ctx e =
 		| FAnon cf, _ ->
 			(match to_type ctx ethis.etype with
 			| HVirtual v when cf.cf_kind = Method MethNormal -> AVirtualMethod (ethis, try PMap.find cf.cf_name v.vindex with Not_found -> assert false)
-			| HVirtual v -> AInstanceField (ethis, try PMap.find cf.cf_name v.vindex with Not_found -> assert false)
+			| HVirtual v -> (try AInstanceField (ethis, PMap.find cf.cf_name v.vindex) with Not_found -> ADynamic (ethis, alloc_string ctx cf.cf_name))
 			| _ -> assert false)
-		| FDynamic _, _ ->
-			assert false
+		| FDynamic name, _ ->
+			ADynamic (ethis, alloc_string ctx name)
 		| FEnum _, _ ->
 			assert false
 		)
@@ -825,7 +861,7 @@ and eval_expr ctx e =
 			let el = eval_null_check ctx ethis :: el in
 			op ctx (OCallMethod (ret, fid, el))
 		| _ ->
-			let r = eval_expr ctx ec in
+			let r = eval_null_check ctx ec in
 			op ctx (OCallClosure (ret, r, el)); (* if it's a value, it's a closure *)
 		);
 		ret
@@ -844,12 +880,22 @@ and eval_expr ctx e =
 		| AInstanceProto (ethis,fid) | AVirtualMethod (ethis, fid) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (OMethod (r,robj,fid));
+		| ADynamic (ethis, f) ->
+			let robj = eval_null_check ctx ethis in
+			op ctx (ODynGet (r,robj,f))
 		| ANone | ALocal _ | AArray _ ->
 			error "Invalid access" e.epos);
 		r
 	| TObjectDecl o ->
-		(* TODO *)
-		alloc_tmp ctx HVoid
+		let r = alloc_tmp ctx HDynObj in
+		op ctx (ODynAlloc r);
+		let a = (match follow e.etype with TAnon a -> a | _ -> assert false) in
+		List.iter (fun (s,v) ->
+			let cf = (try PMap.find s a.a_fields with Not_found -> assert false) in
+			let v = eval_to ctx v (to_type ctx cf.cf_type) in
+			op ctx (ODynSet (r,alloc_string ctx s,v));
+		) o;
+		r
 	| TNew (c,pl,el) ->
 		let r = alloc_tmp ctx (class_type ctx c) in
 		op ctx (ONew r);
@@ -1004,6 +1050,11 @@ and eval_expr ctx e =
 				op ctx (OField (arr,a,0));
 				op ctx (OSetArray (arr,idx,v));
 				v
+			| ADynamic (ethis,f) ->
+				let obj = eval_null_check ctx ethis in
+				let r = value() in
+				op ctx (ODynSet (obj,f,r));
+				r
 			| ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				assert false)
 		| OpBoolOr ->
@@ -1028,8 +1079,16 @@ and eval_expr ctx e =
 			op ctx (OBool (r,false));
 			jend();
 			r
-		| _ ->
-			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos)
+		| OpEq ->
+			assert false
+		| OpNotEq ->
+			assert false
+		| OpAssignOp _ ->
+			assert false
+		| OpMod ->
+			assert false
+		| OpInterval | OpArrow ->
+			assert false)
 	| TUnop (Not,_,v) ->
 		let tmp = alloc_tmp ctx HBool in
 		let r = eval_to ctx v HBool in
@@ -1086,7 +1145,7 @@ and eval_expr ctx e =
 		op ctx (OGetFunction (r, fid));
 		r
 	| TThrow v ->
-		op ctx (OThrow (eval_expr ctx v));
+		op ctx (OThrow (eval_to ctx v (HDyn None)));
 		alloc_tmp ctx HVoid (* not initialized *)
 	| TWhile (cond,eloop,NormalWhile) ->
 		let ret = jump_back ctx in
@@ -1147,7 +1206,9 @@ and eval_expr ctx e =
 			r
 		end else
 			assert false
-	| _ ->
+	| TMeta (_,e) ->
+		eval_expr ctx e
+	| TTypeExpr _ | TFor _ | TSwitch _ | TTry _ | TBreak | TContinue | TEnumParameter _ | TCast (_,Some _) ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
 and make_fun ctx fidx f cthis =
@@ -1485,7 +1546,7 @@ let check code =
 					reg r (HFun (tl,tret));
 				| _ -> assert false);
 			| OThrow r ->
-				ignore(rtype r)
+				reg r (HDyn None)
 			| OSetByte (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
@@ -1523,8 +1584,21 @@ let check code =
 				| HVirtual _ -> ()
 				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
 				(match rtype v with
-				| HObj _ | HDynObj -> ()
+				| HObj _ | HDynObj | HDyn None -> ()
 				| _ -> reg v HDynObj)
+			| OUnVirtual (r,v) ->
+				(match rtype v with
+				| HVirtual _ -> ()
+				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
+				reg r (HDyn None)
+			| ODynAlloc r ->
+				reg r HDynObj
+			| ODynGet (v,r,f) | ODynSet (r,f,v) ->
+				ignore(code.strings.(f));
+				ignore(rtype v);
+				(match rtype r with
+				| HObj _ | HDyn None | HDynObj | HVirtual _ -> ()
+				| _ -> reg r HDynObj)
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -1558,6 +1632,7 @@ type value =
 	| VType of ttype
 	| VRef of value array * int
 	| VVirtual of vvirtual
+	| VDynObj of vdynobj
 
 and vfunction =
 	| FFun of fundecl
@@ -1578,6 +1653,13 @@ and vvirtual = {
 	vindexes : vfield array;
 	vtable : value array;
 	vvalue : value;
+}
+
+and vdynobj = {
+	dfields : (string, int) Hashtbl.t;
+	mutable dtypes : ttype array;
+	mutable dvalues : value array;
+	mutable dvirtuals : vvirtual list;
 }
 
 and vfield =
@@ -1649,6 +1731,7 @@ let interp code =
 		| VType t -> "type(" ^ tstr t ^ ")"
 		| VRef (regs,i) -> "ref(" ^ vstr regs.(i) ^ ")"
 		| VVirtual v -> "virtual(" ^ vstr v.vvalue ^ ")"
+		| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -1859,7 +1942,7 @@ let interp code =
 					let indexes = Array.mapi (fun i (n,_,t) ->
 						try
 							let idx, ft = PMap.find n o.oproto.pclass.pindex in
-							if not (tsame t ft) then raise (Runtime_error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)"));
+							if not (tsame t ft) then error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)");
 							VFIndex idx
 						with Not_found ->
 							VFNone (* most likely a method *)
@@ -1871,7 +1954,100 @@ let interp code =
 						vvalue = v;
 					} in
 					VVirtual v
+				| VDynObj d, HVirtual vp ->
+					(try
+						VVirtual (List.find (fun v -> v.vtype == vp) d.dvirtuals)
+					with Not_found ->
+						let indexes = Array.mapi (fun i (n,_,t) ->
+							try
+								let idx = Hashtbl.find d.dfields n in
+								if not (tsame t d.dtypes.(idx)) then error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)");
+								VFIndex idx
+							with Not_found ->
+								VFNone
+						) vp.vfields in
+						let v = {
+							vtype = vp;
+							vindexes = indexes;
+							vtable = d.dvalues;
+							vvalue = v;
+						} in
+						d.dvirtuals <- v :: d.dvirtuals;
+						VVirtual v
+					)
 				| _ -> assert false)
+			| OUnVirtual (r,v) ->
+				set r (match get v with VNull -> VNull | VVirtual v -> v.vvalue | _ -> assert false)
+			| ODynAlloc r ->
+				set r (VDynObj { dfields = Hashtbl.create 0; dvalues = [||]; dtypes = [||]; dvirtuals = []; })
+			| ODynGet (r,o,f) ->
+				let obj = (match get o with VVirtual v -> v.vvalue | v -> v) in
+				let set_with v t =
+					if tsame t (rtype r) then
+						set r v
+					else match t, rtype r with
+					| (HI8|HI16|HI32), (HF32|HF64) ->
+						set r (match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
+					| (HI8|HI16|HI32|HF32|HF64), HDyn _ ->
+						set r (VDyn (v,t))
+					| _ ->
+						error ("Can't cast " ^ tstr t ^ " to " ^ tstr (rtype r))
+				in
+				(match obj with
+				| VDynObj d ->
+					(try
+						let idx = Hashtbl.find d.dfields code.strings.(f) in
+						set_with d.dvalues.(idx) d.dtypes.(idx)
+					with Not_found ->
+						set r (default (rtype r)))
+				| VObj o ->
+					(try
+						let idx, t = PMap.find code.strings.(f) o.oproto.pclass.pindex in
+						set_with o.ofields.(idx) t
+					with Not_found ->
+						set r (default (rtype r)))
+				| _ ->
+					assert false)
+			| ODynSet (o,f,v) ->
+				let obj = (match get o with VVirtual v -> v.vvalue | v -> v) in
+				(match obj with
+				| VDynObj d ->
+					let rebuild_virtuals() =
+						if d.dvirtuals <> [] then assert false (* TODO : update virtuals table *)
+					in
+					let v, vt = (match rtype v with
+						| HDyn _ ->
+							let v = get v in
+							(match v with
+							| VDyn (v,t) -> v,t
+							| VObj o -> v, HObj o.oproto.pclass
+							| VDynObj _ -> v, HDynObj
+							| VVirtual vp -> v, HVirtual vp.vtype
+							| _ -> assert false)
+						| t -> get v, t
+					) in
+					(try
+						let idx = Hashtbl.find d.dfields code.strings.(f) in
+						d.dvalues.(idx) <- v;
+						if not (tsame d.dtypes.(idx) vt) then begin
+							d.dtypes.(idx) <- vt;
+							rebuild_virtuals();
+						end;
+					with Not_found ->
+						let idx = Array.length d.dvalues in
+						Hashtbl.add d.dfields code.strings.(f) idx;
+						let vals2 = Array.make (idx + 1) VNull in
+						let types2 = Array.make (idx + 1) HVoid in
+						Array.blit d.dvalues 0 vals2 0 idx;
+						Array.blit d.dtypes 0 types2 0 idx;
+						vals2.(idx) <- v;
+						types2.(idx) <- vt;
+						d.dvalues <- vals2;
+						d.dtypes <- types2;
+						rebuild_virtuals();
+					)
+				| _ ->
+					assert false)
 			);
 			loop()
 		in
@@ -2223,6 +2399,10 @@ let ostr o =
 	| OUnref (v,r) -> Printf.sprintf "unref %d,*%d" v r
 	| OSetref (r,v) -> Printf.sprintf "setref *%d,%d" r v
 	| OToVirtual (r,v) -> Printf.sprintf "tovirtual %d,%d" r v
+	| OUnVirtual (r,v) -> Printf.sprintf "unvirtual %d,%d" r v
+	| ODynAlloc r -> Printf.sprintf "dynalloc %d" r
+	| ODynGet (r,o,f) -> Printf.sprintf "dynget %d,%d[@%d]" r o f
+	| ODynSet (o,f,v) -> Printf.sprintf "dynset %d[@%d],%d" o f v
 
 let dump code =
 	let lines = ref [] in
