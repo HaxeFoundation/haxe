@@ -493,14 +493,35 @@ type neko_context = {
 	call : primitive -> value list -> value;
 }
 
+(* try to load dl in order *)
+let rec dlopen dls =
+	let null = Extc.dlint 0 in
+	match dls with
+	| dl_path :: dls ->
+		let dl = Extc.dlopen dl_path in
+		if (Obj.magic dl) == null then
+			dlopen dls
+		else
+			Some dl;
+	| _ ->
+		None
+
 let neko =
 	let is_win = Sys.os_type = "Win32" || Sys.os_type = "Cygwin" in
-	let neko = Extc.dlopen (if is_win then "neko.dll" else "libneko.so") in
-	let null = Extc.dlint 0 in
-	let neko = if Obj.magic neko == null && not is_win then Extc.dlopen "libneko.dylib" else neko in
-	if Obj.magic neko == null then
-		None
+	match dlopen (if is_win then
+		["neko.dll"]
 	else
+		(*
+			By defualt, the makefile of neko produces libneko.so,
+			however, the debian package creates libneko.so.0 without libneko.so...
+			The fedora rpm package creates libneko.so linked to libneko.so.1.
+		*)
+		["libneko.so"; "libneko.so.0"; "libneko.so.1"; "libneko.so.2"; "libneko.dylib"]
+	) with
+	| None ->
+		None
+	| Some(neko) ->
+	let null = Extc.dlint 0 in
 	let load v =
 		let s = Extc.dlsym neko v in
 		if (Obj.magic s) == null then failwith ("Could not load neko." ^ v);
