@@ -117,7 +117,7 @@ class RunSauceLabs {
 			{
 				"browserName": "safari",
 				"platform": "OS X 10.11",
-				"version": "8.1"
+				"version": "9"
 			},
 			{
 				"browserName": "iphone",
