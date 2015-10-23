@@ -970,7 +970,7 @@ and gen_value ctx e =
 		v()
 
 let final m =
-	if Ast.Meta.has Ast.Meta.Final m then "final " else ""
+	if Ast.Meta.has Ast.Meta.Final m then " final " else ""
 
 let generate_field ctx static f =
 	newline ctx;
