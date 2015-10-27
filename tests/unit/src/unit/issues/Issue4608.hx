@@ -7,6 +7,7 @@ class Issue4608 extends Test {
         switch s {
         case "𩸽あëa":
             b = true;
+        case "a":
         case _:
         }
         t(b);
