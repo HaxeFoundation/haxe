@@ -296,11 +296,28 @@ struct
 	let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority; DBefore IntDivisionSynf.priority ]
 
 	let java_hash s =
+		let high_surrogate c = (c lsr 10) + 0xD7C0 in
+		let low_surrogate c = (c land 0x3FF) lor 0xDC00 in
 		let h = ref Int32.zero in
 		let thirtyone = Int32.of_int 31 in
-		for i = 0 to String.length s - 1 do
-			h := Int32.add (Int32.mul thirtyone !h) (Int32.of_int (int_of_char (String.unsafe_get s i)));
-		done;
+		(try
+			UTF8.validate s;
+			UTF8.iter (fun c ->
+				let c = (UChar.code c) in
+				if c > 0xFFFF then
+					(h := Int32.add (Int32.mul thirtyone !h)
+						(Int32.of_int (high_surrogate c));
+					h := Int32.add (Int32.mul thirtyone !h)
+						(Int32.of_int (low_surrogate c)))
+				else
+					h := Int32.add (Int32.mul thirtyone !h)
+						(Int32.of_int c)
+				) s
+		with UTF8.Malformed_code ->
+			String.iter (fun c ->
+				h := Int32.add (Int32.mul thirtyone !h)
+					(Int32.of_int (Char.code c))) s
+		);
 		!h
 
 	let rec is_final_return_expr is_switch e =
