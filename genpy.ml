@@ -403,7 +403,7 @@ module Transformer = struct
 			List.iter (fun es ->
 				match es.eexpr with
 				| TConst (TString s) ->
-					let l = String.length s in
+					let l = UTF8.length s in
 					let sl = try
 						Hashtbl.find length_map l
 					with Not_found ->
