@@ -285,7 +285,7 @@ class Boot extends flash.display.MovieClip {
 		};
 		aproto.setPropertyIsEnumerable("mapHX", false);
 		aproto.setPropertyIsEnumerable("filterHX", false);
-		String.prototype.charCodeAtHX = function(i) : Null<Int> {
+		
 		#else
 		aproto["filter"] = function(f) {
 			var ret = [];
@@ -310,14 +310,7 @@ class Boot extends flash.display.MovieClip {
 		};
 		aproto.setPropertyIsEnumerable("map", false);
 		aproto.setPropertyIsEnumerable("filter", false);
-		String.prototype.charCodeAt = function(i) : Null<Int> {
-		#end
-			var s : String = __this__;
-			var x : Float = s.cca(i);
-			if( __global__["isNaN"](x) )
-				return null;
-			return Std.int(x);
-		};
+		#end		
 	}
 
 }
