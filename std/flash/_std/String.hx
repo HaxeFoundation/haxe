@@ -33,7 +33,7 @@
     function substring( startIndex : Int, ?endIndex : Int ) : String;
     function substr( pos : Int, ?len : Int ) : String;
 
-    inline function charCodeAt(i:Int) : Null<Int> {
+    inline function charCodeAt( i: Int ) : Null<Int> {
         var x : Float = untyped this.charCodeAt(i);
         return Math.isNaN(x) ? null : Std.int(x);
     };

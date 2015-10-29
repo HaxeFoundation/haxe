@@ -574,8 +574,6 @@ and gen_field_access ctx t s =
 			spr ctx "[\"filterHX\"]"
 		| [], "Date", "toString" ->
 			print ctx "[\"toStringHX\"]"
-		| [], "String", "cca" ->
-			print ctx ".charCodeAt"
 		| ["flash";"xml"], "XML", "namespace" ->
 			print ctx ".namespace"
 		| _ ->

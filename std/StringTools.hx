@@ -379,7 +379,7 @@ class StringTools {
 		#elseif cpp
 		return untyped s.cca(index);
 		#elseif flash
-		return untyped s.cca(index);
+		return s.charCodeAt(index);
 		#elseif java
 		return ( index < s.length ) ? cast(_charAt(s, index), Int) : -1;
 		#elseif cs
