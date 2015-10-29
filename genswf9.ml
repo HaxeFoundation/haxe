@@ -329,7 +329,6 @@ let property ctx p t =
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"Date" },_) ->
 		(match p with
-		| "toString" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| _ -> ident p, None, false)
 	| TAnon a ->
 		(match !(a.a_status) with

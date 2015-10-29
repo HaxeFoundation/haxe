@@ -572,8 +572,6 @@ and gen_field_access ctx t s =
 			spr ctx "[\"mapHX\"]"
 		| [], "Array", "filter" ->
 			spr ctx "[\"filterHX\"]"
-		| [], "Date", "toString" ->
-			print ctx "[\"toStringHX\"]"
 		| ["flash";"xml"], "XML", "namespace" ->
 			print ctx ".namespace"
 		| _ ->
