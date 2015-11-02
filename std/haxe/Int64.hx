@@ -275,7 +275,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	/**
 		Returns the product of `a` and `b`.
 	**/
-	@:op(A * B) public static inline function mul( a : Int64, b : Int64 ) : Int64 {
+	@:op(A * B) public static #if !lua inline #end function mul( a : Int64, b : Int64 ) : Int64 {
 		var mask = 0xFFFF;
 		var al = a.low & mask, ah = a.low >>> 16;
 		var bl = b.low & mask, bh = b.low >>> 16;
@@ -291,15 +291,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		p10 <<= 16;
 		low += p10;
 		if( Int32.ucompare(low, p10) < 0 ) high++;
-		trace(high + " is the value for high");
-		trace(a.high + " is the value for a.high");
-		trace(a.low + " is the value for a.low");
-		trace(b.high + " is the value for b.high");
-		trace(b.low + " is the value for b.low");
-		trace((a.low * b.high) + " is the value for (a.low * b.high)");
-		trace((a.high * b.low) + " is the value for (a.high * b.low)");
 		high += a.low * b.high + a.high * b.low;
-		trace(high + " is the value for high");
 		return make( high, low );
 	}
 
@@ -436,7 +428,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	@:op(A >>> B) public static inline function ushr( a : Int64, b : Int ) : Int64 {
 		b &= 63;
 		return if( b == 0 ) a.copy()
-			else if( b < 32 ) make( a.high >>> b, (a.high << (32-b)) | (a.low >>> b) )
+			else if( b < 32 ) make( a.high >>> b, (a.high << (32-b)) | (a.low >>> b) );
 			else make( 0, a.high >>> (b - 32) );
 	}
 
