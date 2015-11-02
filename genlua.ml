@@ -654,9 +654,9 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		spr ctx "_i32(_G.bit.bnot(";
+		spr ctx "_G.bit.bnot(";
 		gen_value ctx e;
-		spr ctx "))";
+		spr ctx ")";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -1062,8 +1062,6 @@ and gen_value ctx e =
 		v()
 
 and gen_tbinop ctx op e1 e2 =
-    if should_wrap_int_op ctx op e1 e2 then
-	spr ctx "_i32(";
     (match op, e1.eexpr, e2.eexpr with
     | Ast.OpAssign, TField(e3, FInstance(_,_,_) ), TFunction f ->
 	    gen_expr ctx e1;
@@ -1186,7 +1184,6 @@ and gen_tbinop ctx op e1 e2 =
 	    spr ctx ")";
 	    end;
     );
-    if should_wrap_int_op ctx op e1 e2 then spr ctx ")";
 
 
 and gen_wrap_tbinop ctx e=
@@ -1199,7 +1196,7 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
-    print ctx "_i32(_G.bit.%s(" (match op with
+    print ctx "_G.bit.%s(" (match op with
 	| Ast.OpXor  ->  "bxor"
 	| Ast.OpAnd  ->  "band"
 	| Ast.OpShl  ->  "lshift"
@@ -1210,7 +1207,7 @@ and gen_bitop ctx op e1 e2 =
     gen_value ctx e1;
     spr ctx ",";
     gen_value ctx e2;
-    spr ctx "))"
+    spr ctx ")"
 
 and gen_return ctx e eo =
     if ctx.in_value <> None then unsupported e.epos;
@@ -1657,10 +1654,6 @@ let generate com =
 
 	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') bit = bit or bit32"; newline ctx;
 	spr ctx "print = print or (function()end)"; newline ctx;
-	spr ctx "local _i32 =
-	    function(n)
-		return _G.bit.band(n,2147483647) - _G.bit.band(n,2147483648);
-	    end;";
 	newline ctx;
 
 	spr ctx "_hxClasses = {}"; semicolon ctx; newline ctx;
