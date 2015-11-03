@@ -242,8 +242,8 @@ class Boot {
 			+":"+(if( s < 10 ) "0"+s else ""+s);
 	}
 
-	public static inline function i32 (i : Float) : Int {
-		return untyped _i32(i);
+	public static function clamp(x:Int){
+		return (x & 2147483647) - (x & cast 2147483648);
 	}
 
 	public static function strDate( s : String ) : std.Date {
