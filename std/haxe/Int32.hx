@@ -128,23 +128,35 @@ abstract Int32(Int) from Int to Int {
 	@:op(A >= B) private static function gteFloat(a:Int32, b:Float):Bool;
 	@:op(A >= B) private static function floatGte(a:Float, b:Int32):Bool;
 
+	#if lua
+	@:op(~A) private static inline function complement( a : Int32 ) : Int32
+		return lua.Boot.clamp(~a);
+	#else
 	@:op(~A) private function complement():Int32;
+	#end
 
 	@:op(A & B) private static function and(a:Int32, b:Int32):Int32;
 	@:op(A & B) @:commutative private static function andInt(a:Int32, b:Int):Int32;
 
-#if lua
+	#if lua
 	@:op(A | B) private static function or(a:Int32, b:Int32):Int32
 		return clamp((a:Int) | (b:Int));
 	@:op(A | B) @:commutative private static function orInt(a:Int32, b:Int):Int32
-		return clamp((a:Int) | (b:Int));
-#else
+		return clamp((a:Int) | b);
+	#else
 	@:op(A | B) private static function or(a:Int32, b:Int32):Int32;
 	@:op(A | B) @:commutative private static function orInt(a:Int32, b:Int):Int32;
-#end
+	#end
 
+	#if lua
+	@:op(A ^ B) private static function xor(a:Int32, b:Int32):Int32
+		return clamp((a:Int) ^ (b:Int));
+	@:op(A ^ B) @:commutative private static function xorInt(a:Int32, b:Int):Int32
+		return clamp((a:Int) ^ b);
+	#else
 	@:op(A ^ B) private static function xor(a:Int32, b:Int32):Int32;
 	@:op(A ^ B) @:commutative private static function xorInt(a:Int32, b:Int):Int32;
+	#end
 
 
 	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32;
@@ -175,6 +187,7 @@ abstract Int32(Int) from Int to Int {
 
 	#end
 
+
 	@:to private inline function toFloat():Float
 		return this;
 
@@ -202,7 +215,7 @@ abstract Int32(Int) from Int to Int {
 		#elseif python
 		return python.Syntax.pythonCode("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) - python.Syntax.opPow(2, 31);
 		#elseif lua
-		return (x & 2147483647) - (x & cast 2147483648);
+		return lua.Boot.clamp(x);
 		#else
 		return (x);
 		#end
