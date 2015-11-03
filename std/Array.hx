@@ -224,8 +224,8 @@ extern class Array<T> {
 		Removes the element at position `pos`. The Array is changed in place. 
 
 		If `pos` is positive and within the bounds of the Array the array is modified and its remaining elements are shifted back.
-		If `pos` is negative, the position specied is considered a position relative to the end of the array.
-		if `pos` is positive and not with bounds, nothing occurs and return value is unspecified
+		If `pos` is negative additionnaly the position specified is considered a position relative to the end of the array
+		if `pos` is positive and not within bounds, nothing occurs and return value is unspecified
 	**/
 	function removeAt( pos : Int ) : T;
 	
