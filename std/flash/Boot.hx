@@ -267,16 +267,12 @@ class Boot extends flash.display.MovieClip {
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
 		
-		/*
 		#if !flash19
 		aproto.removeAt = function(idx) {
-			trace("shimmed");
-			__this__.splice(idx, 1);
-			return;
+			return __this__.splice(idx, 1) [0];
 		}
 		aproto.setPropertyIsEnumerable("removeAt", false);
 		#end
-		*/
 		
 		#if (as3 || no_flash_override)
 		aproto.filterHX = function(f) {

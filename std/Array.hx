@@ -223,14 +223,12 @@ extern class Array<T> {
 	/**
 		Removes the element at position `pos`. The Array is changed in place. 
 
-		If `pos` is not within the bounds of the Array, nothing happens.
-		
-		If `pos` is within the bounds of the Array the array is modified and its remaining elements are shifted back.
+		If `pos` is positive and within the bounds of the Array the array is modified and its remaining elements are shifted back.
+		If `pos` is negative, the position specied is considered a position relative to the end of the array.
+		if `pos` is positive and not with bounds, nothing occurs and return value is unspecified
 	**/
 	function removeAt( pos : Int ) : T;
 	
-	function insertAt( pos : Int , elem : T) : Void;
-
 	/**
 		Returns position of the first occurense of `x` in `this` Array, searching front to back.
 
