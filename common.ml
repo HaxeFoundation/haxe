@@ -848,6 +848,8 @@ let flash_version_tag = function
 	| 15.0 -> 26
 	| 16.0 -> 27
 	| 17.0 -> 28
+	| 18.0 -> 29
+	| 19.0 -> 30
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
 let raw_defined ctx v =

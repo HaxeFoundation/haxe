@@ -219,6 +219,17 @@ extern class Array<T> {
 		returns false.
 	**/
 	function remove( x : T ) : Bool;
+	
+	/**
+		Removes the element at position `pos`. The Array is changed in place. 
+
+		If `pos` is not within the bounds of the Array, nothing happens.
+		
+		If `pos` is within the bounds of the Array the array is modified and its remaining elements are shifted back.
+	**/
+	function removeAt( pos : Int ) : T;
+	
+	function insertAt( pos : Int , elem : T) : Void;
 
 	/**
 		Returns position of the first occurense of `x` in `this` Array, searching front to back.
