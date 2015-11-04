@@ -21,7 +21,9 @@
  */
 package haxe.io;
 
+#if !nodejs
 import js.html.compat.Float32Array;
+#end
 
 typedef Float32ArrayData = js.html.Float32Array;
 

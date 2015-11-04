@@ -21,6 +21,7 @@
  */
 package js.html.compat;
 
+#if !nodejs
 @:keep
 class Float64Array {
 
@@ -114,3 +115,4 @@ class Float64Array {
 	}
 
 }
+#end

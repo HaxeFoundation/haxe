@@ -21,6 +21,7 @@
  */
 package js.html.compat;
 
+#if !nodejs
 @:keep
 class ArrayBuffer {
 
@@ -57,3 +58,4 @@ class ArrayBuffer {
 		if( ArrayBuffer.prototype.slice == null ) ArrayBuffer.prototype.slice = sliceImpl; // IE10
 	}
 }
+#end
