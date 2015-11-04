@@ -20,8 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.io;
+
+#if !nodejs
 import js.html.compat.Uint8Array;
 import js.html.compat.DataView;
+#end
 
 @:coreApi
 class Bytes {

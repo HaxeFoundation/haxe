@@ -21,6 +21,7 @@
  */
 package js.html.compat;
 
+#if !nodejs
 @:keep
 class Float32Array {
 
@@ -107,3 +108,4 @@ class Float32Array {
 	}
 
 }
+#end

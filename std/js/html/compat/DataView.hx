@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package js.html.compat;
+
+#if !nodejs
 import haxe.io.Error;
 
 @:ifFeature("haxe.io.Float32Array.*", "haxe.io.Float64Array.*")
@@ -142,3 +144,4 @@ class DataView {
 	}
 
 }
+#end

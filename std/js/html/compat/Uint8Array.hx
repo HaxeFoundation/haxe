@@ -21,6 +21,7 @@
  */
 package js.html.compat;
 
+#if !nodejs
 @:keep
 class Uint8Array {
 
@@ -98,3 +99,4 @@ class Uint8Array {
 	}
 
 }
+#end

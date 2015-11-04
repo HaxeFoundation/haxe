@@ -21,7 +21,9 @@
  */
 package haxe.io;
 
+#if !nodejs
 import js.html.compat.Float64Array;
+#end
 
 typedef Float64ArrayData = js.html.Float64Array;
 
