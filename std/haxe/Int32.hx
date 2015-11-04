@@ -159,9 +159,18 @@ abstract Int32(Int) from Int to Int {
 	#end
 
 
+#if lua
+	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32
+		return clamp((a:Int) >> (b:Int));
+	@:op(A >> B) private static function shrInt(a:Int32, b:Int):Int32
+		return clamp((a:Int) >> b);
+	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32
+		return clamp(a >> (b:Int));
+#else
 	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32;
 	@:op(A >> B) private static function shrInt(a:Int32, b:Int):Int32;
 	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32;
+#end
 
 	@:op(A >>> B) private static function ushr(a:Int32, b:Int32):Int32;
 	@:op(A >>> B) private static function ushrInt(a:Int32, b:Int):Int32;
