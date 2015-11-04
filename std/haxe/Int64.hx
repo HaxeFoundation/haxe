@@ -52,7 +52,11 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		`x` is sign-extended to fill 64 bits.
 	**/
 	@:from public static inline function ofInt( x : Int ) : Int64
+#if lua
+		return make( (x:Int32) >> 31, (x:Int32));
+#else
 		return make( x >> 31, x );
+#end
 
 	/**
 		Returns an Int with the value of the Int64 `x`.
@@ -417,7 +421,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	@:op(A >> B) public static inline function shr( a : Int64, b : Int) : Int64 {
 		b &= 63;
 		return if( b == 0 ) a.copy()
-			else if( b < 32 ) make( a.high >> b, (a.high << (32-b)) | (a.low >>> b) )
+			else if( b < 32 ) make( a.high >> b, (a.high << (32-b)) | (a.low >>> b) );
 			else make( a.high >> 31, a.high >> (b - 32) );
 	}
 
