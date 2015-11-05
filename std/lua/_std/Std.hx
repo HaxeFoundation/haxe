@@ -69,10 +69,10 @@ import lua.Boot;
 			__feature__("lua.Boot.isClass", Date.__name__ = ["Date"]);
 		});
 		__feature__("Int.*",{
-			var Int = __feature__("Type.resolveClass", _hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
+			var Int = __feature__("Type.resolveClass", _hxClasses["Int"] = { __name__ : __lua_table__("Int") }, { __name__ : __lua_table__("Int") });
 		});
 		__feature__("Dynamic.*",{
-			var Dynamic = __feature__("Type.resolveClass", _hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
+			var Dynamic = __feature__("Type.resolveClass", _hxClasses["Dynamic"] = { __name__ : __lua_table__("Dynamic") }, { __name__ : __lua_table__("Dynamic") });
 		});
 		__feature__("Float.*",{
 			var Float = __feature__("Type.resolveClass", _hxClasses["Float"]={}, {});
@@ -83,7 +83,7 @@ import lua.Boot;
 			Bool.__ename__ = ["Bool"];
 		});
 		__feature__("Class.*",{
-			var Class = __feature__("Type.resolveClass", _hxClasses["Class"] = { __name__ : ["Class"] }, { __name__ : ["Class"] });
+			var Class = __feature__("Type.resolveClass", _hxClasses["Class"] = { __name__ : __lua_table__("Class") }, { __name__ : __lua_table__("Class") });
 		});
 		__feature__("Enum.*",{
 			var Enum = {};
