@@ -60,13 +60,13 @@ import lua.Boot;
 	}
 
 	static function __init__() : Void untyped {
-		__feature__("lua.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
-		__feature__("lua.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
+		__feature__("lua.Boot.getClass", String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
+		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__("String"),true));
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
-		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
+		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__("Array"),true));
 		__feature__("Date.*", {
 			__feature__("lua.Boot.getClass", _hxClasses["Date"] = {}, {});
-			__feature__("lua.Boot.isClass", Date.__name__ = ["Date"]);
+			__feature__("lua.Boot.isClass", Date.__name__ = __lua_table__("Date"));
 		});
 		__feature__("Int.*",{
 			var Int = __feature__("Type.resolveClass", _hxClasses["Int"] = { __name__ : __lua_table__("Int") }, { __name__ : __lua_table__("Int") });
@@ -76,11 +76,11 @@ import lua.Boot;
 		});
 		__feature__("Float.*",{
 			var Float = __feature__("Type.resolveClass", _hxClasses["Float"]={}, {});
-			Float.__name__ = ["Float"];
+			Float.__name__ = __lua_table__("Float");
 		});
 		__feature__("Bool.*",{
 			var Bool = __feature__("Type.resolveEnum",_hxClasses["Bool"] = {}, {});
-			Bool.__ename__ = ["Bool"];
+			Bool.__ename__ = __lua_table__("Bool");
 		});
 		__feature__("Class.*",{
 			var Class = __feature__("Type.resolveClass", _hxClasses["Class"] = { __name__ : __lua_table__("Class") }, { __name__ : __lua_table__("Class") });
