@@ -214,9 +214,9 @@ class Boot {
 				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
 				else if (Reflect.hasField(o,"__class__")) printClass(o,s+1);
 				else {
-					cast(o, Table<Dynamic,Dynamic>).pairsFold(function(a,b,c){
+					(o : Table<Dynamic,Dynamic>).pairsFold(function(a,b,c){
 						if (c != "{") c+= ", ";
-						return c + __string_rec(a,s + 1) + ': ' + __string_rec(b, s + 1);
+						return c + __string_rec(a, s + 1) + ': ' + __string_rec(b, s + 1);
 					},"{") + "}";
 				}
 			};
