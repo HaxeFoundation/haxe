@@ -185,7 +185,7 @@ class Boot {
 		return result;
 	}
 
-	@:ifFeature("may_print_enum")
+	@:ifFeature("has_enum")
 	static function __string_rec(o : Dynamic, s = 0) {
 		return switch(untyped __type__(o)){
 			case "nil": "null";
