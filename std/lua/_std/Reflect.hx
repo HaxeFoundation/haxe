@@ -70,11 +70,7 @@ import lua.Boot;
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		if( f1 == f2 )
-			return true;
-		if( !isFunction(f1) || !isFunction(f2) )
-			return false;
-		return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
+		return f1 == f2;
 	}
 
 	public static function isObject( v : Dynamic ) : Bool untyped {
