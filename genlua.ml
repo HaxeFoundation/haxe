@@ -1488,15 +1488,20 @@ let generate_enum ctx e =
 	if has_feature ctx "Type.resolveEnum" then begin
 	    newline ctx;
 	    print ctx "_hxClasses[\"%s\"] = %s" (dot_path e.e_path) p; semicolon ctx; newline ctx;
-	    print ctx "%s = _hxClasses[\"%s\"];" p (dot_path e.e_path);
-	end else begin
-	    print ctx "%s = {" p;
+	end;
+	if has_feature ctx "lua.Boot.isEnum" then begin
+	    newline ctx;
+	    print ctx "_hxClasses[\"%s\"] = {" (dot_path e.e_path);
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
 	    end;
 	    print ctx " __constructs__ = {%s} }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	    ctx.separator <- true;
 	end;
+
+	if has_feature ctx "Type.resolveEnum" || has_feature ctx "lua.Boot.isEnum" then
+	    print ctx "%s = _hxClasses[\"%s\"];" p (dot_path e.e_path);
+
 
 	newline ctx;
 	List.iter (fun n ->
