@@ -90,7 +90,8 @@ class Boot {
 
 		switch( cl ) {
 			case Int:
-				return (untyped __type__(o) == "number" &&  lua.Math.floor(o) == o);
+				// TODO: matching js behavior here, but js behavior clamps.  Is that correct?
+				return (untyped __type__(o) == "number" &&  clamp(o) == o);
 			case Float:
 				return untyped __type__(o) == "number";
 			case Bool:

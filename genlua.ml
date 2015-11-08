@@ -1485,6 +1485,7 @@ let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
 
+	(* TODO: Unify the _hxClasses declaration *)
 	if has_feature ctx "Type.resolveEnum" then begin
 	    newline ctx;
 	    print ctx "_hxClasses[\"%s\"] = %s" (dot_path e.e_path) p; semicolon ctx; newline ctx;
