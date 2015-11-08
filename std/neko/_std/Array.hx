@@ -144,6 +144,23 @@
 		}
 		return false;
 	}
+	
+	public function removeAt(pos : Int) : T {
+		var l = this.length;
+		if ( l == 0) return null;
+		if ( pos < 0) pos += l;
+		if ( pos >= l) return null;
+		
+		var i = pos;
+		var a = this.__a;
+		var o = a[i];
+		neko.NativeArray.blit(a,i,a,i+1,l - i - 1);
+		l -= 1;
+		this.length = l;
+		a[l] = null;
+		
+		return o;
+	}
 
 	public function indexOf(x : T, ?fromIndex:Int) : Int {
 		var len = length;

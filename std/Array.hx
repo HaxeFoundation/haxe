@@ -220,6 +220,7 @@ extern class Array<T> {
 	**/
 	function remove( x : T ) : Bool;
 	
+	#if (js||cpp||neko||(flash&&flash19))
 	/**
 		Removes the element at position `pos`. The Array is changed in place. 
 
@@ -228,6 +229,7 @@ extern class Array<T> {
 		if `pos` is positive and not within bounds, nothing occurs and return value is unspecified
 	**/
 	function removeAt( pos : Int ) : T;
+	#end
 	
 	/**
 		Returns position of the first occurense of `x` in `this` Array, searching front to back.
