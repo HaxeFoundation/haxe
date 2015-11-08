@@ -190,6 +190,7 @@ version.$(MODULE_EXT):
 # Package
 
 package_src:
+	git status
 	mkdir -p $(PACKAGE_OUT_DIR)
 	# use git-archive-all since we have submodules
 	# https://github.com/Kentzo/git-archive-all
