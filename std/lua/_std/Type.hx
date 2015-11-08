@@ -58,8 +58,8 @@ enum ValueType {
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		var a : Array<String> = untyped e.__ename__;
-		return lua.Table.concat(untyped a.__name__,'.');
+		if (untyped e.__ename__ == null) return null;
+		return lua.Table.concat(untyped e.__ename__,'.');
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
@@ -107,8 +107,9 @@ enum ValueType {
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
-		//TODO: do this.
-		return null;
+		var ret = __lua_table__();
+		Lua.setmetatable(ret, untyped {__index : cl.prototype});
+		return ret;
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
