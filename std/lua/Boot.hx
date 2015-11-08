@@ -204,7 +204,6 @@ class Boot {
 			case "table": {
 				var mt : Dynamic = untyped Lua.getmetatable(o);
 			    if (Reflect.hasField(o,"__enum__")) printEnum(o);
-				else if (Lua.next(o) == null) "{}";
 				else if (o.toString != null && !__instanceof(o,Array)) o.toString();
 				else if (__instanceof(o, Array)) {
 					if (s > 5) "[...]"
@@ -214,6 +213,7 @@ class Boot {
 				}
 				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
 				else if (Reflect.hasField(o,"__class__")) printClass(o,s+1);
+				else if (Lua.next(o) == null) "{}";
 				else {
 					(o : Table<Dynamic,Dynamic>).pairsFold(function(a,b,c){
 						if (c != "{") c+= ", ";
