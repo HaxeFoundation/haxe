@@ -46,12 +46,12 @@ import lua.Boot;
 		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = __define_feature__("Reflect.setProperty",value);
 	}
 
-	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
+	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic  {
 		if (args == null || args.length == 0){
 			return func(o);
 		} else {
 			var new_args = [o].concat(args);
-			return func(unpack(new_args,1,lua.TableTools.maxn(untyped new_args)));
+			return func(lua.Table.unpack(new_args,1,lua.Table.maxn(untyped new_args)));
 		}
 	}
 
