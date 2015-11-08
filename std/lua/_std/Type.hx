@@ -59,7 +59,7 @@ enum ValueType {
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
 		var a : Array<String> = untyped e.__ename__;
-		return a.join(".");
+		return lua.Table.concat(untyped a.__name__,'.');
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
