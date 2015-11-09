@@ -100,8 +100,8 @@ class Boot {
 				return untyped __type__(o) == "string";
 			case Array:
 				return untyped __type__(o) == "table"
-					&& o.mt != null
-					&& o.mt__index == untyped Array.prototype;
+					&& lua.Lua.getmetatable(o) != null
+					&& lua.Lua.getmetatable(o).__index == Array.prototype;
 			case Table:
 				return untyped __type__(o) == "table";
 			case Dynamic:
