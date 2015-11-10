@@ -271,6 +271,10 @@ var values = [];
 for (a in arr) values.push(a.id);
 values == [1, 3, 5];
 
+// reduce
+[1,2,3].reduce(function(a:Int, b:Int) return a + b, 1) == 7;
+[1,2,3].reduce(function(a:String, b:Int) return a + b, "0") == "0123";
+
 #if !as3
 // check that map and filter work well on Dynamic as well
 var a : Dynamic = [0,1,2];

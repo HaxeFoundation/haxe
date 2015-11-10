@@ -301,6 +301,7 @@ class Boot {
 			case "length" if (isArray(o)): return ArrayImpl.get_length(o);
 			case "map" if (isArray(o)): return ArrayImpl.map.bind(o);
 			case "filter" if (isArray(o)): return ArrayImpl.filter.bind(o);
+			case "reduce" if (isArray(o)): return ArrayImpl.reduce.bind(o);
 			case "concat" if (isArray(o)): return ArrayImpl.concat.bind(o);
 			case "copy" if (isArray(o)): return function () return ArrayImpl.copy(o);
 			case "iterator" if (isArray(o)): return ArrayImpl.iterator.bind(o);

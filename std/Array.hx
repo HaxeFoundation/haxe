@@ -274,6 +274,20 @@ extern class Array<T> {
 	function map<S>( f : T -> S ) : Array<S>;
 
 	/**
+		Reduce elements of `this` array to a single value by calling function `f`.
+
+		The `f` function receives two arguments:
+		 - the value, returned by the previous call of `f`
+		   or `first` if this is a first call
+		 - current element of `this` array being processed, in order
+
+		If `this` array is empty, `first` is returned.
+
+		If `f` is null, the result is unspecified.
+	**/
+	function reduce<S>( f : S -> T -> S, first : S ) : S;
+
+	/**
 		Returns an Array containing those elements of `this` for which `f`
 		returned true.
 

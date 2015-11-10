@@ -144,6 +144,11 @@ class ArrayImpl {
 		return UBuiltins.list(UBuiltins.filter(f, cast x));
 	}
 
+	@:ifFeature("dynamic_read.reduce", "anon_optional_read.reduce")
+	public static inline function reduce<T,S>(x:Array<T>, f : S -> T -> S, v : S) : S {
+		return python.lib.Functools.reduce(f, x, v);
+	}
+
 	@:ifFeature("dynamic_read.insert", "anon_optional_read.insert")
 	public static inline function insert<T>(a:Array<T>, pos : Int, x : T ) : Void {
 		Syntax.callField(a, "insert", pos, x);

@@ -406,6 +406,12 @@ import cs.NativeArray;
 		return ret;
 	}
 
+	public function reduce<S>( f : S -> T -> S, v : S ) : S {
+		for (elt in this)
+			v = f(v, elt);
+		return v;
+	}
+
 	public function filter( f : T -> Bool ) : Array<T> {
 		var ret = [];
 		for (elt in this)

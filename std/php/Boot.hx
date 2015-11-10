@@ -191,6 +191,10 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 		return new _hx_array(array_map($f, $this->a));
 	}
 
+	function reduce($f, $first) {
+		return array_reduce($this->a, $f, $first);
+	}
+
 	function filter($f) {
 		return new _hx_array(array_values(array_filter($this->a,$f)));
 	}
