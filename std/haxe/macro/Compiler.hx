@@ -26,7 +26,20 @@ import haxe.macro.Expr;
 	All these methods can be called for compiler configuration macros.
 **/
 class Compiler {
-
+	/**
+		A conditional compiler flag can be set command line using
+		`-D key=value`.
+		
+		Returns the value of a compiler flag.
+		
+		If the compiler flag is defined but no value is set, 
+		`Compiler.getDefine` returns `"1"` (e.g. `-D key`).
+		
+		If the compiler flag is not defined, `Compiler.getDefine` returns
+		`null`.
+		
+		@see http://haxe.org/manual/lf-condition-compilation.html
+	**/
 	macro static public function getDefine( key : String ) {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
@@ -40,23 +53,38 @@ class Compiler {
 		untyped load("allow_package", 1)(v.__s);
 	}
 
+	/**
+		Set a conditional compiler flag.
+	**/
 	public static function define( flag : String, ?value : String ) untyped {
 		var v = flag + (value == null ? "" : "=" + value);
 		load("define", 1)(v.__s);
 	}
 
+	/**
+		Removes a (static) field from a given class by name.
+		An error is thrown when className or field is invalid.
+	**/
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match(field) ) throw "Invalid "+field;
 		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,null);
 	}
 
+	/**
+		Set the type of a (static) field at a given class by name.
+		An error is thrown when className or field is invalid.
+	**/
 	public static function setFieldType( className : String, field : String, type : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match((field.charAt(0) == "$") ? field.substr(1) : field) ) throw "Invalid "+field;
 		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,type.__s);
 	}
 
+	/**
+		Add metadata to a (static) field or class by name.
+		An error is thrown when className or field is invalid.
+	**/
 	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( field != null && !ident.match(field) ) throw "Invalid "+field;
@@ -83,14 +111,14 @@ class Compiler {
 	}
 
 	/**
-		Adds a native library depending on the platform (eg : -swf-lib for Flash)
+		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash)
 	**/
 	public static function addNativeLib( name : String ) {
 		untyped load("add_native_lib",1)(name.__s);
 	}
 
 	/**
-		Adds an argument to be passed to the native compiler (eg : -javac-arg for Java)
+		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java)
 	 **/
 	public static function addNativeArg( argument : String )
 	{
