@@ -150,8 +150,8 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		return str;
 	}
 
-	public static inline function fromString( sParam : String ) : Int64 {
-		return Int64Helper.fromString( sParam );
+	public static inline function parseString( sParam : String ) : Int64 {
+		return Int64Helper.parseString( sParam );
 	}
 
 	public static inline function fromFloat( f : Float ) : Int64 {

@@ -452,20 +452,20 @@ class TestInt64 extends Test {
 		}
 	}
 
-	public function testFromString()
+	public function testParseString()
 	{
 		for (v in ["0", "1", "-1", "9223372036854775807", "-9223372036854775807"]) {
-			eq(Std.string(fromString(v)), v);
+			eq(Std.string(parseString(v)), v);
 		}
 
 		// trims the string:
-		eq("-23", Std.string(fromString("  -23 ")));
+		eq("-23", Std.string(parseString("  -23 ")));
 
 
 		// overflow and underflow raise exceptions:
 		try
 		{
-			fromString("9223372036854775808");
+			parseString("9223372036854775808");
 			f(true);
 		}
 		catch (e:Dynamic)
@@ -475,7 +475,7 @@ class TestInt64 extends Test {
 
 		try
 		{
-			fromString("-9223372036854775809");
+			parseString("-9223372036854775809");
 			f(true);
 		}
 		catch (e:Dynamic)
@@ -485,7 +485,7 @@ class TestInt64 extends Test {
 
 		try
 		{
-			fromString("--1");
+			parseString("--1");
 			f(true);
 		}
 		catch (e:Dynamic)
@@ -495,7 +495,7 @@ class TestInt64 extends Test {
 
 		try
 		{
-			fromString("asd1");
+			parseString("asd1");
 			f(true);
 		}
 		catch (e:Dynamic)
@@ -505,7 +505,7 @@ class TestInt64 extends Test {
 
 		try
 		{
-			fromString("1asdf");
+			parseString("1asdf");
 			f(true);
 		}
 		catch (e:Dynamic)

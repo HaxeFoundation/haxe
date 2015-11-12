@@ -95,9 +95,9 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	private inline function toString() : String
 		return '$this';
 
-	public static function fromString( sParam : String ) : Int64 {
+	public static function parseString( sParam : String ) : Int64 {
 		// can this be done?: return new Int64( java.lang.Long.LongClass.parseLong( sParam ) );
-		return Int64Helper.fromString( sParam );
+		return Int64Helper.parseString( sParam );
 	}
 
 	public static function fromFloat( f : Float ) : Int64 {

@@ -27,7 +27,7 @@ import StringTools;
 
 class Int64Helper {
 
-	public static function fromString( sParam : String ) : Int64 {
+	public static function parseString( sParam : String ) : Int64 {
 		var base = Int64.ofInt(10);
 		var current = Int64.ofInt(0);
 		var multiplier = Int64.ofInt(1);
