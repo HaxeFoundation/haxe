@@ -150,6 +150,14 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		return str;
 	}
 
+	public static inline function fromString( sParam : String ) : Int64 {
+		return Int64Helper.fromString( sParam );
+	}
+
+	public static inline function fromFloat( f : Float ) : Int64 {
+		return Int64Helper.fromFloat( f );
+	}
+
 	/**
 		Performs signed integer divison of `dividend` by `divisor`.
 		Returns `{ quotient : Int64, modulus : Int64 }`.
