@@ -205,8 +205,15 @@ let rec wrap_js_exceptions com e =
 		| TThrow eerr when not (is_error eerr.etype) ->
 			let terr = List.find (fun mt -> match mt with TClassDecl {cl_path = ["js";"_Boot"],"HaxeError"} -> true | _ -> false) com.types in
 			let cerr = match terr with TClassDecl c -> c | _ -> assert false in
-			let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
-			{ e with eexpr = TThrow ewrap }
+			(match eerr.etype with
+			| TDynamic _ ->
+				let eterr = Codegen.ExprBuilder.make_static_this cerr e.epos in
+				let ewrap = Codegen.fcall eterr "wrap" [eerr] t_dynamic e.epos in
+				{ e with eexpr = TThrow ewrap }
+			| _ ->
+				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
+				{ e with eexpr = TThrow ewrap }
+			)
 		| _ ->
 			Type.map_expr loop e
 	in

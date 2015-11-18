@@ -31,6 +31,10 @@ private class HaxeError extends js.Error {
 		this.message = String(val);
 		if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
 	}
+
+	public static function wrap(val:Dynamic):Dynamic untyped {
+		return if (__instanceof__(val, js.Error)) val else new HaxeError(val);
+	}
 }
 
 @:dox(hide)
