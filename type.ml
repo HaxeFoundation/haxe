@@ -1880,11 +1880,12 @@ module Abstract = struct
 
 	let rec get_underlying_type a pl =
 		let maybe_recurse t =
-			underlying_type_stack := a :: !underlying_type_stack;
+			underlying_type_stack := (TAbstract(a,pl)) :: !underlying_type_stack;
 			let t = match follow t with
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					if List.mem a !underlying_type_stack then begin
-						let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in
+					if List.exists (fast_eq t) !underlying_type_stack then begin
+						let pctx = print_context() in
+						let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: !underlying_type_stack))) in
 						raise (Error("Abstract chain detected: " ^ s,a.a_pos))
 					end;
 					get_underlying_type a tl
