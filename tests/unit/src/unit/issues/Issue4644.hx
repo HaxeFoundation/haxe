@@ -8,10 +8,15 @@ class Issue4644 extends Test {
             "try {{
                 {0};
             }} catch (e) {{
-                {1} = (e instanceof js__$Boot_HaxeError);
+                {1} = (e instanceof {2});
             }}",
             throw (new js.Error() : Dynamic),
-            isHaxeError
+            isHaxeError,
+            #if js_unflatten
+            __js__("js._Boot.HaxeError")
+            #else
+            __js__("js__$Boot_HaxeError")
+            #end
         );
         f(isHaxeError);
         #end
