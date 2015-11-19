@@ -331,7 +331,7 @@ let check_local_vars_init e =
 		| _ ->
 			Type.iter (loop vars) e
 	in
-	loop (ref PMap.empty) e;
+	loop (ref PMap.empty) (match e.eexpr with TFunction tf -> tf.tf_expr | _ -> e); (* temp fix for #4466 *)
 	e
 
 (* -------------------------------------------------------------------------- *)
