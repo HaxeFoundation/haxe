@@ -2,7 +2,7 @@ package unit.issues;
 import unit.Test;
 
 @:enum abstract WorldRegion(Int) {
-    static public var MiddleCenter = 1;
+    static public inline var MiddleCenter = 1;
 }
 
 class Issue2633 extends Test {

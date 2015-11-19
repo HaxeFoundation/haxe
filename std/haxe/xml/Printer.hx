@@ -104,9 +104,9 @@ class Printer {
 	function hasChildren(value:Xml):Bool {
 		for (child in value) {
 			switch (child.nodeType) {
-				case Xml.Element, Xml.PCData:
+				case Element, PCData:
 					return true;
-				case Xml.CData, Xml.Comment:
+				case CData, Comment:
 					if (StringTools.ltrim(child.nodeValue).length != 0) {
 						return true;
 					}
