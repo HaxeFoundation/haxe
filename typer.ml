@@ -2033,7 +2033,10 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
 			| KAbstract (a,tl) ->
-				loop (Abstract.get_underlying_type a tl)
+				try
+					Codegen.AbstractCast.cast_or_unify_raise ctx tstring e p
+				with Error (Unify _,_) ->
+					loop (Abstract.get_underlying_type a tl)
 		in
 		loop e.etype
 	in
