@@ -1820,7 +1820,7 @@ let is_java_native_function meta = try
 
 let build_module_def ctx mt meta fvars context_init fbuild =
 	let loop (f_build,f_enum) = function
-		| Meta.Build,args,p -> Some (fun () ->
+		| Meta.Build,args,p -> (fun () ->
 				let epath, el = (match args with
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> error "Invalid build parameters" p
@@ -1835,7 +1835,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				(match r with
 				| None -> error "Build failure" p
 				| Some e -> fbuild e)
-			),f_enum
+			) :: f_build,f_enum
 		| Meta.Enum,_,p -> f_build,Some (fun () ->
 				begin match mt with
 					| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
@@ -1850,8 +1850,8 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			f_build,f_enum
 	in
 	(* let errors go through to prevent resume if build fails *)
-	let f_build,f_enum = List.fold_left loop (None,None) meta in
-	(match f_build with None -> () | Some f -> f());
+	let f_build,f_enum = List.fold_left loop ([],None) meta in
+	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
 module ClassInitializer = struct
