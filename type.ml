@@ -1523,7 +1523,12 @@ let rec unify a b =
 				loop cs (List.map (apply_params c.cl_params tl) tls)
 			) c.cl_implements
 			|| (match c.cl_kind with
-			| KTypeParameter pl -> List.exists (fun t -> match follow t with TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls) | _ -> false) pl
+			| KTypeParameter pl -> List.exists (fun t ->
+				match follow t with
+				| TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)
+				| TAbstract(aa,tl) -> List.exists (unify_to aa tl b) aa.a_to
+				| _ -> false
+			) pl
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
