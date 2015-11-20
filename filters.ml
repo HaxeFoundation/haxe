@@ -1067,6 +1067,7 @@ let add_meta_field ctx t = match t with
 		(match Codegen.build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->
+			add_feature ctx.com "has_metadata";
 			let f = mk_field "__meta__" t_dynamic c.cl_pos in
 			f.cf_expr <- Some e;
 			let can_deal_with_interface_metadata () = match ctx.com.platform with

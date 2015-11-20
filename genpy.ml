@@ -2378,8 +2378,8 @@ module Generator = struct
 			Utils.find_type ctx.com path
 		in
 		let need_anon_for_trace = (has_feature ctx "has_anon_trace") && (has_feature ctx "haxe.Log.trace") in
-		if (has_feature ctx "has_anon") || (has_feature ctx "_hx_AnonObject") || need_anon_for_trace then begin
-			let with_body = (has_feature ctx "has_anon") || need_anon_for_trace in
+		if (has_feature ctx "has_anon") || (has_feature ctx "_hx_AnonObject") || (has_feature ctx "has_metadata") || need_anon_for_trace then begin
+			let with_body = (has_feature ctx "has_anon") || (has_feature ctx "has_metadata") || need_anon_for_trace in
 			newline ctx;
 			newline ctx;
 			newline ctx;
