@@ -524,12 +524,27 @@ let captured_vars com e =
 				will not be overwritten in next loop iteration
 			*)
 			if com.config.pf_capture_policy = CPLoopVars then
+				(* We don't want to duplicate any variable declarations, so let's make copies (issue #3902). *)
+				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_name v.v_type) vars in
+				let rec loop e = match e.eexpr with
+					| TLocal v ->
+						begin try
+							let v' = List.assoc v.v_id new_vars in
+							v'.v_capture <- true;
+							{e with eexpr = TLocal v'}
+						with Not_found ->
+							e
+						end
+					| _ ->
+						Type.map_expr loop e
+				in
+				let e = loop e in
 				mk (TCall (
 					Codegen.mk_parent (mk (TFunction {
-						tf_args = List.map (fun v -> v, None) vars;
+						tf_args = List.map (fun (_,v) -> v, None) new_vars;
 						tf_type = e.etype;
 						tf_expr = mk_block (mk (TReturn (Some e)) e.etype e.epos);
-					}) (TFun (List.map (fun v -> v.v_name,false,v.v_type) vars,e.etype)) e.epos),
+					}) (TFun (List.map (fun (_,v) -> v.v_name,false,v.v_type) new_vars,e.etype)) e.epos),
 					List.map (fun v -> mk (TLocal v) v.v_type e.epos) vars)
 				) e.etype e.epos
 			else
