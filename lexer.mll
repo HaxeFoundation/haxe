@@ -255,6 +255,8 @@ and token = parse
 	| "*=" { mk lexbuf (Binop (OpAssignOp OpMult)) }
 	| "/=" { mk lexbuf (Binop (OpAssignOp OpDiv)) }
 	| "<<=" { mk lexbuf (Binop (OpAssignOp OpShl)) }
+	| "||=" { mk lexbuf (Binop (OpAssignOp OpBoolOr)) }
+	| "&&=" { mk lexbuf (Binop (OpAssignOp OpBoolAnd)) }
 (*//| ">>=" { mk lexbuf (Binop (OpAssignOp OpShr)) } *)
 (*//| ">>>=" { mk lexbuf (Binop (OpAssignOp OpUShr)) } *)
 	| "==" { mk lexbuf (Binop OpEq) }

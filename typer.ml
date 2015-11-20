@@ -1899,6 +1899,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			make_call ctx ef [et;e2] ret p
 		| AKInline _ | AKMacro _ ->
 			assert false)
+	| OpAssignOp (OpBoolAnd | OpBoolOr) ->
+		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) MSet with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
