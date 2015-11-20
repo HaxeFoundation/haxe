@@ -237,11 +237,12 @@ let check_local_vars_init e =
 		) !vars declared;
 	in
 	let declared = ref [] in
+	let outside_vars = ref IntMap.empty in
 	let rec loop vars e =
 		match e.eexpr with
 		| TLocal v ->
 			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
-			if not init then begin
+			if not init && not (IntMap.mem v.v_id !outside_vars) then begin
 				if v.v_name = "this" then error "Missing this = value" e.epos
 				else error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos
 			end
@@ -325,13 +326,18 @@ let check_local_vars_init e =
 		| TThrow e | TReturn (Some e) ->
 			loop vars e;
 			vars := PMap.map (fun _ -> true) !vars
-		| TFunction _ ->
-			(* do not recurse into functions, their code is only relevant when executed *)
-			()
+		| TFunction tf ->
+			let old = !outside_vars in
+			(* Mark all known variables as "outside" so we can ignore their initialization state within the function.
+			   We cannot use `vars` directly because we still care about initializations the function might make.
+			*)
+			PMap.iter (fun i _ -> outside_vars := IntMap.add i true !outside_vars) !vars;
+			loop vars tf.tf_expr;
+			outside_vars := old;
 		| _ ->
 			Type.iter (loop vars) e
 	in
-	loop (ref PMap.empty) (match e.eexpr with TFunction tf -> tf.tf_expr | _ -> e); (* temp fix for #4466 *)
+	loop (ref PMap.empty) e;
 	e
 
 (* -------------------------------------------------------------------------- *)
