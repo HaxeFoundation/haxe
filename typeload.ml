@@ -1394,8 +1394,8 @@ let set_heritance ctx c herits p =
 				if c.cl_array_access <> None then error "Duplicate array access" p;
 				c.cl_array_access <- Some t
 			| TInst (intf,params) ->
-				if not (intf.cl_build()) then cancel_build intf;
 				if is_parent c intf then error "Recursive class" p;
+				if not (intf.cl_build()) then cancel_build intf;
 				if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 				if not intf.cl_interface then error "You can only implement an interface" p;
 				process_meta intf;
