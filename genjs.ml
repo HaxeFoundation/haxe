@@ -505,11 +505,11 @@ and gen_expr ctx e =
 			gen_value ctx x;
 			print ctx ",";
 			gen_value ctx x;
-			print ctx "%s)" (field f.cf_name)
+			print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
 		| _ ->
 			print ctx "($_=";
 			gen_value ctx x;
-			print ctx ",$bind($_,$_%s))" (field f.cf_name))
+			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
