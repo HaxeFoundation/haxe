@@ -397,7 +397,9 @@ let to_pattern ctx e t =
 						[]
 				in
 				let el = loop2 0 el tl in
-				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
+				(* We want to change the original monomorphs back to type parameters, but we don't want to do that
+				   if they are bound to other monomorphs (issue #4578). *)
+				List.iter2 (fun m (_,t) -> match m,follow m with TMono m1, TMono m2 when m1 == m2 -> Type.unify m t | _ -> ()) monos ef.ef_params;
 				pctx.pc_is_complex <- true;
 				mk_con_pat (CEnum(en,ef)) el r p
 			| _ -> perror p)
