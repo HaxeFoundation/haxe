@@ -404,6 +404,10 @@ and expr dce e =
 	| TCall ({eexpr = TConst TSuper} as e,el) ->
 		mark_t dce e.epos e.etype;
 		List.iter (expr dce) el;
+	| TUnop((Increment | Decrement),_,({eexpr = TArray _} as e1)) ->
+		check_and_add_feature dce "array_write";
+		check_and_add_feature dce "array_read";
+		expr dce e1;
 	| TBinop(OpAdd,e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
 		check_and_add_feature dce "add_dynamic";
 		expr dce e1;
