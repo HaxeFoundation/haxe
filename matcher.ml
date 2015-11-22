@@ -113,6 +113,7 @@ type type_finiteness =
 	| RunTimeFinite (* type is truly finite (Bool, enums) *)
 
 exception Not_exhaustive of pat * st
+exception Not_exhaustive_default
 exception Unrecognized_pattern of Ast.expr
 
 let arity con = match con.c_def with
@@ -872,6 +873,12 @@ let rec compile mctx stl pmat toplevel =
 	let expr id = get_cache mctx (Expr id) in
 	let bind bl dt = get_cache mctx (Bind(bl,dt)) in
 	let switch st cl = get_cache mctx (Switch(st,cl)) in
+	let compile mctx stl pmat toplevel =
+		try
+			compile mctx stl pmat toplevel
+		with Not_exhaustive_default when stl <> [] ->
+			raise (Not_exhaustive(any,List.hd stl))
+	in
 	get_cache mctx (match pmat with
 	| [] ->
 		(match stl with
@@ -888,7 +895,7 @@ let rec compile mctx stl pmat toplevel =
 		| _ ->
 			(* This can happen in cases a value is required and all default cases are guarded (issue #3150).
 			   Not a particularly elegant solution, may want to revisit this later. *)
-			raise Exit)
+			raise Not_exhaustive_default)
 	| ([|{p_def = PTuple pt}|],out) :: pl ->
 		compile mctx stl ((pt,out) :: pl) toplevel
 	| (pv,out) :: pl ->
@@ -900,9 +907,10 @@ let rec compile mctx stl pmat toplevel =
 				| None ->
 					expr out.o_id
 				| Some _ ->
-					let dt = match pl,mctx.need_val with
-						| [],false ->
-							None
+					let dt = match pl with
+						| [] ->
+							if mctx.need_val then raise Not_exhaustive_default
+							else None
 						| _ ->
 							Some (compile mctx stl pl false)
 					in
@@ -951,11 +959,7 @@ let rec compile mctx stl pmat toplevel =
 				compile mctx st_tail def false
 			| def,_ ->
 				let cdef = mk_con CAny t_dynamic st_head.st_pos in
-				let def = try
-					compile mctx st_tail def false
-				with Exit ->
-					raise (Not_exhaustive(any,st_head))
-				in
+				let def = compile mctx st_tail def false in
 				let cases = cases @ [cdef,def] in
 				switch st_head cases
 			in
@@ -1378,6 +1382,8 @@ let match_expr ctx e cases def with_type p =
 			error "Note: Patterns with extractors may require a default pattern" st.st_pos;
 		end else
 			error msg st.st_pos
+	| Not_exhaustive_default ->
+		error "Unmatched patterns: _" p;
 	in
 	save();
 	(* check for unused patterns *)
