@@ -465,8 +465,8 @@ let is_lower_ident i =
 let pos = snd
 
 let rec is_postfix (e,_) op = match op with
-	| Increment | Decrement -> true
-	| Not | Neg | NegBits -> false
+	| Increment | Decrement | Not -> true
+	| Neg | NegBits -> false
 
 let is_prefix = function
 	| Increment | Decrement -> true
