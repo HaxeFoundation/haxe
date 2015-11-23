@@ -44,6 +44,7 @@ type ctx = {
 	smap : sourcemap;
 	js_modern : bool;
 	js_flatten : bool;
+	store_exception_stack : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -667,7 +668,7 @@ and gen_expr ctx e =
 		let last = ref false in
 		let else_block = ref false in
 
-		if (has_feature ctx "haxe.CallStack.exceptionStack") then begin
+		if ctx.store_exception_stack then begin
 			newline ctx;
 			print ctx "%s.lastException = %s" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["haxe"],"CallStack" })) vname
 		end;
@@ -1228,6 +1229,7 @@ let alloc_ctx com =
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
+		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];
 		current = null_class;
