@@ -171,6 +171,7 @@ module Meta = struct
 		| Unreflective
 		| Unsafe
 		| Usage
+		| UseAstSource
 		| Used
 		| Value
 		| Void

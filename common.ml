@@ -503,6 +503,7 @@ module MetaInfo = struct
 		| Unreflective -> ":unreflective",("",[Platform Cpp])
 		| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
 		| Usage -> ":usage",("?",[])
+		| UseAstSource -> ":useAstSource",("Copies the expression of the annotated field",[UsedOn TExpr])
 		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[Internal])
 		| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
 		| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])

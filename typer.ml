@@ -3642,6 +3642,36 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.NoPrivateAccess,_,_) ->
 				ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 				e()
+			| (Meta.UseAstSource,_,_) ->
+				let e1,core_api,name = match fst e1 with
+					| EField(e1,name) -> e1,false,name
+					| EMeta((Meta.CoreApi,[],_),(EField(e1,name),_)) -> e1,true,name
+					| _ -> error "Field expression expected as argument to @:useAstSource" (pos e1)
+				in
+				let e1 = type_expr ctx e1 NoValue in
+				let cf = match e1.eexpr with
+					| TTypeExpr (TClassDecl c) ->
+						let c = if core_api then Typeload.load_core_class ctx c else c in
+						begin try
+							PMap.find name c.cl_statics
+						with Not_found -> try
+							PMap.find name c.cl_fields
+						with Not_found ->
+							error ((s_type_path c.cl_path) ^ " has no field " ^ name) p;
+						end
+					| _ ->
+						error "Expected path to class" e1.epos
+				in
+				let e = try
+					begin match Meta.get Meta.AstSource cf.cf_meta with
+						| _,[e],_ -> e
+						| _ -> raise Not_found
+					end
+				with Not_found ->
+					display_error ctx ("Field " ^ cf.cf_name ^ " requires @:astSource metadata to be used as source") p;
+					error "Location of field was here" cf.cf_pos;
+				in
+				type_expr ctx e with_type
 			| _ -> e()
 		in
 		ctx.meta <- old;
