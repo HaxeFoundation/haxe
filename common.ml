@@ -368,6 +368,7 @@ module MetaInfo = struct
 		| Annotation -> ":annotation",("Annotation (@interface) definitions on -java-lib imports will be annotated with this metadata. Has no effect on types compiled by Haxe",[Platform Java; UsedOn TClass])
 		| ArrayAccess -> ":arrayAccess",("Allows [] access on an abstract",[UsedOnEither [TAbstract;TAbstractField]])
 		| Ast -> ":ast",("Internally used to pass the AST source into the typed AST",[Internal])
+		| AstSource -> ":astSource",("Filled by the compiler with the parsed expression of the field",[UsedOn TClassField])
 		| AutoBuild -> ":autoBuild",("Extends @:build metadata to all extending and implementing classes",[HasParam "Build macro call";UsedOn TClass])
 		| Bind -> ":bind",("Override Swf class declaration",[Platform Flash;UsedOn TClass])
 		| Bitmap -> ":bitmap",("Embeds given bitmap data into the class (must extend flash.display.BitmapData)",[HasParam "Bitmap file path";UsedOn TClass;Platform Flash])

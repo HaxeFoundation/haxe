@@ -36,6 +36,7 @@ module Meta = struct
 		| Annotation
 		| ArrayAccess
 		| Ast
+		| AstSource
 		| AutoBuild
 		| Bind
 		| Bitmap
