@@ -505,7 +505,7 @@ let collect_toplevel_identifiers ctx =
 				match file with
 					| "." | ".." ->
 						()
-					| _ when Sys.is_directory (dir ^ file) ->
+					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
 						add_package file
 					| _ ->
 						let l = String.length file in
