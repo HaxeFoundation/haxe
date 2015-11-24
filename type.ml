@@ -200,7 +200,7 @@ and tclass = {
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
 	mutable cl_overrides : tclass_field list;
-
+	mutable cl_dependent : (tclass * tparams) list;
 	mutable cl_build : unit -> bool;
 	mutable cl_restore : unit -> unit;
 }
@@ -371,6 +371,7 @@ let mk_class m path pos =
 		cl_constructor = None;
 		cl_init = None;
 		cl_overrides = [];
+		cl_dependent = [];
 		cl_build = (fun() -> true);
 		cl_restore = (fun() -> ());
 	}
@@ -405,6 +406,22 @@ let mk_field name t p = {
 	cf_params = [];
 	cf_overloads = [];
 }
+
+let mk_type_expr_type c =
+	let t_tmp = {
+		t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
+		t_module = c.cl_module;
+		t_doc = None;
+		t_pos = c.cl_pos;
+		t_type = TAnon {
+			a_fields = c.cl_statics;
+			a_status = ref (Statics c);
+		};
+		t_private = true;
+		t_params = [];
+		t_meta = [];
+	} in
+	(TType (t_tmp,[]))
 
 let null_module = {
 		m_id = alloc_mid();

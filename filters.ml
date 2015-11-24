@@ -1099,6 +1099,70 @@ let check_remove_metadata ctx t = match t with
 	| _ ->
 		()
 
+
+let do_the_tivo_thing ctx =
+	let get_substitute_class c = match c.cl_dependent with
+		| [({cl_params = []} as c2),[]] when c.cl_interface && c.cl_params = [] ->
+			c2
+		| _ -> c
+	in
+	let rec substitute_type t = match follow t with
+		| TInst(c,[])->
+			let c2 = get_substitute_class c in
+			if c == c2 then
+				t
+			else if is_null t then
+				ctx.t.tnull (TInst(c2,[]))
+			else
+				TInst(c2,[])
+		| _ ->
+			Type.map substitute_type t
+	in
+	let substitute_expr e =
+		let build_var v =
+			v.v_type <- (substitute_type v.v_type);
+			v
+		in
+		let rec build_expr e = match e.eexpr with
+			| TTypeExpr (TClassDecl c) ->
+				let c2 = get_substitute_class c in
+				if c != c2 then begin
+					{e with eexpr = TTypeExpr (TClassDecl c2); etype = mk_type_expr_type c}
+				end else
+					e
+			| TCast(e1,Some (TClassDecl c)) ->
+				let e1 = build_expr e1 in
+				{e with eexpr = TCast(e1,Some (TClassDecl (get_substitute_class c))); etype = substitute_type e.etype}
+			| _ ->
+				map_expr_type build_expr substitute_type build_var e
+		in
+		build_expr e
+	in
+	let run = substitute_expr in
+	List.iter (fun mt -> match mt with
+		| TClassDecl c ->
+			let rec process_field f =
+				f.cf_type <- substitute_type f.cf_type;
+				begin match f.cf_expr with
+					| Some e ->
+						f.cf_expr <- Some (run e);
+					| _ -> ()
+				end;
+				List.iter process_field f.cf_overloads
+			in
+			List.iter process_field c.cl_ordered_fields;
+			List.iter process_field c.cl_ordered_statics;
+			(match c.cl_constructor with
+			| None -> ()
+			| Some f -> process_field f);
+			(match c.cl_init with
+			| None -> ()
+			| Some e ->
+				c.cl_init <- Some (run e));
+		| _ ->
+			()
+	) ctx.com.types
+
 (* Checks for Void class fields *)
 let check_void_field ctx t = match t with
 	| TClassDecl c ->
@@ -1266,6 +1330,7 @@ let run com tctx main =
 		remove_generic_base tctx t;
 		remove_extern_fields tctx t;
 	) com.types;
+	do_the_tivo_thing tctx;
 	(* update cache dependencies before DCE is run *)
 	Codegen.update_cache_dependencies com;
 	(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)

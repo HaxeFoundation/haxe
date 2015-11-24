@@ -838,20 +838,7 @@ let fast_enum_field e ef p =
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
-		let t_tmp = {
-			t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
-			t_module = c.cl_module;
-			t_doc = None;
-			t_pos = c.cl_pos;
-			t_type = TAnon {
-				a_fields = c.cl_statics;
-				a_status = ref (Statics c);
-			};
-			t_private = true;
-			t_params = [];
-			t_meta = no_meta;
-		} in
-		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+		mk (TTypeExpr (TClassDecl c)) (mk_type_expr_type c) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_params | Some l -> l) in
 		mk (TTypeExpr (TEnumDecl e)) (TType (e.e_type,types)) p

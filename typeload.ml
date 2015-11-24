@@ -1076,6 +1076,7 @@ let check_extends ctx c t p = match follow t with
 	| TInst ({ cl_path = [],"Xml"; cl_extern = basic_extern },_) when not (c.cl_extern && basic_extern) ->
 		error "Cannot extend basic class" p;
 	| TInst (csup,params) ->
+		csup.cl_dependent <- (c,params) :: csup.cl_dependent;
 		if is_parent c csup then error "Recursive class" p;
 		begin match csup.cl_kind with
 			| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
@@ -1395,6 +1396,7 @@ let set_heritance ctx c herits p =
 				c.cl_array_access <- Some t
 			| TInst (intf,params) ->
 				if is_parent c intf then error "Recursive class" p;
+				intf.cl_dependent <- (c,params) :: intf.cl_dependent;
 				if not (intf.cl_build()) then cancel_build intf;
 				if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
 				if not intf.cl_interface then error "You can only implement an interface" p;
