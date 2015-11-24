@@ -4484,7 +4484,7 @@ let create_member_types common_ctx =
    List.iter (fun object_def ->
       (match object_def with
       | TClassDecl class_def ->
-         let class_name = "::" ^ (join_class_path class_def.cl_path "::") in
+         let class_name = "::" ^ (join_class_path_remap class_def.cl_path "::") in
          let rec add_all_fields class_def =
             if class_def.cl_interface then
                List.iter (fun impl -> add_all_fields (fst impl) ) class_def.cl_implements;
