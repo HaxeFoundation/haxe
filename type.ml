@@ -1235,6 +1235,11 @@ let rec link e a b =
 		true
 	end
 
+let link_dynamic a b = match follow a,follow b with
+	| TMono r,TDynamic _ -> r := Some b
+	| TDynamic _,TMono r -> r := Some a
+	| _ -> ()
+
 let rec fast_eq a b =
 	if a == b then
 		true

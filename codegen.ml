@@ -660,7 +660,9 @@ let build_instance ctx mtype p =
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
 				r := (fun() -> t);
-				unify_raise ctx (f()) t p;
+				let tf = (f()) in
+				unify_raise ctx tf t p;
+				link_dynamic t tf;
 				t
 			) s in
 			delay ctx PForce (fun() -> ignore ((!r)()));
