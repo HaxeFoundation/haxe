@@ -3306,6 +3306,18 @@ let parse_module ctx m p =
 	let remap = ref (fst m) in
 	let file,used_class_path = resolve_module_file ctx.com m remap p in
 	let pack, decls = (!parse_hook) ctx.com file p in
+	let rec loop file used_class_path pack decls com =
+		if decls = [] then begin
+			let com = {com with class_path = List.filter (fun s -> s <> used_class_path) com.class_path} in
+			if com.class_path = [] then raise Exit;
+			Hashtbl.remove com.file_lookup_cache (file_path_of_module com m remap (ref false));
+			let file,used_class_path = resolve_module_file com m remap p in
+			let pack, decls = (!parse_hook) com file p in
+			loop file used_class_path pack decls com;
+		end else
+			file,pack,decls
+	in
+	let file,pack,decls = try loop file used_class_path pack decls ctx.com with Exit -> file,pack,decls in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
 		if p == Ast.null_pos then
