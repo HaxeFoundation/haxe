@@ -1102,7 +1102,7 @@ let check_remove_metadata ctx t = match t with
 
 let do_the_tivo_thing ctx =
 	let get_substitute_class c = match c.cl_dependent with
-		| [({cl_params = []} as c2),[]] when c.cl_interface && c.cl_params = [] ->
+		| [({cl_params = []} as c2),[]] when c.cl_interface && c.cl_params = [] && not c.cl_extern ->
 			c2
 		| _ -> c
 	in
