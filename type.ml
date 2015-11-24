@@ -290,6 +290,7 @@ and module_def_extra = {
 	mutable m_macro_calls : string list;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
 	mutable m_features : (string,bool) Hashtbl.t;
+	mutable m_used_class_path : string;
 }
 
 and module_kind =
@@ -390,6 +391,7 @@ let module_extra file sign time kind =
 		m_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
+		m_used_class_path = "";
 	}
 
 

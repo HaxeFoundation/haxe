@@ -1653,7 +1653,7 @@ let load_core_class ctx c =
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
 			if ctx.in_macro then Common.define com2 Define.Macro;
-			com2.class_path <- ctx.com.std_path;
+			com2.class_path <- List.filter (fun s -> s <> c.cl_module.m_extra.m_used_class_path) ctx.com.class_path;
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
@@ -3184,9 +3184,10 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				error "Abstract is missing underlying type declaration" a.a_pos
 		end
 
-let type_module ctx m file ?(is_extern=false) tdecls p =
+let type_module ctx m file used_class_path ?(is_extern=false) tdecls p =
 	let m, decls, tdecls = make_module ctx m file tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern;
+	m.m_extra.m_used_class_path <- used_class_path;
 	add_module ctx m p;
 	(* define the per-module context for the next pass *)
 	let ctx = {
@@ -3253,10 +3254,8 @@ let type_module ctx m file ?(is_extern=false) tdecls p =
 	List.iter (init_module_type ctx context_init do_init) tdecls;
 	m
 
-
-let resolve_module_file com m remap p =
-	let forbid = ref false in
-	let file = (match m with
+let file_path_of_module com m remap forbid =
+	(match m with
 		| [] , name -> name
 		| x :: l , name ->
 			let x = (try
@@ -3267,8 +3266,12 @@ let resolve_module_file com m remap p =
 				with Not_found -> x
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
-	) ^ ".hx" in
-	let file = Common.find_file com file in
+	) ^ ".hx"
+
+let resolve_module_file com m remap p =
+	let forbid = ref false in
+	let file = file_path_of_module com m remap forbid in
+	let file,used_class_path = Common.find_file' com file in
 	let file = (match String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
@@ -3297,11 +3300,11 @@ let resolve_module_file com m remap p =
 			raise (Forbid_package ((x,m,p),[],if Common.defined com Define.Macro then "macro" else platform_name com.platform));
 		end;
 	end;
-	file
+	file,used_class_path
 
 let parse_module ctx m p =
 	let remap = ref (fst m) in
-	let file = resolve_module_file ctx.com m remap p in
+	let file,used_class_path = resolve_module_file ctx.com m remap p in
 	let pack, decls = (!parse_hook) ctx.com file p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
@@ -3310,7 +3313,7 @@ let parse_module ctx m p =
 		else
 			display_error ctx ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
 	end;
-	file, if !remap <> fst m then
+	file, used_class_path, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
 		List.rev (List.fold_left (fun acc (t,p) ->
 			let build f d =
@@ -3351,7 +3354,7 @@ let load_module ctx m p =
 			| Some m -> m
 			| None ->
 			let is_extern = ref false in
-			let file, decls = (try
+			let file, used_class_path, decls = (try
 				parse_module ctx m p
 			with Not_found ->
 				let rec loop = function
@@ -3360,14 +3363,14 @@ let load_module ctx m p =
 					| load :: l ->
 						match load m p with
 						| None -> loop l
-						| Some (file,(_,a)) -> file, a
+						| Some (file,(_,a)) -> "", file, a
 				in
 				is_extern := true;
 				loop ctx.com.load_extern_type
 			) in
 			let is_extern = !is_extern in
 			try
-				type_module ctx m file ~is_extern decls p
+				type_module ctx m file used_class_path ~is_extern decls p
 			with Forbid_package (inf,pl,pf) when p <> Ast.null_pos ->
 				raise (Forbid_package (inf,p::pl,pf))
 	) in

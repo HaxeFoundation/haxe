@@ -130,7 +130,7 @@ type context = {
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
-	file_lookup_cache : (string,string option) Hashtbl.t;
+	file_lookup_cache : (string,(string * string) option) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
@@ -951,7 +951,7 @@ let add_filter ctx f =
 let add_final_filter ctx f =
 	ctx.final_filters <- f :: ctx.final_filters
 
-let find_file ctx f =
+let find_file' ctx f =
 	try
 		(match Hashtbl.find ctx.file_lookup_cache f with
 		| None -> raise Exit
@@ -965,7 +965,7 @@ let find_file ctx f =
 			| p :: l ->
 				let file = p ^ f in
 				if Sys.file_exists file then
-					file
+					file,p
 				else
 					loop (had_empty || p = "") l
 		in
@@ -975,6 +975,8 @@ let find_file ctx f =
 		| None -> raise Not_found
 		| Some f -> f)
 
+let find_file ctx f =
+	fst (find_file' ctx f)
 
 let get_full_path f = try Extc.get_full_path f with _ -> f
 

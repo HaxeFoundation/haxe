@@ -152,7 +152,7 @@ let extend_remoting ctx c t p async prot =
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
 	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
-	let file, decls = (try
+	let _, file, decls = (try
 		Typeload.parse_module ctx path p
 	with
 		| Not_found -> ctx.com.package_rules <- rules; error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
@@ -203,7 +203,7 @@ let extend_remoting ctx c t p async prot =
 			(EClass { c with d_flags = []; d_name = new_name; d_data = fields },p)
 		| _ -> d
 	) decls in
-	let m = Typeload.type_module ctx (t.tpackage,new_name) file decls p in
+	let m = Typeload.type_module ctx (t.tpackage,new_name) file "" decls p in
 	add_dependency ctx.m.curmod m;
 	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types

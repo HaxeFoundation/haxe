@@ -725,7 +725,7 @@ and wait_loop boot_com host port =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
 	in
 	let check_module_path com m p =
-		if m.m_extra.m_file <> Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p) then begin
+		if m.m_extra.m_file <> Common.unique_full_path (fst (Typeload.resolve_module_file com m.m_path (ref[]) p)) then begin
 			if verbose then print_endline ("Module path " ^ s_type_path m.m_path ^ " has been changed");
 			raise Not_found;
 		end

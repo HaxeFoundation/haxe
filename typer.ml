@@ -385,7 +385,7 @@ let eval ctx s =
 		| None -> error "Evaluated string did not define any types" p
 		| Some path -> path
 	in
-	ignore(Typeload.type_module ctx path_module "eval" decls p);
+	ignore(Typeload.type_module ctx path_module "eval" "" decls p);
 	flush_pass ctx PBuildClass "eval"
 
 let parse_expr_string ctx s p inl =
@@ -4631,7 +4631,7 @@ let make_macro_api ctx p =
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			let add ctx =
 				let prev = (try Some (Hashtbl.find ctx.g.modules m) with Not_found -> None) in
-				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file [tdef,pos] pos in
+				let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file "" [tdef,pos] pos in
 				add_dependency mnew ctx.m.curmod;
 				(* if we defined a type in an existing module, let's move the types here *)
 				(match prev with
@@ -4663,7 +4663,7 @@ let make_macro_api ctx p =
 			let types = imports @ usings @ types in
 			let m = Ast.parse_path m in
 			let prev = (try Some (Hashtbl.find ctx.g.modules m) with Not_found -> None) in
-			let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file types pos in
+			let mnew = Typeload.type_module ctx m ctx.m.curmod.m_extra.m_file "" types pos in
 			add_dependency mnew ctx.m.curmod;
 			(* if we defined a type in an existing module, let's move the types here *)
 			(match prev with
