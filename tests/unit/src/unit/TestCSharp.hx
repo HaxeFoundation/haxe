@@ -775,13 +775,13 @@ private class TestMyClass extends haxe.test.MyClass
 private interface IEventIface {
 	@:keep
     @:event private var IfaceEvent1:Action_1<Int>;
-    function add_IfaceEvent1(cb:Action_1<Int>):Void;
-    function remove_IfaceEvent1(cb:Action_1<Int>):Void;
+    @:keep function add_IfaceEvent1(cb:Action_1<Int>):Void;
+    @:keep function remove_IfaceEvent1(cb:Action_1<Int>):Void;
 
     @:keep
     @:event private var IfaceEvent2:Action_1<Int>;
-    function add_IfaceEvent2(cb:Action_1<Int>):Void;
-    function remove_IfaceEvent2(cb:Action_1<Int>):Void;
+    @:keep function add_IfaceEvent2(cb:Action_1<Int>):Void;
+    @:keep function remove_IfaceEvent2(cb:Action_1<Int>):Void;
 }
 
 @:publicFields
