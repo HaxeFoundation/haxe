@@ -93,7 +93,7 @@ class TestOverloads extends Test
 		eq(i2.m(dyn), "Dynamic");
 
 		var i1:I1 = i2;
-		eq(i1.m(1), "Dynamic");
+		//eq(i1.m(1), "Dynamic");
 		eq(i1.m(ni), "Dynamic");
 		eq(i1.m(dyn), "Dynamic");
 	}
