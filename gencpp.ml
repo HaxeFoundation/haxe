@@ -5517,6 +5517,8 @@ let generate_source common_ctx =
 
    List.iter (fun object_def ->
       (match object_def with
+      | TClassDecl class_def when is_abstract_impl class_def ->
+         build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
       | TClassDecl class_def when is_extern_class class_def ->
          build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
          let source = get_meta_string_path class_def.cl_meta Meta.SourceFile in
