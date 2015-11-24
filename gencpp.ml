@@ -2786,10 +2786,10 @@ let gen_member_def ctx class_def is_static is_interface field =
             end
          end else begin
             let return_type = (type_string function_def.tf_type) in
-   
+
             if ( not is_static && not nonVirtual ) then output "virtual ";
             output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
-   
+
             output (" " ^ remap_name ^ "(" );
             output (gen_arg_list function_def.tf_args "" );
             output ");\n";
@@ -2806,7 +2806,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          (* Variable access *)
          gen_type ctx field.cf_type;
          output (" " ^ remap_name ^ ";\n" );
-   
+
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
          | _ when nativeGen  -> ()
@@ -5629,6 +5629,8 @@ let generate_source common_ctx =
             error "In order to compile '@:objc' classes, please define '-D objc'" class_def.cl_pos
          | _ -> ());
       (match object_def with
+      | TClassDecl class_def when is_abstract_impl class_def ->
+         build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
       | TClassDecl class_def when is_extern_class class_def ->
          build_xml := !build_xml ^ (get_class_code class_def Meta.BuildXml);
          let source = get_meta_string_path class_def.cl_meta Meta.SourceFile in
