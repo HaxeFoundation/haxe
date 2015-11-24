@@ -837,6 +837,16 @@ let fast_enum_field e ef p =
 
 let rec type_module_type ctx t tparams p =
 	match t with
+	| TClassDecl {cl_kind = KGenericBuild _} ->
+		let _,_,f = Codegen.build_instance ctx t p in
+		let t = f (match tparams with None -> [] | Some tl -> tl) in
+		let mt = try
+			module_type_of_type t
+		with Exit ->
+			if follow t == t_dynamic then Typeload.load_type_def ctx p { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+			else error "Invalid module type" p
+		in
+		type_module_type ctx mt None p
 	| TClassDecl c ->
 		let t_tmp = {
 			t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;

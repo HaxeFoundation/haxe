@@ -674,6 +674,19 @@ let type_of_module_type = function
 	| TTypeDecl t -> TType (t,List.map snd t.t_params)
 	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
 
+let rec module_type_of_type = function
+	| TInst(c,_) -> TClassDecl c
+	| TEnum(en,_) -> TEnumDecl en
+	| TType(t,_) -> TTypeDecl t
+	| TAbstract(a,_) -> TAbstractDecl a
+	| TLazy f -> module_type_of_type (!f())
+	| TMono r ->
+		(match !r with
+		| Some t -> module_type_of_type t
+		| _ -> raise Exit)
+	| _ ->
+		raise Exit
+
 let tconst_to_const = function
 	| TInt i -> Int (Int32.to_string i)
 	| TFloat s -> Float s
