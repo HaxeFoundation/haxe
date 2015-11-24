@@ -268,6 +268,7 @@ private class Primitives
 #end
 }
 
+@:keep
 private interface I0
 {
 }

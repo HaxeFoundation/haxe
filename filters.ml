@@ -1101,9 +1101,9 @@ let check_remove_metadata ctx t = match t with
 
 
 let do_the_tivo_thing ctx =
-	let get_substitute_class c = match c.cl_dependent with
-		| [({cl_params = []} as c2),[]] when c.cl_interface && c.cl_params = [] && not c.cl_extern ->
-			c2
+	let rec get_substitute_class c = match c.cl_dependent with
+		| [({cl_params = []} as c2),[]] when c.cl_interface && c.cl_params = [] && not c.cl_extern && not (Meta.has Meta.Keep c.cl_meta) ->
+			get_substitute_class c2
 		| _ -> c
 	in
 	let rec substitute_type t = match follow t with
