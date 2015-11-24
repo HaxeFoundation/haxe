@@ -32,16 +32,16 @@ import haxe.Int64;
 	@:readOnly private static var epochTicks:Int64 = new DateTime(1970, 1, 1).Ticks;
 	private var date:DateTime;
 
-	@:overload private function new(native:DateTime)
-	{
-		date = native;
-	}
-
 	@:overload public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void
 	{
 		if (day <= 0) day = 1;
 		if (year <= 0) year = 1;
 		date = new DateTime(year, month + 1, day, hour, min, sec);
+	}
+
+	@:overload private function new(native:DateTime)
+	{
+		date = native;
 	}
 
 	public inline function getTime() : Float
