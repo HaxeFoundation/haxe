@@ -341,11 +341,34 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	*)
 	let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
 	let vthis = alloc_var "_this" ethis.etype in
+	let is_affected_type t = match follow t with
+		| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
+		| _ -> false
+	in
+	let rec might_be_affected e =
+		let rec loop e = match e.eexpr with
+			| TConst _ | TFunction _ | TTypeExpr _ -> ()
+			| TLocal _ | TField _ when is_affected_type e.etype -> raise Exit
+			| _ -> Type.iter loop e
+		in
+		try
+			loop e;
+			false
+		with Exit ->
+			true
+	in
+	let had_side_effect = ref false in
 	let inlined_vars = List.map2 (fun e (v,_) ->
 		let l = local v in
-		if has_side_effect e then l.i_force_temp <- true; (* force tmp var *)
+		if has_side_effect e then begin
+			had_side_effect := true;
+			l.i_force_temp <- true;
+		end;
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
+	if !had_side_effect then List.iter (fun (l,e) ->
+		if might_be_affected e then l.i_force_temp <- true;
+	) inlined_vars;
 	let inlined_vars = List.rev inlined_vars in
 	(*
 		here, we try to eliminate final returns from the expression tree.
@@ -1317,7 +1340,7 @@ let inline_constructors ctx e =
 		| TVar(v,Some e1) ->
 			find_locals e1;
 			let rec loop el_init e1 = match e1.eexpr with
- 				| TBlock el ->
+				| TBlock el ->
 					List.iter find_locals el;
 					begin match List.rev el with
 					| e1 :: el ->

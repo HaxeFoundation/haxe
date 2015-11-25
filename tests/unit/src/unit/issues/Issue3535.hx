@@ -18,8 +18,7 @@ private class IndexedItemIterator<T>
 
 	public inline function next()
 	{
-		++i;
-        return new IndexedItemObject<T>(i - 1, items[i - 1]);
+        return new IndexedItemObject<T>(i, items[i++]);
 	}
 }
 
