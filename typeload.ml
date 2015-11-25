@@ -2441,10 +2441,14 @@ module ClassInitializer = struct
 			cf_params = params;
 			cf_overloads = [];
 		} in
-		cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
-			| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
-			| _ -> m,el,p
-		) cf.cf_meta;
+		let rec loop meta =
+			let ast_source () = (Meta.AstSource,(match fd.f_expr with None -> [] | Some e -> [e]),p) in
+			match meta with
+			| (Meta.AstSource,[],_) :: meta -> (ast_source()) :: meta
+			| m :: meta -> m :: loop meta
+			| [] -> if defined ctx.com Define.CoreApi then [ast_source()] else []
+		in
+		cf.cf_meta <- loop cf.cf_meta;
 		generate_value_meta ctx.com (Some c) cf fd.f_args;
 		check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 		init_meta_overloads ctx (Some c) cf;
