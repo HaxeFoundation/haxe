@@ -1344,7 +1344,7 @@ let inline_constructors ctx e =
 					List.iter find_locals el;
 					begin match List.rev el with
 					| e1 :: el ->
-						loop el e1
+						loop (el @ el_init) e1
 					| [] ->
 						()
 					end
