@@ -9,6 +9,13 @@ private enum Some {
     triad(s1:String, s2:String, s3:String);
 }
 
+class Inl{
+    public var x : Float;
+    public inline function new(f){
+        x=f;
+    }
+}
+
 class TestJs {
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {
@@ -130,5 +137,15 @@ class TestJs {
 		use(object);
 	}
 
+	@:analyzer(no_local_dce)
+	@:js('var v0_x = 0;var v1_x = 1;var vRand_x = Math.random();')
+	static function testInlineFunctionNew() {
+		var v0 = new Inl(0);
+        var v1 = new Inl(1);
+        var vRand = new Inl(Math.random());
+	}
+	
 	static function use<T>(t:T) { }
+	
+	
 }
