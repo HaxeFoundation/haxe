@@ -1141,7 +1141,7 @@ let do_the_tivo_thing ctx =
 	let run = substitute_expr in
 	List.iter (fun mt -> match mt with
 		| TClassDecl c ->
-			if get_substitute_class c != c2 then c.cl_meta <- (Meta.Remove,[],c.cl_pos) :: c.cl_meta;
+			if get_substitute_class c != c then c.cl_meta <- (Meta.Remove,[],c.cl_pos) :: c.cl_meta;
 			let rec process_field f =
 				f.cf_type <- substitute_type f.cf_type;
 				begin match f.cf_expr with
