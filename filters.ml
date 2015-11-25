@@ -1095,6 +1095,7 @@ let add_meta_field ctx t = match t with
 (* Removes interfaces tagged with @:remove metadata *)
 let check_remove_metadata ctx t = match t with
 	| TClassDecl c ->
+		if c.cl_interface && Meta.has Meta.Remove c.cl_meta then c.cl_extern <- true;
 		c.cl_implements <- List.filter (fun (c,_) -> not (Meta.has Meta.Remove c.cl_meta)) c.cl_implements;
 	| _ ->
 		()
@@ -1143,7 +1144,6 @@ let do_the_tivo_thing ctx =
 		| TClassDecl c ->
 			if get_substitute_class c != c && c.cl_implements = [] then begin
 				c.cl_meta <- (Meta.Remove,[],c.cl_pos) :: c.cl_meta;
-				c.cl_extern <- true;
 			end;
 			let rec process_field f =
 				f.cf_type <- substitute_type f.cf_type;
