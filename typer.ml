@@ -87,6 +87,12 @@ let check_assign ctx e =
 	| _ ->
 		error "Invalid assign" e.epos
 
+let extract_ast_source meta =
+	match Meta.get Meta.AstSource meta with
+	| _,[e],_ -> e
+	| _ -> raise Not_found
+
+
 type type_class =
 	| KInt
 	| KFloat
@@ -1854,6 +1860,17 @@ let unify_int ctx e k =
 			ignore(follow cf.cf_type);
 			cf2.cf_expr <- (match cf.cf_expr with
 				| None -> error "Recursive @:generic function" p
+				| Some e when Meta.has Meta.AstSource cf.cf_meta ->
+					let save = save_locals ctx in
+					let args = List.map (fun (n,_,t) -> add_local ctx n t,None) args in
+					let e = type_expr ctx (extract_ast_source cf.cf_meta) NoValue in
+					save();
+					let tf = {
+						tf_args = args;
+						tf_type = ret;
+						tf_expr = e
+					} in
+					Some (mk (TFunction tf) cf.cf_type e.epos)
 				| Some e -> Some (Codegen.generic_substitute_expr gctx e));
 			cf2.cf_kind <- cf.cf_kind;
 			cf2.cf_public <- cf.cf_public;
@@ -3663,10 +3680,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						error "Expected path to class" e1.epos
 				in
 				let e = try
-					begin match Meta.get Meta.AstSource cf.cf_meta with
-						| _,[e],_ -> e
-						| _ -> raise Not_found
-					end
+					extract_ast_source cf.cf_meta;
 				with Not_found ->
 					display_error ctx ("Field " ^ cf.cf_name ^ " requires @:astSource metadata to be used as source") p;
 					error "Location of field was here" cf.cf_pos;
