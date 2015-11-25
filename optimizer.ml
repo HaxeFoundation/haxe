@@ -1369,7 +1369,7 @@ let inline_constructors ctx e =
 					| None ->
 						()
 					end
-				| TObjectDecl fl ->
+				| TObjectDecl fl when fl <> [] ->
 					begin try
 						let ev = mk (TLocal v) v.v_type e.epos in
 						let el = List.fold_left (fun acc (s,e) ->
