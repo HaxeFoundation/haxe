@@ -29,15 +29,15 @@ class Compiler {
 	/**
 		A conditional compiler flag can be set command line using
 		`-D key=value`.
-		
+
 		Returns the value of a compiler flag.
-		
-		If the compiler flag is defined but no value is set, 
+
+		If the compiler flag is defined but no value is set,
 		`Compiler.getDefine` returns `"1"` (e.g. `-D key`).
-		
+
 		If the compiler flag is not defined, `Compiler.getDefine` returns
 		`null`.
-		
+
 		@see http://haxe.org/manual/lf-condition-compilation.html
 	**/
 	macro static public function getDefine( key : String ) {
@@ -361,7 +361,7 @@ class Compiler {
 	/**
 		Embed a JavaScript file at compile time (can be called by `--macro` or within an `__init__` method).
 	**/
-	public static macro function includeFile( file : String, position:IncludePosition = Top ) {
+	public static #if !macro macro #end function includeFile( file : String, position:IncludePosition = Top ) {
 		return switch ((position:String).toLowerCase()) {
 			case Inline:
 				if (Context.getLocalModule() == "")
@@ -382,11 +382,11 @@ class Compiler {
 }
 
 @:enum abstract IncludePosition(String) from String to String {
-	/** 
+	/**
 		Prepend the file content to the output file.
 	*/
 	var Top = "top";
-	/** 
+	/**
 		Prepend the file content to the body of the top-level closure.
 
 		Since the closure is in strict-mode, there may be run-time error if the input is not strict-mode-compatible.
