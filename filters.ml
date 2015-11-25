@@ -1140,12 +1140,18 @@ let do_the_tivo_thing ctx =
 		build_expr e
 	in
 	let run = substitute_expr in
+	let process_type_parameter (_,t) = match follow t with
+		| TInst({cl_kind = KTypeParameter tl} as c,_) -> c.cl_kind <- KTypeParameter (List.map substitute_type tl)
+		| _ -> ()
+	in
 	List.iter (fun mt -> match mt with
 		| TClassDecl c ->
+			List.iter process_type_parameter c.cl_params;
 			if get_substitute_class c != c && c.cl_implements = [] then begin
 				c.cl_meta <- (Meta.Remove,[],c.cl_pos) :: c.cl_meta;
 			end;
 			let rec process_field f =
+				List.iter process_type_parameter f.cf_params;
 				f.cf_type <- substitute_type f.cf_type;
 				begin match f.cf_expr with
 					| Some e ->
@@ -1163,6 +1169,10 @@ let do_the_tivo_thing ctx =
 			| None -> ()
 			| Some e ->
 				c.cl_init <- Some (run e));
+		| TEnumDecl en ->
+			List.iter process_type_parameter en.e_params;
+		| TAbstractDecl a ->
+			List.iter process_type_parameter a.a_params;
 		| _ ->
 			()
 	) ctx.com.types
