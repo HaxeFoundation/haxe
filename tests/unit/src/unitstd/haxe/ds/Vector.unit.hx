@@ -102,7 +102,6 @@ eq(3, res);
 
 // copy
 
-#if (!python && !cs)
 var i0 = new IntWrap(1);
 var i1 = new IntWrap(1);
 var i2 = new IntWrap(5);
@@ -159,6 +158,4 @@ vec[0] == -12;
 vec[1] == 0;
 vec[2] == 99;
 vec[3] == 101;
-#end
-
 #end
