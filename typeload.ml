@@ -2639,7 +2639,7 @@ module ClassInitializer = struct
 		let ctx,cctx = create_class_context ctx c context_init p in
 		let fields = patch_class ctx c fields in
 		let fields = build_fields (ctx,cctx) c fields in
-		if cctx.is_core_api && ctx.com.display = DMNone then delay ctx PForce (fun() -> init_core_api ctx c);
+		if cctx.is_core_api && not ctx.in_macro && ctx.com.display = DMNone then delay ctx PForce (fun() -> init_core_api ctx c);
 		if not cctx.is_lib then begin
 			(match c.cl_super with None -> () | Some _ -> delay ctx PForce (fun() -> check_overriding ctx c));
 			if ctx.com.config.pf_overload then delay ctx PForce (fun() -> check_overloads ctx c)
