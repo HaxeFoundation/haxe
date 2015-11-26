@@ -835,11 +835,11 @@ and parse_complex_type_inner = parser
 	| [< '(POpen,_); t = parse_complex_type; '(PClose,_) >] -> CTParent t
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< l = parse_type_anonymous >] -> CTAnonymous l
+		| [< l = parse_type_anonymous false >] -> CTAnonymous l
 		| [< t = parse_structural_extension; s>] ->
 			let tl = t :: plist parse_structural_extension s in
 			(match s with parser
-			| [< l = parse_type_anonymous >] -> CTExtend (tl,l)
+			| [< l = parse_type_anonymous false >] -> CTExtend (tl,l)
 			| [< l, _ = parse_class_fields true p1 >] -> CTExtend (tl,l))
 		| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
 		| [< >] -> serror())
@@ -913,21 +913,15 @@ and parse_complex_type_next t = parser
 			CTFunction ([t] , t2))
 	| [< >] -> t
 
-and parse_type_anonymous s =
-	let doc = get_doc s in
-	let meta = parse_meta s in
-	let opt = match s with parser
-		| [< '(Question,_) >] -> true
-		| [< >] -> false
-	in
-	match s with parser
+and parse_type_anonymous opt = parser
+	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
 	| [< name, p1 = ident; t = parse_type_hint; s >] ->
 		let next p2 acc =
 			{
 				cff_name = name;
-				cff_meta = if opt then (Meta.Optional,[],p1) :: meta else meta;
+				cff_meta = if opt then [Meta.Optional,[],p1] else [];
 				cff_access = [];
-				cff_doc = doc;
+				cff_doc = None;
 				cff_kind = FVar (Some t,None);
 				cff_pos = punion p1 p2;
 			} :: acc
@@ -937,7 +931,7 @@ and parse_type_anonymous s =
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,_) >] -> next p2 []
-			| [< l = parse_type_anonymous >] -> next p2 l
+			| [< l = parse_type_anonymous false >] -> next p2 l
 			| [< >] -> serror());
 		| [< >] -> serror()
 
