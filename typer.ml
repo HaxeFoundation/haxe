@@ -3587,11 +3587,14 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
 		let t = Typeload.load_complex_type ctx (pos e) t in
+		let check_param pt = match follow pt with
+			| TMono _ -> () (* This probably means that Dynamic wasn't bound (issue #4675). *)
+			| t when t == t_dynamic -> ()
+			| _ ->error "Cast type parameters must be Dynamic" p
+		in
 		let rec loop t = match follow t with
 			| TInst (_,params) | TEnum (_,params) ->
-				List.iter (fun pt ->
-					if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
-				) params;
+				List.iter check_param params;
 				(match follow t with
 				| TInst (c,_) ->
 					(match c.cl_kind with KTypeParameter _ -> error "Can't cast to a type parameter" p | _ -> ());
@@ -3599,9 +3602,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				| TEnum (e,_) -> TEnumDecl e
 				| _ -> assert false);
 			| TAbstract (a,params) when Meta.has Meta.RuntimeValue a.a_meta ->
-				List.iter (fun pt ->
-					if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
-				) params;
+				List.iter check_param params;
 				TAbstractDecl a
 			| TAbstract (a,params) ->
 				loop (Abstract.get_underlying_type a params)
