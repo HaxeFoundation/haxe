@@ -27,6 +27,7 @@ import haxe.io.BytesData;
 import python.Exceptions;
 import python.Tuple;
 import python.lib.net.Socket in PSocket;
+import python.lib.net.Socket.SocketModule in PSocketModule;
 import python.lib.net.Address in PAddress;
 import python.lib.Select;
 
@@ -182,7 +183,7 @@ private class SocketOutput extends haxe.io.Output {
         Shutdown the socket, either for reading or writing.
     **/
     public function shutdown( read : Bool, write : Bool ) : Void
-        __s.shutdown( (read && write) ? PSocket.SHUT_RDWR : read ?  PSocket.SHUT_RD : PSocket.SHUT_WR  );
+        __s.shutdown( (read && write) ? PSocketModule.SHUT_RDWR : read ?  PSocketModule.SHUT_RD : PSocketModule.SHUT_WR  );
 
     /**
         Bind the socket to the given host/port so it can afterwards listen for connections there.
