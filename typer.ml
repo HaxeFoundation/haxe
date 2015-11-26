@@ -1852,9 +1852,21 @@ let unify_int ctx e k =
 				c.cl_ordered_fields <- cf2 :: c.cl_ordered_fields
 			end;
 			ignore(follow cf.cf_type);
+			let rec check e = match e.eexpr with
+				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (Typeload.is_generic_parameter ctx c) ->
+					display_error ctx "Only generic type parameters can be constructed" e.epos;
+					display_error ctx "While specializing this call" p;
+				| _ ->
+					Type.iter check e
+			in
 			cf2.cf_expr <- (match cf.cf_expr with
-				| None -> error "Recursive @:generic function" p
-				| Some e -> Some (Codegen.generic_substitute_expr gctx e));
+				| None ->
+					display_error ctx "Recursive @:generic function" p; None;
+				| Some e ->
+					let e = Codegen.generic_substitute_expr gctx e in
+					check e;
+					Some e
+			);
 			cf2.cf_kind <- cf.cf_kind;
 			cf2.cf_public <- cf.cf_public;
 			let metadata = List.filter (fun (m,_,_) -> match m with
