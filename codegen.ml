@@ -400,7 +400,24 @@ let rec build_generic ctx c p tl =
 		in
 		List.iter loop tl;
 		let build_field cf_old =
+			(* We have to clone the type parameters (issue #4672). We cannot substitute the constraints immediately because
+		       we need the full substitution list first. *)
+			let param_subst,params = List.fold_left (fun (subst,params) (s,t) -> match follow t with
+				| TInst(c,tl) as t ->
+					let t2 = TInst({c with cl_pos = c.cl_pos;},tl) in
+					(t,t2) :: subst,(s,t2) :: params
+				| _ -> assert false
+			) ([],[]) cf_old.cf_params in
+			let gctx = {gctx with subst = param_subst @ gctx.subst} in
 			let cf_new = {cf_old with cf_pos = cf_old.cf_pos} in (* copy *)
+			(* Type parameter constraints are substituted here. *)
+			cf_new.cf_params <- List.rev_map (fun (s,t) -> match follow t with
+				| TInst({cl_kind = KTypeParameter tl1} as c,_) ->
+					let tl1 = List.map (generic_substitute_type gctx) tl1 in
+					c.cl_kind <- KTypeParameter tl1;
+					s,t
+				| _ -> assert false
+			) params;
 			let f () =
 				let t = generic_substitute_type gctx cf_old.cf_type in
 				ignore (follow t);
