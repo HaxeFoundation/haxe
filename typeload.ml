@@ -713,7 +713,7 @@ let load_type_opt ?(opt=false) ctx p t =
 let valid_redefinition ctx f1 t1 f2 t2 =
 	let valid t1 t2 =
 		Type.unify t1 t2;
-		if is_null t1 <> is_null t2 then raise (Unify_error [Cannot_unify (t1,t2)]);
+		if is_null t1 <> is_null t2 || ((follow t1) == t_dynamic && (follow t2) != t_dynamic) then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
 	let t1, t2 = (match f1.cf_params, f2.cf_params with
 		| [], [] -> t1, t2
