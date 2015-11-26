@@ -1212,6 +1212,43 @@ let s_class_kind = function
 	| KAbstractImpl a ->
 		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
 
+module Printer = struct
+	let s_record_field name value =
+		Printf.sprintf "%s = %s;" name value
+
+	let s_record_fields fields =
+		let sl = List.map (fun (name,value) -> s_record_field name value) fields in
+		Printf.sprintf "{\n\t%s\n}" (String.concat "\n\t" sl)
+
+	let s_list sep f l =
+		"[" ^ (String.concat sep (List.map f l)) ^ "]"
+
+	let s_tclass_field cf =
+		let s_type = s_type (print_context()) in
+		let s_meta_entry (s,el,_) =
+			Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> String.concat ", " (List.map Ast.s_expr el));
+		in
+		let s_metadata metadata = s_list " " s_meta_entry metadata in
+		let s_type_param (s,t) = match follow t with
+			| TInst({cl_kind = KTypeParameter tl1},tl2) ->
+				begin match tl1 with
+				| [] -> s
+				| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
+				end
+			| _ -> assert false
+		in
+		let s_type_params tl = s_list ", " s_type_param tl in
+		s_record_fields [
+			"cf_name",cf.cf_name;
+			"cf_type",s_type_kind (follow cf.cf_type);
+			"cf_public",string_of_bool cf.cf_public;
+			"cf_meta",s_metadata cf.cf_meta;
+			"cf_kind",s_kind cf.cf_kind;
+			"cf_params",s_type_params cf.cf_params;
+			"cf_expr",(match cf.cf_expr with None -> "None" | Some e-> s_expr_ast true "" s_type e);
+		]
+end
+
 (* ======= Unification ======= *)
 
 let rec link e a b =
