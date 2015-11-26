@@ -1270,11 +1270,11 @@ let check_strict_meta ctx metas =
 
 let rec add_constructor ctx c force_constructor p =
 	match c.cl_constructor, c.cl_super with
-	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern && not (Meta.has Meta.CompilerGenerated cfsup.cf_meta) ->
+	| None, Some ({ cl_constructor = Some cfsup } as csup,cparams) when not c.cl_extern ->
 		let cf = {
 			cfsup with
 			cf_pos = p;
-			cf_meta = [];
+			cf_meta = List.filter (fun (m,_,_) -> m = Meta.CompilerGenerated) cfsup.cf_meta;
 			cf_doc = None;
 			cf_expr = None;
 		} in
