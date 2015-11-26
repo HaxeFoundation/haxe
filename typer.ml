@@ -3442,15 +3442,17 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			if not (Typeload.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 			let el = List.map (fun e -> type_expr ctx e Value) el in
 			let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
-			if not (List.exists (fun t -> match follow t with
+			let rec loop t = match follow t with
 				| TAnon a ->
 					(try
 						unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
 						true
 					with Not_found ->
 						 false)
+				| TInst({cl_kind = KTypeParameter tl},_) -> List.exists loop tl
 				| _ -> false
-			) tl) then error (s_type_path c.cl_path ^ " does not have a constructor") p;
+			in
+			if not (List.exists loop tl) then error (s_type_path c.cl_path ^ " does not have a constructor") p;
 			mk (TNew (c,params,el)) t p
 		| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 			let el,cf,ct = build_constructor_call c tl in
