@@ -766,10 +766,10 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 		end
 	| _,(Var { v_write = AccNo | AccNever }) ->
 		(* write variance *)
-		valid t2 t1
+		valid t1 t2
 	| _,(Var { v_read = AccNo | AccNever }) ->
 		(* read variance *)
-		valid t1 t2
+		valid t2 t1
 	| _ , _ ->
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
