@@ -1213,6 +1213,10 @@ let s_class_kind = function
 		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
 
 module Printer = struct
+
+	let s_type =
+		s_type (print_context())
+
 	let s_record_field name value =
 		Printf.sprintf "%s = %s;" name value
 
@@ -1223,21 +1227,24 @@ module Printer = struct
 	let s_list sep f l =
 		"[" ^ (String.concat sep (List.map f l)) ^ "]"
 
+	let s_metadata_entry (s,el,_) =
+		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> String.concat ", " (List.map Ast.s_expr el))
+
+	let s_metadata metadata =
+		s_list " " s_metadata_entry metadata
+
+	let s_type_param (s,t) = match follow t with
+		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
+			begin match tl1 with
+			| [] -> s
+			| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
+			end
+		| _ -> assert false
+
+	let s_type_params tl =
+		s_list ", " s_type_param tl
+
 	let s_tclass_field cf =
-		let s_type = s_type (print_context()) in
-		let s_meta_entry (s,el,_) =
-			Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> String.concat ", " (List.map Ast.s_expr el));
-		in
-		let s_metadata metadata = s_list " " s_meta_entry metadata in
-		let s_type_param (s,t) = match follow t with
-			| TInst({cl_kind = KTypeParameter tl1},tl2) ->
-				begin match tl1 with
-				| [] -> s
-				| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
-				end
-			| _ -> assert false
-		in
-		let s_type_params tl = s_list ", " s_type_param tl in
 		s_record_fields [
 			"cf_name",cf.cf_name;
 			"cf_type",s_type_kind (follow cf.cf_type);
@@ -1246,6 +1253,27 @@ module Printer = struct
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
 			"cf_expr",(match cf.cf_expr with None -> "None" | Some e-> s_expr_ast true "" s_type e);
+		]
+
+	let s_tclass c =
+		s_record_fields [
+			"cl_path",s_type_path c.cl_path;
+			"cl_module",s_type_path c.cl_module.m_path;
+			"cl_private",string_of_bool c.cl_private;
+			"cl_meta",s_metadata c.cl_meta;
+			"cl_params",s_type_params c.cl_params;
+			"cl_kind",s_class_kind c.cl_kind;
+			"cl_extern",string_of_bool c.cl_extern;
+			"cl_interface",string_of_bool c.cl_interface;
+			"cl_super",(match c.cl_super with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl)));
+			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
+			"cl_dynamic",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
+			"cl_array_access",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
+			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
+			"cl_init",(match c.cl_init with None -> "None" | Some e -> s_expr_ast true "" s_type e);
+			"cl_constructor",(match c.cl_constructor with None -> "None" | Some cf -> s_tclass_field cf);
+			"cl_ordered_fields",s_list "\n" s_tclass_field c.cl_ordered_fields;
+			"cl_ordered_statics",s_list "\n" s_tclass_field c.cl_ordered_statics;
 		]
 end
 
