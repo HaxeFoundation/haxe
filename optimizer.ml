@@ -1341,7 +1341,6 @@ let inline_constructors ctx e =
 			find_locals e1;
 			let rec loop el_init e1 = match e1.eexpr with
 				| TBlock el ->
-					List.iter find_locals el;
 					begin match List.rev el with
 					| e1 :: el ->
 						loop (el @ el_init) e1
@@ -1365,7 +1364,6 @@ let inline_constructors ctx e =
 							| _ -> mk (TBlock (List.rev (e :: el_init))) e.etype e.epos
 						in
 						add v e (IKCtor(cf,c.cl_extern || Meta.has Meta.Extern cf.cf_meta));
-						find_locals e
 					| None ->
 						()
 					end
