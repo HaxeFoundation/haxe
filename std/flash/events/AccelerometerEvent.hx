@@ -6,5 +6,5 @@ package flash.events;
 	var accelerationZ : Float;
 	var timestamp : Float;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, timestamp : Float = 0, accelerationX : Float = 0, accelerationY : Float = 0, accelerationZ : Float = 0) : Void;
-	static var UPDATE : String;
+	static var UPDATE(default,never) : String;
 }

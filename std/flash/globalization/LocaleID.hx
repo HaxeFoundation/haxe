@@ -10,6 +10,6 @@ package flash.globalization;
 	function getScript() : String;
 	function getVariant() : String;
 	function isRightToLeft() : Bool;
-	static var DEFAULT : String;
+	static var DEFAULT(default,never) : String;
 	static function determinePreferredLocales(want : flash.Vector<String>, have : flash.Vector<String>, ?keyword : String) : flash.Vector<String>;
 }

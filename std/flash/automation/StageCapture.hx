@@ -8,10 +8,10 @@ package flash.automation;
 	function cancel() : Void;
 	function capture(type : String) : Void;
 	function captureBitmapData() : flash.display.BitmapData;
-	static var CURRENT : String;
-	static var MULTIPLE : String;
-	static var NEXT : String;
-	static var RASTER : String;
-	static var SCREEN : String;
-	static var STAGE : String;
+	static var CURRENT(default,never) : String;
+	static var MULTIPLE(default,never) : String;
+	static var NEXT(default,never) : String;
+	static var RASTER(default,never) : String;
+	static var SCREEN(default,never) : String;
+	static var STAGE(default,never) : String;
 }

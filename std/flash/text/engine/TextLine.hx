@@ -36,5 +36,5 @@ package flash.text.engine;
 	function getAtomWordBoundaryOnLeft(atomIndex : Int) : Bool;
 	function getBaselinePosition(baseline : String) : Float;
 	function getMirrorRegion(mirror : flash.events.EventDispatcher) : TextLineMirrorRegion;
-	static var MAX_LINE_WIDTH : Int;
+	static var MAX_LINE_WIDTH(default,never) : Int;
 }
