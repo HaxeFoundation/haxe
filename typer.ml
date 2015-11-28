@@ -1927,7 +1927,12 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		(match type_access ctx (fst e1) (snd e1) MSet with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e ->
+			let save = save_locals ctx in
+			let v = gen_local ctx e.etype in
+			let has_side_effect = Optimizer.has_side_effect e in
+			let e1 = if has_side_effect then (EConst(Ident v.v_name),e.epos) else e1 in
 			let eop = type_binop ctx op e1 e2 true with_type p in
+			save();
 			(match eop.eexpr with
 			| TBinop (_,_,e2) ->
 				unify ctx eop.etype e.etype p;
@@ -1936,7 +1941,31 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| TMeta((Meta.RequiresAssign,_,_),e2) ->
 				unify ctx e2.etype e.etype p;
 				check_assign ctx e;
-				mk (TBinop (OpAssign,e,e2)) e.etype p;
+				begin match e.eexpr with
+					| TArray(ea1,ea2) when has_side_effect ->
+						let v1 = gen_local ctx ea1.etype in
+						let ev1 = mk (TLocal v1) v1.v_type p in
+						let v2 = gen_local ctx ea2.etype in
+						let ev2 = mk (TLocal v2) v2.v_type p in
+						let e = {e with eexpr = TArray(ev1,ev2)} in
+						mk (TBlock [
+							mk (TVar(v1,Some ea1)) ctx.t.tvoid p;
+							mk (TVar(v2,Some ea2)) ctx.t.tvoid p;
+							mk (TVar(v,Some e)) ctx.t.tvoid p;
+							mk (TBinop (OpAssign,e,e2)) e.etype p;
+						]) e.etype p
+					| TField(ea1,fa) when has_side_effect ->
+						let v1 = gen_local ctx ea1.etype in
+						let ev1 = mk (TLocal v1) v1.v_type p in
+						let e = {e with eexpr = TField(ev1,fa)} in
+						mk (TBlock [
+							mk (TVar(v1,Some ea1)) ctx.t.tvoid p;
+							mk (TVar(v,Some e)) ctx.t.tvoid p;
+							mk (TBinop (OpAssign,e,e2)) e.etype p;
+						]) e.etype p
+					| _ ->
+              			mk (TBinop (OpAssign,e,e2)) e.etype p;
+				end
 			| _ ->
 				(* this must be an abstract cast *)
 				check_assign ctx e;
@@ -2265,14 +2294,14 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		in
 		(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		   it with the first type to preserve comparison semantics. *)
-		let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
+	let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
 		if is_eq_op then begin match follow e1.etype,follow e2.etype with
 			| TMono _,_ | _,TMono _ ->
 				Type.unify e1.etype e2.etype
 			| _ ->
 				()
 		end;
- 		let rec loop ol = match ol with
+		let rec loop ol = match ol with
 			| (op_cf,cf) :: ol when op_cf <> op && (not is_assign_op || op_cf <> OpAssignOp(op)) ->
 				loop ol
 			| (op_cf,cf) :: ol ->
@@ -2352,9 +2381,9 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	with Not_found -> try
 		begin match follow e2.etype with
 			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl false
-			| _ -> raise Not_found
-		end
-	with Not_found ->
+								| _ -> raise Not_found
+							end
+						with Not_found ->
 		make e1 e2
 
 and type_unop ctx op flag e p =
