@@ -2586,7 +2586,7 @@ and handle_efield ctx e p mode =
 				| [] -> assert false
 				| (name,flag,p) :: path ->
 					try
-						fields path (type_access ctx (EConst (Ident name)) p)
+						fields path (type_ident ctx name p)
 					with
 						Error (Unknown_ident _,p2) as e when p = p2 ->
 							try
