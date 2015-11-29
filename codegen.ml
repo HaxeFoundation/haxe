@@ -918,10 +918,18 @@ module AbstractCast = struct
 	let handle_abstract_casts ctx e =
 		let rec loop ctx e = match e.eexpr with
 			| TNew({cl_kind = KAbstractImpl a} as c,pl,el) ->
-				(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
-				let cf,m = find_multitype_specialization ctx.com a pl e.epos in
-				let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
-				{e with etype = m}
+				if not (Meta.has Meta.MultiType a.a_meta) then begin
+					(* This must have been a @:generic expansion with a { new } constraint (issue #4364). In this case
+					   let's construct the underlying type. *)
+					match Abstract.get_underlying_type a pl with
+					| TInst(c,tl) as t -> {e with eexpr = TNew(c,tl,el); etype = t}
+					| _ -> assert false
+				end else begin
+					(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
+					let cf,m = find_multitype_specialization ctx.com a pl e.epos in
+					let e = make_static_call ctx c cf a pl ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
+					{e with etype = m}
+				end
 			| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 				begin match follow e1.etype with
 					| TAbstract({a_impl = Some c} as a,tl) ->
