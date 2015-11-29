@@ -2557,8 +2557,7 @@ and type_ident ctx i p mode =
 						AKExpr (mk (TConst TNull) t_dynamic p)
 					end
 				with Not_found ->
-					display_error ctx (error_msg err) p;
-					AKExpr (mk (TConst TNull) t_dynamic p)
+					raise (Error(err,p))
 				in
 				e
 			end
@@ -2566,120 +2565,120 @@ and type_ident ctx i p mode =
 
 (* MORDOR *)
 and handle_efield ctx e p mode =
-		let fields ?(resume=false) path e =
-			let resume = ref resume in
-			let force = ref false in
-			let e = List.fold_left (fun e (f,_,p) ->
-				let e = acc_get ctx (e MGet) p in
-				let f = type_field ~resume:(!resume) ctx e f p in
-				force := !resume;
-				resume := false;
-				f
-			) e path in
-			if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
-			e
-		in
-		let type_path path =
-			let rec loop acc path =
-				match path with
-				| [] ->
-					(match List.rev acc with
-					| [] -> assert false
-					| (name,flag,p) :: path ->
-						try
-							fields path (type_access ctx (EConst (Ident name)) p)
-						with
-							Error (Unknown_ident _,p2) as e when p = p2 ->
-								try
-									let path = ref [] in
-									let name , _ , _ = List.find (fun (name,flag,p) ->
-										if flag then
-											true
-										else begin
-											path := name :: !path;
-											false
-										end
-									) (List.rev acc) in
-									raise (Error (Module_not_found (List.rev !path,name),p))
-								with
-									Not_found ->
-										if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
-										raise e)
-				| (_,false,_) as x :: path ->
-					loop (x :: acc) path
-				| (name,true,p) as x :: path ->
-					let pack = List.rev_map (fun (x,_,_) -> x) acc in
-					let def() =
-						try
-							let e = type_type ctx (pack,name) p in
-							fields path (fun _ -> AKExpr e)
-						with
-							Error (Module_not_found m,_) when m = (pack,name) ->
-								loop ((List.rev path) @ x :: acc) []
-					in
-					match path with
-					| (sname,true,p) :: path ->
-						let get_static resume t =
-							fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
-						in
-						let check_module m v =
-							try
-								let md = Typeload.load_module ctx m p in
-								(* first look for existing subtype *)
-								(try
-									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.m_types in
-									Some (fields path (fun _ -> AKExpr (type_module_type ctx t None p)))
-								with Not_found -> try
-								(* then look for main type statics *)
-									if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
-									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.m_types in
-									Some (get_static false t)
-								with Not_found ->
-									None)
-							with Error (Module_not_found m2,_) when m = m2 ->
-								None
-						in
-						let rec loop pack =
-							match check_module (pack,name) sname with
-							| Some r -> r
-							| None ->
-								match List.rev pack with
-								| [] -> def()
-								| _ :: l -> loop (List.rev l)
-						in
-						(match pack with
-						| [] ->
-							(try
-								let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_types) in
-								(* if the static is not found, look for a subtype instead - #1916 *)
-								get_static true t
-							with Not_found ->
-								loop (fst ctx.m.curmod.m_path))
-						| _ ->
-							match check_module (pack,name) sname with
-							| Some r -> r
-							| None -> def());
-					| _ -> def()
-			in
+	let fields ?(resume=false) path e =
+		let resume = ref resume in
+		let force = ref false in
+		let e = List.fold_left (fun e (f,_,p) ->
+			let e = acc_get ctx (e MGet) p in
+			let f = type_field ~resume:(!resume) ctx e f p in
+			force := !resume;
+			resume := false;
+			f
+		) e path in
+		if !force then ignore(e MCall); (* not necessarily a call, but prevent #2602 among others *)
+		e
+	in
+	let type_path path =
+		let rec loop acc path =
 			match path with
-			| [] -> assert false
-			| (name,_,p) :: pnext ->
-				try
-					fields pnext (fun _ -> type_ident_raise ctx name p MGet)
-				with
-					Not_found -> loop [] path
+			| [] ->
+				(match List.rev acc with
+				| [] -> assert false
+				| (name,flag,p) :: path ->
+					try
+						fields path (type_access ctx (EConst (Ident name)) p)
+					with
+						Error (Unknown_ident _,p2) as e when p = p2 ->
+							try
+								let path = ref [] in
+								let name , _ , _ = List.find (fun (name,flag,p) ->
+									if flag then
+										true
+									else begin
+										path := name :: !path;
+										false
+									end
+								) (List.rev acc) in
+								raise (Error (Module_not_found (List.rev !path,name),p))
+							with
+								Not_found ->
+									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
+									raise e)
+			| (_,false,_) as x :: path ->
+				loop (x :: acc) path
+			| (name,true,p) as x :: path ->
+				let pack = List.rev_map (fun (x,_,_) -> x) acc in
+				let def() =
+					try
+						let e = type_type ctx (pack,name) p in
+						fields path (fun _ -> AKExpr e)
+					with
+						Error (Module_not_found m,_) when m = (pack,name) ->
+							loop ((List.rev path) @ x :: acc) []
+				in
+				match path with
+				| (sname,true,p) :: path ->
+					let get_static resume t =
+						fields ~resume ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
+					in
+					let check_module m v =
+						try
+							let md = Typeload.load_module ctx m p in
+							(* first look for existing subtype *)
+							(try
+								let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.m_types in
+								Some (fields path (fun _ -> AKExpr (type_module_type ctx t None p)))
+							with Not_found -> try
+							(* then look for main type statics *)
+								if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
+								let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.m_types in
+								Some (get_static false t)
+							with Not_found ->
+								None)
+						with Error (Module_not_found m2,_) when m = m2 ->
+							None
+					in
+					let rec loop pack =
+						match check_module (pack,name) sname with
+						| Some r -> r
+						| None ->
+							match List.rev pack with
+							| [] -> def()
+							| _ :: l -> loop (List.rev l)
+					in
+					(match pack with
+					| [] ->
+						(try
+							let t = List.find (fun t -> snd (t_infos t).mt_path = name) (ctx.m.curmod.m_types @ ctx.m.module_types) in
+							(* if the static is not found, look for a subtype instead - #1916 *)
+							get_static true t
+						with Not_found ->
+							loop (fst ctx.m.curmod.m_path))
+					| _ ->
+						match check_module (pack,name) sname with
+						| Some r -> r
+						| None -> def());
+				| _ -> def()
 		in
-		let rec loop acc e =
-			let p = pos e in
-			match fst e with
-			| EField (e,s) ->
-				loop ((s,not (is_lower_ident s),p) :: acc) e
-			| EConst (Ident i) ->
-				type_path ((i,not (is_lower_ident i),p) :: acc)
-			| _ ->
-				fields acc (type_access ctx (fst e) (snd e))
-		in
-		loop [] (e,p) mode
+		match path with
+		| [] -> assert false
+		| (name,_,p) :: pnext ->
+			try
+				fields pnext (fun _ -> type_ident_raise ctx name p MGet)
+			with
+				Not_found -> loop [] path
+	in
+	let rec loop acc e =
+		let p = pos e in
+		match fst e with
+		| EField (e,s) ->
+			loop ((s,not (is_lower_ident s),p) :: acc) e
+		| EConst (Ident i) ->
+			type_path ((i,not (is_lower_ident i),p) :: acc)
+		| _ ->
+			fields acc (type_access ctx (fst e) (snd e))
+	in
+	loop [] (e,p) mode
 
 and type_access ctx e p mode =
 	match e with
