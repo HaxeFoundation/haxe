@@ -90,8 +90,8 @@ matrix:
       env: TEST=cpp
     - os: osx
       env: TEST=flash9
-    - os: osx
-      env: TEST=as3
+    #- os: osx
+    #  env: TEST=as3
     - os: osx
       env: TEST=java
     - os: osx
