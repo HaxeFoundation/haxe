@@ -33,12 +33,12 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip" > log.txt || type log.txt'
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/%WODI%/bin'
     # Install neko
-    - cinst make -y
     - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
     - 'cd %NEKO_ROOT%'
     - set PATH=%PATH%;%NEKO_ROOT%/bin
-    - msbuild neko_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
-    - msbuild libs/libs_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
+    - msbuild vm\nekovm.vcxproj     /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
+    - msbuild vm\nekovm_dll.vcxproj /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
+    - msbuild libs\libs_vc10.sln    /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
     - copy /y libs\include\gc\gc.dll bin
     - cd %NEKO_ROOT%/src
     - neko ../boot/nekoc tools/install.neko
