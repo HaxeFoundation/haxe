@@ -6,10 +6,10 @@ private class G<T> {
 	public function new(t:T) {
 		this.t = t;
 	}
-    public function f(){
-        haxe.Log;
+	public function f(){
+		haxe.Log;
 		return t;
-    }
+	}
 }
 
 private class G2 extends G<String> { }

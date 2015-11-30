@@ -20,6 +20,6 @@ class Issue2587 extends Test {
 }
 
 private enum E {
-    A;
-    B;
+	A;
+	B;
 }

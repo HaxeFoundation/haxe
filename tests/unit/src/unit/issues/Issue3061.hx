@@ -1,11 +1,11 @@
 package unit.issues;
 
 private enum MyEnum1 {
-    A;
+	A;
 }
 
 private enum MyEnum2 {
-    A;
+	A;
 	B;
 }
 

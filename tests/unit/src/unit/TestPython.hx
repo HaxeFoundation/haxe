@@ -81,7 +81,7 @@ private interface IA {}
 private class A implements IA { }
 
 private class B extends A {
-    public function new() {}
+	public function new() {}
 }
 
 class TestPython extends Test {
@@ -144,8 +144,8 @@ class TestPython extends Test {
 	}
 
 	function testNativeClosures() {
-        var s = "foo";
-        var f = s.toUpperCase;
+		var s = "foo";
+		var f = s.toUpperCase;
 		eq("FOO", f());
 
 		var a = [];
@@ -332,14 +332,14 @@ class TestPython extends Test {
 	function get_s3() return _s;
 	function set_s3(s) return _s = s;
 
-    function testPropertyInit() {
+	function testPropertyInit() {
 		s += "a";
 		s2 += "b";
 		s3 += "c";
 		eq("nulla", s);
 		eq("nullb", s2);
 		eq("nullc", s3);
-    }
+	}
 
 	function testIsViaParentInterface() {
 		t((new B() is IA));

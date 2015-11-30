@@ -2,8 +2,8 @@ package unit.issues;
 import unit.Test;
 
 private abstract Foo(Int) from Int {
-    public function toString()
-        return 'Foo: $this';
+	public function toString()
+		return 'Foo: $this';
 }
 
 class Issue2401 extends Test {

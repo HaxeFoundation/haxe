@@ -14,13 +14,13 @@ private class BasicTexture<R> extends BasicAsset {
 	public function new(i:Int, s:String) {
 		super(s);
 		this.i = i;
-    }
+	}
 }
 
 private class CanvasTexture extends BasicTexture<Int> {
-    public function new(i:Int, s:String) {
+	public function new(i:Int, s:String) {
 		super(i, s);
-    }
+	}
 }
 
 class Issue2653 extends Test {

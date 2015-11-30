@@ -19,7 +19,7 @@ private class C extends B {
 
 class Issue4557 extends Test {
 	function test() {
-        var c = new C();
-        eq("booh!", c.ghost.value);
+		var c = new C();
+		eq("booh!", c.ghost.value);
 	}
 }

@@ -1,8 +1,8 @@
 package unit.issues;
 
 private enum T {
-    T1(x:Null<T>);
-    T2(x:Int);
+	T1(x:Null<T>);
+	T2(x:Int);
 }
 
 class Issue2580 extends Test {

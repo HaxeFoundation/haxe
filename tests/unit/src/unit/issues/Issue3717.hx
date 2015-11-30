@@ -25,20 +25,20 @@ class Issue3717 extends unit.Test {
 
 @:forward
 private abstract Metric (MetricCore) from MetricCore to MetricCore {
-    @:from static function fromFloat(v:Float) {
-        var m = new MetricCore();
-        m.dip = v;
-        return m;
-    }
-    @:to function toFloat() return this.dip;
+	@:from static function fromFloat(v:Float) {
+		var m = new MetricCore();
+		m.dip = v;
+		return m;
+	}
+	@:to function toFloat() return this.dip;
 
 
-    @:op(A += B) static function AincBf (a:Metric, b:Float) return a.dip += b;
+	@:op(A += B) static function AincBf (a:Metric, b:Float) return a.dip += b;
 }
 
 
 private class MetricCore {
-    public var dip : Float = 0;
+	public var dip : Float = 0;
 
-    public function new () : Void {}
+	public function new () : Void {}
 }

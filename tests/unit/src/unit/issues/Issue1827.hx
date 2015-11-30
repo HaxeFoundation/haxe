@@ -1,18 +1,18 @@
 package unit.issues;
 
 private class C {
-    public var a:Int;
-    public var b:Int;
+	public var a:Int;
+	public var b:Int;
 
-    public function new() {
-        a = 1;
-        b = 2;
-    }
+	public function new() {
+		a = 1;
+		b = 2;
+	}
 
-    public inline function set(inA:Int, inB:Int) {
-        a = inA;
-        b = inB;
-    }
+	public inline function set(inA:Int, inB:Int) {
+		a = inA;
+		b = inB;
+	}
 }
 
 private class D {
@@ -26,12 +26,12 @@ private class D {
 
 
 class Issue1827 extends Test {
-    //function test() {
-        //var t = new C();
-        //t.set(t.b, t.a);
-        //eq(2, t.a);
-        //eq(1, t.b);
-    //}
+	//function test() {
+		//var t = new C();
+		//t.set(t.b, t.a);
+		//eq(2, t.a);
+		//eq(1, t.b);
+	//}
 
 	static var i = 0;
 

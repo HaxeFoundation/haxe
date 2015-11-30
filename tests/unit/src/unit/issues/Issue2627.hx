@@ -4,12 +4,12 @@ class Issue2627 extends unit.Test {
 
 	var field:Int;
 
-    function test1() {
-        var c = 0;
-        var s = staticAdd(c++, c++);
+	function test1() {
+		var c = 0;
+		var s = staticAdd(c++, c++);
 		eq(s, -1);
 		eq(c, 2);
-    }
+	}
 
 	function test2() {
 		field = 0;

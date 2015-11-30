@@ -2,11 +2,11 @@ package unit.issues;
 import haxe.ds.Option;
 
 private abstract X (String) to String {
-    public function new (s:String) this = s;
+	public function new (s:String) this = s;
 }
 
 private abstract XX (String) {
-    public function new (s:String) this = s;
+	public function new (s:String) this = s;
 
 	@:to function toString():String {
 		return cast this;
@@ -18,15 +18,15 @@ private abstract X2(X) to X {}
 private abstract XArr(Array<X>) to Array<X> {}
 
 private class A {
-    public var x : X;
+	public var x : X;
 }
 
 private typedef B = {
-    var x : String;
+	var x : String;
 }
 
 private typedef B1 = {
-    var x(default, null) : String;
+	var x(default, null) : String;
 }
 
 class Issue2584 extends Test {

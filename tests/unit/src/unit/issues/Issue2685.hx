@@ -2,8 +2,8 @@ package unit.issues;
 import unit.Test;
 
 private abstract A({a:Int}) from {a:Int} {
-    @:to function toInt():Int return this.a * 4;
-    @:to function toDynamic():Dynamic return this.a * 2;
+	@:to function toInt():Int return this.a * 4;
+	@:to function toDynamic():Dynamic return this.a * 2;
 }
 
 class Issue2685 extends Test {

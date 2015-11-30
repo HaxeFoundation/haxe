@@ -2,10 +2,10 @@ package unit.issues;
 
 class Issue2282 extends Test
 {
-    function test() {
+	function test() {
 			var f = new Foo();
 			eq(null,f.val);
-    }
+	}
 }
 
 

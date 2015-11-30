@@ -4,11 +4,11 @@ class Issue3217 extends Test
 {
 	public function test()
 	{
-      #if (cpp && !cppia)
+	  #if (cpp && !cppia)
 		var t:NativeClassStruct = null;
-      #else
+	  #else
 		var t:{ test:Int } = new NativeClass();
-      #end
+	  #end
 		t.test = 10;
 		eq(t.test,10);
 	}

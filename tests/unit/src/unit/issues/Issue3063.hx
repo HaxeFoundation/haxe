@@ -2,12 +2,12 @@ package unit.issues;
 
 @:enum
 private abstract AString(String) to String {
-    var CTOR1 = "foo";
+	var CTOR1 = "foo";
 }
 
 @:enum
 private abstract AInt(Int) to Int {
-    var CTOR2 = 12;
+	var CTOR2 = 12;
 }
 
 class Issue3063 extends Test {

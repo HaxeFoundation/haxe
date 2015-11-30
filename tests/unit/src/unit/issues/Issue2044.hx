@@ -2,7 +2,7 @@ package unit.issues;
 
 @:generic
 private class Gen<T> {
-    public function new(t:T) { }
+	public function new(t:T) { }
 }
 
 class Issue2044 extends Test {

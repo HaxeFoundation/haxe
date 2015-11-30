@@ -1,12 +1,12 @@
 package unit.issues;
 
 private interface I {
-    public var v(default, never):Float;
+	public var v(default, never):Float;
 }
 
 private class C implements I {
-    public var v:Int;
-    public function new() { }
+	public var v:Int;
+	public function new() { }
 }
 
 private interface I2 {

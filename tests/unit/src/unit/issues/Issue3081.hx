@@ -1,17 +1,17 @@
 package unit.issues;
 
 private typedef T1<T> = {
-    function foo():T;
+	function foo():T;
 }
 
 private typedef T2 = {
-    function foo():String;
+	function foo():String;
 }
 
 private typedef T3 = {
-    > T1<String>,
-    > T2,
-    function bar():Int;
+	> T1<String>,
+	> T2,
+	function bar():Int;
 	function foo():String;
 }
 

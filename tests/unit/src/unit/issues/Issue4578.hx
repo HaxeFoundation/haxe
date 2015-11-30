@@ -5,27 +5,27 @@ private class TCons<U,V:TList> extends TList {}
 private class TNil extends TList {}
 
 private enum Stack<L:TList> {
-    Nil: Stack<TNil>;
-    Cons<X,L:TList>(x: X, xs: Stack<L>): Stack<TCons<X,L>>;
+	Nil: Stack<TNil>;
+	Cons<X,L:TList>(x: X, xs: Stack<L>): Stack<TCons<X,L>>;
 }
 
 private interface Instr<L1:TList,L2:TList> {
-    function denote(s: Stack<L1>): Stack<L2>;
+	function denote(s: Stack<L1>): Stack<L2>;
 }
 
 private class IUnOp<X,Y,S:TList> implements Instr<TCons<X,S>,TCons<Y,S>> {
-    var f: X->Y;
+	var f: X->Y;
 
-    public function new(f) {
-        this.f = f;
-    }
+	public function new(f) {
+		this.f = f;
+	}
 
-    public function denote(s: Stack<TCons<X,S>>): Stack<TCons<Y,S>> {
-        return switch(s) {
-            case Cons(x, s):
-                Cons(f(x), s);
-        }
-    }
+	public function denote(s: Stack<TCons<X,S>>): Stack<TCons<Y,S>> {
+		return switch(s) {
+			case Cons(x, s):
+				Cons(f(x), s);
+		}
+	}
 }
 
 class Issue4578 extends Test {

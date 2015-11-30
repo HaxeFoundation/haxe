@@ -10,41 +10,41 @@ private class Vector2Base {
 	}
 
 	public function toString() {
-        return '($x, $y)';
-    }
+		return '($x, $y)';
+	}
 }
 
 @:forward(x, y)
 private abstract Vector2(Vector2Base) from Vector2Base to Vector2Base {
 
-    public inline function new(x:Float = 0.0, y:Float = 0.0) {
-        this = new Vector2Base(x, y);
-    }
+	public inline function new(x:Float = 0.0, y:Float = 0.0) {
+		this = new Vector2Base(x, y);
+	}
 
-    @:op(A + B)
+	@:op(A + B)
 	public static inline function Add(a:Vector2, b:Vector2):Vector2
-    {
-        return new Vector2(a.x + b.x, a.y + b.y);
-    }
+	{
+		return new Vector2(a.x + b.x, a.y + b.y);
+	}
 }
 
 private class Transform {
-    public var position(default, set):Vector2 = new Vector2(0.0, 0.0);
+	public var position(default, set):Vector2 = new Vector2(0.0, 0.0);
 
-    public function new() {
-    }
+	public function new() {
+	}
 
    	function set_position(newPosition:Vector2):Vector2 {
 		position = newPosition;
-        return position;
-    }
+		return position;
+	}
 }
 
 class Issue4426 extends Test {
 	function test() {
 		var transform = new Transform();
-        transform.position += new Vector2(1.0, 0.0);
-        feq(1., transform.position.x);
-        feq(0., transform.position.y);
+		transform.position += new Vector2(1.0, 0.0);
+		feq(1., transform.position.x);
+		feq(0., transform.position.y);
 	}
 }

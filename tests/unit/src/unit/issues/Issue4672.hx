@@ -2,15 +2,15 @@ package unit.issues;
 
 @:generic
 private class C<T> {
-    public function new() { }
-    public function test<S:T>(s:S) { }
+	public function new() { }
+	public function test<S:T>(s:S) { }
 }
 
 @:generic
 private class C2<T> {
-    public function new() { }
+	public function new() { }
 	@:generic
-    public function test<S:T>(s:S) { }
+	public function test<S:T>(s:S) { }
 }
 
 class Issue4672 extends Test {

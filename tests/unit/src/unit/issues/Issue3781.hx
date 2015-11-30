@@ -17,6 +17,6 @@ class Issue3781 extends Test {
 	}
 
 	static function call<T:Ab>(v:T) {
-        E1(v);
-    }
+		E1(v);
+	}
 }

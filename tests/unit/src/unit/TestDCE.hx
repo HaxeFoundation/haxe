@@ -119,11 +119,11 @@ class TestDCE extends Test {
 
 	#if (!cpp && !java && !cs)
 	public function testProperty2() {
-        var a = new RemovePropertyKeepAccessors();
-        a.test = 3;
-        eq(a.test, 3);
-        Reflect.setProperty(a, "test", 2);
-        eq(a.test, 2);
+		var a = new RemovePropertyKeepAccessors();
+		a.test = 3;
+		eq(a.test, 3);
+		Reflect.setProperty(a, "test", 2);
+		eq(a.test, 2);
 
 		var c = Type.resolveClass("unit.RemovePropertyKeepAccessors");
 		hf(c, "get_test");
@@ -236,11 +236,11 @@ class ThrownWithToString {
 
 class RemovePropertyKeepAccessors
 {
-    public function new() {}
+	public function new() {}
 
-    var _test:Float;
-    public var test(get, set):Float;
+	var _test:Float;
+	public var test(get, set):Float;
 
-    public function get_test():Float return _test;
-    public function set_test(a:Float):Float { _test = a; return _test; }
+	public function get_test():Float return _test;
+	public function set_test(a:Float):Float { _test = a; return _test; }
 }
