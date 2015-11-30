@@ -818,8 +818,8 @@ module AbstractCast = struct
 	let cast_or_unify ctx tleft eright p =
 		try
 			cast_or_unify_raise ctx tleft eright p
-		with Error (Unify _ as err,_) ->
-			if not ctx.untyped then display_error ctx (error_msg err) p;
+		with Error (Unify l,p) ->
+			raise_or_display ctx l p;
 			eright
 
 	let find_array_access_raise ctx a pl e1 e2o p =
