@@ -809,9 +809,9 @@ let unify_field_call ctx fa el args ret p inline =
 					candidate :: candidates,failures
 				end else
 					[candidate],[]
-			with Error (Call_error _,_) as err ->
+			with Error ((Call_error _ as err),p) ->
 				let candidates,failures = loop candidates in
-				candidates,err :: failures
+				candidates,(cf,err,p) :: failures
 			end
 	in
 	match candidates with
@@ -820,9 +820,13 @@ let unify_field_call ctx fa el args ret p inline =
 		List.map fst el,tf,mk_call
 	| _ ->
 		let candidates,failures = loop candidates in
-		let fail () = match List.rev failures with
-			| err :: _ -> raise err
-			| _ -> assert false
+		let fail () =
+			display_error ctx "Could not find a suitable overload, reasons follow" p;
+			List.iter (fun (cf,err,p2) ->
+				display_error ctx ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)) p;
+				display_error ctx (error_msg err) p2;
+			) failures;
+			error "End of overload fail reasons" p
 		in
 		if is_overload && ctx.com.config.pf_overload then begin match Codegen.Overloads.reduce_compatible candidates with
 			| [] -> fail()
