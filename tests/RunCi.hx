@@ -608,6 +608,38 @@ class RunCi {
 		}
 	}
 
+	static function saveOutput():Void {
+		// get the outputs by listing the files/folders ignored by git
+		var stdout = {
+			var proc = new Process("git", ["status", "--ignored", "--porcelain", Sys.getCwd()]);
+			var out = proc.stdout.readAll().toString();
+			proc.close();
+			out;
+		};
+		var outputs = stdout.split("\n")
+			.filter(function(s) return s.startsWith("!! "))
+			.map(function(s) return s.substr("!! ".length));
+
+		// copy all the outputs to haxe-output
+		var haxe_output = Path.join([repoDir, "haxe-output"]);
+		FileSystem.createDirectory(haxe_output);
+		for (item in outputs) {
+			var orig = Path.join([repoDir, item]);
+			var dest = Path.join([haxe_output, item]);
+			if (FileSystem.isDirectory(orig)) {
+				FileSystem.createDirectory(dest);
+			} else {
+				FileSystem.createDirectory(Path.directory(dest));
+			}
+			Sys.command("cp", ["-r", orig, dest]);
+		}
+
+		// git
+		// Sys.setCwd(haxe_output);
+		// Sys.command("git", ["init"]);
+		// Sys.command("git", ["remote", "add", ""]);
+	}
+
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
