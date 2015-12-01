@@ -33,7 +33,7 @@ typedef FileStat = {
 	var atime : Date;
 	/** the last modification time for the file **/
 	var mtime : Date;
-	/** the creation time for the file **/
+	/** the creation time for the file (not all filesystems support this) **/
 	var ctime : Date;
 	/** the size of the file **/
 	var size : Int;
