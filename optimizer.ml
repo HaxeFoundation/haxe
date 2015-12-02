@@ -524,6 +524,15 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			in_local_fun := old_fun;
 			old();
 			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
+		| TCall({eexpr = TConst TSuper; etype = t},el) ->
+			begin match follow t with
+			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)},_) ->
+				begin match type_inline ctx cf tf ethis el ctx.t.tvoid None po true with
+				| Some e -> map term e
+				| None -> error "Could not inline super constructor call" po
+				end
+			| _ -> error "Cannot inline function containint super" po
+			end
 		| TConst TSuper ->
 			error "Cannot inline function containing super" po
 		| TMeta(m,e1) ->
@@ -1359,7 +1368,7 @@ let inline_constructors ctx e =
 					| [] ->
 						()
 					end
-				| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl) when type_iseq v.v_type e1.etype->
+				| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl) when type_iseq v.v_type e1.etype ->
 					begin match type_inline ctx cf tf (mk (TLocal v) (TInst (c,tl)) e1.epos) pl ctx.t.tvoid None e1.epos true with
 					| Some e ->
 						(* add field inits here because the filter has not run yet (issue #2336) *)
