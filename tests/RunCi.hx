@@ -617,7 +617,7 @@ class RunCi {
 
 		var haxe_output = Path.join([repoDir, "haxe-output"]);
 		var gitInfo = gitInfo;
-		var haxe_output_branch = gitInfo.date + "_" + gitInfo.commit;
+		var haxe_output_branch = gitInfo.commit;
 
 		function save() {
 			// prepare haxe-output repo
