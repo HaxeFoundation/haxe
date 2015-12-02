@@ -617,7 +617,7 @@ class RunCi {
 
 		var haxe_output = Path.join([repoDir, "haxe-output"]);
 		var gitInfo = gitInfo;
-		var haxe_output_branch = gitInfo.commit;
+		var haxe_output_branch = gitInfo.date.replace(":", "-") + "_" + gitInfo.commit;
 		var haxe_output_repo = "github.com/HaxeFoundation/haxe-output.git";
 
 
@@ -668,7 +668,7 @@ class RunCi {
 Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}
 Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitInfo.parent}...${gitInfo.commit}
 ';
-			runCommand("git", ["commit", "-m", commitMsg]);
+			runCommand("git", ["commit", "-q", "-m", commitMsg]);
 		}
 
 		// try save() for 5 times because the push may fail when the another build push at the same time
