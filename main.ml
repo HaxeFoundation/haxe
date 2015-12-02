@@ -201,12 +201,7 @@ let report_times print =
 	end
 
 let make_path f =
-	let f = String.concat "/" (ExtString.String.nsplit f "\\") in
-	let cl = ExtString.String.nsplit f "." in
-	let cl = (match List.rev cl with
-		| ["hx";path] -> ExtString.String.nsplit path "/"
-		| _ -> cl
-	) in
+	let cl = get_path_parts f in
 	let error msg =
 		let msg = "Could not process argument " ^ f ^ "\n" ^ msg in
 		failwith msg

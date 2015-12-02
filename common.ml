@@ -131,6 +131,7 @@ type context = {
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
+	parser_cache : (string,string list * (type_def * pos) list) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
@@ -762,6 +763,7 @@ let create v args =
 		file_lookup_cache = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		memory_marker = memory_marker;
+		parser_cache = Hashtbl.create 0;
 	}
 
 let log com str =
@@ -975,10 +977,18 @@ let find_file ctx f =
 		| None -> raise Not_found
 		| Some f -> f)
 
-
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
 let unique_full_path = if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then (fun f -> String.lowercase (get_full_path f)) else get_full_path
+
+let get_path_parts f =
+	let f = String.concat "/" (ExtString.String.nsplit f "\\") in
+	let cl = ExtString.String.nsplit f "." in
+	let cl = (match List.rev cl with
+		| ["hx";path] -> ExtString.String.nsplit path "/"
+		| _ -> cl
+	) in
+	cl
 
 let normalize_path p =
 	let l = String.length p in

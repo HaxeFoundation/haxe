@@ -154,7 +154,7 @@ let module_pass_1 com m tdecls loadp =
 			decls := (TTypeDecl t, decl) :: !decls;
 			acc
 		 | EAbstract d ->
-		 	if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			let priv = List.mem APrivAbstract d.d_flags in
 			let path = make_path d.d_name priv in
 			let a = {
@@ -1987,7 +1987,7 @@ module ClassInitializer = struct
 			| Some { cf_public = p } -> p
 			| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
 
- 	let rec get_parent c name =
+	let rec get_parent c name =
 		match c.cl_super with
 		| None -> None
 		| Some (csup,_) ->
@@ -2005,8 +2005,8 @@ module ClassInitializer = struct
 			c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
 		end
 
- 	let type_opt (ctx,cctx) p t =
- 		let c = cctx.tclass in
+	let type_opt (ctx,cctx) p t =
+		let c = cctx.tclass in
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
 			display_error ctx "Type required for extern classes and interfaces" p;
@@ -3259,12 +3259,43 @@ let type_types_into_module ctx m tdecls p =
 	end;
 	module_pass_2 ctx m decls tdecls p
 
+let handle_import_hx ctx m decls p =
+	let path_split = List.tl (List.rev (get_path_parts m.m_extra.m_file)) in
+	let join l = String.concat "/" (List.rev ("import.hx" :: l)) in
+	let rec loop path pack = match path,pack with
+		| _,[] -> [join path]
+		| (p :: path),(_ :: pack) -> (join (p :: path)) :: (loop path pack)
+		| _ -> []
+	in
+	let candidates = loop path_split (fst m.m_path) in
+	List.fold_left (fun acc path ->
+		let path = Common.unique_full_path path in
+		let _,decls = try
+			Hashtbl.find ctx.com.parser_cache path
+		with Not_found ->
+			if Sys.file_exists path then begin
+				let r = parse_file ctx.com path p in
+				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) (snd r);
+				Hashtbl.replace ctx.com.parser_cache path r;
+				r
+			end else begin
+				let r = ([],[]) in
+				(* Add empty decls so we don't check the file system all the time. *)
+				Hashtbl.replace ctx.com.parser_cache path r;
+				r
+			end
+		in
+		decls @ acc
+	) decls candidates
+
 (*
 	Creates a new module and types [tdecls] into it.
 *)
 let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let m = make_module ctx mpath file p in
 	Hashtbl.add ctx.g.modules m.m_path m;
+	let tdecls = handle_import_hx ctx m tdecls p in
+	add_module ctx m p;
 	type_types_into_module ctx m tdecls p;
 	if is_extern then m.m_extra.m_kind <- MExtern;
 	m
