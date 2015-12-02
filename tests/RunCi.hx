@@ -663,12 +663,12 @@ class RunCi {
 			}
 			changeDirectory(haxe_output);
 			runCommand("git", ["add", haxe_output]);
-			var commitMsg =
-'${gitInfo.date} ${gitInfo.branch} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}
-Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}
-Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitInfo.parent}...${gitInfo.commit}
-';
-			runCommand("git", ["commit", "-q", "-m", commitMsg]);
+			var commitMsg = [
+				'-m', 'Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
+				'-m', '${gitInfo.date} ${gitInfo.branch} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}',
+				'-m', 'Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitInfo.parent}...${gitInfo.commit}',
+			];
+			runCommand("git", ["commit", "-q"].concat(commitMsg));
 		}
 
 		// try save() for 5 times because the push may fail when the another build push at the same time
@@ -983,7 +983,7 @@ Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitIn
 			})
 			&&
 			Lambda.exists(tests, function(t) return switch (t) {
-				case Js | Cpp | Cs | Php: true;
+				case Js | Cpp | Cs | Java | Php | Python: true;
 				case _: false;
 			})
 		) {
