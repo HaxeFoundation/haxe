@@ -2774,7 +2774,8 @@ let resolve_typedef t =
 		| _ -> t
 
 let add_module ctx m p =
-	Hashtbl.add ctx.g.modules m.m_path m
+	Hashtbl.add ctx.g.modules m.m_path m;
+	List.iter (fun t -> Hashtbl.add ctx.g.types_module (t_path t) m.m_path) m.m_types
 
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
@@ -3263,7 +3264,7 @@ let type_types_into_module ctx m tdecls p =
 *)
 let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let m = make_module ctx mpath file p in
-	add_module ctx m p;
+	Hashtbl.add ctx.g.modules m.m_path m;
 	type_types_into_module ctx m tdecls p;
 	if is_extern then m.m_extra.m_kind <- MExtern;
 	m
