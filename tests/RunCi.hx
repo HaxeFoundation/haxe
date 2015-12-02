@@ -618,6 +618,7 @@ class RunCi {
 		var haxe_output = Path.join([repoDir, "haxe-output"]);
 		var gitInfo = gitInfo;
 		var haxe_output_branch = gitInfo.date.replace(":", "-") + "_" + gitInfo.commit;
+		var haxe_output_parent = gitInfo.date.replace(":", "-") + "_" + gitInfo.parent;
 		var haxe_output_repo = "github.com/HaxeFoundation/haxe-output.git";
 
 
@@ -632,8 +633,7 @@ class RunCi {
 				case 0: //exist
 					runCommand("git", ["checkout", "-B", haxe_output_branch, "--track", "origin/" + haxe_output_branch]);
 				case 2: //not exist
-					runCommand("git", ["checkout", "--orphan", haxe_output_branch]);
-					runCommand("git", ["clean", "-f"]);
+					runCommand("git", ["checkout", "-B", haxe_output_branch]);
 				case exitcode: throw "unknown exit code: " + exitcode;
 			}
 
@@ -666,7 +666,7 @@ class RunCi {
 			var commitMsg = [
 				'-m', 'Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
 				'-m', '${gitInfo.date} ${gitInfo.branch} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}',
-				'-m', 'Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitInfo.parent}...${gitInfo.commit}',
+				'-m', 'Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${haxe_output_parent}...${haxe_output_branch}',
 			];
 			runCommand("git", ["commit", "-q"].concat(commitMsg));
 		}
