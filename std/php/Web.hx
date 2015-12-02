@@ -32,7 +32,7 @@ class Web {
 	/**
 		Returns the GET and POST parameters.
 	**/
-	public static function getParams() {
+	public static function getParams() : Map<String,String> {
 		#if force_std_separator
 		var a : NativeArray = untyped __php__("$_POST");
 		if(untyped __call__("get_magic_quotes_gpc"))
