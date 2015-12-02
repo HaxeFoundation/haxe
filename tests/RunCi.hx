@@ -672,9 +672,10 @@ class RunCi {
 		}
 
 		// try save() for 5 times because the push may fail when the another build push at the same time
+		var pushResult = null;
 		for (i in 0...5) {
 			save();
-			var pushResult = commandResult("git", ["push", "origin", haxe_output_branch]);
+			pushResult = commandResult("git", ["push", "origin", haxe_output_branch]);
 			if (pushResult.exitCode == 0) {
 				successMsg("push to haxe-output succeed");
 				break;
@@ -686,6 +687,9 @@ class RunCi {
 
 				Sys.sleep(Std.random(10));
 			}
+		}
+		if (pushResult.exitCode != 0) {
+			Sys.exit(1);
 		}
 	}
 
