@@ -618,11 +618,12 @@ class RunCi {
 		var haxe_output = Path.join([repoDir, "haxe-output"]);
 		var gitInfo = gitInfo;
 		var haxe_output_branch = gitInfo.commit;
+		var haxe_output_repo = "github.com/HaxeFoundation/haxe-output.git";
 
 		function save() {
 			// prepare haxe-output repo
 			changeDirectory(repoDir);
-			runCommand("git", ["clone", "https://github.com/HaxeFoundation/haxe-output.git", haxe_output]);
+			runCommand("git", ["clone", 'https://${Sys.getEnv("HAXECI_GH_TOKEN")}@${haxe_output_repo}', haxe_output]);
 			changeDirectory(haxe_output);
 			switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
 				case 0: //exist
@@ -664,8 +665,7 @@ class RunCi {
 Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}
 Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitInfo.parent}...${gitInfo.commit}
 ';
-			runCommand("git", ["commit", "-m", commitMsg]);
-		
+			runCommand("git", ["commit", "--author", "Haxe CI Bot <haxe-ci@onthewings.net>", "-m", commitMsg]);
 		}
 
 		// try save() for 5 times because the push may fail when the another build push at the same time
