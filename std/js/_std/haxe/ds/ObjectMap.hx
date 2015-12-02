@@ -38,8 +38,7 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	var h : { };
 
 	public function new() : Void {
-		h = { };
-		untyped h.__keys__ = { };
+		h = { __keys__: {} };
 	}
 
 	public function set(key:K, value:V):Void untyped {
