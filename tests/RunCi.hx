@@ -629,12 +629,32 @@ class RunCi {
 			changeDirectory(haxe_output);
 			runCommand("git", ["config", "user.email", "haxe-ci@onthewings.net"]);
 			runCommand("git", ["config", "user.name", "Haxe CI Bot"]);
-			switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
-				case 0: //exist
-					runCommand("git", ["checkout", "-B", haxe_output_branch, "--track", "origin/" + haxe_output_branch]);
-				case 2: //not exist
-					runCommand("git", ["checkout", "-B", haxe_output_branch]);
+
+			var firstOutput = switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
+				case 0: false;
+				case 2: true;
 				case exitcode: throw "unknown exit code: " + exitcode;
+			}
+
+			if (firstOutput) {
+				runCommand("git", ["checkout", "-B", haxe_output_branch]);
+				var rm = File.append("README.md");
+				rm.writeString('
+
+---------------
+
+Date: ${gitInfo.date}
+
+Branch: [${gitInfo.branch}](https://github.com/HaxeFoundation/haxe/tree/${gitInfo.branch})
+
+Commit: [${gitInfo.commit}](https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit})
+
+Compare to parent: [${haxe_output_parent}...${haxe_output_branch}](https://github.com/HaxeFoundation/haxe-output/compare/${haxe_output_parent}...${haxe_output_branch})
+'
+				);
+				rm.close();
+			} else {
+				runCommand("git", ["checkout", "-B", haxe_output_branch, "--track", "origin/" + haxe_output_branch]);
 			}
 
 			// get the outputs by listing the files/folders ignored by git
@@ -664,11 +684,9 @@ class RunCi {
 			changeDirectory(haxe_output);
 			runCommand("git", ["add", haxe_output]);
 			var commitMsg = [
-				'-m', 'Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
-				'-m', '${gitInfo.date} ${gitInfo.branch} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}',
-				'-m', 'Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${haxe_output_parent}...${haxe_output_branch}',
+				'-m', 'Build ${Sys.getEnv("TRAVIS_JOB_NUMBER")}: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
 			];
-			runCommand("git", ["commit", "-q"].concat(commitMsg));
+			runCommand("git", ["commit", "-q", "--allow-empty"].concat(commitMsg));
 		}
 
 		// try save() for 5 times because the push may fail when the another build push at the same time
