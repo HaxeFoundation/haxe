@@ -620,11 +620,14 @@ class RunCi {
 		var haxe_output_branch = gitInfo.commit;
 		var haxe_output_repo = "github.com/HaxeFoundation/haxe-output.git";
 
+
 		function save() {
 			// prepare haxe-output repo
 			changeDirectory(repoDir);
 			runCommand("git", ["clone", 'https://${Sys.getEnv("HAXECI_GH_TOKEN")}@${haxe_output_repo}', haxe_output]);
 			changeDirectory(haxe_output);
+			runCommand("git", ["config", "user.email", "haxe-ci@onthewings.net"]);
+			runCommand("git", ["config", "user.name", "Haxe CI Bot"]);
 			switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
 				case 0: //exist
 					runCommand("git", ["checkout", "-B", haxe_output_branch, "--track", "origin/" + haxe_output_branch]);
@@ -665,7 +668,7 @@ class RunCi {
 Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}
 Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitInfo.parent}...${gitInfo.commit}
 ';
-			runCommand("git", ["commit", "--author", "Haxe CI Bot <haxe-ci@onthewings.net>", "-m", commitMsg]);
+			runCommand("git", ["commit", "-m", commitMsg]);
 		}
 
 		// try save() for 5 times because the push may fail when the another build push at the same time
@@ -980,7 +983,7 @@ Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitIn
 			})
 			&&
 			Lambda.exists(tests, function(t) return switch (t) {
-				case Js | Cpp | Cs: true;
+				case Js | Cpp | Cs | Php: true;
 				case _: false;
 			})
 		) {
