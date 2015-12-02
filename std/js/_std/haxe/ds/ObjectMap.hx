@@ -43,7 +43,7 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	}
 
 	public function set(key:K, value:V):Void untyped {
-		var id : Int = untyped key.__id__ || assignId(key);
+		var id : Int = getId(key) || assignId(key);
 		h[id] = value;
 		h.__keys__[id] = key;
 	}
