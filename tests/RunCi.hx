@@ -528,7 +528,7 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
-	static var gitInfo(get, null):{repo:String, branch:String, commit:String, date:String};
+	static var gitInfo(get, null):{repo:String, branch:String, commit:String, parent:String, date:String};
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
 		repo: switch (ci) {
 			case TravisCI:
@@ -547,6 +547,7 @@ class RunCi {
 				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
 		},
 		commit: commandResult("git", ["rev-parse", "HEAD"]).stdout.trim(),
+		parent: commandResult("git", ["rev-parse", "HEAD~"]).stdout.trim(),
 		date: {
 			var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
 			var tzd = {
@@ -609,35 +610,80 @@ class RunCi {
 	}
 
 	static function saveOutput():Void {
-		// get the outputs by listing the files/folders ignored by git
-		var stdout = {
-			var proc = new Process("git", ["status", "--ignored", "--porcelain", Sys.getCwd()]);
-			var out = proc.stdout.readAll().toString();
-			proc.close();
-			out;
-		};
-		var outputs = stdout.split("\n")
-			.filter(function(s) return s.startsWith("!! "))
-			.map(function(s) return s.substr("!! ".length));
-
-		// copy all the outputs to haxe-output
-		var haxe_output = Path.join([repoDir, "haxe-output"]);
-		FileSystem.createDirectory(haxe_output);
-		for (item in outputs) {
-			var orig = Path.join([repoDir, item]);
-			var dest = Path.join([haxe_output, item]);
-			if (FileSystem.isDirectory(orig)) {
-				FileSystem.createDirectory(dest);
-			} else {
-				FileSystem.createDirectory(Path.directory(dest));
-			}
-			Sys.command("cp", ["-r", orig, dest]);
+		if (Sys.getEnv("HAXECI_GH_TOKEN") == null) {
+			infoMsg("Missing HAXECI_GH_TOKEN. Will not save output.");
+			return;
 		}
 
-		// git
-		// Sys.setCwd(haxe_output);
-		// Sys.command("git", ["init"]);
-		// Sys.command("git", ["remote", "add", ""]);
+		var haxe_output = Path.join([repoDir, "haxe-output"]);
+		var gitInfo = gitInfo;
+		var haxe_output_branch = gitInfo.date + "_" + gitInfo.commit;
+
+		function save() {
+			// prepare haxe-output repo
+			changeDirectory(repoDir);
+			runCommand("git", ["clone", "https://github.com/HaxeFoundation/haxe-output.git", haxe_output]);
+			changeDirectory(haxe_output);
+			switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
+				case 0: //exist
+					runCommand("git", ["checkout", "-B", haxe_output_branch, "--track", "origin/" + haxe_output_branch]);
+				case 2: //not exist
+					runCommand("git", ["checkout", "--orphan", haxe_output_branch]);
+					runCommand("git", ["clean", "-f"]);
+				case exitcode: throw "unknown exit code: " + exitcode;
+			}
+
+			// get the outputs by listing the files/folders ignored by git
+			changeDirectory(cwd);
+			var stdout = {
+				var proc = new Process("git", ["status", "--ignored", "--porcelain", cwd]);
+				var out = proc.stdout.readAll().toString();
+				proc.close();
+				out;
+			};
+			var outputs = stdout.split("\n")
+				.filter(function(s) return s.startsWith("!! "))
+				.map(function(s) return s.substr("!! ".length));
+
+			// copy all the outputs to haxe-output
+			FileSystem.createDirectory(haxe_output);
+			for (item in outputs) {
+				var orig = Path.join([repoDir, item]);
+				var dest = Path.join([haxe_output, item]);
+				if (FileSystem.isDirectory(orig)) {
+					FileSystem.createDirectory(dest);
+				} else {
+					FileSystem.createDirectory(Path.directory(dest));
+				}
+				runCommand("cp", ["-rf", orig, dest]);
+			}
+			changeDirectory(haxe_output);
+			runCommand("git", ["add", haxe_output]);
+			var commitMsg =
+'${gitInfo.date} ${gitInfo.branch} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}
+Build: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}
+Compare to parent: https://github.com/HaxeFoundation/haxe-output/compare/${gitInfo.parent}...${gitInfo.commit}
+';
+			runCommand("git", ["commit", "-m", commitMsg]);
+		
+		}
+
+		// try save() for 5 times because the push may fail when the another build push at the same time
+		for (i in 0...5) {
+			save();
+			var pushResult = commandResult("git", ["push", "origin", haxe_output_branch]);
+			if (pushResult.exitCode == 0) {
+				successMsg("push to haxe-output succeed");
+				break;
+			} else {
+				failMsg("push to haxe-output failed");
+				failMsg(pushResult.stderr);
+
+				runCommand("rm", ["-rf", haxe_output]);
+
+				Sys.sleep(Std.random(10));
+			}
+		}
 	}
 
 	static function main():Void {
@@ -925,6 +971,20 @@ class RunCi {
 				case t:
 					throw "unknown target: " + t;
 			}
+		}
+
+		if (
+			(switch [ci, systemName] {
+				case [TravisCI, "Linux"]: true;
+				case _: false;
+			})
+			&&
+			Lambda.exists(tests, function(t) return switch (t) {
+				case Js | Cpp | Cs: true;
+				case _: false;
+			})
+		) {
+			saveOutput();
 		}
 	}
 
