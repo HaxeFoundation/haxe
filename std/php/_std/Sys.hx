@@ -35,7 +35,8 @@
 	}
 
 	public static function getEnv( s : String ) : String {
-		return untyped __call__("getenv", s);
+		var ret:Dynamic = untyped __call__("getenv", s);
+		return ret == false ? null : ret;
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
