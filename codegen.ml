@@ -2008,18 +2008,21 @@ let interpolate_code com code tl f_string f_expr p =
 			f_string a;
 			loop tl
 		| Str.Delim "{" :: Str.Text n :: Str.Delim "}" :: tl ->
-			(try
+			begin try
 				let expr = Array.get exprs (int_of_string n) in
 				f_expr expr;
-				i := !i + 2 + String.length n;
-				loop tl
 			with
 			| Failure "int_of_string" ->
-				err ("Index expected. Got " ^ n)
+				f_string ("{" ^ n ^ "}");
 			| Invalid_argument _ ->
-				err ("Out-of-bounds special parameter: " ^ n))
-			| Str.Delim x :: _ ->
-				err ("Unexpected " ^ x)
+				err ("Out-of-bounds special parameter: " ^ n)
+			end;
+			i := !i + 2 + String.length n;
+			loop tl
+		| Str.Delim x :: tl ->
+			f_string x;
+			incr i;
+			loop tl
 	in
 	loop (Str.full_split regex code)
 
