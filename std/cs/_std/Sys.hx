@@ -127,9 +127,10 @@ class Sys {
 		Environment.Exit(code);
 	}
 
+	@:readOnly static var epochTicks = new cs.system.DateTime(1970, 1, 1).Ticks;
 	public static function time() : Float
 	{
-		return Date.now().getTime() / 1000;
+		return cast((cs.system.DateTime.UtcNow.Ticks - epochTicks), Float) / cast(cs.system.TimeSpan.TicksPerSecond, Float);
 	}
 
 	public static inline function cpuTime() : Float
