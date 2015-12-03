@@ -148,7 +148,6 @@ type opcode =
 	| OSetref of reg * reg
 	| OToVirtual of reg * reg
 	| OUnVirtual of reg * reg
-	| ODynAlloc of reg
 	| ODynGet of reg * reg * string index
 	| ODynSet of reg * string index * reg
 
@@ -888,7 +887,7 @@ and eval_expr ctx e =
 		r
 	| TObjectDecl o ->
 		let r = alloc_tmp ctx HDynObj in
-		op ctx (ODynAlloc r);
+		op ctx (ONew r);
 		let a = (match follow e.etype with TAnon a -> a | _ -> assert false) in
 		List.iter (fun (s,v) ->
 			let cf = (try PMap.find s a.a_fields with Not_found -> assert false) in
@@ -1052,7 +1051,7 @@ and eval_expr ctx e =
 				v
 			| ADynamic (ethis,f) ->
 				let obj = eval_null_check ctx ethis in
-				let r = value() in
+				let r = eval_expr ctx e2 in
 				op ctx (ODynSet (obj,f,r));
 				r
 			| ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
@@ -1518,7 +1517,9 @@ let check code =
 			| OLabel _ ->
 				()
 			| ONew r ->
-				is_obj r
+				(match rtype r with
+				| HDynObj -> ()
+				| _ -> is_obj r)
 			| OField (r,o,fid) | OSetField (o,fid,r) ->
 				reg r (tfield o fid false)
 			| OGetThis (r,fid) | OSetThis(fid,r) ->
@@ -1591,8 +1592,6 @@ let check code =
 				| HVirtual _ -> ()
 				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
 				reg r (HDyn None)
-			| ODynAlloc r ->
-				reg r HDynObj
 			| ODynGet (v,r,f) | ODynSet (r,f,v) ->
 				ignore(code.strings.(f));
 				ignore(rtype v);
@@ -1695,14 +1694,6 @@ let interp code =
 			let proto = ({ pclass = p; pmethods = meths },fields) in
 			Hashtbl.replace cached_protos p.pname proto;
 			proto
-	in
-
-	let new_obj t =
-		match t with
-		| HObj p ->
-			let p, fields = get_proto p in
-			{ oproto = p; ofields = Array.map default fields }
-		| _ -> assert false
 	in
 
 	let error msg = raise (Runtime_error msg) in
@@ -1845,7 +1836,13 @@ let interp code =
 			| OToFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | _ -> assert false)
 			| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | _ -> assert false)
 			| OLabel _ -> ()
-			| ONew r -> set r (VObj (new_obj (rtype r)))
+			| ONew r ->
+				set r (match rtype r with
+				| HDynObj -> VDynObj { dfields = Hashtbl.create 0; dvalues = [||]; dtypes = [||]; dvirtuals = []; }
+				| HObj p ->
+					let p, fields = get_proto p in
+					VObj { oproto = p; ofields = Array.map default fields }
+				| _ -> assert false)
 			| OField (r,o,fid) ->
 				set r (match get o with
 					| VObj v -> v.ofields.(fid)
@@ -1978,8 +1975,6 @@ let interp code =
 				| _ -> assert false)
 			| OUnVirtual (r,v) ->
 				set r (match get v with VNull -> VNull | VVirtual v -> v.vvalue | _ -> assert false)
-			| ODynAlloc r ->
-				set r (VDynObj { dfields = Hashtbl.create 0; dvalues = [||]; dtypes = [||]; dvirtuals = []; })
 			| ODynGet (r,o,f) ->
 				let obj = (match get o with VVirtual v -> v.vvalue | v -> v) in
 				let set_with v t =
@@ -2400,7 +2395,6 @@ let ostr o =
 	| OSetref (r,v) -> Printf.sprintf "setref *%d,%d" r v
 	| OToVirtual (r,v) -> Printf.sprintf "tovirtual %d,%d" r v
 	| OUnVirtual (r,v) -> Printf.sprintf "unvirtual %d,%d" r v
-	| ODynAlloc r -> Printf.sprintf "dynalloc %d" r
 	| ODynGet (r,o,f) -> Printf.sprintf "dynget %d,%d[@%d]" r o f
 	| ODynSet (o,f,v) -> Printf.sprintf "dynset %d[@%d],%d" o f v
 
