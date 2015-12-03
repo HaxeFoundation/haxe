@@ -476,7 +476,7 @@ import cs.NativeArray;
 }
 
 @:access(haxe.ds.ObjectMap)
-@:final @:keep
+@:final
 private class ObjectMapKeyIterator<T:{},V> {
 	var m:ObjectMap<T,V>;
 	var i:Int;
@@ -514,7 +514,7 @@ private class ObjectMapKeyIterator<T:{},V> {
 }
 
 @:access(haxe.ds.ObjectMap)
-@:final @:keep
+@:final
 private class ObjectMapValueIterator<K:{},T> {
 	var m:ObjectMap<K,T>;
 	var i:Int;
