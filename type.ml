@@ -840,6 +840,12 @@ let rec s_type_kind t =
 	| TDynamic t2 -> "TDynamic"
 	| TLazy _ -> "TLazy"
 
+let s_module_type_kind = function
+	| TClassDecl c -> "TClassDecl(" ^ (s_type_path c.cl_path) ^ ")"
+	| TEnumDecl en -> "TEnumDecl(" ^ (s_type_path en.e_path) ^ ")"
+	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
+	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
+
 let rec s_type ctx t =
 	match t with
 	| TMono r ->

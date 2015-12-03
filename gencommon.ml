@@ -257,9 +257,9 @@ let path_s path =
 	| TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
 	| _ -> assert false
 
-let get_cl mt = match mt with | TClassDecl cl -> cl | _ -> failwith ("Unexpected module type of '" ^ path_s (t_path mt) ^ "'")
+let get_cl mt = match mt with | TClassDecl cl -> cl | _ -> failwith (Printf.sprintf "Unexpected module type (class expected) for %s: %s" (path_s (t_path mt)) (s_module_type_kind mt))
 
-let get_abstract mt = match mt with | TAbstractDecl a -> a | _ -> failwith ("Unexpected module type of '" ^ path_s (t_path mt) ^ "'")
+let get_abstract mt = match mt with | TAbstractDecl a -> a | _ -> failwith (Printf.sprintf "Unexpected module type (abstract expected) for %s: %s" (path_s (t_path mt)) (s_module_type_kind mt))
 
 let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
 
