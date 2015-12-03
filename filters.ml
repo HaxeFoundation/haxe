@@ -959,7 +959,7 @@ let apply_native_paths ctx t =
 			let meta,path = get_real_path e.e_meta e.e_path in
 			e.e_meta <- meta :: e.e_meta;
 			e.e_path <- path;
-		| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta ->
+		| TAbstractDecl a ->
 			let meta,path = get_real_path a.a_meta a.a_path in
 			a.a_meta <- meta :: a.a_meta;
 			a.a_path <- path;

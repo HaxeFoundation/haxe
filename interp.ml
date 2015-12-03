@@ -3669,12 +3669,17 @@ let can_reuse ctx types =
 	end
 
 let add_types ctx types ready =
-	let types = List.filter (fun t ->
-		let path = Type.t_path t in
-		if Hashtbl.mem ctx.types path then false else begin
-			Hashtbl.add ctx.types path (Type.t_infos t).mt_module.m_id;
-			true;
-		end
+	let types = List.filter (fun t -> match t with
+		| TAbstractDecl a when not (Ast.Meta.has Ast.Meta.CoreType a.a_meta) ->
+			(* A @:native on an abstract causes the implementation class and the abstract
+			   to have the same path. Let's skip all abstracts so this doesn't matter. *)
+			false
+		| _ ->
+			let path = Type.t_path t in
+			if Hashtbl.mem ctx.types path then false else begin
+				Hashtbl.add ctx.types path (Type.t_infos t).mt_module.m_id;
+				true;
+			end
 	) types in
 	List.iter ready types;
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
