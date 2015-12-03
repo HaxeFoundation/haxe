@@ -26,5 +26,11 @@ class Std {
 	public static inline function int( v : Float ) : Int {
 		return untyped $int(v);
 	}
+	
+	public static function string( v : Dynamic ) : String {
+		var len = 0;
+		var bytes = hl.types.Bytes.ofValue(v,new hl.types.Ref(len));
+		return @:privateAccess String.__alloc__(bytes,len,bytes.utf8Length(0,len));
+	}
 
 }

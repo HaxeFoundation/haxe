@@ -66,7 +66,11 @@ class String {
 		return null;
 	}
 	
-	@:keep static function __alloc__( b : hl.types.Bytes, blen : Int, clen : Int ) : String {
+	@:keep function __string() : hl.types.Bytes {
+		return bytes;
+	}
+	
+	@:keep static inline function __alloc__( b : hl.types.Bytes, blen : Int, clen : Int ) : String {
 		var s : String = untyped $new(String);
 		s.bytes = b;
 		s.length = clen;

@@ -14,4 +14,13 @@ package hl.types;
 		untyped $bset(this,pos,value);
 		return value;
 	}
+	@:hlNative("std","utf8length")
+	function utf8Length( startPos : Int, bytesCount : Int ) : Int {
+		return 0;
+	}
+	
+	@:hlNative("std","value_to_string")
+	public static function ofValue( v : Dynamic, len : Ref<Int> ) : Bytes {
+		return null;
+	}
 }

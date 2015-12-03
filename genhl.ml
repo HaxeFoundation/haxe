@@ -480,7 +480,7 @@ and class_type ctx c =
 		) c.cl_ordered_fields;
 		(try
 			let cf = PMap.find "toString" c.cl_fields in
-			if List.memq cf c.cl_overrides then raise Not_found;
+			if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields then raise Not_found;
 			DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
 		with Not_found ->
 			());
@@ -1273,7 +1273,7 @@ let generate_member ctx c f =
 	| Var _ -> ()
 	| Method m ->
 		make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) (Some c);
-		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) then begin
+		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
 			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
@@ -1698,31 +1698,53 @@ let interp code =
 
 	let error msg = raise (Runtime_error msg) in
 
-	let rec vstr v =
+	let rec vstr_d v =
 		match v with
 		| VNull -> "null"
 		| VInt i -> Int32.to_string i ^ "i"
 		| VFloat f -> string_of_float f ^ "f"
 		| VBool b -> if b then "true" else "false"
-		| VDyn (v,t) -> "dyn(" ^ vstr v ^ ")"
+		| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ")"
 		| VObj o ->
 			let p = "#" ^ o.oproto.pclass.pname in
 			let fid = ref None in
 			Array.iter (fun p -> if p.fname = "__string" then fid := Some p.fmethod) o.oproto.pclass.pproto;
 			(match !fid with
 			| None -> p
-			| Some f -> p ^ ":" ^ vstr (fcall (func f) [v]))
+			| Some f -> p ^ ":" ^ vstr_d (fcall (func f) [v]))
 		| VBytes b -> "bytes(" ^ (if String.length b > 0 && String.get b (String.length b - 1) = '\x00' then String.sub b 0 (String.length b - 1) else b) ^ ")"
 		| VClosure (f,o) ->
 			(match o with
 			| None -> fstr f
-			| Some v -> fstr f ^ "(" ^ vstr v ^ ")")
-		| VArray (a,t) -> "array<" ^ tstr t ^ ">(" ^ String.concat "," (Array.to_list (Array.map vstr a)) ^ ")"
+			| Some v -> fstr f ^ "(" ^ vstr_d v ^ ")")
+		| VArray (a,t) -> "array<" ^ tstr t ^ ">(" ^ String.concat "," (Array.to_list (Array.map vstr_d a)) ^ ")"
 		| VUndef -> "undef"
 		| VType t -> "type(" ^ tstr t ^ ")"
-		| VRef (regs,i) -> "ref(" ^ vstr regs.(i) ^ ")"
-		| VVirtual v -> "virtual(" ^ vstr v.vvalue ^ ")"
-		| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
+		| VRef (regs,i) -> "ref(" ^ vstr_d regs.(i) ^ ")"
+		| VVirtual v -> "virtual(" ^ vstr_d v.vvalue ^ ")"
+		| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr_d d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
+
+	and vstr v =
+		match v with
+		| VNull -> "null"
+		| VInt i -> Int32.to_string i
+		| VFloat f -> string_of_float f
+		| VBool b -> if b then "true" else "false"
+		| VDyn (v,_) -> vstr v
+		| VObj o ->
+			let fid = ref None in
+			Array.iter (fun p -> if p.fname = "__string" then fid := Some p.fmethod) o.oproto.pclass.pproto;
+			(match !fid with
+			| None -> "#" ^ o.oproto.pclass.pname
+			| Some f -> vstr (fcall (func f) [v]))
+		| VBytes b -> (if String.length b > 0 && String.get b (String.length b - 1) = '\x00' then String.sub b 0 (String.length b - 1) else b)
+		| VClosure (f,_) -> fstr f
+		| VArray (a,_) -> "[" ^ String.concat ", " (Array.to_list (Array.map vstr a)) ^ "]"
+		| VUndef -> "undef"
+		| VType t -> tstr t
+		| VRef (regs,i) -> "*" ^ (vstr regs.(i))
+		| VVirtual v -> vstr v.vvalue
+		| VDynObj d -> "{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i)) :: acc) d.dfields []) ^ "}"
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -2089,13 +2111,25 @@ let interp code =
 				regs.(i) <- VInt (Int32.of_int (String.length str));
 				VBytes (str ^ "\x00")
 			| _ -> assert false);
+		| "std", "value_to_string" ->
+			(function
+			| [v; VRef (regs,i)] ->
+				let str = vstr v in
+				regs.(i) <- VInt (Int32.of_int (String.length str));
+				VBytes (str ^ "\x00")
+			| _ -> assert false);
+		| "std", "utf8length" ->
+			(function
+			| [VBytes b; VInt start; VInt len] ->
+				VInt (Int32.of_int (UTF8.length (String.sub b (Int32.to_int start) (Int32.to_int len))))
+			| _ -> assert false)
 		| _ -> (fun args -> error ("Unresolved native " ^ name))
 		)
 	in
 	Array.iter (fun (lib,name,_,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name)) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	match functions.(code.entrypoint) with
-	| FFun f when f.ftype = HFun([],HVoid) -> (try call f [] with InterpThrow v -> error ("Uncaught exception " ^ vstr v))
+	| FFun f when f.ftype = HFun([],HVoid) -> (try call f [] with InterpThrow v -> error ("Uncaught exception " ^ vstr_d v))
 	| _ -> assert false
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
