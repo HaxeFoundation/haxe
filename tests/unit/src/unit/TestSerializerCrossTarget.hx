@@ -103,6 +103,7 @@ class TestSerializerCrossTarget extends Test {
 	}
 
 	function objectMapEmpty(value:Map<{}, String>) {
-		f(value.keys().hasNext());
+		var keys = value.keys();
+		f(keys.hasNext());
 	}
 }
