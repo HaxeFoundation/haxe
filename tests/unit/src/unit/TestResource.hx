@@ -6,7 +6,7 @@ class TestResource extends Test {
 
 	function testResources() {
 		var names = haxe.Resource.listNames();
-		eq( names.length, 2 );
+		eq( names.length, 3 );
 		if( names[0] == "re/s?!%[]))(\"'1.txt" ) {
 			 // redundant, but let's avoid different test numbers
 			eq( names[0], "re/s?!%[]))(\"'1.txt" );

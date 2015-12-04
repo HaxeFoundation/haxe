@@ -313,6 +313,7 @@ class Test {
 			new TestInt64(),
 			new TestReflect(),
 			new TestSerialize(),
+			new TestSerializerCrossTarget(),
 			new TestMeta(),
 			new TestType(),
 			new TestOrder(),
