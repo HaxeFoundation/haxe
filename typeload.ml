@@ -2773,9 +2773,19 @@ let resolve_typedef t =
 		| TAbstract (a,_) -> TAbstractDecl a
 		| _ -> t
 
+let check_module_types ctx m p t =
+	let t = t_infos t in
+	try
+		let m2 = Hashtbl.find ctx.g.types_module t.mt_path in
+		if m.m_path <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.m_path) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
+		error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
+	with
+		Not_found ->
+			Hashtbl.add ctx.g.types_module t.mt_path m.m_path
+
 let add_module ctx m p =
-	Hashtbl.add ctx.g.modules m.m_path m;
-	List.iter (fun t -> Hashtbl.add ctx.g.types_module (t_path t) m.m_path) m.m_types
+	List.iter (check_module_types ctx m p) m.m_types;
+	Hashtbl.add ctx.g.modules m.m_path m
 
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
@@ -3205,18 +3215,8 @@ let module_pass_2 ctx m decls tdecls p =
 let type_types_into_module ctx m tdecls p =
 	let decls, tdecls = module_pass_1 ctx.com m tdecls p in
 	let types = List.map fst decls in
+	List.iter (check_module_types ctx m p) types;
 	m.m_types <- m.m_types @ types;
-	let decl_type t =
-		let t = t_infos t in
-		try
-			let m2 = Hashtbl.find ctx.g.types_module t.mt_path in
-			if m.m_path <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.m_path) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
-			error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
-		with
-			Not_found ->
-				Hashtbl.add ctx.g.types_module t.mt_path m.m_path
-	in
-	List.iter decl_type types;
 	(* define the per-module context for the next pass *)
 	let ctx = {
 		com = ctx.com;
@@ -3295,7 +3295,6 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let m = make_module ctx mpath file p in
 	Hashtbl.add ctx.g.modules m.m_path m;
 	let tdecls = handle_import_hx ctx m tdecls p in
-	add_module ctx m p;
 	type_types_into_module ctx m tdecls p;
 	if is_extern then m.m_extra.m_kind <- MExtern;
 	m
