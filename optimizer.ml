@@ -1441,7 +1441,7 @@ let inline_constructors ctx e =
 		| _ ->
 			Type.iter find_locals e
 	in
-	find_locals e;
+	(* find_locals e; *)
 	(* Pass 2 *)
 	let get_field_var v s =
 		let ii = IntMap.find v.v_id !vars in
