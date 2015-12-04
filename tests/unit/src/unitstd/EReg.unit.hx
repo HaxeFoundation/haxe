@@ -95,6 +95,7 @@ pos.len == 2;
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$1") == "lead foo bar trail";
 ~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$1$$") == "lead $foo$ $bar$ trail";
 //~/href="(.*?)"/g.replace('lead href="foo" href="bar" trail',"$$$2$$") == "lead $$2$ $$2$ trail";
+~/a(b)c/g.replace("abcabc", "$1") == "bb";
 
 // map
 ~/(Hello)/.map("Hello World", function(e) return "Hallo") == "Hallo World";
