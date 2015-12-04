@@ -620,7 +620,8 @@ class RunCi {
 		var haxe_output = Path.join([repoDir, "haxe-output"]);
 		var gitInfo = gitInfo;
 		var TEST = Sys.getEnv("TEST");
-		var haxe_output_branch = gitInfo.branch + "_travisci_" + TEST;
+		var TRAVIS_OS_NAME = Sys.getEnv("TRAVIS_OS_NAME");
+		var haxe_output_branch = '${gitInfo.branch}_travisci_${TRAVIS_OS_NAME}_${TEST}';
 		var haxe_output_repo = "github.com/HaxeFoundation/haxe-output.git";
 
 		function haxeCommitTime(sha:String):Float {
