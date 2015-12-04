@@ -531,7 +531,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				| Some e -> map term e
 				| None -> error "Could not inline super constructor call" po
 				end
-			| _ -> error "Cannot inline function containint super" po
+			| _ -> error "Cannot inline function containing super" po
 			end
 		| TConst TSuper ->
 			error "Cannot inline function containing super" po
