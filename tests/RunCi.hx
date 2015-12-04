@@ -702,7 +702,7 @@ class RunCi {
 			changeDirectory(haxe_output);
 			runCommand("git", ["add", haxe_output]);
 			var commitMsg = [
-				'-m', '${Sys.getEnv("TRAVIS_JOB_NUMBER")} ${TEST} ${gitInfo.commit}',
+				'-m', '${Sys.getEnv("TRAVIS_JOB_NUMBER")} ${TEST} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}',
 				'-m', 'https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
 			];
 			runCommand("git", ["commit", "-q", "--allow-empty"].concat(commitMsg));
