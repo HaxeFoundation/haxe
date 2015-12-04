@@ -528,7 +528,7 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
-	static var gitInfo(get, null):{repo:String, branch:String, commit:String, parent:String, date:String};
+	static var gitInfo(get, null):{repo:String, branch:String, commit:String, timestamp:Float, date:String};
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
 		repo: switch (ci) {
 			case TravisCI:
@@ -547,13 +547,14 @@ class RunCi {
 				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
 		},
 		commit: commandResult("git", ["rev-parse", "HEAD"]).stdout.trim(),
-		parent: commandResult("git", ["rev-parse", "HEAD~"]).stdout.trim(),
+		timestamp: Std.parseFloat(commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout),
 		date: {
 			var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
 			var tzd = {
 				var z = Date.fromTime(0);
 				z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
 			}
+			// make time in the UTC time zone
 			var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
 			DateTools.format(time, "%FT%TZ");
 		}
@@ -615,46 +616,63 @@ class RunCi {
 			return;
 		}
 
+		changeDirectory(repoDir);
 		var haxe_output = Path.join([repoDir, "haxe-output"]);
 		var gitInfo = gitInfo;
-		var haxe_output_branch = gitInfo.date.replace(":", "-") + "_" + gitInfo.commit;
-		var haxe_output_parent = gitInfo.date.replace(":", "-") + "_" + gitInfo.parent;
+		var TEST = Sys.getEnv("TEST");
+		var haxe_output_branch = gitInfo.branch + "_travisci_" + TEST;
 		var haxe_output_repo = "github.com/HaxeFoundation/haxe-output.git";
 
+		function haxeCommitTime(sha:String):Float {
+			var cwd = Sys.getCwd();
+			Sys.setCwd(repoDir);
+			var time = Std.parseFloat(commandResult("git", ["show", "-s", "--pretty=%ct", sha]).stdout);
+			Sys.setCwd(cwd);
+			return time;
+		}
 
-		function save() {
+		function save():Void {
 			// prepare haxe-output repo
-			changeDirectory(repoDir);
 			runCommand("git", ["clone", 'https://${Sys.getEnv("HAXECI_GH_TOKEN")}@${haxe_output_repo}', haxe_output]);
 			changeDirectory(haxe_output);
 			runCommand("git", ["config", "user.email", "haxe-ci@onthewings.net"]);
 			runCommand("git", ["config", "user.name", "Haxe CI Bot"]);
 
-			var firstOutput = switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
+			// check to see whether the haxe repo branch has been created in haxe-output
+			var firstOutputBranch = switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
 				case 0: false;
 				case 2: true;
 				case exitcode: throw "unknown exit code: " + exitcode;
 			}
 
-			if (firstOutput) {
+			// switch to the branch
+			if (firstOutputBranch) {
 				runCommand("git", ["checkout", "-B", haxe_output_branch]);
-				var rm = File.append("README.md");
-				rm.writeString('
-
----------------
-
-Date: ${gitInfo.date}
-
-Branch: [${gitInfo.branch}](https://github.com/HaxeFoundation/haxe/tree/${gitInfo.branch})
-
-Commit: [${gitInfo.commit}](https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit})
-
-Compare to parent: [${haxe_output_parent}...${haxe_output_branch}](https://github.com/HaxeFoundation/haxe-output/compare/${haxe_output_parent}...${haxe_output_branch})
-'
-				);
-				rm.close();
 			} else {
 				runCommand("git", ["checkout", "-B", haxe_output_branch, "--track", "origin/" + haxe_output_branch]);
+			}
+
+			// check to see whether this will be the first push of this haxe repo commit
+			var firstOutputCommit = firstOutputBranch || {
+				var lastLog = commandResult("git", ["log", "show", "-s", "--pretty=format:%B", "HEAD"]).stdout;
+				var commitRe = ~/[a-f0-9]{40}/;
+				if (!commitRe.match(lastLog))
+					throw "No commit sha found in log: " + lastLog;
+				var lastCommit = commitRe.matched(0);
+
+				// check to see whether this commit is newer than the last pushed one
+				// in case e.g. the current build is a rebuild of an old commit
+				if (haxeCommitTime(lastCommit) > gitInfo.timestamp) {
+					throw "There exists output with a later commit in the haxe-output repo.";
+				}
+
+				lastCommit != gitInfo.commit;
+			};
+
+			// Remove all the old output first.
+			// It is because there may be files no longer emitted by the current build.
+			if (firstOutputCommit) {
+				runCommand("rm", ["-rf", "tests"]);
 			}
 
 			// get the outputs by listing the files/folders ignored by git
@@ -684,29 +702,38 @@ Compare to parent: [${haxe_output_parent}...${haxe_output_branch}](https://githu
 			changeDirectory(haxe_output);
 			runCommand("git", ["add", haxe_output]);
 			var commitMsg = [
-				'-m', 'Build ${Sys.getEnv("TRAVIS_JOB_NUMBER")}: https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
+				'-m', '${Sys.getEnv("TRAVIS_JOB_NUMBER")} ${TEST} ${gitInfo.commit}',
+				'-m', 'https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
 			];
 			runCommand("git", ["commit", "-q", "--allow-empty"].concat(commitMsg));
 		}
 
 		// try save() for 5 times because the push may fail when the another build push at the same time
-		var pushResult = null;
+		var pushError = false;
 		for (i in 0...5) {
-			save();
-			pushResult = commandResult("git", ["push", "origin", haxe_output_branch]);
+			try {
+				save();
+			} catch (e:Dynamic) {
+				infoMsg(e);
+				pushError = false;
+				break;
+			}
+			var pushResult = commandResult("git", ["push", "origin", haxe_output_branch]);
 			if (pushResult.exitCode == 0) {
 				successMsg("push to haxe-output succeed");
+				pushError = false;
 				break;
 			} else {
 				failMsg("push to haxe-output failed");
 				failMsg(pushResult.stderr);
+				pushError = true;
 
 				runCommand("rm", ["-rf", haxe_output]);
 
 				Sys.sleep(Std.random(10));
 			}
 		}
-		if (pushResult.exitCode != 0) {
+		if (pushError) {
 			Sys.exit(1);
 		}
 	}
