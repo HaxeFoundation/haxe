@@ -556,6 +556,23 @@ let reg_int ctx v =
 	op ctx (OInt (r,alloc_i32 ctx (Int32.of_int v)));
 	r
 
+let common_type ctx e1 e2 for_eq p =
+	let t1 = to_type ctx e1.etype in
+	let t2 = to_type ctx e2.etype in
+	if t1 == t2 then t1 else
+	match t1, t2 with
+	| HI8, (HI16 | HI32 | HF32 | HF64) -> t2
+	| HI16, (HI32 | HF32 | HF64) -> t2
+	| HI32, HF32 -> t2 (* possible loss of precision *)
+	| (HI32 | HF32), HF64 -> t2
+	| (HI8|HI16|HI32|HF32|HF64), (HI8|HI16|HI32|HF32|HF64) -> t1
+	| (HI8|HI16|HI32|HF32|HF64), (HDyn _) -> HF64
+	| (HDyn _), (HI8|HI16|HI32|HF32|HF64) -> HF64
+	| _ when for_eq && safe_cast t1 t2 -> t2
+	| _ when for_eq && safe_cast t2 t1 -> t1
+	| _ ->
+		error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
+
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
 	cast_to ctx r t e.epos
@@ -652,20 +669,9 @@ and jump_expr ctx e jcond =
 	| TUnop (Not,_,e) ->
 		jump_expr ctx e (not jcond)
 	| TBinop (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte as jop, e1, e2) ->
-		let r1 = eval_expr ctx e1 in
-		let r2 = eval_expr ctx e2 in
-		let r1, r2 = (match rtype ctx r1, rtype ctx r2 with
-			| (HI8 | HI16 | HI32), ((HF32 | HF64) as t) ->
-				let tmp = alloc_tmp ctx t in
-				op ctx (OToFloat (tmp,r1));
-				tmp, r2
-			| ((HF32 | HF64) as t), (HI8 | HI16 | HI32) ->
-				let tmp = alloc_tmp ctx t in
-				op ctx (OToFloat (tmp,r2));
-				r1, tmp
-			| t1, t2 ->
-				if t1 == t2 then r1, r2 else error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) e.epos
-		) in
+		let t = common_type ctx e1 e2 (match jop with OpEq | OpNotEq -> true | _ -> false) e.epos in
+		let r1 = eval_to ctx e1 t in
+		let r2 = eval_to ctx e2 t in
 		let unsigned = unsigned e1.etype && unsigned e2.etype in
 		jump ctx (fun i ->
 			let lt a b = if unsigned then OJULt (a,b,i) else OJSLt (a,b,i) in
@@ -946,27 +952,45 @@ and eval_expr ctx e =
 		(match bop with
 		| OpLte ->
 			let r = alloc_tmp ctx HBool in
-			let a = eval_expr ctx e1 in
-			let b = eval_expr ctx e2 in
+			let t = common_type ctx e1 e2 false e.epos in
+			let a = eval_to ctx e1 t in
+			let b = eval_to ctx e2 t in
 			op ctx (gte r b a);
 			r
 		| OpGt ->
 			let r = alloc_tmp ctx HBool in
-			let a = eval_expr ctx e1 in
-			let b = eval_expr ctx e2 in
+			let t = common_type ctx e1 e2 false e.epos in
+			let a = eval_to ctx e1 t in
+			let b = eval_to ctx e2 t in
 			op ctx (lt r b a);
 			r
 		| OpGte ->
 			let r = alloc_tmp ctx HBool in
-			let a = eval_expr ctx e1 in
-			let b = eval_expr ctx e2 in
+			let t = common_type ctx e1 e2 false e.epos in
+			let a = eval_to ctx e1 t in
+			let b = eval_to ctx e2 t in
 			op ctx (gte r a b);
 			r
 		| OpLt ->
 			let r = alloc_tmp ctx HBool in
-			let a = eval_expr ctx e1 in
-			let b = eval_expr ctx e2 in
+			let t = common_type ctx e1 e2 false e.epos in
+			let a = eval_to ctx e1 t in
+			let b = eval_to ctx e2 t in
 			op ctx (lt r a b);
+			r
+		| OpEq ->
+			let r = alloc_tmp ctx HBool in
+			let t = common_type ctx e1 e2 true e.epos in
+			let a = eval_to ctx e1 t in
+			let b = eval_to ctx e2 t in
+			op ctx (OEq (r,a,b));
+			r
+		| OpNotEq ->
+			let r = alloc_tmp ctx HBool in
+			let t = common_type ctx e1 e2 true e.epos in
+			let a = eval_to ctx e1 t in
+			let b = eval_to ctx e2 t in
+			op ctx (ONotEq (r,a,b));
 			r
 		| OpAdd ->
 			let t = to_type ctx e.etype in
@@ -1078,10 +1102,6 @@ and eval_expr ctx e =
 			op ctx (OBool (r,false));
 			jend();
 			r
-		| OpEq ->
-			assert false
-		| OpNotEq ->
-			assert false
 		| OpAssignOp _ ->
 			assert false
 		| OpMod ->
@@ -1489,9 +1509,12 @@ let check code =
 				| _ -> reg f (HFun(List.map rtype rl,rtype r)))
 			| OGetGlobal (r,g) | OSetGlobal (r,g) ->
 				reg r code.globals.(g)
-			| OEq (r,a,b) | ONotEq (r, a, b) | OSLt (r, a, b) | OULt (r, a, b) | OSGte (r, a, b) | OUGte (r, a, b) ->
+			| OSLt (r, a, b) | OULt (r, a, b) | OSGte (r, a, b) | OUGte (r, a, b) ->
 				reg r HBool;
 				reg a (rtype b)
+			| OEq (r,a,b) | ONotEq (r, a, b) ->
+				reg r HBool;
+				if not (safe_cast (rtype b) (rtype a)) then reg a (rtype b)
 			| ORet r ->
 				reg r tret
 			| OJTrue (r,delta) | OJFalse (r,delta) ->
@@ -1500,8 +1523,11 @@ let check code =
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
 				ignore(rtype r);
 				can_jump delta
-			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJEq (a,b,delta) | OJNeq (a,b,delta) ->
+			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) ->
 				reg a (rtype b);
+				can_jump delta
+			| OJEq (a,b,delta) | OJNeq (a,b,delta) ->
+				if not (safe_cast (rtype b) (rtype a)) then reg a (rtype b);
 				can_jump delta
 			| OJAlways d ->
 				can_jump d
@@ -1803,6 +1829,17 @@ let interp code =
 				Int32.to_int (if d = 0l then Int32.sub (Int32.logand a 0xFFFFl) (Int32.logand b 0xFFFFl) else d)
 			| _ -> assert false
 		in
+		let vcompare a b =
+			match a, b with
+			| VInt a, VInt b -> Int32.compare a b
+			| VFloat a, VFloat b -> compare a b
+			| VNull, VNull -> 0
+			| VNull, _ -> 1
+			| _, VNull -> -1
+			| VObj a, VObj b -> if a == b then 0 else 1
+			| _ ->
+				error ("Can't compare " ^ vstr_d a ^ " and " ^ vstr_d b)
+		in
 		let rec loop() =
 			let op = f.code.(!pos) in
 			incr pos;
@@ -1836,10 +1873,10 @@ let interp code =
 			| OCallN (r,f,rl) -> set r (fcall (func f) (List.map get rl))
 			| OGetGlobal (r,g) -> set r (global g)
 			| OSetGlobal (r,g) -> Array.unsafe_set globals g (get r)
-			| OEq (r,a,b) -> set r (VBool (get a = get b))
-			| ONotEq (r,a,b) -> set r (VBool (get a <> get b))
-			| OSGte (r,a,b) -> set r (VBool (get a >= get b))
-			| OSLt (r,a,b) -> set r (VBool (get a < get b))
+			| OEq (r,a,b) -> set r (VBool (vcompare (get a) (get b) = 0))
+			| ONotEq (r,a,b) -> set r (VBool (vcompare (get a) (get b) <> 0))
+			| OSGte (r,a,b) -> set r (VBool (vcompare (get a) (get b) >= 0))
+			| OSLt (r,a,b) -> set r (VBool (vcompare (get a) (get b) < 0))
 			| OUGte (r,a,b) -> set r (VBool (ucompare (get a) (get b) >= 0))
 			| OULt (r,a,b) -> set r (VBool (ucompare (get a) (get b) < 0))
 			| OJTrue (r,i) -> if get r = VBool true then pos := !pos + i
