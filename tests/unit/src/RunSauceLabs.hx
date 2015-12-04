@@ -60,36 +60,36 @@ class RunSauceLabs {
 			// {
 			// 	"browserName": "internet explorer",
 			// 	"platform": "Windows XP",
-			// 	"version": "6",
+			// 	"version": "6.0",
 			//  "prerun": hideLongRunningScriptWarning
 			// },
 			// {
 			// 	"browserName": "internet explorer",
 			// 	"platform": "Windows XP",
-			// 	"version": "7",
+			// 	"version": "7.0",
 			//  "prerun": hideLongRunningScriptWarning
 			// },
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows XP",
-				"version": "8",
+				"version": "8.0",
 				"prerun": hideLongRunningScriptWarning
 			},
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows 7",
-				"version": "9",
+				"version": "9.0",
 				"prerun": hideLongRunningScriptWarning
 			},
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows 7",
-				"version": "10"
+				"version": "10.0"
 			},
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows 8.1",
-				"version": "11"
+				"version": "11.0"
 			},
 			{
 				"browserName": "chrome",
@@ -102,22 +102,22 @@ class RunSauceLabs {
 			{
 				"browserName": "safari",
 				"platform": "OS X 10.8",
-				"version": "6"
+				"version": "6.0"
 			},
 			{
 				"browserName": "safari",
 				"platform": "OS X 10.9",
-				"version": "7"
+				"version": "7.0"
 			},
 			{
 				"browserName": "safari",
 				"platform": "OS X 10.10",
-				"version": "8"
+				"version": "8.0"
 			},
 			{
 				"browserName": "safari",
 				"platform": "OS X 10.11",
-				"version": "9"
+				"version": "9.0"
 			},
 			{
 				"browserName": "iphone",
