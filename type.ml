@@ -1127,7 +1127,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 		sprintf "[%s:%s]%s" s st (tag_args (tabs ^ extra_tabs) sl)
 	in
 	let var_id v = if print_var_ids then v.v_id else 0 in
-	let const c = sprintf "[Const %s:%s]" (s_const c) (s_type e.etype) in
+	let const c = sprintf "[Const %s]" (s_const c) in
 	let local v = sprintf "[Local %s(%i):%s]" v.v_name (var_id v) (s_type v.v_type) in
 	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name (var_id v) (s_type v.v_type) (tag_args tabs sl) in
 	let module_type mt = sprintf "[TypeExpr %s:%s]" (s_type_path (t_path mt)) (s_type e.etype) in
