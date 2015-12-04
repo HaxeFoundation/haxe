@@ -5,8 +5,8 @@ class TestResource extends Test {
 	static var STR = "Héllo World !";
 
 	function testResources() {
-		var names = haxe.Resource.listNames();
-		eq( names.length, 3 );
+		var names = haxe.Resource.listNames().filter(function(name) return name != "serializedValues.txt");
+		eq( names.length, 2 );
 		if( names[0] == "re/s?!%[]))(\"'1.txt" ) {
 			 // redundant, but let's avoid different test numbers
 			eq( names[0], "re/s?!%[]))(\"'1.txt" );
