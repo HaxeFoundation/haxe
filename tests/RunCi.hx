@@ -654,7 +654,7 @@ class RunCi {
 
 			// check to see whether this will be the first push of this haxe repo commit
 			var firstOutputCommit = firstOutputBranch || {
-				var lastLog = commandResult("git", ["log", "show", "-s", "--pretty=format:%B", "HEAD"]).stdout;
+				var lastLog = commandResult("git", ["show", "-s", "--pretty=format:%B", "HEAD"]).stdout;
 				var commitRe = ~/[a-f0-9]{40}/;
 				if (!commitRe.match(lastLog))
 					throw "No commit sha found in log: " + lastLog;
