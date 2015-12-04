@@ -1225,11 +1225,13 @@ and gen_expr ctx e =
 				let tmp = define_local ctx "_t" in
 				print ctx "(is_object($%s = " tmp;
 				gen_field_op ctx e1;
-				print ctx ") && !($%s instanceof Enum) ? $%s%s" tmp tmp s_phop;
+				print ctx ") && ($%s instanceof Enum) ? $%s%s" tmp tmp s_op;
 				gen_field_op ctx e2;
-				print ctx " : $%s%s" tmp s_op;
+				print ctx " : ";
+				if op = Ast.OpNotEq then spr ctx "!";
+				print ctx "_hx_equal($%s, " tmp;
 				gen_field_op ctx e2;
-				spr ctx ")";
+				spr ctx "))";
 			end
 		| Ast.OpGt | Ast.OpGte | Ast.OpLt | Ast.OpLte when is_string_expr e1 ->
 			spr ctx "(strcmp(";
