@@ -791,7 +791,7 @@ class RunCi {
 							// runCommand("haxe", ["compile-macro.hxml"]);
 					}
 				case Neko:
-					runCommand("haxe", ["compile-neko.hxml"]);
+					runCommand("haxe", ["compile-neko.hxml", "-D", "dump"]);
 					runCommand("neko", ["bin/unit.n"]);
 
 					changeDirectory(sysDir);
@@ -988,7 +988,7 @@ class RunCi {
 
 				case Flash9:
 					setupFlashPlayerDebugger();
-					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
+					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump"]);
 					var success = runFlash("bin/unit9.swf");
 					if (!success)
 						Sys.exit(1);
@@ -1042,7 +1042,7 @@ class RunCi {
 			})
 			&&
 			Lambda.exists(tests, function(t) return switch (t) {
-				case Js | Cpp | Cs | Java | Php | Python: true;
+				case Js | Cpp | Cs | Java | Php | Python | Neko | Flash9 | As3: true;
 				case _: false;
 			})
 		) {
