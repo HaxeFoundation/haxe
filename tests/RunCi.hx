@@ -662,17 +662,20 @@ class RunCi {
 			var firstOutputCommit = firstOutputBranch || {
 				var lastLog = commandResult("git", ["show", "-s", "--pretty=format:%B", "HEAD"]).stdout;
 				var commitRe = ~/[a-f0-9]{40}/;
-				if (!commitRe.match(lastLog))
-					throw "No commit sha found in log: " + lastLog;
-				var lastCommit = commitRe.matched(0);
+				if (!commitRe.match(lastLog)) {
+					infoMsg("No commit sha found in log: " + lastLog);
+					true;
+				} else {
+					var lastCommit = commitRe.matched(0);
 
-				// check to see whether this commit is newer than the last pushed one
-				// in case e.g. the current build is a rebuild of an old commit
-				if (haxeCommitTime(lastCommit) > gitInfo.timestamp) {
-					throw "There exists output with a later commit in the haxe-output repo.";
+					// check to see whether this commit is newer than the last pushed one
+					// in case e.g. the current build is a rebuild of an old commit
+					if (haxeCommitTime(lastCommit) > gitInfo.timestamp) {
+						throw "There exists output with a later commit in the haxe-output repo.";
+					}
+
+					lastCommit != gitInfo.commit;
 				}
-
-				lastCommit != gitInfo.commit;
 			};
 
 			// Remove all the old output first.
