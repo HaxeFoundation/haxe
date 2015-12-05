@@ -181,7 +181,12 @@ class RunCi {
 		}
 	}
 
-	static function runFlash(swf:String):Void {
+	/**
+		Run a Flash swf file.
+		Return whether the test is successful or not.
+		It detemines the test result by reading the flashlog.txt, looking for "SUCCESS: true".
+	*/
+	static function runFlash(swf:String):Bool {
 		swf = FileSystem.fullPath(swf);
 		Sys.println('going to run $swf');
 		switch (systemName) {
@@ -208,7 +213,7 @@ class RunCi {
 		}
 		if (!FileSystem.exists(flashlogPath)) {
 			failMsg('$flashlogPath not found.');
-			Sys.exit(1);
+			return false;
 		}
 
 		//read flashlog.txt continously
@@ -219,11 +224,11 @@ class RunCi {
 				line = traceProcess.stdout.readLine();
 				Sys.println(line);
 				if (line.indexOf("SUCCESS: ") >= 0) {
-					Sys.exit(line.indexOf("SUCCESS: true") >= 0 ? 0 : 1);
+					return line.indexOf("SUCCESS: true") >= 0;
 				}
 			} catch (e:haxe.io.Eof) {}
 		}
-		Sys.exit(1);
+		return false;
 	}
 
 	static function runCs(exe:String, ?args:Array<String>):Void {
@@ -984,7 +989,9 @@ class RunCi {
 				case Flash9:
 					setupFlashPlayerDebugger();
 					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
-					runFlash("bin/unit9.swf");
+					var success = runFlash("bin/unit9.swf");
+					if (!success)
+						Sys.exit(1);
 				case As3:
 					setupFlashPlayerDebugger();
 
@@ -1005,7 +1012,9 @@ class RunCi {
 					}
 
 					runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
-					runFlash("bin/unit9_as3.swf");
+					var success = runFlash("bin/unit9_as3.swf");
+					if (!success)
+						Sys.exit(1);
 				case ThirdParty:
 					getPhpDependencies();
 					getJavaDependencies();
