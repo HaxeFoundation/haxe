@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import hl.types.ArrayImpl;
+import hl.types.ArrayI32;
 
 class Std {
 
