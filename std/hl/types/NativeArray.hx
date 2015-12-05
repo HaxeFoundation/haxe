@@ -1,6 +1,6 @@
 package hl.types;
 
-@:coreType abstract ArrayObject<T> {
+@:coreType abstract NativeArray<T> {
 	public var length(get,never):Int;	
 	@:extern public inline function new( length : Int ) {
 		this = untyped $aalloc(length);
@@ -15,6 +15,6 @@ package hl.types;
 		untyped $aset(this,pos,value);
 		return value;
 	}
-	@:hlNative("std","ablit") public function blit( pos : Int, src : ArrayObject<T>, srcPos : Int, srcLen : Int ) : Void {
+	@:hlNative("std","ablit") public function blit( pos : Int, src : NativeArray<T>, srcPos : Int, srcLen : Int ) : Void {
 	}
 }

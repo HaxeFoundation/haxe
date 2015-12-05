@@ -23,12 +23,20 @@ class ArrayI32 {
 	}
 
 	public function pop() : Null<Int> {
-		throw "TODO";
-		return null;
+		if( length == 0 )
+			return null;
+		length--;
+		var v : Int = untyped $bgeti32(bytes,length<<2);
+		return v;
 	}
 
 	public function push(x : Int) : Int {
-		throw "TODO";
+		var len = length;
+		if( size == len )
+			__expand(len);
+		else
+			length++;
+		untyped $bseti32(bytes,len<<2,x);
 		return length;
 	}
 
@@ -99,7 +107,7 @@ class ArrayI32 {
 		return null;
 	}
 
-	public function map<S>( f : Int -> S ) : ArrayImpl<S> {
+	public function map<S>( f : Int -> S ) : ArrayObj<S> {
 		throw "TODO";
 		return null;
 	}

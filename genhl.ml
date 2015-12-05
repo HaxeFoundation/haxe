@@ -187,6 +187,7 @@ type ('a,'b) lookup = {
 type method_context = {
 	mregs : (int, ttype) lookup;
 	mops : opcode DynArray.t;
+	mret : ttype;
 }
 
 type array_impl = {
@@ -325,10 +326,11 @@ let lookup l v fb =
 		DynArray.set l.arr id (fb());
 		id
 
-let method_context() =
+let method_context t =
 	{
 		mregs = new_lookup();
 		mops = DynArray.create();
+		mret = t;
 	}
 
 let field_name c f =
@@ -429,12 +431,12 @@ let rec to_type ctx t =
 			| [], "Bool" -> HBool
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], "Bytes" -> HBytes
-			| ["hl";"types"], "ArrayObject" -> HArray (to_type ctx (List.hd pl))
+			| ["hl";"types"], "NativeArray" -> HArray (to_type ctx (List.hd pl))
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
 			to_type ctx (Abstract.get_underlying_type a pl)
 
-and class_type ctx c pl =
+and resolve_class ctx c pl =
 	let not_supported() =
 		failwith ("Generic type not supported : " ^ s_type (print_context()) (TInst (c,pl)))
 	in
@@ -442,15 +444,19 @@ and class_type ctx c pl =
 	| ([],"Array"), [t] ->
 		(match to_type ctx t with
 		| HI32 ->
-			class_type ctx ctx.array_impl.ai32 []
+			ctx.array_impl.ai32
 		| t ->
 			if safe_cast t (HDyn None) then
-				class_type ctx ctx.array_impl.aobj []
+				ctx.array_impl.aobj
 			else
 				not_supported())
-	| _, _ :: _ when c.cl_extern ->
+	| _, _ when c.cl_extern ->
 		not_supported()
-	| _ -> (* erasure *)
+	| _ ->
+		c
+
+and class_type ctx c pl =
+	let c = if c.cl_extern then resolve_class ctx c pl else c in
 	try
 		PMap.find c.cl_path ctx.cached_types
 	with Not_found ->
@@ -656,7 +662,7 @@ and get_access ctx e =
 		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
 		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic ->
 			if not (is_overriden ctx c f) then
-				AInstanceFun (ethis, alloc_fid ctx cdef f)
+				AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl) f)
 			else (match class_type ctx cdef pl with
 			| HObj p -> AInstanceProto (ethis, resolve_field ctx p f.cf_name true)
 			| _ -> assert false)
@@ -781,7 +787,7 @@ and eval_expr ctx e =
 		op ctx (ORet r);
 		r
 	| TReturn (Some e) ->
-		let r = eval_expr ctx e in
+		let r = eval_to ctx e ctx.m.mret in
 		op ctx (ORet r);
 		alloc_tmp ctx HVoid
 	| TParenthesis e ->
@@ -889,7 +895,7 @@ and eval_expr ctx e =
 			op ctx (OArraySize (r, eval_to ctx e (HArray (HDyn None))));
 			r
 		| "$aalloc", [esize] ->
-			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"ArrayObject" },[t]) -> to_type ctx t | _ -> assert false) in
+			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> assert false) in
 			if safe_cast et (HDyn None) then begin
 				let a = alloc_tmp ctx (HArray (HDyn None)) in
 				let rt = alloc_tmp ctx HType in
@@ -906,6 +912,15 @@ and eval_expr ctx e =
 			| HArray t ->
 				let r = alloc_tmp ctx t in
 				op ctx (OGetArray (r, arr, pos));
+				r
+			| _ -> invalid())
+		| "$aset", [a; pos; value] ->
+			let arr = eval_expr ctx a in
+			let pos = eval_to ctx pos HI32 in
+			(match rtype ctx arr with
+			| HArray t ->
+				let r = eval_to ctx value t in
+				op ctx (OSetArray (arr, pos, r));
 				r
 			| _ -> invalid())
 		| "$ref", [v] ->
@@ -1142,7 +1157,7 @@ and eval_expr ctx e =
 				let len = alloc_tmp ctx HI32 in
 				op ctx (OField (len,a,1));
 				let j = jump ctx (fun i -> OJULt (idx,len,i)) in
-				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl";"types"],"ArrayImpl") "__expand", a, idx));
+				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "__expand", a, idx));
 				j();
 				let arr = alloc_tmp ctx (HArray (HDyn None)) in
 				op ctx (OField (arr,a,0));
@@ -1234,6 +1249,22 @@ and eval_expr ctx e =
 			op ctx (OMov (r2,r));
 			unop r;
 			r2
+		| AInstanceField (eobj,f), Prefix ->
+			let robj = eval_expr ctx eobj in
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+			op ctx (OField (r,robj,f));
+			unop r;
+			op ctx (OSetField (robj,f,r));
+			r
+		| AInstanceField (eobj,f), Postfix ->
+			let robj = eval_expr ctx eobj in
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+			op ctx (OField (r,robj,f));
+			let r2 = alloc_tmp ctx (rtype ctx r) in
+			op ctx (OMov (r2,r));
+			unop r;
+			op ctx (OSetField (robj,f,r));
+			r2
 		| _ ->
 			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 		);
@@ -1277,8 +1308,6 @@ and eval_expr ctx e =
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayI32") "alloc", b, reg_int ctx (List.length el)));
-		| HDyn None ->
-			assert false
 		| _ ->
 			if safe_cast et (HDyn None) then begin
 				let a = alloc_tmp ctx (HArray (HDyn None)) in
@@ -1290,7 +1319,7 @@ and eval_expr ctx e =
 					let r = eval_to ctx e et in
 					op ctx (OSetArray (a,reg_int ctx i,r));
 				) el;
-				op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayImpl") "alloc", a))
+				op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "alloc", a))
 			end else begin
 				assert false
 			end);
@@ -1299,25 +1328,46 @@ and eval_expr ctx e =
 		let ra = eval_null_check ctx a in
 		let ri = eval_to ctx i HI32 in
 		let at = (match follow a.etype with TInst ({ cl_path = [],"Array" },[t]) -> to_type ctx t | _ -> assert false) in
-		if safe_cast at (HDyn None) then begin
-			let harr = alloc_tmp ctx (HArray (HDyn None)) in
-			op ctx (OField (harr, ra, 0));
+		(match at with
+		| HI32 ->
+			let hbytes = alloc_tmp ctx HBytes in
+			op ctx (OField (hbytes, ra, 0));
 
 			(* check bounds *)
 			let size = alloc_tmp ctx HI32 in
-			op ctx (OArraySize (size,harr));
+			op ctx (OField (size, ra, 2));
 			let r = alloc_tmp ctx at in
 			let j = jump ctx (fun i -> OJULt (ri,size,i)) in
-			op ctx (ONull r);
+			op ctx (OInt (r,alloc_i32 ctx 0l));
 			let jend = jump ctx (fun i -> OJAlways i) in
 			j();
-			let tmp = alloc_tmp ctx (HDyn None) in
-			op ctx (OGetArray (tmp,harr,ri));
-			op ctx (OUnsafeCast (r,tmp));
+			let r2 = alloc_tmp ctx HI32 in
+			op ctx (OInt (r2,alloc_i32 ctx 2l));
+			op ctx (OShl (ri,ri,r2));
+			op ctx (OGetI32 (r,hbytes,ri));
 			jend();
 			r
-		end else
-			assert false
+
+		| _ ->
+			if safe_cast at (HDyn None) then begin
+				let harr = alloc_tmp ctx (HArray (HDyn None)) in
+				op ctx (OField (harr, ra, 0));
+
+				(* check bounds *)
+				let size = alloc_tmp ctx HI32 in
+				op ctx (OArraySize (size,harr));
+				let r = alloc_tmp ctx at in
+				let j = jump ctx (fun i -> OJULt (ri,size,i)) in
+				op ctx (ONull r);
+				let jend = jump ctx (fun i -> OJAlways i) in
+				j();
+				let tmp = alloc_tmp ctx (HDyn None) in
+				op ctx (OGetArray (tmp,harr,ri));
+				op ctx (OUnsafeCast (r,tmp));
+				jend();
+				r
+			end else
+				assert false)
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TTypeExpr _ | TFor _ | TSwitch _ | TTry _ | TBreak | TContinue | TEnumParameter _ | TCast (_,Some _) ->
@@ -1325,7 +1375,7 @@ and eval_expr ctx e =
 
 and make_fun ctx fidx f cthis =
 	let old = ctx.m in
-	ctx.m <- method_context();
+	ctx.m <- method_context (to_type ctx f.tf_type);
 	let tthis = (match cthis with
 	| None -> None
 	| Some c ->
@@ -2211,8 +2261,8 @@ let interp code =
 					else match t, rtype r with
 					| (HI8|HI16|HI32), (HF32|HF64) ->
 						set r (match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
-					| (HI8|HI16|HI32|HF32|HF64), HDyn _ ->
-						set r (VDyn (v,t))
+					| _, HDyn None ->
+						set r (if safe_cast t (HDyn None) then v else VDyn (v,t))
 					| _ ->
 						error ("Can't cast " ^ tstr t ^ " to " ^ tstr (rtype r))
 				in
@@ -2728,7 +2778,7 @@ let generate com =
 	in
 	let ctx = {
 		com = com;
-		m = method_context();
+		m = method_context HVoid;
 		cints = new_lookup();
 		cstrings = new_lookup();
 		cfloats = new_lookup();
@@ -2740,7 +2790,7 @@ let generate com =
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
 		array_impl = {
-			aobj = get_class "ArrayImpl";
+			aobj = get_class "ArrayObj";
 			ai32 = get_class "ArrayI32";
 		};
 		anons_cache = [];

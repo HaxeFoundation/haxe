@@ -1,17 +1,17 @@
 package hl.types;
 
 @:keep
-class ArrayImpl<T> {
+class ArrayObj<T> {
 
-	var array : hl.types.ArrayObject<Dynamic>;
+	var array : hl.types.NativeArray<Dynamic>;
 	public var length(default,null) : Int;
 
 	public function new() {
 		length = 0;
-		array = new ArrayObject<Dynamic>(0);
+		array = new NativeArray<Dynamic>(0);
 	}
 
-	public function concat( a : ArrayImpl<T> ) : ArrayImpl<T> {
+	public function concat( a : ArrayObj<T> ) : ArrayObj<T> {
 		throw "TODO";
 		return null;
 	}
@@ -22,12 +22,21 @@ class ArrayImpl<T> {
 	}
 
 	public function pop() : Null<T> {
-		throw "TODO";
-		return null;
+		if( length == 0 )
+			return null;
+		length--;
+		var v = array[length];
+		array[length] = null;
+		return v;
 	}
 
 	public function push(x : T) : Int {
-		throw "TODO";
+		var len = length;
+		if( array.length == len )
+			__expand(len);
+		else
+			length++;
+		array[len] = x;
 		return length;
 	}
 
@@ -40,7 +49,7 @@ class ArrayImpl<T> {
 		return null;
 	}
 
-	public function slice( pos : Int, ?end : Int ) : ArrayImpl<T> {
+	public function slice( pos : Int, ?end : Int ) : ArrayObj<T> {
 		throw "TODO";
 		return null;
 	}
@@ -49,7 +58,7 @@ class ArrayImpl<T> {
 		throw "TODO";
 	}
 
-	public function splice( pos : Int, len : Int ) : ArrayImpl<T> {
+	public function splice( pos : Int, len : Int ) : ArrayObj<T> {
 		throw "TODO";
 		return null;
 	}
@@ -88,7 +97,7 @@ class ArrayImpl<T> {
 		return -1;
 	}
 
-	public function copy() : ArrayImpl<T> {
+	public function copy() : ArrayObj<T> {
 		throw "TODO";
 		return null;
 	}
@@ -98,12 +107,12 @@ class ArrayImpl<T> {
 		return null;
 	}
 
-	public function map<S>( f : T -> S ) : ArrayImpl<S> {
+	public function map<S>( f : T -> S ) : ArrayObj<S> {
 		throw "TODO";
 		return null;
 	}
 
-	public function filter( f : T -> Bool ) : ArrayImpl<T> {
+	public function filter( f : T -> Bool ) : ArrayObj<T> {
 		throw "TODO";
 		return null;
 	}
@@ -116,15 +125,15 @@ class ArrayImpl<T> {
 		if( newlen > size ) {
 			var next = (size * 3) >> 1;
 			if( next < newlen ) next = newlen;
-			var arr2 = new hl.types.ArrayObject<Dynamic>(next);
+			var arr2 = new hl.types.NativeArray<Dynamic>(next);
 			arr2.blit(0,array,0,length);
 			array = arr2;
 		}
 		length = newlen;
 	}
 	
-	public static function alloc( a : hl.types.ArrayObject<Dynamic> ) {
-		var arr : ArrayImpl<Dynamic> = untyped $new(ArrayImpl);
+	public static function alloc( a : hl.types.NativeArray<Dynamic> ) {
+		var arr : ArrayObj<Dynamic> = untyped $new(ArrayObj);
 		arr.array = a;
 		arr.length = a.length;
 		return arr;
