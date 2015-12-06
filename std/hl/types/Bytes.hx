@@ -43,6 +43,16 @@ package hl.types;
 		untyped $bsetf64(this, pos, value);
 	}
 	
+	@:hlNative("std","parse_int")
+	public function parseInt( size : Int ) : Null<Int> {
+		return null;
+	}
+	
+	@:hlNative("std","parse_float")
+	public function parseFloat( size : Int ) : Float {
+		return 0.;
+	}
+	
 	@:hlNative("std","utf8length")
 	function utf8Length( startPos : Int, bytesCount : Int ) : Int {
 		return 0;

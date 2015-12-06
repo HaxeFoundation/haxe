@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2012 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,45 +19,75 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import hl.types.ArrayObj;
-import hl.types.ArrayI32;
-import hl.types.ArrayF64;
 
-@:coreApi
-class Std {
+@:coreApi @:final class Date {
 
-	public static function random( max : Int ) : Int {
-		throw "TODO:Std.random";
+	private var t : Int;
+
+	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void {
+		throw "TODO";
+	}
+
+	public function getTime() : Float {
+		throw "TODO";
+		return 0.;
+	}
+
+	public function getFullYear() : Int {
+		throw "TODO";
 		return 0;
 	}
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		throw "TODO:Std.is";
-		return false;
+	public function getMonth() : Int {
+		throw "TODO";
+		return 0;
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		throw "TODO:Std.instance";
+	public function getDate() : Int {
+		throw "TODO";
+		return 0;
+	}
+
+	public function getHours() : Int {
+		throw "TODO";	
+		return 0;
+	}
+
+	public function getMinutes() : Int {
+		throw "TODO";
+		return 0;
+	}
+
+	public function getSeconds() : Int {
+		throw "TODO";
+		return 0;
+	}
+
+	public function getDay() : Int {
+		throw "TODO";
+		return 0;
+	}
+
+	@:keep public function toString():String {
+		throw "TODO";
+		return "";
+	}
+
+	public static function now() : Date {
+		throw "TODO";
 		return null;
 	}
 
-	public static inline function int( v : Float ) : Int {
-		return untyped $int(v);
-	}
-	
-	public static function string( v : Dynamic ) : String {
-		var len = 0;
-		var bytes = hl.types.Bytes.ofValue(v,new hl.types.Ref(len));
-		return @:privateAccess String.__alloc__(bytes,len,bytes.utf8Length(0,len));
-	}
-	
-	public static function parseInt( s : String ) : Null<Int> {
-		return @:privateAccess s.bytes.parseInt(s.length);
+	public static function fromTime( t : Float ) : Date {
+		throw "TODO";
+		return null;
 	}
 
-	public static function parseFloat( s : String ) : Float {
-		return @:privateAccess s.bytes.parseFloat(s.length);
+	public static function fromString( s : String ) : Date {
+		throw "TODO";
+		return null;
 	}
-
 
 }
+
+

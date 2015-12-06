@@ -296,7 +296,7 @@ class TestType extends Test {
 
 		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
-		#if flash
+		#if (flash || hl)
 		t(typeError(foo.bind(_)));
 		#else
 		var l = foo.bind(_);

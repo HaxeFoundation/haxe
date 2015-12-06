@@ -52,7 +52,7 @@ RELDIR=../../..
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen gencommon genas3 gencpp genjs genneko genphp \
-	genswf9 genswf genjava gencs genpy genhl interp dce analyzer filters typer matcher version main
+	genswf9 genswf genjava gencs genpy interp genhl dce analyzer filters typer matcher version main
 
 ADD_REVISION?=0
 

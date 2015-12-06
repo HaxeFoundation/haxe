@@ -84,6 +84,8 @@ type opcode =
 	| OMul of reg * reg * reg
 	| OSDiv of reg * reg * reg
 	| OUDiv of reg * reg * reg
+	| OSMod of reg * reg * reg
+	| OUMod of reg * reg * reg
 	| OShl of reg * reg * reg
 	| OSShr of reg * reg * reg
 	| OUShr of reg * reg * reg
@@ -146,6 +148,7 @@ type opcode =
 	| OSetF32 of reg * reg * reg
 	| OSetF64 of reg * reg * reg
 	| OSetArray of reg * reg * reg
+	| OSafeCast of reg * reg
 	| OUnsafeCast of reg * reg
 	| OArraySize of reg * reg
 	| OError of string index
@@ -439,7 +442,7 @@ let rec to_type ctx t =
 
 and resolve_class ctx c pl =
 	let not_supported() =
-		failwith ("Generic type not supported : " ^ s_type (print_context()) (TInst (c,pl)))
+		failwith ("Extern type not supported : " ^ s_type (print_context()) (TInst (c,pl)))
 	in
 	match c.cl_path, pl with
 	| ([],"Array"), [t] ->
@@ -613,7 +616,7 @@ and cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
 	if safe_cast rt t then r else
 	match rt, t with
-	| HVirtual _, HDyn _ ->
+	| HVirtual _, HDyn None ->
 		let tmp = alloc_tmp ctx (HDyn None) in
 		op ctx (OUnVirtual (tmp,r));
 		tmp
@@ -621,10 +624,6 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx (HDyn None) in
 		op ctx (OUnVirtual (tmp,r));
 		cast_to ctx tmp t p
-	| _ , HDyn _ ->
-		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
-		op ctx (OToDyn (tmp, r));
-		tmp
 	| (HI8 | HI16 | HI32), (HF32 | HF64) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToFloat (tmp, r));
@@ -647,10 +646,18 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
 		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
 		out
-	| (HObj _ | HDynObj | HDyn _) , HVirtual _ ->
+	| (HObj _ | HDynObj | HDyn None) , HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OToVirtual (out,r));
 		out
+	| HDyn None, (HObj _ | HDynObj | HFun _ | HArray _ | HDyn _) ->
+		let out = alloc_tmp ctx t in
+		op ctx (OSafeCast (out, r));
+		out
+	| _ , HDyn _ ->
+		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
+		op ctx (OToDyn (tmp, r));
+		tmp
 	| _ ->
 		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
@@ -995,11 +1002,12 @@ and eval_expr ctx e =
 		) o;
 		r
 	| TNew (c,pl,el) ->
+		let c = resolve_class ctx c pl in
 		let r = alloc_tmp ctx (class_type ctx c pl) in
 		op ctx (ONew r);
 		(match c.cl_constructor with
 		| None -> ()
-		| Some { cf_expr = None } -> assert false
+		| Some { cf_expr = None } -> error (s_type_path c.cl_path ^ " does not have a constructor") e.epos
 		| Some ({ cf_expr = Some { eexpr = TFunction({ tf_expr = { eexpr = TBlock([]) } }) } }) when el = [] -> ()
 		| Some ({ cf_expr = Some cexpr } as constr) ->
 			let rl = eval_args ctx el (to_type ctx cexpr.etype) in
@@ -1099,7 +1107,7 @@ and eval_expr ctx e =
 				r
 			| _ ->
 				assert false)
-		| OpSub | OpMult | OpDiv ->
+		| OpSub | OpMult | OpDiv | OpMod ->
 			let t = to_type ctx e.etype in
 			let r = alloc_tmp ctx t in
 			(match t with
@@ -1109,6 +1117,7 @@ and eval_expr ctx e =
 				(match bop with
 				| OpSub -> op ctx (OSub (r,a,b))
 				| OpMult -> op ctx (OMul (r,a,b))
+				| OpMod -> op ctx (if unsigned e1.etype && unsigned e2.etype then OUMod (r,a,b) else OSMod (r,a,b))
 				| OpDiv -> op ctx (if unsigned e1.etype && unsigned e2.etype then OUDiv (r,a,b) else OSDiv (r,a,b))
 				| _ -> assert false);
 				r
@@ -1202,8 +1211,6 @@ and eval_expr ctx e =
 				op ctx (OMov (l, r));
 				r
 			| _ -> assert false)
-		| OpMod ->
-			assert false
 		| OpInterval | OpArrow ->
 			assert false)
 	| TUnop (Not,_,v) ->
@@ -1399,7 +1406,25 @@ and eval_expr ctx e =
 				assert false)
 	| TMeta (_,e) ->
 		eval_expr ctx e
-	| TTypeExpr _ | TFor _ | TSwitch _ | TTry _ | TBreak | TContinue | TEnumParameter _ | TCast (_,Some _) ->
+	| TFor _ ->
+		assert false (* eliminated with pf_for_to_while *)
+(*
+	| TFor (v, it, e) ->
+		let it = gen_expr ctx it in
+		let e = gen_expr ctx e in
+		let next = call p (field p (ident p "@tmp") "next") [] in
+		let next = (if v.v_capture then call p (builtin p "array") [next] else next) in
+		(EBlock
+			[(EVars ["@tmp", Some it],p);
+			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
+				(EBlock [
+					(EVars [v.v_name, Some next],p);
+					e
+				],p)
+			,NormalWhile),p)]
+		,p)
+*)
+	| TTypeExpr _ | TSwitch _ | TTry _ | TBreak | TContinue | TEnumParameter _ | TCast (_,Some _) ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
 and make_fun ctx fidx f cthis =
@@ -1429,7 +1454,23 @@ and make_fun ctx fidx f cthis =
 	) f.tf_args in
 	ignore(eval_expr ctx f.tf_expr);
 	let tret = to_type ctx f.tf_type in
-	if tret = HVoid then op ctx (ORet (alloc_tmp ctx HVoid));
+	let rec has_final_jump e =
+		match e.eexpr with
+		| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> false)
+		| TParenthesis e -> has_final_jump e
+		| TReturn _ -> false
+		| _ -> true
+	in
+	if tret = HVoid then
+		op ctx (ORet (alloc_tmp ctx HVoid))
+	else if has_final_jump f.tf_expr then begin
+		let r = alloc_tmp ctx tret in
+		(match tret with
+		| HI32 | HI8 | HI16 -> op ctx (OInt (r,alloc_i32 ctx 0l))
+		| HF32 | HF64 -> op ctx (OFloat (r,alloc_float ctx 0.))
+		| _ -> op ctx (ONull r));
+		op ctx (ORet r)
+	end;
 	let f = {
 		findex = fidx;
 		ftype = HFun ((match tthis with None -> args | Some t -> t :: args), tret);
@@ -1452,6 +1493,8 @@ let generate_static ctx c f =
 					Hashtbl.add ctx.defined_funs fid ();
 					(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
 				));
+			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
+				error "Invalid @:hlNative decl" p
 			| [] ->
 				make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None
 			| _ :: l ->
@@ -1634,7 +1677,7 @@ let check code =
 				(match rtype r with
 				| HObj _ | HDyn _ | HVirtual _ -> ()
 				| t -> error (tstr t ^ " is not nullable"))
-			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | OSDiv (r,a,b) | OUDiv (r,a,b) ->
+			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | OSDiv (r,a,b) | OUDiv (r,a,b) | OSMod (r,a,b) | OUMod(r,a,b) ->
 				numeric r;
 				reg a (rtype r);
 				reg b (rtype r);
@@ -1789,6 +1832,9 @@ let check code =
 			| OUnsafeCast (a,b) ->
 				ignore(rtype a);
 				ignore(rtype b);
+			| OSafeCast (a,b) ->
+				reg a (HDyn None);
+				if not (safe_cast (rtype b) (HDyn None)) then reg b HDynObj;
 			| OArraySize (r,a) ->
 				(match rtype a with
 				| HArray _ -> ()
@@ -2068,6 +2114,8 @@ let interp code =
 			| OMul (r,a,b) -> set r (numop Int32.mul ( *. ) a b)
 			| OSDiv (r,a,b) -> set r (numop (fun a b -> if b = 0l then 0l else Int32.div a b) ( /. ) a b)
 			| OUDiv (r,a,b) -> set r (iop (fun a b -> if b = 0l then 0l else assert false (* TODO : unsigned div *)) a b)
+			| OSMod (r,a,b) -> set r (numop (fun a b -> if b = 0l then 0l else Int32.rem a b) mod_float a b)
+			| OUMod (r,a,b) -> set r (iop (fun a b -> if b = 0l then 0l else assert false (* TODO : unsigned mod *)) a b)
 			| OShl (r,a,b) -> set r (iop (fun a b -> Int32.shift_left a (Int32.to_int b)) a b)
 			| OSShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right a (Int32.to_int b)) a b)
 			| OUShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right_logical a (Int32.to_int b)) a b)
@@ -2218,6 +2266,12 @@ let interp code =
 				(match get a, get i with
 				| VArray (a,_), VInt i -> a.(Int32.to_int i) <- get v
 				| _ -> assert false);
+			| OSafeCast (r, v) ->
+				let v = get v in
+				set r (match v, rtype r with
+					| VObj o, HObj c when o.oproto.pclass == c -> v
+					| _, t -> error ("Failed to cast " ^ vstr_d v ^ " to " ^ tstr t)
+				)
 			| OUnsafeCast (r,v) ->
 				set r (get v)
 			| OArraySize (r,a) ->
@@ -2358,6 +2412,7 @@ let interp code =
 		with
 			Return v -> v
 	in
+	let int = Int32.to_int in
 	let load_native lib name =
 		FNativeFun (lib ^ "@" ^ name, (match lib with
 		| "std" ->
@@ -2366,22 +2421,22 @@ let interp code =
 				(fun args -> print_endline (vstr (List.hd args)); VNull);
 			| "balloc" ->
 				(function
-				| [VInt i] -> VBytes (String.create (Int32.to_int i))
+				| [VInt i] -> VBytes (String.create (int i))
 				| _ -> assert false)
 			| "aalloc" ->
 				(function
-				| [VType t;VInt i] -> VArray (Array.create (Int32.to_int i) VNull,t)
+				| [VType t;VInt i] -> VArray (Array.create (int i) VNull,t)
 				| _ -> assert false)
 			| "ablit" ->
 				(function
 				| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->
-					Array.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
+					Array.blit src (int sp) dst (int dp) (int len);
 					VNull
 				| _ -> assert false)
 			| "bblit" ->
 				(function
 				| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
-					String.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
+					String.blit src (int sp) dst (int dp) (int len);
 					VNull
 				| _ -> assert false)
 			| "itos" ->
@@ -2408,11 +2463,28 @@ let interp code =
 			| "utf8length" ->
 				(function
 				| [VBytes b; VInt start; VInt len] ->
-					VInt (Int32.of_int (UTF8.length (String.sub b (Int32.to_int start) (Int32.to_int len))))
+					VInt (Int32.of_int (UTF8.length (String.sub b (int start) (int len))))
 				| _ -> assert false)
 			| "math_sqrt" ->
 				(function
 				| [VFloat f] -> VFloat (sqrt f)
+				| _ -> assert false)
+			| "parse_int" ->
+				(function
+				| [VBytes str; VInt len] ->
+					(try
+						let i = (match Interp.parse_int (String.sub str 0 (int len)) with
+							| Interp.VInt v -> Int32.of_int v
+							| Interp.VInt32 v -> v
+							| _ -> assert false
+						) in
+						VInt i
+					with _ ->
+						VNull)
+				| _ -> assert false)
+			| "parse_float" ->
+				(function
+				| [VBytes str; VInt len] -> (try VFloat (Interp.parse_float (String.sub str 0 (int len))) with _ -> VFloat nan)
 				| _ -> assert false)
 			| _ -> (fun args -> error ("Unresolved native " ^ name)))
 		| _ ->
@@ -2656,6 +2728,8 @@ let ostr o =
 	| OMul (r,a,b) -> Printf.sprintf "mul %d,%d,%d" r a b
 	| OSDiv (r,a,b) -> Printf.sprintf "sdiv %d,%d,%d" r a b
 	| OUDiv (r,a,b) -> Printf.sprintf "udiv %d,%d,%d" r a b
+	| OSMod (r,a,b) -> Printf.sprintf "smod %d,%d,%d" r a b
+	| OUMod (r,a,b) -> Printf.sprintf "umod %d,%d,%d" r a b
 	| OShl (r,a,b) -> Printf.sprintf "shl %d,%d,%d" r a b
 	| OSShr (r,a,b) -> Printf.sprintf "sshr %d,%d,%d" r a b
 	| OUShr (r,a,b) -> Printf.sprintf "ushr %d,%d,%d" r a b
@@ -2719,6 +2793,7 @@ let ostr o =
 	| OSetF32 (r,p,v) -> Printf.sprintf "setf32 %d,%d,%d" r p v
 	| OSetF64 (r,p,v) -> Printf.sprintf "setf64 %d,%d,%d" r p v
 	| OSetArray (a,i,v) -> Printf.sprintf "setarray %d[%d],%d" a i v
+	| OSafeCast (r,v) -> Printf.sprintf "safecast %d,%d" r v
 	| OUnsafeCast (r,v) -> Printf.sprintf "unsafecast %d,%d" r v
 	| OArraySize (r,a) -> Printf.sprintf "arraysize %d,%d" r a
 	| OError s -> Printf.sprintf "error @%d" s
