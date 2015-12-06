@@ -21,6 +21,7 @@
  */
 import hl.types.ArrayObj;
 import hl.types.ArrayI32;
+import hl.types.ArrayF64;
 
 class Std {
 

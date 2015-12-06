@@ -193,6 +193,7 @@ type method_context = {
 type array_impl = {
 	aobj : tclass;
 	ai32 : tclass;
+	af64 : tclass;
 }
 
 type context = {
@@ -445,6 +446,8 @@ and resolve_class ctx c pl =
 		(match to_type ctx t with
 		| HI32 ->
 			ctx.array_impl.ai32
+		| HF64 ->
+			ctx.array_impl.af64
 		| t ->
 			if safe_cast t (HDyn None) then
 				ctx.array_impl.aobj
@@ -1308,6 +1311,15 @@ and eval_expr ctx e =
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayI32") "alloc", b, reg_int ctx (List.length el)));
+		| HF64 ->
+			let b = alloc_tmp ctx HBytes in
+			let size = reg_int ctx ((List.length el) * 8) in
+			op ctx (OCall1 (b,alloc_std ctx "balloc" [HI32] HBytes,size));
+			List.iteri (fun i e ->
+				let r = eval_to ctx e HF64 in
+				op ctx (OSetF64 (b,reg_int ctx (i * 8),r));
+			) el;
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayF64") "alloc", b, reg_int ctx (List.length el)));
 		| _ ->
 			if safe_cast et (HDyn None) then begin
 				let a = alloc_tmp ctx (HArray (HDyn None)) in
@@ -1347,7 +1359,24 @@ and eval_expr ctx e =
 			op ctx (OGetI32 (r,hbytes,ri));
 			jend();
 			r
+		| HF64 ->
+			let hbytes = alloc_tmp ctx HBytes in
+			op ctx (OField (hbytes, ra, 0));
 
+			(* check bounds *)
+			let size = alloc_tmp ctx HI32 in
+			op ctx (OField (size, ra, 2));
+			let r = alloc_tmp ctx at in
+			let j = jump ctx (fun i -> OJULt (ri,size,i)) in
+			op ctx (OFloat (r,alloc_float ctx 0.));
+			let jend = jump ctx (fun i -> OJAlways i) in
+			j();
+			let r2 = alloc_tmp ctx HI32 in
+			op ctx (OInt (r2,alloc_i32 ctx 3l));
+			op ctx (OShl (ri,ri,r2));
+			op ctx (OGetF64 (r,hbytes,ri));
+			jend();
+			r
 		| _ ->
 			if safe_cast at (HDyn None) then begin
 				let harr = alloc_tmp ctx (HArray (HDyn None)) in
@@ -2330,57 +2359,64 @@ let interp code =
 			Return v -> v
 	in
 	let load_native lib name =
-		FNativeFun (lib ^ "@" ^ name,match lib, name with
-		| "std", "log" ->
-			(fun args -> print_endline (vstr (List.hd args)); VNull);
-		| "std", "balloc" ->
-			(function
-			| [VInt i] -> VBytes (String.create (Int32.to_int i))
-			| _ -> assert false)
-		| "std", "aalloc" ->
-			(function
-			| [VType t;VInt i] -> VArray (Array.create (Int32.to_int i) VNull,t)
-			| _ -> assert false)
-		| "std", "ablit" ->
-			(function
-			| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->
-				Array.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
-				VNull
-			| _ -> assert false)
-		| "std", "bblit" ->
-			(function
-			| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
-				String.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
-				VNull
-			| _ -> assert false)
-		| "std", "itos" ->
-			(function
-			| [VInt v; VRef (regs,i)] ->
-				let str = Int32.to_string v in
-				regs.(i) <- VInt (Int32.of_int (String.length str));
-				VBytes (str ^ "\x00")
-			| _ -> assert false);
-		| "std", "ftos" ->
-			(function
-			| [VFloat v; VRef (regs,i)] ->
-				let str = string_of_float v in
-				regs.(i) <- VInt (Int32.of_int (String.length str));
-				VBytes (str ^ "\x00")
-			| _ -> assert false);
-		| "std", "value_to_string" ->
-			(function
-			| [v; VRef (regs,i)] ->
-				let str = vstr v in
-				regs.(i) <- VInt (Int32.of_int (String.length str));
-				VBytes (str ^ "\x00")
-			| _ -> assert false);
-		| "std", "utf8length" ->
-			(function
-			| [VBytes b; VInt start; VInt len] ->
-				VInt (Int32.of_int (UTF8.length (String.sub b (Int32.to_int start) (Int32.to_int len))))
-			| _ -> assert false)
-		| _ -> (fun args -> error ("Unresolved native " ^ name))
-		)
+		FNativeFun (lib ^ "@" ^ name, (match lib with
+		| "std" ->
+			(match name with
+			| "log" ->
+				(fun args -> print_endline (vstr (List.hd args)); VNull);
+			| "balloc" ->
+				(function
+				| [VInt i] -> VBytes (String.create (Int32.to_int i))
+				| _ -> assert false)
+			| "aalloc" ->
+				(function
+				| [VType t;VInt i] -> VArray (Array.create (Int32.to_int i) VNull,t)
+				| _ -> assert false)
+			| "ablit" ->
+				(function
+				| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->
+					Array.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
+					VNull
+				| _ -> assert false)
+			| "bblit" ->
+				(function
+				| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
+					String.blit src (Int32.to_int sp) dst (Int32.to_int dp) (Int32.to_int len);
+					VNull
+				| _ -> assert false)
+			| "itos" ->
+				(function
+				| [VInt v; VRef (regs,i)] ->
+					let str = Int32.to_string v in
+					regs.(i) <- VInt (Int32.of_int (String.length str));
+					VBytes (str ^ "\x00")
+				| _ -> assert false);
+			| "ftos" ->
+				(function
+				| [VFloat v; VRef (regs,i)] ->
+					let str = string_of_float v in
+					regs.(i) <- VInt (Int32.of_int (String.length str));
+					VBytes (str ^ "\x00")
+				| _ -> assert false);
+			| "value_to_string" ->
+				(function
+				| [v; VRef (regs,i)] ->
+					let str = vstr v in
+					regs.(i) <- VInt (Int32.of_int (String.length str));
+					VBytes (str ^ "\x00")
+				| _ -> assert false);
+			| "utf8length" ->
+				(function
+				| [VBytes b; VInt start; VInt len] ->
+					VInt (Int32.of_int (UTF8.length (String.sub b (Int32.to_int start) (Int32.to_int len))))
+				| _ -> assert false)
+			| "math_sqrt" ->
+				(function
+				| [VFloat f] -> VFloat (sqrt f)
+				| _ -> assert false)
+			| _ -> (fun args -> error ("Unresolved native " ^ name)))
+		| _ ->
+			(fun args -> error ("Unresolved native " ^ name))))
 	in
 	Array.iter (fun (lib,name,_,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name)) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
@@ -2792,6 +2828,7 @@ let generate com =
 		array_impl = {
 			aobj = get_class "ArrayObj";
 			ai32 = get_class "ArrayI32";
+			af64 = get_class "ArrayF64";
 		};
 		anons_cache = [];
 	} in
@@ -2827,7 +2864,7 @@ let generate com =
 		functions = DynArray.to_array ctx.cfunctions;
 	} in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
-	if Common.defined com Define.Dump then print_endline (dump code);
+	if Common.defined com Define.Dump then Std.output_file "dump/hlcode.txt" (dump code);
 	check code;
 	let ch = IO.output_string() in
 	write_code ch code;

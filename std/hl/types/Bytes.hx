@@ -28,19 +28,19 @@ package hl.types;
 	}
 
 	public inline function getF64( pos : Int ) : Float {
-		return untyped $bgeti32(this,pos);
+		return untyped $bgetf64(this,pos);
 	}
 
 	public inline function setI32( pos : Int, value : Int ) : Void {
-		untyped $bseti32(pos, value);
+		untyped $bseti32(this, pos, value);
 	}
 
 	public inline function setF32( pos : Int, value : F32 ) : Void {
-		untyped $bsetf32(pos, value);
+		untyped $bsetf32(this, pos, value);
 	}
 	
 	public inline function setF64( pos : Int, value : Float ) : Void {
-		untyped $bsetf64(pos, value);
+		untyped $bsetf64(this, pos, value);
 	}
 	
 	@:hlNative("std","utf8length")
