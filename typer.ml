@@ -3166,7 +3166,22 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					)
 				) in
 				let e2 = type_expr ctx e2 NoValue in
-				(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
+				(try
+					Optimizer.optimize_for_loop_iterator ctx i e1 e2 p
+				with Exit ->
+					if ctx.com.config.pf_for_to_while then begin
+						let v = gen_local ctx e1.etype in
+						mk (TBlock [
+							mk (TVar (v,Some e1)) ctx.t.tvoid p;
+							mk (TWhile (build_call ctx (type_field ctx (mk (TLocal v) v.v_type p) "hasNext" p MCall) [] Value p,
+								mk (TBlock [
+									mk (TVar (i, Some (build_call ctx (type_field ctx (mk (TLocal v) v.v_type p) "next" p MCall) [] Value p))) ctx.t.tvoid p;
+									e2
+								]) ctx.t.tvoid p
+ 							,NormalWhile)) ctx.t.tvoid p;
+						]) ctx.t.tvoid p
+					end else
+						mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 		) in
 		ctx.in_loop <- old_loop;
 		old_locals();
