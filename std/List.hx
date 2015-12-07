@@ -48,7 +48,7 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function add( item : T ) {
-		var x = new ListNode(item, null);
+		var x = ListNode.create(item, null);
 		if( h == null )
 			h = x;
 		else
@@ -63,7 +63,7 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function push( item : T ) {
-		var x = new ListNode(item, h);
+		var x = ListNode.create(item, h);
 		h = x;
 		if( q == null )
 			q = x;
@@ -234,6 +234,19 @@ class List<T> {
 
 }
 
+#if neko
+private abstract ListNode<T>(neko.NativeArray<Dynamic>) {
+	public var item(get,set):T;
+	public var next(get,set):ListNode<T>;
+	@:extern inline function get_item():T return this[0];
+	@:extern inline function set_item(v:T):T return this[0] = v;
+	@:extern inline function get_next():ListNode<T> return this[1];
+	@:extern inline function set_next(v:ListNode<T>):ListNode<T> return this[1] = v;
+	@:extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
+		return untyped __dollar__array(item, next);
+	}
+}
+#else
 private class ListNode<T> {
 	public var item:T;
 	public var next:ListNode<T>;
@@ -241,7 +254,11 @@ private class ListNode<T> {
 		this.item = item;
 		this.next = next;
 	}
+	@:extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
+		return new ListNode(item, next);
+	}
 }
+#end
 
 private class ListIterator<T> {
 	var head:ListNode<T>;
