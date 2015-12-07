@@ -40,9 +40,7 @@
 	}
 
 	static inline function fromTime( t : Float ) : Date {
-		var d : Date = untyped __new__(Date);
-		untyped d["setTime"]( t );
-		return d;
+		return untyped __new__(Date, t);
 	}
 
 	static inline function fromString( s : String ) : Date {
