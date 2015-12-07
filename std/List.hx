@@ -235,14 +235,14 @@ class List<T> {
 }
 
 #if neko
-private abstract ListNode<T>(neko.NativeArray<Dynamic>) {
-	public var item(get,set):T;
-	public var next(get,set):ListNode<T>;
-	@:extern inline function get_item():T return this[0];
-	@:extern inline function set_item(v:T):T return this[0] = v;
-	@:extern inline function get_next():ListNode<T> return this[1];
-	@:extern inline function set_next(v:ListNode<T>):ListNode<T> return this[1] = v;
-	@:extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
+private extern class ListNode<T> extends neko.NativeArray<Dynamic> {
+	var item(get,set):T;
+	var next(get,set):ListNode<T>;
+	private inline function get_item():T return this[0];
+	private inline function set_item(v:T):T return this[0] = v;
+	private inline function get_next():ListNode<T> return this[1];
+	private inline function set_next(v:ListNode<T>):ListNode<T> return this[1] = v;
+	inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
 		return untyped __dollar__array(item, next);
 	}
 }
