@@ -63,7 +63,7 @@ class Http {
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
-#elseif js
+#elseif (js && !nodejs)
 	public var async : Bool;
 	public var withCredentials : Bool;
 #end
@@ -91,7 +91,7 @@ class Http {
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
 
-		#if js
+		#if (js && !nodejs)
 		async = true;
 		withCredentials = false;
 		#elseif sys
@@ -245,6 +245,8 @@ class Http {
 				var s = res.statusCode;
 				me.responseData = body;
 				me.req = null;
+				if (s != null)
+					me.onStatus(s);
 				if (s != null && s >= 200 && s < 400) {
 					me.onData(body);
 				} else {
@@ -822,7 +824,7 @@ class Http {
 	public dynamic function onStatus( status : Int ) {
 	}
 
-#if !flash
+#if (!flash && !nodejs)
 	/**
 		Makes a synchronous request to `url`.
 
