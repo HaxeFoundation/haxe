@@ -202,7 +202,6 @@ class Boot {
 			case "function": "<function>";
 			case "thread"  : "<thread>";
 			case "table": {
-				var mt : Dynamic = untyped Lua.getmetatable(o);
 			    if (Reflect.hasField(o,"__enum__")) printEnum(o);
 				else if (o.toString != null && !__instanceof(o,Array)) o.toString();
 				else if (__instanceof(o, Array)) {
@@ -215,10 +214,12 @@ class Boot {
 				else if (Reflect.hasField(o,"__class__")) printClass(o,s+1);
 				else if (Lua.next(o) == null) "{}";
 				else {
-					(o : Table<Dynamic,Dynamic>).pairsFold(function(a,b,c){
-						if (c != "{") c+= ", ";
-						return c + __string_rec(a, s + 1) + ': ' + __string_rec(b, s + 1);
-					},"{") + "}";
+					var fields = Reflect.fields(o);
+					var buffer = new StringBuf();
+					for (f in fields){
+						buffer.add('${Std.string(f)} : ${untyped Std.string(o[f])}');
+					}
+					buffer.toString();
 				}
 			};
 			default : {

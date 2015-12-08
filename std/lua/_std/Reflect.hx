@@ -22,6 +22,7 @@
 import lua.Lua;
 import lua.Boot;
 @:coreApi class Reflect {
+	static var hidden = ["__id__", "hx__closures", "super", "__index", "new", "prototype"];
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
 		// TODO: Lua can't detect fields that are set to null, figure out a workaround.
@@ -36,29 +37,33 @@ import lua.Boot;
 		o[field] = value;
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
-		var tmp;
-		return if( o == null ) __define_feature__("Reflect.getProperty",null) else if( o.__properties__ && (tmp=o.__properties__["get_"+field]) ) o[tmp]() else o[field];
+	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
+		var tmp : Dynamic;
+		return if( o == null ) untyped __define_feature__("Reflect.getProperty",null) else if( o.__properties__ && (tmp=Reflect.field(o.__properties__,"get_"+field)) ) callMethod(o,Reflect.field(o,tmp), []) else Reflect.field(o,field);
 	}
 
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
-		var tmp;
-		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = __define_feature__("Reflect.setProperty",value);
+		var tmp : String;
+		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) callMethod(o,untyped tmp, [value]) else o[field] = __define_feature__("Reflect.setProperty",value);
 	}
 
 	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic  {
 		if (args == null || args.length == 0){
 			return func(o);
 		} else {
-			var new_args = [o].concat(args);
-			return func(lua.Table.unpack(new_args,1,lua.Table.maxn(untyped new_args)));
+			var new_args:lua.Table<Int,String> = untyped __lua_table__(o);
+			// Lua's table concat will skip the first element since it starts from 1
+			new_args[2] = args[0];
+			new_args = lua.PairTools.ipairsConcat(new_args, cast args);
+			return func(lua.Table.unpack(new_args));
 		}
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		var a = [];
-		untyped __lua__("for i,v in pairs(o) do a:push(i) end");
-		return a;
+		return lua.PairTools.pairsFold(o, function(a,b,c:Array<String>){
+			if (hidden.indexOf(a) == -1) c.push(cast a);
+			return c;
+		}, []);
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {

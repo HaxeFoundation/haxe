@@ -27,4 +27,24 @@ class PairTools {
 		untyped __lua__("for k,v in _G.pairs(table) do seed = func(k,v,seed) end");
 		return untyped __lua__("seed");
 	}
+
+	public static function ipairsConcat<T>(table1:Table<Int,T>, table2:Table<Int,T>){
+		var ret:Table<Int,T> = cast {};
+		ipairsFold(table1, function(a,b,c:Table<Int,T>){ c[a] = b; return c;}, ret);
+		var size = lua.Table.maxn(ret);
+		ipairsFold(table2, function(a,b,c:Table<Int,T>){ c[a + size] = b; return c;}, ret);
+		return ret;
+	}
+
+	public static function pairsMerge<A,B>(table1:Table<A,B>, table2:Table<A,B>){
+		var ret = copy(table1);
+		pairsEach(table2, function(a,b:B) ret[cast a] = b);
+		return ret;
+	}
+
+	public static function copy<A,B>(table1:Table<A,B>) : Table<A,B> {
+		var ret : Table<A,B> = cast {};
+		untyped __lua__("for k,v in _G.pairs(table1) do ret[k] = v end");
+		return ret;
+	}
 }
