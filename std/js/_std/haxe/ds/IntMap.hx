@@ -49,12 +49,7 @@ package haxe.ds;
 
 	public function keys() : Iterator<Int> {
 		var a = [];
-		untyped {
-			__js__("for( var key in this.h ) {");
-				if( h.hasOwnProperty(key) )
-					a.push(key|0);
-			__js__("}");
-		}
+		untyped __js__("for( var key in {0} ) {1}", h, if( h.hasOwnProperty(key) ) a.push(key|0));
 		return a.iterator();
 	}
 
