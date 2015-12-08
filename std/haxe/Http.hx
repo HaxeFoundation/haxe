@@ -232,21 +232,21 @@ class Http {
 			protocol: secure ? "https:" : "http:",
 			host: host,
 			port: port,
-			method: post == true ? 'POST' : 'GET',
+			method: post ? 'POST' : 'GET',
 			path: path,
 			headers: h
 		};
 		function httpResponse (res) {
+			var s = res.statusCode;
+			if (s != null)
+				me.onStatus(s);
 			var body = '';
 			res.on('data', function (d) {
 				body += d;
 			});
 			res.on('end', function (_) {
-				var s = res.statusCode;
 				me.responseData = body;
 				me.req = null;
-				if (s != null)
-					me.onStatus(s);
 				if (s != null && s >= 200 && s < 400) {
 					me.onData(body);
 				} else {
@@ -255,7 +255,7 @@ class Http {
 			});
 		}
 		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
-		if (post == true) req.write(uri);
+		if (post) req.write(uri);
 		req.end();
 	#elseif js
 		me.responseData = null;
