@@ -155,7 +155,9 @@ class Http {
 
 	#if (js || flash)
 
-	#if js
+	#if nodejs
+	var req:js.node.http.ClientRequest;
+	#elseif js
 	var req:js.html.XMLHttpRequest;
 	#elseif flash
 	var req:flash.net.URLLoader;
@@ -196,7 +198,64 @@ class Http {
 	**/
 	public function request( ?post : Bool ) : Void {
 		var me = this;
-	#if js
+	#if nodejs
+		me.responseData = null;
+		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
+		if( !url_regexp.match(url) ) {
+			onError("Invalid URL");
+			return;
+		}
+		var secure = (url_regexp.matched(1) == "https://");
+		var host = url_regexp.matched(2);
+		var portString = url_regexp.matched(3);
+		var path = url_regexp.matched(4);
+		if( path == "" )
+			path = "/";
+		var port = if ( portString == null || portString == "" ) secure ? 443 : 80 else Std.parseInt(portString.substr(1, portString.length - 1));
+		var h = new DynamicAccess<String>();
+		for (i in headers)
+			h[i.header] = i.value;
+		var uri = postData;
+		if( uri != null )
+			post = true;
+		else for( p in params ) {
+			if( uri == null )
+				uri = "";
+			else
+				uri += "&";
+			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
+		}
+		var question = path.split("?").length <= 1;
+		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
+		
+		var opts = {
+			protocol: secure ? "https:" : "http:",
+			host: host,
+			port: port,
+			method: post == true ? 'POST' : 'GET',
+			path: path,
+			headers: h
+		};
+		function httpResponse (res) {
+			var body = '';
+			res.on('data', function (d) {
+				body += d;
+			});
+			res.on('end', function (_) {
+				var s = res.statusCode;
+				me.responseData = body;
+				me.req = null;
+				if (s != null && s >= 200 && s < 400) {
+					me.onData(body);
+				} else {
+					me.onError("Http Error #"+s);
+				}
+			});
+		}
+		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
+		if (post == true) req.write(uri);
+		req.end();
+	#elseif js
 		me.responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
 		r.withCredentials = withCredentials;
