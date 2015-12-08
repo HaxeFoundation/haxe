@@ -46,6 +46,15 @@ extern private class S {
 	public static inline var ESCAPE			= 18;
 }
 
+class Position
+{
+	public function new()
+	{}
+
+	public var line:Int = 1;
+	public var character:Int = 0;
+}
+
 class Parser
 {
 	static var escapes = {
@@ -144,7 +153,7 @@ class Parser
 							{
 								p += 2;
 								if (str.substr(p, 6).toUpperCase() != "CDATA[")
-									throw("Expected <![CDATA[");
+									throw "Expected <![CDATA[" + getPositionAsString(str, p);
 								p += 5;
 								state = S.CDATA;
 								start = p + 1;
@@ -152,13 +161,13 @@ class Parser
 							else if (str.fastCodeAt(p + 1) == 'D'.code || str.fastCodeAt(p + 1) == 'd'.code)
 							{
 								if(str.substr(p + 2, 6).toUpperCase() != "OCTYPE")
-									throw("Expected <!DOCTYPE");
+									throw "Expected <!DOCTYPE" + getPositionAsString(str, p);
 								p += 8;
 								state = S.DOCTYPE;
 								start = p + 1;
 							}
 							else if( str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code )
-								throw("Expected <!--");
+								throw "Expected <!--" + getPositionAsString(str, p);
 							else
 							{
 								p += 2;
@@ -170,7 +179,7 @@ class Parser
 							start = p;
 						case '/'.code:
 							if( parent == null )
-								throw("Expected node name");
+								throw "Expected node name" + getPositionAsString(str, p);
 							start = p + 1;
 							state = S.IGNORE_SPACES;
 							next = S.CLOSE;
@@ -183,7 +192,7 @@ class Parser
 					if (!isValidChar(c))
 					{
 						if( p == start )
-							throw("Expected node name");
+							throw "Expected node name" + getPositionAsString(str, p);
 						xml = Xml.createElement(str.substr(start, p - start));
 						addChild(xml);
 						state = S.IGNORE_SPACES;
@@ -207,11 +216,11 @@ class Parser
 					{
 						var tmp;
 						if( start == p )
-							throw("Expected attribute name");
+							throw "Expected attribute name" + getPositionAsString(str, p);
 						tmp = str.substr(start,p-start);
 						aname = tmp;
 						if( xml.exists(aname) )
-							throw("Duplicate attribute");
+							throw "Duplicate attribute [" + aname + "]" + getPositionAsString(str, p);
 						state = S.IGNORE_SPACES;
 						next = S.EQUALS;
 						continue;
@@ -223,7 +232,7 @@ class Parser
 							state = S.IGNORE_SPACES;
 							next = S.ATTVAL_BEGIN;
 						default:
-							throw("Expected =");
+							throw "Expected =" + getPositionAsString(str, p);
 					}
 				case S.ATTVAL_BEGIN:
 					switch(c)
@@ -234,7 +243,7 @@ class Parser
 							start = p + 1;
 							attrValQuote = c;
 						default:
-							throw("Expected \"");
+							throw "Expected \"" + getPositionAsString(str, p);
 					}
 				case S.ATTRIB_VAL:
 					switch (c) {
@@ -245,7 +254,7 @@ class Parser
 							start = p + 1;
 						case '>'.code | '<'.code if( strict ):
 							// HTML allows these in attributes values
-							throw "Invalid unescaped " + String.fromCharCode(c) + " in attribute value";
+							throw "Invalid unescaped " + String.fromCharCode(c) + " in attribute value" + getPositionAsString(str, p);
 						case _ if (c == attrValQuote):
 							buf.addSub(str, start, p - start);
 							var val = buf.toString();
@@ -264,7 +273,7 @@ class Parser
 						case '>'.code:
 							state = S.BEGIN;
 						default :
-							throw("Expected >");
+							throw "Expected >"  + getPositionAsString(str, p);
 					}
 				case S.WAIT_END_RET:
 					switch(c)
@@ -274,17 +283,17 @@ class Parser
 								parent.addChild(Xml.createPCData(""));
 							return p;
 						default :
-							throw("Expected >");
+							throw "Expected >" + getPositionAsString(str, p);
 					}
 				case S.CLOSE:
 					if (!isValidChar(c))
 					{
 						if( start == p )
-							throw("Expected node name");
+							throw "Expected node name" + getPositionAsString(str, p);
 
 						var v = str.substr(start,p - start);
 						if (v != parent.nodeName)
-							throw "Expected </" +parent.nodeName + ">";
+							throw "Expected </" +parent.nodeName + ">" + getPositionAsString(str, p);
 
 						state = S.IGNORE_SPACES;
 						next = S.WAIT_END_RET;
@@ -339,13 +348,13 @@ class Parser
 									buf.addChar(0x80 | ((c >> 6) & 63));
 									buf.addChar(0x80 | (c & 63));
 								} else
-									throw "Cannot encode UTF8-char " + c;
+									throw "Cannot encode UTF8-char " + c + getPositionAsString(str, p);
 							} else
 							#end
 							buf.addChar(c);
 						} else if (!escapes.exists(s)) {
 							if( strict )
-								throw 'Undefined entity: $s';
+								throw 'Undefined entity: $s' + getPositionAsString(str, p);
 							buf.add('&$s;');
 						} else {
 							buf.add(escapes.get(s));
@@ -354,7 +363,7 @@ class Parser
 						state = escapeNext;
 					} else if (!isValidChar(c) && c != "#".code) {
 						if( strict )
-							throw 'Invalid character in entity: ' + String.fromCharCode(c);
+							throw 'Invalid character in entity: ' + String.fromCharCode(c) + getPositionAsString(str, p);
 						buf.addChar("&".code);
 						buf.addSub(str, start, p - start);
 						p--;
@@ -387,10 +396,30 @@ class Parser
 			return p;
 		}
 
-		throw "Unexpected end";
+		throw "Unexpected end" + getPositionAsString(str, p);
 	}
 
 	static inline function isValidChar(c) {
 		return (c >= 'a'.code && c <= 'z'.code) || (c >= 'A'.code && c <= 'Z'.code) || (c >= '0'.code && c <= '9'.code) || c == ':'.code || c == '.'.code || c == '_'.code || c == '-'.code;
+	}
+	
+	static function getPosition(str:String, p:Int):Position {
+		var pos = new Position();
+		for( i in 0...p)
+		{
+			var c = str.fastCodeAt(i);
+			if (c == '\n'.code) {
+				pos.line++;
+				pos.character = 0;
+			} else {
+				if (c != '\r'.code) pos.character++;
+			}
+		}
+		return pos;
+	}
+	
+	static function getPositionAsString(str:String, p:Int):String {
+		var pos = getPosition(str, p);
+		return " at line " + pos.line + " char " + pos.character;
 	}
 }
