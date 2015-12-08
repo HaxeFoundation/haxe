@@ -200,21 +200,21 @@ class Http {
 		var me = this;
 	#if nodejs
 		me.responseData = null;
-		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
-		if( !url_regexp.match(url) ) {
-			onError("Invalid URL");
-			return;
+		var parsedUrl = js.node.Url.parse(url);
+		var secure = (parsedUrl.protocol == "https:");
+		var host = parsedUrl.hostname;
+		var path = parsedUrl.path;
+		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
+		var h:Dynamic = {};
+		for (i in headers) {
+			var arr = Reflect.field(h, i.header);
+			if (arr == null) {
+				arr = new Array<String>();
+				Reflect.setField(h, i.header, arr);
+			}
+			
+			arr.push(i.value);
 		}
-		var secure = (url_regexp.matched(1) == "https://");
-		var host = url_regexp.matched(2);
-		var portString = url_regexp.matched(3);
-		var path = url_regexp.matched(4);
-		if( path == "" )
-			path = "/";
-		var port = if ( portString == null || portString == "" ) secure ? 443 : 80 else Std.parseInt(portString.substr(1, portString.length - 1));
-		var h = new DynamicAccess<String>();
-		for (i in headers)
-			h[i.header] = i.value;
 		var uri = postData;
 		if( uri != null )
 			post = true;
@@ -229,8 +229,8 @@ class Http {
 		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
 		
 		var opts = {
-			protocol: secure ? "https:" : "http:",
-			host: host,
+			protocol: parsedUrl.protocol,
+			hostname: host,
 			port: port,
 			method: post ? 'POST' : 'GET',
 			path: path,
