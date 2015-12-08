@@ -326,13 +326,9 @@ let property ctx p t =
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
 		| "length" (* Int in AS3/Haxe *) -> ident p, None, false
-		| "charCodeAt" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
-		| "charCodeAt" (* use Haxe version *) -> ident p, None, true
-		| "cca" -> as3 "charCodeAt", None, false
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"Date" },_) ->
 		(match p with
-		| "toString" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| _ -> ident p, None, false)
 	| TAnon a ->
 		(match !(a.a_status) with

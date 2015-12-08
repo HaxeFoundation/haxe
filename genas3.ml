@@ -568,16 +568,10 @@ and gen_field_access ctx t s =
 		| [], "Date", "fromString"
 		->
 			print ctx "[\"%s\"]" s
-		| [], "String", "charCodeAt" ->
-			spr ctx "[\"charCodeAtHX\"]"
 		| [], "Array", "map" ->
 			spr ctx "[\"mapHX\"]"
 		| [], "Array", "filter" ->
 			spr ctx "[\"filterHX\"]"
-		| [], "Date", "toString" ->
-			print ctx "[\"toStringHX\"]"
-		| [], "String", "cca" ->
-			print ctx ".charCodeAt"
 		| ["flash";"xml"], "XML", "namespace" ->
 			print ctx ".namespace"
 		| _ ->
