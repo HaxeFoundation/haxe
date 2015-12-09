@@ -794,7 +794,7 @@ class RunCi {
 							// runCommand("haxe", ["compile-macro.hxml"]);
 					}
 				case Neko:
-					runCommand("haxe", ["compile-neko.hxml", "-D", "dump"]);
+					runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"]);
 					runCommand("neko", ["bin/unit.n"]);
 
 					changeDirectory(sysDir);
@@ -887,8 +887,8 @@ class RunCi {
 
 					var env = Sys.environment();
 					if (
-						env.exists("SAUCE") && 
-						env.exists("SAUCE_USERNAME") && 
+						env.exists("SAUCE") &&
+						env.exists("SAUCE_USERNAME") &&
 						env.exists("SAUCE_ACCESS_KEY")
 					) {
 						// sauce-connect should have been started
@@ -991,7 +991,7 @@ class RunCi {
 
 				case Flash9:
 					setupFlashPlayerDebugger();
-					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump"]);
+					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"]);
 					var success = runFlash("bin/unit9.swf");
 					if (!success)
 						Sys.exit(1);
