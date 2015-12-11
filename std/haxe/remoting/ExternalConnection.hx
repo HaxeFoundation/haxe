@@ -61,7 +61,11 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		var params = escapeString(s.toString());
 		var data = null;
 		#if flash
-			data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#if js-unflatten
+				data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#else
+				data = flash.external.ExternalInterface.call("haxe_remoting_ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#end
 		#elseif js
 			var fobj : Dynamic = (untyped js.Browser.document)[cast __data.flash]; // FIXME(bruno): Why is this necessary?
 			if( fobj == null ) fobj = js.Browser.document.getElementById(__data.flash);
