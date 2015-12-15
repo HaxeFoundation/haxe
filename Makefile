@@ -111,7 +111,7 @@ install:
 	chmod 777 $(INSTALL_LIB_DIR)/lib
 	# cp extra/haxelib_src/haxelib_script.sh $(INSTALL_DIR)/bin/haxelib
 	echo "#!/bin/sh" > $(INSTALL_BIN_DIR)/haxelib
-	echo "exec haxe -cp $(INSTALL_LIB_DIR)/extra/haxelib_src/src --run tools.haxelib.Main \"\$$@\"" >> $(INSTALL_BIN_DIR)/haxelib
+	echo "exec haxe -cp $(INSTALL_LIB_DIR)/extra/haxelib_src/src --run haxelib.client.Main \"\$$@\"" >> $(INSTALL_BIN_DIR)/haxelib
 	chmod a+rx $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
 
 # will install native version of the tools instead of script ones
