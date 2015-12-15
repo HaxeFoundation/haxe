@@ -95,7 +95,7 @@ package js.jquery;
 	/**
 		Finds the elements of an array which satisfy a filter function. The original array is not affected.
 	**/
-	static public function grep(array:Array<Dynamic>, _function:Dynamic -> Int -> Bool, ?invert:Bool):Array<Dynamic>;
+	static public function grep(array:haxe.extern.EitherType<Array<Dynamic>, js.html.NodeList>, _function:Dynamic -> Int -> Bool, ?invert:Bool):Array<Dynamic>;
 	/**
 		Determine whether an element has any jQuery data associated with it.
 	**/
@@ -355,6 +355,12 @@ package js.jquery;
 	**/
 	public var context : js.html.Element;
 	/**
+		Bind an event handler to the "contextmenu" JavaScript event, or trigger that event on an element.
+	**/
+	@:overload(function(handler:js.jquery.Event -> Void):js.jquery.JQuery { })
+	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
+	public function contextmenu():js.jquery.JQuery;
+	/**
 		Set one or more CSS properties for the set of matched elements.
 		OR
 		Get the computed style properties for the first element in the set of matched elements.
@@ -528,9 +534,9 @@ package js.jquery;
 	/**
 		Search for a given element from among the matched elements.
 	**/
-	@:overload(function(selector:String):Float { })
-	@:overload(function(element:haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>):Float { })
-	public function index():Float;
+	@:overload(function(selector:String):Int { })
+	@:overload(function(element:haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>):Int { })
+	public function index():Int;
 	/**
 		Set the CSS inner height of each element in the set of matched elements.
 		OR
@@ -1015,14 +1021,12 @@ package js.jquery;
 		Haxe iterator.
 	**/
 	@:runtime
-	inline public function iterator():js.jquery.JqIterator return new js.jquery.JqIterator(this);
-
+	inline public function iterator():js.jquery.JqIterator return new js.jquery.JqIterator(js.Lib.nativeThis);
 	/**
-		Iterate on JQuery elements.
+		Haxe iterator.
 	**/
 	@:runtime
-	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(this);
-
+	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(js.Lib.nativeThis);
 	static function __init__():Void {
 		js.jquery.Helper.embed();
 	}
