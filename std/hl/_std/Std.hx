@@ -52,11 +52,11 @@ class Std {
 	}
 	
 	public static function parseInt( s : String ) : Null<Int> {
-		return @:privateAccess s.bytes.parseInt(s.length);
+		return @:privateAccess s.bytes.parseInt(0, s.size);
 	}
 
 	public static function parseFloat( s : String ) : Float {
-		return @:privateAccess s.bytes.parseFloat(s.length);
+		return @:privateAccess s.bytes.parseFloat(0, s.size);
 	}
 
 

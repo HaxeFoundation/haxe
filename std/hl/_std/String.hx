@@ -28,8 +28,10 @@ class String {
 	}
 
 	public function charCodeAt( index : Int) : Null<Int> {
-		throw "TODO";
-		return null;
+		var idx : UInt = index;
+		if( idx >= length )
+			return null;
+		return @:privateAccess bytes.utf8Char(0,size,index);
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {

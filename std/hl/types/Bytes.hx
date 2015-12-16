@@ -44,22 +44,41 @@ package hl.types;
 	}
 	
 	@:hlNative("std","parse_int")
-	public function parseInt( size : Int ) : Null<Int> {
+	public function parseInt( pos : Int, size : Int ) : Null<Int> {
 		return null;
 	}
 	
 	@:hlNative("std","parse_float")
-	public function parseFloat( size : Int ) : Float {
+	public function parseFloat( pos : Int, size : Int ) : Float {
 		return 0.;
 	}
 	
+	/**
+		Count the number of UTF8 chars into the given Bytes data.
+	**/
 	@:hlNative("std","utf8length")
-	function utf8Length( startPos : Int, bytesCount : Int ) : Int {
+	function utf8Length( pos : Int, size : Int ) : Int {
+		return 0;
+	}
+
+	/**
+		Count the number of bytes until we reach \0
+	**/
+	@:hlNative("std","byteslength")
+	function bytesLength( pos : Int ) : Int {
+		return 0;
+	}
+	
+	/**
+		Decode the utf8 char at the given position
+	**/
+	@:hlNative("std","utf8char")
+	function utf8Char( pos : Int, size : Int, charPos : Int ) : Int {
 		return 0;
 	}
 	
 	@:hlNative("std","value_to_string")
-	public static function ofValue( v : Dynamic, len : Ref<Int> ) : Bytes {
+	public static function ofValue( v : Dynamic, size : Ref<Int> ) : Bytes {
 		return null;
 	}
 }
