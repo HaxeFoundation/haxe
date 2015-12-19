@@ -109,7 +109,7 @@ class Boot {
 			default: {
 				if (   untyped __type__(o)  == "table"
 					&& untyped __type__(cl) == "table"){
-					while (Lua.getmetatable(o).__index != null){
+					while (Lua.getmetatable(o) != null && Lua.getmetatable(o).__index != null){
 						if (Lua.getmetatable(o).__index == cl.prototype) return true;
 						o = Lua.getmetatable(o).__index;
 					}
