@@ -46,6 +46,7 @@ type ttype =
 	| HVirtual of virtual_proto
 	| HDynObj
 	| HAbstract of string * string index
+	| HEnum of enum_proto
 
 and class_proto = {
 	pname : string;
@@ -56,6 +57,12 @@ and class_proto = {
 	mutable pfields : (string * string index * ttype) array;
 	mutable pindex : (string, int * ttype) PMap.t;
 	mutable pfunctions : (string, int) PMap.t;
+}
+
+and enum_proto = {
+	ename : string;
+	eid : int;
+	mutable efields : (string * string index * ttype array) array;
 }
 
 and field_proto = {
@@ -162,6 +169,11 @@ type opcode =
 	| OUnVirtual of reg * reg
 	| ODynGet of reg * reg * string index
 	| ODynSet of reg * string index * reg
+	| OMakeEnum of reg * field index * reg list
+	| OEnumIndex of reg * reg
+	| OEnumField of reg * reg * field index * int
+	| OSwitch of reg * int array
+	| ONullCheck of reg
 
 type fundecl = {
 	findex : functable index;
@@ -231,6 +243,11 @@ type access =
 	| AArray of texpr * texpr
 	| AVirtualMethod of texpr * field index
 	| ADynamic of texpr * string index
+	| AEnum of field index
+
+let list_iteri f l =
+	let p = ref 0 in
+	List.iter (fun v -> f !p v; incr p) l
 
 let rec tstr ?(detailed=false) t =
 	match t with
@@ -262,12 +279,15 @@ let rec tstr ?(detailed=false) t =
 		"dynobj"
 	| HAbstract (s,_) ->
 		"abstract(" ^ s ^ ")"
+	| HEnum e ->
+		"enum(" ^ e.ename ^ ")"
 
 let rec tsame t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
 	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-	| HObj p1, HObj p2 -> p1.pname = p2.pname
+	| HObj p1, HObj p2 -> p1 == p2
+	| HEnum e1, HEnum e2 -> e1 == e2
 	| HVirtual v1, HVirtual v2 ->
 		if v1 == v2 then true else
 		if Array.length v1.vfields <> Array.length v2.vfields then false else
@@ -343,6 +363,9 @@ let method_context t =
 
 let field_name c f =
 	s_type_path c.cl_path ^ ":" ^ f.cf_name
+
+let efield_name e f =
+	s_type_path e.e_path ^ ":" ^ f.ef_name
 
 let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
@@ -440,6 +463,7 @@ let rec to_type ctx t =
 			| [], "Single" -> HF32
 			| [], "Bool" -> HBool
 			| [], "Class" -> HType
+			| [], "EnumValue" -> HDyn None
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], "Bytes" -> HBytes
 			| ["hl";"types"], "NativeArray" -> HArray (to_type ctx (List.hd pl))
@@ -458,11 +482,8 @@ and resolve_class ctx c pl =
 			ctx.array_impl.ai32
 		| HF64 ->
 			ctx.array_impl.af64
-		| t ->
-			if safe_cast t (HDyn None) then
-				ctx.array_impl.aobj
-			else
-				not_supported())
+		| _ ->
+			ctx.array_impl.aobj)
 	| _, _ when c.cl_extern ->
 		not_supported()
 	| _ ->
@@ -535,26 +556,31 @@ and enum_type ctx e =
 	try
 		PMap.find e.e_path ctx.cached_types
 	with Not_found ->
-		let pname = s_type_path e.e_path in
-		let p = {
-			pname = pname;
-			pid = alloc_string ctx pname;
-			psuper = None;
-			pproto = [||];
-			pfields = [||];
-			pindex = PMap.empty;
-			pvirtuals = [||];
-			pfunctions = PMap.empty;
+		let ename = s_type_path e.e_path in
+		let et = {
+			ename = ename;
+			eid = alloc_string ctx ename;
+			efields = [||];
 		} in
-		let t = HObj p in
+		let t = HEnum et in
 		ctx.cached_types <- PMap.add e.e_path t ctx.cached_types;
-		prerr_endline ("TODO " ^ pname);
+		et.efields <- Array.of_list (List.map (fun f ->
+			let f = PMap.find f e.e_constrs in
+			let args = (match f.ef_type with
+				| TFun (args,_) -> Array.of_list (List.map (fun (_,_,t) -> to_type ctx t) args)
+				| _ -> [||]
+			) in
+			(f.ef_name, alloc_string ctx f.ef_name, args)
+		) e.e_names);
 		t
 
 and alloc_fid ctx c f =
 	match f.cf_kind with
 	| Var _ | Method MethDynamic -> assert false
 	| _ -> lookup ctx.cfids (f.cf_name, c.cl_path) (fun() -> ())
+
+and alloc_eid ctx e f =
+	lookup ctx.cfids (f.ef_name, e.e_path) (fun() -> ())
 
 and alloc_fun_path ctx path name =
 	lookup ctx.cfids (name, path) (fun() -> ())
@@ -597,15 +623,18 @@ let alloc_tmp ctx t =
 let op ctx o =
 	DynArray.add ctx.m.mops o
 
+let current_pos ctx =
+	DynArray.length ctx.m.mops
+
 let jump ctx f =
-	let pos = DynArray.length ctx.m.mops in
+	let pos = current_pos ctx in
 	DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
-	(fun() -> DynArray.set ctx.m.mops pos (f (DynArray.length ctx.m.mops - pos - 1)))
+	(fun() -> DynArray.set ctx.m.mops pos (f (current_pos ctx - pos - 1)))
 
 let jump_back ctx =
-	let pos = DynArray.length ctx.m.mops in
+	let pos = current_pos ctx in
 	DynArray.add ctx.m.mops (OLabel 0);
-	(fun() -> DynArray.add ctx.m.mops (OJAlways (pos - DynArray.length ctx.m.mops - 1)))
+	(fun() -> DynArray.add ctx.m.mops (OJAlways (pos - current_pos ctx - 1)))
 
 let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
@@ -725,8 +754,8 @@ and get_access ctx e =
 			| _ -> assert false)
 		| FDynamic name, _ ->
 			ADynamic (ethis, alloc_string ctx name)
-		| FEnum _, _ ->
-			assert false
+		| FEnum (_,ef), _ ->
+			AEnum ef.ef_index
 		)
 	| TLocal v ->
 		ALocal (alloc_reg ctx v)
@@ -781,10 +810,7 @@ and eval_null_check ctx e =
 	let r = eval_expr ctx e in
 	(match e.eexpr with
 	| TConst TThis -> ()
-	| _ ->
-		let j = jump ctx (fun i -> OJNotNull (r,i)) in
-		op ctx (OError (alloc_string ctx "Null access"));
-		j());
+	| _ -> op ctx (ONullCheck r));
 	r
 
 and eval_expr ctx e =
@@ -847,6 +873,12 @@ and eval_expr ctx e =
 				loop l
 		in
 		loop el
+	| TCall ({ eexpr = TField (_,FStatic({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[e]) when (match to_type ctx e.etype with HEnum _ -> true | _ -> false) ->
+		let r = alloc_tmp ctx HI32 in
+		let re = eval_expr ctx e in
+		op ctx (ONullCheck re);
+		op ctx (OEnumIndex (r,re));
+		r
 	| TCall ({ eexpr = TConst TSuper } as s, el) ->
 		(match follow s.etype with
 		| TInst (csup,_) ->
@@ -1001,6 +1033,8 @@ and eval_expr ctx e =
 		| AInstanceProto (ethis, fid) ->
 			let el = eval_null_check ctx ethis :: el in
 			op ctx (OCallMethod (ret, fid, el))
+		| AEnum index ->
+			op ctx (OMakeEnum (ret, index, el))
 		| _ ->
 			let r = eval_null_check ctx ec in
 			op ctx (OCallClosure (ret, r, el)); (* if it's a value, it's a closure *)
@@ -1024,6 +1058,8 @@ and eval_expr ctx e =
 		| ADynamic (ethis, f) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (ODynGet (r,robj,f))
+		| AEnum index ->
+			op ctx (OMakeEnum (r,index,[]))
 		| ANone | ALocal _ | AArray _ ->
 			error "Invalid access" e.epos);
 		r
@@ -1223,7 +1259,7 @@ and eval_expr ctx e =
 				let r = eval_expr ctx e2 in
 				op ctx (ODynSet (obj,f,r));
 				r
-			| ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
+			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				assert false)
 		| OpBoolOr ->
 			let r = alloc_tmp ctx HBool in
@@ -1367,7 +1403,7 @@ and eval_expr ctx e =
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 4) in
 			op ctx (OCall1 (b,alloc_std ctx "balloc" [HI32] HBytes,size));
-			List.iteri (fun i e ->
+			list_iteri (fun i e ->
 				let r = eval_to ctx e HI32 in
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
 			) el;
@@ -1376,26 +1412,23 @@ and eval_expr ctx e =
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 8) in
 			op ctx (OCall1 (b,alloc_std ctx "balloc" [HI32] HBytes,size));
-			List.iteri (fun i e ->
+			list_iteri (fun i e ->
 				let r = eval_to ctx e HF64 in
 				op ctx (OSetF64 (b,reg_int ctx (i * 8),r));
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayF64") "alloc", b, reg_int ctx (List.length el)));
 		| _ ->
-			if safe_cast et (HDyn None) then begin
-				let a = alloc_tmp ctx (HArray (HDyn None)) in
-				let rt = alloc_tmp ctx HType in
-				op ctx (OType (rt,et));
-				let size = reg_int ctx (List.length el) in
-				op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] (HArray (HDyn None)),rt,size));
-				List.iteri (fun i e ->
-					let r = eval_to ctx e et in
-					op ctx (OSetArray (a,reg_int ctx i,r));
-				) el;
-				op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "alloc", a))
-			end else begin
-				assert false
-			end);
+			let at = if safe_cast et (HDyn None) then et else HDyn None in
+			let a = alloc_tmp ctx (HArray (HDyn None)) in
+			let rt = alloc_tmp ctx HType in
+			op ctx (OType (rt,et));
+			let size = reg_int ctx (List.length el) in
+			op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] (HArray (HDyn None)),rt,size));
+			list_iteri (fun i e ->
+				let r = eval_to ctx e at in
+				op ctx (OSetArray (a,reg_int ctx i,r));
+			) el;
+			op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "alloc", a)));
 		r
 	| TArray (a,i) ->
 		let ra = eval_null_check ctx a in
@@ -1439,46 +1472,80 @@ and eval_expr ctx e =
 			jend();
 			r
 		| _ ->
-			if safe_cast at (HDyn None) then begin
-				let harr = alloc_tmp ctx (HArray (HDyn None)) in
-				op ctx (OField (harr, ra, 0));
+			let harr = alloc_tmp ctx (HArray (HDyn None)) in
+			op ctx (OField (harr, ra, 0));
 
-				(* check bounds *)
-				let size = alloc_tmp ctx HI32 in
-				op ctx (OArraySize (size,harr));
-				let r = alloc_tmp ctx at in
-				let j = jump ctx (fun i -> OJULt (ri,size,i)) in
-				op ctx (ONull r);
-				let jend = jump ctx (fun i -> OJAlways i) in
-				j();
-				let tmp = alloc_tmp ctx (HDyn None) in
-				op ctx (OGetArray (tmp,harr,ri));
-				op ctx (OUnsafeCast (r,tmp));
-				jend();
-				r
-			end else
-				assert false)
+			(* check bounds *)
+			let size = alloc_tmp ctx HI32 in
+			op ctx (OArraySize (size,harr));
+			let r = alloc_tmp ctx at in
+			let j = jump ctx (fun i -> OJULt (ri,size,i)) in
+			op ctx (ONull r);
+			let jend = jump ctx (fun i -> OJAlways i) in
+			j();
+			let tmp = alloc_tmp ctx (HDyn None) in
+			op ctx (OGetArray (tmp,harr,ri));
+			if safe_cast at (HDyn None) then
+				op ctx (OUnsafeCast (r,tmp))
+			else
+				op ctx (OUnDyn (r,tmp));
+			jend();
+			r
+		);
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor _ ->
 		assert false (* eliminated with pf_for_to_while *)
-(*
-	| TFor (v, it, e) ->
-		let it = gen_expr ctx it in
-		let e = gen_expr ctx e in
-		let next = call p (field p (ident p "@tmp") "next") [] in
-		let next = (if v.v_capture then call p (builtin p "array") [next] else next) in
-		(EBlock
-			[(EVars ["@tmp", Some it],p);
-			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
-				(EBlock [
-					(EVars [v.v_name, Some next],p);
-					e
-				],p)
-			,NormalWhile),p)]
-		,p)
-*)
-	| TTypeExpr _ | TSwitch _ | TTry _ | TBreak | TContinue | TEnumParameter _ | TCast (_,Some _) ->
+	| TSwitch (en,cases,def) ->
+		let rt = to_type ctx e.etype in
+		let r = alloc_tmp ctx rt in
+		(try
+			let max = ref (-1) in
+			let rec get_int e =
+				match e.eexpr with
+				| TConst (TInt i) ->
+					let v = Int32.to_int i in
+					if Int32.of_int v <> i then raise Exit;
+					v
+				| _ ->
+					raise Exit
+			in
+			List.iter (fun (values,_) ->
+				List.iter (fun v ->
+					let i = get_int v in
+					if i < 0 then raise Exit;
+					if i > !max then max := i;
+				) values;
+			) cases;
+			if !max > 255 then raise Exit;
+			let ridx = eval_to ctx en HI32 in
+			let indexes = Array.make (!max + 1) 0 in
+			op ctx (OSwitch (ridx,indexes));
+			let switch_pos = current_pos ctx in
+			(match def with
+			| None ->
+				op ctx (ONull r);
+			| Some e ->
+				let re = eval_to ctx e rt in
+				op ctx (OMov (r,re)));
+			let jends = ref [jump ctx (fun i -> OJAlways i)] in
+			List.iter (fun (values,ecase) ->
+				List.iter (fun v ->
+					Array.set indexes (get_int v) (current_pos ctx - switch_pos)
+				) values;
+				let re = eval_to ctx ecase rt in
+				op ctx (OMov (r,re));
+				jends := jump ctx (fun i -> OJAlways i) :: !jends
+			) cases;
+			List.iter (fun j -> j()) (!jends);
+		with Exit ->
+			assert false);
+		r
+	| TEnumParameter (ec,f,index) ->
+		let r = alloc_tmp ctx (to_type ctx e.etype) in
+		op ctx (OEnumField (r,eval_expr ctx ec,f.ef_index,index));
+		r
+	| TTypeExpr _ | TTry _ | TBreak | TContinue | TCast (_,Some _) ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
 and make_fun ctx fidx f cthis =
@@ -1681,6 +1748,11 @@ let check code =
 			| HObj _ -> ()
 			| _ -> error ("Register " ^ string_of_int r ^ " should be object")
 		in
+		let is_enum r =
+			match rtype r with
+			| HEnum _ -> ()
+			| _ -> error ("Register " ^ string_of_int r ^ " should be enum")
+		in
 		let tfield o id proto =
 			match rtype o with
 			| HObj p ->
@@ -1729,7 +1801,8 @@ let check code =
 				if i < 0 || i >= Array.length code.strings then error "string outside range";
 			| ONull r ->
 				(match rtype r with
-				| HObj _ | HDyn _ | HVirtual _ -> ()
+				| HBytes | HEnum _ | HVirtual _ -> ()
+				| _ when safe_cast (rtype r) (HDyn None) -> ()
 				| t -> error (tstr t ^ " is not nullable"))
 			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | OSDiv (r,a,b) | OUDiv (r,a,b) | OSMod (r,a,b) | OUMod(r,a,b) ->
 				numeric r;
@@ -1806,6 +1879,7 @@ let check code =
 			| OUnDyn (r,a) ->
 				(match rtype a with
 				| HDyn (Some t) -> reg r t
+				| HDyn None -> ignore(rtype a)
 				| _ -> reg a (HDyn (Some (HDyn None))))
 			| OToFloat (a,b) ->
 				int b;
@@ -1928,6 +2002,28 @@ let check code =
 				(match rtype r with
 				| HObj _ | HDyn None | HDynObj | HVirtual _ -> ()
 				| _ -> reg r HDynObj)
+			| OMakeEnum (r,index,pl) ->
+				(match rtype r with
+				| HEnum e ->
+					let _,_, fl = e.efields.(index) in
+					if Array.length fl <> List.length pl then error ("MakeEnum has " ^ (string_of_int (List.length pl)) ^ " params while " ^ (string_of_int (Array.length fl)) ^ " are required");
+					List.iter2 (fun r t -> reg r t) pl (Array.to_list fl)
+				| _ ->
+					is_enum r)
+			| OEnumIndex (r,v) ->
+				is_enum v;
+				reg r HI32;
+			| OEnumField (r,e,f,i) ->
+				(match rtype e with
+				| HEnum e ->
+					let _, _, tl = e.efields.(f) in
+					check tl.(i) (rtype r)
+				| _ -> is_enum e)
+			| OSwitch (r,idx) ->
+				reg r HI32;
+				Array.iter can_jump idx
+			| ONullCheck r ->
+				ignore(rtype r)
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -1959,9 +2055,10 @@ type value =
 	| VArray of value array * ttype
 	| VUndef
 	| VType of ttype
-	| VRef of value array * int
+	| VRef of value array * int * ttype
 	| VVirtual of vvirtual
 	| VDynObj of vdynobj
+	| VEnum of int * value array
 
 and vfunction =
 	| FFun of fundecl
@@ -1999,7 +2096,7 @@ exception Return of value
 
 let default t =
 	match t with
-	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ -> VNull
+	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray _ | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ -> VNull
 	| HI8 | HI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
@@ -2053,31 +2150,43 @@ let interp code =
 		| VArray (a,t) -> "array<" ^ tstr t ^ ">(" ^ String.concat "," (Array.to_list (Array.map vstr_d a)) ^ ")"
 		| VUndef -> "undef"
 		| VType t -> "type(" ^ tstr t ^ ")"
-		| VRef (regs,i) -> "ref(" ^ vstr_d regs.(i) ^ ")"
+		| VRef (regs,i,_) -> "ref(" ^ vstr_d regs.(i) ^ ")"
 		| VVirtual v -> "virtual(" ^ vstr_d v.vvalue ^ ")"
 		| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr_d d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
+		| VEnum (i,vals) -> "enum#" ^ string_of_int i  ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
 
-	and vstr v =
+	and vstr v t =
 		match v with
 		| VNull -> "null"
 		| VInt i -> Int32.to_string i
 		| VFloat f -> string_of_float f
 		| VBool b -> if b then "true" else "false"
-		| VDyn (v,_) -> vstr v
+		| VDyn (v,t) ->
+			vstr v t
 		| VObj o ->
 			let fid = ref None in
 			Array.iter (fun p -> if p.fname = "__string" then fid := Some p.fmethod) o.oproto.pclass.pproto;
 			(match !fid with
 			| None -> "#" ^ o.oproto.pclass.pname
-			| Some f -> vstr (fcall (func f) [v]))
+			| Some f -> vstr (fcall (func f) [v]) HBytes)
 		| VBytes b -> (if String.length b > 0 && String.get b (String.length b - 1) = '\x00' then String.sub b 0 (String.length b - 1) else b)
 		| VClosure (f,_) -> fstr f
-		| VArray (a,_) -> "[" ^ String.concat ", " (Array.to_list (Array.map vstr a)) ^ "]"
+		| VArray (a,t) -> "[" ^ String.concat ", " (Array.to_list (Array.map (fun v -> vstr v t) a)) ^ "]"
 		| VUndef -> "undef"
 		| VType t -> tstr t
-		| VRef (regs,i) -> "*" ^ (vstr regs.(i))
-		| VVirtual v -> vstr v.vvalue
-		| VDynObj d -> "{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i)) :: acc) d.dfields []) ^ "}"
+		| VRef (regs,i,t) -> "*" ^ (vstr regs.(i) t)
+		| VVirtual v -> vstr v.vvalue (HDyn None)
+		| VDynObj d -> "{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}"
+		| VEnum (i,vals) ->
+			(match t with
+			| HEnum e ->
+				let n, _, pl = e.efields.(i) in
+				if Array.length pl = 0 then
+					n
+				else
+					n ^ "(" ^ String.concat "," (List.map2 vstr (Array.to_list vals) (Array.to_list pl)) ^ ")"
+			| _ ->
+				assert false)
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -2346,14 +2455,14 @@ let interp code =
 			| OType (r,t) ->
 				set r (VType t)
 			| ORef (r,v) ->
-				set r (VRef (regs,v))
+				set r (VRef (regs,v,rtype v))
 			| OUnref (v,r) ->
 				set v (match get r with
-				| VRef (regs,i) -> Array.unsafe_get regs i
+				| VRef (regs,i,_) -> Array.unsafe_get regs i
 				| _ -> assert false)
 			| OSetref (r,v) ->
 				(match get r with
-				| VRef (regs,i) -> Array.unsafe_set regs i (get v)
+				| VRef (regs,i,_) -> Array.unsafe_set regs i (get v)
 				| _ -> assert false)
 			| OToVirtual (r,rv) ->
 				let v = get rv in
@@ -2467,6 +2576,24 @@ let interp code =
 					)
 				| _ ->
 					assert false)
+			| OMakeEnum (r,e,pl) ->
+				set r (VEnum (e,Array.map get (Array.of_list pl)))
+			| OEnumIndex (r,v) ->
+				(match get v with
+				| VEnum (i,_) -> set r (VInt (Int32.of_int i))
+				| _ -> assert false)
+			| OEnumField (r, v, _, i) ->
+				(match get v with
+				| VEnum (_,vl) -> set r vl.(i)
+				| _ -> assert false)
+			| OSwitch (r, indexes) ->
+				(match get r with
+				| VInt i ->
+					let i = Int32.to_int i in
+					if i >= 0 && i < Array.length indexes then pos := !pos + indexes.(i)
+				| _ -> assert false)
+			| ONullCheck r ->
+				if get r = VNull then error "Null access"
 			);
 			loop()
 		in
@@ -2481,7 +2608,7 @@ let interp code =
 		| "std" ->
 			(match name with
 			| "log" ->
-				(fun args -> print_endline (vstr (List.hd args)); VNull);
+				(fun args -> print_endline (vstr (List.hd args) (HDyn None)); VNull);
 			| "balloc" ->
 				(function
 				| [VInt i] -> VBytes (String.create (int i))
@@ -2504,22 +2631,22 @@ let interp code =
 				| _ -> assert false)
 			| "itos" ->
 				(function
-				| [VInt v; VRef (regs,i)] ->
+				| [VInt v; VRef (regs,i,_)] ->
 					let str = Int32.to_string v in
 					regs.(i) <- VInt (Int32.of_int (String.length str));
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
 			| "ftos" ->
 				(function
-				| [VFloat v; VRef (regs,i)] ->
+				| [VFloat v; VRef (regs,i,_)] ->
 					let str = string_of_float v in
 					regs.(i) <- VInt (Int32.of_int (String.length str));
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
 			| "value_to_string" ->
 				(function
-				| [v; VRef (regs,i)] ->
-					let str = vstr v in
+				| [v; VRef (regs,i,_)] ->
+					let str = vstr v (HDyn None) in
 					regs.(i) <- VInt (Int32.of_int (String.length str));
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
@@ -2639,7 +2766,7 @@ let write_code ch code =
 			write_index b;
 			write_index c;
 			write_index d;
-		| OCallN (r,f,rl) | OCallClosure (r,f,rl) | OCallMethod (r,f,rl) | OCallThis (r,f,rl) ->
+		| OCallN (r,f,rl) | OCallClosure (r,f,rl) | OCallMethod (r,f,rl) | OCallThis (r,f,rl) | OMakeEnum (r,f,rl) ->
 			byte oid;
 			write_index r;
 			write_index f;
@@ -2651,6 +2778,18 @@ let write_code ch code =
 			byte oid;
 			write_index r;
 			write_type t
+		| OSwitch (r,pl) ->
+			byte oid;
+			let n = Array.length pl in
+			if n > 0xFF then assert false;
+			byte n;
+			Array.iter write_index pl
+		| OEnumField (r,e,i,idx) ->
+			byte oid;
+			write_index r;
+			write_index e;
+			write_index i;
+			write_index idx;
 		| _ ->
 			let field n = (Obj.magic (Obj.field o n) : int) in
 			match Obj.size o with
@@ -2692,6 +2831,8 @@ let write_code ch code =
 				get_type t
 			| HVirtual v ->
 				Array.iter (fun (_,_,t) -> get_type t) v.vfields
+			| HEnum e ->
+				Array.iter (fun (_,_,tl) -> Array.iter get_type tl) e.efields
 			| _ ->
 				());
 			t
@@ -2768,6 +2909,14 @@ let write_code ch code =
 		| HAbstract (_,i) ->
 			byte 16;
 			write_index i
+		| HEnum e ->
+			byte 17;
+			write_index e.eid;
+			write_index (Array.length e.efields);
+			Array.iter (fun (_,n,tl) ->
+				write_index (Array.length tl);
+				Array.iter write_type tl;
+			) e.efields
 	) types.arr;
 
 	Array.iter write_type code.globals;
@@ -2880,6 +3029,11 @@ let ostr o =
 	| OUnVirtual (r,v) -> Printf.sprintf "unvirtual %d,%d" r v
 	| ODynGet (r,o,f) -> Printf.sprintf "dynget %d,%d[@%d]" r o f
 	| ODynSet (o,f,v) -> Printf.sprintf "dynset %d[@%d],%d" o f v
+	| OMakeEnum (r,e,pl) -> Printf.sprintf "makeenum %d, %d(%s)" r e (String.concat "," (List.map string_of_int pl))
+	| OEnumIndex (r,e) -> Printf.sprintf "enumindex %d, %d" r e
+	| OEnumField (r,e,i,n) -> Printf.sprintf "enumfield %d, %d[%d:%d]" r e i n
+	| OSwitch (r,idx) -> Printf.sprintf "switch %d [%s]" r (String.concat "," (Array.to_list (Array.map string_of_int idx)))
+	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
 
 let dump code =
 	let lines = ref [] in
