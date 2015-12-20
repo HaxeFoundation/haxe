@@ -23,6 +23,7 @@
 open Ast
 open Type
 open Common
+open ExtList
 
 type pos = Ast.pos
 
