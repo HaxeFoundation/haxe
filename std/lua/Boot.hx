@@ -107,7 +107,9 @@ class Boot {
 			case Dynamic:
 				return true;
 			default: {
-				if (   untyped __type__(o)  == "table"
+				if ( untyped o.__enum__ != null ){
+					return o.__enum__ == cl;
+				} else if (   untyped __type__(o)  == "table"
 					&& untyped __type__(cl) == "table"){
 					while (Lua.getmetatable(o) != null && Lua.getmetatable(o).__index != null){
 						if (Lua.getmetatable(o).__index == cl.prototype) return true;
