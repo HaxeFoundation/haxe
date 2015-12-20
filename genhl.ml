@@ -205,6 +205,8 @@ type method_context = {
 	mregs : (int, ttype) lookup;
 	mops : opcode DynArray.t;
 	mret : ttype;
+	mutable mcontinues : (int -> unit) list;
+	mutable mbreaks : (int -> unit) list;
 }
 
 type array_impl = {
@@ -359,6 +361,8 @@ let method_context t =
 		mregs = new_lookup();
 		mops = DynArray.create();
 		mret = t;
+		mbreaks = [];
+		mcontinues = [];
 	}
 
 let field_name c f =
@@ -462,7 +466,7 @@ let rec to_type ctx t =
 			| [], "Float" -> HF64
 			| [], "Single" -> HF32
 			| [], "Bool" -> HBool
-			| [], "Class" -> HType
+			| [], "Class" | [], "Enum" -> HType
 			| [], "EnumValue" -> HDyn None
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], "Bytes" -> HBytes
@@ -1378,20 +1382,36 @@ and eval_expr ctx e =
 		op ctx (OThrow (eval_to ctx v (HDyn None)));
 		alloc_tmp ctx HVoid (* not initialized *)
 	| TWhile (cond,eloop,NormalWhile) ->
+		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues in
+		ctx.m.mbreaks <- [];
+		ctx.m.mcontinues <- [];
+		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
 		let j = jump_expr ctx cond false in
 		ignore(eval_expr ctx eloop);
 		ret();
 		j();
+		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
+		List.iter (fun f -> f continue_pos) ctx.m.mcontinues;
+		ctx.m.mbreaks <- oldb;
+		ctx.m.mcontinues <- oldc;
 		alloc_tmp ctx HVoid
 	| TWhile (cond,eloop,DoWhile) ->
+		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues in
+		ctx.m.mbreaks <- [];
+		ctx.m.mcontinues <- [];
 		let start = jump ctx (fun p -> OJAlways p) in
+		let continue_pos = current_pos ctx in
 		let ret = jump_back ctx in
 		let j = jump_expr ctx cond false in
 		start();
 		ignore(eval_expr ctx eloop);
 		ret();
 		j();
+		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
+		List.iter (fun f -> f continue_pos) ctx.m.mcontinues;
+		ctx.m.mbreaks <- oldb;
+		ctx.m.mcontinues <- oldc;
 		alloc_tmp ctx HVoid
 	| TCast (v,None) ->
 		eval_to ctx v (to_type ctx e.etype)
@@ -1545,7 +1565,17 @@ and eval_expr ctx e =
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		op ctx (OEnumField (r,eval_expr ctx ec,f.ef_index,index));
 		r
-	| TTypeExpr _ | TTry _ | TBreak | TContinue | TCast (_,Some _) ->
+	| TContinue ->
+		let pos = current_pos ctx in
+		DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
+		ctx.m.mcontinues <- (fun target -> DynArray.set ctx.m.mops pos (OJAlways (target - (pos + 1)))) :: ctx.m.mcontinues;
+		alloc_tmp ctx HVoid
+	| TBreak ->
+		let pos = current_pos ctx in
+		DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
+		ctx.m.mbreaks <- (fun target -> DynArray.set ctx.m.mops pos (OJAlways (target - (pos + 1)))) :: ctx.m.mbreaks;
+		alloc_tmp ctx HVoid
+	| TTypeExpr _ | TTry _ | TCast (_,Some _) ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
 and make_fun ctx fidx f cthis =
