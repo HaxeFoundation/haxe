@@ -192,7 +192,7 @@ let extend_remoting ctx c t p async prot =
 				f_type = if async then None else ftype;
 				f_expr = Some (EBlock [expr],p);
 			} in
-			{ cff_name = f.cff_name; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun fd } :: acc
+			{ cff_name = f.cff_name; cff_pos = f.cff_pos; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun fd } :: acc
 		| _ -> acc
 	in
 	let decls = List.map (fun d ->
