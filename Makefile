@@ -13,9 +13,11 @@ clean:
 	make -C neko clean
 	make -C ziplib clean
 	make -C javalib clean
+	make -C ilib clean
 	make -C swflib clean
 	make -C xml-light clean
 	make -C ttflib clean
+	make -C objsize clean
 
 .PHONY: all clean $(LIBS)
 
