@@ -146,5 +146,20 @@ class TestJs {
 		var vRand = new Inl(Math.random());
 	}
 
+	@:js("try {throw new js__$Boot_HaxeError(false);} catch( e ) {}")
+	static function testNoHaxeErrorUnwrappingWhenNotRequired() {
+		try throw false catch (e:Dynamic) {}
+	}
+
+	@:js("try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;console.log(e);}")
+	static function testHaxeErrorUnwrappingWhenUsed() {
+		try throw false catch (e:Dynamic) trace(e);
+	}
+
+	@:js("try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;if( js_Boot.__instanceof(e,Bool) ) {} else throw(e);}")
+	static function testHaxeErrorUnwrappingWhenTypeChecked() {
+		try throw false catch (e:Bool) {};
+	}
+
 	static function use<T>(t:T) { }
 }

@@ -688,8 +688,27 @@ and gen_expr ctx e =
 		end;
 
 		if (has_feature ctx "js.Boot.HaxeError") then begin
-			newline ctx;
-			print ctx "if (%s instanceof %s) %s = %s.val" vname (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js";"_Boot"],"HaxeError" })) vname vname;
+			let catch_var_used =
+				try
+					List.iter (fun (v,e) ->
+						match follow v.v_type with
+						| TDynamic _ -> (* Dynamic catch - unrap if the catch value is used *)
+							let rec loop e = match e.eexpr with
+							| TLocal v2 when v2 == v -> raise Exit
+							| _ -> Type.iter loop e
+							in
+							loop e
+						| _ -> (* not a Dynamic catch - we need to unwrap the error for type-checking *)
+							raise Exit
+					) catchs;
+					false
+				with Exit ->
+					true
+			in
+			if catch_var_used then begin
+				newline ctx;
+				print ctx "if (%s instanceof %s) %s = %s.val" vname (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js";"_Boot"],"HaxeError" })) vname vname;
+			end;
 		end;
 
 		List.iter (fun (v,e) ->
