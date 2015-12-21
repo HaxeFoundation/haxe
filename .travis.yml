@@ -1,0 +1,23 @@
+language: generic
+
+os:
+  - linux
+  - osx
+
+sudo: false
+addons:
+  apt:
+    packages:
+      - ocaml
+      - camlp4
+      - zlib1g-dev
+
+install:
+  # Install dependencies
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+    travis_retry brew update;
+    travis_retry brew install ocaml camlp4;
+    fi
+
+script:
+  - make
