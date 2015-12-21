@@ -261,6 +261,8 @@ CAMLprim value process_run( value cmd, value vargs ) {
 		for(i=0;i<val_array_size(vargs);i++) {
 			value v = val_array_ptr(vargs)[i];
 			int j,len;
+			unsigned int bs_count = 0;
+			unsigned int k;
 			val_check(v,string);
 			len = val_strlen(v);
 			buffer_append_str(b," \"");
@@ -268,15 +270,30 @@ CAMLprim value process_run( value cmd, value vargs ) {
 				char c = val_string(v)[j];
 				switch( c ) {
 				case '"':
-					buffer_append_str(b,"\\\"");
+					// Double backslashes.
+					for (k=0;k<bs_count*2;k++) {
+						buffer_append_char(b,'\\');
+					}
+					bs_count = 0;
+					buffer_append_str(b, "\\\"");
 					break;
 				case '\\':
-					buffer_append_str(b,"\\\\");
+					// Don't know if we need to double yet.
+					bs_count++;
 					break;
 				default:
+					// Normal char
+					for (k=0;k<bs_count;k++) {
+						buffer_append_char(b,'\\');
+					}
+					bs_count = 0;
 					buffer_append_char(b,c);
 					break;
 				}
+			}
+			// Add remaining backslashes, if any.
+			for (k=0;k<bs_count*2;k++) {
+				buffer_append_char(b,'\\');
 			}
 			buffer_append_char(b,'"');
 		}
