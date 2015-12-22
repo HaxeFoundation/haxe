@@ -39,7 +39,13 @@ import lua.Boot;
 
 	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
 		var tmp : Dynamic;
-		return if( o == null ) untyped __define_feature__("Reflect.getProperty",null) else if( o.__properties__ && (tmp="get_"+field) ) callMethod(o,Reflect.field(o,tmp), []) else Reflect.field(o,field);
+		return if( o == null ) {
+				untyped __define_feature__("Reflect.getProperty",null);
+			} else if( o.__properties__ != null && Reflect.field(o, "get_" + field) != null){
+				callMethod(o, Reflect.field(o,"get_" + field), []);
+			} else {
+				Reflect.field(o,field);
+			}
 	}
 
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
