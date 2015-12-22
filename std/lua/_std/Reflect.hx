@@ -59,7 +59,11 @@ import lua.Boot;
 		} else {
 			var new_args:lua.Table<Int,String> = untyped __lua_table__(o);
 			// Lua's table concat will skip the first element since it starts from 1
-			new_args[2] = args[0];
+			if (o != null){
+				new_args[2] = args[0];
+			} else {
+				new_args[1] = args[0];
+			}
 			new_args = lua.PairTools.ipairsConcat(new_args, cast args);
 			return func(lua.Table.unpack(new_args));
 		}
