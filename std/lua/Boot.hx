@@ -107,7 +107,9 @@ class Boot {
 			case Dynamic:
 				return true;
 			default: {
-				if ( untyped o.__enum__ != null ){
+				if (o == null) {
+					return false;
+				} else if ( untyped o.__enum__ != null ){
 					return o.__enum__ == cl;
 				} else if (   untyped __type__(o)  == "table"
 					&& untyped __type__(cl) == "table"){
