@@ -85,7 +85,7 @@ class Boot {
 	}
 
 	@:ifFeature("typed_catch")
-	private static function __instanceof(o : Dynamic,cl : Dynamic) {
+	private static function __instanceof(o : Dynamic, cl : Dynamic) {
 		if( cl == null ) return false;
 
 		switch( cl ) {
@@ -166,32 +166,39 @@ class Boot {
 		return str;
 	}
 
-	static function printEnum(e:Table<String,Dynamic>){
-		var params = new Array<Dynamic>();
-		var first = '';
-		lua.PairTools.ipairsEach(e, function(i,x){
-			if (i == 1) first = e[0];
-			else params.push(x);
-		});
-		return '$first(${params.join(",")})';
+	static function printEnum(o:Table<Int,Dynamic>, s : String){
+		if (!Std.is(o, Array)){
+			return o[0];
+		} else {
+			var o2 : Array<Dynamic> = cast o;
+			var str = o[0] + "(";
+			s += "\t";
+			for (i in 2...o2.length){
+				if( i != 2 )
+					str += "," + __string_rec(o[i],s);
+				else
+					str += __string_rec(o[i],s);
+			}
+			return str + ")";
+		}
 	}
 
-	static function printClass(c:Table<String,Dynamic>, s : Int) : String {
+	static function printClass(c:Table<String,Dynamic>, s : String) : String {
 		return '{${printClassRec(c,'',s)}}';
 
 	}
 
-	static function printClassRec(c:Table<String,Dynamic>, result='', s : Int) : String {
+	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
 		c.pairsEach(function(k,v){
 			if (result != "")
 				result += ", ";
-			result += '$k: ${__string_rec(v, s + 1)}';
+			result += '$k: ${__string_rec(v, s + "\t")}';
 		});
 		return result;
 	}
 
 	@:ifFeature("has_enum")
-	static function __string_rec(o : Dynamic, s = 0) {
+	static function __string_rec(o : Dynamic, s:String = "") {
 		return switch(untyped __type__(o)){
 			case "nil": "null";
 			case "number" : {
@@ -206,22 +213,22 @@ class Boot {
 			case "function": "<function>";
 			case "thread"  : "<thread>";
 			case "table": {
-			    if (Reflect.hasField(o,"__enum__")) printEnum(o);
+			    if (Reflect.hasField(o,"__enum__")) printEnum(o,s);
 				else if (o.toString != null && !__instanceof(o,Array)) o.toString();
 				else if (__instanceof(o, Array)) {
-					if (s > 5) "[...]"
+					if (s.length > 5) "[...]"
 					else '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
-				} else if (s > 5){
+				} else if (s.length > 5){
 					"{...}";
 				}
 				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
-				else if (Reflect.hasField(o,"__class__")) printClass(o,s+1);
+				else if (Reflect.hasField(o,"__class__")) printClass(o,s+"\t");
 				else if (Lua.next(o) == null) "{}";
 				else {
 					var fields = Reflect.fields(o);
 					var buffer = new StringBuf();
 					for (f in fields){
-						buffer.add('${Std.string(f)} : ${untyped Std.string(o[f])}');
+						buffer.add('${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
 					}
 					buffer.toString();
 				}
