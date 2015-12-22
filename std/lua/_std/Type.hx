@@ -117,7 +117,7 @@ enum ValueType {
 		if( f == null ) throw "No such constructor "+constr;
 		if( Reflect.isFunction(f) ) {
 			if( params == null ) throw "Constructor "+constr+" need parameters";
-			return Reflect.callMethod(e,f,params);
+			return Reflect.callMethod(null,f,params);
 		}
 		if( params != null && params.length != 0 )
 			throw "Constructor "+constr+" does not need parameters";
