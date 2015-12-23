@@ -1498,6 +1498,7 @@ let generate_enum ctx e =
 	    end;
 	    print ctx " __constructs__ = {%s} }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	    ctx.separator <- true;
+	    newline ctx;
 	end;
 
 	if has_feature ctx "Type.resolveEnum" || has_feature ctx "lua.Boot.isEnum" then
