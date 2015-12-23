@@ -1021,12 +1021,12 @@ package js.jquery;
 		Haxe iterator.
 	**/
 	@:runtime
-	inline public function iterator():js.jquery.JqIterator return new js.jquery.JqIterator(js.Lib.nativeThis);
+	inline public function iterator():js.jquery.JqIterator return new js.jquery.JqIterator(this);
 	/**
 		Haxe iterator.
 	**/
 	@:runtime
-	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(js.Lib.nativeThis);
+	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(this);
 	static function __init__():Void {
 		js.jquery.Helper.embed();
 	}
