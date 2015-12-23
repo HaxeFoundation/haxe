@@ -50,7 +50,16 @@ import lua.Boot;
 
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		var tmp : String;
-		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) callMethod(o,Reflect.field(o, tmp), [value]) else o[field] = __define_feature__("Reflect.setProperty",value);
+		if( o.__properties__ && o.__properties__["set_"+field]) {
+			tmp = o.__properties__["set_" + field];
+			if (o.__name__ != null){
+				callMethod(null,Reflect.field(o, tmp), [value]) ;
+			} else {
+				callMethod(o,Reflect.field(o, tmp), [value]) ;
+			}
+		} else {
+			o[field] = __define_feature__("Reflect.setProperty",value);
+		}
 	}
 
 	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic  {
