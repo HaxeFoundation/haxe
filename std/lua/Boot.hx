@@ -91,38 +91,44 @@ class Boot {
 		switch( cl ) {
 			case Int:
 				// TODO: matching js behavior here, but js behavior clamps.  Is that correct?
-				return (untyped __type__(o) == "number" &&  clamp(o) == o);
+				return (Lua.type(o) == "number" &&  clamp(o) == o);
 			case Float:
-				return untyped __type__(o) == "number";
+				return Lua.type(o) == "number";
 			case Bool:
-				return untyped __type__(o) == "boolean";
+				return Lua.type(o) == "boolean";
 			case String:
-				return untyped __type__(o) == "string";
+				return Lua.type(o) == "string";
 			case Array:
-				return untyped __type__(o) == "table"
+				return Lua.type(o) == "table"
+					&& untyped o.__enum__ == null
 					&& lua.Lua.getmetatable(o) != null
-					&& lua.Lua.getmetatable(o).__index == Array.prototype;
+					&& lua.Lua.getmetatable(o).__index == untyped Array.prototype;
 			case Table:
-				return untyped __type__(o) == "table";
+				return Lua.type(o) == "table";
 			case Dynamic:
 				return true;
 			default: {
-				if (o == null) {
-					return false;
-				} else if ( untyped o.__enum__ != null ){
+				if ( o!= null &&  Lua.type(o)  == "table" && Lua.type(cl) == "table"){
+					// first check if o is instance of cl
+					if (inheritsFrom(o, cl)) return true;
+
+					// do not use isClass/isEnum here, perform raw checks
+					untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
+					untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
+					// last chance, is it an enum instance?
 					return o.__enum__ == cl;
-				} else if (   untyped __type__(o)  == "table"
-					&& untyped __type__(cl) == "table"){
-					while (Lua.getmetatable(o) != null && Lua.getmetatable(o).__index != null){
-						if (Lua.getmetatable(o).__index == cl.prototype) return true;
-						o = Lua.getmetatable(o).__index;
-					}
+				} else {
 					return false;
 				}
-
-				return false;
 			}
 		}
+	}
+	static function inheritsFrom(o:Dynamic, cl:Class<Dynamic>) : Bool {
+		while (Lua.getmetatable(o) != null && Lua.getmetatable(o).__index != null){
+			if (Lua.getmetatable(o).__index == untyped cl.prototype) return true;
+			o = Lua.getmetatable(o).__index;
+		}
+		return false;
 	}
 
 	@:ifFeature("typed_cast")
