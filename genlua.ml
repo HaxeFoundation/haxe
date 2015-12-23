@@ -1460,11 +1460,7 @@ let generate_class ctx c =
 			let props = Codegen.get_properties c.cl_ordered_fields in
 			(match c.cl_super with
 			| _ when props = [] -> ()
-			| Some (csup,_) when Codegen.has_properties csup ->
-				newprop ctx;
-				let psup = s_path ctx csup.cl_path in
-				print ctx "__properties__ =  {__index = %s.prototype.__properties__,{%s}}" psup (gen_props props)
-			| _ ->
+			| _ -> 
 				newprop ctx;
 				print ctx "__properties__ =  {%s}" (gen_props props));
 		end;
@@ -1478,7 +1474,10 @@ let generate_class ctx c =
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup; newline ctx;
 			print ctx "setmetatable(%s.prototype,{__index=%s.prototype})" p psup; newline ctx;
-			(* TODO: use nonconflict var instead of prototype *)
+			if has_property_reflection && Codegen.has_properties csup then begin
+			    (* Also use the __properties__  from the super class as the __index metatable *)
+			    print ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup; newline ctx;
+			end;
 		);
 	end
 
