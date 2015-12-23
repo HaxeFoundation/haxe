@@ -112,6 +112,8 @@ class File {
 			r = read(srcPath);
 			w = write(dstPath);
 			w.writeInput(r);
+			r.close();
+			w.close();
 		}
 
 		catch (e:Dynamic)
