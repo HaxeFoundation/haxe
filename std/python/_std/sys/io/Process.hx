@@ -52,7 +52,11 @@ class Process {
 		return p.wait();
 	}
 	public function close() : Void {
-		p.terminate();
+		try {
+			p.terminate();
+		} catch (e:python.Exceptions.ProcessLookupError) {
+			// it has already terminated 
+		}
 	}
 	public function kill() : Void {
 		p.kill();
