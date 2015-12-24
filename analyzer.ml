@@ -333,14 +333,13 @@ module TexprFilter = struct
 				changed := true;
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				fuse (e1 :: el)
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value e2 && (match com.platform with Cpp | Java | Cs | Php -> false | _ -> true) ->
+			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value e2 && (match com.platform with Cpp | Php -> false | _ -> true) ->
 				begin try
 					let check_assign e = match e.eexpr with
 						| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 -> e2
 						| _ -> raise Exit
 					in
 					let e = map_values ~allow_control_flow:false check_assign e2 in
-					(* TODO: we have to figure out the correct type here which was lost previously. *)
 					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
 					changed := true;
 					fuse (e1 :: el)
@@ -423,6 +422,14 @@ module TexprFilter = struct
 				let e2 = loop e2 in
 				let e3 = loop e3 in
 				if_or_op e e1 e2 e3;
+			| TBlock el ->
+				let el = List.map (fun e ->
+					let e = loop e in
+					match e.eexpr with
+					| TIf _ -> {e with etype = com.basic.tvoid}
+					| _ -> e
+				) el in
+				{e with eexpr = TBlock el}
 			| TWhile(e1,e2,NormalWhile) ->
 				let e1 = loop e1 in
 				let e2 = loop e2 in
@@ -491,7 +498,7 @@ module BasicBlock = struct
 
 	and syntax_edge =
 		| SEIfThen of t * t                                (* `if` with "then" and "next" *)
-		| SEIfThenElse of t * t * t                        (* `if` with "then", "else" and "next" *)
+		| SEIfThenElse of t * t * t * Type.t               (* `if` with "then", "else" and "next" *)
 		| SESwitch of (texpr list * t) list * t option * t (* `switch` with cases, "default" and "next" *)
 		| SETry of t * (tvar * t) list * t                 (* `try` with catches and "next" *)
 		| SEWhile of t * t                                 (* `while` with "body" and "next" *)
@@ -935,7 +942,7 @@ module TexprTransformer = struct
 				let bb_else = create_node g BKConditional bb e3.etype e3.epos in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
 				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in (* TODO: dominator might be wrong if either branch is unreachable *)
-				set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next));
+				set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype));
 				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				add_cfg_edge g bb bb_else CFGCondElse;
 				close_node g bb;
@@ -1178,9 +1185,9 @@ module TexprTransformer = struct
 			| e1 :: el,se ->
 				let e1 = skip e1 in
 				begin match e1.eexpr,se with
-					| TConst (TBool true),(SEIfThen(bb_then,bb_next) | SEIfThenElse(bb_then,_,bb_next)) -> loop bb (SESubBlock(bb_then,bb_next))
+					| TConst (TBool true),(SEIfThen(bb_then,bb_next) | SEIfThenElse(bb_then,_,bb_next,_)) -> loop bb (SESubBlock(bb_then,bb_next))
 					| TConst (TBool false),SEIfThen(_,bb_next) -> Some bb_next,el
-					| TConst (TBool false),SEIfThenElse(_,bb_else,bb_next) -> loop bb (SESubBlock(bb_else,bb_next))
+					| TConst (TBool false),SEIfThenElse(_,bb_else,bb_next,_) -> loop bb (SESubBlock(bb_else,bb_next))
 					| TConst _,SESwitch(bbl,bo,bb_next) ->
 						let bbl = List.filter (fun (el,bb_case) -> List.exists (expr_eq e1) el) bbl in
 						begin match bbl,bo with
@@ -1190,13 +1197,13 @@ module TexprTransformer = struct
 							| _ :: _,_ -> assert false
 						end
 					| _ ->
-						let bb_next,e1_def = match se with
-							| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None)
-							| SEIfThenElse(bb_then,bb_else,bb_next) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else))
-							| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)
+						let bb_next,e1_def,t = match se with
+							| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid
+							| SEIfThenElse(bb_then,bb_else,bb_next,t) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t
+							| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid
 							| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
 						in
-						bb_next,(mk e1_def ctx.com.basic.tvoid e1.epos) :: el
+						bb_next,(mk e1_def t e1.epos) :: el
 				end
 			| [],_ ->
 				None,[]
@@ -1838,7 +1845,7 @@ module Debug = struct
 		| SEIfThen(bb_then,bb_next) ->
 			edge bb_then "then";
 			edge bb_next "next"
-		| SEIfThenElse(bb_then,bb_else,bb_next) ->
+		| SEIfThenElse(bb_then,bb_else,bb_next,_) ->
 			edge bb_then "then";
 			edge bb_else "else";
 			edge bb_next "next";
