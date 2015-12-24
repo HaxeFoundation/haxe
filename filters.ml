@@ -1218,7 +1218,6 @@ let run com tctx main =
 			check_local_vars_init;
 			Optimizer.inline_constructors tctx;
 			Optimizer.reduce_expression tctx;
-			blockify_ast;
 			captured_vars com;
 		] in
 		List.iter (run_expression_filters tctx filters) new_types;
@@ -1244,9 +1243,7 @@ let run com tctx main =
 				else
 					fun e ->
 						let save = save_locals tctx in
-						let timer = timer "analyzer-simplify-apply" in
-						let e = try snd (Analyzer.Simplifier.apply com e) with Exit -> e in
-						timer();
+						let e = try Analyzer.Run.roundtrip com (Analyzer.Config.get_base_config com) e with Exit -> e in
 						save();
 					e );
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx e) else Optimizer.sanitize com;

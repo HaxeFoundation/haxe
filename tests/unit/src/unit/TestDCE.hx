@@ -32,16 +32,16 @@ class DCEClass {
 	function get_memberPropUnused() return 0;
 	function set_memberPropUnused(i:Int) return 0;
 
-	static var c :Array<Dynamic> = [null, unit.UsedReferenced2];
+	static var c:Array<Dynamic> = [null, unit.UsedReferenced2];
 
 	public function new() {
 		staticUsed();
-		staticVarUsed;
+		staticVarUsed = "foo";
 		staticPropUsed = 1;
 		staticPropUsed;
 
 		memberUsed();
-		memberVarUsed;
+		memberVarUsed = 0;
 		memberPropUsed = 2;
 		memberPropUsed;
 
@@ -50,7 +50,7 @@ class DCEClass {
 		try cast (null, UsedReferenced) catch(e:Dynamic) { }
 
 		new UsedAsBaseChild();
-		c.length;
+		c.push(null);
 	}
 }
 

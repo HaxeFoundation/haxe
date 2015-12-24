@@ -16,6 +16,12 @@ class Inl{
 	}
 }
 
+private enum EnumFlagTest {
+	EA;
+	EB;
+	EC;
+}
+
 class TestJs {
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {
@@ -31,13 +37,13 @@ class TestJs {
 	//Std.string(x);
 	//}
 
-	@:js("var a = new List();var _g_head = a.h;var _g_val = null;while(_g_head != null) {var tmp;_g_val = _g_head.item;_g_head = _g_head.next;tmp = _g_val;}")
+	@:js("var a = new List();var _g_head = a.h;while(_g_head != null) _g_head = _g_head.next;")
 	static function testListIteratorInline() {
 		var a = new List();
 		for (v in a) { }
 	}
 
-	@:js("var a = 1;var tmp;var v2 = a;tmp = a + v2;if(tmp > 0) {}")
+	@:js("var a = 1;var tmp;var v2 = a;tmp = a + v2;tmp;")
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_check_has_effect)
 	@:analyzer(no_local_dce)
@@ -51,7 +57,7 @@ class TestJs {
 		return v + v2;
 	}
 
-	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}if(tmp) {}")
+	@:js("var a = [];a;")
 	@:analyzer(no_check_has_effect)
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
@@ -63,7 +69,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a = { v : [{ b : 1}]};a;var tmp;switch(a.v.length) {case 1:switch(a.v[0].b) {case 1:tmp = true;break;default:tmp = false;}break;default:tmp = false;}if(tmp) {}")
+	@:js("var a = { v : [{ b : 1}]};a;var tmp;switch(a.v.length) {case 1:switch(a.v[0].b) {case 1:tmp = true;break;default:tmp = false;}break;default:tmp = false;}tmp;")
 	@:analyzer(no_const_propagation, no_local_dce, no_check_has_effect)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
@@ -81,7 +87,7 @@ class TestJs {
 		forEach(function(x) trace(x + 2));
 	}
 
-	@:js('var a = "";var tmp;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":tmp = 0;break;default:throw new Error();}var e = tmp;')
+	@:js('var a = "";var e;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":e = 0;break;default:throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
@@ -101,7 +107,7 @@ class TestJs {
 		}
 	}
 
-	@:js('false;')
+	@:js('')
 	static function testEnumValuePropagation2() {
 		var v = pair("foo", "bar");
 		var x = switch (v) {
@@ -161,5 +167,76 @@ class TestJs {
 		try throw false catch (e:Bool) {};
 	}
 
+
+	@:js('TestJs["use"](2);')
+	static function testIssue3938() {
+		var a = 1;
+		if (a == 1) {
+			a = 2;
+		} else {
+			a = 3;
+		}
+		use(a);
+	}
+
+	@:js('
+		TestJs["use"](3);
+	')
+	static function testBinop() {
+		var a = 1;
+		var b = 2;
+		use(a + b);
+	}
+
+	@:js('
+		TestJs["use"](false);
+		TestJs["use"](true);
+		TestJs["use"](true);
+		TestJs["use"](true);
+		TestJs["use"](false);
+		TestJs["use"](true);
+		TestJs["use"](true);
+		TestJs["use"](false);
+		TestJs["use"](false);
+		TestJs["use"](true);
+		TestJs["use"](false);
+	')
+	static function testEnumValueFlags() {
+		var flags = new haxe.EnumFlags();
+		use(flags.has(EA));
+		flags = new haxe.EnumFlags(1);
+		use(flags.has(EA));
+
+		// set
+		flags.set(EB);
+		use(flags.has(EA));
+		use(flags.has(EB));
+		use(flags.has(EC));
+
+		// unset
+		flags.unset(EC);
+		use(flags.has(EA));
+		use(flags.has(EB));
+		use(flags.has(EC));
+		flags.unset(EA);
+		use(flags.has(EA));
+		use(flags.has(EB));
+		use(flags.has(EC));
+	}
+
+	@:js('
+		var map = new haxe_ds_StringMap();
+		var tmp;
+		if(__map_reserved.some != null) map.setReserved("some",2); else map.h["some"] = 2;
+		tmp = 2;
+		var i = tmp;
+		TestJs["use"](i);
+	')
+	static function testIssue4731() {
+        var map = new Map();
+        var i = map["some"] = 2;
+		use(i);
+		// This is not const-propagated because StringMap introduced unbound variables
+	}
 	static function use<T>(t:T) { }
 }

@@ -20,1602 +20,193 @@
 open Ast
 open Type
 open Common
-open Typecore
 
-let s_expr = s_expr (s_type (print_context()))
-let s_expr_pretty = s_expr_pretty "" (s_type (print_context()))
-let debug e = print_endline (s_expr e)
-let debug_pretty s e = Printf.printf "%s %s\n" s (s_expr_pretty e)
+let s_expr_pretty e = s_expr_pretty "" (s_type (print_context())) e
 
-let flag_no_check = "no_check"
-let flag_check = "check"
-let flag_no_const_propagation = "no_const_propagation"
-let flag_const_propagation = "const_propagation"
-let flag_no_local_dce = "no_local_dce"
-let flag_local_dce = "local_dce"
-let flag_ignore = "ignore"
-let flag_no_simplification = "no_simplification"
-let flag_check_has_effect = "check_has_effect"
-let flag_no_check_has_effect = "no_check_has_effect"
-
-let has_analyzer_option meta s =
-	try
-		let rec loop ml = match ml with
-			| (Meta.Analyzer,el,_) :: ml ->
-				if List.exists (fun (e,p) ->
-					match e with
-						| EConst(Ident s2) when s = s2 -> true
-						| _ -> false
-				) el then
-					true
-				else
-					loop ml
-			| _ :: ml ->
-				loop ml
-			| [] ->
-				false
-		in
-		loop meta
-	with Not_found ->
-		false
-
-let is_ignored meta =
-	try
-		let rec loop ml = match ml with
-			| (Meta.Analyzer,el,_) :: ml ->
-				if List.exists (fun (e,p) ->
-					match e with
-						| EConst(Ident s2) when flag_ignore = s2 -> true
-						| _ -> false
-				) el then
-					true
-				else
-					loop ml
-			| (Meta.HasUntyped,_,_) :: _ ->
-				true
-			| _ :: ml ->
-				loop ml
-			| [] ->
-				false
-		in
-		loop meta
-	with Not_found ->
-		false
-
-let rec get_type_meta t = match t with
-	| TMono r ->
-		begin match !r with
-			| None -> raise Not_found
-			| Some t -> get_type_meta t
-		end
-	| TLazy f ->
-		get_type_meta (!f())
-	| TInst(c,_) ->
-		c.cl_meta
-	| TEnum(en,_) ->
-		en.e_meta
-	| TAbstract(a,_) ->
-		a.a_meta
-	| TType(t,_) ->
-		t.t_meta
-	| TAnon _ | TFun _ | TDynamic _ ->
-		raise Not_found
-
-let type_has_analyzer_option t s =
-	try
-		has_analyzer_option (get_type_meta t) s
-	with Not_found ->
-		false
-
-let is_enum_type t = match follow t with
-	| TEnum(_) -> true
+let rec is_true_expr e1 = match e1.eexpr with
+	| TConst(TBool true) -> true
+	| TParenthesis e1 -> is_true_expr e1
 	| _ -> false
 
-let rec awkward_get_enum_index com e = match e.eexpr with
-	| TArray(e1,{eexpr = TConst(TInt i)}) when com.platform = Js && Int32.to_int i = 1 && is_enum_type e1.etype ->
-		e1
-	| TCall({eexpr = TField(e1, FDynamic "__Index")},[]) when com.platform = Cpp && is_enum_type e1.etype ->
-		e1
-	| TField(e1,FDynamic "index") when com.platform = Neko && is_enum_type e1.etype ->
-		e1
-	| TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) ->
-		awkward_get_enum_index com e1
+let rec is_const_expression e = match e.eexpr with
+	| TConst _ ->
+		true
+	| TParenthesis e1
+	| TMeta(_,e1) ->
+		is_const_expression e1
 	| _ ->
-		raise Not_found
+		false
 
-(*
-	This module simplifies the AST by introducing temporary variables for complex expressions in many places.
-	In particular, it ensures that no branching can occur in value-places so that we can later insert SSA PHI
-	nodes without worrying about their placement.
-*)
-module Simplifier = struct
-	let mk_block_context com =
-		let block_el = ref [] in
-		let push e = block_el := e :: !block_el in
-		let assign ev e =
-			let mk_assign e2 = match e2.eexpr with
-				| TBreak | TContinue | TThrow _ | TReturn _ -> e2
-				| _ -> mk (TBinop(OpAssign,ev,e2)) e2.etype e2.epos
-			in
-			let rec loop e = match e.eexpr with
-				| TBlock el ->
-					begin match List.rev el with
-						| e1 :: el ->
-							let el = List.rev ((loop e1) :: el) in
-							{e with eexpr = TBlock el}
-						| _ ->
-							mk_assign e
-					end
-				| TIf(e1,e2,eo) ->
-					let e2 = loop e2 in
-					let eo = match eo with None -> None | Some e3 -> Some (loop e3) in
-					{e with eexpr = TIf(e1,e2,eo)}
-				| TSwitch(e1,cases,edef) ->
-					let cases = List.map (fun (el,e) ->
-						let e = loop e in
-						el,e
-					) cases in
-					let edef = match edef with None -> None | Some edef -> Some (loop edef) in
-					{e with eexpr = TSwitch(e1,cases,edef)}
-				| TTry(e1,catches) ->
-					let e1 = loop e1 in
-					let catches = List.map (fun (v,e) ->
-						let e = loop e in
-						v,e
-					) catches in
-					{e with eexpr = TTry(e1,catches)}
-				| TParenthesis e1 | TMeta(_,e1) ->
-					loop e1 (* this is still weird, have to review *)
-(* 				| TBinop(OpAssign,({eexpr = TLocal _} as e1),e2) ->
-					push e;
-					mk_assign e1 *)
-(* 				| TBinop(OpAssignOp op,({eexpr = TLocal _} as e1),e2) ->
-					push e;
-					mk_assign e1 *)
-				| _ ->
-					mk_assign e
-			in
-			loop e
-		in
-		let declare_temp t eo p =
-			let v = alloc_var "tmp" t in
-			v.v_meta <- [Meta.CompilerGenerated,[],p];
-			let e_v = mk (TLocal v) t p in
-			let declare e_init =
-				let e = mk (TVar (v,e_init)) com.basic.tvoid p in
-				push e;
-			in
-			let e_v = match eo with
-				| None ->
-					declare None;
-					e_v
-				| Some e1 ->
-					begin match e1.eexpr with
-						| TThrow _ | TReturn _ | TBreak | TContinue ->
-							e1
-						| _ ->
-							let rec loop e_v e = match e.eexpr with
-								| TParenthesis e1 ->
-									loop {e_v with eexpr = TParenthesis e_v} e1
-								| TMeta(m,e1) ->
-									loop {e_v with eexpr = TMeta(m,e_v)} e1
-								| _ ->
-									e_v,e
-							in
-							let e_v',e1 = loop e_v e1 in
-							let e1 = assign e_v e1 in
-							begin match e1.eexpr with
-								| TBinop(OpAssign,{eexpr = TLocal v1},e2) when v == v1 ->
-									declare (Some e2)
-								| _ ->
-									declare None;
-									push e1
-							end;
-							e_v'
-					end
-			in
-			e_v
-		in
-		let rec push_block () =
-			let cur = !block_el in
-			block_el := [];
-			fun () ->
-				let added = !block_el in
-				block_el := cur;
-				List.rev added
-		and block f el =
-			let close = push_block() in
-			List.iter (fun e ->
-				push (f e)
-			) el;
-			close()
-		in
-		block,declare_temp,fun () -> !block_el
-
-	let apply com e =
-		let block,declare_temp,close_block = mk_block_context com in
-		let skip_binding ?(allow_tlocal=false) e =
-			let rec loop e =
-				match e.eexpr with
-				| TConst _ | TTypeExpr _ | TFunction _ -> ()
-				| TLocal _ when allow_tlocal -> ()
-				| TParenthesis e1 | TCast(e1,None) -> Type.iter loop e
-				| TField(_,(FStatic(c,cf) | FInstance(c,_,cf))) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification -> ()
-				| TField({eexpr = TLocal _},_) when allow_tlocal -> ()
-				| TCall({eexpr = TField(_,(FStatic(c,cf) | FInstance(c,_,cf)))},el) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification -> ()
-				| TCall({eexpr =  TLocal { v_name = "__cpp__" } },_) -> ()
-				| TField(_,FEnum _) -> ()
-				| TField(_,FDynamic _) -> ()
-				| _ when (try ignore(awkward_get_enum_index com e); true with Not_found -> false) -> ()
-				| _ -> raise Exit
-			in
-			try
-				loop e;
-				true
-			with Exit ->
-				begin match follow e.etype with
-					| TAbstract({a_path = [],"Void"},_) -> true
-					(* | TInst ({ cl_path = [],"Array" }, _) when com.platform = Cpp -> true *)
-					| _ -> false
-				end
-		in
-		let has_unbound = ref false in
-		let rec loop e = match e.eexpr with
-			| TCall({eexpr = TLocal v | TField({eexpr = TLocal v},_)},_) | TField({eexpr = TLocal v},_) | TLocal v when Meta.has Meta.Unbound v.v_meta && v.v_name <> "`trace" ->
-				has_unbound := true;
-				e
-			| TBlock el ->
-				{e with eexpr = TBlock (block loop el)}
-			| TCall({eexpr = TField(_,(FStatic(c,cf) | FInstance(c,_,cf)))},el) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification ->
-				e
-			| TField(_,(FStatic(c,cf) | FInstance(c,_,cf))) when has_analyzer_option cf.cf_meta flag_no_simplification || has_analyzer_option c.cl_meta flag_no_simplification ->
-				e
-			| TCall(e1,el) ->
-				let rec is_valid_call_target e = match e.eexpr with
-					| TFunction _ | TField _ | TLocal _ | TConst (TSuper)  ->
-						true
-					| TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) ->
-						is_valid_call_target e1
-					| _ ->
-						false
-				in
-				let e1 = if is_valid_call_target e1 then
-					loop e1
-				else
-					bind e1
-				in
-				let check e t =
-					if type_has_analyzer_option t flag_no_simplification then e
-					else bind e
-				in
-				let el = match e1.eexpr,follow e1.etype with
-					| TConst TSuper,_ when com.platform = Java || com.platform = Cs ->
-						(* they hate you if you mess up the super call *)
-						el
-					| _,TFun _ | TConst TSuper,_ ->
-						Codegen.UnificationCallback.check_call check el e1.etype
-					| _ ->
-						(* too dangerous *)
-						List.map loop el
-				in
-				{e with eexpr = TCall(e1,el)}
-			| TNew(c,tl,el) ->
-				{e with eexpr = TNew(c,tl,ordered_list el)}
-			| TArrayDecl el ->
-				{e with eexpr = TArrayDecl (ordered_list el)}
-			| TObjectDecl fl ->
-				let el = ordered_list (List.map snd fl) in
-				{e with eexpr = TObjectDecl (List.map2 (fun (n,_) e -> n,e) fl el)}
-			| TBinop(OpBoolAnd | OpBoolOr as op,e1,e2) ->
-				let e1 = loop e1 in
-				let e_then = mk (TBlock (block loop [e2])) e2.etype e2.epos in
-				let e_if,e_else = if op = OpBoolOr then
-					mk (TUnop(Not,Prefix,e1)) com.basic.tbool e.epos,mk (TConst (TBool(true))) com.basic.tbool e.epos
-				else
-					e1,mk (TConst (TBool(false))) com.basic.tbool e.epos
-				in
-				loop (mk (TIf(e_if,e_then,Some e_else)) com.basic.tbool e.epos)
-			| TBinop((OpAssign | OpAssignOp _) as op,{eexpr = TArray(e11,e12)},e2) ->
-				let e1 = match ordered_list [e11;e12] with
-					| [e1;e2] ->
-						{e with eexpr = TArray(e1,e2)}
-					| _ ->
-						assert false
-				in
-				let e2 = bind e2 in
-				{e with eexpr = TBinop(op,e1,e2)}
-			| TBinop((OpAssign | OpAssignOp _) as op,e1,e2) ->
-				let e2 = bind ~allow_tlocal:true e2 in
-				let e1 = loop e1 in
-				{e with eexpr = TBinop(op,e1,e2)}
-			| TBinop(op,e1,e2) ->
-				begin match ordered_list [e1;e2] with
-					| [e1;e2] ->
-						{e with eexpr = TBinop(op,e1,e2)}
-					| _ ->
-						assert false
-				end
-			| TArray(e1,e2) ->
-				begin match ordered_list [e1;e2] with
-					| [e1;e2] ->
-						{e with eexpr = TArray(e1,e2)}
-					| _ ->
-						assert false
-				end
-			| TWhile(e1,e2,flag) when (match e1.eexpr with TConst(TBool true) | TParenthesis {eexpr = TConst(TBool true)} -> false | _ -> true) ->
-				let p = e.epos in
-				let e_break = mk TBreak t_dynamic p in
-				let e_not = mk (TUnop(Not,Prefix,Codegen.mk_parent e1)) e1.etype e1.epos in
-				let e_if eo = mk (TIf(e_not,e_break,eo)) com.basic.tvoid p in
-				let rec map_continue e = match e.eexpr with
-					| TContinue ->
-						(e_if (Some e))
-					| TWhile _ | TFor _ ->
-						e
-					| _ ->
-						Type.map_expr map_continue e
-				in
-				let e2 = if flag = NormalWhile then e2 else map_continue e2 in
-				let e_if = e_if None in
-				let e_if = mk (TMeta((Meta.Custom ":whileCond",[],e_if.epos), e_if)) e_if.etype e_if.epos in
-				let e_block = if flag = NormalWhile then Type.concat e_if e2 else Type.concat e2 e_if in
-				let e_true = mk (TConst (TBool true)) com.basic.tbool p in
-				let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
-				loop e
-			| TFor(v,e1,e2) ->
-				let e1 = bind e1 in
-				let e2 = loop e2 in
-				{e with eexpr = TFor(v,e1,e2)}
-			| TIf(e1,e2,eo) ->
-				let e1 = bind e1 in
-				let e2 = loop e2 in
-				let eo = match eo with None -> None | Some e -> Some (loop e) in
-				{e with eexpr = TIf(e1,e2,eo)}
-			| TSwitch (e1,cases,eo) ->
-				let e1 = bind e1 in
-				let cases = List.map (fun (el,e) ->
-					let el = List.map loop el in
-					let e = loop e in
-					el,e
-				) cases in
-				let eo = match eo with None -> None | Some e -> Some (loop e) in
-				{e with eexpr = TSwitch(e1,cases,eo)}
-			| TVar(v,Some e1) ->
-				let e1 = match e1.eexpr with
-					| TFunction _ -> loop e1
-					| TArrayDecl [{eexpr = TFunction _}] -> loop e1
-					| TNew(_,_,el) when not (List.exists Optimizer.has_side_effect el) -> loop e1 (* issue #4322 *)
-					| _ -> bind ~allow_tlocal:true e1
-				in
-				{e with eexpr = TVar(v,Some e1)}
-			| TUnop((Neg | NegBits | Not) as op,flag,e1) ->
-				let e1 = bind e1 in
-				{e with eexpr = TUnop(op,flag,e1)}
-			| TField(e1,fa) ->
-				let e1 = bind ~allow_tlocal:true e1 in
-				{e with eexpr = TField(e1,fa)}
-			| TReturn (Some ({eexpr = TThrow _ | TReturn _} as e1)) ->
-				loop e1 (* this is a bit hackish *)
-			| TReturn (Some e1) ->
-				let e1 = bind e1 in
-				{e with eexpr = TReturn (Some e1)}
-			| TThrow e1 ->
-				let e1 = bind e1 in
-				{e with eexpr = TThrow e1}
-			| TCast(e1,mto) ->
-				let e1 = bind ~allow_tlocal:true e1 in
-				{e with eexpr = TCast(e1,mto)}
-			| _ ->
-				Type.map_expr loop e
-		and bind ?(allow_tlocal=false) e =
-			let e = loop e in
-			if skip_binding ~allow_tlocal e then
-				e
-			else
-				declare_temp e.etype (Some e) e.epos
-		and ordered_list el =
-			if List.for_all (skip_binding ~allow_tlocal:true) el then
-				List.map loop el
-			else
-				List.map bind el
-		in
-		let e = loop e in
-		!has_unbound,match close_block() with
-			| [] ->
-				e
-			| el ->
-				mk (TBlock (List.rev (e :: el))) e.etype e.epos
-
-	let unapply com e =
-		let var_map = ref IntMap.empty in
-		let rec get_assignment_to v e = match e.eexpr with
-			| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v == v2 -> Some e2
-			| TBlock [e] -> get_assignment_to v e
-			| TIf(e1,e2,Some e3) ->
-				begin match get_assignment_to v e2,get_assignment_to v e3 with
-				| Some e2,Some e3 -> Some ({e with eexpr = TIf(e1,e2,Some e3)})
-				| _ -> None
-				end
-			| _ -> None
-		in
-		let if_or_op e e1 e2 e3 = match e1.eexpr,e3.eexpr with
-			| TUnop(Not,Prefix,e1),TConst (TBool true) -> {e with eexpr = TBinop(OpBoolOr,e1,e2)}
-			| _,TConst (TBool false) -> {e with eexpr = TBinop(OpBoolAnd,e1,e2)}
-			| _ -> {e with eexpr = TIf(e1,e2,Some e3)}
-		in
-		let rec loop e = match e.eexpr with
-			| TBlock el ->
-				let rec loop2 el = match el with
-					| e :: el ->
-						begin match e.eexpr with
-							| TVar(v,Some e1) when Meta.has Meta.CompilerGenerated v.v_meta ->
-								if el = [] then
-									[loop e1]
-								else begin
-									var_map := IntMap.add v.v_id (loop e1) !var_map;
-									loop2 el
-								end
-							| TVar(v,None) when not (com.platform = Php) ->
-								begin match el with
-									| {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v == v2 ->
-										let e = {e with eexpr = TVar(v,Some e2)} in
-										loop2 (e :: el)
-									| ({eexpr = TIf(e1,e2,Some e3)} as e_if) :: el ->
-										let e1 = loop e1 in
-										let e2 = loop e2 in
-										let e3 = loop e3 in
-										begin match get_assignment_to v e2,get_assignment_to v e3 with
-											| Some e2,Some e3 ->
-												let e_if = if_or_op e_if (loop e1) (loop e2) (loop e3) in
-												let e = {e with eexpr = TVar(v,Some e_if)} in
-												loop2 (e :: el)
-											| _ ->
-												let e_if = {e_if with eexpr = TIf(e1,e2,Some e3)} in
-												e :: e_if :: loop2 el
-										end
-									| _ ->
-										let e = loop e in
-										e :: loop2 el
-								end
-							| TReturn (Some e1) when (match follow e1.etype with TAbstract({a_path=[],"Void"},_) -> true | _ -> false) ->
-								[(loop e1);{e with eexpr = TReturn None}]
-							| _ ->
-								let e = loop e in
-								e :: loop2 el
-						end
-					| [] ->
-						[]
-				in
-				let el = loop2 el in
-				{e with eexpr = TBlock el}
-			| TLocal v when Meta.has Meta.CompilerGenerated v.v_meta ->
-				begin try IntMap.find v.v_id !var_map
-				with Not_found -> e end
-			| TWhile(e1,e2,flag) ->
-				let e1 = loop e1 in
-				let e2 = loop e2 in
-				let extract_cond e = match e.eexpr with
-					| TIf({eexpr = TUnop(Not,_,e1)},_,_) -> e1
-					| TBreak -> raise Exit (* can happen due to optimization, not so easy to deal with because there might be other breaks/continues *)
-					| _ -> assert false
-				in
-				let e1,e2,flag = try
-					begin match e2.eexpr with
-						| TBlock el ->
-							begin match el with
-								| {eexpr = TMeta((Meta.Custom ":whileCond",_,_),e1)} :: el ->
-									let e1 = extract_cond e1 in
-									e1,{e2 with eexpr = TBlock el},NormalWhile
-								| _ ->
-									e1,e2,flag
-									(* issue 3844 *)
-(* 									begin match List.rev el with
-										| {eexpr = TMeta((Meta.Custom ":whileCond",_,_),e1)} :: el ->
-											let e1 = extract_cond e1 in
-											e1,{e2 with eexpr = TBlock (List.rev el)},DoWhile
-										| _ ->
-											e1,e2,flag
-									end *)
-							end
-						| _ ->
-							e1,e2,flag
-					end with Exit ->
-						e1,e2,flag
-				in
-				{e with eexpr = TWhile(e1,e2,flag)}
-			| TIf(e1,e2,Some e3) ->
-				let e1 = loop e1 in
-				let e2 = loop e2 in
-				let e3 = loop e3 in
-				if_or_op e e1 e2 e3
-			| _ ->
-				Type.map_expr loop e
-		in
-		loop e
-end
-
-module Ssa = struct
-
-	type var_map = tvar IntMap.t
-
-	type condition =
-		| Equal of tvar * texpr
-		| NotEqual of tvar * texpr
-
-	type node_data = {
-		nd_pos: pos;
-		mutable nd_var_map : var_map;
-		mutable nd_terminates : bool;
-	}
-
-	type join_node = {
-		mutable branches : node_data list;
-	}
-
-	type ssa_context = {
-		com : Common.context;
-		mutable cleanup : (unit -> unit) list;
-		mutable cur_data : node_data;
-		mutable var_conds : (condition list) IntMap.t;
-		mutable loop_stack : (join_node * join_node) list;
-		mutable exception_stack : join_node list;
-		mutable block_depth : int;
-	}
-
-	let s_cond = function
-		| Equal(v,e) -> Printf.sprintf "%s == %s" v.v_name (s_expr_pretty e)
-		| NotEqual(v,e) -> Printf.sprintf "%s != %s" v.v_name (s_expr_pretty e)
-
-	let s_conds conds =
-		String.concat " && " (List.map s_cond conds)
-
-	let mk_loc v p = mk (TLocal v) v.v_type p
-
-	let mk_phi =
-		let v_phi = alloc_var "__ssa_phi__" t_dynamic in
-		(fun vl p ->
-			let e = mk (TCall(mk_loc v_phi p,(List.map (fun (v,p) -> mk_loc v p) vl))) t_dynamic p in
-			e
-		)
-
-	(* TODO: make sure this is conservative *)
-	let can_throw e =
-		let rec loop e = match e.eexpr with
-			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TBlock _ -> ()
-			| TCall _ | TNew _ | TThrow _ | TCast(_,Some _) -> raise Exit
-			| _ -> Type.iter loop e
-		in
-		try
-			loop e; false
-		with Exit ->
-			true
-
-	let mk_join_node() = {
-		branches = []
-	}
-
-	let mk_node_data p = {
-		nd_pos = p;
-		nd_var_map = IntMap.empty;
-		nd_terminates = false;
-	}
-
-	let add_branch join branch p =
-		join.branches <- {branch with nd_pos = p} :: join.branches
-
-	let branch ctx p =
-		let old_map = ctx.cur_data.nd_var_map in
-		let old_term = ctx.cur_data.nd_terminates in
-		ctx.cur_data.nd_terminates <- false;
-		(fun join ->
-			add_branch join ctx.cur_data p;
-			ctx.cur_data.nd_var_map <- old_map;
-			ctx.cur_data.nd_terminates <- old_term;
-		)
-
-	let terminate ctx =
-		ctx.cur_data.nd_terminates <- true
-
-	let set_loop_join ctx join_top join_bottom =
-		ctx.loop_stack <- (join_top,join_bottom) :: ctx.loop_stack;
-		(fun () ->
-			ctx.loop_stack <- List.tl ctx.loop_stack
-		)
-
-	let set_exception_join ctx join =
-		ctx.exception_stack <- join :: ctx.exception_stack;
-		(fun () ->
-			ctx.exception_stack <- List.tl ctx.exception_stack;
-		)
-
-	let create_v_extra v =
-		match v.v_extra with
-		| Some (_,Some _) ->
-			()
-		| Some (tl,None) ->
-			let e_extra = mk (TObjectDecl []) t_dynamic null_pos in
-			v.v_extra <- Some (tl,Some e_extra)
-		| None ->
-			let e_extra = mk (TObjectDecl []) t_dynamic null_pos in
-			v.v_extra <- Some ([],Some e_extra)
-
-	let set_v_extra_value v s e = match v.v_extra with
-		| Some (tl, Some {eexpr = TObjectDecl fl}) ->
-			let rec loop fl = match fl with
-				| (s',_) :: fl when s' = s ->
-					(s,e) :: fl
-				| f1 :: fl ->
-					f1 :: loop fl
-				| [] ->
-					[s,e]
-			in
-			let e_extra = mk (TObjectDecl (loop fl)) t_dynamic null_pos in
-			v.v_extra <- Some (tl, Some e_extra)
-		| _ ->
-			assert false
-
-	let get_origin_var v = match v.v_extra with
-		| Some (_,Some {eexpr = TObjectDecl fl}) ->
-			begin match List.assoc "origin_var" fl with
-				| {eexpr = TLocal v'} -> v'
-				| _ -> raise Not_found
-			end
-		| _ ->
-			raise Not_found
-
-	let set_origin_var v v_origin p =
-		let ev = mk_loc v_origin p in
-		set_v_extra_value v "origin_var" ev
-
-	let get_var_value v = match v.v_extra with
-		| Some (_,Some {eexpr = TObjectDecl fl}) ->
-			List.assoc "var_value" fl
-		| _ ->
-			raise Not_found
-
-	let set_var_value v e =
-		set_v_extra_value v "var_value" e
-
-	let get_var_usage_count v = match v.v_extra with
-		| Some (_,Some {eexpr = TObjectDecl fl}) ->
-			begin try
-				begin match List.assoc "usage_count" fl with
-				| {eexpr = TConst (TInt i32)} -> Int32.to_int i32
-				| _ -> 0
-				end
-			with Not_found ->
-				0
-			end
-		| _ ->
-			raise Not_found
-
-	let set_var_usage_count v i =
-		let e = mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos in
-		set_v_extra_value v "usage_count" e
-
-	let declare_var ctx v p =
-		let old = v.v_extra in
-		ctx.cleanup <- (fun () ->
-			v.v_extra <- old
-		) :: ctx.cleanup;
-		ctx.cur_data.nd_var_map <- IntMap.add v.v_id v ctx.cur_data.nd_var_map;
-		v.v_meta <- ((Meta.Custom ":blockDepth",[EConst (Int (string_of_int ctx.block_depth)),p],p)) :: v.v_meta;
-		v.v_extra <- None;
-		create_v_extra v;
-		set_origin_var v v p
-
-	let assign_var ctx v e p =
-		if v.v_capture then
-			v
-		else begin
-			let i = match v.v_extra with
-				| Some (l,eo) ->
-					v.v_extra <- Some (("",t_dynamic) :: l,eo);
-					List.length l + 1
-				| _ ->
-					error "Something went wrong" p
-			in
-			let v' = alloc_var (Printf.sprintf "%s<%i>" v.v_name i) v.v_type in
-			create_v_extra v';
-			v'.v_meta <- [(Meta.Custom ":ssa"),[],p];
-			set_origin_var v' v p;
-			ctx.cur_data.nd_var_map <- IntMap.add v.v_id v' ctx.cur_data.nd_var_map;
-			set_var_value v' e;
-			v'
-		end
-
-	let get_var ctx v p =
-		try
-			IntMap.find v.v_id ctx.cur_data.nd_var_map
-		with Not_found ->
-			if not (has_meta Meta.Unbound v.v_meta) then
-				error (Printf.sprintf "Unbound variable %s" v.v_name) p;
-			v
-
-	let close_join_node ctx node p =
-		let terminates = ref true in
-		let branches = List.filter (fun branch ->
-			if branch.nd_terminates then false
-			else begin
-				terminates := false;
-				true
-			end
-		) node.branches in
-		match branches with
-			| [] ->
-				()
-			| branch :: branches ->
-				let vars = ref (IntMap.map (fun v -> [v,branch.nd_pos]) branch.nd_var_map) in
-				let rec handle_branch branch =
-					IntMap.iter (fun i v ->
-						try
-							let vl = IntMap.find i !vars in
-							if not (List.exists (fun (v',_) -> v == v') vl) then
-								vars := IntMap.add i ((v,p) :: vl) !vars
-						with Not_found ->
-							()
-					) branch.nd_var_map;
-				in
-				List.iter handle_branch branches;
-				ctx.cur_data.nd_terminates <- !terminates;
-				IntMap.iter (fun i vl -> match vl with
-					| [v,p] ->
-						ctx.cur_data.nd_var_map <- IntMap.add i v ctx.cur_data.nd_var_map;
-					| (v',_) :: _ ->
-						let v = get_origin_var v' in
-						ignore(assign_var ctx v (mk_phi vl p) p)
-					| _ ->
-						assert false
-				) !vars
-
-	let invert_cond = function
-		| Equal(v,e) -> NotEqual(v,e)
-		| NotEqual(v,e) -> Equal(v,e)
-
-	let invert_conds =
-		List.map invert_cond
-
-	let rec eval_cond ctx e = match e.eexpr with
-		| TBinop(OpNotEq,{eexpr = TLocal v},e1) ->
-			[NotEqual(v,e1)]
-		| TBinop(OpEq,{eexpr = TLocal v},e1) ->
-			[Equal(v,e1)]
-		| TUnop(Not,_,e1) ->
-			invert_conds (eval_cond ctx e1)
-		| TLocal v ->
-			begin try eval_cond ctx (get_var_value v)
-			with Not_found -> [] end
-		| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
-			eval_cond ctx e1
-		| _ ->
-			[]
-
-	let append_cond ctx v cond p =
-		begin try
-			let conds = IntMap.find v.v_id ctx.var_conds in
-			ctx.var_conds <- IntMap.add v.v_id (cond :: conds) ctx.var_conds
-		with Not_found ->
-			ctx.var_conds <- IntMap.add v.v_id [cond] ctx.var_conds
-		end
-
-	let apply_cond ctx = function
-		| Equal(v,e1) ->
-			(* let v' = assign_var ctx (get_origin_var v) (mk_loc v e1.epos) e1.epos in
-			append_cond ctx v' (Equal(v',e1)) e1.epos *)
-			()
-		| NotEqual(v,e1) ->
-			(* let v' = assign_var ctx (get_origin_var v) (mk_loc v e1.epos) e1.epos in
-			append_cond ctx v' (NotEqual(v',e1)) e1.epos *)
-			()
-
-	let apply_not_null_cond ctx v p =
-		apply_cond ctx (NotEqual(v,(mk (TConst TNull) t_dynamic p)))
-
-	let apply com e =
-		let rec handle_if ctx f econd eif eelse =
-			let econd = loop ctx econd in
-			let cond = eval_cond ctx econd in
-			let join = mk_join_node() in
-			let close = branch ctx eif.epos in
-			List.iter (apply_cond ctx) cond;
-			let eif = loop ctx eif in
-			close join;
-			let eelse = match eelse with
-				| None ->
-					let cond = invert_conds cond in
-					List.iter (apply_cond ctx) cond;
-					add_branch join ctx.cur_data e.epos;
-					None
-				| Some e ->
-					let close = branch ctx e.epos in
-					let cond = invert_conds cond in
-					List.iter (apply_cond ctx) cond;
-					let eelse = loop ctx e in
-					close join;
-					Some eelse
-			in
-			close_join_node ctx join e.epos;
-			f econd eif eelse
-		and handle_loop_body ctx e =
-			let join_top = mk_join_node() in
-			let join_bottom = mk_join_node() in
-			let unset = set_loop_join ctx join_top join_bottom in
-			let close = branch ctx e.epos in
-			ignore(loop ctx e); (* TODO: I don't know if this is sane. *)
-			close join_top;
-			add_branch join_top ctx.cur_data e.epos;
-			close_join_node ctx join_top e.epos;
-			let ebody = loop ctx e in
-			ctx.cur_data.nd_terminates <- false;
-			unset();
-			close_join_node ctx join_bottom e.epos;
-			ebody
-		and loop ctx e = match e.eexpr with
-			(* var declarations *)
-			| TVar(v,eo) ->
-				declare_var ctx v e.epos;
-				let eo = match eo with
-					| None -> None
-					| Some e ->
-						let e = loop ctx e in
-						set_var_value v e;
-						Some e
-				in
-				{e with eexpr = TVar(v,eo)}
-			| TFunction tf ->
-				let close = branch ctx e.epos in
-				List.iter (fun (v,co) ->
-					declare_var ctx v e.epos;
-					match co with
-						| Some TNull when (match v.v_type with TType({t_path=["haxe"],"PosInfos"},_) -> false | _ -> true) -> ()
-						| _ -> apply_not_null_cond ctx v e.epos
-				) tf.tf_args;
-				let e' = loop ctx tf.tf_expr in
-				close (mk_join_node());
-				{e with eexpr = TFunction {tf with tf_expr = e'}}
-			(* var modifications *)
-			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-				let e2 = loop ctx e2 in
-				let _ = assign_var ctx v e2 e1.epos in
-				{e with eexpr = TBinop(OpAssign,e1,e2)}
-			| TBinop(OpAssignOp op,({eexpr = TLocal v} as e1),e2) ->
-				let e1 = loop ctx e1 in
-				let e2 = loop ctx e2 in
-				let e_op = mk (TBinop(op,e1,e2)) e.etype e.epos in
-				let _ = assign_var ctx v e_op e1.epos in
-				{e with eexpr = TBinop(OpAssignOp op,e1,e2)}
-			| TUnop((Increment | Decrement as op),flag,({eexpr = TLocal v} as e1)) ->
-				let op = match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false in
-				let e_one = mk (TConst (TInt (Int32.of_int 1))) com.basic.tint e.epos in
-				let e1 = loop ctx e1 in
-				let e_op = mk (TBinop(op,e1,e_one)) e.etype e.epos in
-				let _ = assign_var ctx v e_op e1.epos in
-				e
-			(* var user *)
-			| TLocal v ->
-				let v = get_var ctx v e.epos in
-				{e with eexpr = TLocal v}
-			(* control flow *)
-			| TIf(econd,eif,eelse) ->
-				let f econd eif eelse = {e with eexpr = TIf(econd,eif,eelse)} in
-				handle_if ctx f econd eif eelse
-			| TSwitch(e1,cases,edef) ->
-				let e1 = loop ctx e1 in
-				let join = mk_join_node() in
-				let cases = List.map (fun (el,e) ->
-					let close = branch ctx e.epos in
-					let el = List.map (loop ctx) el in
-					let e = loop ctx e in
-					close join;
-					el,e
-				) cases in
-				let edef = match edef with
-					| Some e ->
-						let close = branch ctx e.epos in
-						let e = loop ctx e in
-						close join;
-						Some e
-					| None ->
-						if not (Optimizer.is_exhaustive e1) then
-							add_branch join ctx.cur_data e.epos;
-						None
-				in
-				close_join_node ctx join e.epos;
-				let e = {e with eexpr = TSwitch(e1,cases,edef)} in
-				e
-			| TWhile(econd,ebody,mode) ->
-				let econd = loop ctx econd in
-				let ebody = handle_loop_body ctx ebody in
-				let e = {e with eexpr = TWhile(econd,ebody,mode)} in
-				e
-			| TFor(v,e1,ebody) ->
-				declare_var ctx v e.epos;
-				apply_not_null_cond ctx v e1.epos;
-				let v' = IntMap.find v.v_id ctx.cur_data.nd_var_map in
-				let e1 = loop ctx e1 in
-				let ebody = handle_loop_body ctx ebody in
-				let e = {e with eexpr = TFor(v',e1,ebody)} in
-				e
-			| TTry(e1,catches) ->
-				let join_ex = mk_join_node() in
-				let join_bottom = mk_join_node() in
-				let unset = set_exception_join ctx join_ex in
-				let e1 = loop ctx e1 in
-				unset();
-				add_branch join_bottom ctx.cur_data e.epos;
-				close_join_node ctx join_ex e.epos;
-				let catches = List.map (fun (v,e) ->
-					declare_var ctx v e.epos;
-					apply_not_null_cond ctx v e.epos;
-					let close = branch ctx e.epos in
-					let e = loop ctx e in
-					close join_bottom;
-					v,e
-				) catches in
-				close_join_node ctx join_bottom e.epos;
-				let e = {e with eexpr = TTry(e1,catches)} in
-				e
-			| TBreak ->
-				begin match ctx.loop_stack with
-					| [] -> error "Break outside loop" e.epos
-					| (_,join) :: _ -> add_branch join ctx.cur_data e.epos
-				end;
-				terminate ctx;
-				e
-			| TContinue ->
-				begin match ctx.loop_stack with
-					| [] -> error "Continue outside loop" e.epos
-					| (join,_) :: _ -> add_branch join ctx.cur_data e.epos
-				end;
-				terminate ctx;
-				e
-			| TThrow e1 ->
-				let e1 = loop ctx e1 in
-				begin match ctx.exception_stack with
-					| join :: _ -> add_branch join ctx.cur_data e.epos
-					| _ -> ()
-				end;
-				terminate ctx;
-				{e with eexpr = TThrow e1}
-			| TReturn eo ->
-				let eo = match eo with None -> None | Some e -> Some (loop ctx e) in
-				terminate ctx;
-				{e with eexpr = TReturn eo}
-			| TBlock el ->
-				let rec loop2 el = match el with
-					| [] ->
-						[]
-					| e :: el ->
-						if ctx.cur_data.nd_terminates then begin
-							(* ctx.com.warning (Printf.sprintf "Unreachable code: %s" (s_expr_pretty e)) e.epos; *)
-							[]
-						end else
-							let e = loop ctx e in
-							e :: (loop2 el)
-				in
-				ctx.block_depth <- ctx.block_depth + 1;
-				let el = loop2 el in
-				ctx.block_depth <- ctx.block_depth - 1;
-				{e with eexpr = TBlock(el)}
-			| _ ->
-				begin match ctx.exception_stack with
-					| join :: _ when can_throw e -> add_branch join ctx.cur_data e.epos
-					| _ -> ()
-				end;
-				Type.map_expr (loop ctx) e
-		in
-		let ctx = {
-			com = com;
-			cur_data = mk_node_data e.epos;
-			var_conds = IntMap.empty;
-			loop_stack = [];
-			exception_stack = [];
-			cleanup = [];
-			block_depth = 0;
-		} in
-		let e = loop ctx e in
-		e,ctx
-
-	let unapply com e =
-		let rec loop e = match e.eexpr with
-			| TFor(v,e1,e2) when Meta.has (Meta.Custom ":ssa") v.v_meta ->
-				let v' = get_origin_var v in
-				let e1 = loop e1 in
-				let e2 = loop e2 in
-				{e with eexpr = TFor(v',e1,e2)}
-			| TLocal v when Meta.has (Meta.Custom ":ssa") v.v_meta ->
-				let v' = get_origin_var v in
-				{e with eexpr = TLocal v'}
-			| TBlock el ->
-				let rec filter e = match e.eexpr with
-					| TMeta((Meta.Custom ":ssa",_,_),_) ->
-						false
-					| _ ->
-						true
-				in
-				let el = List.filter filter el in
-				let el = List.map loop el in
-				{e with eexpr = TBlock el}
-			| _ ->
-				Type.map_expr loop e
-		in
-		loop e
-end
-
-module ConstPropagation = struct
-	open Ssa
-
-	let expr_eq e1 e2 = match e1.eexpr,e2.eexpr with
-		| TConst ct1, TConst ct2 ->
-			ct1 = ct2
-		| _ ->
-			false
-
-	let get_block_depth v = try
-		let i = match Meta.get (Meta.Custom ":blockDepth") v.v_meta with
-			| _,[EConst(Int s),_],_ -> int_of_string s
-			| _ -> raise Not_found
-		in
-		i
-		with Not_found ->
-			-1
-
-	let rec can_be_inlined com v0 e = type_iseq_strict v0.v_type e.etype && match e.eexpr with
-		| TConst ct ->
-			begin match ct with
-				| TThis | TSuper -> false
-				(* Some targets don't like seeing null in certain places and won't even compile. We have to detect `if (x != null)
-				   in order for this to work. *)
-				| TNull when (match com.platform with Php | Cpp -> true | _ -> false) -> false
-				| _ -> true
-			end
-		| TLocal v ->
-			not (Meta.has Meta.CompilerGenerated v.v_meta) &&
-			begin try
-				let v' = Ssa.get_origin_var v in
-				begin match v'.v_extra with
-					| Some ([],_) -> get_block_depth v <= get_block_depth v0
-					| _ -> false
-				end
-			with Not_found ->
-				false
-			end
-		| TEnumParameter _ when not (com.platform = Php) ->
-			Ssa.get_var_usage_count v0 <= 1
-		| TField(_,FEnum _) ->
-			Ssa.get_var_usage_count v0 <= 1
-		| TCast(e1,None) ->
-			(* We can inline an unsafe cast if the variable is only used once. *)
-			can_be_inlined com v0 {e1 with etype = e.etype} && Ssa.get_var_usage_count v0 <= 1
-		| _ ->
-			false
-
-	let semi_awkward_enum_value ssa e i = match e.eexpr with
-		| TCall({eexpr = TField(_,FEnum _)},el) -> (try List.nth el i with Failure _ -> raise Not_found)
-		| _ -> raise Not_found
-
-	let rec local ssa force v e =
-		begin try
-			if v.v_capture then raise Not_found;
-			if type_has_analyzer_option v.v_type flag_no_const_propagation then raise Not_found;
-			begin match follow v.v_type with
-				| TDynamic _ -> raise Not_found
-				| _ -> ()
-			end;
-			let e = Ssa.get_var_value v in
-			let old = v.v_extra in
-			v.v_extra <- None;
-			let e = value ssa force e in
-			v.v_extra <- old;
-			Ssa.set_var_value v e;
-			e
-		with Not_found ->
-			e
-		end
-
-	(* force must only be true if the value is not used in the output *)
-	and value ssa force e = match e.eexpr with
-		| TUnop((Increment | Decrement),_,_)
-		| TBinop(OpAssignOp _,_,_)
-		| TBinop(OpAssign,_,_) ->
-			e
-		| TBinop(op,e1,e2) ->
-			let e1 = value ssa force e1 in
-			let e2 = value ssa force e2 in
-			let e = {e with eexpr = TBinop(op,e1,e2)} in
-			let e' = Optimizer.optimize_binop e op e1 e2 in
-			if e == e' then
-				e
-			else
-				value ssa force e'
-		| TUnop(op,flag,e1) ->
-			let e1 = value ssa force e1 in
-			let e = {e with eexpr = TUnop(op,flag,e1)} in
-			let e' = Optimizer.optimize_unop e op flag e1 in
-			if e == e' then
-				e
-			else
-				value ssa force e'
-		| TCall ({ eexpr = TField ({eexpr = TTypeExpr (TClassDecl c) },fa)},el) ->
-			let el = List.map (value ssa force) el in
-			(match Optimizer.api_inline2 ssa.com c (field_name fa) el e.epos with
-			| None -> e
-			| Some e -> value ssa force e)
-		| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}} as ephi),el) ->
-			let el = List.map (value ssa force) el in
-			begin match el with
-				| [] -> assert false
-				| e1 :: el ->
-					if List.for_all (fun e2 -> expr_eq e1 e2) el then
-						value ssa force e1
-					else
-						{e with eexpr = TCall(ephi, e1 :: el)}
-			end
-		| TParenthesis e1 | TMeta(_,e1) ->
-			value ssa force e1
-		| TLocal v ->
-			let e' = local ssa force v e in
-			if force || can_be_inlined ssa.com v e' then
-				e'
-			else
-				e
-		| TEnumParameter(e1,ef,i) ->
-			let ev = value ssa true e1 in
-			begin try
-				value ssa force (semi_awkward_enum_value ssa ev i)
-			with Not_found ->
-				e
-			end
-		| _ ->
-			try
-				let ct = awkward_get_enum_index2 ssa e in
-				{e with eexpr = TConst ct}
-			with Not_found ->
-				e
-
-	(* TODO: the name is quite accurate *)
-	and awkward_get_enum_index2 ssa e =
-		let e = awkward_get_enum_index ssa.com e in
-		let ev = (value ssa true e) in
-		match ev.eexpr with
-			| TField(_,FEnum(_,ef)) -> TInt (Int32.of_int ef.ef_index)
-			| TCall({eexpr = TField(_,FEnum(_,ef))},_) -> TInt (Int32.of_int ef.ef_index)
-			| _ -> raise Not_found
-
-	let apply ssa e =
-		let rec loop e = match e.eexpr with
-			| TLocal v when not (Meta.has Meta.Unbound v.v_meta) ->
-				set_var_usage_count v (get_var_usage_count v + 1);
-			| _ ->
-				Type.iter loop e
-		in
-		loop e;
-		let had_function = ref false in
-		let rec loop e = match e.eexpr with
-			| TFunction _ when !had_function ->
-				e
-			| TFunction tf ->
-				had_function := true;
-				{e with eexpr = TFunction {tf with tf_expr = loop tf.tf_expr}}
-			| TLocal v ->
-				let e' = local ssa false v e in
-				if can_be_inlined ssa.com v e' then
-					e'
-				else
-					e
-			| TCall({eexpr = TField(_,(FStatic(_,cf) | FInstance(_,_,cf) | FAnon cf))},el) when has_analyzer_option cf.cf_meta flag_no_const_propagation ->
-				e
-			| TCall(e1,el) ->
-				let e1 = loop e1 in
-				let check e t =
-					if type_has_analyzer_option t flag_no_const_propagation then e
-					else loop e
-				in
-				let el = Codegen.UnificationCallback.check_call check el e1.etype in
-				let e = {e with eexpr = TCall(e1,el)} in
-				begin match e1.eexpr with
-					| TField({eexpr = TTypeExpr (TClassDecl c)},fa) ->
-						begin match Optimizer.api_inline2 ssa.com c (field_name fa) el e.epos with
-							| None -> e
-							| Some e -> loop e
-						end
-					| _ ->
-						e
-				end
-(* 			| TField(e1,fa) ->
-				let e1' = loop e1 in
-				let fa = if e1' != e1 then
-					begin try quick_field e1'.etype (field_name fa)
-					with Not_found -> fa end
-				else
-					fa
-				in
-				{e with eexpr = TField(e1',fa)} *)
-			| TUnop((Increment | Decrement),_,_) ->
-				e
-			| TBinop(OpAssignOp op,e1,e2) ->
-				let e2 = loop e2 in
-				{e with eexpr = TBinop(OpAssignOp op,e1,e2)}
-			| TBinop(OpAssign,({eexpr = TLocal _} as e1),e2) ->
-				let e2 = loop e2 in
-				{e with eexpr = TBinop(OpAssign,e1,e2)}
-			| TBinop(op,e1,e2) ->
-				let e1 = loop e1 in
-				let e2 = loop e2 in
-				let e = {e with eexpr = TBinop(op,e1,e2)} in
-				let e' = Optimizer.optimize_binop e op e1 e2 in
-				e'
-			| TUnop(op,flag,e1) ->
-				let e1 = loop e1 in
-				let e = {e with eexpr = TUnop(op,flag,e1)} in
-				let e' = Optimizer.optimize_unop e op flag e1 in
-				e'
-			| TIf(e1,e2,eo) ->
-				let e1 = loop e1 in
-				let e2 = loop e2 in
-				let rec check_const e1 = match e1.eexpr with
-					| TConst (TBool true) ->
-						e2
-					| TConst (TBool false) ->
-						begin match eo with
-							| None ->
-								mk (TConst TNull) t_dynamic e.epos
-							| Some e ->
-								loop e
-						end
-					| TParenthesis e1 ->
-						check_const e1
-					| _ ->
-						let eo = match eo with None -> None | Some e -> Some (loop e) in
-						{e with eexpr = TIf(e1,e2,eo)}
-				in
-				check_const e1
-			| TSwitch(e1,cases,edef) ->
-				let e1 = loop e1 in
-				let rec check_constant e = match e.eexpr with
-					| TConst ct -> ct
-					| TParenthesis e1 | TCast(e1,None) | TMeta(_,e1) -> check_constant e1
-					| _ -> raise Not_found
-				in
-				begin try
-					let ct = check_constant e1 in
-					begin try
-						let _,e = List.find (fun (el,_) ->
-							List.exists (fun e -> match e.eexpr with
-								| TConst ct2 -> ct = ct2
-								| _ -> false
-							) el
-						) cases in
-						loop e
-					with Not_found ->
-						begin match edef with None -> raise Not_found | Some e -> loop e end
-					end
-				with Not_found ->
-					let cases = List.map (fun (el,e) -> el,loop e) cases in
-					let edef = match edef with None -> None | Some e -> Some (loop e) in
-					{e with eexpr = TSwitch(e1,cases,edef)}
-				end
-			| _ ->
-				try
-					let ct = awkward_get_enum_index2 ssa e in
-					{e with eexpr = TConst ct}
-				with Not_found ->
-					Type.map_expr loop e
-		in
-		loop e
-end
-
-module EffectChecker = struct
-	let run com is_var_expression e =
-		let has_effect e = match e.eexpr with
-			| TVar _ -> true
-			| _ -> Optimizer.has_side_effect e
-		in
-		let e = if is_var_expression then
-			(* var initialization expressions are like assignments, so let's cheat a bit here *)
-			snd (Simplifier.apply com (Codegen.binop OpAssign (mk (TConst TNull) t_dynamic e.epos) e e.etype e.epos))
-		else e
-		in
-		let rec loop e = match e.eexpr with
-			| TBlock el ->
-				List.iter (fun e ->
-					if not (has_effect e) then com.warning "This expression has no effect" e.epos
-				) el
-			| _ ->
-				Type.iter loop e
-			in
-		loop e
-end
-
-module Checker = struct
-	open Ssa
-
-	let apply ssa e =
-		let given_warnings = ref PMap.empty in
-		let add_pos p =
-			given_warnings := PMap.add p true !given_warnings
-		in
-		let resolve_value v =
-			let e' = Ssa.get_var_value v in
-			begin match e'.eexpr with
-				| TLocal v' when v == v' -> e'
-				| _ -> e'
-			end
-		in
-		let rec is_null_expr e = match e.eexpr with
-			| TConst TNull ->
-				true
-			| TLocal v ->
-				(try is_null_expr (resolve_value v) with Not_found -> false)
-			| _ ->
-				false
-		in
-		let can_be_null v =
-			not (has_meta Meta.NotNull v.v_meta)
-			&& try not (List.exists (fun cond -> match cond with
-				| NotEqual(v',e) when v == v' && is_null_expr e -> true
-				| _ -> false
-			) (IntMap.find v.v_id ssa.var_conds)) with Not_found -> true
-		in
-		let return b p =
-			if b then add_pos p;
-			b
-		in
-		let rec can_be_null_expr vstack e =
-			if PMap.mem e.epos !given_warnings then
-				false
-			else match e.eexpr with
-			| TConst TNull ->
-				add_pos e.epos;
-				true
-			| TBinop((OpAssign | OpAssignOp _),_,e1) ->
-				can_be_null_expr vstack e1
-			| TBinop _ | TUnop _ ->
-				false
-			| TConst _ | TTypeExpr _ | TNew _ | TObjectDecl _ | TArrayDecl _ | TEnumParameter _ | TFunction _ | TVar _ ->
-				false
-			| TFor _ | TWhile _ | TIf _ | TSwitch _ | TTry _ | TReturn _ | TBreak | TContinue | TThrow _ ->
-				assert false
-			| TField _ | TBlock _ | TArray _ ->
-				false (* TODO *)
-			| TCall ({eexpr = TLocal {v_name = "__ssa_phi__"}},el) ->
-				List.exists (can_be_null_expr vstack) el
-			| TLocal v ->
-				if List.mem v.v_id vstack then
-					false (* not really, but let's not be a nuisance *)
-				else
-					return (can_be_null v && (try can_be_null_expr (v.v_id :: vstack) (resolve_value v) with Not_found -> true)) e.epos;
-			| TMeta(_,e1) | TParenthesis e1 | TCast(e1,_) ->
-				can_be_null_expr vstack e1
-			| TCall(e1,_) ->
-				begin match follow e1.etype with
-					| TFun(_,r) -> return (is_explicit_null r) e1.epos
-					| _ -> false
-				end
-		in
-		let check_null e p =
-			if can_be_null_expr [] e then begin
-				ssa.com.warning "Possible null exception" p;
-			end
-		in
-		let rec loop e = match e.eexpr with
-			| TField(e1,fa) ->
-				let e1 = loop e1 in
-				check_null e1 e.epos;
-				{e with eexpr = TField(e1,fa)}
-			| TMeta((Meta.Analyzer,[EConst(Ident "testIsNull"),_],_),e1) ->
-				if not (can_be_null_expr [] e) then error "Analyzer did not find a possible null exception" e.epos;
-				e
-			| TMeta((Meta.Analyzer,[EConst(Ident "testIsNotNull"),_],_),e1) ->
-				if (can_be_null_expr [] e) then error "Analyzer found a possible null exception" e.epos;
-				e
-			| _ ->
-				Type.map_expr loop e
-		in
-		loop e;
-end
-
-let rec lrev_iter f el = match el with
-	| e :: el ->
-		lrev_iter f el;
-		f e
-	| [] ->
-		()
-
-let rev_iter f e = match e.eexpr with
-	| TConst _
-	| TLocal _
-	| TBreak
-	| TContinue
-	| TTypeExpr _ ->
-		()
-	| TArray (e1,e2)
-	| TBinop (_,e1,e2)
-	| TFor (_,e1,e2)
-	| TWhile (e1,e2,_) ->
-		f e2;
-		f e1;
-	| TThrow e
-	| TField (e,_)
-	| TEnumParameter (e,_,_)
-	| TParenthesis e
-	| TCast (e,_)
-	| TUnop (_,_,e)
-	| TMeta(_,e) ->
-		f e
-	| TArrayDecl el
-	| TNew (_,_,el)
-	| TBlock el ->
-		lrev_iter f el
-	| TObjectDecl fl ->
-		lrev_iter (fun (_,e) -> f e) fl
-	| TCall (e,el) ->
-		f e;
-		lrev_iter f el
-	| TVar (v,eo) ->
-		(match eo with None -> () | Some e -> f e)
-	| TFunction fu ->
-		f fu.tf_expr
-	| TIf (e,e1,e2) ->
-		(match e2 with None -> () | Some e -> f e);
-		f e1;
-		f e;
-	| TSwitch (e,cases,def) ->
-		(match def with None -> () | Some e -> f e);
-		lrev_iter (fun (el,e2) -> lrev_iter f el; f e2) cases;
-		f e;
-	| TTry (e,catches) ->
-		lrev_iter (fun (_,e) -> f e) catches;
-		f e;
-	| TReturn eo ->
-		(match eo with None -> () | Some e -> f e)
-
-module LocalDce = struct
-	let apply e =
-		let is_used v = Meta.has Meta.Used v.v_meta || type_has_analyzer_option v.v_type flag_no_local_dce || v.v_capture in
-		let is_ref_type t = match t with
-			| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
-			| _ -> false
-		in
-		let rec use v =
-			if not (Meta.has Meta.Used v.v_meta) then begin
-				v.v_meta <- (Meta.Used,[],Ast.null_pos) :: v.v_meta;
-				try use (Ssa.get_origin_var v) with Not_found -> ()
-			end
-		in
-		let rec has_side_effect e =
-			let rec loop e =
-				match e.eexpr with
-				| TLocal v when Meta.has Meta.CompilerGenerated v.v_meta -> (try loop (Ssa.get_var_value v) with Not_found -> ())
-				| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) when is_used v || has_side_effect e2 || is_ref_type v.v_type -> raise Exit
-				| TVar(v,None) when is_used v -> raise Exit
-				| TVar(v,Some e1) when is_used v || has_side_effect e1 -> raise Exit
-				| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
-				| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
-				| TCall (({eexpr = TLocal {v_name = "__ssa_phi__"}}),el) -> ()
-				| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
-				| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
-				| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
-				| TFor _ -> raise Exit
-				| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
-				| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
-			in
-			try
-				loop e;
-				false
-			with Exit ->
-				true
-		in
-		let rec collect e = match e.eexpr with
-			| TLocal v ->
-				use v
-			| TVar(v,_) when not (is_used v) ->
-				(* TODO: this is probably dangerous *)
-				()
-			| _ ->
-				rev_iter collect e
-		in
-		let rec loop need_val e =
-			match e.eexpr with
-			| TLocal v ->
-				use v;
-				e
-			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
-				let e2 = loop false e2 in
-				if not (is_used v) && not (is_ref_type v.v_type) then
-					e2
-				else
-					{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v},e2)}
-			| TVar(v,Some e1) when not (is_used v) ->
-				let e1 = if has_side_effect e1 then loop true e1 else e1 in
-				e1
-			| TVar(v,Some e1) ->
+let map_values ?(allow_control_flow=true) f e =
+	let rec loop complex e = match e.eexpr with
+		| TIf(e1,e2,Some e3) ->
+			let e2 = loop true e2 in
+			let e3 = loop true e3 in
+			{e with eexpr = TIf(e1,e2,Some e3)}
+		| TSwitch(e1,cases,edef) ->
+			let cases = List.map (fun (el,e) -> el,loop true e) cases in
+			let edef = Option.map (loop true) edef in
+			{e with eexpr = TSwitch(e1,cases,edef)}
+		| TBlock [e1] ->
+			loop complex e1
+		| TBlock el ->
+			begin match List.rev el with
+			| e1 :: el ->
 				let e1 = loop true e1 in
-				{e with eexpr = TVar(v,Some e1)}
-			| TWhile(e1,e2,flag) ->
-				collect e2;
-				let e2 = loop false e2 in
-				let e1 = loop false e1 in
-				{e with eexpr = TWhile(e1,e2,flag)}
-			| TFor(v,e1,e2) ->
-				collect e2;
-				let e2 = loop false e2 in
-				let e1 = loop false e1 in
-				{e with eexpr = TFor(v,e1,e2)}
-			| TBlock el ->
-				let rec block el = match el with
-					| e :: el ->
-						let el = block el in
-						if not need_val && not (has_side_effect e) then
-							el
-						else begin
-							let e = loop false e in
-							e :: el
-						end
-					| [] ->
-						[]
-				in
-				{e with eexpr = TBlock (block el)}
-			| TCall(e1, el) ->
-				let el = List.rev_map (loop true) (List.rev el) in
-				let e1 = loop false e1 in
-				{e with eexpr = TCall(e1,el)}
-			| TIf(e1,e2,e3) ->
-				let e3 = match e3 with None -> None | Some e -> Some (loop need_val e) in
-				let e2 = loop need_val e2 in
-				let e1 = loop false e1 in
-				{e with eexpr = TIf(e1,e2,e3)}
-			| TArrayDecl el ->
-				let el = List.rev_map (loop true) (List.rev el) in
-				{e with eexpr = TArrayDecl el}
-			| TObjectDecl fl ->
-				let fl = List.rev_map (fun (s,e) -> s,loop true e) (List.rev fl) in
-				{e with eexpr = TObjectDecl fl}
-			| _ ->
-				Type.map_expr (loop false) e
-		in
-		loop false e
-end
+				{e with eexpr = TBlock (List.rev (e1 :: el))}
+			| [] ->
+				f e
+			end
+		| TTry(e1,catches) ->
+			let e1 = loop true e1 in
+			let catches = List.map (fun (v,e) -> v,loop true e) catches in
+			{e with eexpr = TTry(e1,catches)}
+		| TMeta(m,e1) ->
+			{e with eexpr = TMeta(m,loop complex e1)}
+		| TParenthesis e1 ->
+			{e with eexpr = TParenthesis (loop complex e1)}
+		| TBreak | TContinue | TThrow _ | TReturn _ ->
+			if not allow_control_flow then raise Exit;
+			e
+		| _ ->
+			if not complex then raise Exit;
+			f e
+	in
+	loop false e
+
+let can_throw e =
+	let rec loop e = match e.eexpr with
+		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TBlock _ -> ()
+		| TCall _ | TNew _ | TThrow _ | TCast(_,Some _) -> raise Exit
+		| TField _ -> raise Exit (* sigh *)
+		| _ -> Type.iter loop e
+	in
+	try
+		loop e; false
+	with Exit ->
+		true
+
+let rec can_be_inlined e = match e.eexpr with
+	| TConst _ -> true
+	| TParenthesis e1 | TMeta(_,e1) -> can_be_inlined e1
+	| _ -> false
+
+let rec can_be_used_as_value e =
+	let rec loop e = match e.eexpr with
+		| TBlock [e] -> loop e
+		| TBlock _ | TSwitch _ | TTry _ -> raise Exit
+		| TCall({eexpr = TConst (TString "phi")},_) -> raise Exit
+		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
+		| _ -> Type.iter loop e
+	in
+	try
+		loop e;
+		true
+	with Exit ->
+		false
+
+let rec skip e = match e.eexpr with
+	| TParenthesis e1 | TMeta(_,e1) | TBlock [e1] -> skip e1
+	| _ -> e
+
+let wrap_meta s e =
+	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
+
+let rec expr_eq e1 e2 = match e1.eexpr,e2.eexpr with
+	| TConst ct1,TConst ct2 -> ct1 = ct2
+	| _ -> false
+
+let is_unbound v =
+	v.v_name <> "`trace" && Meta.has Meta.Unbound v.v_meta
+
+let is_ref_type = function
+	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
+	| _ -> false
+
+let dynarray_map f d =
+	DynArray.iteri (fun i e -> DynArray.unsafe_set d i (f e)) d
+
+let dynarray_mapi f d =
+	DynArray.iteri (fun i e -> DynArray.unsafe_set d i (f i e)) d
 
 module Config = struct
-
-	type analyzer_config = {
+	type t = {
 		analyzer_use : bool;
-		simplifier_apply : bool;
-		ssa_apply : bool;
 		const_propagation : bool;
-		check : bool;
-		check_has_effect : bool;
 		local_dce : bool;
-		ssa_unapply : bool;
-		simplifier_unapply : bool;
+		dot_debug : bool;
 	}
+
+	let flag_no_check = "no_check"
+	let flag_no_const_propagation = "no_const_propagation"
+	let flag_const_propagation = "const_propagation"
+	let flag_no_local_dce = "no_local_dce"
+	let flag_local_dce = "local_dce"
+	let flag_ignore = "ignore"
+	let flag_no_simplification = "no_simplification"
+	let flag_dot_debug = "dot_debug"
+
+	let has_analyzer_option meta s =
+		try
+			let rec loop ml = match ml with
+				| (Meta.Analyzer,el,_) :: ml ->
+					if List.exists (fun (e,p) ->
+						match e with
+							| EConst(Ident s2) when s = s2 -> true
+							| _ -> false
+					) el then
+						true
+					else
+						loop ml
+				| _ :: ml ->
+					loop ml
+				| [] ->
+					false
+			in
+			loop meta
+		with Not_found ->
+			false
+
+	let is_ignored meta =
+		try
+			let rec loop ml = match ml with
+				| (Meta.Analyzer,el,_) :: ml ->
+					if List.exists (fun (e,p) ->
+						match e with
+							| EConst(Ident s2) when flag_ignore = s2 -> true
+							| _ -> false
+					) el then
+						true
+					else
+						loop ml
+				| (Meta.HasUntyped,_,_) :: _ ->
+					true
+				| _ :: ml ->
+					loop ml
+				| [] ->
+					false
+			in
+			loop meta
+		with Not_found ->
+			false
 
 	let get_base_config com =
 		{
 			analyzer_use = true;
-			simplifier_apply = true;
-			ssa_apply = true;
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
-			check_has_effect = (Common.raw_defined com "analyzer-check-has-effect");
-			check = (Common.raw_defined com "analyzer-check-null");
-			local_dce = not (Common.raw_defined com "analyzer-no-local-dce") && not (Common.defined com Define.As3);
-			ssa_unapply = not (Common.raw_defined com "analyzer-no-ssa-unapply");
-			simplifier_unapply = not (Common.raw_defined com "analyzer-no-simplify-unapply");
+			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
+			dot_debug = false;
 		}
 
 	let update_config_from_meta config meta =
 		List.fold_left (fun config meta -> match meta with
 			| (Meta.Analyzer,el,_) ->
 				List.fold_left (fun config e -> match fst e with
-					| EConst (Ident s) when s = flag_no_check -> { config with check = false}
-					| EConst (Ident s) when s = flag_check -> { config with check = true}
 					| EConst (Ident s) when s = flag_no_const_propagation -> { config with const_propagation = false}
 					| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
 					| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
 					| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
-					| EConst (Ident s) when s = flag_no_check_has_effect -> { config with check_has_effect = false}
-					| EConst (Ident s) when s = flag_check_has_effect -> { config with check_has_effect = true}
+					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
 					| _ -> config
 				) config el
 			| _ ->
@@ -1631,73 +222,1786 @@ module Config = struct
 		update_config_from_meta config cf.cf_meta
 end
 
-module Run = struct
+(*
+	This module rewrites some expressions to reduce the amount of special cases for subsequent analysis. After analysis
+	it restores some of these expressions back to their original form.
 
-	open Config
-
-	let run_on_expr com config is_var_expression e =
-		let do_simplify = (not (Common.defined com Define.NoSimplify) ) && match com.platform with
-			| Cpp when Common.defined com Define.Cppia -> false
-			| Cpp | Python -> true
-			| _ -> false
+	The following expressions are removed from the AST after `apply` has run:
+	- OpBoolAnd and OpBoolOr binary operations are rewritten to TIf
+	- OpAssignOp on a variable is rewritten to OpAssign
+	- Prefix increment/decrement operations are rewritten to OpAssign
+	- Postfix increment/decrement operations are rewritten to a TBlock with OpAssign and OpAdd/OpSub
+	- TWhile expressions are rewritten to `while (true)` with appropriate conditional TBreak
+	- TFor is rewritten to TWhile
+*)
+module TexprFilter = struct
+	let apply com e =
+		let rec loop e = match e.eexpr with
+		| TBinop(OpBoolAnd | OpBoolOr as op,e1,e2) ->
+			let e_then = e2 in
+			let e_if,e_else = if op = OpBoolOr then
+				mk (TUnop(Not,Prefix,e1)) com.basic.tbool e.epos,mk (TConst (TBool(true))) com.basic.tbool e.epos
+			else
+				e1,mk (TConst (TBool(false))) com.basic.tbool e.epos
+			in
+			loop (mk (TIf(e_if,e_then,Some e_else)) e.etype e.epos)
+		| TBinop(OpAssignOp op,({eexpr = TLocal _} as e1),e2) ->
+			let e = {e with eexpr = TBinop(op,e1,e2)} in
+			loop {e with eexpr = TBinop(OpAssign,e1,e)}
+		| TUnop((Increment | Decrement as op),flag,({eexpr = TLocal _} as e1)) ->
+			let e_one = mk (TConst (TInt (Int32.of_int 1))) com.basic.tint e1.epos in
+			let e = {e with eexpr = TBinop(OpAssignOp (if op = Increment then OpAdd else OpSub),e1,e_one)} in
+			let e = if flag = Prefix then
+				e
+			else
+				mk (TBlock [
+					{e with eexpr = TBinop(OpAssignOp (if op = Increment then OpAdd else OpSub),e1,e_one)};
+					{e with eexpr = TBinop((if op = Increment then OpSub else OpAdd),e1,e_one)};
+				]) e.etype e.epos
+			in
+			loop e
+		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
+			let p = e.epos in
+			let e_break = mk TBreak t_dynamic p in
+			let e_not = mk (TUnop(Not,Prefix,Codegen.mk_parent e1)) e1.etype e1.epos in
+			let e_if eo = mk (TIf(e_not,e_break,eo)) com.basic.tvoid p in
+			let rec map_continue e = match e.eexpr with
+				| TContinue ->
+					(e_if (Some e))
+				| TWhile _ | TFor _ ->
+					e
+				| _ ->
+					Type.map_expr map_continue e
+			in
+			let e2 = if flag = NormalWhile then e2 else map_continue e2 in
+			let e_if = e_if None in
+			let e_block = if flag = NormalWhile then Type.concat e_if e2 else Type.concat e2 e_if in
+			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
+			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
+			loop e
+		| TFor(v,e1,e2) ->
+			let v' = alloc_var "tmp" e1.etype in
+			let ev' = mk (TLocal v') e1.etype e1.epos in
+			let ehasnext = mk (TField(ev',quick_field e1.etype "hasNext")) (tfun [] com.basic.tbool) e1.epos in
+			let ehasnext = mk (TCall(ehasnext,[])) com.basic.tbool ehasnext.epos in
+			let enext = mk (TField(ev',quick_field e1.etype "next")) (tfun [] v.v_type) e1.epos in
+			let enext = mk (TCall(enext,[])) v.v_type e1.epos in
+			let eassign = mk (TVar(v,Some enext)) v.v_type e.epos in
+			let ebody = Type.concat eassign e2 in
+			let e = mk (TBlock [
+				mk (TVar (v',Some e1)) com.basic.tvoid e1.epos;
+				mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) com.basic.tvoid e1.epos;
+			]) com.basic.tvoid e.epos in
+			loop e
+		| _ ->
+			Type.map_expr loop e
 		in
-		let with_timer s f =
-			let timer = timer s in
-			let r = f() in
-			timer();
-			r
+		loop e
+
+	let unapply com config e =
+		let rec block_element el = match el with
+			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
+				e1 :: block_element el
+			| {eexpr = TLocal _} as e1 :: el when not config.Config.local_dce ->
+				e1 :: block_element el
+			(* no-side-effect *)
+			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _} :: el ->
+				block_element el
+			(* no-side-effect composites *)
+			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
+				block_element (e1 :: el)
+			| {eexpr = TArray(e1,e2) | TBinop(_,e1,e2)} :: el ->
+				block_element (e1 :: e2 :: el)
+			| {eexpr = TArrayDecl el1 | TCall({eexpr = TField(_,FEnum _)},el1)} :: el2 -> (* TODO: check e1 of FEnum *)
+				block_element (el1 @ el2)
+			| {eexpr = TObjectDecl fl} :: el ->
+				block_element ((List.map snd fl) @ el)
+			| {eexpr = TIf(e1,{eexpr = TBlock []},(Some {eexpr = TBlock []} | None))} :: el ->
+				block_element (e1 :: el)
+			| {eexpr = TBlock [e1]} :: el ->
+				block_element (e1 :: el)
+			| {eexpr = TBlock []} :: el ->
+				block_element el
+			| e1 :: el ->
+				e1 :: block_element el
+			| [] ->
+				[]
+		in
+		let changed = ref false in
+		let rec fuse el = match el with
+			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
+				changed := true;
+				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
+				fuse (e1 :: el)
+			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value e2 && (match com.platform with Cpp | Java | Cs | Php -> false | _ -> true) ->
+				begin try
+					let check_assign e = match e.eexpr with
+						| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 -> e2
+						| _ -> raise Exit
+					in
+					let e = map_values ~allow_control_flow:false check_assign e2 in
+					(* TODO: we have to figure out the correct type here which was lost previously. *)
+					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
+					changed := true;
+					fuse (e1 :: el)
+				with Exit ->
+					e1 :: fuse (e2 :: el)
+				end
+			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when Meta.has Meta.CompilerGenerated v1.v_meta ->
+				let found = ref false in
+				let rec replace e = match e.eexpr with
+					| TLocal v2 when v1 == v2 ->
+						if !found then raise Exit;
+						found := true;
+						changed := true;
+						e1
+					| _ ->
+						Type.map_expr replace e
+				in
+				begin try
+					let e = replace e2 in
+					if not !found then raise Exit;
+					fuse (e :: el)
+				with Exit ->
+					ev :: fuse (e2 :: el)
+				end
+			| {eexpr = TUnop((Increment | Decrement as op,Prefix,({eexpr = TLocal v} as ev)))} as e1 :: e2 :: el ->
+				begin try
+					let e2,f = match e2.eexpr with
+						| TReturn (Some e2) -> e2,(fun e -> {e2 with eexpr = TReturn (Some e)})
+						| TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)})
+						| _ -> raise Exit
+					in
+					let ops_match op1 op2 = match op1,op2 with
+						| Increment,OpSub
+						| Decrement,OpAdd ->
+							true
+						| _ ->
+							false
+					in
+					begin match e2.eexpr with
+						| TBinop(op2,{eexpr = TLocal v2},{eexpr = TConst (TInt i32)}) when v == v2 && Int32.to_int i32 = 1 && ops_match op op2 ->
+							changed := true;
+							(f {e1 with eexpr = TUnop(op,Postfix,ev)}) :: fuse el
+						| _ ->
+							raise Exit
+					end
+				with Exit ->
+					e1 :: fuse (e2 :: el)
+				end
+			| e1 :: el ->
+				e1 :: fuse el
+			| [] ->
+				[]
+		in
+		let rec loop e = match e.eexpr with
+			| TBlock el ->
+				let el = List.map loop el in
+				let rec fuse_loop el =
+					changed := false;
+					let el = block_element el in
+					let el = fuse el in
+					if !changed then fuse_loop el else el
+				in
+				let el = fuse_loop el in
+				{e with eexpr = TBlock el}
+			| TCall({eexpr = TLocal v},_) when is_unbound v ->
+				e
+			| _ ->
+				Type.map_expr loop e
+		in
+		let e = loop e in
+		let if_or_op e e1 e2 e3 = match (skip e1).eexpr,(skip e3).eexpr with
+			| TUnop(Not,Prefix,e1),TConst (TBool true) -> {e with eexpr = TBinop(OpBoolOr,e1,e2)}
+			| _,TConst (TBool false) -> {e with eexpr = TBinop(OpBoolAnd,e1,e2)}
+			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
+			| _ -> {e with eexpr = TIf(e1,e2,Some e3)}
+		in
+		let rec loop e = match e.eexpr with
+			| TIf(e1,e2,Some e3) ->
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				let e3 = loop e3 in
+				if_or_op e e1 e2 e3;
+			| TWhile(e1,e2,NormalWhile) ->
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				begin match e2.eexpr with
+					| TBlock ({eexpr = TIf(e1,({eexpr = TBlock[{eexpr = TBreak}]} as eb),None)} :: el2) ->
+						let e1 = skip e1 in
+						let e1 = match e1.eexpr with TUnop(_,_,e1) -> e1 | _ -> {e1 with eexpr = TUnop(Not,Prefix,e1)} in
+						{e with eexpr = TWhile(e1,{eb with eexpr = TBlock el2},NormalWhile)}
+					| TBlock el ->
+						let rec loop2 el = match el with
+							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->
+								[e]
+							| e :: el ->
+								e :: (loop2 el)
+							| [] ->
+								[]
+						in
+						let el = loop2 el in
+						{e with eexpr = TWhile(e1,{e2 with eexpr = TBlock el},NormalWhile)}
+					| _ ->
+						{e with eexpr = TWhile(e1,e2,NormalWhile)}
+				end
+			| _ ->
+				Type.map_expr loop e
+		in
+		loop e
+end
+
+(*
+	A BasicBlock represents a node in the control flow. It has expression elements similar to TBlock in the AST,
+	but also holds additional information related to control flow and variables.
+
+	Basic blocks are created whenever it is relevant for control flow. They differ from TBlock in that only their
+	final element can be a control flow expression (the terminator). As a consequence, a given TBlock is split up
+	into several basic blocks when control flow expressions are encountered.
+*)
+module BasicBlock = struct
+	type block_kind =
+		| BKRoot          (* The unique root block of the graph *)
+		| BKNormal        (* A normal block *)
+		| BKFunctionBegin (* Entry block of a function *)
+		| BKFunctionEnd   (* Exit block of a function *)
+		| BKSub           (* A sub block *)
+		| BKConditional   (* A "then", "else" or "case" block *)
+		| BKLoopHead      (* Header block of a loop *)
+		| BKException     (* Relay block for exceptions *)
+		| BKUnreachable   (* The unique unreachable block *)
+
+	type cfg_edge_Flag =
+		| FlagExecutable (* Used by data flow operations to mark an edge as live *)
+		| FlagDceDone    (* Used by DCE to keep track of handled edges *)
+
+	type cfg_edge_kind =
+		| CFGGoto                (* An unconditional branch *)
+		| CFGFunction            (* Link to a function *)
+		| CFGMaybeThrow          (* The block may or may not throw an exception *)
+		| CFGCondBranch of texpr (* A conditional branch *)
+		| CFGCondElse            (* A conditional alternative (else,default) *)
+
+	and cfg_edge = {
+		cfg_from : t;                           (* The source block *)
+		cfg_to : t;                             (* The target block *)
+		cfg_kind : cfg_edge_kind;               (* The edge kind *)
+		mutable cfg_flags : cfg_edge_Flag list; (* Edge flags *)
+	}
+
+	and syntax_edge =
+		| SEIfThen of t * t                                (* `if` with "then" and "next" *)
+		| SEIfThenElse of t * t * t                        (* `if` with "then", "else" and "next" *)
+		| SESwitch of (texpr list * t) list * t option * t (* `switch` with cases, "default" and "next" *)
+		| SETry of t * (tvar * t) list * t                 (* `try` with catches and "next" *)
+		| SEWhile of t * t                                 (* `while` with "body" and "next" *)
+		| SESubBlock of t * t                              (* "sub" with "next" *)
+		| SEMerge of t                                     (* Merge to same block *)
+		| SEEnd                                            (* End of syntax *)
+		| SENone                                           (* No syntax exit *)
+
+	and t = {
+		bb_id : int;                          (* The unique ID of the block *)
+		bb_type : Type.t;                     (* The block type *)
+		bb_pos : pos;                         (* The block position *)
+		bb_kind : block_kind;                 (* The block kind *)
+		mutable bb_closed : bool;             (* Whether or not the block has been closed *)
+		(* elements *)
+		mutable bb_el : texpr DynArray.t;     (* The block expressions *)
+		mutable bb_phi : texpr DynArray.t;    (* SSA-phi expressions *)
+		(* relations *)
+		mutable bb_outgoing : cfg_edge list;  (* Outgoing edges *)
+		mutable bb_incoming : cfg_edge list;  (* Incoming edges *)
+		mutable bb_dominator : t;             (* The block's dominator *)
+		mutable bb_dominated : t list;        (* The dominated blocks *)
+		mutable bb_df : t list;               (* The dominance frontier *)
+		mutable bb_syntax_edge : syntax_edge; (* The syntactic edge *)
+		(* variables *)
+		mutable bb_var_writes : tvar list;    (* List of assigned variables *)
+	}
+
+	let has_flag edge flag =
+		List.mem flag edge.cfg_flags
+
+	let _create id kind t p =
+		let rec bb = {
+			bb_kind = kind;
+			bb_id = id;
+			bb_type = t;
+			bb_pos = p;
+			bb_closed = false;
+			bb_el = DynArray.make 5;
+			bb_phi = DynArray.make 1;
+			bb_outgoing = [];
+			bb_incoming = [];
+			bb_dominator = bb;
+			bb_dominated = [];
+			bb_df = [];
+			bb_syntax_edge = SENone;
+			bb_var_writes = [];
+		} in
+		bb
+end
+
+(*
+	A Graph contains all relevant information for a given method. It is built from the field expression
+	and then refined in subsequent modules such as Ssa.
+*)
+module Graph = struct
+	open BasicBlock
+
+	type texpr_lookup = BasicBlock.t * bool * int
+	type tfunc_info = BasicBlock.t * Type.t * pos * tfunc
+	type var_write = tvar * BasicBlock.t list
+
+	type t = {
+		mutable g_root : BasicBlock.t;                    (* The unique root block *)
+		mutable g_exit : BasicBlock.t;                    (* The unique exit block *)
+		mutable g_functions : tfunc_info IntMap.t;        (* A map of functions, indexed by their block IDs *)
+		mutable g_nodes : BasicBlock.t IntMap.t;          (* A map of all blocks *)
+		mutable g_cfg_edges : cfg_edge list;              (* A list of all CFG edges *)
+		mutable g_var_writes :  var_write IntMap.t;       (* A map tracking which blocks write which variables *)
+		mutable g_var_values : texpr_lookup IntMap.t;     (* A map containing expression lookup information for each variable *)
+		mutable g_ssa_edges : texpr_lookup list IntMap.t; (* A map containing def-use lookup information for each variable *)
+		mutable g_var_origins : tvar IntMap.t;            (* A map keeping track of original variables for SSA variables *)
+	}
+
+	(* edges *)
+
+	let set_syntax_edge g bb se =
+		bb.bb_syntax_edge <- se
+
+	let get_syntax_edge g bb =
+		bb.bb_syntax_edge
+
+	let add_cfg_edge g bb_from bb_to kind =
+		if bb_from.bb_id > 0 then begin
+			let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
+			g.g_cfg_edges <- edge :: g.g_cfg_edges;
+			bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
+			bb_to.bb_incoming <- edge :: bb_to.bb_incoming;
+		end
+
+	let add_ssa_edge g v bb is_phi i =
+		g.g_ssa_edges <- IntMap.add v.v_id (try (bb,is_phi,i) :: IntMap.find v.v_id g.g_ssa_edges with Not_found -> [bb,is_phi,i]) g.g_ssa_edges
+
+	(* nodes *)
+
+	let rec bb_unreachable = BasicBlock._create 0 BKUnreachable t_dynamic null_pos
+
+	let add_function g tf t p bb =
+		g.g_functions <- IntMap.add bb.bb_id (bb,t,p,tf) g.g_functions
+
+	let alloc_id =
+		let r = ref 1 in
+		(fun () ->
+			incr r;
+			!r
+		)
+
+	let create_node g kind bb_dom t p =
+		let bb = BasicBlock._create (alloc_id()) kind t p in
+		bb.bb_dominator <- bb_dom;
+		bb_dom.bb_dominated <- bb :: bb_dom.bb_dominated;
+		g.g_nodes <- IntMap.add bb.bb_id bb g.g_nodes;
+		bb
+
+	let close_node g bb =
+		if bb.bb_id > 0 then begin
+			assert(not bb.bb_closed);
+			bb.bb_closed <- true
+		end
+
+	let iter_dom_tree g f =
+		let rec loop bb =
+			f bb;
+			List.iter loop bb.bb_dominated
+		in
+		loop g.g_root
+
+	(* expressions *)
+
+	let add_texpr g bb e =
+		DynArray.add bb.bb_el e
+
+	let get_texpr g bb is_phi i =
+		DynArray.get (if is_phi then bb.bb_phi else bb.bb_el) i
+
+	(* variables *)
+
+	let add_var_def g bb v =
+		if bb.bb_id > 0 then begin
+			bb.bb_var_writes <- v :: bb.bb_var_writes;
+			let l = try snd (IntMap.find v.v_id g.g_var_writes) with Not_found -> [] in
+			g.g_var_writes <- IntMap.add v.v_id (v,bb :: l) g.g_var_writes;
+		end
+
+	let set_var_value g v bb is_phi i =
+		g.g_var_values <- IntMap.add v.v_id (bb,is_phi,i) g.g_var_values
+
+	let get_var_value g v =
+		let bb,is_phi,i = IntMap.find v.v_id g.g_var_values in
+		match (get_texpr g bb is_phi i).eexpr with
+		| TVar(_,Some e) | TBinop(OpAssign,_,e) -> e
+		| _ -> assert false
+
+	let add_var_origin g v v_origin =
+		g.g_var_origins <- IntMap.add v.v_id v_origin g.g_var_origins
+
+	let get_var_origin g v =
+		try IntMap.find v.v_id g.g_var_origins with Not_found -> v
+
+	(* graph *)
+
+	let create t p =
+		let bb_root = BasicBlock._create 1 BKRoot t p; in
+		{
+			g_root = bb_root;
+			g_exit = bb_unreachable;
+			g_functions = IntMap.empty;
+			g_nodes = IntMap.add bb_root.bb_id bb_root IntMap.empty;
+			g_cfg_edges = [];
+			g_var_writes = IntMap.empty;
+			g_var_values = IntMap.empty;
+			g_ssa_edges = IntMap.empty;
+			g_var_origins = IntMap.empty;
+		}
+
+	let calculate_df g =
+		List.iter (fun edge ->
+			let rec loop bb =
+				if bb != bb_unreachable && bb != edge.cfg_to && bb != edge.cfg_to.bb_dominator then begin
+					bb.bb_df <- edge.cfg_to :: bb.bb_df;
+					if bb.bb_dominator != bb then loop bb.bb_dominator
+				end
+			in
+			loop edge.cfg_from
+		) g.g_cfg_edges
+
+	let finalize g bb_exit =
+		g.g_exit <- bb_exit;
+		calculate_df g;
+end
+
+type analyzer_context = {
+	com : Common.context;
+	config : Config.t;
+	graph : Graph.t;
+	mutable entry : BasicBlock.t;
+	mutable has_unbound : bool;
+	mutable saved_v_extra : (type_params * texpr option) option IntMap.t;
+}
+
+(*
+	Transforms an expression to a graph, and a graph back to an expression. This module relies on TexprFilter being
+	run first.
+
+	The created graph is intact and can immediately be transformed back to an expression, or used for analysis first.
+*)
+module TexprTransformer = struct
+	open BasicBlock
+	open Graph
+
+	let save_v_extra ctx v =
+		if not (IntMap.mem v.v_id ctx.saved_v_extra) then
+			ctx.saved_v_extra <- IntMap.add v.v_id v.v_extra ctx.saved_v_extra
+
+	let restore_v_extra ctx v =
+		try v.v_extra <- IntMap.find v.v_id ctx.saved_v_extra with Not_found -> ()
+
+	let rec func ctx bb tf t p =
+		let g = ctx.graph in
+		let bb_root = create_node g BKFunctionBegin bb tf.tf_expr.etype tf.tf_expr.epos in
+		let bb_exit = create_node g BKFunctionEnd bb_root tf.tf_expr.etype tf.tf_expr.epos in
+		add_function g tf t p bb_root;
+		add_cfg_edge g bb bb_root CFGFunction;
+		let make_block_meta b =
+			let e = mk (TConst (TInt (Int32.of_int b.bb_id))) ctx.com.basic.tint b.bb_pos in
+			wrap_meta ":block" e
+		in
+		let bb_break = ref None in
+		let bb_continue = ref None in
+		let b_try_stack = ref [] in
+		let begin_loop bb_break' bb_continue' =
+			let old = !bb_break,!bb_continue in
+			bb_break := Some bb_break';
+			bb_continue := Some bb_continue';
+			(fun () ->
+				bb_break := fst old;
+				bb_continue := snd old;
+			)
+		in
+		let begin_try b =
+			b_try_stack := b :: !b_try_stack;
+			(fun () ->
+				b_try_stack := List.tl !b_try_stack
+			)
+		in
+		let add_terminator bb e =
+			add_texpr g bb e;
+			close_node g bb;
+			bb_unreachable
+		in
+		let rec value bb e = match e.eexpr with
+			| TLocal v ->
+				bb,e
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+				block_element bb e,e1
+			| TBlock [e1] ->
+				value bb e1
+			| TBlock _ | TIf _ | TSwitch _ | TTry _ ->
+				bind_to_temp bb false e
+			| TFor _ | TWhile _ ->
+				assert false
+			| TCall({eexpr = TLocal v},_) when is_unbound v ->
+				ctx.has_unbound <- true;
+				bb,e
+			| TCall(e1,el) ->
+				call bb e e1 el
+			| TBinop((OpAssign | OpAssignOp _) as op,e1,e2) ->
+				let bb,e2 = value bb e2 in
+				let bb,e1 = value bb e1 in
+				bb,{e with eexpr = TBinop(op,e1,e2)}
+			| TBinop(op,e1,e2) ->
+				let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
+					| bb,[e1;e2] -> bb,e1,e2
+					| _ -> assert false
+				in
+				bb,{e with eexpr = TBinop(op,e1,e2)}
+			| TUnop(op,flag,e1) ->
+				let bb,e1 = value bb e1 in
+				bb,{e with eexpr = TUnop(op,flag,e1)}
+			| TArrayDecl el ->
+				let bb,el = ordered_value_list bb el in
+				bb,{e with eexpr = TArrayDecl el}
+			| TObjectDecl fl ->
+				let el = List.map snd fl in
+				let bb,el = ordered_value_list bb el in
+				bb,{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
+			| TField(e1,fa) ->
+				let bb,e1 = value bb e1 in
+				bb,{e with eexpr = TField(e1,fa)}
+			| TArray(e1,e2) ->
+				let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
+					| bb,[e1;e2] -> bb,e1,e2
+					| _ -> assert false
+				in
+				bb,{e with eexpr = TArray(e1,e2)}
+			| TMeta(m,e1) ->
+				let bb,e1 = value bb e1 in
+				bb,{e with eexpr = TMeta(m,e1)}
+			| TParenthesis e1 ->
+				let bb,e1 = value bb e1 in
+				bb,{e with eexpr = TParenthesis e1}
+			| TCast(e1,mto) ->
+				let bb,e1 = value bb e1 in
+				bb,{e with eexpr = TCast(e1,mto)}
+			| TNew(c,tl,el) ->
+				let bb,el = ordered_value_list bb el in
+				bb,{e with eexpr = TNew(c,tl,el)}
+			| TEnumParameter(e1,ef,ei) ->
+				let bb,e1 = value bb e1 in
+				bb,{e with eexpr = TEnumParameter(e1,ef,ei)}
+			| TFunction tf ->
+				let bb_func,bb_func_end = func ctx bb tf e.etype e.epos in
+				let e_fun = mk (TConst (TString "fun")) t_dynamic p in
+				let econst = mk (TConst (TInt (Int32.of_int bb_func.bb_id))) ctx.com.basic.tint e.epos in
+				let ec = mk (TCall(e_fun,[econst])) t_dynamic p in
+				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in
+				add_cfg_edge g bb bb_next CFGGoto;
+				set_syntax_edge g bb (SEMerge bb_next);
+				close_node g bb;
+				add_cfg_edge g bb_func_end bb_next CFGGoto;
+				bb_next,ec
+			| TConst _ | TTypeExpr _ ->
+				bb,e
+			| TContinue | TBreak | TThrow _ | TReturn _ | TVar _ ->
+				assert false
+		and ordered_value_list bb el =
+			let might_be_affected e = match e.eexpr with
+				| TConst _ | TTypeExpr _ | TFunction _ -> false
+				| _ -> true
+			in
+			let can_be_optimized e = match e.eexpr with
+				| TBinop _ | TArray _ | TCall _ -> true
+				| _ -> false
+			in
+			let _,el = List.fold_left (fun (had_side_effect,acc) e ->
+				if had_side_effect then
+					(true,(might_be_affected e,can_be_optimized e,e) :: acc)
+				else begin
+					let had_side_effect = Optimizer.has_side_effect e in
+					(had_side_effect,(false,can_be_optimized e,e) :: acc)
+				end
+			) (false,[]) (List.rev el) in
+			let bb,values = List.fold_left (fun (bb,acc) (aff,opt,e) ->
+				let bb,value = if aff || opt then bind_to_temp bb aff e else value bb e in
+				bb,(value :: acc)
+			) (bb,[]) el in
+			bb,List.rev values
+		and bind_to_temp bb sequential e =
+			let v = alloc_var "tmp" e.etype in
+			begin match ctx.com.platform with
+				| Cpp when sequential -> ()
+				| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
+			end;
+			let bb = declare_var_and_assign bb v e in
+			bb,{e with eexpr = TLocal v}
+		and declare_var_and_assign bb v e =
+			let ev = mk (TLocal v) e.etype e.epos in
+			let was_assigned = ref false in
+			let assign e =
+				if not !was_assigned then begin
+					was_assigned := true;
+					add_var_def g bb v;
+					add_texpr g bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
+				end;
+				mk (TBinop(OpAssign,ev,e)) e.etype e.epos
+			in
+			begin try
+				let e = map_values assign e in
+				block_element bb e
+			with Exit ->
+				let bb,e = value bb e in
+				add_texpr g bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
+				bb
+			end;
+		and call bb e e1 el =
+			begin match e1.eexpr with
+				| TConst TSuper when ctx.com.platform = Java || ctx.com.platform = Cs ->
+					bb,e
+				| _ ->
+					let check e t = match e.eexpr,t with
+						| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
+							v.v_capture <- true;
+							e
+						| _ ->
+							e
+					in
+					let el = Codegen.UnificationCallback.check_call check el e1.etype in
+					let bb,e1 = value bb e1 in
+					let bb,el = ordered_value_list bb el in
+					bb,{e with eexpr = TCall(e1,el)}
+			end
+		and block_element bb e = match e.eexpr with
+			(* variables *)
+			| TVar(v,None) ->
+				save_v_extra ctx v;
+				add_texpr g bb e;
+				bb
+			| TVar(v,Some e1) ->
+				save_v_extra ctx v;
+				declare_var_and_assign bb v e1
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+				let assign e =
+					mk (TBinop(OpAssign,e1,e)) e.etype e.epos
+				in
+				begin try
+					let e = map_values assign e2 in
+					block_element bb e
+				with Exit ->
+					let bb,e2 = value bb e2 in
+					add_var_def g bb v;
+					add_texpr g bb {e with eexpr = TBinop(OpAssign,e1,e2)};
+					bb
+				end
+			(* branching *)
+			| TBlock el ->
+				let bb_sub = create_node g BKSub bb e.etype e.epos in
+				add_cfg_edge g bb bb_sub CFGGoto;
+				close_node g bb;
+				let bb_sub_next = block_el bb_sub el in
+				let bb_next = create_node g BKNormal bb_sub_next bb.bb_type bb.bb_pos in
+				set_syntax_edge g bb (SESubBlock(bb_sub,bb_next));
+				add_cfg_edge g bb_sub_next bb_next CFGGoto;
+				close_node g bb_sub_next;
+				bb_next;
+			| TIf(e1,e2,None) ->
+				let bb,e1 = bind_to_temp bb false e1 in
+				let bb_then = create_node g BKConditional bb e2.etype e2.epos in
+				add_texpr g bb (wrap_meta ":cond-branch" e1);
+				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
+				let bb_then_next = block bb_then e2 in
+				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in
+				set_syntax_edge g bb (SEIfThen(bb_then,bb_next));
+				add_cfg_edge g bb bb_next CFGCondElse;
+				close_node g bb;
+				add_cfg_edge g bb_then_next bb_next CFGGoto;
+				close_node g bb_then_next;
+				bb_next
+			| TIf(e1,e2,Some e3) ->
+				let bb,e1 = bind_to_temp bb false e1 in
+				let bb_then = create_node g BKConditional bb e2.etype e2.epos in
+				let bb_else = create_node g BKConditional bb e3.etype e3.epos in
+				add_texpr g bb (wrap_meta ":cond-branch" e1);
+				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in (* TODO: dominator might be wrong if either branch is unreachable *)
+				set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next));
+				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
+				add_cfg_edge g bb bb_else CFGCondElse;
+				close_node g bb;
+				let bb_then_next = block bb_then e2 in
+				let bb_else_next = block bb_else e3 in
+				add_cfg_edge g bb_then_next bb_next CFGGoto;
+				add_cfg_edge g bb_else_next bb_next CFGGoto;
+				close_node g bb_then_next;
+				close_node g bb_else_next;
+				bb_next
+			| TSwitch(e1,cases,edef) ->
+				let is_exhaustive = edef <> None || Optimizer.is_exhaustive e1 in
+				let bb,e1 = bind_to_temp bb false e1 in
+				add_texpr g bb (wrap_meta ":cond-branch" e1);
+				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in
+				if not is_exhaustive then add_cfg_edge g bb bb_next CFGGoto;
+				let make_case e =
+					let bb_case = create_node g BKConditional bb e.etype e.epos in
+					let bb_case_next = block bb_case e in
+					add_cfg_edge g bb_case_next bb_next CFGGoto;
+					close_node g bb_case_next;
+					bb_case
+				in
+				let cases = List.map (fun (el,e) ->
+					let bb_case = make_case e in
+					List.iter (fun e -> add_cfg_edge g bb bb_case (CFGCondBranch e)) el;
+					el,bb_case
+				) cases in
+				let def = match edef with
+					| None ->
+						None
+					| Some e ->
+						let bb_case = make_case e in
+						add_cfg_edge g bb bb_case (CFGCondElse);
+						Some (bb_case)
+				in
+				set_syntax_edge g bb (SESwitch(cases,def,bb_next));
+				close_node g bb;
+				bb_next
+			| TWhile(e1,e2,NormalWhile) ->
+				let bb_loop_head = create_node g BKLoopHead bb e1.etype e1. epos in
+				add_cfg_edge g bb bb_loop_head CFGGoto;
+				let bb_loop_body = create_node g BKNormal bb_loop_head e2.etype e2.epos in
+				add_texpr g bb {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
+				let bb_next = create_node g BKNormal bb_loop_head bb.bb_type bb.bb_pos in
+				set_syntax_edge g bb (SEWhile(bb_loop_body,bb_next));
+				close_node g bb;
+				let close = begin_loop bb_next bb_loop_head in
+				let bb_loop_body_next = block bb_loop_body e2 in
+				close();
+				add_cfg_edge g bb_loop_body_next bb_loop_head CFGGoto;
+				add_cfg_edge g bb_loop_head bb_loop_body CFGGoto;
+				close_node g bb_loop_body_next;
+				close_node g bb_loop_head;
+				bb_next;
+			| TTry(e1,catches) ->
+				let bb_try = create_node g BKNormal bb e1.etype e1.epos in
+				let bb_next = create_node g BKNormal bb_try bb.bb_type bb.bb_pos in
+				let bb_exc = create_node g BKException bb_try t_dynamic e.epos in
+				add_cfg_edge g bb bb_try CFGGoto;
+				let close = begin_try bb_exc in
+				let bb_try_next = block bb_try e1 in
+				close();
+				add_cfg_edge g bb_try_next bb_next CFGGoto;
+				close_node g bb_try_next;
+				if bb_exc.bb_incoming = [] then
+					set_syntax_edge g bb (SESubBlock(bb_try,bb_next))
+				else begin
+					let catches = List.map (fun (v,e) ->
+						let bb_catch = create_node g BKNormal bb_exc e.etype e.epos in
+						add_cfg_edge g bb_exc bb_catch CFGGoto;
+						let bb_catch_next = block bb_catch e in
+						add_cfg_edge g bb_catch_next bb_next CFGGoto;
+						close_node g bb_catch_next;
+						v,bb_catch
+					) catches in
+					set_syntax_edge g bb (SETry(bb_try,catches,bb_next));
+				end;
+				close_node g bb_exc;
+				close_node g bb;
+				bb_next
+			(* control flow *)
+			| TReturn None ->
+				add_cfg_edge g bb bb_exit CFGGoto;
+				add_terminator bb e
+			| TReturn (Some e1) ->
+				begin try
+					let mk_return e1 = mk (TReturn (Some e1)) t_dynamic e.epos in
+					let e1 = map_values mk_return e1 in
+					block_element bb e1
+				with Exit ->
+					let bb,e1 = value bb e1 in
+					add_cfg_edge g bb bb_exit CFGGoto;
+					add_terminator bb {e with eexpr = TReturn(Some e1)};
+				end
+			| TBreak ->
+				begin match !bb_break with
+					| Some bb_break -> add_cfg_edge g bb bb_break CFGGoto
+					| _ -> assert false
+				end;
+				add_terminator bb e
+			| TContinue ->
+				begin match !bb_continue with
+					| Some bb_continue -> add_cfg_edge g bb bb_continue CFGGoto
+					| _ -> assert false
+				end;
+				add_terminator bb e
+			| TThrow e1 ->
+				begin try
+					let mk_throw e1 = mk (TThrow e1) t_dynamic e.epos in
+					let e1 = map_values mk_throw e1 in
+					block_element bb e1
+				with Exit ->
+					let bb,e1 = value bb e1 in
+					begin match !b_try_stack with
+						| [] -> add_cfg_edge g bb bb_exit CFGGoto
+						| _ -> List.iter (fun bb_exc -> add_cfg_edge g bb bb_exc CFGGoto) !b_try_stack;
+					end;
+					add_terminator bb {e with eexpr = TThrow e1};
+				end
+			(* side_effects *)
+			| TCall({eexpr = TLocal v},_) when is_unbound v ->
+				ctx.has_unbound <- true;
+				add_texpr g bb e;
+				bb
+			| TCall(e1,el) ->
+				let bb,e = call bb e e1 el in
+				add_texpr g bb e;
+				bb
+			| TNew(c,tl,el) ->
+				let bb,el = ordered_value_list bb el in
+				add_texpr g bb {e with eexpr = TNew(c,tl,el)};
+				bb
+			| TCast(e1,Some mt) ->
+				let b,e1 = value bb e1 in
+				add_texpr g bb {e with eexpr = TCast(e1,Some mt)};
+				bb
+			| TBinop((OpAssign | OpAssignOp _) as op,({eexpr = TArray(e1,e2)} as ea),e3) ->
+				let bb,e1,e2,e3 = match ordered_value_list bb [e1;e2;e3] with
+					| bb,[e1;e2;e3] -> bb,e1,e2,e3
+					| _ -> assert false
+				in
+				add_texpr g bb {e with eexpr = TBinop(op,{ea with eexpr = TArray(e1,e2)},e3)};
+				bb
+			| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
+				let bb,e1 = value bb e1 in
+				let bb,e2 = value bb e2 in
+				add_texpr g bb {e with eexpr = TBinop(op,e1,e2)};
+				bb
+			| TUnop((Increment | Decrement as op),flag,e1) ->
+				let bb,e1 = value bb e1 in
+				add_texpr g bb {e with eexpr = TUnop(op,flag,e1)};
+				bb
+			| TLocal _ when not ctx.config.Config.local_dce ->
+				add_texpr g bb e;
+				bb
+			(* no-side-effect *)
+			| TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ ->
+				bb
+			(* no-side-effect composites *)
+			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1) ->
+				block_element bb e1
+			| TArray(e1,e2) | TBinop(_,e1,e2) ->
+				let bb = block_element bb e1 in
+				block_element bb e2
+			| TArrayDecl el ->
+				block_el bb el
+			| TObjectDecl fl ->
+				block_el bb (List.map snd fl)
+			| TFor _ | TWhile(_,_,DoWhile) ->
+				assert false
+		and block_el bb el =
+			match !b_try_stack with
+			| [] ->
+				List.fold_left block_element bb el;
+			| bbl ->
+				List.fold_left (fun bb e ->
+					if not (can_throw e) then
+						block_element bb e
+					else begin
+						let bb' = create_node g BKNormal bb e.etype e.epos in
+						add_cfg_edge g bb bb' CFGGoto;
+						List.iter (fun bb_exc -> add_cfg_edge g bb bb_exc CFGMaybeThrow) bbl;
+						set_syntax_edge g bb (SEMerge bb');
+						close_node g bb;
+						block_element bb' e
+					end
+				) bb el
+		and block bb e =
+			let el = match e.eexpr with
+				| TBlock el -> el
+				| _ -> [e]
+			in
+			block_el bb el
+		in
+		let bb_last = block bb_root tf.tf_expr in
+		close_node g bb_last;
+		add_cfg_edge g bb_last bb_exit CFGGoto; (* implied return *)
+		close_node g bb_exit;
+		bb_root,bb_exit
+
+	let from_texpr com config e =
+		let g = Graph.create e.etype e.epos in
+		let ctx = {
+			com = com;
+			config = config;
+			graph = g;
+			entry = bb_unreachable;
+			has_unbound = false;
+			saved_v_extra = IntMap.empty;
+		} in
+		let bb_func,bb_exit = match e.eexpr with
+			| TFunction tf ->
+				func ctx g.g_root tf e.etype e.epos;
+			| _ ->
+				raise Exit
+		in
+		ctx.entry <- bb_func;
+		close_node g g.g_root;
+		finalize g bb_exit;
+		set_syntax_edge g bb_exit SEEnd;
+		ctx
+
+	let rec block_to_texpr_el ctx bb =
+		let block bb = block_to_texpr ctx bb in
+		let rec loop bb se =
+			let el = List.rev (DynArray.to_list bb.bb_el) in
+			match el,se with
+			| el,SESubBlock(bb_sub,bb_next) ->
+				Some bb_next,(block bb_sub) :: el
+			| el,SEMerge bb_next ->
+				Some bb_next,el
+			| el,(SEEnd | SENone) ->
+				None,el
+			| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(bb_body,bb_next)) ->
+				let e2 = block bb_body in
+				Some bb_next,{e with eexpr = TWhile(e1,e2,flag)} :: el
+			| el,SETry(bb_try,bbl,bb_next) ->
+				Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid bb_try.bb_pos) :: el
+			| e1 :: el,se ->
+				let e1 = skip e1 in
+				begin match e1.eexpr,se with
+					| TConst (TBool true),(SEIfThen(bb_then,bb_next) | SEIfThenElse(bb_then,_,bb_next)) -> loop bb (SESubBlock(bb_then,bb_next))
+					| TConst (TBool false),SEIfThen(_,bb_next) -> Some bb_next,el
+					| TConst (TBool false),SEIfThenElse(_,bb_else,bb_next) -> loop bb (SESubBlock(bb_else,bb_next))
+					| TConst _,SESwitch(bbl,bo,bb_next) ->
+						let bbl = List.filter (fun (el,bb_case) -> List.exists (expr_eq e1) el) bbl in
+						begin match bbl,bo with
+							| [_,bb_case],_ -> loop bb (SESubBlock(bb_case,bb_next))
+							| [],Some bb_default -> loop bb (SESubBlock(bb_default,bb_next))
+							| [],None -> Some bb_next,el
+							| _ :: _,_ -> assert false
+						end
+					| _ ->
+						let bb_next,e1_def = match se with
+							| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None)
+							| SEIfThenElse(bb_then,bb_else,bb_next) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else))
+							| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo)
+							| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
+						in
+						bb_next,(mk e1_def ctx.com.basic.tvoid e1.epos) :: el
+				end
+			| [],_ ->
+				None,[]
+		in
+		let bb_next,el = loop bb bb.bb_syntax_edge in
+		let el = match bb_next with
+			| None -> el
+			| Some bb -> (block_to_texpr_el ctx bb) @ el
+		in
+		el
+
+	and block_to_texpr ctx bb =
+		assert(bb.bb_closed);
+		let el = block_to_texpr_el ctx bb in
+		let rec loop e = match e.eexpr with
+			| TLocal v ->
+				{e with eexpr = TLocal (get_var_origin ctx.graph v)}
+			| TVar(v,eo) ->
+				let eo = Option.map loop eo in
+				let v' = get_var_origin ctx.graph v in
+				restore_v_extra ctx v';
+				{e with eexpr = TVar(v',eo)}
+			| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) ->
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				let e3 = loop e3 in
+				let is_valid_assign_op = function
+					| OpAdd | OpMult | OpDiv | OpSub | OpAnd
+					| OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
+						true
+					| OpAssignOp _ | OpInterval | OpArrow | OpAssign | OpEq
+					| OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr ->
+						false
+				in
+				begin match e1.eexpr,e2.eexpr with
+					| TLocal v1,TLocal v2 when v1 == v2 && is_valid_assign_op op ->
+						begin match op,e3.eexpr with
+							| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Increment,Prefix,e1)}
+							| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
+							| _ -> {e with eexpr = TBinop(OpAssignOp op,e1,e3)}
+						end
+					| _ ->
+						{e with eexpr = TBinop(OpAssign,e1,{e4 with eexpr = TBinop(op,e2,e3)})}
+				end
+			| TCall({eexpr = TConst (TString "fun")},[{eexpr = TConst (TInt i32)}]) ->
+				func ctx (Int32.to_int i32)
+			| _ ->
+				Type.map_expr loop e
+		in
+		let el = List.rev_map loop el in
+		let e = mk (TBlock el) bb.bb_type bb.bb_pos in
+		e
+
+	and func ctx i =
+		let bb,t,p,tf = IntMap.find i ctx.graph.g_functions in
+		let e = block_to_texpr ctx bb in
+		mk (TFunction {tf with tf_expr = e}) t p
+
+	let to_texpr ctx =
+		func ctx ctx.entry.bb_id
+end
+
+(*
+	Ssa changes the expressions of a graph to conform to SSA rules. All variables are assigned to only once
+	and SSA-phi expressions are created where necessary.
+
+	The first pass inserts SSA-phi expressions for each variable in the dominance frontier of all its defining
+	blocks.
+
+	The second pass then creates and renames variables to ensure SSA property.
+*)
+module Ssa = struct
+	open BasicBlock
+	open Graph
+
+	let add_phi g bb v =
+		let p = bb.bb_pos in
+		let ev = mk (TLocal v) v.v_type p in
+		let el = List.map (fun _ -> ev) bb.bb_incoming in
+		let e_phi = mk (TConst (TString "phi")) t_dynamic p in
+		let ec = mk (TCall(e_phi,el)) t_dynamic p in
+		let e = mk (TBinop(OpAssign,ev,ec)) t_dynamic p in
+		DynArray.add bb.bb_phi e
+
+	let insert_phi ctx =
+		IntMap.iter (fun i (v,bbl) ->
+			let done_list = ref IntMap.empty in
+			let w = ref bbl in
+			while !w <> [] do
+				let x = List.hd !w in
+				w := List.tl !w;
+				List.iter (fun y ->
+					if not (IntMap.mem y.bb_id !done_list) then begin
+						add_phi ctx.graph y v;
+						done_list := IntMap.add y.bb_id true !done_list;
+						if not (List.memq y bbl) then
+							w := y :: !w
+					end
+				) x.bb_df;
+			done
+		) ctx.graph.g_var_writes
+
+	let set_reaching_def v vo =
+		let eo = match vo with
+			| None -> None
+			| Some v' ->
+				let ev = mk (TLocal v') v.v_type null_pos in
+				let ea = mk (TArrayDecl [ev]) t_dynamic null_pos in
+				Some (ea)
+		in
+		v.v_extra <- Some([],eo)
+
+	let get_reaching_def v = match v.v_extra with
+		| Some (_,Some {eexpr = TArrayDecl[{eexpr = TLocal v'}]}) -> Some v'
+		| _ -> None
+
+	let rec dominates bb_dom bb =
+		bb_dom == bb || bb.bb_dominator == bb_dom || (bb.bb_dominator != bb && dominates bb_dom bb.bb_dominator)
+
+	let dominates ctx r bb =
+		let _,l = IntMap.find r.v_id ctx.graph.g_var_writes in
+		List.exists (fun bb' -> dominates bb' bb) l
+
+	let update_reaching_def ctx v bb =
+		let rec loop r = match r with
+			| Some r ->
+				if dominates ctx r bb then
+					Some r
+				else
+					loop (get_reaching_def r)
+			| None ->
+				None
+		in
+		let v' = (loop (get_reaching_def v)) in
+		set_reaching_def v v'
+
+	let local ctx e v bb =
+		update_reaching_def ctx v bb;
+		match get_reaching_def v with
+			| Some v' -> v'
+			| None -> v
+
+	let update_phi ctx edge =
+		let bb = edge.cfg_to in
+		let rec loop i e =
+			match e.eexpr with
+			| TBinop(OpAssign,({eexpr = TLocal v0} as e1), ({eexpr = TCall({eexpr = TConst (TString "phi")} as ephi,el)} as ecall)) ->
+				let el = List.map2 (fun e inc ->
+					let bb_pred = inc.cfg_from in
+					if bb_pred != edge.cfg_from then
+						e
+					else match e.eexpr with
+					| TLocal v ->
+						let v' = local ctx e v edge.cfg_from in
+						add_ssa_edge ctx.graph v' bb true i;
+						{e with eexpr = TLocal v'}
+					| _ ->
+						assert false
+				) el edge.cfg_to.bb_incoming in
+				let ephi = {ecall with eexpr = TCall(ephi,el)} in
+				set_var_value ctx.graph v0 bb true i;
+				{e with eexpr = TBinop(OpAssign,e1,ephi)}
+			| _ ->
+				Type.map_expr (loop i) e
+		in
+		dynarray_mapi loop bb.bb_phi
+
+	let rec rename_in_block ctx bb =
+		let write_var v is_phi i =
+			update_reaching_def ctx v bb;
+			let v' = alloc_var (v.v_name) v.v_type in
+			v'.v_meta <- v.v_meta;
+			v'.v_capture <- v.v_capture;
+			add_var_def ctx.graph bb v';
+			set_reaching_def v' (get_reaching_def v);
+			set_reaching_def v (Some v');
+			set_var_value ctx.graph v' bb is_phi i;
+			add_var_origin ctx.graph v' v;
+			v'
+		in
+		let rec loop is_phi i e = match e.eexpr with
+			| TLocal v ->
+				let v' = local ctx e v bb in
+				add_ssa_edge ctx.graph v' bb is_phi i;
+				{e with eexpr = TLocal v'}
+			| TVar(v,Some e1) ->
+				let e1 = (loop is_phi i) e1 in
+				let v' = write_var v is_phi i in
+				{e with eexpr = TVar(v',Some e1)}
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+				let e2 = (loop is_phi i) e2 in
+				let v' = write_var v is_phi i in
+				{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v'},e2)};
+			| TCall({eexpr = TConst (TString "phi")},_) ->
+				e
+			| _ ->
+				Type.map_expr (loop is_phi i) e
+		in
+		dynarray_mapi (loop true) bb.bb_phi;
+		dynarray_mapi (loop false) bb.bb_el;
+		List.iter (update_phi ctx) bb.bb_outgoing;
+		List.iter (rename_in_block ctx) bb.bb_dominated
+
+	let apply ctx =
+		insert_phi ctx;
+		rename_in_block ctx ctx.graph.g_root
+end
+
+module type DataFlowApi = sig
+	type t
+	val transfer : Common.context -> BasicBlock.t -> texpr -> t (* The transfer function *)
+	val equals : t -> t -> bool                                 (* The equality function *)
+	val bottom : t                                              (* The bottom element of the lattice *)
+	val top : t                                                 (* The top element of the lattice *)
+	val get_cell : int -> t                                     (* Lattice cell getter *)
+	val set_cell : int -> t -> unit                             (* Lattice cell setter *)
+	val init : analyzer_context -> unit                         (* The initialization function which is called at the start *)
+	val commit : analyzer_context -> unit                       (* The commit function which is called at the end *)
+end
+
+(*
+	DataFlow provides a framework for data flow analysis. It follows CFG edges from the root of the graph
+	and visits the expressions and SSA-phi expressions of blocks on its way.
+
+	If such an expression assigns to a variable (TVar or TBinop(OpAsssign)), all uses of that variable are
+	checked by following the variable's SSA edges.
+
+	A conditional branch edge (CFGCondBranch and CFGCondElse) is only followed if the available information
+	suggests that it might be executable. This causes information from dead branches to not be taken into
+	account.
+
+	For SSA-phi nodes, only those incoming edges which are considered to be executable are processed.
+
+	The algorithm continues until no further changes occur.
+*)
+module DataFlow (M : DataFlowApi) = struct
+	open Graph
+	open BasicBlock
+
+	let get_ssa_edges_from g v =
+		try IntMap.find v.v_id g.g_ssa_edges with Not_found -> []
+
+	let run ctx =
+		let g = ctx.graph in
+		let ssa_work_list = ref [] in
+		let cfg_work_list = ref g.g_root.bb_outgoing in
+		let add_ssa_edge edge =
+			ssa_work_list := edge :: !ssa_work_list
+		in
+		let add_cfg_edge edge =
+			cfg_work_list := edge :: !cfg_work_list
+		in
+		let visit_phi bb v el =
+			let el = List.fold_left2 (fun acc e edge ->
+				if has_flag edge FlagExecutable then e :: acc else acc
+			) [] el bb.bb_incoming in
+			let el = List.map (fun e -> M.transfer ctx.com bb e) el in
+			match el with
+				| e1 :: el when List.for_all (M.equals e1) el ->
+					e1;
+				| _ ->
+					M.bottom;
+		in
+		let set_lattice_cell v e =
+			let e' = M.get_cell v.v_id in
+			M.set_cell v.v_id e;
+			if not (M.equals e e') then
+				List.iter (fun edge -> add_ssa_edge edge) (get_ssa_edges_from g v);
+		in
+		let visit_assignment bb v e =
+			match e.eexpr with
+			| TCall({eexpr = TConst (TString "phi")},el) ->
+				set_lattice_cell v (visit_phi bb v el)
+			| _ ->
+				if List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming then
+					set_lattice_cell v (M.transfer ctx.com bb e)
+		in
+		let visit_expression bb e =
+			match e.eexpr with
+			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) ->
+				visit_assignment bb v e2;
+				false
+			| TMeta((Meta.Custom ":cond-branch",_,_),e1) ->
+				let e1 = M.transfer ctx.com bb e1 in
+				let edges = if e1 == M.bottom || e1 == M.top then
+					bb.bb_outgoing
+				else begin
+					let rec loop yes maybe also edges = match edges with
+						| edge :: edges ->
+							begin match edge.cfg_kind with
+							| CFGCondBranch e ->
+								let e = M.transfer ctx.com bb e in
+								if M.equals e e1 then
+									loop (edge :: yes) maybe also edges
+								else
+									loop yes maybe also edges
+							| CFGCondElse ->
+								loop yes (edge :: maybe) also edges
+							| CFGGoto | CFGFunction | CFGMaybeThrow ->
+								loop yes maybe (edge :: also) edges
+							end
+						| [] ->
+							yes,maybe,also
+					in
+					let yes,maybe,also = loop [] [] [] bb.bb_outgoing in
+					match yes,maybe with
+						| [],[] -> bb.bb_outgoing
+						| [],maybe -> maybe @ also
+						| yes,_ -> yes @ also
+				end in
+				List.iter add_cfg_edge edges;
+				true
+			| _ ->
+				false
+		in
+		let visit_expressions bb =
+			let b = DynArray.fold_left (fun b e ->
+				visit_expression bb e || b
+			) false bb.bb_el in
+			if not b then List.iter add_cfg_edge bb.bb_outgoing
+		in
+		let visit_phis bb =
+			DynArray.iter (fun e ->
+				match e.eexpr with
+					| TBinop(OpAssign,{eexpr = TLocal v},{eexpr = TCall({eexpr = TConst (TString "phi")},el)}) ->
+						set_lattice_cell v (visit_phi bb v el)
+					| _ -> assert false
+			) bb.bb_phi
+		in
+		let rec loop () = match !cfg_work_list,!ssa_work_list with
+			| edge :: edges,_ ->
+				cfg_work_list := edges;
+				if not (has_flag edge FlagExecutable) then begin
+					edge.cfg_flags <- FlagExecutable :: edge.cfg_flags;
+					visit_phis edge.cfg_to;
+					let i = List.fold_left (fun i edge -> i + if has_flag edge FlagExecutable then 1 else 0) 0 edge.cfg_to.bb_incoming in
+					if i = 1 || edge.cfg_to == g.g_root then
+						visit_expressions edge.cfg_to;
+					begin match edge.cfg_to.bb_outgoing with
+						| [edge] -> add_cfg_edge edge
+						| _ -> ()
+					end
+				end;
+				loop();
+			| [],((bb,is_phi,i) :: edges) ->
+				ssa_work_list := edges;
+				let e = get_texpr g bb is_phi i in
+				ignore(visit_expression bb e);
+				loop()
+			| [],[] ->
+				()
+		in
+		loop ()
+
+	let apply ctx =
+		M.init ctx;
+		run ctx;
+		M.commit ctx
+end
+
+(*
+	ConstPropagation implements sparse conditional constant propagation using the DataFlow algorithm. Its lattice consists of
+	constants and enum values, but only the former are propagated. Enum values are treated as immutable data tuples and allow
+	extracting constants, their index or other enum values.
+
+	This module also deals with binop/unop optimization and standard API inlining.
+*)
+module ConstPropagation = DataFlow(struct
+	open BasicBlock
+
+	type t =
+		| Top
+		| Bottom
+		| Const of tconstant
+		| EnumValue of int * t list
+
+	let lattice = ref IntMap.empty
+
+	let get_cell i = try IntMap.find i !lattice with Not_found -> Top
+	let set_cell i ct = lattice := IntMap.add i ct !lattice
+
+	let top = Top
+	let bottom = Bottom
+
+	let equals lat1 lat2 = match lat1,lat2 with
+		| Top,Top | Bottom,Bottom -> true
+		| Const ct1,Const ct2 -> ct1 = ct2
+		| EnumValue(i1,_),EnumValue(i2,_) -> i1 = i2
+		| _ -> false
+
+	let transfer com bb e =
+		let rec eval bb e =
+			let wrap = function
+				| Const ct -> mk (TConst ct) t_dynamic null_pos
+				| _ -> raise Exit
+			in
+			let unwrap e = match e.eexpr with
+				| TConst ct -> Const ct
+				| _ -> raise Exit
+			in
+			match e.eexpr with
+			| TConst (TSuper | TThis | TNull) ->
+				Bottom
+			| TConst ct ->
+				Const ct
+			| TLocal v ->
+				if is_unbound v || (follow v.v_type) == t_dynamic || v.v_capture then
+					Bottom
+				else
+					get_cell v.v_id
+			| TBinop(OpAssign,_,e2) ->
+				eval bb e2
+			| TBinop(op,e1,e2) ->
+				let cl1 = eval bb e1 in
+				let cl2 = eval bb e2 in
+				let e1 = wrap cl1 in
+				let e2 = wrap cl2 in
+				let e = {e with eexpr = TBinop(op,e1,e2)} in
+				let e' = Optimizer.optimize_binop e op e1 e2 in
+				if e != e' then
+					eval bb e'
+				else
+					unwrap e'
+			| TUnop(op,flag,e1) ->
+				let cl1 = eval bb e1 in
+				let e1 = wrap cl1 in
+				let e = {e with eexpr = TUnop(op,flag,e1)} in
+				let e' = Optimizer.optimize_unop e op flag e1 in
+				if e != e' then
+					eval bb e'
+				else
+					unwrap e'
+			| TField(_,FEnum(_,ef)) ->
+				EnumValue(ef.ef_index,[])
+			| TCall({eexpr = TField(_,FEnum(_,ef))},el) ->
+				let cll = List.map (fun e -> try eval bb e with Exit -> Bottom) el in
+				EnumValue(ef.ef_index,cll)
+			| TEnumParameter(e1,_,i) ->
+				begin match eval bb e1 with
+					| EnumValue(_,el) -> (try List.nth el i with Failure _ -> raise Exit)
+					| _ -> raise Exit
+				end;
+			| TCall ({ eexpr = TField (_,FStatic(c,cf))},el) ->
+				let el = List.map (eval bb) el in
+				let el = List.map wrap el in
+				begin match Optimizer.api_inline2 com c cf.cf_name el e.epos with
+					| None -> raise Exit
+					| Some e -> eval bb e
+				end
+			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
+				eval bb e1
+			| _ ->
+				let e1 = match com.platform,e.eexpr with
+					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 -> e1
+					| Cpp,TCall({eexpr = TField(e1,FDynamic "__Index")},[]) -> e1
+					| Neko,TField(e1,FDynamic "index") -> e1
+					| _ -> raise Exit
+				in
+				begin match follow e1.etype,eval bb e1 with
+					| TEnum _,EnumValue(i,_) -> Const (TInt (Int32.of_int i))
+					| _ -> raise Exit
+				end
 		in
 		try
-			let has_unbound,e = if do_simplify || config.analyzer_use then
-				with_timer "analyzer-simplify-apply" (fun () -> Simplifier.apply com e)
-			else
-				false,e
-			in
-			let e = if config.analyzer_use && not has_unbound then begin
-					if config.check_has_effect then EffectChecker.run com is_var_expression e;
-					let e,ssa = with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply com e) in
-					let e = if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ssa e) else e in
-					(* let e = if config.check then with_timer "analyzer-checker" (fun () -> Checker.apply ssa e) else e in *)
-					let e = if config.local_dce && config.analyzer_use && not has_unbound && not is_var_expression then with_timer "analyzer-local-dce" (fun () -> LocalDce.apply e) else e in
-					let e = if config.ssa_unapply then with_timer "analyzer-ssa-unapply" (fun () -> Ssa.unapply com e) else e in
-					List.iter (fun f -> f()) ssa.Ssa.cleanup;
+			eval bb e
+		with Exit ->
+			Bottom
+
+	let init ctx =
+		lattice := IntMap.empty
+
+	let commit ctx =
+		let rec commit e = match e.eexpr with
+			| TLocal v when not v.v_capture ->
+				begin try
+					begin match get_cell v.v_id with
+						| Top | Bottom | EnumValue _ ->
+							raise Not_found
+						| Const ct ->
+							let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
+							if not (type_iseq e'.etype e.etype) then raise Not_found;
+							e'
+					end
+				with Not_found ->
 					e
-			end else
-				e
+				end
+			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal _} as e1),e2) ->
+				let e2 = commit e2 in
+				{e with eexpr = TBinop(op,e1,e2)}
+			| _ ->
+				Type.map_expr commit e
+		in
+		Graph.iter_dom_tree ctx.graph (fun bb ->
+			dynarray_map commit bb.bb_el
+		);
+end)
+
+(*
+	LocalDce implements a mark & sweep dead code elimination. The mark phase follows the CFG edges of the graphs to find
+	variable usages and marks variables accordingly. If ConstPropagation was run before, only CFG edges which are
+	considered executable are processed.
+
+	If a variable is marked as used, its reaching definition is recursively marked as used too. Furthermore its
+	value is processed as an expression.
+
+	The sweep phase removes all variable declarations and assignments of unused variables, keeping only the assigned
+	expression in case of side-effects.
+*)
+module LocalDce = struct
+	open BasicBlock
+	open Graph
+	open Config
+
+	let rec has_side_effect e =
+		let rec loop e =
+			match e.eexpr with
+			| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
+			| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
+			| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
+			| TCall ({eexpr = TConst (TString ("phi" | "fun"))},_) -> ()
+			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
+			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
+			| TFor _ -> raise Exit
+			| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _
+			| TField _ | TIf _ | TTry _ | TSwitch _ | TArrayDecl _ | TBlock _ | TObjectDecl _ | TVar _ -> Type.iter loop e
+		in
+		try
+			loop e;
+			false
+		with Exit ->
+			true
+
+	let rec apply ctx =
+		let is_used v =
+			Meta.has Meta.Used v.v_meta
+		in
+		let keep v =
+			is_used v || (not (Meta.has Meta.CompilerGenerated v.v_meta) && not ctx.config.local_dce) || is_ref_type v.v_type
+		in
+		let rec use v =
+			if not (is_used v) then begin
+				v.v_meta <- (Meta.Used,[],null_pos) :: v.v_meta;
+				(try expr (get_var_value ctx.graph v) with Not_found -> ());
+				begin match Ssa.get_reaching_def v with
+					| None -> use (get_var_origin ctx.graph v)
+					| Some v -> use v;
+				end
+			end
+		and expr e = match e.eexpr with
+			| TLocal v ->
+				use v;
+			| TBinop(OpAssign,{eexpr = TLocal v},e1) | TVar(v,Some e1) ->
+				if has_side_effect e1 || keep v then expr e1
+				else ()
+			| _ ->
+				Type.iter expr e
+		in
+
+		let rec mark bb =
+			DynArray.iter expr bb.bb_el;
+			DynArray.iter expr bb.bb_phi;
+			List.iter (fun edge ->
+				if not (has_flag edge FlagDceDone) then begin
+					edge.cfg_flags <- FlagDceDone :: edge.cfg_flags;
+					if not ctx.config.const_propagation || has_flag edge FlagExecutable then
+						mark edge.cfg_from;
+				end
+			) bb.bb_incoming
+		in
+		mark ctx.graph.g_exit;
+		let rec sweep e = match e.eexpr with
+			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) when not (keep v) ->
+				if has_side_effect e2 then
+					e2
+				else
+					mk (TConst TNull) e.etype e.epos
+			| TVar(v,None) when not (keep v) ->
+				mk (TConst TNull) e.etype e.epos
+			| _ ->
+				Type.map_expr sweep e
+		in
+		Graph.iter_dom_tree ctx.graph (fun bb ->
+			dynarray_map sweep bb.bb_el
+		);
+end
+
+module Debug = struct
+	open BasicBlock
+	open Graph
+
+	type node_info =
+		| NIExpr
+		| NIVars
+		| NIPhi
+
+	let s_var v = Printf.sprintf "%s<%i>" v.v_name v.v_id
+
+	let dot_debug_node g ch nil bb =
+		let s = Printf.sprintf "(%i)" bb.bb_id in
+		let s = List.fold_left (fun s ni -> s ^ "\n" ^ match ni with
+			| NIExpr -> String.concat "\n" (DynArray.to_list (DynArray.map s_expr_pretty bb.bb_el))
+			| NIPhi -> String.concat "\n" (DynArray.to_list (DynArray.map (fun e -> s_expr_pretty e) bb.bb_phi))
+			| NIVars -> String.concat ", " (List.map (fun v -> s_var v) bb.bb_var_writes)
+		) s nil in
+		let s_kind = match bb.bb_kind with
+			| BKRoot -> "<root>\n"
+			| BKFunctionBegin -> "<function-begin>\n"
+			| BKFunctionEnd -> "<function-end>\n"
+			| _ -> ""
+		in
+		Printf.fprintf ch "n%i [shape=box,label=\"%s%s\"];\n" bb.bb_id s_kind (s_escape s)
+
+	let dot_debug_cfg_edge ch edge =
+		let label = match edge.cfg_kind with
+			| CFGGoto -> "goto"
+			| CFGFunction -> "function"
+			| CFGMaybeThrow -> "throw?"
+			| CFGCondBranch _ -> "branch"
+			| CFGCondElse -> "else"
+		in
+		let s_edge_flag = function
+			| FlagExecutable -> "executable"
+			| FlagDceDone -> "dce-done"
+		in
+		let label = label ^ match edge.cfg_flags with
+			| [] -> ""
+			| _ -> Printf.sprintf " [%s]" (String.concat ", " (List.map s_edge_flag edge.cfg_flags))
+		in
+		Printf.fprintf ch "n%i -> n%i[label=\"%s\"];\n" edge.cfg_from.bb_id edge.cfg_to.bb_id (s_escape label)
+
+	let dot_debug_syntax_edge ch bb se =
+		let edge bb' label =
+			Printf.fprintf ch "n%i -> n%i[style=\"dashed\",color=\"gray\",label=\"%s\"];\n" bb.bb_id bb'.bb_id label;
+		in
+		match se with
+		| SESubBlock(bb_sub,bb_next) ->
+			edge bb_sub "sub";
+			edge bb_next "next";
+		| SEIfThen(bb_then,bb_next) ->
+			edge bb_then "then";
+			edge bb_next "next"
+		| SEIfThenElse(bb_then,bb_else,bb_next) ->
+			edge bb_then "then";
+			edge bb_else "else";
+			edge bb_next "next";
+		| SEWhile(bb_body,bb_next) ->
+			edge bb_body "loop-body";
+			edge bb_next "next";
+		| SEMerge bb_next ->
+			edge bb_next "merge"
+		| SESwitch(bbl,bo,bb_next) ->
+			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) bbl;
+			(match bo with None -> () | Some bb -> edge bb "default");
+			edge bb_next "next";
+		| SETry(bb_try,bbl,bb_next) ->
+			edge bb_try "try";
+			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
+			edge bb_next "next";
+		| SEEnd ->
+			()
+		| SENone ->
+			()
+
+	let dot_debug ctx c cf =
+		let g = ctx.graph in
+		let start_graph ?(graph_config=[]) suffix =
+			let ch = Codegen.create_file suffix [] ("dump" :: [Common.platform_name ctx.com.platform] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]) in
+			Printf.fprintf ch "digraph graphname {\n";
+			List.iter (fun s -> Printf.fprintf ch "%s;\n" s) graph_config;
+			ch,(fun () ->
+				Printf.fprintf ch "}\n";
+				close_out ch
+			)
+		in
+		let ch,f = start_graph "-cfg.dot" in
+		IntMap.iter (fun _ bb -> dot_debug_node g ch [NIPhi;NIExpr] bb) g.g_nodes;
+		List.iter (dot_debug_cfg_edge ch) g.g_cfg_edges;
+		f();
+		let ch,f = start_graph "-dj.dot" in
+		IntMap.iter (fun _ bb ->
+			dot_debug_node g ch [] bb;
+			List.iter (fun einc ->
+				let bb' = einc.cfg_from in
+				let style = if bb' == bb.bb_dominator then "solid" else "dashed" in
+				Printf.fprintf ch "n%i -> n%i[style=\"%s\"];\n" bb'.bb_id bb.bb_id style;
+			) bb.bb_incoming;
+		) g.g_nodes;
+		f();
+		let ch,f = start_graph "-df.dot" in
+		IntMap.iter (fun _ bb ->
+			dot_debug_node g ch [NIVars] bb;
+			List.iter (fun bb' -> Printf.fprintf ch "n%i -> n%i;\n" bb.bb_id bb'.bb_id) bb.bb_df;
+		) g.g_nodes;
+		f();
+		let ch,f = start_graph "-dom.dot" in
+		IntMap.iter (fun _ bb ->
+			dot_debug_node g ch [NIVars] bb;
+			List.iter (fun bb' -> Printf.fprintf ch "n%i -> n%i;\n" bb.bb_id bb'.bb_id) bb.bb_dominated;
+		) g.g_nodes;
+		f();
+		let ch,f = start_graph "-syntax.dot" in
+		IntMap.iter (fun _ bb ->
+			dot_debug_node g ch [NIExpr] bb;
+			dot_debug_syntax_edge ch bb bb.bb_syntax_edge
+		) g.g_nodes;
+		f();
+		let ch,f = start_graph "-ssa-edges.dot" in
+		let nodes = ref PMap.empty in
+		let node_name bb is_phi i = Printf.sprintf "e%i_%b_%i" bb.bb_id is_phi i in
+		let node_name2 bb is_phi i =
+			let n = node_name bb is_phi i in
+			nodes := PMap.add n true !nodes;
+			n
+		in
+		IntMap.iter (fun i l ->
+			begin try
+				let (bb,is_phi,i) = IntMap.find i g.g_var_values in
+				let n1 = node_name2 bb is_phi i in
+				List.iter (fun (bb',is_phi',i') ->
+					let n2 = node_name2 bb' is_phi' i' in
+					Printf.fprintf ch "%s -> %s;\n" n1 n2
+				) l
+			with Not_found ->
+				()
+			end
+		) g.g_ssa_edges;
+		IntMap.iter (fun _ bb ->
+			let f is_phi acc i e =
+				let n = node_name bb is_phi i in
+				(i + 1),if PMap.mem n !nodes then
+					(n,s_expr_pretty e) :: acc
+				else
+					acc
 			in
-			let e = if not do_simplify && not (Common.raw_defined com "analyzer-no-simplify-unapply") then
-				with_timer "analyzer-simplify-unapply" (fun () -> Simplifier.unapply com e)
-			else
-				e
-			in
+			let _,active_nodes = DynArray.fold_left (fun (i,acc) -> f true acc i) (0,[]) bb.bb_phi in
+			let _,active_nodes = DynArray.fold_left (fun (i,acc) -> f false acc i) (0,active_nodes) bb.bb_el in
+			if active_nodes <> [] then begin
+				Printf.fprintf ch "subgraph cluster_%i {\n" bb.bb_id;
+				Printf.fprintf ch "label=%i;\n" bb.bb_id;
+				Printf.fprintf ch "style=filled;\n";
+				Printf.fprintf ch "color=lightblue;\n";
+				List.iter (fun (n,s) ->
+					Printf.fprintf ch "%s[shape=box,label=\"%s\"];\n" n (s_escape s)
+				) active_nodes;
+				Printf.fprintf ch "}\n";
+			end;
+		) g.g_nodes;
+		f()
+end
+
+module Run = struct
+	open Config
+
+	let with_timer s f =
+		let timer = timer s in
+		let r = f() in
+		timer();
+		r
+
+	let there com config e =
+		let e = with_timer "analyzer-filter-apply" (fun () -> TexprFilter.apply com e) in
+		let ctx = with_timer "analyzer-from-texpr" (fun () -> TexprTransformer.from_texpr com config e) in
+		ctx
+
+	let back_again ctx =
+		let e = with_timer "analyzer-to-texpr" (fun () -> TexprTransformer.to_texpr ctx) in
+		let e = with_timer "analyzer-filter-unapply" (fun () -> TexprFilter.unapply ctx.com ctx.config e) in
+		e
+
+	let roundtrip com config e =
+		let ctx = there com config e in
+		let e = back_again ctx in
+		e
+
+	let run_on_expr com config c cf e =
+		try
+			let ctx = there com config e in
+			if not ctx.has_unbound then begin
+				with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
+				if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
+				with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
+			end;
+			if config.dot_debug then Debug.dot_debug ctx c cf;
+			let e = back_again ctx in
 			e
 		with Exit ->
 			e
 
-	let run_on_field ctx config cf =
-		match cf.cf_expr with
+	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta config cf.cf_meta in
-			let is_var_expression = match cf.cf_kind with
-				| Var _ -> true
-				| _ -> false
-			in
-			cf.cf_expr <- Some (run_on_expr ctx.com config is_var_expression e);
+			cf.cf_expr <- Some (run_on_expr ctx.Typecore.com config c cf e);
 		| _ -> ()
 
 	let run_on_class ctx config c =
 		let config = update_config_from_meta config c.cl_meta in
-		let process_field cf = run_on_field ctx config cf in
+		let process_field cf = match cf.cf_kind with
+			| Method _ -> run_on_field ctx config c cf
+			| _ -> ()
+		in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
 		(match c.cl_constructor with
 		| None -> ()
-		| Some f -> process_field f);
-		(match c.cl_init with
-		| None -> ()
-		| Some e ->
-			(* never optimize init expressions (too messy) *)
-			c.cl_init <- Some (run_on_expr ctx.com {config with analyzer_use = false} false e))
+		| Some f -> process_field f)
 
 	let run_on_type ctx config t =
 		match t with
@@ -1708,8 +2012,7 @@ module Run = struct
 		| TAbstractDecl _ -> ()
 
 	let run_on_types ctx types =
-		let com = ctx.com in
+		let com = ctx.Typecore.com in
 		let config = get_base_config com in
 		List.iter (run_on_type ctx config) types
-
 end
