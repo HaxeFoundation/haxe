@@ -173,9 +173,11 @@ class Boot {
 	}
 
 	static function printEnum(o:Table<Int,Dynamic>, s : String){
-		if (!Std.is(o, Array)){
+		if (!inheritsFrom(o,Array)){
+			// non-parameterized enums are simple table values
 			return o[0];
 		} else {
+			// parameterized enums are arrays
 			var o2 : Array<Dynamic> = cast o;
 			var str = o[0] + "(";
 			s += "\t";
