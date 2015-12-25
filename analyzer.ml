@@ -483,7 +483,7 @@ module BasicBlock = struct
 		| BKUnreachable   (* The unique unreachable block *)
 
 	type cfg_edge_Flag =
-		| FlagExecutable (* Used by data flow operations to mark an edge as live *)
+		| FlagExecutable     (* Used by constant propagation to handle live edges *)
 		| FlagDceDone    (* Used by DCE to keep track of handled edges *)
 
 	type cfg_edge_kind =
@@ -1439,7 +1439,8 @@ end
 
 module type DataFlowApi = sig
 	type t
-	val transfer : Common.context -> BasicBlock.t -> texpr -> t (* The transfer function *)
+	val flag : BasicBlock.cfg_edge_Flag
+	val transfer : analyzer_context -> BasicBlock.t -> texpr -> t (* The transfer function *)
 	val equals : t -> t -> bool                                 (* The equality function *)
 	val bottom : t                                              (* The bottom element of the lattice *)
 	val top : t                                                 (* The top element of the lattice *)
@@ -1447,6 +1448,7 @@ module type DataFlowApi = sig
 	val set_cell : int -> t -> unit                             (* Lattice cell setter *)
 	val init : analyzer_context -> unit                         (* The initialization function which is called at the start *)
 	val commit : analyzer_context -> unit                       (* The commit function which is called at the end *)
+	val conditional : bool                                        (* Whether or not conditional branches are checked *)
 end
 
 (*
@@ -1483,9 +1485,9 @@ module DataFlow (M : DataFlowApi) = struct
 		in
 		let visit_phi bb v el =
 			let el = List.fold_left2 (fun acc e edge ->
-				if has_flag edge FlagExecutable then e :: acc else acc
+				if has_flag edge M.flag then e :: acc else acc
 			) [] el bb.bb_incoming in
-			let el = List.map (fun e -> M.transfer ctx.com bb e) el in
+			let el = List.map (fun e -> M.transfer ctx bb e) el in
 			match el with
 				| e1 :: el when List.for_all (M.equals e1) el ->
 					e1;
@@ -1503,16 +1505,16 @@ module DataFlow (M : DataFlowApi) = struct
 			| TCall({eexpr = TConst (TString "phi")},el) ->
 				set_lattice_cell v (visit_phi bb v el)
 			| _ ->
-				if List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming then
-					set_lattice_cell v (M.transfer ctx.com bb e)
+				if List.exists (fun edge -> has_flag edge M.flag) bb.bb_incoming then
+					set_lattice_cell v (M.transfer ctx bb e)
 		in
 		let visit_expression bb e =
 			match e.eexpr with
 			| TBinop(OpAssign,{eexpr = TLocal v},e2) | TVar(v,Some e2) ->
 				visit_assignment bb v e2;
 				false
-			| TMeta((Meta.Custom ":cond-branch",_,_),e1) ->
-				let e1 = M.transfer ctx.com bb e1 in
+			| TMeta((Meta.Custom ":cond-branch",_,_),e1) when M.conditional ->
+				let e1 = M.transfer ctx bb e1 in
 				let edges = if e1 == M.bottom || e1 == M.top then
 					bb.bb_outgoing
 				else begin
@@ -1520,7 +1522,7 @@ module DataFlow (M : DataFlowApi) = struct
 						| edge :: edges ->
 							begin match edge.cfg_kind with
 							| CFGCondBranch e ->
-								let e = M.transfer ctx.com bb e in
+								let e = M.transfer ctx bb e in
 								if M.equals e e1 then
 									loop (edge :: yes) maybe also edges
 								else
@@ -1561,10 +1563,10 @@ module DataFlow (M : DataFlowApi) = struct
 		let rec loop () = match !cfg_work_list,!ssa_work_list with
 			| edge :: edges,_ ->
 				cfg_work_list := edges;
-				if not (has_flag edge FlagExecutable) then begin
-					edge.cfg_flags <- FlagExecutable :: edge.cfg_flags;
+				if not (has_flag edge M.flag) then begin
+					edge.cfg_flags <- M.flag :: edge.cfg_flags;
 					visit_phis edge.cfg_to;
-					let i = List.fold_left (fun i edge -> i + if has_flag edge FlagExecutable then 1 else 0) 0 edge.cfg_to.bb_incoming in
+					let i = List.fold_left (fun i edge -> i + if has_flag edge M.flag then 1 else 0) 0 edge.cfg_to.bb_incoming in
 					if i = 1 || edge.cfg_to == g.g_root then
 						visit_expressions edge.cfg_to;
 					begin match edge.cfg_to.bb_outgoing with
@@ -1605,6 +1607,9 @@ module ConstPropagation = DataFlow(struct
 		| Const of tconstant
 		| EnumValue of int * t list
 
+	let conditional = true
+	let flag = FlagExecutable
+
 	let lattice = ref IntMap.empty
 
 	let get_cell i = try IntMap.find i !lattice with Not_found -> Top
@@ -1619,7 +1624,7 @@ module ConstPropagation = DataFlow(struct
 		| EnumValue(i1,_),EnumValue(i2,_) -> i1 = i2
 		| _ -> false
 
-	let transfer com bb e =
+	let transfer ctx bb e =
 		let rec eval bb e =
 			let wrap = function
 				| Const ct -> mk (TConst ct) t_dynamic null_pos
@@ -1674,14 +1679,14 @@ module ConstPropagation = DataFlow(struct
 			| TCall ({ eexpr = TField (_,FStatic(c,cf))},el) ->
 				let el = List.map (eval bb) el in
 				let el = List.map wrap el in
-				begin match Optimizer.api_inline2 com c cf.cf_name el e.epos with
+				begin match Optimizer.api_inline2 ctx.com c cf.cf_name el e.epos with
 					| None -> raise Exit
 					| Some e -> eval bb e
 				end
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				eval bb e1
 			| _ ->
-				let e1 = match com.platform,e.eexpr with
+				let e1 = match ctx.com.platform,e.eexpr with
 					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 -> e1
 					| Cpp,TCall({eexpr = TField(e1,FDynamic "__Index")},[]) -> e1
 					| Neko,TField(e1,FDynamic "index") -> e1
