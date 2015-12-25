@@ -825,19 +825,17 @@ module TexprTransformer = struct
 			| TContinue | TBreak | TThrow _ | TReturn _ | TVar _ ->
 				assert false
 		and ordered_value_list bb el =
-			let might_be_affected e = match e.eexpr with
-				| TConst _ | TTypeExpr _ | TFunction _ -> false
-				| _ -> true
-			in
+			let might_be_affected,collect_modified_locals = Optimizer.create_affection_checker() in
 			let can_be_optimized e = match e.eexpr with
 				| TBinop _ | TArray _ | TCall _ -> true
 				| _ -> false
 			in
 			let _,el = List.fold_left (fun (had_side_effect,acc) e ->
 				if had_side_effect then
-					(true,(might_be_affected e,can_be_optimized e,e) :: acc)
+					(true,(might_be_affected e || Optimizer.has_side_effect e,can_be_optimized e,e) :: acc)
 				else begin
 					let had_side_effect = Optimizer.has_side_effect e in
+					if had_side_effect then collect_modified_locals e;
 					(had_side_effect,(false,can_be_optimized e,e) :: acc)
 				end
 			) (false,[]) (List.rev el) in

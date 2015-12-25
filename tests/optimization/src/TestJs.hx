@@ -238,5 +238,55 @@ class TestJs {
 		use(i);
 		// This is not const-propagated because StringMap introduced unbound variables
 	}
+
+	@:js('
+		var x = TestJs.getInt();
+		var tmp;
+		TestJs.getInt();
+		tmp = TestJs.getInt();
+		TestJs.call([x,"foo"],tmp);
+	')
+	static function testMightBeAffected1() {
+		var x = getInt();
+		call([x, "foo"], {
+			getInt();
+			getInt();
+		});
+	}
+
+	@:js('
+		var x = TestJs.getInt();
+		var tmp = [x,"foo"];
+		var tmp1;
+		x = TestJs.getInt();
+		tmp1 = TestJs.getInt();
+		TestJs.call(tmp,tmp1);
+	')
+	static function testMightBeAffected2() {
+		var x = getInt();
+		call([x, "foo"], {
+			x = getInt();
+			getInt();
+		});
+	}
+
+	@:js('
+		var x = TestJs.getInt();
+		var tmp = x;
+		var tmp1;
+		++x;
+		tmp1 = TestJs.getInt();
+		TestJs.call(tmp,tmp1);
+	')
+	static function testMightBeAffected3() {
+		var x = getInt();
+		call(x, {
+			x++;
+			getInt();
+		});
+	}
+
+	static function getInt(?d:Dynamic) { return 1; }
+	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	static function use<T>(t:T) { }
 }

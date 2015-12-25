@@ -220,6 +220,36 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 	| _ ->
 		api_inline2 ctx.com c field params p
 
+let create_affection_checker () =
+	let is_affected_type t = match follow t with
+		| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
+		| _ -> false
+	in
+	let modified_locals = Hashtbl.create 0 in
+	let rec might_be_affected e =
+		let rec loop e = match e.eexpr with
+			| TConst _ | TFunction _ | TTypeExpr _ -> ()
+			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
+			| TField _ when is_affected_type e.etype -> raise Exit
+			| _ -> Type.iter loop e
+		in
+		try
+			loop e;
+			false
+		with Exit ->
+			true
+	in
+	let rec collect_modified_locals e = match e.eexpr with
+		| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) when is_affected_type v.v_type ->
+			Hashtbl.add modified_locals v.v_id true
+		| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) when is_affected_type v.v_type ->
+			collect_modified_locals e2;
+			Hashtbl.add modified_locals v.v_id true
+		| _ ->
+			Type.iter collect_modified_locals e
+	in
+	might_be_affected,collect_modified_locals
+
 (* ---------------------------------------------------------------------- *)
 (* INLINING *)
 
@@ -341,33 +371,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	*)
 	let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
 	let vthis = alloc_var "_this" ethis.etype in
-	let is_affected_type t = match follow t with
-		| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
-		| _ -> false
-	in
-	let modified_locals = Hashtbl.create 0 in
-	let rec might_be_affected e =
-		let rec loop e = match e.eexpr with
-			| TConst _ | TFunction _ | TTypeExpr _ -> ()
-			| TLocal v when Hashtbl.mem modified_locals v.v_id -> raise Exit
-			| TField _ when is_affected_type e.etype -> raise Exit
-			| _ -> Type.iter loop e
-		in
-		try
-			loop e;
-			false
-		with Exit ->
-			true
-	in
-	let rec collect_modified_locals e = match e.eexpr with
-		| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) when is_affected_type v.v_type ->
-			Hashtbl.add modified_locals v.v_id true
-		| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) when is_affected_type v.v_type ->
-			collect_modified_locals e2;
-			Hashtbl.add modified_locals v.v_id true
-		| _ ->
-			Type.iter collect_modified_locals e
-	in
+	let might_be_affected,collect_modified_locals = create_affection_checker() in
 	let had_side_effect = ref false in
 	let inlined_vars = List.map2 (fun e (v,_) ->
 		let l = local v in
