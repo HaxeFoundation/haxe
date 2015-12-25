@@ -527,6 +527,7 @@ module BasicBlock = struct
 		mutable bb_dominated : t list;        (* The dominated blocks *)
 		mutable bb_df : t list;               (* The dominance frontier *)
 		mutable bb_syntax_edge : syntax_edge; (* The syntactic edge *)
+		mutable bb_loop_groups : int list;    (* The loop groups this block belongs to *)
 		(* variables *)
 		mutable bb_var_writes : tvar list;    (* List of assigned variables *)
 	}
@@ -549,6 +550,7 @@ module BasicBlock = struct
 			bb_dominated = [];
 			bb_df = [];
 			bb_syntax_edge = SENone;
+			bb_loop_groups = [];
 			bb_var_writes = [];
 		} in
 		bb
@@ -575,6 +577,7 @@ module Graph = struct
 		mutable g_var_values : texpr_lookup IntMap.t;     (* A map containing expression lookup information for each variable *)
 		mutable g_ssa_edges : texpr_lookup list IntMap.t; (* A map containing def-use lookup information for each variable *)
 		mutable g_var_origins : tvar IntMap.t;            (* A map keeping track of original variables for SSA variables *)
+		mutable g_loops : BasicBlock.t IntMap.t;          (* A map containing loop information *)
 	}
 
 	(* edges *)
@@ -676,6 +679,7 @@ module Graph = struct
 			g_var_values = IntMap.empty;
 			g_ssa_edges = IntMap.empty;
 			g_var_origins = IntMap.empty;
+			g_loops = IntMap.empty;
 		}
 
 	let calculate_df g =
@@ -701,6 +705,8 @@ type analyzer_context = {
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable saved_v_extra : (type_params * texpr option) option IntMap.t;
+	mutable loop_counter : int;
+	mutable loop_stack : int list;
 }
 
 (*
@@ -722,8 +728,13 @@ module TexprTransformer = struct
 
 	let rec func ctx bb tf t p =
 		let g = ctx.graph in
-		let bb_root = create_node g BKFunctionBegin bb tf.tf_expr.etype tf.tf_expr.epos in
-		let bb_exit = create_node g BKFunctionEnd bb_root tf.tf_expr.etype tf.tf_expr.epos in
+		let create_node kind bb t p =
+			let bb = Graph.create_node g kind bb t p in
+			bb.bb_loop_groups <- ctx.loop_stack;
+			bb
+		in
+		let bb_root = create_node BKFunctionBegin bb tf.tf_expr.etype tf.tf_expr.epos in
+		let bb_exit = create_node BKFunctionEnd bb_root tf.tf_expr.etype tf.tf_expr.epos in
 		add_function g tf t p bb_root;
 		add_cfg_edge g bb bb_root CFGFunction;
 		let make_block_meta b =
@@ -733,13 +744,19 @@ module TexprTransformer = struct
 		let bb_break = ref None in
 		let bb_continue = ref None in
 		let b_try_stack = ref [] in
-		let begin_loop bb_break' bb_continue' =
+		let begin_loop bb_loop_pre bb_break' bb_continue' =
 			let old = !bb_break,!bb_continue in
 			bb_break := Some bb_break';
 			bb_continue := Some bb_continue';
+			let id = ctx.loop_counter in
+			g.g_loops <- IntMap.add id bb_loop_pre g.g_loops;
+			ctx.loop_stack <- id :: ctx.loop_stack;
+			bb_continue'.bb_loop_groups <- id :: bb_continue'.bb_loop_groups;
+			ctx.loop_counter <- id + 1;
 			(fun () ->
 				bb_break := fst old;
 				bb_continue := snd old;
+				ctx.loop_stack <- List.tl ctx.loop_stack;
 			)
 		in
 		let begin_try b =
@@ -818,7 +835,7 @@ module TexprTransformer = struct
 				let e_fun = mk (TConst (TString "fun")) t_dynamic p in
 				let econst = mk (TConst (TInt (Int32.of_int bb_func.bb_id))) ctx.com.basic.tint e.epos in
 				let ec = mk (TCall(e_fun,[econst])) t_dynamic p in
-				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in
+				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
 				add_cfg_edge g bb bb_next CFGGoto;
 				set_syntax_edge g bb (SEMerge bb_next);
 				close_node g bb;
@@ -916,22 +933,22 @@ module TexprTransformer = struct
 				end
 			(* branching *)
 			| TBlock el ->
-				let bb_sub = create_node g BKSub bb e.etype e.epos in
+				let bb_sub = create_node BKSub bb e.etype e.epos in
 				add_cfg_edge g bb bb_sub CFGGoto;
 				close_node g bb;
 				let bb_sub_next = block_el bb_sub el in
-				let bb_next = create_node g BKNormal bb_sub_next bb.bb_type bb.bb_pos in
+				let bb_next = create_node BKNormal bb_sub_next bb.bb_type bb.bb_pos in
 				set_syntax_edge g bb (SESubBlock(bb_sub,bb_next));
 				add_cfg_edge g bb_sub_next bb_next CFGGoto;
 				close_node g bb_sub_next;
 				bb_next;
 			| TIf(e1,e2,None) ->
 				let bb,e1 = bind_to_temp bb false e1 in
-				let bb_then = create_node g BKConditional bb e2.etype e2.epos in
+				let bb_then = create_node BKConditional bb e2.etype e2.epos in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
 				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				let bb_then_next = block bb_then e2 in
-				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in
+				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
 				set_syntax_edge g bb (SEIfThen(bb_then,bb_next));
 				add_cfg_edge g bb bb_next CFGCondElse;
 				close_node g bb;
@@ -940,10 +957,10 @@ module TexprTransformer = struct
 				bb_next
 			| TIf(e1,e2,Some e3) ->
 				let bb,e1 = bind_to_temp bb false e1 in
-				let bb_then = create_node g BKConditional bb e2.etype e2.epos in
-				let bb_else = create_node g BKConditional bb e3.etype e3.epos in
+				let bb_then = create_node BKConditional bb e2.etype e2.epos in
+				let bb_else = create_node BKConditional bb e3.etype e3.epos in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
-				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in (* TODO: dominator might be wrong if either branch is unreachable *)
+				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in (* TODO: dominator might be wrong if either branch is unreachable *)
 				set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype));
 				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				add_cfg_edge g bb bb_else CFGCondElse;
@@ -959,10 +976,10 @@ module TexprTransformer = struct
 				let is_exhaustive = edef <> None || Optimizer.is_exhaustive e1 in
 				let bb,e1 = bind_to_temp bb false e1 in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
-				let bb_next = create_node g BKNormal bb bb.bb_type bb.bb_pos in
+				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
 				if not is_exhaustive then add_cfg_edge g bb bb_next CFGGoto;
 				let make_case e =
-					let bb_case = create_node g BKConditional bb e.etype e.epos in
+					let bb_case = create_node BKConditional bb e.etype e.epos in
 					let bb_case_next = block bb_case e in
 					add_cfg_edge g bb_case_next bb_next CFGGoto;
 					close_node g bb_case_next;
@@ -985,25 +1002,29 @@ module TexprTransformer = struct
 				close_node g bb;
 				bb_next
 			| TWhile(e1,e2,NormalWhile) ->
-				let bb_loop_head = create_node g BKLoopHead bb e1.etype e1. epos in
-				add_cfg_edge g bb bb_loop_head CFGGoto;
-				let bb_loop_body = create_node g BKNormal bb_loop_head e2.etype e2.epos in
-				add_texpr g bb {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
-				let bb_next = create_node g BKNormal bb_loop_head bb.bb_type bb.bb_pos in
-				set_syntax_edge g bb (SEWhile(bb_loop_body,bb_next));
+				let bb_loop_pre = create_node BKNormal bb e1.etype e1.epos in
+				add_cfg_edge g bb bb_loop_pre CFGGoto;
+				set_syntax_edge g bb (SEMerge bb_loop_pre);
 				close_node g bb;
-				let close = begin_loop bb_next bb_loop_head in
+				let bb_loop_head = create_node BKLoopHead bb_loop_pre e1.etype e1.epos in
+				add_cfg_edge g bb_loop_pre bb_loop_head CFGGoto;
+				let bb_next = create_node BKNormal bb_loop_head bb.bb_type bb.bb_pos in
+				let close = begin_loop bb bb_next bb_loop_head in
+				let bb_loop_body = create_node BKNormal bb_loop_head e2.etype e2.epos in
 				let bb_loop_body_next = block bb_loop_body e2 in
 				close();
+				set_syntax_edge g bb_loop_pre (SEWhile(bb_loop_body,bb_next));
+				close_node g bb_loop_pre;
+				add_texpr g bb_loop_pre {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
 				add_cfg_edge g bb_loop_body_next bb_loop_head CFGGoto;
 				add_cfg_edge g bb_loop_head bb_loop_body CFGGoto;
 				close_node g bb_loop_body_next;
 				close_node g bb_loop_head;
 				bb_next;
 			| TTry(e1,catches) ->
-				let bb_try = create_node g BKNormal bb e1.etype e1.epos in
-				let bb_next = create_node g BKNormal bb_try bb.bb_type bb.bb_pos in
-				let bb_exc = create_node g BKException bb_try t_dynamic e.epos in
+				let bb_try = create_node BKNormal bb e1.etype e1.epos in
+				let bb_next = create_node BKNormal bb_try bb.bb_type bb.bb_pos in
+				let bb_exc = create_node BKException bb_try t_dynamic e.epos in
 				add_cfg_edge g bb bb_try CFGGoto;
 				let close = begin_try bb_exc in
 				let bb_try_next = block bb_try e1 in
@@ -1014,7 +1035,7 @@ module TexprTransformer = struct
 					set_syntax_edge g bb (SESubBlock(bb_try,bb_next))
 				else begin
 					let catches = List.map (fun (v,e) ->
-						let bb_catch = create_node g BKNormal bb_exc e.etype e.epos in
+						let bb_catch = create_node BKNormal bb_exc e.etype e.epos in
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
 						let bb_catch_next = block bb_catch e in
 						add_cfg_edge g bb_catch_next bb_next CFGGoto;
@@ -1125,7 +1146,7 @@ module TexprTransformer = struct
 					if not (can_throw e) then
 						block_element bb e
 					else begin
-						let bb' = create_node g BKNormal bb e.etype e.epos in
+						let bb' = create_node BKNormal bb e.etype e.epos in
 						add_cfg_edge g bb bb' CFGGoto;
 						List.iter (fun bb_exc -> add_cfg_edge g bb bb_exc CFGMaybeThrow) bbl;
 						set_syntax_edge g bb (SEMerge bb');
@@ -1155,6 +1176,8 @@ module TexprTransformer = struct
 			entry = bb_unreachable;
 			has_unbound = false;
 			saved_v_extra = IntMap.empty;
+			loop_counter = 0;
+			loop_stack = [];
 		} in
 		let bb_func,bb_exit = match e.eexpr with
 			| TFunction tf ->
@@ -1801,20 +1824,23 @@ module Debug = struct
 		| NIExpr
 		| NIVars
 		| NIPhi
+		| NILoopGroups
 
 	let s_var v = Printf.sprintf "%s<%i>" v.v_name v.v_id
 
 	let dot_debug_node g ch nil bb =
 		let s = Printf.sprintf "(%i)" bb.bb_id in
-		let s = List.fold_left (fun s ni -> s ^ "\n" ^ match ni with
-			| NIExpr -> String.concat "\n" (DynArray.to_list (DynArray.map s_expr_pretty bb.bb_el))
-			| NIPhi -> String.concat "\n" (DynArray.to_list (DynArray.map (fun e -> s_expr_pretty e) bb.bb_phi))
-			| NIVars -> String.concat ", " (List.map (fun v -> s_var v) bb.bb_var_writes)
+		let s = List.fold_left (fun s ni -> s ^ match ni with
+			| NIExpr -> if DynArray.length bb.bb_el = 0 then "" else "\n" ^  String.concat "\n" (DynArray.to_list (DynArray.map s_expr_pretty bb.bb_el))
+			| NIPhi -> if DynArray.length bb.bb_phi = 0 then "" else "\n" ^ String.concat "\n" (DynArray.to_list (DynArray.map (fun e -> s_expr_pretty e) bb.bb_phi))
+			| NIVars -> if bb.bb_var_writes = [] then "" else "\n" ^ String.concat ", " (List.map (fun v -> s_var v) bb.bb_var_writes)
+			| NILoopGroups -> if bb.bb_loop_groups = [] then "" else "\nLoops: " ^ (String.concat ", " (List.map string_of_int bb.bb_loop_groups))
 		) s nil in
 		let s_kind = match bb.bb_kind with
 			| BKRoot -> "<root>\n"
 			| BKFunctionBegin -> "<function-begin>\n"
 			| BKFunctionEnd -> "<function-end>\n"
+			| BKLoopHead -> "<loop-head>\n"
 			| _ -> ""
 		in
 		Printf.fprintf ch "n%i [shape=box,label=\"%s%s\"];\n" bb.bb_id s_kind (s_escape s)
@@ -1882,7 +1908,7 @@ module Debug = struct
 			)
 		in
 		let ch,f = start_graph "-cfg.dot" in
-		IntMap.iter (fun _ bb -> dot_debug_node g ch [NIPhi;NIExpr] bb) g.g_nodes;
+		IntMap.iter (fun _ bb -> dot_debug_node g ch [NILoopGroups;NIPhi;NIExpr] bb) g.g_nodes;
 		List.iter (dot_debug_cfg_edge ch) g.g_cfg_edges;
 		f();
 		let ch,f = start_graph "-dj.dot" in
