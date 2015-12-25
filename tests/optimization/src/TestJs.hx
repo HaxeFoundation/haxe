@@ -295,15 +295,15 @@ class TestJs {
 		TestJs["use"](b);
 	')
 	static function testIssue4739() {
-        var a = 0;
-        if (Math.random() < 0.5)
-            a += 2;
+		var a = 0;
+		if (Math.random() < 0.5)
+			a += 2;
 
-        var b = "";
-        if (Math.random() < 0.5)
-            b = b + "hello";
+		var b = "";
+		if (Math.random() < 0.5)
+			b = b + "hello";
 
-        use(a);
+		use(a);
 		use(b);
 	}
 

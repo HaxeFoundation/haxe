@@ -853,7 +853,7 @@ module TexprTransformer = struct
 			let bb = declare_var_and_assign bb v e in
 			bb,{e with eexpr = TLocal v}
 		and declare_var_and_assign bb v e =
-			let ev = mk (TLocal v) e.etype e.epos in
+			let ev = mk (TLocal v) v.v_type e.epos in
 			let was_assigned = ref false in
 			let assign e =
 				if not !was_assigned then begin
@@ -861,7 +861,7 @@ module TexprTransformer = struct
 					add_var_def g bb v;
 					add_texpr g bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
 				end;
-				mk (TBinop(OpAssign,ev,e)) e.etype e.epos
+				mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
 			in
 			begin try
 				let e = map_values assign e in
