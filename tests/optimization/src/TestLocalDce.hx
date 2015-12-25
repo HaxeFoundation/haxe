@@ -120,8 +120,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		var s = "" + "a";
-		console.log(s);
+		console.log("a");
 	')
 	static function testAbstractOverStringBinop() {
 		var s = "" + A;

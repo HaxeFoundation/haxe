@@ -1674,22 +1674,23 @@ module ConstPropagation = DataFlow(struct
 		lattice := IntMap.empty
 
 	let commit ctx =
+		let inline e i = match get_cell i with
+			| Top | Bottom | EnumValue _ ->
+				raise Not_found
+			| Const ct ->
+				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
+				if not (type_iseq e'.etype e.etype) then raise Not_found;
+				e'
+		in
 		let rec commit e = match e.eexpr with
 			| TLocal v when not v.v_capture ->
 				begin try
-					begin match get_cell v.v_id with
-						| Top | Bottom | EnumValue _ ->
-							raise Not_found
-						| Const ct ->
-							let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
-							if not (type_iseq e'.etype e.etype) then raise Not_found;
-							e'
-					end
+					inline e v.v_id
 				with Not_found ->
 					e
 				end
-			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal _} as e1),e2) ->
-				let e2 = commit e2 in
+			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal v} as e1),e2) ->
+				let e2 = try inline e2 v.v_id with Not_found -> commit e2 in
 				{e with eexpr = TBinop(op,e1,e2)}
 			| _ ->
 				Type.map_expr commit e

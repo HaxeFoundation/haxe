@@ -286,6 +286,27 @@ class TestJs {
 		});
 	}
 
+	@:js('
+		var a = 0;
+		if(Math.random() < 0.5) a = 2;
+		var b = "";
+		if(Math.random() < 0.5) b = "hello";
+		TestJs["use"](a);
+		TestJs["use"](b);
+	')
+	static function testIssue4739() {
+        var a = 0;
+        if (Math.random() < 0.5)
+            a += 2;
+
+        var b = "";
+        if (Math.random() < 0.5)
+            b = b + "hello";
+
+        use(a);
+		use(b);
+	}
+
 	static function getInt(?d:Dynamic) { return 1; }
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	static function use<T>(t:T) { }
