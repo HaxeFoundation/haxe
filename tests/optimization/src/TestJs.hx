@@ -307,6 +307,89 @@ class TestJs {
 		use(b);
 	}
 
+	@:js('
+		var a = TestJs.getInt();
+		var b = TestJs.getInt();
+		var x;
+		var tmp = a + b;
+		while(a != b) {
+			x = tmp;
+			TestJs["use"](x);
+		}
+	')
+	static function testCodeMotion1() {
+		var a = getInt();
+		var b = getInt();
+		var x;
+		while (a != b) {
+			x = a + b;
+			use(x);
+		}
+	}
+
+	@:js('
+		var a = TestJs.getInt();
+		var b = TestJs.getInt();
+		var x = 0;
+		while(a != b) {
+			x = a + x;
+			TestJs["use"](x);
+		}
+	')
+	static function testCodeMotion2() {
+		var a = getInt();
+		var b = getInt();
+		var x = 0;
+		while (a != b) {
+			x = a + x;
+			use(x);
+		}
+	}
+
+	@:js('
+		var a = TestJs.getInt();
+		var b = TestJs.getInt();
+		var x;
+		while(a != b) {
+			var tmp = a + b;
+			while(a != b) {
+				x = tmp;
+				TestJs["use"](x);
+			}
+		}
+	')
+	static function testCodeMotion3() {
+		var a = getInt();
+		var b = getInt();
+		var x;
+		while (a != b) {
+			while (a != b) {
+				x = a + b;
+				use(x);
+			}
+		}
+	}
+
+	@:js('
+		var a = TestJs.getInt();
+		var b = TestJs.getInt();
+		var x;
+		var tmp = a + b + b;
+		while(a != b) {
+			x = tmp;
+			TestJs["use"](x);
+		}
+	')
+	static function testCodeMotion4() {
+		var a = getInt();
+		var b = getInt();
+		var x;
+		while (a != b) {
+			x = a + b + b;
+			use(x);
+		}
+	}
+
 	static function getInt(?d:Dynamic) { return 1; }
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	static function use<T>(t:T) { }

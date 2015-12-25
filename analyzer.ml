@@ -358,6 +358,8 @@ module TexprFilter = struct
 						found := true;
 						changed := true;
 						e1
+					| TWhile _ ->
+						e
 					| _ ->
 						Type.map_expr replace e
 				in
@@ -485,6 +487,7 @@ module BasicBlock = struct
 	type cfg_edge_Flag =
 		| FlagExecutable     (* Used by constant propagation to handle live edges *)
 		| FlagDceDone    (* Used by DCE to keep track of handled edges *)
+		| FlagCodeMotionDone (* Used by code motion to track handled edges *)
 
 	type cfg_edge_kind =
 		| CFGGoto                (* An unconditional branch *)
@@ -847,8 +850,9 @@ module TexprTransformer = struct
 				assert false
 		and ordered_value_list bb el =
 			let might_be_affected,collect_modified_locals = Optimizer.create_affection_checker() in
-			let can_be_optimized e = match e.eexpr with
+			let rec can_be_optimized e = match e.eexpr with
 				| TBinop _ | TArray _ | TCall _ -> true
+				| TParenthesis e1 -> can_be_optimized e1
 				| _ -> false
 			in
 			let _,el = List.fold_left (fun (had_side_effect,acc) e ->
@@ -1732,6 +1736,148 @@ module ConstPropagation = DataFlow(struct
 		);
 end)
 
+
+module CodeMotion = DataFlow(struct
+	open Graph
+	open BasicBlock
+
+	let conditional = false
+	let flag = FlagCodeMotionDone
+
+	type t_def =
+		| Top
+		| Bottom
+		| Const of tconstant
+		| Local of tvar * BasicBlock.t
+		| Binop of binop * t * t
+
+	and t = (t_def * Type.t * pos)
+
+	let top = (Top,t_dynamic,null_pos)
+	let bottom = (Bottom,t_dynamic,null_pos)
+
+	let rec equals (lat1,_,_) (lat2,_,_) = match lat1,lat2 with
+		| Top,Top
+		| Bottom,Bottom ->
+			true
+		| Const ct1,Const ct2 ->
+			ct1 = ct2
+		| Local(v1,_),Local(v2,_) ->
+			v1 == v2
+		| Binop(op1,lat11,lat12),Binop(op2,lat21,lat22) ->
+			op1 = op2 && equals lat11 lat21 && equals lat12 lat22
+		| _ ->
+			false
+
+	let lattice = ref IntMap.empty
+
+	let get_cell i = try IntMap.find i !lattice with Not_found -> top
+	let set_cell i ct = lattice := IntMap.add i ct !lattice
+
+	let rec transfer ctx bb e =
+		let rec eval e = match e.eexpr with
+			| TConst ct ->
+				Const ct
+			| TLocal v ->
+				let bb_def = match IntMap.find v.v_id ctx.graph.g_var_writes with _,[bb] -> bb | _ -> raise Exit in
+				Local(v,bb_def)
+			| TBinop(op,e1,e2) ->
+				let lat1 = transfer ctx bb e1 in
+				let lat2 = transfer ctx bb e2 in
+				Binop(op,lat1,lat2)
+			| _ ->
+				raise Exit
+		in
+		try
+			(eval e,e.etype,e.epos)
+		with Exit | Not_found ->
+			bottom
+
+	let init ctx =
+		lattice := IntMap.empty
+
+	let commit ctx =
+		let rec s_lat (lat,_,_) = match lat with
+			| Top -> "Top"
+			| Bottom -> "Bottom"
+			| Const ct -> s_const ct
+			| Local(v,bb) -> Printf.sprintf "(%i) %s<%i>" bb.bb_id v.v_name v.v_id
+			| Binop(op,lat1,lat2) -> Printf.sprintf "%s %s %s" (s_lat lat1) (s_binop op) (s_lat lat2)
+		in
+		let rec filter_loops lat loops = match lat with
+			| Local(v,bb),_,_ ->
+				let loops2 = List.filter (fun i -> not (List.mem i bb.bb_loop_groups)) loops in
+				if loops2 = [] then filter_loops (get_cell v.v_id) loops else lat,loops2
+			| Const _,_,_ ->
+				lat,loops
+			| Binop(op,lat1,lat2),t,p ->
+				let lat1,loops = filter_loops lat1 loops in
+				let lat2,loops = filter_loops lat2 loops in
+				(Binop(op,lat1,lat2),t,p),loops
+			| _ ->
+				raise Exit
+		in
+		let rec to_texpr (lat,t,p) =
+			let def = match lat with
+				| Local(v,_) -> TLocal v
+				| Const ct -> TConst ct
+				| Binop(op,lat1,lat2) -> TBinop(op,to_texpr lat1,to_texpr lat2)
+				| _ -> raise Exit
+			in
+			{ eexpr = def; etype = t; epos = p }
+		in
+		let replace decl bb v =
+			let lat,t,p = get_cell v.v_id in
+			match lat with
+			| Binop(op,lat1,lat2) ->
+				let lat1,loops = filter_loops lat1 bb.bb_loop_groups in
+				let lat2,loops = filter_loops lat2 loops in
+				if loops = [] then raise Exit;
+				let lat = ((Binop(op,lat1,lat2)),t,p) in
+				let bb_loop_pre = IntMap.find (List.hd loops) ctx.graph.g_loops in
+				let v' = if decl then begin
+					set_cell v.v_id (Local(v,bb_loop_pre),t,p);
+					v
+				end else begin
+					let v' = alloc_var "tmp" v.v_type in
+					v'.v_meta <- [Meta.CompilerGenerated,[],p];
+					v'
+				end in
+				let e = to_texpr lat in
+				let ev' = mk (TLocal v') v'.v_type p in
+				let e = mk (TVar(v',Some e)) ctx.com.basic.tvoid p in
+				add_texpr ctx.graph bb_loop_pre e;
+				let ev = mk (TLocal v) v.v_type p in
+				if decl then begin
+					set_var_value ctx.graph v bb_loop_pre false (DynArray.length bb_loop_pre.bb_el - 1);
+					mk (TConst TNull) t p
+				end else
+					mk (TBinop(OpAssign,ev,ev')) t p
+			| _ ->
+				raise Exit
+		in
+		let rec commit bb e = match e.eexpr with
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+				begin try
+					replace false bb v
+				with Exit ->
+					{e with eexpr = TBinop(OpAssign,e1,commit bb e2)}
+				end
+			| TVar(v,Some e1) when Meta.has Meta.CompilerGenerated v.v_meta ->
+				begin try
+					replace true bb v
+				with Exit ->
+					{e with eexpr = TVar(v,Some (commit bb e1))}
+				end
+			| _ ->
+				Type.map_expr (commit bb) e
+		in
+		Graph.iter_dom_tree ctx.graph (fun bb ->
+			if bb.bb_loop_groups <> [] then dynarray_map (commit bb) bb.bb_el
+		);
+end)
+
+
 (*
 	LocalDce implements a mark & sweep dead code elimination. The mark phase follows the CFG edges of the graphs to find
 	variable usages and marks variables accordingly. If ConstPropagation was run before, only CFG edges which are
@@ -1861,6 +2007,7 @@ module Debug = struct
 		let s_edge_flag = function
 			| FlagExecutable -> "executable"
 			| FlagDceDone -> "dce-done"
+			| FlagCodeMotionDone -> "code-motion-done"
 		in
 		let label = label ^ match edge.cfg_flags with
 			| [] -> ""
@@ -2018,6 +2165,7 @@ module Run = struct
 			if not ctx.has_unbound then begin
 				with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
 				if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
+				CodeMotion.apply ctx;
 				with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
 			end;
 			if config.dot_debug then Debug.dot_debug ctx c cf;
