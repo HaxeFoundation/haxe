@@ -134,6 +134,7 @@ module Config = struct
 		analyzer_use : bool;
 		const_propagation : bool;
 		copy_propagation : bool;
+		code_motion : bool;
 		local_dce : bool;
 		dot_debug : bool;
 	}
@@ -143,6 +144,8 @@ module Config = struct
 	let flag_const_propagation = "const_propagation"
 	let flag_no_copy_propagation = "no_copy_propagation"
 	let flag_copy_propagation = "copy_propagation"
+	let flag_code_motion = "code_motion"
+	let flag_no_code_motion = "no_code_motion"
 	let flag_no_local_dce = "no_local_dce"
 	let flag_local_dce = "local_dce"
 	let flag_ignore = "ignore"
@@ -198,6 +201,7 @@ module Config = struct
 			analyzer_use = true;
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 			copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
+			code_motion = Common.raw_defined com "analyzer-code-motion";
 			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 			dot_debug = false;
 		}
@@ -210,6 +214,8 @@ module Config = struct
 					| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
 					| EConst (Ident s) when s = flag_no_copy_propagation -> { config with copy_propagation = false}
 					| EConst (Ident s) when s = flag_copy_propagation -> { config with copy_propagation = true}
+					| EConst (Ident s) when s = flag_no_code_motion -> { config with code_motion = false}
+					| EConst (Ident s) when s = flag_code_motion -> { config with code_motion = true}
 					| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
 					| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
 					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
@@ -2296,7 +2302,7 @@ module Run = struct
 				with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
 				if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
 				if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
-				(* CodeMotion.apply ctx; *)
+				if config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply ctx);
 				with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
 			end;
 			if config.dot_debug then Debug.dot_debug ctx c cf;
