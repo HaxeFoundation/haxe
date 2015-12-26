@@ -849,7 +849,7 @@ and gen__init__hoist ctx e =
 				    | [] -> ()
 				    | e :: _ -> gen__init__hoist ctx e)
 		    |_->());
-	| _ -> ();
+	| _ -> ()
     end
 
 and gen__init__impl ctx e =
@@ -1460,7 +1460,7 @@ let generate_class ctx c =
 			let props = Codegen.get_properties c.cl_ordered_fields in
 			(match c.cl_super with
 			| _ when props = [] -> ()
-			| _ -> 
+			| _ ->
 				newprop ctx;
 				print ctx "__properties__ =  {%s}" (gen_props props));
 		end;
@@ -1540,18 +1540,24 @@ let generate_enum ctx e =
 		) e.e_names in
 		print ctx "%s.__empty_constructs__ = {%s}" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		newline ctx
-	end;
-	match Codegen.build_metadata ctx.com (TEnumDecl e) with
-	| None -> ()
-	| Some e ->
-		print ctx "%s.__meta__ = " p;
-		gen_expr ctx e;
-		newline ctx
+	end
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
 	gen_value ctx e;
 	newline ctx
+
+let generate_enumMeta_fields ctx = function
+    | TEnumDecl e -> begin
+	    let p = s_path ctx e.e_path in
+	    match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	| None -> ()
+	| Some e ->
+		print ctx "%s.__meta__ = " p;
+		gen_expr ctx e;
+		newline ctx
+	end
+    | _ -> ()
 
 let generate_require ctx c =
 	let _, args, mp = Meta.get Meta.LuaRequire c.cl_meta in
@@ -1721,6 +1727,10 @@ let generate com =
 	spr ctx "--[[ begin __init__impl --]]"; newline ctx;
 	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
 	spr ctx "--[[ end __init__impl --]]"; newline ctx;
+
+	spr ctx "--[[ begin __enumMeta__fields --]]"; newline ctx;
+	List.iter (generate_enumMeta_fields ctx) com.types;
+	spr ctx "--[[ end __enumMeta__fields --]]"; newline ctx;
 
 	spr ctx "--[[ begin static fields --]]"; newline ctx;
 	List.iter (generate_static ctx) (List.rev ctx.statics);
