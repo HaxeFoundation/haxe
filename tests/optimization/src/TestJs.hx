@@ -428,6 +428,20 @@ class TestJs {
 		use(a);
 	}
 
+	@:js('
+		TestJs.getInt();
+		if(TestJs.getInt() != 0) throw new js__$Boot_HaxeError("meh");
+	')
+	static function testIfInvert() {
+		var tmp;
+		var tmp2 = getInt();
+		if (getInt() == 0) {
+			tmp = tmp2;
+		} else {
+			throw "meh";
+		}
+	}
+
 	static function getInt(?d:Dynamic) { return 1; }
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	static function use<T>(t:T) { }

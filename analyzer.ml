@@ -432,7 +432,13 @@ module TexprFilter = struct
 			| TUnop(Not,Prefix,e1),TConst (TBool true) -> {e with eexpr = TBinop(OpBoolOr,e1,e2)}
 			| _,TConst (TBool false) -> {e with eexpr = TBinop(OpBoolAnd,e1,e2)}
 			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
-			| _ -> {e with eexpr = TIf(e1,e2,Some e3)}
+			| _ -> match (skip e2).eexpr with
+				| TBlock [] ->
+					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
+					let e1' = Optimizer.optimize_unop e1' Not Prefix e1 in
+					{e with eexpr = TIf(e1',e3,None)}
+				| _ ->
+					{e with eexpr = TIf(e1,e2,Some e3)}
 		in
 		let rec loop e = match e.eexpr with
 			| TIf(e1,e2,Some e3) ->

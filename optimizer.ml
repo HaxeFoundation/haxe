@@ -1206,6 +1206,21 @@ let optimize_binop e op e1 e2 =
 let optimize_unop e op flag esub =
 	match op, esub.eexpr with
 		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
+		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
+			begin try
+				let op = match op with
+					| OpGt -> OpLte
+					| OpGte -> OpLt
+					| OpLt -> OpGte
+					| OpLte -> OpGt
+					| OpEq -> OpNotEq
+					| OpNotEq -> OpEq
+					| _ -> raise Exit
+				in
+				{e with eexpr = TBinop(op,e1,e2)}
+			with Exit ->
+				e
+			end
 		| Neg, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
 		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
 		| Neg, TConst (TFloat f) ->
