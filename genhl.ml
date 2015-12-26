@@ -170,8 +170,10 @@ type opcode =
 	| ODynGet of reg * reg * string index
 	| ODynSet of reg * string index * reg
 	| OMakeEnum of reg * field index * reg list
+	| OEnumAlloc of reg * field index
 	| OEnumIndex of reg * reg
 	| OEnumField of reg * reg * field index * int
+	| OSetEnumField of reg * int * reg
 	| OSwitch of reg * int array
 	| ONullCheck of reg
 
@@ -201,10 +203,18 @@ type ('a,'b) lookup = {
 	mutable map : ('a, int) PMap.t;
 }
 
+type method_capture = {
+	c_map : (int, int) PMap.t;
+	c_vars : tvar array;
+	mutable c_type : ttype;
+	mutable c_reg : int;
+}
+
 type method_context = {
 	mregs : (int, ttype) lookup;
 	mops : opcode DynArray.t;
 	mret : ttype;
+	mutable mcaptured : method_capture;
 	mutable mcontinues : (int -> unit) list;
 	mutable mbreaks : (int -> unit) list;
 }
@@ -246,6 +256,7 @@ type access =
 	| AVirtualMethod of texpr * field index
 	| ADynamic of texpr * string index
 	| AEnum of field index
+	| ACaptured of field index
 
 let list_iteri f l =
 	let p = ref 0 in
@@ -346,6 +357,18 @@ let new_lookup() =
 		map = PMap.empty;
 	}
 
+let null_proto =
+	{
+		pname = "";
+		pid = 0;
+		psuper = None;
+		pvirtuals = [||];
+		pproto = [||];
+		pfields = [||];
+		pindex = PMap.empty;
+		pfunctions = PMap.empty;
+	}
+
 let lookup l v fb =
 	try
 		PMap.find v l.map
@@ -356,13 +379,14 @@ let lookup l v fb =
 		DynArray.set l.arr id (fb());
 		id
 
-let method_context t =
+let method_context t captured =
 	{
 		mregs = new_lookup();
 		mops = DynArray.create();
 		mret = t;
 		mbreaks = [];
 		mcontinues = [];
+		mcaptured = captured;
 	}
 
 let field_name c f =
@@ -762,7 +786,10 @@ and get_access ctx e =
 			AEnum ef.ef_index
 		)
 	| TLocal v ->
-		ALocal (alloc_reg ctx v)
+		if v.v_capture then
+			ACaptured (try PMap.find v.v_id ctx.m.mcaptured.c_map with Not_found -> assert false)
+		else
+			ALocal (alloc_reg ctx v)
 	| TParenthesis e ->
 		get_access ctx e
 	| TArray (a,i) ->
@@ -848,6 +875,15 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (ONull r);
 			r)
+	| TVar (v,e) when v.v_capture ->
+		(match e with
+		| None -> ()
+		| Some e ->
+			let index = (try PMap.find v.v_id ctx.m.mcaptured.c_map with Not_found -> assert false) in
+			let ri = eval_to ctx e (to_type ctx v.v_type) in
+			op ctx (OSetEnumField (ctx.m.mcaptured.c_reg, index, ri));
+		);
+		alloc_tmp ctx HVoid
 	| TVar (v,e) ->
 		let r = alloc_reg ctx v in
 		(match e with
@@ -855,6 +891,11 @@ and eval_expr ctx e =
 		| Some e ->
 			let ri = eval_to ctx e (rtype ctx r) in
 			op ctx (OMov (r,ri)));
+		alloc_tmp ctx HVoid
+	| TLocal v when v.v_capture ->
+		let index = (try PMap.find v.v_id ctx.m.mcaptured.c_map with Not_found -> assert false) in
+		let r = alloc_tmp ctx (to_type ctx v.v_type) in
+		op ctx (OEnumField (r, ctx.m.mcaptured.c_reg, 0, index));
 		r
 	| TLocal v ->
 		alloc_reg ctx v
@@ -1064,7 +1105,7 @@ and eval_expr ctx e =
 			op ctx (ODynGet (r,robj,f))
 		| AEnum index ->
 			op ctx (OMakeEnum (r,index,[]))
-		| ANone | ALocal _ | AArray _ ->
+		| ANone | ALocal _ | AArray _ | ACaptured _ ->
 			error "Invalid access" e.epos);
 		r
 	| TObjectDecl o ->
@@ -1263,6 +1304,8 @@ and eval_expr ctx e =
 				let r = eval_expr ctx e2 in
 				op ctx (ODynSet (obj,f,r));
 				r
+			| ACaptured index ->
+				assert false
 			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				assert false)
 		| OpBoolOr ->
@@ -1374,9 +1417,12 @@ and eval_expr ctx e =
 		);
 	| TFunction f ->
 		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfunctions)) in
-		make_fun ctx fid f None;
+		let is_closure = make_fun ctx fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
-		op ctx (OGetFunction (r, fid));
+		if is_closure then
+			op ctx (OClosure (r, fid, ctx.m.mcaptured.c_reg))
+		else
+			op ctx (OGetFunction (r, fid));
 		r
 	| TThrow v ->
 		op ctx (OThrow (eval_to ctx v (HDyn None)));
@@ -1578,9 +1624,60 @@ and eval_expr ctx e =
 	| TTypeExpr _ | TTry _ | TCast (_,Some _) ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
-and make_fun ctx fidx f cthis =
+and build_capture_vars ctx f =
+	let ignored_vars = ref PMap.empty in
+	let used_vars = ref PMap.empty in
+	(* get all captured vars in scope, ignore vars that are declared in sub functions *)
+	let rec loop in_fun e =
+		let in_fun = ref in_fun in
+		let decl_var v =
+			if v.v_capture && !in_fun then ignored_vars := PMap.add v.v_id () !ignored_vars
+		in
+		let use_var v =
+			if v.v_capture then used_vars := PMap.add v.v_id v !used_vars
+		in
+		(match e.eexpr with
+		| TLocal v ->
+			use_var v;
+		| TVar (v,_) ->
+			decl_var v
+		| TTry (_,catches) ->
+			List.iter (fun (v,_) -> decl_var v) catches
+		| TFunction f ->
+			in_fun := true;
+			List.iter (fun (v,_) -> decl_var v) f.tf_args;
+		| _ ->
+			()
+		);
+		Type.iter (loop !in_fun) e
+	in
+	loop false f.tf_expr;
+	let cvars = Array.of_list (PMap.fold (fun v acc -> if PMap.mem v.v_id !ignored_vars then acc else v :: acc) !used_vars []) in
+	Array.sort (fun v1 v2 -> v1.v_id - v2.v_id) cvars;
+	let indexes = ref PMap.empty in
+	Array.iteri (fun i v -> indexes := PMap.add v.v_id i !indexes) cvars;
+	{
+		c_map = !indexes;
+		c_vars = cvars;
+		c_type = HEnum {
+			ename = "";
+			eid = 0;
+			efields = [|"",0,Array.map (fun v -> to_type ctx v.v_type) cvars|];
+		};
+		c_reg = 0;
+	}
+
+and make_fun ctx fidx f cthis cparent =
 	let old = ctx.m in
-	ctx.m <- method_context (to_type ctx f.tf_type);
+	let capt = build_capture_vars ctx f in
+	let has_captured_vars = Array.length capt.c_vars > 0 in
+	let capt, use_parent_capture = (match cparent with
+		| Some cparent when has_captured_vars && List.for_all (fun v -> PMap.mem v.v_id cparent.c_map) (Array.to_list capt.c_vars) -> cparent, true
+		| _ -> capt, false
+	) in
+
+	ctx.m <- method_context (to_type ctx f.tf_type) capt;
+
 	let tthis = (match cthis with
 	| None -> None
 	| Some c ->
@@ -1588,7 +1685,25 @@ and make_fun ctx fidx f cthis =
 		ignore(alloc_tmp ctx t); (* index 0 *)
 		Some t
 	) in
+
+	let rcapt = (match cparent with
+		| None -> None
+		| Some cparent ->
+			if List.exists (fun v -> PMap.mem v.v_id capt.c_map) (Array.to_list cparent.c_vars) then Some (alloc_tmp ctx cparent.c_type) else None
+	) in
+
 	let args = List.map (fun (v,o) ->
+		let r = alloc_reg ctx v in
+		rtype ctx r
+	) f.tf_args in
+
+	if has_captured_vars && not use_parent_capture then begin
+		let r = alloc_tmp ctx capt.c_type in
+		capt.c_reg <- r;
+		op ctx (OEnumAlloc (r,0));
+	end;
+
+	List.iter (fun (v, o) ->
 		let r = alloc_reg ctx v in
 		(match o with
 		| None | Some TNull -> ()
@@ -1601,8 +1716,12 @@ and make_fun ctx fidx f cthis =
 			| TBool b -> op ctx (OBool (r, b))
 			| TString s -> assert false (* TODO *)
 		);
-		rtype ctx r
-	) f.tf_args in
+		if v.v_capture then begin
+			let index = (try PMap.find v.v_id capt.c_map with Not_found -> assert false) in
+			op ctx (OSetEnumField (capt.c_reg, index, r));
+		end
+	) f.tf_args;
+
 	ignore(eval_expr ctx f.tf_expr);
 	let tret = to_type ctx f.tf_type in
 	let rec has_final_jump e =
@@ -1622,15 +1741,17 @@ and make_fun ctx fidx f cthis =
 		| _ -> op ctx (ONull r));
 		op ctx (ORet r)
 	end;
+	let fargs = (match tthis with None -> [] | Some t -> [t]) @ (match rcapt with None -> [] | Some r -> [rtype ctx r]) @ args in
 	let f = {
 		findex = fidx;
-		ftype = HFun ((match tthis with None -> args | Some t -> t :: args), tret);
+		ftype = HFun (fargs, tret);
 		regs = DynArray.to_array ctx.m.mregs.arr;
 		code = DynArray.to_array ctx.m.mops;
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	DynArray.add ctx.cfunctions f
+	DynArray.add ctx.cfunctions f;
+	rcapt <> None
 
 let generate_static ctx c f =
 	match f.cf_kind with
@@ -1647,7 +1768,7 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				error "Invalid @:hlNative decl" p
 			| [] ->
-				make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None
+				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -1658,7 +1779,7 @@ let generate_member ctx c f =
 	match f.cf_kind with
 	| Var _ -> ()
 	| Method m ->
-		make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) (Some c);
+		ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -1666,7 +1787,7 @@ let generate_member ctx c f =
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,List.map snd c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
 			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> assert false) with Not_found -> assert false) in
 			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
-			make_fun ctx (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c)
+			ignore(make_fun ctx (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
 
 let generate_enum ctx e =
@@ -1723,7 +1844,7 @@ let generate_static_init ctx =
 			assert false
 	);
 	let fid = alloc_function_name ctx "<entry>" in
-	make_fun ctx fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None;
+	ignore(make_fun ctx fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None None);
 	fid
 
 
@@ -2040,6 +2161,12 @@ let check code =
 					List.iter2 (fun r t -> reg r t) pl (Array.to_list fl)
 				| _ ->
 					is_enum r)
+			| OEnumAlloc (r,index) ->
+				(match rtype r with
+				| HEnum e ->
+					ignore(e.efields.(index))
+				| _ ->
+					is_enum r)
 			| OEnumIndex (r,v) ->
 				is_enum v;
 				reg r HI32;
@@ -2047,7 +2174,13 @@ let check code =
 				(match rtype e with
 				| HEnum e ->
 					let _, _, tl = e.efields.(f) in
-					check tl.(i) (rtype r)
+					check (rtype r) tl.(i)
+				| _ -> is_enum e)
+			| OSetEnumField (e,i,r) ->
+				(match rtype e with
+				| HEnum e ->
+					let _, _, tl = e.efields.(0) in
+					check (rtype r) tl.(i)
 				| _ -> is_enum e)
 			| OSwitch (r,idx) ->
 				reg r HI32;
@@ -2608,6 +2741,14 @@ let interp code =
 					assert false)
 			| OMakeEnum (r,e,pl) ->
 				set r (VEnum (e,Array.map get (Array.of_list pl)))
+			| OEnumAlloc (r,f) ->
+				(match rtype r with
+				| HEnum e ->
+					let _, _, fl = e.efields.(f) in
+					let vl = Array.create (Array.length fl) VUndef in
+					set r (VEnum (f, vl))
+				| _ -> assert false
+				)
 			| OEnumIndex (r,v) ->
 				(match get v with
 				| VEnum (i,_) -> set r (VInt (Int32.of_int i))
@@ -2615,6 +2756,10 @@ let interp code =
 			| OEnumField (r, v, _, i) ->
 				(match get v with
 				| VEnum (_,vl) -> set r vl.(i)
+				| _ -> assert false)
+			| OSetEnumField (v, i, r) ->
+				(match get v with
+				| VEnum (_,vl) -> vl.(i) <- get r
 				| _ -> assert false)
 			| OSwitch (r, indexes) ->
 				(match get r with
@@ -3060,8 +3205,10 @@ let ostr o =
 	| ODynGet (r,o,f) -> Printf.sprintf "dynget %d,%d[@%d]" r o f
 	| ODynSet (o,f,v) -> Printf.sprintf "dynset %d[@%d],%d" o f v
 	| OMakeEnum (r,e,pl) -> Printf.sprintf "makeenum %d, %d(%s)" r e (String.concat "," (List.map string_of_int pl))
+	| OEnumAlloc (r,e) -> Printf.sprintf "enumalloc %d, %d" r e
 	| OEnumIndex (r,e) -> Printf.sprintf "enumindex %d, %d" r e
 	| OEnumField (r,e,i,n) -> Printf.sprintf "enumfield %d, %d[%d:%d]" r e i n
+	| OSetEnumField (e,i,r) -> Printf.sprintf "setenumfield %d[%d], %d" e i r
 	| OSwitch (r,idx) -> Printf.sprintf "switch %d [%s]" r (String.concat "," (Array.to_list (Array.map string_of_int idx)))
 	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
 
@@ -3148,7 +3295,7 @@ let generate com =
 	in
 	let ctx = {
 		com = com;
-		m = method_context HVoid;
+		m = method_context HVoid { c_reg = 0; c_vars = [||]; c_map = PMap.empty; c_type = HVoid; };
 		cints = new_lookup();
 		cstrings = new_lookup();
 		cfloats = new_lookup();
