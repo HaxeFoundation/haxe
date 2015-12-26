@@ -1972,6 +1972,7 @@ module CodeMotion = DataFlow(struct
 			in
 			{ eexpr = def; etype = t; epos = p }
 		in
+		let cache = ref IntMap.empty in
 		let replace decl bb v =
 			let lat,t,p = get_cell v.v_id in
 			match lat with
@@ -1981,24 +1982,32 @@ module CodeMotion = DataFlow(struct
 				if loops = [] || not (has_local1 || has_local2) then raise Exit;
 				let lat = ((Binop(op,lat1,lat2)),t,p) in
 				let bb_loop_pre = IntMap.find (List.hd loops) ctx.graph.g_loops in
-				let v' = if decl then begin
-					set_cell v.v_id (Local(v,bb_loop_pre),t,p);
-					v
-				end else begin
-					let v' = alloc_var "tmp" v.v_type in
-					v'.v_meta <- [Meta.CompilerGenerated,[],p];
-					v'
-				end in
-				let e = to_texpr lat in
-				let ev' = mk (TLocal v') v'.v_type p in
-				let e = mk (TVar(v',Some e)) ctx.com.basic.tvoid p in
-				add_texpr ctx.graph bb_loop_pre e;
-				let ev = mk (TLocal v) v.v_type p in
+				let ev' = try
+					let l = IntMap.find bb_loop_pre.bb_id !cache in
+					snd (List.find (fun (lat',e) -> equals lat lat') l)
+				with Not_found ->
+					let v' = if decl then begin
+						set_cell v.v_id (Local(v,bb_loop_pre),t,p);
+						v
+					end else begin
+						let v' = alloc_var "tmp" v.v_type in
+						v'.v_meta <- [Meta.CompilerGenerated,[],p];
+						v'
+					end in
+					let e = to_texpr lat in
+					let ev' = mk (TLocal v') v'.v_type p in
+					let e = mk (TVar(v',Some e)) ctx.com.basic.tvoid p in
+					add_texpr ctx.graph bb_loop_pre e;
+					cache := IntMap.add bb_loop_pre.bb_id ((lat,ev') :: try IntMap.find bb_loop_pre.bb_id !cache with Not_found -> []) !cache;
+					ev'
+				in
 				if decl then begin
 					set_var_value ctx.graph v bb_loop_pre false (DynArray.length bb_loop_pre.bb_el - 1);
 					mk (TConst TNull) t p
-				end else
+				end else begin
+					let ev = mk (TLocal v) v.v_type p in
 					mk (TBinop(OpAssign,ev,ev')) t p
+				end
 			| _ ->
 				raise Exit
 		in

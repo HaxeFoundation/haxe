@@ -394,6 +394,28 @@ class TestJs {
 
 	@:js('
 		var a = TestJs.getInt();
+		var b = TestJs.getInt();
+		var x;
+		var tmp = a + b;
+		while(a != b) {
+			x = tmp;
+			TestJs["use"](x);
+			TestJs["use"](x);
+		}
+	')
+	static function testCodeMotion5() {
+		var a = getInt();
+		var b = getInt();
+		var x;
+		while (a != b) {
+			x = a + b;
+			use(x);
+			use(x);
+		}
+	}
+
+	@:js('
+		var a = TestJs.getInt();
 		TestJs["use"](a);
 	')
 	static function testCopyPropagation1() {
