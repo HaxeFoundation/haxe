@@ -504,8 +504,8 @@ module BasicBlock = struct
 
 	type cfg_edge_Flag =
 		| FlagExecutable      (* Used by constant propagation to handle live edges *)
-		| FlagDceDone         (* Used by DCE to keep track of handled edges *)
-		| FlagCodeMotionDone  (* Used by code motion to track handled edges *)
+		| FlagDce             (* Used by DCE to keep track of handled edges *)
+		| FlagCodeMotion      (* Used by code motion to track handled edges *)
 		| FlagCopyPropagation (* Used by copy propagation to track handled eges *)
 
 	type cfg_edge_kind =
@@ -1884,9 +1884,8 @@ module CodeMotion = DataFlow(struct
 	open BasicBlock
 
 	let conditional = false
-	let flag = FlagCodeMotionDone
-
-	type t_def =
+	let flag = FlagCodeMotion
+     	type t_def =
 		| Top
 		| Bottom
 		| Const of tconstant
@@ -2085,8 +2084,8 @@ module LocalDce = struct
 			DynArray.iter expr bb.bb_el;
 			DynArray.iter expr bb.bb_phi;
 			List.iter (fun edge ->
-				if not (has_flag edge FlagDceDone) then begin
-					edge.cfg_flags <- FlagDceDone :: edge.cfg_flags;
+				if not (has_flag edge FlagDce) then begin
+					edge.cfg_flags <- FlagDce :: edge.cfg_flags;
 					if not ctx.config.const_propagation || has_flag edge FlagExecutable then
 						mark edge.cfg_from;
 				end
@@ -2149,10 +2148,10 @@ module Debug = struct
 			| CFGCondElse -> "else"
 		in
 		let s_edge_flag = function
-			| FlagExecutable -> "executable"
-			| FlagDceDone -> "dce-done"
-			| FlagCodeMotionDone -> "code-motion-done"
-			| FlagCopyPropagation -> "copy-propagation"
+			| FlagExecutable -> "exe"
+			| FlagDce -> "dce"
+			| FlagCodeMotion -> "motion"
+			| FlagCopyPropagation -> "copy"
 		in
 		let label = label ^ match edge.cfg_flags with
 			| [] -> ""
