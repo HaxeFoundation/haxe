@@ -45,6 +45,7 @@ class TestJs {
 
 	@:js("var a = 1;var tmp;var v2 = a;tmp = a + v2;tmp;")
 	@:analyzer(no_const_propagation)
+	@:analyzer(no_copy_propagation)
 	@:analyzer(no_check_has_effect)
 	@:analyzer(no_local_dce)
 	static function testInlineWithArgumentUsedMoreThanOnce() {
@@ -88,7 +89,7 @@ class TestJs {
 	}
 
 	@:js('var a = "";var e;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":e = 0;break;default:throw new Error();}')
-	@:analyzer(no_const_propagation, no_local_dce)
+	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
 		var e = switch (a) {
@@ -388,6 +389,42 @@ class TestJs {
 			x = a + b + b;
 			use(x);
 		}
+	}
+
+	@:js('
+		var a = TestJs.getInt();
+		TestJs["use"](a);
+	')
+	static function testCopyPropagation1() {
+		var a = getInt();
+		var b = a;
+		use(b);
+	}
+
+	@:js('
+		var a = TestJs.getInt();
+		var b = a;
+		a = TestJs.getInt();
+		TestJs["use"](b);
+	')
+	static function testCopyPropagation2() {
+		var a = getInt();
+		var b = a;
+		a = getInt();
+		use(b);
+	}
+
+	@:js('
+		var b = TestJs.getInt();
+		TestJs["use"](b);
+	')
+	static function testCopyPropagation3() {
+		var a;
+		{
+			var b = getInt();
+			a = b;
+		}
+		use(a);
 	}
 
 	static function getInt(?d:Dynamic) { return 1; }

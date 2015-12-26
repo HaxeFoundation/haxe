@@ -133,6 +133,7 @@ module Config = struct
 	type t = {
 		analyzer_use : bool;
 		const_propagation : bool;
+		copy_propagation : bool;
 		local_dce : bool;
 		dot_debug : bool;
 	}
@@ -140,6 +141,8 @@ module Config = struct
 	let flag_no_check = "no_check"
 	let flag_no_const_propagation = "no_const_propagation"
 	let flag_const_propagation = "const_propagation"
+	let flag_no_copy_propagation = "no_copy_propagation"
+	let flag_copy_propagation = "copy_propagation"
 	let flag_no_local_dce = "no_local_dce"
 	let flag_local_dce = "local_dce"
 	let flag_ignore = "ignore"
@@ -194,6 +197,7 @@ module Config = struct
 		{
 			analyzer_use = true;
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
+			copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 			dot_debug = false;
 		}
@@ -204,6 +208,8 @@ module Config = struct
 				List.fold_left (fun config e -> match fst e with
 					| EConst (Ident s) when s = flag_no_const_propagation -> { config with const_propagation = false}
 					| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
+					| EConst (Ident s) when s = flag_no_copy_propagation -> { config with copy_propagation = false}
+					| EConst (Ident s) when s = flag_copy_propagation -> { config with copy_propagation = true}
 					| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
 					| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
 					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
@@ -485,9 +491,10 @@ module BasicBlock = struct
 		| BKUnreachable   (* The unique unreachable block *)
 
 	type cfg_edge_Flag =
-		| FlagExecutable     (* Used by constant propagation to handle live edges *)
-		| FlagDceDone    (* Used by DCE to keep track of handled edges *)
-		| FlagCodeMotionDone (* Used by code motion to track handled edges *)
+		| FlagExecutable      (* Used by constant propagation to handle live edges *)
+		| FlagDceDone         (* Used by DCE to keep track of handled edges *)
+		| FlagCodeMotionDone  (* Used by code motion to track handled edges *)
+		| FlagCopyPropagation (* Used by copy propagation to track handled eges *)
 
 	type cfg_edge_kind =
 		| CFGGoto                (* An unconditional branch *)
@@ -894,7 +901,6 @@ module TexprTransformer = struct
 			let assign e =
 				if not !was_assigned then begin
 					was_assigned := true;
-					add_var_def g bb v;
 					add_texpr g bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
 				end;
 				mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
@@ -904,6 +910,7 @@ module TexprTransformer = struct
 				block_element bb e
 			with Exit ->
 				let bb,e = value bb e in
+				add_var_def g bb v;
 				add_texpr g bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
 				bb
 			end;
@@ -1472,13 +1479,13 @@ module type DataFlowApi = sig
 	type t
 	val flag : BasicBlock.cfg_edge_Flag
 	val transfer : analyzer_context -> BasicBlock.t -> texpr -> t (* The transfer function *)
-	val equals : t -> t -> bool                                 (* The equality function *)
-	val bottom : t                                              (* The bottom element of the lattice *)
-	val top : t                                                 (* The top element of the lattice *)
-	val get_cell : int -> t                                     (* Lattice cell getter *)
-	val set_cell : int -> t -> unit                             (* Lattice cell setter *)
-	val init : analyzer_context -> unit                         (* The initialization function which is called at the start *)
-	val commit : analyzer_context -> unit                       (* The commit function which is called at the end *)
+	val equals : t -> t -> bool                                   (* The equality function *)
+	val bottom : t                                                (* The bottom element of the lattice *)
+	val top : t                                                   (* The top element of the lattice *)
+	val get_cell : int -> t                                       (* Lattice cell getter *)
+	val set_cell : int -> t -> unit                               (* Lattice cell setter *)
+	val init : analyzer_context -> unit                           (* The initialization function which is called at the start *)
+	val commit : analyzer_context -> unit                         (* The commit function which is called at the end *)
 	val conditional : bool                                        (* Whether or not conditional branches are checked *)
 end
 
@@ -1763,6 +1770,99 @@ module ConstPropagation = DataFlow(struct
 		);
 end)
 
+(*
+	Propagates locals to other locals if data flow analysis it's possible.
+
+	Respects scopes on targets where it matters (all except JS and As3).
+*)
+module CopyPropagation = DataFlow(struct
+	open BasicBlock
+	open Graph
+
+	type t =
+		| Top
+		| Bottom
+		| Local of (BasicBlock.t * tvar)
+
+	let to_string = function
+		| Top -> "Top"
+		| Bottom -> "Bottom"
+		| Local(bb,v) -> Printf.sprintf "%s<%i>" v.v_name v.v_id
+
+	let conditional = false
+	let flag = FlagCopyPropagation
+	let lattice = ref IntMap.empty
+
+	let get_cell i = try IntMap.find i !lattice with Not_found -> Top
+	let set_cell i ct = lattice := IntMap.add i ct !lattice
+
+	let top = Top
+	let bottom = Bottom
+
+	let equals t1 t2 = match t1,t2 with
+		| Top,Top -> true
+		| Bottom,Bottom -> true
+		| Local(_,v1),Local(_,v2) -> v1.v_id = v2.v_id
+		| _ -> false
+
+	let transfer ctx bb e =
+		let local bb v = try
+			begin match get_cell v.v_id with
+				| Bottom -> raise Not_found
+				| t -> t
+			end
+		with Not_found ->
+			Local(bb,v)
+		in
+		let rec loop e = match e.eexpr with
+			| TLocal v when not v.v_capture ->
+				let v' = get_var_origin ctx.graph v in
+				(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
+				   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
+				   considering variables whose origin-variables are assigned to at most once. *)
+				let writes = try snd (IntMap.find v'.v_id ctx.graph.g_var_writes) with Not_found -> [] in
+				begin match writes with
+					| [bb] -> local bb v
+					| _ -> Bottom
+				end
+			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
+				loop e1
+			| _ ->
+				Bottom
+		in
+		loop e
+
+	let init ctx =
+		lattice := IntMap.empty
+
+	let commit ctx =
+		(* We don't care about the scope on JS and AS3 because they hoist var declarations. *)
+		let in_scope bb bb' = match ctx.com.platform with
+			| Js _ -> true
+			| Flash when Common.defined ctx.com Define.As3 -> true
+			| _ -> List.mem (List.hd bb'.bb_scopes) bb.bb_scopes
+		in
+		let rec commit bb e = match e.eexpr with
+			| TLocal v when not v.v_capture ->
+				begin try
+					let ct = IntMap.find v.v_id !lattice in
+					begin match ct with
+						| Local(bb',v') when in_scope bb bb' && (type_iseq_strict v.v_type v'.v_type) -> {e with eexpr = TLocal v'}
+						| _ -> raise Not_found
+					end
+				with Not_found ->
+					e
+				end
+			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal _} as e1),e2) ->
+				let e2 = commit bb e2 in
+				{e with eexpr = TBinop(op,e1,e2)}
+			| _ ->
+				Type.map_expr (commit bb) e
+		in
+		Graph.iter_dom_tree ctx.graph (fun bb ->
+			dynarray_map (commit bb) bb.bb_el
+		);
+end)
 
 module CodeMotion = DataFlow(struct
 	open Graph
@@ -2037,6 +2137,7 @@ module Debug = struct
 			| FlagExecutable -> "executable"
 			| FlagDceDone -> "dce-done"
 			| FlagCodeMotionDone -> "code-motion-done"
+			| FlagCopyPropagation -> "copy-propagation"
 		in
 		let label = label ^ match edge.cfg_flags with
 			| [] -> ""
@@ -2194,7 +2295,8 @@ module Run = struct
 			if not ctx.has_unbound then begin
 				with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
 				if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
-				CodeMotion.apply ctx;
+				if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
+				(* CodeMotion.apply ctx; *)
 				with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
 			end;
 			if config.dot_debug then Debug.dot_debug ctx c cf;
