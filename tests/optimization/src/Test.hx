@@ -136,7 +136,7 @@ class Test {
 	}
 
 	@:js('
-		var s = "" + "a";
+		var s = "a";
 	')
 	static function testAbstractOverStringBinop() {
 		var s = "" + A;
