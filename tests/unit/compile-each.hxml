@@ -6,3 +6,4 @@
 -resource res2.bin@re/s?!%[]))("'1.bin
 -dce full
 -D analyzer
+-D analyzer-code-motion

@@ -1768,6 +1768,9 @@ module ConstPropagation = DataFlow(struct
 			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal v} as e1),e2) ->
 				let e2 = try inline e2 v.v_id with Not_found -> commit e2 in
 				{e with eexpr = TBinop(op,e1,e2)}
+			| TVar(v,Some e1) ->
+				let e1 = try inline e1 v.v_id with Not_found -> commit e1 in
+				{e with eexpr = TVar(v,Some e1)}
 			| _ ->
 				Type.map_expr commit e
 		in
@@ -1940,13 +1943,13 @@ module CodeMotion = DataFlow(struct
 		let rec filter_loops lat loops = match lat with
 			| Local(v,bb),_,_ ->
 				let loops2 = List.filter (fun i -> not (List.mem i bb.bb_loop_groups)) loops in
-				if loops2 = [] then filter_loops (get_cell v.v_id) loops else lat,loops2
+				if loops2 = [] then filter_loops (get_cell v.v_id) loops else true,lat,loops2
 			| Const _,_,_ ->
-				lat,loops
+				false,lat,loops
 			| Binop(op,lat1,lat2),t,p ->
-				let lat1,loops = filter_loops lat1 loops in
-				let lat2,loops = filter_loops lat2 loops in
-				(Binop(op,lat1,lat2),t,p),loops
+				let has_local1,lat1,loops = filter_loops lat1 loops in
+				let has_local2,lat2,loops = filter_loops lat2 loops in
+				has_local1 || has_local2,(Binop(op,lat1,lat2),t,p),loops
 			| _ ->
 				raise Exit
 		in
@@ -1963,9 +1966,9 @@ module CodeMotion = DataFlow(struct
 			let lat,t,p = get_cell v.v_id in
 			match lat with
 			| Binop(op,lat1,lat2) ->
-				let lat1,loops = filter_loops lat1 bb.bb_loop_groups in
-				let lat2,loops = filter_loops lat2 loops in
-				if loops = [] then raise Exit;
+				let has_local1,lat1,loops = filter_loops lat1 bb.bb_loop_groups in
+				let has_local2,lat2,loops = filter_loops lat2 loops in
+				if loops = [] || not (has_local1 || has_local2) then raise Exit;
 				let lat = ((Binop(op,lat1,lat2)),t,p) in
 				let bb_loop_pre = IntMap.find (List.hd loops) ctx.graph.g_loops in
 				let v' = if decl then begin
