@@ -368,9 +368,8 @@ module TexprFilter = struct
 					| TLocal v2 when v1 == v2 ->
 						if !found then raise Exit;
 						found := true;
-						changed := true;
 						e1
-					| TWhile _ ->
+					| TWhile _ | TFunction _ ->
 						e
 					| _ ->
 						Type.map_expr replace e
@@ -378,6 +377,7 @@ module TexprFilter = struct
 				begin try
 					let e = replace e2 in
 					if not !found then raise Exit;
+					changed := true;
 					fuse (e :: el)
 				with Exit ->
 					ev :: fuse (e2 :: el)
