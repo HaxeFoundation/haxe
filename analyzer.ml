@@ -386,6 +386,18 @@ module TexprFilter = struct
 			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when Meta.has Meta.CompilerGenerated v1.v_meta && get_num_uses v1 <= 1 && can_be_used_as_value com e1 ->
 				let found = ref false in
 				let affected = ref false in
+				let rec check_non_var_side_effect e2 = match e2.eexpr with
+						| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal _},e2) ->
+							check_non_var_side_effect e2
+						| TUnop((Increment | Decrement),_,{eexpr = TLocal _}) ->
+							()
+						| TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
+							raise Exit
+						| TCall _ | TNew _ ->
+							raise Exit
+						| _ ->
+							Type.iter check_non_var_side_effect e2
+				in
 				let check_interference e2 =
 					let rec check e1 e2 = match e1.eexpr with
 						| TLocal v1 ->
@@ -396,20 +408,10 @@ module TexprFilter = struct
 									Type.iter check2 e2
 							in
 							check2 e2
-						| TField _ ->
-							let rec check2 e2 = match e2.eexpr with
-								| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal _},e2) ->
-									check2 e2
-								| TUnop((Increment | Decrement),_,{eexpr = TLocal _}) ->
-									()
-								| TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
-									raise Exit
-								| TCall _ | TNew _ ->
-									raise Exit
-								| _ ->
-									Type.iter check2 e2
-							in
-							check2 e2
+						| TField _ when Optimizer.is_affected_type e1.etype ->
+							check_non_var_side_effect e2;
+						| TCall _ | TNew _ | TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
+							check_non_var_side_effect e2
 						| _ ->
 							()
 					in

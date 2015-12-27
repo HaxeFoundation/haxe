@@ -220,11 +220,12 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 	| _ ->
 		api_inline2 ctx.com c field params p
 
+let is_affected_type t = match follow t with
+	| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
+	| TDynamic _ -> true (* sadly *)
+	| _ -> false
+
 let create_affection_checker () =
-	let is_affected_type t = match follow t with
-		| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
-		| _ -> false
-	in
 	let modified_locals = Hashtbl.create 0 in
 	let rec might_be_affected e =
 		let rec loop e = match e.eexpr with

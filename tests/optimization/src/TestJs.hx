@@ -464,7 +464,102 @@ class TestJs {
 		}
 	}
 
+	@:js('
+		var d1 = TestJs.intField;
+		TestJs.call(TestJs["use"](null),d1);
+	')
+	static function testInlineRebuilding1() {
+		inlineCall(intField, use(null));
+	}
+
+	@:js('
+		TestJs.call(TestJs["use"](null),TestJs.stringField);
+	')
+	static function testInlineRebuilding2() {
+		inlineCall(stringField, use(null));
+	}
+
+	@:js('
+		var a = TestJs.getArray();
+		var d1 = a[0]++;
+		TestJs.call(a[1]++,d1);
+	')
+	static function testInlineRebuilding3() {
+		var a = getArray();
+		inlineCall(a[0]++, a[1]++);
+	}
+
+	@:js('
+		var a = TestJs.getArray();
+		var d1 = a[0] = 1;
+		TestJs.call(a[1] = 1,d1);
+	')
+	static function testInlineRebuilding4() {
+		var a = getArray();
+		inlineCall(a[0] = 1, a[1] = 1);
+	}
+
+	@:js('
+		var a = TestJs.getArray();
+		var d1 = a[0] += 1;
+		TestJs.call(a[1] += 1,d1);
+	')
+	static function testInlineRebuilding5() {
+		var a = getArray();
+		inlineCall(a[0] += 1, a[1] += 1);
+	}
+
+	@:js('
+		var d1 = TestJs.call(1,2);
+		TestJs.call(TestJs.call(3,4),d1);
+	')
+	static function testInlineRebuilding6() {
+		inlineCall(call(1, 2), call(3, 4));
+	}
+
+	@:js('
+		var d1;
+		var d11 = TestJs.call(1,2);
+		d1 = TestJs.call(TestJs.call(3,4),d11);
+		var d2;
+		var d12 = TestJs.call(5,6);
+		d2 = TestJs.call(TestJs.call(7,8),d12);
+		TestJs.call(d2,d1);
+	')
+	static function testInlineRebuilding7() {
+		inlineCall(inlineCall(call(1, 2), call(3, 4)), inlineCall(call(5, 6), call(7, 8)));
+	}
+
+	@:js('
+		var d1;
+		var d11 = TestJs.call(1,2);
+		d1 = TestJs.call(TestJs.intField,d11);
+		var d2;
+		var d12 = TestJs.intField;
+		d2 = TestJs.call(TestJs.call(5,6),d12);
+		TestJs.call(d2,d1);
+	')
+	static function testInlineRebuilding8() {
+		inlineCall(inlineCall(call(1, 2), intField), inlineCall(intField, call(5, 6)));
+	}
+
+	@:js('
+		var d1 = TestJs.call(TestJs.stringField,TestJs.call(1,2));
+		TestJs.call(TestJs.call(TestJs.call(5,6),TestJs.stringField),d1);
+	')
+	static function testInlineRebuilding9() {
+		inlineCall(inlineCall(call(1, 2), stringField), inlineCall(stringField, call(5, 6)));
+	}
+
+	static inline function inlineCall(d1:Dynamic, d2:Dynamic) {
+		return call(d2, d1);
+	}
+
 	static function getInt(?d:Dynamic) { return 1; }
+	static function getArray() { return [0, 1]; }
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
-	static function use<T>(t:T) { }
+	static function use<T>(t:T) { return t; }
+
+	static var intField = 12;
+	static var stringField = "foo";
 }
