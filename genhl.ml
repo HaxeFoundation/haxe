@@ -176,6 +176,8 @@ type opcode =
 	| OSetEnumField of reg * int * reg
 	| OSwitch of reg * int array
 	| ONullCheck of reg
+	| OTrap of reg * int
+	| OEndTrap of unused
 
 type fundecl = {
 	findex : functable index;
@@ -217,6 +219,7 @@ type method_context = {
 	mutable mcaptured : method_capture;
 	mutable mcontinues : (int -> unit) list;
 	mutable mbreaks : (int -> unit) list;
+	mutable mtrys : int;
 }
 
 type array_impl = {
@@ -387,6 +390,7 @@ let method_context t captured =
 		mbreaks = [];
 		mcontinues = [];
 		mcaptured = captured;
+		mtrys = 0;
 	}
 
 let field_name c f =
@@ -699,6 +703,15 @@ let common_type ctx e1 e2 for_eq p =
 let captured_index ctx v =
 	if not v.v_capture then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
 
+let before_return ctx =
+	let rec loop i =
+		if i > 0 then begin
+			op ctx (OEndTrap 0);
+			loop (i - 1)
+		end
+	in
+	loop ctx.m.mtrys
+
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
 	cast_to ctx r t e.epos
@@ -898,10 +911,12 @@ and eval_expr ctx e =
 			op ctx (OEnumField (r, ctx.m.mcaptured.c_reg, 0, idx));
 			r)
 	| TReturn None ->
+		before_return ctx;
 		let r = alloc_tmp ctx HVoid in
 		op ctx (ORet r);
 		r
 	| TReturn (Some e) ->
+		before_return ctx;
 		let r = eval_to ctx e ctx.m.mret in
 		op ctx (ORet r);
 		alloc_tmp ctx HVoid
@@ -1303,7 +1318,9 @@ and eval_expr ctx e =
 				op ctx (ODynSet (obj,f,r));
 				r
 			| ACaptured index ->
-				assert false
+				let r = value() in
+				op ctx (OSetEnumField (ctx.m.mcaptured.c_reg,index,r));
+				r
 			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				assert false)
 		| OpBoolOr ->
@@ -1633,7 +1650,36 @@ and eval_expr ctx e =
 		DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
 		ctx.m.mbreaks <- (fun target -> DynArray.set ctx.m.mops pos (OJAlways (target - (pos + 1)))) :: ctx.m.mbreaks;
 		alloc_tmp ctx HVoid
-	| TTypeExpr _ | TTry _ | TCast (_,Some _) ->
+	| TTry (etry,catches) ->
+		let pos = current_pos ctx in
+		let rtrap = alloc_tmp ctx (HDyn None) in
+		DynArray.add ctx.m.mops (OTrap (rtrap,-1)); (* loop *)
+		ctx.m.mtrys <- ctx.m.mtrys + 1;
+		let tret = to_type ctx e.etype in
+		let result = alloc_tmp ctx tret in
+		let r = eval_to ctx etry tret in
+		if tret <> HVoid then op ctx (OMov (result,r));
+		ctx.m.mtrys <- ctx.m.mtrys - 1;
+		op ctx (OEndTrap 0);
+		let j = jump ctx (fun n -> OJAlways n) in
+		DynArray.set ctx.m.mops pos (OTrap (rtrap, current_pos ctx - (pos + 1)));
+		let rec loop l =
+			match l with
+			| [] -> assert false
+			| (v,ec) :: next ->
+				let rv = alloc_reg ctx v in
+				if v.v_type == t_dynamic then
+					op ctx (OMov (rv, rtrap))
+				else
+					error "Unsupported catch" ec.epos;
+				let r = eval_to ctx ec tret in
+				if tret <> HVoid then op ctx (OMov (result,r));
+				if next = [] then [] else jump ctx (fun n -> OJAlways n) :: loop next
+		in
+		List.iter (fun j -> j()) (loop catches);
+		j();
+		result
+	| TTypeExpr _ | TCast (_,Some _) ->
 		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 
 and build_capture_vars ctx f =
@@ -2187,6 +2233,11 @@ let check code =
 				Array.iter can_jump idx
 			| ONullCheck r ->
 				ignore(rtype r)
+			| OTrap (r, idx) ->
+				reg r (HDyn None);
+				can_jump idx
+			| OEndTrap _ ->
+				()
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -2369,6 +2420,7 @@ let interp code =
 		let set r v = Array.unsafe_set regs r v in
 		let get r = Array.unsafe_get regs r in
 		let global g = Array.unsafe_get globals g in
+		let traps = ref [] in
 		let numop iop fop a b =
 			match rtype a with
 			(* todo : sign-extend and mask after result for HI8/16 *)
@@ -2769,13 +2821,29 @@ let interp code =
 				| _ -> assert false)
 			| ONullCheck r ->
 				if get r = VNull then error "Null access"
+			| OTrap (r,j) ->
+				let target = !pos + j in
+				traps := (r,target) :: !traps
+			| OEndTrap _ ->
+				traps := List.tl !traps
 			);
 			loop()
 		in
-		try
-			loop()
-		with
-			Return v -> stack := List.tl !stack; v
+		let rec exec() =
+			try
+				loop()
+			with
+				| Return v -> stack := List.tl !stack; v
+				| InterpThrow v ->
+					match !traps with
+					| [] -> raise (InterpThrow v)
+					| (r,target) :: tl ->
+						traps := tl;
+						pos := target;
+						set r v;
+						exec()
+		in
+		exec()
 	in
 	let int = Int32.to_int in
 	let load_native lib name =
@@ -2918,7 +2986,7 @@ let write_code ch code =
 		let oid = Obj.tag o in
 
 		match op with
-		| OLabel _ ->
+		| OLabel _ | OEndTrap _ ->
 			byte oid
 		| OCall2 (r,g,a,b) ->
 			byte oid;
@@ -3211,6 +3279,8 @@ let ostr o =
 	| OSetEnumField (e,i,r) -> Printf.sprintf "setenumfield %d[%d], %d" e i r
 	| OSwitch (r,idx) -> Printf.sprintf "switch %d [%s]" r (String.concat "," (Array.to_list (Array.map string_of_int idx)))
 	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
+	| OTrap (r,i) -> Printf.sprintf "trap %d, %d" r i
+	| OEndTrap _ -> "endtrap"
 
 let dump code =
 	let lines = ref [] in
