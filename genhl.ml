@@ -207,7 +207,7 @@ type method_capture = {
 	c_map : (int, int) PMap.t;
 	c_vars : tvar array;
 	mutable c_type : ttype;
-	mutable c_reg : int;
+	c_reg : int;
 }
 
 type method_context = {
@@ -640,7 +640,6 @@ let alloc_global ctx name t =
 	lookup ctx.cglobals name (fun() -> to_type ctx t)
 
 let alloc_reg ctx v =
-	if v.v_capture then assert false;
 	lookup ctx.m.mregs v.v_id (fun() -> to_type ctx v.v_type)
 
 let alloc_tmp ctx t =
@@ -696,6 +695,9 @@ let common_type ctx e1 e2 for_eq p =
 			error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
 	in
 	loop t1 t2
+
+let captured_index ctx v =
+	if not v.v_capture then None else try Some (PMap.find v.v_id ctx.m.mcaptured.c_map) with Not_found -> None
 
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
@@ -786,10 +788,9 @@ and get_access ctx e =
 			AEnum ef.ef_index
 		)
 	| TLocal v ->
-		if v.v_capture then
-			ACaptured (try PMap.find v.v_id ctx.m.mcaptured.c_map with Not_found -> assert false)
-		else
-			ALocal (alloc_reg ctx v)
+		(match captured_index ctx v with
+		| None -> ALocal (alloc_reg ctx v)
+		| Some idx -> ACaptured idx)
 	| TParenthesis e ->
 		get_access ctx e
 	| TArray (a,i) ->
@@ -875,30 +876,27 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (ONull r);
 			r)
-	| TVar (v,e) when v.v_capture ->
+	| TVar (v,e) ->
 		(match e with
 		| None -> ()
 		| Some e ->
-			let index = (try PMap.find v.v_id ctx.m.mcaptured.c_map with Not_found -> assert false) in
-			let ri = eval_to ctx e (to_type ctx v.v_type) in
-			op ctx (OSetEnumField (ctx.m.mcaptured.c_reg, index, ri));
+			match captured_index ctx v with
+			| None ->
+				let r = alloc_reg ctx v in
+				let ri = eval_to ctx e (rtype ctx r) in
+				op ctx (OMov (r,ri))
+			| Some idx ->
+				let ri = eval_to ctx e (to_type ctx v.v_type) in
+				op ctx (OSetEnumField (ctx.m.mcaptured.c_reg, idx, ri));
 		);
 		alloc_tmp ctx HVoid
-	| TVar (v,e) ->
-		let r = alloc_reg ctx v in
-		(match e with
-		| None -> ()
-		| Some e ->
-			let ri = eval_to ctx e (rtype ctx r) in
-			op ctx (OMov (r,ri)));
-		alloc_tmp ctx HVoid
-	| TLocal v when v.v_capture ->
-		let index = (try PMap.find v.v_id ctx.m.mcaptured.c_map with Not_found -> assert false) in
-		let r = alloc_tmp ctx (to_type ctx v.v_type) in
-		op ctx (OEnumField (r, ctx.m.mcaptured.c_reg, 0, index));
-		r
 	| TLocal v ->
-		alloc_reg ctx v
+		(match captured_index ctx v with
+		| None -> alloc_reg ctx v
+		| Some idx ->
+			let r = alloc_tmp ctx (to_type ctx v.v_type) in
+			op ctx (OEnumField (r, ctx.m.mcaptured.c_reg, 0, idx));
+			r)
 	| TReturn None ->
 		let r = alloc_tmp ctx HVoid in
 		op ctx (ORet r);
@@ -1417,10 +1415,24 @@ and eval_expr ctx e =
 		);
 	| TFunction f ->
 		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfunctions)) in
-		let is_closure = make_fun ctx fid f None (Some ctx.m.mcaptured) in
+		let capt = make_fun ctx fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
-		if is_closure then
+		if capt == ctx.m.mcaptured then
 			op ctx (OClosure (r, fid, ctx.m.mcaptured.c_reg))
+		else if Array.length capt.c_vars > 0 then
+			let env = alloc_tmp ctx capt.c_type in
+			op ctx (OEnumAlloc (env,0));
+			Array.iteri (fun i v ->
+				let r = (match captured_index ctx v with
+				| None -> alloc_reg ctx v
+				| Some idx ->
+					let r = alloc_tmp ctx (to_type ctx v.v_type) in
+					op ctx (OEnumField (r,ctx.m.mcaptured.c_reg,0,idx));
+					r
+				) in
+				op ctx (OSetEnumField (env,i,r));
+			) capt.c_vars;
+			op ctx (OClosure (r, fid, env))
 		else
 			op ctx (OGetFunction (r, fid));
 		r
@@ -1627,11 +1639,10 @@ and eval_expr ctx e =
 and build_capture_vars ctx f =
 	let ignored_vars = ref PMap.empty in
 	let used_vars = ref PMap.empty in
-	(* get all captured vars in scope, ignore vars that are declared in sub functions *)
-	let rec loop in_fun e =
-		let in_fun = ref in_fun in
+	(* get all captured vars in scope, ignore vars that are declared *)
+	let rec loop e =
 		let decl_var v =
-			if v.v_capture && !in_fun then ignored_vars := PMap.add v.v_id () !ignored_vars
+			if v.v_capture then ignored_vars := PMap.add v.v_id () !ignored_vars
 		in
 		let use_var v =
 			if v.v_capture then used_vars := PMap.add v.v_id v !used_vars
@@ -1644,14 +1655,13 @@ and build_capture_vars ctx f =
 		| TTry (_,catches) ->
 			List.iter (fun (v,_) -> decl_var v) catches
 		| TFunction f ->
-			in_fun := true;
 			List.iter (fun (v,_) -> decl_var v) f.tf_args;
 		| _ ->
 			()
 		);
-		Type.iter (loop !in_fun) e
+		Type.iter loop e
 	in
-	loop false f.tf_expr;
+	loop f.tf_expr;
 	let cvars = Array.of_list (PMap.fold (fun v acc -> if PMap.mem v.v_id !ignored_vars then acc else v :: acc) !used_vars []) in
 	Array.sort (fun v1 v2 -> v1.v_id - v2.v_id) cvars;
 	let indexes = ref PMap.empty in
@@ -1686,22 +1696,12 @@ and make_fun ctx fidx f cthis cparent =
 		Some t
 	) in
 
-	let rcapt = (match cparent with
-		| None -> None
-		| Some cparent ->
-			if List.exists (fun v -> PMap.mem v.v_id capt.c_map) (Array.to_list cparent.c_vars) then Some (alloc_tmp ctx cparent.c_type) else None
-	) in
+	let rcapt = if has_captured_vars then Some (alloc_tmp ctx capt.c_type) else None in
 
 	let args = List.map (fun (v,o) ->
 		let r = alloc_reg ctx v in
 		rtype ctx r
 	) f.tf_args in
-
-	if has_captured_vars && not use_parent_capture then begin
-		let r = alloc_tmp ctx capt.c_type in
-		capt.c_reg <- r;
-		op ctx (OEnumAlloc (r,0));
-	end;
 
 	List.iter (fun (v, o) ->
 		let r = alloc_reg ctx v in
@@ -1751,7 +1751,7 @@ and make_fun ctx fidx f cthis cparent =
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
 	DynArray.add ctx.cfunctions f;
-	rcapt <> None
+	capt
 
 let generate_static ctx c f =
 	match f.cf_kind with
