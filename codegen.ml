@@ -1038,6 +1038,7 @@ module PatternMatchConversion = struct
 		let v_known = ref IntMap.empty in
 		let copy v =
 			let v' = alloc_var v.v_name v.v_type in
+			v'.v_meta <- v.v_meta;
 			v_known := IntMap.add v.v_id v' !v_known;
 			v'
 		in

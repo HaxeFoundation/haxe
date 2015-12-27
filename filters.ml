@@ -1221,7 +1221,7 @@ let run com tctx main =
 			captured_vars com;
 		] in
 		List.iter (run_expression_filters tctx filters) new_types;
-		Analyzer.Run.run_on_types tctx new_types;
+		Analyzer.Run.run_on_types tctx true new_types;
 		List.iter (iter_expressions [verify_ast tctx]) new_types;
 		let filters = [
 			Optimizer.sanitize com;
@@ -1237,15 +1237,13 @@ let run com tctx main =
 			blockify_ast;
 			check_local_vars_init;
 			Optimizer.inline_constructors tctx;
-			( if (Common.defined com Define.NoSimplify) || (Common.defined com Define.Cppia) ||
-						( match com.platform with Cpp -> false | _ -> true ) then
-					fun e -> e
-				else
-					fun e ->
-						let save = save_locals tctx in
-						let e = try Analyzer.Run.roundtrip com (Analyzer.Config.get_base_config com) e with Exit -> e in
-						save();
-					e );
+		] in
+		List.iter (run_expression_filters tctx filters) new_types;
+		begin match com.platform with
+			| Cpp when not (Common.defined com Define.Cppia) -> Analyzer.Run.run_on_types tctx false new_types;
+			| _ -> ()
+		end;
+		let filters = [
 			if com.foptimize then (fun e -> Optimizer.reduce_expression tctx e) else Optimizer.sanitize com;
 			captured_vars com;
 			promote_complex_rhs com;

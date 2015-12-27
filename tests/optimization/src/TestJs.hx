@@ -146,7 +146,7 @@ class TestJs {
 	}
 
 	@:analyzer(no_local_dce)
-	@:js('var v0_x = 0;var v1_x = 1;var f = Math.random();var vRand_x = f;')
+	@:js('var v0_x = 0;var v1_x = 1;var vRand_x = Math.random();')
 	// #4558
 	static function testInlineFunctionNew() {
 		var v0 = new Inl(0);

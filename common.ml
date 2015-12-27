@@ -221,7 +221,6 @@ module Define = struct
 		| NoOpt
 		| NoPatternMatching
 		| NoRoot
-		| NoSimplify
 		| NoSwfCompress
 		| NoTraces
 		| Objc
@@ -309,7 +308,6 @@ module Define = struct
 		| NoInline -> ("no_inline","Disable inlining")
 		| NoRoot -> ("no_root","Generate top-level types into haxe.root namespace")
 		| NoMacroCache -> ("no_macro_cache","Disable macro context caching")
-		| NoSimplify -> "no_simplify",("Disable simplification filter")
 		| NoSwfCompress -> ("no_swf_compress","Disable SWF output compression")
 		| NoTraces -> ("no_traces","Disable all trace calls")
 		| Objc -> ("objc","Sets the hxcpp output to objective-c++ classes. Must be defined for interop")

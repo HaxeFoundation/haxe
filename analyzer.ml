@@ -91,12 +91,14 @@ let rec can_be_inlined e = match e.eexpr with
 	| TParenthesis e1 | TMeta(_,e1) -> can_be_inlined e1
 	| _ -> false
 
-let rec can_be_used_as_value e =
+let rec can_be_used_as_value com e =
 	let rec loop e = match e.eexpr with
 		| TBlock [e] -> loop e
 		| TBlock _ | TSwitch _ | TTry _ -> raise Exit
 		| TCall({eexpr = TConst (TString "phi")},_) -> raise Exit
+		| TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
+		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
 	try
@@ -131,7 +133,7 @@ let dynarray_mapi f d =
 
 module Config = struct
 	type t = {
-		analyzer_use : bool;
+		optimize : bool;
 		const_propagation : bool;
 		copy_propagation : bool;
 		code_motion : bool;
@@ -196,9 +198,9 @@ module Config = struct
 		with Not_found ->
 			false
 
-	let get_base_config com =
+	let get_base_config com optimize =
 		{
-			analyzer_use = true;
+			optimize = optimize;
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 			copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 			code_motion = Common.raw_defined com "analyzer-code-motion";
@@ -226,7 +228,7 @@ module Config = struct
 		) config meta
 
 	let get_class_config com c =
-		let config = get_base_config com in
+		let config = get_base_config com true in
 		update_config_from_meta config c.cl_meta
 
 	let get_field_config com c cf =
@@ -340,15 +342,33 @@ module TexprFilter = struct
 				[]
 		in
 		let changed = ref false in
+		let var_uses = ref IntMap.empty in
+		let get_num_uses v =
+			try IntMap.find v.v_id !var_uses with Not_found -> 0
+		in
+		let change_num_uses v delta =
+			var_uses := IntMap.add v.v_id ((try IntMap.find v.v_id !var_uses with Not_found -> 0) + delta) !var_uses;
+		in
+		let rec loop e = match e.eexpr with
+			| TLocal v ->
+				change_num_uses v 1;
+			| TBinop(OpAssign,{eexpr = TLocal _},e2) ->
+				loop e2
+			| _ ->
+				Type.iter loop e
+		in
+		loop e;
 		let rec fuse el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
 				changed := true;
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
+				change_num_uses v1 (-1);
 				fuse (e1 :: el)
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value e2 && (match com.platform with Cpp | Php -> false | _ -> true) ->
+			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && (match com.platform with Cpp | Php -> false | _ -> true) ->
 				begin try
+					let i = ref 0 in
 					let check_assign e = match e.eexpr with
-						| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 -> e2
+						| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 -> incr i; e2
 						| _ -> raise Exit
 					in
 					let e = map_values ~allow_control_flow:false check_assign e2 in
@@ -358,26 +378,69 @@ module TexprFilter = struct
 					in
 					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
 					changed := true;
+					change_num_uses v1 (- !i);
 					fuse (e1 :: el)
 				with Exit ->
 					e1 :: fuse (e2 :: el)
 				end
-			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when Meta.has Meta.CompilerGenerated v1.v_meta ->
+			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when Meta.has Meta.CompilerGenerated v1.v_meta && get_num_uses v1 <= 1 && can_be_used_as_value com e1 ->
 				let found = ref false in
-				let rec replace e = match e.eexpr with
-					| TLocal v2 when v1 == v2 ->
-						if !found then raise Exit;
-						found := true;
-						e1
-					| TWhile _ | TFunction _ ->
-						e
-					| _ ->
-						Type.map_expr replace e
+				let affected = ref false in
+				let check_interference e2 =
+					let rec check e1 e2 = match e1.eexpr with
+						| TLocal v1 ->
+							let rec check2 e2 = match e2.eexpr with
+								| TUnop((Increment | Decrement),_,{eexpr = TLocal v2}) | TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v2},_) when v1 == v2 ->
+									raise Exit
+								| _ ->
+									Type.iter check2 e2
+							in
+							check2 e2
+						| TField _ ->
+							let rec check2 e2 = match e2.eexpr with
+								| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal _},e2) ->
+									check2 e2
+								| TUnop((Increment | Decrement),_,{eexpr = TLocal _}) ->
+									()
+								| TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
+									raise Exit
+								| TCall _ | TNew _ ->
+									raise Exit
+								| _ ->
+									Type.iter check2 e2
+							in
+							check2 e2
+						| _ ->
+							()
+					in
+					try
+						check e1 e2;
+						check e2 e1;
+					with Exit ->
+						affected := true;
+				in
+				let rec replace e =
+					let e = match e.eexpr with
+						| TWhile _ | TFunction _ ->
+							e
+						| TLocal v2 when v1 == v2 && not !affected ->
+							found := true;
+							e1
+						| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
+							let e2 = replace e2 in
+							let e1 = replace e1 in
+							{e with eexpr = TBinop(op,e1,e2)}
+						| _ ->
+							Type.map_expr replace e
+					in
+					check_interference e;
+					e
 				in
 				begin try
 					let e = replace e2 in
 					if not !found then raise Exit;
 					changed := true;
+					change_num_uses v1 (-1);
 					fuse (e :: el)
 				with Exit ->
 					ev :: fuse (e2 :: el)
@@ -399,6 +462,7 @@ module TexprFilter = struct
 					begin match e2.eexpr with
 						| TBinop(op2,{eexpr = TLocal v2},{eexpr = TConst (TInt i32)}) when v == v2 && Int32.to_int i32 = 1 && ops_match op op2 ->
 							changed := true;
+							change_num_uses v2 (-1);
 							(f {e1 with eexpr = TUnop(op,Postfix,ev)}) :: fuse el
 						| _ ->
 							raise Exit
@@ -1890,7 +1954,7 @@ module CodeMotion = DataFlow(struct
 
 	let conditional = false
 	let flag = FlagCodeMotion
-     	type t_def =
+		type t_def =
 		| Top
 		| Bottom
 		| Const of tconstant
@@ -1982,7 +2046,7 @@ module CodeMotion = DataFlow(struct
 				if loops = [] || not (has_local1 || has_local2) then raise Exit;
 				let lat = ((Binop(op,lat1,lat2)),t,p) in
 				let bb_loop_pre = IntMap.find (List.hd loops) ctx.graph.g_loops in
-				let ev' = try
+				let v' = try
 					let l = IntMap.find bb_loop_pre.bb_id !cache in
 					snd (List.find (fun (lat',e) -> equals lat lat') l)
 				with Not_found ->
@@ -1995,15 +2059,18 @@ module CodeMotion = DataFlow(struct
 						v'
 					end in
 					let e = to_texpr lat in
-					let ev' = mk (TLocal v') v'.v_type p in
 					let e = mk (TVar(v',Some e)) ctx.com.basic.tvoid p in
 					add_texpr ctx.graph bb_loop_pre e;
-					cache := IntMap.add bb_loop_pre.bb_id ((lat,ev') :: try IntMap.find bb_loop_pre.bb_id !cache with Not_found -> []) !cache;
-					ev'
+					set_var_value ctx.graph v' bb_loop_pre false (DynArray.length bb_loop_pre.bb_el - 1);
+					cache := IntMap.add bb_loop_pre.bb_id ((lat,v') :: try IntMap.find bb_loop_pre.bb_id !cache with Not_found -> []) !cache;
+					v'
 				in
+				let ev' = mk (TLocal v') v'.v_type p in
 				if decl then begin
-					set_var_value ctx.graph v bb_loop_pre false (DynArray.length bb_loop_pre.bb_el - 1);
-					mk (TConst TNull) t p
+					if v == v' then
+						mk (TConst TNull) t p
+					else
+						mk (TVar(v,Some ev')) ctx.com.basic.tvoid p
 				end else begin
 					let ev = mk (TLocal v) v.v_type p in
 					mk (TBinop(OpAssign,ev,ev')) t p
@@ -2320,7 +2387,7 @@ module Run = struct
 	let run_on_expr com config c cf e =
 		try
 			let ctx = there com config e in
-			if not ctx.has_unbound then begin
+			if config.optimize && not ctx.has_unbound then begin
 				with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
 				if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
 				if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
@@ -2359,8 +2426,8 @@ module Run = struct
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types ctx types =
+	let run_on_types ctx full types =
 		let com = ctx.Typecore.com in
-		let config = get_base_config com in
+		let config = get_base_config com full in
 		List.iter (run_on_type ctx config) types
 end

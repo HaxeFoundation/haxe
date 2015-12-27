@@ -382,7 +382,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		end;
 		l, e
 	) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
-	if !had_side_effect then List.iter (fun (l,e) ->
+	if !had_side_effect || (Common.defined ctx.com Define.Analyzer) then List.iter (fun (l,e) ->
 		if might_be_affected e then l.i_force_temp <- true;
 	) inlined_vars;
 	let inlined_vars = List.rev inlined_vars in
@@ -589,8 +589,17 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		if flag then begin
 			subst := PMap.add i.i_subst.v_id e !subst;
 			acc
-		end else
+		end else begin
+			(* mark the replacement local for the analyzer *)
+			begin match ctx.com.platform with
+				| Cpp | Php ->
+					()
+				| _ ->
+					if i.i_read <= 1 && not i.i_write then
+						i.i_subst.v_meta <- (Meta.CompilerGenerated,[],p) :: i.i_subst.v_meta;
+			end;
 			(i.i_subst,Some e) :: acc
+		end
 	) [] inlined_vars in
 	let subst = !subst in
 	let rec inline_params e =
