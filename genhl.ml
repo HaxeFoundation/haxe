@@ -242,6 +242,7 @@ type context = {
 	mutable cached_types : (path, ttype) PMap.t;
 	mutable m : method_context;
 	mutable anons_cache : (tanon * ttype) list;
+	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	array_impl : array_impl;
 }
 
@@ -372,6 +373,14 @@ let null_proto =
 		pfunctions = PMap.empty;
 	}
 
+let null_capture =
+	{
+		c_reg = 0;
+		c_vars = [||];
+		c_map = PMap.empty;
+		c_type = HVoid;
+	}
+
 let lookup l v fb =
 	try
 		PMap.find v l.map
@@ -381,6 +390,11 @@ let lookup l v fb =
 		l.map <- PMap.add v id l.map;
 		DynArray.set l.arr id (fb());
 		id
+
+let lookup_alloc l v =
+	let id = DynArray.length l.arr in
+	DynArray.add l.arr v;
+	id
 
 let method_context t captured =
 	{
@@ -718,6 +732,9 @@ let rec eval_to ctx e (t:ttype) =
 
 and cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
+	let invalid() =
+		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
+	in
 	if safe_cast rt t then r else
 	match rt, t with
 	| HVirtual _, HDyn None ->
@@ -766,8 +783,18 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
 		op ctx (OToDyn (tmp, r));
 		tmp
+	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 && List.for_all2 safe_cast args2 args1 ->
+		if safe_cast ret1 ret2 then
+			r
+		else if ret2 = HDyn None then begin
+			let fid = gen_method_wrapper ctx rt t p in
+			let fr = alloc_tmp ctx t in
+			op ctx (OClosure (fr,fid,r));
+			fr
+		end else
+			invalid()
 	| _ ->
-		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
+		invalid()
 
 and get_access ctx e =
 	match e.eexpr with
@@ -1634,7 +1661,7 @@ and eval_expr ctx e =
 			) cases;
 			List.iter (fun j -> j()) (!jends);
 		with Exit ->
-			assert false);
+			error "Unsupported switch" e.epos);
 		r
 	| TEnumParameter (ec,f,index) ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
@@ -1722,6 +1749,33 @@ and build_capture_vars ctx f =
 		};
 		c_reg = 0;
 	}
+
+and gen_method_wrapper ctx rt t p =
+	try
+		PMap.find (rt,t) ctx.method_wrappers
+	with Not_found ->
+		let fid = lookup_alloc ctx.cfids () in
+		let old = ctx.m in
+		let targs, tret = (match t with HFun (args, ret) -> args, ret | _ -> assert false) in
+		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> assert false) in
+		ctx.m <- method_context (HDyn None) null_capture;
+
+		let rfun = alloc_tmp ctx rt in
+		let rargs = List.map (alloc_tmp ctx) targs in
+
+		let rret = alloc_tmp ctx iret in
+		op ctx (OCallClosure (rret,rfun,List.map2 (fun r t -> cast_to ctx r t p) rargs iargs));
+		op ctx (ORet (cast_to ctx rret tret p));
+
+		let f = {
+			findex = fid;
+			ftype = HFun (rt :: targs, tret);
+			regs = DynArray.to_array ctx.m.mregs.arr;
+			code = DynArray.to_array ctx.m.mops;
+		} in
+		ctx.m <- old;
+		DynArray.add ctx.cfunctions f;
+		fid
 
 and make_fun ctx fidx f cthis cparent =
 	let old = ctx.m in
@@ -3365,7 +3419,7 @@ let generate com =
 	in
 	let ctx = {
 		com = com;
-		m = method_context HVoid { c_reg = 0; c_vars = [||]; c_map = PMap.empty; c_type = HVoid; };
+		m = method_context HVoid null_capture;
 		cints = new_lookup();
 		cstrings = new_lookup();
 		cfloats = new_lookup();
@@ -3382,6 +3436,7 @@ let generate com =
 			af64 = get_class "ArrayF64";
 		};
 		anons_cache = [];
+		method_wrappers = PMap.empty;
 	} in
 	ignore(alloc_string ctx "");
 	let all_classes = Hashtbl.create 0 in
