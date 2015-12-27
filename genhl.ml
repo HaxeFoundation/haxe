@@ -1256,42 +1256,14 @@ and eval_expr ctx e =
 			loop bop
 		in
 		(match bop with
-		| OpLte ->
+		| OpLte | OpGt | OpGte | OpLt ->
 			let r = alloc_tmp ctx HBool in
 			let t = common_type ctx e1 e2 false e.epos in
 			let a = eval_to ctx e1 t in
 			let b = eval_to ctx e2 t in
 			binop r a b;
 			r
-		| OpGt ->
-			let r = alloc_tmp ctx HBool in
-			let t = common_type ctx e1 e2 false e.epos in
-			let a = eval_to ctx e1 t in
-			let b = eval_to ctx e2 t in
-			binop r a b;
-			r
-		| OpGte ->
-			let r = alloc_tmp ctx HBool in
-			let t = common_type ctx e1 e2 false e.epos in
-			let a = eval_to ctx e1 t in
-			let b = eval_to ctx e2 t in
-			binop r a b;
-			r
-		| OpLt ->
-			let r = alloc_tmp ctx HBool in
-			let t = common_type ctx e1 e2 false e.epos in
-			let a = eval_to ctx e1 t in
-			let b = eval_to ctx e2 t in
-			binop r a b;
-			r
-		| OpEq ->
-			let r = alloc_tmp ctx HBool in
-			let t = common_type ctx e1 e2 true e.epos in
-			let a = eval_to ctx e1 t in
-			let b = eval_to ctx e2 t in
-			binop r a b;
-			r
-		| OpNotEq ->
+		| OpEq | OpNotEq ->
 			let r = alloc_tmp ctx HBool in
 			let t = common_type ctx e1 e2 true e.epos in
 			let a = eval_to ctx e1 t in
@@ -1661,7 +1633,29 @@ and eval_expr ctx e =
 			) cases;
 			List.iter (fun j -> j()) (!jends);
 		with Exit ->
-			error "Unsupported switch" e.epos);
+			let jends = ref [] in
+			let rvalue = eval_expr ctx en in
+			let rec loop next (cases,e) =
+				let next = List.fold_left (fun next c ->
+					next();
+					let r = eval_expr ctx c in
+					let rv = cast_to ctx rvalue (rtype ctx r) e.epos in
+					let j = jump ctx (fun n -> OJNeq (r,rv,n)) in
+					j
+				) next cases in
+				let re = eval_to ctx e rt in
+				if rt <> HVoid then op ctx (OMov (r,re));
+				next
+			in
+			let j = List.fold_left loop (fun() -> ()) cases in
+			j();
+			(match def with
+			| None -> if rt <> HVoid then op ctx (ONull r)
+			| Some e ->
+				let rdef = eval_to ctx e rt in
+				if rt <> HVoid then op ctx (OMov (r,rdef)));
+			List.iter (fun j -> j()) (!jends);
+		);
 		r
 	| TEnumParameter (ec,f,index) ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
@@ -1755,18 +1749,16 @@ and gen_method_wrapper ctx rt t p =
 		PMap.find (rt,t) ctx.method_wrappers
 	with Not_found ->
 		let fid = lookup_alloc ctx.cfids () in
+		ctx.method_wrappers <- PMap.add (rt,t) fid ctx.method_wrappers;
 		let old = ctx.m in
 		let targs, tret = (match t with HFun (args, ret) -> args, ret | _ -> assert false) in
 		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> assert false) in
 		ctx.m <- method_context (HDyn None) null_capture;
-
 		let rfun = alloc_tmp ctx rt in
 		let rargs = List.map (alloc_tmp ctx) targs in
-
 		let rret = alloc_tmp ctx iret in
 		op ctx (OCallClosure (rret,rfun,List.map2 (fun r t -> cast_to ctx r t p) rargs iargs));
 		op ctx (ORet (cast_to ctx rret tret p));
-
 		let f = {
 			findex = fid;
 			ftype = HFun (rt :: targs, tret);
@@ -2585,12 +2577,12 @@ let interp code =
 			| ORet r -> raise (Return regs.(r))
 			| OJNull (r,i) -> if get r == VNull then pos := !pos + i
 			| OJNotNull (r,i) -> if get r != VNull then pos := !pos + i
-			| OJSLt (a,b,i) -> if get a < get b then pos := !pos + i
-			| OJSGte (a,b,i) -> if get a >= get b then pos := !pos + i
+			| OJSLt (a,b,i) -> if vcompare (get a) (get b) < 0 then pos := !pos + i
+			| OJSGte (a,b,i) -> if vcompare (get a) (get b) >= 0 then pos := !pos + i
 			| OJULt (a,b,i) -> if ucompare (get a) (get b) < 0 then pos := !pos + i
 			| OJUGte (a,b,i) -> if ucompare (get a) (get b) >= 0 then pos := !pos + i
-			| OJEq (a,b,i) -> if get a = get b then pos := !pos + i
-			| OJNeq (a,b,i) -> if get a <> get b then pos := !pos + i
+			| OJEq (a,b,i) -> if vcompare (get a) (get b) = 0 then pos := !pos + i
+			| OJNeq (a,b,i) -> if vcompare (get a) (get b) <> 0 then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OUnDyn (r,a) -> set r (match get a with VNull -> default (rtype r) | VDyn (v,_) -> v | _ -> assert false)
 			| OToDyn (r,a) -> set r (VDyn (get a, f.regs.(a)))
