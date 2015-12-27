@@ -592,13 +592,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			acc
 		end else begin
 			(* mark the replacement local for the analyzer *)
-			begin match ctx.com.platform with
-				| Cpp | Php ->
-					()
-				| _ ->
-					if i.i_read <= 1 && not i.i_write then
-						i.i_subst.v_meta <- (Meta.CompilerGenerated,[],p) :: i.i_subst.v_meta;
-			end;
+			if i.i_read <= 1 && not i.i_write then
+				i.i_subst.v_meta <- (Meta.CompilerGenerated,[],p) :: i.i_subst.v_meta;
 			(i.i_subst,Some e) :: acc
 		end
 	) [] inlined_vars in

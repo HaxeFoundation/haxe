@@ -96,7 +96,7 @@ let rec can_be_used_as_value com e =
 		| TBlock [e] -> loop e
 		| TBlock _ | TSwitch _ | TTry _ -> raise Exit
 		| TCall({eexpr = TConst (TString "phi")},_) -> raise Exit
-		| TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit
+		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
@@ -419,7 +419,10 @@ module TexprFilter = struct
 						check e1 e2;
 						check e2 e1;
 					with Exit ->
-						affected := true;
+						begin match com.platform with
+							| Cpp | Php -> raise Exit (* They don't define evaluation order, so let's exit *)
+							| _ -> affected := true;
+						end
 				in
 				let rec replace e =
 					let e = match e.eexpr with
