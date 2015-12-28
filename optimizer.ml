@@ -220,8 +220,10 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 	| _ ->
 		api_inline2 ctx.com c field params p
 
-let is_affected_type t = match follow t with
+let rec is_affected_type t = match follow t with
 	| TAbstract({a_path = [],("Int" | "Float" | "Bool")},_) -> true
+	| TAbstract({a_path = ["haxe"],("Int64" | "Int32")},_) -> true
+	| TAbstract(a,tl) -> is_affected_type (Abstract.get_underlying_type a tl)
 	| TDynamic _ -> true (* sadly *)
 	| _ -> false
 

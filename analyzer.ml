@@ -1903,12 +1903,12 @@ module CopyPropagation = DataFlow(struct
 	type t =
 		| Top
 		| Bottom
-		| Local of (BasicBlock.t * tvar)
+		| Local of tvar
 
 	let to_string = function
 		| Top -> "Top"
 		| Bottom -> "Bottom"
-		| Local(bb,v) -> Printf.sprintf "%s<%i>" v.v_name v.v_id
+		| Local v -> Printf.sprintf "%s<%i>" v.v_name v.v_id
 
 	let conditional = false
 	let flag = FlagCopyPropagation
@@ -1923,29 +1923,13 @@ module CopyPropagation = DataFlow(struct
 	let equals t1 t2 = match t1,t2 with
 		| Top,Top -> true
 		| Bottom,Bottom -> true
-		| Local(_,v1),Local(_,v2) -> v1.v_id = v2.v_id
+		| Local v1,Local v2 -> v1.v_id = v2.v_id
 		| _ -> false
 
 	let transfer ctx bb e =
-		let local bb v = try
-			begin match get_cell v.v_id with
-				| Bottom -> raise Not_found
-				| t -> t
-			end
-		with Not_found ->
-			Local(bb,v)
-		in
 		let rec loop e = match e.eexpr with
 			| TLocal v when not v.v_capture ->
-				let v' = get_var_origin ctx.graph v in
-				(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
-				   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
-				   considering variables whose origin-variables are assigned to at most once. *)
-				let writes = try snd (IntMap.find v'.v_id ctx.graph.g_var_writes) with Not_found -> [] in
-				begin match writes with
-					| [bb] -> local bb v
-					| _ -> Bottom
-				end
+				Local v
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				loop e1
 			| _ ->
@@ -1957,20 +1941,26 @@ module CopyPropagation = DataFlow(struct
 		lattice := IntMap.empty
 
 	let commit ctx =
-		(* We don't care about the scope on JS and AS3 because they hoist var declarations. *)
-		let in_scope bb bb' = match ctx.com.platform with
-			| Js _ -> true
-			| Flash when Common.defined ctx.com Define.As3 -> true
-			| _ -> List.mem (List.hd bb'.bb_scopes) bb.bb_scopes
-		in
 		let rec commit bb e = match e.eexpr with
 			| TLocal v when not v.v_capture ->
 				begin try
-					let ct = IntMap.find v.v_id !lattice in
-					begin match ct with
-						| Local(bb',v') when in_scope bb bb' && (type_iseq_strict v.v_type v'.v_type) -> {e with eexpr = TLocal v'}
-						| _ -> raise Not_found
-					end
+					let lat = get_cell v.v_id in
+					let leave () =
+						lattice := IntMap.remove v.v_id !lattice;
+						raise Not_found
+					in
+					let v' = match lat with Local v -> v | _ -> leave() in
+					if not (type_iseq_strict v'.v_type v.v_type) then leave();
+					let v'' = get_var_origin ctx.graph v' in
+					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
+					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
+					   considering variables whose origin-variables are assigned to at most once. *)
+					let writes = try snd (IntMap.find v''.v_id ctx.graph.g_var_writes) with Not_found -> [] in
+					begin match writes with
+						| [_] -> ()
+						| _ -> leave()
+					end;
+					{e with eexpr = TLocal v'}
 				with Not_found ->
 					e
 				end
