@@ -38,12 +38,24 @@ let rec is_const_expression e = match e.eexpr with
 		false
 
 let map_values ?(allow_control_flow=true) f e =
+	let branching = ref false in
+	let efinal = ref None in
+	let f e =
+		if !branching then
+			f e
+		else begin
+			efinal := Some e;
+			mk (TConst TNull) e.etype e.epos
+		end
+	in
 	let rec loop complex e = match e.eexpr with
 		| TIf(e1,e2,Some e3) ->
+			branching := true;
 			let e2 = loop true e2 in
 			let e3 = loop true e3 in
 			{e with eexpr = TIf(e1,e2,Some e3)}
 		| TSwitch(e1,cases,edef) ->
+			branching := true;
 			let cases = List.map (fun (el,e) -> el,loop true e) cases in
 			let edef = Option.map (loop true) edef in
 			{e with eexpr = TSwitch(e1,cases,edef)}
@@ -53,11 +65,13 @@ let map_values ?(allow_control_flow=true) f e =
 			begin match List.rev el with
 			| e1 :: el ->
 				let e1 = loop true e1 in
-				{e with eexpr = TBlock (List.rev (e1 :: el))}
+				let e = {e with eexpr = TBlock (List.rev (e1 :: el))} in
+				{e with eexpr = TMeta((Meta.MergeBlock,[],e.epos),e)}
 			| [] ->
 				f e
 			end
 		| TTry(e1,catches) ->
+			branching := true;
 			let e1 = loop true e1 in
 			let catches = List.map (fun (v,e) -> v,loop true e) catches in
 			{e with eexpr = TTry(e1,catches)}
@@ -72,7 +86,8 @@ let map_values ?(allow_control_flow=true) f e =
 			if not complex then raise Exit;
 			f e
 	in
-	loop false e
+	let e = loop false e in
+	e,!efinal
 
 let can_throw e =
 	let rec loop e = match e.eexpr with
@@ -371,7 +386,7 @@ module TexprFilter = struct
 						| TBinop(OpAssign,{eexpr = TLocal v2},e2) when v1 == v2 -> incr i; e2
 						| _ -> raise Exit
 					in
-					let e = map_values ~allow_control_flow:false check_assign e2 in
+					let e,_ = map_values ~allow_control_flow:false check_assign e2 in
 					let e = match follow e.etype with
 						| TAbstract({a_path=[],"Void"},_) -> {e with etype = v1.v_type}
 						| _ -> e
@@ -435,6 +450,8 @@ module TexprFilter = struct
 							let e2 = replace e2 in
 							let e1 = replace e1 in
 							{e with eexpr = TBinop(op,e1,e2)}
+						| TCall({eexpr = TLocal v},_) when is_unbound v ->
+							e
 						| _ ->
 							Type.map_expr replace e
 					in
@@ -455,6 +472,7 @@ module TexprFilter = struct
 					let e2,f = match e2.eexpr with
 						| TReturn (Some e2) -> e2,(fun e -> {e2 with eexpr = TReturn (Some e)})
 						| TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)})
+						| TVar(v,Some e2) -> e2,(fun e -> {e2 with eexpr = TVar(v,Some e)})
 						| _ -> raise Exit
 					in
 					let ops_match op1 op2 = match op1,op2 with
@@ -987,14 +1005,23 @@ module TexprTransformer = struct
 				mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
 			in
 			begin try
-				let e = map_values assign e in
-				block_element bb e
+				block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid e.epos)
 			with Exit ->
 				let bb,e = value bb e in
 				add_var_def g bb v;
 				add_texpr g bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
 				bb
-			end;
+			end
+		and block_element_plus bb (e,efinal) f =
+			let bb = block_element bb e in
+			let bb = match efinal with
+				| None -> bb
+				| Some e -> block_element bb (f e)
+			in
+			bb
+		and block_element_value bb e f =
+			let e,efinal = map_values f e in
+			block_element_plus bb (e,efinal) f
 		and call bb e e1 el =
 			begin match e1.eexpr with
 				| TConst TSuper when ctx.com.platform = Java || ctx.com.platform = Cs ->
@@ -1026,8 +1053,7 @@ module TexprTransformer = struct
 					mk (TBinop(OpAssign,e1,e)) e.etype e.epos
 				in
 				begin try
-					let e = map_values assign e2 in
-					block_element bb e
+					block_element_value bb e2 assign
 				with Exit ->
 					let bb,e2 = value bb e2 in
 					add_var_def g bb v;
@@ -1035,6 +1061,8 @@ module TexprTransformer = struct
 					bb
 				end
 			(* branching *)
+			| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
+				block_el bb el
 			| TBlock el ->
 				let scope = increase_scope() in
 				let bb_sub = create_node BKSub bb e.etype e.epos in
@@ -1171,8 +1199,7 @@ module TexprTransformer = struct
 			| TReturn (Some e1) ->
 				begin try
 					let mk_return e1 = mk (TReturn (Some e1)) t_dynamic e.epos in
-					let e1 = map_values mk_return e1 in
-					block_element bb e1
+					block_element_value bb e1 mk_return
 				with Exit ->
 					let bb,e1 = value bb e1 in
 					add_cfg_edge g bb bb_exit CFGGoto;
@@ -1193,8 +1220,7 @@ module TexprTransformer = struct
 			| TThrow e1 ->
 				begin try
 					let mk_throw e1 = mk (TThrow e1) t_dynamic e.epos in
-					let e1 = map_values mk_throw e1 in
-					block_element bb e1
+					block_element_value bb e1 mk_throw
 				with Exit ->
 					let bb,e1 = value bb e1 in
 					begin match !b_try_stack with
