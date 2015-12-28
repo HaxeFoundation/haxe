@@ -1113,7 +1113,15 @@ module TexprTransformer = struct
 				let bb_then_next = block bb_then e2 in
 				let bb_else_next = block bb_else e3 in
 				scope();
-				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in (* TODO: dominator might be wrong if either branch is unreachable *)
+				let dead_then = bb_then_next == g.g_unreachable in
+				let dead_else = bb_else_next == g.g_unreachable in
+				let dom = match dead_then,dead_else with
+					| false,false -> bb
+					| true,true -> g.g_unreachable
+					| true,false -> bb_else_next
+					| false,true -> bb_then_next
+				in
+				let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
 				set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype));
 				add_cfg_edge g bb_then_next bb_next CFGGoto;
 				add_cfg_edge g bb_else_next bb_next CFGGoto;
@@ -1124,14 +1132,14 @@ module TexprTransformer = struct
 				let is_exhaustive = edef <> None || Optimizer.is_exhaustive e1 in
 				let bb,e1 = bind_to_temp bb false e1 in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
-				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
-				if not is_exhaustive then add_cfg_edge g bb bb_next CFGGoto;
+				let reachable = ref [] in
 				let make_case e =
 					let scope = increase_scope() in
 					let bb_case = create_node BKConditional bb e.etype e.epos in
 					let bb_case_next = block bb_case e in
 					scope();
-					add_cfg_edge g bb_case_next bb_next CFGGoto;
+					if bb_case_next != g.g_unreachable then
+						reachable := bb_case_next :: !reachable;
 					close_node g bb_case_next;
 					bb_case
 				in
@@ -1148,6 +1156,16 @@ module TexprTransformer = struct
 						add_cfg_edge g bb bb_case (CFGCondElse);
 						Some (bb_case)
 				in
+				let bb_next = if not is_exhaustive then begin
+					let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
+					add_cfg_edge g bb bb_next CFGGoto;
+					bb_next
+				end else match !reachable with
+					| [] -> g.g_unreachable
+					| [bb_case] -> create_node BKNormal bb_case bb.bb_type bb.bb_pos
+					| _ -> create_node BKNormal bb bb.bb_type bb.bb_pos
+				in
+				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) !reachable;
 				set_syntax_edge g bb (SESwitch(cases,def,bb_next));
 				close_node g bb;
 				bb_next
