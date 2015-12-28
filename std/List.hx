@@ -262,11 +262,11 @@ private class ListNode<T> {
 
 private class ListIterator<T> {
 	var head:ListNode<T>;
-	var val:Dynamic;
+	#if (js && !analyzer) var val:Dynamic; #end
 
 	public inline function new(head:ListNode<T>) {
 		this.head = head;
-		this.val = null;
+		#if (js && !analyzer) this.val = null; #end
 	}
 
 	public inline function hasNext():Bool {
@@ -274,7 +274,7 @@ private class ListIterator<T> {
 	}
 
 	public inline function next():T {
-		val = head.item;
+		#if (!js || analyzer) var #end val = head.item;
 		head = head.next;
 		return val;
 	}
