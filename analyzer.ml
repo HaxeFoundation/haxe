@@ -687,6 +687,7 @@ module Graph = struct
 	type t = {
 		mutable g_root : BasicBlock.t;                    (* The unique root block *)
 		mutable g_exit : BasicBlock.t;                    (* The unique exit block *)
+		mutable g_unreachable : BasicBlock.t;             (* The unique unreachable block *)
 		mutable g_functions : tfunc_info IntMap.t;        (* A map of functions, indexed by their block IDs *)
 		mutable g_nodes : BasicBlock.t IntMap.t;          (* A map of all blocks *)
 		mutable g_cfg_edges : cfg_edge list;              (* A list of all CFG edges *)
@@ -717,8 +718,6 @@ module Graph = struct
 		g.g_ssa_edges <- IntMap.add v.v_id (try (bb,is_phi,i) :: IntMap.find v.v_id g.g_ssa_edges with Not_found -> [bb,is_phi,i]) g.g_ssa_edges
 
 	(* nodes *)
-
-	let rec bb_unreachable = BasicBlock._create 0 BKUnreachable [] t_dynamic null_pos
 
 	let add_function g tf t p bb =
 		g.g_functions <- IntMap.add bb.bb_id (bb,t,p,tf) g.g_functions
@@ -786,9 +785,11 @@ module Graph = struct
 
 	let create t p =
 		let bb_root = BasicBlock._create 1 BKRoot [] t p; in
+		let bb_unreachable = BasicBlock._create 0 BKUnreachable [] t_dynamic null_pos in
 		{
 			g_root = bb_root;
 			g_exit = bb_unreachable;
+			g_unreachable = bb_unreachable;
 			g_functions = IntMap.empty;
 			g_nodes = IntMap.add bb_root.bb_id bb_root IntMap.empty;
 			g_cfg_edges = [];
@@ -802,7 +803,7 @@ module Graph = struct
 	let calculate_df g =
 		List.iter (fun edge ->
 			let rec loop bb =
-				if bb != bb_unreachable && bb != edge.cfg_to && bb != edge.cfg_to.bb_dominator then begin
+				if bb != g.g_unreachable && bb != edge.cfg_to && bb != edge.cfg_to.bb_dominator then begin
 					bb.bb_df <- edge.cfg_to :: bb.bb_df;
 					if bb.bb_dominator != bb then loop bb.bb_dominator
 				end
@@ -894,7 +895,7 @@ module TexprTransformer = struct
 		let add_terminator bb e =
 			add_texpr g bb e;
 			close_node g bb;
-			bb_unreachable
+			g.g_unreachable
 		in
 		let rec value bb e = match e.eexpr with
 			| TLocal v ->
@@ -1326,7 +1327,7 @@ module TexprTransformer = struct
 			com = com;
 			config = config;
 			graph = g;
-			entry = bb_unreachable;
+			entry = g.g_unreachable;
 			has_unbound = false;
 			saved_v_extra = IntMap.empty;
 			loop_counter = 0;
