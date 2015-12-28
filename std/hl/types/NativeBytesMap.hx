@@ -23,31 +23,40 @@ class NativeBytesMapIterator {
 abstract NativeBytesMap(NativeAbstract<"BytesMap">) {
 
 	@:extern public inline function new() {
-		this = untyped $hballoc();
-	}
-
-	@:extern public inline function set( key : Bytes, value : Dynamic ) {
-		untyped $hbset(this, key, value);
-	}
-
-	@:extern public inline function exists( key : Bytes ) : Bool {
-		return untyped $hbexists(this, key);
+		this = alloc();
 	}
 	
-	@:extern public inline function get( key : Bytes ) : Dynamic {
-		return untyped $hbget(this, key);
+	@:hlNative("std","hballoc") function alloc() : NativeAbstract<"BytesMap"> {
+		return null;
 	}
 
-	@:extern public inline function remove( key : Bytes ) : Bool {
-		return untyped $hbremove(this, key);
+	@:hlNative("std","hbset")
+	public function set( key : Bytes, value : Dynamic ) {
 	}
 
-	@:extern public inline function keysArray() : NativeArray<Bytes> {
-		return untyped $hbkeys(this);
+	@:hlNative("std","hbexists")
+	public function exists( key : Bytes ) : Bool {
+		return false;
+	}
+	
+	@:hlNative("std","hbget")
+	public function get( key : Bytes ) : Dynamic {
+		return null;
 	}
 
-	@:extern public inline function valuesArray() : NativeArray<Dynamic> {
-		return untyped $hbvalues(this);
+	@:hlNative("std","hbremove")
+	public function remove( key : Bytes ) : Bool {
+		return false;
+	}
+
+	@:hlNative("std","hbkeys")
+	public function keysArray() : NativeArray<Bytes> {
+		return null;
+	}
+
+	@:hlNative("std","hbvalues")
+	public function valuesArray() : NativeArray<Dynamic> {
+		return null;
 	}
 
 	@:extern public inline function iterator() {

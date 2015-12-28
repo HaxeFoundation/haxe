@@ -59,5 +59,9 @@ class Std {
 		return @:privateAccess s.bytes.parseFloat(0, s.size);
 	}
 
+	@:keep static function __add__( a : Dynamic, b : Dynamic ) : Dynamic {
+		throw "TODO";
+		return null;
+	}
 
 }

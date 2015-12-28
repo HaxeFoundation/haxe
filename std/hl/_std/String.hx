@@ -72,6 +72,11 @@ class String {
 		return bytes;
 	}
 	
+	@:keep function __compare( s : String ) : Int {
+		var v = bytes.compare(0, s.bytes, 0, size < s.size ? size : s.size);
+		return v == 0 ? size - s.size : v;
+	}
+	
 	@:keep static inline function __alloc__( b : hl.types.Bytes, blen : Int, clen : Int ) : String {
 		var s : String = untyped $new(String);
 		s.bytes = b;

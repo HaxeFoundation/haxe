@@ -305,6 +305,7 @@ let rec tsame t1 t2 =
 	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
 	| HObj p1, HObj p2 -> p1 == p2
 	| HEnum e1, HEnum e2 -> e1 == e2
+	| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
 	| HVirtual v1, HVirtual v2 ->
 		if v1 == v2 then true else
 		if Array.length v1.vfields <> Array.length v2.vfields then false else
@@ -707,6 +708,8 @@ let common_type ctx e1 e2 for_eq p =
 		| (HDyn (Some t1)), (HI8|HI16|HI32|HF32|HF64) -> loop t1 t2
 		| (HDyn None), (HI8|HI16|HI32|HF32|HF64) -> HF64
 		| (HI8|HI16|HI32|HF32|HF64), (HDyn None) -> HF64
+		| HDyn None, _ -> HDyn None
+		| _, HDyn None -> HDyn None
 		| _ when for_eq && safe_cast t1 t2 -> t2
 		| _ when for_eq && safe_cast t2 t1 -> t1
 		| _ ->
@@ -771,7 +774,7 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let out = alloc_tmp ctx t in
 		op ctx (OToVirtual (out,r));
 		out
-	| HDyn None, (HObj _ | HDynObj | HFun _ | HArray _ | HDyn _) ->
+	| HDyn None, _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
@@ -876,7 +879,7 @@ and jump_expr ctx e jcond =
 		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
 
 and eval_args ctx el t =
-	List.map2 (fun e t -> eval_to ctx e t) el (match t with HFun (args,_) -> args | _ -> assert false)
+	List.map2 (fun e t -> eval_to ctx e t) el (match t with HFun (args,_) -> args | HDyn None -> List.map (fun _ -> HDyn None) el | _ -> assert false)
 
 and eval_null_check ctx e =
 	let r = eval_expr ctx e in
@@ -1222,8 +1225,10 @@ and eval_expr ctx e =
 						op ctx (OAdd (r,a,b))
 					| HObj { pname = "String" } ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"String") "__add__",a,b))
-					| _ ->
-						assert false)
+					| HDyn None ->
+						op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",a,b))
+					| t ->
+						error ("Cannot add " ^ tstr t) e.epos)
 				| OpSub | OpMult | OpMod | OpDiv ->
 					(match rtype ctx r with
 					| HI8 | HI16 | HI32 | HF32 | HF64 ->
@@ -1871,7 +1876,7 @@ let generate_member ctx c f =
 	match f.cf_kind with
 	| Var _ -> ()
 	| Method m ->
-		ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) (Some c) None);
+		ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -2209,7 +2214,7 @@ let check code =
 				ignore(rtype b);
 			| OSafeCast (a,b) ->
 				reg a (HDyn None);
-				if not (safe_cast (rtype b) (HDyn None)) then reg b HDynObj;
+				ignore(rtype b);
 			| OArraySize (r,a) ->
 				(match rtype a with
 				| HArray _ -> ()
@@ -2319,6 +2324,10 @@ type value =
 	| VVirtual of vvirtual
 	| VDynObj of vdynobj
 	| VEnum of int * value array
+	| VAbstract of vabstract
+
+and vabstract =
+	| AHashBytes of (string, value) Hashtbl.t
 
 and vfunction =
 	| FFun of fundecl
@@ -2414,6 +2423,7 @@ let interp code =
 		| VVirtual v -> "virtual(" ^ vstr_d v.vvalue ^ ")"
 		| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr_d d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
 		| VEnum (i,vals) -> "enum#" ^ string_of_int i  ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
+		| VAbstract _ -> "abstract"
 
 	and vstr v t =
 		match v with
@@ -2437,6 +2447,7 @@ let interp code =
 		| VRef (regs,i,t) -> "*" ^ (vstr regs.(i) t)
 		| VVirtual v -> vstr v.vvalue (HDyn None)
 		| VDynObj d -> "{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}"
+		| VAbstract _ -> "abstract"
 		| VEnum (i,vals) ->
 			(match t with
 			| HEnum e ->
@@ -2507,14 +2518,22 @@ let interp code =
 				Int32.to_int (if d = 0l then Int32.sub (Int32.logand a 0xFFFFl) (Int32.logand b 0xFFFFl) else d)
 			| _ -> assert false
 		in
-		let vcompare a b =
+		let vcompare ra rb =
+			let a = get ra in
+			let b = get rb in
 			match a, b with
 			| VInt a, VInt b -> Int32.compare a b
 			| VFloat a, VFloat b -> compare a b
 			| VNull, VNull -> 0
 			| VNull, _ -> 1
 			| _, VNull -> -1
-			| VObj a, VObj b -> if a == b then 0 else 1
+			| VObj oa, VObj ob ->
+				if oa == ob then 0 else
+				let fid = ref None in
+				Array.iter (fun p -> if p.fname = "__compare" then fid := Some p.fmethod) oa.oproto.pclass.pproto;
+				(match !fid with
+				| None -> 1
+				| Some f -> (match fcall (func f) [a;b] with VInt i -> Int32.to_int i | _ -> assert false));
 			| _ ->
 				error ("Can't compare " ^ vstr_d a ^ " and " ^ vstr_d b)
 		in
@@ -2566,10 +2585,10 @@ let interp code =
 			| OCallN (r,f,rl) -> set r (fcall (func f) (List.map get rl))
 			| OGetGlobal (r,g) -> set r (global g)
 			| OSetGlobal (r,g) -> Array.unsafe_set globals g (get r)
-			| OEq (r,a,b) -> set r (VBool (vcompare (get a) (get b) = 0))
-			| ONotEq (r,a,b) -> set r (VBool (vcompare (get a) (get b) <> 0))
-			| OSGte (r,a,b) -> set r (VBool (vcompare (get a) (get b) >= 0))
-			| OSLt (r,a,b) -> set r (VBool (vcompare (get a) (get b) < 0))
+			| OEq (r,a,b) -> set r (VBool (vcompare a b = 0))
+			| ONotEq (r,a,b) -> set r (VBool (vcompare a b <> 0))
+			| OSGte (r,a,b) -> set r (VBool (vcompare a b >= 0))
+			| OSLt (r,a,b) -> set r (VBool (vcompare a b < 0))
 			| OUGte (r,a,b) -> set r (VBool (ucompare (get a) (get b) >= 0))
 			| OULt (r,a,b) -> set r (VBool (ucompare (get a) (get b) < 0))
 			| OJTrue (r,i) -> if get r = VBool true then pos := !pos + i
@@ -2577,12 +2596,12 @@ let interp code =
 			| ORet r -> raise (Return regs.(r))
 			| OJNull (r,i) -> if get r == VNull then pos := !pos + i
 			| OJNotNull (r,i) -> if get r != VNull then pos := !pos + i
-			| OJSLt (a,b,i) -> if vcompare (get a) (get b) < 0 then pos := !pos + i
-			| OJSGte (a,b,i) -> if vcompare (get a) (get b) >= 0 then pos := !pos + i
+			| OJSLt (a,b,i) -> if vcompare a b < 0 then pos := !pos + i
+			| OJSGte (a,b,i) -> if vcompare a b >= 0 then pos := !pos + i
 			| OJULt (a,b,i) -> if ucompare (get a) (get b) < 0 then pos := !pos + i
 			| OJUGte (a,b,i) -> if ucompare (get a) (get b) >= 0 then pos := !pos + i
-			| OJEq (a,b,i) -> if vcompare (get a) (get b) = 0 then pos := !pos + i
-			| OJNeq (a,b,i) -> if vcompare (get a) (get b) <> 0 then pos := !pos + i
+			| OJEq (a,b,i) -> if vcompare a b = 0 then pos := !pos + i
+			| OJNeq (a,b,i) -> if vcompare a b <> 0 then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OUnDyn (r,a) -> set r (match get a with VNull -> default (rtype r) | VDyn (v,_) -> v | _ -> assert false)
 			| OToDyn (r,a) -> set r (VDyn (get a, f.regs.(a)))
@@ -2703,6 +2722,7 @@ let interp code =
 				let v = get v in
 				set r (match v, rtype r with
 					| VObj o, HObj c when o.oproto.pclass == c -> v
+					| VNull, HObj _ -> v
 					| _, t -> error ("Failed to cast " ^ vstr_d v ^ " to " ^ tstr t)
 				)
 			| OUnsafeCast (r,v) ->
@@ -2969,6 +2989,14 @@ let interp code =
 			| "parse_float" ->
 				(function
 				| [VBytes str; VInt len] -> (try VFloat (Interp.parse_float (String.sub str 0 (int len))) with _ -> VFloat nan)
+				| _ -> assert false)
+			| "bytes_compare" ->
+				(function
+				| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> VInt (Int32.of_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len))))
+				| _ -> assert false)
+			| "hballoc" ->
+				(function
+				| [] -> VAbstract (AHashBytes (Hashtbl.create 0))
 				| _ -> assert false)
 			| _ -> (fun args -> error ("Unresolved native " ^ name)))
 		| _ ->

@@ -53,6 +53,11 @@ package hl.types;
 		return 0.;
 	}
 	
+	@:hlNative("std","bytes_compare")
+	public function compare( pos : Int, bytes : Bytes, bytesPos : Int, size : Int ) : Int {
+		return 0;
+	}
+	
 	/**
 		Count the number of UTF8 chars into the given Bytes data.
 	**/
