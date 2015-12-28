@@ -1001,6 +1001,10 @@ module TexprTransformer = struct
 			let bb = declare_var_and_assign bb v e in
 			bb,{e with eexpr = TLocal v}
 		and declare_var_and_assign bb v e =
+			begin match follow v.v_type with
+				| TAbstract({a_path=[],"Void"},_) -> error "Cannot use Void as value" e.epos
+				| _ -> ()
+			end;
 			let ev = mk (TLocal v) v.v_type e.epos in
 			let was_assigned = ref false in
 			let assign e =
