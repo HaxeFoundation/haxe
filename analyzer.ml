@@ -446,6 +446,16 @@ module TexprFilter = struct
 						| TLocal v2 when v1 == v2 && not !affected ->
 							found := true;
 							e1
+						| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TArray(e1,e2)} as ea),e3) ->
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							let ea = {ea with eexpr = TArray(e1,e2)} in
+							let e3 = replace e3 in
+							{e with eexpr = TBinop(op,ea,e3)}
+						| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
+							let e2 = replace e2 in
+							let e1 = replace e1 in
+							{e with eexpr = TBinop(op,e1,e2)}
 						| TCall({eexpr = TLocal v},_) when is_unbound v ->
 							e
 						| _ ->
