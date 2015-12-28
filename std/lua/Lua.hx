@@ -1,4 +1,5 @@
 package lua;
+import haxe.extern.Rest;
 
 /**
   These are all global static methods within lua
@@ -16,4 +17,5 @@ extern class Lua {
 	public static function tonumber(str:String, base:Int): Int;
 	public static function type(v:Dynamic): String;
 	public static function print(v:Dynamic) : Void;
+	public static function select(n:Dynamic, rest:Rest<Dynamic>) : Dynamic;
 }
