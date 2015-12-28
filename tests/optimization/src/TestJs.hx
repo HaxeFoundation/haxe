@@ -539,6 +539,17 @@ class TestJs {
 		inlineCall(inlineCall(call(1, 2), stringField), inlineCall(stringField, call(5, 6)));
 	}
 
+	@:js('
+		var i = TestJs.getInt();
+		var a = TestJs.getArray();
+		a[i++] = i++;
+	')
+	static function testAssignmentSideEffect() {
+		var i = getInt();
+		var a = getArray();
+		a[i++] = i++;
+	}
+
 	static inline function inlineCall(d1:Dynamic, d2:Dynamic) {
 		return call(d2, d1);
 	}
