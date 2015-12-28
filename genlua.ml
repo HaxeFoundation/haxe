@@ -696,9 +696,9 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "end"; newline ctx;
 		spr ctx "break end";
 	| TObjectDecl fields ->
-		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
-		spr ctx "}";
+		spr ctx "_G.__anon(";
+		concat ctx ", " (fun (f,e) -> print ctx "\"%s\", " f; gen_value ctx e) fields;
+		spr ctx ")";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
@@ -1667,7 +1667,19 @@ let generate com =
 
 	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') bit = bit or bit32"; newline ctx;
 	spr ctx "print = print or (function()end)"; newline ctx;
-	newline ctx;
+
+	spr ctx "__anon = function(...)"; newline ctx;
+	spr ctx "   local ret = {__fields = {}};"; newline ctx;
+	spr ctx "   local fld = {...};"; newline ctx;
+	spr ctx "   for i,v in ipairs(fld) do"; newline ctx;
+	spr ctx "	if i % 2 == 1 then "; newline ctx;
+	spr ctx "	    ret.__fields[v] = true;"; newline ctx;
+	spr ctx "	    ret[v] =fld[i+1];"; newline ctx;
+	spr ctx "	end"; newline ctx;
+	spr ctx "   end"; newline ctx;
+	spr ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields[k] = true; rawset(t,k,v); end})"; newline ctx;
+	spr ctx "   return ret; "; newline ctx;
+	spr ctx "end"; newline ctx;
 
 	spr ctx "_hxClasses = {}"; semicolon ctx; newline ctx;
 	let vars = [] in

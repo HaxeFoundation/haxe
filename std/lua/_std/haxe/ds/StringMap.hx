@@ -25,16 +25,13 @@ import lua.Lua;
 class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
 	private var h : Dynamic;
-	private var k : Dynamic;
 
 	public inline function new() : Void {
 		h = {};
-		k = {};
 	}
 
 	public inline function set( key : String, value : T ) : Void untyped {
 		 h[key] = value;
-		 k[key] = true;
 	}
 
 	public inline function get( key : String ) : Null<T> untyped {
@@ -42,34 +39,31 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	}
 
 	public inline function exists( key : String ) : Bool untyped {
-		return k[key] != null;
+		return Reflect.hasField(h, key);
 	}
 
 	public function remove( key : String ) : Bool untyped {
-		if ( k[key] == null) return false;
-		k[key] = null;
-		h[key] = null;
+		if (!Reflect.hasField(h,key)) return false;
+		Reflect.deleteField(h,key);
 		return true;
 	}
 
-	public function keys() : Iterator<String> untyped {
-		var cur = Lua.next(k,null);
+	public function keys() : Iterator<String> {
+		var cur = Reflect.fields(h).iterator();
 		return {
 			next : function() {
-				var ret = cur; 
-				cur = Lua.next(k, cur);
+				var ret = cur.next();
 				return ret;
 			},
-			hasNext : function() return cur != null
+			hasNext : function() return cur.hasNext()
 		}
 	}
 
 	public function iterator() : Iterator<T> {
-		var ref = h;
 		var it = keys();
-		return untyped {
-			hasNext : function() { return it.hasNext(); },
-			next : function() { var i = it.next(); return h[i]; }
+		return  {
+			hasNext : function() return it.hasNext(),
+			next : function() return h[cast it.next()] 
 		};
 	}
 
