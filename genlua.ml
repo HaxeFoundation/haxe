@@ -1670,11 +1670,11 @@ let generate com =
 
 	spr ctx "__anon = function(...)"; newline ctx;
 	spr ctx "   local ret = {__fields = {}};"; newline ctx;
-	spr ctx "   local fld = {...};"; newline ctx;
-	spr ctx "   for i,v in ipairs(fld) do"; newline ctx;
+	spr ctx "   for i=1, select('#', ...) do"; newline ctx;
+	spr ctx "	local v = select(i,...);"; newline ctx;
 	spr ctx "	if i % 2 == 1 then "; newline ctx;
 	spr ctx "	    ret.__fields[v] = true;"; newline ctx;
-	spr ctx "	    ret[v] =fld[i+1];"; newline ctx;
+	spr ctx "	    ret[v] =select(i+1,...);"; newline ctx;
 	spr ctx "	end"; newline ctx;
 	spr ctx "   end"; newline ctx;
 	spr ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields[k] = true; rawset(t,k,v); end})"; newline ctx;
