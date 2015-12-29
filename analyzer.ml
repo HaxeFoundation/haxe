@@ -899,6 +899,11 @@ module TexprTransformer = struct
 			close_node g bb;
 			g.g_unreachable
 		in
+		let r = Str.regexp "^\\([A-Za-z0-9_]\\)+$" in
+		let check_unbound_call v el = match v.v_name,el with
+			| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> ()
+			| _ -> ctx.has_unbound <- true
+		in
 		let rec value bb e = match e.eexpr with
 			| TLocal v ->
 				bb,e
@@ -910,8 +915,8 @@ module TexprTransformer = struct
 				bind_to_temp bb false e
 			| TFor _ | TWhile _ ->
 				assert false
-			| TCall({eexpr = TLocal v},_) when is_unbound v ->
-				ctx.has_unbound <- true;
+			| TCall({eexpr = TLocal v},el) when is_unbound v ->
+				check_unbound_call v el;
 				bb,e
 			| TCall(e1,el) ->
 				call bb e e1 el
@@ -1264,8 +1269,8 @@ module TexprTransformer = struct
 					add_terminator bb {e with eexpr = TThrow e1};
 				end
 			(* side_effects *)
-			| TCall({eexpr = TLocal v},_) when is_unbound v ->
-				ctx.has_unbound <- true;
+			| TCall({eexpr = TLocal v},el) when is_unbound v ->
+				check_unbound_call v el;
 				add_texpr g bb e;
 				bb
 			| TCall(e1,el) ->

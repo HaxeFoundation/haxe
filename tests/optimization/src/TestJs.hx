@@ -231,14 +231,12 @@ class TestJs {
 	@:js('
 		var map = new haxe_ds_StringMap();
 		if(__map_reserved.some != null) map.setReserved("some",2); else map.h["some"] = 2;
-		var i = 2;
-		TestJs["use"](i);
+		TestJs["use"](2);
 	')
 	static function testIssue4731() {
         var map = new Map();
         var i = map["some"] = 2;
 		use(i);
-		// This is not const-propagated because StringMap introduced unbound variables
 	}
 
 	@:js('
