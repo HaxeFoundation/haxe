@@ -708,9 +708,9 @@ module Graph = struct
 
 	let add_cfg_edge g bb_from bb_to kind =
 		if bb_from.bb_id > 0 then begin
-			let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
+		let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
 			g.g_cfg_edges <- edge :: g.g_cfg_edges;
-			bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
+		bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
 			bb_to.bb_incoming <- edge :: bb_to.bb_incoming;
 		end
 
@@ -1368,6 +1368,11 @@ module TexprTransformer = struct
 		close_node g g.g_root;
 		finalize g bb_exit;
 		set_syntax_edge g bb_exit SEEnd;
+		let rec check_unreachable bb =
+			DynArray.iter (fun e -> com.warning "Unreachable code" e.epos) bb.bb_el;
+			List.iter check_unreachable bb.bb_dominated
+		in
+		check_unreachable g.g_unreachable;
 		ctx
 
 	let rec block_to_texpr_el ctx bb =
