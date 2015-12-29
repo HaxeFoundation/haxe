@@ -315,7 +315,7 @@ module TexprFilter = struct
 			let ehasnext = mk (TCall(ehasnext,[])) com.basic.tbool ehasnext.epos in
 			let enext = mk (TField(ev',quick_field e1.etype "next")) (tfun [] v.v_type) e1.epos in
 			let enext = mk (TCall(enext,[])) v.v_type e1.epos in
-			let eassign = mk (TVar(v,Some enext)) v.v_type e.epos in
+			let eassign = mk (TVar(v,Some enext)) com.basic.tvoid e.epos in
 			let ebody = Type.concat eassign e2 in
 			let e = mk (TBlock [
 				mk (TVar (v',Some e1)) com.basic.tvoid e1.epos;
@@ -1993,7 +1993,7 @@ module CopyPropagation = DataFlow(struct
 						| [_] -> ()
 						| _ -> leave()
 					end;
-					{e with eexpr = TLocal v'}
+					commit bb {e with eexpr = TLocal v'}
 				with Not_found ->
 					e
 				end
