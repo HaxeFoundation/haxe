@@ -144,9 +144,8 @@ enum ValueType {
 		return a;
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		var a : Array<String> = untyped e.__constructs__;
-		return a.copy();
+	public static inline function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
+		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
