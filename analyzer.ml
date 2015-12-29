@@ -379,7 +379,7 @@ module TexprFilter = struct
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				change_num_uses v1 (-1);
 				fuse (e1 :: el)
-			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && (match com.platform with Cpp | Php -> false | _ -> true) ->
+			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
 				begin try
 					let i = ref 0 in
 					let check_assign e = match e.eexpr with
@@ -435,7 +435,8 @@ module TexprFilter = struct
 						check e2 e1;
 					with Exit ->
 						begin match com.platform with
-							| Cpp | Php -> raise Exit (* They don't define evaluation order, so let's exit *)
+							| Cpp when not (Common.defined com Define.Cppia) -> raise Exit
+							| Php -> raise Exit (* They don't define evaluation order, so let's exit *)
 							| _ -> affected := true;
 						end
 				in
@@ -1003,7 +1004,7 @@ module TexprTransformer = struct
 		and bind_to_temp bb sequential e =
 			let v = alloc_var "tmp" e.etype in
 			begin match ctx.com.platform with
-				| Cpp when sequential -> ()
+				| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 				| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
 			end;
 			let bb = declare_var_and_assign bb v e in
