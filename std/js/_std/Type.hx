@@ -209,7 +209,7 @@ enum ValueType {
 	}
 
 	public inline static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		return untyped e.__empty_constructs__;
+		return untyped __define_feature__("Type.allEnums", e.__empty_constructs__);
 	}
 
 }
