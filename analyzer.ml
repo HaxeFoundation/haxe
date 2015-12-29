@@ -861,12 +861,12 @@ module TexprTransformer = struct
 			let e = mk (TConst (TInt (Int32.of_int b.bb_id))) ctx.com.basic.tint b.bb_pos in
 			wrap_meta ":block" e
 		in
-		let bb_break = ref None in
+		let bb_breaks = ref [] in
 		let bb_continue = ref None in
 		let b_try_stack = ref [] in
-		let begin_loop bb_loop_pre bb_break' bb_continue' =
-			let old = !bb_break,!bb_continue in
-			bb_break := Some bb_break';
+		let begin_loop bb_loop_pre bb_continue' =
+			let old = !bb_breaks,!bb_continue in
+			bb_breaks := [];
 			bb_continue := Some bb_continue';
 			let id = ctx.loop_counter in
 			g.g_loops <- IntMap.add id bb_loop_pre g.g_loops;
@@ -874,9 +874,11 @@ module TexprTransformer = struct
 			bb_continue'.bb_loop_groups <- id :: bb_continue'.bb_loop_groups;
 			ctx.loop_counter <- id + 1;
 			(fun () ->
-				bb_break := fst old;
+				let breaks = !bb_breaks in
+				bb_breaks := fst old;
 				bb_continue := snd old;
 				ctx.loop_stack <- List.tl ctx.loop_stack;
+				breaks;
 			)
 		in
 		let begin_try b =
@@ -1176,13 +1178,19 @@ module TexprTransformer = struct
 				close_node g bb;
 				let bb_loop_head = create_node BKLoopHead bb_loop_pre e1.etype e1.epos in
 				add_cfg_edge g bb_loop_pre bb_loop_head CFGGoto;
-				let bb_next = create_node BKNormal bb_loop_head bb.bb_type bb.bb_pos in
 				let scope = increase_scope() in
-				let close = begin_loop bb bb_next bb_loop_head in
+				let close = begin_loop bb bb_loop_head in
 				let bb_loop_body = create_node BKNormal bb_loop_head e2.etype e2.epos in
 				let bb_loop_body_next = block bb_loop_body e2 in
-				close();
+				let bb_breaks = close() in
 				scope();
+				let dom = match bb_breaks with
+					| [] -> g.g_unreachable
+					| [bb_break] -> bb_break
+					| _ -> bb_loop_body (* TODO: this is not accurate for while(true) loops *)
+				in
+				let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
+				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) bb_breaks;
 				set_syntax_edge g bb_loop_pre (SEWhile(bb_loop_body,bb_next));
 				close_node g bb_loop_pre;
 				add_texpr g bb_loop_pre {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
@@ -1235,10 +1243,7 @@ module TexprTransformer = struct
 					add_terminator bb {e with eexpr = TReturn(Some e1)};
 				end
 			| TBreak ->
-				begin match !bb_break with
-					| Some bb_break -> add_cfg_edge g bb bb_break CFGGoto
-					| _ -> assert false
-				end;
+				bb_breaks := bb :: !bb_breaks;
 				add_terminator bb e
 			| TContinue ->
 				begin match !bb_continue with
