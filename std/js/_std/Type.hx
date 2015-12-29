@@ -208,7 +208,7 @@ enum ValueType {
 		return untyped e[1];
 	}
 
-	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
+	public inline static function allEnums<T>( e : Enum<T> ) : Array<T> {
 		return untyped e.__empty_constructs__;
 	}
 
