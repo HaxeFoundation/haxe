@@ -55,7 +55,7 @@ import js.Boot;
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
+		return x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
 
 	static function __init__() : Void untyped {
