@@ -260,6 +260,7 @@ end
 	- OpAssignOp on a variable is rewritten to OpAssign
 	- Prefix increment/decrement operations are rewritten to OpAssign
 	- Postfix increment/decrement operations are rewritten to a TBlock with OpAssign and OpAdd/OpSub
+	- `do {} while(true)` is rewritten to `while(true) {}`
 	- TWhile expressions are rewritten to `while (true)` with appropriate conditional TBreak
 	- TFor is rewritten to TWhile
 *)
@@ -289,6 +290,8 @@ module TexprFilter = struct
 				]) e.etype e.epos
 			in
 			loop e
+		| TWhile(e1,e2,DoWhile) when is_true_expr e1 ->
+			loop {e with eexpr = TWhile(e1,e2,NormalWhile)}
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			let p = e.epos in
 			let e_break = mk TBreak t_dynamic p in
