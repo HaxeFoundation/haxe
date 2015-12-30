@@ -1156,7 +1156,7 @@ let run com tctx main =
 		captured_vars com;
 	] in
 	List.iter (run_expression_filters tctx filters) new_types;
-	Analyzer.Run.run_on_types tctx use_static_analyzer new_types;
+	if com.platform <> Cross then Analyzer.Run.run_on_types tctx use_static_analyzer new_types;
 	List.iter (iter_expressions [verify_ast tctx]) new_types;
 	let filters = [
 		Optimizer.sanitize com;
