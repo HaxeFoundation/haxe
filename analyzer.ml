@@ -1498,6 +1498,8 @@ module TexprTransformer = struct
 					| _ ->
 						{e with eexpr = TBinop(OpAssign,e1,{e4 with eexpr = TBinop(op,e2,e3)})}
 				end
+			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+				e
 			| TCall({eexpr = TConst (TString "fun")},[{eexpr = TConst (TInt i32)}]) ->
 				func ctx (Int32.to_int i32)
 			| _ ->
