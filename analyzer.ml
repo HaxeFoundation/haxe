@@ -1222,7 +1222,9 @@ module TexprTransformer = struct
 				let bb_breaks = close() in
 				scope();
 				let dom = match bb_breaks with
-					| [] -> g.g_unreachable
+					| [] ->
+						add_cfg_edge g bb_loop_body_next bb_exit CFGGoto;
+						g.g_unreachable
 					| [bb_break] -> bb_break
 					| _ -> bb_loop_body (* TODO: this is not accurate for while(true) loops *)
 				in
