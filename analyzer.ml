@@ -697,6 +697,7 @@ module Graph = struct
 		mutable vi_writes : var_write;            (* A list of blocks that assign to this variable *)
 		mutable vi_value : texpr_lookup option;   (* The value of this variable, if known *)
 		mutable vi_ssa_edges : texpr_lookup list; (* The expressions this variable influences *)
+		mutable vi_reaching_def : tvar option;    (* The current reaching definition variable of this variable *)
 	}
 
 	type t = {
@@ -716,7 +717,8 @@ module Graph = struct
 			vi_origin = v;
 			vi_writes = [];
 			vi_value = None;
-			vi_ssa_edges = []
+			vi_ssa_edges = [];
+			vi_reaching_def = None;
 		} in
 		vi
 
@@ -1559,19 +1561,12 @@ module Ssa = struct
 			done
 		) ctx.graph.g_var_infos
 
-	let set_reaching_def v vo =
-		let eo = match vo with
-			| None -> None
-			| Some v' ->
-				let ev = mk (TLocal v') v.v_type null_pos in
-				let ea = mk (TArrayDecl [ev]) t_dynamic null_pos in
-				Some (ea)
-		in
-		v.v_extra <- Some([],eo)
+	let set_reaching_def g v vo =
+		let vi = get_var_info g v.v_id in
+		vi.vi_reaching_def <- vo
 
-	let get_reaching_def v = match v.v_extra with
-		| Some (_,Some {eexpr = TArrayDecl[{eexpr = TLocal v'}]}) -> Some v'
-		| _ -> None
+	let get_reaching_def g v =
+		(get_var_info g v.v_id).vi_reaching_def
 
 	let rec dominates bb_dom bb =
 		bb_dom == bb || bb.bb_dominator == bb_dom || (bb.bb_dominator != bb && dominates bb_dom bb.bb_dominator)
@@ -1586,16 +1581,16 @@ module Ssa = struct
 				if dominates ctx r bb then
 					Some r
 				else
-					loop (get_reaching_def r)
+					loop (get_reaching_def ctx.graph r)
 			| None ->
 				None
 		in
-		let v' = (loop (get_reaching_def v)) in
-		set_reaching_def v v'
+		let v' = (loop (get_reaching_def ctx.graph v)) in
+		set_reaching_def ctx.graph v v'
 
 	let local ctx e v bb =
 		update_reaching_def ctx v bb;
-		match get_reaching_def v with
+		match get_reaching_def ctx.graph v with
 			| Some v' -> v'
 			| None -> v
 
@@ -1632,8 +1627,8 @@ module Ssa = struct
 			v'.v_meta <- v.v_meta;
 			v'.v_capture <- v.v_capture;
 			add_var_def ctx.graph bb v';
-			set_reaching_def v' (get_reaching_def v);
-			set_reaching_def v (Some v');
+			set_reaching_def ctx.graph v' (get_reaching_def ctx.graph v);
+			set_reaching_def ctx.graph v (Some v');
 			set_var_value ctx.graph v' bb is_phi i;
 			add_var_origin ctx.graph v' v;
 			v'
@@ -2252,7 +2247,7 @@ module LocalDce = struct
 			if not (is_used v) then begin
 				v.v_meta <- (Meta.Used,[],null_pos) :: v.v_meta;
 				(try expr (get_var_value ctx.graph v) with Not_found -> ());
-				begin match Ssa.get_reaching_def v with
+				begin match Ssa.get_reaching_def ctx.graph v with
 					| None -> use (get_var_origin ctx.graph v)
 					| Some v -> use v;
 				end
