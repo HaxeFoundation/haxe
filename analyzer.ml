@@ -702,14 +702,14 @@ module Graph = struct
 	}
 
 	type t = {
-		mutable g_root : BasicBlock.t;                    (* The unique root block *)
-		mutable g_exit : BasicBlock.t;                    (* The unique exit block *)
-		mutable g_unreachable : BasicBlock.t;             (* The unique unreachable block *)
-		mutable g_functions : tfunc_info IntMap.t;        (* A map of functions, indexed by their block IDs *)
-		mutable g_nodes : BasicBlock.t IntMap.t;          (* A map of all blocks *)
-		mutable g_cfg_edges : cfg_edge list;              (* A list of all CFG edges *)
-		mutable g_var_infos : var_info DynArray.t;        (* A map of variable information *)
-		mutable g_loops : BasicBlock.t IntMap.t;          (* A map containing loop information *)
+		mutable g_root : BasicBlock.t;             (* The unique root block *)
+		mutable g_exit : BasicBlock.t;             (* The unique exit block *)
+		mutable g_unreachable : BasicBlock.t;      (* The unique unreachable block *)
+		mutable g_functions : tfunc_info IntMap.t; (* A map of functions, indexed by their block IDs *)
+		mutable g_nodes : BasicBlock.t IntMap.t;   (* A map of all blocks *)
+		mutable g_cfg_edges : cfg_edge list;       (* A list of all CFG edges *)
+		mutable g_var_infos : var_info DynArray.t; (* A map of variable information *)
+		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
 
 	let create_var_info g v =
@@ -740,7 +740,7 @@ module Graph = struct
 
 	let add_cfg_edge g bb_from bb_to kind =
 		if bb_from.bb_id > 0 then begin
-		let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
+			let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
 			g.g_cfg_edges <- edge :: g.g_cfg_edges;
 			bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
 			bb_to.bb_incoming <- edge :: bb_to.bb_incoming;
@@ -859,7 +859,6 @@ type analyzer_context = {
 	graph : Graph.t;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
-	mutable saved_v_extra : (type_params * texpr option) option IntMap.t;
 	mutable loop_counter : int;
 	mutable loop_stack : int list;
 	mutable scopes : int list;
@@ -1392,7 +1391,6 @@ module TexprTransformer = struct
 			graph = g;
 			entry = g.g_unreachable;
 			has_unbound = false;
-			saved_v_extra = IntMap.empty;
 			loop_counter = 0;
 			loop_stack = [];
 			scope_depth = 0;
@@ -1962,7 +1960,7 @@ module ConstPropagation = DataFlow(struct
 end)
 
 (*
-	Propagates locals to other locals if data flow analysis it's possible.
+	Propagates local variables to other local variables.
 
 	Respects scopes on targets where it matters (all except JS and As3).
 *)
@@ -2016,7 +2014,7 @@ module CopyPropagation = DataFlow(struct
 			| Js -> true
 			| Flash when Common.defined ctx.com Define.As3 -> true
 			| _ -> List.mem (List.hd bb'.bb_scopes) bb.bb_scopes
- 		in
+		in
 		let rec commit bb e = match e.eexpr with
 			| TLocal v when not v.v_capture ->
 				begin try
