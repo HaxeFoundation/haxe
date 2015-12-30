@@ -51,7 +51,6 @@ class SyncSocketConnection implements Connection implements Dynamic<Connection> 
 			}
 			return proto.processAnswer(data);
 		}
-		return null; // never reached
 	}
 
 	public function processRequest() {

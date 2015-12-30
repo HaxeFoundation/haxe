@@ -1406,11 +1406,11 @@ module TexprTransformer = struct
 		close_node g g.g_root;
 		finalize g bb_exit;
 		set_syntax_edge g bb_exit SEEnd;
-		let rec check_unreachable bb =
-			DynArray.iter (fun e -> com.warning "Unreachable code" e.epos) bb.bb_el;
-			List.iter check_unreachable bb.bb_dominated
+		let check_unreachable bb =
+			if DynArray.length bb.bb_el > 0 then
+				com.warning "Unreachable code" (DynArray.get bb.bb_el 0).epos;
 		in
-		check_unreachable g.g_unreachable;
+		List.iter check_unreachable g.g_unreachable.bb_dominated;
 		ctx
 
 	let rec block_to_texpr_el ctx bb =
