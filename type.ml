@@ -69,12 +69,14 @@ and tconstant =
 	| TThis
 	| TSuper
 
+and tvar_extra = (type_params * texpr option) option
+
 and tvar = {
 	mutable v_id : int;
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_capture : bool;
-	mutable v_extra : (type_params * texpr option) option;
+	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
 }
 

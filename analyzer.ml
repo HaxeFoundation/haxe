@@ -693,6 +693,7 @@ module Graph = struct
 
 	type var_info = {
 		vi_var : tvar;                            (* The variable itself *)
+		vi_extra : tvar_extra;                    (* The original v_extra *)
 		mutable vi_origin : tvar;                 (* The origin variable of this variable *)
 		mutable vi_writes : var_write;            (* A list of blocks that assign to this variable *)
 		mutable vi_value : texpr_lookup option;   (* The value of this variable, if known *)
@@ -707,23 +708,27 @@ module Graph = struct
 		mutable g_functions : tfunc_info IntMap.t;        (* A map of functions, indexed by their block IDs *)
 		mutable g_nodes : BasicBlock.t IntMap.t;          (* A map of all blocks *)
 		mutable g_cfg_edges : cfg_edge list;              (* A list of all CFG edges *)
-		mutable g_var_infos : var_info IntMap.t;          (* A map of variable information *)
+		mutable g_var_infos : var_info DynArray.t;        (* A map of variable information *)
 		mutable g_loops : BasicBlock.t IntMap.t;          (* A map containing loop information *)
 	}
 
 	let create_var_info g v =
 		let vi = {
 			vi_var = v;
+			vi_extra = v.v_extra;
 			vi_origin = v;
 			vi_writes = [];
 			vi_value = None;
 			vi_ssa_edges = [];
 			vi_reaching_def = None;
 		} in
-		vi
+		DynArray.add g.g_var_infos vi;
+		let i = DynArray.length g.g_var_infos - 1 in
+		v.v_extra <- Some([],Some (mk (TConst (TInt (Int32.of_int i))) t_dynamic null_pos))
 
-	let get_var_info g i =
-		IntMap.find i g.g_var_infos
+	let get_var_info g v = match v.v_extra with
+		| Some(_,Some {eexpr = TConst (TInt i32)}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
+		| _ -> assert false
 
 	(* edges *)
 
@@ -742,7 +747,7 @@ module Graph = struct
 		end
 
 	let add_ssa_edge g v bb is_phi i =
-		let vi = get_var_info g v.v_id in
+		let vi = get_var_info g v in
 		vi.vi_ssa_edges <- (bb,is_phi,i) :: vi.vi_ssa_edges
 
 	(* nodes *)
@@ -788,21 +793,20 @@ module Graph = struct
 	(* variables *)
 
 	let declare_var g v =
-		let vi = create_var_info g v in
-		g.g_var_infos <- IntMap.add v.v_id vi g.g_var_infos
+		create_var_info g v
 
 	let add_var_def g bb v =
 		if bb.bb_id > 0 then begin
 			bb.bb_var_writes <- v :: bb.bb_var_writes;
-			let vi = get_var_info g v.v_id in
+			let vi = get_var_info g v in
 			vi.vi_writes <- bb :: vi.vi_writes;
 		end
 
 	let set_var_value g v bb is_phi i =
-		(get_var_info g v.v_id).vi_value <- Some (bb,is_phi,i)
+		(get_var_info g v).vi_value <- Some (bb,is_phi,i)
 
 	let get_var_value g v =
-		let value = (get_var_info g v.v_id).vi_value in
+		let value = (get_var_info g v).vi_value in
 		let bb,is_phi,i = match value with
 			| None -> raise Not_found
 			| Some l -> l
@@ -812,10 +816,10 @@ module Graph = struct
 		| _ -> assert false
 
 	let add_var_origin g v v_origin =
-		(get_var_info g v.v_id).vi_origin <- v_origin
+		(get_var_info g v).vi_origin <- v_origin
 
 	let get_var_origin g v =
-		(get_var_info g v.v_id).vi_origin
+		(get_var_info g v).vi_origin
 
 	(* graph *)
 
@@ -829,7 +833,7 @@ module Graph = struct
 			g_functions = IntMap.empty;
 			g_nodes = IntMap.add bb_root.bb_id bb_root IntMap.empty;
 			g_cfg_edges = [];
-			g_var_infos = IntMap.empty;
+			g_var_infos = DynArray.create();
 			g_loops = IntMap.empty;
 		}
 
@@ -871,13 +875,6 @@ type analyzer_context = {
 module TexprTransformer = struct
 	open BasicBlock
 	open Graph
-
-	let save_v_extra ctx v =
-		if not (IntMap.mem v.v_id ctx.saved_v_extra) then
-			ctx.saved_v_extra <- IntMap.add v.v_id v.v_extra ctx.saved_v_extra
-
-	let restore_v_extra ctx v =
-		try v.v_extra <- IntMap.find v.v_id ctx.saved_v_extra with Not_found -> ()
 
 	let rec func ctx bb tf t p =
 		let g = ctx.graph in
@@ -1095,12 +1092,10 @@ module TexprTransformer = struct
 		and block_element bb e = match e.eexpr with
 			(* variables *)
 			| TVar(v,None) ->
-				save_v_extra ctx v;
 				declare_var g v;
 				add_texpr g bb e;
 				bb
 			| TVar(v,Some e1) ->
-				save_v_extra ctx v;
 				declare_var g v;
 				declare_var_and_assign bb v e1
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
@@ -1476,7 +1471,7 @@ module TexprTransformer = struct
 			| TVar(v,eo) when not (is_unbound v) ->
 				let eo = Option.map loop eo in
 				let v' = get_var_origin ctx.graph v in
-				restore_v_extra ctx v';
+				(* restore_v_extra ctx v'; *)
 				{e with eexpr = TVar(v',eo)}
 			| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) ->
 				let e1 = loop e1 in
@@ -1543,7 +1538,7 @@ module Ssa = struct
 		DynArray.add bb.bb_phi e
 
 	let insert_phi ctx =
-		IntMap.iter (fun i vi ->
+		DynArray.iter (fun vi ->
 			let v = vi.vi_var in
 			let done_list = ref IntMap.empty in
 			let w = ref vi.vi_writes in
@@ -1562,17 +1557,17 @@ module Ssa = struct
 		) ctx.graph.g_var_infos
 
 	let set_reaching_def g v vo =
-		let vi = get_var_info g v.v_id in
+		let vi = get_var_info g v in
 		vi.vi_reaching_def <- vo
 
 	let get_reaching_def g v =
-		(get_var_info g v.v_id).vi_reaching_def
+		(get_var_info g v).vi_reaching_def
 
 	let rec dominates bb_dom bb =
 		bb_dom == bb || bb.bb_dominator == bb_dom || (bb.bb_dominator != bb && dominates bb_dom bb.bb_dominator)
 
 	let dominates ctx r bb =
-		let l = (get_var_info ctx.graph r.v_id).vi_writes in
+		let l = (get_var_info ctx.graph r).vi_writes in
 		List.exists (fun bb' -> dominates bb' bb) l
 
 	let update_reaching_def ctx v bb =
@@ -1695,7 +1690,7 @@ module DataFlow (M : DataFlowApi) = struct
 	open BasicBlock
 
 	let get_ssa_edges_from g v =
-		(get_var_info g v.v_id).vi_ssa_edges
+		(get_var_info g v).vi_ssa_edges
 
 	let run ctx =
 		let g = ctx.graph in
@@ -2028,7 +2023,7 @@ module CopyPropagation = DataFlow(struct
 					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
 					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
 					   considering variables whose origin-variables are assigned to at most once. *)
-					let writes = (get_var_info ctx.graph v''.v_id).vi_writes in
+					let writes = (get_var_info ctx.graph v'').vi_writes in
 					begin match writes with
 						| [_] -> ()
 						| _ -> leave()
@@ -2089,7 +2084,7 @@ module CodeMotion = DataFlow(struct
 			| TConst ct ->
 				Const ct
 			| TLocal v ->
-				let bb_def = match (get_var_info ctx.graph v.v_id).vi_writes with [bb] -> bb | _ -> raise Exit in
+				let bb_def = match (get_var_info ctx.graph v).vi_writes with [bb] -> bb | _ -> raise Exit in
 				Local(v,bb_def)
 			| TBinop(op,e1,e2) ->
 				let lat1 = transfer ctx bb e1 in
@@ -2425,7 +2420,7 @@ module Debug = struct
 			nodes := PMap.add n true !nodes;
 			n
 		in
-		IntMap.iter (fun i vi ->
+		DynArray.iter (fun vi ->
 			begin try
 				let (bb,is_phi,i) = match vi.vi_value with None -> raise Not_found | Some i -> i in
 				let n1 = node_name2 bb is_phi i in
@@ -2463,6 +2458,7 @@ end
 
 module Run = struct
 	open Config
+	open Graph
 
 	let with_timer s f =
 		let timer = timer s in
@@ -2478,6 +2474,9 @@ module Run = struct
 	let back_again ctx =
 		let e = with_timer "analyzer-to-texpr" (fun () -> TexprTransformer.to_texpr ctx) in
 		let e = with_timer "analyzer-filter-unapply" (fun () -> TexprFilter.unapply ctx.com ctx.config e) in
+		DynArray.iter (fun vi ->
+			vi.vi_var.v_extra <- vi.vi_extra;
+		) ctx.graph.g_var_infos;
 		e
 
 	let roundtrip com config e =
