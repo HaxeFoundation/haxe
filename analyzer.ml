@@ -2053,7 +2053,7 @@ module CodeMotion = DataFlow(struct
 		| Top
 		| Bottom
 		| Const of tconstant
-		| Local of tvar * BasicBlock.t
+		| Local of tvar
 		| Binop of binop * t * t
 
 	and t = (t_def * Type.t * pos)
@@ -2067,7 +2067,7 @@ module CodeMotion = DataFlow(struct
 			true
 		| Const ct1,Const ct2 ->
 			ct1 = ct2
-		| Local(v1,_),Local(v2,_) ->
+		| Local v1,Local v2 ->
 			v1 == v2
 		| Binop(op1,lat11,lat12),Binop(op2,lat21,lat22) ->
 			op1 = op2 && equals lat11 lat21 && equals lat12 lat22
@@ -2084,8 +2084,7 @@ module CodeMotion = DataFlow(struct
 			| TConst ct ->
 				Const ct
 			| TLocal v ->
-				let bb_def = match (get_var_info ctx.graph v).vi_writes with [bb] -> bb | _ -> raise Exit in
-				Local(v,bb_def)
+				Local v
 			| TBinop(op,e1,e2) ->
 				let lat1 = transfer ctx bb e1 in
 				let lat2 = transfer ctx bb e2 in
@@ -2102,15 +2101,9 @@ module CodeMotion = DataFlow(struct
 		lattice := IntMap.empty
 
 	let commit ctx =
-		let rec s_lat (lat,_,_) = match lat with
-			| Top -> "Top"
-			| Bottom -> "Bottom"
-			| Const ct -> s_const ct
-			| Local(v,bb) -> Printf.sprintf "(%i) %s<%i>" bb.bb_id v.v_name v.v_id
-			| Binop(op,lat1,lat2) -> Printf.sprintf "%s %s %s" (s_lat lat1) (s_binop op) (s_lat lat2)
-		in
 		let rec filter_loops lat loops = match lat with
-			| Local(v,bb),_,_ ->
+			| Local v,_,_ ->
+				let bb = match (get_var_info ctx.graph v).vi_writes with [bb] -> bb | _ -> raise Exit in
 				let loops2 = List.filter (fun i -> not (List.mem i bb.bb_loop_groups)) loops in
 				if loops2 = [] then filter_loops (get_cell v.v_id) loops else true,lat,loops2
 			| Const _,_,_ ->
@@ -2124,7 +2117,7 @@ module CodeMotion = DataFlow(struct
 		in
 		let rec to_texpr (lat,t,p) =
 			let def = match lat with
-				| Local(v,_) -> TLocal v
+				| Local v -> TLocal v
 				| Const ct -> TConst ct
 				| Binop(op,lat1,lat2) -> TBinop(op,to_texpr lat1,to_texpr lat2)
 				| _ -> raise Exit
@@ -2146,7 +2139,6 @@ module CodeMotion = DataFlow(struct
 					snd (List.find (fun (lat',e) -> equals lat lat') l)
 				with Not_found ->
 					let v' = if decl then begin
-						set_cell v.v_id (Local(v,bb_loop_pre),t,p);
 						v
 					end else begin
 						let v' = alloc_var "tmp" v.v_type in
