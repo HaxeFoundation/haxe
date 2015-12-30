@@ -134,7 +134,10 @@ let rec expr_eq e1 e2 = match e1.eexpr,e2.eexpr with
 	| _ -> false
 
 let is_unbound v =
-	v.v_name <> "`trace" && Meta.has Meta.Unbound v.v_meta
+	Meta.has Meta.Unbound v.v_meta
+
+let is_really_unbound v =
+	v.v_name <> "`trace" && is_unbound v
 
 let is_ref_type = function
 	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
@@ -460,7 +463,7 @@ module TexprFilter = struct
 							let e2 = replace e2 in
 							let e1 = replace e1 in
 							{e with eexpr = TBinop(op,e1,e2)}
-						| TCall({eexpr = TLocal v},_) when is_unbound v ->
+						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 							e
 						| _ ->
 							Type.map_expr replace e
@@ -519,7 +522,7 @@ module TexprFilter = struct
 				in
 				let el = fuse_loop el in
 				{e with eexpr = TBlock el}
-			| TCall({eexpr = TLocal v},_) when is_unbound v ->
+			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 				e
 			| _ ->
 				Type.map_expr loop e
@@ -686,7 +689,15 @@ module Graph = struct
 
 	type texpr_lookup = BasicBlock.t * bool * int
 	type tfunc_info = BasicBlock.t * Type.t * pos * tfunc
-	type var_write = tvar * BasicBlock.t list
+	type var_write = BasicBlock.t list
+
+	type var_info = {
+		vi_var : tvar;                            (* The variable itself *)
+		mutable vi_origin : tvar;                 (* The origin variable of this variable *)
+		mutable vi_writes : var_write;            (* A list of blocks that assign to this variable *)
+		mutable vi_value : texpr_lookup option;   (* The value of this variable, if known *)
+		mutable vi_ssa_edges : texpr_lookup list; (* The expressions this variable influences *)
+	}
 
 	type t = {
 		mutable g_root : BasicBlock.t;                    (* The unique root block *)
@@ -695,12 +706,22 @@ module Graph = struct
 		mutable g_functions : tfunc_info IntMap.t;        (* A map of functions, indexed by their block IDs *)
 		mutable g_nodes : BasicBlock.t IntMap.t;          (* A map of all blocks *)
 		mutable g_cfg_edges : cfg_edge list;              (* A list of all CFG edges *)
-		mutable g_var_writes :  var_write IntMap.t;       (* A map tracking which blocks write which variables *)
-		mutable g_var_values : texpr_lookup IntMap.t;     (* A map containing expression lookup information for each variable *)
-		mutable g_ssa_edges : texpr_lookup list IntMap.t; (* A map containing def-use lookup information for each variable *)
-		mutable g_var_origins : tvar IntMap.t;            (* A map keeping track of original variables for SSA variables *)
+		mutable g_var_infos : var_info IntMap.t;          (* A map of variable information *)
 		mutable g_loops : BasicBlock.t IntMap.t;          (* A map containing loop information *)
 	}
+
+	let create_var_info g v =
+		let vi = {
+			vi_var = v;
+			vi_origin = v;
+			vi_writes = [];
+			vi_value = None;
+			vi_ssa_edges = []
+		} in
+		vi
+
+	let get_var_info g i =
+		IntMap.find i g.g_var_infos
 
 	(* edges *)
 
@@ -714,12 +735,13 @@ module Graph = struct
 		if bb_from.bb_id > 0 then begin
 		let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
 			g.g_cfg_edges <- edge :: g.g_cfg_edges;
-		bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
+			bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
 			bb_to.bb_incoming <- edge :: bb_to.bb_incoming;
 		end
 
 	let add_ssa_edge g v bb is_phi i =
-		g.g_ssa_edges <- IntMap.add v.v_id (try (bb,is_phi,i) :: IntMap.find v.v_id g.g_ssa_edges with Not_found -> [bb,is_phi,i]) g.g_ssa_edges
+		let vi = get_var_info g v.v_id in
+		vi.vi_ssa_edges <- (bb,is_phi,i) :: vi.vi_ssa_edges
 
 	(* nodes *)
 
@@ -763,27 +785,35 @@ module Graph = struct
 
 	(* variables *)
 
+	let declare_var g v =
+		let vi = create_var_info g v in
+		g.g_var_infos <- IntMap.add v.v_id vi g.g_var_infos
+
 	let add_var_def g bb v =
 		if bb.bb_id > 0 then begin
 			bb.bb_var_writes <- v :: bb.bb_var_writes;
-			let l = try snd (IntMap.find v.v_id g.g_var_writes) with Not_found -> [] in
-			g.g_var_writes <- IntMap.add v.v_id (v,bb :: l) g.g_var_writes;
+			let vi = get_var_info g v.v_id in
+			vi.vi_writes <- bb :: vi.vi_writes;
 		end
 
 	let set_var_value g v bb is_phi i =
-		g.g_var_values <- IntMap.add v.v_id (bb,is_phi,i) g.g_var_values
+		(get_var_info g v.v_id).vi_value <- Some (bb,is_phi,i)
 
 	let get_var_value g v =
-		let bb,is_phi,i = IntMap.find v.v_id g.g_var_values in
+		let value = (get_var_info g v.v_id).vi_value in
+		let bb,is_phi,i = match value with
+			| None -> raise Not_found
+			| Some l -> l
+		in
 		match (get_texpr g bb is_phi i).eexpr with
 		| TVar(_,Some e) | TBinop(OpAssign,_,e) -> e
 		| _ -> assert false
 
 	let add_var_origin g v v_origin =
-		g.g_var_origins <- IntMap.add v.v_id v_origin g.g_var_origins
+		(get_var_info g v.v_id).vi_origin <- v_origin
 
 	let get_var_origin g v =
-		try IntMap.find v.v_id g.g_var_origins with Not_found -> v
+		(get_var_info g v.v_id).vi_origin
 
 	(* graph *)
 
@@ -797,10 +827,7 @@ module Graph = struct
 			g_functions = IntMap.empty;
 			g_nodes = IntMap.add bb_root.bb_id bb_root IntMap.empty;
 			g_cfg_edges = [];
-			g_var_writes = IntMap.empty;
-			g_var_values = IntMap.empty;
-			g_ssa_edges = IntMap.empty;
-			g_var_origins = IntMap.empty;
+			g_var_infos = IntMap.empty;
 			g_loops = IntMap.empty;
 		}
 
@@ -852,6 +879,7 @@ module TexprTransformer = struct
 
 	let rec func ctx bb tf t p =
 		let g = ctx.graph in
+		List.iter (fun (v,_) -> declare_var g v) tf.tf_args;
 		let create_node kind bb t p =
 			let bb = Graph.create_node g kind ctx.scopes bb t p in
 			bb.bb_loop_groups <- ctx.loop_stack;
@@ -919,7 +947,7 @@ module TexprTransformer = struct
 				bind_to_temp bb false e
 			| TFor _ | TWhile _ ->
 				assert false
-			| TCall({eexpr = TLocal v},el) when is_unbound v ->
+			| TCall({eexpr = TLocal v},el) when is_really_unbound v ->
 				check_unbound_call v el;
 				bb,e
 			| TCall(e1,el) ->
@@ -1006,6 +1034,7 @@ module TexprTransformer = struct
 			bb,List.rev values
 		and bind_to_temp bb sequential e =
 			let v = alloc_var "tmp" e.etype in
+			declare_var g v;
 			begin match ctx.com.platform with
 				| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 				| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
@@ -1065,10 +1094,12 @@ module TexprTransformer = struct
 			(* variables *)
 			| TVar(v,None) ->
 				save_v_extra ctx v;
+				declare_var g v;
 				add_texpr g bb e;
 				bb
 			| TVar(v,Some e1) ->
 				save_v_extra ctx v;
+				declare_var g v;
 				declare_var_and_assign bb v e1
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 				let assign e =
@@ -1224,6 +1255,7 @@ module TexprTransformer = struct
 					set_syntax_edge g bb (SESubBlock(bb_try,bb_next))
 				else begin
 					let catches = List.map (fun (v,e) ->
+						declare_var ctx.graph v;
 						let scope = increase_scope() in
 						let bb_catch = create_node BKNormal bb_exc e.etype e.epos in
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
@@ -1273,7 +1305,7 @@ module TexprTransformer = struct
 					add_terminator bb {e with eexpr = TThrow e1};
 				end
 			(* side_effects *)
-			| TCall({eexpr = TLocal v},el) when is_unbound v ->
+			| TCall({eexpr = TLocal v},el) when is_really_unbound v ->
 				check_unbound_call v el;
 				add_texpr g bb e;
 				bb
@@ -1437,9 +1469,9 @@ module TexprTransformer = struct
 		assert(bb.bb_closed);
 		let el = block_to_texpr_el ctx bb in
 		let rec loop e = match e.eexpr with
-			| TLocal v ->
+			| TLocal v when not (is_unbound v) ->
 				{e with eexpr = TLocal (get_var_origin ctx.graph v)}
-			| TVar(v,eo) ->
+			| TVar(v,eo) when not (is_unbound v) ->
 				let eo = Option.map loop eo in
 				let v' = get_var_origin ctx.graph v in
 				restore_v_extra ctx v';
@@ -1507,9 +1539,10 @@ module Ssa = struct
 		DynArray.add bb.bb_phi e
 
 	let insert_phi ctx =
-		IntMap.iter (fun i (v,bbl) ->
+		IntMap.iter (fun i vi ->
+			let v = vi.vi_var in
 			let done_list = ref IntMap.empty in
-			let w = ref bbl in
+			let w = ref vi.vi_writes in
 			while !w <> [] do
 				let x = List.hd !w in
 				w := List.tl !w;
@@ -1517,12 +1550,12 @@ module Ssa = struct
 					if not (IntMap.mem y.bb_id !done_list) then begin
 						add_phi ctx.graph y v;
 						done_list := IntMap.add y.bb_id true !done_list;
-						if not (List.memq y bbl) then
+						if not (List.memq y vi.vi_writes) then
 							w := y :: !w
 					end
 				) x.bb_df;
 			done
-		) ctx.graph.g_var_writes
+		) ctx.graph.g_var_infos
 
 	let set_reaching_def v vo =
 		let eo = match vo with
@@ -1542,7 +1575,7 @@ module Ssa = struct
 		bb_dom == bb || bb.bb_dominator == bb_dom || (bb.bb_dominator != bb && dominates bb_dom bb.bb_dominator)
 
 	let dominates ctx r bb =
-		let _,l = IntMap.find r.v_id ctx.graph.g_var_writes in
+		let l = (get_var_info ctx.graph r.v_id).vi_writes in
 		List.exists (fun bb' -> dominates bb' bb) l
 
 	let update_reaching_def ctx v bb =
@@ -1593,6 +1626,7 @@ module Ssa = struct
 		let write_var v is_phi i =
 			update_reaching_def ctx v bb;
 			let v' = alloc_var (v.v_name) v.v_type in
+			declare_var ctx.graph v';
 			v'.v_meta <- v.v_meta;
 			v'.v_capture <- v.v_capture;
 			add_var_def ctx.graph bb v';
@@ -1603,15 +1637,15 @@ module Ssa = struct
 			v'
 		in
 		let rec loop is_phi i e = match e.eexpr with
-			| TLocal v ->
+			| TLocal v when not (is_unbound v) ->
 				let v' = local ctx e v bb in
 				add_ssa_edge ctx.graph v' bb is_phi i;
 				{e with eexpr = TLocal v'}
-			| TVar(v,Some e1) ->
+			| TVar(v,Some e1) when not (is_unbound v) ->
 				let e1 = (loop is_phi i) e1 in
 				let v' = write_var v is_phi i in
 				{e with eexpr = TVar(v',Some e1)}
-			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
+			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) when not (is_unbound v) ->
 				let e2 = (loop is_phi i) e2 in
 				let v' = write_var v is_phi i in
 				{e with eexpr = TBinop(OpAssign,{e1 with eexpr = TLocal v'},e2)};
@@ -1664,7 +1698,7 @@ module DataFlow (M : DataFlowApi) = struct
 	open BasicBlock
 
 	let get_ssa_edges_from g v =
-		try IntMap.find v.v_id g.g_ssa_edges with Not_found -> []
+		(get_var_info g v.v_id).vi_ssa_edges
 
 	let run ctx =
 		let g = ctx.graph in
@@ -1997,7 +2031,7 @@ module CopyPropagation = DataFlow(struct
 					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
 					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
 					   considering variables whose origin-variables are assigned to at most once. *)
-					let writes = try snd (IntMap.find v''.v_id ctx.graph.g_var_writes) with Not_found -> [] in
+					let writes = (get_var_info ctx.graph v''.v_id).vi_writes in
 					begin match writes with
 						| [_] -> ()
 						| _ -> leave()
@@ -2058,7 +2092,7 @@ module CodeMotion = DataFlow(struct
 			| TConst ct ->
 				Const ct
 			| TLocal v ->
-				let bb_def = match IntMap.find v.v_id ctx.graph.g_var_writes with _,[bb] -> bb | _ -> raise Exit in
+				let bb_def = match (get_var_info ctx.graph v.v_id).vi_writes with [bb] -> bb | _ -> raise Exit in
 				Local(v,bb_def)
 			| TBinop(op,e1,e2) ->
 				let lat1 = transfer ctx bb e1 in
@@ -2124,6 +2158,7 @@ module CodeMotion = DataFlow(struct
 						v
 					end else begin
 						let v' = alloc_var "tmp" v.v_type in
+						declare_var ctx.graph v';
 						v'.v_meta <- [Meta.CompilerGenerated,[],p];
 						v'
 					end in
@@ -2221,9 +2256,9 @@ module LocalDce = struct
 				end
 			end
 		and expr e = match e.eexpr with
-			| TLocal v ->
+			| TLocal v when not (is_unbound v) ->
 				use v;
-			| TBinop(OpAssign,{eexpr = TLocal v},e1) | TVar(v,Some e1) ->
+			| TBinop(OpAssign,{eexpr = TLocal v},e1) | TVar(v,Some e1) when not (is_unbound v) ->
 				if has_side_effect e1 || keep v then expr e1
 				else ()
 			| _ ->
@@ -2393,18 +2428,18 @@ module Debug = struct
 			nodes := PMap.add n true !nodes;
 			n
 		in
-		IntMap.iter (fun i l ->
+		IntMap.iter (fun i vi ->
 			begin try
-				let (bb,is_phi,i) = IntMap.find i g.g_var_values in
+				let (bb,is_phi,i) = match vi.vi_value with None -> raise Not_found | Some i -> i in
 				let n1 = node_name2 bb is_phi i in
 				List.iter (fun (bb',is_phi',i') ->
 					let n2 = node_name2 bb' is_phi' i' in
 					Printf.fprintf ch "%s -> %s;\n" n1 n2
-				) l
+				) vi.vi_ssa_edges
 			with Not_found ->
 				()
 			end
-		) g.g_ssa_edges;
+		) g.g_var_infos;
 		IntMap.iter (fun _ bb ->
 			let f is_phi acc i e =
 				let n = node_name bb is_phi i in

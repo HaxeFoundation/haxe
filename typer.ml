@@ -2398,9 +2398,9 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	with Not_found -> try
 		begin match follow e2.etype with
 			| TAbstract({a_impl = Some c} as a,tl) -> find_overload a c tl false
-								| _ -> raise Not_found
-							end
-						with Not_found ->
+			| _ -> raise Not_found
+		end
+	with Not_found ->
 		make e1 e2
 
 and type_unop ctx op flag e p =
