@@ -2193,6 +2193,85 @@ module CodeMotion = DataFlow(struct
 		);
 end)
 
+module LoopInductionVariables = struct
+	open Graph
+
+	type book = {
+		tvar : tvar;
+		index : int;
+		mutable lowlink : int;
+		mutable on_stack : bool
+	}
+
+	let find_cycles g =
+		let index = ref 0 in
+		let s = ref [] in
+		let book = ref IntMap.empty in
+		let add_book_entry v =
+			let entry = {
+				tvar = v;
+				index = !index;
+				lowlink = !index;
+				on_stack = true;
+			} in
+			incr index;
+			book := IntMap.add v.v_id entry !book;
+			entry
+		in
+		let rec strong_connect vi =
+			let v_entry = add_book_entry vi.vi_var in
+			s := v_entry :: !s;
+			List.iter (fun (bb,is_phi,i) ->
+				try
+					let e = get_texpr g bb is_phi i in
+					let w = match e.eexpr with
+						| TVar(v,_) | TBinop(OpAssign,{eexpr = TLocal v},_) -> v
+						| _ -> raise Exit
+					in
+					begin try
+						let w_entry = IntMap.find w.v_id !book in
+						if w_entry.on_stack then
+							v_entry.lowlink <- min v_entry.lowlink w_entry.index
+					with Not_found ->
+						let w_entry = strong_connect (get_var_info g w) in
+						v_entry.lowlink <- min v_entry.lowlink w_entry.lowlink;
+					end
+				with Exit ->
+					()
+			) vi.vi_ssa_edges;
+			if v_entry.lowlink = v_entry.index then begin
+				let rec loop acc entries = match entries with
+					| w_entry :: entries ->
+						w_entry.on_stack <- false;
+						if w_entry == v_entry then w_entry :: acc,entries
+						else loop (w_entry :: acc) entries
+					| [] ->
+						acc,[]
+				in
+				let scc,rest = loop [] !s in
+				begin match scc with
+					| [] | [_] ->
+						()
+					| _ ->
+						print_endline "SCC:";
+						List.iter (fun entry -> print_endline (Printf.sprintf "%s<%i>" entry.tvar.v_name entry.tvar.v_id)) scc;
+						(* now what? *)
+				end;
+				s := rest
+			end;
+			v_entry
+		in
+		DynArray.iter (fun vi -> match vi.vi_ssa_edges with
+			| [] ->
+				()
+			| _ ->
+				if not (IntMap.mem vi.vi_var.v_id !book) then
+					ignore(strong_connect vi)
+		) g.g_var_infos
+
+	let apply ctx =
+		find_cycles ctx.graph
+end
 
 (*
 	LocalDce implements a mark & sweep dead code elimination. The mark phase follows the CFG edges of the graphs to find
