@@ -877,7 +877,6 @@ module TexprTransformer = struct
 
 	let rec func ctx bb tf t p =
 		let g = ctx.graph in
-		List.iter (fun (v,_) -> declare_var g v) tf.tf_args;
 		let create_node kind bb t p =
 			let bb = Graph.create_node g kind ctx.scopes bb t p in
 			bb.bb_loop_groups <- ctx.loop_stack;
@@ -885,6 +884,10 @@ module TexprTransformer = struct
 		in
 		let bb_root = create_node BKFunctionBegin bb tf.tf_expr.etype tf.tf_expr.epos in
 		let bb_exit = create_node BKFunctionEnd bb_root tf.tf_expr.etype tf.tf_expr.epos in
+		List.iter (fun (v,_) ->
+			declare_var g v;
+			add_var_def g bb_root v
+		) tf.tf_args;
 		add_function g tf t p bb_root;
 		add_cfg_edge g bb bb_root CFGFunction;
 		let make_block_meta b =
