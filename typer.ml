@@ -1034,6 +1034,8 @@ let rec acc_get ctx g p =
 				mk (TField (e,cmode)) t p
 			else
 				error "Recursive inline is not supported" p
+		| Some _ when ctx.com.display <> DMNone ->
+			mk (TField (e,cmode)) t p
 		| Some { eexpr = TFunction _ } ->
 			let chk_class c = (c.cl_extern || Meta.has Meta.Extern f.cf_meta) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
