@@ -2013,7 +2013,7 @@ module CopyPropagation = DataFlow(struct
 	let commit ctx =
 		(* We don't care about the scope on JS and AS3 because they hoist var declarations. *)
 		let in_scope bb bb' = match ctx.com.platform with
-			| Js _ -> true
+			| Js -> true
 			| Flash when Common.defined ctx.com Define.As3 -> true
 			| _ -> List.mem (List.hd bb'.bb_scopes) bb.bb_scopes
  		in
