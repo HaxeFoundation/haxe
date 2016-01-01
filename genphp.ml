@@ -2044,6 +2044,7 @@ let generate_class ctx c =
 		} in
 		ctx.constructor_block <- true;
 		generate_field ctx false f;
+		ctx.constructor_block <- false;
 	);
 
 	List.iter (generate_field ctx false) c.cl_ordered_fields;
