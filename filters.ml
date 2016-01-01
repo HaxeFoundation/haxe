@@ -603,8 +603,8 @@ let rename_local_vars ctx e =
 		let old = !vars in
 		if cfg.pf_unique_locals || not cfg.pf_locals_scope then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
 	in
+	let count = ref 1 in
 	let rename vars v =
-		let count = ref 1 in
 		while PMap.mem (v.v_name ^ string_of_int !count) vars do
 			incr count;
 		done;
