@@ -39,10 +39,19 @@ class Process {
 	public function new( cmd : String, args : Array<String> ) : Void
 	{
 		var pargs = new NativeArray(args.length + 1);
-		pargs[0] = cmd;
-		for (i in 0...args.length)
-		{
-			pargs[i + 1] = args[i];
+		switch (Sys.systemName()) {
+			case "Windows":
+				pargs[0] = StringTools.quoteWinArg(cmd, false);
+				for (i in 0...args.length)
+				{
+					pargs[i + 1] = StringTools.quoteWinArg(args[i], false);
+				}
+			case _:
+				pargs[0] = cmd;
+				for (i in 0...args.length)
+				{
+					pargs[i + 1] = args[i];
+				}
 		}
 
 		try

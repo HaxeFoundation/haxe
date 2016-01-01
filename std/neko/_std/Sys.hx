@@ -91,30 +91,22 @@
 		return new String(sys_string());
 	}
 
-	static function escapeArgument( arg : String, windows : Bool ) : String {
-		var ok = true;
-		for( i in 0...arg.length )
-			switch( arg.charCodeAt(i) ) {
-			case ' '.code, '\t'.code, '"'.code, '&'.code, '|'.code, '<'.code, '>'.code, '#'.code , ';'.code, '*'.code, '?'.code, '('.code, ')'.code, '{'.code, '}'.code, '$'.code:
-				ok = false;
-			case 0, 13, 10: // [eof] [cr] [lf]
-				arg = arg.substr(0,i);
-				break;
-			}
-		if( ok )
-			return arg;
-		return windows ? '"'+arg.split('"').join('""').split("%").join('"%"')+'"' : "'"+arg.split("'").join("'\\''")+"'";
-	}
-
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		var win = systemName() == "Windows";
-		cmd = escapeArgument(cmd, win);
-		if( args != null ) {
-			for( a in args )
-				cmd += " "+escapeArgument(a, win);
+		if (args == null) {
+			return sys_command(untyped cmd.__s);
+		} else {
+			switch (systemName()) {
+				case "Windows":
+					cmd = [
+						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+						StringTools.quoteWinArg(a, true)
+					].join(" ");
+					return sys_command(untyped cmd.__s);
+				case _:
+					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+					return sys_command(untyped cmd.__s);
+			}
 		}
-		if (win) cmd = '"$cmd"';
-		return sys_command(untyped cmd.__s);
 	}
 
 	public static function exit( code : Int ) : Void {
@@ -151,6 +143,11 @@
 	private static var set_cwd = neko.Lib.load("std","set_cwd",1);
 	private static var sys_string = neko.Lib.load("std","sys_string",0);
 	private static var sys_command = neko.Lib.load("std","sys_command",1);
+	private static var sys_command_safe = try {
+		neko.Lib.load("std","sys_command_safe",2);
+	} catch(e:Dynamic) {
+		null;
+	};
 	private static var sys_exit = neko.Lib.load("std","sys_exit",1);
 	private static var sys_time = neko.Lib.load("std","sys_time",0);
 	private static var sys_cpu_time = neko.Lib.load("std","sys_cpu_time",0);

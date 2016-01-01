@@ -70,27 +70,18 @@
 			return s;
 	}
 
-	static function escapeArgument( arg : String ) : String {
-		var ok = true;
-		for( i in 0...arg.length )
-			switch( arg.charCodeAt(i) ) {
-			case ' '.code, '\t'.code, '"'.code, '&'.code, '|'.code, '<'.code, '>'.code, '#'.code , ';'.code, '*'.code, '?'.code, '('.code, ')'.code, '{'.code, '}'.code, '$'.code:
-				ok = false;
-			case 0, 13, 10: // [eof] [cr] [lf]
-				arg = arg.substr(0,i);
-			}
-		if( ok )
-			return arg;
-		return '"'+arg.split('\\').join("\\\\").split('"').join('\\"')+'"';
-	}
-
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		if( args != null ) {
-			cmd = escapeArgument(cmd);
-			for( a in args )
-				cmd += " "+escapeArgument(a);
+		if (args != null) {
+			switch (systemName()) {
+				case "Windows":
+					cmd = [
+						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+						StringTools.quoteWinArg(a, true)
+					].join(" ");
+				case _:
+					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+			}
 		}
-		if (systemName() == "Windows") cmd = '"$cmd"';
 		var result = 0;
 		untyped __call__("system", cmd, result);
 		return result;

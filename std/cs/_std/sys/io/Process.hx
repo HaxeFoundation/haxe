@@ -41,14 +41,10 @@ class Process {
 		this.native = new NativeProcess();
 		native.StartInfo.FileName = cmd;
 		native.StartInfo.CreateNoWindow = true;
-		var buf = new StringBuf();
-		for (arg in args)
-		{
-			buf.add("\"");
-			buf.add(StringTools.replace(arg, "\"", "\\\""));
-			buf.add("\" ");
-		}
-		native.StartInfo.Arguments = buf.toString();
+		native.StartInfo.Arguments = [
+			for (a in args)
+			StringTools.quoteWinArg(a, false)
+		].join(" ");
 		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
 		native.StartInfo.UseShellExecute = false;
 
