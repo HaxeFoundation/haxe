@@ -143,11 +143,6 @@
 	private static var set_cwd = neko.Lib.load("std","set_cwd",1);
 	private static var sys_string = neko.Lib.load("std","sys_string",0);
 	private static var sys_command = neko.Lib.load("std","sys_command",1);
-	private static var sys_command_safe = try {
-		neko.Lib.load("std","sys_command_safe",2);
-	} catch(e:Dynamic) {
-		null;
-	};
 	private static var sys_exit = neko.Lib.load("std","sys_exit",1);
 	private static var sys_time = neko.Lib.load("std","sys_time",0);
 	private static var sys_cpu_time = neko.Lib.load("std","sys_cpu_time",0);
