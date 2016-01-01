@@ -334,33 +334,33 @@ module TexprFilter = struct
 		loop e
 
 	let unapply com config e =
-		let rec block_element el = match el with
+		let rec block_element acc el = match el with
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
-				e1 :: block_element el
+				block_element (e1 :: acc) el
 			| {eexpr = TLocal _} as e1 :: el when not config.Config.local_dce ->
-				e1 :: block_element el
+				block_element (e1 :: acc) el
 			(* no-side-effect *)
 			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _} :: el ->
-				block_element el
+				block_element acc el
 			(* no-side-effect composites *)
 			| {eexpr = TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) | TField(e1,_) | TUnop(_,_,e1)} :: el ->
-				block_element (e1 :: el)
+				block_element acc (e1 :: el)
 			| {eexpr = TArray(e1,e2) | TBinop(_,e1,e2)} :: el ->
-				block_element (e1 :: e2 :: el)
+				block_element acc (e1 :: e2 :: el)
 			| {eexpr = TArrayDecl el1 | TCall({eexpr = TField(_,FEnum _)},el1)} :: el2 -> (* TODO: check e1 of FEnum *)
-				block_element (el1 @ el2)
+				block_element acc (el1 @ el2)
 			| {eexpr = TObjectDecl fl} :: el ->
-				block_element ((List.map snd fl) @ el)
+				block_element acc ((List.map snd fl) @ el)
 			| {eexpr = TIf(e1,{eexpr = TBlock []},(Some {eexpr = TBlock []} | None))} :: el ->
-				block_element (e1 :: el)
+				block_element acc (e1 :: el)
 			| {eexpr = TBlock [e1]} :: el ->
-				block_element (e1 :: el)
+				block_element acc (e1 :: el)
 			| {eexpr = TBlock []} :: el ->
-				block_element el
+				block_element acc el
 			| e1 :: el ->
-				e1 :: block_element el
+				block_element (e1 :: acc) el
 			| [] ->
-				[]
+				acc
 		in
 		let changed = ref false in
 		let var_uses = ref IntMap.empty in
@@ -379,12 +379,12 @@ module TexprFilter = struct
 				Type.iter loop e
 		in
 		loop e;
-		let rec fuse el = match el with
+		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
 				changed := true;
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				change_num_uses v1 (-1);
-				fuse (e1 :: el)
+				fuse (e1 :: acc) el
 			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
 				begin try
 					let i = ref 0 in
@@ -400,9 +400,9 @@ module TexprFilter = struct
 					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
 					changed := true;
 					change_num_uses v1 (- !i);
-					fuse (e1 :: el)
+					fuse (e1 :: acc) el
 				with Exit ->
-					e1 :: fuse (e2 :: el)
+					fuse (e1 :: acc) (e2 :: el)
 				end
 			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when Meta.has Meta.CompilerGenerated v1.v_meta && get_num_uses v1 <= 1 && can_be_used_as_value com e1 ->
 				let found = ref false in
@@ -476,9 +476,9 @@ module TexprFilter = struct
 					if not !found then raise Exit;
 					changed := true;
 					change_num_uses v1 (-1);
-					fuse (e :: el)
+					fuse (e :: acc) el
 				with Exit ->
-					ev :: fuse (e2 :: el)
+					fuse (ev :: acc) (e2 :: el)
 				end
 			| {eexpr = TUnop((Increment | Decrement as op,Prefix,({eexpr = TLocal v} as ev)))} as e1 :: e2 :: el ->
 				begin try
@@ -499,25 +499,29 @@ module TexprFilter = struct
 						| TBinop(op2,{eexpr = TLocal v2},{eexpr = TConst (TInt i32)}) when v == v2 && Int32.to_int i32 = 1 && ops_match op op2 ->
 							changed := true;
 							change_num_uses v2 (-1);
-							(f {e1 with eexpr = TUnop(op,Postfix,ev)}) :: fuse el
+							let e = (f {e1 with eexpr = TUnop(op,Postfix,ev)}) in
+							fuse (e :: acc) el
 						| _ ->
 							raise Exit
 					end
 				with Exit ->
-					e1 :: fuse (e2 :: el)
+					fuse (e1 :: acc) (e2 :: el)
 				end
 			| e1 :: el ->
-				e1 :: fuse el
+				fuse (e1 :: acc) el
 			| [] ->
-				[]
+				acc
 		in
 		let rec loop e = match e.eexpr with
 			| TBlock el ->
 				let el = List.map loop el in
+				(* fuse flips element order, but block_element doesn't care and flips it back *)
+				let el = fuse [] el in
+				let el = block_element [] el in
 				let rec fuse_loop el =
 					changed := false;
-					let el = block_element el in
-					let el = fuse el in
+					let el = fuse [] el in
+					let el = block_element [] el in
 					if !changed then fuse_loop el else el
 				in
 				let el = fuse_loop el in
