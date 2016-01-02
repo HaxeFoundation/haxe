@@ -462,14 +462,14 @@ and gen_expr ?(local=true) ctx e = begin
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
-	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
-		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
 		spr ctx "(function(x) return x.";
 		print ctx "%s" (field_name ef);
 		spr ctx " end )(";
 		gen_value ctx e;
 		spr ctx ")";
+	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
+		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField ({ eexpr = TObjectDecl fields }, ef ) ->
 		spr ctx "(function(x) return x.";
 		print ctx "%s" (field_name ef);
@@ -818,14 +818,14 @@ and gen_expr ?(local=true) ctx e = begin
 			if (List.length(cases) > 0) then
 			    spr ctx "end";
 			end;);
-	| TCast (e,None) ->
-		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")";
+		spr ctx ")"
+	| TCast (e1,None) ->
+		gen_value ctx e1;
 end;
 
 
@@ -985,14 +985,14 @@ and gen_value ctx e =
 	| TBreak
 	| TContinue ->
 		unsupported e.epos
-	| TCast (e1, None) ->
-		gen_value ctx e1
 	| TCast (e1, Some t) ->
 		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
 		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
 		spr ctx ")"
+	| TCast (e1, _) ->
+		gen_value ctx e1
 	| TVar _
 	| TFor _
 	| TWhile _
