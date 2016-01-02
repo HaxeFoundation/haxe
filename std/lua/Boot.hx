@@ -137,22 +137,9 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	@:keep
-	public static function arrayNewIndex(tab:Dynamic, key:Dynamic, value:Dynamic){
-		untyped rawset(tab, key, value);
-		if (Std.is(key,Int) && key+1 > tab.length){
-			tab.length = key + 1;
-		}
-	}
 
-	@:keep
-	public static function defArray(tabobj: Dynamic, length : Int) : Array<Dynamic>  untyped {
-		tabobj.length = length;
-		setmetatable(tabobj, {
-			__index : __lua__("Array.prototype"),
-			__newindex : lua.Boot.arrayNewIndex
-		});
-		return tabobj;
+	public static function defArray(tab: Dynamic, length : Int) : Array<Dynamic>  untyped {
+		return untyped __tabArray(tab, length);
 	}
 
 	public static function urlDecode(str:String){

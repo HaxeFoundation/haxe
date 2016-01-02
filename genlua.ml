@@ -363,7 +363,7 @@ let rec gen_call ctx e el in_value =
 			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
 		(* TODO: Array declaration helper *)
-		spr ctx "lua.Boot.defArray({";
+		spr ctx "__tabArray({";
 		let count = ref 0 in
 		concat ctx "," (fun (name,data) ->
 			if (!count == 0) then spr ctx "[0]=";
@@ -525,7 +525,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    gen_call ctx e el false;
 		end;
 	| TArrayDecl el ->
-		spr ctx "lua.Boot.defArray({";
+		spr ctx "__tabArray({";
 		let count = ref 0 in
 		List.iteri (fun i e ->
 		    incr count;
@@ -1509,15 +1509,14 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s)  local _x = lua.Boot.defArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
+			print ctx "function(%s)  local _x = __tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			(* TODO: Figure out how to use 1-based indexing for enum values. *)
-			print ctx "{[0]=\"%s\",%d}" f.ef_name f.ef_index;
+			print ctx "__tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "may_print_enum" then begin
 				print ctx "%s%s.toString = _estr" p (field f.ef_name);
@@ -1695,6 +1694,20 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types;
 	newline ctx;
 	spr ctx "--[[end class hoists--]]"; newline ctx;
+
+	spr ctx "__tabArray = function(tab,length)"; newline ctx;
+	spr ctx "   tab.length = length"; newline ctx;
+	spr ctx "   setmetatable(tab, {"; newline ctx;
+	spr ctx "	__index = Array.prototype,"; newline ctx;
+	spr ctx "	__newindex = function(t,k,v)"; newline ctx;
+	spr ctx "	    if _G.type(k) == 'number' then"; newline ctx;
+	spr ctx "		t.length = k + 1"; newline ctx;
+	spr ctx "	    end"; newline ctx;
+	spr ctx "	    rawset(t,k,v)"; newline ctx;
+	spr ctx "	end"; newline ctx;
+	spr ctx "   })"; newline ctx;
+	spr ctx "   return tab"; newline ctx;
+	spr ctx "end"; newline ctx;
 
 	spr ctx "--[[begin __init__ hoist --]]"; newline ctx;
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits);
