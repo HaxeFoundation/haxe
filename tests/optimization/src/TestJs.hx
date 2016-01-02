@@ -429,18 +429,18 @@ class TestJs {
 		use(b);
 	}
 
-	@:js('
-		var b = TestJs.getInt();
-		TestJs["use"](b);
-	')
-	static function testCopyPropagation3() {
-		var a;
-		{
-			var b = getInt();
-			a = b;
-		}
-		use(a);
-	}
+	//@:js('
+		//var b = TestJs.getInt();
+		//TestJs["use"](b);
+	//')
+	//static function testCopyPropagation3() {
+		//var a;
+		//{
+			//var b = getInt();
+			//a = b;
+		//}
+		//use(a);
+	//}
 
 	@:js('
 		TestJs.getInt();
