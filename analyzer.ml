@@ -1267,6 +1267,7 @@ module TexprTransformer = struct
 						declare_var ctx.graph v;
 						let scope = increase_scope() in
 						let bb_catch = create_node BKNormal bb_exc e.etype e.epos in
+						add_var_def g bb_catch v;
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
 						let bb_catch_next = block bb_catch e in
 						scope();
