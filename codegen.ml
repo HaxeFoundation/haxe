@@ -1178,7 +1178,7 @@ let detect_usage com =
 	) !usage in
 	raise (Typecore.DisplayPosition usage)
 
-let update_cache_dependencies com =
+let update_cache_dependencies t =
 	let rec check_t m t = match t with
 		| TInst(c,tl) ->
 			add_dependency m c.cl_module;
@@ -1211,14 +1211,13 @@ let update_cache_dependencies com =
 	and check_field m cf =
 		check_t m cf.cf_type
 	in
-	List.iter (fun t -> match t with
+	match t with
 		| TClassDecl c ->
 			List.iter (check_field c.cl_module) c.cl_ordered_statics;
 			List.iter (check_field c.cl_module) c.cl_ordered_fields;
 			(match c.cl_constructor with None -> () | Some cf -> check_field c.cl_module cf);
 		| _ ->
 			()
-	) com.types
 
 (* -------------------------------------------------------------------------- *)
 (* STACK MANAGEMENT EMULATION *)

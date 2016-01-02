@@ -24,74 +24,6 @@ open Typecore
 
 (* PASS 1 begin *)
 
-let rec verify_ast ctx e =
-	let not_null e e1 = match e1.eexpr with
-		| TConst TNull ->
-			(* TODO: https://github.com/HaxeFoundation/haxe/issues/4072 *)
-			(* display_error ctx ("Invalid null expression: " ^ (s_expr_pretty "" (s_type (print_context())) e)) e.epos *)
-			()
-		| _ -> ()
-	in
-	let rec loop e = match e.eexpr with
-	| TField(e1,_) ->
-		not_null e e1;
-		()
-	| TArray(e1,e2) ->
-		not_null e e1;
-		loop e1;
-		loop e2
-	| TCall(e1,el) ->
-		not_null e e1;
-		loop e1;
-		List.iter loop el
-	| TUnop(_,_,e1) ->
-		not_null e e1;
-		loop e1
-	(* probably too messy *)
-(* 	| TBinop((OpEq | OpNotEq),e1,e2) ->
-		loop e1;
-		loop e2
-	| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
-		not_null e e1;
-		loop e1;
-		loop e2
-	| TBinop(op,e1,e2) ->
-		not_null e e1;
-		not_null e e2;
-		loop e1;
-		loop e2 *)
-	| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-		error "Cannot use abstract as value" e.epos
-	| _ ->
-		Type.iter loop e
-	in
-	loop e
-
-(*
-	Wraps implicit blocks in TIf, TFor, TWhile, TFunction and TTry with real ones
-*)
-let rec blockify_ast e =
-	match e.eexpr with
-	| TIf(e1,e2,eo) ->
-		{e with eexpr = TIf(blockify_ast e1,mk_block (blockify_ast e2),match eo with None -> None | Some e -> Some (mk_block (blockify_ast e)))}
-	| TFor(v,e1,e2) ->
-		{e with eexpr = TFor(v,blockify_ast e1,mk_block (blockify_ast e2))}
-	| TWhile(e1,e2,flag) ->
-		{e with eexpr = TWhile(blockify_ast e1,mk_block (blockify_ast e2),flag)}
-	| TFunction tf ->
-		{e with eexpr = TFunction {tf with tf_expr = mk_block (blockify_ast tf.tf_expr)}}
-	| TTry(e1,cl) ->
-		{e with eexpr = TTry(mk_block (blockify_ast e1),List.map (fun (v,e) -> v,mk_block (blockify_ast e)) cl)}
-	| TSwitch(e1,cases,def) ->
-		let e1 = blockify_ast e1 in
-		let cases = List.map (fun (el,e) ->
-			el,mk_block (blockify_ast e)
-		) cases in
-		let def = match def with None -> None | Some e -> Some (mk_block (blockify_ast e)) in
-		{e with eexpr = TSwitch(e1,cases,def)}
-	| _ ->
-		Type.map_expr blockify_ast e
-
 (* Adds final returns to functions as required by some platforms *)
 let rec add_final_return e =
 	let rec loop e t =
@@ -1137,17 +1069,14 @@ let iter_expressions fl mt =
 
 let run com tctx main =
 	begin match com.display with
-		| DMUsage | DMPosition ->
-			Codegen.detect_usage com;
-		| _ ->
-			()
+		| DMUsage | DMPosition -> Codegen.detect_usage com;
+		| _ -> ()
 	end;
 	if not (Common.defined com Define.NoDeprecationWarnings) then
 		Codegen.DeprecationCheck.run com;
 	let use_static_analyzer = Common.defined com Define.Analyzer in
-	(* this part will be a bit messy until we make the analyzer the default *)
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
-		(* PASS 1: general expression filters *)
+	(* PASS 1: general expression filters *)
 	let filters = [
 		Codegen.AbstractCast.handle_abstract_casts tctx;
 		check_local_vars_init;
@@ -1157,7 +1086,6 @@ let run com tctx main =
 	] in
 	List.iter (run_expression_filters tctx filters) new_types;
 	if com.platform <> Cross then Analyzer.Run.run_on_types tctx use_static_analyzer new_types;
-	List.iter (iter_expressions [verify_ast tctx]) new_types;
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
@@ -1168,14 +1096,14 @@ let run com tctx main =
 	next_compilation();
 	List.iter (fun f -> f()) (List.rev com.filters); (* macros onGenerate etc. *)
 	List.iter (save_class_state tctx) new_types;
+	(* PASS 2: type filters pre-DCE *)
 	List.iter (fun t ->
 		remove_generic_base tctx t;
 		remove_extern_fields tctx t;
+		Codegen.update_cache_dependencies t;
+		(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
+		check_remove_metadata tctx t;
 	) com.types;
-	(* update cache dependencies before DCE is run *)
-	Codegen.update_cache_dependencies com;
-	(* check @:remove metadata before DCE so it is ignored there (issue #2923) *)
-	List.iter (check_remove_metadata tctx) com.types;
 	(* DCE *)
 	let dce_mode = if Common.defined com Define.As3 then
 		"no"
@@ -1188,20 +1116,7 @@ let run com tctx main =
 		| "no" -> Dce.fix_accessors com
 		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
 	end;
-	(* always filter empty abstract implementation classes (issue #1885) *)
-	List.iter (fun mt -> match mt with
-		| TClassDecl({cl_kind = KAbstractImpl _} as c) when c.cl_ordered_statics = [] && c.cl_ordered_fields = [] && not (Meta.has Meta.Used c.cl_meta) ->
-			c.cl_extern <- true
-		| TClassDecl({cl_kind = KAbstractImpl a} as c) when Meta.has Meta.Enum a.a_meta ->
-			let is_runtime_field cf =
-				not (Meta.has Meta.Enum cf.cf_meta)
-			in
-			(* also filter abstract implementation classes that have only @:enum fields (issue #2858) *)
-			if not (List.exists is_runtime_field c.cl_ordered_statics) then
-				c.cl_extern <- true
-		| _ -> ()
-	) com.types;
-	(* PASS 3: type filters *)
+	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
 		check_private_path;
 		apply_native_paths;

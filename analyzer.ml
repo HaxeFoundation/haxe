@@ -977,6 +977,8 @@ module TexprTransformer = struct
 				let el = List.map snd fl in
 				let bb,el = ordered_value_list bb el in
 				bb,{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
+			| TField({eexpr = TTypeExpr _},fa) ->
+				bb,e
 			| TField(e1,fa) ->
 				let bb,e1 = value bb e1 in
 				bb,{e with eexpr = TField(e1,fa)}
@@ -1012,6 +1014,8 @@ module TexprTransformer = struct
 				close_node g bb;
 				add_cfg_edge g bb_func_end bb_next CFGGoto;
 				bb_next,ec
+			| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
+				error "Cannot use abstract as value" e.epos
 			| TConst _ | TTypeExpr _ ->
 				bb,e
 			| TContinue | TBreak | TThrow _ | TReturn _ | TVar _ ->
