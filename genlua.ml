@@ -1058,6 +1058,20 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
+and gen_assign_value ctx e =
+    begin
+	spr ctx (debug_expression e);
+	match e.eexpr with
+	| TCast ({ eexpr = TTypeExpr _ }, None) ->
+		begin
+		    spr ctx "_G.__staticToInstance(";
+		    gen_value ctx e;
+		    spr ctx ")";
+		end
+	| _ ->
+		gen_value ctx e;
+    end;
+
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
     | Ast.OpAssign, TField(e3, FInstance(_,_,_) ), TFunction f ->
@@ -1539,7 +1553,7 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
-	gen_value ctx e;
+	gen_assign_value ctx e;
 	newline ctx
 
 let generate_enumMeta_fields ctx = function
@@ -1675,6 +1689,21 @@ let generate com =
 	spr ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields[k] = true; rawset(t,k,v); end})"; newline ctx;
 	spr ctx "   return ret; "; newline ctx;
 	spr ctx "end"; newline ctx;
+
+	spr ctx "__staticToInstance = function(tab)"; newline ctx;
+	spr ctx "   return _G.setmetatable({}, {"; newline ctx;
+	spr ctx "	__index = function(t,k)"; newline ctx;
+	spr ctx "	    if _G.type(rawget(tab,k)) == 'function' then "; newline ctx;
+	spr ctx "		return function(self,...)"; newline ctx;
+	spr ctx "		    return rawget(tab,k)(...)"; newline ctx;
+	spr ctx "		end"; newline ctx;
+	spr ctx "	    else"; newline ctx;
+	spr ctx "		return rawget(tab,k)"; newline ctx;
+	spr ctx "	    end"; newline ctx;
+	spr ctx "	end"; newline ctx;
+	spr ctx "   })"; newline ctx;
+	spr ctx "end"; newline ctx;
+
 
 	spr ctx "_hxClasses = {}"; semicolon ctx; newline ctx;
 	let vars = [] in
