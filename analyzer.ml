@@ -2572,7 +2572,7 @@ module Run = struct
 		let e = back_again ctx in
 		e
 
-	let run_on_expr com config c cf e =
+	let run_on_expr com config e =
 		try
 			let ctx = there com config e in
 			if config.optimize && not ctx.has_unbound then begin
@@ -2582,16 +2582,21 @@ module Run = struct
 				if config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply ctx);
 				with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
 			end;
-			if config.dot_debug then Debug.dot_debug ctx c cf;
 			let e = back_again ctx in
-			e
+			Some ctx,e
 		with Exit ->
-			e
+			None,e
 
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta config cf.cf_meta in
-			cf.cf_expr <- Some (run_on_expr ctx.Typecore.com config c cf e);
+			let e =  match run_on_expr ctx.Typecore.com config e with
+				| None,e -> e
+				| Some ctx,e ->
+					if config.dot_debug then Debug.dot_debug ctx c cf;
+					e
+			in
+			cf.cf_expr <- Some e;
 		| _ -> ()
 
 	let run_on_class ctx config c =
