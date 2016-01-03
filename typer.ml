@@ -2476,8 +2476,27 @@ and type_unop ctx op flag e p =
 		| AKNo s ->
 			error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 		| AKAccess(a,tl,c,ebase,ekey) ->
-			let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
-			loop (AKExpr e)
+			begin try
+				(match op with Increment | Decrement -> () | _ -> raise Not_found);
+				let v_key = alloc_var "tmp" ekey.etype in
+				let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
+				let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
+				(* get *)
+				let e_get = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access_raise ctx a tl ekey None p) c ebase p in
+				let v_get = alloc_var "tmp" e_get.etype in
+				let ev_get = mk (TLocal v_get) v_get.v_type p in
+				let evar_get = mk (TVar(v_get,Some e_get)) ctx.com.basic.tvoid p in
+				(* op *)
+				let e_one = mk (TConst (TInt (Int32.of_int 1))) ctx.com.basic.tint p in
+				let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
+				(* set *)
+				let e_set = mk_array_set_call ctx (Codegen.AbstractCast.find_array_access_raise ctx a tl ekey (Some e_op) p) c ebase p in
+				let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
+				mk (TBlock el) e_set.etype p
+			with Not_found ->
+				let e = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey None p) c ebase p in
+				loop (AKExpr e)
+			end
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
 		| AKSet (e,t,cf) ->
