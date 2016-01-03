@@ -1148,7 +1148,7 @@ let extractor_depth = ref 0
 let match_expr ctx e cases def with_type p =
 	let need_val,with_type,tmono = match with_type with
 		| NoValue -> false,NoValue,None
-		| WithType t | WithTypeResume t when (match follow t with TMono _ -> true | _ -> false) ->
+		| WithType t when (match follow t with TMono _ -> true | _ -> false) ->
 			(* we don't want to unify with each case individually, but instead at the end after unify_min *)
 			true,Value,Some with_type
 		| t -> true,t,None
@@ -1257,7 +1257,6 @@ let match_expr ctx e cases def with_type p =
 				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ctx.type_params;
 				pl,restore,(match with_type with
 					| WithType t -> WithType (apply_params ctx.type_params monos t)
-					| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
 					| _ -> with_type);
 			with Unrecognized_pattern (e,p) ->
 				error "Case expression must be a constant value or a pattern, not an arbitrary expression" p
@@ -1276,8 +1275,6 @@ let match_expr ctx e cases def with_type p =
 		let e = match with_type with
 			| WithType t ->
 				Codegen.AbstractCast.cast_or_unify ctx t e e.epos;
-			| WithTypeResume t ->
-				(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
 			| _ -> e
 		in
 		(* type case guard *)
@@ -1395,14 +1392,13 @@ let match_expr ctx e cases def with_type p =
 	let t = if not need_val then
 		mk_mono()
 	else match with_type with
-		| WithType t | WithTypeResume t -> t
+		| WithType t -> t
 		| _ -> try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> get_expr mctx out.o_id) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
 	in
 	(* unify with expected type if necessary *)
 	begin match tmono with
 		| None -> ()
 		| Some (WithType t2) -> unify ctx t2 t p
-		| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
 		| _ -> assert false
 	end;
 	(* count usage *)

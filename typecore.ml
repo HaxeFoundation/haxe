@@ -24,7 +24,6 @@ type with_type =
 	| NoValue
 	| Value
 	| WithType of t
-	| WithTypeResume of t
 
 type type_patch = {
 	mutable tp_type : Ast.complex_type option;
@@ -117,6 +116,7 @@ and typer = {
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
+	mutable in_call_args : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 }
@@ -145,6 +145,8 @@ exception Error of error_msg * pos
 exception DisplayTypes of t list
 
 exception DisplayPosition of Ast.pos list
+
+exception WithTypeError of unify_error list * pos
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
@@ -298,12 +300,21 @@ let make_static_call ctx c cf map args t p =
 	let ef = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
 
+let raise_or_display ctx l p =
+	if ctx.untyped then ()
+	else if ctx.in_call_args then raise (WithTypeError(l,p))
+	else display_error ctx (error_msg (Unify l)) p
+
+let raise_or_display_message ctx msg p =
+	if ctx.in_call_args then raise (WithTypeError ([Unify_custom msg],p))
+	else display_error ctx msg p
+
 let unify ctx t1 t2 p =
 	try
 		Type.unify t1 t2
 	with
 		Unify_error l ->
-			if not ctx.untyped then display_error ctx (error_msg (Unify l)) p
+			raise_or_display ctx l p
 
 let unify_raise ctx t1 t2 p =
 	try
