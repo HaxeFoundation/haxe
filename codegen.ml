@@ -924,7 +924,7 @@ module AbstractCast = struct
 					   let's construct the underlying type. *)
 					match Abstract.get_underlying_type a pl with
 					| TInst(c,tl) as t -> {e with eexpr = TNew(c,tl,el); etype = t}
-					| _ -> assert false
+					| _ -> error ("Cannot construct " ^ (s_type (print_context()) (TAbstract(a,pl)))) e.epos
 				end else begin
 					(* a TNew of an abstract implementation is only generated if it is a multi type abstract *)
 					let cf,m = find_multitype_specialization ctx.com a pl e.epos in
