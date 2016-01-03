@@ -538,6 +538,7 @@ and load_complex_type ctx p t =
 				| None -> error ("Explicit type required for field " ^ n) p
 				| Some t -> load_complex_type ctx p t
 			in
+			if n = "new" then ctx.com.warning "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
 			let no_expr = function
 				| None -> ()
 				| Some (_,p) -> error "Expression not allowed here" p
