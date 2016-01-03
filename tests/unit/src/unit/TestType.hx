@@ -616,7 +616,7 @@ class TestType extends Test {
 		return Std.string(a) + Std.string(b);
 	}
 
-	@:generic static function gf3 < A:{function new(s:String):Void;}, B:Array<A> > (a:A, b:B) {
+	@:generic static function gf3 < A:haxe.Constraints.Constructible<String -> Void>, B:Array<A> > (a:A, b:B) {
 		var clone = new A("foo");
 		b.push(clone);
 		return b;

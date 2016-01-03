@@ -1,10 +1,6 @@
 package unit.issues;
 
-private typedef Constructible = {
-	function new(arg:String):Void;
-}
-
-private class GenericTest<T:Constructible> {
+private class GenericTest<T:haxe.Constraints.Constructible<String->Void>> {
 	public function new(){}
 
 	@:generic

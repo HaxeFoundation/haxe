@@ -1710,6 +1710,21 @@ let rec unify a b =
 		()
 	| TFun _, TAbstract ({ a_path = ["haxe"],"Function" },[]) ->
 		()
+	| TInst(c,tl),TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
+		begin try
+			begin match c.cl_kind with
+				| KTypeParameter tl ->
+					(* type parameters require an equal Constructible constraint *)
+					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq t1 t2 | _ -> false) tl) then error [cannot_unify a b]
+				| _ ->
+					let _,t,cf = class_field c tl "new" in
+					if not cf.cf_public then error [invalid_visibility "new"];
+					begin try unify t1 t
+					with Unify_error l -> error (cannot_unify a b :: l) end
+			end
+		with Not_found ->
+			error [has_no_field a "new"]
+		end
 	| TDynamic t , _ ->
 		if t == a then
 			()
