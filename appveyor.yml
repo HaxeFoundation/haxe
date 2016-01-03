@@ -22,7 +22,7 @@ skip_tags: true
 
 install:
     - 'git submodule update --init --recursive'
-    - cinst 7zip.commandline -version 15.05 -y
+    - cinst 7zip.commandline -y
     # Install ocaml using wodi
     - appveyor DownloadFile "http://cygwin.com/setup-%CYG_ARCH%.exe" -FileName "%CYG_ROOT%\setup.exe"
     - '%CYG_ROOT%/setup.exe -g -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ -P git > log.txt || type log.txt'

@@ -447,6 +447,7 @@ class RunCi {
 				switch (ci) {
 					case AppVeyor:
 						addToPATH("C:\\Program Files (x86)\\Mono\\bin");
+						runCommand("mono", ["--version"]);
 					case _:
 						//pass
 				}
