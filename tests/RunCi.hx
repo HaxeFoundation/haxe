@@ -226,7 +226,9 @@ class RunCi {
 				if (line.indexOf("SUCCESS: ") >= 0) {
 					return line.indexOf("SUCCESS: true") >= 0;
 				}
-			} catch (e:haxe.io.Eof) {}
+			} catch (e:haxe.io.Eof) {
+				break;
+			}
 		}
 		return false;
 	}
@@ -239,6 +241,12 @@ class RunCi {
 				runCommand("mono", [exe].concat(args));
 			case "Windows":
 				runCommand(exe, args);
+				switch (ci) {
+					case AppVeyor:
+						runCommand("mono", [exe].concat(args));
+					case _:
+						//pass
+				}
 		}
 	}
 
@@ -436,7 +444,12 @@ class RunCi {
 					runCommand("brew", ["install", "mono"], true);
 				runCommand("mono", ["--version"]);
 			case "Windows":
-				//pass
+				switch (ci) {
+					case AppVeyor:
+						addToPATH("C:\\Program Files (x86)\\Mono\\bin");
+					case _:
+						//pass
+				}
 		}
 
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
