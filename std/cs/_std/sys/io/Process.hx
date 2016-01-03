@@ -39,6 +39,9 @@ class Process {
 	public function new( cmd : String, args : Array<String> ) : Void
 	{
 		this.native = new NativeProcess();
+		// mono 4.2.1 on Windows doesn't support relative path correctly
+		if (cmd.indexOf("/") != -1 || cmd.indexOf("\\") != -1)
+			cmd = sys.FileSystem.fullPath(cmd);
 		native.StartInfo.FileName = cmd;
 		native.StartInfo.CreateNoWindow = true;
 		native.StartInfo.Arguments = [
