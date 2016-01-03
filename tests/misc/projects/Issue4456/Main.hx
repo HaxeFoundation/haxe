@@ -9,7 +9,7 @@ class A {
 }
 
 @:generic
-class B<T:{function new():Void;}> {
+class B<T:haxe.Constraints.Constructible<Void->Void>> {
 	var items:Map<Int,A>;
 
 	public function new() {
