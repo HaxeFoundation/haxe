@@ -3172,7 +3172,12 @@ let init_module_type ctx context_init do_init (decl,p) =
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx p t in
-				(match at with TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos | _ -> ());
+				delay ctx PForce (fun () ->
+					begin match follow at with
+						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos
+						| _ -> ()
+					end;
+				);
 				a.a_this <- at;
 				is_type := true;
 			| APrivAbstract -> ()
