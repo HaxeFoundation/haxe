@@ -328,6 +328,9 @@ class CallStack {
 				var frame = s.GetFrame(i);
 				var m = frame.GetMethod();
 
+				if (m == null) {
+					continue;
+				}
 				var method = StackItem.Method(m.ReflectedType.ToString(), m.Name);
 
 				var fileName = frame.GetFileName();
