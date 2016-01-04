@@ -1506,7 +1506,14 @@ let generate_enum ctx e =
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
 	    end;
-	    print ctx " __constructs__ = {%s} }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	    (* TODO :  Come up with a helper function for __tabArray declarations *)
+	    spr ctx " __constructs__ = __tabArray({";
+	    if ((List.length e.e_names) > 0) then
+		begin
+		    spr ctx "[0]=";
+		    spr ctx (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	    end;
+	    print ctx "},%i)}" (List.length e.e_names);
 	    ctx.separator <- true;
 	    newline ctx;
 	end;
