@@ -159,16 +159,14 @@ class Boot {
 		return str;
 	}
 
-	static function printEnum(o:Table<Int,Dynamic>, s : String){
-		if (!inheritsFrom(o,Array)){
-			// non-parameterized enums are simple table values
+	static function printEnum(o:Array<Dynamic>, s : String){
+		if (o.length == 2){
 			return o[0];
 		} else {
 			// parameterized enums are arrays
-			var o2 : Array<Dynamic> = cast o;
 			var str = o[0] + "(";
 			s += "\t";
-			for (i in 2...o2.length){
+			for (i in 2...o.length){
 				if( i != 2 )
 					str += "," + __string_rec(o[i],s);
 				else
