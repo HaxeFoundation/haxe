@@ -44,10 +44,7 @@ class Process {
 			cmd = sys.FileSystem.fullPath(cmd);
 		native.StartInfo.FileName = cmd;
 		native.StartInfo.CreateNoWindow = true;
-		native.StartInfo.Arguments = [
-			for (a in args)
-			StringTools.quoteWinArg(a, false)
-		].join(" ");
+		native.StartInfo.Arguments = buildArgumentsString(args);
 		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
 		native.StartInfo.UseShellExecute = false;
 
@@ -56,6 +53,36 @@ class Process {
 		this.stdout = new cs.io.NativeInput(native.StandardOutput.BaseStream);
 		this.stderr = new cs.io.NativeInput(native.StandardError.BaseStream);
 		this.stdin = new cs.io.NativeOutput(native.StandardInput.BaseStream);
+	}
+
+	function buildArgumentsString(args:Array<String>):String {
+		return switch (Sys.systemName()) {
+			case "Windows":
+				[
+					for (a in args)
+					StringTools.quoteWinArg(a, false)
+				].join(" ");
+			case _:
+				// mono uses a slightly different quoting/escaping rule...
+				// https://bugzilla.xamarin.com/show_bug.cgi?id=19296
+				[
+					for (arg in args) {
+						var b = new StringBuf();
+						b.add('"');
+						for (i in 0...arg.length) {
+							var c = arg.charCodeAt(i);
+							switch (c) {
+								case '"'.code | '\\'.code:
+									b.addChar('\\'.code);
+								case _: //pass
+							}
+							b.addChar(c);
+						}
+						b.add('"');
+						b.toString();
+					}
+				].join(" ");
+		}
 	}
 
 	public function getPid() : Int
