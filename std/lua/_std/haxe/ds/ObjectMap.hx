@@ -22,17 +22,27 @@
 package haxe.ds;
 class ObjectMap<A,B> implements haxe.Constraints.IMap<A,B> {
 
-	private var h : Dynamic;
-	private var k : Dynamic;
+	static var count = 0;
+
+	static inline function assignId(obj: { } ):Int {
+		return untyped obj.__id__ = ++count;
+	}
+
+	static inline function getId(obj: { } ):Int {
+		return untyped obj.__id__;
+	}
+
+	var h : Dynamic;
+	var k : Dynamic;
 
 	public inline function new() : Void {
-		h = {};
-		k = {};
+		h = lua.Boot.createTable();
+		k = lua.Boot.createTable();
 	}
 
 	public inline function set( key : A, value : B ) : Void untyped {
-		 h[key] = value;
-		 k[key] = true;
+		h[key] = value;
+		k[key] = true;
 	}
 
 	public inline function get( key : A ) : Null<B> untyped {
@@ -51,10 +61,10 @@ class ObjectMap<A,B> implements haxe.Constraints.IMap<A,B> {
 	}
 
 	public function keys() : Iterator<A> untyped {
-		var cur = next(k,null);
+		var cur = next(h,null);
 		return {
 			next : function() {
-				var ret = cur; 
+				var ret = cur;
 				cur = untyped next(k, cur);
 				return ret;
 			},
