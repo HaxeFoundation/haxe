@@ -1508,8 +1508,7 @@ let generate_enum ctx e =
 	    end;
 	    (* TODO :  Come up with a helper function for __tabArray declarations *)
 	    spr ctx " __constructs__ = __tabArray({";
-	    if ((List.length e.e_names) > 0) then
-		begin
+	    if ((List.length e.e_names) > 0) then begin
 		    spr ctx "[0]=";
 		    spr ctx (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	    end;
@@ -1554,7 +1553,14 @@ let generate_enum ctx e =
 				| TFun _ -> false
 				| _ -> true
 		) e.e_names in
-		print ctx "%s.__empty_constructs__ = {%s}" p (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
+		print ctx "%s.__empty_constructs__ = " p;
+		spr ctx "__tabArray({";
+		if (List.length ctors_without_args)  > 0 then
+		    begin
+			spr ctx "[0] = ";
+			print ctx "%s" (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
+		    end;
+		print ctx "}, %i)"  (List.length ctors_without_args);
 		newline ctx
 	end
 
