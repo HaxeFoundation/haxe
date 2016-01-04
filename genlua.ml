@@ -1409,6 +1409,10 @@ let generate_class ctx c =
 					);
 					print ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					newline ctx;
+					if p = "String" then begin
+					    spr ctx "self = string";
+					    newline ctx;
+					end;
 					spr ctx "return self";
 					bend(); newline ctx;
 					spr ctx "end"; newline ctx; newline ctx;

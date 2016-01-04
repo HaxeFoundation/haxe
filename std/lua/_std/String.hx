@@ -29,10 +29,7 @@ class String {
 	public var length(default,null) : Int;
 
 
-	public function new(string:String) untyped {
-		if (string != null) __lua__("self = string");
-		else __lua__("self = ''");
-	}
+	public function new(string:String) untyped {}
 
 	static function __init__() : Void untyped{
 		__lua__("getmetatable('').__index = String.__index;");
