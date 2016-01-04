@@ -279,4 +279,8 @@ class Boot {
 			throw "Invalid date format : " + s;
 		}
 	}
+
+	public static function createTable<K,V>() : Table<K,V> {
+		return untyped __lua__("{}");
+	}
 }
