@@ -36,7 +36,7 @@ class Process {
 
 	private var proc:java.lang.Process;
 
-	public function new( cmd : String, args : Array<String> ) : Void
+	public function new( cmd : String, ?args : Array<String> ) : Void
 	{
 		var pargs = new NativeArray(args.length + 1);
 		switch (Sys.systemName()) {

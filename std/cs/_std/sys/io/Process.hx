@@ -36,7 +36,7 @@ class Process {
 	private var native:NativeProcess;
 
 
-	public function new( cmd : String, args : Array<String> ) : Void
+	public function new( cmd : String, ?args : Array<String> ) : Void
 	{
 		this.native = new NativeProcess();
 		// mono 4.2.1 on Windows doesn't support relative path correctly

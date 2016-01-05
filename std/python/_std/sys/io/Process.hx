@@ -36,7 +36,7 @@ class Process {
 
 	var p:Popen;
 
-	public function new( cmd : String, args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String> ) : Void {
 
 		p = Popen.create([cmd].concat(args), { stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
 

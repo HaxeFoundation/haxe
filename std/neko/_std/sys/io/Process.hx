@@ -92,7 +92,7 @@ private class Stdout extends haxe.io.Input {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String> ) : Void {
 		p = try _run(untyped cmd.__s,neko.Lib.haxeToNeko(args)) catch( e : Dynamic ) throw "Process creation failure : "+cmd;
 		stdin = new Stdin(p);
 		stdout = new Stdout(p,true);

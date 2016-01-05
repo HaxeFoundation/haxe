@@ -27,7 +27,7 @@ extern class Process {
 	var stderr(default,null) : haxe.io.Input;
 	var stdin(default,null) : haxe.io.Output;
 
-	function new( cmd : String, args : Array<String> ) : Void;
+	function new( cmd : String, ?args : Array<String> ) : Void;
 	function getPid() : Int;
 	function exitCode() : Int;
 	function close() : Void;
