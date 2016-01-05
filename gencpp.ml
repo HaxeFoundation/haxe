@@ -305,7 +305,9 @@ let hash_iterate hash visitor =
 
 (* Convert function names that can't be written in c++ ... *)
 let keyword_remap name =
-   match name with
+   if (String.length name > 1) && (String.sub name 0 2 = "__") then
+      "_hx_" ^ name
+   else match name with
    | "int"
    | "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
    | "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
@@ -319,6 +321,7 @@ let keyword_remap name =
    | "INT_MIN" | "INT_MAX" | "INT8_MIN" | "INT8_MAX" | "UINT8_MAX" | "INT16_MIN"
    | "INT16_MAX" | "UINT16_MAX" | "INT32_MIN" | "INT32_MAX" | "UINT32_MAX"
    | "asm"
+   | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
    | "struct" -> "_hx_" ^ name
    | x -> x
 ;;
