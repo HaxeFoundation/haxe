@@ -305,9 +305,10 @@ let hash_iterate hash visitor =
 
 (* Convert function names that can't be written in c++ ... *)
 let keyword_remap name =
-   if (String.length name > 1) && (String.sub name 0 2 = "__") then
-      "_hx_" ^ name
-   else match name with
+   match name with
+   | "__get" | "__set" | "__unsafe_get" | "__unsafe_set" | "__global__"
+   |   "__SetSize" | "__s" | "__trace" -> name
+   (* | _ when (String.length name > 1) && (String.sub name 0 2 = "__") -> "_hx" ^ name *)
    | "int"
    | "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
    | "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
