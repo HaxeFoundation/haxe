@@ -260,6 +260,8 @@ let create_affection_checker () =
 type in_local = {
 	i_var : tvar;
 	i_subst : tvar;
+	i_outside : bool;
+	i_abstract_this : bool;
 	mutable i_captured : bool;
 	mutable i_write : bool;
 	mutable i_read : int;
@@ -303,7 +305,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
 	(* locals substitution *)
 	let locals = Hashtbl.create 0 in
-	let local v =
+	let local ?(abstract_this=false) v =
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
@@ -312,6 +314,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let i = {
 				i_var = v;
 				i_subst = v';
+				i_outside = false;
+				i_abstract_this = abstract_this;
 				i_captured = false;
 				i_write = false;
 				i_force_temp = false;
@@ -332,6 +336,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			{
 				i_var = v;
 				i_subst = v;
+				i_outside = true;
+				i_abstract_this = false;
 				i_captured = false;
 				i_write = false;
 				i_force_temp = false;
@@ -378,7 +384,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let might_be_affected,collect_modified_locals = create_affection_checker() in
 	let had_side_effect = ref false in
 	let inlined_vars = List.map2 (fun e (v,_) ->
-		let l = local v in
+		let l = local ~abstract_this:(Meta.has Meta.This v.v_meta) v in
 		if has_side_effect e then begin
 			collect_modified_locals e;
 			had_side_effect := true;
@@ -418,7 +424,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				to its variables and not the calling method *)
 			if v.v_name = "__dollar__delay_call" then cancel_inlining := true;
 			let e = { e with eexpr = TLocal l.i_subst } in
-			if Meta.has Meta.This v.v_meta then mk (TCast(e,None)) v.v_type e.epos else e
+			if l.i_abstract_this then mk (TCast(e,None)) v.v_type e.epos else e
 		| TConst TThis ->
 			let l = read_local vthis in
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
@@ -569,16 +575,16 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let force = ref force in
 	let vars = List.fold_left (fun acc (i,e) ->
 		let flag = not i.i_force_temp && (match e.eexpr with
-			| TLocal v when Meta.has Meta.This v.v_meta -> true
+			| TLocal _ when i.i_abstract_this -> true
 			| TLocal _ | TConst _ -> not i.i_write
 			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
 			| _ -> not i.i_write && i.i_read <= 1
 		) in
 		let flag = flag && (not i.i_captured || is_constant e) in
 		(* force inlining if we modify 'this' *)
-		if i.i_write && (Meta.has Meta.This i.i_var.v_meta) then force := true;
+		if i.i_write && i.i_abstract_this then force := true;
 		(* force inlining of 'this' variable if it is written *)
-		let flag = if not flag && (Meta.has Meta.This i.i_var.v_meta) && i.i_write then begin
+		let flag = if not flag && i.i_abstract_this && i.i_write then begin
 			if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
 			true
 		end else flag in
@@ -668,7 +674,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let map_var v =
 				if not (Hashtbl.mem vars v.v_id) then begin
 					Hashtbl.add vars v.v_id ();
-					v.v_type <- map_type v.v_type;
+					if not (read_local v).i_outside then v.v_type <- map_type v.v_type;
 				end;
 				v
 			in
