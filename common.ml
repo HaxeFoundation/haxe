@@ -20,10 +20,106 @@
 open Ast
 open Type
 
+module ExtendedRemap = struct
+	exception InvalidPackageName of string
+
+	type remap_node = {
+		mutable values: (string, remap_node) PMap.t;
+		mutable value: (string list * string) option;
+		mutable leaf: bool;
+	}
+
+	let empty_remap() = {values=PMap.empty; value=None;leaf=false;}
+
+	let to_key = match Sys.os_type with
+		| "Win32" | "Cygwin" -> (fun s -> String.lowercase s)
+		| _ -> (fun s -> s)
+
+	let is_class s = match String.unsafe_get s 0 with
+		| 'A'..'Z' -> true
+		| _ -> false
+
+	let split_package ?(sep=".") s =
+		let l = ExtString.String.nsplit s sep in
+		let i = List.length l in
+		if i <= 0 then None
+		else
+			let rec loop acc = function
+				| x::[] -> if not (is_class x) then List.rev (x::acc), "" else List.rev acc, x 
+				| x::xs ->
+					if is_class x then raise (InvalidPackageName x);
+					loop (x::acc) xs
+				| [] -> [], ""
+			in Some(loop [] l)
+	
+	let add_key key node =
+		let new_node = empty_remap() in
+		node.values <- PMap.add (to_key key) new_node node.values;
+		new_node
+
+	let create_remap (p, n) v =
+		let root = empty_remap() in
+		let key, node = match p with
+			| [] ->
+				root.leaf <- is_class n;
+				n, root
+			| x::xs ->
+				let rec loop node = function
+					| y::ys -> loop (add_key y node) ys
+					| [] -> x, 
+						if n="" then node 
+						else begin
+							let new_node = add_key n node in
+							new_node.leaf <- true;
+							new_node
+						end
+				in
+				loop root xs
+		in
+		node.value <- v;
+		to_key key, root
+
+	let extended_remap first rest name root =
+		let get_name n = if n="" then name else n in
+		let get_resolve xs resolve node = match node.value with
+			| Some(p, n) -> true, Some(p, xs, get_name n, node)
+			| None -> false, resolve
+		in
+		let get_last node resolve =
+			try
+				if not node.leaf then raise Not_found
+				else begin
+					let found,resolve = get_resolve [] resolve (PMap.find (to_key name) node.values) in
+					if not found then raise Not_found;
+					found, resolve
+				end
+			with Not_found -> get_resolve [] resolve node
+		in
+		let rec loop node resolve = function
+			| x::xs ->
+				let found,resolve = get_resolve xs resolve node in
+				if node.leaf then resolve
+				else begin
+						try loop (PMap.find (to_key x) node.values) resolve xs
+						with Not_found -> resolve
+				end
+			| [] ->
+				let _, resolve = get_last node resolve in
+				resolve
+		in
+		begin match (loop root None rest) with
+		| Some(p, xs, n, b) -> p@xs, n, Some b
+		| _ -> first::rest, name, None
+		end
+end
+
+open ExtendedRemap
+
 type package_rule =
 	| Forbidden
 	| Directory of string
 	| Remap of string
+	| RemapExtended of remap_node
 
 type pos = Ast.pos
 

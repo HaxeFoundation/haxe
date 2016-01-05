@@ -3307,18 +3307,34 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	m
 
 let resolve_module_file com m remap p =
+	let open Common.ExtendedRemap in
 	let forbid = ref false in
 	let file = (match m with
-		| [] , name -> name
+		| [] , name -> (try
+			match PMap.find (to_key name) com.package_rules with
+			| RemapExtended root ->
+				begin match root.value with
+				| Some(xs, n) when xs<>[] ->
+					remap := xs;
+					String.concat "/" xs ^ "/" ^ n
+				| _ -> name
+				end
+			| _ -> name
+			with Not_found -> name)
 		| x :: l , name ->
-			let x = (try
+			let xs,name = (try
 				match PMap.find x com.package_rules with
-				| Forbidden -> forbid := true; x
-				| Directory d -> d
-				| Remap d -> remap := d :: l; d
-				with Not_found -> x
+				| Forbidden -> forbid := true; x::l, name
+				| Directory d -> d::l, name
+				| Remap d -> remap := d :: l; !remap, name
+				| RemapExtended root ->
+					let xs,name,_ = extended_remap x l name root in
+					remap := xs;
+					xs, name
+				with Not_found ->
+					x::l, name
 			) in
-			String.concat "/" (x :: l) ^ "/" ^ name
+			String.concat "/" xs ^ "/" ^ name
 	) ^ ".hx" in
 	let file = Common.find_file com file in
 	let file = (match String.lowercase (snd m) with
