@@ -266,7 +266,7 @@ let list_iteri f l =
 	let p = ref 0 in
 	List.iter (fun v -> f !p v; incr p) l
 
-let rec tstr ?(detailed=false) t =
+let rec tstr ?(stack=[]) ?(detailed=false) t =
 	match t with
 	| HVoid -> "void"
 	| HI8 -> "i8"
@@ -290,8 +290,10 @@ let rec tstr ?(detailed=false) t =
 		"type"
 	| HRef t ->
 		"ref(" ^ tstr t ^ ")"
+	| HVirtual v when List.memq v stack ->
+		"..."
 	| HVirtual v ->
-		"virtual(" ^ String.concat "," (List.map (fun (f,_,t) -> f ^":"^tstr t) (Array.to_list v.vfields)) ^ ")"
+		"virtual(" ^ String.concat "," (List.map (fun (f,_,t) -> f ^":"^tstr ~stack:(v::stack) t) (Array.to_list v.vfields)) ^ ")"
 	| HDynObj ->
 		"dynobj"
 	| HAbstract (s,_) ->
@@ -340,7 +342,10 @@ let rec safe_cast t1 t2 =
 			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
 		in
 		loop p1
-	| _ -> tsame t1 t2
+	| HFun (args1,t1), HFun (args2,HVoid) when List.length args1 = List.length args2 ->
+		List.for_all2 tsame args1 args2
+	| _ ->
+		tsame t1 t2
 
 let to_utf8 str =
 	try
@@ -458,6 +463,8 @@ let rec to_type ctx t =
 		to_type ctx (!f())
 	| TFun (args, ret) ->
 		HFun (List.map (fun (_,_,t) -> to_type ctx t) args, to_type ctx ret)
+	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _  -> true | _ -> false) ->
+		HType
 	| TAnon a ->
 		(try
 			(* can't use physical comparison in PMap since addresses might change in GC compact,
@@ -540,7 +547,18 @@ and class_type ctx c pl =
 	let c = if c.cl_extern then resolve_class ctx c pl else c in
 	try
 		PMap.find c.cl_path ctx.cached_types
-	with Not_found ->
+	with Not_found when c.cl_interface ->
+		let vp = {
+			vfields = [||];
+			vindex = PMap.empty;
+		} in
+		let t = HVirtual vp in
+		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
+		let fields = PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields [] in
+		vp.vfields <- Array.of_list fields;
+		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
+		t
+	| Not_found ->
 		let pname = s_type_path c.cl_path in
 		let p = {
 			pname = pname;
@@ -685,9 +703,6 @@ let jump_back ctx =
 let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
-let resolve_field ctx p fname proto =
-	try fst (PMap.find fname p.pindex) with Not_found -> assert false
-
 let reg_int ctx v =
 	let r = alloc_tmp ctx HI32 in
 	op ctx (OInt (r,alloc_i32 ctx (Int32.of_int v)));
@@ -799,6 +814,31 @@ and cast_to ctx (r:reg) (t:ttype) p =
 	| _ ->
 		invalid()
 
+and object_access ctx eobj t f =
+	match t with
+	| HObj p ->
+		(try
+			let fid = fst (PMap.find f.cf_name p.pindex) in
+			if f.cf_kind = Method MethNormal then
+				AInstanceProto (eobj, fid)
+			else
+				AInstanceField (eobj, fid)
+		with Not_found ->
+			ADynamic (eobj, alloc_string ctx f.cf_name))
+	| HVirtual v ->
+		(try
+			let fid = PMap.find f.cf_name v.vindex in
+			if f.cf_kind = Method MethNormal then
+				AVirtualMethod (eobj, fid)
+			else
+				AInstanceField (eobj, fid)
+		with Not_found ->
+			ADynamic (eobj, alloc_string ctx f.cf_name))
+	| HDyn None ->
+		ADynamic (eobj, alloc_string ctx f.cf_name)
+	| _ ->
+		error ("Unsupported field access " ^ tstr t) eobj.epos
+
 and get_access ctx e =
 	match e.eexpr with
 	| TField (ethis, a) ->
@@ -808,23 +848,14 @@ and get_access ctx e =
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
-		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic ->
-			if not (is_overriden ctx c f) then
-				AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl) f)
-			else (match class_type ctx cdef pl with
-			| HObj p -> AInstanceProto (ethis, resolve_field ctx p f.cf_name true)
-			| _ -> assert false)
+		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic && not (c.cl_interface || is_overriden ctx c f) ->
+			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl) f)
 		| FInstance (cdef,pl,f), _ | FClosure (Some (cdef,pl), f), _ ->
-			(match class_type ctx cdef pl with
-			| HObj p -> AInstanceField (ethis, resolve_field ctx p f.cf_name false)
-			| _ -> assert false)
+			object_access ctx ethis (class_type ctx cdef pl) f
 		| FClosure (None,_), _ ->
 			assert false
-		| FAnon cf, _ ->
-			(match to_type ctx ethis.etype with
-			| HVirtual v when cf.cf_kind = Method MethNormal -> AVirtualMethod (ethis, try PMap.find cf.cf_name v.vindex with Not_found -> assert false)
-			| HVirtual v -> (try AInstanceField (ethis, PMap.find cf.cf_name v.vindex) with Not_found -> ADynamic (ethis, alloc_string ctx cf.cf_name))
-			| _ -> assert false)
+		| FAnon f, _ ->
+			object_access ctx ethis (to_type ctx ethis.etype) f
 		| FDynamic name, _ ->
 			ADynamic (ethis, alloc_string ctx name)
 		| FEnum (_,ef), _ ->
@@ -1431,6 +1462,20 @@ and eval_expr ctx e =
 			unop r;
 			op ctx (OSetField (robj,f,r));
 			r2
+		| AGlobal g, Prefix ->
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+			op ctx (OGetGlobal (r,g));
+			unop r;
+			op ctx (OSetGlobal (g,r));
+			r
+		| AGlobal g, Postfix ->
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+			let r2 = alloc_tmp ctx (rtype ctx r) in
+			op ctx (OGetGlobal (r,g));
+			op ctx (OMov (r2,r));
+			unop r;
+			op ctx (OSetGlobal (g,r));
+			r2
 		| _ ->
 			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 		);
@@ -1532,7 +1577,16 @@ and eval_expr ctx e =
 	| TArray (a,i) ->
 		let ra = eval_null_check ctx a in
 		let ri = eval_to ctx i HI32 in
-		let at = (match follow a.etype with TInst ({ cl_path = [],"Array" },[t]) -> to_type ctx t | _ -> assert false) in
+		let ra, at = (match follow a.etype with
+			| TInst ({ cl_path = [],"Array" },[t]) -> ra, to_type ctx t
+			| t when t == t_dynamic ->
+				let at = e.etype in
+				let aa = alloc_tmp ctx (to_type ctx (ctx.com.basic.tarray at)) in
+				op ctx (OSafeCast (aa,ra));
+				aa, to_type ctx at
+			| _ ->
+				error ("Invalid array access on " ^ s_type (print_context()) a.etype) a.epos
+		) in
 		(match at with
 		| HI32 ->
 			let hbytes = alloc_tmp ctx HBytes in
@@ -1683,8 +1737,8 @@ and eval_expr ctx e =
 		ctx.m.mtrys <- ctx.m.mtrys + 1;
 		let tret = to_type ctx e.etype in
 		let result = alloc_tmp ctx tret in
-		let r = eval_to ctx etry tret in
-		if tret <> HVoid then op ctx (OMov (result,r));
+		let r = eval_expr ctx etry in
+		if tret <> HVoid then op ctx (OMov (result,cast_to ctx r tret etry.epos));
 		ctx.m.mtrys <- ctx.m.mtrys - 1;
 		op ctx (OEndTrap 0);
 		let j = jump ctx (fun n -> OJAlways n) in
@@ -1698,15 +1752,28 @@ and eval_expr ctx e =
 					op ctx (OMov (rv, rtrap))
 				else
 					error "Unsupported catch" ec.epos;
-				let r = eval_to ctx ec tret in
-				if tret <> HVoid then op ctx (OMov (result,r));
+				let r = eval_expr ctx ec in
+				if tret <> HVoid then op ctx (OMov (result,cast_to ctx r tret ec.epos));
 				if next = [] then [] else jump ctx (fun n -> OJAlways n) :: loop next
 		in
 		List.iter (fun j -> j()) (loop catches);
 		j();
 		result
-	| TTypeExpr _ | TCast (_,Some _) ->
-		error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
+	| TTypeExpr t ->
+		let r = alloc_tmp ctx HType in
+		op ctx (OType (r, (match t with
+			| TClassDecl c -> class_type ctx c []
+			| TEnumDecl e -> enum_type ctx e
+			| _ -> assert false)));
+		r
+	| TCast (ev,Some t) ->
+		let r = alloc_tmp ctx (to_type ctx (match t with TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params) | _ -> assert false)) in
+		let re = eval_expr ctx ev in
+		if safe_cast (rtype ctx re) (rtype ctx r) then
+			op ctx (OMov (r,re))
+		else
+			error "TODO : safe-cast" e.epos;
+		r
 
 and build_capture_vars ctx f =
 	let ignored_vars = ref PMap.empty in
@@ -1874,7 +1941,7 @@ let generate_static ctx c f =
 
 let generate_member ctx c f =
 	match f.cf_kind with
-	| Var _ -> ()
+	| Var _ | Method MethDynamic -> ()
 	| Method m ->
 		ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) then begin
@@ -1892,6 +1959,8 @@ let generate_enum ctx e =
 
 let generate_type ctx t =
 	match t with
+	| TClassDecl { cl_interface = true }->
+		()
 	| TClassDecl c when c.cl_extern ->
 		List.iter (fun f ->
 			List.iter (fun (name,args,pos) ->
@@ -2294,12 +2363,12 @@ let check code =
 	in
 	Array.iter (fun fd ->
 		if fd.findex >= Array.length ftypes then failwith ("Invalid function index " ^ string_of_int fd.findex);
-		if ftypes.(fd.findex) <> HVoid then failwith "Duplicate function bind";
+		if ftypes.(fd.findex) <> HVoid then failwith ("Duplicate function bind " ^ string_of_int fd.findex);
 		ftypes.(fd.findex) <- fd.ftype;
 	) code.functions;
 	Array.iter (fun (_,_,t,idx) ->
 		if idx >= Array.length ftypes then failwith ("Invalid native function index " ^ string_of_int idx);
-		if ftypes.(idx) <> HVoid then failwith "Duplicate function bind";
+		if ftypes.(idx) <> HVoid then failwith ("Duplicate native function bind " ^ string_of_int idx);
 		Hashtbl.add is_native_fun idx true;
 		ftypes.(idx) <- t
 	) code.natives;
@@ -3476,9 +3545,6 @@ let generate com =
 	) com.types;
 	List.iter (generate_type ctx) com.types;
 	let ep = generate_static_init ctx in
-	PMap.iter (fun (s,p) fid ->
-		if not (Hashtbl.mem ctx.defined_funs fid) then failwith ("Unresolved method " ^ s_type_path p ^ ":" ^ s)
-	) ctx.cfids.map;
 	let code = {
 		version = 1;
 		entrypoint = ep;
@@ -3491,6 +3557,9 @@ let generate com =
 	} in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if Common.defined com Define.Dump then Std.output_file "dump/hlcode.txt" (dump code);
+	PMap.iter (fun (s,p) fid ->
+		if not (Hashtbl.mem ctx.defined_funs fid) then failwith ("Unresolved method " ^ s_type_path p ^ ":" ^ s)
+	) ctx.cfids.map;
 	check code;
 	let ch = IO.output_string() in
 	write_code ch code;

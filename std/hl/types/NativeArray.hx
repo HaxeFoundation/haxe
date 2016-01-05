@@ -1,5 +1,25 @@
 package hl.types;
 
+@:generic class NativeArrayIterator<T> {
+	var arr : NativeArray<T>;
+	var pos : Int;
+	var length : Int;
+	
+	public inline function new(arr:NativeArray<T>) {
+		this.arr = arr;
+		pos = 0;
+		length = arr.length;
+	}
+	
+	public inline function hasNext() {
+		return pos < length;
+	}
+	
+	public inline function next() {
+		return arr[pos++];
+	}
+}
+
 @:coreType abstract NativeArray<T> {
 	public var length(get,never):Int;	
 	@:extern public inline function new( length : Int ) {
