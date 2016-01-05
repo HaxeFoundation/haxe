@@ -38,20 +38,40 @@ class Process {
 
 	public function new( cmd : String, ?args : Array<String> ) : Void
 	{
-		var pargs = new NativeArray(args.length + 1);
-		switch (Sys.systemName()) {
-			case "Windows":
-				pargs[0] = StringTools.quoteWinArg(cmd, false);
-				for (i in 0...args.length)
-				{
-					pargs[i + 1] = StringTools.quoteWinArg(args[i], false);
-				}
-			case _:
-				pargs[0] = cmd;
-				for (i in 0...args.length)
-				{
-					pargs[i + 1] = args[i];
-				}
+		var sysName = Sys.systemName();
+		var pargs;
+		if (args == null) {
+			var cmdStr = cmd;
+			switch (sysName) {
+				case "Windows":
+					pargs = new NativeArray(2);
+					pargs[0] = cmd = switch (Sys.getEnv("COMSPEC")) {
+						case null: "cmd.exe";
+						case comspec: comspec;
+					}
+					pargs[1] = '/C "$cmdStr"';
+				case _:
+					pargs = new NativeArray(3);
+					pargs[0] = cmd = "/bin/sh";
+					pargs[1] = "-c";
+					pargs[2] = cmdStr;
+			}
+		} else {
+			pargs = new NativeArray(args.length + 1);
+			switch (sysName) {
+				case "Windows":
+					pargs[0] = StringTools.quoteWinArg(cmd, false);
+					for (i in 0...args.length)
+					{
+						pargs[i + 1] = StringTools.quoteWinArg(args[i], false);
+					}
+				case _:
+					pargs[0] = cmd;
+					for (i in 0...args.length)
+					{
+						pargs[i + 1] = args[i];
+					}
+			}
 		}
 
 		try
