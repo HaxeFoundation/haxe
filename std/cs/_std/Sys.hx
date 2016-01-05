@@ -115,7 +115,7 @@ class Sys {
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int
 	{
-		var proc:Process = new Process(cmd, args == null ? [] : args);
+		var proc:Process = new Process(cmd, args);
 		var ret = proc.exitCode();
 		proc.close();
 

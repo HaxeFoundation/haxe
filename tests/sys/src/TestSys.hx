@@ -29,7 +29,7 @@ class TestSys extends TestCommandBase {
 	}
 	#end
 
-	#if (neko || python || php || java)
+	#if (neko || python || php || java || cs)
 	function testRawCommand() {
 		var bin = sys.FileSystem.absolutePath(ExitCode.bin);
 		var native = sys.FileSystem.absolutePath(ExitCode.getNative());
