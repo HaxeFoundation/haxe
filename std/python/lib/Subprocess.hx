@@ -21,6 +21,8 @@
  */
 package python.lib;
 
+import haxe.extern.EitherType;
+
 extern class StartupInfo {
 	public var dwFlags : Int;
 
@@ -47,6 +49,6 @@ extern class Subprocess {
 
 	public static var STDOUT:Int;
 
-	public static function call(args:Array<String>):Int;
+	public static function call(args:EitherType<String,Array<String>>, ?kwArgs:python.KwArgs<Dynamic>):Int;
 
 }

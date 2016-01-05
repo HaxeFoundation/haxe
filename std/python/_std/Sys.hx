@@ -100,8 +100,11 @@ class Sys {
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		var args = args == null ? [cmd] : [cmd].concat(args);
-		return python.lib.Subprocess.call(args);
+		return
+			if (args == null)
+				python.lib.Subprocess.call(cmd, { shell: true });
+			else
+				python.lib.Subprocess.call([cmd].concat(args));
 	}
 
 	public static function cpuTime() : Float {
