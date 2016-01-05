@@ -253,6 +253,7 @@ let unique l =
 	_unique (List.sort compare l)
 
 let rec read_type_path com p =
+	let open Common.ExtendedRemap in
 	let classes = ref [] in
 	let packages = ref [] in
 	let p = (match p with
@@ -261,6 +262,9 @@ let rec read_type_path com p =
 				match PMap.find x com.package_rules with
 				| Directory d -> d :: l
 				| Remap s -> s :: l
+				| RemapExtended root ->
+					let p, _, _ = extended_remap x l "" root in
+					p
 				| _ -> p
 			with
 				Not_found -> p)
@@ -280,6 +284,9 @@ let rec read_type_path com p =
 								match PMap.find f com.package_rules with
 								| Forbidden -> ()
 								| Remap f -> packages := f :: !packages
+								| RemapExtended root ->
+									let p, _, _=extended_remap f [] "" root in
+									packages := p @ !packages
 								| Directory _ -> raise Not_found
 							with Not_found ->
 								packages := f :: !packages
@@ -1287,7 +1294,22 @@ try
 		),"<name> : prefix all classes with given name");
 		("--remap", Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
-			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
+			let osrc = ExtendedRemap.split_package pack in
+			let odst = ExtendedRemap.split_package target in
+			begin match osrc, odst with
+			| None, _ -> ()
+			| _, None -> ()
+			| Some src, Some dst ->
+				begin match src, dst with
+				| ([src], ""), ([dst], "") -> com.package_rules <- PMap.add src (Remap dst) com.package_rules
+				| (_, src), (_, dst) when src<>dst ->
+					if (src="") || (dst="") then raise (Arg.Bad (Printf.sprintf "Invalid remap format, can't remap a package to a name %s:%s" pack target))
+					else raise (Arg.Bad (Printf.sprintf "Invalid remap format, can't remap to different name %s:%s" pack target))
+				| _, _ ->
+					let key, entry = ExtendedRemap.create_remap src odst in
+					com.package_rules <- PMap.add key (RemapExtended entry) com.package_rules
+				end
+			end;
 		),"<package:target> : remap a package to another one");
 		("--interp", Arg.Unit (fun() ->
 			Common.define com Define.Interp;
