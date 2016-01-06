@@ -1,5 +1,7 @@
 package hl;
 
 extern class Boot {
-	@:hlNative("std","log") public static function log( v : Dynamic ) : Void;
+	@:extern public inline static function dump( v : Dynamic ) : Void {
+		untyped $dump(v);
+	}
 }

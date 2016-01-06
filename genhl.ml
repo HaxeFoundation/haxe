@@ -116,7 +116,7 @@ type opcode =
 	| OGetFunction of reg * functable index (* closure *)
 	| OClosure of reg * functable index * reg (* closure *)
 	| OGetGlobal of reg * global
-	| OSetGlobal of reg * global
+	| OSetGlobal of global * reg
 	| OEq of reg * reg * reg
 	| ONotEq of reg * reg * reg
 	| OSLt of reg * reg * reg
@@ -135,7 +135,6 @@ type opcode =
 	| OJEq of reg * reg * int
 	| OJNeq of reg * reg * int
 	| OJAlways of int
-	| OUnDyn of reg * reg
 	| OToDyn of reg * reg
 	| OToFloat of reg * reg
 	| OToInt of reg * reg
@@ -178,6 +177,7 @@ type opcode =
 	| ONullCheck of reg
 	| OTrap of reg * int
 	| OEndTrap of unused
+	| ODump of reg
 
 type fundecl = {
 	findex : functable index;
@@ -266,6 +266,12 @@ let list_iteri f l =
 	let p = ref 0 in
 	List.iter (fun v -> f !p v; incr p) l
 
+let field_type f =
+	match f with
+	| FInstance (_,_,f) | FStatic (_,f) | FAnon f | FClosure (_,f) -> f.cf_type
+	| FDynamic _ -> t_dynamic
+	| FEnum (_,f) -> f.ef_type
+
 let rec tstr ?(stack=[]) ?(detailed=false) t =
 	match t with
 	| HVoid -> "void"
@@ -298,6 +304,9 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		"dynobj"
 	| HAbstract (s,_) ->
 		"abstract(" ^ s ^ ")"
+	| HEnum e when e.eid = 0 ->
+		let _,_,fl = e.efields.(0) in
+		"enum(" ^ String.concat "," (List.map tstr (Array.to_list fl)) ^ ")"
 	| HEnum e ->
 		"enum(" ^ e.ename ^ ")"
 
@@ -342,8 +351,8 @@ let rec safe_cast t1 t2 =
 			p.pname = p2.pname || (match p.psuper with None -> false | Some p -> loop p)
 		in
 		loop p1
-	| HFun (args1,t1), HFun (args2,HVoid) when List.length args1 = List.length args2 ->
-		List.for_all2 tsame args1 args2
+	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
+		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t2 = HDyn None && safe_cast t1 t2)) args1 args2 && safe_cast t1 t2
 	| _ ->
 		tsame t1 t2
 
@@ -755,6 +764,8 @@ and cast_to ctx (r:reg) (t:ttype) p =
 	in
 	if safe_cast rt t then r else
 	match rt, t with
+	| _, HVoid ->
+		alloc_tmp ctx HVoid
 	| HVirtual _, HDyn None ->
 		let tmp = alloc_tmp ctx (HDyn None) in
 		op ctx (OUnVirtual (tmp,r));
@@ -795,24 +806,35 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		out
 	| HDyn (Some rt), _ when rt == t ->
 		let out = alloc_tmp ctx t in
-		op ctx (OUnDyn (out, r));
+		op ctx (OSafeCast (out, r));
 		out
 	| _ , HDyn _ ->
 		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
 		op ctx (OToDyn (tmp, r));
 		tmp
-	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 && List.for_all2 safe_cast args2 args1 ->
-		if safe_cast ret1 ret2 then
-			r
-		else if ret2 = HDyn None then begin
-			let fid = gen_method_wrapper ctx rt t p in
-			let fr = alloc_tmp ctx t in
-			op ctx (OClosure (fr,fid,r));
-			fr
-		end else
-			invalid()
+	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
+		let fid = gen_method_wrapper ctx rt t p in
+		let fr = alloc_tmp ctx t in
+		op ctx (OClosure (fr,fid,r));
+		fr
 	| _ ->
 		invalid()
+
+and unsafe_cast_to ctx (r:reg) (t:ttype) p =
+	let rt = rtype ctx r in
+	if safe_cast rt t then
+		r
+	else
+	match rt with
+	| HFun _ ->
+		cast_to ctx r t p
+	| _ ->
+		if safe_cast (rtype ctx r) (HDyn None) && safe_cast t (HDyn None) then
+			let r2 = alloc_tmp ctx t in
+			op ctx (OUnsafeCast (r2,r));
+			r2
+		else
+			cast_to ctx r t p
 
 and object_access ctx eobj t f =
 	match t with
@@ -1125,11 +1147,19 @@ and eval_expr ctx e =
 			let rv = (match rtype ctx r with HRef t -> eval_to ctx v t | _ -> invalid()) in
 			op ctx (ORef (r,rv));
 			r
+		| "$dump", [v] ->
+			op ctx (ODump (eval_expr ctx v));
+			alloc_tmp ctx HVoid
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
-		let ret = alloc_tmp ctx (to_type ctx e.etype) in
-		let el = eval_args ctx el (to_type ctx ec.etype) in
+		let real_type = (match ec.eexpr with
+			| TField (_,f) -> field_type f
+			| _ -> ec.etype
+		) in
+		let tfun = to_type ctx real_type in
+		let el = eval_args ctx el tfun in
+		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn None) in
 		(match get_access ctx ec with
 		| AStaticFun f ->
 			(match el with
@@ -1158,9 +1188,9 @@ and eval_expr ctx e =
 			let r = eval_null_check ctx ec in
 			op ctx (OCallClosure (ret, r, el)); (* if it's a value, it's a closure *)
 		);
-		ret
+		unsafe_cast_to ctx ret (to_type ctx e.etype) e.epos
 	| TField (ec,a) ->
-		let r = alloc_tmp ctx (to_type ctx e.etype) in
+		let r = alloc_tmp ctx (to_type ctx (field_type a)) in
 		(match get_access ctx e with
 		| AGlobal g ->
 			op ctx (OGetGlobal (r,g));
@@ -1181,7 +1211,7 @@ and eval_expr ctx e =
 			op ctx (OMakeEnum (r,index,[]))
 		| ANone | ALocal _ | AArray _ | ACaptured _ ->
 			error "Invalid access" e.epos);
-		r
+		unsafe_cast_to ctx r (to_type ctx e.etype) e.epos
 	| TObjectDecl o ->
 		let r = alloc_tmp ctx HDynObj in
 		op ctx (ONew r);
@@ -1638,10 +1668,8 @@ and eval_expr ctx e =
 			j();
 			let tmp = alloc_tmp ctx (HDyn None) in
 			op ctx (OGetArray (tmp,harr,ri));
-			if safe_cast at (HDyn None) then
-				op ctx (OUnsafeCast (r,tmp))
-			else
-				op ctx (OUnDyn (r,tmp));
+			let r2 = unsafe_cast_to ctx tmp at e.epos in
+			op ctx (OMov (r,r2));
 			jend();
 			r
 		);
@@ -2030,23 +2058,26 @@ let check code =
 		let check t1 t2 =
 			if not (safe_cast t1 t2) then error (tstr t1 ^ " should be " ^ tstr t2)
 		in
+		let reg_inf r =
+			"Register " ^ string_of_int r ^ "(" ^ tstr (rtype r) ^ ")"
+		in
 		let reg r t =
-			if not (safe_cast (rtype r) t) then error ("Register " ^ string_of_int r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
+			if not (safe_cast (rtype r) t) then error (reg_inf r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
 		in
 		let numeric r =
 			match rtype r with
 			| HI8 | HI16 | HI32 | HF32 | HF64 -> ()
-			| _ -> error ("Register " ^ string_of_int r ^ " should be numeric")
+			| _ -> error (reg_inf r ^ " should be numeric")
 		in
 		let int r =
 			match rtype r with
 			| HI8 | HI16 | HI32 -> ()
-			| _ -> error ("Register " ^ string_of_int r ^ " should be integral")
+			| _ -> error (reg_inf r ^ " should be integral")
 		in
 		let float r =
 			match rtype r with
 			| HF32 | HF64 -> ()
-			| _ -> error ("Register " ^ string_of_int r ^ " should be float")
+			| _ -> error (reg_inf r ^ " should be float")
 		in
 		let call f args r =
 			match ftypes.(f) with
@@ -2063,12 +2094,12 @@ let check code =
 		let is_obj r =
 			match rtype r with
 			| HObj _ -> ()
-			| _ -> error ("Register " ^ string_of_int r ^ " should be object")
+			| _ -> error (reg_inf r ^ " should be object")
 		in
 		let is_enum r =
 			match rtype r with
 			| HEnum _ -> ()
-			| _ -> error ("Register " ^ string_of_int r ^ " should be enum")
+			| _ -> error (reg_inf r ^ " should be enum")
 		in
 		let tfield o id proto =
 			match rtype o with
@@ -2118,7 +2149,7 @@ let check code =
 				if i < 0 || i >= Array.length code.strings then error "string outside range";
 			| ONull r ->
 				(match rtype r with
-				| HBytes | HEnum _ | HVirtual _ -> ()
+				| HBytes | HEnum _ | HVirtual _ | HType -> ()
 				| _ when safe_cast (rtype r) (HDyn None) -> ()
 				| t -> error (tstr t ^ " is not nullable"))
 			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | OSDiv (r,a,b) | OUDiv (r,a,b) | OSMod (r,a,b) | OUMod(r,a,b) ->
@@ -2166,7 +2197,7 @@ let check code =
 				(match rtype f with
 				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
 				| _ -> reg f (HFun(List.map rtype rl,rtype r)))
-			| OGetGlobal (r,g) | OSetGlobal (r,g) ->
+			| OGetGlobal (r,g) | OSetGlobal (g,r) ->
 				reg r code.globals.(g)
 			| OSLt (r, a, b) | OULt (r, a, b) | OSGte (r, a, b) | OUGte (r, a, b) ->
 				reg r HBool;
@@ -2193,11 +2224,6 @@ let check code =
 			| OToDyn (r,a) ->
 				if safe_cast (rtype a) (HDyn None) then reg a HI32; (* don't wrap as dynamic types that can safely be cast to it *)
 				reg r (HDyn (Some (rtype a)))
-			| OUnDyn (r,a) ->
-				(match rtype a with
-				| HDyn (Some t) -> reg r t
-				| HDyn None -> ignore(rtype a)
-				| _ -> reg a (HDyn (Some (HDyn None))))
 			| OToFloat (a,b) ->
 				int b;
 				float a;
@@ -2279,10 +2305,10 @@ let check code =
 				| _ -> reg a (HArray (HDyn None)));
 				reg i HI32;
 			| OUnsafeCast (a,b) ->
-				ignore(rtype a);
+				if not (safe_cast (rtype a) (HDyn None)) then is_obj a;
 				ignore(rtype b);
 			| OSafeCast (a,b) ->
-				reg a (HDyn None);
+				ignore(rtype a);
 				ignore(rtype b);
 			| OArraySize (r,a) ->
 				(match rtype a with
@@ -2358,6 +2384,8 @@ let check code =
 				can_jump idx
 			| OEndTrap _ ->
 				()
+			| ODump r ->
+				ignore(rtype r);
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in
@@ -2438,6 +2466,18 @@ let default t =
 	| HI8 | HI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
+
+let is_compatible v t =
+	match v, t with
+	| VInt _, HI32 -> true
+	| VNull, (HObj _ | HFun _ | HBytes | HArray _ | HType | HVirtual _ | HDynObj | HAbstract _ | HEnum _) -> true
+	| VObj _, HObj _ -> true
+	| VClosure _, HFun _ -> true
+	| VBytes _, HBytes -> true
+	| VDyn (_,t1), HDyn (Some t2) -> tsame t1 t2
+	| (VDyn _ | VObj _), HDyn None -> true
+	| VUndef, HVoid -> true
+	| _ -> false
 
 exception Runtime_error of string
 exception InterpThrow of value
@@ -2543,7 +2583,10 @@ let interp code =
 		let pos = ref 0 in
 		stack := (f,pos) :: !stack;
 		let rtype i = f.regs.(i) in
-		let set r v = Array.unsafe_set regs r v in
+		let set r v =
+			if not (is_compatible v (rtype r)) then error (Printf.sprintf "Can't set register @%d(%s) with %s" r (tstr (rtype r)) (vstr_d v));
+			Array.unsafe_set regs r v
+		in
 		let get r = Array.unsafe_get regs r in
 		let global g = Array.unsafe_get globals g in
 		let traps = ref [] in
@@ -2653,7 +2696,7 @@ let interp code =
 			| OCall4 (r,f,r1,r2,r3,r4) -> set r (fcall (func f) [get r1;get r2;get r3;get r4])
 			| OCallN (r,f,rl) -> set r (fcall (func f) (List.map get rl))
 			| OGetGlobal (r,g) -> set r (global g)
-			| OSetGlobal (r,g) -> Array.unsafe_set globals g (get r)
+			| OSetGlobal (g,r) -> Array.unsafe_set globals g (get r)
 			| OEq (r,a,b) -> set r (VBool (vcompare a b = 0))
 			| ONotEq (r,a,b) -> set r (VBool (vcompare a b <> 0))
 			| OSGte (r,a,b) -> set r (VBool (vcompare a b >= 0))
@@ -2672,7 +2715,6 @@ let interp code =
 			| OJEq (a,b,i) -> if vcompare a b = 0 then pos := !pos + i
 			| OJNeq (a,b,i) -> if vcompare a b <> 0 then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
-			| OUnDyn (r,a) -> set r (match get a with VNull -> default (rtype r) | VDyn (v,_) -> v | _ -> assert false)
 			| OToDyn (r,a) -> set r (VDyn (get a, f.regs.(a)))
 			| OToFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | _ -> assert false)
 			| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | _ -> assert false)
@@ -2791,7 +2833,8 @@ let interp code =
 				let v = get v in
 				set r (match v, rtype r with
 					| VObj o, HObj c when o.oproto.pclass == c -> v
-					| VNull, HObj _ -> v
+					| VNull, t -> default t
+					| VDyn (v, t1), t2 when t1 == t2 -> v
 					| _, t -> error ("Failed to cast " ^ vstr_d v ^ " to " ^ tstr t)
 				)
 			| OUnsafeCast (r,v) ->
@@ -2961,6 +3004,8 @@ let interp code =
 				traps := (r,target) :: !traps
 			| OEndTrap _ ->
 				traps := List.tl !traps
+			| ODump r ->
+				print_endline (vstr_d (get r));
 			);
 			loop()
 		in
@@ -2985,8 +3030,6 @@ let interp code =
 		FNativeFun (lib ^ "@" ^ name, (match lib with
 		| "std" ->
 			(match name with
-			| "log" ->
-				(fun args -> print_endline (vstr (List.hd args) (HDyn None)); VNull);
 			| "balloc" ->
 				(function
 				| [VInt i] -> VBytes (String.create (int i))
@@ -3381,7 +3424,6 @@ let ostr o =
 	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
 	| OJNeq (a,b,i) -> Printf.sprintf "jneq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
-	| OUnDyn (r,a) -> Printf.sprintf "undyn %d,%d" r a
 	| OToDyn (r,a) -> Printf.sprintf "todyn %d,%d" r a
 	| OToFloat (r,a) -> Printf.sprintf "tofloat %d,%d" r a
 	| OToInt (r,a) -> Printf.sprintf "toint %d,%d" r a
@@ -3424,6 +3466,7 @@ let ostr o =
 	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
 	| OTrap (r,i) -> Printf.sprintf "trap %d, %d" r i
 	| OEndTrap _ -> "endtrap"
+	| ODump r -> Printf.sprintf "dump %d" r
 
 let dump code =
 	let lines = ref [] in
