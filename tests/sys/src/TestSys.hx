@@ -28,11 +28,4 @@ class TestSys extends TestCommandBase {
 		Sys.setCwd(cur);
 	}
 	#end
-
-	function testRawCommand() {
-		var bin = sys.FileSystem.absolutePath(ExitCode.bin);
-		var native = sys.FileSystem.absolutePath(ExitCode.getNative());
-		var exitCode = run('$native 1 || $native 0');
-		assertEquals(0, exitCode);
-	}
 }
