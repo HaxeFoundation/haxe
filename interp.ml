@@ -1862,7 +1862,8 @@ let std_lib =
 	(* process *)
 		"process_run", (Fun2 (fun p args ->
 			match p, args with
-			| VString p, VArray args -> VAbstract (AProcess (Process.run p (Array.map vstring args)))
+			| VString p, VArray args -> VAbstract (AProcess (Process.run p (Some (Array.map vstring args))))
+			| VString p, _ -> VAbstract (AProcess (Process.run p None))
 			| _ -> error()
 		));
 		"process_stdout_read", (Fun4 (fun p str pos len ->
