@@ -19,7 +19,7 @@
 
 type process
 
-external run : string -> string array -> process = "process_run"
+external run : string -> string array option -> process = "process_run"
 external read_stdout : process -> string -> int -> int -> int = "process_stdout_read"
 external read_stderr : process -> string -> int -> int -> int = "process_stderr_read"
 external write_stdin : process -> string -> int -> int -> int = "process_stdin_write"
