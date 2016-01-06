@@ -88,8 +88,10 @@ class Timer {
 			#end
 			id = null;
 		#elseif java
-			timer.cancel();
-			timer = null;
+			if(timer != null) {
+				timer.cancel();
+				timer = null;
+			}
 			task = null;
 		#end
 	}
