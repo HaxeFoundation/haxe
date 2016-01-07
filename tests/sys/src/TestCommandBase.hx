@@ -36,7 +36,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 			#elseif neko
 				run(Sys.executablePath(), [bin].concat(args));
 			#elseif php
-				run(untyped __php__("PHP_BINARY"), [bin].concat(args));
+				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 			#else
 				-1;
 			#end
@@ -116,7 +116,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 				#elseif neko
 					run(Sys.executablePath(), [bin].concat(args));
 				#elseif php
-					run(untyped __php__("PHP_BINARY"), [bin].concat(args));
+					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 				#else
 					-1;
 				#end
