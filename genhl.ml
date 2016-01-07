@@ -735,7 +735,7 @@ let jump ctx f =
 
 let jump_back ctx =
 	let pos = current_pos ctx in
-	DynArray.add ctx.m.mops (OLabel 0);
+	op ctx (OLabel 0);
 	(fun() -> op ctx (OJAlways (pos - current_pos ctx - 1)))
 
 let rtype ctx r =
@@ -2071,7 +2071,7 @@ let generate_static_init ctx =
 		match t with
 		| TClassDecl c ->
 			let f = (try PMap.find "main" c.cl_statics with Not_found -> assert false) in
-			let p = f.cf_pos in
+			let p = { pfile = "<startup>"; pmin = 0; pmax = 0; } in
 			exprs := mk (TCall (mk (TField (mk (TTypeExpr t) t_dynamic p, FStatic (c,f))) f.cf_type p,[])) t_void p :: !exprs
 		| _ ->
 			assert false
@@ -3543,6 +3543,9 @@ let dump code =
 		with _ ->
 			"INVALID:" ^ string_of_int idx
 	in
+	let debug_infos (fid,line) =
+		(try code.debugfiles.(fid) with _ -> "???") ^ ":" ^ string_of_int line
+	in
 	pr ("hl v" ^ string_of_int code.version);
 	pr ("entry @" ^ string_of_int code.entrypoint);
 	pr (string_of_int (Array.length code.strings) ^ " strings");
@@ -3568,11 +3571,12 @@ let dump code =
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr (Printf.sprintf "	@%d(%Xh) fun %s" f.findex f.findex (tstr f.ftype));
+		pr (Printf.sprintf "	; %s" (debug_infos f.debug.(0)));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
 		Array.iteri (fun i o ->
-			pr ("		@"  ^ string_of_int i ^ " " ^ ostr o);
+			pr (Printf.sprintf "		.%-5d @%d %s" (snd f.debug.(i)) i (ostr o))
 		) f.code;
 	) code.functions;
 	let protos = Hashtbl.fold (fun _ p acc -> p :: acc) all_protos [] in
