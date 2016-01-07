@@ -35,21 +35,21 @@ class Process {
 	public var stdin(default, null) : haxe.io.Output;
 
 	private var proc:java.lang.Process;
-
-	public function new( cmd : String, ?args : Array<String> ) : Void
-	{
+	@:allow(Sys)
+	private static function createProcessBuilder(cmd:String, ?args:Array<String>):java.lang.ProcessBuilder {
 		var sysName = Sys.systemName();
 		var pargs;
 		if (args == null) {
 			var cmdStr = cmd;
 			switch (sysName) {
 				case "Windows":
-					pargs = new NativeArray(2);
+					pargs = new NativeArray(3);
 					pargs[0] = cmd = switch (Sys.getEnv("COMSPEC")) {
 						case null: "cmd.exe";
 						case comspec: comspec;
 					}
-					pargs[1] = '/C "$cmdStr"';
+					pargs[1] = '/C';
+					pargs[2] = '"$cmdStr"';
 				case _:
 					pargs = new NativeArray(3);
 					pargs[0] = cmd = "/bin/sh";
@@ -74,13 +74,12 @@ class Process {
 			}
 		}
 
-		try
-		{
-			proc = new java.lang.ProcessBuilder(pargs).start();
-		}
-		catch (e:Dynamic) { throw e; } //wrapping typed exceptions
+		return new java.lang.ProcessBuilder(pargs);
+	}
 
-		var p = proc;
+	public function new( cmd : String, ?args : Array<String> ) : Void
+	{
+		var p = proc = createProcessBuilder(cmd, args).start();
 		stderr = new ProcessInput(p.getErrorStream());
 		stdout = new ProcessInput(p.getInputStream());
 		stdin = new java.io.NativeOutput(p.getOutputStream());

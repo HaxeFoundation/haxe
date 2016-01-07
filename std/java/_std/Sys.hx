@@ -112,11 +112,12 @@ using haxe.Int64;
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int
 	{
-		var proc:Process = new Process(cmd, args);
-		var ret = proc.exitCode();
-		proc.close();
-
-		return ret;
+		var pb = Process.createProcessBuilder(cmd, args);
+		pb.redirectOutput(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
+		pb.redirectError(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
+		var proc = pb.start();
+		proc.waitFor();
+		return proc.exitValue();
 	}
 
 	public static function exit( code : Int ) : Void
