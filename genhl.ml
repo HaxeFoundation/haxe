@@ -205,11 +205,11 @@ type ('a,'b) lookup = {
 	mutable map : ('a, int) PMap.t;
 }
 
+(* not mutable, might be be shared *)
 type method_capture = {
 	c_map : (int, int) PMap.t;
 	c_vars : tvar array;
-	mutable c_type : ttype;
-	c_reg : int;
+	c_type : ttype;
 }
 
 type method_context = {
@@ -220,6 +220,7 @@ type method_context = {
 	mutable mcontinues : (int -> unit) list;
 	mutable mbreaks : (int -> unit) list;
 	mutable mtrys : int;
+	mutable mcaptreg : int;
 }
 
 type array_impl = {
@@ -390,7 +391,6 @@ let null_proto =
 
 let null_capture =
 	{
-		c_reg = 0;
 		c_vars = [||];
 		c_map = PMap.empty;
 		c_type = HVoid;
@@ -420,6 +420,7 @@ let method_context t captured =
 		mcontinues = [];
 		mcaptured = captured;
 		mtrys = 0;
+		mcaptreg = 0;
 	}
 
 let field_name c f =
@@ -983,7 +984,7 @@ and eval_expr ctx e =
 				op ctx (OMov (r,ri))
 			| Some idx ->
 				let ri = eval_to ctx e (to_type ctx v.v_type) in
-				op ctx (OSetEnumField (ctx.m.mcaptured.c_reg, idx, ri));
+				op ctx (OSetEnumField (ctx.m.mcaptreg, idx, ri));
 		);
 		alloc_tmp ctx HVoid
 	| TLocal v ->
@@ -991,7 +992,7 @@ and eval_expr ctx e =
 		| None -> alloc_reg ctx v
 		| Some idx ->
 			let r = alloc_tmp ctx (to_type ctx v.v_type) in
-			op ctx (OEnumField (r, ctx.m.mcaptured.c_reg, 0, idx));
+			op ctx (OEnumField (r, ctx.m.mcaptreg, 0, idx));
 			r)
 	| TReturn None ->
 		before_return ctx;
@@ -1384,7 +1385,7 @@ and eval_expr ctx e =
 				r
 			| ACaptured index ->
 				let r = value() in
-				op ctx (OSetEnumField (ctx.m.mcaptured.c_reg,index,r));
+				op ctx (OSetEnumField (ctx.m.mcaptreg,index,r));
 				r
 			| AEnum _ | ANone | AInstanceFun _ | AInstanceProto _ | AStaticFun _ | AVirtualMethod _ ->
 				assert false)
@@ -1514,7 +1515,7 @@ and eval_expr ctx e =
 		let capt = make_fun ctx fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
-			op ctx (OClosure (r, fid, ctx.m.mcaptured.c_reg))
+			op ctx (OClosure (r, fid, ctx.m.mcaptreg))
 		else if Array.length capt.c_vars > 0 then
 			let env = alloc_tmp ctx capt.c_type in
 			op ctx (OEnumAlloc (env,0));
@@ -1523,7 +1524,7 @@ and eval_expr ctx e =
 				| None -> alloc_reg ctx v
 				| Some idx ->
 					let r = alloc_tmp ctx (to_type ctx v.v_type) in
-					op ctx (OEnumField (r,ctx.m.mcaptured.c_reg,0,idx));
+					op ctx (OEnumField (r,ctx.m.mcaptreg,0,idx));
 					r
 				) in
 				op ctx (OSetEnumField (env,i,r));
@@ -1841,7 +1842,6 @@ and build_capture_vars ctx f =
 			eid = 0;
 			efields = [|"",0,Array.map (fun v -> to_type ctx v.v_type) cvars|];
 		};
-		c_reg = 0;
 	}
 
 and gen_method_wrapper ctx rt t p =
@@ -1888,12 +1888,20 @@ and make_fun ctx fidx f cthis cparent =
 		Some t
 	) in
 
-	let rcapt = if has_captured_vars then Some (alloc_tmp ctx capt.c_type) else None in
+	let rcapt = if has_captured_vars && cthis = None then Some (alloc_tmp ctx capt.c_type) else None in
 
 	let args = List.map (fun (v,o) ->
 		let r = alloc_reg ctx v in
 		rtype ctx r
 	) f.tf_args in
+
+	if has_captured_vars then ctx.m.mcaptreg <- (match rcapt with
+		| None ->
+			let r = alloc_tmp ctx capt.c_type in
+			op ctx (OEnumAlloc (r,0));
+			r
+		| Some r -> r
+	);
 
 	List.iter (fun (v, o) ->
 		let r = alloc_reg ctx v in
@@ -1910,7 +1918,7 @@ and make_fun ctx fidx f cthis cparent =
 		);
 		if v.v_capture then begin
 			let index = (try PMap.find v.v_id capt.c_map with Not_found -> assert false) in
-			op ctx (OSetEnumField (capt.c_reg, index, r));
+			op ctx (OSetEnumField (ctx.m.mcaptreg, index, r));
 		end
 	) f.tf_args;
 
@@ -2470,13 +2478,19 @@ let default t =
 let is_compatible v t =
 	match v, t with
 	| VInt _, HI32 -> true
-	| VNull, (HObj _ | HFun _ | HBytes | HArray _ | HType | HVirtual _ | HDynObj | HAbstract _ | HEnum _) -> true
+	| VBool _, HBool -> true
+	| VNull, (HObj _ | HFun _ | HBytes | HArray _ | HType | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HDyn _) -> true
 	| VObj _, HObj _ -> true
 	| VClosure _, HFun _ -> true
 	| VBytes _, HBytes -> true
 	| VDyn (_,t1), HDyn (Some t2) -> tsame t1 t2
 	| (VDyn _ | VObj _), HDyn None -> true
 	| VUndef, HVoid -> true
+	| VType _, HType -> true
+	| VArray (_,t1), HArray t2 -> tsame t1 t2
+	| VDynObj _, HDynObj -> true
+	| VVirtual v, HVirtual vt -> v.vtype == vt
+	| VRef (_,_,t1), HRef t2 -> tsame t1 t2
 	| _ -> false
 
 exception Runtime_error of string
@@ -2490,6 +2504,7 @@ let interp code =
 	let func f = Array.unsafe_get functions f in
 
 	let stack = ref [] in
+	let exc_stack = ref [] in
 
 	let rec get_proto p =
 		try
@@ -2504,7 +2519,7 @@ let interp code =
 	in
 
 	let error msg = raise (Runtime_error msg) in
-	let throw v = raise (InterpThrow v) in
+	let throw v = exc_stack := []; raise (InterpThrow v) in
 
 	let rec vstr_d v =
 		match v with
@@ -2584,7 +2599,7 @@ let interp code =
 		stack := (f,pos) :: !stack;
 		let rtype i = f.regs.(i) in
 		let set r v =
-			if not (is_compatible v (rtype r)) then error (Printf.sprintf "Can't set register @%d(%s) with %s" r (tstr (rtype r)) (vstr_d v));
+			if not (is_compatible v (rtype r)) then error (Printf.sprintf "Can't set register %d@%d(%s) with %s" f.findex r (tstr (rtype r)) (vstr_d v));
 			Array.unsafe_set regs r v
 		in
 		let get r = Array.unsafe_get regs r in
@@ -3016,7 +3031,10 @@ let interp code =
 				| Return v -> stack := List.tl !stack; v
 				| InterpThrow v ->
 					match !traps with
-					| [] -> raise (InterpThrow v)
+					| [] ->
+						exc_stack := List.hd !stack :: !exc_stack;
+						stack := List.tl !stack;
+						raise (InterpThrow v)
 					| (r,target) :: tl ->
 						traps := tl;
 						pos := target;
@@ -3042,13 +3060,13 @@ let interp code =
 				(function
 				| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->
 					Array.blit src (int sp) dst (int dp) (int len);
-					VNull
+					VUndef
 				| _ -> assert false)
 			| "bblit" ->
 				(function
 				| [VBytes dst; VInt dp; VBytes src; VInt sp; VInt len] ->
 					String.blit src (int sp) dst (int dp) (int len);
-					VNull
+					VUndef
 				| _ -> assert false)
 			| "itos" ->
 				(function
@@ -3110,6 +3128,10 @@ let interp code =
 				(function
 				| [] -> VAbstract (AHashBytes (Hashtbl.create 0))
 				| _ -> assert false)
+			| "sys_print" ->
+				(function
+				| [VBytes str] -> print_string str; VUndef
+				| _ -> assert false)
 			| _ -> (fun args -> error ("Unresolved native " ^ name)))
 		| _ ->
 			(fun args -> error ("Unresolved native " ^ name))))
@@ -3117,7 +3139,7 @@ let interp code =
 	Array.iter (fun (lib,name,_,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name)) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	let get_stack() =
-		String.concat "\n" (List.map (fun (f,pos) -> Printf.sprintf "Called from fun(%d)@%d" f.findex !pos) !stack)
+		String.concat "\n" (List.map (fun (f,pos) -> Printf.sprintf "Called from fun(%d)@%d" f.findex !pos) (List.rev !exc_stack))
 	in
 	match functions.(code.entrypoint) with
 	| FFun f when f.ftype = HFun([],HVoid) -> (try ignore(call f []) with InterpThrow v -> Common.error ("Uncaught exception " ^ vstr_d v ^ "\n" ^ get_stack()) Ast.null_pos)
