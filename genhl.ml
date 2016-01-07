@@ -3163,6 +3163,10 @@ let interp code =
 				(function
 				| [VBytes str] -> print_string str; VUndef
 				| _ -> assert false)
+			| "sys_exit" ->
+				(function
+				| [VInt code] -> VUndef
+				| _ -> assert false)
 			| _ -> (fun args -> error ("Unresolved native " ^ name)))
 		| _ ->
 			(fun args -> error ("Unresolved native " ^ name))))

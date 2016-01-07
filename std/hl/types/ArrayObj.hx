@@ -62,7 +62,7 @@ class ArrayObj<T> {
 		throw "TODO";
 		return null;
 	}
-	
+
 	public function toString() : String {
 		var b = new StringBuf();
 		b.addChar("[".code);
@@ -83,12 +83,23 @@ class ArrayObj<T> {
 	}
 
 	public function remove( x : T ) : Bool {
-		throw "TODO";
-		return false;
+		var i = indexOf(x);
+		if( i < 0 ) return false;
+		length--;
+		array.blit(i,array,i+1,length);
+		array[length] = null;
+		return true;
 	}
 
 	public function indexOf( x : T, ?fromIndex:Int ) : Int {
-		throw "TODO";
+		var i : Int = fromIndex;
+		var length = length;
+		var array = array;
+		while( i < length ) {
+			if( array[i] == x )
+				return i;
+			i++;
+		}
 		return -1;
 	}
 
@@ -116,12 +127,12 @@ class ArrayObj<T> {
 		throw "TODO";
 		return null;
 	}
-	
+
 	// called by compiler when accessing the array outside of its bounds, might trigger resize
 	function __expand( index : Int ) {
 		if( index < 0 ) throw "Invalid array access";
 		var newlen = index + 1;
-		var size : Int = array.length; 
+		var size : Int = array.length;
 		if( newlen > size ) {
 			var next = (size * 3) >> 1;
 			if( next < newlen ) next = newlen;
@@ -131,7 +142,7 @@ class ArrayObj<T> {
 		}
 		length = newlen;
 	}
-	
+
 	public static function alloc( a : hl.types.NativeArray<Dynamic> ) {
 		var arr : ArrayObj<Dynamic> = untyped $new(ArrayObj);
 		arr.array = a;
