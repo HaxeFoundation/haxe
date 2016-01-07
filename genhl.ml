@@ -184,6 +184,7 @@ type fundecl = {
 	ftype : ttype;
 	regs : ttype array;
 	code : opcode array;
+	debug : (int * int) array;
 }
 
 type code = {
@@ -196,6 +197,7 @@ type code = {
 	globals : ttype array;
 	natives : (string index * string index * ttype * functable index) array;
 	functions : fundecl array;
+	debugfiles : string array;
 }
 
 (* compiler *)
@@ -216,11 +218,13 @@ type method_context = {
 	mregs : (int, ttype) lookup;
 	mops : opcode DynArray.t;
 	mret : ttype;
+	mdebug : (int * int) DynArray.t;
 	mutable mcaptured : method_capture;
 	mutable mcontinues : (int -> unit) list;
 	mutable mbreaks : (int -> unit) list;
 	mutable mtrys : int;
 	mutable mcaptreg : int;
+	mutable mcurpos : (int * int);
 }
 
 type array_impl = {
@@ -245,6 +249,7 @@ type context = {
 	mutable anons_cache : (tanon * ttype) list;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	array_impl : array_impl;
+	cdebug_files : (string, string) lookup;
 }
 
 (* --- *)
@@ -421,6 +426,8 @@ let method_context t captured =
 		mcaptured = captured;
 		mtrys = 0;
 		mcaptreg = 0;
+		mdebug = DynArray.create();
+		mcurpos = (0,0);
 	}
 
 let field_name c f =
@@ -454,6 +461,26 @@ let rec unsigned t =
 	| TAbstract ({ a_path = ["hl";"types"],("UI32"|"UI16"|"UI8") },_) -> true
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
+
+let set_curpos ctx p =
+	let get_relative_path() =
+		match Common.defined ctx.com Common.Define.AbsolutePath with
+		| true -> if (Filename.is_relative p.pfile)
+			then Filename.concat (Sys.getcwd()) p.pfile
+			else p.pfile
+		| false -> try
+			(* lookup relative path *)
+			let len = String.length p.pfile in
+			let base = List.find (fun path ->
+				let l = String.length path in
+				len > l && String.sub p.pfile 0 l = path
+			) ctx.com.Common.class_path in
+			let l = String.length base in
+			String.sub p.pfile l (len - l)
+		with Not_found ->
+			p.pfile
+	in
+	ctx.m.mcurpos <- (lookup ctx.cdebug_files p.pfile get_relative_path,Lexer.get_error_line p)
 
 let rec to_type ctx t =
 	match t with
@@ -695,6 +722,7 @@ let alloc_tmp ctx t =
 	rid
 
 let op ctx o =
+	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
 	DynArray.add ctx.m.mops o
 
 let current_pos ctx =
@@ -702,13 +730,13 @@ let current_pos ctx =
 
 let jump ctx f =
 	let pos = current_pos ctx in
-	DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
+	op ctx (OJAlways (-1)); (* loop *)
 	(fun() -> DynArray.set ctx.m.mops pos (f (current_pos ctx - pos - 1)))
 
 let jump_back ctx =
 	let pos = current_pos ctx in
 	DynArray.add ctx.m.mops (OLabel 0);
-	(fun() -> DynArray.add ctx.m.mops (OJAlways (pos - current_pos ctx - 1)))
+	(fun() -> op ctx (OJAlways (pos - current_pos ctx - 1)))
 
 let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
@@ -943,6 +971,7 @@ and eval_null_check ctx e =
 	r
 
 and eval_expr ctx e =
+	set_curpos ctx e.epos;
 	match e.eexpr with
 	| TConst c ->
 		(match c with
@@ -1751,18 +1780,18 @@ and eval_expr ctx e =
 		r
 	| TContinue ->
 		let pos = current_pos ctx in
-		DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
+		op ctx (OJAlways (-1)); (* loop *)
 		ctx.m.mcontinues <- (fun target -> DynArray.set ctx.m.mops pos (OJAlways (target - (pos + 1)))) :: ctx.m.mcontinues;
 		alloc_tmp ctx HVoid
 	| TBreak ->
 		let pos = current_pos ctx in
-		DynArray.add ctx.m.mops (OJAlways (-1)); (* loop *)
+		op ctx (OJAlways (-1)); (* loop *)
 		ctx.m.mbreaks <- (fun target -> DynArray.set ctx.m.mops pos (OJAlways (target - (pos + 1)))) :: ctx.m.mbreaks;
 		alloc_tmp ctx HVoid
 	| TTry (etry,catches) ->
 		let pos = current_pos ctx in
 		let rtrap = alloc_tmp ctx (HDyn None) in
-		DynArray.add ctx.m.mops (OTrap (rtrap,-1)); (* loop *)
+		op ctx (OTrap (rtrap,-1)); (* loop *)
 		ctx.m.mtrys <- ctx.m.mtrys + 1;
 		let tret = to_type ctx e.etype in
 		let result = alloc_tmp ctx tret in
@@ -1864,6 +1893,7 @@ and gen_method_wrapper ctx rt t p =
 			ftype = HFun (rt :: targs, tret);
 			regs = DynArray.to_array ctx.m.mregs.arr;
 			code = DynArray.to_array ctx.m.mops;
+			debug = DynArray.to_array ctx.m.mdebug;
 		} in
 		ctx.m <- old;
 		DynArray.add ctx.cfunctions f;
@@ -1888,7 +1918,7 @@ and make_fun ctx fidx f cthis cparent =
 		Some t
 	) in
 
-	let rcapt = if has_captured_vars && cthis = None then Some (alloc_tmp ctx capt.c_type) else None in
+	let rcapt = if has_captured_vars && cparent <> None then Some (alloc_tmp ctx capt.c_type) else None in
 
 	let args = List.map (fun (v,o) ->
 		let r = alloc_reg ctx v in
@@ -1947,6 +1977,7 @@ and make_fun ctx fidx f cthis cparent =
 		ftype = HFun (fargs, tret);
 		regs = DynArray.to_array ctx.m.mregs.arr;
 		code = DynArray.to_array ctx.m.mops;
+		debug = DynArray.to_array ctx.m.mdebug;
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
@@ -3139,7 +3170,11 @@ let interp code =
 	Array.iter (fun (lib,name,_,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name)) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	let get_stack() =
-		String.concat "\n" (List.map (fun (f,pos) -> Printf.sprintf "Called from fun(%d)@%d" f.findex !pos) (List.rev !exc_stack))
+		String.concat "\n" (List.map (fun (f,pos) ->
+			let pos = !pos - 1 in
+			let file, line = (try let fid, line = f.debug.(pos) in code.debugfiles.(fid), line with _ -> "???", 0) in
+			Printf.sprintf "Called from fun(%d)@%d (%s line %d)" f.findex pos file line
+		) (List.rev !exc_stack))
 	in
 	match functions.(code.entrypoint) with
 	| FFun f when f.ftype = HFun([],HVoid) -> (try ignore(call f []) with InterpThrow v -> Common.error ("Uncaught exception " ^ vstr_d v ^ "\n" ^ get_stack()) Ast.null_pos)
@@ -3591,6 +3626,7 @@ let generate com =
 		};
 		anons_cache = [];
 		method_wrappers = PMap.empty;
+		cdebug_files = new_lookup();
 	} in
 	ignore(alloc_string ctx "");
 	let all_classes = Hashtbl.create 0 in
@@ -3619,6 +3655,7 @@ let generate com =
 		globals = DynArray.to_array ctx.cglobals.arr;
 		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
+		debugfiles = DynArray.to_array ctx.cdebug_files.arr;
 	} in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if Common.defined com Define.Dump then Std.output_file "dump/hlcode.txt" (dump code);
