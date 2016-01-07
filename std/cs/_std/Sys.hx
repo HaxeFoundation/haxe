@@ -115,11 +115,29 @@ class Sys {
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int
 	{
-		var proc:Process = new Process(cmd, args);
-		var ret = proc.exitCode();
-		proc.close();
-
-		return ret;
+		var proc = Process.createNativeProcess(cmd, args);
+		proc.add_OutputDataReceived(new cs.system.diagnostics.DataReceivedEventHandler(
+			function(p, evtArgs) {
+				var data = evtArgs.Data;
+				if (data != null && data != "")
+					println(data);
+			}
+		));
+		var stderr = stderr();
+		proc.add_ErrorDataReceived(new cs.system.diagnostics.DataReceivedEventHandler(
+			function(p, evtArgs) {
+				var data = evtArgs.Data;
+				if (data != null && data != "")
+					stderr.writeString(data + "\n");
+			}
+		));
+		proc.Start();
+		proc.BeginOutputReadLine();
+		proc.BeginErrorReadLine();
+		proc.WaitForExit();
+		var exitCode = proc.ExitCode;
+		proc.Dispose();
+		return exitCode;
 	}
 
 	public static inline function exit( code : Int ) : Void

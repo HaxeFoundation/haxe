@@ -35,10 +35,19 @@ class Process {
 
 	private var native:NativeProcess;
 
-
 	public function new( cmd : String, ?args : Array<String> ) : Void
 	{
-		this.native = new NativeProcess();
+		this.native = createNativeProcess(cmd, args);
+		native.Start();
+
+		this.stdout = new cs.io.NativeInput(native.StandardOutput.BaseStream);
+		this.stderr = new cs.io.NativeInput(native.StandardError.BaseStream);
+		this.stdin = new cs.io.NativeOutput(native.StandardInput.BaseStream);
+	}
+
+	@:allow(Sys)
+	private static function createNativeProcess( cmd : String, ?args : Array<String> ) : NativeProcess {
+		var native = new NativeProcess();
 		native.StartInfo.CreateNoWindow = true;
 		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
 		if (args != null) {
@@ -62,15 +71,10 @@ class Process {
 			}
 			native.StartInfo.UseShellExecute = false;
 		}
-
-		native.Start();
-
-		this.stdout = new cs.io.NativeInput(native.StandardOutput.BaseStream);
-		this.stderr = new cs.io.NativeInput(native.StandardError.BaseStream);
-		this.stdin = new cs.io.NativeOutput(native.StandardInput.BaseStream);
+		return native;
 	}
 
-	function buildArgumentsString(args:Array<String>):String {
+	private static function buildArgumentsString(args:Array<String>):String {
 		return switch (Sys.systemName()) {
 			case "Windows":
 				[
