@@ -1,4 +1,5 @@
 import sys.*;
+import haxe.io.*;
 
 class TestCommandBase extends haxe.unit.TestCase {
 	function run(cmd:String, ?args:Array<String>):Int {
@@ -18,7 +19,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 
 		var exitCode =
 			#if (macro || interp)
-				run("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
+				run(Sys.executablePath(), ["compile-each.hxml", "--run", "TestArguments"].concat(args));
 			#elseif cpp
 				run(bin, args);
 			#elseif cs
@@ -29,13 +30,13 @@ class TestCommandBase extends haxe.unit.TestCase {
 						run("mono", [bin].concat(args));
 				}
 			#elseif java
-				run("java", ["-jar", bin].concat(args));
+				run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 			#elseif python
-				run("python3", [bin].concat(args));
+				run(python.lib.Sys.executable, [bin].concat(args));
 			#elseif neko
-				run("neko", [bin].concat(args));
+				run(Sys.executablePath(), [bin].concat(args));
 			#elseif php
-				run("php", [bin].concat(args));
+				run(untyped __php__("PHP_BINARY"), [bin].concat(args));
 			#else
 				-1;
 			#end
@@ -98,7 +99,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 			var args = [Std.string(code)];
 			var exitCode =
 				#if (macro || interp)
-					run("haxe", ["compile-each.hxml", "--run", "ExitCode"].concat(args));
+					run(Sys.executablePath(), ["compile-each.hxml", "--run", "ExitCode"].concat(args));
 				#elseif cpp
 					run(bin, args);
 				#elseif cs
@@ -109,13 +110,13 @@ class TestCommandBase extends haxe.unit.TestCase {
 							run("mono", [bin].concat(args));
 					}
 				#elseif java
-					run("java", ["-jar", bin].concat(args));
+					run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 				#elseif python
-					run("python3", [bin].concat(args));
+					run(python.lib.Sys.executable, [bin].concat(args));
 				#elseif neko
-					run("neko", [bin].concat(args));
+					run(Sys.executablePath(), [bin].concat(args));
 				#elseif php
-					run("php", [bin].concat(args));
+					run(untyped __php__("PHP_BINARY"), [bin].concat(args));
 				#else
 					-1;
 				#end

@@ -36,6 +36,8 @@ extern class Sys {
 
 	public static var argv(default, never):Array<String>;
 
+	public static var executable(default, never):String;
+
 	public static function exit (x:Int):Void;
 
 	public static function getfilesystemencoding():String;
