@@ -1540,7 +1540,7 @@ and eval_expr ctx e =
 			error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 		);
 	| TFunction f ->
-		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfunctions)) in
+		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfids.arr)) in
 		let capt = make_fun ctx fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
@@ -3161,7 +3161,7 @@ let interp code =
 				| _ -> assert false)
 			| "sys_print" ->
 				(function
-				| [VBytes str] -> print_string str; VUndef
+				| [VBytes str] -> print_string (try String.sub str 0 (String.index str '\000') with Not_found -> str); VUndef
 				| _ -> assert false)
 			| "sys_exit" ->
 				(function
