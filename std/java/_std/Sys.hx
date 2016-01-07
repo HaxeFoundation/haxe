@@ -117,7 +117,9 @@ using haxe.Int64;
 		pb.redirectError(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
 		var proc = pb.start();
 		proc.waitFor();
-		return proc.exitValue();
+		var exitCode = proc.exitValue();
+		proc.destroy();
+		return exitCode;
 	}
 
 	public static function exit( code : Int ) : Void
