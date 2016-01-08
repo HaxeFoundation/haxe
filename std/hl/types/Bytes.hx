@@ -38,26 +38,26 @@ package hl.types;
 	public inline function setF32( pos : Int, value : F32 ) : Void {
 		untyped $bsetf32(this, pos, value);
 	}
-	
+
 	public inline function setF64( pos : Int, value : Float ) : Void {
 		untyped $bsetf64(this, pos, value);
 	}
-	
+
 	@:hlNative("std","parse_int")
 	public function parseInt( pos : Int, size : Int ) : Null<Int> {
 		return null;
 	}
-	
+
 	@:hlNative("std","parse_float")
 	public function parseFloat( pos : Int, size : Int ) : Float {
 		return 0.;
 	}
-	
+
 	@:hlNative("std","bytes_compare")
 	public function compare( pos : Int, bytes : Bytes, bytesPos : Int, size : Int ) : Int {
 		return 0;
 	}
-	
+
 	/**
 		Count the number of UTF8 chars into the given Bytes data.
 	**/
@@ -73,15 +73,23 @@ package hl.types;
 	function bytesLength( pos : Int ) : Int {
 		return 0;
 	}
-	
+
 	/**
 		Decode the utf8 char at the given position
 	**/
 	@:hlNative("std","utf8char")
-	function utf8Char( pos : Int, size : Int, charPos : Int ) : Int {
+	function utf8Char( pos : Int, charPos : Int ) : Int {
 		return 0;
 	}
-	
+
+	/**
+		Gives the byte position for the utf8 char starting at pos.
+	**/
+	@:hlNative("std","utf8pos")
+	function utf8Pos( pos : Int, charPos : Int ) : Int {
+		return 0;
+	}
+
 	@:hlNative("std","value_to_string")
 	public static function ofValue( v : Dynamic, size : Ref<Int> ) : Bytes {
 		return null;

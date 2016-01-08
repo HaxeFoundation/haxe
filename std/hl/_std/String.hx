@@ -31,7 +31,7 @@ class String {
 		var idx : UInt = index;
 		if( idx >= length )
 			return null;
-		return @:privateAccess bytes.utf8Char(0,size,index);
+		return @:privateAccess bytes.utf8Char(0,index);
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
@@ -49,9 +49,35 @@ class String {
 		return null;
 	}
 
-	public function substr( pos : Int, ?len : Int ) : String {
-		throw "TODO";
-		return null;
+	public function substr( pos : Int, ?len : Int ) : String @:privateAccess {
+		var sl = length;
+		var len = if( len == null ) sl else len;
+		if( len == 0 ) return "";
+
+		if( pos != 0 && len < 0 )
+			return "";
+
+		if( pos < 0 ){
+			pos = sl + pos;
+			if( pos < 0 ) pos = 0;
+		}else if( len < 0 ){
+			len = sl + len - pos;
+		}
+
+		if( pos + len > sl ){
+			len = sl - pos;
+		}
+
+		if( pos < 0 || len <= 0 ) return "";
+
+		var bytes = bytes;
+		var start = pos == 0 ? 0 : bytes.utf8Pos(0, pos);
+		var end = pos + len == sl ? size : bytes.utf8Pos(start, len);
+		var size = end - start;
+		var b = new hl.types.Bytes(size + 1);
+		b.blit(0, bytes, start, size);
+		b[size] = 0;
+		return __alloc__(b, size, len);
 	}
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : String {
@@ -67,16 +93,16 @@ class String {
 		throw "TODO";
 		return null;
 	}
-	
+
 	@:keep function __string() : hl.types.Bytes {
 		return bytes;
 	}
-	
+
 	@:keep function __compare( s : String ) : Int {
 		var v = bytes.compare(0, s.bytes, 0, size < s.size ? size : s.size);
 		return v == 0 ? size - s.size : v;
 	}
-	
+
 	@:keep static inline function __alloc__( b : hl.types.Bytes, blen : Int, clen : Int ) : String {
 		var s : String = untyped $new(String);
 		s.bytes = b;

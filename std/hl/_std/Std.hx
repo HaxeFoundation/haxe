@@ -19,9 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import hl.types.ArrayObj;
-import hl.types.ArrayI32;
-import hl.types.ArrayF64;
+import hl.Boot;
 
 @:coreApi
 class Std {
