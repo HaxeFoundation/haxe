@@ -83,9 +83,18 @@ extern class Sys {
 	static function systemName() : String;
 
 	/**
-		Run the given command with the list of arguments. The command output will be printed on the same output as the current process.
+		Run the given command. The command output will be printed on the same output as the current process.
 		The current process will block until the command terminates and it will return the command result (0 if there was no error).
-		Read the [sys.io.Process] api for a more complete way to start background processes.
+
+		When `args` is not `null`, it will be used as the command arguments,
+		with shell meta-characters automatically escaped and quoted if needed.
+		`cmd` should be an executable name that can be located in the `PATH` environment variable, or a path to an executable.
+		
+		When `args` is not given or is `null`, no automatic escaping/quoting is performed.
+		`cmd` should include the command together with its arguments, formatted exactly as it would be when typed at the command line.
+		It can run executables, as well as shell commands that are not executables (e.g. on Windows: `dir`, `cd`, `echo` etc).
+
+		Read the `sys.io.Process` api for a more complete way to start background processes.
 	**/
 	static function command( cmd : String, ?args : Array<String> ) : Int;
 

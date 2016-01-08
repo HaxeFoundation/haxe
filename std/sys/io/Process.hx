@@ -27,10 +27,41 @@ extern class Process {
 	var stderr(default,null) : haxe.io.Input;
 	var stdin(default,null) : haxe.io.Output;
 
+	/**
+		Construct a `Process` object, which run the given command immediately.
+
+		When `args` is not `null`, it will be used as the command arguments,
+		with shell meta-characters automatically escaped and quoted if needed.
+		`cmd` should be an executable name that can be located in the `PATH` environment variable, or a path to an executable.
+		
+		When `args` is not given or is `null`, no automatic escaping/quoting is performed.
+		`cmd` should include the command together with its arguments, formatted exactly as it would be when typed at the command line.
+		It can run executables, as well as shell commands that are not executables (e.g. on Windows: `dir`, `cd`, `echo` etc).
+
+		`close()` should be called when the `Process` is no longer used.
+	*/
 	function new( cmd : String, ?args : Array<String> ) : Void;
+
+	/**
+		Return the process ID.
+	*/
 	function getPid() : Int;
+
+	/**
+		Block until the process exits and return the exit code of the process.
+		If the process has already exited, return the exit code immediately.
+	*/
 	function exitCode() : Int;
+
+	/**
+		Close the process handle and release the associated resources.
+		All `Process` fields should not be used after `close()` is called.
+	*/
 	function close() : Void;
+
+	/**
+		Kill the process.
+	*/
 	function kill() : Void;
 
 }
