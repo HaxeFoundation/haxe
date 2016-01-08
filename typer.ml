@@ -3483,7 +3483,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				let ct, f = get_constructor ctx c monos p in
 				ignore (unify_constructor_call c monos f ct);
 				begin try
-					Codegen.build_generic ctx c p monos
+					let t = Codegen.build_generic ctx c p monos in
+					let map = apply_params c.cl_params monos in
+					check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
+					t
 				with Codegen.Generic_Exception _ as exc ->
 					(* If we have an expected type, just use that (issue #3804) *)
 					begin match with_type with
