@@ -27,7 +27,6 @@ addons:
 
 apt_targets:
   - &apt_cpp    [*apt_common, gcc-multilib, g++-multilib]
-  - &apt_php    [*apt_common, php5-cli, php5-mysql, php5-sqlite]
   - &apt_cs     [*apt_common, mono-devel, mono-mcs]
   - &apt_python [*apt_common, python3]
   - &apt_flash  [*apt_common, libgd2-xpm, ia32-libs, ia32-libs-multiarch]
@@ -39,7 +38,9 @@ matrix:
     #########
     - os: linux
       env: TEST=third-party
-      addons: {apt: {packages: [*apt_php, *apt_cpp, *apt_cs, *apt_python]}}
+      language: php
+      php: 5.4
+      addons: {apt: {packages: [*apt_cpp, *apt_cs, *apt_python]}}
     - os: linux
       env: TEST=macro
       addons: {apt: {packages: [*apt_cs, *apt_python]}}
@@ -54,7 +55,8 @@ matrix:
       addons: {apt: {packages: *apt_common}, sauce_connect: true}
     - os: linux
       env: TEST=php
-      addons: {apt: {packages: *apt_php}}
+      language: php
+      php: 5.4
     - os: linux
       env: TEST=cpp
       addons: {apt: {packages: *apt_cpp}}
