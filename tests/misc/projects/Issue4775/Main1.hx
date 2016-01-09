@@ -4,7 +4,7 @@
 
 class Main1 {
 	static function main() {
-		new Contain(new Main());
+		new Contain(new Main1());
 	}
 
 	function new() { }
