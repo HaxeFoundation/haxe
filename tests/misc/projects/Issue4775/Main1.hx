@@ -2,7 +2,7 @@
 	public function new(t:T) { }
 }
 
-class Main {
+class Main1 {
 	static function main() {
 		new Contain(new Main());
 	}

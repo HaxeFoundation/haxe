@@ -950,8 +950,6 @@ module TexprTransformer = struct
 				value bb e1
 			| TBlock _ | TIf _ | TSwitch _ | TTry _ ->
 				bind_to_temp bb false e
-			| TFor _ | TWhile _ ->
-				assert false
 			| TCall({eexpr = TLocal v},el) when is_really_unbound v ->
 				check_unbound_call v el;
 				bb,e
@@ -1018,8 +1016,8 @@ module TexprTransformer = struct
 				error "Cannot use abstract as value" e.epos
 			| TConst _ | TTypeExpr _ ->
 				bb,e
-			| TContinue | TBreak | TThrow _ | TReturn _ | TVar _ ->
-				assert false
+			| TContinue | TBreak | TThrow _ | TReturn _ | TVar _ | TFor _ | TWhile _ ->
+				error "Cannot use this expression as value" e.epos
 		and ordered_value_list bb el =
 			let might_be_affected,collect_modified_locals = Optimizer.create_affection_checker() in
 			let rec can_be_optimized e = match e.eexpr with
