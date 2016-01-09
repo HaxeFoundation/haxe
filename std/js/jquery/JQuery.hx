@@ -203,6 +203,12 @@ package js.jquery;
 	**/
 	static public function removeData(element:js.html.Element, ?name:String):js.jquery.JQuery;
 	/**
+		Creates an object containing a set of properties ready to be used in the definition of custom animations.
+	**/
+	@:overload(function(?duration:haxe.extern.EitherType<Float, String>, ?settings:Dynamic):Dynamic { })
+	@:overload(function(?duration:haxe.extern.EitherType<Float, String>, ?easing:String, ?complete:haxe.Constraints.Function):Dynamic { })
+	static public function speed(settings:Dynamic):Dynamic;
+	/**
 		A collection of properties that represent the presence of different browser features or bugs. Intended for jQuery's internal use; specific properties may be removed when they are no longer needed internally to improve page startup performance. For your own project's feature-detection needs, we strongly recommend the use of an external library such as <a href="http://modernizr.com">Modernizr</a> instead of dependency on properties in <code>jQuery.support</code>.
 	**/
 	static public var support : Dynamic;
@@ -218,6 +224,10 @@ package js.jquery;
 		Sorts an array of DOM elements, in place, with the duplicates removed. Note that this only works on arrays of DOM elements, not strings or numbers.
 	**/
 	static public function unique(array:Array<js.html.Element>):Array<js.html.Element>;
+	/**
+		Sorts an array of DOM elements, in place, with the duplicates removed. Note that this only works on arrays of DOM elements, not strings or numbers.
+	**/
+	static public function uniqueSort(array:Array<js.html.Element>):Array<js.html.Element>;
 	/**
 		Provides a way to execute callback functions based on one or more objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
 	**/
