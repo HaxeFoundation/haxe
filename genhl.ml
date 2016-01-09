@@ -37,7 +37,7 @@ type ttype =
 	| HF64
 	| HBool
 	| HBytes
-	| HDyn of ttype option
+	| HDyn
 	| HFun of ttype list * ttype
 	| HObj of class_proto
 	| HArray
@@ -47,6 +47,7 @@ type ttype =
 	| HDynObj
 	| HAbstract of string * string index
 	| HEnum of enum_proto
+	| HNull of ttype
 
 and class_proto = {
 	pname : string;
@@ -290,8 +291,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HF64 -> "f64"
 	| HBool -> "bool"
 	| HBytes -> "bytes"
-	| HDyn None -> "dyn"
-	| HDyn (Some t) -> "dyn(" ^ tstr t ^ ")"
+	| HDyn  -> "dyn"
 	| HFun (args,ret) -> "(" ^ String.concat "," (List.map (tstr ~detailed) args) ^ "):" ^ tstr ~detailed ret
 	| HObj o when not detailed -> "#" ^ o.pname
 	| HObj o ->
@@ -317,6 +317,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 		"enum(" ^ String.concat "," (List.map tstr (Array.to_list fl)) ^ ")"
 	| HEnum e ->
 		"enum(" ^ e.ename ^ ")"
+	| HNull t -> "null(" ^ tstr t ^ ")"
 
 let rec tsame t1 t2 =
 	if t1 == t2 then true else
@@ -335,15 +336,31 @@ let rec tsame t1 t2 =
 			if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
 		in
 		loop 0
-	| HDyn None, HDyn None -> true
-	| HDyn (Some t1), HDyn (Some t2) -> tsame t1 t2
+	| HNull t1, HNull t2 -> tsame t1 t2
 	| HRef t1, HRef t2 -> tsame t1 t2
+	| _ -> false
+
+
+(*
+	does the runtime value can be set to null
+*)
+let is_nullable t =
+	match t with
+	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
+	| _ -> false
+
+(*
+	does the runtime value carry its type
+*)
+let is_dynamic t =
+	match t with
+	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ -> true
 	| _ -> false
 
 let rec safe_cast t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
-	| (HDyn _ | HObj _ | HFun _ | HArray | HDynObj), HDyn None -> true
+	| _, HDyn -> is_dynamic t1
 	| HVirtual v1, HVirtual v2 when Array.length v2.vfields < Array.length v1.vfields ->
 		let rec loop i =
 			if i = Array.length v2.vfields then true else
@@ -359,7 +376,7 @@ let rec safe_cast t1 t2 =
 		in
 		loop p1
 	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
-		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t2 = HDyn None && safe_cast t1 t2)) args1 args2 && safe_cast t1 t2
+		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t2 = HDyn && is_dynamic t1)) args1 args2 && safe_cast t1 t2
 	| _ ->
 		tsame t1 t2
 
@@ -488,14 +505,13 @@ let rec to_type ctx t =
 	match t with
 	| TMono r ->
 		(match !r with
-		| None -> HDyn None
+		| None -> HDyn
 		| Some t -> to_type ctx t)
 	| TType (t,tl) ->
 		(match t.t_path with
 		| [], "Null" ->
-			(match to_type ctx (apply_params t.t_params tl t.t_type) with
-			| HI8 | HI16 | HI32 | HF32 | HF64 | HBool as t -> HDyn (Some t)
-			| t -> t)
+			let t = to_type ctx (apply_params t.t_params tl t.t_type) in
+			if is_nullable t then t else HNull t
 		| _ ->
 			to_type ctx (apply_params t.t_params tl t.t_type))
 	| TLazy f ->
@@ -538,14 +554,14 @@ let rec to_type ctx t =
 			t
 		)
 	| TDynamic _ ->
-		HDyn None
+		HDyn
 	| TEnum (e,_) ->
 		enum_type ctx e
 	| TInst ({ cl_path = ["hl";"types"],"NativeAbstract" },[TInst({ cl_kind = KExpr (EConst (String name),_) },_)]) ->
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
-		| KTypeParameter _ -> HDyn None
+		| KTypeParameter _ -> HDyn
 		| _ -> class_type ctx c pl false)
 	| TAbstract (a,pl) ->
 		if Meta.has Meta.CoreType a.a_meta then
@@ -563,7 +579,7 @@ let rec to_type ctx t =
 				) in
 				class_type ctx c pl s
 			| [], "Enum" -> HType
-			| [], "EnumValue" -> HDyn None
+			| [], "EnumValue" -> HDyn
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], "Bytes" -> HBytes
 			| ["hl";"types"], "Type" -> HType
@@ -574,7 +590,7 @@ let rec to_type ctx t =
 
 and array_type ctx t =
 	let et = to_type ctx t in
-	if safe_cast et (HDyn None) then et else HDyn None
+	if is_dynamic et then et else HDyn
 
 and resolve_class ctx c pl =
 	let not_supported() =
@@ -780,12 +796,12 @@ let common_type ctx e1 e2 for_eq p =
 		| HI32, HF32 -> t2 (* possible loss of precision *)
 		| (HI32 | HF32), HF64 -> t2
 		| (HI8|HI16|HI32|HF32|HF64), (HI8|HI16|HI32|HF32|HF64) -> t1
-		| (HI8|HI16|HI32|HF32|HF64), (HDyn (Some t2)) -> loop t1 t2
-		| (HDyn (Some t1)), (HI8|HI16|HI32|HF32|HF64) -> loop t1 t2
-		| (HDyn None), (HI8|HI16|HI32|HF32|HF64) -> HF64
-		| (HI8|HI16|HI32|HF32|HF64), (HDyn None) -> HF64
-		| HDyn None, _ -> HDyn None
-		| _, HDyn None -> HDyn None
+		| (HI8|HI16|HI32|HF32|HF64), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
+		| (HNull t1), (HI8|HI16|HI32|HF32|HF64) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
+		| HDyn, (HI8|HI16|HI32|HF32|HF64) -> HF64
+		| (HI8|HI16|HI32|HF32|HF64), HDyn -> HF64
+		| HDyn, _ -> HDyn
+		| _, HDyn -> HDyn
 		| _ when for_eq && safe_cast t1 t2 -> t2
 		| _ when for_eq && safe_cast t2 t1 -> t1
 		| _ ->
@@ -818,12 +834,12 @@ and cast_to ctx (r:reg) (t:ttype) p =
 	match rt, t with
 	| _, HVoid ->
 		alloc_tmp ctx HVoid
-	| HVirtual _, HDyn None ->
-		let tmp = alloc_tmp ctx (HDyn None) in
+	| HVirtual _, HDyn ->
+		let tmp = alloc_tmp ctx HDyn in
 		op ctx (OUnVirtual (tmp,r));
 		tmp
 	| HVirtual _, HVirtual _ ->
-		let tmp = alloc_tmp ctx (HDyn None) in
+		let tmp = alloc_tmp ctx HDyn in
 		op ctx (OUnVirtual (tmp,r));
 		cast_to ctx tmp t p
 	| (HI8 | HI16 | HI32), (HF32 | HF64) ->
@@ -848,20 +864,24 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
 		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
 		out
-	| (HObj _ | HDynObj | HDyn None) , HVirtual _ ->
+	| (HObj _ | HDynObj | HDyn) , HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OToVirtual (out,r));
 		out
-	| HDyn None, _ ->
+	| HDyn, _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| HDyn (Some rt), _ when rt == t ->
+	| HNull rt, _ when rt == t ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| _ , HDyn _ ->
-		let tmp = alloc_tmp ctx (HDyn (Some rt)) in
+	| _ , HDyn ->
+		let tmp = alloc_tmp ctx HDyn in
+		op ctx (OToDyn (tmp, r));
+		tmp
+	| _, HNull t when rt == t ->
+		let tmp = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (tmp, r));
 		tmp
 	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
@@ -881,7 +901,7 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 	| HFun _ ->
 		cast_to ctx r t p
 	| _ ->
-		if safe_cast (rtype ctx r) (HDyn None) && safe_cast t (HDyn None) then
+		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
 			op ctx (OUnsafeCast (r2,r));
 			r2
@@ -908,7 +928,7 @@ and object_access ctx eobj t f =
 				AInstanceField (eobj, fid)
 		with Not_found ->
 			ADynamic (eobj, alloc_string ctx f.cf_name))
-	| HDyn None ->
+	| HDyn ->
 		ADynamic (eobj, alloc_string ctx f.cf_name)
 	| _ ->
 		error ("Unsupported field access " ^ tstr t) eobj.epos
@@ -984,7 +1004,7 @@ and jump_expr ctx e jcond =
 		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
 
 and eval_args ctx el t =
-	List.map2 (fun e t -> eval_to ctx e t) el (match t with HFun (args,_) -> args | HDyn None -> List.map (fun _ -> HDyn None) el | _ -> assert false)
+	List.map2 (fun e t -> eval_to ctx e t) el (match t with HFun (args,_) -> args | HDyn -> List.map (fun _ -> HDyn) el | _ -> assert false)
 
 and eval_null_check ctx e =
 	let r = eval_expr ctx e in
@@ -1175,16 +1195,19 @@ and eval_expr ctx e =
 			op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] HArray,rt,size));
 			a
 		| "$aget", [a; pos] ->
+			(*
+				read/write on arrays are unsafe : the type of NativeArray needs to be correcly set.
+			*)
 			let at = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let arr = eval_to ctx a HArray in
 			let pos = eval_to ctx pos HI32 in
 			let r =
-				if safe_cast at (HDyn None) then
+				if is_dynamic at then
 					let r = alloc_tmp ctx at in
 					op ctx (OGetArray (r, arr, pos));
 					r
 				else
-					let tmp = alloc_tmp ctx (HDyn None) in
+					let tmp = alloc_tmp ctx HDyn in
 					op ctx (OGetArray (tmp,arr,pos));
 					unsafe_cast_to ctx tmp at e.epos
 			in
@@ -1213,7 +1236,7 @@ and eval_expr ctx e =
 		) in
 		let tfun = to_type ctx real_type in
 		let el = eval_args ctx el tfun in
-		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn None) in
+		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn) in
 		(match get_access ctx ec with
 		| AStaticFun f ->
 			(match el with
@@ -1340,7 +1363,7 @@ and eval_expr ctx e =
 						op ctx (OAdd (r,a,b))
 					| HObj { pname = "String" } ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"String") "__add__",a,b))
-					| HDyn None ->
+					| HDyn ->
 						op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",a,b))
 					| t ->
 						error ("Cannot add " ^ tstr t) e.epos)
@@ -1587,8 +1610,8 @@ and eval_expr ctx e =
 			op ctx (OGetFunction (r, fid));
 		r
 	| TThrow v ->
-		op ctx (OThrow (eval_to ctx v (HDyn None)));
-		alloc_tmp ctx HVoid (* not initialized *)
+		op ctx (OThrow (eval_to ctx v HDyn));
+		alloc_tmp ctx HVoid
 	| TWhile (cond,eloop,NormalWhile) ->
 		let oldb = ctx.m.mbreaks and oldc = ctx.m.mcontinues in
 		ctx.m.mbreaks <- [];
@@ -1646,7 +1669,7 @@ and eval_expr ctx e =
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayF64") "alloc", b, reg_int ctx (List.length el)));
 		| _ ->
-			let at = if safe_cast et (HDyn None) then et else HDyn None in
+			let at = if is_dynamic et then et else HDyn in
 			let a = alloc_tmp ctx HArray in
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,et));
@@ -1720,7 +1743,7 @@ and eval_expr ctx e =
 			op ctx (ONull r);
 			let jend = jump ctx (fun i -> OJAlways i) in
 			j();
-			let tmp = alloc_tmp ctx (HDyn None) in
+			let tmp = alloc_tmp ctx HDyn in
 			op ctx (OGetArray (tmp,harr,ri));
 			let r2 = unsafe_cast_to ctx tmp at e.epos in
 			op ctx (OMov (r,r2));
@@ -1814,7 +1837,7 @@ and eval_expr ctx e =
 		alloc_tmp ctx HVoid
 	| TTry (etry,catches) ->
 		let pos = current_pos ctx in
-		let rtrap = alloc_tmp ctx (HDyn None) in
+		let rtrap = alloc_tmp ctx HDyn in
 		op ctx (OTrap (rtrap,-1)); (* loop *)
 		ctx.m.mtrys <- ctx.m.mtrys + 1;
 		let tret = to_type ctx e.etype in
@@ -1910,7 +1933,7 @@ and gen_method_wrapper ctx rt t p =
 		let old = ctx.m in
 		let targs, tret = (match t with HFun (args, ret) -> args, ret | _ -> assert false) in
 		let iargs, iret = (match rt with HFun (args, ret) -> args, ret | _ -> assert false) in
-		ctx.m <- method_context (HDyn None) null_capture;
+		ctx.m <- method_context HDyn null_capture;
 		let rfun = alloc_tmp ctx rt in
 		let rargs = List.map (alloc_tmp ctx) targs in
 		let rret = alloc_tmp ctx iret in
@@ -2147,7 +2170,7 @@ let check code =
 			Printf.sprintf "%s(%d)" code.debugfiles.(dfile) dline
 		in
 		let error msg =
-			failwith ("Check failure at " ^ string_of_int f.findex ^ "@" ^ string_of_int (!pos) ^ " : " ^ msg ^ "\n" ^ debug())
+			failwith ("Check failure " ^ msg ^ "\nAt " ^ string_of_int f.findex ^ "@" ^ string_of_int (!pos) ^ " " ^ debug())
 		in
 		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> assert false) in
 		let rtype i = f.regs.(i) in
@@ -2198,7 +2221,7 @@ let check code =
 			| _ -> error (reg_inf r ^ " should be enum")
 		in
 		let is_dyn r =
-			if not (safe_cast (rtype r) (HDyn None)) then error (reg_inf r ^ " should be castable to dynamic")
+			if not (is_dynamic (rtype r)) then error (reg_inf r ^ " should be castable to dynamic")
 		in
 		let tfield o fid proto =
 			match rtype o with
@@ -2247,10 +2270,8 @@ let check code =
 				reg r HBytes;
 				if i < 0 || i >= Array.length code.strings then error "string outside range";
 			| ONull r ->
-				(match rtype r with
-				| HBytes | HEnum _ | HVirtual _ | HType -> ()
-				| _ when safe_cast (rtype r) (HDyn None) -> ()
-				| t -> error (tstr t ^ " is not nullable"))
+				let t = rtype r in
+				if not (is_nullable t) then error (tstr t ^ " is not nullable")
 			| OAdd (r,a,b) | OSub (r,a,b) | OMul (r,a,b) | OSDiv (r,a,b) | OUDiv (r,a,b) | OSMod (r,a,b) | OUMod(r,a,b) ->
 				numeric r;
 				reg a (rtype r);
@@ -2321,8 +2342,9 @@ let check code =
 			| OJAlways d ->
 				can_jump d
 			| OToDyn (r,a) ->
-				if safe_cast (rtype a) (HDyn None) then reg a HI32; (* don't wrap as dynamic types that can safely be cast to it *)
-				reg r (HDyn (Some (rtype a)))
+				(* we can still use OToDyn on nullable if we want to turn them into dynamic *)
+				if is_dynamic (rtype a) then reg a HI32; (* don't wrap as dynamic types that can safely be cast to it *)
+				if rtype r <> HDyn then reg r (HNull (rtype a))
 			| OToFloat (a,b) ->
 				int b;
 				float a;
@@ -2362,7 +2384,7 @@ let check code =
 					reg r (HFun (tl,tret));
 				| _ -> assert false);
 			| OThrow r ->
-				reg r (HDyn None)
+				reg r HDyn
 			| OGetArray (v,a,i) ->
 				reg a HArray;
 				reg i HI32;
@@ -2404,8 +2426,8 @@ let check code =
 				reg i HI32;
 				is_dyn v;
 			| OUnsafeCast (a,b) ->
-				if not (safe_cast (rtype a) (HDyn None)) then is_obj a;
-				ignore(rtype b);
+				is_dyn a;
+				is_dyn b;
 			| OSafeCast (a,b) ->
 				ignore(rtype a);
 				ignore(rtype b);
@@ -2429,18 +2451,18 @@ let check code =
 				| HVirtual _ -> ()
 				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
 				(match rtype v with
-				| HObj _ | HDynObj | HDyn None -> ()
+				| HObj _ | HDynObj | HDyn -> ()
 				| _ -> reg v HDynObj)
 			| OUnVirtual (r,v) ->
 				(match rtype v with
 				| HVirtual _ -> ()
 				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
-				reg r (HDyn None)
+				reg r HDyn
 			| ODynGet (v,r,f) | ODynSet (r,f,v) ->
 				ignore(code.strings.(f));
 				ignore(rtype v);
 				(match rtype r with
-				| HObj _ | HDyn None | HDynObj | HVirtual _ -> ()
+				| HObj _ | HDyn | HDynObj | HVirtual _ -> ()
 				| _ -> reg r HDynObj)
 			| OMakeEnum (r,index,pl) ->
 				(match rtype r with
@@ -2477,7 +2499,7 @@ let check code =
 			| ONullCheck r ->
 				ignore(rtype r)
 			| OTrap (r, idx) ->
-				reg r (HDyn None);
+				reg r HDyn;
 				can_jump idx
 			| OEndTrap _ ->
 				()
@@ -2525,7 +2547,7 @@ and vabstract =
 
 and vfunction =
 	| FFun of fundecl
-	| FNativeFun of string * (value list -> value)
+	| FNativeFun of string * (value list -> value) * ttype
 
 and vobject = {
 	oproto : vproto;
@@ -2559,21 +2581,36 @@ exception Return of value
 
 let default t =
 	match t with
-	| HVoid | HFun _ | HDyn _ | HObj _ | HBytes | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ -> VNull
 	| HI8 | HI16 | HI32 -> VInt Int32.zero
 	| HF32 | HF64 -> VFloat 0.
 	| HBool -> VBool false
+	| _ -> if is_nullable t then VNull else VUndef
 
-let is_compatible v t =
+let get_type = function
+	| VDyn (_,t) -> Some t
+	| VObj o -> Some (HObj o.oproto.pclass)
+	| VDynObj _ -> Some HDynObj
+	| VVirtual v -> Some (HVirtual v.vtype)
+	| VArray _ -> Some HArray
+	| VClosure (f,None) -> Some (match f with FFun f -> f.ftype | FNativeFun (_,_,t) -> t)
+	| VClosure (f,Some _) -> Some (match f with FFun { ftype = HFun(_::args,ret) } | FNativeFun (_,_,HFun(_::args,ret)) -> HFun (args,ret) | _ -> assert false)
+	| _ -> None
+
+let v_dynamic = function
+	| VNull	| VDyn _ | VObj _ | VClosure _ | VArray _ | VVirtual _ | VDynObj _ -> true
+	| _ -> false
+
+let rec is_compatible v t =
 	match v, t with
 	| VInt _, HI32 -> true
 	| VBool _, HBool -> true
-	| VNull, (HObj _ | HFun _ | HBytes | HArray | HType | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HDyn _) -> true
+	| VNull, t -> is_nullable t
 	| VObj _, HObj _ -> true
 	| VClosure _, HFun _ -> true
 	| VBytes _, HBytes -> true
-	| VDyn (_,t1), HDyn (Some t2) -> tsame t1 t2
-	| (VDyn _ | VObj _ | VClosure _ | VArray _), HDyn None -> true
+	| VDyn (_,t1), HNull t2 -> tsame t1 t2
+	| v, HNull t -> is_compatible v t
+	| v, HDyn -> v_dynamic v
 	| VUndef, HVoid -> true
 	| VType _, HType -> true
 	| VArray _, HArray -> true
@@ -2588,7 +2625,7 @@ exception InterpThrow of value
 let interp code =
 
 	let globals = Array.map default code.globals in
-	let functions = Array.create (Array.length code.functions + Array.length code.natives) (FNativeFun ("",(fun _ -> assert false))) in
+	let functions = Array.create (Array.length code.functions + Array.length code.natives) (FNativeFun ("",(fun _ -> assert false),HDyn)) in
 	let cached_protos = Hashtbl.create 0 in
 	let func f = Array.unsafe_get functions f in
 
@@ -2658,7 +2695,7 @@ let interp code =
 		| VUndef -> "undef"
 		| VType t -> tstr t
 		| VRef (regs,i,t) -> "*" ^ (vstr regs.(i) t)
-		| VVirtual v -> vstr v.vvalue (HDyn None)
+		| VVirtual v -> vstr v.vvalue HDyn
 		| VDynObj d -> "{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}"
 		| VAbstract _ -> "abstract"
 		| VEnum (i,vals) ->
@@ -2674,12 +2711,12 @@ let interp code =
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
-		| FNativeFun (s,_) -> "native[" ^ s ^ "]"
+		| FNativeFun (s,_,_) -> "native[" ^ s ^ "]"
 
 	and fcall f args =
 		match f with
 		| FFun f -> call f args
-		| FNativeFun (_,f) -> f args
+		| FNativeFun (_,f,_) -> f args
 
 	and call f args =
 		let regs = Array.create (Array.length f.regs) VUndef in
@@ -2780,6 +2817,12 @@ let interp code =
 			let l = int_of_char (String.get b (p + 3)) in
 			Int32.logor (Int32.of_int (i lor (j lsl 8) lor (k lsl 16))) (Int32.shift_left (Int32.of_int l) 24);
 		in
+		let make_dyn v t =
+			if v = VNull || is_dynamic t then
+				v
+			else
+				VDyn (v,t)
+		in
 		let rec loop() =
 			let op = f.code.(!pos) in
 			incr pos;
@@ -2836,7 +2879,7 @@ let interp code =
 			| OJEq (a,b,i) -> if vcompare a b = 0 then pos := !pos + i
 			| OJNeq (a,b,i) -> if vcompare a b <> 0 then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
-			| OToDyn (r,a) -> set r (VDyn (get a, f.regs.(a)))
+			| OToDyn (r,a) -> set r (make_dyn (get a) f.regs.(a))
 			| OToFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | _ -> assert false)
 			| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | _ -> assert false)
 			| OLabel _ -> ()
@@ -3045,8 +3088,8 @@ let interp code =
 					else match t, rtype r with
 					| (HI8|HI16|HI32), (HF32|HF64) ->
 						set r (match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
-					| _, HDyn None ->
-						set r (if safe_cast t (HDyn None) then v else VDyn (v,t))
+					| _, HDyn ->
+						set r (make_dyn v t)
 					| _ ->
 						error ("Can't cast " ^ tstr t ^ " to " ^ tstr (rtype r))
 				in
@@ -3075,13 +3118,10 @@ let interp code =
 						if d.dvirtuals <> [] then assert false (* TODO : update virtuals table *)
 					in
 					let v, vt = (match rtype vr with
-						| HDyn _ ->
-							(match v with
-							| VDyn (v,t) -> v,t
-							| VObj o -> v, HObj o.oproto.pclass
-							| VDynObj _ -> v, HDynObj
-							| VVirtual vp -> v, HVirtual vp.vtype
-							| _ -> assert false)
+						| HDyn ->
+							(match get_type v with
+							| None -> assert false
+							| Some t -> (match v with VDyn (v,_) -> v | _ -> v), t)
 						| t -> v, t
 					) in
 					(try
@@ -3170,8 +3210,8 @@ let interp code =
 		exec()
 	in
 	let int = Int32.to_int in
-	let load_native lib name =
-		FNativeFun (lib ^ "@" ^ name, (match lib with
+	let load_native lib name t =
+		let f = (match lib with
 		| "std" ->
 			(match name with
 			| "balloc" ->
@@ -3211,7 +3251,7 @@ let interp code =
 			| "value_to_string" ->
 				(function
 				| [v; VRef (regs,i,_)] ->
-					let str = vstr v (HDyn None) in
+					let str = vstr v HDyn in
 					regs.(i) <- VInt (Int32.of_int (String.length str));
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
@@ -3291,14 +3331,16 @@ let interp code =
 								Array.map (fun f -> VDyn (VBytes (f.fname ^ "\000"),HBytes)) o.pproto
 							]
 						in
-						VArray (fields o,HDyn None)
+						VArray (fields o,HDyn)
 					| _ -> VNull)
 				| _ -> assert false)
 			| _ -> (fun args -> error ("Unresolved native " ^ name)))
 		| _ ->
-			(fun args -> error ("Unresolved native " ^ name))))
+			(fun args -> error ("Unresolved native " ^ name))
+		) in
+		FNativeFun (lib ^ "@" ^ name, f, t)
 	in
-	Array.iter (fun (lib,name,_,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name)) code.natives;
+	Array.iter (fun (lib,name,t,idx) -> functions.(idx) <- load_native code.strings.(lib) code.strings.(name) t) code.natives;
 	Array.iter (fun fd -> functions.(fd.findex) <- FFun fd) code.functions;
 	let get_stack st =
 		String.concat "\n" (List.map (fun (f,pos) ->
@@ -3450,7 +3492,7 @@ let write_code ch code =
 			| HObj p ->
 				(match p.psuper with None -> () | Some p -> get_type (HObj p));
 				Array.iter (fun (_,n,t) -> get_type t) p.pfields
-			| HDyn (Some t) | HRef t ->
+			| HNull t | HRef t ->
 				get_type t
 			| HVirtual v ->
 				Array.iter (fun (_,_,t) -> get_type t) v.vfields
@@ -3461,7 +3503,7 @@ let write_code ch code =
 			t
 		));
 	in
-	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HType; HDyn None]; (* make sure all basic types get lower indexes *)
+	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
 	Array.iter (fun f ->
@@ -3501,10 +3543,7 @@ let write_code ch code =
 		| HF64 -> byte 5
 		| HBool -> byte 6
 		| HBytes -> byte 7
-		| HDyn None -> byte 8
-		| HDyn (Some t) ->
-			byte 0x88;
-			write_type t
+		| HDyn -> byte 8
 		| HFun (args,ret) ->
 			let n = List.length args in
 			if n > 0xFF then assert false;
@@ -3546,6 +3585,9 @@ let write_code ch code =
 				write_index (Array.length tl);
 				Array.iter write_type tl;
 			) e.efields
+		| HNull t ->
+			byte 0x18;
+			write_type t
 	) types.arr;
 
 	Array.iter write_type code.globals;

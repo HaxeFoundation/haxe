@@ -51,7 +51,7 @@ class String {
 
 	public function substr( pos : Int, ?len : Int ) : String @:privateAccess {
 		var sl = length;
-		var len = if( len == null ) sl else len;
+		var len : Int = if( len == null ) sl else len;
 		if( len == 0 ) return "";
 
 		if( pos != 0 && len < 0 )
