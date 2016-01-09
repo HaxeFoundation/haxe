@@ -199,7 +199,7 @@ let module_pass_1 com m tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.Expose),_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.Expose | Meta.Deprecated),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| _ ->
 							()
@@ -2554,6 +2554,10 @@ module ClassInitializer = struct
 				if (fctx.is_abstract_member && not (Meta.has Meta.Impl f2.cf_meta)) || (Meta.has Meta.Impl f2.cf_meta && not (fctx.is_abstract_member)) then
 					display_error ctx "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
 				(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f2.cf_pos);
+				f2.cf_meta <- List.fold_left (fun acc ((m,_,_) as meta) -> match m with
+					| Meta.Deprecated -> meta :: acc
+					| _ -> acc
+				) f2.cf_meta f.cff_meta;
 			with
 				| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ f.cff_name),Unify l),p))
 				| Not_found ->
