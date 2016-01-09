@@ -3535,7 +3535,7 @@ let rec to_string ctx n v =
 			Buffer.contents b
 
 let rec compare ctx a b =
-	let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else CSup in
+	let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else if a > b then CSup else CUndef in
 	let scmp (a:string) b = if a = b then CEq else if a < b then CInf else CSup in
 	let icmp (a:int32) b = let l = Int32.compare a b in if l = 0 then CEq else if l < 0 then CInf else CSup in
 	match a, b with
