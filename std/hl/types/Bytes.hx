@@ -73,6 +73,11 @@ package hl.types;
 	function bytesLength( pos : Int ) : Int {
 		return 0;
 	}
+	
+	@:hlNative("std","hash")
+	function hash() : Int {
+		return 0;
+	}
 
 	/**
 		Decode the utf8 char at the given position

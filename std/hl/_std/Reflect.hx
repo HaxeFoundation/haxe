@@ -29,8 +29,9 @@ class Reflect {
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		throw "TODO";
-		return null;
+		if( field == null ) return null;
+		var hash = @:privateAccess field.bytes.hash();
+		return hl.types.Api.getField(o,hash);
 	}
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
@@ -47,8 +48,18 @@ class Reflect {
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
-		throw "TODO";
-		return null;
+		var count = args.length;
+		var nargs = o == null ? count : count + 1;
+		var args : hl.types.ArrayObj<Dynamic> = cast args;
+		var a = new hl.types.NativeArray<Dynamic>(nargs);
+		if( o == null ) {
+			a.blit(1,@:privateAccess args.array,0,count);
+		} else {
+			func = hl.types.Api.noClosure(func);
+			a[0] = o;
+			a.blit(1,@:privateAccess args.array,0,count);
+		}
+		return hl.types.Api.callMethod(func,a);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {

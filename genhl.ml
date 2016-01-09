@@ -2647,13 +2647,42 @@ let interp code =
 	let error msg = raise (Runtime_error msg) in
 	let throw v = exc_stack := []; raise (InterpThrow v) in
 
+	let hash_cache = Hashtbl.create 0 in
+
+	let hash b =
+		let h = ref Int32.zero in
+		let rec loop i =
+			let c = int_of_char b.[i] in
+			if c <> 0 then begin
+				h := Int32.add (Int32.mul !h 223l) (Int32.of_int c);
+				loop (i + 1)
+			end else begin
+				let h = Int32.rem !h 0x1FFFFF7Bl in
+				if not (Hashtbl.mem hash_cache h) then Hashtbl.add hash_cache h (String.sub b 0 i);
+				h
+			end
+		in
+		loop 0
+	in
+
+	let null_access() =
+		error "Null value bypass null pointer check"
+	in
+
+	let make_dyn v t =
+		if v = VNull || is_dynamic t then
+			v
+		else
+			VDyn (v,t)
+	in
+
 	let rec vstr_d v =
 		match v with
 		| VNull -> "null"
 		| VInt i -> Int32.to_string i ^ "i"
 		| VFloat f -> string_of_float f ^ "f"
 		| VBool b -> if b then "true" else "false"
-		| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ")"
+		| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ":" ^ tstr t ^ ")"
 		| VObj o ->
 			let p = "#" ^ o.oproto.pclass.pname in
 			let fid = ref None in
@@ -2717,6 +2746,130 @@ let interp code =
 		match f with
 		| FFun f -> call f args
 		| FNativeFun (_,f,_) -> f args
+
+	and dyn_set_field obj field v vt =
+		let v, vt = (match vt with
+			| HDyn ->
+				(match get_type v with
+				| None -> assert false
+				| Some t -> (match v with VDyn (v,_) -> v | _ -> v), t)
+			| t -> v, t
+		) in
+		match obj with
+		| VDynObj d ->
+			let rebuild_virtuals() =
+				if d.dvirtuals <> [] then assert false (* TODO : update virtuals table *)
+			in
+			(try
+				let idx = Hashtbl.find d.dfields field in
+				d.dvalues.(idx) <- v;
+				if not (tsame d.dtypes.(idx) vt) then begin
+					d.dtypes.(idx) <- vt;
+					rebuild_virtuals();
+				end;
+			with Not_found ->
+				let idx = Array.length d.dvalues in
+				Hashtbl.add d.dfields field idx;
+				let vals2 = Array.make (idx + 1) VNull in
+				let types2 = Array.make (idx + 1) HVoid in
+				Array.blit d.dvalues 0 vals2 0 idx;
+				Array.blit d.dtypes 0 types2 0 idx;
+				vals2.(idx) <- v;
+				types2.(idx) <- vt;
+				d.dvalues <- vals2;
+				d.dtypes <- types2;
+				rebuild_virtuals();
+			)
+		| VVirtual vp ->
+			dyn_set_field vp.vvalue field v vt
+		| VNull ->
+			null_access()
+		| _ ->
+			assert false
+
+	and dyn_get_field obj field rt =
+		let set_with v t = dyn_cast v t rt in
+		match obj with
+		| VDynObj d ->
+			(try
+				let idx = Hashtbl.find d.dfields field in
+				set_with d.dvalues.(idx) d.dtypes.(idx)
+			with Not_found ->
+				default rt)
+		| VObj o ->
+			let rec loop p =
+				try
+					let idx, t = PMap.find field p.pindex in
+					set_with o.ofields.(idx) t
+				with Not_found -> try
+					let fid = PMap.find field p.pfunctions in
+					(match functions.(fid) with
+					| FFun fd as f -> set_with (VClosure (f,Some obj)) (match fd.ftype with HFun (_::args,t) -> HFun(args,t) | _ -> assert false)
+					| FNativeFun _ -> assert false)
+				with Not_found ->
+					match p.psuper with
+					| None -> default rt
+					| Some p -> loop p
+			in
+			loop o.oproto.pclass
+		| VVirtual vp ->
+			dyn_get_field vp.vvalue field rt
+		| VNull ->
+			null_access()
+		| _ ->
+			assert false
+
+	and dyn_cast v t rt =
+		let invalid() =
+			error ("Can't cast " ^ vstr_d v ^ ":"  ^ tstr t ^ " to " ^ tstr rt)
+		in
+		let default() =
+			let v = default rt in
+			if v = VUndef then invalid();
+			v
+		in
+		if safe_cast t rt then
+			v
+		else match t, rt with
+		| (HI8|HI16|HI32), (HF32|HF64) ->
+			(match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
+		| _, HDyn ->
+			make_dyn v t
+		| HDyn, _ ->
+			(match v with
+			| VNull -> default()
+			| _ ->
+				match get_type v with
+				| None -> assert false
+				| Some t -> dyn_cast (match v with VDyn (v,_) -> v | _ -> v) t rt)
+		| HNull _, _ ->
+			(match v with
+			| VNull -> default()
+			| VDyn (v,t) -> dyn_cast v t rt
+			| _ -> assert false)
+		| _ ->
+			invalid()
+
+	and dyn_call v args tret =
+		match v with
+		| VClosure (f,a) ->
+			let ft = (match f with FFun f -> f.ftype | FNativeFun (_,_,t) -> t) in
+			let fargs, fret = (match ft with HFun (a,t) -> a, t | _ -> assert false) in
+			let full_args = args and full_fargs = (match a with None -> fargs | Some _ -> List.tl fargs) in
+			let rec loop args fargs =
+				match args, fargs with
+				| [], [] -> []
+				| _, [] -> error (Printf.sprintf "Too many arguments (%s) != (%s)" (String.concat "," (List.map (fun (v,_) -> vstr_d v) full_args)) (String.concat "," (List.map tstr full_fargs)))
+				| (v,t) :: args, ft :: fargs -> dyn_cast v t ft :: loop args fargs
+				| [], _ :: _ -> default ft :: loop args fargs
+			in
+			let vargs = loop args full_fargs in
+			let v = fcall f (match a with None -> vargs | Some a -> a :: vargs) in
+			dyn_cast v fret tret
+		| VNull ->
+			null_access()
+		| _ ->
+			assert false
 
 	and call f args =
 		let regs = Array.create (Array.length f.regs) VUndef in
@@ -2817,12 +2970,6 @@ let interp code =
 			let l = int_of_char (String.get b (p + 3)) in
 			Int32.logor (Int32.of_int (i lor (j lsl 8) lor (k lsl 16))) (Int32.shift_left (Int32.of_int l) 24);
 		in
-		let make_dyn v t =
-			if v = VNull || is_dynamic t then
-				v
-			else
-				VDyn (v,t)
-		in
 		let rec loop() =
 			let op = f.code.(!pos) in
 			incr pos;
@@ -2894,7 +3041,7 @@ let interp code =
 				set r (match get o with
 					| VObj v -> v.ofields.(fid)
 					| VVirtual v -> (match v.vindexes.(fid) with VFNone -> VNull | VFIndex i -> v.vtable.(i))
-					| VNull -> error "Null access"
+					| VNull -> null_access()
 					| _ -> assert false)
 			| OSetField (o,fid,r) ->
 				let rv = get r in
@@ -2909,7 +3056,7 @@ let interp code =
 					| VFIndex i ->
 						check_obj rv o fid;
 						v.vtable.(i) <- rv)
-				| VNull -> error "Null access"
+				| VNull -> null_access()
 				| _ -> assert false)
 			| OGetThis (r, fid) ->
 				set r (match get 0 with VObj v -> v.ofields.(fid) | _ -> assert false)
@@ -2923,7 +3070,7 @@ let interp code =
 			| OCallMethod (r,m,rl) ->
 				(match get (List.hd rl) with
 				| VObj v -> set r (fcall v.oproto.pmethods.(m) (List.map get rl))
-				| VNull -> error "Null access"
+				| VNull -> null_access()
 				| _ -> assert false)
 			| OCallThis (r,m,rl) ->
 				(match get 0 with
@@ -2933,7 +3080,7 @@ let interp code =
 				(match get v with
 				| VClosure (f,None) -> set r (fcall f (List.map get rl))
 				| VClosure (f,Some arg) -> set r (fcall f (arg :: List.map get rl))
-				| VNull -> error "Null function"
+				| VNull -> null_access()
 				| _ -> assert false)
 			| OGetFunction (r, fid) ->
 				let f = functions.(fid) in
@@ -2944,7 +3091,7 @@ let interp code =
 			| OMethod (r, o, m) ->
 				set r (match get o with
 				| VObj v as obj -> VClosure (v.oproto.pmethods.(m), Some obj)
-				| VNull -> error "Null access"
+				| VNull -> null_access()
 				| VVirtual v ->
 					let name, _, _ = v.vtype.vfields.(m) in
 					(match v.vvalue with
@@ -3006,13 +3153,7 @@ let interp code =
 					a.(Int32.to_int i) <- v
 				| _ -> assert false);
 			| OSafeCast (r, v) ->
-				let v = get v in
-				set r (match v, rtype r with
-					| VObj o, HObj c when o.oproto.pclass == c -> v
-					| VNull, t -> default t
-					| VDyn (v, t1), t2 when t1 == t2 -> v
-					| _, t -> error ("Failed to cast " ^ vstr_d v ^ " to " ^ tstr t)
-				)
+				set r (dyn_cast (get v) (rtype v) (rtype r))
 			| OUnsafeCast (r,v) ->
 				set r (get v)
 			| OArraySize (r,a) ->
@@ -3081,71 +3222,9 @@ let interp code =
 			| OUnVirtual (r,v) ->
 				set r (match get v with VNull -> VNull | VVirtual v -> v.vvalue | _ -> assert false)
 			| ODynGet (r,o,f) ->
-				let obj = (match get o with VVirtual v -> v.vvalue | v -> v) in
-				let set_with v t =
-					if tsame t (rtype r) then
-						set r v
-					else match t, rtype r with
-					| (HI8|HI16|HI32), (HF32|HF64) ->
-						set r (match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
-					| _, HDyn ->
-						set r (make_dyn v t)
-					| _ ->
-						error ("Can't cast " ^ tstr t ^ " to " ^ tstr (rtype r))
-				in
-				(match obj with
-				| VDynObj d ->
-					(try
-						let idx = Hashtbl.find d.dfields code.strings.(f) in
-						set_with d.dvalues.(idx) d.dtypes.(idx)
-					with Not_found ->
-						set r (default (rtype r)))
-				| VObj o ->
-					(try
-						let idx, t = PMap.find code.strings.(f) o.oproto.pclass.pindex in
-						set_with o.ofields.(idx) t
-					with Not_found ->
-						set r (default (rtype r)))
-				| _ ->
-					assert false)
+				set r (dyn_get_field (get o) code.strings.(f) (rtype r))
 			| ODynSet (o,fid,vr) ->
-				let obj = (match get o with VVirtual v -> v.vvalue | v -> v) in
-				let v = get vr in
-				check_obj v obj fid;
-				(match obj with
-				| VDynObj d ->
-					let rebuild_virtuals() =
-						if d.dvirtuals <> [] then assert false (* TODO : update virtuals table *)
-					in
-					let v, vt = (match rtype vr with
-						| HDyn ->
-							(match get_type v with
-							| None -> assert false
-							| Some t -> (match v with VDyn (v,_) -> v | _ -> v), t)
-						| t -> v, t
-					) in
-					(try
-						let idx = Hashtbl.find d.dfields code.strings.(fid) in
-						d.dvalues.(idx) <- v;
-						if not (tsame d.dtypes.(idx) vt) then begin
-							d.dtypes.(idx) <- vt;
-							rebuild_virtuals();
-						end;
-					with Not_found ->
-						let idx = Array.length d.dvalues in
-						Hashtbl.add d.dfields code.strings.(fid) idx;
-						let vals2 = Array.make (idx + 1) VNull in
-						let types2 = Array.make (idx + 1) HVoid in
-						Array.blit d.dvalues 0 vals2 0 idx;
-						Array.blit d.dtypes 0 types2 0 idx;
-						vals2.(idx) <- v;
-						types2.(idx) <- vt;
-						d.dvalues <- vals2;
-						d.dtypes <- types2;
-						rebuild_virtuals();
-					)
-				| _ ->
-					assert false)
+				dyn_set_field (get o) code.strings.(fid) (get vr) (rtype vr)
 			| OMakeEnum (r,e,pl) ->
 				set r (VEnum (e,Array.map get (Array.of_list pl)))
 			| OEnumAlloc (r,f) ->
@@ -3314,6 +3393,10 @@ let interp code =
 				(function
 				| [VInt code] -> VUndef
 				| _ -> assert false)
+			| "hash" ->
+				(function
+				| [VBytes str] -> VInt (hash str)
+				| _ -> assert false)
 			| "type_get_class" ->
 				(function
 				| [VObj o] -> (match o.oproto.pclass.pclassglobal with None -> VNull | Some g -> globals.(g))
@@ -3334,7 +3417,22 @@ let interp code =
 						VArray (fields o,HDyn)
 					| _ -> VNull)
 				| _ -> assert false)
-			| _ -> (fun args -> error ("Unresolved native " ^ name)))
+			| "get_field" ->
+				(function
+				| [o;VInt hash] ->
+					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
+					dyn_get_field o f HDyn
+				| _ -> assert false)
+			| "call_method" ->
+				(function
+				| [f;VArray (args,HDyn)] -> dyn_call f (List.map (fun v -> v,HDyn) (Array.to_list args)) HDyn
+				| _ -> assert false)
+			| "no_closure" ->
+				(function
+				| [VClosure (f,_)] -> VClosure (f,None)
+				| _ -> assert false)
+			| _ ->
+				(fun args -> error ("Unresolved native " ^ name)))
 		| _ ->
 			(fun args -> error ("Unresolved native " ^ name))
 		) in
