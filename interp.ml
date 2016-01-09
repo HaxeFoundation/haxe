@@ -3428,8 +3428,8 @@ and eval_op ctx op e1 e2 p =
 		let e2 = eval ctx e2 in
 		(fun() ->
 			match e1() with
-			| VBool false | VNull -> VBool false
-			| _ -> e2())
+			| VBool true -> e2()
+			| _ -> VBool false)
 	| "||" ->
 		let e1 = eval ctx e1 in
 		let e2 = eval ctx e2 in
