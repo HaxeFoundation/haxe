@@ -8,7 +8,7 @@ class Math {
 	@:hlNative("std","math_round") public static function round( v : Float ) : Int 			return 0;
 	@:hlNative("std","math_ceil") public static function ceil( v : Float ) : Int 			return 0;
 	@:hlNative("std","math_finite") public static function isFinite( v : Float ) : Bool 	return true;
-	@:hlNative("std","math_isnane") public static function isNaN( v : Float ) : Bool 		return false;
+	@:hlNative("std","math_isnan") public static function isNaN( v : Float ) : Bool 		return false;
 
 	@:hlNative("std","math_ffloor") public static function ffloor( v : Float ) : Float 		return 0.;
 	@:hlNative("std","math_fround") public static function fround( v : Float ) : Float 		return 0.;

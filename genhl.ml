@@ -252,6 +252,7 @@ type context = {
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	array_impl : array_impl;
 	base_class : tclass;
+	base_type : tclass;
 	cdebug_files : (string, string) lookup;
 }
 
@@ -1294,8 +1295,8 @@ and eval_expr ctx e =
 		op ctx (ONew r);
 		let a = (match follow e.etype with TAnon a -> a | _ -> assert false) in
 		List.iter (fun (s,v) ->
-			let cf = (try PMap.find s a.a_fields with Not_found -> assert false) in
-			let v = eval_to ctx v (to_type ctx cf.cf_type) in
+			let ft = (try (PMap.find s a.a_fields).cf_type with Not_found -> v.etype) in
+			let v = eval_to ctx v (to_type ctx ft) in
 			op ctx (ODynSet (r,alloc_string ctx s,v));
 		) o;
 		r
@@ -1864,17 +1865,25 @@ and eval_expr ctx e =
 		List.iter (fun j -> j()) (loop catches);
 		j();
 		result
-	| TTypeExpr (TClassDecl c) ->
-		let g, t = class_global ctx c in
-		let r = alloc_tmp ctx t in
-		op ctx (OGetGlobal (r, g));
-		r
 	| TTypeExpr t ->
-		let r = alloc_tmp ctx HType in
-		op ctx (OType (r, (match t with
-			| TEnumDecl e -> enum_type ctx e
-			| _ -> assert false)));
-		r
+		(match t with
+		| TClassDecl c ->
+			let g, t = class_global ctx c in
+			let r = alloc_tmp ctx t in
+			op ctx (OGetGlobal (r, g));
+			r
+		| TAbstractDecl a ->
+			let r = alloc_tmp ctx (class_type ctx ctx.base_type [] false) in
+			(match a.a_path with
+			| [], "Int" -> op ctx (OGetGlobal (r, alloc_global ctx "$Int" (rtype ctx r)))
+			| _ -> error ("Insupported type value " ^ s_type_path (t_path t)) e.epos);
+			r
+		| TEnumDecl e ->
+			let r = alloc_tmp ctx HType in
+			op ctx (OType (r, enum_type ctx e));
+			r
+		| TTypeDecl _ ->
+			assert false);
 	| TCast (ev,Some t) ->
 		let r = alloc_tmp ctx (to_type ctx (match t with TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params) | _ -> assert false)) in
 		let re = eval_expr ctx ev in
@@ -2043,6 +2052,8 @@ let generate_static ctx c f =
 	match f.cf_kind with
 	| Var _ | Method MethDynamic ->
 		()
+	| Method m when f.cf_expr = None ->
+		() (* ? *)
 	| Method m ->
 		let rec loop = function
 			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
@@ -2054,7 +2065,7 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				error "Invalid @:hlNative decl" p
 			| [] ->
-				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
+				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing method body" f.cf_pos) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -2602,7 +2613,8 @@ let v_dynamic = function
 
 let rec is_compatible v t =
 	match v, t with
-	| VInt _, HI32 -> true
+	| VInt _, (HI8 | HI16 | HI32) -> true
+	| VFloat _, (HF32 | HF64) -> true
 	| VBool _, HBool -> true
 	| VNull, t -> is_nullable t
 	| VObj _, HObj _ -> true
@@ -2871,6 +2883,31 @@ let interp code =
 		| _ ->
 			assert false
 
+	and dyn_compare a at b bt =
+		match a, b with
+		| VInt a, VInt b -> Int32.compare a b
+		| VInt a, VFloat b -> compare (Int32.to_float a) b
+		| VFloat a, VInt b -> compare a (Int32.to_float b)
+		| VFloat a, VFloat b -> compare a b
+		| VBool a, VBool b -> compare a b
+		| VNull, VNull -> 0
+		| VNull, _ -> 1
+		| _, VNull -> -1
+		| VObj oa, VObj ob ->
+			if oa == ob then 0 else
+			let fid = ref None in
+			Array.iter (fun p -> if p.fname = "__compare" then fid := Some p.fmethod) oa.oproto.pclass.pproto;
+			(match !fid with
+			| None -> 1
+			| Some f -> (match fcall (func f) [a;b] with VInt i -> Int32.to_int i | _ -> assert false));
+		| VDyn (v,t), _ ->
+			dyn_compare v t b bt
+		| _, VDyn (v,t) ->
+			dyn_compare a at v t
+		| _ ->
+			error ("Can't compare " ^ vstr_d a ^ " and " ^ vstr_d b)
+
+
 	and call f args =
 		let regs = Array.create (Array.length f.regs) VUndef in
 		let pos = ref 0 in
@@ -2941,21 +2978,8 @@ let interp code =
 		let vcompare ra rb =
 			let a = get ra in
 			let b = get rb in
-			match a, b with
-			| VInt a, VInt b -> Int32.compare a b
-			| VFloat a, VFloat b -> compare a b
-			| VNull, VNull -> 0
-			| VNull, _ -> 1
-			| _, VNull -> -1
-			| VObj oa, VObj ob ->
-				if oa == ob then 0 else
-				let fid = ref None in
-				Array.iter (fun p -> if p.fname = "__compare" then fid := Some p.fmethod) oa.oproto.pclass.pproto;
-				(match !fid with
-				| None -> 1
-				| Some f -> (match fcall (func f) [a;b] with VInt i -> Int32.to_int i | _ -> assert false));
-			| _ ->
-				error ("Can't compare " ^ vstr_d a ^ " and " ^ vstr_d b)
+			let t = rtype ra in
+			dyn_compare a t b t
 		in
 		let set_i32 b p v =
 			String.set b p (char_of_int ((Int32.to_int v) land 0xFF));
@@ -3430,6 +3454,15 @@ let interp code =
 			| "no_closure" ->
 				(function
 				| [VClosure (f,_)] -> VClosure (f,None)
+				| _ -> assert false)
+			| "math_isnan" ->
+				(function
+				| [VFloat f] -> VBool (classify_float f = FP_nan)
+				| _ -> assert false)
+			| "bytes_find" ->
+				(function
+				| [VBytes src; VInt pos; VInt len; VBytes chk; VInt cpos; VInt clen; ] ->
+					VInt (Int32.of_int (try ExtString.String.find (String.sub src (int pos) (int len)) (String.sub chk (int cpos) (int clen)) with ExtString.Invalid_string -> -1))
 				| _ -> assert false)
 			| _ ->
 				(fun args -> error ("Unresolved native " ^ name)))
@@ -3912,6 +3945,7 @@ let generate com =
 			af64 = get_class "ArrayF64";
 		};
 		base_class = get_class "Class";
+		base_type = get_class "TypeDecl";
 		anons_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();

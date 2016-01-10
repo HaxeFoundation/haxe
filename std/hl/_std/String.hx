@@ -35,8 +35,10 @@ class String {
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
-		throw "TODO";
-		return -1;
+		var startIndex : Int = startIndex;
+		if( startIndex < 0 ) startIndex = 0;
+		if( startIndex > size ) startIndex = size;
+		return bytes.find(startIndex,size - startIndex,str.bytes,0,str.size);
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
