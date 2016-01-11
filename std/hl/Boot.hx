@@ -1,8 +1,6 @@
 package hl;
 
-import hl.types.ArrayObj;
-import hl.types.ArrayI32;
-import hl.types.ArrayF64;
+import hl.types.ArrayDyn;
 import hl.types.Class;
 
 extern class Boot {

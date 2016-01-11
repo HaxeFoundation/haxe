@@ -1,10 +1,9 @@
 package hl.types;
 
 @:keep
-class ArrayObj<T> {
+class ArrayObj<T> extends ArrayBase {
 
 	var array : hl.types.NativeArray<Dynamic>;
-	public var length(default,null) : Int;
 
 	public function new() {
 		length = 0;
@@ -16,7 +15,7 @@ class ArrayObj<T> {
 		return null;
 	}
 
-	public function join( sep : String ) : String {
+	override function join( sep : String ) : String {
 		throw "TODO";
 		return null;
 	}
@@ -40,7 +39,7 @@ class ArrayObj<T> {
 		return length;
 	}
 
-	public function reverse() : Void {
+	override function reverse() : Void {
 		throw "TODO";
 	}
 
@@ -63,7 +62,7 @@ class ArrayObj<T> {
 		return null;
 	}
 
-	public function toString() : String {
+	override function toString() : String {
 		var b = new StringBuf();
 		b.addChar("[".code);
 		for( i in 0...length ) {
@@ -142,6 +141,31 @@ class ArrayObj<T> {
 		}
 		length = newlen;
 	}
+
+	override function getDyn( pos : Int ) : Dynamic {
+		var pos : UInt = pos;
+		if( pos >= length )
+			return null;
+		return array[pos];
+	}
+	override function setDyn( pos : Int, v : Dynamic ) {
+		var pos : UInt = pos;
+		if( pos >= length )
+			__expand(pos);
+		array[pos] = Api.safeCast(v,array.getType());
+	}
+
+	override function toDynamic() : ArrayDyn {
+		return ArrayDyn.alloc(this, false);
+	}
+	override function pushDyn( v : Dynamic ) return push(v);
+	override function popDyn() : Null<Dynamic> return pop();
+	override function shiftDyn() : Null<Dynamic> return shift();
+	override function unshiftDyn( v : Dynamic ) unshift(v);
+	override function insertDyn( pos : Int, v : Dynamic ) insert(pos, v);
+	override function removeDyn( v : Dynamic ) return remove(v);
+	override function sortDyn( f : Dynamic -> Dynamic -> Int ) sort(f);
+	override function spliceDyn( pos : Int, len : Int ) return splice(pos, len);
 
 	public static function alloc( a : hl.types.NativeArray<Dynamic> ) {
 		var arr : ArrayObj<Dynamic> = untyped $new(ArrayObj);

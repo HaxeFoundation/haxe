@@ -56,6 +56,7 @@ and class_proto = {
 	mutable psuper : class_proto option;
 	mutable pvirtuals : int array;
 	mutable pproto : field_proto array;
+	mutable pnfields : int;
 	mutable pfields : (string * string index * ttype) array;
 	mutable pindex : (string, int * ttype) PMap.t;
 	mutable pfunctions : (string, int) PMap.t;
@@ -230,6 +231,8 @@ type method_context = {
 }
 
 type array_impl = {
+	abase : tclass;
+	adyn : tclass;
 	aobj : tclass;
 	ai32 : tclass;
 	af64 : tclass;
@@ -266,7 +269,7 @@ type access =
 	| AInstanceFun of texpr * fundecl index
 	| AInstanceProto of texpr * field index
 	| AInstanceField of texpr * field index
-	| AArray of texpr * texpr
+	| AArray of reg * ttype * reg
 	| AVirtualMethod of texpr * field index
 	| ADynamic of texpr * string index
 	| AEnum of field index
@@ -275,12 +278,6 @@ type access =
 let list_iteri f l =
 	let p = ref 0 in
 	List.iter (fun v -> f !p v; incr p) l
-
-let field_type f =
-	match f with
-	| FInstance (_,_,f) | FStatic (_,f) | FAnon f | FClosure (_,f) -> f.cf_type
-	| FDynamic _ -> t_dynamic
-	| FEnum (_,f) -> f.ef_type
 
 let rec tstr ?(stack=[]) ?(detailed=false) t =
 	match t with
@@ -391,6 +388,13 @@ let to_utf8 str =
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
 
+let type_size_bits = function
+	| HI8 | HBool -> 0
+	| HI16 -> 1
+	| HI32 | HF32 -> 2
+	| HF64 -> 3
+	| _ -> assert false
+
 let iteri f l =
 	let p = ref (-1) in
 	List.iter (fun v -> incr p; f !p v) l
@@ -410,6 +414,7 @@ let null_proto =
 		pvirtuals = [||];
 		pproto = [||];
 		pfields = [||];
+		pnfields = 0;
 		pindex = PMap.empty;
 		pfunctions = PMap.empty;
 	}
@@ -471,10 +476,29 @@ let alloc_i32 ctx i =
 let alloc_string ctx s =
 	lookup ctx.cstrings s (fun() -> s)
 
+let array_class ctx t =
+	match t with
+	| HI32 ->
+		ctx.array_impl.ai32
+	| HF64 ->
+		ctx.array_impl.af64
+	| HDyn ->
+		ctx.array_impl.adyn
+	| _ ->
+		ctx.array_impl.aobj
+
 let member_fun c t =
 	match follow t with
 	| TFun (args, ret) -> TFun (("this",false,TInst(c,[])) :: args, ret)
 	| _ -> assert false
+
+let rec get_index name p =
+	try
+		PMap.find name p.pindex
+	with Not_found ->
+		match p.psuper with
+		| None -> raise Not_found
+		| Some p -> get_index name p
 
 let rec unsigned t =
 	match follow t with
@@ -582,14 +606,14 @@ let rec to_type ctx t =
 			| [], "Enum" -> HType
 			| [], "EnumValue" -> HDyn
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
-			| ["hl";"types"], "Bytes" -> HBytes
+			| ["hl";"types"], ("Bytes" | "BytesAccess") -> HBytes
 			| ["hl";"types"], "Type" -> HType
 			| ["hl";"types"], "NativeArray" -> HArray
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
 			to_type ctx (Abstract.get_underlying_type a pl)
 
-and array_type ctx t =
+and native_array_type ctx t =
 	let et = to_type ctx t in
 	if is_dynamic et then et else HDyn
 
@@ -599,17 +623,28 @@ and resolve_class ctx c pl =
 	in
 	match c.cl_path, pl with
 	| ([],"Array"), [t] ->
-		(match to_type ctx t with
-		| HI32 ->
-			ctx.array_impl.ai32
-		| HF64 ->
-			ctx.array_impl.af64
-		| _ ->
-			ctx.array_impl.aobj)
+		array_class ctx (to_type ctx t)
 	| _, _ when c.cl_extern ->
 		not_supported()
 	| _ ->
 		c
+
+and field_type ctx f p =
+	match f with
+	| FInstance (c,pl,f) ->
+		let creal = resolve_class ctx c pl in
+		let rec loop c =
+			try
+				PMap.find f.cf_name c.cl_fields
+			with Not_found ->
+				match c.cl_super with
+				| Some (csup,_) -> loop csup
+				| None -> error (s_type_path creal.cl_path ^ " is missing field " ^ f.cf_name) p
+		in
+		(loop creal).cf_type
+	| FStatic (_,f) | FAnon f | FClosure (_,f) -> f.cf_type
+	| FDynamic _ -> t_dynamic
+	| FEnum (_,f) -> f.ef_type
 
 and class_type ctx c pl statics =
 	let c = if c.cl_extern && not statics then resolve_class ctx c pl else c in
@@ -639,35 +674,45 @@ and class_type ctx c pl statics =
 			pindex = PMap.empty;
 			pvirtuals = [||];
 			pfunctions = PMap.empty;
+			pnfields = -1;
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
-		if statics && c == ctx.base_class then assert false;
+		if c == ctx.base_class then begin
+			if statics then assert false;
+			p.pnfields <- 1;
+		end;
 		let csup = (if statics then Some (ctx.base_class,[]) else c.cl_super) in
 		let start_field, virtuals = (match csup with
 			| None -> 0, [||]
 			| Some (c,pl) ->
 				match class_type ctx c pl false with
 				| HObj psup ->
+					if psup.pnfields < 0 then assert false;
 					p.psuper <- Some psup;
-					p.pindex <- psup.pindex;
 					p.pfunctions <- psup.pfunctions;
-					Array.length p.pfields, p.pvirtuals
+					psup.pnfields, psup.pvirtuals
 				| _ -> assert false
 		) in
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
+		let todo = ref [] in
 		List.iter (fun f ->
 			if is_extern_field f then () else
 			match f.cf_kind with
 			| Var _ | Method MethDynamic ->
-				let t = to_type ctx f.cf_type in
-				p.pindex <- PMap.add f.cf_name (DynArray.length fa + start_field, t) p.pindex;
-				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, t);
+				let fid = DynArray.length fa in
+				p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
+				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, HVoid);
+				todo := (fun() ->
+					let t = to_type ctx f.cf_type in
+					p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
+					Array.set p.pfields fid (f.cf_name, alloc_string ctx f.cf_name, t)
+				) :: !todo;
 			| Method _ ->
 				let g = alloc_fid ctx c f in
 				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
 				let virt = if List.memq f c.cl_overrides then
-					Some (try fst (PMap.find f.cf_name p.pindex) with Not_found -> assert false)
+					Some (try fst (get_index f.cf_name p) with Not_found -> assert false)
 				else if is_overriden ctx c f then begin
 					let vid = DynArray.length virtuals in
 					DynArray.add virtuals g;
@@ -684,9 +729,11 @@ and class_type ctx c pl statics =
 			DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
 		with Not_found ->
 			());
+		p.pnfields <- DynArray.length fa + start_field;
 		p.pfields <- DynArray.to_array fa;
 		p.pproto <- DynArray.to_array pa;
 		p.pvirtuals <- DynArray.to_array virtuals;
+		List.iter (fun f -> f()) !todo;
 		if not statics && c != ctx.base_class then p.pclassglobal <- Some (fst (class_global ctx c));
 		t
 
@@ -785,6 +832,37 @@ let reg_int ctx v =
 	let r = alloc_tmp ctx HI32 in
 	op ctx (OInt (r,alloc_i32 ctx (Int32.of_int v)));
 	r
+
+
+let read_mem ctx rdst bytes index t =
+	match t with
+	| HI8 ->
+		op ctx (OGetI8 (rdst,bytes,index))
+(*	| HI16 ->
+		op ctx (OGetI16 (rdst,bytes,index))*)
+	| HI32 ->
+		op ctx (OGetI32 (rdst,bytes,index))
+	| HF32 ->
+		op ctx (OGetF32 (rdst,bytes,index))
+	| HF64 ->
+		op ctx (OGetF64 (rdst,bytes,index))
+	| _ ->
+		assert false
+
+let write_mem ctx bytes index t r=
+	match t with
+	| HI8 ->
+		op ctx (OSetI8 (bytes,index,r))
+(*	| HI16 ->
+		op ctx (OSetI16 (bytes,index,r))*)
+	| HI32 ->
+		op ctx (OSetI32 (bytes,index,r))
+	| HF32 ->
+		op ctx (OSetF32 (bytes,index,r))
+	| HF64 ->
+		op ctx (OSetF64 (bytes,index,r))
+	| _ ->
+		assert false
 
 let common_type ctx e1 e2 for_eq p =
 	let t1 = to_type ctx e1.etype in
@@ -890,6 +968,10 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let fr = alloc_tmp ctx t in
 		op ctx (OClosure (fr,fid,r));
 		fr
+	| HObj ({ pname = "hl.types.ArrayBasic_Int" | "hl.types.ArrayBasic_Float" | "hl.types.ArrayObj" } as p), HObj { pname = "hl.types.ArrayDyn" } ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OCallMethod (tmp,(try fst (get_index "toDynamic" p) with Not_found -> assert false),[r])); (* call toDynamic() *)
+		tmp
 	| _ ->
 		invalid()
 
@@ -913,7 +995,7 @@ and object_access ctx eobj t f =
 	match t with
 	| HObj p ->
 		(try
-			let fid = fst (PMap.find f.cf_name p.pindex) in
+			let fid = fst (get_index f.cf_name p) in
 			if f.cf_kind = Method MethNormal then
 				AInstanceProto (eobj, fid)
 			else
@@ -963,7 +1045,13 @@ and get_access ctx e =
 	| TParenthesis e ->
 		get_access ctx e
 	| TArray (a,i) ->
-		AArray (a,i)
+		(match follow a.etype with
+		| TInst({ cl_path = [],"Array" },[t]) ->
+			let a = eval_null_check ctx a in
+			let i = eval_to ctx i HI32 in
+			AArray (a,to_type ctx t,i)
+		| _ ->
+			error ("Invalid array access on " ^ s_type (print_context()) a.etype) e.epos)
 	| _ ->
 		ANone
 
@@ -1001,7 +1089,7 @@ and jump_expr ctx e jcond =
 		if not jcond then j();
 		(fun() -> if jcond then j(); j2());
 	| _ ->
-		let r = eval_expr ctx e in
+		let r = eval_to ctx e HBool in
 		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
 
 and eval_args ctx el t =
@@ -1159,6 +1247,98 @@ and eval_expr ctx e =
 			let r = eval_to ctx v HF64 in
 			op ctx (OSetF64 (b, pos, r));
 			r
+		| "$bytes_sizebits", [eb] ->
+			(match follow eb.etype with
+			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+				reg_int ctx (match to_type ctx t with
+				| HI8 -> 0
+				| HI16 -> 1
+				| HI32 -> 2
+				| HF32 -> 2
+				| HF64 -> 3
+				| t -> error ("Unsupported basic type " ^ tstr t) e.epos)
+			| _ ->
+				error "Invalid BytesAccess" eb.epos);
+		| "$bytes_nullvalue", [eb] ->
+			(match follow eb.etype with
+			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+				let t = to_type ctx t in
+				let r = alloc_tmp ctx t in
+				(match t with
+				| HI8 | HI16 | HI32 ->
+					op ctx (OInt (r,alloc_i32 ctx 0l))
+				| HF32 | HF64 ->
+					op ctx (OFloat (r, alloc_float ctx 0.))
+				| t ->
+					error ("Unsupported basic type " ^ tstr t) e.epos);
+				r
+			| _ ->
+				error "Invalid BytesAccess" eb.epos);
+		| "$bget", [eb;pos] ->
+			(match follow eb.etype with
+			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+				let b = eval_to ctx eb HBytes in
+				let pos = eval_to ctx pos HI32 in
+				let t = to_type ctx t in
+				(match t with
+				| HI8 ->
+					let r = alloc_tmp ctx HI32 in
+					op ctx (OGetI8 (r, b, pos));
+					r
+				(*| HI16 ->
+					let r = alloc_tmp ctx HI32 in
+					op ctx (OShl (pos,pos,alloc_i32 ctx 1l));
+					op ctx (OGetI16 (r, b, pos));
+					r*)
+				| HI32 ->
+					let r = alloc_tmp ctx HI32 in
+					op ctx (OShl (pos,pos,reg_int ctx 2));
+					op ctx (OGetI32 (r, b, pos));
+					r
+				| HF32 ->
+					let r = alloc_tmp ctx HF32 in
+					op ctx (OShl (pos,pos,reg_int ctx 2));
+					op ctx (OGetF32 (r, b, pos));
+					r
+				| HF64 ->
+					let r = alloc_tmp ctx HF64 in
+					op ctx (OShl (pos,pos,reg_int ctx 3));
+					op ctx (OGetF64 (r, b, pos));
+					r
+				| _ ->
+					error ("Unsupported basic type " ^ tstr t) e.epos)
+			| _ ->
+				error "Invalid BytesAccess" eb.epos);
+		| "$bset", [eb;pos;value] ->
+			(match follow eb.etype with
+			| TAbstract({a_path = ["hl";"types"],"BytesAccess"},[t]) ->
+				let b = eval_to ctx eb HBytes in
+				let pos = eval_to ctx pos HI32 in
+				let t = to_type ctx t in
+				(match t with
+				| HI8 ->
+					let v = eval_to ctx value HI32 in
+					op ctx (OSetI8 (b, pos, v));
+					v
+				| HI32 ->
+					let v = eval_to ctx value HI32 in
+					op ctx (OShl (pos,pos,reg_int ctx 2));
+					op ctx (OSetI32 (b, pos, v));
+					v
+				| HF32 ->
+					let v = eval_to ctx value HF32 in
+					op ctx (OShl (pos,pos,reg_int ctx 2));
+					op ctx (OSetF32 (b, pos, v));
+					v
+				| HF64 ->
+					let v = eval_to ctx value HF64 in
+					op ctx (OShl (pos,pos,reg_int ctx 3));
+					op ctx (OSetF64 (b, pos, v));
+					v
+				| _ ->
+					error ("Unsupported basic type " ^ tstr t) e.epos)
+			| _ ->
+				error "Invalid BytesAccess" eb.epos);
 		| "$bgeti8", [b;pos] ->
 			let b = eval_to ctx b HBytes in
 			let pos = eval_to ctx pos HI32 in
@@ -1188,7 +1368,7 @@ and eval_expr ctx e =
 			op ctx (OArraySize (r, eval_to ctx e HArray));
 			r
 		| "$aalloc", [esize] ->
-			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> array_type ctx t | _ -> invalid()) in
+			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> native_array_type ctx t | _ -> invalid()) in
 			let a = alloc_tmp ctx HArray in
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,et));
@@ -1214,7 +1394,7 @@ and eval_expr ctx e =
 			in
 			cast_to ctx r (to_type ctx e.etype) e.epos
 		| "$aset", [a; pos; value] ->
-			let et = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> array_type ctx t | _ -> invalid()) in
+			let et = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> native_array_type ctx t | _ -> invalid()) in
 			let arr = eval_to ctx a HArray in
 			let pos = eval_to ctx pos HI32 in
 			let r = eval_to ctx value et in
@@ -1232,7 +1412,7 @@ and eval_expr ctx e =
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
 		let real_type = (match ec.eexpr with
-			| TField (_,f) -> field_type f
+			| TField (_,f) -> field_type ctx f ec.epos
 			| _ -> ec.etype
 		) in
 		let tfun = to_type ctx real_type in
@@ -1268,7 +1448,7 @@ and eval_expr ctx e =
 		);
 		unsafe_cast_to ctx ret (to_type ctx e.etype) e.epos
 	| TField (ec,a) ->
-		let r = alloc_tmp ctx (to_type ctx (field_type a)) in
+		let r = alloc_tmp ctx (to_type ctx (field_type ctx a e.epos)) in
 		(match get_access ctx e with
 		| AGlobal g ->
 			op ctx (OGetGlobal (r,g));
@@ -1441,19 +1621,27 @@ and eval_expr ctx e =
 				let r = value() in
 				op ctx (OMov (l, r));
 				r
-			| AArray (a,idx) ->
-				let a = eval_null_check ctx a in
-				let idx = eval_to ctx idx HI32 in
+			| AArray (ra,at,ridx) ->
 				let v = value() in
 				(* bounds check against length *)
-				let len = alloc_tmp ctx HI32 in
-				op ctx (OField (len,a,1));
-				let j = jump ctx (fun i -> OJULt (idx,len,i)) in
-				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "__expand", a, idx));
-				j();
-				let arr = alloc_tmp ctx HArray in
-				op ctx (OField (arr,a,0));
-				op ctx (OSetArray (arr,idx,v));
+				(match at with
+				| HDyn ->
+					(* call setDyn() *)
+					op ctx (OCallMethod (alloc_tmp ctx HVoid,1,[ra;ridx;v]));
+				| _ ->
+					let len = alloc_tmp ctx HI32 in
+					op ctx (OField (len,ra,0)); (* length *)
+					let j = jump ctx (fun i -> OJULt (ridx,len,i)) in
+					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
+					j();
+					match at with
+					| HI32 | HF64 ->
+						assert false
+					| _ ->
+						let arr = alloc_tmp ctx HArray in
+						op ctx (OField (arr,ra,1));
+						op ctx (OSetArray (arr,ridx,v))
+				);
 				v
 			| ADynamic (ethis,f) ->
 				let obj = eval_null_check ctx ethis in
@@ -1503,6 +1691,35 @@ and eval_expr ctx e =
 				binop r r b;
 				op ctx (OSetField (robj,findex,r));
 				r
+			| AArray (ra,at,ridx) ->
+				(* bounds check against length *)
+				(match at with
+				| HDyn ->
+					(* call getDyn() *)
+					let r = alloc_tmp ctx HDyn in
+					op ctx (OCallMethod (r,0,[ra;ridx]));
+					binop r r (eval_to ctx e2 HDyn);
+					(* call setDyn() *)
+					op ctx (OCallMethod (alloc_tmp ctx HVoid,1,[ra;ridx;r]));
+					r
+				| _ ->
+					let len = alloc_tmp ctx HI32 in
+					op ctx (OField (len,ra,0)); (* length *)
+					let j = jump ctx (fun i -> OJULt (ridx,len,i)) in
+					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
+					j();
+					match at with
+					| HI32 | HF64 ->
+						assert false
+					| _ ->
+						let arr = alloc_tmp ctx HArray in
+						op ctx (OField (arr,ra,1));
+						let r = alloc_tmp ctx at in
+						op ctx (OGetArray (r,arr,ridx));
+						binop r r (eval_to ctx e2 at);
+						op ctx (OSetArray (arr,ridx,r));
+						r
+				)
 			| _ ->
 				error ("TODO " ^ s_expr (s_type (print_context())) e) e.epos
 			)
@@ -1659,7 +1876,7 @@ and eval_expr ctx e =
 				let r = eval_to ctx e HI32 in
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
 			) el;
-			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayI32") "alloc", b, reg_int ctx (List.length el)));
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocI32", b, reg_int ctx (List.length el)));
 		| HF64 ->
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 8) in
@@ -1668,7 +1885,7 @@ and eval_expr ctx e =
 				let r = eval_to ctx e HF64 in
 				op ctx (OSetF64 (b,reg_int ctx (i * 8),r));
 			) el;
-			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayF64") "alloc", b, reg_int ctx (List.length el)));
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocF64", b, reg_int ctx (List.length el)));
 		| _ ->
 			let at = if is_dynamic et then et else HDyn in
 			let a = alloc_tmp ctx HArray in
@@ -1680,77 +1897,64 @@ and eval_expr ctx e =
 				let r = eval_to ctx e at in
 				op ctx (OSetArray (a,reg_int ctx i,r));
 			) el;
-			op ctx (OCall1 (r, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "alloc", a)));
-		r
-	| TArray (a,i) ->
-		let ra = eval_null_check ctx a in
-		let ri = eval_to ctx i HI32 in
-		let ra, at = (match follow a.etype with
-			| TInst ({ cl_path = [],"Array" },[t]) -> ra, to_type ctx t
-			| t when t == t_dynamic ->
-				let at = e.etype in
-				let aa = alloc_tmp ctx (to_type ctx (ctx.com.basic.tarray at)) in
-				op ctx (OSafeCast (aa,ra));
-				aa, to_type ctx at
-			| _ ->
-				error ("Invalid array access on " ^ s_type (print_context()) a.etype) a.epos
-		) in
-		(match at with
-		| HI32 ->
-			let hbytes = alloc_tmp ctx HBytes in
-			op ctx (OField (hbytes, ra, 0));
-
-			(* check bounds *)
-			let size = alloc_tmp ctx HI32 in
-			op ctx (OField (size, ra, 2));
-			let r = alloc_tmp ctx at in
-			let j = jump ctx (fun i -> OJULt (ri,size,i)) in
-			op ctx (OInt (r,alloc_i32 ctx 0l));
-			let jend = jump ctx (fun i -> OJAlways i) in
-			j();
-			let r2 = alloc_tmp ctx HI32 in
-			op ctx (OInt (r2,alloc_i32 ctx 2l));
-			op ctx (OShl (ri,ri,r2));
-			op ctx (OGetI32 (r,hbytes,ri));
-			jend();
-			r
-		| HF64 ->
-			let hbytes = alloc_tmp ctx HBytes in
-			op ctx (OField (hbytes, ra, 0));
-
-			(* check bounds *)
-			let size = alloc_tmp ctx HI32 in
-			op ctx (OField (size, ra, 2));
-			let r = alloc_tmp ctx at in
-			let j = jump ctx (fun i -> OJULt (ri,size,i)) in
-			op ctx (OFloat (r,alloc_float ctx 0.));
-			let jend = jump ctx (fun i -> OJAlways i) in
-			j();
-			let r2 = alloc_tmp ctx HI32 in
-			op ctx (OInt (r2,alloc_i32 ctx 3l));
-			op ctx (OShl (ri,ri,r2));
-			op ctx (OGetF64 (r,hbytes,ri));
-			jend();
-			r
-		| _ ->
-			let harr = alloc_tmp ctx HArray in
-			op ctx (OField (harr, ra, 0));
-
-			(* check bounds *)
-			let size = alloc_tmp ctx HI32 in
-			op ctx (OArraySize (size,harr));
-			let r = alloc_tmp ctx at in
-			let j = jump ctx (fun i -> OJULt (ri,size,i)) in
-			op ctx (ONull r);
-			let jend = jump ctx (fun i -> OJAlways i) in
-			j();
-			let tmp = alloc_tmp ctx HDyn in
-			op ctx (OGetArray (tmp,harr,ri));
-			let r2 = unsafe_cast_to ctx tmp at e.epos in
-			op ctx (OMov (r,r2));
-			jend();
-			r
+			let tmp = if et = HDyn then alloc_tmp ctx (class_type ctx ctx.array_impl.aobj [] false) else r in
+			op ctx (OCall1 (tmp, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "alloc", a));
+			if tmp <> r then op ctx (OCallMethod (r, 2, [tmp])); (* call toDynamic() *)
 		);
+		r
+	| TArray _ ->
+		(match get_access ctx e with
+		| AArray (ra,at,ridx) ->
+			(match at with
+			| HI8 | HI16 | HI32 | HF32 | HF64 ->
+				(* check bounds *)
+				let length = alloc_tmp ctx HI32 in
+				op ctx (OField (length, ra, 0));
+				let r = alloc_tmp ctx at in
+				let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
+				(match at with
+				| HI8 | HI16 | HI32 ->
+					op ctx (OInt (r,alloc_i32 ctx 0l));
+				| HF32 | HF64 ->
+					op ctx (OFloat (r,alloc_float ctx 0.));
+				| _ ->
+					assert false);
+				let jend = jump ctx (fun i -> OJAlways i) in
+				j();
+				let r2 = alloc_tmp ctx HI32 in
+				let bits = type_size_bits at in
+				if bits > 0 then begin
+					op ctx (OInt (r2,alloc_i32 ctx (Int32.of_int bits)));
+					op ctx (OShl (ridx,ridx,r2));
+				end;
+				let hbytes = alloc_tmp ctx HBytes in
+				op ctx (OField (hbytes, ra, 1));
+				read_mem ctx r hbytes ridx at;
+				jend();
+				r
+			| HDyn ->
+				(* call getDyn *)
+				let r = alloc_tmp ctx HDyn in
+				op ctx (OCallMethod (r,0,[ra;ridx]));
+				unsafe_cast_to ctx r at e.epos
+			| _ ->
+				(* check bounds *)
+				let length = alloc_tmp ctx HI32 in
+				op ctx (OField (length,ra,0));
+				let r = alloc_tmp ctx at in
+				let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
+				op ctx (ONull r);
+				let jend = jump ctx (fun i -> OJAlways i) in
+				j();
+				let tmp = alloc_tmp ctx HDyn in
+				let harr = alloc_tmp ctx HArray in
+				op ctx (OField (harr,ra,1));
+				op ctx (OGetArray (tmp,harr,ridx));
+				op ctx (OMov (r,unsafe_cast_to ctx tmp at e.epos));
+				jend();
+				r);
+		| _ ->
+			assert false);
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor _ ->
@@ -2052,8 +2256,6 @@ let generate_static ctx c f =
 	match f.cf_kind with
 	| Var _ | Method MethDynamic ->
 		()
-	| Method m when f.cf_expr = None ->
-		() (* ? *)
 	| Method m ->
 		let rec loop = function
 			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
@@ -2065,7 +2267,11 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				error "Invalid @:hlNative decl" p
 			| [] ->
-				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing method body" f.cf_pos) None None)
+				let null_fun() =
+					let t_void = ctx.com.basic.tvoid in
+					{ tf_expr = mk (TBlock []) t_void f.cf_pos; tf_type = t_void; tf_args = []; }
+				in
+				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> null_fun()) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -2176,12 +2382,9 @@ let check code =
 
 	let check_fun f =
 		let pos = ref 0 in
-		let debug() =
-			let dfile, dline = f.debug.(!pos) in
-			Printf.sprintf "%s(%d)" code.debugfiles.(dfile) dline
-		in
 		let error msg =
-			failwith ("Check failure " ^ msg ^ "\nAt " ^ string_of_int f.findex ^ "@" ^ string_of_int (!pos) ^ " " ^ debug())
+			let dfile, dline = f.debug.(!pos) in
+			failwith (Printf.sprintf "\n%s:%d: Check failure at %d@%d - %s" code.debugfiles.(dfile) dline f.findex (!pos) msg)
 		in
 		let targs, tret = (match f.ftype with HFun (args,ret) -> args, ret | _ -> assert false) in
 		let rtype i = f.regs.(i) in
@@ -2327,6 +2530,7 @@ let check code =
 			| OCallClosure (r,f,rl) ->
 				(match rtype f with
 				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
+				| HDyn -> List.iter (fun r -> ignore(rtype r)) rl;
 				| _ -> reg f (HFun(List.map rtype rl,rtype r)))
 			| OGetGlobal (r,g) | OSetGlobal (g,r) ->
 				reg r code.globals.(g)
@@ -2811,7 +3015,7 @@ let interp code =
 		| VObj o ->
 			let rec loop p =
 				try
-					let idx, t = PMap.find field p.pindex in
+					let idx, t = get_index field p in
 					set_with o.ofields.(idx) t
 				with Not_found -> try
 					let fid = PMap.find field p.pfunctions in
@@ -2909,6 +3113,10 @@ let interp code =
 
 
 	and call f args =
+		let fret = (match f.ftype with
+			| HFun (fargs,fret) -> if List.length fargs <> List.length args then error "Invalid args"; fret
+			| _ -> assert false
+		) in
 		let regs = Array.create (Array.length f.regs) VUndef in
 		let pos = ref 0 in
 		stack := (f,pos) :: !stack;
@@ -3101,7 +3309,9 @@ let interp code =
 				| VObj v as o -> set r (fcall v.oproto.pmethods.(m) (o :: List.map get rl))
 				| _ -> assert false)
 			| OCallClosure (r,v,rl) ->
-				(match get v with
+				if rtype v = HDyn then
+					set r (dyn_call (get v) (List.map (fun r -> get r, rtype r) rl) (rtype r))
+				else (match get v with
 				| VClosure (f,None) -> set r (fcall f (List.map get rl))
 				| VClosure (f,Some arg) -> set r (fcall f (arg :: List.map get rl))
 				| VNull -> null_access()
@@ -3208,7 +3418,7 @@ let interp code =
 				| VObj o, HVirtual vp ->
 					let indexes = Array.mapi (fun i (n,_,t) ->
 						try
-							let idx, ft = PMap.find n o.oproto.pclass.pindex in
+							let idx, ft = get_index n o.oproto.pclass in
 							if not (tsame t ft) then error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)");
 							VFIndex idx
 						with Not_found ->
@@ -3297,7 +3507,10 @@ let interp code =
 			try
 				loop()
 			with
-				| Return v -> stack := List.tl !stack; v
+				| Return v ->
+					check v fret (fun() -> "return value");
+					stack := List.tl !stack;
+					v
 				| InterpThrow v ->
 					match !traps with
 					| [] ->
@@ -3940,9 +4153,11 @@ let generate com =
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
 		array_impl = {
+			abase = get_class "ArrayBase";
+			adyn = get_class "ArrayDyn";
 			aobj = get_class "ArrayObj";
-			ai32 = get_class "ArrayI32";
-			af64 = get_class "ArrayF64";
+			ai32 = get_class "ArrayBasic_Int";
+			af64 = get_class "ArrayBasic_Float";
 		};
 		base_class = get_class "Class";
 		base_type = get_class "TypeDecl";

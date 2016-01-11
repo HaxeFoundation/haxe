@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-@:coreApi 
+@:coreApi
 class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool {
@@ -48,16 +48,18 @@ class Reflect {
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
+		var args : hl.types.ArrayDyn = cast args;
 		var count = args.length;
 		var nargs = o == null ? count : count + 1;
-		var args : hl.types.ArrayObj<Dynamic> = cast args;
 		var a = new hl.types.NativeArray<Dynamic>(nargs);
 		if( o == null ) {
-			a.blit(1,@:privateAccess args.array,0,count);
+			for( i in 0...count )
+				a[i] = args.getDyn(i);
 		} else {
 			func = hl.types.Api.noClosure(func);
 			a[0] = o;
-			a.blit(1,@:privateAccess args.array,0,count);
+			for( i in 0...count )
+				a[i+1] = args.getDyn(i);
 		}
 		return hl.types.Api.callMethod(func,a);
 	}
