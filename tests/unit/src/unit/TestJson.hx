@@ -12,6 +12,22 @@ class TestJson extends Test {
 		t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
 		eq( parts.join("#"), "" );
 
+		var str = haxe.Json.stringify(null, function(k,v) {
+			eq(k, "");
+			return "some";
+		});
+		eq(str, '"some"');
+
+		var keys = [];
+		var str = haxe.Json.stringify({a: {b: 10}}, function(k,v) {
+			keys.push(k);
+			if (k == "b") v = 15;
+			return v;
+		});
+		aeq(["", "a", "b"], keys);
+		eq(str, '{"a":{"b":15}}');
+
+
 		function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v, pos);
 		function deepId(v:Dynamic) {
 			var str = haxe.Json.stringify(v);
@@ -61,6 +77,21 @@ class TestJson extends Test {
 		t( parts.remove('"a":["hello"') );
 		t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
 		eq( parts.join("#"), "" );
+
+		var str = haxe.format.JsonPrinter.print(null, function(k,v) {
+			eq(k, "");
+			return "some";
+		});
+		eq(str, '"some"');
+
+		var keys = [];
+		var str = haxe.format.JsonPrinter.print({a: {b: 10}}, function(k,v) {
+			keys.push(k);
+			if (k == "b") v = 15;
+			return v;
+		});
+		aeq(["", "a", "b"], keys);
+		eq(str, '{"a":{"b":15}}');
 
 		function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.format.JsonParser.parse(haxe.format.JsonPrinter.print(v)),v);
 		function deepId(v:Dynamic) {
