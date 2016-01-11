@@ -57,18 +57,24 @@ package hl.types;
 	public function compare( pos : Int, bytes : Bytes, bytesPos : Int, size : Int ) : Int {
 		return 0;
 	}
-	
+
 	@:hlNative("std","bytes_find")
 	public function find( pos : Int, size : Int, bytes : Bytes, bytesPos : Int, bytesSize : Int ) : Int {
 		return 0;
 	}
-	
+
+	public function sub( pos : Int, size : Int ) {
+		var b = new Bytes(size);
+		b.blit(0, this, pos, size);
+		return b;
+	}
+
 
 	/**
 		Count the number of UTF8 chars into the given Bytes data.
 	**/
 	@:hlNative("std","utf8length")
-	function utf8Length( pos : Int, size : Int ) : Int {
+	public function utf8Length( pos : Int, size : Int ) : Int {
 		return 0;
 	}
 
@@ -79,7 +85,7 @@ package hl.types;
 	function bytesLength( pos : Int ) : Int {
 		return 0;
 	}
-	
+
 	@:hlNative("std","hash")
 	function hash() : Int {
 		return 0;
@@ -89,7 +95,7 @@ package hl.types;
 		Decode the utf8 char at the given position
 	**/
 	@:hlNative("std","utf8char")
-	function utf8Char( pos : Int, charPos : Int ) : Int {
+	public function utf8Char( pos : Int, charPos : Int ) : Int {
 		return 0;
 	}
 
@@ -97,7 +103,7 @@ package hl.types;
 		Gives the byte position for the utf8 char starting at pos.
 	**/
 	@:hlNative("std","utf8pos")
-	function utf8Pos( pos : Int, charPos : Int ) : Int {
+	public function utf8Pos( pos : Int, charPos : Int ) : Int {
 		return 0;
 	}
 

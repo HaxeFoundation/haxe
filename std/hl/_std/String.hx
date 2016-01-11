@@ -35,20 +35,65 @@ class String {
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
-		var startIndex : Int = startIndex;
-		if( startIndex < 0 ) startIndex = 0;
-		if( startIndex > size ) startIndex = size;
-		return bytes.find(startIndex,size - startIndex,str.bytes,0,str.size);
+		var startByte = 0;
+		if( startIndex != null && startIndex > 0 ) {
+			if( startIndex >= length )
+				return -1;
+			startByte = bytes.utf8Length(0, startIndex);
+		}
+		return bytes.find(startByte,size - startByte,str.bytes,0,str.size);
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
-		throw "TODO";
-		return -1;
+		var startByte = 0;
+		if( startIndex != null && startIndex > 0 ) {
+			if( startIndex >= length )
+				return -1;
+			startByte = bytes.utf8Length(0, startIndex);
+		}
+		var last = -1;
+		while( true ) {
+			var p = bytes.find(startByte, size - startByte, str.bytes, 0, str.size);
+			if( p < 0 ) break;
+			last = p;
+			startByte = p + 1;
+		}
+		return last;
 	}
 
 	public function split( delimiter : String ) : Array<String> {
-		throw "TODO";
-		return null;
+		var pos = 0;
+		var out = [];
+		if( size == 0 ) {
+			out.push("");
+			return out;
+		}
+		var dsize = delimiter.size;
+		if( dsize == 0 ) {
+			while( pos < size ) {
+				var p = bytes.utf8Pos(pos, 1);
+				out.push(subBytes(pos, p));
+				pos += p;
+			}
+			return out;
+		}
+		while( true ) {
+			var p = bytes.find(pos, size - pos, delimiter.bytes, 0, dsize);
+			if( p < 0 ) {
+				out.push(subBytes(pos, size-pos));
+				break;
+			}
+			out.push(subBytes(pos, pos - p));
+			pos = p + dsize;
+		}
+		return out;
+	}
+
+	function subBytes( pos : Int, size : Int ) : String {
+		var b = new hl.types.Bytes(size + 1);
+		b.blit(0, bytes, pos, size);
+		b[size] = 0;
+		return __alloc__(b, size, b.utf8Length(0, size));
 	}
 
 	public function substr( pos : Int, ?len : Int ) : String @:privateAccess {
@@ -74,8 +119,8 @@ class String {
 
 		var bytes = bytes;
 		var start = pos == 0 ? 0 : bytes.utf8Pos(0, pos);
-		var end = pos + len == sl ? size : bytes.utf8Pos(start, len);
-		var size = end - start;
+		var size = pos + len == sl ? size - start : bytes.utf8Pos(start, len);
+
 		var b = new hl.types.Bytes(size + 1);
 		b.blit(0, bytes, start, size);
 		b[size] = 0;

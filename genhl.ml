@@ -1447,6 +1447,10 @@ and eval_expr ctx e =
 			op ctx (OCallClosure (ret, r, el)); (* if it's a value, it's a closure *)
 		);
 		unsafe_cast_to ctx ret (to_type ctx e.etype) e.epos
+	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
+		let r = alloc_tmp ctx HI32 in
+		op ctx (OCall1 (r,alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", eval_null_check ctx ec));
+		r
 	| TField (ec,a) ->
 		let r = alloc_tmp ctx (to_type ctx (field_type ctx a e.epos)) in
 		(match get_access ctx e with
@@ -2759,6 +2763,7 @@ type value =
 
 and vabstract =
 	| AHashBytes of (string, value) Hashtbl.t
+	| AReg of regexp
 
 and vfunction =
 	| FFun of fundecl
@@ -2791,6 +2796,12 @@ and vdynobj = {
 and vfield =
 	| VFNone
 	| VFIndex of int
+
+and regexp = {
+	r : Str.regexp;
+	mutable r_string : string;
+	mutable r_groups : (int * int) option array;
+}
 
 exception Return of value
 
@@ -2833,6 +2844,8 @@ let rec is_compatible v t =
 	| VDynObj _, HDynObj -> true
 	| VVirtual v, HVirtual vt -> v.vtype == vt
 	| VRef (_,_,t1), HRef t2 -> tsame t1 t2
+	| VAbstract _, HAbstract _ -> true
+	| VEnum _, HEnum _ -> true
 	| _ -> false
 
 exception Runtime_error of string
@@ -2852,8 +2865,13 @@ let interp code =
 		try
 			Hashtbl.find cached_protos p.pname
 		with Not_found ->
-			let meths, fields = (match p.psuper with None -> [||],[||] | Some p -> let p,f = get_proto p in p.pmethods, f) in
-			let meths = Array.append meths (Array.map (fun f -> functions.(f)) p.pvirtuals) in
+			let fields = (match p.psuper with None -> [||] | Some p -> snd(get_proto p)) in
+			let meths = Array.map (fun f -> functions.(f)) p.pvirtuals in
+			Array.iter (fun f ->
+				match f.fvirtual with
+				| None -> ()
+				| Some v -> meths.(v) <- functions.(f.fmethod)
+			) p.pproto;
 			let fields = Array.append fields (Array.map (fun (_,_,t) -> t) p.pfields) in
 			let proto = ({ pclass = p; pmethods = meths },fields) in
 			Hashtbl.replace cached_protos p.pname proto;
@@ -2892,6 +2910,15 @@ let interp code =
 			VDyn (v,t)
 	in
 
+	let rec get_method p name =
+		let m = ref None in
+		Array.iter (fun p -> if p.fname = name then m := Some p.fmethod) p.pproto;
+		match !m , p.psuper with
+		| Some i, _ -> Some i
+		| None, Some s -> get_method s name
+		| None, None -> None
+	in
+
 	let rec vstr_d v =
 		match v with
 		| VNull -> "null"
@@ -2901,9 +2928,7 @@ let interp code =
 		| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ":" ^ tstr t ^ ")"
 		| VObj o ->
 			let p = "#" ^ o.oproto.pclass.pname in
-			let fid = ref None in
-			Array.iter (fun p -> if p.fname = "__string" then fid := Some p.fmethod) o.oproto.pclass.pproto;
-			(match !fid with
+			(match get_method o.oproto.pclass "__string" with
 			| None -> p
 			| Some f -> p ^ ":" ^ vstr_d (fcall (func f) [v]))
 		| VBytes b -> "bytes(" ^ (if String.length b > 0 && String.get b (String.length b - 1) = '\x00' then String.sub b 0 (String.length b - 1) else b) ^ ")"
@@ -2929,9 +2954,7 @@ let interp code =
 		| VDyn (v,t) ->
 			vstr v t
 		| VObj o ->
-			let fid = ref None in
-			Array.iter (fun p -> if p.fname = "__string" then fid := Some p.fmethod) o.oproto.pclass.pproto;
-			(match !fid with
+			(match get_method o.oproto.pclass "__string" with
 			| None -> "#" ^ o.oproto.pclass.pname
 			| Some f -> vstr (fcall (func f) [v]) HBytes)
 		| VBytes b -> (if String.length b > 0 && String.get b (String.length b - 1) = '\x00' then String.sub b 0 (String.length b - 1) else b)
@@ -2961,7 +2984,13 @@ let interp code =
 	and fcall f args =
 		match f with
 		| FFun f -> call f args
-		| FNativeFun (_,f,_) -> f args
+		| FNativeFun (_,f,_) ->
+			try
+				f args
+			with InterpThrow v ->
+				raise (InterpThrow v)
+			| e ->
+				error (Printexc.to_string e)
 
 	and dyn_set_field obj field v vt =
 		let v, vt = (match vt with
@@ -3099,9 +3128,7 @@ let interp code =
 		| _, VNull -> -1
 		| VObj oa, VObj ob ->
 			if oa == ob then 0 else
-			let fid = ref None in
-			Array.iter (fun p -> if p.fname = "__compare" then fid := Some p.fmethod) oa.oproto.pclass.pproto;
-			(match !fid with
+			(match get_method oa.oproto.pclass "__compare" with
 			| None -> 1
 			| Some f -> (match fcall (func f) [a;b] with VInt i -> Int32.to_int i | _ -> assert false));
 		| VDyn (v,t), _ ->
@@ -3113,13 +3140,15 @@ let interp code =
 
 
 	and call f args =
+		let regs = Array.create (Array.length f.regs) VUndef in
+		let pos = ref 1 in
+		stack := (f,pos) :: !stack;
 		let fret = (match f.ftype with
-			| HFun (fargs,fret) -> if List.length fargs <> List.length args then error "Invalid args"; fret
+			| HFun (fargs,fret) ->
+				if List.length fargs <> List.length args then error (Printf.sprintf "Invalid args: (%s) should be (%s)" (String.concat "," (List.map vstr_d args)) (String.concat "," (List.map tstr fargs)));
+				fret
 			| _ -> assert false
 		) in
-		let regs = Array.create (Array.length f.regs) VUndef in
-		let pos = ref 0 in
-		stack := (f,pos) :: !stack;
 		let rtype i = f.regs.(i) in
 		let check v t id =
 			if not (is_compatible v t) then error (Printf.sprintf "Can't set %s(%s) with %s" (id()) (tstr t) (vstr_d v));
@@ -3523,10 +3552,13 @@ let interp code =
 						set r v;
 						exec()
 		in
+		pos := 0;
 		exec()
 	in
 	let int = Int32.to_int in
+	let string s = String.sub s 0 (String.length s - 1) in (* chop last \0 which is not needed in ocaml *)
 	let load_native lib name t =
+		let unresolved() = (fun args -> error ("Unresolved native " ^ lib ^ "@" ^ name)) in
 		let f = (match lib with
 		| "std" ->
 			(match name with
@@ -3593,10 +3625,13 @@ let interp code =
 					let b = String.sub b start (String.length b - start) in
 					VInt (Int32.of_int (try UChar.code (UTF8.get b (int index)) with _ -> 0))
 				| _ -> assert false)
-			| "math_sqrt" ->
-				(function
-				| [VFloat f] -> VFloat (sqrt f)
-				| _ -> assert false)
+			| "math_round" -> (function [VFloat f] -> VInt (Int32.of_float (floor (f +. 0.5))) | _ -> assert false)
+			| "math_floor" -> (function [VFloat f] -> VInt (Int32.of_float (floor f)) | _ -> assert false)
+			| "math_ceil" -> (function [VFloat f] -> VInt (Int32.of_float (ceil f)) | _ -> assert false)
+			| "math_ffloor" -> (function [VFloat f] -> VFloat (floor f) | _ -> assert false)
+			| "math_fceil" -> (function [VFloat f] -> VFloat (ceil f) | _ -> assert false)
+			| "math_fround" -> (function [VFloat f] -> VFloat (floor (f +. 0.5)) | _ -> assert false)
+			| "math_sqrt" -> (function [VFloat f] -> VFloat (sqrt f) | _ -> assert false)
 			| "parse_int" ->
 				(function
 				| [VBytes str; VInt len] ->
@@ -3675,12 +3710,109 @@ let interp code =
 			| "bytes_find" ->
 				(function
 				| [VBytes src; VInt pos; VInt len; VBytes chk; VInt cpos; VInt clen; ] ->
-					VInt (Int32.of_int (try ExtString.String.find (String.sub src (int pos) (int len)) (String.sub chk (int cpos) (int clen)) with ExtString.Invalid_string -> -1))
+					VInt (Int32.of_int (try int pos + ExtString.String.find (String.sub src (int pos) (int len)) (String.sub chk (int cpos) (int clen)) with ExtString.Invalid_string -> -1))
 				| _ -> assert false)
 			| _ ->
-				(fun args -> error ("Unresolved native " ^ name)))
+				unresolved())
+		| "regexp" ->
+			(match name with
+			| "regexp_new_options" ->
+				(function
+				| [VBytes str; VBytes opt] ->
+					let case_sensitive = ref true in
+					List.iter (function
+						| 'm' -> () (* always ON ? *)
+						| 'i' -> case_sensitive := false
+						| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
+					) (ExtString.String.explode (string opt));
+					let buf = Buffer.create 0 in
+					let rec loop prev esc = function
+						| [] -> ()
+						| c :: l when esc ->
+							(match c with
+							| 'n' -> Buffer.add_char buf '\n'
+							| 'r' -> Buffer.add_char buf '\r'
+							| 't' -> Buffer.add_char buf '\t'
+							| 'd' -> Buffer.add_string buf "[0-9]"
+							| '\\' -> Buffer.add_string buf "\\\\"
+							| '(' | ')' -> Buffer.add_char buf c
+							| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
+								Buffer.add_char buf '\\';
+								Buffer.add_char buf c;
+							| _ -> failwith ("Unsupported escaped char '" ^ String.make 1 c ^ "'"));
+							loop c false l
+						| c :: l ->
+							match c with
+							| '\\' -> loop prev true l
+							| '(' | '|' | ')' ->
+								Buffer.add_char buf '\\';
+								Buffer.add_char buf c;
+								loop c false l
+							| '?' when prev = '(' && (match l with ':' :: _ -> true | _ -> false) ->
+								failwith "Non capturing groups '(?:' are not supported in macros"
+							| '?' when prev = '*' ->
+								failwith "Ungreedy *? are not supported in macros"
+							| _ ->
+								Buffer.add_char buf c;
+								loop c false l
+					in
+					loop '\000' false (ExtString.String.explode (string str));
+					let str = Buffer.contents buf in
+					let r = {
+						r = if !case_sensitive then Str.regexp str else Str.regexp_case_fold str;
+						r_string = "";
+						r_groups = [||];
+					} in
+					VAbstract (AReg r)
+				| _ ->
+					assert false);
+(*		"regexp_match", Fun4 (fun r str pos len ->
+			match r, str, pos, len with
+			| VAbstract (AReg r), VString str, VInt pos, VInt len ->
+				let nstr, npos, delta = (if len = String.length str - pos then str, pos, 0 else String.sub str pos len, 0, pos) in
+				(try
+					ignore(Str.search_forward r.r nstr npos);
+					let rec loop n =
+						if n = 9 then
+							[]
+						else try
+							(Some (Str.group_beginning n + delta, Str.group_end n + delta)) :: loop (n + 1)
+						with Not_found ->
+							None :: loop (n + 1)
+						| Invalid_argument _ ->
+							[]
+					in
+					r.r_string <- str;
+					r.r_groups <- Array.of_list (loop 0);
+					VBool true;
+				with Not_found ->
+					VBool false)
+			| _ -> error()
+		);
+		"regexp_matched", Fun2 (fun r n ->
+			match r, n with
+			| VAbstract (AReg r), VInt n ->
+				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
+				| None -> VNull
+				| Some (pos,pend) -> VString (String.sub r.r_string pos (pend - pos)))
+			| _ -> error()
+		);
+		"regexp_matched_pos", Fun2 (fun r n ->
+			match r, n with
+			| VAbstract (AReg r), VInt n ->
+				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
+				| None -> VNull
+				| Some (pos,pend) -> VObject (obj (hash_field (get_ctx())) ["pos",VInt pos;"len",VInt (pend - pos)]))
+			| _ -> error()
+		);
+		(* regexp_replace : not used by Haxe *)
+		(* regexp_replace_all : not used by Haxe *)
+		(* regexp_replace_fun : not used by Haxe *)
+	]*)
+			| _ ->
+				unresolved())
 		| _ ->
-			(fun args -> error ("Unresolved native " ^ name))
+			unresolved()
 		) in
 		FNativeFun (lib ^ "@" ^ name, f, t)
 	in
@@ -4165,23 +4297,24 @@ let generate com =
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();
 	} in
-	ignore(alloc_string ctx "");
-	ignore(class_type ctx ctx.base_class [] false);
 	let all_classes = Hashtbl.create 0 in
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->
 			let rec loop p f =
 				match p with
-				| Some (p,_) when PMap.mem f.cf_name p.cl_fields ->
+				| Some (p,_) when PMap.mem f.cf_name p.cl_fields || loop p.cl_super f ->
 					Hashtbl.replace ctx.overrides (f.cf_name,p.cl_path) true;
-					loop p.cl_super f
-				| _ -> ()
+					true
+				| _ ->
+					false
 			in
-			List.iter (fun f -> loop c.cl_super f) c.cl_overrides;
+			List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
 			Hashtbl.add all_classes c.cl_path c
  		| _ -> ()
 	) com.types;
+	ignore(alloc_string ctx "");
+	ignore(class_type ctx ctx.base_class [] false);
 	List.iter (generate_type ctx) com.types;
 	let ep = generate_static_init ctx in
 	let code = {

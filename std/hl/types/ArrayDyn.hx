@@ -1,5 +1,22 @@
 package hl.types;
 
+class ArrayDynIterator {
+	var a : ArrayBase;
+	var len : Int;
+	var pos : Int;
+	public function new(a) {
+		this.a = a;
+		this.len = a.length;
+		this.pos = 0;
+	}
+	public function hasNext() {
+		return pos < len;
+	}
+	public function next() {
+		return a.getDyn(pos++);
+	}
+}
+
 @:keep
 class ArrayDyn extends ArrayBase.ArrayAccess {
 
@@ -109,8 +126,7 @@ class ArrayDyn extends ArrayBase.ArrayAccess {
 	}
 
 	public function iterator() : Iterator<Dynamic> {
-		throw "TODO";
-		return null;
+		return new ArrayDynIterator(array);
 	}
 
 	public function map( f : Dynamic -> Dynamic ) : ArrayDyn {

@@ -5,8 +5,8 @@ abstract NativeBytesMap(NativeAbstract<"BytesMap">) {
 	@:extern public inline function new() {
 		this = alloc();
 	}
-	
-	@:hlNative("std","hballoc") function alloc() : NativeAbstract<"BytesMap"> {
+
+	@:hlNative("std","hballoc") static function alloc() : NativeAbstract<"BytesMap"> {
 		return null;
 	}
 
@@ -18,7 +18,7 @@ abstract NativeBytesMap(NativeAbstract<"BytesMap">) {
 	public function exists( key : Bytes ) : Bool {
 		return false;
 	}
-	
+
 	@:hlNative("std","hbget")
 	public function get( key : Bytes ) : Dynamic {
 		return null;

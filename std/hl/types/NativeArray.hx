@@ -41,6 +41,12 @@ package hl.types;
 		return value;
 	}
 
+	@:extern public inline function sub( pos : Int, len : Int ) {
+		var n = new NativeArray<T>(len);
+		n.blit(0, this, pos, len);
+		return n;
+	}
+
 	@:hlNative("std","atype") public function getType() : Type {
 		return null;
 	}

@@ -58,8 +58,26 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function splice( pos : Int, len : Int ) : ArrayObj<T> {
-		throw "TODO";
-		return null;
+		if( len < 0 ) return new ArrayObj();
+		if( pos < 0 ){
+			pos = this.length + pos;
+			if( pos < 0 ) pos = 0;
+		}
+		if( pos > this.length ) {
+			pos = 0;
+			len = 0;
+		} else if( pos + len > this.length ) {
+			len = this.length - pos;
+			if( len < 0 ) len = 0;
+		}
+		var a = this.array;
+		var ret : ArrayObj<T> = alloc(cast a.sub(pos,len));
+		var end = pos + len;
+		a.blit(pos,a,end,this.length-end);
+		this.length -= len;
+		while( --len >= 0 )
+			a[this.length + len] = null;
+		return ret;
 	}
 
 	override function toString() : String {
@@ -85,7 +103,7 @@ class ArrayObj<T> extends ArrayBase {
 		var i = indexOf(x);
 		if( i < 0 ) return false;
 		length--;
-		array.blit(i,array,i+1,length);
+		array.blit(i,array,i+1,length - i);
 		array[length] = null;
 		return true;
 	}
@@ -148,6 +166,7 @@ class ArrayObj<T> extends ArrayBase {
 			return null;
 		return array[pos];
 	}
+
 	override function setDyn( pos : Int, v : Dynamic ) {
 		var pos : UInt = pos;
 		if( pos >= length )
@@ -167,8 +186,8 @@ class ArrayObj<T> extends ArrayBase {
 	override function sortDyn( f : Dynamic -> Dynamic -> Int ) sort(f);
 	override function spliceDyn( pos : Int, len : Int ) return splice(pos, len);
 
-	public static function alloc( a : hl.types.NativeArray<Dynamic> ) {
-		var arr : ArrayObj<Dynamic> = untyped $new(ArrayObj);
+	public static function alloc<T>( a : hl.types.NativeArray<T> ) : ArrayObj<T> {
+		var arr : ArrayObj<T> = untyped $new(ArrayObj);
 		arr.array = a;
 		arr.length = a.length;
 		return arr;
