@@ -355,6 +355,11 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ -> true
 	| _ -> false
 
+let is_array_type t =
+	match t with
+	| HObj { pname = "hl.types.ArrayDyn" | "hl.types.ArrayBasic_Int" | "hl.types.ArrayBasic_Float" | "hl.types.ArrayObj" } -> true
+	| _ -> false
+
 let rec safe_cast t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
@@ -570,6 +575,13 @@ let rec to_type ctx t =
 						if it's optional it might not be present, handle the field access as fully Dynamic
 					*)
 					acc
+				| Var _ when (match follow cf.cf_type with TAnon _ | TFun _ -> true | _ -> false) ->
+					(*
+						if it's another virtual or a method, it might not match our own (might be larger, or class)
+					*)
+					acc
+				| Method _ ->
+					acc
 				| _ ->
 					(cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc
 			) a.a_fields [] in
@@ -612,10 +624,6 @@ let rec to_type ctx t =
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
 			to_type ctx (Abstract.get_underlying_type a pl)
-
-and native_array_type ctx t =
-	let et = to_type ctx t in
-	if is_dynamic et then et else HDyn
 
 and resolve_class ctx c pl =
 	let not_supported() =
@@ -682,17 +690,18 @@ and class_type ctx c pl statics =
 			if statics then assert false;
 			p.pnfields <- 1;
 		end;
-		let csup = (if statics then Some (ctx.base_class,[]) else c.cl_super) in
-		let start_field, virtuals = (match csup with
+		let tsup = (match c.cl_super with
+			| None -> if statics then Some (class_type ctx ctx.base_class [] false) else None
+			| Some (csup,pl) -> Some (class_type ctx csup [] statics)
+		) in
+		let start_field, virtuals = (match tsup with
 			| None -> 0, [||]
-			| Some (c,pl) ->
-				match class_type ctx c pl false with
-				| HObj psup ->
-					if psup.pnfields < 0 then assert false;
-					p.psuper <- Some psup;
-					p.pfunctions <- psup.pfunctions;
-					psup.pnfields, psup.pvirtuals
-				| _ -> assert false
+			| Some (HObj psup) ->
+				if psup.pnfields < 0 then assert false;
+				p.psuper <- Some psup;
+				p.pfunctions <- psup.pfunctions;
+				psup.pnfields, psup.pvirtuals
+			| _ -> assert false
 		) in
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let todo = ref [] in
@@ -968,9 +977,15 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let fr = alloc_tmp ctx t in
 		op ctx (OClosure (fr,fid,r));
 		fr
-	| HObj ({ pname = "hl.types.ArrayBasic_Int" | "hl.types.ArrayBasic_Float" | "hl.types.ArrayObj" } as p), HObj { pname = "hl.types.ArrayDyn" } ->
+	| HObj p, HObj { pname = "hl.types.ArrayDyn" } when is_array_type rt ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OCallMethod (tmp,(try fst (get_index "toDynamic" p) with Not_found -> assert false),[r])); (* call toDynamic() *)
+		tmp
+	| HObj { pname = "hl.types.ArrayDyn" }, HObj p when is_array_type t ->
+		let tmp = alloc_tmp ctx t in
+		let tmp2 = alloc_tmp ctx (class_type ctx ctx.array_impl.abase [] false) in
+		op ctx (OField (tmp2,r,0));
+		op ctx (OUnsafeCast (tmp,tmp2));
 		tmp
 	| _ ->
 		invalid()
@@ -983,6 +998,10 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 	match rt with
 	| HFun _ ->
 		cast_to ctx r t p
+	| HObj { pname = "hl.types.ArrayDyn" } when is_array_type t ->
+		cast_to ctx r t p
+	| HDyn when is_array_type t ->
+		assert false (* might be either ArrayObj/ArrayBasic/ArrayDyn *)
 	| _ ->
 		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
@@ -1368,7 +1387,7 @@ and eval_expr ctx e =
 			op ctx (OArraySize (r, eval_to ctx e HArray));
 			r
 		| "$aalloc", [esize] ->
-			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> native_array_type ctx t | _ -> invalid()) in
+			let et = (match follow e.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let a = alloc_tmp ctx HArray in
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,et));
@@ -1382,19 +1401,11 @@ and eval_expr ctx e =
 			let at = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let arr = eval_to ctx a HArray in
 			let pos = eval_to ctx pos HI32 in
-			let r =
-				if is_dynamic at then
-					let r = alloc_tmp ctx at in
-					op ctx (OGetArray (r, arr, pos));
-					r
-				else
-					let tmp = alloc_tmp ctx HDyn in
-					op ctx (OGetArray (tmp,arr,pos));
-					unsafe_cast_to ctx tmp at e.epos
-			in
+			let r = alloc_tmp ctx at in
+			op ctx (OGetArray (r, arr, pos));
 			cast_to ctx r (to_type ctx e.etype) e.epos
 		| "$aset", [a; pos; value] ->
-			let et = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> native_array_type ctx t | _ -> invalid()) in
+			let et = (match follow a.etype with TAbstract ({ a_path = ["hl";"types"],"NativeArray" },[t]) -> to_type ctx t | _ -> invalid()) in
 			let arr = eval_to ctx a HArray in
 			let pos = eval_to ctx pos HI32 in
 			let r = eval_to ctx value et in
@@ -2607,7 +2618,7 @@ let check code =
 			| OGetArray (v,a,i) ->
 				reg a HArray;
 				reg i HI32;
-				is_dyn v;
+				ignore(rtype v);
 			| OGetI8 (r,b,p) ->
 				reg r HI32;
 				reg b HBytes;
@@ -2643,7 +2654,7 @@ let check code =
 			| OSetArray (a,i,v) ->
 				reg a HArray;
 				reg i HI32;
-				is_dyn v;
+				ignore(rtype v);
 			| OUnsafeCast (a,b) ->
 				is_dyn a;
 				is_dyn b;
@@ -2763,6 +2774,7 @@ type value =
 
 and vabstract =
 	| AHashBytes of (string, value) Hashtbl.t
+	| AHashInt of (int32, value) Hashtbl.t
 	| AReg of regexp
 
 and vfunction =
@@ -2832,8 +2844,8 @@ let rec is_compatible v t =
 	| VFloat _, (HF32 | HF64) -> true
 	| VBool _, HBool -> true
 	| VNull, t -> is_nullable t
-	| VObj _, HObj _ -> true
-	| VClosure _, HFun _ -> true
+	| VObj o, HObj _ -> safe_cast (HObj o.oproto.pclass) t
+	| VClosure _, HFun _ -> safe_cast (match get_type v with None -> assert false | Some t -> t) t
 	| VBytes _, HBytes -> true
 	| VDyn (_,t1), HNull t2 -> tsame t1 t2
 	| v, HNull t -> is_compatible v t
@@ -2842,7 +2854,7 @@ let rec is_compatible v t =
 	| VType _, HType -> true
 	| VArray _, HArray -> true
 	| VDynObj _, HDynObj -> true
-	| VVirtual v, HVirtual vt -> v.vtype == vt
+	| VVirtual v, HVirtual _ -> tsame (HVirtual v.vtype) t
 	| VRef (_,_,t1), HRef t2 -> tsame t1 t2
 	| VAbstract _, HAbstract _ -> true
 	| VEnum _, HEnum _ -> true
@@ -3557,6 +3569,7 @@ let interp code =
 	in
 	let int = Int32.to_int in
 	let string s = String.sub s 0 (String.length s - 1) in (* chop last \0 which is not needed in ocaml *)
+	let streof s = try String.sub s 0 (String.index s '\000') with Not_found -> s in
 	let load_native lib name t =
 		let unresolved() = (fun args -> error ("Unresolved native " ^ lib ^ "@" ^ name)) in
 		let f = (match lib with
@@ -3568,7 +3581,7 @@ let interp code =
 				| _ -> assert false)
 			| "aalloc" ->
 				(function
-				| [VType t;VInt i] -> VArray (Array.create (int i) VNull,t)
+				| [VType t;VInt i] -> VArray (Array.create (int i) (default t),t)
 				| _ -> assert false)
 			| "ablit" ->
 				(function
@@ -3653,13 +3666,97 @@ let interp code =
 				(function
 				| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> VInt (Int32.of_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len))))
 				| _ -> assert false)
+			| "dyn_compare" ->
+				(function
+				| [a;b] -> VInt (Int32.of_int (dyn_compare a HDyn b HDyn))
+				| _ -> assert false)
+			| "atype" ->
+				(function
+				| [VArray (_,t)] -> VType t
+				| _ -> assert false)
+			| "safe_cast" ->
+				(function
+				| [v;VType t] -> if is_compatible v t then v else error ("Cannot cast " ^ vstr_d v ^ " to " ^ tstr t);
+				| _ -> assert false)
 			| "hballoc" ->
 				(function
 				| [] -> VAbstract (AHashBytes (Hashtbl.create 0))
 				| _ -> assert false)
+			| "hbset" ->
+				(function
+				| [VAbstract (AHashBytes h);VBytes b;v] ->
+					Hashtbl.replace h (streof b) v;
+					VUndef
+				| _ -> assert false)
+			| "hbget" ->
+				(function
+				| [VAbstract (AHashBytes h);VBytes b] ->
+					(try Hashtbl.find h (streof b) with Not_found -> VNull)
+				| _ -> assert false)
+			| "hbvalues" ->
+				(function
+				| [VAbstract (AHashBytes h)] ->
+					let values = Hashtbl.fold (fun _ v acc -> v :: acc) h [] in
+					VArray (Array.of_list values, HDyn)
+				| _ -> assert false)
+			| "hbkeys" ->
+				(function
+				| [VAbstract (AHashBytes h)] ->
+					let keys = Hashtbl.fold (fun s _ acc -> VBytes (s ^ "\000") :: acc) h [] in
+					VArray (Array.of_list keys, HBytes)
+				| _ -> assert false)
+			| "hbexists" ->
+				(function
+				| [VAbstract (AHashBytes h);VBytes b] -> VBool (Hashtbl.mem h (streof b))
+				| _ -> assert false)
+			| "hbremove" ->
+				(function
+				| [VAbstract (AHashBytes h);VBytes b] ->
+					let m = Hashtbl.mem h (streof b) in
+					if m then Hashtbl.remove h (streof b);
+					VBool m
+				| _ -> assert false)
+			| "hialloc" ->
+				(function
+				| [] -> VAbstract (AHashInt (Hashtbl.create 0))
+				| _ -> assert false)
+			| "hiset" ->
+				(function
+				| [VAbstract (AHashInt h);VInt i;v] ->
+					Hashtbl.replace h i v;
+					VUndef
+				| _ -> assert false)
+			| "higet" ->
+				(function
+				| [VAbstract (AHashInt h);VInt i] ->
+					(try Hashtbl.find h i with Not_found -> VNull)
+				| _ -> assert false)
+			| "hivalues" ->
+				(function
+				| [VAbstract (AHashInt h)] ->
+					let values = Hashtbl.fold (fun _ v acc -> v :: acc) h [] in
+					VArray (Array.of_list values, HDyn)
+				| _ -> assert false)
+			| "hikeys" ->
+				(function
+				| [VAbstract (AHashInt h)] ->
+					let keys = Hashtbl.fold (fun i _ acc -> VInt i :: acc) h [] in
+					VArray (Array.of_list keys, HI32)
+				| _ -> assert false)
+			| "hiexists" ->
+				(function
+				| [VAbstract (AHashInt h);VInt i] -> VBool (Hashtbl.mem h i)
+				| _ -> assert false)
+			| "hiremove" ->
+				(function
+				| [VAbstract (AHashInt h);VInt i] ->
+					let m = Hashtbl.mem h i in
+					if m then Hashtbl.remove h i;
+					VBool m
+				| _ -> assert false)
 			| "sys_print" ->
 				(function
-				| [VBytes str] -> print_string (try String.sub str 0 (String.index str '\000') with Not_found -> str); VUndef
+				| [VBytes str] -> print_string (streof str); VUndef
 				| _ -> assert false)
 			| "sys_exit" ->
 				(function
@@ -3682,11 +3779,11 @@ let interp code =
 							let sup = (match o.psuper with None -> [||] | Some o -> fields o) in
 							Array.concat [
 								sup;
-								Array.map (fun (s,_,_) -> VDyn (VBytes (s ^ "\000"),HBytes)) o.pfields;
-								Array.map (fun f -> VDyn (VBytes (f.fname ^ "\000"),HBytes)) o.pproto
+								Array.map (fun (s,_,_) -> VBytes (s ^ "\000")) o.pfields;
+								Array.map (fun f -> VBytes (f.fname ^ "\000")) o.pproto
 							]
 						in
-						VArray (fields o,HDyn)
+						VArray (fields o,HBytes)
 					| _ -> VNull)
 				| _ -> assert false)
 			| "get_field" ->

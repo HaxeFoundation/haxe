@@ -33,7 +33,7 @@ package hl.types;
 	}
 
 	@:extern @:arrayAccess inline function get( pos : Int ) : T {
-		return untyped $aget(this,pos);
+		return untyped ($aget(this,pos):T);
 	}
 
 	@:extern @:arrayAccess inline function set( pos : Int, value : T ) : T {

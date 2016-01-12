@@ -6,7 +6,7 @@ abstract NativeObjectMap(NativeAbstract<"ObjectMap">) {
 		this = alloc();
 	}
 	
-	@:hlNative("std","hoalloc") function alloc() : NativeAbstract<"ObjectMap"> {
+	@:hlNative("std","hoalloc") static function alloc() : NativeAbstract<"ObjectMap"> {
 		return null;
 	}
 

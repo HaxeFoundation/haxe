@@ -39,7 +39,7 @@ class Std {
 		return null;
 	}
 
-	public static inline function int( v : Float ) : Int {
+	@:extern public static inline function int( v : Float ) : Int {
 		return untyped $int(v);
 	}
 

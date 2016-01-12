@@ -6,7 +6,7 @@ abstract NativeIntMap(NativeAbstract<"IntMap">) {
 		this = alloc();
 	}
 	
-	@:hlNative("std","hialloc") function alloc() : NativeAbstract<"IntMap"> {
+	@:hlNative("std","hialloc") static function alloc() : NativeAbstract<"IntMap"> {
 		return null;
 	}
 

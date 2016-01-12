@@ -74,8 +74,8 @@ class Reflect {
 		return false;
 	}
 
+	@:hlNative("std","dyn_compare")
 	public static function compare<T>( a : T, b : T ) : Int {
-		throw "TODO";
 		return 0;
 	}
 
@@ -95,8 +95,7 @@ class Reflect {
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
-		throw "TODO";
-		return false;
+		return hl.types.Api.deleteField(o,@:privateAccess field.bytes.hash());
 	}
 
 	public static function copy<T>( o : T ) : T {

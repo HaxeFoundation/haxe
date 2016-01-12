@@ -45,18 +45,19 @@ class String {
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
-		var startByte = 0;
-		if( startIndex != null && startIndex > 0 ) {
-			if( startIndex >= length )
+		var lastByte = size;
+		if( startIndex != null && startIndex < length ) {
+			if( startIndex <= 0 )
 				return -1;
-			startByte = bytes.utf8Length(0, startIndex);
+			lastByte = bytes.utf8Length(0, startIndex);
 		}
 		var last = -1;
+		var pos = 0;
 		while( true ) {
-			var p = bytes.find(startByte, size - startByte, str.bytes, 0, str.size);
-			if( p < 0 ) break;
+			var p = bytes.find(pos, size - pos, str.bytes, 0, str.size);
+			if( p < 0 || p >= lastByte ) break;
 			last = p;
-			startByte = p + 1;
+			pos = p + 1;
 		}
 		return last;
 	}

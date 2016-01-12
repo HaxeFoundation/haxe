@@ -16,8 +16,12 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	override function join( sep : String ) : String {
-		throw "TODO";
-		return null;
+		var b = new StringBuf();
+		for( i in 0...length ) {
+			if( i > 0 ) b.add(sep);
+			b.add(array[i]);
+		}
+		return b.toString();
 	}
 
 	public function pop() : Null<T> {
@@ -54,7 +58,8 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function sort( f : T -> T -> Int ) : Void {
-		throw "TODO";
+		// TODO : use native call ?
+		haxe.ds.ArraySort.sort(cast toDynamic(), f);
 	}
 
 	public function splice( pos : Int, len : Int ) : ArrayObj<T> {
