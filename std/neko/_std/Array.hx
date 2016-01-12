@@ -145,11 +145,11 @@
 		return false;
 	}
 	
-	public function removeAt(pos : Int) : T {
+	public function removeAt(pos : Int) : Bool {
 		var l = this.length;
-		if ( l == 0) return null;
+		if ( l == 0) return false;
+		if ( pos >= l) pos = pos % l;
 		if ( pos < 0) pos += l;
-		if ( pos >= l) return null;
 		
 		var i = pos;
 		var a = this.__a;
@@ -159,7 +159,7 @@
 		this.length = l;
 		a[l] = null;
 		
-		return o;
+		return true;
 	}
 
 	public function indexOf(x : T, ?fromIndex:Int) : Int {

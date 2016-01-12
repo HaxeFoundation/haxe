@@ -220,15 +220,15 @@ extern class Array<T> {
 	**/
 	function remove( x : T ) : Bool;
 	
-	#if (js||cpp||neko||(flash&&flash19))
+	#if (js||cpp||neko||flash)
 	/**
 		Removes the element at position `pos`. The Array is changed in place. 
 
-		If `pos` is positive and within the bounds of the Array the array is modified and its remaining elements are shifted back.
-		If `pos` is negative additionnaly the position specified is considered a position relative to the end of the array
-		if `pos` is positive and not within bounds, nothing occurs and return value is unspecified
+		If `pos` is positive and within the bounds of the Array the array is modified and its remaining elements are shifted back,  returns true.
+		If `pos` is negative additionnaly the position specified is considered a position relative to the end of the array, returns true
+		if `pos` is positive and not within bounds, nothing occurs and return value is false
 	**/
-	function removeAt( pos : Int ) : T;
+	function removeAt( pos : Int ) : Bool;
 	#end
 	
 	/**

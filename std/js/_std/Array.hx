@@ -45,8 +45,8 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.remove(this,x);
 	}
 	
-	inline function removeAt( pos : Int ) : T {
-		return (untyped this).splice(pos,1)[0];
+	inline function removeAt( pos : Int ) : Bool {
+		return (untyped this).splice(pos,1).length != 0;
 	}
 
 #if js_es5
