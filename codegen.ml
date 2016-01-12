@@ -1093,7 +1093,14 @@ module PatternMatchConversion = struct
 		| DTSwitch({eexpr = TMeta((Meta.Exhaustive,_,_),_)},[_,dt],None) ->
 			convert_dt cctx dt
 		| DTSwitch(e_st,cl,dto) ->
-			let def = match dto with None -> None | Some dt -> Some (convert_dt cctx dt) in
+			let def = match dto with
+				| None ->
+					None
+				| Some dt ->
+					let e = convert_dt cctx dt in
+					let e = if cctx.ctx.in_macro then e else replace_locals e in
+					Some e
+			in
 			let cases = group_cases cl in
 			let cases = List.map (fun (cl,dt) ->
 				let e = convert_dt cctx dt in
