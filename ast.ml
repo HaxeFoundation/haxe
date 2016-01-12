@@ -138,6 +138,7 @@ module Meta = struct
 		| Protected
 		| Public
 		| PublicFields
+		| Pure
 		| QuotedField
 		| ReadOnly
 		| RealPath

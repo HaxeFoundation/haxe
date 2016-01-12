@@ -124,7 +124,7 @@ let rec can_be_used_as_value com e =
 	with Exit ->
 		false
 
-let has_pure_meta meta = Meta.has (Meta.Custom ":pure") meta
+let has_pure_meta meta = Meta.has Meta.Pure meta
 
 let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
 
@@ -2735,7 +2735,7 @@ module Purity = struct
 				if (Meta.has (Meta.Custom ":impure")) cf.cf_meta then taint_raise node;
 				loop e;
 				node.pn_purity <- Pure;
-				cf.cf_meta <- (Meta.Custom ":pure",[],e.epos) :: cf.cf_meta
+				cf.cf_meta <- (Meta.Pure,[],e.epos) :: cf.cf_meta
 			with Exit ->
 				()
 
