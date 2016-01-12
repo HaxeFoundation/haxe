@@ -21,6 +21,7 @@
  */
 @:coreApi class Reflect {
 
+	@:pure
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
 	}
