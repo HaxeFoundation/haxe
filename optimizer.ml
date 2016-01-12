@@ -644,7 +644,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				mk (TBlock (el_v @ [e])) tret e.epos
 		) in
 		let inline_meta e meta = match meta with
-			| Meta.Deprecated,_,_ -> mk (TMeta(meta,e)) e.etype e.epos
+			| (Meta.Deprecated | Meta.Pure),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
 			| _ -> e
 		in
 		let e = List.fold_left inline_meta e cf.cf_meta in

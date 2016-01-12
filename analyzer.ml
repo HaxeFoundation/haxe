@@ -361,6 +361,8 @@ module TexprFilter = struct
 	let get_interference_kind e =
 		let vars = ref [] in
 		let rec loop e = match e.eexpr with
+			| TMeta((Meta.Pure,_,_),_) ->
+				()
 			| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
 				vars := v :: !vars
 			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) ->
@@ -489,6 +491,8 @@ module TexprFilter = struct
 						| IKNone -> ()
 						| IKSideEffect -> (* TODO: Could this miss a IKVarMod case? *)
 							let rec loop e = match e.eexpr with
+								| TMeta((Meta.Pure,_,_),_) ->
+									()
 								| TField _ when Optimizer.is_affected_type e.etype ->
 									raise Exit
 								| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
@@ -2703,6 +2707,8 @@ module Purity = struct
 					taint_raise node
 			end
 		and loop e = match e.eexpr with
+			| TMeta((Meta.Pure,_,_),_) ->
+				()
 			| TThrow _ ->
 				taint_raise node;
 			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
