@@ -2615,7 +2615,13 @@ let macro_lib =
 			match v with
 			| VString cp ->
 				let com = ccom() in
-				com.class_path <- (Common.normalize_path cp) :: com.class_path;
+				let norm_path = Common.normalize_path cp in
+				com.class_path <- norm_path :: com.class_path;
+				(match com.get_macros() with
+					| Some(mcom) ->
+						mcom.class_path <- norm_path :: com.class_path;
+					| None ->
+						());
 				Hashtbl.clear com.file_lookup_cache;
 				VNull
 			| _ ->
