@@ -2124,7 +2124,8 @@ let map_expr f e =
 	| TObjectDecl el ->
 		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el) }
 	| TCall (e1,el) ->
-		{ e with eexpr = TCall (f e1, List.map f el) }
+		let e1 = f e1 in
+		{ e with eexpr = TCall (e1, List.map f el) }
 	| TVar (v,eo) ->
 		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
 	| TFunction fu ->
