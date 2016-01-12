@@ -113,6 +113,8 @@ let rec can_be_used_as_value com e =
 		| TCall({eexpr = TConst (TString "phi")},_) -> raise Exit
 		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
+		| TUnop((Increment | Decrement),_,_) when com.platform = Python -> raise Exit
+		| TNew _ when com.platform = Php -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
@@ -121,6 +123,10 @@ let rec can_be_used_as_value com e =
 		true
 	with Exit ->
 		false
+
+let has_pure_meta meta = Meta.has (Meta.Custom ":pure") meta
+
+let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
 
 let rec skip e = match e.eexpr with
 	| TParenthesis e1 | TMeta(_,e1) | TBlock [e1] -> skip e1
@@ -139,6 +145,11 @@ let is_unbound v =
 let is_really_unbound v =
 	v.v_name <> "`trace" && is_unbound v
 
+let r = Str.regexp "^\\([A-Za-z0-9_]\\)+$"
+let is_unbound_call_that_might_have_side_effects v el = match v.v_name,el with
+	| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> false
+	| _ -> true
+
 let is_ref_type = function
 	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
 	| _ -> false
@@ -156,20 +167,20 @@ module Config = struct
 		copy_propagation : bool;
 		code_motion : bool;
 		local_dce : bool;
+		fusion : bool;
+		purity_inference : bool;
+		unreachable_code : bool;
 		dot_debug : bool;
 	}
 
-	let flag_no_check = "no_check"
-	let flag_no_const_propagation = "no_const_propagation"
 	let flag_const_propagation = "const_propagation"
-	let flag_no_copy_propagation = "no_copy_propagation"
 	let flag_copy_propagation = "copy_propagation"
 	let flag_code_motion = "code_motion"
-	let flag_no_code_motion = "no_code_motion"
-	let flag_no_local_dce = "no_local_dce"
 	let flag_local_dce = "local_dce"
+	let flag_fusion = "fusion"
+	let flag_purity_inference = "purity_inference"
+	let flag_unreachable_code = "unreachable_code"
 	let flag_ignore = "ignore"
-	let flag_no_simplification = "no_simplification"
 	let flag_dot_debug = "dot_debug"
 
 	let has_analyzer_option meta s =
@@ -223,6 +234,9 @@ module Config = struct
 			copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 			code_motion = Common.raw_defined com "analyzer-code-motion";
 			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
+			fusion = not (Common.raw_defined com "analyzer-no-fusion") && (match com.platform with Flash | Java -> false | _ -> true);
+			purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
+			unreachable_code = not (Common.raw_defined com "analyzer-no-unreachable-code");
 			dot_debug = false;
 		}
 
@@ -230,14 +244,20 @@ module Config = struct
 		List.fold_left (fun config meta -> match meta with
 			| (Meta.Analyzer,el,_) ->
 				List.fold_left (fun config e -> match fst e with
-					| EConst (Ident s) when s = flag_no_const_propagation -> { config with const_propagation = false}
+					| EConst (Ident s) when s = "no_" ^ flag_const_propagation -> { config with const_propagation = false}
 					| EConst (Ident s) when s = flag_const_propagation -> { config with const_propagation = true}
-					| EConst (Ident s) when s = flag_no_copy_propagation -> { config with copy_propagation = false}
+					| EConst (Ident s) when s = "no_" ^ flag_copy_propagation -> { config with copy_propagation = false}
 					| EConst (Ident s) when s = flag_copy_propagation -> { config with copy_propagation = true}
-					| EConst (Ident s) when s = flag_no_code_motion -> { config with code_motion = false}
+					| EConst (Ident s) when s = "no_" ^ flag_code_motion -> { config with code_motion = false}
 					| EConst (Ident s) when s = flag_code_motion -> { config with code_motion = true}
-					| EConst (Ident s) when s = flag_no_local_dce -> { config with local_dce = false}
+					| EConst (Ident s) when s = "no_" ^ flag_local_dce -> { config with local_dce = false}
 					| EConst (Ident s) when s = flag_local_dce -> { config with local_dce = true}
+					| EConst (Ident s) when s = "no_" ^ flag_fusion -> { config with fusion = false}
+					| EConst (Ident s) when s = flag_fusion -> { config with fusion = true}
+					| EConst (Ident s) when s = "no_" ^ flag_purity_inference -> { config with purity_inference = false}
+					| EConst (Ident s) when s = flag_purity_inference -> { config with purity_inference = true}
+					| EConst (Ident s) when s = "no_" ^ flag_unreachable_code -> { config with unreachable_code = false}
+					| EConst (Ident s) when s = flag_unreachable_code -> { config with unreachable_code = true}
 					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
 					| _ -> config
 				) config el
@@ -333,6 +353,41 @@ module TexprFilter = struct
 		in
 		loop e
 
+	type interference_kind =
+		| IKVarMod of tvar list
+		| IKSideEffect
+		| IKNone
+
+	let get_interference_kind e =
+		let vars = ref [] in
+		let rec loop e = match e.eexpr with
+			| TUnop((Increment | Decrement),_,{eexpr = TLocal v}) ->
+				vars := v :: !vars
+			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) ->
+				vars := v :: !vars;
+				loop e2
+			| TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
+				raise Exit
+			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+				List.iter loop el
+			| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
+				List.iter loop el
+			| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) ->
+				List.iter loop el;
+			| TCall _ | TNew _ ->
+				raise Exit
+			| _ ->
+				Type.iter loop e
+		in
+		try
+			loop e;
+			begin match !vars with
+				| [] -> IKNone
+				| vars -> IKVarMod vars
+			end
+		with Exit ->
+			IKSideEffect
+
 	let unapply com config e =
 		let rec block_element acc el = match el with
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
@@ -364,26 +419,47 @@ module TexprFilter = struct
 		in
 		let changed = ref false in
 		let var_uses = ref IntMap.empty in
+		let var_writes = ref IntMap.empty in
 		let get_num_uses v =
 			try IntMap.find v.v_id !var_uses with Not_found -> 0
 		in
+		let get_num_writes v =
+			try IntMap.find v.v_id !var_writes with Not_found -> 0
+		in
+		let change map v delta =
+			map := IntMap.add v.v_id ((try IntMap.find v.v_id !map with Not_found -> 0) + delta) !map;
+		in
 		let change_num_uses v delta =
-			var_uses := IntMap.add v.v_id ((try IntMap.find v.v_id !var_uses with Not_found -> 0) + delta) !var_uses;
+			change var_uses v delta
+		in
+		let change_num_writes v delta =
+			change var_writes v delta
 		in
 		let rec loop e = match e.eexpr with
 			| TLocal v ->
 				change_num_uses v 1;
-			| TBinop(OpAssign,{eexpr = TLocal _},e2) ->
+			| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
+				change_num_writes v 1;
 				loop e2
 			| _ ->
 				Type.iter loop e
 		in
 		loop e;
+		let type_change_ok t1 t2 = t1 == t2 || match follow t1,follow t2 with
+			| TMono _,_ | _,TMono _ -> not com.config.pf_static
+			| TDynamic _,_ | _,TDynamic _ -> false
+			| _ ->
+				if com.config.pf_static && is_null t1 <> is_null t2 then false
+				else type_iseq t1 t2
+		in
+		let can_be_fused v e =
+			get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.Config.optimize && config.Config.fusion && type_change_ok v.v_type e.etype && v.v_extra = None)
+		in
 		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
 				changed := true;
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
-				change_num_uses v1 (-1);
+				change_num_writes v1 (-1);
 				fuse (e1 :: acc) el
 			| ({eexpr = TVar(v1,None)} as e1) :: ({eexpr = TIf(eif,_,Some _)} as e2) :: el when can_be_used_as_value com e2 && (match com.platform with Php -> false | Cpp when not (Common.defined com Define.Cppia) -> false | _ -> true) ->
 				begin try
@@ -399,57 +475,57 @@ module TexprFilter = struct
 					in
 					let e1 = {e1 with eexpr = TVar(v1,Some e)} in
 					changed := true;
-					change_num_uses v1 (- !i);
+					change_num_writes v1 (- !i);
 					fuse (e1 :: acc) el
 				with Exit ->
 					fuse (e1 :: acc) (e2 :: el)
 				end
-			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when Meta.has Meta.CompilerGenerated v1.v_meta && get_num_uses v1 <= 1 && can_be_used_as_value com e1 ->
+			| ({eexpr = TVar(v1,Some e1)} as ev) :: e2 :: el when can_be_fused v1 e1 ->
 				let found = ref false in
 				let affected = ref false in
-				let rec check_non_var_side_effect e2 = match e2.eexpr with
-						| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal _},e2) ->
-							check_non_var_side_effect e2
-						| TUnop((Increment | Decrement),_,{eexpr = TLocal _}) ->
-							()
-						| TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
-							raise Exit
-						| TCall _ | TNew _ ->
-							raise Exit
-						| _ ->
-							Type.iter check_non_var_side_effect e2
-				in
+				let ik1 = get_interference_kind e1 in
 				let check_interference e2 =
-					let rec check e1 e2 = match e1.eexpr with
-						| TLocal v1 ->
-							let rec check2 e2 = match e2.eexpr with
-								| TUnop((Increment | Decrement),_,{eexpr = TLocal v2}) | TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v2},_) when v1 == v2 ->
+					let check ik e2 = match ik with
+						| IKNone -> ()
+						| IKSideEffect -> (* TODO: Could this miss a IKVarMod case? *)
+							let rec loop e = match e.eexpr with
+								| TField _ when Optimizer.is_affected_type e.etype ->
+									raise Exit
+								| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
+									List.iter loop el
+								| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) ->
+									List.iter loop el
+								| TCall _ | TNew _ | TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
 									raise Exit
 								| _ ->
-									Type.iter check2 e2
+									Type.iter loop e
 							in
-							check2 e2
-						| TField _ when Optimizer.is_affected_type e1.etype ->
-							check_non_var_side_effect e2;
-						| TCall _ | TNew _ | TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
-							check_non_var_side_effect e2
-						| _ ->
-							()
+							loop e2
+						| IKVarMod vl ->
+							let rec loop e = match e.eexpr with
+								| TLocal v when List.exists (fun v' -> v == v') vl -> raise Exit
+								| _ -> Type.iter loop e
+							in
+							loop e2
 					in
 					try
-						check e1 e2;
-						check e2 e1;
-					with Exit ->
-						begin match com.platform with
-							| Cpp when not (Common.defined com Define.Cppia) -> raise Exit
-							| Php -> raise Exit (* They don't define evaluation order, so let's exit *)
-							| _ -> affected := true;
-						end
+						check ik1 e2;
+						check (get_interference_kind e2) e1
+					with Exit -> match com.platform with
+						| Cpp when not (Common.defined com Define.Cppia) -> raise Exit
+						| Php -> raise Exit (* They don't define evaluation order, so let's exit *)
+						| _ -> affected := true;
 				in
 				let rec replace e =
 					let e = match e.eexpr with
 						| TWhile _ | TFunction _ ->
 							e
+						| TIf(e1,e2,eo) ->
+							let e1 = replace e1 in
+							{e with eexpr = TIf(e1,e2,eo)}
+						| TSwitch(e1,cases,edef) ->
+							let e1 = replace e1 in
+							{e with eexpr = TSwitch(e1,cases,edef)}
 						| TLocal v2 when v1 == v2 && not !affected ->
 							found := true;
 							e1
@@ -461,8 +537,10 @@ module TexprFilter = struct
 							{e with eexpr = TBinop(op,ea,e3)}
 						| TBinop((OpAssign | OpAssignOp _ as op),e1,e2) ->
 							let e2 = replace e2 in
-							let e1 = replace e1 in
+							let e1 = match e1.eexpr with TLocal _ -> e1 | _ -> replace e1 in
 							{e with eexpr = TBinop(op,e1,e2)}
+						| TUnop((Increment | Decrement),_,{eexpr = TLocal _}) ->
+							e
 						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 							e
 						| _ ->
@@ -743,7 +821,7 @@ module Graph = struct
 		bb.bb_syntax_edge
 
 	let add_cfg_edge g bb_from bb_to kind =
-		if bb_from.bb_id > 0 then begin
+		if bb_from != g.g_unreachable then begin
 			let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
 			g.g_cfg_edges <- edge :: g.g_cfg_edges;
 			bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
@@ -936,10 +1014,8 @@ module TexprTransformer = struct
 			close_node g bb;
 			g.g_unreachable
 		in
-		let r = Str.regexp "^\\([A-Za-z0-9_]\\)+$" in
-		let check_unbound_call v el = match v.v_name,el with
-			| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> ()
-			| _ -> ctx.has_unbound <- true
+		let check_unbound_call v el =
+			if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true
 		in
 		let rec value bb e = match e.eexpr with
 			| TLocal v ->
@@ -1031,7 +1107,8 @@ module TexprTransformer = struct
 				else begin
 					let had_side_effect = Optimizer.has_side_effect e in
 					if had_side_effect then collect_modified_locals e;
-					(had_side_effect,(false,can_be_optimized e,e) :: acc)
+					let opt = can_be_optimized e in
+					(had_side_effect || opt,(false,opt,e) :: acc)
 				end
 			) (false,[]) (List.rev el) in
 			let bb,values = List.fold_left (fun (bb,acc) (aff,opt,e) ->
@@ -1040,14 +1117,22 @@ module TexprTransformer = struct
 			) (bb,[]) el in
 			bb,List.rev values
 		and bind_to_temp bb sequential e =
+			let rec loop fl e = match e.eexpr with
+				| TField(e1,fa) when (match extract_field fa with Some {cf_kind = Method MethNormal} -> true | _ -> false) ->
+					loop ((fun e' -> {e with eexpr = TField(e',fa)}) :: fl) e1
+				| _ ->
+					fl,e
+			in
+			let fl,e = loop [] e in
 			let v = alloc_var "tmp" e.etype in
-			declare_var g v;
 			begin match ctx.com.platform with
 				| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 				| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
 			end;
 			let bb = declare_var_and_assign bb v e in
-			bb,{e with eexpr = TLocal v}
+			let e = {e with eexpr = TLocal v} in
+			let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
+			bb,e
 		and declare_var_and_assign bb v e =
 			begin match follow v.v_type with
 				| TAbstract({a_path=[],"Void"},_) -> error "Cannot use Void as value" e.epos
@@ -1058,6 +1143,7 @@ module TexprTransformer = struct
 			let assign e =
 				if not !was_assigned then begin
 					was_assigned := true;
+					declare_var g v;
 					add_texpr g bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
 				end;
 				mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
@@ -1066,6 +1152,7 @@ module TexprTransformer = struct
 				block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid e.epos)
 			with Exit ->
 				let bb,e = value bb e in
+				declare_var g v;
 				add_var_def g bb v;
 				add_texpr g bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
 				bb
@@ -1093,9 +1180,10 @@ module TexprTransformer = struct
 							e
 					in
 					let el = Codegen.UnificationCallback.check_call check el e1.etype in
-					let bb,e1 = value bb e1 in
-					let bb,el = ordered_value_list bb el in
-					bb,{e with eexpr = TCall(e1,el)}
+					let bb,el = ordered_value_list bb (e1 :: el) in
+					match el with
+						| e1 :: el -> bb,{e with eexpr = TCall(e1,el)}
+						| _ -> assert false
 			end
 		and block_element bb e = match e.eexpr with
 			(* variables *)
@@ -1104,7 +1192,6 @@ module TexprTransformer = struct
 				add_texpr g bb e;
 				bb
 			| TVar(v,Some e1) ->
-				declare_var g v;
 				declare_var_and_assign bb v e1
 			| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 				let assign e =
@@ -1203,15 +1290,15 @@ module TexprTransformer = struct
 						add_cfg_edge g bb bb_case (CFGCondElse);
 						Some (bb_case)
 				in
-				let bb_next = if not is_exhaustive then begin
-					let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
-					add_cfg_edge g bb bb_next CFGGoto;
-					bb_next
+				let dom = if not is_exhaustive then begin
+					bb
 				end else match !reachable with
 					| [] -> g.g_unreachable
-					| [bb_case] -> create_node BKNormal bb_case bb.bb_type bb.bb_pos
-					| _ -> create_node BKNormal bb bb.bb_type bb.bb_pos
+					| [bb_case] -> bb_case
+					| _ -> bb
 				in
+				let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
+				if not is_exhaustive then add_cfg_edge g bb bb_next CFGGoto;
 				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) !reachable;
 				set_syntax_edge g bb (SESwitch(cases,def,bb_next));
 				close_node g bb;
@@ -1417,60 +1504,73 @@ module TexprTransformer = struct
 		finalize g bb_exit;
 		set_syntax_edge g bb_exit SEEnd;
 		let check_unreachable bb =
-			if DynArray.length bb.bb_el > 0 then
-				com.warning "Unreachable code" (DynArray.get bb.bb_el 0).epos;
+			let rec get_code_pos bb =
+				if DynArray.length bb.bb_el > 0 then
+					Some ((DynArray.get bb.bb_el 0).epos)
+				else begin match ExtList.List.filter_map get_code_pos bb.bb_dominated with
+					| p :: _ -> Some p
+					| [] -> None
+				end
+			in
+			match get_code_pos bb with
+				| Some p -> com.warning "Unreachable code" p
+				| None -> ()
 		in
-		List.iter check_unreachable g.g_unreachable.bb_dominated;
+		if config.Config.unreachable_code then List.iter check_unreachable g.g_unreachable.bb_dominated;
 		ctx
 
 	let rec block_to_texpr_el ctx bb =
-		let block bb = block_to_texpr ctx bb in
-		let rec loop bb se =
-			let el = List.rev (DynArray.to_list bb.bb_el) in
-			match el,se with
-			| el,SESubBlock(bb_sub,bb_next) ->
-				Some bb_next,(block bb_sub) :: el
-			| el,SEMerge bb_next ->
-				Some bb_next,el
-			| el,(SEEnd | SENone) ->
-				None,el
-			| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(bb_body,bb_next)) ->
-				let e2 = block bb_body in
-				Some bb_next,{e with eexpr = TWhile(e1,e2,flag)} :: el
-			| el,SETry(bb_try,bbl,bb_next) ->
-				Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid bb_try.bb_pos) :: el
-			| e1 :: el,se ->
-				let e1 = skip e1 in
-				begin match e1.eexpr,se with
-					| TConst (TBool true),(SEIfThen(bb_then,bb_next) | SEIfThenElse(bb_then,_,bb_next,_)) -> loop bb (SESubBlock(bb_then,bb_next))
-					| TConst (TBool false),SEIfThen(_,bb_next) -> Some bb_next,el
-					| TConst (TBool false),SEIfThenElse(_,bb_else,bb_next,_) -> loop bb (SESubBlock(bb_else,bb_next))
-					| TConst _,SESwitch(bbl,bo,bb_next) ->
-						let bbl = List.filter (fun (el,bb_case) -> List.exists (expr_eq e1) el) bbl in
-						begin match bbl,bo with
-							| [_,bb_case],_ -> loop bb (SESubBlock(bb_case,bb_next))
-							| [],Some bb_default -> loop bb (SESubBlock(bb_default,bb_next))
-							| [],None -> Some bb_next,el
-							| _ :: _,_ -> assert false
-						end
-					| _ ->
-						let bb_next,e1_def,t = match se with
-							| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid
-							| SEIfThenElse(bb_then,bb_else,bb_next,t) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t
-							| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid
-							| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
-						in
-						bb_next,(mk e1_def t e1.epos) :: el
-				end
-			| [],_ ->
-				None,[]
-		in
-		let bb_next,el = loop bb bb.bb_syntax_edge in
-		let el = match bb_next with
-			| None -> el
-			| Some bb -> (block_to_texpr_el ctx bb) @ el
-		in
-		el
+		if bb.bb_dominator == ctx.graph.g_unreachable then
+			[]
+		else begin
+			let block bb = block_to_texpr ctx bb in
+			let rec loop bb se =
+				let el = List.rev (DynArray.to_list bb.bb_el) in
+				match el,se with
+				| el,SESubBlock(bb_sub,bb_next) ->
+					Some bb_next,(block bb_sub) :: el
+				| el,SEMerge bb_next ->
+					Some bb_next,el
+				| el,(SEEnd | SENone) ->
+					None,el
+				| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(bb_body,bb_next)) ->
+					let e2 = block bb_body in
+					Some bb_next,{e with eexpr = TWhile(e1,e2,flag)} :: el
+				| el,SETry(bb_try,bbl,bb_next) ->
+					Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid bb_try.bb_pos) :: el
+				| e1 :: el,se ->
+					let e1 = skip e1 in
+					begin match e1.eexpr,se with
+						| TConst (TBool true),(SEIfThen(bb_then,bb_next) | SEIfThenElse(bb_then,_,bb_next,_)) -> loop bb (SESubBlock(bb_then,bb_next))
+						| TConst (TBool false),SEIfThen(_,bb_next) -> Some bb_next,el
+						| TConst (TBool false),SEIfThenElse(_,bb_else,bb_next,_) -> loop bb (SESubBlock(bb_else,bb_next))
+						| TConst _,SESwitch(bbl,bo,bb_next) ->
+							let bbl = List.filter (fun (el,bb_case) -> List.exists (expr_eq e1) el) bbl in
+							begin match bbl,bo with
+								| [_,bb_case],_ -> loop bb (SESubBlock(bb_case,bb_next))
+								| [],Some bb_default -> loop bb (SESubBlock(bb_default,bb_next))
+								| [],None -> Some bb_next,el
+								| _ :: _,_ -> assert false
+							end
+						| _ ->
+							let bb_next,e1_def,t = match se with
+								| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid
+								| SEIfThenElse(bb_then,bb_else,bb_next,t) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t
+								| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid
+								| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
+							in
+							bb_next,(mk e1_def t e1.epos) :: el
+					end
+				| [],_ ->
+					None,[]
+			in
+			let bb_next,el = loop bb bb.bb_syntax_edge in
+			let el = match bb_next with
+				| None -> el
+				| Some bb -> (block_to_texpr_el ctx bb) @ el
+			in
+			el
+		end
 
 	and block_to_texpr ctx bb =
 		assert(bb.bb_closed);
@@ -1481,7 +1581,6 @@ module TexprTransformer = struct
 			| TVar(v,eo) when not (is_unbound v) ->
 				let eo = Option.map loop eo in
 				let v' = get_var_origin ctx.graph v in
-				(* restore_v_extra ctx v'; *)
 				{e with eexpr = TVar(v',eo)}
 			| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) ->
 				let e1 = loop e1 in
@@ -2547,6 +2646,112 @@ module Debug = struct
 		f()
 end
 
+module Purity = struct
+	type purity =
+		| Pure
+		| NotPure
+		| MaybePure
+
+	type purity_node = {
+		pn_field : tclass_field;
+		mutable pn_purity : purity;
+		mutable pn_dependents : purity_node list;
+	}
+
+	let node_lut = Hashtbl.create 0
+
+	let get_field_id c cf = Printf.sprintf "%s.%s" (s_type_path c.cl_path) cf.cf_name
+
+	let get_node c cf =
+		try
+			Hashtbl.find node_lut (get_field_id c cf)
+		with Not_found ->
+			let node = {
+				pn_field = cf;
+				pn_purity = MaybePure;
+				pn_dependents = []
+			} in
+			Hashtbl.replace node_lut (get_field_id c cf) node;
+			node
+
+	let apply_to_field com is_ctor c cf =
+		let node = get_node c cf in
+		let rec taint node =
+			if node.pn_purity <> NotPure then begin
+				node.pn_purity <- NotPure;
+				List.iter taint node.pn_dependents
+			end
+		in
+		let taint_raise node =
+			taint node;
+			raise Exit;
+		in
+		let check_field c cf =
+			let node' = get_node c cf in
+			match node'.pn_purity with
+				| Pure -> ()
+				| NotPure -> taint_raise node;
+				| MaybePure -> node'.pn_dependents <- node :: node'.pn_dependents
+		in
+		let rec check_write e1 =
+			begin match e1.eexpr with
+				| TLocal v ->
+					() (* Writing to locals does not violate purity. *)
+				| TField({eexpr = TConst TThis},_) when is_ctor ->
+					() (* A constructor can write to its own fields without violating purity. *)
+				| _ ->
+					taint_raise node
+			end
+		and loop e = match e.eexpr with
+			| TThrow _ ->
+				taint_raise node;
+			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
+				check_write e1;
+				loop e2;
+			| TUnop((Increment | Decrement),_,e1) ->
+				check_write e1;
+			| TCall({eexpr = TField(_,FStatic(c,cf))},el) ->
+				List.iter loop el;
+				check_field c cf;
+			| TNew(c,_,el) ->
+				List.iter loop el;
+	            begin match c.cl_constructor with
+	            	| Some cf -> check_field c cf
+	            	| None -> taint_raise node
+	            end
+			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
+				List.iter loop el;
+			| TCall _ ->
+				taint_raise node
+			| _ ->
+				Type.iter loop e
+		in
+		match cf.cf_expr with
+		| None ->
+			taint node
+		| Some e ->
+			try
+				if is_pure c cf then raise Exit;
+				if (Meta.has (Meta.Custom ":impure")) cf.cf_meta then taint_raise node;
+				loop e;
+				node.pn_purity <- Pure;
+				cf.cf_meta <- (Meta.Custom ":pure",[],e.epos) :: cf.cf_meta
+			with Exit ->
+				()
+
+	let apply_to_class com c =
+		List.iter (apply_to_field com false c) c.cl_ordered_fields;
+		List.iter (apply_to_field com false c) c.cl_ordered_statics;
+		(match c.cl_constructor with Some cf -> apply_to_field com true c cf | None -> ())
+
+	let infer com =
+		Hashtbl.clear node_lut;
+		List.iter (fun mt -> match mt with
+			| TClassDecl c -> apply_to_class com c
+			| _ -> ()
+		) com.types
+end
+
 module Run = struct
 	open Config
 	open Graph
@@ -2564,10 +2769,10 @@ module Run = struct
 
 	let back_again ctx =
 		let e = with_timer "analyzer-to-texpr" (fun () -> TexprTransformer.to_texpr ctx) in
-		let e = with_timer "analyzer-filter-unapply" (fun () -> TexprFilter.unapply ctx.com ctx.config e) in
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) ctx.graph.g_var_infos;
+		let e = with_timer "analyzer-filter-unapply" (fun () -> TexprFilter.unapply ctx.com ctx.config e) in
 		e
 
 	let roundtrip com config e =
@@ -2625,5 +2830,6 @@ module Run = struct
 	let run_on_types ctx full types =
 		let com = ctx.Typecore.com in
 		let config = get_base_config com full in
+		if full && config.purity_inference then Purity.infer com;
 		List.iter (run_on_type ctx config) types
 end

@@ -23,6 +23,7 @@ private enum EnumFlagTest {
 }
 
 @:analyzer(code_motion)
+@:analyzer(no_fusion)
 class TestJs {
 	//@:js('var x = 10;"" + x;var x1 = 10;"" + x1;var x2 = 10.0;"" + x2;var x3 = "10";x3;var x4 = true;"" + x4;')
 	//static function testStdString() {
@@ -47,7 +48,6 @@ class TestJs {
 	@:js('var a = 1;var v2 = a;if(a + v2 > 0) TestJs["use"](a);')
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_copy_propagation)
-	@:analyzer(no_check_has_effect)
 	@:analyzer(no_local_dce)
 	static function testInlineWithArgumentUsedMoreThanOnce() {
 		var a = 1;
@@ -62,14 +62,13 @@ class TestJs {
 	}
 
 	@:js("var a = [];a;")
-	@:analyzer(no_check_has_effect)
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];
 		if (_inlineWithComplexExpr(a, 0)) {}
 	}
 
-	inline static function _inlineWithComplexExpr(a, i) {
+	inline static function _inlineWithComplexExpr(a:Array<Bool>, i:Int) {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
@@ -483,12 +482,13 @@ class TestJs {
 
 	@:js('
 		var a = TestJs.getArray();
-		var d1 = a[0] = 1;
-		TestJs.call(a[1] = 1,d1);
+		a[0] = 1;
+		a[1] = 2;
+		TestJs.call(2,1);
 	')
 	static function testInlineRebuilding4() {
 		var a = getArray();
-		inlineCall(a[0] = 1, a[1] = 1);
+		inlineCall(a[0] = 1, a[1] = 2);
 	}
 
 	@:js('
@@ -548,13 +548,15 @@ class TestJs {
 		a[i++] = i++;
 	}
 
-	static inline function inlineCall(d1:Dynamic, d2:Dynamic) {
+	static inline function inlineCall<S, T>(d1:S, d2:T) {
 		return call(d2, d1);
 	}
 
 	static function getInt(?d:Dynamic) { return 1; }
 	static function getArray() { return [0, 1]; }
+	@:impure
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
+	@:impure
 	static function use<T>(t:T) { return t; }
 
 	static var intField = 12;

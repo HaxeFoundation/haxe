@@ -29,8 +29,13 @@ extern class ArrayBuffer
 {
 	static function isView( value : Dynamic ) : Bool;
 	var byteLength(default,null) : Int;
-	
+
 	/** @throws DOMError */
 	function new( length : Int ) : Void;
 	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
+
+	public var length(get, never):Int;
+	public inline function get_length():Int {
+		return byteLength;
+	}
 }

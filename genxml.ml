@@ -80,7 +80,7 @@ let rec follow_param t =
 		t
 
 let gen_meta meta =
-	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.MaybeUsed | Meta.RealPath -> false | _ -> true) meta in
+	let meta = List.filter (fun (m,_,_) -> match m with Meta.Used | Meta.MaybeUsed | Meta.RealPath | (Meta.Custom ":pure") -> false | _ -> true) meta in
 	match meta with
 	| [] -> []
 	| _ ->

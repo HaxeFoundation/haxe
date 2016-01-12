@@ -31,6 +31,7 @@ private abstract ArrayRead<T>(Array<T>) {
 
 }
 
+@:analyzer(no_fusion)
 class Issue2236 {
 	@:js('
 		var a = [0];

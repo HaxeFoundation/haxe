@@ -513,12 +513,10 @@ class TestType extends Test {
 		typedAs(inlineTest2([1]), var void:Void);
 	}
 
-	@:analyzer(no_check_has_effect)
 	inline function inlineTest1<T>(map:Array<T>) {
 		map[0];
 	}
 
-	@:analyzer(no_check_has_effect)
 	inline function inlineTest2(map:Array<Dynamic>) {
 		map[0];
 	}

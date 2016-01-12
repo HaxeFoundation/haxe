@@ -1,6 +1,5 @@
 package unit.issues;
 
-@:analyzer(no_check_has_effect)
 class Issue2999 extends Test {
 	function test1() {
 		var a = [1, 2];
