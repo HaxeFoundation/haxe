@@ -1923,14 +1923,17 @@ module DataFlow (M : DataFlowApi) = struct
 		M.commit ctx
 end
 
-let type_iseq_strict_no_mono t1 t2 =
+let type_iseq_strict_no_mono com t1 t2 =
 	let rec map t = match follow t with
 		| TMono _ -> t_dynamic
 		| _ -> Type.map map t
 	in
 	let t1 = map t1 in
 	let t2 = map t2 in
-	type_iseq_strict t1 t2
+	if com.Common.config.pf_static then
+		type_iseq_strict t1 t2
+	else
+		type_iseq t1 t2
 
 (*
 	ConstPropagation implements sparse conditional constant propagation using the DataFlow algorithm. Its lattice consists of
@@ -2052,7 +2055,7 @@ module ConstPropagation = DataFlow(struct
 				raise Not_found
 			| Const ct ->
 				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
-				if not (type_iseq_strict_no_mono e'.etype e.etype) then raise Not_found;
+				if not (type_iseq_strict_no_mono ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
 		let rec commit e = match e.eexpr with
@@ -2146,7 +2149,7 @@ module CopyPropagation = DataFlow(struct
 						raise Not_found
 					in
 					let v' = match lat with Local v -> v | _ -> leave() in
-					if not (type_iseq_strict_no_mono v'.v_type v.v_type) then leave();
+					if not (type_iseq_strict_no_mono ctx.com v'.v_type v.v_type) then leave();
 					let v'' = get_var_origin ctx.graph v' in
 					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
 					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
