@@ -107,7 +107,6 @@ install:
   # Install haxe and neko dependencies
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
     travis_retry brew update;
-    travis_retry brew install caskroom/cask/brew-cask;
     travis_retry brew install ocaml camlp4;
     fi
   # Install neko
