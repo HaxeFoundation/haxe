@@ -729,7 +729,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 	| TNew ({ cl_path = ([],"IntIterator") },[],[i1;i2]) , _ ->
 		let max = (match i1.eexpr , i2.eexpr with
 			| TConst (TInt a), TConst (TInt b) when Int32.compare b a < 0 -> error "Range operator can't iterate backwards" p
-			| _, TConst _ | _ , TLocal _ -> None
+			| _, TConst _ -> None
 			| _ -> Some (gen_local ctx t_int)
 		) in
 		let tmp = gen_local ctx t_int in
