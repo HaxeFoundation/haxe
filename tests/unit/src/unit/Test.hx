@@ -357,7 +357,7 @@ class Test {
 		// SPOD tests
 		#if ( (neko || (php && (travis || php_sqlite)) || java || cpp || (cs && travis)) && !macro && !interp)
 		#if ( travis && !(cpp || cs) )
-		if (Sys.getEnv("CI") != null && Sys.systemName() == "Linux")
+		if (Sys.getEnv("CI") != null && switch (Sys.systemName()) { case "Linux"|"Mac": true; case _: false; })
 		{
 			classes.push(new TestSpod(sys.db.Mysql.connect({
 				host : "localhost",
@@ -367,8 +367,8 @@ class Test {
 				database : "haxe_test" })));
 		}
 		#end
-	  if (verbose)
-		 logVerbose("Setup sqlite");
+		if (verbose)
+			logVerbose("Setup sqlite");
 		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
 		#end
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");

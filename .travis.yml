@@ -103,11 +103,6 @@ matrix:
     - os: osx
       env: TEST=python
 
-before_script:
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-    mysql -u root -e "CREATE DATABASE haxe_test;";
-    fi
-
 install:
   # Install haxe and neko dependencies
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
@@ -127,6 +122,12 @@ install:
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       travis_retry brew install neko --HEAD;
     fi
+
+before_script:
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+    travis_retry brew install mysql;
+    fi
+  - mysql -u root -e "CREATE DATABASE haxe_test;";
 
 script:
   - make package_src -s
