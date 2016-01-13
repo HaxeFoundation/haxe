@@ -31,11 +31,9 @@ private abstract ArrayRead<T>(Array<T>) {
 
 }
 
-@:analyzer(no_fusion)
 class Issue2236 {
 	@:js('
-		var a = [0];
-		var _g_a = a;
+		var _g_a = [0];
 		var _g_pos = 0;
 		while(_g_pos < _g_a.length) ++_g_pos;
 	')
