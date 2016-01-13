@@ -1923,9 +1923,14 @@ module DataFlow (M : DataFlowApi) = struct
 		M.commit ctx
 end
 
-let type_iseq_strict_no_mono t1 t2 = match follow t1,follow t2 with
-	| TMono _,_ | _,TMono _ -> true
-	| _ -> type_iseq_strict t1 t2
+let type_iseq_strict_no_mono t1 t2 =
+	let rec map t = match follow t with
+		| TMono _ -> t_dynamic
+		| _ -> Type.map map t
+	in
+	let t1 = map t1 in
+	let t2 = map t2 in
+	type_iseq_strict t1 t2
 
 (*
 	ConstPropagation implements sparse conditional constant propagation using the DataFlow algorithm. Its lattice consists of

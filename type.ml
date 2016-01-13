@@ -1442,7 +1442,7 @@ type eq_kind =
 let rec type_eq param a b =
 	let can_follow t = match param with
 		| EqCoreType -> false
-		| EqDoNotFollowNull -> not (is_null t)
+		| EqDoNotFollowNull -> not (is_explicit_null t)
 		| _ -> true
 	in
 	if a == b then
