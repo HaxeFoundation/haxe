@@ -31,8 +31,12 @@ abstract TypeKind(Int) {
 		return untyped $tkind(this);
 	}
 
-	@:extern static inline function get( v : Dynamic ) {
-		return untyped $gettype(v);
+	@:hlNative("std","type_check") public function check( v : Dynamic ) : Bool {
+		return false;
+	}
+
+	@:extern public static inline function get<T>( v : T ) : Type {
+		return untyped $ttype(v);
 	}
 
 	@:hlNative("std","type_instance_fields") public function getInstanceFields() : NativeArray<Bytes> {

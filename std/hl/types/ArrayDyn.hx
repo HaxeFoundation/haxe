@@ -1,4 +1,5 @@
 package hl.types;
+import hl.types.ArrayBase;
 
 class ArrayDynIterator {
 	var a : ArrayBase;
@@ -18,7 +19,7 @@ class ArrayDynIterator {
 }
 
 @:keep
-class ArrayDyn extends ArrayBase.ArrayAccess {
+class ArrayDyn extends ArrayAccess {
 
 	// TODO : for Dynamic access, we need to support __getField(hash("length")) !
 	public var length(get,never) : Int;
@@ -143,6 +144,34 @@ class ArrayDyn extends ArrayBase.ArrayAccess {
 			if( f(v) ) a.push(v);
 		}
 		return alloc(a,true);
+	}
+
+	function __cast( t : Type ) : Dynamic {
+		if( t.check(array) )
+			return array;
+		if( !allowReinterpret )
+			return null;
+		if( t == Type.get(new ArrayI32()) ) {
+			var a : BytesAccess<Int> = null;
+			a = new Bytes(array.length << a.sizeBits);
+			for( i in 0...array.length )
+				a[i] = array.getDyn(i);
+			var arr = ArrayBase.allocI32(a, array.length);
+			array = arr;
+			allowReinterpret = false;
+			return arr;
+		}
+		if( t == Type.get(new ArrayF64()) ) {
+			var a : BytesAccess<Float> = null;
+			a = new Bytes(array.length << a.sizeBits);
+			for( i in 0...array.length )
+				a[i] = array.getDyn(i);
+			var arr = ArrayBase.allocF64(a, array.length);
+			array = arr;
+			allowReinterpret = false;
+			return arr;
+		}
+		return null;
 	}
 
 	public static function alloc( a : ArrayBase, allowReinterpret = false ) : ArrayDyn {

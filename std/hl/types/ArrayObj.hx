@@ -59,7 +59,7 @@ class ArrayObj<T> extends ArrayBase {
 
 	public function sort( f : T -> T -> Int ) : Void {
 		// TODO : use native call ?
-		haxe.ds.ArraySort.sort(cast toDynamic(), f);
+		haxe.ds.ArraySort.sort(cast this, f);
 	}
 
 	public function splice( pos : Int, len : Int ) : ArrayObj<T> {
@@ -179,9 +179,6 @@ class ArrayObj<T> extends ArrayBase {
 		array[pos] = Api.safeCast(v,array.getType());
 	}
 
-	override function toDynamic() : ArrayDyn {
-		return ArrayDyn.alloc(this, false);
-	}
 	override function pushDyn( v : Dynamic ) return push(v);
 	override function popDyn() : Null<Dynamic> return pop();
 	override function shiftDyn() : Null<Dynamic> return shift();

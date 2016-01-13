@@ -19,11 +19,6 @@ class ArrayBase extends ArrayAccess {
 
 	public var length(default,null) : Int;
 
-	public function toDynamic() : ArrayDyn {
-		throw "Not implemented";
-		return null;
-	}
-
 	public function pushDyn( v : Dynamic ) : Int {
 		throw "Not implemented";
 		return 0;
@@ -75,6 +70,11 @@ class ArrayBase extends ArrayAccess {
 		return null;
 	}
 
+	function __cast( t : Type ) : Dynamic {
+		if( t == Type.get(new ArrayDyn()) )
+			return ArrayDyn.alloc(this, false);
+		return null;
+	}
 
 	public static function allocI32( bytes : BytesAccess<Int>, length : Int ) @:privateAccess {
 		var a : ArrayI32 = untyped $new(ArrayI32);
@@ -110,8 +110,12 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	override function join( sep : String ) : String {
-		throw "TODO";
-		return null;
+		var s = new StringBuf();
+		for( i in 0...length ) {
+			if( i > 0 ) s.add(sep);
+			s.add(bytes[i]);
+		}
+		return s.toString();
 	}
 
 	public function pop() : Null<T> {
@@ -146,7 +150,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public function sort( f : T -> T -> Int ) : Void {
-		throw "TODO";
+		trace("TODO");
 	}
 
 	public function splice( pos : Int, len : Int ) : ArrayBasic<T> {
@@ -204,11 +208,6 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public function filter( f : Int -> Bool ) : ArrayBasic<T> {
-		throw "TODO";
-		return null;
-	}
-
-	override function toDynamic() : ArrayDyn {
 		throw "TODO";
 		return null;
 	}

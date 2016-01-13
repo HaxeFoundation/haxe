@@ -29,9 +29,8 @@ class Std {
 		return 0;
 	}
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		throw "TODO:Std.is";
-		return false;
+	@:extern public inline static function is( v : Dynamic, t : Dynamic ) : Bool {
+		return untyped $is(v,t);
 	}
 
 	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {

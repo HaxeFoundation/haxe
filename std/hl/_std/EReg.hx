@@ -55,18 +55,21 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 	public function matchedLeft() : String {
 		var size = 0;
 		var pos = regexp_matched_pos(r, 0, new hl.types.Ref(size));
+		if( pos < 0 ) return null;
 		return last.subBytes(0,pos);
 	}
 
 	public function matchedRight() : String {
 		var size = 0;
 		var pos = regexp_matched_pos(r, 0, new hl.types.Ref(size));
+		if( pos < 0 ) return null;
 		return last.subBytes(pos + size, last.size - (pos + size));
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
 		var len = 0;
-		var pos = regexp_matched_pos(r,0,new hl.types.Ref(len));
+		var pos = regexp_matched_pos(r, 0, new hl.types.Ref(len));
+		if( pos < 0 ) return null;
 		return { pos : pos, len : len };
 	}
 

@@ -24,8 +24,9 @@
 class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool {
-		throw "TODO";
-		return false;
+		if( field == null ) return false;
+		var hash = @:privateAccess field.bytes.hash();
+		return hl.types.Api.hasField(o,hash);
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {

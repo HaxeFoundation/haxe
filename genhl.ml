@@ -977,16 +977,10 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let fr = alloc_tmp ctx t in
 		op ctx (OClosure (fr,fid,r));
 		fr
-	| HObj p, HObj { pname = "hl.types.ArrayDyn" } when is_array_type rt ->
-		let tmp = alloc_tmp ctx t in
-		op ctx (OCallMethod (tmp,(try fst (get_index "toDynamic" p) with Not_found -> assert false),[r])); (* call toDynamic() *)
-		tmp
-	| HObj { pname = "hl.types.ArrayDyn" }, HObj p when is_array_type t ->
-		let tmp = alloc_tmp ctx t in
-		let tmp2 = alloc_tmp ctx (class_type ctx ctx.array_impl.abase [] false) in
-		op ctx (OField (tmp2,r,0));
-		op ctx (OUnsafeCast (tmp,tmp2));
-		tmp
+	| HObj _, HObj _ when is_array_type rt && is_array_type t ->
+		let out = alloc_tmp ctx t in
+		op ctx (OSafeCast (out, r));
+		out
 	| _ ->
 		invalid()
 
@@ -998,10 +992,12 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 	match rt with
 	| HFun _ ->
 		cast_to ctx r t p
-	| HObj { pname = "hl.types.ArrayDyn" } when is_array_type t ->
-		cast_to ctx r t p
 	| HDyn when is_array_type t ->
-		assert false (* might be either ArrayObj/ArrayBasic/ArrayDyn *)
+		cast_to ctx r t p
+	| HDyn when (match t with HVirtual _ -> true | _ -> false) ->
+		cast_to ctx r t p
+	| HObj _ when is_array_type rt && is_array_type t ->
+		cast_to ctx r t p
 	| _ ->
 		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
@@ -1416,9 +1412,32 @@ and eval_expr ctx e =
 			let rv = (match rtype ctx r with HRef t -> eval_to ctx v t | _ -> invalid()) in
 			op ctx (ORef (r,rv));
 			r
+		| "$ttype", [v] ->
+			let r = alloc_tmp ctx HType in
+			op ctx (OType (r,to_type ctx v.etype));
+			r
 		| "$dump", [v] ->
 			op ctx (ODump (eval_expr ctx v));
 			alloc_tmp ctx HVoid
+		| "$is", [v;t] ->
+			let r = alloc_tmp ctx HBool in
+			let v = eval_to ctx v HDyn in
+			let t = (match t.eexpr with
+			| TTypeExpr t ->
+				let r = alloc_tmp ctx HType in
+				let t = (match t with
+				| TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params)
+				| TEnumDecl e -> TEnum (e,List.map (fun _ -> t_dynamic) e.e_params)
+				| TAbstractDecl a -> TAbstract (a,List.map (fun _ -> t_dynamic) a.a_params)
+				| TTypeDecl t -> TType (t, List.map (fun _ -> t_dynamic) t.t_params)
+				) in
+				op ctx (OType (r,to_type ctx t));
+				r
+			| _ ->
+				eval_to ctx t (class_type ctx ctx.base_type [] false)
+			) in
+			op ctx (OCall2 (r,alloc_std ctx "type_check" [HType;HDyn] HBool,t,v));
+			r
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
@@ -1914,7 +1933,7 @@ and eval_expr ctx e =
 			) el;
 			let tmp = if et = HDyn then alloc_tmp ctx (class_type ctx ctx.array_impl.aobj [] false) else r in
 			op ctx (OCall1 (tmp, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "alloc", a));
-			if tmp <> r then op ctx (OCallMethod (r, 2, [tmp])); (* call toDynamic() *)
+			if tmp <> r then op ctx (OSafeCast (r, tmp));
 		);
 		r
 	| TArray _ ->
@@ -2947,7 +2966,7 @@ let interp code =
 		| VClosure (f,o) ->
 			(match o with
 			| None -> fstr f
-			| Some v -> fstr f ^ "(" ^ vstr_d v ^ ")")
+			| Some v -> fstr f ^ "[" ^ vstr_d v ^ "]")
 		| VArray (a,t) -> "array<" ^ tstr t ^ ">(" ^ String.concat "," (Array.to_list (Array.map vstr_d a)) ^ ")"
 		| VUndef -> "undef"
 		| VType t -> "type(" ^ tstr t ^ ")"
@@ -3092,6 +3111,25 @@ let interp code =
 			(match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
 		| _, HDyn ->
 			make_dyn v t
+		| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
+			(match v with
+			| VNull -> VNull
+			| VClosure (fn,farg) ->
+				let conv = List.map2 (fun t1 t2 ->
+					if safe_cast t2 t1 || (t2 = HDyn && is_dynamic t1) then None
+					else if t2 = HDyn then Some t1
+					else invalid()
+				) args1 args2 in
+				let rconv = if safe_cast t1 t2 then None else if t2 = HDyn then Some t1 else invalid() in
+				VClosure (FNativeFun ("~convert",(fun args ->
+					let args = List.map2 (fun v conv -> match conv with None -> v | Some t -> make_dyn v t) args conv in
+					let ret = fcall fn (match farg with None -> args | Some a -> a :: args) in
+					match rconv with
+					| None -> ret
+					| Some t -> make_dyn ret t
+				),rt),None)
+			| _ ->
+				assert false)
 		| HDyn, _ ->
 			(match v with
 			| VNull -> default()
@@ -3104,6 +3142,13 @@ let interp code =
 			| VNull -> default()
 			| VDyn (v,t) -> dyn_cast v t rt
 			| _ -> assert false)
+		| HObj p, _ ->
+			(match get_method p "__cast" with
+			| None -> invalid()
+			| Some f ->
+				if v = VNull then VNull else
+				let ret = fcall (func f) [v;VType rt] in
+				if ret <> VNull && (match get_type ret with None -> assert false | Some vt -> safe_cast vt rt) then ret else invalid())
 		| _ ->
 			invalid()
 
@@ -3136,6 +3181,7 @@ let interp code =
 		| VFloat a, VFloat b -> compare a b
 		| VBool a, VBool b -> compare a b
 		| VNull, VNull -> 0
+		| VType t1, VType t2 -> if tsame t1 t2 then 0 else 1
 		| VNull, _ -> 1
 		| _, VNull -> -1
 		| VObj oa, VObj ob ->
@@ -3568,6 +3614,7 @@ let interp code =
 		exec()
 	in
 	let int = Int32.to_int in
+	let to_int i = VInt (Int32.of_int i) in
 	let string s = String.sub s 0 (String.length s - 1) in (* chop last \0 which is not needed in ocaml *)
 	let streof s = try String.sub s 0 (String.index s '\000') with Not_found -> s in
 	let load_native lib name t =
@@ -3599,51 +3646,54 @@ let interp code =
 				(function
 				| [VInt v; VRef (regs,i,_)] ->
 					let str = Int32.to_string v in
-					regs.(i) <- VInt (Int32.of_int (String.length str));
+					regs.(i) <- to_int (String.length str);
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
 			| "ftos" ->
 				(function
 				| [VFloat v; VRef (regs,i,_)] ->
 					let str = string_of_float v in
-					regs.(i) <- VInt (Int32.of_int (String.length str));
+					regs.(i) <- to_int (String.length str);
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
 			| "value_to_string" ->
 				(function
 				| [v; VRef (regs,i,_)] ->
 					let str = vstr v HDyn in
-					regs.(i) <- VInt (Int32.of_int (String.length str));
+					regs.(i) <- to_int (String.length str);
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
 			| "utf8length" ->
 				(function
 				| [VBytes b; VInt start; VInt len] ->
-					VInt (Int32.of_int (UTF8.length (String.sub b (int start) (int len))))
+					to_int (UTF8.length (String.sub b (int start) (int len)))
 				| _ -> assert false)
 			| "utf8pos" ->
 				(function
 				| [VBytes b; VInt start; VInt len] ->
-					VInt (Int32.of_int (UTF8.length (String.sub b (int start) (int len))))
+					to_int (UTF8.length (String.sub b (int start) (int len)))
 				| _ -> assert false)
 			| "byteslength" ->
 				(function
 				| [VBytes b; VInt start] ->
-					VInt (Int32.of_int (try String.index_from b (int start) '\000' with _ -> assert false))
+					to_int (try String.index_from b (int start) '\000' with _ -> assert false)
 				| _ -> assert false)
 			| "utf8char" ->
 				(function
 				| [VBytes b; VInt start; VInt index] ->
 					let start = int start in
 					let b = String.sub b start (String.length b - start) in
-					VInt (Int32.of_int (try UChar.code (UTF8.get b (int index)) with _ -> 0))
+					to_int (try UChar.code (UTF8.get b (int index)) with _ -> 0)
 				| _ -> assert false)
+			| "math_isnan" -> (function [VFloat f] -> VBool (classify_float f = FP_nan) | _ -> assert false)
+			| "math_finite" -> (function [VFloat f] -> VBool (match classify_float f with FP_infinite | FP_nan -> false | _ -> true) | _ -> assert false)
 			| "math_round" -> (function [VFloat f] -> VInt (Int32.of_float (floor (f +. 0.5))) | _ -> assert false)
 			| "math_floor" -> (function [VFloat f] -> VInt (Int32.of_float (floor f)) | _ -> assert false)
 			| "math_ceil" -> (function [VFloat f] -> VInt (Int32.of_float (ceil f)) | _ -> assert false)
 			| "math_ffloor" -> (function [VFloat f] -> VFloat (floor f) | _ -> assert false)
 			| "math_fceil" -> (function [VFloat f] -> VFloat (ceil f) | _ -> assert false)
 			| "math_fround" -> (function [VFloat f] -> VFloat (floor (f +. 0.5)) | _ -> assert false)
+			| "math_abs" -> (function [VFloat f] -> VFloat (abs_float f) | _ -> assert false)
 			| "math_sqrt" -> (function [VFloat f] -> VFloat (sqrt f) | _ -> assert false)
 			| "parse_int" ->
 				(function
@@ -3664,11 +3714,11 @@ let interp code =
 				| _ -> assert false)
 			| "bytes_compare" ->
 				(function
-				| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> VInt (Int32.of_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len))))
+				| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> to_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len)))
 				| _ -> assert false)
 			| "dyn_compare" ->
 				(function
-				| [a;b] -> VInt (Int32.of_int (dyn_compare a HDyn b HDyn))
+				| [a;b] -> to_int (dyn_compare a HDyn b HDyn)
 				| _ -> assert false)
 			| "atype" ->
 				(function
@@ -3766,6 +3816,10 @@ let interp code =
 				(function
 				| [VBytes str] -> VInt (hash str)
 				| _ -> assert false)
+			| "type_check" ->
+				(function
+				| [VType t;v] -> (match get_type v with None -> assert false | Some vt -> VBool (safe_cast vt t))
+				| _ -> assert false)
 			| "type_get_class" ->
 				(function
 				| [VObj o] -> (match o.oproto.pclass.pclassglobal with None -> VNull | Some g -> globals.(g))
@@ -3792,6 +3846,14 @@ let interp code =
 					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
 					dyn_get_field o f HDyn
 				| _ -> assert false)
+			| "has_field" ->
+				(function
+				| [o;VInt hash] ->
+					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
+					VBool (match o with
+					| VDynObj d -> Hashtbl.mem d.dfields f
+					| _ -> false)
+				| _ -> assert false)
 			| "call_method" ->
 				(function
 				| [f;VArray (args,HDyn)] -> dyn_call f (List.map (fun v -> v,HDyn) (Array.to_list args)) HDyn
@@ -3800,14 +3862,10 @@ let interp code =
 				(function
 				| [VClosure (f,_)] -> VClosure (f,None)
 				| _ -> assert false)
-			| "math_isnan" ->
-				(function
-				| [VFloat f] -> VBool (classify_float f = FP_nan)
-				| _ -> assert false)
 			| "bytes_find" ->
 				(function
 				| [VBytes src; VInt pos; VInt len; VBytes chk; VInt cpos; VInt clen; ] ->
-					VInt (Int32.of_int (try int pos + ExtString.String.find (String.sub src (int pos) (int len)) (String.sub chk (int cpos) (int clen)) with ExtString.Invalid_string -> -1))
+					to_int (try int pos + ExtString.String.find (String.sub src (int pos) (int len)) (String.sub chk (int cpos) (int clen)) with ExtString.Invalid_string -> -1)
 				| _ -> assert false)
 			| _ ->
 				unresolved())
@@ -3863,9 +3921,10 @@ let interp code =
 					VAbstract (AReg r)
 				| _ ->
 					assert false);
-(*		"regexp_match", Fun4 (fun r str pos len ->
-			match r, str, pos, len with
-			| VAbstract (AReg r), VString str, VInt pos, VInt len ->
+		| "regexp_match" ->
+			(function
+			| [VAbstract (AReg r);VBytes str;VInt pos;VInt len] ->
+				let str = string str and pos = int pos and len = int len in
 				let nstr, npos, delta = (if len = String.length str - pos then str, pos, 0 else String.sub str pos len, 0, pos) in
 				(try
 					ignore(Str.search_forward r.r nstr npos);
@@ -3884,22 +3943,22 @@ let interp code =
 					VBool true;
 				with Not_found ->
 					VBool false)
-			| _ -> error()
-		);
-		"regexp_matched", Fun2 (fun r n ->
+			| _ -> assert false);
+		| "regexp_matched_pos" ->
+			(function
+			| [VAbstract (AReg r); VInt n; VRef (regs,rlen,HI32)] ->
+				let n = int n in
+				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
+				| None -> to_int (-1)
+				| Some (pos,pend) -> regs.(rlen) <- to_int (pend - pos); to_int pos)
+			| _ -> assert false)
+
+(*		"regexp_matched", Fun2 (fun r n ->
 			match r, n with
 			| VAbstract (AReg r), VInt n ->
 				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
 				| None -> VNull
 				| Some (pos,pend) -> VString (String.sub r.r_string pos (pend - pos)))
-			| _ -> error()
-		);
-		"regexp_matched_pos", Fun2 (fun r n ->
-			match r, n with
-			| VAbstract (AReg r), VInt n ->
-				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
-				| None -> VNull
-				| Some (pos,pend) -> VObject (obj (hash_field (get_ctx())) ["pos",VInt pos;"len",VInt (pend - pos)]))
 			| _ -> error()
 		);
 		(* regexp_replace : not used by Haxe *)
@@ -4328,7 +4387,7 @@ let dump code =
 	) code.natives;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
-		pr (Printf.sprintf "	@%d(%Xh) fun %s" f.findex f.findex (tstr f.ftype));
+		pr (Printf.sprintf "	fun@%d(%Xh) %s" f.findex f.findex (tstr f.ftype));
 		pr (Printf.sprintf "	; %s" (debug_infos f.debug.(0)));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
