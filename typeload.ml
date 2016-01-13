@@ -2938,7 +2938,10 @@ let init_module_type ctx context_init do_init (decl,p) =
 		check_global_metadata ctx (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
 		if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
-		if Meta.has Meta.GenericBuild c.cl_meta then c.cl_kind <- KGenericBuild d.d_data;
+		if Meta.has Meta.GenericBuild c.cl_meta then begin
+			if ctx.in_macro then error "@:genericBuild cannot be used in macros" c.cl_pos;
+			c.cl_kind <- KGenericBuild d.d_data;
+		end;
 		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
