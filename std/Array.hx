@@ -220,7 +220,7 @@ extern class Array<T> {
 	**/
 	function remove( x : T ) : Bool;
 	
-	#if (js||cpp||neko||flash)
+	#if (js||cpp||neko||flash||python)
 	/**
 		Removes the element at position `pos`. The Array is changed in place. 
 

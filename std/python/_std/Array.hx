@@ -81,7 +81,10 @@ extern class Array<T> implements ArrayAccess<T> {
 
 	public inline function remove(x : T) : Bool {
 		return ArrayImpl.remove(this,x);
-
+	}
+	
+	public inline function removeAt(pos:Int) : Bool {
+		return ArrayImpl.removeAt(this,pos);
 	}
 
 	public inline function reverse() : Void {
