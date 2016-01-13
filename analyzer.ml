@@ -154,6 +154,23 @@ let is_ref_type = function
 	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
 	| _ -> false
 
+let type_change_ok com t1 t2 =
+	if t1 == t2 then
+		true
+	else begin
+		let rec map t = match t with
+			| TMono r -> (match !r with None -> t_dynamic | Some t -> map t)
+			| _ -> Type.map map t
+		in
+		let t1 = map t1 in
+		let t2 = map t2 in
+		match follow t1,follow t2 with
+			| TDynamic _,_ | _,TDynamic _ -> false
+			| _ ->
+				if com.config.pf_static && is_explicit_null t1 <> is_explicit_null t2 then false
+				else type_iseq t1 t2
+	end
+
 let dynarray_map f d =
 	DynArray.iteri (fun i e -> DynArray.unsafe_set d i (f e)) d
 
@@ -450,15 +467,8 @@ module Fusion = struct
 				Type.iter loop e
 		in
 		loop e;
-		let type_change_ok t1 t2 = t1 == t2 || match follow t1,follow t2 with
-			| TMono _,_ | _,TMono _ -> not com.config.pf_static
-			| TDynamic _,_ | _,TDynamic _ -> false
-			| _ ->
-				if com.config.pf_static && is_null t1 <> is_null t2 then false
-				else type_iseq t1 t2
-		in
 		let can_be_fused v e =
-			get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.Config.optimize && config.Config.fusion && type_change_ok v.v_type e.etype && v.v_extra = None)
+			get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.Config.optimize && config.Config.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
 		in
 		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
@@ -1895,18 +1905,6 @@ module DataFlow (M : DataFlowApi) = struct
 		M.commit ctx
 end
 
-let type_iseq_strict_no_mono com t1 t2 =
-	let rec map t = match follow t with
-		| TMono _ -> t_dynamic
-		| _ -> Type.map map t
-	in
-	let t1 = map t1 in
-	let t2 = map t2 in
-	if com.Common.config.pf_static then
-		type_iseq_strict t1 t2
-	else
-		type_iseq t1 t2
-
 (*
 	ConstPropagation implements sparse conditional constant propagation using the DataFlow algorithm. Its lattice consists of
 	constants and enum values, but only the former are propagated. Enum values are treated as immutable data tuples and allow
@@ -2027,7 +2025,7 @@ module ConstPropagation = DataFlow(struct
 				raise Not_found
 			| Const ct ->
 				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
-				if not (type_iseq_strict_no_mono ctx.com e'.etype e.etype) then raise Not_found;
+				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
 		let rec commit e = match e.eexpr with
@@ -2121,7 +2119,7 @@ module CopyPropagation = DataFlow(struct
 						raise Not_found
 					in
 					let v' = match lat with Local v -> v | _ -> leave() in
-					if not (type_iseq_strict_no_mono ctx.com v'.v_type v.v_type) then leave();
+					if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
 					let v'' = get_var_origin ctx.graph v' in
 					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
 					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
