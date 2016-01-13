@@ -124,7 +124,8 @@ install:
 
 before_script:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-    travis_retry brew install mysql;
+    travis_retry brew install mysql &&
+    mysql.server start;
     fi
   - mysql -u root -e "CREATE DATABASE haxe_test;";
 
