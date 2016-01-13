@@ -514,11 +514,15 @@ and gen_expr ctx e =
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
-	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
-		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
 	| TField (x,f) ->
+		let rec skip e = match e.eexpr with
+			| TCast(e1,None) | TMeta(_,e1) -> skip e1
+			| TConst(TInt _ | TFloat _) -> {e with eexpr = TParenthesis e}
+			| _ -> e
+		in
+		let x = skip x in
 		gen_value ctx x;
 		let name = field_name f in
 		spr ctx (match f with FStatic(c,_) -> static_field c name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
@@ -675,7 +679,7 @@ and gen_expr ctx e =
 
 		if (has_feature ctx "js.Lib.rethrow") then begin
 			let has_rethrow (_,e) =
-				let rec loop e = match e.eexpr with 
+				let rec loop e = match e.eexpr with
 				| TCall({eexpr = TLocal {v_name = "__rethrow__"}}, []) -> raise Exit
 				| _ -> Type.iter loop e
 				in
