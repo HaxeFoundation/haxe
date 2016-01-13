@@ -821,11 +821,12 @@ let platform_name = function
 	| Java -> "java"
 	| Python -> "python"
 
+(* to increment flash/swf version, make sure you modify both variables*)
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
 	let min = int_of_float (mod_float (v *. 10.) 10.) in
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
-) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0]
+) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0;18.0;19.0;20.0]
 
 let flash_version_tag = function
 	| 6. -> 6
@@ -845,12 +846,15 @@ let flash_version_tag = function
 	| 11.7 -> 20
 	| 11.8 -> 21
 	| 11.9 -> 22
-	| 12.0 -> 23
-	| 13.0 -> 24
-	| 14.0 -> 25
-	| 15.0 -> 26
-	| 16.0 -> 27
-	| 17.0 -> 28
+	| 12.  -> 23
+	| 13.  -> 24
+	| 14.  -> 25
+	| 15.  -> 26
+	| 16.  -> 27
+	| 17.  -> 28
+	| 18.  -> 29
+	| 19.  -> 30
+	| 20.  -> 31
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
 let raw_defined ctx v =

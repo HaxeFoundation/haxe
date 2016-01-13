@@ -236,15 +236,24 @@ class Boot extends flash.display.MovieClip {
 		aproto.copy = function() {
 			return __this__.slice();
 		};
-		aproto.insert = function(i,x) {
-			__this__.splice(i,0,x);
+		aproto.insert = function(i, x) {
+			#if flash19
+			__this__.insertAt(i, x);
+			#else
+			__this__.splice(i, 0, x);
+			#end
 		};
 		aproto.remove = function(obj) {
 			var idx = __this__.indexOf(obj);
-			if( idx == -1 ) return false;
+			if ( idx == -1 ) return false;
+			#if flash19
+			__this__.removeAt(idx);
+			#else
 			__this__.splice(idx,1);
+			#end
 			return true;
 		}
+		
 		aproto.iterator = function() {
 			var cur = 0;
 			var arr : Array<Dynamic> = __this__;
@@ -261,6 +270,14 @@ class Boot extends flash.display.MovieClip {
 		aproto.setPropertyIsEnumerable("insert", false);
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
+		
+		#if !flash19
+		aproto.removeAt = function(idx) {
+			return __this__.splice(idx, 1).length != 0;
+		}
+		aproto.setPropertyIsEnumerable("removeAt", false);
+		#end
+		
 		#if (as3 || no_flash_override)
 		aproto.filterHX = function(f) {
 			var ret = [];

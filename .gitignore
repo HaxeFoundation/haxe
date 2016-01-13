@@ -6,6 +6,7 @@
 *.a
 *.exe
 .*.swp
+zlib1.dll
 /out
 
 /extra/hxclasses

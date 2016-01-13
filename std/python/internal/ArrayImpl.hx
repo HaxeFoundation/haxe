@@ -109,6 +109,16 @@ class ArrayImpl {
 			return false;
 		}
 	}
+	
+	@:ifFeature("dynamic_read.removeAt", "anon_optional_read.removeAt")
+	public static function removeAt<T>(x:Array<T>,pos:Int) : Bool {
+		if (x.length == 0) return false;
+		var len = x.length;
+		if (pos < 0) pos += len;
+		if (pos < 0 || pos > x.length) return false;
+		Syntax.callField(x, "pop", pos);
+		return true;
+	}
 
 	@:ifFeature("dynamic_read.shift", "anon_optional_read.shift")
 	public static inline function shift<T>(x:Array<T>) : Null<T> {
