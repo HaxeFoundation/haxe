@@ -138,8 +138,56 @@ class String {
 	}
 
 	public static function fromCharCode( code : Int ) : String {
-		throw "TODO";
-		return null;
+		if( code < 0 ) throw "Invalid char code " + code;
+		if( code < 0x80 ) {
+			var b = new hl.types.Bytes(2);
+			b[0] = code;
+			b[1] = 0;
+			return __alloc__(b, 1, 1);
+		}
+		if( code < 0x800 ) {
+			var b = new hl.types.Bytes(3);
+			b[0] = 0xC0 | (code >> 6);
+			b[1] = 0x80 | (code & 63);
+			b[2] = 0;
+			return __alloc__(b, 2, 1);
+		}
+		if( code < 0x10000 ) {
+			var b = new hl.types.Bytes(4);
+			b[0] = 0xE0 | (code >> 12);
+			b[1] = 0x80 | ((code >> 6) & 63);
+			b[2] = 0x80 | (code & 63);
+			b[3] = 0;
+			return __alloc__(b, 3, 1);
+		}
+		if( code < 0x200000 ) {
+			var b = new hl.types.Bytes(5);
+			b[0] = 0xF0 | (code >> 18);
+			b[1] = 0x80 | ((code >> 12) & 63);
+			b[2] = 0x80 | ((code >> 6) & 63);
+			b[3] = 0x80 | (code & 63);
+			b[4] = 0;
+			return __alloc__(b, 4, 1);
+		}
+		if( code < 0x4000000 ) {
+			var b = new hl.types.Bytes(6);
+			b[0] = 0xF8 | (code >> 24);
+			b[1] = 0x80 | ((code >> 18) & 63);
+			b[2] = 0x80 | ((code >> 12) & 63);
+			b[3] = 0x80 | ((code >> 6) & 63);
+			b[4] = 0x80 | (code & 63);
+			b[5] = 0;
+			return __alloc__(b, 5, 1);
+		}
+		var b = new hl.types.Bytes(7);
+		b[0] = 0xFC | (code >> 30);
+		b[1] = 0x80 | ((code >> 24) & 63);
+		b[2] = 0x80 | ((code >> 18) & 63);
+		b[3] = 0x80 | ((code >> 12) & 63);
+		b[4] = 0x80 | ((code >> 6) & 63);
+		b[5] = 0x80 | (code & 63);
+		b[6] = 0;
+		return __alloc__(b, 6, 1);
 	}
 
 	@:keep function __string() : hl.types.Bytes {

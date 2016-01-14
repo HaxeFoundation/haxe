@@ -38,6 +38,8 @@ package haxe.io;
 	typedef BytesData = python.Bytearray;
 #elseif js
 	typedef BytesData = js.html.ArrayBuffer;
+#elseif hl
+	typedef BytesData = hl.types.Bytes;
 #else
 	typedef BytesData = Array<Int>;
 #end

@@ -388,6 +388,8 @@ class StringTools {
 		return (untyped s).charCodeAt(index);
 		#elseif python
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
+		#elseif hl
+		return @:privateAccess s.bytes[index];
 		#else
 		return untyped s.cca(index);
 		#end
@@ -397,7 +399,7 @@ class StringTools {
 		Tells if `c` represents the end-of-file (EOF) character.
 	*/
 	@:noUsing public static inline function isEof( c : Int ) : Bool {
-		#if (flash || cpp)
+		#if (flash || cpp || hl)
 		return c == 0;
 		#elseif js
 		return c != c; // fast NaN

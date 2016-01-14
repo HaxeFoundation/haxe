@@ -10,17 +10,26 @@ package hl.types;
 		untyped $bblit(this, pos, src, srcPos, len);
 	}
 
-	@:extern @:arrayAccess public inline function getI8( pos : Int ) : Int {
+	@:extern @:arrayAccess public inline function getUI8( pos : Int ) : Int {
 		return untyped $bgeti8(this,pos);
 	}
 
-	@:extern @:arrayAccess public inline function setI8( pos : Int, value : Int ) : Int {
+	@:extern @:arrayAccess public inline function setUI8( pos : Int, value : Int ) : Int {
 		untyped $bseti8(this,pos,value);
 		return value;
 	}
 
 	@:extern public inline function getI32( pos : Int ) : Int {
 		return untyped $bgeti32(this,pos);
+	}
+
+	public inline function getUI16( pos : Int ) : Int {
+		return getUI8(pos) | (getUI8(pos+1) << 8);
+	}
+
+	public inline function setUI16( pos : Int, v : Int ) {
+		setUI8(pos, v);
+		setUI8(pos + 1, v>>8);
 	}
 
 	@:extern public inline function getF32( pos : Int ) : F32 {
@@ -61,6 +70,10 @@ package hl.types;
 	@:hlNative("std","bytes_find")
 	public function find( pos : Int, size : Int, bytes : Bytes, bytesPos : Int, bytesSize : Int ) : Int {
 		return 0;
+	}
+
+	@:hlNative("std","bytes_fill")
+	public function fill( pos : Int, size : Int, v : Int ) : Void {
 	}
 
 	public function sub( pos : Int, size : Int ) {

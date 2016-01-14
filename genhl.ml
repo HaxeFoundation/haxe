@@ -1684,7 +1684,10 @@ and eval_expr ctx e =
 					j();
 					match at with
 					| HI32 | HF64 ->
-						assert false
+						let b = alloc_tmp ctx HBytes in
+						op ctx (OField (b,ra,1));
+						op ctx (OShl (ridx, ridx, reg_int ctx (type_size_bits at)));
+						write_mem ctx b ridx at v
 					| _ ->
 						let arr = alloc_tmp ctx HArray in
 						op ctx (OField (arr,ra,1));
@@ -3777,10 +3780,6 @@ let interp code =
 				(function
 				| [VBytes str; VInt len] -> (try VFloat (Interp.parse_float (String.sub str 0 (int len))) with _ -> VFloat nan)
 				| _ -> assert false)
-			| "bytes_compare" ->
-				(function
-				| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> to_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len)))
-				| _ -> assert false)
 			| "dyn_compare" ->
 				(function
 				| [a;b] -> to_int (dyn_compare a HDyn b HDyn)
@@ -3931,6 +3930,16 @@ let interp code =
 				(function
 				| [VBytes src; VInt pos; VInt len; VBytes chk; VInt cpos; VInt clen; ] ->
 					to_int (try int pos + ExtString.String.find (String.sub src (int pos) (int len)) (String.sub chk (int cpos) (int clen)) with ExtString.Invalid_string -> -1)
+				| _ -> assert false)
+			| "bytes_compare" ->
+				(function
+				| [VBytes a; VInt apos; VBytes b; VInt bpos; VInt len] -> to_int (String.compare (String.sub a (int apos) (int len)) (String.sub b (int bpos) (int len)))
+				| _ -> assert false)
+			| "bytes_fill" ->
+				(function
+				| [VBytes a; VInt pos; VInt len; VInt v] ->
+					String.fill a (int pos) (int len) (char_of_int ((int v) land 0xFF));
+					VUndef
 				| _ -> assert false)
 			| _ ->
 				unresolved())
