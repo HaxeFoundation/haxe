@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of h software and associated documentation files (the "Software"),
@@ -38,12 +38,11 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	var h : { };
 
 	public function new() : Void {
-		h = { };
-		untyped h.__keys__ = { };
+		h = { __keys__: {} };
 	}
 
 	public function set(key:K, value:V):Void untyped {
-		var id : Int = untyped key.__id__ || assignId(key);
+		var id : Int = getId(key) || assignId(key);
 		h[id] = value;
 		h.__keys__[id] = key;
 	}

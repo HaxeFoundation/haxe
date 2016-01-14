@@ -1,8 +1,8 @@
 package unit.issues;
 
 private abstract Foo(Int) {
-    public function new(x:Int) this = x;
-    @:op(A+B) public static function add(a:Foo, b:Foo):Foo;
+	public function new(x:Int) this = x;
+	@:op(A+B) public static function add(a:Foo, b:Foo):Foo;
 	public function get() {
 		return this;
 	}

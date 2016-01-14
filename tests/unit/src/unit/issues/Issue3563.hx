@@ -9,9 +9,9 @@ private class FinalTest {
 		return hello;
 	}
 
-    static public function getSomeValue2() {
-        return someValue;
-    }
+	static public function getSomeValue2() {
+		return someValue;
+	}
 }
 
 class Issue3563 extends Test {

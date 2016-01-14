@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -209,7 +209,7 @@ class Bytes {
 		Returns the IEEE double precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
 	**/
-	#if (neko_v21 || (cpp && !cppia)) inline #end
+	#if (neko_v21 || (cpp && !cppia) || flash) inline #end
 	public function getDouble( pos : Int ) : Float {
 		#if neko_v21
 		return untyped $sgetd(b, pos, false);
@@ -228,7 +228,7 @@ class Bytes {
 		Returns the IEEE single precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
 	**/
-	#if (neko_v21 || (cpp && !cppia)) inline #end
+	#if (neko_v21 || (cpp && !cppia) || flash) inline #end
 	public function getFloat( pos : Int ) : Float {
 		#if neko_v21
 		return untyped $sgetf(b, pos, false);
@@ -248,7 +248,7 @@ class Bytes {
 		Store the IEEE double precision value at given position in low endian encoding.
 		Result is unspecified if writing outside of the bounds.
 	**/
-	#if neko_v21 inline #end
+	#if (neko_v21 || flash) inline #end
 	public function setDouble( pos : Int, v : Float ) : Void {
 		#if neko_v21
 		untyped $ssetd(b, pos, v, false);
@@ -271,7 +271,7 @@ class Bytes {
 		Store the IEEE single precision value at given position in low endian encoding.
 		Result is unspecified if writing outside of the bounds.
 	**/
-	#if neko_v21 inline #end
+	#if (neko_v21 || flash) inline #end
 	public function setFloat( pos : Int, v : Float ) : Void {
 		#if neko_v21
 		untyped $ssetf(b, pos, v, false);
@@ -463,7 +463,7 @@ class Bytes {
 		return new Bytes(length, BytesData.alloc(length));
 		#elseif cpp
 		var a = new BytesData();
-		if (length>0) a[length-1] = untyped 0;
+		if (length>0) cpp.NativeArray.setSize(a, length);
 		return new Bytes(length, a);
 		#elseif cs
 		return new Bytes(length, new cs.NativeArray(length));

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,13 +28,13 @@ import cs.system.Type;
 **/
 class Lib
 {
-	@:keep private static var decimalSeparator:String;
+	private static var decimalSeparator:String;
 
 	/**
 		Changes the current culture settings to allow a consistent cross-target behavior.
 		Currently the only change made is in regard to the decimal separator, which is always set to "."
 	**/
-	@:keep public static function applyCultureChanges():Void
+	public static function applyCultureChanges():Void
 	{
 		var ci = new cs.system.globalization.CultureInfo(cs.system.threading.Thread.CurrentThread.CurrentCulture.Name, true);
 		decimalSeparator = ci.NumberFormat.NumberDecimalSeparator;
@@ -124,7 +124,7 @@ class Lib
 		[deprecated] - use `getNativeType` instead
 	**/
 	@:deprecated('The function `nativeType` is deprecated and will be removed in later versions. Please use `getNativeType` instead')
-	public static function nativeType(obj:Dynamic):Type
+	public static inline function nativeType(obj:Dynamic):Type
 	{
 		return untyped obj.GetType();
 	}
@@ -132,7 +132,7 @@ class Lib
 	/**
 		Gets the native System.Type from the supplied object. Will throw an exception in case of null being passed.
 	**/
-	public static function getNativeType(obj:Dynamic):Type
+	public static inline function getNativeType(obj:Dynamic):Type
 	{
 		return untyped obj.GetType();
 	}

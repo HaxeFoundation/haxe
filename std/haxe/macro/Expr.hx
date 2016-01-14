@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -434,7 +434,7 @@ enum ExprDef {
 		Represents a `switch` expression with related cases and an optional.
 		`default` case if edef != null.
 	**/
-	ESwitch( e : Expr, cases : Array<Case>, edef : Null<Null<Expr>> );
+	ESwitch( e : Expr, cases : Array<Case>, edef : Null<Expr> );
 
 	/**
 		Represents a `try`-expression with related catches.

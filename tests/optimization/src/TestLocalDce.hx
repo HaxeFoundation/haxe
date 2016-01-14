@@ -13,7 +13,7 @@ private abstract MyEnum(String) to String {
 	var A = "a";
 }
 
-@:analyzer(no_check_has_effect)
+@:analyzer(no_fusion)
 class TestLocalDce {
 	@:js('console.log(3);')
 	static function testNoOpRemoval() {
@@ -120,8 +120,7 @@ class TestLocalDce {
 	}
 
 	@:js('
-		var s = "" + "a";
-		console.log(s);
+		console.log("a");
 	')
 	static function testAbstractOverStringBinop() {
 		var s = "" + A;

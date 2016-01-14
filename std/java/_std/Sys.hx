@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -112,11 +112,14 @@ using haxe.Int64;
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int
 	{
-		var proc:Process = new Process(cmd, args == null ? [] : args);
-		var ret = proc.exitCode();
-		proc.close();
-
-		return ret;
+		var pb = Process.createProcessBuilder(cmd, args);
+		pb.redirectOutput(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
+		pb.redirectError(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
+		var proc = pb.start();
+		proc.waitFor();
+		var exitCode = proc.exitValue();
+		proc.destroy();
+		return exitCode;
 	}
 
 	public static function exit( code : Int ) : Void

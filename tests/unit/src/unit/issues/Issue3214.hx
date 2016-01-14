@@ -26,7 +26,7 @@ class Issue3214 extends unit.Test {
 	function test() {
 		var a = Int64.make(1,2);
 		var b = Int64.make(3,4);
-        var c = a * b;
+		var c = a * b;
 		eq(21, c.get().get());
 	}
 }

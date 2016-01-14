@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,11 +22,13 @@
 package sys.net;
 
 class Host {
+	public var host(default,null) : String;
 	public var ip(default,null) : Int;
 
 	var name:String;
 	
 	public function new( name : String ) : Void {
+		host = name;
 		this.name = name;
     	}
 

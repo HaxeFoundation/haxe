@@ -1,22 +1,22 @@
 package unit.issues;
 
 private abstract A<T>(Array<T>) {
-    public inline function new(a:Array<T>) {
-        this = a;
-    }
+	public inline function new(a:Array<T>) {
+		this = a;
+	}
 
 	#if java
 	@:impl
-    @:overload @:extern
+	@:overload @:extern
 	static inline public function sum(a:Array<Int>) {
-        return "sum of ints";
-    }
+		return "sum of ints";
+	}
 
-    @:overload @:extern
+	@:overload @:extern
 	@:impl
 	static inline public function sum(a:Array<String>) {
-        return "sum of strings";
-    }
+		return "sum of strings";
+	}
 	#end
 }
 

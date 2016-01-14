@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -197,4 +197,10 @@ abstract Int32(Int) from Int to Int {
 		return (x);
 		#end
 	}
+
+	#if js
+	static function __init__() {
+		untyped __feature__("haxe._Int32.Int32_Impl_.mul", if (Math.imul != null) Int32.mul = Math.imul);
+	}
+	#end
 }

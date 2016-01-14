@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -99,7 +99,7 @@ class Prime {
 
       var cppMode = Context.defined("cpp");
 
-      var typeString = parts.length==1 ? codeToType("v",cppMode) : codeToType(parts.shift(),cppMode);
+      var typeString = parts.length==1 ? "Void" : codeToType(parts.shift(),cppMode);
       for(p in parts)
          typeString += "->" + codeToType(p,cppMode);
 

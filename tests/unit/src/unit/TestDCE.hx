@@ -1,6 +1,6 @@
 package unit;
 
-@:analyzer(no_check_has_effect, no_local_dce)
+@:analyzer(no_local_dce)
 class DCEClass {
 	// used statics
 	static function staticUsed() { }
@@ -32,16 +32,16 @@ class DCEClass {
 	function get_memberPropUnused() return 0;
 	function set_memberPropUnused(i:Int) return 0;
 
-	static var c :Array<Dynamic> = [null, unit.UsedReferenced2];
+	static var c:Array<Dynamic> = [null, unit.UsedReferenced2];
 
 	public function new() {
 		staticUsed();
-		staticVarUsed;
+		staticVarUsed = "foo";
 		staticPropUsed = 1;
 		staticPropUsed;
 
 		memberUsed();
-		memberVarUsed;
+		memberVarUsed = 0;
 		memberPropUsed = 2;
 		memberPropUsed;
 
@@ -50,7 +50,7 @@ class DCEClass {
 		try cast (null, UsedReferenced) catch(e:Dynamic) { }
 
 		new UsedAsBaseChild();
-		c.length;
+		c.push(null);
 	}
 }
 
@@ -119,11 +119,11 @@ class TestDCE extends Test {
 
 	#if (!cpp && !java && !cs)
 	public function testProperty2() {
-        var a = new RemovePropertyKeepAccessors();
-        a.test = 3;
-        eq(a.test, 3);
-        Reflect.setProperty(a, "test", 2);
-        eq(a.test, 2);
+		var a = new RemovePropertyKeepAccessors();
+		a.test = 3;
+		eq(a.test, 3);
+		Reflect.setProperty(a, "test", 2);
+		eq(a.test, 2);
 
 		var c = Type.resolveClass("unit.RemovePropertyKeepAccessors");
 		hf(c, "get_test");
@@ -236,11 +236,11 @@ class ThrownWithToString {
 
 class RemovePropertyKeepAccessors
 {
-    public function new() {}
+	public function new() {}
 
-    var _test:Float;
-    public var test(get, set):Float;
+	var _test:Float;
+	public var test(get, set):Float;
 
-    public function get_test():Float return _test;
-    public function set_test(a:Float):Float { _test = a; return _test; }
+	public function get_test():Float return _test;
+	public function set_test(a:Float):Float { _test = a; return _test; }
 }

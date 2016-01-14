@@ -2,10 +2,10 @@ package unit.issues;
 import unit.Test;
 
 private class Parent extends Test {
-    function new() {
+	function new() {
 		super();
 	}
-	
+
 	function foo() {
 		return 1;
 	}
@@ -21,9 +21,9 @@ class Issue2750 extends Parent {
 	function test() {
 		new Issue2750();
 	}
-	
-    public function new() {
-        super();
+
+	public function new() {
+		super();
 		eq(3, foo());
 		eq(3, bind());
 		eq(3, match());
@@ -32,8 +32,8 @@ class Issue2750 extends Parent {
 		t(unit.TestType.typeError(call(super)));
 		t(unit.TestType.typeError({ field: super }));
 		t(unit.TestType.typeError([super]));
-    }
-	
+	}
+
 	override function foo() {
 		return 2 + super.foo();
 	}
@@ -45,6 +45,6 @@ class Issue2750 extends Parent {
 	override function match() {
 		return 2 + super.match();
 	}
-	
+
 	function call(c:Parent) { }
 }

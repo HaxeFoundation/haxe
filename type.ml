@@ -1,23 +1,20 @@
 (*
- * Copyright (C)2005-2013 Haxe Foundation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+	The Haxe Compiler
+	Copyright (C) 2005-2016  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
 open Ast
@@ -72,12 +69,14 @@ and tconstant =
 	| TThis
 	| TSuper
 
+and tvar_extra = (type_params * texpr option) option
+
 and tvar = {
 	mutable v_id : int;
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_capture : bool;
-	mutable v_extra : (type_params * texpr option) option;
+	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
 }
 
@@ -677,6 +676,19 @@ let type_of_module_type = function
 	| TTypeDecl t -> TType (t,List.map snd t.t_params)
 	| TAbstractDecl a -> TAbstract (a,List.map snd a.a_params)
 
+let rec module_type_of_type = function
+	| TInst(c,_) -> TClassDecl c
+	| TEnum(en,_) -> TEnumDecl en
+	| TType(t,_) -> TTypeDecl t
+	| TAbstract(a,_) -> TAbstractDecl a
+	| TLazy f -> module_type_of_type (!f())
+	| TMono r ->
+		(match !r with
+		| Some t -> module_type_of_type t
+		| _ -> raise Exit)
+	| _ ->
+		raise Exit
+
 let tconst_to_const = function
 	| TInt i -> Int (Int32.to_string i)
 	| TFloat s -> Float s
@@ -829,6 +841,12 @@ let rec s_type_kind t =
 	| TAnon an -> "TAnon"
 	| TDynamic t2 -> "TDynamic"
 	| TLazy _ -> "TLazy"
+
+let s_module_type_kind = function
+	| TClassDecl c -> "TClassDecl(" ^ (s_type_path c.cl_path) ^ ")"
+	| TEnumDecl en -> "TEnumDecl(" ^ (s_type_path en.e_path) ^ ")"
+	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
+	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
 let rec s_type ctx t =
 	match t with
@@ -1111,12 +1129,12 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 		sprintf "[%s:%s]%s" s st (tag_args (tabs ^ extra_tabs) sl)
 	in
 	let var_id v = if print_var_ids then v.v_id else 0 in
-	let const c = sprintf "[Const %s:%s]" (s_const c) (s_type e.etype) in
+	let const c t = tag "Const" ~t [s_const c] in
 	let local v = sprintf "[Local %s(%i):%s]" v.v_name (var_id v) (s_type v.v_type) in
 	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name (var_id v) (s_type v.v_type) (tag_args tabs sl) in
 	let module_type mt = sprintf "[TypeExpr %s:%s]" (s_type_path (t_path mt)) (s_type e.etype) in
 	match e.eexpr with
-	| TConst c -> const c
+	| TConst c -> const c (Some e.etype)
 	| TLocal v -> local v
 	| TArray (e1,e2) -> tag "Array" [loop e1; loop e2]
 	| TBinop (op,e1,e2) -> tag "Binop" [loop e1; s_binop op; loop e2]
@@ -1140,7 +1158,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
 	| TFunction f ->
 		let arg (v,cto) =
-			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v] | Some ct -> [local v;const ct])
+			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v] | Some ct -> [local v;const ct None])
 		in
 		tag "Function" ((List.map arg f.tf_args) @ [loop f.tf_expr])
 	| TVar (v,eo) -> var v (match eo with None -> [] | Some e -> [loop e])
@@ -1202,6 +1220,71 @@ let s_class_kind = function
 	| KAbstractImpl a ->
 		Printf.sprintf "KAbstractImpl %s" (s_type_path a.a_path)
 
+module Printer = struct
+
+	let s_type =
+		s_type (print_context())
+
+	let s_record_field name value =
+		Printf.sprintf "%s = %s;" name value
+
+	let s_record_fields fields =
+		let sl = List.map (fun (name,value) -> s_record_field name value) fields in
+		Printf.sprintf "{\n\t%s\n}" (String.concat "\n\t" sl)
+
+	let s_list sep f l =
+		"[" ^ (String.concat sep (List.map f l)) ^ "]"
+
+	let s_metadata_entry (s,el,_) =
+		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> String.concat ", " (List.map Ast.s_expr el))
+
+	let s_metadata metadata =
+		s_list " " s_metadata_entry metadata
+
+	let s_type_param (s,t) = match follow t with
+		| TInst({cl_kind = KTypeParameter tl1},tl2) ->
+			begin match tl1 with
+			| [] -> s
+			| _ -> Printf.sprintf "%s:%s" s (String.concat ", " (List.map s_type tl1))
+			end
+		| _ -> assert false
+
+	let s_type_params tl =
+		s_list ", " s_type_param tl
+
+	let s_tclass_field cf =
+		s_record_fields [
+			"cf_name",cf.cf_name;
+			"cf_type",s_type_kind (follow cf.cf_type);
+			"cf_public",string_of_bool cf.cf_public;
+			"cf_meta",s_metadata cf.cf_meta;
+			"cf_kind",s_kind cf.cf_kind;
+			"cf_params",s_type_params cf.cf_params;
+			"cf_expr",(match cf.cf_expr with None -> "None" | Some e-> s_expr_ast true "" s_type e);
+		]
+
+	let s_tclass c =
+		s_record_fields [
+			"cl_path",s_type_path c.cl_path;
+			"cl_module",s_type_path c.cl_module.m_path;
+			"cl_private",string_of_bool c.cl_private;
+			"cl_meta",s_metadata c.cl_meta;
+			"cl_params",s_type_params c.cl_params;
+			"cl_kind",s_class_kind c.cl_kind;
+			"cl_extern",string_of_bool c.cl_extern;
+			"cl_interface",string_of_bool c.cl_interface;
+			"cl_super",(match c.cl_super with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl)));
+			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
+			"cl_dynamic",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
+			"cl_array_access",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
+			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
+			"cl_init",(match c.cl_init with None -> "None" | Some e -> s_expr_ast true "" s_type e);
+			"cl_constructor",(match c.cl_constructor with None -> "None" | Some cf -> s_tclass_field cf);
+			"cl_ordered_fields",s_list "\n" s_tclass_field c.cl_ordered_fields;
+			"cl_ordered_statics",s_list "\n" s_tclass_field c.cl_ordered_statics;
+		]
+end
+
 (* ======= Unification ======= *)
 
 let rec link e a b =
@@ -1237,6 +1320,11 @@ let rec link e a b =
 		e := Some b;
 		true
 	end
+
+let link_dynamic a b = match follow a,follow b with
+	| TMono r,TDynamic _ -> r := Some b
+	| TDynamic _,TMono r -> r := Some a
+	| _ -> ()
 
 let rec fast_eq a b =
 	if a == b then
@@ -1354,7 +1442,7 @@ type eq_kind =
 let rec type_eq param a b =
 	let can_follow t = match param with
 		| EqCoreType -> false
-		| EqDoNotFollowNull -> not (is_null t)
+		| EqDoNotFollowNull -> not (is_explicit_null t)
 		| _ -> true
 	in
 	if a == b then
@@ -1526,7 +1614,12 @@ let rec unify a b =
 				loop cs (List.map (apply_params c.cl_params tl) tls)
 			) c.cl_implements
 			|| (match c.cl_kind with
-			| KTypeParameter pl -> List.exists (fun t -> match follow t with TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls) | _ -> false) pl
+			| KTypeParameter pl -> List.exists (fun t ->
+				match follow t with
+				| TInst (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)
+				| TAbstract(aa,tl) -> List.exists (unify_to aa tl b) aa.a_to
+				| _ -> false
+			) pl
 			| _ -> false)
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
@@ -1617,6 +1710,21 @@ let rec unify a b =
 		()
 	| TFun _, TAbstract ({ a_path = ["haxe"],"Function" },[]) ->
 		()
+	| TInst(c,tl),TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
+		begin try
+			begin match c.cl_kind with
+				| KTypeParameter tl ->
+					(* type parameters require an equal Constructible constraint *)
+					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq t1 t2 | _ -> false) tl) then error [cannot_unify a b]
+				| _ ->
+					let _,t,cf = class_field c tl "new" in
+					if not cf.cf_public then error [invalid_visibility "new"];
+					begin try unify t1 t
+					with Unify_error l -> error (cannot_unify a b :: l) end
+			end
+		with Not_found ->
+			error [has_no_field a "new"]
+		end
 	| TDynamic t , _ ->
 		if t == a then
 			()
@@ -1883,11 +1991,12 @@ module Abstract = struct
 
 	let rec get_underlying_type a pl =
 		let maybe_recurse t =
-			underlying_type_stack := a :: !underlying_type_stack;
+			underlying_type_stack := (TAbstract(a,pl)) :: !underlying_type_stack;
 			let t = match follow t with
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					if List.mem a !underlying_type_stack then begin
-						let s = String.concat " -> " (List.map (fun a -> s_type_path a.a_path) (List.rev (a :: !underlying_type_stack))) in
+					if List.exists (fast_eq t) !underlying_type_stack then begin
+						let pctx = print_context() in
+						let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: !underlying_type_stack))) in
 						raise (Error("Abstract chain detected: " ^ s,a.a_pos))
 					end;
 					get_underlying_type a tl
@@ -2015,7 +2124,8 @@ let map_expr f e =
 	| TObjectDecl el ->
 		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el) }
 	| TCall (e1,el) ->
-		{ e with eexpr = TCall (f e1, List.map f el) }
+		let e1 = f e1 in
+		{ e with eexpr = TCall (e1, List.map f el) }
 	| TVar (v,eo) ->
 		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
 	| TFunction fu ->

@@ -1,12 +1,12 @@
 package unit.issues;
 
 private abstract MyAbstract(Int) {
-    public var inlineProp(get, set):Int;
+	public var inlineProp(get, set):Int;
 
-    public function new() {this = 0;}
+	public function new() {this = 0;}
 
-    private inline function get_inlineProp():Int {return this;}
-    private inline function set_inlineProp(value:Int):Int {return this = value;}
+	private inline function get_inlineProp():Int {return this;}
+	private inline function set_inlineProp(value:Int):Int {return this = value;}
 }
 
 class Issue3042 extends Test {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -220,7 +220,6 @@ abstract Vector<T>(VectorData<T>) {
 		#end
 	}
 
-	#if !cs
 	/**
 		Returns a shallow copy of `this` Vector.
 
@@ -228,7 +227,7 @@ abstract Vector<T>(VectorData<T>) {
 		`a[i] == a.copy()[i]` is true for any valid `i`. However,
 		`a == a.copy()` is always false.
 	**/
-	public inline function copy<T>():Vector<T> {
+	#if cs @:extern #end public inline function copy<T>():Vector<T> {
 		var r = new Vector<T>(length);
 		Vector.blit(cast this, 0, r, 0, length);
 		return r;
@@ -247,7 +246,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `sep` is null, the result is unspecified.
 	**/
-	public inline function join<T>(sep:String):String {
+	#if cs @:extern #end public inline function join<T>(sep:String):String {
 		#if (flash||cpp)
 		return this.join(sep);
 		#else
@@ -301,6 +300,4 @@ abstract Vector<T>(VectorData<T>) {
 		this.sort(f);
 		#end
 	}
-
-	#end
 }

@@ -5,10 +5,10 @@ var stack = haxe.CallStack.exceptionStack();
 (stack is Array) == true;
 
 try {
-    throw false;
+	throw false;
 } catch (_:Dynamic) {
-    var stack = haxe.CallStack.exceptionStack();
-    (stack is Array) == true;
+	var stack = haxe.CallStack.exceptionStack();
+	(stack is Array) == true;
 }
 #if js
 var old = @:privateAccess haxe.CallStack.lastException;

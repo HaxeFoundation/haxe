@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,23 +35,51 @@ class Process {
 	public var stdin(default, null) : haxe.io.Output;
 
 	private var proc:java.lang.Process;
+	@:allow(Sys)
+	private static function createProcessBuilder(cmd:String, ?args:Array<String>):java.lang.ProcessBuilder {
+		var sysName = Sys.systemName();
+		var pargs;
+		if (args == null) {
+			var cmdStr = cmd;
+			switch (sysName) {
+				case "Windows":
+					pargs = new NativeArray(3);
+					pargs[0] = cmd = switch (Sys.getEnv("COMSPEC")) {
+						case null: "cmd.exe";
+						case comspec: comspec;
+					}
+					pargs[1] = '/C';
+					pargs[2] = '"$cmdStr"';
+				case _:
+					pargs = new NativeArray(3);
+					pargs[0] = cmd = "/bin/sh";
+					pargs[1] = "-c";
+					pargs[2] = cmdStr;
+			}
+		} else {
+			pargs = new NativeArray(args.length + 1);
+			switch (sysName) {
+				case "Windows":
+					pargs[0] = StringTools.quoteWinArg(cmd, false);
+					for (i in 0...args.length)
+					{
+						pargs[i + 1] = StringTools.quoteWinArg(args[i], false);
+					}
+				case _:
+					pargs[0] = cmd;
+					for (i in 0...args.length)
+					{
+						pargs[i + 1] = args[i];
+					}
+			}
+		}
 
-	public function new( cmd : String, args : Array<String> ) : Void
+		return new java.lang.ProcessBuilder(pargs);
+	}
+
+	public function new( cmd : String, ?args : Array<String> ) : Void
 	{
-		var pargs = new NativeArray(args.length + 1);
-		pargs[0] = cmd;
-		for (i in 0...args.length)
-		{
-			pargs[i + 1] = args[i];
-		}
-
-		try
-		{
-			proc = new java.lang.ProcessBuilder(pargs).start();
-		}
-		catch (e:Dynamic) { throw e; } //wrapping typed exceptions
-
-		var p = proc;
+		var p = proc = createProcessBuilder(cmd, args).start();
 		stderr = new ProcessInput(p.getErrorStream());
 		stdout = new ProcessInput(p.getInputStream());
 		stdin = new java.io.NativeOutput(p.getOutputStream());

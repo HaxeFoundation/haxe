@@ -181,7 +181,12 @@ class RunCi {
 		}
 	}
 
-	static function runFlash(swf:String):Void {
+	/**
+		Run a Flash swf file.
+		Return whether the test is successful or not.
+		It detemines the test result by reading the flashlog.txt, looking for "SUCCESS: true".
+	*/
+	static function runFlash(swf:String):Bool {
 		swf = FileSystem.fullPath(swf);
 		Sys.println('going to run $swf');
 		switch (systemName) {
@@ -208,7 +213,7 @@ class RunCi {
 		}
 		if (!FileSystem.exists(flashlogPath)) {
 			failMsg('$flashlogPath not found.');
-			Sys.exit(1);
+			return false;
 		}
 
 		//read flashlog.txt continously
@@ -219,11 +224,13 @@ class RunCi {
 				line = traceProcess.stdout.readLine();
 				Sys.println(line);
 				if (line.indexOf("SUCCESS: ") >= 0) {
-					Sys.exit(line.indexOf("SUCCESS: true") >= 0 ? 0 : 1);
+					return line.indexOf("SUCCESS: true") >= 0;
 				}
-			} catch (e:haxe.io.Eof) {}
+			} catch (e:haxe.io.Eof) {
+				break;
+			}
 		}
-		Sys.exit(1);
+		return false;
 	}
 
 	static function runCs(exe:String, ?args:Array<String>):Void {
@@ -234,6 +241,12 @@ class RunCi {
 				runCommand("mono", [exe].concat(args));
 			case "Windows":
 				runCommand(exe, args);
+				switch (ci) {
+					case AppVeyor:
+						runCommand("mono", [exe].concat(args));
+					case _:
+						//pass
+				}
 		}
 	}
 
@@ -431,7 +444,13 @@ class RunCi {
 					runCommand("brew", ["install", "mono"], true);
 				runCommand("mono", ["--version"]);
 			case "Windows":
-				//pass
+				switch (ci) {
+					case AppVeyor:
+						addToPATH("C:\\Program Files (x86)\\Mono\\bin");
+						runCommand("mono", ["--version"]);
+					case _:
+						//pass
+				}
 		}
 
 		haxelibInstallGit("HaxeFoundation", "hxcs", true);
@@ -528,7 +547,7 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
-	static var gitInfo(get, null):{repo:String, branch:String, commit:String, date:String};
+	static var gitInfo(get, null):{repo:String, branch:String, commit:String, timestamp:Float, date:String};
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
 		repo: switch (ci) {
 			case TravisCI:
@@ -547,12 +566,14 @@ class RunCi {
 				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
 		},
 		commit: commandResult("git", ["rev-parse", "HEAD"]).stdout.trim(),
+		timestamp: Std.parseFloat(commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout),
 		date: {
 			var gitTime = commandResult("git", ["show", "-s", "--format=%ct", "HEAD"]).stdout;
 			var tzd = {
 				var z = Date.fromTime(0);
 				z.getHours() * 60 * 60 * 1000 + z.getMinutes() * 60 * 1000;
 			}
+			// make time in the UTC time zone
 			var time = Date.fromTime(Std.parseFloat(gitTime) * 1000 - tzd);
 			DateTools.format(time, "%FT%TZ");
 		}
@@ -608,6 +629,138 @@ class RunCi {
 		}
 	}
 
+	static function saveOutput():Void {
+		if (Sys.getEnv("HAXECI_GH_TOKEN") == null) {
+			infoMsg("Missing HAXECI_GH_TOKEN. Will not save output.");
+			return;
+		}
+
+		changeDirectory(repoDir);
+		var haxe_output = Path.join([repoDir, "haxe-output"]);
+		var gitInfo = gitInfo;
+		var TEST = Sys.getEnv("TEST");
+		var TRAVIS_OS_NAME = Sys.getEnv("TRAVIS_OS_NAME");
+		var haxe_output_branch = '${gitInfo.branch}_travisci_${TRAVIS_OS_NAME}_${TEST}';
+		var haxe_output_repo = "github.com/HaxeFoundation/haxe-output.git";
+
+		function haxeCommitTime(sha:String):Float {
+			var cwd = Sys.getCwd();
+			Sys.setCwd(repoDir);
+			var time = Std.parseFloat(commandResult("git", ["show", "-s", "--pretty=%ct", sha]).stdout);
+			Sys.setCwd(cwd);
+			return time;
+		}
+
+		function save():Void {
+			// prepare haxe-output repo
+			runCommand("git", ["clone", 'https://${Sys.getEnv("HAXECI_GH_TOKEN")}@${haxe_output_repo}', haxe_output]);
+			changeDirectory(haxe_output);
+			runCommand("git", ["config", "user.email", "haxe-ci@onthewings.net"]);
+			runCommand("git", ["config", "user.name", "Haxe CI Bot"]);
+
+			// check to see whether the haxe repo branch has been created in haxe-output
+			var firstOutputBranch = switch (Sys.command("git", ["ls-remote", "--exit-code", "origin", haxe_output_branch])) {
+				case 0: false;
+				case 2: true;
+				case exitcode: throw "unknown exit code: " + exitcode;
+			}
+
+			// switch to the branch
+			if (firstOutputBranch) {
+				runCommand("git", ["checkout", "-B", haxe_output_branch]);
+			} else {
+				runCommand("git", ["checkout", "-B", haxe_output_branch, "--track", "origin/" + haxe_output_branch]);
+			}
+
+			// check to see whether this will be the first push of this haxe repo commit
+			var firstOutputCommit = firstOutputBranch || {
+				var lastLog = commandResult("git", ["show", "-s", "--pretty=format:%B", "HEAD"]).stdout;
+				var commitRe = ~/[a-f0-9]{40}/;
+				if (!commitRe.match(lastLog)) {
+					infoMsg("No commit sha found in log: " + lastLog);
+					true;
+				} else {
+					var lastCommit = commitRe.matched(0);
+
+					// check to see whether this commit is newer than the last pushed one
+					// in case e.g. the current build is a rebuild of an old commit
+					if (haxeCommitTime(lastCommit) > gitInfo.timestamp) {
+						throw "There exists output with a later commit in the haxe-output repo.";
+					}
+
+					lastCommit != gitInfo.commit;
+				}
+			};
+
+			// Remove all the old output first.
+			// It is because there may be files no longer emitted by the current build.
+			if (firstOutputCommit) {
+				runCommand("rm", ["-rf", "tests"]);
+			}
+
+			// get the outputs by listing the files/folders ignored by git
+			changeDirectory(cwd);
+			var stdout = {
+				var proc = new Process("git", ["status", "--ignored", "--porcelain", cwd]);
+				var out = proc.stdout.readAll().toString();
+				proc.close();
+				out;
+			};
+			var outputs = stdout.split("\n")
+				.filter(function(s) return s.startsWith("!! "))
+				.map(function(s) return s.substr("!! ".length));
+
+			// copy all the outputs to haxe-output
+			FileSystem.createDirectory(haxe_output);
+			for (item in outputs) {
+				var orig = Path.join([repoDir, item]);
+				var dest = Path.join([haxe_output, item]);
+				if (FileSystem.isDirectory(orig)) {
+					FileSystem.createDirectory(dest);
+				} else {
+					FileSystem.createDirectory(Path.directory(dest));
+				}
+				runCommand("cp", ["-rf", orig, dest]);
+			}
+			changeDirectory(haxe_output);
+			runCommand("git", ["add", haxe_output]);
+			var commitMsg = [
+				'-m', '${Sys.getEnv("TRAVIS_JOB_NUMBER")} ${TEST} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}',
+				'-m', 'https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
+			];
+			runCommand("git", ["commit", "-q", "--allow-empty"].concat(commitMsg));
+		}
+
+		// try save() for 5 times because the push may fail when the another build push at the same time
+		var pushError = false;
+		for (i in 0...5) {
+			try {
+				save();
+			} catch (e:Dynamic) {
+				infoMsg(e);
+				pushError = false;
+				break;
+			}
+			var pushResult = commandResult("git", ["push", "origin", haxe_output_branch]);
+			if (pushResult.exitCode == 0) {
+				successMsg("push to haxe-output succeed");
+				pushError = false;
+				break;
+			} else {
+				failMsg("push to haxe-output failed");
+				failMsg(pushResult.stderr);
+				pushError = true;
+
+				runCommand("rm", ["-rf", haxe_output]);
+
+				Sys.sleep(Std.random(10));
+			}
+		}
+		if (pushError) {
+			Sys.exit(1);
+		}
+	}
+
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
@@ -655,7 +808,7 @@ class RunCi {
 							// runCommand("haxe", ["compile-macro.hxml"]);
 					}
 				case Neko:
-					runCommand("haxe", ["compile-neko.hxml"]);
+					runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"]);
 					runCommand("neko", ["bin/unit.n"]);
 
 					changeDirectory(sysDir);
@@ -748,8 +901,8 @@ class RunCi {
 
 					var env = Sys.environment();
 					if (
-						env.exists("SAUCE") && 
-						env.exists("SAUCE_USERNAME") && 
+						env.exists("SAUCE") &&
+						env.exists("SAUCE_USERNAME") &&
 						env.exists("SAUCE_ACCESS_KEY")
 					) {
 						// sauce-connect should have been started
@@ -852,8 +1005,10 @@ class RunCi {
 
 				case Flash9:
 					setupFlashPlayerDebugger();
-					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb"]);
-					runFlash("bin/unit9.swf");
+					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"]);
+					var success = runFlash("bin/unit9.swf");
+					if (!success)
+						Sys.exit(1);
 				case As3:
 					setupFlashPlayerDebugger();
 
@@ -861,7 +1016,7 @@ class RunCi {
 					if (commandSucceed("mxmlc", ["--version"])) {
 						infoMsg('mxmlc has already been installed.');
 					} else {
-						var flexVersion = "4.14.0";
+						var flexVersion = "4.14.1";
 						runCommand("wget", ['http://archive.apache.org/dist/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 						runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 						var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
@@ -874,7 +1029,9 @@ class RunCi {
 					}
 
 					runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
-					runFlash("bin/unit9_as3.swf");
+					var success = runFlash("bin/unit9_as3.swf");
+					if (!success)
+						Sys.exit(1);
 				case ThirdParty:
 					getPhpDependencies();
 					getJavaDependencies();
@@ -893,6 +1050,20 @@ class RunCi {
 				case t:
 					throw "unknown target: " + t;
 			}
+		}
+
+		if (
+			(switch [ci, systemName] {
+				case [TravisCI, "Linux"]: true;
+				case _: false;
+			})
+			&&
+			Lambda.exists(tests, function(t) return switch (t) {
+				case Js | Cpp | Cs | Java | Php | Python | Neko | Flash9 | As3: true;
+				case _: false;
+			})
+		) {
+			saveOutput();
 		}
 	}
 

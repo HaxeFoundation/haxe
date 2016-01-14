@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,7 +33,7 @@ typedef FileStat = {
 	var atime : Date;
 	/** the last modification time for the file **/
 	var mtime : Date;
-	/** the creation time for the file **/
+	/** the creation time for the file (not all filesystems support this) **/
 	var ctime : Date;
 	/** the size of the file **/
 	var size : Int;

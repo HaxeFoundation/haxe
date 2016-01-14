@@ -1,23 +1,20 @@
 (*
- * Copyright (C)2005-2013 Haxe Foundation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+   The Haxe Compiler
+   Copyright (C) 2005-2016  Haxe Foundation
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 2
+   of the License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
 open Ast
@@ -309,6 +306,9 @@ let hash_iterate hash visitor =
 (* Convert function names that can't be written in c++ ... *)
 let keyword_remap name =
    match name with
+   | "__get" | "__set" | "__unsafe_get" | "__unsafe_set" | "__global__"
+   |   "__SetSize" | "__s" | "__trace" -> name
+   (* | _ when (String.length name > 1) && (String.sub name 0 2 = "__") -> "_hx" ^ name *)
    | "int"
    | "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
    | "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
@@ -321,8 +321,9 @@ let keyword_remap name =
    | "_Complex" | "INFINITY" | "NAN"
    | "INT_MIN" | "INT_MAX" | "INT8_MIN" | "INT8_MAX" | "UINT8_MAX" | "INT16_MIN"
    | "INT16_MAX" | "UINT16_MAX" | "INT32_MIN" | "INT32_MAX" | "UINT32_MAX"
-   | "struct" -> "_" ^ name
-   | "asm" -> "_asm_"
+   | "asm"
+   | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
+   | "struct" -> "_hx_" ^ name
    | x -> x
 ;;
 
@@ -1491,13 +1492,17 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 let hx_stack_push ctx output clazz func_name pos =
    if ctx.ctx_debug_level > 0 then begin
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
-      let qfile = "\"" ^ (Ast.s_escape stripped_file) ^ "\"" in
+      let esc_file = (Ast.s_escape stripped_file) in
       ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
       if (ctx.ctx_debug_level>0) then begin
+         let full_name = clazz ^ "." ^ func_name ^ (
+           if (clazz="*") then
+             (" (" ^ esc_file ^ ":" ^ (string_of_int (Lexer.get_error_line pos) ) ^ ")")
+           else "") in
          let hash_class_func = gen_hash 0 (clazz^"."^func_name) in
          let hash_file = gen_hash 0 stripped_file in
          output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
-               clazz ^ "." ^ func_name ^ "\"," ^ qfile ^ "," ^
+               full_name ^ "\",\"" ^ esc_file ^ "\"," ^
                (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
       end
    end
@@ -2760,69 +2765,72 @@ let gen_member_def ctx class_def is_static is_interface field =
          output (" " ^ remap_name ^ "( " );
          output (gen_tfun_interface_arg_list args);
          output (if (not is_static) then ")=0;\n" else ");\n");
-         if reflective class_def field then begin
-            output ("virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
+         if (reflective class_def field) then begin
+            if (Common.defined ctx.ctx_common Define.DynamicInterfaceClosures) then
+               output ("		inline Dynamic " ^ remap_name ^ "_dyn() { return __Field( " ^ (str field.cf_name) ^ ", hx::paccDynamic); }\n" )
+            else
+               output ("		virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
          end
       | _  ->  ( )
    end else begin
-   let decl = get_meta_string field.cf_meta Meta.Decl in
-   let has_decl = decl <> "" in
-   if (has_decl) then
-      output ( "      typedef " ^ decl ^ ";\n" );
-   output (if is_static then "\t\tstatic " else "\t\t");
-   (match  field.cf_expr with
-   | Some { eexpr = TFunction function_def } ->
-      let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
-      let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
-      if ( is_dynamic_haxe_method field ) then begin
-         if ( doDynamic ) then begin
-            output ("Dynamic " ^ remap_name ^ ";\n");
-            output (if is_static then "\t\tstatic " else "\t\t");
-            output ("inline Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
-         end
-      end else begin
-         let return_type = (type_string function_def.tf_type) in
-
-         if ( not is_static && not nonVirtual ) then output "virtual ";
-         output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
-
-         output (" " ^ remap_name ^ "(" );
-         output (gen_arg_list function_def.tf_args "" );
-         output ");\n";
-         if ( doDynamic ) then begin
-            output (if is_static then "\t\tstatic " else "\t\t");
-            output ("Dynamic " ^ remap_name ^ "_dyn();\n" )
+      let decl = get_meta_string field.cf_meta Meta.Decl in
+      let has_decl = decl <> "" in
+      if (has_decl) then
+         output ( "      typedef " ^ decl ^ ";\n" );
+      output (if is_static then "\t\tstatic " else "\t\t");
+      (match  field.cf_expr with
+      | Some { eexpr = TFunction function_def } ->
+         let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
+         let doDynamic =  (nonVirtual || not (is_override class_def field.cf_name ) ) && (reflective class_def field ) in
+         if ( is_dynamic_haxe_method field ) then begin
+            if ( doDynamic ) then begin
+               output ("Dynamic " ^ remap_name ^ ";\n");
+               output (if is_static then "\t\tstatic " else "\t\t");
+               output ("inline Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
+            end
+         end else begin
+            let return_type = (type_string function_def.tf_type) in
+   
+            if ( not is_static && not nonVirtual ) then output "virtual ";
+            output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
+   
+            output (" " ^ remap_name ^ "(" );
+            output (gen_arg_list function_def.tf_args "" );
+            output ");\n";
+            if ( doDynamic ) then begin
+               output (if is_static then "\t\tstatic " else "\t\t");
+               output ("Dynamic " ^ remap_name ^ "_dyn();\n" )
+            end;
          end;
-      end;
-      output "\n";
-   | _ when has_decl ->
-      output ( remap_name ^ "_decl " ^ remap_name ^ ";\n" );
-      (* Variable access *)
-   | _ ->
-      (* Variable access *)
-      gen_type ctx field.cf_type;
-      output (" " ^ remap_name ^ ";\n" );
-
-      (* Add a "dyn" function for variable to unify variable/function access *)
-      (match follow field.cf_type with
-      | _ when nativeGen  -> ()
-      | TFun (_,_) ->
-         output (if is_static then "\t\tstatic " else "\t\t");
+         output "\n";
+      | _ when has_decl ->
+         output ( remap_name ^ "_decl " ^ remap_name ^ ";\n" );
+         (* Variable access *)
+      | _ ->
+         (* Variable access *)
          gen_type ctx field.cf_type;
-         output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
-      | _ ->  (match field.cf_kind with
-         | Var { v_read = AccCall } when (not is_static) && (is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def) ->
-            output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
-         | _ -> ()
-         );
-         (match field.cf_kind with
-         | Var { v_write = AccCall } when (not is_static) &&  (is_dynamic_accessor ("set_" ^ field.cf_name) "set" field class_def) ->
-            output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
-         | _ -> ()
+         output (" " ^ remap_name ^ ";\n" );
+   
+         (* Add a "dyn" function for variable to unify variable/function access *)
+         (match follow field.cf_type with
+         | _ when nativeGen  -> ()
+         | TFun (_,_) ->
+            output (if is_static then "\t\tstatic " else "\t\t");
+            gen_type ctx field.cf_type;
+            output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
+         | _ ->  (match field.cf_kind with
+            | Var { v_read = AccCall } when (not is_static) && (is_dynamic_accessor ("get_" ^ field.cf_name) "get" field class_def) ->
+               output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
+            | _ -> ()
+            );
+            (match field.cf_kind with
+            | Var { v_write = AccCall } when (not is_static) &&  (is_dynamic_accessor ("set_" ^ field.cf_name) "set" field class_def) ->
+               output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
+            | _ -> ()
+            )
          )
-      )
-   );
-   end
+      );
+      end
    ;;
 
 let path_of_string path =
@@ -3550,6 +3558,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false scriptable in
    List.iter ( add_include cpp_file  ) all_referenced;
 
+   let dynamic_interface_closures =  (Common.defined common_ctx Define.DynamicInterfaceClosures) in
 
    (* All interfaces (and sub-interfaces) implemented *)
    let implemented_hash = Hashtbl.create 0 in
@@ -4042,8 +4051,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       end else
          output_cpp (class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ ");");
       output_cpp ("return null(); }\n");
-      if (class_def.cl_interface) then begin
-      output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever); }\n\n");
+      if (class_def.cl_interface) && not dynamic_interface_closures then begin
+         output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever); }\n\n");
 
       end
       in
@@ -4280,18 +4289,19 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    if class_def.cl_interface then begin
       let dumped = ref PMap.empty in
-      let rec dump_def interface =
+      let rec dump_def interface superToo =
          List.iter (fun field -> try ignore (PMap.find field.cf_name !dumped) with Not_found ->
          begin
             dumped := PMap.add field.cf_name true !dumped;
             gen_member_def ctx interface false true field
          end
          ) interface.cl_ordered_fields;
-         List.iter (fun impl -> dump_def (fst impl)) (real_interfaces interface.cl_implements);
+
+         if superToo then
+            (match interface.cl_super with | Some super -> dump_def (fst super) true | _ -> ());
+         List.iter (fun impl -> dump_def (fst impl) true) (real_interfaces interface.cl_implements);
       in
-      (* Dump this class, not its super, but also its implements *)
-      dump_def class_def;
-      List.iter (fun impl -> dump_def (fst impl)) (real_interfaces class_def.cl_implements);
+      dump_def class_def false;
    end else begin
       List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field class_def.cl_ordered_fields);
    end;
@@ -4325,17 +4335,16 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                output_h (") { return mDelegate->" ^ remap_name^ "(");
                output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
                output_h ");}\n";
-               if reflective interface field then
+               if (reflective interface field) &&  not dynamic_interface_closures then
                   output_h ("		Dynamic " ^ remap_name ^ "_dyn() { return mDelegate->" ^ remap_name ^ "_dyn();}\n");
             | _ -> ()
          end
          ) interface.cl_ordered_fields;
 
-         match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ();
+         (match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ());
          List.iter (fun impl -> dump_delegate (fst impl)) (real_interfaces interface.cl_implements);
       in
       dump_delegate class_def;
-      List.iter (fun impl -> dump_delegate (fst impl)) (real_interfaces class_def.cl_implements);
       output_h "};\n\n";
    end;
 
@@ -4372,7 +4381,7 @@ let write_resources common_ctx =
 
    let resource_file = new_cpp_file common_ctx common_ctx.file ([],"__resources__") in
    resource_file#write "#include <hxcpp.h>\n\n";
-   resource_file#write "namespace hx { \n\n";
+   resource_file#write "namespace hx {\n";
 
    idx := 0;
    Hashtbl.iter (fun _ data ->
@@ -4384,7 +4393,7 @@ let write_resources common_ctx =
    resource_file#write "}\n\n";
 
    idx := 0;
-   resource_file#write "hx::Resource __Resources[] =";
+   resource_file#write "hx::Resource __Resources[] = ";
    resource_file#begin_block;
    Hashtbl.iter (fun name data ->
       let id = "__res_" ^ (string_of_int !idx) in
@@ -4394,10 +4403,10 @@ let write_resources common_ctx =
       incr idx;
    ) common_ctx.resources;
 
-   resource_file#write_i "{::String(null()),0,0}";
+   resource_file#write_i "{ ::String(null()),0,0 }\n";
    resource_file#end_block_line;
    resource_file#write ";\n\n";
-   resource_file#write "namespace hx { Resource *GetResources() { return __Resources; } } \n\n";
+   resource_file#write "namespace hx { Resource *GetResources() { return __Resources; } }\n";
    resource_file#close;;
 
 
@@ -4479,7 +4488,7 @@ let create_member_types common_ctx =
    List.iter (fun object_def ->
       (match object_def with
       | TClassDecl class_def ->
-         let class_name = "::" ^ (join_class_path class_def.cl_path "::") in
+         let class_name = "::" ^ (join_class_path_remap class_def.cl_path "::") in
          let rec add_all_fields class_def =
             if class_def.cl_interface then
                List.iter (fun impl -> add_all_fields (fst impl) ) class_def.cl_implements;

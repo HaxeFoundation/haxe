@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package python.lib;
+
+import haxe.extern.EitherType;
 
 extern class StartupInfo {
 	public var dwFlags : Int;
@@ -47,6 +49,6 @@ extern class Subprocess {
 
 	public static var STDOUT:Int;
 
-	public static function call(args:Array<String>):Int;
+	public static function call(args:EitherType<String,Array<String>>, ?kwArgs:python.KwArgs<Dynamic>):Int;
 
 }

@@ -1,5 +1,5 @@
 /*
-* Copyright (C)2005-2012 Haxe Foundation
+* Copyright (C)2005-2016 Haxe Foundation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -27,6 +27,7 @@ import haxe.io.BytesData;
 import python.Exceptions;
 import python.Tuple;
 import python.lib.net.Socket in PSocket;
+import python.lib.net.Socket.SocketModule in PSocketModule;
 import python.lib.net.Address in PAddress;
 import python.lib.Select;
 
@@ -92,7 +93,7 @@ private class SocketOutput extends haxe.io.Output {
     public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
         try {
             var data    = buf.getData();
-            var payload = python.Syntax.pythonCode("data[pos:pos+len]");
+            var payload = python.Syntax.pythonCode("data[{0}:{0}+{1}]", pos, len);
             var r = __s.send(payload,0);
             return r;
         } catch( e : BlockingIOError ) {
@@ -182,7 +183,7 @@ private class SocketOutput extends haxe.io.Output {
         Shutdown the socket, either for reading or writing.
     **/
     public function shutdown( read : Bool, write : Bool ) : Void
-        __s.shutdown( (read && write) ? PSocket.SHUT_RDWR : read ?  PSocket.SHUT_RD : PSocket.SHUT_WR  );
+        __s.shutdown( (read && write) ? PSocketModule.SHUT_RDWR : read ?  PSocketModule.SHUT_RD : PSocketModule.SHUT_WR  );
 
     /**
         Bind the socket to the given host/port so it can afterwards listen for connections there.

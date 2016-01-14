@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue2478 extends Test {
-    function test() {
+	function test() {
 			var o:Outcome<Int,String> = Success(5);
 
 			switch (o) {
@@ -10,7 +10,7 @@ class Issue2478 extends Test {
 				default:
 					throw "assert";
 			}
-    }
+	}
 }
 
 private enum Outcome<D,F> {

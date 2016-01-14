@@ -12,7 +12,7 @@ map.get("bar") == 2;
 map.get("baz") == 3;
 var values = [];
 for (key in map.keys()) {
-    values.push(map[key]);
+	values.push(map[key]);
 }
 values.length == 3;
 values[0] in [1, 2, 3];
@@ -20,7 +20,7 @@ values[1] in [1, 2, 3];
 values[2] in [1, 2, 3];
 var keys = ["foo", "bar", "baz"];
 for (key in map.keys()) {
-    t(keys.remove(key));
+	t(keys.remove(key));
 }
 keys == [];
 map.remove("bar") == true;

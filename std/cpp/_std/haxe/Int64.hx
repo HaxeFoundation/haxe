@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  */
 package haxe;
 
-
+import haxe.Int64Helper;
 
 @:notNull
 
@@ -118,6 +118,14 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 	private function toString() : String
 	{
 		return untyped __cpp__("String( ({0}).get() )", this);
+	}
+
+	public static function parseString( sParam : String ) : Int64 {
+		return Int64Helper.parseString( sParam );
+	}
+
+	public static function fromFloat( f : Float ) : Int64 {
+		return Int64Helper.fromFloat( f );
 	}
 
 	/**

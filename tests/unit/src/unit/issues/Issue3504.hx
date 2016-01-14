@@ -12,9 +12,9 @@ private class B extends A {
 }
 
 private class C extends A {
-    public function new(a:Null<Bool> = false) {
-        super(a ? 1 : 0);
-    }
+	public function new(a:Null<Bool> = false) {
+		super(a ? 1 : 0);
+	}
 }
 
 class Issue3504 extends Test {

@@ -22,7 +22,7 @@ skip_tags: true
 
 install:
     - 'git submodule update --init --recursive'
-    - cinst 7zip.commandline -version 15.05 -y
+    - cinst 7zip.commandline -y
     # Install ocaml using wodi
     - appveyor DownloadFile "http://cygwin.com/setup-%CYG_ARCH%.exe" -FileName "%CYG_ROOT%\setup.exe"
     - '%CYG_ROOT%/setup.exe -g -q -R "%CYG_ROOT%" -P dos2unix -P diffutils -P cpio -P make -P patch -P mingw64-%MINGW_ARCH%-gcc-core -P mingw64-%MINGW_ARCH%-gcc-g++ -P git > log.txt || type log.txt'
@@ -33,12 +33,12 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip" > log.txt || type log.txt'
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/%WODI%/bin'
     # Install neko
-    - cinst make -y
     - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
     - 'cd %NEKO_ROOT%'
     - set PATH=%PATH%;%NEKO_ROOT%/bin
-    - msbuild neko_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
-    - msbuild libs/libs_vc10.sln /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
+    - msbuild vm\nekovm.vcxproj     /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
+    - msbuild vm\nekovm_dll.vcxproj /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
+    - msbuild libs\libs_vc10.sln    /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
     - copy /y libs\include\gc\gc.dll bin
     - cd %NEKO_ROOT%/src
     - neko ../boot/nekoc tools/install.neko
@@ -50,9 +50,10 @@ install:
 
 build_script:
     - 'cd %APPVEYOR_BUILD_FOLDER%'
-    - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
-    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_src"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_src || echo package_src failed"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win"'
+    - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
+    - 'set HAXEPATH=%APPVEYOR_BUILD_FOLDER%'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win tools"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
     - dir %APPVEYOR_BUILD_FOLDER%\out

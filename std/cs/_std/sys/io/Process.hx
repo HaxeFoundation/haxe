@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,28 +35,73 @@ class Process {
 
 	private var native:NativeProcess;
 
-
-	public function new( cmd : String, args : Array<String> ) : Void
+	public function new( cmd : String, ?args : Array<String> ) : Void
 	{
-		this.native = new NativeProcess();
-		native.StartInfo.FileName = cmd;
-		native.StartInfo.CreateNoWindow = true;
-		var buf = new StringBuf();
-		for (arg in args)
-		{
-			buf.add("\"");
-			buf.add(StringTools.replace(arg, "\"", "\\\""));
-			buf.add("\" ");
-		}
-		native.StartInfo.Arguments = buf.toString();
-		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
-		native.StartInfo.UseShellExecute = false;
-
+		this.native = createNativeProcess(cmd, args);
 		native.Start();
 
 		this.stdout = new cs.io.NativeInput(native.StandardOutput.BaseStream);
 		this.stderr = new cs.io.NativeInput(native.StandardError.BaseStream);
 		this.stdin = new cs.io.NativeOutput(native.StandardInput.BaseStream);
+	}
+
+	@:allow(Sys)
+	private static function createNativeProcess( cmd : String, ?args : Array<String> ) : NativeProcess {
+		var native = new NativeProcess();
+		native.StartInfo.CreateNoWindow = true;
+		native.StartInfo.RedirectStandardError = native.StartInfo.RedirectStandardInput = native.StartInfo.RedirectStandardOutput = true;
+		if (args != null) {
+			// mono 4.2.1 on Windows doesn't support relative path correctly
+			if (cmd.indexOf("/") != -1 || cmd.indexOf("\\") != -1)
+				cmd = sys.FileSystem.fullPath(cmd);
+			native.StartInfo.FileName = cmd;
+			native.StartInfo.UseShellExecute = false;
+			native.StartInfo.Arguments = buildArgumentsString(args);
+		} else {
+			switch (Sys.systemName()) {
+				case "Windows":
+					native.StartInfo.FileName = switch (Sys.getEnv("COMSPEC")) {
+						case null: "cmd.exe";
+						case comspec: comspec;
+					}
+					native.StartInfo.Arguments = '/C "$cmd"';
+				case _:
+					native.StartInfo.FileName = "/bin/sh";
+					native.StartInfo.Arguments = buildArgumentsString(["-c", cmd]);
+			}
+			native.StartInfo.UseShellExecute = false;
+		}
+		return native;
+	}
+
+	private static function buildArgumentsString(args:Array<String>):String {
+		return switch (Sys.systemName()) {
+			case "Windows":
+				[
+					for (a in args)
+					StringTools.quoteWinArg(a, false)
+				].join(" ");
+			case _:
+				// mono uses a slightly different quoting/escaping rule...
+				// https://bugzilla.xamarin.com/show_bug.cgi?id=19296
+				[
+					for (arg in args) {
+						var b = new StringBuf();
+						b.add('"');
+						for (i in 0...arg.length) {
+							var c = arg.charCodeAt(i);
+							switch (c) {
+								case '"'.code | '\\'.code:
+									b.addChar('\\'.code);
+								case _: //pass
+							}
+							b.addChar(c);
+						}
+						b.add('"');
+						b.toString();
+					}
+				].join(" ");
+		}
 	}
 
 	public function getPid() : Int

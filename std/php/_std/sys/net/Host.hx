@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,13 @@ package sys.net;
 @:coreApi
 class Host {
 
+	public var host(default,null) : String;
+
 	private var _ip : String;
 	public var ip(default,null) : Int;
 
 	public function new( name : String ) : Void {
+		host = name;
 		if(~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
 		  _ip = name;
 		} else {

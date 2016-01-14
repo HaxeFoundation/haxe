@@ -13,9 +13,9 @@ class InlineCtor {
 }
 
 @:analyzer(no_local_dce)
-@:analyzer(no_check_has_effect)
+@:analyzer(no_fusion)
 class Test {
-	@:js('3;')
+	@:js('')
 	static function testNoOpRemoval() {
 		1;
 		2;
@@ -119,24 +119,24 @@ class Test {
 
 	@:js('
 		var a = [1,2];
-		a[-1];
+		var b = a[-1];
 	')
 	static function testArrayInlineCancelNegative() {
 		var a = [1, 2];
-		a[-1];
+		var b = a[-1];
 	}
 
 	@:js('
 		var a = [1,2];
-		a[2];
+		var b = a[2];
 	')
 	static function testArrayInlineCancelExceeds() {
 		var a = [1, 2];
-		a[2];
+		var b = a[2];
 	}
 
 	@:js('
-		var s = "" + "a";
+		var s = "a";
 	')
 	static function testAbstractOverStringBinop() {
 		var s = "" + A;
@@ -146,7 +146,6 @@ class Test {
 		var a = true;
 		var b = 0;
 		b = 1;
-		b;
 	')
 	static function testSwitch1() {
 		var a = true;
@@ -155,14 +154,12 @@ class Test {
 			case true: b = 1;
 			case false: b = 2;
 		}
-		b; // TODO: this should become 1
 	}
 
 	@:js('
 		var a = true;
 		var b = 0;
 		a = true;
-		a;
 	')
 	static function testSwitch2() {
 		var a = true;

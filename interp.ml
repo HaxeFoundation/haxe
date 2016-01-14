@@ -1,23 +1,20 @@
 (*
- * Copyright (C)2005-2013 Haxe Foundation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+	The Haxe Compiler
+	Copyright (C) 2005-2016  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
 open Common
@@ -126,6 +123,7 @@ type extern_api = {
 	define_module : string -> value list -> ((string * Ast.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
+	mutable current_macro_module : unit -> module_def;
 	delayed_macro : int -> (unit -> (unit -> value));
 	use_cache : unit -> bool;
 	format_string : string -> Ast.pos -> Ast.expr;
@@ -492,14 +490,35 @@ type neko_context = {
 	call : primitive -> value list -> value;
 }
 
+(* try to load dl in order *)
+let rec dlopen dls =
+	let null = Extc.dlint 0 in
+	match dls with
+	| dl_path :: dls ->
+		let dl = Extc.dlopen dl_path in
+		if (Obj.magic dl) == null then
+			dlopen dls
+		else
+			Some dl;
+	| _ ->
+		None
+
 let neko =
 	let is_win = Sys.os_type = "Win32" || Sys.os_type = "Cygwin" in
-	let neko = Extc.dlopen (if is_win then "neko.dll" else "libneko.so") in
-	let null = Extc.dlint 0 in
-	let neko = if Obj.magic neko == null && not is_win then Extc.dlopen "libneko.dylib" else neko in
-	if Obj.magic neko == null then
-		None
+	match dlopen (if is_win then
+		["neko.dll"]
 	else
+		(*
+			By defualt, the makefile of neko produces libneko.so,
+			however, the debian package creates libneko.so.0 without libneko.so...
+			The fedora rpm package creates libneko.so linked to libneko.so.1.
+		*)
+		["libneko.so"; "libneko.so.0"; "libneko.so.1"; "libneko.so.2"; "libneko.dylib"]
+	) with
+	| None ->
+		None
+	| Some(neko) ->
+	let null = Extc.dlint 0 in
 	let load v =
 		let s = Extc.dlsym neko v in
 		if (Obj.magic s) == null then failwith ("Could not load neko." ^ v);
@@ -1843,7 +1862,8 @@ let std_lib =
 	(* process *)
 		"process_run", (Fun2 (fun p args ->
 			match p, args with
-			| VString p, VArray args -> VAbstract (AProcess (Process.run p (Array.map vstring args)))
+			| VString p, VArray args -> VAbstract (AProcess (Process.run p (Some (Array.map vstring args))))
+			| VString p, _ -> VAbstract (AProcess (Process.run p None))
 			| _ -> error()
 		));
 		"process_stdout_read", (Fun4 (fun p str pos len ->
@@ -2486,7 +2506,8 @@ let macro_lib =
 			match name, data with
 			| VString name, VString data ->
 				Hashtbl.replace (ccom()).resources name data;
-				let m = (get_ctx()).curapi.current_module() in
+				if name = "" then failwith "Empty resource name";
+				let m = if name.[0] = '$' then (get_ctx()).curapi.current_macro_module() else (get_ctx()).curapi.current_module() in
 				m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
 				VNull
 			| _ -> error()
@@ -2594,7 +2615,13 @@ let macro_lib =
 			match v with
 			| VString cp ->
 				let com = ccom() in
-				com.class_path <- (Common.normalize_path cp) :: com.class_path;
+				let norm_path = Common.normalize_path cp in
+				com.class_path <- norm_path :: com.class_path;
+				(match com.get_macros() with
+					| Some(mcom) ->
+						mcom.class_path <- norm_path :: com.class_path;
+					| None ->
+						());
 				Hashtbl.clear com.file_lookup_cache;
 				VNull
 			| _ ->
@@ -3407,8 +3434,8 @@ and eval_op ctx op e1 e2 p =
 		let e2 = eval ctx e2 in
 		(fun() ->
 			match e1() with
-			| VBool false as v -> v
-			| _ -> e2())
+			| VBool true -> e2()
+			| _ -> VBool false)
 	| "||" ->
 		let e1 = eval ctx e1 in
 		let e2 = eval ctx e2 in
@@ -3514,7 +3541,7 @@ let rec to_string ctx n v =
 			Buffer.contents b
 
 let rec compare ctx a b =
-	let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else CSup in
+	let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else if a > b then CSup else CUndef in
 	let scmp (a:string) b = if a = b then CEq else if a < b then CInf else CSup in
 	let icmp (a:int32) b = let l = Int32.compare a b in if l = 0 then CEq else if l < 0 then CInf else CSup in
 	match a, b with
@@ -3649,12 +3676,17 @@ let can_reuse ctx types =
 	end
 
 let add_types ctx types ready =
-	let types = List.filter (fun t ->
-		let path = Type.t_path t in
-		if Hashtbl.mem ctx.types path then false else begin
-			Hashtbl.add ctx.types path (Type.t_infos t).mt_module.m_id;
-			true;
-		end
+	let types = List.filter (fun t -> match t with
+		| TAbstractDecl a when not (Ast.Meta.has Ast.Meta.CoreType a.a_meta) ->
+			(* A @:native on an abstract causes the implementation class and the abstract
+			   to have the same path. Let's skip all abstracts so this doesn't matter. *)
+			false
+		| _ ->
+			let path = Type.t_path t in
+			if Hashtbl.mem ctx.types path then false else begin
+				Hashtbl.add ctx.types path (Type.t_infos t).mt_module.m_id;
+				true;
+			end
 	) types in
 	List.iter ready types;
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in

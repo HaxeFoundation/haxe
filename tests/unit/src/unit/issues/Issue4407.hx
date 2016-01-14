@@ -12,5 +12,5 @@ class Issue4407 extends Test
 
 private enum Example
 {
-    NullParam(first:Null<Int>, second:String);
+	NullParam(first:Null<Int>, second:String);
 }

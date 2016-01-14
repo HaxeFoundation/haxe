@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -91,30 +91,22 @@
 		return new String(sys_string());
 	}
 
-	static function escapeArgument( arg : String, windows : Bool ) : String {
-		var ok = true;
-		for( i in 0...arg.length )
-			switch( arg.charCodeAt(i) ) {
-			case ' '.code, '\t'.code, '"'.code, '&'.code, '|'.code, '<'.code, '>'.code, '#'.code , ';'.code, '*'.code, '?'.code, '('.code, ')'.code, '{'.code, '}'.code, '$'.code:
-				ok = false;
-			case 0, 13, 10: // [eof] [cr] [lf]
-				arg = arg.substr(0,i);
-				break;
-			}
-		if( ok )
-			return arg;
-		return windows ? '"'+arg.split('"').join('""').split("%").join('"%"')+'"' : "'"+arg.split("'").join("'\\''")+"'";
-	}
-
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		var win = systemName() == "Windows";
-		cmd = escapeArgument(cmd, win);
-		if( args != null ) {
-			for( a in args )
-				cmd += " "+escapeArgument(a, win);
+		if (args == null) {
+			return sys_command(untyped cmd.__s);
+		} else {
+			switch (systemName()) {
+				case "Windows":
+					cmd = [
+						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+						StringTools.quoteWinArg(a, true)
+					].join(" ");
+					return sys_command(untyped cmd.__s);
+				case _:
+					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+					return sys_command(untyped cmd.__s);
+			}
 		}
-		if (win) cmd = '"$cmd"';
-		return sys_command(untyped cmd.__s);
 	}
 
 	public static function exit( code : Int ) : Void {

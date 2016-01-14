@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,8 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe.io;
+
+#if !nodejs
 import js.html.compat.Uint8Array;
 import js.html.compat.DataView;
+#end
 
 @:coreApi
 class Bytes {
@@ -187,7 +190,7 @@ class Bytes {
 		return untyped b.bufferValue;
 	}
 
-	public static function alloc( length : Int ) : Bytes {
+	public static inline function alloc( length : Int ) : Bytes {
 		return new Bytes(new BytesData(length));
 	}
 

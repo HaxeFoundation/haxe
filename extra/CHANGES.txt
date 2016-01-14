@@ -1,4 +1,4 @@
-2015-??-??: 3.3.0
+2016-??-??: 3.3.0
 
 	New features:
 
@@ -8,6 +8,7 @@
 	all : allowed passing package dot-paths on command line (#4227)
 	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.11.3 / 2.1.4 (#4377)
 	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
+	js : added js.Lib.rethrow (#4551)
 
 	Bugfixes:
 
@@ -34,6 +35,7 @@
 	Standard Library:
 
 	all : added Lambda.flatten and Lambda.flatMap (#3553)
+	sys : proper quoting/escaping (can be opt-out) for Sys.command and sys.io.Process (#3603)
 
 	Macro features and changes:
 

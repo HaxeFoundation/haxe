@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -554,7 +554,7 @@ function _hx_set_method($o, $field, $func) {
 }
 
 function _hx_shift_right($v, $n) {
-	return ($v >= 0) ? ($v >> $n) : ($v >> $n) & (0x7fffffff >> ($n-1));
+	return ($n == 0) ? $v : ($v >= 0) ? ($v >> $n) : ($v >> $n) & (0x7fffffff >> ($n-1));
 }
 
 function _hx_string_call($s, $method, $params) {
@@ -862,7 +862,7 @@ class Enum {
 }
 
 error_reporting(E_ALL & ~E_STRICT);
-set_error_handler('_hx_error_handler', E_ALL);
+set_error_handler('_hx_error_handler', E_ALL & ~E_STRICT);
 set_exception_handler('_hx_exception_handler');
 
 php_Boot::$qtypes = array();

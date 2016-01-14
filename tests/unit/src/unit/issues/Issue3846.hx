@@ -10,11 +10,11 @@ private class Extern {
 		return a;
 	}
 
-    @:overload( function (a:Int):Dynamic {})
+	@:overload( function (a:Int):Dynamic {})
 	@:extern
-    inline public static function test(a:String):Dynamic {
-        return mytest(a);
-    }
+	inline public static function test(a:String):Dynamic {
+		return mytest(a);
+	}
 }
 
 #end
@@ -22,8 +22,8 @@ private class Extern {
 class Issue3846 extends Test {
 	function test() {
 		#if (!java && !cs)
-        eq("coucou", Extern.test("coucou"));
-        eq(1, Extern.test(1));
+		eq("coucou", Extern.test("coucou"));
+		eq(1, Extern.test(1));
 		#end
 	}
 }

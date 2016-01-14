@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,9 @@
  */
 package haxe.io;
 
+#if !nodejs
 import js.html.compat.Float32Array;
+#end
 
 typedef Float32ArrayData = js.html.Float32Array;
 
@@ -64,7 +66,7 @@ abstract Float32Array(Float32ArrayData) {
 		return this;
 	}
 
-	public static function fromData( d : Float32ArrayData ) : Float32Array {
+	public inline static function fromData( d : Float32ArrayData ) : Float32Array {
 		return cast d;
 	}
 

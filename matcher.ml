@@ -1,23 +1,20 @@
 (*
- * Copyright (C)2005-2013 Haxe Foundation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+	The Haxe Compiler
+	Copyright (C) 2005-2016  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
 open Ast
@@ -116,6 +113,7 @@ type type_finiteness =
 	| RunTimeFinite (* type is truly finite (Bool, enums) *)
 
 exception Not_exhaustive of pat * st
+exception Not_exhaustive_default
 exception Unrecognized_pattern of Ast.expr
 
 let arity con = match con.c_def with
@@ -326,26 +324,6 @@ let to_pattern ctx e t =
 		tctx.pc_locals <- PMap.add s (v,p) tctx.pc_locals;
 		v
 	in
-	let check_texpr_pattern e t p =
-		let ec = match Optimizer.make_constant_expression ctx ~concat_strings:true e with Some e -> e | None -> e in
-		match ec.eexpr with
-			| TField (_,FEnum (en,ef)) ->
-				begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
-				begin try
-					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t;
-				with Unify_error l ->
-					error (error_msg (Unify l)) p
-				end;
-				mk_con_pat (CEnum(en,ef)) [] t p
-			| TConst c | TCast({eexpr = TConst c},None) ->
-				begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
-				unify ctx ec.etype t p;
-				mk_con_pat (CConst c) [] t p
-			| TTypeExpr mt ->
-				mk_type_pat ctx mt t p
-			| _ ->
-				raise Not_found
-	in
 	let rec loop pctx e t =
 		let p = pos e in
 		match fst e with
@@ -381,14 +359,8 @@ let to_pattern ctx e t =
 				mk_con_pat (CConst c) [] t p
 			| TTypeExpr mt ->
 				mk_type_pat ctx mt t p
-			| TField(_, FStatic(_,cf)) when is_value_type cf.cf_type ->
-				ignore (follow cf.cf_type);
-				begin match cf.cf_expr with
-				| Some e ->
-					(try check_texpr_pattern e t p with Not_found -> mk_con_pat (CExpr e) [] cf.cf_type p)
-				| None ->
-					mk_con_pat (CExpr e) [] cf.cf_type p
-				end
+			| TField(_,FStatic({cl_extern = true},({cf_kind = Var {v_write = AccNever}} as cf))) ->
+				mk_con_pat (CExpr e) [] cf.cf_type p
 			| TField(_, FEnum(en,ef)) ->
 				begin try
 					unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t
@@ -428,7 +400,9 @@ let to_pattern ctx e t =
 						[]
 				in
 				let el = loop2 0 el tl in
-				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ef.ef_params;
+				(* We want to change the original monomorphs back to type parameters, but we don't want to do that
+				   if they are bound to other monomorphs (issue #4578). *)
+				List.iter2 (fun m (_,t) -> match m,follow m with TMono m1, TMono m2 when m1 == m2 -> Type.unify m t | _ -> ()) monos ef.ef_params;
 				pctx.pc_is_complex <- true;
 				mk_con_pat (CEnum(en,ef)) el r p
 			| _ -> perror p)
@@ -475,7 +449,24 @@ let to_pattern ctx e t =
 						ctx.untyped <- old;
 						e
 				in
-				check_texpr_pattern ec t p
+				let ec = match Optimizer.make_constant_expression ctx ~concat_strings:true ec with Some e -> e | None -> ec in
+				(match ec.eexpr with
+					| TField (_,FEnum (en,ef)) ->
+						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
+						begin try
+							unify_enum_field en (List.map (fun _ -> mk_mono()) en.e_params) ef t;
+						with Unify_error l ->
+							error (error_msg (Unify l)) p
+						end;
+						mk_con_pat (CEnum(en,ef)) [] t p
+					| TConst c | TCast({eexpr = TConst c},None) ->
+						begin try unify_raise ctx ec.etype t ec.epos with Error (Unify _,_) -> raise Not_found end;
+						unify ctx ec.etype t p;
+						mk_con_pat (CConst c) [] t p
+					| TTypeExpr mt ->
+						mk_type_pat ctx mt t p
+					| _ ->
+						raise Not_found);
 			with Not_found ->
 				begin match get_tuple_params t with
 					| Some tl ->
@@ -884,6 +875,12 @@ let rec compile mctx stl pmat toplevel =
 	let expr id = get_cache mctx (Expr id) in
 	let bind bl dt = get_cache mctx (Bind(bl,dt)) in
 	let switch st cl = get_cache mctx (Switch(st,cl)) in
+	let compile mctx stl pmat toplevel =
+		try
+			compile mctx stl pmat toplevel
+		with Not_exhaustive_default when stl <> [] ->
+			raise (Not_exhaustive(any,List.hd stl))
+	in
 	get_cache mctx (match pmat with
 	| [] ->
 		(match stl with
@@ -900,7 +897,7 @@ let rec compile mctx stl pmat toplevel =
 		| _ ->
 			(* This can happen in cases a value is required and all default cases are guarded (issue #3150).
 			   Not a particularly elegant solution, may want to revisit this later. *)
-			raise Exit)
+			raise Not_exhaustive_default)
 	| ([|{p_def = PTuple pt}|],out) :: pl ->
 		compile mctx stl ((pt,out) :: pl) toplevel
 	| (pv,out) :: pl ->
@@ -912,9 +909,10 @@ let rec compile mctx stl pmat toplevel =
 				| None ->
 					expr out.o_id
 				| Some _ ->
-					let dt = match pl,mctx.need_val with
-						| [],false ->
-							None
+					let dt = match pl with
+						| [] ->
+							if mctx.need_val then raise Not_exhaustive_default
+							else None
 						| _ ->
 							Some (compile mctx stl pl false)
 					in
@@ -963,11 +961,7 @@ let rec compile mctx stl pmat toplevel =
 				compile mctx st_tail def false
 			| def,_ ->
 				let cdef = mk_con CAny t_dynamic st_head.st_pos in
-				let def = try
-					compile mctx st_tail def false
-				with Exit ->
-					raise (Not_exhaustive(any,st_head))
-				in
+				let def = compile mctx st_tail def false in
 				let cases = cases @ [cdef,def] in
 				switch st_head cases
 			in
@@ -1154,7 +1148,7 @@ let extractor_depth = ref 0
 let match_expr ctx e cases def with_type p =
 	let need_val,with_type,tmono = match with_type with
 		| NoValue -> false,NoValue,None
-		| WithType t | WithTypeResume t when (match follow t with TMono _ -> true | _ -> false) ->
+		| WithType t when (match follow t with TMono _ -> true | _ -> false) ->
 			(* we don't want to unify with each case individually, but instead at the end after unify_min *)
 			true,Value,Some with_type
 		| t -> true,t,None
@@ -1263,7 +1257,6 @@ let match_expr ctx e cases def with_type p =
 				List.iter2 (fun m (_,t) -> match follow m with TMono _ -> Type.unify m t | _ -> ()) monos ctx.type_params;
 				pl,restore,(match with_type with
 					| WithType t -> WithType (apply_params ctx.type_params monos t)
-					| WithTypeResume t -> WithTypeResume (apply_params ctx.type_params monos t)
 					| _ -> with_type);
 			with Unrecognized_pattern (e,p) ->
 				error "Case expression must be a constant value or a pattern, not an arbitrary expression" p
@@ -1282,8 +1275,6 @@ let match_expr ctx e cases def with_type p =
 		let e = match with_type with
 			| WithType t ->
 				Codegen.AbstractCast.cast_or_unify ctx t e e.epos;
-			| WithTypeResume t ->
-				(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)));
 			| _ -> e
 		in
 		(* type case guard *)
@@ -1390,6 +1381,8 @@ let match_expr ctx e cases def with_type p =
 			error "Note: Patterns with extractors may require a default pattern" st.st_pos;
 		end else
 			error msg st.st_pos
+	| Not_exhaustive_default ->
+		error "Unmatched patterns: _" p;
 	in
 	save();
 	(* check for unused patterns *)
@@ -1399,14 +1392,13 @@ let match_expr ctx e cases def with_type p =
 	let t = if not need_val then
 		mk_mono()
 	else match with_type with
-		| WithType t | WithTypeResume t -> t
+		| WithType t -> t
 		| _ -> try Typer.unify_min_raise ctx (List.rev_map (fun (_,out) -> get_expr mctx out.o_id) (List.rev pl)) with Error (Unify l,p) -> error (error_msg (Unify l)) p
 	in
 	(* unify with expected type if necessary *)
 	begin match tmono with
 		| None -> ()
 		| Some (WithType t2) -> unify ctx t2 t p
-		| Some (WithTypeResume t2) -> (try unify_raise ctx t2 t p with Error (Unify l,p) -> raise (Typer.WithTypeError (l,p)))
 		| _ -> assert false
 	end;
 	(* count usage *)

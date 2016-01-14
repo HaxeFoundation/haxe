@@ -12,6 +12,7 @@
 /extra/*.swf
 /extra/*.swc
 /extra/bintray.json
+/extra/git-archive-all
 
 /version.ml
 /haxe
@@ -74,3 +75,4 @@ tests/*.n
 tests/misc/projects/Issue3756/cpp/
 tests/misc/projects/Issue4070/cpp/
 /tests/unit/unit_hl.hxml
+/*.manifest

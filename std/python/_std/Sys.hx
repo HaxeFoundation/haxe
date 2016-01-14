@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -100,8 +100,11 @@ class Sys {
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		var args = args == null ? [cmd] : [cmd].concat(args);
-		return python.lib.Subprocess.call(args);
+		return
+			if (args == null)
+				python.lib.Subprocess.call(cmd, { shell: true });
+			else
+				python.lib.Subprocess.call([cmd].concat(args));
 	}
 
 	public static function cpuTime() : Float {

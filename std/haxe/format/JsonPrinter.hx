@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -82,7 +82,7 @@ class JsonPrinter {
 		case TObject:
 			objString(v);
 		case TInt:
-			add(v);
+			add(#if as3 Std.string(v) #else v #end);
 		case TFloat:
 			add(Math.isFinite(v) ? v : 'null');
 		case TFunction:
@@ -129,7 +129,7 @@ class JsonPrinter {
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
 		case TBool:
-			add(#if php (v ? 'true' : 'false') #else v #end);
+			add(#if (php || as3) (v ? 'true' : 'false') #else v #end);
 		case TNull:
 			add('null');
 		}

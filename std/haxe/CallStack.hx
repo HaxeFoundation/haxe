@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -328,6 +328,9 @@ class CallStack {
 				var frame = s.GetFrame(i);
 				var m = frame.GetMethod();
 
+				if (m == null) {
+					continue;
+				}
 				var method = StackItem.Method(m.ReflectedType.ToString(), m.Name);
 
 				var fileName = frame.GetFileName();

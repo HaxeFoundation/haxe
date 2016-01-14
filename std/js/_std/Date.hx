@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,9 +40,7 @@
 	}
 
 	static inline function fromTime( t : Float ) : Date {
-		var d : Date = untyped __new__(Date);
-		untyped d["setTime"]( t );
-		return d;
+		return untyped __new__(Date, t);
 	}
 
 	static inline function fromString( s : String ) : Date {

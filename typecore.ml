@@ -1,23 +1,20 @@
 (*
- * Copyright (C)2005-2013 Haxe Foundation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+	The Haxe Compiler
+	Copyright (C) 2005-2016  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
 open Common
@@ -27,7 +24,6 @@ type with_type =
 	| NoValue
 	| Value
 	| WithType of t
-	| WithTypeResume of t
 
 type type_patch = {
 	mutable tp_type : Ast.complex_type option;
@@ -57,6 +53,15 @@ type typer_pass =
 	| PForce				(* usually ensure that lazy have been evaluated *)
 	| PFinal				(* not used, only mark for finalize *)
 
+type typer_module = {
+	curmod : module_def;
+	mutable module_types : module_type list;
+	mutable module_using : tclass list;
+	mutable module_globals : (string, (module_type * string)) PMap.t;
+	mutable wildcard_packages : string list list;
+	mutable module_imports : Ast.import list;
+}
+
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
@@ -79,15 +84,6 @@ type typer_globals = {
 	do_load_module : typer -> path -> pos -> module_def;
 	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
-}
-
-and typer_module = {
-	curmod : module_def;
-	mutable module_types : module_type list;
-	mutable module_using : tclass list;
-	mutable module_globals : (string, (module_type * string)) PMap.t;
-	mutable wildcard_packages : string list list;
-	mutable module_imports : Ast.import list;
 }
 
 and typer = {
@@ -120,6 +116,7 @@ and typer = {
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable vthis : tvar option;
+	mutable in_call_args : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
 }
@@ -148,6 +145,8 @@ exception Error of error_msg * pos
 exception DisplayTypes of t list
 
 exception DisplayPosition of Ast.pos list
+
+exception WithTypeError of unify_error list * pos
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
@@ -301,12 +300,21 @@ let make_static_call ctx c cf map args t p =
 	let ef = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
 
+let raise_or_display ctx l p =
+	if ctx.untyped then ()
+	else if ctx.in_call_args then raise (WithTypeError(l,p))
+	else display_error ctx (error_msg (Unify l)) p
+
+let raise_or_display_message ctx msg p =
+	if ctx.in_call_args then raise (WithTypeError ([Unify_custom msg],p))
+	else display_error ctx msg p
+
 let unify ctx t1 t2 p =
 	try
 		Type.unify t1 t2
 	with
 		Unify_error l ->
-			if not ctx.untyped then display_error ctx (error_msg (Unify l)) p
+			raise_or_display ctx l p
 
 let unify_raise ctx t1 t2 p =
 	try

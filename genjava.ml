@@ -1,23 +1,20 @@
 (*
- * Copyright (C)2005-2013 Haxe Foundation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+	The Haxe Compiler
+	Copyright (C) 2005-2016  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
 open JData
@@ -299,11 +296,28 @@ struct
 	let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority; DBefore IntDivisionSynf.priority ]
 
 	let java_hash s =
+		let high_surrogate c = (c lsr 10) + 0xD7C0 in
+		let low_surrogate c = (c land 0x3FF) lor 0xDC00 in
 		let h = ref Int32.zero in
 		let thirtyone = Int32.of_int 31 in
-		for i = 0 to String.length s - 1 do
-			h := Int32.add (Int32.mul thirtyone !h) (Int32.of_int (int_of_char (String.unsafe_get s i)));
-		done;
+		(try
+			UTF8.validate s;
+			UTF8.iter (fun c ->
+				let c = (UChar.code c) in
+				if c > 0xFFFF then
+					(h := Int32.add (Int32.mul thirtyone !h)
+						(Int32.of_int (high_surrogate c));
+					h := Int32.add (Int32.mul thirtyone !h)
+						(Int32.of_int (low_surrogate c)))
+				else
+					h := Int32.add (Int32.mul thirtyone !h)
+						(Int32.of_int c)
+				) s
+		with UTF8.Malformed_code ->
+			String.iter (fun c ->
+				h := Int32.add (Int32.mul thirtyone !h)
+					(Int32.of_int (Char.code c))) s
+		);
 		!h
 
 	let rec is_final_return_expr is_switch e =

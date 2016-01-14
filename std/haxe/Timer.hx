@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -88,8 +88,10 @@ class Timer {
 			#end
 			id = null;
 		#elseif java
-			timer.cancel();
-			timer = null;
+			if(timer != null) {
+				timer.cancel();
+				timer = null;
+			}
 			task = null;
 		#end
 	}

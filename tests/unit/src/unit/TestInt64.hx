@@ -234,8 +234,8 @@ class TestInt64 extends Test {
 
 		// Issue #1532
 		a = Int64.make(0xFFF21CDA, 0x972E8BA3);
-    	b = Int64.make(0x0098C29B, 0x81000001);
-    	int64eq( a*b, Int64.make(0xDDE8A2E8, 0xBA2E8BA3) );
+		b = Int64.make(0x0098C29B, 0x81000001);
+		int64eq( a*b, Int64.make(0xDDE8A2E8, 0xBA2E8BA3) );
 
 		// Int64*Int
 		a = Int64.make(0x01000000, 0x11131111);
@@ -363,7 +363,7 @@ class TestInt64 extends Test {
 	public function testCapture()
 	{
 		var a = Int64.make(0xFF00FF00,0xF0F0F0F0),
-		    b = Int64.make(0xFF00FF00,0xF0F0F0F0);
+			b = Int64.make(0xFF00FF00,0xF0F0F0F0);
 		eq(a.compare(b), 0);
 		eq(a.high, 0xFF00FF00);
 		function test() return Int64.compare(a,Int64.make(0xFF00FF00,0xF0F0F0F0));
@@ -400,7 +400,7 @@ class TestInt64 extends Test {
 
 	public function testCompare() {
 		var a = ofInt(2),
-		    b = ofInt(3);
+			b = ofInt(3);
 		t(a == a);
 		t(b == b);
 		eq(a.compare(a), 0);
@@ -411,8 +411,8 @@ class TestInt64 extends Test {
 	public function testBits() {
 		var x = make(0xfedcba98,0x76543210);
 		var y = x.and((ofInt(0xffff))),
-		    z = x.or((ofInt(0xffff))),
-		    w = x.xor((make(0xffffffff,0xffffffff)));
+			z = x.or((ofInt(0xffff))),
+			w = x.xor((make(0xffffffff,0xffffffff)));
 		eq(y.toStr(), '12816');
 		eq(z.toStr(), '-81985529216434177');
 		eq(w.toStr(), '81985529216486895');
@@ -449,6 +449,106 @@ class TestInt64 extends Test {
 		if( v != v2 ) {
 			Test.report(Std.string(v)+" should be "+Std.string(v2),pos);
 			Test.success = false;
+		}
+	}
+
+	public function testParseString()
+	{
+		for (v in ["0", "1", "-1", "9223372036854775807", "-9223372036854775807"]) {
+			eq(Std.string(parseString(v)), v);
+		}
+
+		// trims the string:
+		eq("-23", Std.string(parseString("  -23 ")));
+
+
+		// overflow and underflow raise exceptions:
+		try
+		{
+			parseString("9223372036854775808");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			parseString("-9223372036854775809");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			parseString("--1");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			parseString("asd1");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			parseString("1asdf");
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+	}
+
+	public function testFromFloat()
+	{
+		for (v in [0.0, 1.0, -1.0, 9007199254740991, -9007199254740991]) {
+			eq(Std.parseFloat(Std.string(fromFloat(v))), v);
+		}
+
+		try
+		{
+			fromFloat(9007199254740992);
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		try
+		{
+			fromFloat(-9007199254740992);
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
+		}
+
+		var nan = Math.NaN;
+		try
+		{
+			fromFloat(nan);
+			f(true);
+		}
+		catch (e:Dynamic)
+		{
+			// fine
 		}
 	}
 }

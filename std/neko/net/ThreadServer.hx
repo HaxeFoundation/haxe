@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,22 +36,65 @@ private typedef ClientInfos<Client> = {
 	var bufpos : Int;
 }
 
+/**
+	The ThreadServer can be used to easily create a multithreaded server where each thread polls multiple connections. 
+	To use it, at a minimum you must override or rebind clientConnected, readClientMessage, and clientMessage and you must define your Client and Message.
+**/
 class ThreadServer<Client,Message> {
 
 	var threads : Array<ThreadInfos>;
 	var sock : sys.net.Socket;
 	var worker : neko.vm.Thread;
 	var timer : neko.vm.Thread;
+
+	/**
+		Number of total connections the server will accept.
+	**/
 	public var listen : Int;
+
+	/**
+		Number of server threads.
+	**/
 	public var nthreads : Int;
+
+	/**
+		Polling timeout.
+	**/
 	public var connectLag : Float;
+
+	/**
+		Stream to send error messages.
+	**/
 	public var errorOutput : haxe.io.Output;
+
+	/**
+		Space allocated to buffers when they are created.
+	**/
 	public var initialBufferSize : Int;
+
+	/**
+		Maximum size of buffered data read from a socket. An exception is thrown if the buffer exceeds this value.
+	**/
 	public var maxBufferSize : Int;
+
+	/**
+		Minimum message size.
+	**/
 	public var messageHeaderSize : Int;
+
+	/**
+		Time between calls to update.
+	**/
 	public var updateTime : Float;
+
+	/**
+		The most sockets a thread will handle.
+	**/
 	public var maxSockPerThread : Int;
 
+	/**
+		Creates a ThreadServer.
+	**/
 	public function new() {
 		threads = new Array();
 		nthreads = if( Sys.systemName() == "Windows" ) 150 else 10;
@@ -152,6 +195,9 @@ class ThreadServer<Client,Message> {
 		}
 	}
 
+	/**
+		Internally used to delegate something to the worker thread.
+	**/
 	public function work( f : Void -> Void ) {
 		worker.sendMessage(f);
 	}
@@ -212,11 +258,17 @@ class ThreadServer<Client,Message> {
 		}
 	}
 
+	/**
+		Called when the server gets a new connection.
+	**/
 	public function addSocket( s : sys.net.Socket ) {
 		s.setBlocking(false);
 		work(addClient.bind(s));
 	}
 
+	/**
+		Start the server at the specified host and port.
+	**/
 	public function run( host, port ) {
 		sock = new sys.net.Socket();
 		sock.bind(new sys.net.Host(host),port);
@@ -231,6 +283,9 @@ class ThreadServer<Client,Message> {
 		}
 	}
 
+	/**
+		Sends data to a client.
+	**/
 	public function sendData( s : sys.net.Socket, data : String ) {
 		try {
 			s.write(data);
@@ -239,6 +294,9 @@ class ThreadServer<Client,Message> {
 		}
 	}
 
+	/**
+		Shutdown a client's connection and remove them from the server.
+	**/
 	public function stopClient( s : sys.net.Socket ) {
 		var infos : ClientInfos<Client> = s.custom;
 		try s.shutdown(true,true) catch( e : Dynamic ) { };
@@ -247,19 +305,33 @@ class ThreadServer<Client,Message> {
 
 	// --- CUSTOMIZABLE API ---
 
+	/**
+		Called when an error has occurred.
+	**/
 	public dynamic function onError( e : Dynamic, stack ) {
 		var estr = try Std.string(e) catch( e2 : Dynamic ) "???" + try "["+Std.string(e2)+"]" catch( e : Dynamic ) "";
 		errorOutput.writeString( estr + "\n" + haxe.CallStack.toString(stack) );
 		errorOutput.flush();
 	}
 
+	/**
+		Called when a client connects. Returns a client object.
+	**/
 	public dynamic function clientConnected( s : sys.net.Socket ) : Client {
 		return null;
 	}
 
+	/**
+		Called when a client disconnects or an error forces the connection to close.
+	**/
 	public dynamic function clientDisconnected( c : Client ) {
 	}
 
+	/**
+		Called when data has been read from a socket. This method should try to extract a message from the buffer.
+		The available data resides in buf, starts at pos, and is len bytes wide. Return the new message and the number of bytes read from the buffer. 
+		If no message could be read, return null.
+	**/
 	public dynamic function readClientMessage( c : Client, buf : haxe.io.Bytes, pos : Int, len : Int ) : { msg : Message, bytes : Int } {
 		return {
 			msg : null,
@@ -267,12 +339,21 @@ class ThreadServer<Client,Message> {
 		};
 	}
 
+	/**
+		Called when a message has been received. Message handling code should go here.
+	**/
 	public dynamic function clientMessage( c : Client, msg : Message ) {
 	}
 
+	/**
+		This method is called periodically. It can be used to do server maintenance.
+	**/
 	public dynamic function update() {
 	}
 
+	/**
+		Called after a client connects, disconnects, a message is received, or an update is performed.
+	**/
 	public dynamic function afterEvent() {
 	}
 

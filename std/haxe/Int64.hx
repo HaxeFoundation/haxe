@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -148,6 +148,14 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		}
 		if( neg ) str = "-" + str;
 		return str;
+	}
+
+	public static inline function parseString( sParam : String ) : Int64 {
+		return Int64Helper.parseString( sParam );
+	}
+
+	public static inline function fromFloat( f : Float ) : Int64 {
+		return Int64Helper.fromFloat( f );
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -85,14 +85,25 @@ class Process {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, args : Array<String> ) : Void {
+	public function new( cmd : String, ?args : Array<String> ) : Void {
 		var pipes = untyped __call__("array");
 		var descriptorspec = untyped __php__("array(
 			array('pipe', 'r'),
 			array('pipe', 'w'),
 			array('pipe', 'w')
 		)");
-		p = untyped __call__('proc_open', cmd+sargs(args), descriptorspec, pipes);
+		if (args != null) {
+			switch (Sys.systemName()) {
+				case "Windows":
+					cmd = [
+						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+						StringTools.quoteWinArg(a, true)
+					].join(" ");
+				case _:
+					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+			}
+		}
+		p = untyped __call__('proc_open', cmd, descriptorspec, pipes);
 		if(untyped __physeq__(p, false)) throw "Process creation failure : "+cmd;
 		stdin  = new Stdin( pipes[0]);
 		stdout = new Stdout(pipes[1]);
@@ -104,18 +115,8 @@ class Process {
 			st = untyped __call__('proc_get_status', p);
 		replaceStream(stderr);
 		replaceStream(stdout);
-		cl = untyped __call__('proc_close', p);
-	}
-
-	function sargs(args : Array<String>) : String {
-		var b = '';
-		for(arg in args) {
-			arg = arg.split('"').join('\"');
-			if(arg.indexOf(' ') >= 0)
-				arg = '"'+arg+'"';
-			b += ' '+arg;
-		}
-		return b;
+		if(null == cl)
+			cl = untyped __call__('proc_close', p);
 	}
 
 	public function getPid() : Int {

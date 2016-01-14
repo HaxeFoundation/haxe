@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,6 +30,10 @@ private class HaxeError extends js.Error {
 		this.val = __define_feature__("js.Boot.HaxeError", val);
 		this.message = String(val);
 		if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
+	}
+
+	public static function wrap(val:Dynamic):Dynamic untyped {
+		return if (__instanceof__(val, js.Error)) val else new HaxeError(val);
 	}
 }
 

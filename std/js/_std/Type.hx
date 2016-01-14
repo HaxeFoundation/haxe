@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -144,9 +144,8 @@ enum ValueType {
 		return a;
 	}
 
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		var a : Array<String> = untyped e.__constructs__;
-		return a.copy();
+	public static inline function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
+		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType untyped {
@@ -209,8 +208,8 @@ enum ValueType {
 		return untyped e[1];
 	}
 
-	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		return untyped e.__empty_constructs__;
+	public inline static function allEnums<T>( e : Enum<T> ) : Array<T> {
+		return untyped __define_feature__("Type.allEnums", e.__empty_constructs__);
 	}
 
 }
