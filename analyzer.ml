@@ -2701,7 +2701,6 @@ module Purity = struct
 				if (Meta.has (Meta.Custom ":impure")) cf.cf_meta then taint_raise node;
 				loop e;
 				node.pn_purity <- Pure;
-				cf.cf_meta <- (Meta.Pure,[],e.epos) :: cf.cf_meta
 			with Exit ->
 				()
 
@@ -2715,7 +2714,11 @@ module Purity = struct
 		List.iter (fun mt -> match mt with
 			| TClassDecl c -> apply_to_class com c
 			| _ -> ()
-		) com.types
+		) com.types;
+		Hashtbl.iter (fun _ node ->
+			if node.pn_purity = Pure then
+				node.pn_field.cf_meta <- (Meta.Pure,[],node.pn_field.cf_pos) :: node.pn_field.cf_meta
+		) node_lut;
 end
 
 module Cleanup = struct
