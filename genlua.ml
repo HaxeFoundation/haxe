@@ -1318,14 +1318,12 @@ let gen_class_static_field ctx c f =
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
-
 let gen_class_field ctx c f =
 	check_field_name c f;
 	match f.cf_expr with
 	| None ->
-		print ctx "%s = nil" (anon_field f.cf_name);
+		print ctx "'%s', nil" (anon_field f.cf_name);
 		spr ctx ",";
-		newline ctx;
 	| Some e ->
 		ctx.id_counter <- 0;
 		(match e.eexpr with
@@ -1333,7 +1331,7 @@ let gen_class_field ctx c f =
 		    let old = ctx.in_value, ctx.in_loop in
 		    ctx.in_value <- None;
 		    ctx.in_loop <- false;
-		    print ctx "%s = function" (anon_field f.cf_name);
+		    print ctx "'%s', function" (anon_field f.cf_name);
 		    print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with
@@ -1402,10 +1400,10 @@ let generate_class ctx c =
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					print ctx "local self = {};";
+					print ctx "local self = __anon();";
 					newline ctx;
 					if (has_prototype ctx c) then (
-					    print ctx "setmetatable(self, {__index=%s.prototype}) " p; newline ctx;
+					    print ctx "getmetatable(self).__index=%s.prototype" p; newline ctx;
 					);
 					print ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					newline ctx;
@@ -1460,14 +1458,18 @@ let generate_class ctx c =
 
 	newline ctx;
 	if (has_prototype ctx c) then begin
-		print ctx "%s.prototype = {" p;
+		print ctx "%s.prototype = _G.__anon(" p;
 		let bend = open_block ctx in
 		newline ctx;
+		let count = ref 0 in
 
 		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
+		!count = (List.length c.cl_ordered_fields);
 		if (has_class ctx c) then begin
 			newprop ctx;
-			print ctx "__class__ =	%s," p;
+			if !count > 0 then spr ctx ",";
+			print ctx "'__class__',  %s" p;
+			incr count;
 		end;
 
 		if has_property_reflection then begin
@@ -1475,12 +1477,13 @@ let generate_class ctx c =
 			(match c.cl_super with
 			| _ when props = [] -> ()
 			| _ ->
+				if !count > 0 then spr ctx ",";
 				newprop ctx;
-				print ctx "__properties__ =  {%s}" (gen_props props));
+				print ctx "'__properties__',  {%s}" (gen_props props));
 		end;
 
 		bend(); newline ctx;
-		print ctx "}";
+		print ctx ")";
 		newline ctx;
 		(match c.cl_super with
 		| None -> ()
@@ -1695,17 +1698,29 @@ let generate com =
 	spr ctx "print = print or (function()end)"; newline ctx;
 
 	spr ctx "__anon = function(...)"; newline ctx;
-	spr ctx "   local ret = {__fields = {}};"; newline ctx;
-	spr ctx "   for i=1, select('#', ...) do"; newline ctx;
-	spr ctx "	local v = select(i,...);"; newline ctx;
-	spr ctx "	if i % 2 == 1 then "; newline ctx;
-	spr ctx "	    ret.__fields[v] = true;"; newline ctx;
-	spr ctx "	    ret[v] =select(i+1,...);"; newline ctx;
-	spr ctx "	end"; newline ctx;
+	spr ctx "   local ret = {__fields__ = {}};"; newline ctx;
+	spr ctx "   local max = select('#',...);"; newline ctx;
+	spr ctx "   local tab = {...};"; newline ctx;
+	spr ctx "   local cur = 1;"; newline ctx;
+	spr ctx "   while cur < max do"; newline ctx;
+	spr ctx "	local v = tab[cur];"; newline ctx;
+	spr ctx "	ret.__fields__[v] = true;"; newline ctx;
+	spr ctx "	ret[v] = tab[cur+1];"; newline ctx;
+	spr ctx "	cur = cur + 2"; newline ctx;
 	spr ctx "   end"; newline ctx;
-	spr ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields[k] = true; rawset(t,k,v); end})"; newline ctx;
+	spr ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end})"; newline ctx;
 	spr ctx "   return ret; "; newline ctx;
 	spr ctx "end"; newline ctx;
+
+
+	(* spr ctx "__proto = function(...)"; newline ctx; *)
+	(* spr ctx "   local ret = __anon(...);"; newline ctx; *)
+	(* spr ctx "   rawset(ret,'__ifields__',{})"; newline ctx; *)
+	(* spr ctx "   for k, v in pairs(ret.__fields__) do"; newline ctx; *)
+	(* spr ctx "	ret.__ifields__[k] = v"; newline ctx; *)
+	(* spr ctx "   end"; newline ctx; *)
+	(* spr ctx "   return ret"; newline ctx; *)
+	(* spr ctx "end"; newline ctx; *)
 
 	spr ctx "__staticToInstance = function(tab)"; newline ctx;
 	spr ctx "   return _G.setmetatable({}, {"; newline ctx;
