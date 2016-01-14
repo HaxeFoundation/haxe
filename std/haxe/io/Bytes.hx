@@ -479,6 +479,7 @@ class Bytes {
 		#end
 	}
 
+	@:pure
 	public static function ofString( s : String ) : Bytes {
 		#if neko
 		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));

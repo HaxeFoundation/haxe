@@ -2702,8 +2702,8 @@ module Purity = struct
 			taint node
 		| Some e ->
 			try
-				if is_pure c cf then raise Exit;
 				if (Meta.has (Meta.Custom ":impure")) cf.cf_meta then taint_raise node;
+				if is_pure c cf then raise Exit;
 				loop e;
 				node.pn_purity <- Pure;
 			with Exit ->
