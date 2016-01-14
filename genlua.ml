@@ -1638,14 +1638,14 @@ let generate_type_forward ctx = function
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
-		    print ctx "%s = {} " p;
+		    print ctx "%s = __anon() " p;
 		end
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
-		print ctx "%s = {} " p;
+		print ctx "%s = __anon() " p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 
