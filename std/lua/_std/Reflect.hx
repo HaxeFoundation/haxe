@@ -22,11 +22,10 @@
 import lua.Lua;
 import lua.Boot;
 @:coreApi class Reflect {
-	static var hidden = ["__id__", "hx__closures", "super", "__index", "new", "prototype", "__fields"];
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
 		// TODO: Lua can't detect fields that are set to null, figure out a workaround.
-		return untyped o.__fields != null ? o.__fields[field] != null :  o[field] != null;
+		return untyped o.__fields__ != null ? o.__fields__[field] != null :  o[field] != null;
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
@@ -79,14 +78,17 @@ import lua.Boot;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		if (untyped o.__fields != null) return lua.PairTools.pairsFold(o.__fields, function(a,b,c:Array<String>){
-			c.push(a);
+		if (untyped o.__fields__ != null) {
+			return lua.PairTools.pairsFold(o.__fields__, function(a,b,c:Array<String>){
+				if (Boot.hiddenFields.indexOf(a) == -1) c.push(a);
+				return c;
+			}, []);
+		} else {
+			return lua.PairTools.pairsFold(o, function(a,b,c:Array<String>){
+			if (Boot.hiddenFields.indexOf(a) == -1) c.push(cast a);
 			return c;
-		}, []);
-		else return lua.PairTools.pairsFold(o, function(a,b,c:Array<String>){
-			if (hidden.indexOf(a) == -1) c.push(cast a);
-			return c;
-		}, []);
+			}, []);
+		}
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {
@@ -115,7 +117,7 @@ import lua.Boot;
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
 		if( !hasField(o,field) ) return false;
 		o[field] = null;
-		o.__fields[field]=null;
+		o.__fields__[field]=null;
 		return true;
 	}
 
