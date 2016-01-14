@@ -24,7 +24,7 @@ import hl.Boot;
 @:coreApi
 class Std {
 
-	public static function random( max : Int ) : Int {
+	public static function random( x : Int ) : Int {
 		throw "TODO:Std.random";
 		return 0;
 	}
@@ -38,22 +38,22 @@ class Std {
 		return null;
 	}
 
-	@:extern public static inline function int( v : Float ) : Int {
-		return untyped $int(v);
+	@:extern public static inline function int( x : Float ) : Int {
+		return untyped $int(x);
 	}
 
-	public static function string( v : Dynamic ) : String {
+	public static function string( s : Dynamic ) : String {
 		var len = 0;
-		var bytes = hl.types.Bytes.ofValue(v,new hl.types.Ref(len));
+		var bytes = hl.types.Bytes.ofValue(s,new hl.types.Ref(len));
 		return @:privateAccess String.__alloc__(bytes,len,bytes.utf8Length(0,len));
 	}
 
-	public static function parseInt( s : String ) : Null<Int> {
-		return @:privateAccess s.bytes.parseInt(0, s.size);
+	public static function parseInt( x : String ) : Null<Int> {
+		return @:privateAccess x.bytes.parseInt(0, x.size);
 	}
 
-	public static function parseFloat( s : String ) : Float {
-		return @:privateAccess s.bytes.parseFloat(0, s.size);
+	public static function parseFloat( x : String ) : Float {
+		return @:privateAccess x.bytes.parseFloat(0, x.size);
 	}
 
 	@:keep static function __add__( a : Dynamic, b : Dynamic ) : Dynamic {
@@ -62,7 +62,7 @@ class Std {
 		if( ta == hl.types.Type.get("") )
 			return (a : String) + b;
 		if( tb == hl.types.Type.get("") )
-			return a + (b : String);	
+			return a + (b : String);
 		switch( (cast ta.kind : Int) | ((cast tb.kind : Int) << 8) ) {
 		case x:
 			throw "Can't add "+ta+" and "+tb+" ("+StringTools.hex(x)+")";
