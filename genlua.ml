@@ -1712,16 +1712,6 @@ let generate com =
 	spr ctx "   return ret; "; newline ctx;
 	spr ctx "end"; newline ctx;
 
-
-	(* spr ctx "__proto = function(...)"; newline ctx; *)
-	(* spr ctx "   local ret = __anon(...);"; newline ctx; *)
-	(* spr ctx "   rawset(ret,'__ifields__',{})"; newline ctx; *)
-	(* spr ctx "   for k, v in pairs(ret.__fields__) do"; newline ctx; *)
-	(* spr ctx "	ret.__ifields__[k] = v"; newline ctx; *)
-	(* spr ctx "   end"; newline ctx; *)
-	(* spr ctx "   return ret"; newline ctx; *)
-	(* spr ctx "end"; newline ctx; *)
-
 	spr ctx "__staticToInstance = function(tab)"; newline ctx;
 	spr ctx "   return _G.setmetatable({}, {"; newline ctx;
 	spr ctx "	__index = function(t,k)"; newline ctx;
