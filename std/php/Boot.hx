@@ -950,7 +950,7 @@ if(!file_exists($_hx_autload_cache_file)) {
 		$_hx_cache_content .= '(\\''.($_hx_types_array[$i]['type'] == 3 ? $_hx_types_array[$i]['name'] : $_hx_types_array[$i]['phpname']).'\\', \\''.$_hx_types_array[$i]['qname'].'\\', \\''.$_hx_types_array[$i]['path'].'\\'));\n';
 	}
 	try {
-		file_put_contents($_hx_autload_cache_file, $_hx_cache_content);
+		@file_put_contents($_hx_autload_cache_file, $_hx_cache_content);
 	} catch(Exception $e) {}
 	unset($_hx_types_array);
 	unset($_hx_cache_content);
