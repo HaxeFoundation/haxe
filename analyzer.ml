@@ -352,6 +352,9 @@ module TexprFilter = struct
 			Type.map_expr loop e
 		in
 		loop e
+end
+
+module Fusion = struct
 
 	type interference_kind =
 		| IKVarMod of tvar list
@@ -390,7 +393,7 @@ module TexprFilter = struct
 		with Exit ->
 			IKSideEffect
 
-	let unapply com config e =
+	let apply com config e =
 		let rec block_element acc el = match el with
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
@@ -614,58 +617,7 @@ module TexprFilter = struct
 				Type.map_expr loop e
 		in
 		let e = loop e in
-		let if_or_op e e1 e2 e3 = match (skip e1).eexpr,(skip e3).eexpr with
-			| TUnop(Not,Prefix,e1),TConst (TBool true) -> {e with eexpr = TBinop(OpBoolOr,e1,e2)}
-			| _,TConst (TBool false) -> {e with eexpr = TBinop(OpBoolAnd,e1,e2)}
-			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
-			| _ -> match (skip e2).eexpr with
-				| TBlock [] ->
-					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
-					let e1' = Optimizer.optimize_unop e1' Not Prefix e1 in
-					{e with eexpr = TIf(e1',e3,None)}
-				| _ ->
-					{e with eexpr = TIf(e1,e2,Some e3)}
-		in
-		let rec loop e = match e.eexpr with
-			| TIf(e1,e2,Some e3) ->
-				let e1 = loop e1 in
-				let e2 = loop e2 in
-				let e3 = loop e3 in
-				if_or_op e e1 e2 e3;
-			| TBlock el ->
-				let el = List.map (fun e ->
-					let e = loop e in
-					match e.eexpr with
-					| TIf _ -> {e with etype = com.basic.tvoid}
-					| _ -> e
-				) el in
-				{e with eexpr = TBlock el}
-			| TWhile(e1,e2,NormalWhile) ->
-				let e1 = loop e1 in
-				let e2 = loop e2 in
-				begin match e2.eexpr with
-					| TBlock ({eexpr = TIf(e1,({eexpr = TBlock[{eexpr = TBreak}]} as eb),None)} :: el2) ->
-						let e1 = skip e1 in
-						let e1 = match e1.eexpr with TUnop(_,_,e1) -> e1 | _ -> {e1 with eexpr = TUnop(Not,Prefix,e1)} in
-						{e with eexpr = TWhile(e1,{eb with eexpr = TBlock el2},NormalWhile)}
-					| TBlock el ->
-						let rec loop2 el = match el with
-							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->
-								[e]
-							| e :: el ->
-								e :: (loop2 el)
-							| [] ->
-								[]
-						in
-						let el = loop2 el in
-						{e with eexpr = TWhile(e1,{e2 with eexpr = TBlock el},NormalWhile)}
-					| _ ->
-						{e with eexpr = TWhile(e1,e2,NormalWhile)}
-				end
-			| _ ->
-				Type.map_expr loop e
-		in
-		loop e
+		e
 end
 
 (*
@@ -726,8 +678,8 @@ module BasicBlock = struct
 		bb_kind : block_kind;                 (* The block kind *)
 		mutable bb_closed : bool;             (* Whether or not the block has been closed *)
 		(* elements *)
-		mutable bb_el : texpr DynArray.t;     (* The block expressions *)
-		mutable bb_phi : texpr DynArray.t;    (* SSA-phi expressions *)
+		bb_el : texpr DynArray.t;     (* The block expressions *)
+		bb_phi : texpr DynArray.t;    (* SSA-phi expressions *)
 		(* relations *)
 		mutable bb_outgoing : cfg_edge list;  (* Outgoing edges *)
 		mutable bb_incoming : cfg_edge list;  (* Incoming edges *)
@@ -794,7 +746,7 @@ module Graph = struct
 		mutable g_functions : tfunc_info IntMap.t; (* A map of functions, indexed by their block IDs *)
 		mutable g_nodes : BasicBlock.t IntMap.t;   (* A map of all blocks *)
 		mutable g_cfg_edges : cfg_edge list;       (* A list of all CFG edges *)
-		mutable g_var_infos : var_info DynArray.t; (* A map of variable information *)
+		g_var_infos : var_info DynArray.t; (* A map of variable information *)
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
 
@@ -1579,6 +1531,12 @@ module TexprTransformer = struct
 	and block_to_texpr ctx bb =
 		assert(bb.bb_closed);
 		let el = block_to_texpr_el ctx bb in
+		let e = mk (TBlock (List.rev el)) bb.bb_type bb.bb_pos in
+		e
+
+	and func ctx i =
+		let bb,t,p,tf = IntMap.find i ctx.graph.g_functions in
+		let e = block_to_texpr ctx bb in
 		let rec loop e = match e.eexpr with
 			| TLocal v when not (is_unbound v) ->
 				{e with eexpr = TLocal (get_var_origin ctx.graph v)}
@@ -1608,20 +1566,14 @@ module TexprTransformer = struct
 					| _ ->
 						{e with eexpr = TBinop(OpAssign,e1,{e4 with eexpr = TBinop(op,e2,e3)})}
 				end
-			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
-				e
 			| TCall({eexpr = TConst (TString "fun")},[{eexpr = TConst (TInt i32)}]) ->
 				func ctx (Int32.to_int i32)
+			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+				e
 			| _ ->
 				Type.map_expr loop e
 		in
-		let el = List.rev_map loop el in
-		let e = mk (TBlock el) bb.bb_type bb.bb_pos in
-		e
-
-	and func ctx i =
-		let bb,t,p,tf = IntMap.find i ctx.graph.g_functions in
-		let e = block_to_texpr ctx bb in
+		let e = loop e in
 		mk (TFunction {tf with tf_expr = e}) t p
 
 	let to_texpr ctx =
@@ -2729,10 +2681,10 @@ module Purity = struct
 				check_field c cf;
 			| TNew(c,_,el) ->
 				List.iter loop el;
-	            begin match c.cl_constructor with
-	            	| Some cf -> check_field c cf
-	            	| None -> taint_raise node
-	            end
+				begin match c.cl_constructor with
+					| Some cf -> check_field c cf
+					| None -> taint_raise node
+				end
 			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 				List.iter loop el;
 			| TCall _ ->
@@ -2766,6 +2718,63 @@ module Purity = struct
 		) com.types
 end
 
+module Cleanup = struct
+	let apply ctx e =
+		let com = ctx.com in
+		let if_or_op e e1 e2 e3 = match (skip e1).eexpr,(skip e3).eexpr with
+			| TUnop(Not,Prefix,e1),TConst (TBool true) -> {e with eexpr = TBinop(OpBoolOr,e1,e2)}
+			| _,TConst (TBool false) -> {e with eexpr = TBinop(OpBoolAnd,e1,e2)}
+			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
+			| _ -> match (skip e2).eexpr with
+				| TBlock [] ->
+					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
+					let e1' = Optimizer.optimize_unop e1' Not Prefix e1 in
+					{e with eexpr = TIf(e1',e3,None)}
+				| _ ->
+					{e with eexpr = TIf(e1,e2,Some e3)}
+		in
+		let rec loop e = match e.eexpr with
+			| TIf(e1,e2,Some e3) ->
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				let e3 = loop e3 in
+				if_or_op e e1 e2 e3;
+			| TBlock el ->
+				let el = List.map (fun e ->
+					let e = loop e in
+					match e.eexpr with
+					| TIf _ -> {e with etype = com.basic.tvoid}
+					| _ -> e
+				) el in
+				{e with eexpr = TBlock el}
+			| TWhile(e1,e2,NormalWhile) ->
+				let e1 = loop e1 in
+				let e2 = loop e2 in
+				begin match e2.eexpr with
+					| TBlock ({eexpr = TIf(e1,({eexpr = TBlock[{eexpr = TBreak}]} as eb),None)} :: el2) ->
+						let e1 = skip e1 in
+						let e1 = match e1.eexpr with TUnop(_,_,e1) -> e1 | _ -> {e1 with eexpr = TUnop(Not,Prefix,e1)} in
+						{e with eexpr = TWhile(e1,{eb with eexpr = TBlock el2},NormalWhile)}
+					| TBlock el ->
+						let rec loop2 el = match el with
+							| {eexpr = TBreak | TContinue | TReturn _ | TThrow _} as e :: el ->
+								[e]
+							| e :: el ->
+								e :: (loop2 el)
+							| [] ->
+								[]
+						in
+						let el = loop2 el in
+						{e with eexpr = TWhile(e1,{e2 with eexpr = TBlock el},NormalWhile)}
+					| _ ->
+						{e with eexpr = TWhile(e1,e2,NormalWhile)}
+				end
+			| _ ->
+				Type.map_expr loop e
+		in
+		loop e
+end
+
 module Run = struct
 	open Config
 	open Graph
@@ -2786,7 +2795,8 @@ module Run = struct
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) ctx.graph.g_var_infos;
-		let e = with_timer "analyzer-filter-unapply" (fun () -> TexprFilter.unapply ctx.com ctx.config e) in
+		let e = with_timer "analyzer-fusion" (fun () -> Fusion.apply ctx.com ctx.config e) in
+		let e = with_timer "analyzer-cleanup" (fun () -> Cleanup.apply ctx e) in
 		e
 
 	let roundtrip com config e =
