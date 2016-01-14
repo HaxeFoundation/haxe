@@ -116,3 +116,17 @@ function idx(x, y) {
 var end = begin();
 var _ = (arr(a(), b()))[idx(c(), d())];
 eq(end(), "1_2_3_4");
+
+function f1() {
+	buf.push(1);
+	return function(i) { };
+}
+
+function f2() {
+	buf.push(2);
+	return 2;
+}
+
+var end = begin();
+f1()(f2());
+eq(end(), "1_2");
