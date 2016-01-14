@@ -550,6 +550,11 @@ module Fusion = struct
 							e
 						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 							e
+						| TCall(e1,el) when com.platform = Neko ->
+							(* Neko has this reversed at the moment (issue #4787) *)
+							let el = List.map replace el in
+							let e1 = replace e1 in
+							{e with eexpr = TCall(e1,el)}
 						| _ ->
 							Type.map_expr replace e
 					in
