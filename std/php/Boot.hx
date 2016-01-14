@@ -859,12 +859,12 @@ class Enum {
 	public function __toString() {
 		return $this->tag;
 	}
-}
-
+}");
+	untyped __php__("
 error_reporting(E_ALL & ~E_STRICT);
 set_error_handler('_hx_error_handler', E_ALL & ~E_STRICT);
-set_exception_handler('_hx_exception_handler');
-
+set_exception_handler('_hx_exception_handler');");
+	untyped __php__("
 php_Boot::$qtypes = array();
 php_Boot::$ttypes = array();
 php_Boot::$tpaths = array();
