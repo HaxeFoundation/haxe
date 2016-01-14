@@ -31,6 +31,11 @@ class Boot {
 	static var _;
 	static var _fid = 0;
 
+	public static var hiddenFields = [
+		"__id__", "hx__closures", "super", "new",
+		"prototype", "__fields__", "__ifields__", "__class__", "__properties__"
+	];
+
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 
@@ -206,7 +211,7 @@ class Boot {
 			case "function": "<function>";
 			case "thread"  : "<thread>";
 			case "table": {
-			    if (Reflect.hasField(o,"__enum__")) printEnum(o,s);
+			    if (o.__enum__ != null) printEnum(o,s);
 				else if (o.toString != null && !__instanceof(o,Array)) o.toString();
 				else if (__instanceof(o, Array)) {
 					if (s.length > 5) "[...]"
