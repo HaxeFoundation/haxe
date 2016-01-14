@@ -32,7 +32,7 @@ class Boot {
 	static var _fid = 0;
 
 	public static var hiddenFields = [
-		"__id__", "hx__closures", "super", "new",
+		"__id__", "hx__closures", "super",
 		"prototype", "__fields__", "__ifields__", "__class__", "__properties__"
 	];
 
