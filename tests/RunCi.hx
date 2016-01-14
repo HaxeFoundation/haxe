@@ -26,6 +26,7 @@ private typedef TravisConfig = {
 	var Java = "java";
 	var Cs = "cs";
 	var Python = "python";
+	var Hl = "hl";
 	var ThirdParty = "third-party";
 }
 
@@ -1035,6 +1036,8 @@ class RunCi {
 					var success = runFlash("bin/unit9_as3.swf");
 					if (!success)
 						Sys.exit(1);
+				case Hl:
+					runCommand("haxe", ["compile-hl.hxml"]);
 				case ThirdParty:
 					getPhpDependencies();
 					getJavaDependencies();
