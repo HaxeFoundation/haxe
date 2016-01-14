@@ -131,14 +131,17 @@ enum ValueType {
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var p = untyped c.prototype;
+		var p : Dynamic = untyped c.prototype;
 		var a = [];
 		while (p != null){
-			for (f in Reflect.fields(p)) a.push(f);
-			p = untyped p.prototype;
+			var pfields : lua.Table<Int, Dynamic>  = untyped p.__fields__;
+			for (f in Reflect.fields(pfields)){
+				a.push(f);
+			}
+			var mt = lua.Lua.getmetatable(p);
+			if (mt != null && mt.__index != null ) p = mt.__index;
+			else p = null;
 		}
-		a.remove("__class__");
-		a.remove("__properties__");
 		return a;
 	}
 
