@@ -236,7 +236,7 @@ module Config = struct
 			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 			fusion = not (Common.raw_defined com "analyzer-no-fusion") && (match com.platform with Flash | Java -> false | _ -> true);
 			purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
-			unreachable_code = not (Common.raw_defined com "analyzer-no-unreachable-code");
+			unreachable_code = (Common.raw_defined com "analyzer-unreachable-code");
 			dot_debug = false;
 		}
 
