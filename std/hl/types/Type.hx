@@ -35,6 +35,10 @@ abstract TypeKind(Int) {
 		return false;
 	}
 
+	@:extern public static inline function getDynamic( v : Dynamic ) : Type {
+		return untyped $tdyntype(v);
+	}
+
 	@:extern public static inline function get<T>( v : T ) : Type {
 		return untyped $ttype(v);
 	}

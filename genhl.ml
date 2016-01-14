@@ -149,6 +149,7 @@ type opcode =
 	| OGetThis of reg * field index
 	| OSetThis of field index * reg
 	| OThrow of reg
+	| ORethrow of reg
 	| OGetI8 of reg * reg * reg
 	| OGetI32 of reg * reg * reg
 	| OGetF32 of reg * reg * reg
@@ -164,6 +165,8 @@ type opcode =
 	| OArraySize of reg * reg
 	| OError of string index
 	| OType of reg * ttype
+	| OGetType of reg * reg
+	| OGetTID of reg * reg
 	| ORef of reg * reg
 	| OUnref of reg * reg
 	| OSetref of reg * reg
@@ -720,8 +723,10 @@ and class_type ctx c pl statics =
 			| Method _ ->
 				let g = alloc_fid ctx c f in
 				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
-				let virt = if List.memq f c.cl_overrides then
-					Some (try fst (get_index f.cf_name p) with Not_found -> assert false)
+				let virt = if List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides then
+					let vid = (try fst (get_index f.cf_name p) with Not_found -> assert false) in
+					DynArray.set virtuals vid g;
+					Some vid
 				else if is_overriden ctx c f then begin
 					let vid = DynArray.length virtuals in
 					DynArray.add virtuals g;
@@ -791,7 +796,8 @@ and class_global ctx c =
 
 let alloc_std ctx name args ret =
 	let lib = "std" in
-	let nid = lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
+	(* different from :hlNative to prevent mismatch *)
+	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib) (fun() ->
 		let fid = lookup ctx.cfids (name, ([],"std")) (fun() -> ()) in
 		Hashtbl.add ctx.defined_funs fid ();
 		(alloc_string ctx lib, alloc_string ctx name,HFun (args,ret),fid)
@@ -1416,6 +1422,14 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx HType in
 			op ctx (OType (r,to_type ctx v.etype));
 			r
+		| "$tdyntype", [v] ->
+			let r = alloc_tmp ctx HType in
+			op ctx (OGetType (r,eval_to ctx v HDyn));
+			r
+		| "$tkind", [v] ->
+			let r = alloc_tmp ctx HI32 in
+			op ctx (OGetTID (r,eval_to ctx v HType));
+			r
 		| "$dump", [v] ->
 			op ctx (ODump (eval_expr ctx v));
 			alloc_tmp ctx HVoid
@@ -1446,19 +1460,19 @@ and eval_expr ctx e =
 			| _ -> ec.etype
 		) in
 		let tfun = to_type ctx real_type in
-		let el = eval_args ctx el tfun in
+		let el() = eval_args ctx el tfun in
 		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn) in
 		(match get_access ctx ec with
 		| AStaticFun f ->
-			(match el with
+			(match el() with
 			| [] -> op ctx (OCall0 (ret, f))
 			| [a] -> op ctx (OCall1 (ret, f, a))
 			| [a;b] -> op ctx (OCall2 (ret, f, a, b))
 			| [a;b;c] -> op ctx (OCall3 (ret, f, a, b, c))
 			| [a;b;c;d] -> op ctx (OCall4 (ret, f, a, b, c, d))
-			| _ -> op ctx (OCallN (ret, f, el)));
+			| el -> op ctx (OCallN (ret, f, el)));
 		| AInstanceFun (ethis, f) ->
-			let el = eval_null_check ctx ethis :: el in
+			let el = eval_null_check ctx ethis :: el() in
 			(match el with
 			| [a] -> op ctx (OCall1 (ret, f, a))
 			| [a;b] -> op ctx (OCall2 (ret, f, a, b))
@@ -1466,15 +1480,15 @@ and eval_expr ctx e =
 			| [a;b;c;d] -> op ctx (OCall4 (ret, f, a, b, c, d))
 			| _ -> op ctx (OCallN (ret, f, el)));
 		| AInstanceProto ({ eexpr = TConst TThis }, fid) ->
-			op ctx (OCallThis (ret, fid, el))
+			op ctx (OCallThis (ret, fid, el()))
 		| AInstanceProto (ethis, fid) ->
-			let el = eval_null_check ctx ethis :: el in
+			let el = eval_null_check ctx ethis :: el() in
 			op ctx (OCallMethod (ret, fid, el))
 		| AEnum index ->
-			op ctx (OMakeEnum (ret, index, el))
+			op ctx (OMakeEnum (ret, index, el()))
 		| _ ->
 			let r = eval_null_check ctx ec in
-			op ctx (OCallClosure (ret, r, el)); (* if it's a value, it's a closure *)
+			op ctx (OCallClosure (ret, r, el())); (* if it's a value, it's a closure *)
 		);
 		unsafe_cast_to ctx ret (to_type ctx e.etype) e.epos
 	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
@@ -2089,16 +2103,29 @@ and eval_expr ctx e =
 		DynArray.set ctx.m.mops pos (OTrap (rtrap, current_pos ctx - (pos + 1)));
 		let rec loop l =
 			match l with
-			| [] -> assert false
+			| [] ->
+				op ctx (ORethrow rtrap);
+				[]
 			| (v,ec) :: next ->
 				let rv = alloc_reg ctx v in
-				if v.v_type == t_dynamic then
-					op ctx (OMov (rv, rtrap))
-				else
-					error "Unsupported catch" ec.epos;
+				let jnext = if v.v_type == t_dynamic then begin
+					op ctx (OMov (rv, rtrap));
+					(fun() -> ())
+				end else
+					let rb = alloc_tmp ctx HBool in
+					let rt = alloc_tmp ctx HType in
+					op ctx (OType (rt, to_type ctx v.v_type));
+					op ctx (OCall2 (rb, alloc_std ctx "type_check" [HType;HDyn] HBool, rt, rtrap));
+					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
+					op ctx (OMov (rv, unsafe_cast_to ctx rtrap (to_type ctx v.v_type) ec.epos));
+					jnext
+				in
 				let r = eval_expr ctx ec in
 				if tret <> HVoid then op ctx (OMov (result,cast_to ctx r tret ec.epos));
-				if next = [] then [] else jump ctx (fun n -> OJAlways n) :: loop next
+				if v.v_type == t_dynamic then [] else
+				let jend = jump ctx (fun n -> OJAlways n) in
+				jnext();
+				jend :: loop next
 		in
 		List.iter (fun j -> j()) (loop catches);
 		j();
@@ -2634,6 +2661,8 @@ let check code =
 				| _ -> assert false);
 			| OThrow r ->
 				reg r HDyn
+			| ORethrow r ->
+				reg r HDyn
 			| OGetArray (v,a,i) ->
 				reg a HArray;
 				reg i HI32;
@@ -2687,6 +2716,12 @@ let check code =
 				ignore(code.strings.(s));
 			| OType (r,_) ->
 				reg r HType
+			| OGetType (r,v) ->
+				reg r HType;
+				is_dyn v;
+			| OGetTID (r,v) ->
+				reg r HI32;
+				reg v HType;
 			| ORef (r,v) ->
 				reg r (HRef (rtype v))
 			| OUnref (v,r) ->
@@ -2898,11 +2933,6 @@ let interp code =
 		with Not_found ->
 			let fields = (match p.psuper with None -> [||] | Some p -> snd(get_proto p)) in
 			let meths = Array.map (fun f -> functions.(f)) p.pvirtuals in
-			Array.iter (fun f ->
-				match f.fvirtual with
-				| None -> ()
-				| Some v -> meths.(v) <- functions.(f.fmethod)
-			) p.pproto;
 			let fields = Array.append fields (Array.map (fun (_,_,t) -> t) p.pfields) in
 			let proto = ({ pclass = p; pmethods = meths },fields) in
 			Hashtbl.replace cached_protos p.pname proto;
@@ -2980,7 +3010,10 @@ let interp code =
 		match v with
 		| VNull -> "null"
 		| VInt i -> Int32.to_string i
-		| VFloat f -> string_of_float f
+		| VFloat f ->
+			let s = float_repres f in
+			let len = String.length s in
+			if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s
 		| VBool b -> if b then "true" else "false"
 		| VDyn (v,t) ->
 			vstr v t
@@ -3423,6 +3456,9 @@ let interp code =
 				| _ -> assert false)
 			| OThrow r ->
 				throw (get r)
+			| ORethrow r ->
+				stack := List.rev !exc_stack @ !stack;
+				throw (get r)
 			| OGetI8 (r,b,p) ->
 				(match get b, get p with
 				| VBytes b, VInt p -> set r (VInt (Int32.of_int (int_of_char (String.get b (Int32.to_int p)))))
@@ -3485,6 +3521,33 @@ let interp code =
 				throw (VDyn (VBytes (code.strings.(s) ^ "\x00"),HBytes))
 			| OType (r,t) ->
 				set r (VType t)
+			| OGetType (r,v) ->
+				let v = get v in
+				set r (VType (if v = VNull then HVoid else match get_type v with None -> assert false | Some t -> t));
+			| OGetTID (r,v) ->
+				set r (match get v with
+					| VType t ->
+						(VInt (Int32.of_int (match t with
+						| HVoid -> 0
+						| HI8 -> 1
+						| HI16 -> 2
+						| HI32 -> 3
+						| HF32 -> 4
+						| HF64 -> 5
+						| HBool -> 6
+						| HBytes -> 7
+						| HDyn -> 8
+						| HFun _ -> 9
+						| HObj _ -> 10
+						| HArray -> 11
+						| HType -> 12
+						| HRef _ -> 13
+						| HVirtual _ -> 14
+						| HDynObj -> 15
+						| HAbstract _ -> 16
+						| HEnum _ -> 17
+						| HNull _ -> 18)))
+					| _ -> assert false);
 			| ORef (r,v) ->
 				set r (VRef (regs,v,rtype v))
 			| OUnref (v,r) ->
@@ -3539,7 +3602,8 @@ let interp code =
 						d.dvirtuals <- v :: d.dvirtuals;
 						VVirtual v
 					)
-				| _ -> assert false)
+				| v, t ->
+					error ("Invalid ToVirtual " ^ vstr_d v ^ " : " ^ tstr t))
 			| OUnVirtual (r,v) ->
 				set r (match get v with VNull -> VNull | VVirtual v -> v.vvalue | _ -> assert false)
 			| ODynGet (r,o,f) ->
@@ -3606,6 +3670,7 @@ let interp code =
 						raise (InterpThrow v)
 					| (r,target) :: tl ->
 						traps := tl;
+						exc_stack := (f,ref !pos) :: !exc_stack;
 						pos := target;
 						set r v;
 						exec()
@@ -3651,8 +3716,8 @@ let interp code =
 				| _ -> assert false);
 			| "ftos" ->
 				(function
-				| [VFloat v; VRef (regs,i,_)] ->
-					let str = string_of_float v in
+				| [VFloat _ as v; VRef (regs,i,_)] ->
+					let str = vstr v HF64 in
 					regs.(i) <- to_int (String.length str);
 					VBytes (str ^ "\x00")
 				| _ -> assert false);
@@ -4309,6 +4374,7 @@ let ostr o =
 	| OGetThis (r,i) -> Printf.sprintf "getthis %d,[%d]" r i
 	| OSetThis (i,r) -> Printf.sprintf "setthis [%d],%d" i r
 	| OThrow r -> Printf.sprintf "throw %d" r
+	| ORethrow r -> Printf.sprintf "rethrow %d" r
 	| OGetI8 (r,b,p) -> Printf.sprintf "geti8 %d,%d[%d]" r b p
 	| OGetI32 (r,b,p) -> Printf.sprintf "geti32 %d,%d[%d]" r b p
 	| OGetF32 (r,b,p) -> Printf.sprintf "getf32 %d,%d[%d]" r b p
@@ -4324,6 +4390,8 @@ let ostr o =
 	| OArraySize (r,a) -> Printf.sprintf "arraysize %d,%d" r a
 	| OError s -> Printf.sprintf "error @%d" s
 	| OType (r,t) -> Printf.sprintf "type %d,%s" r (tstr t)
+	| OGetType (r,v) -> Printf.sprintf "gettype %d,%d" r v
+	| OGetTID (r,v) -> Printf.sprintf "gettid %d,%d" r v
 	| ORef (r,v) -> Printf.sprintf "ref %d,&%d" r v
 	| OUnref (v,r) -> Printf.sprintf "unref %d,*%d" v r
 	| OSetref (r,v) -> Printf.sprintf "setref *%d,%d" r v

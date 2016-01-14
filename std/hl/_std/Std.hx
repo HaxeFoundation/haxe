@@ -57,7 +57,16 @@ class Std {
 	}
 
 	@:keep static function __add__( a : Dynamic, b : Dynamic ) : Dynamic {
-		trace("TODO");
+		var ta = hl.types.Type.getDynamic(a);
+		var tb = hl.types.Type.getDynamic(b);
+		if( ta == hl.types.Type.get("") )
+			return (a : String) + b;
+		if( tb == hl.types.Type.get("") )
+			return a + (b : String);	
+		switch( (cast ta.kind : Int) | ((cast tb.kind : Int) << 8) ) {
+		case x:
+			throw "Can't add "+ta+" and "+tb+" ("+StringTools.hex(x)+")";
+		}
 		return null;
 	}
 
