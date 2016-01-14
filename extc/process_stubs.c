@@ -247,10 +247,10 @@ static void free_process( value vp ) {
 	</doc>
 **/
 CAMLprim value process_run( value cmd, value vargs ) {
-	int i;
+	int i, isRaw;
 	vprocess *p;
 	val_check(cmd,string);
-	int isRaw = vargs == val_null;
+	isRaw = vargs == val_null;
 	if (!isRaw) {
 		val_check(vargs,array);
 		vargs = val_some(vargs);
@@ -265,8 +265,9 @@ CAMLprim value process_run( value cmd, value vargs ) {
 		buffer b = alloc_buffer(NULL);
 		char *sargs;
 		if (isRaw) {
+			char* cmdexe;
 			buffer_append_char(b,'"');
-			char* cmdexe = getenv("COMSPEC");
+			cmdexe = getenv("COMSPEC");
 			if (!cmdexe) cmdexe = "cmd.exe";
 			buffer_append_str(b,cmdexe);
 			buffer_append_char(b,'"');
