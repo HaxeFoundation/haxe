@@ -37,7 +37,7 @@ class ArrayDyn extends ArrayAccess {
 		return array.getDyn(i);
 	}
 
-	override function setDyn(pos,value) {
+	override function setDyn(pos:Int, value:Dynamic) {
 		array.setDyn(pos, value);
 	}
 

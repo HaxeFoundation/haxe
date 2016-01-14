@@ -38,7 +38,7 @@ class ArrayBase extends ArrayAccess {
 		throw "Not implemented";
 	}
 
-	public function insertDyn( v : Dynamic, pos : Int ) : Void {
+	public function insertDyn( pos : Int, v : Dynamic ) : Void {
 		throw "Not implemented";
 	}
 
