@@ -153,6 +153,7 @@ enum ValueType {
 		a.remove("__super__");
 		a.remove("__meta__");
 		a.remove("prototype");
+		a.remove("new");
 		return a;
 	}
 
