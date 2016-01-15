@@ -683,8 +683,8 @@ module BasicBlock = struct
 		bb_kind : block_kind;                 (* The block kind *)
 		mutable bb_closed : bool;             (* Whether or not the block has been closed *)
 		(* elements *)
-		bb_el : texpr DynArray.t;     (* The block expressions *)
-		bb_phi : texpr DynArray.t;    (* SSA-phi expressions *)
+		bb_el : texpr DynArray.t;             (* The block expressions *)
+		bb_phi : texpr DynArray.t;            (* SSA-phi expressions *)
 		(* relations *)
 		mutable bb_outgoing : cfg_edge list;  (* Outgoing edges *)
 		mutable bb_incoming : cfg_edge list;  (* Incoming edges *)
@@ -751,7 +751,7 @@ module Graph = struct
 		mutable g_functions : tfunc_info IntMap.t; (* A map of functions, indexed by their block IDs *)
 		mutable g_nodes : BasicBlock.t IntMap.t;   (* A map of all blocks *)
 		mutable g_cfg_edges : cfg_edge list;       (* A list of all CFG edges *)
-		g_var_infos : var_info DynArray.t; (* A map of variable information *)
+		g_var_infos : var_info DynArray.t;         (* A map of variable information *)
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
 
