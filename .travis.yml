@@ -126,8 +126,10 @@ before_script:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
     travis_retry brew install mysql &&
     mysql.server start;
+    mysql -u root -e "create user if not exists travis@localhost identified by '';";
     fi
-  - mysql -u root -e "CREATE DATABASE haxe_test;";
+  - mysql -u root -e "CREATE DATABASE haxe_test;"
+  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
 
 script:
   - make package_src -s
