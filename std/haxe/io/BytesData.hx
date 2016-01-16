@@ -39,7 +39,15 @@ package haxe.io;
 #elseif js
 	typedef BytesData = js.html.ArrayBuffer;
 #elseif hl
-	typedef BytesData = hl.types.Bytes;
+	class BytesDataImpl {
+		public var b : hl.types.Bytes;
+		public var length : Int;
+		public function new(b,length) {
+			this.b = b;
+			this.length = length;
+		}
+	}
+	typedef BytesData = BytesDataImpl;
 #else
 	typedef BytesData = Array<Int>;
 #end

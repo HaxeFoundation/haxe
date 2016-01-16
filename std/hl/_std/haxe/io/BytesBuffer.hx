@@ -24,7 +24,7 @@ package haxe.io;
 @:coreApi
 class BytesBuffer {
 
-	var b : BytesData;
+	var b : hl.types.Bytes;
 	var pos : Int;
 	var size : Int;
 
@@ -33,7 +33,7 @@ class BytesBuffer {
 	public function new() {
 		pos = 0;
 		size = 16; // ensure increment of 8
-		b = new BytesData(size);
+		b = new hl.types.Bytes(size);
 	}
 
 	inline function get_length() : Int {
@@ -48,20 +48,20 @@ class BytesBuffer {
 	function __expand( req : Int ) : Void {
 		var nsize = (size * 3) >> 1;
 		if( nsize < req ) nsize = req;
-		var b2 = new BytesData(nsize);
+		var b2 = new hl.types.Bytes(nsize);
 		b2.blit(0, b, 0, pos);
 		b = b2;
 		size = nsize;
 	}
 
-	function __add( b : BytesData, bpos : Int, blen : Int ) : Void {
+	function __add( b : hl.types.Bytes, bpos : Int, blen : Int ) : Void {
 		if( pos + blen > size ) __expand(pos+blen);
-		b.blit(pos, b, bpos, blen);
+		this.b.blit(pos, b, bpos, blen);
 		pos += blen;
 	}
 
 	public inline function add( src : Bytes ) : Void {
-		__add(src.getData(), 0, src.length);
+		__add(@:privateAccess src.b, 0, src.length);
 	}
 
 	public inline function addString( v : String ) : Void {
@@ -93,7 +93,7 @@ class BytesBuffer {
 
 	public inline function addBytes( src : Bytes, pos : Int, len : Int ) : Void {
 		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
-		__add(src.getData(), pos, len);
+		__add(@:privateAccess src.b, pos, len);
 	}
 
 	public function getBytes() : Bytes {

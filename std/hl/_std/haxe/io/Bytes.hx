@@ -25,9 +25,9 @@ package haxe.io;
 class Bytes {
 
 	public var length(default,null) : Int;
-	var b : BytesData;
+	var b : hl.types.Bytes;
 
-	function new(length:Int,b:BytesData) : Void {
+	function new(length:Int,b:hl.types.Bytes) : Void {
 		this.length = length;
 		this.b = b;
 	}
@@ -148,7 +148,7 @@ class Bytes {
 	}
 
 	public inline function getData() : BytesData {
-		return b;
+		return new haxe.io.BytesData(b,length);
 	}
 
 	public static function alloc( length : Int ) : Bytes {
@@ -162,11 +162,11 @@ class Bytes {
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
-		return new Bytes(0,b);
+		return new Bytes(b.length,b.b);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
-		return b[pos];
+		return b.b[pos];
 	}
 
 }
