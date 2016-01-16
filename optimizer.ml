@@ -633,7 +633,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		in
 		let e = (match e.eexpr, init with
 			| _, None when not !has_return_value ->
-				{e with etype = tret}
+				begin match e.eexpr with
+					| TBlock _ -> {e with etype = tret}
+					| _ -> mk (TBlock [e]) tret e.epos
+				end
 			| TBlock [e] , None -> wrap e
 			| _ , None -> wrap e
 			| TBlock l, Some vl ->
