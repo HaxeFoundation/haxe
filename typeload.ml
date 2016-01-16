@@ -888,6 +888,7 @@ let check_overriding ctx c =
 				with
 					Unify_error l ->
 						display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
+						display_error ctx ("Base field is defined here") f2.cf_pos;
 						display_error ctx (error_msg (Unify l)) p;
 			with
 				Not_found ->
@@ -973,6 +974,7 @@ let rec check_interface ctx c intf params =
 				Unify_error l ->
 					if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
 						display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+						display_error ctx ("Interface field is defined here") f.cf_pos;
 						display_error ctx (error_msg (Unify l)) p;
 					end
 		with
