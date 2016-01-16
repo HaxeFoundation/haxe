@@ -781,6 +781,8 @@ class RunCi {
 			var args = switch (ci) {
 				case TravisCI:
 					["-D","travis"];
+				case AppVeyor:
+					["-D","appveyor"];
 				case _:
 					[];
 			}
