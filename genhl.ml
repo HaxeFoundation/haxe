@@ -1182,8 +1182,8 @@ and eval_expr ctx e =
 		op ctx (ORet r);
 		r
 	| TReturn (Some e) ->
-		before_return ctx;
 		let r = eval_to ctx e ctx.m.mret in
+		before_return ctx;
 		op ctx (ORet r);
 		alloc_tmp ctx HVoid
 	| TParenthesis e ->
@@ -1527,7 +1527,7 @@ and eval_expr ctx e =
 			let v = eval_to ctx v (to_type ctx ft) in
 			op ctx (ODynSet (r,alloc_string ctx s,v));
 		) o;
-		r
+		cast_to ctx r (to_type ctx e.etype) e.epos
 	| TNew (c,pl,el) ->
 		let c = resolve_class ctx c pl in
 		let r = alloc_tmp ctx (class_type ctx c pl false) in
@@ -2038,10 +2038,10 @@ and eval_expr ctx e =
 			let switch_pos = current_pos ctx in
 			(match def with
 			| None ->
-				op ctx (ONull r);
+				if rt <> HVoid then op ctx (ONull r);
 			| Some e ->
 				let re = eval_to ctx e rt in
-				op ctx (OMov (r,re)));
+				if rt <> HVoid then op ctx (OMov (r,re)));
 			let jends = ref [jump ctx (fun i -> OJAlways i)] in
 			List.iter (fun (values,ecase) ->
 				List.iter (fun v ->
@@ -2287,6 +2287,7 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 	ignore(eval_expr ctx f.tf_expr);
 	let tret = to_type ctx f.tf_type in
 	let rec has_final_jump e =
+		(* prevents a jump outside function bounds error *)
 		match e.eexpr with
 		| TBlock el -> (match List.rev el with e :: _ -> has_final_jump e | [] -> false)
 		| TParenthesis e -> has_final_jump e
@@ -2300,6 +2301,7 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 		(match tret with
 		| HI32 | HI8 | HI16 -> op ctx (OInt (r,alloc_i32 ctx 0l))
 		| HF32 | HF64 -> op ctx (OFloat (r,alloc_float ctx 0.))
+		| HBool -> op ctx (OBool (r,false))
 		| _ -> op ctx (ONull r));
 		op ctx (ORet r)
 	end;
@@ -2850,8 +2852,8 @@ and vproto = {
 
 and vvirtual = {
 	vtype : virtual_proto;
-	vindexes : vfield array;
-	vtable : value array;
+	mutable vindexes : vfield array;
+	mutable vtable : value array;
 	vvalue : value;
 }
 
@@ -3070,7 +3072,14 @@ let interp code =
 		match obj with
 		| VDynObj d ->
 			let rebuild_virtuals() =
-				if d.dvirtuals <> [] then assert false (* TODO : update virtuals table *)
+				let old = d.dvirtuals in
+				d.dvirtuals <- [];
+				List.iter (fun v ->
+					let v2 = (match to_virtual obj v.vtype with VVirtual v -> v | _ -> assert false) in
+					v.vindexes <- v2.vindexes;
+					v.vtable <- d.dvalues;
+				) old;
+				d.dvirtuals <- old;
 			in
 			(try
 				let idx = Hashtbl.find d.dfields field in
@@ -3232,6 +3241,52 @@ let interp code =
 		| _ ->
 			error ("Can't compare " ^ vstr_d a ^ " and " ^ vstr_d b)
 
+	and to_virtual v vp =
+		let vt = (match get_type v with None -> HVoid | Some t -> t) in
+		match v with
+		| VNull ->
+			VNull
+		| VObj o ->
+			let indexes = Array.mapi (fun i (n,_,t) ->
+				try
+					let idx, ft = get_index n o.oproto.pclass in
+					if not (tsame t ft) then error ("Can't cast " ^ tstr vt ^ " to " ^ tstr (HVirtual vp) ^ "(" ^ n ^ " type differ)");
+					VFIndex idx
+				with Not_found ->
+					VFNone (* most likely a method *)
+			) vp.vfields in
+			let v = {
+				vtype = vp;
+				vindexes = indexes;
+				vtable = o.ofields;
+				vvalue = v;
+			} in
+			VVirtual v
+		| VDynObj d ->
+			(try
+				VVirtual (List.find (fun v -> v.vtype == vp) d.dvirtuals)
+			with Not_found ->
+				let indexes = Array.mapi (fun i (n,_,t) ->
+					try
+						let idx = Hashtbl.find d.dfields n in
+						if not (tsame t d.dtypes.(idx)) then error ("Can't cast " ^ tstr vt ^ " to " ^ tstr (HVirtual vp) ^ "(" ^ n ^ " type differ)");
+						VFIndex idx
+					with Not_found ->
+						VFNone
+				) vp.vfields in
+				let v = {
+					vtype = vp;
+					vindexes = indexes;
+					vtable = d.dvalues;
+					vvalue = v;
+				} in
+				d.dvirtuals <- v :: d.dvirtuals;
+				VVirtual v
+			)
+		| VVirtual v ->
+			to_virtual v.vvalue vp
+		| _ ->
+			error ("Invalid ToVirtual " ^ vstr_d v ^ " : " ^ tstr (HVirtual vp))
 
 	and call f args =
 		let regs = Array.create (Array.length f.regs) VUndef in
@@ -3565,48 +3620,7 @@ let interp code =
 					Array.unsafe_set regs i v
 				| _ -> assert false)
 			| OToVirtual (r,rv) ->
-				let v = get rv in
-				set r (match v, rtype r with
-				| VNull, _ -> VNull
-				| VObj o, HVirtual vp ->
-					let indexes = Array.mapi (fun i (n,_,t) ->
-						try
-							let idx, ft = get_index n o.oproto.pclass in
-							if not (tsame t ft) then error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)");
-							VFIndex idx
-						with Not_found ->
-							VFNone (* most likely a method *)
-					) vp.vfields in
-					let v = {
-						vtype = vp;
-						vindexes = indexes;
-						vtable = o.ofields;
-						vvalue = v;
-					} in
-					VVirtual v
-				| VDynObj d, HVirtual vp ->
-					(try
-						VVirtual (List.find (fun v -> v.vtype == vp) d.dvirtuals)
-					with Not_found ->
-						let indexes = Array.mapi (fun i (n,_,t) ->
-							try
-								let idx = Hashtbl.find d.dfields n in
-								if not (tsame t d.dtypes.(idx)) then error ("Can't cast " ^ tstr (rtype rv) ^ " to " ^ tstr (rtype r) ^ "(" ^ n ^ " type differ)");
-								VFIndex idx
-							with Not_found ->
-								VFNone
-						) vp.vfields in
-						let v = {
-							vtype = vp;
-							vindexes = indexes;
-							vtable = d.dvalues;
-							vvalue = v;
-						} in
-						d.dvirtuals <- v :: d.dvirtuals;
-						VVirtual v
-					)
-				| v, t ->
-					error ("Invalid ToVirtual " ^ vstr_d v ^ " : " ^ tstr t))
+				set r (to_virtual (get rv) (match rtype r with HVirtual vp -> vp | _ -> assert false))
 			| OUnVirtual (r,v) ->
 				set r (match get v with VNull -> VNull | VVirtual v -> v.vvalue | _ -> assert false)
 			| ODynGet (r,o,f) ->
@@ -3914,9 +3928,19 @@ let interp code =
 				(function
 				| [o;VInt hash] ->
 					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
-					VBool (match o with
-					| VDynObj d -> Hashtbl.mem d.dfields f
-					| _ -> false)
+					let rec loop o =
+						match o with
+						| VDynObj d -> Hashtbl.mem d.dfields f
+						| VObj o ->
+							let rec loop p =
+								let f = PMap.mem f p.pindex in
+								if f then true else match p.psuper with None -> false | Some p -> loop p
+							in
+							loop o.oproto.pclass
+						| VVirtual v -> loop v.vvalue
+						| _ -> false
+					in
+					VBool (loop o)
 				| _ -> assert false)
 			| "call_method" ->
 				(function
