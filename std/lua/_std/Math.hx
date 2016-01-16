@@ -61,7 +61,9 @@ class Math
 
 	public static inline function atan2(y:Float, x:Float):Float return lua.Math.atan2(y,x);
 	public static inline function max(a:Float, b:Float):Float   return lua.Math.max(a,b);
-	public static inline function min(a:Float, b:Float):Float   return lua.Math.min(a,b);
+	public static inline function min(a:Float, b:Float):Float {
+		return Math.isNaN(a) || Math.isNaN(b) ? Math.NaN : lua.Math.min(a,b);
+	}
 	public static inline function pow(v:Float, exp:Float):Float return lua.Math.pow(v,exp);
 
 	public static inline function round(v:Float):Int return Math.floor(v + 0.5);
