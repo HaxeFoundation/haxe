@@ -63,9 +63,10 @@ class Array<T> {
 	public function shift() : Null<T> {
 		if (this.length == 0) return null;
 		var ret = this[0];
-		for (i in 1...length){
+		for (i in 0...length){
 			this[i] = this[i+1];
 		}
+		this.length-=1;
 		return ret;
 	}
 	public function slice( pos : Int, ?end : Int ) : Array<T> {
