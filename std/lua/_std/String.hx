@@ -94,7 +94,7 @@ class String {
 	}
 	public function substring( startIndex : Int, ?endIndex : Int ) : String {
 		if (endIndex == null) endIndex = this.length;
-		return untyped lua.StringTools.sub(this, startIndex + 1,endIndex + 1);
+		return untyped lua.StringTools.sub(this, startIndex + 1, endIndex);
 	}
 
 	function get_length() : Int {
