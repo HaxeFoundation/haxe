@@ -68,6 +68,8 @@ class Output {
 				writeByte(untyped __call__("ord", b[pos]));
 			#elseif cpp
 				writeByte(untyped b[pos]);
+			#elseif hl
+				writeByte(@:privateAccess b.b[pos]);
 			#else
 				writeByte(untyped b[pos]);
 			#end
