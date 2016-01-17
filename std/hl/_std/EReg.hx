@@ -70,11 +70,16 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 		var len = 0;
 		var pos = regexp_matched_pos(r, 0, new hl.types.Ref(len));
 		if( pos < 0 ) return null;
-		return { pos : pos, len : len };
+		return { pos : last.bytes.utf8Length(0,pos), len : last.bytes.utf8Length(pos,len) };
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var p = regexp_match(r, s.bytes, pos, len < 0 ? s.length - pos : len);
+		if( pos < 0 ) pos = 0;
+		if( pos > s.length ) pos = s.length;
+		if( len < 0 || pos + len > s.length ) len = s.length - pos;
+		var bpos = pos == 0 ? 0 : s.bytes.utf8Pos(0, pos);
+		var blen = pos + len == s.length ? s.size - bpos : s.bytes.utf8Pos(bpos, len);
+		var p = regexp_match(r, s.bytes, bpos, blen);
 		if( p )
 			last = s;
 		else
@@ -83,65 +88,68 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 	}
 
 	public function split( s : String ) : Array<String> {
-		/*var pos = 0;
-		var len = s.length;
+		var pos = 0;
 		var a = new Array();
 		var first = true;
+		var sbytes = s.bytes;
+		var ssize = s.size;
 		do {
-			if( !regexp_match(r,s.__s,pos,len) )
+			if( !regexp_match(r,sbytes,pos,ssize) )
 				break;
-			var p = regexp_matched_pos(r,0);
-			if( p.len == 0 && !first ) {
-				if( p.pos == s.length )
+			var msize = 0;
+			var mpos = regexp_matched_pos(r, 0, new hl.types.Ref(msize));
+			if( msize == 0 && !first ) {
+				if( mpos == s.size )
 					break;
-				p.pos += 1;
+				mpos++;
 			}
-			a.push(s.substr(pos,p.pos - pos));
-			var tot = p.pos + p.len - pos;
+			a.push(s.subBytes(pos,mpos - pos));
+			var tot = mpos + msize - pos;
 			pos += tot;
-			len -= tot;
+			ssize -= tot;
 			first = false;
 		} while( global );
-		a.push(s.substr(pos,len));
-		return a;*/
-		throw "TODO";
-		return null;
+		a.push(s.subBytes(pos,ssize));
+		return a;
 	}
 
-	public function replace( s : String, by : String ) : String {
-		/*var b = new StringBuf();
+	public function replace( s : String, by : String ) : String @:privateAccess {
+		var b = new StringBuf();
 		var pos = 0;
-		var len = s.length;
+		var sbytes = s.bytes;
+		var size = s.size;
 		var a = by.split("$");
 		var first = true;
 		do {
-			if( !regexp_match(r,s.__s,pos,len) )
+			if( !regexp_match(r,sbytes,pos,size) )
 				break;
-			var p = regexp_matched_pos(r,0);
-			if( p.len == 0 && !first ) {
-				if( p.pos == s.length )
+			var msize = 0;
+			var mpos = regexp_matched_pos(r,0,new hl.types.Ref(msize));
+			if( msize == 0 && !first ) {
+				if( mpos == s.size )
 					break;
-				p.pos += 1;
+				mpos++;
 			}
-			b.addSub(s,pos,p.pos-pos);
+			b.__add(sbytes,pos,mpos-pos);
 			if( a.length > 0 )
 				b.add(a[0]);
 			var i = 1;
 			while( i < a.length ) {
 				var k = a[i];
-				var c = k.charCodeAt(0);
+				var c = StringTools.fastCodeAt(k, 0);
 				// 1...9
 				if( c >= 49 && c <= 57 ) {
-					var p = try regexp_matched_pos(r,Std.int(c)-48) catch( e : String ) null;
-					if( p == null ){
-						b.add("$");
+					var psize = 0;
+					var p = try regexp_matched_pos(r,c-48, new hl.types.Ref(psize)) catch( e : String ) -1;
+					if( p < 0 ){
+						b.addChar("$".code);
 						b.add(k);
 					} else {
-						if( p.pos >= 0 ) b.addSub(s,p.pos,p.len);
+						if( p > 0 ) b.__add(sbytes, p, psize);
 						b.addSub(k,1,k.length - 1);
 					}
-				} else if( c == null ) {
-					b.add("$");
+				} else if( c == 0 ) {
+					b.addChar("$".code);
 					i++;
 					var k2 = a[i];
 					if( k2 != null && k2.length > 0 )
@@ -150,43 +158,41 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 					b.add("$"+k);
 				i++;
 			}
-			var tot = p.pos + p.len - pos;
+			var tot = mpos + msize - pos;
 			pos += tot;
-			len -= tot;
+			size -= tot;
 			first = false;
 		} while( global );
-		b.addSub(s,pos,len);
-		return b.toString();*/
-		throw "TODO";
-		return null;
+		b.__add(sbytes,pos,size);
+		return b.toString();
 	}
 
-	public function map( s : String, f : EReg -> String ) : String {
-		/*
-		var offset = 0;
+	public function map( s : String, f : EReg -> String ) : String @:privateAccess {
+		var boffset = 0;
+		var ssize = s.size;
 		var buf = new StringBuf();
 		do {
-			if (offset >= s.length)
+			if( boffset >= ssize )
 				break;
-			else if (!matchSub(s, offset)) {
-				buf.add(s.substr(offset));
+			else if (!matchSub(s, s.bytes.utf8Length(0,boffset))) {
+				buf.__add(s.bytes, boffset, ssize - boffset);
 				break;
 			}
-			var p = regexp_matched_pos(r,0);
-			buf.add(s.substr(offset, p.pos - offset));
+			var msize = 0;
+			var mpos = regexp_matched_pos(r,0, new hl.types.Ref(msize));
+			buf.__add(s.bytes, boffset, mpos - boffset);
 			buf.add(f(this));
-			if (p.len == 0) {
-				buf.add(s.substr(p.pos, 1));
-				offset = p.pos + 1;
-			}
-			else
-				offset = p.pos + p.len;
+			if( msize == 0 ) {
+				if( mpos == ssize ) break;
+				var k = s.bytes.utf8Pos(mpos, 1);
+				buf.__add(s.bytes, mpos, k);
+				boffset = mpos + k;
+			} else
+				boffset = mpos + msize;
 		} while (global);
-		if (!global && offset > 0 && offset < s.length)
-			buf.add(s.substr(offset));
-		return buf.toString();*/
-		throw "TODO";
-		return null;
+		if (!global && boffset > 0 && boffset < ssize )
+			buf.__add(s.bytes, boffset, ssize - boffset);
+		return buf.toString();
 	}
 
 	@:hlNative("regexp", "regexp_new_options") static function regexp_new_options( bytes : hl.types.Bytes, options : hl.types.Bytes ) : ERegValue {

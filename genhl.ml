@@ -552,7 +552,7 @@ let rec to_type ctx t =
 	| TLazy f ->
 		to_type ctx (!f())
 	| TFun (args, ret) ->
-		HFun (List.map (fun (_,_,t) -> to_type ctx t) args, to_type ctx ret)
+		HFun (List.map (fun (_,o,t) -> to_type ctx (if o then ctx.com.basic.tnull t else t)) args, to_type ctx ret)
 	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _  -> true | _ -> false) ->
 		HType
 	| TAnon a ->
@@ -825,12 +825,12 @@ let alloc_tmp ctx t =
 	DynArray.add ctx.m.mregs.arr t;
 	rid
 
+let current_pos ctx =
+	DynArray.length ctx.m.mops
+
 let op ctx o =
 	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
 	DynArray.add ctx.m.mops o
-
-let current_pos ctx =
-	DynArray.length ctx.m.mops
 
 let jump ctx f =
 	let pos = current_pos ctx in
@@ -1166,8 +1166,10 @@ and jump_expr ctx e jcond =
 		let r = eval_to ctx e HBool in
 		jump ctx (fun i -> if jcond then OJTrue (r,i) else OJFalse (r,i))
 
-and eval_args ctx el t =
-	List.map2 (fun e t -> eval_to ctx e t) el (match t with HFun (args,_) -> args | HDyn -> List.map (fun _ -> HDyn) el | _ -> assert false)
+and eval_args ctx el t p =
+	let rl = List.map2 (fun e t -> eval_to ctx e t) el (match t with HFun (args,_) -> args | HDyn -> List.map (fun _ -> HDyn) el | _ -> assert false) in
+	set_curpos ctx p;
+	rl
 
 and eval_null_check ctx e =
 	let r = eval_expr ctx e in
@@ -1263,7 +1265,7 @@ and eval_expr ctx e =
 			| None -> assert false
 			| Some f ->
 				let r = alloc_tmp ctx HVoid in
-				let el = eval_args ctx el (to_type ctx f.cf_type) in
+				let el = eval_args ctx el (to_type ctx f.cf_type) e.epos in
 				op ctx (OCallN (r, alloc_fid ctx csup f, 0 :: el));
 				r
 			)
@@ -1513,7 +1515,7 @@ and eval_expr ctx e =
 			| _ -> ec.etype
 		) in
 		let tfun = to_type ctx real_type in
-		let el() = eval_args ctx el tfun in
+		let el() = eval_args ctx el tfun e.epos in
 		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn) in
 		(match get_access ctx ec with
 		| AStaticFun f ->
@@ -1594,7 +1596,7 @@ and eval_expr ctx e =
 		| Some { cf_expr = None } -> error (s_type_path c.cl_path ^ " does not have a constructor") e.epos
 		| Some ({ cf_expr = Some { eexpr = TFunction({ tf_expr = { eexpr = TBlock([]) } }) } }) when el = [] -> ()
 		| Some ({ cf_expr = Some cexpr } as constr) ->
-			let rl = eval_args ctx el (to_type ctx cexpr.etype) in
+			let rl = eval_args ctx el (to_type ctx cexpr.etype) e.epos in
 			let ret = alloc_tmp ctx HVoid in
 			let g = alloc_fid ctx c constr in
 			op ctx (match rl with
@@ -2130,6 +2132,12 @@ and gen_assign_op ctx acc e1 f =
 		let r = f r in
 		op ctx (OSetGlobal (g,r));
 		r
+	| ACaptured idx ->
+		let r = alloc_tmp ctx (to_type ctx e1.etype) in
+		op ctx (OEnumField (r, ctx.m.mcaptreg, 0, idx));
+		let r = f r in
+		op ctx (OSetEnumField (ctx.m.mcaptreg,idx,r));
+		r
 	| AArray (ra,at,ridx) ->
 		(match at with
 		| HDyn ->
@@ -2245,6 +2253,8 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 
 	ctx.m <- method_context fidx (to_type ctx f.tf_type) capt;
 
+	set_curpos ctx f.tf_expr.epos;
+
 	let tthis = (match cthis with
 	| None -> None
 	| Some c ->
@@ -2256,7 +2266,7 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 	let rcapt = if has_captured_vars && cparent <> None then Some (alloc_tmp ctx capt.c_type) else None in
 
 	let args = List.map (fun (v,o) ->
-		let r = alloc_reg ctx v in
+		let r = alloc_reg ctx (if o = None then v else { v with v_type = ctx.com.basic.tnull v.v_type }) in
 		rtype ctx r
 	) f.tf_args in
 
@@ -2273,17 +2283,34 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 		(match o with
 		| None | Some TNull -> ()
 		| Some c ->
-			op ctx (OJNotNull (r,1));
-			match c with
+			op ctx (OJNotNull (r,2));
+			(match c with
 			| TNull | TThis | TSuper -> assert false
-			| TInt i -> op ctx (OInt (r, alloc_i32 ctx i))
-			| TFloat s -> op ctx (OFloat (r, alloc_float ctx (float_of_string s)))
-			| TBool b -> op ctx (OBool (r, b))
-			| TString s -> assert false (* TODO *)
+			| TInt i ->
+				let tmp = alloc_tmp ctx HI32 in
+				op ctx (OInt (tmp, alloc_i32 ctx i));
+				op ctx (OToDyn (r, tmp));
+			| TFloat s ->
+				let tmp = alloc_tmp ctx HF64 in
+				op ctx (OFloat (tmp, alloc_float ctx (float_of_string s)));
+				op ctx (OToDyn (r, tmp));
+			| TBool b ->
+				let tmp = alloc_tmp ctx HBool in
+				op ctx (OBool (tmp, b));
+				op ctx (OToDyn (r, tmp));
+			| TString s ->
+				assert false);
+			(* if optional but not null, turn into a not nullable here *)
+			let vt = to_type ctx v.v_type in
+			if not (is_nullable vt) then begin
+				let t = alloc_tmp ctx vt in
+				ctx.m.mregs.map <- PMap.add v.v_id t ctx.m.mregs.map;
+				op ctx (OSafeCast (t,r));
+			end;
 		);
 		if v.v_capture then begin
 			let index = (try PMap.find v.v_id capt.c_map with Not_found -> assert false) in
-			op ctx (OSetEnumField (ctx.m.mcaptreg, index, r));
+			op ctx (OSetEnumField (ctx.m.mcaptreg, index, alloc_reg ctx v));
 		end
 	) f.tf_args;
 
@@ -2947,6 +2974,7 @@ let interp code =
 	let functions = Array.create (Array.length code.functions + Array.length code.natives) (FNativeFun ("",(fun _ -> assert false),HDyn)) in
 	let cached_protos = Hashtbl.create 0 in
 	let func f = Array.unsafe_get functions f in
+	let streof s = try String.sub s 0 (String.index s '\000') with Not_found -> s in
 
 	let stack = ref [] in
 	let exc_stack = ref [] in
@@ -2965,6 +2993,7 @@ let interp code =
 
 	let error msg = raise (Runtime_error msg) in
 	let throw v = exc_stack := []; raise (InterpThrow v) in
+	let throw_msg msg = throw (VDyn (VBytes (msg ^ "\x00"),HBytes)) in
 
 	let hash_cache = Hashtbl.create 0 in
 
@@ -3047,7 +3076,7 @@ let interp code =
 			(match get_method o.oproto.pclass "__string" with
 			| None -> "#" ^ o.oproto.pclass.pname
 			| Some f -> vstr (fcall (func f) [v]) HBytes)
-		| VBytes b -> (if String.length b > 0 && String.get b (String.length b - 1) = '\x00' then String.sub b 0 (String.length b - 1) else b)
+		| VBytes b -> streof b
 		| VClosure (f,_) -> fstr f
 		| VArray (a,t) -> "[" ^ String.concat ", " (Array.to_list (Array.map (fun v -> vstr v t) a)) ^ "]"
 		| VUndef -> "undef"
@@ -3079,6 +3108,8 @@ let interp code =
 				f args
 			with InterpThrow v ->
 				raise (InterpThrow v)
+			| Failure msg ->
+				throw_msg msg
 			| e ->
 				error (Printexc.to_string e)
 
@@ -3227,7 +3258,7 @@ let interp code =
 			let rec loop args fargs =
 				match args, fargs with
 				| [], [] -> []
-				| _, [] -> error (Printf.sprintf "Too many arguments (%s) != (%s)" (String.concat "," (List.map (fun (v,_) -> vstr_d v) full_args)) (String.concat "," (List.map tstr full_fargs)))
+				| _, [] -> throw_msg (Printf.sprintf "Too many arguments (%s) != (%s)" (String.concat "," (List.map (fun (v,_) -> vstr_d v) full_args)) (String.concat "," (List.map tstr full_fargs)))
 				| (v,t) :: args, ft :: fargs -> dyn_cast v t ft :: loop args fargs
 				| [], _ :: _ -> default ft :: loop args fargs
 			in
@@ -3684,7 +3715,7 @@ let interp code =
 					if i >= 0 && i < Array.length indexes then pos := !pos + indexes.(i)
 				| _ -> assert false)
 			| ONullCheck r ->
-				if get r = VNull then error "Null access"
+				if get r = VNull then throw_msg "Null access"
 			| OTrap (r,j) ->
 				let target = !pos + j in
 				traps := (r,target) :: !traps
@@ -3721,8 +3752,6 @@ let interp code =
 	in
 	let int = Int32.to_int in
 	let to_int i = VInt (Int32.of_int i) in
-	let string s = String.sub s 0 (String.length s - 1) in (* chop last \0 which is not needed in ocaml *)
-	let streof s = try String.sub s 0 (String.index s '\000') with Not_found -> s in
 	let load_native lib name t =
 		let unresolved() = (fun args -> error ("Unresolved native " ^ lib ^ "@" ^ name)) in
 		let f = (match lib with
@@ -3777,7 +3806,9 @@ let interp code =
 			| "utf8pos" ->
 				(function
 				| [VBytes b; VInt start; VInt len] ->
-					to_int (UTF8.length (String.sub b (int start) (int len)))
+					let s = int start in
+					let b = streof b in
+					to_int (UTF8.nth (String.sub b s (String.length b - s)) (int len))
 				| _ -> assert false)
 			| "byteslength" ->
 				(function
@@ -3838,7 +3869,7 @@ let interp code =
 				| _ -> assert false)
 			| "safe_cast" ->
 				(function
-				| [v;VType t] -> if is_compatible v t then v else error ("Cannot cast " ^ vstr_d v ^ " to " ^ tstr t);
+				| [v;VType t] -> if is_compatible v t then v else throw_msg ("Cannot cast " ^ vstr_d v ^ " to " ^ tstr t);
 				| _ -> assert false)
 			| "hballoc" ->
 				(function
@@ -4011,7 +4042,7 @@ let interp code =
 						| 'm' -> () (* always ON ? *)
 						| 'i' -> case_sensitive := false
 						| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
-					) (ExtString.String.explode (string opt));
+					) (ExtString.String.explode (streof opt));
 					let buf = Buffer.create 0 in
 					let rec loop prev esc = function
 						| [] -> ()
@@ -4020,9 +4051,10 @@ let interp code =
 							| 'n' -> Buffer.add_char buf '\n'
 							| 'r' -> Buffer.add_char buf '\r'
 							| 't' -> Buffer.add_char buf '\t'
+							| 's' -> Buffer.add_string buf "[ \t\r\n]"
 							| 'd' -> Buffer.add_string buf "[0-9]"
 							| '\\' -> Buffer.add_string buf "\\\\"
-							| '(' | ')' -> Buffer.add_char buf c
+							| '(' | ')' | '{' | '}' -> Buffer.add_char buf c
 							| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
 								Buffer.add_char buf '\\';
 								Buffer.add_char buf c;
@@ -4043,7 +4075,7 @@ let interp code =
 								Buffer.add_char buf c;
 								loop c false l
 					in
-					loop '\000' false (ExtString.String.explode (string str));
+					loop '\000' false (ExtString.String.explode (streof str));
 					let str = Buffer.contents buf in
 					let r = {
 						r = if !case_sensitive then Str.regexp str else Str.regexp_case_fold str;
@@ -4053,50 +4085,47 @@ let interp code =
 					VAbstract (AReg r)
 				| _ ->
 					assert false);
-		| "regexp_match" ->
-			(function
-			| [VAbstract (AReg r);VBytes str;VInt pos;VInt len] ->
-				let str = string str and pos = int pos and len = int len in
-				let nstr, npos, delta = (if len = String.length str - pos then str, pos, 0 else String.sub str pos len, 0, pos) in
-				(try
-					ignore(Str.search_forward r.r nstr npos);
-					let rec loop n =
-						if n = 9 then
-							[]
-						else try
-							(Some (Str.group_beginning n + delta, Str.group_end n + delta)) :: loop (n + 1)
-						with Not_found ->
-							None :: loop (n + 1)
-						| Invalid_argument _ ->
-							[]
-					in
-					r.r_string <- str;
-					r.r_groups <- Array.of_list (loop 0);
-					VBool true;
-				with Not_found ->
-					VBool false)
-			| _ -> assert false);
-		| "regexp_matched_pos" ->
-			(function
-			| [VAbstract (AReg r); VInt n; VRef (regs,rlen,HI32)] ->
-				let n = int n in
-				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
-				| None -> to_int (-1)
-				| Some (pos,pend) -> regs.(rlen) <- to_int (pend - pos); to_int pos)
-			| _ -> assert false)
-
-(*		"regexp_matched", Fun2 (fun r n ->
-			match r, n with
-			| VAbstract (AReg r), VInt n ->
-				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
-				| None -> VNull
-				| Some (pos,pend) -> VString (String.sub r.r_string pos (pend - pos)))
-			| _ -> error()
-		);
-		(* regexp_replace : not used by Haxe *)
-		(* regexp_replace_all : not used by Haxe *)
-		(* regexp_replace_fun : not used by Haxe *)
-	]*)
+			| "regexp_match" ->
+				(function
+				| [VAbstract (AReg r);VBytes str;VInt pos;VInt len] ->
+					let str = streof str and pos = int pos and len = int len in
+					let nstr, npos, delta = (if len = String.length str - pos then str, pos, 0 else String.sub str pos len, 0, pos) in
+					(try
+						ignore(Str.search_forward r.r nstr npos);
+						let rec loop n =
+							if n = 9 then
+								[]
+							else try
+								(Some (Str.group_beginning n + delta, Str.group_end n + delta)) :: loop (n + 1)
+							with Not_found ->
+								None :: loop (n + 1)
+							| Invalid_argument _ ->
+								[]
+						in
+						r.r_string <- str;
+						r.r_groups <- Array.of_list (loop 0);
+						VBool true;
+					with Not_found ->
+						VBool false)
+				| _ -> assert false);
+			| "regexp_matched_pos" ->
+				(function
+				| [VAbstract (AReg r); VInt n; VRef (regs,rlen,HI32)] ->
+					let n = int n in
+					(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
+					| None -> to_int (-1)
+					| Some (pos,pend) -> regs.(rlen) <- to_int (pend - pos); to_int pos)
+				| _ -> assert false)
+			| "regexp_matched" ->
+				(function
+				| [VAbstract (AReg r); VInt n; VRef (regs,rlen,HI32)] ->
+					let n = int n in
+					(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
+					| None -> VNull
+					| Some (pos,pend) ->
+						regs.(rlen) <- to_int (pend - pos);
+						VBytes (String.sub r.r_string pos (pend - pos)))
+				| _ -> assert false)
 			| _ ->
 				unresolved())
 		| _ ->

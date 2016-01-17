@@ -84,7 +84,7 @@ class String {
 				out.push(subBytes(pos, size-pos));
 				break;
 			}
-			out.push(subBytes(pos, pos - p));
+			out.push(subBytes(pos, p - pos));
 			pos = p + dsize;
 		}
 		return out;
