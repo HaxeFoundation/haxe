@@ -307,7 +307,7 @@ let is_keyword n =
 	| "clone" | "instanceof" | "break" | "case" | "class" | "continue" | "default"
 	| "do" | "else" | "extends" | "for" | "function" | "if" | "new" | "return"
 	| "static" | "switch" | "var" | "while" | "interface" | "implements" | "public"
-	| "private" | "try" | "catch" | "throw" | "goto"
+	| "private" | "try" | "catch" | "throw" | "goto" | "yield"
 		-> true
 	| _ -> false
 
