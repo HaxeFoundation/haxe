@@ -104,9 +104,13 @@ class EReg {
 	}
 
 	public function split( s : String ) : Array<String> {
-		// we can't use directly Rex.split because it's ignoring the 'g' flag
-		var d = "#__delim__#";
-		return Boot.luaIteratorToArray(Rex.split(replace(s,d), d));
+		if (global){
+			return Boot.luaIteratorToArray(Rex.split(s, r));
+		} else {
+			// we can't use directly Rex.split because it's ignoring the 'g' flag
+			var d = "#__delim__#";
+			return Boot.luaIteratorToArray(Rex.split(replace(s,d), d));
+		}
 	}
 
 	public function replace( s : String, by : String ) : String {
