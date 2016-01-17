@@ -60,7 +60,9 @@ class Math
 	public static inline function random() : Float    return lua.Math.random();
 
 	public static inline function atan2(y:Float, x:Float):Float return lua.Math.atan2(y,x);
-	public static inline function max(a:Float, b:Float):Float   return lua.Math.max(a,b);
+	public static inline function max(a:Float, b:Float):Float {
+		return Math.isNaN(a) || Math.isNaN(b) ? Math.NaN : lua.Math.max(a,b);
+	}
 	public static inline function min(a:Float, b:Float):Float {
 		return Math.isNaN(a) || Math.isNaN(b) ? Math.NaN : lua.Math.min(a,b);
 	}
