@@ -905,6 +905,7 @@ type analyzer_context = {
 	com : Common.context;
 	config : Config.t;
 	graph : Graph.t;
+	temp_var_name : string;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
@@ -1090,7 +1091,7 @@ module TexprTransformer = struct
 					fl,e
 			in
 			let fl,e = loop [] e in
-			let v = alloc_var "tmp" e.etype in
+			let v = alloc_var ctx.temp_var_name e.etype in
 			begin match ctx.com.platform with
 				| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 				| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
@@ -1452,6 +1453,9 @@ module TexprTransformer = struct
 			com = com;
 			config = config;
 			graph = g;
+			(* For CPP we want to use variable names which are "probably" not used by users in order to
+			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
+			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
@@ -2234,7 +2238,7 @@ module CodeMotion = DataFlow(struct
 					let v' = if decl then begin
 						v
 					end else begin
-						let v' = alloc_var "tmp" v.v_type in
+						let v' = alloc_var ctx.temp_var_name v.v_type in
 						declare_var ctx.graph v';
 						v'.v_meta <- [Meta.CompilerGenerated,[],p];
 						v'
