@@ -2017,7 +2017,16 @@ let check_constructor ctx c f =
 			error "You cannot assign some super class vars before calling super() in flash, this will reset them to default value" e.epos
 		| _ -> ()
 	in
+	(* only do so if we have a call to super() *)
+	let rec has_super e =
+		Type.iter has_super e;
+		match e.eexpr with
+		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
+		| _ -> ()
+	in
 	try
+		has_super f.tf_expr
+	with Exit -> try
 		loop f.tf_expr
 	with Exit ->
 		()
