@@ -548,6 +548,15 @@ class TestJs {
 		a[i++] = i++;
 	}
 
+	@:js('
+		var i = 5;
+		while(--i >= 0) TestJs["use"](i);
+	')
+	static function testPrefixRebuilding() {
+		var i:Int = 5;
+		while (--i >= 0) use(i);
+	}
+
 	static inline function inlineCall<S, T>(d1:S, d2:T) {
 		return call(d2, d1);
 	}

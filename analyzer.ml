@@ -591,6 +591,11 @@ module Fusion = struct
 							change_num_uses v2 (-1);
 							let e = (f {e1 with eexpr = TUnop(op,Postfix,ev)}) in
 							fuse (e :: acc) el
+						| TLocal v2 when v == v2 ->
+							changed := true;
+							change_num_uses v2 (-1);
+							let e = (f {e1 with eexpr = TUnop(op,Prefix,ev)}) in
+							fuse (e :: acc) el
 						| _ ->
 							raise Exit
 					end
