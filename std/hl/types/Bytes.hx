@@ -87,7 +87,12 @@ package hl.types;
 		Count the number of UTF8 chars into the given Bytes data.
 	**/
 	@:hlNative("std","utf8length")
-	public function utf8Length( pos : Int, size : Int ) : Int {
+	public function _utf8Length( pos : Int, size : Int ) : Int {
+		return 0;
+	}
+
+	@:hlNative("std", "ucs2length")
+	function ucs2Length( bytePos : Int ) : Int {
 		return 0;
 	}
 
@@ -95,7 +100,7 @@ package hl.types;
 		Count the number of bytes until we reach \0
 	**/
 	@:hlNative("std","byteslength")
-	function bytesLength( pos : Int ) : Int {
+	function _bytesLength( pos : Int ) : Int {
 		return 0;
 	}
 
@@ -108,7 +113,7 @@ package hl.types;
 		Decode the utf8 char at the given position
 	**/
 	@:hlNative("std","utf8char")
-	public function utf8Char( pos : Int, charPos : Int ) : Int {
+	public function _utf8Char( pos : Int, charPos : Int ) : Int {
 		return 0;
 	}
 
@@ -116,7 +121,7 @@ package hl.types;
 		Gives the byte position for the utf8 char starting at pos.
 	**/
 	@:hlNative("std","utf8pos")
-	public function utf8Pos( pos : Int, charPos : Int ) : Int {
+	public function _utf8Pos( pos : Int, charPos : Int ) : Int {
 		return 0;
 	}
 

@@ -24,17 +24,16 @@
 	var b : hl.types.Bytes;
 	var size : Int;
 	var pos : Int;
-	var slen : Int;
 	public var length(get,never) : Int;
 
 	public function new() : Void {
-		pos = slen = 0;
-		size = 12; // ensure 6 bytes expand for addChar()
+		pos = 0;
+		size = 8; // ensure 4 bytes expand for addChar()
 		b = new hl.types.Bytes(size);
 	}
 
 	inline function get_length() : Int {
-		return slen;
+		return pos >> 1;
 	}
 
 	inline function __expand( need : Int ) : Void {
@@ -46,15 +45,10 @@
 		size = nsize;
 	}
 
-	function __addBytes( bytes : hl.types.Bytes, spos : Int, ssize : Int, slen : Int ) : Void {
+	inline function __add( bytes : hl.types.Bytes, spos : Int, ssize : Int ) : Void {
 		if( pos + ssize > size ) __expand(pos + ssize);
 		b.blit(pos, bytes, spos, ssize);
 		pos += ssize;
-		this.slen += slen;
-	}
-
-	inline function __add( bytes : hl.types.Bytes, spos : Int, ssize : Int ) : Void {
-		__addBytes(bytes, spos, ssize, bytes.utf8Length(spos, ssize));
 	}
 
 	public function add<T>( x : T ) : Void {
@@ -65,57 +59,36 @@
 
 	public function addSub( s : String, pos : Int, ?len : Int ) : Void @:privateAccess {
 		if( pos < 0 ) pos = 0;
-		if( pos > s.length ) pos = s.length;
+		if( pos >= s.length ) return;
 		var slen : Int;
 		if( len == null ) slen = s.length - pos else {
 			slen = len;
 			if( pos + slen > s.length ) slen = s.length - pos;
 			if( slen <= 0 ) return;
 		}
-		var bpos = pos == 0 ? 0 : s.bytes.utf8Pos(0,pos);
-		var blen = (pos + len == s.length ? s.size - bpos : s.bytes.utf8Pos(bpos, len));
-		__addBytes(s.bytes, bpos, blen, len - pos);
+		__add(s.bytes, pos << 1, slen << 1);
 	}
 
 	public function addChar( c : Int ) : Void {
-		if( c < 0 )
-			throw "Invalid char code";
-		if( pos + 6 > size ) __expand(0);
-		if( c < 0x80 )
-			b[pos++] = c;
-		else if( c < 0x800 ) {
-			b[pos++] = 0xC0 | (c >> 6);
-			b[pos++] = 0x80 | (c & 63);
-		} else if( c < 0x10000 ) {
-			b[pos++] = 0xE0 | (c >> 12);
-			b[pos++] = 0x80 | ((c >> 6) & 63);
-			b[pos++] = 0x80 | (c & 63);
-		} else if( c < 0x200000 ) {
-			b[pos++] = 0xF0 | (c >> 18);
-			b[pos++] = 0x80 | ((c >> 12) & 63);
-			b[pos++] = 0x80 | ((c >> 6) & 63);
-			b[pos++] = 0x80 | (c & 63);
-		} else if( c < 0x4000000 ) {
-			b[pos++] = 0xF8 | (c >> 24);
-			b[pos++] = 0x80 | ((c >> 18) & 63);
-			b[pos++] = 0x80 | ((c >> 12) & 63);
-			b[pos++] = 0x80 | ((c >> 6) & 63);
-			b[pos++] = 0x80 | (c & 63);
-		} else {
-			b[pos++] = 0xFC | (c >> 30);
-			b[pos++] = 0x80 | ((c >> 24) & 63);
-			b[pos++] = 0x80 | ((c >> 18) & 63);
-			b[pos++] = 0x80 | ((c >> 12) & 63);
-			b[pos++] = 0x80 | ((c >> 6) & 63);
-			b[pos++] = 0x80 | (c & 63);
-		}
-		slen++;
+		if( c >= 0 && c < 0x10000 ) {
+			if( c >= 0xD800 && c <= 0xDFFF ) throw "Invalid unicode char " + c;
+			if( pos == size ) __expand(0);
+			b.setUI16(pos, c);
+			pos += 2;
+		} else if( c < 0x110000 ) {
+			if( pos + 4 > size ) __expand(0);
+			c -= 0x10000;
+			b.setUI16(pos, (c >> 10) + 0xD800);
+			b.setUI16(pos + 2, (c & 1023) + 0xDC00);
+			pos += 4;
+		} else
+			throw "Invalid unicode char " + c;
 	}
 
 	public function toString() : String {
 		if( pos == size ) __expand(0);
-		b[pos] = 0;
-		return @:privateAccess String.__alloc__(b, pos, slen);
+		b.setUI16(pos,0);
+		return @:privateAccess String.__alloc__(b, pos);
 	}
 
 }

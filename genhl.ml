@@ -393,6 +393,7 @@ let to_utf8 str =
 		str;
 	with
 		UTF8.Malformed_code ->
+			(* ISO to utf8 *)
 			let b = UTF8.Buf.create 0 in
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
@@ -949,7 +950,7 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let bytes = alloc_tmp ctx HBytes in
 		op ctx (ORef (lref,len));
 		op ctx (OCall2 (bytes,alloc_std ctx "itos" [HI32;HRef HI32] HBytes,cast_to ctx r HI32 p,lref));
-		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
+		op ctx (OCall2 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len));
 		out
 	| (HF32 | HF64), HObj { pname = "String" } ->
 		let out = alloc_tmp ctx t in
@@ -958,7 +959,7 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let bytes = alloc_tmp ctx HBytes in
 		op ctx (ORef (lref,len));
 		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
-		op ctx (OCall3 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len,len));
+		op ctx (OCall2 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len));
 		out
 	| (HObj _ | HDynObj | HDyn) , HVirtual _ ->
 		let out = alloc_tmp ctx t in
@@ -1196,13 +1197,13 @@ and eval_expr ctx e =
 			op ctx (OBool (r,b));
 			r
 		| TString s ->
-			let s = to_utf8 s in
+			let str = to_utf8 s in
 			let r = alloc_tmp ctx HBytes in
-			op ctx (OString (r,alloc_string ctx s));
-			let size = reg_int ctx (String.length s) in
-			let len = reg_int ctx (UTF8.length s) in
 			let s = alloc_tmp ctx (to_type ctx e.etype) in
-			op ctx (OCall3 (s,alloc_fun_path ctx ([],"String") "__alloc__",r,size,len));
+			op ctx (ONew s);
+			op ctx (OString (r,alloc_string ctx str));
+			op ctx (OSetField (s,0,r));
+			op ctx (OSetField (s,1,reg_int ctx (UTF8.length str)));
 			s
 		| TThis ->
 			0 (* first reg *)
@@ -2968,13 +2969,17 @@ let rec is_compatible v t =
 exception Runtime_error of string
 exception InterpThrow of value
 
+type cast =
+	| CNo
+	| CDyn of ttype
+	| CUnDyn of ttype
+
 let interp code =
 
 	let globals = Array.map default code.globals in
 	let functions = Array.create (Array.length code.functions + Array.length code.natives) (FNativeFun ("",(fun _ -> assert false),HDyn)) in
 	let cached_protos = Hashtbl.create 0 in
 	let func f = Array.unsafe_get functions f in
-	let streof s = try String.sub s 0 (String.index s '\000') with Not_found -> s in
 
 	let stack = ref [] in
 	let exc_stack = ref [] in
@@ -2991,9 +2996,57 @@ let interp code =
 			proto
 	in
 
+	let caml_to_hl str =
+		let b = Buffer.create (String.length str * 2) in
+		let add c =
+			Buffer.add_char b (char_of_int (c land 0xFF));
+			Buffer.add_char b (char_of_int (c lsr 8));
+		in
+		UTF8.iter (fun c ->
+			let c = UChar.code c in
+			if c >= 0 && c < 0x10000 then begin
+				if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
+				add c;
+			end else if c < 0x110000 then begin
+				let c = c - 0x10000 in
+				add ((c asr 10) + 0xD800);
+				add ((c land 1023) + 0xDC00);
+			end else
+				failwith ("Invalid unicode char " ^ string_of_int c);
+		) str;
+		add 0;
+		Buffer.contents b
+	in
+
+	let hl_to_caml str =
+		let b = UTF8.Buf.create (String.length str / 2) in
+		let add c =
+			UTF8.Buf.add_char b (UChar.chr c);
+		in
+		let get v = int_of_char str.[v] in
+		let rec loop p =
+			let c = (get p) lor ((get (p+1)) lsl 8) in
+			if c = 0 then () else if c >= 0xD800 && c <= 0xDFFF then begin
+				let c = c - 0xD800 in
+				let c2 = ((get (p+2)) lor ((get(p+3)) lsl 8)) - 0xDC00 in
+				add ((c2 lor (c lsl 10)) + 0x10000);
+				loop (p + 4);
+			end else begin
+				add c;
+				loop (p + 2);
+			end;
+		in
+		loop 0;
+		UTF8.Buf.contents b
+	in
+
+	let hl_to_caml_sub str pos len =
+		hl_to_caml (String.sub str pos len ^ "\x00\x00")
+	in
+
 	let error msg = raise (Runtime_error msg) in
 	let throw v = exc_stack := []; raise (InterpThrow v) in
-	let throw_msg msg = throw (VDyn (VBytes (msg ^ "\x00"),HBytes)) in
+	let throw_msg msg = throw (VDyn (VBytes (caml_to_hl msg),HBytes)) in
 
 	let hash_cache = Hashtbl.create 0 in
 
@@ -3076,7 +3129,7 @@ let interp code =
 			(match get_method o.oproto.pclass "__string" with
 			| None -> "#" ^ o.oproto.pclass.pname
 			| Some f -> vstr (fcall (func f) [v]) HBytes)
-		| VBytes b -> streof b
+		| VBytes b -> hl_to_caml b
 		| VClosure (f,_) -> fstr f
 		| VArray (a,t) -> "[" ^ String.concat ", " (Array.to_list (Array.map (fun v -> vstr v t) a)) ^ "]"
 		| VUndef -> "undef"
@@ -3110,8 +3163,6 @@ let interp code =
 				raise (InterpThrow v)
 			| Failure msg ->
 				throw_msg msg
-			| e ->
-				error (Printexc.to_string e)
 
 	and dyn_set_field obj field v vt =
 		let v, vt = (match vt with
@@ -3213,17 +3264,22 @@ let interp code =
 			| VNull -> VNull
 			| VClosure (fn,farg) ->
 				let conv = List.map2 (fun t1 t2 ->
-					if safe_cast t2 t1 || (t2 = HDyn && is_dynamic t1) then None
-					else if t2 = HDyn then Some t1
+					if safe_cast t2 t1 || (t2 = HDyn && is_dynamic t1) then CNo
+					else if t2 = HDyn then CDyn t1
+					else if t1 = HDyn then CUnDyn t2
 					else invalid()
 				) args1 args2 in
-				let rconv = if safe_cast t1 t2 then None else if t2 = HDyn then Some t1 else invalid() in
+				let rconv = if safe_cast t1 t2 then CNo else if t2 = HDyn then CDyn t1 else if t1 = HDyn then CUnDyn t2 else invalid() in
+				let convert v c =
+					match c with
+					| CNo -> v
+					| CDyn t -> make_dyn v t
+					| CUnDyn t -> dyn_cast v HDyn t
+				in
 				VClosure (FNativeFun ("~convert",(fun args ->
-					let args = List.map2 (fun v conv -> match conv with None -> v | Some t -> make_dyn v t) args conv in
+					let args = List.map2 convert args conv in
 					let ret = fcall fn (match farg with None -> args | Some a -> a :: args) in
-					match rconv with
-					| None -> ret
-					| Some t -> make_dyn ret t
+					convert ret rconv
 				),rt),None)
 			| _ ->
 				assert false)
@@ -3234,7 +3290,7 @@ let interp code =
 				match get_type v with
 				| None -> assert false
 				| Some t -> dyn_cast (match v with VDyn (v,_) -> v | _ -> v) t rt)
-		| HNull _, _ ->
+		| HNull t, _ ->
 			(match v with
 			| VNull -> default()
 			| VDyn (v,t) -> dyn_cast v t rt
@@ -3442,7 +3498,7 @@ let interp code =
 			| OMov (a,b) -> set a (get b)
 			| OInt (r,i) -> set r (VInt code.ints.(i))
 			| OFloat (r,i) -> set r (VFloat (Array.unsafe_get code.floats i))
-			| OString (r,s) -> set r (VBytes (code.strings.(s) ^ "\x00"))
+			| OString (r,s) -> set r (VBytes (caml_to_hl code.strings.(s)))
 			| OBool (r,b) -> set r (VBool b)
 			| ONull r -> set r VNull
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
@@ -3631,7 +3687,7 @@ let interp code =
 				| VArray (a,_) -> set r (VInt (Int32.of_int (Array.length a)));
 				| _ -> assert false)
 			| OError s ->
-				throw (VDyn (VBytes (code.strings.(s) ^ "\x00"),HBytes))
+				throw_msg code.strings.(s)
 			| OType (r,t) ->
 				set r (VType t)
 			| OGetType (r,v) ->
@@ -3782,46 +3838,22 @@ let interp code =
 				| [VInt v; VRef (regs,i,_)] ->
 					let str = Int32.to_string v in
 					regs.(i) <- to_int (String.length str);
-					VBytes (str ^ "\x00")
+					VBytes (caml_to_hl str)
 				| _ -> assert false);
 			| "ftos" ->
 				(function
 				| [VFloat _ as v; VRef (regs,i,_)] ->
 					let str = vstr v HF64 in
 					regs.(i) <- to_int (String.length str);
-					VBytes (str ^ "\x00")
+					VBytes (caml_to_hl str)
 				| _ -> assert false);
 			| "value_to_string" ->
 				(function
 				| [v; VRef (regs,i,_)] ->
-					let str = vstr v HDyn in
-					regs.(i) <- to_int (String.length str);
-					VBytes (str ^ "\x00")
+					let str = caml_to_hl (vstr v HDyn) in
+					regs.(i) <- to_int (String.length str - 2);
+					VBytes str
 				| _ -> assert false);
-			| "utf8length" ->
-				(function
-				| [VBytes b; VInt start; VInt len] ->
-					to_int (UTF8.length (String.sub b (int start) (int len)))
-				| _ -> assert false)
-			| "utf8pos" ->
-				(function
-				| [VBytes b; VInt start; VInt len] ->
-					let s = int start in
-					let b = streof b in
-					to_int (UTF8.nth (String.sub b s (String.length b - s)) (int len))
-				| _ -> assert false)
-			| "byteslength" ->
-				(function
-				| [VBytes b; VInt start] ->
-					to_int (try String.index_from b (int start) '\000' with _ -> assert false)
-				| _ -> assert false)
-			| "utf8char" ->
-				(function
-				| [VBytes b; VInt start; VInt index] ->
-					let start = int start in
-					let b = String.sub b start (String.length b - start) in
-					to_int (try UChar.code (UTF8.get b (int index)) with _ -> 0)
-				| _ -> assert false)
 			| "math_isnan" -> (function [VFloat f] -> VBool (classify_float f = FP_nan) | _ -> assert false)
 			| "math_finite" -> (function [VFloat f] -> VBool (match classify_float f with FP_infinite | FP_nan -> false | _ -> true) | _ -> assert false)
 			| "math_round" -> (function [VFloat f] -> VInt (Int32.of_float (floor (f +. 0.5))) | _ -> assert false)
@@ -3844,20 +3876,20 @@ let interp code =
 			| "math_pow" -> (function [VFloat a; VFloat b] -> VFloat (a ** b) | _ -> assert false)
 			| "parse_int" ->
 				(function
-				| [VBytes str; VInt len] ->
+				| [VBytes str; VInt pos; VInt len] ->
 					(try
-						let i = (match Interp.parse_int (String.sub str 0 (int len)) with
+						let i = (match Interp.parse_int (hl_to_caml_sub str (int pos) (int len)) with
 							| Interp.VInt v -> Int32.of_int v
 							| Interp.VInt32 v -> v
 							| _ -> assert false
 						) in
-						VInt i
+						VDyn (VInt i,HI32)
 					with _ ->
 						VNull)
-				| _ -> assert false)
+				| l -> assert false)
 			| "parse_float" ->
 				(function
-				| [VBytes str; VInt len] -> (try VFloat (Interp.parse_float (String.sub str 0 (int len))) with _ -> VFloat nan)
+				| [VBytes str; VInt pos; VInt len] -> (try VFloat (Interp.parse_float (hl_to_caml_sub str (int pos) (int len))) with _ -> VFloat nan)
 				| _ -> assert false)
 			| "dyn_compare" ->
 				(function
@@ -3878,13 +3910,13 @@ let interp code =
 			| "hbset" ->
 				(function
 				| [VAbstract (AHashBytes h);VBytes b;v] ->
-					Hashtbl.replace h (streof b) v;
+					Hashtbl.replace h (hl_to_caml b) v;
 					VUndef
 				| _ -> assert false)
 			| "hbget" ->
 				(function
 				| [VAbstract (AHashBytes h);VBytes b] ->
-					(try Hashtbl.find h (streof b) with Not_found -> VNull)
+					(try Hashtbl.find h (hl_to_caml b) with Not_found -> VNull)
 				| _ -> assert false)
 			| "hbvalues" ->
 				(function
@@ -3895,18 +3927,18 @@ let interp code =
 			| "hbkeys" ->
 				(function
 				| [VAbstract (AHashBytes h)] ->
-					let keys = Hashtbl.fold (fun s _ acc -> VBytes (s ^ "\000") :: acc) h [] in
+					let keys = Hashtbl.fold (fun s _ acc -> VBytes (caml_to_hl s) :: acc) h [] in
 					VArray (Array.of_list keys, HBytes)
 				| _ -> assert false)
 			| "hbexists" ->
 				(function
-				| [VAbstract (AHashBytes h);VBytes b] -> VBool (Hashtbl.mem h (streof b))
+				| [VAbstract (AHashBytes h);VBytes b] -> VBool (Hashtbl.mem h (hl_to_caml b))
 				| _ -> assert false)
 			| "hbremove" ->
 				(function
 				| [VAbstract (AHashBytes h);VBytes b] ->
-					let m = Hashtbl.mem h (streof b) in
-					if m then Hashtbl.remove h (streof b);
+					let m = Hashtbl.mem h (hl_to_caml b) in
+					if m then Hashtbl.remove h (hl_to_caml b);
 					VBool m
 				| _ -> assert false)
 			| "hialloc" ->
@@ -3949,7 +3981,7 @@ let interp code =
 				| _ -> assert false)
 			| "sys_print" ->
 				(function
-				| [VBytes str] -> print_string (streof str); VUndef
+				| [VBytes str] -> print_string (hl_to_caml str); VUndef
 				| _ -> assert false)
 			| "sys_exit" ->
 				(function
@@ -3976,8 +4008,8 @@ let interp code =
 							let sup = (match o.psuper with None -> [||] | Some o -> fields o) in
 							Array.concat [
 								sup;
-								Array.map (fun (s,_,_) -> VBytes (s ^ "\000")) o.pfields;
-								Array.map (fun f -> VBytes (f.fname ^ "\000")) o.pproto
+								Array.map (fun (s,_,_) -> VBytes (caml_to_hl s)) o.pfields;
+								Array.map (fun f -> VBytes (caml_to_hl f.fname)) o.pproto
 							]
 						in
 						VArray (fields o,HBytes)
@@ -4006,6 +4038,16 @@ let interp code =
 						| _ -> false
 					in
 					VBool (loop o)
+				| _ -> assert false)
+			| "ucs2length" ->
+				(function
+				| [VBytes s; VInt pos] ->
+					let delta = int pos in
+					let rec loop p =
+						let c = int_of_char s.[p+delta] lor ((int_of_char s.[p+delta+1]) lsl 8) in
+						if c = 0 then p lsr 1 else loop (p + 2)
+					in
+					to_int (loop 0)
 				| _ -> assert false)
 			| "call_method" ->
 				(function
@@ -4042,7 +4084,7 @@ let interp code =
 						| 'm' -> () (* always ON ? *)
 						| 'i' -> case_sensitive := false
 						| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
-					) (ExtString.String.explode (streof opt));
+					) (ExtString.String.explode (hl_to_caml opt));
 					let buf = Buffer.create 0 in
 					let rec loop prev esc = function
 						| [] -> ()
@@ -4075,7 +4117,7 @@ let interp code =
 								Buffer.add_char buf c;
 								loop c false l
 					in
-					loop '\000' false (ExtString.String.explode (streof str));
+					loop '\000' false (ExtString.String.explode (hl_to_caml str));
 					let str = Buffer.contents buf in
 					let r = {
 						r = if !case_sensitive then Str.regexp str else Str.regexp_case_fold str;
@@ -4088,7 +4130,7 @@ let interp code =
 			| "regexp_match" ->
 				(function
 				| [VAbstract (AReg r);VBytes str;VInt pos;VInt len] ->
-					let str = streof str and pos = int pos and len = int len in
+					let str = hl_to_caml str and pos = int pos and len = int len in
 					let nstr, npos, delta = (if len = String.length str - pos then str, pos, 0 else String.sub str pos len, 0, pos) in
 					(try
 						ignore(Str.search_forward r.r nstr npos);
@@ -4124,7 +4166,7 @@ let interp code =
 					| None -> VNull
 					| Some (pos,pend) ->
 						regs.(rlen) <- to_int (pend - pos);
-						VBytes (String.sub r.r_string pos (pend - pos)))
+						VBytes (caml_to_hl (String.sub r.r_string pos (pend - pos))))
 				| _ -> assert false)
 			| _ ->
 				unresolved())
@@ -4139,7 +4181,7 @@ let interp code =
 		String.concat "\n" (List.map (fun (f,pos) ->
 			let pos = !pos - 1 in
 			let file, line = (try let fid, line = f.debug.(pos) in code.debugfiles.(fid), line with _ -> "???", 0) in
-			Printf.sprintf "Called from fun(%d)@%d (%s line %d)" f.findex pos file line
+			Printf.sprintf "%s:%d: Called from fun(%d)@%d" file line f.findex pos
 		) st)
 	in
 	match functions.(code.entrypoint) with

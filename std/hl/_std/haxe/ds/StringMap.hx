@@ -26,21 +26,20 @@ private class StringMapKeysIterator {
 	var arr : hl.types.NativeArray<hl.types.Bytes>;
 	var pos : Int;
 	var length : Int;
-	
+
 	public inline function new(h:hl.types.NativeBytesMap) {
 		this.arr = h.keysArray();
 		pos = 0;
 		length = arr.length;
 	}
-	
+
 	public inline function hasNext() {
 		return pos < length;
 	}
-	
+
 	public inline function next() @:privateAccess {
 		var b = arr[pos++];
-		var size = b.bytesLength(0);
-		return String.__alloc__(b,size+1,b.utf8Length(0,size));
+		return String.__alloc__(b,b.ucs2Length(0));
 	}
 
 }
@@ -87,8 +86,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 			if( i > 0 )
 				s.add(", ");
 			var k = keys[i];
-			var len = @:privateAccess k.bytesLength(0); 
-			s.add(@:privateAccess String.__alloc__(k,len+1,k.utf8Length(0,len)));
+			@:privateAccess s.__add(k,0,(@:privateAccess k.ucs2Length(0)) << 1);
 			s.add(" => ");
 			s.add(values[i]);
 		}

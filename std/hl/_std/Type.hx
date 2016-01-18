@@ -71,7 +71,7 @@ class Type {
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> @:privateAccess {
 		var c : hl.types.Class = cast c;
 		var fields = c.type.getInstanceFields();
-		return [for( f in fields ) { var len = f.bytesLength(0); String.__alloc__(f,len,len); }];
+		return [for( f in fields ) String.__alloc__(f,f.ucs2Length(0))];
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {

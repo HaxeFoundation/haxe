@@ -3,13 +3,11 @@
 class String {
 
 	var bytes : hl.types.Bytes;
-	var size : Int;
 	public var length(default,null) : Int;
 
 	public function new(string:String) : Void {
 		bytes = string.bytes;
 		length = string.length;
-		size = string.size;
 	}
 
 	public function toUpperCase() : String {
@@ -29,9 +27,9 @@ class String {
 
 	public function charCodeAt( index : Int) : Null<Int> {
 		var idx : UInt = index;
-		if( idx >= length )
+		if( idx >= (length:UInt) )
 			return null;
-		return @:privateAccess bytes.utf8Char(0,index);
+		return bytes.getUI16(index << 1);
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
@@ -39,22 +37,23 @@ class String {
 		if( startIndex != null && startIndex > 0 ) {
 			if( startIndex >= length )
 				return -1;
-			startByte = bytes.utf8Length(0, startIndex);
+			startByte = startIndex << 1;
 		}
-		return bytes.find(startByte,size - startByte,str.bytes,0,str.size);
+		return bytes.find(startByte,(length << 1) - startByte,str.bytes,0,str.length << 1);
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+		var size = length << 1;
 		var lastByte = size;
 		if( startIndex != null && startIndex < length ) {
 			if( startIndex <= 0 )
 				return -1;
-			lastByte = bytes.utf8Length(0, startIndex);
+			lastByte = startIndex << 1;
 		}
 		var last = -1;
 		var pos = 0;
 		while( true ) {
-			var p = bytes.find(pos, size - pos, str.bytes, 0, str.size);
+			var p = bytes.find(pos, size - pos, str.bytes, 0, str.length << 1);
 			if( p < 0 || p >= lastByte ) break;
 			last = p;
 			pos = p + 1;
@@ -63,38 +62,29 @@ class String {
 	}
 
 	public function split( delimiter : String ) : Array<String> {
-		var pos = 0;
 		var out = [];
-		if( size == 0 ) {
+		if( length == 0 ) {
 			out.push("");
 			return out;
 		}
-		var dsize = delimiter.size;
-		if( dsize == 0 ) {
-			while( pos < size ) {
-				var p = bytes.utf8Pos(pos, 1);
-				out.push(subBytes(pos, p));
-				pos += p;
-			}
+		if( delimiter.length == 0 ) {
+			for( i in 0...length )
+				out.push(substr(i,1));
 			return out;
 		}
+		var pos = 0;
+		var dlen = delimiter.length;
 		while( true ) {
-			var p = bytes.find(pos, size - pos, delimiter.bytes, 0, dsize);
+			var p = bytes.find(pos << 1, (length - pos) << 1, delimiter.bytes, 0, dlen << 1);
 			if( p < 0 ) {
-				out.push(subBytes(pos, size-pos));
+				out.push(substr(pos, length-pos));
 				break;
 			}
-			out.push(subBytes(pos, p - pos));
-			pos = p + dsize;
+			p >>= 1;
+			out.push(substr(pos, p - pos));
+			pos = p + dlen;
 		}
 		return out;
-	}
-
-	function subBytes( pos : Int, size : Int ) : String {
-		var b = new hl.types.Bytes(size + 1);
-		b.blit(0, bytes, pos, size);
-		b[size] = 0;
-		return __alloc__(b, size, b.utf8Length(0, size));
 	}
 
 	public function substr( pos : Int, ?len : Int ) : String @:privateAccess {
@@ -118,14 +108,10 @@ class String {
 
 		if( pos < 0 || len <= 0 ) return "";
 
-		var bytes = bytes;
-		var start = pos == 0 ? 0 : bytes.utf8Pos(0, pos);
-		var size = pos + len == sl ? size - start : bytes.utf8Pos(start, len);
-
-		var b = new hl.types.Bytes(size + 1);
-		b.blit(0, bytes, start, size);
-		b[size] = 0;
-		return __alloc__(b, size, len);
+		var b = new hl.types.Bytes((len + 1) << 1);
+		b.blit(0, bytes, pos<<1, len << 1);
+		b.setUI16(len<<1,0);
+		return __alloc__(b, len);
 	}
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : String {
@@ -138,56 +124,21 @@ class String {
 	}
 
 	public static function fromCharCode( code : Int ) : String {
-		if( code < 0 ) throw "Invalid char code " + code;
-		if( code < 0x80 ) {
-			var b = new hl.types.Bytes(2);
-			b[0] = code;
-			b[1] = 0;
-			return __alloc__(b, 1, 1);
-		}
-		if( code < 0x800 ) {
-			var b = new hl.types.Bytes(3);
-			b[0] = 0xC0 | (code >> 6);
-			b[1] = 0x80 | (code & 63);
-			b[2] = 0;
-			return __alloc__(b, 2, 1);
-		}
-		if( code < 0x10000 ) {
+		if( code >= 0 && code < 0x10000 ) {
+			if( code >= 0xD800 && code <= 0xDFFF ) throw "Invalid unicode char " + code;
 			var b = new hl.types.Bytes(4);
-			b[0] = 0xE0 | (code >> 12);
-			b[1] = 0x80 | ((code >> 6) & 63);
-			b[2] = 0x80 | (code & 63);
-			b[3] = 0;
-			return __alloc__(b, 3, 1);
-		}
-		if( code < 0x200000 ) {
-			var b = new hl.types.Bytes(5);
-			b[0] = 0xF0 | (code >> 18);
-			b[1] = 0x80 | ((code >> 12) & 63);
-			b[2] = 0x80 | ((code >> 6) & 63);
-			b[3] = 0x80 | (code & 63);
-			b[4] = 0;
-			return __alloc__(b, 4, 1);
-		}
-		if( code < 0x4000000 ) {
+			b.setUI16(0, code);
+			b.setUI16(2, 0);
+			return __alloc__(b, 1);
+		} else if( code < 0x110000 ) {
 			var b = new hl.types.Bytes(6);
-			b[0] = 0xF8 | (code >> 24);
-			b[1] = 0x80 | ((code >> 18) & 63);
-			b[2] = 0x80 | ((code >> 12) & 63);
-			b[3] = 0x80 | ((code >> 6) & 63);
-			b[4] = 0x80 | (code & 63);
-			b[5] = 0;
-			return __alloc__(b, 5, 1);
-		}
-		var b = new hl.types.Bytes(7);
-		b[0] = 0xFC | (code >> 30);
-		b[1] = 0x80 | ((code >> 24) & 63);
-		b[2] = 0x80 | ((code >> 18) & 63);
-		b[3] = 0x80 | ((code >> 12) & 63);
-		b[4] = 0x80 | ((code >> 6) & 63);
-		b[5] = 0x80 | (code & 63);
-		b[6] = 0;
-		return __alloc__(b, 6, 1);
+			code -= 0x10000;
+			b.setUI16(0, (code >> 10) + 0xD800);
+			b.setUI16(2, (code & 1023) + 0xDC00);
+			b.setUI16(4, 0);
+			return __alloc__(b, 2); // UTF16 encoding but UCS2 API (same as JS)
+		} else
+			throw "Invalid unicode char " + code;
 	}
 
 	@:keep function __string() : hl.types.Bytes {
@@ -195,26 +146,25 @@ class String {
 	}
 
 	@:keep function __compare( s : String ) : Int {
-		var v = bytes.compare(0, s.bytes, 0, size < s.size ? size : s.size);
-		return v == 0 ? size - s.size : v;
+		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);
+		return v == 0 ? length - s.length : v;
 	}
 
-	@:keep static inline function __alloc__( b : hl.types.Bytes, blen : Int, clen : Int ) : String {
+	@:keep static inline function __alloc__( b : hl.types.Bytes, length : Int ) : String {
 		var s : String = untyped $new(String);
 		s.bytes = b;
-		s.length = clen;
-		s.size = blen;
+		s.length = length;
 		return s;
 	}
 
 	@:keep static function __add__( a : String, b : String ) : String {
 		if( a == null ) a = "null";
 		if( b == null ) b = "null";
-		var asize = a.size, bsize = b.size, tot = asize + bsize;
-		var bytes = new hl.types.Bytes(tot+1);
-		bytes.blit(0,a.bytes,0,asize);
+		var asize = a.length << 1, bsize = b.length << 1, tot = asize + bsize;
+		var bytes = new hl.types.Bytes(tot+2);
+		bytes.blit(0, a.bytes, 0, asize);
 		bytes.blit(asize,b.bytes,0,bsize);
-		bytes[tot] = 0;
-		return __alloc__(bytes, tot, a.length + b.length);
+		bytes.setUI16(tot, 0);
+		return __alloc__(bytes, tot>>1);
 	}
 }

@@ -45,15 +45,15 @@ class Std {
 	public static function string( s : Dynamic ) : String {
 		var len = 0;
 		var bytes = hl.types.Bytes.ofValue(s,new hl.types.Ref(len));
-		return @:privateAccess String.__alloc__(bytes,len,bytes.utf8Length(0,len));
+		return @:privateAccess String.__alloc__(bytes,len>>1);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		return @:privateAccess x.bytes.parseInt(0, x.size);
+		return @:privateAccess x.bytes.parseInt(0, x.length<<1);
 	}
 
 	public static function parseFloat( x : String ) : Float {
-		return @:privateAccess x.bytes.parseFloat(0, x.size);
+		return @:privateAccess x.bytes.parseFloat(0, x.length<<1);
 	}
 
 	@:keep static function __add__( a : Dynamic, b : Dynamic ) : Dynamic {

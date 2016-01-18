@@ -829,6 +829,7 @@ let platforms = [
 	Cs;
 	Java;
 	Python;
+	Hl;
 ]
 
 let platform_name = function
