@@ -126,7 +126,7 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 			var i = 1;
 			while( i < a.length ) {
 				var k = a[i];
-				var c = k.charCodeAt(0);
+				var c = StringTools.fastCodeAt(k, 0);
 				// 1...9
 				if( c >= 49 && c <= 57 ) {
 					var plen = 0;
@@ -138,7 +138,7 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 						if( p >= 0 ) b.addSub(s,p,plen);
 						b.addSub(k,1,k.length - 1);
 					}
-				} else if( c == null ) {
+				} else if( c == 0 ) {
 					b.add("$");
 					i++;
 					var k2 = a[i];

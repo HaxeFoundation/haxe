@@ -11,18 +11,16 @@ class String {
 	}
 
 	public function toUpperCase() : String {
-		throw "TODO";
-		return null;
+		return __alloc__(@:privateAccess bytes.ucs2Upper(0,length<<1), length);
 	}
 
 	public function toLowerCase() : String {
-		throw "TODO";
-		return null;
+		return __alloc__(@:privateAccess bytes.ucs2Lower(0,length<<1), length);
 	}
 
 	public function charAt(index : Int) : String {
-		throw "TODO";
-		return null;
+		if( (index:UInt) >= (length:UInt) ) return "";
+		return __alloc__(bytes.sub(index<<1,2),1);
 	}
 
 	public function charCodeAt( index : Int) : Null<Int> {
@@ -39,7 +37,9 @@ class String {
 				return -1;
 			startByte = startIndex << 1;
 		}
-		return bytes.find(startByte,(length << 1) - startByte,str.bytes,0,str.length << 1);
+		var p = bytes.find(startByte, (length << 1) - startByte, str.bytes, 0, str.length << 1);
+		if( p > 0 ) p >>= 1;
+		return p;
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
@@ -55,7 +55,7 @@ class String {
 		while( true ) {
 			var p = bytes.find(pos, size - pos, str.bytes, 0, str.length << 1);
 			if( p < 0 || p >= lastByte ) break;
-			last = p;
+			last = p >> 1;
 			pos = p + 1;
 		}
 		return last;

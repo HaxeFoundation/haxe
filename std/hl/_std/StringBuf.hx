@@ -86,9 +86,9 @@
 	}
 
 	public function toString() : String {
-		if( pos == size ) __expand(0);
+		if( pos+2 > size ) __expand(0);
 		b.setUI16(pos,0);
-		return @:privateAccess String.__alloc__(b, pos);
+		return @:privateAccess String.__alloc__(b, pos>>1);
 	}
 
 }

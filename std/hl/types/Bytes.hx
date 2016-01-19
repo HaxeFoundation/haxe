@@ -82,25 +82,8 @@ package hl.types;
 		return b;
 	}
 
-
-	/**
-		Count the number of UTF8 chars into the given Bytes data.
-	**/
-	@:hlNative("std","utf8length")
-	public function _utf8Length( pos : Int, size : Int ) : Int {
-		return 0;
-	}
-
 	@:hlNative("std", "ucs2length")
 	function ucs2Length( bytePos : Int ) : Int {
-		return 0;
-	}
-
-	/**
-		Count the number of bytes until we reach \0
-	**/
-	@:hlNative("std","byteslength")
-	function _bytesLength( pos : Int ) : Int {
 		return 0;
 	}
 
@@ -109,20 +92,24 @@ package hl.types;
 		return 0;
 	}
 
-	/**
-		Decode the utf8 char at the given position
-	**/
-	@:hlNative("std","utf8char")
-	public function _utf8Char( pos : Int, charPos : Int ) : Int {
-		return 0;
+	@:hlNative("std","utf8_to_utf16")
+	function utf8ToUtf16( bytePos : Int, outSize : Ref<Int> ) : Bytes {
+		return null;
 	}
 
-	/**
-		Gives the byte position for the utf8 char starting at pos.
-	**/
-	@:hlNative("std","utf8pos")
-	public function _utf8Pos( pos : Int, charPos : Int ) : Int {
-		return 0;
+	@:hlNative("std","utf16_to_utf8")
+	function utf16ToUtf8( bytePos : Int, outSize : Ref<Int> ) : Bytes {
+		return null;
+	}
+
+	@:hlNative("std", "ucs2_upper")
+	function ucs2Upper( bytePos : Int, size : Int ) : Bytes {
+		return null;
+	}
+
+	@:hlNative("std", "ucs2_lower")
+	function ucs2Lower( bytePos : Int, size : Int ) : Bytes {
+		return null;
 	}
 
 	@:hlNative("std","value_to_string")

@@ -389,7 +389,7 @@ class StringTools {
 		#elseif python
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl
-		return @:privateAccess s.bytes[index];
+		return @:privateAccess s.bytes.getUI16(index<<1);
 		#else
 		return untyped s.cca(index);
 		#end
@@ -457,7 +457,7 @@ class StringTools {
 	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
 		// If there is no space, tab, back-slash, or double-quotes, and it is not an empty string.
 		if (!~/^[^ \t\\"]+$/.match(argument)) {
-			
+
 			// Based on cpython's subprocess.list2cmdline().
 			// https://hg.python.org/cpython/file/50741316dd3a/Lib/subprocess.py#l620
 

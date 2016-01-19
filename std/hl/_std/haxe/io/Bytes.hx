@@ -117,10 +117,14 @@ class Bytes {
 
 	public function getString( pos : Int, len : Int ) : String {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+
 		var b = new hl.types.Bytes(len + 1);
 		b.blit(0, this.b, pos, len);
 		b[len] = 0;
-		return @:privateAccess String.__alloc__(b, len, b.utf8Length(0, len));
+
+		var outLen = 0;
+		var b2 = @:privateAccess b.utf8ToUtf16(0, outLen);
+		return @:privateAccess String.__alloc__(b2, outLen>>1);
 	}
 
 	@:deprecated("readString is deprecated, use getString instead")
@@ -157,8 +161,10 @@ class Bytes {
 		return new Bytes(length,b);
 	}
 
-	public static function ofString( s : String ) : Bytes {
-		return @:privateAccess new Bytes(s.size,s.bytes.sub(0,s.size));
+	public static function ofString( s : String ) : Bytes @:privateAccess {
+		var size = 0;
+		var b = s.bytes.utf16ToUtf8(0,size);
+		return new Bytes(size,b);
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {

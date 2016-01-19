@@ -387,8 +387,8 @@ let rec safe_cast t1 t2 =
 	| _ ->
 		tsame t1 t2
 
-let to_utf8 str =
-	try
+let to_utf8 str p =
+	let u8 = try
 		UTF8.validate str;
 		str;
 	with
@@ -397,6 +397,15 @@ let to_utf8 str =
 			let b = UTF8.Buf.create 0 in
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
+	in
+	let ccount = ref 0 in
+	UTF8.iter (fun c ->
+		let c = UChar.code c in
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then error "Invalid unicode char" p;
+		incr ccount;
+		if c > 0x10000 then incr ccount;
+	) u8;
+	u8, !ccount
 
 let type_size_bits = function
 	| HI8 | HBool -> 0
@@ -554,7 +563,9 @@ let rec to_type ctx t =
 		to_type ctx (!f())
 	| TFun (args, ret) ->
 		HFun (List.map (fun (_,o,t) -> to_type ctx (if o then ctx.com.basic.tnull t else t)) args, to_type ctx ret)
-	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _  -> true | _ -> false) ->
+	| TAnon a when (match !(a.a_status) with Statics c -> true | _ -> false) ->
+		class_type ctx (match !(a.a_status) with Statics c -> c | _ -> assert false) [] true
+	| TAnon a when (match !(a.a_status) with EnumStatics _ -> true | _ -> false) ->
 		HType
 	| TAnon a ->
 		(try
@@ -943,6 +954,12 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToFloat (tmp, r));
 		tmp
+	| (HI8 | HI16 | HI32), HNull ((HF32 | HF64) as t) ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToFloat (tmp, r));
+		let r = alloc_tmp ctx (HNull t) in
+		op ctx (OToDyn (r,tmp));
+		r
 	| (HI8 | HI16 | HI32), HObj { pname = "String" } ->
 		let out = alloc_tmp ctx t in
 		let len = alloc_tmp ctx HI32 in
@@ -1076,7 +1093,11 @@ and get_access ctx e =
 			let i = eval_to ctx i HI32 in
 			AArray (a,to_type ctx t,i)
 		| _ ->
-			error ("Invalid array access on " ^ s_type (print_context()) a.etype) e.epos)
+			let a = eval_to ctx a (class_type ctx ctx.array_impl.adyn [] false) in
+			op ctx (ONullCheck a);
+			let i = eval_to ctx i HI32 in
+			AArray (a,HDyn,i)
+		)
 	| _ ->
 		ANone
 
@@ -1197,13 +1218,13 @@ and eval_expr ctx e =
 			op ctx (OBool (r,b));
 			r
 		| TString s ->
-			let str = to_utf8 s in
+			let str, len = to_utf8 s e.epos in
 			let r = alloc_tmp ctx HBytes in
 			let s = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (ONew s);
 			op ctx (OString (r,alloc_string ctx str));
 			op ctx (OSetField (s,0,r));
-			op ctx (OSetField (s,1,reg_int ctx (UTF8.length str)));
+			op ctx (OSetField (s,1,reg_int ctx len));
 			s
 		| TThis ->
 			0 (* first reg *)
@@ -1917,7 +1938,9 @@ and eval_expr ctx e =
 		ctx.m.mcontinues <- oldc;
 		alloc_tmp ctx HVoid
 	| TCast (v,None) ->
-		eval_to ctx v (to_type ctx e.etype)
+		let t = to_type ctx e.etype in
+		let v = eval_expr ctx v in
+		unsafe_cast_to ctx v t e.epos
 	| TArrayDecl el ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> assert false) in
@@ -2300,7 +2323,13 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 				op ctx (OBool (tmp, b));
 				op ctx (OToDyn (r, tmp));
 			| TString s ->
-				assert false);
+				let str, len = to_utf8 s f.tf_expr.epos in
+				let rb = alloc_tmp ctx HBytes in
+				op ctx (ONew r);
+				op ctx (OString (rb,alloc_string ctx str));
+				op ctx (OSetField (r,0,rb));
+				op ctx (OSetField (r,1,reg_int ctx len));
+			);
 			(* if optional but not null, turn into a not nullable here *)
 			let vt = to_type ctx v.v_type in
 			if not (is_nullable vt) then begin
@@ -2996,47 +3025,59 @@ let interp code =
 			proto
 	in
 
+	let utf16_iter f s =
+		let get v = int_of_char s.[v] in
+		let rec loop p =
+			if p = String.length s then () else
+			let c = (get p) lor ((get (p+1)) lsl 8) in
+			if c >= 0xD800 && c <= 0xDFFF then begin
+				let c = c - 0xD800 in
+				let c2 = ((get (p+2)) lor ((get(p+3)) lsl 8)) - 0xDC00 in
+				f ((c2 lor (c lsl 10)) + 0x10000);
+				loop (p + 4);
+			end else begin
+				f c;
+				loop (p + 2);
+			end;
+		in
+		loop 0
+	in
+
+	let utf16_eof s =
+		let get v = int_of_char s.[v] in
+		let rec loop p =
+			let c = (get p) lor ((get (p+1)) lsl 8) in
+			if c = 0 then String.sub s 0 p else loop (p + 2);
+		in
+		loop 0
+	in
+
+	let utf16_add buf c =
+		let add c =
+			Buffer.add_char buf (char_of_int (c land 0xFF));
+			Buffer.add_char buf (char_of_int (c lsr 8));
+		in
+		if c >= 0 && c < 0x10000 then begin
+			if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
+			add c;
+		end else if c < 0x110000 then begin
+			let c = c - 0x10000 in
+			add ((c asr 10) + 0xD800);
+			add ((c land 1023) + 0xDC00);
+		end else
+			failwith ("Invalid unicode char " ^ string_of_int c);
+	in
+
 	let caml_to_hl str =
 		let b = Buffer.create (String.length str * 2) in
-		let add c =
-			Buffer.add_char b (char_of_int (c land 0xFF));
-			Buffer.add_char b (char_of_int (c lsr 8));
-		in
-		UTF8.iter (fun c ->
-			let c = UChar.code c in
-			if c >= 0 && c < 0x10000 then begin
-				if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
-				add c;
-			end else if c < 0x110000 then begin
-				let c = c - 0x10000 in
-				add ((c asr 10) + 0xD800);
-				add ((c land 1023) + 0xDC00);
-			end else
-				failwith ("Invalid unicode char " ^ string_of_int c);
-		) str;
-		add 0;
+		UTF8.iter (fun c -> utf16_add b (UChar.code c)) str;
+		utf16_add b 0;
 		Buffer.contents b
 	in
 
 	let hl_to_caml str =
 		let b = UTF8.Buf.create (String.length str / 2) in
-		let add c =
-			UTF8.Buf.add_char b (UChar.chr c);
-		in
-		let get v = int_of_char str.[v] in
-		let rec loop p =
-			let c = (get p) lor ((get (p+1)) lsl 8) in
-			if c = 0 then () else if c >= 0xD800 && c <= 0xDFFF then begin
-				let c = c - 0xD800 in
-				let c2 = ((get (p+2)) lor ((get(p+3)) lsl 8)) - 0xDC00 in
-				add ((c2 lor (c lsl 10)) + 0x10000);
-				loop (p + 4);
-			end else begin
-				add c;
-				loop (p + 2);
-			end;
-		in
-		loop 0;
+		utf16_iter (fun c -> UTF8.Buf.add_char b (UChar.chr c)) (utf16_eof str);
 		UTF8.Buf.contents b
 	in
 
@@ -3053,7 +3094,7 @@ let interp code =
 	let hash b =
 		let h = ref Int32.zero in
 		let rec loop i =
-			let c = int_of_char b.[i] in
+			let c = if i = String.length b then 0 else int_of_char b.[i] in
 			if c <> 0 then begin
 				h := Int32.add (Int32.mul !h 223l) (Int32.of_int c);
 				loop (i + 1)
@@ -3100,7 +3141,7 @@ let interp code =
 			(match get_method o.oproto.pclass "__string" with
 			| None -> p
 			| Some f -> p ^ ":" ^ vstr_d (fcall (func f) [v]))
-		| VBytes b -> "bytes(" ^ String.escaped b ^ ")"
+		| VBytes b -> "bytes(" ^ String.escaped (hl_to_caml b) ^ ")"
 		| VClosure (f,o) ->
 			(match o with
 			| None -> fstr f
@@ -3163,6 +3204,8 @@ let interp code =
 				raise (InterpThrow v)
 			| Failure msg ->
 				throw_msg msg
+			| e ->
+				throw_msg (Printexc.to_string e)
 
 	and dyn_set_field obj field v vt =
 		let v, vt = (match vt with
@@ -3316,7 +3359,7 @@ let interp code =
 				| [], [] -> []
 				| _, [] -> throw_msg (Printf.sprintf "Too many arguments (%s) != (%s)" (String.concat "," (List.map (fun (v,_) -> vstr_d v) full_args)) (String.concat "," (List.map tstr full_fargs)))
 				| (v,t) :: args, ft :: fargs -> dyn_cast v t ft :: loop args fargs
-				| [], _ :: _ -> default ft :: loop args fargs
+				| [], _ :: fargs -> default ft :: loop args fargs
 			in
 			let vargs = loop args full_fargs in
 			let v = fcall f (match a with None -> vargs | Some a -> a :: vargs) in
@@ -3989,7 +4032,7 @@ let interp code =
 				| _ -> assert false)
 			| "hash" ->
 				(function
-				| [VBytes str] -> VInt (hash str)
+				| [VBytes str] -> VInt (hash (hl_to_caml str))
 				| _ -> assert false)
 			| "type_check" ->
 				(function
@@ -4048,6 +4091,50 @@ let interp code =
 						if c = 0 then p lsr 1 else loop (p + 2)
 					in
 					to_int (loop 0)
+				| _ -> assert false)
+			| "utf8_to_utf16" ->
+				(function
+				| [VBytes s; VInt pos; VRef (regs,idx,HI32)] ->
+					let s = String.sub s (int pos) (String.length s - (int pos)) in
+					let u16 = caml_to_hl (try String.sub s 0 (String.index s '\000') with Not_found -> assert false) in
+					regs.(idx) <- to_int (String.length u16 - 2);
+					VBytes u16
+				| _ -> assert false)
+			| "utf16_to_utf8" ->
+				(function
+				| [VBytes s; VInt pos; VRef (regs,idx,HI32)] ->
+					let s = String.sub s (int pos) (String.length s - (int pos)) in
+					let u8 = hl_to_caml s in
+					regs.(idx) <- to_int (String.length u8);
+					VBytes (u8 ^ "\x00")
+				| _ -> assert false)
+			| "ucs2_upper" ->
+				(function
+				| [VBytes s; VInt pos; VInt len] ->
+					let buf = Buffer.create 0 in
+					utf16_iter (fun c ->
+						let c =
+							if c >= int_of_char 'a' && c <= int_of_char 'z' then c + int_of_char 'A' - int_of_char 'a'
+							else c
+						in
+						utf16_add buf c
+					) (String.sub s (int pos) (int len));
+					utf16_add buf 0;
+					VBytes (Buffer.contents buf)
+				| _ -> assert false)
+			| "ucs2_lower" ->
+				(function
+				| [VBytes s; VInt pos; VInt len] ->
+					let buf = Buffer.create 0 in
+					utf16_iter (fun c ->
+						let c =
+							if c >= int_of_char 'A' && c <= int_of_char 'Z' then c + int_of_char 'a' - int_of_char 'A'
+							else c
+						in
+						utf16_add buf c
+					) (String.sub s (int pos) (int len));
+					utf16_add buf 0;
+					VBytes (Buffer.contents buf)
 				| _ -> assert false)
 			| "call_method" ->
 				(function

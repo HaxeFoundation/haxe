@@ -65,7 +65,7 @@ class BytesBuffer {
 	}
 
 	public inline function addString( v : String ) : Void {
-		@:privateAccess __add(v.bytes, 0, v.size);
+		@:privateAccess __add(v.bytes, 0, v.length << 1);
 	}
 
 	public inline function addInt32( v : Int ) : Void {
