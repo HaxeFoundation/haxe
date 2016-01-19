@@ -27,7 +27,7 @@ class ArrayBuffer {
 
 	public var byteLength : Int;
 	var a : Array<Int>;
-	
+
 	public function new( ?a : Dynamic ) {
 		if( Std.is(a,Array) ) {
 			this.a = a;
@@ -40,17 +40,17 @@ class ArrayBuffer {
 			byteLength = len;
 		}
 	}
-	
+
 	public function slice(begin,?end) {
 		return new ArrayBuffer(a.slice(begin,end));
 	}
-	
+
 	static function sliceImpl(begin,?end) {
-		var u = new js.html.Uint8Array(untyped __js__('this'), begin, end == null ? null : end - begin);
-        var result = new js.html.ArrayBuffer(u.byteLength);
-        var resultArray = new js.html.Uint8Array(result);
+		var u = new js.html.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : end - begin);
+		var result = new js.html.ArrayBuffer(u.byteLength);
+		var resultArray = new js.html.Uint8Array(result);
 		resultArray.set(u);
-        return result;
+		return result;
 	}
 
 	static function __init__() untyped {
