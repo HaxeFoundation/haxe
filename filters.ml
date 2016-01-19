@@ -540,6 +540,13 @@ let rename_local_vars ctx e =
 		while PMap.mem (v.v_name ^ string_of_int !count) vars do
 			incr count;
 		done;
+		begin match ctx.com.platform with
+			| Cpp ->
+				if not (Meta.has Meta.RealPath v.v_meta) then
+					v.v_meta <- (Meta.RealPath,[EConst (String v.v_name),e.epos],e.epos) :: v.v_meta
+			| _ ->
+				()
+		end;
 		v.v_name <- v.v_name ^ string_of_int !count;
 	in
 	let declare v p =

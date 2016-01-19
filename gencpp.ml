@@ -2331,8 +2331,16 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
          | None -> ()
          | Some expression -> output " = "; gen_expression true expression);
          count := !count -1;
+      let get_var_name v =
+         let rec loop meta = match meta with
+            | (Meta.RealPath,[EConst (String s),_],_) :: _ -> s
+            | _ :: meta -> loop meta
+            | [] -> v.v_name
+         in
+         loop v.v_meta
+      in
       if (ctx.ctx_debug_level>0) then
-            output (";\t\tHX_STACK_VAR(" ^name ^",\""^ tvar.v_name ^"\")");
+            output (";\t\tHX_STACK_VAR(" ^name ^",\""^ (get_var_name tvar) ^"\")");
          if (!count > 0) then begin output ";\n"; output_i "" end
       end
    | TFor (tvar, init, loop) ->
@@ -2790,10 +2798,10 @@ let gen_member_def ctx class_def is_static is_interface field =
             end
          end else begin
             let return_type = (type_string function_def.tf_type) in
-   
+
             if ( not is_static && not nonVirtual ) then output "virtual ";
             output (if return_type="Void" && (has_meta_key field.cf_meta Meta.Void) then "void" else return_type );
-   
+
             output (" " ^ remap_name ^ "(" );
             output (gen_arg_list function_def.tf_args "" );
             output ");\n";
@@ -2810,7 +2818,7 @@ let gen_member_def ctx class_def is_static is_interface field =
          (* Variable access *)
          gen_type ctx field.cf_type;
          output (" " ^ remap_name ^ ";\n" );
-   
+
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
          | _ when nativeGen  -> ()
