@@ -94,7 +94,14 @@ class String {
 	}
 	public function substring( startIndex : Int, ?endIndex : Int ) : String {
 		if (endIndex == null) endIndex = this.length;
-		return untyped lua.StringTools.sub(this, startIndex + 1, endIndex);
+		if (endIndex < 0) endIndex = 0;
+		if (startIndex < 0) startIndex = 0;
+		if (endIndex == 0) {
+			// swap the index positions
+			return untyped lua.StringTools.sub(this, endIndex+1, startIndex);
+		} else {
+			return untyped lua.StringTools.sub(this, startIndex+1, endIndex);
+		}
 	}
 
 	function get_length() : Int {
