@@ -71,8 +71,8 @@ class Array<T> {
 	}
 	public function slice( pos : Int, ?end : Int ) : Array<T> {
 		if (end == null || end > length) end = length;
-		else if (end < 0) end = length-(-end % length);
-		if (pos < 0) pos = (length -(-pos % length)) % length; // negative pos needs to be wrapped from the end, and mod according to array length
+		else if (end < 0) end = (length-(-end % length)) % length; // negative pos needs to be wrapped from the end, and mod according to array length
+		if (pos < 0) pos = (length -(-pos % length)) % length;  // and here
 		if (pos > end || pos > length) return [];
 
 		var ret = [];
