@@ -85,7 +85,7 @@ class Array<T> {
 		return haxe.ds.ArraySort.sort(this,f);
 	}
 	public function splice( pos : Int, len : Int ) : Array<T> {
-		if (pos + len > this.length || len < 0) return [];
+		if (len < 0 || pos > length) return [];
 		else if (pos < 0) pos = length -(-pos % length);
 		len = cast Math.min(len,this.length-pos);
 		var ret = [];
