@@ -134,10 +134,13 @@ class Array<T> {
 				for (j in i...length-1){
 					this[j] = this[j+1];
 				}
-				// We need to decrement the length variable,
-				// and set its value to null to avoid hanging on to a reference
-				// in the underlying lua table.
-				this[--length] = null;
+				// We need to decrement the length variable, and set its 
+				// value to null to avoid hanging on to a reference in the 
+				// underlying lua table.  
+				this[length-1] = null;
+				// Do this in two steps to avoid re-updating the __index metamethod
+				length--;
+
 				return true;
 			}
 		}
