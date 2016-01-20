@@ -29,7 +29,7 @@ import lua.Boot;
 	}
 
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return untyped __instanceof__(value, c) ? cast value : null;
+		return untyped lua.Boot.__instanceof(value, c) ? cast value : null;
 	}
 
 	@:keep
