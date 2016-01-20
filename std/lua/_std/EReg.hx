@@ -114,12 +114,8 @@ class EReg {
 	}
 
 	public function replace( s : String, by : String ) : String {
-		if (global){
-			return split(s).join(by);
-		} else {
-			if (match(s)) return matchedLeft() + by + matchedRight();
-			else return s;
-		}
+		by = Rex.gsub(by, "\\$", "%%");
+		return Rex.gsub(s,r,by, global ? null : 1);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
