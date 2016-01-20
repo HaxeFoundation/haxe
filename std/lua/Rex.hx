@@ -27,7 +27,7 @@ extern class Rex {
 	 parameter is a regular expression pattern representing separators between
 	 the sections. 
 	 **/
-	@:overload(   function(subj : String, sep : Rex, ?cf : Int, ?ef : Int) : Void->String{})
+	@:overload(   function      (subj : String, sep : Rex,    ?cf : Int, ?ef : Int) : Void->String{})
 	public static function split(subj : String, sep : String, ?cf : Int, ?ef : Int) : Void->String;
 
 
@@ -51,6 +51,7 @@ extern class Rex {
 	  This function searches for all matches of the pattern patt in the string subj
 	  and replaces them according to the parameters repl and n.
 	 **/
+	@:overload(	  function     (subj : String, patt : Rex,    repl: Dynamic, ?n: Int, ?cf : Int, ?ef : Int) : String {})
 	public static function gsub(subj : String, patt : String, repl: Dynamic, ?n: Int, ?cf : Int, ?ef : Int) : String;
 }
 
