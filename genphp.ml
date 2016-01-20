@@ -68,6 +68,8 @@ type context = {
 	mutable lib_path : string;
 }
 
+let follow = Abstract.follow_with_abstracts
+
 let join_class_path path separator =
 	let result = match fst path, snd path with
 	| [], s -> s
