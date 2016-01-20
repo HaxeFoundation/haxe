@@ -115,24 +115,29 @@ class Array<T> {
 	}
 
 	public inline function insert( pos : Int, x : T ) : Void {
-		(untyped this).splice(pos,0,x);
+		if (pos > length) pos = length;
+		if (pos < 0) {
+			pos = (length + pos);
+			if (pos < 0) pos = 0;
+		}
+		var cur_len = length;
+		while (cur_len > pos){
+			this[cur_len] = this[cur_len-1];
+			cur_len -=1;
+		}
+		this[pos] = x;
 	}
 
 	public function remove( x : T ) : Bool {
-		for (i in 0...this.length){
-			var a = this[i];
-			if (a == x){
-				if (i == 0){
-					if (length == 1){
-						this[0] = null;
-					} else {
-						this[0] = this[1];
-						lua.Table.remove(cast this, 1);
-					}
-				} else {
-					lua.Table.remove(cast this, i);
+		for (i in 0...length){
+			if (this[i] == x){
+				for (j in i...length-1){
+					this[j] = this[j+1];
 				}
-				this.length-=1;
+				// We need to decrement the length variable,
+				// and set its value to null to avoid hanging on to a reference
+				// in the underlying lua table.
+				this[--length] = null;
 				return true;
 			}
 		}
@@ -140,17 +145,27 @@ class Array<T> {
 	}
 
 	public function indexOf( x : T, ?fromIndex:Int ) : Int {
+		var end = length;
 		if (fromIndex == null) fromIndex = 0;
-		for (i in fromIndex...length){
+		else if (fromIndex < 0 ) {
+			fromIndex = length + fromIndex;
+			if (fromIndex < 0) fromIndex = 0;
+		}
+		for (i in fromIndex...end){
 			if (x == this[i]) return i;
 		}
 		return -1;
 	}
 	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
-		if (fromIndex == null) fromIndex = 0;
-		var i = length;
-		while(i-- > fromIndex){
+		if (fromIndex == null || fromIndex >= length ) fromIndex = length-1;
+		else if (fromIndex < 0) {
+			fromIndex = length + fromIndex;
+			if (fromIndex < 0) return -1;
+		}
+		var i = fromIndex;
+		while(i >= 0){
 			if (this[i] == x) return i;
+			else i--;
 		}
 		return -1;
 	}
