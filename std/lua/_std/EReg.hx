@@ -114,7 +114,7 @@ class EReg {
 	}
 
 	public function replace( s : String, by : String ) : String {
-		by = Rex.gsub(by, "\\$", "%%");
+		by = Rex.gsub(by, "\\$*\\$", "%%");
 		return Rex.gsub(s,r,by, global ? null : 1);
 	}
 
