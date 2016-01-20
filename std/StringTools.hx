@@ -199,7 +199,7 @@ class StringTools {
 		`s`, the result is false.
 	**/
 	public static function isSpace( s : String, pos : Int ) : Bool {
-		#if python
+		#if (python || lua)
 		if (s.length == 0 || pos < 0 || pos >= s.length) return false;
 		#end
 		var c = s.charCodeAt( pos );
