@@ -273,7 +273,7 @@ type access =
 	| AInstanceFun of texpr * fundecl index
 	| AInstanceProto of texpr * field index
 	| AInstanceField of texpr * field index
-	| AArray of reg * ttype * reg
+	| AArray of reg * (ttype * ttype) * reg
 	| AVirtualMethod of texpr * field index
 	| ADynamic of texpr * string index
 	| AEnum of field index
@@ -348,7 +348,7 @@ let rec tsame t1 t2 =
 *)
 let is_nullable t =
 	match t with
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
+	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ -> true
 	| _ -> false
 
 (*
@@ -787,19 +787,19 @@ and enum_type ctx e =
 		) e.e_names);
 		t
 
-and alloc_fid ctx c f =
-	match f.cf_kind with
-	| Var _ | Method MethDynamic -> assert false
-	| _ -> lookup ctx.cfids (f.cf_name, c.cl_path) (fun() -> ())
-
-and alloc_eid ctx e f =
-	lookup ctx.cfids (f.ef_name, e.e_path) (fun() -> ())
-
 and alloc_fun_path ctx path name =
 	lookup ctx.cfids (name, path) (fun() -> ())
 
+and alloc_fid ctx c f =
+	match f.cf_kind with
+	| Var _ | Method MethDynamic -> assert false
+	| _ -> alloc_fun_path ctx c.cl_path f.cf_name
+
+and alloc_eid ctx e f =
+	alloc_fun_path ctx e.e_path f.ef_name
+
 and alloc_function_name ctx f =
-	lookup ctx.cfids (f, ([],"")) (fun() -> ())
+	alloc_fun_path ctx ([],"") f
 
 and alloc_global ctx name t =
 	lookup ctx.cglobals name (fun() -> t)
@@ -812,7 +812,7 @@ let alloc_std ctx name args ret =
 	let lib = "std" in
 	(* different from :hlNative to prevent mismatch *)
 	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib) (fun() ->
-		let fid = lookup ctx.cfids (name, ([],"std")) (fun() -> ()) in
+		let fid = alloc_fun_path ctx ([],"std") name in
 		Hashtbl.add ctx.defined_funs fid ();
 		(alloc_string ctx lib, alloc_string ctx name,HFun (args,ret),fid)
 	) in
@@ -1091,17 +1091,18 @@ and get_access ctx e =
 		| TInst({ cl_path = [],"Array" },[t]) ->
 			let a = eval_null_check ctx a in
 			let i = eval_to ctx i HI32 in
-			AArray (a,to_type ctx t,i)
+			let t = to_type ctx t in
+			AArray (a,(t,t),i)
 		| _ ->
 			let a = eval_to ctx a (class_type ctx ctx.array_impl.adyn [] false) in
 			op ctx (ONullCheck a);
 			let i = eval_to ctx i HI32 in
-			AArray (a,HDyn,i)
+			AArray (a,(HDyn,to_type ctx e.etype),i)
 		)
 	| _ ->
 		ANone
 
-and array_read ctx ra at ridx p =
+and array_read ctx ra (at,vt) ridx p =
 	match at with
 	| HI8 | HI16 | HI32 | HF32 | HF64 ->
 		(* check bounds *)
@@ -1128,12 +1129,12 @@ and array_read ctx ra at ridx p =
 		op ctx (OField (hbytes, ra, 1));
 		read_mem ctx r hbytes ridx at;
 		jend();
-		r
+		cast_to ctx r vt p
 	| HDyn ->
 		(* call getDyn *)
 		let r = alloc_tmp ctx HDyn in
 		op ctx (OCallMethod (r,0,[ra;ridx]));
-		unsafe_cast_to ctx r at p
+		unsafe_cast_to ctx r vt p
 	| _ ->
 		(* check bounds *)
 		let length = alloc_tmp ctx HI32 in
@@ -1147,7 +1148,7 @@ and array_read ctx ra at ridx p =
 		let harr = alloc_tmp ctx HArray in
 		op ctx (OField (harr,ra,1));
 		op ctx (OGetArray (tmp,harr,ridx));
-		op ctx (OMov (r,unsafe_cast_to ctx tmp at p));
+		op ctx (OMov (r,unsafe_cast_to ctx tmp vt p));
 		jend();
 		r
 
@@ -1626,10 +1627,7 @@ and eval_expr ctx e =
 			| [a] -> OCall2 (ret,g,r,a)
 			| [a;b] -> OCall3 (ret,g,r,a,b)
 			| [a;b;c] -> OCall4 (ret,g,r,a,b,c)
-			| _ ->
-				let rf = alloc_tmp ctx (global_type ctx g) in
-				op ctx (OGetGlobal (rf,g));
-				OCallN (ret,rf,r :: rl));
+			| _ -> OCallN (ret,g,r :: rl));
 		);
 		r
 	| TIf (cond,eif,eelse) ->
@@ -1750,7 +1748,7 @@ and eval_expr ctx e =
 				let r = value() in
 				op ctx (OMov (l, r));
 				r
-			| AArray (ra,at,ridx) ->
+			| AArray (ra,(at,_),ridx) ->
 				let v = value() in
 				(* bounds check against length *)
 				(match at with
@@ -2162,7 +2160,7 @@ and gen_assign_op ctx acc e1 f =
 		let r = f r in
 		op ctx (OSetEnumField (ctx.m.mcaptreg,idx,r));
 		r
-	| AArray (ra,at,ridx) ->
+	| AArray (ra,(at,_),ridx) ->
 		(match at with
 		| HDyn ->
 			(* call getDyn() *)
@@ -2310,9 +2308,13 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 			op ctx (OJNotNull (r,2));
 			(match c with
 			| TNull | TThis | TSuper -> assert false
-			| TInt i ->
+			| TInt i when (match to_type ctx (follow v.v_type) with HI8 | HI16 | HI32 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
+				op ctx (OToDyn (r, tmp));
+			| TInt i ->
+				let tmp = alloc_tmp ctx HF64 in
+				op ctx (OFloat (tmp, alloc_float ctx (Int32.to_float i)));
 				op ctx (OToDyn (r, tmp));
 			| TFloat s ->
 				let tmp = alloc_tmp ctx HF64 in
@@ -2387,13 +2389,20 @@ let generate_static ctx c f =
 	| Var _ | Method MethDynamic ->
 		()
 	| Method m ->
+		let add_native lib name =
+			ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
+				let fid = alloc_fid ctx c f in
+				Hashtbl.add ctx.defined_funs fid ();
+				(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
+			));
+		in
 		let rec loop = function
 			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
-				ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
-					let fid = alloc_fid ctx c f in
-					Hashtbl.add ctx.defined_funs fid ();
-					(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
-				));
+				add_native lib name
+			| (Meta.Custom ":hlNative",[(EConst(String(lib)),_)] ,_ ) :: _ ->
+				add_native lib f.cf_name
+			| (Meta.Custom ":hlNative",[] ,_ ) :: _ ->
+				add_native "std" f.cf_name
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				error "Invalid @:hlNative decl" p
 			| [] ->

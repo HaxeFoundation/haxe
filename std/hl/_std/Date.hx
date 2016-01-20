@@ -19,72 +19,120 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import hl.types.Ref;
 
 @:coreApi @:final class Date {
 
 	private var t : Int;
 
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void {
-		throw "TODO";
+		t = date_new(year, month, day, hour, min, sec);
 	}
 
 	public function getTime() : Float {
-		throw "TODO";
-		return 0.;
+		return date_get_time(t);
 	}
 
 	public function getFullYear() : Int {
-		throw "TODO";
-		return 0;
+		var v = 0;
+		date_get_inf(t, v, null, null, null, null, null);
+		return v;
 	}
 
 	public function getMonth() : Int {
-		throw "TODO";
-		return 0;
+		var v = 0;
+		date_get_inf(t, null, v, null, null, null, null);
+		return v;
 	}
 
 	public function getDate() : Int {
-		throw "TODO";
-		return 0;
+		var v = 0;
+		date_get_inf(t, null, null, v, null, null, null);
+		return v;
 	}
 
 	public function getHours() : Int {
-		throw "TODO";	
-		return 0;
+		var v = 0;
+		date_get_inf(t, null, null, null, v, null, null);
+		return v;
 	}
 
 	public function getMinutes() : Int {
-		throw "TODO";
-		return 0;
+		var v = 0;
+		date_get_inf(t, null, null, null, null, v, null);
+		return v;
 	}
 
 	public function getSeconds() : Int {
-		throw "TODO";
-		return 0;
+		var v = 0;
+		date_get_inf(t, null, null, null, null, null, v);
+		return v;
 	}
 
 	public function getDay() : Int {
-		throw "TODO";
-		return 0;
+		return date_get_weekday(t);
 	}
 
 	@:keep public function toString():String {
-		throw "TODO";
-		return "";
+		var outLen = 0;
+		var bytes = date_to_string(t, outLen);
+		return @:privateAccess String.__alloc__(bytes,outLen);
 	}
 
 	public static function now() : Date {
-		throw "TODO";
-		return null;
+		var d : Date = untyped $new(Date);
+		d.t = date_now();
+		return d;
 	}
 
 	public static function fromTime( t : Float ) : Date {
-		throw "TODO";
-		return null;
+		var d : Date = untyped $new(Date);
+		d.t = date_from_time(t);
+		return d;
 	}
 
 	public static function fromString( s : String ) : Date {
-		throw "TODO";
+		var d : Date = untyped $new(Date);
+		d.t = date_from_string(@:privateAccess s.bytes, s.length<<1);
+		return d;
+	}
+
+	@:hlNative
+	static function date_new( year : Int, month : Int, day : Int, hours : Int, minutes : Int, seconds : Int ) : Int {
+		return 0;
+	}
+
+	@:hlNative
+	static function date_now() : Int {
+		return 0;
+	}
+
+	@:hlNative
+	static function date_from_time( t : Float ) : Int {
+		return 0;
+	}
+
+	@:hlNative
+	static function date_from_string( b : hl.types.Bytes, len : Int ) : Int {
+		return 0;
+	}
+
+	@:hlNative
+	static function date_get_time( t : Int ) : Float {
+		return 0.;
+	}
+
+	@:hlNative
+	static function date_get_inf( t : Int, year : Ref<Int>, month : Ref<Int>, day : Ref<Int>, hours : Ref<Int>, minutes : Ref<Int>, seconds : Ref<Int> ) : Void {
+	}
+
+	@:hlNative
+	static function date_get_weekday( t : Int ) : Int {
+		return 0;
+	}
+
+	@:hlNative
+	static function date_to_string( t : Int, outLen : Ref<Int> ) : hl.types.Bytes {
 		return null;
 	}
 

@@ -136,9 +136,9 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function iterator() : Iterator<T> {
-		var n = new NativeArray.NativeArrayIterator<Dynamic>(array);
+		var n = new NativeArray.NativeArrayIterator<T>(cast array);
 		@:privateAccess n.length = length;
-		return cast n;
+		return n;
 	}
 
 	public function map<S>( f : T -> S ) : ArrayObj<S> {
