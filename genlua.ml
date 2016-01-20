@@ -1751,7 +1751,7 @@ let generate com =
 	spr ctx "   setmetatable(tab, {"; newline ctx;
 	spr ctx "	__index = Array.prototype,"; newline ctx;
 	spr ctx "	__newindex = function(t,k,v)"; newline ctx;
-	spr ctx "	    if _G.type(k) == 'number' and k >= length then"; newline ctx;
+	spr ctx "	    if _G.type(k) == 'number' and k >= t.length then"; newline ctx;
 	spr ctx "		t.length = k + 1"; newline ctx;
 	spr ctx "	    end"; newline ctx;
 	spr ctx "	    rawset(t,k,v)"; newline ctx;
