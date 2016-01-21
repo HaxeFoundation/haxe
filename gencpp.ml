@@ -60,6 +60,7 @@ let is_internal_class = function
    |  (["cpp"],"Pointer") | (["cpp"],"ConstPointer")
    |  (["cpp"],"RawPointer") | (["cpp"],"RawConstPointer")
    |  (["cpp"],"Function") -> true
+   |  (["cpp"],"VirtualArray") -> true
    |  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
    |  (["cpp"],"Int8") | (["cpp"],"UInt8") | (["cpp"],"Char")
    |  (["cpp"],"Int16") | (["cpp"],"UInt16")
@@ -626,7 +627,8 @@ let rec class_string klass suffix params remap =
    (match klass.cl_path with
    (* Array class *)
    |  ([],"Array") when is_dynamic_array_param (List.hd params) ->
-           "cpp::ArrayBase" ^ suffix (* "Dynamic" *)
+           "cpp::ArrayBase" ^ suffix
+           (* "cpp::VirtualArray" ^ suffix *)
    |  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "< " ^ (String.concat ","
                (List.map array_element_type params) ) ^ " >"
    (* FastIterator class *)
@@ -1317,6 +1319,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
    find_undeclared_variables undeclared declarations this_suffix allow_this expression
 ;;
 
+let is_virtual_array expr = (type_string expr.etype="cpp::VirtualArray") ;;
 
 let rec is_dynamic_in_cpp ctx expr =
    let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
@@ -1348,7 +1351,7 @@ let rec is_dynamic_in_cpp ctx expr =
             )
       | TConst TThis when ((not ctx.ctx_real_this_ptr) && ctx.ctx_dynamic_this_ptr) ->
             ctx.ctx_dbgout ("/* dthis */"); true
-      | TArray (obj,index) -> let dyn = is_dynamic_in_cpp ctx obj in
+      | TArray (obj,index) -> let dyn = (is_dynamic_in_cpp ctx obj || is_virtual_array obj) in
             ctx.ctx_dbgout ("/* aidr:" ^ (if dyn then "Dyn" else "Not") ^ " */");
             dyn;
       | TTypeExpr _ -> false
@@ -1399,18 +1402,20 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
    | TTypeExpr t ->
          let full_name = "::" ^ (join_class_path (t_path t) "::" ) ^ "." ^ member in
          ctx.ctx_dbgout ("/*static:"^ full_name^"*/");
-         ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic"||mem_type="cpp::ArrayBase" )
+         ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
+             mem_type="Dynamic" || mem_type="cpp::ArrayBase" || mem_type="cpp::VirtualArray" )
          with Not_found -> true )
    | _ ->
       let tstr = type_string field_object.etype in
       (match tstr with
          (* Internal classes have no dynamic members *)
          | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
-         | "Dynamic" | "cpp::ArrayBase" -> ctx.ctx_dbgout "/*D*/"; true
+         | "Dynamic" | "cpp::ArrayBase" | "cpp::VirtualArray" -> ctx.ctx_dbgout "/*D*/"; true
          | name ->
                let full_name = name ^ "." ^ member in
                ctx.ctx_dbgout ("/*R:"^full_name^"*/");
-               try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic"||mem_type="cpp::ArrayBase" )
+               try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
+                  mem_type="Dynamic" || mem_type="cpp::ArrayBase" || mem_type="cpp::VirtualArray" )
                with Not_found -> true )
 ;;
 
@@ -1950,10 +1955,14 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
                output ( "." ^ remap_name )
             else begin
                cast_if_required ctx field_object (type_string field_object.etype);
-               let remap_name = if (type_string field_object.etype)="cpp::ArrayBase" then
-                   match remap_name with
-                   | "length" -> remap_name
-                   | _ -> "__" ^ remap_name
+               let field_type = type_string field_object.etype in
+               let remap_name = if remap_name="length" then begin
+                  if field_type="cpp::VirtualArray" then
+                     "__length()"
+                  else
+                     remap_name
+               end else if field_type="cpp::ArrayBase" then
+                  "__" ^ remap_name
                else
                   remap_name
                in
@@ -2072,7 +2081,7 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
          let cpp_type = member_type ctx obj field.cf_name in
          (not (is_scalar cpp_type)) && (
             let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
-               (cpp_type<>expr_type) && (expr_type<>"Void") && (cpp_type<>"cpp::ArrayBase") in
+               (cpp_type<>expr_type) && (expr_type<>"Void") && (cpp_type<>"cpp::ArrayBase") && (cpp_type<>"cpp::VirtualArray") in
             if (fixed && (ctx.ctx_debug_level>1) ) then begin
                output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
             end;
@@ -2117,7 +2126,7 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
 
       if (cast_result) then output (")");
       if ( (is_variable func) && (not (is_cpp_function_member func) ) &&
-           (expr_type<>"Dynamic" && expr_type<>"cpp::ArrayBase" ) && (not is_super)  ) then
+           (expr_type<>"Dynamic" && expr_type<>"cpp::ArrayBase" && expr_type<>"cpp::VirtualArray" ) && (not is_super)  ) then
          ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 
       let rec cast_array_output func =
@@ -2201,7 +2210,9 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
    | TLocal v -> output (keyword_remap v.v_name);
    | TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
    | TArray (array_expr,index) ->
-      let dynamic =  is_dynamic_in_cpp ctx array_expr || (type_string array_expr.etype) = "cpp::ArrayBase" in
+      let dynamic =  (is_dynamic_in_cpp ctx array_expr) ||
+                     (type_string array_expr.etype) = "cpp::ArrayBase" ||
+                     (is_virtual_array array_expr) in
       if ( assigning && (not dynamic) ) then begin
          if (is_array_implementer array_expr.etype) then begin
             output "hx::__ArrayImplRef(";
@@ -5105,7 +5116,7 @@ class script_writer common_ctx ctx filename asciiOut =
             | "::String"  -> ArrayData "String"
             | "int" | "Float" | "bool" | "String" | "unsigned char" ->
                ArrayData typeName
-            | "cpp::ArrayBase" | "Dynamic" -> ArrayAny
+            | "cpp::ArrayBase" | "cpp::VirtualArray" | "Dynamic" -> ArrayAny
             | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
             | _ -> ArrayObject
             )
