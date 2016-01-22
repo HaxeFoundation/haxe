@@ -54,7 +54,7 @@ class Map<A,B> implements haxe.Constraints.IMap<A,B> {
 		var cur = next(k,null);
 		return {
 			next : function() {
-				var ret = cur; 
+				var ret = cur;
 				cur = untyped next(k, cur);
 				return ret;
 			},
@@ -63,11 +63,10 @@ class Map<A,B> implements haxe.Constraints.IMap<A,B> {
 	}
 
 	public function iterator() : Iterator<B> {
+		var itr = keys();
 		return untyped {
-			ref : h,
-			it : keys(),
-			hasNext : function() { return __this__.it.hasNext(); },
-			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
+			hasNext : itr.hasNext,
+			next : function() return h[itr.next()]
 		};
 	}
 
