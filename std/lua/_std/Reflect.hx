@@ -66,8 +66,10 @@ import lua.Boot;
 			return func(o);
 		} else {
 			var new_args:lua.Table<Int,String> = untyped __lua_table__(o);
-			// Lua's table concat will skip the first element since it starts from 1
-			if (o != null){
+			if (o != null && Type.getClass(o) != null){
+				// if o is not null, it means we need to pass it as the "self"
+				// parameter.  However, we should also check to see if it's
+				// a valid class instance in the first place.
 				new_args[2] = args[0];
 			} else {
 				new_args[1] = args[0];
