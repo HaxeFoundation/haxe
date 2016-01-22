@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import lua.Rex;
+import lua.lrexlib.Rex;
 import lua.Table;
 import lua.Boot;
 
