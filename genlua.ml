@@ -1318,12 +1318,12 @@ let gen_class_static_field ctx c f =
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
-let gen_class_field ctx c f =
+let gen_class_field ctx c f predelimit =
 	check_field_name c f;
+	if predelimit then (spr ctx ","; newline ctx;);
 	match f.cf_expr with
 	| None ->
 		print ctx "'%s', nil" (anon_field f.cf_name);
-		spr ctx ",";
 	| Some e ->
 		ctx.id_counter <- 0;
 		(match e.eexpr with
@@ -1353,13 +1353,11 @@ let gen_class_field ctx c f =
 			bend();
 			newline ctx;
 		    |_ -> ());
-		    spr ctx "end,";
-		    newline ctx;
+		    spr ctx "end";
 		    ctx.in_value <- fst old;
 		    ctx.in_loop <- snd old;
 		    ctx.separator <- true;
-		| _ -> gen_value ctx e);
-		newline ctx
+		| _ -> gen_value ctx e)
 
 let generate_class___name__ ctx c =
 	if has_feature ctx "lua.Boot.isClass" then begin
@@ -1463,8 +1461,7 @@ let generate_class ctx c =
 		newline ctx;
 		let count = ref 0 in
 
-		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
-		!count = (List.length c.cl_ordered_fields);
+		List.iter (fun f -> if can_gen_class_field ctx f then (gen_class_field ctx c f (!count > 0); incr count;) ) c.cl_ordered_fields;
 		if (has_class ctx c) then begin
 			newprop ctx;
 			if !count > 0 then spr ctx ",";
