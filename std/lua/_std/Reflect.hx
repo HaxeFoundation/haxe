@@ -98,7 +98,10 @@ import lua.Boot;
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
-		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+		if (a == b) return 0
+		else if (a == null) return -1
+		else if (b == null) return 1
+		else return (cast a) > (cast b) ? 1 : -1;
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
@@ -113,7 +116,7 @@ import lua.Boot;
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return v != null && v.__enum__ != null;
+		return v != null && Std.is(v,lua.Table) && v.__enum__ != null;
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
