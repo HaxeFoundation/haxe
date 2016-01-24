@@ -114,8 +114,8 @@ class EReg {
 	}
 
 	public function replace( s : String, by : String ) : String {
-		by = Rex.gsub(by, "\\${2}", "$"); // escape double dollar signs
 		by = Rex.gsub(by, "\\$(\\d)", "%%1"); // convert dollar sign matched groups to Rex equivalent
+		by = Rex.gsub(by, "\\${2}", "$"); // escape double dollar signs
 		return Rex.gsub(s,r,by, global ? null : 1);
 	}
 
