@@ -37,7 +37,71 @@ matrix:
     # linux #
     #########
     - os: linux
-      env: TEST=hl
+      env: TEST=third-party
+      language: php
+      php: 5.4
+      addons: {apt: {packages: [*apt_cpp, *apt_cs, *apt_python]}}
+    - os: linux
+      env: TEST=macro
+      addons: {apt: {packages: [*apt_cs, *apt_python]}}
+    - os: linux
+      env:
+        - TEST=neko
+        - BINTRAY=1
+    - os: linux
+      env:
+        - TEST=js
+        - SAUCE=1
+      addons: {apt: {packages: *apt_common}, sauce_connect: true}
+    - os: linux
+      env: TEST=php
+      language: php
+      php: 5.4
+    - os: linux
+      env: TEST=cpp
+      addons: {apt: {packages: *apt_cpp}}
+    - os: linux
+      env: TEST=flash9
+      addons: {apt: {packages: *apt_flash}}
+    - os: linux
+      env: TEST=as3
+      addons: {apt: {packages: *apt_flash}}
+    - os: linux
+      env: TEST=java
+    - os: linux
+      env: TEST=cs
+      addons: {apt: {packages: *apt_cs}}
+    - os: linux
+      env: TEST=python
+      addons: {apt: {packages: *apt_python}}
+
+    #######
+    # osx #
+    #######
+    - os: osx
+      env: TEST=third-party
+    - os: osx
+      env: TEST=macro
+    - os: osx
+      env:
+        - TEST=neko
+        - BINTRAY=1
+    - os: osx
+      env: TEST=js
+    - os: osx
+      env: TEST=php
+    - os: osx
+      env: TEST=cpp
+    - os: osx
+      env: TEST=flash9
+    - os: osx
+      env: TEST=as3
+    - os: osx
+      env: TEST=java
+    - os: osx
+      env: TEST=cs
+    - os: osx
+      env: TEST=python
 
 install:
   # Install haxe and neko dependencies
@@ -62,8 +126,10 @@ before_script:
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
     travis_retry brew install mysql &&
     mysql.server start;
+    mysql -u root -e "create user if not exists travis@localhost identified by '';";
     fi
-  - mysql -u root -e "CREATE DATABASE haxe_test;";
+  - mysql -u root -e "CREATE DATABASE haxe_test;"
+  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
 
 script:
   - make package_src -s

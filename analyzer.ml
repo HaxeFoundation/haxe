@@ -591,6 +591,11 @@ module Fusion = struct
 							change_num_uses v2 (-1);
 							let e = (f {e1 with eexpr = TUnop(op,Postfix,ev)}) in
 							fuse (e :: acc) el
+						| TLocal v2 when v == v2 ->
+							changed := true;
+							change_num_uses v2 (-1);
+							let e = (f {e1 with eexpr = TUnop(op,Prefix,ev)}) in
+							fuse (e :: acc) el
 						| _ ->
 							raise Exit
 					end
@@ -683,8 +688,8 @@ module BasicBlock = struct
 		bb_kind : block_kind;                 (* The block kind *)
 		mutable bb_closed : bool;             (* Whether or not the block has been closed *)
 		(* elements *)
-		bb_el : texpr DynArray.t;     (* The block expressions *)
-		bb_phi : texpr DynArray.t;    (* SSA-phi expressions *)
+		bb_el : texpr DynArray.t;             (* The block expressions *)
+		bb_phi : texpr DynArray.t;            (* SSA-phi expressions *)
 		(* relations *)
 		mutable bb_outgoing : cfg_edge list;  (* Outgoing edges *)
 		mutable bb_incoming : cfg_edge list;  (* Incoming edges *)
@@ -751,7 +756,7 @@ module Graph = struct
 		mutable g_functions : tfunc_info IntMap.t; (* A map of functions, indexed by their block IDs *)
 		mutable g_nodes : BasicBlock.t IntMap.t;   (* A map of all blocks *)
 		mutable g_cfg_edges : cfg_edge list;       (* A list of all CFG edges *)
-		g_var_infos : var_info DynArray.t; (* A map of variable information *)
+		g_var_infos : var_info DynArray.t;         (* A map of variable information *)
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
 
@@ -900,6 +905,7 @@ type analyzer_context = {
 	com : Common.context;
 	config : Config.t;
 	graph : Graph.t;
+	temp_var_name : string;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
@@ -1085,7 +1091,7 @@ module TexprTransformer = struct
 					fl,e
 			in
 			let fl,e = loop [] e in
-			let v = alloc_var "tmp" e.etype in
+			let v = alloc_var ctx.temp_var_name e.etype in
 			begin match ctx.com.platform with
 				| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 				| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
@@ -1447,6 +1453,9 @@ module TexprTransformer = struct
 			com = com;
 			config = config;
 			graph = g;
+			(* For CPP we want to use variable names which are "probably" not used by users in order to
+			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
+			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
@@ -2229,7 +2238,7 @@ module CodeMotion = DataFlow(struct
 					let v' = if decl then begin
 						v
 					end else begin
-						let v' = alloc_var "tmp" v.v_type in
+						let v' = alloc_var ctx.temp_var_name v.v_type in
 						declare_var ctx.graph v';
 						v'.v_meta <- [Meta.CompilerGenerated,[],p];
 						v'
@@ -2702,8 +2711,8 @@ module Purity = struct
 			taint node
 		| Some e ->
 			try
-				if is_pure c cf then raise Exit;
 				if (Meta.has (Meta.Custom ":impure")) cf.cf_meta then taint_raise node;
+				if is_pure c cf then raise Exit;
 				loop e;
 				node.pn_purity <- Pure;
 			with Exit ->

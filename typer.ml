@@ -671,7 +671,6 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	let in_call_args = ctx.in_call_args in
 	ctx.in_call_args <- true;
 	let call_error err p =
-		ctx.in_call_args <- in_call_args;
 		raise (Error (Call_error err,p))
 	in
 	let arg_error ul name opt p =
@@ -698,7 +697,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
 	let type_against t e =
 		let e = type_expr ctx e (WithType t) in
-		(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> ctx.in_call_args <- in_call_args; raise (WithTypeError (l,p)))
+		(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)))
 	in
 	let rec loop el args = match el,args with
 		| [],[] ->
@@ -739,7 +738,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 						arg_error ul name false p
 			end
 	in
-	let el = loop el args in
+	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in
 	ctx.in_call_args <- in_call_args;
 	el,TFun(args,r)
 
@@ -3267,22 +3266,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					)
 				) in
 				let e2 = type_expr ctx e2 NoValue in
-				(try
-					Optimizer.optimize_for_loop_iterator ctx i e1 e2 p
-				with Exit ->
-					if ctx.com.config.pf_for_to_while then begin
-						let v = gen_local ctx e1.etype in
-						mk (TBlock [
-							mk (TVar (v,Some e1)) ctx.t.tvoid p;
-							mk (TWhile (build_call ctx (type_field ctx (mk (TLocal v) v.v_type p) "hasNext" p MCall) [] Value p,
-								mk (TBlock [
-									mk (TVar (i, Some (build_call ctx (type_field ctx (mk (TLocal v) v.v_type p) "next" p MCall) [] Value p))) ctx.t.tvoid p;
-									e2
-								]) ctx.t.tvoid p
- 							,NormalWhile)) ctx.t.tvoid p;
-						]) ctx.t.tvoid p
-					end else
-						mk (TFor (i,e1,e2)) ctx.t.tvoid p)
+				(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 		) in
 		ctx.in_loop <- old_loop;
 		old_locals();

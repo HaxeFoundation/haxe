@@ -68,6 +68,8 @@ type context = {
 	mutable lib_path : string;
 }
 
+let follow = Abstract.follow_with_abstracts
+
 let join_class_path path separator =
 	let result = match fst path, snd path with
 	| [], s -> s
@@ -307,7 +309,7 @@ let is_keyword n =
 	| "clone" | "instanceof" | "break" | "case" | "class" | "continue" | "default"
 	| "do" | "else" | "extends" | "for" | "function" | "if" | "new" | "return"
 	| "static" | "switch" | "var" | "while" | "interface" | "implements" | "public"
-	| "private" | "try" | "catch" | "throw" | "goto"
+	| "private" | "try" | "catch" | "throw" | "goto" | "yield"
 		-> true
 	| _ -> false
 

@@ -26,7 +26,6 @@ private typedef TravisConfig = {
 	var Java = "java";
 	var Cs = "cs";
 	var Python = "python";
-	var Hl = "hl";
 	var ThirdParty = "third-party";
 }
 
@@ -778,9 +777,18 @@ class RunCi {
 		for (test in tests) {
 			infoMsg('Now test $test');
 			changeDirectory(unitDir);
+
+			var args = switch (ci) {
+				case TravisCI:
+					["-D","travis"];
+				case AppVeyor:
+					["-D","appveyor"];
+				case _:
+					[];
+			}
 			switch (test) {
 				case Macro:
-					runCommand("haxe", ["compile-macro.hxml"]);
+					runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
 					changeDirectory(miscDir);
 					getCsDependencies();
@@ -809,7 +817,7 @@ class RunCi {
 							// runCommand("haxe", ["compile-macro.hxml"]);
 					}
 				case Neko:
-					runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"]);
+					runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 					runCommand("neko", ["bin/unit.n"]);
 
 					changeDirectory(sysDir);
@@ -817,12 +825,6 @@ class RunCi {
 					runCommand("neko", ["bin/neko/sys.n"]);
 				case Php:
 					getPhpDependencies();
-					var args = switch (ci) {
-						case TravisCI:
-							["-D","travis"];
-						case _:
-							[];
-					}
 					runCommand("haxe", ["compile-php.hxml"].concat(args));
 					runCommand("php", ["bin/php/index.php"]);
 
@@ -832,7 +834,7 @@ class RunCi {
 				case Python:
 					var pys = getPythonDependencies();
 
-					runCommand("haxe", ["compile-python.hxml"]);
+					runCommand("haxe", ["compile-python.hxml"].concat(args));
 					for (py in pys) {
 						runCommand(py, ["bin/unit.py"]);
 					}
@@ -850,7 +852,7 @@ class RunCi {
 					}
 				case Cpp:
 					getCppDependencies();
-					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"]);
+					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
 					runCpp("bin/cpp/Test-debug", []);
 
 					switch (ci) {
@@ -858,7 +860,7 @@ class RunCi {
 							//save time...
 						case _:
 							runCommand("rm", ["-rf", "cpp"]);
-							runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"]);
+							runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
 							runCpp("bin/cpp/Test-debug", []);
 					}
 
@@ -880,7 +882,7 @@ class RunCi {
 						for (unflatten in [[], ["-D", "js-unflatten"]])
 						for (classic in   [[], ["-D", "js-classic"]])
 						{
-							var extras = [].concat(es5).concat(unflatten).concat(classic);
+							var extras = args.concat(es5).concat(unflatten).concat(classic);
 
 							runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
@@ -937,10 +939,10 @@ class RunCi {
 					runCommand("haxe", ["run.hxml"]);
 				case Java:
 					getJavaDependencies();
-					runCommand("haxe", ["compile-java.hxml"]);
+					runCommand("haxe", ["compile-java.hxml"].concat(args));
 					runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
 
-					runCommand("haxe", ["compile-java.hxml","-dce","no"]);
+					runCommand("haxe", ["compile-java.hxml","-dce","no"].concat(args));
 					runCommand("java", ["-jar", "bin/java/Test-Debug.jar"]);
 
 					changeDirectory(sysDir);
@@ -1006,7 +1008,7 @@ class RunCi {
 
 				case Flash9:
 					setupFlashPlayerDebugger();
-					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"]);
+					runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 					var success = runFlash("bin/unit9.swf");
 					if (!success)
 						Sys.exit(1);
@@ -1029,12 +1031,10 @@ class RunCi {
 						runCommand("mxmlc", ["--version"]);
 					}
 
-					runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"]);
+					runCommand("haxe", ["compile-as3.hxml", "-D", "fdb"].concat(args));
 					var success = runFlash("bin/unit9_as3.swf");
 					if (!success)
 						Sys.exit(1);
-				case Hl:
-					runCommand("haxe", ["compile-hl.hxml"]);
 				case ThirdParty:
 					getPhpDependencies();
 					getJavaDependencies();
