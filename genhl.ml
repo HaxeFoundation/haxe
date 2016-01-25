@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *)
+open Unix
 open Ast
 open Type
 open Common
@@ -3860,6 +3861,13 @@ let interp code =
 	in
 	let int = Int32.to_int in
 	let to_int i = VInt (Int32.of_int i) in
+	let date d =
+		Unix.localtime (Int32.to_float d)
+	in
+	let to_date d =
+		let t, _ = Unix.mktime d in
+		VInt (Int32.of_float t)
+	in
 	let load_native lib name t =
 		let unresolved() = (fun args -> error ("Unresolved native " ^ lib ^ "@" ^ name)) in
 		let f = (match lib with
@@ -4167,6 +4175,61 @@ let interp code =
 				| [VBytes a; VInt pos; VInt len; VInt v] ->
 					String.fill a (int pos) (int len) (char_of_int ((int v) land 0xFF));
 					VUndef
+				| _ -> assert false)
+			| "date_new" ->
+				(function
+				| [VInt y; VInt mo; VInt d; VInt h; VInt m; VInt s] ->
+					let t = Unix.localtime (Unix.time()) in
+					let t = { t with
+						tm_year = int y - 1900;
+						tm_mon = int mo;
+						tm_mday = int d;
+						tm_hour = int h;
+						tm_min = int m;
+						tm_sec = int s;
+					} in
+					to_date t
+				| _ ->
+					assert false)
+			| "date_now" ->
+				(function
+				| [] -> to_date (Unix.localtime (Unix.time()))
+				| _ -> assert false)
+			| "date_from_time" ->
+				(function
+				| [] -> assert false
+				| _ -> assert false)
+			| "date_get_weekday" ->
+				(function
+				| [VInt d] ->
+					let d = date d in
+					to_int d.tm_wday
+				| _ -> assert false)
+			| "date_get_inf" ->
+				(function
+				| [VInt d;year;month;day;hours;minutes;seconds] ->
+					let d = date d in
+					let set r v =
+						match r with
+						| VNull -> ()
+						| VRef (regs,pos,HI32) -> regs.(pos) <- to_int v
+						| _ -> assert false
+					in
+					set year (d.tm_year + 1900);
+					set month d.tm_mon;
+					set day d.tm_mday;
+					set hours d.tm_hour;
+					set minutes d.tm_min;
+					set seconds d.tm_sec;
+					VUndef
+				| _ -> assert false)
+			| "date_to_string" ->
+				(function
+				| [VInt d; VRef (regs,pos,HI32)] ->
+					let t = date d in
+					let str = Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec in
+					regs.(pos) <- to_int (String.length str);
+					VBytes (caml_to_hl str)
 				| _ -> assert false)
 			| _ ->
 				unresolved())
