@@ -793,7 +793,7 @@ and alloc_fun_path ctx path name =
 
 and alloc_fid ctx c f =
 	match f.cf_kind with
-	| Var _ | Method MethDynamic -> assert false
+	| Var _ -> assert false
 	| _ -> alloc_fun_path ctx c.cl_path f.cf_name
 
 and alloc_eid ctx e f =
@@ -1618,7 +1618,6 @@ and eval_expr ctx e =
 		(match c.cl_constructor with
 		| None -> ()
 		| Some { cf_expr = None } -> error (s_type_path c.cl_path ^ " does not have a constructor") e.epos
-		| Some ({ cf_expr = Some { eexpr = TFunction({ tf_expr = { eexpr = TBlock([]) } }) } }) when el = [] -> ()
 		| Some ({ cf_expr = Some cexpr } as constr) ->
 			let rl = eval_args ctx el (to_type ctx cexpr.etype) e.epos in
 			let ret = alloc_tmp ctx HVoid in
@@ -2418,11 +2417,30 @@ let generate_static ctx c f =
 		loop f.cf_meta
 
 
-let generate_member ctx c f =
+let rec generate_member ctx c f =
 	match f.cf_kind with
-	| Var _ | Method MethDynamic -> ()
+	| Var _ -> ()
 	| Method m ->
-		ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
+		let gen_content = if f.cf_name <> "new" then None else Some (fun() ->
+			(*
+				init dynamic functions
+			*)
+			List.iter (fun f ->
+				match f.cf_kind with
+				| Method MethDynamic ->
+					let r = alloc_tmp ctx (to_type ctx f.cf_type) in
+					let fid = (match class_type ctx c (List.map snd c.cl_params) false with
+						| HObj o -> (try fst (PMap.find f.cf_name o.pindex) with Not_found -> assert false)
+						| _ -> assert false
+					) in
+					op ctx (OGetThis (r,fid));
+					op ctx (OJNotNull (r,2));
+					op ctx (OClosure (r,alloc_fid ctx c f,0));
+					op ctx (OSetThis (fid,r));
+				| _ -> ()
+			) c.cl_ordered_fields;
+		) in
+		ignore(make_fun ?gen_content ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -4074,6 +4092,26 @@ let interp code =
 						in
 						VArray (fields o,HBytes)
 					| _ -> VNull)
+				| _ -> assert false)
+			| "type_enum_eq" ->
+				(function
+				| [VDyn (VEnum _ as v1, HEnum e1); VDyn (VEnum _ as v2, HEnum e2)] ->
+					let rec loop v1 v2 e =
+						match v1, v2 with
+						| VEnum (t1,_), VEnum (t2,_) when t1 <> t2 -> false
+						| VEnum (t,vl1), VEnum (_,vl2) ->
+							let _, _, pl = e.efields.(t) in
+							let rec chk i =
+								if i = Array.length pl then true
+								else
+								(match pl.(i) with
+								| HEnum e -> loop vl1.(i) vl2.(i) e
+								| t -> dyn_compare vl1.(i) t vl2.(i) t = 0) && chk (i + 1)
+							in
+							chk 0
+						| _ -> assert false
+					in
+					VBool (if e1 != e2 then false else loop v1 v2 e1)
 				| _ -> assert false)
 			| "get_field" ->
 				(function

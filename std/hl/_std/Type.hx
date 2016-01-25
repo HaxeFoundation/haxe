@@ -89,8 +89,8 @@ class Type {
 		return null;
 	}
 
+	@:hlNative("std","type_enum_eq")
 	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool {
-		throw "TODO";
 		return false;
 	}
 
