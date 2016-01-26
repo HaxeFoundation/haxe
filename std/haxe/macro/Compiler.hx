@@ -63,7 +63,7 @@ class Compiler {
 
 	/**
 		Removes a (static) field from a given class by name.
-		An error is thrown when className or field is invalid.
+		An error is thrown when `className` or `field` is invalid.
 	**/
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
@@ -73,7 +73,7 @@ class Compiler {
 
 	/**
 		Set the type of a (static) field at a given class by name.
-		An error is thrown when className or field is invalid.
+		An error is thrown when `className` or `field` is invalid.
 	**/
 	public static function setFieldType( className : String, field : String, type : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
@@ -83,7 +83,7 @@ class Compiler {
 
 	/**
 		Add metadata to a (static) field or class by name.
-		An error is thrown when className or field is invalid.
+		An error is thrown when `className` or `field` is invalid.
 	**/
 	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
@@ -111,14 +111,14 @@ class Compiler {
 	}
 
 	/**
-		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash)
+		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 	**/
 	public static function addNativeLib( name : String ) {
 		untyped load("add_native_lib",1)(name.__s);
 	}
 
 	/**
-		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java)
+		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java).
 	 **/
 	public static function addNativeArg( argument : String )
 	{
@@ -183,7 +183,7 @@ class Compiler {
 	}
 
 	/**
-		Exclude a class or a enum without changing it to @:nativeGen.
+		Exclude a class or an enum without changing it to `@:nativeGen`.
 	**/
 	static function excludeBaseType( baseType : Type.BaseType ) : Void {
 		if (!baseType.isExtern) {
@@ -196,7 +196,10 @@ class Compiler {
 	}
 
 	/**
-		Exclude a given class or a complete package from being generated.
+		Exclude a specific class, enum, or all classes and enums in a
+		package from being generated. Excluded types become `extern`.
+		
+		@param rec If true, recursively excludes all sub-packages.
 	**/
 	public static function exclude( pack : String, ?rec = true ) {
 		Context.onGenerate(function(types) {
@@ -219,7 +222,7 @@ class Compiler {
 	}
 
 	/**
-		Exclude classes listed in an extern file (one per line) from being generated.
+		Exclude classes and enums listed in an extern file (one per line) from being generated.
 	**/
 	public static function excludeFile( fileName : String ) {
 		fileName = Context.resolvePath(fileName);
@@ -246,7 +249,7 @@ class Compiler {
 	}
 
 	/**
-		Load a type patch file that can modify declared classes fields types
+		Load a type patch file that can modify the field types within declared classes and enums.
 	**/
 	public static function patchTypes( file : String ) : Void {
 		var file = Context.resolvePath(file);
@@ -303,7 +306,7 @@ class Compiler {
 
 		In order to include module sub-types directly, their full dot path
 		including the containing module has to be used
-		(e.g. msignal.Signal.Signal0).
+		(e.g. `msignal.Signal.Signal0`).
 
 		This operation has no effect if the type has already been loaded, e.g.
 		through `Context.getType`.
