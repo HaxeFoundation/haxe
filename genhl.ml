@@ -863,6 +863,11 @@ let reg_int ctx v =
 	op ctx (OInt (r,alloc_i32 ctx (Int32.of_int v)));
 	r
 
+let shl ctx idx v =
+	if v = 0 then idx else
+	let idx2 = alloc_tmp ctx HI32 in
+	op ctx (OShl (idx2, idx, reg_int ctx v));
+	idx2
 
 let read_mem ctx rdst bytes index t =
 	match t with
@@ -1120,15 +1125,9 @@ and array_read ctx ra (at,vt) ridx p =
 			assert false);
 		let jend = jump ctx (fun i -> OJAlways i) in
 		j();
-		let r2 = alloc_tmp ctx HI32 in
-		let bits = type_size_bits at in
-		if bits > 0 then begin
-			op ctx (OInt (r2,alloc_i32 ctx (Int32.of_int bits)));
-			op ctx (OShl (ridx,ridx,r2));
-		end;
 		let hbytes = alloc_tmp ctx HBytes in
 		op ctx (OField (hbytes, ra, 1));
-		read_mem ctx r hbytes ridx at;
+		read_mem ctx r hbytes (shl ctx ridx (type_size_bits at)) at;
 		jend();
 		cast_to ctx r vt p
 	| HDyn ->
@@ -1385,25 +1384,17 @@ and eval_expr ctx e =
 					let r = alloc_tmp ctx HI32 in
 					op ctx (OGetI8 (r, b, pos));
 					r
-				(*| HI16 ->
-					let r = alloc_tmp ctx HI32 in
-					op ctx (OShl (pos,pos,alloc_i32 ctx 1l));
-					op ctx (OGetI16 (r, b, pos));
-					r*)
 				| HI32 ->
 					let r = alloc_tmp ctx HI32 in
-					op ctx (OShl (pos,pos,reg_int ctx 2));
-					op ctx (OGetI32 (r, b, pos));
+					op ctx (OGetI32 (r, b, shl ctx pos 2));
 					r
 				| HF32 ->
 					let r = alloc_tmp ctx HF32 in
-					op ctx (OShl (pos,pos,reg_int ctx 2));
-					op ctx (OGetF32 (r, b, pos));
+					op ctx (OGetF32 (r, b, shl ctx pos 2));
 					r
 				| HF64 ->
 					let r = alloc_tmp ctx HF64 in
-					op ctx (OShl (pos,pos,reg_int ctx 3));
-					op ctx (OGetF64 (r, b, pos));
+					op ctx (OGetF64 (r, b, shl ctx pos 3));
 					r
 				| _ ->
 					error ("Unsupported basic type " ^ tstr t) e.epos)
@@ -1422,18 +1413,15 @@ and eval_expr ctx e =
 					v
 				| HI32 ->
 					let v = eval_to ctx value HI32 in
-					op ctx (OShl (pos,pos,reg_int ctx 2));
-					op ctx (OSetI32 (b, pos, v));
+					op ctx (OSetI32 (b, shl ctx pos 2, v));
 					v
 				| HF32 ->
 					let v = eval_to ctx value HF32 in
-					op ctx (OShl (pos,pos,reg_int ctx 2));
-					op ctx (OSetF32 (b, pos, v));
+					op ctx (OSetF32 (b, shl ctx pos 2, v));
 					v
 				| HF64 ->
 					let v = eval_to ctx value HF64 in
-					op ctx (OShl (pos,pos,reg_int ctx 3));
-					op ctx (OSetF64 (b, pos, v));
+					op ctx (OSetF64 (b, shl ctx pos 3, v));
 					v
 				| _ ->
 					error ("Unsupported basic type " ^ tstr t) e.epos)
@@ -1765,8 +1753,7 @@ and eval_expr ctx e =
 					| HI32 | HF64 ->
 						let b = alloc_tmp ctx HBytes in
 						op ctx (OField (b,ra,1));
-						op ctx (OShl (ridx, ridx, reg_int ctx (type_size_bits at)));
-						write_mem ctx b ridx at v
+						write_mem ctx b (shl ctx ridx (type_size_bits at)) at v
 					| _ ->
 						let arr = alloc_tmp ctx HArray in
 						op ctx (OField (arr,ra,1));
@@ -2305,7 +2292,7 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 		(match o with
 		| None | Some TNull -> ()
 		| Some c ->
-			op ctx (OJNotNull (r,2));
+			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			(match c with
 			| TNull | TThis | TSuper -> assert false
 			| TInt i when (match to_type ctx (follow v.v_type) with HI8 | HI16 | HI32 | HDyn -> true | _ -> false) ->
@@ -2332,6 +2319,7 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 				op ctx (OSetField (r,0,rb));
 				op ctx (OSetField (r,1,reg_int ctx len));
 			);
+			j();
 			(* if optional but not null, turn into a not nullable here *)
 			let vt = to_type ctx v.v_type in
 			if not (is_nullable vt) then begin
@@ -3169,7 +3157,7 @@ let interp code =
 			(match get_method o.oproto.pclass "__string" with
 			| None -> p
 			| Some f -> p ^ ":" ^ vstr_d (fcall (func f) [v]))
-		| VBytes b -> "bytes(" ^ String.escaped (hl_to_caml b) ^ ")"
+		| VBytes b -> "bytes(" ^ String.escaped b ^ ")"
 		| VClosure (f,o) ->
 			(match o with
 			| None -> fstr f
@@ -3198,7 +3186,7 @@ let interp code =
 			(match get_method o.oproto.pclass "__string" with
 			| None -> "#" ^ o.oproto.pclass.pname
 			| Some f -> vstr (fcall (func f) [v]) HBytes)
-		| VBytes b -> hl_to_caml b
+		| VBytes b -> (try hl_to_caml b with _ -> "?" ^ String.escaped b)
 		| VClosure (f,_) -> fstr f
 		| VArray (a,t) -> "[" ^ String.concat ", " (Array.to_list (Array.map (fun v -> vstr v t) a)) ^ "]"
 		| VUndef -> "undef"
@@ -3235,6 +3223,16 @@ let interp code =
 			| e ->
 				throw_msg (Printexc.to_string e)
 
+	and rebuild_virtuals d =
+		let old = d.dvirtuals in
+		d.dvirtuals <- [];
+		List.iter (fun v ->
+			let v2 = (match to_virtual (VDynObj d) v.vtype with VVirtual v -> v | _ -> assert false) in
+			v.vindexes <- v2.vindexes;
+			v.vtable <- d.dvalues;
+		) old;
+		d.dvirtuals <- old;
+
 	and dyn_set_field obj field v vt =
 		let v, vt = (match vt with
 			| HDyn ->
@@ -3245,22 +3243,12 @@ let interp code =
 		) in
 		match obj with
 		| VDynObj d ->
-			let rebuild_virtuals() =
-				let old = d.dvirtuals in
-				d.dvirtuals <- [];
-				List.iter (fun v ->
-					let v2 = (match to_virtual obj v.vtype with VVirtual v -> v | _ -> assert false) in
-					v.vindexes <- v2.vindexes;
-					v.vtable <- d.dvalues;
-				) old;
-				d.dvirtuals <- old;
-			in
 			(try
 				let idx = Hashtbl.find d.dfields field in
 				d.dvalues.(idx) <- v;
 				if not (tsame d.dtypes.(idx) vt) then begin
 					d.dtypes.(idx) <- vt;
-					rebuild_virtuals();
+					rebuild_virtuals d;
 				end;
 			with Not_found ->
 				let idx = Array.length d.dvalues in
@@ -3273,7 +3261,7 @@ let interp code =
 				types2.(idx) <- vt;
 				d.dvalues <- vals2;
 				d.dtypes <- types2;
-				rebuild_virtuals();
+				rebuild_virtuals d;
 			)
 		| VVirtual vp ->
 			dyn_set_field vp.vvalue field v vt
@@ -3328,6 +3316,8 @@ let interp code =
 		else match t, rt with
 		| (HI8|HI16|HI32), (HF32|HF64) ->
 			(match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
+		| (HF32|HF64), (HI8|HI16|HI32) ->
+			(match v with VFloat f -> VInt (Int32.of_float f) | _ -> assert false)
 		| _, HDyn ->
 			make_dyn v t
 		| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
@@ -3422,7 +3412,6 @@ let interp code =
 			invalid_comparison
 
 	and to_virtual v vp =
-		let vt = (match get_type v with None -> HVoid | Some t -> t) in
 		match v with
 		| VNull ->
 			VNull
@@ -3430,7 +3419,7 @@ let interp code =
 			let indexes = Array.mapi (fun i (n,_,t) ->
 				try
 					let idx, ft = get_index n o.oproto.pclass in
-					if not (tsame t ft) then error ("Can't cast " ^ tstr vt ^ " to " ^ tstr (HVirtual vp) ^ "(" ^ n ^ " type differ)");
+					if not (tsame t ft) then raise Not_found;
 					VFIndex idx
 				with Not_found ->
 					VFNone (* most likely a method *)
@@ -3449,7 +3438,7 @@ let interp code =
 				let indexes = Array.mapi (fun i (n,_,t) ->
 					try
 						let idx = Hashtbl.find d.dfields n in
-						if not (tsame t d.dtypes.(idx)) then error ("Can't cast " ^ tstr vt ^ " to " ^ tstr (HVirtual vp) ^ "(" ^ n ^ " type differ)");
+						if not (tsame t d.dtypes.(idx)) then raise Not_found;
 						VFIndex idx
 					with Not_found ->
 						VFNone
@@ -3632,7 +3621,10 @@ let interp code =
 			| OField (r,o,fid) ->
 				set r (match get o with
 					| VObj v -> v.ofields.(fid)
-					| VVirtual v -> (match v.vindexes.(fid) with VFNone -> VNull | VFIndex i -> v.vtable.(i))
+					| VVirtual v as obj ->
+						(match v.vindexes.(fid) with
+						| VFNone -> dyn_get_field obj (let n,_,_ = v.vtype.vfields.(fid) in n) (rtype r)
+						| VFIndex i -> v.vtable.(i))
 					| VNull -> null_access()
 					| _ -> assert false)
 			| OSetField (o,fid,r) ->
@@ -3644,7 +3636,8 @@ let interp code =
 					v.ofields.(fid) <- rv
 				| VVirtual v ->
 					(match v.vindexes.(fid) with
-					| VFNone -> assert false (* TODO *)
+					| VFNone ->
+						dyn_set_field o (let n,_,_ = v.vtype.vfields.(fid) in n) rv (rtype r)
 					| VFIndex i ->
 						check_obj rv o fid;
 						v.vtable.(i) <- rv)
@@ -4386,7 +4379,7 @@ let interp code =
 		(try
 			ignore(call f [])
 		with
-			| InterpThrow v -> Common.error ("Uncaught exception " ^ vstr_d v ^ "\n" ^ get_stack (List.rev !exc_stack)) Ast.null_pos
+			| InterpThrow v -> Common.error ("Uncaught exception " ^ vstr v HDyn ^ "\n" ^ get_stack (List.rev !exc_stack)) Ast.null_pos
 			| Runtime_error msg -> Common.error ("HL Interp error " ^ msg ^ "\n" ^ get_stack !stack) Ast.null_pos
 		)
 	| _ -> assert false

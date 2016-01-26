@@ -72,7 +72,7 @@
 	public function addChar( c : Int ) : Void {
 		if( c >= 0 && c < 0x10000 ) {
 			if( c >= 0xD800 && c <= 0xDFFF ) throw "Invalid unicode char " + c;
-			if( pos == size ) __expand(0);
+			if( pos + 2 > size ) __expand(0);
 			b.setUI16(pos, c);
 			pos += 2;
 		} else if( c < 0x110000 ) {
