@@ -1597,6 +1597,11 @@ and eval_expr ctx e =
 			let ft = (try (PMap.find s a.a_fields).cf_type with Not_found -> v.etype) in
 			let v = eval_to ctx v (to_type ctx ft) in
 			op ctx (ODynSet (r,alloc_string ctx s,v));
+			if s = "toString" then begin
+				let f = alloc_tmp ctx (HFun ([],HBytes)) in
+				op ctx (OClosure (f, alloc_fun_path ctx ([],"String") "call_toString", r));
+				op ctx (ODynSet (r,alloc_string ctx "__string",f));
+			end;
 		) o;
 		cast_to ctx r (to_type ctx e.etype) e.epos
 	| TNew (c,pl,el) ->
@@ -2168,6 +2173,7 @@ and gen_assign_op ctx acc e1 f =
 			| HI32 | HF64 ->
 				let hbytes = alloc_tmp ctx HBytes in
 				op ctx (OField (hbytes, ra, 1));
+				let ridx = shl ctx ridx (type_size_bits at) in
 				let r = alloc_tmp ctx at in
 				read_mem ctx r hbytes ridx at;
 				let r = f r in
@@ -3084,6 +3090,10 @@ let interp code =
 			failwith ("Invalid unicode char " ^ string_of_int c);
 	in
 
+	let utf16_char buf c =
+		utf16_add buf (int_of_char c)
+	in
+
 	let caml_to_hl str =
 		let b = Buffer.create (String.length str * 2) in
 		UTF8.iter (fun c -> utf16_add b (UChar.code c)) str;
@@ -3193,7 +3203,12 @@ let interp code =
 		| VType t -> tstr t
 		| VRef (regs,i,t) -> "*" ^ (vstr regs.(i) t)
 		| VVirtual v -> vstr v.vvalue HDyn
-		| VDynObj d -> "{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}"
+		| VDynObj d ->
+			(try
+				let fid = Hashtbl.find d.dfields "__string" in
+				vstr (dyn_call d.dvalues.(fid) [] HBytes) HBytes
+			with Not_found ->
+				"{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}")
 		| VAbstract _ -> "abstract"
 		| VEnum (i,vals) ->
 			(match t with
@@ -4183,6 +4198,65 @@ let interp code =
 					) (String.sub s (int pos) (int len));
 					utf16_add buf 0;
 					VBytes (Buffer.contents buf)
+				| _ -> assert false)
+			| "url_encode" ->
+				(function
+				| [VBytes s; VRef (regs, idx, HI32)] ->
+					let s = hl_to_caml s in
+					let buf = Buffer.create 0 in
+					let hex = "0123456789ABCDEF" in
+					for i = 0 to String.length s - 1 do
+						let c = String.unsafe_get s i in
+						match c with
+						| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
+							utf16_char buf c
+						| _ ->
+							utf16_char buf '%';
+							utf16_char buf (String.unsafe_get hex (int_of_char c lsr 4));
+							utf16_char buf (String.unsafe_get hex (int_of_char c land 0xF));
+					done;
+					utf16_add buf 0;
+					let str = Buffer.contents buf in
+					regs.(idx) <- to_int (String.length str lsr 1 - 1);
+					VBytes str
+				| _ -> assert false)
+			| "url_decode" ->
+				(function
+				| [VBytes s; VRef (regs, idx, HI32)] ->
+					let s = hl_to_caml s in
+					let b = Buffer.create 0 in
+					let len = String.length s in
+					let decode c =
+						match c with
+						| '0'..'9' -> Some (int_of_char c - int_of_char '0')
+						| 'a'..'f' -> Some (int_of_char c - int_of_char 'a' + 10)
+						| 'A'..'F' -> Some (int_of_char c - int_of_char 'A' + 10)
+						| _ -> None
+					in
+					let rec loop i =
+						if i = len then () else
+						let c = String.unsafe_get s i in
+						match c with
+						| '%' ->
+							let p1 = (try decode (String.get s (i + 1)) with _ -> None) in
+							let p2 = (try decode (String.get s (i + 2)) with _ -> None) in
+							(match p1, p2 with
+							| Some c1, Some c2 ->
+								Buffer.add_char b (char_of_int ((c1 lsl 4) lor c2));
+								loop (i + 3)
+							| _ ->
+								loop (i + 1));
+						| '+' ->
+							Buffer.add_char b ' ';
+							loop (i + 1)
+						| c ->
+							Buffer.add_char b c;
+							loop (i + 1)
+					in
+					loop 0;
+					let str = Buffer.contents b in
+					regs.(idx) <- to_int (UTF8.length str);
+					VBytes (caml_to_hl str)
 				| _ -> assert false)
 			| "call_method" ->
 				(function

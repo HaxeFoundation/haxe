@@ -50,6 +50,10 @@ class StringTools {
 			return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
 			return python.lib.urllib.Parse.quote(s, "");
+		#elseif hl
+			var len = 0;
+			var b = @:privateAccess s.bytes.urlEncode(len);
+			return @:privateAccess String.__alloc__(b,len);
 		#else
 			return null;
 		#end
@@ -75,6 +79,10 @@ class StringTools {
 			return untyped cs.system.Uri.UnescapeDataString(s);
 		#elseif python
 			return python.lib.urllib.Parse.unquote(s);
+		#elseif hl
+			var len = 0;
+			var b = @:privateAccess s.bytes.urlDecode(len);
+			return @:privateAccess String.__alloc__(b,len);
 		#else
 			return null;
 		#end
@@ -138,6 +146,8 @@ class StringTools {
 			if ( p0.at(i) != p1.at(i) )
 				return false;
 		return true;
+		#elseif hl
+		return @:privateAccess (s.length >= start.length && s.bytes.compare(0,start.bytes,0,start.length<<1) == 0);
 		#else
 		return( s.length >= start.length && s.substr(0, start.length) == start );
 		#end
@@ -164,6 +174,10 @@ class StringTools {
 			if ( p0.at(i) != p1.at(i) )
 				return false;
 		return true;
+		#elseif hl
+		var elen = end.length;
+		var slen = s.length;
+		return @:privateAccess (slen >= elen && s.bytes.compare((slen - elen) << 1, end.bytes, 0, elen << 1) == 0);
 		#else
 		var elen = end.length;
 		var slen = s.length;

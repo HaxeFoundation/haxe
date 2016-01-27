@@ -112,6 +112,16 @@ package hl.types;
 		return null;
 	}
 
+	@:hlNative("std", "url_encode")
+	function urlEncode( outSize : Ref<Int> ) : Bytes {
+		return null;
+	}
+
+	@:hlNative("std", "url_decode")
+	function urlDecode( outSize : Ref<Int> ) : Bytes {
+		return null;
+	}
+	
 	@:hlNative("std","value_to_string")
 	public static function ofValue( v : Dynamic, size : Ref<Int> ) : Bytes {
 		return null;

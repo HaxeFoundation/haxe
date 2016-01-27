@@ -157,6 +157,11 @@ class String {
 		return s;
 	}
 
+	@:keep static function call_toString( v : Dynamic ) : hl.types.Bytes {
+		var s : String = v.toString();
+		return s.bytes;
+	}
+
 	@:keep static function __add__( a : String, b : String ) : String {
 		if( a == null ) a = "null";
 		if( b == null ) b = "null";
