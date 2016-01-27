@@ -65,14 +65,18 @@ class Reflect {
 		return hl.types.Api.callMethod(func,a);
 	}
 
-	public static function fields( o : Dynamic ) : Array<String> {
-		throw "TODO";
+	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic ) : hl.types.NativeArray<hl.types.Bytes> {
 		return null;
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool {
-		throw "TODO";
-		return false;
+	public static function fields( o : Dynamic ) : Array<String> {
+		var fields = getObjectFields(o);
+		if( fields == null ) return [];
+		return [for( f in fields ) @:privateAccess String.__alloc__(f,f.ucs2Length(0))];
+	}
+
+	public static inline function isFunction( f : Dynamic ) : Bool {
+		return hl.types.Type.getDynamic(f).kind == HFun;
 	}
 
 	@:hlNative("std","dyn_compare")

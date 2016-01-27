@@ -85,8 +85,21 @@ class Type {
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType {
-		throw "TODO";
-		return null;
+		var t = hl.types.Type.getDynamic(v);
+		switch( t.kind ) {
+		case HVoid:
+			return TNull;
+		case HI8, HI16, HI32:
+			return TInt;
+		case HF32, HF64:
+			return TFloat;
+		case HBool:
+			return TBool;
+		case HDynObj:
+			return TObject;
+		default:
+			return TUnknown;
+		}
 	}
 
 	@:hlNative("std","type_enum_eq")

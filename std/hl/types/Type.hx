@@ -27,7 +27,7 @@ abstract TypeKind(Int) {
 
 	public var kind(get,never) : TypeKind;
 
-	@:extern inline function get_kind() {
+	@:extern inline function get_kind() : TypeKind {
 		return untyped $tkind(this);
 	}
 

@@ -368,6 +368,7 @@ let is_array_type t =
 let rec safe_cast t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
+	| HVirtual _, HDyn -> false
 	| _, HDyn -> is_dynamic t1
 	| HVirtual v1, HVirtual v2 when Array.length v2.vfields < Array.length v1.vfields ->
 		let rec loop i =
@@ -565,7 +566,8 @@ let rec to_type ctx t =
 	| TFun (args, ret) ->
 		HFun (List.map (fun (_,o,t) -> to_type ctx (if o then ctx.com.basic.tnull t else t)) args, to_type ctx ret)
 	| TAnon a when (match !(a.a_status) with Statics c -> true | _ -> false) ->
-		class_type ctx (match !(a.a_status) with Statics c -> c | _ -> assert false) [] true
+		let c = (match !(a.a_status) with Statics c -> c | _ -> assert false) in
+		class_type ctx c (List.map snd c.cl_params) true
 	| TAnon a when (match !(a.a_status) with EnumStatics _ -> true | _ -> false) ->
 		HType
 	| TAnon a ->
@@ -643,13 +645,15 @@ let rec to_type ctx t =
 		else
 			to_type ctx (Abstract.get_underlying_type a pl)
 
-and resolve_class ctx c pl =
+and resolve_class ctx c pl statics =
 	let not_supported() =
 		failwith ("Extern type not supported : " ^ s_type (print_context()) (TInst (c,pl)))
 	in
 	match c.cl_path, pl with
 	| ([],"Array"), [t] ->
-		array_class ctx (to_type ctx t)
+		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
+	| ([],"Array"), [] ->
+		assert false
 	| _, _ when c.cl_extern ->
 		not_supported()
 	| _ ->
@@ -658,7 +662,7 @@ and resolve_class ctx c pl =
 and field_type ctx f p =
 	match f with
 	| FInstance (c,pl,f) ->
-		let creal = resolve_class ctx c pl in
+		let creal = resolve_class ctx c pl false in
 		let rec loop c =
 			try
 				PMap.find f.cf_name c.cl_fields
@@ -673,7 +677,7 @@ and field_type ctx f p =
 	| FEnum (_,f) -> f.ef_type
 
 and class_type ctx c pl statics =
-	let c = if c.cl_extern && not statics then resolve_class ctx c pl else c in
+	let c = if c.cl_extern then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then fst c.cl_path, "$" ^ snd c.cl_path else c.cl_path) in
 	try
 		PMap.find key_path ctx.cached_types
@@ -704,6 +708,7 @@ and class_type ctx c pl statics =
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		if c.cl_path = ([],"Array") then assert false;
 		if c == ctx.base_class then begin
 			if statics then assert false;
 			p.pnfields <- 1;
@@ -806,6 +811,7 @@ and alloc_global ctx name t =
 	lookup ctx.cglobals name (fun() -> t)
 
 and class_global ctx c =
+	let c = resolve_class ctx c (List.map snd c.cl_params) true in
 	let t = class_type ctx c [] true in
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
 
@@ -918,6 +924,8 @@ let common_type ctx e1 e2 for_eq p =
 		| _, HDyn -> HDyn
 		| _ when for_eq && safe_cast t1 t2 -> t2
 		| _ when for_eq && safe_cast t2 t1 -> t1
+		| HBool, HNull HBool when for_eq -> t2
+		| HNull HBool, HBool when for_eq -> t1
 		| _ ->
 			error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
 	in
@@ -1073,7 +1081,7 @@ and get_access ctx e =
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
 		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic && not (c.cl_interface || is_overriden ctx c f) ->
-			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl) f)
+			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl false) f)
 		| FInstance (cdef,pl,f), _ | FClosure (Some (cdef,pl), f), _ ->
 			object_access ctx ethis (class_type ctx cdef pl false) f
 		| FClosure (None,_), _ ->
@@ -1605,7 +1613,7 @@ and eval_expr ctx e =
 		) o;
 		cast_to ctx r (to_type ctx e.etype) e.epos
 	| TNew (c,pl,el) ->
-		let c = resolve_class ctx c pl in
+		let c = resolve_class ctx c pl false in
 		let r = alloc_tmp ctx (class_type ctx c pl false) in
 		op ctx (ONew r);
 		(match c.cl_constructor with
@@ -2489,7 +2497,22 @@ let generate_static_init ctx =
 				op ctx (OType (rt, class_type ctx c (List.map snd c.cl_params) false));
 				op ctx (OSetField (rc,0,rt));
 				op ctx (OSetField (rc,1,eval_expr ctx { eexpr = TConst (TString (s_type_path c.cl_path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
-			| _ -> ()
+
+			| TEnumDecl e when not e.e_extern ->
+				List.iter (fun n ->
+					let f = PMap.find n e.e_constrs in
+					match follow f.ef_type with
+					| TFun _ -> ()
+					| _ ->
+						let t = to_type ctx f.ef_type in
+						let g = alloc_global ctx (efield_name e f) t in
+						let r = alloc_tmp ctx t in
+						op ctx (OMakeEnum (r,f.ef_index,[]));
+						op ctx (OSetGlobal (g,r));
+				) e.e_names
+
+			| _ ->
+				()
 
 		) ctx.com.types;
 	in
@@ -2506,18 +2529,6 @@ let generate_static_init ctx =
 				| _ ->
 					()
 			) c.cl_ordered_statics;
-		| TEnumDecl e when not e.e_extern ->
-			List.iter (fun n ->
-				let f = PMap.find n e.e_constrs in
-				match follow f.ef_type with
-				| TFun _ -> ()
-				| _ ->
-					let t = to_type ctx f.ef_type in
-					let g = alloc_global ctx (efield_name e f) t in
-					let r = alloc_tmp ctx t in
-					op ctx (OMakeEnum (r,f.ef_index,[]));
-					op ctx (OSetGlobal (g,r));
-			) e.e_names
 		| _ -> ()
 	) ctx.com.types;
 	(* call main() *)
@@ -3771,6 +3782,7 @@ let interp code =
 				set r (VType t)
 			| OGetType (r,v) ->
 				let v = get v in
+				let v = (match v with VVirtual v -> v.vvalue | _ -> v) in
 				set r (VType (if v = VNull then HVoid else match get_type v with None -> assert false | Some t -> t));
 			| OGetTID (r,v) ->
 				set r (match get v with
@@ -4085,6 +4097,12 @@ let interp code =
 				(function
 				| [VObj o] -> (match o.oproto.pclass.pclassglobal with None -> VNull | Some g -> globals.(g))
 				| _ -> VNull)
+			| "obj_fields" ->
+				(function
+				| [VDynObj o] ->
+					VArray (Array.of_list (Hashtbl.fold (fun n _ acc -> VBytes (caml_to_hl n) :: acc) o.dfields []), HBytes)
+				| _ ->
+					VNull)
 			| "type_instance_fields" ->
 				(function
 				| [VType t] ->
@@ -4957,7 +4975,7 @@ let generate com =
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 	if Common.defined com Define.Dump then Std.output_file "dump/hlcode.txt" (dump code);
 	PMap.iter (fun (s,p) fid ->
-		if not (Hashtbl.mem ctx.defined_funs fid) then failwith ("Unresolved method " ^ s_type_path p ^ ":" ^ s)
+		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map;
 	check code;
 	let ch = IO.output_string() in
