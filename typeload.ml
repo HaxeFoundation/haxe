@@ -91,6 +91,8 @@ let module_pass_1 com m tdecls loadp =
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path d.d_name priv in
 			let c = mk_class m path p in
+			(* we shouldn't load any other type until we propertly set cl_build *)
+			c.cl_build <- (fun() -> assert false);
 			c.cl_module <- m;
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
@@ -2957,7 +2959,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				true;
 			with Exit ->
 				c.cl_build <- make_pass ctx build;
-				delay ctx PTypeField (fun() -> ignore(c.cl_build())); (* delay after PBuildClass, not very good but better than forgotten *)
+				delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
 				false
 			| exn ->
 				c.cl_build <- (fun()-> true);
