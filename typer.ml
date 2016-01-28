@@ -4408,14 +4408,14 @@ let get_type_patch ctx t sub =
 let macro_timer ctx path =
 	Common.timer (if Common.defined ctx.com Define.MacroTimes then "macro " ^ path else "macro execution")
 
-let typing_timer ctx f =
+let typing_timer ctx need_type f =
 	let t = Common.timer "typing" in
 	let old = ctx.com.error and oldp = ctx.pass in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
 	*)
 	if ctx.com.display = DMNone then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
-	if ctx.pass < PTypeField then ctx.pass <- PTypeField;
+	if need_type && ctx.pass < PTypeField then ctx.pass <- PTypeField;
 	let exit() =
 		t();
 		ctx.com.error <- old;
@@ -4439,13 +4439,13 @@ let load_macro_ref : (typer -> path -> string -> pos -> (typer * ((string * bool
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
-		typing_timer ctx (fun() -> parse_expr_string ctx s p inl)
+		typing_timer ctx false (fun() -> parse_expr_string ctx s p inl)
 	in
 	{
 		Interp.pos = p;
 		Interp.get_com = (fun() -> ctx.com);
 		Interp.get_type = (fun s ->
-			typing_timer ctx (fun() ->
+			typing_timer ctx false (fun() ->
 				let path = parse_path s in
 				let tp = match List.rev (fst path) with
 					| s :: sl when String.length s > 0 && (match s.[0] with 'A'..'Z' -> true | _ -> false) ->
@@ -4461,7 +4461,7 @@ let make_macro_api ctx p =
 			)
 		);
 		Interp.get_module = (fun s ->
-			typing_timer ctx (fun() ->
+			typing_timer ctx false (fun() ->
 				let path = parse_path s in
 				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
@@ -4492,10 +4492,10 @@ let make_macro_api ctx p =
 		);
 		Interp.parse_string = parse_expr_string;
 		Interp.type_expr = (fun e ->
-			typing_timer ctx (fun() -> (type_expr ctx e Value))
+			typing_timer ctx true (fun() -> type_expr ctx e Value)
 		);
 		Interp.type_macro_expr = (fun e ->
-			let e = typing_timer ctx (fun() -> (type_expr ctx e Value)) in
+			let e = typing_timer ctx true (fun() -> type_expr ctx e Value) in
 			let rec loop e = match e.eexpr with
 				| TField(_,FStatic(c,({cf_kind = Method _} as cf))) -> ignore(!load_macro_ref ctx c.cl_path cf.cf_name e.epos)
 				| _ -> Type.iter loop e
@@ -4558,7 +4558,7 @@ let make_macro_api ctx p =
 		);
 		Interp.allow_package = (fun v -> Common.allow_package ctx.com v);
 		Interp.type_patch = (fun t f s v ->
-			typing_timer ctx (fun() ->
+			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
 					match parse_string ctx.com ("typedef T = " ^ s) null_pos false with
 					| _,[ETypedef { d_data = ct },_] -> Some ct
@@ -4710,7 +4710,7 @@ let make_macro_api ctx p =
 			end
 		);
 		Interp.module_dependency = (fun mpath file ismacro ->
-			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
+			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
 			if ismacro then
 				m.m_extra.m_macro_calls <- file :: List.filter ((<>) file) m.m_extra.m_macro_calls
 			else
