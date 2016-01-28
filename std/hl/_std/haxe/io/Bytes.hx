@@ -121,10 +121,7 @@ class Bytes {
 		var b = new hl.types.Bytes(len + 1);
 		b.blit(0, this.b, pos, len);
 		b[len] = 0;
-
-		var outLen = 0;
-		var b2 = @:privateAccess b.utf8ToUtf16(0, outLen);
-		return @:privateAccess String.__alloc__(b2, outLen>>1);
+		return @:privateAccess String.fromUTF8(b);
 	}
 
 	@:deprecated("readString is deprecated, use getString instead")

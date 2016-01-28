@@ -115,8 +115,21 @@ class String {
 	}
 
 	public function substring( startIndex : Int, ?endIndex : Int ) : String {
-		throw "TODO";
-		return null;
+		var end : Int;
+		if( endIndex == null )
+			end = length;
+		else {
+			end = endIndex;
+			if( end < 0 ) end = 0;
+			else if( end > length ) end = length;
+		}
+		if( startIndex < 0 ) startIndex = 0 else if ( startIndex > length ) startIndex = length;
+		if( startIndex > end ) {
+			var tmp = startIndex;
+			startIndex = end;
+			end = tmp;
+		}
+		return substr( startIndex, endIndex - startIndex );
 	}
 
 	public function toString() : String {
@@ -160,6 +173,12 @@ class String {
 	@:keep static function call_toString( v : Dynamic ) : hl.types.Bytes {
 		var s : String = v.toString();
 		return s.bytes;
+	}
+
+	@:keep static function fromUTF8( b : hl.types.Bytes ) : String {
+		var outLen = 0;
+		var b2 = @:privateAccess b.utf8ToUtf16(0, outLen);
+		return __alloc__(b2, outLen>>1);
 	}
 
 	@:keep static function __add__( a : String, b : String ) : String {

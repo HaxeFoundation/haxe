@@ -36,7 +36,8 @@ class Reflect {
 	}
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		throw "TODO";
+		var hash = @:privateAccess field.bytes.hash();
+		hl.types.Api.setField(o,hash, value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {

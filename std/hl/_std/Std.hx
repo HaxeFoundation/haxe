@@ -42,7 +42,7 @@ class Std {
 		return untyped $int(x);
 	}
 
-	public static function string( s : Dynamic ) : String {
+	@:keep public static function string( s : Dynamic ) : String {
 		var len = 0;
 		var bytes = hl.types.Bytes.ofValue(s,new hl.types.Ref(len));
 		return @:privateAccess String.__alloc__(bytes,len>>1);

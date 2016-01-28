@@ -97,6 +97,10 @@ class Type {
 			return TBool;
 		case HDynObj:
 			return TObject;
+		case HObj:
+			return TClass(Type.getClass(v));
+		case HFun:
+			return TFunction;
 		default:
 			return TUnknown;
 		}

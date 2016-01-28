@@ -89,6 +89,7 @@ type opcode =
 	| OInt of reg * int index
 	| OFloat of reg * float index
 	| OBool of reg * bool
+	| OBytes of reg * string index
 	| OString of reg * string index
 	| ONull of reg
 	| OAdd of reg * reg * reg
@@ -628,11 +629,12 @@ let rec to_type ctx t =
 			| [], "Float" -> HF64
 			| [], "Single" -> HF32
 			| [], "Bool" -> HBool
+			| [], "Dynamic" -> HDyn
 			| [], "Class" ->
 				let c, pl, s = (match follow (List.hd pl) with
-					| TDynamic _ | TInst ({cl_kind = KTypeParameter _ },_) -> ctx.base_class, [], false
+					| TDynamic _ | TInst ({cl_kind = KTypeParameter _ },_) | TMono _ -> ctx.base_class, [], false
 					| TInst (c,pl) -> c, pl, true
-					| _ -> assert false
+					| t -> assert false
 				) in
 				class_type ctx c pl s
 			| [], "Enum" -> HType
@@ -768,7 +770,7 @@ and class_type ctx c pl statics =
 		p.pproto <- DynArray.to_array pa;
 		p.pvirtuals <- DynArray.to_array virtuals;
 		List.iter (fun f -> f()) !todo;
-		if not statics && c != ctx.base_class then p.pclassglobal <- Some (fst (class_global ctx c));
+		p.pclassglobal <- Some (fst (class_global ctx (if statics then ctx.base_class else c)));
 		t
 
 and enum_type ctx e =
@@ -811,8 +813,10 @@ and alloc_global ctx name t =
 	lookup ctx.cglobals name (fun() -> t)
 
 and class_global ctx c =
-	let c = resolve_class ctx c (List.map snd c.cl_params) true in
-	let t = class_type ctx c [] true in
+	let static = c != ctx.base_class in
+	let c = if is_array_type (HObj { null_proto with pname = s_type_path c.cl_path }) then ctx.array_impl.abase else c in
+	let c = resolve_class ctx c (List.map snd c.cl_params) static in
+	let t = class_type ctx c [] static in
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
 
 let alloc_std ctx name args ret =
@@ -947,11 +951,8 @@ let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
 	cast_to ctx r t e.epos
 
-and cast_to ctx (r:reg) (t:ttype) p =
+and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
-	let invalid() =
-		error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
-	in
 	if safe_cast rt t then r else
 	match rt, t with
 	| _, HVoid ->
@@ -992,6 +993,10 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		op ctx (OCall2 (bytes,alloc_std ctx "ftos" [HF64;HRef HI32] HBytes,cast_to ctx r HF64 p,lref));
 		op ctx (OCall2 (out,alloc_fun_path ctx ([],"String") "__alloc__",bytes,len));
 		out
+	| _, HObj { pname = "String" } ->
+		let out = alloc_tmp ctx t in
+		op ctx (OCall1 (out,alloc_fun_path ctx ([],"Std") "string",r));
+		out
 	| (HObj _ | HDynObj | HDyn) , HVirtual _ ->
 		let out = alloc_tmp ctx t in
 		op ctx (OToVirtual (out,r));
@@ -1022,7 +1027,12 @@ and cast_to ctx (r:reg) (t:ttype) p =
 		op ctx (OSafeCast (out, r));
 		out
 	| _ ->
-		invalid()
+		if force then
+			let out = alloc_tmp ctx t in
+			op ctx (OSafeCast (out, r));
+			out
+		else
+			error ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
 and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
@@ -1044,7 +1054,7 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 			op ctx (OUnsafeCast (r2,r));
 			r2
 		else
-			cast_to ctx r t p
+			cast_to ~force:true ctx r t p
 
 and object_access ctx eobj t f =
 	match t with
@@ -1527,6 +1537,29 @@ and eval_expr ctx e =
 			) in
 			op ctx (OCall2 (r,alloc_std ctx "type_check" [HType;HDyn] HBool,t,v));
 			r
+		| "$resources", [] ->
+			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> assert false) in
+			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> assert false) [] false in
+			let arr = alloc_tmp ctx HArray in
+			let rt = alloc_tmp ctx HType in
+			op ctx (OType (rt,t));
+			let res = Hashtbl.fold (fun k v acc -> (k,v) :: acc) ctx.com.resources [] in
+			let size = reg_int ctx (List.length res) in
+			op ctx (OCall2 (arr,alloc_std ctx "aalloc" [HType;HI32] HArray,rt,size));
+			let ro = alloc_tmp ctx t in
+			let rb = alloc_tmp ctx HBytes in
+			let ridx = reg_int ctx 0 in
+			iteri (fun i (k,v) ->
+				op ctx (ONew ro);
+				op ctx (OString (rb,alloc_string ctx k));
+				op ctx (OSetField (ro,0,rb));
+				op ctx (OBytes (rb,alloc_string ctx v));
+				op ctx (OSetField (ro,1,rb));
+				op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
+				op ctx (OSetArray (arr,ridx,ro));
+				op ctx (OIncr ridx);
+			) res;
+			arr
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
@@ -1938,7 +1971,7 @@ and eval_expr ctx e =
 	| TCast (v,None) ->
 		let t = to_type ctx e.etype in
 		let v = eval_expr ctx v in
-		unsafe_cast_to ctx v t e.epos
+		cast_to ~force:true ctx v t e.epos
 	| TArrayDecl el ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> assert false) in
@@ -2121,7 +2154,12 @@ and eval_expr ctx e =
 			let r = alloc_tmp ctx (class_type ctx ctx.base_type [] false) in
 			(match a.a_path with
 			| [], "Int" -> op ctx (OGetGlobal (r, alloc_global ctx "$Int" (rtype ctx r)))
-			| _ -> error ("Insupported type value " ^ s_type_path (t_path t)) e.epos);
+			| [], "Float" -> op ctx (OGetGlobal (r, alloc_global ctx "$Float" (rtype ctx r)))
+			| [], "Bool" -> op ctx (OGetGlobal (r, alloc_global ctx "$Bool" (rtype ctx r)))
+			| [], "Class" -> op ctx (OGetGlobal (r, alloc_global ctx "$Class" (rtype ctx r)))
+			| [], "Enum" -> op ctx (OGetGlobal (r, alloc_global ctx "$Enum" (rtype ctx r)))
+			| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
+			| _ -> error ("Unsupported type value " ^ s_type_path (t_path t)) e.epos);
 			r
 		| TEnumDecl e ->
 			let r = alloc_tmp ctx HType in
@@ -2520,6 +2558,7 @@ let generate_static_init ctx =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when not c.cl_extern ->
+			(match c.cl_init with None -> () | Some e -> exprs := e :: !exprs);
 			List.iter (fun f ->
 				match f.cf_kind, f.cf_expr with
 				| Var _, Some e | Method MethDynamic, Some e ->
@@ -2655,7 +2694,7 @@ let check code =
 				if i < 0 || i >= Array.length code.floats then error "float outside range";
 			| OBool (r,_) ->
 				reg r HBool
-			| OString (r,i) ->
+			| OString (r,i) | OBytes (r,i) ->
 				reg r HBytes;
 				if i < 0 || i >= Array.length code.strings then error "string outside range";
 			| ONull r ->
@@ -3107,7 +3146,7 @@ let interp code =
 
 	let caml_to_hl str =
 		let b = Buffer.create (String.length str * 2) in
-		UTF8.iter (fun c -> utf16_add b (UChar.code c)) str;
+		(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ -> ()); (* if malformed *)
 		utf16_add b 0;
 		Buffer.contents b
 	in
@@ -3170,7 +3209,7 @@ let interp code =
 		match v with
 		| VNull -> "null"
 		| VInt i -> Int32.to_string i ^ "i"
-		| VFloat f -> string_of_float f ^ "f"
+		| VFloat f -> float_repres f ^ "f"
 		| VBool b -> if b then "true" else "false"
 		| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ":" ^ tstr t ^ ")"
 		| VObj o ->
@@ -3263,7 +3302,7 @@ let interp code =
 		let v, vt = (match vt with
 			| HDyn ->
 				(match get_type v with
-				| None -> assert false
+				| None -> if v = VNull then VNull, HDyn else assert false
 				| Some t -> (match v with VDyn (v,_) -> v | _ -> v), t)
 			| t -> v, t
 		) in
@@ -3585,6 +3624,7 @@ let interp code =
 			| OInt (r,i) -> set r (VInt code.ints.(i))
 			| OFloat (r,i) -> set r (VFloat (Array.unsafe_get code.floats i))
 			| OString (r,s) -> set r (VBytes (caml_to_hl code.strings.(s)))
+			| OBytes (r,s) -> set r (VBytes (code.strings.(s) ^ "\x00"))
 			| OBool (r,b) -> set r (VBool b)
 			| ONull r -> set r VNull
 			| OAdd (r,a,b) -> set r (numop Int32.add ( +. ) a b)
@@ -3734,7 +3774,7 @@ let interp code =
 				(match get b, get p with
 				| VBytes b, VInt p ->
 					let p = Int32.to_int p in
-					let i64 = Int64.logor (Int64.of_int32 (get_i32 b p)) (Int64.shift_left (Int64.of_int32 (get_i32 b (p + 4))) 32) in
+					let i64 = Int64.logor (Int64.logand (Int64.of_int32 (get_i32 b p)) 0xFFFFFFFFL) (Int64.shift_left (Int64.of_int32 (get_i32 b (p + 4))) 32) in
 					set r (VFloat (Int64.float_of_bits i64))
 				| _ -> assert false)
 			| OGetArray (r,a,i) ->
@@ -4144,6 +4184,13 @@ let interp code =
 				| [o;VInt hash] ->
 					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
 					dyn_get_field o f HDyn
+				| _ -> assert false)
+			| "set_field" ->
+				(function
+				| [o;VInt hash;v] ->
+					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
+					dyn_set_field o f v HDyn;
+					VUndef
 				| _ -> assert false)
 			| "has_field" ->
 				(function
@@ -4732,6 +4779,7 @@ let ostr o =
 	| OInt (r,i) -> Printf.sprintf "int %d,@%d" r i
 	| OFloat (r,i) -> Printf.sprintf "float %d,@%d" r i
 	| OString (r,s) -> Printf.sprintf "string %d,@%d" r s
+	| OBytes (r,s) -> Printf.sprintf "bytes %d,@%d" r s
 	| OBool (r,b) -> if b then Printf.sprintf "true %d" r else Printf.sprintf "false %d" r
 	| ONull r -> Printf.sprintf "null %d" r
 	| OAdd (r,a,b) -> Printf.sprintf "add %d,%d,%d" r a b
@@ -4863,7 +4911,7 @@ let dump code =
 	) code.ints;
 	pr (string_of_int (Array.length code.floats) ^ " floats");
 	Array.iteri (fun i f ->
-		pr ("	@" ^ string_of_int i ^ " : " ^ string_of_float f);
+		pr ("	@" ^ string_of_int i ^ " : " ^ float_repres f);
 	) code.floats;
 	pr (string_of_int (Array.length code.globals) ^ " globals");
 	Array.iteri (fun i g ->
@@ -4887,7 +4935,7 @@ let dump code =
 	let protos = Hashtbl.fold (fun _ p acc -> p :: acc) all_protos [] in
 	pr (string_of_int (List.length protos) ^ " objects protos");
 	List.iter (fun p ->
-		pr ("	" ^ p.pname);
+		pr ("	" ^ p.pname ^ " " ^ (match p.pclassglobal with None -> "no global" | Some i -> "@" ^ string_of_int i));
 		(match p.psuper with
 		| None -> ()
 		| Some p -> pr ("		extends " ^ p.pname));
