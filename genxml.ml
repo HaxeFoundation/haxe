@@ -502,7 +502,7 @@ let generate_type com t =
 		) in
 		let ext = (match c.cl_path with
 			| ["flash";"utils"], "ByteArray" -> " implements ArrayAccess<Int>" :: ext
-			| ["flash";"utils"], "Dictionnary" -> [" implements ArrayAccess<Dynamic>"]
+			| ["flash";"utils"], "Dictionary" -> [" implements ArrayAccess<Dynamic>"]
 			| ["flash";"xml"], "XML" -> [" implements Dynamic<XMLList>"]
 			| ["flash";"xml"], "XMLList" -> [" implements ArrayAccess<XML>"]
 			| ["flash";"display"],"MovieClip" -> [" extends Sprite #if !flash_strict implements Dynamic #end"]
