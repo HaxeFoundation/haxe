@@ -22,7 +22,7 @@
 package haxe.crypto;
 
 /**
-	Allows to encode/decode String and bytes using a power of two base dictionnary.
+	Allows to encode/decode String and bytes using a power of two base dictionary.
 **/
 class BaseCode {
 
