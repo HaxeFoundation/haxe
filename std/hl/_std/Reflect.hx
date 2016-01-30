@@ -37,16 +37,22 @@ class Reflect {
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
 		var hash = @:privateAccess field.bytes.hash();
-		hl.types.Api.setField(o,hash, value);
+		hl.types.Api.setField(o,hash,value);
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
-		throw "TODO";
-		return null;
+		var f : Dynamic = Reflect.field(o, "get_" + field);
+		if( f != null )
+			return f();
+		return Reflect.field(o,field);
 	}
 
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
-		throw "TODO";
+		var f : Dynamic = Reflect.field(o, "set_" + field);
+		if( f != null )
+			f(value);
+		else
+			setField(o, field, value);
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
@@ -85,8 +91,8 @@ class Reflect {
 		return 0;
 	}
 
+	@:hlNative("std","fun_compare")
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		throw "TODO";
 		return false;
 	}
 

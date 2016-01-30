@@ -262,6 +262,7 @@ type context = {
 	array_impl : array_impl;
 	base_class : tclass;
 	base_type : tclass;
+	base_enum : tclass;
 	cdebug_files : (string, string) lookup;
 }
 
@@ -271,6 +272,7 @@ type access =
 	| ANone
 	| AGlobal of global
 	| ALocal of reg
+	| AStaticVar of global * ttype * field index
 	| AStaticFun of fundecl index
 	| AInstanceFun of texpr * fundecl index
 	| AInstanceProto of texpr * field index
@@ -284,6 +286,9 @@ type access =
 let list_iteri f l =
 	let p = ref 0 in
 	List.iter (fun v -> f !p v; incr p) l
+
+let is_extern_field f =
+	Type.is_extern_field f || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta | _ -> false)
 
 let rec tstr ?(stack=[]) ?(detailed=false) t =
 	match t with
@@ -361,9 +366,14 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HNull _ -> true
 	| _ -> false
 
+let is_array_class name =
+	match name with
+	| "hl.types.ArrayDyn" | "hl.types.ArrayBasic_Int" | "hl.types.ArrayBasic_Float" | "hl.types.ArrayObj" -> true
+	| _ -> false
+
 let is_array_type t =
 	match t with
-	| HObj { pname = "hl.types.ArrayDyn" | "hl.types.ArrayBasic_Int" | "hl.types.ArrayBasic_Float" | "hl.types.ArrayObj" } -> true
+	| HObj p -> is_array_class p.pname
 	| _ -> false
 
 let rec safe_cast t1 t2 =
@@ -566,11 +576,13 @@ let rec to_type ctx t =
 		to_type ctx (!f())
 	| TFun (args, ret) ->
 		HFun (List.map (fun (_,o,t) -> to_type ctx (if o then ctx.com.basic.tnull t else t)) args, to_type ctx ret)
-	| TAnon a when (match !(a.a_status) with Statics c -> true | _ -> false) ->
-		let c = (match !(a.a_status) with Statics c -> c | _ -> assert false) in
-		class_type ctx c (List.map snd c.cl_params) true
-	| TAnon a when (match !(a.a_status) with EnumStatics _ -> true | _ -> false) ->
-		HType
+	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
+		(match !(a.a_status) with
+		| Statics c ->
+			class_type ctx c (List.map snd c.cl_params) true
+		| EnumStatics e ->
+			enum_class ctx e
+		| _ -> assert false)
 	| TAnon a ->
 		(try
 			(* can't use physical comparison in PMap since addresses might change in GC compact,
@@ -637,7 +649,8 @@ let rec to_type ctx t =
 					| t -> assert false
 				) in
 				class_type ctx c pl s
-			| [], "Enum" -> HType
+			| [], "Enum" ->
+				class_type ctx ctx.base_type [] false
 			| [], "EnumValue" -> HDyn
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], ("Bytes" | "BytesAccess") -> HBytes
@@ -733,7 +746,23 @@ and class_type ctx c pl statics =
 		List.iter (fun f ->
 			if is_extern_field f then () else
 			match f.cf_kind with
-			| Var _ | Method MethDynamic ->
+			| Method m when m <> MethDynamic && not statics ->
+				let g = alloc_fid ctx c f in
+				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
+				let virt = if List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides then
+					let vid = (try -(fst (get_index f.cf_name p))-1 with Not_found -> assert false) in
+					DynArray.set virtuals vid g;
+					Some vid
+				else if is_overriden ctx c f then begin
+					let vid = DynArray.length virtuals in
+					DynArray.add virtuals g;
+					p.pindex <- PMap.add f.cf_name (-vid-1,HVoid) p.pindex;
+					Some vid
+				end else
+					None
+				in
+				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; }
+			| _ ->
 				let fid = DynArray.length fa in
 				p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
 				DynArray.add fa (f.cf_name, alloc_string ctx f.cf_name, HVoid);
@@ -742,24 +771,8 @@ and class_type ctx c pl statics =
 					p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
 					Array.set p.pfields fid (f.cf_name, alloc_string ctx f.cf_name, t)
 				) :: !todo;
-			| Method _ ->
-				let g = alloc_fid ctx c f in
-				p.pfunctions <- PMap.add f.cf_name g p.pfunctions;
-				let virt = if List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides then
-					let vid = (try fst (get_index f.cf_name p) with Not_found -> assert false) in
-					DynArray.set virtuals vid g;
-					Some vid
-				else if is_overriden ctx c f then begin
-					let vid = DynArray.length virtuals in
-					DynArray.add virtuals g;
-					p.pindex <- PMap.add f.cf_name (vid,HVoid) p.pindex;
-					Some vid
-				end else
-					None
-				in
-				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; }
 		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
-		(try
+		if not statics then (try
 			let cf = PMap.find "toString" c.cl_fields in
 			if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields then raise Not_found;
 			DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
@@ -793,6 +806,29 @@ and enum_type ctx e =
 			) in
 			(f.ef_name, alloc_string ctx f.ef_name, args)
 		) e.e_names);
+		t
+
+and enum_class ctx e =
+	let cpath = (fst e.e_path,"$" ^ snd e.e_path) in
+	try
+		PMap.find cpath ctx.cached_types
+	with Not_found ->
+		let pname = s_type_path cpath in
+		let p = {
+			pname = pname;
+			pid = alloc_string ctx pname;
+			psuper = None;
+			pclassglobal = None;
+			pproto = [||];
+			pfields = [||];
+			pindex = PMap.empty;
+			pvirtuals = [||];
+			pfunctions = PMap.empty;
+			pnfields = -1;
+		} in
+		let t = HObj p in
+		ctx.cached_types <- PMap.add cpath t ctx.cached_types;
+		p.psuper <- Some (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> assert false);
 		t
 
 and alloc_fun_path ctx path name =
@@ -1062,7 +1098,7 @@ and object_access ctx eobj t f =
 		(try
 			let fid = fst (get_index f.cf_name p) in
 			if f.cf_kind = Method MethNormal then
-				AInstanceProto (eobj, fid)
+				AInstanceProto (eobj, -fid-1)
 			else
 				AInstanceField (eobj, fid)
 		with Not_found ->
@@ -1086,7 +1122,8 @@ and get_access ctx e =
 	| TField (ethis, a) ->
 		(match a, follow ethis.etype with
 		| FStatic (c,({ cf_kind = Var _ | Method MethDynamic } as f)), _ ->
-			AGlobal (alloc_global ctx (field_name c f) (to_type ctx f.cf_type))
+			let g, t = class_global ctx c in
+			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> assert false) | _ -> assert false))
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
@@ -1219,6 +1256,16 @@ and eval_null_check ctx e =
 	| _ -> op ctx (ONullCheck r));
 	r
 
+and make_string ctx s p =
+	let str, len = to_utf8 s p in
+	let r = alloc_tmp ctx HBytes in
+	let s = alloc_tmp ctx (to_type ctx ctx.com.basic.tstring) in
+	op ctx (ONew s);
+	op ctx (OString (r,alloc_string ctx str));
+	op ctx (OSetField (s,0,r));
+	op ctx (OSetField (s,1,reg_int ctx len));
+	s
+
 and eval_expr ctx e =
 	set_curpos ctx e.epos;
 	match e.eexpr with
@@ -1237,14 +1284,7 @@ and eval_expr ctx e =
 			op ctx (OBool (r,b));
 			r
 		| TString s ->
-			let str, len = to_utf8 s e.epos in
-			let r = alloc_tmp ctx HBytes in
-			let s = alloc_tmp ctx (to_type ctx e.etype) in
-			op ctx (ONew s);
-			op ctx (OString (r,alloc_string ctx str));
-			op ctx (OSetField (s,0,r));
-			op ctx (OSetField (s,1,reg_int ctx len));
-			s
+			make_string ctx s e.epos
 		| TThis ->
 			0 (* first reg *)
 		| _ ->
@@ -1518,8 +1558,7 @@ and eval_expr ctx e =
 		| "$dump", [v] ->
 			op ctx (ODump (eval_expr ctx v));
 			alloc_tmp ctx HVoid
-		| "$is", [v;t] ->
-			let r = alloc_tmp ctx HBool in
+		| ("$is" | "$instance") as name, [v;t] ->
 			let v = eval_to ctx v HDyn in
 			let t = (match t.eexpr with
 			| TTypeExpr t ->
@@ -1533,10 +1572,25 @@ and eval_expr ctx e =
 				op ctx (OType (r,to_type ctx t));
 				r
 			| _ ->
-				eval_to ctx t (class_type ctx ctx.base_type [] false)
+				let r = eval_to ctx t (class_type ctx ctx.base_type [] false) in
+				let t = alloc_tmp ctx HType in
+				op ctx (OJNotNull (r,2));
+				op ctx (OType (t,HVoid));
+				op ctx (OJAlways 1);
+				op ctx (OField (t,r,0));
+				t
 			) in
-			op ctx (OCall2 (r,alloc_std ctx "type_check" [HType;HDyn] HBool,t,v));
-			r
+			if name = "$instance" then begin
+				let tmp = alloc_tmp ctx HDyn in
+				let r = alloc_tmp ctx (to_type ctx e.etype) in
+				op ctx (OCall2 (tmp,alloc_std ctx "type_instance" [HType;HDyn] HDyn,t,v));
+				op ctx (OUnsafeCast (r, tmp));
+				r
+			end else begin
+				let r = alloc_tmp ctx HBool in
+				op ctx (OCall2 (r,alloc_std ctx "type_check" [HType;HDyn] HBool,t,v));
+				r
+			end
 		| "$resources", [] ->
 			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> assert false) in
 			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> assert false) [] false in
@@ -1560,6 +1614,14 @@ and eval_expr ctx e =
 				op ctx (OIncr ridx);
 			) res;
 			arr
+		| "$allTypes", [] ->
+			let r = alloc_tmp ctx (to_type ctx e.etype) in
+			op ctx (OGetGlobal (r, alloc_global ctx "__types__" (rtype ctx r)));
+			r
+		| "$allTypes", [v] ->
+			let v = eval_expr ctx v in
+			op ctx (OSetGlobal (alloc_global ctx "__types__" (rtype ctx v), v));
+			v
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
@@ -1612,6 +1674,10 @@ and eval_expr ctx e =
 		(match get_access ctx e with
 		| AGlobal g ->
 			op ctx (OGetGlobal (r,g));
+		| AStaticVar (g,t,fid) ->
+			let o = alloc_tmp ctx t in
+			op ctx (OGetGlobal (o,g));
+			op ctx (OField (r,o,fid));
 		| AStaticFun f ->
 			op ctx (OGetFunction (r,f));
 		| AInstanceFun (ethis, f) ->
@@ -1768,6 +1834,12 @@ and eval_expr ctx e =
 			| AGlobal g ->
 				let r = value() in
 				op ctx (OSetGlobal (g,r));
+				r
+			| AStaticVar (g,t,fid) ->
+				let r = value() in
+				let o = alloc_tmp ctx t in
+				op ctx (OGetGlobal (o, g));
+				op ctx (OSetField (o, fid, r));
 				r
 			| AInstanceField ({ eexpr = TConst TThis }, fid) ->
 				let r = value() in
@@ -2162,8 +2234,9 @@ and eval_expr ctx e =
 			| _ -> error ("Unsupported type value " ^ s_type_path (t_path t)) e.epos);
 			r
 		| TEnumDecl e ->
-			let r = alloc_tmp ctx HType in
-			op ctx (OType (r, enum_type ctx e));
+			let r = alloc_tmp ctx (enum_class ctx e) in
+			let rt = rtype ctx r in
+			op ctx (OGetGlobal (r, alloc_global ctx (match rt with HObj o -> o.pname | _ -> assert false) rt));
 			r
 		| TTypeDecl _ ->
 			assert false);
@@ -2185,6 +2258,14 @@ and gen_assign_op ctx acc e1 f =
 		op ctx (OField (r,robj,findex));
 		let r = f r in
 		op ctx (OSetField (robj,findex,r));
+		r
+	| AStaticVar (g,t,fid) ->
+		let o = alloc_tmp ctx t in
+		op ctx (OGetGlobal (o,g));
+		let r = alloc_tmp ctx (to_type ctx e1.etype) in
+		op ctx (OField (r,o,fid));
+		let r = f r in
+		op ctx (OSetField (o,fid,r));
 		r
 	| AGlobal g ->
 		let r = alloc_tmp ctx (to_type ctx e1.etype) in
@@ -2426,7 +2507,7 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 
 let generate_static ctx c f =
 	match f.cf_kind with
-	| Var _ | Method MethDynamic ->
+	| Var _ ->
 		()
 	| Method m ->
 		let add_native lib name =
@@ -2446,11 +2527,7 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				error "Invalid @:hlNative decl" p
 			| [] ->
-				let null_fun() =
-					let t_void = ctx.com.basic.tvoid in
-					{ tf_expr = mk (TBlock []) t_void f.cf_pos; tf_type = t_void; tf_args = []; }
-				in
-				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> null_fun()) None None)
+				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -2521,10 +2598,13 @@ let generate_static_init ctx =
 	let exprs = ref [] in
 	let t_void = ctx.com.basic.tvoid in
 	let gen_content() =
+
+		op ctx (OCall0 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "init"));
+
 		(* init class values *)
 		List.iter (fun t ->
 			match t with
-			| TClassDecl c when not c.cl_extern && c != ctx.base_class ->
+			| TClassDecl c when not c.cl_extern && c != ctx.base_class && not (is_array_class (s_type_path c.cl_path)) ->
 
 				let g, ct = class_global ctx c in
 				let rc = alloc_tmp ctx ct in
@@ -2536,7 +2616,42 @@ let generate_static_init ctx =
 				op ctx (OSetField (rc,0,rt));
 				op ctx (OSetField (rc,1,eval_expr ctx { eexpr = TConst (TString (s_type_path c.cl_path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
 
+				let rname = alloc_tmp ctx HBytes in
+				op ctx (OString (rname, alloc_string ctx (s_type_path c.cl_path)));
+				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
+
+				(* register static funs *)
+
+				List.iter (fun f ->
+					match f.cf_kind with
+					| Method _ when not (is_extern_field f) ->
+						let cl = alloc_tmp ctx (to_type ctx f.cf_type) in
+						op ctx (OGetFunction (cl, alloc_fid ctx c f));
+						let p = (match ct with HObj o -> o | _ -> assert false) in
+						op ctx (OSetField (rc,(try fst (get_index f.cf_name p) with Not_found -> assert false),cl));
+					| _ ->
+						()
+				) c.cl_ordered_statics
+
 			| TEnumDecl e when not e.e_extern ->
+
+				let t = enum_class ctx e in
+				let g = alloc_global ctx (match t with HObj o -> o.pname | _ -> assert false) t in
+				let r = alloc_tmp ctx t in
+				let rt = alloc_tmp ctx HType in
+				op ctx (ONew r);
+
+				let max_val = ref (-1) in
+				PMap.iter (fun _ c ->
+					match follow c.ef_type with
+					| TFun _ -> ()
+					| _ -> if c.ef_index > !max_val then max_val := c.ef_index;
+				) e.e_constrs;
+
+				let avalues = alloc_tmp ctx HArray in
+				op ctx (OType (rt, HDyn));
+				op ctx (OCall2 (avalues, alloc_std ctx "aalloc" [HType;HI32] HArray, rt, reg_int ctx (!max_val + 1)));
+
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
 					match follow f.ef_type with
@@ -2547,8 +2662,34 @@ let generate_static_init ctx =
 						let r = alloc_tmp ctx t in
 						op ctx (OMakeEnum (r,f.ef_index,[]));
 						op ctx (OSetGlobal (g,r));
-				) e.e_names
+						let d = alloc_tmp ctx HDyn in
+						op ctx (OToDyn (d,r));
+						op ctx (OSetArray (avalues, reg_int ctx f.ef_index, d));
+				) e.e_names;
 
+				op ctx (OType (rt, (to_type ctx (TEnum (e,List.map snd e.e_params)))));
+				op ctx (OCall3 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl";"types"],"Enum") "new",r,rt,avalues));
+				op ctx (OSetGlobal (g,r));
+
+			| TAbstractDecl { a_path = [], name; a_pos = pos } ->
+				(match name with
+				| "Int" | "Float" | "Dynamic" | "Bool" ->
+					let is_bool = name = "Bool" in
+					let t = class_type ctx (if is_bool then ctx.base_enum else ctx.base_class) [] false in
+					let g = alloc_global ctx ("$" ^ name) t in
+					let r = alloc_tmp ctx t in
+					let rt = alloc_tmp ctx HType in
+					op ctx (ONew r);
+					op ctx (OType (rt,(match name with "Int" -> HI32 | "Float" -> HF64 | "Dynamic" -> HDyn | "Bool" -> HBool | _ -> assert false)));
+					op ctx (OSetField (r,0,rt));
+					op ctx (OSetField (r,1,make_string ctx name pos));
+					op ctx (OSetGlobal (g,r));
+
+					let bytes = alloc_tmp ctx HBytes in
+					op ctx (OString (bytes, alloc_string ctx name));
+					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",bytes,r));
+				| _ ->
+					())
 			| _ ->
 				()
 
@@ -2561,7 +2702,7 @@ let generate_static_init ctx =
 			(match c.cl_init with None -> () | Some e -> exprs := e :: !exprs);
 			List.iter (fun f ->
 				match f.cf_kind, f.cf_expr with
-				| Var _, Some e | Method MethDynamic, Some e ->
+				| Var _, Some e ->
 					let p = e.epos in
 					let e = mk (TBinop (OpAssign,(mk (TField (mk (TTypeExpr t) t_dynamic p,FStatic (c,f))) f.cf_type p), e)) f.cf_type p in
 					exprs := e :: !exprs;
@@ -2652,6 +2793,7 @@ let check code =
 			if not (is_dynamic (rtype r)) then error (reg_inf r ^ " should be castable to dynamic")
 		in
 		let tfield o fid proto =
+			if fid < 0 then error (reg_inf o ^ " does not have " ^ (if proto then "proto " else "") ^ "field " ^ string_of_int fid);
 			match rtype o with
 			| HObj p ->
 				let rec loop pl p =
@@ -3328,12 +3470,19 @@ let interp code =
 				d.dtypes <- types2;
 				rebuild_virtuals d;
 			)
+		| VObj o ->
+			(try
+				let idx, t = get_index field o.oproto.pclass in
+				if idx < 0 then raise Not_found;
+				o.ofields.(idx) <- dyn_cast v vt t
+			with Not_found ->
+				throw_msg (o.oproto.pclass.pname ^ " has no field " ^ field))
 		| VVirtual vp ->
 			dyn_set_field vp.vvalue field v vt
 		| VNull ->
 			null_access()
 		| _ ->
-			assert false
+			throw_msg "Invalid object access"
 
 	and dyn_get_field obj field rt =
 		let set_with v t = dyn_cast v t rt in
@@ -3347,9 +3496,6 @@ let interp code =
 		| VObj o ->
 			let rec loop p =
 				try
-					let idx, t = get_index field p in
-					set_with o.ofields.(idx) t
-				with Not_found -> try
 					let fid = PMap.find field p.pfunctions in
 					(match functions.(fid) with
 					| FFun fd as f -> set_with (VClosure (f,Some obj)) (match fd.ftype with HFun (_::args,t) -> HFun(args,t) | _ -> assert false)
@@ -3359,13 +3505,18 @@ let interp code =
 					| None -> default rt
 					| Some p -> loop p
 			in
-			loop o.oproto.pclass
+			(try
+				let idx, t = get_index field o.oproto.pclass in
+				if idx < 0 then raise Not_found;
+				set_with o.ofields.(idx) t
+			with Not_found ->
+				loop o.oproto.pclass)
 		| VVirtual vp ->
 			dyn_get_field vp.vvalue field rt
 		| VNull ->
 			null_access()
 		| _ ->
-			assert false
+			throw_msg "Invalid object access"
 
 	and dyn_cast v t rt =
 		let invalid() =
@@ -3378,16 +3529,20 @@ let interp code =
 		in
 		if safe_cast t rt then
 			v
+		else if v = VNull then
+			default()
 		else match t, rt with
 		| (HI8|HI16|HI32), (HF32|HF64) ->
 			(match v with VInt i -> VFloat (Int32.to_float i) | _ -> assert false)
 		| (HF32|HF64), (HI8|HI16|HI32) ->
 			(match v with VFloat f -> VInt (Int32.of_float f) | _ -> assert false)
+		| (HI8|HI16|HI32|HF32|HF64), HNull ((HI8|HI16|HI32|HF32|HF64) as rt) ->
+			let v = dyn_cast v t rt in
+			VDyn (v,rt)
 		| _, HDyn ->
 			make_dyn v t
 		| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 			(match v with
-			| VNull -> VNull
 			| VClosure (fn,farg) ->
 				let conv = List.map2 (fun t1 t2 ->
 					if safe_cast t2 t1 || (t2 = HDyn && is_dynamic t1) then CNo
@@ -3410,17 +3565,16 @@ let interp code =
 			| _ ->
 				assert false)
 		| HDyn, _ ->
-			(match v with
-			| VNull -> default()
-			| _ ->
-				match get_type v with
-				| None -> assert false
-				| Some t -> dyn_cast (match v with VDyn (v,_) -> v | _ -> v) t rt)
+			(match get_type v with
+			| None -> assert false
+			| Some t -> dyn_cast (match v with VDyn (v,_) -> v | _ -> v) t rt)
 		| HNull t, _ ->
 			(match v with
-			| VNull -> default()
 			| VDyn (v,t) -> dyn_cast v t rt
 			| _ -> assert false)
+		| HObj _, HObj b when safe_cast rt t && (match get_type v with Some t -> safe_cast t rt | None -> assert false) ->
+			(* downcast *)
+			v
 		| HObj p, _ ->
 			(match get_method p "__cast" with
 			| None -> invalid()
@@ -3450,7 +3604,7 @@ let interp code =
 		| VNull ->
 			null_access()
 		| _ ->
-			assert false
+			throw_msg (vstr_d v ^ " cannot be called")
 
 	and dyn_compare a at b bt =
 		if a == b then 0 else
@@ -3476,6 +3630,14 @@ let interp code =
 		| _ ->
 			invalid_comparison
 
+	and alloc_obj t =
+		match t with
+		| HDynObj -> VDynObj { dfields = Hashtbl.create 0; dvalues = [||]; dtypes = [||]; dvirtuals = []; }
+		| HObj p ->
+			let p, fields = get_proto p in
+			VObj { oproto = p; ofields = Array.map default fields }
+		| _ -> assert false
+
 	and to_virtual v vp =
 		match v with
 		| VNull ->
@@ -3484,7 +3646,7 @@ let interp code =
 			let indexes = Array.mapi (fun i (n,_,t) ->
 				try
 					let idx, ft = get_index n o.oproto.pclass in
-					if not (tsame t ft) then raise Not_found;
+					if idx < 0 || not (tsame t ft) then raise Not_found;
 					VFIndex idx
 				with Not_found ->
 					VFNone (* most likely a method *)
@@ -3678,12 +3840,7 @@ let interp code =
 			| OToInt (r,a) -> set r (match get a with VInt _ as v -> v | VFloat v -> VInt (Int32.of_float v) | _ -> assert false)
 			| OLabel _ -> ()
 			| ONew r ->
-				set r (match rtype r with
-				| HDynObj -> VDynObj { dfields = Hashtbl.create 0; dvalues = [||]; dtypes = [||]; dvirtuals = []; }
-				| HObj p ->
-					let p, fields = get_proto p in
-					VObj { oproto = p; ofields = Array.map default fields }
-				| _ -> assert false)
+				set r (alloc_obj (rtype r))
 			| OField (r,o,fid) ->
 				set r (match get o with
 					| VObj v -> v.ofields.(fid)
@@ -3959,6 +4116,20 @@ let interp code =
 				(function
 				| [VType t;VInt i] -> VArray (Array.create (int i) (default t),t)
 				| _ -> assert false)
+			| "oalloc" ->
+				(function
+				| [VType t] -> alloc_obj t
+				| _ -> assert false)
+			| "ealloc" ->
+				(function
+				| [VType (HEnum e); VInt idx; VArray (vl,vt)] ->
+					let idx = int idx in
+					let _, _, args = e.efields.(idx) in
+					if Array.length args <> Array.length vl then
+						VNull
+					else
+						VDyn (VEnum (idx,Array.mapi (fun i v -> dyn_cast v vt args.(i)) vl),HEnum e)
+				| _ -> assert false)
 			| "ablit" ->
 				(function
 				| [VArray (dst,_); VInt dp; VArray (src,_); VInt sp; VInt len] ->
@@ -4033,6 +4204,11 @@ let interp code =
 				(function
 				| [a;b] -> to_int (dyn_compare a HDyn b HDyn)
 				| _ -> assert false)
+			| "fun_compare" ->
+				(function
+				| [VClosure (FFun f1,_);VClosure (FFun f2,_)] -> VBool (f1 == f2)
+				| [VClosure (FNativeFun (f1,_,_),_);VClosure (FNativeFun (f2,_,_),_)] -> VBool (f1 = f2)
+				| _ -> VBool false)
 			| "atype" ->
 				(function
 				| [VArray (_,t)] -> VType t
@@ -4131,12 +4307,24 @@ let interp code =
 				| _ -> assert false)
 			| "type_check" ->
 				(function
-				| [VType t;v] -> (match get_type v with None -> assert false | Some vt -> VBool (safe_cast vt t))
+				| [VType t;v] -> if v = VNull then VBool false else (match get_type v with None -> assert false | Some vt -> VBool (safe_cast vt t))
+				| _ -> assert false)
+			| "type_instance" ->
+				(function
+				| [VType t;v] -> if v = VNull then v else (match get_type v with None -> assert false | Some vt -> if safe_cast vt t then v else VNull)
 				| _ -> assert false)
 			| "type_get_class" ->
 				(function
 				| [VObj o] -> (match o.oproto.pclass.pclassglobal with None -> VNull | Some g -> globals.(g))
 				| _ -> VNull)
+			| "type_name" ->
+				(function
+				| [VType t] ->
+					VBytes (caml_to_hl (match t with
+					| HObj o -> o.pname
+					| HEnum e -> e.ename
+					| _ -> assert false))
+				| _ -> assert false)
 			| "obj_fields" ->
 				(function
 				| [VDynObj o] ->
@@ -4157,6 +4345,13 @@ let interp code =
 							]
 						in
 						VArray (fields o,HBytes)
+					| _ -> VNull)
+				| _ -> assert false)
+			| "type_enum_fields" ->
+				(function
+				| [VType t] ->
+					(match t with
+					| HEnum e -> VArray (Array.map (fun (f,_,_) -> VBytes (caml_to_hl f)) e.efields,HBytes)
 					| _ -> VNull)
 				| _ -> assert false)
 			| "type_enum_eq" ->
@@ -4903,7 +5098,7 @@ let dump code =
 	pr ("entry @" ^ string_of_int code.entrypoint);
 	pr (string_of_int (Array.length code.strings) ^ " strings");
 	Array.iteri (fun i s ->
-		pr ("	@" ^ string_of_int i ^ " : " ^ s);
+		pr ("	@" ^ string_of_int i ^ " : " ^ String.escaped s);
 	) code.strings;
 	pr (string_of_int (Array.length code.ints) ^ " ints");
 	Array.iteri (fun i v ->
@@ -4984,7 +5179,8 @@ let generate com =
 			af64 = get_class "ArrayBasic_Float";
 		};
 		base_class = get_class "Class";
-		base_type = get_class "TypeDecl";
+		base_enum = get_class "Enum";
+		base_type = get_class "BaseType";
 		anons_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();

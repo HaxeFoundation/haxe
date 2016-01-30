@@ -35,6 +35,10 @@ abstract TypeKind(Int) {
 		return false;
 	}
 
+	@:hlNative("std","type_name") function getNameBytes() : Bytes {
+		return null;
+	}
+
 	@:extern public static inline function getDynamic( v : Dynamic ) : Type {
 		return untyped $tdyntype(v);
 	}
@@ -43,7 +47,25 @@ abstract TypeKind(Int) {
 		return untyped $ttype(v);
 	}
 
+	@:extern public inline function getName() : String {
+		var s = getNameBytes();
+		return @:privateAccess String.__alloc__(s, s.ucs2Length(0));
+	}
+
 	@:hlNative("std","type_instance_fields") public function getInstanceFields() : NativeArray<Bytes> {
 		return null;
 	}
+
+	@:hlNative("std","type_enum_fields") public function getEnumFields() : NativeArray<Bytes> {
+		return null;
+	}
+
+	@:hlNative("std","oalloc") public function allocObject() : Dynamic {
+		return null;
+	}
+
+	@:hlNative("std", "ealloc") public function allocEnum( index : Int, args : NativeArray<Dynamic> ) : Dynamic {
+		return null;
+	}
+
 }

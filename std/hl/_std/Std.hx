@@ -33,9 +33,8 @@ class Std {
 		return untyped $is(v,t);
 	}
 
-	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		throw "TODO:Std.instance";
-		return null;
+	@:extern public inline static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return untyped $instance(value,c);
 	}
 
 	@:extern public static inline function int( x : Float ) : Int {
