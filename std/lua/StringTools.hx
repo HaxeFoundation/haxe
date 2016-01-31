@@ -17,6 +17,8 @@ extern class StringTools {
 	@:overload(   function     (str : String, pattern : String, replace : String->String, ?n : Int): String {})
 	public static function gsub(str : String, pattern : String, replace : String,		  ?n : Int): String;
 
+	public static function match(str : String, pattern : String, ?idx : Int): String;
+
 	@:overload(   function     (str : String, pattern : String, match : Void->String,   ?n : Int): String->Void {})
 	public static function gmatch(str : String, pattern : String, ?n : Int): Void->String;
 
