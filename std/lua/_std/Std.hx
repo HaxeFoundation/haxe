@@ -42,17 +42,37 @@ import lua.Boot;
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		var v = null;
-		if( v == 0 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
-			v = Std.int(untyped tonumber(x,16)); 
-		else 
-			v = Std.int(untyped tonumber(x)); 
-		if(Math.isNaN(v)) return null;
-		return cast v;
+		if (x == null) return null;
+		var hexMatch = lua.StringTools.match(x, "^ *[%-+]*0[xX][%da-FA-F]*");
+		if (hexMatch != null){
+			return lua.Lua.tonumber(hexMatch.substr(2), 16);
+		} else {
+			var intMatch = lua.StringTools.match(x, "^ *[%-+]?%d*");
+			if (intMatch != null){
+				return lua.Lua.tonumber(intMatch);
+			} else {
+				return null;
+			}
+		}
 	}
 
-	public static inline function parseFloat( x : String ) : Float {
-		return untyped tonumber(x); 
+	public static function parseFloat( x : String ) : Float {
+		if (x == null || x == "") return Math.NaN;
+		var zeroMatch = lua.StringTools.match(x,  "^ *[%-+]?0");
+		var digitMatch = lua.StringTools.match(x,  "^ *[%-+]?[0-9]%d*");
+		if (digitMatch == null){
+			return Math.NaN;
+		}
+		x = x.substr(digitMatch.length);
+
+		var decimalMatch = lua.StringTools.match(x, "^%.%d*");
+		if (decimalMatch == null) decimalMatch = "";
+		x = x.substr(decimalMatch.length);
+
+		var eMatch =lua.StringTools.match(x, "^[eE][+%-]?%d+");
+		if (eMatch == null) eMatch = "";
+		var result =  lua.Lua.tonumber(digitMatch + decimalMatch + eMatch);
+		return result != null ? result : Math.NaN;
 	}
 
 	public static function random( x : Int ) : Int {
