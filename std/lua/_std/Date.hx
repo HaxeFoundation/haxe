@@ -34,7 +34,7 @@
 		});
 		d =lua.Os.date("*t", t);
 	};
-	public function getTime()     : Float return cast t;
+	public function getTime()     : Float return cast t * 1000;
 	public function getHours()    : Int return d.hour;
 	public function getMinutes()  : Int return d.min;
 	public function getSeconds()  : Int return d.sec;
@@ -56,7 +56,7 @@
 		var d : Dynamic = {}
 		untyped {
 			lua.Lua.setmetatable(d, untyped {__index : Date.prototype});
-			d.t = t;
+			d.t = t/1000;
 			d.d = lua.Os.date("*t", d.t);
 		}
 		return d;
