@@ -709,10 +709,10 @@ and gen_expr ?(local=true) ctx e = begin
 				newline ctx;
 				name
 		) in
-		print ctx "while( %s.hasNext() ) do" it;
+		print ctx "while( %s:hasNext() ) do" it;
 		let bend = open_block ctx in
 		newline ctx;
-		print ctx "local %s = %s.next();" (ident v.v_name) it;
+		print ctx "local %s = %s:next();" (ident v.v_name) it;
 		gen_block_element ctx e;
 		bend();
 		newline ctx;
