@@ -66,6 +66,7 @@ and class_proto = {
 and enum_proto = {
 	ename : string;
 	eid : int;
+	mutable eglobal : int;
 	mutable efields : (string * string index * ttype array) array;
 }
 
@@ -792,6 +793,7 @@ and enum_type ctx e =
 	with Not_found ->
 		let ename = s_type_path e.e_path in
 		let et = {
+			eglobal = 0;
 			ename = ename;
 			eid = alloc_string ctx ename;
 			efields = [||];
@@ -806,6 +808,8 @@ and enum_type ctx e =
 			) in
 			(f.ef_name, alloc_string ctx f.ef_name, args)
 		) e.e_names);
+		let ct = enum_class ctx e in
+		et.eglobal <- alloc_global ctx (match ct with HObj o -> o.pname | _ -> assert false) ct;
 		t
 
 and enum_class ctx e =
@@ -2228,8 +2232,8 @@ and eval_expr ctx e =
 			| [], "Int" -> op ctx (OGetGlobal (r, alloc_global ctx "$Int" (rtype ctx r)))
 			| [], "Float" -> op ctx (OGetGlobal (r, alloc_global ctx "$Float" (rtype ctx r)))
 			| [], "Bool" -> op ctx (OGetGlobal (r, alloc_global ctx "$Bool" (rtype ctx r)))
-			| [], "Class" -> op ctx (OGetGlobal (r, alloc_global ctx "$Class" (rtype ctx r)))
-			| [], "Enum" -> op ctx (OGetGlobal (r, alloc_global ctx "$Enum" (rtype ctx r)))
+			| [], "Class" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_class)))
+			| [], "Enum" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_enum)))
 			| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
 			| _ -> error ("Unsupported type value " ^ s_type_path (t_path t)) e.epos);
 			r
@@ -2352,6 +2356,7 @@ and build_capture_vars ctx f =
 		c_map = !indexes;
 		c_vars = cvars;
 		c_type = HEnum {
+			eglobal = 0;
 			ename = "";
 			eid = 0;
 			efields = [|"",0,Array.map (fun v -> to_type ctx v.v_type) cvars|];
@@ -2604,7 +2609,9 @@ let generate_static_init ctx =
 		(* init class values *)
 		List.iter (fun t ->
 			match t with
-			| TClassDecl c when not c.cl_extern && c != ctx.base_class && not (is_array_class (s_type_path c.cl_path)) ->
+			| TClassDecl c when not c.cl_extern && not (is_array_class (s_type_path c.cl_path)) ->
+
+				let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
 
 				let g, ct = class_global ctx c in
 				let rc = alloc_tmp ctx ct in
@@ -2612,13 +2619,25 @@ let generate_static_init ctx =
 				op ctx (OSetGlobal (g,rc));
 
 				let rt = alloc_tmp ctx HType in
-				op ctx (OType (rt, class_type ctx c (List.map snd c.cl_params) false));
+				let ctype = if c == ctx.array_impl.abase then (match c.cl_super with None -> assert false | Some (c,_) -> c) else c in
+				op ctx (OType (rt, class_type ctx ctype (List.map snd ctype.cl_params) false));
 				op ctx (OSetField (rc,0,rt));
-				op ctx (OSetField (rc,1,eval_expr ctx { eexpr = TConst (TString (s_type_path c.cl_path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
+				op ctx (OSetField (rc,1,eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
 
 				let rname = alloc_tmp ctx HBytes in
-				op ctx (OString (rname, alloc_string ctx (s_type_path c.cl_path)));
+				op ctx (OString (rname, alloc_string ctx (s_type_path path)));
 				op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "register",rname,rc));
+
+				(match c.cl_constructor with
+				| None -> ()
+				| Some f ->
+					(* set __constructor__ *)
+					let r = alloc_tmp ctx (match to_type ctx f.cf_type with
+						| HFun (args,ret) -> HFun (class_type ctx c (List.map snd c.cl_params) false :: args, ret)
+						| _ -> assert false
+					) in
+					op ctx (OGetFunction (r, alloc_fid ctx c f));
+					op ctx (OSetField (rc,2,r)));
 
 				(* register static funs *)
 
@@ -2888,7 +2907,9 @@ let check code =
 				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
 				| HDyn -> List.iter (fun r -> ignore(rtype r)) rl;
 				| _ -> reg f (HFun(List.map rtype rl,rtype r)))
-			| OGetGlobal (r,g) | OSetGlobal (g,r) ->
+			| OGetGlobal (r,g) ->
+				if not (safe_cast code.globals.(g) (rtype r)) then reg r code.globals.(g)
+			| OSetGlobal (g,r) ->
 				reg r code.globals.(g)
 			| OSLt (r, a, b) | OULt (r, a, b) | OSGte (r, a, b) | OUGte (r, a, b) ->
 				reg r HBool;
@@ -4205,9 +4226,15 @@ let interp code =
 				| [a;b] -> to_int (dyn_compare a HDyn b HDyn)
 				| _ -> assert false)
 			| "fun_compare" ->
+				let ocompare o1 o2 =
+					match o1, o2 with
+					| None, None -> true
+					| Some o1, Some o2 -> o1 == o2
+					| _ -> false
+				in
 				(function
-				| [VClosure (FFun f1,_);VClosure (FFun f2,_)] -> VBool (f1 == f2)
-				| [VClosure (FNativeFun (f1,_,_),_);VClosure (FNativeFun (f2,_,_),_)] -> VBool (f1 = f2)
+				| [VClosure (FFun f1,o1);VClosure (FFun f2,o2)] -> VBool (f1 == f2 && ocompare o1 o2)
+				| [VClosure (FNativeFun (f1,_,_),o1);VClosure (FNativeFun (f2,_,_),o2)] -> VBool (f1 = f2 && ocompare o1 o2)
 				| _ -> VBool false)
 			| "atype" ->
 				(function
@@ -4307,7 +4334,15 @@ let interp code =
 				| _ -> assert false)
 			| "type_check" ->
 				(function
-				| [VType t;v] -> if v = VNull then VBool false else (match get_type v with None -> assert false | Some vt -> VBool (safe_cast vt t))
+				| [VType t;v] ->
+					if t = HDyn then VBool true else
+					if v = VNull then VBool false else
+					(match get_type v with
+					| None -> assert false
+					| Some (HI8|HI16|HI32) when (match t with HF32 | HF64 -> true | _ -> false) -> VBool true
+					| Some (HF32|HF64) when (match t, v with (HI8|HI16|HI32), VDyn (VFloat f,_) -> float_of_int (int_of_float f) = f | _ -> false) -> VBool true
+					| Some vt ->
+						VBool (safe_cast vt t))
 				| _ -> assert false)
 			| "type_instance" ->
 				(function
@@ -4316,6 +4351,10 @@ let interp code =
 			| "type_get_class" ->
 				(function
 				| [VObj o] -> (match o.oproto.pclass.pclassglobal with None -> VNull | Some g -> globals.(g))
+				| _ -> VNull)
+			| "type_get_enum" ->
+				(function
+				| [VDyn (_,HEnum e)] -> globals.(e.eglobal)
 				| _ -> VNull)
 			| "type_name" ->
 				(function

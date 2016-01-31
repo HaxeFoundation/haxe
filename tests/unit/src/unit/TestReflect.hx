@@ -129,6 +129,10 @@ class TestReflect extends Test {
 		is("false",String);
 		is("",String);
 		is([],Array);
+		is([1, 2], Array);
+		is([1.1, 2.2], Array);
+		is(["a", "b"], Array);
+		is((["a",2]:Array<Dynamic>),Array);
 		is(new List(),List);
 		is(new haxe.ds.StringMap(),haxe.ds.StringMap);
 		is(new MyClass(0),MyClass);
@@ -176,6 +180,10 @@ class TestReflect extends Test {
 		typeof("Hello",TClass(String));
 		typeof("",TClass(String));
 		typeof([],TClass(Array));
+		typeof([1, 2], TClass(Array));
+		typeof([1., 2.], TClass(Array));
+		typeof(["1", "2"], TClass(Array));
+		typeof((["1",2]:Array<Dynamic>),TClass(Array));
 		typeof(new List(),TClass(List));
 		typeof(new haxe.ds.StringMap(),TClass(haxe.ds.StringMap));
 		typeof(new MyClass(0),TClass(MyClass));

@@ -15,7 +15,7 @@ class Type {
 
 	static var allTypes(get,never) : hl.types.NativeBytesMap;
 	static inline function get_allTypes() : hl.types.NativeBytesMap return untyped $allTypes();
-	
+
 	@:keep static function init() : Void {
 		untyped $allTypes(new hl.types.NativeBytesMap());
 	}
@@ -29,8 +29,8 @@ class Type {
 		return null;
 	}
 
+	@:hlNative("std","type_get_enum")
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
-		throw "TODO";
 		return null;
 	}
 
@@ -100,7 +100,9 @@ class Type {
 		} else {
 			narr = @:privateAccess aobj.array;
 		}
-		return @:privateAccess e.__type__.allocEnum(index, narr);
+		var v = @:privateAccess e.__type__.allocEnum(index, narr);
+		if( v == null ) throw "Constructor " + e.__ename__ +"." + e.__constructs__[index] + " does not takes " + narr.length + " parameters";
+		return v;
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> @:privateAccess {
@@ -133,7 +135,12 @@ class Type {
 		case HDynObj:
 			return TObject;
 		case HObj:
-			return TClass(Type.getClass(v));
+			var c : Dynamic = Type.getClass(v);
+			if( c == Class || c == null )
+				return TObject;
+			return TClass(c);
+		case HEnum:
+			return TEnum(Type.getEnum(v));
 		case HFun:
 			return TFunction;
 		default:
