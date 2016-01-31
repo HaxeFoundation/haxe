@@ -252,7 +252,7 @@ class Test {
 	}
 
 	static function resetTimer() {
-		#if (neko || php || cpp || java || cs || python)
+		#if (neko || php || cpp || java || cs || python || hl)
 		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(30000);
