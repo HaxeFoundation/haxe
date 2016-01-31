@@ -117,8 +117,8 @@ class Type {
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		throw "TODO";
-		return null;
+		var e : hl.types.BaseType.Enum = cast e;
+		return e.__constructs__.copy();
 	}
 
 	public static function typeof( v : Dynamic ) : ValueType {
@@ -154,23 +154,32 @@ class Type {
 	}
 
 	public static function enumConstructor( e : EnumValue ) : String {
-		throw "TODO";
+		var en : hl.types.BaseType.Enum = cast getEnum(e);
+		return en.__constructs__[Type.enumIndex(e)];
+	}
+
+	@:hlNative("std","enum_parameters")
+	static function _enumParameters( e : EnumValue ) : hl.types.NativeArray<Dynamic> {
 		return null;
 	}
 
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		throw "TODO";
-		return null;
+		var arr = _enumParameters(e);
+		return cast hl.types.ArrayObj.alloc(arr);
 	}
 
-	public static function enumIndex( e : EnumValue ) : Int {
-		throw "TODO";
-		return 0;
+	@:extern public inline static function enumIndex( e : EnumValue ) : Int {
+		return untyped $enumIndex(e);
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		throw "TODO";
-		return null;
+		var en : hl.types.BaseType.Enum = cast e;
+		var out = [];
+		for( i in 0...en.__evalues__.length ) {
+			var v = en.__evalues__[i];
+			if( v != null ) out.push(v);
+		}
+		return out;
 	}
 
 }

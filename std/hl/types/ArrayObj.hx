@@ -131,8 +131,9 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function copy() : ArrayObj<T> {
-		throw "TODO";
-		return null;
+		var n = new NativeArray<Dynamic>(array.length);
+		n.blit(0, array, 0, array.length);
+		return alloc(n);
 	}
 
 	public function iterator() : Iterator<T> {
@@ -141,7 +142,7 @@ class ArrayObj<T> extends ArrayBase {
 		return n;
 	}
 
-	public function map<S>( f : T -> S ) : ArrayObj<S> {
+	public function map<S>( f : T -> S ) : ArrayDyn {
 		throw "TODO";
 		return null;
 	}

@@ -1060,6 +1060,9 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
 		let fid = gen_method_wrapper ctx rt t p in
 		let fr = alloc_tmp ctx t in
+		op ctx (OJNotNull (r,2));
+		op ctx (ONull fr);
+		op ctx (OJAlways 1);
 		op ctx (OClosure (fr,fid,r));
 		fr
 	| HObj _, HObj _ when is_array_type rt && is_array_type t ->
@@ -1337,12 +1340,6 @@ and eval_expr ctx e =
 				loop l
 		in
 		loop el
-	| TCall ({ eexpr = TField (_,FStatic({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[e]) when (match to_type ctx e.etype with HEnum _ -> true | _ -> false) ->
-		let r = alloc_tmp ctx HI32 in
-		let re = eval_expr ctx e in
-		op ctx (ONullCheck re);
-		op ctx (OEnumIndex (r,re));
-		r
 	| TCall ({ eexpr = TConst TSuper } as s, el) ->
 		(match follow s.etype with
 		| TInst (csup,_) ->
@@ -1626,6 +1623,12 @@ and eval_expr ctx e =
 			let v = eval_expr ctx v in
 			op ctx (OSetGlobal (alloc_global ctx "__types__" (rtype ctx v), v));
 			v
+		| "$enumIndex", [v] ->
+			let r = alloc_tmp ctx HI32 in
+			let re = eval_expr ctx v in
+			op ctx (ONullCheck re);
+			op ctx (OEnumIndex (r,re));
+			r
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,el) ->
@@ -2144,9 +2147,8 @@ and eval_expr ctx e =
 			let rec loop next (cases,e) =
 				let next = List.fold_left (fun next c ->
 					next();
-					let r = eval_expr ctx c in
-					let rv = cast_to ctx rvalue (rtype ctx r) e.epos in
-					let j = jump ctx (fun n -> OJNeq (r,rv,n)) in
+					let r = eval_to ctx c (common_type ctx en c true c.epos) in
+					let j = jump ctx (fun n -> OJNeq (r,rvalue,n)) in
 					j
 				) next cases in
 				let re = eval_to ctx e rt in
@@ -3079,7 +3081,7 @@ let check code =
 				| _ ->
 					is_enum r)
 			| OEnumIndex (r,v) ->
-				is_enum v;
+				if rtype v <> HDyn then is_enum v;
 				reg r HI32;
 			| OEnumField (r,e,f,i) ->
 				(match rtype e with
@@ -3145,6 +3147,7 @@ type value =
 and vabstract =
 	| AHashBytes of (string, value) Hashtbl.t
 	| AHashInt of (int32, value) Hashtbl.t
+	| AHashObject of (value * value) list ref
 	| AReg of regexp
 
 and vfunction =
@@ -4059,7 +4062,7 @@ let interp code =
 				)
 			| OEnumIndex (r,v) ->
 				(match get v with
-				| VEnum (i,_) -> set r (VInt (Int32.of_int i))
+				| VEnum (i,_) | VDyn (VEnum (i,_),_) -> set r (VInt (Int32.of_int i))
 				| _ -> assert false)
 			| OEnumField (r, v, _, i) ->
 				(match get v with
@@ -4320,6 +4323,53 @@ let interp code =
 					if m then Hashtbl.remove h i;
 					VBool m
 				| _ -> assert false)
+			| "hoalloc" ->
+				(function
+				| [] -> VAbstract (AHashObject (ref []))
+				| _ -> assert false)
+			| "hoset" ->
+				(function
+				| [VAbstract (AHashObject l);o;v] ->
+					let rec replace l =
+						match l with
+						| [] -> [o,v]
+						| (o2,_) :: l when o == o2 -> (o,v) :: l
+						| p :: l -> p :: replace l
+					in
+					l := replace !l;
+					VUndef
+				| _ -> assert false)
+			| "hoget" ->
+				(function
+				| [VAbstract (AHashObject l);o] ->
+					(try List.assq o !l with Not_found -> VNull)
+				| _ -> assert false)
+			| "hovalues" ->
+				(function
+				| [VAbstract (AHashObject l)] ->
+					VArray (Array.of_list (List.map snd !l), HDyn)
+				| _ -> assert false)
+			| "hokeys" ->
+				(function
+				| [VAbstract (AHashObject l)] ->
+					VArray (Array.of_list (List.map fst !l), HDyn)
+				| _ -> assert false)
+			| "hoexists" ->
+				(function
+				| [VAbstract (AHashObject l);o] -> VBool (List.mem_assq o !l)
+				| _ -> assert false)
+			| "horemove" ->
+				(function
+				| [VAbstract (AHashObject rl);o] ->
+					let rec loop acc = function
+						| [] -> false
+						| (o2,_) :: l when o == o2 ->
+							rl := (List.rev acc) @ l;
+							true
+						| p :: l -> loop (p :: acc) l
+					in
+					VBool (loop [] !rl)
+				| _ -> assert false)
 			| "sys_print" ->
 				(function
 				| [VBytes str] -> print_string (hl_to_caml str); VUndef
@@ -4370,6 +4420,13 @@ let interp code =
 					VArray (Array.of_list (Hashtbl.fold (fun n _ acc -> VBytes (caml_to_hl n) :: acc) o.dfields []), HBytes)
 				| _ ->
 					VNull)
+			| "enum_parameters" ->
+				(function
+				| [VDyn (VEnum (idx,pl),HEnum e)] ->
+					let _,_, ptypes = e.efields.(idx) in
+					VArray (Array.mapi (fun i v -> make_dyn v ptypes.(i)) pl,HDyn)
+				| _ ->
+					assert false)
 			| "type_instance_fields" ->
 				(function
 				| [VType t] ->
@@ -4599,9 +4656,13 @@ let interp code =
 				(function
 				| [] -> to_date (Unix.localtime (Unix.time()))
 				| _ -> assert false)
+			| "date_get_time" ->
+				(function
+				| [VInt v] -> VFloat (fst (Unix.mktime (date v)))
+				| _ -> assert false)
 			| "date_from_time" ->
 				(function
-				| [] -> assert false
+				| [VFloat f] -> to_date (Unix.localtime f)
 				| _ -> assert false)
 			| "date_get_weekday" ->
 				(function
