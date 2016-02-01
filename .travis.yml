@@ -20,6 +20,7 @@ env:
 
 sudo: false
 addons:
+  ssh_known_hosts: haxe.org
   apt:
     packages: &apt_common
       - ocaml-native-compilers
