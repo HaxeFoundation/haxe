@@ -258,7 +258,7 @@ class Serializer {
 			case #if (neko || cs || python) "Array" #else cast Array #end:
 				var ucount = 0;
 				buf.add("a");
-				#if (flash || python)
+				#if (flash || python || hl)
 				var v : Array<Dynamic> = v;
 				#end
 				var l = #if (neko || flash || php || cs || java || python || hl) v.length #elseif cpp v.__length() #else __getField(v, "length") #end;

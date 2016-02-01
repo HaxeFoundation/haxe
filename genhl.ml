@@ -2153,6 +2153,7 @@ and eval_expr ctx e =
 				) next cases in
 				let re = eval_to ctx e rt in
 				if rt <> HVoid then op ctx (OMov (r,re));
+				jends := jump ctx (fun n -> OJAlways n) :: !jends;
 				next
 			in
 			let j = List.fold_left loop (fun() -> ()) cases in
@@ -4418,6 +4419,12 @@ let interp code =
 				(function
 				| [VDynObj o] ->
 					VArray (Array.of_list (Hashtbl.fold (fun n _ acc -> VBytes (caml_to_hl n) :: acc) o.dfields []), HBytes)
+				| [VObj o] ->
+					let rec loop p =
+						let fields = Array.map (fun (n,_,_) -> VBytes (caml_to_hl n)) p.pfields in
+						match p.psuper with None -> [fields] | Some p -> fields :: loop p
+					in
+					VArray (Array.concat (loop o.oproto.pclass), HBytes)
 				| _ ->
 					VNull)
 			| "enum_parameters" ->
@@ -4492,8 +4499,7 @@ let interp code =
 						| VDynObj d -> Hashtbl.mem d.dfields f
 						| VObj o ->
 							let rec loop p =
-								let f = PMap.mem f p.pindex in
-								if f then true else match p.psuper with None -> false | Some p -> loop p
+								if PMap.mem f p.pindex then let idx, _ = PMap.find f p.pindex in idx >= 0 else match p.psuper with None -> false | Some p -> loop p
 							in
 							loop o.oproto.pclass
 						| VVirtual v -> loop v.vvalue

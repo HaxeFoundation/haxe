@@ -20,7 +20,10 @@ class String {
 
 	public function charAt(index : Int) : String {
 		if( (index:UInt) >= (length:UInt) ) return "";
-		return __alloc__(bytes.sub(index<<1,2),1);
+		var b = new hl.types.Bytes(4);
+		b.setUI16(0, bytes.getUI16(index<<1));
+		b.setUI16(2,0);
+		return __alloc__(b,1);
 	}
 
 	public function charCodeAt( index : Int) : Null<Int> {
