@@ -1499,6 +1499,7 @@ let hx_stack_push ctx output clazz func_name pos =
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
       let esc_file = (Ast.s_escape stripped_file) in
       ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
+      Printf.printf "__RUN__ %s: (%s) %d:%d\n" pos.pfile func_name pos.pmin pos.pmax ;
       if (ctx.ctx_debug_level>0) then begin
          let full_name = clazz ^ "." ^ func_name ^ (
            if (clazz="*") then
@@ -2156,7 +2157,7 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
             let want_value = (return_from_block && !remaining = 1) in
             find_local_functions_and_return_blocks_ctx want_value expression;
             if (ctx.ctx_debug_level>0) then
-               output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ ")\n" );
+               output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ " , " ^ (string_of_int (Lexer.get_error_char expression.epos)) ^ ")\n");
             output_i "";
             ctx.ctx_return_from_internal_node <- return_from_internal_node;
             if (want_value) then output "return ";
@@ -5865,5 +5866,3 @@ let generate common_ctx =
    else
       generate_source common_ctx
 ;;
-
-

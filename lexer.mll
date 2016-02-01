@@ -182,6 +182,13 @@ let get_error_line p =
 	let l, _ = find_pos p in
 	l
 
+let get_error_char p =
+	let _, c = find_pos p in
+	c
+
+let print_error_pos p =
+	Printf.sprintf "%d:%d\n" (get_error_line p) (get_error_char p)
+
 let get_error_pos printer p =
 	if p.pmin = -1 then
 		"(unknown)"
