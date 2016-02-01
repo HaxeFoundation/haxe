@@ -637,7 +637,6 @@ class RunCi {
 				//setup deploy_key
 				runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
 				runCommand("chmod 600 extra/deploy_key");
-				runCommand("eval `ssh-agent -s`");
 				runCommand("ssh-add extra/deploy_key");
 
 				runCommand("make", ["-s", "deploy_doc"]);

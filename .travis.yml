@@ -133,6 +133,8 @@ before_script:
     fi
   - mysql -u root -e "CREATE DATABASE haxe_test;"
   - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
+  # start ssh-agent for deployment to haxe.org
+  - eval `ssh-agent -s`
 
 script:
   - make package_src -s
