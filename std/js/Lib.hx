@@ -50,7 +50,7 @@ class Lib {
 		This is only supported in environments where `require` function
 		is available, such as Node.js or RequireJS.
 	**/
-	public static inline function require( module:String ) : Dynamic {
+	@:extern public static inline function require( module:String ) : Dynamic {
 		return untyped __js__("require")(module);
 	}
 
