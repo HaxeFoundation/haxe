@@ -15,6 +15,8 @@ env:
     - secure: "VBJDQNJ9uvdt0aszo7oU3txuRvjkuLmuHZGOkrd4wE/5B4sX5jzx/+dnrKcNTXJCmQ/rVLuMu9GyxqVjNHlzce678voxdQNOtNkNgpkr1qN9/A9rRnCp77hH27ErdthpWxbmcnE62hAJ83TIKSvn//5lAkx4sMCKS1NXEWQ5qec="
     # HAXECI_GH_TOKEN: haxe-ci Github personal access token
     - secure: "TpEMYTLgNrVD7kR6hs6EwyWNXUxnfV6XO5MGvYQncKXB1N65PG18n4WQFhnKaH8C2QTFE7dq7688ooXGzwWeoT9WAOBey10jP1f7LXEAjMGAUA4vh2zS93qBZ92ZgzCDZnQN7ZOTQGocwU6Xolu+7/6hP2M8041HBixmFuNkXF4="
+    # deploy_key_decrypt
+    - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
 
 sudo: false
 addons:
@@ -48,6 +50,7 @@ matrix:
       env:
         - TEST=neko
         - BINTRAY=1
+        - DEPLOY=1
     - os: linux
       env:
         - TEST=js

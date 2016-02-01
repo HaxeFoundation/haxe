@@ -218,8 +218,13 @@ install_dox:
 	haxelib git dox https://github.com/dpeek/dox
 
 package_doc:
+	mkdir -p $(PACKAGE_OUT_DIR)
 	cd $$(haxelib path dox | head -n 1) && haxe run.hxml && haxe gen.hxml
 	haxelib run dox --title "Haxe API" -o $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip -D version "$$(haxe -version 2>&1)" -i $$(haxelib path dox | head -n 1)bin/xml -ex microsoft -ex javax -ex cs.internal -D source-path https://github.com/HaxeFoundation/haxe/blob/$(BRANCH)/std/
+
+deploy_doc:
+	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
+	ssh www-haxe@haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -o api-latest.zip"
 
 # Clean
 

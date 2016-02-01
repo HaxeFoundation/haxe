@@ -13,6 +13,7 @@
 /extra/*.swc
 /extra/bintray.json
 /extra/git-archive-all
+/extra/deploy_key
 
 /version.ml
 /haxe

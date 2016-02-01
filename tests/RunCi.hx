@@ -63,21 +63,22 @@ class RunCi {
 		If `useRetry` is `true`, the command will be re-run if it exits with non-zero code (3 trials).
 		It is useful for running network-dependent commands.
 	*/
-	static function runCommand(cmd:String, args:Array<String>, useRetry:Bool = false):Void {
+	static function runCommand(cmd:String, ?args:Array<String>, useRetry:Bool = false):Void {
 		var trials = useRetry ? 3 : 1;
 		var exitCode:Int = 1;
+		var cmdStr = cmd + (args == null ? '' : ' $args');
 
 		while (trials-->0) {
-			Sys.println('Command: $cmd $args');
+			Sys.println('Command: $cmdStr');
 
 			var t = Timer.stamp();
 			exitCode = Sys.command(cmd, args);
 			var dt = Math.round(Timer.stamp() - t);
 
 			if (exitCode == 0)
-				successMsg('Command exited with $exitCode in ${dt}s: $cmd $args');
+				successMsg('Command exited with $exitCode in ${dt}s: $cmdStr');
 			else
-				failMsg('Command exited with $exitCode in ${dt}s: $cmd $args');
+				failMsg('Command exited with $exitCode in ${dt}s: $cmdStr');
 
 			if (exitCode == 0) {
 				return;
@@ -626,6 +627,21 @@ class RunCi {
 			// generate doc
 			runCommand("make", ["-s", "install_dox"]);
 			runCommand("make", ["-s", "package_doc"]);
+
+			// deploy doc to api.haxe.org
+			if (
+				gitInfo.branch == "development" && 
+				Sys.getEnv("DEPLOY") != null && 
+				Sys.getEnv("deploy_key_decrypt") != null
+			) {
+				//setup deploy_key
+				runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
+				runCommand("chmod 600 deploy_key");
+				runCommand("eval `ssh-agent -s`");
+				runCommand("ssh-add deploy_key");
+
+				runCommand("make", ["-s", "deploy_doc"]);
+			}
 		}
 	}
 
