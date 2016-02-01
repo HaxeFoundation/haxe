@@ -224,7 +224,7 @@ package_doc:
 
 deploy_doc:
 	scp $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_doc.zip www-haxe@haxe.org:/data/haxeapi/www/v/dev/api-latest.zip
-	ssh www-haxe@haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -o api-latest.zip"
+	ssh www-haxe@haxe.org "cd /data/haxeapi/www/v/dev && find . ! -name 'api-latest.zip' -maxdepth 1 -mindepth 1 -exec rm -rf {} + && unzip -q -o api-latest.zip"
 
 # Clean
 
