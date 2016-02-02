@@ -112,8 +112,13 @@ class Type {
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
-		throw "TODO";
-		return null;
+		var c : hl.types.BaseType.Class = cast c;
+		var fields = Reflect.fields(c);
+		fields.remove("__constructor__");
+		fields.remove("__meta__");
+		fields.remove("__name__");
+		fields.remove("__type__");
+		return fields;
 	}
 
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {

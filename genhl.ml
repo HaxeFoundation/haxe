@@ -619,10 +619,15 @@ let rec to_type ctx t =
 				| _ ->
 					(cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc
 			) a.a_fields [] in
-			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
-			vp.vfields <- Array.of_list fields;
-			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-			t
+			if fields = [] then
+				let t = HDyn in
+				ctx.anons_cache <- (a,t) :: List.tl ctx.anons_cache;
+				t
+			else
+				let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
+				vp.vfields <- Array.of_list fields;
+				Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
+				t
 		)
 	| TDynamic _ ->
 		HDyn
@@ -1134,7 +1139,7 @@ and get_access ctx e =
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
-		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic && not (c.cl_interface || is_overriden ctx c f) ->
+		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic && not (c.cl_interface || (is_overriden ctx c f && ethis.eexpr <> TConst(TSuper))) ->
 			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl false) f)
 		| FInstance (cdef,pl,f), _ | FClosure (Some (cdef,pl), f), _ ->
 			object_access ctx ethis (class_type ctx cdef pl false) f
@@ -1259,7 +1264,7 @@ and eval_args ctx el t p =
 and eval_null_check ctx e =
 	let r = eval_expr ctx e in
 	(match e.eexpr with
-	| TConst TThis -> ()
+	| TConst TThis | TConst TSuper -> ()
 	| _ -> op ctx (ONullCheck r));
 	r
 
@@ -1292,7 +1297,7 @@ and eval_expr ctx e =
 			r
 		| TString s ->
 			make_string ctx s e.epos
-		| TThis ->
+		| TThis | TSuper ->
 			0 (* first reg *)
 		| _ ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
@@ -4484,7 +4489,10 @@ let interp code =
 							Array.concat [
 								sup;
 								Array.map (fun (s,_,_) -> VBytes (caml_to_hl s)) o.pfields;
-								Array.map (fun f -> VBytes (caml_to_hl f.fname)) o.pproto
+								Array.of_list (Array.fold_left (fun acc f ->
+									let is_override = (match o.psuper with None -> false | Some p -> try ignore(get_index f.fname p); true with Not_found -> false) in
+									if is_override then acc else VBytes (caml_to_hl f.fname) :: acc
+								) [] o.pproto)
 							]
 						in
 						VArray (fields o,HBytes)
@@ -4499,6 +4507,8 @@ let interp code =
 				| _ -> assert false)
 			| "type_enum_eq" ->
 				(function
+				| [VDyn (VEnum _, HEnum _); VNull] | [VNull; VDyn (VEnum _, HEnum _)] -> VBool false
+				| [VNull; VNull] -> VBool true
 				| [VDyn (VEnum _ as v1, HEnum e1); VDyn (VEnum _ as v2, HEnum e2)] ->
 					let rec loop v1 v2 e =
 						match v1, v2 with

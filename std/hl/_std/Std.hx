@@ -63,6 +63,8 @@ class Std {
 		if( tb == hl.types.Type.get("") )
 			return a + (b : String);
 		switch( (cast ta.kind : Int) | ((cast tb.kind : Int) << 8) ) {
+		case 0x0303:
+			return (a:Int) + (b : Int);
 		case x:
 			throw "Can't add "+ta+" and "+tb+" ("+StringTools.hex(x)+")";
 		}
