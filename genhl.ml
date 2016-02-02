@@ -1639,6 +1639,7 @@ and eval_expr ctx e =
 	| TCall (ec,el) ->
 		let real_type = (match ec.eexpr with
 			| TField (_,f) -> field_type ctx f ec.epos
+			| TLocal v -> v.v_type
 			| _ -> ec.etype
 		) in
 		let tfun = to_type ctx real_type in
@@ -2125,7 +2126,7 @@ and eval_expr ctx e =
 					if i > !max then max := i;
 				) values;
 			) cases;
-			if !max > 255 then raise Exit;
+			if !max > 255 || cases = [] then raise Exit;
 			let ridx = eval_to ctx en HI32 in
 			let indexes = Array.make (!max + 1) 0 in
 			op ctx (OSwitch (ridx,indexes));
@@ -2172,9 +2173,9 @@ and eval_expr ctx e =
 		);
 		r
 	| TEnumParameter (ec,f,index) ->
-		let r = alloc_tmp ctx (to_type ctx e.etype) in
+		let r = alloc_tmp ctx (match to_type ctx ec.etype with HEnum e -> let _,_,args = e.efields.(f.ef_index) in args.(index) | _ -> assert false) in
 		op ctx (OEnumField (r,eval_expr ctx ec,f.ef_index,index));
-		r
+		cast_to ctx r (to_type ctx e.etype) e.epos
 	| TContinue ->
 		let pos = current_pos ctx in
 		op ctx (OJAlways (-1)); (* loop *)
@@ -2334,13 +2335,13 @@ and build_capture_vars ctx f =
 	let ignored_vars = ref PMap.empty in
 	let used_vars = ref PMap.empty in
 	(* get all captured vars in scope, ignore vars that are declared *)
+	let decl_var v =
+		if v.v_capture then ignored_vars := PMap.add v.v_id () !ignored_vars
+	in
+	let use_var v =
+		if v.v_capture then used_vars := PMap.add v.v_id v !used_vars
+	in
 	let rec loop e =
-		let decl_var v =
-			if v.v_capture then ignored_vars := PMap.add v.v_id () !ignored_vars
-		in
-		let use_var v =
-			if v.v_capture then used_vars := PMap.add v.v_id v !used_vars
-		in
 		(match e.eexpr with
 		| TLocal v ->
 			use_var v;
@@ -2355,6 +2356,7 @@ and build_capture_vars ctx f =
 		);
 		Type.iter loop e
 	in
+	List.iter (fun (v,_) -> decl_var v) f.tf_args;
 	loop f.tf_expr;
 	let cvars = Array.of_list (PMap.fold (fun v acc -> if PMap.mem v.v_id !ignored_vars then acc else v :: acc) !used_vars []) in
 	Array.sort (fun v1 v2 -> v1.v_id - v2.v_id) cvars;
@@ -2474,10 +2476,10 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 				op ctx (OSafeCast (t,r));
 			end;
 		);
-		if v.v_capture then begin
-			let index = (try PMap.find v.v_id capt.c_map with Not_found -> assert false) in
-			op ctx (OSetEnumField (ctx.m.mcaptreg, index, alloc_reg ctx v));
-		end
+		(match captured_index ctx v with
+		| None -> ()
+		| Some index ->
+			op ctx (OSetEnumField (ctx.m.mcaptreg, index, alloc_reg ctx v)));
 	) f.tf_args;
 
 	(match gen_content with
