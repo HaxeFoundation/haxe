@@ -3,6 +3,7 @@ package hl.types;
 @:keep
 class BaseType {
 	public var __type__ : Type;
+	public var __meta__ : Dynamic;
 }
 
 @:keep

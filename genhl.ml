@@ -745,7 +745,7 @@ and class_type ctx c pl statics =
 		let fa = DynArray.create() and pa = DynArray.create() and virtuals = DynArray.of_array virtuals in
 		let todo = ref [] in
 		List.iter (fun f ->
-			if is_extern_field f then () else
+			if is_extern_field f || (statics && f.cf_name = "__meta__") then () else
 			match f.cf_kind with
 			| Method m when m <> MethDynamic && not statics ->
 				let g = alloc_fid ctx c f in
@@ -1706,9 +1706,9 @@ and eval_expr ctx e =
 	| TObjectDecl o ->
 		let r = alloc_tmp ctx HDynObj in
 		op ctx (ONew r);
-		let a = (match follow e.etype with TAnon a -> a | _ -> assert false) in
+		let a = (match follow e.etype with TAnon a -> Some a | t -> if t == t_dynamic then None else assert false) in
 		List.iter (fun (s,v) ->
-			let ft = (try (PMap.find s a.a_fields).cf_type with Not_found -> v.etype) in
+			let ft = (try (match a with None -> raise Not_found | Some a -> PMap.find s a.a_fields).cf_type with Not_found -> v.etype) in
 			let v = eval_to ctx v (to_type ctx ft) in
 			op ctx (ODynSet (r,alloc_string ctx s,v));
 			if s = "toString" then begin
@@ -2605,6 +2605,7 @@ let generate_type ctx t =
 let generate_static_init ctx =
 	let exprs = ref [] in
 	let t_void = ctx.com.basic.tvoid in
+
 	let gen_content() =
 
 		op ctx (OCall0 (alloc_tmp ctx HVoid, alloc_fun_path ctx ([],"Type") "init"));
@@ -2617,6 +2618,15 @@ let generate_static_init ctx =
 				let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
 
 				let g, ct = class_global ctx c in
+
+				let index name =
+					match ct with
+					| HObj o ->
+						fst (try get_index name o with Not_found -> assert false)
+					| _ ->
+						assert false
+				in
+
 				let rc = alloc_tmp ctx ct in
 				op ctx (ONew rc);
 				op ctx (OSetGlobal (g,rc));
@@ -2624,8 +2634,8 @@ let generate_static_init ctx =
 				let rt = alloc_tmp ctx HType in
 				let ctype = if c == ctx.array_impl.abase then (match c.cl_super with None -> assert false | Some (c,_) -> c) else c in
 				op ctx (OType (rt, class_type ctx ctype (List.map snd ctype.cl_params) false));
-				op ctx (OSetField (rc,0,rt));
-				op ctx (OSetField (rc,1,eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
+				op ctx (OSetField (rc,index "__type__",rt));
+				op ctx (OSetField (rc,index "__name__",eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
 
 				let rname = alloc_tmp ctx HBytes in
 				op ctx (OString (rname, alloc_string ctx (s_type_path path)));
@@ -2640,7 +2650,7 @@ let generate_static_init ctx =
 						| _ -> assert false
 					) in
 					op ctx (OGetFunction (r, alloc_fid ctx c f));
-					op ctx (OSetField (rc,2,r)));
+					op ctx (OSetField (rc,index "__constructor__",r)));
 
 				(* register static funs *)
 
@@ -2649,16 +2659,29 @@ let generate_static_init ctx =
 					| Method _ when not (is_extern_field f) ->
 						let cl = alloc_tmp ctx (to_type ctx f.cf_type) in
 						op ctx (OGetFunction (cl, alloc_fid ctx c f));
-						let p = (match ct with HObj o -> o | _ -> assert false) in
-						op ctx (OSetField (rc,(try fst (get_index f.cf_name p) with Not_found -> assert false),cl));
+						op ctx (OSetField (rc,index f.cf_name,cl));
 					| _ ->
 						()
-				) c.cl_ordered_statics
+				) c.cl_ordered_statics;
+
+				(match Codegen.build_metadata ctx.com (TClassDecl c) with
+				| None -> ()
+				| Some e ->
+					let r = eval_to ctx e HDyn in
+					op ctx (OSetField (rc,index "__meta__",r)));
 
 			| TEnumDecl e when not e.e_extern ->
 
 				let t = enum_class ctx e in
 				let g = alloc_global ctx (match t with HObj o -> o.pname | _ -> assert false) t in
+
+				let index name =
+					match t with
+					| HObj o ->
+						fst (try get_index name o with Not_found -> assert false)
+					| _ ->
+						assert false
+				in
 				let r = alloc_tmp ctx t in
 				let rt = alloc_tmp ctx HType in
 				op ctx (ONew r);
@@ -2691,6 +2714,11 @@ let generate_static_init ctx =
 
 				op ctx (OType (rt, (to_type ctx (TEnum (e,List.map snd e.e_params)))));
 				op ctx (OCall3 (alloc_tmp ctx HVoid, alloc_fun_path ctx (["hl";"types"],"Enum") "new",r,rt,avalues));
+
+				(match Codegen.build_metadata ctx.com (TEnumDecl e) with
+				| None -> ()
+				| Some e -> op ctx (OSetField (r,index "__meta__",eval_to ctx e HDyn)));
+
 				op ctx (OSetGlobal (g,r));
 
 			| TAbstractDecl { a_path = [], name; a_pos = pos } ->
@@ -2698,13 +2726,22 @@ let generate_static_init ctx =
 				| "Int" | "Float" | "Dynamic" | "Bool" ->
 					let is_bool = name = "Bool" in
 					let t = class_type ctx (if is_bool then ctx.base_enum else ctx.base_class) [] false in
+
+					let index name =
+						match t with
+						| HObj o ->
+							fst (try get_index name o with Not_found -> assert false)
+						| _ ->
+							assert false
+					in
+
 					let g = alloc_global ctx ("$" ^ name) t in
 					let r = alloc_tmp ctx t in
 					let rt = alloc_tmp ctx HType in
 					op ctx (ONew r);
 					op ctx (OType (rt,(match name with "Int" -> HI32 | "Float" -> HF64 | "Dynamic" -> HDyn | "Bool" -> HBool | _ -> assert false)));
-					op ctx (OSetField (r,0,rt));
-					op ctx (OSetField (r,1,make_string ctx name pos));
+					op ctx (OSetField (r,index "__type__",rt));
+					op ctx (OSetField (r,index (if is_bool then "__ename__" else "__name__"),make_string ctx name pos));
 					op ctx (OSetGlobal (g,r));
 
 					let bytes = alloc_tmp ctx HBytes in
@@ -2952,9 +2989,13 @@ let check code =
 				(match rtype r with
 				| HDynObj -> ()
 				| _ -> is_obj r)
-			| OField (r,o,fid) | OSetField (o,fid,r) ->
+			| OField (r,o,fid) ->
+				check (tfield o fid false) (rtype r)
+			| OSetField (o,fid,r) ->
 				reg r (tfield o fid false)
-			| OGetThis (r,fid) | OSetThis(fid,r) ->
+			| OGetThis (r,fid) ->
+				check (tfield 0 fid false) (rtype r)
+			| OSetThis(fid,r) ->
 				reg r (tfield 0 fid false)
 			| OGetFunction (r,f) ->
 				reg r ftypes.(f)
@@ -3041,14 +3082,13 @@ let check code =
 			| OGetTID (r,v) ->
 				reg r HI32;
 				reg v HType;
-			| ORef (r,v) ->
-				reg r (HRef (rtype v))
 			| OUnref (v,r) ->
 				(match rtype r with
-				| HRef t -> reg v t
+				| HRef t -> check t (rtype v)
 				| _ -> reg r (HRef (rtype v)))
+			| ORef (r,v)
 			| OSetref (r,v) ->
-				reg r (HRef (rtype v))
+				(match rtype r with HRef t -> reg v t | _ -> reg r (HRef (rtype v)))
 			| OToVirtual (r,v) ->
 				(match rtype r with
 				| HVirtual _ -> ()
@@ -3088,7 +3128,7 @@ let check code =
 				(match rtype e with
 				| HEnum e ->
 					let _, _, tl = e.efields.(f) in
-					check (rtype r) tl.(i)
+					check tl.(i) (rtype r)
 				| _ -> is_enum e)
 			| OSetEnumField (e,i,r) ->
 				(match rtype e with
