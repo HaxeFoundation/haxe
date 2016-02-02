@@ -932,6 +932,9 @@ class RunCi {
 					for (py in pys) {
 						runCommand(py, ["test.py"]);
 					}
+				case Lua:
+					runCommand("haxe", ["compile-lua.hxml"].concat(args));
+					runCommand("lua", ["bin/unit.lua"]);
 				case Cpp:
 					getCppDependencies();
 					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
