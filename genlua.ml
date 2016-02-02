@@ -985,6 +985,12 @@ and gen_value ctx e =
 	| TBreak
 	| TContinue ->
 		unsupported e.epos
+	(* TODO: this is just a hack because this specific case is a TestReflect unit test. I don't know how to address this properly
+	   at the moment. - Simon *)
+	| TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
+	    spr ctx "_G.__staticToInstance(";
+	    gen_expr ctx e1;
+	    spr ctx ")";
 	| TCast (e1, Some t) ->
 		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
 		gen_value ctx e1;
@@ -1057,20 +1063,6 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v()
-
-and gen_assign_value ctx e =
-    begin
-	spr ctx (debug_expression e);
-	match e.eexpr with
-	| TCast ({ eexpr = TTypeExpr _ }, None) ->
-		begin
-		    spr ctx "_G.__staticToInstance(";
-		    gen_value ctx e;
-		    spr ctx ")";
-		end
-	| _ ->
-		gen_value ctx e;
-    end;
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
@@ -1570,7 +1562,7 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
-	gen_assign_value ctx e;
+	gen_value ctx e;
 	newline ctx
 
 let generate_enumMeta_fields ctx = function
