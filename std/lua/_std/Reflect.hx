@@ -135,9 +135,23 @@ import lua.Boot;
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return function(a) {
-			return f(untyped __lua__("unpack")(a));
-		};
+		/*
+			- Convert var arg to table
+			- Set indexing from zero
+			- Extract real table length
+			- Recreate as dynamic array
+			- Return function called with this array
+		*/
+		return untyped __lua__("function(...)
+			local a = {...}
+			local b = {}
+			local l = 0
+			for k, v in pairs(a) do
+				b[k-1] = v
+				l = math.max(k,l)
+			end
+			return f(__tabArray(b, l))
+		end");
 	}
 
 }
