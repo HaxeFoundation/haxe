@@ -441,12 +441,6 @@ and gen_expr ?(local=true) ctx e = begin
 		print ctx "_iterator(";
 		gen_value ctx x;
 		print ctx ")";
-	| TField (x,FClosure (Some ({cl_path=[],"Array"},_), {cf_name="push"})) ->
-		(* see https://github.com/HaxeFoundation/haxe/issues/1997 *)
-		add_feature ctx "use._arrayPushClosure";
-		print ctx "_arrayPushClosure(";
-		gen_value ctx x;
-		print ctx ")"
 	| TField (x,FClosure (_,f)) ->
 		add_feature ctx "use._bind";
 		(match x.eexpr with
@@ -1778,12 +1772,6 @@ let generate com =
 	if has_feature ctx "use._bind" then begin
 		print ctx "_bind = lua.Boot.bind";
 		newline ctx;
-	end;
-	if has_feature ctx "use._arrayPushClosure" then begin
-		print ctx "function _arrayPushClosure(a) ";
-		print ctx " return function(x) a:push(x); end; ";
-		print ctx "end";
-		newline ctx
 	end;
 
 	spr ctx "--[[ begin __init__impl --]]"; newline ctx;
