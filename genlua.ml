@@ -548,7 +548,7 @@ and gen_expr ?(local=true) ctx e = begin
 				| TBinop(OpAssign, e1, e2) ->
 				    gen_tbinop ctx OpAssign e1 e2;
 				    if local then
-					spr ctx "local ";
+					spr ctx " local ";
 				    spr ctx (ident v.v_name);
 				    spr ctx " = ";
 				    gen_value ctx e1;
