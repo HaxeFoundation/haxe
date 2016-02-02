@@ -58,8 +58,7 @@ import lua.Boot;
 
 	public static function parseFloat( x : String ) : Float {
 		if (x == null || x == "") return Math.NaN;
-		var zeroMatch = lua.StringTools.match(x,  "^ *[%-+]?0");
-		var digitMatch = lua.StringTools.match(x,  "^ *[%-+]?[0-9]%d*");
+		var digitMatch = lua.StringTools.match(x,  "^ *[%.%-+]?[0-9]%d*");
 		if (digitMatch == null){
 			return Math.NaN;
 		}
