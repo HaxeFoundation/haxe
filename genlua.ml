@@ -1788,7 +1788,7 @@ let generate com =
 	end;
 	if has_feature ctx "use._arrayPushClosure" then begin
 		print ctx "function _arrayPushClosure(a) ";
-		print ctx " return function(x) a.push(x); end; ";
+		print ctx " return function(x) a:push(x); end; ";
 		print ctx "end";
 		newline ctx
 	end;
