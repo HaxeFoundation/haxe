@@ -24,38 +24,45 @@ import lua.Lua;
 
 class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 
-	private var h : Dynamic;
+	private var k : Dynamic; // Is item exists
+	private var v : Dynamic; // Values table
 
 	public inline function new() : Void {
-		h = {};
+		v = untyped __lua__("{}");
+		k = untyped __lua__("{}");
 	}
 
 	public inline function set( key : String, value : T ) : Void untyped {
-		 h[key] = value;
+		untyped __lua__("{0}[{1}] = {2}", v, key, value);
+		untyped __lua__("{0}[{1}] = true", k, key);
 	}
 
 	public inline function get( key : String ) : Null<T> untyped {
-		return h[key];
+		return untyped __lua__("{0}[{1}]", v, key);
 	}
 
 	public inline function exists( key : String ) : Bool untyped {
-		return Reflect.hasField(h, key);
+		return untyped __lua__("{0}[{1}] or false", k, key);
 	}
 
 	public function remove( key : String ) : Bool untyped {
-		if (!Reflect.hasField(h,key)) return false;
-		Reflect.deleteField(h,key);
+		if (untyped __lua__("not {0}[{1}]", k, key)) return false;
+		untyped __lua__("{0}[{1}] = nil", v, key);
+		untyped __lua__("{0}[{1}] = nil", k, key);
 		return true;
 	}
 
 	public function keys() : Iterator<String> {
-		var cur = Reflect.fields(h).iterator();
+		var cur : Array<String> = [];
+		untyped __lua__("for _k,_v in pairs({1}) do
+			if(_v)then {0}:push(_k) end
+		end", cur, k);
 		return {
 			next : function() {
-				var ret = cur.next();
+				var ret = cur.pop();
 				return ret;
 			},
-			hasNext : function() return cur.hasNext()
+			hasNext : function() return cur.length > 0
 		}
 	}
 
@@ -63,7 +70,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 		var it = keys();
 		return  {
 			hasNext : function() return it.hasNext(),
-			next : function() return h[cast it.next()] 
+			next : function() return untyped __lua__("{0}[{1}]", v, it.next())
 		};
 	}
 
