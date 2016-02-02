@@ -1400,7 +1400,7 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
    if (is_internal_member member) then false else
    match field_object.eexpr with
    | TTypeExpr t ->
-         let full_name = "::" ^ (join_class_path (t_path t) "::" ) ^ "." ^ member in
+         let full_name = "::" ^ (join_class_path_remap (t_path t) "::" ) ^ "." ^ member in
          ctx.ctx_dbgout ("/*static:"^ full_name^"*/");
          ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
              mem_type="Dynamic" || mem_type="cpp::ArrayBase" || mem_type="cpp::VirtualArray" )
