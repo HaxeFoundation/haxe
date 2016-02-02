@@ -76,6 +76,7 @@ let kwds =
 	    "end"; "false"; "for"; "function"; "if";
 	    "in"; "local"; "nil"; "not"; "or"; "repeat";
 	    "return"; "then"; "true"; "until"; "while";
+	    "goto"
 	];
 	h
 
