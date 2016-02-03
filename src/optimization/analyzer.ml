@@ -113,7 +113,7 @@ let rec can_be_used_as_value com e =
 		| TCall({eexpr = TConst (TString "phi")},_) -> raise Exit
 		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
-		| TUnop((Increment | Decrement),_,_) when com.platform = Python -> raise Exit
+		| TUnop((Increment | Decrement),_,_) when (match com.platform with Python | Lua -> true | _ -> false) -> raise Exit
 		| TNew _ when com.platform = Php -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
