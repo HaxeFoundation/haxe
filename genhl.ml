@@ -1289,6 +1289,17 @@ and make_string ctx s p =
 	op ctx (OSetField (s,1,reg_int ctx len));
 	s
 
+and make_module_type ctx t =
+	let r = alloc_tmp ctx HType in
+	let t = (match t with
+	| TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params)
+	| TEnumDecl e -> TEnum (e,List.map (fun _ -> t_dynamic) e.e_params)
+	| TAbstractDecl a -> TAbstract (a,List.map (fun _ -> t_dynamic) a.a_params)
+	| TTypeDecl t -> TType (t, List.map (fun _ -> t_dynamic) t.t_params)
+	) in
+	op ctx (OType (r,to_type ctx t));
+	r
+
 and eval_expr ctx e =
 	set_curpos ctx e.epos;
 	match e.eexpr with
@@ -1579,15 +1590,7 @@ and eval_expr ctx e =
 			let v = eval_to ctx v HDyn in
 			let t = (match t.eexpr with
 			| TTypeExpr t ->
-				let r = alloc_tmp ctx HType in
-				let t = (match t with
-				| TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params)
-				| TEnumDecl e -> TEnum (e,List.map (fun _ -> t_dynamic) e.e_params)
-				| TAbstractDecl a -> TAbstract (a,List.map (fun _ -> t_dynamic) a.a_params)
-				| TTypeDecl t -> TType (t, List.map (fun _ -> t_dynamic) t.t_params)
-				) in
-				op ctx (OType (r,to_type ctx t));
-				r
+				make_module_type ctx t
 			| _ ->
 				let r = eval_to ctx t (class_type ctx ctx.base_type [] false) in
 				let t = alloc_tmp ctx HType in
@@ -2270,8 +2273,14 @@ and eval_expr ctx e =
 		let re = eval_expr ctx ev in
 		if safe_cast (rtype ctx re) (rtype ctx r) then
 			op ctx (OMov (r,re))
-		else
-			error "TODO : safe-cast" e.epos;
+		else begin
+			let rb = alloc_tmp ctx HBool in
+			let rt = make_module_type ctx t in
+			op ctx (OCall2 (rb,alloc_std ctx "type_check" [HType;HDyn] HBool,rt,re));
+			let jnext = jump ctx (fun n -> OJTrue (rb,n)) in
+			op ctx (OThrow((make_string ctx "Class cast error") e.epos));
+			jnext()
+		end;
 		r
 
 and gen_assign_op ctx acc e1 f =
