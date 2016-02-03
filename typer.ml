@@ -133,6 +133,13 @@ let get_iterable_param t =
 			raise Not_found)
 	| _ -> raise Not_found
 
+let select_abstract_with a pl loop =
+	let l = List.fold_left (fun acc t -> match loop (apply_params a.a_params pl t) with None -> acc | Some t -> t :: acc) [] a.a_from in
+	let l = List.fold_left (fun acc (t,f) -> match loop (apply_params f.cf_params pl t) with None -> acc | Some t -> t :: acc) l a.a_from_field in
+	match l with
+	| [t] -> Some t (* only once choice possible *)
+	| _ -> None
+
 (*
 	temporally remove the constant flag from structures to allow larger unification
 *)
@@ -3024,21 +3031,20 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let dynamic_parameter = ref None in
 		let a = (match with_type with
 		| WithType t ->
-			(match follow t with
-			| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
-			(* issues with https://github.com/HaxeFoundation/haxe/issues/3437 *)
-(* 			| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) && a.a_from <> [] ->
-				begin match follow (Abstract.get_underlying_type a tl) with
-					| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
-					| _ -> None
-				end *)
-			| TDynamic t when (follow t != t_dynamic) ->
-				dynamic_parameter := Some t;
-				Some {
-					a_status = ref Closed;
-					a_fields = PMap.empty;
-				}
-			| _ -> None)
+			let rec loop t =
+				(match follow t with
+				| TAnon a when not (PMap.is_empty a.a_fields) -> Some a
+				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+					select_abstract_with a pl loop
+				| TDynamic t when (follow t != t_dynamic) ->
+					dynamic_parameter := Some t;
+					Some {
+						a_status = ref Closed;
+						a_fields = PMap.empty;
+					}
+				| _ -> None)
+			in
+			loop t
 		| _ -> None
 		) in
 		let wrap_quoted_meta e =
@@ -3195,18 +3201,23 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EArrayDecl el ->
 		let tp = (match with_type with
 		| WithType t ->
-			(match follow t with
-			| TInst ({ cl_path = [],"Array" },[tp]) ->
-				(match follow tp with
-				| TMono _ -> None
-				| _ -> Some tp)
-			| TAnon _ ->
-				(try
-					Some (get_iterable_param t)
-				with Not_found ->
-					None)
-			| t ->
-				if t == t_dynamic then Some t else None)
+			let rec loop t =
+				(match follow t with
+				| TInst ({ cl_path = [],"Array" },[tp]) ->
+					(match follow tp with
+					| TMono _ -> None
+					| _ -> Some tp)
+				| TAnon _ ->
+					(try
+						Some (get_iterable_param t)
+					with Not_found ->
+						None)
+				| TAbstract (a,pl) ->
+					select_abstract_with a pl loop
+				| t ->
+					if t == t_dynamic then Some t else None)
+			in
+			loop t
 		| _ ->
 			None
 		) in
