@@ -138,20 +138,19 @@ let get_iterable_param t =
 			raise Not_found)
 	| _ -> raise Not_found
 
-let select_abstract_with a pl loop =
-	let l = List.fold_left (fun acc t -> match loop (apply_params a.a_params pl t) with None -> acc | Some t -> t :: acc) [] a.a_from in
-	let l = List.fold_left (fun acc (t,f) ->
+let get_abstract_froms a pl =
+	let l = List.map (apply_params a.a_params pl) a.a_from in
+	List.fold_left (fun acc (t,f) ->
 		match follow (field_type f) with
 		| TFun ([_,_,v],t) ->
-			ignore(type_eq EqStrict t (TAbstract(a,pl))); (* unify monomorphs *)
-			(match loop v with
-			| None -> acc
-			| Some t -> t :: acc)
-		| _ -> assert false
-	) l a.a_from_field in
-	match l with
-	| [t] -> Some t (* only once choice possible *)
-	| _ -> None
+			(try
+				ignore(type_eq EqStrict t (TAbstract(a,List.map dup pl))); (* unify fields monomorphs *)
+				v :: acc
+			with Unify_error _ ->
+				acc)
+		| _ ->
+			acc
+	) l a.a_from_field
 
 (*
 	temporally remove the constant flag from structures to allow larger unification
@@ -3048,18 +3047,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				match follow t with
 				| TAnon a when not (PMap.is_empty a.a_fields) -> ODKWithStructure a
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-					let l = List.fold_left (fun acc t -> match loop (apply_params a.a_params pl t) with ODKPlain -> acc | t -> t :: acc) [] a.a_from in
-					let l = List.fold_left (fun acc (t,f) ->
-						match follow (Type.field_type f) with
-						| TFun ([_,_,v],t) ->
-							ignore(type_eq EqStrict t (TAbstract(a,pl))); (* unify monomorphs *)
-							(match loop v with
-							| ODKPlain -> acc
-							| t -> t :: acc)
-						| _ -> assert false
-					) l a.a_from_field in
-					(match l with
-					| [t] -> t (* only once choice possible *)
+					(match List.fold_left (fun acc t -> match loop t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+					| [t] -> t
 					| _ -> ODKPlain)
 				| TDynamic t when (follow t != t_dynamic) ->
 					dynamic_parameter := Some t;
@@ -3279,7 +3268,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					with Not_found ->
 						None)
 				| TAbstract (a,pl) ->
-					select_abstract_with a pl loop
+					(match List.fold_left (fun acc t -> match loop t with None -> acc | Some t -> t :: acc) [] (get_abstract_froms a pl) with
+					| [t] -> Some t
+					| _ -> None)
 				| t ->
 					if t == t_dynamic then Some t else None)
 			in
