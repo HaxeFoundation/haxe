@@ -160,6 +160,7 @@ module Meta = struct
 		| Strict
 		| Struct
 		| StructAccess
+		| StructInit
 		| SuppressWarnings
 		| This
 		| Throws
