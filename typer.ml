@@ -135,7 +135,15 @@ let get_iterable_param t =
 
 let select_abstract_with a pl loop =
 	let l = List.fold_left (fun acc t -> match loop (apply_params a.a_params pl t) with None -> acc | Some t -> t :: acc) [] a.a_from in
-	let l = List.fold_left (fun acc (t,f) -> match loop (apply_params f.cf_params pl t) with None -> acc | Some t -> t :: acc) l a.a_from_field in
+	let l = List.fold_left (fun acc (t,f) ->
+		match follow (field_type f) with
+		| TFun ([_,_,v],t) ->
+			ignore(type_eq EqStrict t (TAbstract(a,pl))); (* unify monomorphs *)
+			(match loop v with
+			| None -> acc
+			| Some t -> t :: acc)
+		| _ -> assert false
+	) l a.a_from_field in
 	match l with
 	| [t] -> Some t (* only once choice possible *)
 	| _ -> None
