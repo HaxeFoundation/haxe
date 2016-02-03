@@ -144,7 +144,7 @@ class Boot {
 
 
 	public static function defArray(tab: Dynamic, length : Int) : Array<Dynamic>  untyped {
-		return untyped __tabArray(tab, length);
+		return untyped _hx_tabArray(tab, length);
 	}
 
 	public static function urlDecode(str:String){

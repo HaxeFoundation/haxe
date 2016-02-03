@@ -364,7 +364,7 @@ let rec gen_call ctx e el in_value =
 			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
 		(* TODO: Array declaration helper *)
-		spr ctx "__tabArray({";
+		spr ctx "_hx_tabArray({";
 		let count = ref 0 in
 		concat ctx "," (fun (name,data) ->
 			if (!count == 0) then spr ctx "[0]=";
@@ -387,7 +387,7 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx infos;
 			spr ctx ")";
 		end else begin
-			spr ctx "print(";
+			spr ctx "_hx_print(";
 			gen_value ctx e;
 			spr ctx ")";
 		end
@@ -442,10 +442,10 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx x;
 		print ctx ")";
 	| TField (x,FClosure (_,f)) ->
-		add_feature ctx "use._bind";
+		add_feature ctx "use._hx_bind";
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
-			print ctx "_bind(";
+			print ctx "_hx_bind(";
 			gen_value ctx x;
 			print ctx ",";
 			gen_value ctx x;
@@ -453,7 +453,7 @@ and gen_expr ?(local=true) ctx e = begin
 		| _ ->
 			print ctx "(__=";
 			gen_value ctx x;
-			print ctx ",_bind(__,__%s))" (field f.cf_name))
+			print ctx ",_hx_bind(__,__%s))" (field f.cf_name))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
@@ -520,7 +520,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    gen_call ctx e el false;
 		end;
 	| TArrayDecl el ->
-		spr ctx "__tabArray({";
+		spr ctx "_hx_tabArray({";
 		let count = ref 0 in
 		List.iteri (fun i e ->
 		    incr count;
@@ -646,7 +646,7 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		spr ctx "_G.bit.bnot(";
+		spr ctx "_hx_bit.bnot(";
 		gen_value ctx e;
 		spr ctx ")";
 	| TUnop (op,Ast.Prefix,e) ->
@@ -687,7 +687,7 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "end"; newline ctx;
 		spr ctx "break end";
 	| TObjectDecl fields ->
-		spr ctx "_G.__anon(";
+		spr ctx "_hx_anon(";
 		concat ctx ", " (fun (f,e) -> print ctx "\"%s\", " f; gen_value ctx e) fields;
 		spr ctx ")";
 		ctx.separator <- true
@@ -983,7 +983,7 @@ and gen_value ctx e =
 	(* TODO: this is just a hack because this specific case is a TestReflect unit test. I don't know how to address this properly
 	   at the moment. - Simon *)
 	| TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
-	    spr ctx "_G.__staticToInstance(";
+	    spr ctx "_hx_staticToInstance(";
 	    gen_expr ctx e1;
 	    spr ctx ")";
 	| TCast (e1, Some t) ->
@@ -1194,7 +1194,7 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
-    print ctx "_G.bit.%s(" (match op with
+    print ctx "_hx_bit.%s(" (match op with
 	| Ast.OpXor  ->  "bxor"
 	| Ast.OpAnd  ->  "band"
 	| Ast.OpShl  ->  "lshift"
@@ -1385,7 +1385,7 @@ let generate_class ctx c =
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					print ctx "local self = __anon();";
+					print ctx "local self = _hx_anon();";
 					newline ctx;
 					if (has_prototype ctx c) then (
 					    print ctx "getmetatable(self).__index=%s.prototype" p; newline ctx;
@@ -1443,7 +1443,7 @@ let generate_class ctx c =
 
 	newline ctx;
 	if (has_prototype ctx c) then begin
-		print ctx "%s.prototype = _G.__anon(" p;
+		print ctx "%s.prototype = _hx_anon(" p;
 		let bend = open_block ctx in
 		newline ctx;
 		let count = ref 0 in
@@ -1497,8 +1497,8 @@ let generate_enum ctx e =
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
 	    end;
-	    (* TODO :  Come up with a helper function for __tabArray declarations *)
-	    spr ctx " __constructs__ = __tabArray({";
+	    (* TODO :  Come up with a helper function for _hx_tabArray declarations *)
+	    spr ctx " __constructs__ = _hx_tabArray({";
 	    if ((List.length e.e_names) > 0) then begin
 		    spr ctx "[0]=";
 		    spr ctx (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1520,14 +1520,14 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s)  local _x = __tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
+			print ctx "function(%s)  local _x = _hx_tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			print ctx "__tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
+			print ctx "_hx_tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
 			newline ctx;
 			if has_feature ctx "may_print_enum" then begin
 				print ctx "%s%s.toString = _estr" p (field f.ef_name);
@@ -1545,7 +1545,7 @@ let generate_enum ctx e =
 				| _ -> true
 		) e.e_names in
 		print ctx "%s.__empty_constructs__ = " p;
-		spr ctx "__tabArray({";
+		spr ctx "_hx_tabArray({";
 		if (List.length ctors_without_args)  > 0 then
 		    begin
 			spr ctx "[0] = ";
@@ -1622,14 +1622,14 @@ let generate_type_forward ctx = function
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
-		    print ctx "%s = __anon() " p;
+		    print ctx "%s = _hx_anon() " p;
 		end
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
-		print ctx "%s = __anon() " p;
+		print ctx "%s = _hx_anon() " p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 
@@ -1678,10 +1678,10 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
-	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') bit = bit or bit32"; newline ctx;
-	spr ctx "print = print or (function()end)"; newline ctx;
+	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') local _hx_bit = bit or bit32"; newline ctx;
+	spr ctx "local _hx_print = print or (function()end)"; newline ctx;
 
-	spr ctx "__anon = function(...)"; newline ctx;
+	spr ctx "local _hx_anon = function(...)"; newline ctx;
 	spr ctx "   local ret = {__fields__ = {}};"; newline ctx;
 	spr ctx "   local max = select('#',...);"; newline ctx;
 	spr ctx "   local tab = {...};"; newline ctx;
@@ -1696,7 +1696,7 @@ let generate com =
 	spr ctx "   return ret; "; newline ctx;
 	spr ctx "end"; newline ctx;
 
-	spr ctx "__staticToInstance = function(tab)"; newline ctx;
+	spr ctx "local _hx_staticToInstance = function(tab)"; newline ctx;
 	spr ctx "   return _G.setmetatable({}, {"; newline ctx;
 	spr ctx "	__index = function(t,k)"; newline ctx;
 	spr ctx "	    if _G.type(rawget(tab,k)) == 'function' then "; newline ctx;
@@ -1711,7 +1711,7 @@ let generate com =
 	spr ctx "end"; newline ctx;
 
 
-	spr ctx "_hxClasses = {}"; semicolon ctx; newline ctx;
+	spr ctx "local _hxClasses = {}"; semicolon ctx; newline ctx;
 	let vars = [] in
 	(* let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in *)
 	let vars = if has_feature ctx "may_print_enum"
@@ -1730,7 +1730,7 @@ let generate com =
 	newline ctx;
 	spr ctx "--[[end class hoists--]]"; newline ctx;
 
-	spr ctx "__tabArray = function(tab,length)"; newline ctx;
+	spr ctx "local _hx_tabArray = function(tab,length)"; newline ctx;
 	spr ctx "   tab.length = length"; newline ctx;
 	spr ctx "   setmetatable(tab, {"; newline ctx;
 	spr ctx "	__index = Array.prototype,"; newline ctx;
@@ -1750,7 +1750,7 @@ let generate com =
 	newline ctx;
 	spr ctx "--[[end __init__ hoist --]]"; newline ctx;
 
-	spr ctx "local _bind = {}";
+	spr ctx "local _hx_bind = {}";
 	newline ctx;
 
 	List.iter (generate_type ctx) com.types;
@@ -1758,19 +1758,19 @@ let generate com =
 		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
 		match e.eexpr with
 		| TField (_,FClosure _) ->
-			add_feature ctx "use._bind"
+			add_feature ctx "use._hx_bind"
 		| _ ->
 			Type.iter chk_features e
 	in
 	List.iter chk_features ctx.inits;
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
-		add_feature ctx "use._bind";
-		print ctx "function _iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _bind(o,o.iterator) : o.iterator; }";
+		add_feature ctx "use._hx_bind";
+		print ctx "function _iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _hx_bind(o,o.iterator) : o.iterator; }";
 		newline ctx;
 	end;
-	if has_feature ctx "use._bind" then begin
-		print ctx "_bind = lua.Boot.bind";
+	if has_feature ctx "use._hx_bind" then begin
+		print ctx "_hx_bind = lua.Boot.bind";
 		newline ctx;
 	end;
 

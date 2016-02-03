@@ -150,7 +150,7 @@ import lua.Boot;
 				b[k-1] = v
 				l = math.max(k,l)
 			end
-			return f(__tabArray(b, l))
+			return f(_hx_tabArray(b, l))
 		end");
 	}
 

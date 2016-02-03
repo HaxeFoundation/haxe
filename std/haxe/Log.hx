@@ -94,7 +94,7 @@ class Log {
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
 			#elseif lua
-			untyped print(lua.Boot.__string_rec(str));
+			untyped __lua__("_hx_print({0})", lua.Boot.__string_rec(str));
 			#end
 		#elseif (python)
 			var str:String = null;

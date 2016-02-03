@@ -3,7 +3,7 @@ package lua;
   Externs for the "bit" class that is required for haxe lua
 **/
 
-@:native("_G.bit")
+@:native("_hx_bit")
 extern class Bit {
 	public static function bnot(x:Float) : Int;
 	public static function band(a:Float, b:Float) : Int;
