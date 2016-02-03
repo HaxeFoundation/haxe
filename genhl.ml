@@ -357,7 +357,7 @@ let rec tsame t1 t2 =
 let is_nullable t =
 	match t with
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ -> true
-	| _ -> false
+	| HI8 | HI16 | HI32 | HF32 | HF64 | HBool | HVoid | HType -> false
 
 (*
 	does the runtime value carry its type
@@ -650,7 +650,7 @@ let rec to_type ctx t =
 			| [], "Dynamic" -> HDyn
 			| [], "Class" ->
 				let c, pl, s = (match follow (List.hd pl) with
-					| TDynamic _ | TInst ({cl_kind = KTypeParameter _ },_) | TMono _ -> ctx.base_class, [], false
+					| TDynamic _ | TInst ({cl_kind = KTypeParameter _ },_) | TMono _ | TAnon _ -> ctx.base_class, [], false
 					| TInst (c,pl) -> c, pl, true
 					| t -> assert false
 				) in
@@ -924,6 +924,19 @@ let shl ctx idx v =
 	op ctx (OShl (idx2, idx, reg_int ctx v));
 	idx2
 
+let set_default ctx r =
+	match rtype ctx r with
+	| HI8 | HI16 | HI32 ->
+		op ctx (OInt (r,alloc_i32 ctx 0l))
+	| HF32 | HF64 ->
+		op ctx (OFloat (r,alloc_float ctx 0.))
+	| HBool ->
+		op ctx (OBool (r, false))
+	| HType ->
+		op ctx (OType (r, HVoid))
+	| _ ->
+		op ctx (ONull r)
+
 let read_mem ctx rdst bytes index t =
 	match t with
 	| HI8 ->
@@ -1143,9 +1156,7 @@ and get_access ctx e =
 			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl false) f)
 		| FInstance (cdef,pl,f), _ | FClosure (Some (cdef,pl), f), _ ->
 			object_access ctx ethis (class_type ctx cdef pl false) f
-		| FClosure (None,_), _ ->
-			assert false
-		| FAnon f, _ ->
+		| (FAnon f | FClosure(None,f)), _ ->
 			object_access ctx ethis (to_type ctx ethis.etype) f
 		| FDynamic name, _ ->
 			ADynamic (ethis, alloc_string ctx name)
@@ -1206,9 +1217,9 @@ and array_read ctx ra (at,vt) ridx p =
 		(* check bounds *)
 		let length = alloc_tmp ctx HI32 in
 		op ctx (OField (length,ra,0));
-		let r = alloc_tmp ctx at in
+		let r = alloc_tmp ctx vt in
 		let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
-		op ctx (ONull r);
+		set_default ctx r;
 		let jend = jump ctx (fun i -> OJAlways i) in
 		j();
 		let tmp = alloc_tmp ctx HDyn in
@@ -1867,13 +1878,13 @@ and eval_expr ctx e =
 				let r = value() in
 				op ctx (OMov (l, r));
 				r
-			| AArray (ra,(at,_),ridx) ->
-				let v = value() in
+			| AArray (ra,(at,vt),ridx) ->
+				let v = cast_to ctx (value()) vt e.epos in
 				(* bounds check against length *)
 				(match at with
 				| HDyn ->
 					(* call setDyn() *)
-					op ctx (OCallMethod (alloc_tmp ctx HVoid,1,[ra;ridx;v]));
+					op ctx (OCallMethod (alloc_tmp ctx HVoid,1,[ra;ridx;cast_to ctx v HDyn e.epos]));
 				| _ ->
 					let len = alloc_tmp ctx HI32 in
 					op ctx (OField (len,ra,0)); (* length *)
@@ -1956,7 +1967,7 @@ and eval_expr ctx e =
 			| HI8 -> 0xFFl
 			| HI16 -> 0xFFFFl
 			| HI32 -> 0xFFFFFFFFl
-			| _ -> assert false
+			| _ -> error (tstr t) e.epos
 		) in
 		let r2 = alloc_tmp ctx t in
 		op ctx (OInt (r2,alloc_i32 ctx mask));
@@ -2083,7 +2094,7 @@ and eval_expr ctx e =
 			let at = if is_dynamic et then et else HDyn in
 			let a = alloc_tmp ctx HArray in
 			let rt = alloc_tmp ctx HType in
-			op ctx (OType (rt,et));
+			op ctx (OType (rt,at));
 			let size = reg_int ctx (List.length el) in
 			op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] HArray,rt,size));
 			list_iteri (fun i e ->
@@ -2150,25 +2161,26 @@ and eval_expr ctx e =
 		with Exit ->
 			let jends = ref [] in
 			let rvalue = eval_expr ctx en in
-			let rec loop next (cases,e) =
-				let next = List.fold_left (fun next c ->
-					next();
+			let loop (cases,e) =
+				let ok = List.map (fun c ->
 					let r = eval_to ctx c (common_type ctx en c true c.epos) in
-					let j = jump ctx (fun n -> OJNeq (r,rvalue,n)) in
-					j
-				) next cases in
-				let re = eval_to ctx e rt in
-				if rt <> HVoid then op ctx (OMov (r,re));
-				jends := jump ctx (fun n -> OJAlways n) :: !jends;
-				next
+					jump ctx (fun n -> OJEq (r,rvalue,n))
+				) cases in
+				(fun() ->
+					List.iter (fun f -> f()) ok;
+					let re = eval_to ctx e rt in
+					if rt <> HVoid then op ctx (OMov (r,re));
+					jends := jump ctx (fun n -> OJAlways n) :: !jends)
 			in
-			let j = List.fold_left loop (fun() -> ()) cases in
-			j();
+			let all = List.map loop cases in
 			(match def with
-			| None -> if rt <> HVoid then op ctx (ONull r)
+			| None ->
+				if rt <> HVoid then op ctx (ONull r)
 			| Some e ->
 				let rdef = eval_to ctx e rt in
 				if rt <> HVoid then op ctx (OMov (r,rdef)));
+			jends := jump ctx (fun n -> OJAlways n) :: !jends;
+			List.iter (fun f -> f()) all;
 			List.iter (fun j -> j()) (!jends);
 		);
 		r
