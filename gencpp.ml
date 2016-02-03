@@ -1574,6 +1574,7 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
 
 
       let pop_real_this_ptr = clear_real_this_ptr ctx true in
+      ctx.ctx_real_void <- false;
 
       writer#begin_block;
       if (ctx.ctx_debug_level>0) then begin
