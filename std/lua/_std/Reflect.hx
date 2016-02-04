@@ -65,17 +65,27 @@ import lua.Boot;
 		if (args == null || args.length == 0){
 			return func(o);
 		} else {
-			var new_args:lua.Table<Int,String> = untyped __lua_table__(o);
+			var self_arg = false;
 			if (o != null && Type.getClass(o) != null){
 				// if o is not null, it means we need to pass it as the "self"
 				// parameter.  However, we should also check to see if it's
 				// a valid class instance in the first place.
-				new_args[2] = args[0];
-			} else {
-				new_args[1] = args[0];
+				// TODO: Find a more flexible way of determining if we need
+				// self or not
+				self_arg = true;
 			}
-			new_args = lua.PairTools.ipairsConcat(new_args, cast args);
-			return func(lua.Table.unpack(new_args));
+			var new_args = lua.Boot.createTable();
+			for (i in 0...args.length){
+				// copy args to 1-indexed table
+				new_args[i + 1] = args[i];
+			}
+			return if (self_arg){
+				// call with o as leading self param
+				func(o, lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+			} else {
+				// call with no self param
+				func(lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+			}
 		}
 	}
 
