@@ -24,19 +24,24 @@ class Type {
 		allTypes.set(b, t);
 	}
 
-	@:hlNative("std","type_get_class")
 	public static function getClass<T>( o : T ) : Class<T> {
+		var t = hl.types.Type.getDynamic(o);
+		if( t.kind == HObj )
+			return t.getGlobal();
 		return null;
 	}
 
-	@:hlNative("std","type_get_enum")
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> {
+		var t = hl.types.Type.getDynamic(o);
+		if( t.kind == HEnum )
+			return t.getGlobal();
 		return null;
 	}
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		throw "TODO";
-		return null;
+	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> @:privateAccess {
+		var c : hl.types.BaseType.Class = cast c;
+		var t = c.__type__.getSuper();
+		return t == hl.types.Type.get((null : Void)) ? null : t.getGlobal();
 	}
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
@@ -85,7 +90,7 @@ class Type {
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
 		var e : hl.types.BaseType.Enum = cast e;
 		if( index < 0 || index >= e.__constructs__.length ) throw "Invalid enum index " + e.__ename__ +"." + index;
-		if( params == null ) {
+		if( params == null || params.length == 0 ) {
 			var v = index >= e.__evalues__.length ? null : e.__evalues__[index];
 			if( v == null ) throw "Constructor " + e.__ename__ +"." + e.__constructs__[index] + " takes parameters";
 			return v;
@@ -113,7 +118,8 @@ class Type {
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		var c : hl.types.BaseType.Class = cast c;
-		var fields = Reflect.fields(c);
+		var fields = @:privateAccess Reflect.getObjectFields(c, false);
+		var fields = [for( f in fields ) @:privateAccess String.__alloc__(f, f.ucs2Length(0))];
 		fields.remove("__constructor__");
 		fields.remove("__meta__");
 		fields.remove("__name__");

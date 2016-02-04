@@ -24,8 +24,8 @@ import hl.Boot;
 @:coreApi
 class Std {
 
+	@:hlNative("std","random")
 	public static function random( x : Int ) : Int {
-		throw "TODO:Std.random";
 		return 0;
 	}
 
@@ -48,10 +48,12 @@ class Std {
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
+		if( x == null ) return null;
 		return @:privateAccess x.bytes.parseInt(0, x.length<<1);
 	}
 
 	public static function parseFloat( x : String ) : Float {
+		if( x == null ) return Math.NaN;
 		return @:privateAccess x.bytes.parseFloat(0, x.length<<1);
 	}
 

@@ -72,12 +72,12 @@ class Reflect {
 		return hl.types.Api.callMethod(func,a);
 	}
 
-	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic ) : hl.types.NativeArray<hl.types.Bytes> {
+	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic, rec : Bool ) : hl.types.NativeArray<hl.types.Bytes> {
 		return null;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		var fields = getObjectFields(o);
+		var fields = getObjectFields(o, true);
 		if( fields == null ) return [];
 		return [for( f in fields ) @:privateAccess String.__alloc__(f,f.ucs2Length(0))];
 	}
@@ -97,21 +97,21 @@ class Reflect {
 	}
 
 	public static function isObject( v : Dynamic ) : Bool {
-		throw "TODO";
-		return false;
+		var t = hl.types.Type.getDynamic(v);
+		return switch( t.kind ) { case HObj, HDynObj, HVirtual: true; default: false; }
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		throw "TODO";
-		return false;
+		var t = hl.types.Type.getDynamic(v);
+		return t.kind == HEnum;
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		return hl.types.Api.deleteField(o,@:privateAccess field.bytes.hash());
 	}
 
+	@:hlNative("std","obj_copy")
 	public static function copy<T>( o : T ) : T {
-		throw "TODO";
 		return null;
 	}
 

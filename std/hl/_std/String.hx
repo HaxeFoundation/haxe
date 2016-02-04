@@ -46,22 +46,18 @@ class String {
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
-		var size = length << 1;
-		var lastByte = size;
-		if( startIndex != null && startIndex < length ) {
-			if( startIndex <= 0 )
-				return -1;
-			lastByte = startIndex << 1;
-		}
-		var last = -1;
-		var pos = 0;
+		var last = 0;
+		var start = this.length;
+		if( startIndex != null )
+			start = startIndex;
+		start <<= 1;
 		while( true ) {
-			var p = bytes.find(pos, size - pos, str.bytes, 0, str.length << 1);
-			if( p < 0 || p >= lastByte ) break;
-			last = p >> 1;
-			pos = p + 1;
+			var p = bytes.find(last, (length << 1) - last, str.bytes, 0, str.length << 1);
+			if( p < 0 || p > start )
+				return (last >> 1) - 1;
+			last = p + 2;
 		}
-		return last;
+		return -1;
 	}
 
 	public function split( delimiter : String ) : Array<String> {
@@ -94,21 +90,15 @@ class String {
 		var sl = length;
 		var len : Int = if( len == null ) sl else len;
 		if( len == 0 ) return "";
-
 		if( pos != 0 && len < 0 )
 			return "";
-
-		if( pos < 0 ){
+		if( pos < 0 ) {
 			pos = sl + pos;
 			if( pos < 0 ) pos = 0;
-		}else if( len < 0 ){
+		} else if( len < 0 )
 			len = sl + len - pos;
-		}
-
-		if( pos + len > sl ){
+		if( pos + len > sl )
 			len = sl - pos;
-		}
-
 		if( pos < 0 || len <= 0 ) return "";
 
 		var b = new hl.types.Bytes((len + 1) << 1);
@@ -123,16 +113,21 @@ class String {
 			end = length;
 		else {
 			end = endIndex;
-			if( end < 0 ) end = 0;
-			else if( end > length ) end = length;
+			if( end < 0 )
+				end = 0;
+			else if ( end > length )
+				end = length;
 		}
-		if( startIndex < 0 ) startIndex = 0 else if ( startIndex > length ) startIndex = length;
+		if( startIndex < 0 )
+			startIndex = 0;
+		else if ( startIndex > length )
+			startIndex = length;
 		if( startIndex > end ) {
 			var tmp = startIndex;
 			startIndex = end;
 			end = tmp;
 		}
-		return substr( startIndex, endIndex - startIndex );
+		return substr( startIndex, end - startIndex );
 	}
 
 	public function toString() : String {

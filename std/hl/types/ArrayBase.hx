@@ -94,6 +94,21 @@ class ArrayBase extends ArrayAccess {
 
 }
 
+@:generic
+class BasicIterator<T> {
+	var pos : Int;
+	var a : ArrayBasic<T>;
+	public function new(a) {
+		this.a = a;
+	}
+	public function hasNext() {
+		return pos < a.length;
+	}
+	public function next() : T {
+		return @:privateAccess a.bytes.get(pos++);
+	}
+}
+
 @:generic class ArrayBasic<T> extends ArrayBase {
 
 	var bytes : hl.types.BytesAccess<T>;
@@ -178,12 +193,18 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public function remove( x : T ) : Bool {
-		throw "TODO";
-		return false;
+		var idx = indexOf(x);
+		if( idx < 0 )
+			return false;
+		length--;
+		(bytes : hl.types.Bytes).blit(idx<<bytes.sizeBits,bytes,(idx + 1)<<bytes.sizeBits,(length - idx)<<bytes.sizeBits);
+		return true;
 	}
 
 	public function indexOf( x : T, ?fromIndex:Int ) : Int {
-		throw "TODO";
+		for( i in (fromIndex == null ? 0 : fromIndex)...length )
+			if( bytes[i] == x )
+				return i;
 		return -1;
 	}
 
@@ -198,8 +219,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	public function iterator() : Iterator<T> {
-		throw "TODO";
-		return null;
+		return new BasicIterator(this);
 	}
 
 	public function map<S>( f : T -> S ) : ArrayDyn {

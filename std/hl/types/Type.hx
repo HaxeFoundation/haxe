@@ -56,6 +56,14 @@ abstract TypeKind(Int) {
 		return null;
 	}
 
+	@:hlNative("std","type_get_global") public function getGlobal() : Dynamic {
+		return null;
+	}
+
+	@:hlNative("std","type_super") public function getSuper() : Type {
+		return null;
+	}
+
 	@:hlNative("std","type_enum_fields") public function getEnumFields() : NativeArray<Bytes> {
 		return null;
 	}

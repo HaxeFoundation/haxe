@@ -1340,12 +1340,12 @@ and eval_expr ctx e =
 		);
 		alloc_tmp ctx HVoid
 	| TLocal v ->
-		(match captured_index ctx v with
+		cast_to ctx (match captured_index ctx v with
 		| None -> alloc_reg ctx v
 		| Some idx ->
 			let r = alloc_tmp ctx (to_type ctx v.v_type) in
 			op ctx (OEnumField (r, ctx.m.mcaptreg, 0, idx));
-			r)
+			r) (to_type ctx e.etype) e.epos
 	| TReturn None ->
 		before_return ctx;
 		let r = alloc_tmp ctx HVoid in
@@ -1650,15 +1650,16 @@ and eval_expr ctx e =
 			r
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
-	| TCall (ec,el) ->
+	| TCall (ec,args) ->
 		let real_type = (match ec.eexpr with
 			| TField (_,f) -> field_type ctx f ec.epos
 			| TLocal v -> v.v_type
 			| _ -> ec.etype
 		) in
 		let tfun = to_type ctx real_type in
-		let el() = eval_args ctx el tfun e.epos in
+		let el() = eval_args ctx args tfun e.epos in
 		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn) in
+		let def_ret = ref None in
 		(match get_access ctx ec with
 		| AStaticFun f ->
 			(match el() with
@@ -1689,9 +1690,14 @@ and eval_expr ctx e =
 			op ctx (OCallClosure (ret, r, el())); (* if it's a value, it's a closure *)
 		| _ ->
 			let r = eval_null_check ctx ec in
+			(* don't use real_type here *)
+			let tfun = to_type ctx ec.etype in
+			let el() = eval_args ctx args tfun e.epos in
+			let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn) in
 			op ctx (OCallClosure (ret, r, el())); (* if it's a value, it's a closure *)
+			def_ret := Some (unsafe_cast_to ctx ret (to_type ctx e.etype) e.epos);
 		);
-		unsafe_cast_to ctx ret (to_type ctx e.etype) e.epos
+		(match !def_ret with None -> unsafe_cast_to ctx ret (to_type ctx e.etype) e.epos | Some r -> r)
 	| TField (ec,FInstance({ cl_path = [],"Array" },[t],{ cf_name = "length" })) when to_type ctx t = HDyn ->
 		let r = alloc_tmp ctx HI32 in
 		op ctx (OCall1 (r,alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "get_length", eval_null_check ctx ec));
@@ -4443,6 +4449,10 @@ let interp code =
 				(function
 				| [VBytes str] -> print_string (hl_to_caml str); VUndef
 				| _ -> assert false)
+			| "sys_time" ->
+				(function
+				| [] -> VFloat (Unix.time())
+				| _ -> assert false)
 			| "sys_exit" ->
 				(function
 				| [VInt code] -> VUndef
@@ -4467,14 +4477,18 @@ let interp code =
 				(function
 				| [VType t;v] -> if v = VNull then v else (match get_type v with None -> assert false | Some vt -> if safe_cast vt t then v else VNull)
 				| _ -> assert false)
-			| "type_get_class" ->
+			| "type_super" ->
 				(function
-				| [VObj o] -> (match o.oproto.pclass.pclassglobal with None -> VNull | Some g -> globals.(g))
-				| _ -> VNull)
-			| "type_get_enum" ->
+				| [VType t] -> VType (match t with HObj { psuper = Some o } -> HObj o | _ -> HVoid)
+				| _ -> assert false)
+			| "type_get_global" ->
 				(function
-				| [VDyn (_,HEnum e)] -> globals.(e.eglobal)
-				| _ -> VNull)
+				| [VType t] ->
+					(match t with
+					| HObj c -> (match c.pclassglobal with None -> VNull | Some g -> globals.(g))
+					| HEnum e -> globals.(e.eglobal)
+					| _ -> VNull)
+				| _ -> assert false)
 			| "type_name" ->
 				(function
 				| [VType t] ->
@@ -4485,16 +4499,22 @@ let interp code =
 				| _ -> assert false)
 			| "obj_fields" ->
 				(function
-				| [VDynObj o] ->
+				| [VDynObj o; VBool _] ->
 					VArray (Array.of_list (Hashtbl.fold (fun n _ acc -> VBytes (caml_to_hl n) :: acc) o.dfields []), HBytes)
-				| [VObj o] ->
+				| [VObj o; VBool isRec] ->
 					let rec loop p =
 						let fields = Array.map (fun (n,_,_) -> VBytes (caml_to_hl n)) p.pfields in
-						match p.psuper with None -> [fields] | Some p -> fields :: loop p
+						match p.psuper with Some p when isRec -> fields :: loop p | _ -> [fields]
 					in
 					VArray (Array.concat (loop o.oproto.pclass), HBytes)
 				| _ ->
 					VNull)
+			| "obj_copy" ->
+				(function
+				| [VDynObj d] ->
+					VDynObj { dfields = Hashtbl.copy d.dfields; dvalues = Array.copy d.dvalues; dtypes = Array.copy d.dtypes; dvirtuals = [] }
+				| [_] -> VNull
+				| _ -> assert false)
 			| "enum_parameters" ->
 				(function
 				| [VDyn (VEnum (idx,pl),HEnum e)] ->
@@ -4554,7 +4574,9 @@ let interp code =
 				(function
 				| [o;VInt hash] ->
 					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
-					dyn_get_field o f HDyn
+					(match o with
+					| VObj _ | VDynObj _ | VVirtual _ -> dyn_get_field o f HDyn
+					| _ -> VNull)
 				| _ -> assert false)
 			| "set_field" ->
 				(function
@@ -4575,6 +4597,35 @@ let interp code =
 								if PMap.mem f p.pindex then let idx, _ = PMap.find f p.pindex in idx >= 0 else match p.psuper with None -> false | Some p -> loop p
 							in
 							loop o.oproto.pclass
+						| VVirtual v -> loop v.vvalue
+						| _ -> false
+					in
+					VBool (loop o)
+				| _ -> assert false)
+			| "delete_field" ->
+				(function
+				| [o;VInt hash] ->
+					let f = (try Hashtbl.find hash_cache hash with Not_found -> assert false) in
+					let rec loop o =
+						match o with
+						| VDynObj d when Hashtbl.mem d.dfields f ->
+							let idx = Hashtbl.find d.dfields f in
+							let count = Array.length d.dvalues in
+							Hashtbl.remove d.dfields f;
+							let fields = Hashtbl.fold (fun name i acc -> (name,if i < idx then i else i - 1) :: acc) d.dfields [] in
+							Hashtbl.clear d.dfields;
+							List.iter (fun (n,i) -> Hashtbl.add d.dfields n i) fields;
+							let vals2 = Array.make (count - 1) VNull in
+							let types2 = Array.make (count - 1) HVoid in
+							let len = count - idx - 1 in
+							Array.blit d.dvalues 0 vals2 0 idx;
+							Array.blit d.dvalues (idx + 1) vals2 idx len;
+							Array.blit d.dtypes 0 types2 0 idx;
+							Array.blit d.dtypes (idx + 1) types2 idx len;
+							d.dvalues <- vals2;
+							d.dtypes <- types2;
+							rebuild_virtuals d;
+							true
 						| VVirtual v -> loop v.vvalue
 						| _ -> false
 					in
@@ -4774,6 +4825,10 @@ let interp code =
 					let str = Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec in
 					regs.(pos) <- to_int (String.length str);
 					VBytes (caml_to_hl str)
+				| _ -> assert false)
+			| "random" ->
+				(function
+				| [VInt max] -> VInt (if max <= 0l then 0l else Random.int32 max)
 				| _ -> assert false)
 			| _ ->
 				unresolved())
