@@ -1682,6 +1682,7 @@ let generate com =
 	spr ctx "local _hx_print = print or (function()end)"; newline ctx;
 	spr ctx "table.pack=table.pack or pack or function(...)return{n=select('#',...),...}end"; newline ctx;
 	spr ctx "table.unpack=table.unpack or unpack or function(t, i)i = i or 1 if t[i] ~= nil then return t[i],table.unpack(t, i + 1)end end"; newline ctx;
+	spr ctx "table.maxn=table.maxn or function(t) local maxn=0 for i in pairs(t)do maxn=type(i)=='number'and i>maxn and i or maxn end return maxn end"; newline ctx;
 	spr ctx "local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end"; newline ctx;
 
 	spr ctx "local _hx_anon = function(...)"; newline ctx;
