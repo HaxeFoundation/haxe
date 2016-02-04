@@ -646,9 +646,9 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		spr ctx "_hx_bit.bnot(";
+		spr ctx "_hx_bitfix(_hx_bit.bnot(";
 		gen_value ctx e;
-		spr ctx ")";
+		spr ctx "))";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -1194,7 +1194,7 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
-    print ctx "_hx_bit.%s(" (match op with
+    print ctx "_hx_bitfix(_hx_bit.%s(" (match op with
 	| Ast.OpXor  ->  "bxor"
 	| Ast.OpAnd  ->  "band"
 	| Ast.OpShl  ->  "lshift"
@@ -1205,7 +1205,7 @@ and gen_bitop ctx op e1 e2 =
     gen_value ctx e1;
     spr ctx ",";
     gen_value ctx e2;
-    spr ctx ")"
+    spr ctx "))"
 
 and gen_return ctx e eo =
     if ctx.in_value <> None then unsupported e.epos;
@@ -1682,6 +1682,7 @@ let generate com =
 	spr ctx "local _hx_print = print or (function()end)"; newline ctx;
 	spr ctx "table.pack=table.pack or pack or function(...)return{n=select('#',...),...}end"; newline ctx;
 	spr ctx "table.unpack=table.unpack or unpack or function(t, i)i = i or 1 if t[i] ~= nil then return t[i],table.unpack(t, i + 1)end end"; newline ctx;
+	spr ctx "local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end"; newline ctx;
 
 	spr ctx "local _hx_anon = function(...)"; newline ctx;
 	spr ctx "   local ret = {__fields__ = {}};"; newline ctx;
