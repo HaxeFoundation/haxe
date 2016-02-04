@@ -1680,6 +1680,8 @@ let generate com =
 
 	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') local _hx_bit = bit or bit32"; newline ctx;
 	spr ctx "local _hx_print = print or (function()end)"; newline ctx;
+	spr ctx "table.pack=table.pack or pack or function(...)return{n=select('#',...),...}end"; newline ctx;
+	spr ctx "table.unpack=table.unpack or unpack or function(t, i)i = i or 1 if t[i] ~= nil then return t[i],table.unpack(t, i + 1)end end"; newline ctx;
 
 	spr ctx "local _hx_anon = function(...)"; newline ctx;
 	spr ctx "   local ret = {__fields__ = {}};"; newline ctx;
