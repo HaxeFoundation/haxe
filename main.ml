@@ -875,6 +875,11 @@ and wait_loop boot_com host port =
 				if ctx.has_error then ssend sin "\x02\n" else cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
+				if verbose then begin
+					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
+					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
+					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
+				end;
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
 				if ctx.com.display <> DMNone then begin
 					let file = (!Parser.resume_display).Ast.pfile in

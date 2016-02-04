@@ -785,12 +785,13 @@ let get_signature com =
 	match com.defines_signature with
 	| Some s -> s
 	| None ->
-		let str = String.concat "@" (PMap.foldi (fun k v acc ->
+		let defines = PMap.foldi (fun k v acc ->
 			(* don't make much difference between these special compilation flags *)
-			match k with
-			| "display" | "use_rtti_doc" | "macrotimes" -> acc
-			| _ -> k :: v :: acc
-		) com.defines []) in
+			match String.concat "_" (ExtString.String.nsplit k "-") with
+			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" -> acc
+			| _ -> (k ^ "=" ^ v) :: acc
+		) com.defines [] in
+		let str = String.concat "@" (List.sort compare defines) in
 		let s = Digest.string str in
 		com.defines_signature <- Some s;
 		s
