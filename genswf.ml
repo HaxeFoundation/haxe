@@ -1111,6 +1111,7 @@ let generate swf_header com =
 	let tags = build_swf9 com file swc in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
+	let scene = tag ~ext:true (TScenes ([(0,"Scene1")],[])) in
 	let swf_debug_password = try
 		Digest.to_hex(Digest.string (Common.defined_value com Define.SwfDebugPassword))
 	with Not_found ->
@@ -1143,7 +1144,7 @@ let generate swf_header com =
 	with Not_found ->
 		[]
 	in
-	let swf = header, fattr @ meta_data @ bg :: debug @ swf_script_limits @ tags @ [tag TShowFrame] in
+	let swf = header, fattr @ meta_data @ bg :: scene :: debug @ swf_script_limits @ tags @ [tag TShowFrame] in
 	(* merge swf libraries *)
 	let priority = ref (swf_header = None) in
 	let swf = List.fold_left (fun swf (file,lib,cl) ->
