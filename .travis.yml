@@ -19,6 +19,9 @@ env:
     - PPA="ppa:haxe/snapshots"
     - DEBFULLNAME="Haxe CI Bot"
     - DEBEMAIL="haxe-ci@onthewings.net"
+    # lua specific versions
+    - LUAROCKS=2.3.0
+    - LUA=lua5.2
 
 sudo: false
 addons:
@@ -139,6 +142,11 @@ install:
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       travis_retry brew install neko --HEAD;
     fi
+  # Install lua specific resources 
+  - source .travis/setenv_lua.sh
+  - pip install --user cpp-coveralls
+  - luarocks install lrexlib-pcre --server=https://luarocks.org/dev
+  - luarocks install luautf8 --server=https://luarocks.org/dev
 
 script:
   # setup database
