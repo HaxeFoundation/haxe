@@ -555,7 +555,7 @@ let swf_ver = function
 
 let convert_header com (w,h,fps,bg) =
 	let high = (max w h) * 20 in
-	let rec loop b =		
+	let rec loop b =
 		if 1 lsl b > high then b else loop (b + 1)
 	in
 	let bits = loop 0 in
@@ -1096,6 +1096,7 @@ let generate com swf_header =
 	let tags = if isf9 then build_swf9 com file swc else build_swf8 com codeclip exports in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
+	let scene = tag ~ext:true (TScenes ([(0,"Scene1")],[])) in
 	let debug = (if isf9 && Common.defined com "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
 	let fattr = (if com.flash_version < 8. then [] else
 		[tag (TFilesAttributes {
@@ -1106,7 +1107,7 @@ let generate com swf_header =
 			fa_direct_blt = false;
 		})]
 	) in
-	let swf = header, fattr @ bg :: debug @ tags @ [tag TShowFrame] in
+	let swf = header, fattr @ bg :: scene :: debug @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in
 	let swf = List.fold_left (fun swf (file,lib,cl) ->
