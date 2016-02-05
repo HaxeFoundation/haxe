@@ -32,6 +32,7 @@ addons:
       - camlp4
       - zlib1g-dev
       - libgc-dev
+      - libpcre3-dev
 
 apt_targets:
   - &apt_cpp    [*apt_common, gcc-multilib, g++-multilib]
@@ -128,7 +129,7 @@ install:
   # Install haxe and neko dependencies
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
     travis_retry brew update;
-    travis_retry brew install ocaml camlp4;
+    travis_retry brew install ocaml camlp4 pcre;
     fi
   # Install neko
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
