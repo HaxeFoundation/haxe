@@ -84,11 +84,13 @@ class BytesBuffer {
 	public inline function addFloat( v : Float ) : Void {
 		if( pos + 4 > size ) __expand(0);
 		b.setF32(pos, v);
+		pos += 4;
 	}
 
 	public inline function addDouble( v : Float ) : Void {
 		if( pos + 8 > size ) __expand(0);
 		b.setF64(pos, v);
+		pos += 8;
 	}
 
 	public inline function addBytes( src : Bytes, pos : Int, len : Int ) : Void {

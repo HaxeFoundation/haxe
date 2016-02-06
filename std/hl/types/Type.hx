@@ -60,6 +60,10 @@ abstract TypeKind(Int) {
 		return null;
 	}
 
+	@:hlNative("std","type_args_count") public function getArgsCount() : Int {
+		return 0;
+	}
+
 	@:hlNative("std","type_super") public function getSuper() : Type {
 		return null;
 	}

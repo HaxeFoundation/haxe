@@ -238,6 +238,7 @@ type method_context = {
 }
 
 type array_impl = {
+	aall : tclass;
 	abase : tclass;
 	adyn : tclass;
 	aobj : tclass;
@@ -672,7 +673,7 @@ and resolve_class ctx c pl statics =
 	in
 	match c.cl_path, pl with
 	| ([],"Array"), [t] ->
-		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
+		if statics then ctx.array_impl.aall else array_class ctx (to_type ctx t)
 	| ([],"Array"), [] ->
 		assert false
 	| _, _ when c.cl_extern ->
@@ -859,7 +860,7 @@ and alloc_global ctx name t =
 
 and class_global ctx c =
 	let static = c != ctx.base_class in
-	let c = if is_array_type (HObj { null_proto with pname = s_type_path c.cl_path }) then ctx.array_impl.abase else c in
+	let c = if is_array_type (HObj { null_proto with pname = s_type_path c.cl_path }) then ctx.array_impl.aall else c in
 	let c = resolve_class ctx c (List.map snd c.cl_params) static in
 	let t = class_type ctx c [] static in
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
@@ -1292,6 +1293,7 @@ and make_string ctx s p =
 and make_module_type ctx t =
 	let r = alloc_tmp ctx HType in
 	let t = (match t with
+	| TClassDecl { cl_path = [],"Array" } -> TInst (ctx.array_impl.aall,[])
 	| TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params)
 	| TEnumDecl e -> TEnum (e,List.map (fun _ -> t_dynamic) e.e_params)
 	| TAbstractDecl a -> TAbstract (a,List.map (fun _ -> t_dynamic) a.a_params)
@@ -1888,12 +1890,12 @@ and eval_expr ctx e =
 				op ctx (OMov (l, r));
 				r
 			| AArray (ra,(at,vt),ridx) ->
-				let v = cast_to ctx (value()) vt e.epos in
+				let v = cast_to ctx (value()) at e.epos in
 				(* bounds check against length *)
 				(match at with
 				| HDyn ->
 					(* call setDyn() *)
-					op ctx (OCallMethod (alloc_tmp ctx HVoid,1,[ra;ridx;cast_to ctx v HDyn e.epos]));
+					op ctx (OCallMethod (alloc_tmp ctx HVoid,1,[ra;ridx;cast_to ctx v (if is_dynamic at then at else HDyn) e.epos]));
 				| _ ->
 					let len = alloc_tmp ctx HI32 in
 					op ctx (OField (len,ra,0)); (* length *)
@@ -1908,7 +1910,7 @@ and eval_expr ctx e =
 					| _ ->
 						let arr = alloc_tmp ctx HArray in
 						op ctx (OField (arr,ra,1));
-						op ctx (OSetArray (arr,ridx,v))
+						op ctx (OSetArray (arr,ridx,cast_to ctx v (if is_dynamic at then at else HDyn) e.epos))
 				);
 				v
 			| ADynamic (ethis,f) ->
@@ -2251,6 +2253,11 @@ and eval_expr ctx e =
 		result
 	| TTypeExpr t ->
 		(match t with
+		| TClassDecl { cl_path = [],"Array" } ->
+			let g, t = class_global ctx ctx.array_impl.aall in
+			let r = alloc_tmp ctx t in
+			op ctx (OGetGlobal (r, g));
+			r
 		| TClassDecl c ->
 			let g, t = class_global ctx c in
 			let r = alloc_tmp ctx t in
@@ -3302,7 +3309,7 @@ let rec is_compatible v t =
 	| VType _, HType -> true
 	| VArray _, HArray -> true
 	| VDynObj _, HDynObj -> true
-	| VVirtual v, HVirtual _ -> tsame (HVirtual v.vtype) t
+	| VVirtual v, HVirtual _ -> safe_cast (HVirtual v.vtype) t
 	| VRef (_,_,t1), HRef t2 -> tsame t1 t2
 	| VAbstract _, HAbstract _ -> true
 	| VEnum _, HEnum _ -> true
@@ -4481,6 +4488,10 @@ let interp code =
 				(function
 				| [VType t] -> VType (match t with HObj { psuper = Some o } -> HObj o | _ -> HVoid)
 				| _ -> assert false)
+			| "type_args_count" ->
+				(function
+				| [VType t] -> to_int (match t with HFun (args,_) -> List.length args | _ -> 0)
+				| _ -> assert false)
 			| "type_get_global" ->
 				(function
 				| [VType t] ->
@@ -4751,6 +4762,11 @@ let interp code =
 			| "no_closure" ->
 				(function
 				| [VClosure (f,_)] -> VClosure (f,None)
+				| _ -> assert false)
+			| "get_closure_value" ->
+				(function
+				| [VClosure (_,None)] -> VNull
+				| [VClosure (_,Some v)] -> v
 				| _ -> assert false)
 			| "bytes_find" ->
 				(function
@@ -5406,6 +5422,7 @@ let generate com =
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
 		array_impl = {
+			aall = get_class "ArrayAccess";
 			abase = get_class "ArrayBase";
 			adyn = get_class "ArrayDyn";
 			aobj = get_class "ArrayObj";

@@ -120,8 +120,13 @@ class BasicIterator<T> {
 	}
 
 	public function concat( a : ArrayBasic<T> ) : ArrayBasic<T> {
-		throw "TODO";
-		return null;
+		var ac = new ArrayBasic<T>();
+		ac.length = ac.size = length + a.length;
+		ac.bytes = new Bytes(ac.length << bytes.sizeBits);
+		var offset = length << bytes.sizeBits;
+		(ac.bytes:Bytes).blit(0, this.bytes, 0, offset);
+		(ac.bytes:Bytes).blit(offset, a.bytes, 0, a.length << bytes.sizeBits);
+		return ac;
 	}
 
 	override function join( sep : String ) : String {
@@ -151,17 +156,46 @@ class BasicIterator<T> {
 	}
 
 	override function reverse() : Void {
-		throw "TODO";
+		for( i in 0...length >> 1 ) {
+			var k = length - 1 - i;
+			var tmp = bytes[i];
+			bytes[i] = bytes[k];
+			bytes[k] = tmp;
+		}
 	}
 
 	public function shift() : Null<T> {
-		throw "TODO";
-		return null;
+		if( length == 0 )
+			return null;
+		var v = bytes[0];
+		length--;
+		(bytes:Bytes).blit(0, bytes, 1 << bytes.sizeBits, length << bytes.sizeBits);
+		return v;
 	}
 
 	public function slice( pos : Int, ?end : Int ) : ArrayBasic<T> {
-		throw "TODO";
-		return null;
+		if( pos < 0 ) {
+			pos = this.length + pos;
+			if( pos < 0 )
+				pos = 0;
+		}
+		var pend : Int;
+		if( end == null )
+			pend = this.length;
+		else {
+			pend = end;
+			if( pend < 0 )
+				pend += this.length;
+			if( pend > this.length )
+				pend = this.length;
+		}
+		var len = pend - pos;
+		if( len < 0 )
+			return new ArrayBasic<T>();
+		var a = new ArrayBasic<T>();
+		a.length = a.size = len;
+		a.bytes = (bytes:Bytes).sub(pos << bytes.sizeBits, len << bytes.sizeBits);
+		return a;
 	}
 
 	public function sort( f : T -> T -> Int ) : Void {
@@ -185,11 +219,19 @@ class BasicIterator<T> {
 	}
 
 	public function unshift( x : T ) : Void {
-		throw "TODO";
+		if( length == size ) __expand(length) else length++;
+		(bytes:Bytes).blit(1<<bytes.sizeBits, bytes, 0, (length - 1) << bytes.sizeBits);
+		bytes[0] = x;
 	}
 
 	public function insert( pos : Int, x : T ) : Void {
-		throw "TODO";
+		if( pos < 0 ) {
+			pos = length + pos;
+			if( pos < 0 ) pos = 0;
+		} else if( pos > length ) pos = length;
+		if( length == size ) __expand(length) else length++;
+		(bytes:Bytes).blit((pos + 1)<<bytes.sizeBits, bytes, pos<<bytes.sizeBits, (length - pos - 1) << bytes.sizeBits);
+		bytes[pos] = x;
 	}
 
 	public function remove( x : T ) : Bool {
@@ -202,34 +244,59 @@ class BasicIterator<T> {
 	}
 
 	public function indexOf( x : T, ?fromIndex:Int ) : Int {
-		for( i in (fromIndex == null ? 0 : fromIndex)...length )
+		var idx : Int = fromIndex == null ? 0 : fromIndex;
+		if( idx < 0 ) {
+			idx += length;
+			if( idx < 0 ) idx = 0;
+		}
+		for( i in idx...length )
 			if( bytes[i] == x )
 				return i;
 		return -1;
 	}
 
 	public function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
-		throw "TODO";
+		var len = length;
+		var i:Int = fromIndex != null ? fromIndex : len - 1;
+		if( i >= len )
+			i = len - 1;
+		else if( i  < 0 )
+			i += len;
+		while( i >= 0 ) {
+			if( bytes[i] == x )
+				return i;
+			i--;
+		}
 		return -1;
 	}
 
 	public function copy() : ArrayBasic<T> {
-		throw "TODO";
-		return null;
+		var a = new ArrayBasic<T>();
+		a.length = a.size = length;
+		a.bytes = new Bytes(length << bytes.sizeBits);
+		(a.bytes:Bytes).blit(0, bytes, 0, length << bytes.sizeBits);
+		return a;
 	}
 
 	public function iterator() : Iterator<T> {
 		return new BasicIterator(this);
 	}
 
-	public function map<S>( f : T -> S ) : ArrayDyn {
-		throw "TODO";
-		return null;
+	public function map<S>( f : T -> S ) : ArrayDyn @:privateAccess {
+		var a = new ArrayObj();
+		if( length > 0 ) a.__expand(length - 1);
+		for( i in 0...length )
+			a.array[i] = f(bytes[i]);
+		return ArrayDyn.alloc(a,true);
 	}
 
-	public function filter( f : Int -> Bool ) : ArrayBasic<T> {
-		throw "TODO";
-		return null;
+	public function filter( f : T -> Bool ) : ArrayBasic<T> {
+		var a = new ArrayBasic<T>();
+		for( i in 0...length ) {
+			var v = bytes[i];
+			if( f(v) ) a.push(v);
+		}
+		return a;
 	}
 
 	override function getDyn( pos : Int ) : Dynamic {
@@ -266,7 +333,9 @@ class BasicIterator<T> {
 			var next = (size * 3) >> 1;
 			if( next < newlen ) next = newlen;
 			var bytes2 = new hl.types.Bytes(next << bytes.sizeBits);
-			bytes2.blit(0,bytes,0,length << bytes.sizeBits);
+			var bsize = length << bytes.sizeBits;
+			bytes2.blit(0, bytes, 0, bsize);
+			bytes2.fill(bsize, (next << bytes.sizeBits) - bsize, 0);
 			bytes = bytes2;
 			size = next;
 		}

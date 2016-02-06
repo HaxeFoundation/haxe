@@ -58,6 +58,13 @@ class Reflect {
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
 		var args : hl.types.ArrayDyn = cast args;
 		var count = args.length;
+
+		var ft = hl.types.Type.getDynamic(func);
+		if( ft.kind != HFun )
+			throw "Invalid function " + func;
+		if( o != null && hl.types.Api.getClosureValue(func) == null && count == ft.getArgsCount() )
+			o = null;
+
 		var nargs = o == null ? count : count + 1;
 		var a = new hl.types.NativeArray<Dynamic>(nargs);
 		if( o == null ) {
