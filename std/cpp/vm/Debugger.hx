@@ -46,15 +46,17 @@ class StackFrame
    {
     public var fileName(default, null) : String;
     public var lineNumber(default, null) : Int;
+    public var columnNumber(default, null) : Int;
     public var className(default, null) : String;
     public var functionName(default, null) : String;
     public var parameters(default, null) : Array<Parameter>;
 
-    public function new(fileName : String, lineNumber : Int,
+    public function new(fileName : String, lineNumber : Int, columnNumber : Int,
                         className : String, functionName : String)
    {
         this.fileName = fileName;
         this.lineNumber = lineNumber;
+        this.columnNumber = columnNumber;
         this.className = className;
         this.functionName = functionName;
         this.parameters = new Array<Parameter>();
@@ -152,7 +154,7 @@ class Debugger
      *            undefined if event is not THREAD_STOPPED
      **/
     public static function setEventNotificationHandler(
-             handler : Int -> Int -> Int -> String -> String -> String -> Int -> Void)
+             handler : Int -> Int -> Int -> String -> String -> String -> Int -> Int -> Void)
     {
         untyped __global__.__hxcpp_dbg_setEventNotificationHandler(handler);
     }
@@ -244,10 +246,10 @@ class Debugger
      * added breakpoint is returned.
      **/
     public static function addFileLineBreakpoint(file : String,
-                                                 line : Int) : Int
+                                                 line : Int, column: Int) : Int
     {
         return untyped __global__.__hxcpp_dbg_addFileLineBreakpoint
-            (file, line);
+            (file, line, column);
     }
 
     /**
@@ -380,10 +382,10 @@ class Debugger
 
         untyped __global__.__hxcpp_dbg_setNewStackFrameFunction
         (
-         function (fileName : String, lineNumber : Int,
+         function (fileName : String, lineNumber : Int, columnNumber : Int,
                    className : String, functionName : String)
          {
-             return new StackFrame(fileName, lineNumber,
+             return new StackFrame(fileName, lineNumber, columnNumber,
                                    className, functionName);
          }
         );
@@ -416,4 +418,3 @@ class Debugger
         );
    }
 }
-

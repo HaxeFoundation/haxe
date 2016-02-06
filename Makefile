@@ -10,7 +10,7 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-INSTALL_DIR=$(DESTDIR)/usr
+INSTALL_DIR=$(DESTDIR)/usr/local
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 INSTALL_STD_DIR=$(INSTALL_LIB_DIR)/std
