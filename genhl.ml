@@ -257,6 +257,7 @@ type context = {
 	mutable m : method_context;
 	mutable anons_cache : (tanon * ttype) list;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
+	mutable rec_cache : Type.t list;
 	array_impl : array_impl;
 	base_class : tclass;
 	base_type : tclass;
@@ -565,13 +566,21 @@ let rec to_type ctx t =
 		(match !r with
 		| None -> HDyn
 		| Some t -> to_type ctx t)
-	| TType (t,tl) ->
-		(match t.t_path with
-		| [], "Null" ->
-			let t = to_type ctx (apply_params t.t_params tl t.t_type) in
-			if is_nullable t then t else HNull t
-		| _ ->
-			to_type ctx (apply_params t.t_params tl t.t_type))
+	| TType (td,tl) ->
+		if List.memq t ctx.rec_cache then
+			error "Unsupported recursive type" td.t_pos
+		else begin
+			ctx.rec_cache <- t :: ctx.rec_cache;
+			let t = (match td.t_path with
+			| [], "Null" ->
+				let t = to_type ctx (apply_params td.t_params tl td.t_type) in
+				if is_nullable t then t else HNull t
+			| _ ->
+				to_type ctx (apply_params td.t_params tl td.t_type)
+			) in
+			ctx.rec_cache <- List.tl ctx.rec_cache;
+			t
+		end
 	| TLazy f ->
 		to_type ctx (!f())
 	| TFun (args, ret) ->
@@ -1980,7 +1989,7 @@ and eval_expr ctx e =
 		op ctx (OXor (tmp,r,r2));
 		tmp
 	| TUnop (Increment|Decrement as uop,fix,v) ->
-		let unop r =
+		let rec unop r =
 			match rtype ctx r with
 			| HI8 | HI16 | HI32 ->
 				if uop = Increment then op ctx (OIncr r) else op ctx (ODecr r)
@@ -1988,6 +1997,11 @@ and eval_expr ctx e =
 				let tmp = alloc_tmp ctx t in
 				op ctx (OFloat (tmp,alloc_float ctx 1.));
 				if uop = Increment then op ctx (OAdd (r,r,tmp)) else op ctx (OSub (r,r,tmp))
+			| HNull (HI8 | HI16 | HI32 | HF32 | HF64 as t) ->
+				let tmp = alloc_tmp ctx t in
+				op ctx (OSafeCast (tmp,r));
+				unop tmp;
+				op ctx (OToDyn (r,tmp));
 			| _ ->
 				assert false
 		in
@@ -5426,6 +5440,7 @@ let generate com =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		anons_cache = [];
+		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();
 	} in
