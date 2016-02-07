@@ -199,7 +199,10 @@ class BasicIterator<T> {
 	}
 
 	public function sort( f : T -> T -> Int ) : Void {
-		trace("TODO");
+		if( Type.get((cast null : T)) == Type.get(0) )
+			(bytes:Bytes).sortI32(0, length, cast f);
+		else
+			(bytes:Bytes).sortF64(0, length, cast f);
 	}
 
 	public function splice( pos : Int, len : Int ) : ArrayBasic<T> {

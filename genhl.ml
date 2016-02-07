@@ -123,12 +123,6 @@ type opcode =
 	| OClosure of reg * functable index * reg (* closure *)
 	| OGetGlobal of reg * global
 	| OSetGlobal of global * reg
-	| OEq of reg * reg * reg
-	| ONotEq of reg * reg * reg
-	| OSLt of reg * reg * reg
-	| OSGte of reg * reg * reg
-	| OULt of reg * reg * reg
-	| OUGte of reg * reg * reg
 	| ORet of reg
 	| OJTrue of reg * int
 	| OJFalse of reg * int
@@ -136,10 +130,12 @@ type opcode =
 	| OJNotNull of reg * int
 	| OJSLt of reg * reg * int
 	| OJSGte of reg * reg * int
+	| OJSGt of reg * reg * int
+	| OJSLte of reg * reg * int
 	| OJULt of reg * reg * int
 	| OJUGte of reg * reg * int
 	| OJEq of reg * reg * int
-	| OJNeq of reg * reg * int
+	| OJNotEq of reg * reg * int
 	| OJAlways of int
 	| OToDyn of reg * reg
 	| OToFloat of reg * reg
@@ -265,6 +261,8 @@ type context = {
 	base_class : tclass;
 	base_type : tclass;
 	base_enum : tclass;
+	core_type : tclass;
+	core_enum : tclass;
 	cdebug_files : (string, string) lookup;
 }
 
@@ -673,7 +671,7 @@ and resolve_class ctx c pl statics =
 	in
 	match c.cl_path, pl with
 	| ([],"Array"), [t] ->
-		if statics then ctx.array_impl.aall else array_class ctx (to_type ctx t)
+		if statics then ctx.array_impl.abase else array_class ctx (to_type ctx t)
 	| ([],"Array"), [] ->
 		assert false
 	| _, _ when c.cl_extern ->
@@ -790,7 +788,7 @@ and class_type ctx c pl statics =
 		p.pproto <- DynArray.to_array pa;
 		p.pvirtuals <- DynArray.to_array virtuals;
 		List.iter (fun f -> f()) !todo;
-		p.pclassglobal <- Some (fst (class_global ctx (if statics then ctx.base_class else c)));
+		if not statics && c != ctx.core_type && c != ctx.core_enum then p.pclassglobal <- Some (fst (class_global ctx (if statics then ctx.base_class else c)));
 		t
 
 and enum_type ctx e =
@@ -858,9 +856,9 @@ and alloc_function_name ctx f =
 and alloc_global ctx name t =
 	lookup ctx.cglobals name (fun() -> t)
 
-and class_global ctx c =
+and class_global ?(resolve=true) ctx c =
 	let static = c != ctx.base_class in
-	let c = if is_array_type (HObj { null_proto with pname = s_type_path c.cl_path }) then ctx.array_impl.aall else c in
+	let c = if resolve && is_array_type (HObj { null_proto with pname = s_type_path c.cl_path }) then ctx.array_impl.abase else c in
 	let c = resolve_class ctx c (List.map snd c.cl_params) static in
 	let t = class_type ctx c [] static in
 	alloc_global ctx ("$" ^ s_type_path c.cl_path) t, t
@@ -1027,6 +1025,10 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	| (HI8 | HI16 | HI32 | HF32 | HF64), (HF32 | HF64) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToFloat (tmp, r));
+		tmp
+	| (HF32 | HF64), (HI8 | HI16 | HI32) ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToInt (tmp, r));
 		tmp
 	| (HI8 | HI16 | HI32), HNull ((HF32 | HF64) as t) ->
 		let tmp = alloc_tmp ctx t in
@@ -1246,8 +1248,8 @@ and jump_expr ctx e jcond =
 			let lt a b = if unsigned then OJULt (a,b,i) else OJSLt (a,b,i) in
 			let gte a b = if unsigned then OJUGte (a,b,i) else OJSGte (a,b,i) in
 			match jop with
-			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNeq (r1,r2,i)
-			| OpNotEq -> if jcond then OJNeq (r1,r2,i) else OJEq (r1,r2,i)
+			| OpEq -> if jcond then OJEq (r1,r2,i) else OJNotEq (r1,r2,i)
+			| OpNotEq -> if jcond then OJNotEq (r1,r2,i) else OJEq (r1,r2,i)
 			| OpGt -> if jcond then lt r2 r1 else gte r2 r1
 			| OpGte -> if jcond then gte r1 r2 else lt r1 r2
 			| OpLt -> if jcond then lt r1 r2 else gte r1 r2
@@ -1289,18 +1291,6 @@ and make_string ctx s p =
 	op ctx (OSetField (s,0,r));
 	op ctx (OSetField (s,1,reg_int ctx len));
 	s
-
-and make_module_type ctx t =
-	let r = alloc_tmp ctx HType in
-	let t = (match t with
-	| TClassDecl { cl_path = [],"Array" } -> TInst (ctx.array_impl.aall,[])
-	| TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params)
-	| TEnumDecl e -> TEnum (e,List.map (fun _ -> t_dynamic) e.e_params)
-	| TAbstractDecl a -> TAbstract (a,List.map (fun _ -> t_dynamic) a.a_params)
-	| TTypeDecl t -> TType (t, List.map (fun _ -> t_dynamic) t.t_params)
-	) in
-	op ctx (OType (r,to_type ctx t));
-	r
 
 and eval_expr ctx e =
 	set_curpos ctx e.epos;
@@ -1592,7 +1582,16 @@ and eval_expr ctx e =
 			let v = eval_to ctx v HDyn in
 			let t = (match t.eexpr with
 			| TTypeExpr t ->
-				make_module_type ctx t
+				let r = alloc_tmp ctx HType in
+				let t = (match t with
+				| TClassDecl { cl_path = [],"Array" } -> TInst (ctx.array_impl.aall,[])
+				| TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params)
+				| TEnumDecl e -> TEnum (e,List.map (fun _ -> t_dynamic) e.e_params)
+				| TAbstractDecl a -> TAbstract (a,List.map (fun _ -> t_dynamic) a.a_params)
+				| TTypeDecl t -> TType (t, List.map (fun _ -> t_dynamic) t.t_params)
+				) in
+				op ctx (OType (r,to_type ctx t));
+				r
 			| _ ->
 				let r = eval_to ctx t (class_type ctx ctx.base_type [] false) in
 				let t = alloc_tmp ctx HType in
@@ -1779,27 +1778,23 @@ and eval_expr ctx e =
 			jexit());
 		out
 	| TBinop (bop, e1, e2) ->
-		let gte r a b =
-			if unsigned e1.etype && unsigned e2.etype then
-				OUGte (r,a,b)
-			else
-				OSGte (r,a,b)
-		in
-		let lt r a b =
-			if unsigned e1.etype && unsigned e2.etype then
-				OULt (r,a,b)
-			else
-				OSLt (r,a,b)
+		let is_unsigned() = unsigned e1.etype && unsigned e2.etype in
+		let boolop r f =
+			let j = jump ctx f in
+			op ctx (OBool (r,false));
+			op ctx (OJAlways 1);
+			j();
+			op ctx (OBool (r, true));
 		in
 		let binop r a b =
 			let rec loop bop =
 				match bop with
-				| OpLte -> op ctx (gte r b a)
-				| OpGt -> op ctx (lt r b a)
-				| OpGte -> op ctx (gte r a b)
-				| OpLt -> op ctx (lt r a b)
-				| OpEq -> op ctx (OEq (r,a,b))
-				| OpNotEq -> op ctx (ONotEq (r,a,b))
+				| OpLte -> boolop r (fun d -> if is_unsigned() then OJUGte (b,a,d) else OJSLte (a,b,d))
+				| OpGt -> boolop r (fun d -> if is_unsigned() then OJULt (b,a,d) else OJSGt (a,b,d))
+				| OpGte -> boolop r (fun d -> if is_unsigned() then OJUGte (a,b,d) else OJSGte (a,b,d))
+				| OpLt -> boolop r (fun d -> if is_unsigned() then OJULt (a,b,d) else OJSLt (a,b,d))
+				| OpEq -> boolop r (fun d -> OJEq (a,b,d))
+				| OpNotEq -> boolop r (fun d -> OJNotEq (a,b,d))
 				| OpAdd ->
 					(match rtype ctx r with
 					| HI8 | HI16 | HI32 | HF32 | HF64 ->
@@ -1816,8 +1811,8 @@ and eval_expr ctx e =
 						(match bop with
 						| OpSub -> op ctx (OSub (r,a,b))
 						| OpMult -> op ctx (OMul (r,a,b))
-						| OpMod -> op ctx (if unsigned e1.etype && unsigned e2.etype then OUMod (r,a,b) else OSMod (r,a,b))
-						| OpDiv -> op ctx (if unsigned e1.etype && unsigned e2.etype then OUDiv (r,a,b) else OSDiv (r,a,b))
+						| OpMod -> op ctx (if is_unsigned() then OUMod (r,a,b) else OSMod (r,a,b))
+						| OpDiv -> op ctx (if is_unsigned() then OUDiv (r,a,b) else OSDiv (r,a,b))
 						| _ -> assert false)
 					| _ ->
 						assert false)
@@ -2253,11 +2248,6 @@ and eval_expr ctx e =
 		result
 	| TTypeExpr t ->
 		(match t with
-		| TClassDecl { cl_path = [],"Array" } ->
-			let g, t = class_global ctx ctx.array_impl.aall in
-			let r = alloc_tmp ctx t in
-			op ctx (OGetGlobal (r, g));
-			r
 		| TClassDecl c ->
 			let g, t = class_global ctx c in
 			let r = alloc_tmp ctx t in
@@ -2281,21 +2271,15 @@ and eval_expr ctx e =
 			r
 		| TTypeDecl _ ->
 			assert false);
-	| TCast (ev,Some t) ->
-		let r = alloc_tmp ctx (to_type ctx (match t with TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params) | _ -> assert false)) in
+	| TCast (ev,Some _) ->
+		let t = to_type ctx e.etype in
 		let re = eval_expr ctx ev in
-		if safe_cast (rtype ctx re) (rtype ctx r) then
+		let r = alloc_tmp ctx t in
+		if safe_cast (rtype ctx re) t then
 			op ctx (OMov (r,re))
-		else begin
-			let rb = alloc_tmp ctx HBool in
-			let rt = make_module_type ctx t in
-			op ctx (OCall2 (rb,alloc_std ctx "type_check" [HType;HDyn] HBool,rt,re));
-			let jnext = jump ctx (fun n -> OJTrue (rb,n)) in
-			op ctx (OThrow((make_string ctx "Class cast error") e.epos));
-			jnext()
-		end;
+		else
+			op ctx (OSafeCast (r,re));
 		r
-
 and gen_assign_op ctx acc e1 f =
 	match acc with
 	| AInstanceField (eobj, findex) ->
@@ -2654,11 +2638,11 @@ let generate_static_init ctx =
 		(* init class values *)
 		List.iter (fun t ->
 			match t with
-			| TClassDecl c when not c.cl_extern && not (is_array_class (s_type_path c.cl_path)) ->
+			| TClassDecl c when not c.cl_extern && not (is_array_class (s_type_path c.cl_path) && snd c.cl_path <> "ArrayDyn") && c != ctx.core_type && c != ctx.core_enum ->
 
 				let path = if c == ctx.array_impl.abase then [],"Array" else if c == ctx.base_class then [],"Class" else c.cl_path in
 
-				let g, ct = class_global ctx c in
+				let g, ct = class_global ~resolve:false ctx c in
 
 				let index name =
 					match ct with
@@ -2673,7 +2657,7 @@ let generate_static_init ctx =
 				op ctx (OSetGlobal (g,rc));
 
 				let rt = alloc_tmp ctx HType in
-				let ctype = if c == ctx.array_impl.abase then (match c.cl_super with None -> assert false | Some (c,_) -> c) else c in
+				let ctype = if c == ctx.array_impl.abase then ctx.array_impl.aall else c in
 				op ctx (OType (rt, class_type ctx ctype (List.map snd ctype.cl_params) false));
 				op ctx (OSetField (rc,index "__type__",rt));
 				op ctx (OSetField (rc,index "__name__",eval_expr ctx { eexpr = TConst (TString (s_type_path path)); epos = c.cl_pos; etype = ctx.com.basic.tstring }));
@@ -2766,7 +2750,7 @@ let generate_static_init ctx =
 				(match name with
 				| "Int" | "Float" | "Dynamic" | "Bool" ->
 					let is_bool = name = "Bool" in
-					let t = class_type ctx (if is_bool then ctx.base_enum else ctx.base_class) [] false in
+					let t = class_type ctx (if is_bool then ctx.core_enum else ctx.core_type) [] false in
 
 					let index name =
 						match t with
@@ -2992,12 +2976,6 @@ let check code =
 				if not (safe_cast code.globals.(g) (rtype r)) then reg r code.globals.(g)
 			| OSetGlobal (g,r) ->
 				reg r code.globals.(g)
-			| OSLt (r, a, b) | OULt (r, a, b) | OSGte (r, a, b) | OUGte (r, a, b) ->
-				reg r HBool;
-				reg a (rtype b)
-			| OEq (r,a,b) | ONotEq (r, a, b) ->
-				reg r HBool;
-				if not (safe_cast (rtype b) (rtype a)) then reg a (rtype b)
 			| ORet r ->
 				reg r tret
 			| OJTrue (r,delta) | OJFalse (r,delta) ->
@@ -3006,10 +2984,10 @@ let check code =
 			| OJNull (r,delta) | OJNotNull (r,delta) ->
 				ignore(rtype r);
 				can_jump delta
-			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) ->
+			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) ->
 				reg a (rtype b);
 				can_jump delta
-			| OJEq (a,b,delta) | OJNeq (a,b,delta) ->
+			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				if not (safe_cast (rtype b) (rtype a)) then reg a (rtype b);
 				can_jump delta
 			| OJAlways d ->
@@ -3713,12 +3691,13 @@ let interp code =
 			throw_msg (vstr_d v ^ " cannot be called")
 
 	and dyn_compare a at b bt =
-		if a == b then 0 else
+		if a == b && (match at with HF32 | HF64 -> false | _ -> true) then 0 else
+		let fcompare (a:float) (b:float) = if a = b then 0 else if a > b then 1 else if a < b then -1 else invalid_comparison in
 		match a, b with
 		| VInt a, VInt b -> Int32.compare a b
-		| VInt a, VFloat b -> compare (Int32.to_float a) b
-		| VFloat a, VInt b -> compare a (Int32.to_float b)
-		| VFloat a, VFloat b -> compare a b
+		| VInt a, VFloat b -> fcompare (Int32.to_float a) b
+		| VFloat a, VInt b -> fcompare a (Int32.to_float b)
+		| VFloat a, VFloat b -> fcompare a b
 		| VBool a, VBool b -> compare a b
 		| VNull, VNull -> 0
 		| VType t1, VType t2 -> if tsame t1 t2 then 0 else 1
@@ -3743,6 +3722,19 @@ let interp code =
 			let p, fields = get_proto p in
 			VObj { oproto = p; ofields = Array.map default fields }
 		| _ -> assert false
+
+	and set_i32 b p v =
+		String.set b p (char_of_int ((Int32.to_int v) land 0xFF));
+		String.set b (p+1) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 8)) land 0xFF));
+		String.set b (p+2) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 16)) land 0xFF));
+		String.set b (p+3) (char_of_int (Int32.to_int (Int32.shift_right_logical v 24)));
+
+	and get_i32 b p =
+		let i = int_of_char (String.get b p) in
+		let j = int_of_char (String.get b (p + 1)) in
+		let k = int_of_char (String.get b (p + 2)) in
+		let l = int_of_char (String.get b (p + 3)) in
+		Int32.logor (Int32.of_int (i lor (j lsl 8) lor (k lsl 16))) (Int32.shift_left (Int32.of_int l) 24);
 
 	and to_virtual v vp =
 		match v with
@@ -3871,19 +3863,6 @@ let interp code =
 			let r = dyn_compare a t b t in
 			if r = invalid_comparison then false else op r 0
 		in
-		let set_i32 b p v =
-			String.set b p (char_of_int ((Int32.to_int v) land 0xFF));
-			String.set b (p+1) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 8)) land 0xFF));
-			String.set b (p+2) (char_of_int ((Int32.to_int (Int32.shift_right_logical v 16)) land 0xFF));
-			String.set b (p+3) (char_of_int (Int32.to_int (Int32.shift_right_logical v 24)));
-		in
-		let get_i32 b p =
-			let i = int_of_char (String.get b p) in
-			let j = int_of_char (String.get b (p + 1)) in
-			let k = int_of_char (String.get b (p + 2)) in
-			let l = int_of_char (String.get b (p + 3)) in
-			Int32.logor (Int32.of_int (i lor (j lsl 8) lor (k lsl 16))) (Int32.shift_left (Int32.of_int l) 24);
-		in
 		let rec loop() =
 			let op = f.code.(!pos) in
 			incr pos;
@@ -3923,12 +3902,6 @@ let interp code =
 				let v = get r in
 				check v code.globals.(g) (fun() -> "global " ^ string_of_int g);
 				Array.unsafe_set globals g v
-			| OEq (r,a,b) -> set r (VBool (vcompare a b (=)))
-			| ONotEq (r,a,b) -> set r (VBool (not (vcompare a b (=))))
-			| OSGte (r,a,b) -> set r (VBool (vcompare a b (>=)))
-			| OSLt (r,a,b) -> set r (VBool (vcompare a b (<)))
-			| OUGte (r,a,b) -> set r (VBool (ucompare (get a) (get b) >= 0))
-			| OULt (r,a,b) -> set r (VBool (ucompare (get a) (get b) < 0))
 			| OJTrue (r,i) -> if get r = VBool true then pos := !pos + i
 			| OJFalse (r,i) -> if get r = VBool false then pos := !pos + i
 			| ORet r -> raise (Return regs.(r))
@@ -3936,10 +3909,12 @@ let interp code =
 			| OJNotNull (r,i) -> if get r != VNull then pos := !pos + i
 			| OJSLt (a,b,i) -> if vcompare a b (<) then pos := !pos + i
 			| OJSGte (a,b,i) -> if vcompare a b (>=) then pos := !pos + i
+			| OJSGt (a,b,i) -> if vcompare a b (>) then pos := !pos + i
+			| OJSLte (a,b,i) -> if vcompare a b (<=) then pos := !pos + i
 			| OJULt (a,b,i) -> if ucompare (get a) (get b) < 0 then pos := !pos + i
 			| OJUGte (a,b,i) -> if ucompare (get a) (get b) >= 0 then pos := !pos + i
 			| OJEq (a,b,i) -> if vcompare a b (=) then pos := !pos + i
-			| OJNeq (a,b,i) -> if not (vcompare a b (=)) then pos := !pos + i
+			| OJNotEq (a,b,i) -> if not (vcompare a b (=)) then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OToDyn (r,a) -> set r (make_dyn (get a) f.regs.(a))
 			| OToFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | VFloat _ as v -> v | _ -> assert false)
@@ -4248,6 +4223,26 @@ let interp code =
 					String.blit src (int sp) dst (int dp) (int len);
 					VUndef
 				| _ -> assert false)
+			| "bsort_i32" ->
+				(function
+				| [VBytes b; VInt pos; VInt len; VClosure (f,c)] ->
+					let pos = int pos and len = int len in
+					let a = Array.init len (fun i -> get_i32 b (pos + i * 4)) in
+					Array.stable_sort (fun a b ->
+						match fcall f (match c with None -> [VInt a;VInt b] | Some v -> [v;VInt a;VInt b]) with
+						| VInt i -> int i
+						| _ -> assert false
+					) a;
+					Array.iteri (fun i v -> set_i32 b (pos + i * 4) v) a;
+					VUndef;
+				| _ ->
+					assert false)
+			| "bsort_f64" ->
+				(function
+				| [VBytes b; VInt pos; VInt len; VClosure _] ->
+					assert false
+				| _ ->
+					assert false)
 			| "itos" ->
 				(function
 				| [VInt v; VRef (regs,i,_)] ->
@@ -4804,11 +4799,11 @@ let interp code =
 				| _ -> assert false)
 			| "date_get_time" ->
 				(function
-				| [VInt v] -> VFloat (fst (Unix.mktime (date v)))
+				| [VInt v] -> VFloat (fst (Unix.mktime (date v)) *. 1000.)
 				| _ -> assert false)
 			| "date_from_time" ->
 				(function
-				| [VFloat f] -> to_date (Unix.localtime f)
+				| [VFloat f] -> to_date (Unix.localtime (f /. 1000.))
 				| _ -> assert false)
 			| "date_get_weekday" ->
 				(function
@@ -5258,12 +5253,6 @@ let ostr o =
 	| OClosure (r,f,v) -> Printf.sprintf "closure %d, f%d(%d)" r f v
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
-	| OEq (r,a,b) -> Printf.sprintf "eq %d,%d,%d" r a b
-	| ONotEq (r,a,b)  -> Printf.sprintf "noteq %d,%d,%d" r a b
-	| OSLt (r,a,b) -> Printf.sprintf "slt %d,%d,%d" r a b
-	| OSGte (r,a,b) -> Printf.sprintf "sgte %d,%d,%d" r a b
-	| OULt (r,a,b) -> Printf.sprintf "ult %d,%d,%d" r a b
-	| OUGte (r,a,b) -> Printf.sprintf "ugte %d,%d,%d" r a b
 	| ORet r -> Printf.sprintf "ret %d" r
 	| OJTrue (r,d) -> Printf.sprintf "jtrue %d,%d" r d
 	| OJFalse (r,d) -> Printf.sprintf "jfalse %d,%d" r d
@@ -5271,10 +5260,12 @@ let ostr o =
 	| OJNotNull (r,d) -> Printf.sprintf "jnotnull %d,%d" r d
 	| OJSLt (a,b,i) -> Printf.sprintf "jslt %d,%d,%d" a b i
 	| OJSGte (a,b,i) -> Printf.sprintf "jsgte %d,%d,%d" a b i
+	| OJSGt (r,a,b) -> Printf.sprintf "jsgt %d,%d,%d" r a b
+	| OJSLte (r,a,b) -> Printf.sprintf "jslte %d,%d,%d" r a b
 	| OJULt (a,b,i) -> Printf.sprintf "jult %d,%d,%d" a b i
 	| OJUGte (a,b,i) -> Printf.sprintf "jugte %d,%d,%d" a b i
 	| OJEq (a,b,i) -> Printf.sprintf "jeq %d,%d,%d" a b i
-	| OJNeq (a,b,i) -> Printf.sprintf "jneq %d,%d,%d" a b i
+	| OJNotEq (a,b,i) -> Printf.sprintf "jnoteq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
 	| OToDyn (r,a) -> Printf.sprintf "todyn %d,%d" r a
 	| OToFloat (r,a) -> Printf.sprintf "tofloat %d,%d" r a
@@ -5432,6 +5423,8 @@ let generate com =
 		base_class = get_class "Class";
 		base_enum = get_class "Enum";
 		base_type = get_class "BaseType";
+		core_type = get_class "CoreType";
+		core_enum = get_class "CoreEnum";
 		anons_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();

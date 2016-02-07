@@ -33,3 +33,11 @@ class Enum extends BaseType {
 		std.Type.register(__ename__.bytes,this);
 	}
 }
+
+@:keep
+class CoreType extends Class {
+}
+
+@:keep
+class CoreEnum extends Enum {
+}

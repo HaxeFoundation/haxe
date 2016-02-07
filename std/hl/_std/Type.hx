@@ -70,7 +70,10 @@ class Type {
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
 		var c : hl.types.BaseType.Class = cast cl;
-		var o = c.__type__.allocObject();
+		var t = c.__type__;
+		if( t == hl.types.Type.get((null : hl.types.ArrayBase.ArrayAccess)) )
+			return cast new Array<Dynamic>();
+		var o = t.allocObject();
 		if( c.__constructor__ != null ) Reflect.callMethod(o, c.__constructor__, args);
 		return o;
 	}

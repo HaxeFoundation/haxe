@@ -76,6 +76,14 @@ package hl.types;
 	public function fill( pos : Int, size : Int, v : Int ) : Void {
 	}
 
+	@:hlNative("std","bsort_i32")
+	public function sortI32( pos : Int, length : Int, f : Int->Int->Int ) : Void {
+	}
+
+	@:hlNative("std","bsort_f64")
+	public function sortF64( pos : Int, length : Int, f : Float->Float->Int ) : Void {
+	}
+
 	public function sub( pos : Int, size : Int ) {
 		var b = new Bytes(size);
 		b.blit(0, this, pos, size);
@@ -121,7 +129,7 @@ package hl.types;
 	function urlDecode( outSize : Ref<Int> ) : Bytes {
 		return null;
 	}
-	
+
 	@:hlNative("std","value_to_string")
 	public static function ofValue( v : Dynamic, size : Ref<Int> ) : Bytes {
 		return null;
