@@ -1509,7 +1509,7 @@ let hx_stack_push ctx output clazz func_name pos =
          let hash_file = gen_hash 0 stripped_file in
          output ("HX_STACK_FRAME(\"" ^ clazz ^ "\",\"" ^ func_name ^ "\"," ^ hash_class_func ^ ",\"" ^
                full_name ^ "\",\"" ^ esc_file ^ "\"," ^
-               (string_of_int (Lexer.get_error_line pos) ) ^  "," ^ hash_file ^ ")\n")
+               (string_of_int (Lexer.get_error_line pos) ) ^ "," ^ (string_of_int ((Lexer.get_error_char pos) + 1) ) ^  "," ^ hash_file ^ ")\n")
       end
    end
 ;;
@@ -2157,7 +2157,7 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
             let want_value = (return_from_block && !remaining = 1) in
             find_local_functions_and_return_blocks_ctx want_value expression;
             if (ctx.ctx_debug_level>0) then
-               output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ " , " ^ (string_of_int (Lexer.get_error_char expression.epos)) ^ ")\n");
+               output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ " , " ^ (string_of_int ((Lexer.get_error_char expression.epos) + 1)) ^ ")\n");
             output_i "";
             ctx.ctx_return_from_internal_node <- return_from_internal_node;
             if (want_value) then output "return ";

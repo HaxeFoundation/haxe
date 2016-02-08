@@ -35,7 +35,6 @@ package haxe;
 typedef PosInfos = {
 	var fileName : String;
 	var lineNumber : Int;
-	var columnNumber : Int;
 	var className : String;
 	var methodName : String;
 	@:optional var customParams : Array<Dynamic>;
