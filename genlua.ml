@@ -62,12 +62,6 @@ let dot_path = Ast.s_type_path
 
 let s_path ctx = dot_path
 
-let debug_expression expression  =
-    " --[[ " ^ Type.s_expr_kind expression  ^ " --]] "
-
-let debug_type t  =
-    " --[[ " ^ Type.s_type_kind t  ^ " --]] ";;
-
 (* TODO: are all these kwds necessary for field quotes *and* id escapes? *)
 let kwds =
 	let h = Hashtbl.create 0 in
@@ -108,11 +102,23 @@ let spr ctx s =
 	ctx.separator <- false;
 	Buffer.add_string ctx.buf s
 
-
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
 		Buffer.add_string ctx.buf s
+	end)
+
+let newline ctx = print ctx "\n%s" ctx.tabs
+
+(* spr with newline *)
+let sprln ctx s = spr ctx s; newline ctx
+
+(* print with newline *)
+let println ctx =
+	ctx.separator <- false;
+	Printf.kprintf (fun s -> begin
+		Buffer.add_string ctx.buf s;
+		newline ctx
 	end)
 
 let unsupported p = error "This expression cannot be compiled to Lua" p
@@ -122,9 +128,6 @@ let basename path =
 		let idx = String.rindex path '/' in
 		String.sub path (idx + 1) (String.length path - idx - 1)
 	with Not_found -> path
-
-
-let newline ctx = print ctx "\n%s" ctx.tabs
 
 (* TODO : make this work properly... it was inserting commas where they shouldn't be *)
 let newprop ctx =
@@ -136,7 +139,6 @@ let semicolon ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' when not ctx.separator -> ()
 	| _ -> spr ctx ";"
-
 
 let rec concat ctx s f = function
 	| [] -> ()
@@ -209,7 +211,6 @@ let is_dynamic_iterator ctx e =
 	| _ ->
 		false
 
-
 (* from genphp *)
 let rec is_uncertain_type t =
 	match follow t with
@@ -248,7 +249,6 @@ let rec is_unknown_type t =
 
 let is_unknown_expr e =	is_unknown_type e.etype
 
-
 let rec is_string_type t =
 	match follow t with
 	| TInst ({cl_path = ([], "String")}, _) -> true
@@ -261,7 +261,6 @@ let rec is_string_type t =
 
 let is_string_expr e = is_string_type e.etype
 (* /from genphp *)
-
 
 let rec is_int_type ctx t =
     match follow t with
@@ -281,10 +280,6 @@ let rec should_wrap_int_op ctx op e1 e2 =
     | Ast.OpXor | Ast.OpShl  | Ast.OpShr | Ast.OpUShr ->
 	    is_int_type ctx e1.etype && is_int_type ctx e2.etype
     | _ -> false
-
-
-
-
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -585,7 +580,7 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.iife_assign <- false;
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		(* TODO: Refactor this mess *)
-		spr ctx "(function() "; newline ctx;
+		sprln ctx "(function() ";
 		(match e.eexpr, unop_flag with
 		    | TArray(e1,e2), _ ->
 			spr ctx "local _hx_idx = "; gen_value ctx e2; semicolon ctx; newline ctx;
@@ -684,7 +679,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    spr ctx "::_hx_continue::";
 		end;
 		newline ctx;
-		spr ctx "end"; newline ctx;
+		sprln ctx "end";
 		spr ctx "break end";
 	| TObjectDecl fields ->
 		spr ctx "_hx_anon(";
@@ -714,12 +709,11 @@ and gen_expr ?(local=true) ctx e = begin
 		newline ctx;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
-		spr ctx "local _hx_expected_result = {}";
-		newline ctx;
+		sprln ctx "local _hx_expected_result = {}";
 		spr ctx "local _hx_status, _hx_result = pcall(function() ";
 		gen_expr ctx e;
 		let vname = temp ctx in
-		spr ctx " return _hx_expected_result end)"; newline ctx;
+		sprln ctx " return _hx_expected_result end)";
 		spr ctx " if not _hx_status then ";
 		let bend = open_block ctx in
 		newline ctx;
@@ -771,8 +765,7 @@ and gen_expr ?(local=true) ctx e = begin
 				else_block := true
 		) catchs;
 		if not !last then begin
-		    print ctx " error(%s)" vname;
-		    newline ctx;
+		    println ctx " error(%s)" vname;
 		    spr ctx "end";
 		end;
 		bend();
@@ -815,8 +808,6 @@ and gen_expr ?(local=true) ctx e = begin
 	| TCast (e1,None) ->
 		gen_value ctx e1;
 end;
-
-
 
 and gen__init__hoist ctx e =
     begin match e.eexpr with
@@ -931,8 +922,7 @@ and gen_value ctx e =
 		spr ctx "(function() ";
 		let b = open_block ctx in
 		newline ctx;
-		spr ctx ("local " ^ r_id);
-		newline ctx;
+		sprln ctx ("local " ^ r_id);
 		(fun() ->
 			newline ctx;
 			spr ctx ("return " ^ r_id);
@@ -1099,7 +1089,7 @@ and gen_tbinop ctx op e1 e2 =
 	    end;
     | Ast.OpAssignOp(op2), TArray(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
-	    spr ctx "(function() "; newline ctx;
+	    sprln ctx "(function() ";
 	    let idx = alloc_var "idx" e4.etype in
 	    let idx_var =  mk (TVar( idx , Some(e4))) e4.etype e4.epos in
 	    gen_expr ctx idx_var;
@@ -1117,7 +1107,7 @@ and gen_tbinop ctx op e1 e2 =
 	    spr ctx " end)()";
     | Ast.OpAssignOp(op2), TField(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
-	    spr ctx "(function() "; newline ctx;
+	    sprln ctx "(function() ";
 	    let obj = alloc_var "obj" e3.etype in
 	    spr ctx "local fld = ";
 	    (match e4 with
@@ -1174,7 +1164,6 @@ and gen_tbinop ctx op e1 e2 =
 	    spr ctx ")";
 	    end;
     );
-
 
 and gen_wrap_tbinop ctx e=
     match e.eexpr with
@@ -1284,8 +1273,7 @@ let gen_class_static_field ctx c f =
 	| None when is_extern_field f ->
 		()
 	| None ->
-		print ctx "%s%s = nil" (s_path ctx c.cl_path) (field f.cf_name);
-		newline ctx
+		println ctx "%s%s = nil" (s_path ctx c.cl_path) (field f.cf_name);
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
@@ -1299,7 +1287,7 @@ let gen_class_static_field ctx c f =
 
 let gen_class_field ctx c f predelimit =
 	check_field_name c f;
-	if predelimit then (spr ctx ","; newline ctx;);
+	if predelimit then sprln ctx ",";
 	match f.cf_expr with
 	| None ->
 		print ctx "'%s', nil" (anon_field f.cf_name);
@@ -1343,10 +1331,9 @@ let generate_class___name__ ctx c =
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__name__ = " p;
 		if has_feature ctx "Type.getClassName" then
-			print ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
+			println ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
 		else
-			print ctx "true";
-		newline ctx;
+			println ctx "true";
 	end
 
 let generate_class ctx c =
@@ -1377,17 +1364,10 @@ let generate_class ctx c =
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					print ctx "local self = _hx_anon();";
-					newline ctx;
-					if (has_prototype ctx c) then (
-					    print ctx "getmetatable(self).__index=%s.prototype" p; newline ctx;
-					);
-					print ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
-					newline ctx;
-					if p = "String" then begin
-					    spr ctx "self = string";
-					    newline ctx;
-					end;
+					println ctx "local self = _hx_anon();";
+					if (has_prototype ctx c) then println ctx "getmetatable(self).__index=%s.prototype" p;
+					println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
+					if p = "String" then sprln ctx "self = string";
 					spr ctx "return self";
 					bend(); newline ctx;
 					spr ctx "end"; newline ctx; newline ctx;
@@ -1405,17 +1385,12 @@ let generate_class ctx c =
 			| _ -> (print ctx "{}"); ctx.separator <- true)
 	);
 	newline ctx;
-	if hxClasses then begin
-		(* TODO: better namespace for _hxClasses *)
-		print ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
-		newline ctx;
-	end;
+	if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 	generate_class___name__ ctx c;
 	(match c.cl_implements with
 	| [] -> ()
 	| l ->
-		print ctx "%s.__interfaces__ = {%s}" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
-		newline ctx;
+		println ctx "%s.__interfaces__ = {%s}" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
 	);
 
 	let gen_props props =
@@ -1426,9 +1401,8 @@ let generate_class ctx c =
 	if has_property_reflection then begin
 		(match Codegen.get_properties c.cl_ordered_statics with
 		| [] -> ()
-		| props ->
-			print ctx "%s.__properties__ = {%s}" p (gen_props props);
-			newline ctx);
+		| props -> println ctx "%s.__properties__ = {%s}" p (gen_props props);
+		);
 	end;
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
@@ -1459,18 +1433,16 @@ let generate_class ctx c =
 		end;
 
 		bend(); newline ctx;
-		print ctx ")";
-		newline ctx;
+		println ctx ")";
 		(match c.cl_super with
 		| None -> ()
 		| Some (csup,_) ->
 			let psup = ctx.type_accessor (TClassDecl csup) in
-			print ctx "%s.__super__ = %s" p psup; newline ctx;
-			print ctx "setmetatable(%s.prototype,{__index=%s.prototype})" p psup; newline ctx;
-			if has_property_reflection && Codegen.has_properties csup then begin
-			    (* Also use the __properties__  from the super class as the __index metatable *)
-			    print ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup; newline ctx;
-			end;
+			println ctx "%s.__super__ = %s" p psup;
+			println ctx "setmetatable(%s.prototype,{__index=%s.prototype})" p psup;
+			(* Also use the __properties__  from the super class as the __index metatable *)
+			if has_property_reflection && Codegen.has_properties csup then
+			    println ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup;
 		);
 	end
 
@@ -1503,7 +1475,6 @@ let generate_enum ctx e =
 	if has_feature ctx "Type.resolveEnum" || has_feature ctx "lua.Boot.isEnum" then
 	    print ctx "%s = _hxClasses[\"%s\"];" p (dot_path e.e_path);
 
-
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
@@ -1519,11 +1490,9 @@ let generate_enum ctx e =
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			print ctx "_hx_tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
-			newline ctx;
+			println ctx "_hx_tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
 			if has_feature ctx "may_print_enum" then begin
-				print ctx "%s%s.toString = _estr" p (field f.ef_name);
-				newline ctx;
+				println ctx "%s%s.toString = _estr" p (field f.ef_name);
 			end;
 			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
@@ -1543,8 +1512,7 @@ let generate_enum ctx e =
 			spr ctx "[0] = ";
 			print ctx "%s" (String.concat "," (List.map (fun s -> Printf.sprintf "%s.%s" p s) ctors_without_args));
 		    end;
-		print ctx "}, %i)"  (List.length ctors_without_args);
-		newline ctx
+		println ctx "}, %i)"  (List.length ctors_without_args);
 	end
 
 let generate_static ctx (c,f,e) =
@@ -1624,7 +1592,6 @@ let generate_type_forward ctx = function
 		print ctx "%s = _hx_anon() " p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
-
 let set_current_class ctx c =
 	ctx.current <- c
 
@@ -1670,48 +1637,47 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
-	spr ctx "pcall(require, 'bit32') pcall(require, 'bit') local _hx_bit = bit or bit32"; newline ctx;
-	spr ctx "local _hx_print = print or (function()end)"; newline ctx;
-	spr ctx "table.pack=table.pack or pack or function(...)return{n=select('#',...),...}end"; newline ctx;
-	spr ctx "table.unpack=table.unpack or unpack or function(t, i)i = i or 1 if t[i] ~= nil then return t[i],table.unpack(t, i + 1)end end"; newline ctx;
-	spr ctx "table.maxn=table.maxn or function(t) local maxn=0 for i in pairs(t)do maxn=type(i)=='number'and i>maxn and i or maxn end return maxn end"; newline ctx;
-	spr ctx "local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end"; newline ctx;
+	sprln ctx "pcall(require, 'bit32') pcall(require, 'bit') local _hx_bit = bit or bit32";
+	sprln ctx "local _hx_print = print or (function()end)";
+	sprln ctx "table.pack=table.pack or pack or function(...)return{n=select('#',...),...}end";
+	sprln ctx "table.unpack=table.unpack or unpack or function(t, i)i = i or 1 if t[i] ~= nil then return t[i],table.unpack(t, i + 1)end end";
+	sprln ctx "table.maxn=table.maxn or function(t) local maxn=0 for i in pairs(t)do maxn=type(i)=='number'and i>maxn and i or maxn end return maxn end";
+	sprln ctx "local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end";
 
-	spr ctx "local _hx_anon = function(...)"; newline ctx;
-	spr ctx "   local ret = {__fields__ = {}};"; newline ctx;
-	spr ctx "   local max = select('#',...);"; newline ctx;
-	spr ctx "   local tab = {...};"; newline ctx;
-	spr ctx "   local cur = 1;"; newline ctx;
-	spr ctx "   while cur < max do"; newline ctx;
-	spr ctx "	local v = tab[cur];"; newline ctx;
-	spr ctx "	ret.__fields__[v] = true;"; newline ctx;
-	spr ctx "	ret[v] = tab[cur+1];"; newline ctx;
-	spr ctx "	cur = cur + 2"; newline ctx;
-	spr ctx "   end"; newline ctx;
-	spr ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end})"; newline ctx;
-	spr ctx "   return ret; "; newline ctx;
-	spr ctx "end"; newline ctx;
+	sprln ctx "local _hx_anon = function(...)";
+	sprln ctx "   local ret = {__fields__ = {}};";
+	sprln ctx "   local max = select('#',...);";
+	sprln ctx "   local tab = {...};";
+	sprln ctx "   local cur = 1;";
+	sprln ctx "   while cur < max do";
+	sprln ctx "	local v = tab[cur];";
+	sprln ctx "	ret.__fields__[v] = true;";
+	sprln ctx "	ret[v] = tab[cur+1];";
+	sprln ctx "	cur = cur + 2";
+	sprln ctx "   end";
+	sprln ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end})";
+	sprln ctx "   return ret; ";
+	sprln ctx "end";
 
-	spr ctx "local _hx_staticToInstance = function(tab)"; newline ctx;
-	spr ctx "   return _G.setmetatable({}, {"; newline ctx;
-	spr ctx "	__index = function(t,k)"; newline ctx;
-	spr ctx "	    if _G.type(rawget(tab,k)) == 'function' then "; newline ctx;
-	spr ctx "		return function(self,...)"; newline ctx;
-	spr ctx "		    return rawget(tab,k)(...)"; newline ctx;
-	spr ctx "		end"; newline ctx;
-	spr ctx "	    else"; newline ctx;
-	spr ctx "		return rawget(tab,k)"; newline ctx;
-	spr ctx "	    end"; newline ctx;
-	spr ctx "	end"; newline ctx;
-	spr ctx "   })"; newline ctx;
-	spr ctx "end"; newline ctx;
+	sprln ctx "local _hx_staticToInstance = function(tab)";
+	sprln ctx "   return _G.setmetatable({}, {";
+	sprln ctx "	__index = function(t,k)";
+	sprln ctx "	    if _G.type(rawget(tab,k)) == 'function' then ";
+	sprln ctx "		return function(self,...)";
+	sprln ctx "		    return rawget(tab,k)(...)";
+	sprln ctx "		end";
+	sprln ctx "	    else";
+	sprln ctx "		return rawget(tab,k)";
+	sprln ctx "	    end";
+	sprln ctx "	end";
+	sprln ctx "   })";
+	sprln ctx "end";
 
-
-	spr ctx "local _hxClasses = {}"; semicolon ctx; newline ctx;
+	sprln ctx "local _hxClasses = {}";
 	let vars = [] in
 	(* let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in *)
 	let vars = if has_feature ctx "may_print_enum"
-		then ("_estr = function(self)  return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) ^ ".__string_rec(self,''); end") :: vars
+		then ("_estr = function(self) return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" })) ^ ".__string_rec(self,''); end") :: vars
 		else vars in
 	(match List.rev vars with
 	| [] -> ()
@@ -1721,33 +1687,26 @@ let generate com =
 		newline ctx
 	);
 
-	spr ctx "--[[begin class hoists--]]"; newline ctx;
-	List.iter (generate_type_forward ctx) com.types;
-	newline ctx;
-	spr ctx "--[[end class hoists--]]"; newline ctx;
+	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
-	spr ctx "local _hx_tabArray = function(tab,length)"; newline ctx;
-	spr ctx "   tab.length = length"; newline ctx;
-	spr ctx "   setmetatable(tab, {"; newline ctx;
-	spr ctx "	__index = Array.prototype,"; newline ctx;
-	spr ctx "	__newindex = function(t,k,v)"; newline ctx;
-	spr ctx "	    if _G.type(k) == 'number' and k >= t.length then"; newline ctx;
-	spr ctx "		t.length = k + 1"; newline ctx;
-	spr ctx "	    end"; newline ctx;
-	spr ctx "	    rawset(t,k,v)"; newline ctx;
-	spr ctx "	end"; newline ctx;
-	spr ctx "   })"; newline ctx;
-	spr ctx "   return tab"; newline ctx;
-	spr ctx "end"; newline ctx;
+	sprln ctx "local _hx_tabArray = function(tab,length)";
+	sprln ctx "   tab.length = length";
+	sprln ctx "   setmetatable(tab, {";
+	sprln ctx "	__index = Array.prototype,";
+	sprln ctx "	__newindex = function(t,k,v)";
+	sprln ctx "	    if _G.type(k) == 'number' and k >= t.length then";
+	sprln ctx "		t.length = k + 1";
+	sprln ctx "	    end";
+	sprln ctx "	    rawset(t,k,v)";
+	sprln ctx "	end";
+	sprln ctx "   })";
+	sprln ctx "   return tab";
+	sprln ctx "end";
 
-	spr ctx "--[[begin __init__ hoist --]]"; newline ctx;
-	List.iter (gen__init__hoist ctx) (List.rev ctx.inits);
+	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
 	ctx.inits <- []; (* reset inits *)
-	newline ctx;
-	spr ctx "--[[end __init__ hoist --]]"; newline ctx;
 
-	spr ctx "local _hx_bind = {}";
-	newline ctx;
+	sprln ctx "local _hx_bind = {}";
 
 	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
@@ -1762,25 +1721,13 @@ let generate com =
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
 		add_feature ctx "use._hx_bind";
-		print ctx "function _hx_iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _hx_bind(o,o.iterator) : o.iterator; }";
-		newline ctx;
+		println ctx "function _hx_iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _hx_bind(o,o.iterator) : o.iterator; }";
 	end;
-	if has_feature ctx "use._hx_bind" then begin
-		print ctx "_hx_bind = lua.Boot.bind";
-		newline ctx;
-	end;
+	if has_feature ctx "use._hx_bind" then println ctx "_hx_bind = lua.Boot.bind";
 
-	spr ctx "--[[ begin __init__impl --]]"; newline ctx;
 	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
-	spr ctx "--[[ end __init__impl --]]"; newline ctx;
-
-	spr ctx "--[[ begin __enumMeta__fields --]]"; newline ctx;
 	List.iter (generate_enumMeta_fields ctx) com.types;
-	spr ctx "--[[ end __enumMeta__fields --]]"; newline ctx;
-
-	spr ctx "--[[ begin static fields --]]"; newline ctx;
 	List.iter (generate_static ctx) (List.rev ctx.statics);
-	spr ctx "--[[ end static fields --]]"; newline ctx;
 
 	(match com.main with
 	| None -> ()
@@ -1789,4 +1736,3 @@ let generate com =
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch;
 	t()
-
