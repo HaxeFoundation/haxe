@@ -5306,7 +5306,7 @@ class script_writer common_ctx ctx filename asciiOut =
          | TField (obj,FInstance (_,_,field) ) when is_super obj ->
                   this#write ( (this#op IaCallSuper) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
-         | TField (obj,FInstance (_,_,field) ) when is_real_function field ->
+         | TField (obj,FInstance (_,_,field) ) when not (is_dynamic_in_cppia ctx obj) && is_real_function field ->
                   this#write ( (this#op IaCallMember) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
                   this#gen_expression obj;
@@ -5350,7 +5350,7 @@ class script_writer common_ctx ctx filename asciiOut =
          | _ -> gen_call();
       );
    | TField (obj, acc) ->
-      let typeText = this#typeText obj.etype in
+      let typeText = if is_dynamic_in_cppia ctx obj then this#typeTextString "Dynamic" else this#typeText obj.etype in
       (match acc with
       | FDynamic name -> this#write ( (this#op IaFName) ^ typeText ^ " " ^ (this#stringText name) ^ "\n");
             this#gen_expression obj;
