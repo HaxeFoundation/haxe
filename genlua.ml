@@ -1689,18 +1689,20 @@ let generate com =
 
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
+	(* delay mt construction and cache, coz Array.prototype printed just after this function *)
+	sprln ctx "local _hx_tabArray_mt = nil";
+	sprln ctx "local function _hx_tabArray_mt_init() _hx_tabArray_mt = {";
+	sprln ctx "   __index = Array.prototype,";
+	sprln ctx "   __newindex = function(t,k,v)";
+	sprln ctx "       if type(k) == 'number' and k >= t.length then";
+	sprln ctx "          t.length = k + 1";
+	sprln ctx "       end";
+	sprln ctx "       rawset(t,k,v)";
+	sprln ctx "   end";
+	sprln ctx "} return _hx_tabArray_mt end";
 	sprln ctx "local _hx_tabArray = function(tab,length)";
 	sprln ctx "   tab.length = length";
-	sprln ctx "   setmetatable(tab, {";
-	sprln ctx "	__index = Array.prototype,";
-	sprln ctx "	__newindex = function(t,k,v)";
-	sprln ctx "	    if _G.type(k) == 'number' and k >= t.length then";
-	sprln ctx "		t.length = k + 1";
-	sprln ctx "	    end";
-	sprln ctx "	    rawset(t,k,v)";
-	sprln ctx "	end";
-	sprln ctx "   })";
-	sprln ctx "   return tab";
+	sprln ctx "   return setmetatable(tab, _hx_tabArray_mt or _hx_tabArray_mt_init())";
 	sprln ctx "end";
 
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
