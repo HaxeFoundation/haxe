@@ -103,6 +103,10 @@ let static_field s =
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
+let temp ctx =
+	ctx.id_counter <- ctx.id_counter + 1;
+	"_hx_" ^ string_of_int (ctx.id_counter)
+
 let spr ctx s =
 	ctx.separator <- false;
 	Buffer.add_string ctx.buf s
@@ -186,7 +190,7 @@ let handle_break ctx e =
 				ctx.in_loop <- fst old;
 				ctx.handle_break <- snd old;
 				newline ctx;
-				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
+				spr ctx "} catch( e ) { if( e != \"_hx__break__\" ) throw e; }";
 			)
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
@@ -488,7 +492,7 @@ and gen_expr ?(local=true) ctx e = begin
 	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
+		if ctx.handle_break then spr ctx "error(\"_hx__break__\")" else spr ctx "break" (*todo*)
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "goto _hx_continue";
@@ -587,16 +591,16 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "(function() "; newline ctx;
 		(match e.eexpr, unop_flag with
 		    | TArray(e1,e2), _ ->
-			spr ctx "local _idx = "; gen_value ctx e2; semicolon ctx; newline ctx;
-			spr ctx "local _arr ="; gen_value ctx e1; semicolon ctx; newline ctx;
+			spr ctx "local _hx_idx = "; gen_value ctx e2; semicolon ctx; newline ctx;
+			spr ctx "local _hx_arr ="; gen_value ctx e1; semicolon ctx; newline ctx;
 			(match unop_flag with
 			    | Ast.Postfix ->
-				    spr ctx "local _ = _arr[_idx]"; semicolon ctx; newline ctx;
+				    spr ctx "local _ = _hx_arr[_hx_idx]"; semicolon ctx; newline ctx;
 			    | _ -> ());
-			spr ctx "_arr[_idx] = _arr[_idx]";
+			spr ctx "_hx_arr[_hx_idx] = _hx_arr[_hx_idx]";
 		    | TField(e1,e2), _ ->
-			spr ctx "local _obj = "; gen_value ctx e1; semicolon ctx; newline ctx;
-			spr ctx "local _fld = ";
+			spr ctx "local _hx_obj = "; gen_value ctx e1; semicolon ctx; newline ctx;
+			spr ctx "local _hx_fld = ";
 			(match e2 with
 			| FInstance(_,_,fld)
 			| FStatic(_,fld)
@@ -610,9 +614,9 @@ and gen_expr ?(local=true) ctx e = begin
 			semicolon ctx; newline ctx;
 			(match unop_flag with
 			    | Ast.Postfix ->
-				    spr ctx "local _ = _obj[_fld]"; semicolon ctx; newline ctx;
+				    spr ctx "local _ = _hx_obj[_hx_fld]"; semicolon ctx; newline ctx;
 			    | _ -> ());
-			spr ctx "_obj[_fld] = _obj[_fld] ";
+			spr ctx "_hx_obj[_hx_fld] = _hx_obj[_hx_fld] ";
 		    | _, Ast.Prefix ->
 			gen_value ctx e;
 			spr ctx " = ";
@@ -633,9 +637,9 @@ and gen_expr ?(local=true) ctx e = begin
 		    | Ast.Postfix, _ ->
 			    spr ctx "_";
 		    | _, TArray(e1,e2) ->
-			    spr ctx "_arr[_idx]";
+			    spr ctx "_hx_arr[_hx_idx]";
 		    | _, TField(e1,e2) ->
-			    spr ctx "_obj[_fld]";
+			    spr ctx "_hx_obj[_hx_fld]";
 		    | _, _ ->
 			    gen_value ctx e;
 		    );
@@ -695,9 +699,7 @@ and gen_expr ?(local=true) ctx e = begin
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
 			| _ ->
-				let id = ctx.id_counter in
-				ctx.id_counter <- ctx.id_counter + 1;
-				let name = "_it" ^ string_of_int id in
+				let name = temp ctx in
 				print ctx "local %s = " name;
 				gen_value ctx it;
 				newline ctx;
@@ -715,21 +717,16 @@ and gen_expr ?(local=true) ctx e = begin
 		newline ctx;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
-		spr ctx "local _expected_result = {}";
+		spr ctx "local _hx_expected_result = {}";
 		newline ctx;
-		spr ctx "local _status, _result = pcall(function() ";
+		spr ctx "local _hx_status, _hx_result = pcall(function() ";
 		gen_expr ctx e;
-		let vname =
-			let id = ctx.id_counter in
-			ctx.id_counter <- ctx.id_counter + 1;
-			(* TODO : More temp var cleanup *)
-			"_e" ^ string_of_int id
-		in
-		spr ctx " return _expected_result end)"; newline ctx;
-		spr ctx " if not _status then ";
+		let vname = temp ctx in
+		spr ctx " return _hx_expected_result end)"; newline ctx;
+		spr ctx " if not _hx_status then ";
 		let bend = open_block ctx in
 		newline ctx;
-		print ctx "local %s = _result" vname;
+		print ctx "local %s = _hx_result" vname;
 		let last = ref false in
 		let else_block = ref false in
 		List.iter (fun (v,e) ->
@@ -783,7 +780,7 @@ and gen_expr ?(local=true) ctx e = begin
 		end;
 		bend();
 		newline ctx;
-		spr ctx " elseif _result ~= _expected_result then return _result end";
+		spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result end";
 	| TSwitch (e,cases,def) ->
 		List.iteri (fun cnt (el,e2) ->
 		    if cnt == 0 then spr ctx "if " else spr ctx "elseif ";
@@ -930,19 +927,18 @@ and gen_value ctx e =
 	in
 	let value() =
 		let old = ctx.in_value, ctx.in_loop in
-		let r_id = ctx.id_counter in
-		ctx.id_counter <- ctx.id_counter + 1;
-		let r = alloc_var ("r" ^ string_of_int r_id) t_dynamic in
+		let r_id = temp ctx in
+		let r = alloc_var r_id t_dynamic in
 		ctx.in_value <- Some r;
 		ctx.in_loop <- false;
 		spr ctx "(function() ";
 		let b = open_block ctx in
 		newline ctx;
-		spr ctx ("local r" ^ string_of_int r_id);
+		spr ctx ("local " ^ r_id);
 		newline ctx;
 		(fun() ->
 			newline ctx;
-			spr ctx ("return r" ^ string_of_int r_id);
+			spr ctx ("return " ^ r_id);
 			b();
 			newline ctx;
 			ctx.in_value <- fst old;
@@ -1519,7 +1515,7 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s)  local _x = _hx_tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
+			print ctx "function(%s) local _x = _hx_tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
@@ -1769,7 +1765,7 @@ let generate com =
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
 		add_feature ctx "use._hx_bind";
-		print ctx "function _iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _hx_bind(o,o.iterator) : o.iterator; }";
+		print ctx "function _hx_iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _hx_bind(o,o.iterator) : o.iterator; }";
 		newline ctx;
 	end;
 	if has_feature ctx "use._hx_bind" then begin
