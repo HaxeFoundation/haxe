@@ -96,9 +96,6 @@ let field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "[\"" ^ s ^ 
 let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ s ^ "']" else s
-let static_field s =
-    match s with
-	| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
@@ -480,7 +477,7 @@ and gen_expr ?(local=true) ctx e = begin
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
-		spr ctx (match f with FStatic _ -> static_field name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+		spr ctx (match f with FStatic _ -> field name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -1287,12 +1284,12 @@ let gen_class_static_field ctx c f =
 	| None when is_extern_field f ->
 		()
 	| None ->
-		print ctx "%s%s = nil" (s_path ctx c.cl_path) (static_field f.cf_name);
+		print ctx "%s%s = nil" (s_path ctx c.cl_path) (field f.cf_name);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			let path = (s_path ctx c.cl_path) ^ (static_field f.cf_name) in
+			let path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			gen_value ctx e;
@@ -1551,7 +1548,7 @@ let generate_enum ctx e =
 	end
 
 let generate_static ctx (c,f,e) =
-	print ctx "%s%s = " (s_path ctx c.cl_path) (static_field f);
+	print ctx "%s%s = " (s_path ctx c.cl_path) (field f);
 	gen_value ctx e;
 	newline ctx
 
