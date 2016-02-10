@@ -103,6 +103,7 @@ type extern_api = {
 	on_type_not_found : (string -> value) -> unit;
 	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	type_expr : Ast.expr -> Type.texpr;
+	resolve_type  : Ast.complex_type -> Ast.pos -> t;
 	type_macro_expr : Ast.expr -> Type.texpr;
 	store_typed_expr : Type.texpr -> Ast.expr;
 	get_display : string -> string;
@@ -196,6 +197,8 @@ exception Sys_exit of int
 
 let get_ctx_ref = ref (fun() -> assert false)
 let encode_complex_type_ref = ref (fun t -> assert false)
+let decode_complex_type_ref = ref (fun t -> assert false)
+let decode_pos_ref = ref (fun v -> assert false)
 let encode_type_ref = ref (fun t -> assert false)
 let decode_type_ref = ref (fun t -> assert false)
 let encode_expr_ref = ref (fun e -> assert false)
@@ -215,7 +218,10 @@ let eval_expr_ref : (context -> texpr -> value option) ref = ref (fun _ _ -> ass
 let get_ctx() = (!get_ctx_ref)()
 let enc_array (l:value list) : value = (!enc_array_ref) l
 let dec_array (l:value) : value list = (!dec_array_ref) l
+
+let decode_complex_type (v:value) : Ast.complex_type = (!decode_complex_type_ref) v
 let encode_complex_type (t:Ast.complex_type) : value = (!encode_complex_type_ref) t
+let decode_pos (v:value) : Ast.pos = (!decode_pos_ref) v
 let encode_type (t:Type.t) : value = (!encode_type_ref) t
 let decode_type (v:value) : Type.t = (!decode_type_ref) v
 let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
@@ -2427,6 +2433,9 @@ let macro_lib =
 		);
 		"type_expr", Fun1 (fun v ->
 			encode_texpr ((get_ctx()).curapi.type_expr (decode_expr v))
+		);
+		"resolve_type", Fun2 (fun t p ->
+			encode_type ((get_ctx()).curapi.resolve_type (decode_complex_type t) (decode_pos p));
 		);
 		"s_type", Fun1 (fun v ->
 			VString (Type.s_type (print_context()) (decode_type v))
@@ -5036,6 +5045,8 @@ let rec make_const e =
 
 ;;
 encode_complex_type_ref := encode_ctype;
+decode_complex_type_ref := decode_ctype;
+decode_pos_ref := decode_pos;
 enc_array_ref := enc_array;
 dec_array_ref := dec_array;
 encode_type_ref := encode_type;

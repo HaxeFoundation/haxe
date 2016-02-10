@@ -4528,6 +4528,9 @@ let make_macro_api ctx p =
 					None
 			)
 		);
+		Interp.resolve_type = (fun t p ->
+			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx p t)
+		);
 		Interp.get_module = (fun s ->
 			typing_timer ctx false (fun() ->
 				let path = parse_path s in
