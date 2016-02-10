@@ -685,9 +685,11 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "_hx_empty()";
 		ctx.separator <- true
 	| TObjectDecl fields ->
-		spr ctx "_hx_anon(";
-		concat ctx ", " (fun (f,e) -> print ctx "\"%s\", " f; gen_value ctx e) fields;
-		spr ctx ")";
+		spr ctx "setmetatable({__fields__={";
+		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); spr ctx "true") fields;
+		spr ctx "},";
+		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); gen_value ctx e) fields;
+		spr ctx "},{__newindex=_hx_anon_newindex})";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
