@@ -1364,7 +1364,7 @@ let generate_class ctx c =
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					println ctx "local self = _hx_anon();";
+					println ctx "local self = _hx_empty();";
 					if (has_prototype ctx c) then println ctx "getmetatable(self).__index=%s.prototype" p;
 					println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					if p = "String" then sprln ctx "self = string";
@@ -1582,14 +1582,14 @@ let generate_type_forward ctx = function
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
-		    print ctx "%s = _hx_anon() " p;
+		    print ctx "%s = _hx_empty() " p;
 		end
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
-		print ctx "%s = _hx_anon() " p;
+		print ctx "%s = _hx_empty() " p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let set_current_class ctx c =
@@ -1644,25 +1644,31 @@ let generate com =
 	sprln ctx "table.maxn=table.maxn or function(t) local maxn=0 for i in pairs(t)do maxn=type(i)=='number'and i>maxn and i or maxn end return maxn end";
 	sprln ctx "local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end";
 
-	sprln ctx "local _hx_anon = function(...)";
-	sprln ctx "   local ret = {__fields__ = {}};";
+	sprln ctx "local function _hx_anon_newindex(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end";
+
+	sprln ctx "local function _hx_anon(...)";
+	sprln ctx "   local __fields__ = {};";
+	sprln ctx "   local ret = {__fields__ = __fields__};";
 	sprln ctx "   local max = select('#',...);";
 	sprln ctx "   local tab = {...};";
 	sprln ctx "   local cur = 1;";
 	sprln ctx "   while cur < max do";
-	sprln ctx "	local v = tab[cur];";
-	sprln ctx "	ret.__fields__[v] = true;";
-	sprln ctx "	ret[v] = tab[cur+1];";
-	sprln ctx "	cur = cur + 2";
+	sprln ctx "      local v = tab[cur];";
+	sprln ctx "      __fields__[v] = true;";
+	sprln ctx "      ret[v] = tab[cur+1];";
+	sprln ctx "      cur = cur + 2";
 	sprln ctx "   end";
-	sprln ctx "   setmetatable(ret, {__newindex=function(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end})";
-	sprln ctx "   return ret; ";
+	sprln ctx "   return setmetatable(ret, {__newindex=_hx_anon_newindex})";
 	sprln ctx "end";
 
-	sprln ctx "local _hx_staticToInstance = function(tab)";
-	sprln ctx "   return _G.setmetatable({}, {";
+	sprln ctx "local function _hx_empty()";
+	sprln ctx "   return setmetatable({__fields__ = {}}, {__newindex=_hx_anon_newindex})";
+	sprln ctx "end";
+
+	sprln ctx "local function _hx_staticToInstance(tab)";
+	sprln ctx "   return setmetatable({}, {";
 	sprln ctx "	__index = function(t,k)";
-	sprln ctx "	    if _G.type(rawget(tab,k)) == 'function' then ";
+	sprln ctx "	    if type(rawget(tab,k)) == 'function' then ";
 	sprln ctx "		return function(self,...)";
 	sprln ctx "		    return rawget(tab,k)(...)";
 	sprln ctx "		end";
