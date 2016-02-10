@@ -681,6 +681,9 @@ and gen_expr ?(local=true) ctx e = begin
 		newline ctx;
 		sprln ctx "end";
 		spr ctx "break end";
+	| TObjectDecl [] ->
+		spr ctx "_hx_empty()";
+		ctx.separator <- true
 	| TObjectDecl fields ->
 		spr ctx "_hx_anon(";
 		concat ctx ", " (fun (f,e) -> print ctx "\"%s\", " f; gen_value ctx e) fields;
