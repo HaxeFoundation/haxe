@@ -361,6 +361,20 @@ import java.NativeArray;
 
 		return false;
 	}
+	
+	public function removeAt( pos : Int ) : Bool
+	{
+		var l = length;
+		if ( l == 0) return false;
+		if ( pos >= l) return false;
+		
+		if ( pos < 0) pos += l;
+		if ( pos >= length || pos < 0) return false; 
+		
+		System.arraycopy(__a, pos + 1, __a, pos, length - pos - 1);
+		__a[--this.length] = null;
+		return true;
+	}
 
 	public function indexOf(x : T, ?fromIndex:Int) : Int {
 		var len = length, a = __a, i:Int = (fromIndex == null) ? 0 : fromIndex;

@@ -147,9 +147,11 @@
 	
 	public function removeAt(pos : Int) : Bool {
 		var l = this.length;
-		if ( l == 0) return false;
-		if ( pos >= l) pos = pos % l;
+		if ( l == 0) return false;	
+		if ( pos >= l) return false;
+
 		if ( pos < 0) pos += l;
+		if ( pos >= l || pos < 0) return false; 
 		
 		var i = pos;
 		var a = this.__a;
