@@ -274,15 +274,7 @@ class Boot extends flash.display.MovieClip {
 		
 		#if !flash19
 		aproto.removeAt = function(pos) {
-			var l = __this__.length;
-			if ( l == 0) return false;	
-			if ( pos >= l) return false;
-			if ( pos < 0) pos += l;
-			if ( pos >= l || pos < 0) return false; 
-			
-			__this__.splice(pos, 1).length != 0;
-			
-			return true;
+			return __this__.splice(pos, 1)[0];
 		}
 		aproto.setPropertyIsEnumerable("removeAt", false);
 		#end
