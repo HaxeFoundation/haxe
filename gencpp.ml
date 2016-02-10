@@ -304,12 +304,53 @@ let hash_iterate hash visitor =
    Hashtbl.iter (fun key value -> result :=  (visitor key value) :: !result ) hash;
    !result
 
+
+
+
+
+let is_internal_member member =
+   member = "toString" || (
+      (String.length member > 1) && (String.sub member 0 2 = "__") &&
+         (match member with
+         | "__ArgCount" | "__ArrayImplRef" | "__CStr" | "__Compare" | "__Create"
+         | "__CreateEmpty" | "__FieldRef" | "__FindArgCount"
+         | "__GetFieldMap" | "__GetHandle" | "__GetItem"
+         | "__GetScriptCallable" | "__GetScriptVTable"
+         | "__Param" | "__Remove" | "__SGetClass"
+         | "__Set" | "__SetItem" | "__TArrayImplRef"
+         | "__ToDouble" | "__ToInt" | "__ToInterface" | "__ToObject"
+         | "__Visit" | "__WCStr" | "__a" | "__blit" | "__boot"
+         | "__boot_all" | "__compare" | "__concat" | "__construct" | "__copy"
+         | "__filter" | "__get_args" | "__hx_dump_stack" | "__hx_field_iter" | "__hxt_gc_new"
+         | "__indexOf" | "__insert" | "__instanceof" | "__int" | "__iterator"
+         | "__join" | "__lastIndexOf" | "__loadprim" | "__mClass" | "__mDynamicFields"
+         | "__map" | "__memcmp" | "__new" | "__pop" | "__prime"
+         | "__push" | "__qsort" | "__unshift" | "__unsafeStringReference" | "__time_stamp"
+         | "__superString" | "__splice" | "__shift" | "__slice" | "__sort"
+         | "__s_id" | "__run" | "__root" | "__register" | "__remove"
+         | "__removeAt" | "__reverse" | "__zero" 
+         | "__Field" | "__IField" | "__Run" | "__Is" | "__GetClass" | "__GetType" | "__ToString"
+         | "__s" | "__GetPtr" | "__SetField" | "__length" | "__IsArray" | "__SetThis" | "__Internal"
+         | "__EnumParams" | "__Index" | "__Tag" | "__GetFields" | "__HasField"
+         | "__get" | "__set" | "__unsafe_get" | "__unsafe_set" | "__global__"
+         | "__SetSize" | "__trace" | "__GetRealObject" | "__SetSizeExact" | "__cpp__"
+         | "__URLEncode" | "__URLDecode" | "__IsEnum"
+               -> true
+         | _ -> false) );;
+      
+let is_known_member member =
+   match member with
+   | "__meta__" | "__rtti" | "_Compare"
+         -> true
+   | _ -> false;;
+
 (* Convert function names that can't be written in c++ ... *)
 let keyword_remap name =
-   match name with
-   | "__get" | "__set" | "__unsafe_get" | "__unsafe_set" | "__global__"
-   |   "__SetSize" | "__s" | "__trace" -> name
-   (* | _ when (String.length name > 1) && (String.sub name 0 2 = "__") -> "_hx" ^ name *)
+   if (is_internal_member name) || (is_known_member name) then
+      name
+   else if (String.length name > 1) && (String.sub name 0 2 = "__") then
+      "_hx_" ^ name 
+   else match name with
    | "int"
    | "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
    | "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
@@ -889,16 +930,6 @@ let should_implement_field x = not (is_extern_field x);;
 
 let is_function_member expression =
    match (follow expression.etype) with | TFun (_,_) -> true | _ -> false;;
-
-let is_internal_member member =
-   match member with
-   | "__Field" | "__IField" | "__Run" | "__Is" | "__GetClass" | "__GetType" | "__ToString"
-   | "__s" | "__GetPtr" | "__SetField" | "__length" | "__IsArray" | "__SetThis" | "__Internal"
-   | "__EnumParams" | "__Index" | "__Tag" | "__GetFields" | "toString" | "__HasField"
-   | "__GetRealObject"
-         -> true
-   | _ -> false;;
-
 
 let is_extern_class class_def =
    class_def.cl_extern || (has_meta_key class_def.cl_meta Meta.Extern) ||
