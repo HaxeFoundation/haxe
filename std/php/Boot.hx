@@ -138,6 +138,9 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function removeAt($pos) {
+		if( $pos < 0 ) $pos += $this->length; 
+		if ($pos >= $this->length || $pos < 0) return false; 
+		
 		if(array_key_exists($pos, $this->a)) {
 			unset($this->a[$pos]);
 			$this->length--;
