@@ -492,6 +492,7 @@ let rec build_generic ctx c p tl =
 		Typeload.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_meta <- (Meta.NoDoc,[],p) :: cg.cl_meta;
+		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],p) :: cg.cl_meta;
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
