@@ -685,11 +685,11 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "_hx_empty()";
 		ctx.separator <- true
 	| TObjectDecl fields ->
-		spr ctx "setmetatable({__fields__={";
+		spr ctx "_hx_o({__fields__={";
 		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); spr ctx "true") fields;
 		spr ctx "},";
 		concat ctx "," (fun (f,e) -> print ctx "%s=" (anon_field f); gen_value ctx e) fields;
-		spr ctx "},{__newindex=_hx_anon_newindex})";
+		spr ctx "})";
 		ctx.separator <- true
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
@@ -1369,8 +1369,8 @@ let generate_class ctx c =
 				    | TBlock el ->
 					let bend = open_block ctx in
 					newline ctx;
-					println ctx "local self = _hx_empty();";
-					if (has_prototype ctx c) then println ctx "getmetatable(self).__index=%s.prototype" p;
+					if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
+					println ctx "local self = _hx_new(%s.prototype)" p;
 					println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
 					if p = "String" then sprln ctx "self = string";
 					spr ctx "return self";
@@ -1650,6 +1650,7 @@ let generate com =
 	sprln ctx "local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end";
 
 	sprln ctx "local function _hx_anon_newindex(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end";
+	sprln ctx "local _hx_anon_mt = {__newindex=_hx_anon_newindex}";
 
 	sprln ctx "local function _hx_anon(...)";
 	sprln ctx "   local __fields__ = {};";
@@ -1663,11 +1664,19 @@ let generate com =
 	sprln ctx "      ret[v] = tab[cur+1];";
 	sprln ctx "      cur = cur + 2";
 	sprln ctx "   end";
-	sprln ctx "   return setmetatable(ret, {__newindex=_hx_anon_newindex})";
+	sprln ctx "   return setmetatable(ret, _hx_anon_mt)";
 	sprln ctx "end";
 
 	sprln ctx "local function _hx_empty()";
-	sprln ctx "   return setmetatable({__fields__ = {}}, {__newindex=_hx_anon_newindex})";
+	sprln ctx "   return setmetatable({__fields__ = {}}, _hx_anon_mt)";
+	sprln ctx "end";
+
+	sprln ctx "local function _hx_o(obj)";
+	sprln ctx "   return setmetatable(obj, _hx_anon_mt)";
+	sprln ctx "end";
+
+	sprln ctx "local function _hx_new(prototype)";
+	sprln ctx "   return setmetatable({__fields__ = {}}, {__newindex=_hx_anon_newindex, __index=prototype})";
 	sprln ctx "end";
 
 	sprln ctx "local function _hx_staticToInstance(tab)";
