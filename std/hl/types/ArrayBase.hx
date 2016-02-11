@@ -94,6 +94,7 @@ class ArrayBase extends ArrayAccess {
 
 }
 
+@:keep
 @:generic
 class BasicIterator<T> {
 	var pos : Int;
@@ -109,6 +110,7 @@ class BasicIterator<T> {
 	}
 }
 
+@:keep
 @:generic class ArrayBasic<T> extends ArrayBase {
 
 	var bytes : hl.types.BytesAccess<T>;

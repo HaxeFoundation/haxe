@@ -123,7 +123,11 @@ class Reflect {
 	}
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
-	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
+	@:extern public inline static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
+		return _makeVarArgs(f);
+	}
+
+	static function _makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		throw "TODO";
 		return null;
 	}

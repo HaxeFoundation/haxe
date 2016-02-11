@@ -11,8 +11,10 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function concat( a : ArrayObj<T> ) : ArrayObj<T> {
-		throw "TODO";
-		return null;
+		var arr = new hl.types.NativeArray(length + a.length);
+		arr.blit(0, array, 0, length);
+		arr.blit(length, a.array, 0, a.length);
+		return alloc(cast arr);
 	}
 
 	override function join( sep : String ) : String {

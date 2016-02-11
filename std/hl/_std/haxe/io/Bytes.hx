@@ -27,13 +27,13 @@ class Bytes {
 	public var length(default,null) : Int;
 	var b : hl.types.Bytes;
 
-	function new(length:Int,b:hl.types.Bytes) : Void {
-		this.length = length;
+	function new(b:hl.types.Bytes,length:Int) : Void {
 		this.b = b;
+		this.length = length;
 	}
 
-	inline function out(pos:UInt) : Bool {
-		return pos >= (length : UInt);
+	inline function out(pos:Int) : Bool {
+		return (pos:UInt) >= (length : UInt);
 	}
 
 	public function get( pos : Int ) : Int {
@@ -57,7 +57,7 @@ class Bytes {
 
 	public function sub( pos : Int, len : Int ) : Bytes {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
-		return new Bytes(len,b.sub(pos,len));
+		return new Bytes(b.sub(pos, len), len);
 	}
 
 	public function compare( other : Bytes ) : Int {
@@ -155,17 +155,17 @@ class Bytes {
 	public static function alloc( length : Int ) : Bytes {
 		var b = new hl.types.Bytes(length);
 		b.fill(0, length, 0);
-		return new Bytes(length,b);
+		return new Bytes(b,length);
 	}
 
 	public static function ofString( s : String ) : Bytes @:privateAccess {
 		var size = 0;
-		var b = s.bytes.utf16ToUtf8(0,size);
-		return new Bytes(size,b);
+		var b = s.bytes.utf16ToUtf8(0, size);
+		return new Bytes(b,size);
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
-		return new Bytes(b.length,b.b);
+		return new Bytes(b.b,b.length);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {

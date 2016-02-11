@@ -138,7 +138,8 @@ type opcode =
 	| OJNotEq of reg * reg * int
 	| OJAlways of int
 	| OToDyn of reg * reg
-	| OToFloat of reg * reg
+	| OToSFloat of reg * reg
+	| OToUFloat of reg * reg
 	| OToInt of reg * reg
 	| OLabel of unused
 	| ONew of reg
@@ -283,6 +284,10 @@ type access =
 	| ADynamic of texpr * string index
 	| AEnum of field index
 	| ACaptured of field index
+
+let is_number = function
+	| HI8 | HI16 | HI32 | HF32 | HF64 -> true
+	| _ -> false
 
 let list_iteri f l =
 	let p = ref 0 in
@@ -536,7 +541,7 @@ let rec get_index name p =
 
 let rec unsigned t =
 	match follow t with
-	| TAbstract ({ a_path = ["hl";"types"],("UI32"|"UI16"|"UI8") },_) -> true
+	| TAbstract ({ a_path = ["hl";"types"],("UI32"|"UI16"|"UI8") },_) | TAbstract ({ a_path = [],"UInt" },_) -> true
 	| TAbstract (a,pl) -> unsigned (Abstract.get_underlying_type a pl)
 	| _ -> false
 
@@ -645,13 +650,21 @@ let rec to_type ctx t =
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
 		(match c.cl_kind with
-		| KTypeParameter _ -> HDyn
+		| KTypeParameter tl ->
+			let rec loop = function
+				| [] -> HDyn
+				| t :: tl ->
+					match follow (apply_params c.cl_params pl t) with
+					| TInst ({cl_interface=false},_) as t -> to_type ctx t
+					| _ -> loop tl
+			in
+			loop tl
 		| _ -> class_type ctx c pl false)
 	| TAbstract (a,pl) ->
 		if Meta.has Meta.CoreType a.a_meta then
 			(match a.a_path with
 			| [], "Void" -> HVoid
-			| [], "Int" -> HI32
+			| [], "Int" | [], "UInt" -> HI32
 			| [], "Float" -> HF64
 			| [], "Single" -> HF32
 			| [], "Bool" -> HBool
@@ -704,6 +717,16 @@ and field_type ctx f p =
 	| FStatic (_,f) | FAnon f | FClosure (_,f) -> f.cf_type
 	| FDynamic _ -> t_dynamic
 	| FEnum (_,f) -> f.ef_type
+
+and real_type ctx e =
+	let rec loop e =
+		match e.eexpr with
+		| TField (_,f) -> field_type ctx f e.epos
+		| TLocal v -> v.v_type
+		| TParenthesis e -> loop e
+		| _ -> e.etype
+	in
+	to_type ctx (loop e)
 
 and class_type ctx c pl statics =
 	let c = if c.cl_extern then resolve_class ctx c pl statics else c in
@@ -1033,7 +1056,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		cast_to ctx tmp t p
 	| (HI8 | HI16 | HI32 | HF32 | HF64), (HF32 | HF64) ->
 		let tmp = alloc_tmp ctx t in
-		op ctx (OToFloat (tmp, r));
+		op ctx (OToSFloat (tmp, r));
 		tmp
 	| (HF32 | HF64), (HI8 | HI16 | HI32) ->
 		let tmp = alloc_tmp ctx t in
@@ -1041,7 +1064,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		tmp
 	| (HI8 | HI16 | HI32), HNull ((HF32 | HF64) as t) ->
 		let tmp = alloc_tmp ctx t in
-		op ctx (OToFloat (tmp, r));
+		op ctx (OToSFloat (tmp, r));
 		let r = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (r,tmp));
 		r
@@ -1075,7 +1098,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| HNull rt, _ when rt == t ->
+	| HNull rt, _ when t = rt ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
@@ -1087,6 +1110,15 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx (HNull t) in
 		op ctx (OToDyn (tmp, r));
 		tmp
+	| HNull t1, HNull t2 ->
+		let j = jump ctx (fun n -> OJNull (r,n)) in
+		let rtmp = alloc_tmp ctx t1 in
+		op ctx (OSafeCast (rtmp,r));
+		let out = cast_to ctx rtmp t p in
+		op ctx (OJAlways 1);
+		j();
+		op ctx (ONull out);
+		out
 	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
 		let fid = gen_method_wrapper ctx rt t p in
 		let fr = alloc_tmp ctx t in
@@ -1342,7 +1374,12 @@ and eval_expr ctx e =
 		alloc_tmp ctx HVoid
 	| TLocal v ->
 		cast_to ctx (match captured_index ctx v with
-		| None -> alloc_reg ctx v
+		| None ->
+			(* we need to make a copy for cases such as (a - a++) *)
+			let r = alloc_reg ctx v in
+			let r2 = alloc_tmp ctx (rtype ctx r) in
+			op ctx (OMov (r2, r));
+			r2
 		| Some idx ->
 			let r = alloc_tmp ctx (to_type ctx v.v_type) in
 			op ctx (OEnumField (r, ctx.m.mcaptreg, 0, idx));
@@ -1567,9 +1604,9 @@ and eval_expr ctx e =
 			let r = eval_to ctx value et in
 			op ctx (OSetArray (arr, pos, r));
 			r
-		| "$ref", [v] ->
+		| "$ref", [{ eexpr = TLocal v }] ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
-			let rv = (match rtype ctx r with HRef t -> eval_to ctx v t | _ -> invalid()) in
+			let rv = (match rtype ctx r with HRef t -> alloc_reg ctx v | _ -> invalid()) in
 			op ctx (ORef (r,rv));
 			r
 		| "$ttype", [v] ->
@@ -1661,12 +1698,7 @@ and eval_expr ctx e =
 		| _ ->
 			error ("Unknown native call " ^ v.v_name) e.epos)
 	| TCall (ec,args) ->
-		let real_type = (match ec.eexpr with
-			| TField (_,f) -> field_type ctx f ec.epos
-			| TLocal v -> v.v_type
-			| _ -> ec.etype
-		) in
-		let tfun = to_type ctx real_type in
+		let tfun = real_type ctx ec in
 		let el() = eval_args ctx args tfun e.epos in
 		let ret = alloc_tmp ctx (match tfun with HFun (_,r) -> r | _ -> HDyn) in
 		let def_ret = ref None in
@@ -1861,14 +1893,14 @@ and eval_expr ctx e =
 			binop r a b;
 			r
 		| OpAdd | OpSub | OpMult | OpDiv | OpMod | OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor ->
-			let t = to_type ctx e.etype in
+			let t = (match to_type ctx e.etype with HNull t -> t | t -> t) in
 			let r = alloc_tmp ctx t in
 			let a = eval_to ctx e1 t in
 			let b = eval_to ctx e2 t in
 			binop r a b;
 			r
 		| OpAssign ->
-			let value() = eval_to ctx e2 (to_type ctx e1.etype) in
+			let value() = eval_to ctx e2 (real_type ctx e1) in
 			(match get_access ctx e1 with
 			| AGlobal g ->
 				let r = value() in
@@ -2086,8 +2118,14 @@ and eval_expr ctx e =
 		alloc_tmp ctx HVoid
 	| TCast (v,None) ->
 		let t = to_type ctx e.etype in
-		let v = eval_expr ctx v in
-		cast_to ~force:true ctx v t e.epos
+		let rv = eval_expr ctx v in
+		(match t with
+		| HF32 | HF64 when unsigned v.etype ->
+			let r = alloc_tmp ctx t in
+			op ctx (OToUFloat (r,rv));
+			r
+		| _ ->
+			cast_to ~force:true ctx rv t e.epos)
 	| TArrayDecl el ->
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		let et = (match follow e.etype with TInst (_,[t]) -> to_type ctx t | _ -> assert false) in
@@ -2295,14 +2333,26 @@ and eval_expr ctx e =
 			op ctx (OSafeCast (r,re));
 		r
 and gen_assign_op ctx acc e1 f =
+	let f r =
+		match rtype ctx r with
+		| HNull t ->
+			let r2 = alloc_tmp ctx t in
+			op ctx (OSafeCast (r2,r));
+			let r3 = alloc_tmp ctx (HNull t) in
+			op ctx (OToDyn (r3,f r2));
+			r3
+		| _ ->
+			f r
+	in
 	match acc with
 	| AInstanceField (eobj, findex) ->
 		let robj = eval_null_check ctx eobj in
-		let t = to_type ctx e1.etype in
+		let t = real_type ctx e1 in
 		let r = alloc_tmp ctx t in
 		op ctx (OField (r,robj,findex));
+		let r = cast_to ctx r (to_type ctx e1.etype) e1.epos in
 		let r = f r in
-		op ctx (OSetField (robj,findex,r));
+		op ctx (OSetField (robj,findex,cast_to ctx r t e1.epos));
 		r
 	| AStaticVar (g,t,fid) ->
 		let o = alloc_tmp ctx t in
@@ -2478,6 +2528,10 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 			| TInt i when (match to_type ctx (follow v.v_type) with HI8 | HI16 | HI32 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
+				op ctx (OToDyn (r, tmp));
+			| TFloat s when (match to_type ctx (follow v.v_type) with HI8 | HI16 | HI32 -> true | _ -> false) ->
+				let tmp = alloc_tmp ctx HI32 in
+				op ctx (OInt (tmp, alloc_i32 ctx (Int32.of_float (float_of_string s))));
 				op ctx (OToDyn (r, tmp));
 			| TInt i ->
 				let tmp = alloc_tmp ctx HF64 in
@@ -3002,7 +3056,10 @@ let check code =
 				reg a (rtype b);
 				can_jump delta
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
-				if not (safe_cast (rtype b) (rtype a)) then reg a (rtype b);
+				(match rtype a, rtype b with
+				| HObj _, HObj _ -> ()
+				| ta, tb when safe_cast tb ta -> ()
+				| _ -> reg a (rtype b));
 				can_jump delta
 			| OJAlways d ->
 				can_jump d
@@ -3010,7 +3067,7 @@ let check code =
 				(* we can still use OToDyn on nullable if we want to turn them into dynamic *)
 				if is_dynamic (rtype a) then reg a HI32; (* don't wrap as dynamic types that can safely be cast to it *)
 				if rtype r <> HDyn then reg r (HNull (rtype a))
-			| OToFloat (a,b) ->
+			| OToSFloat (a,b) | OToUFloat (a,b) ->
 				float a;
 				(match rtype b with HF32 | HF64 -> () | _ -> int b);
 			| OToInt (a,b) ->
@@ -3799,6 +3856,7 @@ let interp code =
 	and call f args =
 		let regs = Array.create (Array.length f.regs) VUndef in
 		let pos = ref 1 in
+
 		stack := (f,pos) :: !stack;
 		let fret = (match f.ftype with
 			| HFun (fargs,fret) ->
@@ -3931,8 +3989,9 @@ let interp code =
 			| OJNotEq (a,b,i) -> if not (vcompare a b (=)) then pos := !pos + i
 			| OJAlways i -> pos := !pos + i
 			| OToDyn (r,a) -> set r (make_dyn (get a) f.regs.(a))
-			| OToFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | VFloat _ as v -> v | _ -> assert false)
-			| OToInt (r,a) -> set r (match get a with VInt _ as v -> v | VFloat v -> VInt (Int32.of_float v) | _ -> assert false)
+			| OToSFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | VFloat _ as v -> v | _ -> assert false)
+			| OToUFloat (r,a) -> set r (match get a with VInt v -> VFloat (if v < 0l then Int32.to_float v +. 4294967296. else Int32.to_float v) | VFloat _ as v -> v | _ -> assert false)
+			| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | VInt _ as v -> v | _ -> assert false)
 			| OLabel _ -> ()
 			| ONew r ->
 				set r (alloc_obj (rtype r))
@@ -5282,7 +5341,8 @@ let ostr o =
 	| OJNotEq (a,b,i) -> Printf.sprintf "jnoteq %d,%d,%d" a b i
 	| OJAlways d -> Printf.sprintf "jalways %d" d
 	| OToDyn (r,a) -> Printf.sprintf "todyn %d,%d" r a
-	| OToFloat (r,a) -> Printf.sprintf "tofloat %d,%d" r a
+	| OToSFloat (r,a) -> Printf.sprintf "tosfloat %d,%d" r a
+	| OToUFloat (r,a) -> Printf.sprintf "toufloat %d,%d" r a
 	| OToInt (r,a) -> Printf.sprintf "toint %d,%d" r a
 	| OLabel _ -> "label"
 	| ONew r -> Printf.sprintf "new %d" r
@@ -5447,6 +5507,8 @@ let generate com =
 	let all_classes = Hashtbl.create 0 in
 	List.iter (fun t ->
 		match t with
+		| TClassDecl ({ cl_path = ["hl";"types"], ("BasicIterator"|"ArrayBasic") } as c) ->
+			c.cl_extern <- true
 		| TClassDecl c ->
 			let rec loop p f =
 				match p with

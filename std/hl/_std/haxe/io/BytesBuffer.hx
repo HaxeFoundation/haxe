@@ -99,7 +99,7 @@ class BytesBuffer {
 	}
 
 	public function getBytes() : Bytes {
-		return @:privateAccess new haxe.io.Bytes(pos, b);
+		return @:privateAccess new haxe.io.Bytes(b, pos);
 	}
 
 }

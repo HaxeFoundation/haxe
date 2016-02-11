@@ -46,7 +46,7 @@ class Resource {
 	public static function getBytes( name : String ) : haxe.io.Bytes {
 		for( x in content )
 			if( x.name.compare(0,@:privateAccess name.bytes,0,(name.length+1)<<1) == 0 )
-				return @:privateAccess new haxe.io.Bytes(x.dataLen, x.data);
+				return @:privateAccess new haxe.io.Bytes(x.data, x.dataLen);
 		return null;
 	}
 
