@@ -1,12 +1,14 @@
 package hl.types;
 
-abstract NativeObjectMap(NativeAbstract<"ObjectMap">) {
+typedef NativeObjectMapData = NativeAbstract<"hl_obj_map">;
+
+abstract NativeObjectMap(NativeObjectMapData) {
 
 	@:extern public inline function new() {
 		this = alloc();
 	}
 	
-	@:hlNative("std","hoalloc") static function alloc() : NativeAbstract<"ObjectMap"> {
+	@:hlNative("std","hoalloc") static function alloc() : NativeObjectMapData {
 		return null;
 	}
 

@@ -418,6 +418,27 @@ let rec safe_cast t1 t2 =
 	| _ ->
 		tsame t1 t2
 
+let utf16_add buf c =
+	let add c =
+		Buffer.add_char buf (char_of_int (c land 0xFF));
+		Buffer.add_char buf (char_of_int (c lsr 8));
+	in
+	if c >= 0 && c < 0x10000 then begin
+		if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
+		add c;
+	end else if c < 0x110000 then begin
+		let c = c - 0x10000 in
+		add ((c asr 10) + 0xD800);
+		add ((c land 1023) + 0xDC00);
+	end else
+		failwith ("Invalid unicode char " ^ string_of_int c)
+
+let utf8_to_utf16 str =
+	let b = Buffer.create (String.length str * 2) in
+	(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
+	utf16_add b 0;
+	Buffer.contents b
+
 let to_utf8 str p =
 	let u8 = try
 		UTF8.validate str;
@@ -505,6 +526,41 @@ let method_context id t captured =
 		mdebug = DynArray.create();
 		mcurpos = (0,0);
 	}
+
+let gather_types (code:code) =
+	let types = new_lookup() in
+	let rec get_type t =
+		(match t with HObj { psuper = Some p } -> get_type (HObj p) | _ -> ());
+		ignore(lookup types t (fun() ->
+			(match t with
+			| HFun (args, ret) ->
+				List.iter get_type args;
+				get_type ret
+			| HObj p ->
+				Array.iter (fun (_,n,t) -> get_type t) p.pfields
+			| HNull t | HRef t ->
+				get_type t
+			| HVirtual v ->
+				Array.iter (fun (_,_,t) -> get_type t) v.vfields
+			| HEnum e ->
+				Array.iter (fun (_,_,tl) -> Array.iter get_type tl) e.efields
+			| _ ->
+				());
+			t
+		));
+	in
+	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	Array.iter (fun g -> get_type g) code.globals;
+	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
+	Array.iter (fun f ->
+		get_type f.ftype;
+		Array.iter (fun r -> get_type r) f.regs;
+		Array.iter (function
+			| OType (_,t) -> get_type t
+			| _ -> ()
+		) f.code;
+	) code.functions;
+	types
 
 let field_name c f =
 	s_type_path c.cl_path ^ ":" ^ f.cf_name
@@ -3453,32 +3509,11 @@ let interp code =
 		loop 0
 	in
 
-	let utf16_add buf c =
-		let add c =
-			Buffer.add_char buf (char_of_int (c land 0xFF));
-			Buffer.add_char buf (char_of_int (c lsr 8));
-		in
-		if c >= 0 && c < 0x10000 then begin
-			if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
-			add c;
-		end else if c < 0x110000 then begin
-			let c = c - 0x10000 in
-			add ((c asr 10) + 0xD800);
-			add ((c land 1023) + 0xDC00);
-		end else
-			failwith ("Invalid unicode char " ^ string_of_int c);
-	in
-
 	let utf16_char buf c =
 		utf16_add buf (int_of_char c)
 	in
 
-	let caml_to_hl str =
-		let b = Buffer.create (String.length str * 2) in
-		(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
-		utf16_add b 0;
-		Buffer.contents b
-	in
+	let caml_to_hl str = utf8_to_utf16 str in
 
 	let hl_to_caml str =
 		let b = UTF8.Buf.create (String.length str / 2) in
@@ -5126,7 +5161,7 @@ let write_index_gen b i =
 
 let write_code ch code =
 
-	let types = new_lookup() in
+	let types = gather_types code in
 	let byte = IO.write_byte ch in
 	let write_index = write_index_gen byte in
 
@@ -5214,38 +5249,6 @@ let write_code ch code =
 
 	IO.nwrite ch "HLB";
 	IO.write_byte ch code.version;
-
-	let rec get_type t =
-		ignore(lookup types t (fun() ->
-			(match t with
-			| HFun (args, ret) ->
-				List.iter get_type args;
-				get_type ret
-			| HObj p ->
-				(match p.psuper with None -> () | Some p -> get_type (HObj p));
-				Array.iter (fun (_,n,t) -> get_type t) p.pfields
-			| HNull t | HRef t ->
-				get_type t
-			| HVirtual v ->
-				Array.iter (fun (_,_,t) -> get_type t) v.vfields
-			| HEnum e ->
-				Array.iter (fun (_,_,tl) -> Array.iter get_type tl) e.efields
-			| _ ->
-				());
-			t
-		));
-	in
-	List.iter (fun t -> get_type t) [HVoid; HI8; HI16; HI32; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
-	Array.iter (fun g -> get_type g) code.globals;
-	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
-	Array.iter (fun f ->
-		get_type f.ftype;
-		Array.iter (fun r -> get_type r) f.regs;
-		Array.iter (function
-			| OType (_,t) -> get_type t
-			| _ -> ()
-		) f.code;
-	) code.functions;
 
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
@@ -5517,6 +5520,373 @@ let dump code =
 
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
+(* HLC *)
+
+let c_kwds = [
+"auto";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
+"if";"int";"long";"register";"return";"short";"signed";"sizeof";"static";"struct";"switch";"typedef";"union";"unsigned";
+"void";"volatile";"while";
+(* MS specific *)
+"__asm";"dllimport2";"__int8";"naked2";"__based1";"__except";"__int16";"__stdcall";"__cdecl";"__fastcall";"__int32";
+"thread2";"__declspec";"__finally";"__int64";"__try";"dllexport2";"__inline";"__leave";
+(* reserved by HLC *)
+"t"
+]
+
+let write_c version ch (code:code) =
+	let tabs = ref "" in
+	let block() = tabs := !tabs ^ "\t" in
+	let unblock() = tabs := String.sub (!tabs) 0 (String.length (!tabs) - 1) in
+	let line str = IO.write_line ch (!tabs ^ str) in
+	let expr str = line (str ^ ";") in
+	let sexpr fmt = Printf.ksprintf expr fmt in
+
+	let keywords =
+		let h = Hashtbl.create 0 in
+		List.iter (fun i -> Hashtbl.add h i ()) c_kwds;
+		h
+	in
+
+	let ident i = if Hashtbl.mem keywords i then "_" ^ i else i in
+
+	let tname str = String.concat "__" (ExtString.String.nsplit str ".") in
+
+	let rec ctype t =
+		match t with
+		| HVoid -> "void"
+		| HI8 -> "char"
+		| HI16 -> "short"
+		| HI32 -> "int"
+		| HF32 -> "float"
+		| HF64 -> "double"
+		| HBool -> "bool"
+		| HBytes -> "vbytes*"
+		| HDyn -> "vdynamic*"
+		| HFun _ -> "vclosure*"
+		| HObj p -> tname p.pname
+		| HArray -> "varray*"
+		| HType -> "hl_type*"
+		| HRef t -> ctype t ^ "*"
+		| HVirtual _ -> "vvirtual*"
+		| HDynObj -> "vdynobj*"
+		| HAbstract (name,_) -> name ^ "*"
+		| HEnum e -> tname e.ename
+		| HNull _ -> "vdynamic*"
+	in
+	let var_type n t =
+		ctype t ^ " " ^ ident n
+	in
+
+	let version_major = version / 1000 in
+	let version_minor = (version mod 1000) / 100 in
+	let version_revision = (version mod 100) in
+	let ver_str = Printf.sprintf "%d.%d.%d" version_major version_minor version_revision in
+	line ("// Generated by HLC " ^ ver_str ^ " (HL v" ^ string_of_int code.version ^")");
+	line "#include <hl.h>";
+	line "";
+	line "// Types definitions";
+	let types = gather_types code in
+	let tfuns = Array.create (Array.length code.functions + Array.length code.natives) ([],HVoid) in
+	(* predecl types *)
+	DynArray.iter (fun t ->
+		match t with
+		| HObj o ->
+			let name = tname o.pname in
+			expr ("typedef struct _" ^ name ^ " *" ^ name);
+		| HEnum e ->
+			let name = tname e.ename in
+			expr ("typedef struct _" ^ name ^ " *" ^ name);
+		| HAbstract (name,_) ->
+			expr ("typedef struct _" ^ name ^ " "  ^ name);
+		| _ ->
+			()
+	) types.arr;
+	line "";
+	line "// Types implementation";
+	DynArray.iter (fun t ->
+		match t with
+		| HObj o ->
+			let name = tname o.pname in
+			line ("struct _" ^ name ^ " {");
+			block();
+			(match o.psuper with
+			| None ->
+				expr ("hl_type *$type");
+			| Some c ->
+				expr ("struct _" ^ tname c.pname));
+			Array.iter (fun (n,_,t) ->
+				expr (var_type n t)
+			) o.pfields;
+			unblock();
+			expr "}";
+		| _ ->
+			()
+	) types.arr;
+
+	line "// Globals";
+	Array.iteri (fun i t ->
+		let name = "global$" ^ string_of_int i in
+		sexpr "static %s = 0" (var_type name t)
+	) code.globals;
+	line "";
+
+	line "// Natives functions";
+	Array.iter (fun (lib,name,t,idx) ->
+		match t with
+		| HFun (args,t) ->
+			let fname =
+				let lib = code.strings.(lib) in
+				let lib = if lib = "std" then "hl" else lib in
+				lib ^ "_" ^ code.strings.(name)
+			in
+			sexpr "%s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
+			line (Printf.sprintf "#define fun$%d %s" idx fname);
+			Array.set tfuns idx (args,t)
+		| _ ->
+			assert false
+	) code.natives;
+	line "";
+	line "// Functions declaration";
+	Array.iter (fun f ->
+		match f.ftype with
+		| HFun (args,t) ->
+			sexpr "%s fun$%d(%s)" (ctype t) f.findex (String.concat "," (List.map ctype args));
+			Array.set tfuns f.findex (args,t)
+		| _ ->
+			assert false
+	) code.functions;
+	sexpr "void hl_entry_point() { fun$%d(); }" code.entrypoint;
+	line "";
+	line "// Strings";
+	Array.iteri (fun i str ->
+		let s = utf8_to_utf16 str in
+		let rec loop i =
+			if i = String.length s then [] else
+			let c = String.get s i in
+			string_of_int (int_of_char c) :: loop (i+1)
+		in
+		sexpr "vbytes string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) str
+	) code.strings;
+	line "";
+	line "// Functions code";
+	Array.iter (fun f ->
+		let rid = ref (-1) in
+		let reg id = "r" ^ string_of_int id in
+
+		let label id = "label$" ^ string_of_int f.findex ^ "$" ^ string_of_int id in
+
+		let rtype r = f.regs.(r) in
+
+		let rcast r t =
+			if tsame (rtype r) t then (reg r)
+			else if not (safe_cast (rtype r) t) then assert false
+			else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
+		in
+
+		let rassign r t =
+			let rt = rtype r in
+			if t = HVoid then "" else
+			let assign = reg r ^ " = " in
+			if tsame t rt then assign else
+			if not (safe_cast t rt) then assert false
+			else assign ^ "(" ^ ctype rt ^ ")"
+		in
+
+		let ocall r fid args =
+			let targs, rt = tfuns.(fid) in
+			let rstr = rassign r rt in
+			sexpr "%sfun$%d(%s)" rstr fid (String.concat "," (List.map2 rcast args targs))
+		in
+
+		let fret = (match f.ftype with
+		| HFun (args,t) ->
+			line (Printf.sprintf "%s fun$%d(%s) {" (ctype t) f.findex (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args)));
+			t
+		| _ ->
+			assert false
+		) in
+		block();
+		Array.iteri (fun i t ->
+			if i <= !rid || t = HVoid then ()
+			else
+			expr (var_type (reg i) t);
+		) f.regs;
+		let flabels = Array.make (Array.length f.code) false in
+
+		Array.iteri (fun i op ->
+			if flabels.(i) then line (label i ^":");
+			let label delta =
+				let addr = delta + i + 1 in
+				flabels.(addr) <- true;
+				label addr
+			in
+			match op with
+			| OMov (r,v) ->
+				sexpr "%s = %s" (reg r) (rcast v (rtype r))
+			| OInt (r,idx) ->
+				sexpr "%s = %ld" (reg r) code.ints.(idx)
+			| OFloat (r,idx) ->
+				sexpr "%s = %f" (reg r) code.floats.(idx)
+			| OBool (r,b) ->
+				sexpr "%s = %s" (reg r) (if b then "true" else "false")
+			| OBytes (r,idx) ->
+				sexpr "%s = string$%d" (reg r) idx
+			| OString (r,idx) ->
+				sexpr "%s = string$%d" (reg r) idx
+			| ONull r ->
+				sexpr "%s = NULL" (reg r)
+			| OAdd (r,a,b) ->
+				sexpr "%s = %s + %s" (reg r) (reg a) (reg b)
+			| OSub (r,a,b) ->
+				sexpr "%s = %s - %s" (reg r) (reg a) (reg b)
+			| OMul (r,a,b) ->
+				sexpr "%s = %s * %s" (reg r) (reg a) (reg b)
+			| OSDiv (r,a,b) ->
+				(match rtype r with
+				| HI8 | HI16 | HI32 ->
+					sexpr "%s = %s == 0 ? 0 : %s / %s" (reg r) (reg b) (reg a) (reg b)
+				| _ ->
+					sexpr "%s = %s / %s" (reg r) (reg a) (reg b))
+			| OUDiv (r,a,b) ->
+				sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) / ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
+			| OSMod (r,a,b) ->
+				(match rtype r with
+				| HI8 | HI16 | HI32 ->
+					sexpr "%s = %s == 0 ? 0 : %s %% %s" (reg r) (reg b) (reg a) (reg b)
+				| _ ->
+					sexpr "%s = %s %% %s" (reg r) (reg a) (reg b))
+			| OUMod (r,a,b) ->
+				sexpr "%s = %s == 0 ? 0 : ((unsigned)%s) %% ((unsigned)%s)" (reg r) (reg b) (reg a) (reg b)
+			| OShl (r,a,b) ->
+				sexpr "%s = %s << %s" (reg r) (reg a) (reg b)
+			| OSShr (r,a,b) ->
+				sexpr "%s = %s >> %s" (reg r) (reg a) (reg b)
+			| OUShr (r,a,b) ->
+				sexpr "%s = ((unsigned)%s) >> %s" (reg r) (reg a) (reg b)
+			| OAnd (r,a,b) ->
+				sexpr "%s = %s & %s" (reg r) (reg a) (reg b)
+			| OOr (r,a,b) ->
+				sexpr "%s = %s | %s" (reg r) (reg a) (reg b)
+			| OXor (r,a,b) ->
+				sexpr "%s = %s ^ %s" (reg r) (reg a) (reg b)
+			| ONeg (r,v) ->
+				sexpr "%s = -%s" (reg r) (reg v)
+			| ONot (r,v) ->
+				sexpr "%s = !%s" (reg r) (reg v)
+			| OIncr r ->
+				sexpr "++%s" (reg r)
+			| ODecr r ->
+				sexpr "--%s" (reg r)
+			| OCall0 (r,fid) ->
+				ocall r fid []
+			| OCall1 (r,fid,a) ->
+				ocall r fid [a]
+			| OCall2 (r,fid,a,b) ->
+				ocall r fid [a;b]
+			| OCall3 (r,fid,a,b,c) ->
+				ocall r fid [a;b;c]
+			| OCall4 (r,fid,a,b,c,d) ->
+				ocall r fid [a;b;c;d]
+			| OCallN (r,fid,rl) ->
+				ocall r fid rl
+
+
+	(*
+	| OCallMethod of reg * field index * reg list
+	| OCallThis of reg * field index * reg list
+	| OCallClosure of reg * reg * reg list
+	| OGetFunction of reg * functable index (* closure *)
+	| OClosure of reg * functable index * reg (* closure *)
+	*)
+
+			| OGetGlobal (r,g) ->
+				sexpr "%s = global$%d" (reg r) g
+			| OSetGlobal (g,r) ->
+				sexpr "global$%d = %s" g (reg r)
+			| ORet r ->
+				if rtype r = HVoid then expr "return" else sexpr "return %s" (rcast r fret)
+			| OJTrue (r,d) | OJNotNull (r,d) ->
+				sexpr "if( %s ) goto %s" (reg r) (label d)
+			| OJFalse (r,d) | OJNull (r,d) ->
+				sexpr "if( !%s ) goto %s" (reg r) (label d)
+			| OJSLt (a,b,d) ->
+				sexpr "if( %s < %s ) goto %s" (reg a) (reg b) (label d)
+			| OJSGte (a,b,d) ->
+				sexpr "if( %s >= %s ) goto %s" (reg a) (reg b) (label d)
+			| OJSGt (a,b,d) ->
+				sexpr "if( %s > %s ) goto %s" (reg a) (reg b) (label d)
+			| OJSLte (a,b,d) ->
+				sexpr "if( %s <= %s ) goto %s" (reg a) (reg b) (label d)
+			| OJULt (a,b,d) ->
+				sexpr "if( ((unsigned)%s) < ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
+			| OJUGte (a,b,d) ->
+				sexpr "if( ((unsigned)%s) >= ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
+			| OJEq (a,b,d) ->
+				sexpr "if( %s == %s ) goto %s" (reg a) (reg b) (label d)
+			| OJNotEq (a,b,d) ->
+				sexpr "if( %s != %s ) goto %s" (reg a) (reg b) (label d)
+			| OJAlways d ->
+				sexpr "goto %s" (label d)
+			| OLabel _ ->
+				if not (flabels.(i)) then line (label (-1) ^ ":")
+
+			(*
+	| OToDyn of reg * reg
+	| OToSFloat of reg * reg
+	| OToUFloat of reg * reg
+	| OToInt of reg * reg
+	| ONew of reg
+	| OField of reg * reg * field index
+	| OMethod of reg * reg * field index (* closure *)
+	| OSetField of reg * field index * reg
+	| OGetThis of reg * field index
+	| OSetThis of field index * reg
+	| OThrow of reg
+	| ORethrow of reg
+	| OGetI8 of reg * reg * reg
+	| OGetI32 of reg * reg * reg
+	| OGetF32 of reg * reg * reg
+	| OGetF64 of reg * reg * reg
+	| OGetArray of reg * reg * reg
+	| OSetI8 of reg * reg * reg
+	| OSetI32 of reg * reg * reg
+	| OSetF32 of reg * reg * reg
+	| OSetF64 of reg * reg * reg
+	| OSetArray of reg * reg * reg
+	| OSafeCast of reg * reg
+	| OUnsafeCast of reg * reg
+	| OArraySize of reg * reg
+	| OError of string index
+	| OType of reg * ttype
+	| OGetType of reg * reg
+	| OGetTID of reg * reg
+	| ORef of reg * reg
+	| OUnref of reg * reg
+	| OSetref of reg * reg
+	| OToVirtual of reg * reg
+	| OUnVirtual of reg * reg
+	| ODynGet of reg * reg * string index
+	| ODynSet of reg * string index * reg
+	| OMakeEnum of reg * field index * reg list
+	| OEnumAlloc of reg * field index
+	| OEnumIndex of reg * reg
+	| OEnumField of reg * reg * field index * int
+	| OSetEnumField of reg * int * reg
+	| OSwitch of reg * int array
+	| ONullCheck of reg
+	| OTrap of reg * int
+	| OEndTrap of unused
+	| ODump of reg*)
+			| _ ->
+				sexpr "hl_fatal(\"%s\")" (ostr op)
+		) f.code;
+		unblock();
+		line "}";
+		line "";
+	) code.functions
+
+
+(* --------------------------------------------------------------------------------------------------------------------- *)
 
 let generate com =
 	let get_class name =
@@ -5599,7 +5969,7 @@ let generate com =
 	) ctx.cfids.map;
 	check code;
 	let ch = IO.output_string() in
-	write_code ch code;
+	if file_extension com.file = "c" then write_c com.Common.version ch code else write_code ch code;
 	let str = IO.close_out ch in
 	let ch = open_out_bin com.file in
 	output_string ch str;

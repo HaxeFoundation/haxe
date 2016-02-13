@@ -1,12 +1,14 @@
 package hl.types;
 
-abstract NativeIntMap(NativeAbstract<"IntMap">) {
+typedef NativeIntMapData = NativeAbstract<"hl_int_map">;
+
+abstract NativeIntMap(NativeIntMapData) {
 
 	@:extern public inline function new() {
 		this = alloc();
 	}
 	
-	@:hlNative("std","hialloc") static function alloc() : NativeAbstract<"IntMap"> {
+	@:hlNative("std","hialloc") static function alloc() : NativeIntMapData {
 		return null;
 	}
 

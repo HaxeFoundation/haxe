@@ -1,12 +1,14 @@
 package hl.types;
 
-abstract NativeBytesMap(NativeAbstract<"BytesMap">) {
+typedef NativeBytesMapData = NativeAbstract<"hl_bytes_map">;
+
+abstract NativeBytesMap(NativeBytesMapData) {
 
 	@:extern public inline function new() {
 		this = alloc();
 	}
 
-	@:hlNative("std","hballoc") static function alloc() : NativeAbstract<"BytesMap"> {
+	@:hlNative("std","hballoc") static function alloc() : NativeBytesMapData {
 		return null;
 	}
 
