@@ -442,7 +442,7 @@ class RunCi {
 		Sys.putEnv("LUA", lua_version);
 		// use the helper scripts in .travis
 		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
-		runCommand("sh", ["-e", '.${build_dir}/.travis/setenv_lua.sh']);
+		runCommand("sh", ["-e", '${build_dir}/.travis/setenv_lua.sh']);
 		if (jit){
 			runCommand("luajit", ["-v"]);
 		} else {
