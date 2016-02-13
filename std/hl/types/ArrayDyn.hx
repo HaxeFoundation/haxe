@@ -74,8 +74,7 @@ class ArrayDyn extends ArrayAccess {
 	}
 
 	public function slice( pos : Int, ?end : Int ) : ArrayDyn {
-		throw "TODO";
-		return null;
+		return alloc(array.slice(pos,end),true);
 	}
 
 	public function sort( f : Dynamic -> Dynamic -> Int ) : Void {
@@ -83,7 +82,7 @@ class ArrayDyn extends ArrayAccess {
 	}
 
 	public function splice( pos : Int, len : Int ) : ArrayDyn {
-		return alloc(array.spliceDyn(pos,len),true);
+		return alloc(array.splice(pos,len),true);
 	}
 
 	public function toString() : String {
@@ -115,7 +114,17 @@ class ArrayDyn extends ArrayAccess {
 	}
 
 	public function lastIndexOf( x : Dynamic, ?fromIndex:Int ) : Int {
-		throw "TODO";
+		var len = length;
+		var i:Int = fromIndex != null ? fromIndex : len - 1;
+		if( i >= len )
+			i = len - 1;
+		else if( i  < 0 )
+			i += len;
+		while( i >= 0 ) {
+			if( array.getDyn(i) == x )
+				return i;
+			i--;
+		}
 		return -1;
 	}
 

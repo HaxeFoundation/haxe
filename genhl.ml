@@ -402,7 +402,7 @@ let rec safe_cast t1 t2 =
 		in
 		loop p1
 	| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
-		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t2 = HDyn && is_dynamic t1)) args1 args2 && safe_cast t1 t2
+		List.for_all2 (fun t1 t2 -> safe_cast t2 t1 || (t1 = HDyn && is_dynamic t2)) args1 args2 && safe_cast t1 t2
 	| _ ->
 		tsame t1 t2
 
@@ -1088,6 +1088,10 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		out
 	| _, HObj { pname = "String" } ->
 		let out = alloc_tmp ctx t in
+		let r = cast_to ctx r HDyn p in
+		op ctx (OJNotNull (r,2));
+		op ctx (ONull out);
+		op ctx (OJAlways 1);
 		op ctx (OCall1 (out,alloc_fun_path ctx ([],"Std") "string",r));
 		out
 	| (HObj _ | HDynObj | HDyn) , HVirtual _ ->
@@ -3452,7 +3456,7 @@ let interp code =
 
 	let caml_to_hl str =
 		let b = Buffer.create (String.length str * 2) in
-		(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ -> ()); (* if malformed *)
+		(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
 		utf16_add b 0;
 		Buffer.contents b
 	in
@@ -3749,6 +3753,8 @@ let interp code =
 		| HObj _, HObj b when safe_cast rt t && (match get_type v with Some t -> safe_cast t rt | None -> assert false) ->
 			(* downcast *)
 			v
+		| (HObj _ | HDynObj | HVirtual _), HVirtual vp ->
+			to_virtual v vp
 		| HObj p, _ ->
 			(match get_method p "__cast" with
 			| None -> invalid()
@@ -4078,17 +4084,22 @@ let interp code =
 				let f = functions.(fid) in
 				set r (VClosure (f,Some (get v)))
 			| OMethod (r, o, m) ->
-				set r (match get o with
+				let m = (match get o with
 				| VObj v as obj -> VClosure (v.oproto.pmethods.(m), Some obj)
 				| VNull -> null_access()
 				| VVirtual v ->
 					let name, _, _ = v.vtype.vfields.(m) in
 					(match v.vvalue with
 					| VObj o as obj ->
-						let m = (try PMap.find name o.oproto.pclass.pfunctions with Not_found -> assert false) in
-						VClosure (functions.(m), Some obj)
+						(try
+							let m = PMap.find name o.oproto.pclass.pfunctions in
+							VClosure (functions.(m), Some obj)
+						with Not_found ->
+							VNull)
 					| _ -> assert false)
-				| _ -> assert false)
+				| _ -> assert false
+				) in
+				set r (if m = VNull then m else dyn_cast m (match get_type m with None -> assert false | Some v -> v) (rtype r))
 			| OThrow r ->
 				throw (get r)
 			| ORethrow r ->

@@ -64,7 +64,7 @@ class ArrayObj<T> extends ArrayBase {
 		return v;
 	}
 
-	public function slice( pos : Int, ?end : Int ) : ArrayObj<T> {
+	override function slice( pos : Int, ?end : Int ) : ArrayObj<T> {
 		if( pos < 0 ) {
 			pos = this.length + pos;
 			if( pos < 0 )
@@ -91,7 +91,7 @@ class ArrayObj<T> extends ArrayBase {
 		haxe.ds.ArraySort.sort(cast this, f);
 	}
 
-	public function splice( pos : Int, len : Int ) : ArrayObj<T> {
+	override function splice( pos : Int, len : Int ) : ArrayObj<T> {
 		if( len < 0 ) return new ArrayObj();
 		if( pos < 0 ){
 			pos = this.length + pos;
@@ -246,7 +246,6 @@ class ArrayObj<T> extends ArrayBase {
 	override function insertDyn( pos : Int, v : Dynamic ) insert(pos, v);
 	override function removeDyn( v : Dynamic ) return remove(v);
 	override function sortDyn( f : Dynamic -> Dynamic -> Int ) sort(f);
-	override function spliceDyn( pos : Int, len : Int ) return splice(pos, len);
 
 	public static function alloc<T>( a : hl.types.NativeArray<T> ) : ArrayObj<T> {
 		var arr : ArrayObj<T> = untyped $new(ArrayObj);

@@ -51,7 +51,12 @@ class ArrayBase extends ArrayAccess {
 		throw "Not implemented";
 	}
 
-	public function spliceDyn( pos : Int, len : Int ) : ArrayObj<Dynamic> {
+	public function slice( pos : Int, ?end : Int ) : ArrayBase{
+		throw "Not implemented";
+		return null;
+	}
+
+	public function splice( pos : Int, len : Int ) : ArrayBase{
 		throw "Not implemented";
 		return null;
 	}
@@ -175,7 +180,7 @@ class BasicIterator<T> {
 		return v;
 	}
 
-	public function slice( pos : Int, ?end : Int ) : ArrayBasic<T> {
+	override function slice( pos : Int, ?end : Int ) : ArrayBasic<T> {
 		if( pos < 0 ) {
 			pos = this.length + pos;
 			if( pos < 0 )
@@ -207,7 +212,7 @@ class BasicIterator<T> {
 			(bytes:Bytes).sortF64(0, length, cast f);
 	}
 
-	public function splice( pos : Int, len : Int ) : ArrayBasic<T> {
+	override function splice( pos : Int, len : Int ) : ArrayBasic<T> {
 		throw "TODO";
 		return null;
 	}
@@ -325,10 +330,6 @@ class BasicIterator<T> {
 	override function insertDyn( pos : Int, v : Dynamic ) insert(pos, v);
 	override function removeDyn( v : Dynamic ) return remove(v);
 	override function sortDyn( f : Dynamic -> Dynamic -> Int ) sort(f);
-	override function spliceDyn( pos : Int, len : Int ) : ArrayObj<Dynamic> {
-		throw "Not implemented";
-		return null;
-	}
 
 	// called by compiler when accessing the array outside of its bounds, might trigger resize
 	function __expand( index : Int ) {
