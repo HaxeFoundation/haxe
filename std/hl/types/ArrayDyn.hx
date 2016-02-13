@@ -21,7 +21,6 @@ class ArrayDynIterator {
 @:keep
 class ArrayDyn extends ArrayAccess {
 
-	// TODO : for Dynamic access, we need to support __getField(hash("length")) !
 	public var length(get,never) : Int;
 	var array : ArrayBase;
 	var allowReinterpret : Bool;
@@ -155,6 +154,12 @@ class ArrayDyn extends ArrayAccess {
 		return alloc(a,true);
 	}
 
+	function __get_field( fid : Int ) : Dynamic {
+		if( fid == untyped $hash("length") )
+			return length;
+		return null;
+	}
+	
 	function __cast( t : Type ) : Dynamic {
 		if( t.check(array) )
 			return array;

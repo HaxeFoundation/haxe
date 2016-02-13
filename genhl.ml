@@ -289,6 +289,18 @@ let is_number = function
 	| HI8 | HI16 | HI32 | HF32 | HF64 -> true
 	| _ -> false
 
+let hash b =
+	let h = ref Int32.zero in
+	let rec loop i =
+		let c = if i = String.length b then 0 else int_of_char b.[i] in
+		if c <> 0 then begin
+			h := Int32.add (Int32.mul !h 223l) (Int32.of_int c);
+			loop (i + 1)
+		end else
+			Int32.rem !h 0x1FFFFF7Bl
+	in
+	loop 0
+
 let list_iteri f l =
 	let p = ref 0 in
 	List.iter (fun v -> f !p v; incr p) l
@@ -1693,6 +1705,13 @@ and eval_expr ctx e =
 			let v = eval_expr ctx v in
 			op ctx (OSetGlobal (alloc_global ctx "__types__" (rtype ctx v), v));
 			v
+		| "$hash", [v] ->
+			(match v.eexpr with
+			| TConst (TString str) ->
+				let r = alloc_tmp ctx HI32 in
+				op ctx (OInt (r,alloc_i32 ctx (hash str)));
+				r
+			| _ -> error "Constant string required" v.epos)
 		| "$enumIndex", [v] ->
 			let r = alloc_tmp ctx HI32 in
 			let re = eval_expr ctx v in
@@ -3477,20 +3496,10 @@ let interp code =
 
 	let hash_cache = Hashtbl.create 0 in
 
-	let hash b =
-		let h = ref Int32.zero in
-		let rec loop i =
-			let c = if i = String.length b then 0 else int_of_char b.[i] in
-			if c <> 0 then begin
-				h := Int32.add (Int32.mul !h 223l) (Int32.of_int c);
-				loop (i + 1)
-			end else begin
-				let h = Int32.rem !h 0x1FFFFF7Bl in
-				if not (Hashtbl.mem hash_cache h) then Hashtbl.add hash_cache h (String.sub b 0 i);
-				h
-			end
-		in
-		loop 0
+	let hash str =
+		let h = hash str in
+		if not (Hashtbl.mem hash_cache h) then Hashtbl.add hash_cache h (String.sub str 0 (try String.index str '\000' with _ -> String.length str));
+		h
 	in
 
 	let null_access() =
@@ -3655,20 +3664,26 @@ let interp code =
 			throw_msg "Invalid object access"
 
 	and dyn_get_field obj field rt =
-		let set_with v t = dyn_cast v t rt in
+		let get_with v t = dyn_cast v t rt in
 		match obj with
 		| VDynObj d ->
 			(try
 				let idx = Hashtbl.find d.dfields field in
-				set_with d.dvalues.(idx) d.dtypes.(idx)
+				get_with d.dvalues.(idx) d.dtypes.(idx)
 			with Not_found ->
 				default rt)
 		| VObj o ->
+			let default rt =
+				match get_method o.oproto.pclass "__get_field" with
+				| None -> default rt
+				| Some f ->
+					get_with (fcall (func f) [obj; VInt (hash field)]) HDyn
+			in
 			let rec loop p =
 				try
 					let fid = PMap.find field p.pfunctions in
 					(match functions.(fid) with
-					| FFun fd as f -> set_with (VClosure (f,Some obj)) (match fd.ftype with HFun (_::args,t) -> HFun(args,t) | _ -> assert false)
+					| FFun fd as f -> get_with (VClosure (f,Some obj)) (match fd.ftype with HFun (_::args,t) -> HFun(args,t) | _ -> assert false)
 					| FNativeFun _ -> assert false)
 				with Not_found ->
 					match p.psuper with
@@ -3678,7 +3693,7 @@ let interp code =
 			(try
 				let idx, t = get_index field o.oproto.pclass in
 				if idx < 0 then raise Not_found;
-				set_with o.ofields.(idx) t
+				get_with o.ofields.(idx) t
 			with Not_found ->
 				loop o.oproto.pclass)
 		| VVirtual vp ->
