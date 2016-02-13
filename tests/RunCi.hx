@@ -441,7 +441,7 @@ class RunCi {
 		Sys.putEnv("LUAROCKS", luarocks_version);
 		Sys.putEnv("LUA", lua_version);
 		// use the helper scripts in .travis
-		runCommand("bash", ["source", ".travis/setenv_lua.sh"]);
+		runCommand("bash", ["source", "$TRAVIS_BUILD_DIR/.travis/setenv_lua.sh"]);
 		if (jit){
 			runCommand("luajit", ["-v"]);
 		} else {
