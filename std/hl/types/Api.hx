@@ -10,5 +10,6 @@ extern class Api {
 	@:hlNative("std","get_closure_value") static function getClosureValue( f : haxe.Constraints.Function ) : Dynamic;
 	@:hlNative("std","no_closure") static function noClosure( f : haxe.Constraints.Function ) : haxe.Constraints.Function;
 	@:hlNative("std", "safe_cast") static function safeCast( v : Dynamic, t : Type ) : Dynamic;
+	@:hlNative("std", "make_var_args") static function makeVarArgs( v : NativeArray<Dynamic> -> Dynamic ) : Dynamic;
 
 }

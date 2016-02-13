@@ -128,8 +128,10 @@ class Reflect {
 	}
 
 	static function _makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		throw "TODO";
-		return null;
+		return hl.types.Api.makeVarArgs(function(args:hl.types.NativeArray<Dynamic>) {
+			var arr = hl.types.ArrayDyn.alloc(hl.types.ArrayObj.alloc(args), true);
+			return f(cast arr);
+		});
 	}
 
 }

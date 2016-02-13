@@ -703,7 +703,7 @@ and resolve_class ctx c pl statics =
 
 and field_type ctx f p =
 	match f with
-	| FInstance (c,pl,f) ->
+	| FInstance (c,pl,f) | FClosure (Some (c,pl),f) ->
 		let creal = resolve_class ctx c pl false in
 		let rec loop c =
 			try
@@ -1853,7 +1853,7 @@ and eval_expr ctx e =
 						| OpSub -> op ctx (OSub (r,a,b))
 						| OpMult -> op ctx (OMul (r,a,b))
 						| OpMod -> op ctx (if is_unsigned() then OUMod (r,a,b) else OSMod (r,a,b))
-						| OpDiv -> op ctx (if is_unsigned() then OUDiv (r,a,b) else OSDiv (r,a,b))
+						| OpDiv -> op ctx (OSDiv (r,a,b)) (* don't use UDiv since both operands are float already *)
 						| _ -> assert false)
 					| _ ->
 						assert false)
@@ -2161,7 +2161,13 @@ and eval_expr ctx e =
 			) el;
 			let tmp = if et = HDyn then alloc_tmp ctx (class_type ctx ctx.array_impl.aobj [] false) else r in
 			op ctx (OCall1 (tmp, alloc_fun_path ctx (["hl";"types"],"ArrayObj") "alloc", a));
-			if tmp <> r then op ctx (OSafeCast (r, tmp));
+			if tmp <> r then begin
+				let re = alloc_tmp ctx HBool in
+				op ctx (OBool (re,true));
+				let ren = alloc_tmp ctx (HNull HBool) in
+				op ctx (OToDyn (ren, re));
+				op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayDyn") "alloc", tmp, ren));
+			end;
 		);
 		r
 	| TArray _ ->
@@ -3274,6 +3280,7 @@ type value =
 	| VDynObj of vdynobj
 	| VEnum of int * value array
 	| VAbstract of vabstract
+	| VVarArgs of vfunction * value option
 
 and vabstract =
 	| AHashBytes of (string, value) Hashtbl.t
@@ -3336,10 +3343,11 @@ let get_type = function
 	| VArray _ -> Some HArray
 	| VClosure (f,None) -> Some (match f with FFun f -> f.ftype | FNativeFun (_,_,t) -> t)
 	| VClosure (f,Some _) -> Some (match f with FFun { ftype = HFun(_::args,ret) } | FNativeFun (_,_,HFun(_::args,ret)) -> HFun (args,ret) | _ -> assert false)
+	| VVarArgs _ -> Some (HFun ([],HDyn))
 	| _ -> None
 
 let v_dynamic = function
-	| VNull	| VDyn _ | VObj _ | VClosure _ | VArray _ | VVirtual _ | VDynObj _ -> true
+	| VNull	| VDyn _ | VObj _ | VClosure _ | VArray _ | VVirtual _ | VDynObj _ | VVarArgs _ -> true
 	| _ -> false
 
 let rec is_compatible v t =
@@ -3371,6 +3379,7 @@ type cast =
 	| CNo
 	| CDyn of ttype
 	| CUnDyn of ttype
+	| CCast of ttype * ttype
 
 let interp code =
 
@@ -3527,6 +3536,7 @@ let interp code =
 		| VDynObj d -> "dynobj(" ^ String.concat "," (Hashtbl.fold (fun f i acc -> (f^":"^vstr_d d.dvalues.(i)) :: acc) d.dfields []) ^ ")"
 		| VEnum (i,vals) -> "enum#" ^ string_of_int i  ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
 		| VAbstract _ -> "abstract"
+		| VVarArgs _ -> "varargs"
 
 	and vstr v t =
 		match v with
@@ -3567,6 +3577,7 @@ let interp code =
 					n ^ "(" ^ String.concat "," (List.map2 vstr (Array.to_list vals) (Array.to_list pl)) ^ ")"
 			| _ ->
 				assert false)
+		| VVarArgs _ -> "varargs"
 
 	and fstr = function
 		| FFun f -> "function@" ^ string_of_int f.findex
@@ -3694,23 +3705,27 @@ let interp code =
 		| (HI8|HI16|HI32|HF32|HF64), HNull ((HI8|HI16|HI32|HF32|HF64) as rt) ->
 			let v = dyn_cast v t rt in
 			VDyn (v,rt)
+		| HBool, HNull HBool ->
+			VDyn (v,HBool)
 		| _, HDyn ->
 			make_dyn v t
 		| HFun (args1,t1), HFun (args2,t2) when List.length args1 = List.length args2 ->
 			(match v with
 			| VClosure (fn,farg) ->
-				let conv = List.map2 (fun t1 t2 ->
-					if safe_cast t2 t1 || (t2 = HDyn && is_dynamic t1) then CNo
+				let get_conv t1 t2 =
+					if safe_cast t1 t2 || (t2 = HDyn && is_dynamic t1) then CNo
 					else if t2 = HDyn then CDyn t1
 					else if t1 = HDyn then CUnDyn t2
-					else invalid()
-				) args1 args2 in
-				let rconv = if safe_cast t1 t2 then CNo else if t2 = HDyn then CDyn t1 else if t1 = HDyn then CUnDyn t2 else invalid() in
+					else CCast (t1,t2)
+				in
+				let conv = List.map2 get_conv args2 args1 in
+				let rconv = get_conv t1 t2 in
 				let convert v c =
 					match c with
 					| CNo -> v
 					| CDyn t -> make_dyn v t
 					| CUnDyn t -> dyn_cast v HDyn t
+					| CCast (t1,t2) -> dyn_cast v t1 t2
 				in
 				VClosure (FNativeFun ("~convert",(fun args ->
 					let args = List.map2 convert args conv in
@@ -3719,6 +3734,10 @@ let interp code =
 				),rt),None)
 			| _ ->
 				assert false)
+		| HDyn, HFun (targs,tret) when (match v with VVarArgs _ -> true | _ -> false) ->
+			VClosure (FNativeFun ("~varargs",(fun args ->
+				dyn_call v (List.map2 (fun v t -> (v,t)) args targs) tret
+			),rt),None)
 		| HDyn, _ ->
 			(match get_type v with
 			| None -> assert false
@@ -3758,6 +3777,9 @@ let interp code =
 			dyn_cast v fret tret
 		| VNull ->
 			null_access()
+		| VVarArgs (f,a) ->
+			let arr = VArray (Array.of_list (List.map (fun (v,t) -> make_dyn v t) args),HDyn) in
+			dyn_call (VClosure (f,a)) [arr,HArray] tret
 		| _ ->
 			throw_msg (vstr_d v ^ " cannot be called")
 
@@ -3935,6 +3957,9 @@ let interp code =
 			let r = dyn_compare a t b t in
 			if r = invalid_comparison then false else op r 0
 		in
+		let ufloat v =
+			if v < 0l then Int32.to_float v +. 4294967296. else Int32.to_float v
+		in
 		let rec loop() =
 			let op = f.code.(!pos) in
 			incr pos;
@@ -3950,9 +3975,9 @@ let interp code =
 			| OSub (r,a,b) -> set r (numop Int32.sub ( -. ) a b)
 			| OMul (r,a,b) -> set r (numop Int32.mul ( *. ) a b)
 			| OSDiv (r,a,b) -> set r (numop (fun a b -> if b = 0l then 0l else Int32.div a b) ( /. ) a b)
-			| OUDiv (r,a,b) -> set r (iop (fun a b -> if b = 0l then 0l else assert false (* TODO : unsigned div *)) a b)
+			| OUDiv (r,a,b) -> set r (iop (fun a b -> if b = 0l then 0l else Int32.of_float ((ufloat a) /. (ufloat b))) a b)
 			| OSMod (r,a,b) -> set r (numop (fun a b -> if b = 0l then 0l else Int32.rem a b) mod_float a b)
-			| OUMod (r,a,b) -> set r (iop (fun a b -> if b = 0l then 0l else assert false (* TODO : unsigned mod *)) a b)
+			| OUMod (r,a,b) -> set r (iop (fun a b -> if b = 0l then 0l else Int32.of_float (mod_float (ufloat a) (ufloat b))) a b)
 			| OShl (r,a,b) -> set r (iop (fun a b -> Int32.shift_left a (Int32.to_int b)) a b)
 			| OSShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right a (Int32.to_int b)) a b)
 			| OUShr (r,a,b) -> set r (iop (fun a b -> Int32.shift_right_logical a (Int32.to_int b)) a b)
@@ -3990,7 +4015,7 @@ let interp code =
 			| OJAlways i -> pos := !pos + i
 			| OToDyn (r,a) -> set r (make_dyn (get a) f.regs.(a))
 			| OToSFloat (r,a) -> set r (match get a with VInt v -> VFloat (Int32.to_float v) | VFloat _ as v -> v | _ -> assert false)
-			| OToUFloat (r,a) -> set r (match get a with VInt v -> VFloat (if v < 0l then Int32.to_float v +. 4294967296. else Int32.to_float v) | VFloat _ as v -> v | _ -> assert false)
+			| OToUFloat (r,a) -> set r (match get a with VInt v -> VFloat (ufloat v) | VFloat _ as v -> v | _ -> assert false)
 			| OToInt (r,a) -> set r (match get a with VFloat v -> VInt (Int32.of_float v) | VInt _ as v -> v | _ -> assert false)
 			| OLabel _ -> ()
 			| ONew r ->
@@ -4835,6 +4860,10 @@ let interp code =
 				(function
 				| [VClosure (_,None)] -> VNull
 				| [VClosure (_,Some v)] -> v
+				| _ -> assert false)
+			| "make_var_args" ->
+				(function
+				| [VClosure (f,arg)] -> VVarArgs (f,arg)
 				| _ -> assert false)
 			| "bytes_find" ->
 				(function
