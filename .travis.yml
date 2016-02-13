@@ -143,12 +143,6 @@ install:
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       travis_retry brew install neko --HEAD;
     fi
-  # Install lua specific resources 
-  - source .travis/setenv_lua.sh
-  - pip install --user cpp-coveralls
-  # Use this special version of lrexlib-pcre 
-  - luarocks install lrexlib-pcre 2.7.2-1 --server=https://luarocks.org/dev
-  - luarocks install luautf8 --server=https://luarocks.org/dev
 
 script:
   # setup database

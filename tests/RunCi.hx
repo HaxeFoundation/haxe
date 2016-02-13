@@ -436,6 +436,17 @@ class RunCi {
 		runCommand("node", ["-v"]);
 	}
 
+	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
+		if (jit) Sys.putEnv("LUAJIT","yes");
+		Sys.putEnv("LUAROCKS", luarocks_version);
+		Sys.putEnv("LUA", lua_version);
+		// use the helper scripts in .travis
+		runCommand("source", [".travis/setenv_lua.sh"]);
+		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
+		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
+		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
+	}
+
 	static function getCsDependencies() {
 		switch (systemName) {
 			case "Linux":
@@ -933,6 +944,7 @@ class RunCi {
 						runCommand(py, ["test.py"]);
 					}
 				case Lua:
+					getLuaDependencies();
 					runCommand("haxe", ["compile-lua.hxml"].concat(args));
 					runCommand("lua", ["bin/unit.lua"]);
 				case Cpp:

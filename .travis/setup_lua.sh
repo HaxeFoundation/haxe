@@ -2,7 +2,7 @@
 
 # A script for setting up environment for travis-ci testing.
 # Sets up Lua and Luarocks.
-# LUA must be "lua5.1", "lua5.2" or "luajit".
+# LUA must be "lua5.1", "lua5.2", "lua5.3", or "luajit".
 # luajit2.0 - master v2.0
 # luajit2.1 - master v2.1
 
