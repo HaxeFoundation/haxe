@@ -441,10 +441,10 @@ class RunCi {
 		// the lua paths created by the setup script.
 		addToPATH('$home_dir/.lua'); 
 		addToPATH('$home_dir/.local/bin'); 
-		addToPATH('$home_dir/install/luarocks/bin'); 
 
 		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
 		changeDirectory(build_dir);
+		addToPATH('$build_dir/install/luarocks/bin'); 
 
 		if (jit) Sys.putEnv("LUAJIT","yes");
 		Sys.putEnv("LUAROCKS", luarocks_version);
