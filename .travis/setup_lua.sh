@@ -81,9 +81,9 @@ else
 
 fi
 
-cd $TRAVIS_BUILD_DIR
+ls -l $HOME/.lua
 
-echo $PATH
+cd $TRAVIS_BUILD_DIR
 lua -v
 
 LUAROCKS_BASE=luarocks-$LUAROCKS
