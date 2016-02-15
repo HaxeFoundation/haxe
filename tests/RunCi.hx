@@ -437,11 +437,12 @@ class RunCi {
 	}
 
 	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
+		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
+		changeDirectory(build_dir);
 		if (jit) Sys.putEnv("LUAJIT","yes");
 		Sys.putEnv("LUAROCKS", luarocks_version);
 		Sys.putEnv("LUA", lua_version);
 		// use the helper scripts in .travis
-		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
 		runCommand("sh", ['${build_dir}/.travis/setenv_lua.sh']);
 		if (jit){
 			runCommand("luajit", ["-v"]);
@@ -451,6 +452,7 @@ class RunCi {
 		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
 		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
+		changeDirectory(unitDir);
 	}
 
 	static function getCsDependencies() {
