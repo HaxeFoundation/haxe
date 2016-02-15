@@ -439,6 +439,13 @@ class RunCi {
 	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
 		var build_dir = Sys.getEnv("TRAVIS_BUILD_DIR");
 		changeDirectory(build_dir);
+
+		var home_dir = Sys.getEnv("HOME");
+		// the lua paths created by the setup script.
+		addToPATH('$build_dir/.lua'); 
+		addToPATH('$home_dir/.local/bin'); 
+		addToPATH('$build_dir/install/luarocks/bin'); 
+
 		if (jit) Sys.putEnv("LUAJIT","yes");
 		Sys.putEnv("LUAROCKS", luarocks_version);
 		Sys.putEnv("LUA", lua_version);
