@@ -1843,8 +1843,8 @@ let unify_int ctx e k =
 	in
 	if cf.cf_params = [] then error "Function has no type parameters and cannot be generic" p;
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
-	let map t = apply_params cf.cf_params monos t in
-	let map t = if stat then map t else apply_params c.cl_params tl (map t) in
+	let map_monos t = apply_params cf.cf_params monos t in
+	let map t = if stat then map_monos t else apply_params c.cl_params tl (map_monos t) in
 	let t = map cf.cf_type in
 	let args,ret = match t,using_param with
 		| TFun((_,_,ta) :: args,ret),Some e ->
@@ -1890,7 +1890,7 @@ let unify_int ctx e k =
 			in
 			cf2
 		with Not_found ->
-			let cf2 = mk_field name t cf.cf_pos in
+			let cf2 = mk_field name (map_monos cf.cf_type) cf.cf_pos in
 			if stat then begin
 				c.cl_statics <- PMap.add name cf2 c.cl_statics;
 				c.cl_ordered_statics <- cf2 :: c.cl_ordered_statics
