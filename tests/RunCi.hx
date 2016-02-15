@@ -459,6 +459,7 @@ class RunCi {
 		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
 		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
+		runCommand("ls", ["-l", "/usr/local/lib/lua/5.2"]);
 		changeDirectory(unitDir);
 	}
 
