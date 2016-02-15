@@ -2328,6 +2328,12 @@ and eval_expr ctx e =
 		);
 		r
 	| TEnumParameter (ec,f,index) ->
+		(* TODO: See what we can do about this in matcher.ml (see #4846) *)
+		let ec = match follow ec.etype,follow f.ef_type with
+			| TEnum _,_ -> ec
+			| _,(TEnum _ as t | TFun(_,t)) -> mk (TCast(ec,None)) t ec.epos
+			| _ -> assert false
+		in
 		let r = alloc_tmp ctx (match to_type ctx ec.etype with HEnum e -> let _,_,args = e.efields.(f.ef_index) in args.(index) | _ -> assert false) in
 		op ctx (OEnumField (r,eval_expr ctx ec,f.ef_index,index));
 		cast_to ctx r (to_type ctx e.etype) e.epos
