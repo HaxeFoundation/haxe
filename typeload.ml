@@ -38,10 +38,14 @@ let transform_abstract_field com this_t a_t a f =
 		let init p = (EVars ["this",Some this_t,None],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
-		if Meta.has Meta.MultiType a.a_meta then begin
+		let meta = (Meta.Impl,[],p) :: f.cff_meta in
+		let meta = if Meta.has Meta.MultiType a.a_meta then begin
 			if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
-		end;
+			(Meta.Extern,[],f.cff_pos) :: meta
+		end else
+			meta
+		in
 		let fu = {
 			fu with
 			f_expr = (match fu.f_expr with
@@ -51,7 +55,8 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
+
+		{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
 		let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else ("this",false,Some this_t,None) :: fu.f_args) } in
