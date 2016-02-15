@@ -4639,7 +4639,7 @@ let interp code =
 					(match get_type v with
 					| None -> assert false
 					| Some (HI8|HI16|HI32) when (match t with HF32 | HF64 -> true | _ -> false) -> VBool true
-					| Some (HF32|HF64) when (match t, v with (HI8|HI16|HI32), VDyn (VFloat f,_) -> float_of_int (int_of_float f) = f | _ -> false) -> VBool true
+					| Some (HF32|HF64) when (match t, v with (HI8|HI16|HI32), VDyn (VFloat f,_) -> Int32.to_float (Int32.of_float f) = f | _ -> false) -> VBool true
 					| Some vt ->
 						VBool (safe_cast vt t))
 				| _ -> assert false)
