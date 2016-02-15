@@ -83,6 +83,7 @@ fi
 
 cd $TRAVIS_BUILD_DIR
 
+echo $PATH
 lua -v
 
 LUAROCKS_BASE=luarocks-$LUAROCKS
