@@ -500,6 +500,22 @@ let map loop t =
 	| TDynamic t2 ->
 		if t == t2 then	t else TDynamic (loop t2)
 
+let dup t =
+	let monos = ref [] in
+	let rec loop t =
+		match t with
+		| TMono { contents = None } ->
+			(try
+				List.assq t !monos
+			with Not_found ->
+				let m = mk_mono() in
+				monos := (t,m) :: !monos;
+				m)
+		| _ ->
+			map loop t
+	in
+	loop t
+
 (* substitute parameters with other types *)
 let apply_params cparams params t =
 	match cparams with

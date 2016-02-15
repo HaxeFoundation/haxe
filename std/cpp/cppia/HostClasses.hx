@@ -72,6 +72,7 @@ class HostClasses
    "Type",
    "Xml",
    "Date",
+   "Lambda",
    "DateTools",
    "List",
    "Math",
@@ -82,6 +83,7 @@ class HostClasses
    "haxe.ds.IntMap",
    "haxe.ds.ObjectMap",
    "haxe.ds.StringMap",
+   "haxe.ds.BalancedTree",
    "haxe.CallStack",
    "haxe.Serializer",
    "haxe.Unserializer",
@@ -184,6 +186,9 @@ class HostClasses
       externs.set("haxe._Int64.___Int64",true);
       externs.set("haxe._Int32.Int32_Impl_",true);
       externs.set("haxe._Int32.___Int32",true);
+      // Hidded in implementation classes
+      externs.set("haxe.ds.TreeNode",true);
+      externs.set("haxe.xml.XmlParserException",true);
       for(e in classes)
          externs.set(e,true);
 

@@ -365,6 +365,17 @@ let delay ctx p f =
 	in
 	ctx.g.delayed <- loop ctx.g.delayed
 
+let delay_late ctx p f =
+	let rec loop = function
+		| [] -> [p,[f]]
+		| (p2,l) :: rest ->
+			if p2 <= p then
+				(p2,l) :: loop rest
+			else
+				(p,[f]) :: (p2,l) :: rest
+	in
+	ctx.g.delayed <- loop ctx.g.delayed
+
 let rec flush_pass ctx p (where:string) =
 	match ctx.g.delayed with
 	| (p2,l) :: rest when p2 <= p ->
