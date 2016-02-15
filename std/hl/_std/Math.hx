@@ -7,7 +7,7 @@ class Math {
 	@:hlNative("std","math_floor") public static function floor( v : Float ) : Int 			return 0;
 	@:hlNative("std","math_round") public static function round( v : Float ) : Int 			return 0;
 	@:hlNative("std","math_ceil") public static function ceil( v : Float ) : Int 			return 0;
-	@:hlNative("std","math_finite") public static function isFinite( f : Float ) : Bool 	return true;
+	@:hlNative("std","math_isfinite") public static function isFinite( f : Float ) : Bool 	return true;
 	@:hlNative("std","math_isnan") public static function isNaN( f : Float ) : Bool 		return false;
 
 	@:hlNative("std","math_ffloor") public static function ffloor( v : Float ) : Float 		return 0.;
