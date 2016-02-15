@@ -1304,7 +1304,8 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 		end
 	| TTypeExpr _ -> Some e
 	(* try to inline static function calls *)
-	| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
+	(* Disabled for now, see #4254. *)
+(* 	| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
 		(try
 			let func = match cf.cf_expr with Some ({eexpr = TFunction func}) -> func | _ -> raise Not_found in
 			let ethis = mk (TConst TThis) t_dynamic e.epos in
@@ -1312,7 +1313,7 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 			(match inl with
 			| None -> None
 			| Some e -> make_constant_expression ctx e)
-		with Not_found -> None)
+		with Not_found -> None) *)
 	| _ -> None
 
 (* ---------------------------------------------------------------------- *)
