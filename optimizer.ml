@@ -74,6 +74,7 @@ let api_inline2 com c field params p =
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
 		Some (mk (TConst (TString (String.make 1 (char_of_int (Int32.to_int i))))) com.basic.tstring p)
+	| ([],"Std"),"string",[{ eexpr = TCast ({ eexpr = TConst c } as e, None)}]
 	| ([],"Std"),"string",[{ eexpr = TConst c } as e] ->
 		(match c with
 		| TString s ->
