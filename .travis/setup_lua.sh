@@ -82,6 +82,7 @@ else
 fi
 
 ls -l $HOME/.lua
+echo $PATH
 
 cd $TRAVIS_BUILD_DIR
 lua -v
