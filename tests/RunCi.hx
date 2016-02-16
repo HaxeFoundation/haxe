@@ -455,10 +455,12 @@ class RunCi {
 		// to the luarocks install using the luarocks path and env variables
 		var lua_path = commandResult("luarocks", ["path", "--lr-path"]).stdout.trim();
 		Sys.putEnv("LUA_PATH", lua_path);
+		trace(lua_path + " is the value for lua_path");
 
 		// step two of the variable setting
 		var lua_cpath = commandResult("luarocks", ["path", "--lr-cpath"]).stdout.trim();
 		Sys.putEnv("LUA_CPATH", lua_cpath);
+		trace(lua_cpath + " is the value for lua_cpath");
 
 		if (jit) Sys.putEnv("LUAJIT","yes");
 		Sys.putEnv("LUAROCKS", luarocks_version);
