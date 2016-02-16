@@ -179,7 +179,7 @@ type opcode =
 	| OEnumIndex of reg * reg
 	| OEnumField of reg * reg * field index * int
 	| OSetEnumField of reg * int * reg
-	| OSwitch of reg * int array
+	| OSwitch of reg * int array * int
 	| ONullCheck of reg
 	| OTrap of reg * int
 	| OEndTrap of unused
@@ -2309,7 +2309,7 @@ and eval_expr ctx e =
 			if !max > 255 || cases = [] then raise Exit;
 			let ridx = eval_to ctx en HI32 in
 			let indexes = Array.make (!max + 1) 0 in
-			op ctx (OSwitch (ridx,indexes));
+			op ctx (OSwitch (ridx,indexes,0));
 			let switch_pos = current_pos ctx in
 			(match def with
 			| None ->
@@ -2326,6 +2326,7 @@ and eval_expr ctx e =
 				op ctx (OMov (r,re));
 				jends := jump ctx (fun i -> OJAlways i) :: !jends
 			) cases;
+			DynArray.set ctx.m.mops (switch_pos - 1) (OSwitch (ridx,indexes,current_pos ctx - switch_pos));
 			List.iter (fun j -> j()) (!jends);
 		with Exit ->
 			let jends = ref [] in
@@ -3208,6 +3209,7 @@ let check code =
 				(match ftypes.(f) with
 				| HFun (t :: tl, tret) ->
 					reg arg t;
+					if not (is_nullable t) then error (reg_inf r ^ " should be nullable");
 					reg r (HFun (tl,tret));
 				| _ -> assert false);
 			| OThrow r ->
@@ -3327,9 +3329,10 @@ let check code =
 					let _, _, tl = e.efields.(0) in
 					check (rtype r) tl.(i)
 				| _ -> is_enum e)
-			| OSwitch (r,idx) ->
+			| OSwitch (r,idx,eend) ->
 				reg r HI32;
-				Array.iter can_jump idx
+				Array.iter can_jump idx;
+				can_jump eend
 			| ONullCheck r ->
 				ignore(rtype r)
 			| OTrap (r, idx) ->
@@ -4308,7 +4311,7 @@ let interp code =
 					check rv fields.(i) (fun() -> "enumfield");
 					vl.(i) <- rv
 				| _ -> assert false)
-			| OSwitch (r, indexes) ->
+			| OSwitch (r, indexes, _) ->
 				(match get r with
 				| VInt i ->
 					let i = Int32.to_int i in
@@ -5226,12 +5229,13 @@ let write_code ch code =
 			byte oid;
 			write_index r;
 			write_type t
-		| OSwitch (r,pl) ->
+		| OSwitch (r,pl,eend) ->
 			byte oid;
 			let n = Array.length pl in
 			if n > 0xFF then assert false;
 			byte n;
-			Array.iter write_index pl
+			Array.iter write_index pl;
+			write_index eend
 		| OEnumField (r,e,i,idx) ->
 			byte oid;
 			write_index r;
@@ -5456,7 +5460,7 @@ let ostr o =
 	| OEnumIndex (r,e) -> Printf.sprintf "enumindex %d, %d" r e
 	| OEnumField (r,e,i,n) -> Printf.sprintf "enumfield %d, %d[%d:%d]" r e i n
 	| OSetEnumField (e,i,r) -> Printf.sprintf "setenumfield %d[%d], %d" e i r
-	| OSwitch (r,idx) -> Printf.sprintf "switch %d [%s]" r (String.concat "," (Array.to_list (Array.map string_of_int idx)))
+	| OSwitch (r,idx,eend) -> Printf.sprintf "switch %d [%s] %d" r (String.concat "," (Array.to_list (Array.map string_of_int idx))) eend
 	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
 	| OTrap (r,i) -> Printf.sprintf "trap %d, %d" r i
 	| OEndTrap _ -> "endtrap"
@@ -5733,7 +5737,7 @@ let write_c version ch (code:code) =
 	Array.iter (fun f ->
 		match f.ftype with
 		| HFun (args,t) ->
-			sexpr "%s %s(%s)" (ctype t) (fundecl_name f) (String.concat "," (List.map ctype args));
+			sexpr "static %s %s(%s)" (ctype t) (fundecl_name f) (String.concat "," (List.map ctype args));
 			Array.set tfuns f.findex (args,t);
 			funnames.(f.findex) <- fundecl_name f;
 		| _ ->
@@ -5760,11 +5764,11 @@ let write_c version ch (code:code) =
 	line "";
 	line "// Types values data";
 	DynArray.iteri (fun i t ->
+		let field_value (name,name_id,t) =
+			sprintf "{(const uchar*)string$%d, %s, %ld}" name_id (type_value t) (hash name)
+		in
 		match t with
 		| HObj o ->
-			let field_value (name,name_id,t) =
-				sprintf "{(const uchar*)string$%d, %s, %ld}" name_id (type_value t) (hash name)
-			in
 			let proto_value p =
 				sprintf "{(const uchar*)string$%d, %d, %d, %ld}" p.fid p.fmethod (match p.fvirtual with None -> -1 | Some i -> i) (hash p.fname)
 			in
@@ -5806,6 +5810,18 @@ let write_c version ch (code:code) =
 				constr_name
 			] in
 			sexpr "static hl_type_enum enum$%d = {%s}" i (String.concat "," efields);
+		| HVirtual v ->
+			let fields_name =
+				if Array.length v.vfields = 0 then "NULL" else
+				let name = sprintf "vfields$%d" i in
+				sexpr "static hl_obj_field %s[] = {%s}" name (String.concat "," (List.map field_value (Array.to_list v.vfields)));
+				name
+			in
+			let vfields = [
+				string_of_int (Array.length v.vfields) ^ " PAD_64_VAL";
+				fields_name
+			] in
+			sexpr "static hl_type_virtual virt$%d = {%s}" i (String.concat "," vfields);
 		| _ ->
 			()
 	) types.arr;
@@ -5833,6 +5849,8 @@ let write_c version ch (code:code) =
 			sexpr "type$%d.obj = &obj$%d" i i;
 		| HEnum _ ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
+		| HVirtual _ ->
+			sexpr "type$%d.virt = &virt$%d" i i;
 		| _ ->
 			()
 	) types.arr;
@@ -5869,6 +5887,10 @@ let write_c version ch (code:code) =
 			else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
 		in
 
+		let rfun r args t =
+			sprintf "((%s (*)(%s))%s->fun)" (ctype t) (String.concat "," (List.map ctype args)) (reg r)
+		in
+
 		let rassign r t =
 			let rt = rtype r in
 			if t = HVoid then "" else
@@ -5901,7 +5923,8 @@ let write_c version ch (code:code) =
 				let name, t = resolve_field o fid in
 				sexpr "%s%s->%s" (rassign r t) (reg obj) (ident name)
 			| HVirtual v ->
-				sexpr "hl_fatal(\"%s\")" "GETFIELD-VIRTUAL"
+				let _, _, t = v.vfields.(fid) in
+				sexpr "%s%s->indexes[%d] ? (*(%s*)(%s->fields_data+%s->indexes[%d])) : (%s)hl_fatal(\"dyn_get\")" (rassign r t) (reg obj) fid (ctype t) (reg obj) (reg obj) fid (ctype t)
 			| _ ->
 				assert false
 		in
@@ -5939,6 +5962,9 @@ let write_c version ch (code:code) =
 				let label = label addr in
 				if not (has_label addr) then output_at addr OOLabel;
 				label
+			in
+			let todo() =
+				sexpr "hl_fatal(\"%s\")" (ostr op)
 			in
 			match op with
 			| OMov (r,v) ->
@@ -6018,8 +6044,16 @@ let write_c version ch (code:code) =
 	(*
 	| OCallMethod of reg * field index * reg list
 	| OCallThis of reg * field index * reg list
-	| OCallClosure of reg * reg * reg list
 	*)
+			| OCallClosure (r,cl,pl) ->
+				(match rtype cl with
+				| HDyn ->
+					todo() (* dyn_call *)
+				| HFun (args,ret) ->
+					let sargs = String.concat "," (List.map2 rcast pl args) in
+					sexpr "%s%s->hasValue ? %s((vdynamic*)%s->value%s) : %s(%s)" (rassign r ret) (reg cl) (rfun cl (HDyn :: args) ret) (reg cl) (if sargs = "" then "" else "," ^ sargs) (rfun cl args ret) sargs
+				| _ ->
+					assert false)
 			| OGetFunction (r,fid) ->
 				sexpr "%s = &cl$%d" (reg r) fid
 	(*
@@ -6163,25 +6197,20 @@ let write_c version ch (code:code) =
 	| OEnumField of reg * reg * field index * int
 	| OSetEnumField of reg * int * reg
 	*)
-			| OSwitch (r,idx) ->
+			| OSwitch (r,idx,eend) ->
 				Printf.ksprintf line "switch(%s) {" (reg r);
 				block();
 				output_at2 (i + 1) [OODefault;OOIncreaseIndent];
 				Array.iteri (fun k delta -> output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent]) idx;
-				(* TOOD: This is brittle and could be broken by DCE. Need a better way to determine where the switch ends. *)
-				let first_case = i + idx.(0) in
-				begin match f.code.(first_case) with
-					| OJAlways j -> output_at2 (first_case + j + 1) [OODecreaseIndent;OODecreaseIndent;OOEndBlock];
-					| _ -> assert false
-				end
+				output_at2 (i + 1 + eend) [OODecreaseIndent;OODecreaseIndent;OOEndBlock];
 			| ONullCheck r ->
-				sexpr "if( %s == NULL ) hl_error_msg(USTR(\"Null access\"))" (reg r)
+				sexpr "if( %s == NULL ) hl_null_access()" (reg r)
 	(*
 	| OTrap of reg * int
 	| OEndTrap of unused
 	| ODump of reg*)
 			| _ ->
-				sexpr "hl_fatal(\"%s\")" (ostr op)
+				todo()
 		) f.code;
 		unblock();
 		line "}";
