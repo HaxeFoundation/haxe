@@ -439,7 +439,7 @@ class RunCi {
 	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
 		var home_dir = Sys.getEnv("HOME");
 
-		// paths needed by the lua scripts
+		// the lua paths created by the setup script.
 		addToPATH('$home_dir/.lua');
 		addToPATH('$home_dir/.local/bin');
 
@@ -450,27 +450,32 @@ class RunCi {
 		// luarocks needs to be in the path
 		addToPATH('$build_dir/install/luarocks/bin');
 
+
 		if (jit) Sys.putEnv("LUAJIT","yes");
 		Sys.putEnv("LUAROCKS", luarocks_version);
 		Sys.putEnv("LUA", lua_version);
 
 		// use the helper scripts in .travis. TODO: Refactor as pure haxe?
 		runCommand("sh", ['${build_dir}/.travis/setenv_lua.sh']);
-
 		if (jit){
 			runCommand("luajit", ["-v"]);
 		} else {
 			runCommand("lua", ["-v"]);
 		}
-
 		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
 		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
 
-		// eval a special luarocks path command that sets the right 
-		// path/bins for base lua to use
-		var luarocks_config = commandResult("luarocks", ["path", "--bin"]);
-		runCommand("eval", [luarocks_config.stdout.trim()]);
+		// we did user land installs of luarocks and lua.  We need to point lua
+		// to the luarocks install using the luarocks path and env variables
+		var lua_path = commandResult("luarocks", ["path", "--lr-path"]).stdout.trim();
+		Sys.putEnv("LUA_PATH", lua_path);
+		trace(lua_path + " is the value for lua_path");
+
+		// step two of the variable setting
+		var lua_cpath = commandResult("luarocks", ["path", "--lr-cpath"]).stdout.trim();
+		Sys.putEnv("LUA_CPATH", lua_cpath);
+		trace(lua_cpath + " is the value for lua_cpath");
 
 		// change back to the unit dir for the rest of the tests
 		changeDirectory(unitDir);
