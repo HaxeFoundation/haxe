@@ -5531,6 +5531,15 @@ let dump code =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* HLC *)
 
+type output_options =
+	| OOLabel
+	| OOCase of int
+	| OODefault
+	| OOIncreaseIndent
+	| OODecreaseIndent
+	| OOBeginBlock
+	| OOEndBlock
+
 let c_kwds = [
 "auto";"break";"case";"char";"const";"continue";"default";"do";"double";"else";"enum";"extern";"float";"for";"goto";
 "if";"int";"long";"register";"return";"short";"signed";"sizeof";"static";"struct";"switch";"typedef";"union";"unsigned";
@@ -5905,14 +5914,26 @@ let write_c version ch (code:code) =
 			else
 			expr (var_type (reg i) t);
 		) f.regs;
-		let flabels = Array.make (Array.length f.code) false in
+		let output_options = Array.make (Array.length f.code) [] in
+		let output_at i oo = output_options.(i) <- oo :: output_options.(i) in
+		let output_at2 i ool = List.iter (output_at i) ool in
+		let has_label i = List.exists (function OOLabel -> true | _ -> false) output_options.(i) in
 
 		Array.iteri (fun i op ->
-			if flabels.(i) then line (label i ^":");
+			List.iter (function
+				| OOLabel -> line (label i ^ ":")
+				| OOCase i -> line (Printf.sprintf "case %i:" i)
+				| OODefault -> line "default:"
+				| OOIncreaseIndent -> block()
+				| OODecreaseIndent -> unblock()
+				| OOBeginBlock ->  line "{"
+				| OOEndBlock -> line "}"
+			) (List.rev output_options.(i));
 			let label delta =
 				let addr = delta + i + 1 in
-				flabels.(addr) <- true;
-				label addr
+				let label = label addr in
+				if not (has_label addr) then output_at addr OOLabel;
+				label
 			in
 			match op with
 			| OMov (r,v) ->
@@ -6029,7 +6050,7 @@ let write_c version ch (code:code) =
 			| OJAlways d ->
 				sexpr "goto %s" (label d)
 			| OLabel _ ->
-				if not (flabels.(i)) then line (label (-1) ^ ":")
+				if not (has_label i) then line (label (-1) ^ ":")
 			| OToDyn (r,v) ->
 				sexpr "%s = (vdynamic*)hl_gc_alloc%s(sizeof(vdynamic))" (reg r) (if is_gc_ptr (rtype v) then "" else "_noptr");
 				sexpr "%s->t = %s" (reg r) (type_value (rtype v));
