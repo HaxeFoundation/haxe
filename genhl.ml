@@ -186,6 +186,7 @@ type opcode =
 	| ODump of reg
 
 type fundecl = {
+	name : string * string;
 	findex : functable index;
 	ftype : ttype;
 	regs : ttype array;
@@ -588,6 +589,10 @@ let field_name c f =
 
 let efield_name e f =
 	s_type_path e.e_path ^ ":" ^ f.ef_name
+
+let underscore_class_name c = match c.cl_path with [],s -> s | p,s -> String.concat "_" p ^ "_" ^ s
+
+let fundecl_name f = if snd f.name = "" then "fun$" ^ (string_of_int f.findex) else (fst f.name) ^ "_" ^ (snd f.name)
 
 let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
@@ -2160,7 +2165,7 @@ and eval_expr ctx e =
 			!ret)
 	| TFunction f ->
 		let fid = alloc_function_name ctx ("function#" ^ string_of_int (DynArray.length ctx.cfids.arr)) in
-		let capt = make_fun ctx fid f None (Some ctx.m.mcaptured) in
+		let capt = make_fun ctx ("","") fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
 			op ctx (OClosure (r, fid, ctx.m.mcaptreg))
@@ -2583,6 +2588,7 @@ and gen_method_wrapper ctx rt t p =
 		op ctx (OCallClosure (rret,rfun,List.map2 (fun r t -> cast_to ctx r t p) rargs iargs));
 		op ctx (ORet (cast_to ctx rret tret p));
 		let f = {
+			name = "","";
 			findex = fid;
 			ftype = HFun (rt :: targs, tret);
 			regs = DynArray.to_array ctx.m.mregs.arr;
@@ -2593,7 +2599,7 @@ and gen_method_wrapper ctx rt t p =
 		DynArray.add ctx.cfunctions f;
 		fid
 
-and make_fun ?gen_content ctx fidx f cthis cparent =
+and make_fun ?gen_content ctx name fidx f cthis cparent =
 	let old = ctx.m in
 	let capt = build_capture_vars ctx f in
 	let has_captured_vars = Array.length capt.c_vars > 0 in
@@ -2707,6 +2713,7 @@ and make_fun ?gen_content ctx fidx f cthis cparent =
 	end;
 	let fargs = (match tthis with None -> [] | Some t -> [t]) @ (match rcapt with None -> [] | Some r -> [rtype ctx r]) @ args in
 	let f = {
+		name = name;
 		findex = fidx;
 		ftype = HFun (fargs, tret);
 		regs = DynArray.to_array ctx.m.mregs.arr;
@@ -2740,7 +2747,7 @@ let generate_static ctx c f =
 			| (Meta.Custom ":hlNative",_ ,p) :: _ ->
 				error "Invalid @:hlNative decl" p
 			| [] ->
-				ignore(make_fun ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
+				ignore(make_fun ctx ((underscore_class_name c),f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) None None)
 			| _ :: l ->
 				loop l
 		in
@@ -2770,7 +2777,7 @@ let rec generate_member ctx c f =
 				| _ -> ()
 			) c.cl_ordered_fields;
 		) in
-		ignore(make_fun ?gen_content ctx (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
+		ignore(make_fun ?gen_content ctx (underscore_class_name c,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -2778,7 +2785,7 @@ let rec generate_member ctx c f =
 			let tstr = mk (TCall (mk (TField (ethis,FInstance(c,List.map snd c.cl_params,f))) f.cf_type p,[])) ctx.com.basic.tstring p in
 			let cstr, cf_bytes = (try (match ctx.com.basic.tstring with TInst(c,_) -> c, PMap.find "bytes" c.cl_fields | _ -> assert false) with Not_found -> assert false) in
 			let estr = mk (TReturn (Some (mk (TField (tstr,FInstance (cstr,[],cf_bytes))) cf_bytes.cf_type p))) ctx.com.basic.tvoid p in
-			ignore(make_fun ctx (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
+			ignore(make_fun ctx (underscore_class_name c,"__string") (alloc_fun_path ctx c.cl_path "__string") { tf_expr = estr; tf_args = []; tf_type = cf_bytes.cf_type; } (Some c) None)
 		end
 
 let generate_enum ctx e =
@@ -2989,7 +2996,7 @@ let generate_static_init ctx =
 			assert false
 	);
 	let fid = alloc_function_name ctx "<entry>" in
-	ignore(make_fun ~gen_content ctx fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None None);
+	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None None);
 	fid
 
 
@@ -5633,6 +5640,7 @@ let write_c version ch (code:code) =
 	line "#include <hlc.h>";
 	let types = gather_types code in
 	let tfuns = Array.create (Array.length code.functions + Array.length code.natives) ([],HVoid) in
+	let funnames = Array.create (Array.length code.functions + Array.length code.natives) "" in
 
 	let enum_type t index =
 		let eindex = lookup types t (fun() -> assert false) in
@@ -5714,7 +5722,7 @@ let write_c version ch (code:code) =
 				lib ^ "_" ^ code.strings.(name)
 			in
 			sexpr "%s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
-			line (Printf.sprintf "#define fun$%d %s" idx fname);
+			funnames.(idx) <- fname;
 			Array.set tfuns idx (args,t)
 		| _ ->
 			assert false
@@ -5725,8 +5733,9 @@ let write_c version ch (code:code) =
 	Array.iter (fun f ->
 		match f.ftype with
 		| HFun (args,t) ->
-			sexpr "%s fun$%d(%s)" (ctype t) f.findex (String.concat "," (List.map ctype args));
-			Array.set tfuns f.findex (args,t)
+			sexpr "%s %s(%s)" (ctype t) (fundecl_name f) (String.concat "," (List.map ctype args));
+			Array.set tfuns f.findex (args,t);
+			funnames.(f.findex) <- fundecl_name f;
 		| _ ->
 			assert false
 	) code.functions;
@@ -5806,11 +5815,7 @@ let write_c version ch (code:code) =
 	line "// Entry point";
 	line "void hl_entry_point() {";
 	block();
-	let rec loop i =
-		if i = Array.length code.functions + Array.length code.natives then [] else
-		("fun$" ^ string_of_int i) :: loop (i + 1)
-	in
-	sexpr "static void *functions_ptrs[] = {%s}" (String.concat "," (loop 0));
+	sexpr "static void *functions_ptrs[] = {%s}" (String.concat "," (Array.to_list funnames));
 	let rec loop i =
 		if i = Array.length code.functions + Array.length code.natives then [] else
 		let args, t = tfuns.(i) in
@@ -5831,7 +5836,7 @@ let write_c version ch (code:code) =
 		| _ ->
 			()
 	) types.arr;
-	sexpr "fun$%d()" code.entrypoint;
+	sexpr "%s()" funnames.(code.entrypoint);
 	unblock();
 	line "}";
 
@@ -5842,7 +5847,7 @@ let write_c version ch (code:code) =
 			match op with
 			| OGetFunction (_,fid) ->
 				let args, t = tfuns.(fid) in
-				sexpr "static vclosure cl$%d = { %s, fun$%d, 0 }" fid (type_value (HFun (args,t))) fid;
+				sexpr "static vclosure cl$%d = { %s, %s, 0 }" fid (type_value (HFun (args,t))) funnames.(fid);
 			| _ ->
 				()
 		) f.code
@@ -5876,7 +5881,7 @@ let write_c version ch (code:code) =
 		let ocall r fid args =
 			let targs, rt = tfuns.(fid) in
 			let rstr = rassign r rt in
-			sexpr "%sfun$%d(%s)" rstr fid (String.concat "," (List.map2 rcast args targs))
+			sexpr "%s%s(%s)" rstr funnames.(fid) (String.concat "," (List.map2 rcast args targs))
 		in
 
 		let set_field obj fid v =
@@ -5903,7 +5908,7 @@ let write_c version ch (code:code) =
 
 		let fret = (match f.ftype with
 		| HFun (args,t) ->
-			line (Printf.sprintf "static %s fun$%d(%s) {" (ctype t) f.findex (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args)));
+			line (Printf.sprintf "static %s %s(%s) {" (ctype t) (fundecl_name f) (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args)));
 			t
 		| _ ->
 			assert false
