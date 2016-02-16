@@ -450,6 +450,8 @@ class RunCi {
 		// luarocks needs to be in the path
 		addToPATH('$build_dir/install/luarocks/bin');
 
+		var lua_additions = commandResult('$build_dir/install/luarocks/bin/luarocks', ["path"]).stdout.trim();
+		trace(lua_additions + " is the value for lua_additions");
 
 		// we did user land installs of luarocks and lua.  We need to point lua
 		// to the luarocks install using the luarocks path and env variables
