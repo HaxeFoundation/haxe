@@ -450,19 +450,6 @@ class RunCi {
 		// luarocks needs to be in the path
 		addToPATH('$build_dir/install/luarocks/bin');
 
-		var lua_additions = commandResult('$build_dir/install/luarocks/bin/luarocks', ["path"]).stdout.trim();
-		trace(lua_additions + " is the value for lua_additions");
-
-		// we did user land installs of luarocks and lua.  We need to point lua
-		// to the luarocks install using the luarocks path and env variables
-		var lua_path = commandResult("luarocks", ["path", "--lr-path"]).stdout.trim();
-		Sys.putEnv("LUA_PATH", lua_path);
-		trace(lua_path + " is the value for lua_path");
-
-		// step two of the variable setting
-		var lua_cpath = commandResult("luarocks", ["path", "--lr-cpath"]).stdout.trim();
-		Sys.putEnv("LUA_CPATH", lua_cpath);
-		trace(lua_cpath + " is the value for lua_cpath");
 
 		if (jit) Sys.putEnv("LUAJIT","yes");
 		Sys.putEnv("LUAROCKS", luarocks_version);
@@ -478,6 +465,17 @@ class RunCi {
 		runCommand("pip", ["install", "--user", "cpp-coveralls"]);
 		runCommand("luarocks", ["install", "lrexlib-pcre", "2.7.2-1", "--server=https://luarocks.org/dev"]);
 		runCommand("luarocks", ["install", "luautf8", "--server=https://luarocks.org/dev"]);
+
+		// we did user land installs of luarocks and lua.  We need to point lua
+		// to the luarocks install using the luarocks path and env variables
+		var lua_path = commandResult("luarocks", ["path", "--lr-path"]).stdout.trim();
+		Sys.putEnv("LUA_PATH", lua_path);
+		trace(lua_path + " is the value for lua_path");
+
+		// step two of the variable setting
+		var lua_cpath = commandResult("luarocks", ["path", "--lr-cpath"]).stdout.trim();
+		Sys.putEnv("LUA_CPATH", lua_cpath);
+		trace(lua_cpath + " is the value for lua_cpath");
 
 		// change back to the unit dir for the rest of the tests
 		changeDirectory(unitDir);
