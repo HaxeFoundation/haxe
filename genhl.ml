@@ -6157,8 +6157,18 @@ let write_c version ch (code:code) =
 	| OEnumIndex of reg * reg
 	| OEnumField of reg * reg * field index * int
 	| OSetEnumField of reg * int * reg
-	| OSwitch of reg * int array
 	*)
+			| OSwitch (r,idx) ->
+				Printf.ksprintf line "switch(%s) {" (reg r);
+				block();
+				output_at2 (i + 1) [OODefault;OOIncreaseIndent];
+				Array.iteri (fun k delta -> output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent]) idx;
+				(* TOOD: This is brittle and could be broken by DCE. Need a better way to determine where the switch ends. *)
+				let first_case = i + idx.(0) in
+				begin match f.code.(first_case) with
+					| OJAlways j -> output_at2 (first_case + j + 1) [OODecreaseIndent;OODecreaseIndent;OOEndBlock];
+					| _ -> assert false
+				end
 			| ONullCheck r ->
 				sexpr "if( %s == NULL ) hl_error_msg(USTR(\"Null access\"))" (reg r)
 	(*
