@@ -32,7 +32,6 @@ addons:
       - camlp4
       - zlib1g-dev
       - libgc-dev
-      - libpcre3-dev
 
 apt_targets:
   - &apt_cpp    [*apt_common, gcc-multilib, g++-multilib]

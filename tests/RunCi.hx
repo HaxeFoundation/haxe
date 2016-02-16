@@ -437,6 +437,11 @@ class RunCi {
 	}
 
 	static function getLuaDependencies(jit = false, lua_version = "lua5.2", luarocks_version = "2.3.0") {
+		switch (systemName){
+			case "Linux": requireAptPackages(["libpcre3-dev"]);
+			case "Mac": runCommand("brew", ["install", "pcre"]);
+		}
+
 		var home_dir = Sys.getEnv("HOME");
 
 		// the lua paths created by the setup script.
