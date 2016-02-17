@@ -5571,6 +5571,16 @@ let write_c version ch (code:code) =
 	let sexpr fmt = Printf.ksprintf expr fmt in
 	let sprintf = Printf.sprintf in
 
+	let hash_cache = Hashtbl.create 0 in
+	let hash sid =
+		try
+			Hashtbl.find hash_cache sid
+		with Not_found ->
+			let h = hash code.strings.(sid) in
+			Hashtbl.add hash_cache sid h;
+			h
+	in
+
 	let keywords =
 		let h = Hashtbl.create 0 in
 		List.iter (fun i -> Hashtbl.add h i ()) c_kwds;
@@ -5765,12 +5775,12 @@ let write_c version ch (code:code) =
 	line "// Types values data";
 	DynArray.iteri (fun i t ->
 		let field_value (name,name_id,t) =
-			sprintf "{(const uchar*)string$%d, %s, %ld}" name_id (type_value t) (hash name)
+			sprintf "{(const uchar*)string$%d, %s, %ld}" name_id (type_value t) (hash name_id)
 		in
 		match t with
 		| HObj o ->
 			let proto_value p =
-				sprintf "{(const uchar*)string$%d, %d, %d, %ld}" p.fid p.fmethod (match p.fvirtual with None -> -1 | Some i -> i) (hash p.fname)
+				sprintf "{(const uchar*)string$%d, %d, %d, %ld}" p.fid p.fmethod (match p.fvirtual with None -> -1 | Some i -> i) (hash p.fid)
 			in
 			let fields =
 				if Array.length o.pfields = 0 then "NULL" else
@@ -5826,38 +5836,6 @@ let write_c version ch (code:code) =
 			()
 	) types.arr;
 
-
-	line "";
-	line "// Entry point";
-	line "void hl_entry_point() {";
-	block();
-	sexpr "static void *functions_ptrs[] = {%s}" (String.concat "," (Array.to_list funnames));
-	let rec loop i =
-		if i = Array.length code.functions + Array.length code.natives then [] else
-		let args, t = tfuns.(i) in
-		(type_value (HFun (args,t))) :: loop (i + 1)
-	in
-	sexpr "static hl_type *functions_types[] = {%s}" (String.concat "," (loop 0));
-	expr "hl_module_context ctx";
-	expr "hl_alloc_init(&ctx.alloc)";
-	expr "ctx.functions_ptrs = functions_ptrs";
-	expr "ctx.functions_types = functions_types";
-	DynArray.iteri (fun i t ->
-		match t with
-		| HObj o ->
-			sexpr "obj$%d.m = &ctx" i;
-			sexpr "type$%d.obj = &obj$%d" i i;
-		| HEnum _ ->
-			sexpr "type$%d.tenum = &enum$%d" i i;
-		| HVirtual _ ->
-			sexpr "type$%d.virt = &virt$%d" i i;
-		| _ ->
-			()
-	) types.arr;
-	sexpr "%s()" funnames.(code.entrypoint);
-	unblock();
-	line "}";
-
 	line "";
 	line "// Static data";
 	Array.iter (fun f ->
@@ -5887,8 +5865,12 @@ let write_c version ch (code:code) =
 			else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
 		in
 
+		let cast_fun s args t =
+			sprintf "((%s (*)(%s))%s->fun)" (ctype t) (String.concat "," (List.map ctype args)) s
+		in
+
 		let rfun r args t =
-			sprintf "((%s (*)(%s))%s->fun)" (ctype t) (String.concat "," (List.map ctype args)) (reg r)
+			cast_fun (reg r) args t
 		in
 
 		let rassign r t =
@@ -5906,6 +5888,16 @@ let write_c version ch (code:code) =
 			sexpr "%s%s(%s)" rstr funnames.(fid) (String.concat "," (List.map2 rcast args targs))
 		in
 
+		let mcall r fid = function
+			| [] -> assert false
+			| o :: args ->
+				(*
+				let vfun = cast_fun (sprintf "%s->$type->obj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
+				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
+				*)
+				expr "hl_fatal(\"callmethod\")"
+		in
+
 		let set_field obj fid v =
 			match rtype obj with
 			| HObj o ->
@@ -5915,6 +5907,13 @@ let write_c version ch (code:code) =
 				sexpr "hl_fatal(\"%s\")" "SETFIELD-VIRTUAL"
 			| _ ->
 				assert false
+		in
+
+		let dyn_prefix = function
+			| HI8 | HI16 | HI32 | HBool -> "i"
+			| HF32 -> "f"
+			| HF64 -> "d"
+			| _ -> "p"
 		in
 
 		let get_field r obj fid =
@@ -6039,12 +6038,10 @@ let write_c version ch (code:code) =
 				ocall r fid [a;b;c;d]
 			| OCallN (r,fid,rl) ->
 				ocall r fid rl
-
-
-	(*
-	| OCallMethod of reg * field index * reg list
-	| OCallThis of reg * field index * reg list
-	*)
+			| OCallMethod (r,fid,pl) ->
+				mcall r fid pl
+			| OCallThis (r,fid,pl) ->
+				mcall r fid (0 :: pl)
 			| OCallClosure (r,cl,pl) ->
 				(match rtype cl with
 				| HDyn ->
@@ -6125,10 +6122,10 @@ let write_c version ch (code:code) =
 				get_field r 0 fid
 			| OSetThis (fid,r) ->
 				set_field 0 fid r
-	(*
-	| OThrow of reg
-	| ORethrow of reg
-	*)
+			| OThrow r ->
+				sexpr "hl_throw((vdynamic*)%s)" (reg r)
+			| ORethrow r ->
+				sexpr "hl_rethrow((vdynamic*)%s)" (reg r)
 			| OGetI8 (r,b,idx) ->
 				sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
 			| OGetI32 (r,b,idx) ->
@@ -6149,19 +6146,21 @@ let write_c version ch (code:code) =
 				sexpr "*(double*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
 			| OSetArray (arr,idx,v) ->
 				sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
-(*
-	| OSafeCast of reg * reg
-	| OUnsafeCast of reg * reg
-*)
+			| OSafeCast (r,v) ->
+				let t = rtype r in
+				sexpr "%s = (%s)hl_dyn_cast%s(&%s,%s%s)" (reg r) (ctype t) (dyn_prefix t) (reg v) (type_value (rtype v)) (match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t)
+			| OUnsafeCast (r,v) ->
+				sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) (reg v)
 			| OArraySize (r,a) ->
 				sexpr "%s = %s->size" (reg r) (reg a)
 (*	| OError of string index
 	*)
 			| OType (r,t) ->
 				sexpr "%s = %s" (reg r) (type_value t)
-	(*| OGetType of reg * reg
-	| OGetTID of reg * reg
-	*)
+			| OGetType (r,v) ->
+				sexpr "%s = %s->t" (reg r) (reg v)
+			| OGetTID (r,v) ->
+				sexpr "%s = %s->kind" (reg r) (reg v)
 			| ORef (r,v) ->
 				sexpr "%s = &%s" (reg r) (reg v)
 			| OUnref (r,v) ->
@@ -6170,19 +6169,15 @@ let write_c version ch (code:code) =
 				sexpr "*%s = %s" (reg r) (reg v)
 			| OToVirtual (r,v) ->
 				sexpr "%s = hl_to_virtual(%s,(vdynamic*)%s)" (reg r) (type_value (rtype r)) (reg v)
-	(*
-	| OUnVirtual of reg * reg
-	| ODynGet of reg * reg * string index
-	*)
-			| ODynSet (o,str,v) ->
-				let h = hash code.strings.(str) in
-				let prefix = (match rtype v with
-				| HBool | HI8 | HI16 | HI32 -> "set32"
-				| HF32 -> "setf32"
-				| HF64 -> "setf64"
-				| _ -> "setptr"
-				) in
-				sexpr "hl_dyn_%s((vdynamic*)%s,%ld,%s,%s)" prefix (reg o) h (type_value (rtype v)) (reg v)
+			| OUnVirtual (r,v) ->
+				sexpr "%s = %s ? %s->value : NULL" (reg r) (reg v) (reg v)
+			| ODynGet (r,o,sid) ->
+				let t = rtype r in
+				let h = hash sid in
+				sexpr "%s = (%s)hl_dyn_get%s((vdynamic*)%s,%ld%s)" (reg r) (ctype t) (dyn_prefix t) (reg o) h (match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t)
+			| ODynSet (o,sid,v) ->
+				let h = hash sid in
+				sexpr "hl_dyn_set%s((vdynamic*)%s,%ld,%s,%s)" (dyn_prefix (rtype v)) (reg o) h (type_value (rtype v)) (reg v)
 			| OMakeEnum (r,eid,rl) ->
 				let et = enum_type (rtype r) eid in
 				let has_ptr = List.exists (fun r -> is_gc_ptr (rtype r)) rl in
@@ -6215,7 +6210,43 @@ let write_c version ch (code:code) =
 		unblock();
 		line "}";
 		line "";
-	) code.functions
+	) code.functions;
+
+	line "";
+	line "// Entry point";
+	line "void hl_entry_point() {";
+	block();
+	sexpr "static void *functions_ptrs[] = {%s}" (String.concat "," (Array.to_list funnames));
+	let rec loop i =
+		if i = Array.length code.functions + Array.length code.natives then [] else
+		let args, t = tfuns.(i) in
+		(type_value (HFun (args,t))) :: loop (i + 1)
+	in
+	sexpr "static hl_type *functions_types[] = {%s}" (String.concat "," (loop 0));
+	expr "hl_module_context ctx";
+	expr "hl_alloc_init(&ctx.alloc)";
+	expr "ctx.functions_ptrs = functions_ptrs";
+	expr "ctx.functions_types = functions_types";
+	Hashtbl.iter (fun i _ -> sexpr "hl_hash(string$%d)" i) hash_cache;
+	DynArray.iteri (fun i t ->
+		match t with
+		| HObj o ->
+			sexpr "obj$%d.m = &ctx" i;
+			(match o.pclassglobal with None -> () | Some g -> sexpr "obj$%d.global_value = &global$%d" i g);
+			sexpr "type$%d.obj = &obj$%d" i i;
+		| HNull t | HRef t ->
+			sexpr "type$%d.t = %s" i (type_value t)
+		| HEnum _ ->
+			sexpr "type$%d.tenum = &enum$%d" i i;
+		| HVirtual _ ->
+			sexpr "type$%d.virt = &virt$%d" i i;
+		| _ ->
+			()
+	) types.arr;
+	sexpr "%s()" funnames.(code.entrypoint);
+	unblock();
+	line "}";
+	line ""
 
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
