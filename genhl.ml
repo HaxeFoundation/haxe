@@ -3167,6 +3167,7 @@ let check code =
 				can_jump delta
 			| OJUGte (a,b,delta) | OJULt (a,b,delta) | OJSGte (a,b,delta) | OJSLt (a,b,delta) | OJSGt (a,b,delta) | OJSLte (a,b,delta) ->
 				reg a (rtype b);
+				reg b (rtype a);
 				can_jump delta
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				(match rtype a, rtype b with
@@ -5796,7 +5797,7 @@ let write_c version ch (code:code) =
 			let c = String.get s i in
 			string_of_int (int_of_char c) :: loop (i+1)
 		in
-		sexpr "static vbytes string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) str
+		sexpr "static vbytes string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) (String.concat "* /" (ExtString.String.nsplit str "*/"))
 	) code.strings;
 
 	let type_value t =
@@ -5865,6 +5866,13 @@ let write_c version ch (code:code) =
 				fields_name
 			] in
 			sexpr "static hl_type_virtual virt$%d = {%s}" i (String.concat "," vfields);
+		| HFun (args,t) ->
+			let aname = if args = [] then "NULL" else
+				let name = sprintf "fargs$%d" i in
+				sexpr "static hl_type *%s[] = {%s}" name (String.concat "," (List.map type_value args));
+				name
+			in
+			sexpr "static hl_type_fun tfun$%d = {%s,%s,%d}" i aname (type_value t) (List.length args)
 		| _ ->
 			()
 	) types.arr;
@@ -5949,6 +5957,17 @@ let write_c version ch (code:code) =
 			| _ -> "p"
 		in
 
+		let dyn_value_field t =
+			"->v." ^ match t with
+			| HI8 -> "c"
+			| HI16 -> "s"
+			| HI32 -> "i"
+			| HF32 -> "f"
+			| HF64 -> "d"
+			| HBool -> "b"
+			| _ -> "ptr"
+		in
+
 		let get_field r obj fid =
 			match rtype obj with
 			| HObj o ->
@@ -6004,6 +6023,47 @@ let write_c version ch (code:code) =
 			in
 			let todo() =
 				sexpr "hl_fatal(\"%s\")" (ostr op)
+			in
+			let compare_op op a b d =
+				let phys_compare() =
+					sexpr "if( %s %s %s ) goto %s" (reg a) (s_binop op) (reg b) (label d)
+				in
+				(*
+					safe_cast is already checked
+					two ways (same type) for eq
+					one way for comparisons
+				*)
+				match rtype a, rtype b with
+				| (HI8 | HI16 | HI32 | HF32 | HF64 | HBool), (HI8 | HI16 | HI32 | HF32 | HF64 | HBool) ->
+					phys_compare()
+				| HType, HType ->
+					sexpr "if( hl_same_type(%s,%s) %s 0 ) goto %s" (reg a) (reg b) (s_binop op) (label d)
+				| HNull t, HNull _ ->
+					let field = dyn_value_field t in
+					let pcompare = sprintf "(%s%s %s %s%s)" (reg a) field (s_binop op) (reg b) field in
+					if op = OpEq then
+						sexpr "if( %s == %s || (%s && %s && %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
+					else if op = OpNotEq then
+						sexpr "if( %s != %s && (!%s || !%s || !%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
+					else
+						sexpr "if( %s && %s && %s ) goto %s" (reg a) (reg b) pcompare (label d)
+				| HDyn , _ | _, HDyn ->
+					sexpr "{ int i = hl_dyn_compare((vdynamic*)%s,(vdynamic*)%s); if( i %s 0 && i != hl_invalid_comparison ) goto %s; }" (reg a) (reg b) (s_binop op) (label d)
+				| HObj oa, HObj _ ->
+					(try
+						let fid = PMap.find "__compare" oa.pfunctions in
+						if op = OpEq then
+							sexpr "if( %s == %s || (%s && %s && %s(%s,%s) == 0) ) goto %s" (reg a) (reg b) (reg a) (reg b) funnames.(fid) (reg a) (reg b) (label d)
+						else if op = OpNotEq then
+							sexpr "if( %s != %s && (!%s || !%s || %s(%s,%s) != 0) ) goto %s" (reg a) (reg b) (reg a) (reg b) funnames.(fid) (reg a) (reg b) (label d)
+						else
+							sexpr "if( %s && %s && %s(%s,%s) %s 0 ) goto %s" (reg a) (reg b) funnames.(fid) (reg a) (reg b) (s_binop op) (label d)
+					with Not_found ->
+						phys_compare())
+				| HEnum _, HEnum _ | HVirtual _, HVirtual _ | HDynObj, HDynObj ->
+					phys_compare()
+				| ta, tb ->
+					failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb)
 			in
 			match op with
 			| OMov (r,v) ->
@@ -6108,21 +6168,21 @@ let write_c version ch (code:code) =
 			| OJFalse (r,d) | OJNull (r,d) ->
 				sexpr "if( !%s ) goto %s" (reg r) (label d)
 			| OJSLt (a,b,d) ->
-				sexpr "if( %s < %s ) goto %s" (reg a) (reg b) (label d)
+				compare_op OpLt a b d
 			| OJSGte (a,b,d) ->
-				sexpr "if( %s >= %s ) goto %s" (reg a) (reg b) (label d)
+				compare_op OpGte a b d
 			| OJSGt (a,b,d) ->
-				sexpr "if( %s > %s ) goto %s" (reg a) (reg b) (label d)
+				compare_op OpGt a b d
 			| OJSLte (a,b,d) ->
-				sexpr "if( %s <= %s ) goto %s" (reg a) (reg b) (label d)
+				compare_op OpLte a b d
 			| OJULt (a,b,d) ->
 				sexpr "if( ((unsigned)%s) < ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
 			| OJUGte (a,b,d) ->
 				sexpr "if( ((unsigned)%s) >= ((unsigned)%s) ) goto %s" (reg a) (reg b) (label d)
 			| OJEq (a,b,d) ->
-				sexpr "if( %s == %s ) goto %s" (reg a) (reg b) (label d)
+				compare_op OpEq a b d
 			| OJNotEq (a,b,d) ->
-				sexpr "if( %s != %s ) goto %s" (reg a) (reg b) (label d)
+				compare_op OpNotEq a b d
 			| OJAlways d ->
 				sexpr "goto %s" (label d)
 			| OLabel _ ->
@@ -6273,13 +6333,15 @@ let write_c version ch (code:code) =
 		| HObj o ->
 			sexpr "obj$%d.m = &ctx" i;
 			(match o.pclassglobal with None -> () | Some g -> sexpr "obj$%d.global_value = &global$%d" i g);
-			sexpr "type$%d.obj = &obj$%d" i i;
+			sexpr "type$%d.obj = &obj$%d" i i
 		| HNull t | HRef t ->
 			sexpr "type$%d.tparam = %s" i (type_value t)
 		| HEnum _ ->
-			sexpr "type$%d.tenum = &enum$%d" i i;
+			sexpr "type$%d.tenum = &enum$%d" i i
 		| HVirtual _ ->
-			sexpr "type$%d.virt = &virt$%d" i i;
+			sexpr "type$%d.virt = &virt$%d" i i
+		| HFun _ ->
+			sexpr "type$%d.fun = &tfun$%d" i i
 		| _ ->
 			()
 	) types.arr;
