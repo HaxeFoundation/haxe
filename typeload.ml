@@ -3187,6 +3187,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				);
 				a.a_this <- at;
 				is_type := true;
+			| AExtern ->
+				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
 			| APrivAbstract -> ()
 		) d.d_flags;
 		if not !is_type then begin
