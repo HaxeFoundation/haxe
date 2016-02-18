@@ -3172,6 +3172,8 @@ let rec init_module_type ctx context_init do_init (decl,p) =
 				(match at with TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos | _ -> ());
 				a.a_this <- at;
 				is_type := true;
+			| AExtern ->
+				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
 			| APrivAbstract -> ()
 		) d.d_flags;
 		if not !is_type then begin

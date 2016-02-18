@@ -412,6 +412,7 @@ type abstract_flag =
 	| AFromType of complex_type
 	| AToType of complex_type
 	| AIsType of complex_type
+	| AExtern
 
 type enum_constructor = {
 	ec_name : string;
