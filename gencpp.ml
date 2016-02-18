@@ -1499,7 +1499,7 @@ let hx_stack_push ctx output clazz func_name pos =
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
       let esc_file = (Ast.s_escape stripped_file) in
       ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
-      Printf.printf "__RUN__ %s: (%s) %d:%d\n" pos.pfile func_name pos.pmin pos.pmax ;
+      (*Printf.printf "__RUN__ %s: (%s) %d:%d\n" pos.pfile func_name pos.pmin pos.pmax ;*)
       if (ctx.ctx_debug_level>0) then begin
          let full_name = clazz ^ "." ^ func_name ^ (
            if (clazz="*") then

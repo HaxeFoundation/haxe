@@ -54,6 +54,8 @@ class StackFrame
     public function new(fileName : String, lineNumber : Int, columnNumber : Int,
                         className : String, functionName : String)
    {
+        //CMPS116
+        //trace(columnNumber);
         this.fileName = fileName;
         this.lineNumber = lineNumber;
         this.columnNumber = columnNumber;
