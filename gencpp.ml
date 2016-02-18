@@ -510,6 +510,8 @@ List.filter (function (t,pl) ->
    | _ -> true
 );;
 
+
+
 let rec is_function_expr expr =
    match expr.eexpr with
    | TParenthesis expr | TMeta(_,expr) -> is_function_expr expr
@@ -659,6 +661,15 @@ let is_dynamic_type_param class_kind =
    | _ -> false
 ;;
 
+
+let is_native_gen_class class_def =
+   (has_meta_key class_def.cl_meta Meta.NativeGen) ||
+      (match class_def.cl_kind with
+       | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.NativeGen)
+       | _ -> false );
+;;
+
+
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
    pointer class or the pointee (_obj class *)
@@ -710,6 +721,9 @@ let rec class_string klass suffix params remap =
          "id <" ^ str ^ ">"
       else
          str ^ " *"
+   (* Native interface - use pointer *)
+   | _ when klass.cl_interface && is_native_gen_class klass ->
+            (join_class_path_remap klass.cl_path "::") ^ " *"
    (* Normal class *)
    | path when klass.cl_extern && (not (is_internal_class path) )->
             (join_class_path_remap klass.cl_path "::") ^ suffix
@@ -903,6 +917,13 @@ let is_native_with_space func =
 ;;
 
 
+let is_native_pointer expr =
+   let t = type_string expr.etype in
+   let l = String.length t in
+   l>1 && (String.sub t (l-1) 1) = "*"
+;;
+
+
 let rec is_cpp_function_member func =
    match (remove_parens func).eexpr with
    | TField(obj,field) when is_cpp_function_instance obj.etype -> true
@@ -939,12 +960,13 @@ let is_extern_class class_def =
 ;;
 
 
-let is_native_gen_class class_def =
-   (has_meta_key class_def.cl_meta Meta.NativeGen) ||
-      (match class_def.cl_kind with
-       | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.NativeGen)
-       | _ -> false );
-;;
+let real_non_native_interfaces =
+List.filter (function (t,pl) ->
+   match t, pl with
+   | { cl_path = ["cpp";"rtti"],_ },[] -> false
+   | _ -> not (is_native_gen_class t)
+);;
+
 
 
 let is_extern_class_instance obj =
@@ -1406,6 +1428,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
    let member = field_name field in
    ctx.ctx_dbgout ("/*mem."^member^".*/");
    if (is_internal_member member) then false else
+   if (is_native_pointer field_object) then false else
    if (is_pointer field_object.etype true) then false else
    if (match field_object.eexpr with | TTypeExpr _ -> ctx.ctx_dbgout "/*!TTypeExpr*/"; true | _ -> false) then false else
    if (is_dynamic_in_cpp ctx field_object) then true else
@@ -1422,7 +1445,7 @@ and is_dynamic_member_lookup_in_cpp ctx field_object field =
             try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
                ctx.ctx_dbgout ("/* =" ^ mem_type ^ "*/");
                false )
-            with Not_found -> not (is_extern_class_instance field_object)
+            with Not_found ->  ctx.ctx_dbgout ("/*!*/"); not (is_extern_class_instance field_object)
    )
 and is_dynamic_member_return_in_cpp ctx field_object field =
    let member = field_name field in
@@ -2549,6 +2572,10 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
      output ("( (" ^ ret_type ^ ") (id) (");
      gen_expression true cast;
      output ") )"
+   | TCast (cast,None) when is_native_pointer expression &&  not (is_native_pointer cast) ->
+     output ("(");
+     gen_expression true cast;
+     output ").mPtr"
    | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
       gen_expression retval cast;
    | TCast (cast,None) ->
@@ -3615,17 +3642,18 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let implemented_hash = Hashtbl.create 0 in
    List.iter (fun imp ->
       let rec descend_interface interface =
-         let imp_path = (fst interface).cl_path in
+         let intf_def = (fst interface) in
+         let imp_path = intf_def.cl_path in
          let interface_name = "::" ^ (join_class_path_remap imp_path "::" ) in
          if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
             Hashtbl.add implemented_hash interface_name ();
-            List.iter descend_interface (fst interface).cl_implements;
+            List.iter descend_interface intf_def.cl_implements;
          end;
-         match (fst interface).cl_super with
+         match intf_def.cl_super with
          | Some (interface,params) -> descend_interface (interface,params)
          | _ -> ()
       in descend_interface imp
-   ) (real_interfaces class_def.cl_implements);
+   ) (real_non_native_interfaces class_def.cl_implements);
    let implemented = hash_keys implemented_hash in
 
    if (scriptable) then
@@ -3699,7 +3727,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                "return new " ^ interface_name ^ "_delegate_< " ^ class_name ^" >(this); }\n\n" );
          ) implemented;
       end;
-
    end;
 
    (match class_def.cl_init with
@@ -4267,11 +4294,19 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let extern_class =  Common.defined common_ctx Define.DllExport in
    let attribs = "HXCPP_" ^ (if extern_class then "EXTERN_" else "") ^ "CLASS_ATTRIBUTES" in
 
+   let dump_native_interfaces () =
+      List.iter ( fun(c,params) ->
+         output_h (" , public virtual " ^ (join_class_path c.cl_path "::") )
+      ) (List.filter  (fun (t,_) -> is_native_gen_class t) class_def.cl_implements);
+   in
+
    if (super="") then begin
       output_h ("class " ^ attribs ^ " " ^ class_name);
+      dump_native_interfaces();
       output_h "\n{\n\tpublic:\n";
    end else begin
       output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super );
+      dump_native_interfaces();
       output_h "\n{\n\tpublic:\n";
       output_h ("\t\ttypedef " ^ super ^ " super;\n");
       output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
@@ -4320,6 +4355,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
             output_h ("\t\toperator " ^ interface_name ^ "_obj *();\n")
          ) implemented;
       end;
+
 
       if (has_init_field class_def) then
          output_h "\t\tstatic void __init__();\n\n";
@@ -4563,7 +4599,7 @@ let create_super_dependencies common_ctx =
             if not (fst super).cl_extern then
                deps := ((fst super).cl_path) :: !deps
          | _ ->() );
-         List.iter (fun imp -> if not (fst imp).cl_extern then deps := (fst imp).cl_path :: !deps) (real_interfaces class_def.cl_implements);
+         List.iter (fun imp -> if not (fst imp).cl_extern then deps := (fst imp).cl_path :: !deps) (real_non_native_interfaces class_def.cl_implements);
          Hashtbl.add result class_def.cl_path !deps;
       | TEnumDecl enum_def when not enum_def.e_extern ->
          Hashtbl.add result enum_def.e_path [];
