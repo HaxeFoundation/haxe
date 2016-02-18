@@ -331,6 +331,9 @@ class Test {
 			#if python
 			new TestPython(),
 			#end
+			#if hl
+			new TestHL(),
+			#end
 			#if php
 			new TestPhp(),
 			#end

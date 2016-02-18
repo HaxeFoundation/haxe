@@ -152,6 +152,7 @@ let is_unbound_call_that_might_have_side_effects v el = match v.v_name,el with
 
 let is_ref_type = function
 	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
+	| TAbstract({a_path=["hl";"types"],"Ref"},_) -> true
 	| _ -> false
 
 let dynarray_map f d =
@@ -1139,8 +1140,8 @@ module TexprTransformer = struct
 				| TConst TSuper when ctx.com.platform = Java || ctx.com.platform = Cs ->
 					bb,e
 				| _ ->
-					let check e t = match e.eexpr,t with
-						| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
+					let check e t = match e.eexpr with
+						| TLocal v when is_ref_type t ->
 							v.v_capture <- true;
 							e
 						| _ ->

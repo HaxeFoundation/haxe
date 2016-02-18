@@ -1707,6 +1707,17 @@ and eval_expr ctx e =
 			let rv = (match rtype ctx r with HRef t -> alloc_reg ctx v | _ -> invalid()) in
 			op ctx (ORef (r,rv));
 			r
+		| "$setref", [e1;e2] ->
+			let rec loop e = match e.eexpr with
+				| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) -> loop e1
+				| TLocal v -> v
+				| _ -> invalid()
+			in
+			let v = loop e1 in
+			let r = alloc_reg ctx v in
+			let rv = eval_to ctx e2 (match rtype ctx r with HRef t -> t | _ -> invalid()) in
+			op ctx (OSetref (r,rv));
+			r
 		| "$ttype", [v] ->
 			let r = alloc_tmp ctx HType in
 			op ctx (OType (r,to_type ctx v.etype));
