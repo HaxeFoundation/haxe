@@ -131,7 +131,7 @@ package hl.types;
 	}
 
 	@:hlNative("std","value_to_string")
-	public static function ofValue( v : Dynamic, size : Ref<Int> ) : Bytes {
+	public static function ofValue( v : Dynamic, length : Ref<Int> ) : Bytes {
 		return null;
 	}
 }

@@ -44,7 +44,7 @@ class Std {
 	@:keep public static function string( s : Dynamic ) : String {
 		var len = 0;
 		var bytes = hl.types.Bytes.ofValue(s,new hl.types.Ref(len));
-		return @:privateAccess String.__alloc__(bytes,len>>1);
+		return @:privateAccess String.__alloc__(bytes,len);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {

@@ -52,9 +52,9 @@
 	}
 
 	public function add<T>( x : T ) : Void {
-		var ssize = 0;
-		var sbytes = hl.types.Bytes.ofValue(x, new hl.types.Ref(ssize));
-		__add(sbytes, 0, ssize);
+		var slen = 0;
+		var sbytes = hl.types.Bytes.ofValue(x, new hl.types.Ref(slen));
+		__add(sbytes, 0, slen<<1);
 	}
 
 	public function addSub( s : String, pos : Int, ?len : Int ) : Void @:privateAccess {

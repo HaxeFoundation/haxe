@@ -4450,7 +4450,7 @@ let interp code =
 				(function
 				| [v; VRef (regs,i,_)] ->
 					let str = caml_to_hl (vstr v HDyn) in
-					regs.(i) <- to_int (String.length str - 2);
+					regs.(i) <- to_int ((String.length str) lsr 1 - 1);
 					VBytes str
 				| _ -> assert false);
 			| "math_isnan" -> (function [VFloat f] -> VBool (classify_float f = FP_nan) | _ -> assert false)
@@ -6275,7 +6275,7 @@ let write_c version ch (code:code) =
 			(match o.pclassglobal with None -> () | Some g -> sexpr "obj$%d.global_value = &global$%d" i g);
 			sexpr "type$%d.obj = &obj$%d" i i;
 		| HNull t | HRef t ->
-			sexpr "type$%d.t = %s" i (type_value t)
+			sexpr "type$%d.tparam = %s" i (type_value t)
 		| HEnum _ ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
 		| HVirtual _ ->
