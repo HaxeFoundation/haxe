@@ -5619,6 +5619,28 @@ let write_c version ch (code:code) =
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 	in
 
+	let rec ctype_no_ptr t = match t with
+		| HVoid -> "void",0
+		| HI8 -> "char",0
+		| HI16 -> "short",0
+		| HI32 -> "int",0
+		| HF32 -> "float",0
+		| HF64 -> "double",0
+		| HBool -> "bool",0
+		| HBytes -> "vbytes",1
+		| HDyn -> "vdynamic",1
+		| HFun _ -> "vclosure",1
+		| HObj p -> tname p.pname,0
+		| HArray -> "varray",1
+		| HType -> "hl_type",1
+		| HRef t -> let s,i = ctype_no_ptr t in s,i + 1
+		| HVirtual _ -> "vvirtual",1
+		| HDynObj -> "vdynobj",1
+		| HAbstract (name,_) -> name,1
+		| HEnum _ -> "venum",1
+		| HNull _ -> "vdynamic",1
+	in
+
 	let type_id t =
 		match t with
 		| HVoid -> "HVOID"
@@ -5936,11 +5958,18 @@ let write_c version ch (code:code) =
 			assert false
 		) in
 		block();
+		let var_map = Hashtbl.create 0 in
 		Array.iteri (fun i t ->
 			if i <= !rid || t = HVoid then ()
 			else
-			expr (var_type (reg i) t);
+				let key = ctype_no_ptr t in
+				Hashtbl.replace var_map key (try (reg i) :: Hashtbl.find var_map key with Not_found -> [reg i])
 		) f.regs;
+		Hashtbl.iter (fun (s,i) il ->
+			let prefix = String.make i '*' in
+			let il = List.rev_map (fun s -> prefix ^ s) il in
+			sexpr "%s %s" s (String.concat ", " il)
+		) var_map;
 		let output_options = Array.make (Array.length f.code) [] in
 		let output_at i oo = output_options.(i) <- oo :: output_options.(i) in
 		let output_at2 i ool = List.iter (output_at i) ool in
