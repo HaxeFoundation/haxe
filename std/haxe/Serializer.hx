@@ -67,6 +67,7 @@ class Serializer {
 	public static var USE_ENUM_INDEX = false;
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
+	static var BASE64_CODES = null;
 
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
@@ -333,38 +334,47 @@ class Serializer {
 				var v : haxe.io.Bytes = v;
 				#if neko
 				var chars = new String(base_encode(v.getData(),untyped BASE64.__s));
+				buf.add("s");
+				buf.add(chars.length);
+				buf.add(":");
+				buf.add(chars);
 				#else
+
+				buf.add("s");
+				buf.add(Math.ceil((v.length * 8) / 6));
+				buf.add(":");
+
 				var i = 0;
 				var max = v.length - 2;
-				var charsBuf = new StringBuf();
-				var b64 = BASE64;
+				var b64 = BASE64_CODES;
+				if( b64 == null ) {
+					b64 = new haxe.ds.Vector(BASE64.length);
+					for( i in 0...BASE64.length )
+						b64[i] = BASE64.charCodeAt(i);
+					BASE64_CODES = b64;
+				}
 				while( i < max ) {
 					var b1 = v.get(i++);
 					var b2 = v.get(i++);
 					var b3 = v.get(i++);
 
-					charsBuf.add(b64.charAt(b1 >> 2));
-					charsBuf.add(b64.charAt(((b1 << 4) | (b2 >> 4)) & 63));
-					charsBuf.add(b64.charAt(((b2 << 2) | (b3 >> 6)) & 63));
-					charsBuf.add(b64.charAt(b3 & 63));
+					buf.addChar(b64[b1 >> 2]);
+					buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
+					buf.addChar(b64[((b2 << 2) | (b3 >> 6)) & 63]);
+					buf.addChar(b64[b3 & 63]);
 				}
 				if( i == max ) {
 					var b1 = v.get(i++);
 					var b2 = v.get(i++);
-					charsBuf.add(b64.charAt(b1 >> 2));
-					charsBuf.add(b64.charAt(((b1 << 4) | (b2 >> 4)) & 63));
-					charsBuf.add(b64.charAt((b2 << 2) & 63));
+					buf.addChar(b64[b1 >> 2]);
+					buf.addChar(b64[((b1 << 4) | (b2 >> 4)) & 63]);
+					buf.addChar(b64[(b2 << 2) & 63]);
 				} else if( i == max + 1 ) {
 					var b1 = v.get(i++);
-					charsBuf.add(b64.charAt(b1 >> 2));
-					charsBuf.add(b64.charAt((b1 << 4) & 63));
+					buf.addChar(b64[b1 >> 2]);
+					buf.addChar(b64[(b1 << 4) & 63]);
 				}
-				var chars = charsBuf.toString();
 				#end
-				buf.add("s");
-				buf.add(chars.length);
-				buf.add(":");
-				buf.add(chars);
 			default:
 				if( useCache ) cache.pop();
 				if( #if flash try v.hxSerialize != null catch( e : Dynamic ) false #elseif (cs || java || python) Reflect.hasField(v, "hxSerialize") #else v.hxSerialize != null #end  ) {
