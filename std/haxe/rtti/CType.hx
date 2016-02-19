@@ -43,7 +43,7 @@ typedef PathParams = {
 	var params : List<CType>;
 }
 
-typedef TypeParams = Array<String> // no contraints
+typedef TypeParams = Array<String> // no constraints
 
 enum Rights {
 	RNormal;
