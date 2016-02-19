@@ -114,7 +114,7 @@ private class SocketInput extends haxe.io.Input {
 }
 
 @:coreApi
-class Socket {
+class Socket implements sys.net.ISocket {
 
 	private var __s : SocketHandle;
 	public var input(default,null) : haxe.io.Input;
@@ -207,9 +207,9 @@ class Socket {
 		socket_set_fast_send(__s,b);
 	}
 
-	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
+	public static function select(read : Array<ISocket>, write : Array<ISocket>, others : Array<ISocket>, ?timeout : Float) : {read: Array<ISocket>,write: Array<ISocket>,others: Array<ISocket>} {
 		var c = untyped __dollar__hnew( 1 );
-		var f = function( a : Array<Socket> ){
+		var f = function( a : Array<ISocket> ){
 			if( a == null ) return null;
 			untyped {
 				var r = __dollar__amake(a.length);
@@ -224,7 +224,7 @@ class Socket {
 		}
 		var neko_array = socket_select(f(read),f(write),f(others), timeout);
 
-		var g = function( a ) : Array<Socket> {
+		var g = function( a ) : Array<ISocket> {
 			if( a == null ) return null;
 
 			var r = new Array();
