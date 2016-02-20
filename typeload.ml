@@ -3259,7 +3259,6 @@ let type_types_into_module ctx m tdecls p =
 		type_params = [];
 		curfun = FunStatic;
 		untyped = false;
-		in_super_call = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
 		in_loop = false;

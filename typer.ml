@@ -1350,7 +1350,6 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		| FunMemberAbstract -> error "Cannot access super inside an abstract function" p
 		| FunStatic -> error "Cannot access super inside a static function" p;
 		| FunMemberClassLocal | FunMemberAbstractLocal -> error "Cannot access super inside a local function" p);
-		if mode <> MSet && ctx.in_super_call then ctx.in_super_call <- false;
 		AKExpr (mk (TConst TSuper) t p)
 	| "null" ->
 		if mode = MGet then
@@ -4093,9 +4092,7 @@ and handle_display ctx e_ast iscall with_type p =
 
 
 and type_call ctx e el (with_type:with_type) p =
-	let def () = (match e with
-		| EField ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
-		| _ -> ());
+	let def () =
 		build_call ctx (type_access ctx (fst e) (snd e) MCall) el with_type p
 	in
 	match e, el with
@@ -5222,7 +5219,6 @@ let rec create com =
 		untyped = false;
 		curfun = FunStatic;
 		in_loop = false;
-		in_super_call = false;
 		in_display = false;
 		in_macro = Common.defined com Define.Macro;
 		ret = mk_mono();
