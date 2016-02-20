@@ -3283,19 +3283,28 @@ let handle_import_hx ctx m decls p =
 		| _ -> []
 	in
 	let candidates = loop path_split (fst m.m_path) in
+	let make_import_module path r =
+		Hashtbl.replace ctx.com.parser_cache path r;
+		(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
+		let m_import = make_module ctx ([],path) path p in
+		add_module ctx m_import p;
+		add_dependency m m_import;
+	in
 	List.fold_left (fun acc path ->
-		let _,decls = try
-			Hashtbl.find ctx.com.parser_cache path
+		let decls = try
+			let r = Hashtbl.find ctx.com.parser_cache path in
+			add_dependency m (Hashtbl.find ctx.g.modules ([],path));
+			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let r = parse_file ctx.com path p in
-				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) (snd r);
-				Hashtbl.replace ctx.com.parser_cache path r;
+				let _,r = parse_file ctx.com path p in
+				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
+				make_import_module path r;
 				r
 			end else begin
-				let r = ([],[]) in
+				let r = [] in
 				(* Add empty decls so we don't check the file system all the time. *)
-				Hashtbl.replace ctx.com.parser_cache path r;
+				make_import_module path r;
 				r
 			end
 		in
