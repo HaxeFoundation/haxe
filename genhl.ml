@@ -5888,12 +5888,14 @@ let write_c version ch (code:code) =
 
 	line "";
 	line "// Static data";
+	let used = Hashtbl.create 0 in
 	Array.iter (fun f ->
 		Array.iteri (fun i op ->
 			match op with
-			| OGetFunction (_,fid) ->
+			| OGetFunction (_,fid) when not (Hashtbl.mem used fid) ->
 				let args, t = tfuns.(fid) in
 				sexpr "static vclosure cl$%d = { %s, %s, 0 }" fid (type_value (HFun (args,t))) funnames.(fid);
+				Hashtbl.add used fid ();
 			| _ ->
 				()
 		) f.code
