@@ -286,6 +286,25 @@ type access =
 	| AEnum of field index
 	| ACaptured of field index
 
+let null_proto =
+	{
+		pname = "";
+		pid = 0;
+		pclassglobal = None;
+		psuper = None;
+		pvirtuals = [||];
+		pproto = [||];
+		pfields = [||];
+		pnfields = 0;
+		pindex = PMap.empty;
+		pfunctions = PMap.empty;
+	}
+
+let all_types =
+	let vp = { vfields = [||]; vindex = PMap.empty } in
+	let ep = { ename = ""; eid = 0; eglobal = 0; efields = [||] } in
+	[HVoid;HI8;HI16;HI32;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
+
 let is_number = function
 	| HI8 | HI16 | HI32 | HF32 | HF64 -> true
 	| _ -> false
@@ -496,20 +515,6 @@ let new_lookup() =
 	{
 		arr = DynArray.create();
 		map = PMap.empty;
-	}
-
-let null_proto =
-	{
-		pname = "";
-		pid = 0;
-		pclassglobal = None;
-		psuper = None;
-		pvirtuals = [||];
-		pproto = [||];
-		pfields = [||];
-		pnfields = 0;
-		pindex = PMap.empty;
-		pfunctions = PMap.empty;
 	}
 
 let null_capture =
@@ -5587,6 +5592,7 @@ let write_c version ch (code:code) =
 	let line str = IO.write_line ch (!tabs ^ str) in
 	let expr str = line (str ^ ";") in
 	let sexpr fmt = Printf.ksprintf expr fmt in
+	let sline fmt = Printf.ksprintf line fmt in
 	let sprintf = Printf.sprintf in
 
 	let hash_cache = Hashtbl.create 0 in
@@ -5609,35 +5615,12 @@ let write_c version ch (code:code) =
 
 	let tname str = String.concat "__" (ExtString.String.nsplit str ".") in
 
-	let rec ctype t =
-		match t with
-		| HVoid -> "void"
-		| HI8 -> "char"
-		| HI16 -> "short"
-		| HI32 -> "int"
-		| HF32 -> "float"
-		| HF64 -> "double"
-		| HBool -> "bool"
-		| HBytes -> "vbytes*"
-		| HDyn -> "vdynamic*"
-		| HFun _ -> "vclosure*"
-		| HObj p -> tname p.pname
-		| HArray -> "varray*"
-		| HType -> "hl_type*"
-		| HRef t -> ctype t ^ "*"
-		| HVirtual _ -> "vvirtual*"
-		| HDynObj -> "vdynobj*"
-		| HAbstract (name,_) -> name ^ "*"
-		| HEnum _ -> "venum*"
-		| HNull _ -> "vdynamic*"
-	in
-
 	let is_gc_ptr = function
 		| HVoid | HI8 | HI16 | HI32 | HF32 | HF64 | HBool | HType | HRef _ -> false
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 	in
 
-	let rec ctype_no_ptr t = match t with
+	let rec ctype_no_ptr = function
 		| HVoid -> "void",0
 		| HI8 -> "char",0
 		| HI16 -> "short",0
@@ -5657,6 +5640,11 @@ let write_c version ch (code:code) =
 		| HAbstract (name,_) -> name,1
 		| HEnum _ -> "venum",1
 		| HNull _ -> "vdynamic",1
+	in
+
+	let ctype t =
+		let t, nptr = ctype_no_ptr t in
+		if nptr = 0 then t else t ^ String.make nptr '*'
 	in
 
 	let type_id t =
@@ -5696,9 +5684,24 @@ let write_c version ch (code:code) =
 	let tfuns = Array.create (Array.length code.functions + Array.length code.natives) ([],HVoid) in
 	let funnames = Array.create (Array.length code.functions + Array.length code.natives) "" in
 
+	let cast_fun s args t =
+		sprintf "((%s (*)(%s))%s)" (ctype t) (String.concat "," (List.map ctype args)) s
+	in
+
 	let enum_type t index =
 		let eindex = lookup types t (fun() -> assert false) in
 		"enum$" ^ string_of_int eindex ^ "_" ^ string_of_int index
+	in
+
+	let dyn_value_field t =
+		"->v." ^ match t with
+		| HI8 -> "c"
+		| HI16 -> "s"
+		| HI32 -> "i"
+		| HF32 -> "f"
+		| HF64 -> "d"
+		| HBool -> "b"
+		| _ -> "ptr"
 	in
 
 	line "";
@@ -5753,7 +5756,7 @@ let write_c version ch (code:code) =
 		sexpr "static hl_type type$%d = { %s } /* %s */" i (type_id t) (tstr t);
 		match t with
 		| HObj o ->
-			line (Printf.sprintf "#define %s__val &type$%d" (tname o.pname) i)
+			sline "#define %s__val &type$%d" (tname o.pname) i
 		| _ ->
 			()
 	) types.arr;
@@ -5897,6 +5900,82 @@ let write_c version ch (code:code) =
 	) code.functions;
 
 	line "";
+	line "// Reflection helpers";
+	let funByArgs = Hashtbl.create 0 in
+	let type_kind t =
+		match t with
+		| HVoid | HI8 | HI16 | HI32 | HF32 | HF64 -> t
+		| HBool -> HI8
+		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
+	in
+	let type_kind_id t =
+		match t with
+		| HVoid -> 0
+		| HI8 -> 1
+		| HI16 -> 2
+		| HI32 -> 3
+		| HF32 -> 4
+		| HF64 -> 5
+		| _ -> 6
+	in
+	Array.iter (fun (args,t) ->
+		let nargs = List.length args in
+		let kargs = List.map type_kind args in
+		let kt = type_kind t in
+		let h = try Hashtbl.find funByArgs nargs with Not_found -> let h = Hashtbl.create 0 in Hashtbl.add funByArgs nargs h; h in
+		Hashtbl.replace h (kargs,kt) ()
+	) tfuns;
+	line "void *hlc_dyn_call( void *fun, hl_type *t, vdynamic **args ) {";
+	block();
+	sexpr "static int TKIND[] = {%s}" (String.concat "," (List.map (fun t -> string_of_int (type_kind_id (type_kind t))) all_types));
+	sexpr "int chk = TKIND[t->fun->ret->kind]";
+	sexpr "vdynamic *d";
+	line "switch( t->fun->nargs ) {";
+	List.iter (fun nargs ->
+		sline "case %d:" nargs;
+		block();
+		if nargs > 9 then sexpr "hl_fatal(\"Too many arguments, TODO:use more bits\")";
+		for i = 0 to nargs-1 do
+			sexpr "chk |= TKIND[t->fun->args[%d]->kind] << %d" i ((i + 1) * 3);
+		done;
+		line "switch( chk ) {";
+		Hashtbl.iter (fun (args,t) _ ->
+			let s = ref (-1) in
+			let chk = List.fold_left (fun chk t -> incr s; chk lor ((type_kind_id t) lsl (!s * 3))) 0 (t :: args) in
+			sline "case %d:" chk;
+			block();
+			let idx = ref (-1) in
+			let vargs = List.map (fun t ->
+				incr idx;
+				if is_dynamic t then
+					sprintf "(%s)args[%d]" (ctype t) !idx
+				else
+					sprintf "args[%d]%s" !idx (dyn_value_field t)
+			) args in
+			let call = sprintf "%s(%s)" (cast_fun "fun" args t) (String.concat "," vargs) in
+			if is_nullable t then
+				sexpr "return %s" call
+			else if t = HVoid then begin
+				expr call;
+				expr "return NULL";
+			end else begin
+				expr "d = hl_alloc_dynamic(t->fun->ret)";
+				sexpr "d%s = %s" (dyn_value_field t) call;
+				expr "return d";
+			end;
+			unblock();
+		) (Hashtbl.find funByArgs nargs);
+		sline "}";
+		expr "break";
+		unblock();
+	) (List.sort compare (Hashtbl.fold (fun i _ acc -> i :: acc) funByArgs []));
+	line "}";
+	sexpr "hl_fatal(\"Unsupported dynamic call\")";
+	sexpr "return NULL";
+	unblock();
+	line "}";
+
+	line "";
 	line "// Functions code";
 	Array.iter (fun f ->
 		let rid = ref (-1) in
@@ -5912,12 +5991,8 @@ let write_c version ch (code:code) =
 			else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
 		in
 
-		let cast_fun s args t =
-			sprintf "((%s (*)(%s))%s->fun)" (ctype t) (String.concat "," (List.map ctype args)) s
-		in
-
 		let rfun r args t =
-			cast_fun (reg r) args t
+			cast_fun (reg r ^ "->fun") args t
 		in
 
 		let rassign r t =
@@ -5963,17 +6038,6 @@ let write_c version ch (code:code) =
 			| _ -> "p"
 		in
 
-		let dyn_value_field t =
-			"->v." ^ match t with
-			| HI8 -> "c"
-			| HI16 -> "s"
-			| HI32 -> "i"
-			| HF32 -> "f"
-			| HF64 -> "d"
-			| HBool -> "b"
-			| _ -> "ptr"
-		in
-
 		let get_field r obj fid =
 			match rtype obj with
 			| HObj o ->
@@ -5988,7 +6052,7 @@ let write_c version ch (code:code) =
 
 		let fret = (match f.ftype with
 		| HFun (args,t) ->
-			line (Printf.sprintf "static %s %s(%s) {" (ctype t) (fundecl_name f) (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args)));
+			sline "static %s %s(%s) {" (ctype t) (fundecl_name f) (String.concat "," (List.map (fun t -> incr rid; var_type (reg !rid) t) args));
 			t
 		| _ ->
 			assert false
@@ -6013,8 +6077,8 @@ let write_c version ch (code:code) =
 
 		Array.iteri (fun i op ->
 			List.iter (function
-				| OOLabel -> line (label i ^ ":")
-				| OOCase i -> line (Printf.sprintf "case %i:" i)
+				| OOLabel -> sline "%s:" (label i)
+				| OOCase i -> sline "case %i:" i
 				| OODefault -> line "default:"
 				| OOIncreaseIndent -> block()
 				| OODecreaseIndent -> unblock()
@@ -6192,7 +6256,7 @@ let write_c version ch (code:code) =
 			| OJAlways d ->
 				sexpr "goto %s" (label d)
 			| OLabel _ ->
-				if not (has_label i) then line (label (-1) ^ ":")
+				if not (has_label i) then sline "%s:" (label (-1))
 			| OToDyn (r,v) ->
 				sexpr "%s = (vdynamic*)hl_gc_alloc%s(sizeof(vdynamic))" (reg r) (if is_gc_ptr (rtype v) then "" else "_noptr");
 				sexpr "%s->t = %s" (reg r) (type_value (rtype v));
@@ -6299,7 +6363,7 @@ let write_c version ch (code:code) =
 	| OSetEnumField of reg * int * reg
 	*)
 			| OSwitch (r,idx,eend) ->
-				Printf.ksprintf line "switch(%s) {" (reg r);
+				sline "switch(%s) {" (reg r);
 				block();
 				output_at2 (i + 1) [OODefault;OOIncreaseIndent];
 				Array.iteri (fun k delta -> output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent]) idx;
