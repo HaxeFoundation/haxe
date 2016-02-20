@@ -19,9 +19,10 @@ class Issue4862 extends Test {
         eq(200, a);
         var b = HttpStatus.NotFound;
         eq(404, b);
-        // TODO: support unqualified matching
         t(switch (a) { case HttpStatus.Ok: true; default: false; });
         t(switch (b) { case HttpStatus.NotFound: true; default: false; });
+        t(switch (a) { case Ok: true; default: false; });
+        t(switch (b) { case NotFound: true; default: false; });
     }
     #end
 }
