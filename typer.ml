@@ -152,34 +152,6 @@ let get_abstract_froms a pl =
 			acc
 	) l a.a_from_field
 
-(*
-	temporally remove the constant flag from structures to allow larger unification
-*)
-let remove_constant_flag t callb =
-	let tmp = ref [] in
-	let rec loop t =
-		match follow t with
-		| TAnon a ->
-			if !(a.a_status) = Const then begin
-				a.a_status := Closed;
-				tmp := a :: !tmp;
-			end;
-			PMap.iter (fun _ f -> loop f.cf_type) a.a_fields;
-		|  _ ->
-			()
-	in
-	let restore() =
-		List.iter (fun a -> a.a_status := Const) (!tmp)
-	in
-	try
-		loop t;
-		let ret = callb (!tmp <> []) in
-		restore();
-		ret
-	with e ->
-		restore();
-		raise e
-
 let rec is_pos_infos = function
 	| TMono r ->
 		(match !r with
@@ -626,7 +598,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			let expr f = match f.cf_expr with None -> mk (TBlock []) f.cf_type f.cf_pos | Some e -> e in
 			let fields = List.fold_left (fun acc e ->
 				match follow e.etype with
-				| TAnon a when !(a.a_status) = Const ->
+				| TAnon a ->
 					if !fcount = -1 then begin
 						fcount := field_count a;
 						PMap.map (fun f -> [expr f]) a.a_fields
@@ -1275,7 +1247,6 @@ let rec using_field ctx mode e i p =
 		| TMono _ -> raise Not_found
 		| t -> t == t_dynamic
 	in
-	let check_constant_struct = ref false in
 	let rec loop = function
 	| [] ->
 		raise Not_found
@@ -1304,7 +1275,6 @@ let rec using_field ctx mode e i p =
 		with Not_found ->
 			loop l
 		| Unify_error el | Error (Unify el,_) ->
-			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
 	try loop ctx.m.module_using with Not_found ->
@@ -1315,8 +1285,7 @@ let rec using_field ctx mode e i p =
 		| _ -> assert false);
 		acc
 	with Not_found ->
-	if not !check_constant_struct then raise Not_found;
-	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
+	raise Not_found
 
 let rec type_ident_raise ctx i p mode =
 	match i with
@@ -3080,7 +3049,7 @@ and type_object_decl ctx fl with_type p =
 			let e = if is_quoted then wrap_quoted_meta e else e in
 			(n,e)
 		) fl in
-		let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
+		let t = (TAnon { a_fields = !fields; a_status = ref Closed }) in
 		if not ctx.untyped then begin
 			(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) field_map [] with
 				| [] -> ()
@@ -3107,12 +3076,9 @@ and type_object_decl ctx fl with_type p =
 			end else acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
-		let x = ref Const in
-		ctx.opened <- x :: ctx.opened;
-		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
+		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = ref Closed }) p
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
-		if !(a.a_status) <> Const then a.a_status := Closed;
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let _,ctor = get_constructor ctx c tl p in
