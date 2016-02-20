@@ -5688,9 +5688,18 @@ let write_c version ch (code:code) =
 		sprintf "((%s (*)(%s))%s)" (ctype t) (String.concat "," (List.map ctype args)) s
 	in
 
-	let enum_type t index =
-		let eindex = lookup types t (fun() -> assert false) in
-		"enum$" ^ string_of_int eindex ^ "_" ^ string_of_int index
+	let enum_constr_type e i =
+		let cname,_, _ = e.efields.(i) in
+		let name = if e.eid = 0 then
+			let index = lookup types (HEnum e) (fun() -> assert false) in
+			"Enum$" ^ string_of_int index
+		else
+			String.concat "_" (ExtString.String.nsplit e.ename ".")
+		in
+		if cname = "" then
+			name
+		else
+			name ^ "_" ^ cname
 	in
 
 	let dyn_value_field t =
@@ -5744,7 +5753,7 @@ let write_c version ch (code:code) =
 					expr (var_type ("p" ^ string_of_int i) t)
 				) pl;
 				unblock();
-				sexpr "} %s" (enum_type t i);
+				sexpr "} %s" (enum_constr_type e i);
 			) e.efields
 		| _ ->
 			()
@@ -5854,7 +5863,13 @@ let write_c version ch (code:code) =
 					sexpr "static hl_type *%s[] = {%s}" name (String.concat "," (List.map type_value (Array.to_list tl)));
 					name
 				in
-				sprintf "{(const uchar*)string$%d, %d, %s}" nid (Array.length tl) tval
+				let size = if Array.length tl = 0 then "0" else sprintf "sizeof(%s)" (enum_constr_type e cid) in
+				let offsets = if Array.length tl = 0 then "NULL" else
+					let name = sprintf "eoffsets$%d_%d" i cid in
+					sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun _ -> "0") (Array.to_list tl)));
+					name
+				in
+				sprintf "{(const uchar*)string$%d, %d, %s, %s, %s}" nid (Array.length tl) tval size offsets
 			in
 			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
 			let efields = [
@@ -6326,7 +6341,7 @@ let write_c version ch (code:code) =
 			| OType (r,t) ->
 				sexpr "%s = %s" (reg r) (type_value t)
 			| OGetType (r,v) ->
-				sexpr "%s = %s->t" (reg r) (reg v)
+				sexpr "%s = %s ? %s->t : &hlt_void" (reg r) (reg v) (reg v)
 			| OGetTID (r,v) ->
 				sexpr "%s = %s->kind" (reg r) (reg v)
 			| ORef (r,v) ->
@@ -6346,20 +6361,28 @@ let write_c version ch (code:code) =
 			| ODynSet (o,sid,v) ->
 				let h = hash sid in
 				sexpr "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/,%s,%s)" (dyn_prefix (rtype v)) (reg o) h code.strings.(sid) (type_value (rtype v)) (reg v)
-			| OMakeEnum (r,eid,rl) ->
-				let et = enum_type (rtype r) eid in
+			| OMakeEnum (r,cid,rl) ->
+				let et = enum_constr_type (match rtype r with HEnum e -> e | _ -> assert false) cid in
 				let has_ptr = List.exists (fun r -> is_gc_ptr (rtype r)) rl in
 				sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" (reg r) (if has_ptr then "" else "_noptr") et;
-				sexpr "%s->index = %d" (reg r) eid;
+				sexpr "%s->index = %d" (reg r) cid;
 				iteri (fun i v ->
 					sexpr "((%s*)%s)->p%d = %s" et (reg r) i (reg v)
 				) rl;
-
-	(*| OEnumAlloc of reg * field index
-	| OEnumIndex of reg * reg
-	| OEnumField of reg * reg * field index * int
-	| OSetEnumField of reg * int * reg
-	*)
+			| OEnumAlloc (r,cid) ->
+				let et, (_,_,tl) = (match rtype r with HEnum e -> enum_constr_type e cid, e.efields.(cid) | _ -> assert false) in
+				let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
+				sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" (reg r) (if has_ptr then "" else "_noptr") et;
+				sexpr "memset(%s,0,sizeof(%s))" (reg r) et;
+				if cid <> 0 then sexpr "%s->index = %d" (reg r) cid
+			| OEnumIndex (r,v) ->
+				sexpr "%s = %s->index" (reg r) (reg v)
+			| OEnumField (r,e,cid,pid) ->
+				let tname,(_,_,tl) = (match rtype e with HEnum e -> enum_constr_type e cid, e.efields.(cid) | _ -> assert false) in
+				sexpr "%s((%s*)%s)->p%d" (rassign r tl.(pid)) tname (reg e) pid
+			| OSetEnumField (e,pid,r) ->
+				let tname, (_,_,tl) = (match rtype e with HEnum e -> enum_constr_type e 0, e.efields.(0) | _ -> assert false) in
+				sexpr "((%s*)%s)->p%d = (%s)%s" tname (reg e) pid (ctype tl.(pid)) (reg r)
 			| OSwitch (r,idx,eend) ->
 				sline "switch(%s) {" (reg r);
 				block();
@@ -6368,10 +6391,11 @@ let write_c version ch (code:code) =
 				output_at2 (i + 1 + eend) [OODecreaseIndent;OODecreaseIndent;OOEndBlock];
 			| ONullCheck r ->
 				sexpr "if( %s == NULL ) hl_null_access()" (reg r)
-	(*
-	| OTrap of reg * int
-	| OEndTrap of unused
-	| ODump of reg*)
+			| OTrap _ ->
+				sexpr "printf(\"TRAP\\n\")";
+			| OEndTrap _ ->
+				sexpr "printf(\"ENDTRAP\\n\")";
+			(*| ODump of reg*)
 			| _ ->
 				todo()
 		) f.code;
@@ -6404,8 +6428,18 @@ let write_c version ch (code:code) =
 			sexpr "type$%d.obj = &obj$%d" i i
 		| HNull t | HRef t ->
 			sexpr "type$%d.tparam = %s" i (type_value t)
-		| HEnum _ ->
-			sexpr "type$%d.tenum = &enum$%d" i i
+		| HEnum e ->
+			sexpr "type$%d.tenum = &enum$%d" i i;
+			Array.iteri (fun cid (_,_,tl) ->
+				if Array.length tl > 0 then begin
+					line "{";
+					block();
+					sexpr "%s *_e = NULL" (enum_constr_type e cid);
+					Array.iteri (fun pid _ -> sexpr "eoffsets$%d_%d[%d] = (int)&_e->p%d" i cid pid pid) tl;
+					unblock();
+					line "}";
+				end
+			) e.efields
 		| HVirtual _ ->
 			sexpr "type$%d.virt = &virt$%d" i i
 		| HFun _ ->
