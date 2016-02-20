@@ -196,7 +196,7 @@ let module_pass_1 com m tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.Expose | Meta.Deprecated),_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| _ ->
 							()
@@ -3187,6 +3187,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				);
 				a.a_this <- at;
 				is_type := true;
+			| AExtern ->
+				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
 			| APrivAbstract -> ()
 		) d.d_flags;
 		if not !is_type then begin
@@ -3257,7 +3259,6 @@ let type_types_into_module ctx m tdecls p =
 		type_params = [];
 		curfun = FunStatic;
 		untyped = false;
-		in_super_call = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
 		in_loop = false;
@@ -3274,27 +3275,35 @@ let type_types_into_module ctx m tdecls p =
 
 let handle_import_hx ctx m decls p =
 	let path_split = List.tl (List.rev (get_path_parts m.m_extra.m_file)) in
-	let join l = String.concat "/" (List.rev ("import.hx" :: l)) in
+	let join l = String.concat (if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then "\\" else "/") (List.rev ("import.hx" :: l)) in
 	let rec loop path pack = match path,pack with
 		| _,[] -> [join path]
 		| (p :: path),(_ :: pack) -> (join (p :: path)) :: (loop path pack)
 		| _ -> []
 	in
 	let candidates = loop path_split (fst m.m_path) in
+	let make_import_module path r =
+		Hashtbl.replace ctx.com.parser_cache path r;
+		(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
+		let m_import = make_module ctx ([],path) path p in
+		add_module ctx m_import p;
+		add_dependency m m_import;
+	in
 	List.fold_left (fun acc path ->
-		let path = Common.unique_full_path path in
-		let _,decls = try
-			Hashtbl.find ctx.com.parser_cache path
+		let decls = try
+			let r = Hashtbl.find ctx.com.parser_cache path in
+			add_dependency m (Hashtbl.find ctx.g.modules ([],path));
+			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let r = parse_file ctx.com path p in
-				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) (snd r);
-				Hashtbl.replace ctx.com.parser_cache path r;
+				let _,r = parse_file ctx.com path p in
+				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
+				make_import_module path r;
 				r
 			end else begin
-				let r = ([],[]) in
+				let r = [] in
 				(* Add empty decls so we don't check the file system all the time. *)
-				Hashtbl.replace ctx.com.parser_cache path r;
+				make_import_module path r;
 				r
 			end
 		in

@@ -1129,7 +1129,7 @@ class RunCi {
 		haxelibInstallGit("massiveinteractive", "mconsole", "master", "src");
 		haxelibInstallGit("massiveinteractive", "MassiveCover", "master", "src", false, "mcover");
 		haxelibInstallGit("massiveinteractive", "MassiveLib", "master", "src", false, "mlib");
-		haxelibInstallGit("massiveinteractive", "MassiveUnit", "master", "src", false, "munit");
+		haxelibInstallGit("massiveinteractive", "MassiveUnit", "2.1.2", "src", false, "munit");
 		changeDirectory(Path.join([getHaxelibPath("munit"), "..", "tool"]));
 		runCommand("haxe", ["build.hxml"]);
 		haxelibRun(["munit", "test", "-result-exit-code", "-neko"], true);
