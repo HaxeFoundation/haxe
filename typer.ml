@@ -1415,7 +1415,12 @@ let rec type_ident_raise ctx i p mode =
 							loop l
 						else begin
 							let et = type_module_type ctx (TClassDecl c) None p in
-							AKInline(et,cf,FStatic(c,cf),monomorphs cf.cf_params cf.cf_type)
+							let fa = FStatic(c,cf) in
+							let t = monomorphs cf.cf_params cf.cf_type in
+							begin match cf.cf_kind with
+								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
+								| _ -> AKExpr (mk (TField(et,fa)) t p)
+							end
 						end
 					with Not_found ->
 						loop l

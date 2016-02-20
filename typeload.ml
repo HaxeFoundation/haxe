@@ -1799,13 +1799,21 @@ let build_enum_abstract ctx c a fields p =
 	List.iter (fun field ->
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
-			field.cff_access <- [AStatic;APublic;AInline];
+			field.cff_access <- [AStatic;APublic];
 			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
-			let e = match eo with
-				| None -> error "Value required" field.cff_pos
-				| Some e -> (ECast(e,None),field.cff_pos)
+			let ct = match ct with
+				| Some _ -> ct
+				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)))
 			in
-			field.cff_kind <- FVar(ct,Some e)
+			begin match eo with
+				| None ->
+					if not c.cl_extern then error "Value required" field.cff_pos
+					else field.cff_kind <- FProp("default","never",ct,None)
+				| Some e ->
+					field.cff_access <- AInline :: field.cff_access;
+					let e = (ECast(e,None),field.cff_pos) in
+					field.cff_kind <- FVar(ct,Some e)
+			end
 		| _ ->
 			()
 	) fields;
