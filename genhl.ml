@@ -6342,10 +6342,10 @@ let write_c version ch (code:code) =
 			| ODynGet (r,o,sid) ->
 				let t = rtype r in
 				let h = hash sid in
-				sexpr "%s = (%s)hl_dyn_get%s((vdynamic*)%s,%ld%s)" (reg r) (ctype t) (dyn_prefix t) (reg o) h (match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t)
+				sexpr "%s = (%s)hl_dyn_get%s((vdynamic*)%s,%ld/*%s*/%s)" (reg r) (ctype t) (dyn_prefix t) (reg o) h code.strings.(sid) (match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t)
 			| ODynSet (o,sid,v) ->
 				let h = hash sid in
-				sexpr "hl_dyn_set%s((vdynamic*)%s,%ld,%s,%s)" (dyn_prefix (rtype v)) (reg o) h (type_value (rtype v)) (reg v)
+				sexpr "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/,%s,%s)" (dyn_prefix (rtype v)) (reg o) h code.strings.(sid) (type_value (rtype v)) (reg v)
 			| OMakeEnum (r,eid,rl) ->
 				let et = enum_type (rtype r) eid in
 				let has_ptr = List.exists (fun r -> is_gc_ptr (rtype r)) rl in
