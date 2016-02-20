@@ -3276,7 +3276,7 @@ let type_types_into_module ctx m tdecls p =
 
 let handle_import_hx ctx m decls p =
 	let path_split = List.tl (List.rev (get_path_parts m.m_extra.m_file)) in
-	let join l = String.concat "/" (List.rev ("import.hx" :: l)) in
+	let join l = String.concat (if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then "\\" else "/") (List.rev ("import.hx" :: l)) in
 	let rec loop path pack = match path,pack with
 		| _,[] -> [join path]
 		| (p :: path),(_ :: pack) -> (join (p :: path)) :: (loop path pack)
@@ -3284,7 +3284,6 @@ let handle_import_hx ctx m decls p =
 	in
 	let candidates = loop path_split (fst m.m_path) in
 	List.fold_left (fun acc path ->
-		let path = Common.unique_full_path path in
 		let _,decls = try
 			Hashtbl.find ctx.com.parser_cache path
 		with Not_found ->
