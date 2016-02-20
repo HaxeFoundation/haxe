@@ -876,11 +876,24 @@ module AbstractCast = struct
 			| _,[],_ -> pl
 			| _,el,_ ->
 				let relevant = Hashtbl.create 0 in
-				List.iter (fun e -> match fst e with
-					| EConst(Ident s) -> Hashtbl.replace relevant s true
-					| _ -> error "Type parameter expected" (pos e)
+				List.iter (fun e ->
+					let rec loop f e = match fst e with
+						| EConst(Ident s) ->
+							Hashtbl.replace relevant s f
+						| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
+							loop Abstract.follow_with_abstracts e1;
+						| _ ->
+							error "Type parameter expected" (pos e)
+					in
+					loop (fun t -> t) e
 				) el;
-				let tl = List.map2 (fun (n,_) t -> if Hashtbl.mem relevant n || not (has_mono t) then t else t_dynamic) a.a_params pl in
+				let tl = List.map2 (fun (n,_) t ->
+					try
+						(Hashtbl.find relevant n) t
+					with Not_found ->
+						if not (has_mono t) then t
+						else t_dynamic
+				) a.a_params pl in
 				if com.platform = Js && a.a_path = ([],"Map") then begin match tl with
 					| t1 :: _ ->
 						let rec loop stack t =
