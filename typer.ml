@@ -1318,7 +1318,7 @@ let rec using_field ctx mode e i p =
 	if not !check_constant_struct then raise Not_found;
 	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
-let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
+let rec type_ident_raise ctx i p mode =
 	match i with
 	| "true" ->
 		if mode = MGet then
@@ -1397,7 +1397,6 @@ let rec type_ident_raise ?(imported_enums=true) ctx i p mode =
 		(* check_locals_masking already done in type_type *)
 		field_access ctx mode f (FStatic (ctx.curclass,f)) (field_type ctx ctx.curclass [] f p) e p
 	with Not_found -> try
-		if not imported_enums then raise Not_found;
 		let wrap e = if mode = MSet then
 				AKNo i
 			else
@@ -2058,7 +2057,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 							mk (TBinop (OpAssign,e,e2)) e.etype p;
 						]) e.etype p
 					| _ ->
-              			mk (TBinop (OpAssign,e,e2)) e.etype p;
+						mk (TBinop (OpAssign,e,e2)) e.etype p;
 				end
 			| _ ->
 				(* this must be an abstract cast *)
@@ -3510,35 +3509,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> NoValue then error "Cannot use super as value" p;
-		(try
-			acc_get ctx (type_ident_raise ~imported_enums:false ctx s p MGet) p
-		with Not_found -> try
-			(match with_type with
-			| WithType t ->
-				(match follow t with
-				| TEnum (e,pl) ->
-					(try
-						let ef = PMap.find s e.e_constrs in
-						let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
-						mk (fast_enum_field e ef p) (enum_field_type ctx e ef pl monos p) p
-					with Not_found ->
-						if ctx.untyped then raise Not_found;
-						raise_or_display_message ctx (string_error s e.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path)) p;
-						mk (TConst TNull) t p)
-				| TAbstract (a,pl) when has_meta Meta.Enum a.a_meta ->
-					let cimpl = (match a.a_impl with None -> assert false | Some c -> c) in
-					(try
-						let cf = PMap.find s cimpl.cl_statics in
-						acc_get ctx (type_field ctx (mk (TTypeExpr (TClassDecl cimpl)) (TAnon { a_fields = PMap.add cf.cf_name cf PMap.empty; a_status = ref (Statics cimpl) }) p) s p MGet) p
-					with Not_found ->
-						if ctx.untyped then raise Not_found;
-						raise_or_display_message ctx (string_error s (List.map (fun f -> f.cf_name) cimpl.cl_ordered_statics) ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path a.a_path)) p;
-						mk (TConst TNull) t p)
-				| _ -> raise Not_found)
-			| _ ->
-				raise Not_found)
-		with Not_found ->
-			acc_get ctx (type_access ctx e p MGet) p)
+		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p MGet) with_type p in
+		acc_get ctx e p
 	| EField _
 	| EArray _ ->
 		acc_get ctx (type_access ctx e p MGet) p
@@ -3718,45 +3690,6 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EThrow e ->
 		let e = type_expr ctx e Value in
 		mk (TThrow e) (mk_mono()) p
-	| ECall (((EConst (Ident s),pc) as e),el) ->
-		(try
-			let en,t = (match with_type with
-				| WithType t ->
-					(match follow t with
-					| TEnum (e,pl) -> e,t
-					| _ -> raise Exit)
-				| _ -> raise Exit
-			) in
-			let old = ctx.on_error,ctx.m.curmod.m_types in
-			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [(TEnumDecl en)];
-			let restore = fun () ->
-				ctx.m.curmod.m_types <- snd old;
-				ctx.on_error <- fst old;
-			in
-			ctx.on_error <- (fun ctx msg ep ->
-				(* raise Not_found only if the error is actually about the outside identifier (issue #2148) *)
-				if ep = pc then
-					raise Not_found
-				else begin
-					restore();
-					ctx.on_error ctx msg ep;
-				end
-			);
-			begin try
-				let e = type_call ctx e el with_type p in
-				restore();
-				e
-			with Not_found ->
-				restore();
-				if ctx.untyped then raise Exit; (* __js__, etc. *)
-				raise_or_display_message ctx (string_error s en.e_names ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path en.e_path)) p;
-				mk (TConst TNull) t p
-			| err ->
-				restore();
-				raise err
-			end
-		with Exit ->
-			type_call ctx e el with_type p)
 	| ECall (e,el) ->
 		type_call ctx e el with_type p
 	| ENew (t,el) ->
@@ -4107,10 +4040,40 @@ and handle_display ctx e_ast iscall with_type p =
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
 		| _ -> raise (DisplayTypes [t]))
 
+and maybe_type_against_enum ctx f with_type p =
+	try
+		begin match with_type with
+		| WithType t ->
+			let rec loop t = match follow t with
+				| TEnum (en,_) ->
+					en.e_path,en.e_names,TEnumDecl en
+				| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
+					a.a_path,List.map (fun cf -> cf.cf_name) c.cl_ordered_fields,TAbstractDecl a
+				| _ ->
+					raise Exit
+			in
+			let path,fields,mt = loop t in
+			let old = ctx.m.curmod.m_types in
+			ctx.m.curmod.m_types <- ctx.m.curmod.m_types @ [mt];
+			let e = try
+				f()
+			with Error (Unknown_ident n,_) ->
+				raise_or_display_message ctx (string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
+				AKExpr (mk (TConst TNull) (mk_mono()) p)
+			in
+			ctx.m.curmod.m_types <- old;
+			e
+		| _ ->
+			raise Exit
+		end
+	with Exit ->
+		f()
 
 and type_call ctx e el (with_type:with_type) p =
 	let def () =
-		build_call ctx (type_access ctx (fst e) (snd e) MCall) el with_type p
+		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type p in
+		let e = build_call ctx e el with_type p in
+		e
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -4192,7 +4155,7 @@ and type_call ctx e el (with_type:with_type) p =
 
 and build_call ctx acc el (with_type:with_type) p =
 	match acc with
- 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
+	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
 		type_generic_function ctx (ethis,fmode) el with_type p
 	| AKInline (ethis,f,fmode,t) ->
 		(match follow t with
@@ -5084,7 +5047,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				Interp.encode_expr e
 			| MAFunction ->
 				let e = ictx.Interp.curapi.Interp.type_macro_expr e in
-	 			begin match Interp.eval_expr ictx e with
+				begin match Interp.eval_expr ictx e with
 				| Some v -> v
 				| None -> Interp.VNull
 				end
