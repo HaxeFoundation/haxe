@@ -416,10 +416,28 @@ let to_pattern ctx e t =
 			end
 		| EConst(Ident s) ->
 			begin try
-				let old = ctx.in_call_args in
-				ctx.in_call_args <- true; (* Not really, but it does exactly what we want here. *)
-				let ec = try type_expr ctx e (WithType t) with _ -> ctx.in_call_args <- old; raise Not_found in
-				ctx.in_call_args <- old;
+				let rec loop t = match follow t with
+					| TEnum (en,tl) ->
+						let ef = PMap.find s en.e_constrs in
+						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
+						mk (TField (et,FEnum (en,ef))) (apply_params en.e_params tl ef.ef_type) p
+					| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
+						let cf = PMap.find s c.cl_statics in
+						Type.unify (follow cf.cf_type) t;
+						let e = begin match cf.cf_expr with
+							| Some ({eexpr = TConst c | TCast({eexpr = TConst c},None)} as e) -> e
+							| None when c.cl_extern -> make_static_field_access c cf cf.cf_type p
+							| _ -> raise Not_found
+						end in
+						e
+					| _ ->
+						let old = ctx.in_call_args in
+						ctx.in_call_args <- true; (* Not really, but it does exactly what we want here. *)
+						let ec = try type_expr ctx e (WithType t) with _ -> ctx.in_call_args <- old; raise Not_found in
+						ctx.in_call_args <- old;
+						ec
+				in
+				let ec = loop t in
 				let ec = match Optimizer.make_constant_expression ctx ~concat_strings:true ec with Some e -> e | None -> ec in
 				(match ec.eexpr with
 					| TField (_,FEnum (en,ef)) ->

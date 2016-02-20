@@ -291,12 +291,18 @@ let unify_min ctx el = (!unify_min_ref) ctx el
 
 let match_expr ctx e cases def with_type p = !match_expr_ref ctx e cases def with_type p
 
-let make_static_call ctx c cf map args t p =
+let make_static_this c p =
 	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-	let ethis = mk (TTypeExpr (TClassDecl c)) ta p in
+	mk (TTypeExpr (TClassDecl c)) ta p
+
+let make_static_field_access c cf t p =
+	let ethis = make_static_this c p in
+	mk (TField (ethis,(FStatic (c,cf)))) t p
+
+let make_static_call ctx c cf map args t p =
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
 	let map t = map (apply_params cf.cf_params monos t) in
-	let ef = mk (TField (ethis,(FStatic (c,cf)))) (map cf.cf_type) p in
+	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
 
 let raise_or_display ctx l p =
