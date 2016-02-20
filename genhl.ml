@@ -163,7 +163,6 @@ type opcode =
 	| OSafeCast of reg * reg
 	| OUnsafeCast of reg * reg
 	| OArraySize of reg * reg
-	| OError of string index
 	| OType of reg * ttype
 	| OGetType of reg * reg
 	| OGetTID of reg * reg
@@ -3288,8 +3287,6 @@ let check code =
 			| OArraySize (r,a) ->
 				reg a HArray;
 				reg r HI32
-			| OError s ->
-				ignore(code.strings.(s));
 			| OType (r,_) ->
 				reg r HType
 			| OGetType (r,v) ->
@@ -4255,8 +4252,6 @@ let interp code =
 				(match get a with
 				| VArray (a,_) -> set r (VInt (Int32.of_int (Array.length a)));
 				| _ -> assert false)
-			| OError s ->
-				throw_msg code.strings.(s)
 			| OType (r,t) ->
 				set r (VType t)
 			| OGetType (r,v) ->
@@ -5467,7 +5462,6 @@ let ostr o =
 	| OSafeCast (r,v) -> Printf.sprintf "safecast %d,%d" r v
 	| OUnsafeCast (r,v) -> Printf.sprintf "unsafecast %d,%d" r v
 	| OArraySize (r,a) -> Printf.sprintf "arraysize %d,%d" r a
-	| OError s -> Printf.sprintf "error @%d" s
 	| OType (r,t) -> Printf.sprintf "type %d,%s" r (tstr t)
 	| OGetType (r,v) -> Printf.sprintf "gettype %d,%d" r v
 	| OGetTID (r,v) -> Printf.sprintf "gettid %d,%d" r v
@@ -6336,8 +6330,6 @@ let write_c version ch (code:code) =
 				sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) (reg v)
 			| OArraySize (r,a) ->
 				sexpr "%s = %s->size" (reg r) (reg a)
-(*	| OError of string index
-	*)
 			| OType (r,t) ->
 				sexpr "%s = %s" (reg r) (type_value t)
 			| OGetType (r,v) ->
