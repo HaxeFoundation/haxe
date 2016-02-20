@@ -43,6 +43,8 @@ type ctx = {
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
 	mutable found_expose : bool;
+	mutable lua_jit : bool;
+	mutable lua_ver : float;
 }
 
 type object_store = {
@@ -641,9 +643,11 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		spr ctx "_hx_bitfix(_hx_bit.bnot(";
-		gen_value ctx e;
-		spr ctx "))";
+		gen_bitfix ctx (fun () ->
+		    spr ctx "_hx_bit.bnot(";
+		    gen_value ctx e;
+		    spr ctx ")";
+		);
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -1180,18 +1184,20 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
-    print ctx "_hx_bitfix(_hx_bit.%s(" (match op with
-	| Ast.OpXor  ->  "bxor"
-	| Ast.OpAnd  ->  "band"
-	| Ast.OpShl  ->  "lshift"
-	| Ast.OpShr  ->  "arshift"
-	| Ast.OpUShr ->  "rshift"
-	| Ast.OpOr   ->  "bor"
-	| _ -> "");
-    gen_value ctx e1;
-    spr ctx ",";
-    gen_value ctx e2;
-    spr ctx "))"
+    gen_bitfix ctx (fun() ->
+	print ctx "_hx_bit.%s(" (match op with
+	    | Ast.OpXor  ->  "bxor"
+	    | Ast.OpAnd  ->  "band"
+	    | Ast.OpShl  ->  "lshift"
+	    | Ast.OpShr  ->  "arshift"
+	    | Ast.OpUShr ->  "rshift"
+	    | Ast.OpOr   ->  "bor"
+	    | _ -> "");
+	gen_value ctx e1;
+	spr ctx ",";
+	gen_value ctx e2;
+	spr ctx ")"
+    );
 
 and gen_return ctx e eo =
     if ctx.in_value <> None then unsupported e.epos;
@@ -1215,6 +1221,13 @@ and gen_iife_assign ctx f =
     spr ctx "(function() return ";
     f();
     spr ctx " end)()";
+
+and gen_bitfix ctx f =
+    if ctx.lua_jit then begin
+	spr ctx "_hx_bitfix(";
+	f();
+	spr ctx ")"
+    end else f();
 
 and gen_cond ctx cond =
     ctx.iife_assign <- true;
@@ -1617,6 +1630,10 @@ let alloc_ctx com =
 		type_accessor = (fun _ -> assert false);
 		separator = false;
 		found_expose = false;
+		lua_jit = Common.defined com Define.LuaJit;
+		lua_ver = try
+			float_of_string (PMap.find "lua_ver" com.defines)
+		    with | Not_found -> 5.2;
 	} in
 	ctx.type_accessor <- (fun t ->
 		let p = t_path t in
