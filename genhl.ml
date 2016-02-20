@@ -4521,7 +4521,7 @@ let interp code =
 				(function
 				| [VArray (_,t)] -> VType t
 				| _ -> assert false)
-			| "safe_cast" ->
+			| "value_cast" ->
 				(function
 				| [v;VType t] -> if is_compatible v t then v else throw_msg ("Cannot cast " ^ vstr_d v ^ " to " ^ tstr t);
 				| _ -> assert false)
@@ -6015,11 +6015,8 @@ let write_c version ch (code:code) =
 		let mcall r fid = function
 			| [] -> assert false
 			| o :: args ->
-				(*
-				let vfun = cast_fun (sprintf "%s->$type->obj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
+				let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
 				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
-				*)
-				expr "hl_fatal(\"callmethod\")"
 		in
 
 		let set_field obj fid v =
@@ -6109,7 +6106,7 @@ let write_c version ch (code:code) =
 				| (HI8 | HI16 | HI32 | HF32 | HF64 | HBool), (HI8 | HI16 | HI32 | HF32 | HF64 | HBool) ->
 					phys_compare()
 				| HType, HType ->
-					sexpr "if( hl_same_type(%s,%s) %s 0 ) goto %s" (reg a) (reg b) (s_binop op) (label d)
+					sexpr "if( hl_same_type(%s,%s) %s 0 ) {} else goto %s" (reg a) (reg b) (s_binop op) (label d)
 				| HNull t, HNull _ ->
 					let field = dyn_value_field t in
 					let pcompare = sprintf "(%s%s %s %s%s)" (reg a) field (s_binop op) (reg b) field in
@@ -6225,10 +6222,9 @@ let write_c version ch (code:code) =
 					assert false)
 			| OGetFunction (r,fid) ->
 				sexpr "%s = &cl$%d" (reg r) fid
-	(*
-	| OClosure of reg * functable index * reg (* closure *)
-	*)
-
+			| OClosure (r,fid,ptr) ->
+				let args, t = tfuns.(fid) in
+				sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun (args,t))) funnames.(fid) (reg ptr)
 			| OGetGlobal (r,g) ->
 				sexpr "%s = global$%d" (reg r) g
 			| OSetGlobal (g,r) ->
