@@ -5637,7 +5637,7 @@ let write_c version ch (code:code) =
 		| HF32 -> "float",0
 		| HF64 -> "double",0
 		| HBool -> "bool",0
-		| HBytes -> "vbytes",1
+		| HBytes -> "vbyte",1
 		| HDyn -> "vdynamic",1
 		| HFun _ -> "vclosure",1
 		| HObj p -> tname p.pname,0
@@ -5824,7 +5824,7 @@ let write_c version ch (code:code) =
 			let c = String.get s i in
 			string_of_int (int_of_char c) :: loop (i+1)
 		in
-		sexpr "static vbytes string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) (String.concat "* /" (ExtString.String.nsplit str "*/"))
+		sexpr "static vbyte string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) (String.concat "* /" (ExtString.String.nsplit str "*/"))
 	) code.strings;
 
 	let type_value t =
