@@ -656,6 +656,7 @@ let rename_local_vars ctx e =
 			Type.iter loop e
 	in
 	declare (alloc_var "this" t_dynamic) Ast.null_pos; (* force renaming of 'this' vars in abstract *)
+	if ctx.com.platform = Java then declare (alloc_var "_" t_dynamic) Ast.null_pos; (* Java 8 hates _ *)
 	begin match ctx.curclass.cl_path with
 		| s :: _,_ | [],s -> declare (alloc_var s t_dynamic) Ast.null_pos
 	end;
