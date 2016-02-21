@@ -119,8 +119,9 @@ type opcode =
 	| OCallMethod of reg * field index * reg list
 	| OCallThis of reg * field index * reg list
 	| OCallClosure of reg * reg * reg list
-	| OGetFunction of reg * functable index (* closure *)
-	| OClosure of reg * functable index * reg (* closure *)
+	| OStaticClosure of reg * functable index (* Class.method *)
+	| OInstanceClosure of reg * functable index * reg (* instance.method *)
+	| OVirtualClosure of reg * reg * field index (* instance.overriddenMethod *)
 	| OGetGlobal of reg * global
 	| OSetGlobal of global * reg
 	| ORet of reg
@@ -144,7 +145,6 @@ type opcode =
 	| OLabel of unused
 	| ONew of reg
 	| OField of reg * reg * field index
-	| OMethod of reg * reg * field index (* closure *)
 	| OSetField of reg * field index * reg
 	| OGetThis of reg * field index
 	| OSetThis of field index * reg
@@ -1227,7 +1227,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		op ctx (OJNotNull (r,2));
 		op ctx (ONull fr);
 		op ctx (OJAlways 1);
-		op ctx (OClosure (fr,fid,r));
+		op ctx (OInstanceClosure (fr,fid,r));
 		fr
 	| HObj _, HObj _ when is_array_type rt && is_array_type t ->
 		let out = alloc_tmp ctx t in
@@ -1880,15 +1880,15 @@ and eval_expr ctx e =
 			op ctx (OGetGlobal (o,g));
 			op ctx (OField (r,o,fid));
 		| AStaticFun f ->
-			op ctx (OGetFunction (r,f));
+			op ctx (OStaticClosure (r,f));
 		| AInstanceFun (ethis, f) ->
-			op ctx (OClosure (r, f, eval_null_check ctx ethis))
+			op ctx (OInstanceClosure (r, f, eval_null_check ctx ethis))
 		| AInstanceField (ethis,fid) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (match ethis.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
 		| AInstanceProto (ethis,fid) | AVirtualMethod (ethis, fid) ->
 			let robj = eval_null_check ctx ethis in
-			op ctx (OMethod (r,robj,fid));
+			op ctx (OVirtualClosure (r,robj,fid));
 		| ADynamic (ethis, f) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (ODynGet (r,robj,f))
@@ -1907,7 +1907,7 @@ and eval_expr ctx e =
 			op ctx (ODynSet (r,alloc_string ctx s,v));
 			if s = "toString" then begin
 				let f = alloc_tmp ctx (HFun ([],HBytes)) in
-				op ctx (OClosure (f, alloc_fun_path ctx ([],"String") "call_toString", r));
+				op ctx (OInstanceClosure (f, alloc_fun_path ctx ([],"String") "call_toString", r));
 				op ctx (ODynSet (r,alloc_string ctx "__string",f));
 			end;
 		) o;
@@ -2189,7 +2189,7 @@ and eval_expr ctx e =
 		let capt = make_fun ctx ("","") fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
-			op ctx (OClosure (r, fid, ctx.m.mcaptreg))
+			op ctx (OInstanceClosure (r, fid, ctx.m.mcaptreg))
 		else if Array.length capt.c_vars > 0 then
 			let env = alloc_tmp ctx capt.c_type in
 			op ctx (OEnumAlloc (env,0));
@@ -2203,9 +2203,9 @@ and eval_expr ctx e =
 				) in
 				op ctx (OSetEnumField (env,i,r));
 			) capt.c_vars;
-			op ctx (OClosure (r, fid, env))
+			op ctx (OInstanceClosure (r, fid, env))
 		else
-			op ctx (OGetFunction (r, fid));
+			op ctx (OStaticClosure (r, fid));
 		r
 	| TThrow v ->
 		op ctx (OThrow (eval_to ctx v HDyn));
@@ -2794,7 +2794,7 @@ let rec generate_member ctx c f =
 					) in
 					op ctx (OGetThis (r,fid));
 					op ctx (OJNotNull (r,2));
-					op ctx (OClosure (r,alloc_fid ctx c f,0));
+					op ctx (OInstanceClosure (r,alloc_fid ctx c f,0));
 					op ctx (OSetThis (fid,r));
 				| _ -> ()
 			) c.cl_ordered_fields;
@@ -2883,7 +2883,7 @@ let generate_static_init ctx =
 						| HFun (args,ret) -> HFun (class_type ctx c (List.map snd c.cl_params) false :: args, ret)
 						| _ -> assert false
 					) in
-					op ctx (OGetFunction (r, alloc_fid ctx c f));
+					op ctx (OStaticClosure (r, alloc_fid ctx c f));
 					op ctx (OSetField (rc,index "__constructor__",r)));
 
 				(* register static funs *)
@@ -2892,7 +2892,7 @@ let generate_static_init ctx =
 					match f.cf_kind with
 					| Method _ when not (is_extern_field f) ->
 						let cl = alloc_tmp ctx (to_type ctx f.cf_type) in
-						op ctx (OGetFunction (cl, alloc_fid ctx c f));
+						op ctx (OStaticClosure (cl, alloc_fid ctx c f));
 						op ctx (OSetField (rc,index f.cf_name,cl));
 					| _ ->
 						()
@@ -3211,9 +3211,9 @@ let check code =
 				check (tfield 0 fid false) (rtype r)
 			| OSetThis(fid,r) ->
 				reg r (tfield 0 fid false)
-			| OGetFunction (r,f) ->
+			| OStaticClosure (r,f) ->
 				reg r ftypes.(f)
-			| OMethod (r,o,fid) ->
+			| OVirtualClosure (r,o,fid) ->
 				(match rtype o with
 				| HObj _ ->
 					(match tfield o fid true with
@@ -3227,7 +3227,7 @@ let check code =
 					reg r t;
 				| _ ->
 					is_obj o)
-			| OClosure (r,f,arg) ->
+			| OInstanceClosure (r,f,arg) ->
 				(match ftypes.(f) with
 				| HFun (t :: tl, tret) ->
 					reg arg t;
@@ -4166,13 +4166,13 @@ let interp code =
 				| VClosure (f,Some arg) -> set r (fcall f (arg :: List.map get rl))
 				| VNull -> null_access()
 				| _ -> assert false)
-			| OGetFunction (r, fid) ->
+			| OStaticClosure (r, fid) ->
 				let f = functions.(fid) in
 				set r (VClosure (f,None))
-			| OClosure (r, fid, v) ->
+			| OInstanceClosure (r, fid, v) ->
 				let f = functions.(fid) in
 				set r (VClosure (f,Some (get v)))
-			| OMethod (r, o, m) ->
+			| OVirtualClosure (r, o, m) ->
 				let m = (match get o with
 				| VObj v as obj -> VClosure (v.oproto.pmethods.(m), Some obj)
 				| VNull -> null_access()
@@ -5418,8 +5418,8 @@ let ostr o =
 	| OCallMethod (r,f,o :: rl) -> Printf.sprintf "callmethod %d, %d[%d](%s)" r o f (String.concat "," (List.map string_of_int rl))
 	| OCallClosure (r,f,rl) -> Printf.sprintf "callclosure %d, %d(%s)" r f (String.concat "," (List.map string_of_int rl))
 	| OCallThis (r,f,rl) -> Printf.sprintf "callthis %d, [%d](%s)" r f (String.concat "," (List.map string_of_int rl))
-	| OGetFunction (r,f) -> Printf.sprintf "getfunction %d, f%d" r f
-	| OClosure (r,f,v) -> Printf.sprintf "closure %d, f%d(%d)" r f v
+	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, f%d" r f
+	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, f%d(%d)" r f v
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| ORet r -> Printf.sprintf "ret %d" r
@@ -5443,7 +5443,7 @@ let ostr o =
 	| OLabel _ -> "label"
 	| ONew r -> Printf.sprintf "new %d" r
 	| OField (r,o,i) -> Printf.sprintf "field %d,%d[%d]" r o i
-	| OMethod (r,o,m) -> Printf.sprintf "method %d,%d[%d]" r o m
+	| OVirtualClosure (r,o,m) -> Printf.sprintf "virtualclosure %d,%d[%d]" r o m
 	| OSetField (o,i,r) -> Printf.sprintf "setfield %d[%d],%d" o i r
 	| OGetThis (r,i) -> Printf.sprintf "getthis %d,[%d]" r i
 	| OSetThis (i,r) -> Printf.sprintf "setthis [%d],%d" i r
@@ -5901,7 +5901,7 @@ let write_c version ch (code:code) =
 	Array.iter (fun f ->
 		Array.iteri (fun i op ->
 			match op with
-			| OGetFunction (_,fid) when not (Hashtbl.mem used fid) ->
+			| OStaticClosure (_,fid) when not (Hashtbl.mem used fid) ->
 				let args, t = tfuns.(fid) in
 				sexpr "static vclosure cl$%d = { %s, %s, 0 }" fid (type_value (HFun (args,t))) funnames.(fid);
 				Hashtbl.add used fid ();
@@ -6229,9 +6229,9 @@ let write_c version ch (code:code) =
 					sexpr "%s%s->hasValue ? %s((vdynamic*)%s->value%s) : %s(%s)" (rassign r ret) (reg cl) (rfun cl (HDyn :: args) ret) (reg cl) (if sargs = "" then "" else "," ^ sargs) (rfun cl args ret) sargs
 				| _ ->
 					assert false)
-			| OGetFunction (r,fid) ->
+			| OStaticClosure (r,fid) ->
 				sexpr "%s = &cl$%d" (reg r) fid
-			| OClosure (r,fid,ptr) ->
+			| OInstanceClosure (r,fid,ptr) ->
 				let args, t = tfuns.(fid) in
 				sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun (args,t))) funnames.(fid) (reg ptr)
 			| OGetGlobal (r,g) ->
@@ -6290,7 +6290,7 @@ let write_c version ch (code:code) =
 			| OField (r,obj,fid) ->
 				get_field r obj fid
 	(*
-	| OMethod of reg * reg * field index (* closure *)
+	| OVirtualClosure of reg * reg * field index (* closure *)
 	*)
 
 			| OSetField (obj,fid,v) ->
