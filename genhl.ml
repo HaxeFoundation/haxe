@@ -161,7 +161,7 @@ type opcode =
 	| OSwitch of reg * int array * int
 	| ONullCheck of reg
 	| OTrap of reg * int
-	| OEndTrap of unused
+	| OEndTrap of bool
 	(* memory access *)
 	| OGetI8 of reg * reg * reg
 	| OGetI32 of reg * reg * reg
@@ -1143,7 +1143,7 @@ let captured_index ctx v =
 let before_return ctx =
 	let rec loop i =
 		if i > 0 then begin
-			op ctx (OEndTrap 0);
+			op ctx (OEndTrap false);
 			loop (i - 1)
 		end
 	in
@@ -2420,7 +2420,7 @@ and eval_expr ctx e =
 		let r = eval_expr ctx etry in
 		if tret <> HVoid then op ctx (OMov (result,cast_to ctx r tret etry.epos));
 		ctx.m.mtrys <- ctx.m.mtrys - 1;
-		op ctx (OEndTrap 0);
+		op ctx (OEndTrap true);
 		let j = jump ctx (fun n -> OJAlways n) in
 		DynArray.set ctx.m.mops pos (OTrap (rtrap, current_pos ctx - (pos + 1)));
 		let rec loop l =
@@ -5227,7 +5227,7 @@ let write_code ch code =
 		let oid = Obj.tag o in
 
 		match op with
-		| OLabel _ | OEndTrap _ ->
+		| OLabel _ ->
 			byte oid
 		| OCall2 (r,g,a,b) ->
 			byte oid;
@@ -5495,7 +5495,7 @@ let ostr o =
 	| OSwitch (r,idx,eend) -> Printf.sprintf "switch %d [%s] %d" r (String.concat "," (Array.to_list (Array.map string_of_int idx))) eend
 	| ONullCheck r -> Printf.sprintf "nullcheck %d" r
 	| OTrap (r,i) -> Printf.sprintf "trap %d, %d" r i
-	| OEndTrap _ -> "endtrap"
+	| OEndTrap b -> Printf.sprintf "endtrap %b" b
 	| ODump r -> Printf.sprintf "dump %d" r
 
 let dump code =
@@ -6098,6 +6098,22 @@ let write_c version ch (code:code) =
 		let output_at2 i ool = List.iter (output_at i) ool in
 		let has_label i = List.exists (function OOLabel -> true | _ -> false) output_options.(i) in
 
+		let trap_depth = ref 0 in
+		let max_trap_depth = ref 0 in
+		Array.iter (fun op ->
+			match op with
+			| OTrap _ ->
+				incr trap_depth;
+				if !trap_depth > !max_trap_depth then max_trap_depth := !trap_depth
+			| OEndTrap true ->
+				decr trap_depth
+			| _ ->
+				()
+		) f.code;
+		for i = 0 to !max_trap_depth - 1 do
+			sexpr "hl_trap_ctx trap$%d" i;
+		done;
+
 		Array.iteri (fun i op ->
 			List.iter (function
 				| OOLabel -> sline "%s:" (label i)
@@ -6402,10 +6418,12 @@ let write_c version ch (code:code) =
 				output_at2 (i + 1 + eend) [OODecreaseIndent;OODecreaseIndent;OOEndBlock];
 			| ONullCheck r ->
 				sexpr "if( %s == NULL ) hl_null_access()" (reg r)
-			| OTrap _ ->
-				sexpr "printf(\"TRAP\\n\")";
-			| OEndTrap _ ->
-				sexpr "printf(\"ENDTRAP\\n\")";
+			| OTrap (r,d) ->
+				sexpr "hlc_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
+				incr trap_depth
+			| OEndTrap b ->
+				sexpr "hlc_endtrap(trap$%d)" (!trap_depth - 1);
+				if b then decr trap_depth;
 			| ODump r ->
 				todo()
 		) f.code;
