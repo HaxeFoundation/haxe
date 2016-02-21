@@ -47,9 +47,9 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 	}
 
 	public function matched( n : Int ) : String {
-		var size = 0;
-		var m = regexp_matched(r,n,size);
-		return (m == null) ? null : String.__alloc__(m, size);
+		var len = 0;
+		var m = regexp_matched_pos(r,n,len);
+		return m < 0 ? null : last.substr(m, len);
 	}
 
 	public function matchedLeft() : String {
@@ -67,6 +67,7 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 	public function matchedPos() : { pos : Int, len : Int } {
 		var len = 0;
 		var p = regexp_matched_pos(r, 0, len);
+		if( p < 0 ) return null;
 		return { pos : p, len : len };
 	}
 
@@ -190,10 +191,6 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 
 	@:hlNative("regexp", "regexp_match") static function regexp_match( r : ERegValue, str : hl.types.Bytes, pos : Int, size : Int ) : Bool {
 		return false;
-	}
-
-	@:hlNative("regexp", "regexp_matched") static function regexp_matched( r : ERegValue, n : Int, size : hl.types.Ref<Int> ) : hl.types.Bytes {
-		return null;
 	}
 
 	@:hlNative("regexp", "regexp_matched_pos") static function regexp_matched_pos( r : ERegValue, n : Int, size : hl.types.Ref<Int> ) : Int {

@@ -5142,16 +5142,6 @@ let interp code =
 					| None -> to_int (-1)
 					| Some (pos,pend) -> regs.(rlen) <- to_int (pend - pos); to_int pos)
 				| _ -> assert false)
-			| "regexp_matched" ->
-				(function
-				| [VAbstract (AReg r); VInt n; VRef (regs,rlen,HI32)] ->
-					let n = int n in
-					(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
-					| None -> VNull
-					| Some (pos,pend) ->
-						regs.(rlen) <- to_int (pend - pos);
-						VBytes (caml_to_hl (String.sub r.r_string pos (pend - pos))))
-				| _ -> assert false)
 			| _ ->
 				unresolved())
 		| _ ->
@@ -5829,7 +5819,7 @@ let write_c version ch (code:code) =
 			let c = String.get s i in
 			string_of_int (int_of_char c) :: loop (i+1)
 		in
-		sexpr "static vbyte string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) (String.concat "* /" (ExtString.String.nsplit str "*/"))
+		sexpr "static vbyte string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) (String.escaped (String.concat "* /" (ExtString.String.nsplit str "*/")))
 	) code.strings;
 
 	let type_value t =
