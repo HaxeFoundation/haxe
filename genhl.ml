@@ -86,6 +86,7 @@ type unused = int
 type field
 
 type opcode =
+	(* register loads *)
 	| OMov of reg * reg
 	| OInt of reg * int index
 	| OFloat of reg * float index
@@ -93,6 +94,7 @@ type opcode =
 	| OBytes of reg * string index
 	| OString of reg * string index
 	| ONull of reg
+	(* binops *)
 	| OAdd of reg * reg * reg
 	| OSub of reg * reg * reg
 	| OMul of reg * reg * reg
@@ -108,8 +110,10 @@ type opcode =
 	| OXor of reg * reg * reg
 	| ONeg of reg * reg
 	| ONot of reg * reg
+	(* unops *)
 	| OIncr of reg
 	| ODecr of reg
+	(* calls *)
 	| OCall0 of reg * functable index
 	| OCall1 of reg * functable index * reg
 	| OCall2 of reg * functable index * reg * reg
@@ -119,12 +123,18 @@ type opcode =
 	| OCallMethod of reg * field index * reg list
 	| OCallThis of reg * field index * reg list
 	| OCallClosure of reg * reg * reg list
+	(* closures *)
 	| OStaticClosure of reg * functable index (* Class.method *)
 	| OInstanceClosure of reg * functable index * reg (* instance.method *)
 	| OVirtualClosure of reg * reg * field index (* instance.overriddenMethod *)
+	(* field access *)
 	| OGetGlobal of reg * global
 	| OSetGlobal of global * reg
-	| ORet of reg
+	| OField of reg * reg * field index
+	| OSetField of reg * field index * reg
+	| OGetThis of reg * field index
+	| OSetThis of field index * reg
+	(* jumps *)
 	| OJTrue of reg * int
 	| OJFalse of reg * int
 	| OJNull of reg * int
@@ -142,14 +152,17 @@ type opcode =
 	| OToSFloat of reg * reg
 	| OToUFloat of reg * reg
 	| OToInt of reg * reg
-	| OLabel of unused
 	| ONew of reg
-	| OField of reg * reg * field index
-	| OSetField of reg * field index * reg
-	| OGetThis of reg * field index
-	| OSetThis of field index * reg
+	(* control flow *)
+	| OLabel of unused
+	| ORet of reg
 	| OThrow of reg
 	| ORethrow of reg
+	| OSwitch of reg * int array * int
+	| ONullCheck of reg
+	| OTrap of reg * int
+	| OEndTrap of unused
+	(* memory access *)
 	| OGetI8 of reg * reg * reg
 	| OGetI32 of reg * reg * reg
 	| OGetF32 of reg * reg * reg
@@ -160,28 +173,29 @@ type opcode =
 	| OSetF32 of reg * reg * reg
 	| OSetF64 of reg * reg * reg
 	| OSetArray of reg * reg * reg
+	(* type operations *)
 	| OSafeCast of reg * reg
 	| OUnsafeCast of reg * reg
 	| OArraySize of reg * reg
 	| OType of reg * ttype
 	| OGetType of reg * reg
 	| OGetTID of reg * reg
+	| OToVirtual of reg * reg
+	| OUnVirtual of reg * reg
+	(* dynamic *)
+	| ODynGet of reg * reg * string index
+	| ODynSet of reg * string index * reg
+	(* references *)
 	| ORef of reg * reg
 	| OUnref of reg * reg
 	| OSetref of reg * reg
-	| OToVirtual of reg * reg
-	| OUnVirtual of reg * reg
-	| ODynGet of reg * reg * string index
-	| ODynSet of reg * string index * reg
+	(* enums *)
 	| OMakeEnum of reg * field index * reg list
 	| OEnumAlloc of reg * field index
 	| OEnumIndex of reg * reg
 	| OEnumField of reg * reg * field index * int
 	| OSetEnumField of reg * int * reg
-	| OSwitch of reg * int array * int
-	| ONullCheck of reg
-	| OTrap of reg * int
-	| OEndTrap of unused
+	(* misc *)
 	| ODump of reg
 
 type fundecl = {
