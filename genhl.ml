@@ -6036,15 +6036,10 @@ let write_c version ch (code:code) =
 			sexpr "%s%s(%s)" rstr funnames.(fid) (String.concat "," (List.map2 rcast args targs))
 		in
 
-		let get_virtual r o tl fid =
-			cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) tl (rtype r)
-		in
-
 		let mcall r fid = function
 			| [] -> assert false
 			| o :: args ->
-				let tl = (rtype o :: List.map rtype args) in
-				let vfun = get_virtual r o tl fid in
+				let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
 				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
 		in
 
@@ -6258,7 +6253,7 @@ let write_c version ch (code:code) =
 				(match rtype o with
 				| HObj p ->
 					let tl,t = tfuns.(p.pvirtuals.(m)) in
-					let s = get_virtual r o tl m in
+					let s = sprintf "%s->$type->vobj_proto[%d]" (reg o) m in
 					sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun(tl,t))) s (reg o)
 				| _ ->
 					todo())
