@@ -1343,6 +1343,37 @@ let add_constructor ctx c force_constructor p =
 		(* nothing to do *)
 		()
 
+let check_struct_init_constructor ctx c p = match c.cl_constructor with
+	| Some _ ->
+		()
+	| None ->
+		let params = List.map snd c.cl_params in
+		let ethis = mk (TConst TThis) (TInst(c,params)) p in
+		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
+			| Var _ ->
+				let opt = Meta.has Meta.Optional cf.cf_meta in
+				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
+				let v = alloc_var cf.cf_name t in
+				let ef = mk (TField(ethis,FInstance(c,params,cf))) t p in
+				let ev = mk (TLocal v) v.v_type p in
+				let e = mk (TBinop(OpAssign,ef,ev)) ev.etype p in
+				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
+			| Method _ ->
+				args,el,tl
+		) ([],[],[]) (List.rev c.cl_ordered_fields) in
+		let tf = {
+			tf_args = args;
+			tf_type = ctx.t.tvoid;
+			tf_expr = mk (TBlock el) ctx.t.tvoid p
+		} in
+		let e = mk (TFunction tf) (TFun(tl,ctx.t.tvoid)) p in
+		let cf = mk_field "new" e.etype p in
+		cf.cf_expr <- Some e;
+		cf.cf_type <- e.etype;
+		cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+		cf.cf_kind <- Method MethNormal;
+		c.cl_constructor <- Some cf
+
 let set_heritance ctx c herits p =
 	let is_lib = Meta.has Meta.LibType c.cl_meta in
 	let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
@@ -2752,6 +2783,7 @@ module ClassInitializer = struct
 		*)
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;
+		if Meta.has Meta.StructInit c.cl_meta then check_struct_init_constructor ctx c p;
 		(* check overloaded constructors *)
 		(if ctx.com.config.pf_overload && not cctx.is_lib then match c.cl_constructor with
 		| Some ctor ->
