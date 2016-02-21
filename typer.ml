@@ -1362,6 +1362,8 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
+		if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Impl ctx.curfield.cf_meta) then
+			error (Printf.sprintf "Cannot access non-static field %s from static method" f.cf_name) p;
 		let e = type_type ctx ctx.curclass.cl_path p in
 		(* check_locals_masking already done in type_type *)
 		field_access ctx mode f (FStatic (ctx.curclass,f)) (field_type ctx ctx.curclass [] f p) e p
