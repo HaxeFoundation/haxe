@@ -86,7 +86,7 @@ type unused = int
 type field
 
 type opcode =
-	(* register loads *)
+	(* register storing *)
 	| OMov of reg * reg
 	| OInt of reg * int index
 	| OFloat of reg * float index
@@ -108,6 +108,7 @@ type opcode =
 	| OAnd of reg * reg * reg
 	| OOr of reg * reg * reg
 	| OXor of reg * reg * reg
+	(* unops *)
 	| ONeg of reg * reg
 	| ONot of reg * reg
 	(* unops *)
@@ -152,7 +153,6 @@ type opcode =
 	| OToSFloat of reg * reg
 	| OToUFloat of reg * reg
 	| OToInt of reg * reg
-	| ONew of reg
 	(* control flow *)
 	| OLabel of unused
 	| ORet of reg
@@ -174,6 +174,7 @@ type opcode =
 	| OSetF64 of reg * reg * reg
 	| OSetArray of reg * reg * reg
 	(* type operations *)
+	| ONew of reg
 	| OSafeCast of reg * reg
 	| OUnsafeCast of reg * reg
 	| OArraySize of reg * reg
