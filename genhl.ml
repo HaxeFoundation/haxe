@@ -6137,7 +6137,7 @@ let write_c version ch (code:code) =
 					if op = OpEq then
 						sexpr "if( %s == %s || (%s && %s && %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
 					else if op = OpNotEq then
-						sexpr "if( %s != %s && (!%s || !%s || !%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
+						sexpr "if( %s != %s && (!%s || !%s || %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
 					else
 						sexpr "if( %s && %s && %s ) goto %s" (reg a) (reg b) pcompare (label d)
 				| HDyn , _ | _, HDyn ->
@@ -6333,11 +6333,11 @@ let write_c version ch (code:code) =
 			| OGetArray (r, arr, idx) ->
 				sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
 			| OSetI8 (b,idx,r) ->
-				sexpr "*(unsigned char*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
+				sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 			| OSetI32 (b,idx,r) ->
 				sexpr "*(int*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
 			| OSetF32 (b,idx,r) ->
-				sexpr "*(float*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
+				sexpr "*(float*)(%s + %s) = (float)%s" (reg b) (reg idx) (reg r)
 			| OSetF64 (b,idx,r) ->
 				sexpr "*(double*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
 			| OSetArray (arr,idx,v) ->
