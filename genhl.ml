@@ -6036,10 +6036,15 @@ let write_c version ch (code:code) =
 			sexpr "%s%s(%s)" rstr funnames.(fid) (String.concat "," (List.map2 rcast args targs))
 		in
 
+		let get_virtual r o tl fid =
+			cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) tl (rtype r)
+		in
+
 		let mcall r fid = function
 			| [] -> assert false
 			| o :: args ->
-				let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
+				let tl = (rtype o :: List.map rtype args) in
+				let vfun = get_virtual r o tl fid in
 				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
 		in
 
@@ -6249,6 +6254,14 @@ let write_c version ch (code:code) =
 			| OInstanceClosure (r,fid,ptr) ->
 				let args, t = tfuns.(fid) in
 				sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun (args,t))) funnames.(fid) (reg ptr)
+			| OVirtualClosure(r,o,m) ->
+				(match rtype o with
+				| HObj p ->
+					let tl,t = tfuns.(p.pvirtuals.(m)) in
+					let s = get_virtual r o tl m in
+					sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun(tl,t))) s (reg o)
+				| _ ->
+					todo())
 			| OGetGlobal (r,g) ->
 				sexpr "%s = global$%d" (reg r) g
 			| OSetGlobal (g,r) ->
@@ -6304,10 +6317,6 @@ let write_c version ch (code:code) =
 				| _ -> assert false)
 			| OField (r,obj,fid) ->
 				get_field r obj fid
-	(*
-	| OVirtualClosure of reg * reg * field index (* closure *)
-	*)
-
 			| OSetField (obj,fid,v) ->
 				set_field obj fid v
 			| OGetThis (r,fid) ->
@@ -6402,8 +6411,7 @@ let write_c version ch (code:code) =
 				sexpr "printf(\"TRAP\\n\")";
 			| OEndTrap _ ->
 				sexpr "printf(\"ENDTRAP\\n\")";
-			(*| ODump of reg*)
-			| _ ->
+			| ODump r ->
 				todo()
 		) f.code;
 		unblock();
