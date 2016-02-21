@@ -912,6 +912,8 @@ and class_type ctx c pl statics =
 					None
 				in
 				DynArray.add pa { fname = f.cf_name; fid = alloc_string ctx f.cf_name; fmethod = g; fvirtual = virt; }
+			| Method MethDynamic when List.exists (fun ff -> ff.cf_name = f.cf_name) c.cl_overrides ->
+				()
 			| _ ->
 				let fid = DynArray.length fa in
 				p.pindex <- PMap.add f.cf_name (fid + start_field, t) p.pindex;
@@ -2804,7 +2806,7 @@ let rec generate_member ctx c f =
 				| Method MethDynamic ->
 					let r = alloc_tmp ctx (to_type ctx f.cf_type) in
 					let fid = (match class_type ctx c (List.map snd c.cl_params) false with
-						| HObj o -> (try fst (PMap.find f.cf_name o.pindex) with Not_found -> assert false)
+						| HObj o -> (try fst (get_index f.cf_name o) with Not_found -> assert false)
 						| _ -> assert false
 					) in
 					op ctx (OGetThis (r,fid));
@@ -6038,22 +6040,28 @@ let write_c version ch (code:code) =
 				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
 		in
 
-		let set_field obj fid v =
-			match rtype obj with
-			| HObj o ->
-				let name, t = resolve_field o fid in
-				sexpr "%s->%s = %s" (reg obj) (ident name) (rcast v t)
-			| HVirtual v ->
-				sexpr "hl_fatal(\"%s\")" "SETFIELD-VIRTUAL"
-			| _ ->
-				assert false
-		in
-
 		let dyn_prefix = function
 			| HI8 | HI16 | HI32 | HBool -> "i"
 			| HF32 -> "f"
 			| HF64 -> "d"
 			| _ -> "p"
+		in
+
+		let type_value_opt t =
+			match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t
+		in
+
+		let set_field obj fid v =
+			match rtype obj with
+			| HObj o ->
+				let name, t = resolve_field o fid in
+				sexpr "%s->%s = %s" (reg obj) (ident name) (rcast v t)
+			| HVirtual vp ->
+				let name, nid, t = vp.vfields.(fid) in
+				let dset = sprintf "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
+				sexpr "if( %s->indexes[%d] ) *(%s*)(%s->fields_data+%s->indexes[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) (reg obj) fid (ctype t) (reg v) dset
+			| _ ->
+				assert false
 		in
 
 		let get_field r obj fid =
@@ -6062,8 +6070,9 @@ let write_c version ch (code:code) =
 				let name, t = resolve_field o fid in
 				sexpr "%s%s->%s" (rassign r t) (reg obj) (ident name)
 			| HVirtual v ->
-				let _, _, t = v.vfields.(fid) in
-				sexpr "%s%s->indexes[%d] ? (*(%s*)(%s->fields_data+%s->indexes[%d])) : (%s)hl_fatal(\"dyn_get\")" (rassign r t) (reg obj) fid (ctype t) (reg obj) (reg obj) fid (ctype t)
+				let name, nid, t = v.vfields.(fid) in
+				let dget = sprintf "(%s)hl_dyn_get%s((vdynamic*)%s,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
+				sexpr "%s%s->indexes[%d] ? (*(%s*)(%s->fields_data+%s->indexes[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) (reg obj) fid dget
 			| _ ->
 				assert false
 		in
@@ -6260,7 +6269,7 @@ let write_c version ch (code:code) =
 			| OInstanceClosure (r,fid,ptr) ->
 				let args, t = tfuns.(fid) in
 				sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun (args,t))) funnames.(fid) (reg ptr)
-			| OVirtualClosure(r,o,m) ->
+			| OVirtualClosure (r,o,m) ->
 				(match rtype o with
 				| HObj p ->
 					let tl,t = tfuns.(p.pvirtuals.(m)) in
@@ -6379,10 +6388,10 @@ let write_c version ch (code:code) =
 			| ODynGet (r,o,sid) ->
 				let t = rtype r in
 				let h = hash sid in
-				sexpr "%s = (%s)hl_dyn_get%s((vdynamic*)%s,%ld/*%s*/%s)" (reg r) (ctype t) (dyn_prefix t) (reg o) h code.strings.(sid) (match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t)
+				sexpr "%s = (%s)hl_dyn_get%s((vdynamic*)%s,%ld/*%s*/%s)" (reg r) (ctype t) (dyn_prefix t) (reg o) h code.strings.(sid) (type_value_opt t)
 			| ODynSet (o,sid,v) ->
 				let h = hash sid in
-				sexpr "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/,%s,%s)" (dyn_prefix (rtype v)) (reg o) h code.strings.(sid) (type_value (rtype v)) (reg v)
+				sexpr "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix (rtype v)) (reg o) h code.strings.(sid) (type_value_opt (rtype v)) (reg v)
 			| OMakeEnum (r,cid,rl) ->
 				let et = enum_constr_type (match rtype r with HEnum e -> e | _ -> assert false) cid in
 				let has_ptr = List.exists (fun r -> is_gc_ptr (rtype r)) rl in
