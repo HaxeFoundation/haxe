@@ -5698,7 +5698,10 @@ let write_c version ch (code:code) =
 	in
 
 	let enum_constr_type e i =
-		let cname,_, _ = e.efields.(i) in
+		let cname,_, tl = e.efields.(i) in
+		if Array.length tl = 0 then
+			"venum"
+		else
 		let name = if e.eid = 0 then
 			let index = lookup types (HEnum e) (fun() -> assert false) in
 			"Enum$" ^ string_of_int index
@@ -5755,14 +5758,16 @@ let write_c version ch (code:code) =
 			expr "}";
 		| HEnum e ->
 			Array.iteri (fun i (_,_,pl) ->
-				line ("typedef struct {");
-				block();
-				expr "struct _venum";
-				Array.iteri (fun i t ->
-					expr (var_type ("p" ^ string_of_int i) t)
-				) pl;
-				unblock();
-				sexpr "} %s" (enum_constr_type e i);
+				if Array.length pl <> 0 then begin
+					line ("typedef struct {");
+					block();
+					expr "struct _venum";
+					Array.iteri (fun i t ->
+						expr (var_type ("p" ^ string_of_int i) t)
+					) pl;
+					unblock();
+					sexpr "} %s" (enum_constr_type e i);
+				end;
 			) e.efields
 		| _ ->
 			()
