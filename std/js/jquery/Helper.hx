@@ -17,7 +17,7 @@ package js.jquery;
 	@:allow(js.jquery.JQuery)
 	macro static function embed() {
 		return if (haxe.macro.Context.defined("embed_js")) {
-			macro haxe.macro.Compiler.includeFile("js/jquery/jquery-1.11.3.min.js");
+			macro haxe.macro.Compiler.includeFile("js/jquery/jquery-1.12.1.min.js");
 		} else {
 			macro {};
 		}
