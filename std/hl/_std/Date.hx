@@ -35,42 +35,44 @@ import hl.types.Ref;
 
 	public function getFullYear() : Int {
 		var v = 0;
-		date_get_inf(t, v, null, null, null, null, null);
+		date_get_inf(t, v, null, null, null, null, null, null);
 		return v;
 	}
 
 	public function getMonth() : Int {
 		var v = 0;
-		date_get_inf(t, null, v, null, null, null, null);
+		date_get_inf(t, null, v, null, null, null, null, null);
 		return v;
 	}
 
 	public function getDate() : Int {
 		var v = 0;
-		date_get_inf(t, null, null, v, null, null, null);
+		date_get_inf(t, null, null, v, null, null, null, null);
 		return v;
 	}
 
 	public function getHours() : Int {
 		var v = 0;
-		date_get_inf(t, null, null, null, v, null, null);
+		date_get_inf(t, null, null, null, v, null, null, null);
 		return v;
 	}
 
 	public function getMinutes() : Int {
 		var v = 0;
-		date_get_inf(t, null, null, null, null, v, null);
+		date_get_inf(t, null, null, null, null, v, null, null);
 		return v;
 	}
 
 	public function getSeconds() : Int {
 		var v = 0;
-		date_get_inf(t, null, null, null, null, null, v);
+		date_get_inf(t, null, null, null, null, null, v, null);
 		return v;
 	}
 
 	public function getDay() : Int {
-		return date_get_weekday(t);
+		var v = 0;
+		date_get_inf(t, null, null, null, null, null, null, v);
+		return v;
 	}
 
 	@:keep public function toString():String {
@@ -123,7 +125,7 @@ import hl.types.Ref;
 	}
 
 	@:hlNative
-	static function date_get_inf( t : Int, year : Ref<Int>, month : Ref<Int>, day : Ref<Int>, hours : Ref<Int>, minutes : Ref<Int>, seconds : Ref<Int> ) : Void {
+	static function date_get_inf( t : Int, year : Ref<Int>, month : Ref<Int>, day : Ref<Int>, hours : Ref<Int>, minutes : Ref<Int>, seconds : Ref<Int>, wday : Ref<Int> ) : Void {
 	}
 
 	@:hlNative

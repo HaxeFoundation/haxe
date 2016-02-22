@@ -5042,15 +5042,9 @@ let interp code =
 				(function
 				| [VFloat f] -> to_date (Unix.localtime (f /. 1000.))
 				| _ -> assert false)
-			| "date_get_weekday" ->
-				(function
-				| [VInt d] ->
-					let d = date d in
-					to_int d.tm_wday
-				| _ -> assert false)
 			| "date_get_inf" ->
 				(function
-				| [VInt d;year;month;day;hours;minutes;seconds] ->
+				| [VInt d;year;month;day;hours;minutes;seconds;wday] ->
 					let d = date d in
 					let set r v =
 						match r with
@@ -5064,6 +5058,7 @@ let interp code =
 					set hours d.tm_hour;
 					set minutes d.tm_min;
 					set seconds d.tm_sec;
+					set wday d.tm_wday;
 					VUndef
 				| _ -> assert false)
 			| "date_to_string" ->
@@ -6053,6 +6048,39 @@ let write_c version ch (code:code) =
 			sexpr "%s%s(%s)" rstr funnames.(fid) (String.concat "," (List.map2 rcast args targs))
 		in
 
+
+		let dyn_prefix = function
+			| HI8 | HI16 | HI32 | HBool -> "i"
+			| HF32 -> "f"
+			| HF64 -> "d"
+			| _ -> "p"
+		in
+
+		let type_value_opt t =
+			match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t
+		in
+
+		let dyn_call r f pl =
+			line "{";
+			block();
+			if pl <> [] then sexpr "vdynamic *args[] = {NULL,%s}" (String.concat "," (List.map (fun p ->
+				match rtype p with
+				| HDyn ->
+					reg p
+				| t ->
+					if is_dynamic t then
+						sprintf "(vdynamic*)%s" (reg p)
+					else
+						sprintf "hl_make_dyn(&%s,%s)" (reg p) (type_value t)
+			) pl));
+			let rt = rtype r in
+			let ret = if rt = HVoid then "" else if is_dynamic rt then sprintf "%s = (%s)" (reg r) (ctype rt) else "vdynamic *ret = " in
+			sexpr "%shlc_dyn_call_args((vclosure*)%s,%s,%d)" ret (reg f) (if pl = [] then "NULL" else "args") (List.length pl);
+			if rt <> HVoid && not (is_dynamic rt) then sexpr "%s = (%s)dyn_cast%s(&ret,&hlt_dyn%s)" (reg r) (ctype rt) (dyn_prefix rt) (type_value_opt rt);
+			unblock();
+			line "}";
+		in
+
 		let mcall r fid = function
 			| [] -> assert false
 			| o :: args ->
@@ -6069,17 +6097,6 @@ let write_c version ch (code:code) =
 					assert false
 		in
 
-		let dyn_prefix = function
-			| HI8 | HI16 | HI32 | HBool -> "i"
-			| HF32 -> "f"
-			| HF64 -> "d"
-			| _ -> "p"
-		in
-
-		let type_value_opt t =
-			match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t
-		in
-
 		let set_field obj fid v =
 			match rtype obj with
 			| HObj o ->
@@ -6087,7 +6104,7 @@ let write_c version ch (code:code) =
 				sexpr "%s->%s = %s" (reg obj) (ident name) (rcast v t)
 			| HVirtual vp ->
 				let name, nid, t = vp.vfields.(fid) in
-				let dset = sprintf "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
+				let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
 				sexpr "if( %s->indexes[%d] > 0 ) *(%s*)(%s->fields_data+%s->indexes[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) (reg obj) fid (ctype t) (reg v) dset
 			| _ ->
 				assert false
@@ -6100,7 +6117,7 @@ let write_c version ch (code:code) =
 				sexpr "%s%s->%s" (rassign r t) (reg obj) (ident name)
 			| HVirtual v ->
 				let name, nid, t = v.vfields.(fid) in
-				let dget = sprintf "(%s)hl_dyn_get%s((vdynamic*)%s,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
+				let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
 				sexpr "%s%s->indexes[%d] > 0 ? (*(%s*)(%s->fields_data+%s->indexes[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) (reg obj) fid dget
 			| _ ->
 				assert false
@@ -6287,7 +6304,7 @@ let write_c version ch (code:code) =
 			| OCallClosure (r,cl,pl) ->
 				(match rtype cl with
 				| HDyn ->
-					todo() (* dyn_call *)
+					dyn_call r cl pl
 				| HFun (args,ret) ->
 					let sargs = String.concat "," (List.map2 rcast pl args) in
 					sexpr "%s%s->hasValue ? %s((vdynamic*)%s->value%s) : %s(%s)" (rassign r ret) (reg cl) (rfun cl (HDyn :: args) ret) (reg cl) (if sargs = "" then "" else "," ^ sargs) (rfun cl args ret) sargs
@@ -6502,7 +6519,8 @@ let write_c version ch (code:code) =
 				end
 			) e.efields
 		| HVirtual _ ->
-			sexpr "type$%d.virt = &virt$%d" i i
+			sexpr "type$%d.virt = &virt$%d" i i;
+			sexpr "hl_init_virtual(&type$%d,&ctx)" i;
 		| HFun _ ->
 			sexpr "type$%d.fun = &tfun$%d" i i
 		| _ ->
