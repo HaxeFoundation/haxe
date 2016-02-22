@@ -6324,9 +6324,9 @@ let write_c version ch (code:code) =
 				| _ ->
 					todo())
 			| OGetGlobal (r,g) ->
-				sexpr "%s = global$%d" (reg r) g
+				sexpr "%s = (%s)global$%d" (reg r) (ctype (rtype r)) g
 			| OSetGlobal (g,r) ->
-				sexpr "global$%d = %s" g (reg r)
+				sexpr "global$%d = (%s)%s" g (ctype code.globals.(g)) (reg r)
 			| ORet r ->
 				if rtype r = HVoid then expr "return" else sexpr "return %s" (rcast r fret)
 			| OJTrue (r,d) | OJNotNull (r,d) ->
@@ -6453,7 +6453,13 @@ let write_c version ch (code:code) =
 				sexpr "memset(%s,0,sizeof(%s))" (reg r) et;
 				if cid <> 0 then sexpr "%s->index = %d" (reg r) cid
 			| OEnumIndex (r,v) ->
-				sexpr "%s = %s->index" (reg r) (reg v)
+				(match rtype v with
+				| HEnum _ ->
+					sexpr "%s = %s->index" (reg r) (reg v)
+				| HDyn ->
+					sexpr "%s = ((venum*)%s->v.ptr)->index" (reg r) (reg v)
+				| _ ->
+					assert false)
 			| OEnumField (r,e,cid,pid) ->
 				let tname,(_,_,tl) = (match rtype e with HEnum e -> enum_constr_type e cid, e.efields.(cid) | _ -> assert false) in
 				sexpr "%s((%s*)%s)->p%d" (rassign r tl.(pid)) tname (reg e) pid
