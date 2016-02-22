@@ -1864,7 +1864,7 @@ and eval_expr ctx e =
 			| _ -> op ctx (OCallN (ret, f, el)));
 		| AInstanceProto ({ eexpr = TConst TThis }, fid) ->
 			op ctx (OCallThis (ret, fid, el()))
-		| AInstanceProto (ethis, fid) ->
+		| AInstanceProto (ethis, fid) | AVirtualMethod (ethis, fid) ->
 			let el = eval_null_check ctx ethis :: el() in
 			op ctx (OCallMethod (ret, fid, el))
 		| AEnum index ->
@@ -3171,10 +3171,17 @@ let check code =
 			| OCallMethod (r, m, rl) ->
 				(match rl with
 				| [] -> assert false
-				| obj :: _ ->
-					match tfield obj m true with
+				| obj :: rl2 ->
+					let t, rl = (match rtype obj with
+						| HVirtual v ->
+							let _, _, t = v.vfields.(m) in
+							t, rl2
+						| _ ->
+							tfield obj m true, rl
+					) in
+					match t with
 					| HFun (targs, tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
-					| t -> check t (HFun (List.map rtype rl, rtype r)));
+					| t -> check t (HFun (List.map rtype rl, rtype r)))
 			| OCallClosure (r,f,rl) ->
 				(match rtype f with
 				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; reg r tret
@@ -4169,6 +4176,19 @@ let interp code =
 			| OCallMethod (r,m,rl) ->
 				(match get (List.hd rl) with
 				| VObj v -> set r (fcall v.oproto.pmethods.(m) (List.map get rl))
+				| VVirtual v ->
+					let name, _, _ = v.vtype.vfields.(m) in
+					(match v.vvalue with
+					| VObj o as obj ->
+						(try
+							let m = PMap.find name o.oproto.pclass.pfunctions in
+							set r (fcall functions.(m) (obj :: List.map get (List.tl rl)))
+						with Not_found ->
+							assert false)
+					| VDynObj _ ->
+						set r (dyn_call v.vvalue (List.map (fun r -> get r, rtype r) (List.tl rl)) (rtype r))
+					| _ ->
+						assert false)
 				| VNull -> null_access()
 				| _ -> assert false)
 			| OCallThis (r,m,rl) ->
@@ -6036,8 +6056,17 @@ let write_c version ch (code:code) =
 		let mcall r fid = function
 			| [] -> assert false
 			| o :: args ->
-				let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
-				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
+				match rtype o with
+				| HObj _ ->
+					let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
+					sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
+				| HVirtual _ ->
+					let rt = rtype r in
+					let meth = sprintf "%s->value->t->obj->rt->methods[-%s->indexes[%d]-1]" (reg o) (reg o) fid in
+					let meth = cast_fun meth (HDyn :: List.map rtype args) rt in
+					sexpr "if( %s->indexes[%d] < 0 ) %s%s(%s); else hl_fatal(\"todo:dcall\")" (reg o) fid (rassign r rt) meth (String.concat "," ((reg o ^ "->value") :: List.map reg args));
+				| _ ->
+					assert false
 		in
 
 		let dyn_prefix = function
@@ -6059,7 +6088,7 @@ let write_c version ch (code:code) =
 			| HVirtual vp ->
 				let name, nid, t = vp.vfields.(fid) in
 				let dset = sprintf "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
-				sexpr "if( %s->indexes[%d] ) *(%s*)(%s->fields_data+%s->indexes[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) (reg obj) fid (ctype t) (reg v) dset
+				sexpr "if( %s->indexes[%d] > 0 ) *(%s*)(%s->fields_data+%s->indexes[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) (reg obj) fid (ctype t) (reg v) dset
 			| _ ->
 				assert false
 		in
@@ -6072,7 +6101,7 @@ let write_c version ch (code:code) =
 			| HVirtual v ->
 				let name, nid, t = v.vfields.(fid) in
 				let dget = sprintf "(%s)hl_dyn_get%s((vdynamic*)%s,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
-				sexpr "%s%s->indexes[%d] ? (*(%s*)(%s->fields_data+%s->indexes[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) (reg obj) fid dget
+				sexpr "%s%s->indexes[%d] > 0 ? (*(%s*)(%s->fields_data+%s->indexes[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) (reg obj) fid dget
 			| _ ->
 				assert false
 		in
