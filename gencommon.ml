@@ -100,6 +100,8 @@ let follow_once t =
 		!f()
 	| TType (t,tl) ->
 		apply_params t.t_params tl t.t_type
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		t
 	| _ -> t
 
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref (Closed) })
@@ -798,6 +800,8 @@ let init_ctx gen =
 			follow_f (!f())
 		| TType (t,tl) ->
 			follow_f (apply_params t.t_params tl t.t_type)
+		| TAbstract({a_path = [],"Null"},[t]) ->
+			follow_f t
 		| _ -> Some t
 	in
 	gen.gfollow#add ~name:"final" ~priority:PLast follow
@@ -3547,7 +3551,7 @@ struct
 			in
 
 			let rettype_real_to_func t = match run_follow gen t with
-				| TType({ t_path = [],"Null" }, _) ->
+				| TAbstract({ a_path = [],"Null" }, _) ->
 					0,t_dynamic
 				| _ when like_float t && not (like_i64 t) ->
 					(1, basic.tfloat)
@@ -9681,9 +9685,9 @@ struct
 			match e.eexpr with
 				| TSwitch(cond,cases,default) when should_convert e ->
 					let cond_etype, should_cache = match handle_nullables, gen.gfollow#run_f cond.etype with
-						| true, TType({ t_path = ([], "Null") }, [t]) ->
+						| true, TAbstract({ a_path = ([], "Null") }, [t]) ->
 							let rec take_off_nullable t = match gen.gfollow#run_f t with
-								| TType({ t_path = ([], "Null") }, [t]) -> take_off_nullable t
+								| TAbstract({ a_path = ([], "Null") }, [t]) -> take_off_nullable t
 								| _ -> t
 							in
 
@@ -9866,7 +9870,7 @@ struct
 	let priority = solve_deps name [DAfter CastDetect.ReturnCast.priority]
 
 	let rec is_null_t gen t = match gen.greal_type t with
-		| TType( { t_path = ([], "Null") }, [of_t])
+		| TAbstract( { a_path = ([], "Null") }, [of_t])
 		| TInst( { cl_path = (["haxe";"lang"], "Null") }, [of_t]) ->
 			let rec take_off_null t =
 				match is_null_t gen t with | None -> t | Some s -> take_off_null s
@@ -9884,13 +9888,13 @@ struct
 			let t = gen.gfollow#run_f t in
 			match t with
 				(* haxe.lang.Null<haxe.lang.Null<>> wouldn't be a valid construct, so only follow Null<> *)
-				| TType ( { t_path = ([], "Null") }, [of_t] ) -> strip_off_nullable of_t
+				| TAbstract ( { a_path = ([], "Null") }, [of_t] ) -> strip_off_nullable of_t
 				| _ -> t
 		in
 
 		match t with
-			| TType( ({ t_path = ([], "Null") } as tdef), [of_t]) ->
-				Some( TType(tdef, [ strip_off_nullable of_t ]) )
+			| TAbstract( ({ a_path = ([], "Null") } as tdef), [of_t]) ->
+				Some( TAbstract(tdef, [ strip_off_nullable of_t ]) )
 			| _ -> None
 
 	let traverse gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler handle_opeq handle_cast =
@@ -10510,7 +10514,7 @@ struct
 	let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
 
 	let gen_check basic t nullable_var const pos =
-		let is_null t = match t with TType({t_path = ([],"Null")}, _) -> true | _ -> false in
+		let is_null t = match t with TAbstract({a_path = ([],"Null")}, _) -> true | _ -> false in
 		let needs_cast t1 t2 = match is_null t1, is_null t2 with
 			| true, false | false, true -> true
 			| _ -> false
@@ -11261,6 +11265,7 @@ struct
 	| TInst(c,tl) -> TInst(c,List.map filter_param tl)
 	| TEnum(e,tl) -> TEnum(e,List.map filter_param tl)
 	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) -> TAbstract(a, List.map filter_param tl)
+	| TAbstract({a_path = [],"Null"} as a,[t]) -> TAbstract(a,[filter_param t])
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		filter_param (Abstract.get_underlying_type a tl)
 	| TAbstract(a,tl) -> TAbstract(a, List.map filter_param tl)

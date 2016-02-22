@@ -822,7 +822,7 @@ let configure gen =
 	let fn_cl = get_cl (get_type gen (["haxe";"lang"],"Function")) in
 
 	let runtime_cl = get_cl (get_type gen (["haxe";"lang"],"Runtime")) in
-	let nulltdef = get_tdef (get_type gen ([],"Null")) in
+	let nullabstract = get_abstract (get_type gen ([],"Null")) in
 
 	(*let string_ref = get_cl ( get_type gen (["haxe";"lang"], "StringRefl")) in*)
 
@@ -863,7 +863,7 @@ let configure gen =
 									| TAbstract ({ a_path = ["java"],"Char16" },[])
 									| TType ({ t_path = [],"Single" },[])
 									| TAbstract ({ a_path = [],"Single" },[]) ->
-										TType(nulltdef, [f_t])
+										TAbstract(nullabstract, [f_t])
 									(*| TType ({ t_path = [], "Null"*)
 									| TInst (cl, ((_ :: _) as p)) when cl.cl_path <> (["java"],"NativeArray") ->
 										(* TInst(cl, List.map (fun _ -> t_dynamic) p) *)
@@ -906,8 +906,8 @@ let configure gen =
 			| TType ({ t_path = [],"Single" },[])
 			| TAbstract ({ a_path = [],"Single" },[]) ->
 					Some t
-			| TType (({ t_path = [],"Null" } as tdef),[t2]) ->
-					Some (TType(tdef,[gen.gfollow#run_f t2]))
+			| TAbstract (({ a_path = [],"Null" } as tdef),[t2]) ->
+					Some (TAbstract(tdef,[gen.gfollow#run_f t2]))
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					Some (gen.gfollow#run_f ( Abstract.get_underlying_type a pl) )
 			| TAbstract( { a_path = ([], "EnumValue") }, _ )
@@ -933,6 +933,14 @@ let configure gen =
 	let rec real_type t =
 		let t = gen.gfollow#run_f t in
 		match t with
+			| TAbstract({ a_path = ([], "Null") }, [t]) when is_java_basic_type (gen.gfollow#run_f t) -> t_dynamic
+			| TAbstract({ a_path = ([], "Null") }, [t]) ->
+				(match follow t with
+					| TInst( { cl_kind = KTypeParameter _ }, []) ->
+							t_dynamic
+							(* real_type t *)
+					| _ -> real_type t
+				)
 			| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 				real_type (Abstract.get_underlying_type a pl)
 			| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
@@ -946,14 +954,6 @@ let configure gen =
 				TInst(c, List.map (fun _ -> t_dynamic) params)
 			| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
 			| TInst _ -> t
-			| TType({ t_path = ([], "Null") }, [t]) when is_java_basic_type (gen.gfollow#run_f t) -> t_dynamic
-			| TType({ t_path = ([], "Null") }, [t]) ->
-				(match follow t with
-					| TInst( { cl_kind = KTypeParameter _ }, []) ->
-							t_dynamic
-							(* real_type t *)
-					| _ -> real_type t
-				)
 			| TType _ | TAbstract _ -> t
 			| TAnon (anon) -> (match !(anon.a_status) with
 				| Statics _ | EnumStatics _ | AbstractStatics _ -> t
@@ -2269,7 +2269,7 @@ let configure gen =
 	in
 
 	let may_nullable t = match gen.gfollow#run_f t with
-		| TType({ t_path = ([], "Null") }, [t]) ->
+		| TAbstract({ a_path = ([], "Null") }, [t]) ->
 			(match follow t with
 				| TInst({ cl_path = ([], "String") }, [])
 				| TAbstract ({ a_path = ([], "Float") },[])

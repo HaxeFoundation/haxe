@@ -2596,6 +2596,8 @@ let macro_lib =
 					(match !r with
 					| None -> t
 					| Some t -> t)
+				| TAbstract({a_path = [],"Null"},[t]) ->
+					t
 				| TAbstract _ | TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
 					t
 				| TType (t,tl) ->

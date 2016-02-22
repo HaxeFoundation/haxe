@@ -1659,13 +1659,13 @@ struct
 			t
 		| TInst _ | TEnum _ ->
 			t
-		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
-		| TType(({ t_path = [],"Null" } as t), [t2]) -> (match simplify_t t2 with
+		| TAbstract(({ a_path = [],"Null" } as t), [t2]) -> (match simplify_t t2 with
 			| (TAbstract(a,_) as t2) when Meta.has Meta.CoreType a.a_meta ->
-				TType(t, [simplify_t t2])
+				TAbstract(t, [simplify_t t2])
 			| (TEnum _ as t2) ->
-				TType(t, [simplify_t t2])
+				TAbstract(t, [simplify_t t2])
 			| t2 -> t2)
+		| TAbstract(a,tl) -> simplify_t (Abstract.get_underlying_type a tl)
 		| TType(t, tl) ->
 			simplify_t (apply_params t.t_params tl t.t_type)
 		| TMono r -> (match !r with
@@ -1733,6 +1733,12 @@ struct
 			(cacc + 2, 0) (* a dynamic to a basic type will have an "unboxing" penalty *)
 		| _, TDynamic _ ->
 			(cacc + 1, 0)
+		| TAbstract({ a_path = [], "Null" }, [tf]), TAbstract({ a_path = [], "Null" }, [ta]) ->
+			rate_conv (cacc+0) tf ta
+		| TAbstract({ a_path = [], "Null" }, [tf]), ta ->
+			rate_conv (cacc+1) tf ta
+		| tf, TAbstract({ a_path = [], "Null" }, [ta]) ->
+			rate_conv (cacc+1) tf ta
 		| TAbstract(af,tlf), TAbstract(aa,tla) ->
 			(if af == aa then
 				(cacc, rate_tp tlf tla)
@@ -1755,12 +1761,6 @@ struct
 					Option.get !ret
 			else
 				raise Not_found)
-		| TType({ t_path = [], "Null" }, [tf]), TType({ t_path = [], "Null" }, [ta]) ->
-			rate_conv (cacc+0) tf ta
-		| TType({ t_path = [], "Null" }, [tf]), ta ->
-			rate_conv (cacc+1) tf ta
-		| tf, TType({ t_path = [], "Null" }, [ta]) ->
-			rate_conv (cacc+1) tf ta
 		| TFun _, TFun _ -> (* unify will make sure they are compatible *)
 			cacc,0
 		| tfun,targ ->
@@ -1809,7 +1809,8 @@ struct
 			(* convert compatible into ( rate * compatible_type ) list *)
 			let rec mk_rate acc elist args = match elist, args with
 				| [], [] -> acc
-				| (_,true) :: elist, _ :: args -> mk_rate acc elist args
+				| (e,true) :: elist, _ :: args ->
+					mk_rate acc elist args
 				| (e,false) :: elist, (n,o,t) :: args ->
 					(* if the argument is an implicit cast, we need to start with a penalty *)
 					(* The penalty should be higher than any other implicit cast - other than Dynamic *)

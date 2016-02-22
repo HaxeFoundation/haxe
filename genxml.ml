@@ -74,8 +74,8 @@ let rec follow_param t =
 		(match !r with
 		| Some t -> follow_param t
 		| _ -> t)
-	| TType ({ t_path = [],"Null" } as t,tl) ->
-		follow_param (apply_params t.t_params tl t.t_type)
+	| TAbstract ({ a_path = [],"Null" } as t,tl) ->
+		follow_param (apply_params t.a_params tl t.a_this)
 	| _ ->
 		t
 
@@ -355,7 +355,7 @@ let generate_type com t =
 			| Some t -> notnull t)
 		| TLazy f ->
 			notnull ((!f)())
-		| TType ({ t_path = [],"Null" },[t]) ->
+		| TAbstract ({ a_path = [],"Null" },[t]) ->
 			t
 		| _ ->
 			t
