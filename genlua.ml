@@ -79,10 +79,10 @@ let kwds =
 let valid_lua_ident s =
 	try
 		for i = 0 to String.length s - 1 do
-			match String.unsafe_get s i with
-			| 'a'..'z' | 'A'..'Z' | '_' -> ()
-			| '0'..'9' when i > 0 -> ()
-			| _ -> raise Exit
+		    match String.unsafe_get s i with
+		    | 'a'..'z' | 'A'..'Z' | '_' -> ()
+		    | '0'..'9' when i > 0 -> ()
+		    | _ -> raise Exit
 		done;
 		true
 	with Exit ->
@@ -643,11 +643,9 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		gen_bitfix ctx (fun () ->
-		    spr ctx "_hx_bit.bnot(";
-		    gen_value ctx e;
-		    spr ctx ")";
-		);
+		spr ctx "_hx_bit.bnot(";
+		gen_value ctx e;
+		spr ctx ")";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -1184,20 +1182,18 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
-    gen_bitfix ctx (fun() ->
-	print ctx "_hx_bit.%s(" (match op with
-	    | Ast.OpXor  ->  "bxor"
-	    | Ast.OpAnd  ->  "band"
-	    | Ast.OpShl  ->  "lshift"
-	    | Ast.OpShr  ->  "arshift"
-	    | Ast.OpUShr ->  "rshift"
-	    | Ast.OpOr   ->  "bor"
-	    | _ -> "");
-	gen_value ctx e1;
-	spr ctx ",";
-	gen_value ctx e2;
-	spr ctx ")"
-    );
+    print ctx "_hx_bit.%s(" (match op with
+	| Ast.OpXor  ->  "bxor"
+	| Ast.OpAnd  ->  "band"
+	| Ast.OpShl  ->  "lshift"
+	| Ast.OpShr  ->  "arshift"
+	| Ast.OpUShr ->  "rshift"
+	| Ast.OpOr   ->  "bor"
+	| _ -> "");
+    gen_value ctx e1;
+    spr ctx ",";
+    gen_value ctx e2;
+    spr ctx ")"
 
 and gen_return ctx e eo =
     if ctx.in_value <> None then unsupported e.epos;
@@ -1221,13 +1217,6 @@ and gen_iife_assign ctx f =
     spr ctx "(function() return ";
     f();
     spr ctx " end)()";
-
-and gen_bitfix ctx f =
-    if ctx.lua_jit then begin
-	spr ctx "_hx_bitfix(";
-	f();
-	spr ctx ")"
-    end else f();
 
 and gen_cond ctx cond =
     ctx.iife_assign <- true;
@@ -1659,12 +1648,18 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
-	sprln ctx "pcall(require, 'bit32') pcall(require, 'bit') local _hx_bit = bit or bit32";
+	sprln ctx "local _hx_bit, _hx_bit_raw";
+	sprln ctx "pcall(require, 'bit32') pcall(require, 'bit') _hx_bit_raw = bit or bit32";
+	sprln ctx "if type(jit) ~= 'table' then";
+	sprln ctx "  _hx_bit = _hx_bit_raw";
+	sprln ctx "else ";
+	sprln ctx " local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end";
+	sprln ctx " _hx_bit = setmetatable({}, { __index = function(t,k) return function(x,y) return _hx_bitfix(rawget(_hx_bit_raw,k)(x,y)) end end})";
+	sprln ctx "end";
 	sprln ctx "local _hx_print = print or (function()end)";
 	sprln ctx "table.pack=table.pack or pack or function(...)return{n=select('#',...),...}end";
 	sprln ctx "table.unpack=table.unpack or unpack or function(t, i)i = i or 1 if t[i] ~= nil then return t[i],table.unpack(t, i + 1)end end";
 	sprln ctx "table.maxn=table.maxn or function(t) local maxn=0 for i in pairs(t)do maxn=type(i)=='number'and i>maxn and i or maxn end return maxn end";
-	sprln ctx "local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end";
 
 	sprln ctx "local function _hx_anon_newindex(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end";
 	sprln ctx "local _hx_anon_mt = {__newindex=_hx_anon_newindex}";
