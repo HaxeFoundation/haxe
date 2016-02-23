@@ -1398,48 +1398,6 @@ module Inheritance = struct
 			raise Exit
 		in
 		let has_interf = ref false in
-		let rec loop = function
-			| HPrivate | HExtern | HInterface ->
-				()
-			| HExtends t ->
-				if c.cl_super <> None then error "Cannot extend several classes" p;
-				let t = load_instance ctx t p false in
-				let csup,params = check_extends ctx c t p in
-				if not (csup.cl_build()) then cancel_build csup;
-				process_meta csup;
-				if c.cl_interface then begin
-					if not csup.cl_interface then error "Cannot extend by using a class" p;
-					c.cl_implements <- (csup,params) :: c.cl_implements;
-					if not !has_interf then begin
-						if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
-						has_interf := true;
-					end
-				end else begin
-					if csup.cl_interface then error "Cannot extend by using an interface" p;
-					c.cl_super <- Some (csup,params)
-				end
-			| HImplements t ->
-				let t = load_instance ctx t p false in
-				(match follow t with
-				| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
-					if c.cl_array_access <> None then error "Duplicate array access" p;
-					c.cl_array_access <- Some t
-				| TInst (intf,params) ->
-					if is_parent c intf then error "Recursive class" p;
-					if not (intf.cl_build()) then cancel_build intf;
-					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
-					if not intf.cl_interface then error "You can only implement an interface" p;
-					process_meta intf;
-					c.cl_implements <- (intf, params) :: c.cl_implements;
-					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
-						delay ctx PForce (fun() -> check_interfaces ctx c);
-						has_interf := true;
-					end
-				| TDynamic t ->
-					if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
-					c.cl_dynamic <- Some t
-				| _ -> error "Should implement by using an interface" p)
-		in
 		(*
 			resolve imports before calling build_inheritance, since it requires full paths.
 			that means that typedefs are not working, but that's a fair limitation
@@ -1455,12 +1413,61 @@ module Inheritance = struct
 				with
 					Not_found -> t
 		in
-		let herits = List.map (function
-			| HExtends t -> HExtends (resolve_imports t)
-			| HImplements t -> HImplements (resolve_imports t)
-			| h -> h
+		let herits = ExtList.List.filter_map (function
+			| HExtends t -> Some(true,resolve_imports t)
+			| HImplements t -> Some(false,resolve_imports t)
+			| t -> None
 		) herits in
-		List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
+		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
+		(* Pass 1: Check and set relations *)
+		let fl = List.map (fun (is_extends,t) ->
+			let t = load_instance ctx t p false in
+			if is_extends then begin
+				if c.cl_super <> None then error "Cannot extend several classes" p;
+				let csup,params = check_extends ctx c t p in
+				if c.cl_interface then begin
+					if not csup.cl_interface then error "Cannot extend by using a class" p;
+					c.cl_implements <- (csup,params) :: c.cl_implements;
+					if not !has_interf then begin
+						if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
+						has_interf := true;
+					end
+				end else begin
+					if csup.cl_interface then error "Cannot extend by using an interface" p;
+					c.cl_super <- Some (csup,params)
+				end;
+				(fun () ->
+					if not (csup.cl_build()) then cancel_build csup;
+					process_meta csup;
+				)
+			end else begin match follow t with
+				| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
+					if c.cl_array_access <> None then error "Duplicate array access" p;
+					c.cl_array_access <- Some t;
+					(fun () -> ())
+				| TInst (intf,params) ->
+					if is_parent c intf then error "Recursive class" p;
+					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
+					if not intf.cl_interface then error "You can only implement an interface" p;
+					c.cl_implements <- (intf, params) :: c.cl_implements;
+					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
+						delay ctx PForce (fun() -> check_interfaces ctx c);
+						has_interf := true;
+					end;
+					(fun () ->
+						if not (intf.cl_build()) then cancel_build intf;
+						process_meta intf;
+					)
+				| TDynamic t ->
+					if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
+					c.cl_dynamic <- Some t;
+					(fun () -> ())
+				| _ ->
+					error "Should implement by using an interface" p
+			end
+		) herits in
+		(* Pass 2: Build classes and check metadata *)
+		List.iter (fun f -> f()) fl
 end
 
 let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
