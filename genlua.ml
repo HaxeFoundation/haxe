@@ -818,8 +818,9 @@ end;
 
 and gen__init__hoist ctx e =
     begin match e.eexpr with
-	| TVar (v,eo) ->
-		print ctx "local %s = {};" (ident v.v_name);
+	| TVar (v,eo) ->(
+		print ctx ", %s" (ident v.v_name);
+	    )
 	| TBlock el ->
 		List.iter (gen__init__hoist ctx) el
 	| TCall (e, el) ->
@@ -1735,10 +1736,9 @@ let generate com =
 	sprln ctx "   return setmetatable(tab, _hx_array_mt)";
 	sprln ctx "end";
 
+	spr ctx "local _hx_bind";
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
 	ctx.inits <- []; (* reset inits *)
-
-	sprln ctx "local _hx_bind = {}";
 
 	List.iter (generate_type ctx) com.types;
 
