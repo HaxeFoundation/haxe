@@ -1810,7 +1810,7 @@ and eval_expr ctx e =
 				op ctx (ONew ro);
 				op ctx (OString (rb,alloc_string ctx k));
 				op ctx (OSetField (ro,0,rb));
-				op ctx (OBytes (rb,alloc_string ctx v));
+				op ctx (OBytes (rb,alloc_string ctx (v ^ "\x00"))); (* add a \x00 to prevent clashing with existing string *)
 				op ctx (OSetField (ro,1,rb));
 				op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
 				op ctx (OSetArray (arr,ridx,ro));
@@ -5732,6 +5732,21 @@ let write_c version ch (code:code) =
 		| _ -> "ptr"
 	in
 
+	let used_closures = Hashtbl.create 0 in
+	let bytes_strings = Hashtbl.create 0 in
+	Array.iter (fun f ->
+		Array.iteri (fun i op ->
+			match op with
+			| OStaticClosure (_,fid) ->
+				Hashtbl.replace used_closures fid ()
+			| OBytes (_,sid) ->
+				Hashtbl.replace bytes_strings sid ()
+			| _ ->
+				()
+		) f.code
+	) code.functions;
+
+
 	line "";
 	line "// Types definitions";
 	DynArray.iter (fun t ->
@@ -5830,13 +5845,16 @@ let write_c version ch (code:code) =
 	line "";
 	line "// Strings";
 	Array.iteri (fun i str ->
-		let s = utf8_to_utf16 str in
-		let rec loop i =
+		let rec loop s i =
 			if i = String.length s then [] else
 			let c = String.get s i in
-			string_of_int (int_of_char c) :: loop (i+1)
+			string_of_int (int_of_char c) :: loop s (i+1)
 		in
-		sexpr "static vbyte string$%d[] = {%s} /* %s */" i (String.concat "," (loop 0)) (String.escaped (String.concat "* /" (ExtString.String.nsplit str "*/")))
+		if Hashtbl.mem bytes_strings i then
+			sexpr "static vbyte bytes$%d[] = {%s}" i (String.concat "," (loop str 0))
+		else
+			let s = utf8_to_utf16 str in
+			sexpr "static vbyte string$%d[] = {%s} /* %s */" i (String.concat "," (loop s 0)) (String.escaped (String.concat "* /" (ExtString.String.nsplit str "*/")))
 	) code.strings;
 
 	let type_value t =
@@ -5924,18 +5942,10 @@ let write_c version ch (code:code) =
 
 	line "";
 	line "// Static data";
-	let used = Hashtbl.create 0 in
-	Array.iter (fun f ->
-		Array.iteri (fun i op ->
-			match op with
-			| OStaticClosure (_,fid) when not (Hashtbl.mem used fid) ->
-				let args, t = tfuns.(fid) in
-				sexpr "static vclosure cl$%d = { %s, %s, 0 }" fid (type_value (HFun (args,t))) funnames.(fid);
-				Hashtbl.add used fid ();
-			| _ ->
-				()
-		) f.code
-	) code.functions;
+	Hashtbl.iter (fun fid _ ->
+		let args, t = tfuns.(fid) in
+		sexpr "static vclosure cl$%d = { %s, %s, 0 }" fid (type_value (HFun (args,t))) funnames.(fid);
+	) used_closures;
 
 	line "";
 	line "// Reflection helpers";
@@ -6234,7 +6244,7 @@ let write_c version ch (code:code) =
 			| OBool (r,b) ->
 				sexpr "%s = %s" (reg r) (if b then "true" else "false")
 			| OBytes (r,idx) ->
-				sexpr "%s = string$%d" (reg r) idx
+				sexpr "%s = bytes$%d" (reg r) idx
 			| OString (r,idx) ->
 				sexpr "%s = string$%d" (reg r) idx
 			| ONull r ->
