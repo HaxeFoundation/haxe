@@ -98,23 +98,24 @@ and mark_field dce c cf stat =
 		end
 	in
 	if cf.cf_name = "new" then begin
-		let rec loop c = match c.cl_super with
-			| None -> ()
-			| Some (csup,_) ->
-				begin match csup.cl_constructor with
-				| None -> ()
+		let rec loop c =
+			begin match c.cl_constructor with
 				| Some cf -> add cf
-				end;
-				loop csup
+				| None -> ()
+			end;
+			match c.cl_super with
+			| Some(csup,_) -> loop csup
+			| None -> ()
 		in
 		loop c
-	end;
-	if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
-		match c.cl_super with
-		| None -> add cf
-		| Some (c,_) -> mark_field dce c cf stat
-	end else
-		add cf
+	end else begin
+		if not (PMap.mem cf.cf_name (if stat then c.cl_statics else c.cl_fields)) then begin
+			match c.cl_super with
+			| None -> add cf
+			| Some (c,_) -> mark_field dce c cf stat
+		end else
+			add cf
+	end
 
 let rec update_marked_class_fields dce c =
 	(* mark all :?used fields as surely :used now *)
@@ -747,6 +748,4 @@ let run com main full =
 		| x :: l -> x :: remove_meta m l
 	in
 	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.Used cf.cf_meta) dce.marked_fields;
-	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields;
-
-
+	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields
