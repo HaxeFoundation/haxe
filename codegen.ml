@@ -481,7 +481,7 @@ let rec build_generic ctx c p tl =
 						apply_params c.cl_params tl (TInst(cs,pl))
 				in
 				let ts = follow (find_class gctx.subst) in
-				let cs,pl = Typeload.check_extends ctx c ts p in
+				let cs,pl = Typeload.Inheritance.check_extends ctx c ts p in
 				match cs.cl_kind with
 				| KGeneric ->
 					(match build_generic ctx cs p pl with
