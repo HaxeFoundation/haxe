@@ -6410,7 +6410,7 @@ let write_c version ch (code:code) =
 				sexpr "((%s*)(%s + 1))[%s] = %s" (ctype (rtype v)) (reg arr) (reg idx) (reg v)
 			| OSafeCast (r,v) ->
 				let t = rtype r in
-				sexpr "%s = (%s)hl_dyn_cast%s(&%s,%s%s)" (reg r) (ctype t) (dyn_prefix t) (reg v) (type_value (rtype v)) (match t with HF32 | HF64 -> "" | _ -> "," ^ type_value t)
+				sexpr "%s = (%s)hl_dyn_cast%s(&%s,%s%s)" (reg r) (ctype t) (dyn_prefix t) (reg v) (type_value (rtype v)) (type_value_opt t)
 			| OUnsafeCast (r,v) ->
 				sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) (reg v)
 			| OArraySize (r,a) ->
