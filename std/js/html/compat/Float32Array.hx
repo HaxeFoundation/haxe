@@ -24,7 +24,7 @@ package js.html.compat;
 #if !nodejs
 import js.Lib.nativeThis;
 
-@:keep
+@:ifFeature("js.html.Float32Array.*")
 class Float32Array {
 
 	static var BYTES_PER_ELEMENT = 4;

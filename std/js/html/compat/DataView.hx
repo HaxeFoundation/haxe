@@ -24,7 +24,7 @@ package js.html.compat;
 #if !nodejs
 import haxe.io.Error;
 
-@:ifFeature("haxe.io.Float32Array.*", "haxe.io.Float64Array.*")
+@:ifFeature("js.html.DataView.*")
 @:access(js.html.compat.ArrayBuffer)
 class DataView {
 

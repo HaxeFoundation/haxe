@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.html.compat.ArrayBuffer;
+
 @:native("ArrayBuffer")
 extern class ArrayBuffer
 {
