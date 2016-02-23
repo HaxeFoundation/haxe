@@ -679,9 +679,10 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			null (ctx.t.tnull t) callp
 	in
 	let skipped = ref [] in
+	let invalid_skips = ref [] in
 	let skip name ul t =
 		if not ctx.com.config.pf_can_skip_non_nullable_argument && not (is_nullable t) then
-			call_error (Cannot_skip_non_nullable name) callp;
+			invalid_skips := name :: !invalid_skips;
 		skipped := (name,ul) :: !skipped;
 		default_value name t
 	in
@@ -692,6 +693,10 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	in
 	let rec loop el args = match el,args with
 		| [],[] ->
+			begin match List.rev !invalid_skips with
+				| [] -> ()
+				| name :: _ -> call_error (Cannot_skip_non_nullable name) callp;
+			end;
 			[]
 		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe";"extern"],"Rest"},_) -> true | _ -> false) ->
 			begin match follow t with
