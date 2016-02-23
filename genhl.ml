@@ -6175,15 +6175,21 @@ let write_c version ch (code:code) =
 		done;
 
 		Array.iteri (fun i op ->
-			List.iter (function
-				| OOLabel -> sline "%s:" (label i)
-				| OOCase i -> sline "case %i:" i
-				| OODefault -> line "default:"
-				| OOIncreaseIndent -> block()
-				| OODecreaseIndent -> unblock()
-				| OOBeginBlock ->  line "{"
-				| OOEndBlock -> line "}"
-			) (List.rev output_options.(i));
+			(match output_options.(i) with
+			| [] -> ()
+			| opts ->
+				(* put label after } *)
+				let opts = if has_label i && List.mem OOEndBlock opts then OOLabel :: List.filter (fun i -> i <> OOLabel) opts else opts in
+				let opts = List.rev opts in
+				List.iter (function
+					| OOLabel -> sline "%s:" (label i)
+					| OOCase i -> sline "case %i:" i
+					| OODefault -> line "default:"
+					| OOIncreaseIndent -> block()
+					| OODecreaseIndent -> unblock()
+					| OOBeginBlock ->  line "{"
+					| OOEndBlock -> line "}"
+				) opts);
 			let label delta =
 				let addr = delta + i + 1 in
 				let label = label addr in
