@@ -596,7 +596,7 @@ and gen_expr ctx e =
 		spr ctx "if";
 		gen_value ctx cond;
 		spr ctx " ";
-		gen_expr ctx e;
+		gen_expr ctx (mk_block e);
 		(match eelse with
 		| None -> ()
 		| Some e2 ->
@@ -605,7 +605,7 @@ and gen_expr ctx e =
 			| _ -> ());
 			semicolon ctx;
 			spr ctx " else ";
-			gen_expr ctx e2);
+			gen_expr ctx (match e2.eexpr with | TIf _ -> e2 | _ -> mk_block e2));
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
