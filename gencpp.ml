@@ -1568,6 +1568,636 @@ let hx_stack_push ctx output clazz func_name pos =
 ;;
 
 
+
+(* { *)
+(*
+
+type tcpp =
+	| TCppDynamic
+	| TCppVoid
+	| TCppEnum of tenum
+	| TCppScalar of string
+	| TCppString
+	| TCppFastIterator of tcpp
+	| TCppPointer of string * tcpp
+	| TCppFunction of tcpp list * tcpp * string
+	| TCppDynamicArray
+	| TCppObjectArray of tcpp
+	| TCppWrapped of tcpp
+	| TCppScalarArray of tcpp
+	| TCppObjC of tclass
+	| TCppNativePointer of tclass
+	| TCppPrivate
+	| TCppInst of tclass
+	| TCppType of path
+
+
+and tcppexpr = {
+	cppexpr : tcpp_expr_expr;
+	cpptype : tcpp;
+	cpppos : Ast.pos;
+}
+
+and tcppvar = {
+	vcpp_id : int;
+	vcpp_name : string;
+	vcpp_type : tcpp;
+	vcpp_capture : bool;
+	vcpp_debug_name : string option;
+}
+
+and tcppfunc = {
+	tcppf_args : (tcppvar * tconstant option) list;
+	tcppf_type : tcpp;
+	tcppf_expr : tcppexpr;
+}
+and tcpp_closure = {
+   close_expr : tcppexpr;
+   close_id : int;
+   close_undeclared : (string,tvar) Hashtbl.t
+}
+
+
+and tcpp_expr_expr =
+	| CppDynamicThis
+	| CppInt of int32
+	| CppFloat of string
+	| CppString of string
+	| CppBool of bool
+	| CppNull
+	| CppThis
+	| CppFakeThis
+	| CppSuper
+	| CppCode of string * tcppexpr list
+	| CppClosure of tcpp_closure
+	| CppLocalVar of tvar
+	| CppClosureVar of tvar
+	| CppInstanceVariable of tcppexpr * tclass_field
+	| CppInstanceFunction of tcppexpr * tclass_field
+	| CppInterfaceFunction of tcppexpr * tclass_field
+	| CppStaticVariable of tcppexpr * tclass_field
+	| CppStaticFunction of tcppexpr * tclass_field
+	| CppDynamicField of tcppexpr * string
+	| CppInstanceCall of tcppexpr * tclass_field * tcppexpr list
+	| CppStaticCall of tcppexpr * tclass_field * tcppexpr list
+	| CppInterfaceCall of tcppexpr * tclass_field * tcppexpr list
+	| CppEnumCreate of tenum * tenum_field * tcppexpr list
+	| CppSuperCall of tcppexpr list
+	| CppNewCall of tclass * tparams * tcppexpr list
+	| CppDynamicCall of tcppexpr * tcppexpr list
+	| CppEnumField of tenum * tenum_field
+	| CppArray of tcppexpr * tcppexpr
+	| CppBinop of Ast.binop * tcppexpr * tcppexpr
+	| CppField of tcppexpr * tfield_access
+	| CppTypeExpr of module_type
+	| CppObjectDecl of (string * tcppexpr) list
+	| CppArrayDecl of tcppexpr list
+	| CppNew of tclass * (string list) * tcppexpr list
+	| CppUnop of Ast.unop * Ast.unop_flag * tcppexpr
+	| CppVar of tcppvar * tcppexpr option
+	| CppBlock of tcppexpr list
+	| CppReturnBlock of tcpp_closure
+	| CppFor of tcppvar * tcppexpr * tcppexpr
+	| CppIf of tcppexpr * tcppexpr
+	| CppIfElse of tcppexpr * tcppexpr * tcppexpr * bool
+	| CppWhile of tcppexpr * tcppexpr * Ast.while_flag
+	| CppSwitch of tcppexpr * (tcppexpr list * tcppexpr) list * tcppexpr option * bool
+	| CppTry of tcppexpr * (tcppvar * tcppexpr) list
+	| CppBreak
+	| CppContinue
+	| CppReturn
+	| CppType of string list * string
+	| CppReturnValue of tcppexpr
+	| CppThrow of tcppexpr
+	| CppCast of tcppexpr * module_type option
+	| CppEnumParameter of tcppexpr * tenum_field * int
+
+
+	(*| CppParenthesis of texpr *)
+	(*| CppMeta of metadata_entry * texpr *)
+
+
+let cpp_const_type cval = match cval with
+   | TInt i -> CppInt(i) , TCppScalar("Int")
+   | TBool b -> CppBool(b) , TCppScalar("Bool")
+   | TFloat f -> CppFloat(f) , TCppScalar("Float")
+   | TString s -> CppString(s) , TCppString
+   | _ -> (* TNull, TThis & TSuper should already be handled *)
+      CppNull, TCppDynamic
+;;
+
+
+let is_scalar cpp_type =
+   match cpp_type with
+   | TCppScalar(_) -> true
+   | _ -> false
+;;
+
+
+let is_cpp_array_implementer cppType =
+   match cppType with
+   | TCppInst (klass) ->
+      (match klass.cl_array_access with
+      | Some _ -> true
+      | _ -> false )
+   | _ -> false
+;;
+
+
+
+
+let rec cpp_type_of haxe_type = 
+
+   let cpp_type_of_array p =
+     let arrayOf = cpp_type_of p in
+     match arrayOf with
+     | TCppVoid (* ? *)
+     | TCppDynamic ->
+       TCppDynamicArray
+
+     | TCppInst _
+     | TCppType _
+     | TCppDynamicArray
+     | TCppObjectArray _
+     | TCppScalarArray _
+        -> TCppObjectArray(arrayOf)
+
+     | _ ->
+       TCppScalarArray(arrayOf)
+   in
+
+   (* Optional types are Dynamic if they norally could not be null *)
+   let cpp_arg_type_of = fun(_,optional,haxe_type) ->
+      if optional then
+         cpp_type_of_null haxe_type
+      else
+         cpp_type_of haxe_type
+   in 
+
+   let cpp_function_type_of  function_type abi =
+      let abi = (match follow abi with
+                 | TInst (klass1,_) -> get_meta_string klass1.cl_meta Meta.Abi
+                 | _ -> assert false )
+      in
+      match follow function_type with
+      | TFun(args,ret) ->
+          TCppFunction(List.map cpp_arg_type_of args, cpp_type_of ret, abi)
+      | _ ->  (* ? *)
+          TCppFunction([TCppVoid], TCppVoid, abi)
+   in
+
+
+   (match haxe_type with
+   | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of t)
+
+   | TAbstract ({ a_path = ([],"Void") },[]) -> TCppVoid
+   | TAbstract ({ a_path = ([],"Bool") },[]) -> TCppScalar("bool")
+   | TAbstract ({ a_path = ([],"Float") },[]) -> TCppScalar("Float")
+   | TAbstract ({ a_path = ([],"Int") },[]) -> TCppScalar("int")
+   | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> TCppDynamic
+   | TInst    ( { cl_path = ([], "String") }, _  ) -> TCppString
+
+   | TEnum (enum,params) ->  TCppEnum(enum)
+
+   | TInst ({ cl_kind = KTypeParameter _},_)
+      -> TCppDynamic
+
+   | TInst (klass,params) ->
+      (match klass.cl_path, params with
+      (* Hacked name *)
+      |  (["haxe";"io"],"Unsigned_char__"),_ -> TCppScalar("unsigned char")
+
+      (* Things with type parameters hxcpp knows about ... *)
+      | (["cpp"],"FastIterator"), p::[] ->
+            TCppFastIterator(cpp_type_of p)
+      | (["cpp"],"Pointer"), p::[] ->
+            TCppPointer("Pointer", cpp_type_of p)
+      | (["cpp"],"ConstPointer"), p::[] ->
+            TCppPointer("ConstPointer", cpp_type_of p)
+      | (["cpp"],"RawPointer"), p::[] ->
+            TCppPointer("RawPointer", cpp_type_of p)
+      | (["cpp"],"ConstRawPointer"), p::[] ->
+            TCppPointer("ConstRawPointer", cpp_type_of p)
+      | (["cpp"],"Function"), [function_type; abi] ->
+            cpp_function_type_of function_type abi;
+
+      | ([],"Array"), p::[] -> 
+            cpp_type_of_array p
+
+      | ([],"Null"), p::[] ->
+            cpp_type_of_null p
+
+      (* Objective-C class *)
+      | path,_ when is_objc_type (TInst(klass,[])) ->
+            TCppObjC(klass)
+
+      (* Native interface - use pointer *)
+      | _,_ when klass.cl_interface && is_native_gen_class klass ->
+            TCppNativePointer(klass)
+
+      (* User-defined extern - or pointer? *)
+      | path when klass.cl_extern && (not (is_internal_class klass.cl_path) )->
+            TCppInst(klass)
+
+      (* Normal class *)
+      | _ ->
+            TCppInst(klass)
+      )
+
+   | TType (type_def,params) ->
+      TCppType(type_def.t_path)
+
+   | TFun _ -> TCppDynamic
+   | TAnon _ -> TCppDynamic
+   | TDynamic _ -> TCppDynamic
+   | TLazy func -> cpp_type_of ((!func)())
+   | TAbstract (abs,pl) when abs.a_impl <> None ->
+       cpp_type_of (Abstract.get_underlying_type abs pl)
+   | TAbstract (abs,pl) ->
+       (* ??? *)
+       TCppVoid
+   )
+
+
+   and cpp_type_of_null p =
+     let baseType = cpp_type_of p in
+     if (type_has_meta_key p Meta.NotNull) || (is_scalar baseType) then
+        TCppDynamic
+     else
+        baseType
+   
+
+  (* Optional types are Dynamic if they norally could not be null *)
+   and cpp_fun_arg_type_of tvar opt =
+      match opt with
+      | Some _ -> cpp_type_of_null tvar.t_type
+      | _ -> cpp_type_of tvar.t_type
+
+;;
+
+
+
+let retype_expression ctx request_type expression_tree =
+   let rev_return_blocks = ref [] in
+   let rev_closures = ref [] in
+   let declarations = ref (Hashtbl.create 0) in
+   let undeclared = ref (Hashtbl.create 0) in
+   let this_real = ref true in
+   let this_dynamic = ref false in
+   (* '__trace' is at the top-level *)
+   Hashtbl.add !declarations "__trace" ();
+
+   let start_return_block () =
+      let old_this_real = !this_real in
+      this_real := false;
+      let old_undeclared = Hashtbl.copy !undeclared in
+      let old_declarations = Hashtbl.copy !declarations in
+      let blockId = List.length !rev_return_blocks in
+      undeclared := Hashtbl.create 0;
+
+      blockId, fun block -> begin
+          declarations := old_declarations;
+          undeclared := old_undeclared;
+          this_real := old_this_real;
+          rev_return_blocks := block :: !rev_return_blocks;
+      end
+   in
+
+   let rec retype_in_return_block is_in_return_block return_type expr =
+      let retypedExpr, retypedType =
+         match expr.eexpr with
+         | TEnumParameter( enumObj, enumField, enumIndex  ) ->
+            let enumType =  cpp_type_of enumField.ef_type in
+            let retypedObj = retype enumType enumObj in
+            (* hxcpp actually stores enum parametes in Array<Dynamic> *)
+            CppEnumParameter( retypedObj, enumField, enumIndex ), TCppDynamic
+
+         | TConst TThis when !this_real ->
+            CppThis, cpp_type_of expr.etype
+
+         | TConst TThis when !this_dynamic ->
+            CppFakeThis, TCppDynamic
+
+         | TConst TThis ->
+            CppFakeThis, cpp_type_of expr.etype
+
+         | TConst TSuper ->
+            CppSuper, cpp_type_of expr.etype
+
+         | TConst x ->
+            cpp_const_type x
+
+         | TLocal { v_name = "__global__" } ->
+               CppType([],""), TCppType([],"")
+
+         | TLocal tvar ->
+            let name = tvar.v_name in
+            if (Hashtbl.mem !declarations name) then
+               CppLocalVar(tvar), cpp_type_of tvar.v_type
+            else begin
+               Hashtbl.replace !undeclared name tvar;
+               CppClosureVar(tvar), cpp_type_of tvar.v_type
+            end
+
+         | TBreak ->
+            CppBreak, TCppVoid
+
+         | TContinue ->
+            CppContinue, TCppVoid
+
+         | TThrow e1 ->
+            CppThrow(retype TCppDynamic e1), TCppVoid
+
+         | TMeta (_,e)
+         | TParenthesis e ->
+            let cppType = retype_in_return_block is_in_return_block return_type e in
+            cppType.cppexpr, cppType.cpptype
+
+         | TField( obj, field ) ->
+            (match field with
+            (* FInstance on DynamicArray ? *)
+            | FInstance (clazz,params,member) ->
+               let clazzType = TCppInst(clazz) in
+               let retypedObj = retype clazzType obj in
+               let exprType = cpp_type_of member.cf_type in
+               if is_var_field member then
+                  CppInstanceVariable(retypedObj, member ), exprType
+               else if (clazz.cl_interface) then
+                  CppInterfaceFunction(retypedObj, member ), exprType
+               else
+                  CppInstanceFunction(retypedObj, member ), exprType
+            | FStatic (clazz,member) ->
+               let clazzType = TCppType(clazz.cl_path) in
+               let retypedObj = retype clazzType obj in
+               let exprType = cpp_type_of member.cf_type in
+               if is_var_field member then
+                  CppStaticVariable(retypedObj, member ), exprType
+               else
+                  CppStaticFunction(retypedObj, member ), exprType
+            | FClosure (_,field)
+            | FAnon field ->
+                  CppDynamicField(retype TCppDynamic obj, field.cf_name), TCppDynamic
+            | FDynamic fieldName ->
+                  CppDynamicField(retype TCppDynamic obj, fieldName), TCppDynamic
+            | FEnum (enum, enum_field) ->
+                  CppEnumField(enum, enum_field), TCppDynamic
+            )
+
+         | TCall( {eexpr = TLocal { v_name = "__cpp__" }}, arg_list ) ->
+            let  cppExpr = match arg_list with
+            | [{ eexpr = TConst (TString code) }] -> CppCode(code, [])
+            | ({ eexpr = TConst (TString code) }) :: remaining ->
+                  let retypedArgs = List.map (retype TCppDynamic) remaining in
+                  CppCode(code, retypedArgs)
+            | _ -> error "__cpp__'s first argument must be a string" expr.epos;
+            in
+            cppExpr, TCppPrivate
+
+         | TCall( func, args ) ->
+            let retypedFunc = retype TCppDynamic func in
+            let cppType = cpp_type_of expr.etype in
+            (*
+            let retypedArgs = List.map2 (fun arg (var,opt) ->
+                retype (cpp_fun_arg_type_of var opt) arg
+                ) args, func.tf_args in
+            *)
+            let retypedArgs = List.map (retype TCppDynamic ) args in
+            (match retypedFunc.cppexpr with
+            |  CppInstanceFunction(inst,member)   -> CppInstanceCall(inst,member,retypedArgs), cppType
+            |  CppStaticFunction(clazz,field)    -> CppStaticCall(clazz,field,retypedArgs), cppType
+            |  CppInterfaceFunction(inst, intf) -> CppInterfaceCall(inst,intf,retypedArgs), cppType
+            |  CppEnumField(enum, field)        -> CppEnumCreate(enum,field,retypedArgs), cppType
+            |  CppSuper                         -> CppSuperCall(retypedArgs), cppType
+            | _ ->
+               CppDynamicCall(retypedFunc, retypedArgs), TCppDynamic
+            )
+
+         | TNew (clazz,params,args) ->
+            (* New DynamicArray ? *)
+            let retypedArgs = List.map (retype TCppDynamic ) args in
+            CppNewCall(clazz,params, retypedArgs), cpp_type_of expr.etype
+
+         | TFunction func ->
+            let old_this_real = !this_real in
+            this_real := false;
+            let old_this_dynamic = !this_dynamic in
+            this_dynamic := true;
+            let old_undeclared = Hashtbl.copy !undeclared in
+            let old_declarations = Hashtbl.copy !declarations in
+            let closureId = List.length !rev_closures in
+            undeclared := Hashtbl.create 0;
+            List.iter ( fun (tvar,_) ->
+               Hashtbl.add !declarations tvar.v_name () ) func.tf_args;
+            let return_type = match cpp_type_of func.tf_type with
+                | TCppVoid -> TCppVoid
+                | _ -> TCppDynamic in
+            let cppExpr = retype return_type func.tf_expr in
+            let result = { close_expr=cppExpr; close_id=closureId; close_undeclared= !undeclared } in
+            declarations := old_declarations;
+            undeclared := old_undeclared;
+            this_real := old_this_real;
+            this_dynamic := old_this_dynamic;
+            rev_closures := result:: !rev_closures;
+            CppClosure(result), TCppDynamic
+
+         | TArray (e1,e2) ->
+            let retypedObj = retype TCppDynamic e1 in
+            let retypedIdx = retype (TCppScalar("Int")) e2 in
+            let elementType = match retypedObj.cpptype with
+              | TCppScalarArray scalar -> scalar
+              | TCppObjectArray TCppDynamic -> TCppDynamic
+              | TCppObjectArray elem -> TCppWrapped(elem)
+              | cppType when is_cpp_array_implementer cppType -> cpp_type_of expr.etype
+              | _ -> TCppDynamic
+            in
+            CppArray(retypedObj, retypedIdx), elementType
+
+         | TTypeExpr module_type ->
+            let path = t_path module_type in
+            CppType(path), TCppType(path)
+
+         | TBinop (op,e1,e2) ->
+            let e2 = retype (cpp_type_of e2.etype) e2 in
+            let e1 = retype (cpp_type_of e1.etype) e1 in
+            if op=OpAssign then begin
+               let reference = match e1.cppexpr with
+                  | CppArray(obj,index) -> CppArraySet(obj,index,op)
+                  | CppLocalVar(tvar) -> CppLocalSet(tvar,op)
+                  | CppClosureVar(tvar) -> CppClosureVarSet(tvar,op)
+                  | CppInstanceVariable(obj, member) -> CppInstanceVariableSet(obj,member,op)
+                  | CppStaticVariable(obj, member) -> CppStaticVariableSet(obj,member,op)
+                  | CppDynamicField(obj, member) -> CppDynamicFieldSet(obj,member,op)
+                  | _ -> error "Unknown assignment left-hand-side" expr.epos
+               in
+               reference, cpp_type_of expr.etype
+            end else
+               CppBinOp(op,e1,e2)
+
+         | TUnop (op,pre,e1) ->
+            let e1 = retype (cpp_type_of e1.etype) e1 in
+            (match op with
+               | Increment
+               | Decrement ->
+                  let reference = match e1.cppexpr with
+                     | CppArray(obj,index) -> CppArrayCrement(obj,index,pre,op)
+                     | CppLocalVar(tvar) -> CppLocalCrement(tvar,pre,op)
+                     | CppClosureVar(tvar) -> CppClosureVarCrement(tvar,pre,op)
+                     | CppInstanceVariable(obj, member) -> CppInstanceVariableCrement(obj,member,pre,op)
+                     | CppStaticVariable(obj, member) -> CppStaticVariableCrement(obj,member,pre,op)
+                     | CppDynamicField(obj, member) -> CppDynamicFieldCrement(obj,member,pre,op)
+                     | _ -> error "Unknown increment left-hand-side" expr.epos
+                  in
+                  reference, e1.cpptype
+               | _ -> CppUnop(e1,op), e1.cpptype
+            )
+
+         | TFor (v,e1,e2) ->
+            let old_declarations = Hashtbl.copy !declarations in
+            Hashtbl.add !declarations v.v_name v;
+            let cond = retype CppScalar("Bool") e1 in
+            let block = retype TCppVoid e1 in
+            declarations := old_declarations
+            CppFor(v,cond,block), TCppVoid
+
+         | TWhile (e1,e2,flag) ->
+            let condition = retype CppScalar("Bool") e1 in
+            let block = retype TCppVoid e1 in
+            CppWhile(condition, block, flag), TCppVoid
+
+         | TArrayDecl el ->
+            let retypedEls = List.map (retype TCppDynamic) el in
+            CppArrayDecl(retypedEls), cpp_type_of el.etype
+
+         | TBlock expr_list when return_type<>TCppVoid ->
+            let rec return_last = function
+               | [] -> error "Empty block can't return a value" expr.epos
+               | expr :: [] -> (retype return_type expr) :: []
+               | expr :: exprs -> (retype TCppVoid expr) :: (return_last exprs)
+            in
+            (* Already in return block from a try or switch statement? *)
+            if is_in_return_block then begin
+               let old_declarations = Hashtbl.copy !declarations in
+               let cppExprs = return_last retype expr_list in
+               declarations := old_declarations;
+               CppBlock(cppExprs), cpp_type_of expr.etype
+            (* else, start new return block ..*)
+            end else begin
+               let blockId, pop_return_block = start_return_block () in
+               let cppExprs = return_last retype expr_list in
+               let result = { block_exprs=cppExprs; block_id=blockId; block_undeclared= !undeclared } in
+               pop_return_block result;
+               CppReturnBlock(result), cpp_type_of expr.etype
+            end
+
+         | TBlock expr_list ->
+            let old_declarations = Hashtbl.copy !declarations in
+            let cppExprs = List.map (retype TCppVoid) expr_list in
+            declarations := old_declarations;
+            CppBlock(cppExprs), TCppVoid
+
+         | TObjectDecl (
+            ("fileName" , { eexpr = (TConst (TString file)) }) ::
+               ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
+                  ("className" , { eexpr = (TConst (TString class_name)) }) ::
+                     ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
+              CppPosition(file,line,class_name,meth), TCppDynamic
+
+         | TObjectDecl el ->
+            let retypedEls = List.map ( fun(v,e) -> v, retype TCppDynamic e) el in
+            CppObjectDecl(retypedEls), cpp_type_of el.etype
+
+         | TVar (v,eo) ->
+            let varType = cpp_type_of c.v_type in
+            let init = match eo with None -> None | Some e -> Some (retype varType e) in
+            Hashtbl.add !declarations v.v_name v;
+            CppVar(v, init), varType
+
+         | TIf (ec,e1,e2) ->
+            let ec = retype TCppScalar("Bool") ec in
+            let e1 = retype return_type e1 in
+            let e2 = match e2 with None->None | Some e -> Some (retype return_type e2) 
+            in
+            CppIf(ec, e1, e1), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
+
+          (* Switch internal return - wrap whole thing in block  *)
+         | TSwitch (condition,cases,def) ->
+            if return_type<>TCppVoid then begin
+               (*create one return block to wrap the whole switch *)
+
+              let blockId, pop_return_block = start_return_block () in
+
+              (* Need return from each case (try) block ? *)
+              let condition = retype (cpp_type_of condition.etype) condition in
+              let cases = List.map (fun (el,e2) ->
+                  (List.map (retype (cpp_type_of e1.etype) el), (retype_in_return_block true return_type e2) ) ) cases in
+              let def = match def with None -> None | Some e -> Some (retype_in_return_block true return_type e) in
+
+              let switch = CppSwitch(value, cases, def) in
+              let switch_expr = { cppexpr = switch; cpptype = (cpp_type_of expr.etype) ; cpppos = expr.epos } in
+              let result = { block_exprs = [switch_expr]; block_id=blockId; block_undeclared= !undeclared } in
+
+              pop_return_block result;
+              CppReturnBlock(result), cpp_type_of expr.etype
+
+            end else begin
+              let condition = retype (cpp_type_of condition.etype) condition in
+              let cases = List.map (fun (el,e2) ->
+                  (List.map (retype (cpp_type_of e1.etype) el), (retype TCppVoid e2) ) ) cases in
+              let def = match def with None -> None | Some e -> Some (retype TCppVoid e) in
+              CppSwitch(condition, cases, def), cpp_type_of expr.etype
+            end
+
+         | TTry (try_block,catches) ->
+            (* TTry internal return - wrap whole thing in block ? *)
+            if return_type<>TCppVoid then begin
+               let blockId, pop_return_block = start_return_block () in
+
+               let cppBlock = retype_in_return_block true return_type try_block in
+               let cppCatches = List.map (fun (tvar,catch_block) ->
+                  let old_declarations = Hashtbl.copy !declarations in
+                  Hashtbl.add !declarations tvar.v_name tvar;
+                  let cppCatchBlock = retype_in_return_block true return_type catch_block in
+                  declarations := old_declarations;
+                  tvar, cppCatchBlock;
+               ) catches in
+               let ttry = CppTry(cppBlock, cppCatches) in
+               let try_expr = { cppexpr = ttry; cpptype = (cpp_type_of expr.etype) ; cpppos = expr.epos } in
+               let result = { block_exprs=[try_expr]; block_id=blockId; block_undeclared= !undeclared } in
+               pop_return_block result;
+               CppReturnBlock(result), cpp_type_of expr.etype
+
+            end else begin
+               let cppBlock = retype TCppVoid try_block in
+               let cppCatches = List.map (fun (tvar,catch_block) ->
+                  let old_declarations = Hashtbl.copy !declarations in
+                  Hashtbl.add !declarations tvar.v_name tvar;
+                  let cppCatchBlock = retype TCppVoid catch_block in
+                  declarations := old_declarations;
+                  tvar, cppCatchBlock;
+               ) catches in
+               CppTry(cppBlock, cppCatches)
+            end
+
+         | TReturn eo ->
+            CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
+
+         | TCast (e1,t) ->
+            CppCast (retype TCppDynamic e1,t), cpp_type_of expr.etype
+
+      in
+      { cppexpr = retypedExpr; cpptype = retypedType; cpppos = expr.epos }
+
+   and retype = retype_in_return_block false
+   in
+   (retype request_type expression_tree), (List.rev !rev_return_blocks), (List.rev !rev_closures)
+;;
+
+*)
+(* } *)
+
+
+
+
 (*
    This is the big one.
    Once you get inside a function, all code is generated (recursively) as a "expression".
