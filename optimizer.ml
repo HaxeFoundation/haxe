@@ -305,7 +305,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
 	(* locals substitution *)
 	let locals = Hashtbl.create 0 in
-	let local ?(abstract_this=false) v =
+	let local v =
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
@@ -315,7 +315,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				i_var = v;
 				i_subst = v';
 				i_outside = false;
-				i_abstract_this = abstract_this;
+				i_abstract_this = Meta.has Meta.This v.v_meta;
 				i_captured = false;
 				i_write = false;
 				i_force_temp = false;
@@ -337,7 +337,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				i_var = v;
 				i_subst = v;
 				i_outside = true;
-				i_abstract_this = false;
+				i_abstract_this = Meta.has Meta.This v.v_meta;
 				i_captured = false;
 				i_write = false;
 				i_force_temp = false;
@@ -384,7 +384,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let might_be_affected,collect_modified_locals = create_affection_checker() in
 	let had_side_effect = ref false in
 	let inlined_vars = List.map2 (fun e (v,_) ->
-		let l = local ~abstract_this:(Meta.has Meta.This v.v_meta) v in
+		let l = local v in
 		if has_side_effect e then begin
 			collect_modified_locals e;
 			had_side_effect := true;
