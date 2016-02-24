@@ -6530,6 +6530,7 @@ let write_c version ch (code:code) =
 			sexpr "type$%d.tparam = %s" i (type_value t)
 		| HEnum e ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
+			if e.eglobal <> 0 then sexpr "enum$%d.global_value = &global$%d" i e.eglobal;
 			Array.iteri (fun cid (_,_,tl) ->
 				if Array.length tl > 0 then begin
 					line "{";
