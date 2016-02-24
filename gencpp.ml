@@ -336,7 +336,7 @@ let is_internal_member member =
          | "__SetSize" | "__trace" | "__GetRealObject" | "__SetSizeExact" | "__cpp__"
          | "__URLEncode" | "__URLDecode" | "__IsEnum"
                -> true
-         | _ -> false) );;
+         | _ -> (String.length member > 4) && (String.sub member 0 4 = "__hx") ) );;
       
 let is_known_member member =
    match member with
