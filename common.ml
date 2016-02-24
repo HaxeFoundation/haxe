@@ -74,12 +74,6 @@ type platform_config = {
 	pf_static : bool;
 	(** has access to the "sys" package *)
 	pf_sys : bool;
-	(** local variables are block-scoped *)
-	pf_locals_scope : bool;
-	(** captured local variables are scoped *)
-	pf_captured_scope : bool;
-	(** generated locals must be absolutely unique wrt the current function *)
-	pf_unique_locals : bool;
 	(** captured variables handling (see before) *)
 	pf_capture_policy : capture_policy;
 	(** when calling a method with optional args, do we replace the missing args with "null" constants *)
@@ -546,9 +540,6 @@ let default_config =
 	{
 		pf_static = true;
 		pf_sys = true;
-		pf_locals_scope = true;
-		pf_captured_scope = true;
-		pf_unique_locals = false;
 		pf_capture_policy = CPNone;
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
@@ -567,9 +558,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = false;
-			pf_locals_scope = false;
-			pf_captured_scope = false;
-			pf_unique_locals = false;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
@@ -582,9 +570,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = true;
-			pf_locals_scope = true;
-			pf_captured_scope = true;
-			pf_unique_locals = false;
 			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -597,9 +582,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = false;
-			pf_locals_scope = false;
-			pf_captured_scope = true;
-			pf_unique_locals = true;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = true;
@@ -612,9 +594,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = false;
-			pf_locals_scope = true;
-			pf_captured_scope = true; (* handled by genSwf9 *)
-			pf_unique_locals = false;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
@@ -627,9 +606,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = true;
-			pf_locals_scope = false; (* some duplicate work is done in genPhp *)
-			pf_captured_scope = false;
-			pf_unique_locals = false;
 			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -642,9 +618,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = true;
-			pf_locals_scope = true;
-			pf_captured_scope = true;
-			pf_unique_locals = false;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
@@ -657,9 +630,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = true;
-			pf_locals_scope = false;
-			pf_captured_scope = true;
-			pf_unique_locals = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -672,9 +642,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = true;
-			pf_locals_scope = false;
-			pf_captured_scope = true;
-			pf_unique_locals = false;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -687,9 +654,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = true;
-			pf_locals_scope = false;
-			pf_captured_scope = false;
-			pf_unique_locals = false;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
