@@ -45,7 +45,7 @@ class TestJs {
 		for (v in a) { }
 	}
 
-	@:js('var a = 1;var v2 = a;if(a + v2 > 0) TestJs["use"](a);')
+	@:js('var a = 1;var v2 = a;if(a + v2 > 0) {TestJs["use"](a);}')
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_copy_propagation)
 	@:analyzer(no_local_dce)
@@ -229,7 +229,7 @@ class TestJs {
 
 	@:js('
 		var map = new haxe_ds_StringMap();
-		if(__map_reserved.some != null) map.setReserved("some",2); else map.h["some"] = 2;
+		if(__map_reserved.some != null) {map.setReserved("some",2);} else {map.h["some"] = 2;}
 		TestJs["use"](2);
 	')
 	static function testIssue4731() {
@@ -281,9 +281,13 @@ class TestJs {
 
 	@:js('
 		var a = 0;
-		if(Math.random() < 0.5) a = 2;
+		if(Math.random() < 0.5) {
+			a = 2;
+		}
 		var b = "";
-		if(Math.random() < 0.5) b = "hello";
+		if(Math.random() < 0.5) {
+			b = "hello";
+		}
 		TestJs["use"](a);
 		TestJs["use"](b);
 	')
@@ -443,7 +447,9 @@ class TestJs {
 
 	@:js('
 		TestJs.getInt();
-		if(TestJs.getInt() != 0) throw new js__$Boot_HaxeError("meh");
+		if(TestJs.getInt() != 0) {
+			throw new js__$Boot_HaxeError("meh");
+		}
 	')
 	static function testIfInvert() {
 		var tmp;
