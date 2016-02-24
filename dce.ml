@@ -85,7 +85,7 @@ let rec check_feature dce s =
 
 and check_and_add_feature dce s =
 	check_feature dce s;
-	Common.add_feature dce.com s;
+	Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true
 
 (* mark a field as kept *)
 and mark_field dce c cf stat =
