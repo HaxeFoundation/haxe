@@ -61,7 +61,7 @@ class TestJs {
 		return v + v2;
 	}
 
-	@:js("var a = [];a;")
+	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}tmp;")
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];

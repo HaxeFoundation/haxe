@@ -77,7 +77,6 @@
 					return last;
 				last = p;
 			}
-			return null;
 		}
 	}
 
