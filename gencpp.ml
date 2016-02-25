@@ -1573,108 +1573,116 @@ let hx_stack_push ctx output clazz func_name pos =
 (*
 
 type tcpp =
-	| TCppDynamic
-	| TCppVoid
-	| TCppEnum of tenum
-	| TCppScalar of string
-	| TCppString
-	| TCppFastIterator of tcpp
-	| TCppPointer of string * tcpp
-	| TCppFunction of tcpp list * tcpp * string
-	| TCppDynamicArray
-	| TCppObjectArray of tcpp
-	| TCppWrapped of tcpp
-	| TCppScalarArray of tcpp
-	| TCppObjC of tclass
-	| TCppNativePointer of tclass
-	| TCppPrivate
-	| TCppInst of tclass
-	| TCppType of path
+   | TCppDynamic
+   | TCppVoid
+   | TCppEnum of tenum
+   | TCppScalar of string
+   | TCppString
+   | TCppFastIterator of tcpp
+   | TCppPointer of string * tcpp
+   | TCppFunction of tcpp list * tcpp * string
+   | TCppDynamicArray
+   | TCppObjectArray of tcpp
+   | TCppWrapped of tcpp
+   | TCppScalarArray of tcpp
+   | TCppObjC of tclass
+   | TCppNativePointer of tclass
+   | TCppPrivate
+   | TCppInst of tclass
+   | TCppType of path
 
 
 and tcppexpr = {
-	cppexpr : tcpp_expr_expr;
-	cpptype : tcpp;
-	cpppos : Ast.pos;
+   cppexpr : tcpp_expr_expr;
+   cpptype : tcpp;
+   cpppos : Ast.pos;
 }
 
-and tcppvar = {
-	vcpp_id : int;
-	vcpp_name : string;
-	vcpp_type : tcpp;
-	vcpp_capture : bool;
-	vcpp_debug_name : string option;
-}
 
-and tcppfunc = {
-	tcppf_args : (tcppvar * tconstant option) list;
-	tcppf_type : tcpp;
-	tcppf_expr : tcppexpr;
-}
 and tcpp_closure = {
+   close_type : t;
+   close_args : (tvar * tconstant option) list;
    close_expr : tcppexpr;
    close_id : int;
    close_undeclared : (string,tvar) Hashtbl.t
 }
 
 
+and tcpp_block = {
+   block_exprs : tcppexpr list;
+   block_id : int;
+   block_undeclared : (string,tvar) Hashtbl.t
+}
+
+
+
 and tcpp_expr_expr =
-	| CppDynamicThis
-	| CppInt of int32
-	| CppFloat of string
-	| CppString of string
-	| CppBool of bool
-	| CppNull
-	| CppThis
-	| CppFakeThis
-	| CppSuper
-	| CppCode of string * tcppexpr list
-	| CppClosure of tcpp_closure
-	| CppLocalVar of tvar
-	| CppClosureVar of tvar
-	| CppInstanceVariable of tcppexpr * tclass_field
-	| CppInstanceFunction of tcppexpr * tclass_field
-	| CppInterfaceFunction of tcppexpr * tclass_field
-	| CppStaticVariable of tcppexpr * tclass_field
-	| CppStaticFunction of tcppexpr * tclass_field
-	| CppDynamicField of tcppexpr * string
-	| CppInstanceCall of tcppexpr * tclass_field * tcppexpr list
-	| CppStaticCall of tcppexpr * tclass_field * tcppexpr list
-	| CppInterfaceCall of tcppexpr * tclass_field * tcppexpr list
-	| CppEnumCreate of tenum * tenum_field * tcppexpr list
-	| CppSuperCall of tcppexpr list
-	| CppNewCall of tclass * tparams * tcppexpr list
-	| CppDynamicCall of tcppexpr * tcppexpr list
-	| CppEnumField of tenum * tenum_field
-	| CppArray of tcppexpr * tcppexpr
-	| CppBinop of Ast.binop * tcppexpr * tcppexpr
-	| CppField of tcppexpr * tfield_access
-	| CppTypeExpr of module_type
-	| CppObjectDecl of (string * tcppexpr) list
-	| CppArrayDecl of tcppexpr list
-	| CppNew of tclass * (string list) * tcppexpr list
-	| CppUnop of Ast.unop * Ast.unop_flag * tcppexpr
-	| CppVar of tcppvar * tcppexpr option
-	| CppBlock of tcppexpr list
-	| CppReturnBlock of tcpp_closure
-	| CppFor of tcppvar * tcppexpr * tcppexpr
-	| CppIf of tcppexpr * tcppexpr
-	| CppIfElse of tcppexpr * tcppexpr * tcppexpr * bool
-	| CppWhile of tcppexpr * tcppexpr * Ast.while_flag
-	| CppSwitch of tcppexpr * (tcppexpr list * tcppexpr) list * tcppexpr option * bool
-	| CppTry of tcppexpr * (tcppvar * tcppexpr) list
-	| CppBreak
-	| CppContinue
-	| CppReturn
-	| CppType of string list * string
-	| CppReturnValue of tcppexpr
-	| CppThrow of tcppexpr
-	| CppCast of tcppexpr * module_type option
-	| CppEnumParameter of tcppexpr * tenum_field * int
+   | CppInt of int32
+   | CppFloat of string
+   | CppString of string
+   | CppBool of bool
+   | CppNull
+   | CppThis
+   | CppFakeThis
+   | CppSuper
+   | CppCode of string * tcppexpr list
+   | CppClosure of tcpp_closure
+   | CppLocalVar of tvar
+   | CppLocalVarCrement of tvar * bool * bool
+   | CppLocalVarSet of tvar * Ast.binop * tcppexpr
+   | CppClosureVar of tvar
+   | CppClosureVarCrement of tvar * bool * bool
+   | CppClosureVarSet of tvar * Ast.binop * tcppexpr
+   | CppInstanceVariable of tcppexpr * tclass_field
+   | CppInstanceVariableCrement of tcppexpr * tclass_field * bool * bool
+   | CppInstanceVariableSet of tcppexpr * tclass_field * Ast.binop * tcppexpr
+   | CppInstanceFunction of tcppexpr * tclass_field
+   | CppInterfaceFunction of tcppexpr * tclass_field
+   | CppStaticVariable of tcppexpr * tclass_field
+   | CppStaticVariableCrement of tcppexpr * tclass_field * bool * bool
+   | CppStaticVariableSet of tcppexpr * tclass_field * Ast.binop * tcppexpr
+   | CppStaticFunction of tcppexpr * tclass_field
+   | CppDynamicField of tcppexpr * string
+   | CppDynamicFieldCrement of tcppexpr * string * bool * bool
+   | CppDynamicFieldSet of tcppexpr * string * Ast.binop * tcppexpr
+   | CppInstanceCall of tcppexpr * tclass_field * tcppexpr list
+   | CppStaticCall of tcppexpr * tclass_field * tcppexpr list
+   | CppInterfaceCall of tcppexpr * tclass_field * tcppexpr list
+   | CppEnumCreate of tenum * tenum_field * tcppexpr list
+   | CppSuperCall of tcppexpr list
+   | CppNewCall of tclass * tparams * tcppexpr list
+   | CppDynamicCall of tcppexpr * tcppexpr list
+   | CppEnumField of tenum * tenum_field
+   | CppArray of tcppexpr * tcppexpr
+   | CppArrayCrement of tcppexpr * tcppexpr * bool * bool
+   | CppArraySet of tcppexpr * tcppexpr * Ast.binop * tcppexpr
+   | CppBinop of Ast.binop * tcppexpr * tcppexpr
+   | CppField of tcppexpr * tfield_access
+   | CppTypeExpr of module_type
+   | CppObjectDecl of (string * tcppexpr) list
+   | CppPosition of string * int32 * string * string
+   | CppArrayDecl of tcppexpr list
+   | CppNew of tclass * (string list) * tcppexpr list
+   | CppUnop of Ast.unop * tcppexpr
+   | CppVar of tvar * tcppexpr option
+   | CppBlock of tcppexpr list
+   | CppReturnBlock of tcpp_block
+   | CppFor of tvar * tcppexpr * tcppexpr
+   | CppIf of tcppexpr * tcppexpr * tcppexpr option
+   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
+   | CppSwitch of tcppexpr * (tcppexpr list * tcppexpr) list * tcppexpr option
+   | CppTry of tcppexpr * (tvar * tcppexpr) list
+   | CppBreak
+   | CppContinue
+   | CppType of path
+   | CppReturn of tcppexpr option
+   | CppThrow of tcppexpr
+   | CppCast of tcppexpr * module_type option
+   | CppEnumParameter of tcppexpr * tenum_field * int
 
 
-	(*| CppParenthesis of texpr *)
-	(*| CppMeta of metadata_entry * texpr *)
+   (*| CppParenthesis of texpr *)
+   (*| CppMeta of metadata_entry * texpr *)
 
 
 let cpp_const_type cval = match cval with
@@ -1687,7 +1695,7 @@ let cpp_const_type cval = match cval with
 ;;
 
 
-let is_scalar cpp_type =
+let is_cpp_scalar cpp_type =
    match cpp_type with
    | TCppScalar(_) -> true
    | _ -> false
@@ -1821,7 +1829,7 @@ let rec cpp_type_of haxe_type =
 
    and cpp_type_of_null p =
      let baseType = cpp_type_of p in
-     if (type_has_meta_key p Meta.NotNull) || (is_scalar baseType) then
+     if (type_has_meta_key p Meta.NotNull) || (is_cpp_scalar baseType) then
         TCppDynamic
      else
         baseType
@@ -1992,12 +2000,18 @@ let retype_expression ctx request_type expression_tree =
                 | TCppVoid -> TCppVoid
                 | _ -> TCppDynamic in
             let cppExpr = retype return_type func.tf_expr in
-            let result = { close_expr=cppExpr; close_id=closureId; close_undeclared= !undeclared } in
+            let result = { close_expr=cppExpr;
+                           close_id=closureId;
+                           close_undeclared= !undeclared;
+                           close_type= func.tf_type;
+                           close_args= func.tf_args;
+                         } in
             declarations := old_declarations;
             undeclared := old_undeclared;
             this_real := old_this_real;
             this_dynamic := old_this_dynamic;
             rev_closures := result:: !rev_closures;
+ print_endline (" >Closures : " ^ ( string_of_int( List.length !rev_closures) ) );
             CppClosure(result), TCppDynamic
 
          | TArray (e1,e2) ->
@@ -2019,54 +2033,60 @@ let retype_expression ctx request_type expression_tree =
          | TBinop (op,e1,e2) ->
             let e2 = retype (cpp_type_of e2.etype) e2 in
             let e1 = retype (cpp_type_of e1.etype) e1 in
-            if op=OpAssign then begin
-               let reference = match e1.cppexpr with
-                  | CppArray(obj,index) -> CppArraySet(obj,index,op)
-                  | CppLocalVar(tvar) -> CppLocalSet(tvar,op)
-                  | CppClosureVar(tvar) -> CppClosureVarSet(tvar,op)
-                  | CppInstanceVariable(obj, member) -> CppInstanceVariableSet(obj,member,op)
-                  | CppStaticVariable(obj, member) -> CppStaticVariableSet(obj,member,op)
-                  | CppDynamicField(obj, member) -> CppDynamicFieldSet(obj,member,op)
-                  | _ -> error "Unknown assignment left-hand-side" expr.epos
-               in
-               reference, cpp_type_of expr.etype
-            end else
-               CppBinOp(op,e1,e2)
+            let reference = match op with
+               | OpAssign ->
+                  (match e1.cppexpr with
+                     | CppArray(obj,index)
+                        -> CppArraySet(obj,index,op,e2)
+                     | CppLocalVar(tvar)
+                        -> CppLocalVarSet(tvar,op,e2)
+                     | CppClosureVar(tvar)
+                        -> CppClosureVarSet(tvar,op,e2)
+                     | CppInstanceVariable(obj, member)
+                        -> CppInstanceVariableSet(obj,member,op,e2)
+                     | CppStaticVariable(obj, member)
+                        -> CppStaticVariableSet(obj,member,op,e2)
+                     | CppDynamicField(obj, member)
+                        -> CppDynamicFieldSet(obj,member,op,e2)
+                     | _ -> error "Unknown assignment left-hand-side" expr.epos
+                  )
+               | _ -> CppBinop(op,e1,e2)
+            in
+            reference, cpp_type_of expr.etype
 
          | TUnop (op,pre,e1) ->
             let e1 = retype (cpp_type_of e1.etype) e1 in
-            (match op with
+            let reference = match op with
                | Increment
                | Decrement ->
-                  let reference = match e1.cppexpr with
-                     | CppArray(obj,index) -> CppArrayCrement(obj,index,pre,op)
-                     | CppLocalVar(tvar) -> CppLocalCrement(tvar,pre,op)
-                     | CppClosureVar(tvar) -> CppClosureVarCrement(tvar,pre,op)
-                     | CppInstanceVariable(obj, member) -> CppInstanceVariableCrement(obj,member,pre,op)
-                     | CppStaticVariable(obj, member) -> CppStaticVariableCrement(obj,member,pre,op)
-                     | CppDynamicField(obj, member) -> CppDynamicFieldCrement(obj,member,pre,op)
+                  (match e1.cppexpr with
+                     | CppArray(obj,index) -> CppArrayCrement(obj,index,pre=Prefix,op=Increment)
+                     | CppLocalVar(tvar) -> CppLocalVarCrement(tvar,pre=Prefix,op=Increment)
+                     | CppClosureVar(tvar) -> CppClosureVarCrement(tvar,pre=Prefix,op=Increment)
+                     | CppInstanceVariable(obj, member) -> CppInstanceVariableCrement(obj,member,pre=Prefix,op=Increment)
+                     | CppStaticVariable(obj, member) -> CppStaticVariableCrement(obj,member,pre=Prefix,op=Increment)
+                     | CppDynamicField(obj, member) -> CppDynamicFieldCrement(obj,member,pre=Prefix,op=Increment)
                      | _ -> error "Unknown increment left-hand-side" expr.epos
-                  in
-                  reference, e1.cpptype
-               | _ -> CppUnop(e1,op), e1.cpptype
-            )
+                  )
+               | _ -> CppUnop(op,e1)
+               in reference, cpp_type_of expr.etype
 
-         | TFor (v,e1,e2) ->
+         | TFor (v,init,block) ->
             let old_declarations = Hashtbl.copy !declarations in
-            Hashtbl.add !declarations v.v_name v;
-            let cond = retype CppScalar("Bool") e1 in
-            let block = retype TCppVoid e1 in
-            declarations := old_declarations
-            CppFor(v,cond,block), TCppVoid
+            Hashtbl.add !declarations v.v_name ();
+            let init = retype (cpp_type_of v.v_type) init in
+            let block = retype TCppVoid block in
+            declarations := old_declarations;
+            CppFor(v,init,block), TCppVoid
 
          | TWhile (e1,e2,flag) ->
-            let condition = retype CppScalar("Bool") e1 in
+            let condition = retype (TCppScalar("Bool")) e1 in
             let block = retype TCppVoid e1 in
             CppWhile(condition, block, flag), TCppVoid
 
          | TArrayDecl el ->
             let retypedEls = List.map (retype TCppDynamic) el in
-            CppArrayDecl(retypedEls), cpp_type_of el.etype
+            CppArrayDecl(retypedEls), cpp_type_of expr.etype
 
          | TBlock expr_list when return_type<>TCppVoid ->
             let rec return_last = function
@@ -2077,13 +2097,13 @@ let retype_expression ctx request_type expression_tree =
             (* Already in return block from a try or switch statement? *)
             if is_in_return_block then begin
                let old_declarations = Hashtbl.copy !declarations in
-               let cppExprs = return_last retype expr_list in
+               let cppExprs = return_last expr_list in
                declarations := old_declarations;
                CppBlock(cppExprs), cpp_type_of expr.etype
             (* else, start new return block ..*)
             end else begin
                let blockId, pop_return_block = start_return_block () in
-               let cppExprs = return_last retype expr_list in
+               let cppExprs = return_last expr_list in
                let result = { block_exprs=cppExprs; block_id=blockId; block_undeclared= !undeclared } in
                pop_return_block result;
                CppReturnBlock(result), cpp_type_of expr.etype
@@ -2104,20 +2124,20 @@ let retype_expression ctx request_type expression_tree =
 
          | TObjectDecl el ->
             let retypedEls = List.map ( fun(v,e) -> v, retype TCppDynamic e) el in
-            CppObjectDecl(retypedEls), cpp_type_of el.etype
+            CppObjectDecl(retypedEls), cpp_type_of expr.etype
 
          | TVar (v,eo) ->
-            let varType = cpp_type_of c.v_type in
+            let varType = cpp_type_of v.v_type in
             let init = match eo with None -> None | Some e -> Some (retype varType e) in
-            Hashtbl.add !declarations v.v_name v;
+            Hashtbl.add !declarations v.v_name ();
             CppVar(v, init), varType
 
          | TIf (ec,e1,e2) ->
-            let ec = retype TCppScalar("Bool") ec in
+            let ec = retype (TCppScalar("Bool")) ec in
             let e1 = retype return_type e1 in
-            let e2 = match e2 with None->None | Some e -> Some (retype return_type e2) 
+            let e2 = match e2 with None->None | Some e -> Some (retype return_type e) 
             in
-            CppIf(ec, e1, e1), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
+            CppIf(ec, e1, e2), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
 
           (* Switch internal return - wrap whole thing in block  *)
          | TSwitch (condition,cases,def) ->
@@ -2128,11 +2148,13 @@ let retype_expression ctx request_type expression_tree =
 
               (* Need return from each case (try) block ? *)
               let condition = retype (cpp_type_of condition.etype) condition in
+              let conditionType = condition.cpptype in
               let cases = List.map (fun (el,e2) ->
-                  (List.map (retype (cpp_type_of e1.etype) el), (retype_in_return_block true return_type e2) ) ) cases in
+                  (List.map (retype conditionType) el),
+                     (retype_in_return_block true return_type e2) ) cases in
               let def = match def with None -> None | Some e -> Some (retype_in_return_block true return_type e) in
 
-              let switch = CppSwitch(value, cases, def) in
+              let switch = CppSwitch(condition, cases, def) in
               let switch_expr = { cppexpr = switch; cpptype = (cpp_type_of expr.etype) ; cpppos = expr.epos } in
               let result = { block_exprs = [switch_expr]; block_id=blockId; block_undeclared= !undeclared } in
 
@@ -2141,8 +2163,9 @@ let retype_expression ctx request_type expression_tree =
 
             end else begin
               let condition = retype (cpp_type_of condition.etype) condition in
+              let conditionType = condition.cpptype in
               let cases = List.map (fun (el,e2) ->
-                  (List.map (retype (cpp_type_of e1.etype) el), (retype TCppVoid e2) ) ) cases in
+                  (List.map (retype conditionType) el), (retype TCppVoid e2) ) cases in
               let def = match def with None -> None | Some e -> Some (retype TCppVoid e) in
               CppSwitch(condition, cases, def), cpp_type_of expr.etype
             end
@@ -2155,7 +2178,7 @@ let retype_expression ctx request_type expression_tree =
                let cppBlock = retype_in_return_block true return_type try_block in
                let cppCatches = List.map (fun (tvar,catch_block) ->
                   let old_declarations = Hashtbl.copy !declarations in
-                  Hashtbl.add !declarations tvar.v_name tvar;
+                  Hashtbl.add !declarations tvar.v_name ();
                   let cppCatchBlock = retype_in_return_block true return_type catch_block in
                   declarations := old_declarations;
                   tvar, cppCatchBlock;
@@ -2170,12 +2193,12 @@ let retype_expression ctx request_type expression_tree =
                let cppBlock = retype TCppVoid try_block in
                let cppCatches = List.map (fun (tvar,catch_block) ->
                   let old_declarations = Hashtbl.copy !declarations in
-                  Hashtbl.add !declarations tvar.v_name tvar;
+                  Hashtbl.add !declarations tvar.v_name ();
                   let cppCatchBlock = retype TCppVoid catch_block in
                   declarations := old_declarations;
                   tvar, cppCatchBlock;
                ) catches in
-               CppTry(cppBlock, cppCatches)
+               CppTry(cppBlock, cppCatches), TCppVoid
             end
 
          | TReturn eo ->
@@ -2187,15 +2210,115 @@ let retype_expression ctx request_type expression_tree =
       in
       { cppexpr = retypedExpr; cpptype = retypedType; cpppos = expr.epos }
 
-   and retype = retype_in_return_block false
+   and retype return_type expr = retype_in_return_block false return_type expr
    in
-   (retype request_type expression_tree), (List.rev !rev_return_blocks), (List.rev !rev_closures)
+   let retyped = (retype request_type expression_tree) in
+   retyped, (List.rev !rev_return_blocks), (List.rev !rev_closures)
 ;;
+
+
+let debug_expression_tree ctx tree =
+   let indent = ref "" in
+   let out = ctx.ctx_output in
+
+   let cppTree, returnBlocks, closures =  retype_expression ctx TCppVoid tree in
+
+   out "/* - cppexpr\n";
+
+   let rec dbgexpr expr = match expr.cppexpr with
+   | CppInt i -> out (string_of_int( Int32.to_int i))
+   | CppFloat f ->out f 
+   | CppString s -> out s
+   | CppBool b -> out (if b then "true" else "false")
+   | CppNull -> out "null"
+   | CppThis -> out "this"
+   | CppFakeThis -> out "_this"
+   | CppSuper -> out "super"
+   | CppBlock exprs ->
+         out (!indent ^ "{\n");
+         let oldIndent = !indent in
+         indent := oldIndent ^ "   ";
+         List.iter (fun e -> out !indent; dbgexpr e; out ";\n" ) exprs;
+         indent := oldIndent;
+         out (!indent ^ "}\n")
+   | CppVar(var,init) ->
+         out ("var " ^ var.v_name);
+         (match init with Some init -> out " = "; dbgexpr init | _ -> () )
+   (*
+   | CppCode of string * tcppexpr list
+   | CppClosure of tcpp_closure
+   | CppLocalVar of tvar
+   | CppLocalVarCrement of tvar * bool * bool
+   | CppLocalVarSet of tvar * Ast.binop * tcppexpr
+   | CppClosureVar of tvar
+   | CppClosureVarCrement of tvar * bool * bool
+   | CppClosureVarSet of tvar * Ast.binop * tcppexpr
+   | CppInstanceVariable of tcppexpr * tclass_field
+   | CppInstanceVariableCrement of tcppexpr * tclass_field * bool * bool
+   | CppInstanceVariableSet of tcppexpr * tclass_field * Ast.binop * tcppexpr
+   | CppInstanceFunction of tcppexpr * tclass_field
+   | CppInterfaceFunction of tcppexpr * tclass_field
+   | CppStaticVariable of tcppexpr * tclass_field
+   | CppStaticVariableCrement of tcppexpr * tclass_field * bool * bool
+   | CppStaticVariableSet of tcppexpr * tclass_field * Ast.binop * tcppexpr
+   | CppStaticFunction of tcppexpr * tclass_field
+   | CppDynamicField of tcppexpr * string
+   | CppDynamicFieldCrement of tcppexpr * string * bool * bool
+   | CppDynamicFieldSet of tcppexpr * string * Ast.binop * tcppexpr
+   | CppInstanceCall of tcppexpr * tclass_field * tcppexpr list
+   | CppStaticCall of tcppexpr * tclass_field * tcppexpr list
+   | CppInterfaceCall of tcppexpr * tclass_field * tcppexpr list
+   | CppEnumCreate of tenum * tenum_field * tcppexpr list
+   | CppSuperCall of tcppexpr list
+   | CppNewCall of tclass * tparams * tcppexpr list
+   | CppDynamicCall of tcppexpr * tcppexpr list
+   | CppEnumField of tenum * tenum_field
+   | CppArray of tcppexpr * tcppexpr
+   | CppArrayCrement of tcppexpr * tcppexpr * bool * bool
+   | CppArraySet of tcppexpr * tcppexpr * Ast.binop * tcppexpr
+   | CppBinop of Ast.binop * tcppexpr * tcppexpr
+   | CppField of tcppexpr * tfield_access
+   | CppTypeExpr of module_type
+   | CppObjectDecl of (string * tcppexpr) list
+   | CppPosition of string * int32 * string * string
+   | CppArrayDecl of tcppexpr list
+   | CppNew of tclass * (string list) * tcppexpr list
+   | CppUnop of Ast.unop * tcppexpr
+   | CppReturnBlock of tcpp_block
+   | CppFor of tvar * tcppexpr * tcppexpr
+   | CppIf of tcppexpr * tcppexpr * tcppexpr option
+   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
+   | CppSwitch of tcppexpr * (tcppexpr list * tcppexpr) list * tcppexpr option
+   | CppTry of tcppexpr * (tvar * tcppexpr) list
+   | CppBreak
+   | CppContinue
+   | CppType of path
+   | CppReturn of tcppexpr option
+   | CppThrow of tcppexpr
+   | CppCast of tcppexpr * module_type option
+   | CppEnumParameter of tcppexpr * tenum_field * int
+
+   *)
+
+   | _ -> out "<unknown expr>"
+   in
+
+   List.iter (fun block ->
+      out("Return block " ^ string_of_int(block.block_id) ^ "\n")
+   ) returnBlocks;
+   List.iter (fun closure ->
+      out("Closure " ^ string_of_int(closure.close_id) ^ "\n")
+   ) closures;
+
+   dbgexpr cppTree;
+
+   out "\n*/\n";
+
+;;
+
 
 *)
 (* } *)
-
-
 
 
 (*
@@ -2212,6 +2335,8 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
  let writer = ctx.ctx_writer in
  let output_i = writer#write_i in
  let output = ctx.ctx_output in
+
+ (*debug_expression_tree ctx expression_tree;*)
 
  let rec define_local_function_ctx func_name func_def =
    let remap_this = function | "this" -> "__this" | other -> other in
