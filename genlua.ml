@@ -1649,62 +1649,16 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
-	sprln ctx "local _hx_bit, _hx_bit_raw";
-	sprln ctx "pcall(require, 'bit32') pcall(require, 'bit') _hx_bit_raw = bit or bit32";
-	sprln ctx "if type(jit) ~= 'table' then";
-	sprln ctx "  _hx_bit = _hx_bit_raw";
-	sprln ctx "else ";
-	sprln ctx " local function _hx_bitfix(v)return(v >= 0)and v or(4294967296 + v)end";
-	sprln ctx " _hx_bit = setmetatable({}, { __index = function(t,k) return function(x,y) return _hx_bitfix(rawget(_hx_bit_raw,k)(x,y)) end end})";
-	sprln ctx "end";
-	sprln ctx "local _hx_print = print or (function()end)";
-	sprln ctx "table.pack=table.pack or pack or function(...)return{n=select('#',...),...}end";
-	sprln ctx "table.unpack=table.unpack or unpack or function(t, i)i = i or 1 if t[i] ~= nil then return t[i],table.unpack(t, i + 1)end end";
-	sprln ctx "table.maxn=table.maxn or function(t) local maxn=0 for i in pairs(t)do maxn=type(i)=='number'and i>maxn and i or maxn end return maxn end";
+	let include_files = List.rev com.include_files in
 
-	sprln ctx "local function _hx_anon_newindex(t,k,v) t.__fields__[k] = true; rawset(t,k,v); end";
-	sprln ctx "local _hx_anon_mt = {__newindex=_hx_anon_newindex}";
-
-	sprln ctx "local function _hx_anon(...)";
-	sprln ctx "   local __fields__ = {};";
-	sprln ctx "   local ret = {__fields__ = __fields__};";
-	sprln ctx "   local max = select('#',...);";
-	sprln ctx "   local tab = {...};";
-	sprln ctx "   local cur = 1;";
-	sprln ctx "   while cur < max do";
-	sprln ctx "      local v = tab[cur];";
-	sprln ctx "      __fields__[v] = true;";
-	sprln ctx "      ret[v] = tab[cur+1];";
-	sprln ctx "      cur = cur + 2";
-	sprln ctx "   end";
-	sprln ctx "   return setmetatable(ret, _hx_anon_mt)";
-	sprln ctx "end";
-
-	sprln ctx "local function _hx_empty()";
-	sprln ctx "   return setmetatable({__fields__ = {}}, _hx_anon_mt)";
-	sprln ctx "end";
-
-	sprln ctx "local function _hx_o(obj)";
-	sprln ctx "   return setmetatable(obj, _hx_anon_mt)";
-	sprln ctx "end";
-
-	sprln ctx "local function _hx_new(prototype)";
-	sprln ctx "   return setmetatable({__fields__ = {}}, {__newindex=_hx_anon_newindex, __index=prototype})";
-	sprln ctx "end";
-
-	sprln ctx "local function _hx_staticToInstance(tab)";
-	sprln ctx "   return setmetatable({}, {";
-	sprln ctx "	__index = function(t,k)";
-	sprln ctx "	    if type(rawget(tab,k)) == 'function' then ";
-	sprln ctx "		return function(self,...)";
-	sprln ctx "		    return rawget(tab,k)(...)";
-	sprln ctx "		end";
-	sprln ctx "	    else";
-	sprln ctx "		return rawget(tab,k)";
-	sprln ctx "	    end";
-	sprln ctx "	end";
-	sprln ctx "   })";
-	sprln ctx "end";
+	List.iter (fun file ->
+		match file with
+		| path, "top" ->
+			let file_content = Std.input_file ~bin:true (fst file) in
+			print ctx "%s\n" file_content;
+			()
+		| _ -> ()
+	) include_files;
 
 	sprln ctx "local _hxClasses = {}";
 	let vars = [] in
@@ -1722,27 +1676,11 @@ let generate com =
 
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
-	sprln ctx "local _hx_array_mt = {";
-	sprln ctx "   __newindex = function(t,k,v)";
-	sprln ctx "       if type(k) == 'number' and k >= t.length then";
-	sprln ctx "          t.length = k + 1";
-	sprln ctx "       end";
-	sprln ctx "       rawset(t,k,v)";
-	sprln ctx "   end";
-	sprln ctx "}";
-
-	sprln ctx "local function _hx_tabArray(tab,length)";
-	sprln ctx "   tab.length = length";
-	sprln ctx "   return setmetatable(tab, _hx_array_mt)";
-	sprln ctx "end";
-
 	spr ctx "local _hx_bind";
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
 	ctx.inits <- []; (* reset inits *)
 
 	List.iter (generate_type ctx) com.types;
-
-	sprln ctx "_hx_array_mt.__index = Array.prototype";
 
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";

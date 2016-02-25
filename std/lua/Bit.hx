@@ -13,4 +13,7 @@ extern class Bit {
 	public static function rshift(x:Float, places:Int) : Int;
 	public static function arshift(x:Float, places:Int) : Int;
 	public static function mod(numerator:Float, denominator:Float) : Int;
+	public static function __init__() : Void {
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_bit.lua");
+	}
 }

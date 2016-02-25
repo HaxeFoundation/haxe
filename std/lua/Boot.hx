@@ -21,7 +21,10 @@
  */
 package lua;
 
+// Bit and Table must be imported for basic haxe datatypes to work.
+import lua.Bit;
 import lua.Table;
+
 import haxe.Constraints.Function;
 using lua.PairTools;
 
@@ -285,5 +288,10 @@ class Boot {
 
 	public static function createTable<K,V>() : Table<K,V> {
 		return untyped __lua__("{}");
+	}
+
+	public static function __init__(){
+		// static to instance method wrapper
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_static_to_instance.lua");
 	}
 }

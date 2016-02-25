@@ -188,5 +188,12 @@ class Array<T> {
 			next : function() return this[cur_length++]
 		}
 	}
+	private static function __init__() : Void{
+		// table-to-array helper
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_tabArray.lua");
+		// attach the prototype for Array to the metatable for 
+		// the tabToArray helper function
+		untyped __lua__("_hx_array_mt.__index = Array.prototype");
+	}
 
 }
