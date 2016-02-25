@@ -6035,7 +6035,6 @@ let write_c version ch (code:code) =
 
 		let rcast r t =
 			if tsame (rtype r) t then (reg r)
-			else if not (safe_cast (rtype r) t) then assert false
 			else Printf.sprintf "((%s)%s)" (ctype t) (reg r)
 		in
 
