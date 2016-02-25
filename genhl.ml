@@ -6073,7 +6073,7 @@ let write_c version ch (code:code) =
 		let dyn_call r f pl =
 			line "{";
 			block();
-			if pl <> [] then sexpr "vdynamic *args[] = {NULL,%s}" (String.concat "," (List.map (fun p ->
+			if pl <> [] then sexpr "vdynamic *args[] = {%s}" (String.concat "," (List.map (fun p ->
 				match rtype p with
 				| HDyn ->
 					reg p
@@ -6201,7 +6201,7 @@ let write_c version ch (code:code) =
 			in
 			let compare_op op a b d =
 				let phys_compare() =
-					sexpr "if( %s %s %s ) goto %s" (reg a) (s_binop op) (reg b) (label d)
+					sexpr "if( %s %s %s ) goto %s" (reg a) (s_binop op) (rcast b (rtype a)) (label d)
 				in
 				(*
 					safe_cast is already checked
@@ -6244,7 +6244,10 @@ let write_c version ch (code:code) =
 			| OMov (r,v) ->
 				if rtype r <> HVoid then sexpr "%s = %s" (reg r) (rcast v (rtype r))
 			| OInt (r,idx) ->
-				sexpr "%s = %ld" (reg r) code.ints.(idx)
+				if code.ints.(idx) = 0x80000000l then
+					sexpr "%s = 0x80000000" (reg r)
+				else
+					sexpr "%s = %ld" (reg r) code.ints.(idx)
 			| OFloat (r,idx) ->
 				sexpr "%s = %f" (reg r) code.floats.(idx)
 			| OBool (r,b) ->
@@ -6382,9 +6385,9 @@ let write_c version ch (code:code) =
 				| _ ->
 					sexpr "%s->v.ptr = %s" (reg r) (reg v))
 			| OToSFloat (r,v) ->
-				sexpr "%s = %s" (reg r) (reg v)
+				sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) (reg v)
 			| OToUFloat (r,v) ->
-				sexpr "%s = (unsigned)%s" (reg r) (reg v)
+				sexpr "%s = (%s)(unsigned)%s" (reg r) (ctype (rtype r)) (reg v)
 			| OToInt (r,v) ->
 				sexpr "%s = (int)%s" (reg r) (reg v)
 			| ONew r ->
@@ -6455,12 +6458,13 @@ let write_c version ch (code:code) =
 				let h = hash sid in
 				sexpr "hl_dyn_set%s((vdynamic*)%s,%ld/*%s*/%s,%s)" (dyn_prefix (rtype v)) (reg o) h code.strings.(sid) (type_value_opt (rtype v)) (reg v)
 			| OMakeEnum (r,cid,rl) ->
-				let et = enum_constr_type (match rtype r with HEnum e -> e | _ -> assert false) cid in
+				let e, et = (match rtype r with HEnum e -> e, enum_constr_type e cid | _ -> assert false) in
 				let has_ptr = List.exists (fun r -> is_gc_ptr (rtype r)) rl in
 				sexpr "%s = (venum*)hl_gc_alloc%s(sizeof(%s))" (reg r) (if has_ptr then "" else "_noptr") et;
 				sexpr "%s->index = %d" (reg r) cid;
+				let _,_,tl = e.efields.(cid) in
 				iteri (fun i v ->
-					sexpr "((%s*)%s)->p%d = %s" et (reg r) i (reg v)
+					sexpr "((%s*)%s)->p%d = %s" et (reg r) i (rcast v tl.(i))
 				) rl;
 			| OEnumAlloc (r,cid) ->
 				let et, (_,_,tl) = (match rtype r with HEnum e -> enum_constr_type e cid, e.efields.(cid) | _ -> assert false) in
