@@ -809,7 +809,7 @@ let add_field_inits ctx t =
 			| Var _, Some _ ->
 				if is_as3 then (inits, cf :: fields) else (cf :: inits, cf :: fields)
 			| Method MethDynamic, Some e when is_as3 ->
-				(* TODO : this would have a better place in genSWF9 I think - NC *)
+				(* TODO : this would have a better place in genswf I think - NC *)
 				(* we move the initialization of dynamic functions to the constructor and also solve the
 				   'this' problem along the way *)
 				let rec use_this v e = match e.eexpr with
