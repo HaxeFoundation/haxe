@@ -328,7 +328,7 @@ let is_internal_member member =
          | "__push" | "__qsort" | "__unshift" | "__unsafeStringReference" | "__time_stamp"
          | "__superString" | "__splice" | "__shift" | "__slice" | "__sort"
          | "__s_id" | "__run" | "__root" | "__register" | "__remove"
-         | "__removeAt" | "__reverse" | "__zero" 
+         | "__removeAt" | "__reverse" | "__zero"
          | "__Field" | "__IField" | "__Run" | "__Is" | "__GetClass" | "__GetType" | "__ToString"
          | "__s" | "__GetPtr" | "__SetField" | "__length" | "__IsArray" | "__SetThis" | "__Internal"
          | "__EnumParams" | "__Index" | "__Tag" | "__GetFields" | "__HasField"
@@ -337,7 +337,7 @@ let is_internal_member member =
          | "__URLEncode" | "__URLDecode" | "__IsEnum"
                -> true
          | _ -> (String.length member > 4) && (String.sub member 0 4 = "__hx") ) );;
-      
+
 let is_known_member member =
    match member with
    | "__meta__" | "__rtti" | "_Compare"
@@ -349,7 +349,7 @@ let keyword_remap name =
    if (is_internal_member name) || (is_known_member name) then
       name
    else if (String.length name > 1) && (String.sub name 0 2 = "__") then
-      "_hx_" ^ name 
+      "_hx_" ^ name
    else match name with
    | "int"
    | "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
@@ -705,10 +705,7 @@ let rec class_string klass suffix params remap =
             (match follow t with
             | TAbstract ({ a_path = [],"Int" },_)
             | TAbstract ({ a_path = [],"Float" },_)
-            | TAbstract ({ a_path = [],"Bool" },_)
-            | TInst ({ cl_path = [],"Int" },_)
-            | TInst ({ cl_path = [],"Float" },_)
-            | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+            | TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic"
             | t when type_has_meta_key t Meta.NotNull -> "Dynamic"
             | _ -> "/*NULL*/" ^ (type_string t) )
          | _ -> assert false);
@@ -749,10 +746,7 @@ and type_string_suff suffix haxe_type remap =
             (match follow t with
             | TAbstract ({ a_path = [],"Int" },_)
             | TAbstract ({ a_path = [],"Float" },_)
-            | TAbstract ({ a_path = [],"Bool" },_)
-            | TInst ({ cl_path = [],"Int" },_)
-            | TInst ({ cl_path = [],"Float" },_)
-            | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic" ^ suffix
+            | TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic" ^ suffix
             | t when type_has_meta_key t Meta.NotNull -> "Dynamic" ^ suffix
             | _ -> type_string_suff suffix t remap)
          | _ -> assert false);
@@ -1705,7 +1699,7 @@ let is_cpp_array_implementer cppType =
 
 
 
-let rec cpp_type_of haxe_type = 
+let rec cpp_type_of haxe_type =
 
    let cpp_type_of_array p =
      let arrayOf = cpp_type_of p in
@@ -1731,7 +1725,7 @@ let rec cpp_type_of haxe_type =
          cpp_type_of_null haxe_type
       else
          cpp_type_of haxe_type
-   in 
+   in
 
    let cpp_function_type_of  function_type abi =
       let abi = (match follow abi with
@@ -1780,7 +1774,7 @@ let rec cpp_type_of haxe_type =
       | (["cpp"],"Function"), [function_type; abi] ->
             cpp_function_type_of function_type abi;
 
-      | ([],"Array"), p::[] -> 
+      | ([],"Array"), p::[] ->
             cpp_type_of_array p
 
       | ([],"Null"), p::[] ->
@@ -1824,7 +1818,7 @@ let rec cpp_type_of haxe_type =
         TCppDynamic
      else
         baseType
-   
+
 
   (* Optional types are Dynamic if they norally could not be null *)
    and cpp_fun_arg_type_of tvar opt =
@@ -2119,7 +2113,7 @@ let retype_expression ctx request_type expression_tree =
          | TIf (ec,e1,e2) ->
             let ec = retype (TCppScalar("Bool")) ec in
             let e1 = retype return_type e1 in
-            let e2 = match e2 with None->None | Some e -> Some (retype return_type e) 
+            let e2 = match e2 with None->None | Some e -> Some (retype return_type e)
             in
             CppIf(ec, e1, e2), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
 
@@ -2211,7 +2205,7 @@ let debug_expression_tree ctx tree =
 
    let rec dbgexpr expr = match expr.cppexpr with
    | CppInt i -> out (string_of_int( Int32.to_int i))
-   | CppFloat f ->out f 
+   | CppFloat f ->out f
    | CppString s -> out s
    | CppBool b -> out (if b then "true" else "false")
    | CppNull -> out "null"
@@ -2400,7 +2394,7 @@ let debug_expression_tree ctx tree =
    | CppCode(value, exprs) ->
        Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> dbgexpr e) expr.cpppos
 
-   and out_val_loc loc = 
+   and out_val_loc loc =
       match loc with
       | VarClosure(var) -> out ("_this->" ^ var.v_name)
       | VarLocal(local) -> out local.v_name
@@ -5707,19 +5701,13 @@ let rec script_type_string haxe_type =
       (match follow t with
       | TAbstract ({ a_path = [],"Int" },_)
       | TAbstract ({ a_path = [],"Float" },_)
-      | TAbstract ({ a_path = [],"Bool" },_)
-      | TInst ({ cl_path = [],"Int" },_)
-      | TInst ({ cl_path = [],"Float" },_)
-      | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+      | TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic"
       | _ -> script_type_string t)
    | TInst ({cl_path=[],"Null"},[t]) ->
       (match follow t with
       | TAbstract ({ a_path = [],"Int" },_)
       | TAbstract ({ a_path = [],"Float" },_)
-      | TAbstract ({ a_path = [],"Bool" },_)
-      | TInst ({ cl_path = [],"Int" },_)
-      | TInst ({ cl_path = [],"Float" },_)
-      | TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+      | TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic"
       | _ -> script_type_string t )
    | _ ->
       match follow haxe_type with

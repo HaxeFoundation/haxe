@@ -298,10 +298,7 @@ let rec type_str ctx t p =
 				| TAbstract ({ a_path = [],"UInt" },_)
 				| TAbstract ({ a_path = [],"Int" },_)
 				| TAbstract ({ a_path = [],"Float" },_)
-				| TAbstract ({ a_path = [],"Bool" },_)
-				| TInst ({ cl_path = [],"Int" },_)
-				| TInst ({ cl_path = [],"Float" },_)
-				| TEnum ({ e_path = [],"Bool" },_) -> "*"
+				| TAbstract ({ a_path = [],"Bool" },_) -> "*"
 				| _ -> type_str ctx t p)
 			| _ -> assert false);
 		| _ -> type_str ctx (apply_params t.t_params args t.t_type) p)
