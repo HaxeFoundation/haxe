@@ -870,6 +870,11 @@ let add_field_inits ctx t =
 			in
 			let config = Analyzer.Config.get_base_config ctx.com false in
 			Analyzer.Run.run_on_field ctx config c cf;
+			(match cf.cf_expr with
+			| Some e ->
+				cf.cf_expr <- Some (Optimizer.sanitize ctx.com e)
+			| _ ->
+				());
 			c.cl_constructor <- Some cf
 	in
 	match t with
