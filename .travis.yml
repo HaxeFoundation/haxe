@@ -34,7 +34,7 @@ apt_targets:
   - &apt_cpp    [*apt_common, gcc-multilib, g++-multilib]
   - &apt_cs     [*apt_common, mono-devel, mono-mcs]
   - &apt_python [*apt_common, python3]
-  - &apt_flash  [*apt_common, libgd2-xpm, ia32-libs, ia32-libs-multiarch]
+  - &apt_flash  [*apt_common, "libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386", "libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"]
 
 matrix:
   include:
