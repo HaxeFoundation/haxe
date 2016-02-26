@@ -3336,23 +3336,24 @@ let handle_import_hx ctx m decls p =
 		(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
 		let m_import = make_module ctx ([],path) path p in
 		add_module ctx m_import p;
-		add_dependency m m_import;
+		m_import
 	in
 	List.fold_left (fun acc path ->
 		let decls = try
 			let r = Hashtbl.find ctx.com.parser_cache path in
-			add_dependency m (Hashtbl.find ctx.g.modules ([],path));
+			let mimport = Hashtbl.find ctx.g.modules ([],path) in
+			if mimport.m_extra.m_kind <> MFake then add_dependency m mimport;
 			r
 		with Not_found ->
 			if Sys.file_exists path then begin
 				let _,r = parse_file ctx.com path p in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
-				make_import_module path r;
+				add_dependency m (make_import_module path r);
 				r
 			end else begin
 				let r = [] in
 				(* Add empty decls so we don't check the file system all the time. *)
-				make_import_module path r;
+				(make_import_module path r).m_extra.m_kind <- MFake;
 				r
 			end
 		in
