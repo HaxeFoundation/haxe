@@ -2511,7 +2511,7 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
  let output_i = writer#write_i in
  let output = ctx.ctx_output in
 
- output "#if 0 //  { cppast \n";
+ output "\n#if 0 //  { cppast \n";
  output set_var;
 
  gen_cpp_ast_expression_tree ctx expression_tree;
