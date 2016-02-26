@@ -168,7 +168,10 @@ class RunCi {
 				Sys.putEnv("DISPLAY", ":99.0");
 				runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
 				Sys.putEnv("AUDIODEV", "null");
-				requireAptPackages(["libgd2-xpm", "ia32-libs", "ia32-libs-multiarch"]);
+				requireAptPackages([
+					"libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386",
+					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"	
+				]);
 				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
 				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
