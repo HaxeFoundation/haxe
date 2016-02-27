@@ -783,12 +783,7 @@ let rec to_type ctx t =
 			| [], "Bool" -> HBool
 			| [], "Dynamic" -> HDyn
 			| [], "Class" ->
-				let c, pl, s = (match follow (List.hd pl) with
-					| TDynamic _ | TInst ({cl_kind = KTypeParameter _ },_) | TMono _ | TAnon _ -> ctx.base_class, [], false
-					| TInst (c,pl) -> c, pl, true
-					| t -> assert false
-				) in
-				class_type ctx c pl s
+				class_type ctx ctx.base_class [] false
 			| [], "Enum" ->
 				class_type ctx ctx.base_type [] false
 			| [], "EnumValue" -> HDyn
@@ -879,8 +874,8 @@ and class_type ctx c pl statics =
 			p.pnfields <- 1;
 		end;
 		let tsup = (match c.cl_super with
-			| None -> if statics then Some (class_type ctx ctx.base_class [] false) else None
-			| Some (csup,pl) -> Some (class_type ctx csup [] statics)
+			| Some (csup,pl) when not statics -> Some (class_type ctx csup [] statics)
+			| _ -> if statics then Some (class_type ctx ctx.base_class [] false) else None
 		) in
 		let start_field, virtuals = (match tsup with
 			| None -> 0, [||]
