@@ -5615,7 +5615,7 @@ let write_c version file (code:code) =
 	let sprintf = Printf.sprintf in
 
 	let flush_file() =
-		if !line_count > 65000 then begin
+		if !line_count > 60000 then begin
 			incr file_count;
 			let nfile = String.sub file 0 (String.length file - 2) ^ string_of_int !file_count ^ ".c" in
 			ch := main_ch;
