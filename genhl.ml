@@ -5658,6 +5658,11 @@ let write_c version file (code:code) =
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 	in
 
+	let is_ptr = function
+		| HVoid | HI8 | HI16 | HI32 | HF32 | HF64 | HBool -> false
+		| _ -> true
+	in
+
 	let rec ctype_no_ptr = function
 		| HVoid -> "void",0
 		| HI8 -> "char",0
@@ -6110,7 +6115,7 @@ let write_c version file (code:code) =
 			let rt = rtype r in
 			let ret = if rt = HVoid then "" else if is_dynamic rt then sprintf "%s = (%s)" (reg r) (ctype rt) else "vdynamic *ret = " in
 			sexpr "%shlc_dyn_call_args((vclosure*)%s,%s,%d)" ret (reg f) (if pl = [] then "NULL" else "args") (List.length pl);
-			if rt <> HVoid && not (is_dynamic rt) then sexpr "%s = (%s)dyn_cast%s(&ret,&hlt_dyn%s)" (reg r) (ctype rt) (dyn_prefix rt) (type_value_opt rt);
+			if rt <> HVoid && not (is_dynamic rt) then sexpr "%s = (%s)hl_dyn_cast%s(&ret,&hlt_dyn%s)" (reg r) (ctype rt) (dyn_prefix rt) (type_value_opt rt);
 			unblock();
 			line "}";
 		in
@@ -6122,11 +6127,29 @@ let write_c version file (code:code) =
 				| HObj _ ->
 					let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
 					sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
-				| HVirtual _ ->
+				| HVirtual vp ->
 					let rt = rtype r in
 					let meth = sprintf "%s->value->t->obj->rt->methods[-%s->indexes[%d]-1]" (reg o) (reg o) fid in
 					let meth = cast_fun meth (HDyn :: List.map rtype args) rt in
-					sexpr "if( %s->indexes[%d] < 0 ) %s%s(%s); else hl_fatal(\"todo:dcall\")" (reg o) fid (rassign r rt) meth (String.concat "," ((reg o ^ "->value") :: List.map reg args));
+					sline "if( %s->indexes[%d] < 0 ) %s%s(%s); else {" (reg o) fid (rassign r rt) meth (String.concat "," ((reg o ^ "->value") :: List.map reg args));
+					block();
+					if args <> [] then sexpr "vdynamic *args[] = {%s}" (String.concat "," (List.map (fun p ->
+						match rtype p with
+						| HDyn ->
+							reg p
+						| t ->
+							if is_dynamic t then
+								sprintf "(vdynamic*)%s" (reg p)
+							else
+								sprintf "hl_make_dyn(&%s,%s)" (reg p) (type_value t)
+					) args));
+					let rt = rtype r in
+					let ret = if rt = HVoid then "" else if is_dynamic rt then sprintf "%s = (%s)" (reg r) (ctype rt) else "vdynamic *ret = " in
+					let fname, fid, _ = vp.vfields.(fid) in
+					sexpr "%shlc_dyn_call_obj(%s->value,%ld/*%s*/,%s,%d)" ret (reg o) (hash fid) fname (if args = [] then "NULL" else "args") (List.length args);
+					if rt <> HVoid && not (is_dynamic rt) then sexpr "%s = (%s)hl_dyn_cast%s(&ret,&hlt_dyn%s)" (reg r) (ctype rt) (dyn_prefix rt) (type_value_opt rt);
+					unblock();
+					sline "}"
 				| _ ->
 					assert false
 		in
@@ -6397,8 +6420,11 @@ let write_c version file (code:code) =
 			| OLabel _ ->
 				if not (has_label i) then sline "%s:" (label (-1))
 			| OToDyn (r,v) ->
-				sexpr "%s = (vdynamic*)hl_gc_alloc%s(sizeof(vdynamic))" (reg r) (if is_gc_ptr (rtype v) then "" else "_noptr");
-				sexpr "%s->t = %s" (reg r) (type_value (rtype v));
+				if is_ptr (rtype v) then begin
+					sline "if( %s == NULL ) %s = NULL; else {" (reg v) (reg r);
+					block();
+				end;
+				sexpr "%s = hl_alloc_dynamic(%s)" (reg r) (type_value (rtype v));
 				(match rtype v with
 				| HI8 | HI16 | HI32 | HBool ->
 					sexpr "%s->v.i = %s" (reg r) (reg v)
@@ -6407,7 +6433,11 @@ let write_c version file (code:code) =
 				| HF64 ->
 					sexpr "%s->v.d = %s" (reg r) (reg v)
 				| _ ->
-					sexpr "%s->v.ptr = %s" (reg r) (reg v))
+					sexpr "%s->v.ptr = %s" (reg r) (reg v));
+				if is_ptr (rtype v) then begin
+					unblock();
+					line "}";
+				end;
 			| OToSFloat (r,v) ->
 				sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) (reg v)
 			| OToUFloat (r,v) ->
