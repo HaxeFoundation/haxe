@@ -36,7 +36,7 @@ class Math {
 	public static function random():Float return 0.15; // I rolled a D20
 
 	static function __init__() : Void {
-		PI = 3.14159265359;
+		PI = 3.1415926535897932384626433832795;
 		NaN = 0. / 0.;
 		POSITIVE_INFINITY = 1. / 0.;
 		NEGATIVE_INFINITY = -1. / 0.;

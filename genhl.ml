@@ -6291,7 +6291,7 @@ let write_c version file (code:code) =
 				else
 					sexpr "%s = %ld" (reg r) code.ints.(idx)
 			| OFloat (r,idx) ->
-				sexpr "%s = %f" (reg r) code.floats.(idx)
+				sexpr "%s = %.19g" (reg r) code.floats.(idx)
 			| OBool (r,b) ->
 				sexpr "%s = %s" (reg r) (if b then "true" else "false")
 			| OBytes (r,idx) ->
