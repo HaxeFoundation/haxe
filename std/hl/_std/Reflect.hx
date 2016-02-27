@@ -62,10 +62,12 @@ class Reflect {
 		var ft = hl.types.Type.getDynamic(func);
 		if( ft.kind != HFun )
 			throw "Invalid function " + func;
-		if( o != null && hl.types.Api.getClosureValue(func) == null && count == ft.getArgsCount() )
+		var need = ft.getArgsCount();
+		if( o != null && hl.types.Api.getClosureValue(func) == null && count == need )
 			o = null;
-
+		if( o != null ) need++;
 		var nargs = o == null ? count : count + 1;
+		if( nargs < need ) nargs = need;
 		var a = new hl.types.NativeArray<Dynamic>(nargs);
 		if( o == null ) {
 			for( i in 0...count )
