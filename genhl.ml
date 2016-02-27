@@ -1037,6 +1037,9 @@ let alloc_tmp ctx t =
 let current_pos ctx =
 	DynArray.length ctx.m.mops
 
+let rtype ctx r =
+	DynArray.get ctx.m.mregs.arr r
+
 let op ctx o =
 	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
 	DynArray.add ctx.m.mops o
@@ -1050,9 +1053,6 @@ let jump_back ctx =
 	let pos = current_pos ctx in
 	op ctx (OLabel 0);
 	(fun() -> op ctx (OJAlways (pos - current_pos ctx - 1)))
-
-let rtype ctx r =
-	DynArray.get ctx.m.mregs.arr r
 
 let reg_int ctx v =
 	let r = alloc_tmp ctx HI32 in
@@ -1216,6 +1216,10 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
+	| HVoid, HDyn ->
+		let tmp = alloc_tmp ctx HDyn in
+		op ctx (ONull tmp);
+		tmp
 	| _ , HDyn ->
 		let tmp = alloc_tmp ctx HDyn in
 		op ctx (OToDyn (tmp, r));
