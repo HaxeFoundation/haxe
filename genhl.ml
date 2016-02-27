@@ -4177,7 +4177,9 @@ let interp code =
 					| VObj o as obj ->
 						(try
 							let m = PMap.find name o.oproto.pclass.pfunctions in
-							set r (fcall functions.(m) (obj :: List.map get (List.tl rl)))
+							let fret, fargs = (match functions.(m) with FFun { ftype = HFun(args,t) } -> t, args | _ -> assert false) in
+							let v = fcall functions.(m) (obj :: List.map2 (fun r t -> dyn_cast (get r) (rtype r) t) (List.tl rl) (List.tl fargs)) in
+							set r (dyn_cast v fret (rtype r))
 						with Not_found ->
 							assert false)
 					| VDynObj _ ->
