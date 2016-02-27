@@ -5601,15 +5601,37 @@ let c_kwds = [
 "t"
 ]
 
-let write_c version ch (code:code) =
+let write_c version file (code:code) =
 	let tabs = ref "" in
+	let file_count = ref 1 in
+	let line_count = ref 0 in
+	let main_ch = IO.output_channel (open_out_bin file) in
+	let ch = ref main_ch in
+	let end_ch = ref [(fun() -> IO.close_out main_ch)] in
 	let block() = tabs := !tabs ^ "\t" in
 	let unblock() = tabs := String.sub (!tabs) 0 (String.length (!tabs) - 1) in
-	let line str = IO.write_line ch (!tabs ^ str) in
+	let line str =
+		incr line_count;
+		IO.write_line !ch (!tabs ^ str)
+	in
 	let expr str = line (str ^ ";") in
 	let sexpr fmt = Printf.ksprintf expr fmt in
 	let sline fmt = Printf.ksprintf line fmt in
 	let sprintf = Printf.sprintf in
+
+	let flush_file() =
+		if !line_count > 65000 then begin
+			incr file_count;
+			let nfile = String.sub file 0 (String.length file - 2) ^ string_of_int !file_count ^ ".c" in
+			ch := main_ch;
+			sline "#include \"%s\"" (match List.rev (ExtString.String.nsplit (String.concat "/" (ExtString.String.nsplit nfile "\\")) "/") with file :: _ -> file | _ -> assert false);
+			let nch = IO.output_channel (open_out_bin nfile) in
+ 			ch := nch;
+			sline "#ifdef HLC_H";
+			end_ch := (fun() -> IO.write_line nch "#endif"; IO.close_out nch) :: !end_ch;
+			line_count := 0;
+		end
+	in
 
 	let hash_cache = Hashtbl.create 0 in
 	let hash sid =
@@ -6026,6 +6048,9 @@ let write_c version ch (code:code) =
 	line "";
 	line "// Functions code";
 	Array.iter (fun f ->
+
+		flush_file();
+
 		let rid = ref (-1) in
 		let reg id = "r" ^ string_of_int id in
 
@@ -6555,7 +6580,8 @@ let write_c version ch (code:code) =
 	sexpr "%s()" funnames.(code.entrypoint);
 	unblock();
 	line "}";
-	line ""
+	line "";
+	List.iter (fun f -> f()) !end_ch
 
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
@@ -6640,11 +6666,15 @@ let generate com =
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map;
 	check code;
-	let ch = IO.output_string() in
-	if file_extension com.file = "c" then write_c com.Common.version ch code else write_code ch code;
-	let str = IO.close_out ch in
-	let ch = open_out_bin com.file in
-	output_string ch str;
-	close_out ch;
+	if file_extension com.file = "c" then
+		write_c com.Common.version com.file code
+	else begin
+		let ch = IO.output_string() in
+		write_code ch code;
+		let str = IO.close_out ch in
+		let ch = open_out_bin com.file in
+		output_string ch str;
+		close_out ch;
+	end;
 	if Common.defined com Define.Interp then ignore(interp code)
 
