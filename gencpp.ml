@@ -1607,7 +1607,16 @@ and tcpp_block = {
    block_undeclared : (string,tvar) Hashtbl.t
 }
 
-and tcppthis =
+and tcppcrementop =
+   | CppIncrement
+   | CppDecrement
+
+and tcppunop =
+   | CppNeg
+   | CppNegBits
+   | CppNot
+
+and tcppthis = 
    | ThisReal
    | ThisFake
    | ThisDyanmic
@@ -1615,14 +1624,31 @@ and tcppthis =
 and tcppvarloc =
    | VarLocal of tvar
    | VarClosure of tvar
+   | VarThis of tclass_field
    | VarInstance of tcppexpr * tclass_field
    | VarStatic of tcppexpr * tclass_field
 
-
 and tcppfuncloc =
+   | FuncThis of tclass_field
    | FuncInstance of tcppexpr * tclass_field
    | FuncInterface of tcppexpr * tclass_field
    | FuncStatic of tcppexpr * tclass_field
+   | FuncEnumConstruct of tenum * tenum_field
+   | FuncSuper of tcppthis
+   | FuncNew of tclass * tparams
+   | FuncDynamic of tcppexpr
+
+and tcpparrayloc =
+   | ArrayTyped of tcppexpr * tcppexpr
+   | ArrayObject of tcppexpr * tcppexpr
+   | ArrayVirtual of tcppexpr * tcppexpr
+   | ArrayImplements of tclass * tcppexpr * tcppexpr
+   | ArrayDynamic of tcppexpr * tcppexpr
+
+and tcpplvalue =
+   | CppVarRef of tcppvarloc
+   | CppArrayRef of tcpparrayloc
+   | CppDynamicRef of tcppexpr * string
 
 and tcpp_expr_expr =
    | CppInt of int32
@@ -1635,26 +1661,19 @@ and tcpp_expr_expr =
    | CppCode of string * tcppexpr list
    | CppClosure of tcpp_closure
    | CppVar of tcppvarloc
-   | CppVarCrement of tcppvarloc * bool * bool
-   | CppVarSet of tcppvarloc * Ast.binop * tcppexpr
-   | CppFunction of tcppfuncloc
-   | CppCall of tcppfuncloc * tcppexpr list
-   | CppCallDynamic of tcppexpr * tcppexpr list
    | CppDynamicField of tcppexpr * string
-   | CppDynamicFieldCrement of tcppexpr * string * bool * bool
-   | CppDynamicFieldSet of tcppexpr * string * Ast.binop * tcppexpr
-   | CppEnumCreate of tenum * tenum_field * tcppexpr list
-   | CppSuperCall of tcppthis * tcppexpr list
-   | CppNewCall of tclass * tparams * tcppexpr list
+   | CppFunction of tcppfuncloc
    | CppEnumField of tenum * tenum_field
-   | CppArray of tcppexpr * tcppexpr
-   | CppArrayCrement of tcppexpr * tcppexpr * bool * bool
-   | CppArraySet of tcppexpr * tcppexpr * Ast.binop * tcppexpr
+   | CppCall of tcppfuncloc * tcppexpr list
+   | CppArray of tcpparrayloc
+   | CppCrement of  tcppcrementop * Ast.unop_flag * tcpplvalue
+   | CppSet of tcpplvalue * tcppexpr
+   | CppModify of Ast.binop * tcpplvalue * tcppexpr
    | CppBinop of Ast.binop * tcppexpr * tcppexpr
    | CppObjectDecl of (string * tcppexpr) list
    | CppPosition of string * int32 * string * string
    | CppArrayDecl of tcppexpr list
-   | CppUnop of Ast.unop * tcppexpr
+   | CppUnop of tcppunop * tcppexpr
    | CppVarDecl of tvar * tcppexpr option
    | CppBlock of tcppexpr list
    | CppReturnBlock of tcpp_block
@@ -1835,6 +1854,83 @@ let is_cpp_objc_type cpptype = match cpptype with
    | _ -> false
 ;;
 
+let cpp_class_path_of klass =
+   let rename = get_meta_string klass.cl_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+      join_class_path_remap klass.cl_path "::"
+;;
+
+let cpp_enum_path_of enum =
+   let rename = get_meta_string enum.e_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+      join_class_path_remap enum.e_path "::"
+;;
+
+
+let rec tcpp_to_string = function
+   | TCppDynamic -> "Dynamic"
+   | TCppVoid -> "void"
+   | TCppEnum(enum) -> "EnumBase"
+   | TCppScalar(scalar) -> scalar
+   | TCppString -> "::String"
+   | TCppFastIterator it -> "cpp::FastIterator< " ^ (tcpp_to_string it) ^ " >";
+   | TCppPointer(ptrType,valueType) -> "cpp::" ^ ptrType ^ "< " ^ (tcpp_to_string valueType) ^ ">"
+   | TCppFunction(argTypes,retType,abi) -> 
+        let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
+        "cpp::Function< " ^ abi ^ " (" ^ (tcpp_to_string retType) ^ " (" ^ args ^ ") >"
+   | TCppDynamicArray -> "cpp::VirtualArray"
+   | TCppObjectArray _ -> "cpp::Array<Dyanmic>"
+   | TCppWrapped _ -> "Dynamic"
+   | TCppScalarArray(value) -> "cpp::Array< " ^ (tcpp_to_string value) ^ " >"
+   | TCppObjC klass ->
+      let path = cpp_class_path_of klass in
+      if klass.cl_interface then
+         "id <" ^ path ^ ">"
+      else
+         path ^ " *"
+   | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
+   | TCppInst klass -> cpp_class_path_of klass
+   | TCppType _ -> "hx::Class";
+   | TCppPrivate -> "/* private */"
+;;
+
+let cpp_var_type_of var =
+   tcpp_to_string (cpp_type_of var.v_type)
+;;
+
+
+let cpp_var_name_of var =
+   let rename = get_meta_string var.v_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+      keyword_remap var.v_name
+;;
+
+
+let cpp_member_name_of member =
+   let rename = get_meta_string member.cf_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+      keyword_remap member.cf_name
+;;
+
+
+let cpp_enum_name_of field =
+   let rename = get_meta_string field.ef_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+      keyword_remap field.ef_name
+;;
+
+
+
 
 
 let retype_expression ctx request_type expression_tree =
@@ -1860,6 +1956,14 @@ let retype_expression ctx request_type expression_tree =
           this_real := old_this_real;
           rev_return_blocks := block :: !rev_return_blocks;
       end
+   in
+
+   let to_lvalue value = 
+      match value.cppexpr with
+      | CppVar varloc -> CppVarRef(varloc)
+      | CppArray arrayloc -> CppArrayRef(arrayloc)
+      | CppDynamicField(expr, name) -> CppDynamicRef(expr,name)
+      | _ -> error "Could not convert expression to l-value" value.cpppos
    in
 
    let rec retype_in_return_block is_in_return_block return_type expr =
@@ -1909,16 +2013,26 @@ let retype_expression ctx request_type expression_tree =
          | TField( obj, field ) ->
             (match field with
             (* FInstance on DynamicArray ? *)
-            | FInstance (clazz,params,member) ->
+            | FInstance (clazz,param,member)
+            | FClosure (Some (clazz,param),member) ->
                let clazzType = TCppInst(clazz) in
                let retypedObj = retype clazzType obj in
                let exprType = cpp_type_of member.cf_type in
-               if is_var_field member then
-                  CppVar(VarInstance(retypedObj,member) ), exprType
-               else if (clazz.cl_interface) then
+               if is_var_field member then begin
+                  match retypedObj.cppexpr with
+                  | CppThis ThisReal ->
+                     CppVar(VarThis(member) ), exprType
+                  | _ ->
+                     CppVar(VarInstance(retypedObj,member) ), exprType
+               end else if (clazz.cl_interface) then
                   CppFunction( FuncInterface(retypedObj, member) ), exprType
-               else
-                  CppFunction( FuncInstance(retypedObj, member) ), exprType
+               else begin
+                  match retypedObj.cppexpr with
+                  | CppThis ThisReal ->
+                     CppFunction( FuncThis(member) ), exprType
+                  | _ ->
+                     CppFunction( FuncInstance(retypedObj, member) ), exprType
+               end
             | FStatic (clazz,member) ->
                let clazzType = TCppType(clazz.cl_path) in
                let retypedObj = retype clazzType obj in
@@ -1927,13 +2041,13 @@ let retype_expression ctx request_type expression_tree =
                   CppVar(VarStatic(retypedObj, member)), exprType
                else
                   CppFunction( FuncStatic(retypedObj, member) ), exprType
-            | FClosure (_,field)
+            | FClosure (None,field)
             | FAnon field ->
                   CppDynamicField(retype TCppDynamic obj, field.cf_name), TCppDynamic
             | FDynamic fieldName ->
                   CppDynamicField(retype TCppDynamic obj, fieldName), TCppDynamic
             | FEnum (enum, enum_field) ->
-                  CppEnumField(enum, enum_field), TCppDynamic
+                  CppEnumField(enum, enum_field), TCppEnum(enum)
             )
 
          | TCall( {eexpr = TLocal { v_name = "__cpp__" }}, arg_list ) ->
@@ -1957,16 +2071,16 @@ let retype_expression ctx request_type expression_tree =
             let retypedArgs = List.map (retype TCppDynamic ) args in
             (match retypedFunc.cppexpr with
             |  CppFunction(func)          -> CppCall(func,retypedArgs), cppType
-            |  CppEnumField(enum, field)  -> CppEnumCreate(enum,field,retypedArgs), cppType
-            |  CppSuper(this)             -> CppSuperCall(this,retypedArgs), cppType
+            |  CppEnumField(enum, field)  -> CppCall( FuncEnumConstruct(enum,field),retypedArgs), cppType
+            |  CppSuper(this)             -> CppCall( FuncSuper(this),retypedArgs), cppType
             | _ ->
-               CppCallDynamic(retypedFunc, retypedArgs), TCppDynamic
+               CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
             )
 
          | TNew (clazz,params,args) ->
             (* New DynamicArray ? *)
             let retypedArgs = List.map (retype TCppDynamic ) args in
-            CppNewCall(clazz,params, retypedArgs), cpp_type_of expr.etype
+            CppCall( FuncNew(clazz,params), retypedArgs), cpp_type_of expr.etype
 
          | TFunction func ->
             let old_this_real = !this_real in
@@ -1997,34 +2111,32 @@ let retype_expression ctx request_type expression_tree =
          | TArray (e1,e2) ->
             let retypedObj = retype TCppDynamic e1 in
             let retypedIdx = retype (TCppScalar("Int")) e2 in
-            let elementType = match retypedObj.cpptype with
-              | TCppScalarArray scalar -> scalar
-              | TCppObjectArray TCppDynamic -> TCppDynamic
-              | TCppObjectArray elem -> TCppWrapped(elem)
-              | cppType when is_cpp_array_implementer cppType -> cpp_type_of expr.etype
-              | _ -> TCppDynamic
-            in
-            CppArray(retypedObj, retypedIdx), elementType
+            (match retypedObj.cpptype with
+              | TCppScalarArray scalar ->
+                 CppArray( ArrayTyped(retypedObj,retypedIdx) ), scalar
+              | TCppObjectArray TCppDynamic ->
+                 CppArray( ArrayObject(retypedObj,retypedIdx) ), TCppDynamic
+              | TCppObjectArray elem ->
+                 CppArray( ArrayObject(retypedObj,retypedIdx) ), TCppWrapped(elem)
+              | TCppInst({cl_array_access} as klass) ->
+                 CppArray( ArrayImplements(klass, retypedObj,retypedIdx) ), cpp_type_of expr.etype
+
+              | _ ->
+                 CppArray( ArrayDynamic(retypedObj, retypedIdx) ), TCppDynamic
+            )
 
          | TTypeExpr module_type ->
             let path = t_path module_type in
             CppType(path), TCppType(path)
 
          | TBinop (op,e1,e2) ->
-            let e2 = retype (cpp_type_of e2.etype) e2 in
             let e1 = retype (cpp_type_of e1.etype) e1 in
-            let op = if op=OpAssign then OpAssignOp op else op in
+            let e2 = retype (cpp_type_of e2.etype) e2 in
             let reference = match op with
+               | OpAssign ->
+                  CppSet(to_lvalue e1, e2)
                | OpAssignOp op ->
-                  (match e1.cppexpr with
-                     | CppArray(obj,index)
-                        -> CppArraySet(obj,index,op,e2)
-                     | CppVar(loc)
-                        -> CppVarSet(loc,op,e2)
-                     | CppDynamicField(obj, member)
-                        -> CppDynamicFieldSet(obj,member,op,e2)
-                     | _ -> error "Unknown assignment left-hand-side" expr.epos
-                  )
+                  CppModify(op, to_lvalue e1, e2)
                | _ -> CppBinop(op,e1,e2)
             in
             reference, cpp_type_of expr.etype
@@ -2032,19 +2144,12 @@ let retype_expression ctx request_type expression_tree =
          | TUnop (op,pre,e1) ->
             let e1 = retype (cpp_type_of e1.etype) e1 in
             let reference = match op with
-               | Increment
-               | Decrement ->
-                  (match e1.cppexpr with
-                     | CppArray(obj,index) ->
-                         CppArrayCrement(obj,index,pre=Prefix,op=Increment)
-                     | CppVar(loc) ->
-                         CppVarCrement(loc,pre=Prefix,op=Increment)
-                     | CppDynamicField(obj, member) ->
-                         CppDynamicFieldCrement(obj,member,pre=Prefix,op=Increment)
-                     | _ -> error "Unknown increment left-hand-side" expr.epos
-                  )
-               | _ -> CppUnop(op,e1)
-               in reference, cpp_type_of expr.etype
+               | Increment -> CppCrement( CppIncrement, pre, to_lvalue e1)
+               | Decrement -> CppCrement( CppDecrement, pre, to_lvalue e1)
+               | Neg -> CppUnop(CppNeg,e1)
+               | Not -> CppUnop(CppNot,e1)
+               | NegBits -> CppUnop(CppNegBits,e1)
+            in reference, cpp_type_of expr.etype
 
          | TFor (v,init,block) ->
             let old_declarations = Hashtbl.copy !declarations in
@@ -2239,63 +2344,100 @@ let gen_cpp_ast_expression_tree ctx tree =
       | CppThis ThisReal -> out "hx::ObjectPtr<OBJ_>(this)"
       | CppThis _ -> out "__this"
 
-      | CppSuperCall(thiscall,args) ->
-         if thiscall = ThisReal then
-            out "super::__construct"
-         else
-            out ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct");
-         call_out args;
 
       | CppSuper thiscall -> out ("hx::ObjectPtr<super>(" ^ (if thiscall=ThisReal then "this" else "__this.mPtr") ^ ")")
 
       | CppBreak -> out "break"
       | CppContinue -> out "continue"
 
-
-
-   | CppVarDecl(var,init) ->
-         out ("var " ^ var.v_name);
+      | CppVarDecl(var,init) ->
+         out ( (cpp_var_type_of var) ^ " " ^ (cpp_var_name_of var) );
          (match init with Some init -> out " = "; gen init | _ -> () )
+      | CppFunction(func) ->
+         (match func with
+         | FuncThis(field) ->
+              out ("this->" ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncInstance(expr,field) ->
+              gen expr; out ("->" ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncInterface(expr,field) ->
+              gen expr; out ("->" ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncStatic(expr,field) ->
+              gen expr; out ("::" ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncDynamic(expr) ->
+              gen expr;
+         | FuncSuper _ -> error "Can't create super closure" expr.cpppos
+         | FuncNew _ -> error "Can't create new closure" expr.cpppos
+         | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
+         );
+      | CppCall(func, args) ->
+         let closeCall = ref "" in
+         (match func with
+         | FuncThis(field) ->
+              out ("this->" ^ (cpp_member_name_of field) );
+         | FuncInstance(expr,field)
+         | FuncInterface(expr,field) ->
+              gen expr; out ("->" ^ (cpp_member_name_of field) );
+         | FuncStatic(expr,field) ->
+              gen expr; out ("::" ^ (cpp_member_name_of field) );
+         | FuncEnumConstruct(enum,field) ->
+            out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
+
+         | FuncSuper(thiscall) ->
+              if thiscall = ThisReal then
+                 out "super::__construct"
+              else
+                 out ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct");
+         | FuncNew(clazz, params) ->
+            out ("new " ^ (string_of_path clazz.cl_path));
+         | FuncDynamic(expr) ->
+              gen expr;
+              out "->__run";
+         );
+         call_out args; out !closeCall
+
+
+
    | CppClosure closure -> out ("call(closure" ^ (string_of_int(closure.close_id)) ^ ")")
    | CppReturnBlock block ->out ("call(block" ^ (string_of_int(block.block_id)) ^ ")")
    | CppVar(loc) ->
-         out_val_loc loc;
-   | CppVarCrement(loc,pre,inc) ->
-         let op = if inc then "++" else "--" in
-         if (pre) then out op;
-         out_val_loc loc;
-         if (not pre) then out op
-   | CppVarSet(loc,op,value) ->
-         out_val_loc loc;
-         out (string_of_op_eq op expr.cpppos);
-         gen value
+         gen_val_loc loc;
+   | CppCrement(incFlag,preFlag, lvalue) ->
+         let op = if incFlag==CppIncrement then "++" else "--" in
+         if (preFlag==Prefix) then out op;
+         gen_lvalue lvalue;
+         if (preFlag==Postfix) then out op
 
-   | CppFunction(func) ->
-         (match func with
-         | FuncInstance(expr,field) ->
-              gen expr; out ("->" ^ field.cf_name ^ "_dyn()");
-         | FuncInterface(expr,field) ->
-              gen expr; out ("->" ^ field.cf_name ^ "_dyn()");
-         | FuncStatic(expr,field) ->
-              gen expr; out ("::" ^ field.cf_name ^ "_dyn()");
-         );
-   | CppCall(func, args) ->
-         (match func with
-         | FuncInstance(expr,field) ->
-              gen expr; out ("->" ^ field.cf_name );
-         | FuncInterface(expr,field) ->
-              gen expr; out ("->" ^ field.cf_name );
-         | FuncStatic(expr,field) ->
-              gen expr; out ("::" ^ field.cf_name);
-         );
-         call_out args;
+   | CppModify(op,lvalue,rvalue) ->
+         gen_lvalue lvalue;
+         out (string_of_op_eq op expr.cpppos);
+         gen rvalue
+   | CppSet(lvalue,rvalue) ->
+      (match lvalue with
+      | CppVarRef varLoc ->
+           gen_val_loc varLoc; out " = "; gen rvalue;
+
+      | CppArrayRef arrayLoc -> (match arrayLoc with
+         | ArrayObject(arrayObj, index)
+         | ArrayTyped(arrayObj, index) ->
+            gen arrayObj; out "["; gen index; out "] = "; gen rvalue
+         | ArrayVirtual(arrayObj, index) ->
+            gen arrayObj; out "->set("; gen index; out ","; gen rvalue; out ")"
+
+         | ArrayDynamic(arrayObj, index) ->
+            gen arrayObj; out "->__SetItem("; gen index; out ","; gen rvalue; out ")"
+
+         | ArrayImplements(_,arrayObj,index) ->
+            gen arrayObj; out "->__set("; gen index; out ","; gen rvalue; out ")"
+         )
+      | CppDynamicRef(expr,name) ->
+         gen expr; out ("->__SetField(" ^ (str name) ^ ","); gen rvalue; out ")"
+      )
+
+
    | CppDynamicField(obj,name) ->
          gen obj;
          out ("->__Field('" ^ name  ^ "')");
-   | CppCallDynamic(obj,args) ->
-         gen obj;
-         out ("->run");
-         call_out args;
+
    | CppPosition(name,line,clazz,func) ->
          out ("Pos('" ^ name ^ "'," ^ string_of_int(Int32.to_int line) ^ ",'" ^ clazz ^ "','" ^ func ^ "')")
 
@@ -2308,43 +2450,29 @@ let gen_cpp_ast_expression_tree ctx tree =
          ) values;
          out "}";
    | CppType path -> out (string_of_path path)
-   | CppArray(obj,index) ->
-         gen obj; out "["; gen index; out "]";
+   | CppArray(arrayLoc) -> (match arrayLoc with 
+         | ArrayTyped(arrayObj,index)
+         | ArrayObject(arrayObj,index)
+         | ArrayVirtual(arrayObj,index) ->
+            gen arrayObj; out "["; gen index; out "]";
+
+         | ArrayDynamic(arrayObj,index) ->
+            gen arrayObj; out "->__GetItem"; gen index; out ")"
+
+         | ArrayImplements(_,arrayObj,index) ->
+            gen arrayObj; out "->__get"; gen index; out ")";
+         )
    | CppArrayDecl(exprList) ->
          out "["; List.iter (fun value -> gen value; out ",";) exprList; out "]";
    | CppBinop(op, left, right) ->
          out "("; gen left; out ") ";
          out (string_of_op op expr.cpppos);
          out " ("; gen right; out ")";
-   | CppArraySet(obj,index,op,value) ->
-         gen obj; out "["; gen index; out "]";
-         out (string_of_op_eq op expr.cpppos);
-         gen value;
-   | CppArrayCrement(obj,index,pre,inc) ->
-         let op = if inc then "++" else "--" in
-         if (pre) then out op;
-         gen obj; out "["; gen index; out "]";
-         if (not pre) then out op
-   | CppDynamicFieldSet(obj,name,op,value) ->
-         out "DynamicRef("; gen obj; out (",'" ^ name ^ "')");
-         out (string_of_op_eq op expr.cpppos);
-         gen value;
-   | CppDynamicFieldCrement(obj,name,pre,inc) ->
-         let op = if inc then "++" else "--" in
-         if (pre) then out op;
-         out "DynamicRef("; gen obj; out (",'" ^ name ^ "')");
-         if (not pre) then out op
    | CppThrow(value) -> out "throw "; gen value;
    | CppReturn None -> out "return";
    | CppReturn Some value -> out "return "; gen value;
-   | CppNewCall(clazz, params, args) ->
-         out ("new " ^ (string_of_path clazz.cl_path));
-         call_out args;
    | CppEnumField(enum,field) ->
          out ((string_of_path enum.e_path) ^ "::" ^ field.ef_name);
-   | CppEnumCreate(enum,field,args) ->
-         out ((string_of_path enum.e_path) ^ "::" ^ field.ef_name);
-         call_out args;
    | CppEnumParameter(obj,field,index) ->
          gen obj;
          out ("->EnumParam[" ^ (string_of_int index) ^ "]");
@@ -2372,10 +2500,9 @@ let gen_cpp_ast_expression_tree ctx tree =
 
    | CppUnop(unop,value) ->
         out (match unop with
-        | Not -> "!"
-        | Neg -> "-"
-        | NegBits -> "~"
-        | _ -> error "Invalid unop" expr.cpppos
+        | CppNot -> "!"
+        | CppNeg -> "-"
+        | CppNegBits -> "~"
         );
         out "(";  gen value; out ")"
 
@@ -2425,12 +2552,30 @@ let gen_cpp_ast_expression_tree ctx tree =
    | CppCode(value, exprs) ->
        Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
 
-   and out_val_loc loc =
+   and gen_lvalue lvalue =
+      match lvalue with
+      | CppVarRef varLoc ->
+           gen_val_loc varLoc
+      | CppArrayRef arrayLoc -> (match arrayLoc with
+         | ArrayObject(arrayObj, index)
+         | ArrayTyped(arrayObj, index) ->
+            gen arrayObj; out "["; gen index; out "]";
+         | ArrayVirtual(arrayObj, index)
+         | ArrayDynamic(arrayObj, index) ->
+            out "hx::IndexRef("; gen arrayObj; out ","; gen index; out ")";
+         | ArrayImplements(_,arrayObj,index) ->
+            out "hx::__ArrayImplRef("; gen arrayObj; out ","; gen index; out ")";
+         )
+      | CppDynamicRef(expr,name) ->
+         out "hx::DynamicRef("; gen expr; out ("," ^ (str name ^ ")")) 
+
+   and gen_val_loc loc =
       match loc with
       | VarClosure(var) -> out ("_this->" ^ var.v_name)
       | VarLocal(local) -> out local.v_name
-      | VarStatic(obj,member) -> gen obj; out ("::" ^ member.cf_name)
-      | VarInstance(obj,member) -> gen obj; out ("->" ^ member.cf_name)
+      | VarStatic(obj,member) -> gen obj; out ("::" ^ (cpp_member_name_of member))
+      | VarThis(member) -> out ("this->" ^ (cpp_member_name_of member))
+      | VarInstance(obj,member) -> gen obj; out ("->" ^ (cpp_member_name_of member))
 
    and string_of_op_eq op pos = match op with
       | OpAdd -> "+="
