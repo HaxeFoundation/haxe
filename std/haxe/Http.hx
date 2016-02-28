@@ -385,6 +385,8 @@ class Http {
 				sock = new php.net.SslSocket();
 				#elseif java
 				sock = new java.net.SslSocket();
+				#elseif python
+				sock = new sys.net.Socket();
 				#elseif hxssl
 				#if neko
 				sock = new neko.tls.Socket();
