@@ -2161,13 +2161,13 @@ let retype_expression ctx request_type expression_tree =
             let old_declarations = Hashtbl.copy !declarations in
             Hashtbl.add !declarations v.v_name ();
             let init = retype (cpp_type_of v.v_type) init in
-            let block = retype TCppVoid block in
+            let block = retype TCppVoid (mk_block block) in
             declarations := old_declarations;
             CppFor(v,init,block), TCppVoid
 
          | TWhile (e1,e2,flag) ->
             let condition = retype (TCppScalar("Bool")) e1 in
-            let block = retype TCppVoid e2 in
+            let block = retype TCppVoid (mk_block e2) in
             CppWhile(condition, block, flag), TCppVoid
 
          | TArrayDecl el ->
@@ -2211,8 +2211,8 @@ let retype_expression ctx request_type expression_tree =
 
          | TIf (ec,e1,e2) ->
             let ec = retype (TCppScalar("Bool")) ec in
-            let e1 = retype return_type e1 in
-            let e2 = match e2 with None->None | Some e -> Some (retype return_type e)
+            let e1 = retype return_type (mk_block e1) in
+            let e2 = match e2 with None->None | Some e -> Some (retype return_type (mk_block e))
             in
             CppIf(ec, e1, e2), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
 
@@ -2224,8 +2224,8 @@ let retype_expression ctx request_type expression_tree =
             let condition = retype (cpp_type_of condition.etype) condition in
             let conditionType = condition.cpptype in
             let cases = List.map (fun (el,e2) ->
-                  (List.map (retype conditionType) el), (retype TCppVoid e2) ) cases in
-            let def = match def with None -> None | Some e -> Some (retype TCppVoid e) in
+                  (List.map (retype conditionType) el), (retype TCppVoid (mk_block e2)) ) cases in
+            let def = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             CppSwitch(condition, cases, def), cpp_type_of expr.etype
 
          | TTry (try_block,catches) ->
@@ -2259,10 +2259,22 @@ let retype_expression ctx request_type expression_tree =
 
 let gen_cpp_ast_expression_tree ctx tree =
    let writer = ctx.ctx_writer in
-   let output_i = writer#write_i in
-
-   let indent = ref "" in
    let out = ctx.ctx_output in
+   let lastLine = ref (-1) in
+
+   let spacer = if (ctx.ctx_debug_level>0) then "            \t" else "" in
+   let output_i value = out spacer; writer#write_i value in
+
+   let output_p expr value =
+       if (ctx.ctx_debug_level>0) then begin
+          let line = Lexer.get_error_line expr.cpppos in
+          let lineName = Printf.sprintf "%4d" line in
+          let macro = if (line != !lastLine) then "HXLINE" else "HXDLIN" in
+          out (macro ^ "(" ^ lineName ^ ")\t" );
+          lastLine := line;
+       end;
+       writer#write_i value
+   in
 
    let cppTree =  retype_expression ctx TCppVoid tree in
 
@@ -2272,20 +2284,13 @@ let gen_cpp_ast_expression_tree ctx tree =
          writer#begin_block;
          List.iter gen_closure closures;
          (match prologue with Some func -> func() | _ -> () );
-         let lastLine = ref (-1) in
+         lastLine := -1;
          List.iter (fun e ->
-            output_i "";
-            if (ctx.ctx_debug_level>0) then begin
-               let line = Lexer.get_error_line e.cpppos in
-               if (line != !lastLine) then
-                  out ("HXPOS(" ^ (string_of_int line) ^ ") " )
-               else
-                  out ("/* = " ^ (string_of_int line) ^ "*/ " );
-               lastLine := line;
-            end;
+            output_p e "";
             gen e;
             writer#terminate_line
          ) exprs;
+         out spacer;
          writer#end_block;
 
       | CppInt i ->
@@ -2410,8 +2415,7 @@ let gen_cpp_ast_expression_tree ctx tree =
          gen rvalue
 
       | CppPosition(name,line,clazz,func) ->
-         out ("Pos('" ^ (str name) ^ "'," ^ string_of_int(Int32.to_int line) ^ ",'" ^
-            (str clazz) ^ "','" ^ (str func) ^ "')")
+         out ("HXPOS(\"" ^ name ^ "\"," ^ string_of_int(Int32.to_int line) ^ ",\"" ^ clazz ^ "\",\"" ^ func ^ "\")")
 
       | CppClassOf path ->
          let path = "::" ^ (join_class_path_remap (path) "::" ) in
@@ -2458,25 +2462,14 @@ let gen_cpp_ast_expression_tree ctx tree =
          out ("->EnumParam[" ^ (string_of_int index) ^ "]");
    | CppSwitch(condition, cases, defVal) ->
       out "switch("; gen condition; out ")\n";
-      out (!indent ^ "{\n");
-      let oldIndent = !indent in
-      indent := oldIndent ^ "   ";
+      writer#begin_block;
       List.iter (fun (values,expr) ->
-         List.iter (fun value -> out (!indent ^ "case "); gen value; out ":\n" ) values;
-         let oldIndent = !indent in
-         out !indent; gen expr; out ";\n";
-         indent := oldIndent;
+         List.iter (fun value -> output_i "case "; gen value; out ":\n" ) values;
+         gen expr;
       ) cases;
       (match defVal with
-      | Some expr ->
-         out (!indent ^ "default:\n");
-         let oldIndent = !indent in
-         gen expr;
-         indent := oldIndent;
-      | _ -> ()  );
-      indent := oldIndent;
-      out (!indent ^ "}\n")
-
+      | Some expr -> output_i "default:\n"; gen expr; | _ -> ()  );
+      writer#end_block;
 
    | CppUnop(unop,value) ->
         out (match unop with
@@ -2489,38 +2482,36 @@ let gen_cpp_ast_expression_tree ctx tree =
    | CppWhile(condition, block, while_flag) ->
        (match while_flag with
        | NormalWhile ->
-           out "while("; gen condition; out (")\n" ^ !indent);
+           out "while("; gen condition; out (")\n");
            gen block;
        | DoWhile ->
-           out ("do\n" ^ !indent);
+           out ("do\n");
            gen block;
            out "while("; gen condition; out ")"
        );
    | CppIf (condition,block,None) ->
-       out "if ("; gen condition; out (")\n" ^ !indent);
+       out "if ("; gen condition; out (")\n");
        gen block;
 
    | CppIf (condition,block,Some elze) when expr.cpptype = TCppVoid ->
-       out "if ("; gen condition; out (")\n" ^ !indent);
+       out "if ("; gen condition; out (") ");
        gen block;
-       out ("\n" ^ !indent ^ "else\n" ^ "!indent");
+       out (" else ");
        gen elze;
 
    | CppIf (condition,block,Some elze) ->
        gen condition; out " ? "; gen block; out " : "; gen elze;
 
    | CppFor(tvar, init, block) ->
-       out ("for(var " ^ tvar.v_name ^ "-"); gen init; out (")\n" ^ !indent);
+       out ("for(var " ^ tvar.v_name ^ "-"); gen init; out (") ");
        gen block;
 
    | CppTry(block,catches) ->
-       out ("try\n");
+       out ("try ");
        gen block;
        List.iter (fun (var,block) ->
-         let oldIndent = !indent in
-         out (!indent ^ "catch(var " ^ var.v_name ^ ")" );
-         gen block; out "\n";
-         indent := oldIndent;
+         output_i ("catch(var " ^ var.v_name ^ ") " );
+         gen block;
        ) catches;
 
    | CppCast(expr,None) ->
@@ -2607,8 +2598,7 @@ let gen_cpp_ast_expression_tree ctx tree =
       Hashtbl.iter (fun name var -> 
          out ("," ^ (cpp_var_type_of var) ^ "," ^ (keyword_remap name));
       ) closure.close_undeclared;
-      out ")\n";
-      output_i ("int __ArgCount() const { return " ^ (string_of_int (List.length closure.close_args)) ^"; }\n");
+      out (") HXARGC(" ^ (string_of_int (List.length closure.close_args)) ^")\n");
 
       let func_type = tcpp_to_string closure.close_type in
       output_i (func_type ^ " run(" ^ (gen_arg_list closure.close_args "__o_") ^ ")");
