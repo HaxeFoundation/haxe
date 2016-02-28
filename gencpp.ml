@@ -1584,7 +1584,7 @@ type tcpp =
    | TCppNativePointer of tclass
    | TCppPrivate
    | TCppInst of tclass
-   | TCppType of path
+   | TCppClass
 
 
 and tcppexpr = {
@@ -1679,8 +1679,7 @@ and tcpp_expr_expr =
    | CppArrayDecl of tcppexpr list
    | CppUnop of tcppunop * tcppexpr
    | CppVarDecl of tvar * tcppexpr option
-   | CppBlock of tcppexpr list
-   | CppReturnBlock of tcpp_block
+   | CppBlock of tcppexpr list * tcpp_closure list 
    | CppFor of tvar * tcppexpr * tcppexpr
    | CppIf of tcppexpr * tcppexpr * tcppexpr option
    | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
@@ -1688,7 +1687,7 @@ and tcpp_expr_expr =
    | CppTry of tcppexpr * (tvar * tcppexpr) list
    | CppBreak
    | CppContinue
-   | CppType of path
+   | CppClassOf of path
    | CppReturn of tcppexpr option
    | CppThrow of tcppexpr
    | CppCast of tcppexpr * module_type option
@@ -1734,7 +1733,7 @@ let rec cpp_type_of haxe_type =
        TCppDynamicArray
 
      | TCppInst _
-     | TCppType _
+     | TCppClass
      | TCppDynamicArray
      | TCppObjectArray _
      | TCppScalarArray _
@@ -1822,8 +1821,8 @@ let rec cpp_type_of haxe_type =
             TCppInst(klass)
       )
 
-   | TType (type_def,params) ->
-      TCppType(type_def.t_path)
+   | TType (_,_) ->
+      TCppClass
 
    | TFun _ -> TCppDynamic
    | TAnon _ -> TCppDynamic
@@ -1883,21 +1882,6 @@ let cpp_enum_path_of enum =
       join_class_path_remap enum.e_path "::"
 ;;
 
-let make_cpp_return_block exprList exprBase =
-   let last = (List.length exprList) - 1 in
-   let exprList = List.mapi (fun idx expr ->
-      if (idx=last) then
-         match expr.cppexpr with
-         | CppReturn _ -> expr
-         | _ -> 
-           { cppexpr=CppReturn(Some expr) ; cpptype = TCppVoid; cpppos = expr.cpppos };
-      else
-         expr
-   ) exprList in
-   { cppexpr=CppBlock(exprList) ; cpptype = cpp_type_of exprBase.etype; cpppos = exprBase.epos; }
-;;
-
-
 let rec tcpp_to_string = function
    | TCppDynamic -> "Dynamic"
    | TCppVoid -> "void"
@@ -1921,7 +1905,7 @@ let rec tcpp_to_string = function
          path ^ " *"
    | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
    | TCppInst klass -> cpp_class_path_of klass
-   | TCppType _ -> "hx::Class";
+   | TCppClass -> "hx::Class";
    | TCppPrivate -> "/* private */"
 ;;
 
@@ -1970,33 +1954,14 @@ let cpp_enum_name_of field =
 
 
 let retype_expression ctx request_type expression_tree =
-   let rev_return_blocks = ref [] in
    let rev_closures = ref [] in
+   let closureId = ref 0 in
    let declarations = ref (Hashtbl.create 0) in
    let undeclared = ref (Hashtbl.create 0) in
    let uses_this = ref false in
    let this_real = ref ThisReal in
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
-
-   let start_return_block () =
-      let old_this_real = !this_real in
-      let old_uses_this = !uses_this in
-      uses_this := false;
-      this_real := if !this_real = ThisDyanmic then ThisDyanmic else ThisFake;
-      let old_undeclared = Hashtbl.copy !undeclared in
-      let old_declarations = Hashtbl.copy !declarations in
-      let blockId = List.length !rev_return_blocks in
-      undeclared := Hashtbl.create 0;
-
-      blockId, fun block -> begin
-          declarations := old_declarations;
-          undeclared := old_undeclared; (* todo - conbine *)
-          this_real := old_this_real;
-          uses_this := old_uses_this || !uses_this;
-          rev_return_blocks := block :: !rev_return_blocks;
-      end
-   in
 
    let to_lvalue value = 
       match value.cppexpr with
@@ -2006,7 +1971,7 @@ let retype_expression ctx request_type expression_tree =
       | _ -> error "Could not convert expression to l-value" value.cpppos
    in
 
-   let rec retype_in_return_block is_in_return_block return_type expr =
+   let rec retype return_type expr =
       let retypedExpr, retypedType =
          match expr.eexpr with
          | TEnumParameter( enumObj, enumField, enumIndex  ) ->
@@ -2027,7 +1992,7 @@ let retype_expression ctx request_type expression_tree =
             cpp_const_type x
 
          | TLocal { v_name = "__global__" } ->
-            CppType([],""), TCppType([],"")
+            CppClassOf([],""), TCppClass
 
          | TLocal tvar ->
             let name = tvar.v_name in
@@ -2049,7 +2014,7 @@ let retype_expression ctx request_type expression_tree =
 
          | TMeta (_,e)
          | TParenthesis e ->
-            let cppType = retype_in_return_block is_in_return_block return_type e in
+            let cppType = retype return_type e in
             cppType.cppexpr, cppType.cpptype
 
          | TField( obj, field ) ->
@@ -2130,21 +2095,18 @@ let retype_expression ctx request_type expression_tree =
             let old_declarations = Hashtbl.copy !declarations in
             let old_uses_this = !uses_this in
             uses_this := false;
-            let closureId = List.length !rev_closures in
             undeclared := Hashtbl.create 0;
             List.iter ( fun (tvar,_) ->
                Hashtbl.add !declarations tvar.v_name () ) func.tf_args;
-            let return_type = match cpp_type_of func.tf_type with
-                | TCppVoid -> TCppVoid
-                | _ -> TCppDynamic in
             let cppExpr = retype TCppVoid (mk_block func.tf_expr) in
             let result = { close_expr=cppExpr;
-                           close_id=closureId;
+                           close_id= !closureId;
                            close_undeclared= !undeclared;
                            close_type= cpp_type_of func.tf_type;
                            close_args= func.tf_args;
                            close_this= !uses_this;
                          } in
+            incr closureId;
             declarations := old_declarations;
             undeclared := old_undeclared; (* todo combine *)
             this_real := old_this_real;
@@ -2171,7 +2133,7 @@ let retype_expression ctx request_type expression_tree =
 
          | TTypeExpr module_type ->
             let path = t_path module_type in
-            CppType(path), TCppType(path)
+            CppClassOf(path), TCppClass
 
          | TBinop (op,e1,e2) ->
             let e1 = retype (cpp_type_of e1.etype) e1 in
@@ -2212,33 +2174,23 @@ let retype_expression ctx request_type expression_tree =
             let retypedEls = List.map (retype TCppDynamic) el in
             CppArrayDecl(retypedEls), cpp_type_of expr.etype
 
-         | TBlock expr_list when return_type<>TCppVoid ->
-            let rec return_last = function
-               | [] -> error "Empty block can't return a value" expr.epos
-               | expr :: [] -> (retype return_type expr) :: []
-               | expr :: exprs -> (retype TCppVoid expr) :: (return_last exprs)
-            in
-            (* Already in return block from a try or switch statement? *)
-            if is_in_return_block then begin
-               let old_declarations = Hashtbl.copy !declarations in
-               let cppExprs = return_last expr_list in
-               declarations := old_declarations;
-               CppBlock(cppExprs), cpp_type_of expr.etype
-            (* else, start new return block ..*)
-            end else begin
-               let blockId, pop_return_block = start_return_block () in
-               let cppExprs = return_last expr_list in
-               let blockExpr = make_cpp_return_block cppExprs expr in
-               let result = { block_expr=blockExpr; block_id=blockId; block_undeclared= !undeclared; block_this = !uses_this; } in
-               pop_return_block result;
-               CppReturnBlock(result), cpp_type_of expr.etype
-            end
-
          | TBlock expr_list ->
+            if (return_type<>TCppVoid) then
+               print_endline ("Value from a block not handled " ^  
+               (expr.epos.pfile ) ^ " " ^  (string_of_int (Lexer.get_error_line expr.epos) ));
+
             let old_declarations = Hashtbl.copy !declarations in
-            let cppExprs = List.map (retype TCppVoid) expr_list in
+            rev_closures := [];
+            let local_closures = ref [] in
+            let cppExprs = List.map ( fun expr ->
+                  let result = retype TCppVoid expr in
+                  local_closures := !rev_closures @ !local_closures;
+                  rev_closures := [];
+                  result
+               ) expr_list in
             declarations := old_declarations;
-            CppBlock(cppExprs), TCppVoid
+
+            CppBlock(cppExprs, List.rev !local_closures ), TCppVoid
 
          | TObjectDecl (
             ("fileName" , { eexpr = (TConst (TString file)) }) ::
@@ -2266,71 +2218,29 @@ let retype_expression ctx request_type expression_tree =
 
           (* Switch internal return - wrap whole thing in block  *)
          | TSwitch (condition,cases,def) ->
-            if return_type<>TCppVoid then begin
-               (*create one return block to wrap the whole switch *)
+            if return_type<>TCppVoid then
+               error "Value from a switch not handled" expr.epos;
 
-              let blockId, pop_return_block = start_return_block () in
-
-              (* Need return from each case (try) block ? *)
-              let condition = retype (cpp_type_of condition.etype) condition in
-              let conditionType = condition.cpptype in
-              let cases = List.map (fun (el,e2) ->
-                  (List.map (retype conditionType) el),
-                     (retype_in_return_block true return_type e2) ) cases in
-              let def = match def with None -> None | Some e -> Some (retype_in_return_block true return_type e) in
-
-              let switch = CppSwitch(condition, cases, def) in
-              let switch_expr = { cppexpr = switch; cpptype = (cpp_type_of expr.etype) ; cpppos = expr.epos } in
-              let result = { block_expr = make_cpp_return_block [switch_expr] expr;
-                             block_id=blockId;
-                             block_undeclared= !undeclared;
-                             block_this = !uses_this } in
-
-              pop_return_block result;
-              CppReturnBlock(result), cpp_type_of expr.etype
-
-            end else begin
-              let condition = retype (cpp_type_of condition.etype) condition in
-              let conditionType = condition.cpptype in
-              let cases = List.map (fun (el,e2) ->
+            let condition = retype (cpp_type_of condition.etype) condition in
+            let conditionType = condition.cpptype in
+            let cases = List.map (fun (el,e2) ->
                   (List.map (retype conditionType) el), (retype TCppVoid e2) ) cases in
-              let def = match def with None -> None | Some e -> Some (retype TCppVoid e) in
-              CppSwitch(condition, cases, def), cpp_type_of expr.etype
-            end
+            let def = match def with None -> None | Some e -> Some (retype TCppVoid e) in
+            CppSwitch(condition, cases, def), cpp_type_of expr.etype
 
          | TTry (try_block,catches) ->
             (* TTry internal return - wrap whole thing in block ? *)
-            if return_type<>TCppVoid then begin
-               let blockId, pop_return_block = start_return_block () in
-
-               let cppBlock = retype_in_return_block true return_type try_block in
-               let cppCatches = List.map (fun (tvar,catch_block) ->
-                  let old_declarations = Hashtbl.copy !declarations in
-                  Hashtbl.add !declarations tvar.v_name ();
-                  let cppCatchBlock = retype_in_return_block true return_type catch_block in
-                  declarations := old_declarations;
-                  tvar, cppCatchBlock;
-               ) catches in
-               let ttry = CppTry(cppBlock, cppCatches) in
-               let try_expr = { cppexpr = ttry; cpptype = (cpp_type_of expr.etype) ; cpppos = expr.epos } in
-               let result = { block_expr=make_cpp_return_block [try_expr] expr;
-                              block_id=blockId;
-                              block_undeclared= !undeclared;
-                              block_this= !uses_this } in
-               pop_return_block result;
-               CppReturnBlock(result), cpp_type_of expr.etype
-
-            end else begin
-               let cppBlock = retype TCppVoid try_block in
-               let cppCatches = List.map (fun (tvar,catch_block) ->
-                  let old_declarations = Hashtbl.copy !declarations in
-                  Hashtbl.add !declarations tvar.v_name ();
-                  let cppCatchBlock = retype TCppVoid catch_block in
-                  declarations := old_declarations;
-                  tvar, cppCatchBlock;
-               ) catches in
-               CppTry(cppBlock, cppCatches), TCppVoid
-            end
+            if return_type<>TCppVoid then
+               error "Value from a try-block not handled" expr.epos;
+            let cppBlock = retype TCppVoid try_block in
+            let cppCatches = List.map (fun (tvar,catch_block) ->
+                let old_declarations = Hashtbl.copy !declarations in
+                Hashtbl.add !declarations tvar.v_name ();
+                let cppCatchBlock = retype TCppVoid catch_block in
+                declarations := old_declarations;
+                tvar, cppCatchBlock;
+            ) catches in
+            CppTry(cppBlock, cppCatches), TCppVoid
 
          | TReturn eo ->
             CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
@@ -2341,10 +2251,8 @@ let retype_expression ctx request_type expression_tree =
       in
       { cppexpr = retypedExpr; cpptype = retypedType; cpppos = expr.epos }
 
-   and retype return_type expr = retype_in_return_block false return_type expr
    in
-   let retyped = (retype request_type expression_tree) in
-   retyped, (List.rev !rev_return_blocks), (List.rev !rev_closures)
+   retype request_type expression_tree
 ;;
 
 
@@ -2355,23 +2263,16 @@ let gen_cpp_ast_expression_tree ctx tree =
 
    let indent = ref "" in
    let out = ctx.ctx_output in
-   let write_prologue = ref None in
-   let force_return =  ref false in
 
-   let cppTree, returnBlocks, closures =  retype_expression ctx TCppVoid tree in
+   let cppTree =  retype_expression ctx TCppVoid tree in
 
-   let rec gen expr =
+   let rec gen_with_prologue prologue expr =
       match expr.cppexpr with
-      | CppBlock exprs ->
+      | CppBlock(exprs,closures) ->
          writer#begin_block;
-         let prologue = !write_prologue in
-         write_prologue := None;
+         List.iter gen_closure closures;
          (match prologue with Some func -> func() | _ -> () );
-         let forced = !force_return in
-         force_return := false;
          let lastLine = ref (-1) in
-         let endsWithReturn = ref false in
-
          List.iter (fun e ->
             output_i "";
             if (ctx.ctx_debug_level>0) then begin
@@ -2383,11 +2284,8 @@ let gen_cpp_ast_expression_tree ctx tree =
                lastLine := line;
             end;
             gen e;
-            endsWithReturn := (match e.cppexpr with CppReturn _ -> true | _ -> false );
             writer#terminate_line
          ) exprs;
-         if (forced && (not !endsWithReturn)) then
-            output_i "return null();\n";
          writer#end_block;
 
       | CppInt i ->
@@ -2471,10 +2369,10 @@ let gen_cpp_ast_expression_tree ctx tree =
             gen arrayObj; out "["; gen index; out "]";
 
          | ArrayDynamic(arrayObj,index) ->
-            gen arrayObj; out "->__GetItem"; gen index; out ")"
+            gen arrayObj; out "->__GetItem("; gen index; out ")"
 
          | ArrayImplements(_,arrayObj,index) ->
-            gen arrayObj; out "->__get"; gen index; out ")";
+            gen arrayObj; out "->__get("; gen index; out ")";
          )
 
 
@@ -2515,7 +2413,7 @@ let gen_cpp_ast_expression_tree ctx tree =
          out ("Pos('" ^ (str name) ^ "'," ^ string_of_int(Int32.to_int line) ^ ",'" ^
             (str clazz) ^ "','" ^ (str func) ^ "')")
 
-      | CppType path ->
+      | CppClassOf path ->
          let path = "::" ^ (join_class_path_remap (path) "::" ) in
          if (path="::Array") then
             out "hx::ArrayBase::sClass"
@@ -2534,16 +2432,6 @@ let gen_cpp_ast_expression_tree ctx tree =
              out name
          )  closure.close_undeclared;
          out "))";
-
-      | CppReturnBlock block ->
-          out ("_hx_Block" ^ (string_of_int(block.block_id)) ^ "(");
-          let separator = ref "" in
-          Hashtbl.iter (fun name value  ->
-             out !separator; separator := ",";
-             out name
-         )  block.block_undeclared;
-         out ")()";
-
 
    | CppObjectDecl values ->
          out "{";
@@ -2644,6 +2532,9 @@ let gen_cpp_ast_expression_tree ctx tree =
    | CppCode(value, exprs) ->
        Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
 
+   and gen expr =
+      gen_with_prologue None expr
+
    and gen_lvalue lvalue =
       match lvalue with
       | CppVarRef varLoc ->
@@ -2707,41 +2598,14 @@ let gen_cpp_ast_expression_tree ctx tree =
       | OpAssign | OpAssignOp _ -> error "Unprocessed OpAssign" pos
    and string_of_path path =
       String.concat "::" (fst path) ^ "::" ^ (snd path) ^ "_obj"
-   in
 
-
-   List.iter (fun block ->
-      let name = "_hx_Block_" ^ (string_of_int block.block_id) in
-      output_i ("struct " ^ name);
-      writer#begin_block;
-      let ret_type = tcpp_to_string block.block_expr.cpptype in
-      (*let pass_by_value name = (String.length name >=5 ) && (String.sub name 0 5 = "_this") in*)
-      output_i ("inline static " ^ ret_type ^ " Block( ");
-      let sep = ref "" in
-      if (block.block_this) then begin
-         out "hx::ObjectPtr<OBJ_> __this";
-         sep := ","
-      end;
-      Hashtbl.iter (fun _ var ->
-         out (!sep ^ (cpp_var_type_of var) ^ " &" ^ (cpp_var_name_of var));
-         sep := ",";
-      ) block.block_undeclared;
-      out (")");
-      gen block.block_expr;
-      writer#end_block;
-      out ";\n";
-   ) returnBlocks;
-
-
-
-   List.iter (fun closure ->
+   and gen_closure closure =
       let size = string_of_int( Hashtbl.length closure.close_undeclared ) in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
       out (if closure.close_this then "hx::LocalThisFunc," else "hx::LocalFunc,");
-      let sep = ref "" in
+      out ("_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var -> 
-         out !sep; sep:=",";
-         out ((cpp_var_type_of var) ^ !sep ^ (keyword_remap name));
+         out ("," ^ (cpp_var_type_of var) ^ "," ^ (keyword_remap name));
       ) closure.close_undeclared;
       out ")\n";
       output_i ("int __ArgCount() const { return " ^ (string_of_int (List.length closure.close_args)) ^"; }\n");
@@ -2749,7 +2613,7 @@ let gen_cpp_ast_expression_tree ctx tree =
       let func_type = tcpp_to_string closure.close_type in
       output_i (func_type ^ " run(" ^ (gen_arg_list closure.close_args "__o_") ^ ")");
 
-      write_prologue := Some (function () ->
+      let prologue = Some (function () ->
           generate_default_values ctx closure.close_args "__o_";
           if (ctx.ctx_debug_level>0) then begin
              ctx.ctx_dump_src_pos();
@@ -2759,22 +2623,19 @@ let gen_cpp_ast_expression_tree ctx tree =
              List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
                 (List.filter cpp_debug_var_visible closure.close_args);
           end
-      );
-      force_return:=true;
+      ) in
 
-      gen closure.close_expr;
+      gen_with_prologue prologue closure.close_expr;
 
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
+
       output_i ("HX_END_LOCAL_FUNC" ^ size ^ "(" ^ return ^ ")\n\n");
-   ) closures;
+   in
 
 
    (*out "\t";*)
 
-   write_prologue := Some ctx.ctx_dump_src_pos;
-
-   gen cppTree;
-
+   gen_with_prologue (Some ctx.ctx_dump_src_pos) cppTree;
 
 ;;
 
