@@ -6337,7 +6337,8 @@ let write_c version file (code:code) =
 					else
 						sexpr "if( %s && %s && %s ) goto %s" (reg a) (reg b) pcompare (label d)
 				| HDyn , _ | _, HDyn ->
-					sexpr "{ int i = hl_dyn_compare((vdynamic*)%s,(vdynamic*)%s); if( i %s 0 && i != hl_invalid_comparison ) goto %s; }" (reg a) (reg b) (s_binop op) (label d)
+					let inv = if op = OpGt || op = OpGte then "&& i != hl_invalid_comparison " else "" in
+					sexpr "{ int i = hl_dyn_compare((vdynamic*)%s,(vdynamic*)%s); if( i %s 0 %s) goto %s; }" (reg a) (reg b) (s_binop op) inv (label d)
 				| HObj oa, HObj _ ->
 					(try
 						let fid = PMap.find "__compare" oa.pfunctions in
