@@ -339,6 +339,10 @@ let list_iteri f l =
 	let p = ref 0 in
 	List.iter (fun v -> f !p v; incr p) l
 
+let list_mapi f l =
+	let p = ref (-1) in
+	List.map (fun v -> incr p; f !p v) l
+
 let is_extern_field f =
 	Type.is_extern_field f || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta | _ -> false)
 
@@ -4181,9 +4185,7 @@ let interp code =
 					| VObj o as obj ->
 						(try
 							let m = PMap.find name o.oproto.pclass.pfunctions in
-							let fret, fargs = (match functions.(m) with FFun { ftype = HFun(args,t) } -> t, args | _ -> assert false) in
-							let v = fcall functions.(m) (obj :: List.map2 (fun r t -> dyn_cast (get r) (rtype r) t) (List.tl rl) (List.tl fargs)) in
-							set r (dyn_cast v fret (rtype r))
+							set r (dyn_call (VClosure (functions.(m),Some obj)) (List.map (fun r -> get r, rtype r) (List.tl rl)) (rtype r))
 						with Not_found ->
 							assert false)
 					| VDynObj _ ->
@@ -6001,9 +6003,11 @@ let write_c version file (code:code) =
 		let h = try Hashtbl.find funByArgs nargs with Not_found -> let h = Hashtbl.create 0 in Hashtbl.add funByArgs nargs h; h in
 		Hashtbl.replace h (kargs,kt) ()
 	) tfuns;
-	line "void *hlc_dyn_call( void *fun, hl_type *t, vdynamic **args ) {";
-	block();
+	let argsCounts = List.sort compare (Hashtbl.fold (fun i _ acc -> i :: acc) funByArgs []) in
 	sexpr "static int TKIND[] = {%s}" (String.concat "," (List.map (fun t -> string_of_int (type_kind_id (type_kind t))) all_types));
+	line "";
+	line "void *hlc_static_call( void *fun, hl_type *t, void **args, vdynamic *out ) {";
+	block();
 	sexpr "int chk = TKIND[t->fun->ret->kind]";
 	sexpr "vdynamic *d";
 	line "switch( t->fun->nargs ) {";
@@ -6023,34 +6027,96 @@ let write_c version file (code:code) =
 			let idx = ref (-1) in
 			let vargs = List.map (fun t ->
 				incr idx;
-				if is_dynamic t then
+				if is_ptr t then
 					sprintf "(%s)args[%d]" (ctype t) !idx
 				else
-					sprintf "args[%d]%s" !idx (dyn_value_field t)
+					sprintf "*(%s*)args[%d]" (ctype t) !idx
 			) args in
 			let call = sprintf "%s(%s)" (cast_fun "fun" args t) (String.concat "," vargs) in
-			if is_nullable t then
+			if is_ptr t then
 				sexpr "return %s" call
 			else if t = HVoid then begin
 				expr call;
 				expr "return NULL";
 			end else begin
-				expr "d = hl_alloc_dynamic(t->fun->ret)";
-				sexpr "d%s = %s" (dyn_value_field t) call;
-				expr "return d";
+				sexpr "out%s = %s" (dyn_value_field t) call;
+				sexpr "return &out%s" (dyn_value_field t);
 			end;
 			unblock();
 		) (Hashtbl.find funByArgs nargs);
 		sline "}";
 		expr "break";
 		unblock();
-	) (List.sort compare (Hashtbl.fold (fun i _ acc -> i :: acc) funByArgs []));
+	) argsCounts;
 	line "}";
 	sexpr "hl_fatal(\"Unsupported dynamic call\")";
 	sexpr "return NULL";
 	unblock();
 	line "}";
-
+	line "";
+	let wrap_char = function
+		| HVoid -> "v"
+		| HI8 | HBool -> "c"
+		| HI16 -> "s"
+		| HI32 -> "i"
+		| HF32 -> "f"
+		| HF64 -> "d"
+		| _ -> "p"
+	in
+	let make_wrap_name args t =
+		String.concat "" (List.map wrap_char args) ^ "_" ^ wrap_char t
+	in
+	List.iter (fun nargs ->
+		Hashtbl.iter (fun (args,t) _ ->
+			let name = make_wrap_name args t in
+			sline "static %s wrap_%s(void *value%s) {" (ctype t) name (String.concat "" (list_mapi (fun i t -> "," ^ var_type ("p" ^ string_of_int i) t) args));
+			block();
+			if args <> [] then sexpr "void *args[] = {%s}" (String.concat "," (list_mapi (fun i t ->
+				if not (is_ptr t) then
+					sprintf "&p%d" i
+				else
+					sprintf "p%d" i
+			) args));
+			let vargs = if args = [] then "NULL" else "args" in
+			if t = HVoid then
+				sexpr "hl_wrapper_call(value,%s,NULL)" vargs
+			else if is_ptr t then
+				sexpr "return hl_wrapper_call(value,%s,NULL)" vargs
+			else begin
+				expr "vdynamic ret";
+				sexpr "hl_wrapper_call(value,%s,&ret)" vargs;
+				sexpr "return ret.v.%s" (wrap_char t);
+			end;
+			unblock();
+			line "}";
+		) (Hashtbl.find funByArgs nargs);
+	) argsCounts;
+	line "";
+	line "void *hlc_get_wrapper( hl_type *t ) {";
+	block();
+	sexpr "int chk = TKIND[t->fun->ret->kind]";
+	line "switch( t->fun->nargs ) {";
+	List.iter (fun nargs ->
+		sline "case %d:" nargs;
+		block();
+		if nargs > 9 then sexpr "hl_fatal(\"Too many arguments, TODO:use more bits\")";
+		for i = 0 to nargs-1 do
+			sexpr "chk |= TKIND[t->fun->args[%d]->kind] << %d" i ((i + 1) * 3);
+		done;
+		line "switch( chk ) {";
+		Hashtbl.iter (fun (args,t) _ ->
+			let s = ref (-1) in
+			let chk = List.fold_left (fun chk t -> incr s; chk lor ((type_kind_id t) lsl (!s * 3))) 0 (t :: args) in
+			sexpr "case %d: return wrap_%s" chk (make_wrap_name args t);
+		) (Hashtbl.find funByArgs nargs);
+		sline "}";
+		expr "break";
+		unblock();
+	) argsCounts;
+	line "}";
+	sexpr "return NULL";
+	unblock();
+	line "}";
 	line "";
 	line "// Functions code";
 	Array.iter (fun f ->
