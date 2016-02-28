@@ -197,6 +197,7 @@ type context =
    mutable ctx_calling : bool;
    mutable ctx_assigning : bool;
    mutable ctx_return_from_block : bool;
+   mutable ctx_force_return : bool;
    mutable ctx_tcall_expand_args : bool;
    (* This is for returning from the child nodes of TMatch, TSwitch && TTry *)
    mutable ctx_return_from_internal_node : bool;
@@ -230,6 +231,7 @@ let new_context common_ctx writer debug file_info =
    ctx_dump_src_pos = (fun() -> ());
    ctx_return_from_block = false;
    ctx_tcall_expand_args = false;
+   ctx_force_return = true;
    ctx_return_from_internal_node = false;
    ctx_real_this_ptr = true;
    ctx_real_void = false;
@@ -1593,18 +1595,20 @@ and tcppexpr = {
 
 
 and tcpp_closure = {
-   close_type : t;
+   close_type : tcpp;
    close_args : (tvar * tconstant option) list;
    close_expr : tcppexpr;
    close_id : int;
-   close_undeclared : (string,tvar) Hashtbl.t
+   close_undeclared : (string,tvar) Hashtbl.t;
+   close_this : bool;
 }
 
 
 and tcpp_block = {
-   block_exprs : tcppexpr list;
+   block_expr : tcppexpr;
    block_id : int;
-   block_undeclared : (string,tvar) Hashtbl.t
+   block_undeclared : (string,tvar) Hashtbl.t;
+   block_this : bool;
 }
 
 and tcppcrementop =
@@ -1626,13 +1630,13 @@ and tcppvarloc =
    | VarClosure of tvar
    | VarThis of tclass_field
    | VarInstance of tcppexpr * tclass_field
-   | VarStatic of tcppexpr * tclass_field
+   | VarStatic of tclass * tclass_field
 
 and tcppfuncloc =
    | FuncThis of tclass_field
    | FuncInstance of tcppexpr * tclass_field
    | FuncInterface of tcppexpr * tclass_field
-   | FuncStatic of tcppexpr * tclass_field
+   | FuncStatic of tclass * tclass_field
    | FuncEnumConstruct of tenum * tenum_field
    | FuncSuper of tcppthis
    | FuncNew of tclass * tparams
@@ -1862,12 +1866,35 @@ let cpp_class_path_of klass =
       join_class_path_remap klass.cl_path "::"
 ;;
 
+let cpp_class_name klass =
+   let rename = get_meta_string klass.cl_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+      (join_class_path_remap klass.cl_path "::") ^ "_obj"
+;;
+
+
 let cpp_enum_path_of enum =
    let rename = get_meta_string enum.e_meta Meta.Native in
    if rename <> "" then
       rename
    else
       join_class_path_remap enum.e_path "::"
+;;
+
+let make_cpp_return_block exprList exprBase =
+   let last = (List.length exprList) - 1 in
+   let exprList = List.mapi (fun idx expr ->
+      if (idx=last) then
+         match expr.cppexpr with
+         | CppReturn _ -> expr
+         | _ -> 
+           { cppexpr=CppReturn(Some expr) ; cpptype = TCppVoid; cpppos = expr.cpppos };
+      else
+         expr
+   ) exprList in
+   { cppexpr=CppBlock(exprList) ; cpptype = cpp_type_of exprBase.etype; cpppos = exprBase.epos; }
 ;;
 
 
@@ -1911,6 +1938,15 @@ let cpp_var_name_of var =
       keyword_remap var.v_name
 ;;
 
+let cpp_debug_name_of var =
+   keyword_remap var.v_name
+;;
+
+let cpp_debug_var_visible var =
+   true
+;;
+
+
 
 let cpp_member_name_of member =
    let rename = get_meta_string member.cf_meta Meta.Native in
@@ -1938,12 +1974,15 @@ let retype_expression ctx request_type expression_tree =
    let rev_closures = ref [] in
    let declarations = ref (Hashtbl.create 0) in
    let undeclared = ref (Hashtbl.create 0) in
+   let uses_this = ref false in
    let this_real = ref ThisReal in
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
 
    let start_return_block () =
       let old_this_real = !this_real in
+      let old_uses_this = !uses_this in
+      uses_this := false;
       this_real := if !this_real = ThisDyanmic then ThisDyanmic else ThisFake;
       let old_undeclared = Hashtbl.copy !undeclared in
       let old_declarations = Hashtbl.copy !declarations in
@@ -1952,8 +1991,9 @@ let retype_expression ctx request_type expression_tree =
 
       blockId, fun block -> begin
           declarations := old_declarations;
-          undeclared := old_undeclared;
+          undeclared := old_undeclared; (* todo - conbine *)
           this_real := old_this_real;
+          uses_this := old_uses_this || !uses_this;
           rev_return_blocks := block :: !rev_return_blocks;
       end
    in
@@ -1976,16 +2016,18 @@ let retype_expression ctx request_type expression_tree =
             CppEnumParameter( retypedObj, enumField, enumIndex ), TCppDynamic
 
          | TConst TThis ->
+            uses_this := true;
             CppThis(!this_real), if !this_real=ThisDyanmic then TCppDynamic else cpp_type_of expr.etype
 
          | TConst TSuper ->
+            uses_this := true;
             CppSuper(!this_real), if !this_real=ThisDyanmic then TCppDynamic else cpp_type_of expr.etype
 
          | TConst x ->
             cpp_const_type x
 
          | TLocal { v_name = "__global__" } ->
-               CppType([],""), TCppType([],"")
+            CppType([],""), TCppType([],"")
 
          | TLocal tvar ->
             let name = tvar.v_name in
@@ -2034,13 +2076,11 @@ let retype_expression ctx request_type expression_tree =
                      CppFunction( FuncInstance(retypedObj, member) ), exprType
                end
             | FStatic (clazz,member) ->
-               let clazzType = TCppType(clazz.cl_path) in
-               let retypedObj = retype clazzType obj in
                let exprType = cpp_type_of member.cf_type in
                if is_var_field member then
-                  CppVar(VarStatic(retypedObj, member)), exprType
+                  CppVar(VarStatic(clazz, member)), exprType
                else
-                  CppFunction( FuncStatic(retypedObj, member) ), exprType
+                  CppFunction( FuncStatic(clazz, member) ), exprType
             | FClosure (None,field)
             | FAnon field ->
                   CppDynamicField(retype TCppDynamic obj, field.cf_name), TCppDynamic
@@ -2088,6 +2128,8 @@ let retype_expression ctx request_type expression_tree =
             (* TODO - this_dynamic ? *)
             let old_undeclared = Hashtbl.copy !undeclared in
             let old_declarations = Hashtbl.copy !declarations in
+            let old_uses_this = !uses_this in
+            uses_this := false;
             let closureId = List.length !rev_closures in
             undeclared := Hashtbl.create 0;
             List.iter ( fun (tvar,_) ->
@@ -2095,16 +2137,18 @@ let retype_expression ctx request_type expression_tree =
             let return_type = match cpp_type_of func.tf_type with
                 | TCppVoid -> TCppVoid
                 | _ -> TCppDynamic in
-            let cppExpr = retype return_type func.tf_expr in
+            let cppExpr = retype TCppVoid (mk_block func.tf_expr) in
             let result = { close_expr=cppExpr;
                            close_id=closureId;
                            close_undeclared= !undeclared;
-                           close_type= func.tf_type;
+                           close_type= cpp_type_of func.tf_type;
                            close_args= func.tf_args;
+                           close_this= !uses_this;
                          } in
             declarations := old_declarations;
-            undeclared := old_undeclared;
+            undeclared := old_undeclared; (* todo combine *)
             this_real := old_this_real;
+            uses_this := old_uses_this || !uses_this;
             rev_closures := result:: !rev_closures;
             CppClosure(result), TCppDynamic
 
@@ -2184,7 +2228,8 @@ let retype_expression ctx request_type expression_tree =
             end else begin
                let blockId, pop_return_block = start_return_block () in
                let cppExprs = return_last expr_list in
-               let result = { block_exprs=cppExprs; block_id=blockId; block_undeclared= !undeclared } in
+               let blockExpr = make_cpp_return_block cppExprs expr in
+               let result = { block_expr=blockExpr; block_id=blockId; block_undeclared= !undeclared; block_this = !uses_this; } in
                pop_return_block result;
                CppReturnBlock(result), cpp_type_of expr.etype
             end
@@ -2236,7 +2281,10 @@ let retype_expression ctx request_type expression_tree =
 
               let switch = CppSwitch(condition, cases, def) in
               let switch_expr = { cppexpr = switch; cpptype = (cpp_type_of expr.etype) ; cpppos = expr.epos } in
-              let result = { block_exprs = [switch_expr]; block_id=blockId; block_undeclared= !undeclared } in
+              let result = { block_expr = make_cpp_return_block [switch_expr] expr;
+                             block_id=blockId;
+                             block_undeclared= !undeclared;
+                             block_this = !uses_this } in
 
               pop_return_block result;
               CppReturnBlock(result), cpp_type_of expr.etype
@@ -2265,7 +2313,10 @@ let retype_expression ctx request_type expression_tree =
                ) catches in
                let ttry = CppTry(cppBlock, cppCatches) in
                let try_expr = { cppexpr = ttry; cpptype = (cpp_type_of expr.etype) ; cpppos = expr.epos } in
-               let result = { block_exprs=[try_expr]; block_id=blockId; block_undeclared= !undeclared } in
+               let result = { block_expr=make_cpp_return_block [try_expr] expr;
+                              block_id=blockId;
+                              block_undeclared= !undeclared;
+                              block_this= !uses_this } in
                pop_return_block result;
                CppReturnBlock(result), cpp_type_of expr.etype
 
@@ -2304,9 +2355,8 @@ let gen_cpp_ast_expression_tree ctx tree =
 
    let indent = ref "" in
    let out = ctx.ctx_output in
-   let dump_src_pos = ref (Some ctx.ctx_dump_src_pos) in
-
-   out "\t";
+   let write_prologue = ref None in
+   let force_return =  ref false in
 
    let cppTree, returnBlocks, closures =  retype_expression ctx TCppVoid tree in
 
@@ -2314,8 +2364,14 @@ let gen_cpp_ast_expression_tree ctx tree =
       match expr.cppexpr with
       | CppBlock exprs ->
          writer#begin_block;
-         (match !dump_src_pos with Some func -> func(); dump_src_pos := None | _ -> () );
+         let prologue = !write_prologue in
+         write_prologue := None;
+         (match prologue with Some func -> func() | _ -> () );
+         let forced = !force_return in
+         force_return := false;
          let lastLine = ref (-1) in
+         let endsWithReturn = ref false in
+
          List.iter (fun e ->
             output_i "";
             if (ctx.ctx_debug_level>0) then begin
@@ -2327,8 +2383,11 @@ let gen_cpp_ast_expression_tree ctx tree =
                lastLine := line;
             end;
             gen e;
+            endsWithReturn := (match e.cppexpr with CppReturn _ -> true | _ -> false );
             writer#terminate_line
          ) exprs;
+         if (forced && (not !endsWithReturn)) then
+            output_i "return null();\n";
          writer#end_block;
 
       | CppInt i ->
@@ -2361,8 +2420,8 @@ let gen_cpp_ast_expression_tree ctx tree =
               gen expr; out ("->" ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncInterface(expr,field) ->
               gen expr; out ("->" ^ (cpp_member_name_of field) ^ "_dyn()");
-         | FuncStatic(expr,field) ->
-              gen expr; out ("::" ^ (cpp_member_name_of field) ^ "_dyn()");
+         | FuncStatic(clazz,field) ->
+              out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncDynamic(expr) ->
               gen expr;
          | FuncSuper _ -> error "Can't create super closure" expr.cpppos
@@ -2377,8 +2436,8 @@ let gen_cpp_ast_expression_tree ctx tree =
          | FuncInstance(expr,field)
          | FuncInterface(expr,field) ->
               gen expr; out ("->" ^ (cpp_member_name_of field) );
-         | FuncStatic(expr,field) ->
-              gen expr; out ("::" ^ (cpp_member_name_of field) );
+         | FuncStatic(clazz,field) ->
+              out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) );
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
@@ -2391,66 +2450,21 @@ let gen_cpp_ast_expression_tree ctx tree =
             out ("new " ^ (string_of_path clazz.cl_path));
          | FuncDynamic(expr) ->
               gen expr;
-              out "->__run";
          );
-         call_out args; out !closeCall
+         let is_first = ref true in
+         out "(";
+         List.iter (fun arg ->
+            if not !is_first then out ",";
+            is_first := false;
+            gen arg;
+            ) args;
+         out (")" ^ !closeCall);
 
-
-
-   | CppClosure closure -> out ("call(closure" ^ (string_of_int(closure.close_id)) ^ ")")
-   | CppReturnBlock block ->out ("call(block" ^ (string_of_int(block.block_id)) ^ ")")
-   | CppVar(loc) ->
-         gen_val_loc loc;
-   | CppCrement(incFlag,preFlag, lvalue) ->
-         let op = if incFlag==CppIncrement then "++" else "--" in
-         if (preFlag==Prefix) then out op;
-         gen_lvalue lvalue;
-         if (preFlag==Postfix) then out op
-
-   | CppModify(op,lvalue,rvalue) ->
-         gen_lvalue lvalue;
-         out (string_of_op_eq op expr.cpppos);
-         gen rvalue
-   | CppSet(lvalue,rvalue) ->
-      (match lvalue with
-      | CppVarRef varLoc ->
-           gen_val_loc varLoc; out " = "; gen rvalue;
-
-      | CppArrayRef arrayLoc -> (match arrayLoc with
-         | ArrayObject(arrayObj, index)
-         | ArrayTyped(arrayObj, index) ->
-            gen arrayObj; out "["; gen index; out "] = "; gen rvalue
-         | ArrayVirtual(arrayObj, index) ->
-            gen arrayObj; out "->set("; gen index; out ","; gen rvalue; out ")"
-
-         | ArrayDynamic(arrayObj, index) ->
-            gen arrayObj; out "->__SetItem("; gen index; out ","; gen rvalue; out ")"
-
-         | ArrayImplements(_,arrayObj,index) ->
-            gen arrayObj; out "->__set("; gen index; out ","; gen rvalue; out ")"
-         )
-      | CppDynamicRef(expr,name) ->
-         gen expr; out ("->__SetField(" ^ (str name) ^ ","); gen rvalue; out ")"
-      )
-
-
-   | CppDynamicField(obj,name) ->
+      | CppDynamicField(obj,name) ->
          gen obj;
          out ("->__Field('" ^ name  ^ "')");
 
-   | CppPosition(name,line,clazz,func) ->
-         out ("Pos('" ^ name ^ "'," ^ string_of_int(Int32.to_int line) ^ ",'" ^ clazz ^ "','" ^ func ^ "')")
-
-   | CppObjectDecl values ->
-         out "{";
-         List.iter (fun(name,value) ->
-            out ("'" ^ name ^ "'=");
-            gen value;
-            out ", ";
-         ) values;
-         out "}";
-   | CppType path -> out (string_of_path path)
-   | CppArray(arrayLoc) -> (match arrayLoc with 
+      | CppArray(arrayLoc) -> (match arrayLoc with 
          | ArrayTyped(arrayObj,index)
          | ArrayObject(arrayObj,index)
          | ArrayVirtual(arrayObj,index) ->
@@ -2462,6 +2476,84 @@ let gen_cpp_ast_expression_tree ctx tree =
          | ArrayImplements(_,arrayObj,index) ->
             gen arrayObj; out "->__get"; gen index; out ")";
          )
+
+
+      | CppSet(lvalue,rvalue) ->
+         (match lvalue with
+         | CppVarRef varLoc ->
+              gen_val_loc varLoc; out " = "; gen rvalue;
+
+         | CppArrayRef arrayLoc -> (match arrayLoc with
+            | ArrayObject(arrayObj, index)
+            | ArrayTyped(arrayObj, index) ->
+               gen arrayObj; out "["; gen index; out "] = "; gen rvalue
+            | ArrayVirtual(arrayObj, index) ->
+               gen arrayObj; out "->set("; gen index; out ","; gen rvalue; out ")"
+
+            | ArrayDynamic(arrayObj, index) ->
+               gen arrayObj; out "->__SetItem("; gen index; out ","; gen rvalue; out ")"
+
+            | ArrayImplements(_,arrayObj,index) ->
+               gen arrayObj; out "->__set("; gen index; out ","; gen rvalue; out ")"
+            )
+         | CppDynamicRef(expr,name) ->
+            gen expr; out ("->__SetField(" ^ (str name) ^ ","); gen rvalue; out ")"
+         )
+
+      | CppCrement(incFlag,preFlag, lvalue) ->
+         let op = if incFlag==CppIncrement then "++" else "--" in
+         if (preFlag==Prefix) then out op;
+         gen_lvalue lvalue;
+         if (preFlag==Postfix) then out op
+
+      | CppModify(op,lvalue,rvalue) ->
+         gen_lvalue lvalue;
+         out (string_of_op_eq op expr.cpppos);
+         gen rvalue
+
+      | CppPosition(name,line,clazz,func) ->
+         out ("Pos('" ^ (str name) ^ "'," ^ string_of_int(Int32.to_int line) ^ ",'" ^
+            (str clazz) ^ "','" ^ (str func) ^ "')")
+
+      | CppType path ->
+         let path = "::" ^ (join_class_path_remap (path) "::" ) in
+         if (path="::Array") then
+            out "hx::ArrayBase::sClass"
+         else
+            out ("hx::ClassOf< " ^ path ^ " >()")
+
+      | CppVar(loc) ->
+         gen_val_loc loc;
+
+
+      | CppClosure closure ->
+          out ("Dynamic(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
+          let separator = ref "" in
+          Hashtbl.iter (fun name value ->
+             out !separator; separator := ",";
+             out name
+         )  closure.close_undeclared;
+         out "))";
+
+      | CppReturnBlock block ->
+          out ("_hx_Block" ^ (string_of_int(block.block_id)) ^ "(");
+          let separator = ref "" in
+          Hashtbl.iter (fun name value  ->
+             out !separator; separator := ",";
+             out name
+         )  block.block_undeclared;
+         out ")()";
+
+
+   | CppObjectDecl values ->
+         out "{";
+         List.iter (fun(name,value) ->
+            out ("'" ^ name ^ "'=");
+            gen value;
+            out ", ";
+         ) values;
+         out "}";
+
    | CppArrayDecl(exprList) ->
          out "["; List.iter (fun value -> gen value; out ",";) exprList; out "]";
    | CppBinop(op, left, right) ->
@@ -2571,9 +2663,9 @@ let gen_cpp_ast_expression_tree ctx tree =
 
    and gen_val_loc loc =
       match loc with
-      | VarClosure(var) -> out ("_this->" ^ var.v_name)
+      | VarClosure(var) -> out ("__this->" ^ var.v_name)
       | VarLocal(local) -> out local.v_name
-      | VarStatic(obj,member) -> gen obj; out ("::" ^ (cpp_member_name_of member))
+      | VarStatic(clazz,member) -> out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of member))
       | VarThis(member) -> out ("this->" ^ (cpp_member_name_of member))
       | VarInstance(obj,member) -> gen obj; out ("->" ^ (cpp_member_name_of member))
 
@@ -2585,7 +2677,6 @@ let gen_cpp_ast_expression_tree ctx tree =
       | OpAnd -> "&="
       | OpOr -> "|="
       | OpXor -> "^="
-      | OpAssign -> "="
       | OpShl -> "<<="
       | OpShr -> ">>="
       | OpUShr -> "<<<="
@@ -2616,25 +2707,74 @@ let gen_cpp_ast_expression_tree ctx tree =
       | OpAssign | OpAssignOp _ -> error "Unprocessed OpAssign" pos
    and string_of_path path =
       String.concat "::" (fst path) ^ "::" ^ (snd path) ^ "_obj"
-   and call_out args =
-      let is_first = ref true in
-      out "(";
-      List.iter (fun arg ->
-         if not !is_first then out ",";
-         is_first := false;
-         gen arg;
-         ) args;
-      out ")";
    in
 
+
    List.iter (fun block ->
-      out("Return block " ^ string_of_int(block.block_id) ^ "\n")
+      let name = "_hx_Block_" ^ (string_of_int block.block_id) in
+      output_i ("struct " ^ name);
+      writer#begin_block;
+      let ret_type = tcpp_to_string block.block_expr.cpptype in
+      (*let pass_by_value name = (String.length name >=5 ) && (String.sub name 0 5 = "_this") in*)
+      output_i ("inline static " ^ ret_type ^ " Block( ");
+      let sep = ref "" in
+      if (block.block_this) then begin
+         out "hx::ObjectPtr<OBJ_> __this";
+         sep := ","
+      end;
+      Hashtbl.iter (fun _ var ->
+         out (!sep ^ (cpp_var_type_of var) ^ " &" ^ (cpp_var_name_of var));
+         sep := ",";
+      ) block.block_undeclared;
+      out (")");
+      gen block.block_expr;
+      writer#end_block;
+      out ";\n";
    ) returnBlocks;
+
+
+
    List.iter (fun closure ->
-      out("Closure " ^ string_of_int(closure.close_id) ^ "\n")
+      let size = string_of_int( Hashtbl.length closure.close_undeclared ) in
+      output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
+      out (if closure.close_this then "hx::LocalThisFunc," else "hx::LocalFunc,");
+      let sep = ref "" in
+      Hashtbl.iter (fun name var -> 
+         out !sep; sep:=",";
+         out ((cpp_var_type_of var) ^ !sep ^ (keyword_remap name));
+      ) closure.close_undeclared;
+      out ")\n";
+      output_i ("int __ArgCount() const { return " ^ (string_of_int (List.length closure.close_args)) ^"; }\n");
+
+      let func_type = tcpp_to_string closure.close_type in
+      output_i (func_type ^ " run(" ^ (gen_arg_list closure.close_args "__o_") ^ ")");
+
+      write_prologue := Some (function () ->
+          generate_default_values ctx closure.close_args "__o_";
+          if (ctx.ctx_debug_level>0) then begin
+             ctx.ctx_dump_src_pos();
+             (*hx_stack_push ctx output_i "*" func_name closure.close_expr.cpppos;*)
+             if (closure.close_this) then
+                output_i ("HX_STACK_THIS(__this.mPtr)\n");
+             List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
+                (List.filter cpp_debug_var_visible closure.close_args);
+          end
+      );
+      force_return:=true;
+
+      gen closure.close_expr;
+
+      let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
+      output_i ("HX_END_LOCAL_FUNC" ^ size ^ "(" ^ return ^ ")\n\n");
    ) closures;
 
+
+   (*out "\t";*)
+
+   write_prologue := Some ctx.ctx_dump_src_pos;
+
    gen cppTree;
+
 
 ;;
 
