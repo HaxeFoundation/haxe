@@ -3,7 +3,7 @@ package unit.issues;
 import unit.issues.misc.Issue4121Macro.wrap;
 
 private typedef P2 = {
-	@:optional var hidden(null, null): Int;
+	var hidden(null, null):Int;
 }
 
 class Issue4121 extends Test {
