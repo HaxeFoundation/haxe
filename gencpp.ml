@@ -1685,7 +1685,7 @@ and tcpp_expr_expr =
    | CppFor of tvar * tcppexpr * tcppexpr
    | CppIf of tcppexpr * tcppexpr * tcppexpr option
    | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
-   | CppSwitch of tcppexpr * (tcppexpr list * tcppexpr) list * tcppexpr option
+   | CppIntSwitch of tcppexpr * (Int32.t list * tcppexpr) list * tcppexpr option
    | CppTry of tcppexpr * (tvar * tcppexpr) list
    | CppBreak
    | CppContinue
@@ -1722,6 +1722,30 @@ let is_cpp_array_implementer cppType =
    | _ -> false
 ;;
 
+let rec const_int_of expr = 
+   match expr.eexpr with
+   | TConst TInt x -> x
+   | TConst TBool x -> Int32.of_int (if x then 1 else 0)
+   | TParenthesis e -> const_int_of e
+   | _ -> raise Not_found
+;;
+
+let rec const_float_of expr = 
+   match expr.eexpr with
+   | TConst TInt x -> Printf.sprintf "%ld" x
+   | TConst TFloat x -> x
+   | TConst TBool x -> if x then "1" else "0"
+   | TParenthesis e -> const_float_of e
+   | _ -> raise Not_found
+;;
+
+
+let rec const_string_of expr = 
+   match expr.eexpr with
+   | TConst TString x -> x
+   | TParenthesis e -> const_string_of e
+   | _ -> raise Not_found
+;;
 
 
 
@@ -1770,9 +1794,9 @@ let rec cpp_type_of haxe_type =
    | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of t)
 
    | TAbstract ({ a_path = ([],"Void") },[]) -> TCppVoid
-   | TAbstract ({ a_path = ([],"Bool") },[]) -> TCppScalar("bool")
+   | TAbstract ({ a_path = ([],"Bool") },[]) -> TCppScalar("Bool")
    | TAbstract ({ a_path = ([],"Float") },[]) -> TCppScalar("Float")
-   | TAbstract ({ a_path = ([],"Int") },[]) -> TCppScalar("int")
+   | TAbstract ({ a_path = ([],"Int") },[]) -> TCppScalar("Int")
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> TCppDynamic
    | TInst    ( { cl_path = ([], "String") }, _  ) -> TCppString
 
@@ -2278,10 +2302,17 @@ let retype_expression ctx request_type expression_tree =
 
             let condition = retype (cpp_type_of condition.etype) condition in
             let conditionType = condition.cpptype in
-            let cases = List.map (fun (el,e2) ->
-                  (List.map (retype conditionType) el), (retype TCppVoid (mk_block e2)) ) cases in
             let def = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
-            CppSwitch(condition, cases, def), cpp_type_of expr.etype
+            (try 
+               (match conditionType with TCppScalar("Int") | TCppScalar("Bool") -> () | _ -> raise Not_found );
+               let cases = List.map (fun (el,e2) ->
+                  if (contains_break e2) then raise Not_found;
+                  (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
+               CppIntSwitch(condition, cases, def), cpp_type_of expr.etype
+            with Not_found ->
+               (* TODO *)
+               condition.cppexpr, conditionType
+            )
 
          | TTry (try_block,catches) ->
             (* TTry internal return - wrap whole thing in block ? *)
@@ -2532,9 +2563,11 @@ let gen_cpp_ast_expression_tree ctx tree =
          | "&&" | "||" -> "(bool(", "))"
          | "/" -> "(Float(", "))"
          | _ -> "(",")") in
+          out "(";
           out castOpen; gen left; out castClose;
           out op;
           out castOpen; gen right; out castClose;
+          out ")";
 
       | CppThrow(value) ->
          out "HX_STACK_DO_THROW("; gen value; out ")";
@@ -2549,13 +2582,14 @@ let gen_cpp_ast_expression_tree ctx tree =
          let baseType = cpp_base_type_of (expr.cpptype) in
          out ( "->get" ^ baseType ^ "(" ^ (string_of_int index) ^ ")")
 
-      | CppSwitch(condition, cases, defVal) ->
+      | CppIntSwitch(condition, cases, defVal) ->
          out "switch("; gen condition; out ")";
          writer#begin_block;
          List.iter (fun (values,expr) ->
             out spacer; writer#write_i "";
-            List.iter (fun value -> out "case "; gen value; out ": " ) values;
+            List.iter (fun value -> out ("case " ^ (Printf.sprintf "%ld" value) ^ ": " ) ) values;
             gen expr;
+            out spacer; writer#write_i "break;\n";
          ) cases;
          (match defVal with
          | Some expr -> output_i "default:"; gen expr; | _ -> ()  );
