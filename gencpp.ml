@@ -1576,6 +1576,7 @@ type tcpp =
    | TCppFastIterator of tcpp
    | TCppPointer of string * tcpp
    | TCppFunction of tcpp list * tcpp * string
+   | TCppVoidStar
    | TCppDynamicArray
    | TCppObjectArray of tcpp
    | TCppWrapped of tcpp
@@ -1641,6 +1642,7 @@ and tcppfuncloc =
    | FuncSuper of tcppthis
    | FuncNew of tclass * tparams
    | FuncDynamic of tcppexpr
+   | FuncInternal of tcppexpr * string * string
 
 and tcpparrayloc =
    | ArrayTyped of tcppexpr * tcppexpr
@@ -1885,6 +1887,7 @@ let cpp_enum_path_of enum =
 let rec tcpp_to_string = function
    | TCppDynamic -> "Dynamic"
    | TCppVoid -> "void"
+   | TCppVoidStar -> "void *"
    | TCppEnum(enum) -> "EnumBase"
    | TCppScalar(scalar) -> scalar
    | TCppString -> "::String"
@@ -1908,6 +1911,44 @@ let rec tcpp_to_string = function
    | TCppClass -> "hx::Class";
    | TCppPrivate -> "/* private */"
 ;;
+
+
+let cpp_variant_type_of t = match t with
+   | TCppDynamic
+   | TCppVoid
+   | TCppFastIterator _
+   | TCppDynamicArray
+   | TCppObjectArray _
+   | TCppScalarArray _
+   | TCppWrapped _
+   | TCppObjC _
+   | TCppInst _
+   | TCppPrivate
+   | TCppClass
+   | TCppEnum _ -> TCppDynamic
+   | TCppString -> TCppString
+   | TCppFunction _
+   | TCppNativePointer _
+   | TCppPointer _
+   | TCppVoidStar -> TCppVoidStar
+   | TCppScalar "Int"
+   | TCppScalar "Bool"
+   | TCppScalar "Float"  -> t
+   | TCppScalar "double"
+   | TCppScalar "float" -> TCppScalar("Float")
+   | TCppScalar _  -> TCppScalar("Int")
+;;
+
+
+let cpp_base_type_of t =
+   match cpp_variant_type_of t with
+   | TCppDynamic -> "Object"
+   | TCppString -> "String"
+   | TCppVoidStar -> "Pointer"
+   | TCppScalar x  -> x
+   | _  -> "Object"
+;;
+
 
 let cpp_var_type_of var =
    tcpp_to_string (cpp_type_of var.v_type)
@@ -1975,10 +2016,9 @@ let retype_expression ctx request_type expression_tree =
       let retypedExpr, retypedType =
          match expr.eexpr with
          | TEnumParameter( enumObj, enumField, enumIndex  ) ->
-            let enumType =  cpp_type_of enumField.ef_type in
-            let retypedObj = retype enumType enumObj in
+            let retypedObj = retype TCppDynamic enumObj in
             (* hxcpp actually stores enum parametes in Array<Dynamic> *)
-            CppEnumParameter( retypedObj, enumField, enumIndex ), TCppDynamic
+            CppEnumParameter( retypedObj, enumField, enumIndex ), cpp_variant_type_of (cpp_type_of expr.etype)
 
          | TConst TThis ->
             uses_this := Some !this_real;
@@ -2075,9 +2115,24 @@ let retype_expression ctx request_type expression_tree =
             *)
             let retypedArgs = List.map (retype TCppDynamic ) args in
             (match retypedFunc.cppexpr with
-            |  CppFunction(func)          -> CppCall(func,retypedArgs), cppType
-            |  CppEnumField(enum, field)  -> CppCall( FuncEnumConstruct(enum,field),retypedArgs), cppType
-            |  CppSuper(this)             -> CppCall( FuncSuper(this),retypedArgs), cppType
+            |  CppFunction(func) ->
+                  CppCall(func,retypedArgs), cppType
+            |  CppEnumField(enum, field) ->
+                  CppCall( FuncEnumConstruct(enum,field),retypedArgs), cppType
+            |  CppSuper(this) ->
+                  CppCall( FuncSuper(this),retypedArgs), cppType
+            |  CppDynamicField(expr,name) ->
+                  (* Special function calls *)
+                  (match expr.cpptype, name with
+                  | TCppString, _  ->
+                     CppCall( FuncInternal(expr,name,"."),retypedArgs), cppType
+
+                  | _, name when is_internal_member name ->
+                     CppCall( FuncInternal(expr,name,"->"),retypedArgs), cppType
+
+                  | _ -> (* not special *)
+                     CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
+                  )
             | _ ->
                CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
             )
@@ -2327,6 +2382,8 @@ let gen_cpp_ast_expression_tree ctx tree =
               out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncDynamic(expr) ->
               gen expr;
+         | FuncInternal(expr,name,_) ->
+              gen expr; out ("->__Field(" ^ (str name) ^ ")")
          | FuncSuper _ -> error "Can't create super closure" expr.cpppos
          | FuncNew _ -> error "Can't create new closure" expr.cpppos
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
@@ -2351,21 +2408,22 @@ let gen_cpp_ast_expression_tree ctx tree =
                  out ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct");
          | FuncNew(clazz, params) ->
             out ("new " ^ (string_of_path clazz.cl_path));
+         | FuncInternal(expr,name,join) ->
+              gen expr; out (join ^ name)
          | FuncDynamic(expr) ->
               gen expr;
          );
-         let is_first = ref true in
+         let sep = ref "" in
          out "(";
          List.iter (fun arg ->
-            if not !is_first then out ",";
-            is_first := false;
+            out !sep; sep := ",";
             gen arg;
             ) args;
          out (")" ^ !closeCall);
 
       | CppDynamicField(obj,name) ->
          gen obj;
-         out ("->__Field('" ^ name  ^ "')");
+         out ("->__Field(" ^ (str name)  ^ ")");
 
       | CppArray(arrayLoc) -> (match arrayLoc with 
          | ArrayTyped(arrayObj,index)
@@ -2443,39 +2501,66 @@ let gen_cpp_ast_expression_tree ctx tree =
          )  closure.close_undeclared;
          out "))";
 
-   | CppObjectDecl values ->
-         out "{";
-         List.iter (fun(name,value) ->
-            out ("'" ^ name ^ "'=");
-            gen value;
-            out ", ";
-         ) values;
-         out "}";
+      | CppObjectDecl values ->
+         let length = List.length values in
+         out ("hx::Anon_obj::Create(" ^ (string_of_int length) ^")");
+         let sorted = List.sort (fun  (_,_,h0) (_,_,h1) -> Int32.compare h0 h1 )
+                (List.map (fun (name,value) -> name,value,(gen_hash32 0 name ) ) values) in
+         List.iteri (fun idx (name,value,_) ->
+            out "\n"; output_p value ("\t->setFixed(" ^ (string_of_int idx) ^ "," ^ (str name) ^ ","); gen value; out ")";
+         ) sorted;
 
-   | CppArrayDecl(exprList) ->
-         out "["; List.iter (fun value -> gen value; out ",";) exprList; out "]";
-   | CppBinop(op, left, right) ->
-         out "("; gen left; out ") ";
-         out (string_of_op op expr.cpppos);
-         out " ("; gen right; out ")";
-   | CppThrow(value) -> out "throw "; gen value;
-   | CppReturn None -> out "return";
-   | CppReturn Some value -> out "return "; gen value;
-   | CppEnumField(enum,field) ->
+      | CppArrayDecl(exprList) ->
+         let count = List.length exprList in
+         let countStr = string_of_int count in
+         let arrayType = match expr.cpptype with
+            | TCppObjectArray _ -> "cpp::Array_obj<Dyanmic>" 
+            | TCppScalarArray(value) -> "cpp::Array_obj< " ^ (tcpp_to_string value) ^ " >"
+            | TCppDynamicArray -> "cpp::VirtualArray_obj"
+            | _ -> "Dynamic( cpp::VirtualArray_obj"
+         in
+         out (arrayType ^ "::__new(" ^ countStr ^ ")" );
+         List.iteri ( fun idx elem -> out ("->init(" ^ (string_of_int idx) ^ ",");
+                     gen elem; out ")" ) exprList;
+
+         if (expr.cpptype==TCppDynamic) then out ")";
+
+      | CppBinop(op, left, right) ->
+         let op = string_of_op op expr.cpppos in
+         let castOpen, castClose = (match op with
+         | ">>" | "<<" | "&" | "|" | "^"  -> "(int(", "))"
+         | "&&" | "||" -> "(bool(", "))"
+         | "/" -> "(Float(", "))"
+         | _ -> "(",")") in
+          out castOpen; gen left; out castClose;
+          out op;
+          out castOpen; gen right; out castClose;
+
+      | CppThrow(value) ->
+         out "HX_STACK_DO_THROW("; gen value; out ")";
+
+      | CppReturn None -> out "return";
+      | CppReturn Some value -> out "return "; gen value;
+
+      | CppEnumField(enum,field) ->
          out ((string_of_path enum.e_path) ^ "::" ^ field.ef_name);
-   | CppEnumParameter(obj,field,index) ->
-         gen obj;
-         out ("->EnumParam[" ^ (string_of_int index) ^ "]");
-   | CppSwitch(condition, cases, defVal) ->
-      out "switch("; gen condition; out ")\n";
-      writer#begin_block;
-      List.iter (fun (values,expr) ->
-         List.iter (fun value -> output_i "case "; gen value; out ":\n" ) values;
-         gen expr;
-      ) cases;
-      (match defVal with
-      | Some expr -> output_i "default:\n"; gen expr; | _ -> ()  );
-      writer#end_block;
+
+      | CppEnumParameter(obj,field,index) ->
+         let baseType = cpp_base_type_of (expr.cpptype) in
+         out ( "->get" ^ baseType ^ "(" ^ (string_of_int index) ^ ")")
+
+      | CppSwitch(condition, cases, defVal) ->
+         out "switch("; gen condition; out ")";
+         writer#begin_block;
+         List.iter (fun (values,expr) ->
+            out spacer; writer#write_i "";
+            List.iter (fun value -> out "case "; gen value; out ": " ) values;
+            gen expr;
+         ) cases;
+         (match defVal with
+         | Some expr -> output_i "default:"; gen expr; | _ -> ()  );
+         out spacer;
+         writer#end_block;
 
    | CppUnop(unop,value) ->
         out (match unop with
