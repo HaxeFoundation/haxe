@@ -1391,10 +1391,10 @@ module Inheritance = struct
 			(* for macros reason, our super class is not yet built - see #2177 *)
 			(* let's reset our build and delay it until we are done *)
 			c.cl_meta <- old_meta;
-			c.cl_array_access <- None;
+(* 			c.cl_array_access <- None;
 			c.cl_dynamic <- None;
 			c.cl_implements <- [];
-			c.cl_super <- None;
+			c.cl_super <- None; *)
 			raise Exit
 		in
 		let has_interf = ref false in
