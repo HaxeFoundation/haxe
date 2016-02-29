@@ -247,7 +247,8 @@ class RunCi {
 				runCommand(exe, args);
 				switch (ci) {
 					case AppVeyor:
-						runCommand("mono", [exe].concat(args));
+						// https://github.com/HaxeFoundation/haxe/issues/4873
+						// runCommand("mono", [exe].concat(args));
 					case _:
 						//pass
 				}
