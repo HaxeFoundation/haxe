@@ -3007,11 +3007,11 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType t ->
-		let rec loop t =
+		let rec loop in_abstract_from t =
 			match follow t with
-			| TAnon a when not (PMap.is_empty a.a_fields) -> ODKWithStructure a
+			| TAnon a when not (PMap.is_empty a.a_fields) && not in_abstract_from -> ODKWithStructure a
 			| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				(match List.fold_left (fun acc t -> match loop t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+				(match List.fold_left (fun acc t -> match loop true t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> t
 				| _ -> ODKPlain)
 			| TDynamic t when (follow t != t_dynamic) ->
@@ -3025,7 +3025,7 @@ and type_object_decl ctx fl with_type p =
 			| _ ->
 				ODKPlain
 		in
-		loop t
+		loop false t
 	| _ ->
 		ODKPlain
 	) in
