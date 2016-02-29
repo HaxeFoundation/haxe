@@ -1621,7 +1621,7 @@ and tcppunop =
    | CppNegBits
    | CppNot
 
-and tcppthis = 
+and tcppthis =
    | ThisReal
    | ThisFake
    | ThisDyanmic
@@ -1681,7 +1681,7 @@ and tcpp_expr_expr =
    | CppArrayDecl of tcppexpr list
    | CppUnop of tcppunop * tcppexpr
    | CppVarDecl of tvar * tcppexpr option
-   | CppBlock of tcppexpr list * tcpp_closure list 
+   | CppBlock of tcppexpr list * tcpp_closure list
    | CppFor of tvar * tcppexpr * tcppexpr
    | CppIf of tcppexpr * tcppexpr * tcppexpr option
    | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
@@ -1893,7 +1893,7 @@ let rec tcpp_to_string = function
    | TCppString -> "::String"
    | TCppFastIterator it -> "cpp::FastIterator< " ^ (tcpp_to_string it) ^ " >";
    | TCppPointer(ptrType,valueType) -> "cpp::" ^ ptrType ^ "< " ^ (tcpp_to_string valueType) ^ ">"
-   | TCppFunction(argTypes,retType,abi) -> 
+   | TCppFunction(argTypes,retType,abi) ->
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
         "cpp::Function< " ^ abi ^ " (" ^ (tcpp_to_string retType) ^ " (" ^ args ^ ") >"
    | TCppDynamicArray -> "cpp::VirtualArray"
@@ -2004,7 +2004,7 @@ let retype_expression ctx request_type expression_tree =
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
 
-   let to_lvalue value = 
+   let to_lvalue value =
       match value.cppexpr with
       | CppVar varloc -> CppVarRef(varloc)
       | CppArray arrayloc -> CppArrayRef(arrayloc)
@@ -2165,7 +2165,7 @@ let retype_expression ctx request_type expression_tree =
             declarations := old_declarations;
             undeclared := old_undeclared; (* todo combine *)
             this_real := old_this_real;
-            uses_this := if !uses_this != None then Some old_this_real else old_uses_this; 
+            uses_this := if !uses_this != None then Some old_this_real else old_uses_this;
             rev_closures := result:: !rev_closures;
             CppClosure(result), TCppDynamic
 
@@ -2230,7 +2230,7 @@ let retype_expression ctx request_type expression_tree =
 
          | TBlock expr_list ->
             if (return_type<>TCppVoid) then
-               print_endline ("Value from a block not handled " ^  
+               print_endline ("Value from a block not handled " ^
                (expr.epos.pfile ) ^ " " ^  (string_of_int (Lexer.get_error_line expr.epos) ));
 
             let old_declarations = Hashtbl.copy !declarations in
@@ -2425,7 +2425,7 @@ let gen_cpp_ast_expression_tree ctx tree =
          gen obj;
          out ("->__Field(" ^ (str name)  ^ ")");
 
-      | CppArray(arrayLoc) -> (match arrayLoc with 
+      | CppArray(arrayLoc) -> (match arrayLoc with
          | ArrayTyped(arrayObj,index)
          | ArrayObject(arrayObj,index)
          | ArrayVirtual(arrayObj,index) ->
@@ -2506,7 +2506,7 @@ let gen_cpp_ast_expression_tree ctx tree =
          out ("hx::Anon_obj::Create(" ^ (string_of_int length) ^")");
          let sorted = List.sort (fun  (_,_,h0) (_,_,h1) -> Int32.compare h0 h1 )
                 (List.map (fun (name,value) -> name,value,(gen_hash32 0 name ) ) values) in
-         List.iteri (fun idx (name,value,_) ->
+         ExtList.List.iteri (fun idx (name,value,_) ->
             out "\n"; output_p value ("\t->setFixed(" ^ (string_of_int idx) ^ "," ^ (str name) ^ ","); gen value; out ")";
          ) sorted;
 
@@ -2514,13 +2514,13 @@ let gen_cpp_ast_expression_tree ctx tree =
          let count = List.length exprList in
          let countStr = string_of_int count in
          let arrayType = match expr.cpptype with
-            | TCppObjectArray _ -> "cpp::Array_obj<Dyanmic>" 
+            | TCppObjectArray _ -> "cpp::Array_obj<Dyanmic>"
             | TCppScalarArray(value) -> "cpp::Array_obj< " ^ (tcpp_to_string value) ^ " >"
             | TCppDynamicArray -> "cpp::VirtualArray_obj"
             | _ -> "Dynamic( cpp::VirtualArray_obj"
          in
          out (arrayType ^ "::__new(" ^ countStr ^ ")" );
-         List.iteri ( fun idx elem -> out ("->init(" ^ (string_of_int idx) ^ ",");
+         ExtList.List.iteri ( fun idx elem -> out ("->init(" ^ (string_of_int idx) ^ ",");
                      gen elem; out ")" ) exprList;
 
          if (expr.cpptype==TCppDynamic) then out ")";
@@ -2632,7 +2632,7 @@ let gen_cpp_ast_expression_tree ctx tree =
             out "hx::__ArrayImplRef("; gen arrayObj; out ","; gen index; out ")";
          )
       | CppDynamicRef(expr,name) ->
-         out "hx::DynamicRef("; gen expr; out ("," ^ (str name ^ ")")) 
+         out "hx::DynamicRef("; gen expr; out ("," ^ (str name ^ ")"))
 
    and gen_val_loc loc =
       match loc with
@@ -2686,7 +2686,7 @@ let gen_cpp_ast_expression_tree ctx tree =
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
       out (if closure.close_this != None then "hx::LocalThisFunc," else "hx::LocalFunc,");
       out ("_hx_Closure_" ^ (string_of_int closure.close_id) );
-      Hashtbl.iter (fun name var -> 
+      Hashtbl.iter (fun name var ->
          out ("," ^ (cpp_var_type_of var) ^ "," ^ (keyword_remap name));
       ) closure.close_undeclared;
       out (") HXARGC(" ^ (string_of_int (List.length closure.close_args)) ^")\n");
