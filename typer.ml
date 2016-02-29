@@ -1173,7 +1173,7 @@ let field_access ctx mode f fmode t e p =
 		end
 	| Var v ->
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
-		| AccNo ->
+		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
 			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_public = false } false -> normal()
 			| TAnon a ->
@@ -1185,7 +1185,7 @@ let field_access ctx mode f fmode t e p =
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->
 				if ctx.untyped then normal() else AKNo f.cf_name)
-		| AccNormal ->
+		| AccNormal | AccNo ->
 			(*
 				if we are reading from a read-only variable on an anonymous object, it might actually be a method, so make sure to create a closure
 			*)
