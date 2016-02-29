@@ -1600,7 +1600,7 @@ and tcpp_closure = {
    close_expr : tcppexpr;
    close_id : int;
    close_undeclared : (string,tvar) Hashtbl.t;
-   close_this : bool;
+   close_this : tcppthis option;
 }
 
 
@@ -1958,7 +1958,7 @@ let retype_expression ctx request_type expression_tree =
    let closureId = ref 0 in
    let declarations = ref (Hashtbl.create 0) in
    let undeclared = ref (Hashtbl.create 0) in
-   let uses_this = ref false in
+   let uses_this = ref None in
    let this_real = ref ThisReal in
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
@@ -1981,11 +1981,11 @@ let retype_expression ctx request_type expression_tree =
             CppEnumParameter( retypedObj, enumField, enumIndex ), TCppDynamic
 
          | TConst TThis ->
-            uses_this := true;
+            uses_this := Some !this_real;
             CppThis(!this_real), if !this_real=ThisDyanmic then TCppDynamic else cpp_type_of expr.etype
 
          | TConst TSuper ->
-            uses_this := true;
+            uses_this := Some !this_real;
             CppSuper(!this_real), if !this_real=ThisDyanmic then TCppDynamic else cpp_type_of expr.etype
 
          | TConst x ->
@@ -2094,7 +2094,7 @@ let retype_expression ctx request_type expression_tree =
             let old_undeclared = Hashtbl.copy !undeclared in
             let old_declarations = Hashtbl.copy !declarations in
             let old_uses_this = !uses_this in
-            uses_this := false;
+            uses_this := None;
             undeclared := Hashtbl.create 0;
             List.iter ( fun (tvar,_) ->
                Hashtbl.add !declarations tvar.v_name () ) func.tf_args;
@@ -2110,7 +2110,7 @@ let retype_expression ctx request_type expression_tree =
             declarations := old_declarations;
             undeclared := old_undeclared; (* todo combine *)
             this_real := old_this_real;
-            uses_this := old_uses_this || !uses_this;
+            uses_this := if !uses_this != None then Some old_this_real else old_uses_this; 
             rev_closures := result:: !rev_closures;
             CppClosure(result), TCppDynamic
 
@@ -2124,9 +2124,8 @@ let retype_expression ctx request_type expression_tree =
                  CppArray( ArrayObject(retypedObj,retypedIdx) ), TCppDynamic
               | TCppObjectArray elem ->
                  CppArray( ArrayObject(retypedObj,retypedIdx) ), TCppWrapped(elem)
-              | TCppInst({cl_array_access} as klass) ->
+              | TCppInst({cl_array_access = Some _ } as klass) ->
                  CppArray( ArrayImplements(klass, retypedObj,retypedIdx) ), cpp_type_of expr.etype
-
               | _ ->
                  CppArray( ArrayDynamic(retypedObj, retypedIdx) ), TCppDynamic
             )
@@ -2211,8 +2210,9 @@ let retype_expression ctx request_type expression_tree =
 
          | TIf (ec,e1,e2) ->
             let ec = retype (TCppScalar("Bool")) ec in
-            let e1 = retype return_type (mk_block e1) in
-            let e2 = match e2 with None->None | Some e -> Some (retype return_type (mk_block e))
+            let blockify =  if return_type!=TCppVoid then fun e -> e else mk_block in
+            let e1 = retype return_type (blockify e1) in
+            let e2 = match e2 with None->None | Some e -> Some (retype return_type (blockify e))
             in
             CppIf(ec, e1, e2), if return_type=TCppVoid then TCppVoid else cpp_type_of expr.etype
 
@@ -2431,6 +2431,12 @@ let gen_cpp_ast_expression_tree ctx tree =
       | CppClosure closure ->
           out ("Dynamic(new _hx_Closure_" ^ (string_of_int(closure.close_id)) ^ "(");
           let separator = ref "" in
+          (match closure.close_this with
+          | Some this ->
+             out (if this=ThisReal then "this" else "__this");
+             separator := ",";
+          | _ -> () );
+
           Hashtbl.iter (fun name value ->
              out !separator; separator := ",";
              out name
@@ -2593,7 +2599,7 @@ let gen_cpp_ast_expression_tree ctx tree =
    and gen_closure closure =
       let size = string_of_int( Hashtbl.length closure.close_undeclared ) in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
-      out (if closure.close_this then "hx::LocalThisFunc," else "hx::LocalFunc,");
+      out (if closure.close_this != None then "hx::LocalThisFunc," else "hx::LocalFunc,");
       out ("_hx_Closure_" ^ (string_of_int closure.close_id) );
       Hashtbl.iter (fun name var -> 
          out ("," ^ (cpp_var_type_of var) ^ "," ^ (keyword_remap name));
@@ -2608,7 +2614,7 @@ let gen_cpp_ast_expression_tree ctx tree =
           if (ctx.ctx_debug_level>0) then begin
              ctx.ctx_dump_src_pos();
              (*hx_stack_push ctx output_i "*" func_name closure.close_expr.cpppos;*)
-             if (closure.close_this) then
+             if (closure.close_this != None) then
                 output_i ("HX_STACK_THIS(__this.mPtr)\n");
              List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
                 (List.filter cpp_debug_var_visible closure.close_args);
