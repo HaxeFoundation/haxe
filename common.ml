@@ -161,7 +161,7 @@ module Define = struct
 	type strict_defined =
 		| AbsolutePath
 		| AdvancedTelemetry
-		| Analyzer
+		(* | Analyzer *)
 		| As3
 		| CheckXmlProxy
 		| CoreApi
@@ -206,6 +206,7 @@ module Define = struct
 		| NetworkSandbox
 		| NetVer
 		| NetTarget
+		| NoAnalyzer
 		| NoCompilation
 		| NoCOpt
 		| NoDeprecationWarnings
@@ -246,7 +247,7 @@ module Define = struct
 	let infos = function
 		| AbsolutePath -> ("absolute_path","Print absolute file path in trace output")
 		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
-		| Analyzer -> ("analyzer","Use static analyzer for optimization (experimental)")
+		(* | Analyzer -> ("analyzer","Use static analyzer for optimization (experimental)") *)
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
@@ -292,6 +293,7 @@ module Define = struct
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
+		| NoAnalyzer -> ("no-analyzer","Disable the static analyzer")
 		| NoCompilation -> ("no-compilation","Disable final compilation for Cs, Cpp and Java")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")

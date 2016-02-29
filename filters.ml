@@ -1028,7 +1028,7 @@ let run com tctx main =
 	end;
 	if not (Common.defined com Define.NoDeprecationWarnings) then
 		Codegen.DeprecationCheck.run com;
-	let use_static_analyzer = Common.defined com Define.Analyzer in
+	let use_static_analyzer = not (Common.defined com Define.NoAnalyzer) in
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
