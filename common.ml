@@ -166,6 +166,7 @@ module Define = struct
 		| CheckXmlProxy
 		| CoreApi
 		| CoreApiSerialize
+		| CppAst
 		| Cppia
 		| Dce
 		| DceDebug
@@ -252,7 +253,8 @@ module Define = struct
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
 		| CoreApiSerialize -> ("core_api_serialize","Mark some generated core api classes with the Serializable attribute on C#")
-		| Cppia -> ("cppia", "Generate experimental cpp instruction assembly")
+		| CppAst -> ("cppast", "Generate experimental cpp code")
+		| Cppia -> ("cppia", "Generate cpp instruction assembly")
 		| Dce -> ("dce","<mode:std|full||no> Set the dead code elimination mode (default std)")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")

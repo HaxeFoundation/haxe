@@ -1005,7 +1005,6 @@ try
 	let swf_version = ref false in
 	let evals = ref [] in
 	Common.define_value com Define.HaxeVer (float_repres (float_of_int version /. 1000.));
-	Common.define_value com Define.HxcppApiLevel "321";
 	Common.raw_define com "haxe3";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
@@ -1455,6 +1454,7 @@ try
 			add_std "php";
 			"php"
 		| Cpp ->
+			Common.define_value com Define.HxcppApiLevel (if Common.defined_value_safe com Define.CppAst <>"" then "330" else "321");
 			add_std "cpp";
 			"cpp"
 		| Cs ->
