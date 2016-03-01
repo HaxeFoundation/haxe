@@ -2850,7 +2850,10 @@ module Run = struct
 
 	let run_on_class ctx config c =
 		let config = update_config_from_meta config c.cl_meta in
-		let process_field cf = run_on_field ctx config c cf in
+		let process_field cf = match cf.cf_kind with
+			| Method _ -> run_on_field ctx config c cf
+			| _ -> ()
+		in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
 		(match c.cl_constructor with
