@@ -1719,6 +1719,47 @@ and tcpp_expr_expr =
    | CppCastObjC of tcppexpr * tclass
    | CppCastNative of tcppexpr
 
+let stcpp = function
+   | CppInt _  -> "CppInt"
+   | CppFloat _ -> "CppFloat"
+   | CppString _ -> "CppString"
+   | CppBool _ -> "CppBool"
+   | CppNull -> "CppNull"
+   | CppThis _ -> "CppThis"
+   | CppSuper _ -> "CppSuper"
+   | CppCode _ -> "CppCode"
+   | CppClosure _ -> "CppClosure"
+   | CppVar _ -> "CppVar"
+   | CppDynamicField _ -> "CppDynamicField"
+   | CppFunction _ -> "CppFunction"
+   | CppEnumField  _ -> "CppEnumField"
+   | CppCall  _ -> "CppCall"
+   | CppArray  _ -> "CppArray"
+   | CppCrement  _ -> "CppCrement"
+   | CppSet  _ -> "CppSet"
+   | CppModify  _ -> "CppModify"
+   | CppBinop  _ -> "CppBinop"
+   | CppObjectDecl  _ -> "CppObjectDecl"
+   | CppPosition  _ -> "CppPosition"
+   | CppArrayDecl  _ -> "CppArrayDecl"
+   | CppUnop  _ -> "CppUnop"
+   | CppVarDecl  _ -> "CppVarDecl"
+   | CppBlock  _ -> "CppBlock"
+   | CppFor  _ -> "CppFor"
+   | CppIf  _ -> "CppIf"
+   | CppWhile _ -> "CppWhile"
+   | CppIntSwitch  _ -> "CppIntSwitch"
+   | CppSwitch  _ -> "CppSwitch"
+   | CppTry _ -> "CppTry"
+   | CppBreak -> "CppBreak"
+   | CppContinue -> "CppContinue"
+   | CppClassOf _ -> "CppClassOf"
+   | CppReturn _ -> "CppReturn"
+   | CppThrow _ -> "CppThrow"
+   | CppEnumParameter _ -> "CppEnumParameter"
+   | CppCastDynamic _ -> "CppCastDynamic"
+   | CppCastObjC _ -> "CppCastObjC"
+   | CppCastNative _ -> "CppCastNative"
 
 let cpp_const_type cval = match cval with
    | TInt i -> CppInt(i) , TCppScalar("Int")
@@ -2055,12 +2096,13 @@ let retype_expression ctx request_type function_args expression_tree =
    Hashtbl.add !declarations "__trace" ();
    List.iter (fun arg -> Hashtbl.add !declarations arg.v_name () ) function_args;
 
-   let to_lvalue value =
+   let rec to_lvalue value =
       match value.cppexpr with
       | CppVar varloc -> CppVarRef(varloc)
       | CppArray arrayloc -> CppArrayRef(arrayloc)
       | CppDynamicField(expr, name) -> CppDynamicRef(expr,name)
-      | _ -> error "Could not convert expression to l-value" value.cpppos
+      | CppCastDynamic(cppExpr,_) -> to_lvalue cppExpr
+      | _ -> error ("Could not convert expression to l-value (" ^ stcpp value.cppexpr ^ ")") value.cpppos
    in
 
    let rec retype return_type expr =
