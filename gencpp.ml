@@ -1686,6 +1686,7 @@ and tcpp_expr_expr =
    | CppIf of tcppexpr * tcppexpr * tcppexpr option
    | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
    | CppIntSwitch of tcppexpr * (Int32.t list * tcppexpr) list * tcppexpr option
+   | CppSwitch of tcppexpr * (tcppexpr list * tcppexpr) list * tcppexpr option
    | CppTry of tcppexpr * (tvar * tcppexpr) list
    | CppBreak
    | CppContinue
@@ -2302,16 +2303,19 @@ let retype_expression ctx request_type expression_tree =
 
             let condition = retype (cpp_type_of condition.etype) condition in
             let conditionType = condition.cpptype in
-            let def = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
+            let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             (try 
                (match conditionType with TCppScalar("Int") | TCppScalar("Bool") -> () | _ -> raise Not_found );
+               (match def with None -> () | Some e -> if (contains_break e) then raise Not_found);
                let cases = List.map (fun (el,e2) ->
                   if (contains_break e2) then raise Not_found;
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
-               CppIntSwitch(condition, cases, def), cpp_type_of expr.etype
+               CppIntSwitch(condition, cases, cppDef), TCppVoid
             with Not_found ->
-               (* TODO *)
-               condition.cppexpr, conditionType
+               (* do something better maybe ... *)
+               let cases = List.map (fun (el,e2) ->
+                  (List.map (retype conditionType) el), (retype TCppVoid (mk_block e2)) ) cases in
+               CppSwitch(condition, cases, cppDef), TCppVoid
             )
 
          | TTry (try_block,catches) ->
@@ -2347,6 +2351,7 @@ let gen_cpp_ast_expression_tree ctx tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
    let lastLine = ref (-1) in
+   let tempId = ref 0 in
 
    let spacer = if (ctx.ctx_debug_level>0) then "            \t" else "" in
    let output_i value = out spacer; writer#write_i value in
@@ -2595,49 +2600,116 @@ let gen_cpp_ast_expression_tree ctx tree =
          | Some expr -> output_i "default:"; gen expr; | _ -> ()  );
          out spacer;
          writer#end_block;
+      | CppSwitch(condition, cases, optional_default) ->
+         let tmp_name = "_hx_switch_" ^ (string_of_int !tempId) in
+         incr tempId;
+         out ( (tcpp_to_string condition.cpptype) ^ " " ^ tmp_name ^ " = " );
+         gen condition;
+         out ";\n";
+         let else_str = ref "" in
+         if (List.length cases > 0) then
+            List.iter (fun (cases,expression) ->
+               output_i ( !else_str ^ "if ( ");
+               else_str := "else ";
+               let or_str = ref "" in
+               List.iter (fun value ->
+                  out (!or_str ^ " (" ^ tmp_name ^ "=="); gen value; out ")";
+                  or_str := " || ";
+                  ) cases;
+               out (" )");
+               gen expression;
+               ) cases;
+         (match optional_default with | None -> ()
+         | Some default ->
+            out spacer;
+            output_i ( !else_str ^ " ");
+            gen default;
+         );
 
-   | CppUnop(unop,value) ->
-        out (match unop with
-        | CppNot -> "!"
-        | CppNeg -> "-"
-        | CppNegBits -> "~"
-        );
-        out "(";  gen value; out ")"
+      | CppUnop(unop,value) ->
+           out (match unop with
+           | CppNot -> "!"
+           | CppNeg -> "-"
+           | CppNegBits -> "~"
+           );
+           out "(";  gen value; out ")"
 
-   | CppWhile(condition, block, while_flag) ->
-       (match while_flag with
-       | NormalWhile ->
-           out "while("; gen condition; out (")\n");
-           gen block;
-       | DoWhile ->
-           out ("do\n");
-           gen block;
-           out "while("; gen condition; out ")"
-       );
-   | CppIf (condition,block,None) ->
-       out "if ("; gen condition; out (")\n");
-       gen block;
+      | CppWhile(condition, block, while_flag) ->
+          (match while_flag with
+          | NormalWhile ->
+              out "while("; gen condition; out (")");
+              gen block;
+          | DoWhile ->
+              out ("do ");
+              gen block;
+              out "while("; gen condition; out ")"
+          );
 
-   | CppIf (condition,block,Some elze) when expr.cpptype = TCppVoid ->
-       out "if ("; gen condition; out (") ");
-       gen block;
-       out (" else ");
-       gen elze;
+      | CppIf (condition,block,None) ->
+          out "if ("; gen condition; out (") ");
+          gen block;
 
-   | CppIf (condition,block,Some elze) ->
-       gen condition; out " ? "; gen block; out " : "; gen elze;
+      | CppIf (condition,block,Some elze) when expr.cpptype = TCppVoid ->
+          out "if ("; gen condition; out (") ");
+          gen block;
+          output_i ("else ");
+          gen elze;
 
-   | CppFor(tvar, init, block) ->
-       out ("for(var " ^ tvar.v_name ^ "-"); gen init; out (") ");
-       gen block;
+      | CppIf (condition,block,Some elze) ->
+          gen condition; out " ? "; gen block; out " : "; gen elze;
 
-   | CppTry(block,catches) ->
-       out ("try ");
-       gen block;
-       List.iter (fun (var,block) ->
-         output_i ("catch(var " ^ var.v_name ^ ") " );
-         gen block;
-       ) catches;
+      | CppFor (tvar, init, loop) ->
+         let varType = cpp_var_type_of tvar in
+         out ("for(::cpp::FastIterator_obj< " ^  varType ^
+               " > *__it = ::cpp::CreateFastIterator< "^ varType ^ " >(");
+         gen init;
+         out (");  __it->hasNext(); )");
+         let prologue = fun () ->
+            output_i ( varType ^ " " ^ (cpp_var_name_of tvar) ^ " = __it->next();\n" );
+         in
+         gen_with_prologue (Some prologue) loop;
+
+
+      | CppTry(block,catches) ->
+          let prologue = function () ->
+             ExtList.List.iteri (fun idx (v,_) ->
+                output_i ("HX_STACK_CATCHABLE(" ^ cpp_var_type_of v  ^ ", " ^ string_of_int idx ^ ");\n")
+             ) catches
+          in
+          out ("try ");
+          gen_with_prologue (Some prologue) block;
+          if (List.length catches > 0 ) then begin
+             output_i "catch(Dynamic _hx_e)";
+             writer#begin_block;
+
+             let seen_dynamic = ref false in
+             let else_str = ref "" in
+             List.iter (fun (v,catch) ->
+                let type_name = cpp_var_type_of v in
+                if (type_name="Dynamic") then begin
+                   seen_dynamic := true;
+                   output_i !else_str;
+                end else
+                   output_i (!else_str ^ "if (_hx_e.IsClass< " ^ type_name ^ " >() )");
+                let prologue = function () ->
+                   output_i "HX_STACK_BEGIN_CATCH\n";
+                   output_i (type_name ^ " " ^ (cpp_var_name_of v) ^ " = _hx_e;\n");
+                in
+                gen_with_prologue (Some prologue) catch;
+                else_str := "else ";
+                ) catches;
+
+             if (not !seen_dynamic) then begin
+                output_i "else {\n";
+                output_i "\tHX_STACK_DO_THROW(_hx_e);\n";
+                output_i "}\n";
+             end;
+             out spacer;
+             writer#end_block;
+          end
+
+      | CppCode(value, exprs) ->
+         Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
 
    | CppCast(expr,None) ->
        out "cast("; gen expr; out ")";
@@ -2645,8 +2717,6 @@ let gen_cpp_ast_expression_tree ctx tree =
    | CppCast(expr,Some _) ->
        out "castTo("; gen expr; out ")";
 
-   | CppCode(value, exprs) ->
-       Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
 
    and gen expr =
       gen_with_prologue None expr
