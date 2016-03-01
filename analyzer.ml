@@ -93,7 +93,7 @@ let can_throw e =
 	let rec loop e = match e.eexpr with
 		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TBlock _ -> ()
 		| TCall _ | TNew _ | TThrow _ | TCast(_,Some _) -> raise Exit
-		| TField _ -> raise Exit (* sigh *)
+		| TField _ | TArray _ -> raise Exit (* sigh *)
 		| _ -> Type.iter loop e
 	in
 	try
@@ -216,8 +216,6 @@ module Config = struct
 						true
 					else
 						loop ml
-				| (Meta.HasUntyped,_,_) :: _ ->
-					true
 				| _ :: ml ->
 					loop ml
 				| [] ->
@@ -261,6 +259,8 @@ module Config = struct
 					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
 					| _ -> config
 				) config el
+			| (Meta.HasUntyped,_,_) ->
+				{config with optimize = false}
 			| _ ->
 				config
 		) config meta

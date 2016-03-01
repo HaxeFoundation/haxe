@@ -74,6 +74,7 @@ let api_inline2 com c field params p =
 		Some { e with epos = p }
 	| ([],"String"),"fromCharCode",[{ eexpr = TConst (TInt i) }] when i > 0l && i < 128l ->
 		Some (mk (TConst (TString (String.make 1 (char_of_int (Int32.to_int i))))) com.basic.tstring p)
+	| ([],"Std"),"string",[{ eexpr = TCast ({ eexpr = TConst c } as e, None)}]
 	| ([],"Std"),"string",[{ eexpr = TConst c } as e] ->
 		(match c with
 		| TString s ->
@@ -259,6 +260,8 @@ let create_affection_checker () =
 type in_local = {
 	i_var : tvar;
 	i_subst : tvar;
+	i_outside : bool;
+	i_abstract_this : bool;
 	mutable i_captured : bool;
 	mutable i_write : bool;
 	mutable i_read : int;
@@ -311,6 +314,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let i = {
 				i_var = v;
 				i_subst = v';
+				i_outside = false;
+				i_abstract_this = Meta.has Meta.This v.v_meta;
 				i_captured = false;
 				i_write = false;
 				i_force_temp = false;
@@ -331,6 +336,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			{
 				i_var = v;
 				i_subst = v;
+				i_outside = true;
+				i_abstract_this = Meta.has Meta.This v.v_meta;
 				i_captured = false;
 				i_write = false;
 				i_force_temp = false;
@@ -417,7 +424,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				to its variables and not the calling method *)
 			if v.v_name = "__dollar__delay_call" then cancel_inlining := true;
 			let e = { e with eexpr = TLocal l.i_subst } in
-			if Meta.has Meta.This v.v_meta then mk (TCast(e,None)) v.v_type e.epos else e
+			if l.i_abstract_this then mk (TCast(e,None)) v.v_type e.epos else e
 		| TConst TThis ->
 			let l = read_local vthis in
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
@@ -514,14 +521,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			l.i_write <- true;
 			let e2 = map false e2 in
 			{e with eexpr = TBinop(op,{e1 with eexpr = TLocal l.i_subst},e2)}
-		| TObjectDecl fl ->
-			let fl = List.map (fun (s,e) -> s,map false e) fl in
-			begin match follow e.etype with
-				| TAnon an when (match !(an.a_status) with Const -> true | _ -> false) ->
-					{e with eexpr = TObjectDecl fl; etype = TAnon { an with a_status = ref Closed}}
-				| _ ->
-					{e with eexpr = TObjectDecl fl}
-			end
 		| TFunction f ->
 			(match f.tf_args with [] -> () | _ -> has_vars := true);
 			let old = save_locals ctx and old_fun = !in_local_fun in
@@ -576,16 +575,16 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	let force = ref force in
 	let vars = List.fold_left (fun acc (i,e) ->
 		let flag = not i.i_force_temp && (match e.eexpr with
-			| TLocal v when Meta.has Meta.This v.v_meta -> true
+			| TLocal _ when i.i_abstract_this -> true
 			| TLocal _ | TConst _ -> not i.i_write
 			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
 			| _ -> not i.i_write && i.i_read <= 1
 		) in
 		let flag = flag && (not i.i_captured || is_constant e) in
 		(* force inlining if we modify 'this' *)
-		if i.i_write && (Meta.has Meta.This i.i_var.v_meta) then force := true;
+		if i.i_write && i.i_abstract_this then force := true;
 		(* force inlining of 'this' variable if it is written *)
-		let flag = if not flag && (Meta.has Meta.This i.i_var.v_meta) && i.i_write then begin
+		let flag = if not flag && i.i_abstract_this && i.i_write then begin
 			if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
 			true
 		end else flag in
@@ -675,7 +674,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let map_var v =
 				if not (Hashtbl.mem vars v.v_id) then begin
 					Hashtbl.add vars v.v_id ();
-					v.v_type <- map_type v.v_type;
+					if not (read_local v).i_outside then v.v_type <- map_type v.v_type;
 				end;
 				v
 			in
@@ -1304,7 +1303,8 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 		end
 	| TTypeExpr _ -> Some e
 	(* try to inline static function calls *)
-	| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
+	(* Disabled for now, see #4254. *)
+(* 	| TCall ({ etype = TFun(_,ret); eexpr = TField (_,FStatic (c,cf)) },el) ->
 		(try
 			let func = match cf.cf_expr with Some ({eexpr = TFunction func}) -> func | _ -> raise Not_found in
 			let ethis = mk (TConst TThis) t_dynamic e.epos in
@@ -1312,7 +1312,7 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 			(match inl with
 			| None -> None
 			| Some e -> make_constant_expression ctx e)
-		with Not_found -> None)
+		with Not_found -> None) *)
 	| _ -> None
 
 (* ---------------------------------------------------------------------- *)

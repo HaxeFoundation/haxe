@@ -14,6 +14,8 @@
 /extra/bintray.json
 /extra/git-archive-all
 /extra/deploy_key
+/extra/*_sec.gpg
+/extra/*_ssh
 
 /version.ml
 /haxe

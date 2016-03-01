@@ -38,10 +38,14 @@ let transform_abstract_field com this_t a_t a f =
 		let init p = (EVars ["this",Some this_t,None],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
-		if Meta.has Meta.MultiType a.a_meta then begin
+		let meta = (Meta.Impl,[],p) :: f.cff_meta in
+		let meta = if Meta.has Meta.MultiType a.a_meta then begin
 			if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
-		end;
+			(Meta.Extern,[],f.cff_pos) :: meta
+		end else
+			meta
+		in
 		let fu = {
 			fu with
 			f_expr = (match fu.f_expr with
@@ -51,7 +55,8 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
+
+		{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
 		let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else ("this",false,Some this_t,None) :: fu.f_args) } in
@@ -191,7 +196,7 @@ let module_pass_1 com m tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.Expose | Meta.Deprecated),_,_) ->
+						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| _ ->
 							()
@@ -938,71 +943,6 @@ let class_field_no_interf c i =
 			let _, t , f = raw_class_field (fun f -> f.cf_type) c tl i in
 			apply_params c.cl_params tl t , f
 
-let rec check_interface ctx c intf params =
-	let p = c.cl_pos in
-	let rec check_field i f =
-		(if ctx.com.config.pf_overload then
-			List.iter (function
-				| f2 when f != f2 ->
-						check_field i f2
-				| _ -> ()) f.cf_overloads);
-		let is_overload = ref false in
-		try
-			let t2, f2 = class_field_no_interf c i in
-			let t2, f2 =
-				if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || Meta.has Meta.Overload f2.cf_meta) then
-					let overloads = get_overloads c i in
-					is_overload := true;
-					let t = (apply_params intf.cl_params params f.cf_type) in
-					List.find (fun (t1,f1) -> same_overload_args t t1 f f1) overloads
-				else
-					t2, f2
-			in
-
-			ignore(follow f2.cf_type); (* force evaluation *)
-			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
-			let mkind = function
-				| MethNormal | MethInline -> 0
-				| MethDynamic -> 1
-				| MethMacro -> 2
-			in
-			if f.cf_public && not f2.cf_public && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
-				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-			else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
-			else try
-				valid_redefinition ctx f2 t2 f (apply_params intf.cl_params params f.cf_type)
-			with
-				Unify_error l ->
-					if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
-						display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-						display_error ctx ("Interface field is defined here") f.cf_pos;
-						display_error ctx (error_msg (Unify l)) p;
-					end
-		with
-			| Not_found when not c.cl_interface ->
-				let msg = if !is_overload then
-					let ctx = print_context() in
-					let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> assert false in
-					"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
-				else
-					("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
-				in
-				display_error ctx msg p
-			| Not_found -> ()
-	in
-	PMap.iter check_field intf.cl_fields;
-	List.iter (fun (i2,p2) ->
-		check_interface ctx c i2 (List.map (apply_params intf.cl_params params) p2)
-	) intf.cl_implements
-
-let check_interfaces ctx c =
-	match c.cl_path with
-	| "Proxy" :: _ , _ -> ()
-	| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> ()
-	| _ ->
-	List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
-
 let rec return_flow ctx e =
 	let error() =
 		display_error ctx (Printf.sprintf "Missing return: %s" (s_type (print_context()) ctx.ret)) e.epos; raise Exit
@@ -1062,20 +1002,6 @@ let is_generic_parameter ctx c =
 		(match ctx.curclass.cl_kind with | KGeneric -> true | _ -> false);
 	with Not_found ->
 		false
-
-let check_extends ctx c t p = match follow t with
-	| TInst ({ cl_path = [],"Array"; cl_extern = basic_extern },_)
-	| TInst ({ cl_path = [],"String"; cl_extern = basic_extern },_)
-	| TInst ({ cl_path = [],"Date"; cl_extern = basic_extern },_)
-	| TInst ({ cl_path = [],"Xml"; cl_extern = basic_extern },_) when not (c.cl_extern && basic_extern) ->
-		error "Cannot extend basic class" p;
-	| TInst (csup,params) ->
-		if is_parent c csup then error "Recursive class" p;
-		begin match csup.cl_kind with
-			| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
-			| _ -> csup,params
-		end
-	| _ -> error "Should extend by using a class" p
 
 let type_function_arg_value ctx t c =
 	match c with
@@ -1338,92 +1264,211 @@ let add_constructor ctx c force_constructor p =
 		(* nothing to do *)
 		()
 
-let set_heritance ctx c herits p =
-	let is_lib = Meta.has Meta.LibType c.cl_meta in
-	let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
-	let old_meta = c.cl_meta in
-	let process_meta csup =
-		List.iter (fun m ->
-			match m with
-			| Meta.Final, _, _ -> if not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
-			| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,p) :: m :: c.cl_meta
-			| _ -> ()
-		) csup.cl_meta
-	in
-	let cancel_build csup =
-		(* for macros reason, our super class is not yet built - see #2177 *)
-		(* let's reset our build and delay it until we are done *)
-		c.cl_meta <- old_meta;
-		c.cl_array_access <- None;
-		c.cl_dynamic <- None;
-		c.cl_implements <- [];
-		c.cl_super <- None;
-		raise Exit
-	in
-	let has_interf = ref false in
-	let rec loop = function
-		| HPrivate | HExtern | HInterface ->
-			()
-		| HExtends t ->
-			if c.cl_super <> None then error "Cannot extend several classes" p;
-			let t = load_instance ctx t p false in
-			let csup,params = check_extends ctx c t p in
-			if not (csup.cl_build()) then cancel_build csup;
-			process_meta csup;
-			if c.cl_interface then begin
-				if not csup.cl_interface then error "Cannot extend by using a class" p;
-				c.cl_implements <- (csup,params) :: c.cl_implements;
-				if not !has_interf then begin
-					if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
-					has_interf := true;
-				end
-			end else begin
-				if csup.cl_interface then error "Cannot extend by using an interface" p;
-				c.cl_super <- Some (csup,params)
+let check_struct_init_constructor ctx c p = match c.cl_constructor with
+	| Some _ ->
+		()
+	| None ->
+		let params = List.map snd c.cl_params in
+		let ethis = mk (TConst TThis) (TInst(c,params)) p in
+		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
+			| Var _ ->
+				let opt = Meta.has Meta.Optional cf.cf_meta in
+				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
+				let v = alloc_var cf.cf_name t in
+				let ef = mk (TField(ethis,FInstance(c,params,cf))) t p in
+				let ev = mk (TLocal v) v.v_type p in
+				let e = mk (TBinop(OpAssign,ef,ev)) ev.etype p in
+				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
+			| Method _ ->
+				args,el,tl
+		) ([],[],[]) (List.rev c.cl_ordered_fields) in
+		let tf = {
+			tf_args = args;
+			tf_type = ctx.t.tvoid;
+			tf_expr = mk (TBlock el) ctx.t.tvoid p
+		} in
+		let e = mk (TFunction tf) (TFun(tl,ctx.t.tvoid)) p in
+		let cf = mk_field "new" e.etype p in
+		cf.cf_expr <- Some e;
+		cf.cf_type <- e.etype;
+		cf.cf_meta <- [Meta.CompilerGenerated,[],p];
+		cf.cf_kind <- Method MethNormal;
+		c.cl_constructor <- Some cf
+
+module Inheritance = struct
+	let check_extends ctx c t p = match follow t with
+		| TInst ({ cl_path = [],"Array"; cl_extern = basic_extern },_)
+		| TInst ({ cl_path = [],"String"; cl_extern = basic_extern },_)
+		| TInst ({ cl_path = [],"Date"; cl_extern = basic_extern },_)
+		| TInst ({ cl_path = [],"Xml"; cl_extern = basic_extern },_) when not (c.cl_extern && basic_extern) ->
+			error "Cannot extend basic class" p;
+		| TInst (csup,params) ->
+			if is_parent c csup then error "Recursive class" p;
+			begin match csup.cl_kind with
+				| KTypeParameter _ when not (is_generic_parameter ctx csup) -> error "Cannot extend non-generic type parameters" p
+				| _ -> csup,params
 			end
-		| HImplements t ->
-			let t = load_instance ctx t p false in
-			(match follow t with
-			| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
-				if c.cl_array_access <> None then error "Duplicate array access" p;
-				c.cl_array_access <- Some t
-			| TInst (intf,params) ->
-				if is_parent c intf then error "Recursive class" p;
-				if not (intf.cl_build()) then cancel_build intf;
-				if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
-				if not intf.cl_interface then error "You can only implement an interface" p;
-				process_meta intf;
-				c.cl_implements <- (intf, params) :: c.cl_implements;
-				if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
-					delay ctx PForce (fun() -> check_interfaces ctx c);
-					has_interf := true;
-				end
-			| TDynamic t ->
-				if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
-				c.cl_dynamic <- Some t
-			| _ -> error "Should implement by using an interface" p)
-	in
-	(*
-		resolve imports before calling build_inheritance, since it requires full paths.
-		that means that typedefs are not working, but that's a fair limitation
-	*)
-	let resolve_imports t =
-		match t.tpackage with
-		| _ :: _ -> t
-		| [] ->
+		| _ -> error "Should extend by using a class" p
+
+	let rec check_interface ctx c intf params =
+		let p = c.cl_pos in
+		let rec check_field i f =
+			(if ctx.com.config.pf_overload then
+				List.iter (function
+					| f2 when f != f2 ->
+							check_field i f2
+					| _ -> ()) f.cf_overloads);
+			let is_overload = ref false in
 			try
-				let find = List.find (fun lt -> snd (t_path lt) = t.tname) in
-				let lt = try find ctx.m.curmod.m_types with Not_found -> find ctx.m.module_types in
-				{ t with tpackage = fst (t_path lt) }
+				let t2, f2 = class_field_no_interf c i in
+				let t2, f2 =
+					if ctx.com.config.pf_overload && (f2.cf_overloads <> [] || Meta.has Meta.Overload f2.cf_meta) then
+						let overloads = get_overloads c i in
+						is_overload := true;
+						let t = (apply_params intf.cl_params params f.cf_type) in
+						List.find (fun (t1,f1) -> same_overload_args t t1 f f1) overloads
+					else
+						t2, f2
+				in
+
+				ignore(follow f2.cf_type); (* force evaluation *)
+				let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
+				let mkind = function
+					| MethNormal | MethInline -> 0
+					| MethDynamic -> 1
+					| MethMacro -> 2
+				in
+				if f.cf_public && not f2.cf_public && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
+					display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
+				else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
+					display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+				else try
+					valid_redefinition ctx f2 t2 f (apply_params intf.cl_params params f.cf_type)
+				with
+					Unify_error l ->
+						if not (Meta.has Meta.CsNative c.cl_meta && c.cl_extern) then begin
+							display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+							display_error ctx ("Interface field is defined here") f.cf_pos;
+							display_error ctx (error_msg (Unify l)) p;
+						end
 			with
-				Not_found -> t
-	in
-	let herits = List.map (function
-		| HExtends t -> HExtends (resolve_imports t)
-		| HImplements t -> HImplements (resolve_imports t)
-		| h -> h
-	) herits in
-	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
+				| Not_found when not c.cl_interface ->
+					let msg = if !is_overload then
+						let ctx = print_context() in
+						let args = match follow f.cf_type with | TFun(args,_) -> String.concat ", " (List.map (fun (n,o,t) -> (if o then "?" else "") ^ n ^ " : " ^ (s_type ctx t)) args) | _ -> assert false in
+						"No suitable overload for " ^ i ^ "( " ^ args ^ " ), as needed by " ^ s_type_path intf.cl_path ^ " was found"
+					else
+						("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing")
+					in
+					display_error ctx msg p
+				| Not_found -> ()
+		in
+		PMap.iter check_field intf.cl_fields;
+		List.iter (fun (i2,p2) ->
+			check_interface ctx c i2 (List.map (apply_params intf.cl_params params) p2)
+		) intf.cl_implements
+
+	let check_interfaces ctx c =
+		match c.cl_path with
+		| "Proxy" :: _ , _ -> ()
+		| _ when c.cl_extern && Meta.has Meta.CsNative c.cl_meta -> ()
+		| _ ->
+		List.iter (fun (intf,params) -> check_interface ctx c intf params) c.cl_implements
+
+	let set_heritance ctx c herits p =
+		let is_lib = Meta.has Meta.LibType c.cl_meta in
+		let ctx = { ctx with curclass = c; type_params = c.cl_params; } in
+		let old_meta = c.cl_meta in
+		let process_meta csup =
+			List.iter (fun m ->
+				match m with
+				| Meta.Final, _, _ -> if not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error "Cannot extend a final class" p;
+				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,p) :: m :: c.cl_meta
+				| _ -> ()
+			) csup.cl_meta
+		in
+		let cancel_build csup =
+			(* for macros reason, our super class is not yet built - see #2177 *)
+			(* let's reset our build and delay it until we are done *)
+			c.cl_meta <- old_meta;
+(* 			c.cl_array_access <- None;
+			c.cl_dynamic <- None;
+			c.cl_implements <- [];
+			c.cl_super <- None; *)
+			raise Exit
+		in
+		let has_interf = ref false in
+		(*
+			resolve imports before calling build_inheritance, since it requires full paths.
+			that means that typedefs are not working, but that's a fair limitation
+		*)
+		let resolve_imports t =
+			match t.tpackage with
+			| _ :: _ -> t
+			| [] ->
+				try
+					let find = List.find (fun lt -> snd (t_path lt) = t.tname) in
+					let lt = try find ctx.m.curmod.m_types with Not_found -> find ctx.m.module_types in
+					{ t with tpackage = fst (t_path lt) }
+				with
+					Not_found -> t
+		in
+		let herits = ExtList.List.filter_map (function
+			| HExtends t -> Some(true,resolve_imports t)
+			| HImplements t -> Some(false,resolve_imports t)
+			| t -> None
+		) herits in
+		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
+		(* Pass 1: Check and set relations *)
+		let fl = List.map (fun (is_extends,t) ->
+			let t = load_instance ctx t p false in
+			if is_extends then begin
+				if c.cl_super <> None then error "Cannot extend several classes" p;
+				let csup,params = check_extends ctx c t p in
+				if c.cl_interface then begin
+					if not csup.cl_interface then error "Cannot extend by using a class" p;
+					c.cl_implements <- (csup,params) :: c.cl_implements;
+					if not !has_interf then begin
+						if not is_lib then delay ctx PForce (fun() -> check_interfaces ctx c);
+						has_interf := true;
+					end
+				end else begin
+					if csup.cl_interface then error "Cannot extend by using an interface" p;
+					c.cl_super <- Some (csup,params)
+				end;
+				(fun () ->
+					if not (csup.cl_build()) then cancel_build csup;
+					process_meta csup;
+				)
+			end else begin match follow t with
+				| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
+					if c.cl_array_access <> None then error "Duplicate array access" p;
+					c.cl_array_access <- Some t;
+					(fun () -> ())
+				| TInst (intf,params) ->
+					if is_parent c intf then error "Recursive class" p;
+					if c.cl_interface then error "Interfaces cannot implement another interface (use extends instead)" p;
+					if not intf.cl_interface then error "You can only implement an interface" p;
+					c.cl_implements <- (intf, params) :: c.cl_implements;
+					if not !has_interf && not is_lib && not (Meta.has (Meta.Custom "$do_not_check_interf") c.cl_meta) then begin
+						delay ctx PForce (fun() -> check_interfaces ctx c);
+						has_interf := true;
+					end;
+					(fun () ->
+						if not (intf.cl_build()) then cancel_build intf;
+						process_meta intf;
+					)
+				| TDynamic t ->
+					if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
+					c.cl_dynamic <- Some t;
+					(fun () -> ())
+				| _ ->
+					error "Should implement by using an interface" p
+			end
+		) herits in
+		(* Pass 2: Build classes and check metadata *)
+		List.iter (fun f -> f()) fl
+end
 
 let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	let n = tp.tp_name in
@@ -1794,13 +1839,21 @@ let build_enum_abstract ctx c a fields p =
 	List.iter (fun field ->
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
-			field.cff_access <- [AStatic;APublic;AInline];
+			field.cff_access <- [AStatic;APublic];
 			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
-			let e = match eo with
-				| None -> error "Value required" field.cff_pos
-				| Some e -> (ECast(e,None),field.cff_pos)
+			let ct = match ct with
+				| Some _ -> ct
+				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)))
 			in
-			field.cff_kind <- FVar(ct,Some e)
+			begin match eo with
+				| None ->
+					if not c.cl_extern then error "Value required" field.cff_pos
+					else field.cff_kind <- FProp("default","never",ct,None)
+				| Some e ->
+					field.cff_access <- AInline :: field.cff_access;
+					let e = (ECast(e,None),field.cff_pos) in
+					field.cff_kind <- FVar(ct,Some e)
+			end
 		| _ ->
 			()
 	) fields;
@@ -2739,6 +2792,7 @@ module ClassInitializer = struct
 		*)
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;
+		if Meta.has Meta.StructInit c.cl_meta then check_struct_init_constructor ctx c p;
 		(* check overloaded constructors *)
 		(if ctx.com.config.pf_overload && not cctx.is_lib then match c.cl_constructor with
 		| Some ctor ->
@@ -2952,7 +3006,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let rec build() =
 			c.cl_build <- (fun()-> false);
 			try
-				set_heritance ctx c herits p;
+				Inheritance.set_heritance ctx c herits p;
 				ClassInitializer.init_class ctx c p do_init d.d_flags d.d_data;
 				c.cl_build <- (fun()-> true);
 				List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
@@ -3182,6 +3236,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				);
 				a.a_this <- at;
 				is_type := true;
+			| AExtern ->
+				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
 			| APrivAbstract -> ()
 		) d.d_flags;
 		if not !is_type then begin
@@ -3252,7 +3308,6 @@ let type_types_into_module ctx m tdecls p =
 		type_params = [];
 		curfun = FunStatic;
 		untyped = false;
-		in_super_call = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
 		in_loop = false;
@@ -3269,27 +3324,36 @@ let type_types_into_module ctx m tdecls p =
 
 let handle_import_hx ctx m decls p =
 	let path_split = List.tl (List.rev (get_path_parts m.m_extra.m_file)) in
-	let join l = String.concat "/" (List.rev ("import.hx" :: l)) in
+	let join l = String.concat (if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then "\\" else "/") (List.rev ("import.hx" :: l)) in
 	let rec loop path pack = match path,pack with
 		| _,[] -> [join path]
 		| (p :: path),(_ :: pack) -> (join (p :: path)) :: (loop path pack)
 		| _ -> []
 	in
 	let candidates = loop path_split (fst m.m_path) in
+	let make_import_module path r =
+		Hashtbl.replace ctx.com.parser_cache path r;
+		(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
+		let m_import = make_module ctx ([],path) path p in
+		add_module ctx m_import p;
+		m_import
+	in
 	List.fold_left (fun acc path ->
-		let path = Common.unique_full_path path in
-		let _,decls = try
-			Hashtbl.find ctx.com.parser_cache path
+		let decls = try
+			let r = Hashtbl.find ctx.com.parser_cache path in
+			let mimport = Hashtbl.find ctx.g.modules ([],path) in
+			if mimport.m_extra.m_kind <> MFake then add_dependency m mimport;
+			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let r = parse_file ctx.com path p in
-				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) (snd r);
-				Hashtbl.replace ctx.com.parser_cache path r;
+				let _,r = parse_file ctx.com path p in
+				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
+				add_dependency m (make_import_module path r);
 				r
 			end else begin
-				let r = ([],[]) in
+				let r = [] in
 				(* Add empty decls so we don't check the file system all the time. *)
-				Hashtbl.replace ctx.com.parser_cache path r;
+				(make_import_module path r).m_extra.m_kind <- MFake;
 				r
 			end
 		in

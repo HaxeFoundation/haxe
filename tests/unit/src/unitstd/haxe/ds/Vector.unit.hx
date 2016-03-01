@@ -135,15 +135,18 @@ vec.join(", ") == "foo, bar";
 
 // map
 
-//var vec = new haxe.ds.Vector(0);
-//vec.map(function(i) return throw false);
-//
-//var vec = new haxe.ds.Vector(2);
-//vec[0] = 12;
-//vec[1] = 13;
-//var vec2 = vec.map(function(i) return "value: " +i);
-//vec2[0] == "value: 12";
-//vec2[1] == "value: 13";
+var vec = new haxe.ds.Vector(0);
+vec.map(function(i) {
+	throw false;
+	return null;
+});
+
+var vec = new haxe.ds.Vector(2);
+vec[0] = 12;
+vec[1] = 13;
+var vec2 = vec.map(function(i) return "value: " +i);
+vec2[0] == "value: 12";
+vec2[1] == "value: 13";
 
 // sort
 

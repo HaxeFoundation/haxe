@@ -416,39 +416,28 @@ let to_pattern ctx e t =
 			end
 		| EConst(Ident s) ->
 			begin try
-				let ec = match follow t with
-					| TEnum(en,pl) ->
-						let ef = try
-							PMap.find s en.e_constrs
-						with Not_found when not (is_lower_ident s) ->
-							error (string_error s en.e_names ("Expected constructor for enum " ^ (s_type_path en.e_path))) p
-						in
-						(match ef.ef_type with
-							| TFun (args,_) ->
-								let msg = Printf.sprintf "Enum constructor %s.%s requires parameters %s"
-									(s_type_path en.e_path)
-									ef.ef_name
-									(String.concat ", " (List.map (fun (n,_,t) -> n ^ ":" ^ (s_type t)) args))
-								in
-								error msg p
-							| _ -> ());
+				let rec loop t = match follow t with
+					| TEnum (en,tl) ->
+						let ef = PMap.find s en.e_constrs in
 						let et = mk (TTypeExpr (TEnumDecl en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics en) }) p in
-						mk (TField (et,FEnum (en,ef))) (apply_params en.e_params pl ef.ef_type) p
-					| TAbstract({a_impl = Some c} as a,_) when Meta.has Meta.Enum a.a_meta ->
+						mk (TField (et,FEnum (en,ef))) (apply_params en.e_params tl ef.ef_type) p
+					| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
 						let cf = PMap.find s c.cl_statics in
 						Type.unify (follow cf.cf_type) t;
 						let e = begin match cf.cf_expr with
-						| Some ({eexpr = TConst c | TCast({eexpr = TConst c},None)} as e) -> e
-						| _ -> raise Not_found
+							| Some ({eexpr = TConst c | TCast({eexpr = TConst c},None)} as e) -> e
+							| None when c.cl_extern -> make_static_field_access c cf cf.cf_type p
+							| _ -> raise Not_found
 						end in
 						e
 					| _ ->
-						let old = ctx.untyped in
-						ctx.untyped <- true;
-						let e = try type_expr ctx e (WithType t) with _ -> ctx.untyped <- old; raise Not_found in
-						ctx.untyped <- old;
-						e
+						let old = ctx.in_call_args in
+						ctx.in_call_args <- true; (* Not really, but it does exactly what we want here. *)
+						let ec = try type_expr ctx e (WithType t) with _ -> ctx.in_call_args <- old; raise Not_found in
+						ctx.in_call_args <- old;
+						ec
 				in
+				let ec = loop t in
 				let ec = match Optimizer.make_constant_expression ctx ~concat_strings:true ec with Some e -> e | None -> ec in
 				(match ec.eexpr with
 					| TField (_,FEnum (en,ef)) ->
@@ -465,6 +454,8 @@ let to_pattern ctx e t =
 						mk_con_pat (CConst c) [] t p
 					| TTypeExpr mt ->
 						mk_type_pat ctx mt t p
+					| TField(_,FStatic({cl_extern = true},({cf_kind = Var {v_write = AccNever}} as cf))) ->
+						mk_con_pat (CExpr ec) [] cf.cf_type p
 					| _ ->
 						raise Not_found);
 			with Not_found ->

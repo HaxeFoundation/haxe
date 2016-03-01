@@ -22,7 +22,7 @@
 package js.html.compat;
 
 #if !nodejs
-@:keep
+@:ifFeature("js.html.ArrayBuffer.*")
 class ArrayBuffer {
 
 	public var byteLength : Int;

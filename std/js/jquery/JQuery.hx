@@ -105,6 +105,10 @@ package js.jquery;
 	**/
 	static public function holdReady(hold:Bool):Void;
 	/**
+		Modify and filter HTML strings passed through <a href="/category/manipulation/">jQuery manipulation methods</a>.
+	**/
+	static public function htmlPrefilter(html:String):String;
+	/**
 		Search for a specified value within an array and return its index (or -1 if not found).
 	**/
 	static public function inArray(value:Dynamic, array:Array<Dynamic>, ?fromIndex:Float):Float;
@@ -121,7 +125,7 @@ package js.jquery;
 	**/
 	static public function isFunction(obj:Dynamic):Bool;
 	/**
-		Determines whether its argument is a number.
+		Determines whether its argument represents a JavaScript number.
 	**/
 	static public function isNumeric(value:Dynamic):Bool;
 	/**
@@ -229,7 +233,7 @@ package js.jquery;
 	**/
 	static public function uniqueSort(array:Array<js.html.Element>):Array<js.html.Element>;
 	/**
-		Provides a way to execute callback functions based on one or more objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
+		Provides a way to execute callback functions based on zero or more objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
 	**/
 	static public function when(deferreds:haxe.extern.Rest<js.jquery.Deferred>):js.jquery.Promise;
 	/**
@@ -771,7 +775,7 @@ package js.jquery;
 	**/
 	public function prependTo(target:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
-		Get the immediately preceding sibling of each element in the set of matched elements, optionally filtered by a selector.
+		Get the immediately preceding sibling of each element in the set of matched elements. If a selector is provided, it retrieves the previous sibling only if it matches that selector.
 	**/
 	public function prev(?selector:String):js.jquery.JQuery;
 	/**

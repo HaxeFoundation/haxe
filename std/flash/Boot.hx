@@ -242,7 +242,11 @@ class Boot extends flash.display.MovieClip {
 		aproto.remove = function(obj) {
 			var idx = __this__.indexOf(obj);
 			if( idx == -1 ) return false;
+			#if flash19
+			__this__.removeAt(idx);
+			#else
 			__this__.splice(idx,1);
+			#end
 			return true;
 		}
 		aproto.iterator = function() {

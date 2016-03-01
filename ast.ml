@@ -24,6 +24,7 @@ type pos = {
 }
 
 module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
+module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 
 module Meta = struct
 	type strict_meta =
@@ -416,6 +417,7 @@ type abstract_flag =
 	| AFromType of complex_type
 	| AToType of complex_type
 	| AIsType of complex_type
+	| AExtern
 
 type enum_constructor = {
 	ec_name : string;

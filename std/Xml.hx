@@ -122,28 +122,28 @@ class Xml {
 	var children:Array<Xml>;
 	var attributeMap:Map<String, String>;
 
-	inline function get_nodeName() {
+	#if !cppia inline #end function get_nodeName() {
 		if (nodeType != Element) {
 			throw 'Bad node type, expected Element but found $nodeType';
 		}
 		return nodeName;
 	}
 
-	inline function set_nodeName(v) {
+	#if !cppia inline #end function set_nodeName(v) {
 		if (nodeType != Element) {
 			throw 'Bad node type, expected Element but found $nodeType';
 		}
 		return this.nodeName = v;
 	}
 
-	inline function get_nodeValue() {
+	#if !cppia inline #end function get_nodeValue() {
 		if (nodeType == Document || nodeType == Element) {
 			throw 'Bad node type, unexpected $nodeType';
 		}
 		return nodeValue;
 	}
 
-	inline function set_nodeValue(v) {
+	#if !cppia inline #end function set_nodeValue(v) {
 		if (nodeType == Document || nodeType == Element) {
 			throw 'Bad node type, unexpected $nodeType';
 		}
@@ -269,7 +269,7 @@ class Xml {
 		Returns an iterator of all child nodes.
 		Only works if the current node is an Element or a Document.
 	**/
-	public inline function iterator() : Iterator<Xml> {
+	public #if !cppia inline #end function iterator() : Iterator<Xml> {
 		ensureElementType();
 		return children.iterator();
 	}
@@ -297,7 +297,7 @@ class Xml {
 	/**
 		Returns the first child node.
 	**/
-	public inline function firstChild() : Xml {
+	public #if !cppia inline #end function firstChild() : Xml {
 		ensureElementType();
 		return children[0];
 	}
@@ -361,7 +361,7 @@ class Xml {
 	/**
 		Returns a String representation of the Xml node.
 	**/
-	public inline function toString() : String {
+	public #if !cppia inline #end function toString() : String {
 		return haxe.xml.Printer.print(this);
 	}
 

@@ -161,7 +161,7 @@ class DateTools {
 	/**
 		Converts a number of minutes to a timestamp.
 	**/
-	public static inline function minutes( n : Float ) : Float {
+	#if as3 @:extern #end public static inline function minutes( n : Float ) : Float {
 		return n * 60.0 * 1000.0;
 	}
 

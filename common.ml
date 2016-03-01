@@ -74,12 +74,6 @@ type platform_config = {
 	pf_static : bool;
 	(** has access to the "sys" package *)
 	pf_sys : bool;
-	(** local variables are block-scoped *)
-	pf_locals_scope : bool;
-	(** captured local variables are scoped *)
-	pf_captured_scope : bool;
-	(** generated locals must be absolutely unique wrt the current function *)
-	pf_unique_locals : bool;
 	(** captured variables handling (see before) *)
 	pf_capture_policy : capture_policy;
 	(** when calling a method with optional args, do we replace the missing args with "null" constants *)
@@ -131,7 +125,7 @@ type context = {
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
-	parser_cache : (string,string list * (type_def * pos) list) Hashtbl.t;
+	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
@@ -167,7 +161,7 @@ module Define = struct
 	type strict_defined =
 		| AbsolutePath
 		| AdvancedTelemetry
-		| Analyzer
+		(* | Analyzer *)
 		| As3
 		| CheckXmlProxy
 		| CoreApi
@@ -212,6 +206,7 @@ module Define = struct
 		| NetworkSandbox
 		| NetVer
 		| NetTarget
+		| NoAnalyzer
 		| NoCompilation
 		| NoCOpt
 		| NoDeprecationWarnings
@@ -252,7 +247,7 @@ module Define = struct
 	let infos = function
 		| AbsolutePath -> ("absolute_path","Print absolute file path in trace output")
 		| AdvancedTelemetry -> ("advanced-telemetry","Allow the SWF to be measured with Monocle tool")
-		| Analyzer -> ("analyzer","Use static analyzer for optimization (experimental)")
+		(* | Analyzer -> ("analyzer","Use static analyzer for optimization (experimental)") *)
 		| As3 -> ("as3","Defined when outputing flash9 as3 source code")
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
@@ -298,6 +293,7 @@ module Define = struct
 		| NekoSource -> ("neko_source","Output neko source instead of bytecode")
 		| NekoV1 -> ("neko_v1","Keep Neko 1.x compatibility")
 		| NetworkSandbox -> ("network-sandbox","Use local network sandbox instead of local file access one")
+		| NoAnalyzer -> ("no-analyzer","Disable the static analyzer")
 		| NoCompilation -> ("no-compilation","Disable final compilation for Cs, Cpp and Java")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")
@@ -546,9 +542,6 @@ let default_config =
 	{
 		pf_static = true;
 		pf_sys = true;
-		pf_locals_scope = true;
-		pf_captured_scope = true;
-		pf_unique_locals = false;
 		pf_capture_policy = CPNone;
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
@@ -567,9 +560,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = false;
-			pf_locals_scope = false;
-			pf_captured_scope = false;
-			pf_unique_locals = false;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
@@ -582,9 +572,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = true;
-			pf_locals_scope = true;
-			pf_captured_scope = true;
-			pf_unique_locals = false;
 			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -597,9 +584,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = false;
-			pf_locals_scope = false;
-			pf_captured_scope = true;
-			pf_unique_locals = true;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = true;
@@ -612,9 +596,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = false;
-			pf_locals_scope = true;
-			pf_captured_scope = true; (* handled by genSwf9 *)
-			pf_unique_locals = false;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
@@ -627,9 +608,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = true;
-			pf_locals_scope = false; (* some duplicate work is done in genPhp *)
-			pf_captured_scope = false;
-			pf_unique_locals = false;
 			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -642,9 +620,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = true;
-			pf_locals_scope = true;
-			pf_captured_scope = true;
-			pf_unique_locals = false;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
@@ -657,9 +632,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = true;
-			pf_locals_scope = false;
-			pf_captured_scope = true;
-			pf_unique_locals = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -672,9 +644,6 @@ let get_config com =
 		{
 			pf_static = true;
 			pf_sys = true;
-			pf_locals_scope = false;
-			pf_captured_scope = true;
-			pf_unique_locals = false;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = false;
@@ -687,9 +656,6 @@ let get_config com =
 		{
 			pf_static = false;
 			pf_sys = true;
-			pf_locals_scope = false;
-			pf_captured_scope = false;
-			pf_unique_locals = false;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;

@@ -24,13 +24,15 @@
 
 package js.html;
 
+import js.html.compat.Float32Array;
+
 @:native("Float32Array")
 extern class Float32Array extends ArrayBufferView implements ArrayAccess<Float>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 4;
-	
+
 	var length(default,null) : Int;
-	
+
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
 	@:overload( function( array : Float32Array ) : Void {} )

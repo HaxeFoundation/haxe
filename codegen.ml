@@ -481,7 +481,7 @@ let rec build_generic ctx c p tl =
 						apply_params c.cl_params tl (TInst(cs,pl))
 				in
 				let ts = follow (find_class gctx.subst) in
-				let cs,pl = Typeload.check_extends ctx c ts p in
+				let cs,pl = Typeload.Inheritance.check_extends ctx c ts p in
 				match cs.cl_kind with
 				| KGeneric ->
 					(match build_generic ctx cs p pl with
@@ -705,15 +705,17 @@ let build_instance ctx mtype p =
 	| TAbstractDecl a ->
 		a.a_params, a.a_path, (fun tl -> TAbstract(a,tl))
 
-let on_inherit ctx c p h =
-	match h with
-	| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(CTPath t)] } ->
+let on_inherit ctx c p (is_extends,tp) =
+	if not is_extends then
+		true
+	else match tp with
+	| { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(CTPath t)] } ->
 		extend_remoting ctx c t p false true;
 		false
-	| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
+	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
+	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
 		extend_xml_proxy ctx c t file p;
 		true
 	| _ ->
@@ -876,11 +878,24 @@ module AbstractCast = struct
 			| _,[],_ -> pl
 			| _,el,_ ->
 				let relevant = Hashtbl.create 0 in
-				List.iter (fun e -> match fst e with
-					| EConst(Ident s) -> Hashtbl.replace relevant s true
-					| _ -> error "Type parameter expected" (pos e)
+				List.iter (fun e ->
+					let rec loop f e = match fst e with
+						| EConst(Ident s) ->
+							Hashtbl.replace relevant s f
+						| EMeta((Meta.Custom ":followWithAbstracts",_,_),e1) ->
+							loop Abstract.follow_with_abstracts e1;
+						| _ ->
+							error "Type parameter expected" (pos e)
+					in
+					loop (fun t -> t) e
 				) el;
-				let tl = List.map2 (fun (n,_) t -> if Hashtbl.mem relevant n || not (has_mono t) then t else t_dynamic) a.a_params pl in
+				let tl = List.map2 (fun (n,_) t ->
+					try
+						(Hashtbl.find relevant n) t
+					with Not_found ->
+						if not (has_mono t) then t
+						else t_dynamic
+				) a.a_params pl in
 				if com.platform = Js && a.a_path = ([],"Map") then begin match tl with
 					| t1 :: _ ->
 						let rec loop stack t =

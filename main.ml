@@ -1448,7 +1448,7 @@ try
 			"n"
 		| Js ->
 			if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
-				Common.define_value com Define.JqueryVer "11103";
+				Common.define_value com Define.JqueryVer "11201";
 			add_std "js";
 			"js"
 		| Php ->
