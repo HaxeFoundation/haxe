@@ -366,6 +366,7 @@ let keyword_remap name =
    | "INT_MIN" | "INT_MAX" | "INT8_MIN" | "INT8_MAX" | "UINT8_MAX" | "INT16_MIN"
    | "INT16_MAX" | "UINT16_MAX" | "INT32_MIN" | "INT32_MAX" | "UINT32_MAX"
    | "asm"
+   | "HX_" | "HXLINE" | "HXDLIN"
    | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
    | "struct" -> "_hx_" ^ name
    | x -> x
@@ -1045,6 +1046,16 @@ let gen_string_hash str =
        (Int32.shift_right_logical h 24)
 ;;
 
+let gen_qstring_hash str =
+   let h = gen_hash32 0 str in
+   Printf.sprintf "%02lx,%02lx,%02lx,%02lx"
+       (Int32.shift_right_logical (Int32.shift_left h 24) 24)
+       (Int32.shift_right_logical (Int32.shift_left h 16) 24)
+       (Int32.shift_right_logical (Int32.shift_left h 8) 24)
+       (Int32.shift_right_logical h 24)
+;;
+
+
 
 
 
@@ -1107,7 +1118,7 @@ let escape_command s =
    String.iter (fun ch -> if (ch=='"' || ch=='\\' ) then Buffer.add_string b "\\";  Buffer.add_char b ch ) s;
    Buffer.contents b;;
 
-let str s =
+let gen_str macro gen s =
    let rec split s plus =
       let escaped = Ast.s_escape ~hex:false s in
       let hexed = (special_to_hex escaped) in
@@ -1122,10 +1133,15 @@ let str s =
    let escaped = Ast.s_escape ~hex:false s in
    let hexed = (special_to_hex escaped) in
    if (String.length hexed <= 16000 ) then
-      "HX_HCSTRING(\"" ^ hexed ^ "\"," ^ (gen_string_hash s) ^ ")"
+      macro ^ "(\"" ^ hexed ^ "\"," ^ (gen s) ^ ")"
    else
       "(" ^ (split s "" ) ^ ")"
 ;;
+
+let str s = gen_str "HX_HCSTRING" gen_string_hash s;;
+let strq s = gen_str "HX_" gen_qstring_hash s;;
+
+
 
 let const_char_star s =
    let escaped = Ast.s_escape ~hex:false s in
@@ -1656,6 +1672,7 @@ and tcpplvalue =
    | CppArrayRef of tcpparrayloc
    | CppDynamicRef of tcppexpr * string
 
+
 and tcpp_expr_expr =
    | CppInt of int32
    | CppFloat of string
@@ -1693,8 +1710,10 @@ and tcpp_expr_expr =
    | CppClassOf of path
    | CppReturn of tcppexpr option
    | CppThrow of tcppexpr
-   | CppCast of tcppexpr * module_type option
    | CppEnumParameter of tcppexpr * tenum_field * int
+   | CppCastDynamic of tcppexpr * tclass
+   | CppCastObjC of tcppexpr * tclass
+   | CppCastNative of tcppexpr
 
 
 let cpp_const_type cval = match cval with
@@ -2334,13 +2353,26 @@ let retype_expression ctx request_type expression_tree =
 
          | TReturn eo ->
             CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
+         | TCast (base,None) -> (* Use auto-cast rules *)
+            let baseCpp = retype (cpp_type_of base.etype) base in
+            baseCpp.cppexpr, baseCpp.cpptype
 
-         | TCast (e1,t) ->
-            CppCast (retype TCppDynamic e1,t), cpp_type_of expr.etype
-
+         | TCast (base,Some t) ->
+            let baseCpp = retype (cpp_type_of base.etype) base in
+            (match baseCpp.cpptype, return_type with
+            | _, TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
+            | _,_ -> baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *)
+            )
       in
-      { cppexpr = retypedExpr; cpptype = retypedType; cpppos = expr.epos }
+      let mk_cppexpr newExpr newType = { cppexpr = newExpr; cpptype = newType; cpppos = expr.epos } in
+      let cppExpr = mk_cppexpr retypedExpr retypedType in
 
+      (* Auto cast rules... *)
+      match cppExpr.cpptype, return_type with
+      | TCppDynamic,TCppInst(klass) -> mk_cppexpr (CppCastDynamic(cppExpr,klass)) return_type
+      | TCppDynamic,TCppObjC(klass) -> mk_cppexpr (CppCastObjC(cppExpr,klass)) return_type
+      | TCppDynamic,TCppNativePointer(klass) -> mk_cppexpr (CppCastNative(cppExpr)) return_type
+      | _,_ -> cppExpr
    in
    retype request_type expression_tree
 ;;
@@ -2389,7 +2421,7 @@ let gen_cpp_ast_expression_tree ctx tree =
          out (Printf.sprintf "%ld" i)
       | CppFloat float_as_string -> out ("((Float)" ^ float_as_string ^")")
       | CppString s when ctx.ctx_for_extern -> out ("\"" ^ (escape_extern s) ^ "\"")
-      | CppString s -> out (str s)
+      | CppString s -> out (strq s)
       | CppBool b -> out (if b then "true" else "false")
       | CppNull when is_cpp_objc_type expr.cpptype -> out "nil"
       | CppNull -> out (if ctx.ctx_for_extern then "0" else "null()")
@@ -2419,7 +2451,7 @@ let gen_cpp_ast_expression_tree ctx tree =
          | FuncDynamic(expr) ->
               gen expr;
          | FuncInternal(expr,name,_) ->
-              gen expr; out ("->__Field(" ^ (str name) ^ ")")
+              gen expr; out ("->__Field(" ^ (strq name) ^ ")")
          | FuncSuper _ -> error "Can't create super closure" expr.cpppos
          | FuncNew _ -> error "Can't create new closure" expr.cpppos
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
@@ -2459,7 +2491,7 @@ let gen_cpp_ast_expression_tree ctx tree =
 
       | CppDynamicField(obj,name) ->
          gen obj;
-         out ("->__Field(" ^ (str name)  ^ ")");
+         out ("->__Field(" ^ (strq name)  ^ ")");
 
       | CppArray(arrayLoc) -> (match arrayLoc with
          | ArrayTyped(arrayObj,index)
@@ -2494,7 +2526,7 @@ let gen_cpp_ast_expression_tree ctx tree =
                gen arrayObj; out "->__set("; gen index; out ","; gen rvalue; out ")"
             )
          | CppDynamicRef(expr,name) ->
-            gen expr; out ("->__SetField(" ^ (str name) ^ ","); gen rvalue; out ")"
+            gen expr; out ("->__SetField(" ^ (strq name) ^ ","); gen rvalue; out ")"
          )
 
       | CppCrement(incFlag,preFlag, lvalue) ->
@@ -2543,7 +2575,7 @@ let gen_cpp_ast_expression_tree ctx tree =
          let sorted = List.sort (fun  (_,_,h0) (_,_,h1) -> Int32.compare h0 h1 )
                 (List.map (fun (name,value) -> name,value,(gen_hash32 0 name ) ) values) in
          ExtList.List.iteri (fun idx (name,value,_) ->
-            out "\n"; output_p value ("\t->setFixed(" ^ (string_of_int idx) ^ "," ^ (str name) ^ ","); gen value; out ")";
+            out "\n"; output_p value ("\t->setFixed(" ^ (string_of_int idx) ^ "," ^ (strq name) ^ ","); gen value; out ")";
          ) sorted;
 
       | CppArrayDecl(exprList) ->
@@ -2710,13 +2742,14 @@ let gen_cpp_ast_expression_tree ctx tree =
 
       | CppCode(value, exprs) ->
          Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
+      | CppCastDynamic(expr,klass) ->
+         out ("hx::TCast< " ^ cpp_class_name klass ^ " >::cast("); gen expr; out ")"
 
-   | CppCast(expr,None) ->
-       out "cast("; gen expr; out ")";
+      | CppCastObjC(expr,klass) ->
+         out ("( (" ^ cpp_class_name klass ^ ") id ("); gen expr; out ") )"
 
-   | CppCast(expr,Some _) ->
-       out "castTo("; gen expr; out ")";
-
+      | CppCastNative(expr) ->
+         out "("; gen expr; out ").mPtr"
 
    and gen expr =
       gen_with_prologue None expr
@@ -3834,6 +3867,7 @@ let gen_expression_tree ctx retval expression_tree set_var tail_code =
          output "HX_STACK_DO_THROW(";
          gen_expression true expression;
          output ")";
+
    | TCast (cast,None) when is_objc_type expression.etype && not (is_objc_type cast.etype) ->
      let ret_type = type_string expression.etype in
      output ("( (" ^ ret_type ^ ") (id) (");
