@@ -359,7 +359,7 @@ let to_pattern ctx e t =
 				mk_con_pat (CConst c) [] t p
 			| TTypeExpr mt ->
 				mk_type_pat ctx mt t p
-			| TField(_,FStatic({cl_extern = true},({cf_kind = Var {v_write = AccNever}} as cf))) ->
+			| TField(_,FStatic(_,({cf_kind = Var {v_write = AccNever}} as cf))) ->
 				mk_con_pat (CExpr e) [] cf.cf_type p
 			| TField(_, FEnum(en,ef)) ->
 				begin try
@@ -454,7 +454,7 @@ let to_pattern ctx e t =
 						mk_con_pat (CConst c) [] t p
 					| TTypeExpr mt ->
 						mk_type_pat ctx mt t p
-					| TField(_,FStatic({cl_extern = true},({cf_kind = Var {v_write = AccNever}} as cf))) ->
+					| TField(_,FStatic(_,({cf_kind = Var {v_write = AccNever}} as cf))) ->
 						mk_con_pat (CExpr ec) [] cf.cf_type p
 					| _ ->
 						raise Not_found);
