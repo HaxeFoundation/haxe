@@ -906,6 +906,7 @@ type analyzer_context = {
 	config : Config.t;
 	graph : Graph.t;
 	temp_var_name : string;
+	is_real_function : bool;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
@@ -1449,6 +1450,15 @@ module TexprTransformer = struct
 
 	let from_texpr com config e =
 		let g = Graph.create e.etype e.epos in
+		let tf,is_real_function = match e.eexpr with
+			| TFunction tf ->
+				tf,true
+			| _ ->
+				(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
+				let e = mk (TReturn (Some e)) t_dynamic e.epos in
+				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
+				tf,false
+		in
 		let ctx = {
 			com = com;
 			config = config;
@@ -1456,6 +1466,7 @@ module TexprTransformer = struct
 			(* For CPP we want to use variable names which are "probably" not used by users in order to
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
+			is_real_function = is_real_function;
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
@@ -1463,12 +1474,7 @@ module TexprTransformer = struct
 			scope_depth = 0;
 			scopes = [0];
 		} in
-		let bb_func,bb_exit = match e.eexpr with
-			| TFunction tf ->
-				func ctx g.g_root tf e.etype e.epos;
-			| _ ->
-				raise Exit
-		in
+		let bb_func,bb_exit = func ctx g.g_root tf e.etype e.epos in
 		ctx.entry <- bb_func;
 		close_node g g.g_root;
 		finalize g bb_exit;
@@ -2818,42 +2824,42 @@ module Run = struct
 
 	let roundtrip com config e =
 		let ctx = there com config e in
-		let e = back_again ctx in
-		e
+		back_again ctx
 
 	let run_on_expr com config e =
-		try
-			let ctx = there com config e in
-			if config.optimize && not ctx.has_unbound then begin
-				with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
-				if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
-				if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
-				if config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply ctx);
-				with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
-			end;
-			let e = back_again ctx in
-			Some ctx,e
-		with Exit ->
-			None,e
+		let ctx = there com config e in
+		if config.optimize && not ctx.has_unbound then begin
+			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
+			if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
+			if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
+			if config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply ctx);
+			with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
+		end;
+		ctx,back_again ctx
 
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta config cf.cf_meta in
-			let e =  match run_on_expr ctx.Typecore.com config e with
-				| None,e -> e
-				| Some ctx,e ->
-					if config.dot_debug then Debug.dot_debug ctx c cf;
-					e
-			in
+			let ctx,e = run_on_expr ctx.Typecore.com config e in
+			if config.dot_debug then Debug.dot_debug ctx c cf;
+			let e = if ctx.is_real_function then
+				e
+			else begin
+				(* Get rid of the wrapping function and its return expressions. *)
+				let rec loop first e = match e.eexpr with
+					| TReturn (Some e) -> e
+					| TFunction tf when first -> loop false tf.tf_expr
+					| TFunction _ -> e
+					| _ -> Type.map_expr (loop first) e
+				in
+				loop true e
+			end in
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
 	let run_on_class ctx config c =
 		let config = update_config_from_meta config c.cl_meta in
-		let process_field cf = match cf.cf_kind with
-			| Method _ -> run_on_field ctx config c cf
-			| _ -> ()
-		in
+		let process_field cf = run_on_field ctx config c cf in
 		List.iter process_field c.cl_ordered_fields;
 		List.iter process_field c.cl_ordered_statics;
 		(match c.cl_constructor with
