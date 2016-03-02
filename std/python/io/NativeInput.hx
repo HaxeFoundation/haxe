@@ -27,7 +27,7 @@ import python.Bytearray;
 import python.lib.io.IOBase;
 import python.lib.io.RawIOBase;
 
-class NativeInput<T:IOBase> extends Input{
+class NativeInput<T:IOBase> extends Input {
 
 	var stream:T;
 	var wasEof:Bool;
@@ -39,12 +39,8 @@ class NativeInput<T:IOBase> extends Input{
 		if (!stream.readable()) throw "Write-only stream";
 	}
 
-	public var canSeek(get_canSeek, null):Bool;
-
-	private function get_canSeek():Bool
-	{
-		return stream.seekable();
-	}
+	public var canSeek(get,never):Bool;
+	inline function get_canSeek():Bool return stream.seekable();
 
 	override public function close():Void
 	{
