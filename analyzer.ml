@@ -2859,12 +2859,15 @@ module Run = struct
 
 	let run_on_class ctx config c =
 		let config = update_config_from_meta config c.cl_meta in
-		let process_field cf = run_on_field ctx config c cf in
-		List.iter process_field c.cl_ordered_fields;
-		List.iter process_field c.cl_ordered_statics;
+		let process_field stat cf = match cf.cf_kind with
+			| Var _ when not stat -> ()
+			| _ -> run_on_field ctx config c cf
+		in
+		List.iter (process_field false) c.cl_ordered_fields;
+		List.iter (process_field true) c.cl_ordered_statics;
 		(match c.cl_constructor with
 		| None -> ()
-		| Some f -> process_field f)
+		| Some f -> process_field false f)
 
 	let run_on_type ctx config t =
 		match t with
