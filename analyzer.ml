@@ -184,7 +184,8 @@ let type_change_ok com t1 t2 =
 			| _ ->
 				true
 		in
-		match follow t1,follow t2 with
+		(* Check equality again to cover cases where TMono became t_dynamic *)
+		t1 == t2 || match follow t1,follow t2 with
 			| TDynamic _,_ | _,TDynamic _ -> false
 			| _ ->
 				if com.config.pf_static && is_nullable_or_whatever t1 <> is_nullable_or_whatever t2 then false
