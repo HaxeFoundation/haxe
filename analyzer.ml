@@ -164,10 +164,30 @@ let type_change_ok com t1 t2 =
 		in
 		let t1 = map t1 in
 		let t2 = map t2 in
+		let rec is_nullable_or_whatever = function
+			| TMono r ->
+				(match !r with None -> false | Some t -> is_nullable_or_whatever t)
+			| TType ({ t_path = ([],"Null") },[_]) ->
+				true
+			| TLazy f ->
+				is_nullable_or_whatever (!f())
+			| TType (t,tl) ->
+				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
+			| TFun _ ->
+				false
+			| TInst ({ cl_kind = KTypeParameter _ },_) ->
+				false
+			| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
+				not (Meta.has Meta.NotNull a.a_meta)
+			| TAbstract (a,tl) ->
+				not (Meta.has Meta.NotNull a.a_meta) && is_nullable_or_whatever (apply_params a.a_params tl a.a_this)
+			| _ ->
+				true
+		in
 		match follow t1,follow t2 with
 			| TDynamic _,_ | _,TDynamic _ -> false
 			| _ ->
-				if com.config.pf_static && is_nullable t1 <> is_nullable t2 then false
+				if com.config.pf_static && is_nullable_or_whatever t1 <> is_nullable_or_whatever t2 then false
 				else type_iseq t1 t2
 	end
 
