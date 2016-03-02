@@ -73,22 +73,15 @@ class NativeInput<T:IOBase> extends Input{
 		throw "abstract method, should be overriden";
 	}
 
-	override public function readBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int
-	{
+	override public function readBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int {
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw haxe.io.Error.OutsideBounds;
 
-
-		if (canSeek) {
-			seek(pos, SeekBegin);
-		} else if (pos > 0) {
-			throw "Cannot call readBytes for pos > 0 (" + pos + ") on not seekable stream";
-		}
 		var ba = new Bytearray(len);
 		var ret = readinto(ba);
-		s.blit(pos, haxe.io.Bytes.ofData(ba) ,0,len);
 		if (ret == 0)
 			throwEof();
+		s.blit(pos, haxe.io.Bytes.ofData(ba), 0, len);
 		return ret;
 	}
 }
