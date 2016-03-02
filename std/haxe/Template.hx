@@ -112,6 +112,8 @@ class Template {
 	}
 
 	function resolve( v : String ) : Dynamic {
+		if( v == "_")
+			return "::";
 		if( Reflect.hasField(context,v) )
 			return Reflect.field(context,v);
 		for( ctx in stack )
