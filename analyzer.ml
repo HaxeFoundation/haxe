@@ -167,7 +167,7 @@ let type_change_ok com t1 t2 =
 		match follow t1,follow t2 with
 			| TDynamic _,_ | _,TDynamic _ -> false
 			| _ ->
-				if com.config.pf_static && is_explicit_null t1 <> is_explicit_null t2 then false
+				if com.config.pf_static && is_nullable t1 <> is_nullable t2 then false
 				else type_iseq t1 t2
 	end
 
@@ -468,7 +468,10 @@ module Fusion = struct
 		in
 		loop e;
 		let can_be_fused v e =
-			get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.Config.optimize && config.Config.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
+			let b = get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.Config.optimize && config.Config.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None) in
+			(* let st = s_type (print_context()) in *)
+			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
+			b
 		in
 		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
