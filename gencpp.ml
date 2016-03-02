@@ -1855,7 +1855,7 @@ let rec cpp_type_of haxe_type =
    in
 
 
-   (match haxe_type with
+   (match follow haxe_type with
    | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of t)
 
    | TAbstract ({ a_path = ([],"Void") },[]) -> TCppVoid
@@ -1911,9 +1911,10 @@ let rec cpp_type_of haxe_type =
       | _ ->
             TCppInst(klass)
       )
-
-   | TType (_,_) ->
-      TCppClass
+   | TType (t, params) ->
+         print_endline ("Unfollowed TType " ^ join_class_path t.t_path "." ^ " x " ^
+            (string_of_int (List.length params) ) );
+            assert false;
 
    | TFun _ -> TCppDynamic
    | TAnon _ -> TCppDynamic
@@ -1986,7 +1987,7 @@ let rec tcpp_to_string = function
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
         "::cpp::Function< " ^ abi ^ " (" ^ (tcpp_to_string retType) ^ " (" ^ args ^ ") >"
    | TCppDynamicArray -> "::cpp::VirtualArray"
-   | TCppObjectArray _ -> "::cpp::Array<Dyanmic>"
+   | TCppObjectArray _ -> "::hx::Array<Dyanmic>"
    | TCppWrapped _ -> "Dynamic"
    | TCppScalarArray(value) -> "::Array< " ^ (tcpp_to_string value) ^ " >"
    | TCppObjC klass ->
@@ -2163,7 +2164,14 @@ let retype_expression ctx request_type function_args expression_tree =
                   | CppThis ThisReal ->
                      CppVar(VarThis(member) ), exprType
                   | _ ->
-                     CppVar(VarInstance(retypedObj,member) ), exprType
+                     (match retypedObj.cpptype, member.cf_name with
+                     (* Special variable remapping ... *)
+                     | TCppDynamicArray, "length" ->
+                        CppCall(FuncInternal(retypedObj,"get_length","->"),[]), exprType
+
+                     | _ ->
+                        CppVar(VarInstance(retypedObj,member) ), exprType
+                     )
                end else if (clazz.cl_interface) then
                   CppFunction( FuncInterface(retypedObj, member) ), exprType
                else begin
@@ -2597,7 +2605,7 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
          gen rvalue
 
       | CppPosition(name,line,clazz,func) ->
-         out ("HXPOS(\"" ^ name ^ "\"," ^ string_of_int(Int32.to_int line) ^ ",\"" ^ clazz ^ "\",\"" ^ func ^ "\")")
+         out ("hx::SourceInfo(" ^ strq name ^ "," ^ string_of_int(Int32.to_int line) ^ "," ^ strq clazz ^ "," ^ strq func ^ ")")
 
       | CppClassOf path ->
          let path = "::" ^ (join_class_path_remap (path) "::" ) in
@@ -2638,8 +2646,8 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
          let count = List.length exprList in
          let countStr = string_of_int count in
          let arrayType = match expr.cpptype with
-            | TCppObjectArray _ -> "cpp::Array_obj<Dyanmic>"
-            | TCppScalarArray(value) -> "cpp::Array_obj< " ^ (tcpp_to_string value) ^ " >"
+            | TCppObjectArray _ -> "::Array_obj<Dyanmic>"
+            | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >"
             | TCppDynamicArray -> "cpp::VirtualArray_obj"
             | _ -> "Dynamic( cpp::VirtualArray_obj"
          in
