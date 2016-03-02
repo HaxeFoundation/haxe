@@ -1,5 +1,5 @@
 package lua;
-#if (lua_ver > 53)
+#if (lua_ver > 5.3)
 @native("_G.utf8")
 #else
 @:luaRequire("lua-utf8")
