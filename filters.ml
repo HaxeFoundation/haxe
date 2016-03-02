@@ -872,7 +872,10 @@ let add_field_inits ctx t =
 			Analyzer.Run.run_on_field ctx config c cf;
 			(match cf.cf_expr with
 			| Some e ->
-				cf.cf_expr <- Some (Optimizer.sanitize ctx.com e)
+				(* This seems a bit expensive, but hopefully constructor expressions aren't that massive. *)
+				let e = rename_local_vars ctx e in
+				let e = Optimizer.sanitize ctx.com e in
+				cf.cf_expr <- Some e
 			| _ ->
 				());
 			c.cl_constructor <- Some cf
