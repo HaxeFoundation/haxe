@@ -7,6 +7,7 @@ import haxe.extern.Rest;
 
 @:native("_G")
 extern class Lua {
+	public static var _VERSION : String;
 	public static function getmetatable(tbl: Table<Dynamic,Dynamic>): Table<Dynamic,Dynamic>;
 	public static function setmetatable(tbl: Table<Dynamic,Dynamic>, mtbl: Table<Dynamic, Dynamic>): Void;
 	public static function setfenv(i: Int , tbl: Table<Dynamic, Dynamic>): Void;
