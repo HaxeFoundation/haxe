@@ -868,7 +868,7 @@ let add_field_inits ctx t =
 				| _ ->
 					assert false
 			in
-			let config = Analyzer.Config.get_base_config ctx.com false in
+			let config = Analyzer.Config.get_field_config ctx.com c cf in
 			Analyzer.Run.run_on_field ctx config c cf;
 			(match cf.cf_expr with
 			| Some e ->
@@ -1031,7 +1031,6 @@ let run com tctx main =
 	end;
 	if not (Common.defined com Define.NoDeprecationWarnings) then
 		Codegen.DeprecationCheck.run com;
-	let use_static_analyzer = not (Common.defined com Define.NoAnalyzer) in
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
@@ -1042,7 +1041,7 @@ let run com tctx main =
 		captured_vars com;
 	] in
 	List.iter (run_expression_filters tctx filters) new_types;
-	if com.platform <> Cross then Analyzer.Run.run_on_types tctx use_static_analyzer new_types;
+	if com.platform <> Cross then Analyzer.Run.run_on_types tctx new_types;
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);

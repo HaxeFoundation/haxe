@@ -225,9 +225,9 @@ module Config = struct
 		with Not_found ->
 			false
 
-	let get_base_config com optimize =
+	let get_base_config com =
 		{
-			optimize = optimize;
+			optimize = not (Common.defined com Define.NoAnalyzer);
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 			copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 			code_motion = Common.raw_defined com "analyzer-code-motion";
@@ -266,7 +266,7 @@ module Config = struct
 		) config meta
 
 	let get_class_config com c =
-		let config = get_base_config com true in
+		let config = get_base_config com in
 		update_config_from_meta config c.cl_meta
 
 	let get_field_config com c cf =
@@ -2877,9 +2877,9 @@ module Run = struct
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types ctx full types =
+	let run_on_types ctx types =
 		let com = ctx.Typecore.com in
-		let config = get_base_config com full in
-		if full && config.purity_inference then Purity.infer com;
+		let config = get_base_config com in
+		if config.optimize && config.purity_inference then Purity.infer com;
 		List.iter (run_on_type ctx config) types
 end
