@@ -1718,6 +1718,7 @@ and tcpp_expr_expr =
    | CppThrow of tcppexpr
    | CppEnumParameter of tcppexpr * tenum_field * int
    | CppCastDynamic of tcppexpr * tclass
+   | CppCastScalar of tcppexpr * string
    | CppCastObjC of tcppexpr * tclass
    | CppCastNative of tcppexpr
 
@@ -1760,6 +1761,7 @@ let stcpp = function
    | CppThrow _ -> "CppThrow"
    | CppEnumParameter _ -> "CppEnumParameter"
    | CppCastDynamic _ -> "CppCastDynamic"
+   | CppCastScalar _ -> "CppCastScalar"
    | CppCastObjC _ -> "CppCastObjC"
    | CppCastNative _ -> "CppCastNative"
 
@@ -2111,7 +2113,8 @@ let retype_expression ctx request_type function_args expression_tree =
       | CppVar varloc -> CppVarRef(varloc)
       | CppArray arrayloc -> CppArrayRef(arrayloc)
       | CppDynamicField(expr, name) -> CppDynamicRef(expr,name)
-      | CppCastDynamic(cppExpr,_) -> to_lvalue cppExpr
+      | CppCastDynamic(cppExpr,_)
+      | CppCastScalar(cppExpr,_) -> to_lvalue cppExpr
       | _ -> error ("Could not convert expression to l-value (" ^ stcpp value.cppexpr ^ ")") value.cpppos
    in
 
@@ -2443,6 +2446,7 @@ let retype_expression ctx request_type function_args expression_tree =
       | TCppDynamic,TCppInst(klass) -> mk_cppexpr (CppCastDynamic(cppExpr,klass)) return_type
       | TCppDynamic,TCppObjC(klass) -> mk_cppexpr (CppCastObjC(cppExpr,klass)) return_type
       | TCppDynamic,TCppNativePointer(klass) -> mk_cppexpr (CppCastNative(cppExpr)) return_type
+      | TCppDynamic,TCppScalar(scalar) -> mk_cppexpr (CppCastScalar(cppExpr,scalar)) return_type
       | _,_ -> cppExpr
    in
    retype request_type expression_tree
@@ -2822,6 +2826,9 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
          Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
       | CppCastDynamic(expr,klass) ->
          out ("hx::TCast< " ^ cpp_class_name klass [] ^ " >::cast("); gen expr; out ")"
+
+      | CppCastScalar(expr,scalar) ->
+         out ("( ("^scalar^")("); gen expr; out (") )");
 
       | CppCastObjC(expr,klass) ->
          out ("( (" ^ cpp_class_name klass [] ^ ") id ("); gen expr; out ") )"
