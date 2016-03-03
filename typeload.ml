@@ -1396,10 +1396,6 @@ module Inheritance = struct
 				(* for macros reason, our super class is not yet built - see #2177 *)
 				(* let's reset our build and delay it until we are done *)
 				c.cl_meta <- old_meta;
-				c.cl_array_access <- None;
-				c.cl_dynamic <- None;
-				c.cl_implements <- [];
-				c.cl_super <- None;
 				raise (Build_canceled state)
 		in
 		let has_interf = ref false in
@@ -1471,8 +1467,7 @@ module Inheritance = struct
 					error "Should implement by using an interface" p
 			end
 		) herits in
-		(* Pass 2: Build classes and check metadata *)
-		List.iter (fun f -> f()) fl
+		fl
 end
 
 let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
@@ -3012,27 +3007,31 @@ let init_module_type ctx context_init do_init (decl,p) =
 		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
-		let rec build() =
-			c.cl_build <- (fun()-> Building);
-			try
-				Inheritance.set_heritance ctx c herits p;
-				ClassInitializer.init_class ctx c p do_init d.d_flags d.d_data;
-				c.cl_build <- (fun()-> Built);
-				List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
-				Built;
-			with Build_canceled state ->
-				c.cl_build <- make_pass ctx build;
-				let rebuild() =
-					delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));					
-				in
-				(match state with
-				| Built -> assert false
-				| Building -> rebuild()
-				| BuildMacro f -> f := rebuild :: !f);
-				state
-			| exn ->
-				c.cl_build <- (fun()-> Built);
-				raise exn
+		let build() =
+			let fl = Inheritance.set_heritance ctx c herits p in
+			let rec build() =
+				c.cl_build <- (fun()-> Building);
+				try
+					List.iter (fun f -> f()) fl;
+					ClassInitializer.init_class ctx c p do_init d.d_flags d.d_data;
+					c.cl_build <- (fun()-> Built);
+					List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
+					Built;
+				with Build_canceled state ->
+					c.cl_build <- make_pass ctx build;
+					let rebuild() =
+						delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
+					in
+					(match state with
+					| Built -> assert false
+					| Building -> rebuild()
+					| BuildMacro f -> f := rebuild :: !f);
+					state
+				| exn ->
+					c.cl_build <- (fun()-> Built);
+					raise exn
+			in
+			build()
 		in
 		ctx.pass <- PBuildClass;
 		ctx.curclass <- c;
