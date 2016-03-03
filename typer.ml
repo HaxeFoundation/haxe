@@ -4027,6 +4027,11 @@ and maybe_type_against_enum ctx f with_type p =
 					en.e_path,en.e_names,TEnumDecl en
 				| TAbstract ({a_impl = Some c} as a,_) when has_meta Meta.Enum a.a_meta ->
 					a.a_path,List.map (fun cf -> cf.cf_name) c.cl_ordered_fields,TAbstractDecl a
+				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+					begin match get_abstract_froms a pl with
+						| [t] -> loop t
+						| _ -> raise Exit
+					end
 				| _ ->
 					raise Exit
 			in
