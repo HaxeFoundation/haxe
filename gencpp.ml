@@ -1659,7 +1659,8 @@ and tcppfuncloc =
    | FuncInterface of tcppexpr * tclass_field
    | FuncStatic of tclass * tclass_field
    | FuncEnumConstruct of tenum * tenum_field
-   | FuncSuper of tcppthis
+   | FuncSuperConstruct
+   | FuncSuper of tcppthis * tclass_field
    | FuncNew of tclass * tcpp list
    | FuncDynamic of tcppexpr
    | FuncInternal of tcppexpr * string * string
@@ -2186,6 +2187,8 @@ let retype_expression ctx request_type function_args expression_tree =
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                      CppFunction( FuncThis(member) ), exprType
+                  | CppSuper this ->
+                     CppFunction( FuncSuper(this,member) ), exprType
                   | _ ->
                      CppFunction( FuncInstance(retypedObj, member) ), exprType
                end
@@ -2228,8 +2231,8 @@ let retype_expression ctx request_type function_args expression_tree =
                   CppCall(func,retypedArgs), cppType
             |  CppEnumField(enum, field) ->
                   CppCall( FuncEnumConstruct(enum,field),retypedArgs), cppType
-            |  CppSuper(this) ->
-                  CppCall( FuncSuper(this),retypedArgs), cppType
+            |  CppSuper(_) ->
+                  CppCall( FuncSuperConstruct ,retypedArgs), TCppVoid
             |  CppDynamicField(expr,name) ->
                   (* Special function calls *)
                   (match expr.cpptype, name with
@@ -2497,8 +2500,8 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
       | CppThis ThisReal -> out "hx::ObjectPtr<OBJ_>(this)"
       | CppThis _ -> out "__this"
 
-
-      | CppSuper thiscall -> out ("hx::ObjectPtr<super>(" ^ (if thiscall=ThisReal then "this" else "__this.mPtr") ^ ")")
+      | CppSuper thiscall ->
+            out ("hx::ObjectPtr<super>(" ^ (if thiscall=ThisReal then "this" else "__this.mPtr") ^ ")")
 
       | CppBreak -> out "break"
       | CppContinue -> out "continue"
@@ -2522,7 +2525,7 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
               out ("::" ^ name);
          | FuncInternal(expr,name,_) ->
               gen expr; out ("->__Field(" ^ (strq name) ^ ",hx::paccDynamic)")
-         | FuncSuper _ -> error "Can't create super closure" expr.cpppos
+         | FuncSuper _ | FuncSuperConstruct -> error "Can't create super closure" expr.cpppos
          | FuncNew _ -> error "Can't create new closure" expr.cpppos
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
          );
@@ -2540,11 +2543,11 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
-         | FuncSuper(thiscall) ->
-              if thiscall = ThisReal then
-                 out "super::__construct"
-              else
-                 out ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct");
+         | FuncSuperConstruct -> out "super::__construct"
+
+         | FuncSuper(this,field) ->
+              out ( (if this==ThisReal then "this->" else "__->") ^ "super::" ^ (cpp_member_name_of field) )
+
          | FuncNew(clazz, params) ->
             out ((cpp_class_name clazz params) ^ "::__new");
          | FuncInternal(expr,name,join) ->
@@ -4701,7 +4704,7 @@ let generate_enum_files common_ctx enum_def super_deps meta file_info =
       output_cpp ("}\n\n");
 
    (* Dynamic "Get" Field function - string version *)
-   output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
+   output_cpp ("hx::Val " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
    let dump_constructor_test _ constr =
       output_cpp ("\tif (inName==" ^ (str constr.ef_name) ^ ") return " ^
                   (keyword_remap constr.ef_name) );
@@ -5233,7 +5236,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
       if (has_get_member_field class_def) then begin
          (* Dynamic "Get" Field function - string version *)
-         output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
+         output_cpp ("hx::Val " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
          let get_field_dat = List.map (fun f ->
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
@@ -5301,7 +5304,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       (* Dynamic "Set" Field function *)
       if (has_set_member_field class_def) then begin
 
-         output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,hx::PropertyAccess inCallProp)\n{\n");
+         output_cpp ("hx::Val " ^ class_name ^ "::__SetField(const ::String &inName,const hx::Val &inValue,hx::PropertyAccess inCallProp)\n{\n");
 
          let set_field_dat = List.map (fun f ->
             let default_action =
@@ -5711,11 +5714,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
       output_h ("\t\tHX_DO_RTTI_ALL;\n");
       if (has_get_member_field class_def) then
-         output_h ("\t\tDynamic __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\thx::Val __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
       if (has_get_static_field class_def) then
          output_h ("\t\tstatic bool __GetStatic(const ::String &inString, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
       if (has_set_member_field class_def) then
-         output_h ("\t\tDynamic __SetField(const ::String &inString,const Dynamic &inValue, hx::PropertyAccess inCallProp);\n");
+         output_h ("\t\thx::Val __SetField(const ::String &inString,const hx::Val &inValue, hx::PropertyAccess inCallProp);\n");
       if (has_set_static_field class_def) then
          output_h ("\t\tstatic bool __SetStatic(const ::String &inString, Dynamic &ioValue, hx::PropertyAccess inCallProp);\n");
       if (has_get_fields class_def) then
