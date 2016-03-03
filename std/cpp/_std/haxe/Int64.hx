@@ -40,7 +40,9 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 
 
 	public static #if !cppia inline #end function make( high : Int32, low : Int32 ) : Int64 {
-      return untyped __cpp__("cpp::Int64Struct(( ( (cpp::Int64)((unsigned int){0}) ) << 32 ) | ((unsigned int){1}))",high, low);
+      var tmpHigh = high;
+      var tmpLow = low;
+      return untyped __cpp__("cpp::Int64Struct(( ( (cpp::Int64)((unsigned int){0}) ) << 32 ) | ((unsigned int){1}))",tmpHigh, tmpLow);
 	}
 
 	@:from public static function ofInt( x : Int ) : Int64 {

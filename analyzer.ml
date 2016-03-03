@@ -93,7 +93,7 @@ let can_throw e =
 	let rec loop e = match e.eexpr with
 		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TBlock _ -> ()
 		| TCall _ | TNew _ | TThrow _ | TCast(_,Some _) -> raise Exit
-		| TField _ -> raise Exit (* sigh *)
+		| TField _ | TArray _ -> raise Exit (* sigh *)
 		| _ -> Type.iter loop e
 	in
 	try
@@ -154,6 +154,44 @@ let is_ref_type = function
 	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
 	| TAbstract({a_path=["hl";"types"],"Ref"},_) -> true
 	| _ -> false
+
+let type_change_ok com t1 t2 =
+	if t1 == t2 then
+		true
+	else begin
+		let rec map t = match t with
+			| TMono r -> (match !r with None -> t_dynamic | Some t -> map t)
+			| _ -> Type.map map t
+		in
+		let t1 = map t1 in
+		let t2 = map t2 in
+		let rec is_nullable_or_whatever = function
+			| TMono r ->
+				(match !r with None -> false | Some t -> is_nullable_or_whatever t)
+			| TType ({ t_path = ([],"Null") },[_]) ->
+				true
+			| TLazy f ->
+				is_nullable_or_whatever (!f())
+			| TType (t,tl) ->
+				is_nullable_or_whatever (apply_params t.t_params tl t.t_type)
+			| TFun _ ->
+				false
+			| TInst ({ cl_kind = KTypeParameter _ },_) ->
+				false
+			| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
+				not (Meta.has Meta.NotNull a.a_meta)
+			| TAbstract (a,tl) ->
+				not (Meta.has Meta.NotNull a.a_meta) && is_nullable_or_whatever (apply_params a.a_params tl a.a_this)
+			| _ ->
+				true
+		in
+		(* Check equality again to cover cases where TMono became t_dynamic *)
+		t1 == t2 || match follow t1,follow t2 with
+			| TDynamic _,_ | _,TDynamic _ -> false
+			| _ ->
+				if com.config.pf_static && is_nullable_or_whatever t1 <> is_nullable_or_whatever t2 then false
+				else type_iseq t1 t2
+	end
 
 let dynarray_map f d =
 	DynArray.iteri (fun i e -> DynArray.unsafe_set d i (f e)) d
@@ -217,8 +255,6 @@ module Config = struct
 						true
 					else
 						loop ml
-				| (Meta.HasUntyped,_,_) :: _ ->
-					true
 				| _ :: ml ->
 					loop ml
 				| [] ->
@@ -228,9 +264,9 @@ module Config = struct
 		with Not_found ->
 			false
 
-	let get_base_config com optimize =
+	let get_base_config com =
 		{
-			optimize = optimize;
+			optimize = not (Common.defined com Define.NoAnalyzer);
 			const_propagation = not (Common.raw_defined com "analyzer-no-const-propagation");
 			copy_propagation = not (Common.raw_defined com "analyzer-no-copy-propagation");
 			code_motion = Common.raw_defined com "analyzer-code-motion";
@@ -262,12 +298,14 @@ module Config = struct
 					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
 					| _ -> config
 				) config el
+			| (Meta.HasUntyped,_,_) ->
+				{config with optimize = false}
 			| _ ->
 				config
 		) config meta
 
 	let get_class_config com c =
-		let config = get_base_config com true in
+		let config = get_base_config com in
 		update_config_from_meta config c.cl_meta
 
 	let get_field_config com c cf =
@@ -451,15 +489,11 @@ module Fusion = struct
 				Type.iter loop e
 		in
 		loop e;
-		let type_change_ok t1 t2 = t1 == t2 || match follow t1,follow t2 with
-			| TMono _,_ | _,TMono _ -> not com.config.pf_static
-			| TDynamic _,_ | _,TDynamic _ -> false
-			| _ ->
-				if com.config.pf_static && is_null t1 <> is_null t2 then false
-				else type_iseq t1 t2
-		in
 		let can_be_fused v e =
-			get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.Config.optimize && config.Config.fusion && type_change_ok v.v_type e.etype && v.v_extra = None)
+			let b = get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.Config.optimize && config.Config.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None) in
+			(* let st = s_type (print_context()) in *)
+			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
+			b
 		in
 		let rec fuse acc el = match el with
 			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
@@ -907,6 +941,7 @@ type analyzer_context = {
 	config : Config.t;
 	graph : Graph.t;
 	temp_var_name : string;
+	is_real_function : bool;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
@@ -1102,6 +1137,25 @@ module TexprTransformer = struct
 			let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
 			bb,e
 		and declare_var_and_assign bb v e =
+			let rec loop bb e = match e.eexpr with
+				| TParenthesis e1 ->
+					loop bb e1
+				| TBlock el ->
+					let rec loop2 bb el = match el with
+						| [e] ->
+							bb,e
+						| e1 :: el ->
+							let bb = block_element bb e1 in
+							loop2 bb el
+						| [] ->
+							assert false
+					in
+					let bb,e = loop2 bb el in
+					loop bb e
+				| _ ->
+					bb,e
+			in
+			let bb,e = loop bb e in
 			begin match follow v.v_type with
 				| TAbstract({a_path=[],"Void"},_) -> error "Cannot use Void as value" e.epos
 				| _ -> ()
@@ -1450,6 +1504,15 @@ module TexprTransformer = struct
 
 	let from_texpr com config e =
 		let g = Graph.create e.etype e.epos in
+		let tf,is_real_function = match e.eexpr with
+			| TFunction tf ->
+				tf,true
+			| _ ->
+				(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
+				let e = mk (TReturn (Some e)) t_dynamic e.epos in
+				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
+				tf,false
+		in
 		let ctx = {
 			com = com;
 			config = config;
@@ -1457,6 +1520,7 @@ module TexprTransformer = struct
 			(* For CPP we want to use variable names which are "probably" not used by users in order to
 			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
 			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
+			is_real_function = is_real_function;
 			entry = g.g_unreachable;
 			has_unbound = false;
 			loop_counter = 0;
@@ -1464,12 +1528,7 @@ module TexprTransformer = struct
 			scope_depth = 0;
 			scopes = [0];
 		} in
-		let bb_func,bb_exit = match e.eexpr with
-			| TFunction tf ->
-				func ctx g.g_root tf e.etype e.epos;
-			| _ ->
-				raise Exit
-		in
+		let bb_func,bb_exit = func ctx g.g_root tf e.etype e.epos in
 		ctx.entry <- bb_func;
 		close_node g g.g_root;
 		finalize g bb_exit;
@@ -1890,18 +1949,6 @@ module DataFlow (M : DataFlowApi) = struct
 		M.commit ctx
 end
 
-let type_iseq_strict_no_mono com t1 t2 =
-	let rec map t = match follow t with
-		| TMono _ -> t_dynamic
-		| _ -> Type.map map t
-	in
-	let t1 = map t1 in
-	let t2 = map t2 in
-	if com.Common.config.pf_static then
-		type_iseq_strict t1 t2
-	else
-		type_iseq t1 t2
-
 (*
 	ConstPropagation implements sparse conditional constant propagation using the DataFlow algorithm. Its lattice consists of
 	constants and enum values, but only the former are propagated. Enum values are treated as immutable data tuples and allow
@@ -2022,7 +2069,7 @@ module ConstPropagation = DataFlow(struct
 				raise Not_found
 			| Const ct ->
 				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
-				if not (type_iseq_strict_no_mono ctx.com e'.etype e.etype) then raise Not_found;
+				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
 		let rec commit e = match e.eexpr with
@@ -2116,7 +2163,7 @@ module CopyPropagation = DataFlow(struct
 						raise Not_found
 					in
 					let v' = match lat with Local v -> v | _ -> leave() in
-					if not (type_iseq_strict_no_mono ctx.com v'.v_type v.v_type) then leave();
+					if not (type_change_ok ctx.com v'.v_type v.v_type) then leave();
 					let v'' = get_var_origin ctx.graph v' in
 					(* This restriction is in place due to how we currently reconstruct the AST. Multiple SSA-vars may be turned back to
 					   the same origin var, which creates interference that is not tracked in the analysis. We address this by only
@@ -2819,47 +2866,50 @@ module Run = struct
 
 	let roundtrip com config e =
 		let ctx = there com config e in
-		let e = back_again ctx in
-		e
+		back_again ctx
 
 	let run_on_expr com config e =
-		try
-			let ctx = there com config e in
-			if config.optimize && not ctx.has_unbound then begin
-				with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
-				if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
-				if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
-				if config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply ctx);
-				with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
-			end;
-			let e = back_again ctx in
-			Some ctx,e
-		with Exit ->
-			None,e
+		let ctx = there com config e in
+		if config.optimize && not ctx.has_unbound then begin
+			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
+			if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
+			if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
+			if config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply ctx);
+			with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
+		end;
+		ctx,back_again ctx
 
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta config cf.cf_meta in
-			let e =  match run_on_expr ctx.Typecore.com config e with
-				| None,e -> e
-				| Some ctx,e ->
-					if config.dot_debug then Debug.dot_debug ctx c cf;
-					e
-			in
+			let ctx,e = run_on_expr ctx.Typecore.com config e in
+			if config.dot_debug then Debug.dot_debug ctx c cf;
+			let e = if ctx.is_real_function then
+				e
+			else begin
+				(* Get rid of the wrapping function and its return expressions. *)
+				let rec loop first e = match e.eexpr with
+					| TReturn (Some e) -> e
+					| TFunction tf when first -> loop false tf.tf_expr
+					| TFunction _ -> e
+					| _ -> Type.map_expr (loop first) e
+				in
+				loop true e
+			end in
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
 	let run_on_class ctx config c =
 		let config = update_config_from_meta config c.cl_meta in
-		let process_field cf = match cf.cf_kind with
-			| Method _ -> run_on_field ctx config c cf
-			| _ -> ()
+		let process_field stat cf = match cf.cf_kind with
+			| Var _ when not stat -> ()
+			| _ -> run_on_field ctx config c cf
 		in
-		List.iter process_field c.cl_ordered_fields;
-		List.iter process_field c.cl_ordered_statics;
+		List.iter (process_field false) c.cl_ordered_fields;
+		List.iter (process_field true) c.cl_ordered_statics;
 		(match c.cl_constructor with
 		| None -> ()
-		| Some f -> process_field f)
+		| Some f -> process_field false f)
 
 	let run_on_type ctx config t =
 		match t with
@@ -2869,9 +2919,9 @@ module Run = struct
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types ctx full types =
+	let run_on_types ctx types =
 		let com = ctx.Typecore.com in
-		let config = get_base_config com full in
-		if full && config.purity_inference then Purity.infer com;
+		let config = get_base_config com in
+		if config.optimize && config.purity_inference then Purity.infer com;
 		List.iter (run_on_type ctx config) types
 end

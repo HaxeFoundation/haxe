@@ -3495,7 +3495,7 @@ and call ctx vthis vfun pl p =
 		| Stack_overflow -> exc (VString "Compiler Stack overflow")
 		| Sys_error msg | Failure msg -> exc (VString msg)
 		| Unix.Unix_error (_,cmd,msg) -> exc (VString ("Error " ^ cmd ^ " " ^ msg))
-		(* | Invalid_expr -> exc (VString "Invalid input value") *)
+		| Invalid_expr -> exc (VString "Invalid input value")
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
 	ctx.vthis <- oldthis;
 	ctx.venv <- oldenv;
@@ -4578,7 +4578,7 @@ and encode_anon_status s =
 	let tag, pl = (match s with
 		| Closed -> 0, []
 		| Opened -> 1, []
-		| Type.Const -> 2, []
+		(* | Type.Const -> 2, [] *)
 		| Extend tl -> 3, [encode_ref tl (fun tl -> enc_array (List.map encode_type tl)) (fun() -> "<extended types>")]
 		| Statics cl -> 4, [encode_clref cl]
 		| EnumStatics en -> 5, [encode_enref en]

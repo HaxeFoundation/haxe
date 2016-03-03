@@ -169,7 +169,10 @@ class RunCi {
 				Sys.putEnv("DISPLAY", ":99.0");
 				runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
 				Sys.putEnv("AUDIODEV", "null");
-				requireAptPackages(["libgd2-xpm", "ia32-libs", "ia32-libs-multiarch"]);
+				requireAptPackages([
+					"libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386",
+					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"	
+				]);
 				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
 				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
 				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
@@ -245,7 +248,8 @@ class RunCi {
 				runCommand(exe, args);
 				switch (ci) {
 					case AppVeyor:
-						runCommand("mono", [exe].concat(args));
+						// https://github.com/HaxeFoundation/haxe/issues/4873
+						// runCommand("mono", [exe].concat(args));
 					case _:
 						//pass
 				}
@@ -595,15 +599,36 @@ class RunCi {
 				throw haxe_ver;
 		}
 	}
+	static var haxeVerFull(default, never) = {
+		var ver = haxeVer.split(".");
+		while (ver.length < 3) {
+			ver.push("0");
+		}
+		ver.join(".");
+	}
 
-	static function bintray():Void {
+	static function deploy():Void {
+		if (
+			Sys.getEnv("DEPLOY") != null
+		) {
+			changeDirectory(repoDir);
+
+			// generate doc
+			runCommand("make", ["-s", "install_dox"]);
+			runCommand("make", ["-s", "package_doc"]);
+
+			deployBintray();
+			deployApiDoc();
+			deployPPA();
+		}
+	}
+
+	static function deployBintray():Void {
 		if (
 			Sys.getEnv("BINTRAY") != null &&
 			Sys.getEnv("BINTRAY_USERNAME") != null &&
 			Sys.getEnv("BINTRAY_API_KEY") != null
 		) {
-			changeDirectory(repoDir);
-
 			// generate bintray config
 			var tpl = new Template(File.getContent("extra/bintray.tpl.json"));
 			var compatDate = ~/[^0-9]/g.replace(gitInfo.date, "");
@@ -624,24 +649,66 @@ class RunCi {
 			File.saveContent("extra/bintray.json", json);
 			infoMsg("saved " + FileSystem.absolutePath(path) + " with content:");
 			Sys.println(json);
+		}
+	}
 
-			// generate doc
-			runCommand("make", ["-s", "install_dox"]);
-			runCommand("make", ["-s", "package_doc"]);
+	/**
+		Deploy doc to api.haxe.org.
+	*/
+	static function deployApiDoc():Void {
+		if (
+			gitInfo.branch == "development" &&
+			Sys.getEnv("DEPLOY") != null &&
+			Sys.getEnv("deploy_key_decrypt") != null
+		) {
+			// setup deploy_key
+			runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
+			runCommand("chmod 600 extra/deploy_key");
+			runCommand("ssh-add extra/deploy_key");
 
-			// deploy doc to api.haxe.org
-			if (
-				gitInfo.branch == "development" && 
-				Sys.getEnv("DEPLOY") != null && 
-				Sys.getEnv("deploy_key_decrypt") != null
-			) {
-				//setup deploy_key
-				runCommand("openssl aes-256-cbc -k \"$deploy_key_decrypt\" -in extra/deploy_key.enc -out extra/deploy_key -d");
-				runCommand("chmod 600 extra/deploy_key");
-				runCommand("ssh-add extra/deploy_key");
+			runCommand("make", ["-s", "deploy_doc"]);
+		}
+	}
 
-				runCommand("make", ["-s", "deploy_doc"]);
-			}
+	/**
+		Deploy source package to ppa:haxe/snapshots.
+	*/
+	static function deployPPA():Void {
+		if (
+			gitInfo.branch == "development" && 
+			Sys.getEnv("DEPLOY") != null && 
+			Sys.getEnv("haxeci_decrypt") != null
+		) {
+			// setup haxeci_ssh
+			runCommand("openssl aes-256-cbc -k \"$haxeci_decrypt\" -in extra/haxeci_ssh.enc -out extra/haxeci_ssh -d");
+			runCommand("chmod 600 extra/haxeci_ssh");
+			runCommand("ssh-add extra/haxeci_ssh");
+			// setup haxeci_sec.gpg
+			runCommand("openssl aes-256-cbc -k \"$haxeci_decrypt\" -in extra/haxeci_sec.gpg.enc -out extra/haxeci_sec.gpg -d");
+			runCommand("gpg --allow-secret-key-import --import extra/haxeci_sec.gpg");
+			runCommand("sudo apt-get install devscripts git-buildpackage ubuntu-dev-tools dh-make -y");
+			var compatDate = ~/[^0-9]/g.replace(gitInfo.date, "");
+			var SNAPSHOT_VERSION = '${haxeVerFull}+1SNAPSHOT${compatDate}+${gitInfo.commit.substr(0,7)}';
+			runCommand('cp out/haxe*_src.tar.gz "../haxe_${SNAPSHOT_VERSION}.orig.tar.gz"');
+			changeDirectory("..");
+			runCommand("git clone https://github.com/HaxeFoundation/haxe-debian.git");
+			changeDirectory("haxe-debian");
+			runCommand("git checkout upstream");
+			runCommand("git checkout next");
+			runCommand('gbp import-orig "../haxe_${SNAPSHOT_VERSION}.orig.tar.gz" -u "${SNAPSHOT_VERSION}" --debian-branch=next');
+			runCommand('dch -v "1:${SNAPSHOT_VERSION}-1" --urgency low "snapshot build"');
+			runCommand("debuild -S -sa");
+			runCommand("backportpackage -d xenial  --upload ${PPA} --yes ../haxe_*.dsc");
+			runCommand("backportpackage -d wily    --upload ${PPA} --yes ../haxe_*.dsc");
+			runCommand("backportpackage -d vivid   --upload ${PPA} --yes ../haxe_*.dsc");
+			runCommand("backportpackage -d trusty  --upload ${PPA} --yes ../haxe_*.dsc");
+			runCommand("git checkout debian/changelog");
+			runCommand("git config --global user.name \"${DEBFULLNAME}\"");
+			runCommand("git config --global user.email \"${DEBEMAIL}\"");
+			runCommand("git merge -X ours --no-edit origin/backport-precise");
+			runCommand('dch -v "1:${SNAPSHOT_VERSION}-1" --urgency low "snapshot build"');
+			runCommand("debuild -S -sa");
+			runCommand("backportpackage -d precise --upload ${PPA} --yes ../haxe_*.dsc");
 		}
 	}
 
@@ -779,8 +846,6 @@ class RunCi {
 
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
-
-		bintray();
 
 		var tests:Array<TEST> = switch (Sys.getEnv("TEST")) {
 			case null:
@@ -1086,6 +1151,8 @@ class RunCi {
 		) {
 			saveOutput();
 		}
+
+		deploy();
 	}
 
 	static function testHxTemplo() {

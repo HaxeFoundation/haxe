@@ -28,7 +28,7 @@ import haxe.io.Input;
 
 class NativeInput extends Input
 {
-	public var canSeek(get_canSeek, null):Bool;
+	public var canSeek(get,never):Bool;
 
 	var stream:cs.system.io.Stream;
 	var _eof:Bool;
@@ -67,7 +67,7 @@ class NativeInput extends Input
 		stream.Close();
 	}
 
-	private function get_canSeek():Bool
+	private inline function get_canSeek():Bool
 	{
 		return stream.CanSeek;
 	}

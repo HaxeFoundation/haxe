@@ -24,13 +24,15 @@
 
 package js.html;
 
+import js.html.compat.Uint8Array;
+
 @:native("Uint8Array")
 extern class Uint8Array extends ArrayBufferView implements ArrayAccess<Int>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 1;
-	
+
 	var length(default,null) : Int;
-	
+
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
 	@:overload( function( array : Uint8Array ) : Void {} )

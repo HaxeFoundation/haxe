@@ -141,15 +141,14 @@ let rec make_unop op ((v,p2) as e) p1 =
 	match v with
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
-	| _ ->
-		EUnop (op,Prefix,e), punion p1 p2
+	| _ -> EUnop (op,Prefix,e), punion p1 p2
 
 let rec make_meta name params ((v,p2) as e) p1 =
 	match v with
+	| EBinop ((OpAssign | OpAssignOp _),_,_) -> EMeta((name,params,p1),e),punion p1 p2
 	| EBinop (bop,e,e2) -> EBinop (bop, make_meta name params e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_meta name params e1 p1 , e2, e3), punion p1 p2
-	| _ ->
-		EMeta((name,params,p1),e),punion p1 p2
+	| _ -> EMeta((name,params,p1),e),punion p1 p2
 
 let make_is e t p =
 	let e_is = EField((EConst(Ident "Std"),p),"is"),p in

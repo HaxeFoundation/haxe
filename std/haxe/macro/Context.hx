@@ -379,7 +379,7 @@ class Context {
 	public static function resolveType( t : ComplexType, p : Position ) : Type {
 		return load("resolve_type", 2)(t,p);
 	}
-	
+
 	/**
 		Returns the `ComplexType` corresponding to the given `Type` `t`.
 
@@ -451,7 +451,7 @@ class Context {
 		The resource is then available using the `haxe.macro.Resource` API.
 
 		If a previous resource was bound to `name`, it is overwritten.
-		
+
 		Compilation server : when using the compilation server, the resource is bound
 		to the Haxe module which calls the macro, so it will be included again if
 		that module is reused. If this resource concerns several modules, prefix its
@@ -541,10 +541,10 @@ class Context {
 
 		If `e` is null, the result is unspecified.
 	**/
-	@:require(haxe_ver >= 3.3)
-	public static function eval( e : Expr ) : Dynamic {
-		return load("eval",1)(e);
-	}
+	//@:require(haxe_ver >= 3.3)
+	//public static function eval( e : Expr ) : Dynamic {
+		//return load("eval",1)(e);
+	//}
 
 	/**
 		Manually adds a dependency between module `modulePath` and an external

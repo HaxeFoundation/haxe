@@ -99,7 +99,6 @@ enum ValueType {
 		default:
 			throw "Too many arguments";
 		}
-		return null;
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
