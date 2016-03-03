@@ -1136,6 +1136,25 @@ module TexprTransformer = struct
 			let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
 			bb,e
 		and declare_var_and_assign bb v e =
+			let rec loop bb e = match e.eexpr with
+				| TParenthesis e1 ->
+					loop bb e1
+				| TBlock el ->
+					let rec loop2 bb el = match el with
+						| [e] ->
+							bb,e
+						| e1 :: el ->
+							let bb = block_element bb e1 in
+							loop2 bb el
+						| [] ->
+							assert false
+					in
+					let bb,e = loop2 bb el in
+					loop bb e
+				| _ ->
+					bb,e
+			in
+			let bb,e = loop bb e in
 			begin match follow v.v_type with
 				| TAbstract({a_path=[],"Void"},_) -> error "Cannot use Void as value" e.epos
 				| _ -> ()

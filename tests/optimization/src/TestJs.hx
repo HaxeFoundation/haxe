@@ -90,7 +90,7 @@ class TestJs {
 		forEach(function(x) trace(x + 2));
 	}
 
-	@:js('var a = "";var e;var __ex0 = a;var _g = __ex0.toLowerCase();switch(_g) {case "e":e = 0;break;default:throw new Error();}')
+	@:js('var a = "";var __ex0 = a;var e;var _g = __ex0.toLowerCase();switch(_g) {case "e":e = 0;break;default:throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
