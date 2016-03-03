@@ -1213,9 +1213,13 @@ let optimize_binop e op e1 e2 =
 		e)
 
 let optimize_unop e op flag esub =
+	let is_int t = match follow t with
+		| TAbstract({a_path = [],"Int"},_) -> true
+		| _ -> false
+	in
 	match op, esub.eexpr with
 		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
-		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
+		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) when is_int e1.etype && is_int e2.etype ->
 			begin try
 				let op = match op with
 					| OpGt -> OpLte
