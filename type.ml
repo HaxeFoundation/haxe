@@ -202,7 +202,7 @@ and tclass = {
 	mutable cl_init : texpr option;
 	mutable cl_overrides : tclass_field list;
 
-	mutable cl_build : unit -> bool;
+	mutable cl_build : unit -> build_state;
 	mutable cl_restore : unit -> unit;
 }
 
@@ -315,6 +315,11 @@ and decision_tree = {
 	dt_is_complex : bool;
 }
 
+and build_state =
+	| Built
+	| Building
+	| BuildMacro of (unit -> unit) list ref
+
 (* ======= General utility ======= *)
 
 let alloc_var =
@@ -372,7 +377,7 @@ let mk_class m path pos =
 		cl_constructor = None;
 		cl_init = None;
 		cl_overrides = [];
-		cl_build = (fun() -> true);
+		cl_build = (fun() -> Built);
 		cl_restore = (fun() -> ());
 	}
 

@@ -22,6 +22,8 @@ open Type
 open Common
 open Typecore
 
+exception Build_canceled of build_state
+
 let locate_macro_error = ref true
 
 let transform_abstract_field com this_t a_t a f =
@@ -1387,15 +1389,18 @@ module Inheritance = struct
 				| _ -> ()
 			) csup.cl_meta
 		in
-		let cancel_build csup =
-			(* for macros reason, our super class is not yet built - see #2177 *)
-			(* let's reset our build and delay it until we are done *)
-			c.cl_meta <- old_meta;
-(* 			c.cl_array_access <- None;
-			c.cl_dynamic <- None;
-			c.cl_implements <- [];
-			c.cl_super <- None; *)
-			raise Exit
+		let check_cancel_build csup =
+			match csup.cl_build() with
+			| Built -> ()
+			| state ->
+				(* for macros reason, our super class is not yet built - see #2177 *)
+				(* let's reset our build and delay it until we are done *)
+				c.cl_meta <- old_meta;
+				c.cl_array_access <- None;
+				c.cl_dynamic <- None;
+				c.cl_implements <- [];
+				c.cl_super <- None;
+				raise (Build_canceled state)
 		in
 		let has_interf = ref false in
 		(*
@@ -1437,7 +1442,7 @@ module Inheritance = struct
 					c.cl_super <- Some (csup,params)
 				end;
 				(fun () ->
-					if not (csup.cl_build()) then cancel_build csup;
+					check_cancel_build csup;
 					process_meta csup;
 				)
 			end else begin match follow t with
@@ -1455,7 +1460,7 @@ module Inheritance = struct
 						has_interf := true;
 					end;
 					(fun () ->
-						if not (intf.cl_build()) then cancel_build intf;
+						check_cancel_build intf;
 						process_meta intf;
 					)
 				| TDynamic t ->
@@ -2068,6 +2073,8 @@ module ClassInitializer = struct
 	let build_fields (ctx,cctx) c fields =
 		let fields = ref fields in
 		let get_fields() = !fields in
+		let pending = ref [] in
+		c.cl_build <- (fun() -> BuildMacro pending);
 		build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 			match e with
 			| EVars [_,Some (CTAnonymous f),None] ->
@@ -2092,6 +2099,8 @@ module ClassInitializer = struct
 				fields := f
 			| _ -> error "Class build macro must return a single variable with anonymous fields" p
 		);
+		c.cl_build <- (fun() -> Building);
+		List.iter (fun f -> f()) !pending;
 		!fields
 
 	let bind_type (ctx,cctx,fctx) cf r p =
@@ -3004,19 +3013,25 @@ let init_module_type ctx context_init do_init (decl,p) =
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
 		let rec build() =
-			c.cl_build <- (fun()-> false);
+			c.cl_build <- (fun()-> Building);
 			try
 				Inheritance.set_heritance ctx c herits p;
 				ClassInitializer.init_class ctx c p do_init d.d_flags d.d_data;
-				c.cl_build <- (fun()-> true);
+				c.cl_build <- (fun()-> Built);
 				List.iter (fun (_,t) -> ignore(follow t)) c.cl_params;
-				true;
-			with Exit ->
+				Built;
+			with Build_canceled state ->
 				c.cl_build <- make_pass ctx build;
-				delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));
-				false
+				let rebuild() =
+					delay_late ctx PBuildClass (fun() -> ignore(c.cl_build()));					
+				in
+				(match state with
+				| Built -> assert false
+				| Building -> rebuild()
+				| BuildMacro f -> f := rebuild :: !f);
+				state
 			| exn ->
-				c.cl_build <- (fun()-> true);
+				c.cl_build <- (fun()-> Built);
 				raise exn
 		in
 		ctx.pass <- PBuildClass;
