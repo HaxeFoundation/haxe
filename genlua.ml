@@ -643,14 +643,9 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "not ";
 		gen_value ctx e;
 	| TUnop (NegBits,unop_flag,e) ->
-		if ctx.lua_ver < 5.3 then (
-		    spr ctx "_hx_bit.bnot(";
-		    gen_value ctx e;
-		    spr ctx ")";
-		) else (
-		spr ctx (Ast.s_unop NegBits);
+		spr ctx "_hx_bit.bnot(";
 		gen_value ctx e;
-		)
+		spr ctx ")";
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e
@@ -1188,24 +1183,18 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
-    if ctx.lua_ver < 5.3 then (
-	print ctx "_hx_bit.%s(" (match op with
-	    | Ast.OpXor  ->  "bxor"
-	    | Ast.OpAnd  ->  "band"
-	    | Ast.OpShl  ->  "lshift"
-	    | Ast.OpShr  ->  "arshift"
-	    | Ast.OpUShr ->  "rshift"
-	    | Ast.OpOr   ->  "bor"
-	    | _ -> "");
-	gen_value ctx e1;
-	spr ctx ",";
-	gen_value ctx e2;
-	spr ctx ")"
-    ) else (
-      gen_value ctx e1;
-      print ctx " %s " (Ast.s_binop op);
-      gen_value ctx e2;
-    )
+    print ctx "_hx_bit.%s(" (match op with
+	| Ast.OpXor  ->  "bxor"
+	| Ast.OpAnd  ->  "band"
+	| Ast.OpShl  ->  "lshift"
+	| Ast.OpShr  ->  "arshift"
+	| Ast.OpUShr ->  "rshift"
+	| Ast.OpOr   ->  "bor"
+	| _ -> "");
+    gen_value ctx e1;
+    spr ctx ",";
+    gen_value ctx e2;
+    spr ctx ")"
 
 and gen_return ctx e eo =
     if ctx.in_value <> None then unsupported e.epos;
