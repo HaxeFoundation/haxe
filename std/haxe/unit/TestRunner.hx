@@ -70,7 +70,7 @@ class TestRunner {
 		#elseif python
 			python.Lib.print(v);
 		#elseif hl
-			Sys.println(Std.string(v));
+			Sys.print(Std.string(v));
 		#end
 	}
 
