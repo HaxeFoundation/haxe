@@ -323,6 +323,11 @@ let is_number = function
 	| HI8 | HI16 | HI32 | HF32 | HF64 -> true
 	| _ -> false
 
+let is_to_string t =
+	match follow t with
+	| TFun([],TInst({ cl_path=[],"String" },[])) -> true
+	| _ -> false
+
 let hash b =
 	let h = ref Int32.zero in
 	let rec loop i =
@@ -925,7 +930,7 @@ and class_type ctx c pl statics =
 		) (if statics then c.cl_ordered_statics else c.cl_ordered_fields);
 		if not statics then (try
 			let cf = PMap.find "toString" c.cl_fields in
-			if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields then raise Not_found;
+			if List.memq cf c.cl_overrides || PMap.mem "__string" c.cl_fields || not (is_to_string cf.cf_type) then raise Not_found;
 			DynArray.add pa { fname = "__string"; fid = alloc_string ctx "__string"; fmethod = alloc_fun_path ctx c.cl_path "__string"; fvirtual = None; }
 		with Not_found ->
 			());
@@ -1921,11 +1926,11 @@ and eval_expr ctx e =
 		let r = alloc_tmp ctx HDynObj in
 		op ctx (ONew r);
 		let a = (match follow e.etype with TAnon a -> Some a | t -> if t == t_dynamic then None else assert false) in
-		List.iter (fun (s,v) ->
-			let ft = (try (match a with None -> raise Not_found | Some a -> PMap.find s a.a_fields).cf_type with Not_found -> v.etype) in
-			let v = eval_to ctx v (to_type ctx ft) in
+		List.iter (fun (s,ev) ->
+			let ft = (try (match a with None -> raise Not_found | Some a -> PMap.find s a.a_fields).cf_type with Not_found -> ev.etype) in
+			let v = eval_to ctx ev (to_type ctx ft) in
 			op ctx (ODynSet (r,alloc_string ctx s,v));
-			if s = "toString" then begin
+			if s = "toString" && is_to_string ev.etype then begin
 				let f = alloc_tmp ctx (HFun ([],HBytes)) in
 				op ctx (OInstanceClosure (f, alloc_fun_path ctx ([],"String") "call_toString", r));
 				op ctx (ODynSet (r,alloc_string ctx "__string",f));
@@ -2820,7 +2825,7 @@ let rec generate_member ctx c f =
 			) c.cl_ordered_fields;
 		) in
 		ignore(make_fun ?gen_content ctx (underscore_class_name c,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> error "Missing function body" f.cf_pos) (Some c) None);
-		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) then begin
+		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
 			let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) p in
@@ -3623,6 +3628,16 @@ let interp code =
 		| None, None -> None
 	in
 
+	let get_to_string p =
+		match get_method p "__string" with
+		| Some f ->
+			(match func f with
+			| (FFun { ftype = HFun([_],HBytes) } as f) -> Some f
+			| _ -> None)
+		| None ->
+			None
+	in
+
 	let invalid_comparison = 255 in
 
 	let rec vstr_d v =
@@ -3634,9 +3649,9 @@ let interp code =
 		| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ":" ^ tstr t ^ ")"
 		| VObj o ->
 			let p = "#" ^ o.oproto.pclass.pname in
-			(match get_method o.oproto.pclass "__string" with
-			| None -> p
-			| Some f -> p ^ ":" ^ vstr_d (fcall (func f) [v]))
+			(match get_to_string o.oproto.pclass with
+			| Some f -> p ^ ":" ^ vstr_d (fcall f [v])
+			| None -> p)
 		| VBytes b -> "bytes(" ^ String.escaped b ^ ")"
 		| VClosure (f,o) ->
 			(match o with
@@ -3664,9 +3679,9 @@ let interp code =
 		| VDyn (v,t) ->
 			vstr v t
 		| VObj o ->
-			(match get_method o.oproto.pclass "__string" with
+			(match get_to_string o.oproto.pclass with
 			| None -> "#" ^ o.oproto.pclass.pname
-			| Some f -> vstr (fcall (func f) [v]) HBytes)
+			| Some f -> vstr (fcall f [v]) HBytes)
 		| VBytes b -> (try hl_to_caml b with _ -> "?" ^ String.escaped b)
 		| VClosure (f,_) -> fstr f
 		| VArray (a,t) -> "[" ^ String.concat ", " (Array.to_list (Array.map (fun v -> vstr v t) a)) ^ "]"
@@ -3677,6 +3692,7 @@ let interp code =
 		| VDynObj d ->
 			(try
 				let fid = Hashtbl.find d.dfields "__string" in
+				(match d.dtypes.(fid) with HFun ([_],HBytes) -> () | _ -> raise Not_found);
 				vstr (dyn_call d.dvalues.(fid) [] HBytes) HBytes
 			with Not_found ->
 				"{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}")
