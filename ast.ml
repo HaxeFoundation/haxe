@@ -24,6 +24,7 @@ type pos = {
 }
 
 module IntMap = Map.Make(struct type t = int let compare a b = a - b end)
+module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 
 module Meta = struct
 	type strict_meta =

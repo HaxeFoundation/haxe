@@ -213,9 +213,12 @@ let rec type_id ctx t =
 	| TInst ({ cl_path = ["haxe"],"Int32" },_) ->
 		type_path ctx ([],"Int")
 	| TInst ({ cl_path = ["flash"],"Vector" } as c,pl) ->
+		let def() = HMParams (type_path ctx c.cl_path,List.map (type_id ctx) pl) in
 		(match pl with
-		| [TInst({cl_kind = KTypeParameter _},_)] -> type_path ctx ([],"Object")
-		| _ -> HMParams (type_path ctx c.cl_path,List.map (type_id ctx) pl))
+		| [t] -> (match follow t with
+			| TInst({cl_kind = KTypeParameter _},_) -> type_path ctx ([],"Object")
+			| _ -> def())
+		| _ -> def())
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KTypeParameter l ->

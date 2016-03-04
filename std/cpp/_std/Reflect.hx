@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Reflect {
+@:coreApi
+@:analyzer(ignore)
+class Reflect {
 
 	public  static function hasField( o : Dynamic, field : String ) : Bool untyped {
 		return o!=null && o.__HasField(field);

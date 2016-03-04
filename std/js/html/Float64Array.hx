@@ -24,13 +24,15 @@
 
 package js.html;
 
+import js.html.compat.Float64Array;
+
 @:native("Float64Array")
 extern class Float64Array extends ArrayBufferView implements ArrayAccess<Float>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 8;
-	
+
 	var length(default,null) : Int;
-	
+
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
 	@:overload( function( array : Float64Array ) : Void {} )

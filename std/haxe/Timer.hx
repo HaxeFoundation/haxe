@@ -48,7 +48,7 @@ class Timer {
 	/**
 		Creates a new timer that will run every `time_ms` milliseconds.
 
-		After creating the Timer instance, it calls `this].run` repeatedly,
+		After creating the Timer instance, it calls `this.run` repeatedly,
 		with delays of `time_ms` milliseconds, until `this.stop` is called.
 
 		The first invocation occurs after `time_ms` milliseconds, not

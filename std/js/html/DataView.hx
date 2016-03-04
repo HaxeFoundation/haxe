@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.html.compat.DataView;
+
 @:native("DataView")
 extern class DataView extends ArrayBufferView
 {

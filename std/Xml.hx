@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- 
+
 /**
 	Xml node types.
 **/
@@ -56,41 +56,41 @@
 
 /**
 	Crossplatform Xml API.
-	
+
 	@see http://haxe.org/manual/std-Xml.html
 **/
 class Xml {
 	/**
 		XML element type.
 	**/
-	static public var Element(default,null) = XmlType.Element;
+	static public var Element(default,never) = XmlType.Element;
 	/**
 		XML parsed character data type.
 	**/
-	static public var PCData(default,null) = XmlType.PCData;
+	static public var PCData(default,never) = XmlType.PCData;
 	/**
 		XML character data type.
 	**/
-	static public var CData(default,null) = XmlType.CData;
+	static public var CData(default,never) = XmlType.CData;
 	/**
 		XML comment type.
 	**/
-	static public var Comment(default,null) = XmlType.Comment;
+	static public var Comment(default,never) = XmlType.Comment;
 	/**
 		XML doctype element type.
 	**/
-	static public var DocType(default,null) = XmlType.DocType;
+	static public var DocType(default,never) = XmlType.DocType;
 	/**
 	 	XML processing instruction type.
 	**/
-	static public var ProcessingInstruction(default,null) = XmlType.ProcessingInstruction;
+	static public var ProcessingInstruction(default,never) = XmlType.ProcessingInstruction;
 	/**
 		XML document type.
 	**/
-	static public var Document(default,null) = XmlType.Document;
+	static public var Document(default,never) = XmlType.Document;
 
 	/**
-		Parses the String into an Xml document. 
+		Parses the String into an Xml document.
 	**/
 	static public function parse( str : String ) : Xml {
 		return haxe.xml.Parser.parse(str);

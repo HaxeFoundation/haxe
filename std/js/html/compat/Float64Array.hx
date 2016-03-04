@@ -24,7 +24,7 @@ package js.html.compat;
 #if !nodejs
 import js.Lib.nativeThis;
 
-@:keep
+@:ifFeature("js.html.Float64Array.*")
 class Float64Array {
 
 	static var BYTES_PER_ELEMENT = 8;

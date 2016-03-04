@@ -68,7 +68,7 @@ enum ValueType {
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		var path = name.split(".");
-		cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
+		var cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
 		var i = 1;
 		while( cl != null && i < path.length ) {
 			cl = Reflect.field(cl,path[i]);
@@ -83,7 +83,7 @@ enum ValueType {
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
 		var path = name.split(".");
-		e = Reflect.field(neko.Boot.__classes,path[0]);
+		var e = Reflect.field(neko.Boot.__classes,path[0]);
 		var i = 1;
 		while( e != null && i < path.length ) {
 			e = Reflect.field(e,path[i]);

@@ -30,7 +30,8 @@ class NativeOutput<T:IOBase> extends Output {
 
 	var stream:T;
 
-	public var canSeek(get_canSeek, null):Bool;
+	public var canSeek(get,never):Bool;
+	inline function get_canSeek():Bool return stream.seekable();
 
 	public function new (stream:T) {
 		this.bigEndian = false;
@@ -41,11 +42,6 @@ class NativeOutput<T:IOBase> extends Output {
 	override public function close():Void
 	{
 		stream.close();
-	}
-
-	private function get_canSeek():Bool
-	{
-		return stream.seekable();
 	}
 
 	override public function prepare(nbytes:Int):Void
