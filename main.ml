@@ -985,7 +985,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3|-cs|-java|-python] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3|-cs|-java|-python|-hl] <output> [options]\n Options :"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -1082,6 +1082,9 @@ try
 		("-python",Arg.String (fun dir ->
 			set_platform Python dir;
 		),"<file> : generate Python code as target file");
+		("-hl",Arg.String (fun file ->
+			set_platform Hl file;
+		),"<file> : compile HL code as target file");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file
@@ -1477,6 +1480,9 @@ try
 		| Python ->
 			add_std "python";
 			"python"
+		| Hl ->
+			add_std "hl";
+			"hl"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	begin match com.display with
@@ -1574,6 +1580,8 @@ try
 					Genjava.generate,"java"
 				| Python ->
 					Genpy.generate,"python"
+				| Hl ->
+					Genhl.generate,"hl"
 				| Cross ->
 					assert false
 				in

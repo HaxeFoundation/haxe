@@ -42,7 +42,7 @@
 **/
 @:coreType @:notNull @:runtimeValue abstract Int to Float { }
 
-#if (java || cs)
+#if (java || cs || hl)
 @:coreType @:notNull @:runtimeValue abstract Single to Float from Float {}
 #end
 

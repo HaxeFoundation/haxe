@@ -492,6 +492,7 @@ let rec build_generic ctx c p tl =
 		Typeload.add_constructor ctx cg false p;
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_meta <- (Meta.NoDoc,[],p) :: cg.cl_meta;
+		if has_meta Meta.Keep c.cl_meta then cg.cl_meta <- (Meta.Keep,[],p) :: cg.cl_meta;
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match cg.cl_constructor, c.cl_constructor, c.cl_super with
 			| _, Some cf, _ -> Some (build_field cf)
@@ -509,6 +510,9 @@ let rec build_generic ctx c p tl =
 			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
 			f
 		) c.cl_ordered_fields;
+		cg.cl_overrides <- List.map (fun f ->
+			try PMap.find f.cf_name cg.cl_fields with Not_found -> assert false
+		) c.cl_overrides;
 		(* In rare cases the class name can become too long, so let's shorten it (issue #3090). *)
 		if String.length (snd cg.cl_path) > 254 then begin
 			let n = get_short_name () in

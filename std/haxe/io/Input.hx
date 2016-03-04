@@ -60,7 +60,7 @@ class Input {
 	**/
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
-		var b = #if js @:privateAccess s.b #else s.getData() #end;
+		var b = #if (js || hl) @:privateAccess s.b #else s.getData() #end;
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
 		while( k > 0 ) {

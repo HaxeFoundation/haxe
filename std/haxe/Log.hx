@@ -105,6 +105,11 @@ class Log {
 				str = v;
 			}
 			python.Lib.println(str);
+		#elseif hl
+			var pstr = infos == null ? "(null)" : infos.fileName + ":" + infos.lineNumber;
+			var str = Std.string(v);
+			if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += "," + Std.string(v);
+			Sys.println(pstr+": "+str);
 		#end
 	}
 

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#if ((flash || flash9doc || cs) && !doc_gen)
+#if ((flash || flash9doc || cs || hl) && !doc_gen)
 /**
 	The unsigned Int type is only defined for Flash and C#. It's currently
 	handled the same as a normal Int.

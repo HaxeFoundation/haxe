@@ -150,6 +150,13 @@
     <hidden path="appveyor.yml" />
     <hidden path="version.ml" />
     <hidden path="lib" />
+    <hidden path="Makefile.version_extra" />
+    <hidden path="genheaps.cmx" />
+    <hidden path="genheaps.obj" />
+    <hidden path="genheaps.cmi" />
+    <hidden path="genhl.cmx" />
+    <hidden path="genhl.obj" />
+    <hidden path="genhl.cmi" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>

@@ -276,6 +276,6 @@ values == [1, 3, 5];
 var a : Dynamic = [0,1,2];
 var b : Dynamic = a.filter(function(x) return x & 1 == 0).map(function(x) return x * 10);
 b.length == 2;
-b[0] = 0;
-b[1] = 20;
+b[0] == 0;
+b[1] == 20;
 #end

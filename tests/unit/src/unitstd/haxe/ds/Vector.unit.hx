@@ -1,7 +1,7 @@
 var vec = new haxe.ds.Vector(3);
-var vNullInt = #if (flash || cpp || java || cs) 0 #else null #end;
-var vNullBool = #if (flash || cpp || java || cs) false #else null #end;
-var vNullFloat = #if (flash || cpp || java || cs) 0.0 #else null #end;
+var vNullInt = #if (flash || cpp || java || cs || hl) 0 #else null #end;
+var vNullBool = #if (flash || cpp || java || cs || hl) false #else null #end;
+var vNullFloat = #if (flash || cpp || java || cs || hl) 0.0 #else null #end;
 
 vec.length == 3;
 vec.get(0) == vNullInt;

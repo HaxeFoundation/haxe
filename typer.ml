@@ -2470,10 +2470,12 @@ and type_unop ctx op flag e p =
 				if flag = Postfix then error "Postfix ! is not supported" p;
 				unify ctx e.etype ctx.t.tbool e.epos;
 				ctx.t.tbool
+			| NegBits ->
+				unify ctx e.etype ctx.t.tint e.epos;
+				ctx.t.tint
 			| Increment
 			| Decrement
-			| Neg
-			| NegBits ->
+			| Neg ->
 				if set then check_assign ctx e;
 				(match classify e.etype with
 				| KFloat -> ctx.t.tfloat

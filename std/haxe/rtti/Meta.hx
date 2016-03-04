@@ -64,6 +64,9 @@ class Meta {
 			}
 		}
 		return ret;
+#elseif hl
+		var t : hl.types.BaseType = t;
+		return t.__meta__;
 #else
 		return untyped t.__meta__;
 #end

@@ -296,7 +296,7 @@ class TestType extends Test {
 
 		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
-		#if flash
+		#if (flash || hl)
 		t(typeError(foo.bind(_)));
 		#else
 		var l = foo.bind(_);
@@ -673,7 +673,6 @@ class TestType extends Test {
 		eq(c.fProp(9), "test09");
 	}
 
-	@:analyzer(ignore)
 	function testVoidFunc() {
 		exc(function() { throw null; return 1; } );
 		exc(function() { throw null; return "foo"; } );

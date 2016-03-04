@@ -54,6 +54,7 @@ type platform =
 	| Cs
 	| Java
 	| Python
+	| Hl
 
 (**
 	The capture policy tells which handling we make of captured locals
@@ -88,6 +89,8 @@ type platform_config = {
 	pf_can_skip_non_nullable_argument : bool;
 	(** type paths that are reserved on the platform *)
 	pf_reserved_type_paths : path list;
+	(** transform for in the corresponding while *)
+	pf_for_to_while : bool;
 }
 
 type display_mode =
@@ -551,6 +554,7 @@ let default_config =
 		pf_pattern_matching = false;
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
+		pf_for_to_while = false;
 	}
 
 let get_config com =
@@ -560,6 +564,7 @@ let get_config com =
 		default_config
 	| Js ->
 		{
+			default_config with
 			pf_static = false;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
@@ -572,6 +577,7 @@ let get_config com =
 		}
 	| Neko ->
 		{
+			default_config with
 			pf_static = false;
 			pf_sys = true;
 			pf_capture_policy = CPNone;
@@ -584,6 +590,7 @@ let get_config com =
 		}
 	| Flash when defined Define.As3 ->
 		{
+			default_config with
 			pf_static = true;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
@@ -596,6 +603,7 @@ let get_config com =
 		}
 	| Flash ->
 		{
+			default_config with
 			pf_static = true;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
@@ -608,6 +616,7 @@ let get_config com =
 		}
 	| Php ->
 		{
+			default_config with
 			pf_static = false;
 			pf_sys = true;
 			pf_capture_policy = CPNone;
@@ -620,6 +629,7 @@ let get_config com =
 		}
 	| Cpp ->
 		{
+			default_config with
 			pf_static = true;
 			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
@@ -632,6 +642,7 @@ let get_config com =
 		}
 	| Cs ->
 		{
+			default_config with
 			pf_static = true;
 			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
@@ -644,6 +655,7 @@ let get_config com =
 		}
 	| Java ->
 		{
+			default_config with
 			pf_static = true;
 			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
@@ -656,6 +668,7 @@ let get_config com =
 		}
 	| Python ->
 		{
+			default_config with
 			pf_static = false;
 			pf_sys = true;
 			pf_capture_policy = CPLoopVars;
@@ -665,6 +678,14 @@ let get_config com =
 			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = true;
 			pf_reserved_type_paths = [];
+		}
+	| Hl ->
+		{
+			default_config with
+			pf_capture_policy = CPWrapRef;
+			pf_pad_nulls = true;
+			pf_can_skip_non_nullable_argument = false;
+			pf_for_to_while = true;
 		}
 
 let memory_marker = [|Unix.time()|]
@@ -778,6 +799,7 @@ let platforms = [
 	Cs;
 	Java;
 	Python;
+	Hl;
 ]
 
 let platform_name = function
@@ -790,6 +812,7 @@ let platform_name = function
 	| Cs -> "cs"
 	| Java -> "java"
 	| Python -> "python"
+	| Hl -> "hl"
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in

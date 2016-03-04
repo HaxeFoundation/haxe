@@ -86,10 +86,10 @@ class Lambda {
 			l.add(f(i++,x));
 		return l;
 	}
-	
-	/** 
+
+	/**
 		Concatenate a list of lists.
-		
+
 		The order of elements is preserved.
 	**/
 	public static function flatten<A>( it : Iterable<Iterable<A>> ) : List<A> {
@@ -99,12 +99,12 @@ class Lambda {
 				l.add(x);
 		return l;
 	}
-	
-	/** 
+
+	/**
 		A composition of map and flatten.
-		
+
 		The order of elements is preserved.
-		
+
 		If `f` is null, the result is unspecified.
 	**/
 	public static function flatMap<A,B>( it : Iterable<A>, f: A -> Iterable<B> ) : List<B> {
