@@ -1588,6 +1588,7 @@ let hx_stack_push ctx output clazz func_name pos =
 type tcpp =
    | TCppDynamic
    | TCppVoid
+   | TCppNull
    | TCppEnum of tenum
    | TCppScalar of string
    | TCppString
@@ -1771,7 +1772,7 @@ let cpp_const_type cval = match cval with
    | TFloat f -> CppFloat(f) , TCppScalar("Float")
    | TString s -> CppString(s) , TCppString
    | _ -> (* TNull, TThis & TSuper should already be handled *)
-      CppNull, TCppDynamic
+      CppNull, TCppNull
 ;;
 
 
@@ -1985,7 +1986,7 @@ let rec tcpp_to_string = function
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
         "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
    | TCppDynamicArray -> "::cpp::VirtualArray"
-   | TCppObjectArray _ -> "::hx::Array<Dyanmic>"
+   | TCppObjectArray _ -> "::Array< ::Dynamic>"
    | TCppWrapped _ -> "Dynamic"
    | TCppScalarArray(value) -> "::Array< " ^ (tcpp_to_string value) ^ " >"
    | TCppObjC klass ->
@@ -1998,6 +1999,7 @@ let rec tcpp_to_string = function
    | TCppInst klass -> cpp_class_path_of klass
    | TCppClass -> "hx::Class";
    | TCppGlobal -> "";
+   | TCppNull -> "Dynamic";
    | TCppPrivate -> "/* private */"
 ;;
 
@@ -2027,6 +2029,7 @@ let cpp_variant_type_of t = match t with
    | TCppPrivate
    | TCppClass
    | TCppGlobal
+   | TCppNull
    | TCppEnum _ -> TCppDynamic
    | TCppString -> TCppString
    | TCppFunction _
@@ -2606,7 +2609,7 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
                gen arrayObj; out "->__set("; gen index; out ","; gen rvalue; out ")"
             )
          | CppDynamicRef(expr,name) ->
-            gen expr; out ("->__SetField(" ^ (strq name) ^ ","); gen rvalue; out ")"
+            gen expr; out ("->__SetField(" ^ (strq name) ^ ","); gen rvalue; out ",hx::paccDynamic)"
          )
 
       | CppCrement(incFlag,preFlag, lvalue) ->
@@ -2664,7 +2667,7 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
          let count = List.length exprList in
          let countStr = string_of_int count in
          let arrayType = match expr.cpptype with
-            | TCppObjectArray _ -> "::Array_obj<Dyanmic>"
+            | TCppObjectArray _ -> "::Array_obj<Dynamic>"
             | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >"
             | TCppDynamicArray -> "cpp::VirtualArray_obj"
             | _ -> "Dynamic( cpp::VirtualArray_obj"
@@ -2825,13 +2828,13 @@ let gen_cpp_ast_expression_tree ctx function_args tree =
       | CppCode(value, exprs) ->
          Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
       | CppCastDynamic(expr,klass) ->
-         out ("hx::TCast< " ^ cpp_class_name klass [] ^ " >::cast("); gen expr; out ")"
+         out ("hx::TCast< " ^ cpp_class_path_of klass ^ " >::cast("); gen expr; out ")"
 
       | CppCastScalar(expr,scalar) ->
          out ("( ("^scalar^")("); gen expr; out (") )");
 
       | CppCastObjC(expr,klass) ->
-         out ("( (" ^ cpp_class_name klass [] ^ ") id ("); gen expr; out ") )"
+         out ("( (" ^ cpp_class_path_of klass ^ ") id ("); gen expr; out ") )"
 
       | CppCastNative(expr) ->
          out "("; gen expr; out ").mPtr"
