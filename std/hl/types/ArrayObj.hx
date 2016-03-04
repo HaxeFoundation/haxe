@@ -182,8 +182,8 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	public function copy() : ArrayObj<T> {
-		var n = new NativeArray<Dynamic>(array.length);
-		n.blit(0, array, 0, array.length);
+		var n = new NativeArray<Dynamic>(length);
+		n.blit(0, array, 0, length);
 		return alloc(n);
 	}
 
