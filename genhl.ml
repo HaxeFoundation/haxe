@@ -325,7 +325,7 @@ let is_number = function
 
 let is_to_string t =
 	match follow t with
-	| TFun([],TInst({ cl_path=[],"String" },[])) -> true
+	| TFun([],r) -> (match follow r with TInst({ cl_path=[],"String" },[]) -> true | _ -> false)
 	| _ -> false
 
 let hash b =
@@ -3692,7 +3692,7 @@ let interp code =
 		| VDynObj d ->
 			(try
 				let fid = Hashtbl.find d.dfields "__string" in
-				(match d.dtypes.(fid) with HFun ([_],HBytes) -> () | _ -> raise Not_found);
+				(match d.dtypes.(fid) with HFun ([],HBytes) -> () | _ -> raise Not_found);
 				vstr (dyn_call d.dvalues.(fid) [] HBytes) HBytes
 			with Not_found ->
 				"{" ^ String.concat ", " (Hashtbl.fold (fun f i acc -> (f^":"^vstr d.dvalues.(i) d.dtypes.(i)) :: acc) d.dfields []) ^ "}")
