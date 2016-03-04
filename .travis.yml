@@ -89,8 +89,8 @@ matrix:
     - os: linux
       env: TEST=python
       addons: {apt: {packages: *apt_python}}
-  - os: linux
-    env: TEST=hl
+    - os: linux
+      env: TEST=hl
 
     #######
     # osx #
