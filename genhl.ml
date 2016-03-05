@@ -1177,6 +1177,12 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		tmp
+	| HNull ((HI8 | HI16 | HI32) as it), (HF32 | HF64) ->
+		let i = alloc_tmp ctx it in
+		op ctx (OSafeCast (i,r));
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToSFloat (tmp, i));
+		tmp
 	| (HF32 | HF64), (HI8 | HI16 | HI32) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
@@ -2496,6 +2502,7 @@ and eval_expr ctx e =
 		else
 			op ctx (OSafeCast (r,re));
 		r
+
 and gen_assign_op ctx acc e1 f =
 	let f r =
 		match rtype ctx r with
@@ -2574,8 +2581,17 @@ and gen_assign_op ctx acc e1 f =
 				op ctx (OSetArray (arr,ridx,r));
 				r
 		)
-	| _ ->
-		error ("TODO " ^ s_expr (s_type (print_context())) e1) e1.epos
+	| ADynamic (eobj, fid) ->
+		let robj = eval_null_check ctx eobj in
+		let t = real_type ctx e1 in
+		let r = alloc_tmp ctx t in
+		op ctx (ODynGet (r,robj,fid));
+		let r = cast_to ctx r (to_type ctx e1.etype) e1.epos in
+		let r = f r in
+		op ctx (ODynSet (robj,fid,cast_to ctx r t e1.epos));
+		r
+	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ ->
+		assert false
 
 and build_capture_vars ctx f =
 	let ignored_vars = ref PMap.empty in
