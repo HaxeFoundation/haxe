@@ -9,6 +9,7 @@
 	all : allowed passing package dot-paths on command line (#4227)
 	all : support import.hx modules that define per-directory import/using directives (#1138)
 	all : support parsing of postfix ! operator (can be used by abstract operator overloading and macros) (#4284)
+	all : support parsing of ||= and &&= operators (can be used by abstract operator overloading and macros) (#4427)
 	all : support @:structInit classes (#4526)
 	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.11.3 / 2.1.4 (#4377)
 	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
@@ -35,6 +36,7 @@
 	all : type parameter declarations can now have metadata (#3836)
 	all : optimize Math.ceil/floor on constant arguments (#4223)
 	all : allowed extern classes to have field names being used for both static and instance (#4376)
+	all : added haxe.Constraints.Constructible (#4761)
 	python : use spaces instead of tabs to indent the output (#4299)
 
 	Standard Library:
