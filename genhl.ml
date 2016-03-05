@@ -383,7 +383,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HBool -> "bool"
 	| HBytes -> "bytes"
 	| HDyn  -> "dyn"
-	| HFun (args,ret) -> "(" ^ String.concat "," (List.map (tstr ~stack ~detailed) args) ^ "):" ^ tstr ~detailed ret
+	| HFun (args,ret) -> "(" ^ String.concat "," (List.map (tstr ~stack ~detailed) args) ^ "):" ^ tstr ~stack ~detailed ret
 	| HObj o when not detailed -> "#" ^ o.pname
 	| HObj o ->
 		let fields = "{" ^ String.concat "," (List.map (fun(s,_,t) -> s ^ " : " ^ tstr ~detailed:false t) (Array.to_list o.pfields)) ^ "}" in
