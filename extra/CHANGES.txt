@@ -40,7 +40,6 @@
 
 	Macro features and changes:
 
-	macro : added Context.eval (#2278)
 	macro : added overloads field to ClassField (#3460)
 	macro : added Context.getLocalImports (#3560)
 
