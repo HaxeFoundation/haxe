@@ -25,6 +25,7 @@
 
 	General improvements and optimizations:
 
+	all : static analyzer reworked and is now enabled by default
 	all : added support for determining minimal types in Map literals (#4196)
 	all : allowed @:native on abstracts to set the name of the implementation class (#4158)
 	all : allowed creating closures on abstract inline methods (#4165)
