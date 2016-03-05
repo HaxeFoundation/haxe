@@ -28,7 +28,7 @@ class Enum extends BaseType {
 		for( i in 0...cl.length ) {
 			var name = cl[i];
 			__emap__.set(name, i);
-			__constructs__.push(String.__alloc__(name, name.ucs2Length(0)));
+			__constructs__.push(String.fromUCS2(name));
 		}
 		std.Type.register(__ename__.bytes,this);
 	}

@@ -87,6 +87,12 @@ import hl.types.Ref;
 		return d;
 	}
 
+	static function fromInt( t : Int ) : Date {
+		var d : Date = untyped $new(Date);
+		d.t = t;
+		return d;
+	}
+	
 	public static function fromTime( t : Float ) : Date {
 		var d : Date = untyped $new(Date);
 		d.t = date_from_time(t);

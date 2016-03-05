@@ -91,7 +91,7 @@ package hl.types;
 	}
 
 	@:hlNative("std", "ucs2length")
-	function ucs2Length( bytePos : Int ) : Int {
+	public function ucs2Length( bytePos : Int ) : Int {
 		return 0;
 	}
 
@@ -101,12 +101,12 @@ package hl.types;
 	}
 
 	@:hlNative("std","utf8_to_utf16")
-	function utf8ToUtf16( bytePos : Int, outSize : Ref<Int> ) : Bytes {
+	public function utf8ToUtf16( bytePos : Int, outSize : Ref<Int> ) : Bytes {
 		return null;
 	}
 
 	@:hlNative("std","utf16_to_utf8")
-	function utf16ToUtf8( bytePos : Int, outSize : Ref<Int> ) : Bytes {
+	public function utf16ToUtf8( bytePos : Int, outSize : Ref<Int> ) : Bytes {
 		return null;
 	}
 

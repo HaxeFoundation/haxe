@@ -173,6 +173,13 @@ class String {
 		return s.bytes;
 	}
 
+	inline static function fromUCS2( b : hl.types.Bytes ) : String {
+		var s : String = untyped $new(String);
+		s.bytes = b;
+		s.length = @:privateAccess b.ucs2Length(0);
+		return s;
+	}
+
 	@:keep static function fromUTF8( b : hl.types.Bytes ) : String {
 		var outLen = 0;
 		var b2 = @:privateAccess b.utf8ToUtf16(0, outLen);

@@ -39,7 +39,7 @@ private class StringMapKeysIterator {
 
 	public inline function next() @:privateAccess {
 		var b = arr[pos++];
-		return String.__alloc__(b,b.ucs2Length(0));
+		return String.fromUCS2(b);
 	}
 
 }

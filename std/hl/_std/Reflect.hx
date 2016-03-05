@@ -89,7 +89,7 @@ class Reflect {
 	public static function fields( o : Dynamic ) : Array<String> {
 		var fields = getObjectFields(o, true);
 		if( fields == null ) return [];
-		return [for( f in fields ) @:privateAccess String.__alloc__(f,f.ucs2Length(0))];
+		return [for( f in fields ) @:privateAccess String.fromUCS2(f)];
 	}
 
 	public static inline function isFunction( f : Dynamic ) : Bool {

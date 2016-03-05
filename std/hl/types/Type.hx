@@ -49,7 +49,7 @@ abstract TypeKind(Int) {
 
 	@:extern public inline function getName() : String {
 		var s = getNameBytes();
-		return @:privateAccess String.__alloc__(s, s.ucs2Length(0));
+		return @:privateAccess String.fromUCS2(s);
 	}
 
 	@:hlNative("std","type_instance_fields") public function getInstanceFields() : NativeArray<Bytes> {

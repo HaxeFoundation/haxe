@@ -33,7 +33,7 @@ class Resource {
 	static var content : hl.types.NativeArray<ResourceContent>;
 
 	public static function listNames() : Array<String> {
-		return [for (x in content) @:privateAccess String.__alloc__(x.name, x.name.ucs2Length(0))];
+		return [for (x in content) @:privateAccess String.fromUCS2(x.name)];
 	}
 
 	public static function getString( name : String ) : String {
