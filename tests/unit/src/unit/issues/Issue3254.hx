@@ -4,7 +4,7 @@ private class Data {
 	static public function test() { return 12; }
 }
 
-@:forward
+@:forwardStatics
 private abstract AData(Data) { }
 
 class Issue3254 extends Test {
