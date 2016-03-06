@@ -33,7 +33,7 @@ private class Point implements IX implements IY {
 		return x;
 	}
 
-	public function getY() {
+	public function getY() : Int {
 		return y;
 	}
 
@@ -55,6 +55,9 @@ class TestInterface extends Test {
 		f( Std.is(p, IEmpty) );
 		f( Std.is(p, IX2) );
 
+		t( px == p );
+		t( py == p );
+
 		eq( px, p );
 		eq( py, p );
 		t( (px:Dynamic) == (py:Dynamic) );
@@ -64,6 +67,8 @@ class TestInterface extends Test {
 		eq( py.foo(), "bar" );
 
 		eq( (px:Dynamic).getX(), 1.3 );
+		eq( (py:Dynamic).getY(), 5 );
+		eq( (py:Dynamic).foo(), "bar" );
 
 		var p2 = Std.instance(px,Point);
 		eq( p, p2 );
