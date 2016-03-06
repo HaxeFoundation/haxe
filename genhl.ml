@@ -1134,6 +1134,7 @@ let common_type ctx e1 e2 for_eq p =
 		| (HI8|HI16|HI32|HF32|HF64), (HI8|HI16|HI32|HF32|HF64) -> t1
 		| (HI8|HI16|HI32|HF32|HF64), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
 		| (HNull t1), (HI8|HI16|HI32|HF32|HF64) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
+		| (HNull t1), (HNull t2) -> if for_eq then HNull (loop t1 t2) else loop t1 t2
 		| HDyn, (HI8|HI16|HI32|HF32|HF64) -> HF64
 		| (HI8|HI16|HI32|HF32|HF64), HDyn -> HF64
 		| HDyn, _ -> HDyn
@@ -6398,8 +6399,10 @@ let write_c version file (code:code) =
 						sexpr "if( (void*)%s != (void*)%s && (!%s || !%s || %s->value != (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
 					else
 						assert false
+				| HFun _, HFun _ ->
+					phys_compare()
 				| ta, tb ->
-					failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb)
+					failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb ^ " (hlc)")
 			in
 			match op with
 			| OMov (r,v) ->
