@@ -1839,7 +1839,7 @@ let build_enum_abstract ctx c a fields p =
 	List.iter (fun field ->
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
-			field.cff_access <- [AStatic;APublic];
+			field.cff_access <- [AStatic; if (List.mem APrivate field.cff_access) then APrivate else APublic];
 			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
