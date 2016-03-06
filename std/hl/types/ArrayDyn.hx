@@ -159,9 +159,9 @@ class ArrayDyn extends ArrayAccess {
 			return length;
 		return null;
 	}
-	
+
 	function __cast( t : Type ) : Dynamic {
-		if( t.check(array) )
+		if( t == Type.getDynamic(array) )
 			return array;
 		if( !allowReinterpret )
 			return null;

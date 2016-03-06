@@ -29,12 +29,33 @@ class Std {
 		return 0;
 	}
 
-	@:extern public inline static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped $is(v,t);
+	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+		var t : hl.types.BaseType = t;
+		if( t == null ) return false;
+		switch( t.__type__.kind ) {
+		case HDyn:
+			return true;
+		case HF64:
+			switch( hl.types.Type.getDynamic(v).kind ) {
+			case HI8, HI16, HI32:
+				return true;
+			default:
+			}
+		case HI32:
+			switch( hl.types.Type.getDynamic(v).kind ) {
+			case HF32, HF64:
+				var v : Float = v;
+				return Std.int(v) == v;
+			default:
+			}
+		default:
+		}
+		return t.check(v);
 	}
 
 	@:extern public inline static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return untyped $instance(value,c);
+		var t : hl.types.BaseType = cast c;
+		return t.check(value) ? cast value : null;
 	}
 
 	@:extern public static inline function int( x : Float ) : Int {

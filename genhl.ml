@@ -857,7 +857,11 @@ and class_type ctx c pl statics =
 		} in
 		let t = HVirtual vp in
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
-		let fields = PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields [] in
+		let rec loop c =
+			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
+			PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields fields
+		in
+		let fields = loop c in
 		vp.vfields <- Array.of_list fields;
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 		t
@@ -1138,6 +1142,7 @@ let common_type ctx e1 e2 for_eq p =
 		| _ when for_eq && safe_cast t2 t1 -> t1
 		| HBool, HNull HBool when for_eq -> t2
 		| HNull HBool, HBool when for_eq -> t1
+		| HObj _, HVirtual _ | HVirtual _, HObj _ -> HDyn
 		| _ ->
 			error ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
 	in
@@ -1154,6 +1159,32 @@ let before_return ctx =
 		end
 	in
 	loop ctx.m.mtrys
+
+let type_value ctx t p =
+	match t with
+	| TClassDecl c ->
+		let g, t = class_global ctx c in
+		let r = alloc_tmp ctx t in
+		op ctx (OGetGlobal (r, g));
+		r
+	| TAbstractDecl a ->
+		let r = alloc_tmp ctx (class_type ctx ctx.base_type [] false) in
+		(match a.a_path with
+		| [], "Int" -> op ctx (OGetGlobal (r, alloc_global ctx "$Int" (rtype ctx r)))
+		| [], "Float" -> op ctx (OGetGlobal (r, alloc_global ctx "$Float" (rtype ctx r)))
+		| [], "Bool" -> op ctx (OGetGlobal (r, alloc_global ctx "$Bool" (rtype ctx r)))
+		| [], "Class" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_class)))
+		| [], "Enum" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_enum)))
+		| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
+		| _ -> error ("Unsupported type value " ^ s_type_path (t_path t)) p);
+		r
+	| TEnumDecl e ->
+		let r = alloc_tmp ctx (enum_class ctx e) in
+		let rt = rtype ctx r in
+		op ctx (OGetGlobal (r, alloc_global ctx (match rt with HObj o -> o.pname | _ -> assert false) rt));
+		r
+	| TTypeDecl _ ->
+		assert false
 
 let rec eval_to ctx e (t:ttype) =
 	let r = eval_expr ctx e in
@@ -1331,7 +1362,8 @@ and get_access ctx e =
 		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
 		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic && not (c.cl_interface || (is_overriden ctx c f && ethis.eexpr <> TConst(TSuper))) ->
 			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl false) f)
-		| FInstance (cdef,pl,f), _ | FClosure (Some (cdef,pl), f), _ ->
+		| (FInstance (cdef,pl,f) | FClosure (Some (cdef,pl), f)), _ ->
+			let cdef, pl = if cdef.cl_interface then (match follow ethis.etype with TInst (c,pl) -> c,pl | _ -> assert false) else cdef,pl in
 			object_access ctx ethis (class_type ctx cdef pl false) f
 		| (FAnon f | FClosure(None,f)), _ ->
 			object_access ctx ethis (to_type ctx ethis.etype) f
@@ -1774,40 +1806,6 @@ and eval_expr ctx e =
 		| "$dump", [v] ->
 			op ctx (ODump (eval_expr ctx v));
 			alloc_tmp ctx HVoid
-		| ("$is" | "$instance") as name, [v;t] ->
-			let v = eval_to ctx v HDyn in
-			let t = (match t.eexpr with
-			| TTypeExpr t ->
-				let r = alloc_tmp ctx HType in
-				let t = (match t with
-				| TClassDecl { cl_path = [],"Array" } -> TInst (ctx.array_impl.aall,[])
-				| TClassDecl c -> TInst (c,List.map (fun _ -> t_dynamic) c.cl_params)
-				| TEnumDecl e -> TEnum (e,List.map (fun _ -> t_dynamic) e.e_params)
-				| TAbstractDecl a -> TAbstract (a,List.map (fun _ -> t_dynamic) a.a_params)
-				| TTypeDecl t -> TType (t, List.map (fun _ -> t_dynamic) t.t_params)
-				) in
-				op ctx (OType (r,to_type ctx t));
-				r
-			| _ ->
-				let r = eval_to ctx t (class_type ctx ctx.base_type [] false) in
-				let t = alloc_tmp ctx HType in
-				op ctx (OJNotNull (r,2));
-				op ctx (OType (t,HVoid));
-				op ctx (OJAlways 1);
-				op ctx (OField (t,r,0));
-				t
-			) in
-			if name = "$instance" then begin
-				let tmp = alloc_tmp ctx HDyn in
-				let r = alloc_tmp ctx (to_type ctx e.etype) in
-				op ctx (OCall2 (tmp,alloc_std ctx "type_instance" [HType;HDyn] HDyn,t,v));
-				op ctx (OUnsafeCast (r, tmp));
-				r
-			end else begin
-				let r = alloc_tmp ctx HBool in
-				op ctx (OCall2 (r,alloc_std ctx "type_check" [HType;HDyn] HBool,t,v));
-				r
-			end
 		| "$resources", [] ->
 			let tdef = (try List.find (fun t -> (t_infos t).mt_path = (["haxe";"_Resource"],"ResourceContent")) ctx.com.types with Not_found -> assert false) in
 			let t = class_type ctx (match tdef with TClassDecl c -> c | _ -> assert false) [] false in
@@ -2450,10 +2448,15 @@ and eval_expr ctx e =
 					op ctx (OMov (rv, rtrap));
 					(fun() -> ())
 				end else
+					let ct = (match follow v.v_type with
+					| TInst (c,_) -> TClassDecl c
+					| TAbstract (a,_) -> TAbstractDecl a
+					| TEnum (e,_) -> TEnumDecl e
+					| _ -> assert false
+					) in
+					let r = type_value ctx ct ec.epos in
 					let rb = alloc_tmp ctx HBool in
-					let rt = alloc_tmp ctx HType in
-					op ctx (OType (rt, to_type ctx v.v_type));
-					op ctx (OCall2 (rb, alloc_std ctx "type_check" [HType;HDyn] HBool, rt, rtrap));
+					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl";"types"],"BaseType") "check",r,rtrap));
 					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
 					op ctx (OMov (rv, unsafe_cast_to ctx rtrap (to_type ctx v.v_type) ec.epos));
 					jnext
@@ -2469,30 +2472,7 @@ and eval_expr ctx e =
 		j();
 		result
 	| TTypeExpr t ->
-		(match t with
-		| TClassDecl c ->
-			let g, t = class_global ctx c in
-			let r = alloc_tmp ctx t in
-			op ctx (OGetGlobal (r, g));
-			r
-		| TAbstractDecl a ->
-			let r = alloc_tmp ctx (class_type ctx ctx.base_type [] false) in
-			(match a.a_path with
-			| [], "Int" -> op ctx (OGetGlobal (r, alloc_global ctx "$Int" (rtype ctx r)))
-			| [], "Float" -> op ctx (OGetGlobal (r, alloc_global ctx "$Float" (rtype ctx r)))
-			| [], "Bool" -> op ctx (OGetGlobal (r, alloc_global ctx "$Bool" (rtype ctx r)))
-			| [], "Class" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_class)))
-			| [], "Enum" -> op ctx (OGetGlobal (r, fst (class_global ctx ctx.base_enum)))
-			| [], "Dynamic" -> op ctx (OGetGlobal (r, alloc_global ctx "$Dynamic" (rtype ctx r)))
-			| _ -> error ("Unsupported type value " ^ s_type_path (t_path t)) e.epos);
-			r
-		| TEnumDecl e ->
-			let r = alloc_tmp ctx (enum_class ctx e) in
-			let rt = rtype ctx r in
-			op ctx (OGetGlobal (r, alloc_global ctx (match rt with HObj o -> o.pname | _ -> assert false) rt));
-			r
-		| TTypeDecl _ ->
-			assert false);
+		type_value ctx t e.epos
 	| TCast (ev,Some _) ->
 		let t = to_type ctx e.etype in
 		let re = eval_expr ctx ev in
@@ -2926,6 +2906,32 @@ let generate_static_init ctx =
 					) in
 					op ctx (OStaticClosure (r, alloc_fid ctx c f));
 					op ctx (OSetField (rc,index "__constructor__",r)));
+
+				let gather_implements() =
+					let classes = ref [] in
+					let rec lookup cv =
+						List.exists (fun (i,_) -> i == c || lookup i) cv.cl_implements
+					in
+					let check = function
+						| TClassDecl c when c.cl_interface = false && not c.cl_extern -> if lookup c then classes := c :: !classes
+						| _ -> ()
+					in
+					List.iter check ctx.com.types;
+					!classes
+				in
+				(match gather_implements() with
+				| [] -> ()
+				| l ->
+					let ra = alloc_tmp ctx HArray in
+					let rt = alloc_tmp ctx HType in
+					op ctx (OType (rt, HType));
+					op ctx (OCall2 (ra, alloc_std ctx "aalloc" [HType;HI32] HArray, rt, reg_int ctx (List.length l)));
+					iteri (fun i intf ->
+						op ctx (OType (rt, to_type ctx (TInst (intf,[]))));
+						op ctx (OSetArray (ra, reg_int ctx i, rt));
+					) l;
+					op ctx (OSetField (rc,index "__implementedBy__",ra)));
+
 
 				(* register static funs *)
 
@@ -3903,6 +3909,10 @@ let interp code =
 			v
 		| (HObj _ | HDynObj | HVirtual _), HVirtual vp ->
 			to_virtual v vp
+		| HVirtual _, _ ->
+			(match v with
+			| VVirtual v -> dyn_cast v.vvalue (match get_type v.vvalue with None -> assert false | Some t -> t) rt
+			| _ -> assert false)
 		| HObj p, _ ->
 			(match get_method p "__cast" with
 			| None -> invalid()
@@ -4731,21 +4741,9 @@ let interp code =
 				(function
 				| [VBytes str] -> VInt (hash (hl_to_caml str))
 				| _ -> assert false)
-			| "type_check" ->
+			| "type_safe_cast" ->
 				(function
-				| [VType t;v] ->
-					if t = HDyn then VBool true else
-					if v = VNull then VBool false else
-					(match get_type v with
-					| None -> assert false
-					| Some (HI8|HI16|HI32) when (match t with HF32 | HF64 -> true | _ -> false) -> VBool true
-					| Some (HF32|HF64) when (match t, v with (HI8|HI16|HI32), VDyn (VFloat f,_) -> Int32.to_float (Int32.of_float f) = f | _ -> false) -> VBool true
-					| Some vt ->
-						VBool (safe_cast vt t))
-				| _ -> assert false)
-			| "type_instance" ->
-				(function
-				| [VType t;v] -> if v = VNull then v else (match get_type v with None -> assert false | Some vt -> if safe_cast vt t then v else VNull)
+				| [VType a; VType b] -> VBool (safe_cast a b)
 				| _ -> assert false)
 			| "type_super" ->
 				(function
@@ -6386,6 +6384,20 @@ let write_c version file (code:code) =
 						phys_compare())
 				| HEnum _, HEnum _ | HVirtual _, HVirtual _ | HDynObj, HDynObj ->
 					phys_compare()
+				| HVirtual _, HObj _->
+					if op = OpEq then
+						sexpr "if( %s == %s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
+					else if op = OpNotEq then
+						sexpr "if( (void*)%s != (void*)%s && (!%s || !%s || %s->value != (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
+					else
+						assert false
+				| HObj _, HVirtual _ ->
+					if op = OpEq then
+						sexpr "if( %s == %s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
+					else if op = OpNotEq then
+						sexpr "if( (void*)%s != (void*)%s && (!%s || !%s || %s->value != (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
+					else
+						assert false
 				| ta, tb ->
 					failwith ("Don't know how to compare " ^ tstr ta ^ " and " ^ tstr tb)
 			in
@@ -6593,7 +6605,7 @@ let write_c version file (code:code) =
 			| OType (r,t) ->
 				sexpr "%s = %s" (reg r) (type_value t)
 			| OGetType (r,v) ->
-				sexpr "%s = %s ? %s->t : &hlt_void" (reg r) (reg v) (reg v)
+				sexpr "%s = %s ? ((vdynamic*)%s)->t : &hlt_void" (reg r) (reg v) (reg v)
 			| OGetTID (r,v) ->
 				sexpr "%s = %s->kind" (reg r) (reg v)
 			| ORef (r,v) ->

@@ -122,11 +122,12 @@ class Type {
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		var c : hl.types.BaseType.Class = cast c;
 		var fields = @:privateAccess Reflect.getObjectFields(c, false);
-		var fields = [for( f in fields ) @:privateAccess String.__alloc__(f, f.ucs2Length(0))];
+		var fields = [for( f in fields ) @:privateAccess String.fromUCS2(f)];
 		fields.remove("__constructor__");
 		fields.remove("__meta__");
 		fields.remove("__name__");
 		fields.remove("__type__");
+		fields.remove("__implementedBy__");
 		return fields;
 	}
 

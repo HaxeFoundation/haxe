@@ -31,10 +31,6 @@ abstract TypeKind(Int) {
 		return untyped $tkind(this);
 	}
 
-	@:hlNative("std","type_check") public function check( v : Dynamic ) : Bool {
-		return false;
-	}
-
 	@:hlNative("std","type_name") function getNameBytes() : Bytes {
 		return null;
 	}
@@ -50,6 +46,10 @@ abstract TypeKind(Int) {
 	@:extern public inline function getName() : String {
 		var s = getNameBytes();
 		return @:privateAccess String.fromUCS2(s);
+	}
+
+	@:hlNative("std", "type_safe_cast") public function safeCast( t : Type ) : Bool {
+		return false;
 	}
 
 	@:hlNative("std","type_instance_fields") public function getInstanceFields() : NativeArray<Bytes> {

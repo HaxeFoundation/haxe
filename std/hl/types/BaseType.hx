@@ -4,6 +4,18 @@ package hl.types;
 class BaseType {
 	public var __type__ : Type;
 	public var __meta__ : Dynamic;
+	public var __implementedBy__ : NativeArray<Type>;
+	public function check( v : Dynamic ) {
+		var t = Type.getDynamic(v);
+		if( t.safeCast(__type__) )
+			return true;
+		if( __implementedBy__ == null )
+			return false;
+		for( i in __implementedBy__ )
+			if( t.safeCast(i) )
+				return true;
+		return false;
+	}
 }
 
 @:keep
