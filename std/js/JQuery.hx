@@ -400,8 +400,7 @@ extern class JQuery implements ArrayAccess<Element> {
 
 	private static function __init__() : Void untyped {
 		#if embed_js
-		if( untyped __js__("typeof($) == 'undefined'") )
-			haxe.macro.Compiler.includeFile("js/jquery-latest.min.js");
+		#error "Haxe no longer bundle third-party JS libraries. Please remove `-D embed-js`. You may download the JS files and use `haxe.macro.Compiler.includeFile`."
 		#end
 		var q : Dynamic = (untyped js.Browser.window).jQuery;
 		untyped __js__("var js = js || {}");

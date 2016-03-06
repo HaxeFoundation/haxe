@@ -1041,7 +1041,4 @@ package js.jquery;
 	**/
 	@:runtime
 	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(this);
-	static function __init__():Void {
-		js.jquery.Helper.embed();
-	}
 }

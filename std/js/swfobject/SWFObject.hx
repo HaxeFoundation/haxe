@@ -125,10 +125,4 @@ extern class SWFObject {
 		swfobject version
 	*/
 	static var version:String;
-
-	private static function __init__():Void {
-		#if embed_js
-		haxe.macro.Compiler.includeFile("js/swfobject/swfobject.js");
-		#end
-	}
 }

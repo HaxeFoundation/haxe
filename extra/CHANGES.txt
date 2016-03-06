@@ -43,6 +43,8 @@
 
 	all : added Lambda.flatten and Lambda.flatMap (#3553)
 	sys : proper quoting/escaping (can be opt-out) for Sys.command and sys.io.Process (#3603)
+	js : added position parameter to haxe.macro.Compiler.includeFile
+	js : removed -D embed-js (#4074)
 
 	Macro features and changes:
 
