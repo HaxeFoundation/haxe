@@ -34,7 +34,7 @@ private class Point implements IX implements IY {
 	}
 
 	public function getY() {
-		return x;
+		return y;
 	}
 
 	public function foo() {
