@@ -21,7 +21,7 @@
  */
 package sys.io;
 
-typedef FileHandle = hl.types.NativeAbstract<"fd">;
+typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
 
 @:access(String)
 @:coreApi class File {

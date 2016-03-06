@@ -22,7 +22,7 @@
 package sys.net;
 import haxe.io.Error;
 
-private typedef SocketHandle = hl.types.NativeAbstract<"socket">;
+private typedef SocketHandle = hl.types.NativeAbstract<"hl_socket">;
 
 private class SocketOutput extends haxe.io.Output {
 
@@ -41,6 +41,7 @@ private class SocketOutput extends haxe.io.Output {
 	}
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
+		if( pos < 0 || len < 0 || pos + len > buf.length ) throw haxe.io.Error.OutsideBounds;
 		var n = socket_send(@:privateAccess sock.__s, buf.getData().b, pos, len);
 		if( n < 0 ) {
 			if( n == -1 ) throw Blocked;
@@ -77,6 +78,7 @@ private class SocketInput extends haxe.io.Input {
 	}
 
 	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
+		if( pos < 0 || len < 0 || pos + len > buf.length ) throw haxe.io.Error.OutsideBounds;
 		var r = socket_recv(@:privateAccess sock.__s,buf.getData().b,pos,len);
 		if( r < 0 ) {
 			if( r == -1 ) throw Blocked;
@@ -95,12 +97,17 @@ private class SocketInput extends haxe.io.Input {
 }
 
 @:coreApi
+@:keepInit
 class Socket {
 
 	private var __s : SocketHandle;
 	public var input(default,null) : haxe.io.Input;
 	public var output(default,null) : haxe.io.Output;
 	public var custom : Dynamic;
+
+	static function __init__() : Void {
+		socket_init();
+	}
 
 	public function new() : Void {
 		if( __s == null ) __s = socket_new(false);
@@ -192,7 +199,8 @@ class Socket {
 		throw new Sys.SysError("Not implemented");
 	}
 
-	@:hlNative("std","socket_new") static function socket_new( udp : Bool ) : SocketHandle { return null; }
+	@:hlNative("std", "socket_init") static function socket_init() : Void {}
+	@:hlNative("std", "socket_new") static function socket_new( udp : Bool ) : SocketHandle { return null; }
 	@:hlNative("std", "socket_close") static function socket_close( s : SocketHandle ) : Void { }
 	@:hlNative("std", "socket_connect") static function socket_connect( s : SocketHandle, host : Int, port : Int ) : Bool { return true; }
 	@:hlNative("std", "socket_listen") static function socket_listen( s : SocketHandle, count : Int ) : Bool { return true; }
