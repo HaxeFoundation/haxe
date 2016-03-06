@@ -1,4 +1,4 @@
-package lua.jit;
+package lua;
 
 import haxe.Constraints.Function;
 
