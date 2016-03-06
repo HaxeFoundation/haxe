@@ -123,11 +123,11 @@ class Socket {
 	}
 
 	public function read() : String {
-		throw new Sys.SysError("Not implemented"); // encoding dependent
+		return input.readAll().toString();
 	}
 
 	public function write( content : String ) : Void {
-		throw new Sys.SysError("Not implemented"); // encoding dependent
+		output.writeString(content);
 	}
 
 	public function connect(host : Host, port : Int) : Void {
