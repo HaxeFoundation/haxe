@@ -305,6 +305,7 @@ class Test {
 			new TestBytes(),
 			new TestIO(),
 			new TestLocals(),
+			new TestInterface(),
 			new TestEReg(),
 			new TestXML(),
 			new TestMisc(),
