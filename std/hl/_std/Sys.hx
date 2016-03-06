@@ -26,12 +26,12 @@ class Sys {
 	}
 
 	public static function print( v : Dynamic ) : Void {
-		_print(Std.string(v).bytes);
+		sys_print(Std.string(v).bytes);
 	}
 
 	public static function println( v : Dynamic ) : Void {
-		_print(Std.string(v).bytes);
-		_print("\n".bytes);
+		sys_print(Std.string(v).bytes);
+		sys_print("\n".bytes);
 	}
 
 	public static function args() : Array<String> {
@@ -39,15 +39,15 @@ class Sys {
 	}
 
 	public static function stdin() : haxe.io.Input {
-		return @:privateAccess new sys.io.FileInput(sys_stdin());
+		return @:privateAccess new sys.io.FileInput(file_stdin());
 	}
 
 	public static function stdout() : haxe.io.Output {
-		return @:privateAccess new sys.io.FileOutput(sys_stdout());
+		return @:privateAccess new sys.io.FileOutput(file_stdout());
 	}
 
 	public static function stderr() : haxe.io.Output {
-		return @:privateAccess new sys.io.FileOutput(sys_stderr());
+		return @:privateAccess new sys.io.FileOutput(file_stderr());
 	}
 
 	public static function getEnv( s : String ) : String {
@@ -124,10 +124,10 @@ class Sys {
 	@:hlNative("std", "sys_cpu_time") public static function cpuTime() : Float { return 0.; };
 	@:hlNative("std", "sys_get_char") public static function getChar( echo : Bool ) : Int { return 0; }
 
-	@:hlNative("std","sys_print") static function _print( v : hl.types.Bytes ) : Void {};
-	@:hlNative("std", "sys_stdin") static function sys_stdin() : sys.io.File.FileHandle { return null; }
-	@:hlNative("std", "sys_stdout") static function sys_stdout() : sys.io.File.FileHandle { return null; }
-	@:hlNative("std", "sys_stderr") static function sys_stderr() : sys.io.File.FileHandle { return null; }
+	@:hlNative("std","sys_print") static function sys_print( v : hl.types.Bytes ) : Void {};
+	@:hlNative("std", "file_stdin") static function file_stdin() : sys.io.File.FileHandle { return null; }
+	@:hlNative("std", "file_stdout") static function file_stdout() : sys.io.File.FileHandle { return null; }
+	@:hlNative("std", "file_stderr") static function file_stderr() : sys.io.File.FileHandle { return null; }
 	@:hlNative("std", "sys_args") static function sys_args() : hl.types.NativeArray<hl.types.Bytes> { return null; }
 	@:hlNative("std", "sys_get_env") static function get_env( key : hl.types.Bytes ) : hl.types.Bytes { return null; }
 	@:hlNative("std", "sys_put_env") static function put_env( key : hl.types.Bytes, val : hl.types.Bytes ) : Void {}
