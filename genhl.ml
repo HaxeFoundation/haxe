@@ -6047,7 +6047,7 @@ let write_c version file (code:code) =
 	List.iter (fun nargs ->
 		sline "case %d:" nargs;
 		block();
-		if nargs > 9 then sexpr "hl_fatal(\"Too many arguments, TODO:use more bits\")";
+		if nargs > 9 then sexpr "hl_fatal(\"Too many arguments, TODO:use more bits\")" else begin
 		for i = 0 to nargs-1 do
 			sexpr "chk |= TKIND[t->fun->args[%d]->kind] << %d" i ((i + 1) * 3);
 		done;
@@ -6079,6 +6079,7 @@ let write_c version file (code:code) =
 		) (Hashtbl.find funByArgs nargs);
 		sline "}";
 		expr "break";
+		end;
 		unblock();
 	) argsCounts;
 	line "}";
@@ -6132,7 +6133,7 @@ let write_c version file (code:code) =
 	List.iter (fun nargs ->
 		sline "case %d:" nargs;
 		block();
-		if nargs > 9 then sexpr "hl_fatal(\"Too many arguments, TODO:use more bits\")";
+		if nargs > 9 then sexpr "hl_fatal(\"Too many arguments, TODO:use more bits\")" else begin
 		for i = 0 to nargs-1 do
 			sexpr "chk |= TKIND[t->fun->args[%d]->kind] << %d" i ((i + 1) * 3);
 		done;
@@ -6144,6 +6145,7 @@ let write_c version file (code:code) =
 		) (Hashtbl.find funByArgs nargs);
 		sline "}";
 		expr "break";
+		end;
 		unblock();
 	) argsCounts;
 	line "}";
