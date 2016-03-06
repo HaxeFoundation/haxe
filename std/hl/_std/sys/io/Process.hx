@@ -83,6 +83,7 @@ private class Stdout extends haxe.io.Input {
 
 }
 
+@:access(Sys)
 @:coreApi class Process {
 
 	var p : ProcessHandle;
@@ -96,9 +97,9 @@ private class Stdout extends haxe.io.Input {
 			if( args != null ) {
 				aargs = new hl.types.NativeArray<hl.types.Bytes>(args.length);
 				for( i in 0...args.length )
-					aargs[i] = args[i].bytes;
+					aargs[i] = Sys.getPath(args[i]);
 			}
-			p = _run(cmd.bytes, aargs);
+			p = _run(Sys.getPath(cmd), aargs);
 		}
 		if( p == null )
 			throw new Sys.SysError("Process creation failure : "+cmd);

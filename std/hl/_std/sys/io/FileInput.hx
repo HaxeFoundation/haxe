@@ -37,8 +37,9 @@ import sys.io.File;
 	}
 
 	public override function readBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
+		if( p < 0 || l < 0 || p + l > s.length ) throw haxe.io.Error.OutsideBounds;
 		var v = file_read(__f, s.getData().b, p, l);
-		if( v < 0 ) throw new haxe.io.Eof();
+		if( v <= 0 ) throw new haxe.io.Eof();
 		return v;
 	}
 
@@ -48,11 +49,14 @@ import sys.io.File;
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {
-		file_seek(__f,p,switch( pos ) { case SeekBegin: 0; case SeekCur: 1; case SeekEnd: 2; });
+		if( !file_seek(__f,p,switch( pos ) { case SeekBegin: 0; case SeekCur: 1; case SeekEnd: 2; }) )
+			throw haxe.io.Error.Custom("seek() failure");
 	}
 
 	public function tell() : Int {
-		return file_tell(__f);
+		var p = file_tell(__f);
+		if( p < 0 )  throw haxe.io.Error.Custom("tell() failure");
+		return p;
 	}
 
 	public function eof() : Bool {
@@ -63,7 +67,7 @@ import sys.io.File;
 	@:hlNative("std", "file_read") static function file_read( f : FileHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std", "file_read_char") static function file_read_char( f : FileHandle ) : Int { return 0; }
 	@:hlNative("std", "file_close") static function file_close( f : FileHandle ) : Void { }
-	@:hlNative("std", "file_seek") static function file_seek( f : FileHandle, pos : Int, from : Int ) : Void { }
+	@:hlNative("std", "file_seek") static function file_seek( f : FileHandle, pos : Int, from : Int ) : Bool { return true; }
 	@:hlNative("std", "file_tell") static function file_tell( f : FileHandle ) : Int { return 0; }
 
 }

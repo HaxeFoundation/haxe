@@ -35,13 +35,14 @@ import sys.io.File;
 	}
 
 	public override function writeBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
+		if( p < 0 || l < 0 || p + l > s.length ) throw haxe.io.Error.OutsideBounds;
 		var v = file_write(__f, s.getData().b, p, l);
-		if( v < 0 ) throw new haxe.io.Eof();
+		if( v <= 0 ) throw new haxe.io.Eof();
 		return v;
 	}
 
 	public override function flush() : Void {
-		file_flush(__f);
+		if( !file_flush(__f) ) throw haxe.io.Error.Custom("flush() failure");
 	}
 
 	public override function close() : Void {
@@ -50,14 +51,17 @@ import sys.io.File;
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {
-		@:privateAccess FileInput.file_seek(__f,p,switch( pos ) { case SeekBegin: 0; case SeekCur: 1; case SeekEnd: 2; });
+		if( @:privateAccess !FileInput.file_seek(__f,p,switch( pos ) { case SeekBegin: 0; case SeekCur: 1; case SeekEnd: 2; }) )
+			throw haxe.io.Error.Custom("seek() failure");
 	}
 
 	public function tell() : Int {
-		return @:privateAccess FileInput.file_tell(__f);
+		var p = @:privateAccess FileInput.file_tell(__f);
+		if( p < 0 )  throw haxe.io.Error.Custom("tell() failure");
+		return p;
 	}
 
-	@:hlNative("std","file_flush") static function file_flush( f : FileHandle ) : Void {}
+	@:hlNative("std","file_flush") static function file_flush( f : FileHandle ) : Bool { return true; }
 	@:hlNative("std", "file_write") static function file_write( f : FileHandle, bytes : hl.types.Bytes, pos : Int, len : Int ) : Int { return 0; }
 	@:hlNative("std", "file_write_char") static function file_write_char( f : FileHandle, v : Int ) : Bool { return true; }
 

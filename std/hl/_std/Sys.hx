@@ -9,8 +9,21 @@ class SysError {
 }
 
 @:coreApi
+@:keepInit
 @:access(String)
 class Sys {
+
+	static var utf8Path : Bool;
+	static function __init__() : Void {
+		utf8Path = sys_utf8_path();
+	}
+	static function getPath( s : String ) : hl.types.Bytes {
+		var size = 0;
+		return utf8Path ? s.bytes.utf16ToUtf8(0, size) : s.bytes;
+	}
+	static function makePath( b : hl.types.Bytes ) : String {
+		return utf8Path ? String.fromUTF8(b) : String.fromUCS2(b);
+	}
 
 	public static function print( v : Dynamic ) : Void {
 		_print(Std.string(v).bytes);
@@ -48,6 +61,16 @@ class Sys {
 		put_env(s.bytes,if( v == null ) null else v.bytes);
 	}
 
+	public static function environment() : Map<String,String> {
+		var env = sys_env();
+		var h = new haxe.ds.StringMap();
+		for( i in 0...env.length >> 1 ) {
+			var p = i << 1;
+			h.set(String.fromUCS2(env[p]), String.fromUCS2(env[p + 1]));
+		}
+		return h;
+	}
+
 	@:hlNative("std","sys_sleep")
 	public static function sleep( seconds : Float ) : Void {
 	}
@@ -57,11 +80,11 @@ class Sys {
 	}
 
 	public static function getCwd() : String {
-		return String.fromUCS2(get_cwd());
+		return makePath(get_cwd());
 	}
 
 	public static function setCwd( s : String ) : Void {
-		if( !set_cwd(s.bytes) ) throw new SysError("Failed to set path to " + s);
+		if( !set_cwd(getPath(s)) ) throw new SysError("Failed to set path to " + s);
 	}
 
 	public static function systemName() : String {
@@ -72,7 +95,7 @@ class Sys {
 		var code = 0;
 		var ok;
 		if (args == null) {
-			ok = sys_command(cmd.bytes, code);
+			ok = sys_command(getPath(cmd), code);
 		} else {
 			switch (systemName()) {
 				case "Windows":
@@ -80,10 +103,10 @@ class Sys {
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
 						StringTools.quoteWinArg(a, true)
 					].join(" ");
-					ok = sys_command(cmd.bytes, code);
+					ok = sys_command(getPath(cmd), code);
 				case _:
 					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
-					ok = sys_command(cmd.bytes, code);
+					ok = sys_command(getPath(cmd), code);
 			}
 		}
 		if( !ok ) throw new SysError("Failed to run command " + cmd);
@@ -91,18 +114,10 @@ class Sys {
 	}
 
 	public static function executablePath() : String {
-		return String.fromUCS2(sys_exe_path());
+		return makePath(sys_exe_path());
 	}
 
-	public static function environment() : Map<String,String> {
-		var env = sys_env();
-		var h = new haxe.ds.StringMap();
-		for( i in 0...env.length >> 1 ) {
-			var p = i << 1;
-			h.set(String.fromUCS2(env[p]), String.fromUCS2(env[p + 1]));
-		}
-		return h;
-	}
+	@:hlNative("std", "sys_utf8_path") static function sys_utf8_path() : Bool { return false; }
 
 	@:hlNative("std","sys_time") public static function time() : Float { return 0.; };
 	@:hlNative("std","sys_exit") public static function exit( code : Int ) : Void {};

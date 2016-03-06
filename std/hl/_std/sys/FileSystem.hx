@@ -22,19 +22,19 @@
 package sys;
 
 @:coreApi
-@:access(String)
+@:access(Sys)
 class FileSystem {
 
 	public static function exists( path : String ) : Bool {
-		return sys_exists(makeCompatiblePath(path).bytes);
+		return sys_exists( Sys.getPath(makeCompatiblePath(path)) );
 	}
 
 	public static function rename( path : String, newPath : String ) : Void {
-		if( !sys_rename(path.bytes, newPath.bytes) ) throw new Sys.SysError("Failed to rename " + path + " to " + newPath);
+		if( !sys_rename( Sys.getPath(path), Sys.getPath(newPath) ) ) throw new Sys.SysError("Failed to rename " + path + " to " + newPath);
 	}
 
 	public static function stat( path : String ) : FileStat {
-		var values = sys_stat(makeCompatiblePath(path).bytes);
+		var values = sys_stat( Sys.getPath(makeCompatiblePath(path)) );
 		if( values == null ) throw new Sys.SysError("Failed to stat " + path);
 		return {
 			gid : values[0],
@@ -52,7 +52,7 @@ class FileSystem {
 	}
 
 	public static function fullPath( relPath : String ) : String {
-		return String.fromUCS2(file_full_path(relPath.bytes));
+		return Sys.makePath( sys_full_path(Sys.getPath(relPath)) );
 	}
 
 	public static function absolutePath ( relPath : String ) : String {
@@ -61,7 +61,7 @@ class FileSystem {
 	}
 
 	public static function isDirectory( path : String ) : Bool {
-		return sys_is_dir(makeCompatiblePath(path).bytes);
+		return sys_is_dir(Sys.getPath(makeCompatiblePath(path)));
 	}
 
 	public static function createDirectory( path : String ) : Void {
@@ -74,24 +74,24 @@ class FileSystem {
 		}
 		for (part in parts) {
 			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part))
-				if( !sys_create_dir(part.bytes, 493) )
+				if( !sys_create_dir(Sys.getPath(part), 493) )
 					throw new Sys.SysError("Failed to create directory " + part);
 		}
 	}
 
 	public static function deleteFile( path : String ) : Void {
-		if( !file_delete(path.bytes) ) throw new Sys.SysError("Can't delete file " + path);
+		if( !sys_delete(Sys.getPath(path)) ) throw new Sys.SysError("Can't delete file " + path);
 	}
 
 	public static function deleteDirectory( path : String ) : Void {
-		if( !sys_remove_dir(path.bytes) ) throw new Sys.SysError("Can't delete directory " + path);
+		if( !sys_remove_dir(Sys.getPath(path)) ) throw new Sys.SysError("Can't delete directory " + path);
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {
-		var content = sys_read_dir(path.bytes);
+		var content = sys_read_dir(Sys.getPath(path));
 		if( content == null )
 			throw new Sys.SysError("Failed to read directory " + path);
-		return [for( c in content ) String.fromUCS2(c)];
+		return [for( c in content ) Sys.makePath(c)];
 	}
 
 	private static inline function makeCompatiblePath(path:String):String {
@@ -107,8 +107,8 @@ class FileSystem {
 	@:hlNative("std", "sys_is_dir") static function sys_is_dir( path : hl.types.Bytes ) : Bool { return false; }
 	@:hlNative("std", "sys_stat") static function sys_stat( path : hl.types.Bytes ) : hl.types.NativeArray<Int> { return null; }
 	@:hlNative("std", "sys_rename") static function sys_rename( path : hl.types.Bytes, to : hl.types.Bytes ) : Bool { return true; }
-	@:hlNative("std", "file_delete") static function file_delete( path : hl.types.Bytes ) : Bool { return true; };
-	@:hlNative("std", "file_full_path") static function file_full_path( path : hl.types.Bytes ) : hl.types.Bytes { return null; }
+	@:hlNative("std", "sys_delete") static function sys_delete( path : hl.types.Bytes ) : Bool { return true; };
+	@:hlNative("std", "sys_full_path") static function sys_full_path( path : hl.types.Bytes ) : hl.types.Bytes { return null; }
 	@:hlNative("std", "sys_remove_dir") static function sys_remove_dir( path : hl.types.Bytes ) : Bool { return true; }
 	@:hlNative("std", "sys_exists") static function sys_exists( path : hl.types.Bytes ) : Bool { return true; }
 

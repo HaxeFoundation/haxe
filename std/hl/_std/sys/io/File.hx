@@ -23,21 +23,21 @@ package sys.io;
 
 typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
 
-@:access(String)
+@:access(Sys)
 @:coreApi class File {
 
 	public static function getContent( path : String ) : String {
 		var size = 0;
-		var bytes = file_contents(path.bytes, size);
+		var bytes = file_contents(Sys.getPath(path), size);
 		if( bytes == null ) throw new Sys.SysError("Can't read "+path);
-		return String.fromUTF8(bytes);
+		return @:privateAccess String.fromUTF8(bytes);
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
 		var size = 0;
-		var bytes = file_contents(path.bytes, size);
-		if( bytes == null ) throw new Sys.SysError("Can't open "+path);
-		return haxe.io.Bytes.ofData(new haxe.io.BytesData(bytes,size));
+		var bytes = file_contents(Sys.getPath(path), size);
+		if( bytes == null ) throw new Sys.SysError("Can't read "+path);
+		return @:privateAccess new haxe.io.Bytes(bytes, size);
 	}
 
 	public static function saveContent( path : String, content : String ) : Void {
@@ -53,19 +53,19 @@ typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		var f = file_open(path.bytes,(if( binary ) "rb" else "r").bytes);
+		var f = file_open(Sys.getPath(path),0,binary);
 		if( f == null ) throw new Sys.SysError("Can't open "+path);
 		return @:privateAccess new FileInput(f);
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		var f = file_open(path.bytes,(if( binary ) "wb" else "w").bytes);
+		var f = file_open(Sys.getPath(path),1,binary);
 		if( f == null ) throw new Sys.SysError("Can't open "+path+" for writing");
 		return @:privateAccess new FileOutput(f);
 	}
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		var f = file_open(path.bytes,(if( binary ) "ab" else "a").bytes);
+		var f = file_open(Sys.getPath(path),2,binary);
 		if( f == null ) throw new Sys.SysError("Can't open "+path+" for append");
 		return @:privateAccess new FileOutput(f);
 	}
@@ -78,7 +78,7 @@ typedef FileHandle = hl.types.NativeAbstract<"hl_fdesc">;
 		d.close();
 	}
 
-	@:hlNative("std", "file_open") static function file_open( path : hl.types.Bytes, access : hl.types.Bytes ) : FileHandle { return null; }
+	@:hlNative("std", "file_open") static function file_open( path : hl.types.Bytes, mode : Int, binary : Bool ) : FileHandle { return null; }
 	@:hlNative("std", "file_contents") static function file_contents( path : hl.types.Bytes, size : hl.types.Ref<Int> ) : hl.types.Bytes { return null; }
 
 }
