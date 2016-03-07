@@ -706,7 +706,7 @@ let rec to_type ?tref ctx t =
 			t
 		) in
 		(match td.t_path with
-		| [], "Null" when is_nullable t -> HNull t
+		| [], "Null" when not (is_nullable t) -> HNull t
 		| _ -> t)
 	| TLazy f ->
 		to_type ?tref ctx (!f())
