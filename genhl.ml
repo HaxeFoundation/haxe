@@ -4738,6 +4738,10 @@ let interp code =
 				(function
 				| [VInt code] -> VUndef
 				| _ -> assert false)
+			| "sys_utf8_path" ->
+				(function
+				| [] -> VBool true
+				| _ -> assert false)
 			| "hash" ->
 				(function
 				| [VBytes str] -> VInt (hash (hl_to_caml str))
