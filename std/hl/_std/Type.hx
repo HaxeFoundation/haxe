@@ -158,6 +158,11 @@ class Type {
 			return TEnum(Type.getEnum(v));
 		case HFun:
 			return TFunction;
+		case HVirtual:
+			var v = hl.types.Api.unvirtual(v);
+			if( v == null )
+				return TObject;
+			return typeof(v);
 		default:
 			return TUnknown;
 		}

@@ -1776,11 +1776,19 @@ and eval_expr ctx e =
 			let r = eval_to ctx value et in
 			op ctx (OSetArray (arr, pos, r));
 			r
-		| "$ref", [{ eexpr = TLocal v }] ->
-			let r = alloc_tmp ctx (to_type ctx e.etype) in
-			let rv = (match rtype ctx r with HRef t -> alloc_reg ctx v | _ -> invalid()) in
-			op ctx (ORef (r,rv));
+		| "$unvirtual", [v] ->
+			let r = alloc_tmp ctx HDyn in
+			op ctx (OUnVirtual (r, eval_to ctx v HDyn));
 			r
+		| "$ref", [v] ->
+			(match v.eexpr with
+			| TLocal v ->
+				let r = alloc_tmp ctx (to_type ctx e.etype) in
+				let rv = (match rtype ctx r with HRef t -> alloc_reg ctx v | _ -> invalid()) in
+				op ctx (ORef (r,rv));
+				r
+			| _ ->
+				error "Ref should be a local variable" v.epos)
 		| "$setref", [e1;e2] ->
 			let rec loop e = match e.eexpr with
 				| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) -> loop e1
@@ -3366,7 +3374,7 @@ let check code =
 				| _ -> reg v HDynObj)
 			| OUnVirtual (r,v) ->
 				(match rtype v with
-				| HVirtual _ -> ()
+				| HVirtual _ | HDyn -> ()
 				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
 				reg r HDyn
 			| ODynGet (v,r,f) | ODynSet (r,f,v) ->
@@ -6626,7 +6634,7 @@ let write_c version file (code:code) =
 			| OToVirtual (r,v) ->
 				sexpr "%s = hl_to_virtual(%s,(vdynamic*)%s)" (reg r) (type_value (rtype r)) (reg v)
 			| OUnVirtual (r,v) ->
-				sexpr "%s = %s ? %s->value : NULL" (reg r) (reg v) (reg v)
+				sexpr "%s = %s ? ((vvirtual*)%s)->value : NULL" (reg r) (reg v) (reg v)
 			| ODynGet (r,o,sid) ->
 				let t = rtype r in
 				let h = hash sid in
