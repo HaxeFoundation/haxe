@@ -1587,6 +1587,7 @@ let hx_stack_push ctx output clazz func_name pos =
 
 type tcpp =
    | TCppDynamic
+   | TCppObject
    | TCppVoid
    | TCppNull
    | TCppEnum of tenum
@@ -1667,6 +1668,7 @@ and tcppfuncloc =
    | FuncDynamic of tcppexpr
    | FuncInternal of tcppexpr * string * string
    | FuncGlobal of string
+   | FuncFromStaticFunction
 
 and tcpparrayloc =
    | ArrayTyped of tcppexpr * tcppexpr
@@ -1696,6 +1698,7 @@ and tcpp_expr_expr =
    | CppFunction of tcppfuncloc * tcpp
    | CppEnumField of tenum * tenum_field
    | CppCall of tcppfuncloc * tcppexpr list
+   | CppFunctionAddress of tclass * tclass_field
    | CppArray of tcpparrayloc
    | CppCrement of  tcppcrementop * Ast.unop_flag * tcpplvalue
    | CppSet of tcpplvalue * tcppexpr
@@ -1740,6 +1743,7 @@ let s_tcpp = function
    | CppFunction _ -> "CppFunction"
    | CppEnumField  _ -> "CppEnumField"
    | CppCall  _ -> "CppCall"
+   | CppFunctionAddress  _ -> "CppFunctionAddress"
    | CppArray  _ -> "CppArray"
    | CppCrement  _ -> "CppCrement"
    | CppSet  _ -> "CppSet"
@@ -1833,6 +1837,7 @@ let cpp_class_path_of klass =
 
 let rec tcpp_to_string = function
    | TCppDynamic -> "Dynamic"
+   | TCppObject -> "Dynamic"
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
    | TCppVariant -> "::cpp::Var"
@@ -1874,6 +1879,7 @@ let rec cpp_type_of haxe_type =
      | TCppDynamic ->
        TCppDynamicArray
 
+     | TCppObject
      | TCppInst _
      | TCppClass
      | TCppDynamicArray
@@ -1913,7 +1919,7 @@ let rec cpp_type_of haxe_type =
    | TAbstract ({ a_path = ([],"Bool") },[]) -> TCppScalar("Bool")
    | TAbstract ({ a_path = ([],"Float") },[]) -> TCppScalar("Float")
    | TAbstract ({ a_path = ([],"Int") },[]) -> TCppScalar("Int")
-   | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> TCppDynamic
+   | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> TCppObject
    | TAbstract( { a_path = ([], "Class") }, _  ) -> TCppClass
    | TAbstract( { a_path = ([], "Enum") }, _  ) -> TCppClass
    | TAbstract( { a_path = (["cpp"], "Char") }, _  ) -> TCppScalar("char")
@@ -1930,6 +1936,9 @@ let rec cpp_type_of haxe_type =
    | TInst    ( { cl_path = ([], "String") }, _  ) -> TCppString
 
    | TEnum (enum,params) ->  TCppEnum(enum)
+
+   | TInst ({ cl_path=([],"Array"); cl_kind = KTypeParameter _},_)
+      -> TCppObject
 
    | TInst ({ cl_kind = KTypeParameter _},_)
       -> TCppDynamic
@@ -1984,12 +1993,8 @@ let rec cpp_type_of haxe_type =
             assert false;
          *)
 
-
-
-
-
-   | TFun _ -> TCppDynamic
-   | TAnon _ -> TCppDynamic
+   | TFun _ -> TCppObject
+   | TAnon _ -> TCppObject
    | TDynamic _ -> TCppDynamic
    | TLazy func -> cpp_type_of ((!func)())
    | TAbstract (abs,pl) when abs.a_impl <> None ->
@@ -2081,6 +2086,7 @@ let cpp_class_name klass =
 
 let cpp_variant_type_of t = match t with
    | TCppDynamic
+   | TCppObject
    | TCppVoid
    | TCppFastIterator _
    | TCppDynamicArray
@@ -2263,6 +2269,12 @@ let retype_expression ctx request_type function_args expression_tree =
                   | _ ->
                      CppFunction( FuncInstance(retypedObj, member), funcReturn ), exprType
                end
+
+            | FStatic ( {cl_path=(["cpp"],"Function")}, ({cf_name="fromStaticFunction"} as member) ) ->
+               let funcReturn = cpp_member_return_type member in
+               let exprType = cpp_type_of member.cf_type in
+               CppFunction( FuncFromStaticFunction, funcReturn ), exprType
+
             | FStatic (clazz,member) ->
                let funcReturn = cpp_member_return_type member in
                let exprType = cpp_type_of member.cf_type in
@@ -2309,6 +2321,12 @@ let retype_expression ctx request_type function_args expression_tree =
             *)
             let retypedArgs = List.map (retype TCppDynamic ) args in
             (match retypedFunc.cppexpr with
+            |  CppFunction(FuncFromStaticFunction ,returnType) ->
+                ( match retypedArgs with
+                | [ {cppexpr=CppFunction( FuncStatic(clazz,member), funcReturn)} ] ->
+                   CppFunctionAddress(clazz,member), funcReturn
+                | _ -> error "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
+                )
             |  CppFunction(func,returnType) ->
                   CppCall(func,retypedArgs), returnType
             |  CppEnumField(enum, field) ->
@@ -2693,6 +2711,7 @@ let gen_cpp_ast_expression_tree ctx function_args injection tree =
          | FuncSuper _ | FuncSuperConstruct -> error "Can't create super closure" expr.cpppos
          | FuncNew _ -> error "Can't create new closure" expr.cpppos
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
+         | FuncFromStaticFunction -> error "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
          );
       | CppCall(func, args) ->
          let closeCall = ref "" in
@@ -2705,6 +2724,8 @@ let gen_cpp_ast_expression_tree ctx function_args injection tree =
               gen expr; out (operator ^ (cpp_member_name_of field) );
          | FuncStatic(clazz,field) ->
               out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) );
+         | FuncFromStaticFunction ->
+              error "Unexpected FuncFromStaticFunction" expr.cpppos
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
@@ -2742,6 +2763,14 @@ let gen_cpp_ast_expression_tree ctx function_args injection tree =
             gen arg;
             ) args;
          out (")" ^ !closeCall);
+
+      | CppFunctionAddress(klass, member) ->
+         let signature = cpp_function_signature member.cf_type "" in
+         let name = cpp_member_name_of member in
+         (*let void_cast = has_meta_key field.cf_meta Meta.Void in*)
+         out ("::cpp::Function< " ^ signature ^">(");
+         out ("&::" ^(join_class_path_remap klass.cl_path "::")^ "_obj::" ^ name );
+         out " )"
 
       | CppDynamicField(obj,name) ->
          gen obj;
@@ -2850,6 +2879,13 @@ let gen_cpp_ast_expression_tree ctx function_args injection tree =
                      gen elem; out ")" ) exprList;
 
          if (expr.cpptype==TCppDynamic) then out ")";
+
+
+      | CppBinop( Ast.OpUShr, left, right) ->
+         out "hx::UShr("; gen left; out ","; gen right; out ")";
+
+      | CppBinop( Ast.OpMod, left, right) ->
+         out "hx::Mod("; gen left; out ","; gen right; out ")";
 
       | CppBinop(op, left, right) ->
          let op = string_of_op op expr.cpppos in
