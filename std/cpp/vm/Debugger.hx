@@ -316,6 +316,11 @@ class Debugger
             (threadNumber, stepType, stepCount);
     }
 
+    public static function stepThreadLine(threadNumber : Int, stepType: Int) {
+      untyped __global__.__hxcpp_dbg_stepThreadLine(threadNumber, stepType);
+      untyped __global__.__hxcpp_dbg_setPrint(true);
+    }
+
     /**
      * Returns the list of local variables (including "this", function
      * arguments, and local variables) visible to the given thread at the
