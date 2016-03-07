@@ -54,11 +54,11 @@ class Sys {
 		var v = get_env(s.bytes);
 		if( v == null )
 			return null;
-		return String.fromUCS2(v);
+		return makePath(v);
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
-		put_env(s.bytes,if( v == null ) null else v.bytes);
+		put_env(getPath(s),if( v == null ) null else getPath(v));
 	}
 
 	public static function environment() : Map<String,String> {
@@ -66,7 +66,7 @@ class Sys {
 		var h = new haxe.ds.StringMap();
 		for( i in 0...env.length >> 1 ) {
 			var p = i << 1;
-			h.set(String.fromUCS2(env[p]), String.fromUCS2(env[p + 1]));
+			h.set(makePath(env[p]), makePath(env[p + 1]));
 		}
 		return h;
 	}
@@ -76,7 +76,8 @@ class Sys {
 	}
 
 	public static function setTimeLocale( loc : String ) : Bool {
-		return set_time_locale(loc.bytes);
+		var size = 0;
+		return set_time_locale(loc.bytes.utf16ToUtf8(0,size));
 	}
 
 	public static function getCwd() : String {

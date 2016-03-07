@@ -135,11 +135,6 @@ import hl.types.Ref;
 	}
 
 	@:hlNative
-	static function date_get_weekday( t : Int ) : Int {
-		return 0;
-	}
-
-	@:hlNative
 	static function date_to_string( t : Int, outLen : Ref<Int> ) : hl.types.Bytes {
 		return null;
 	}
