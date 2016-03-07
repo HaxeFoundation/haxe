@@ -273,7 +273,7 @@ type context = {
 	mutable m : method_context;
 	mutable anons_cache : (tanon * ttype) list;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
-	mutable rec_cache : Type.t list;
+	mutable rec_cache : (Type.t * ttype option ref) list;
 	array_impl : array_impl;
 	base_class : tclass;
 	base_type : tclass;
@@ -687,29 +687,29 @@ let set_curpos ctx p =
 	in
 	ctx.m.mcurpos <- (lookup ctx.cdebug_files p.pfile get_relative_path,Lexer.get_error_line p)
 
-let rec to_type ctx t =
+let rec to_type ?tref ctx t =
 	match t with
 	| TMono r ->
 		(match !r with
 		| None -> HDyn
-		| Some t -> to_type ctx t)
+		| Some t -> to_type ?tref ctx t)
 	| TType (td,tl) ->
-		if List.memq t ctx.rec_cache then
-			error "Unsupported recursive type" td.t_pos
-		else begin
-			ctx.rec_cache <- t :: ctx.rec_cache;
-			let t = (match td.t_path with
-			| [], "Null" ->
-				let t = to_type ctx (apply_params td.t_params tl td.t_type) in
-				if is_nullable t then t else HNull t
-			| _ ->
-				to_type ctx (apply_params td.t_params tl td.t_type)
-			) in
+		let t = (try
+			match !(List.assq t ctx.rec_cache) with
+			| None -> error "Unsupported recursive type" td.t_pos
+			| Some t -> t
+		with Not_found ->
+			let tref = ref None in
+			ctx.rec_cache <- (t,tref) :: ctx.rec_cache;
+			let t = to_type ~tref ctx (apply_params td.t_params tl td.t_type) in
 			ctx.rec_cache <- List.tl ctx.rec_cache;
 			t
-		end
+		) in
+		(match td.t_path with
+		| [], "Null" when is_nullable t -> HNull t
+		| _ -> t)
 	| TLazy f ->
-		to_type ctx (!f())
+		to_type ?tref ctx (!f())
 	| TFun (args, ret) ->
 		HFun (List.map (fun (_,o,t) -> to_type ctx (if o then ctx.com.basic.tnull t else t)) args, to_type ctx ret)
 	| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
@@ -730,6 +730,9 @@ let rec to_type ctx t =
 				vindex = PMap.empty;
 			} in
 			let t = HVirtual vp in
+			(match tref with
+			| None -> ()
+			| Some r -> r := Some t);
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc ->
 				match cf.cf_kind with
@@ -767,7 +770,7 @@ let rec to_type ctx t =
 	| TDynamic _ ->
 		HDyn
 	| TEnum (e,_) ->
-		enum_type ctx e
+		enum_type ~tref ctx e
 	| TInst ({ cl_path = ["hl";"types"],"NativeAbstract" },[TInst({ cl_kind = KExpr (EConst (String name),_) },_)]) ->
 		HAbstract (name, alloc_string ctx name)
 	| TInst (c,pl) ->
@@ -777,11 +780,11 @@ let rec to_type ctx t =
 				| [] -> HDyn
 				| t :: tl ->
 					match follow (apply_params c.cl_params pl t) with
-					| TInst ({cl_interface=false},_) as t -> to_type ctx t
+					| TInst ({cl_interface=false},_) as t -> to_type ?tref ctx t
 					| _ -> loop tl
 			in
 			loop tl
-		| _ -> class_type ctx c pl false)
+		| _ -> class_type ~tref ctx c pl false)
 	| TAbstract (a,pl) ->
 		if Meta.has Meta.CoreType a.a_meta then
 			(match a.a_path with
@@ -802,7 +805,7 @@ let rec to_type ctx t =
 			| ["hl";"types"], "NativeArray" -> HArray
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
-			to_type ctx (Abstract.get_underlying_type a pl)
+			to_type ?tref ctx (Abstract.get_underlying_type a pl)
 
 and resolve_class ctx c pl statics =
 	let not_supported() =
@@ -845,7 +848,7 @@ and real_type ctx e =
 	in
 	to_type ctx (loop e)
 
-and class_type ctx c pl statics =
+and class_type ?(tref=None) ctx c pl statics =
 	let c = if c.cl_extern then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then fst c.cl_path, "$" ^ snd c.cl_path else c.cl_path) in
 	try
@@ -880,6 +883,9 @@ and class_type ctx c pl statics =
 			pnfields = -1;
 		} in
 		let t = HObj p in
+		(match tref with
+		| None -> ()
+		| Some r -> r := Some t);
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
 		if c.cl_path = ([],"Array") then assert false;
 		if c == ctx.base_class then begin
@@ -946,7 +952,7 @@ and class_type ctx c pl statics =
 		if not statics && c != ctx.core_type && c != ctx.core_enum then p.pclassglobal <- Some (fst (class_global ctx (if statics then ctx.base_class else c)));
 		t
 
-and enum_type ctx e =
+and enum_type ?(tref=None) ctx e =
 	try
 		PMap.find e.e_path ctx.cached_types
 	with Not_found ->
@@ -958,6 +964,9 @@ and enum_type ctx e =
 			efields = [||];
 		} in
 		let t = HEnum et in
+		(match tref with
+		| None -> ()
+		| Some r -> r := Some t);
 		ctx.cached_types <- PMap.add e.e_path t ctx.cached_types;
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
