@@ -1618,7 +1618,7 @@ and eval_expr ctx e =
 			op ctx (OToInt (tmp, eval_expr ctx e));
 			tmp
 		| "$balloc", [e] ->
-			let f = alloc_std ctx "balloc" [HI32] HBytes in
+			let f = alloc_std ctx "alloc_bytes" [HI32] HBytes in
 			let tmp = alloc_tmp ctx HBytes in
 			op ctx (OCall1 (tmp, f, eval_to ctx e HI32));
 			tmp
@@ -1766,7 +1766,7 @@ and eval_expr ctx e =
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,et));
 			let size = eval_to ctx esize HI32 in
-			op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] HArray,rt,size));
+			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] HArray,rt,size));
 			a
 		| "$aget", [a; pos] ->
 			(*
@@ -1832,7 +1832,7 @@ and eval_expr ctx e =
 			op ctx (OType (rt,t));
 			let res = Hashtbl.fold (fun k v acc -> (k,v) :: acc) ctx.com.resources [] in
 			let size = reg_int ctx (List.length res) in
-			op ctx (OCall2 (arr,alloc_std ctx "aalloc" [HType;HI32] HArray,rt,size));
+			op ctx (OCall2 (arr,alloc_std ctx "alloc_array" [HType;HI32] HArray,rt,size));
 			let ro = alloc_tmp ctx t in
 			let rb = alloc_tmp ctx HBytes in
 			let ridx = reg_int ctx 0 in
@@ -2306,7 +2306,7 @@ and eval_expr ctx e =
 		| HI32 ->
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 4) in
-			op ctx (OCall1 (b,alloc_std ctx "balloc" [HI32] HBytes,size));
+			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
 			list_iteri (fun i e ->
 				let r = eval_to ctx e HI32 in
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
@@ -2315,7 +2315,7 @@ and eval_expr ctx e =
 		| HF64 ->
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 8) in
-			op ctx (OCall1 (b,alloc_std ctx "balloc" [HI32] HBytes,size));
+			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
 			list_iteri (fun i e ->
 				let r = eval_to ctx e HF64 in
 				op ctx (OSetF64 (b,reg_int ctx (i * 8),r));
@@ -2327,7 +2327,7 @@ and eval_expr ctx e =
 			let rt = alloc_tmp ctx HType in
 			op ctx (OType (rt,at));
 			let size = reg_int ctx (List.length el) in
-			op ctx (OCall2 (a,alloc_std ctx "aalloc" [HType;HI32] HArray,rt,size));
+			op ctx (OCall2 (a,alloc_std ctx "alloc_array" [HType;HI32] HArray,rt,size));
 			list_iteri (fun i e ->
 				let r = eval_to ctx e at in
 				op ctx (OSetArray (a,reg_int ctx i,r));
@@ -2943,7 +2943,7 @@ let generate_static_init ctx =
 					let ra = alloc_tmp ctx HArray in
 					let rt = alloc_tmp ctx HType in
 					op ctx (OType (rt, HType));
-					op ctx (OCall2 (ra, alloc_std ctx "aalloc" [HType;HI32] HArray, rt, reg_int ctx (List.length l)));
+					op ctx (OCall2 (ra, alloc_std ctx "alloc_array" [HType;HI32] HArray, rt, reg_int ctx (List.length l)));
 					iteri (fun i intf ->
 						op ctx (OType (rt, to_type ctx (TInst (intf,[]))));
 						op ctx (OSetArray (ra, reg_int ctx i, rt));
@@ -2994,7 +2994,7 @@ let generate_static_init ctx =
 
 				let avalues = alloc_tmp ctx HArray in
 				op ctx (OType (rt, HDyn));
-				op ctx (OCall2 (avalues, alloc_std ctx "aalloc" [HType;HI32] HArray, rt, reg_int ctx (!max_val + 1)));
+				op ctx (OCall2 (avalues, alloc_std ctx "alloc_array" [HType;HI32] HArray, rt, reg_int ctx (!max_val + 1)));
 
 				List.iter (fun n ->
 					let f = PMap.find n e.e_constrs in
@@ -4485,11 +4485,11 @@ let interp code =
 		let f = (match lib with
 		| "std" ->
 			(match name with
-			| "balloc" ->
+			| "alloc_bytes" ->
 				(function
 				| [VInt i] -> VBytes (String.create (int i))
 				| _ -> assert false)
-			| "aalloc" ->
+			| "alloc_array" ->
 				(function
 				| [VType t;VInt i] -> VArray (Array.create (int i) (default t),t)
 				| _ -> assert false)
