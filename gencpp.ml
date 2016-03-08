@@ -1673,7 +1673,7 @@ and tcppfuncloc =
 
 and tcpparrayloc =
    | ArrayTyped of tcppexpr * tcppexpr
-   | ArrayObject of tcppexpr * tcppexpr
+   | ArrayObject of tcppexpr * tcppexpr * tcpp
    | ArrayVirtual of tcppexpr * tcppexpr
    | ArrayImplements of tclass * tcppexpr * tcppexpr
    | ArrayDynamic of tcppexpr * tcppexpr
@@ -1697,6 +1697,7 @@ and tcpp_expr_expr =
    | CppVar of tcppvarloc
    | CppDynamicField of tcppexpr * string
    | CppFunction of tcppfuncloc * tcpp
+   | CppEnumIndex of tcppexpr
    | CppEnumField of tenum * tenum_field
    | CppCall of tcppfuncloc * tcppexpr list
    | CppFunctionAddress of tclass * tclass_field
@@ -1742,6 +1743,7 @@ let s_tcpp = function
    | CppVar _ -> "CppVar"
    | CppDynamicField _ -> "CppDynamicField"
    | CppFunction _ -> "CppFunction"
+   | CppEnumIndex _ -> "CppEnumIndex"
    | CppEnumField  _ -> "CppEnumField"
    | CppCall  _ -> "CppCall"
    | CppFunctionAddress  _ -> "CppFunctionAddress"
@@ -1868,6 +1870,11 @@ let rec tcpp_to_string = function
    | TCppPrivate -> "/* private */"
 ;;
 
+let cpp_is_dynamic_type = function
+   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull 
+      -> true
+   | _ -> false
+;;
 
 
 let rec cpp_type_of haxe_type =
@@ -2299,7 +2306,12 @@ let retype_expression ctx request_type function_args expression_tree =
                let obj = retype TCppDynamic obj in
                if fieldName="cca" && obj.cpptype=TCppString then
                   CppFunction( FuncInternal(obj,"cca","."), TCppScalar("Int")), TCppDynamic
-               else if (obj.cpptype=TCppGlobal) then
+               else if fieldName="__Index" then
+                  CppEnumIndex(obj), TCppScalar("Int")
+               else if is_internal_member fieldName then begin
+                  let cppType = cpp_type_of expr.etype in
+                  CppFunction( FuncInternal(obj,fieldName,"->"), cppType), cppType
+               end else if (obj.cpptype=TCppGlobal) then
                   CppDynamicField(obj, fieldName), TCppVariant
                else
                   CppDynamicField(obj, fieldName), TCppVariant
@@ -2334,6 +2346,9 @@ let retype_expression ctx request_type function_args expression_tree =
                    CppFunctionAddress(clazz,member), funcReturn
                 | _ -> error "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
                 )
+            |  CppEnumIndex(_) ->
+                  (* Not actually a TCall...*)
+                  retypedFunc.cppexpr, retypedFunc.cpptype
             |  CppFunction(func,returnType) ->
                   CppCall(func,retypedArgs), returnType
             |  CppEnumField(enum, field) ->
@@ -2404,9 +2419,9 @@ let retype_expression ctx request_type function_args expression_tree =
               | TCppScalarArray scalar ->
                  CppArray( ArrayTyped(retypedObj,retypedIdx) ), scalar
               | TCppObjectArray TCppDynamic ->
-                 CppArray( ArrayObject(retypedObj,retypedIdx) ), TCppDynamic
+                 CppArray( ArrayObject(retypedObj,retypedIdx,TCppDynamic) ), TCppDynamic
               | TCppObjectArray elem ->
-                 CppArray( ArrayObject(retypedObj,retypedIdx) ), TCppWrapped(elem)
+                 CppArray( ArrayObject(retypedObj,retypedIdx,elem) ), elem
               | TCppInst({cl_array_access = Some _ } as klass) ->
                  CppArray( ArrayImplements(klass, retypedObj,retypedIdx) ), cpp_type_of expr.etype
               | TCppDynamicArray ->
@@ -2721,6 +2736,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppVarDecl(var,init) ->
          out ( (cpp_var_type_of var) ^ " " ^ (cpp_var_name_of var) );
          (match init with Some init -> out " = "; gen init | _ -> () )
+      | CppEnumIndex(obj) ->
+         gen obj;
+         if cpp_is_dynamic_type obj.cpptype then
+            out ".StaticCast< ::hx::EnumBase >()";
+         out "->getIndex()"
+
       | CppFunction(func,_) ->
          (match func with
          | FuncThis(field) ->
@@ -2806,9 +2827,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out ("->__Field(" ^ (strq name)  ^ ",hx::paccDynamic)");
 
       | CppArray(arrayLoc) -> (match arrayLoc with
-         | ArrayTyped(arrayObj,index)
-         | ArrayObject(arrayObj,index) ->
+         | ArrayTyped(arrayObj,index) ->
+            gen arrayObj; out "["; gen index; out "]"
+
+         | ArrayObject(arrayObj,index,elem) ->
             gen arrayObj; out "["; gen index; out "]";
+            if not (cpp_is_dynamic_type elem) then
+               out (".StaticCast< " ^ tcpp_to_string elem ^ " >()")
 
          | ArrayVirtual(arrayObj,index) ->
             gen arrayObj; out "->__get("; gen index; out ")";
@@ -2827,7 +2852,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               gen_val_loc varLoc; out " = "; gen rvalue;
 
          | CppArrayRef arrayLoc -> (match arrayLoc with
-            | ArrayObject(arrayObj, index)
+            | ArrayObject(arrayObj, index, _)
             | ArrayTyped(arrayObj, index) ->
                gen arrayObj; out "["; gen index; out "] = "; gen rvalue
             | ArrayVirtual(arrayObj, index) ->
@@ -2850,9 +2875,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          if (preFlag==Postfix) then out op
 
       | CppModify(op,lvalue,rvalue) ->
-         gen_lvalue lvalue;
          out (string_of_op_eq op expr.cpppos);
-         gen rvalue
+         out "("; gen_lvalue lvalue; out ","; gen rvalue; out ")"
 
       | CppPosition(name,line,clazz,func) ->
          out ("hx::SourceInfo(" ^ strq name ^ "," ^ string_of_int(Int32.to_int line) ^ "," ^ strq clazz ^ "," ^ strq func ^ ")")
@@ -2940,10 +2964,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppEnumParameter(obj,field,index) ->
          let baseType = cpp_base_type_of (expr.cpptype) in
-         gen obj; out ( "->get" ^ baseType ^ "(" ^ (string_of_int index) ^ ")")
+         gen obj;
+         if cpp_is_dynamic_type obj.cpptype then
+            out ".StaticCast< ::hx::EnumBase >()";
+         out ( "->get" ^ baseType ^ "(" ^ (string_of_int index) ^ ")")
 
       | CppIntSwitch(condition, cases, defVal) ->
-         out "switch("; gen condition; out ")";
+         out "switch((int)("; gen condition; out "))";
          writer#begin_block;
          List.iter (fun (values,expr) ->
             out spacer; writer#write_i "";
@@ -3088,7 +3115,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppVarRef varLoc ->
            gen_val_loc varLoc
       | CppArrayRef arrayLoc -> (match arrayLoc with
-         | ArrayObject(arrayObj, index)
+         | ArrayObject(arrayObj, index, _)
          | ArrayTyped(arrayObj, index) ->
             gen arrayObj; out "["; gen index; out "]";
          | ArrayVirtual(arrayObj, index)
@@ -3113,30 +3140,17 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          gen obj; out ("->" ^ (cpp_member_name_of member) ^ "_get()" )
 
    and string_of_op_eq op pos = match op with
-       (*
-            | OpAdd -> "hx::AddEq"
-            | OpMult -> "hx::MultEq"
-            | OpDiv -> "hx::DivEq"
-            | OpSub -> "hx::SubEq"
-            | OpAnd -> "hx::AndEq"
-            | OpOr  -> "hx::OrEq"
-            | OpXor  -> "hx::XorEq"
-            | OpShl  -> "hx::ShlEq"
-            | OpShr  -> "hx::ShrEq"
-            | OpUShr  -> "hx::UShrEq"
-            | OpMod  -> "hx::ModEq"
-            *)
-      | OpAdd -> "+="
-      | OpMult -> "*="
-      | OpDiv -> "/="
-      | OpSub -> "-="
-      | OpAnd -> "&="
-      | OpOr -> "|="
-      | OpXor -> "^="
-      | OpShl -> "<<="
-      | OpShr -> ">>="
-      | OpUShr -> "<<<="
-      | OpMod -> "%="
+      | OpAdd -> "hx::AddEq"
+      | OpMult -> "hx::MultEq"
+      | OpDiv -> "hx::DivEq"
+      | OpSub -> "hx::SubEq"
+      | OpAnd -> "hx::AndEq"
+      | OpOr  -> "hx::OrEq"
+      | OpXor  -> "hx::XorEq"
+      | OpShl  -> "hx::ShlEq"
+      | OpShr  -> "hx::ShrEq"
+      | OpUShr  -> "hx::UShrEq"
+      | OpMod  -> "hx::ModEq"
       | _ -> error "Bad assign op" pos
    and string_of_op op pos = match op with
       | OpAdd -> "+"
@@ -4526,7 +4540,7 @@ let gen_member_def ctx class_def is_static is_interface field =
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
       | TFun (args,return_type), Method _  ->
-         output ( (if (not is_static) then "		virtual " else "		" ) ^ type_string return_type);
+         output ( (if (not is_static) then "		virtual " else "		" ) ^ (ctx_type_string ctx return_type) );
          output (" " ^ remap_name ^ "( " );
          output (gen_tfun_interface_arg_list args);
          output (if (not is_static) then ")=0;\n" else ");\n");
@@ -6133,7 +6147,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
                let return_type = ctx_type_string ctx return_type in
                output_h ( "		"  ^ return_type ^ " " ^ remap_name ^ "( " );
                output_h (gen_tfun_interface_arg_list args);
-               output_h (") { return mDelegate->" ^ remap_name^ "(");
+               let return = if return_type="void" then "" else "return " in
+               output_h (") { " ^ return ^ "mDelegate->" ^ remap_name^ "(");
                output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
                output_h ");}\n";
                if (reflective interface field) &&  not dynamic_interface_closures then
