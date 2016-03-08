@@ -85,12 +85,24 @@ class Std {
 			return (a : String) + b;
 		if( tb == hl.types.Type.get("") )
 			return a + (b : String);
-		switch( (cast ta.kind : Int) | ((cast tb.kind : Int) << 8) ) {
-		case 0x0303:
-			return (a:Int) + (b : Int);
-		case x:
-			throw "Can't add "+ta+" and "+tb+" ("+StringTools.hex(x)+")";
+		switch(ta.kind) {
+		case HI8, HI16, HI32:
+			var a : Int = a;
+			switch( tb.kind ) {
+			case HI8, HI16, HI32: return a + (b:Int);
+			case HF32, HF64: return a + (b:Float);
+			default:
+			}
+		case HF32, HF64:
+			var a : Float = a;
+			switch( tb.kind ) {
+			case HI8, HI16, HI32: return a + (b:Int);
+			case HF32, HF64: return a + (b:Float);
+			default:
+			}
+		default:
 		}
+		throw "Can't add "+a+"("+ta+") and "+b+"("+tb+")";
 		return null;
 	}
 

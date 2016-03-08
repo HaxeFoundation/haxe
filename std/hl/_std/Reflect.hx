@@ -63,8 +63,11 @@ class Reflect {
 		if( ft.kind != HFun )
 			throw "Invalid function " + func;
 		var need = ft.getArgsCount();
-		var isClosure = hl.types.Api.getClosureValue(func) != null;
-		if( o != null && !isClosure && count == need )
+		var cval = hl.types.Api.getClosureValue(func);
+		var isClosure = cval != null;
+		if( o == null )
+			o = cval;
+		else if( !isClosure && count == need )
 			o = null;
 		var nargs = o == null ? count : count + 1;
 		if( isClosure ) need++;
