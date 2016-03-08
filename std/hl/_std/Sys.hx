@@ -35,7 +35,7 @@ class Sys {
 	}
 
 	public static function args() : Array<String> {
-		return [for( a in sys_args() ) String.fromUCS2(a)];
+		return [for( a in sys_args() ) makePath(a)];
 	}
 
 	public static function stdin() : haxe.io.Input {
