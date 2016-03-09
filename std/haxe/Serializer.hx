@@ -453,20 +453,17 @@ class Serializer {
 					serialize(p);
 			}
 			#elseif cpp
+			var enumBase:cpp.EnumBase = v;
 			if( useEnumIndex ) {
 				buf.add(":");
-				buf.add(v.__Index());
+				buf.add(enumBase.getIndex());
 			} else
-				serializeString(v.__Tag());
+				serializeString(enumBase.getTag());
 			buf.add(":");
-			var pl : Array<Dynamic> = v.__EnumParams();
-			if( pl == null )
-				buf.add(0);
-			else {
-				buf.add(pl.length);
-				for( p in pl )
-					serialize(p);
-			}
+			var len = enumBase.getParamCount();
+			buf.add(len);
+			for( p in 0...len )
+				serialize( enumBase.getParamI(p));
 			#elseif php
 			if( useEnumIndex ) {
 				buf.add(":");
