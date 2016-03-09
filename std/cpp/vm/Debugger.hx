@@ -316,8 +316,9 @@ class Debugger
             (threadNumber, stepType, stepCount);
     }
 
-    public static function stepThreadLine(threadNumber : Int, stepType: Int) {
-      untyped __global__.__hxcpp_dbg_stepThreadLine(threadNumber, stepType);
+    public static function stepThreadLine(threadNumber : Int, stepType: Int,
+                                          stepCount: Int) {
+      untyped __global__.__hxcpp_dbg_stepThreadLine(threadNumber, stepType, stepCount);
       untyped __global__.__hxcpp_dbg_setPrint(true);
     }
 
