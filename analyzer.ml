@@ -1237,11 +1237,17 @@ module TexprTransformer = struct
 				close_node g bb;
 				let bb_sub_next = block_el bb_sub el in
 				scope();
-				let bb_next = create_node BKNormal bb_sub_next bb.bb_type bb.bb_pos in
-				set_syntax_edge g bb (SESubBlock(bb_sub,bb_next));
-				add_cfg_edge g bb_sub_next bb_next CFGGoto;
-				close_node g bb_sub_next;
-				bb_next;
+				if bb_sub_next != g.g_unreachable then begin
+					let bb_next = create_node BKNormal bb_sub_next bb.bb_type bb.bb_pos in
+					set_syntax_edge g bb (SESubBlock(bb_sub,bb_next));
+					add_cfg_edge g bb_sub_next bb_next CFGGoto;
+					close_node g bb_sub_next;
+					bb_next;
+				end else begin
+					set_syntax_edge g bb (SEMerge bb_sub);
+					close_node g bb_sub_next;
+					bb_sub_next
+				end
 			| TIf(e1,e2,None) ->
 				let bb,e1 = bind_to_temp bb false e1 in
 				let scope = increase_scope() in
