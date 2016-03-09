@@ -1371,7 +1371,12 @@ and get_access ctx e =
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), ({ cf_kind = Method m } as f)), TInst (c,_)
 		| FInstance (cdef,pl,({ cf_kind = Method m } as f)), TInst (c,_) when m <> MethDynamic && not (c.cl_interface || (is_overriden ctx c f && ethis.eexpr <> TConst(TSuper))) ->
-			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx cdef pl false) f)
+			(* cdef is the original definition, we want the last redefinition *)
+			let rec loop c =
+				if PMap.mem f.cf_name c.cl_fields then c else (match c.cl_super with None -> cdef | Some (c,_) -> loop c)
+			in
+			let last_def = loop c in
+			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx last_def pl false) f)
 		| (FInstance (cdef,pl,f) | FClosure (Some (cdef,pl), f)), _ ->
 			let cdef, pl = if cdef.cl_interface then (match follow ethis.etype with TInst (c,pl) -> c,pl | _ -> assert false) else cdef,pl in
 			object_access ctx ethis (class_type ctx cdef pl false) f
