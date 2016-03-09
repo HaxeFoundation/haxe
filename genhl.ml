@@ -5560,11 +5560,7 @@ let ostr o =
 	| OEndTrap b -> Printf.sprintf "endtrap %b" b
 	| ODump r -> Printf.sprintf "dump %d" r
 
-let dump code =
-	let lines = ref [] in
-	let pr s =
-		lines := s :: !lines
-	in
+let dump pr code =
 	let all_protos = Hashtbl.create 0 in
 	let tstr t =
 		(match t with
@@ -5629,9 +5625,7 @@ let dump code =
 		Array.iteri (fun i f ->
 			pr ("		  @" ^ string_of_int i ^ " " ^ str f.fid ^ " fun@" ^ string_of_int f.fmethod ^ (match f.fvirtual with None -> "" | Some p -> "[" ^ string_of_int p ^ "]"))
 		) p.pproto;
-	) protos;
-	String.concat "\n" (List.rev !lines)
-
+	) protos
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* HLC *)
@@ -6831,7 +6825,11 @@ let generate com =
 		debugfiles = DynArray.to_array ctx.cdebug_files.arr;
 	} in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
-	if Common.defined com Define.Dump then Std.output_file "dump/hlcode.txt" (dump code);
+	if Common.defined com Define.Dump then begin
+		let ch = open_out_bin "dump/hlcode.txt" in
+		dump (fun s -> output_string ch (s ^ "\n")) code;
+		close_out ch;
+	end;
 	PMap.iter (fun (s,p) fid ->
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map;
