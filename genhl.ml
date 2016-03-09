@@ -6246,9 +6246,9 @@ let write_c version file (code:code) =
 					sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
 				| HVirtual vp ->
 					let rt = rtype r in
-					let meth = sprintf "%s->value->t->obj->rt->methods[-%s->indexes[%d]-1]" (reg o) (reg o) fid in
+					let meth = sprintf "hl_vfields(%s)[%d]" (reg o) fid in
 					let meth = cast_fun meth (HDyn :: List.map rtype args) rt in
-					sline "if( %s->indexes[%d] < 0 ) %s%s(%s); else {" (reg o) fid (rassign r rt) meth (String.concat "," ((reg o ^ "->value") :: List.map reg args));
+					sline "if( hl_vfields(%s)[%d] ) %s%s(%s); else {" (reg o) fid (rassign r rt) meth (String.concat "," ((reg o ^ "->value") :: List.map reg args));
 					block();
 					if args <> [] then sexpr "vdynamic *args[] = {%s}" (String.concat "," (List.map (fun p ->
 						match rtype p with
@@ -6279,7 +6279,9 @@ let write_c version file (code:code) =
 			| HVirtual vp ->
 				let name, nid, t = vp.vfields.(fid) in
 				let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt (rtype v)) (reg v) in
-				sexpr "if( %s->indexes[%d] > 0 ) *(%s*)(%s->fields_data+%s->indexes[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) (reg obj) fid (ctype t) (reg v) dset
+				(match t with
+				| HFun _ -> expr dset
+				| _ -> sexpr "if( hl_vfields(%s)[%d] ) *(%s*)(hl_vfields(%s)[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) fid (ctype t) (reg v) dset)
 			| _ ->
 				assert false
 		in
@@ -6292,7 +6294,9 @@ let write_c version file (code:code) =
 			| HVirtual v ->
 				let name, nid, t = v.vfields.(fid) in
 				let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash nid) name (type_value_opt t) in
-				sexpr "%s%s->indexes[%d] > 0 ? (*(%s*)(%s->fields_data+%s->indexes[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) (reg obj) fid dget
+				(match t with
+				| HFun _ -> sexpr "%s%s" (rassign r t) dget
+				| _ -> sexpr "%shl_vfields(%s)[%d] ? (*(%s*)(hl_vfields(%s)[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) fid dget)
 			| _ ->
 				assert false
 		in
