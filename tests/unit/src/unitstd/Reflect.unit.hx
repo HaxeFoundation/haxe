@@ -48,10 +48,6 @@ Reflect.field(x, "c") == "foo";
 var c = new C2();
 Reflect.setProperty(c, "v", "bar");
 c.v == "bar";
-//Reflect.setProperty(c, "v2", "bar2");
-//c.v2 == "bar";
-Reflect.setProperty(c, "func2", function() return "x");
-Reflect.field(c, "func2")() == "x";
 Reflect.setProperty(c, "propAcc", "abc");
 #if !as3
 // not supported on AS3
