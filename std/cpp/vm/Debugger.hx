@@ -312,12 +312,14 @@ class Debugger
                                       stepType : Int,
                                       stepCount : Int = 1)
     {
+        untyped __global__.__hxcpp_dbg_setPrint(true);
         untyped __global__.__hxcpp_dbg_stepThread
             (threadNumber, stepType, stepCount);
     }
 
     public static function stepThreadLine(threadNumber : Int, stepType: Int,
                                           stepCount: Int) {
+      untyped __global__.__hxcpp_dbg_setPrint(false);
       untyped __global__.__hxcpp_dbg_stepThreadLine(threadNumber, stepType, stepCount);
       untyped __global__.__hxcpp_dbg_setPrint(true);
     }
