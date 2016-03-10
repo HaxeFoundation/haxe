@@ -738,6 +738,17 @@ module BasicBlock = struct
 		mutable bb_var_writes : tvar list;    (* List of assigned variables *)
 	}
 
+	let s_block_kind = function
+		| BKRoot -> "BKRoot"
+		| BKNormal -> "BKNormal"
+		| BKFunctionBegin -> "BKFunctionBegin"
+		| BKFunctionEnd -> "BKFunctionEnd"
+		| BKSub -> "BKSub"
+		| BKConditional -> "BKConditional"
+		| BKLoopHead -> "BKLoopHead"
+		| BKException -> "BKException"
+		| BKUnreachable -> "BKUnreachable"
+
 	let has_flag edge flag =
 		List.mem flag edge.cfg_flags
 
@@ -762,8 +773,9 @@ module BasicBlock = struct
 		} in
 		bb
 
-	let in_scope bb bb' =
-		List.mem (List.hd bb'.bb_scopes) bb.bb_scopes
+	let in_scope bb bb' = match bb'.bb_scopes with
+		| [] -> error (Printf.sprintf "Scope-less block (kind: %s)" (s_block_kind bb.bb_kind)) bb.bb_pos
+		| scope :: _ -> List.mem scope bb.bb_scopes
 end
 
 (*
