@@ -924,7 +924,7 @@ module Graph = struct
 		List.iter (fun edge ->
 			let rec loop bb =
 				if bb != g.g_unreachable && bb != edge.cfg_to && bb != edge.cfg_to.bb_dominator then begin
-					bb.bb_df <- edge.cfg_to :: bb.bb_df;
+					if edge.cfg_to != g.g_exit then bb.bb_df <- edge.cfg_to :: bb.bb_df;
 					if bb.bb_dominator != bb then loop bb.bb_dominator
 				end
 			in
@@ -2458,7 +2458,7 @@ module LocalDce = struct
 			Meta.has Meta.Used v.v_meta
 		in
 		let keep v =
-			is_used v || (not (Meta.has Meta.CompilerGenerated v.v_meta) && not ctx.config.local_dce) || is_ref_type v.v_type
+			is_used v || (not (Meta.has Meta.CompilerGenerated v.v_meta) && not ctx.config.local_dce) || is_ref_type v.v_type || v.v_capture
 		in
 		let rec use v =
 			if not (is_used v) then begin
