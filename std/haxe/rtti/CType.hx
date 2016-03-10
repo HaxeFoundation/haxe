@@ -276,7 +276,7 @@ class CTypeTools {
 				if (args.length == 0) {
 					"Void -> " +toString(ret);
 				} else {
-					args.map(functionArgumentName).join(" -> ");
+					args.map(functionArgumentName).join(" -> ")+" -> "+toString(ret);
 				}
 			case CDynamic(d):
 				if (d == null) {
@@ -297,7 +297,7 @@ class CTypeTools {
 	}
 
 	static function functionArgumentName(arg:FunctionArgument) {
-		return (arg.opt ? "?" : "") + arg.name + ":" + toString(arg.t) + (arg.value == null ? "" : " = " +arg.value);
+		return (arg.opt ? "?" : "") + (arg.name == "" ? "" : arg.name + ":") + toString(arg.t) + (arg.value == null ? "" : " = " +arg.value);
 	}
 
 	static function classField(cf:ClassField) {
