@@ -112,6 +112,10 @@ extern class Array<T> implements ArrayAccess<T> {
 		return ArrayImpl.filter(this,f);
 	}
 
+	@:runtime public inline function reduce<S>( f : S -> T -> S, first : S ) : S {
+		return ArrayImpl.reduce(this,f,first);
+	}
+
 	@:keep private inline function _get(idx:Int):T
 	{
 		return ArrayImpl._get(this, idx);

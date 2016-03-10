@@ -397,7 +397,7 @@ class RunCi {
 			getHaxelibPath("hxcpp");
 			infoMsg('hxcpp has already been installed.');
 		} catch(e:Dynamic) {
-			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+			haxelibInstallGit("nadako", "hxcpp", "array_reduce", true);
 			var oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
 			runCommand("haxe", ["compile.hxml"]);

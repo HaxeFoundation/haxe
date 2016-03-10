@@ -25,6 +25,7 @@ package python.lib;
 @:pythonImport("functools")
 extern class Functools {
 
-	public static function cmp_to_key<A>(f:A->A->Int):Dynamic;
+	static function cmp_to_key<A>(f:A->A->Int):Dynamic;
+	static function reduce<T,S>(f:S->T->S, a:Array<T>, ?initializer:S):S;
 
 }

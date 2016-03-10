@@ -117,6 +117,12 @@ class HxOverrides {
 		return -1;
 	}
 
+	static function reduce<T,S>( a : Array<T>, f : S -> T -> S, v : S ) : S {
+		for (el in a)
+			v = f(v, el);
+		return v;
+	}
+
 	static function remove<T>( a : Array<T>, obj : T ) {
 		var i = a.indexOf(obj);
 		if( i == -1 ) return false;

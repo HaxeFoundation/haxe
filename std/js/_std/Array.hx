@@ -48,6 +48,7 @@ extern class Array<T> {
 #if js_es5
 	function indexOf( x : T, ?fromIndex:Int ) : Int;
 	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
+	function reduce<S>( f : S -> T -> S, first : S ) : S;
 
 #else
 	inline function indexOf( x : T, ?fromIndex:Int ) : Int {
@@ -56,6 +57,10 @@ extern class Array<T> {
 
 	inline function lastIndexOf( x : T, ?fromIndex:Int ) : Int {
 		return @:privateAccess HxOverrides.lastIndexOf(this,x,(fromIndex!=null)?fromIndex:length-1);
+	}
+
+	inline function reduce<S>( f : S -> T -> S, first : S ) : S {
+		return @:privateAccess HxOverrides.reduce(this, f, first);
 	}
 #end
 
