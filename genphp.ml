@@ -782,10 +782,10 @@ and gen_member_access ctx isvar e s =
 		| EnumStatics _ ->
 			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| Statics sta ->
-		  let sep = match sta.cl_path with
-		  | ([], "") | ([], "\\") -> ""
-		  | _ -> "::" in
-		  let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
+			let sep = match sta.cl_path with
+			| ([], "") | ([], "\\") -> ""
+			| _ -> "::" in
+			let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
 			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else "") (s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
