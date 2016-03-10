@@ -777,6 +777,7 @@ module Graph = struct
 	type var_info = {
 		vi_var : tvar;                            (* The variable itself *)
 		vi_extra : tvar_extra;                    (* The original v_extra *)
+		vi_bb_declare : BasicBlock.t;             (* The block where this variable was declared *)
 		mutable vi_origin : tvar;                 (* The origin variable of this variable *)
 		mutable vi_writes : var_write;            (* A list of blocks that assign to this variable *)
 		mutable vi_value : texpr_lookup option;   (* The value of this variable, if known *)
@@ -795,10 +796,11 @@ module Graph = struct
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
 
-	let create_var_info g v =
+	let create_var_info g bb v =
 		let vi = {
 			vi_var = v;
 			vi_extra = v.v_extra;
+			vi_bb_declare = bb;
 			vi_origin = v;
 			vi_writes = [];
 			vi_value = None;
@@ -875,8 +877,8 @@ module Graph = struct
 
 	(* variables *)
 
-	let declare_var g v =
-		create_var_info g v
+	let declare_var g v bb =
+		create_var_info g bb v
 
 	let add_var_def g bb v =
 		if bb.bb_id > 0 then begin
@@ -970,7 +972,7 @@ module TexprTransformer = struct
 		let bb_root = create_node BKFunctionBegin bb tf.tf_expr.etype tf.tf_expr.epos in
 		let bb_exit = create_node BKFunctionEnd bb_root tf.tf_expr.etype tf.tf_expr.epos in
 		List.iter (fun (v,_) ->
-			declare_var g v;
+			declare_var g v bb_root;
 			add_var_def g bb_root v
 		) tf.tf_args;
 		add_function g tf t p bb_root;
@@ -1165,7 +1167,7 @@ module TexprTransformer = struct
 			let assign e =
 				if not !was_assigned then begin
 					was_assigned := true;
-					declare_var g v;
+					declare_var g v bb;
 					add_texpr g bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
 				end;
 				mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
@@ -1174,7 +1176,7 @@ module TexprTransformer = struct
 				block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid e.epos)
 			with Exit ->
 				let bb,e = value bb e in
-				declare_var g v;
+				declare_var g v bb;
 				add_var_def g bb v;
 				add_texpr g bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
 				bb
@@ -1210,7 +1212,7 @@ module TexprTransformer = struct
 		and block_element bb e = match e.eexpr with
 			(* variables *)
 			| TVar(v,None) ->
-				declare_var g v;
+				declare_var g v bb;
 				add_texpr g bb e;
 				bb
 			| TVar(v,Some e1) ->
@@ -1377,9 +1379,9 @@ module TexprTransformer = struct
 					set_syntax_edge g bb (SESubBlock(bb_try,bb_next))
 				else begin
 					let catches = List.map (fun (v,e) ->
-						declare_var ctx.graph v;
 						let scope = increase_scope() in
 						let bb_catch = create_node BKNormal bb_exc e.etype e.epos in
+						declare_var ctx.graph v bb_catch;
 						add_var_def g bb_catch v;
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
 						let bb_catch_next = block bb_catch e in
@@ -1763,7 +1765,7 @@ module Ssa = struct
 		let write_var v is_phi i =
 			update_reaching_def ctx v bb;
 			let v' = alloc_var (v.v_name) v.v_type in
-			declare_var ctx.graph v';
+			declare_var ctx.graph v' bb;
 			v'.v_meta <- v.v_meta;
 			v'.v_capture <- v.v_capture;
 			add_var_def ctx.graph bb v';
@@ -2293,7 +2295,7 @@ module CodeMotion = DataFlow(struct
 						v
 					end else begin
 						let v' = alloc_var ctx.temp_var_name v.v_type in
-						declare_var ctx.graph v';
+						declare_var ctx.graph v' bb_loop_pre;
 						v'.v_meta <- [Meta.CompilerGenerated,[],p];
 						v'
 					end in
