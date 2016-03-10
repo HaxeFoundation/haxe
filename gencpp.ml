@@ -1605,7 +1605,7 @@ type tcpp =
    | TCppObjC of tclass
    | TCppNativePointer of tclass
    | TCppVariant
-   | TCppPrivate
+   | TCppCode of tcpp
    | TCppInst of tclass
    | TCppClass
    | TCppGlobal
@@ -1719,7 +1719,7 @@ and tcpp_expr_expr =
    | CppIf of tcppexpr * tcppexpr * tcppexpr option
    | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
    | CppIntSwitch of tcppexpr * (Int32.t list * tcppexpr) list * tcppexpr option
-   | CppSwitch of tcppexpr * (tcppexpr list * tcppexpr) list * tcppexpr option
+   | CppSwitch of tcppexpr * tcpp * (tcppexpr list * tcppexpr) list * tcppexpr option
    | CppTry of tcppexpr * (tvar * tcppexpr) list
    | CppBreak
    | CppContinue
@@ -1892,7 +1892,7 @@ let rec tcpp_to_string = function
    | TCppClass -> "hx::Class";
    | TCppGlobal -> "";
    | TCppNull -> "Dynamic";
-   | TCppPrivate -> "Private"
+   | TCppCode _ -> "Code"
 ;;
 
 let cpp_is_dynamic_type = function
@@ -1902,32 +1902,10 @@ let cpp_is_dynamic_type = function
 ;;
 
 
+
 let rec cpp_type_of haxe_type =
-
-
-
-   (match follow haxe_type with
+   (match haxe_type with
    | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of t)
-
-   | TAbstract ({ a_path = ([],"Void") },[]) -> TCppVoid
-   | TAbstract ({ a_path = ([],"Bool") },[]) -> TCppScalar("Bool")
-   | TAbstract ({ a_path = ([],"Float") },[]) -> TCppScalar("Float")
-   | TAbstract ({ a_path = ([],"Int") },[]) -> TCppScalar("Int")
-   | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> TCppObject
-   | TAbstract( { a_path = ([], "Class") }, _  ) -> TCppClass
-   | TAbstract( { a_path = ([], "Enum") }, _  ) -> TCppClass
-   | TAbstract( { a_path = (["cpp"], "Char") }, _  ) -> TCppScalar("char")
-   | TAbstract( { a_path = (["cpp"], "Float32") }, _  ) -> TCppScalar("float")
-   | TAbstract( { a_path = (["cpp"], "Float64") }, _  ) -> TCppScalar("double")
-   | TAbstract( { a_path = (["cpp"], "Int8") }, _  ) -> TCppScalar("signed char")
-   | TAbstract( { a_path = (["cpp"], "Int16") }, _  ) -> TCppScalar("short")
-   | TAbstract( { a_path = (["cpp"], "Int32") }, _  ) -> TCppScalar("int")
-   | TAbstract( { a_path = (["cpp"], "Int64") }, _  ) -> TCppScalar("cpp::Int64")
-   | TAbstract( { a_path = (["cpp"], "UInt8") }, _  ) -> TCppScalar("unsigned char")
-   | TAbstract( { a_path = (["cpp"], "UInt16") }, _  ) -> TCppScalar("unsigned short")
-   | TAbstract( { a_path = (["cpp"], "UInt32") }, _  ) -> TCppScalar("unsigned int")
-   | TAbstract( { a_path = (["cpp"], "UInt64") }, _  ) -> TCppScalar("cpp::UInt64")
-   | TInst    ( { cl_path = ([], "String") }, _  ) -> TCppString
 
    | TEnum (enum,params) ->  TCppEnum(enum)
 
@@ -1940,45 +1918,97 @@ let rec cpp_type_of haxe_type =
    | TInst (klass,params) ->
       cpp_instance_type klass params
 
-   | TType (t, params) ->
-         print_endline (" TType " ^ (join_class_path t.t_path ".") ^ "->" ^ (tcpp_to_string (cpp_type_of t.t_type)));
-         cpp_type_of t.t_type
-         (*
-         print_endline ("Unfollowed TType " ^ join_class_path t.t_path "." ^ " x " ^
-            (string_of_int (List.length params) ) );
-            assert false;
-         *)
+   | TAbstract (abs,pl) when abs.a_impl <> None ->
+       cpp_type_of (Abstract.get_underlying_type abs pl)
+
+   | TAbstract (a,params) ->
+       cpp_type_from_path a.a_path params (fun () -> cpp_type_of (follow haxe_type) )
+
+   | TType (t,params) ->
+       cpp_type_from_path t.t_path params (fun () -> cpp_type_of (follow haxe_type) )
 
    | TFun _ -> TCppObject
    | TAnon _ -> TCppObject
    | TDynamic _ -> TCppDynamic
    | TLazy func -> cpp_type_of ((!func)())
-   | TAbstract (abs,pl) when abs.a_impl <> None ->
-       cpp_type_of (Abstract.get_underlying_type abs pl)
-   | TAbstract (abs,pl) ->
-       print_endline ("Unhandled abstract " ^ (join_class_path abs.a_path ".") );
-       (* ??? *)
-       TCppVoid
    )
+   and  cpp_type_from_path path params default =
+      match path,params with
+      | ([],"Void"),_ -> TCppVoid
+      | ([],"Bool"),_ -> TCppScalar("Bool")
+      | ([],"Float"),_ -> TCppScalar("Float")
+      | ([],"Int"),_ -> TCppScalar("Int")
+      | ([], "EnumValue"),_ -> TCppObject
+      | ([], "Class"),_ -> TCppClass
+      | ([], "Enum"),_  -> TCppClass
+      | (["cpp"], "Char"),_ -> TCppScalar("char")
+      | (["cpp"], "Float32"),_ -> TCppScalar("float")
+      | (["cpp"], "Float64"),_ -> TCppScalar("double")
+      | (["cpp"], "Int8"),_ -> TCppScalar("signed char")
+      | (["cpp"], "Int16"),_ -> TCppScalar("short")
+      | (["cpp"], "Int32"),_ -> TCppScalar("int")
+      | (["cpp"], "Int64"),_ -> TCppScalar("cpp::Int64")
+      | (["cpp"], "UInt8"),_ -> TCppScalar("unsigned char")
+      | (["cpp"], "UInt16"),_ -> TCppScalar("unsigned short")
+      | (["cpp"], "UInt32"),_ -> TCppScalar("unsigned int")
+      | (["cpp"], "UInt64"),_ -> TCppScalar("cpp::UInt64")
+      |  (["haxe";"io"],"Unsigned_char__"),_ -> TCppScalar("unsigned char")
 
+      | ([],"String"), [] ->
+         TCppString
+
+      (* Things with type parameters hxcpp knows about ... *)
+      | (["cpp"],"FastIterator"), [p] ->
+            TCppFastIterator(cpp_type_of p)
+      | (["cpp"],"Pointer"), [p] ->
+            TCppPointer("Pointer", cpp_type_of p)
+      | (["cpp"],"ConstPointer"), [p] ->
+            TCppPointer("ConstPointer", cpp_type_of p)
+      | (["cpp"],"RawPointer"), [p] ->
+            TCppRawPointer("", cpp_type_of p)
+      | (["cpp"],"ConstRawPointer"), [p] ->
+            TCppRawPointer("const", cpp_type_of p)
+      | (["cpp"],"Function"), [function_type; abi] ->
+            cpp_function_type_of function_type abi;
+
+      | ([],"Array"), [p] ->
+         let arrayOf = cpp_type_of p in
+         (match arrayOf with
+            | TCppVoid (* ? *)
+            | TCppDynamic ->
+              TCppDynamicArray
+
+            | TCppObject
+            | TCppInst _
+            | TCppClass
+            | TCppDynamicArray
+            | TCppObjectArray _
+            | TCppScalarArray _
+               -> TCppObjectArray(arrayOf)
+            | _ ->
+              TCppScalarArray(arrayOf)
+         )
+
+      | ([],"Null"), [p] ->
+            cpp_type_of_null p
+
+      | _ -> default ()
 
    and cpp_type_of_null p =
      let baseType = cpp_type_of p in
      if (type_has_meta_key p Meta.NotNull) || (is_cpp_scalar baseType) then
-        TCppDynamic
+        TCppObject
      else
         baseType
 
-
-  (* Optional types are Dynamic if they norally could not be null *)
+   (* Optional types are Dynamic if they norally could not be null *)
    and cpp_fun_arg_type_of tvar opt =
       match opt with
       | Some _ -> cpp_type_of_null tvar.t_type
       | _ -> cpp_type_of tvar.t_type
 
 
-
-  and cpp_function_type_of  function_type abi =
+   and cpp_function_type_of  function_type abi =
       let abi = (match follow abi with
                  | TInst (klass1,_) -> get_meta_string klass1.cl_meta Meta.Abi
                  | _ -> assert false )
@@ -1997,64 +2027,16 @@ let rec cpp_type_of haxe_type =
           TCppFunction([TCppVoid], TCppVoid, abi)
 
    and cpp_instance_type klass params =
-      (match klass.cl_path, params with
-      (* Hacked name *)
-      |  (["haxe";"io"],"Unsigned_char__"),_ -> TCppScalar("unsigned char")
-
-      (* Things with type parameters hxcpp knows about ... *)
-      | (["cpp"],"FastIterator"), p::[] ->
-            TCppFastIterator(cpp_type_of p)
-      | (["cpp"],"Pointer"), p::[] ->
-            TCppPointer("Pointer", cpp_type_of p)
-      | (["cpp"],"ConstPointer"), p::[] ->
-            TCppPointer("ConstPointer", cpp_type_of p)
-      | (["cpp"],"RawPointer"), p::[] ->
-            TCppRawPointer("", cpp_type_of p)
-      | (["cpp"],"ConstRawPointer"), p::[] ->
-            TCppRawPointer("const", cpp_type_of p)
-      | (["cpp"],"Function"), [function_type; abi] ->
-            cpp_function_type_of function_type abi;
-
-      | ([],"Array"), p::[] ->
-         let arrayOf = cpp_type_of p in
-         (match arrayOf with
-            | TCppVoid (* ? *)
-            | TCppDynamic ->
-              TCppDynamicArray
-
-            | TCppObject
-            | TCppInst _
-            | TCppClass
-            | TCppDynamicArray
-            | TCppObjectArray _
-            | TCppScalarArray _
-               -> TCppObjectArray(arrayOf)
-            | _ ->
-              TCppScalarArray(arrayOf)
-         )
-
-      | ([],"Null"), p::[] ->
-            cpp_type_of_null p
-
-      | ([],"String"), [] ->
-         TCppString
-
-      (* Objective-C class *)
-      | path,_ when is_objc_type (TInst(klass,[])) ->
+      cpp_type_from_path klass.cl_path params (fun () ->
+         if is_objc_type (TInst(klass,[])) then
             TCppObjC(klass)
-
-      (* Native interface - use pointer *)
-      | _,_ when klass.cl_interface && is_native_gen_class klass ->
+         else if klass.cl_interface && is_native_gen_class klass then
             TCppNativePointer(klass)
-
-      (* User-defined extern - or pointer? *)
-      | path when klass.cl_extern && (not (is_internal_class klass.cl_path) )->
+         else if klass.cl_extern && (not (is_internal_class klass.cl_path) ) then
             TCppInst(klass)
-
-      (* Normal class *)
-      | _ ->
+         else
             TCppInst(klass)
-      )
+       )
 ;;
 
 
@@ -2105,7 +2087,7 @@ let rec cpp_object_name = function
    | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
    | TCppGlobal -> "";
    | TCppNull -> "Dynamic";
-   | TCppPrivate -> "/* private */"
+   | TCppCode -> "/* code */"
 ;;
 *)
 
@@ -2134,7 +2116,7 @@ let cpp_variant_type_of t = match t with
    | TCppWrapped _
    | TCppObjC _
    | TCppInst _
-   | TCppPrivate
+   | TCppCode _
    | TCppClass
    | TCppGlobal
    | TCppNull
@@ -2393,11 +2375,11 @@ let retype_expression ctx request_type function_args expression_tree =
             let  cppExpr = match arg_list with
             | [{ eexpr = TConst (TString code) }] -> CppCode(code, [])
             | ({ eexpr = TConst (TString code) }) :: remaining ->
-                  let retypedArgs = List.map (fun arg -> retype (cpp_type_of arg.etype) arg) remaining in
+                  let retypedArgs = List.map (fun arg -> retype (TCppCode(cpp_type_of arg.etype)) arg) remaining in
                   CppCode(code, retypedArgs)
             | _ -> error "__cpp__'s first argument must be a string" expr.epos;
             in
-            cppExpr, TCppPrivate
+            cppExpr, TCppCode(cpp_type_of expr.etype)
 
          | TCall( func, args ) ->
             let retypedFunc = retype TCppDynamic func in
@@ -2606,8 +2588,8 @@ let retype_expression ctx request_type function_args expression_tree =
             if return_type<>TCppVoid then
                error "Value from a switch not handled" expr.epos;
 
-            let condition = retype (cpp_type_of condition.etype) condition in
-            let conditionType = condition.cpptype in
+            let conditionType = cpp_type_of condition.etype in
+            let condition = retype conditionType condition in
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             (try 
                (match conditionType with TCppScalar("Int") | TCppScalar("Bool") -> () | _ -> raise Not_found );
@@ -2620,7 +2602,7 @@ let retype_expression ctx request_type function_args expression_tree =
                (* do something better maybe ... *)
                let cases = List.map (fun (el,e2) ->
                   (List.map (retype conditionType) el), (retype TCppVoid (mk_block e2)) ) cases in
-               CppSwitch(condition, cases, cppDef), TCppVoid
+               CppSwitch(condition, conditionType, cases, cppDef), TCppVoid
             )
 
          | TTry (try_block,catches) ->
@@ -2643,6 +2625,7 @@ let retype_expression ctx request_type function_args expression_tree =
             let baseCpp = retype (return_type) base in
             (match return_type with
             | TCppInst(k) -> CppCast(baseCpp,return_type), return_type
+            | TCppCode(t) -> CppCast(baseCpp, t),  t
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
             | _ -> baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *)
             )
@@ -2928,10 +2911,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppArray(arrayLoc) -> (match arrayLoc with
          | ArrayTyped(arrayObj,index) ->
-            gen arrayObj; out "["; gen index; out "]"
+            gen arrayObj; out "->__get("; gen index; out ")"
 
          | ArrayObject(arrayObj,index,elem) ->
-            gen arrayObj; out "["; gen index; out "]";
+            gen arrayObj; out "->__get("; gen index; out ")";
             if not (cpp_is_dynamic_type elem) then
                out (".StaticCast< " ^ tcpp_to_string elem ^ " >()")
 
@@ -3085,10 +3068,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | Some expr -> output_i "default:"; gen expr; | _ -> ()  );
          out spacer;
          writer#end_block;
-      | CppSwitch(condition, cases, optional_default) ->
+      | CppSwitch(condition, conditionType, cases, optional_default) ->
          let tmp_name = "_hx_switch_" ^ (string_of_int !tempId) in
          incr tempId;
-         out ( (tcpp_to_string condition.cpptype) ^ " " ^ tmp_name ^ " = " );
+         out ( (tcpp_to_string conditionType) ^ " " ^ tmp_name ^ " = " );
          gen condition;
          out ";\n";
          let else_str = ref "" in
@@ -3279,7 +3262,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | OpGte -> ">="
       | OpLt -> "<"
       | OpLte -> "<="
-      | OpAnd -> "+"
+      | OpAnd -> "&"
       | OpOr -> "|"
       | OpXor -> "^"
       | OpBoolAnd -> "&&"
