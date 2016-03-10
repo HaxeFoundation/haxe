@@ -2346,9 +2346,16 @@ let retype_expression ctx request_type function_args expression_tree =
             | FClosure (None,field)
             | FAnon field ->
                let obj = retype TCppDynamic obj in
+               let fieldName = field.cf_name in
                if obj.cpptype=TCppGlobal then
-                  CppGlobal(field.cf_name), cpp_type_of expr.etype
-               else
+                  CppGlobal(fieldName), cpp_type_of expr.etype
+               else if is_internal_member fieldName then begin
+                  let cppType = cpp_type_of expr.etype in
+                  if obj.cpptype=TCppString then
+                     CppFunction( FuncInternal(obj,fieldName,"."), cppType), cppType
+                  else
+                     CppFunction( FuncInternal(obj,fieldName,"->"), cppType), cppType
+               end else
                   CppDynamicField(obj, field.cf_name), TCppVariant
 
             | FDynamic fieldName ->
@@ -2369,7 +2376,13 @@ let retype_expression ctx request_type function_args expression_tree =
                      CppFunction( FuncInternal(obj,fieldName,"->"), cppType), cppType
                end else if (obj.cpptype=TCppGlobal) then
                   CppGlobal(fieldName), cpp_type_of expr.etype
-               else
+               else if (obj.cpptype=TCppClass) then begin
+                  match obj.cppexpr with
+                  | CppClassOf(path) -> 
+                     CppGlobal ( (join_class_path_remap path "::" ) ^ "_obj::" ^ fieldName ), cpp_type_of expr.etype
+                  | _ ->
+                     CppVar( VarInternal(obj,"->",fieldName)), cpp_type_of expr.etype
+               end else
                   CppDynamicField(obj, fieldName), TCppVariant
 
             | FEnum (enum, enum_field) ->
@@ -3338,12 +3351,8 @@ let gen_expression_tree ctx retval function_args expression_tree set_var tail_co
  let output_i = writer#write_i in
  let output = ctx.ctx_output in
 
- output ("\n#if " ^ (if ctx.ctx_cppast then "1" else "0") ^ " //  { cppast \n");
-
- let injection = mk_injection ctx.ctx_dump_src_pos set_var tail_code in
- gen_cpp_ast_expression_tree ctx "?" "*" function_args injection (mk_block expression_tree);
-
- output "#else // cppast } { hxast\n";
+(* let injection = mk_injection ctx.ctx_dump_src_pos set_var tail_code in
+ gen_cpp_ast_expression_tree ctx "?" "*" function_args injection (mk_block expression_tree); *)
 
  let rec define_local_function_ctx func_name func_def =
    let remap_this = function | "this" -> "__this" | other -> other in
@@ -4369,7 +4378,6 @@ let gen_expression_tree ctx retval function_args expression_tree set_var tail_co
  end;
  gen_expression retval expression_tree;
  output tail_code;
- output ("\n#endif // hxast }\n");
 ;;
 
 
@@ -4511,7 +4519,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          output (if real_void then "void" else return_type );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
          output (gen_arg_list ctx function_def.tf_args "__o_");
-         output ")\n";
+         output ")";
          ctx.ctx_real_this_ptr <- true;
          ctx.ctx_real_void <- real_void;
          ctx.ctx_dynamic_this_ptr <- false;
@@ -4520,6 +4528,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          if ctx.ctx_cppast then begin
             gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code
          end else begin
+            output "\n";
             if (has_default_values function_def.tf_args) then begin
                ctx.ctx_writer#begin_block;
                generate_default_values ctx function_def.tf_args "__o_";
