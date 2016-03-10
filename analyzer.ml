@@ -1702,22 +1702,26 @@ module Ssa = struct
 	let insert_phi ctx =
 		DynArray.iter (fun vi ->
 			let v = vi.vi_var in
-			let done_list = ref IntMap.empty in
-			let w = ref vi.vi_writes in
-			while !w <> [] do
-				let x = List.hd !w in
-				w := List.tl !w;
-				List.iter (fun y ->
-					if not (IntMap.mem y.bb_id !done_list) then begin
-						done_list := IntMap.add y.bb_id true !done_list;
-						if in_scope y vi.vi_bb_declare then begin
-							add_phi ctx.graph y v;
-							if not (List.memq y vi.vi_writes) then
-								w := y :: !w
+			if vi.vi_bb_declare == ctx.graph.g_unreachable then
+				()
+			else begin
+				let done_list = ref IntMap.empty in
+				let w = ref vi.vi_writes in
+				while !w <> [] do
+					let x = List.hd !w in
+					w := List.tl !w;
+					List.iter (fun y ->
+						if not (IntMap.mem y.bb_id !done_list) then begin
+							done_list := IntMap.add y.bb_id true !done_list;
+							if in_scope y vi.vi_bb_declare then begin
+								add_phi ctx.graph y v;
+								if not (List.memq y vi.vi_writes) then
+									w := y :: !w
+							end
 						end
-					end
-				) x.bb_df;
-			done
+					) x.bb_df;
+				done
+			end
 		) ctx.graph.g_var_infos
 
 	let set_reaching_def g v vo =
