@@ -38,15 +38,13 @@ package cs.internal;
 			return new haxe.lang.Null<T>(val, true);
 		}
 
-		public static implicit operator T(haxe.lang.Null<T> obj) {
-			return obj.@value;
-		}
-
 		public static implicit operator Null<T>(__NoValue__ noValue) {
 			return new haxe.lang.Null<T>(default(T), false);
 		}
 
-		public class __NoValue__ { }
+		public sealed class __NoValue__ {
+			private __NoValue__() {}
+		}
 
 ')
 #if core_api_serialize
