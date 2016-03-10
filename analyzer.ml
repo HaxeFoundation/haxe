@@ -761,6 +761,9 @@ module BasicBlock = struct
 			bb_scopes = scopes;
 		} in
 		bb
+
+	let in_scope bb bb' =
+		List.mem (List.hd bb'.bb_scopes) bb.bb_scopes
 end
 
 (*
@@ -1694,10 +1697,12 @@ module Ssa = struct
 				w := List.tl !w;
 				List.iter (fun y ->
 					if not (IntMap.mem y.bb_id !done_list) then begin
-						add_phi ctx.graph y v;
 						done_list := IntMap.add y.bb_id true !done_list;
-						if not (List.memq y vi.vi_writes) then
-							w := y :: !w
+						if in_scope y vi.vi_bb_declare then begin
+							add_phi ctx.graph y v;
+							if not (List.memq y vi.vi_writes) then
+								w := y :: !w
+						end
 					end
 				) x.bb_df;
 			done
@@ -2156,12 +2161,6 @@ module CopyPropagation = DataFlow(struct
 		lattice := IntMap.empty
 
 	let commit ctx =
-		(* We don't care about the scope on JS and AS3 because they hoist var declarations. *)
-		let in_scope bb bb' = match ctx.com.platform with
-(* 			| Js -> true
-			| Flash when Common.defined ctx.com Define.As3 -> true *)
-			| _ -> List.mem (List.hd bb'.bb_scopes) bb.bb_scopes
-		in
 		let rec commit bb e = match e.eexpr with
 			| TLocal v when not v.v_capture ->
 				begin try
