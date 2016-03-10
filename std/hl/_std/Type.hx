@@ -159,7 +159,7 @@ class Type {
 		case HFun:
 			return TFunction;
 		case HVirtual:
-			var v = hl.types.Api.unvirtual(v);
+			var v = hl.types.Api.getVirtualValue(v);
 			if( v == null )
 				return TObject;
 			return typeof(v);

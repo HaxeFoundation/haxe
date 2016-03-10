@@ -72,11 +72,11 @@ abstract TypeKind(Int) {
 		return null;
 	}
 
-	@:hlNative("std","oalloc") public function allocObject() : Dynamic {
+	@:hlNative("std","alloc_obj") public function allocObject() : Dynamic {
 		return null;
 	}
 
-	@:hlNative("std", "ealloc") public function allocEnum( index : Int, args : NativeArray<Dynamic> ) : Dynamic {
+	@:hlNative("std", "alloc_enum") public function allocEnum( index : Int, args : NativeArray<Dynamic> ) : Dynamic {
 		return null;
 	}
 

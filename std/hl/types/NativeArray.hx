@@ -47,11 +47,11 @@ package hl.types;
 		return n;
 	}
 
-	@:hlNative("std","atype") public function getType() : Type {
+	@:hlNative("std","array_type") public function getType() : Type {
 		return null;
 	}
 
- 	@:hlNative("std","ablit") public function blit( pos : Int, src : NativeArray<T>, srcPos : Int, srcLen : Int ) : Void {
+ 	@:hlNative("std","array_blit") public function blit( pos : Int, src : NativeArray<T>, srcPos : Int, srcLen : Int ) : Void {
 	}
 
 }

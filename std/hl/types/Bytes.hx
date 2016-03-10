@@ -3,11 +3,10 @@ package hl.types;
 @:coreType abstract Bytes {
 
 	@:extern public inline function new( v : Int ) {
-		this = untyped $balloc(v);
+		this = alloc(v);
 	}
 
-	@:extern public inline function blit( pos : Int, src : Bytes, srcPos : Int, len : Int ) {
-		untyped $bblit(this, pos, src, srcPos, len);
+	@:hlNative("std","bytes_blit") public function blit( pos : Int, src : Bytes, srcPos : Int, len : Int ) : Void {
 	}
 
 	@:extern @:arrayAccess public inline function getUI8( pos : Int ) : Int {
@@ -52,6 +51,11 @@ package hl.types;
 		untyped $bsetf64(this, pos, value);
 	}
 
+	@:hlNative("std","alloc_bytes")
+	static function alloc( size : Int ) : Bytes {
+		return null;
+	}
+	
 	@:hlNative("std","parse_int")
 	public function parseInt( pos : Int, size : Int ) : Null<Int> {
 		return null;
