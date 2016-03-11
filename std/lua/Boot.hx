@@ -291,7 +291,9 @@ class Boot {
 	}
 
 	public static function __init__(){
-		// static to instance method wrapper
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_static_to_instance.lua");
+		// anonymous to instance method wrapper
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_function_to_instance_function.lua");
+		// static to instance class wrapper
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_static_to_instance_function.lua");
 	}
 }
