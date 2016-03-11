@@ -7,10 +7,11 @@ class BaseType {
 	public var __implementedBy__ : NativeArray<Type>;
 	public function check( v : Dynamic ) {
 		var t = Type.getDynamic(v);
-		if( t.safeCast(__type__) )
-			return true;
-		if( __implementedBy__ == null )
+		if( __implementedBy__ == null ) {
+			if( t.safeCast(__type__) )
+				return true;		
 			return false;
+		}
 		for( i in __implementedBy__ )
 			if( t.safeCast(i) )
 				return true;

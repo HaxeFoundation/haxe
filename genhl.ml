@@ -734,12 +734,6 @@ let rec to_type ?tref ctx t =
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc ->
 				match cf.cf_kind with
-				| Var { v_read = AccNo } | Var { v_write = AccNo } ->
-					(*
-						if there's read-only/write-only fields, it will allow variance, so let's
-						handle the field access as fully Dynamic
-					*)
-					acc
 				| Var _ when has_meta Meta.Optional cf.cf_meta ->
 					(*
 						if it's optional it might not be present, handle the field access as fully Dynamic
@@ -2934,9 +2928,8 @@ let generate_static_init ctx =
 					List.iter check ctx.com.types;
 					!classes
 				in
-				(match gather_implements() with
-				| [] -> ()
-				| l ->
+				if c.cl_interface then begin
+					let l = gather_implements() in
 					let ra = alloc_tmp ctx HArray in
 					let rt = alloc_tmp ctx HType in
 					op ctx (OType (rt, HType));
@@ -2945,8 +2938,8 @@ let generate_static_init ctx =
 						op ctx (OType (rt, to_type ctx (TInst (intf,[]))));
 						op ctx (OSetArray (ra, reg_int ctx i, rt));
 					) l;
-					op ctx (OSetField (rc,index "__implementedBy__",ra)));
-
+					op ctx (OSetField (rc,index "__implementedBy__",ra));
+				end;
 
 				(* register static funs *)
 
@@ -3250,7 +3243,7 @@ let check code =
 				can_jump delta
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				(match rtype a, rtype b with
-				| HObj _, HObj _ -> ()
+				| (HObj _ | HVirtual _), (HObj _ | HVirtual _) -> ()
 				| ta, tb when safe_cast tb ta -> ()
 				| _ -> reg a (rtype b));
 				can_jump delta
