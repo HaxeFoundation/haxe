@@ -52,6 +52,12 @@ type object_store = {
 	mutable os_fields : object_store list;
 }
 
+let debug_expression expression  =
+    " --[[ " ^ Type.s_expr_kind expression  ^ " --]] "
+
+let debug_type t  =
+    " --[[ " ^ Type.s_type_kind t  ^ " --]] ";;
+
 let get_exposed ctx path meta = try
 		let (_, args, pos) = Meta.get Meta.Expose meta in
 		(match args with
@@ -1049,6 +1055,12 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
+and is_function_type ctx t =
+    match t.v_type with
+    | TFun _ -> true
+    | TMono r -> (match !r with | Some (TFun _) -> true | _ | None -> false)
+    | _ -> false;
+
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
     | Ast.OpAssign, TField(e3, FInstance(_,_,_) ), TFunction f ->
@@ -1079,14 +1091,20 @@ and gen_tbinop ctx op e1 e2 =
     | Ast.OpAssign, _, _ ->
 	    let iife_assign = ctx.iife_assign in
 	    if iife_assign then spr ctx "(function() ";
-	    (match e2.eexpr with
-	    | TBinop(OpAssign as op, e3, e4) ->
+	    (match e1.eexpr, e2.eexpr with
+	    | _, TBinop(OpAssign as op, e3, e4) ->
 		gen_tbinop ctx op e3 e4;
 		newline ctx;
 		gen_value ctx e1;
 		spr ctx " = ";
 		gen_value ctx e3;
-	    | _ ->
+	    | TField(e3, FInstance _ ), TLocal t  when (is_function_type ctx t)   ->
+		gen_value ctx e1;
+		print ctx " %s " (Ast.s_binop op);
+		spr ctx "_hx_functionToInstanceFunction(";
+		gen_value ctx e2;
+		spr ctx ")";
+	    | _,_ ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2);
@@ -1709,3 +1727,4 @@ let generate com =
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch;
 	t()
+
