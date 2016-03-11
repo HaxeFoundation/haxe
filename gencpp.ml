@@ -1924,8 +1924,9 @@ let rec cpp_type_of haxe_type =
    | TAbstract (a,params) ->
        cpp_type_from_path a.a_path params (fun () -> cpp_type_of (follow haxe_type) )
 
-   | TType (t,params) ->
-       cpp_type_from_path t.t_path params (fun () -> cpp_type_of (follow haxe_type) )
+   | TType (type_def,params) ->
+       cpp_type_from_path type_def.t_path params (fun () ->
+          cpp_type_of (apply_params type_def.t_params params type_def.t_type) )
 
    | TFun _ -> TCppObject
    | TAnon _ -> TCppObject
@@ -2623,11 +2624,16 @@ let retype_expression ctx request_type function_args expression_tree =
             CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
          | TCast (base,None) -> (* Use auto-cast rules *)
             let baseCpp = retype (return_type) base in
-            (match return_type with
-            | TCppInst(k) -> CppCast(baseCpp,return_type), return_type
-            | TCppCode(t) -> CppCast(baseCpp, t),  t
-            | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
-            | _ -> baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *)
+            let baseStr = (tcpp_to_string baseCpp.cpptype) in
+            let returnStr = (tcpp_to_string return_type) in
+            if baseStr=returnStr then
+               baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *)
+            else (match return_type with
+               | TCppInst(k) -> CppCast(baseCpp,return_type), return_type
+               | TCppCode(t) when baseStr != (tcpp_to_string t)  ->
+                     CppCast(baseCpp, t),  t
+               | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
+               | _ -> baseCpp.cppexpr, baseCpp.cpptype (* use autocasting rules *)
             )
 
          | TCast (base,Some t) ->
