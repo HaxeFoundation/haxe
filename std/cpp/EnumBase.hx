@@ -1,6 +1,6 @@
 package cpp;
 
-@:native("::hx::EnumBase")
+@:native("hx.EnumBase")
 extern class EnumBase
 {
    #if (hxcpp_api_level >= 330)
