@@ -229,7 +229,7 @@ let new_context common_ctx writer debug file_info =
    ctx_cppast = Common.defined_value_safe common_ctx Define.CppAst <>"";
    ctx_calling = false;
    ctx_assigning = false;
-   ctx_debug_level = debug;
+   ctx_debug_level = if Common.defined_value_safe common_ctx Define.AnnotateSource <>"" then 2 else debug;
    ctx_dump_src_pos = (fun() -> ());
    ctx_return_from_block = false;
    ctx_tcall_expand_args = false;
@@ -1734,7 +1734,7 @@ and tcpp_expr_expr =
    | CppCastObjC of tcppexpr * tclass
    | CppCastNative of tcppexpr
 
-let s_tcpp = function
+let rec s_tcpp = function
    | CppInt _  -> "CppInt"
    | CppFloat _ -> "CppFloat"
    | CppString _ -> "CppString"
@@ -1758,7 +1758,8 @@ let s_tcpp = function
    | CppEnumField  _ -> "CppEnumField"
 
    | CppCall (FuncThis _,_)  -> "CppCallThis"
-   | CppCall (FuncInstance _,_) -> "CppCallInstance"
+   | CppCall (FuncInstance (obj,field),_) ->
+       "CppCallInstance(" ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
    | CppCall (FuncInterface  _,_) -> "CppCallInterface"
    | CppCall (FuncStatic  _,_) -> "CppCallStatic"
    | CppCall (FuncEnumConstruct _,_) -> "CppCallEnumConstruct"
@@ -1800,6 +1801,48 @@ let s_tcpp = function
    | CppCastVariant _ -> "CppCastVariant"
    | CppCastObjC _ -> "CppCastObjC"
    | CppCastNative _ -> "CppCastNative"
+ 
+and tcpp_to_string = function
+   | TCppDynamic -> "Dynamic"
+   | TCppObject -> "Dynamic"
+   | TCppVoid -> "void"
+   | TCppVoidStar -> "void *"
+   | TCppVariant -> "::cpp::Variant"
+   | TCppEnum(enum) -> "hx::EnumBase"
+   | TCppScalar(scalar) -> scalar
+   | TCppString -> "::String"
+   | TCppFastIterator it -> "::cpp::FastIterator< " ^ (tcpp_to_string it) ^ " >";
+   | TCppPointer(ptrType,valueType) -> "::cpp::" ^ ptrType ^ "< " ^ (tcpp_to_string valueType) ^ " >"
+   | TCppRawPointer(constName,valueType) -> constName ^ (tcpp_to_string valueType) ^ "*"
+   | TCppFunction(argTypes,retType,abi) ->
+        let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
+        "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
+   | TCppDynamicArray -> "::cpp::VirtualArray"
+   | TCppObjectArray _ -> "::Array< ::Dynamic>"
+   | TCppWrapped _ -> "Dynamic"
+   | TCppScalarArray(value) -> "::Array< " ^ (tcpp_to_string value) ^ " >"
+   | TCppObjC klass ->
+      let path = cpp_class_path_of klass in
+      if klass.cl_interface then
+         "id <" ^ path ^ ">"
+      else
+         path ^ " *"
+   | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
+   | TCppInst klass -> cpp_class_path_of klass
+   | TCppClass -> "hx::Class";
+   | TCppGlobal -> "";
+   | TCppNull -> "Dynamic";
+   | TCppCode _ -> "Code"
+
+and cpp_class_path_of klass =
+   let rename = get_meta_string klass.cl_meta Meta.Native in
+   if rename <> "" then
+      rename
+   else
+      "::" ^ (join_class_path_remap klass.cl_path "::")
+;;
+
+
 
 let cpp_const_type cval = match cval with
    | TInt i -> CppInt(i) , TCppScalar("Int")
@@ -1853,47 +1896,6 @@ let rec const_string_of expr =
 ;;
 
 
-let cpp_class_path_of klass =
-   let rename = get_meta_string klass.cl_meta Meta.Native in
-   if rename <> "" then
-      rename
-   else
-      "::" ^ (join_class_path_remap klass.cl_path "::")
-;;
-
-
-let rec tcpp_to_string = function
-   | TCppDynamic -> "Dynamic"
-   | TCppObject -> "Dynamic"
-   | TCppVoid -> "void"
-   | TCppVoidStar -> "void *"
-   | TCppVariant -> "::cpp::Variant"
-   | TCppEnum(enum) -> "hx::EnumBase"
-   | TCppScalar(scalar) -> scalar
-   | TCppString -> "::String"
-   | TCppFastIterator it -> "::cpp::FastIterator< " ^ (tcpp_to_string it) ^ " >";
-   | TCppPointer(ptrType,valueType) -> "::cpp::" ^ ptrType ^ "< " ^ (tcpp_to_string valueType) ^ " >"
-   | TCppRawPointer(constName,valueType) -> constName ^ (tcpp_to_string valueType) ^ "*"
-   | TCppFunction(argTypes,retType,abi) ->
-        let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
-        "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
-   | TCppDynamicArray -> "::cpp::VirtualArray"
-   | TCppObjectArray _ -> "::Array< ::Dynamic>"
-   | TCppWrapped _ -> "Dynamic"
-   | TCppScalarArray(value) -> "::Array< " ^ (tcpp_to_string value) ^ " >"
-   | TCppObjC klass ->
-      let path = cpp_class_path_of klass in
-      if klass.cl_interface then
-         "id <" ^ path ^ ">"
-      else
-         path ^ " *"
-   | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
-   | TCppInst klass -> cpp_class_path_of klass
-   | TCppClass -> "hx::Class";
-   | TCppGlobal -> "";
-   | TCppNull -> "Dynamic";
-   | TCppCode _ -> "Code"
-;;
 
 let cpp_is_dynamic_type = function
    | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull 
@@ -2188,7 +2190,6 @@ let cpp_enum_name_of field =
       keyword_remap field.ef_name
 ;;
 
-
 let retype_expression ctx request_type function_args expression_tree =
    let rev_closures = ref [] in
    let closureId = ref 0 in
@@ -2268,7 +2269,10 @@ let retype_expression ctx request_type function_args expression_tree =
                let clazzType = cpp_instance_type clazz params in
                let retypedObj = retype clazzType obj in
                let exprType = cpp_type_of member.cf_type in
-               if is_var_field member then begin
+
+               if is_struct_access obj.etype then begin
+                  CppVar( VarInstance(retypedObj,member,".") ), exprType
+               end else if is_var_field member then begin
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                      CppVar(VarThis(member) ), exprType
@@ -2295,14 +2299,17 @@ let retype_expression ctx request_type function_args expression_tree =
                          -> true
                      | _ -> false in
                  (* Special array return values *)
-                 let funcReturn = match isArrayObj, member.cf_name with
-                    | true, "map" -> TCppDynamicArray
-                    | true, "splice"
-                    | true, "slice"
-                    | true, "concat"
-                    | true, "copy"
-                    | true, "filter" -> retypedObj.cpptype
-                    | _, _ -> funcReturn
+                 let funcReturn =
+                    if isArrayObj then match member.cf_name with
+                       | "map" -> TCppDynamicArray
+                       | "splice"
+                       | "slice"
+                       | "concat"
+                       | "copy"
+                       |  "filter" -> retypedObj.cpptype
+                       | _ -> funcReturn
+                    else
+                       funcReturn
                  in
                  (match retypedObj.cppexpr with
                  | CppThis ThisReal ->
