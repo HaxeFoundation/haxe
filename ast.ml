@@ -915,3 +915,6 @@ let full_dot_path mpath tpath =
 		(fst tpath) @ [snd tpath]
 	else
 		(fst mpath) @ [snd mpath;snd tpath]
+
+let safe_for_all2 f a b =
+	try List.for_all2 f a b with _ -> false

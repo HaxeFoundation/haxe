@@ -2395,5 +2395,94 @@ module TExprToExpr = struct
 
 end
 
+module Texpr = struct
+	let equal_fa fa1 fa2 = match fa1,fa2 with
+		| FStatic(c1,cf1),FStatic(c2,cf2) -> c1 == c2 && cf1 == cf2
+		| FInstance(c1,tl1,cf1),FInstance(c2,tl2,cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1 == cf2
+		(* TODO: This is technically not correct but unfortunately the compiler makes a distinct tclass_field for each anon field access. *)
+		| FAnon cf1,FAnon cf2 -> cf1.cf_name = cf2.cf_name
+		| FDynamic s1,FDynamic s2 -> s1 = s2
+		| FClosure(None,cf1),FClosure(None,cf2) -> cf1 == cf2
+		| FClosure(Some(c1,tl1),cf1),FClosure(Some(c2,tl2),cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1 == cf2
+		| FEnum(en1,ef1),FEnum(en2,ef2) -> en1 == en2 && ef1 == ef2
+		| _ -> false
+
+	let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
+		| TConst ct1,TConst ct2 -> ct1 = ct2
+		| TLocal v1,TLocal v2 -> v1 == v2
+		| TArray(eb1,ei1),TArray(eb2,ei2) -> equal eb1 eb2 && equal ei1 ei2
+		| TBinop(op1,lhs1,rhs1),TBinop(op2,lhs2,rhs2) -> op1 = op2 && equal lhs1 lhs2 && equal rhs1 rhs2
+		| TField(e1,fa1),TField(e2,fa2) -> equal e1 e2 && equal_fa fa1 fa2
+		| TTypeExpr mt1,TTypeExpr mt2 -> mt1 == mt2
+		| TParenthesis e1,TParenthesis e2 -> equal e1 e2
+		| TObjectDecl fl1,TObjectDecl fl2 -> safe_for_all2 (fun (s1,e1) (s2,e2) -> s1 = s2 && equal e1 e2) fl1 fl2
+		| (TArrayDecl el1,TArrayDecl el2) | (TBlock el1,TBlock el2) -> safe_for_all2 equal el1 el2
+		| TCall(e1,el1),TCall(e2,el2) -> equal e1 e2 && safe_for_all2 equal el1 el2
+		| TNew(c1,tl1,el1),TNew(c2,tl2,el2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && safe_for_all2 equal el1 el2
+		| TUnop(op1,flag1,e1),TUnop(op2,flag2,e2) -> op1 = op2 && flag1 = flag2 && equal e1 e2
+		| TFunction tf1,TFunction tf2 -> tf1 == tf2
+		| TVar(v1,None),TVar(v2,None) -> v1 == v2
+		| TVar(v1,Some e1),TVar(v2,Some e2) -> v1 == v2 && equal e1 e2
+		| TFor(v1,ec1,eb1),TFor(v2,ec2,eb2) -> v1 == v2 && equal ec1 ec2 && equal eb1 eb2
+		| TIf(e1,ethen1,None),TIf(e2,ethen2,None) -> equal e1 e2 && equal ethen1 ethen2
+		| TIf(e1,ethen1,Some eelse1),TIf(e2,ethen2,Some eelse2) -> equal e1 e2 && equal ethen1 ethen2 && equal eelse1 eelse2
+		| TWhile(e1,eb1,flag1),TWhile(e2,eb2,flag2) -> equal e1 e2 && equal eb2 eb2 && flag1 = flag2
+		| TSwitch(e1,cases1,eo1),TSwitch(e2,cases2,eo2) ->
+			equal e1 e2 &&
+			safe_for_all2 (fun (el1,e1) (el2,e2) -> safe_for_all2 equal el1 el2 && equal e1 e2) cases1 cases2 &&
+			(match eo1,eo2 with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
+		| TTry(e1,catches1),TTry(e2,catches2) -> equal e1 e2 && safe_for_all2 (fun (v1,e1) (v2,e2) -> v1 == v2 && equal e1 e2) catches1 catches2
+		| TReturn None,TReturn None -> true
+		| TReturn(Some e1),TReturn(Some e2) -> equal e1 e2
+		| TThrow e1,TThrow e2 -> equal e1 e2
+		| TCast(e1,None),TCast(e2,None) -> equal e1 e2
+		| TCast(e1,Some mt1),TCast(e2,Some mt2) -> equal e1 e2 && mt1 == mt2
+		| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.s_expr e1) = (Ast.s_expr e2)) el1 el2 && equal e1 e2
+		| (TBreak,TBreak) | (TContinue,TContinue) -> true
+		| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
+		| _ -> false
+
+	let duplicate_tvars e =
+		let vars = Hashtbl.create 0 in
+		let copy_var v =
+			let v2 = alloc_var v.v_name v.v_type in
+			v2.v_meta <- v.v_meta;
+			Hashtbl.add vars v.v_id v2;
+			v2;
+		in
+		let rec build_expr e =
+			match e.eexpr with
+			| TVar (v,eo) ->
+				let v2 = copy_var v in
+				{e with eexpr = TVar(v2, Option.map build_expr eo)}
+			| TFor (v,e1,e2) ->
+				let v2 = copy_var v in
+				{e with eexpr = TFor(v2, build_expr e1, build_expr e2)}
+			| TTry (e1,cl) ->
+				let cl = List.map (fun (v,e) ->
+					let v2 = copy_var v in
+					v2, build_expr e
+				) cl in
+				{e with eexpr = TTry(build_expr e1, cl)}
+			| TFunction f ->
+				let args = List.map (fun (v,c) -> copy_var v, c) f.tf_args in
+				let f = {
+					tf_args = args;
+					tf_type = f.tf_type;
+					tf_expr = build_expr f.tf_expr;
+				} in
+				{e with eexpr = TFunction f}
+			| TLocal v ->
+				(try
+					let v2 = Hashtbl.find vars v.v_id in
+					{e with eexpr = TLocal v2}
+				with _ ->
+					e)
+			| _ ->
+				map_expr build_expr e
+		in
+		build_expr e
+end
+
 let print_if b e =
 	if b then print_endline (s_expr_pretty "" (s_type (print_context())) e)

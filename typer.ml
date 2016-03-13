@@ -1921,46 +1921,8 @@ let get_next_stored_typed_expr_id =
 	(fun() -> incr uid; !uid)
 
 let get_stored_typed_expr com id =
-	let vars = Hashtbl.create 0 in
-	let copy_var v =
-		let v2 = alloc_var v.v_name v.v_type in
-		v2.v_meta <- v.v_meta;
-		Hashtbl.add vars v.v_id v2;
-		v2;
-	in
-	let rec build_expr e =
-		match e.eexpr with
-		| TVar (v,eo) ->
-			let v2 = copy_var v in
-			{e with eexpr = TVar(v2, Option.map build_expr eo)}
-		| TFor (v,e1,e2) ->
-			let v2 = copy_var v in
-			{e with eexpr = TFor(v2, build_expr e1, build_expr e2)}
-		| TTry (e1,cl) ->
-			let cl = List.map (fun (v,e) ->
-				let v2 = copy_var v in
-				v2, build_expr e
-			) cl in
-			{e with eexpr = TTry(build_expr e1, cl)}
-		| TFunction f ->
-			let args = List.map (fun (v,c) -> copy_var v, c) f.tf_args in
-			let f = {
-				tf_args = args;
-				tf_type = f.tf_type;
-				tf_expr = build_expr f.tf_expr;
-			} in
-			{e with eexpr = TFunction f}
-		| TLocal v ->
-			(try
-				let v2 = Hashtbl.find vars v.v_id in
-				{e with eexpr = TLocal v2}
-			with _ ->
-				e)
-		| _ ->
-			map_expr build_expr e
-	in
 	let e = PMap.find id com.stored_typed_exprs in
-	build_expr e
+	Texpr.duplicate_tvars e
 
 let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with

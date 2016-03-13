@@ -2068,6 +2068,10 @@ module ExprBuilder = struct
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		mk (TTypeExpr (TClassDecl c)) ta p
 
+	let make_static_field c cf p =
+		let e_this = make_static_this c p in
+		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
+
 	let make_int com i p =
 		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
 
