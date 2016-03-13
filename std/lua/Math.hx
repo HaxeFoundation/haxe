@@ -39,5 +39,8 @@ extern class Math {
 
 	public static function random() : Float;
 	public static function randomseed(i : Float) : Float;
+
+	//  initialize the random seed with the current time
+	public static function __init__() : Void randomseed(Os.time());
 }
 
