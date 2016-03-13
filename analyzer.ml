@@ -2810,8 +2810,8 @@ module Cleanup = struct
 	let apply ctx e =
 		let com = ctx.com in
 		let if_or_op e e1 e2 e3 = match (skip e1).eexpr,(skip e3).eexpr with
-			| TUnop(Not,Prefix,e1),TConst (TBool true) -> {e with eexpr = TBinop(OpBoolOr,e1,e2)}
-			| _,TConst (TBool false) -> {e with eexpr = TBinop(OpBoolAnd,e1,e2)}
+			| TUnop(Not,Prefix,e1),TConst (TBool true) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
+			| _,TConst (TBool false) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
 			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
 			| _ -> match (skip e2).eexpr with
 				| TBlock [] when com.platform <> Cs ->
