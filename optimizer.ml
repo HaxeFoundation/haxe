@@ -1275,9 +1275,24 @@ let rec reduce_loop ctx e =
 	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
 		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
 		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
-	| TSwitch (e1,[[{eexpr = TConst (TBool true)}],{eexpr = TConst (TBool true)}],Some ({eexpr = TConst (TBool false)})) ->
-		(* introduced by extractors in some cases *)
-		e1
+	| TSwitch (e1,cases,def) ->
+		let e = match Texpr.skip e1 with
+			| {eexpr = TConst ct} as e1 ->
+				let rec loop cases = match cases with
+					| (el,e) :: cases ->
+						if List.exists (Texpr.equal e1) el then e
+						else loop cases
+					| [] ->
+						begin match def with
+						| None -> e
+						| Some e -> e
+						end
+				in
+				loop cases
+			| _ ->
+				e
+		in
+		reduce_expr ctx e
 	| _ ->
 		reduce_expr ctx e)
 

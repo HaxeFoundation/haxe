@@ -128,10 +128,6 @@ let has_pure_meta meta = Meta.has Meta.Pure meta
 
 let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
 
-let rec skip e = match e.eexpr with
-	| TParenthesis e1 | TMeta(_,e1) | TBlock [e1] -> skip e1
-	| _ -> e
-
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
 
@@ -1592,28 +1588,14 @@ module TexprTransformer = struct
 				| el,SETry(bb_try,bbl,bb_next) ->
 					Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid bb_try.bb_pos) :: el
 				| e1 :: el,se ->
-					let e1 = skip e1 in
-					begin match e1.eexpr,se with
-						| TConst (TBool true),(SEIfThen(bb_then,bb_next) | SEIfThenElse(bb_then,_,bb_next,_)) -> loop bb (SESubBlock(bb_then,bb_next))
-						| TConst (TBool false),SEIfThen(_,bb_next) -> Some bb_next,el
-						| TConst (TBool false),SEIfThenElse(_,bb_else,bb_next,_) -> loop bb (SESubBlock(bb_else,bb_next))
-						| TConst _,SESwitch(bbl,bo,bb_next) ->
-							let bbl = List.filter (fun (el,bb_case) -> List.exists (expr_eq e1) el) bbl in
-							begin match bbl,bo with
-								| [_,bb_case],_ -> loop bb (SESubBlock(bb_case,bb_next))
-								| [],Some bb_default -> loop bb (SESubBlock(bb_default,bb_next))
-								| [],None -> Some bb_next,el
-								| _ :: _,_ -> assert false
-							end
-						| _ ->
-							let bb_next,e1_def,t = match se with
-								| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid
-								| SEIfThenElse(bb_then,bb_else,bb_next,t) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t
-								| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid
-								| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
-							in
-							bb_next,(mk e1_def t e1.epos) :: el
-					end
+					let e1 = Texpr.skip e1 in
+					let bb_next,e1_def,t = match se with
+						| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid
+						| SEIfThenElse(bb_then,bb_else,bb_next,t) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t
+						| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid
+						| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
+					in
+					bb_next,(mk e1_def t e1.epos) :: el
 				| [],_ ->
 					None,[]
 			in
@@ -2809,11 +2791,11 @@ end
 module Cleanup = struct
 	let apply ctx e =
 		let com = ctx.com in
-		let if_or_op e e1 e2 e3 = match (skip e1).eexpr,(skip e3).eexpr with
+		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
 			| TUnop(Not,Prefix,e1),TConst (TBool true) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2
 			| _,TConst (TBool false) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolAnd,e1,e2)} OpBoolAnd e1 e2
 			| _,TBlock [] -> {e with eexpr = TIf(e1,e2,None)}
-			| _ -> match (skip e2).eexpr with
+			| _ -> match (Texpr.skip e2).eexpr with
 				| TBlock [] when com.platform <> Cs ->
 					let e1' = mk (TUnop(Not,Prefix,e1)) e1.etype e1.epos in
 					let e1' = Optimizer.optimize_unop e1' Not Prefix e1 in
@@ -2840,7 +2822,7 @@ module Cleanup = struct
 				let e2 = loop e2 in
 				begin match e2.eexpr with
 					| TBlock ({eexpr = TIf(e1,({eexpr = TBlock[{eexpr = TBreak}]} as eb),None)} :: el2) ->
-						let e1 = skip e1 in
+						let e1 = Texpr.skip e1 in
 						let e1 = match e1.eexpr with TUnop(_,_,e1) -> e1 | _ -> {e1 with eexpr = TUnop(Not,Prefix,e1)} in
 						{e with eexpr = TWhile(e1,{eb with eexpr = TBlock el2},NormalWhile)}
 					| TBlock el ->
@@ -2905,9 +2887,10 @@ module Run = struct
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta config cf.cf_meta in
-			let ctx,e = run_on_expr ctx.Typecore.com config e in
-			if config.dot_debug then Debug.dot_debug ctx c cf;
-			let e = if ctx.is_real_function then
+			let actx,e = run_on_expr ctx.Typecore.com config e in
+			let e = Optimizer.reduce_expression ctx e in
+			if config.dot_debug then Debug.dot_debug actx c cf;
+			let e = if actx.is_real_function then
 				e
 			else begin
 				(* Get rid of the wrapping function and its return expressions. *)

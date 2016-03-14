@@ -2482,6 +2482,10 @@ module Texpr = struct
 				map_expr build_expr e
 		in
 		build_expr e
+
+	let rec skip e = match e.eexpr with
+		| TParenthesis e1 | TMeta(_,e1) | TBlock [e1] | TCast(e1,None) -> skip e1
+		| _ -> e
 end
 
 let print_if b e =
