@@ -34,8 +34,8 @@ let tuple_type tl =
 let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
-let type_field_access ctx e name =
-	Typer.acc_get ctx (Typer.type_field ctx e name e.epos Typer.MGet) e.epos
+let type_field_access ctx ?(resume=false) e name =
+	Typer.acc_get ctx (Typer.type_field ~resume ctx e name e.epos Typer.MGet) e.epos
 
 let unapply_type_parameters params monos =
 	List.iter2 (fun (_,t1) t2 -> match t2,follow t2 with TMono m1,TMono m2 when m1 == m2 -> Type.unify t1 t2 | _ -> ()) params monos
@@ -170,11 +170,7 @@ module Pattern = struct
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
 		in
-		let try_typing e =
-			let old = ctx.untyped in
-			ctx.untyped <- true;
-			let e = try type_expr ctx e (WithType t) with exc -> ctx.untyped <- old; raise exc in
-			ctx.untyped <- old;
+		let check_expr e =
 			let rec loop e = match e.eexpr with
 				| TField(_,FEnum(en,ef)) ->
 					(match follow ef.ef_type with TFun _ -> raise Exit | _ -> ());
@@ -188,23 +184,44 @@ module Pattern = struct
 				| _ ->
 					raise Exit
 			in
+			loop e
+		in
+		let try_typing e =
+			let old = ctx.untyped in
+			ctx.untyped <- true;
+			let e = try type_expr ctx e (WithType t) with exc -> ctx.untyped <- old; raise exc in
+			ctx.untyped <- old;
 			match e.eexpr with
 				| TTypeExpr mt ->
 					unify_type_pattern ctx mt t e.epos;
 					PatConstructor(ConTypeExpr mt,[])
 				| _ ->
 					unify_expected e.etype;
-					loop e
+					check_expr e
 		in
 		let handle_ident s =
-			let old = ctx.in_call_args in
-			try
+			let save =
+				let old = ctx.in_call_args,ctx.locals in
 				ctx.in_call_args <- true;
+				ctx.locals <- PMap.empty;
+				(fun () ->
+					ctx.in_call_args <- fst old;
+					ctx.locals <- snd old;
+				)
+			in
+			try
 				let pat = try_typing (EConst (Ident s),p) in
-				ctx.in_call_args <- old;
+				save();
+				pat
+			with _ -> try
+				let mt = module_type_of_type t in
+				let e_mt = Typer.type_module_type ctx mt None p in
+				let e = type_field_access ctx ~resume:true e_mt s in
+				let pat = check_expr e in
+				save();
 				pat
 			with _ ->
-				ctx.in_call_args <- old;
+				save();
 				if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 					display_error ctx "Capture variables must be lower-case" p;
 				end;
