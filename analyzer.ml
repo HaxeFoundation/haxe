@@ -2843,6 +2843,9 @@ module Cleanup = struct
 				Type.map_expr loop e
 		in
 		loop e
+
+	let rec reduce_control_flow ctx e =
+		Type.map_expr (reduce_control_flow ctx) (Optimizer.reduce_control_flow ctx e)
 end
 
 module Run = struct
@@ -2888,7 +2891,7 @@ module Run = struct
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta config cf.cf_meta in
 			let actx,e = run_on_expr ctx.Typecore.com config e in
-			let e = Optimizer.reduce_expression ctx e in
+			let e = Cleanup.reduce_control_flow ctx e in
 			if config.dot_debug then Debug.dot_debug actx c cf;
 			let e = if actx.is_real_function then
 				e

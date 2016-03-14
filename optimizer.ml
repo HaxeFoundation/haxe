@@ -1247,15 +1247,38 @@ let optimize_unop e op flag esub =
 				e
 		| _ -> e
 
-let rec reduce_loop ctx e =
-	let e = Type.map_expr (reduce_loop ctx) e in
-	sanitize_expr ctx.com (match e.eexpr with
+let reduce_control_flow ctx e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
 		(match flag with
 		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
+	| TSwitch (e1,cases,def) ->
+		let e = match Texpr.skip e1 with
+			| {eexpr = TConst ct} as e1 ->
+				let rec loop cases = match cases with
+					| (el,e) :: cases ->
+						if List.exists (Texpr.equal e1) el then e
+						else loop cases
+					| [] ->
+						begin match def with
+						| None -> e
+						| Some e -> e
+						end
+				in
+				loop cases
+			| _ ->
+				e
+		in
+		e
+	| _ ->
+		e
+
+let rec reduce_loop ctx e =
+	let e = Type.map_expr (reduce_loop ctx) e in
+	sanitize_expr ctx.com (match e.eexpr with
+
 	| TBinop (op,e1,e2) ->
 		optimize_binop e op e1 e2
 	| TUnop (op,flag,esub) ->
@@ -1275,26 +1298,8 @@ let rec reduce_loop ctx e =
 	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
 		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
 		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
-	| TSwitch (e1,cases,def) ->
-		let e = match Texpr.skip e1 with
-			| {eexpr = TConst ct} as e1 ->
-				let rec loop cases = match cases with
-					| (el,e) :: cases ->
-						if List.exists (Texpr.equal e1) el then e
-						else loop cases
-					| [] ->
-						begin match def with
-						| None -> e
-						| Some e -> e
-						end
-				in
-				loop cases
-			| _ ->
-				e
-		in
-		reduce_expr ctx e
 	| _ ->
-		reduce_expr ctx e)
+		reduce_expr ctx (reduce_control_flow ctx e))
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx e else e
