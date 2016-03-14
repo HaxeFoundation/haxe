@@ -300,21 +300,6 @@ and module_kind =
 	| MSub
 	| MExtern
 
-and dt =
-	| DTSwitch of texpr * (texpr * dt) list * dt option
-	| DTBind of ((tvar * pos) * texpr) list * dt
-	| DTGoto of int
-	| DTExpr of texpr
-	| DTGuard of texpr * dt * dt option
-
-and decision_tree = {
-	dt_dt_lookup : dt array;
-	dt_first : int;
-	dt_type : t;
-	dt_var_init : (tvar * texpr option) list;
-	dt_is_complex : bool;
-}
-
 and build_state =
 	| Built
 	| Building
@@ -1052,22 +1037,6 @@ let rec s_expr s_type e =
 		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
-
-and s_dt tabs tree =
-	let s_type = s_type (print_context()) in
-	tabs ^ match tree with
-	| DTSwitch (st,cl,dto) ->
-		"switch(" ^ (s_expr s_type st) ^ ") { \n" ^ tabs
-		^ (String.concat ("\n" ^ tabs) (List.map (fun (c,dt) ->
-			"case " ^ (s_expr s_type c) ^ ":\n" ^ (s_dt (tabs ^ "\t") dt)
-		) cl))
-		^ (match dto with None -> "" | Some dt -> tabs ^ "default: " ^ (s_dt (tabs ^ "\t") dt))
-		^ "\n" ^ (if String.length tabs = 0 then "" else (String.sub tabs 0 (String.length tabs - 1))) ^ "}"
-	| DTBind (bl, dt) -> "bind " ^ (String.concat "," (List.map (fun ((v,_),st) -> v.v_name ^ "(" ^ (string_of_int v.v_id) ^ ") =" ^ (s_expr s_type st)) bl)) ^ "\n" ^ (s_dt tabs dt)
-	| DTGoto i ->
-		"goto " ^ (string_of_int i)
-	| DTExpr e -> s_expr s_type e
-	| DTGuard (e,dt1,dt2) -> "if(" ^ (s_expr s_type e) ^ ") " ^ (s_dt tabs dt1) ^ (match dt2 with None -> "" | Some dt -> " else " ^ (s_dt tabs dt))
 
 let rec s_expr_pretty tabs s_type e =
 	let sprintf = Printf.sprintf in
@@ -2042,16 +2011,6 @@ module Abstract = struct
 end
 
 (* ======= Mapping and iterating ======= *)
-
-let iter_dt f dt = match dt with
-	| DTBind(_,dt) -> f dt
-	| DTSwitch(_,cl,dto) ->
-		List.iter (fun (_,dt) -> f dt) cl;
-		(match dto with None -> () | Some dt -> f dt)
-	| DTGuard(_,dt1,dt2) ->
-		f dt1;
-		(match dt2 with None -> () | Some dt -> f dt)
-	| DTGoto _ | DTExpr _ -> ()
 
 let iter f e =
 	match e.eexpr with

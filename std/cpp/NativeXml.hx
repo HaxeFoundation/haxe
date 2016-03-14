@@ -21,19 +21,18 @@
  */
 package cpp;
 
-enum XmlType {
-}
+@:enum abstract XmlType(String) {}
 
 typedef NativeXml = Xml;
 
 class Xml {
-	public static var Element(default,null) : XmlType;
-	public static var PCData(default,null) : XmlType;
-	public static var CData(default,null) : XmlType;
-	public static var Comment(default,null) : XmlType;
-	public static var DocType(default,null) : XmlType;
-	public static var ProcessingInstruction(default,null) : XmlType;
-	public static var Document(default,null) : XmlType;
+	public static var Element(default,never) : XmlType;
+	public static var PCData(default,never) : XmlType;
+	public static var CData(default,never) : XmlType;
+	public static var Comment(default,never) : XmlType;
+	public static var DocType(default,never) : XmlType;
+	public static var ProcessingInstruction(default,never) : XmlType;
+	public static var Document(default,never) : XmlType;
 
 
 	private var _nodeName : String;
@@ -405,13 +404,13 @@ class Xml {
 	}
 
 	static function __init__() : Void untyped {
-		PCData = Type.createEnum(XmlType,"__");
-		Element = Type.createEnum(XmlType,"__");
-		CData =  Type.createEnum(XmlType,"__");
-		Comment = Type.createEnum(XmlType,"__");
-		DocType = Type.createEnum(XmlType,"__");
-		ProcessingInstruction =  Type.createEnum(XmlType,"__");
-		Document = Type.createEnum(XmlType,"__");
+		PCData = Type.createEnum(cast XmlType,"__");
+		Element = Type.createEnum(cast XmlType,"__");
+		CData =  Type.createEnum(cast XmlType,"__");
+		Comment = Type.createEnum(cast XmlType,"__");
+		DocType = Type.createEnum(cast XmlType,"__");
+		ProcessingInstruction =  Type.createEnum(cast XmlType,"__");
+		Document = Type.createEnum(cast XmlType,"__");
 		__global__.__hxcpp_enum_force(PCData , "pcdata", 0);
 		__global__.__hxcpp_enum_force(Element , "element", 1);
 		__global__.__hxcpp_enum_force(CData , "cdata", 2);

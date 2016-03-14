@@ -3593,9 +3593,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		begin try
-			let dt = match_expr ctx e1 cases def with_type p in
-			let wrap e1 = if not dt.dt_is_complex then e1 else mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
-			wrap (Codegen.PatternMatchConversion.to_typed_ast ctx dt p)
+			let wrap e1 = mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
+			let e = match_expr ctx e1 cases def with_type p in
+			wrap e
 		with Exit ->
 			type_switch_old ctx e1 cases def with_type p
 		end
@@ -4066,11 +4066,12 @@ and type_call ctx e el (with_type:with_type) p =
 	| (EField(e,"match"),p), [epat] ->
 		let et = type_expr ctx e Value in
 		(match follow et.etype with
-			| TEnum _ as t ->
+			| TEnum _ ->
 				let e = match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p)] (Some (Some (EConst(Ident "false"),p))) (WithType ctx.t.tbool) p in
-				let locals = !get_pattern_locals_ref ctx epat t in
-				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals;
-				Codegen.PatternMatchConversion.to_typed_ast ctx e p
+				(* TODO: add that back *)
+(* 				let locals = !get_pattern_locals_ref ctx epat t in
+				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals; *)
+				e
 			| _ -> def ())
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e Value in
