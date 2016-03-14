@@ -1272,17 +1272,16 @@ let reduce_control_flow ctx e = match e.eexpr with
 				e
 		in
 		e
+	| TBinop (op,e1,e2) ->
+		optimize_binop e op e1 e2
+	| TUnop (op,flag,esub) ->
+		optimize_unop e op flag esub
 	| _ ->
 		e
 
 let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
 	sanitize_expr ctx.com (match e.eexpr with
-
-	| TBinop (op,e1,e2) ->
-		optimize_binop e op e1 e2
-	| TUnop (op,flag,esub) ->
-		optimize_unop e op flag esub
 	| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },field) },params) ->
 		(match api_inline ctx c (field_name field) params e.epos with
 		| None -> reduce_expr ctx e
