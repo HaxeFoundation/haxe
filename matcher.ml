@@ -1298,6 +1298,10 @@ module Match = struct
 			| None -> cases
 			| Some eo -> cases @ [[EConst (Ident "_"),(match eo with None -> p | Some e -> pos e)],None,eo]
 		in
+		let tmono,with_type = match with_type with
+			| WithType t -> (match follow t with TMono _ -> Some t,Value | _ -> None,with_type)
+			| _ -> None,with_type
+		in
 		let cases = List.map (fun (el,eg,eo) ->
 			let case,bindings,pat = Case.make ctx t el eg eo with_type in
 			case,bindings,[pat]
@@ -1325,6 +1329,7 @@ module Match = struct
 		end;
 		let e = try
 			let t_switch = infer_switch_type() in
+			(match tmono with Some t -> Type.unify t_switch t | _ -> ());
 			TexprConverter.to_texpr ctx t_switch match_debug with_type dt
 		with TexprConverter.Not_exhaustive ->
 			error "Unmatched patterns: _" p;
