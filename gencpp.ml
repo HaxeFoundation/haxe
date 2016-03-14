@@ -5174,12 +5174,18 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       | TFun (args,_) ->
          output_cpp (remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ "(" ^
             (ctx_tfun_arg_list ctx args) ^")\n");
-         output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^ "," ^
-            (string_of_int constructor.ef_index) ^ ",hx::DynamicArray(0," ^
-            (string_of_int (List.length args)) ^  ")" );
-         List.iter (fun (arg,_,_) -> output_cpp (".Add(" ^ (keyword_remap arg) ^ ")")) args;
-         output_cpp ");\n}\n\n"
-
+         if ctx.ctx_cppast then begin
+            output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (strq name) ^ "," ^
+               (string_of_int constructor.ef_index) ^ "," ^ (string_of_int (List.length args)) ^  ")" );
+             ExtList.List.iteri (fun i (arg,_,_) -> output_cpp ("->init(" ^ (string_of_int i) ^ "," ^ (keyword_remap arg) ^ ")")) args;
+            output_cpp ";\n}\n\n"
+         end else begin
+            output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (strq name) ^ "," ^
+               (string_of_int constructor.ef_index) ^ ",hx::DynamicArray(0," ^
+               (string_of_int (List.length args)) ^  ")" );
+            List.iter (fun (arg,_,_) -> output_cpp (".Add(" ^ (keyword_remap arg) ^ ")")) args;
+            output_cpp ");\n}\n\n"
+         end
       | _ ->
          output_cpp ( remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ ";\n\n" )
    ) enum_def.e_constrs;
@@ -5296,7 +5302,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       | TFun (_,_) -> ()
       | _ ->
          output_cpp ( (keyword_remap name) ^ " = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
-            (string_of_int constructor.ef_index) ^ ");\n" )
+            (string_of_int constructor.ef_index) ^ (if ctx.ctx_cppast then ",0" else "") ^ ");\n" )
    ) enum_def.e_constrs;
    output_cpp ("}\n\n");
 
