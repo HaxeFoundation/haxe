@@ -1523,6 +1523,20 @@ let get_return_type field =
 ;;
 
 
+let get_nth_type field index =
+   match follow field.ef_type with
+      | TFun (args,_) ->
+         let rec nth l index = match l with
+         | [] -> raise Not_found
+         | (_,_,t)::rest -> 
+             if index = 0 then t 
+             else nth rest (index-1)
+         in
+         nth args index
+      | _ -> raise Not_found
+;;
+
+
 
 let has_default_values args =
    List.exists ( fun (_,o) -> match o with
@@ -2246,7 +2260,7 @@ let retype_expression ctx request_type function_args expression_tree =
          | TEnumParameter( enumObj, enumField, enumIndex  ) ->
             let retypedObj = retype TCppDynamic enumObj in
             (* hxcpp actually stores enum parametes in Array<Dynamic> *)
-            CppEnumParameter( retypedObj, enumField, enumIndex ), cpp_variant_type_of (cpp_type_of expr.etype)
+            CppEnumParameter( retypedObj, enumField, enumIndex ), cpp_variant_type_of (cpp_type_of (get_nth_type enumField enumIndex))
 
          | TConst TThis ->
             uses_this := Some !this_real;
@@ -3103,7 +3117,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field) ^ "_dyn()" );
 
       | CppEnumParameter(obj,field,index) ->
-         let baseType = cpp_base_type_of (expr.cpptype) in
+         let baseType = cpp_base_type_of (cpp_type_of ctx (get_nth_type field index) ) in
          gen obj;
          if cpp_is_dynamic_type obj.cpptype then
             out ".StaticCast< ::hx::EnumBase >()";
