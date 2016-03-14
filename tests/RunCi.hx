@@ -1131,6 +1131,7 @@ class RunCi {
 					// if (systemName == "Linux") testFlambe(); //#3439
 					testHxTemplo();
 					testMUnit();
+					testHaxeQuake();
 					//testOpenflSamples();
 					//testFlixelDemos();
 				case t:
@@ -1202,6 +1203,15 @@ class RunCi {
 		haxelibRun(["munit", "test", "-result-exit-code", "-neko"], true);
 		changeDirectory("../");
 		haxelibRun(["munit", "test", "-result-exit-code", "-neko"], true);
+	}
+
+	static function testHaxeQuake() {
+		infoMsg("Test HaxeQuake:");
+
+		changeDirectory(unitDir);
+		runCommand("git", ["clone", "https://github.com/nadako/HaxeQuake"]);
+		changeDirectory("HaxeQuake/Client");
+		runCommand("haxe", ["build.hxml"]);
 	}
 
 	static function testFlambe() {
