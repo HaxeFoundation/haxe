@@ -4758,11 +4758,10 @@ let gen_member_def ctx class_def is_static is_interface field =
          end else begin
             let return_type = (ctx_type_string ctx function_def.tf_type) in
             if ( not is_static && not nonVirtual ) then begin
-               (* todo
                if (ctx.ctx_cppast && not (is_internal_member field.cf_name) ) then begin
                   let key = (join_class_path class_def.cl_path ".") ^ "." ^ field.cf_name in
                   try output (Hashtbl.find ctx.ctx_class_member_types key) with Not_found -> ()
-               end else *)
+               end else
                   output "virtual ";
             end;
             output (if return_type="Void" && (ctx.ctx_cppast || (has_meta_key field.cf_meta Meta.Void)) then "void" else return_type );
@@ -7808,10 +7807,10 @@ let generate_source ctx =
 
 let generate common_ctx =
    if (Common.defined common_ctx Define.Cppia) then begin
-      let ctx = new_context common_ctx 1 (ref PMap.empty) (create_member_types common_ctx) in
+      let ctx = new_context common_ctx 1 (ref PMap.empty) (Hashtbl.create 0)  in
       generate_cppia ctx
    end else begin
-      let ctx = new_context common_ctx 1 (ref PMap.empty) (Hashtbl.create 0) in
+      let ctx = new_context common_ctx 1 (ref PMap.empty) (create_member_types common_ctx) in
       generate_source ctx
    end
 ;;
