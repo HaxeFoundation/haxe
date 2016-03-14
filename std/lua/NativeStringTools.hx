@@ -1,7 +1,9 @@
 package lua;
 /**
-  These are all externs for the base Lua "string" class.  Note that all
-  relevant indexes are "1" based.
+  These are all externs for the base Lua "string" class, which functions 
+  as an additional set of string tools.
+
+  Note that all relevant indexes are "1" based.
  **/
 @:native("_G.string")
 extern class LuaString {
