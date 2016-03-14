@@ -6,7 +6,7 @@ package lua;
   Note that all relevant indexes are "1" based.
  **/
 @:native("_G.string")
-extern class LuaString {
+extern class NativeStringTools {
 	public static function len(str : String): Int;
 	public static function char(i: Int): String;
 	public static function sub(str : String, start : Int, ?end : Int): String;
