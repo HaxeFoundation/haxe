@@ -1,42 +1,39 @@
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 package lua;
 
+import haxe.Constraints.Function;
+import haxe.extern.Rest;
+
 /**
-  Externs for native Lua threads.
+  Externs for native Lua coroutines.
  **/
 @:native("_G.coroutine")
 extern class Coroutine {
-	@:overload(function<A,B,C,D,E> (f:A->B->C->D->E->Void) : CoroutineInstance5<A,B,C,D,E>{})
-	@:overload(function<A,B,C,D>   (f:A->B->C->D->Void)    : CoroutineInstance4<A,B,C,D>{})
-	@:overload(function<A,B,C>     (f:A->B->C->Void)       : CoroutineInstance3<A,B,C>{})
-	@:overload(function<A,B>       (f:A->B->Void)          : CoroutineInstance2<A,B>{})
-	@:overload(function<A>         (f:A->Void)             : CoroutineInstance1<A>{})
-	@:overload(function            (f:Void->Void)          : CoroutineInstance0{})
-	public static function create  (f : haxe.Constraints.Function) : CoroutineInstance;
-
-	@:overload(function<A,B,C,D,E> (c:CoroutineInstance5<A,B,C,D,E>, arg1:A,arg2:B,arg3:C,arg4:C,arg5:C):Void{})
-	@:overload(function<A,B,C,D>   (c:CoroutineInstance4<A,B,C,D>,   arg1:A,arg2:B,arg3:C,arg4:C):Void{})
-	@:overload(function<A,B,C>     (c:CoroutineInstance3<A,B,C>,     arg1:A,arg2:B,arg3:C):Void{})
-	@:overload(function<A,B>       (c:CoroutineInstance2<A,B>,       arg1:A,arg2:B):Void{})
-	@:overload(function<A>         (c:CoroutineInstance1<A>,         arg1:A):Void{})
-	@:overload(function            (c:CoroutineInstance0):Void{})
-	public static function resume  (c : CoroutineInstance, ?arg1:Dynamic, ?arg2:Dynamic, ?arg3:Dynamic, ?arg4:Dynamic, ?arg5:Dynamic) : Void;
-
-	@:overload(function<A,B,C,D,E> (c:CoroutineInstance5<A,B,C,D,E>) : Void{})
-	@:overload(function<A,B,C,D>   (c:CoroutineInstance4<A,B,C,D>)   : Void{})
-	@:overload(function<A,B,C>     (c:CoroutineInstance3<A,B,C>)     : Void{})
-	@:overload(function<A,B>       (c:CoroutineInstance2<A,B>)       : Void{})
-	@:overload(function<A>         (c:CoroutineInstance1<A>)         : Void{})
-	@:overload(function            (c:CoroutineInstance0)            : Void{})
-	public static function yield   (c : CoroutineInstance) : Void;
+	public static function create(f : Function)  : Coroutine;
+	public static function status(c : Coroutine) : ThreadState;
+	public static function resume(c : Coroutine, args : Rest<Dynamic>) : Dynamic;
+	public static function yield(args : Rest<Dynamic>) : Dynamic;
 }
-
-typedef CoroutineInstance             = {}
-typedef CoroutineInstance0            = {}
-typedef CoroutineInstance1<A>         = {}
-typedef CoroutineInstance2<A,B>       = {}
-typedef CoroutineInstance3<A,B,C>     = {}
-typedef CoroutineInstance4<A,B,C,D>   = {}
-typedef CoroutineInstance5<A,B,C,D,E> = {}
 
 @:enum
 abstract ThreadState(String) {
