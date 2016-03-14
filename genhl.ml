@@ -6423,14 +6423,14 @@ let write_c version file (code:code) =
 					phys_compare()
 				| HVirtual _, HObj _->
 					if op = OpEq then
-						sexpr "if( %s == %s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
+						sexpr "if( (void*)%s == (void*)%s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 					else if op = OpNotEq then
 						sexpr "if( (void*)%s != (void*)%s && (!%s || !%s || %s->value != (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 					else
 						assert false
 				| HObj _, HVirtual _ ->
 					if op = OpEq then
-						sexpr "if( %s == %s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
+						sexpr "if( (void*)%s == (void*)%s || (%s && %s && %s->value == (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
 					else if op = OpNotEq then
 						sexpr "if( (void*)%s != (void*)%s && (!%s || !%s || %s->value != (vdynamic*)%s) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg b) (reg a) (label d)
 					else
