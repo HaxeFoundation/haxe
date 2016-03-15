@@ -111,8 +111,12 @@
 		return sys_cpu_time();
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
 		return new String(sys_exe_path());
+	}
+
+	public static function programPath() : String {
+		return _programPath;
 	}
 
 	public static function environment() : Map<String,String> {
@@ -137,6 +141,7 @@
 	private static var sys_time = cpp.Lib.load("std","sys_time",0);
 	private static var sys_cpu_time = cpp.Lib.load("std","sys_cpu_time",0);
 	private static var sys_exe_path = cpp.Lib.load("std","sys_exe_path",0);
+	private static var _programPath = sys.FileSystem.fullPath(new String(sys_exe_path()));
 	private static var sys_env = cpp.Lib.load("std","sys_env",0);
 
 	private static var file_stdin = cpp.Lib.load("std","file_stdin",0);

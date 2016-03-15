@@ -21,18 +21,45 @@
  */
 package cpp;
 
-@:enum abstract XmlType(String) {}
-
-typedef NativeXml = Xml;
+@:enum abstract XmlType(Int) {
+	/**
+		Represents an XML element type.
+	**/
+	var Element = 0;
+	/**
+		Represents XML parsed character data type.
+	**/
+	var PCData = 1;
+	/**
+		Represents XML character data type.
+	**/
+	var CData = 2;
+	/**
+		Represents an XML comment type.
+	**/
+	var Comment = 3;
+	/**
+		Represents an XML doctype element type.
+	**/
+	var DocType = 4;
+	/**
+	 	Represents an XML processing instruction type.
+	**/
+	var ProcessingInstruction = 5;
+	/**
+		Represents an XML document type.
+	**/
+	var Document = 6;
+}
 
 class Xml {
-	public static var Element(default,never) : XmlType;
-	public static var PCData(default,never) : XmlType;
-	public static var CData(default,never) : XmlType;
-	public static var Comment(default,never) : XmlType;
-	public static var DocType(default,never) : XmlType;
-	public static var ProcessingInstruction(default,never) : XmlType;
-	public static var Document(default,never) : XmlType;
+	static inline var Element = XmlType.Element;
+	static inline var PCData = XmlType.PCData;
+	static inline var CData = XmlType.CData;
+	static inline var Comment = XmlType.Comment;
+	static inline var DocType = XmlType.DocType;
+	static inline var ProcessingInstruction = XmlType.ProcessingInstruction;
+	static inline var Document = XmlType.Document;
 
 
 	private var _nodeName : String;
@@ -401,23 +428,6 @@ class Xml {
 			s.add(_nodeValue);
 			s.add("?>");
 		}
-	}
-
-	static function __init__() : Void untyped {
-		PCData = Type.createEnum(cast XmlType,"__");
-		Element = Type.createEnum(cast XmlType,"__");
-		CData =  Type.createEnum(cast XmlType,"__");
-		Comment = Type.createEnum(cast XmlType,"__");
-		DocType = Type.createEnum(cast XmlType,"__");
-		ProcessingInstruction =  Type.createEnum(cast XmlType,"__");
-		Document = Type.createEnum(cast XmlType,"__");
-		__global__.__hxcpp_enum_force(PCData , "pcdata", 0);
-		__global__.__hxcpp_enum_force(Element , "element", 1);
-		__global__.__hxcpp_enum_force(CData , "cdata", 2);
-		__global__.__hxcpp_enum_force(Comment , "comment", 3);
-		__global__.__hxcpp_enum_force(DocType , "doctype", 4);
-		__global__.__hxcpp_enum_force(ProcessingInstruction , "processingInstruction", 5);
-		__global__.__hxcpp_enum_force(Document , "document", 6);
 	}
 
 }

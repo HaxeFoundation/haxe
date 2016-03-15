@@ -114,7 +114,11 @@ class Sys {
 		return code;
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
+		return makePath(sys_exe_path());
+	}
+
+	public static function programPath() : String {
 		return makePath(sys_exe_path());
 	}
 

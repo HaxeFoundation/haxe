@@ -137,9 +137,16 @@ using haxe.Int64;
 		return cast(System.nanoTime(), Float) / 1000000000;
 	}
 
-	public static function executablePath() : String
+	@:deprecated("Use programPath instead") public static function executablePath() : String
 	{
 		return getCwd();
+	}
+
+	public static function programPath() : String {
+		return java.Lib.toNativeType(Sys)
+			.getProtectionDomain()
+			.getCodeSource()
+			.getLocation().toURI().getPath();
 	}
 
 	public static function getChar( echo : Bool ) : Int
