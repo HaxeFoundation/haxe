@@ -110,6 +110,8 @@ class Boot {
 				return Lua.type(o) == "string";
 			case Thread:
 				return Lua.type(o) == "thread";
+			case UserData:
+				return Lua.type(o) == "userdata";
 			case Array:
 				return Lua.type(o) == "table"
 					&& untyped o.__enum__ == null
