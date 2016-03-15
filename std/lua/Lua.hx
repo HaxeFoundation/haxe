@@ -31,6 +31,8 @@ extern class Lua {
 	public static function pcall(f:Function, rest:Rest<Dynamic>) : Bool;
 	public static function rawequal(v1:Dynamic, v2:Dynamic) : Bool;
 	public static function xpcall(f:Function, msgh:Function, rest:Rest<Dynamic> ) : Bool;
+	public static function loadfile(filename:String) : Void;
+	public static function loadstring(code:String) : Void;
 
 	private static function __init__() : Void {
 		// print polyfill
