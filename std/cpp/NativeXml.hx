@@ -21,7 +21,47 @@
  */
 package cpp;
 
+@:enum abstract XmlType(Int) {
+	/**
+		Represents an XML element type.
+	**/
+	var Element = 0;
+	/**
+		Represents XML parsed character data type.
+	**/
+	var PCData = 1;
+	/**
+		Represents XML character data type.
+	**/
+	var CData = 2;
+	/**
+		Represents an XML comment type.
+	**/
+	var Comment = 3;
+	/**
+		Represents an XML doctype element type.
+	**/
+	var DocType = 4;
+	/**
+	 	Represents an XML processing instruction type.
+	**/
+	var ProcessingInstruction = 5;
+	/**
+		Represents an XML document type.
+	**/
+	var Document = 6;
+}
+
 class Xml {
+	static inline var Element = XmlType.Element;
+	static inline var PCData = XmlType.PCData;
+	static inline var CData = XmlType.CData;
+	static inline var Comment = XmlType.Comment;
+	static inline var DocType = XmlType.DocType;
+	static inline var ProcessingInstruction = XmlType.ProcessingInstruction;
+	static inline var Document = XmlType.Document;
+
+
 	private var _nodeName : String;
 	private var _nodeValue : String;
 	private var _attributes : Dynamic<String>;
