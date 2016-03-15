@@ -46,7 +46,7 @@ import haxe.Int64;
 
 	public inline function getTime() : Float
 	{
-		return cast(date.Ticks - epochTicks, Float) / cast(TimeSpan.TicksPerMillisecond, Float);
+		return cast(cs.system.TimeZone.CurrentTimeZone.ToUniversalTime(date).Ticks - epochTicks, Float) / cast(TimeSpan.TicksPerMillisecond, Float);
 	}
 
 	public inline function getHours() : Int
