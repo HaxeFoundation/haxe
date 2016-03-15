@@ -2782,10 +2782,12 @@ module Purity = struct
 			| TClassDecl c -> apply_to_class com c
 			| _ -> ()
 		) com.types;
-		Hashtbl.iter (fun _ node ->
-			if node.pn_purity = Pure then
-				node.pn_field.cf_meta <- (Meta.Pure,[],node.pn_field.cf_pos) :: node.pn_field.cf_meta
-		) node_lut;
+		Hashtbl.fold (fun _ node acc ->
+			if node.pn_purity = Pure then begin
+				node.pn_field.cf_meta <- (Meta.Pure,[],node.pn_field.cf_pos) :: node.pn_field.cf_meta;
+				node.pn_field :: acc
+			end else acc
+		) node_lut [];
 end
 
 module Cleanup = struct
@@ -2931,6 +2933,7 @@ module Run = struct
 	let run_on_types ctx types =
 		let com = ctx.Typecore.com in
 		let config = get_base_config com in
-		if config.optimize && config.purity_inference then Purity.infer com;
-		List.iter (run_on_type ctx config) types
+		let cfl = if config.optimize && config.purity_inference then Purity.infer com else [] in
+		List.iter (run_on_type ctx config) types;
+		List.iter (fun cf -> cf.cf_meta <- List.filter (fun (m,_,_) -> m <> Meta.Pure) cf.cf_meta) cfl
 end
