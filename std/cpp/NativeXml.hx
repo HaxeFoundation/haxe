@@ -21,21 +21,7 @@
  */
 package cpp;
 
-enum XmlType {
-}
-
-typedef NativeXml = Xml;
-
 class Xml {
-	public static var Element(default,null) : XmlType;
-	public static var PCData(default,null) : XmlType;
-	public static var CData(default,null) : XmlType;
-	public static var Comment(default,null) : XmlType;
-	public static var DocType(default,null) : XmlType;
-	public static var ProcessingInstruction(default,null) : XmlType;
-	public static var Document(default,null) : XmlType;
-
-
 	private var _nodeName : String;
 	private var _nodeValue : String;
 	private var _attributes : Dynamic<String>;
@@ -402,23 +388,6 @@ class Xml {
 			s.add(_nodeValue);
 			s.add("?>");
 		}
-	}
-
-	static function __init__() : Void untyped {
-		PCData = Type.createEnum(XmlType,"__");
-		Element = Type.createEnum(XmlType,"__");
-		CData =  Type.createEnum(XmlType,"__");
-		Comment = Type.createEnum(XmlType,"__");
-		DocType = Type.createEnum(XmlType,"__");
-		ProcessingInstruction =  Type.createEnum(XmlType,"__");
-		Document = Type.createEnum(XmlType,"__");
-		__global__.__hxcpp_enum_force(PCData , "pcdata", 0);
-		__global__.__hxcpp_enum_force(Element , "element", 1);
-		__global__.__hxcpp_enum_force(CData , "cdata", 2);
-		__global__.__hxcpp_enum_force(Comment , "comment", 3);
-		__global__.__hxcpp_enum_force(DocType , "doctype", 4);
-		__global__.__hxcpp_enum_force(ProcessingInstruction , "processingInstruction", 5);
-		__global__.__hxcpp_enum_force(Document , "document", 6);
 	}
 
 }
