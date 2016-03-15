@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C)2005-2016 Haxe Foundation
  *
@@ -22,25 +23,9 @@
 
 package lua;
 
-import haxe.Constraints.Function;
-import haxe.extern.Rest;
-
 /**
-  Externs for native Lua coroutines.
- **/
-@:native("_G.coroutine")
-extern class Coroutine {
-	public static function create(f : Function)  : Thread;
-	public static function status(c : Coroutine) : ThreadState;
-	public static function resume(c : Coroutine, args : Rest<Dynamic>) : Dynamic;
-	public static function yield(args : Rest<Dynamic>) : Dynamic;
-	public static function wrap(f : Function) : Thread;
-}
+  The sole purpose of this extern is to provide a concrete type for 
+  basic reflection purposes.
+**/
 
-@:enum
-abstract ThreadState(String) {
-	var Suspended = "suspended";
-	var Running   = "running";
-	var Dead      = "dead";
-}
-
+class Thread {}

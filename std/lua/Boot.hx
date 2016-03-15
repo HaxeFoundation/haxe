@@ -19,11 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package lua;
 
 // Bit and Table must be imported for basic haxe datatypes to work.
 import lua.Bit;
 import lua.Table;
+import lua.Thread;
 
 import haxe.Constraints.Function;
 using lua.PairTools;
@@ -106,6 +108,8 @@ class Boot {
 				return Lua.type(o) == "boolean";
 			case String:
 				return Lua.type(o) == "string";
+			case Thread:
+				return Lua.type(o) == "thread";
 			case Array:
 				return Lua.type(o) == "table"
 					&& untyped o.__enum__ == null
