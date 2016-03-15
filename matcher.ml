@@ -91,6 +91,15 @@ module Constructor = struct
 		| ConTypeExpr _ -> 0
 		| ConStatic _ -> 0
 
+	let compare con1 con2 = match con1,con2 with
+		| ConConst ct1,ConConst ct2 -> compare ct1 ct2
+		| ConEnum(en1,ef1),ConEnum(en2,ef2) -> compare ef1.ef_index ef2.ef_index
+		| ConStatic(c1,cf1),ConStatic(c2,cf2) -> compare cf1.cf_name cf2.cf_name
+		| ConTypeExpr mt1,ConTypeExpr mt2 -> compare (t_infos mt1).mt_path (t_infos mt2).mt_path
+		| ConFields _,ConFields _ -> 0
+		| ConArray i1,ConArray i2 -> i1 - i2
+		| _ -> -1 (* Could assert... *)
+
 	open Typecore
 
 	let to_texpr ctx match_debug p con = match con with
@@ -1177,7 +1186,7 @@ module TexprConverter = struct
 		in
 		let s = match unmatched with
 			| [] -> "_"
-			| _ -> String.concat " | " (List.sort compare sl)
+			| _ -> String.concat " | " (List.sort Pervasives.compare sl)
 		in
 		error (Printf.sprintf "Unmatched patterns: %s" (s_subject s e_subject)) e_subject.epos
 
@@ -1224,6 +1233,10 @@ module TexprConverter = struct
 					DtTable.fold (fun _ (cons,dt,params) acc -> (cons,dt,params) :: acc) h []
 				in
 				let cases = group cases in
+				let cases = List.sort (fun (cons1,_,_) (cons2,_,_) -> match cons1,cons2 with
+					| (con1 :: _),con2 :: _ -> Constructor.compare con1 con2
+					| _ -> -1
+				) cases in
 				let cases = ExtList.List.filter_map (fun (cons,dt,params) ->
 					let eo = loop false params dt in
 					begin match eo with
