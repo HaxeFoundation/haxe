@@ -20,7 +20,7 @@ extern class Os {
 }
 
 /**
-  A typedef that matches describes the date parameter time() will accept.
+  A typedef that matches the date parameter time() will accept.
  **/
 typedef DateArg = {
 	year   : Float,
