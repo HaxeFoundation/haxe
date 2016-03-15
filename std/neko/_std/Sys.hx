@@ -121,8 +121,16 @@
 		return sys_cpu_time();
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
 		return new String(sys_exe_path());
+	}
+
+	public static function programPath() : String {
+		#if interp
+		return new String(sys_program_path());
+		#else
+		return sys_program_path();
+		#end
 	}
 
 	public static function environment() : Map<String,String> {
@@ -147,6 +155,34 @@
 	private static var sys_time = neko.Lib.load("std","sys_time",0);
 	private static var sys_cpu_time = neko.Lib.load("std","sys_cpu_time",0);
 	private static var sys_exe_path = neko.Lib.load("std","sys_exe_path",0);
+	#if interp
+	private static var sys_program_path = neko.Lib.load("std","sys_program_path",0);
+	#else
+	// It has to be initialized before any call to loadModule or Sys.setCwd()...
+	private static var sys_program_path = {
+		switch ([for (m in neko.vm.Loader.local().getCache().keys()) m]) {
+			case [m]:
+				try {
+					var p = sys.FileSystem.fullPath(m);
+					function() return p;
+				} catch (e:Dynamic) {
+					// maybe the neko module name was supplied without .n extension...
+					if (!StringTools.endsWith(m, ".n")) {
+						try {
+							var p = sys.FileSystem.fullPath(m + ".n");
+							function() return p;
+						} catch (e:Dynamic) {
+							function() return m;
+						}
+					} else {
+						function() return m;
+					}
+				}
+			case modules:
+				function() return throw "cannot detemine the main module from cache: " + modules;
+		}
+	}
+	#end
 	private static var sys_env = neko.Lib.load("std","sys_env",0);
 
 	private static var file_stdin = neko.Lib.load("std","file_stdin",0);

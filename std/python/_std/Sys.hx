@@ -111,8 +111,14 @@ class Sys {
 		return python.lib.Time.clock();
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
 		return python.lib.Sys.argv[0];
+	}
+
+	// It has to be initialized before any call to Sys.setCwd()...
+	static var _programPath = sys.FileSystem.fullPath(python.lib.Inspect.getsourcefile(Sys));
+	public static function programPath() : String {
+		return _programPath;
 	}
 
 	public static function getChar( echo : Bool ) : Int {

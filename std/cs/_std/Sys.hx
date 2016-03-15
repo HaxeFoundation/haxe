@@ -156,9 +156,13 @@ class Sys {
 		return Environment.TickCount / 1000;
 	}
 
-	public static inline function executablePath() : String
+	@:deprecated("Use programPath instead") public static inline function executablePath() : String
 	{
 		return cs.system.reflection.Assembly.GetExecutingAssembly().GetName().CodeBase;
+	}
+
+	public static function programPath() : String {
+		return cs.system.reflection.Assembly.GetExecutingAssembly().Location;
 	}
 
 	public static function getChar( echo : Bool ) : Int

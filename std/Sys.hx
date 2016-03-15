@@ -116,7 +116,14 @@ extern class Sys {
 	/**
 		Returns the path to the current executable that we are running.
 	**/
-	static function executablePath() : String;
+	@:deprecated("Use programPath instead") static function executablePath() : String;
+
+	/**
+		Returns the absolute path to the current program file that we are running.
+		Concretely, for an executable binary, it returns the path to the binary.
+		For a script (e.g. a PHP file), it returns the path to the script.
+	**/
+	static function programPath() : String;
 
 	/**
 		Read a single input character from the standard input (without blocking) and returns it. Setting [echo] to true will also display it on the output.

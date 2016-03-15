@@ -29,4 +29,5 @@ extern class Inspect {
 	static function ismethod(object:Dynamic):Bool;
 	static function isclass(object:Dynamic):Bool;
 	static function isfunction(object:Dynamic):Bool;
+	static function getsourcefile(object:Dynamic):String;
 }

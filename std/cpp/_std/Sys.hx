@@ -111,7 +111,11 @@
 		return sys_cpu_time();
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
+		return new String(sys_exe_path());
+	}
+
+	public static function programPath() : String {
 		return new String(sys_exe_path());
 	}
 

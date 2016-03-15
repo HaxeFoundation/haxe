@@ -16,6 +16,31 @@ class TestSys extends TestCommandBase {
 		#end
 	}
 
+	function testProgramPath() {
+		var p = Sys.programPath();
+
+		assertTrue(haxe.io.Path.isAbsolute(p));
+
+		#if interp
+			assertTrue(StringTools.endsWith(p, "Main.hx"));
+		#elseif neko
+			assertTrue(StringTools.endsWith(p, "sys.n"));
+		#elseif cpp
+			switch (Sys.systemName()) {
+				case "Windows":
+					assertTrue(StringTools.endsWith(p, "Main-debug.exe"));
+				case _:
+					assertTrue(StringTools.endsWith(p, "Main-debug"));
+			}
+		#elseif cs
+			assertTrue(StringTools.endsWith(p, "Main-Debug.exe"));
+		#elseif java
+			assertTrue(StringTools.endsWith(p, "Main-Debug.jar"));
+		#elseif python
+			assertTrue(StringTools.endsWith(p, "sys.py"));
+		#end
+	}
+
 	#if !java
 	function testCwd() {
 		var cur = Sys.getCwd();
