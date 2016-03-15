@@ -5205,21 +5205,29 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    ) enum_def.e_constrs;
 
 
-
-
-   output_cpp ("HX_DEFINE_CREATE_ENUM(" ^ class_name ^ ")\n\n");
-   output_cpp ("int " ^ class_name ^ "::__FindIndex(::String inName)\n{\n");
-   PMap.iter (fun _ constructor ->
-      let name = constructor.ef_name in
-      let idx = string_of_int constructor.ef_index in
-      output_cpp ("\tif (inName==" ^ (str name) ^ ") return " ^ idx ^ ";\n") ) enum_def.e_constrs;
-   output_cpp ("\treturn super::__FindIndex(inName);\n");
-   output_cpp ("}\n\n");
-
    let constructor_arg_count constructor =
       (match constructor.ef_type with | TFun(args,_) -> List.length args | _ -> 0 )
    in
 
+   if ctx.ctx_cppast then begin
+      output_cpp ("bool " ^ class_name ^ "::__GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp)\n{\n");
+      PMap.iter (fun _ constructor ->
+         let name = constructor.ef_name in
+         let dyn = if constructor_arg_count constructor > 0 then "_dyn()" else "" in
+         output_cpp ("\tif (inName==" ^ strq name ^ ") { outValue = " ^ class_name ^ "::" ^ keyword_remap name ^ dyn ^ "; return true; }\n" );
+      ) enum_def.e_constrs;
+      output_cpp ("\treturn super::__GetStatic(inName, outValue, inCallProp);\n}\n\n");
+   end;
+
+   output_cpp ("HX_DEFINE_CREATE_ENUM(" ^ class_name ^ ")\n\n");
+
+   output_cpp ("int " ^ class_name ^ "::__FindIndex(::String inName)\n{\n");
+   PMap.iter (fun _ constructor ->
+      let name = constructor.ef_name in
+      let idx = string_of_int constructor.ef_index in
+      output_cpp ("\tif (inName==" ^ (strq name) ^ ") return " ^ idx ^ ";\n") ) enum_def.e_constrs;
+   output_cpp ("\treturn super::__FindIndex(inName);\n");
+   output_cpp ("}\n\n");
 
    (* Dynamic versions of constructors *)
    let dump_dynamic_constructor _ constr =
@@ -5237,14 +5245,14 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    PMap.iter (fun _ constructor ->
       let name = constructor.ef_name in
       let count = string_of_int (constructor_arg_count constructor) in
-      output_cpp ("\tif (inName==" ^ (str name) ^ ") return " ^ count ^ ";\n") ) enum_def.e_constrs;
+      output_cpp ("\tif (inName==" ^ (strq name) ^ ") return " ^ count ^ ";\n") ) enum_def.e_constrs;
       output_cpp ("\treturn super::__FindArgCount(inName);\n");
       output_cpp ("}\n\n");
 
    (* Dynamic "Get" Field function - string version *)
    output_cpp ("hx::Val " ^ class_name ^ "::__Field(const ::String &inName,hx::PropertyAccess inCallProp)\n{\n");
    let dump_constructor_test _ constr =
-      output_cpp ("\tif (inName==" ^ (str constr.ef_name) ^ ") return " ^
+      output_cpp ("\tif (inName==" ^ (strq constr.ef_name) ^ ") return " ^
                   (keyword_remap constr.ef_name) );
       if ( (constructor_arg_count constr) > 0 ) then output_cpp "_dyn()";
       output_cpp (";\n")
@@ -5252,18 +5260,18 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    PMap.iter dump_constructor_test enum_def.e_constrs;
    output_cpp ("\treturn super::__Field(inName,inCallProp);\n}\n\n");
 
-   output_cpp "static ::String sStaticFields[] = {\n";
+   output_cpp ("static ::String " ^ class_name ^ "_sStaticFields[] = {\n");
    let sorted =
       List.sort (fun f1 f2 -> (PMap.find f1 enum_def.e_constrs ).ef_index -
                (PMap.find f2 enum_def.e_constrs ).ef_index )
          (pmap_keys enum_def.e_constrs) in
 
-    List.iter (fun name -> output_cpp ("\t" ^ (str name) ^ ",\n") ) sorted;
+    List.iter (fun name -> output_cpp ("\t" ^ (strq name) ^ ",\n") ) sorted;
 
    output_cpp "\t::String(null())\n};\n\n";
 
    (* ENUM - Mark static as used by GC *)
-   output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
+   output_cpp ("static void " ^ class_name ^ "_sMarkStatics(HX_MARK_PARAMS) {\n");
    PMap.iter (fun _ constructor ->
       let name = keyword_remap constructor.ef_name in
       match constructor.ef_type with
@@ -5274,7 +5282,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    (* ENUM - Visit static as used by GC *)
    output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
-   output_cpp "static void sVisitStatic(HX_VISIT_PARAMS) {\n";
+   output_cpp ("static void " ^ class_name ^ "_sVisitStatic(HX_VISIT_PARAMS) {\n");
    output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
    PMap.iter (fun _ constructor ->
       let name = keyword_remap constructor.ef_name in
@@ -5285,8 +5293,6 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_cpp "};\n";
    output_cpp "#endif\n\n";
 
-   output_cpp "static ::String sMemberFields[] = { ::String(null()) };\n";
-
    output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
    output_cpp ("Dynamic __Create_" ^ class_name ^ "() { return new " ^ class_name ^ "; }\n\n");
@@ -5294,12 +5300,15 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
    let text_name = str (join_class_path class_path ".") in
    output_cpp ("\nhx::Static(__mClass) = hx::RegisterClass(" ^ text_name ^
-               ", hx::TCanCast< " ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
+               ", hx::TCanCast< " ^ class_name ^ " >," ^ class_name ^ "_sStaticFields,0,\n");
    output_cpp ("\t&__Create_" ^ class_name ^ ", &__Create,\n");
-   output_cpp ("\t&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics\n");
-   output_cpp("#ifdef HXCPP_VISIT_ALLOCS\n    , sVisitStatic\n#endif\n");
+   output_cpp ("\t&super::__SGetClass(), &Create" ^ class_name ^ ", " ^ class_name ^ "_sMarkStatics\n");
+   output_cpp("#ifdef HXCPP_VISIT_ALLOCS\n    , " ^ class_name ^ "_sVisitStatic\n#endif\n");
    output_cpp ("#ifdef HXCPP_SCRIPTABLE\n    , 0\n#endif\n");
-   output_cpp (");\n}\n\n");
+      output_cpp (");\n");
+   if ctx.ctx_cppast then
+      output_cpp ("\t__mClass->mGetStaticField = &" ^ class_name ^"::__GetStatic;\n");
+   output_cpp "}\n\n";
 
    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
    (match meta with
@@ -5349,10 +5358,10 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_h ("\t\tHX_DO_ENUM_RTTI;\n");
    output_h ("\t\tstatic void __boot();\n");
    output_h ("\t\tstatic void __register();\n");
-      output_h ("\t\t::String GetEnumName( ) const { return " ^
-                           (str (join_class_path class_path "."))  ^ "; }\n" );
-   output_h ("\t\t::String __ToString() const { return " ^
-                           (str (just_class_name ^ ".") )^ " + tag; }\n\n");
+   if (ctx.ctx_cppast) then
+      output_h ("\t\tstatic bool __GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
+   output_h ("\t\t::String GetEnumName( ) const { return " ^ (str (join_class_path class_path "."))  ^ "; }\n" );
+   output_h ("\t\t::String __ToString() const { return " ^ (str (just_class_name ^ ".") )^ " + tag; }\n\n");
 
 
    PMap.iter (fun _ constructor ->
@@ -6031,36 +6040,37 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
       let stored_fields = List.filter is_data_member implemented_instance_fields in
       if ( (List.length stored_fields) > 0) then begin
-         output_cpp "static hx::StorageInfo sMemberStorageInfo[] = {\n";
+         output_cpp ("static hx::StorageInfo " ^ class_name ^ "_sMemberStorageInfo[] = {\n");
          List.iter dump_member_storage stored_fields;
          output_cpp "\t{ hx::fsUnknown, 0, null()}\n};\n";
       end else
-         output_cpp "static hx::StorageInfo *sMemberStorageInfo = 0;\n";
+         output_cpp ("static hx::StorageInfo *" ^ class_name ^ "_sMemberStorageInfo = 0;\n");
 
       let stored_statics = List.filter is_data_member implemented_fields in
       if ( (List.length stored_statics) > 0) then begin
-         output_cpp "static hx::StaticInfo sStaticStorageInfo[] = {\n";
+         output_cpp ("static hx::StaticInfo " ^ class_name ^ "_sStaticStorageInfo[] = {\n");
          List.iter dump_static_storage stored_statics;
          output_cpp "\t{ hx::fsUnknown, 0, null()}\n};\n";
       end else
-         output_cpp "static hx::StaticInfo *sStaticStorageInfo = 0;\n";
+         output_cpp ("static hx::StaticInfo *" ^ class_name ^ "_sStaticStorageInfo = 0;\n");
 
       output_cpp "#endif\n\n";
    end; (* cl_interface *)
 
    let reflective_members = List.filter (reflective class_def) implemented_instance_fields in
    let sMemberFields = if List.length reflective_members>0 then begin
-      output_cpp "static ::String sMemberFields[] = {\n";
+      let memberFields = class_name ^ "_sMemberFields" in
+      output_cpp ("static ::String " ^ memberFields ^ "[] = {\n");
       List.iter dump_field_name  reflective_members;
       output_cpp "\t::String(null()) };\n\n";
-      "sMemberFields"
+      memberFields
    end else
       "0 /* sMemberFields */";
    in
 
    if (not nativeGen) then begin
       (* Mark static variables as used *)
-      output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
+      output_cpp ("static void " ^ class_name ^ "_sMarkStatics(HX_MARK_PARAMS) {\n");
       output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
       List.iter (fun field ->
          if (is_data_member field) then
@@ -6070,7 +6080,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
       (* Visit static variables *)
       output_cpp "#ifdef HXCPP_VISIT_ALLOCS\n";
-      output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
+      output_cpp ("static void " ^ class_name ^ "_sVisitStatics(HX_VISIT_PARAMS) {\n");
       output_cpp ("\tHX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
       List.iter (fun field ->
          if (is_data_member field) then
@@ -6223,10 +6233,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
       let reflective_statics = List.filter (reflective class_def) implemented_fields in
       let sStaticFields = if List.length reflective_statics > 0 then begin
-         output_cpp "static ::String sStaticFields[] = {\n";
+         output_cpp ("static ::String " ^ class_name ^ "_sStaticFields[] = {\n");
          List.iter dump_field_name  reflective_statics;
          output_cpp "\t::String(null())\n};\n\n";
-         "sStaticFields";
+         class_name ^ "_sStaticFields";
       end else
         "0 /* sStaticFields */"
       in
@@ -6241,13 +6251,13 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          if (has_get_static_field class_def) then class_name ^ "::__GetStatic;\n" else "hx::Class_obj::GetNoStaticField;\n" ));
       output_cpp ("\t__mClass->mSetStaticField = &" ^ (
          if (has_set_static_field class_def) then class_name ^ "::__SetStatic;\n" else "hx::Class_obj::SetNoStaticField;\n" ));
-      output_cpp ("\t__mClass->mMarkFunc = sMarkStatics;\n");
+      output_cpp ("\t__mClass->mMarkFunc = " ^ class_name ^ "_sMarkStatics;\n");
       output_cpp ("\t__mClass->mStatics = hx::Class_obj::dupFunctions(" ^ sStaticFields ^ ");\n");
       output_cpp ("\t__mClass->mMembers = hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
       output_cpp ("\t__mClass->mCanCast = hx::TCanCast< " ^ class_name ^ " >;\n");
-      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = sVisitStatics;\n#endif\n");
-      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mMemberStorageInfo = sMemberStorageInfo;\n#endif\n");
-      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mStaticStorageInfo = sStaticStorageInfo;\n#endif\n");
+      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = " ^ class_name ^ "_sVisitStatics;\n#endif\n");
+      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mMemberStorageInfo = " ^ class_name ^ "_sMemberStorageInfo;\n#endif\n");
+      output_cpp ("#ifdef HXCPP_SCRIPTABLE\n\t__mClass->mStaticStorageInfo = " ^ class_name ^ "_sStaticStorageInfo;\n#endif\n");
       output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
       if (scriptable) then
          output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
@@ -6261,12 +6271,12 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("\thx::Static(__mClass) = new hx::Class_obj();\n");
       output_cpp ("\t__mClass->mName = " ^  (str class_name_text)  ^ ";\n");
       output_cpp ("\t__mClass->mSuper = &super::__SGetClass();\n");
-      output_cpp ("\t__mClass->mMarkFunc = sMarkStatics;\n");
+      output_cpp ("\t__mClass->mMarkFunc = " ^ class_name ^ "_sMarkStatics;\n");
       (*output_cpp ("\t__mClass->mStatics = hx::Class_obj::dupFunctions(" ^ sStaticFields ^ ");\n");*)
       output_cpp ("\t__mClass->mMembers = hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
       if not ctx.ctx_callsiteInterfaces then
          output_cpp ("\t__mClass->mCanCast = hx::TCanCast< " ^ class_name ^ " >;\n");
-      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = sVisitStatics;\n#endif\n");
+      output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = " ^ class_name ^ "_sVisitStatics;\n#endif\n");
       output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
       if (scriptable) then
          output_cpp ("  HX_SCRIPTABLE_REGISTER_INTERFACE(\""^class_name_text^"\"," ^ class_name ^ ");\n");
