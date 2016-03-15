@@ -1241,7 +1241,7 @@ module TexprConverter = struct
 					let eo = loop false params dt in
 					begin match eo with
 						| None -> None
-						| Some e -> Some (List.rev_map (Constructor.to_texpr ctx match_debug dt.dt_pos) cons,e)
+						| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug dt.dt_pos) (List.sort Constructor.compare cons),e)
 					end
 				) cases in
 				let e_default = match unmatched,finiteness with
