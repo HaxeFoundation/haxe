@@ -24,5 +24,6 @@ extern class NativeStringTools {
 
 	public static function upper(str:String) : String;
 	public static function lower(str:String) : String;
+	public static function dump(d:Dynamic) : Dynamic;
 }
 
