@@ -932,29 +932,29 @@ class RunCi {
 						runCommand(py, ["test.py"]);
 					}
 				case Cpp:
-					getCppDependencies();
-					runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
-					runCpp("bin/cpp/Test-debug", []);
+					// getCppDependencies();
+					// runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M32"].concat(args));
+					// runCpp("bin/cpp/Test-debug", []);
 
-					switch (ci) {
-						case AppVeyor:
-							//save time...
-						case _:
-							runCommand("rm", ["-rf", "cpp"]);
-							runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
-							runCpp("bin/cpp/Test-debug", []);
-					}
+					// switch (ci) {
+					// 	case AppVeyor:
+					// 		//save time...
+					// 	case _:
+					// 		runCommand("rm", ["-rf", "cpp"]);
+					// 		runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
+					// 		runCpp("bin/cpp/Test-debug", []);
+					// }
 
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-cpp.hxml"]);
-					runCpp("bin/cpp/Main-debug", []);
+					runCpp("bin/cpp/Main-debug");
 
-					if (Sys.systemName() == "Mac")
-					{
-						changeDirectory(miscDir + "cppObjc");
-						runCommand("haxe", ["build.hxml"]);
-						runCpp("bin/TestObjc-debug");
-					}
+					// if (Sys.systemName() == "Mac")
+					// {
+					// 	changeDirectory(miscDir + "cppObjc");
+					// 	runCommand("haxe", ["build.hxml"]);
+					// 	runCpp("bin/TestObjc-debug");
+					// }
 				case Js:
 					getJSDependencies();
 
