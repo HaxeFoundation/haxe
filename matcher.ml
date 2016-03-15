@@ -707,6 +707,8 @@ module Useless = struct
 		) [] cases)
 end
 
+module DtTable = Hashtbl.Make(Decision_tree)
+
 module Compile = struct
 	open Typecore
 	open Decision_tree
@@ -715,11 +717,10 @@ module Compile = struct
 	open Pattern
 
 	exception Extractor
-	module H = Hashtbl.Make(Decision_tree)
 
 	type matcher_context = {
 		ctx : typer;
-		dt_table : dt H.t;
+		dt_table : dt DtTable.t;
 		match_pos : pos;
 		match_debug : bool;
 		mutable dt_count : int;
@@ -727,10 +728,10 @@ module Compile = struct
 
 	let rec hashcons mctx dt p =
 		try
-			H.find mctx.dt_table dt
+			DtTable.find mctx.dt_table dt
 		with Not_found ->
 			let dti = {dt_t = dt; dt_i = mctx.dt_count; dt_pos = p; dt_goto_target = false } in
-			H.add mctx.dt_table dt dti;
+			DtTable.add mctx.dt_table dt dti;
 			mctx.dt_count <- mctx.dt_count + 1;
 			dti
 
@@ -1005,7 +1006,7 @@ module Compile = struct
 		let mctx = {
 			ctx = ctx;
 			match_debug = match_debug;
-			dt_table = H.create 7;
+			dt_table = DtTable.create 7;
 			match_pos = p;
 			dt_count = 0;
 		} in
@@ -1210,25 +1211,18 @@ module TexprConverter = struct
 						| _,CompileTimeFinite when unmatched = [] -> None
 						| _ -> report_not_exhaustive e_subject unmatched
 				in
-				let rec group cases = match cases with
-					| (con,dt,params) :: cases ->
-						let rec loop cons cases = match cases with
-							| (con,dt',params) as case :: cases ->
-								(* TODO: Might have to check params? *)
-								if Decision_tree.equal_dt dt' dt then loop (con :: cons) cases
-								else cons,(case :: cases)
-							| [] ->
-								cons,cases
-						in
-						let cons,remaining = loop [con] cases in
-						(cons,dt,params) :: group remaining
-					| [] ->
-						[]
-				in
 				let cases = ExtList.List.filter_map (fun (con,_,dt) -> match unify_constructor ctx params e_subject.etype con with
 					| Some(_,params) -> Some (con,dt,params)
 					| None -> None
 				) cases in
+				let group cases =
+					let h = DtTable.create 0 in
+					List.iter (fun (con,dt,params) ->
+						let l,_,_ = try DtTable.find h dt.dt_t with Not_found -> [],dt,params in
+						DtTable.replace h dt.dt_t (con :: l,dt,params)
+					) cases;
+					DtTable.fold (fun _ (cons,dt,params) acc -> (cons,dt,params) :: acc) h []
+				in
 				let cases = group cases in
 				let cases = ExtList.List.filter_map (fun (cons,dt,params) ->
 					let eo = loop false params dt in
