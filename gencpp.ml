@@ -4501,14 +4501,16 @@ let is_override class_def field =
    List.exists (fun f -> f.cf_name = field) class_def.cl_overrides
 ;;
 
-let rec all_virtual_functions clazz =
+let all_virtual_functions clazz =
+  let rec all_virtual_functions_rev clazz =
    (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
       | _, Method MethDynamic -> result
       | TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
       | _,_ -> result ) [] clazz.cl_ordered_fields)
    @ (match clazz.cl_super with
-   | Some def -> all_virtual_functions (fst def)
-   | _ -> [] )
+   | Some def -> all_virtual_functions_rev (fst def)
+   | _ -> [] ) in
+  List.rev (all_virtual_functions_rev clazz)
 ;;
 
 let reflective class_def field = not (
@@ -6106,6 +6108,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    | "Float" -> "f"
    | "String" -> "s"
    | "Void" -> "v"
+   | "void" -> "v"
    | _ -> "o"
    in
    let script_size_type t optional = match script_type t optional with
@@ -6119,7 +6122,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_cpp ("\nstatic void " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
          let ret = script_signature return_type false in
          if (ret<>"v") then output_cpp ("ctx->return" ^ (script_type return_type false) ^ "(");
-         if isStatic then
+         if class_def.cl_interface && ctx.ctx_cppast then begin
+            output_cpp (class_name ^ "::" ^ callName ^ "(ctx->getThis()" ^ (if (List.length args) > 0 then "," else ""));
+         end else if isStatic then
             output_cpp (class_name ^ "::" ^ callName ^ "(")
          else
             output_cpp ("((" ^  class_name ^ "*)ctx->getThis())->" ^  callName ^ "(");
@@ -6137,61 +6142,89 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    in
 
 
+   let newInteface = ctx.ctx_cppast && class_def.cl_interface in
+
    if (scriptable && not nativeGen) then begin
+      let delegate = if ctx.ctx_cppast then "this->" else "mDelegate->" in
       let dump_script_field idx (field,f_args,return_t) =
       let args = if (class_def.cl_interface) then
             gen_tfun_interface_arg_list f_args
          else
             ctx_tfun_arg_list ctx f_args in
       let names = List.map (fun (n,_,_) -> keyword_remap n) f_args in
-      let return_type = type_string return_t in
-      let ret = if (return_type="Void") then " " else "return " in
+      let return_type = ctx_type_string ctx return_t in
+      let ret = if (return_type="Void" || return_type="void") then " " else "return " in
       let name = keyword_remap field.cf_name in
       let vtable =  "__scriptVTable[" ^ (string_of_int (idx+1) ) ^ "] " in
       let args_varray = (List.fold_left (fun l n -> l ^ ".Add(" ^ n ^ ")") "Array<Dynamic>()" names) in
-      output_cpp ("	" ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) { ");
-      output_cpp ("\n\tif (" ^ vtable ^ ") {\n" );
-      output_cpp ("\t\thx::CppiaCtx *__ctx = hx::CppiaCtx::getCurrent();\n" );
-      output_cpp ("\t\thx::AutoStack __as(__ctx);\n" );
-      output_cpp ("\t\t__ctx->pushObject(" ^ (if class_def.cl_interface then "mDelegate.mPtr" else "this" ) ^");\n" );
-      List.iter (fun (name,opt, t ) ->
-         output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
-      ) f_args;
-      output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(" ^ vtable ^ ");\n" );
-      output_cpp ("\t}  else " ^ ret );
 
-      if (class_def.cl_interface) then begin
-         output_cpp (" mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever)");
-         if (List.length names <= 5) then
-            output_cpp ("->__run(" ^ (String.concat "," names) ^ ");")
-         else
-            output_cpp ("->__Run(" ^ args_varray ^ ");");
-      end else
-         output_cpp (class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ ");");
-      output_cpp ("return null(); }\n");
-      if (class_def.cl_interface) && not dynamic_interface_closures then begin
-         output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever); }\n\n");
+      output_cpp ("	" ^ return_type ^ " " ^ name ^ "( " ^ args ^ " ) {\n");
+      if newInteface then begin
+         output_cpp ("\t\thx::CppiaCtx *__ctx = hx::CppiaCtx::getCurrent();\n" );
+         output_cpp ("\t\thx::AutoStack __as(__ctx);\n" );
+         output_cpp ("\t\t__ctx->pushObject(this);\n" );
+         List.iter (fun (name,opt, t ) ->
+            output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
+         ) f_args;
+         output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(__GetScriptVTable()[1]);\n" );
+         output_cpp "\t}\n";
+      end else begin
+         output_cpp ("\tif (" ^ vtable ^ ") {\n" );
+         output_cpp ("\t\thx::CppiaCtx *__ctx = hx::CppiaCtx::getCurrent();\n" );
+         output_cpp ("\t\thx::AutoStack __as(__ctx);\n" );
+         output_cpp ("\t\t__ctx->pushObject(" ^ (if class_def.cl_interface then "mDelegate.mPtr" else "this" ) ^");\n" );
+         List.iter (fun (name,opt, t ) ->
+            output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
+         ) f_args;
+         output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(" ^ vtable ^ ");\n" );
+         output_cpp ("\t}  else " ^ ret );
 
+
+         if (class_def.cl_interface) then begin
+            output_cpp (" " ^ delegate ^ "__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever)");
+            if (List.length names <= 5) then
+               output_cpp ("->__run(" ^ (String.concat "," names) ^ ");")
+            else
+               output_cpp ("->__Run(" ^ args_varray ^ ");");
+         end else
+            output_cpp (class_name ^ "::" ^ name ^ "(" ^ (String.concat "," names)^ ");");
+         if (return_type<>"void") then
+            output_cpp "return null();";
+         output_cpp "}\n";
+         if (class_def.cl_interface) && not dynamic_interface_closures then begin
+            output_cpp ("	Dynamic " ^ name ^ "_dyn() { return mDelegate->__Field(HX_CSTRING(\"" ^ field.cf_name ^ "\"), hx::paccNever); }\n\n");
+
+         end
       end
       in
 
       let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || class_def.cl_interface in
       let functions = List.filter not_toString (all_virtual_functions class_def) in
-      let new_sctipt_functions = List.filter (fun (f,_,_) -> not (is_override class_def f.cf_name) ) functions in
+      let new_sctipt_functions = if newInteface then
+            all_virtual_functions class_def
+         else 
+            List.filter (fun (f,_,_) -> (not (is_override class_def f.cf_name)) ) functions
+      in
       let sctipt_name = class_name ^ "__scriptable" in
-      output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n" );
-      output_cpp ("   typedef "^sctipt_name ^" __ME;\n");
-      output_cpp ("   typedef "^class_name ^" super;\n");
-      let has_funky_toString = List.exists (fun f -> f.cf_name="toString") class_def.cl_ordered_statics  ||
-                              List.exists (fun f -> f.cf_name="toString" && field_arg_count f <> 0) class_def.cl_ordered_fields in
-      let super_string = if has_funky_toString then class_name ^ "::super" else class_name in
-      output_cpp ("   typedef "^ super_string ^" __superString;\n");
-      if (class_def.cl_interface) then
-         output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
-      else begin
-         output_cpp ("   HX_DEFINE_SCRIPTABLE(HX_ARR_LIST" ^ (string_of_int (List.length constructor_var_list) ) ^ ")\n");
-         if (not implement_dynamic) then
-            output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
+
+      if newInteface then begin
+         output_cpp ("class " ^ sctipt_name ^ " : public hx::Object {\n" );
+         output_cpp "public:\n";
+      end else begin
+         output_cpp ("class " ^ sctipt_name ^ " : public " ^ class_name ^ " {\n" );
+         output_cpp ("   typedef "^sctipt_name ^" __ME;\n");
+         output_cpp ("   typedef "^class_name ^" super;\n");
+         let has_funky_toString = List.exists (fun f -> f.cf_name="toString") class_def.cl_ordered_statics  ||
+                                 List.exists (fun f -> f.cf_name="toString" && field_arg_count f <> 0) class_def.cl_ordered_fields in
+         let super_string = if has_funky_toString then class_name ^ "::super" else class_name in
+         output_cpp ("   typedef "^ super_string ^" __superString;\n");
+         if (class_def.cl_interface) then
+            output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
+         else begin
+            output_cpp ("   HX_DEFINE_SCRIPTABLE(HX_ARR_LIST" ^ (string_of_int (List.length constructor_var_list) ) ^ ")\n");
+            if (not implement_dynamic) then
+               output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
+         end;
       end;
 
       list_iteri dump_script_field functions;
@@ -6211,8 +6244,17 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
       end else
          output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
-   end;
 
+      if newInteface then begin
+         output_cpp ("\n\n" ^ class_name ^ " " ^ class_name ^ "_scriptable = {\n");
+         List.iter (fun (f,args,return_type) ->
+            let cast = cpp_tfun_signature ctx args return_type in
+            output_cpp ("\t" ^ cast ^ "&" ^ sctipt_name ^ "::" ^ (keyword_remap f.cf_name) ^ ",\n")
+         ) new_sctipt_functions;
+         output_cpp ("};\n");
+      end;
+
+   end;
 
 
    let class_name_text = join_class_path class_path "." in
