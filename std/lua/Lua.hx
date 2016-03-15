@@ -25,7 +25,7 @@ extern class Lua {
 	public static function rawget<K,V>(t:Table<K,V>, k:K) : V;
 	public static function rawset<K,V>(t:Table<K,V>, k:K, v:V) : Void;
 	public static function collectgarbage(opt:CollectGarbageOption, ?arg:Int) : Int;
-	public static function assert(v:Bool, message:String) : Bool;
+	public static function assert<T>(v:T, ?message:String) : T;
 	public static function dofile(filename:String) : Void;
 	public static function error(message:String, ?level:Int) : Void;
 	public static function pcall(f:Function, rest:Rest<Dynamic>) : Bool;
