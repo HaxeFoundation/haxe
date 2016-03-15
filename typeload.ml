@@ -3399,7 +3399,7 @@ let resolve_module_file com m remap p =
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
 	) ^ ".hx" in
-	let file = Common.find_file com file in
+	let file = if ExtString.String.ends_with (!Parser.resume_display).pfile file then (!Parser.resume_display).pfile else Common.find_file com file in
 	let file = (match String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
