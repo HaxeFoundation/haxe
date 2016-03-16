@@ -21,7 +21,7 @@
  */
  package cpp;
 
-abstract ConstCharStar( RawConstPointer<Char> ) to(RawConstPointer<Char>)
+@:extern abstract ConstCharStar( RawConstPointer<Char> ) to(RawConstPointer<Char>)
 {
    inline function new(s:String) this = untyped s.__s;
 

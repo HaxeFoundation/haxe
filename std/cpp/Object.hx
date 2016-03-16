@@ -21,7 +21,7 @@
  */
  package cpp;
 
-@:native("::hx::Object *")
+@:native("hx::Object *")
 extern class HxObjectPtr
 {
    @:native("hx::DynamicPtr")
