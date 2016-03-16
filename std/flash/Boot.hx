@@ -287,8 +287,13 @@ class Boot extends flash.display.MovieClip {
 			}
 			return ret;
 		};
+		aproto.sliceHX = function(?s = 0, ?e = 16777215) {
+			if (e == null) e = 16777215;
+			return __this__.slice(s,e);
+		};
 		aproto.setPropertyIsEnumerable("mapHX", false);
 		aproto.setPropertyIsEnumerable("filterHX", false);
+		aproto.setPropertyIsEnumerable("sliceHX", false);
 		String.prototype.charCodeAtHX = function(i) : Null<Int> {
 		#else
 		aproto["filter"] = function(f) {
@@ -312,8 +317,15 @@ class Boot extends flash.display.MovieClip {
 			}
 			return ret;
 		};
+		aproto["slice_o"] = aproto["slice"];
+		aproto["slice"] = function(?s = 0, ?e = 16777215) {
+			if (e == null) e = 16777215;
+			return __this__.slice_o(s,e);
+		};
 		aproto.setPropertyIsEnumerable("map", false);
 		aproto.setPropertyIsEnumerable("filter", false);
+		aproto.setPropertyIsEnumerable("slice", false);
+		aproto.setPropertyIsEnumerable("slice_o", false);
 		String.prototype.charCodeAt = function(i) : Null<Int> {
 		#end
 			var s : String = __this__;

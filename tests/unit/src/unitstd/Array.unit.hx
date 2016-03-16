@@ -102,6 +102,7 @@ b == [i3];
 b.slice( -3) == [i3];
 b.slice( -3, -3) == [];
 [1, 2, 3].slice(2, 1) == [];
+[1, 2].slice(1, null) == [2]; // #4460
 
 // sort
 var i0 = new IntWrap(1);
