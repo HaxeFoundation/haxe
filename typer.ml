@@ -1118,7 +1118,7 @@ let get_this ctx p =
 				let v = if ctx.curfun = FunMemberAbstractLocal then
 					PMap.find "this" ctx.locals
 				else
-					gen_local ctx ctx.tthis
+					add_local ctx "`this" ctx.tthis
 				in
 				ctx.vthis <- Some v;
 				v
