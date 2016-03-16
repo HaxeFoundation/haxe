@@ -781,7 +781,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"false"; "finally"; "float"; "for"; "goto"; "if"; "implements"; "import"; "instanceof"; "int";
 		"interface"; "long"; "native"; "new"; "null"; "package"; "private"; "protected"; "public"; "return"; "short";
 		"static"; "strictfp"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws"; "transient"; "true"; "try";
-		"void"; "volatile"; "while"; ];
+		"void"; "volatile"; "while"; "_"; ];
 	res
 
 let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
