@@ -64,12 +64,8 @@ class FileSystem {
 		}
 	}
 
-	public static function isDirectory( path : String ) : Bool {
-		return try {
-			kind(path) == kdir;
-		} catch(e:Dynamic) {
-			false;
-		}
+	public static inline function isDirectory( path : String ) : Bool {
+		return kind(path) == kdir;
 	}
 
 	public static function createDirectory( path : String ) : Void {
