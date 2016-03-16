@@ -1827,7 +1827,7 @@ and tcpp_to_string = function
          "id <" ^ path ^ ">"
       else
          path ^ " *"
-   | TCppNativePointer klass -> (cpp_class_path_of klass) ^ " *"
+   | TCppNativePointer klass -> (join_class_path_remap klass.cl_path "::") ^ " *"
    | TCppInst klass ->
         cpp_class_path_of klass
    | TCppClass -> "hx::Class";
@@ -1966,8 +1966,8 @@ let rec cpp_type_of ctx haxe_type =
             TCppPointer("ConstPointer", cpp_type_of ctx p)
       | (["cpp"],"RawPointer"), [p] ->
             TCppRawPointer("", cpp_type_of ctx p)
-      | (["cpp"],"ConstRawPointer"), [p] ->
-            TCppRawPointer("const", cpp_type_of ctx p)
+      | (["cpp"],"RawConstPointer"), [p] ->
+            TCppRawPointer("const ", cpp_type_of ctx p)
       | (["cpp"],"Function"), [function_type; abi] ->
             cpp_function_type_of ctx function_type abi;
 
