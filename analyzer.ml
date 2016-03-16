@@ -357,7 +357,7 @@ module TexprFilter = struct
 			let e_if eo = mk (TIf(e_not,e_break,eo)) com.basic.tvoid p in
 			let rec map_continue e = match e.eexpr with
 				| TContinue ->
-					(e_if (Some e))
+					Texpr.duplicate_tvars (e_if (Some e))
 				| TWhile _ | TFor _ ->
 					e
 				| _ ->
@@ -1106,6 +1106,9 @@ module TexprTransformer = struct
 				bb_next,ec
 			| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
 				error "Cannot use abstract as value" e.epos
+			| TTypeExpr(TClassDecl c) ->
+				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
+				bb,e
 			| TConst _ | TTypeExpr _ ->
 				bb,e
 			| TContinue | TBreak | TThrow _ | TReturn _ | TVar _ | TFor _ | TWhile _ ->

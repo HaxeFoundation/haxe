@@ -651,7 +651,7 @@ let rec process_params create pl =
 			loop [] l
 		| "--cwd" :: dir :: l ->
 			(* we need to change it immediately since it will affect hxml loading *)
-			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"));
+			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			loop acc l
 		| "--connect" :: hp :: l ->
 			(match !global_cache with
@@ -1767,6 +1767,9 @@ with Not_found -> try
 with Completion c ->
 	prerr_endline c;
 	exit 0
+| Arg.Bad msg ->
+	prerr_endline ("Error: " ^ msg);
+	exit 1
 );
 other();
 if !measure_times then report_times prerr_endline

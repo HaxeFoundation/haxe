@@ -291,7 +291,12 @@ let generic_substitute_expr gctx e =
 		| TField(e1, FInstance({cl_kind = KGeneric} as c,tl,cf)) ->
 			let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c) gctx.p in
 			let t = f (List.map (generic_substitute_type gctx) tl) in
-			build_expr {e with eexpr = TField(e1,quick_field t cf.cf_name)}
+			let fa = try
+				quick_field t cf.cf_name
+			with Not_found ->
+				error (Printf.sprintf "Type %s has no field %s (possible typing order issue)" (s_type (print_context()) t) cf.cf_name) e.epos
+			in
+			build_expr {e with eexpr = TField(e1,fa)}
 		| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter _;} as c)) when Meta.has Meta.Const c.cl_meta ->
 			let rec loop subst = match subst with
 				| (t1,t2) :: subst ->

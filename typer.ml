@@ -1118,7 +1118,7 @@ let get_this ctx p =
 				let v = if ctx.curfun = FunMemberAbstractLocal then
 					PMap.find "this" ctx.locals
 				else
-					gen_local ctx ctx.tthis
+					add_local ctx "`this" ctx.tthis
 				in
 				ctx.vthis <- Some v;
 				v
@@ -1914,7 +1914,6 @@ let call_to_string ctx c e =
 	let et = type_module_type ctx (TClassDecl c) None e.epos in
 	let cf = PMap.find "toString" c.cl_statics in
 	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
-
 
 let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
@@ -4033,11 +4032,17 @@ and type_call ctx e el (with_type:with_type) p =
 		if (platform ctx.com Js || platform ctx.com Python) && el = [] && has_dce ctx.com then
 			let e = type_expr ctx e Value in
 			let infos = type_expr ctx infos Value in
-			let e = match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
-					call_to_string ctx c e
-				| _ ->
-					e
+			let e = try
+				begin match follow e.etype with
+					| TInst({cl_path=[],"String"},_) -> raise Not_found
+					| TMono _ -> raise Not_found
+					| t when t == t_dynamic -> raise Not_found
+					| _ -> ()
+				end;
+				let acc = type_field ~resume:true ctx e "toString" p MCall in
+				build_call ctx acc [] (WithType ctx.t.tstring) p
+			with Not_found ->
+				e
 			in
 			let v_trace = alloc_unbound_var "`trace" t_dynamic in
 			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
