@@ -111,44 +111,9 @@ enum ValueType {
 		return if (Internal.hasConstructs(o)) cast o else null;
 	}
 
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
+	public static inline function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
-		var l = args.length;
-		switch( l )
-		{
-			case 0:
-				return Syntax.newInstance(cl);
-			case 1:
-				return Syntax.newInstance(cl,args[0]);
-			case 2:
-				return Syntax.newInstance(cl,args[0],args[1]);
-			case 3:
-				return Syntax.newInstance(cl,args[0],args[1],args[2]);
-			case 4:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3]);
-			case 5:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4]);
-			case 6:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
-			case 7:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
-			case 8:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
-			case 9:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
-			case 10:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
-			case 11:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
-			case 12:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
-			case 13:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
-			case 14:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
-			default:
-				throw "Too many arguments";
-		}
+		return Syntax.newInstance(cl, Syntax.varArgs(args));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T
