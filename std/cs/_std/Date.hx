@@ -106,7 +106,7 @@ import haxe.Int64;
 
 	static public inline function fromTime( t : Float ) : Date
 	{
-		return new Date(new DateTime(cast(t * cast(TimeSpan.TicksPerMillisecond, Float), Int64) + epochTicks));
+		return new Date(cs.system.TimeZone.CurrentTimeZone.ToLocalTime(new DateTime(cast(t * cast(TimeSpan.TicksPerMillisecond, Float), Int64) + epochTicks)));
 	}
 
 	static public function fromString( s : String ) : Date
