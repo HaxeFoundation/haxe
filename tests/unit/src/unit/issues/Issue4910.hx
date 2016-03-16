@@ -8,6 +8,7 @@ private typedef TD = {
 	function f(v:Int):String;
 }
 
+@:analyzer(no_fusion)
 class Issue4910 extends Test {
 	function test() {
 		var t:TD = C;
