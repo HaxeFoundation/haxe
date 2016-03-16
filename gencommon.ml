@@ -778,11 +778,6 @@ let new_ctx con =
 
 		gspecial_vars = Hashtbl.create 0;
 	} in
-
-	(*gen.gtools.r_create_empty <-
-	gen.gtools.r_get_class <-
-	gen.gtools.r_fields <- *)
-
 	gen
 
 let init_ctx gen =
