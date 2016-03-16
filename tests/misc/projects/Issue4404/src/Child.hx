@@ -1,0 +1,3 @@
+class Child extends Base
+{
+}
