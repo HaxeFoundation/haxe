@@ -204,6 +204,9 @@ type context =
    ctx_dbgout : string -> unit;
    ctx_writer : source_writer;
 
+   ctx_interface_slot : (string,int) Hashtbl.t ref;
+   ctx_interface_slot_count : int ref;
+
 
    (* Used for tracking state in hxast *)
    mutable ctx_calling : bool;
@@ -229,6 +232,7 @@ type context =
 
 let new_context common_ctx debug file_info member_types =
 let null_file = new source_writer common_ctx ignore (fun () -> () ) in
+let result = 
 {
    ctx_common = common_ctx;
    ctx_writer = null_file;
@@ -236,6 +240,8 @@ let null_file = new source_writer common_ctx ignore (fun () -> () ) in
    ctx_dbgout = (fun _ -> ());
    ctx_cppast = Common.defined_value_safe common_ctx Define.CppAst <>"";
    ctx_callsiteInterfaces = Common.defined_value_safe common_ctx Define.CppAst <>"";
+   ctx_interface_slot = ref (Hashtbl.create 0);
+   ctx_interface_slot_count = ref 2;
    ctx_calling = false;
    ctx_assigning = false;
    ctx_debug_level = if Common.defined_value_safe common_ctx Define.AnnotateSource <>"" then 2 else debug;
@@ -257,7 +263,9 @@ let null_file = new source_writer common_ctx ignore (fun () -> () ) in
    ctx_local_return_block_args = Hashtbl.create 0;
    ctx_class_member_types =  member_types;
    ctx_file_info = file_info;
-}
+} in
+Hashtbl.replace !(result.ctx_interface_slot) "toString" 1;
+result
 
 
 let file_context ctx writer debug =
@@ -5056,7 +5064,8 @@ let generate_dummy_main common_ctx =
    generate_startup "__lib__" false
    ;;
 
-let generate_boot common_ctx boot_enums boot_classes nonboot_classes init_classes =
+let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
+   let common_ctx = ctx.ctx_common in
    (* Write boot class too ... *)
    let base_dir = common_ctx.file in
    let boot_file = new_cpp_file common_ctx base_dir ([],"__boot__") in
@@ -5064,6 +5073,16 @@ let generate_boot common_ctx boot_enums boot_classes nonboot_classes init_classe
    output_boot "#include <hxcpp.h>\n\n";
    List.iter ( fun class_path -> boot_file#add_include class_path )
       (boot_enums @ boot_classes @ nonboot_classes);
+
+   let scriptable = (Common.defined common_ctx Define.Scriptable) in
+   if scriptable then begin
+      let funcs = hash_iterate !(ctx.ctx_interface_slot) (fun name id -> (name,id) ) in
+      let sorted = List.sort (fun (_,id1) (_,id2) -> id1-id2 ) funcs in
+      output_boot "static const char *interfaceFuncs[] = {\n";
+      List.iter (fun (name,id) -> output_boot ("\t\"" ^ name ^ "\", //" ^ (string_of_int (-id) ) ^ "\n")) sorted;
+      output_boot "};\n";
+   end;
+   
 
    output_boot "\nvoid __files__boot();\n";
    output_boot "\nvoid __boot_all()\n{\n";
@@ -5537,6 +5556,16 @@ let is_macro meta =
    Meta.has Meta.Macro meta
 ;;
 
+
+let cpp_get_interface_slot ctx name =
+   try Hashtbl.find !(ctx.ctx_interface_slot) name
+   with Not_found -> begin
+      let result = !(ctx.ctx_interface_slot_count) in
+      Hashtbl.replace !(ctx.ctx_interface_slot) name result;
+      ctx.ctx_interface_slot_count := !(ctx.ctx_interface_slot_count) + 1;
+      result
+   end
+;;
 
 let access_str a = match a with
    | AccNormal -> "AccNormal"
@@ -6166,7 +6195,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          List.iter (fun (name,opt, t ) ->
             output_cpp ("\t\t__ctx->push" ^ (script_type t opt) ^ "(" ^ (keyword_remap name) ^ ");\n" );
          ) f_args;
-         output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(__GetScriptVTable()[1]);\n" );
+         let interfaceSlot = string_of_int( -(cpp_get_interface_slot ctx name) ) in
+         output_cpp ("\t\t" ^ ret ^ "__ctx->run" ^ (script_type return_t false) ^ "(__GetScriptVTable()[" ^ interfaceSlot ^ "]);\n" );
          output_cpp "\t}\n";
       end else begin
          output_cpp ("\tif (" ^ vtable ^ ") {\n" );
@@ -7720,7 +7750,7 @@ let generate_source ctx =
       generate_main ctx super_deps class_def
    );
 
-   generate_boot common_ctx !boot_enums !boot_classes !nonboot_classes !init_classes;
+   generate_boot ctx !boot_enums !boot_classes !nonboot_classes !init_classes;
 
    generate_files common_ctx file_info;
 
