@@ -241,7 +241,7 @@ let result =
    ctx_cppast = Common.defined_value_safe common_ctx Define.CppAst <>"";
    ctx_callsiteInterfaces = Common.defined_value_safe common_ctx Define.CppAst <>"";
    ctx_interface_slot = ref (Hashtbl.create 0);
-   ctx_interface_slot_count = ref 2;
+   ctx_interface_slot_count = ref 1;
    ctx_calling = false;
    ctx_assigning = false;
    ctx_debug_level = if Common.defined_value_safe common_ctx Define.AnnotateSource <>"" then 2 else debug;
@@ -264,7 +264,6 @@ let result =
    ctx_class_member_types =  member_types;
    ctx_file_info = file_info;
 } in
-Hashtbl.replace !(result.ctx_interface_slot) "toString" 1;
 result
 
 
@@ -5074,11 +5073,12 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
    List.iter ( fun class_path -> boot_file#add_include class_path )
       (boot_enums @ boot_classes @ nonboot_classes);
 
-   let scriptable = (Common.defined common_ctx Define.Scriptable) in
-   if scriptable then begin
+   let newScriptable = ctx.ctx_cppast && (Common.defined common_ctx Define.Scriptable) in
+   if newScriptable then begin
+      output_boot "#include <hx/Scriptable.h>\n";
       let funcs = hash_iterate !(ctx.ctx_interface_slot) (fun name id -> (name,id) ) in
       let sorted = List.sort (fun (_,id1) (_,id2) -> id1-id2 ) funcs in
-      output_boot "static const char *interfaceFuncs[] = {\n";
+      output_boot "static const char *scriptableInterfaceFuncs[] = {\n\t0,\n";
       List.iter (fun (name,id) -> output_boot ("\t\"" ^ name ^ "\", //" ^ (string_of_int (-id) ) ^ "\n")) sorted;
       output_boot "};\n";
    end;
@@ -5088,6 +5088,9 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
    output_boot "\nvoid __boot_all()\n{\n";
    output_boot "__files__boot();\n";
    output_boot "hx::RegisterResources( hx::GetResources() );\n";
+   if newScriptable then
+      output_boot ("hx::ScriptableRegisterNameSlots(scriptableInterfaceFuncs," ^ (string_of_int !(ctx.ctx_interface_slot_count) ) ^ ");\n");
+      
    List.iter ( fun class_path ->
       output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__register();\n") )
          (boot_enums @ boot_classes @ nonboot_classes);
