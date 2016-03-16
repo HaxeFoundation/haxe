@@ -20,3 +20,6 @@ date.getDate() == 10;
 date.getDay() == 3;
 //date.getTime() == 405781340000.;
 date.toString() == "1982-11-10 14:02:20";
+
+var date = Date.fromTime(405781340000);
+date.getTime() == 405781340000;
