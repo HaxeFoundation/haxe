@@ -36,14 +36,14 @@ extern class AVSegmentedSource extends AVSource {
 	function setPauseAtPeriodEnd(periodIndex : Int, userData : Int = 0) : AVResult;
 	function setSubscribedTags(tagArray : Array<Dynamic>) : AVResult;
 	function setSubscribedTagsForBackgroundManifest(tagArray : Array<Dynamic>) : AVResult;
-	static var AUDIO : String;
-	static var AUDIO_DESCRIPTION : String;
-	static var AUDIO_LANGUAGE : String;
-	static var AUDIO_PID : String;
-	static var DASH : String;
-	static var DATA : String;
-	static var DATA_DESCRIPTION : String;
-	static var HLS : String;
-	static var VIDEO : String;
-	static var VIDEO_DESCRIPTION : String;
+	static var AUDIO(default,never) : String;
+	static var AUDIO_DESCRIPTION(default,never) : String;
+	static var AUDIO_LANGUAGE(default,never) : String;
+	static var AUDIO_PID(default,never) : String;
+	static var DASH(default,never) : String;
+	static var DATA(default,never) : String;
+	static var DATA_DESCRIPTION(default,never) : String;
+	static var HLS(default,never) : String;
+	static var VIDEO(default,never) : String;
+	static var VIDEO_DESCRIPTION(default,never) : String;
 }

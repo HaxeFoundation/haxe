@@ -5,5 +5,5 @@ package flash.events;
 	var serverURL : String;
 	var token : flash.utils.ByteArray;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?inServerURL : String, ?inDomain : String, ?inToken : flash.utils.ByteArray) : Void;
-	static var AUTHENTICATION_COMPLETE : String;
+	static var AUTHENTICATION_COMPLETE(default,never) : String;
 }

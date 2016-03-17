@@ -1,11 +1,11 @@
 package flash.system;
 
 extern class Security {
-	@:require(flash10_1) static var APPLICATION : String;
-	static var LOCAL_TRUSTED : String;
-	static var LOCAL_WITH_FILE : String;
-	static var LOCAL_WITH_NETWORK : String;
-	static var REMOTE : String;
+	@:require(flash10_1) static var APPLICATION(default,never) : String;
+	static var LOCAL_TRUSTED(default,never) : String;
+	static var LOCAL_WITH_FILE(default,never) : String;
+	static var LOCAL_WITH_NETWORK(default,never) : String;
+	static var REMOTE(default,never) : String;
 	static var disableAVM1Loading : Bool;
 	static var exactSettings : Bool;
 	@:require(flash11) static var pageDomain(default,null) : String;
