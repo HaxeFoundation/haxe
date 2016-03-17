@@ -126,10 +126,12 @@
 	}
 
 	public static function programPath() : String {
-		#if interp
+		#if macro
+		return null;
+		#elseif interp
 		return new String(sys_program_path());
 		#else
-		return sys_program_path();
+		return sys_program_path;
 		#end
 	}
 
@@ -157,29 +159,23 @@
 	private static var sys_exe_path = neko.Lib.load("std","sys_exe_path",0);
 	#if interp
 	private static var sys_program_path = neko.Lib.load("std","sys_program_path",0);
-	#else
+	#elseif !macro
 	// It has to be initialized before any call to loadModule or Sys.setCwd()...
 	private static var sys_program_path = {
-		switch ([for (m in neko.vm.Loader.local().getCache().keys()) m]) {
-			case [m]:
+		var m = neko.vm.Module.local().name;
+		try {
+			sys.FileSystem.fullPath(m);
+		} catch (e:Dynamic) {
+			// maybe the neko module name was supplied without .n extension...
+			if (!StringTools.endsWith(m, ".n")) {
 				try {
-					var p = sys.FileSystem.fullPath(m);
-					function() return p;
+					sys.FileSystem.fullPath(m + ".n");
 				} catch (e:Dynamic) {
-					// maybe the neko module name was supplied without .n extension...
-					if (!StringTools.endsWith(m, ".n")) {
-						try {
-							var p = sys.FileSystem.fullPath(m + ".n");
-							function() return p;
-						} catch (e:Dynamic) {
-							function() return m;
-						}
-					} else {
-						function() return m;
-					}
+					m;
 				}
-			case modules:
-				function() return throw "cannot detemine the main module from cache: " + modules;
+			} else {
+				m;
+			}
 		}
 	}
 	#end
