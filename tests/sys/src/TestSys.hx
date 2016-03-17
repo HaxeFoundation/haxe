@@ -20,6 +20,7 @@ class TestSys extends TestCommandBase {
 		var p = Sys.programPath();
 
 		assertTrue(haxe.io.Path.isAbsolute(p));
+		assertTrue(sys.FileSystem.exists(p));
 
 		#if interp
 			assertTrue(StringTools.endsWith(p, "Main.hx"));
@@ -45,6 +46,8 @@ class TestSys extends TestCommandBase {
 			assertTrue(StringTools.endsWith(p, "Main-Debug.jar"));
 		#elseif python
 			assertTrue(StringTools.endsWith(p, "sys.py"));
+		#elseif php
+			assertTrue(StringTools.endsWith(p, "index.php"));
 		#end
 	}
 
