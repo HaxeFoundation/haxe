@@ -57,7 +57,7 @@ class Unserializer {
 		This value is applied when a new Unserializer instance is created.
 		Changing it afterwards has no effect on previously created instances.
 	**/
-	public static var DEFAULT_RESOLVER : TypeResolver = Type;
+	public static var DEFAULT_RESOLVER : TypeResolver = new DefaultResolver();
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 
@@ -107,10 +107,10 @@ class Unserializer {
  		cache = new Array();
 		var r = DEFAULT_RESOLVER;
 		if( r == null ) {
-			r = Type;
+			r = new DefaultResolver();
 			DEFAULT_RESOLVER = r;
 		}
- 		setResolver(r);
+		resolver = r;
  	}
 
 	/**
@@ -123,10 +123,7 @@ class Unserializer {
 	**/
  	public function setResolver( r ) {
 		if( r == null )
-			resolver = {
-				resolveClass : function(_) { return null; },
-				resolveEnum : function(_) { return null; }
-			};
+			resolver = NullResolver.instance;
 		else
 			resolver = r;
 	}
@@ -464,4 +461,21 @@ class Unserializer {
 	static var base_decode = neko.Lib.load("std","base_decode",2);
 	#end
 
+}
+
+private class DefaultResolver {
+	public function new() {}
+	@:final public inline function resolveClass(name:String):Class<Dynamic> return Type.resolveClass(name);
+	@:final public inline function resolveEnum(name:String):Enum<Dynamic> return Type.resolveEnum(name);
+}
+
+private class NullResolver {
+	function new() {}
+	@:final public inline function resolveClass(name:String):Class<Dynamic> return null;
+	@:final public inline function resolveEnum(name:String):Enum<Dynamic> return null;
+	public static var instance(get,null):NullResolver;
+	inline static function get_instance():NullResolver {
+		if (instance == null) instance = new NullResolver();
+		return instance;
+	}
 }
