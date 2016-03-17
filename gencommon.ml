@@ -233,17 +233,15 @@ let is_void t = match follow t with
 			true
 	| _ -> false
 
-let mk_local var pos = { eexpr = TLocal(var); etype = var.v_type; epos = pos }
+let mk_local = Codegen.ExprBuilder.make_local
 
 (* this function is used by CastDetection module *)
 let get_fun t =
 	match follow t with | TFun(r1,r2) -> (r1,r2) | _ -> (trace (s_type (print_context()) (follow t) )); assert false
 
-let mk_cast t e =
-	{ eexpr = TCast(e, None); etype = t; epos = e.epos }
+let mk_cast t e = Type.mk_cast e t e.epos
 
-let mk_classtype_access cl pos =
-	{ eexpr = TTypeExpr(TClassDecl(cl)); etype = anon_of_classtype cl; epos = pos }
+let mk_classtype_access cl pos = Codegen.ExprBuilder.make_static_this cl pos
 
 let mk_static_field_access_infer cl field pos params =
 	try
