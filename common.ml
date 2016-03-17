@@ -101,6 +101,7 @@ type display_mode =
 	| DMToplevel
 	| DMResolve of string
 	| DMType
+	| DMFunArgs of int
 
 type context = {
 	(* config *)

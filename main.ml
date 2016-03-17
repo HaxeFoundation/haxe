@@ -1248,6 +1248,9 @@ try
 					| "toplevel" ->
 						activate_special_display_mode();
 						DMToplevel
+					| "funargs" ->
+						Parser.use_parser_resume := true;
+						DMFunArgs (-1)	
 					| "" ->
 						Parser.use_parser_resume := true;
 						DMDefault
@@ -1655,8 +1658,13 @@ with
 	| Typecore.DisplayTypes tl ->
 		let ctx = print_context() in
 		let b = Buffer.create 0 in
+		let i = match com.display with
+			| DMFunArgs i -> i
+			| _ -> -1
+		in
 		List.iter (fun t ->
 			Buffer.add_string b "<type>\n";
+			if (i >= 0) then Buffer.add_string b (Printf.sprintf "%d@" i);
 			Buffer.add_string b (htmlescape (s_type ctx t));
 			Buffer.add_string b "\n</type>\n";
 		) tl;

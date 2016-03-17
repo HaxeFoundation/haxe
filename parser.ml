@@ -74,6 +74,7 @@ let use_doc = ref false
 let use_parser_resume = ref true
 let resume_display = ref null_pos
 let in_macro = ref false
+let fun_arg_display_index = ref (-1)
 
 let last_token s =
 	let n = Stream.count s in
@@ -1238,7 +1239,7 @@ and expr = parser
 	| [< '(Kwd New,p1); t = parse_type_path; '(POpen,p); s >] ->
 		if is_resuming p then display (EDisplayNew t,punion p1 p);
 		(match s with parser
-		| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
+		| [< al = parse_new_params t p; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; s >] -> (match s with parser
 		| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
@@ -1396,21 +1397,44 @@ and parse_catch etry = parser
 				Display e -> display (ETry (etry,[name,t,e]),punion (pos etry) (pos e)))
 		| [< '(_,p) >] -> error Missing_type p
 
+and parse_new_params t p s = match s with parser
+	| [< v = expr; s >] ->
+		let rec loop acc = match s with parser
+			| [< '(Comma, pc) >] ->
+				if is_resuming pc then begin
+					fun_arg_display_index := List.length acc;
+					display (EDisplayNew t,punion pc p)
+				end;
+				(match s with parser [< v = expr >] -> loop (v::acc))
+			| [< >] -> List.rev acc
+		in
+		loop [v]
+	| [< >] -> []
+
 and parse_call_params ec s =
 	let e = (try
 		match s with parser
 		| [< e = expr >] -> Some e
 		| [< >] -> None
-	with Display e ->
-		display (ECall (ec,[e]),punion (pos ec) (pos e))
-	) in
+	with (Display e) as ex ->
+		match e with
+		| EDisplay _, _ -> raise ex
+		| _ -> display (ECall (ec,[e]),punion (pos ec) (pos e))
+ 	) in
 	let rec loop acc =
 		try
 			match s with parser
-			| [< '(Comma,_); e = expr >] -> loop (e::acc)
+			| [< '(Comma, pc) >] ->
+				if is_resuming pc then begin
+					fun_arg_display_index := List.length acc;
+					display (EDisplay (ec, true), pc)
+				end;
+				(match s with parser [< e = expr >] -> loop (e::acc))
 			| [< >] -> List.rev acc
-		with Display e ->
-			display (ECall (ec,List.rev (e::acc)),punion (pos ec) (pos e))
+		with (Display e) as ex ->
+			match e with
+			| EDisplay _,_ -> raise ex
+			| _ -> display (ECall (ec,List.rev (e::acc)),punion (pos ec) (pos e))
 	in
 	match e with
 	| None -> []
@@ -1521,6 +1545,7 @@ let parse ctx code =
 	let old = Lexer.save() in
 	let old_cache = !cache in
 	let mstack = ref [] in
+	let old_fadi = !fun_arg_display_index in
 	cache := DynArray.create();
 	last_doc := None;
 	in_macro := Common.defined ctx Common.Define.Macro;
@@ -1598,6 +1623,16 @@ let parse ctx code =
 	and skip_tokens p test = skip_tokens_loop p test (Lexer.token code)
 
 	in
+	let restore() =
+		cache := old_cache;
+		Lexer.restore old;
+		let i = !fun_arg_display_index in
+		begin match ctx.display with
+			| DMFunArgs j when j < 0 ->  ctx.display <- DMFunArgs i 
+			| _ -> ()
+		end;
+		fun_arg_display_index := old_fadi
+	in
 	let s = Stream.from (fun _ ->
 		let t = next_token() in
 		DynArray.add (!cache) t;
@@ -1606,17 +1641,14 @@ let parse ctx code =
 	try
 		let l = parse_file s in
 		(match !mstack with p :: _ when not (do_resume()) -> error Unclosed_macro p | _ -> ());
-		cache := old_cache;
-		Lexer.restore old;
+		restore();
 		l
 	with
 		| Stream.Error _
 		| Stream.Failure ->
 			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
-			Lexer.restore old;
-			cache := old_cache;
+			restore();
 			error (Unexpected (fst last)) (pos last)
 		| e ->
-			Lexer.restore old;
-			cache := old_cache;
+			restore();
 			raise e

@@ -1,0 +1,4 @@
+<type>
+1@pos : Int -&gt; ?len : Null&lt;Int&gt; -&gt; String
+</type>
+
