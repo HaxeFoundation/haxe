@@ -113,47 +113,10 @@ let v_undefined = alloc_var "__undefined__" t_dynamic
 
 let undefined pos = { eexpr = TLocal(v_undefined); etype = t_dynamic; epos = pos }
 
-module ExprHashtblHelper =
-struct
-	type hash_texpr_t =
-	{
-		hepos : pos;
-		heexpr : int;
-		hetype : int;
-	}
-
-	let mk_heexpr = function
-		| TConst _ -> 0 | TLocal _ -> 1 | TArray _ -> 3 | TBinop _ -> 4 | TField _ -> 5 | TTypeExpr _ -> 7 | TParenthesis _ -> 8 | TObjectDecl _ -> 9
-		| TArrayDecl _ -> 10 | TCall _ -> 11 | TNew _ -> 12 | TUnop _ -> 13 | TFunction _ -> 14 | TVar _ -> 15 | TBlock _ -> 16 | TFor _ -> 17 | TIf _ -> 18 | TWhile _ -> 19
-		| TSwitch _ -> 20 (* | TPatMatch _ -> 21 *) | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27 | TMeta _ -> 28 | TEnumParameter _ -> 29
-
-	let mk_heetype = function
-		| TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
-		| TAnon _ -> 5 | TDynamic _ -> 6 | TLazy _ -> 7 | TAbstract _ -> 8
-
-	let mk_type e =
-		{
-			hepos = e.epos;
-			heexpr = mk_heexpr e.eexpr;
-			hetype = mk_heetype e.etype;
-		}
-end;;
-
 let path_of_md_def md_def =
 	match md_def.m_types with
 		| [TClassDecl c] -> c.cl_path
 		| _ -> md_def.m_path
-
-open ExprHashtblHelper;;
-(* Expression Hashtbl. This shouldn't be kept indefinately as it's not a weak Hashtbl. *)
-module ExprHashtbl = Hashtbl.Make(
-		struct
-			type t = Type.texpr
-
-			let equal = (==)
-			let hash t = Hashtbl.hash (mk_type t)
-		end
-);;
 
 (* ******************************************* *)
 (*	Gen Common
