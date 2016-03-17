@@ -72,7 +72,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a = { v : [{ b : 1}]};a;var tmp;switch(a.v.length) {case 1:switch(a.v[0].b) {case 1:tmp = true;break;default:tmp = false;}break;default:tmp = false;}tmp;")
+	@:js("var a = { v : [{ b : 1}]};a;a.v.length == 1 && a.v[0].b == 1;")
 	@:analyzer(no_const_propagation, no_local_dce, no_check_has_effect)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
@@ -90,7 +90,7 @@ class TestJs {
 		forEach(function(x) trace(x + 2));
 	}
 
-	@:js('var a = "";var __ex0 = a;var e;var _g = __ex0.toLowerCase();switch(_g) {case "e":e = 0;break;default:throw new Error();}')
+	@:js('var a = "";var e;var _hx_tmp = a.toLowerCase();if(_hx_tmp == "e") {e = 0;} else {throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
@@ -576,4 +576,15 @@ class TestJs {
 
 	static var intField = 12;
 	static var stringField = "foo";
+
+	@:js('
+		var _g = Type["typeof"]("");
+		var v = _g[1] == 6 && _g[2] == String;
+		TestJs["use"](v);
+	')
+	static function testIssue4745() {
+        var o = "";
+        var v = Type.typeof(o).match(TClass(String));
+        use(v);
+	}
 }
