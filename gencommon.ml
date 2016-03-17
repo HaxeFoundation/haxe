@@ -1146,7 +1146,7 @@ let get_real_fun gen t =
 	| TFun(args,t) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t)
 	| _ -> t
 
-let mk_int gen i pos = { eexpr = TConst(TInt ( Int32.of_int i)); etype = gen.gcon.basic.tint; epos = pos }
+let mk_int gen i pos =  Codegen.ExprBuilder.make_int gen.gcon i pos
 
 let mk_return e = { eexpr = TReturn (Some e); etype = e.etype; epos = e.epos }
 
