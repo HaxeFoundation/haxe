@@ -1,4 +1,4 @@
-package lua.lrexlib;
+package lua.lib.lrexlib;
 @:luaRequire("rex_pcre")
 extern class Rex {
 
