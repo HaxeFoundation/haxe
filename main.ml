@@ -1459,6 +1459,8 @@ try
 		| Cpp ->
 			Common.define_value com Define.HxcppApiLevel (if Common.defined_value_safe com Define.CppAst <>"" then "330" else "321");
 			add_std "cpp";
+			if Common.defined com Define.Cppia then
+				classes := (make_path "cpp.cppia.HostClasses" ) :: !classes;
 			"cpp"
 		| Cs ->
 			let old_flush = ctx.flush in
