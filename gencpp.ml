@@ -589,7 +589,6 @@ let rec remove_parens expression =
 ;;
 
 
-(*
 let rec remove_parens_cast expression =
    match expression.eexpr with
    | TParenthesis e -> remove_parens_cast e
@@ -597,7 +596,7 @@ let rec remove_parens_cast expression =
    | TCast ( e,None) -> remove_parens_cast e
    | _ -> expression
 ;;
-*)
+
 let is_interface_type t =
    match follow t with
    | TInst (klass,params) -> klass.cl_interface
@@ -7348,7 +7347,7 @@ class script_writer ctx filename asciiOut =
          | _ -> false;
       in
       let gen_call () =
-         (match (remove_parens func).eexpr with
+         (match (remove_parens_cast func).eexpr with
          | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
                   this#write ( (this#op IaCallGlobal) ^ (this#stringText (field_name field)) ^ argN ^ "\n");
          | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
@@ -7360,7 +7359,7 @@ class script_writer ctx filename asciiOut =
          | TField (obj,FInstance (_,_,field) ) when is_super obj ->
                   this#write ( (this#op IaCallSuper) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
-         | TField (obj,FInstance (_,_,field) ) when not (is_dynamic_in_cppia ctx obj) && is_real_function field ->
+         | TField (obj,FInstance (_,_,field) ) when field.cf_name = "__Index" || (not (is_dynamic_in_cppia ctx obj) && is_real_function field) ->
                   this#write ( (this#op IaCallMember) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ "\n");
                   this#gen_expression obj;
@@ -7384,7 +7383,7 @@ class script_writer ctx filename asciiOut =
          if not matched_args then
             List.iter this#gen_expression arg_list;
       in
-      (match (remove_parens func).eexpr with
+      (match (remove_parens_cast func).eexpr with
          | TField(obj,field) when is_array_or_dyn_array obj.etype && (field_name field)="map" ->
             (match this#get_array_type expression.etype with
             | ArrayData t ->
