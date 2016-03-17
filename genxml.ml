@@ -429,11 +429,7 @@ let generate_type com t =
 			| l -> p "@%s(%s) " (fst (MetaInfo.to_string m)) (String.concat "," (List.map Ast.s_expr pl))
 		) ml
 	in
-	let access is_read a =
-		match a, pack with
-		| AccNever, "flash" :: _ -> "null"
-		| _ -> s_access is_read a
-	in
+	let access is_read a = s_access is_read a in
 	let rec print_field stat f =
 		p "\t";
 		print_meta f.cf_meta;

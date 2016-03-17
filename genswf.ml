@@ -323,7 +323,8 @@ let build_class com c file =
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None) when List.mem AStatic f.cff_access ->
+				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None)
+				| FProp ("default","never",Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None) when List.mem AStatic f.cff_access ->
 					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
 					{
 						ec_name = f.cff_name;

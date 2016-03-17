@@ -113,47 +113,10 @@ let v_undefined = alloc_var "__undefined__" t_dynamic
 
 let undefined pos = { eexpr = TLocal(v_undefined); etype = t_dynamic; epos = pos }
 
-module ExprHashtblHelper =
-struct
-	type hash_texpr_t =
-	{
-		hepos : pos;
-		heexpr : int;
-		hetype : int;
-	}
-
-	let mk_heexpr = function
-		| TConst _ -> 0 | TLocal _ -> 1 | TArray _ -> 3 | TBinop _ -> 4 | TField _ -> 5 | TTypeExpr _ -> 7 | TParenthesis _ -> 8 | TObjectDecl _ -> 9
-		| TArrayDecl _ -> 10 | TCall _ -> 11 | TNew _ -> 12 | TUnop _ -> 13 | TFunction _ -> 14 | TVar _ -> 15 | TBlock _ -> 16 | TFor _ -> 17 | TIf _ -> 18 | TWhile _ -> 19
-		| TSwitch _ -> 20 (* | TPatMatch _ -> 21 *) | TTry _ -> 22 | TReturn _ -> 23 | TBreak -> 24 | TContinue -> 25 | TThrow _ -> 26 | TCast _ -> 27 | TMeta _ -> 28 | TEnumParameter _ -> 29
-
-	let mk_heetype = function
-		| TMono _ -> 0 | TEnum _ -> 1 | TInst _ -> 2 | TType _ -> 3 | TFun _ -> 4
-		| TAnon _ -> 5 | TDynamic _ -> 6 | TLazy _ -> 7 | TAbstract _ -> 8
-
-	let mk_type e =
-		{
-			hepos = e.epos;
-			heexpr = mk_heexpr e.eexpr;
-			hetype = mk_heetype e.etype;
-		}
-end;;
-
 let path_of_md_def md_def =
 	match md_def.m_types with
 		| [TClassDecl c] -> c.cl_path
 		| _ -> md_def.m_path
-
-open ExprHashtblHelper;;
-(* Expression Hashtbl. This shouldn't be kept indefinately as it's not a weak Hashtbl. *)
-module ExprHashtbl = Hashtbl.Make(
-		struct
-			type t = Type.texpr
-
-			let equal = (==)
-			let hash t = Hashtbl.hash (mk_type t)
-		end
-);;
 
 (* ******************************************* *)
 (*	Gen Common
@@ -270,17 +233,15 @@ let is_void t = match follow t with
 			true
 	| _ -> false
 
-let mk_local var pos = { eexpr = TLocal(var); etype = var.v_type; epos = pos }
+let mk_local = Codegen.ExprBuilder.make_local
 
 (* this function is used by CastDetection module *)
 let get_fun t =
 	match follow t with | TFun(r1,r2) -> (r1,r2) | _ -> (trace (s_type (print_context()) (follow t) )); assert false
 
-let mk_cast t e =
-	{ eexpr = TCast(e, None); etype = t; epos = e.epos }
+let mk_cast t e = Type.mk_cast e t e.epos
 
-let mk_classtype_access cl pos =
-	{ eexpr = TTypeExpr(TClassDecl(cl)); etype = anon_of_classtype cl; epos = pos }
+let mk_classtype_access cl pos = Codegen.ExprBuilder.make_static_this cl pos
 
 let mk_static_field_access_infer cl field pos params =
 	try
@@ -778,11 +739,6 @@ let new_ctx con =
 
 		gspecial_vars = Hashtbl.create 0;
 	} in
-
-	(*gen.gtools.r_create_empty <-
-	gen.gtools.r_get_class <-
-	gen.gtools.r_fields <- *)
-
 	gen
 
 let init_ctx gen =
@@ -1190,7 +1146,7 @@ let get_real_fun gen t =
 	| TFun(args,t) -> TFun(List.map (fun (n,o,t) -> n,o,gen.greal_type t) args, gen.greal_type t)
 	| _ -> t
 
-let mk_int gen i pos = { eexpr = TConst(TInt ( Int32.of_int i)); etype = gen.gcon.basic.tint; epos = pos }
+let mk_int gen i pos =  Codegen.ExprBuilder.make_int gen.gcon i pos
 
 let mk_return e = { eexpr = TReturn (Some e); etype = e.etype; epos = e.epos }
 

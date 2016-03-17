@@ -20,6 +20,7 @@
 open Ast
 open Type
 open Common
+open Codegen.ExprBuilder
 
 module Utils = struct
 	let class_of_module_type mt = match mt with
@@ -656,9 +657,7 @@ module Transformer = struct
 			let name = (ae.a_next_id ()) in
 			let t_var = alloc_var name e1.etype in
 
-			let mk_local v p = { eexpr = TLocal v; etype = v.v_type; epos = p } in
-
-			let ev = mk_local t_var e1.epos in
+			let ev = make_local t_var e1.epos in
 			let ehasnext = mk (TField(ev,quick_field e1.etype "hasNext")) (tfun [] (!t_bool) ) e1.epos in
 			let ehasnext = mk (TCall(ehasnext,[])) ehasnext.etype ehasnext.epos in
 
