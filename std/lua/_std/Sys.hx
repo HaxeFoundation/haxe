@@ -20,6 +20,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+using lua.NativeStringTools;
+import lua.Package;
+import lua.Lua;
+
 @:coreApi
 class Sys {
 	public static inline function print( v : Dynamic ) : Void {
@@ -44,6 +49,24 @@ class Sys {
 
 	public inline static function getChar(echo : Bool) : Int {
 		return lua.NativeStringTools.byte(lua.Io.read(1));
+	}
+
+	public static function systemName() : String {
+		switch(Package.config.sub(1,1)){
+			case "/" : {
+				var f = Lua.assert(lua.Io.popen("uname"));
+				var s = Lua.assert(f.read('*a'));
+				f.close();
+				s = s.gsub('^%s+', '');
+				s = s.gsub('%s+$', '');
+				s = s.gsub('[\n\r]+', ' ');
+				if (s == "Darwin") return "Mac";
+				else if (s.lower().find("bsd") > 0) return "BSD";
+				else return "Linux";
+			}
+			case "\\" : return "Windows";
+			default : return null;
+		}
 	}
 
 	// TODO
@@ -72,9 +95,6 @@ class Sys {
 	public static function stderr() : haxe.io.Output return null;
 	public static function stdin() : haxe.io.Input return null;
 	public static function stdout() : haxe.io.Output return null;
-
-	// TODO
-	public static function systemName() : String return null;
 
 	// TODO
 	public static function time() : Float return lua.Os.time();
