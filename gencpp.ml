@@ -7116,6 +7116,7 @@ class script_writer ctx filename asciiOut =
          ) (List.map Int32.of_string (Str.split (Str.regexp "[\n\t ]+") str) );
       end;
       just_finished_block <- false
+   method comment text = if asciiOut then this#write ("# " ^ text ^ "\n")
    method typeTextString typeName = (string_of_int (this#typeId typeName)) ^ " "
    method typeText typeT = (string_of_int (this#typeId (script_type_string typeT))) ^ " "
    method writeType typeT = this#write (this#typeText typeT)
@@ -7532,6 +7533,8 @@ end;;
 
 let generate_script_class common_ctx script class_def =
    script#incClasses;
+   let classText = (join_class_path class_def.cl_path ".") in
+   script#comment ("Class " ^ classText);
    script#writeOp (if class_def.cl_interface then IaInterface else IaClass );
    script#instName class_def;
    (match class_def.cl_super with
@@ -7559,6 +7562,7 @@ let generate_script_class common_ctx script class_def =
                                  ^ "\n");
 
    let generate_field isStatic field =
+      script#comment (classText ^ " " ^ field.cf_name);
       match field.cf_kind, follow field.cf_type with
       | Var { v_read = AccInline; v_write = AccNever },_ ->
          script#writeOpLine IaInline;
