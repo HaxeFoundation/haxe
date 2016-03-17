@@ -2819,8 +2819,7 @@ and type_access ctx e p mode =
 	| _ ->
 		AKExpr (type_expr ctx (e,p) Value)
 
-and type_vars ctx vl p in_block =
-	let save = if in_block then (fun() -> ()) else save_locals ctx in
+and type_vars ctx vl p =
 	let vl = List.map (fun (v,t,e) ->
 		try
 			let t = Typeload.load_type_opt ctx p t in
@@ -2838,8 +2837,6 @@ and type_vars ctx vl p in_block =
 				display_error ctx (error_msg e) p;
 				add_local ctx v t_dynamic, None
 	) vl in
-	save();
-
 	match vl with
 	| [v,eo] ->
 		mk (TVar (v,eo)) ctx.t.tvoid p
@@ -2946,9 +2943,6 @@ and type_block ctx el with_type p =
 	in
 	let rec loop = function
 		| [] -> []
-		| (EVars vl,p) :: l ->
-			let e = type_vars ctx vl p true in
-			merge e @ loop l
 		| [e] ->
 			(try
 				merge (type_expr ctx e with_type)
@@ -3178,7 +3172,7 @@ and type_new ctx t el with_type p =
 		error (s_type (print_context()) t ^ " cannot be constructed") p)
 
 and type_try ctx e1 catches with_type p =
-	let e1 = type_expr ctx e1 with_type in
+	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	let rec check_unreachable cases t p = match cases with
 		| (v,e) :: cases ->
 			let unreachable () =
@@ -3512,7 +3506,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EArrayDecl el ->
 		type_array_decl ctx el with_type p
 	| EVars vl ->
-		type_vars ctx vl p false
+		type_vars ctx vl p
 	| EFor (it,e2) ->
 		let i, pi, e1 = (match it with
 			| (EIn ((EConst (Ident i),pi),e),_) -> i, pi, e
@@ -3522,6 +3516,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old_loop = ctx.in_loop in
 		let old_locals = save_locals ctx in
 		ctx.in_loop <- true;
+		let e2 = Expr.ensure_block e2 in
 		let e = (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
 			| Some e -> e
 			| None ->
@@ -3561,12 +3556,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e Value in
 		let e = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
-		let e1 = type_expr ctx e1 with_type in
+		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 		(match e2 with
 		| None ->
 			mk (TIf (e,e1,None)) ctx.t.tvoid p
 		| Some e2 ->
-			let e2 = type_expr ctx e2 with_type in
+			let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
 			let e1,e2,t = match with_type with
 				| NoValue -> e1,e2,ctx.t.tvoid
 				| Value -> e1,e2,unify_min ctx [e1; e2]
@@ -3582,13 +3577,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let cond = type_expr ctx cond Value in
 		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond p in
 		ctx.in_loop <- true;
-		let e = type_expr ctx e NoValue in
+		let e = type_expr ctx (Expr.ensure_block e) NoValue in
 		ctx.in_loop <- old_loop;
 		mk (TWhile (cond,e,NormalWhile)) ctx.t.tvoid p
 	| EWhile (cond,e,DoWhile) ->
 		let old_loop = ctx.in_loop in
 		ctx.in_loop <- true;
-		let e = type_expr ctx e NoValue in
+		let e = type_expr ctx (Expr.ensure_block e) NoValue in
 		ctx.in_loop <- old_loop;
 		let cond = type_expr ctx cond Value in
 		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
@@ -4169,7 +4164,6 @@ and build_call ctx acc el (with_type:with_type) p =
 			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
 			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
 			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = type_block ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
-			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
 			| Some e -> (fun() -> type_expr ctx e with_type))
 		| _ ->
 			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)

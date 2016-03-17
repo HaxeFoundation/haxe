@@ -924,3 +924,9 @@ let safe_for_all2 f a b =
 let rec remove_duplicates f l = match l with
 	| [] -> []
 	| x :: l -> x :: (remove_duplicates f (List.filter (fun x' -> f x x') l))
+
+module Expr = struct
+	let ensure_block e = match fst e with
+		| EBlock _ -> e
+		| _ -> (EBlock [e],pos e)
+end
