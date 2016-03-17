@@ -451,7 +451,7 @@ let read_field ctx ch =
 	let has_meta = kind land 0x40 <> 0 in
 	let slot = read_int ch in
 	let kind = (match kind land 0xF with
-		| 0x00 | 0x06 ->
+		| 0x00 | 0x06 as kind ->
 			let t = index_opt ctx.as3_names (read_int ch) in
 			let value = read_value ctx ch false in
 			A3FVar {
