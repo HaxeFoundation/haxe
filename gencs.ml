@@ -759,6 +759,7 @@ let configure gen =
 
 	let change_ns_params md params ns = if no_root then match ns with
 			| [] when is_hxgen md -> ["haxe";"root"], params
+			| [s] when (t_infos md).mt_private && is_hxgen md -> ["haxe";"root";s], params
 			| [] -> (match md with
 				| TClassDecl { cl_path = ([],"Std" | [],"Math") } -> ["haxe";"root"], params
 				| TClassDecl { cl_meta = m } when Meta.has Meta.Enum m -> ["haxe";"root"], params
