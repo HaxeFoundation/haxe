@@ -3399,7 +3399,16 @@ let resolve_module_file com m remap p =
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
 	) ^ ".hx" in
-	let file = Common.find_file com file in
+	let file = (match com.display with
+		| DMNone -> Common.find_file com file
+		| _ ->  let revm   = (snd m ^ ".hx") :: List.rev (fst m) in
+				let pflist = List.rev (ExtString.String.nsplit (!Parser.resume_display).pfile "/") in
+				let rec loop p m = (match (p,m) with
+				| [], m :: mt -> false (* module longer than pfile, so not what we're looking for *)
+				| _, []       -> true  (* module exhausted, we have a match *)
+				| p :: pt, m :: mt -> if p = m then loop pt mt  else false) (* check equality of parts *)
+				in if loop pflist revm then (!Parser.resume_display).pfile else Common.find_file com file)
+		in
 	let file = (match String.lowercase (snd m) with
 	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
 		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
