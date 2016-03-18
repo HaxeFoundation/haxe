@@ -230,7 +230,7 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	static var __toStr = untyped __js__("{}.toString");
+	static var __toStr = untyped ({}).toString;
 	// get native JS [[Class]]
 	static function __nativeClassName(o:Dynamic):String {
 		var name = untyped __toStr.call(o).slice(8, -1);
