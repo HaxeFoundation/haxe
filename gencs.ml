@@ -3604,6 +3604,7 @@ let convert_ilfield ctx p field =
 		Printf.printf "\t%sfield %s : %s\n" (if List.mem AStatic acc then "static " else "") cff_name (IlMetaDebug.ilsig_s field.fsig.ssig);
 	let kind = match readonly with
 		| true ->
+			cff_meta := (Meta.ReadOnly, [], cff_pos) :: !cff_meta;
 			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm), None)
 		| false ->
 			FVar (Some (convert_signature ctx p field.fsig.snorm), None)
