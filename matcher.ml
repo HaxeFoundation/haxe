@@ -1245,6 +1245,12 @@ module TexprConverter = struct
 					| (con1 :: _),con2 :: _ -> Constructor.compare con1 con2
 					| _ -> -1
 				) cases in
+				let e_default = match unmatched,finiteness with
+					| [],RunTimeFinite ->
+						None
+					| _ ->
+						loop false params default
+				in
 				let cases = ExtList.List.filter_map (fun (cons,dt,params) ->
 					let eo = loop false params dt in
 					begin match eo with
@@ -1252,12 +1258,6 @@ module TexprConverter = struct
 						| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug dt.dt_pos) (List.sort Constructor.compare cons),e)
 					end
 				) cases in
-				let e_default = match unmatched,finiteness with
-					| [],RunTimeFinite ->
-						None
-					| _ ->
-						loop false params default
-				in
 				let e_subject = match kind with
 					| SKValue -> e_subject
 					| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
