@@ -74,7 +74,7 @@ else
 	export HAXE_STD_PATH=$(CURDIR)/std
 endif
 
-all: libs haxe
+all: libs haxe tools
 
 libs:
 	make -C libs/extlib OCAMLOPT=$(OCAMLOPT) OCAMLC=$(OCAMLC) $(TARGET_FLAG)
