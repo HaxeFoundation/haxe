@@ -137,6 +137,8 @@ module Pattern = struct
 		mutable in_reification : bool;
 	}
 
+	exception Bad_pattern of string
+
 	let rec to_string pat = match fst pat with
 		| PatConstructor(con,patterns) -> Printf.sprintf "%s(%s)" (Constructor.to_string con) (String.concat ", " (List.map to_string patterns))
 		| PatVariable v -> Printf.sprintf "%s<%i>" v.v_name v.v_id
@@ -190,6 +192,8 @@ module Pattern = struct
 					PatConstructor(ConConst ct,[])
 				| TCast(e1,None) ->
 					loop e1
+				| TField _ ->
+					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as pattern")
 				| _ ->
 					raise Exit
 			in
@@ -308,8 +312,12 @@ module Pattern = struct
 						fail()
 				end
 			| EField _ ->
-				begin try try_typing e
-				with Exit -> fail() end
+				begin try
+					try_typing e
+				with
+					| Exit -> fail()
+					| Bad_pattern s -> error s p
+				end
 			| EArrayDecl el ->
 				begin match follow t with
 					| TFun(tl,tr) when tr == fake_tuple_type ->
