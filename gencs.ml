@@ -4224,10 +4224,7 @@ let compatible_field f1 f2 = match f1, f2 with
 let get_all_fields cls =
 	let all_fields = List.map (fun f -> IlField f, cls.cpath, f.fname, List.mem CStatic f.fflags.ff_contract) cls.cfields in
 	let all_fields = all_fields @ List.map (fun m -> IlMethod m, cls.cpath, m.mname, List.mem CMStatic m.mflags.mf_contract) cls.cmethods in
-	let all_fields = all_fields @ List.map (function
-		| p ->
-			IlProp p, cls.cpath, p.pname, is_static (IlProp p)
-	) cls.cprops in
+	let all_fields = all_fields @ List.map (fun p -> IlProp p, cls.cpath, p.pname, is_static (IlProp p)) cls.cprops in
 	all_fields
 
 let normalize_ilcls ctx cls =
