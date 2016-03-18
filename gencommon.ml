@@ -4801,6 +4801,7 @@ struct
 							iface.cl_array_access <- Option.map (apply_params (cl.cl_params) (List.map (fun _ -> t_dynamic) cl.cl_params)) cl.cl_array_access;
 							iface.cl_extern <- cl.cl_extern;
 							iface.cl_module <- cl.cl_module;
+							iface.cl_private <- cl.cl_private;
 							iface.cl_meta <-
 								(Meta.HxGen, [], cl.cl_pos)
 								::
