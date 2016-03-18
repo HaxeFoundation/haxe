@@ -164,7 +164,9 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
          base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) )
       end
    in
-   cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension));;
+   let file = cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension)) in
+   Codegen.map_source_header common_ctx (fun s -> file#write (Printf.sprintf "// %s\n" s));
+   file
 
 
 
@@ -232,7 +234,7 @@ type context =
 
 let new_context common_ctx debug file_info member_types =
 let null_file = new source_writer common_ctx ignore (fun () -> () ) in
-let result = 
+let result =
 {
    ctx_common = common_ctx;
    ctx_writer = null_file;
@@ -1534,8 +1536,8 @@ let get_nth_type field index =
       | TFun (args,_) ->
          let rec nth l index = match l with
          | [] -> raise Not_found
-         | (_,_,t)::rest -> 
-             if index = 0 then t 
+         | (_,_,t)::rest ->
+             if index = 0 then t
              else nth rest (index-1)
          in
          nth args index
@@ -1807,7 +1809,7 @@ let rec s_tcpp = function
    | CppCastVariant _ -> "CppCastVariant"
    | CppCastObjC _ -> "CppCastObjC"
    | CppCastNative _ -> "CppCastNative"
- 
+
 and tcpp_to_string = function
    | TCppDynamic -> "Dynamic"
    | TCppObject -> "Dynamic"
@@ -1873,7 +1875,7 @@ let is_cpp_array_implementer cppType =
    | _ -> false
 ;;
 
-let rec const_int_of expr = 
+let rec const_int_of expr =
    match expr.eexpr with
    | TConst TInt x -> x
    | TConst TBool x -> Int32.of_int (if x then 1 else 0)
@@ -1881,7 +1883,7 @@ let rec const_int_of expr =
    | _ -> raise Not_found
 ;;
 
-let rec const_float_of expr = 
+let rec const_float_of expr =
    match expr.eexpr with
    | TConst TInt x -> Printf.sprintf "%ld" x
    | TConst TFloat x -> x
@@ -1891,7 +1893,7 @@ let rec const_float_of expr =
 ;;
 
 
-let rec const_string_of expr = 
+let rec const_string_of expr =
    match expr.eexpr with
    | TConst TString x -> x
    | TParenthesis e -> const_string_of e
@@ -1901,7 +1903,7 @@ let rec const_string_of expr =
 
 
 let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull 
+   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
       -> true
    | _ -> false
 ;;
@@ -2330,7 +2332,7 @@ let retype_expression ctx request_type function_args expression_tree =
                           -> t
                        | _ -> exprType
                   in
- 
+
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                      CppVar(VarThis(member) ), exprType
@@ -2433,7 +2435,7 @@ let retype_expression ctx request_type function_args expression_tree =
                   CppGlobal(fieldName), cpp_type_of expr.etype
                else if (obj.cpptype=TCppClass) then begin
                   match obj.cppexpr with
-                  | CppClassOf(path) -> 
+                  | CppClassOf(path) ->
                      CppGlobal ( (join_class_path_remap path "::" ) ^ "_obj::" ^ fieldName ), cpp_type_of expr.etype
                   | _ ->
                      CppVar( VarInternal(obj,"->",fieldName)), cpp_type_of expr.etype
@@ -2664,7 +2666,7 @@ let retype_expression ctx request_type function_args expression_tree =
             let conditionType = cpp_type_of condition.etype in
             let condition = retype conditionType condition in
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
-            (try 
+            (try
                (match conditionType with TCppScalar("Int") | TCppScalar("Bool") -> () | _ -> raise Not_found );
                (match def with None -> () | Some e -> if (contains_break e) then raise Not_found);
                let cases = List.map (fun (el,e2) ->
@@ -2740,7 +2742,7 @@ let retype_expression ctx request_type function_args expression_tree =
 
          | TCppString
              -> mk_cppexpr (CppCastScalar(cppExpr,"::String")) return_type
-   
+
          | TCppDynamic when cppExpr.cpptype=TCppVariant
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
 
@@ -2926,7 +2928,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               if rename<>"" then
                  out rename
               else
-                 (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) )) 
+                 (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ))
 
          | FuncFromStaticFunction ->
               error "Unexpected FuncFromStaticFunction" expr.cpppos
@@ -4726,8 +4728,8 @@ let has_field_init field =
    | _ -> false
 ;;
 
-let cpp_arg_names args = 
-   String.concat "," (List.map (fun (name,_,_) -> keyword_remap name) args) 
+let cpp_arg_names args =
+   String.concat "," (List.map (fun (name,_,_) -> keyword_remap name) args)
 ;;
 
 let gen_member_def ctx class_def is_static is_interface field =
@@ -5039,7 +5041,7 @@ let generate_main ctx super_deps class_def =
          gen_cpp_init ctx "hxcpp" "__hxcpp_main" "" main_expression
       else
          gen_expression_tree ctx false [] main_expression "" ";\n";
-      
+
 
       generate_main_footer2 output_main;
       cpp_file#close;
@@ -5081,7 +5083,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
       List.iter (fun (name,id) -> output_boot ("\t\"" ^ name ^ "\", //" ^ (string_of_int (-id) ) ^ "\n")) sorted;
       output_boot "};\n";
    end;
-   
+
 
    output_boot "\nvoid __files__boot();\n";
    output_boot "\nvoid __boot_all()\n{\n";
@@ -5089,7 +5091,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
    output_boot "hx::RegisterResources( hx::GetResources() );\n";
    if newScriptable then
       output_boot ("hx::ScriptableRegisterNameSlots(scriptableInterfaceFuncs," ^ (string_of_int !(ctx.ctx_interface_slot_count) ) ^ ");\n");
-      
+
    List.iter ( fun class_path ->
       output_boot ("::" ^ ( join_class_path_remap class_path "::" ) ^ "_obj::__register();\n") )
          (boot_enums @ boot_classes @ nonboot_classes);
@@ -6234,7 +6236,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       let functions = List.filter not_toString (all_virtual_functions class_def) in
       let new_sctipt_functions = if newInteface then
             all_virtual_functions class_def
-         else 
+         else
             List.filter (fun (f,_,_) -> (not (is_override class_def f.cf_name)) ) functions
       in
       let sctipt_name = class_name ^ "__scriptable" in
@@ -7686,8 +7688,8 @@ let generate_cppia ctx =
  The common_ctx contains the haxe AST in the "types" field and the resources
 *)
 let generate_source ctx =
-   let common_ctx = ctx.ctx_common in 
-   let debug = ctx.ctx_debug_level in 
+   let common_ctx = ctx.ctx_common in
+   let debug = ctx.ctx_debug_level in
    make_base_directory common_ctx.file;
    let exe_classes = ref [] in
    let boot_classes = ref [] in
