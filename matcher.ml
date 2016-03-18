@@ -193,7 +193,7 @@ module Pattern = struct
 				| TCast(e1,None) ->
 					loop e1
 				| TField _ ->
-					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as pattern")
+					raise (Bad_pattern "Only inline or read-only (default, never) fields can be used as a pattern")
 				| _ ->
 					raise Exit
 			in
