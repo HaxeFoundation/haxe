@@ -915,9 +915,12 @@ and wait_loop boot_com host port =
 				process_params create data;
 				close_times();
 				if !measure_times then report_times (fun s -> ssend sin (s ^ "\n"))
-			with Completion str ->
+			with
+			| Completion str ->
 				if verbose then print_endline ("Completion Response =\n" ^ str);
 				ssend sin str
+			| Arg.Bad msg ->
+				prerr_endline ("Error: " ^ msg);
 			);
 			if verbose then begin
 				print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
