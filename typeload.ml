@@ -3191,13 +3191,15 @@ let init_module_type ctx context_init do_init (decl,p) =
 		check_global_metadata ctx (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
 		let tt = load_complex_type ctx p d.d_data in
-		(*
-			we exceptionnaly allow follow here because we don't care the type we get as long as it's not our own
-		*)
-		(match d.d_data with
-		| CTExtend _ -> ()
+		let tt = (match d.d_data with
+		| CTExtend _ -> tt
 		| _ ->
-			if t.t_type == follow tt then error "Recursive typedef is not allowed" p);
+			TLazy (exc_protect ctx (fun r ->
+				if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
+				r := (fun() -> tt);
+				tt
+			) "typedef_rec_check")
+		) in
 		(match t.t_type with
 		| TMono r ->
 			(match !r with
