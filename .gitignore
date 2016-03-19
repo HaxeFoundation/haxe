@@ -17,13 +17,13 @@
 /extra/*_sec.gpg
 /extra/*_ssh
 
-/version.ml
+/src/version.ml
 /haxe
 /haxelib*
 /haxedoc*
 /lib
 
-/lexer.ml
+/src/syntax/lexer.ml
 /libs/xml-light/xml_lexer.ml
 /libs/xml-light/xml_parser.ml
 /libs/xml-light/xml_parser.mli
