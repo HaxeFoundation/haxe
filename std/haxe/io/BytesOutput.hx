@@ -122,6 +122,12 @@ class BytesOutput extends Output {
 
 	#end
 
+	/**
+		Returns the `Bytes` of this output.
+
+		This function should not be called more than once on a given
+		`BytesOutput` instance.
+	**/
 	public function getBytes() : Bytes {
 		#if flash
 		var bytes = b;
