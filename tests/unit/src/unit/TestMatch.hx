@@ -337,7 +337,7 @@ class TestMatch extends Test {
 			case OpDecrement:
 			case OpNot:
 		}));
-		eq("Unmatched patterns: Node(Leaf(_), _)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
+		eq("Unmatched patterns: Node(Node, _)", TestMatchMacro.getErrorMessage(switch(Leaf("foo")) {
 			case Node(Leaf("foo"), _):
 			case Leaf(_):
 		}));
