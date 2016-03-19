@@ -1307,11 +1307,14 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 	let e = reduce_loop ctx e in
 	match e.eexpr with
 	| TConst _ -> Some e
-	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod) as op,e1,e2) -> (match make_constant_expression ctx e1,make_constant_expression ctx e2 with
+	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod|OpShl|OpShr|OpUShr|OpOr|OpAnd|OpXor) as op,e1,e2) -> (match make_constant_expression ctx e1,make_constant_expression ctx e2 with
 		| Some ({eexpr = TConst (TString s1)}), Some ({eexpr = TConst (TString s2)}) when concat_strings ->
 			Some (mk (TConst (TString (s1 ^ s2))) ctx.com.basic.tstring (punion e1.epos e2.epos))
 		| Some e1, Some e2 -> Some (mk (TBinop(op, e1, e2)) e.etype e.epos)
 		| _ -> None)
+	| TUnop((Neg | NegBits) as op,Prefix,e1) -> (match make_constant_expression ctx e1 with
+		| Some e1 -> Some (mk (TUnop(op,Prefix,e1)) e.etype e.epos)
+		| None -> None)
 	| TCast (e1, None) ->
 		(match make_constant_expression ctx e1 with
 		| None -> None
