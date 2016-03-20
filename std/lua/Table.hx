@@ -29,3 +29,5 @@ extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 
 	}
 }
+
+typedef AnyTable = Table<Dynamic, Dynamic>;
