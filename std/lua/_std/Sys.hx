@@ -34,7 +34,7 @@ class Sys {
 		return lua.Lib.println(v);
 	}
 	public inline static function args() : Array<String> {
-		return lua.Boot.tableToArray(lua.Lua.arg);
+		return lua.Lib.tableToArray(lua.Lua.arg);
 	}
 	public inline static function command( cmd : String, ?args : Array<String> ) : Int  {
 		return lua.Os.execute('$cmd ${args.join(" ")}');
@@ -69,24 +69,36 @@ class Sys {
 		}
 	}
 
-	// TODO
-	public inline static function environment() : Map<String,String>  return new Map();
+	public inline static function environment() : Map<String,String>  {
+		throw "not supported";
+		return new Map();
+	}
 
-	// TODO
-	public inline static function executablePath() : String return null;
+	public inline static function executablePath() : String {
+		return Lua.arg[0];
+	}
 
-	// TODO
-	public static function getCwd() : String return null;
-	// TODO
-	public static function setCwd(s : String) : Void null;
+	public inline static function getCwd() : String {
+		return lua.lib.lfs.Lfs.currentdir();
+	}
 
-	public static function getEnv(s : String) : String return lua.Os.getenv(s);
-	// TODO
-	public static function putEnv(s : String, v : String ) : Void null;
+	public inline static function setCwd(s : String) : Void {
+		lua.lib.lfs.Lfs.chdir(s);
+	}
+
+	public inline static function getEnv(s : String) : String {
+		return lua.Os.getenv(s);
+	}
+	public inline static function putEnv(s : String, v : String ) : Void {
+		// TODO
+		return null;
+	}
 
 
 	// TODO verify
-	public static function setTimeLocale(loc : String) : Bool  return lua.Os.setlocale(loc) != null;
+	public inline static function setTimeLocale(loc : String) : Bool  {
+		return lua.Os.setlocale(loc) != null;
+	}
 
 	// TODO
 	public static function sleep(seconds : Float) : Void null;
@@ -98,6 +110,4 @@ class Sys {
 
 	// TODO
 	public static function time() : Float return lua.Os.time();
-
-
 }

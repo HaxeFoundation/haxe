@@ -21,7 +21,7 @@
  */
 import lua.lib.lrexlib.Rex;
 import lua.Table;
-import lua.Boot;
+import lua.Lib;
 
 @:coreApi
 class EReg {
@@ -105,11 +105,11 @@ class EReg {
 
 	public function split( s : String ) : Array<String> {
 		if (global){
-			return Boot.luaIteratorToArray(Rex.split(s, r));
+			return Lib.fillArray(Rex.split(s, r));
 		} else {
 			// we can't use directly Rex.split because it's ignoring the 'g' flag
 			var d = "#__delim__#";
-			return Boot.luaIteratorToArray(Rex.split(replace(s,d), d));
+			return Lib.fillArray(Rex.split(replace(s,d), d));
 		}
 	}
 
