@@ -11,6 +11,7 @@
 	all : support parsing of postfix ! operator (can be used by abstract operator overloading and macros) (#4284)
 	all : support parsing of ||= and &&= operators (can be used by abstract operator overloading and macros) (#4427)
 	all : support @:structInit classes (#4526)
+	flash : update flash externs to version 21
 	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.12.2 / 2.2.2 support. (#4377)
 	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
 	js : added js.Lib.rethrow (#4551)

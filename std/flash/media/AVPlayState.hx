@@ -1,15 +1,15 @@
 package flash.media;
 
 extern class AVPlayState {
-	var state(default,null) : Int;
+	var state(default,never) : Int;
 	function new(state : UInt) : Void;
-	static var BUFFERING : Int;
-	static var EOF : Int;
-	static var PAUSED : Int;
-	static var PLAYING : Int;
-	static var READY : Int;
-	static var SUSPENDED : Int;
-	static var TRICK_PLAY : Int;
-	static var UNINITIALIZED : Int;
-	static var UNRECOVERABLE_ERROR : Int;
+	static var BUFFERING(default,never) : Int;
+	static var EOF(default,never) : Int;
+	static var PAUSED(default,never) : Int;
+	static var PLAYING(default,never) : Int;
+	static var READY(default,never) : Int;
+	static var SUSPENDED(default,never) : Int;
+	static var TRICK_PLAY(default,never) : Int;
+	static var UNINITIALIZED(default,never) : Int;
+	static var UNRECOVERABLE_ERROR(default,never) : Int;
 }

@@ -1,8 +1,8 @@
 package flash.geom;
 
 @:require(flash10) extern class Vector3D {
-	var length(default,null) : Float;
-	var lengthSquared(default,null) : Float;
+	var length(default,never) : Float;
+	var lengthSquared(default,never) : Float;
 	var w : Float;
 	var x : Float;
 	var y : Float;
@@ -24,9 +24,9 @@ package flash.geom;
 	@:require(flash11) function setTo(xa : Float, ya : Float, za : Float) : Void;
 	function subtract(a : Vector3D) : Vector3D;
 	function toString() : String;
-	static var X_AXIS : Vector3D;
-	static var Y_AXIS : Vector3D;
-	static var Z_AXIS : Vector3D;
+	static var X_AXIS(default,never) : Vector3D;
+	static var Y_AXIS(default,never) : Vector3D;
+	static var Z_AXIS(default,never) : Vector3D;
 	static function angleBetween(a : Vector3D, b : Vector3D) : Float;
 	static function distance(pt1 : Vector3D, pt2 : Vector3D) : Float;
 }

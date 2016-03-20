@@ -1,7 +1,7 @@
 package flash.display;
 
 @:final extern class FrameLabel extends flash.events.EventDispatcher {
-	var frame(default,null) : Int;
-	var name(default,null) : String;
+	var frame(default,never) : Int;
+	var name(default,never) : String;
 	function new(name : String, frame : Int) : Void;
 }

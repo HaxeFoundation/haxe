@@ -1,18 +1,18 @@
 package flash.security;
 
 extern class X509Certificate {
-	var encoded(default,null) : flash.utils.ByteArray;
-	var issuer(default,null) : X500DistinguishedName;
-	var issuerUniqueID(default,null) : String;
-	var serialNumber(default,null) : String;
-	var signatureAlgorithmOID(default,null) : String;
-	var signatureAlgorithmParams(default,null) : flash.utils.ByteArray;
-	var subject(default,null) : X500DistinguishedName;
-	var subjectPublicKey(default,null) : String;
-	var subjectPublicKeyAlgorithmOID(default,null) : String;
-	var subjectUniqueID(default,null) : String;
-	var validNotAfter(default,null) : Date;
-	var validNotBefore(default,null) : Date;
-	var version(default,null) : UInt;
+	var encoded(default,never) : flash.utils.ByteArray;
+	var issuer(default,never) : X500DistinguishedName;
+	var issuerUniqueID(default,never) : String;
+	var serialNumber(default,never) : String;
+	var signatureAlgorithmOID(default,never) : String;
+	var signatureAlgorithmParams(default,never) : flash.utils.ByteArray;
+	var subject(default,never) : X500DistinguishedName;
+	var subjectPublicKey(default,never) : String;
+	var subjectPublicKeyAlgorithmOID(default,never) : String;
+	var subjectUniqueID(default,never) : String;
+	var validNotAfter(default,never) : Date;
+	var validNotBefore(default,never) : Date;
+	var version(default,never) : UInt;
 	function new() : Void;
 }

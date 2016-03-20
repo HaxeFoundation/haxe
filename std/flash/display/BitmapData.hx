@@ -1,10 +1,10 @@
 package flash.display;
 
 extern class BitmapData implements IBitmapDrawable {
-	var height(default,null) : Int;
-	var rect(default,null) : flash.geom.Rectangle;
-	var transparent(default,null) : Bool;
-	var width(default,null) : Int;
+	var height(default,never) : Int;
+	var rect(default,never) : flash.geom.Rectangle;
+	var transparent(default,never) : Bool;
+	var width(default,never) : Int;
 	function new(width : Int, height : Int, transparent : Bool = true, fillColor : UInt = 0xFFFFFFFF) : Void;
 	function applyFilter(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, filter : flash.filters.BitmapFilter) : Void;
 	function clone() : BitmapData;

@@ -2,7 +2,7 @@ package flash.display;
 
 extern class ShaderJob extends flash.events.EventDispatcher {
 	var height : Int;
-	var progress(default,null) : Float;
+	var progress(default,never) : Float;
 	var shader : Shader;
 	var target : Dynamic;
 	var width : Int;

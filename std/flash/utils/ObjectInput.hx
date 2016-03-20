@@ -1,7 +1,7 @@
 package flash.utils;
 
 extern class ObjectInput implements IDataInput {
-	var bytesAvailable(default,null) : UInt;
+	var bytesAvailable(default,never) : UInt;
 	var endian : Endian;
 	var objectEncoding : UInt;
 	function new() : Void;
