@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGPathSeg.webidl line 113:0. Do not edit!
+// This file is generated from mozilla/SVGPathSeg.webidl line 135:0. Do not edit!
 
 package js.html.svg;
 

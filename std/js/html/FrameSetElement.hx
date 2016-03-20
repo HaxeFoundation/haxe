@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLFrameSetElement.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/HTMLFrameSetElement.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -40,7 +40,7 @@ extern class FrameSetElement extends Element
 	var onpagehide : haxe.Constraints.Function;
 	var onpageshow : haxe.Constraints.Function;
 	var onpopstate : haxe.Constraints.Function;
-	var onresize : haxe.Constraints.Function;
+	var onstorage : haxe.Constraints.Function;
 	var onunload : haxe.Constraints.Function;
 	
 }

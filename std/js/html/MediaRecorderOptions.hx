@@ -20,11 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaRecorder.webidl line 52:0. Do not edit!
+// This file is generated from mozilla/MediaRecorder.webidl line 69:0. Do not edit!
 
 package js.html;
 
 typedef MediaRecorderOptions =
 {
+	@:optional var audioBitsPerSecond : Int;
+	@:optional var bitsPerSecond : Int;
 	@:optional var mimeType : String;
+	@:optional var videoBitsPerSecond : Int;
 }

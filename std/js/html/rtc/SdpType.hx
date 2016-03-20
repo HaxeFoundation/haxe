@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCSessionDescription.webidl line 10:0. Do not edit!
+// This file is generated from mozilla/RTCSessionDescription.webidl line 41:0. Do not edit!
 
 package js.html.rtc;
 
@@ -29,4 +29,5 @@ package js.html.rtc;
 	var OFFER = "offer";
 	var PRANSWER = "pranswer";
 	var ANSWER = "answer";
+	var ROLLBACK = "rollback";
 }

@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 847:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 803:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionTextureFilterAnisotropic")
+@:native("EXT_texture_filter_anisotropic")
 extern class ExtensionTextureFilterAnisotropic
 {
 	static inline var TEXTURE_MAX_ANISOTROPY_EXT : Int = 34046;

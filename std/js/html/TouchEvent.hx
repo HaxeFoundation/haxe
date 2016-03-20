@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/TouchEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/TouchEvent.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -36,5 +36,6 @@ extern class TouchEvent extends UIEvent
 	var shiftKey(default,null) : Bool;
 	
 	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : TouchEventInit ) : Void;
 	function initTouchEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, touches : TouchList, targetTouches : TouchList, changedTouches : TouchList ) : Void;
 }

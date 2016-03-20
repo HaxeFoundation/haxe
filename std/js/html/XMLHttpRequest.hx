@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/XMLHttpRequest.webidl line 58:0. Do not edit!
+// This file is generated from mozilla/XMLHttpRequest.webidl line 84:0. Do not edit!
 
 package js.html;
 
@@ -71,6 +71,4 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	function getAllResponseHeaders() : String;
 	/** @throws DOMError */
 	function overrideMimeType( mime : String ) : Void;
-	/** @throws DOMError */
-	function sendAsBinary( body : String ) : Void;
 }

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HashChangeEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/HashChangeEvent.webidl line 39:0. Do not edit!
 
 package js.html;
 
@@ -32,6 +32,5 @@ extern class HashChangeEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : HashChangeEventInit ) : Void;
-	/** @throws DOMError */
 	function initHashChangeEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, oldURLArg : String, newURLArg : String ) : Void;
 }

@@ -20,19 +20,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl line 179:0. Do not edit!
+// This file is generated from typedarray.webidl line 178:0. Do not edit!
 
 package js.html;
 
+// Explicitly include the compatibility class
 import js.html.compat.Float32Array;
 
 @:native("Float32Array")
 extern class Float32Array extends ArrayBufferView implements ArrayAccess<Float>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 4;
-
+	
 	var length(default,null) : Int;
-
+	
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
 	@:overload( function( array : Float32Array ) : Void {} )

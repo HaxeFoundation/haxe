@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 854:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 809:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionSRGB")
+@:native("EXT_sRGB")
 extern class ExtensionSRGB
 {
 	static inline var SRGB_EXT : Int = 35904;

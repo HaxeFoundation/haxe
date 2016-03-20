@@ -20,16 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCIdentityAssertion.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/RTCIdentityAssertion.webidl line 41:0. Do not edit!
 
 package js.html.rtc;
 
-@:native("RTCIdentityAssertion")
-extern class IdentityAssertion
+typedef IdentityAssertion =
 {
-	var idp : String;
-	var name : String;
-	
-	/** @throws DOMError */
-	function new( idp : String, name : String ) : Void;
+	@:optional var idp : String;
+	@:optional var name : String;
 }

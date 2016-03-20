@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DocumentType.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/DocumentType.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -30,7 +30,6 @@ extern class DocumentType extends Node
 	var name(default,null) : String;
 	var publicId(default,null) : String;
 	var systemId(default,null) : String;
-	var internalSubset(default,null) : String;
 	
 	function remove() : Void;
 }

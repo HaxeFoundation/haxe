@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WorkerLocation.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/WorkerLocation.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -28,6 +28,7 @@ package js.html;
 extern class WorkerLocation
 {
 	var href(default,null) : String;
+	var origin(default,null) : String;
 	var protocol(default,null) : String;
 	var host(default,null) : String;
 	var hostname(default,null) : String;
@@ -35,6 +36,5 @@ extern class WorkerLocation
 	var pathname(default,null) : String;
 	var search(default,null) : String;
 	var hash(default,null) : String;
-	var origin(default,null) : String;
 	
 }

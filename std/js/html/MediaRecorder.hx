@@ -20,13 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaRecorder.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/MediaRecorder.webidl line 48:0. Do not edit!
 
 package js.html;
 
 @:native("MediaRecorder")
 extern class MediaRecorder extends EventTarget
 {
+	static function isTypeSupported( type : String ) : Bool;
 	var stream(default,null) : MediaStream;
 	var state(default,null) : RecordingState;
 	var mimeType(default,null) : String;

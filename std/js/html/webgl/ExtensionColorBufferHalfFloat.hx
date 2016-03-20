@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 945:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 888:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionColorBufferHalfFloat")
+@:native("EXT_color_buffer_half_float")
 extern class ExtensionColorBufferHalfFloat
 {
 	static inline var RGBA16F_EXT : Int = 34842;

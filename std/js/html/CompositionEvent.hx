@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CompositionEvent.webidl line 12:0. Do not edit!
+// This file is generated from mozilla/CompositionEvent.webidl line 43:0. Do not edit!
 
 package js.html;
 
@@ -30,6 +30,5 @@ extern class CompositionEvent extends UIEvent
 	var data(default,null) : String;
 	var locale(default,null) : String;
 	
-	/** @throws DOMError */
 	function initCompositionEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, viewArg : Window, dataArg : String, localeArg : String ) : Void;
 }

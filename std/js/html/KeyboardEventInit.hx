@@ -20,23 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/KeyboardEvent.webidl line 36:0. Do not edit!
+// This file is generated from mozilla/KeyboardEvent.webidl line 59:0. Do not edit!
 
 package js.html;
 
 typedef KeyboardEventInit =
 {
-	> UIEventInit,
-	@:optional var altKey : Bool;
+	// > EventModifierInit,
 	@:optional var charCode : Int;
 	@:optional var code : String;
-	@:optional var ctrlKey : Bool;
 	@:optional var isComposing : Bool;
 	@:optional var key : String;
 	@:optional var keyCode : Int;
 	@:optional var location : Int;
-	@:optional var metaKey : Bool;
 	@:optional var repeat : Bool;
-	@:optional var shiftKey : Bool;
 	@:optional var which : Int;
 }

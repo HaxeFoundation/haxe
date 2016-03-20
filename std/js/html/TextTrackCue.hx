@@ -20,8 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+// This file is generated from mozilla/TextTrackCue.webidl line 42:0. Do not edit!
+
 package js.html;
 
-/** @deprecated Use VTTCue instead. */
-@:deprecated("TextTrackCue is deprecated, use VTTCue instead")
-typedef TextTrackCue = VTTCue;
+@:native("TextTrackCue")
+extern class TextTrackCue extends EventTarget
+{
+	var track(default,null) : TextTrack;
+	var id : String;
+	var startTime : Float;
+	var endTime : Float;
+	var pauseOnExit : Bool;
+	var onenter : haxe.Constraints.Function;
+	var onexit : haxe.Constraints.Function;
+	
+}

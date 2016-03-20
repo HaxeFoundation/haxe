@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CSS.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/CSS.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -30,6 +30,5 @@ extern class CSS
 	/** @throws DOMError */
 	@:overload( function( property : String, value : String ) : Bool {} )
 	static function supports( conditionText : String ) : Bool;
-	/** @throws DOMError */
 	static function escape( ident : String ) : String;
 }

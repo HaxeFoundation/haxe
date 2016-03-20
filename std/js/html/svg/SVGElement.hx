@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGSVGElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/SVGSVGElement.webidl line 45:0. Do not edit!
 
 package js.html.svg;
 
@@ -49,7 +49,6 @@ extern class SVGElement extends GraphicsElement
 	function suspendRedraw( maxWaitMilliseconds : Int ) : Int;
 	function unsuspendRedraw( suspendHandleID : Int ) : Void;
 	function unsuspendRedrawAll() : Void;
-	/** @throws DOMError */
 	function forceRedraw() : Void;
 	function pauseAnimations() : Void;
 	function unpauseAnimations() : Void;

@@ -20,18 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/VTTCue.webidl line 28:0. Do not edit!
+// This file is generated from mozilla/VTTCue.webidl line 56:0. Do not edit!
 
 package js.html;
 
 @:native("VTTCue")
-extern class VTTCue extends EventTarget
+extern class VTTCue extends TextTrackCue
 {
-	var track(default,null) : TextTrack;
-	var id : String;
-	var startTime : Float;
-	var endTime : Float;
-	var pauseOnExit : Bool;
 	var region : VTTRegion;
 	var vertical : DirectionSetting;
 	var snapToLines : Bool;
@@ -42,8 +37,6 @@ extern class VTTCue extends EventTarget
 	var size : Int;
 	var align : AlignSetting;
 	var text : String;
-	var onenter : haxe.Constraints.Function;
-	var onexit : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function new( startTime : Float, endTime : Float, text : String ) : Void;

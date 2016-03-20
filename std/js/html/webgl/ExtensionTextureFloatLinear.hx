@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 915:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 863:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionTextureFloatLinear")
+@:native("OES_texture_float_linear")
 extern class ExtensionTextureFloatLinear
 {
 }

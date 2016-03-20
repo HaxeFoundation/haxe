@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DOMException.webidl line 67:0. Do not edit!
+// This file is generated from mozilla/DOMException.webidl line 88:0. Do not edit!
 
 package js.html;
 
@@ -33,7 +33,6 @@ extern class Exception
 	var filename(default,null) : String;
 	var lineNumber(default,null) : Int;
 	var columnNumber(default,null) : Int;
-	var inner(default,null) : Dynamic/*MISSING nsISupports*/;
 	var data(default,null) : Dynamic/*MISSING nsISupports*/;
 	var stack(default,null) : String;
 	

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DOMTokenList.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/DOMTokenList.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -28,6 +28,7 @@ package js.html;
 extern class DOMTokenList implements ArrayAccess<String>
 {
 	var length(default,null) : Int;
+	var value : String;
 	
 	function item( index : Int ) : String;
 	/** @throws DOMError */

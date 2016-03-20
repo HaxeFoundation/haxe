@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Selection.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/Selection.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -33,6 +33,7 @@ extern class Selection
 	var focusOffset(default,null) : Int;
 	var isCollapsed(default,null) : Bool;
 	var rangeCount(default,null) : Int;
+	var caretBidiLevel : Int;
 	
 	/** @throws DOMError */
 	function collapse( node : Node, offset : Int ) : Void;

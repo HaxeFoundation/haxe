@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBKeyRange.webidl line 12:0. Do not edit!
+// This file is generated from mozilla/IDBKeyRange.webidl line 44:0. Do not edit!
 
 package js.html.idb;
 
@@ -40,4 +40,6 @@ extern class KeyRange
 	var lowerOpen(default,null) : Bool;
 	var upperOpen(default,null) : Bool;
 	
+	/** @throws DOMError */
+	function includes( key : Dynamic ) : Bool;
 }

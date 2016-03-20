@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Location.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/Location.webidl line 46:0. Do not edit!
 
 package js.html;
 
@@ -30,8 +30,6 @@ extern class Location
 	var href : String;
 	var origin(default,null) : String;
 	var protocol : String;
-	var username : String;
-	var password : String;
 	var host : String;
 	var hostname : String;
 	var port : String;

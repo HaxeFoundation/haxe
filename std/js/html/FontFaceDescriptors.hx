@@ -20,12 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/FontFace.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/FontFace.webidl line 45:0. Do not edit!
 
 package js.html;
 
 typedef FontFaceDescriptors =
 {
+	@:optional var display : String;
 	@:optional var featureSettings : String;
 	@:optional var stretch : String;
 	@:optional var style : String;

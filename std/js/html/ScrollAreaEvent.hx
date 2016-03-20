@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ScrollAreaEvent.webidl line 7:0. Do not edit!
+// This file is generated from mozilla/ScrollAreaEvent.webidl line 38:0. Do not edit!
 
 package js.html;
 
@@ -32,6 +32,5 @@ extern class ScrollAreaEvent extends UIEvent
 	var width(default,null) : Float;
 	var height(default,null) : Float;
 	
-	/** @throws DOMError */
 	function initScrollAreaEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, x : Float, y : Float, width : Float, height : Float ) : Void;
 }

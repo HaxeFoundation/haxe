@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Screen.webidl line 6:0. Do not edit!
+// This file is generated from mozilla/Screen.webidl line 37:0. Do not edit!
 
 package js.html;
 
@@ -37,5 +37,6 @@ extern class Screen extends EventTarget
 	var left(default,null) : Int;
 	var availTop(default,null) : Int;
 	var availLeft(default,null) : Int;
+	var orientation(default,null) : ScreenOrientation;
 	
 }

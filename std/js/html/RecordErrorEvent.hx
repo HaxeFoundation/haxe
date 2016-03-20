@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RecordErrorEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/RecordErrorEvent.webidl line 39:0. Do not edit!
 
 package js.html;
 

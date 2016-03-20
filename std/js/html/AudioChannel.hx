@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/AudioChannel.webidl line 41:0. Do not edit!
+// This file is generated from mozilla/AudioChannel.webidl line 72:0. Do not edit!
 
 package js.html;
 
@@ -33,4 +33,5 @@ package js.html;
 	var TELEPHONY = "telephony";
 	var RINGER = "ringer";
 	var PUBLICNOTIFICATION = "publicnotification";
+	var SYSTEM = "system";
 }

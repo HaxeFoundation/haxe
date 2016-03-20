@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 34:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 64:0. Do not edit!
 
 package js.html.webgl;
 
@@ -29,6 +29,7 @@ typedef ContextAttributes =
 	@:optional var alpha : Bool;
 	@:optional var antialias : Bool;
 	@:optional var depth : Bool;
+	@:optional var failIfMajorPerformanceCaveat : Bool;
 	@:optional var premultipliedAlpha : Bool;
 	@:optional var preserveDrawingBuffer : Bool;
 	@:optional var stencil : Bool;

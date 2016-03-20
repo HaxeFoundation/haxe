@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaStreamTrack.webidl line 27:0. Do not edit!
+// This file is generated from mozilla/MediaStreamTrack.webidl line 91:0. Do not edit!
 
 package js.html;
 
 @:native("MediaStreamTrack")
-extern class MediaStreamTrack
+extern class MediaStreamTrack extends EventTarget
 {
 	var kind(default,null) : String;
 	var id(default,null) : String;
@@ -33,4 +33,6 @@ extern class MediaStreamTrack
 	var enabled : Bool;
 	
 	function stop() : Void;
+	/** @throws DOMError */
+	function applyConstraints( ?constraints : MediaTrackConstraints ) : Promise<Void>;
 }

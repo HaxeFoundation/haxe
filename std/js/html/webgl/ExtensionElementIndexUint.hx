@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 831:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 790:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionElementIndexUint")
+@:native("OES_element_index_uint")
 extern class ExtensionElementIndexUint
 {
 }

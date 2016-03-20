@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DragEvent.webidl line 7:0. Do not edit!
+// This file is generated from mozilla/DragEvent.webidl line 39:0. Do not edit!
 
 package js.html;
 
@@ -30,5 +30,6 @@ extern class DragEvent extends MouseEvent
 	var dataTransfer(default,null) : DataTransfer;
 	
 	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : DragEventInit ) : Void;
 	function initDragEvent( type : String, canBubble : Bool, cancelable : Bool, aView : Window, aDetail : Int, aScreenX : Int, aScreenY : Int, aClientX : Int, aClientY : Int, aCtrlKey : Bool, aAltKey : Bool, aShiftKey : Bool, aMetaKey : Bool, aButton : Int, aRelatedTarget : EventTarget, aDataTransfer : DataTransfer ) : Void;
 }

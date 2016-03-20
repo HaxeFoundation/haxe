@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 920:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 867:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionShaderTextureLod")
+@:native("EXT_shader_texture_lod")
 extern class ExtensionShaderTextureLod
 {
 }

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/AudioBufferSourceNode.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/AudioBufferSourceNode.webidl line 44:0. Do not edit!
 
 package js.html.audio;
 
@@ -29,6 +29,7 @@ extern class AudioBufferSourceNode extends AudioNode
 {
 	var buffer : AudioBuffer;
 	var playbackRate(default,null) : AudioParam;
+	var detune(default,null) : AudioParam;
 	var loop : Bool;
 	var loopStart : Float;
 	var loopEnd : Float;

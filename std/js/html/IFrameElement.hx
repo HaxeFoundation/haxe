@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLIFrameElement.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/HTMLIFrameElement.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -30,7 +30,7 @@ extern class IFrameElement extends Element
 	var src : String;
 	var srcdoc : String;
 	var name : String;
-	var sandbox(default,null) : DOMSettableTokenList;
+	var sandbox(default,null) : DOMTokenList;
 	var allowFullscreen : Bool;
 	var width : String;
 	var height : String;

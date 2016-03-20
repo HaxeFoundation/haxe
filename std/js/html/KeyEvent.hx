@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/KeyEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/KeyEvent.webidl line 39:0. Do not edit!
 
 package js.html;
 
@@ -213,6 +213,5 @@ extern class KeyEvent
 	static inline var DOM_VK_PA1 : Int = 253;
 	static inline var DOM_VK_WIN_OEM_CLEAR : Int = 254;
 	
-	/** @throws DOMError */
 	function initKeyEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, keyCode : Int, charCode : Int ) : Void;
 }

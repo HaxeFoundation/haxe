@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 819:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 780:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionDebugShaders")
+@:native("WEBGL_debug_shaders")
 extern class ExtensionDebugShaders
 {
 	function getTranslatedShaderSource( shader : Shader ) : String;

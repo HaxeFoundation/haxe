@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGStyleElement.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/SVGStyleElement.webidl line 44:0. Do not edit!
 
 package js.html.svg;
 
@@ -31,5 +31,6 @@ extern class StyleElement extends Element
 	var type : String;
 	var media : String;
 	var scoped : Bool;
+	var sheet(default,null) : js.html.StyleSheet;
 	
 }

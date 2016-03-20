@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaStreamError.webidl line 17:0. Do not edit!
+// This file is generated from mozilla/MediaStreamError.webidl line 46:0. Do not edit!
 
 package js.html;
 
@@ -29,6 +29,6 @@ extern class MediaStreamError
 {
 	var name(default,null) : String;
 	var message(default,null) : String;
-	var constraintName(default,null) : String;
+	var constraint(default,null) : String;
 	
 }

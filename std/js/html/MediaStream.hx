@@ -20,16 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaStream.webidl line 30:0. Do not edit!
+// This file is generated from mozilla/MediaStream.webidl line 63:0. Do not edit!
 
 package js.html;
 
 @:native("MediaStream")
 extern class MediaStream extends EventTarget
 {
+	var id(default,null) : String;
 	var currentTime(default,null) : Float;
 	
+	/** @throws DOMError */
+	@:overload( function() : Void {} )
+	@:overload( function( stream : MediaStream ) : Void {} )
+	function new( tracks : Array<MediaStreamTrack> ) : Void;
 	function getAudioTracks() : Array<AudioStreamTrack>;
 	function getVideoTracks() : Array<VideoStreamTrack>;
 	function getTracks() : Array<MediaStreamTrack>;
+	function addTrack( track : MediaStreamTrack ) : Void;
+	function removeTrack( track : MediaStreamTrack ) : Void;
 }

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CanvasRenderingContext2D.webidl line 23:0. Do not edit!
+// This file is generated from mozilla/CanvasRenderingContext2D.webidl line 52:0. Do not edit!
 
 package js.html;
 
@@ -28,4 +28,5 @@ typedef HitRegionOptions =
 {
 	@:optional var control : Element;
 	@:optional var id : String;
+	@:optional var path : Path2D;
 }

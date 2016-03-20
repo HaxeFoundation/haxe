@@ -20,12 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCPeerConnection.webidl line 55:0. Do not edit!
+// This file is generated from mozilla/RTCPeerConnection.webidl line 85:0. Do not edit!
 
 package js.html.rtc;
 
 typedef OfferOptions =
 {
+	// > RTCOfferAnswerOptions,
 	@:optional var mandatory : Dynamic/*MISSING DeprecatedRTCOfferOptionsSet*/;
 	@:optional var offerToReceiveAudio : Int;
 	@:optional var offerToReceiveVideo : Int;

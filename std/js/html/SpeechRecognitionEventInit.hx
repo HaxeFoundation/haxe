@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SpeechRecognitionEvent.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/SpeechRecognitionEvent.webidl line 49:0. Do not edit!
 
 package js.html;
 
@@ -28,7 +28,7 @@ typedef SpeechRecognitionEventInit =
 {
 	> EventInit,
 	@:optional var emma : HTMLDocument;
-	@:optional var interpretation : String;
+	@:optional var interpretation : Dynamic;
 	@:optional var resultIndex : Int;
-	@:optional var results : Dynamic/*MISSING nsISupports*/;
+	@:optional var results : SpeechRecognitionResultList;
 }

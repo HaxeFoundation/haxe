@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DummyBinding.webidl line 10:0. Do not edit!
+// This file is generated from mozilla/DummyBinding.webidl line 40:0. Do not edit!
 
 package js.html;
 
@@ -28,4 +28,5 @@ package js.html;
 extern class DummyInterface
 {
 	function lifecycleCallbacks( ?arg : LifecycleCallbacks ) : Void;
+	function promiseJobCallback( arg : Void -> Void ) : Void;
 }

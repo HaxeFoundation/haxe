@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Touch.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/Touch.webidl line 60:0. Do not edit!
 
 package js.html;
 
@@ -40,4 +40,6 @@ extern class Touch
 	var rotationAngle(default,null) : Float;
 	var force(default,null) : Float;
 	
+	/** @throws DOMError */
+	function new( touchInitDict : TouchInit ) : Void;
 }

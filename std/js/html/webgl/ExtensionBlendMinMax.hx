@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 973:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 911:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionBlendMinMax")
+@:native("EXT_blend_minmax")
 extern class ExtensionBlendMinMax
 {
 	static inline var MIN_EXT : Int = 32775;

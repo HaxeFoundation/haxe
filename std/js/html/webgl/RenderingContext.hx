@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 82:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 123:0. Do not edit!
 
 package js.html.webgl;
 
@@ -325,7 +325,7 @@ extern class RenderingContext
 	static inline var UNPACK_COLORSPACE_CONVERSION_WEBGL : Int = 37443;
 	static inline var BROWSER_DEFAULT_WEBGL : Int = 37444;
 	
-	var canvas(default,null) : js.html.CanvasElement;
+	var canvas(default,null) : haxe.extern.EitherType<js.html.CanvasElement,Dynamic/*MISSING OffscreenCanvas*/>;
 	var drawingBufferWidth(default,null) : Int;
 	var drawingBufferHeight(default,null) : Int;
 	
@@ -348,9 +348,11 @@ extern class RenderingContext
 	function blendFuncSeparate( srcRGB : Int, dstRGB : Int, srcAlpha : Int, dstAlpha : Int ) : Void;
 	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
 	@:overload( function( target : Int, data : js.html.ArrayBufferView, usage : Int ) : Void {} )
-	function bufferData( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void;
+	@:overload( function( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void {} )
+	function bufferData( target : Int, data : Dynamic/*MISSING SharedArrayBuffer*/, usage : Int ) : Void;
 	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBufferView ) : Void {} )
-	function bufferSubData( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void;
+	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void {} )
+	function bufferSubData( target : Int, offset : Int, data : Dynamic/*MISSING SharedArrayBuffer*/ ) : Void;
 	function checkFramebufferStatus( target : Int ) : Int;
 	function clear( mask : Int ) : Void;
 	function clearColor( red : Float, green : Float, blue : Float, alpha : Float ) : Void;

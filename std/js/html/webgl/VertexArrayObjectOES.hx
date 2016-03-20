@@ -20,8 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 105:0. Do not edit!
+
 package js.html.webgl;
 
-/** @deprecated Use VertexArray instead. */
-@:deprecated("VertexArrayObjectOES is deprecated, use VertexArray instead")
-typedef VertexArrayObjectOES = VertexArray;
+@:native("WebGLVertexArrayObjectOES")
+extern class VertexArrayObjectOES
+{
+}

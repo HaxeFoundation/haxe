@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/NodeFilter.webidl line 10:9. Do not edit!
+// This file is generated from mozilla/NodeFilter.webidl line 41:9. Do not edit!
 
 package js.html;
 

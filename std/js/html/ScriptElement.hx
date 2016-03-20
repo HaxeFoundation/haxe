@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLScriptElement.webidl line 11:0. Do not edit!
+// This file is generated from mozilla/HTMLScriptElement.webidl line 42:0. Do not edit!
 
 package js.html;
 
@@ -36,5 +36,6 @@ extern class ScriptElement extends Element
 	var text : String;
 	var event : String;
 	var htmlFor : String;
+	var integrity : String;
 	
 }

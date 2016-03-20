@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl line 31:2. Do not edit!
+// This file is generated from cssrule.webidl line 56:2. Do not edit!
 
 package js.html;
 

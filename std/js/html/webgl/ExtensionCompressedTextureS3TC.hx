@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 780:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 732:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionCompressedTextureS3TC")
+@:native("WEBGL_compressed_texture_s3tc")
 extern class ExtensionCompressedTextureS3TC
 {
 	static inline var COMPRESSED_RGB_S3TC_DXT1_EXT : Int = 33776;
