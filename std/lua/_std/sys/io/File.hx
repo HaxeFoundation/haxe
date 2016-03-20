@@ -22,13 +22,12 @@
 package sys.io;
 import lua.Lua;
 import lua.Io;
-import lua.FileHandle.ReadOption;
 
 @:coreApi
 class File {
 	public static function getContent( path : String ) : String { 
 		var f = Io.open(path, "r");
-		var s = f.read(All);
+		var s = f.read("*all");
 		f.close();
 		return s;
 	}
