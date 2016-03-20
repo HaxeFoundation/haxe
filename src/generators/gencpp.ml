@@ -1987,6 +1987,7 @@ let rec cpp_type_of ctx haxe_type =
               TCppDynamicArray
 
             | TCppObject
+            | TCppEnum _
             | TCppInst _
             | TCppClass
             | TCppDynamicArray
@@ -3105,9 +3106,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppBinop(op, left, right) ->
          let op = string_of_op op expr.cpppos in
          let castOpen, castClose = (match op with
-         | ">>" | "<<" | "&" | "|" | "^"  -> "(int(", "))"
-         | "&&" | "||" -> "(bool(", "))"
-         | "/" -> "(Float(", "))"
+         | ">>" | "<<" | "&" | "|" | "^"  -> "(int)", ""
+         | "&&" | "||" -> "(bool)", ""
+         | "/" -> "(Float)", ""
          | _ -> "","") in
           out "(";
           out castOpen; gen left; out castClose;
@@ -5928,12 +5929,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          let get_field_dat = List.map (fun f ->
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
-               | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") return " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "()"
-               | Var { v_read = AccCall } -> "return " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
-                     ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
-               | _ -> "return " ^ ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
-               ) ^ ";"
-            ) )
+               | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") return hx::Val(" ^(keyword_remap ("get_" ^ f.cf_name)) ^ "());"
+               | Var { v_read = AccCall } -> "return hx::Val( " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
+                     ((keyword_remap f.cf_name) ^ (if (variable_field f) then "" else "_dyn()")) ^ ");"
+               | _ -> "return hx::Val( " ^ ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()") ^ ");"
+            ) ) )
          in
          dump_quick_field_test (get_field_dat reflect_member_readable);
          if (implement_dynamic) then
@@ -6000,7 +6000,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                   " return inValue;" in
             (f.cf_name, String.length f.cf_name,
                (match f.cf_kind with
-               | Var { v_write = AccCall } -> "if (" ^ (checkPropCall f) ^ ") return " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue);"
+               | Var { v_write = AccCall } -> "if (" ^ (checkPropCall f) ^ ") return hx::Val( " ^ (keyword_remap ("set_" ^ f.cf_name)) ^ "(inValue) );"
                   ^ ( if is_extern_field f then "" else default_action )
                | _ -> default_action
                )
