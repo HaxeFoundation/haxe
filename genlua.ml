@@ -1558,11 +1558,11 @@ let generate_enumMeta_fields ctx = function
 	end
     | _ -> ()
 
-let generate_require ctx c =
-	let _, args, mp = Meta.get Meta.LuaRequire c.cl_meta in
-	let p = (s_path ctx c.cl_path) in
+let generate_require ctx path meta =
+	let _, args, mp = Meta.get Meta.LuaRequire meta in
+	let p = (s_path ctx path) in
 
-	generate_package_create ctx c.cl_path;
+	generate_package_create ctx path;
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
@@ -1588,14 +1588,15 @@ let generate_type ctx = function
 			()
 		else if not c.cl_extern then
 			generate_class ctx c
-		else if (Meta.has Meta.LuaRequire c.cl_meta) then
-			generate_require ctx c
+		else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
+			generate_require ctx c.cl_path c.cl_meta
 		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
 			| _ -> generate_package_create ctx c.cl_path)
 	| TEnumDecl e when e.e_extern ->
-		()
+		if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
+		    generate_require ctx e.e_path e.e_meta;
 	| TEnumDecl e -> generate_enum ctx e
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
