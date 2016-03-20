@@ -44,23 +44,6 @@ class Boot {
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 
-	public static function patternQuote(str:String)
-		return lua.StringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
-
-	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
-		if (length == null) length = Table.maxn(t);
-		return cast defArray(t,length);
-	}
-
-	public static function luaIteratorToArray<T>(itr:Void->T) : Array<T> {
-		var i: T = null;
-		var ret : Array<T> = [];
-		while({i = itr(); i != null;}){
-			ret.push(i);
-		}
-		return ret;
-	}
-
 	@:keep
 	public static function bind(o:Dynamic, m: Function) : Function{
 		if (m == null) return null;
@@ -152,9 +135,6 @@ class Boot {
 	}
 
 
-	public static function defArray(tab: Dynamic, length : Int) : Array<Dynamic>  untyped {
-		return untyped _hx_tabArray(tab, length);
-	}
 
 	public static function urlDecode(str:String){
 		str = lua.StringTools.gsub (str, "+", " ");
