@@ -1219,6 +1219,8 @@ flash.display3D.Context3D.$mipfilter : Context3DMipFilter;
 @:require(flash11_7) flash.system.AuthorizedFeatures.enableHLSPlayback;
 @:require(flash11_7) flash.system.AuthorizedFeaturesLoader.loadAuthorizedFeaturesFromData;
 
+// requires com.adobe.tvsdk.mediacore.MediaPlayer which we don't include
+flash.system.AuthorizedFeatures.$enableMediaPlayerHLSPlayback__player : Dynamic;
 
 @:require(flash11_8) flash.display.DisplayObjectContainer.stopAllMovieClips
 @:require(flash11_8) flash.display3D.Context3D.createRectangleTexture
