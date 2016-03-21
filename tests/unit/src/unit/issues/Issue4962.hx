@@ -2,7 +2,7 @@ package unit.issues;
 
 private class C {
 	public function new() { }
-	@:keep function toString() return toString();
+	@:keep function toString():String return toString();
 }
 
 class Issue4962 extends Test {
