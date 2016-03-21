@@ -294,12 +294,13 @@ let open_block ctx =
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
-let rec has_return e =
+let rec needs_switch_break e =
 	match e.eexpr with
-	| TBlock [] -> false
-	| TBlock el -> has_return (List.hd (List.rev el))
-	| TReturn _ -> true
-	| _ -> false
+	| TBlock [] -> true
+	| TBlock el -> needs_switch_break (List.hd (List.rev el))
+	| TMeta ((Meta.LoopLabel,_,_), {eexpr = TBreak})
+	| TContinue | TReturn _ | TThrow _ -> false
+	| _ -> true
 
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
@@ -779,7 +780,7 @@ and gen_expr ctx e =
 			) el;
 			let bend = open_block ctx in
 			gen_block_element ctx e2;
-			if not (has_return e2) then begin
+			if needs_switch_break e2 then begin
 				newline ctx;
 				print ctx "break";
 			end;
