@@ -604,6 +604,53 @@ let rename_local_vars ctx e =
 	List.iter maybe_rename (List.rev !vars);
 	e
 
+let mark_switch_break_loops e =
+	let add_loop_label n e =
+		{ e with eexpr = TMeta ((Meta.LoopLabel,[(EConst(Int(string_of_int n)),e.epos)],e.epos), e) }
+	in
+	let in_switch = ref false in
+	let did_found = ref (-1) in
+	let num = ref 0 in
+	let cur_num = ref 0 in
+	let rec run e =
+		match e.eexpr with
+		| TFunction _ ->
+			let old_num = !num in
+			num := 0;
+				let ret = Type.map_expr run e in
+			num := old_num;
+			ret
+		| TWhile _ | TFor _ ->
+			let last_switch = !in_switch in
+			let last_found = !did_found in
+			let last_num = !cur_num in
+			in_switch := false;
+			incr num;
+			cur_num := !num;
+			did_found := -1;
+				let new_e = Type.map_expr run e in (* assuming that no loop will be found in the condition *)
+				let new_e = if !did_found <> -1 then add_loop_label !did_found new_e else new_e in
+			did_found := last_found;
+			in_switch := last_switch;
+			cur_num := last_num;
+
+			new_e
+		| TSwitch _ ->
+			let last_switch = !in_switch in
+			in_switch := true;
+				let new_e = Type.map_expr run e in
+			in_switch := last_switch;
+			new_e
+		| TBreak ->
+			if !in_switch then (
+				did_found := !cur_num;
+				add_loop_label !cur_num e
+			) else
+				e
+		| _ -> Type.map_expr run e
+	in
+	run e
+
 let check_unification ctx e t =
 	begin match e.eexpr,t with
 		| TLocal v,TType({t_path = ["cs"],("Ref" | "Out")},_) ->
@@ -1094,6 +1141,7 @@ let run com tctx main =
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
 		if com.platform = Js then wrap_js_exceptions com else (fun e -> e);
 		rename_local_vars tctx;
+		mark_switch_break_loops;
 	] in
 	List.iter (run_expression_filters tctx filters) new_types;
 	next_compilation();
