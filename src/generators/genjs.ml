@@ -52,7 +52,6 @@ type ctx = {
 	mutable tabs : string;
 	mutable in_value : tvar option;
 	mutable in_loop : bool;
-	mutable handle_break : bool;
 	mutable id_counter : int;
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
@@ -302,37 +301,6 @@ let rec has_return e =
 	| TReturn _ -> true
 	| _ -> false
 
-let rec iter_switch_break in_switch e =
-	match e.eexpr with
-	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ when not in_switch -> iter_switch_break true e
-	| TBreak when in_switch -> raise Exit
-	| _ -> iter (iter_switch_break in_switch) e
-
-let handle_break ctx e =
-	let old = ctx.in_loop, ctx.handle_break in
-	ctx.in_loop <- true;
-	try
-		iter_switch_break false e;
-		ctx.handle_break <- false;
-		(fun() ->
-			ctx.in_loop <- fst old;
-			ctx.handle_break <- snd old;
-		)
-	with
-		Exit ->
-			spr ctx "try {";
-			let b = open_block ctx in
-			newline ctx;
-			ctx.handle_break <- true;
-			(fun() ->
-				b();
-				ctx.in_loop <- fst old;
-				ctx.handle_break <- snd old;
-				newline ctx;
-				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
-			)
-
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
 let is_dynamic_iterator ctx e =
@@ -552,6 +520,14 @@ and gen_expr ctx e =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
+	| TMeta ((Meta.LoopLabel,[(EConst(Int n),_)],_), e) ->
+		(match e.eexpr with
+		| TWhile _ | TFor _ ->
+			print ctx "_hx_loop%s: " n;
+			gen_expr ctx e
+		| TBreak ->
+			print ctx "break _hx_loop%s" n;
+		| _ -> assert false)
 	| TMeta (_,e) ->
 		gen_expr ctx e
 	| TReturn eo ->
@@ -564,7 +540,7 @@ and gen_expr ctx e =
 			gen_value ctx e);
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
+		spr ctx "break"
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
@@ -633,20 +609,22 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
-		let handle_break = handle_break ctx e in
+		let old_in_loop = ctx.in_loop in
+		ctx.in_loop <- true;
 		spr ctx "while";
 		gen_value ctx cond;
 		spr ctx " ";
 		gen_expr ctx e;
-		handle_break();
+		ctx.in_loop <- old_in_loop
 	| TWhile (cond,e,Ast.DoWhile) ->
-		let handle_break = handle_break ctx e in
+		let old_in_loop = ctx.in_loop in
+		ctx.in_loop <- true;
 		spr ctx "do ";
 		gen_expr ctx e;
 		semicolon ctx;
 		spr ctx " while";
 		gen_value ctx cond;
-		handle_break();
+		ctx.in_loop <- old_in_loop
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> (match e.eexpr with
@@ -658,7 +636,8 @@ and gen_expr ctx e =
 		ctx.separator <- true
 	| TFor (v,it,e) ->
 		check_var_declaration v;
-		let handle_break = handle_break ctx e in
+		let old_in_loop = ctx.in_loop in
+		ctx.in_loop <- true;
 		let it = ident (match it.eexpr with
 			| TLocal v -> v.v_name
 			| _ ->
@@ -678,7 +657,7 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}";
-		handle_break();
+		ctx.in_loop <- old_in_loop
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
@@ -1291,7 +1270,6 @@ let alloc_ctx com =
 		tabs = "";
 		in_value = None;
 		in_loop = false;
-		handle_break = false;
 		id_counter = 0;
 		type_accessor = (fun _ -> assert false);
 		separator = false;
