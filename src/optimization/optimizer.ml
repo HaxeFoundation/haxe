@@ -179,10 +179,11 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Bool" })) -> Some (typeof "boolean")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) -> Some (typeof "number")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
-			(* generate (o|0) === o check *)
+			(* generate typeof(o) == "number" && (o|0) === o check *)
 			let teq = mk_local ctx "__strict_eq__" (tfun [tint; tint] tbool) p in
 			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
-			Some (mk (TCall (teq, [lhs; o])) tbool p)
+			let jscheck = mk (TCall (teq, [lhs; o])) tbool p in
+			Some(mk (TBinop (Ast.OpBoolAnd, typeof "number", jscheck)) tbool p)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
 			let iof = mk_local ctx "__instanceof__" (tfun [o.etype;t.etype] tbool) p in
