@@ -7202,10 +7202,12 @@ class script_writer ctx filename asciiOut =
    method writeOp o = this#write (this#op o)
    method writeOpLine o = this#write ((this#op o) ^ "\n")
    method voidFunc isStatic isDynamic funcName fieldExpression =
+      this#comment funcName;
       this#write ( (this#op IaFunction) ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
       this#write ((this#typeTextString "Void") ^ "0\n");
          this#gen_expression fieldExpression
    method func isStatic isDynamic funcName ret args isInterface fieldExpression =
+      this#comment funcName;
       this#write ( (this#op IaFunction) ^ (this#staticText isStatic) ^ " " ^(this#boolText isDynamic) ^ " " ^(this#stringText funcName) ^ " ");
       this#write ((this#typeText ret) ^ (string_of_int (List.length args)) ^ " ");
       List.iter (fun (name,opt,typ) -> this#write ( (this#stringText name) ^ (this#boolText opt) ^ " " ^ (this#typeText typ) ^ " " )) args;
@@ -7260,6 +7262,8 @@ class script_writer ctx filename asciiOut =
          match (this#get_array_type toType), (get_array_expr_type expr) with
          | ArrayAny, _ -> false
          | ArrayObject, ArrayData _ -> write_cast (this#op IaToDynArray)
+         | ArrayObject, ArrayObject -> false
+         | ArrayObject, _ -> write_cast ((this#op IaToDataArray) ^ (this#typeTextString ("Array.Object")))
          | ArrayData t, ArrayNone
          | ArrayData t, ArrayObject
          | ArrayData t, ArrayAny -> write_cast ((this#op IaToDataArray)  ^ (this#typeTextString ("Array." ^ t)))
@@ -7355,26 +7359,27 @@ class script_writer ctx filename asciiOut =
       let gen_call () =
          (match (remove_parens_cast func).eexpr with
          | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
-                  this#write ( (this#op IaCallGlobal) ^ (this#stringText (field_name field)) ^ argN ^ "\n");
+                  this#write ( (this#op IaCallGlobal) ^ (this#stringText (field_name field)) ^ argN ^ (this#commentOf (field_name field)) ^ "\n");
          | TField (obj,FStatic (class_def,field) ) when is_real_function field ->
                   this#write ( (this#op IaCallStatic) ^ (this#instText class_def) ^ " " ^ (this#stringText field.cf_name) ^
-                     argN ^ "\n");
+                     argN ^ (this#commentOf ( join_class_path class_def.cl_path "." ^ "." ^ field.cf_name) ) ^ "\n");
          | TField (obj,FInstance (_,_,field) ) when (is_this obj) && (is_real_function field) ->
                   this#write ( (this#op IaCallThis) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                     argN ^ "\n");
+                     argN ^ (this#commentOf field.cf_name) ^ "\n");
          | TField (obj,FInstance (_,_,field) ) when is_super obj ->
                   this#write ( (this#op IaCallSuper) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                     argN ^ "\n");
+                     argN ^ (this#commentOf field.cf_name) ^ "\n");
          | TField (obj,FInstance (_,_,field) ) when field.cf_name = "__Index" || (not (is_dynamic_in_cppia ctx obj) && is_real_function field) ->
                   this#write ( (this#op IaCallMember) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
-                     argN ^ "\n");
+                     argN ^ (this#commentOf field.cf_name) ^ "\n");
                   this#gen_expression obj;
          | TField (obj,FDynamic (name) )  when (is_internal_member name || (type_string obj.etype = "::String" && name="cca") ) ->
                   this#write ( (this#op IaCallMember) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText name) ^
-                     argN ^ "\n");
+                     argN ^ (this#commentOf name) ^ "\n");
                   this#gen_expression obj;
          | TConst TSuper -> this#write ((this#op IaCallSuperNew) ^ (this#typeText func.etype) ^ " " ^ argN ^ "\n");
-         | TField (_,FEnum (enum,field)) -> this#write ((this#op IaCreateEnum) ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^ "\n");
+         | TField (_,FEnum (enum,field)) -> this#write ((this#op IaCreateEnum) ^ (this#enumText enum) ^ " " ^ (this#stringText field.ef_name) ^ argN ^
+                   (this#commentOf field.ef_name) ^ "\n");
          | _ -> this#write ( (this#op IaCall) ^ argN ^ "\n");
                   this#gen_expression func;
          );
@@ -7446,7 +7451,7 @@ class script_writer ctx filename asciiOut =
    | TLocal var -> this#write ((this#op IaVar) ^ (string_of_int var.v_id) ^ (this#commentOf var.v_name) );
 
    | TVar (tvar,optional_init) ->
-         this#write ( (this#op IaTVars) ^ (string_of_int (1)) ^ (this#commentOf tvar.v_name) ^ "\n");
+         this#write ( (this#op IaTVars) ^ (string_of_int (1)) ^ (this#commentOf (tvar.v_name ^ ":" ^ (script_type_string tvar.v_type)) ) ^ "\n");
             this#write ("\t\t" ^ indent);
             (match optional_init with
             | None -> this#writeOp IaVarDecl;
