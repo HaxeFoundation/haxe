@@ -228,6 +228,19 @@ class Boot {
 
 	}
 
+	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
+		if (length == null) length = Table.maxn(t);
+		return cast defArray(t,length);
+	}
+
+	public static function defArray<T>(tab: Table<Int,T>, length : Int) : Array<T> {
+		return untyped _hx_tabArray(tab, length);
+	}
+
+	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
+		return untyped _hx_o(t);
+	}
+
 	public static function dateStr( date : std.Date ) : String {
 		var m = date.getMonth() + 1;
 		var d = date.getDate();
