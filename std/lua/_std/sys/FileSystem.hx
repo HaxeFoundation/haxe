@@ -21,8 +21,77 @@
  */
 package sys;
 
+import lua.lib.lfs.Lfs;
+import lua.Io;
+import lua.Os;
+import lua.Lib;
+import haxe.io.Path;
+
 class FileSystem {
 	public static function exists( path : String ) : Bool {
+		if (path == null) return false;
+		else{
+			var f = Io.open(path);
+			if (f == null) return false;
+			else {
+				f.close();
+				return true;
+			}
+		}
+	}
 
+	public inline static function rename( path : String, newPath : String ) : Void {
+		return  Os.rename(path, newPath);
+	}
+
+	public inline static function stat( path : String ) : FileStat {
+		// the lua lfs attributes command uses a string for "mode".
+		// we just need to patch it.
+
+		var attr : sys.FileStat = cast Lfs.attributes(path);
+		var lfs_mode : String = cast(attr.mode, String);
+		var mode = switch(lfs_mode){
+			case "file"         : 0x0100000;
+			case "directory"    : 0x0040000;
+			case "link"         : 0x0120000;
+			case "socket"       : 0x0140000;
+			case "named pipe"   : 0x0010000;
+			case "char device"  : 0x0020000;
+			case "block device" : 0x0060000;
+			default             : 0x0000000;
+		}
+		attr.mode = mode;
+		return attr;
+	}
+
+	public inline static function fullPath( relPath : String ) : String {
+		return Path.normalize(absolutePath(relPath));
+	}
+
+	public inline static function absolutePath( relPath : String ) : String {
+		if (relPath == null) return null;
+		var pwd = Lfs.currentdir() ;
+		if (pwd == null) return relPath;
+		return Path.join([pwd, relPath]);
+	}
+
+	public inline static function deleteFile( path : String ) : Void {
+		lua.Os.remove(path);
+	}
+
+	public inline static function readDirectory( path : String ) : Array<String> {
+		return lua.Lib.fillArray(Lfs.dir(path));
+	}
+
+	public inline static function isDirectory( path : String ) : Bool {
+		return  Lfs.attributes(path, "mode") ==  "directory";
+	}
+
+	public inline static function deleteDirectory( path : String ) : Void {
+		Lfs.rmdir(path);
+	}
+
+	public inline static function createDirectory( path : String ) : Void {
+	   Lfs.mkdir(path);
 	}
 }

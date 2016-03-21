@@ -20,21 +20,27 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package lua.lib.lfs;
-@:luaRequire("lfs")
-extern class Lfs {
-	@:overload(   function			 (filepath : String, aname : String) : Dynamic {})
-	public static function attributes(filepath : String) : LfsFileStat;
 
-	public static function chdir(path : String) : Bool;
-	public static function lock_dir(path : String, ?second_stale : Int) : String; 
-	public static function currentdir() : String;
-	public static function dir(path : String) : Void->String;
-	public static function lock(filename : String, mode : String, ?start : Int, ?length : Int) : Bool;
-	public static function link(old : String, _new :String, ?symlink : Bool) : Void;
-	public static function mkdir(dirname : String) : Bool;
-	public static function rmdir(dirname : String) : Bool;
-	public static function setmode(file: String, mode : String) : String;
-	public static function symlinkattributes(filepath : String, ?aname : String) : Table<String, String>;
-	public static function touch(filepath : String, ?atime : Int, ?mtime : Int) : Bool;
-	public static function unlock(filehandle : String, ?start : Int, ?length : Int) : Bool;
+/**
+	File informations, as given by [sys.FileSystem.stat]
+**/
+typedef LfsFileStat = {
+	/** the user group id for the file **/
+	var gid : Int;
+	/** the user id for the file **/
+	var uid : Int;
+	/** the last access time for the file (when enabled by the file system) **/
+	var atime : Date;
+	/** the last modification time for the file **/
+	var mtime : Date;
+	/** the creation time for the file (not all filesystems support this) **/
+	var ctime : Date;
+	/** the size of the file **/
+	var size : Int;
+	var dev : Int;
+	var ino : Int;
+	var nlink : Int;
+	var rdev : Int;
+	var mode : String;
 }
+
