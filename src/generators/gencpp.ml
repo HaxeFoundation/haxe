@@ -243,7 +243,7 @@ let result =
    ctx_cppast = Common.defined_value_safe common_ctx Define.CppAst <>"";
    ctx_callsiteInterfaces = Common.defined_value_safe common_ctx Define.CppAst <>"";
    ctx_interface_slot = ref (Hashtbl.create 0);
-   ctx_interface_slot_count = ref 1;
+   ctx_interface_slot_count = ref 2;
    ctx_calling = false;
    ctx_assigning = false;
    ctx_debug_level = if Common.defined_value_safe common_ctx Define.AnnotateSource <>"" then 2 else debug;
@@ -5080,7 +5080,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
       output_boot "#include <hx/Scriptable.h>\n";
       let funcs = hash_iterate !(ctx.ctx_interface_slot) (fun name id -> (name,id) ) in
       let sorted = List.sort (fun (_,id1) (_,id2) -> id1-id2 ) funcs in
-      output_boot "static const char *scriptableInterfaceFuncs[] = {\n\t0,\n";
+      output_boot "static const char *scriptableInterfaceFuncs[] = {\n\t0,\n\t0,\n";
       List.iter (fun (name,id) -> output_boot ("\t\"" ^ name ^ "\", //" ^ (string_of_int (-id) ) ^ "\n")) sorted;
       output_boot "};\n";
    end;
@@ -7263,7 +7263,8 @@ class script_writer ctx filename asciiOut =
          | ArrayAny, _ -> false
          | ArrayObject, ArrayData _ -> write_cast (this#op IaToDynArray)
          | ArrayObject, ArrayObject -> false
-         | ArrayObject, _ -> write_cast ((this#op IaToDataArray) ^ (this#typeTextString ("Array.Object")))
+         | ArrayObject, ArrayNone
+         | ArrayObject, ArrayAny -> write_cast ((this#op IaToDataArray) ^ (this#typeTextString ("Array.Object")))
          | ArrayData t, ArrayNone
          | ArrayData t, ArrayObject
          | ArrayData t, ArrayAny -> write_cast ((this#op IaToDataArray)  ^ (this#typeTextString ("Array." ^ t)))
@@ -7414,6 +7415,7 @@ class script_writer ctx filename asciiOut =
          | _ -> gen_call();
       );
    | TField (obj, acc) ->
+      let objType = if is_dynamic_in_cppia ctx obj then "Dynamic" else script_type_string obj.etype in
       let typeText = if is_dynamic_in_cppia ctx obj then this#typeTextString "Dynamic" else this#typeText obj.etype in
       (match acc with
       | FDynamic name -> this#write ( (this#op IaFName) ^ typeText ^ " " ^ (this#stringText name) ^  (this#commentOf name) ^ "\n");
@@ -7422,7 +7424,7 @@ class script_writer ctx filename asciiOut =
            (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) );
       | FInstance (_,_,field) when is_this obj -> this#write ( (this#op IaFThisInst) ^ typeText ^ " " ^ (this#stringText field.cf_name)
                 ^ (this#commentOf field.cf_name) );
-      | FInstance (_,_,field) -> this#write ( (this#op IaFLink) ^ typeText ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf field.cf_name) ^ "\n");
+      | FInstance (_,_,field) -> this#write ( (this#op IaFLink) ^ typeText ^ " " ^ (this#stringText field.cf_name) ^ (this#commentOf ( objType ^ "." ^ field.cf_name)) ^ "\n");
             this#gen_expression obj;
 
       | FClosure (_,field) when is_this obj -> this#write ( (this#op IaFThisName) ^typeText ^ " " ^  (this#stringText field.cf_name) ^ "\n")
