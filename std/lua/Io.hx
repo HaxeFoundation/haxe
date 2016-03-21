@@ -1,7 +1,7 @@
 package lua;
 import haxe.extern.Rest;
 
-@:native("io")
+@:native("_G.io")
 extern class Io {
 	public static function close(?file : FileHandle) : Void;
 	public static function flush() : Void;
