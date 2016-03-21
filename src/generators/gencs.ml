@@ -404,7 +404,6 @@ struct
 			| _ -> assert false
 		in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
-		let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
 		let clstring = match basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
 		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
 		let boxed_ptr =
