@@ -210,6 +210,7 @@ module Define = struct
 		| NoAnalyzer
 		| NoCompilation
 		| NoCOpt
+		| NoCppAst
 		| NoDeprecationWarnings
 		| NoFlashOverride
 		| NoDebug
@@ -299,6 +300,7 @@ module Define = struct
 		| NoAnalyzer -> ("no-analyzer","Disable the static analyzer")
 		| NoCompilation -> ("no-compilation","Disable final compilation for Cs, Cpp and Java")
 		| NoCOpt -> ("no_copt","Disable completion optimization (for debug purposes)")
+		| NoCppAst -> ("no_cppast", "Do not generate experimental cpp code")
 		| NoDebug -> ("no_debug","Remove all debug macros from cpp output")
 		| NoDeprecationWarnings -> ("no-deprecation-warnings","Do not warn if fields annotated with @:deprecated are used")
 		| NoFlashOverride -> ("no-flash-override", "Change overrides on some basic classes into HX suffixed methods, flash only")

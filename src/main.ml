@@ -988,7 +988,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3|-cs|-java|-python|-hl] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl] <output> [options]\n Options :"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -1074,6 +1074,10 @@ try
 		("-cpp",Arg.String (fun dir ->
 			set_platform Cpp dir;
 		),"<directory> : generate C++ code into target directory");
+		("-cppia",Arg.String (fun file ->
+			set_platform Cpp file;
+			Common.define com Define.Cppia;
+		),"<file> : generate Cppia code into target file");
 		("-cs",Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
 			set_platform Cs dir;
@@ -1460,6 +1464,8 @@ try
 			add_std "php";
 			"php"
 		| Cpp ->
+			if Common.defined_value_safe com Define.NoCppAst="" then
+			   Common.define_value com Define.CppAst "1";
 			Common.define_value com Define.HxcppApiLevel (if Common.defined_value_safe com Define.CppAst <>"" then "330" else "321");
 			add_std "cpp";
 			if Common.defined com Define.Cppia then

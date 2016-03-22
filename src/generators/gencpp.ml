@@ -2188,14 +2188,19 @@ let ctx_arg_list ctx arg_list prefix =
 
 
 let rec ctx_tfun_arg_list ctx arg_list =
+   let oType o arg_type =
+      let type_str = (ctx_type_string ctx arg_type) in
+      (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
+      if o && (cant_be_null arg_type) && type_str<>"Dynamic" then
+         "hx::Null< " ^ type_str ^ " > "
+      else
+         type_str
+   in
    match arg_list with
    | [] -> ""
-   | [(name,o,arg_type)] -> ctx_arg ctx name None arg_type ""
+   | [(name,o,arg_type)] -> (oType o arg_type) ^ " " ^ (keyword_remap name)
    | (name,o,arg_type) :: remaining  ->
-      (ctx_arg ctx name None arg_type "") ^ "," ^ (ctx_tfun_arg_list ctx remaining)
-
-
-
+      (oType o arg_type) ^ " " ^ (keyword_remap name) ^  "," ^ (ctx_tfun_arg_list ctx remaining)
 
 let cpp_var_type_of ctx var =
    tcpp_to_string (cpp_type_of ctx var.v_type)
