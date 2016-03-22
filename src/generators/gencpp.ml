@@ -3116,7 +3116,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | _ -> "","") in
           out "(";
           out castOpen; gen left; out castClose;
-          out op;
+          out (" " ^ op ^ " ");
           out castOpen; gen right; out castClose;
           out ")";
 
