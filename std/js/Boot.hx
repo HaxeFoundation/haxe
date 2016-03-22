@@ -191,7 +191,7 @@ class Boot {
 			return false;
 		switch( cl ) {
 		case Int:
-			return (untyped __js__("(o|0) === o"));
+			return (untyped __js__("typeof"))(o) == "number" && untyped __js__("(o|0) === o");
 		case Float:
 			return (untyped __js__("typeof"))(o) == "number";
 		case Bool:
