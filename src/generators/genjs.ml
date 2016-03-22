@@ -44,6 +44,7 @@ type ctx = {
 	smap : sourcemap;
 	js_modern : bool;
 	js_flatten : bool;
+	es_version : int;
 	store_exception_stack : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -1252,6 +1253,7 @@ let alloc_ctx com =
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
+		es_version = int_of_string (Common.defined_value com Define.JsEs);
 		store_exception_stack = if Common.has_dce com then (Common.has_feature com "haxe.CallStack.exceptionStack") else List.exists (function TClassDecl { cl_path=["haxe"],"CallStack" } -> true | _ -> false) com.types;
 		statics = [];
 		inits = [];
@@ -1364,7 +1366,7 @@ let generate com =
 		closureArgs
 	in
 	(* Provide console for environments that may not have it. *)
-	let closureArgs = if (not (Common.defined com Define.JsEs5)) then
+	let closureArgs = if ctx.es_version < 5 then
 		var_console :: closureArgs
 	else
 		closureArgs
@@ -1409,13 +1411,13 @@ let generate com =
 	) include_files;
 
 	(* If ctx.js_modern, console is defined in closureArgs. *)
-	if (not ctx.js_modern) && (not (Common.defined com Define.JsEs5)) then
+	if (not ctx.js_modern) && (ctx.es_version < 5) then
 		add_feature ctx "js.Lib.global"; (* console polyfill will check console from $global *)
 
 	if (not ctx.js_modern) && (has_feature ctx "js.Lib.global") then
 		print ctx "var %s = %s;\n" (fst var_global) (snd var_global);
 
-	if (not ctx.js_modern) && (not (Common.defined com Define.JsEs5)) then
+	if (not ctx.js_modern) && (ctx.es_version < 5) then
 		spr ctx "var console = $global.console || {log:function(){}};\n";
 
 	(* TODO: fix $estr *)

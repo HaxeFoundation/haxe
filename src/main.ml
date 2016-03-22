@@ -1458,6 +1458,22 @@ try
 		| Js ->
 			if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
 				Common.define_value com Define.JqueryVer "11202";
+
+			let es_version =
+				try
+					int_of_string (Common.defined_value com Define.JsEs)
+				with
+				| Not_found ->
+					(Common.define_value com Define.JsEs "5"; 5)
+				| _ ->
+					0
+			in
+
+			if es_version < 3 || es_version = 4 then (* we don't support ancient and there's no 4th *)
+				failwith "Invalid -D js-es value";
+
+			if es_version >= 5 then Common.raw_define com "js-es5"; (* backward-compatibility *)
+
 			add_std "js";
 			"js"
 		| Php ->

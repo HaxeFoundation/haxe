@@ -226,7 +226,7 @@ class RunSauceLabs {
 
 			var browserSuccess = true;
 			var urls = if (!isEs5(caps)) {
-				urls.filter(function(url:String) return url.indexOf("-es5") < 0);
+				urls.filter(function(url:String) return url.indexOf("js-es=3") != -1);
 			} else {
 				urls;
 			}
