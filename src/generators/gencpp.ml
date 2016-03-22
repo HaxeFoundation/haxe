@@ -273,6 +273,7 @@ let file_context ctx writer debug =
    { ctx with
       ctx_writer = writer;
       ctx_output = (writer#write);
+      ctx_switch_id = 0;
       ctx_dbgout = if debug>1 then (writer#write) else (fun _ -> ());
    }
 ;;
@@ -861,10 +862,8 @@ and gen_interface_arg_type_name name opt typ =
    (if (opt && (cant_be_null typ) && type_str<>"Dynamic" ) then
       "hx::Null< " ^ type_str ^ " > "
    else
-      type_str )
+      type_str ) ^ " " ^ (keyword_remap name)
 
-
-   ^ " " ^ (keyword_remap name)
 and gen_tfun_interface_arg_list args =
    String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args)
 and cant_be_null haxe_type =
@@ -4742,10 +4741,11 @@ let gen_member_def ctx class_def is_static is_interface field =
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
       | TFun (args,return_type), Method _  ->
+         let gen_args = if ctx.ctx_cppast then ctx_tfun_arg_list ctx else gen_tfun_interface_arg_list in
          if not ctx.ctx_callsiteInterfaces || is_static then begin
             output ( (if (not is_static) then "		virtual " else "		" ) ^ (ctx_type_string ctx return_type) );
             output (" " ^ remap_name ^ "( " );
-            output (gen_tfun_interface_arg_list args);
+            output (gen_args args);
             output (if (not is_static) then ")=0;\n" else ");\n");
             if (reflective class_def field) then begin
                if (Common.defined ctx.ctx_common Define.DynamicInterfaceClosures) then
@@ -4754,7 +4754,7 @@ let gen_member_def ctx class_def is_static is_interface field =
                   output ("		virtual Dynamic " ^ remap_name ^ "_dyn()=0;\n" );
             end
          end else begin
-            let argList = gen_tfun_interface_arg_list args in
+            let argList = gen_args args in
             let returnType = ctx_type_string ctx return_type in
             let returnStr = if returnType = "void" then "" else "return " in
             let commaArgList = if argList="" then argList else "," ^ argList in
@@ -5530,7 +5530,7 @@ let has_boot_field class_def =
 
 
 let cpp_tfun_signature ctx args return_type =
-  let argList = gen_tfun_interface_arg_list args in
+  let argList = ctx_tfun_arg_list ctx args in
   let returnType = ctx_type_string ctx return_type in
   ("( " ^ returnType ^ " (hx::Object::*)(" ^ argList ^ "))")
 ;;
@@ -5740,7 +5740,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                          let realName= cpp_member_name_of field in
                          if class_implementation<> cast then begin
                             let glue =  Printf.sprintf "%s_%08lx" field.cf_name (gen_hash32 0 cast) in
-                            let argList = gen_tfun_interface_arg_list args in
+                            let argList = ctx_tfun_arg_list ctx args in
                             let returnType = ctx_type_string ctx return_type in
                             let returnStr = if returnType="void" then "" else "return " in
                             let glueCode = "\t\tinline " ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ") {\n" ^
@@ -7370,6 +7370,11 @@ class script_writer ctx filename asciiOut =
          | TField (obj,FInstance (_,_,field) ) when is_super obj ->
                   this#write ( (this#op IaCallSuper) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ (this#commentOf field.cf_name) ^ "\n");
+         (* Cppia does not have a "GetEnumIndex" op code - must use IaCallMember hx::EnumBase.__Index *)
+         | TField (obj,FInstance (_,_,field) ) when field.cf_name = "getIndex" && (script_type_string obj.etype)="hx::EnumBase" ->
+                  this#write ( (this#op IaCallMember) ^ (this#typeTextString "hx::EnumBase") ^ " " ^ (this#stringText "__Index") ^
+                     argN ^ (this#commentOf ("Enum index") ) ^ "\n");
+                  this#gen_expression obj;
          | TField (obj,FInstance (_,_,field) ) when field.cf_name = "__Index" || (not (is_dynamic_in_cppia ctx obj) && is_real_function field) ->
                   this#write ( (this#op IaCallMember) ^ (this#typeText obj.etype) ^ " " ^ (this#stringText field.cf_name) ^
                      argN ^ (this#commentOf field.cf_name) ^ "\n");
