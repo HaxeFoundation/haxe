@@ -83,14 +83,10 @@ type platform_config = {
 	pf_add_final_return : bool;
 	(** does the platform natively support overloaded functions *)
 	pf_overload : bool;
-	(** does the platform generator handle pattern matching *)
-	pf_pattern_matching : bool;
 	(** can the platform use default values for non-nullable arguments *)
 	pf_can_skip_non_nullable_argument : bool;
 	(** type paths that are reserved on the platform *)
 	pf_reserved_type_paths : path list;
-	(** transform for in the corresponding while *)
-	pf_for_to_while : bool;
 }
 
 type display_mode =
@@ -554,10 +550,8 @@ let default_config =
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
 		pf_overload = false;
-		pf_pattern_matching = false;
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
-		pf_for_to_while = false;
 	}
 
 let get_config com =
@@ -571,49 +565,27 @@ let get_config com =
 			pf_static = false;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
 	| Neko ->
 		{
 			default_config with
 			pf_static = false;
-			pf_sys = true;
-			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Flash when defined Define.As3 ->
 		{
 			default_config with
-			pf_static = true;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
 			pf_add_final_return = true;
-			pf_overload = false;
-			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
-			pf_reserved_type_paths = [];
 		}
 	| Flash ->
 		{
 			default_config with
-			pf_static = true;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
@@ -621,66 +593,34 @@ let get_config com =
 		{
 			default_config with
 			pf_static = false;
-			pf_sys = true;
-			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Cpp ->
 		{
 			default_config with
-			pf_static = true;
-			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Cs ->
 		{
 			default_config with
-			pf_static = true;
-			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
 			pf_overload = true;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Java ->
 		{
 			default_config with
-			pf_static = true;
-			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
 			pf_overload = true;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Python ->
 		{
 			default_config with
 			pf_static = false;
-			pf_sys = true;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Hl ->
 		{
@@ -688,7 +628,6 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_can_skip_non_nullable_argument = false;
-			pf_for_to_while = true;
 		}
 
 let memory_marker = [|Unix.time()|]
