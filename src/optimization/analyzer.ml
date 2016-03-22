@@ -28,15 +28,6 @@ let rec is_true_expr e1 = match e1.eexpr with
 	| TParenthesis e1 -> is_true_expr e1
 	| _ -> false
 
-let rec is_const_expression e = match e.eexpr with
-	| TConst _ ->
-		true
-	| TParenthesis e1
-	| TMeta(_,e1) ->
-		is_const_expression e1
-	| _ ->
-		false
-
 let map_values ?(allow_control_flow=true) f e =
 	let branching = ref false in
 	let efinal = ref None in
@@ -130,10 +121,6 @@ let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
 
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
-
-let rec expr_eq e1 e2 = match e1.eexpr,e2.eexpr with
-	| TConst ct1,TConst ct2 -> ct1 = ct2
-	| _ -> false
 
 let is_unbound v =
 	Meta.has Meta.Unbound v.v_meta
@@ -240,25 +227,7 @@ module Config = struct
 			false
 
 	let is_ignored meta =
-		try
-			let rec loop ml = match ml with
-				| (Meta.Analyzer,el,_) :: ml ->
-					if List.exists (fun (e,p) ->
-						match e with
-							| EConst(Ident s2) when flag_ignore = s2 -> true
-							| _ -> false
-					) el then
-						true
-					else
-						loop ml
-				| _ :: ml ->
-					loop ml
-				| [] ->
-					false
-			in
-			loop meta
-		with Not_found ->
-			false
+		has_analyzer_option meta flag_ignore
 
 	let get_base_config com =
 		{
@@ -458,16 +427,16 @@ module Fusion = struct
 				acc
 		in
 		let changed = ref false in
-		let var_uses = ref IntMap.empty in
-		let var_writes = ref IntMap.empty in
+		let var_uses = Hashtbl.create 0 in
+		let var_writes = Hashtbl.create 0 in
 		let get_num_uses v =
-			try IntMap.find v.v_id !var_uses with Not_found -> 0
+			try Hashtbl.find var_uses v.v_id with Not_found -> 0
 		in
 		let get_num_writes v =
-			try IntMap.find v.v_id !var_writes with Not_found -> 0
+			try Hashtbl.find var_writes v.v_id with Not_found -> 0
 		in
 		let change map v delta =
-			map := IntMap.add v.v_id ((try IntMap.find v.v_id !map with Not_found -> 0) + delta) !map;
+			Hashtbl.replace map v.v_id ((try Hashtbl.find map v.v_id with Not_found -> 0) + delta);
 		in
 		let change_num_uses v delta =
 			change var_uses v delta
@@ -745,6 +714,13 @@ module BasicBlock = struct
 		| BKException -> "BKException"
 		| BKUnreachable -> "BKUnreachable"
 
+	let s_cfg_edge_kind = function
+		| CFGGoto -> "CFGGoto"
+		| CFGFunction -> "CFGFunction"
+		| CFGMaybeThrow -> "CFGMaybeThrow"
+		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty e)
+		| CFGCondElse -> "CFGCondElse"
+
 	let has_flag edge flag =
 		List.mem flag edge.cfg_flags
 
@@ -784,6 +760,7 @@ module Graph = struct
 	type texpr_lookup = BasicBlock.t * bool * int
 	type tfunc_info = BasicBlock.t * Type.t * pos * tfunc
 	type var_write = BasicBlock.t list
+	type 'a itbl = (int,'a) Hashtbl.t
 
 	type var_info = {
 		vi_var : tvar;                            (* The variable itself *)
@@ -800,9 +777,8 @@ module Graph = struct
 		mutable g_root : BasicBlock.t;             (* The unique root block *)
 		mutable g_exit : BasicBlock.t;             (* The unique exit block *)
 		mutable g_unreachable : BasicBlock.t;      (* The unique unreachable block *)
-		mutable g_functions : tfunc_info IntMap.t; (* A map of functions, indexed by their block IDs *)
-		mutable g_nodes : BasicBlock.t IntMap.t;   (* A map of all blocks *)
-		mutable g_cfg_edges : cfg_edge list;       (* A list of all CFG edges *)
+		mutable g_functions : tfunc_info itbl;     (* A map of functions, indexed by their block IDs *)
+		mutable g_nodes : BasicBlock.t itbl;       (* A map of all blocks *)
 		g_var_infos : var_info DynArray.t;         (* A map of variable information *)
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
@@ -837,7 +813,6 @@ module Graph = struct
 	let add_cfg_edge g bb_from bb_to kind =
 		if bb_from != g.g_unreachable then begin
 			let edge = { cfg_from = bb_from; cfg_to = bb_to; cfg_kind = kind; cfg_flags = [] } in
-			g.g_cfg_edges <- edge :: g.g_cfg_edges;
 			bb_from.bb_outgoing <- edge :: bb_from.bb_outgoing;
 			bb_to.bb_incoming <- edge :: bb_to.bb_incoming;
 		end
@@ -849,7 +824,7 @@ module Graph = struct
 	(* nodes *)
 
 	let add_function g tf t p bb =
-		g.g_functions <- IntMap.add bb.bb_id (bb,t,p,tf) g.g_functions
+		Hashtbl.add g.g_functions bb.bb_id (bb,t,p,tf)
 
 	let alloc_id =
 		let r = ref 1 in
@@ -862,7 +837,7 @@ module Graph = struct
 		let bb = BasicBlock._create (alloc_id()) kind scopes t p in
 		bb.bb_dominator <- bb_dom;
 		bb_dom.bb_dominated <- bb :: bb_dom.bb_dominated;
-		g.g_nodes <- IntMap.add bb.bb_id bb g.g_nodes;
+		Hashtbl.add g.g_nodes bb.bb_id bb;
 		bb
 
 	let close_node g bb =
@@ -877,6 +852,9 @@ module Graph = struct
 			List.iter loop bb.bb_dominated
 		in
 		loop g.g_root
+
+	let iter_edges g f =
+		iter_dom_tree g (fun bb -> List.iter f bb.bb_outgoing)
 
 	(* expressions *)
 
@@ -922,19 +900,20 @@ module Graph = struct
 	let create t p =
 		let bb_root = BasicBlock._create 1 BKRoot [] t p; in
 		let bb_unreachable = BasicBlock._create 0 BKUnreachable [] t_dynamic null_pos in
+		let nodes = Hashtbl.create 0 in
+		Hashtbl.add nodes bb_root.bb_id bb_root;
 		{
 			g_root = bb_root;
 			g_exit = bb_unreachable;
 			g_unreachable = bb_unreachable;
-			g_functions = IntMap.empty;
-			g_nodes = IntMap.add bb_root.bb_id bb_root IntMap.empty;
-			g_cfg_edges = [];
+			g_functions = Hashtbl.create 0;
+			g_nodes = nodes;
 			g_var_infos = DynArray.create();
 			g_loops = IntMap.empty;
 		}
 
 	let calculate_df g =
-		List.iter (fun edge ->
+		iter_edges g (fun edge ->
 			let rec loop bb =
 				if bb != g.g_unreachable && bb != edge.cfg_to && bb != edge.cfg_to.bb_dominator then begin
 					if edge.cfg_to != g.g_exit then bb.bb_df <- edge.cfg_to :: bb.bb_df;
@@ -942,7 +921,7 @@ module Graph = struct
 				end
 			in
 			loop edge.cfg_from
-		) g.g_cfg_edges
+		)
 
 	let finalize g bb_exit =
 		g.g_exit <- bb_exit;
@@ -1296,19 +1275,24 @@ module TexprTransformer = struct
 				scope();
 				let dead_then = bb_then_next == g.g_unreachable in
 				let dead_else = bb_else_next == g.g_unreachable in
-				let dom = match dead_then,dead_else with
-					| false,false -> bb
-					| true,true -> g.g_unreachable
-					| true,false -> bb_else_next
-					| false,true -> bb_then_next
-				in
-				let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
-				set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype));
-				add_cfg_edge g bb_then_next bb_next CFGGoto;
-				add_cfg_edge g bb_else_next bb_next CFGGoto;
-				close_node g bb_then_next;
-				close_node g bb_else_next;
-				bb_next
+				begin try
+					let dom = match dead_then,dead_else with
+						| false,false -> bb
+						| true,true -> raise Exit
+						| true,false -> bb_else_next
+						| false,true -> bb_then_next
+					in
+					let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
+					set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype));
+					add_cfg_edge g bb_then_next bb_next CFGGoto;
+					add_cfg_edge g bb_else_next bb_next CFGGoto;
+					close_node g bb_then_next;
+					close_node g bb_else_next;
+					bb_next
+				with Exit ->
+					set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype));
+					g.g_unreachable
+				end
 			| TSwitch(e1,cases,edef) ->
 				let is_exhaustive = edef <> None || Optimizer.is_exhaustive e1 in
 				let bb,e1 = bind_to_temp bb false e1 in
@@ -1337,19 +1321,25 @@ module TexprTransformer = struct
 						add_cfg_edge g bb bb_case (CFGCondElse);
 						Some (bb_case)
 				in
-				let dom = if not is_exhaustive then begin
-					bb
-				end else match !reachable with
-					| [] -> g.g_unreachable
-					| [bb_case] -> bb_case
-					| _ -> bb
-				in
-				let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
-				if not is_exhaustive then add_cfg_edge g bb bb_next CFGGoto;
-				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) !reachable;
-				set_syntax_edge g bb (SESwitch(cases,def,bb_next));
-				close_node g bb;
-				bb_next
+				begin try
+					let dom = if not is_exhaustive then begin
+						bb
+					end else match !reachable with
+						| [] -> raise Exit
+						| [bb_case] -> bb_case
+						| _ -> bb
+					in
+					let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
+					if not is_exhaustive then add_cfg_edge g bb bb_next CFGGoto;
+					List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) !reachable;
+					set_syntax_edge g bb (SESwitch(cases,def,bb_next));
+					close_node g bb;
+					bb_next
+				with Exit ->
+					set_syntax_edge g bb (SESwitch(cases,def,g.g_unreachable));
+					close_node g bb;
+					g.g_unreachable;
+				end
 			| TWhile(e1,e2,NormalWhile) ->
 				let bb_loop_pre = create_node BKNormal bb e1.etype e1.epos in
 				add_cfg_edge g bb bb_loop_pre CFGGoto;
@@ -1502,18 +1492,22 @@ module TexprTransformer = struct
 			| [] ->
 				List.fold_left block_element bb el;
 			| bbl ->
-				List.fold_left (fun bb e ->
-					if not (can_throw e) then
-						block_element bb e
-					else begin
-						let bb' = create_node BKNormal bb e.etype e.epos in
-						add_cfg_edge g bb bb' CFGGoto;
-						List.iter (fun bb_exc -> add_cfg_edge g bb bb_exc CFGMaybeThrow) bbl;
-						set_syntax_edge g bb (SEMerge bb');
-						close_node g bb;
-						block_element bb' e
-					end
-				) bb el
+				let rec loop bb el = match el with
+					| [] -> bb
+					| e :: el ->
+						let bb = if not (can_throw e) then
+							block_element bb e
+						else begin
+							let bb' = create_node BKNormal bb e.etype e.epos in
+							add_cfg_edge g bb bb' CFGGoto;
+							List.iter (fun bb_exc -> add_cfg_edge g bb bb_exc CFGMaybeThrow) bbl;
+							set_syntax_edge g bb (SEMerge bb');
+							close_node g bb;
+							block_element bb' e
+						end in
+						if bb == g.g_unreachable then bb else loop bb el
+				in
+				loop bb el
 		and block bb e =
 			let el = match e.eexpr with
 				| TBlock el -> el
@@ -1571,7 +1565,7 @@ module TexprTransformer = struct
 				| Some p -> com.warning "Unreachable code" p
 				| None -> ()
 		in
-		if config.Config.unreachable_code then List.iter check_unreachable g.g_unreachable.bb_dominated;
+		if config.Config.unreachable_code then List.iter check_unreachable [g.g_unreachable];
 		ctx
 
 	let rec block_to_texpr_el ctx bb =
@@ -1620,7 +1614,7 @@ module TexprTransformer = struct
 		e
 
 	and func ctx i =
-		let bb,t,p,tf = IntMap.find i ctx.graph.g_functions in
+		let bb,t,p,tf = Hashtbl.find ctx.graph.g_functions i in
 		let e = block_to_texpr ctx bb in
 		let rec loop e = match e.eexpr with
 			| TLocal v when not (is_unbound v) ->
@@ -1693,14 +1687,14 @@ module Ssa = struct
 			if vi.vi_bb_declare == ctx.graph.g_unreachable then
 				()
 			else begin
-				let done_list = ref IntMap.empty in
+				let done_list = Hashtbl.create 0 in
 				let w = ref vi.vi_writes in
 				while !w <> [] do
 					let x = List.hd !w in
 					w := List.tl !w;
 					List.iter (fun y ->
-						if not (IntMap.mem y.bb_id !done_list) then begin
-							done_list := IntMap.add y.bb_id true !done_list;
+						if not (Hashtbl.mem done_list y.bb_id) then begin
+							Hashtbl.add done_list y.bb_id true;
 							if in_scope y vi.vi_bb_declare then begin
 								add_phi ctx.graph y v;
 								if not (List.memq y vi.vi_writes) then
@@ -1985,10 +1979,10 @@ module ConstPropagation = DataFlow(struct
 	let conditional = true
 	let flag = FlagExecutable
 
-	let lattice = ref IntMap.empty
+	let lattice = Hashtbl.create 0
 
-	let get_cell i = try IntMap.find i !lattice with Not_found -> Top
-	let set_cell i ct = lattice := IntMap.add i ct !lattice
+	let get_cell i = try Hashtbl.find lattice i with Not_found -> Top
+	let set_cell i ct = Hashtbl.replace lattice i ct
 
 	let top = Top
 	let bottom = Bottom
@@ -2078,7 +2072,7 @@ module ConstPropagation = DataFlow(struct
 			Bottom
 
 	let init ctx =
-		lattice := IntMap.empty
+		Hashtbl.clear lattice
 
 	let commit ctx =
 		let inline e i = match get_cell i with
@@ -2136,10 +2130,10 @@ module CopyPropagation = DataFlow(struct
 
 	let conditional = false
 	let flag = FlagCopyPropagation
-	let lattice = ref IntMap.empty
+	let lattice = Hashtbl.create 0
 
-	let get_cell i = try IntMap.find i !lattice with Not_found -> Top
-	let set_cell i ct = lattice := IntMap.add i ct !lattice
+	let get_cell i = try Hashtbl.find lattice i with Not_found -> Top
+	let set_cell i ct = Hashtbl.replace lattice i ct
 
 	let top = Top
 	let bottom = Bottom
@@ -2162,7 +2156,7 @@ module CopyPropagation = DataFlow(struct
 		loop e
 
 	let init ctx =
-		lattice := IntMap.empty
+		Hashtbl.clear lattice
 
 	let commit ctx =
 		let rec commit bb e = match e.eexpr with
@@ -2170,7 +2164,7 @@ module CopyPropagation = DataFlow(struct
 				begin try
 					let lat = get_cell v.v_id in
 					let leave () =
-						lattice := IntMap.remove v.v_id !lattice;
+						Hashtbl.remove lattice v.v_id;
 						raise Not_found
 					in
 					let v' = match lat with Local v -> v | _ -> leave() in
@@ -2230,10 +2224,10 @@ module CodeMotion = DataFlow(struct
 		| _ ->
 			false
 
-	let lattice = ref IntMap.empty
+	let lattice = Hashtbl.create 0
 
-	let get_cell i = try IntMap.find i !lattice with Not_found -> top
-	let set_cell i ct = lattice := IntMap.add i ct !lattice
+	let get_cell i = try Hashtbl.find lattice i with Not_found -> top
+	let set_cell i ct = Hashtbl.replace lattice i ct
 
 	let rec transfer ctx bb e =
 		let rec eval e = match e.eexpr with
@@ -2254,7 +2248,7 @@ module CodeMotion = DataFlow(struct
 			bottom
 
 	let init ctx =
-		lattice := IntMap.empty
+		Hashtbl.clear lattice
 
 	let commit ctx =
 		let rec filter_loops lat loops = match lat with
@@ -2280,7 +2274,7 @@ module CodeMotion = DataFlow(struct
 			in
 			{ eexpr = def; etype = t; epos = p }
 		in
-		let cache = ref IntMap.empty in
+		let cache = Hashtbl.create 0 in
 		let replace decl bb v =
 			let lat,t,p = get_cell v.v_id in
 			match lat with
@@ -2291,7 +2285,7 @@ module CodeMotion = DataFlow(struct
 				let lat = ((Binop(op,lat1,lat2)),t,p) in
 				let bb_loop_pre = IntMap.find (List.hd loops) ctx.graph.g_loops in
 				let v' = try
-					let l = IntMap.find bb_loop_pre.bb_id !cache in
+					let l = Hashtbl.find cache bb_loop_pre.bb_id in
 					snd (List.find (fun (lat',e) -> equals lat lat') l)
 				with Not_found ->
 					let v' = if decl then begin
@@ -2306,7 +2300,7 @@ module CodeMotion = DataFlow(struct
 					let e = mk (TVar(v',Some e)) ctx.com.basic.tvoid p in
 					add_texpr ctx.graph bb_loop_pre e;
 					set_var_value ctx.graph v' bb_loop_pre false (DynArray.length bb_loop_pre.bb_el - 1);
-					cache := IntMap.add bb_loop_pre.bb_id ((lat,v') :: try IntMap.find bb_loop_pre.bb_id !cache with Not_found -> []) !cache;
+					Hashtbl.replace cache bb_loop_pre.bb_id ((lat,v') :: try Hashtbl.find cache bb_loop_pre.bb_id with Not_found -> []);
 					v'
 				in
 				let ev' = mk (TLocal v') v'.v_type p in
@@ -2596,6 +2590,42 @@ module Debug = struct
 		| SENone ->
 			()
 
+	let htmlescape s =
+		let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
+		let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
+		let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
+		s
+
+	let generate_cfg_ssa ch g =
+		Printf.fprintf ch "\tnode [shape=plaintext];\n";
+		let expr_name b i = Printf.sprintf "e%s%i" (if b then "p" else "") i in
+		Hashtbl.iter (fun _ bb ->
+			Printf.fprintf ch "n%i[label=<<table BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n\t<tr><td port=\"in\" bgcolor=\"lightgray\">(%i) %s</td></tr>\n" bb.bb_id bb.bb_id (BasicBlock.s_block_kind bb.bb_kind);
+			let s_expr b i e =
+				Printf.fprintf ch "\t<tr><td port=\"%s\" align=\"left\">%s</td></tr>\n" (expr_name b i) (s_escape (htmlescape (s_expr_pretty e)))
+			in
+			DynArray.iteri (s_expr true) bb.bb_phi;
+			DynArray.iteri (s_expr false) bb.bb_el;
+			Printf.fprintf ch "\t<tr><td port=\"out\"></td></tr>\n</table>>];\n";
+		) g.g_nodes;
+		Graph.iter_edges g (fun edge ->
+			Printf.fprintf ch "n%i:out -> n%i:in[label=\"%s\"];\n" edge.cfg_from.bb_id edge.cfg_to.bb_id (BasicBlock.s_cfg_edge_kind edge.cfg_kind)
+		);
+		DynArray.iter (fun vi ->
+			begin try
+				let (bb,is_phi,i) = match vi.vi_value with None -> raise Not_found | Some i -> i in
+				let n1 = Printf.sprintf "n%i:%s" bb.bb_id (expr_name is_phi i) in
+				List.iter (fun (bb',is_phi',i') ->
+					if bb != bb' then begin (* intra-node edges look stupid in dot *)
+						let n2 = Printf.sprintf "n%i:%s" bb'.bb_id (expr_name is_phi' i') in
+						Printf.fprintf ch "%s -> %s[color=lightblue,constraint=false];\n" n1 n2;
+					end
+				) vi.vi_ssa_edges;
+			with Not_found ->
+				()
+			end
+		) g.g_var_infos
+
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
 		let start_graph ?(graph_config=[]) suffix =
@@ -2608,11 +2638,14 @@ module Debug = struct
 			)
 		in
 		let ch,f = start_graph "-cfg.dot" in
-		IntMap.iter (fun _ bb -> dot_debug_node g ch [NILoopGroups;NIScopes;NIPhi;NIExpr] bb) g.g_nodes;
-		List.iter (dot_debug_cfg_edge ch) g.g_cfg_edges;
+		Hashtbl.iter (fun _ bb -> dot_debug_node g ch [NILoopGroups;NIScopes;NIPhi;NIExpr] bb) g.g_nodes;
+		Graph.iter_edges g (dot_debug_cfg_edge ch);
+		f();
+		let ch,f = start_graph "-cfg-ssa.dot" in
+		generate_cfg_ssa ch g;
 		f();
 		let ch,f = start_graph "-dj.dot" in
-		IntMap.iter (fun _ bb ->
+		Hashtbl.iter (fun _ bb ->
 			dot_debug_node g ch [] bb;
 			List.iter (fun einc ->
 				let bb' = einc.cfg_from in
@@ -2622,19 +2655,19 @@ module Debug = struct
 		) g.g_nodes;
 		f();
 		let ch,f = start_graph "-df.dot" in
-		IntMap.iter (fun _ bb ->
+		Hashtbl.iter (fun _ bb ->
 			dot_debug_node g ch [NIVars] bb;
 			List.iter (fun bb' -> Printf.fprintf ch "n%i -> n%i;\n" bb.bb_id bb'.bb_id) bb.bb_df;
 		) g.g_nodes;
 		f();
 		let ch,f = start_graph "-dom.dot" in
-		IntMap.iter (fun _ bb ->
+		Hashtbl.iter (fun _ bb ->
 			dot_debug_node g ch [NIVars] bb;
 			List.iter (fun bb' -> Printf.fprintf ch "n%i -> n%i;\n" bb.bb_id bb'.bb_id) bb.bb_dominated;
 		) g.g_nodes;
 		f();
 		let ch,f = start_graph "-syntax.dot" in
-		IntMap.iter (fun _ bb ->
+		Hashtbl.iter (fun _ bb ->
 			dot_debug_node g ch [NIExpr] bb;
 			dot_debug_syntax_edge ch bb bb.bb_syntax_edge
 		) g.g_nodes;
@@ -2659,7 +2692,7 @@ module Debug = struct
 				()
 			end
 		) g.g_var_infos;
-		IntMap.iter (fun _ bb ->
+		Hashtbl.iter (fun _ bb ->
 			let f is_phi acc i e =
 				let n = node_name bb is_phi i in
 				(i + 1),if PMap.mem n !nodes then
