@@ -1910,10 +1910,12 @@ let unify_int ctx e k =
 	with Codegen.Generic_Exception (msg,p) ->
 		error msg p)
 
-let call_to_string ctx c e =
-	let et = type_module_type ctx (TClassDecl c) None e.epos in
-	let cf = PMap.find "toString" c.cl_statics in
-	make_call ctx (mk (TField(et,FStatic(c,cf))) cf.cf_type e.epos) [e] ctx.t.tstring e.epos
+let call_to_string ctx e =
+	(* Ignore visibility of the toString field. *)
+	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
+	let acc = type_field ctx e "toString" e.epos MCall in
+	ctx.meta <- List.tl ctx.meta;
+	!build_call_ref ctx acc [] (WithType ctx.t.tstring) e.epos
 
 let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
@@ -2112,7 +2114,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	let to_string e =
 		let rec loop t = match classify t with
 			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
-				call_to_string ctx c e
+				call_to_string ctx e
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
@@ -3702,7 +3704,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.ToString,_,_) ->
 				let e = e() in
 				(match follow e.etype with
-					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx c e
+					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
 					| _ -> e)
 			| (Meta.This,_,_) ->
 				let e = List.hd ctx.this_stack in
