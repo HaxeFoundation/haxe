@@ -3707,7 +3707,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 					| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
 					| _ -> e)
 			| (Meta.This,_,_) ->
-				let e = List.hd ctx.this_stack in
+				let e = match ctx.this_stack with
+					| [] -> error "Cannot type @:this this here" p
+					| e :: _ -> e
+				in
 				let rec loop e = match e.eexpr with
 					| TConst TThis -> get_this ctx e.epos
 					| _ -> Type.map_expr loop e
