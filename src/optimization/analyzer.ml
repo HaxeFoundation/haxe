@@ -1111,7 +1111,10 @@ module TexprTransformer = struct
 				bb,e
 			| TConst _ | TTypeExpr _ ->
 				bb,e
-			| TContinue | TBreak | TThrow _ | TReturn _ | TVar _ | TFor _ | TWhile _ ->
+			| TThrow _ | TReturn _ | TBreak | TContinue ->
+				let bb = block_element bb e in
+				bb,mk (TConst TNull) t_dynamic e.epos
+			| TVar _ | TFor _ | TWhile _ ->
 				error "Cannot use this expression as value" e.epos
 		and ordered_value_list bb el =
 			let might_be_affected,collect_modified_locals = Optimizer.create_affection_checker() in
