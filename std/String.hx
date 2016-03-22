@@ -168,5 +168,5 @@ extern class String {
 		If `code` is negative or has another invalid value, the result is
 		unspecified.
 	**/
-	static function fromCharCode( code : Int ) : String;
+	@:pure static function fromCharCode( code : Int ) : String;
 }
