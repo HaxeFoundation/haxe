@@ -341,9 +341,10 @@ module TexprFilter = struct
 		| TFor(v,e1,e2) ->
 			let v' = alloc_var "tmp" e1.etype in
 			let ev' = mk (TLocal v') e1.etype e1.epos in
-			let ehasnext = mk (TField(ev',quick_field e1.etype "hasNext")) (tfun [] com.basic.tbool) e1.epos in
+			let t1 = (Abstract.follow_with_abstracts e1.etype) in
+			let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in
 			let ehasnext = mk (TCall(ehasnext,[])) com.basic.tbool ehasnext.epos in
-			let enext = mk (TField(ev',quick_field e1.etype "next")) (tfun [] v.v_type) e1.epos in
+			let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
 			let enext = mk (TCall(enext,[])) v.v_type e1.epos in
 			let eassign = mk (TVar(v,Some enext)) com.basic.tvoid e.epos in
 			let ebody = Type.concat eassign e2 in

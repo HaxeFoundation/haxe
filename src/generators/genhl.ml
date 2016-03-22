@@ -2343,7 +2343,7 @@ and eval_expr ctx e =
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor _ ->
-		assert false (* eliminated with pf_for_to_while *)
+		assert false (* eliminated by analyzer *)
 	| TSwitch (en,cases,def) ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in
