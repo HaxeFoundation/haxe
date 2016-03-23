@@ -94,6 +94,8 @@ matrix:
       addons: {apt: {packages: *apt_python}}
     - os: linux
       env: TEST=hl
+    - os: linux
+      env: TEST=lua
 
     #######
     # osx #
@@ -123,6 +125,8 @@ matrix:
       env: TEST=cs
     - os: osx
       env: TEST=python
+    - os: osx
+      env: TEST=lua
 
 install:
   # Install haxe and neko dependencies
