@@ -2207,6 +2207,13 @@ let cpp_var_type_of ctx var =
 ;;
 
 
+let ctx_function_signature ctx tfun abi =
+   match follow tfun with
+   | TFun(args,ret) -> (ctx_type_string ctx ret) ^ " " ^ abi ^ "(" ^ (ctx_tfun_arg_list ctx args) ^ ")"
+   | _ -> "void *"
+
+
+
 let cpp_var_name_of var =
    let rename = get_meta_string var.v_meta Meta.Native in
    if rename <> "" then
@@ -2811,7 +2818,6 @@ let ctx_default_values ctx args prefix =
 ;;
 
 
-
 let gen_type ctx haxe_type =
    ctx.ctx_output (ctx_type_string ctx haxe_type)
 ;;
@@ -2976,7 +2982,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out (")" ^ !closeCall);
 
       | CppFunctionAddress(klass, member) ->
-         let signature = cpp_function_signature member.cf_type "" in
+         let signature = ctx_function_signature ctx member.cf_type "" in
          let name = cpp_member_name_of member in
          (*let void_cast = has_meta_key field.cf_meta Meta.Void in*)
          out ("::cpp::Function< " ^ signature ^">(hx::AnyCast(");
@@ -5531,8 +5537,6 @@ let has_boot_field class_def =
    | None -> List.exists has_field_init (List.filter should_implement_field class_def.cl_ordered_statics)
    | _ -> true
 ;;
-
-
 
 let cpp_tfun_signature ctx args return_type =
   let argList = ctx_tfun_arg_list ctx args in
