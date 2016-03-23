@@ -1006,7 +1006,7 @@ class RunCi {
 						// }
 
 						runCommand("npm", ["install", "wd", "q"], true);
-						haxelibInstallGit("dionjwa", "nodejs-std", "master", null, true, "nodejs");
+						haxelibInstall("hxnodejs");
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
 						runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
