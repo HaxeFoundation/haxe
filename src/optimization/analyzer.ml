@@ -1372,7 +1372,7 @@ module TexprTransformer = struct
 					| [bb_break] -> bb_break
 					| _ -> bb_loop_body (* TODO: this is not accurate for while(true) loops *)
 				in
-				let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
+				let bb_next = if dom == g.g_unreachable then g.g_unreachable else create_node BKNormal dom bb.bb_type bb.bb_pos in
 				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) bb_breaks;
 				set_syntax_edge g bb_loop_pre (SEWhile(bb_loop_body,bb_next));
 				close_node g bb_loop_pre;
