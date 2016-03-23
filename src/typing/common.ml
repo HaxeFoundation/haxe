@@ -586,11 +586,9 @@ let get_config com =
 		}
 	| Lua ->
 		{
+			default_config with
 			pf_static = false;
 			pf_sys = true;
-			pf_locals_scope = false;
-			pf_captured_scope = false;
-			pf_unique_locals = false;
 			pf_capture_policy = CPLoopVars;
 			pf_pad_nulls = false;
 			pf_add_final_return = false;
