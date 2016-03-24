@@ -170,7 +170,7 @@ class Boot {
 		}
 	}
 
-	static function printClass(c:Table<String,Dynamic>, s : String) : String {
+	static inline function printClass(c:Table<String,Dynamic>, s : String) : String {
 		return '{${printClassRec(c,'',s)}}';
 
 	}
@@ -233,7 +233,7 @@ class Boot {
 		return cast defArray(t,length);
 	}
 
-	public static function defArray<T>(tab: Table<Int,T>, length : Int) : Array<T> {
+	public inline static function defArray<T>(tab: Table<Int,T>, length : Int) : Array<T> {
 		return untyped _hx_tabArray(tab, length);
 	}
 
@@ -255,8 +255,8 @@ class Boot {
 			+":"+(if( s < 10 ) "0"+s else ""+s);
 	}
 
-	public static function clamp(x:Int){
-		return (x & 2147483647) - (x & cast 2147483648);
+	public inline static function clamp(x:Int){
+		return untyped _hx_bit_clamp(x);
 	}
 
 	public static function strDate( s : String ) : std.Date {
@@ -285,7 +285,7 @@ class Boot {
 		}
 	}
 
-	public static function createTable<K,V>() : Table<K,V> {
+	public inline static function createTable<K,V>() : Table<K,V> {
 		return untyped __lua__("{}");
 	}
 
