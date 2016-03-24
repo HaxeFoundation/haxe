@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import lua.Lua;
+import lua.Table;
 
 enum ValueType {
 	TNull;
@@ -81,29 +82,7 @@ enum ValueType {
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		switch( args.length ) {
-		case 0:
-			return __new__(cl);
-		case 1:
-			return __new__(cl,args[0]);
-		case 2:
-			return __new__(cl,args[0],args[1]);
-		case 3:
-			return __new__(cl,args[0],args[1],args[2]);
-		case 4:
-			return __new__(cl,args[0],args[1],args[2],args[3]);
-		case 5:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4]);
-		case 6:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
-		case 7:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
-		case 8:
-			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
-		default:
-			throw "Too many arguments";
-		}
-		return null;
+		return __new__(cl, lua.Table.unpack(cast args, 0));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
