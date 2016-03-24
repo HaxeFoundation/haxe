@@ -199,7 +199,6 @@ class Http {
 	#if js
 		me.responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
-		r.withCredentials = withCredentials;
 		var onreadystatechange = function(_) {
 			if( r.readyState != 4 )
 				return;
@@ -264,6 +263,7 @@ class Http {
 			onError(e.toString());
 			return;
 		}
+		r.withCredentials = withCredentials;
 		if( !Lambda.exists(headers, function(h) return h.header == "Content-Type") && post && postData == null )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
