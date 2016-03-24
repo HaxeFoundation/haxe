@@ -50,7 +50,8 @@ class String {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
 		var r = lua.StringTools.find(this, str, startIndex, true);
-		return untyped r && (r - 1) || (-1);
+		if (r != null && r > 0) return r-1;
+		else return -1;
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
