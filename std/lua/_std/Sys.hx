@@ -75,6 +75,10 @@ class Sys {
 	}
 
 	public inline static function executablePath() : String {
+		return programPath();
+	}
+
+	public inline static function programPath() : String {
 		return Lua.arg[0];
 	}
 
