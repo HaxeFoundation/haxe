@@ -1948,6 +1948,7 @@ let rec cpp_type_of ctx haxe_type =
    and  cpp_type_from_path ctx path params default =
       match path,params with
       | ([],"Void"),_ -> TCppVoid
+      | ([],"void"),_ -> TCppVoid (* for old code with @:void *)
       | ([],"Bool"),_ -> TCppScalar("Bool")
       | ([],"Float"),_ -> TCppScalar("Float")
       | ([],"Int"),_ -> TCppScalar("Int")
