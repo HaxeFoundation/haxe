@@ -933,8 +933,8 @@ module Graph = struct
 	let check_integrity g =
 		Hashtbl.iter (fun _ bb ->
 			List.iter (fun edge ->
-			if not (List.memq edge edge.cfg_to.bb_incoming) then
-				prerr_endline (Printf.sprintf "Outgoing edge %i -> %i has no matching incoming edge" edge.cfg_from.bb_id edge.cfg_to.bb_id)
+				if not (List.memq edge edge.cfg_to.bb_incoming) then
+					prerr_endline (Printf.sprintf "Outgoing edge %i -> %i has no matching incoming edge" edge.cfg_from.bb_id edge.cfg_to.bb_id)
 			) bb.bb_outgoing;
 		) g.g_nodes;
 		Hashtbl.iter (fun _ bb ->
@@ -1502,12 +1502,19 @@ module TexprTransformer = struct
 				let bb_try_next = block bb_try e1 in
 				close();
 				scope();
-				let bb_next = create_node BKNormal bb_try bb.bb_type bb.bb_pos in
-				if bb_try_next != g.g_unreachable then add_cfg_edge g bb_try_next bb_next CFGGoto;
-				close_node g bb_try_next;
-				if bb_exc.bb_incoming = [] then
-					set_syntax_edge g bb (SESubBlock(bb_try,bb_next))
+				let bb_next = if bb_exc.bb_incoming = [] then
+					let bb_next = if bb_try_next == g.g_unreachable then
+						g.g_unreachable
+					else begin
+						let bb_next = create_node BKNormal bb_try bb.bb_type bb.bb_pos in
+						add_cfg_edge g bb_try_next bb_next CFGGoto;
+						close_node g bb_try_next;
+						bb_next
+					end in
+					set_syntax_edge g bb (SESubBlock(bb_try,bb_next));
+					bb_next
 				else begin
+					let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
 					let catches = List.map (fun (v,e) ->
 						let scope = increase_scope() in
 						let bb_catch = create_node BKNormal bb_exc e.etype e.epos in
@@ -1516,15 +1523,23 @@ module TexprTransformer = struct
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
 						let bb_catch_next = block bb_catch e in
 						scope();
+						is_reachable := !is_reachable || (not (bb_catch_next == g.g_unreachable));
+						v,bb_catch,bb_catch_next
+					) catches in
+					let bb_next = if !is_reachable then create_node BKNormal bb_try bb.bb_type bb.bb_pos else g.g_unreachable in
+					let catches = List.map (fun (v,bb_catch,bb_catch_next) ->
 						if bb_catch_next != g.g_unreachable then add_cfg_edge g bb_catch_next bb_next CFGGoto;
 						close_node g bb_catch_next;
 						v,bb_catch
 					) catches in
 					set_syntax_edge g bb (SETry(bb_try,catches,bb_next));
-				end;
-				close_node g bb_exc;
-				close_node g bb;
-				if bb_next.bb_incoming = [] then g.g_unreachable else bb_next
+					if bb_try_next != g.g_unreachable then add_cfg_edge g bb_try_next bb_next CFGGoto;
+					close_node g bb_try_next;
+					bb_next
+				end in
+                close_node g bb_exc;
+                close_node g bb;
+				bb_next
 			(* control flow *)
 			| TReturn None ->
 				add_cfg_edge g bb bb_exit CFGGoto;
