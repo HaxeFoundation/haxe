@@ -203,6 +203,11 @@ module Config = struct
 	let flag_ignore = "ignore"
 	let flag_dot_debug = "dot_debug"
 
+	let all_flags =
+		List.fold_left (fun acc flag ->
+			flag :: ("no_" ^ flag) :: acc
+		) [] [flag_const_propagation;flag_copy_propagation;flag_code_motion;flag_local_dce;flag_fusion;flag_purity_inference;flag_ignore;flag_dot_debug]
+
 	let has_analyzer_option meta s =
 		try
 			let rec loop ml = match ml with
@@ -239,7 +244,7 @@ module Config = struct
 			dot_debug = false;
 		}
 
-	let update_config_from_meta config meta =
+	let update_config_from_meta com config meta =
 		List.fold_left (fun config meta -> match meta with
 			| (Meta.Analyzer,el,_) ->
 				List.fold_left (fun config e -> match fst e with
@@ -256,7 +261,10 @@ module Config = struct
 					| EConst (Ident s) when s = "no_" ^ flag_purity_inference -> { config with purity_inference = false}
 					| EConst (Ident s) when s = flag_purity_inference -> { config with purity_inference = true}
 					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
-					| _ -> config
+					| _ ->
+						let s = Ast.s_expr e in
+						com.warning (Typecore.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+						config
 				) config el
 			| (Meta.HasUntyped,_,_) ->
 				{config with optimize = false}
@@ -266,11 +274,11 @@ module Config = struct
 
 	let get_class_config com c =
 		let config = get_base_config com in
-		update_config_from_meta config c.cl_meta
+		update_config_from_meta com config c.cl_meta
 
 	let get_field_config com c cf =
 		let config = get_class_config com c in
-		update_config_from_meta config cf.cf_meta
+		update_config_from_meta com config cf.cf_meta
 end
 
 (*
@@ -3042,7 +3050,7 @@ module Run = struct
 
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
-			let config = update_config_from_meta config cf.cf_meta in
+			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
 			let actx,e = run_on_expr ctx.Typecore.com config e in
 			let e = Cleanup.reduce_control_flow ctx e in
 			if config.dot_debug then Debug.dot_debug actx c cf;
@@ -3062,7 +3070,7 @@ module Run = struct
 		| _ -> ()
 
 	let run_on_class ctx config c =
-		let config = update_config_from_meta config c.cl_meta in
+		let config = update_config_from_meta ctx.Typecore.com config c.cl_meta in
 		let process_field stat cf = match cf.cf_kind with
 			| Var _ when not stat -> ()
 			| _ -> run_on_field ctx config c cf
