@@ -1392,7 +1392,7 @@ module TexprTransformer = struct
 				close();
 				scope();
 				let bb_next = create_node BKNormal bb_try bb.bb_type bb.bb_pos in
-				add_cfg_edge g bb_try_next bb_next CFGGoto;
+				if bb_try_next != g.g_unreachable then add_cfg_edge g bb_try_next bb_next CFGGoto;
 				close_node g bb_try_next;
 				if bb_exc.bb_incoming = [] then
 					set_syntax_edge g bb (SESubBlock(bb_try,bb_next))
@@ -1405,7 +1405,7 @@ module TexprTransformer = struct
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
 						let bb_catch_next = block bb_catch e in
 						scope();
-						add_cfg_edge g bb_catch_next bb_next CFGGoto;
+						if bb_catch_next != g.g_unreachable then add_cfg_edge g bb_catch_next bb_next CFGGoto;
 						close_node g bb_catch_next;
 						v,bb_catch
 					) catches in
@@ -1413,7 +1413,7 @@ module TexprTransformer = struct
 				end;
 				close_node g bb_exc;
 				close_node g bb;
-				bb_next
+				if bb_next.bb_incoming = [] then g.g_unreachable else bb_next
 			(* control flow *)
 			| TReturn None ->
 				add_cfg_edge g bb bb_exit CFGGoto;
