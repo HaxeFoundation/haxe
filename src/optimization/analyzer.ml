@@ -1605,7 +1605,13 @@ module TexprTransformer = struct
 		and block_el bb el =
 			match !b_try_stack with
 			| [] ->
-				List.fold_left block_element bb el;
+				let rec loop bb el = match el with
+					| [] -> bb
+					| e :: el ->
+						let bb = block_element bb e in
+						if bb == g.g_unreachable then bb else loop bb el
+				in
+				loop bb el
 			| bbl ->
 				let rec loop bb el = match el with
 					| [] -> bb
