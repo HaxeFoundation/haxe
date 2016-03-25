@@ -936,7 +936,110 @@ module Graph = struct
 				prerr_endline (Printf.sprintf "Outgoing edge %i -> %i has no matching incoming edge" edge.cfg_from.bb_id edge.cfg_to.bb_id)
 		)
 
+	let calculate_immediate_dominators g =
+		let semi = Hashtbl.create 0 in
+		let semi_size = ref 0 in
+		let parent = Hashtbl.create 0 in
+		let bucket = Hashtbl.create 0 in
+		let idom = Hashtbl.create 0 in
+		let label = Hashtbl.create 0 in
+		let ancestor = Hashtbl.create 0 in
+		let nodes = DynArray.create () in
+		let get_semi k = Hashtbl.find semi k in
+		let set_semi k v = Hashtbl.replace semi k v in
+		let get_parent k = Hashtbl.find parent k in
+		let set_parent k v = Hashtbl.add parent k v in
+		let get_label k = Hashtbl.find label k in
+		let set_label k v = Hashtbl.replace label k v in
+		let get_ancestor k = Hashtbl.find ancestor k in
+		let set_ancestor k v = Hashtbl.replace ancestor k v in
+		let has_ancestor k = Hashtbl.mem ancestor k in
+		let get_idom k = Hashtbl.find idom k in
+		let set_idom k v = Hashtbl.replace idom k v in
+		let get_bucket k = try Hashtbl.find bucket k with Not_found -> [] in
+		let add_to_bucket k v = Hashtbl.replace bucket k (v :: (get_bucket k)) in
+		let clear_bucket k = Hashtbl.replace bucket k [] in
+		let rec loop bb =
+			bb.bb_dominated <- [];
+			DynArray.add nodes bb;
+			set_semi bb.bb_id !semi_size;
+			incr semi_size;
+			set_label bb.bb_id bb.bb_id;
+			List.iter (fun edge ->
+				let bb_to = edge.cfg_to in
+				if not (Hashtbl.mem semi bb_to.bb_id) then begin
+					set_parent bb_to.bb_id bb;
+					loop bb_to
+				end
+			) bb.bb_outgoing
+		in
+		loop g.g_root;
+		let compress v =
+			let rec loop l a = try
+				loop (a :: l) (Hashtbl.find ancestor a)
+			with Not_found ->
+				l
+			in
+			let worklist = loop [v] (get_ancestor v) in
+			match worklist with
+				| a :: worklist ->
+					ignore(List.fold_left (fun (a,min_semi) desc ->
+						let semi = get_semi (get_label desc) in
+						if semi > min_semi then begin
+							set_label desc (get_label a);
+							(desc,min_semi)
+						end else
+							(desc,semi)
+					) (a,get_semi (get_label a)) worklist)
+				| [] ->
+					assert false
+		in
+		let eval v =
+			if has_ancestor v then begin
+				compress v;
+				get_label v;
+			end else
+				v
+		in
+		let link p c =
+			set_ancestor c p
+		in
+		let rec loop nodes' = match nodes' with
+			| [node] -> set_idom node.bb_id node.bb_id
+			| [] -> assert false
+			| w :: nodes' ->
+				let p = get_parent w.bb_id in
+				let semi = List.fold_left (fun acc v -> min acc (get_semi (eval v.cfg_from.bb_id))) (get_semi w.bb_id) w.bb_incoming in
+				set_semi w.bb_id semi;
+				add_to_bucket (DynArray.get nodes semi).bb_id w;
+				link p.bb_id w.bb_id;
+				List.iter (fun v ->
+					let v = v.bb_id in
+					let u = eval v in
+					if get_semi u < get_semi v then
+						set_idom v u
+					else
+						set_idom v p.bb_id
+				) (get_bucket p.bb_id);
+				clear_bucket p.bb_id;
+				loop nodes'
+		in
+		loop (List.rev (DynArray.to_list nodes));
+		List.iter (fun w ->
+			let w = w.bb_id in
+			let i = get_idom w in
+			if i <> (DynArray.get nodes (get_semi w)).bb_id then
+				set_idom w (get_idom i)
+		) (List.tl ((DynArray.to_list nodes)));
+		Hashtbl.iter (fun k v ->
+			let bb = Hashtbl.find g.g_nodes k in
+			let bb' = Hashtbl.find g.g_nodes v in
+			bb.bb_dominator <- bb';
+			if bb != bb' then bb'.bb_dominated <- bb :: bb'.bb_dominated
+		) idom
+
 	let finalize g bb_exit =
+		calculate_immediate_dominators g;
 		g.g_exit <- bb_exit
 end
 
