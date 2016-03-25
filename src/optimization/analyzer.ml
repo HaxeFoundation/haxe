@@ -191,7 +191,6 @@ module Config = struct
 		local_dce : bool;
 		fusion : bool;
 		purity_inference : bool;
-		unreachable_code : bool;
 		dot_debug : bool;
 	}
 
@@ -201,7 +200,6 @@ module Config = struct
 	let flag_local_dce = "local_dce"
 	let flag_fusion = "fusion"
 	let flag_purity_inference = "purity_inference"
-	let flag_unreachable_code = "unreachable_code"
 	let flag_ignore = "ignore"
 	let flag_dot_debug = "dot_debug"
 
@@ -238,7 +236,6 @@ module Config = struct
 			local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 			fusion = not (Common.raw_defined com "analyzer-no-fusion") && (match com.platform with Flash | Java -> false | _ -> true);
 			purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
-			unreachable_code = (Common.raw_defined com "analyzer-unreachable-code");
 			dot_debug = false;
 		}
 
@@ -258,8 +255,6 @@ module Config = struct
 					| EConst (Ident s) when s = flag_fusion -> { config with fusion = true}
 					| EConst (Ident s) when s = "no_" ^ flag_purity_inference -> { config with purity_inference = false}
 					| EConst (Ident s) when s = flag_purity_inference -> { config with purity_inference = true}
-					| EConst (Ident s) when s = "no_" ^ flag_unreachable_code -> { config with unreachable_code = false}
-					| EConst (Ident s) when s = flag_unreachable_code -> { config with unreachable_code = true}
 					| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
 					| _ -> config
 				) config el
@@ -1681,20 +1676,6 @@ module TexprTransformer = struct
 		close_node g g.g_root;
 		finalize g bb_exit;
 		set_syntax_edge g bb_exit SEEnd;
-		let check_unreachable bb =
-			let rec get_code_pos bb =
-				if DynArray.length bb.bb_el > 0 then
-					Some ((DynArray.get bb.bb_el 0).epos)
-				else begin match ExtList.List.filter_map get_code_pos bb.bb_dominated with
-					| p :: _ -> Some p
-					| [] -> None
-				end
-			in
-			match get_code_pos bb with
-				| Some p -> com.warning "Unreachable code" p
-				| None -> ()
-		in
-		if config.Config.unreachable_code then List.iter check_unreachable [g.g_unreachable];
 		ctx
 
 	let rec block_to_texpr_el ctx bb =
