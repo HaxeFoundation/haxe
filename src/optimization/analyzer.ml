@@ -931,13 +931,15 @@ module Graph = struct
 	let check_integrity g =
 		Hashtbl.iter (fun _ bb ->
 			List.iter (fun edge ->
-				if not (List.memq edge edge.cfg_to.bb_incoming) then
+				if edge.cfg_to = g.g_unreachable then
+					prerr_endline (Printf.sprintf "Outgoing edge from %i to the unreachable block" bb.bb_id)
+				else if not (List.memq edge edge.cfg_to.bb_incoming) then
 					prerr_endline (Printf.sprintf "Outgoing edge %i -> %i has no matching incoming edge" edge.cfg_from.bb_id edge.cfg_to.bb_id)
 			) bb.bb_outgoing;
-		) g.g_nodes;
-		Hashtbl.iter (fun _ bb ->
 			List.iter (fun edge ->
-				if not (List.memq edge edge.cfg_from.bb_outgoing) then
+				if edge.cfg_from == g.g_unreachable then
+					prerr_endline (Printf.sprintf "Incoming edge to %i from the unreachable block" bb.bb_id)
+				else if not (List.memq edge edge.cfg_from.bb_outgoing) then
 					prerr_endline (Printf.sprintf "Incoming edge %i <- %i has no matching outgoing edge" edge.cfg_to.bb_id edge.cfg_from.bb_id)
 			) bb.bb_incoming
 		) g.g_nodes
@@ -3047,6 +3049,7 @@ module Run = struct
 
 	let run_on_expr com config e =
 		let ctx = there com config e in
+		if com.debug then Graph.check_integrity ctx.graph;
 		if config.optimize && not ctx.has_unbound then begin
 			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
 			if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
