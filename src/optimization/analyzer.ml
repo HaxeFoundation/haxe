@@ -931,10 +931,18 @@ module Graph = struct
 		)
 
 	let check_integrity g =
-		iter_edges g (fun edge ->
+		Hashtbl.iter (fun _ bb ->
+			List.iter (fun edge ->
 			if not (List.memq edge edge.cfg_to.bb_incoming) then
 				prerr_endline (Printf.sprintf "Outgoing edge %i -> %i has no matching incoming edge" edge.cfg_from.bb_id edge.cfg_to.bb_id)
-		)
+			) bb.bb_outgoing;
+		) g.g_nodes;
+		Hashtbl.iter (fun _ bb ->
+			List.iter (fun edge ->
+				if not (List.memq edge edge.cfg_from.bb_outgoing) then
+					prerr_endline (Printf.sprintf "Incoming edge %i <- %i has no matching outgoing edge" edge.cfg_to.bb_id edge.cfg_from.bb_id)
+			) bb.bb_incoming
+		) g.g_nodes
 
 	let calculate_immediate_dominators g =
 		let semi = Hashtbl.create 0 in
