@@ -834,10 +834,8 @@ module Graph = struct
 			!r
 		)
 
-	let create_node g kind scopes bb_dom t p =
+	let create_node g kind scopes t p =
 		let bb = BasicBlock._create (alloc_id()) kind scopes t p in
-		bb.bb_dominator <- bb_dom;
-		bb_dom.bb_dominated <- bb :: bb_dom.bb_dominated;
 		Hashtbl.add g.g_nodes bb.bb_id bb;
 		bb
 
@@ -1077,13 +1075,13 @@ module TexprTransformer = struct
 
 	let rec func ctx bb tf t p =
 		let g = ctx.graph in
-		let create_node kind bb t p =
-			let bb = Graph.create_node g kind ctx.scopes bb t p in
+		let create_node kind t p =
+			let bb = Graph.create_node g kind ctx.scopes t p in
 			bb.bb_loop_groups <- ctx.loop_stack;
 			bb
 		in
-		let bb_root = create_node BKFunctionBegin bb tf.tf_expr.etype tf.tf_expr.epos in
-		let bb_exit = create_node BKFunctionEnd bb_root tf.tf_expr.etype tf.tf_expr.epos in
+		let bb_root = create_node BKFunctionBegin tf.tf_expr.etype tf.tf_expr.epos in
+		let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
 		List.iter (fun (v,_) ->
 			declare_var g v bb_root;
 			add_var_def g bb_root v
@@ -1200,7 +1198,7 @@ module TexprTransformer = struct
 				let e_fun = mk (TConst (TString "fun")) t_dynamic p in
 				let econst = mk (TConst (TInt (Int32.of_int bb_func.bb_id))) ctx.com.basic.tint e.epos in
 				let ec = mk (TCall(e_fun,[econst])) t_dynamic p in
-				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
+				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				add_cfg_edge g bb bb_next CFGGoto;
 				set_syntax_edge g bb (SEMerge bb_next);
 				close_node g bb;
@@ -1353,13 +1351,13 @@ module TexprTransformer = struct
 				block_el bb el
 			| TBlock el ->
 				let scope = increase_scope() in
-				let bb_sub = create_node BKSub bb e.etype e.epos in
+				let bb_sub = create_node BKSub e.etype e.epos in
 				add_cfg_edge g bb bb_sub CFGGoto;
 				close_node g bb;
 				let bb_sub_next = block_el bb_sub el in
 				scope();
 				if bb_sub_next != g.g_unreachable then begin
-					let bb_next = create_node BKNormal bb_sub_next bb.bb_type bb.bb_pos in
+					let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 					set_syntax_edge g bb (SESubBlock(bb_sub,bb_next));
 					add_cfg_edge g bb_sub_next bb_next CFGGoto;
 					close_node g bb_sub_next;
@@ -1372,12 +1370,12 @@ module TexprTransformer = struct
 			| TIf(e1,e2,None) ->
 				let bb,e1 = bind_to_temp bb false e1 in
 				let scope = increase_scope() in
-				let bb_then = create_node BKConditional bb e2.etype e2.epos in
+				let bb_then = create_node BKConditional e2.etype e2.epos in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
 				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				let bb_then_next = block bb_then e2 in
 				scope();
-				let bb_next = create_node BKNormal bb bb.bb_type bb.bb_pos in
+				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				set_syntax_edge g bb (SEIfThen(bb_then,bb_next));
 				add_cfg_edge g bb bb_next CFGCondElse;
 				close_node g bb;
@@ -1387,8 +1385,8 @@ module TexprTransformer = struct
 			| TIf(e1,e2,Some e3) ->
 				let bb,e1 = bind_to_temp bb false e1 in
 				let scope = increase_scope() in
-				let bb_then = create_node BKConditional bb e2.etype e2.epos in
-				let bb_else = create_node BKConditional bb e3.etype e3.epos in
+				let bb_then = create_node BKConditional e2.etype e2.epos in
+				let bb_else = create_node BKConditional e3.etype e3.epos in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
 				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				add_cfg_edge g bb bb_else CFGCondElse;
@@ -1396,25 +1394,17 @@ module TexprTransformer = struct
 				let bb_then_next = block bb_then e2 in
 				let bb_else_next = block bb_else e3 in
 				scope();
-				let dead_then = bb_then_next == g.g_unreachable in
-				let dead_else = bb_else_next == g.g_unreachable in
-				begin try
-					let dom = match dead_then,dead_else with
-						| false,false -> bb
-						| true,true -> raise Exit
-						| true,false -> bb_else_next
-						| false,true -> bb_then_next
-					in
-					let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
+				if bb_then_next == g.g_unreachable && bb_else_next == g.g_unreachable then begin
+					set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype));
+					g.g_unreachable
+				end else begin
+					let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 					set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype));
 					add_cfg_edge g bb_then_next bb_next CFGGoto;
 					add_cfg_edge g bb_else_next bb_next CFGGoto;
 					close_node g bb_then_next;
 					close_node g bb_else_next;
 					bb_next
-				with Exit ->
-					set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype));
-					g.g_unreachable
 				end
 			| TSwitch(e1,cases,edef) ->
 				let is_exhaustive = edef <> None || Optimizer.is_exhaustive e1 in
@@ -1423,7 +1413,7 @@ module TexprTransformer = struct
 				let reachable = ref [] in
 				let make_case e =
 					let scope = increase_scope() in
-					let bb_case = create_node BKConditional bb e.etype e.epos in
+					let bb_case = create_node BKConditional e.etype e.epos in
 					let bb_case_next = block bb_case e in
 					scope();
 					if bb_case_next != g.g_unreachable then
@@ -1444,35 +1434,28 @@ module TexprTransformer = struct
 						add_cfg_edge g bb bb_case (CFGCondElse);
 						Some (bb_case)
 				in
-				begin try
-					let dom = if not is_exhaustive then begin
-						bb
-					end else match !reachable with
-						| [] -> raise Exit
-						| [bb_case] -> bb_case
-						| _ -> bb
-					in
-					let bb_next = create_node BKNormal dom bb.bb_type bb.bb_pos in
+				if is_exhaustive && !reachable = [] then begin
+					set_syntax_edge g bb (SESwitch(cases,def,g.g_unreachable));
+					close_node g bb;
+					g.g_unreachable;
+				end else begin
+					let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 					if not is_exhaustive then add_cfg_edge g bb bb_next CFGGoto;
 					List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) !reachable;
 					set_syntax_edge g bb (SESwitch(cases,def,bb_next));
 					close_node g bb;
 					bb_next
-				with Exit ->
-					set_syntax_edge g bb (SESwitch(cases,def,g.g_unreachable));
-					close_node g bb;
-					g.g_unreachable;
 				end
 			| TWhile(e1,e2,NormalWhile) ->
-				let bb_loop_pre = create_node BKNormal bb e1.etype e1.epos in
+				let bb_loop_pre = create_node BKNormal e1.etype e1.epos in
 				add_cfg_edge g bb bb_loop_pre CFGGoto;
 				set_syntax_edge g bb (SEMerge bb_loop_pre);
 				close_node g bb;
-				let bb_loop_head = create_node BKLoopHead bb_loop_pre e1.etype e1.epos in
+				let bb_loop_head = create_node BKLoopHead e1.etype e1.epos in
 				add_cfg_edge g bb_loop_pre bb_loop_head CFGGoto;
 				let scope = increase_scope() in
 				let close = begin_loop bb bb_loop_head in
-				let bb_loop_body = create_node BKNormal bb_loop_head e2.etype e2.epos in
+				let bb_loop_body = create_node BKNormal e2.etype e2.epos in
 				let bb_loop_body_next = block bb_loop_body e2 in
 				let bb_breaks = close() in
 				scope();
@@ -1483,7 +1466,7 @@ module TexprTransformer = struct
 					| [bb_break] -> bb_break
 					| _ -> bb_loop_body (* TODO: this is not accurate for while(true) loops *)
 				in
-				let bb_next = if dom == g.g_unreachable then g.g_unreachable else create_node BKNormal dom bb.bb_type bb.bb_pos in
+				let bb_next = if dom == g.g_unreachable then g.g_unreachable else create_node BKNormal bb.bb_type bb.bb_pos in
 				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) bb_breaks;
 				set_syntax_edge g bb_loop_pre (SEWhile(bb_loop_body,bb_next));
 				close_node g bb_loop_pre;
@@ -1495,8 +1478,8 @@ module TexprTransformer = struct
 				bb_next;
 			| TTry(e1,catches) ->
 				let scope = increase_scope() in
-				let bb_try = create_node BKNormal bb e1.etype e1.epos in
-				let bb_exc = create_node BKException bb_try t_dynamic e.epos in
+				let bb_try = create_node BKNormal e1.etype e1.epos in
+				let bb_exc = create_node BKException t_dynamic e.epos in
 				add_cfg_edge g bb bb_try CFGGoto;
 				let close = begin_try bb_exc in
 				let bb_try_next = block bb_try e1 in
@@ -1506,7 +1489,7 @@ module TexprTransformer = struct
 					let bb_next = if bb_try_next == g.g_unreachable then
 						g.g_unreachable
 					else begin
-						let bb_next = create_node BKNormal bb_try bb.bb_type bb.bb_pos in
+						let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 						add_cfg_edge g bb_try_next bb_next CFGGoto;
 						close_node g bb_try_next;
 						bb_next
@@ -1517,7 +1500,7 @@ module TexprTransformer = struct
 					let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
 					let catches = List.map (fun (v,e) ->
 						let scope = increase_scope() in
-						let bb_catch = create_node BKNormal bb_exc e.etype e.epos in
+						let bb_catch = create_node BKNormal e.etype e.epos in
 						declare_var ctx.graph v bb_catch;
 						add_var_def g bb_catch v;
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
@@ -1526,7 +1509,7 @@ module TexprTransformer = struct
 						is_reachable := !is_reachable || (not (bb_catch_next == g.g_unreachable));
 						v,bb_catch,bb_catch_next
 					) catches in
-					let bb_next = if !is_reachable then create_node BKNormal bb_try bb.bb_type bb.bb_pos else g.g_unreachable in
+					let bb_next = if !is_reachable then create_node BKNormal bb.bb_type bb.bb_pos else g.g_unreachable in
 					let catches = List.map (fun (v,bb_catch,bb_catch_next) ->
 						if bb_catch_next != g.g_unreachable then add_cfg_edge g bb_catch_next bb_next CFGGoto;
 						close_node g bb_catch_next;
@@ -1642,7 +1625,7 @@ module TexprTransformer = struct
 						let bb = if not (can_throw e) then
 							block_element bb e
 						else begin
-							let bb' = create_node BKNormal bb e.etype e.epos in
+							let bb' = create_node BKNormal e.etype e.epos in
 							add_cfg_edge g bb bb' CFGGoto;
 							List.iter (fun bb_exc -> add_cfg_edge g bb bb_exc CFGMaybeThrow) bbl;
 							set_syntax_edge g bb (SEMerge bb');
