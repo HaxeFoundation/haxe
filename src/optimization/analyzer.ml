@@ -679,8 +679,8 @@ module BasicBlock = struct
 		| SEIfThen of t * t                                (* `if` with "then" and "next" *)
 		| SEIfThenElse of t * t * t * Type.t               (* `if` with "then", "else" and "next" *)
 		| SESwitch of (texpr list * t) list * t option * t (* `switch` with cases, "default" and "next" *)
-		| SETry of t * (tvar * t) list * t                 (* `try` with catches and "next" *)
-		| SEWhile of t * t                                 (* `while` with "body" and "next" *)
+		| SETry of t * t * (tvar * t) list * t             (* `try` with "exc", catches and "next" *)
+		| SEWhile of t * t * t                             (* `while` with "head", "body" and "next" *)
 		| SESubBlock of t * t                              (* "sub" with "next" *)
 		| SEMerge of t                                     (* Merge to same block *)
 		| SEEnd                                            (* End of syntax *)
@@ -730,7 +730,7 @@ module BasicBlock = struct
 	let has_flag edge flag =
 		List.mem flag edge.cfg_flags
 
-	let _create id kind scopes t p =
+	let _create id kind t p =
 		let rec bb = {
 			bb_kind = kind;
 			bb_id = id;
@@ -747,7 +747,7 @@ module BasicBlock = struct
 			bb_syntax_edge = SENone;
 			bb_loop_groups = [];
 			bb_var_writes = [];
-			bb_scopes = scopes;
+			bb_scopes = [];
 		} in
 		bb
 
@@ -839,8 +839,8 @@ module Graph = struct
 			!r
 		)
 
-	let create_node g kind scopes t p =
-		let bb = BasicBlock._create (alloc_id()) kind scopes t p in
+	let create_node g kind t p =
+		let bb = BasicBlock._create (alloc_id()) kind t p in
 		g.g_nodes <- bb :: g.g_nodes;
 		bb
 
@@ -908,8 +908,8 @@ module Graph = struct
 	(* graph *)
 
 	let create t p =
-		let bb_root = BasicBlock._create 1 BKRoot [] t p; in
-		let bb_unreachable = BasicBlock._create 0 BKUnreachable [] t_dynamic null_pos in
+		let bb_root = BasicBlock._create 1 BKRoot t p; in
+		let bb_unreachable = BasicBlock._create 0 BKUnreachable t_dynamic null_pos in
 		{
 			g_root = bb_root;
 			g_exit = bb_unreachable;
@@ -1071,6 +1071,48 @@ module Graph = struct
 			) bb.bb_el
 		)
 
+	let infer_scopes g =
+		let next_scope_id = ref 0 in
+		let next_scope scopes =
+			incr next_scope_id;
+			!next_scope_id :: scopes
+		in
+		let rec loop scopes bb =
+			bb.bb_scopes <- scopes;
+			begin match bb.bb_syntax_edge with
+				| SEIfThen(bb_then,bb_next) ->
+					loop (next_scope scopes) bb_then;
+					loop scopes bb_next
+				| SEIfThenElse(bb_then,bb_else,bb_next,_) ->
+					loop (next_scope scopes) bb_then;
+					loop (next_scope scopes) bb_else;
+					loop scopes bb_next
+				| SESwitch(cases,bbo,bb_next) ->
+					List.iter (fun (_,bb_case) -> loop (next_scope scopes) bb_case) cases;
+					(match bbo with None -> () | Some bb -> loop (next_scope scopes) bb);
+					loop scopes bb_next;
+				| SETry(bb_try,bb_exc,catches,bb_next) ->
+					let scopes' = next_scope scopes in
+					loop scopes' bb_try;
+					loop scopes' bb_exc;
+					List.iter (fun (_,bb_catch) -> loop (next_scope scopes) bb_catch) catches;
+					loop scopes bb_next
+				| SEWhile(bb_head,bb_body,bb_next) ->
+					let scopes' = next_scope scopes in
+					loop scopes' bb_head;
+					loop scopes' bb_body;
+					loop scopes bb_next;
+				| SESubBlock(bb_sub,bb_next) ->
+					loop (next_scope scopes) bb_sub;
+					loop scopes bb_next
+				| SEMerge bb ->
+					loop scopes bb
+				| SEEnd | SENone ->
+					()
+			end
+		in
+		Hashtbl.iter (fun _ (bb,_,_,_) -> loop [0] bb) g.g_functions
+
 	let finalize g bb_exit =
 		g.g_exit <- bb_exit
 end
@@ -1085,8 +1127,6 @@ type analyzer_context = {
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
 	mutable loop_stack : int list;
-	mutable scopes : int list;
-	mutable scope_depth : int;
 }
 
 (*
@@ -1102,7 +1142,7 @@ module TexprTransformer = struct
 	let rec func ctx bb tf t p =
 		let g = ctx.graph in
 		let create_node kind t p =
-			let bb = Graph.create_node g kind ctx.scopes t p in
+			let bb = Graph.create_node g kind t p in
 			bb.bb_loop_groups <- ctx.loop_stack;
 			bb
 		in
@@ -1138,13 +1178,6 @@ module TexprTransformer = struct
 			b_try_stack := b :: !b_try_stack;
 			(fun () ->
 				b_try_stack := List.tl !b_try_stack
-			)
-		in
-		let increase_scope () =
-			ctx.scope_depth <- ctx.scope_depth + 1;
-			ctx.scopes <- ctx.scope_depth :: ctx.scopes;
-			(fun () ->
-				ctx.scopes <- List.tl ctx.scopes;
 			)
 		in
 		let add_terminator bb e =
@@ -1367,12 +1400,10 @@ module TexprTransformer = struct
 			| TMeta((Meta.MergeBlock,_,_),{eexpr = TBlock el}) ->
 				block_el bb el
 			| TBlock el ->
-				let scope = increase_scope() in
 				let bb_sub = create_node BKSub e.etype e.epos in
 				add_cfg_edge g bb bb_sub CFGGoto;
 				close_node g bb;
 				let bb_sub_next = block_el bb_sub el in
-				scope();
 				if bb_sub_next != g.g_unreachable then begin
 					let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 					set_syntax_edge g bb (SESubBlock(bb_sub,bb_next));
@@ -1386,12 +1417,10 @@ module TexprTransformer = struct
 				end
 			| TIf(e1,e2,None) ->
 				let bb,e1 = bind_to_temp bb false e1 in
-				let scope = increase_scope() in
 				let bb_then = create_node BKConditional e2.etype e2.epos in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
 				add_cfg_edge g bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 				let bb_then_next = block bb_then e2 in
-				scope();
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				set_syntax_edge g bb (SEIfThen(bb_then,bb_next));
 				add_cfg_edge g bb bb_next CFGCondElse;
@@ -1401,7 +1430,6 @@ module TexprTransformer = struct
 				bb_next
 			| TIf(e1,e2,Some e3) ->
 				let bb,e1 = bind_to_temp bb false e1 in
-				let scope = increase_scope() in
 				let bb_then = create_node BKConditional e2.etype e2.epos in
 				let bb_else = create_node BKConditional e3.etype e3.epos in
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
@@ -1410,7 +1438,6 @@ module TexprTransformer = struct
 				close_node g bb;
 				let bb_then_next = block bb_then e2 in
 				let bb_else_next = block bb_else e3 in
-				scope();
 				if bb_then_next == g.g_unreachable && bb_else_next == g.g_unreachable then begin
 					set_syntax_edge g bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype));
 					g.g_unreachable
@@ -1429,10 +1456,8 @@ module TexprTransformer = struct
 				add_texpr g bb (wrap_meta ":cond-branch" e1);
 				let reachable = ref [] in
 				let make_case e =
-					let scope = increase_scope() in
 					let bb_case = create_node BKConditional e.etype e.epos in
 					let bb_case_next = block bb_case e in
-					scope();
 					if bb_case_next != g.g_unreachable then
 						reachable := bb_case_next :: !reachable;
 					close_node g bb_case_next;
@@ -1470,12 +1495,10 @@ module TexprTransformer = struct
 				close_node g bb;
 				let bb_loop_head = create_node BKLoopHead e1.etype e1.epos in
 				add_cfg_edge g bb_loop_pre bb_loop_head CFGGoto;
-				let scope = increase_scope() in
 				let close = begin_loop bb bb_loop_head in
 				let bb_loop_body = create_node BKNormal e2.etype e2.epos in
 				let bb_loop_body_next = block bb_loop_body e2 in
 				let bb_breaks = close() in
-				scope();
 				let bb_next = if bb_breaks = [] then begin
 					(* The loop appears to be infinite, let's assume that something within it throws.
 					   Otherwise DCE's mark-pass won't see its body and removes everything. *)
@@ -1485,7 +1508,7 @@ module TexprTransformer = struct
 					create_node BKNormal bb.bb_type bb.bb_pos
 				in
 				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) bb_breaks;
-				set_syntax_edge g bb_loop_pre (SEWhile(bb_loop_body,bb_next));
+				set_syntax_edge g bb_loop_pre (SEWhile(bb_loop_head,bb_loop_body,bb_next));
 				close_node g bb_loop_pre;
 				add_texpr g bb_loop_pre {e with eexpr = TWhile(e1,make_block_meta bb_loop_body,NormalWhile)};
 				add_cfg_edge g bb_loop_body_next bb_loop_head CFGGoto;
@@ -1494,14 +1517,12 @@ module TexprTransformer = struct
 				close_node g bb_loop_head;
 				bb_next;
 			| TTry(e1,catches) ->
-				let scope = increase_scope() in
 				let bb_try = create_node BKNormal e1.etype e1.epos in
 				let bb_exc = create_node BKException t_dynamic e.epos in
 				add_cfg_edge g bb bb_try CFGGoto;
 				let close = begin_try bb_exc in
 				let bb_try_next = block bb_try e1 in
 				close();
-				scope();
 				let bb_next = if bb_exc.bb_incoming = [] then
 					let bb_next = if bb_try_next == g.g_unreachable then
 						g.g_unreachable
@@ -1516,11 +1537,9 @@ module TexprTransformer = struct
 				else begin
 					let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
 					let catches = List.map (fun (v,e) ->
-						let scope = increase_scope() in
 						let bb_catch = create_node (BKCatch v) e.etype e.epos in
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
 						let bb_catch_next = block bb_catch e in
-						scope();
 						is_reachable := !is_reachable || (not (bb_catch_next == g.g_unreachable));
 						v,bb_catch,bb_catch_next
 					) catches in
@@ -1530,7 +1549,7 @@ module TexprTransformer = struct
 						close_node g bb_catch_next;
 						v,bb_catch
 					) catches in
-					set_syntax_edge g bb (SETry(bb_try,catches,bb_next));
+					set_syntax_edge g bb (SETry(bb_try,bb_exc,catches,bb_next));
 					if bb_try_next != g.g_unreachable then add_cfg_edge g bb_try_next bb_next CFGGoto;
 					close_node g bb_try_next;
 					bb_next
@@ -1686,8 +1705,6 @@ module TexprTransformer = struct
 			has_unbound = false;
 			loop_counter = 0;
 			loop_stack = [];
-			scope_depth = 0;
-			scopes = [0];
 		} in
 		let bb_func,bb_exit = func ctx g.g_root tf e.etype e.epos in
 		ctx.entry <- bb_func;
@@ -1710,10 +1727,10 @@ module TexprTransformer = struct
 					Some bb_next,el
 				| el,(SEEnd | SENone) ->
 					None,el
-				| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(bb_body,bb_next)) ->
+				| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(_,bb_body,bb_next)) ->
 					let e2 = block bb_body in
 					Some bb_next,{e with eexpr = TWhile(e1,e2,flag)} :: el
-				| el,SETry(bb_try,bbl,bb_next) ->
+				| el,SETry(bb_try,_,bbl,bb_next) ->
 					Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid bb_try.bb_pos) :: el
 				| e1 :: el,se ->
 					let e1 = Texpr.skip e1 in
@@ -2701,7 +2718,8 @@ module Debug = struct
 			edge bb_then "then";
 			edge bb_else "else";
 			edge bb_next "next";
-		| SEWhile(bb_body,bb_next) ->
+		| SEWhile(bb_head,bb_body,bb_next) ->
+			edge bb_head "loop-head";
 			edge bb_body "loop-body";
 			edge bb_next "next";
 		| SEMerge bb_next ->
@@ -2710,7 +2728,7 @@ module Debug = struct
 			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) bbl;
 			(match bo with None -> () | Some bb -> edge bb "default");
 			edge bb_next "next";
-		| SETry(bb_try,bbl,bb_next) ->
+		| SETry(bb_try,_,bbl,bb_next) ->
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
 			edge bb_next "next";
@@ -3049,6 +3067,7 @@ module Run = struct
 	let run_on_expr com config e =
 		let ctx = there com config e in
 		Graph.calculate_immediate_dominators ctx.graph;
+		Graph.infer_scopes ctx.graph;
 		Graph.infer_var_writes ctx.graph;
 		if com.debug then Graph.check_integrity ctx.graph;
 		if config.optimize && not ctx.has_unbound then begin
