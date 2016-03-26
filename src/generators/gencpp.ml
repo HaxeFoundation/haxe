@@ -1815,25 +1815,25 @@ let rec s_tcpp = function
    | CppCastObjC _ -> "CppCastObjC"
    | CppCastNative _ -> "CppCastNative"
 
-and tcpp_to_string = function
+and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppDynamic -> "Dynamic"
    | TCppObject -> "Dynamic"
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
    | TCppVariant -> "::cpp::Variant"
-   | TCppEnum(enum) -> "::hx::EnumBase"
+   | TCppEnum(enum) -> "::hx::EnumBase" ^ suffix
    | TCppScalar(scalar) -> scalar
    | TCppString -> "::String"
-   | TCppFastIterator it -> "::cpp::FastIterator< " ^ (tcpp_to_string it) ^ " >";
+   | TCppFastIterator it -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (tcpp_to_string it) ^ " >";
    | TCppPointer(ptrType,valueType) -> "::cpp::" ^ ptrType ^ "< " ^ (tcpp_to_string valueType) ^ " >"
    | TCppRawPointer(constName,valueType) -> constName ^ (tcpp_to_string valueType) ^ "*"
    | TCppFunction(argTypes,retType,abi) ->
         let args = (String.concat "," (List.map tcpp_to_string argTypes)) in
         "::cpp::Function< " ^ abi ^ " " ^ (tcpp_to_string retType) ^ "(" ^ args ^ ") >"
-   | TCppDynamicArray -> "::cpp::VirtualArray"
-   | TCppObjectArray _ -> "::Array< ::Dynamic>"
+   | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
+   | TCppObjectArray _ -> "::Array" ^ suffix ^ "< ::Dynamic>"
    | TCppWrapped _ -> "Dynamic"
-   | TCppScalarArray(value) -> "::Array< " ^ (tcpp_to_string value) ^ " >"
+   | TCppScalarArray(value) -> "::Array" ^ suffix ^ "< " ^ (tcpp_to_string value) ^ " >"
    | TCppObjC klass ->
       let path = join_class_path_remap klass.cl_path "::" in
       if klass.cl_interface then
@@ -1842,11 +1842,14 @@ and tcpp_to_string = function
          path ^ " *"
    | TCppNativePointer klass -> (join_class_path_remap klass.cl_path "::") ^ " *"
    | TCppInst klass ->
-        cpp_class_path_of klass
-   | TCppClass -> "hx::Class";
+        (cpp_class_path_of klass) ^ suffix
+   | TCppClass -> "hx::Class" ^ suffix;
    | TCppGlobal -> "";
    | TCppNull -> "Dynamic";
    | TCppCode _ -> "Code"
+
+and tcpp_to_string tcpp =
+    tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass =
       "::" ^ (join_class_path_remap klass.cl_path "::")
@@ -5508,10 +5511,14 @@ let rec has_gc_references class_def =
    || has_new_gc_references class_def
 ;;
 
-let rec find_next_super_iteration class_def =
+let rec find_next_super_iteration ctx class_def =
    match class_def.cl_super with
-   | Some  (klass,params) when has_new_gc_references klass -> class_string klass "_obj" params true
-   | Some  (klass,_) -> find_next_super_iteration klass
+   | Some  (klass,params) when has_new_gc_references klass ->
+        if ctx.ctx_cppast then
+           tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params)
+        else
+           class_string klass "_obj" params true
+   | Some  (klass,_) -> find_next_super_iteration ctx klass
    | _ -> "";
 ;;
 
@@ -5664,7 +5671,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
    ctx.ctx_class_super_name <- (match class_def.cl_super with
-      | Some (klass, params) -> class_string klass "_obj" params true
+      | Some (klass, params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
       | _ -> "");
    if (debug>1) then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
 
@@ -5915,7 +5922,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
 
       if (override_iteration) then begin
-         let super_needs_iteration = find_next_super_iteration class_def in
+         let super_needs_iteration = find_next_super_iteration ctx class_def in
          (* MARK function - explicitly mark all child pointers *)
          output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
          output_cpp ("\tHX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
@@ -6441,7 +6448,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let h_file = new_header_file common_ctx common_ctx.file class_path in
    let super = match class_def.cl_super with
-      | Some (klass,params) -> (class_string klass "_obj" params true)
+      | Some (klass,params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
       | _ when nativeGen -> ""
       | _ -> if (class_def.cl_interface) then "hx::Interface" else "hx::Object"
       in
