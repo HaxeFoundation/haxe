@@ -101,7 +101,7 @@ class Utf8 {
 		Tells if the String is correctly encoded as UTF8.
 	**/
 	public static inline function validate( s : String ) : Bool {
-		return true;
+		throw "Unimplemented";
 	}
 
 	/**
@@ -175,5 +175,4 @@ class Utf8 {
 			throw 'Unicode greater than U+10FFFF';
 		}
 	}
-	static var iso2uni = [ 8364, 65533, 8218, 402, 8222, 8230, 8224, 8225, 710, 8240, 352, 8249, 338, 65533, 381, 65533, 65533, 8216, 8217, 8220, 8221, 8226, 8211, 8212, 732, 8482, 353, 8250, 339, 65533, 382, 376];
 }
