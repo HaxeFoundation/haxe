@@ -782,7 +782,7 @@ module Graph = struct
 		mutable g_exit : BasicBlock.t;             (* The unique exit block *)
 		mutable g_unreachable : BasicBlock.t;      (* The unique unreachable block *)
 		mutable g_functions : tfunc_info itbl;     (* A map of functions, indexed by their block IDs *)
-		mutable g_nodes : BasicBlock.t itbl;       (* A map of all blocks *)
+		mutable g_nodes : BasicBlock.t list;       (* A list of all blocks *)
 		g_var_infos : var_info DynArray.t;         (* A map of variable information *)
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
@@ -839,7 +839,7 @@ module Graph = struct
 
 	let create_node g kind scopes t p =
 		let bb = BasicBlock._create (alloc_id()) kind scopes t p in
-		Hashtbl.add g.g_nodes bb.bb_id bb;
+		g.g_nodes <- bb :: g.g_nodes;
 		bb
 
 	let close_node g bb =
@@ -908,14 +908,12 @@ module Graph = struct
 	let create t p =
 		let bb_root = BasicBlock._create 1 BKRoot [] t p; in
 		let bb_unreachable = BasicBlock._create 0 BKUnreachable [] t_dynamic null_pos in
-		let nodes = Hashtbl.create 0 in
-		Hashtbl.add nodes bb_root.bb_id bb_root;
 		{
 			g_root = bb_root;
 			g_exit = bb_unreachable;
 			g_unreachable = bb_unreachable;
 			g_functions = Hashtbl.create 0;
-			g_nodes = nodes;
+			g_nodes = [bb_root];
 			g_var_infos = DynArray.create();
 			g_loops = IntMap.empty;
 		}
@@ -932,7 +930,7 @@ module Graph = struct
 		)
 
 	let check_integrity g =
-		Hashtbl.iter (fun _ bb ->
+		List.iter (fun bb ->
 			List.iter (fun edge ->
 				if edge.cfg_to = g.g_unreachable then
 					prerr_endline (Printf.sprintf "Outgoing edge from %i to the unreachable block" bb.bb_id)
@@ -2715,7 +2713,7 @@ module Debug = struct
 	let generate_cfg_ssa ch g =
 		Printf.fprintf ch "\tnode [shape=plaintext];\n";
 		let expr_name b i = Printf.sprintf "e%s%i" (if b then "p" else "") i in
-		Hashtbl.iter (fun _ bb ->
+		List.iter (fun bb ->
 			Printf.fprintf ch "n%i[label=<<table BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n\t<tr><td port=\"in\" bgcolor=\"lightgray\">(%i) %s</td></tr>\n" bb.bb_id bb.bb_id (BasicBlock.s_block_kind bb.bb_kind);
 			let s_expr b i e =
 				Printf.fprintf ch "\t<tr><td port=\"%s\" align=\"left\">%s</td></tr>\n" (expr_name b i) (s_escape (htmlescape (s_expr_pretty e)))
@@ -2754,14 +2752,14 @@ module Debug = struct
 			)
 		in
 		let ch,f = start_graph "-cfg.dot" in
-		Hashtbl.iter (fun _ bb -> dot_debug_node g ch [NILoopGroups;NIScopes;NIPhi;NIExpr] bb) g.g_nodes;
+		List.iter (fun bb -> dot_debug_node g ch [NILoopGroups;NIScopes;NIPhi;NIExpr] bb) g.g_nodes;
 		Graph.iter_edges g (dot_debug_cfg_edge ch);
 		f();
 		let ch,f = start_graph "-cfg-ssa.dot" in
 		generate_cfg_ssa ch g;
 		f();
 		let ch,f = start_graph "-dj.dot" in
-		Hashtbl.iter (fun _ bb ->
+		List.iter (fun bb ->
 			dot_debug_node g ch [] bb;
 			List.iter (fun einc ->
 				let bb' = einc.cfg_from in
@@ -2771,19 +2769,19 @@ module Debug = struct
 		) g.g_nodes;
 		f();
 		let ch,f = start_graph "-df.dot" in
-		Hashtbl.iter (fun _ bb ->
+		List.iter (fun bb ->
 			dot_debug_node g ch [NIVars] bb;
 			List.iter (fun bb' -> Printf.fprintf ch "n%i -> n%i;\n" bb.bb_id bb'.bb_id) bb.bb_df;
 		) g.g_nodes;
 		f();
 		let ch,f = start_graph "-dom.dot" in
-		Hashtbl.iter (fun _ bb ->
+		List.iter (fun bb ->
 			dot_debug_node g ch [NIVars] bb;
 			List.iter (fun bb' -> Printf.fprintf ch "n%i -> n%i;\n" bb.bb_id bb'.bb_id) bb.bb_dominated;
 		) g.g_nodes;
 		f();
 		let ch,f = start_graph "-syntax.dot" in
-		Hashtbl.iter (fun _ bb ->
+		List.iter (fun bb ->
 			dot_debug_node g ch [NIExpr] bb;
 			dot_debug_syntax_edge ch bb bb.bb_syntax_edge
 		) g.g_nodes;
@@ -2808,7 +2806,7 @@ module Debug = struct
 				()
 			end
 		) g.g_var_infos;
-		Hashtbl.iter (fun _ bb ->
+		List.iter (fun bb ->
 			let f is_phi acc i e =
 				let n = node_name bb is_phi i in
 				(i + 1),if PMap.mem n !nodes then
