@@ -28,7 +28,6 @@ package lua;
 	Haxe iterators, which provide a next/hasNext interface.
 **/
 
-@:callable
 abstract NativeIterator<T>(HaxeIterator<T>) {
 	public function new(f : Void->T) {
 		this = new HaxeIterator(f);
