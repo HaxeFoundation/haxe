@@ -1459,14 +1459,14 @@ module TexprTransformer = struct
 				let bb_loop_body_next = block bb_loop_body e2 in
 				let bb_breaks = close() in
 				scope();
-				let dom = match bb_breaks with
-					| [] ->
-						add_cfg_edge g bb_loop_body_next bb_exit CFGGoto;
-						g.g_unreachable
-					| [bb_break] -> bb_break
-					| _ -> bb_loop_body (* TODO: this is not accurate for while(true) loops *)
+				let bb_next = if bb_breaks = [] then begin
+					(* The loop appears to be infinite, let's assume that something within it throws.
+					   Otherwise DCE's mark-pass won't see its body and removes everything. *)
+					add_cfg_edge g bb_loop_body_next bb_exit CFGMaybeThrow;
+					g.g_unreachable
+				end else
+					create_node BKNormal bb.bb_type bb.bb_pos
 				in
-				let bb_next = if dom == g.g_unreachable then g.g_unreachable else create_node BKNormal bb.bb_type bb.bb_pos in
 				List.iter (fun bb -> add_cfg_edge g bb bb_next CFGGoto) bb_breaks;
 				set_syntax_edge g bb_loop_pre (SEWhile(bb_loop_body,bb_next));
 				close_node g bb_loop_pre;
