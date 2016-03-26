@@ -644,15 +644,16 @@ end
 *)
 module BasicBlock = struct
 	type block_kind =
-		| BKRoot          (* The unique root block of the graph *)
-		| BKNormal        (* A normal block *)
-		| BKFunctionBegin (* Entry block of a function *)
-		| BKFunctionEnd   (* Exit block of a function *)
-		| BKSub           (* A sub block *)
-		| BKConditional   (* A "then", "else" or "case" block *)
-		| BKLoopHead      (* Header block of a loop *)
-		| BKException     (* Relay block for exceptions *)
-		| BKUnreachable   (* The unique unreachable block *)
+		| BKRoot                    (* The unique root block of the graph *)
+		| BKNormal                  (* A normal block *)
+		| BKFunctionBegin of tfunc  (* Entry block of a function *)
+		| BKFunctionEnd             (* Exit block of a function *)
+		| BKSub                     (* A sub block *)
+		| BKConditional             (* A "then", "else" or "case" block *)
+		| BKLoopHead                (* Header block of a loop *)
+		| BKException               (* Relay block for exceptions *)
+		| BKUnreachable             (* The unique unreachable block *)
+		| BKCatch of tvar           (* A catch block *)
 
 	type cfg_edge_Flag =
 		| FlagExecutable      (* Used by constant propagation to handle live edges *)
@@ -710,13 +711,14 @@ module BasicBlock = struct
 	let s_block_kind = function
 		| BKRoot -> "BKRoot"
 		| BKNormal -> "BKNormal"
-		| BKFunctionBegin -> "BKFunctionBegin"
+		| BKFunctionBegin _ -> "BKFunctionBegin"
 		| BKFunctionEnd -> "BKFunctionEnd"
 		| BKSub -> "BKSub"
 		| BKConditional -> "BKConditional"
 		| BKLoopHead -> "BKLoopHead"
 		| BKException -> "BKException"
 		| BKUnreachable -> "BKUnreachable"
+		| BKCatch _ -> "BKCatch"
 
 	let s_cfg_edge_kind = function
 		| CFGGoto -> "CFGGoto"
@@ -1044,8 +1046,32 @@ module Graph = struct
 			end
 		) nodes
 
+	let infer_var_writes g =
+		iter_dom_tree g (fun bb ->
+			begin match bb.bb_kind with
+				| BKCatch v ->
+					declare_var g v bb;
+					add_var_def g bb v
+				| BKFunctionBegin tf ->
+					List.iter (fun (v,_) ->
+						declare_var g v bb;
+						add_var_def g bb v
+					) tf.tf_args;
+				| _ ->
+					()
+			end;
+			DynArray.iter (fun e -> match e.eexpr with
+				| TVar(v,eo) ->
+					declare_var g v bb;
+					if eo <> None then add_var_def g bb v;
+				| TBinop(OpAssign,{eexpr = TLocal v},_) ->
+					add_var_def g bb v
+				| _ ->
+					()
+			) bb.bb_el
+		)
+
 	let finalize g bb_exit =
-		calculate_immediate_dominators g;
 		g.g_exit <- bb_exit
 end
 
@@ -1080,12 +1106,8 @@ module TexprTransformer = struct
 			bb.bb_loop_groups <- ctx.loop_stack;
 			bb
 		in
-		let bb_root = create_node BKFunctionBegin tf.tf_expr.etype tf.tf_expr.epos in
+		let bb_root = create_node (BKFunctionBegin tf) tf.tf_expr.etype tf.tf_expr.epos in
 		let bb_exit = create_node BKFunctionEnd tf.tf_expr.etype tf.tf_expr.epos in
-		List.iter (fun (v,_) ->
-			declare_var g v bb_root;
-			add_var_def g bb_root v
-		) tf.tf_args;
 		add_function g tf t p bb_root;
 		add_cfg_edge g bb bb_root CFGFunction;
 		let make_block_meta b =
@@ -1284,7 +1306,6 @@ module TexprTransformer = struct
 			let assign e =
 				if not !was_assigned then begin
 					was_assigned := true;
-					declare_var g v bb;
 					add_texpr g bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
 				end;
 				mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
@@ -1293,8 +1314,6 @@ module TexprTransformer = struct
 				block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid e.epos)
 			with Exit ->
 				let bb,e = value bb e in
-				declare_var g v bb;
-				add_var_def g bb v;
 				add_texpr g bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
 				bb
 			end
@@ -1329,7 +1348,6 @@ module TexprTransformer = struct
 		and block_element bb e = match e.eexpr with
 			(* variables *)
 			| TVar(v,None) ->
-				declare_var g v bb;
 				add_texpr g bb e;
 				bb
 			| TVar(v,Some e1) ->
@@ -1342,7 +1360,6 @@ module TexprTransformer = struct
 					block_element_value bb e2 assign
 				with Exit ->
 					let bb,e2 = value bb e2 in
-					add_var_def g bb v;
 					add_texpr g bb {e with eexpr = TBinop(OpAssign,e1,e2)};
 					bb
 				end
@@ -1500,9 +1517,7 @@ module TexprTransformer = struct
 					let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
 					let catches = List.map (fun (v,e) ->
 						let scope = increase_scope() in
-						let bb_catch = create_node BKNormal e.etype e.epos in
-						declare_var ctx.graph v bb_catch;
-						add_var_def g bb_catch v;
+						let bb_catch = create_node (BKCatch v) e.etype e.epos in
 						add_cfg_edge g bb_exc bb_catch CFGGoto;
 						let bb_catch_next = block bb_catch e in
 						scope();
@@ -2644,7 +2659,7 @@ module Debug = struct
 		) s nil in
 		let s_kind = match bb.bb_kind with
 			| BKRoot -> "<root>\n"
-			| BKFunctionBegin -> "<function-begin>\n"
+			| BKFunctionBegin _ -> "<function-begin>\n"
 			| BKFunctionEnd -> "<function-end>\n"
 			| BKLoopHead -> "<loop-head>\n"
 			| _ -> ""
@@ -3033,6 +3048,8 @@ module Run = struct
 
 	let run_on_expr com config e =
 		let ctx = there com config e in
+		Graph.calculate_immediate_dominators ctx.graph;
+		Graph.infer_var_writes ctx.graph;
 		if com.debug then Graph.check_integrity ctx.graph;
 		if config.optimize && not ctx.has_unbound then begin
 			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
