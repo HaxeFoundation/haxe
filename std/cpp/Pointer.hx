@@ -22,7 +22,6 @@
  package cpp;
 
 @:coreType
-@:analyzer(no_simplification)
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
    @:analyzer(no_simplification)
