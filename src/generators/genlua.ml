@@ -314,7 +314,6 @@ let rec gen_call ctx e el in_value =
 		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			let name = field_name f in
-			(* TODO: use nonconflict var instead of prototype *)
 			print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
@@ -458,11 +457,9 @@ and gen_expr ?(local=true) ctx e = begin
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
-		spr ctx "(function(x) return x.";
-		print ctx "%s" (field_name ef);
-		spr ctx " end )(";
+		spr ctx ("(");
 		gen_value ctx e;
-		spr ctx ")";
+		print ctx (").%s") (field_name ef);
 	| TField ({ eexpr = TConst (TInt _ | TFloat _) } as x,f) ->
 		gen_expr ctx { e with eexpr = TField(mk (TParenthesis x) x.etype x.epos,f) }
 	| TField ({ eexpr = TObjectDecl fields }, ef ) ->
@@ -473,7 +470,6 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "})";
 	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
 		gen_value ctx x;
-		(* TODO: Come up with better workaround for dealing with invoked methods on constants e.g. "foo".charAt(0); *)
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
