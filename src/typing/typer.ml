@@ -3730,6 +3730,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| (Meta.NoPrivateAccess,_,_) ->
 				ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 				e()
+			| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
+				let e = e() in
+				{e with eexpr = TMeta(m,e)}
 			| _ -> e()
 		in
 		ctx.meta <- old;

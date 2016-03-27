@@ -74,6 +74,7 @@ module Meta = struct
 		| FakeEnum
 		| File
 		| Final
+		| Fixed
 		| FlatEnum
 		| Font
 		| Forward

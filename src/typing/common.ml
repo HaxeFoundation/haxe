@@ -405,6 +405,7 @@ module MetaInfo = struct
 		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 		| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
 		| Final -> ":final",("Prevents a class from being extended",[UsedOn TClass])
+		| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
 		| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; Internal])
 		| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
 		| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])

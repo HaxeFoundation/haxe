@@ -1721,7 +1721,7 @@ and tcpp_expr_expr =
    | CppSet of tcpplvalue * tcppexpr
    | CppModify of Ast.binop * tcpplvalue * tcppexpr
    | CppBinop of Ast.binop * tcppexpr * tcppexpr
-   | CppObjectDecl of (string * tcppexpr) list
+   | CppObjectDecl of (string * tcppexpr) list * bool
    | CppPosition of string * int32 * string * string
    | CppArrayDecl of tcppexpr list
    | CppUnop of tcppunop * tcppexpr
@@ -2330,7 +2330,14 @@ let retype_expression ctx request_type function_args expression_tree =
          | TThrow e1 ->
             CppThrow(retype TCppDynamic e1), TCppVoid
 
-         | TMeta (_,e)
+         | TMeta( (Meta.Fixed,_,_),e) ->
+            let cppType = retype return_type e in
+            (match cppType.cppexpr with
+            | CppObjectDecl(def,false) -> CppObjectDecl(def,true), cppType.cpptype
+            | _ -> cppType.cppexpr, cppType.cpptype
+            )
+
+         | TMeta(_,e)
          | TParenthesis e ->
             let cppType = retype return_type e in
             cppType.cppexpr, cppType.cpptype
@@ -2671,8 +2678,8 @@ let retype_expression ctx request_type function_args expression_tree =
          | TObjectDecl el ->
             let retypedEls = List.map ( fun(v,e) -> v, retype TCppDynamic e) el in
             (match return_type with
-            | TCppVoid -> CppObjectDecl(retypedEls), TCppVoid
-            | _ -> CppObjectDecl(retypedEls), TCppDynamic
+            | TCppVoid -> CppObjectDecl(retypedEls,false), TCppVoid
+            | _ -> CppObjectDecl(retypedEls,false), TCppDynamic
             )
 
          | TVar (v,eo) ->
@@ -3136,16 +3143,26 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          )  closure.close_undeclared;
          out "))";
 
-      | CppObjectDecl values ->
+      | CppObjectDecl (values,isStruct) ->
          let length = List.length values in
+         let lengthStr = string_of_int length in
          if (expr.cpptype!=TCppVoid) then out "Dynamic(";
-         out ("hx::Anon_obj::Create(" ^ (string_of_int length) ^")");
-         let sorted = List.sort (fun  (_,_,h0) (_,_,h1) -> Int32.compare h0 h1 )
+         if (isStruct) && length>0 && length<=5 then begin
+            out ("hx::AnonStruct" ^ lengthStr ^"_obj< " ^
+               (String.concat "," (List.map (fun (_,value) ->  tcpp_to_string value.cpptype) values) ) ^
+               " >::Create(" );
+            let sep = ref "" in
+            List.iter (fun (name,value) -> out (!sep ^ (strq name) ^ "," ); sep:=","; gen value ) values;
+            out ")";
+         end else begin
+            out ("hx::Anon_obj::Create(" ^ lengthStr ^")");
+            let sorted = List.sort (fun  (_,_,h0) (_,_,h1) -> Int32.compare h0 h1 )
                 (List.map (fun (name,value) -> name,value,(gen_hash32 0 name ) ) values) in
-         writer#push_indent;
-         ExtList.List.iteri (fun idx (name,value,_) ->
-            out ("\n" ^ spacer); writer#write_i ("->setFixed(" ^ (string_of_int idx) ^ "," ^ (strq name) ^ ","); gen value; out ")";
-         ) sorted;
+            writer#push_indent;
+            ExtList.List.iteri (fun idx (name,value,_) ->
+               out ("\n" ^ spacer); writer#write_i ("->setFixed(" ^ (string_of_int idx) ^ "," ^ (strq name) ^ ","); gen value; out ")";
+            ) sorted;
+         end;
          if (expr.cpptype!=TCppVoid) then out ")";
          writer#pop_indent;
 
