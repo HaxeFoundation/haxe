@@ -22,6 +22,7 @@
 import lua.lib.lrexlib.Rex;
 import lua.Table;
 import lua.Lib;
+import lua.NativeStringTools;
 
 @:coreApi
 class EReg {
@@ -53,12 +54,12 @@ class EReg {
 	public function matched( n : Int ) : String {
 		if (m[1] == null || n < 0) throw "EReg::matched";
 		else if (n == 0) {
-			var k =  lua.StringTools.sub(s, m[1], m[2]);
+			var k =  NativeStringTools.sub(s, m[1], m[2]);
 			return k;
 		} else if (Std.is(m[3], lua.Table)){
 			var mn = 2 * (n - 1);
 			if (Std.is(untyped m[3][mn+1], Bool)) return null;
-			return lua.StringTools.sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]);
+			return NativeStringTools.sub(s, untyped m[3][mn + 1], untyped m[3][mn + 2]);
 		} else {
 			throw "EReg:matched";
 		}
@@ -66,12 +67,12 @@ class EReg {
 
 	public function matchedLeft() : String {
 		if( m[1] == null ) throw "No string matched";
-		return lua.StringTools.sub(s, 1, m[1]-1);
+		return NativeStringTools.sub(s, 1, m[1]-1);
 	}
 
 	public function matchedRight() : String {
 		if( m[1] == null ) throw "No string matched";
-		return lua.StringTools.sub(s, m[2]+1);
+		return NativeStringTools.sub(s, m[2]+1);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {

@@ -137,19 +137,19 @@ class Boot {
 
 
 	public static function urlDecode(str:String){
-		str = lua.StringTools.gsub (str, "+", " ");
-		str = lua.StringTools.gsub (str, "%%(%x%x)",
-				function(h) {return lua.StringTools.char(lua.Lua.tonumber(h,16));});
-		str = lua.StringTools.gsub (str, "\r\n", "\n");
+		str = NativeStringTools.gsub (str, "+", " ");
+		str = NativeStringTools.gsub (str, "%%(%x%x)",
+				function(h) {return NativeStringTools.char(lua.Lua.tonumber(h,16));});
+		str = NativeStringTools.gsub (str, "\r\n", "\n");
 		return str;
 	}
 
 	public static function urlEncode(str:String){
-		str = lua.StringTools.gsub(str, "\n", "\r\n");
-		str = lua.StringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
-			return lua.StringTools.format("%%%02X", lua.StringTools.byte(c) + '');
+		str = NativeStringTools.gsub(str, "\n", "\r\n");
+		str = NativeStringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
+			return NativeStringTools.format("%%%02X", NativeStringTools.byte(c) + '');
 		});
-		str = lua.StringTools.gsub(str, " ", "+");
+		str = NativeStringTools.gsub(str, " ", "+");
 		return str;
 	}
 

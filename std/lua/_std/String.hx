@@ -23,6 +23,7 @@
 import lua.Lua;
 import lua.Table;
 import lua.Boot;
+import lua.NativeStringTools;
 
 @:coreApi
 class String {
@@ -44,12 +45,12 @@ class String {
 	}
 
 
-	public function toUpperCase() : String return lua.StringTools.upper(this);
-	public function toLowerCase() : String return lua.StringTools.lower(this);
+	public function toUpperCase() : String return NativeStringTools.upper(this);
+	public function toLowerCase() : String return NativeStringTools.lower(this);
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
-		var r = lua.StringTools.find(this, str, startIndex, true);
+		var r = NativeStringTools.find(this, str, startIndex, true);
 		if (r != null && r > 0) return r-1;
 		else return -1;
 	}
@@ -72,7 +73,7 @@ class String {
 		while (idx != null){
 			var newidx = 0;
 			if (delimiter.length > 0){
-				newidx = lua.StringTools.find(this, delimiter, idx, true);
+				newidx = NativeStringTools.find(this, delimiter, idx, true);
 			} else if (idx >= this.length){
 				newidx = null;
 			} else {
@@ -80,11 +81,11 @@ class String {
 			}
 
 			if (newidx != null){
-				var match = lua.StringTools.sub(this, idx, newidx-1);
+				var match = NativeStringTools.sub(this, idx, newidx-1);
 				ret.push(match);
 				idx = newidx + delimiter.length;
 			} else {
-				ret.push(lua.StringTools.sub(this,idx,lua.StringTools.len(this)));
+				ret.push(NativeStringTools.sub(this,idx,NativeStringTools.len(this)));
 				idx = null;
 			}
 		}
@@ -100,20 +101,20 @@ class String {
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex == 0) {
 			// swap the index positions
-			return untyped lua.StringTools.sub(this, endIndex+1, startIndex);
+			return NativeStringTools.sub(this, endIndex+1, startIndex);
 		} else {
-			return untyped lua.StringTools.sub(this, startIndex+1, endIndex);
+			return NativeStringTools.sub(this, startIndex+1, endIndex);
 		}
 	}
 
 	function get_length() : Int {
-		return lua.StringTools.len(this);
+		return NativeStringTools.len(this);
 	}
 	public function charAt( index : Int) : String {
-		return lua.StringTools.sub(this,index+1, index+1);
+		return NativeStringTools.sub(this,index+1, index+1);
 	}
 	public function charCodeAt( index : Int) : Null<Int> {
-		return lua.StringTools.byte(this,index+1);
+		return NativeStringTools.byte(this,index+1);
 	}
 
 	public function substr( pos : Int, ?len : Int ) : String {
@@ -121,11 +122,11 @@ class String {
 		else if (len < 0) len = length + len;
 		if (pos < 0) pos = length + pos;
 		if (pos < 0) pos = 0;
-		return lua.StringTools.sub(this, pos + 1, pos+len);
+		return NativeStringTools.sub(this, pos + 1, pos+len);
 	}
 
 	public inline static function fromCharCode( code : Int ) : String {
-		return lua.StringTools.char(code);
+		return NativeStringTools.char(code);
 	}
 }
 

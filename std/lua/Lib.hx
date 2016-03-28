@@ -20,32 +20,35 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package lua;
+import lua.Lua;
+import lua.Io;
+import lua.NativeStringTools;
 
 class Lib {
 
 	public static inline function println( v : Dynamic ) : Void {
-		lua.Lua.print(Std.string(v));
+		Lua.print(Std.string(v));
 	}
 
 	public static inline function print(v:Dynamic) : Void {
-		lua.Io.write(Std.string(v));
-		lua.Io.flush();
+		Io.write(Std.string(v));
+		Io.flush();
 	}
 
 	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
-		return lua.Boot.tableToArray(t, length);
+		return Boot.tableToArray(t, length);
 	}
 
 	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
-		return lua.Boot.tableToObject(t);
+		return Boot.tableToObject(t);
 	}
 
 	public inline static function patternQuote(str:String) : String {
-		return lua.StringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
+		return NativeStringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
 	}
 
 	public inline static function defArray<T>(tab: Table<Int,T>, length : Int) : Array<T> {
-		return lua.Boot.defArray(tab, length);
+		return Boot.defArray(tab, length);
 	}
 
 	public static function fillArray<T>(itr:Void->T) : Array<T> {

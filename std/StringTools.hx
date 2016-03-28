@@ -409,7 +409,7 @@ class StringTools {
 		#elseif hl
 		return @:privateAccess s.bytes.getUI16(index << 1);
 		#elseif lua
-		return lua.StringTools.byte(s,index+1);
+		return lua.NativeStringTools.byte(s,index+1);
 		#else
 		return untyped s.cca(index);
 		#end

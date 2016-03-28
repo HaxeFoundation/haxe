@@ -20,7 +20,9 @@ extern class NativeStringTools {
 	public static function gsub(str : String, pattern : String, replace : String,		  ?n : Int): String;
 
 	@:overload(   function     (str : String, pattern : String, match : Void->String,   ?n : Int): String->Void {})
-	public static function gmatch(str : String, pattern : String, ?n : Int): Void->String;
+	public static function gmatch(str : String, pattern : String): Void->String;
+
+	public static function match(str : String, pattern : String, ?n : Int): String;
 
 	public static function upper(str:String) : String;
 	public static function lower(str:String) : String;

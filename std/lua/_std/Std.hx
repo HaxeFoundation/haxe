@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import lua.Boot;
+import lua.NativeStringTools;
 
 @:keepInit
 @:coreApi class Std {
@@ -43,11 +44,11 @@ import lua.Boot;
 
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
-		var hexMatch = lua.StringTools.match(x, "^ *[%-+]*0[xX][%da-FA-F]*");
+		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-FA-F]*");
 		if (hexMatch != null){
 			return lua.Lua.tonumber(hexMatch.substr(2), 16);
 		} else {
-			var intMatch = lua.StringTools.match(x, "^ *[%-+]?%d*");
+			var intMatch = NativeStringTools.match(x, "^ *[%-+]?%d*");
 			if (intMatch != null){
 				return lua.Lua.tonumber(intMatch);
 			} else {
@@ -58,17 +59,17 @@ import lua.Boot;
 
 	public static function parseFloat( x : String ) : Float {
 		if (x == null || x == "") return Math.NaN;
-		var digitMatch = lua.StringTools.match(x,  "^ *[%.%-+]?[0-9]%d*");
+		var digitMatch = NativeStringTools.match(x,  "^ *[%.%-+]?[0-9]%d*");
 		if (digitMatch == null){
 			return Math.NaN;
 		}
 		x = x.substr(digitMatch.length);
 
-		var decimalMatch = lua.StringTools.match(x, "^%.%d*");
+		var decimalMatch = NativeStringTools.match(x, "^%.%d*");
 		if (decimalMatch == null) decimalMatch = "";
 		x = x.substr(decimalMatch.length);
 
-		var eMatch =lua.StringTools.match(x, "^[eE][+%-]?%d+");
+		var eMatch = NativeStringTools.match(x, "^[eE][+%-]?%d+");
 		if (eMatch == null) eMatch = "";
 		var result =  lua.Lua.tonumber(digitMatch + decimalMatch + eMatch);
 		return result != null ? result : Math.NaN;
