@@ -53,7 +53,7 @@ extern class NativeSys
 
 
    @:extern @:native("_hx_std_sys_rename")
-   public static function sys_rename(path:String,newname:String) : Void { }
+   public static function sys_rename(path:String,newname:String) : Bool return false;
 
 
    @:extern @:native("_hx_std_sys_stat")

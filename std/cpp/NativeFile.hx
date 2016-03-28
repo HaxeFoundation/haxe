@@ -18,6 +18,10 @@ extern class NativeFile
    public static function file_write_char(handle:Dynamic,c:Int) : Void { }
 
 
+   @:extern @:native("_hx_std_file_read")
+   public static function file_read(handle:Dynamic,s:haxe.io.BytesData,p:Int,n:Int) : Int return 0;
+
+
    @:extern @:native("_hx_std_file_read_char")
    public static function file_read_char(handle:Dynamic) : Int return 0;
 
@@ -38,8 +42,12 @@ extern class NativeFile
    public static function file_flush(handle:Dynamic) : Void return null;
 
 
-   @:extern @:native("_hx_std_file_contents")
-   public static function file_contents(name:String) : String return null;
+   @:extern @:native("_hx_std_file_contents_string")
+   public static function file_contents_string(name:String) : String return null;
+
+
+   @:extern @:native("_hx_std_file_contents_bytes")
+   public static function file_contents_bytes(name:String) : haxe.io.BytesData return null;
 
 
    @:extern @:native("_hx_std_file_stdin")
