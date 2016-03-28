@@ -468,12 +468,10 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx " end )({";
 		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
 		spr ctx "})";
-	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
-		gen_value ctx x;
 	| TField (x,f) ->
 		gen_value ctx x;
 		let name = field_name f in
-		spr ctx (match f with FStatic _ -> field name | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+		spr ctx (match f with FStatic _ | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -1051,7 +1049,7 @@ and gen_value ctx e =
 and is_function_type ctx t =
     match t.v_type with
     | TFun _ -> true
-    | TMono r -> (match !r with | Some (TFun _) -> true | _ | None -> false)
+    | TMono r -> (match !r with | Some (TFun _) -> true | _ -> false)
     | _ -> false;
 
 and gen_tbinop ctx op e1 e2 =
