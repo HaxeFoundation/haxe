@@ -868,7 +868,7 @@ let add_field_inits ctx t =
 				| _ ->
 					assert false
 			in
-			let config = Analyzer.Config.get_field_config ctx.com c cf in
+			let config = AnalyzerConfig.get_field_config ctx.com c cf in
 			Analyzer.Run.run_on_field ctx config c cf;
 			(match cf.cf_expr with
 			| Some e ->
