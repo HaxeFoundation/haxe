@@ -401,13 +401,6 @@ class RunCi {
 			var oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
 			runCommand("haxe", ["compile.hxml"]);
-			changeDirectory(getHaxelibPath("hxcpp") + "project/");
-			switch (ci) {
-				case AppVeyor:
-					runCommand("neko", ["build.n", "windows-m32"]);
-				case _:
-					runCommand("neko", ["build.n"]);
-			}
 			changeDirectory(oldDir);
 		}
 
