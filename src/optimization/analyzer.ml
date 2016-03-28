@@ -789,6 +789,16 @@ module Graph = struct
 		mutable g_loops : BasicBlock.t IntMap.t;   (* A map containing loop information *)
 	}
 
+	(* expressions *)
+
+	let add_texpr g bb e =
+		DynArray.add bb.bb_el e
+
+	let get_texpr g bb is_phi i =
+		DynArray.get (if is_phi then bb.bb_phi else bb.bb_el) i
+
+	(* variables *)
+
 	let create_var_info g bb v =
 		let vi = {
 			vi_var = v;
@@ -807,6 +817,35 @@ module Graph = struct
 	let get_var_info g v = match v.v_extra with
 		| Some(_,Some {eexpr = TConst (TInt i32)}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
 		| _ -> assert false
+
+	let declare_var g v bb =
+		create_var_info g bb v
+
+	let add_var_def g bb v =
+		if bb.bb_id > 0 then begin
+			bb.bb_var_writes <- v :: bb.bb_var_writes;
+			let vi = get_var_info g v in
+			vi.vi_writes <- bb :: vi.vi_writes;
+		end
+
+	let set_var_value g v bb is_phi i =
+		(get_var_info g v).vi_value <- Some (bb,is_phi,i)
+
+	let get_var_value g v =
+		let value = (get_var_info g v).vi_value in
+		let bb,is_phi,i = match value with
+			| None -> raise Not_found
+			| Some l -> l
+		in
+		match (get_texpr g bb is_phi i).eexpr with
+		| TVar(_,Some e) | TBinop(OpAssign,_,e) -> e
+		| _ -> assert false
+
+	let add_var_origin g v v_origin =
+		(get_var_info g v).vi_origin <- v_origin
+
+	let get_var_origin g v =
+		(get_var_info g v).vi_origin
 
 	(* edges *)
 
@@ -866,45 +905,6 @@ module Graph = struct
 	let iter_edges g f =
 		iter_dom_tree g (fun bb -> List.iter f bb.bb_outgoing)
 
-	(* expressions *)
-
-	let add_texpr g bb e =
-		DynArray.add bb.bb_el e
-
-	let get_texpr g bb is_phi i =
-		DynArray.get (if is_phi then bb.bb_phi else bb.bb_el) i
-
-	(* variables *)
-
-	let declare_var g v bb =
-		create_var_info g bb v
-
-	let add_var_def g bb v =
-		if bb.bb_id > 0 then begin
-			bb.bb_var_writes <- v :: bb.bb_var_writes;
-			let vi = get_var_info g v in
-			vi.vi_writes <- bb :: vi.vi_writes;
-		end
-
-	let set_var_value g v bb is_phi i =
-		(get_var_info g v).vi_value <- Some (bb,is_phi,i)
-
-	let get_var_value g v =
-		let value = (get_var_info g v).vi_value in
-		let bb,is_phi,i = match value with
-			| None -> raise Not_found
-			| Some l -> l
-		in
-		match (get_texpr g bb is_phi i).eexpr with
-		| TVar(_,Some e) | TBinop(OpAssign,_,e) -> e
-		| _ -> assert false
-
-	let add_var_origin g v v_origin =
-		(get_var_info g v).vi_origin <- v_origin
-
-	let get_var_origin g v =
-		(get_var_info g v).vi_origin
-
 	(* graph *)
 
 	let create t p =
@@ -919,17 +919,6 @@ module Graph = struct
 			g_var_infos = DynArray.create();
 			g_loops = IntMap.empty;
 		}
-
-	let calculate_df g =
-		iter_edges g (fun edge ->
-			let rec loop bb =
-				if bb != g.g_unreachable && bb != edge.cfg_to && bb != edge.cfg_to.bb_dominator then begin
-					if edge.cfg_to != g.g_exit then bb.bb_df <- edge.cfg_to :: bb.bb_df;
-					if bb.bb_dominator != bb then loop bb.bb_dominator
-				end
-			in
-			loop edge.cfg_from
-		)
 
 	let check_integrity g =
 		List.iter (fun bb ->
@@ -947,6 +936,8 @@ module Graph = struct
 			) bb.bb_incoming
 		) g.g_nodes
 
+	(* inference *)
+
 	type dom_bb_info = {
 		bb : BasicBlock.t;
 		parent : dom_bb_info;
@@ -957,7 +948,7 @@ module Graph = struct
 		mutable bucket : dom_bb_info list;
 	}
 
-	let calculate_immediate_dominators g =
+	let infer_immediate_dominators g =
 		let info = Hashtbl.create 0 in
 		let nodes = DynArray.create () in
 		let get_info i = Hashtbl.find info i in
@@ -976,6 +967,7 @@ module Graph = struct
 			DynArray.add nodes bbi;
 		in
 		let rec loop bb_parent bb =
+			bb.bb_dominated <- [];
 			add_info bb bb_parent;
 			List.iter (fun edge ->
 				let bb_to = edge.cfg_to in
@@ -1041,10 +1033,24 @@ module Graph = struct
 			if bbi.idom != bbi then begin
 				let bb = bbi.bb in
 				let bb' = bbi.idom.bb in
-				bb.bb_dominator <- bb';
-				if bb != bb' then bb'.bb_dominated <- bb :: bb'.bb_dominated
+				if bb != bb' then begin
+					bb.bb_dominator <- bb';
+					bb'.bb_dominated <- bb :: bb'.bb_dominated
+				end
 			end
 		) nodes
+
+
+	let infer_dominance_frontier g =
+		iter_edges g (fun edge ->
+			let rec loop bb =
+				if bb != g.g_unreachable && bb != edge.cfg_to && bb != edge.cfg_to.bb_dominator then begin
+					if edge.cfg_to != g.g_exit then bb.bb_df <- edge.cfg_to :: bb.bb_df;
+					if bb.bb_dominator != bb then loop bb.bb_dominator
+				end
+			in
+			loop edge.cfg_from
+		)
 
 	let infer_var_writes g =
 		iter_dom_tree g (fun bb ->
@@ -1112,9 +1118,6 @@ module Graph = struct
 			end
 		in
 		Hashtbl.iter (fun _ (bb,_,_,_) -> loop [0] bb) g.g_functions
-
-	let finalize g bb_exit =
-		g.g_exit <- bb_exit
 end
 
 type analyzer_context = {
@@ -1709,7 +1712,7 @@ module TexprTransformer = struct
 		let bb_func,bb_exit = func ctx g.g_root tf e.etype e.epos in
 		ctx.entry <- bb_func;
 		close_node g g.g_root;
-		finalize g bb_exit;
+		g.g_exit <- bb_exit;
 		set_syntax_edge g bb_exit SEEnd;
 		ctx
 
@@ -1947,7 +1950,7 @@ module Ssa = struct
 		List.iter (rename_in_block ctx) bb.bb_dominated
 
 	let apply ctx =
-		Graph.calculate_df ctx.graph;
+		Graph.infer_dominance_frontier ctx.graph;
 		insert_phi ctx;
 		rename_in_block ctx ctx.graph.g_root
 end
@@ -3066,7 +3069,7 @@ module Run = struct
 
 	let run_on_expr com config e =
 		let ctx = there com config e in
-		Graph.calculate_immediate_dominators ctx.graph;
+		Graph.infer_immediate_dominators ctx.graph;
 		Graph.infer_scopes ctx.graph;
 		Graph.infer_var_writes ctx.graph;
 		if com.debug then Graph.check_integrity ctx.graph;
