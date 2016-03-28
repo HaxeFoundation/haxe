@@ -307,9 +307,6 @@ class Input {
 	static function __init__() untyped {
 		Input.prototype.bigEndian = false;
 	}
-#elseif cpp
-	static var _float_of_bytes = cpp.Lib.load("std","float_of_bytes",2);
-	static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 #end
 
 #if (flash || js || python)
