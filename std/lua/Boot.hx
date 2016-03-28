@@ -214,9 +214,14 @@ class Boot {
 				else {
 					var fields = Reflect.fields(o);
 					var buffer = new StringBuf();
+					var first = true;
+					buffer.add("{ ");
 					for (f in fields){
+						if (first) first = false;
+						else buffer.add(", ");
 						buffer.add('${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
 					}
+					buffer.add(" }");
 					buffer.toString();
 				}
 			};
