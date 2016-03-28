@@ -27,6 +27,7 @@ private enum FileKind {
 	kother( k : String );
 }
 
+@:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
 @:coreApi
 class FileSystem {
 

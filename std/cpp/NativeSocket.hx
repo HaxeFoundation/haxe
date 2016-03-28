@@ -1,6 +1,6 @@
 package cpp;
 
-@:buildXml('<import name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
+@:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
 extern class NativeSocket
 {
    @:extern @:native("_hx_std_socket_init")

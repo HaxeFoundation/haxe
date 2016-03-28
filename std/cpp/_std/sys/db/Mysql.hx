@@ -194,7 +194,7 @@ private class MysqlConnection implements sys.db.Connection {
 	private static var __use_date = Date;
 }
 
-@:buildXml('<import name="${HXCPP}/src/hx/libs/mysql/Build.xml"/>')
+@:buildXml('<include name="${HXCPP}/src/hx/libs/mysql/Build.xml"/>')
 @:coreApi class Mysql {
 
 	public static function connect( params : {
