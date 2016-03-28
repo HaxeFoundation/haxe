@@ -13,7 +13,7 @@ extern class NativeSys
 
 
    @:extern @:native("_hx_std_sys_sleep")
-   public static function sys_sleep(f:Int) : Void { }
+   public static function sys_sleep(f:Float) : Void { }
 
 
    @:extern @:native("_hx_std_set_time_locale")
