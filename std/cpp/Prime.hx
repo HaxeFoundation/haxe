@@ -32,7 +32,6 @@ class Prime {
 
    #if (!macro && cpp)
 
-   @:analyzer(no_simplification)
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
 		var factory:Callable< ConstCharStar -> Object > =
                untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
@@ -76,7 +75,7 @@ class Prime {
       #if neko
       var init = neko.Lib.load(inModuleName, "neko_init", 5);
 
-      if (init != null) 
+      if (init != null)
       {
          init( function(s) return new String(s),
                function(len:Int) { var r = []; if (len > 0) r[len - 1] = null; return r; },
