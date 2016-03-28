@@ -39,7 +39,7 @@ import haxe.io.Output;
 	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
 **/
 @:coreapi
-class Socket {
+class Socket implements sys.net.ISocket {
 	private var sock : cs.system.net.sockets.Socket = null;
 
 	/**
@@ -200,7 +200,7 @@ class Socket {
 		[select] will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
 		In case a [timeout] (in seconds) is specified, select might wait at worse until the timeout expires.
 	**/
-	static public function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
+	static public function select(read : Array<ISocket>, write : Array<ISocket>, others : Array<ISocket>, ?timeout : Float) : { read: Array<ISocket>,write: Array<ISocket>,others: Array<ISocket> } {
 		throw "Not implemented yet.";
 		return null;
 	}
