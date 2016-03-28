@@ -21,18 +21,19 @@
  */
 package sys.net;
 import haxe.io.Error;
+import cpp.NativeSocket;
 
 @:coreApi
 class UdpSocket extends Socket {
 
 	public function new() : Void {
-		__s = Socket.socket_new(true);
+		__s = NativeSocket.socket_new(true);
 		super();
 	}
 
 	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		return try {
-			socket_send_to(__s, buf.getData(), pos, len, addr);
+			NativeSocket.socket_send_to(__s, buf.getData(), pos, len, addr);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Blocked;
@@ -44,7 +45,7 @@ class UdpSocket extends Socket {
 	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		var r;
 		try {
-			r = socket_recv_from(__s,buf.getData(),pos,len,addr);
+			r = NativeSocket.socket_recv_from(__s,buf.getData(),pos,len,addr);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Blocked;
@@ -55,8 +56,5 @@ class UdpSocket extends Socket {
 			throw new haxe.io.Eof();
 		return r;
 	}
-
-	static var socket_recv_from = cpp.Lib.loadLazy("std", "socket_recv_from", 5);
-	static var socket_send_to = cpp.Lib.loadLazy("std", "socket_send_to", 5);
 
 }

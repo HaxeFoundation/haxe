@@ -1,5 +1,7 @@
 package cpp;
 
+import sys.net.Socket;
+
 @:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
 extern class NativeSocket
 {
@@ -13,6 +15,10 @@ extern class NativeSocket
 
    @:extern @:native("_hx_std_socket_close")
    public static function socket_close(handle:Dynamic) : Void { }
+
+
+   @:extern @:native("_hx_std_socket_bind")
+   public static function socket_bind(o:Dynamic,host:Int,port:Int) : Void { }
 
 
    @:extern @:native("_hx_std_socket_send_char")
@@ -104,7 +110,7 @@ extern class NativeSocket
 
 
    @:extern @:native("_hx_std_socket_poll_prepare")
-   public static function socket_poll_prepare(pdata:Dynamic,rsocks:Array<Dynamic>,wsocks:Array<Dynamic>) : Array<Dynamic> return null;
+   public static function socket_poll_prepare(pdata:Dynamic,rsocks:Array<Socket>,wsocks:Array<Socket>) : Array< Array<Int> > return null;
 
 
    @:extern @:native("_hx_std_socket_poll_events")
@@ -112,7 +118,7 @@ extern class NativeSocket
 
 
    @:extern @:native("_hx_std_socket_poll")
-   public static function socket_poll(socks:Array<Dynamic>,pdata:Dynamic,timeout:Float) : Array<Dynamic> return null;
+   public static function socket_poll(socks:Array<Socket>,pdata:Dynamic,timeout:Float) : Array<Socket> return null;
 
 
    @:extern @:native("_hx_std_socket_send_to")
