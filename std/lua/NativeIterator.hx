@@ -40,7 +40,7 @@ abstract NativeIterator<T>(Void->T) {
 	}
 
 	@:to
-	public function toF() : Iterator<T> {
+	public function toIterator() : Iterator<T> {
 		return new HaxeIterator(this);
 	}
 }
