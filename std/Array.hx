@@ -22,6 +22,9 @@
 /**
 	An Array is a storage for values. You can access it using indexes or
 	with its API.
+
+	@see http://haxe.org/manual/std-Array.html
+	@see http://haxe.org/manual/lf-array-comprehension.html
 **/
 extern class Array<T> {
 

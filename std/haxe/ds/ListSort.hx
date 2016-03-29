@@ -24,7 +24,7 @@ package haxe.ds;
 
 /**
 	ListSort provides a stable implementation of merge sort through its `sort`
-	method. It has a O(N.log(N)) complexity and does not require additional memory allocation
+	method. It has a O(N.log(N)) complexity and does not require additional memory allocation.
 **/
 class ListSort {
 

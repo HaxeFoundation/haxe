@@ -22,9 +22,11 @@
 package haxe;
 
 /**
-	Crossplatform JSON API : it will automatically use the optimized native API if available.
-	Use -D haxeJSON to force usage of the Haxe implementation even if a native API is found : this will provide
-	extra encoding features such as enums (replaced by their index) and StringMaps.
+	Crossplatform JSON API: it will automatically use the optimized native API if available.
+	Use `-D haxeJSON` to force usage of the Haxe implementation even if a native API is found: 
+	this will provide extra encoding features such as enums (replaced by their index) and StringMaps.
+	=
+	@see http://haxe.org/manual/std-Json.html
 **/
 class Json {
 
@@ -35,6 +37,8 @@ class Json {
 		are parsed into Array<Dynamic>.
 
 		If given `text` is not valid JSON, an exception will be thrown.
+
+		@see http://haxe.org/manual/std-Json-parsing.html
 	**/
 	public static inline function parse( text : String ) : Dynamic {
 		return haxe.format.JsonParser.parse(text);
@@ -49,6 +53,8 @@ class Json {
 		
 		If `space` is given and is not null, the result will be pretty-printed.
 		Successive levels will be indented by this string.
+
+		@see http://haxe.org/manual/std-Json-encoding.html
 	**/
 	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space : String ) : String {
 		return haxe.format.JsonPrinter.print(value, replacer, space);

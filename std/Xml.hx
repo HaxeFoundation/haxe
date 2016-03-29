@@ -22,6 +22,8 @@
 
 /**
 	Xml node types.
+
+	@see http://haxe.org/manual/std-Xml.html
 **/
 @:enum abstract XmlType(Int) {
 	/**
