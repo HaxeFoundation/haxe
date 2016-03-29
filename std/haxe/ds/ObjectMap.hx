@@ -29,6 +29,8 @@ package haxe.ds;
 	to `haxe.ds.WeakMap` for a weak reference version.
 
 	See `Map` for documentation details.
+
+	@see http://haxe.org/manual/std-Map.html
 **/
 extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 

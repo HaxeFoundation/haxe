@@ -26,6 +26,8 @@
 	The corresponding enum instance type is `EnumValue`.
 
 	See `Type` for the Haxe Reflection API.
+
+	@see http://haxe.org/manual/types-enum-instance.html
 **/
 @:coreType @:runtimeValue abstract Enum<T> {
 }

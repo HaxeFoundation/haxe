@@ -26,6 +26,8 @@ package haxe.ds;
 	StringMap allows mapping of String keys to arbitrary values.
 
 	See `Map` for documentation details.
+
+	@see http://haxe.org/manual/std-Map.html
 **/
 extern class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 

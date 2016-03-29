@@ -23,6 +23,8 @@
 	An abstract type that represents a Class.
 
 	See `Type` for the Haxe Reflection API.
+
+	@see http://haxe.org/manual/types-class-instance.html
 **/
 @:coreType @:runtimeValue abstract Class<T> {
 }

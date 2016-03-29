@@ -22,8 +22,10 @@
 
 #if ((flash || flash9doc || cs || hl) && !doc_gen)
 /**
-	The unsigned Int type is only defined for Flash and C#. It's currently
+	The unsigned `Int` type is only defined for Flash and C#. It's currently
 	handled the same as a normal Int.
+
+	@see http://haxe.org/manual/types-basic-types.html
 **/
 @:coreType
 @:notNull
@@ -92,8 +94,10 @@ abstract UInt to Int from Int
 }
 #else
 /**
-	The unsigned Int type is only defined for Flash and C#.
+	The unsigned `Int` type is only defined for Flash and C#.
 	Simulate it for other platforms.
+
+	@see http://haxe.org/manual/types-basic-types.html
 **/
 abstract UInt(Int) from Int to Int {
 

@@ -23,6 +23,8 @@
 
 /**
 	The standard `Void` type. Only `null` values can be of the type `Void`.
+
+	@see http://haxe.org/manual/types-void.html
 **/
 @:coreType abstract Void { }
 
@@ -31,6 +33,12 @@
 
 	On static targets, `null` cannot be assigned to Float. If this is necessary,
 	`Null<Float>` can be used instead.
+
+	`Std.int` converts a `Float` to an `Int`, rounded towards 0.  
+	`Std.parseFloat` converts a `String` to a `Float`.
+
+	@see http://haxe.org/manual/types-basic-types.html
+	@see http://haxe.org/manual/types-nullability.html
 **/
 @:coreType @:notNull @:runtimeValue abstract Float { }
 
@@ -39,6 +47,13 @@
 
 	On static targets, `null` cannot be assigned to `Int`. If this is necessary,
 	`Null<Int>` can be used instead.
+
+	`Std.int` converts a `Float` to an `Int`, rounded towards 0.  
+	`Std.parseInt` converts a `String` to an `Int`.
+
+	@see http://haxe.org/manual/types-basic-types.html
+	@see http://haxe.org/manual/std-math-integer-math.html
+	@see http://haxe.org/manual/types-nullability.html
 **/
 @:coreType @:notNull @:runtimeValue abstract Int to Float { }
 
@@ -51,6 +66,8 @@
 	that accept or can return a `null` value, or for the Flash compiler and AS3
 	generator to distinguish between base values that can be `null` and others that
 	can't.
+
+	@see http://haxe.org/manual/types-nullability.html
 **/
 typedef Null<T> = T
 
@@ -59,6 +76,9 @@ typedef Null<T> = T
 
 	On static targets, `null` cannot be assigned to `Bool`. If this is necessary,
 	`Null<Bool>` can be used instead.
+
+	@see http://haxe.org/manual/types-bool.html
+	@see http://haxe.org/manual/types-nullability.html
 **/
 @:coreType @:notNull @:runtimeValue abstract Bool {
 }
@@ -68,6 +88,8 @@ typedef Null<T> = T
 
 	Use of `Dynamic` should be minimized as it prevents several compiler
 	checks and optimizations.
+
+	@see http://haxe.org/manual/types-dynamic.html
 **/
 @:coreType @:runtimeValue abstract Dynamic<T> {
 }
@@ -78,6 +100,8 @@ typedef Null<T> = T
 	Any class with matching `hasNext()` and `next()` fields is considered an `Iterator`
 	and can then be used e.g. in `for`-loops. This makes it easy to implement
 	custom iterators.
+
+	@see http://haxe.org/manual/lf-iterators.html
 **/
 typedef Iterator<T> = {
 
@@ -107,6 +131,8 @@ typedef Iterator<T> = {
 /**
 	An `Iterable` is a data structure which has an `iterator()` method.
 	See `Lambda` for generic functions on iterable structures.
+
+	@see http://haxe.org/manual/lf-iterators.html
 **/
 typedef Iterable<T> = {
 	function iterator() : Iterator<T>;
@@ -118,6 +144,8 @@ typedef Iterable<T> = {
 
 	This interface should be used for externs only. Haxe does not support custom
 	array access on classes. However, array access can be implemented for
-	abstract types (see http://haxe.org/manual/types-abstract-array-access.html).
+	abstract types.
+
+	@see http://haxe.org/manual/types-abstract-array-access.html
 **/
 extern interface ArrayAccess<T> { }
