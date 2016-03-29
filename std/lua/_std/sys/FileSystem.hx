@@ -25,6 +25,7 @@ import lua.lib.lfs.Lfs;
 import lua.Io;
 import lua.Os;
 import lua.Lib;
+import lua.Table;
 import haxe.io.Path;
 
 class FileSystem {
@@ -80,7 +81,15 @@ class FileSystem {
 	}
 
 	public inline static function readDirectory( path : String ) : Array<String> {
-		return lua.Lib.fillArray(Lfs.dir(path));
+		var parts : Table<Dynamic, Dynamic> = Table.pack(Lfs.dir(path));
+		var itr = function(){
+			var res = parts[1](parts[2]);
+			while(res == "." || res == ".."){
+				res = parts[1](parts[2]);
+			}
+			return res;
+		}
+		return lua.Lib.fillArray(itr);
 	}
 
 	public inline static function isDirectory( path : String ) : Bool {
