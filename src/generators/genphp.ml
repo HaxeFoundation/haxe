@@ -774,6 +774,13 @@ and is_static t =
 		| Statics c -> true
 		| _ -> false)
 	| _ -> false
+	
+and get_constant_prefix meta =
+	let (_, args, pos) = Meta.get Meta.PhpConstants meta in
+	(match args with
+		| [EConst(String prefix), _] -> prefix
+		| [] -> ""
+		| _ -> error "Invalid @:phpConstant parameters" pos)
 
 and gen_member_access ctx isvar e s =
 	match follow e.etype with
@@ -786,7 +793,8 @@ and gen_member_access ctx isvar e s =
 			| ([], "") | ([], "\\") -> ""
 			| _ -> "::" in
 			let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
-			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else "") (s_ident s)
+			let cprefix = if isconst then get_constant_prefix sta.cl_meta else "" in
+			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else cprefix) (s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
 
