@@ -1337,7 +1337,10 @@ try
 				if d <> Define.Last then begin
 					let t, doc, params = Define.infos d in
 					if String.length t > !m then m := String.length t;
-					((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: (loop (i + 1))
+					let next = (loop (i + 1)) in
+					if List.mem Define.Internal params == false then 
+						((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: next
+					else next;
 				end else
 					[]
 			in
