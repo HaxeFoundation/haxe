@@ -1840,7 +1840,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
          "id < " ^ path ^ ">"
       else
          path ^ " *"
-   | TCppNativePointer klass -> (join_class_path_remap klass.cl_path "::") ^ " *"
+   | TCppNativePointer klass -> (join_class_path_remap klass.cl_path "::") ^ (if suffix="_obj" then "" else " *")
    | TCppInst klass ->
         (cpp_class_path_of klass) ^ suffix
    | TCppClass -> "hx::Class" ^ suffix;
@@ -4830,7 +4830,7 @@ let gen_member_def ctx class_def is_static is_interface field =
       | _, Method MethDynamic  -> ()
       | TFun (args,return_type), Method _  ->
          let gen_args = if ctx.ctx_cppast then ctx_tfun_arg_list ctx else gen_tfun_interface_arg_list in
-         if not ctx.ctx_callsiteInterfaces || is_static then begin
+         if not ctx.ctx_callsiteInterfaces || is_static || nativeGen then begin
             output ( (if (not is_static) then "		virtual " else "		" ) ^ (ctx_type_string ctx return_type) );
             output (" " ^ remap_name ^ "( " );
             output (gen_args args);
@@ -4928,15 +4928,17 @@ let path_of_string path =
    These are used for "#include"ing the appropriate header files,
    or for building the dependencies in the Build.xml file
 *)
-let find_referenced_types ctx obj super_deps constructor_deps header_only for_depends include_super_args =
+let find_referenced_types_flags ctx obj super_deps constructor_deps header_only for_depends include_super_args =
    let types = ref PMap.empty in
-   let rec add_type in_path =
+   let rec add_type_flag in_path isNative =
       if ( not (PMap.mem in_path !types)) then begin
-         types := (PMap.add in_path () !types);
+         types := (PMap.add in_path isNative !types);
          try
             List.iter add_type (Hashtbl.find super_deps in_path);
          with Not_found -> ()
       end
+   and add_type in_path =
+      add_type_flag in_path false
    in
    let add_extern_class klass =
       let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
@@ -4951,8 +4953,15 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
          add_type ( path_of_string include_file )
       else if for_depends then
          add_type klass.cl_path
-      else
-         add_type ( path_of_string ( (join_class_path klass.cl_path "/") ^ ".h") )
+      else begin
+         let path = klass.cl_path in
+         if not klass.cl_interface then
+            (* Always include native struct headers directly ... *)
+            add_type ( path_of_string ( (join_class_path path "/") ^ ".h") )
+         else begin
+            add_type_flag klass.cl_path true
+         end
+      end
    in
    let visited = ref [] in
    let rec visit_type in_type =
@@ -5077,8 +5086,15 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only for_de
    | TEnumDecl enum_def -> visit_enum enum_def
    | TTypeDecl _ | TAbstractDecl _ -> (* These are expanded *) ());
 
-   List.sort inc_cmp (List.filter (fun path -> (include_class_header path) ) (pmap_keys !types))
+   let deps = List.sort inc_cmp (List.filter (fun path -> (include_class_header path) ) (pmap_keys !types)) in
+   let flags = List.map (fun dep -> PMap.find dep !types) deps in
+   deps, flags
    ;;
+
+let find_referenced_types ctx obj super_deps constructor_deps header_only for_depends include_super_args =
+  let deps,_ = find_referenced_types_flags ctx obj super_deps constructor_deps header_only for_depends include_super_args in
+  deps
+;;
 
 
 let generate_main_header output_main =
@@ -5248,11 +5264,19 @@ let generate_files common_ctx file_info =
    files_file#close;;
 
 
-let begin_header_file output_h def_string =
+let begin_header_file output_h def_string nativeGen =
    output_h ("#ifndef INCLUDED_" ^ def_string ^ "\n");
    output_h ("#define INCLUDED_" ^ def_string ^ "\n\n");
    output_h "#ifndef HXCPP_H\n";
-   output_h "#include <hxcpp.h>\n";
+   if nativeGen then begin
+      output_h "#ifdef HXCPP_API_LEVEL\n";
+      output_h "#include <hxcpp.h>\n";
+      output_h "#else\n";
+      output_h "#include <hx/Native.h>\n";
+      output_h "#endif\n"
+   end else begin
+      output_h "#include <hxcpp.h>\n"
+   end;
    output_h "#endif\n\n";;
 
 let end_header_file output_h def_string =
@@ -5457,7 +5481,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    let ctx = file_context baseCtx h_file debug in
 
-   begin_header_file output_h def_string;
+   begin_header_file output_h def_string false;
 
    List.iter (gen_forward_decl h_file ) referenced;
 
@@ -6466,7 +6490,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let h_file = new_header_file common_ctx common_ctx.file class_path in
    let super = match class_def.cl_super with
       | Some (klass,params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
-      | _ when nativeGen -> ""
+      | _ when nativeGen -> "hx::NativeInterface"
       | _ -> if (class_def.cl_interface) then "hx::Interface" else "hx::Object"
       in
    let output_h = (h_file#write) in
@@ -6474,7 +6498,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let ctx = file_context baseCtx h_file debug in
 
-   begin_header_file output_h def_string;
+   begin_header_file output_h def_string nativeGen;
 
    (* Include the real header file for the super class *)
    (match class_def.cl_super with
@@ -6491,6 +6515,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       (ie, not the implementation)  *)
    let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
    List.iter ( gen_forward_decl h_file ) referenced;
+   output_h "\n";
 
    output_h ( get_class_code class_def Meta.HeaderCode );
    let inc = get_meta_string_path class_def.cl_meta Meta.HeaderInclude in
@@ -6524,8 +6549,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super );
       dump_native_interfaces();
       output_h "\n{\n\tpublic:\n";
-      output_h ("\t\ttypedef " ^ super ^ " super;\n");
-      output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
+      if not nativeGen then begin
+         output_h ("\t\ttypedef " ^ super ^ " super;\n");
+         output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
+      end
    end;
 
    if (not class_def.cl_interface && not nativeGen) then begin
