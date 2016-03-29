@@ -1335,7 +1335,7 @@ try
 			let rec loop i =
 				let d = Obj.magic i in
 				if d <> Define.Last then begin
-					let t, doc = Define.infos d in
+					let t, doc, params = Define.infos d in
 					if String.length t > !m then m := String.length t;
 					((String.concat "-" (ExtString.String.nsplit t "_")),doc) :: (loop (i + 1))
 				end else
@@ -1456,7 +1456,7 @@ try
 			add_std "neko";
 			"n"
 		| Js ->
-			if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
+			if not (PMap.exists (Define.to_string Define.JqueryVer) com.defines) then
 				Common.define_value com Define.JqueryVer "11202";
 
 			let es_version =

@@ -4525,7 +4525,7 @@ let make_macro_api ctx p =
 			let old_error = ctx.on_error in
 			let restore () =
 				if not is_displaying then begin
-					ctx.com.defines <- PMap.remove (fst (Define.infos Define.Display)) ctx.com.defines;
+					ctx.com.defines <- PMap.remove (Define.to_string Define.Display) ctx.com.defines;
 					ctx.com.display <- DMNone
 				end;
 				Parser.resume_display := old_resume;
@@ -4848,7 +4848,7 @@ let get_macro_context ctx p =
 		com2.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 		com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
-		let to_remove = List.map (fun d -> fst (Define.infos d)) [Define.NoTraces] in
+		let to_remove = List.map (fun d -> Define.to_string d) [Define.NoTraces] in
 		let to_remove = to_remove @ List.map (fun (_,d) -> "flash" ^ d) Common.flash_versions in
 		com2.defines <- PMap.foldi (fun k v acc -> if List.mem k to_remove then acc else PMap.add k v acc) com2.defines PMap.empty;
 		Common.define com2 Define.Macro;
