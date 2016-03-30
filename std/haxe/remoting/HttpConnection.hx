@@ -68,7 +68,7 @@ class HttpConnection implements Connection implements Dynamic<Connection> {
 		return new haxe.Unserializer(data).unserialize();
 	}
 
-	#if (js || neko || php)
+	#if !flash
 
 	public static function urlConnect( url : String ) {
 		return new HttpConnection(url,[]);
