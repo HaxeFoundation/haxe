@@ -24,7 +24,7 @@ package sys.net;
 /**
 	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
 **/
-extern class Socket {
+extern class Socket implements ISocket {
 
 	/**
 		The stream on which you can read available data. By default the stream is blocking until the requested data is available,
@@ -125,6 +125,6 @@ extern class Socket {
 		[select] will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
 		In case a [timeout] (in seconds) is specified, select might wait at worse until the timeout expires.
 	**/
-	static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> };
+	static function select(read : Array<ISocket>, write : Array<ISocket>, others : Array<ISocket>, ?timeout : Float) : { read: Array<ISocket>,write: Array<ISocket>,others: Array<ISocket> };
 
 }
