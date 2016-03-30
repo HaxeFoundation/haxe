@@ -1815,13 +1815,14 @@ and eval_expr ctx e =
 			let ro = alloc_tmp ctx t in
 			let rb = alloc_tmp ctx HBytes in
 			let ridx = reg_int ctx 0 in
+			let has_len = (match t with HObj p -> PMap.mem "dataLen" p.pindex | _ -> assert false) in
 			iteri (fun i (k,v) ->
 				op ctx (ONew ro);
 				op ctx (OString (rb,alloc_string ctx k));
 				op ctx (OSetField (ro,0,rb));
 				op ctx (OBytes (rb,alloc_string ctx (v ^ "\x00"))); (* add a \x00 to prevent clashing with existing string *)
 				op ctx (OSetField (ro,1,rb));
-				op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
+				if has_len then op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
 				op ctx (OSetArray (arr,ridx,ro));
 				op ctx (OIncr ridx);
 			) res;
