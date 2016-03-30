@@ -5776,7 +5776,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    List.iter (fun imp ->
       let rec descend_interface interface =
          let intf_def = (fst interface) in
-         if (is_native_gen_class intf_def) && nativeGen then
          let interface_name = cpp_interface_impl_name baseCtx intf_def in
          if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
             Hashtbl.add implemented_hash interface_name intf_def;
