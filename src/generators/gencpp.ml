@@ -511,20 +511,21 @@ let get_class_code class_def key = match class_def.cl_kind with
 let add_include writer class_path =
    writer#add_include class_path;;
 
+let list_num l = string_of_int (List.length l);;
 
 (* This gets the class include order correct.  In the header files, we forward declare
    the class types so the header file does not have any undefined variables.
    In the cpp files, we include all the required header files, providing the actual
    types for everything.  This way there is no problem with circular class references.
 *)
-let gen_forward_decl writer class_path =
+let gen_forward_decl writer class_path isNative =
    begin
       let output = writer#write in
       match class_path with
       | (["@verbatim"],file) -> writer#write ("#include <" ^ file ^ ">\n");
       | _ ->
          let name = fst (remap_class_path class_path) in
-         output ("HX_DECLARE_CLASS" ^ (string_of_int (List.length name ) ) ^ "(");
+         output ((if isNative then "HX_DECLARE_NATIVE" else "HX_DECLARE_CLASS") ^ list_num name  ^ "(");
          List.iter (fun package_part -> output (package_part ^ ",") ) name;
          output ( (snd class_path) ^ ")\n")
 end;;
@@ -1273,7 +1274,6 @@ let array_arg_list inList =
    let i = ref (0-1) in
    String.concat "," (List.map (fun _ -> incr i; "inArgs[" ^ (string_of_int !i) ^ "]"  ) inList)
 
-let list_num l = string_of_int (List.length l);;
 
 
 let only_int_cases cases =
@@ -2950,7 +2950,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
          | FuncFromStaticFunction -> error "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
          );
-      | CppCall( FuncInterface(expr,clazz,field), args) when ctx.ctx_callsiteInterfaces ->
+      | CppCall( FuncInterface(expr,clazz,field), args) when ctx.ctx_callsiteInterfaces && not (is_native_gen_class clazz)->
          out ( cpp_class_name clazz ^ "::" ^ cpp_member_name_of field ^ "(");
          gen expr;
          List.iter (fun arg -> out ","; gen arg ) args;
@@ -4930,15 +4930,15 @@ let path_of_string path =
 *)
 let find_referenced_types_flags ctx obj super_deps constructor_deps header_only for_depends include_super_args =
    let types = ref PMap.empty in
-   let rec add_type_flag in_path isNative =
+   let rec add_type_flag isNative in_path =
       if ( not (PMap.mem in_path !types)) then begin
          types := (PMap.add in_path isNative !types);
          try
-            List.iter add_type (Hashtbl.find super_deps in_path);
+            List.iter (add_type_flag isNative) (Hashtbl.find super_deps in_path);
          with Not_found -> ()
       end
    and add_type in_path =
-      add_type_flag in_path false
+      add_type_flag false in_path
    in
    let add_extern_class klass =
       let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
@@ -4959,7 +4959,7 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
             (* Always include native struct headers directly ... *)
             add_type ( path_of_string ( (join_class_path path "/") ^ ".h") )
          else begin
-            add_type_flag klass.cl_path true
+            add_type_flag true klass.cl_path
          end
       end
    in
@@ -5314,7 +5314,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    output_cpp "#include <hxcpp.h>\n\n";
 
-   let referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false false in
+   let referenced,flags = find_referenced_types_flags common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false false in
    List.iter (add_include cpp_file) referenced;
 
    gen_open_namespace output_cpp class_path;
@@ -5483,7 +5483,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    begin_header_file output_h def_string false;
 
-   List.iter (gen_forward_decl h_file ) referenced;
+   List.iter2 (fun r f -> gen_forward_decl h_file r f) referenced flags;
 
    gen_open_namespace output_h class_path;
 
@@ -5695,62 +5695,80 @@ let access_str a = match a with
    | AccInline -> "AccInline"
    | AccRequire(_,_) -> "AccRequire" ;;
 
+
+let script_type t optional = if optional then "Object" else
+   match type_string t with
+   | "bool" -> "Int"
+   | "int" -> "Int"
+   | "Float" -> "Float"
+   | "::String" -> "String"
+   | "Null" -> "Void"
+   | "Void" -> "Void"
+   | _ -> "Object"
+;;
+
+let script_signature t optional = match script_type t optional with
+   | "Bool" -> "b"
+   | "Int" -> "i"
+   | "Float" -> "f"
+   | "String" -> "s"
+   | "Void" -> "v"
+   | "void" -> "v"
+   | _ -> "o"
+;;
+
+let script_size_type t optional = match script_type t optional with
+   | "Object" -> "void *"
+   | x -> x
+;;
+
+
+
+let constructor_arg_var_list class_def ctx =
+   match class_def.cl_constructor with
+   | Some definition ->
+            (match definition.cf_expr with
+               | Some { eexpr = TFunction function_def } ->
+                  List.map (fun (v,o) -> (v.v_name, ctx_arg_type_name ctx v.v_name o v.v_type "__o_"))
+                        function_def.tf_args;
+               | _ ->
+                  (match follow definition.cf_type with
+                     | TFun (args,_) -> List.map (fun (a,_,t) -> (a, (ctx_type_string ctx t, a)) )  args
+                     | _ -> [])
+            )
+   | _ -> []
+;;
+
+
+
+(*
+  Generate class header and cpp files
+
+*)
+
+
 let generate_class_files baseCtx super_deps constructor_deps class_def inScriptable =
+
+   (* Shorcuts *)
    let common_ctx = baseCtx.ctx_common in
    let class_path = class_def.cl_path in
    let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
    let class_name = (snd class_path) ^ (if nativeGen then "" else "_obj") in
    let dot_name = join_class_path class_path "." in
    let smart_class_name =  (snd class_path)  in
-   (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
-   let cpp_file = new_placed_cpp_file baseCtx.ctx_common class_path in
-   let output_cpp = (cpp_file#write) in
+   let class_name_text = join_class_path class_path "." in
+   let ptr_name = "hx::ObjectPtr< " ^ class_name ^ " >" in
    let debug = if (has_meta_key class_def.cl_meta Meta.NoDebug) || ( Common.defined  baseCtx.ctx_common Define.NoDebug)
       then 0 else 1 in
    let scriptable = inScriptable && not class_def.cl_private in
-   let ctx = file_context baseCtx cpp_file debug in
 
-   ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
-   ctx.ctx_class_super_name <- (match class_def.cl_super with
-      | Some (klass, params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
-      | _ -> "");
-   if (debug>1) then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
-
-   let ptr_name = "hx::ObjectPtr< " ^ class_name ^ " >" in
-   let constructor_arg_var_list =
-      match class_def.cl_constructor with
-      | Some definition ->
-               (match definition.cf_expr with
-                  | Some { eexpr = TFunction function_def } ->
-                     List.map (fun (v,o) -> (v.v_name, ctx_arg_type_name ctx v.v_name o v.v_type "__o_"))
-                           function_def.tf_args;
-                  | _ ->
-                     (match follow definition.cf_type with
-                        | TFun (args,_) -> List.map (fun (a,_,t) -> (a, (ctx_type_string ctx t, a)) )  args
-                        | _ -> [])
-               )
-      | _ -> [] in
-
-   let constructor_type_var_list =
-      List.map snd constructor_arg_var_list in
-   let constructor_var_list = List.map snd constructor_type_var_list in
-   let constructor_type_args = String.concat ","
-            (List.map (fun (t,a) -> t ^ " " ^ a) constructor_type_var_list) in
-   let constructor_args = String.concat "," constructor_var_list in
-
-   let implement_dynamic = implement_dynamic_here class_def in
-
-   output_cpp "#include <hxcpp.h>\n\n";
-
-   let allow_ifield = not ctx.ctx_cppast in
+   (* Config *)
+   let allow_ifield = not baseCtx.ctx_cppast in
    let force_field = scriptable && (has_get_member_field class_def) in
    let field_integer_dynamic = allow_ifield && (force_field || (has_field_integer_lookup class_def)) in
    let field_integer_numeric = allow_ifield && (force_field || (has_field_integer_numeric_lookup class_def)) in
-
-
-   let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false scriptable in
-   List.iter ( add_include cpp_file  ) all_referenced;
-
+   let implement_dynamic = implement_dynamic_here class_def in
+   let override_iteration = (not nativeGen) && (has_new_gc_references class_def) in
    let dynamic_interface_closures =  (Common.defined baseCtx.ctx_common Define.DynamicInterfaceClosures) in
 
    (* All interfaces (and sub-interfaces) implemented *)
@@ -5758,7 +5776,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    List.iter (fun imp ->
       let rec descend_interface interface =
          let intf_def = (fst interface) in
-         let interface_name = cpp_interface_impl_name ctx intf_def in
+         if (is_native_gen_class intf_def) && nativeGen then
+         let interface_name = cpp_interface_impl_name baseCtx intf_def in
          if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
             Hashtbl.add implemented_hash interface_name intf_def;
             List.iter descend_interface intf_def.cl_implements;
@@ -5769,6 +5788,59 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       in descend_interface imp
    ) (real_non_native_interfaces class_def.cl_implements);
    let implemented = hash_keys implemented_hash in
+   let implementsNative = ref false in
+   List.iter (fun imp -> if is_native_gen_class (fst imp) then implementsNative:= true ) class_def.cl_implements;
+
+
+   (* Field groups *)
+   let statics_except_meta = statics_except_meta class_def in
+   let implemented_fields = List.filter should_implement_field statics_except_meta in
+   let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
+
+   let reflect_member_fields = List.filter (reflective class_def) class_def.cl_ordered_fields in
+   let reflect_member_readable = List.filter (is_readable class_def) reflect_member_fields in
+   let reflect_member_writable = List.filter (is_writable class_def) reflect_member_fields in
+   let reflect_write_member_variables = List.filter variable_field reflect_member_writable in
+
+   let reflect_static_fields = List.filter (reflective class_def) (statics_except_meta) in
+   let reflect_static_readable = List.filter (is_readable class_def) reflect_static_fields in
+   let reflect_static_writable = List.filter (is_writable class_def) reflect_static_fields in
+   let reflect_write_static_variables = List.filter variable_field reflect_static_writable in
+
+   let reflective_members = List.filter (reflective class_def) implemented_instance_fields in
+
+   (* Constructor definition *)
+   let cargs = (constructor_arg_var_list class_def baseCtx) in
+   let constructor_type_var_list = List.map snd cargs in
+   let constructor_var_list = List.map snd constructor_type_var_list in
+   let constructor_type_args = String.concat ","
+            (List.map (fun (t,a) -> t ^ " " ^ a) constructor_type_var_list) in
+   let constructor_args = String.concat "," constructor_var_list in
+
+   (* State *)
+   let interface_glue = ref [] in
+
+ (*
+   Generate cpp code
+ *)
+ let generate_class_cpp () =
+
+   (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
+   let cpp_file = new_placed_cpp_file baseCtx.ctx_common class_path in
+   let output_cpp = (cpp_file#write) in
+   let ctx = file_context baseCtx cpp_file debug in
+
+   ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
+   ctx.ctx_class_super_name <- (match class_def.cl_super with
+      | Some (klass, params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
+      | _ -> "");
+   if (debug>1) then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
+
+
+   output_cpp "#include <hxcpp.h>\n\n";
+
+   let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false scriptable in
+   List.iter ( add_include cpp_file  ) all_referenced;
 
    if (scriptable) then
       output_cpp "#include <hx/Scriptable.h>\n";
@@ -5782,8 +5854,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    output_cpp "\n";
 
    output_cpp ( get_class_code class_def Meta.CppNamespaceCode );
-
-   let interface_glue = ref [] in
 
    if (not class_def.cl_interface) && not nativeGen then begin
       output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")");
@@ -5803,7 +5873,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                if ctx.ctx_debug_level >0 then begin
                   hx_stack_push ctx output_cpp dot_name "new" function_def.tf_expr.epos;
                   output_cpp "HX_STACK_THIS(this)\n";
-                  List.iter (fun (a,(t,o)) -> output_cpp ("HX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) constructor_arg_var_list;
+                  List.iter (fun (a,(t,o)) -> output_cpp ("HX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) cargs;
                end;
 
                if (has_default_values function_def.tf_args) then begin
@@ -5916,10 +5986,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp "\n\n";
    | _ -> ());
 
-   let statics_except_meta = statics_except_meta class_def in
-   let implemented_fields = List.filter should_implement_field statics_except_meta in
+
    let dump_field_name = (fun field -> output_cpp ("\t" ^  (str field.cf_name) ^ ",\n")) in
-   let implemented_instance_fields = List.filter should_implement_field class_def.cl_ordered_fields in
 
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name false class_def.cl_interface)
@@ -5927,8 +5995,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    List.iter
       (gen_field ctx class_def class_name smart_class_name dot_name true class_def.cl_interface) statics_except_meta;
    output_cpp "\n";
-
-   let override_iteration = (not nativeGen) && (has_new_gc_references class_def) in
 
    (* Initialise non-static variables *)
    if ( (not class_def.cl_interface) && (not nativeGen) ) then begin
@@ -5987,16 +6053,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_cpp "}\n\n";
       end;
 
-
-      let reflect_member_fields = List.filter (reflective class_def) class_def.cl_ordered_fields in
-      let reflect_member_readable = List.filter (is_readable class_def) reflect_member_fields in
-      let reflect_member_writable = List.filter (is_writable class_def) reflect_member_fields in
-      let reflect_write_member_variables = List.filter variable_field reflect_member_writable in
-
-      let reflect_static_fields = List.filter (reflective class_def) (statics_except_meta) in
-      let reflect_static_readable = List.filter (is_readable class_def) reflect_static_fields in
-      let reflect_static_writable = List.filter (is_writable class_def) reflect_static_fields in
-      let reflect_write_static_variables = List.filter variable_field reflect_static_writable in
 
       (*
       let numericFields = if tcx.ctx_cppast then
@@ -6206,7 +6262,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp "#endif\n\n";
    end; (* cl_interface *)
 
-   let reflective_members = List.filter (reflective class_def) implemented_instance_fields in
    let sMemberFields = if List.length reflective_members>0 then begin
       let memberFields = class_name ^ "_sMemberFields" in
       output_cpp ("static ::String " ^ memberFields ^ "[] = {\n");
@@ -6238,30 +6293,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp "};\n\n";
       output_cpp "#endif\n\n";
    end;
-
-   let script_type t optional = if optional then "Object" else
-   match type_string t with
-   | "bool" -> "Int"
-   | "int" -> "Int"
-   | "Float" -> "Float"
-   | "::String" -> "String"
-   | "Null" -> "Void"
-   | "Void" -> "Void"
-   | _ -> "Object"
-   in
-   let script_signature t optional = match script_type t optional with
-   | "Bool" -> "b"
-   | "Int" -> "i"
-   | "Float" -> "f"
-   | "String" -> "s"
-   | "Void" -> "v"
-   | "void" -> "v"
-   | _ -> "o"
-   in
-   let script_size_type t optional = match script_type t optional with
-   | "Object" -> "void *"
-   | x -> x
-   in
 
    let generate_script_function isStatic field scriptName callName =
       match follow field.cf_type  with
@@ -6485,18 +6516,37 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    gen_close_namespace output_cpp class_path;
 
    cpp_file#close;
-
+ in
+ (*
+    Header code
+ *)
+ let generate_class_header () =
+   let common_ctx = baseCtx.ctx_common in
+   let class_path = class_def.cl_path in
+   let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
+   let class_name = (snd class_path) ^ (if nativeGen then "" else "_obj") in
+   let smart_class_name =  (snd class_path)  in
+   let scriptable = inScriptable && not class_def.cl_private in
+   (*let cpp_file = new_cpp_file common_ctx.file class_path in*)
+   let debug = if (has_meta_key class_def.cl_meta Meta.NoDebug) || ( Common.defined  baseCtx.ctx_common Define.NoDebug)
+      then 0 else 1 in
 
    let h_file = new_header_file common_ctx common_ctx.file class_path in
-   let super = match class_def.cl_super with
-      | Some (klass,params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
-      | _ when nativeGen -> "hx::NativeInterface"
-      | _ -> if (class_def.cl_interface) then "hx::Interface" else "hx::Object"
+   let ctx = file_context baseCtx h_file debug in
+
+
+
+   let parent,super = match class_def.cl_super with
+      | Some (klass,params) ->
+            let name = (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) ) in
+            (if class_def.cl_interface && nativeGen then "virtual " else "" ) ^ name, name
+      | None when nativeGen && class_def.cl_interface  -> "virtual hx::NativeInterface", "hx::NativeInterface"
+      | None when class_def.cl_interface -> "hx::Interface", "hx::Interface"
+      | None -> "hx::Object", "hx::Object"
       in
    let output_h = (h_file#write) in
    let def_string = join_class_path class_path "_"  in
 
-   let ctx = file_context baseCtx h_file debug in
 
    begin_header_file output_h def_string nativeGen;
 
@@ -6513,8 +6563,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    (* Only need to foreward-declare classes that are mentioned in the header file
       (ie, not the implementation)  *)
-   let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
-   List.iter ( gen_forward_decl h_file ) referenced;
+   let referenced,flags = find_referenced_types_flags ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
+   List.iter2 ( fun r f -> gen_forward_decl h_file r f ) referenced flags;
    output_h "\n";
 
    output_h ( get_class_code class_def Meta.HeaderCode );
@@ -6546,7 +6596,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       dump_native_interfaces();
       output_h "\n{\n\tpublic:\n";
    end else begin
-      output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ super );
+      output_h ("class " ^ attribs ^ " " ^ class_name ^ " : public " ^ parent );
       dump_native_interfaces();
       output_h "\n{\n\tpublic:\n";
       if not nativeGen then begin
@@ -6554,6 +6604,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_h ("\t\ttypedef " ^ class_name ^ " OBJ_;\n");
       end
    end;
+
+
 
    if (not class_def.cl_interface && not nativeGen) then begin
       output_h ("\t\t" ^ class_name ^  "();\n");
@@ -6570,6 +6622,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_h ("\t\tstatic hx::ScriptFunction __script_construct;\n");
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
       output_h ("\t\tHX_DO_RTTI_ALL;\n");
+      if (!implementsNative) then
+         output_h ("\t\tHX_NATIVE_IMPLEMENTATION\n");
       if (has_get_member_field class_def) then
          output_h ("\t\thx::Val __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
       if (has_get_static_field class_def) then
@@ -6692,7 +6746,19 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    end_header_file output_h def_string;
    h_file#close;
    let depend_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false true false in
-   depend_referenced;;
+   depend_referenced
+
+  in
+
+  (* create header and cpp files *)
+  if not (nativeGen && class_def.cl_interface) then
+     generate_class_cpp ();
+  generate_class_header ()
+;;
+
+
+
+
 
 
 let write_resources common_ctx =
@@ -7861,7 +7927,8 @@ let generate_source ctx =
             else if not (has_meta_key class_def.cl_meta Meta.NativeGen) then
                nonboot_classes := class_def.cl_path ::  !nonboot_classes;
             let deps = generate_class_files ctx super_deps constructor_deps class_def scriptable in
-            exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
+            if not (class_def.cl_interface && (is_native_gen_class class_def)) then
+               exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
          end
       | TEnumDecl enum_def when enum_def.e_extern -> ()
       | TEnumDecl enum_def ->
