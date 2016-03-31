@@ -478,6 +478,7 @@ module ConstPropagation = DataFlow(struct
 				Type.map_expr commit e
 		in
 		Graph.iter_dom_tree ctx.graph (fun bb ->
+			if not (List.exists (fun edge -> has_flag edge FlagExecutable) bb.bb_incoming) then bb.bb_dominator <- ctx.graph.Graph.g_unreachable;
 			dynarray_map commit bb.bb_el
 		);
 end)
