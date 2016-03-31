@@ -1275,6 +1275,20 @@ module Printer = struct
 			"cl_ordered_fields",s_list "\n" s_tclass_field c.cl_ordered_fields;
 			"cl_ordered_statics",s_list "\n" s_tclass_field c.cl_ordered_statics;
 		]
+
+	let s_tvar_extra ve = match ve with
+		| None -> "None"
+		| Some(tl,eo) -> Printf.sprintf "Some(%s, %s)" (s_type_params tl) (match eo with None -> "None" | Some e -> s_expr_ast true "" s_type e)
+
+	let s_tvar v =
+		s_record_fields [
+			"v_id",string_of_int v.v_id;
+			"v_name",v.v_name;
+			"v_type",s_type v.v_type;
+			"v_capture",string_of_bool v.v_capture;
+			"v_extra",s_tvar_extra v.v_extra;
+			"v_meta",s_metadata v.v_meta;
+		]
 end
 
 (* ======= Unification ======= *)
