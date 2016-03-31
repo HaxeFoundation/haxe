@@ -1840,7 +1840,12 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
          "id < " ^ path ^ ">"
       else
          path ^ " *"
-   | TCppNativePointer klass -> (join_class_path_remap klass.cl_path "::") ^ (if suffix="_obj" then "" else " *")
+   | TCppNativePointer klass ->
+       let name = (join_class_path_remap klass.cl_path "::") in
+       if suffix="_obj" then
+          name
+       else
+          "hx::Native< " ^ name ^ "* >";
    | TCppInst klass ->
         (cpp_class_path_of klass) ^ suffix
    | TCppClass -> "hx::Class" ^ suffix;
@@ -6663,6 +6668,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_h ("\t\t::String __ToString() const { return " ^ (str smart_class_name) ^ "; }\n\n");
    end else if not nativeGen then begin
       output_h ("\t\tHX_DO_INTERFACE_RTTI;\n\n");
+   end else begin
+      (* native interface *) ( )
    end;
 
    if (has_boot_field class_def) then
