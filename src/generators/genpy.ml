@@ -1686,7 +1686,7 @@ module Printer = struct
 			print_exprs pctx sep el
 
 	and print_exprs_named pctx sep fl =
-		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (handle_keywords s) (print_expr pctx e)) fl) in
+		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "'%s': %s" (Ast.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
 	and print_params_named pctx sep fl =
 		let args = String.concat sep (List.map (fun (s,e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
