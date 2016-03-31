@@ -4044,7 +4044,7 @@ and type_call ctx e el (with_type:with_type) p =
 				begin match follow e.etype with
 					| TInst({cl_path=[],"String"},_) -> raise Not_found
 					| TMono _ -> raise Not_found
-					| t when t == t_dynamic -> raise Not_found
+					| TDynamic _ -> raise Not_found
 					| _ -> ()
 				end;
 				let acc = type_field ~resume:true ctx e "toString" p MCall in
