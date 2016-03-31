@@ -1117,6 +1117,9 @@ module Run = struct
 
 	let roundtrip com config e =
 		let ctx = there com config e in
+		Graph.infer_immediate_dominators ctx.graph;
+		Graph.infer_scopes ctx.graph;
+		Graph.infer_var_writes ctx.graph;
 		back_again ctx
 
 	let run_on_expr com config e =
@@ -1163,9 +1166,22 @@ module Run = struct
 		in
 		List.iter (process_field false) c.cl_ordered_fields;
 		List.iter (process_field true) c.cl_ordered_statics;
-		(match c.cl_constructor with
-		| None -> ()
-		| Some f -> process_field false f)
+		begin match c.cl_constructor with
+			| None -> ()
+			| Some f -> process_field false f;
+		end;
+		begin match c.cl_init with
+			| None ->
+				()
+			| Some e ->
+				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
+				let e = roundtrip ctx.Typecore.com {config with optimize = false} (mk (TFunction tf) (tfun [] e.etype) e.epos) in
+				let e = match e.eexpr with
+					| TFunction tf -> tf.tf_expr
+					| _ -> assert false
+				in
+				c.cl_init <- Some e
+		end
 
 	let run_on_type ctx config t =
 		match t with
