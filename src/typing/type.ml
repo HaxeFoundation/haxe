@@ -2464,5 +2464,8 @@ module Texpr = struct
 		| _ -> e
 end
 
-let print_if b e =
-	if b then print_endline (s_expr_pretty "" (s_type (print_context())) e)
+module ExtType = struct
+	let is_void = function
+		| TAbstract({a_path=[],"Void"},_) -> true
+		| _ -> false
+end

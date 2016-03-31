@@ -82,6 +82,9 @@ let rec func ctx bb tf t p =
 	let check_unbound_call v el =
 		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true
 	in
+	let no_void t p =
+		if ExtType.is_void (follow t) then error "Cannot use Void as value" p
+	in
 	let rec value bb e = match e.eexpr with
 		| TLocal v ->
 			bb,e
@@ -224,10 +227,7 @@ let rec func ctx bb tf t p =
 				bb,e
 		in
 		let bb,e = loop bb e in
-		begin match follow v.v_type with
-			| TAbstract({a_path=[],"Void"},_) -> error "Cannot use Void as value" e.epos
-			| _ -> ()
-		end;
+		no_void v.v_type e.epos;
 		let ev = mk (TLocal v) v.v_type e.epos in
 		let was_assigned = ref false in
 		let assign e =
@@ -475,7 +475,10 @@ let rec func ctx bb tf t p =
 			add_terminator bb e
 		| TThrow e1 ->
 			begin try
-				let mk_throw e1 = mk (TThrow e1) t_dynamic e.epos in
+				let mk_throw e1 =
+					no_void e1.etype e1.epos;
+					mk (TThrow e1) t_dynamic e.epos
+				in
 				block_element_value bb e1 mk_throw
 			with Exit ->
 				let bb,e1 = value bb e1 in
@@ -483,6 +486,7 @@ let rec func ctx bb tf t p =
 					| [] -> add_cfg_edge bb bb_exit CFGGoto
 					| _ -> List.iter (fun bb_exc -> add_cfg_edge bb bb_exc CFGGoto) !b_try_stack;
 				end;
+				no_void e1.etype e1.epos;
 				add_terminator bb {e with eexpr = TThrow e1};
 			end
 		(* side_effects *)
