@@ -5778,23 +5778,23 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    (* All interfaces (and sub-interfaces) implemented *)
    let implemented_hash = Hashtbl.create 0 in
+   let native_implemented = Hashtbl.create 0 in
    List.iter (fun imp ->
       let rec descend_interface interface =
          let intf_def = (fst interface) in
          let interface_name = cpp_interface_impl_name baseCtx intf_def in
-         if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
-            Hashtbl.add implemented_hash interface_name intf_def;
+         let hash = if is_native_gen_class intf_def then native_implemented else implemented_hash in
+         if ( not (Hashtbl.mem hash interface_name) ) then begin
+            Hashtbl.add hash interface_name intf_def;
             List.iter descend_interface intf_def.cl_implements;
          end;
          match intf_def.cl_super with
          | Some (interface,params) -> descend_interface (interface,params)
          | _ -> ()
       in descend_interface imp
-   ) (real_non_native_interfaces class_def.cl_implements);
+   ) (real_interfaces class_def.cl_implements);
    let implemented = hash_keys implemented_hash in
-   let implementsNative = ref false in
-   List.iter (fun imp -> if is_native_gen_class (fst imp) then implementsNative:= true ) class_def.cl_implements;
-
+   let implementsNative = (Hashtbl.length native_implemented) > 0 in
 
    (* Field groups *)
    let statics_except_meta = statics_except_meta class_def in
@@ -5812,6 +5812,24 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let reflect_write_static_variables = List.filter variable_field reflect_static_writable in
 
    let reflective_members = List.filter (reflective class_def) implemented_instance_fields in
+
+   (* native interface glue *)
+   let neededInterfaceFunctions = if not implementsNative then []
+      else begin
+         let have = Hashtbl.create 0 in
+         List.iter (fun field -> Hashtbl.replace have field.cf_name () ) implemented_instance_fields;
+         let want = ref [] in
+         Hashtbl.iter (fun _ intf_def ->
+            List.iter (fun field -> 
+               if not (Hashtbl.mem have field.cf_name) then begin
+                  Hashtbl.replace have field.cf_name ();
+                  want := field :: !want;
+               end
+               ) intf_def.cl_ordered_fields;
+          ) native_implemented;
+         !want;
+      end
+   in
 
    (* Constructor definition *)
    let cargs = (constructor_arg_var_list class_def baseCtx) in
@@ -6626,8 +6644,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_h ("\t\tstatic hx::ScriptFunction __script_construct;\n");
       output_h ("\t\t//~" ^ class_name ^ "();\n\n");
       output_h ("\t\tHX_DO_RTTI_ALL;\n");
-      if (!implementsNative) then
-         output_h ("\t\tHX_NATIVE_IMPLEMENTATION\n");
       if (has_get_member_field class_def) then
          output_h ("\t\thx::Val __Field(const ::String &inString, hx::PropertyAccess inCallProp);\n");
       if (has_get_static_field class_def) then
@@ -6647,6 +6663,23 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if (override_iteration) then begin
          output_h ("\t\tvoid __Mark(HX_MARK_PARAMS);\n");
          output_h ("\t\tvoid __Visit(HX_VISIT_PARAMS);\n");
+      end;
+
+      if (implementsNative) then begin
+         output_h ("\n\t\tHX_NATIVE_IMPLEMENTATION\n");
+         List.iter (fun field ->
+            match follow field.cf_type, field.cf_kind with
+            | _, Method MethDynamic  -> ()
+            | TFun (args,return_type), _  ->
+                let retVal = ctx_type_string ctx return_type in
+                let ret = if retVal="void" then "" else "return " in
+                let name = keyword_remap field.cf_name in
+                let argNames = List.map (fun (name,_,_) -> keyword_remap name ) args in
+                output_h ( "\t\t" ^ retVal ^" " ^ name ^ "( " ^ ctx_tfun_arg_list ctx args ^ ") {\n");
+                output_h ( "\t\t\t" ^ ret ^ "super::" ^ name ^ "( " ^ (String.concat "," argNames) ^ ");\n\t\t}\n");
+            | _ -> ()
+            ) neededInterfaceFunctions;
+         output_h ("\n");
       end;
 
       if ( (List.length implemented) > 0 ) then begin
