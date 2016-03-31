@@ -59,5 +59,8 @@ class Lib {
 		}
 		return ret;
 	}
+	public inline static function isShellAvailable() : Bool {
+		return Os.execute();
+	}
 
 }
