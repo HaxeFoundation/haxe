@@ -24,6 +24,9 @@
 using lua.NativeStringTools;
 import lua.Package;
 import lua.Lua;
+import lua.Table;
+import lua.Os;
+import lua.lib.lfs.Lfs;
 
 @:coreApi
 class Sys {
@@ -36,9 +39,22 @@ class Sys {
 	public inline static function args() : Array<String> {
 		return lua.Lib.tableToArray(lua.Lua.arg);
 	}
-	public inline static function command( cmd : String, ?args : Array<String> ) : Int  {
-		return lua.Os.execute('$cmd ${args.join(" ")}');
+	public static function command( cmd : String, ?args : Array<String> ) : Int  {
+		if (args != null) {
+			switch (systemName()) {
+				case "Windows":
+					cmd = [
+						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+						StringTools.quoteWinArg(a, true)
+					].join(" ");
+				case _:
+					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+			}
+		}
+		return cast Table.pack(Os.execute(cmd))[3];
 	}
+
+
 	public inline static function cpuTime() : Float {
 		return lua.Os.clock();
 	}
@@ -48,7 +64,7 @@ class Sys {
 	}
 
 	public inline static function getChar(echo : Bool) : Int {
-		return lua.NativeStringTools.byte(lua.Io.read(1));
+		return lua.Io.read(1).byte();
 	}
 
 	public static function systemName() : String {
@@ -75,11 +91,12 @@ class Sys {
 	}
 
 	public inline static function executablePath() : String {
-		return programPath();
+		throw "not supported";
+		return null;
 	}
 
 	public inline static function programPath() : String {
-		return Lua.arg[0];
+		return haxe.io.Path.join([getCwd(), Lua.arg[0]]);
 	}
 
 	public inline static function getCwd() : String {
@@ -94,8 +111,8 @@ class Sys {
 		return lua.Os.getenv(s);
 	}
 	public inline static function putEnv(s : String, v : String ) : Void {
-		// TODO
-		return null;
+		//lua offers no support for this.
+		throw "Not implemented in this platform";
 	}
 
 
@@ -112,6 +129,5 @@ class Sys {
 	public static function stdin() : haxe.io.Input return null;
 	public static function stdout() : haxe.io.Output return null;
 
-	// TODO
 	public static function time() : Float return lua.Os.time();
 }
