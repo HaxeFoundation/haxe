@@ -30,9 +30,9 @@ import lua.Table.AnyTable;
 
 @:native("debug")
 extern class Debug {
-	public static function getLocal(stackLevel : Int, varName : String) : Dynamic;
-	public static function setLocal(stackLevel : Int, varName: String, value: Dynamic) : Void;
-	public static function getInfo(stackLevel  : Int) : DebugInfo;
+	public static function getlocal(stackLevel : Int, varName : String) : Dynamic;
+	public static function setlocal(stackLevel : Int, varName: String, value: Dynamic) : Void;
+	public static function getinfo(stackLevel  : Int) : DebugInfo;
 	public static function sethook(?fun : Function, ?monitor : String) : Void;
 	public static function debug() : Void;
 	public static function gethook(thread : Coroutine) : Function;
