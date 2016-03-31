@@ -106,6 +106,7 @@ class Lib {
 
 		Calling this only makes sense inside a catch statement.
 	**/
+	@:deprecated("Use throw instead, the compiler detects rethrows")
 	@:extern public static inline function rethrow() {
 		untyped __define_feature__("js.Lib.rethrow", __rethrow__());
 	}

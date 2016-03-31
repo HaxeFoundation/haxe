@@ -618,15 +618,16 @@ let from_texpr com config e =
 let rethrow com e =
 	try
 		(* It would be nice if these guys could agree on something... *)
-		let s = match com.platform with
-			| Neko -> "__dollar__rethrow"
-			| Hl -> "$rethrow"
-			| Cs -> "__rethrow__"
+		let s,el = match com.platform with
+			| Neko -> "__dollar__rethrow",[e]
+			| Hl -> "$rethrow",[e]
+			| Cs -> "__rethrow__",[e]
+			| Js -> add_feature com "js.Lib.rethrow"; "__rethrow__",[]
 			| _ -> raise Exit
 		in
 		let v = alloc_unbound_var s t_dynamic in
 		let ev = Codegen.ExprBuilder.make_local v e.epos in
-		mk (TCall(ev,[e])) com.basic.tvoid e.epos
+		mk (TCall(ev,el)) com.basic.tvoid e.epos
 	with Exit ->
 		mk (TThrow e) com.basic.tvoid e.epos
 
