@@ -40,11 +40,7 @@ class Transaction {
 			}
 			if( logError == null ) {
 				Manager.cnx.rollback();
-				#if neko
-				neko.Lib.rethrow(e);
-				#else
 				throw e;
-				#end
 			}
 			logError(e); // should ROLLBACK if needed
 		}

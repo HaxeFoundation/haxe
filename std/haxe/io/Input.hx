@@ -180,7 +180,7 @@ class Input {
 		} catch( e : Eof ) {
 			s = buf.toString();
 			if( s.length == 0 )
-				#if neko neko.Lib.rethrow #else throw #end (e);
+				throw e;
 		}
 		return s;
 	}

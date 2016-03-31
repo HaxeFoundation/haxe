@@ -45,6 +45,7 @@ module Meta = struct
 		| Build
 		| BuildXml
 		| Callable
+		| CatchVariable
 		| Class
 		| ClassCode
 		| Commutative

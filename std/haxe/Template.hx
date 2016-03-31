@@ -403,11 +403,7 @@ class Template {
 			} catch( e : Dynamic ) {
 				var plstr = try pl.join(",") catch( e : Dynamic ) "???";
 				var msg = "Macro call "+m+"("+plstr+") failed ("+Std.string(e)+")";
-				#if neko
-				neko.Lib.rethrow(msg);
-				#else
 				throw msg;
-				#end
 			}
 		}
 	}
