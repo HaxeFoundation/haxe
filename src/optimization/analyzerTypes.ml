@@ -454,10 +454,10 @@ module Graph = struct
 					()
 			end;
 			DynArray.iter (fun e -> match e.eexpr with
-				| TVar(v,eo) ->
+				| TVar(v,eo) when not (is_unbound v) ->
 					declare_var g v bb;
 					if eo <> None then add_var_def g bb v;
-				| TBinop(OpAssign,{eexpr = TLocal v},_) ->
+				| TBinop(OpAssign,{eexpr = TLocal v},_) when not (is_unbound v) ->
 					add_var_def g bb v
 				| _ ->
 					()

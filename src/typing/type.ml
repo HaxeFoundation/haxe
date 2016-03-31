@@ -327,6 +327,9 @@ let mk_block e =
 	| TBlock _ -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
 
+let is_unbound v =
+	Meta.has Meta.Unbound v.v_meta
+
 let mk_cast e t p = mk (TCast(e,None)) t p
 
 let null t p = mk (TConst TNull) t p

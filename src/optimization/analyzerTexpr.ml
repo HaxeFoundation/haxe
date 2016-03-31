@@ -122,9 +122,6 @@ let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
 
-let is_unbound v =
-	Meta.has Meta.Unbound v.v_meta
-
 let is_really_unbound v =
 	v.v_name <> "`trace" && is_unbound v
 
