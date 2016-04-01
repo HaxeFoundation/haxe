@@ -951,7 +951,7 @@ let rec return_flow ctx e =
 	in
 	let return_flow = return_flow ctx in
 	let rec uncond e = match e.eexpr with
-		| TIf _ | TWhile _ | TSwitch _ | TTry _ -> ()
+		| TIf _ | TWhile _ | TSwitch _ | TTry _ | TFunction _ -> ()
 		| TReturn _ | TThrow _ -> raise Exit
 		| _ -> Type.iter uncond e
 	in

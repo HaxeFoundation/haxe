@@ -11,7 +11,8 @@ class Issue4969 extends Test {
 	@:keep
 	static function test2() {
 		var __return = function(x:Dynamic) { return 1; }
-		 __return(return null); // Cannot use this expression as value
+		__return(return null); // Cannot use this expression as value
+		return null;
 	}
 
 	@:keep
