@@ -668,7 +668,7 @@ let rec is_removable_class c =
 			| _ -> false) ||
 		List.exists (fun (_,t) -> match follow t with
 			| TInst(c,_) ->
-				Codegen.has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
+				has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
 			| _ ->
 				false
 		) c.cl_params)

@@ -706,6 +706,15 @@ let tconst_to_const = function
 	| TThis -> Ident "this"
 	| TSuper -> Ident "super"
 
+let has_ctor_constraint c = match c.cl_kind with
+	| KTypeParameter tl ->
+		List.exists (fun t -> match follow t with
+			| TAnon a when PMap.mem "new" a.a_fields -> true
+			| TAbstract({a_path=["haxe"],"Constructible"},_) -> true
+			| _ -> false
+		) tl;
+	| _ -> false
+
 (* ======= Field utility ======= *)
 
 let field_name f =

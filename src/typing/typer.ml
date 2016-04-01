@@ -845,7 +845,7 @@ let fast_enum_field e ef p =
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl {cl_kind = KGenericBuild _} ->
-		let _,_,f = Codegen.build_instance ctx t p in
+		let _,_,f = Typeload.build_instance ctx t p in
 		let t = f (match tparams with None -> [] | Some tl -> tl) in
 		let mt = try
 			module_type_of_type t
@@ -1848,8 +1848,8 @@ let unify_int ctx e k =
 	end;
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
-		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
-		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
+		let gctx = Typeload.make_generic ctx cf.cf_params monos p in
+		let name = cf.cf_name ^ "_" ^ gctx.Typeload.name in
 		let unify_existing_field tcf pcf = try
 			unify_raise ctx tcf t p
 		with Error(Unify _,_) as err ->
@@ -1890,7 +1890,7 @@ let unify_int ctx e k =
 				| None ->
 					display_error ctx "Recursive @:generic function" p; None;
 				| Some e ->
-					let e = Codegen.generic_substitute_expr gctx e in
+					let e = Typeload.generic_substitute_expr gctx e in
 					check e;
 					Some e
 			);
@@ -1907,7 +1907,7 @@ let unify_int ctx e k =
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
 		let e = mk (TField(e,fa)) cf2.cf_type p in
 		make_call ctx e el ret p
-	with Codegen.Generic_Exception (msg,p) ->
+	with Typeload.Generic_Exception (msg,p) ->
 		error msg p)
 
 let call_to_string ctx e =
@@ -3106,10 +3106,10 @@ and type_new ctx t el with_type p =
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
 		begin match t with
-			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Codegen.build_generic ctx c p tl)
+			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Typeload.build_generic ctx c p tl)
 			| _ -> t
 		end
-	with Codegen.Generic_Exception _ ->
+	with Typeload.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
 		match Typeload.resolve_typedef (Typeload.load_type_def ctx p t) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
@@ -3117,11 +3117,11 @@ and type_new ctx t el with_type p =
 			let ct, f = get_constructor ctx c monos p in
 			ignore (unify_constructor_call c monos f ct);
 			begin try
-				let t = Codegen.build_generic ctx c p monos in
+				let t = Typeload.build_generic ctx c p monos in
 				let map = apply_params c.cl_params monos in
 				check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
 				t
-			with Codegen.Generic_Exception _ as exc ->
+			with Typeload.Generic_Exception _ as exc ->
 				(* If we have an expected type, just use that (issue #3804) *)
 				begin match with_type with
 					| WithType t ->
@@ -4135,7 +4135,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
-			let eparam,f = Codegen.push_this ctx eparam in
+			let eparam,f = push_this ctx eparam in
 			let e = build_call ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
 			f();
 			e
@@ -4176,7 +4176,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			| TInst (c,_) ->
 				let rec loop c =
 					if PMap.mem cf.cf_name c.cl_fields then
-						let eparam,f = Codegen.push_this ctx ethis in
+						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
 							| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
@@ -5136,12 +5136,12 @@ let rec create com =
 			get_build_infos = (fun() -> None);
 			std = null_module;
 			global_using = [];
-			do_inherit = Codegen.on_inherit;
+			do_inherit = Typeload.on_inherit;
 			do_create = create;
 			do_macro = type_macro;
 			do_load_module = Typeload.load_module;
 			do_optimize = Optimizer.reduce_expression;
-			do_build_instance = Codegen.build_instance;
+			do_build_instance = Typeload.build_instance;
 		};
 		m = {
 			curmod = null_module;

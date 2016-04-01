@@ -425,6 +425,14 @@ let create_fake_module ctx file =
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
 
+let push_this ctx e = match e.eexpr with
+	| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
+		(Ast.EConst (tconst_to_const ct),e.epos),fun () -> ()
+	| _ ->
+		ctx.this_stack <- e :: ctx.this_stack;
+		let er = Ast.EMeta((Ast.Meta.This,[],e.epos), (Ast.EConst(Ast.Ident "this"),e.epos)),e.epos in
+		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
