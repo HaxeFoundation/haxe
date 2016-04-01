@@ -22,16 +22,26 @@
 package sys.io;
 
 import lua.FileHandle;
+import lua.Io;
+import lua.NativeStringTools;
+import lua.Boot;
+import lua.Os;
 
 class FileInput extends haxe.io.Input {
 	var f:FileHandle;
 
-	function new(f:FileHandle){
+	public function new(f:FileHandle){
+		this.bigEndian = Boot.platformBigEndian;
 		this.f = f;
 	}
 
 	inline public function seek( p : Int, pos : FileSeek ) : Void {
-		return f.seek(pos, p);
+		var arg = switch(pos){
+			case SeekBegin : "set";
+			case SeekCur   : "cur";
+			case SeekEnd   : "end";
+		}
+		return f.seek(arg, p);
 	}
 
 	inline public function tell() : Int {
@@ -40,6 +50,14 @@ class FileInput extends haxe.io.Input {
 
 	inline public function eof() : Bool {
 		return f.read(0) == null;
+	}
+
+	override inline public function readByte() : Int {
+		return NativeStringTools.byte(f.read(1));
+	}
+
+	override inline public function close() : Void {
+		f.close();
 	}
 
 }

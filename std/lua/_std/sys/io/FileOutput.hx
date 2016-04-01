@@ -26,12 +26,17 @@ import lua.FileHandle;
 class FileOutput extends haxe.io.Output {
 	var f:FileHandle;
 
-	function new(f:FileHandle){
+	public function new(f:FileHandle){
 		this.f = f;
 	}
 
 	public function seek( p : Int, pos : FileSeek ) : Void {
-		return f.seek(pos, p);
+		var arg = switch(pos){
+			case SeekBegin : "set";
+			case SeekCur : "cur";
+			case SeekEnd : "end";
+		}
+		return f.seek(arg, p);
 	}
 
 	public function tell() : Int {
