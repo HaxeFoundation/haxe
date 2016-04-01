@@ -380,10 +380,10 @@ class Bytes {
 		catch (e:Dynamic) throw e;
 		#elseif python
 		return python.Syntax.pythonCode("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
-	        #elseif lua
-	        var begin = cast(Math.min(pos,b.length),Int);
-	        var end = cast(Math.min(pos+len,b.length),Int);
-	        return [for (i in begin...end) String.fromCharCode(b[i])].join("");
+		#elseif lua
+		var begin = cast(Math.min(pos,b.length),Int);
+		var end = cast(Math.min(pos+len,b.length),Int);
+		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
 		#else
 		var s = "";
 		var b = b;
