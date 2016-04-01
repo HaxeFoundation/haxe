@@ -24,7 +24,7 @@ import haxe.extern.Rest;
 
 @:native("_G.io")
 extern class Io {
-    public static var stdin  : FileHandle;
+	public static var stdin  : FileHandle;
 	public static var stderr : FileHandle;
 	public static var stdout : FileHandle;
 
