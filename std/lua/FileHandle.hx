@@ -20,13 +20,21 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package lua;
+import haxe.extern.EitherType;
+import haxe.extern.Rest;
+import sys.io.FileInput;
 
 extern class FileHandle extends UserData {
 	public function flush() : Void;
-	public function read(arg : haxe.extern.EitherType<String,Int>) : String;
+	public function read(arg : Rest<EitherType<ReadArgument,Int>>) : String;
 	public function close() : Void;
 
 	@:overload(function () : Int {})
 	public function seek(arg : String, pos : Int) : Void;
 }
 
+@:enum
+abstract ReadArgument(String) {
+	var All = "*all";
+	var Line = "*line";
+}
