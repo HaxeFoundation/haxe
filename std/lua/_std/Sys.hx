@@ -27,6 +27,10 @@ import lua.Lua;
 import lua.Table;
 import lua.Os;
 import lua.lib.lfs.Lfs;
+import lua.FileHandle;
+import lua.Io;
+import sys.io.FileInput;
+import sys.io.FileOutput;
 
 @:coreApi
 class Sys {
@@ -71,7 +75,7 @@ class Sys {
 		switch(Package.config.sub(1,1)){
 			case "/" : {
 				var f = Lua.assert(lua.Io.popen("uname"));
-				var s = Lua.assert(f.read('*a'));
+				var s = Lua.assert(f.read(All));
 				f.close();
 				s = s.gsub('^%s+', '');
 				s = s.gsub('%s+$', '');
@@ -111,23 +115,27 @@ class Sys {
 		return lua.Os.getenv(s);
 	}
 	public inline static function putEnv(s : String, v : String ) : Void {
-		//lua offers no support for this.
-		throw "Not implemented in this platform";
+		throw "not supported";
 	}
 
-
-	// TODO verify
 	public inline static function setTimeLocale(loc : String) : Bool  {
+		// TODO Verify
 		return lua.Os.setlocale(loc) != null;
 	}
 
-	// TODO
-	public static function sleep(seconds : Float) : Void null;
+	public static function sleep(seconds : Float) : Void {
+		if (seconds <= 0) return;
+		if (Sys.systemName() == "Windows") {
+			Os.execute("ping -n " + (seconds+1) + " localhost > NUL");
+		} else {
+			Os.execute('sleep $seconds');
+		}
+	}
 
-	// TODO
-	public static function stderr() : haxe.io.Output return null;
-	public static function stdin() : haxe.io.Input return null;
-	public static function stdout() : haxe.io.Output return null;
+
+	public inline static function stderr() : haxe.io.Output return new FileOutput(Io.stderr);
+	public inline static function stdin()  : haxe.io.Input return new FileInput(Io.stdin);
+	public inline static function stdout() : haxe.io.Output return new FileOutput(Io.stdout);
 
 	public static function time() : Float return lua.Os.time();
 }
