@@ -157,7 +157,6 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
             | [] -> base_dir ^ "/include/" ^ (get_include_prefix common_ctx false)
             | path -> base_dir ^ "/include/" ^ include_prefix ^ ( String.concat "/" path )
          in
-         make_base_directory dir;
          dir
       end else begin
          make_class_directories base_dir ( sub_dir :: (fst class_path));
@@ -193,42 +192,19 @@ let new_header_file common_ctx base_dir =
 type context =
 {
    ctx_common : Common.context;
-   ctx_cppast : bool;
-   ctx_callsiteInterfaces : bool;
 
    mutable ctx_debug_level : int;
-   mutable ctx_switch_id : int;
    (* cached as required *)
    mutable ctx_file_info : (string,string) PMap.t ref;
 
    (* Per file *)
    ctx_output : string -> unit;
-   ctx_dbgout : string -> unit;
    ctx_writer : source_writer;
 
    ctx_interface_slot : (string,int) Hashtbl.t ref;
    ctx_interface_slot_count : int ref;
-
-
-   (* Used for tracking state in hxast *)
-   mutable ctx_calling : bool;
-   mutable ctx_assigning : bool;
-   mutable ctx_return_from_block : bool;
-   mutable ctx_force_return : bool;
-   mutable ctx_tcall_expand_args : bool;
    (* This is for returning from the child nodes of TMatch, TSwitch && TTry *)
-   mutable ctx_return_from_internal_node : bool;
    mutable ctx_real_this_ptr : bool;
-   mutable ctx_real_void : bool;
-   mutable ctx_dynamic_this_ptr : bool;
-   mutable ctx_dump_src_pos : unit -> unit;
-   mutable ctx_static_id_curr : int;
-   mutable ctx_static_id_used : int;
-   mutable ctx_static_id_depth : int;
-   mutable ctx_class_name : string;
-   mutable ctx_class_super_name : string;
-   mutable ctx_local_function_args : (string,string) Hashtbl.t;
-   mutable ctx_local_return_block_args : (string,string) Hashtbl.t;
    mutable ctx_class_member_types : (string,string) Hashtbl.t;
 }
 
@@ -239,30 +215,10 @@ let result =
    ctx_common = common_ctx;
    ctx_writer = null_file;
    ctx_output = (null_file#write);
-   ctx_dbgout = (fun _ -> ());
-   ctx_cppast = Common.defined_value_safe common_ctx Define.CppAst <>"";
-   ctx_callsiteInterfaces = Common.defined_value_safe common_ctx Define.CppAst <>"";
    ctx_interface_slot = ref (Hashtbl.create 0);
    ctx_interface_slot_count = ref 2;
-   ctx_calling = false;
-   ctx_assigning = false;
    ctx_debug_level = if Common.defined_value_safe common_ctx Define.AnnotateSource <>"" then 2 else debug;
-   ctx_dump_src_pos = (fun() -> ());
-   ctx_return_from_block = false;
-   ctx_tcall_expand_args = false;
-   ctx_force_return = true;
-   ctx_return_from_internal_node = false;
    ctx_real_this_ptr = true;
-   ctx_real_void = false;
-   ctx_dynamic_this_ptr = false;
-   ctx_static_id_curr = 0;
-   ctx_static_id_used = 0;
-   ctx_static_id_depth = 0;
-   ctx_switch_id = 0;
-   ctx_class_name = "";
-   ctx_class_super_name = "";
-   ctx_local_function_args = Hashtbl.create 0;
-   ctx_local_return_block_args = Hashtbl.create 0;
    ctx_class_member_types =  member_types;
    ctx_file_info = file_info;
 } in
@@ -273,8 +229,6 @@ let file_context ctx writer debug =
    { ctx with
       ctx_writer = writer;
       ctx_output = (writer#write);
-      ctx_switch_id = 0;
-      ctx_dbgout = if debug>1 then (writer#write) else (fun _ -> ());
    }
 ;;
 
@@ -882,7 +836,6 @@ let is_object type_string =
 
 
 
-
 let is_array haxe_type =
    match follow haxe_type with
    | TInst (klass,params) ->
@@ -915,13 +868,6 @@ let is_array_implementer haxe_type =
       | _ -> false )
    | _ -> false
    ;;
-
-
-let is_numeric_field field =
-   match field.cf_kind with
-   | Var _ -> is_numeric (type_string field.cf_type)
-   | _ -> false;
-;;
 
 
 
@@ -957,6 +903,7 @@ let rec is_cpp_function_member func =
 
 
 (* Get the type and output it to the stream *)
+(*
 let gen_type ctx haxe_type =
    ctx.ctx_output (type_string haxe_type)
 ;;
@@ -967,6 +914,7 @@ let member_type ctx field_object member =
    try ( Hashtbl.find ctx.ctx_class_member_types name )
    with Not_found -> "?";;
 
+*)
 let is_interface obj = is_interface_type obj.etype;;
 
 let should_implement_field x = not (is_extern_field x);;
@@ -1150,139 +1098,12 @@ let const_char_star s =
 
 
 
-(* When we are in a "real" object, we refer to ourselves as "this", but
-   if we are in a local class that is used to generate return values,
-   we use the fake "__this" pointer.
-   If we are in an "Anon" object, then the "this" refers to the anon object (eg List iterator) *)
-let clear_real_this_ptr ctx dynamic_this =
-   let old_flag = ctx.ctx_real_this_ptr in
-   let old_dynamic = ctx.ctx_dynamic_this_ptr in
-   let old_void = ctx.ctx_real_void in
-   ctx.ctx_real_this_ptr <- false;
-   ctx.ctx_dynamic_this_ptr <- dynamic_this;
-   fun () -> (
-      ctx.ctx_real_this_ptr <- old_flag;
-      ctx.ctx_dynamic_this_ptr <- old_dynamic;
-      ctx.ctx_real_void <- old_void;
-      )
-;;
-
-
-(* Generate temp variable names *)
-let next_anon_function_name ctx =
-   ctx.ctx_static_id_curr <- ctx.ctx_static_id_curr + 1;
-   "_Function_" ^ (string_of_int ctx.ctx_static_id_depth) ^"_"^ (string_of_int ctx.ctx_static_id_curr);;
-
-let use_anon_function_name ctx =
-   ctx.ctx_static_id_used <- ctx.ctx_static_id_used + 1;
-   "_Function_" ^ (string_of_int ctx.ctx_static_id_depth) ^"_"^ (string_of_int ctx.ctx_static_id_used);;
-
-let push_anon_names ctx =
-   let old_used = ctx.ctx_static_id_used in
-   let old_curr = ctx.ctx_static_id_curr in
-   let old_depth = ctx.ctx_static_id_depth in
-   ctx.ctx_static_id_used <- 0;
-   ctx.ctx_static_id_curr <- 0;
-   ctx.ctx_static_id_depth <- ctx.ctx_static_id_depth + 1;
-   ( function () -> (
-      ctx.ctx_static_id_used <- old_used;
-      ctx.ctx_static_id_curr <- old_curr;
-      ctx.ctx_static_id_depth <- old_depth; ) )
-;;
-
-let get_switch_var ctx =
-   ctx.ctx_switch_id <- ctx.ctx_switch_id + 1;
-   "_switch_" ^ (string_of_int ctx.ctx_switch_id)
-
-
-(* If you put on the "-debug" flag, you get extra comments in the source code *)
-let debug_expression expression type_too =
-   "/* " ^ Type.s_expr_kind expression ^ (if (type_too) then " = " ^ (type_string expression.etype) else "") ^ " */";;
-
-(* This is like the Type.iter, but also keeps the "retval" flag up to date *)
-let rec iter_retval f retval e =
-   match e.eexpr with
-   | TConst _
-   | TLocal _
-   | TBreak
-   | TContinue
-   | TTypeExpr _ ->
-      ()
-   | TArray (e1,e2)
-   | TBinop (_,e1,e2) ->
-      f true e1;
-      f true e2;
-   | TWhile (e1,e2,_) ->
-      f true e1;
-      f false e2;
-   | TFor (_,e1,e2) ->
-      f true e1;
-      f false e2;
-   | TThrow e
-   | TField (e,_)
-   | TEnumParameter (e,_,_)
-   | TUnop (_,_,e) ->
-      f true e
-   | TParenthesis e | TMeta(_,e) ->
-      f retval e
-   | TBlock expr_list when retval ->
-      let rec return_last = function
-         | [] -> ()
-         | expr :: [] -> f true expr
-         | expr :: exprs -> f false expr; return_last exprs in
-      return_last expr_list
-   | TArrayDecl el
-   | TNew (_,_,el) ->
-      List.iter (f true ) el
-   | TBlock el ->
-      List.iter (f false ) el
-   | TObjectDecl fl ->
-      List.iter (fun (_,e) -> f true e) fl
-   | TCall (e,el) ->
-      f true e;
-      List.iter (f true) el
-   | TVar (_,eo) ->
-      (match eo with None -> () | Some e -> f true e)
-   | TFunction fu ->
-      f false fu.tf_expr
-   | TIf (e,e1,e2) ->
-      f true e;
-      f retval e1;
-      (match e2 with None -> () | Some e -> f retval e)
-   | TSwitch (e,cases,def) ->
-      f true e;
-      List.iter (fun (el,e2) -> List.iter (f true) el; f retval e2) cases;
-      (match def with None -> () | Some e -> f retval e)
-(*    | TMatch (e,_,cases,def) ->
-      f true e;
-      List.iter (fun (_,_,e) -> f false e) cases;
-      (match def with None -> () | Some e -> f false e) *)
-   | TTry (e,catches) ->
-      f retval e;
-      List.iter (fun (_,e) -> f false e) catches
-   | TReturn eo ->
-      (match eo with None -> () | Some e -> f true e)
-   | TCast (e,None) ->
-      f retval e
-   | TCast (e,_) ->
-      f true e
-;;
-
 
 (* Convert an array to a comma separated list of values *)
 let array_arg_list inList =
    let i = ref (0-1) in
    String.concat "," (List.map (fun _ -> incr i; "inArgs[" ^ (string_of_int !i) ^ "]"  ) inList)
 
-
-
-let only_int_cases cases =
-   match cases with
-   | [] -> false
-   | _ ->
-   not (List.exists (fun (cases,expression) ->
-         List.exists (fun case -> match case.eexpr with TConst (TInt _) -> false | _ -> true ) cases
-            ) cases );;
 
 (* See if there is a haxe break statement that will be swollowed by c++ break *)
 exception BreakFound;;
@@ -1315,148 +1136,55 @@ let rec is_null expr =
 ;;
 
 
-let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_this expression =
-   let output = ctx.ctx_output in
-   let rec find_undeclared_variables undeclared declarations this_suffix allow_this expression =
-      match expression.eexpr with
-      | TVar (tvar,optional_init) ->
-            Hashtbl.add declarations (keyword_remap tvar.v_name) ();
-            if (ctx.ctx_debug_level>1) then
-               output ("/* found var " ^ tvar.v_name ^ "*/ ");
-            (match optional_init with
-            | Some expression -> find_undeclared_variables undeclared declarations this_suffix allow_this expression
-            | _ -> ())
-      | TFunction func -> List.iter ( fun (tvar, opt_val) ->
-            if (ctx.ctx_debug_level>1) then
-               output ("/* found arg " ^ tvar.v_name ^ " = " ^ (type_string tvar.v_type) ^ " */ ");
-            Hashtbl.add declarations (keyword_remap tvar.v_name) () ) func.tf_args;
-            find_undeclared_variables undeclared declarations this_suffix false func.tf_expr
-      | TTry (try_block,catches) ->
-         find_undeclared_variables undeclared declarations this_suffix allow_this try_block;
-         List.iter (fun (tvar,catch_expt) ->
-            let old_decs = Hashtbl.copy declarations in
-            Hashtbl.add declarations (keyword_remap tvar.v_name) ();
-            find_undeclared_variables undeclared declarations this_suffix allow_this catch_expt;
-            Hashtbl.clear declarations;
-            Hashtbl.iter ( Hashtbl.add declarations ) old_decs
-            ) catches;
-      | TLocal tvar ->
-         let name = keyword_remap tvar.v_name in
-         if  not (Hashtbl.mem declarations name) then
-            Hashtbl.replace undeclared name (type_string expression.etype)
-(*       | TMatch (condition, enum, cases, default) ->
-         find_undeclared_variables undeclared declarations this_suffix allow_this condition;
-         List.iter (fun (case_ids,params,expression) ->
-            let old_decs = Hashtbl.copy declarations in
-            (match params with
-            | None -> ()
-            | Some l -> List.iter (fun (opt_var) ->
-               match opt_var with | Some v -> Hashtbl.add declarations (keyword_remap v.v_name) () | _ -> ()  )
-               l  );
-            find_undeclared_variables undeclared declarations this_suffix allow_this expression;
-            Hashtbl.clear declarations;
-            Hashtbl.iter ( Hashtbl.add declarations ) old_decs
-            ) cases;
-         (match default with | None -> ()
-         | Some expr ->
-            find_undeclared_variables undeclared declarations this_suffix allow_this expr;
-         ); *)
-      | TFor (tvar, init, loop) ->
-         let old_decs = Hashtbl.copy declarations in
-         Hashtbl.add declarations (keyword_remap tvar.v_name) ();
-         find_undeclared_variables undeclared declarations this_suffix allow_this init;
-         find_undeclared_variables undeclared declarations this_suffix allow_this loop;
-         Hashtbl.clear declarations;
-         Hashtbl.iter ( Hashtbl.add declarations ) old_decs
-      | TConst TSuper
-      | TConst TThis ->
-         if  ((not (Hashtbl.mem declarations "this")) && allow_this) then
-            Hashtbl.replace undeclared "this" (type_string_suff this_suffix expression.etype true)
-      | TBlock expr_list ->
-         let old_decs = Hashtbl.copy declarations in
-         List.iter (find_undeclared_variables undeclared declarations this_suffix allow_this ) expr_list;
-         (* what is the best way for this ? *)
-         Hashtbl.clear declarations;
-         Hashtbl.iter ( Hashtbl.add declarations ) old_decs
-      | _ -> Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) expression
-   in
-   find_undeclared_variables undeclared declarations this_suffix allow_this expression
-;;
-
 let is_virtual_array expr = (type_string expr.etype="cpp::VirtualArray") ;;
 
 let rec is_dynamic_in_cpp ctx expr =
    let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
-   ctx.ctx_dbgout ( "/* idic: " ^ expr_type ^ " */" );
    if ( expr_type="Dynamic" || expr_type="cpp::ArrayBase") then
       true
    else begin
       let result = (
       match expr.eexpr with
-       | TEnumParameter( obj, _, index ) ->
-         true (* TODO? *)
+      | TEnumParameter( obj, _, index ) -> true (* TODO? *)
       | TField( obj, field ) ->
-         let name = field_name field in
-         ctx.ctx_dbgout ("/* ?tfield "^name^" */");
-            if (is_dynamic_member_lookup_in_cpp ctx obj field) then
-            (
-               ctx.ctx_dbgout "/* tf=dynobj */";
-               true
-            )
-            else if (is_dynamic_member_return_in_cpp ctx obj field)  then
-            (
-               ctx.ctx_dbgout "/* tf=dynret */";
-               true
-            )
-            else
-            (
-               ctx.ctx_dbgout "/* tf=notdyn */";
-               false
-            )
-      | TConst TThis when ((not ctx.ctx_real_this_ptr) && ctx.ctx_dynamic_this_ptr) ->
-            ctx.ctx_dbgout ("/* dthis */"); true
-      | TArray (obj,index) -> let dyn = (is_dynamic_in_cpp ctx obj || is_virtual_array obj) in
-            ctx.ctx_dbgout ("/* aidr:" ^ (if dyn then "Dyn" else "Not") ^ " */");
-            dyn;
+            (is_dynamic_member_lookup_in_cpp ctx obj field) ||
+            (is_dynamic_member_return_in_cpp ctx obj field)
+      | TArray (obj,index) -> (is_dynamic_in_cpp ctx obj || is_virtual_array obj)
       | TTypeExpr _ -> false
       | TCall(func,args) ->
                (match follow func.etype with
-               | TFun (args,ret) -> ctx.ctx_dbgout ("/* ret = "^ (type_string ret) ^" */");
+               | TFun (args,ret) ->
                   is_dynamic_in_cpp ctx func
-               | _ -> ctx.ctx_dbgout "/* not TFun */";  true
+               | _ -> true
          );
       | TParenthesis(expr) | TMeta(_,expr) -> is_dynamic_in_cpp ctx expr
       | TCast (e,None) -> (type_string expr.etype) = "Dynamic"
       | TLocal { v_name = "__global__" } -> false
       | TConst TNull -> true
-      | _ -> ctx.ctx_dbgout "/* other */";  false (* others ? *) )
+      | _ -> false (* others ? *) )
       in
-      ctx.ctx_dbgout (if result then "/* Y */" else "/* N */" );
       result
    end
 
 and is_dynamic_member_lookup_in_cpp ctx field_object field =
    let member = field_name field in
-   ctx.ctx_dbgout ("/*mem."^member^".*/");
    if (is_internal_member member) then false else
    if (is_native_pointer field_object) then false else
    if (is_pointer field_object.etype true) then false else
-   if (match field_object.eexpr with | TTypeExpr _ -> ctx.ctx_dbgout "/*!TTypeExpr*/"; true | _ -> false) then false else
+   if (match field_object.eexpr with | TTypeExpr _ -> true | _ -> false) then false else
    if (is_dynamic_in_cpp ctx field_object) then true else
    if (is_array field_object.etype) then false else (
    let tstr = type_string field_object.etype in
-   ctx.ctx_dbgout ("/* ts:"^tstr^"*/");
    match tstr with
       (* Internal classes have no dynamic members *)
-      | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_dbgout ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
+      | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
       | "Dynamic" -> true
       | name ->
-            let full_name = name ^ "." ^ member in
-            ctx.ctx_dbgout ("/* t:" ^ full_name ^ " */");
-            try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
-               ctx.ctx_dbgout ("/* =" ^ mem_type ^ "*/");
-               false )
-            with Not_found ->  ctx.ctx_dbgout ("/*!*/"); not (is_extern_class_instance field_object)
+          let full_name = name ^ "." ^ member in
+          if Hashtbl.mem ctx.ctx_class_member_types full_name  then
+               false
+            else
+               not (is_extern_class_instance field_object)
    )
 and is_dynamic_member_return_in_cpp ctx field_object field =
    let member = field_name field in
@@ -1466,7 +1194,6 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
    match field_object.eexpr with
    | TTypeExpr t ->
          let full_name = "::" ^ (join_class_path_remap (t_path t) "::" ) ^ "." ^ member in
-         ctx.ctx_dbgout ("/*static:"^ full_name^"*/");
          ( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
              mem_type="Dynamic" || mem_type="cpp::ArrayBase" || mem_type="cpp::VirtualArray" )
          with Not_found -> true )
@@ -1475,18 +1202,15 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
       (match tstr with
          (* Internal classes have no dynamic members *)
          | "::String" | "Null" | "::hx::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
-         | "Dynamic" | "cpp::ArrayBase" | "cpp::VirtualArray" -> ctx.ctx_dbgout "/*D*/"; true
+         | "Dynamic" | "cpp::ArrayBase" | "cpp::VirtualArray" -> true
          | name ->
                let full_name = name ^ "." ^ member in
-               ctx.ctx_dbgout ("/*R:"^full_name^"*/");
                try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
                   mem_type="Dynamic" || mem_type="cpp::ArrayBase" || mem_type="cpp::VirtualArray" )
                with Not_found -> true )
 ;;
 
 let cast_if_required ctx expr to_type =
-   let expr_type = (type_string expr.etype) in
-   ctx.ctx_dbgout ( "/* cir: " ^ expr_type ^ " */" );
    if (is_dynamic_in_cpp ctx expr) then
       ctx.ctx_output (".Cast< " ^ to_type ^ " >()" )
 ;;
@@ -1510,21 +1234,6 @@ let default_value_string = function
    | _ -> "/* Hmmm */"
 ;;
 
-let generate_default_values ctx args prefix =
-   List.iter ( fun (v,o) -> let type_str = type_string v.v_type in
-   let name = (keyword_remap v.v_name) in
-   match o with
-   | Some TNull -> ()
-   | Some const ->
-      ctx.ctx_output (type_str ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^
-         (default_value_string const) ^ ");\n")
-   | _ -> () ) args;;
-
-let return_type_string t =
-   match t with
-   |  TFun (_,ret) -> type_string ret
-   | _ -> ""
-;;
 
 
 let get_return_type field =
@@ -2055,7 +1764,7 @@ let rec cpp_type_of ctx haxe_type =
             TCppObjC(klass)
          else if klass.cl_interface && is_native_gen_class klass then
             TCppNativePointer(klass)
-         else if klass.cl_interface && ctx.ctx_callsiteInterfaces then
+         else if klass.cl_interface then
             TCppDynamic
          else if klass.cl_extern && (not (is_internal_class klass.cl_path) ) then
             TCppInst(klass)
@@ -2175,18 +1884,22 @@ let cpp_base_type_of t =
 
 
 let ctx_type_string ctx haxe_type =
-   if ctx.ctx_cppast then
       tcpp_to_string (cpp_type_of ctx haxe_type)
-   else
-      type_string haxe_type
 ;;
+
+
+let ctx_cant_be_null ctx haxe_type =
+   match cpp_type_of ctx haxe_type with
+   | TCppScalar _ -> true
+   | _  -> false
+
 
 let ctx_arg_type_name ctx name default_val arg_type prefix =
    let remap_name = keyword_remap name in
    let type_str = (ctx_type_string ctx arg_type) in
    match default_val with
    | Some TNull  -> (type_str,remap_name)
-   | Some constant when (cant_be_null arg_type) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
+   | Some constant when (ctx_cant_be_null ctx arg_type) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
    | Some constant  -> (type_str,prefix ^ remap_name)
    | _ -> (type_str,remap_name);;
 
@@ -2206,7 +1919,7 @@ let rec ctx_tfun_arg_list ctx arg_list =
    let oType o arg_type =
       let type_str = (ctx_type_string ctx arg_type) in
       (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
-      if o && (cant_be_null arg_type) && type_str<>"Dynamic" then
+      if o && (ctx_cant_be_null ctx arg_type) && type_str<>"Dynamic" then
          "hx::Null< " ^ type_str ^ " > "
       else
          type_str
@@ -2847,10 +2560,7 @@ let cpp_arg_list ctx args prefix =
 
 
 let ctx_default_values ctx args prefix =
-   if ctx.ctx_cppast then
-      cpp_gen_default_values ctx args prefix
-   else
-      generate_default_values ctx args prefix
+    cpp_gen_default_values ctx args prefix
 ;;
 
 
@@ -2934,10 +2644,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               gen expr; out ("->" ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncInterface(expr,clazz,field) ->
               gen expr;
-              if ctx.ctx_callsiteInterfaces then
-                 out ("__Field(" ^ strq field.cf_name ^ ", hx::paccDynamic)")
-              else
-                 out ("->" ^ (cpp_member_name_of field) ^ "_dyn()");
+              out ("__Field(" ^ strq field.cf_name ^ ", hx::paccDynamic)")
          | FuncStatic(clazz,_,field) ->
               let rename = get_meta_string field.cf_meta Meta.Native in
               if rename<>"" then
@@ -2955,7 +2662,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
          | FuncFromStaticFunction -> error "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
          );
-      | CppCall( FuncInterface(expr,clazz,field), args) when ctx.ctx_callsiteInterfaces && not (is_native_gen_class clazz)->
+      | CppCall( FuncInterface(expr,clazz,field), args) when not (is_native_gen_class clazz)->
          out ( cpp_class_name clazz ^ "::" ^ cpp_member_name_of field ^ "(");
          gen expr;
          List.iter (fun arg -> out ","; gen arg ) args;
@@ -3496,1049 +3203,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 (* } *)
 
 
-(*
-   This is the big one.
-   Once you get inside a function, all code is generated (recursively) as a "expression".
-   "retval" is tracked to determine whether the value on an expression is actually used.
-   eg, if the result of a block (ie, the last expression in the list) is used, then
-   we have to do some funky stuff to generate a local function.
-   Some things that change less often are stored in the context and are extracted
-   at the top for simplicity.
-*)
-
-let gen_expression_tree ctx retval function_args expression_tree set_var tail_code =
- let writer = ctx.ctx_writer in
- let output_i = writer#write_i in
- let output = ctx.ctx_output in
-
-(* let injection = mk_injection ctx.ctx_dump_src_pos set_var tail_code in
- gen_cpp_ast_expression_tree ctx "?" "*" function_args injection (mk_block expression_tree); *)
-
- let rec define_local_function_ctx func_name func_def =
-   let remap_this = function | "this" -> "__this" | other -> other in
-   let rec define_local_function func_name func_def =
-      let declarations = Hashtbl.create 0 in
-      let undeclared = Hashtbl.create 0 in
-      (* '__global__', '__cpp__' are always defined *)
-      Hashtbl.add declarations "__global__" ();
-      Hashtbl.add declarations "__cpp__" ();
-      Hashtbl.add declarations "__trace" ();
-      (* Add args as defined variables *)
-      List.iter ( fun (arg_var, opt_val) ->
-         if (ctx.ctx_debug_level>1) then
-            output ("/* found arg " ^ arg_var.v_name ^ " = " ^ (type_string arg_var.v_type) ^" */ ");
-         Hashtbl.add declarations (keyword_remap arg_var.v_name) () ) func_def.tf_args;
-      find_undeclared_variables_ctx ctx undeclared declarations "" true func_def.tf_expr;
-
-      let has_this = Hashtbl.mem undeclared "this" in
-      if (has_this) then Hashtbl.remove undeclared "this";
-      let typed_vars = hash_iterate undeclared (fun key value -> value ^ "," ^ (keyword_remap key) ) in
-      let func_name_sep = func_name ^ (if List.length typed_vars > 0 then "," else "") in
-      output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ (list_num typed_vars) ^ "(" ^
-         (if has_this then "hx::LocalThisFunc," else "hx::LocalFunc,") ^ func_name_sep ^
-                  (String.concat "," typed_vars) ^ ")\n" );
-      output_i ("int __ArgCount() const { return " ^ (string_of_int (List.length func_def.tf_args)) ^"; }\n");
-
-      (* actual function, called "run" *)
-      let args_and_types = List.map
-            (fun (v,_) -> (type_string v.v_type) ^ " " ^ (keyword_remap v.v_name) ) func_def.tf_args in
-      let block = is_block func_def.tf_expr in
-      let func_type = type_string func_def.tf_type in
-      output_i (func_type ^ " run(" ^ (ctx_arg_list ctx func_def.tf_args "__o_") ^ ")");
-
-      let close_defaults =
-         if (has_default_values func_def.tf_args) then begin
-            writer#begin_block;
-            output_i "";
-            ctx_default_values ctx func_def.tf_args "__o_";
-            output_i "";
-            true;
-         end
-      else
-         false in
-
-
-      let pop_real_this_ptr = clear_real_this_ptr ctx true in
-      ctx.ctx_real_void <- false;
-
-      writer#begin_block;
-      if (ctx.ctx_debug_level>0) then begin
-         hx_stack_push ctx output_i "*" func_name func_def.tf_expr.epos;
-         if (has_this && ctx.ctx_debug_level>0) then
-            output_i ("HX_STACK_THIS(__this.mPtr)\n");
-            List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
-            func_def.tf_args;
-      end;
-
-      if (block) then begin
-         output_i "";
-         gen_expression false func_def.tf_expr;
-         output_i "return null();\n";
-      end else begin
-         (* Save old values, and equalize for new input ... *)
-         let pop_names = push_anon_names ctx in
-
-         find_local_functions_and_return_blocks_ctx false func_def.tf_expr;
-
-         (match func_def.tf_expr.eexpr with
-         | TReturn (Some return_expression) when (func_type<>"Void") ->
-            output_i "return ";
-            gen_expression true return_expression;
-         | TReturn (Some return_expression) ->
-            output_i "";
-            gen_expression false return_expression;
-         | _ ->
-            output_i "";
-            gen_block_expression func_def.tf_expr;
-         );
-         output ";\n";
-         output_i "return null();\n";
-         pop_names();
-      end;
-      writer#end_block;
-
-      if close_defaults then writer#end_block;
-      pop_real_this_ptr();
-
-      let return = if (type_string func_def.tf_type ) = "Void" then "(void)" else "return" in
-      output_i ("HX_END_LOCAL_FUNC" ^ (list_num args_and_types) ^ "(" ^ return ^ ")\n\n");
-
-      Hashtbl.replace ctx.ctx_local_function_args func_name
-         (if (ctx.ctx_real_this_ptr) then
-            String.concat "," (hash_keys undeclared)
-         else
-            String.concat "," (List.map remap_this (hash_keys undeclared)) )
-   in
-   define_local_function func_name func_def
-
- and find_local_functions_and_return_blocks_ctx retval expression =
-   let rec find_local_functions_and_return_blocks retval expression =
-      match expression.eexpr with
-      | TBlock _ ->
-         if (retval) then begin
-            define_local_return_block_ctx expression (next_anon_function_name ctx) true;
-         end  (* else we are done *)
-      | TTry (_, _)
-      | TSwitch (_, _, _) when retval ->
-            define_local_return_block_ctx expression (next_anon_function_name ctx) true;
-      | TObjectDecl ( ("fileName" , { eexpr = (TConst (TString file)) }) ::
-         ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
-            ("className" , { eexpr = (TConst (TString class_name)) }) ::
-               ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) -> ()
-      | TObjectDecl decl_list ->
-            let name = next_anon_function_name ctx in
-            define_local_return_block_ctx expression name true;
-      | TFunction func ->
-         let func_name = next_anon_function_name ctx in
-         output "\n";
-         define_local_function_ctx func_name func
-      | TField (obj,_) | TEnumParameter (obj,_,_) when (is_null obj) -> ( )
-      | TArray (obj,_) when (is_null obj) -> ( )
-      | TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
-         iter_retval find_local_functions_and_return_blocks retval expression
-      | TSwitch (_, _, _) when retval -> ( )
-      (* | TMatch ( cond , _, _, _) *)
-      | TWhile ( cond , _, _ )
-      | TIf ( cond , _, _ )
-      | TSwitch ( cond , _, _) -> iter_retval find_local_functions_and_return_blocks true cond
-      | _ -> iter_retval find_local_functions_and_return_blocks retval expression
-   in find_local_functions_and_return_blocks retval expression
-
- and define_local_return_block_ctx expression name retval =
-   let check_this = function | "this" when not ctx.ctx_real_this_ptr -> "__this" | x -> x in
-   let rec define_local_return_block expression  =
-      let declarations = Hashtbl.create 0 in
-      let undeclared = Hashtbl.create 0 in
-      (* '__global__' is always defined *)
-      Hashtbl.add declarations "__global__" ();
-      Hashtbl.add declarations "__cpp__" ();
-      Hashtbl.add declarations "__trace" ();
-      find_undeclared_variables_ctx ctx undeclared declarations "_obj" true expression;
-
-      let vars = (hash_keys undeclared) in
-      let args = String.concat "," (List.map check_this (hash_keys undeclared)) in
-      Hashtbl.replace ctx.ctx_local_return_block_args name args;
-      output_i ("struct " ^ name);
-      writer#begin_block;
-      let ret_type = if (not retval) then "Void" else
-         match expression.eexpr with
-         | TObjectDecl _ -> "Dynamic"
-         | _ -> type_string expression.etype in
-      (* TODO - analyse usage *)
-      let pass_by_value name = (String.length name >=5 ) && (String.sub name 0 5 = "_this") in
-      output_i ("inline static " ^ ret_type ^ " Block( ");
-      output (String.concat "," (
-         (List.map
-            (fun var ->
-               let var_type = Hashtbl.find undeclared var in
-               (* Args passed into inline-block should be references, so they can be changed.
-                  Fake 'this' pointers can't be changed, so needn't be references *)
-               match var with
-               | "this" -> "hx::ObjectPtr< " ^ var_type ^ " > __this"
-               | name when (pass_by_value name)  -> var_type ^ " " ^ name
-               | name -> var_type ^ " &" ^name
-            ) vars) ) );
-      output (")");
-      let return_data = ret_type <> "Void" in
-      writer#begin_block;
-      hx_stack_push ctx output_i "*" "closure" expression.epos;
-      output_i "";
-
-      let pop_real_this_ptr = clear_real_this_ptr ctx false in
-      (match expression.eexpr with
-      | TObjectDecl decl_list ->
-         writer#begin_block;
-         output_i "hx::Anon __result = hx::Anon_obj::Create();\n";
-         let pop_names = push_anon_names ctx in
-         List.iter (function (name,value) ->
-            find_local_functions_and_return_blocks_ctx true value;
-            output_i ( "__result->Add(" ^ (str name) ^ " , ");
-            gen_expression true value;
-            output (if is_function_expr value then ",true" else ",false" );
-            output (");\n");
-         ) decl_list;
-         pop_names();
-         output_i "return __result;\n";
-         writer#end_block;
-      | TBlock _ ->
-         ctx.ctx_return_from_block <- return_data;
-         ctx.ctx_return_from_internal_node <- false;
-         gen_expression false expression;
-      | TCall(func,args) ->
-         writer#begin_block;
-         let pop_names = push_anon_names ctx in
-         find_local_functions_and_return_blocks_ctx true func;
-         List.iter (find_local_functions_and_return_blocks_ctx true) args;
-         ctx.ctx_tcall_expand_args <- true;
-         gen_expression return_data expression;
-         output ";\n";
-         pop_names();
-         writer#end_block;
-      | _ ->
-         ctx.ctx_return_from_block <- false;
-         ctx.ctx_return_from_internal_node <- return_data;
-         gen_block_expression expression;
-      );
-      output_i "return null();\n";
-      writer#end_block;
-      pop_real_this_ptr();
-      writer#end_block_line;
-      output ";\n";
-   in
-   define_local_return_block expression
-
-
- and gen_expression retval expression =
-   let calling = ctx.ctx_calling in
-   ctx.ctx_calling <- false;
-   let assigning = ctx.ctx_assigning in
-   ctx.ctx_assigning <- false;
-   let return_from_block = ctx.ctx_return_from_block in
-   ctx.ctx_return_from_block <- false;
-   let tcall_expand_args = ctx.ctx_tcall_expand_args in
-   ctx.ctx_tcall_expand_args <- false;
-   let return_from_internal_node = ctx.ctx_return_from_internal_node in
-   ctx.ctx_return_from_internal_node <- false;
-   let dump_src_pos = ctx.ctx_dump_src_pos in
-   ctx.ctx_dump_src_pos <- (fun() -> ());
-
-   (* Annotate source code with debug - can get a bit verbose.  Mainly for debugging code gen,
-      rather than the run time *)
-   if (ctx.ctx_debug_level>1) then begin
-      (*if calling then output "/* Call */";*)
-      (*if ctx.ctx_real_this_ptr then output "/* this */" else output "/* FAKE __this */";*)
-      output (debug_expression expression (ctx.ctx_debug_level>1) );
-   end;
-
-   (* Write comma separated list of variables - useful for function args. *)
-   let rec gen_expression_list expressions =
-      (match expressions with
-      | [] -> ()
-      | [single] -> gen_expression true single
-      | first :: remaining ->
-         gen_expression true first;
-         output ",";
-         gen_expression_list remaining
-      ) in
-
-   (* this will add a cast if boxing / unboxing an objective-c type *)
-   let check_objc_unbox expression to_type =
-     if is_objc_type to_type && not (is_objc_type expression.etype) then
-        { expression with eexpr = TCast(expression,None); etype = to_type }
-     else
-        expression
-   in
-   let check_objc_box expression to_type =
-     if is_objc_type expression.etype && not (is_objc_type to_type) then
-        { expression with eexpr = TCast(expression,None); etype = to_type }
-     else
-        expression
-   in
-   let add_objc_cast_if_needed expression =
-      (* objc-specific: since all `id` derived types are boxed to the same type,
-         we need to take one extra care when unboxing, and cast them to their
-         actual type *)
-      let is_cast =
-         retval && is_objc_type expression.etype && is_dynamic_in_cpp ctx expression
-      in
-      if is_cast then begin
-         output ("( (" ^ (type_string expression.etype) ^ ") (id) (");
-         ") )";
-      end else
-         ""
-   in
-
-   let rec gen_bin_op_string expr1 op expr2 =
-      let cast = (match op with
-         | ">>" | "<<" | "&" | "|" | "^"  -> "int("
-         | "&&" | "||" -> "bool("
-         | "/" -> "Float("
-         | _ -> "") in
-      if (op <> "=") then output "(";
-      if ( cast <> "") then output cast;
-      gen_expression true expr1;
-      if ( cast <> "") then output ")";
-
-      output (" " ^ op ^ " ");
-
-      if ( cast <> "") then output cast;
-      gen_expression true expr2;
-      if ( cast <> "") then output ")";
-      if (op <> "=") then output ")";
-   in
-   let rec is_const_string_term expr =
-      match expr.eexpr with
-      | TConst( TString _ ) -> true
-      | TBinop (OpAdd,e1,e2) -> (is_const_string_term e1) && (is_const_string_term e2 )
-      | _ -> false
-   in
-   let rec combine_string_terms expr =
-      match expr.eexpr with
-      | TConst( TString s ) -> s
-      | TBinop (OpAdd,e1,e2) -> (combine_string_terms e1) ^ (combine_string_terms e2 )
-      | _ -> ""
-   in
-   let rec gen_bin_op op expr1 expr2 =
-      let expr1, expr2 = match op with
-         | Ast.OpAssign | Ast.OpAssignOp _ -> expr1, check_objc_unbox expr2 expr1.etype
-         | Ast.OpEq | Ast.OpNotEq -> check_objc_box expr1 expr2.etype, check_objc_box expr2 expr1.etype
-         | _ -> expr1,expr2
-      in
-      match op with
-      | Ast.OpAdd when (is_const_string_term expr1) && (is_const_string_term expr2) ->
-         output (str ((combine_string_terms expr1) ^ (combine_string_terms expr2)) )
-      | Ast.OpAssign -> ctx.ctx_assigning <- true;
-                        gen_bin_op_string expr1 "=" expr2
-      | Ast.OpUShr ->
-         output "hx::UShr(";
-         gen_expression true expr1;
-         output ",";
-         gen_expression true expr2;
-         output ")";
-      | Ast.OpMod ->
-         output "hx::Mod(";
-         gen_expression true expr1;
-         output ",";
-         gen_expression true expr2;
-         output ")";
-
-      | Ast.OpAssignOp bin_op ->
-         output (match bin_op with
-            | Ast.OpAdd -> "hx::AddEq("
-            | Ast.OpMult -> "hx::MultEq("
-            | Ast.OpDiv -> "hx::DivEq("
-            | Ast.OpSub -> "hx::SubEq("
-            | Ast.OpAnd -> "hx::AndEq("
-            | Ast.OpOr  -> "hx::OrEq("
-            | Ast.OpXor  -> "hx::XorEq("
-            | Ast.OpShl  -> "hx::ShlEq("
-            | Ast.OpShr  -> "hx::ShrEq("
-            | Ast.OpUShr  -> "hx::UShrEq("
-            | Ast.OpMod  -> "hx::ModEq("
-            | _ -> error "Unknown OpAssignOp" expression.epos );
-         ctx.ctx_assigning <- true;
-         gen_expression true expr1;
-         output ",";
-         gen_expression true expr2;
-         output ")"
-      | Ast.OpNotEq -> gen_bin_op_string expr1 "!=" expr2
-      | Ast.OpEq -> gen_bin_op_string expr1 "==" expr2
-      | _ ->  gen_bin_op_string expr1 (Ast.s_binop op) expr2
-      in
-
-   let gen_array_cast cast_name real_type call =
-   output (cast_name ^ "< " ^ real_type ^ " >" ^ call)
-   in
-   let rec check_array_element_cast array_type cast_name call =
-      match follow array_type with
-      | TInst (klass,[element]) ->
-         ( match type_string element with
-         | _ when is_struct_access element -> ()
-         | x when cant_be_null element -> ()
-         | _ when is_interface_type element -> ()
-         | "::String" | "Dynamic" -> ()
-         | real_type -> gen_array_cast cast_name real_type call
-         )
-      | TAbstract (abs,pl) when abs.a_impl <> None ->
-         check_array_element_cast (Abstract.get_underlying_type abs pl) cast_name call
-      | _ -> ()
-   in
-   let rec check_array_cast array_type =
-      match follow array_type with
-      | x when is_interface_type x -> ()
-      | TInst (klass,[element]) ->
-         let name = type_string element in
-         if ( is_object name && not (is_interface_type element) ) then
-            gen_array_cast ".StaticCast" "Array<Dynamic>" "()"
-         else
-            gen_array_cast ".StaticCast" (type_string array_type) "()"
-      | TAbstract (abs,pl) when abs.a_impl <> None ->
-         check_array_cast (Abstract.get_underlying_type abs pl)
-      | _ -> ()
-   in
-
-   let rec gen_tfield field_object field =
-      let member = (field_name field) in
-      let remap_name = keyword_remap member in
-      let already_dynamic = ref false in
-      (match field_object.eexpr with
-      (* static access ... *)
-      | TTypeExpr type_def ->
-         (match get_field_access_meta field Meta.Native with
-         | "" ->
-            let class_name = "::" ^ (join_class_path_remap (t_path type_def) "::" ) in
-            if (class_name="::String") then
-               output ("::String::" ^ remap_name)
-            else
-               output (class_name ^ "_obj::" ^ remap_name);
-         | native -> output native
-         )
-      (* Special internal access *)
-      | TLocal { v_name = "__global__" } ->
-         output ("::" ^ member )
-      | TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
-                  output ("->super::" ^ remap_name)
-      | TConst TThis when ctx.ctx_real_this_ptr -> output ( "this->" ^ remap_name )
-      | TConst TNull -> output "null()"
-      | _ ->
-         gen_expression true field_object;
-         ctx.ctx_dbgout "/* TField */";
-         (* toString is the only internal member that can be set... *)
-         let settingInternal = assigning && member="toString" in
-         let isString = (type_string field_object.etype)="::String" in
-         if (is_struct_access field_object.etype) then
-            output ( "." ^ member )
-         else if (is_internal_member member && not settingInternal) then begin
-            output ( (if isString then "." else "->") ^ member );
-         end else if (settingInternal || is_dynamic_member_lookup_in_cpp ctx field_object field) then begin
-            if assigning then
-               output ( "->__FieldRef(" ^ (str member) ^ ")" )
-            else
-               output ( "->__Field(" ^ (str member) ^ ", hx::paccDynamic )" );
-            already_dynamic := true;
-         end else begin
-            if (isString) then
-               output ( "." ^ remap_name )
-            else begin
-               cast_if_required ctx field_object (type_string field_object.etype);
-               let field_type = type_string field_object.etype in
-               let remap_name = if remap_name="length" then begin
-                  if field_type="cpp::VirtualArray" then
-                     "__length()"
-                  else
-                     remap_name
-               end else if field_type="cpp::ArrayBase" then
-                  "__" ^ remap_name
-               else
-                  remap_name
-               in
-               output ( "->" ^ remap_name );
-               if (calling && (is_array field_object.etype) && remap_name="iterator" ) then
-                  check_array_element_cast field_object.etype "Fast" "";
-
-               already_dynamic := (match field with
-                  | FInstance(_,_,var) when is_var_field var -> true
-                  | _ -> false);
-            end;
-         end;
-      );
-      if ( (not !already_dynamic) && (not calling) && (not assigning) && (is_function_member expression) ) then
-         output "_dyn()";
-   in
-   let gen_local_block_call () =
-      let func_name = use_anon_function_name ctx in (
-         try
-         output ( func_name ^ "::Block(" ^
-            (Hashtbl.find ctx.ctx_local_return_block_args func_name) ^ ")" )
-         with Not_found ->
-         (*error ("Block function " ^ func_name ^ " not found" ) expression.epos;*)
-         output ("/* Block function " ^ func_name ^ " not found */" );
-         )
-   in
-
-   match expression.eexpr with
-   | TConst TNull when not retval ->
-      output "Dynamic()";
-   | TCall (func, arg_list) when (match func.eexpr with
-         | TLocal { v_name = "__cpp__" } -> true
-         | _ -> false) ->
-      ( match arg_list with
-      | [{ eexpr = TConst (TString code) }] -> output (format_code code);
-      | ({ eexpr = TConst (TString code) } as ecode) :: tl ->
-         Codegen.interpolate_code ctx.ctx_common (format_code code) tl output (gen_expression true) ecode.epos
-      | _ -> error "__cpp__'s first argument must be a string" func.epos;
-      )
-   | TCall (func, arg_list) when tcall_expand_args->
-      let arg_string = ref "" in
-      let idx = ref 0 in
-      List.iter (fun arg ->
-         let a_name = "__a" ^ string_of_int(!idx) in
-         arg_string := !arg_string ^ (if !arg_string<>"" then "," else "") ^ a_name;
-         idx := !idx + 1;
-         output_i ( (type_string arg.etype) ^ " " ^ a_name ^ " = ");
-         gen_expression true arg;
-         output ";\n";
-      ) arg_list;
-      output_i (if retval then "return " else "");
-      ctx.ctx_calling <- true;
-      gen_expression true func;
-      output ("(" ^ !arg_string ^ ");\n");
-   | TCall (func, arg_list) when is_fromStaticFunction_call func ->
-      (match arg_list with
-         | [ {eexpr = TField( _, FStatic(klass,field)) } ] ->
-            let signature = cpp_function_signature field.cf_type "" in
-            let name = keyword_remap field.cf_name in
-            let void_cast = has_meta_key field.cf_meta Meta.Void in
-            output ("::cpp::Function< " ^ signature ^">(");
-            if (void_cast) then output "hx::AnyCast(";
-            output ("&::" ^(join_class_path klass.cl_path "::")^ "_obj::" ^ name );
-            if (void_cast) then output ")";
-            output (" )");
-         | _ -> error "fromStaticFunction must take a static function" expression.epos;
-      )
-    | TCall ({ eexpr = TField(fexpr,field) }, arg_list) when is_objc_call field ->
-      output "[ ";
-      (match field with
-      | FStatic(cl,_) ->
-          output (join_class_path_remap cl.cl_path "::")
-      | FInstance _ ->
-          gen_expression true fexpr
-      | _ -> assert false);
-      let names = ExtString.String.nsplit (field_name field) ":" in
-      let field_name, arg_names = match names with
-        | name :: args -> name, args
-        | _ -> assert false (* per nsplit specs, this should never happen *)
-      in
-      output (" " ^ field_name);
-      (try match arg_list, arg_names with
-      | [], _ -> ()
-      | [single_arg], _ -> output ": "; gen_expression true single_arg
-      | first_arg :: args, arg_names ->
-          output ": ";
-          gen_expression true first_arg;
-          ctx.ctx_calling <- true;
-          List.iter2 (fun arg arg_name ->
-            output (" " ^ arg_name ^ ": ");
-            gen_expression true arg) args arg_names
-      with | Invalid_argument _ -> (* not all arguments names are known *)
-        error (
-          "The function called here with name " ^ (String.concat ":" names) ^
-          " does not contain the right amount of arguments' names as required" ^
-          " by the objective-c calling / naming convention:" ^
-          " expected " ^ (string_of_int (List.length arg_list)) ^
-          " and found " ^ (string_of_int (List.length arg_names)))
-        expression.epos);
-      output " ]"
-
-   | TCall (func, [arg]) when is_addressOf_call func && not (is_lvalue arg) ->
-      error "addressOf must take a local or member variable" expression.epos;
-
-   | TCall (func, arg_list) ->
-      let after_cast = add_objc_cast_if_needed expression in
-      let rec is_variable e = match e.eexpr with
-      | TField _ | TEnumParameter _ -> false
-      | TLocal { v_name = "__global__" } -> false
-      | TParenthesis p | TMeta(_,p) -> is_variable p
-      | _ -> true
-      in
-      let expr_type = type_string expression.etype in
-      let rec is_fixed_override e = (not (is_scalar expr_type)) && match e.eexpr with
-      | TField(obj,FInstance(_,_,field) ) ->
-         let cpp_type = member_type ctx obj field.cf_name in
-         (not (is_scalar cpp_type)) && (
-            let fixed = (cpp_type<>"?") && (expr_type<>"Dynamic") && (cpp_type<>"Dynamic") &&
-               (cpp_type<>expr_type) && (expr_type<>"Void") && (cpp_type<>"cpp::ArrayBase") && (cpp_type<>"cpp::VirtualArray") in
-            if (fixed && (ctx.ctx_debug_level>1) ) then begin
-               output ("/* " ^ (cpp_type) ^ " != " ^ expr_type ^ " -> cast */");
-            end;
-            fixed
-         )
-      | TParenthesis p | TMeta(_,p) -> is_fixed_override p
-      | _ -> false
-      in
-      let check_extern_pointer_cast e = match (remove_parens e).eexpr with
-      | TField (_,FInstance(class_def,_,_) )
-      | TField (_,FStatic(class_def,_) )
-         when class_def.cl_extern ->
-         (try
-            let return_type = expression.etype in
-            (is_pointer return_type false) &&
-               ( output ( (type_string return_type) ^ "(" ); true; )
-         with Not_found -> false )
-      | _ -> false
-      in
-      let is_super = (match func.eexpr with | TConst TSuper -> true | _ -> false ) in
-      if (ctx.ctx_debug_level>1) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
-      let cast_result =  (not is_super) && (is_fixed_override func) in
-      if (cast_result) then output ("hx::TCast< " ^ expr_type ^ " >::cast(");
-      let cast_result = cast_result || check_extern_pointer_cast func in
-
-      (* If a static function has @:native('new abc')
-          c++ new has lower precedence than in haxe so ( ) must be used *)
-      let paren_result =
-        if is_native_with_space func then
-           ( output "("; true )
-        else
-           false
-      in
-      ctx.ctx_calling <- true;
-      gen_expression true func;
-
-      output "(";
-      gen_expression_list arg_list;
-      output ")";
-      if paren_result then
-         output ")";
-
-      if (cast_result) then output (")");
-      if ( (is_variable func) && (not (is_cpp_function_member func) ) &&
-           (expr_type<>"Dynamic" && expr_type<>"cpp::ArrayBase" && expr_type<>"cpp::VirtualArray" ) && (not is_super)  ) then
-         ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
-
-      let rec cast_array_output func =
-         match func.eexpr with
-            | TField(obj,field) when is_array obj.etype ->
-               (match field_name field with
-                  | "pop" | "shift" | "__unsafe_get" | "__unsafe_set" -> check_array_element_cast obj.etype ".StaticCast" "()"
-                  | "map" -> check_array_cast expression.etype
-                  | _ -> ()
-               )
-            | TParenthesis p | TMeta(_,p) -> cast_array_output p
-            | _ -> ()
-      in
-      cast_array_output func;
-      output after_cast
-
-   | TBlock expr_list ->
-      if (retval) then
-         gen_local_block_call()
-      else begin
-         writer#begin_block;
-         dump_src_pos();
-         (* Save old values, and equalize for new input ... *)
-         let pop_names = push_anon_names ctx in
-         let remaining = ref (List.length expr_list) in
-         List.iter (fun expression ->
-            let want_value = (return_from_block && !remaining = 1) in
-            find_local_functions_and_return_blocks_ctx want_value expression;
-            if (ctx.ctx_debug_level>0) then
-               output_i ("HX_STACK_LINE(" ^ (string_of_int (Lexer.get_error_line expression.epos)) ^ ")\n" );
-            output_i "";
-            ctx.ctx_return_from_internal_node <- return_from_internal_node;
-            if (want_value) then output "return ";
-            gen_expression want_value expression;
-            decr remaining;
-            writer#terminate_line
-            ) expr_list;
-         writer#end_block;
-         pop_names()
-      end
-   | TTypeExpr type_expr ->
-      let klass = "::" ^ (join_class_path_remap (t_path type_expr) "::" ) in
-      let klass1 = if klass="::Array" then "Array<int>" else klass in
-      output ("hx::ClassOf< " ^ klass1 ^ " >()")
-   | TReturn _ when retval ->
-      unsupported expression.epos
-   | TReturn optional_expr ->
-      output "";
-      ( match optional_expr with
-      | Some return_expression when ( (type_string expression.etype)="Void") ->
-         output "return null(";
-         gen_expression true return_expression;
-         output ")";
-      | Some return_expression ->
-         output "return ";
-         gen_expression true return_expression
-      | _ -> output (if ctx.ctx_real_void then "return" else "return null()")
-      )
-
-   | TConst const ->
-      (match const with
-      | TInt i -> output (Printf.sprintf "(int)%ld"  i)
-      | TFloat float_as_string -> output ("((Float)" ^ float_as_string ^")")
-      | TString s -> output (str s)
-      | TBool b -> output (if b then "true" else "false")
-      (*| TNull -> output ("((" ^ (type_string expression.etype) ^ ")null())")*)
-      | TNull when is_objc_type expression.etype -> output "nil"
-      | TNull -> output "null()"
-      | TThis -> output (if ctx.ctx_real_this_ptr then "hx::ObjectPtr<OBJ_>(this)" else "__this")
-      | TSuper when calling ->
-         output (if ctx.ctx_real_this_ptr then
-               "super::__construct"
-            else
-               ("__this->" ^ ctx.ctx_class_super_name ^ "::__construct") )
-      | TSuper -> output ("hx::ObjectPtr<super>(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this.mPtr") ^ ")")
-      )
-
-
-   | TLocal v -> output (keyword_remap v.v_name);
-   | TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
-   | TArray (array_expr,index) ->
-      let dynamic =  (is_dynamic_in_cpp ctx array_expr) ||
-                     (type_string array_expr.etype) = "cpp::ArrayBase" ||
-                     (is_virtual_array array_expr) in
-      if ( assigning && (not dynamic) ) then begin
-         if (is_array_implementer array_expr.etype) then begin
-            output "hx::__ArrayImplRef(";
-            gen_expression true array_expr;
-            output ",";
-            gen_expression true index;
-            output ")";
-         end else begin
-            gen_expression true array_expr;
-            output "[";
-            gen_expression true index;
-            output "]";
-         end
-      end else if (assigning) then begin
-         (* output (" /*" ^ (type_string array_expr.etype) ^ " */ "); *)
-         output "hx::IndexRef((";
-         gen_expression true array_expr;
-         output ").mPtr,";
-         gen_expression true index;
-         output ")";
-      end else if ( dynamic ) then begin
-         gen_expression true array_expr;
-         output "->__GetItem(";
-         gen_expression true index;
-         output ")";
-      end else begin
-         gen_expression true array_expr;
-         output "->__get(";
-         gen_expression true index;
-         output ")";
-         if not (is_pointer array_expr.etype true) then
-            check_array_element_cast array_expr.etype ".StaticCast" "()";
-      end
-   (* Get precidence matching haxe ? *)
-   | TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
-   | TField (expr,_) | TEnumParameter (expr,_,_) when (is_null expr) ->
-         output "hx::Throw(HX_CSTRING(\"Invalid field access on null object\"))"
-   | TEnumParameter (expr,ef,i) ->
-      let enum = match follow ef.ef_type with
-         | TEnum(en,_) | TFun(_,TEnum(en,_)) -> en
-         | _ -> assert false
-      in
-      output (  "(::" ^ (join_class_path_remap enum.e_path "::") ^ "(");
-      gen_expression true expr;
-      output ( "))->__Param(" ^ (string_of_int i) ^ ")")
-   | TField (field_object,field) ->
-      let after_cast = add_objc_cast_if_needed expression in
-      gen_tfield field_object field;
-      output after_cast
-
-   | TParenthesis expr when not retval ->
-         gen_expression retval expr;
-   | TParenthesis expr -> output "("; gen_expression retval expr; output ")"
-   | TMeta (_,expr) -> gen_expression retval expr;
-   | TObjectDecl (
-      ("fileName" , { eexpr = (TConst (TString file)) }) ::
-         ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
-            ("className" , { eexpr = (TConst (TString class_name)) }) ::
-               ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
-      output ("hx::SourceInfo(" ^ (str file) ^ "," ^ (Printf.sprintf "%ld" line) ^ "," ^
-         (str class_name) ^ "," ^ (str meth) ^ ")" )
-   | TObjectDecl decl_list -> gen_local_block_call()
-   | TArrayDecl decl_list ->
-      (* gen_type output expression.etype; *)
-      let tstr = (type_string_suff "_obj" expression.etype true) in
-      if tstr="Dynamic" then
-         output "Dynamic( Array_obj<Dynamic>::__new()"
-      else
-         output ( (type_string_suff "_obj" expression.etype true) ^ "::__new()");
-      List.iter ( fun elem -> output ".Add(";
-                     gen_expression true elem;
-                     output ")" ) decl_list;
-      if tstr="Dynamic" then output ")";
-   | TNew (klass,params,expressions) ->
-      let is_param_array = match klass.cl_path with
-      | ([],"Array") when is_dynamic_array_param (List.hd params) -> true | _ -> false
-      in
-      if is_param_array then
-            output "Dynamic( Array_obj<Dynamic>::__new() )"
-      else begin
-         if (klass.cl_path = ([],"String")) then
-            output "::String("
-         else
-            output ( ( class_string klass "_obj" params true) ^ "::__new(" );
-         gen_expression_list expressions;
-         output ")"
-      end
-   | TUnop (Ast.NegBits,Ast.Prefix,expr) ->
-      output "~(int)(";
-      gen_expression true expr;
-      output ")"
-   | TUnop (op,Ast.Prefix,expr) ->
-      ctx.ctx_assigning <- (match op with Ast.Increment | Ast.Decrement -> true | _ ->false);
-      output (Ast.s_unop op);
-      output "(";
-      gen_expression true expr;
-      output ")"
-   | TUnop (op,Ast.Postfix,expr) ->
-      ctx.ctx_assigning <- true;
-      output "(";
-      gen_expression true expr;
-      output ")";
-      output (Ast.s_unop op)
-   | TFunction func ->
-      let func_name = use_anon_function_name ctx in
-      (
-      try
-         output ( " Dynamic(new " ^ func_name ^ "(" ^
-            (Hashtbl.find ctx.ctx_local_function_args func_name) ^ "))" )
-      with Not_found ->
-         (*error ("function " ^ func_name ^ " not found.") expression.epos; *)
-         output ("function " ^ func_name ^ " not found.");
-      )
-
-   | TVar (tvar,optional_init) ->
-      let count = ref 1 in (* TODO: this section can be simplified *)
-      if (retval && !count==1) then
-         (match optional_init with
-         | None -> output "null()"
-         | Some expression -> gen_expression true expression )
-      else begin
-      let type_name = (type_string tvar.v_type) in
-         output (if type_name="Void" then "Dynamic" else type_name );
-         let name = (keyword_remap tvar.v_name) in
-         output (" " ^ name );
-         (match optional_init with
-         | None -> ()
-         | Some expression -> output " = "; gen_expression true expression);
-         count := !count -1;
-      let get_var_name v =
-         let rec loop meta = match meta with
-            | (Meta.RealPath,[EConst (String s),_],_) :: _ -> s
-            | _ :: meta -> loop meta
-            | [] -> v.v_name
-         in
-         loop v.v_meta
-      in
-      if (ctx.ctx_debug_level>0) then
-            output (";\t\tHX_STACK_VAR(" ^name ^",\""^ (get_var_name tvar) ^"\")");
-         if (!count > 0) then begin output ";\n"; output_i "" end
-      end
-   | TFor (tvar, init, loop) ->
-      output ("for(::cpp::FastIterator_obj< " ^  (type_string tvar.v_type) ^
-            " > *__it = ::cpp::CreateFastIterator< "^(type_string tvar.v_type) ^ " >(");
-      gen_expression true init;
-      output (");  __it->hasNext(); )");
-      ctx.ctx_writer#begin_block;
-      output_i ( (type_string tvar.v_type) ^ " " ^ (keyword_remap tvar.v_name) ^ " = __it->next();\n" );
-      output_i "";
-      gen_expression false loop;
-      output ";\n";
-      ctx.ctx_writer#end_block;
-   | TIf (condition, if_expr, optional_else_expr)  ->
-      (match optional_else_expr with
-      | Some else_expr ->
-         if (retval) then begin
-            output "(  (";
-            gen_expression true condition;
-            output ") ? ";
-            let type_str = match (type_string expression.etype) with
-            | "Void" -> "Dynamic"
-            | other -> other
-            in
-            output (type_str ^ "(");
-            gen_expression true if_expr;
-            output ") : ";
-
-            output (type_str ^ "(");
-            gen_expression true else_expr;
-            output ") )";
-         end else begin
-            output "if (";
-            gen_expression true condition;
-            output ")";
-            gen_block_expression if_expr;
-            output_i "else";
-            gen_block_expression else_expr;
-         end
-      | _ -> output "if (";
-         gen_expression true condition;
-         output ")";
-         gen_block_expression if_expr;
-      )
-   | TWhile (condition, repeat, Ast.NormalWhile ) ->
-         output  "while(";
-         gen_expression true condition;
-         output ")";
-         gen_block_expression repeat
-   | TWhile (condition, repeat, Ast.DoWhile ) ->
-         output "do";
-         gen_block_expression repeat;
-         output "while(";
-         gen_expression true condition;
-         output ")"
-
-   (* These have already been defined in find_local_return_blocks ... *)
-   | TTry (_,_)
-   | TSwitch (_,_,_) when (retval && (not return_from_internal_node) ) ->
-      gen_local_block_call()
-   | TSwitch (condition,cases,optional_default)  ->
-      let switch_on_int_constants = (only_int_cases cases) && (not (contains_break expression)) in
-      if (switch_on_int_constants) then begin
-         output "switch( (int)";
-         gen_expression true condition;
-         output ")";
-         ctx.ctx_writer#begin_block;
-         List.iter (fun (cases_list,expression) ->
-            output_i "";
-            List.iter (fun value -> output "case ";
-                        gen_expression true value;
-                        output ": " ) cases_list;
-            ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_block_expression expression;
-            output_i ";break;\n";
-            ) cases;
-         (match optional_default with | None -> ()
-         | Some default ->
-            output_i "default: ";
-            ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_block_expression default;
-         );
-         ctx.ctx_writer#end_block;
-      end else begin
-         let tmp_name = get_switch_var ctx in
-         output ( (type_string condition.etype) ^ " " ^ tmp_name ^ " = " );
-         gen_expression true condition;
-         output ";\n";
-         let else_str = ref "" in
-         if (List.length cases > 0) then
-            List.iter (fun (cases,expression) ->
-               output_i ( !else_str ^ "if ( ");
-               else_str := "else ";
-               let or_str = ref "" in
-               List.iter (fun value ->
-                  output (!or_str ^ " ( " ^ tmp_name ^ "==");
-                  gen_expression true value;
-                  output ")";
-                  or_str := " || ";
-                  ) cases;
-               output (")");
-               ctx.ctx_return_from_block <- return_from_internal_node;
-               gen_block_expression expression;
-               ) cases;
-         (match optional_default with | None -> ()
-         | Some default ->
-            output_i ( !else_str ^ " ");
-            ctx.ctx_return_from_block <- return_from_internal_node;
-            gen_block_expression default;
-            output ";\n";
-         );
-      end
-   | TTry (expression, catch_list) ->
-      output "try\n";
-      output_i "{\n";
-      let counter = ref 0 in
-      List.iter (fun (v, e) ->
-         let type_name = type_string v.v_type in
-            output_i ("HX_STACK_CATCHABLE(" ^ type_name ^ ", " ^ string_of_int !counter ^ ");\n");
-               counter := !counter + 1;)
-            catch_list;
-      output_i("");
-      (* Move this "inside" the try call ... *)
-      ctx.ctx_return_from_block <-return_from_internal_node;
-      gen_block_expression expression;
-      output_i "}\n";
-      if (List.length catch_list > 0 ) then begin
-         output_i "catch(Dynamic __e)";
-         ctx.ctx_writer#begin_block;
-         let seen_dynamic = ref false in
-         let else_str = ref "" in
-         List.iter (fun (v,expression) ->
-            let type_name = type_string v.v_type in
-            if (type_name="Dynamic") then begin
-               seen_dynamic := true;
-               output_i !else_str;
-            end else
-               output_i (!else_str ^ "if (__e.IsClass< " ^ type_name ^ " >() )");
-            ctx.ctx_writer#begin_block;
-            output_i "HX_STACK_BEGIN_CATCH\n";
-            output_i (type_name ^ " " ^ v.v_name ^ " = __e;");
-            (* Move this "inside" the catch call too ... *)
-            ctx.ctx_return_from_block <-return_from_internal_node;
-            gen_block_expression (mk_block expression);
-            ctx.ctx_writer#end_block;
-            else_str := "else ";
-            ) catch_list;
-         if (not !seen_dynamic) then begin
-            output_i "else {\n";
-               output_i "    HX_STACK_DO_THROW(__e);\n";
-               output_i "}\n";
-         end;
-         ctx.ctx_writer#end_block;
-      end;
-   | TBreak -> output "break"
-   | TContinue -> output "continue"
-   | TThrow expression ->
-         output "HX_STACK_DO_THROW(";
-         gen_expression true expression;
-         output ")";
-
-   | TCast (cast,None) when is_objc_type expression.etype && not (is_objc_type cast.etype) ->
-     let ret_type = type_string expression.etype in
-     output ("( (" ^ ret_type ^ ") (id) (");
-     gen_expression true cast;
-     output ") )"
-   | TCast (cast,None) when is_native_pointer expression &&  not (is_native_pointer cast) ->
-     output ("(");
-     gen_expression true cast;
-     output ").mPtr"
-   | TCast (cast,None) when (not retval) || (type_string expression.etype) = "Void" ->
-      gen_expression retval cast;
-   | TCast (cast,None) ->
-      let ret_type = type_string expression.etype in
-      let from_type = if is_dynamic_in_cpp ctx cast then "Dynamic" else type_string cast.etype in
-      if (from_type = ret_type) then begin
-         gen_expression true cast
-      end else begin
-         output ("((" ^ ret_type ^ ")(");
-         gen_expression true cast;
-         output "))";
-      end;
-   | TCast (e1,Some t) ->
-      let class_name = (join_class_path_remap (t_path t) "::" ) in
-      if (class_name="Array") then
-         output ("hx::TCastToArray(" )
-      else
-         output ("hx::TCast< ::" ^ class_name ^ " >::cast(" );
-      gen_expression true e1;
-      output ")";
- and gen_block_expression expression =
-    gen_expression false (mk_block expression)
- in
-
- if (set_var<>"") then begin
-    find_local_functions_and_return_blocks_ctx true expression_tree;
-    output set_var;
- end;
- gen_expression retval expression_tree;
- output tail_code;
-;;
-
-
 let gen_cpp_function_body ctx clazz is_static func_name function_def head_code tail_code =
    let output = ctx.ctx_output in
    let dot_name = join_class_path clazz.cl_path "." in
@@ -4645,7 +3309,6 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
    let remap_name = keyword_remap field.cf_name in
    let decl = get_meta_string field.cf_meta Meta.Decl in
    let has_decl = decl <> "" in
-   let nativeGen = has_meta_key class_def.cl_meta Meta.NativeGen in
    if (is_interface) then begin
       (* Just the dynamic glue  - not even that ... *)
       ()
@@ -4654,61 +3317,21 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
    | Some { eexpr = TFunction function_def } ->
       let return_type = (ctx_type_string ctx function_def.tf_type) in
       let nargs = string_of_int (List.length function_def.tf_args) in
-      let is_void = (type_string function_def.tf_type ) = "Void" in
+      let is_void = (cpp_type_of ctx function_def.tf_type ) = TCppVoid in
       let ret = if is_void  then "(void)" else "return " in
-      let output_i = ctx.ctx_writer#write_i in
       let orig_debug = ctx.ctx_debug_level in
-      let dump_src = if ((Meta.has Meta.NoStack field.cf_meta)||(Meta.has Meta.NoDebug field.cf_meta) || orig_debug<1 || nativeGen) then begin
-         ctx.ctx_debug_level <- 0;
-         (fun()->())
-      end else begin
-         (fun() ->
-         let spacer = "            \t" in
-         let output_i = if ctx.ctx_cppast then fun s -> output spacer; output_i s else output_i  in
-         hx_stack_push ctx output_i dot_name field.cf_name function_def.tf_expr.epos;
-         if (not is_static) then output_i ("HX_STACK_THIS(this)\n");
-         List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (keyword_remap v.v_name) ^ ",\"" ^ v.v_name ^"\")\n") )
-            function_def.tf_args )
-      end in
 
-      let fun_args = List.map fst function_def.tf_args in
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
-         let real_void = is_void  && (ctx.ctx_cppast || (has_meta_key field.cf_meta Meta.Void)) in
-         let fake_void = is_void  && not real_void in
-         output (if real_void then "void" else return_type );
+         output (if is_void then "void" else return_type );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
          output (ctx_arg_list ctx function_def.tf_args "__o_");
          output ")";
          ctx.ctx_real_this_ptr <- true;
-         ctx.ctx_real_void <- real_void;
-         ctx.ctx_dynamic_this_ptr <- false;
          let code = (get_code field.cf_meta Meta.FunctionCode) in
          let tail_code = (get_code field.cf_meta Meta.FunctionTailCode) in
-         if ctx.ctx_cppast then begin
-            gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code
-         end else begin
-            output "\n";
-            if (has_default_values function_def.tf_args) then begin
-               ctx.ctx_writer#begin_block;
-               ctx_default_values ctx function_def.tf_args "__o_";
-               dump_src();
-               output code;
-               gen_expression_tree ctx false fun_args function_def.tf_expr "" tail_code;
-               if (fake_void) then output "\treturn null();\n";
-               ctx.ctx_writer#end_block;
-            end else begin
-               let add_block = is_void || (code <> "") || (tail_code <> "") in
-               if (add_block) then ctx.ctx_writer#begin_block;
-               ctx.ctx_dump_src_pos <- dump_src;
-               output code;
-               gen_expression_tree ctx false fun_args (mk_block function_def.tf_expr) "" tail_code;
-               if (add_block) then begin
-                  if (fake_void) then output "\treturn null();\n";
-                  ctx.ctx_writer#end_block;
-               end;
-            end;
-         end;
+
+         gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code;
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
@@ -4722,29 +3345,11 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
       end else begin
          ctx.ctx_real_this_ptr <- false;
-         ctx.ctx_dynamic_this_ptr <- false;
          let func_name = "__default_" ^ (remap_name) in
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type;
          output (" run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
-         if ctx.ctx_cppast then
-            gen_cpp_function_body ctx class_def is_static func_name function_def "" ""
-         else begin
-            ctx.ctx_dump_src_pos <- dump_src;
-            if (is_void) then begin
-               ctx.ctx_writer#begin_block;
-               ctx_default_values ctx function_def.tf_args "__o_";
-               gen_expression_tree ctx false fun_args function_def.tf_expr "" "";
-               output "return null();\n";
-               ctx.ctx_writer#end_block;
-            end else if (has_default_values function_def.tf_args) then begin
-               ctx.ctx_writer#begin_block;
-               ctx_default_values ctx function_def.tf_args "__o_";
-               gen_expression_tree ctx false fun_args function_def.tf_expr "" "";
-               ctx.ctx_writer#end_block;
-            end else
-               gen_expression_tree ctx false fun_args (mk_block function_def.tf_expr) "" "";
-         end;
+         gen_cpp_function_body ctx class_def is_static func_name function_def "" "";
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
          output ("HX_END_DEFAULT_FUNC\n\n");
@@ -4791,23 +3396,13 @@ let gen_field_init ctx class_def field =
                   | "__rtti" -> "__mClass->__rtti__"
                   | _ -> remap_name ) in
 
-      if ctx.ctx_cppast then
-         gen_cpp_init ctx dot_name "boot" (var_name ^ " = ") expr
-      else begin
-         let var_name = "\t" ^ var_name ^ "= " in
-         ctx.ctx_dump_src_pos <- (fun () ->
-               hx_stack_push ctx output dot_name field.cf_name expr.epos );
-         gen_expression_tree ctx true [] expr var_name ";\n";
-      end
+      gen_cpp_init ctx dot_name "boot" (var_name ^ " = ") expr
    | _ ->  ()
 ;;
 
 
 let cpp_interface_impl_name ctx interface =
-   if ctx.ctx_callsiteInterfaces then
-      "_hx_" ^ (join_class_path interface.cl_path "_" )
-   else
-      "::" ^ (join_class_path_remap interface.cl_path "::" )
+   "_hx_" ^ (join_class_path interface.cl_path "_" )
 ;;
 
 
@@ -4834,8 +3429,8 @@ let gen_member_def ctx class_def is_static is_interface field =
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
       | TFun (args,return_type), Method _  ->
-         let gen_args = if ctx.ctx_cppast then ctx_tfun_arg_list ctx else gen_tfun_interface_arg_list in
-         if not ctx.ctx_callsiteInterfaces || is_static || nativeGen then begin
+         let gen_args = ctx_tfun_arg_list ctx in
+         if is_static || nativeGen then begin
             output ( (if (not is_static) then "		virtual " else "		" ) ^ (ctx_type_string ctx return_type) );
             output (" " ^ remap_name ^ "( " );
             output (gen_args args);
@@ -4876,13 +3471,13 @@ let gen_member_def ctx class_def is_static is_interface field =
          end else begin
             let return_type = (ctx_type_string ctx function_def.tf_type) in
             if ( not is_static && not nonVirtual ) then begin
-               if (ctx.ctx_cppast && not (is_internal_member field.cf_name) ) then begin
+               if (not (is_internal_member field.cf_name) ) then begin
                   let key = (join_class_path class_def.cl_path ".") ^ "." ^ field.cf_name in
                   try output (Hashtbl.find ctx.ctx_class_member_types key) with Not_found -> ()
                end else
                   output "virtual ";
             end;
-            output (if return_type="Void" && (ctx.ctx_cppast || (has_meta_key field.cf_meta Meta.Void)) then "void" else return_type );
+            output (if return_type="Void" then "void" else return_type );
 
             output (" " ^ remap_name ^ "(" );
             output (ctx_arg_list ctx function_def.tf_args "" );
@@ -5036,7 +3631,7 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
                   (try let construct_type = Hashtbl.find constructor_deps klass.cl_path in
                      visit_type construct_type.cf_type
                   with Not_found -> () )
-               | _ -> print_endline ("TSuper : Odd etype ?" ^ ( (type_string expression.etype)) )
+               | _ -> print_endline ("TSuper : Odd etype ?" ^ ( (ctx_type_string ctx expression.etype)) )
                )
             | _ -> ()
          );
@@ -5076,7 +3671,7 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
          | _ -> () );
          ) enum_def.e_constrs;
       if (not header_only) then begin
-         let meta = Codegen.build_metadata ctx (TEnumDecl enum_def) in
+         let meta = Codegen.build_metadata ctx.ctx_common (TEnumDecl enum_def) in
          match meta with Some expr -> visit_params expr | _ -> ();
       end;
    in
@@ -5130,8 +3725,8 @@ let generate_main ctx super_deps class_def =
       (match class_def.cl_ordered_statics with
       | [{ cf_expr = Some expression }] -> expression;
       | _ -> assert false ) in
-   ignore(find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false false);
-   let depend_referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true false in
+   ignore(find_referenced_types ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false false false);
+   let depend_referenced = find_referenced_types ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false true false in
    let generate_startup filename is_main =
       (*make_class_directories base_dir ( "src" :: []);*)
       let cpp_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
@@ -5147,10 +3742,7 @@ let generate_main ctx super_deps class_def =
       generate_main_footer1 output_main;
 
       let ctx = file_context ctx cpp_file 1 in
-      if ctx.ctx_cppast then
-         gen_cpp_init ctx "hxcpp" "__hxcpp_main" "" main_expression
-      else
-         gen_expression_tree ctx false [] main_expression "" ";\n";
+      gen_cpp_init ctx "hxcpp" "__hxcpp_main" "" main_expression;
 
 
       generate_main_footer2 output_main;
@@ -5184,7 +3776,7 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
    List.iter ( fun class_path -> boot_file#add_include class_path )
       (boot_enums @ boot_classes @ nonboot_classes);
 
-   let newScriptable = ctx.ctx_cppast && (Common.defined common_ctx Define.Scriptable) in
+   let newScriptable = (Common.defined common_ctx Define.Scriptable) in
    if newScriptable then begin
       output_boot "#include <hx/Scriptable.h>\n";
       let funcs = hash_iterate !(ctx.ctx_interface_slot) (fun name id -> (name,id) ) in
@@ -5319,7 +3911,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    output_cpp "#include <hxcpp.h>\n\n";
 
-   let referenced,flags = find_referenced_types_flags common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false false in
+   let referenced,flags = find_referenced_types_flags ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false false in
    List.iter (add_include cpp_file) referenced;
 
    gen_open_namespace output_cpp class_path;
@@ -5331,18 +3923,11 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       | TFun (args,_) ->
          output_cpp (remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ "(" ^
             (ctx_tfun_arg_list ctx args) ^")\n");
-         if ctx.ctx_cppast then begin
-            output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (strq name) ^ "," ^
-               (string_of_int constructor.ef_index) ^ "," ^ (string_of_int (List.length args)) ^  ")" );
-             ExtList.List.iteri (fun i (arg,_,_) -> output_cpp ("->init(" ^ (string_of_int i) ^ "," ^ (keyword_remap arg) ^ ")")) args;
-            output_cpp ";\n}\n\n"
-         end else begin
-            output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (strq name) ^ "," ^
-               (string_of_int constructor.ef_index) ^ ",hx::DynamicArray(0," ^
-               (string_of_int (List.length args)) ^  ")" );
-            List.iter (fun (arg,_,_) -> output_cpp (".Add(" ^ (keyword_remap arg) ^ ")")) args;
-            output_cpp ");\n}\n\n"
-         end
+
+         output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (strq name) ^ "," ^
+            (string_of_int constructor.ef_index) ^ "," ^ (string_of_int (List.length args)) ^  ")" );
+          ExtList.List.iteri (fun i (arg,_,_) -> output_cpp ("->init(" ^ (string_of_int i) ^ "," ^ (keyword_remap arg) ^ ")")) args;
+         output_cpp ";\n}\n\n"
       | _ ->
          output_cpp ( remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ ";\n\n" )
    ) enum_def.e_constrs;
@@ -5352,15 +3937,13 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       (match constructor.ef_type with | TFun(args,_) -> List.length args | _ -> 0 )
    in
 
-   if ctx.ctx_cppast then begin
-      output_cpp ("bool " ^ class_name ^ "::__GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp)\n{\n");
-      PMap.iter (fun _ constructor ->
-         let name = constructor.ef_name in
-         let dyn = if constructor_arg_count constructor > 0 then "_dyn()" else "" in
-         output_cpp ("\tif (inName==" ^ strq name ^ ") { outValue = " ^ class_name ^ "::" ^ keyword_remap name ^ dyn ^ "; return true; }\n" );
-      ) enum_def.e_constrs;
-      output_cpp ("\treturn super::__GetStatic(inName, outValue, inCallProp);\n}\n\n");
-   end;
+   output_cpp ("bool " ^ class_name ^ "::__GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp)\n{\n");
+   PMap.iter (fun _ constructor ->
+      let name = constructor.ef_name in
+      let dyn = if constructor_arg_count constructor > 0 then "_dyn()" else "" in
+      output_cpp ("\tif (inName==" ^ strq name ^ ") { outValue = " ^ class_name ^ "::" ^ keyword_remap name ^ dyn ^ "; return true; }\n" );
+   ) enum_def.e_constrs;
+   output_cpp ("\treturn super::__GetStatic(inName, outValue, inCallProp);\n}\n\n");
 
    output_cpp ("HX_DEFINE_CREATE_ENUM(" ^ class_name ^ ")\n\n");
 
@@ -5449,18 +4032,14 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_cpp("#ifdef HXCPP_VISIT_ALLOCS\n    , " ^ class_name ^ "_sVisitStatic\n#endif\n");
    output_cpp ("#ifdef HXCPP_SCRIPTABLE\n    , 0\n#endif\n");
       output_cpp (");\n");
-   if ctx.ctx_cppast then
-      output_cpp ("\t__mClass->mGetStaticField = &" ^ class_name ^"::__GetStatic;\n");
+   output_cpp ("\t__mClass->mGetStaticField = &" ^ class_name ^"::__GetStatic;\n");
    output_cpp "}\n\n";
 
    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
    (match meta with
       | Some expr ->
          let ctx = file_context ctx cpp_file 1 in
-         if ctx.ctx_cppast then
-            gen_cpp_init ctx class_name "boot" "__mClass->__meta__ = " expr
-         else
-            gen_expression_tree ctx true [] expr  "__mClass->__meta__ = " ";\n";
+         gen_cpp_init ctx class_name "boot" "__mClass->__meta__ = " expr
       | _ -> () );
    PMap.iter (fun _ constructor ->
       let name = constructor.ef_name in
@@ -5468,7 +4047,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       | TFun (_,_) -> ()
       | _ ->
          output_cpp ( (keyword_remap name) ^ " = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
-            (string_of_int constructor.ef_index) ^ (if ctx.ctx_cppast then ",0" else "") ^ ");\n" )
+            (string_of_int constructor.ef_index) ^ ",0);\n" )
    ) enum_def.e_constrs;
    output_cpp ("}\n\n");
 
@@ -5501,8 +4080,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    output_h ("\t\tHX_DO_ENUM_RTTI;\n");
    output_h ("\t\tstatic void __boot();\n");
    output_h ("\t\tstatic void __register();\n");
-   if (ctx.ctx_cppast) then
-      output_h ("\t\tstatic bool __GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
+   output_h ("\t\tstatic bool __GetStatic(const ::String &inName, Dynamic &outValue, hx::PropertyAccess inCallProp);\n");
    output_h ("\t\t::String GetEnumName( ) const { return " ^ (str (join_class_path class_path "."))  ^ "; }\n" );
    output_h ("\t\t::String __ToString() const { return " ^ (str (just_class_name ^ ".") )^ " + tag; }\n\n");
 
@@ -5526,7 +4104,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    end_header_file output_h def_string;
    h_file#close;
-   let depend_referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true false in
+   let depend_referenced = find_referenced_types ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false true false in
    depend_referenced;;
 
 
@@ -5535,35 +4113,29 @@ let list_iteri func in_list =
    List.iter (fun elem -> func !idx elem; idx := !idx + 1 ) in_list
 ;;
 
-let has_new_gc_references class_def =
+let has_new_gc_references ctx class_def =
    match class_def.cl_dynamic with
    | Some _ -> true
    | _ -> (
       let is_gc_reference field =
-      (should_implement_field field) && (is_data_member field) &&
-         match type_string field.cf_type with
-            | "bool" | "int" | "Float" -> false
-            | _ -> true
+      (should_implement_field field) && (is_data_member field) && not (ctx_cant_be_null ctx field.cf_type)
       in
       List.exists is_gc_reference class_def.cl_ordered_fields
       )
 ;;
 
 
-let rec has_gc_references class_def =
+let rec has_gc_references ctx class_def =
    ( match class_def.cl_super with
-   | Some def when has_gc_references (fst def) -> true
+   | Some def when has_gc_references ctx (fst def) -> true
    | _ -> false )
-   || has_new_gc_references class_def
+   || has_new_gc_references ctx class_def
 ;;
 
 let rec find_next_super_iteration ctx class_def =
    match class_def.cl_super with
-   | Some  (klass,params) when has_new_gc_references klass ->
-        if ctx.ctx_cppast then
-           tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params)
-        else
-           class_string klass "_obj" params true
+   | Some  (klass,params) when has_new_gc_references ctx klass ->
+        tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params)
    | Some  (klass,_) -> find_next_super_iteration ctx klass
    | _ -> "";
 ;;
@@ -5768,12 +4340,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let scriptable = inScriptable && not class_def.cl_private in
 
    (* Config *)
-   let allow_ifield = not baseCtx.ctx_cppast in
-   let force_field = scriptable && (has_get_member_field class_def) in
-   let field_integer_dynamic = allow_ifield && (force_field || (has_field_integer_lookup class_def)) in
-   let field_integer_numeric = allow_ifield && (force_field || (has_field_integer_numeric_lookup class_def)) in
    let implement_dynamic = implement_dynamic_here class_def in
-   let override_iteration = (not nativeGen) && (has_new_gc_references class_def) in
+   let override_iteration = (not nativeGen) && (has_new_gc_references baseCtx class_def) in
    let dynamic_interface_closures =  (Common.defined baseCtx.ctx_common Define.DynamicInterfaceClosures) in
 
    (* All interfaces (and sub-interfaces) implemented *)
@@ -5852,16 +4420,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let output_cpp = (cpp_file#write) in
    let ctx = file_context baseCtx cpp_file debug in
 
-   ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
-   ctx.ctx_class_super_name <- (match class_def.cl_super with
+   let class_super_name = (match class_def.cl_super with
       | Some (klass, params) -> (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) )
-      | _ -> "");
-   if (debug>1) then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
+      | _ -> "") in
+   if (debug>1) then print_endline ("Found class definition:" ^ (join_class_path class_def.cl_path "::"));
 
 
    output_cpp "#include <hxcpp.h>\n\n";
 
-   let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false false scriptable in
+   let all_referenced = find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false false scriptable in
    List.iter ( add_include cpp_file  ) all_referenced;
 
    if (scriptable) then
@@ -5884,31 +4451,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             let old_debug = ctx.ctx_debug_level in
             if has_meta_key definition.cf_meta Meta.NoDebug then
                ctx.ctx_debug_level <- 0;
-            let oldVoid = ctx.ctx_real_void in
-            ctx.ctx_real_void <- true;
 
-            if ctx.ctx_cppast then begin
-               gen_cpp_function_body ctx class_def false "new" function_def "" "";
-               output_cpp "\n";
-            end else begin
-               output_cpp "\n{\n";
-               if ctx.ctx_debug_level >0 then begin
-                  hx_stack_push ctx output_cpp dot_name "new" function_def.tf_expr.epos;
-                  output_cpp "HX_STACK_THIS(this)\n";
-                  List.iter (fun (a,(t,o)) -> output_cpp ("HX_STACK_ARG(" ^ (keyword_remap o) ^ ",\"" ^ a ^"\")\n") ) cargs;
-               end;
+            gen_cpp_function_body ctx class_def false "new" function_def "" "";
+            output_cpp "\n";
 
-               if (has_default_values function_def.tf_args) then begin
-                  ctx_default_values ctx function_def.tf_args "__o_";
-               end;
-
-               let args = List.map fst function_def.tf_args in
-               gen_expression_tree ctx false args (mk_block function_def.tf_expr) "" "";
-               cpp_file#terminate_line;
-               output_cpp "}\n\n";
-            end;
-
-            ctx.ctx_real_void <- oldVoid;
             ctx.ctx_debug_level <- old_debug;
          | _ ->  output_cpp " { }\n\n"
       );
@@ -5931,7 +4477,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("\treturn _hx_result;\n}\n\n");
 
       if ( List.length implemented) > 0 then begin
-         if ctx.ctx_callsiteInterfaces then begin
             let cname = "_hx_" ^ (join_class_path class_def.cl_path "_") in
             let implname = (cpp_class_name class_def) in
             List.iter (fun interface_name ->
@@ -5969,27 +4514,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
             output_cpp "\t}\n";
 
-            if ctx.ctx_class_super_name="" then
+            if class_super_name="" then
                output_cpp ("\treturn 0;\n}\n\n")
             else
                output_cpp ("\treturn super::_hx_getInterface(inHash);\n}\n\n");
-         end else begin
-            output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const hx::type_info &inType)\n{\n");
-            List.iter (fun interface_name ->
-               output_cpp ("\tif (inType==typeid( " ^ interface_name ^ "_obj)) " ^
-                  "return operator " ^ interface_name ^ "_obj *();\n");
-               ) implemented;
-
-            if ctx.ctx_class_super_name="" then
-               output_cpp ("\treturn 0;\n}\n\n")
-            else
-               output_cpp ("\treturn super::__ToInterface(inType);\n}\n\n");
-
-            List.iter (fun interface_name ->
-               output_cpp (class_name ^ "::operator " ^ interface_name ^ "_obj *() { " ^
-                  "return new " ^ interface_name ^ "_delegate_< " ^ class_name ^" >(this); }\n\n" );
-            ) implemented;
-         end
       end;
    end;
 
@@ -5997,14 +4525,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    | Some expression ->
       let ctx = file_context baseCtx cpp_file debug in
       output_cpp ("void " ^ class_name^ "::__init__()");
-      if ctx.ctx_cppast then
-         gen_cpp_init ctx (cpp_class_name class_def) "__init__" "" (mk_block expression)
-      else begin
-         output_cpp " {\n";
-         hx_stack_push ctx output_cpp dot_name "__init__" expression.epos;
-         gen_expression_tree ctx false [] (mk_block expression) "" "";
-         output_cpp "}";
-      end;
+      gen_cpp_init ctx (cpp_class_name class_def) "__init__" "" (mk_block expression);
       output_cpp "\n\n";
    | _ -> ());
 
@@ -6076,16 +4597,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       end;
 
 
-      (*
-      let numericFields = if tcx.ctx_cppast then
-         List.filter isNumericField reflect_member_readable in
-      else
-         []
-      in
-      *)
-
-
-
       let dump_quick_field_test fields =
          if ( (List.length fields) > 0) then begin
             let len = function (_,l,_) -> l in
@@ -6132,37 +4643,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             output_cpp "\tHX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
          output_cpp ("\treturn super::__Field(inName,inCallProp);\n}\n\n");
 
-         (* Dynamic "Get" Field function - int version *)
-         if ( field_integer_numeric || field_integer_dynamic) then begin
-            let dump_static_ids = (fun field ->
-               let remap_name = keyword_remap field.cf_name in
-               output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
-                              (field.cf_name) ^ "\");\n");
-               ) in
-            List.iter dump_static_ids reflect_member_readable;
-            output_cpp "\n\n";
-
-
-            let output_ifield return_type function_name all_fields =
-            output_cpp (return_type ^" " ^ class_name ^ "::" ^ function_name ^ "(int inFieldID)\n{\n");
-            let dump_field_test = (fun f ->
-               let remap_name = keyword_remap f.cf_name in
-               output_cpp ("\tif (inFieldID==__id_" ^ remap_name ^ ") return "  ^
-                  ( if (return_type="Float") then "hx::ToDouble( " else "" ) ^
-                  (match f.cf_kind with
-                  | Var { v_read = AccCall } -> (keyword_remap ("get_" ^ f.cf_name)) ^ "()"
-                  | _ -> (remap_name ^ if ( variable_field f) then "" else "_dyn()")
-                  ) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
-               ) in
-            List.iter dump_field_test (List.filter (fun f -> all_fields || (is_numeric_field f)) reflect_member_readable);
-            if (implement_dynamic) then
-               output_cpp "\tHX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
-            output_cpp ("\treturn super::" ^ function_name ^ "(inFieldID);\n}\n\n");
-            in
-
-            if (field_integer_dynamic) then output_ifield "Dynamic" "__IField" true;
-            if (field_integer_numeric) then output_ifield "double" "__INumField" false;
-         end;
       end;
 
       if (has_get_static_field class_def) then begin
@@ -6322,7 +4802,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_cpp ("\nstatic void " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
          let ret = script_signature return_type false in
          if (ret<>"v") then output_cpp ("ctx->return" ^ (script_type return_type false) ^ "(");
-         if class_def.cl_interface && ctx.ctx_cppast then begin
+         if class_def.cl_interface then begin
             output_cpp (class_name ^ "::" ^ callName ^ "(ctx->getThis()" ^ (if (List.length args) > 0 then "," else ""));
          end else if isStatic then
             output_cpp (class_name ^ "::" ^ callName ^ "(")
@@ -6342,10 +4822,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    in
 
 
-   let newInteface = ctx.ctx_cppast && class_def.cl_interface in
+   let newInteface = class_def.cl_interface in
 
    if (scriptable && not nativeGen) then begin
-      let delegate = if ctx.ctx_cppast then "this->" else "mDelegate->" in
+      let delegate = "this->" in
       let dump_script_field idx (field,f_args,return_t) =
       let args = if (class_def.cl_interface) then
             gen_tfun_interface_arg_list f_args
@@ -6517,8 +4997,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("\t__mClass->mMarkFunc = " ^ class_name ^ "_sMarkStatics;\n");
       (*output_cpp ("\t__mClass->mStatics = hx::Class_obj::dupFunctions(" ^ sStaticFields ^ ");\n");*)
       output_cpp ("\t__mClass->mMembers = hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
-      if not ctx.ctx_callsiteInterfaces then
-         output_cpp ("\t__mClass->mCanCast = hx::TCanCast< " ^ class_name ^ " >;\n");
       output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = " ^ class_name ^ "_sVisitStatics;\n#endif\n");
       output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
       if (scriptable) then
@@ -6585,7 +5063,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    (* Only need to foreward-declare classes that are mentioned in the header file
       (ie, not the implementation)  *)
-   let referenced,flags = find_referenced_types_flags ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
+   let referenced,flags = find_referenced_types_flags ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) true false scriptable in
    List.iter2 ( fun r f -> gen_forward_decl h_file r f ) referenced flags;
    output_h "\n";
 
@@ -6607,9 +5085,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       ) (List.filter  (fun (t,_) -> is_native_gen_class t) class_def.cl_implements);
    in
 
-   let callsiteInterfaces = ctx.ctx_callsiteInterfaces in
-
-   if (class_def.cl_interface && callsiteInterfaces && not nativeGen) then begin
+   if (class_def.cl_interface && not nativeGen) then begin
       output_h ("class " ^ attribs ^ " " ^ class_name ^ " {\n");
       output_h "\tpublic:\n";
       output_h ("\t\ttypedef ::hx::Object super;\n");
@@ -6633,7 +5109,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_h ("\t\t" ^ class_name ^  "();\n");
       output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h "\n\tpublic:\n";
-      let new_arg = if (has_gc_references class_def) then "true" else "false" in
+      let new_arg = if (has_gc_references ctx class_def) then "true" else "false" in
       output_h ("\t\tinline void *operator new(size_t inSize, bool inContainer=" ^ new_arg
          ^",const char *inName=" ^ (const_char_star class_name_text )^ ")\n" );
       output_h ("\t\t\t{ return hx::Object::operator new(inSize,inContainer,inName); }\n" );
@@ -6655,8 +5131,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if (has_get_fields class_def) then
          output_h ("\t\tvoid __GetFields(Array< ::String> &outFields);\n");
 
-      if (field_integer_dynamic) then output_h "\t\tDynamic __IField(int inFieldID);\n";
-      if (field_integer_numeric) then output_h "\t\tdouble __INumField(int inFieldID);\n";
       if (implement_dynamic) then
          output_h ("\t\tHX_DECLARE_IMPLEMENT_DYNAMIC;\n");
       output_h ("\t\tstatic void __register();\n");
@@ -6683,16 +5157,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       end;
 
       if ( (List.length implemented) > 0 ) then begin
-         if ctx.ctx_callsiteInterfaces then begin
-            output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
-            output_h (String.concat "\n" !interface_glue);
-         end else begin
-            output_h "\t\thx::Object *__ToInterface(const hx::type_info &inType);\n";
-
-            List.iter (fun interface_name ->
-               output_h ("\t\toperator " ^ interface_name ^ "_obj *();\n")
-            ) implemented;
-         end
+         output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
+         output_h (String.concat "\n" !interface_glue);
       end;
 
 
@@ -6739,52 +5205,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    output_h ( get_class_code class_def Meta.HeaderClassCode );
    output_h "};\n\n";
 
-   if (class_def.cl_interface && not nativeGen && not callsiteInterfaces) then begin
-      output_h ("\n\n");
-      output_h ("template<typename IMPL>\n");
-      output_h ("class " ^ smart_class_name ^ "_delegate_ : public " ^ class_name^"\n");
-      output_h "{\n\tprotected:\n";
-      output_h ("\t\tIMPL *mDelegate;\n");
-      output_h "\tpublic:\n";
-      output_h ("\t\t" ^ smart_class_name ^ "_delegate_(IMPL *inDelegate) : mDelegate(inDelegate) {}\n");
-      output_h ("\t\thx::Object *__GetRealObject() { return mDelegate; }\n");
-      output_h ("\t\tvoid __Visit(HX_VISIT_PARAMS) { HX_VISIT_OBJECT(mDelegate); }\n");
-
-      let dumped = ref PMap.empty in
-      let rec dump_delegate interface =
-         List.iter (fun field -> try ignore (PMap.find field.cf_name !dumped) with Not_found ->
-         begin
-            dumped := PMap.add field.cf_name true !dumped;
-            match follow field.cf_type, field.cf_kind  with
-            | _, Method MethDynamic -> ()
-            | TFun (args,return_type), Method _ ->
-               let remap_name = keyword_remap field.cf_name in
-               let return_type = ctx_type_string ctx return_type in
-               output_h ( "		"  ^ return_type ^ " " ^ remap_name ^ "( " );
-               output_h (gen_tfun_interface_arg_list args);
-               let return = if return_type="void" then "" else "return " in
-               output_h (") { " ^ return ^ "mDelegate->" ^ remap_name^ "(");
-               output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
-               output_h ");}\n";
-               if (reflective interface field) &&  not dynamic_interface_closures then
-                  output_h ("		Dynamic " ^ remap_name ^ "_dyn() { return mDelegate->" ^ remap_name ^ "_dyn();}\n");
-            | _ -> ()
-         end
-         ) interface.cl_ordered_fields;
-
-         (match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ());
-         List.iter (fun impl -> dump_delegate (fst impl)) (real_interfaces interface.cl_implements);
-      in
-      dump_delegate class_def;
-      output_h "};\n\n";
-   end;
-
-
    gen_close_namespace output_h class_path;
 
    end_header_file output_h def_string;
    h_file#close;
-   let depend_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false true false in
+   let depend_referenced = find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false in
    depend_referenced
 
   in
@@ -6917,8 +5342,6 @@ let write_build_options common_ctx filename defines =
 
 let create_member_types common_ctx =
    let result = Hashtbl.create 0 in
-   (* CppAst - the member type tells whether it needs to be virtual or not *)
-   if Common.defined_value_safe common_ctx Define.CppAst <>"" then begin
       List.iter (fun object_def ->
          (match object_def with
          | TClassDecl class_def when not class_def.cl_interface ->
@@ -6931,34 +5354,7 @@ let create_member_types common_ctx =
              in
              (match  class_def.cl_super with Some super -> add_override (fst super) | _->())
          | _ -> ()
-         ) ) common_ctx.types
-   end else begin
-      let add_member class_name interface member =
-         match follow member.cf_type, member.cf_kind with
-         | _, Var _ when interface -> ()
-         | _, Method MethDynamic when interface -> ()
-         | TFun (_,ret), _ ->
-            (*print_endline (class_name ^ "." ^ member.cf_name ^ "=" ^  (type_string ret) );*)
-            Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string ret)
-         | _,_ when not interface ->
-            Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string member.cf_type)
-         | _ -> ()
-         in
-      List.iter (fun object_def ->
-         (match object_def with
-         | TClassDecl class_def ->
-            let class_name = "::" ^ (join_class_path_remap class_def.cl_path "::") in
-            let rec add_all_fields class_def =
-               if class_def.cl_interface then
-                  List.iter (fun impl -> add_all_fields (fst impl) ) class_def.cl_implements;
-               (match  class_def.cl_super with Some super -> add_all_fields (fst super) | _->(););
-               List.iter (add_member class_name class_def.cl_interface) class_def.cl_ordered_fields;
-               List.iter (add_member class_name class_def.cl_interface) class_def.cl_ordered_statics
-            in
-            add_all_fields class_def
-         | _ -> ( )
          ) ) common_ctx.types;
-   end;
    result;;
 
 (* Builds inheritance tree, so header files can include parents defs.  *)
@@ -7883,7 +6279,6 @@ let generate_cppia ctx =
          if (is_internal || (is_macro class_def.cl_meta)) then
             ( if (debug>1) then print_endline (" internal class " ^ (join_class_path class_def.cl_path ".") ))
          else begin
-            ctx.ctx_class_name <- "::" ^ (join_class_path class_def.cl_path "::");
             generate_script_class common_ctx script class_def
          end
       | TEnumDecl enum_def when enum_def.e_extern -> ()
@@ -7895,7 +6290,6 @@ let generate_cppia ctx =
             let meta = Codegen.build_metadata common_ctx object_def in
             if (enum_def.e_extern) then
                (if (debug>1) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
-            ctx.ctx_class_name <- "*";
             generate_script_enum common_ctx script enum_def meta
          end
       | TTypeDecl _ | TAbstractDecl _ -> (* already done *) ()
@@ -7993,7 +6387,7 @@ let generate_source ctx =
    | Some e ->
       let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_pos = e.epos; cf_public = true; cf_meta = []; cf_overloads = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
       let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
-      main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false true false;
+      main_deps := find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false;
       generate_main ctx super_deps class_def
    );
 
@@ -8046,13 +6440,13 @@ let generate_source ctx =
                | ([],"Array"), [t] -> "Array<" ^ (stype t) ^ ">"
                | (["haxe";"io"],"Unsigned_char__"),_ -> "uint8"
                | ([],"EnumValue"),_ -> "Dynamic"
-               | ([],"Null"),[t] when cant_be_null t -> "Null<" ^ (stype t) ^ ">"
+               | ([],"Null"),[t] when ctx_cant_be_null ctx t -> "Null<" ^ (stype t) ^ ">"
                | ([],"Null"),[t] -> (stype t)
                | _ -> spath klass.cl_path
                )
             | TType (type_def,params) ->
                (match type_def.t_path, params with
-               | ([],"Null"),[t] when cant_be_null t -> "Null<" ^ (stype t) ^ ">"
+               | ([],"Null"),[t] when ctx_cant_be_null ctx t -> "Null<" ^ (stype t) ^ ">"
                | ([],"Array"), [t] -> "Array< " ^ (stype (follow t) ) ^ " >"
                | _,_ ->  stype (apply_params type_def.t_params params type_def.t_type)
                )

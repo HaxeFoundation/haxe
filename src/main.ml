@@ -1480,9 +1480,7 @@ try
 			add_std "php";
 			"php"
 		| Cpp ->
-			if Common.defined_value_safe com Define.NoCppAst="" then
-			   Common.define_value com Define.CppAst "1";
-			Common.define_value com Define.HxcppApiLevel (if Common.defined_value_safe com Define.CppAst <>"" then "330" else "321");
+			Common.define_value com Define.HxcppApiLevel "330";
 			add_std "cpp";
 			if Common.defined com Define.Cppia then
 				classes := (make_path "cpp.cppia.HostClasses" ) :: !classes;
