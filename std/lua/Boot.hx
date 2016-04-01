@@ -36,6 +36,8 @@ class Boot {
 	static var _;
 	static var _fid = 0;
 
+	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function(){}),7) > 0;
+
 	public static var hiddenFields = [
 		"__id__", "hx__closures", "super",
 		"prototype", "__fields__", "__ifields__", "__class__", "__properties__"
