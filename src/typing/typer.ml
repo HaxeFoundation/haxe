@@ -1445,7 +1445,7 @@ and type_field ?(resume=false) ctx e i p mode =
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
 				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") p;
 			| _ ->
-				display_error ctx (string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) p;
+				display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) p;
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
@@ -4012,7 +4012,7 @@ and maybe_type_against_enum ctx f with_type p =
 			let e = try
 				f()
 			with Error (Unknown_ident n,_) ->
-				raise_or_display_message ctx (string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
+				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
 			in
 			ctx.m.curmod.m_types <- old;

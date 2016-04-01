@@ -1406,7 +1406,7 @@ try
 				ignore(Str.search_forward r msg 0);
 				let s = Str.matched_group 1 msg in
 				let sl = List.map (fun (s,_,_) -> s) all_args_spec in
-				let msg = Typecore.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
+				let msg = StringError.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
 				raise (Arg.Bad msg)
 			with Not_found ->
 				raise exc);

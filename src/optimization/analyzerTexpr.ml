@@ -533,7 +533,6 @@ module Fusion = struct
 end
 
 module Cleanup = struct
-	open Typecore
 	let apply com e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
 			| TUnop(Not,Prefix,e1),TConst (TBool true) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2

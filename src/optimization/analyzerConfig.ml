@@ -101,7 +101,7 @@ let update_config_from_meta com config meta =
 				| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
 				| _ ->
 					let s = Ast.s_expr e in
-					com.warning (Typecore.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
+					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el
 		| (Meta.HasUntyped,_,_) ->
