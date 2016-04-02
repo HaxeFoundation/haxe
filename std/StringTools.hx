@@ -33,7 +33,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	#if (!java && !cpp) inline #end public static function urlEncode( s : String ) : String {
+	#if (!java && !cpp && !lua) inline #end public static function urlEncode( s : String ) : String {
 		#if flash
 			return untyped __global__["encodeURIComponent"](s);
 		#elseif neko
@@ -55,7 +55,12 @@ class StringTools {
 			var b = @:privateAccess s.bytes.urlEncode(len);
 			return @:privateAccess String.__alloc__(b,len);
 		#elseif lua
-			return lua.Boot.urlEncode(s);
+			s = lua.NativeStringTools.gsub(s, "\n", "\r\n");
+			s = lua.NativeStringTools.gsub(s, "([^%w %-%_%.%~])", function (c) {
+				return lua.NativeStringTools.format("%%%02X", lua.NativeStringTools.byte(c) + '');
+			});
+			s = lua.NativeStringTools.gsub(s, " ", "+");
+			return s;
 		#else
 			return null;
 		#end
@@ -64,7 +69,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	#if (!java && !cpp) inline #end public static function urlDecode( s : String ) : String {
+	#if (!java && !cpp && !lua) inline #end public static function urlDecode( s : String ) : String {
 		#if flash
 			return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif neko
@@ -85,8 +90,12 @@ class StringTools {
 			var len = 0;
 			var b = @:privateAccess s.bytes.urlDecode(len);
 			return @:privateAccess String.__alloc__(b,len);
-		#elseif lua 
-			return lua.Boot.urlDecode(s);
+		#elseif lua
+			s = lua.NativeStringTools.gsub (s, "+", " ");
+			s = lua.NativeStringTools.gsub (s, "%%(%x%x)",
+				function(h) {return lua.NativeStringTools.char(lua.Lua.tonumber(h,16));});
+			s = lua.NativeStringTools.gsub (s, "\r\n", "\n");
+			return s;
 		#else
 			return null;
 		#end

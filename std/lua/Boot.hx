@@ -26,6 +26,7 @@ package lua;
 import lua.Bit;
 import lua.Table;
 import lua.Thread;
+import haxe.io.Path;
 
 import haxe.Constraints.Function;
 using lua.PairTools;
@@ -46,6 +47,9 @@ class Boot {
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 
+	/*
+	   Binds a function definition to the given instance
+	*/
 	@:keep
 	public static function bind(o:Dynamic, m: Function) : Function{
 		if (m == null) return null;
@@ -70,6 +74,10 @@ class Boot {
 		else return untyped __define_feature__("lua.Boot.isEnum", e.__ename__);
 	}
 
+	/*
+	   Returns the class of a given object, and defines the getClass feature
+	   for the given class.
+	*/
 	static inline public function getClass(o:Dynamic) : Dynamic {
 		if (Std.is(o, Array)) return Array;
 		else {
@@ -79,6 +87,9 @@ class Boot {
 		}
 	}
 
+	/*
+	   Indicates if the given object is an instance of the given Type
+	*/
 	@:ifFeature("typed_catch")
 	private static function __instanceof(o : Dynamic, cl : Dynamic) {
 		if( cl == null ) return false;
@@ -122,6 +133,10 @@ class Boot {
 			}
 		}
 	}
+
+	/*
+	   Indicates if the given object inherits from the given class
+	*/
 	static function inheritsFrom(o:Dynamic, cl:Class<Dynamic>) : Bool {
 		while (Lua.getmetatable(o) != null && Lua.getmetatable(o).__index != null){
 			if (Lua.getmetatable(o).__index == untyped cl.prototype) return true;
@@ -136,25 +151,9 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-
-
-	public static function urlDecode(str:String){
-		str = NativeStringTools.gsub (str, "+", " ");
-		str = NativeStringTools.gsub (str, "%%(%x%x)",
-				function(h) {return NativeStringTools.char(lua.Lua.tonumber(h,16));});
-		str = NativeStringTools.gsub (str, "\r\n", "\n");
-		return str;
-	}
-
-	public static function urlEncode(str:String){
-		str = NativeStringTools.gsub(str, "\n", "\r\n");
-		str = NativeStringTools.gsub(str, "([^%w %-%_%.%~])", function (c) {
-			return NativeStringTools.format("%%%02X", NativeStringTools.byte(c) + '');
-		});
-		str = NativeStringTools.gsub(str, " ", "+");
-		return str;
-	}
-
+	/*
+	   Helper method to generate a string representation of an enum
+	*/
 	static function printEnum(o:Array<Dynamic>, s : String){
 		if (o.length == 2){
 			return o[0];
@@ -172,11 +171,17 @@ class Boot {
 		}
 	}
 
+	/*
+	   Helper method to generate a string representation of a class
+	*/
 	static inline function printClass(c:Table<String,Dynamic>, s : String) : String {
 		return '{${printClassRec(c,'',s)}}';
 
 	}
 
+	/*
+	   Helper method to generate a string representation of a class
+	*/
 	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
 		c.pairsEach(function(k,v){
 			if (result != "")
@@ -186,6 +191,9 @@ class Boot {
 		return result;
 	}
 
+	/*
+	   Generate a string representation for arbitrary object.
+	*/
 	@:ifFeature("has_enum")
 	static function __string_rec(o : Dynamic, s:String = "") {
 		return switch(untyped __type__(o)){
@@ -235,15 +243,17 @@ class Boot {
 
 	}
 
-	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
-		if (length == null) length = Table.maxn(t);
-		return cast defArray(t,length);
-	}
-
-	public inline static function defArray<T>(tab: Table<Int,T>, length : Int) : Array<T> {
+	/*
+	   Define an array from the given table
+	*/
+	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
+		if (length == null) length = Table.maxn(tab);
 		return untyped _hx_tabArray(tab, length);
 	}
 
+	/*
+	   Create a Haxe object from the given table structure
+	*/
 	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
 		return untyped _hx_o(t);
 	}
@@ -262,10 +272,16 @@ class Boot {
 			+":"+(if( s < 10 ) "0"+s else ""+s);
 	}
 
+	/*
+	   A 32 bit clamp function for integers
+	*/
 	public inline static function clamp(x:Int){
 		return untyped _hx_bit_clamp(x);
 	}
 
+	/*
+	   Create a standard date object from a lua string representation
+	*/
 	public static function strDate( s : String ) : std.Date {
 		switch( s.length ) {
 		case 8: // hh:mm:ss
@@ -292,9 +308,41 @@ class Boot {
 		}
 	}
 
+	/*
+	   create an empty table.
+	*/
 	public inline static function createTable<K,V>() : Table<K,V> {
 		return untyped __lua__("{}");
 	}
+
+	/*
+		Returns a shell escaped version of "cmd" along with any args
+	*/
+	public static function shellEscapeCmd(cmd : String, ?args : Array<String>){
+		if (args != null) {
+			switch (Sys.systemName()) {
+				case "Windows":
+					cmd = [
+						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+						StringTools.quoteWinArg(a, true)
+					].join(" ");
+				case _:
+					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+			}
+		}
+		return cmd;
+	}
+
+	/*
+	   Returns a temp file path that can be used for reading and writing
+	*/
+	public static function tempFile() : String {
+		switch (Sys.systemName()){
+			case "Windows" : return Path.join([Os.getenv("TMP"), Os.tmpname()]);
+			default : return Os.tmpname();
+		}
+	}
+
 
 	public static function __init__(){
 		// anonymous to instance method wrapper
