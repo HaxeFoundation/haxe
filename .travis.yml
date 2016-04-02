@@ -20,7 +20,7 @@ env:
     - DEBFULLNAME="Haxe CI Bot"
     - DEBEMAIL="haxe-ci@onthewings.net"
 
-sudo: false
+sudo: required
 addons:
   ssh_known_hosts: haxe.org
   apt:
