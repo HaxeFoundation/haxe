@@ -817,8 +817,9 @@ let unify_field_call ctx fa el args ret p inline =
 		let candidates,failures = loop candidates in
 		let fail () =
 			let failures = List.map (fun (cf,err,p) -> cf,error_msg err,p) failures in
+			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in
 			begin match failures with
-			| (_,msg,p) :: failures when List.for_all (fun (_,msg2,_) -> msg = msg2) failures ->
+			| [_,msg,p] ->
 				error msg p
 			| _ ->
 				display_error ctx "Could not find a suitable overload, reasons follow" p;
