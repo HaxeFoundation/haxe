@@ -11,6 +11,15 @@ class Main {
 			}
 		});
 
+
+		var t = new haxe.Timer(200);
+		var count = 0;
+		t.run = function() {
+			trace("T" + count++);
+			if( count == 5 )
+				t.stop();
+		};
+
 		haxe.MainLoop.addThread(function() {
 			var event : haxe.MainLoop.MainEvent = null;
 			var count = 0;
