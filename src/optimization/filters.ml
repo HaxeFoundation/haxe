@@ -1035,8 +1035,8 @@ let run com tctx main =
 	(* PASS 1: general expression filters *)
 	let filters = [
 		Codegen.AbstractCast.handle_abstract_casts tctx;
-		check_local_vars_init;
 		Optimizer.inline_constructors tctx;
+		check_local_vars_init;
 		Optimizer.reduce_expression tctx;
 		captured_vars com;
 	] in

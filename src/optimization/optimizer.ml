@@ -1413,6 +1413,16 @@ let inline_constructors ctx e =
 		v.v_id <- -v.v_id;
 		vars := IntMap.add v.v_id ii !vars;
 	in
+	let get_field_var v s =
+		let ii = IntMap.find v.v_id !vars in
+		PMap.find s ii.ii_fields
+	in
+	let add_field_var v s t =
+		let ii = IntMap.find v.v_id !vars in
+		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t in
+		ii.ii_fields <- PMap.add s v' ii.ii_fields;
+		v'
+	in
 	let int_field_name i =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
@@ -1477,7 +1487,9 @@ let inline_constructors ctx e =
 					()
 			in
 			loop [] e1
-		| TBinop(OpAssign,{eexpr = TField({eexpr = TLocal v},_)},e2) when v.v_id < 0 ->
+		| TBinop(OpAssign,({eexpr = TField({eexpr = TLocal v},fa)} as e1),e2) when v.v_id < 0 ->
+			let s = field_name fa in
+			(try ignore(get_field_var v s) with Not_found -> ignore(add_field_var v s e1.etype));
 			find_locals e2
 		| TField({eexpr = TLocal v},fa) when v.v_id < 0 ->
 			begin match extract_field fa with
@@ -1503,20 +1515,12 @@ let inline_constructors ctx e =
 	in
 	find_locals e;
 	(* Pass 2 *)
-	let get_field_var v s =
-		let ii = IntMap.find v.v_id !vars in
-		PMap.find s ii.ii_fields
-	in
-	let add_field_var v s t =
-		let ii = IntMap.find v.v_id !vars in
-		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t in
-		ii.ii_fields <- PMap.add s v' ii.ii_fields;
-		v'
-	in
 	let inline v p =
 		try
 			let ii = IntMap.find v.v_id !vars in
-			Some ii.ii_expr
+			let el = PMap.fold (fun v acc -> (mk (TVar(v,None)) ctx.t.tvoid p) :: acc) ii.ii_fields [] in
+			let e = {ii.ii_expr with eexpr = TBlock (el @ [ii.ii_expr])} in
+			Some e
 		with Not_found ->
 			None
 	in
