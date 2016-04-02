@@ -135,7 +135,7 @@ src/generators/codegen.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typi
 
 src/generators/genas3.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
-src/generators/gencommon.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
+src/generators/gencommon.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/typing/typeload.$(MODULE_EXT) libs/ilib/il.$(LIB_EXT)
 
 src/generators/gencpp.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/generators/gencommon.$(MODULE_EXT)
 
@@ -169,7 +169,7 @@ src/optimization/analyzer.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing
 
 src/optimization/analyzerConfig.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT)
 
-src/optimization/analyzerTexpr.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT)
+src/optimization/analyzerTexpr.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT)
 
 src/optimization/analyzerTexprTransformer.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/optimization/analyzerConfig.$(MODULE_EXT) src/optimization/analyzerTypes.$(MODULE_EXT) src/optimization/analyzerTexpr.$(MODULE_EXT)
 
