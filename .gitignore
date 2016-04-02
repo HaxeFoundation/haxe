@@ -79,3 +79,7 @@ tests/misc/projects/Issue3756/cpp/
 tests/misc/projects/Issue4070/cpp/
 
 /*.manifest
+/tests/misc/eventLoop/cpp
+/tests/misc/eventLoop/eventLoop.js
+/tests/misc/eventLoop/eventLoop.n
+/tests/misc/eventLoop/eventLoop.swf
