@@ -1050,7 +1050,7 @@ let run com tctx main =
 	] in
 	List.iter (run_expression_filters tctx filters) new_types;
 	next_compilation();
-	List.iter (fun f -> f()) (List.rev com.filters); (* macros onGenerate etc. *)
+	List.iter (fun f -> f()) (List.rev com.callbacks.before_dce); (* macros onGenerate etc. *)
 	List.iter (save_class_state tctx) new_types;
 	(* PASS 2: type filters pre-DCE *)
 	List.iter (fun t ->

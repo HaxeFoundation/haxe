@@ -99,6 +99,12 @@ type display_mode =
 	| DMResolve of string
 	| DMType
 
+type compiler_callback = {
+	mutable after_typing : (module_type list -> unit) list;
+	mutable before_dce : (unit -> unit) list;
+	mutable after_generation : (unit -> unit) list;
+}
+
 type context = {
 	(* config *)
 	version : int;
@@ -118,8 +124,7 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
-	mutable filters : (unit -> unit) list;
-	mutable final_filters : (unit -> unit) list;
+	callbacks : compiler_callback;
 	mutable defines_signature : string option;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
@@ -672,8 +677,11 @@ let create v args =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
-		filters = [];
-		final_filters = [];
+		callbacks = {
+			after_typing = [];
+			before_dce = [];
+			after_generation = [];
+		};
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -896,11 +904,14 @@ let error msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 
+let add_typing_filter ctx f =
+	ctx.callbacks.after_typing <- f :: ctx.callbacks.after_typing
+
 let add_filter ctx f =
-	ctx.filters <- f :: ctx.filters
+	ctx.callbacks.before_dce <- f :: ctx.callbacks.before_dce
 
 let add_final_filter ctx f =
-	ctx.final_filters <- f :: ctx.final_filters
+	ctx.callbacks.after_generation <- f :: ctx.callbacks.after_generation
 
 let find_file ctx f =
 	try

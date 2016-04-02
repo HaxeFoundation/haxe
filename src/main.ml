@@ -1624,7 +1624,7 @@ try
 		end
 	end;
 	Sys.catch_break false;
-	List.iter (fun f -> f()) (List.rev com.final_filters);
+	List.iter (fun f -> f()) (List.rev com.callbacks.after_generation);
 	if not !no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in

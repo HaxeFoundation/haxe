@@ -4274,7 +4274,22 @@ let get_main ctx =
 		Some (mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos)
 
 let finalize ctx =
-	flush_pass ctx PFinal "final"
+	flush_pass ctx PFinal "final";
+	match ctx.com.callbacks.after_typing with
+		| [] ->
+			()
+		| fl ->
+			let rec loop handled_types =
+				let all_types = Hashtbl.fold (fun _ m acc -> m.m_types @ acc) ctx.g.modules [] in
+				match (List.filter (fun mt -> not (List.memq mt handled_types)) all_types) with
+				| [] ->
+					()
+				| new_types ->
+					List.iter (fun f -> f new_types) fl;
+					flush_pass ctx PFinal "final";
+					loop all_types
+			in
+			loop []
 
 type state =
 	| Generating
@@ -4469,6 +4484,13 @@ let make_macro_api ctx p =
 				let path = parse_path s in
 				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
+			)
+		);
+		Interp.after_typing = (fun f ->
+			Common.add_typing_filter ctx.com (fun tl ->
+				let t = macro_timer ctx "afterTyping" in
+				f tl;
+				t()
 			)
 		);
 		Interp.on_generate = (fun f ->
