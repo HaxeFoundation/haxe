@@ -36,7 +36,7 @@ class Lib {
 	}
 
 	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
-		return Boot.tableToArray(t, length);
+		return Boot.defArray(t, length);
 	}
 
 	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
