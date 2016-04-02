@@ -131,7 +131,6 @@ install:
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
       travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
       cd ~/neko;
-      # install mbedTLS (note: wget refuse tls.mbed.org certificate on Ubuntu 12.04)
       (cd libs/include/ssl/ && wget --no-check-certificate https://tls.mbed.org/download/mbedtls-2.2.1-apache.tgz && tar xzf mbedtls-2.2.1-apache.tgz && cd mbedtls-2.2.1 && sed -i "s/\/\/#define MBEDTLS_THREADING_PTHREAD/#define MBEDTLS_THREADING_PTHREAD/; s/\/\/#define MBEDTLS_THREADING_C/#define MBEDTLS_THREADING_C/; s/#define MBEDTLS_SSL_PROTO_SSL3/\/\/#define MBEDTLS_SSL_PROTO_SSL3/" include/mbedtls/config.h && SHARED=1 make lib && sudo make install);
       make os=${TRAVIS_OS_NAME} -s;
       export PATH="$PATH:$HOME/neko/bin";
