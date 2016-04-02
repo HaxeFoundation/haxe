@@ -29,6 +29,7 @@ import lua.Os;
 import lua.lib.lfs.Lfs;
 import lua.FileHandle;
 import lua.Io;
+import lua.Boot;
 import sys.io.FileInput;
 import sys.io.FileOutput;
 
@@ -44,17 +45,7 @@ class Sys {
 		return lua.Lib.tableToArray(lua.Lua.arg);
 	}
 	public static function command( cmd : String, ?args : Array<String> ) : Int  {
-		if (args != null) {
-			switch (systemName()) {
-				case "Windows":
-					cmd = [
-						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						StringTools.quoteWinArg(a, true)
-					].join(" ");
-				case _:
-					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
-			}
-		}
+		cmd = Boot.shellEscapeCmd(cmd, args);
 		return cast Table.pack(Os.execute(cmd))[3];
 	}
 
