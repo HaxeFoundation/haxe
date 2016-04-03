@@ -73,6 +73,7 @@ module Meta = struct
 		| Extern
 		| FakeEnum
 		| File
+		| FileXml
 		| Final
 		| Fixed
 		| FlatEnum
@@ -159,6 +160,7 @@ module Meta = struct
 		| SkipReflection
 		| Sound
 		| SourceFile
+		| StackOnly
 		| StoredTypedExpr
 		| Strict
 		| Struct

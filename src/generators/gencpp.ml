@@ -492,13 +492,6 @@ List.filter (function (t,pl) ->
 );;
 
 
-
-let rec is_function_expr expr =
-   match expr.eexpr with
-   | TParenthesis expr | TMeta(_,expr) -> is_function_expr expr
-   | TFunction _ -> true
-   | _ -> false;;
-
 let is_var_field field =
    match field.cf_kind with
    | Var _ -> true
@@ -1959,6 +1952,14 @@ let cpp_debug_var_visible var =
 ;;
 
 
+let only_stack_access ctx haxe_type = 
+   let tcpp = cpp_type_of ctx haxe_type in
+   match tcpp with
+   | TCppInst(klass) -> has_meta_key klass.cl_meta Meta.StackOnly
+   | _ -> false;
+;;
+ 
+
 
 let cpp_member_name_of member =
    let rename = get_meta_string member.cf_meta Meta.Native in
@@ -2569,6 +2570,7 @@ let gen_type ctx haxe_type =
 ;;
 
 
+
 let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
@@ -2713,9 +2715,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               gen expr; out (operator ^ (cpp_member_name_of field) );
          | FuncStatic(clazz,_,field) ->
               let rename = get_meta_string field.cf_meta Meta.Native in
-              if rename<>"" then
+              if rename<>"" then begin
+                 (* This is the case if you use @:native('new foo').  c++ wil group the space undesirably *)
+                 if String.contains rename ' ' then begin
+                    out "(";
+                    closeCall := ")"
+                 end;
                  out rename
-              else
+              end else
                  (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ))
 
          | FuncFromStaticFunction ->
@@ -3493,8 +3500,12 @@ let gen_member_def ctx class_def is_static is_interface field =
          (* Variable access *)
       | _ ->
          (* Variable access *)
-         gen_type ctx field.cf_type;
-         output (" " ^ remap_name ^ ";\n" );
+         let tcpp = cpp_type_of ctx field.cf_type in
+         let tcppStr = tcpp_to_string tcpp in
+         if not is_static && only_stack_access ctx field.cf_type then
+            error ("Variables of type " ^ tcppStr ^ " may not be used as members") field.cf_pos;
+
+         output (tcppStr ^ " " ^ remap_name ^ ";\n" );
 
          (* Add a "dyn" function for variable to unify variable/function access *)
          (match follow field.cf_type with
@@ -5042,6 +5053,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             (if class_def.cl_interface && nativeGen then "virtual " else "" ) ^ name, name
       | None when nativeGen && class_def.cl_interface  -> "virtual hx::NativeInterface", "hx::NativeInterface"
       | None when class_def.cl_interface -> "hx::Interface", "hx::Interface"
+      | None when nativeGen -> "", ""
       | None -> "hx::Object", "hx::Object"
       in
    let output_h = (h_file#write) in
@@ -5282,9 +5294,11 @@ let write_resources common_ctx =
 let write_build_data common_ctx filename classes main_deps boot_deps build_extra extern_src exe_name =
    let buildfile = open_out filename in
    let include_prefix = get_include_prefix common_ctx true in
-   let add_class_to_buildfile class_path deps  =
+   let add_class_to_buildfile class_path deps fileXml =
       let cpp = (join_class_path class_path "/") ^ (source_file_extension common_ctx) in
-      output_string buildfile ( "  <file name=\"src/" ^ cpp ^ "\">\n" );
+      output_string buildfile ( "  <file name=\"src/" ^ cpp ^ "\" ");
+      if fileXml<>"" then output_string buildfile fileXml;
+      output_string buildfile (">\n" );
       let project_deps = List.filter (fun path -> not (is_internal_class path) ) deps in
       List.iter (fun path-> output_string buildfile ("   <depend name=\"" ^
       ( match path with
@@ -5293,7 +5307,14 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
       ^ "\"/>\n") ) project_deps;
       output_string buildfile ( "  </file>\n" )
    in
-   let add_classdef_to_buildfile (class_path, deps, _)  = add_class_to_buildfile class_path deps in
+   let add_classdef_to_buildfile (class_path, deps, object_def )  =
+      let fileXml = match object_def with
+         | TClassDecl class_def -> get_meta_string class_def.cl_meta Meta.FileXml
+         | TEnumDecl enum_def -> get_meta_string enum_def.e_meta Meta.FileXml
+         | _ -> ""
+      in
+      add_class_to_buildfile class_path deps fileXml
+   in
 
    output_string buildfile "<xml>\n";
    output_string buildfile ("<set name=\"HXCPP_API_LEVEL\" value=\"" ^
@@ -5301,17 +5322,17 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    output_string buildfile "<files id=\"haxe\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
    List.iter add_classdef_to_buildfile classes;
-   add_class_to_buildfile ( [] , "__boot__")  boot_deps;
-   add_class_to_buildfile ( [] , "__files__")  [];
-   add_class_to_buildfile ( [] , "__resources__")  [];
+   add_class_to_buildfile ( [] , "__boot__")  boot_deps "";
+   add_class_to_buildfile ( [] , "__files__")  [] "";
+   add_class_to_buildfile ( [] , "__resources__")  [] "";
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__lib__\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-   add_class_to_buildfile ( [] , "__lib__") main_deps;
+   add_class_to_buildfile ( [] , "__lib__") main_deps "";
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__main__\">\n";
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
-   add_class_to_buildfile  ( [] , "__main__") main_deps;
+   add_class_to_buildfile  ( [] , "__main__") main_deps "";
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__resources__\">\n";
    let idx = ref 0 in

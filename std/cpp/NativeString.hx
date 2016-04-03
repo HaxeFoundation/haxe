@@ -32,5 +32,8 @@ extern class NativeString {
 	public static inline function fromPointer(inPtr:ConstPointer<Char> ) : String {
       return untyped __global__.String(inPtr.ptr);
    }
+
+   @:native("_hx_string_create")
+	public static function fromPointerLen(inPtr:ConstPointer<Char>, len:Int ) : String;
 }
 
