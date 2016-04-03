@@ -1,6 +1,6 @@
 package haxe;
 
-#if neko
+#if (neko && !macro)
 import neko.vm.Lock;
 import neko.vm.Mutex;
 import neko.vm.Thread;
@@ -8,6 +8,32 @@ import neko.vm.Thread;
 import cpp.vm.Lock;
 import cpp.vm.Mutex;
 import cpp.vm.Thread;
+#elseif java
+import java.vm.Lock;
+import java.vm.Mutex;
+import java.vm.Thread;
+#elseif sys
+private class Lock {
+	public function new() {
+	}
+	public inline function release() {
+	}
+	public inline function wait( ?t : Float ) {
+	}
+}
+private class Mutex {
+	public function new() {
+	}
+	public inline function acquire() {
+	}
+	public inline function release() {
+	}
+}
+private class Thread {
+	public static function create( f : Void -> Void ) {
+		f();
+	}
+}
 #end
 
 /**

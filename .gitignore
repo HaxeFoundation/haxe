@@ -83,3 +83,6 @@ tests/misc/projects/Issue4070/cpp/
 /tests/misc/eventLoop/eventLoop.js
 /tests/misc/eventLoop/eventLoop.n
 /tests/misc/eventLoop/eventLoop.swf
+/tests/misc/eventLoop/dump
+/tests/misc/eventLoop/eventLoop.py
+/tests/misc/eventLoop/php
