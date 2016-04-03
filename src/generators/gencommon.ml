@@ -6767,7 +6767,12 @@ struct
 
 	let configure gen (mapping_func:texpr->texpr) =
 		gen.ghandle_cast <- (fun tto tfrom expr -> handle_cast gen expr (gen.greal_type tto) (gen.greal_type tfrom));
-		let map e = Some(mapping_func e) in
+		let map e = match gen.gcurrent_classfield with
+			| Some(cf) when Meta.has (Meta.Custom ":skipCastDetect") cf.cf_meta ->
+				None
+			| _ ->
+				Some(mapping_func e)
+		in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map;
 		ReturnCast.configure gen
 
@@ -11095,42 +11100,8 @@ struct
 					match decl with
 					| Some(f2,actual_t,_,t,declared_cl,_,_)
 						when not (Typeload.same_overload_args ~get_vmtype actual_t (get_real_fun gen f.cf_type) f2 f) ->
-							if Meta.has Meta.Overload f.cf_meta then begin
-								(* if it is overload, create another field with the requested type *)
-								let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
-								let p = f.cf_pos in
-								let old_args, old_ret = get_fun f.cf_type in
-								let args, ret = get_fun t in
-								let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
-								let f3_mk_return = if is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
-								f3.cf_expr <- Some {
-									eexpr = TFunction({
-										tf_args = tf_args;
-										tf_type = ret;
-										tf_expr = mk_block (f3_mk_return {
-											eexpr = TCall(
-												{
-													eexpr = TField(
-														{ eexpr = TConst TThis; etype = TInst(c, List.map snd c.cl_params); epos = p },
-														FInstance(c,List.map snd c.cl_params,f));
-													etype = f.cf_type;
-													epos = p
-												},
-												List.map2 (fun (v,_) (_,_,t) -> mk_cast t (mk_local v p)) tf_args old_args);
-											etype = old_ret;
-											epos = p
-										})
-									});
-									etype = t;
-									epos = p;
-								};
-								gen.gafter_filters_ended <- ((fun () ->
-									f.cf_overloads <- f3 :: f.cf_overloads;
-								) :: gen.gafter_filters_ended);
-								f3
-							end else begin match f.cf_expr with
+							(match f.cf_expr with
 							| Some({ eexpr = TFunction(tf) } as e) ->
-								(* if it's not overload, just cast the vars *)
 								let actual_args, _ = get_fun (get_real_fun gen actual_t) in
 								let new_args, vardecl = List.fold_left2 (fun (args,vdecl) (v,_) (_,_,t) ->
 									if not (type_iseq (gen.greal_type v.v_type) (gen.greal_type t)) then begin
@@ -11139,17 +11110,62 @@ struct
 									end else
 										(v,None) :: args, vdecl
 								) ([],[]) tf.tf_args actual_args in
-
-								if vardecl <> [] then
-								f.cf_expr <- Some({ e with
-									eexpr = TFunction({ tf with
-										tf_args = List.rev new_args;
-										tf_expr = Type.concat { eexpr = TBlock(List.map (fun (v,ve) -> { eexpr = TVar(v,ve); etype = gen.gcon.basic.tvoid; epos = e.epos }) vardecl); etype = gen.gcon.basic.tvoid; epos = e.epos } tf.tf_expr
+								let block = { eexpr = TBlock(List.map (fun (v,ve) ->
+									{
+										eexpr = TVar(v,ve);
+										etype = gen.gcon.basic.tvoid;
+										epos = tf.tf_expr.epos
+									}) vardecl);
+									etype = gen.gcon.basic.tvoid;
+									epos = tf.tf_expr.epos
+								} in
+								if Meta.has Meta.Overload f.cf_meta then begin
+									(* if it is overload, create another field with the requested type *)
+									let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
+									let p = f.cf_pos in
+									let old_args, old_ret = get_fun f.cf_type in
+									let args, ret = get_fun t in
+									let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
+									let f3_mk_return = if is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
+									f3.cf_expr <- Some {
+										eexpr = TFunction({
+											tf_args = List.rev new_args;
+											tf_type = ret;
+											tf_expr = Type.concat block (mk_block (f3_mk_return {
+												eexpr = TCall(
+													{
+														eexpr = TField(
+															{ eexpr = TConst TThis; etype = TInst(c, List.map snd c.cl_params); epos = p },
+															FInstance(c,List.map snd c.cl_params,f));
+														etype = f.cf_type;
+														epos = p
+													},
+													List.map2 (fun (v,_) (_,_,t) -> mk_cast t (mk_local v p)) tf_args old_args);
+												etype = old_ret;
+												epos = p
+											}))
+										});
+										etype = t;
+										epos = p;
+									};
+									(* make sure we skip cast detect - otherwise this new function will make the overload detection go crazy *)
+									f3.cf_meta <- (Meta.Custom(":skipCastDetect"), [], f3.cf_pos) :: f3.cf_meta;
+									gen.gafter_expr_filters_ended <- ((fun () ->
+										f.cf_overloads <- f3 :: f.cf_overloads;
+									) :: gen.gafter_expr_filters_ended);
+									f3
+								end else begin
+									(* if it's not overload, just cast the vars *)
+									if vardecl <> [] then
+									f.cf_expr <- Some({ e with
+										eexpr = TFunction({ tf with
+											tf_args = List.rev new_args;
+											tf_expr = Type.concat block tf.tf_expr
+										});
 									});
-								});
-								f
-							| _ -> f
-							end
+									f
+								end
+							| _ -> f)
 					| _ -> f
 				in
 				if not c.cl_extern then

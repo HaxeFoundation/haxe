@@ -113,9 +113,24 @@ using haxe.Int64;
 	public static function command( cmd : String, ?args : Array<String> ) : Int
 	{
 		var pb = Process.createProcessBuilder(cmd, args);
+#if java6
+		pb.redirectErrorStream(true);
+#else
 		pb.redirectOutput(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
 		pb.redirectError(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
+#end
 		var proc = pb.start();
+#if java6
+		var reader = new java.io.NativeInput(proc.getInputStream());
+		try
+		{
+			while(true) {
+				var ln = reader.readLine();
+				Sys.println(ln);
+			}
+		}
+		catch(e:haxe.io.Eof) {}
+#end
 		proc.waitFor();
 		var exitCode = proc.exitValue();
 		proc.destroy();
