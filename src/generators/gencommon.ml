@@ -6475,9 +6475,9 @@ struct
 					(* check types list *)
 					let new_ecall, elist = try
 						let elist = List.map2 (fun applied (_,_,funct) ->
-							match is_overload, applied.eexpr with
+							match is_overload || real_fparams <> [], applied.eexpr with
 							| true, TConst TNull ->
-								local_mk_cast (gen.greal_type funct) applied
+								mk_castfast (gen.greal_type funct) applied
 							| true, _ -> (* when not (type_iseq gen (gen.greal_type applied.etype) funct) -> *)
 								let ret = handle_cast gen applied (funct) (gen.greal_type applied.etype) in
 								(match ret.eexpr with
