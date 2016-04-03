@@ -6588,7 +6588,7 @@ let generate_source ctx =
       if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
       cmd := !cmd ^ !cmd_defines;
       cmd := List.fold_left (fun cmd path -> cmd ^ " -I\"" ^ (escape_command path) ^ "\"" ) !cmd common_ctx.class_path;
-      print_endline !cmd;
+      common_ctx.print (!cmd ^ "\n");
       if common_ctx.run_command !cmd <> 0 then failwith "Build failed";
       Sys.chdir old_dir;
       t()
