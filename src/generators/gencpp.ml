@@ -1405,6 +1405,7 @@ and tcpp_expr_expr =
    | CppString of string
    | CppBool of bool
    | CppNull
+   | CppNullAccess
    | CppNil
    | CppThis of tcppthis
    | CppSuper of tcppthis
@@ -1471,6 +1472,7 @@ let rec s_tcpp = function
    | CppFunction _ -> "CppFunction"
    | CppEnumIndex _ -> "CppEnumIndex"
    | CppEnumField  _ -> "CppEnumField"
+   | CppNullAccess -> "CppNullAccess"
 
    | CppCall (FuncThis _,_)  -> "CppCallThis"
    | CppCall (FuncInstance (obj,objC,field),_) ->
@@ -2076,7 +2078,9 @@ let retype_expression ctx request_type function_args expression_tree =
                     CppFunction( FuncInstance(retypedObj,false,member), funcReturn ), exprType
                   else
                      CppDynamicField(retypedObj, member.cf_name), TCppVariant
-               end else if is_struct_access obj.etype then begin
+               end else if clazzType=TCppNull then
+                  CppNullAccess, TCppDynamic
+               else if is_struct_access obj.etype then begin
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                       CppVar(VarThis(member)), exprType
@@ -2165,6 +2169,8 @@ let retype_expression ctx request_type function_args expression_tree =
                let fieldName = field.cf_name in
                if obj.cpptype=TCppGlobal then
                   CppGlobal(fieldName), cpp_type_of expr.etype
+               else if obj.cpptype=TCppNull then
+                  CppNullAccess, TCppDynamic
                else if is_internal_member fieldName then begin
                   let cppType = cpp_type_of expr.etype in
                   if obj.cpptype=TCppString then
@@ -2176,7 +2182,9 @@ let retype_expression ctx request_type function_args expression_tree =
 
             | FDynamic fieldName ->
                let obj = retype TCppDynamic obj in
-               if fieldName="cca" && obj.cpptype=TCppString then
+               if obj.cpptype=TCppNull then
+                  CppNullAccess, TCppDynamic
+               else if fieldName="cca" && obj.cpptype=TCppString then
                   CppFunction( FuncInternal(obj,"cca","."), TCppScalar("Int")), TCppDynamic
                else if fieldName="__s" && obj.cpptype=TCppString then
                   CppVar( VarInternal(obj,".","__s")), TCppPointer("ConstPointer", TCppScalar("char"))
@@ -2217,52 +2225,55 @@ let retype_expression ctx request_type function_args expression_tree =
 
          | TCall( func, args ) ->
             let retypedFunc = retype TCppDynamic func in
-            let cppType = cpp_type_of expr.etype in
-            (*
-            let retypedArgs = List.map2 (fun arg (var,opt) ->
-                retype (cpp_fun_arg_type_of var opt) arg
-                ) args, func.tf_args in
-            *)
-            let retypedArgs = List.map (retype TCppDynamic ) args in
-            (match retypedFunc.cppexpr with
-            |  CppFunction(FuncFromStaticFunction ,returnType) ->
-                ( match retypedArgs with
-                | [ {cppexpr=CppFunction( FuncStatic(clazz,false,member), funcReturn)} ] ->
-                   CppFunctionAddress(clazz,member), funcReturn
-                | _ -> error "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
-                )
-            |  CppEnumIndex(_) ->
-                  (* Not actually a TCall...*)
-                  retypedFunc.cppexpr, retypedFunc.cpptype
-            |  CppFunction(func,returnType) ->
-                  CppCall(func,retypedArgs), returnType
-            |  CppEnumField(enum, field) ->
-                  CppCall( FuncEnumConstruct(enum,field),retypedArgs), cppType
-            |  CppSuper(_) ->
-                  CppCall( FuncSuperConstruct ,retypedArgs), TCppVoid
-            |  CppDynamicField(expr,name) ->
-                  (* Special function calls *)
-                  (match expr.cpptype, name with
-                  | TCppGlobal, _  ->
-                     CppCall( FuncGlobal(name),retypedArgs), cppType
+            if retypedFunc.cpptype=TCppNull then
+               CppNullAccess, TCppDynamic
+            else begin
+               let cppType = cpp_type_of expr.etype in
+               (*
+               let retypedArgs = List.map2 (fun arg (var,opt) ->
+                   retype (cpp_fun_arg_type_of var opt) arg
+                   ) args, func.tf_args in
+               *)
+               let retypedArgs = List.map (retype TCppDynamic ) args in
+               match retypedFunc.cppexpr with
+               |  CppFunction(FuncFromStaticFunction ,returnType) ->
+                   ( match retypedArgs with
+                   | [ {cppexpr=CppFunction( FuncStatic(clazz,false,member), funcReturn)} ] ->
+                      CppFunctionAddress(clazz,member), funcReturn
+                   | _ -> error "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
+                   )
+               |  CppEnumIndex(_) ->
+                     (* Not actually a TCall...*)
+                     retypedFunc.cppexpr, retypedFunc.cpptype
+               |  CppFunction(func,returnType) ->
+                     CppCall(func,retypedArgs), returnType
+               |  CppEnumField(enum, field) ->
+                     CppCall( FuncEnumConstruct(enum,field),retypedArgs), cppType
+               |  CppSuper(_) ->
+                     CppCall( FuncSuperConstruct ,retypedArgs), TCppVoid
+               |  CppDynamicField(expr,name) ->
+                     (* Special function calls *)
+                     (match expr.cpptype, name with
+                     | TCppGlobal, _  ->
+                        CppCall( FuncGlobal(name),retypedArgs), cppType
 
-                  | TCppString, _  ->
-                     CppCall( FuncInternal(expr,name,"."),retypedArgs), cppType
+                     | TCppString, _  ->
+                        CppCall( FuncInternal(expr,name,"."),retypedArgs), cppType
 
-                  | _, "__Tag"  ->
-                     CppCall( FuncInternal(expr,"getTag","->"),retypedArgs), cppType
+                     | _, "__Tag"  ->
+                        CppCall( FuncInternal(expr,"getTag","->"),retypedArgs), cppType
 
-                  | _, name when is_internal_member name ->
-                     CppCall( FuncInternal(expr,name,"->"),retypedArgs), cppType
+                     | _, name when is_internal_member name ->
+                        CppCall( FuncInternal(expr,name,"->"),retypedArgs), cppType
 
-                  | _ -> (* not special *)
-                     CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
-                  )
-            |  CppGlobal(_) ->
-                  CppCall( FuncDynamic(retypedFunc) ,retypedArgs), cppType
-            | _ ->
-               CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
-            )
+                     | _ -> (* not special *)
+                        CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
+                     )
+               |  CppGlobal(_) ->
+                     CppCall( FuncDynamic(retypedFunc) ,retypedArgs), cppType
+               | _ ->
+                  CppCall( FuncDynamic(retypedFunc), retypedArgs), TCppDynamic
+               end
 
          | TNew (clazz,params,args) ->
             (* New DynamicArray ? *)
@@ -2643,6 +2654,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             out ".StaticCast< ::hx::EnumBase >()";
          out "->getIndex()"
 
+      | CppNullAccess -> out ("hx::Throw(" ^ strq "Null access" ^ ")")
       | CppFunction(func,_) ->
          (match func with
          | FuncThis(field) ->
