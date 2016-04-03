@@ -1626,7 +1626,6 @@ let cpp_is_dynamic_type = function
 ;;
 
 
-
 let rec cpp_type_of ctx haxe_type =
    (match haxe_type with
    | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of ctx t)
@@ -1769,11 +1768,15 @@ let rec cpp_type_of ctx haxe_type =
 ;;
 
 
-let cpp_member_return_type ctx member =
-  match member.cf_type with
-  | TFun (_,ret) ->
-       cpp_type_of ctx ret
+let cpp_return_type ctx haxe_type =
+  match haxe_type with
+  | TFun (_,ret) -> cpp_type_of ctx ret
   | _ -> TCppDynamic
+;;
+
+
+let cpp_member_return_type ctx member =
+   cpp_return_type ctx member.cf_type
 ;;
 
 let is_cpp_objc_type cpptype = match cpptype with
@@ -2172,7 +2175,7 @@ let retype_expression ctx request_type function_args expression_tree =
                else if obj.cpptype=TCppNull then
                   CppNullAccess, TCppDynamic
                else if is_internal_member fieldName then begin
-                  let cppType = cpp_type_of expr.etype in
+                  let cppType = cpp_return_type ctx expr.etype in
                   if obj.cpptype=TCppString then
                      CppFunction( FuncInternal(obj,fieldName,"."), cppType), cppType
                   else
@@ -2193,7 +2196,7 @@ let retype_expression ctx request_type function_args expression_tree =
                (*else if fieldName="__Tag" then
                   CppFunction( FuncInternal(obj,"getTag","->"), TCppString), TCppString*)
                else if is_internal_member fieldName then begin
-                  let cppType = cpp_type_of expr.etype in
+                  let cppType = cpp_return_type ctx expr.etype in
                   if obj.cpptype=TCppString then
                      CppFunction( FuncInternal(obj,fieldName,"."), cppType), cppType
                   else
@@ -2767,8 +2770,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             in
             out objName
 
-         | FuncInternal(expr,name,join) ->
-              gen expr; out (join ^ name)
+         | FuncInternal(func,name,join) ->
+            gen func; out (join ^ name);
+
          | FuncGlobal(name) ->
               out ("::" ^ name);
          | FuncDynamic(expr) ->
@@ -3084,7 +3088,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             (out ("hx::TCast< " ^ toType ^ " >::cast("); gen expr; out ")")
 
       | CppCast(expr,toType) ->
-         out ("( ("^ tcpp_to_string toType ^")("); gen expr; out (") )");
+         (match expr.cppexpr with
+         | CppCall( FuncInternal _, _) ->
+            gen expr; out (".StaticCast< " ^ tcpp_to_string toType ^" >()")
+         | _ ->
+            out ("( ("^ tcpp_to_string toType ^")("); gen expr; out (") )")
+         )
 
       | CppCastScalar(expr,scalar) ->
          out ("( ("^scalar^")("); gen expr; out (") )");
