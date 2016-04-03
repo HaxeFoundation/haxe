@@ -6601,42 +6601,31 @@ struct
 			let t1, t2 = follow (run_follow gen e1.etype), follow (run_follow gen e2.etype) in
 			match t1, t2 with
 				| TAbstract(a1,[]), TAbstract(a2,[]) when a1 == a2 ->
-					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 				| TInst(i1,[]), TInst(i2,[]) when i1 == i2 ->
-					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 				| TInst({ cl_path = ([],"String") },[]), _ when op = OpAdd ->
 					{ main_expr with eexpr = TBinop(op, e1, mk_cast basic.tstring e2); etype = basic.tstring }
 				| _, TInst({ cl_path = ([],"String") },[]) when op = OpAdd ->
 					{ main_expr with eexpr = TBinop(op, mk_cast basic.tstring e1, e2); etype = basic.tstring }
 				| TAbstract({ a_path = ([], "Float") }, []), _ ->
-					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 				| _, TAbstract({ a_path = ([], "Float") }, []) ->
-					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
 				| TAbstract({ a_path = ([], "Single") }, []), _ ->
-					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 				| _, TAbstract({ a_path = ([], "Single") }, []) ->
-					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
 				| TAbstract({ a_path = ([pf], "UInt64") }, []), _ when pf = name ->
-					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 				| _, TAbstract({ a_path = ([pf], "UInt64") }, []) when pf = name ->
-					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
 				| TAbstract({ a_path = ([pf], "Int64") }, []), _ when pf = name ->
-					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 				| _, TAbstract({ a_path = ([pf], "Int64") }, []) when pf = name ->
-					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
 				| TAbstract({ a_path = ([], "UInt") }, []), tother when like_int tother ->
 					let ti64 = mt_to_t_dyn ( get_type gen ([name], "Int64") ) in
-					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } *)
 					let ret = { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } in
 					if op <> OpDiv then
 						mk_cast t1 ret
@@ -6644,23 +6633,18 @@ struct
 						ret
 				| tother, TAbstract({ a_path = ([], "UInt") }, []) when like_int tother ->
 					let ti64 = mt_to_t_dyn ( get_type gen ([name], "Int64") ) in
-					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } *)
 					let ret = { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } in
 					if op <> OpDiv then
 						mk_cast t2 ret
 					else
 						ret
 				| TAbstract({ a_path = ([], "UInt") }, []), _ ->
-					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
 				| _, TAbstract({ a_path = ([], "UInt") }, []) ->
-					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
 				| TAbstract(a1,[]), TAbstract(a2,[]) ->
-					(* { main_expr with eexpr = TBinop(op, mk_castfast basic.tint e1, mk_castfast basic.tint e2); etype = basic.tint } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2); etype = basic.tint }
 				| _ ->
-					(* { main_expr with eexpr = TBinop(op, e1, e2) } *)
 					{ main_expr with eexpr = TBinop(op, e1, e2) }
 		in
 		let binop_type = if Common.defined gen.gcon Define.FastCast then
