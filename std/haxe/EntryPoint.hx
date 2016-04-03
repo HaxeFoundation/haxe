@@ -38,6 +38,7 @@ class EntryPoint {
 		mutex.acquire();
 		pending.push(f);
 		mutex.release();
+		wakeup();
 		#else
 		pending.push(f);
 		#end
@@ -52,8 +53,8 @@ class EntryPoint {
 			f();
 			mutex.acquire();
 			threadCount--;
+			if( threadCount == 0 ) wakeup();
 			mutex.release();
-			wakeup();
 		});
 		#else
 		threadCount++;
