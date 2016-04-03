@@ -4390,7 +4390,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          let interface_name = cpp_interface_impl_name baseCtx intf_def in
          let hash = if is_native_gen_class intf_def then native_implemented else implemented_hash in
          if ( not (Hashtbl.mem hash interface_name) ) then begin
-            Hashtbl.add hash interface_name intf_def;
+            Hashtbl.replace hash interface_name intf_def;
             List.iter descend_interface intf_def.cl_implements;
          end;
          match intf_def.cl_super with
@@ -4514,6 +4514,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("\treturn _hx_result;\n}\n\n");
 
       if ( List.length implemented) > 0 then begin
+            let alreadyGlued = Hashtbl.create 0 in
             let cname = "_hx_" ^ (join_class_path class_def.cl_path "_") in
             let implname = (cpp_class_name class_def) in
             List.iter (fun interface_name ->
@@ -4526,7 +4527,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                          let cast = cpp_tfun_signature ctx args return_type in
                          let class_implementation = find_class_implementation ctx class_def field.cf_name interface in
                          let realName= cpp_member_name_of field in
-                         if class_implementation<> cast then begin
+                         if class_implementation<> cast && not (Hashtbl.mem alreadyGlued cast) then begin
+                            Hashtbl.replace alreadyGlued cast ();
                             let glue =  Printf.sprintf "%s_%08lx" field.cf_name (gen_hash32 0 cast) in
                             let argList = ctx_tfun_arg_list ctx args in
                             let returnType = ctx_type_string ctx return_type in
