@@ -2071,7 +2071,12 @@ let retype_expression ctx request_type function_args expression_tree =
                let exprType = cpp_type_of member.cf_type in
                let is_objc = is_cpp_objc_type retypedObj.cpptype in
 
-               if is_struct_access obj.etype then begin
+               if clazzType=TCppDynamic then begin
+                  if is_internal_member member.cf_name then
+                    CppFunction( FuncInstance(retypedObj,false,member), funcReturn ), exprType
+                  else
+                     CppDynamicField(retypedObj, member.cf_name), TCppVariant
+               end else if is_struct_access obj.etype then begin
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                       CppVar(VarThis(member)), exprType
