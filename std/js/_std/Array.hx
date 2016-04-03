@@ -45,7 +45,7 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.remove(this,x);
 	}
 
-#if js_es5
+#if (js_es >= 5)
 	function indexOf( x : T, ?fromIndex:Int ) : Int;
 	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
 

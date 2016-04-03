@@ -26,6 +26,8 @@ package haxe.format;
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
+
+	@see http://haxe.org/manual/std-Json-parsing.html
 **/
 class JsonParser {
 
@@ -33,7 +35,7 @@ class JsonParser {
 		Parses given JSON-encoded `str` and returns the resulting object.
 
 		JSON objects are parsed into anonymous structures and JSON arrays
-		are parsed into Array<Dynamic>.
+		are parsed into `Array<Dynamic>`.
 
 		If given `str` is not valid JSON, an exception will be thrown.
 

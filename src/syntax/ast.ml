@@ -74,6 +74,7 @@ module Meta = struct
 		| FakeEnum
 		| File
 		| Final
+		| Fixed
 		| FlatEnum
 		| Font
 		| Forward
@@ -920,3 +921,13 @@ let full_dot_path mpath tpath =
 
 let safe_for_all2 f a b =
 	try List.for_all2 f a b with _ -> false
+
+let rec remove_duplicates f l = match l with
+	| [] -> []
+	| x :: l -> x :: (remove_duplicates f (List.filter (fun x' -> f x x') l))
+
+module Expr = struct
+	let ensure_block e = match fst e with
+		| EBlock _ -> e
+		| _ -> (EBlock [e],pos e)
+end

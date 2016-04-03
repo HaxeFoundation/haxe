@@ -114,6 +114,7 @@ class Reflect {
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
+		field = handleKeywords(field);
 		if( !hasField(o,field) ) return false;
 		Syntax.callField(o, "__delattr__", field);
 		return true;

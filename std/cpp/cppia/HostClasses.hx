@@ -62,6 +62,7 @@ class HostClasses
    "sys.db.Object",
    "sys.db.Manager",
    "sys.db.Connection",
+   "sys.db.Object",
    "sys.FileSystem",
    "sys.io.File",
    "sys.io.FileInput",
@@ -91,6 +92,7 @@ class HostClasses
    "haxe.Template",
    "haxe.Utf8",
    "haxe.Log",
+   "haxe.zip.Compress",
    "haxe.zip.Uncompress",
 
    "haxe.crypto.BaseCode",
@@ -187,6 +189,11 @@ class HostClasses
       externs.set("haxe._Int32.Int32_Impl_",true);
       externs.set("haxe._Int32.___Int32",true);
       // Hidded in implementation classes
+      externs.set("sys.db.RecordType",true);
+      externs.set("sys.db._Sqlite.SqliteConnection",true);
+      externs.set("sys.db._Sqlite.SqliteResultSet",true);
+      externs.set("sys.db._Mysql.MysqlConnection",true);
+      externs.set("sys.db._Mysql.MysqlResultSet",true);
       externs.set("haxe.ds.TreeNode",true);
       externs.set("haxe.xml.XmlParserException",true);
       for(e in classes)

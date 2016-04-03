@@ -1196,6 +1196,7 @@ flash.system.Worker.state : WorkerState;
 flash.system.MessageChannel.state : MessageChannelState;
 
 enum flash.system.WorkerState;
+enum flash.system.MessageChannelState;
 
 
 // ---  11.6 API

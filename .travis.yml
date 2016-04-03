@@ -160,7 +160,6 @@ script:
   - eval `ssh-agent -s`
   - make package_src -s
   - make -s
-  - make tools -s
   - make package_bin -s
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"

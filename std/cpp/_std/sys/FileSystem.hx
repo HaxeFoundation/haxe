@@ -21,26 +21,28 @@
  */
 package sys;
 
+import cpp.NativeSys;
+
 private enum FileKind {
 	kdir;
 	kfile;
 	kother( k : String );
 }
 
+@:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
 @:coreApi
 class FileSystem {
 
 	public static function exists( path : String ) : Bool {
-		return sys_exists(makeCompatiblePath(path));
+		return NativeSys.sys_exists(makeCompatiblePath(path));
 	}
 
 	public static function rename( path : String, newPath : String ) : Void {
-		if (sys_rename(path,newPath)==null)
-         throw "Could not rename:" + path + " to " + newPath;
+		NativeSys.sys_rename(path,newPath);
 	}
 
 	public static function stat( path : String ) : FileStat {
-		var s : FileStat = sys_stat(makeCompatiblePath(path));
+		var s : FileStat = NativeSys.sys_stat(makeCompatiblePath(path));
 		if (s==null)
 			return { gid:0, uid:0, atime:Date.fromTime(0), mtime:Date.fromTime(0), ctime:Date.fromTime(0), dev:0, ino:0, nlink:0, rdev:0, size:0, mode:0 };
 		s.atime = Date.fromTime(1000.0*(untyped s.atime));
@@ -50,7 +52,7 @@ class FileSystem {
 	}
 
 	public static function fullPath( relPath : String ) : String {
-		return new String(file_full_path(relPath));
+		return NativeSys.file_full_path(relPath);
 	}
 
 	public static function absolutePath ( relPath : String ) : String {
@@ -59,7 +61,7 @@ class FileSystem {
 	}
 
 	static function kind( path : String ) : FileKind {
-		var k:String = sys_file_type(makeCompatiblePath(path));
+		var k:String = NativeSys.sys_file_type(makeCompatiblePath(path));
 		return switch(k) {
 		case "file": kfile;
 		case "dir": kdir;
@@ -80,23 +82,21 @@ class FileSystem {
 			path = _p;
 		}
 		for (part in parts) {
-			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && sys_create_dir( part, 493 )==null)
+			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !NativeSys.sys_create_dir( part, 493 ))
 				throw "Could not create directory:" + part;
 		}
 	}
 
 	public static function deleteFile( path : String ) : Void {
-		if (file_delete(path)==null)
-         throw "Could not delete file:" + path;
+		NativeSys.file_delete(path);
 	}
 
 	public static function deleteDirectory( path : String ) : Void {
-		if (sys_remove_dir(path)==null)
-         throw "Could not delete directory:" + path;
+		NativeSys.sys_remove_dir(path);
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {
-		return sys_read_dir(path);
+		return NativeSys.sys_read_dir(path);
 	}
 
 	private static inline function makeCompatiblePath(path:String):String {
@@ -106,15 +106,4 @@ class FileSystem {
 			haxe.io.Path.removeTrailingSlashes(path);
 		}
 	}
-
-	private static var sys_exists = cpp.Lib.load("std","sys_exists",1);
-	private static var file_delete = cpp.Lib.load("std","file_delete",1);
-	private static var sys_rename = cpp.Lib.load("std","sys_rename",2);
-	private static var sys_stat = cpp.Lib.load("std","sys_stat",1);
-	private static var sys_file_type = cpp.Lib.load("std","sys_file_type",1);
-	private static var sys_create_dir = cpp.Lib.load("std","sys_create_dir",2);
-	private static var sys_remove_dir = cpp.Lib.load("std","sys_remove_dir",1);
-	private static var sys_read_dir = cpp.Lib.load("std","sys_read_dir",1);
-	private static var file_full_path = cpp.Lib.load("std","file_full_path",1);
-
 }

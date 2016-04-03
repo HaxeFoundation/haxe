@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import cpp.ObjectType;
+
 @:coreApi
 @:analyzer(ignore)
 class Reflect {
@@ -46,7 +49,7 @@ class Reflect {
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
-			if (func!=null && func.__GetType()==__global__.vtString)
+			if (func!=null && func.__GetType()==ObjectType.vtString)
 				func = o.__Field(func,untyped __cpp__("hx::paccDynamic"));
 			untyped func.__SetThis(o);
          return untyped func.__Run(args);
@@ -60,7 +63,7 @@ class Reflect {
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return f!=null && f.__GetType() ==  __global__.vtFunction;
+		return f!=null && f.__GetType() ==  ObjectType.vtFunction;
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -78,12 +81,12 @@ class Reflect {
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		if (v==null) return false;
 		var t:Int = v.__GetType();
-		return t ==  __global__.vtObject || t==__global__.vtClass || t==__global__.vtString ||
-				t==__global__.vtArray;
+		return t ==  ObjectType.vtObject || t==ObjectType.vtClass || t==ObjectType.vtString ||
+				t==ObjectType.vtArray;
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool untyped {
-		return v!=null && v.__GetType() == __global__.vtEnum;
+		return v!=null && v.__GetType() == ObjectType.vtEnum;
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
@@ -93,8 +96,8 @@ class Reflect {
 
 	public static function copy<T>( o : T ) : T {
 		if (o==null) return null;
-		if(untyped o.__GetType()==__global__.vtString ) return o;
-		if(untyped o.__GetType()==__global__.vtArray )
+		if(untyped o.__GetType()==ObjectType.vtString ) return o;
+		if(untyped o.__GetType()==ObjectType.vtArray )
 			return untyped o.__Field("copy", untyped __cpp__("hx::paccDynamic"))();
 		var o2 : Dynamic = {};
 		for( f in Reflect.fields(o) )

@@ -668,7 +668,7 @@ let rec is_removable_class c =
 			| _ -> false) ||
 		List.exists (fun (_,t) -> match follow t with
 			| TInst(c,_) ->
-				Codegen.has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
+				has_ctor_constraint c || Meta.has Meta.Const c.cl_meta
 			| _ ->
 				false
 		) c.cl_params)
@@ -868,7 +868,7 @@ let add_field_inits ctx t =
 				| _ ->
 					assert false
 			in
-			let config = Analyzer.Config.get_field_config ctx.com c cf in
+			let config = AnalyzerConfig.get_field_config ctx.com c cf in
 			Analyzer.Run.run_on_field ctx config c cf;
 			(match cf.cf_expr with
 			| Some e ->
@@ -1035,8 +1035,8 @@ let run com tctx main =
 	(* PASS 1: general expression filters *)
 	let filters = [
 		Codegen.AbstractCast.handle_abstract_casts tctx;
-		check_local_vars_init;
 		Optimizer.inline_constructors tctx;
+		check_local_vars_init;
 		Optimizer.reduce_expression tctx;
 		captured_vars com;
 	] in

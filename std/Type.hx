@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 /**
 	The diffent possible runtime types of a value.
 **/
@@ -39,6 +40,9 @@ enum ValueType {
 
 	This class complements the more lightweight Reflect class, with a focus on
 	class and enum instances.
+
+	@see http://haxe.org/manual/types.html
+	@see http://haxe.org/manual/std-reflection.html
 **/
 extern class Type {
 

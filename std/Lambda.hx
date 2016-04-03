@@ -31,6 +31,8 @@
 
 	If the first argument to any of the methods is null, the result is
 	unspecified.
+
+	@see http://haxe.org/manual/std-Lambda.html
 **/
 class Lambda {
 

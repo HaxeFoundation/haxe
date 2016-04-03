@@ -146,7 +146,7 @@ let valid_as3_ident s =
 
 let anon_field s =
 	let s = s_ident s in
-	if not (valid_as3_ident s) then "\"" ^ s ^ "\"" else s
+	if not (valid_as3_ident s) then "\"" ^ (Ast.s_escape s) ^ "\"" else s
 
 let rec create_dir acc = function
 	| [] -> ()

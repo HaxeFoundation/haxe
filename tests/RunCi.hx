@@ -172,7 +172,7 @@ class RunCi {
 				Sys.putEnv("AUDIODEV", "null");
 				requireAptPackages([
 					"libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386",
-					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"	
+					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"
 				]);
 				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/11/flashplayer_11_sa_debug.i386.tar.gz"], true);
 				runCommand("tar", ["-xf", "flashplayer_11_sa_debug.i386.tar.gz", "-C", Sys.getEnv("HOME")]);
@@ -402,13 +402,6 @@ class RunCi {
 			var oldDir = Sys.getCwd();
 			changeDirectory(getHaxelibPath("hxcpp") + "tools/hxcpp/");
 			runCommand("haxe", ["compile.hxml"]);
-			changeDirectory(getHaxelibPath("hxcpp") + "project/");
-			switch (ci) {
-				case AppVeyor:
-					runCommand("neko", ["build.n", "windows-m32"]);
-				case _:
-					runCommand("neko", ["build.n"]);
-			}
 			changeDirectory(oldDir);
 		}
 
@@ -726,8 +719,8 @@ class RunCi {
 	*/
 	static function deployPPA():Void {
 		if (
-			gitInfo.branch == "development" && 
-			Sys.getEnv("DEPLOY") != null && 
+			gitInfo.branch == "development" &&
+			Sys.getEnv("DEPLOY") != null &&
 			Sys.getEnv("haxeci_decrypt") != null
 		) {
 			// setup haxeci_ssh
@@ -1014,11 +1007,11 @@ class RunCi {
 					getJSDependencies();
 
 					var jsOutputs = [
-						for (es5 in       [[], ["-D", "js-es5"]])
+						for (es3 in       [[], ["-D", "js-es=3"]])
 						for (unflatten in [[], ["-D", "js-unflatten"]])
 						for (classic in   [[], ["-D", "js-classic"]])
 						{
-							var extras = args.concat(es5).concat(unflatten).concat(classic);
+							var extras = args.concat(es3).concat(unflatten).concat(classic);
 
 							runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
@@ -1061,7 +1054,7 @@ class RunCi {
 						// }
 
 						runCommand("npm", ["install", "wd", "q"], true);
-						haxelibInstallGit("dionjwa", "nodejs-std", "master", null, true, "nodejs");
+						haxelibInstall("hxnodejs");
 						runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 						var server = new Process("nekotools", ["server"]);
 						runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));

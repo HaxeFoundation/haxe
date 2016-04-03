@@ -296,7 +296,7 @@ type access =
 	| AArray of reg * (ttype * ttype) * reg
 	| AVirtualMethod of texpr * field index
 	| ADynamic of texpr * string index
-	| AEnum of field index
+	| AEnum of tenum * field index
 	| ACaptured of field index
 
 let null_proto =
@@ -1374,7 +1374,7 @@ and get_access ctx e =
 			ADynamic (ethis, alloc_string ctx name)
 		| FEnum (e,ef), _ ->
 			(match follow ef.ef_type with
-			| TFun _ -> AEnum ef.ef_index
+			| TFun _ -> AEnum (e,ef.ef_index)
 			| t -> AGlobal (alloc_global ctx (efield_name e ef) (to_type ctx t))))
 	| TLocal v ->
 		(match captured_index ctx v with
@@ -1815,17 +1815,22 @@ and eval_expr ctx e =
 			let ro = alloc_tmp ctx t in
 			let rb = alloc_tmp ctx HBytes in
 			let ridx = reg_int ctx 0 in
+			let has_len = (match t with HObj p -> PMap.mem "dataLen" p.pindex | _ -> assert false) in
 			iteri (fun i (k,v) ->
 				op ctx (ONew ro);
 				op ctx (OString (rb,alloc_string ctx k));
 				op ctx (OSetField (ro,0,rb));
 				op ctx (OBytes (rb,alloc_string ctx (v ^ "\x00"))); (* add a \x00 to prevent clashing with existing string *)
 				op ctx (OSetField (ro,1,rb));
-				op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
+				if has_len then op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
 				op ctx (OSetArray (arr,ridx,ro));
 				op ctx (OIncr ridx);
 			) res;
 			arr
+		| "$rethrow", [v] ->
+			let r = alloc_tmp ctx HVoid in
+			op ctx (ORethrow (eval_to ctx v HDyn));
+			r
 		| "$allTypes", [] ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
 			op ctx (OGetGlobal (r, alloc_global ctx "__types__" (rtype ctx r)));
@@ -1876,7 +1881,7 @@ and eval_expr ctx e =
 		| AInstanceProto (ethis, fid) | AVirtualMethod (ethis, fid) ->
 			let el = eval_null_check ctx ethis :: el() in
 			op ctx (OCallMethod (ret, fid, el))
-		| AEnum index ->
+		| AEnum (_,index) ->
 			op ctx (OMakeEnum (ret, index, el()))
 		| AArray (a,t,idx) ->
 			let r = array_read ctx a t idx ec.epos in
@@ -1918,8 +1923,25 @@ and eval_expr ctx e =
 		| ADynamic (ethis, f) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (ODynGet (r,robj,f))
-		| AEnum index ->
-			op ctx (OMakeEnum (r,index,[]))
+		| AEnum (en,index) ->
+			let cur_fid = DynArray.length ctx.cfids.arr in
+			let name = List.nth en.e_names index in
+			let fid = alloc_fun_path ctx en.e_path name in
+			if fid = cur_fid then begin
+				let ef = PMap.find name en.e_constrs in
+				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> assert false) in
+				let ct = ctx.com.basic in
+				let p = ef.ef_pos in
+				let eargs = List.map (fun (n,o,t) -> alloc_var n t, if o then Some TNull else None) eargs in
+				let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
+				let f = {
+					tf_args = eargs;
+					tf_type = et;
+					tf_expr = mk (TReturn (Some ecall)) ct.tvoid p;
+				} in
+				ignore(make_fun ctx ("","") fid f None None);
+			end;
+			op ctx (OStaticClosure (r,fid));
 		| ANone | ALocal _ | AArray _ | ACaptured _ ->
 			error "Invalid access" e.epos);
 		unsafe_cast_to ctx r (to_type ctx e.etype) e.epos
@@ -2343,7 +2365,7 @@ and eval_expr ctx e =
 	| TMeta (_,e) ->
 		eval_expr ctx e
 	| TFor _ ->
-		assert false (* eliminated with pf_for_to_while *)
+		assert false (* eliminated by analyzer *)
 	| TSwitch (en,cases,def) ->
 		let rt = to_type ctx e.etype in
 		let r = alloc_tmp ctx rt in

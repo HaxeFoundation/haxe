@@ -25,6 +25,8 @@ package haxe.ds;
 	IntMap allows mapping of Int keys to arbitrary values.
 
 	See `Map` for documentation details.
+
+	@see http://haxe.org/manual/std-Map.html
 **/
 extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 

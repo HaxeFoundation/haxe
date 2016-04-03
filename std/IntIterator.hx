@@ -30,6 +30,8 @@
 	field, it is worth noting that IntIterator does not reset after being used
 	in a for-loop. Subsequent uses of the same instance will then have no
 	effect.
+
+	@see http://haxe.org/manual/lf-iterators.html
 **/
 class IntIterator {
 

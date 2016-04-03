@@ -157,52 +157,6 @@ let get_constructor_ref : (typer -> tclass -> t list -> Ast.pos -> (t * tclass_f
 let cast_or_unify_ref : (typer -> t -> texpr -> Ast.pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let find_array_access_raise_ref : (typer -> tabstract -> tparams -> texpr -> texpr option -> pos -> (tclass_field * t * t * texpr * texpr option)) ref = ref (fun _ _ _ _ _ _ -> assert false)
 
-(* Source: http://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#OCaml *)
-let levenshtein a b =
-	let x = Array.init (String.length a) (fun i -> a.[i]) in
-	let y = Array.init (String.length b) (fun i -> b.[i]) in
-	let minimum (x:int) y z =
-		let m' (a:int) b = if a < b then a else b in
-		m' (m' x y) z
-	in
-	let init_matrix n m =
-		let init_col = Array.init m in
-			Array.init n (function
-			| 0 -> init_col (function j -> j)
-			| i -> init_col (function 0 -> i | _ -> 0)
-		)
-	in
-	match Array.length x, Array.length y with
-		| 0, n -> n
-		| m, 0 -> m
-		| m, n ->
-			let matrix = init_matrix (m + 1) (n + 1) in
-			for i = 1 to m do
-				let s = matrix.(i) and t = matrix.(i - 1) in
-				for j = 1 to n do
-					let cost = abs (compare x.(i - 1) y.(j - 1)) in
-					s.(j) <- minimum (t.(j) + 1) (s.(j - 1) + 1) (t.(j - 1) + cost)
-				done
-			done;
-			matrix.(m).(n)
-
-let string_error_raise s sl msg =
-	if sl = [] then msg else
-	let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
-	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-	let rec loop sl = match sl with
-		| (s2,i) :: sl when i <= (min (String.length s) (String.length s2)) / 3 -> s2 :: loop sl
-		| _ -> []
-	in
-	match loop cl with
-		| [] -> raise Not_found
-		| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
-		| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)
-
-let string_error s sl msg =
-	try string_error_raise s sl msg
-	with Not_found -> msg
-
 let string_source t = match follow t with
 	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
 	| TAnon a -> PMap.fold (fun cf acc -> cf.cf_name :: acc) a.a_fields []
@@ -219,7 +173,7 @@ let unify_error_msg ctx = function
 	| Invalid_field_type s ->
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
-		string_error n (string_source t) (short_type ctx t ^ " has no field " ^ n)
+		StringError.string_error n (string_source t) (short_type ctx t ^ " has no field " ^ n)
 	| Has_no_runtime_field (t,n) ->
 		s_type ctx t ^ "." ^ n ^ " is not accessible at runtime"
 	| Has_extra_field (t,n) ->
@@ -424,6 +378,14 @@ let create_fake_module ctx file =
 	) in
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
+
+let push_this ctx e = match e.eexpr with
+	| TConst ((TInt _ | TFloat _ | TString _ | TBool _) as ct) ->
+		(Ast.EConst (tconst_to_const ct),e.epos),fun () -> ()
+	| _ ->
+		ctx.this_stack <- e :: ctx.this_stack;
+		let er = Ast.EMeta((Ast.Meta.This,[],e.epos), (Ast.EConst(Ast.Ident "this"),e.epos)),e.epos in
+		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

@@ -28,16 +28,19 @@ typedef TypeResolver = {
 }
 
 /**
-	The Unserializer class is the complement to the Serializer class. It parses
-	a serialization String and creates objects from the contained data.
+	The `Unserializer` class is the complement to the `Serializer` class. It parses
+	a serialization `String` and creates objects from the contained data.
 
 	This class can be used in two ways:
 
-	- create a new Unserializer() instance with a given serialization
-		String, then call its unserialize() method until all values are
+	- create a `new Unserializer()` instance with a given serialization
+		String, then call its `unserialize()` method until all values are
 		extracted
-	- call Unserializer.run() to unserialize a single value from a given
+	- call `Unserializer.run()`  to unserialize a single value from a given
 		String
+
+	The specification of the serialization format can be found here:
+	<http://haxe.org/manual/serialization/format>
 **/
 class Unserializer {
 
@@ -119,7 +122,7 @@ class Unserializer {
 		If `r` is null, a special resolver is used which returns null for all
 		input values.
 
-		See DEFAULT_RESOLVER for more information on type resolvers.
+		See `DEFAULT_RESOLVER` for more information on type resolvers.
 	**/
  	public function setResolver( r ) {
 		if( r == null )
@@ -131,7 +134,7 @@ class Unserializer {
 	/**
 		Gets the type resolver of `this` Unserializer instance.
 
-		See DEFAULT_RESOLVER for more information on type resolvers.
+		See `DEFAULT_RESOLVER` for more information on type resolvers.
 	**/
  	public function getResolver() {
 		return resolver;

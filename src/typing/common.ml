@@ -84,14 +84,10 @@ type platform_config = {
 	pf_add_final_return : bool;
 	(** does the platform natively support overloaded functions *)
 	pf_overload : bool;
-	(** does the platform generator handle pattern matching *)
-	pf_pattern_matching : bool;
 	(** can the platform use default values for non-nullable arguments *)
 	pf_can_skip_non_nullable_argument : bool;
 	(** type paths that are reserved on the platform *)
 	pf_reserved_type_paths : path list;
-	(** transform for in the corresponding while *)
-	pf_for_to_while : bool;
 }
 
 type display_mode =
@@ -171,7 +167,6 @@ module Define = struct
 		| CheckXmlProxy
 		| CoreApi
 		| CoreApiSerialize
-		| CppAst
 		| Cppia
 		| Dce
 		| DceDebug
@@ -201,7 +196,7 @@ module Define = struct
 		| JavaVer
 		| JqueryVer
 		| JsClassic
-		| JsEs5
+		| JsEs
 		| JsUnflatten
 		| KeepOldOutput
 		| LoopUnrollMaxCost
@@ -261,7 +256,6 @@ module Define = struct
 		| CheckXmlProxy -> ("check_xml_proxy","Check the used fields of the xml proxy")
 		| CoreApi -> ("core_api","Defined in the core api context")
 		| CoreApiSerialize -> ("core_api_serialize","Mark some generated core api classes with the Serializable attribute on C#")
-		| CppAst -> ("cppast", "Generate experimental cpp code")
 		| Cppia -> ("cppia", "Generate cpp instruction assembly")
 		| Dce -> ("dce","<mode:std|full||no> Set the dead code elimination mode (default std)")
 		| DceDebug -> ("dce_debug","Show DCE log")
@@ -292,7 +286,7 @@ module Define = struct
 		| JavaVer -> ("java_ver", "<version:5-7> Sets the Java version to be targeted")
 		| JqueryVer -> ("jquery_ver", "The jQuery version supported by js.jquery.*. The version is encoded as an interger. e.g. 1.11.3 is encoded as 11103")
 		| JsClassic -> ("js_classic","Don't use a function wrapper and strict mode in JS output")
-		| JsEs5 -> ("js_es5","Generate JS for ES5-compliant runtimes")
+		| JsEs -> ("js_es","Generate JS compilant with given ES standard version (default 5)")
 		| JsUnflatten -> ("js_unflatten","Generate nested objects for packages and types")
 		| KeepOldOutput -> ("keep_old_output","Keep old source files in the output directory (for C#/Java)")
 		| LoopUnrollMaxCost -> ("loop_unroll_max_cost","Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)")
@@ -412,6 +406,7 @@ module MetaInfo = struct
 		| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 		| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
 		| Final -> ":final",("Prevents a class from being extended",[UsedOn TClass])
+		| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
 		| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; Internal])
 		| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
 		| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])
@@ -560,10 +555,8 @@ let default_config =
 		pf_pad_nulls = false;
 		pf_add_final_return = false;
 		pf_overload = false;
-		pf_pattern_matching = false;
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
-		pf_for_to_while = false;
 	}
 
 let get_config com =
@@ -577,62 +570,33 @@ let get_config com =
 			pf_static = false;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
 	| Lua ->
 		{
 			default_config with
 			pf_static = false;
-			pf_sys = true;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Neko ->
 		{
 			default_config with
 			pf_static = false;
-			pf_sys = true;
-			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Flash when defined Define.As3 ->
 		{
 			default_config with
-			pf_static = true;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
 			pf_add_final_return = true;
-			pf_overload = false;
-			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
-			pf_reserved_type_paths = [];
 		}
 	| Flash ->
 		{
 			default_config with
-			pf_static = true;
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
 			pf_can_skip_non_nullable_argument = false;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
 		}
@@ -640,66 +604,34 @@ let get_config com =
 		{
 			default_config with
 			pf_static = false;
-			pf_sys = true;
-			pf_capture_policy = CPNone;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Cpp ->
 		{
 			default_config with
-			pf_static = true;
-			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Cs ->
 		{
 			default_config with
-			pf_static = true;
-			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
 			pf_overload = true;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Java ->
 		{
 			default_config with
-			pf_static = true;
-			pf_sys = true;
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_add_final_return = false;
 			pf_overload = true;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Python ->
 		{
 			default_config with
 			pf_static = false;
-			pf_sys = true;
 			pf_capture_policy = CPLoopVars;
-			pf_pad_nulls = false;
-			pf_add_final_return = false;
-			pf_overload = false;
-			pf_pattern_matching = false;
-			pf_can_skip_non_nullable_argument = true;
-			pf_reserved_type_paths = [];
 		}
 	| Hl ->
 		{
@@ -707,7 +639,6 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_can_skip_non_nullable_argument = false;
-			pf_for_to_while = true;
 		}
 
 let memory_marker = [|Unix.time()|]

@@ -22,7 +22,6 @@
  package cpp;
 
 @:coreType @:structAccess @:include("cpp/Pointer.h")
-@:analyzer(no_simplification)
 extern class Function<T,ABI:cpp.abi.Abi>
 {
    public function new(d:Dynamic);
