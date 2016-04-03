@@ -640,9 +640,9 @@ class RecordMacros {
 							var ename = epath.pop();
 							var etype = TPath({ name:ename, pack:epath });
 							if (r1.n) {
-								return { sql: macro $manager.nullCompare(${r1.sql}, { var tmp = @:pos(e2.pos) (${e2} : $etype); tmp == null ? null : std.Type.enumIndex(tmp) + ''; }, $v{eq}), t : DBool, n: true };
+								return { sql: macro $manager.nullCompare(${r1.sql}, { var tmp = @:pos(e2.pos) (${e2} : $etype); tmp == null ? null : (std.Type.enumIndex(tmp) + ''); }, ${eq ? macro true : macro false}), t : DBool, n: true };
 							} else {
-								var expr = macro { @:pos(e2.pos) var tmp : $etype = $e2; (tmp == null ? null : std.Type.enumIndex(tmp)); };
+								var expr = macro { @:pos(e2.pos) var tmp : $etype = $e2; (tmp == null ? null : (std.Type.enumIndex(tmp) + '')); };
 								return { sql: makeOp(eq?" = ":" != ", r1.sql, expr, pos), t : DBool, n : r1.n };
 							}
 						}
