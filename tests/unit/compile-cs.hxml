@@ -7,3 +7,4 @@ compile-each.hxml
 -main unit.Test
 -cs bin/cs
 -net-lib native_cs/bin/native_cs.dll
+-D dump

@@ -909,7 +909,7 @@ let configure gen =
 				else
 					(match real_type t with
 						| TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
-						| _ when is_cs_basic_type t -> TInst(null_t, [t])
+						| t when is_cs_basic_type t -> TInst(null_t, [t])
 						| _ -> real_type t)
 			| TAbstract _
 			| TType _ -> t
