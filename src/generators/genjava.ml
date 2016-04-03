@@ -568,6 +568,7 @@ struct
 		(* let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in *)
 		(* let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in *)
 		(* let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in *)
+		let ti64 = mt_to_t_dyn ( get_type gen (["java"], "Int64") ) in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 
 		let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
@@ -646,6 +647,16 @@ struct
 						| _ -> true
 					in
 					if need_second_cast then { e with eexpr = TCast(mk_cast (follow e.etype) (run expr), c) }  else Type.map_expr run e*)
+				| TCast(expr, _) when like_i64 e.etype && not (like_i64 expr.etype) ->
+					{
+						eexpr = TCall(
+							mk_static_field_access_infer runtime_cl "toLong" expr.epos [],
+							[ run expr ]
+						);
+						etype = ti64;
+						epos = expr.epos
+					}
+
 				| TBinop( (Ast.OpAssignOp OpAdd as op), e1, e2)
 				| TBinop( (Ast.OpAdd as op), e1, e2) when is_string e.etype || is_string e1.etype || is_string e2.etype ->
 						let is_assign = match op with Ast.OpAssignOp _ -> true | _ -> false in
@@ -1253,18 +1264,10 @@ let configure gen =
 					(match c with
 						| TInt i32 ->
 							print w "%ld" i32;
-							(match real_type e.etype with
-								| TType( { t_path = (["java"], "Int64") }, [] ) -> write w "L";
-								| _ -> ()
-							)
 						| TFloat s ->
 							write w s;
 							(* fix for Int notation, which only fit in a Float *)
 							(if not (String.contains s '.' || String.contains s 'e' || String.contains s 'E') then write w ".0");
-							(match real_type e.etype with
-								| TType( { t_path = ([], "Single") }, [] ) -> write w "f"
-								| _ -> ()
-							)
 						| TString s -> print w "\"%s\"" (escape s)
 						| TBool b -> write w (if b then "true" else "false")
 						| TNull ->

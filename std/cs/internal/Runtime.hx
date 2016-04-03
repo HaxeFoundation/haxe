@@ -24,6 +24,7 @@ import cs.Lib;
 import cs.Lib.*;
 import cs.NativeArray;
 import cs.NativeArray;
+import cs.StdTypes;
 import cs.system.Activator;
 import cs.system.IConvertible;
 import cs.system.IComparable;
@@ -153,6 +154,13 @@ import cs.system.Object;
 	{
 		return (obj == null) ? 0 : Std.is(obj,Int) ? cast obj : Lib.as(obj,IConvertible).ToInt32(null);
 	}
+
+#if erase_generics
+	public static function toLong(obj:Dynamic):Int64
+	{
+		return (obj == null) ? 0 : Std.is(obj,Int64) ? cast obj : Lib.as(obj,IConvertible).ToInt64(null);
+	}
+#end
 
 	public static function isInt(obj:Dynamic):Bool
 	{

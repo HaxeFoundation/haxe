@@ -143,6 +143,11 @@ package java.internal;
 		return 0;
 	}
 
+	public static function toLong(obj:Dynamic):haxe.Int64
+	{
+		return obj == null ? 0 : (obj : java.lang.Number).longValue();
+	}
+
 	@:functionCode('
 		if (obj != null && obj instanceof java.lang.Number)
 		{

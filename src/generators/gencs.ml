@@ -505,6 +505,17 @@ struct
 					} in
 
 					if needs_cast then mk_cast e.etype ret else ret
+
+				| TCast(expr, _) when Common.defined gen.gcon Define.EraseGenerics && like_i64 e.etype && not (like_i64 expr.etype) ->
+					{
+						eexpr = TCall(
+							mk_static_field_access_infer runtime_cl "toLong" expr.epos [],
+							[ run expr ]
+						);
+						etype = ti64;
+						epos = expr.epos
+					}
+
 				| TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) && name() <> "haxe.lang.Runtime" ->
 					{ e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
 				| TBinop( (Ast.OpNotEq as op), e1, e2)
@@ -1298,6 +1309,7 @@ let configure gen =
 					(match c with
 						| TInt i32 ->
 							write w (Int32.to_string i32);
+							(* these suffixes won't work because of the cast detector which will set each constant to its expected type *)
 							(*match real_type e.etype with
 								| TType( { t_path = (["haxe";"_Int64"], "NativeInt64") }, [] ) -> write w "L";
 								| _ -> ()
