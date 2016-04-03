@@ -1896,13 +1896,13 @@ let generate_field ctx static f =
 				| AccCall, _ ->
 					let m = "get_" ^ f.cf_name in
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
-					print ctx "%s $%s" rights (s_ident_field f.cf_name);
+					print ctx "%s $%s" rights (s_ident f.cf_name);
 					gen_assigned_value ctx f.cf_expr;
 					true
 				| _, AccCall ->
 					let m = "set_" ^ f.cf_name in
 					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static true;
-					print ctx "%s $%s" rights (s_ident_field f.cf_name);
+					print ctx "%s $%s" rights (s_ident f.cf_name);
 					gen_assigned_value ctx f.cf_expr;
 					true
 				| _ ->
