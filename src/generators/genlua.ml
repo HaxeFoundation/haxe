@@ -97,7 +97,7 @@ let valid_lua_ident s =
 let field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 
-let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ s ^ "']" else s
+let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ (Ast.s_escape s) ^ "']" else s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
