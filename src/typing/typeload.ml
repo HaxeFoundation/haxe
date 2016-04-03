@@ -78,7 +78,8 @@ let make_module ctx mpath file loadp =
 (*
 	Build module structure : should be atomic - no type loading is possible
 *)
-let module_pass_1 com m tdecls loadp =
+let module_pass_1 ctx m tdecls loadp =
+	let com = ctx.com in
 	let decls = ref [] in
 	let make_path name priv =
 		if List.exists (fun (t,_) -> snd (t_path t) = name) !decls then error ("Type name " ^ name ^ " is already defined in this module") loadp;
@@ -147,9 +148,15 @@ let module_pass_1 com m tdecls loadp =
 				t_doc = d.d_doc;
 				t_private = priv;
 				t_params = [];
-				t_type = TLazy (ref (fun() -> error "Uninitialized type" p));
+				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
+			(* failsafe in case the typedef is not initialized (see #3933) *)
+			delay ctx PBuildModule (fun () ->
+				match t.t_type with
+				| TMono r -> (match !r with None -> r := Some com.basic.tvoid | _ -> ())
+				| _ -> ()
+			);
 			decls := (TTypeDecl t, decl) :: !decls;
 			acc
 		 | EAbstract d ->
@@ -3208,7 +3215,12 @@ let init_module_type ctx context_init do_init (decl,p) =
 				tt
 			) "typedef_rec_check")
 		) in
-		t.t_type <- TMono (ref (Some tt));
+		(match t.t_type with
+		| TMono r ->
+			(match !r with
+			| None -> r := Some tt;
+			| Some _ -> assert false);
+		| _ -> assert false);
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = check_strict_meta ctx t.t_meta in
@@ -3295,7 +3307,7 @@ let module_pass_2 ctx m decls tdecls p =
 	Creates a module context for [m] and types [tdecls] using it.
 *)
 let type_types_into_module ctx m tdecls p =
-	let decls, tdecls = module_pass_1 ctx.com m tdecls p in
+	let decls, tdecls = module_pass_1 ctx m tdecls p in
 	let types = List.map fst decls in
 	List.iter (check_module_types ctx m p) types;
 	m.m_types <- m.m_types @ types;
