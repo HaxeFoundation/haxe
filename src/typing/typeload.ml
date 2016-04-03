@@ -147,7 +147,7 @@ let module_pass_1 com m tdecls loadp =
 				t_doc = d.d_doc;
 				t_private = priv;
 				t_params = [];
-				t_type = mk_mono();
+				t_type = TLazy (ref (fun() -> error "Uninitialized type" p));
 				t_meta = d.d_meta;
 			} in
 			decls := (TTypeDecl t, decl) :: !decls;
@@ -3208,12 +3208,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				tt
 			) "typedef_rec_check")
 		) in
-		(match t.t_type with
-		| TMono r ->
-			(match !r with
-			| None -> r := Some tt;
-			| Some _ -> assert false);
-		| _ -> assert false);
+		t.t_type <- TMono (ref (Some tt));
 		if ctx.com.platform = Cs && t.t_meta <> [] then
 			delay ctx PTypeField (fun () ->
 				let metas = check_strict_meta ctx t.t_meta in
