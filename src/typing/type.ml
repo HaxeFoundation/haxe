@@ -1516,10 +1516,17 @@ let rec type_eq param a b =
 				try
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
-					try
-						type_eq param f1.cf_type f2.cf_type
-					with
-						Unify_error l -> error (invalid_field n :: l)
+					let a = f1.cf_type and b = f2.cf_type in
+					if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack)) then begin
+						eq_stack := (a,b) :: !eq_stack;
+						try
+							type_eq param a b;
+							eq_stack := List.tl !eq_stack;
+						with
+							Unify_error l ->
+								eq_stack := List.tl !eq_stack;
+								error (invalid_field n :: l)
+					end;
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
@@ -2009,6 +2016,7 @@ module Abstract = struct
 					if List.exists (fast_eq t) !underlying_type_stack then begin
 						let pctx = print_context() in
 						let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: !underlying_type_stack))) in
+						underlying_type_stack := [];
 						raise (Error("Abstract chain detected: " ^ s,a.a_pos))
 					end;
 					get_underlying_type a tl
