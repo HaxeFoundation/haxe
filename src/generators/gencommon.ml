@@ -241,6 +241,11 @@ let get_fun t =
 
 let mk_cast t e = Type.mk_cast e t e.epos
 
+(** TODO: when adding new AST, make a new cast type for those fast casts. For now, we're using this hack
+ *        of using null_class to tell a fast cast from a normal one. Also note that this only works since both
+ *        C# and Java do not use the second part of TCast for anything *)
+let mk_castfast t e = { e with eexpr = TCast(e, Some (TClassDecl null_class)); etype = t }
+
 let mk_classtype_access cl pos = Codegen.ExprBuilder.make_static_this cl pos
 
 let mk_static_field_access_infer cl field pos params =
@@ -3046,7 +3051,7 @@ struct
 										| _ ->
 											let i = ref 0 in
 											let t = TFun(List.map (fun e -> incr i; "arg" ^ (string_of_int !i), false, e.etype) params, e.etype) in
-											dynamic_func_call { e with eexpr = TCall( mk_cast t (run e1), List.map run params ) }
+											dynamic_func_call { e with eexpr = TCall( mk_castfast t (run e1), List.map run params ) }
 							)
 						(* | FNotFound ->
 							{ e with eexpr = TCall({ e1 with eexpr = TField(run ecl, f) }, List.map run params) }
@@ -3058,7 +3063,7 @@ struct
 								| _ ->
 									let i = ref 0 in
 									let t = TFun(List.map (fun e -> incr i; "arg" ^ (string_of_int !i), false, e.etype) params, e.etype) in
-									dynamic_func_call { e with eexpr = TCall( mk_cast t (run e1), List.map run params ) }
+									dynamic_func_call { e with eexpr = TCall( mk_castfast t (run e1), List.map run params ) }
 					)
 				| TField(ecl, FClosure (_,cf)) ->
 					transform_closure e (run ecl) cf.cf_name
@@ -3078,7 +3083,7 @@ struct
 									("p" ^ (string_of_int !i), false, e.etype)
 								) params, e.etype)
 							in
-							fun e -> mk_cast t e
+							fun e -> mk_castfast t e
 					in
 					dynamic_func_call { e with eexpr = TCall(run (may_cast tc), List.map run params) }
 				| _ -> Type.map_expr run e
@@ -5913,6 +5918,16 @@ struct
 		let is_cl_related cl tl super superl = map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ _ -> true) super cl tl in
 		is_cl_related cl tl super superl || is_cl_related super superl cl tl
 
+	let is_exactly_basic gen t1 t2 =
+		match gen.gfollow#run_f t1, gen.gfollow#run_f t2 with
+			| TAbstract(a1, []), TAbstract(a2, []) ->
+				a1 == a2 && Common.defined gen.gcon Define.FastCast
+			| TInst(c1, []), TInst(c2, []) ->
+				c1 == c2 && Common.defined gen.gcon Define.FastCast
+			| TEnum(e1, []), TEnum(e2, []) ->
+				e1 == e2 && Common.defined gen.gcon Define.FastCast
+			| _ ->
+				false
 
 	let rec is_unsafe_cast gen to_t from_t =
 		match (follow to_t, follow from_t) with
@@ -5998,19 +6013,21 @@ struct
 		let do_unsafe_cast () = do_unsafe_cast gen real_from_t real_to_t { e with etype = real_from_t } in
 		let to_t, from_t = real_to_t, real_from_t in
 
-		let mk_cast t e =
+		let mk_cast fast t e =
 			match e.eexpr with
 				(* TThrow is always typed as Dynamic, we just need to type it accordingly *)
 				| TThrow _ -> { e with etype = t }
-				| _ -> mk_cast t e
+				| _ -> if fast then mk_castfast t e else mk_cast t e
 		in
 
 		let e = { e with etype = real_from_t } in
 		if try fast_eq real_to_t real_from_t with Invalid_argument("List.for_all2") -> false then e else
 		match real_to_t, real_from_t with
 			(* string is the only type that can be implicitly converted from any other *)
+			| TInst( { cl_path = ([], "String") }, []), TInst( { cl_path = ([], "String") }, [] ) ->
+				mk_cast true to_t e
 			| TInst( { cl_path = ([], "String") }, []), _ ->
-				mk_cast to_t e
+				mk_cast false to_t e
 			| TInst(cl_to, params_to), TInst(cl_from, params_from) ->
 				let ret = ref None in
 				(*
@@ -6034,7 +6051,7 @@ struct
 								if we are already handling type parameter casts on other part of code (e.g. RealTypeParameters),
 								we'll just make a cast to indicate that this place needs type parameter-involved casting
 							*)
-							ret := Some (mk_cast to_t e);
+							ret := Some (mk_cast true to_t e);
 							true
 						end else
 							(*
@@ -6043,16 +6060,16 @@ struct
 							*)
 							try
 								List.iter2 (type_eq gen EqRightDynamic) tl params_to;
-								ret := Some (mk_cast to_t e);
+								ret := Some (mk_cast true to_t e);
 								true
 							with | Unify_error _ ->
-								ret := Some (mk_cast to_t (mk_cast (TInst(cl_to, List.map (fun _ -> t_dynamic) params_to)) e));
+								ret := Some (mk_cast true to_t (mk_cast true (TInst(cl_to, List.map (fun _ -> t_dynamic) params_to)) e));
 								true
 				) cl_to cl_from params_from);
 				if is_some !ret then
 					get !ret
 				else if is_cl_related gen cl_from params_from cl_to params_to then
-					mk_cast to_t e
+					mk_cast true to_t e
 				else
 					(* potential unsafe cast *)
 					(do_unsafe_cast ())
@@ -6064,18 +6081,18 @@ struct
 			| TMono _, _
 			| TDynamic _, _
 			| TAnon _, _ when gen.gneeds_box real_from_t ->
-				mk_cast to_t e
+				mk_cast false to_t e
 			| TMono _, _
 			| TDynamic _, _ -> e
 			| _, TMono _
-			| _, TDynamic _ -> mk_cast to_t e
+			| _, TDynamic _ -> mk_cast false to_t e
 			| TAnon (a_to), TAnon (a_from) ->
 				if a_to == a_from then
 					e
 				else if type_iseq gen to_t from_t then (* FIXME apply unify correctly *)
 					e
 				else
-					mk_cast to_t e
+					mk_cast true to_t e
 			| _, TAnon(anon) -> (try
 				let p2 = match !(anon.a_status) with
 				| Statics c -> TInst(c,List.map (fun _ -> t_dynamic) c.cl_params)
@@ -6088,7 +6105,7 @@ struct
 				| _ -> assert false in
 				handle_cast gen e real_to_t (gen.greal_type (TAbstract(tclass, [p2])))
 			with | Not_found ->
-				mk_cast to_t e)
+				mk_cast false to_t e)
 			| TAbstract (a_to, _), TAbstract(a_from, _) when a_to == a_from ->
 				e
 			| TAbstract _, TInst({ cl_kind = KTypeParameter _ }, _)
@@ -6098,11 +6115,11 @@ struct
 			| _, TAbstract _ ->
 				(try
 					unify from_t to_t;
-					mk_cast to_t e
+					mk_cast true to_t e
 				with | Unify_error _ ->
 					try
 						unify to_t from_t;
-						mk_cast to_t e
+						mk_cast true to_t e
 					with | Unify_error _ ->
 						do_unsafe_cast())
 			| TEnum(e_to, []), TEnum(e_from, []) ->
@@ -6149,13 +6166,13 @@ struct
 					e
 			| TType(t_to, _), TType(t_from,_) ->
 				if gen.gspecial_needs_cast real_to_t real_from_t then
-					mk_cast to_t e
+					mk_cast false to_t e
 				else
 					e
 			| TType _, _ when gen.gspecial_needs_cast real_to_t real_from_t ->
-				mk_cast to_t e
+				mk_cast false to_t e
 			| _, TType _ when gen.gspecial_needs_cast real_to_t real_from_t ->
-				mk_cast to_t e
+				mk_cast false to_t e
 			(*| TType(t_to, _), TType(t_from, _) ->
 				if t_to.t_path = t_from.t_path then
 					e
@@ -6168,15 +6185,15 @@ struct
 				if is_unsafe_cast gen real_to_t real_from_t then (* is_unsafe_cast will already follow both *)
 					(do_unsafe_cast ())
 				else
-					mk_cast to_t e
+					mk_cast false to_t e
 			| TAnon anon, _ ->
 				if PMap.is_empty anon.a_fields then
 					e
 				else
-					mk_cast to_t e
+					mk_cast true to_t e
 			| TFun(args, ret), TFun(args2, ret2) ->
 				let get_args = List.map (fun (_,_,t) -> t) in
-				(try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast to_t e)
+				(try List.iter2 (type_eq gen (EqBothDynamic)) (ret :: get_args args) (ret2 :: get_args args2); e with | Unify_error _ | Invalid_argument("List.iter2") -> mk_cast true to_t e)
 			| _, _ ->
 				do_unsafe_cast ()
 
@@ -6310,8 +6327,16 @@ struct
 		let args,ret = get_fun tfun in
 		TFun(loop [] args elist, ret)
 
-	(*
+	let fastcast_if_needed gen expr real_to_t real_from_t =
+		if Common.defined gen.gcon Define.FastCast then begin
+			if type_iseq gen real_to_t real_from_t then
+				{ expr with etype = real_to_t }
+			else
+				mk_castfast real_to_t { expr with etype=real_from_t }
+		end else
+			handle_cast gen expr real_to_t real_from_t
 
+	(*
 		Type parameter handling
 		It will detect if/what type parameters were used, and call the cast handler
 		It will handle both TCall(TField) and TCall by receiving a texpr option field: e
@@ -6351,6 +6376,14 @@ struct
 					| TInst(_,params) -> params
 					| _ -> params
 				in
+				let local_mk_cast t expr =
+					(* handle_cast gen expr t expr.etype *)
+					if is_exactly_basic gen t expr.etype then
+						expr
+					else
+						mk_castfast t expr
+				in
+
 				let ecall = get e in
 				let ef = ref ef in
 				let is_overload = cf.cf_overloads <> [] || Meta.has Meta.Overload cf.cf_meta || (is_static && is_static_overload cl (field_name f)) in
@@ -6419,7 +6452,7 @@ struct
 					if is_void ecall.etype then
 						{ ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
 					else
-						mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
+						local_mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
 				else begin
 					(* infer arguments *)
 					(* let called_t = TFun(List.map (fun e -> "arg",false,e.etype) elist, ecall.etype) in *)
@@ -6444,12 +6477,12 @@ struct
 						let elist = List.map2 (fun applied (_,_,funct) ->
 							match is_overload, applied.eexpr with
 							| true, TConst TNull ->
-								mk_cast (gen.greal_type funct) applied
+								local_mk_cast (gen.greal_type funct) applied
 							| true, _ -> (* when not (type_iseq gen (gen.greal_type applied.etype) funct) -> *)
 								let ret = handle_cast gen applied (funct) (gen.greal_type applied.etype) in
 								(match ret.eexpr with
 								| TCast _ -> ret
-								| _ -> mk_cast (funct) ret)
+								| _ -> local_mk_cast (funct) ret)
 							| _ ->
 								handle_cast gen applied (funct) (gen.greal_type applied.etype)
 						) applied args_ft in
@@ -6553,6 +6586,89 @@ struct
 			| _ -> false
 		in
 
+		let binop_type op main_expr e1 e2 =
+			let name = Common.platform_name gen.gcon.platform in
+			let basic = gen.gcon.basic in
+			(* If either operand is of type decimal, the other operand is converted to type decimal, or a compile-time error occurs if the other operand is of type float or double.
+			 * Otherwise, if either operand is of type double, the other operand is converted to type double.
+			 * Otherwise, if either operand is of type float, the other operand is converted to type float.
+			 * Otherwise, if either operand is of type ulong, the other operand is converted to type ulong, or a compile-time error occurs if the other operand is of type sbyte, short, int, or long.
+			 * Otherwise, if either operand is of type long, the other operand is converted to type long.
+			 * Otherwise, if either operand is of type uint and the other operand is of type sbyte, short, or int, both operands are converted to type long.
+			 * Otherwise, if either operand is of type uint, the other operand is converted to type uint.
+			 * Otherwise, both operands are converted to type int.
+			 *  *)
+			let t1, t2 = follow (run_follow gen e1.etype), follow (run_follow gen e2.etype) in
+			match t1, t2 with
+				| TAbstract(a1,[]), TAbstract(a2,[]) when a1 == a2 ->
+					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
+				| TInst(i1,[]), TInst(i2,[]) when i1 == i2 ->
+					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
+				| TInst({ cl_path = ([],"String") },[]), _ when op = OpAdd ->
+					{ main_expr with eexpr = TBinop(op, e1, mk_cast basic.tstring e2); etype = basic.tstring }
+				| _, TInst({ cl_path = ([],"String") },[]) when op = OpAdd ->
+					{ main_expr with eexpr = TBinop(op, mk_cast basic.tstring e1, e2); etype = basic.tstring }
+				| TAbstract({ a_path = ([], "Float") }, []), _ ->
+					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
+				| _, TAbstract({ a_path = ([], "Float") }, []) ->
+					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
+				| TAbstract({ a_path = ([], "Single") }, []), _ ->
+					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
+				| _, TAbstract({ a_path = ([], "Single") }, []) ->
+					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
+				| TAbstract({ a_path = ([pf], "UInt64") }, []), _ when pf = name ->
+					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
+				| _, TAbstract({ a_path = ([pf], "UInt64") }, []) when pf = name ->
+					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
+				| TAbstract({ a_path = ([pf], "Int64") }, []), _ when pf = name ->
+					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
+				| _, TAbstract({ a_path = ([pf], "Int64") }, []) when pf = name ->
+					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
+				| TAbstract({ a_path = ([], "UInt") }, []), tother when like_int tother ->
+					let ti64 = mt_to_t_dyn ( get_type gen ([name], "Int64") ) in
+					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } *)
+					let ret = { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } in
+					if op <> OpDiv then
+						mk_cast t1 ret
+					else
+						ret
+				| tother, TAbstract({ a_path = ([], "UInt") }, []) when like_int tother ->
+					let ti64 = mt_to_t_dyn ( get_type gen ([name], "Int64") ) in
+					(* { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } *)
+					let ret = { main_expr with eexpr = TBinop(op, e1, e2); etype = ti64 } in
+					if op <> OpDiv then
+						mk_cast t2 ret
+					else
+						ret
+				| TAbstract({ a_path = ([], "UInt") }, []), _ ->
+					(* { main_expr with eexpr = TBinop(op, e1, mk_castfast t1 e2); etype = e1.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e1.etype }
+				| _, TAbstract({ a_path = ([], "UInt") }, []) ->
+					(* { main_expr with eexpr = TBinop(op, mk_castfast t2 e1, e2); etype = e2.etype } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = e2.etype }
+				| TAbstract(a1,[]), TAbstract(a2,[]) ->
+					(* { main_expr with eexpr = TBinop(op, mk_castfast basic.tint e1, mk_castfast basic.tint e2); etype = basic.tint } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2); etype = basic.tint }
+				| _ ->
+					(* { main_expr with eexpr = TBinop(op, e1, e2) } *)
+					{ main_expr with eexpr = TBinop(op, e1, e2) }
+		in
+		let binop_type = if Common.defined gen.gcon Define.FastCast then
+			binop_type
+		else
+			fun op main_expr e1 e2 -> { main_expr with eexpr = TBinop(op, e1, e2) }
+		in
+
 		let rec run ?(just_type = false) e =
 			let handle = if not just_type then handle else fun e t1 t2 -> { e with etype = gen.greal_type t2 } in
 			let was_in_value = !in_value in
@@ -6581,7 +6697,12 @@ struct
 				| TBinop ( (Ast.OpShl | Ast.OpShr | Ast.OpUShr as op), e1, e2 ) ->
 					let e1 = run e1 in
 					let e2 = handle (run e2) (gen.gcon.basic.tint) e2.etype in
-					{ e with eexpr = TBinop(op, e1, e2) }
+					let rett = binop_type op e e1 e2 in
+					{ e with eexpr = TBinop(op, e1, e2); etype = rett.etype }
+				| TBinop( (OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpMod) as op, e1, e2 ) ->
+					binop_type op e (run e1) (run e2)
+				| TBinop( (OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr) as op, e1, e2 ) ->
+					handle { e with eexpr = TBinop(op, run e1, run e2) } e.etype gen.gcon.basic.tbool
 				| TField(ef, f) ->
 					handle_type_parameter gen None e (run ef) ~clean_ef:ef ~overloads_cast_to_base:overloads_cast_to_base f [] calls_parameters_explicitly
 				| TArrayDecl el ->
@@ -6667,15 +6788,17 @@ struct
 					{ e with eexpr = TNew(cl, tparams, List.map run eparams) })
 				| TArray(arr, idx) ->
 					let arr_etype = match follow arr.etype with
-					| (TInst _ as t) -> t
-					| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-						follow (Abstract.get_underlying_type a pl)
-					| t -> t in
+						| (TInst _ as t) -> t
+						| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+							follow (Abstract.get_underlying_type a pl)
+						| t -> t
+					in
+					let idx = run idx in
 					let idx = match gen.greal_type idx.etype with
-					| TAbstract({ a_path = [],"Int" },_) -> run idx
-					| _ -> match handle (run idx) gen.gcon.basic.tint (gen.greal_type idx.etype) with
-					| ({ eexpr = TCast _ } as idx) -> idx
-					| idx -> mk_cast gen.gcon.basic.tint idx
+						| TAbstract({ a_path = [],"Int" },_) -> idx
+						| _ -> match handle idx gen.gcon.basic.tint (gen.greal_type idx.etype) with
+							| ({ eexpr = TCast _ } as idx) -> idx
+							| idx -> mk_cast gen.gcon.basic.tint idx
 					in
 					let e = { e with eexpr = TArray(run arr, idx) } in
 					(* get underlying class (if it's a class *)
@@ -6691,7 +6814,8 @@ struct
 									let real_t = apply_params cl.cl_params params param in
 									(* see if it needs a cast *)
 
-									handle (e) (gen.greal_type e.etype) (gen.greal_type real_t)
+									fastcast_if_needed gen e (gen.greal_type e.etype) (gen.greal_type real_t)
+									(* handle (e) (gen.greal_type e.etype) (gen.greal_type real_t) *)
 							)
 						| _ -> Type.map_expr run e)
 				| TVar (v, eopt) ->
@@ -6740,6 +6864,8 @@ struct
 							else
 								mk_cast (gen.greal_type e.etype) enull
 					| _ when is_abstract_to_struct expr.etype && type_iseq gen e.etype (get_abstract_impl expr.etype) ->
+						run { expr with etype = expr.etype }
+					| _ when is_exactly_basic gen expr.etype e.etype ->
 						run { expr with etype = expr.etype }
 					| _ ->
 						match gen.greal_type e.etype, gen.greal_type expr.etype with
@@ -10752,7 +10878,7 @@ struct
 
 	let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority ]
 
-	let is_int = like_int
+	let is_int t = like_int t && not (like_i64 t)
 
 	let is_exactly_int t = match follow t with
 		| TAbstract ({ a_path=[],"Int" }, []) -> true

@@ -107,7 +107,9 @@ import cs.system.Object;
 			{
 				case [Decimal, _] | [_, Decimal]:
 					return v1c.ToDecimal(null) == v2c.ToDecimal(null);
-				case [UInt64 | Int64 | DateTime, _] | [_, UInt64 | Int64 | DateTime]:
+				case [Int64, _] | [_, Int64]:
+					return v1c.ToInt64(null) == v2c.ToInt64(null);
+				case [UInt64 | DateTime, _] | [_, UInt64 | DateTime]:
 					return v1c.ToUInt64(null) == v2c.ToUInt64(null);
 				case [Double | Single, _] | [_, Double | Single]:
 					return v1c.ToDouble(null) == v2c.ToDouble(null);

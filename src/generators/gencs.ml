@@ -426,6 +426,9 @@ struct
 			| _ -> ""
 		in
 
+		let as_var = alloc_var "__as__" t_dynamic in
+		let fast_cast = Common.defined gen.gcon Define.FastCast in
+
 		let rec run e =
 			match e.eexpr with
 
@@ -515,6 +518,12 @@ struct
 						etype = ti64;
 						epos = expr.epos
 					}
+
+				| TCast(expr, Some(TClassDecl cls)) when fast_cast && cls == null_class ->
+					if is_cs_basic_type (gen.greal_type e.etype) || is_tparam (gen.greal_type e.etype) then
+						{ e with eexpr = TCast(run expr, Some(TClassDecl null_class)) }
+					else
+						{ e with eexpr = TCall(mk_local as_var e.epos, [run expr]) }
 
 				| TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) && name() <> "haxe.lang.Runtime" ->
 					{ e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
