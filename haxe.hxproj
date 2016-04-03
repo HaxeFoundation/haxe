@@ -248,6 +248,18 @@
     <hidden path="src\generators\codegen.obj" />
     <hidden path="src\generators\codegen.cmx" />
     <hidden path="src\generators\codegen.cmi" />
+    <hidden path="src\optimization\analyzerConfig.cmi" />
+    <hidden path="src\optimization\analyzerConfig.cmx" />
+    <hidden path="src\optimization\analyzerConfig.obj" />
+    <hidden path="src\optimization\analyzerTexpr.cmi" />
+    <hidden path="src\optimization\analyzerTexpr.cmx" />
+    <hidden path="src\optimization\analyzerTexpr.obj" />
+    <hidden path="src\optimization\analyzerTexprTransformer.cmi" />
+    <hidden path="src\optimization\analyzerTexprTransformer.cmx" />
+    <hidden path="src\optimization\analyzerTexprTransformer.obj" />
+    <hidden path="src\optimization\analyzerTypes.cmi" />
+    <hidden path="src\optimization\analyzerTypes.cmx" />
+    <hidden path="src\optimization\analyzerTypes.obj" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
