@@ -360,7 +360,7 @@ class Compiler {
 
 #end
 
-	#if (js || macro)
+	#if (js || lua || macro)
 	/**
 		Embed a JavaScript file at compile time (can be called by `--macro` or within an `__init__` method).
 	**/

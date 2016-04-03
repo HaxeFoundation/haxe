@@ -37,6 +37,11 @@ class TestCommandBase extends haxe.unit.TestCase {
 				run(Sys.executablePath(), [bin].concat(args));
 			#elseif php
 				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+			#elseif lua
+				switch(Sys.getEnv("LUA")){
+					case null : run("lua", [bin].concat(args));
+					default   : run(Sys.getEnv("LUA"), [bin].concat(args));
+				};
 			#else
 				-1;
 			#end
@@ -45,7 +50,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 		assertEquals(0, exitCode);
 	}
 
-	function testCommandName() {		
+	function testCommandName() {
 		var binExt = switch (Sys.systemName()) {
 			case "Windows":
 				".exe";
@@ -117,6 +122,11 @@ class TestCommandBase extends haxe.unit.TestCase {
 					run(Sys.executablePath(), [bin].concat(args));
 				#elseif php
 					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+				#elseif lua
+					switch(Sys.getEnv("LUA")){
+						case null: run("lua", [bin].concat(args));
+						default : run(Sys.getEnv("LUA"), [bin].concat(args));
+					};
 				#else
 					-1;
 				#end

@@ -78,7 +78,7 @@ class Log {
 			}
 			else
 				untyped __trace(v,infos);
-		#elseif (cs || java)
+		#elseif (cs || java || lua)
 			var str:String = null;
 			if (infos != null) {
 				str = infos.fileName + ":" + infos.lineNumber + ": " + v;
@@ -93,6 +93,8 @@ class Log {
 			cs.system.Console.WriteLine(str);
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
+			#elseif lua
+			untyped __lua__("_hx_print({0})", lua.Boot.__string_rec(str));
 			#end
 		#elseif (python)
 			var str:String = null;

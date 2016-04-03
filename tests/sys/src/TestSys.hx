@@ -4,13 +4,13 @@ class TestSys extends TestCommandBase {
 	}
 
 	function testEnv() {
-		#if !(java || php)
+		#if !(java || php || lua)
 		Sys.putEnv("foo", "value");
 		assertEquals("value", Sys.getEnv("foo"));
 		#end
 		assertEquals(null, Sys.getEnv("doesn't exist"));
 
-		#if !(java || php)
+		#if !(java || php || lua)
 		var env = Sys.environment();
 		assertEquals("value", env.get("foo"));
 		#end
@@ -48,6 +48,8 @@ class TestSys extends TestCommandBase {
 			assertTrue(StringTools.endsWith(p, "sys.py"));
 		#elseif php
 			assertTrue(StringTools.endsWith(p, "index.php"));
+		#elseif lua
+			assertTrue(StringTools.endsWith(p, "sys.lua"));
 		#end
 	}
 

@@ -173,6 +173,7 @@ class Unserializer {
 		var p1 = pos;
  		while( true ) {
  			var c = get(pos);
+			if( StringTools.isEof(c)) break;
  			// + - . , 0-9
  			if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
  				pos++;

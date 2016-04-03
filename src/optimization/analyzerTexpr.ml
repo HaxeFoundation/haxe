@@ -97,6 +97,14 @@ let rec can_be_inlined e = match e.eexpr with
 	| TParenthesis e1 | TMeta(_,e1) -> can_be_inlined e1
 	| _ -> false
 
+let target_handles_unops com = match com.platform with
+	| Lua | Python -> false
+	| _ -> true
+
+let target_handles_assign_ops com = match com.platform with
+	| Lua -> false
+	| _ -> true
+
 let rec can_be_used_as_value com e =
 	let rec loop e = match e.eexpr with
 		| TBlock [e] -> loop e
@@ -104,7 +112,7 @@ let rec can_be_used_as_value com e =
 		| TCall({eexpr = TConst (TString "phi")},_) -> raise Exit
 		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
-		| TUnop((Increment | Decrement),_,_) when com.platform = Python -> raise Exit
+		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
 		| TNew _ when com.platform = Php -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e

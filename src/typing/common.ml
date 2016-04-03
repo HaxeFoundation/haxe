@@ -47,6 +47,7 @@ type stats = {
 type platform =
 	| Cross
 	| Js
+	| Lua
 	| Neko
 	| Flash
 	| Php
@@ -199,6 +200,8 @@ module Define = struct
 		| JsUnflatten
 		| KeepOldOutput
 		| LoopUnrollMaxCost
+	        | LuaVer
+	        | LuaJit
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -287,6 +290,8 @@ module Define = struct
 		| JsUnflatten -> ("js_unflatten","Generate nested objects for packages and types")
 		| KeepOldOutput -> ("keep_old_output","Keep old source files in the output directory (for C#/Java)")
 		| LoopUnrollMaxCost -> ("loop_unroll_max_cost","Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)")
+		| LuaJit -> ("lua_jit","Enable the jit compiler for lua (version 5.2 only")
+		| LuaVer -> ("lua_ver","The lua version to target")
 		| Macro -> ("macro","Defined when code is compiled in the macro context")
 		| MacroTimes -> ("macro_times","Display per-macro timing when used with --times")
 		| NetVer -> ("net_ver", "<version:20-45> Sets the .NET version to be targeted")
@@ -433,6 +438,7 @@ module MetaInfo = struct
 		| JavaCanonical -> ":javaCanonical",("Used by the Java target to annotate the canonical path of the type",[HasParam "Output type package";HasParam "Output type name";UsedOnEither [TClass;TEnum]; Platform Java])
 		| JavaNative -> ":javaNative",("Automatically added by -java-lib on classes generated from JAR/class files",[Platform Java; UsedOnEither[TClass;TEnum]; Internal])
 		| JsRequire -> ":jsRequire",("Generate javascript module require expression for given extern",[Platform Js; UsedOn TClass])
+		| LuaRequire -> ":luaRequire",("Generate lua module require expression for given extern",[Platform Lua; UsedOn TClass])
 		| Keep -> ":keep",("Causes a field or type to be kept by DCE",[])
 		| KeepInit -> ":keepInit",("Causes a class to be kept by DCE even if all its field are removed",[UsedOn TClass])
 		| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
@@ -567,6 +573,12 @@ let get_config com =
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+		}
+	| Lua ->
+		{
+			default_config with
+			pf_static = false;
+			pf_capture_policy = CPLoopVars;
 		}
 	| Neko ->
 		{
@@ -735,6 +747,7 @@ let file_extension file =
 
 let platforms = [
 	Js;
+	Lua;
 	Neko;
 	Flash;
 	Php;
@@ -748,6 +761,7 @@ let platforms = [
 let platform_name = function
 	| Cross -> "cross"
 	| Js -> "js"
+	| Lua -> "lua"
 	| Neko -> "neko"
 	| Flash -> "flash"
 	| Php -> "php"
