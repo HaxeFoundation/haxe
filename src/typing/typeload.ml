@@ -2182,7 +2182,11 @@ module ClassInitializer = struct
 					cctx.context_init();
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					let e = type_var_field ctx t e fctx.is_static p in
-					let require_constant_expression e msg = match Optimizer.make_constant_expression ctx e with
+					let maybe_run_analyzer e = match e.eexpr with
+						| TConst _ | TLocal _ | TFunction _ -> e
+						| _ -> !analyzer_run_on_expr_ref ctx.com e
+					in
+					let require_constant_expression e msg = match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 						| Some e -> e
 						| None -> display_error ctx msg p; e
 					in
@@ -2199,7 +2203,7 @@ module ClassInitializer = struct
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not fctx.is_static ->
-						let e = match Optimizer.make_constant_expression ctx e with
+						let e = match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 							| Some e -> e
 							| None ->
 								let rec has_this e = match e.eexpr with

@@ -1113,6 +1113,18 @@ module Run = struct
 		) ctx.graph.g_var_infos;
 		let e = with_timer "analyzer-fusion" (fun () -> Fusion.apply ctx.com ctx.config e) in
 		let e = with_timer "analyzer-cleanup" (fun () -> Cleanup.apply ctx.com e) in
+		let e = if ctx.is_real_function then
+			e
+		else begin
+			(* Get rid of the wrapping function and its return expressions. *)
+			let rec loop first e = match e.eexpr with
+				| TReturn (Some e) -> e
+				| TFunction tf when first -> loop false tf.tf_expr
+				| TFunction _ -> e
+				| _ -> Type.map_expr (loop first) e
+			in
+			loop true e
+		end in
 		e
 
 	let roundtrip com config e =
@@ -1143,18 +1155,6 @@ module Run = struct
 			let actx,e = run_on_expr ctx.Typecore.com config e in
 			let e = Cleanup.reduce_control_flow ctx e in
 			if config.dot_debug then Debug.dot_debug actx c cf;
-			let e = if actx.is_real_function then
-				e
-			else begin
-				(* Get rid of the wrapping function and its return expressions. *)
-				let rec loop first e = match e.eexpr with
-					| TReturn (Some e) -> e
-					| TFunction tf when first -> loop false tf.tf_expr
-					| TFunction _ -> e
-					| _ -> Type.map_expr (loop first) e
-				in
-				loop true e
-			end in
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
@@ -1198,3 +1198,5 @@ module Run = struct
 		List.iter (run_on_type ctx config) types;
 		List.iter (fun cf -> cf.cf_meta <- List.filter (fun (m,_,_) -> m <> Meta.Pure) cf.cf_meta) cfl
 end
+;;
+Typecore.analyzer_run_on_expr_ref := (fun com e -> snd (Run.run_on_expr com (AnalyzerConfig.get_base_config com) e))
