@@ -492,6 +492,7 @@ class Http {
 			else
 				b.add("Content-Length: "+uri.length+"\r\n");
 		}
+		b.add("Connection: close\r\n");
 		for( h in headers ) {
 			b.add(h.header);
 			b.add(": ");
@@ -637,17 +638,23 @@ class Http {
 
 		var bufsize = 1024;
 		var buf = haxe.io.Bytes.alloc(bufsize);
-		if( size == null ) {
+		if( chunked ) {
+			try {
+				while( true ) {
+					var len = sock.input.readBytes(buf,0,bufsize);
+					if( !readChunk(chunk_re,api,buf,len) )
+						break;
+				}
+			} catch ( e : haxe.io.Eof ) {
+				throw "Transfer aborted";
+			}
+		} else if( size == null ) {
 			if( !noShutdown )
 				sock.shutdown(false,true);
 			try {
 				while( true ) {
 					var len = sock.input.readBytes(buf,0,bufsize);
-					if( chunked ) {
-						if( !readChunk(chunk_re,api,buf,len) )
-							break;
-					} else
-						api.writeBytes(buf,0,len);
+					api.writeBytes(buf,0,len);
 				}
 			} catch( e : haxe.io.Eof ) {
 			}
@@ -656,11 +663,7 @@ class Http {
 			try {
 				while( size > 0 ) {
 					var len = sock.input.readBytes(buf,0,if( size > bufsize ) bufsize else size);
-					if( chunked ) {
-						if( !readChunk(chunk_re,api,buf,len) )
-							break;
-					} else
-						api.writeBytes(buf,0,len);
+					api.writeBytes(buf,0,len);
 					size -= len;
 				}
 			} catch( e : haxe.io.Eof ) {
