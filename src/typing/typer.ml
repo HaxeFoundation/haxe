@@ -817,8 +817,9 @@ let unify_field_call ctx fa el args ret p inline =
 		let candidates,failures = loop candidates in
 		let fail () =
 			let failures = List.map (fun (cf,err,p) -> cf,error_msg err,p) failures in
+			let failures = remove_duplicates (fun (_,msg1,_) (_,msg2,_) -> msg1 <> msg2) failures in
 			begin match failures with
-			| (_,msg,p) :: failures when List.for_all (fun (_,msg2,_) -> msg = msg2) failures ->
+			| [_,msg,p] ->
 				error msg p
 			| _ ->
 				display_error ctx "Could not find a suitable overload, reasons follow" p;
@@ -845,7 +846,7 @@ let fast_enum_field e ef p =
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl {cl_kind = KGenericBuild _} ->
-		let _,_,f = Codegen.build_instance ctx t p in
+		let _,_,f = Typeload.build_instance ctx t p in
 		let t = f (match tparams with None -> [] | Some tl -> tl) in
 		let mt = try
 			module_type_of_type t
@@ -1445,7 +1446,7 @@ and type_field ?(resume=false) ctx e i p mode =
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
 				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") p;
 			| _ ->
-				display_error ctx (string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) p;
+				display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) p;
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
@@ -1848,8 +1849,8 @@ let unify_int ctx e k =
 	end;
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
-		let gctx = Codegen.make_generic ctx cf.cf_params monos p in
-		let name = cf.cf_name ^ "_" ^ gctx.Codegen.name in
+		let gctx = Typeload.make_generic ctx cf.cf_params monos p in
+		let name = cf.cf_name ^ "_" ^ gctx.Typeload.name in
 		let unify_existing_field tcf pcf = try
 			unify_raise ctx tcf t p
 		with Error(Unify _,_) as err ->
@@ -1890,7 +1891,7 @@ let unify_int ctx e k =
 				| None ->
 					display_error ctx "Recursive @:generic function" p; None;
 				| Some e ->
-					let e = Codegen.generic_substitute_expr gctx e in
+					let e = Typeload.generic_substitute_expr gctx e in
 					check e;
 					Some e
 			);
@@ -1907,7 +1908,7 @@ let unify_int ctx e k =
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
 		let e = mk (TField(e,fa)) cf2.cf_type p in
 		make_call ctx e el ret p
-	with Codegen.Generic_Exception (msg,p) ->
+	with Typeload.Generic_Exception (msg,p) ->
 		error msg p)
 
 let call_to_string ctx e =
@@ -2818,8 +2819,7 @@ and type_access ctx e p mode =
 	| _ ->
 		AKExpr (type_expr ctx (e,p) Value)
 
-and type_vars ctx vl p in_block =
-	let save = if in_block then (fun() -> ()) else save_locals ctx in
+and type_vars ctx vl p =
 	let vl = List.map (fun (v,t,e) ->
 		try
 			let t = Typeload.load_type_opt ctx p t in
@@ -2837,8 +2837,6 @@ and type_vars ctx vl p in_block =
 				display_error ctx (error_msg e) p;
 				add_local ctx v t_dynamic, None
 	) vl in
-	save();
-
 	match vl with
 	| [v,eo] ->
 		mk (TVar (v,eo)) ctx.t.tvoid p
@@ -2945,9 +2943,6 @@ and type_block ctx el with_type p =
 	in
 	let rec loop = function
 		| [] -> []
-		| (EVars vl,p) :: l ->
-			let e = type_vars ctx vl p true in
-			merge e @ loop l
 		| [e] ->
 			(try
 				merge (type_expr ctx e with_type)
@@ -3106,10 +3101,10 @@ and type_new ctx t el with_type p =
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
 		begin match t with
-			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Codegen.build_generic ctx c p tl)
+			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Typeload.build_generic ctx c p tl)
 			| _ -> t
 		end
-	with Codegen.Generic_Exception _ ->
+	with Typeload.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
 		match Typeload.resolve_typedef (Typeload.load_type_def ctx p t) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
@@ -3117,11 +3112,11 @@ and type_new ctx t el with_type p =
 			let ct, f = get_constructor ctx c monos p in
 			ignore (unify_constructor_call c monos f ct);
 			begin try
-				let t = Codegen.build_generic ctx c p monos in
+				let t = Typeload.build_generic ctx c p monos in
 				let map = apply_params c.cl_params monos in
 				check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
 				t
-			with Codegen.Generic_Exception _ as exc ->
+			with Typeload.Generic_Exception _ as exc ->
 				(* If we have an expected type, just use that (issue #3804) *)
 				begin match with_type with
 					| WithType t ->
@@ -3177,7 +3172,7 @@ and type_new ctx t el with_type p =
 		error (s_type (print_context()) t ^ " cannot be constructed") p)
 
 and type_try ctx e1 catches with_type p =
-	let e1 = type_expr ctx e1 with_type in
+	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	let rec check_unreachable cases t p = match cases with
 		| (v,e) :: cases ->
 			let unreachable () =
@@ -3511,7 +3506,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EArrayDecl el ->
 		type_array_decl ctx el with_type p
 	| EVars vl ->
-		type_vars ctx vl p false
+		type_vars ctx vl p
 	| EFor (it,e2) ->
 		let i, pi, e1 = (match it with
 			| (EIn ((EConst (Ident i),pi),e),_) -> i, pi, e
@@ -3521,6 +3516,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old_loop = ctx.in_loop in
 		let old_locals = save_locals ctx in
 		ctx.in_loop <- true;
+		let e2 = Expr.ensure_block e2 in
 		let e = (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
 			| Some e -> e
 			| None ->
@@ -3560,12 +3556,12 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e Value in
 		let e = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool e p in
-		let e1 = type_expr ctx e1 with_type in
+		let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 		(match e2 with
 		| None ->
 			mk (TIf (e,e1,None)) ctx.t.tvoid p
 		| Some e2 ->
-			let e2 = type_expr ctx e2 with_type in
+			let e2 = type_expr ctx (Expr.ensure_block e2) with_type in
 			let e1,e2,t = match with_type with
 				| NoValue -> e1,e2,ctx.t.tvoid
 				| Value -> e1,e2,unify_min ctx [e1; e2]
@@ -3581,13 +3577,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let cond = type_expr ctx cond Value in
 		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond p in
 		ctx.in_loop <- true;
-		let e = type_expr ctx e NoValue in
+		let e = type_expr ctx (Expr.ensure_block e) NoValue in
 		ctx.in_loop <- old_loop;
 		mk (TWhile (cond,e,NormalWhile)) ctx.t.tvoid p
 	| EWhile (cond,e,DoWhile) ->
 		let old_loop = ctx.in_loop in
 		ctx.in_loop <- true;
-		let e = type_expr ctx e NoValue in
+		let e = type_expr ctx (Expr.ensure_block e) NoValue in
 		ctx.in_loop <- old_loop;
 		let cond = type_expr ctx cond Value in
 		let cond = Codegen.AbstractCast.cast_or_unify ctx ctx.t.tbool cond cond.epos in
@@ -4012,7 +4008,7 @@ and maybe_type_against_enum ctx f with_type p =
 			let e = try
 				f()
 			with Error (Unknown_ident n,_) ->
-				raise_or_display_message ctx (string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
+				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
 			in
 			ctx.m.curmod.m_types <- old;
@@ -4044,7 +4040,7 @@ and type_call ctx e el (with_type:with_type) p =
 				begin match follow e.etype with
 					| TInst({cl_path=[],"String"},_) -> raise Not_found
 					| TMono _ -> raise Not_found
-					| t when t == t_dynamic -> raise Not_found
+					| TDynamic _ -> raise Not_found
 					| _ -> ()
 				end;
 				let acc = type_field ~resume:true ctx e "toString" p MCall in
@@ -4135,7 +4131,7 @@ and build_call ctx acc el (with_type:with_type) p =
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
-			let eparam,f = Codegen.push_this ctx eparam in
+			let eparam,f = push_this ctx eparam in
 			let e = build_call ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
 			f();
 			e
@@ -4168,7 +4164,6 @@ and build_call ctx acc el (with_type:with_type) p =
 			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
 			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
 			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = type_block ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
-			| Some (EVars vl,p) -> (fun() -> type_vars ctx vl p true)
 			| Some e -> (fun() -> type_expr ctx e with_type))
 		| _ ->
 			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
@@ -4176,7 +4171,7 @@ and build_call ctx acc el (with_type:with_type) p =
 			| TInst (c,_) ->
 				let rec loop c =
 					if PMap.mem cf.cf_name c.cl_fields then
-						let eparam,f = Codegen.push_this ctx ethis in
+						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
 							| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
@@ -4279,7 +4274,22 @@ let get_main ctx =
 		Some (mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos)
 
 let finalize ctx =
-	flush_pass ctx PFinal "final"
+	flush_pass ctx PFinal "final";
+	match ctx.com.callbacks.after_typing with
+		| [] ->
+			()
+		| fl ->
+			let rec loop handled_types =
+				let all_types = Hashtbl.fold (fun _ m acc -> m.m_types @ acc) ctx.g.modules [] in
+				match (List.filter (fun mt -> not (List.memq mt handled_types)) all_types) with
+				| [] ->
+					()
+				| new_types ->
+					List.iter (fun f -> f new_types) fl;
+					flush_pass ctx PFinal "final";
+					loop all_types
+			in
+			loop []
 
 type state =
 	| Generating
@@ -4474,6 +4484,13 @@ let make_macro_api ctx p =
 				let path = parse_path s in
 				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
 				m
+			)
+		);
+		Interp.after_typing = (fun f ->
+			Common.add_typing_filter ctx.com (fun tl ->
+				let t = macro_timer ctx "afterTyping" in
+				f tl;
+				t()
 			)
 		);
 		Interp.on_generate = (fun f ->
@@ -5136,12 +5153,12 @@ let rec create com =
 			get_build_infos = (fun() -> None);
 			std = null_module;
 			global_using = [];
-			do_inherit = Codegen.on_inherit;
+			do_inherit = Typeload.on_inherit;
 			do_create = create;
 			do_macro = type_macro;
 			do_load_module = Typeload.load_module;
 			do_optimize = Optimizer.reduce_expression;
-			do_build_instance = Codegen.build_instance;
+			do_build_instance = Typeload.build_instance;
 		};
 		m = {
 			curmod = null_module;

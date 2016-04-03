@@ -82,6 +82,8 @@ class TestArguments extends haxe.unit.TestCase {
 		"bin/python/TestArguments.py";
 	#elseif php
 		"bin/php/TestArguments/index.php";
+	#elseif lua
+		"bin/lua/TestArguments.lua";
 	#else
 		null;
 	#end
@@ -90,7 +92,6 @@ class TestArguments extends haxe.unit.TestCase {
 
 	function testArgs() {
 		var args = Sys.args();
-		// trace(args);
 		for (i in 0...expectedArgs.length) {
 			assertEquals(expectedArgs[i], args[i]);
 		}

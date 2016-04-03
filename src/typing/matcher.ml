@@ -275,6 +275,9 @@ module Pattern = struct
 					| _ ->
 						handle_ident i
 				end
+			| EVars([s,None,None]) ->
+				let v = add_local s in
+				PatVariable v
 			| ECall(e1,el) ->
 				let e1 = type_expr ctx e1 (WithType t) in
 				begin match e1.eexpr,follow e1.etype with

@@ -19,6 +19,9 @@ env:
     - PPA="ppa:haxe/snapshots"
     - DEBFULLNAME="Haxe CI Bot"
     - DEBEMAIL="haxe-ci@onthewings.net"
+    # lua specific versions
+    - LUAROCKS=2.3.0
+    - LUA=lua5.2
 
 sudo: required
 addons:
@@ -91,6 +94,8 @@ matrix:
       addons: {apt: {packages: *apt_python}}
     - os: linux
       env: TEST=hl
+    - os: linux
+      env: TEST=lua
 
     #######
     # osx #
@@ -120,12 +125,14 @@ matrix:
       env: TEST=cs
     - os: osx
       env: TEST=python
+    - os: osx
+      env: TEST=lua
 
 install:
   # Install haxe and neko dependencies
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
     travis_retry brew update;
-    travis_retry brew install ocaml camlp4 mbedtls;
+    travis_retry brew install ocaml camlp4 pcre mbedtls;
     fi
   # Install neko
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
@@ -154,7 +161,6 @@ script:
   - eval `ssh-agent -s`
   - make package_src -s
   - make -s
-  - make tools -s
   - make package_bin -s
   - export PATH="$PATH:$TRAVIS_BUILD_DIR"
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"

@@ -82,6 +82,9 @@ let rec func ctx bb tf t p =
 	let check_unbound_call v el =
 		if is_unbound_call_that_might_have_side_effects v el then ctx.has_unbound <- true
 	in
+	let no_void t p =
+		if ExtType.is_void (follow t) then error "Cannot use Void as value" p
+	in
 	let rec value bb e = match e.eexpr with
 		| TLocal v ->
 			bb,e
@@ -224,10 +227,7 @@ let rec func ctx bb tf t p =
 				bb,e
 		in
 		let bb,e = loop bb e in
-		begin match follow v.v_type with
-			| TAbstract({a_path=[],"Void"},_) -> error "Cannot use Void as value" e.epos
-			| _ -> ()
-		end;
+		no_void v.v_type e.epos;
 		let ev = mk (TLocal v) v.v_type e.epos in
 		let was_assigned = ref false in
 		let assign e =
@@ -475,7 +475,10 @@ let rec func ctx bb tf t p =
 			add_terminator bb e
 		| TThrow e1 ->
 			begin try
-				let mk_throw e1 = mk (TThrow e1) t_dynamic e.epos in
+				let mk_throw e1 =
+					no_void e1.etype e1.epos;
+					mk (TThrow e1) t_dynamic e.epos
+				in
 				block_element_value bb e1 mk_throw
 			with Exit ->
 				let bb,e1 = value bb e1 in
@@ -483,6 +486,7 @@ let rec func ctx bb tf t p =
 					| [] -> add_cfg_edge bb bb_exit CFGGoto
 					| _ -> List.iter (fun bb_exc -> add_cfg_edge bb bb_exc CFGGoto) !b_try_stack;
 				end;
+				no_void e1.etype e1.epos;
 				add_terminator bb {e with eexpr = TThrow e1};
 			end
 		(* side_effects *)
@@ -662,7 +666,7 @@ and func ctx i =
 			let eo = Option.map loop eo in
 			let v' = get_var_origin ctx.graph v in
 			{e with eexpr = TVar(v',eo)}
-		| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) ->
+		| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) when target_handles_assign_ops ctx.com ->
 			let e1 = loop e1 in
 			let e2 = loop e2 in
 			let e3 = loop e3 in
@@ -677,8 +681,8 @@ and func ctx i =
 			begin match e1.eexpr,e2.eexpr with
 				| TLocal v1,TLocal v2 when v1 == v2 && is_valid_assign_op op ->
 					begin match op,e3.eexpr with
-						| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Increment,Prefix,e1)}
-						| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
+						| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 && target_handles_assign_ops ctx.com -> {e with eexpr = TUnop(Increment,Prefix,e1)}
+						| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 && target_handles_assign_ops ctx.com -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
 						| _ -> {e with eexpr = TBinop(OpAssignOp op,e1,e3)}
 					end
 				| _ ->

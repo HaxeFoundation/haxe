@@ -31,13 +31,15 @@ class ExitCode {
 		"bin/python/ExitCode.py";
 	#elseif php
 		"bin/php/ExitCode/index.php";
+	#elseif lua
+		"bin/lua/ExitCode.lua";
 	#else
 		null;
 	#end
 
 	static public function getNative():String {
-		// This is just a script that behaves like ExitCode.hx, 
-		// which exits with the code same as the first given argument. 
+		// This is just a script that behaves like ExitCode.hx,
+		// which exits with the code same as the first given argument.
 		// var scriptContent = switch (Sys.systemName()) {
 		// 	case "Windows":
 		// 		'@echo off\nexit /b %1';
@@ -80,7 +82,7 @@ class ExitCode {
 
 		return binPath;
 	}
-	
+
 	static function main():Void {
 		Sys.exit(Std.parseInt(Sys.args()[0]));
 	}

@@ -336,6 +336,18 @@ class Context {
 	}
 
 	/**
+		Adds a callback function `callback` which is invoked after the compiler
+		is done typing, but before optimization. The callback receives the types
+		which have been typed.
+
+		It is possible to define new types in the callback, in which case it
+		will be called again with the new types as argument.
+	**/
+	public static function onAfterTyping( callback : Array<haxe.macro.Type.ModuleType> -> Void ) {
+		load("after_typing",1)(callback);
+	}
+
+	/**
 		Adds a callback function `callback` which is invoked when a type name
 		cannot be resolved.
 

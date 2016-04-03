@@ -97,6 +97,14 @@ let rec can_be_inlined e = match e.eexpr with
 	| TParenthesis e1 | TMeta(_,e1) -> can_be_inlined e1
 	| _ -> false
 
+let target_handles_unops com = match com.platform with
+	| Lua | Python -> false
+	| _ -> true
+
+let target_handles_assign_ops com = match com.platform with
+	| Lua -> false
+	| _ -> true
+
 let rec can_be_used_as_value com e =
 	let rec loop e = match e.eexpr with
 		| TBlock [e] -> loop e
@@ -104,7 +112,7 @@ let rec can_be_used_as_value com e =
 		| TCall({eexpr = TConst (TString "phi")},_) -> raise Exit
 		(* | TCall _ | TNew _ when (match com.platform with Cpp | Php -> true | _ -> false) -> raise Exit *)
 		| TReturn _ | TThrow _ | TBreak | TContinue -> raise Exit
-		| TUnop((Increment | Decrement),_,_) when com.platform = Python -> raise Exit
+		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
 		| TNew _ when com.platform = Php -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
@@ -121,9 +129,6 @@ let is_pure c cf = has_pure_meta c.cl_meta || has_pure_meta cf.cf_meta
 
 let wrap_meta s e =
 	mk (TMeta((Meta.Custom s,[],e.epos),e)) e.etype e.epos
-
-let is_unbound v =
-	Meta.has Meta.Unbound v.v_meta
 
 let is_really_unbound v =
 	v.v_name <> "`trace" && is_unbound v
@@ -536,7 +541,6 @@ module Fusion = struct
 end
 
 module Cleanup = struct
-	open Typecore
 	let apply com e =
 		let if_or_op e e1 e2 e3 = match (Texpr.skip e1).eexpr,(Texpr.skip e3).eexpr with
 			| TUnop(Not,Prefix,e1),TConst (TBool true) -> Optimizer.optimize_binop {e with eexpr = TBinop(OpBoolOr,e1,e2)} OpBoolOr e1 e2

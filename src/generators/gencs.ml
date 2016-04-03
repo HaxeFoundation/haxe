@@ -909,7 +909,7 @@ let configure gen =
 				else
 					(match real_type t with
 						| TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
-						| _ when is_cs_basic_type t -> TInst(null_t, [t])
+						| t when is_cs_basic_type t -> TInst(null_t, [t])
 						| _ -> real_type t)
 			| TAbstract _
 			| TType _ -> t
@@ -1982,6 +1982,34 @@ let configure gen =
 		end;
 	in
 
+	let needs_unchecked e =
+		let rec loop e = match e.eexpr with
+		(* a non-zero integer constant means that we want unchecked context *)
+		| TConst (TInt i) when i <> Int32.zero ->
+			raise Exit
+
+		(* don't recurse into explicit checked blocks *)
+		| TCall ({ eexpr = TLocal({ v_name = "__checked__" }) }, _) ->
+			()
+
+		(* skip reflection field hashes as they are safe *)
+		| TNew ({ cl_path = (["haxe"; "lang"],"DynamicObject") }, [], [_; e1; _; e2]) ->
+			loop e1;
+			loop e2
+		| TNew ({ cl_path = (["haxe"; "lang"],"Closure") }, [], [eo; _; _]) ->
+			loop eo
+		| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ["haxe"; "lang"],"Runtime" },
+				 { cf_name = "getField" | "setField" | "getField_f" | "setField_f" | "callField" })) },
+				 eo :: _ :: _ :: rest) ->
+			loop eo;
+			List.iter loop rest
+
+		| _ ->
+			Type.iter loop e
+		in
+		try (loop e; false) with Exit -> true
+	in
+
 	let rec gen_class_field w ?(is_overload=false) is_static cl is_final cf =
 		gen_attributes w cf.cf_meta;
 		let is_interface = cl.cl_interface in
@@ -2097,33 +2125,6 @@ let configure gen =
 											| _ -> assert false (* FIXME *)
 								in
 
-								let needs_unchecked e =
-									let rec loop e = match e.eexpr with
-									(* a non-zero integer constant means that we want unchecked context *)
-									| TConst (TInt i) when i <> Int32.zero ->
-										raise Exit
-
-									(* don't recurse into explicit checked blocks *)
-									| TCall ({ eexpr = TLocal({ v_name = "__checked__" }) }, _) ->
-										()
-
-									(* skip reflection field hashes as they are safe *)
-									| TNew ({ cl_path = (["haxe"; "lang"],"DynamicObject") }, [], [_; e1; _; e2]) ->
-										loop e1;
-										loop e2
-									| TNew ({ cl_path = (["haxe"; "lang"],"Closure") }, [], [eo; _; _]) ->
-										loop eo
-									| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ["haxe"; "lang"],"Runtime" },
-											 { cf_name = "getField" | "setField" | "getField_f" | "setField_f" | "callField" })) },
-											 eo :: _ :: _ :: rest) ->
-										loop eo;
-										List.iter loop rest
-
-									| _ ->
-										Type.iter loop e
-									in
-									try (loop e; false) with Exit -> true
-								in
 								let write_method_expr e =
 									match e.eexpr with
 									| TBlock [] ->
@@ -2445,7 +2446,13 @@ let configure gen =
 			| None -> ()
 			| Some init ->
 				print w "static %s() " (snd cl.cl_path);
-				expr_s w (mk_block init);
+				if needs_unchecked init then begin
+					begin_block w;
+					write w "unchecked ";
+					expr_s w (mk_block init);
+					end_block w;
+				end else
+					expr_s w (mk_block init);
 				line_reset_directive w;
 				newline w;
 				newline w

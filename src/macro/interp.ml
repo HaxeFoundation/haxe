@@ -98,6 +98,7 @@ type extern_api = {
 	get_com : unit -> Common.context;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
+	after_typing : (module_type list -> unit) -> unit;
 	on_generate : (Type.t list -> unit) -> unit;
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> value) -> unit;
@@ -206,6 +207,7 @@ let decode_expr_ref = ref (fun e -> assert false)
 let encode_texpr_ref = ref (fun e -> assert false)
 let decode_texpr_ref = ref (fun e -> assert false)
 let encode_clref_ref = ref (fun c -> assert false)
+let encode_module_type_ref = ref (fun mt -> assert false)
 let enc_hash_ref = ref (fun h -> assert false)
 let enc_array_ref = ref (fun l -> assert false)
 let dec_array_ref = ref (fun v -> assert false)
@@ -2249,6 +2251,16 @@ let macro_lib =
 			match s with
 			| VString s ->
 				enc_array (List.map encode_type ((get_ctx()).curapi.get_module s))
+			| _ -> error()
+		);
+		"after_typing", Fun1 (fun f ->
+			match f with
+			| VFunction (Fun1 _) | VClosure _ ->
+				let ctx = get_ctx() in
+				ctx.curapi.after_typing (fun tl ->
+					ignore(catch_errors ctx (fun() -> ctx.do_call VNull f [enc_array (List.map !encode_module_type_ref tl)] null_pos));
+				);
+				VNull
 			| _ -> error()
 		);
 		"on_generate", Fun1 (fun f ->
@@ -5078,3 +5090,4 @@ encode_import_ref := encode_import;
 decode_import_ref := decode_import;
 eval_expr_ref := eval_expr;
 encode_import_ref := encode_import;
+encode_module_type_ref := encode_module_type;

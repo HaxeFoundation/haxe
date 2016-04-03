@@ -215,7 +215,10 @@ module Graph = struct
 
 	let get_var_info g v = match v.v_extra with
 		| Some(_,Some {eexpr = TConst (TInt i32)}) -> DynArray.get g.g_var_infos (Int32.to_int i32)
-		| _ -> assert false
+		| _ ->
+			prerr_endline "Unbound variable, please report this";
+			prerr_endline (Printer.s_tvar v);
+			assert false
 
 	let declare_var g v bb =
 		create_var_info g bb v
@@ -454,10 +457,10 @@ module Graph = struct
 					()
 			end;
 			DynArray.iter (fun e -> match e.eexpr with
-				| TVar(v,eo) ->
+				| TVar(v,eo) when not (is_unbound v) ->
 					declare_var g v bb;
 					if eo <> None then add_var_def g bb v;
-				| TBinop(OpAssign,{eexpr = TLocal v},_) ->
+				| TBinop(OpAssign,{eexpr = TLocal v},_) when not (is_unbound v) ->
 					add_var_def g bb v
 				| _ ->
 					()

@@ -165,7 +165,7 @@ let htmlescape s =
 	s
 
 let reserved_flags = [
-	"cross";"js";"neko";"flash";"php";"cpp";"cs";"java";"python";
+	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
 	"as3";"swc";"macro";"sys"
 	]
 
@@ -988,7 +988,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2016 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -1060,6 +1060,7 @@ try
 			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
+		("-lua",Arg.String (set_platform Lua),"<file> : compile code to Lua file");
 		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash dir;
@@ -1406,7 +1407,7 @@ try
 				ignore(Str.search_forward r msg 0);
 				let s = Str.matched_group 1 msg in
 				let sl = List.map (fun (s,_,_) -> s) all_args_spec in
-				let msg = Typecore.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
+				let msg = StringError.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
 				raise (Arg.Bad msg)
 			with Not_found ->
 				raise exc);
@@ -1476,13 +1477,14 @@ try
 
 			add_std "js";
 			"js"
+		| Lua ->
+			add_std "lua";
+			"lua"
 		| Php ->
 			add_std "php";
 			"php"
 		| Cpp ->
-			if Common.defined_value_safe com Define.NoCppAst="" then
-			   Common.define_value com Define.CppAst "1";
-			Common.define_value com Define.HxcppApiLevel (if Common.defined_value_safe com Define.CppAst <>"" then "330" else "321");
+			Common.define_value com Define.HxcppApiLevel "330";
 			add_std "cpp";
 			if Common.defined com Define.Cppia then
 				classes := (make_path "cpp.cppia.HostClasses" ) :: !classes;
@@ -1597,6 +1599,8 @@ try
 					Genneko.generate,"neko"
 				| Js ->
 					Genjs.generate,"js"
+				| Lua ->
+					Genlua.generate,"lua"
 				| Php ->
 					Genphp.generate,"php"
 				| Cpp ->
@@ -1620,7 +1624,7 @@ try
 		end
 	end;
 	Sys.catch_break false;
-	List.iter (fun f -> f()) (List.rev com.final_filters);
+	List.iter (fun f -> f()) (List.rev com.callbacks.after_generation);
 	if not !no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in
@@ -1654,7 +1658,7 @@ with
 		message ctx msg p;
 		List.iter (message ctx "Called from") l;
 		error ctx "Aborted" Ast.null_pos;
-	| Codegen.Generic_Exception(m,p) ->
+	| Typeload.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) Ast.null_pos

@@ -525,6 +525,11 @@ class Manager<T : Object> {
 	}
 
 	public static function nullCompare( a : String, b : String, eq : Bool ) {
+		if (a == null || a == 'NULL') {
+			return eq ? '$b IS NULL' : '$b IS NOT NULL';
+		} else if (b == null || b == 'NULL') {
+			return eq ? '$a IS NULL' : '$a IS NOT NULL';
+		}
 		// we can't use a null-safe operator here
 		if( cnx.dbName() != "MySQL" )
 			return a + (eq ? " = " : " != ") + b;
@@ -718,6 +723,10 @@ class Manager<T : Object> {
 	/* ---------------------------- QUOTES -------------------------- */
 
 	public static function quoteAny( v : Dynamic ) {
+		if (v == null) {
+			return 'NULL';
+		}
+
 		var s = new StringBuf();
 		cnx.addValue(s, v);
 		return s.toString();
