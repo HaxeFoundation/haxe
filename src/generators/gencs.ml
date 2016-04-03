@@ -181,6 +181,8 @@ let rec change_md = function
 		change_md (t_to_md a.a_this)
 	| TClassDecl( { cl_kind = KAbstractImpl ({ a_this = TInst(impl,_) } as a) }) when Meta.has Meta.Delegate a.a_meta ->
 		TClassDecl impl
+	| TClassDecl( { cl_kind = KAbstractImpl (a) }) when Meta.has Meta.CoreType a.a_meta ->
+		TAbstractDecl a
 	| md -> md
 
 (* ******************************************* *)
@@ -481,7 +483,7 @@ struct
 							{ e with eexpr = TNew(boxed_ptr,[],[expr]) }
 						| Some e ->
 							run e)
-				| TCast(expr, _) when is_bool e.etype && not (is_exactly_bool gen expr.etype) ->
+				| TCast(expr, _) when is_bool e.etype && is_dynamic gen expr.etype ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
@@ -490,7 +492,7 @@ struct
 						etype = basic.tbool;
 						epos = e.epos
 					}
-				| TCast(expr, _) when is_int_float gen e.etype && not (is_cs_basic_type (gen.greal_type expr.etype)) && ( Common.defined gen.gcon Define.EraseGenerics || not (is_null e.etype) ) && name() <> "haxe.lang.Runtime" ->
+				| TCast(expr, _) when is_int_float gen e.etype && is_dynamic gen expr.etype && ( Common.defined gen.gcon Define.EraseGenerics || not (is_null e.etype) ) && name() <> "haxe.lang.Runtime" ->
 					let needs_cast = match gen.gfollow#run_f e.etype with
 						| TInst _ -> false
 						| _ -> true
@@ -509,7 +511,7 @@ struct
 
 					if needs_cast then mk_cast e.etype ret else ret
 
-				| TCast(expr, _) when Common.defined gen.gcon Define.EraseGenerics && like_i64 e.etype && not (like_i64 expr.etype) ->
+				| TCast(expr, _) when Common.defined gen.gcon Define.EraseGenerics && like_i64 e.etype && is_dynamic gen expr.etype && name() <> "haxe.lang.Runtime" ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toLong" expr.epos [],
@@ -1387,7 +1389,7 @@ let configure gen =
 				| TField (e, s) ->
 					expr_s w e; write w "."; write_field w (field_name s)
 				| TTypeExpr mt ->
-					(match mt with
+					(match change_md mt with
 						| TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ module_s mt)
 						| TClassDecl { cl_path = (["haxe"], "Int32") } -> write w ("global::" ^ module_s mt)
 						| TClassDecl cl -> write w (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_params)));

@@ -71,6 +71,11 @@ let rec t_has_type_param t = match follow t with
 	| TFun(f,ret) -> t_has_type_param ret || List.exists (fun (_,_,t) -> t_has_type_param t) f
 	| _ -> false
 
+let is_dynamic gen t =
+	match follow (gen.greal_type t) with
+		| TDynamic _ -> true
+		| _ -> false
+
 let is_type_param t = match follow t with
 	| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 	| _ -> false
@@ -611,7 +616,7 @@ struct
 				(* 	(* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *) *)
 				(* 	run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle } *)
 
-				| TCast(expr, _) when is_bool e.etype ->
+				| TCast(expr, _) when is_bool e.etype && is_dynamic gen expr.etype ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
@@ -621,7 +626,7 @@ struct
 						epos = e.epos
 					}
 
-				| TCast(expr, _) when is_int_float gen e.etype && not (is_int_float gen expr.etype) ->
+				| TCast(expr, _) when is_int_float gen e.etype && is_dynamic gen expr.etype ->
 					let needs_cast = match gen.gfollow#run_f e.etype with
 						| TInst _ -> false
 						| _ -> true
@@ -648,7 +653,7 @@ struct
 						| _ -> true
 					in
 					if need_second_cast then { e with eexpr = TCast(mk_cast (follow e.etype) (run expr), c) }  else Type.map_expr run e*)
-				| TCast(expr, _) when like_i64 e.etype && not (like_i64 expr.etype) ->
+				| TCast(expr, _) when like_i64 e.etype && is_dynamic gen expr.etype ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toLong" expr.epos [],
