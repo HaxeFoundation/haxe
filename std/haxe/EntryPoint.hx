@@ -29,7 +29,7 @@ class EntryPoint {
 	**/
 	public static function wakeup() {
 		#if sys
-		if( sleepLock != null ) sleepLock.release();
+		sleepLock.release();
 		#end
 	}
 

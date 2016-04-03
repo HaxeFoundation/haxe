@@ -6,12 +6,13 @@ class MainEvent {
 	var f : Void -> Void;
 	var prev : MainEvent;
 	var next : MainEvent;
-	public var nextRun(default,null) : Null<Float>;
+	public var nextRun(default,null) : Float;
 	public var priority(default,null) : Int;
 
-	function new(f,p) {
+	function new(f, p) {
 		this.f = f;
 		this.priority = p;
+		nextRun = -1;
 	}
 
 	/**
@@ -19,7 +20,7 @@ class MainEvent {
 		If t is null, the event will be run at tick() time.
 	**/
 	public function delay( t : Null<Float> ) {
-		nextRun = t == null ? null : haxe.Timer.stamp() + t;
+		nextRun = t == null ? -1 : haxe.Timer.stamp() + t;
 	}
 
 	/**
@@ -33,8 +34,9 @@ class MainEvent {
 		Stop the event from firing anymore.
 	**/
 	public function stop() {
+		if( f == null ) return;
 		f = null;
-		nextRun = null;
+		nextRun = -1;
 		if( prev == null )
 			@:privateAccess MainLoop.pending = next;
 		else
@@ -70,54 +72,90 @@ class MainLoop {
 		Add a pending event to be run into the main loop.
 	**/
 	public static function add( f : Void -> Void, priority = 0 ) : MainEvent @:privateAccess {
-		var e = new MainEvent(f,priority);
+		if( f == null )
+			throw "Event function is null";
+		var e = new MainEvent(f, priority);
 		var head = pending;
-		if( head == null ) {
-			pending = e;
-			return e;
-		}
-		var prev = null;
-		while( head != null && head.priority > priority ) {
-			prev = head;
-			head = head.next;
-		}
-		if( prev == null ) {
-			e.next = head;
-			head.prev = e;
-			pending = e;
-		} else {
-			var n = prev.next;
-			if( n != null ) n.prev = e;
-			e.next = n;
-			prev.next = e;
-			e.prev = prev;
-		}
+		if( head != null ) head.prev = e;
+		e.next = head;
+		pending = e;
 		return e;
+	}
+
+	static function sortEvents() {
+		// pending = haxe.ds.ListSort.sort(pending, function(e1, e2) return e1.nextRun > e2.nextRun ? -1 : 1);
+		// we can't use directly ListSort because it requires prev/next to be public, which we don't want here
+		// we do then a manual inline, this also allow use to do a Float comparison of nextRun
+		var list = pending;
+
+		if( list == null ) return;
+
+		var insize = 1, nmerges, psize = 0, qsize = 0;
+		var p, q, e, tail : MainEvent;
+
+		while( true ) {
+			p = list;
+			list = null;
+			tail = null;
+			nmerges = 0;
+			while( p != null ) {
+				nmerges++;
+				q = p;
+				psize = 0;
+				for( i in 0...insize ) {
+					psize++;
+					q = q.next;
+					if( q == null ) break;
+				}
+				qsize = insize;
+				while( psize > 0 || (qsize > 0 && q != null) ) {
+					if( psize == 0 ) {
+						e = q;
+						q = q.next;
+						qsize--;
+					} else if( qsize == 0 || q == null || (p.priority > q.priority || (p.priority == q.priority && p.nextRun <= q.nextRun)) ) {
+						e = p;
+						p = p.next;
+						psize--;
+					} else {
+						e = q;
+						q = q.next;
+						qsize--;
+					}
+					if( tail != null )
+						tail.next = e;
+					else
+						list = e;
+					e.prev = tail;
+					tail = e;
+				}
+				p = q;
+			}
+			tail.next = null;
+			if( nmerges <= 1 )
+				break;
+			insize *= 2;
+		}
+		list.prev = null; // not cycling
+		pending = list;
 	}
 
 	/**
 		Run the pending events. Return the time for next event.
 	**/
 	static function tick() {
-		// TODO : it will be necessary to reorder the events based on nextRun before
-		//		  processing them so they get run in correct order. this can be done in MainEvent.delay() as well but might
-		//		  cause ordering issues since we're processing events here
+		sortEvents();
 		var e = pending;
 		var now = haxe.Timer.stamp();
 		var wait = 1e9;
 		while( e != null ) {
 			var next = e.next;
-			if( e.nextRun == null ) {
+			var wt = e.nextRun - now;
+			if( e.nextRun < 0 || wt <= 0 ) {
 				wait = 0;
 				e.call();
-			} else {
-				var wt = e.nextRun - now;
-				if( wt <= 0 ) {
-					wait = 0;
-					e.call();
-				} else if( wait > wt )
-					wait = wt;
-			}
+			} else if( wait > wt )
+				wait = wt;
 			e = next;
 		}
 		return wait;

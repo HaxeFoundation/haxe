@@ -11,6 +11,14 @@ class Main {
 			}
 		});
 
+		#if sys
+		// if we don't use native timer, this should execute before
+		var t = new haxe.Timer(100);
+		t.run = function() {
+			trace("BEFORE1");
+			t.stop();
+		};
+		#end
 
 		var t = new haxe.Timer(200);
 		var count = 0;
@@ -20,6 +28,19 @@ class Main {
 				t.stop();
 		};
 
+		#if sys
+		// if we don't use native timer, this should execute before
+		var t = new haxe.Timer(100);
+		t.run = function() {
+			trace("BEFORE2");
+			t.stop();
+		};
+		#end
+
+		#if sys
+		Sys.sleep(0.3);
+		#end
+
 		haxe.MainLoop.addThread(function() {
 			var event : haxe.MainLoop.MainEvent = null;
 			var count = 0;
@@ -27,7 +48,7 @@ class Main {
 				trace(String.fromCharCode("A".code + count++));
 				if( count == 5 ) event.stop();
 			});
-			#if neko
+			#if sys
 			Sys.sleep(3);
 			#end
 		});
