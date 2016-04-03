@@ -20,31 +20,32 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package sys.io;
-
+import lua.Io;
 import lua.FileHandle;
+import lua.Boot;
+import lua.Io;
 
-class FileOutput extends haxe.io.Output {
-	var f:FileHandle;
+@:coreApi
+class Process {
+	var fh : FileHandle; 
+	var eh : FileHandle;
+	var errTmpFile : String;
 
-	public function new(f:FileHandle){
-		this.f = f;
+	public var stdout(default,null) : haxe.io.Input;
+	public var stderr(default,null) : haxe.io.Input;
+	public var stdin(default, null) : haxe.io.Output;
+	public function new( cmd : String, ?args : Array<String>){
+		if (args == null) args = [];
+		this.errTmpFile = Boot.tempFile();
+		this.eh = Io.open(errTmpFile, 'r');
+		args.push('>2 ${Boot.tempFile()}');
+		cmd = Boot.shellEscapeCmd(cmd, args);
+		this.fh = Io.popen(cmd, "w+");
+		this.stdout = new FileInput(fh);
+		this.stderr = new FileInput(eh);
+		this.stdin = new FileOutput(fh);
 	}
-
-	public inline function seek( p : Int, pos : FileSeek ) : Void {
-		var arg = switch(pos){
-			case SeekBegin : "set";
-			case SeekCur : "cur";
-			case SeekEnd : "end";
-		}
-		return f.seek(arg, p);
+	public function getPid() : Int {
+		
 	}
-
-	public inline function tell() : Int {
-		return f.seek();
-	}
-
-	override inline public function writeByte(c : Int) : Void {
-		f.write(String.fromCharCode(c));
-	}
-
 }
