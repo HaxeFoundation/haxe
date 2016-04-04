@@ -45,6 +45,7 @@ import java.lang.Throwable;
 import java.internal.StringExt;
 import java.internal.FieldLookup;
 
+@:dox(hide)
 extern class Boot
 {
 

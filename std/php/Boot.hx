@@ -21,6 +21,7 @@
  */
 package php;
 
+@:dox(hide)
 @:keep
 class Boot {
 	static var qtypes;

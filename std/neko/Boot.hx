@@ -21,6 +21,7 @@
  */
 package neko;
 
+@:dox(hide)
 @:keep
 class Boot {
 

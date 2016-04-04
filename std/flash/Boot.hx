@@ -41,6 +41,7 @@ package flash;
 }
 #end
 
+@:dox(hide)
 @:keep
 class Boot extends flash.display.MovieClip {
 
