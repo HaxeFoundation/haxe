@@ -3124,7 +3124,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             gen arrayObj; out "["; gen index; out "]";
          | ArrayVirtual(arrayObj, index)
          | ArrayDynamic(arrayObj, index) ->
-            out "hx::IndexRef("; gen arrayObj; out ","; gen index; out ")";
+            out "hx::IndexRef("; gen arrayObj; out ".mPtr,"; gen index; out ")";
          | ArrayImplements(_,arrayObj,index) ->
             out "hx::__ArrayImplRef("; gen arrayObj; out ","; gen index; out ")";
          )
