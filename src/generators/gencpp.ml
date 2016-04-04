@@ -1103,14 +1103,13 @@ exception BreakFound;;
 
 let contains_break expression =
    try (
-   let rec check_all expression =
-      Type.iter (fun expr -> match expr.eexpr with
+   let rec check_all expression = match expression.eexpr with
          | TBreak -> raise BreakFound
          | TFor _
          | TFunction _
          | TWhile (_,_,_) -> ()
-         | _ -> check_all expr;
-         ) expression in
+         | _ -> Type.iter check_all expression;
+   in
    check_all expression;
    false;
    ) with BreakFound -> true;;
@@ -1957,13 +1956,13 @@ let cpp_debug_var_visible var =
 ;;
 
 
-let only_stack_access ctx haxe_type = 
+let only_stack_access ctx haxe_type =
    let tcpp = cpp_type_of ctx haxe_type in
    match tcpp with
    | TCppInst(klass) -> has_meta_key klass.cl_meta Meta.StackOnly
    | _ -> false;
 ;;
- 
+
 
 
 let cpp_member_name_of member =
@@ -2722,7 +2721,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
              " and found " ^ (string_of_int (List.length arg_names)))
            expr.cpppos);
          out " ]"
-   
+
 
       | CppCall(func, args) ->
          let closeCall = ref "" in
@@ -3103,7 +3102,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppCastObjC(expr,klass) ->
          let path = join_class_path_remap klass.cl_path "::"  in
-         let toType = if klass.cl_interface then "id < " ^ path ^ ">" else path ^ " *" in 
+         let toType = if klass.cl_interface then "id < " ^ path ^ ">" else path ^ " *" in
          out ("( (" ^ toType ^ ") (id) ("); gen expr; out ") )"
 
       | CppCastNative(expr) ->
@@ -4425,7 +4424,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          List.iter (fun field -> Hashtbl.replace have field.cf_name () ) implemented_instance_fields;
          let want = ref [] in
          Hashtbl.iter (fun _ intf_def ->
-            List.iter (fun field -> 
+            List.iter (fun field ->
                if not (Hashtbl.mem have field.cf_name) then begin
                   Hashtbl.replace have field.cf_name ();
                   want := field :: !want;
