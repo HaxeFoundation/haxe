@@ -1,4 +1,5 @@
 package sys.ssl;
+import cpp.NativeSsl;
 
 private typedef PKEY = Dynamic;
 
@@ -21,14 +22,15 @@ class Key {
 	}
 	
 	public static function readPEM( data : String, isPublic : Bool, ?pass : String ) : Key {
-		return new Key( key_from_pem( data, isPublic, pass ) );
+		return new Key( NativeSsl.key_from_pem( data, isPublic, pass ) );
 	}
 
 	public static function readDER( data : haxe.io.Bytes, isPublic : Bool ) : Key {
-		return new Key( key_from_der( data.getData(), isPublic ) );
+		return new Key( NativeSsl.key_from_der( data.getData(), isPublic ) );
 	}
 
-	private static var key_from_pem = cpp.Lib.load("ssl","key_from_pem",3);
-	private static var key_from_der = cpp.Lib.load("ssl","key_from_der",2);
+	static function __init__() : Void {
+		NativeSsl.init();
+	}
 
 }
