@@ -1333,7 +1333,8 @@ let find_first_declared_field gen orig_cl ?get_vmtype ?exact_field field =
 	in
 	loop_cl 0 orig_cl (List.map snd orig_cl.cl_params) (List.map snd orig_cl.cl_params);
 	match !chosen with
-	| None -> None
+	| None ->
+		None
 	| Some(_,f,c,tl,tlch) ->
 		if !is_overload && not (Meta.has Meta.Overload f.cf_meta) then
 			f.cf_meta <- (Meta.Overload,[],f.cf_pos) :: f.cf_meta;
@@ -4833,14 +4834,15 @@ struct
 								| _ ->
 									let is_override = List.memq cf cl.cl_overrides in
 									let cf_type = if is_override && not (Meta.has Meta.Overload cf.cf_meta) then
-										match field_access gen (TInst(cl, List.map snd cl.cl_params)) cf.cf_name with
-											| FClassField(_,_,_,_,_,actual_t,_) -> actual_t
+										match find_first_declared_field gen cl cf.cf_name with
+											| Some(_,_,declared_t,_,_,_,_) -> declared_t
 											| _ -> assert false
 									else
 										cf.cf_type
 									in
 
-									not (has_type_params cf_type)) cl.cl_ordered_fields
+									not (has_type_params cf_type)
+								) cl.cl_ordered_fields
 							in
 							let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type f.cf_public f.cf_pos f.cf_kind f.cf_params) fields in
 							let fields = iface_cf :: fields in
