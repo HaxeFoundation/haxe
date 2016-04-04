@@ -21,21 +21,6 @@
  */
 
 /**
-	The diffent possible runtime types of a value.
-**/
-enum ValueType {
-	TNull;
-	TInt;
-	TFloat;
-	TBool;
-	TObject;
-	TFunction;
-	TClass( c : Class<Dynamic> );
-	TEnum( e : Enum<Dynamic> );
-	TUnknown;
-}
-
-/**
 	The haxe Reflection API allows retrieval of type information at runtime.
 
 	This class complements the more lightweight Reflect class, with a focus on
@@ -301,3 +286,18 @@ extern class Type {
 
 }
 
+
+/**
+	The different possible runtime types of a value.
+**/
+enum ValueType {
+	TNull;
+	TInt;
+	TFloat;
+	TBool;
+	TObject;
+	TFunction;
+	TClass( c : Class<Dynamic> );
+	TEnum( e : Enum<Dynamic> );
+	TUnknown;
+}
