@@ -21,10 +21,10 @@
  */
 
 package lua;
-/**
-  Externs for the "bit" class that is required for haxe lua
-**/
 
+/**
+  Externs for the "bit" class that is required for Haxe lua
+**/
 @:native("_hx_bit")
 extern class Bit {
 	public static function bnot(x:Float) : Int;
