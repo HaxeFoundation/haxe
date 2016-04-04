@@ -59,6 +59,7 @@ extern class InputElement extends Element
 	var type : String;
 	var defaultValue : String;
 	var value : String;
+	var valueAsDate : Date;
 	var valueAsNumber : Float;
 	var width : Int;
 	var willValidate(default,null) : Bool;
