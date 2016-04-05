@@ -5,17 +5,16 @@ private typedef CTX = Dynamic;
 private typedef SSL = Dynamic;
 
 private class SocketInput extends haxe.io.Input {
-	@:allow(sys.ssl.Socket) private var __s : SocketHandle;
-	@:allow(sys.ssl.Socket) private var ssl : SSL;
+	@:allow(sys.ssl.Socket) private var __s : Socket;
 
-	public function new( s : SocketHandle, ?ssl : SSL ) {
+	public function new( s : Socket ) {
 		this.__s = s;
-		this.ssl = ssl;
 	}
 
 	public override function readByte() {
 		return try {
-			socket_recv_char( ssl );
+			__s.handshake();
+			ssl_recv_char( @:privateAccess __s.ssl );
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw haxe.io.Error.Blocked;
@@ -28,10 +27,11 @@ private class SocketInput extends haxe.io.Input {
 
 	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		var r : Int;
-		if( ssl == null || __s == null )
+		if( __s == null )
 			throw "Invalid handle";
 		try {
-			r = socket_recv(  ssl, buf.getData(), pos, len );
+			__s.handshake();
+			r = ssl_recv(  @:privateAccess __s.ssl, buf.getData(), pos, len );
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw haxe.io.Error.Blocked;
@@ -45,29 +45,27 @@ private class SocketInput extends haxe.io.Input {
 
 	public override function close() {
 		super.close();
-		if( __s != null ) socket_close( __s );
+		if( __s != null ) __s.close();
 	}
 
-	private static var socket_recv = neko.Lib.load( "ssl", "ssl_recv", 4 );
-	private static var socket_recv_char = neko.Lib.load( "ssl", "ssl_recv_char", 1 );
-	private static var socket_close = neko.Lib.load( "std", "socket_close", 1 );
+	private static var ssl_recv = neko.Lib.load( "ssl", "ssl_recv", 4 );
+	private static var ssl_recv_char = neko.Lib.load( "ssl", "ssl_recv_char", 1 );
 
 }
 
 private class SocketOutput extends haxe.io.Output {
-	@:allow(sys.ssl.Socket) private var __s : SocketHandle;
-	@:allow(sys.ssl.Socket) private var ssl : SSL;
+	@:allow(sys.ssl.Socket) private var __s : Socket;
 
-	public function new( s : SocketHandle, ?ssl : SSL ) {
+	public function new( s : Socket ) {
 		this.__s = s;
-		this.ssl = ssl;
 	}
 
 	public override function writeByte( c : Int ) {
 		if( __s == null )
 			throw "Invalid handle";
 		try {
-			socket_send_char( ssl, c);
+			__s.handshake();
+			ssl_send_char( @:privateAccess __s.ssl, c);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw haxe.io.Error.Blocked;
@@ -78,7 +76,8 @@ private class SocketOutput extends haxe.io.Output {
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
 		return try {
-			socket_send( ssl, buf.getData(), pos, len);
+			__s.handshake();
+			ssl_send( @:privateAccess __s.ssl, buf.getData(), pos, len);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw haxe.io.Error.Blocked;
@@ -89,26 +88,20 @@ private class SocketOutput extends haxe.io.Output {
 
 	public override function close() {
 		super.close();
-		if( __s != null ) socket_close(__s);
+		if( __s != null ) __s.close();
 	}
 
-	private static var socket_close = neko.Lib.load( "std", "socket_close", 1 );
-	private static var socket_send_char = neko.Lib.load( "ssl", "ssl_send_char", 2 );
-	private static var socket_send = neko.Lib.load( "ssl", "ssl_send", 4 );
+	private static var ssl_send_char = neko.Lib.load( "ssl", "ssl_send_char", 2 );
+	private static var ssl_send = neko.Lib.load( "ssl", "ssl_send", 4 );
 }
 
 @:coreApi
-class Socket implements sys.net.ISocket {
+class Socket extends sys.net.Socket {
 	
 	public static var DEFAULT_VERIFY_CERT : Null<Bool> = true;
 
 	public static var DEFAULT_CA : Null<Certificate>;
 	
-	public var input(default,null) : haxe.io.Input;
-	public var output(default,null) : haxe.io.Output;
-	public var custom : Dynamic;
-
-	private var __s : SocketHandle;
 	private var ctx : CTX;
 	private var ssl : SSL;
 	
@@ -120,11 +113,12 @@ class Socket implements sys.net.ISocket {
 	private var ownKey : Null<Key>;
 	private var altSNIContexts : Null<Array<{match: String->Bool, key: Key, cert: Certificate}>>;
 	private var sniCallback : Dynamic;
+	private var handshakeDone : Bool;
 
-	public function new() {
+	private override function init() : Void {
 		__s = socket_new( false );
-		input = new SocketInput( __s );
-		output = new SocketOutput( __s );
+		input = new SocketInput( this );
+		output = new SocketOutput( this );
 		if( DEFAULT_VERIFY_CERT && DEFAULT_CA == null ){
 			try {
 				DEFAULT_CA = Certificate.loadDefaults();
@@ -134,15 +128,12 @@ class Socket implements sys.net.ISocket {
 		caCert = DEFAULT_CA;
 	}
 
-	public function connect(host : sys.net.Host, port : Int) : Void {
+	public override function connect(host : sys.net.Host, port : Int) : Void {
 		try {
 			ctx = buildSSLContext( false );
 			ssl = ssl_new( ctx );
 			ssl_set_socket( ssl, __s );
-			var input : SocketInput = cast input;
-			var output : SocketOutput = cast output;
-			input.ssl = ssl;
-			output.ssl = ssl;
+			handshakeDone = false;
 			if( hostname == null )
 				hostname = host.host;
 			if( hostname != null )
@@ -160,13 +151,16 @@ class Socket implements sys.net.ISocket {
 	}
 
 	public function handshake() : Void {
-		try {
-			ssl_handshake( ssl );
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
-				throw haxe.io.Error.Blocked;
-			else
-				neko.Lib.rethrow( e );
+		if( !handshakeDone ){
+			try {
+				ssl_handshake( ssl );
+				handshakeDone = true;
+			} catch( e : Dynamic ) {
+				if( e == "Blocking" )
+					throw haxe.io.Error.Blocked;
+				else
+					neko.Lib.rethrow( e );
+			}
 		}
 	}
 
@@ -183,18 +177,20 @@ class Socket implements sys.net.ISocket {
 		ownKey = key;
 	}
 
-	public function read() : String {
+	public override function read() : String {
+		handshake();
 		var b = ssl_read( ssl );
 		if( b == null )
 			return "";
 		return new String(cast b);
 	}
 
-	public function write( content : String ) : Void {
+	public override function write( content : String ) : Void {
+		handshake();
 		ssl_write( ssl, untyped content.__s );
 	}
 
-	public function close() : Void {
+	public override function close() : Void {
 		if( ssl != null ) ssl_close( ssl );
 		if( ctx != null ) conf_close( ctx );
 		if( altSNIContexts != null )
@@ -203,7 +199,6 @@ class Socket implements sys.net.ISocket {
 		var input : SocketInput = cast input;
 		var output : SocketOutput = cast output;
 		@:privateAccess input.__s = output.__s = null;
-		@:privateAccess input.ssl = output.ssl = null;
 		input.close();
 		output.close();
 	}
@@ -214,17 +209,13 @@ class Socket implements sys.net.ISocket {
 		altSNIContexts.push( {match: cbServernameMatch, cert: cert, key: key} );
 	}
 
-	public function bind( host : sys.net.Host, port : Int ) : Void {
+	public override function bind( host : sys.net.Host, port : Int ) : Void {
 		ctx = buildSSLContext( true );
 
 		socket_bind( __s, host.ip, port );
 	}
 
-	public function listen( connections : Int ) : Void {
-		socket_listen( __s, connections );
-	}
-
-	public function accept() : Socket {
+	public override function accept() : Socket {
 		var c = socket_accept( __s );
 		var ssl = ssl_new( ctx );
 		ssl_set_socket( ssl, c );
@@ -232,49 +223,16 @@ class Socket implements sys.net.ISocket {
 		var s = Type.createEmptyInstance( sys.ssl.Socket );
 		s.__s = c;
 		s.ssl = ssl;
-		s.input = new SocketInput(c, ssl);
-		s.output = new SocketOutput(c, ssl);
+		s.input = new SocketInput(s);
+		s.output = new SocketOutput(s);
+		s.handshakeDone = false;
 
 		return s;
-	}
-
-	public function peer() : { host : sys.net.Host, port : Int } {
-		var a : Dynamic = socket_peer(__s);
-		var h = new sys.net.Host("127.0.0.1");
-		untyped h.ip = a[0];
-		return { host : h, port : a[1] };
 	}
 
 	public function peerCertificate() : sys.ssl.Certificate {
 		var x = ssl_get_peer_certificate( ssl );
 		return x==null ? null : new sys.ssl.Certificate( x );
-	}
-
-	public function shutdown( read : Bool, write : Bool ) : Void {
-		socket_shutdown( __s, read, write );
-	}
-
-	public function host() : { host : sys.net.Host, port : Int } {
-		var a : Dynamic = socket_host( __s );
-		var h = new sys.net.Host( "127.0.0.1" );
-		untyped h.ip = a[0];
-		return { host : h, port : a[1] };
-	}
-
-	public function setTimeout( timeout : Float ) : Void {
-		socket_set_timeout( __s, timeout );
-	}
-
-	public function waitForRead() : Void {
-		sys.net.Socket.select([__s],null,null,null);
-	}
-
-	public function setBlocking( b : Bool ) : Void {
-		socket_set_blocking(__s,b);
-	}
-
-	public function setFastSend( b : Bool ) : Void {
-		socket_set_fast_send(__s,b);
 	}
 
 	private function buildSSLContext( server : Bool ) : CTX {
@@ -324,14 +282,7 @@ class Socket implements sys.net.ISocket {
 	private static var socket_new = neko.Lib.load("std","socket_new",1);
 	private static var socket_close = neko.Lib.load("std","socket_close",1);
 	private static var socket_connect = neko.Lib.load("std","socket_connect",3);
-	private static var socket_listen = neko.Lib.load("std","socket_listen",2);
 	private static var socket_bind = neko.Lib.load("std","socket_bind",3);
 	private static var socket_accept = neko.Lib.load("std","socket_accept",1);
-	private static var socket_peer = neko.Lib.load("std","socket_peer",1);
-	private static var socket_host = neko.Lib.load("std","socket_host",1);
-	private static var socket_set_timeout = neko.Lib.load("std","socket_set_timeout",2);
-	private static var socket_shutdown = neko.Lib.load("std","socket_shutdown",3);
-	private static var socket_set_blocking = neko.Lib.load("std","socket_set_blocking",2);
-	private static var socket_set_fast_send = neko.Lib.loadLazy("std","socket_set_fast_send",2);
 
 }

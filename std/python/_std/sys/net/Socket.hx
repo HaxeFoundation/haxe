@@ -110,7 +110,7 @@ private class SocketOutput extends haxe.io.Output {
 /**
     A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
 **/
-@:coreApi class Socket implements sys.net.ISocket {
+@:coreApi class Socket {
 
 
     var __s:PSocket;
@@ -258,7 +258,7 @@ private class SocketOutput extends haxe.io.Output {
         - `select` will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
         In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
     **/
-    public static function select(read : Array<ISocket>, write : Array<ISocket>, others : Array<ISocket>, ?timeout : Float) : { read: Array<ISocket>,write: Array<ISocket>,others: Array<ISocket> } {
+    public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
         var t3 = Select.select(read,write,others,timeout);
         return {read:t3._1,write:t3._2,others:t3._3};
     }

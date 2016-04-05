@@ -23,7 +23,7 @@ package sys.net;
 import java.net.InetSocketAddress;
 
 @:coreApi
-class Socket implements sys.net.ISocket {
+class Socket {
 
 	public var input(default,null) : haxe.io.Input;
 	public var output(default,null) : haxe.io.Output;
@@ -170,7 +170,7 @@ class Socket implements sys.net.ISocket {
 		catch(e:Dynamic) throw e;
 	}
 
-	public static function select(read : Array<ISocket>, write : Array<ISocket>, others : Array<ISocket>, ?timeout : Float) : { read: Array<ISocket>,write: Array<ISocket>,others: Array<ISocket> }
+	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
 	{
 		throw "Not implemented";
 		return null;

@@ -112,7 +112,7 @@ private class SocketOutput extends haxe.io.Output {
 
 
 @:coreApi
-class Socket implements sys.net.ISocket {
+class Socket {
 
 	private var __s : Dynamic;
 	public var input(default,null) : haxe.io.Input;
@@ -120,7 +120,11 @@ class Socket implements sys.net.ISocket {
 	public var custom : Dynamic;
 
 	public function new() : Void {
-		__s = NativeSocket.socket_new(false);
+		init();
+	}
+
+	private function init() : Void {
+		if( __s != null )__s = NativeSocket.socket_new(false);
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}
@@ -219,7 +223,7 @@ class Socket implements sys.net.ISocket {
 		NativeSocket.socket_set_fast_send(__s,b);
 	}
 
-	public static function select(read : Array<ISocket>, write : Array<ISocket>, others : Array<ISocket>, ?timeout : Float ) : {read: Array<ISocket>,write: Array<ISocket>,others: Array<ISocket>} {
+	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float ) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
 		var neko_array = NativeSocket.socket_select(read,write,others, timeout);
 		if (neko_array==null)
 			throw "Select error";

@@ -24,7 +24,7 @@ package sys.net;
 import sys.io.File;
 
 @:coreApi
-class Socket implements sys.net.ISocket {
+class Socket {
 
 	private var __s : FileHandle;
 	private var protocol : String;
@@ -163,7 +163,7 @@ class Socket implements sys.net.ISocket {
 		return untyped __call__('getprotobyname', protocol);
  	}
 
-	public static function select(read : Array<ISocket>, write : Array<ISocket>, others : Array<ISocket>, ?timeout : Float) : { read: Array<ISocket>,write: Array<ISocket>,others: Array<ISocket> }
+	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
 	{
 		throw "Not implemented";
 		return null;
