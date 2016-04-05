@@ -2878,7 +2878,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
           Hashtbl.iter (fun name value ->
              out !separator; separator := ",";
-             out name
+             out (keyword_remap name)
          )  closure.close_undeclared;
          out "))";
 
