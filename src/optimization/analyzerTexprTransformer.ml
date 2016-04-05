@@ -455,6 +455,9 @@ let rec func ctx bb tf t p =
 		| TReturn None ->
 			add_cfg_edge bb bb_exit CFGGoto;
 			add_terminator bb e
+		| TReturn (Some e1) when ExtType.is_void (follow e1.etype) ->
+			let bb = block_element bb e1 in
+			block_element bb (mk (TReturn None) t_dynamic e.epos)
 		| TReturn (Some e1) ->
 			begin try
 				let mk_return e1 = mk (TReturn (Some e1)) t_dynamic e.epos in

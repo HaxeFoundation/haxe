@@ -71,6 +71,11 @@ let rec t_has_type_param t = match follow t with
 	| TFun(f,ret) -> t_has_type_param ret || List.exists (fun (_,_,t) -> t_has_type_param t) f
 	| _ -> false
 
+let is_dynamic gen t =
+	match follow (gen.greal_type t) with
+		| TDynamic _ -> true
+		| _ -> false
+
 let is_type_param t = match follow t with
 	| TInst({ cl_kind = KTypeParameter _ }, _) -> true
 	| _ -> false
@@ -568,7 +573,9 @@ struct
 		(* let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in *)
 		(* let tshort = mt_to_t_dyn ( get_type gen (["java"], "Int16") ) in *)
 		(* let tsingle = mt_to_t_dyn ( get_type gen ([], "Single") ) in *)
+		let ti64 = mt_to_t_dyn ( get_type gen (["java"], "Int64") ) in
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
+		let fast_cast = Common.defined gen.gcon Define.FastCast in
 
 		let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
 
@@ -609,7 +616,7 @@ struct
 				(* 	(* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *) *)
 				(* 	run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle } *)
 
-				| TCast(expr, _) when is_bool e.etype ->
+				| TCast(expr, _) when is_bool e.etype && is_dynamic gen expr.etype ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
@@ -619,7 +626,7 @@ struct
 						epos = e.epos
 					}
 
-				| TCast(expr, _) when is_int_float gen e.etype && not (is_int_float gen expr.etype) ->
+				| TCast(expr, _) when is_int_float gen e.etype && is_dynamic gen expr.etype ->
 					let needs_cast = match gen.gfollow#run_f e.etype with
 						| TInst _ -> false
 						| _ -> true
@@ -646,8 +653,21 @@ struct
 						| _ -> true
 					in
 					if need_second_cast then { e with eexpr = TCast(mk_cast (follow e.etype) (run expr), c) }  else Type.map_expr run e*)
+				| TCast(expr, _) when like_i64 e.etype && is_dynamic gen expr.etype ->
+					{
+						eexpr = TCall(
+							mk_static_field_access_infer runtime_cl "toLong" expr.epos [],
+							[ run expr ]
+						);
+						etype = ti64;
+						epos = expr.epos
+					}
+
+				| TCast(expr, Some(TClassDecl cls)) when fast_cast && cls == null_class ->
+					{ e with eexpr = TCast(run expr, Some(TClassDecl null_class)) }
+
 				| TBinop( (Ast.OpAssignOp OpAdd as op), e1, e2)
-				| TBinop( (Ast.OpAdd as op), e1, e2) when is_string e.etype || is_string e1.etype || is_string e2.etype ->
+				| TBinop( (Ast.OpAdd as op), e1, e2) when not fast_cast && (is_string e.etype || is_string e1.etype || is_string e2.etype) ->
 						let is_assign = match op with Ast.OpAssignOp _ -> true | _ -> false in
 						let mk_to_string e = { e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" e.epos [], [run e] ); etype = gen.gcon.basic.tstring	} in
 						let check_cast e = match gen.greal_type e.etype with
@@ -1253,18 +1273,10 @@ let configure gen =
 					(match c with
 						| TInt i32 ->
 							print w "%ld" i32;
-							(match real_type e.etype with
-								| TType( { t_path = (["java"], "Int64") }, [] ) -> write w "L";
-								| _ -> ()
-							)
 						| TFloat s ->
 							write w s;
 							(* fix for Int notation, which only fit in a Float *)
 							(if not (String.contains s '.' || String.contains s 'e' || String.contains s 'E') then write w ".0");
-							(match real_type e.etype with
-								| TType( { t_path = ([], "Single") }, [] ) -> write w "f"
-								| _ -> ()
-							)
 						| TString s -> print w "\"%s\"" (escape s)
 						| TBool b -> write w (if b then "true" else "false")
 						| TNull ->

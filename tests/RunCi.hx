@@ -1106,32 +1106,35 @@ class RunCi {
 					runCommand("haxe", ['compile-cs$compl.hxml']);
 					runCs("bin/cs/bin/Test-Debug.exe");
 
-					runCommand("haxe", ['compile-cs$compl.hxml','-dce','no']);
+					runCommand("haxe", ['compile-cs$compl.hxml','-D','fast_cast']);
 					runCs("bin/cs/bin/Test-Debug.exe");
 
-					runCommand("haxe", ['compile-cs-unsafe$compl.hxml']);
+					runCommand("haxe", ['compile-cs$compl.hxml','-dce','no','-D','fast_cast']);
+					runCs("bin/cs/bin/Test-Debug.exe");
+
+					runCommand("haxe", ['compile-cs-unsafe$compl.hxml','-D','fast_cast']);
 					runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 
-					runCommand("haxe", ['compile-cs$compl.hxml',"-D","erase_generics"]);
+					runCommand("haxe", ['compile-cs$compl.hxml',"-D","erase_generics",'-D','fast_cast']);
 					runCs("bin/cs/bin/Test-Debug.exe");
 
-					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","erase_generics"]);
+					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","erase_generics",'-D','fast_cast']);
 					runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 
-					runCommand("haxe", ['compile-cs$compl.hxml',"-D","no_root"]);
+					runCommand("haxe", ['compile-cs$compl.hxml',"-D","no_root",'-D','fast_cast']);
 					runCs("bin/cs/bin/Test-Debug.exe");
 
-					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","no_root","-D","erase_generics"]);
+					runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","no_root","-D","erase_generics",'-D','fast_cast']);
 					runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 
 					changeDirectory(sysDir);
-					runCommand("haxe", ["compile-cs.hxml"]);
+					runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
 					runCs("bin/cs/bin/Main-Debug.exe", []);
 
 					changeDirectory(miscDir + "csTwoLibs");
 					for (i in 1...5)
 					{
-						runCommand("haxe", ['compile-$i.hxml']);
+						runCommand("haxe", ['compile-$i.hxml','-D','fast_cast']);
 						runCs("bin/main/bin/Main.exe");
 					}
 

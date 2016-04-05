@@ -185,6 +185,7 @@ module Define = struct
 		| DumpIgnoreVarIds
 		| DynamicInterfaceClosures
 		| EraseGenerics
+		| FastCast
 		| Fdb
 		| FileExtension
 		| FlashStrict
@@ -274,6 +275,7 @@ module Define = struct
 		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Remove variable IDs from non-pretty dumps (helps with diff)")
 		| DynamicInterfaceClosures -> ("dynamic_interface_closures","Use slow path for interface closures to save space")
 		| EraseGenerics -> ("erase_generics","Erase generic classes on C#")
+		| FastCast -> ("fast_cast","Enables an experimental casts cleanup on C# and Java")
 		| Fdb -> ("fdb","Enable full flash debug infos for FDB interactive debugging")
 		| FileExtension -> ("file_extension","Output filename extension for cpp source code")
 		| FlashStrict -> ("flash_strict","More strict typing for flash target")

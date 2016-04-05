@@ -1516,10 +1516,17 @@ let rec type_eq param a b =
 				try
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
-					try
-						type_eq param f1.cf_type f2.cf_type
-					with
-						Unify_error l -> error (invalid_field n :: l)
+					let a = f1.cf_type and b = f2.cf_type in
+					if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack)) then begin
+						eq_stack := (a,b) :: !eq_stack;
+						try
+							type_eq param a b;
+							eq_stack := List.tl !eq_stack;
+						with
+							Unify_error l ->
+								eq_stack := List.tl !eq_stack;
+								error (invalid_field n :: l)
+					end;
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
@@ -1678,20 +1685,48 @@ let rec unify a b =
 				let ft = apply_params c.cl_params tl ft in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
-				let old_monos = !unify_new_monos in
-				unify_new_monos := !monos @ !unify_new_monos;
-				if not (List.exists (fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2) (!unify_stack)) then begin
-					unify_stack := (ft,f2.cf_type) :: !unify_stack;
-					(try
+
+				(match f2.cf_kind with
+				| Var { v_read = AccNo } | Var { v_read = AccNever } ->
+					(* we will do a recursive unification, so let's check for possible recursion *)
+					let old_monos = !unify_new_monos in
+					unify_new_monos := !monos @ !unify_new_monos;
+					if not (List.exists (fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2) (!unify_stack)) then begin
+						unify_stack := (ft,f2.cf_type) :: !unify_stack;
+						(try
+							unify_with_access ft f2
+						with
+							Unify_error l ->
+								unify_new_monos := old_monos;
+								unify_stack := List.tl !unify_stack;
+								error (invalid_field n :: l));
+						unify_stack := List.tl !unify_stack;
+					end;
+					unify_new_monos := old_monos;
+				| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
+					(* same as before, but unification is reversed (read-only var) *)
+					let old_monos = !unify_new_monos in
+					unify_new_monos := !monos @ !unify_new_monos;
+					if not (List.exists (fun (a2,b2) -> fast_eq b2 ft && fast_eq_mono !unify_new_monos f2.cf_type a2) (!unify_stack)) then begin
+						unify_stack := (f2.cf_type,ft) :: !unify_stack;
+						(try
+							unify_with_access ft f2
+						with
+							Unify_error l ->
+								unify_new_monos := old_monos;
+								unify_stack := List.tl !unify_stack;
+								error (invalid_field n :: l));
+						unify_stack := List.tl !unify_stack;
+					end;
+					unify_new_monos := old_monos;
+				| _ ->
+					(* will use fast_eq, which have its own stack *)
+					try
 						unify_with_access ft f2
 					with
 						Unify_error l ->
-							unify_new_monos := old_monos;
-							unify_stack := List.tl !unify_stack;
 							error (invalid_field n :: l));
-					unify_stack := List.tl !unify_stack;
-				end;
-				unify_new_monos := old_monos;
+
 				List.iter (fun f2o ->
 					if not (List.exists (fun f1o -> type_iseq f1o.cf_type f2o.cf_type) (f1 :: f1.cf_overloads))
 					then error [Missing_overload (f1, f2o.cf_type)]
@@ -2009,6 +2044,7 @@ module Abstract = struct
 					if List.exists (fast_eq t) !underlying_type_stack then begin
 						let pctx = print_context() in
 						let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: !underlying_type_stack))) in
+						underlying_type_stack := [];
 						raise (Error("Abstract chain detected: " ^ s,a.a_pos))
 					end;
 					get_underlying_type a tl

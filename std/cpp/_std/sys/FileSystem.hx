@@ -23,12 +23,6 @@ package sys;
 
 import cpp.NativeSys;
 
-private enum FileKind {
-	kdir;
-	kfile;
-	kother( k : String );
-}
-
 @:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
 @:coreApi
 class FileSystem {
@@ -60,17 +54,12 @@ class FileSystem {
 		return haxe.io.Path.join([Sys.getCwd(), relPath]);
 	}
 
-	static function kind( path : String ) : FileKind {
-		var k:String = NativeSys.sys_file_type(makeCompatiblePath(path));
-		return switch(k) {
-		case "file": kfile;
-		case "dir": kdir;
-		default: kother(k);
-		}
+	inline static function kind( path : String ) : String {
+		return  NativeSys.sys_file_type(makeCompatiblePath(path));
 	}
 
-	public static inline function isDirectory( path : String ) : Bool {
-		return kind(path) == kdir;
+	public static function isDirectory( path : String ) : Bool {
+		return kind(path) == "dir";
 	}
 
 	public static function createDirectory( path : String ) : Void {

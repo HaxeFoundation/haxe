@@ -29,8 +29,10 @@ import python.internal.UBuiltins.list;
 
 	Example:
 
-		function f(args:VarArgs<Int>) {}
-		f([1, 2, 3]);
+	```haxe
+	function f(args:VarArgs<Int>) {}
+	f([1, 2, 3]);
+	```
 **/
 @:analyzer(no_simplification)
 abstract VarArgs<T>(Dynamic) {

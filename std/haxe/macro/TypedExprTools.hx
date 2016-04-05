@@ -24,6 +24,11 @@ package haxe.macro;
 
 import haxe.macro.Type;
 
+/**
+	This class provides some utility methods to work with typed expressions.
+	It is best used through 'using haxe.macro.TypedExprTools' syntax and then 
+	provides additional methods on `haxe.macro.TypedExpr` instances.
+**/
 class TypedExprTools {
 	static function with(e:TypedExpr, ?edef:TypedExprDef, ?t:Type) {
 		return {
@@ -34,7 +39,7 @@ class TypedExprTools {
 	}
 
 	/**
-		Transforms the sub-expressions of [e] by calling [f] on each of them.
+		Transforms the sub-expressions of `e` by calling `f` on each of them.
 
 		See `haxe.macro.ExprTools.map` for details on expression mapping in
 		general. This function works the same way, but with a different data
@@ -69,7 +74,7 @@ class TypedExprTools {
 	}
 
 	/**
-		Calls function [f] on each sub-expression of [e].
+		Calls function `f` on each sub-expression of `e`.
 
 		See `haxe.macro.ExprTools.iter` for details on iterating expressions in
 		general. This function works the same way, but with a different data
@@ -112,7 +117,7 @@ class TypedExprTools {
 	}
 
 	/**
-		Transforms the sub-expressions of [e] by calling [f] on each of them.
+		Transforms the sub-expressions of `e` by calling `f` on each of them.
 		Additionally, types are mapped using `ft` and variables are mapped using
 		`fv`.
 

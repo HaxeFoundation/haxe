@@ -21,6 +21,11 @@
  */
 package haxe.ds;
 
+/**
+	A cell of `haxe.ds.GenericStack`.
+  
+	@see http://haxe.org/manual/std-GenericStack.html
+**/
 #if (flash || cpp)
 @:generic
 #end

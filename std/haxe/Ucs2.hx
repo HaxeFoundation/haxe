@@ -128,7 +128,7 @@ abstract Ucs2(String) {
 		If `delimiter` is null, the result is unspecified.
 
 		Otherwise, `this` Ucs2 is split into parts at each occurence of
-		`delimiter`. If `this` Ucs2 starts (or ends) with [delimiter}, the
+		`delimiter`. If `this` Ucs2 starts (or ends) with `delimiter`, the
 		result Array contains a leading (or trailing) empty Ucs2 "" element.
 		Two subsequent delimiters also result in an empty Ucs2 "" element.
 	**/

@@ -37,6 +37,7 @@ import cs.StdTypes;
 import haxe.ds.StringMap;
 import Reflect;
 
+@:dox(hide)
 class Boot
 {
 

@@ -272,7 +272,7 @@ class Context {
 	}
 
 	/**
-		Parses `expr` as haxe code, returning the corresponding AST.
+		Parses `expr` as Haxe code, returning the corresponding AST.
 
 		String interpolation of single quote strings within `expr` is not
 		supported.
