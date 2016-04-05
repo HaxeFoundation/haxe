@@ -28,4 +28,12 @@ extern class Certificate {
 
 	public function addDER( der : haxe.io.Bytes ) : Void;
 
+	private function get_commonName() : Null<String>;
+
+	private function get_altNames() : Array<String>;
+
+	private function get_notBefore() : Date;
+
+	private function get_notAfter() : Date;
+
 }
