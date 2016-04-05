@@ -22,7 +22,8 @@
 package sys.net;
 
 /**
-	An address is used to represent a port on a given host ip. It is used by UdpSocket.
+	An address is used to represent a port on a given host ip. 
+	It is used by `sys.net.UdpSocket`.
 **/
 class Address {
 	public var host : Int;

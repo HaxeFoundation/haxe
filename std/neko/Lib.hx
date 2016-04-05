@@ -69,14 +69,14 @@ class Lib {
 	}
 
 	/**
-		Unserialize a string using native Neko serialization. See [serialize].
+		Unserialize a string using native Neko serialization. See `serialize`.
 	**/
 	public static function unserialize( s : haxe.io.Bytes ) : Dynamic {
 		return untyped __unserialize(s.getData(),__dollar__loader);
 	}
 
 	/**
-		Unserialize a string using native Neko serialization. See [serialize].
+		Unserialize a string using native Neko serialization. See `serialize`.
 		This function assume that all the serialized data was serialized with current
 		module, even if the module name was different. This can happen if you are unserializing
 		some data into mod_neko that was serialized on a different server using a different

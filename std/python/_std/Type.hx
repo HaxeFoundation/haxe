@@ -75,7 +75,7 @@ enum ValueType {
 		if (Internal.hasClassName(c)) {
 			return Internal.fieldClassName(c);
 		} else {
-			// it's not a haxe class
+			// it's not a Haxe class
 			if (c == Array) return "Array";
 			if (c == Math) return "Math";
 			if (c == String) return "String";

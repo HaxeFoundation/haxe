@@ -22,7 +22,7 @@
 
 package lua;
 
-// Bit and Table must be imported for basic haxe datatypes to work.
+// Bit and Table must be imported for basic Haxe datatypes to work.
 import lua.Bit;
 import lua.Table;
 import lua.Thread;
@@ -31,6 +31,7 @@ import haxe.io.Path;
 import haxe.Constraints.Function;
 using lua.PairTools;
 
+@:dox(hide)
 class Boot {
 
 	// Used temporarily for bind()
@@ -64,11 +65,17 @@ class Boot {
 		return f;
 	}
 
+	/*
+	   Indicates if the given object is a class.
+	*/
 	static inline public function isClass(o:Dynamic) : Bool {
 		if (Lua.type(o) != "table") return false;
 		else return untyped __define_feature__("lua.Boot.isClass", o.__name__);
 	}
 
+	/*
+	   Indicates if the given object is a enum.
+	*/
 	static inline public function isEnum(e:Dynamic) : Bool {
 		if (Lua.type(e) != "table") return false;
 		else return untyped __define_feature__("lua.Boot.isEnum", e.__ename__);
@@ -176,7 +183,6 @@ class Boot {
 	*/
 	static inline function printClass(c:Table<String,Dynamic>, s : String) : String {
 		return '{${printClassRec(c,'',s)}}';
-
 	}
 
 	/*
@@ -258,6 +264,9 @@ class Boot {
 		return untyped _hx_o(t);
 	}
 
+	/*
+	   Get Date object as string representation
+	*/
 	public static function dateStr( date : std.Date ) : String {
 		var m = date.getMonth() + 1;
 		var d = date.getDate();
@@ -309,7 +318,7 @@ class Boot {
 	}
 
 	/*
-	   create an empty table.
+	   Create an empty table.
 	*/
 	public inline static function createTable<K,V>() : Table<K,V> {
 		return untyped __lua__("{}");

@@ -28,8 +28,8 @@ enum ModuleHandle {
 }
 
 /**
-	A Neko Module represent a execution unit for the Neko Virtual Machine. Each compiled [.n] bytecode
-	file is a module once loaded by the NekoVM.
+	A Neko Module represent a execution unit for the Neko Virtual Machine. 
+	Each compiled `.n` bytecode file is a module once loaded by the NekoVM.
 **/
 class Module {
 
@@ -63,7 +63,7 @@ class Module {
 
 
 	/**
-		Returns the Loader that this Module was loaded with.s
+		Returns the Loader that this Module was loaded with.
 	**/
 	public function loader() {
 		return new Loader(_module_loader(m));
