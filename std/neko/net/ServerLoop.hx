@@ -64,7 +64,7 @@ class ServerLoop<ClientData> {
 	public var updateTime : Float;
 
 	var newData : Socket -> ClientData;
-	var socks : Array<Socket>;
+	var socks : Array<sys.net.Socket>;
 	public var clients : List<ClientData>;
 
 	/**

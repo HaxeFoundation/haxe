@@ -23,7 +23,7 @@ env:
     - LUAROCKS=2.3.0
     - LUA=lua5.2
 
-sudo: false
+sudo: required
 addons:
   ssh_known_hosts: haxe.org
   apt:
@@ -132,12 +132,13 @@ install:
   # Install haxe and neko dependencies
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
     travis_retry brew update;
-    travis_retry brew install ocaml camlp4 pcre;
+    travis_retry brew install ocaml camlp4 pcre mbedtls;
     fi
   # Install neko
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
       travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
       cd ~/neko;
+      (cd libs/include/ssl/ && wget --no-check-certificate https://tls.mbed.org/download/mbedtls-2.2.1-apache.tgz && tar xzf mbedtls-2.2.1-apache.tgz && cd mbedtls-2.2.1 && sed -i "s/\/\/#define MBEDTLS_THREADING_PTHREAD/#define MBEDTLS_THREADING_PTHREAD/; s/\/\/#define MBEDTLS_THREADING_C/#define MBEDTLS_THREADING_C/; s/#define MBEDTLS_SSL_PROTO_SSL3/\/\/#define MBEDTLS_SSL_PROTO_SSL3/" include/mbedtls/config.h && SHARED=1 make lib && sudo make install);
       make os=${TRAVIS_OS_NAME} -s;
       export PATH="$PATH:$HOME/neko/bin";
       export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/neko/bin";

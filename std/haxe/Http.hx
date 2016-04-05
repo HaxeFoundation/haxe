@@ -26,16 +26,6 @@ package haxe;
 import sys.net.Host;
 import sys.net.Socket;
 
-private typedef AbstractSocket = {
-	var input(default,null) : haxe.io.Input;
-	var output(default,null) : haxe.io.Output;
-	function connect( host : Host, port : Int ) : Void;
-	function setTimeout( t : Float ) : Void;
-	function write( str : String ) : Void;
-	function close() : Void;
-	function shutdown( read : Bool, write : Bool ) : Void;
-}
-
 #end
 
 /**
@@ -371,7 +361,7 @@ class Http {
 		this.file = { param : argname, filename : filename, io : file, size : size, mimeType : mimeType };
 	}
 
-	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
+	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : sys.net.Socket, ?method : String  ) {
 		this.responseData = null;
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
@@ -385,12 +375,8 @@ class Http {
 				sock = new php.net.SslSocket();
 				#elseif java
 				sock = new java.net.SslSocket();
-				#elseif hxssl
-				#if neko
-				sock = new neko.tls.Socket();
-				#else
+				#elseif (hxssl || cpp || (neko && !(macro || interp)))
 				sock = new sys.ssl.Socket();
-				#end
 				#else
 				throw "Https is only supported with -lib hxssl";
 				#end
@@ -535,7 +521,7 @@ class Http {
 		}
 	}
 
-	function readHttpResponse( api : haxe.io.Output, sock : AbstractSocket ) {
+	function readHttpResponse( api : haxe.io.Output, sock : sys.net.Socket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new haxe.io.BytesBuffer();
 		var k = 4;
