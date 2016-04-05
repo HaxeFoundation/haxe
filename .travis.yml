@@ -44,11 +44,11 @@ matrix:
     #########
     # linux #
     #########
-    - os: linux
-      env: TEST=third-party
-      language: php
-      php: 5.4
-      addons: {apt: {packages: [*apt_cpp, *apt_cs, *apt_python]}}
+    # - os: linux
+    #   env: TEST=third-party
+    #   language: php
+    #   php: 5.4
+    #   addons: {apt: {packages: [*apt_cpp, *apt_cs, *apt_python]}}
     - os: linux
       env: TEST=macro
       addons: {apt: {packages: [*apt_cs, *apt_python]}}
@@ -100,33 +100,33 @@ matrix:
     #######
     # osx #
     #######
-    - os: osx
-      env: TEST=third-party
-    - os: osx
-      env: TEST=macro
-    - os: osx
-      env:
-        - TEST=neko
-        - DEPLOY=1
-        - BINTRAY=1
-    - os: osx
-      env: TEST=js
+    # - os: osx
+    #   env: TEST=third-party
+    # - os: osx
+    #   env: TEST=macro
+    # - os: osx
+    #   env:
+    #     - TEST=neko
+    #     - DEPLOY=1
+    #     - BINTRAY=1
+    # - os: osx
+    #   env: TEST=js
     - os: osx
       env: TEST=php
     - os: osx
       env: TEST=cpp
-    - os: osx
-      env: TEST=flash9
-    - os: osx
-      env: TEST=as3
-    - os: osx
-      env: TEST=java
-    - os: osx
-      env: TEST=cs
-    - os: osx
-      env: TEST=python
-    - os: osx
-      env: TEST=lua
+    # - os: osx
+    #   env: TEST=flash9
+    # - os: osx
+    #   env: TEST=as3
+    # - os: osx
+    #   env: TEST=java
+    # - os: osx
+    #   env: TEST=cs
+    # - os: osx
+    #   env: TEST=python
+    # - os: osx
+    #   env: TEST=lua
 
 install:
   # Install haxe and neko dependencies
