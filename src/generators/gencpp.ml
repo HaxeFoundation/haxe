@@ -330,7 +330,7 @@ let keyword_remap name =
    else if (String.length name > 1) && (String.sub name 0 2 = "__") then
       "_hx_" ^ name
    else match name with
-   | "int"
+   | "int" | "Int" | "Bool"
    | "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
    | "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
    | "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
@@ -3191,7 +3191,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | OpArrow -> "->"
       | OpAssign | OpAssignOp _ -> error "Unprocessed OpAssign" pos
    and string_of_path path =
-      String.concat "::" (fst path) ^ "::" ^ (snd path) ^ "_obj"
+      (join_class_path_remap path "::") ^ "_obj"
 
    and gen_closure closure =
       let size = string_of_int( Hashtbl.length closure.close_undeclared ) in
