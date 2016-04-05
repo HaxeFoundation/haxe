@@ -137,7 +137,7 @@ let basename path =
 		String.sub path (idx + 1) (String.length path - idx - 1)
 	with Not_found -> path
 
-(* TODO : make this work properly... it was inserting commas where they shouldn't be *)
+(* TODO : is this necessary any more?*)
 let newprop ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '{' -> print ctx "\n%s" ctx.tabs
