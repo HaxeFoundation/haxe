@@ -24,7 +24,7 @@
 /**
     Native JavaScript regular expressions.
 
-    For cross-platform regular expressions, use haxe `EReg` class or regexp literals.
+    For cross-platform regular expressions, use Haxe `EReg` class or [regexp literals](http://haxe.org/manual/std-regex.html).
 **/
 @:native("RegExp")
 extern class RegExp {

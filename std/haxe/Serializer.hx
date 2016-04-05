@@ -43,7 +43,7 @@ class Serializer {
 
 	/**
 		If the values you are serializing can contain circular references or
-		objects repetitions, you should set USE_CACHE to true to prevent
+		objects repetitions, you should set `USE_CACHE` to true to prevent
 		infinite loops.
 
 		This may also reduce the size of serialization Strings at the expense of

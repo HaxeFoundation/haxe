@@ -23,7 +23,7 @@ package java;
 
 /**
 	Platform-specific Java Library. Provides some platform-specific functions for the Java target,
-	such as conversion from haxe types to native types and vice-versa.
+	such as conversion from Haxe types to native types and vice-versa.
 **/
 //we cannot use the java package for custom classes, so we're redefining it as "haxe.java.Lib"
 @:native('haxe.java.Lib') class Lib

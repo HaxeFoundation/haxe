@@ -107,7 +107,7 @@ typedef SNull<T> = Null<T>
 /** specify that the integer use custom encoding **/
 typedef SEncoded = Null<Int>
 
-/** haxe Serialized string **/
+/** Haxe Serialized string **/
 typedef SSerialized = String
 
 /** native neko serialized bytes **/

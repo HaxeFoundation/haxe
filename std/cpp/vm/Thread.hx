@@ -54,9 +54,9 @@ class Thread {
 	}
 
 	/**
-		Reads a message from the thread queue. If [block] is true, the function
-		blocks until a message is available. If [block] is false, the function
-		returns [null] if no message is available.
+		Reads a message from the thread queue. If `block` is true, the function
+		blocks until a message is available. If `block` is false, the function
+		returns `null` if no message is available.
 	**/
 	public static function readMessage( block : Bool ) : Dynamic {
 		return untyped __global__.__hxcpp_thread_read_message(block);

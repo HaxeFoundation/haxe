@@ -29,7 +29,7 @@ import cs.system.Exception;
 	static var exception:cs.system.Exception;
 }
 
-//should NOT be usable inside haxe code
+//should NOT be usable inside Haxe code
 @:classCode('override public string Message { get { return this.toString(); } }\n\n')
 @:nativeGen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception
 {

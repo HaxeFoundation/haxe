@@ -22,7 +22,7 @@
 
 package lua;
 
-// Bit and Table must be imported for basic haxe datatypes to work.
+// Bit and Table must be imported for basic Haxe datatypes to work.
 import lua.Bit;
 import lua.Table;
 import lua.Thread;

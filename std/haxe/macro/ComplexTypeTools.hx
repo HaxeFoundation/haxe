@@ -34,7 +34,7 @@ class ComplexTypeTools {
 	/**
 		Converts type `c` to a human-readable `String` representation.
 
-		The result is guaranteed to be valid haxe code, but there may be
+		The result is guaranteed to be valid Haxe code, but there may be
 		differences from the original lexical syntax.
 	**/
 	static public function toString( c : ComplexType ) : String
