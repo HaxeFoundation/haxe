@@ -28,7 +28,7 @@ class Key {
 		return new Key( key_from_der( data.getData(), isPublic ) );
 	}
 
-	private static var key_from_pem = neko.Lib.load("ssl","key_from_pem",3);
-	private static var key_from_der = neko.Lib.load("ssl","key_from_der",2);
+	private static var key_from_pem = neko.Lib.loadLazy("ssl","key_from_pem",3);
+	private static var key_from_der = neko.Lib.loadLazy("ssl","key_from_der",2);
 
 }

@@ -48,8 +48,8 @@ private class SocketInput extends haxe.io.Input {
 		if( __s != null ) __s.close();
 	}
 
-	private static var ssl_recv = neko.Lib.load( "ssl", "ssl_recv", 4 );
-	private static var ssl_recv_char = neko.Lib.load( "ssl", "ssl_recv_char", 1 );
+	private static var ssl_recv = neko.Lib.loadLazy( "ssl", "ssl_recv", 4 );
+	private static var ssl_recv_char = neko.Lib.loadLazy( "ssl", "ssl_recv_char", 1 );
 
 }
 
@@ -91,8 +91,8 @@ private class SocketOutput extends haxe.io.Output {
 		if( __s != null ) __s.close();
 	}
 
-	private static var ssl_send_char = neko.Lib.load( "ssl", "ssl_send_char", 2 );
-	private static var ssl_send = neko.Lib.load( "ssl", "ssl_send", 4 );
+	private static var ssl_send_char = neko.Lib.loadLazy( "ssl", "ssl_send_char", 2 );
+	private static var ssl_send = neko.Lib.loadLazy( "ssl", "ssl_send", 4 );
 }
 
 @:coreApi
@@ -262,22 +262,23 @@ class Socket extends sys.net.Socket {
 		return ctx;
 	}
 	
-	private static var ssl_new = neko.Lib.load( "ssl", "ssl_new", 1 );
-	private static var ssl_close = neko.Lib.load( "ssl", "ssl_close", 1 );
-	private static var ssl_handshake = neko.Lib.load( "ssl", "ssl_handshake", 1 );
-	private static var ssl_set_socket = neko.Lib.load( "ssl", "ssl_set_socket", 2 );
-	private static var ssl_set_hostname = neko.Lib.load( "ssl", "ssl_set_hostname", 2 );
-	private static var ssl_get_peer_certificate = neko.Lib.load( "ssl", "ssl_get_peer_certificate", 1 );
 
-	private static var ssl_read = neko.Lib.load( "ssl", "ssl_read", 1 );
-	private static var ssl_write = neko.Lib.load( "ssl", "ssl_write", 2 );
+	private static var ssl_new = neko.Lib.loadLazy( "ssl", "ssl_new", 1 );
+	private static var ssl_close = neko.Lib.loadLazy( "ssl", "ssl_close", 1 );
+	private static var ssl_handshake = neko.Lib.loadLazy( "ssl", "ssl_handshake", 1 );
+	private static var ssl_set_socket = neko.Lib.loadLazy( "ssl", "ssl_set_socket", 2 );
+	private static var ssl_set_hostname = neko.Lib.loadLazy( "ssl", "ssl_set_hostname", 2 );
+	private static var ssl_get_peer_certificate = neko.Lib.loadLazy( "ssl", "ssl_get_peer_certificate", 1 );
 
-	private static var conf_new = neko.Lib.load( "ssl", "conf_new", 1 );
-	private static var conf_close = neko.Lib.load( "ssl", "conf_close", 1 );
-	private static var conf_set_ca = neko.Lib.load( "ssl", "conf_set_ca", 2 );
-	private static var conf_set_verify = neko.Lib.load( "ssl", "conf_set_verify", 2 );
-	private static var conf_set_cert = neko.Lib.load( "ssl", "conf_set_cert", 3 );
-	private static var conf_set_servername_callback = neko.Lib.load( "ssl", "conf_set_servername_callback", 2 );
+	private static var ssl_read = neko.Lib.loadLazy( "ssl", "ssl_read", 1 );
+	private static var ssl_write = neko.Lib.loadLazy( "ssl", "ssl_write", 2 );
+
+	private static var conf_new = neko.Lib.loadLazy( "ssl", "conf_new", 1 );
+	private static var conf_close = neko.Lib.loadLazy( "ssl", "conf_close", 1 );
+	private static var conf_set_ca = neko.Lib.loadLazy( "ssl", "conf_set_ca", 2 );
+	private static var conf_set_verify = neko.Lib.loadLazy( "ssl", "conf_set_verify", 2 );
+	private static var conf_set_cert = neko.Lib.loadLazy( "ssl", "conf_set_cert", 3 );
+	private static var conf_set_servername_callback = neko.Lib.loadLazy( "ssl", "conf_set_servername_callback", 2 );
 
 	private static var socket_new = neko.Lib.load("std","socket_new",1);
 	private static var socket_close = neko.Lib.load("std","socket_close",1);
