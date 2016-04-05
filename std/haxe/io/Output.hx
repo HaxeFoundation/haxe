@@ -57,6 +57,7 @@ class Output {
 	public function writeBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
 		var b = s.getData();
+		var num = 0;
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
@@ -75,8 +76,9 @@ class Output {
 			#end
 			pos++;
 			k--;
+			num++;
 		}
-		return len;
+		return num;
 	}
 
 	/**
