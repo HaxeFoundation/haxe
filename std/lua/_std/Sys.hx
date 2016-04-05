@@ -44,7 +44,7 @@ class Sys {
 	public inline static function args() : Array<String> {
 		var args = lua.Lib.tableToArray(lua.Lua.arg).copy();
 		args.shift();
-		return args; 
+		return args;
 	}
 	public static function command( cmd : String, ?args : Array<String> ) : Int  {
 		cmd = Boot.shellEscapeCmd(cmd, args);

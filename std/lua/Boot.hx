@@ -253,7 +253,7 @@ class Boot {
 	   Define an array from the given table
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
-		if (length == null) length = Table.maxn(tab);
+		if (length == null) length = Table.maxn(tab) + 1; // maxn doesn't count 0 index
 		return untyped _hx_tabArray(tab, length);
 	}
 
