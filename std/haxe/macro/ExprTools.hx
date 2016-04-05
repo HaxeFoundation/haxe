@@ -66,7 +66,7 @@ class ExprTools {
 					ExprTools.iter(e, findStrings);
 			}
 		}
-		  ```
+		```
 	**/
 	static public function iter( e : Expr, f : Expr -> Void ) : Void {
 		switch(e.expr) {
