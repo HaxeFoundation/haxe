@@ -166,7 +166,7 @@ let fun_block ctx f p =
 
 let open_block ctx =
 	let oldt = ctx.tabs in
-	ctx.tabs <- "\t" ^ ctx.tabs;
+	ctx.tabs <- "  " ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
 let rec iter_switch_break in_switch e =
@@ -202,7 +202,6 @@ let handle_break ctx e =
 				sprln ctx "end";
 				sprln ctx " return _hx_expected_result end)";
 				spr ctx " if not _hx_status then ";
-				let bend = open_block ctx in
 				newline ctx;
 				spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
 			)
@@ -661,7 +660,9 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "while ";
 		gen_cond ctx cond;
 		spr ctx " do ";
+		let b = open_block ctx in
 		gen_block_element ctx e;
+		b();
 		handle_break();
 		if has_continue e then begin
 		    newline ctx;
