@@ -33,7 +33,7 @@ package java;
 		Returns a native array from the supplied Array. This native array is unsafe to be written on,
 		as it may or may not be linked to the actual Array implementation.
 
-		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
+		If `equalLengthRequired` is true, the result might be a copy of an array with the correct size.
 	**/
 	inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
