@@ -177,6 +177,7 @@ let rec iter_switch_break in_switch e =
 	| _ -> iter (iter_switch_break in_switch) e
 
 let handle_break ctx e =
+    (* TODO: This got messy. Find a way to unify the implementation with a try/catch helper at least *)
 	let old = ctx.in_loop, ctx.handle_break in
 	ctx.in_loop <- true;
 	try
@@ -188,7 +189,8 @@ let handle_break ctx e =
 		)
 	with
 		Exit ->
-			spr ctx "try {";
+			sprln ctx "local _hx_expected_result = {}";
+			sprln ctx "local _hx_status, _hx_result = pcall(function() ";
 			let b = open_block ctx in
 			newline ctx;
 			ctx.handle_break <- true;
@@ -197,7 +199,12 @@ let handle_break ctx e =
 				ctx.in_loop <- fst old;
 				ctx.handle_break <- snd old;
 				newline ctx;
-				spr ctx "} catch( e ) { if( e != \"_hx__break__\" ) throw e; }";
+				sprln ctx "end";
+				sprln ctx " return _hx_expected_result end)";
+				spr ctx " if not _hx_status then ";
+				let bend = open_block ctx in
+				newline ctx;
+				spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
 			)
 
 let this ctx = match ctx.in_value with None -> "self" | Some _ -> "self"
