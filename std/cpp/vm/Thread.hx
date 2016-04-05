@@ -32,7 +32,7 @@ class Thread {
 	}
 
 	/**
-		Send a message to the thread queue. This message can be readed by using [readMessage].
+		Send a message to the thread queue. This message can be readed by using `readMessage`.
 	**/
 	public function sendMessage( msg : Dynamic ) {
 		untyped __global__.__hxcpp_thread_send(handle,msg);
@@ -47,7 +47,7 @@ class Thread {
 	}
 
 	/**
-		Creates a new thread that will execute the [callb] function, then exit.
+		Creates a new thread that will execute the `callb` function, then exit.
 	**/
 	public static function create( callb : Void -> Void ) {
 		return new Thread(untyped __global__.__hxcpp_thread_create(callb));

@@ -27,7 +27,7 @@ package haxe;
 
 	This class can be used in two ways:
 
-	- create a `new Serializer()` instance, call its serialize() method with
+	- create a `new Serializer()` instance, call its `serialize()` method with
 		any argument and finally retrieve the String representation from
 		`toString()`
 	- call `Serializer.run()` to obtain the serialized representation of a

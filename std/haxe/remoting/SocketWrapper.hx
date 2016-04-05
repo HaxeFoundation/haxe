@@ -23,7 +23,7 @@ package haxe.remoting;
 import haxe.remoting.SocketProtocol.Socket;
 
 /**
-	See [js.XMLSocket]
+	@see `js.XMLSocket`
 **/
 class SocketWrapper {
 

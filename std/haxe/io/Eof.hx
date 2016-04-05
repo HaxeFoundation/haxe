@@ -22,7 +22,7 @@
 package haxe.io;
 
 /**
-	This exception is raised when reading while data is no longer available in the [Input].
+	This exception is raised when reading while data is no longer available in the `haxe.io.Input`.
 **/
 class Eof {
 	public function new() {
