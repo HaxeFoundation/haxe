@@ -26,8 +26,8 @@ import haxe.macro.Expr;
 
 /**
 	This class provides some utility methods to work with AST-level types. It is
-	best used through 'using haxe.macro.ComplexTypeTools' syntax and then provides
-	additional methods on `haxe.macro.Expr.ComplexType` instances.
+	best used through `using haxe.macro.ComplexTypeTools` syntax and then provides
+	additional methods on `haxe.macro.ComplexType` instances.
 **/
 class ComplexTypeTools {
 
