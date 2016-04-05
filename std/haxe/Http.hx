@@ -42,15 +42,15 @@ private typedef AbstractSocket = {
 	This class can be used to handle Http requests consistently across
 	platforms. There are two intended usages:
 
-	- call haxe.Http.requestUrl(url) and receive the result as a String (not
-	available on flash)
-	- create a new haxe.Http(url), register your callbacks for onData, onError
-	and onStatus, then call request().
+	- call `haxe.Http.requestUrl(url)` and receive the result as a `String`
+	(not available on flash)
+	- create a `new haxe.Http(url)`, register your callbacks for `onData`, 
+	`onError` and `onStatus`, then call `request()`.
 **/
 class Http {
 
 	/**
-		The url of `this` request. It is used only by the request() method and
+		The url of `this` request. It is used only by the `request()` method and
 		can be changed in order to send the same request to different target
 		Urls.
 	**/
@@ -78,10 +78,10 @@ class Http {
 	/**
 		Creates a new Http instance with `url` as parameter.
 
-		This does not do a request until request() is called.
+		This does not do a request until `request()` is called.
 
 		If `url` is null, the field url must be set to a value before making the
-		call to request(), or the result is unspecified.
+		call to `request()`, or the result is unspecified.
 
 		(Php) Https (SSL) connections are allowed only if the OpenSSL extension
 		is enabled.
@@ -184,14 +184,14 @@ class Http {
 		sent as GET request.
 
 		Depending on the outcome of the request, this method calls the
-		onStatus(), onError() or onData() callback functions.
+		`onStatus()`, `onError()` or `onData()` callback functions.
 
 		If `this.url` is null, the result is unspecified.
 
-		If `this.url` is an invalid or inaccessible Url, the onError() callback
+		If `this.url` is an invalid or inaccessible Url, the `onError()` callback
 		function is called.
 
-		(Js) If `this.async` is false, the callback functions are called before
+		[js] If `this.async` is false, the callback functions are called before
 		this method returns.
 	**/
 	public function request( ?post : Bool ) : Void {
@@ -740,7 +740,7 @@ class Http {
 		This method is called upon a successful request, with `data` containing
 		the result String.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
 	public dynamic function onData( data : String ) {
@@ -750,7 +750,7 @@ class Http {
 		This method is called upon a request error, with `msg` containing the
 		error description.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onError = function(msg) { // handle error }`
 	**/
 	public dynamic function onError( msg : String ) {
@@ -760,7 +760,7 @@ class Http {
 		This method is called upon a Http status change, with `status` being the
 		new status.
 
-		The intended usage is to bind it to a custom function:
+		The intended usage is to bind it to a custom function:  
 		`httpInstance.onStatus = function(status) { // handle status }`
 	**/
 	public dynamic function onStatus( status : Int ) {
@@ -771,7 +771,7 @@ class Http {
 		Makes a synchronous request to `url`.
 
 		This creates a new Http instance and makes a GET request by calling its
-		request(false) method.
+		`request(false)` method.
 
 		If `url` is null, the result is unspecified.
 	**/

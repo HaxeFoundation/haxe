@@ -22,7 +22,7 @@
 package sys.io;
 
 /**
-	Use [sys.io.File.write] to create a [FileOutput]
+	Use `sys.io.File.write` to create a `FileOutput`.
 **/
 extern class FileOutput extends haxe.io.Output {
 

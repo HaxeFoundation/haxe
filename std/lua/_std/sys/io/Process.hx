@@ -27,7 +27,7 @@ import lua.Io;
 
 @:coreApi
 class Process {
-	var fh : FileHandle; 
+	var fh : FileHandle;
 	var eh : FileHandle;
 	var errTmpFile : String;
 
@@ -46,6 +46,12 @@ class Process {
 		this.stdin = new FileOutput(fh);
 	}
 	public function getPid() : Int {
-		
+		return 0;
 	}
+
+	public function close() : Void { }
+
+	public function exitCode() : Int { return 0; }
+
+	public function kill() : Void { }
 }

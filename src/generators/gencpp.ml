@@ -330,7 +330,7 @@ let keyword_remap name =
    else if (String.length name > 1) && (String.sub name 0 2 = "__") then
       "_hx_" ^ name
    else match name with
-   | "int"
+   | "int" | "Int" | "Bool"
    | "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
    | "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
    | "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
@@ -1103,14 +1103,13 @@ exception BreakFound;;
 
 let contains_break expression =
    try (
-   let rec check_all expression =
-      Type.iter (fun expr -> match expr.eexpr with
+   let rec check_all expression = match expression.eexpr with
          | TBreak -> raise BreakFound
          | TFor _
          | TFunction _
          | TWhile (_,_,_) -> ()
-         | _ -> check_all expr;
-         ) expression in
+         | _ -> Type.iter check_all expression;
+   in
    check_all expression;
    false;
    ) with BreakFound -> true;;
@@ -1957,13 +1956,13 @@ let cpp_debug_var_visible var =
 ;;
 
 
-let only_stack_access ctx haxe_type = 
+let only_stack_access ctx haxe_type =
    let tcpp = cpp_type_of ctx haxe_type in
    match tcpp with
    | TCppInst(klass) -> has_meta_key klass.cl_meta Meta.StackOnly
    | _ -> false;
 ;;
- 
+
 
 
 let cpp_member_name_of member =
@@ -2722,7 +2721,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
              " and found " ^ (string_of_int (List.length arg_names)))
            expr.cpppos);
          out " ]"
-   
+
 
       | CppCall(func, args) ->
          let closeCall = ref "" in
@@ -2879,7 +2878,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
           Hashtbl.iter (fun name value ->
              out !separator; separator := ",";
-             out name
+             out (keyword_remap name)
          )  closure.close_undeclared;
          out "))";
 
@@ -3103,7 +3102,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppCastObjC(expr,klass) ->
          let path = join_class_path_remap klass.cl_path "::"  in
-         let toType = if klass.cl_interface then "id < " ^ path ^ ">" else path ^ " *" in 
+         let toType = if klass.cl_interface then "id < " ^ path ^ ">" else path ^ " *" in
          out ("( (" ^ toType ^ ") (id) ("); gen expr; out ") )"
 
       | CppCastNative(expr) ->
@@ -3125,7 +3124,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             gen arrayObj; out "["; gen index; out "]";
          | ArrayVirtual(arrayObj, index)
          | ArrayDynamic(arrayObj, index) ->
-            out "hx::IndexRef("; gen arrayObj; out ","; gen index; out ")";
+            out "hx::IndexRef("; gen arrayObj; out ".mPtr,"; gen index; out ")";
          | ArrayImplements(_,arrayObj,index) ->
             out "hx::__ArrayImplRef("; gen arrayObj; out ","; gen index; out ")";
          )
@@ -3192,7 +3191,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | OpArrow -> "->"
       | OpAssign | OpAssignOp _ -> error "Unprocessed OpAssign" pos
    and string_of_path path =
-      String.concat "::" (fst path) ^ "::" ^ (snd path) ^ "_obj"
+      (join_class_path_remap path "::") ^ "_obj"
 
    and gen_closure closure =
       let size = string_of_int( Hashtbl.length closure.close_undeclared ) in
@@ -4425,7 +4424,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          List.iter (fun field -> Hashtbl.replace have field.cf_name () ) implemented_instance_fields;
          let want = ref [] in
          Hashtbl.iter (fun _ intf_def ->
-            List.iter (fun field -> 
+            List.iter (fun field ->
                if not (Hashtbl.mem have field.cf_name) then begin
                   Hashtbl.replace have field.cf_name ();
                   want := field :: !want;

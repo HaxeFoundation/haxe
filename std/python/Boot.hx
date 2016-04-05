@@ -33,6 +33,7 @@ import python.lib.Inspect;
 
 import python.Syntax;
 
+@:dox(hide)
 class Boot {
 
 	static var keywords:Set<String> = new Set(

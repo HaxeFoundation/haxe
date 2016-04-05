@@ -207,6 +207,9 @@ class BalancedTree<K,V> {
 	}
 }
 
+/**
+	A tree node of `haxe.ds.BalancedTree`.
+**/
 class TreeNode<K,V> {
 	public var left : TreeNode<K,V>;
 	public var right : TreeNode<K,V>;

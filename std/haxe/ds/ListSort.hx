@@ -95,7 +95,7 @@ class ListSort {
 
 
 	/**
-		Same as [sort] but on single linked list.
+		Same as `sort` but on single linked list.
 	**/
 	public static inline function sortSingleLinked<T:{next:T}>(list:T, cmp : T -> T -> Int) : T {
 		if( list == null )

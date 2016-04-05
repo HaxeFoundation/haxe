@@ -22,8 +22,8 @@
 package haxe;
 
 /**
-	Log primarily provides the trace() method, which is invoked upon a call to
-	trace() in haxe code.
+	Log primarily provides the `trace()` method, which is invoked upon a call to
+	`trace()` in Haxe code.
 **/
 class Log {
 
@@ -31,7 +31,7 @@ class Log {
 		Outputs `v` in a platform-dependent way.
 
 		The second parameter `infos` is injected by the compiler and contains
-		information about the position where the trace() call was made.
+		information about the position where the `trace()` call was made.
 
 		This method can be rebound to a custom function:
 			var oldTrace = haxe.Log.trace; // store old function
@@ -39,7 +39,7 @@ class Log {
 			...
 			haxe.Log.trace = oldTrace;
 
-		If it is bound to null, subsequent calls to trace() will cause an
+		If it is bound to null, subsequent calls to `trace()` will cause an
 		exception.
 	**/
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {

@@ -22,7 +22,7 @@
 package sys.io;
 
 /**
-	Use [sys.io.File.read] to create a [FileInput]
+	Use `sys.io.File.read` to create a `FileInput`.
 **/
 extern class FileInput extends haxe.io.Input {
 

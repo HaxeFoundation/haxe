@@ -44,9 +44,7 @@ class StringTools {
 		#elseif cpp
 			return untyped s.__URLEncode();
 		#elseif java
-			try
-				return untyped __java__("java.net.URLEncoder.encode(s, \"UTF-8\")")
-			catch (e:Dynamic) throw e;
+			return postProcessUrlEncode(java.net.URLEncoder.encode(s, "UTF-8"));
 		#elseif cs
 			return untyped cs.system.Uri.EscapeDataString(s);
 		#elseif python
@@ -66,6 +64,42 @@ class StringTools {
 			return null;
 		#end
 	}
+
+#if java
+	private static function postProcessUrlEncode( s : String ) : String {
+		var ret = new StringBuf();
+		var i = 0,
+		    len = s.length;
+		while (i < len) {
+			switch(_charAt(s, i++)) {
+			case '+'.code:
+				ret.add('%20');
+			case '%'.code if (i <= len - 2):
+				var c1 = _charAt(s, i++),
+				    c2 = _charAt(s, i++);
+				switch[c1, c2] {
+				case ['2'.code, '1'.code]:
+					ret.addChar('!'.code);
+				case ['2'.code, '7'.code]:
+					ret.addChar('\''.code);
+				case ['2'.code, '8'.code]:
+					ret.addChar('('.code);
+				case ['2'.code, '9'.code]:
+					ret.addChar(')'.code);
+				case ['7'.code, 'E'.code]:
+					ret.addChar('-'.code);
+				case _:
+					ret.addChar('%'.code);
+					ret.addChar(cast c1);
+					ret.addChar(cast c2);
+				}
+			case chr:
+				ret.addChar(cast chr);
+			}
+		}
+		return ret.toString();
+	}
+#end
 
 	/**
 		Decode an URL using the standard format.
