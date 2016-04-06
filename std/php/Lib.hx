@@ -21,6 +21,11 @@
  */
 package php;
 
+/**
+	Platform-specific PHP Library. Provides some platform-specific functions 
+	for the PHP target, such as conversion from Haxe types to native types 
+	and vice-versa.
+**/
 class Lib {
 	/**
 		Print the specified value on the default output.
@@ -111,7 +116,7 @@ class Lib {
 
 	/**
 	 * See the documentation for the equivalent PHP function for details on usage:
-	 * http://php.net/manual/en/function.mail.php
+	 * <http://php.net/manual/en/function.mail.php>
 	 * @param	to
 	 * @param	subject
 	 * @param	message
