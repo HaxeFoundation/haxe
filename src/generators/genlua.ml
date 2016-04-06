@@ -1712,7 +1712,7 @@ let generate com =
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
 		add_feature ctx "use._hx_bind";
-		println ctx "function _hx_iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _hx_bind(o,o.iterator) : o.iterator; }";
+		println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
 	end;
 	if has_feature ctx "use._hx_bind" then println ctx "_hx_bind = lua.Boot.bind";
 
