@@ -54,7 +54,10 @@ class NativeInput extends Input
 	{
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
-		var ret = stream.Read(s.getData(), pos, len);
+		var ret = 0;
+		try {
+			ret = stream.Read(s.getData(), pos, len);
+		} catch (e: Dynamic) {}
 		if (ret == 0) {
 			_eof = true;
 			throw new Eof();
