@@ -240,7 +240,6 @@ class Socket extends sys.net.Socket {
 
 		if ( altSNIContexts != null ) {
 			sniCallback = function(servername) {
-				trace("SNI haxe function called with name="+servername);
 				var servername = new String(cast servername);
 				for( c in altSNIContexts ){
 					if( c.match(servername) )
