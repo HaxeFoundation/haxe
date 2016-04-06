@@ -437,21 +437,29 @@ module Case = struct
 			v.v_type <- map v.v_type;
 			(v,t_old) :: acc
 		) ctx.locals [] in
+		let old_ret = ctx.ret in
+		ctx.ret <- map ctx.ret;
 		let pat = Pattern.make ctx (map t) e in
 		unapply_type_parameters ctx.type_params monos;
 		let eg = match eg with
 			| None -> None
 			| Some e -> Some (type_expr ctx e Value)
 		in
-		let eo = match eo with
-			| None ->
-				(match with_type with WithType t -> unify ctx ctx.t.tvoid t (pos e) | _ -> ());
+		let eo = match eo,with_type with
+			| None,WithType t ->
+				unify ctx ctx.t.tvoid t (pos e);
 				None
-			| Some e ->
+			| None,_ ->
+				None
+			| Some e,WithType t ->
+				let e = type_expr ctx e (WithType (map t)) in
+				let e = Codegen.AbstractCast.cast_or_unify ctx (map t) e e.epos in
+				Some e
+			| Some e,_ ->
 				let e = type_expr ctx e with_type in
-				let e = match with_type with WithType t -> Codegen.AbstractCast.cast_or_unify ctx (map t) e e.epos | _ -> e in
 				Some e
 		in
+		ctx.ret <- old_ret;
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
 		{
