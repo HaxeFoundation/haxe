@@ -124,7 +124,7 @@ class Socket {
 	}
 
 	private function init() : Void {
-		if( __s != null )__s = NativeSocket.socket_new(false);
+		if( __s == null )__s = NativeSocket.socket_new(false);
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}
