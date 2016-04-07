@@ -30,7 +30,7 @@ import lua.Table.AnyTable;
 
 @:native("debug")
 extern class Debug {
-	public static function getlocal(stackLevel : Int, varName : String) : Dynamic;
+	public static function getlocal(stackLevel : Int, idx : Int) : Dynamic;
 	public static function setlocal(stackLevel : Int, varName: String, value: Dynamic) : Void;
 	public static function getinfo(stackLevel  : Int) : DebugInfo;
 	public static function sethook(?fun : Function, ?monitor : String) : Void;
@@ -43,7 +43,7 @@ extern class Debug {
 	public static function setupvalue(f : Function, up : Int, val : Dynamic) : Void;
 	public static function getuservalue(val : Dynamic) : Dynamic;
 	public static function setuservalue(udata : Dynamic, val : Dynamic) : Void;
-	public static function traceback(?thread : Coroutine, ?message : String, ?level : Int) : Void;
+	public static function traceback(?thread : Coroutine, ?message : String, ?level : Int) : String;
 	public static function upvalueid(f : Function, n : Int) : Dynamic;
 	public static function upvaluejoin(f1 : Function, n1 : Int, f2 : Function, n2 : Int) : Void;
 }
