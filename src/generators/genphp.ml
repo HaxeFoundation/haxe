@@ -792,7 +792,8 @@ and gen_member_access ctx isvar e s =
 			let sep = if Meta.has Meta.PhpGlobal sta.cl_meta then "" else "::" in
 			let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
 			let cprefix = if isconst then get_constant_prefix sta.cl_meta else "" in
-			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else cprefix) (s_ident s)
+			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else cprefix)
+			(if sta.cl_extern && sep = "" then s else s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
 
