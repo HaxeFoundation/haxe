@@ -835,109 +835,130 @@ let rec constructor_side_effects e =
 		with Exit ->
 			true
 
-let make_valid_filename s =
-	let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
-	Str.global_substitute r (fun s -> "_") s
+module Dump = struct
+	let make_valid_filename s =
+		let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
+		Str.global_substitute r (fun s -> "_") s
 
-let rec create_file ext acc = function
-	| [] -> assert false
-	| d :: [] ->
-		let d = make_valid_filename d in
-		let ch = open_out (String.concat "/" (List.rev (d :: acc)) ^ ext) in
-		ch
-	| d :: l ->
-		let dir = String.concat "/" (List.rev (d :: acc)) in
-		if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
-		create_file ext (d :: acc) l
+	let rec create_file ext acc = function
+		| [] -> assert false
+		| d :: [] ->
+			let d = make_valid_filename d in
+			let ch = open_out (String.concat "/" (List.rev (d :: acc)) ^ ext) in
+			ch
+		| d :: l ->
+			let dir = String.concat "/" (List.rev (d :: acc)) in
+			if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
+			create_file ext (d :: acc) l
 
-(*
-	Make a dump of the full typed AST of all types
-*)
-let create_dumpfile acc l =
-	let ch = create_file ".dump" acc l in
-	let buf = Buffer.create 0 in
-	buf, (fun () ->
-		output_string ch (Buffer.contents buf);
-		close_out ch)
+	(*
+		Make a dump of the full typed AST of all types
+	*)
+	let create_dumpfile acc l =
+		let ch = create_file ".dump" acc l in
+		let buf = Buffer.create 0 in
+		buf, (fun () ->
+			output_string ch (Buffer.contents buf);
+			close_out ch)
 
-let dump_types com =
-	let s_type = s_type (Type.print_context()) in
-	let params = function [] -> "" | l -> Printf.sprintf "<%s>" (String.concat "," (List.map (fun (n,t) -> n ^ " : " ^ s_type t) l)) in
-	let s_expr = match Common.defined_value_safe com Define.Dump with
-		| "pretty" -> Type.s_expr_pretty "\t"
-		| "legacy" ->  Type.s_expr
-		| _ -> Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t"
-	in
-	List.iter (fun mt ->
-		let path = Type.t_path mt in
+	let create_dumpfile_from_path com path =
 		let buf,close = create_dumpfile [] ("dump" :: (Common.platform_name com.platform) :: fst path @ [snd path]) in
-		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
-		(match mt with
-		| Type.TClassDecl c ->
-			let rec print_field stat f =
-				print "\t%s%s%s%s" (if stat then "static " else "") (if f.cf_public then "public " else "") f.cf_name (params f.cf_params);
-				print "(%s) : %s" (s_kind f.cf_kind) (s_type f.cf_type);
-				(match f.cf_expr with
-				| None -> ()
-				| Some e -> print "\n\n\t = %s" (s_expr s_type e));
-				print "\n\n";
-				List.iter (fun f -> print_field stat f) f.cf_overloads
-			in
-			print "%s%s%s %s%s" (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
-			(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
-			List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
-			(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
-			(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
-			print "{\n";
-			(match c.cl_constructor with
-			| None -> ()
-			| Some f -> print_field false f);
-			List.iter (print_field false) c.cl_ordered_fields;
-			List.iter (print_field true) c.cl_ordered_statics;
-			(match c.cl_init with
-			| None -> ()
-			| Some e ->
-				print "\n\n\t__init__ = ";
-				print "%s" (s_expr s_type e);
-				print "}\n");
-			print "}";
-		| Type.TEnumDecl e ->
-			print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
-			List.iter (fun n ->
-				let f = PMap.find n e.e_constrs in
-				print "\t%s : %s;\n" f.ef_name (s_type f.ef_type);
-			) e.e_names;
-			print "}"
-		| Type.TTypeDecl t ->
-			print "%stype %s%s = %s" (if t.t_private then "private " else "") (s_type_path path) (params t.t_params) (s_type t.t_type);
-		| Type.TAbstractDecl a ->
-			print "%sabstract %s%s {}" (if a.a_private then "private " else "") (s_type_path path) (params a.a_params);
-		);
-		close();
-	) com.types
+		buf,close
 
-let dump_dependencies com =
-	let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependencies"] in
-	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
-	let dep = Hashtbl.create 0 in
-	List.iter (fun m ->
-		print "%s:\n" m.m_extra.m_file;
-		PMap.iter (fun _ m2 ->
-			print "\t%s\n" (m2.m_extra.m_file);
-			let l = try Hashtbl.find dep m2.m_extra.m_file with Not_found -> [] in
-			Hashtbl.replace dep m2.m_extra.m_file (m :: l)
-		) m.m_extra.m_deps;
-	) com.Common.modules;
-	close();
-	let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependants"] in
-	let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
-	Hashtbl.iter (fun n ml ->
-		print "%s:\n" n;
+	let dump_types com s_expr =
+		let s_type = s_type (Type.print_context()) in
+		let params tl = match tl with [] -> "" | l -> Printf.sprintf "<%s>" (String.concat "," (List.map (fun (n,t) -> n ^ " : " ^ s_type t) l)) in
+		List.iter (fun mt ->
+			let path = Type.t_path mt in
+			let buf,close = create_dumpfile_from_path com path in
+			let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+			(match mt with
+			| Type.TClassDecl c ->
+				let rec print_field stat f =
+					print "\t%s%s%s%s" (if stat then "static " else "") (if f.cf_public then "public " else "") f.cf_name (params f.cf_params);
+					print "(%s) : %s" (s_kind f.cf_kind) (s_type f.cf_type);
+					(match f.cf_expr with
+					| None -> ()
+					| Some e -> print "\n\n\t = %s" (s_expr s_type e));
+					print "\n\n";
+					List.iter (fun f -> print_field stat f) f.cf_overloads
+				in
+				print "%s%s%s %s%s" (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
+				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
+				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
+				(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
+				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
+				print "{\n";
+				(match c.cl_constructor with
+				| None -> ()
+				| Some f -> print_field false f);
+				List.iter (print_field false) c.cl_ordered_fields;
+				List.iter (print_field true) c.cl_ordered_statics;
+				(match c.cl_init with
+				| None -> ()
+				| Some e ->
+					print "\n\n\t__init__ = ";
+					print "%s" (s_expr s_type e);
+					print "}\n");
+				print "}";
+			| Type.TEnumDecl e ->
+				print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_params);
+				List.iter (fun n ->
+					let f = PMap.find n e.e_constrs in
+					print "\t%s : %s;\n" f.ef_name (s_type f.ef_type);
+				) e.e_names;
+				print "}"
+			| Type.TTypeDecl t ->
+				print "%stype %s%s = %s" (if t.t_private then "private " else "") (s_type_path path) (params t.t_params) (s_type t.t_type);
+			| Type.TAbstractDecl a ->
+				print "%sabstract %s%s {}" (if a.a_private then "private " else "") (s_type_path path) (params a.a_params);
+			);
+			close();
+		) com.types
+
+	let dump_record com =
+		List.iter (fun mt ->
+			let buf,close = create_dumpfile_from_path com (t_path mt) in
+			let s = match mt with
+				| TClassDecl c -> Printer.s_tclass c
+				| TEnumDecl en -> Printer.s_tenum en
+				| TTypeDecl t -> Printer.s_tdef "" t
+				| TAbstractDecl a -> Printer.s_tabstract a
+			in
+			Buffer.add_string buf s;
+			close();
+		) com.types
+
+	let dump_types com =
+		match Common.defined_value_safe com Define.Dump with
+			| "pretty" -> dump_types com (Type.s_expr_pretty "\t")
+			| "legacy" -> dump_types com Type.s_expr
+			| "record" -> dump_record com
+			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
+
+	let dump_dependencies com =
+		let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependencies"] in
+		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
-			print "\t%s\n" (m.m_extra.m_file);
-		) ml;
-	) dep;
-	close()
+			print "%s:\n" m.m_extra.m_file;
+			PMap.iter (fun _ m2 ->
+				print "\t%s\n" (m2.m_extra.m_file);
+				let l = try Hashtbl.find dep m2.m_extra.m_file with Not_found -> [] in
+				Hashtbl.replace dep m2.m_extra.m_file (m :: l)
+			) m.m_extra.m_deps;
+		) com.Common.modules;
+		close();
+		let buf,close = create_dumpfile [] ["dump";Common.platform_name com.platform;".dependants"] in
+		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+		Hashtbl.iter (fun n ml ->
+			print "%s:\n" n;
+			List.iter (fun m ->
+				print "\t%s\n" (m.m_extra.m_file);
+			) ml;
+		) dep;
+		close()
+end
 
 (*
 	Build a default safe-cast expression :

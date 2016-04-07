@@ -1004,7 +1004,7 @@ module Debug = struct
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
 		let start_graph ?(graph_config=[]) suffix =
-			let ch = Codegen.create_file suffix [] ("dump" :: [Common.platform_name ctx.com.platform] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]) in
+			let ch = Codegen.Dump.create_file suffix [] ("dump" :: [Common.platform_name ctx.com.platform] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]) in
 			Printf.fprintf ch "digraph graphname {\n";
 			List.iter (fun s -> Printf.fprintf ch "%s;\n" s) graph_config;
 			ch,(fun () ->
