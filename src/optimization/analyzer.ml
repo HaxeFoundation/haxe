@@ -851,8 +851,9 @@ module LocalDce = struct
 			| _ ->
 				Type.iter expr e
 		in
-
+		let bb_marked = ref [] in
 		let rec mark bb =
+			bb_marked := bb :: !bb_marked;
 			DynArray.iter expr bb.bb_el;
 			DynArray.iter expr bb.bb_phi;
 			List.iter (fun edge ->
@@ -875,9 +876,9 @@ module LocalDce = struct
 			| _ ->
 				Type.map_expr sweep e
 		in
-		Graph.iter_dom_tree ctx.graph (fun bb ->
+		List.iter (fun bb ->
 			dynarray_map sweep bb.bb_el
-		);
+		) !bb_marked;
 end
 
 module Debug = struct
