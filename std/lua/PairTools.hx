@@ -14,7 +14,7 @@ class PairTools {
 		untyped __lua__( "for i,v in _G.ipairs(table) do ret[i] = func(i,v) end;");
 		return ret;
 	}
-	public static function pairsMap<A,B,C>(table:Table<A,B>, func : A->B->C->Void) : Table<A,C> {
+	public static function pairsMap<A,B,C>(table:Table<A,B>, func : A->B->C->C) : Table<A,C> {
 		var ret : Table<A,C> = cast {};
 		untyped __lua__( "for k,v in _G.pairs(table) do ret[k] = func(k,v) end;");
 		return ret;
@@ -28,6 +28,7 @@ class PairTools {
 		return untyped __lua__("seed");
 	}
 
+
 	public static function ipairsConcat<T>(table1:Table<Int,T>, table2:Table<Int,T>){
 		var ret:Table<Int,T> = cast {};
 		ipairsFold(table1, function(a,b,c:Table<Int,T>){ c[a] = b; return c;}, ret);
@@ -40,6 +41,14 @@ class PairTools {
 		var ret = copy(table1);
 		pairsEach(table2, function(a,b:B) ret[cast a] = b);
 		return ret;
+	}
+
+	public static function ipairsExist<T>(table:Table<Int,T>, func: Int->T->Bool) {
+		untyped __lua__("for k,v in _G.ipairs(table) do if func(k,v) then return true end end");
+	}
+
+	public static function pairsExist<A,B>(table:Table<A,B>, func: A->B->Bool) {
+		untyped __lua__("for k,v in _G.pairs(table) do if func(k,v) then return true end end");
 	}
 
 	public static function copy<A,B>(table1:Table<A,B>) : Table<A,B> {
