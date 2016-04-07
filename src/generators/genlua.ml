@@ -1315,7 +1315,7 @@ let gen_class_field ctx c f predelimit =
 	if predelimit then sprln ctx ",";
 	match f.cf_expr with
 	| None ->
-		print ctx "'%s', nil" (anon_field f.cf_name);
+		print ctx "'%s', nil" f.cf_name;
 	| Some e ->
 		ctx.id_counter <- 0;
 		(match e.eexpr with
