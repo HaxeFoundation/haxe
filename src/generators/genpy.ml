@@ -2428,7 +2428,11 @@ module Generator = struct
 			| Some e ->
 				newline ctx;
 				newline ctx;
-				gen_expr ctx e "" ""
+				match e.eexpr with
+				| TBlock el ->
+					List.iter (fun e -> gen_expr ctx e "" ""; newline ctx) el
+				| _ ->
+					gen_expr ctx e "" ""
 
 	(* Entry point *)
 
