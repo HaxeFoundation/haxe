@@ -319,8 +319,8 @@ function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
 	if (!(error_reporting() & $errno)) {
 		return false;
 	}
-	$msg = $errmsg . ' (errno: ' . $errno . ') in ' . $filename . ' at line #' . $linenum;
-	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => __LINE__, 'className' => 'php.Boot', 'methodName' => '_hx_error_handler')));
+	$msg = $errmsg . ' (errno: ' . $errno . ')';
+	$e = new HException($msg, '', $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => __LINE__, 'className' => 'php.Boot', 'methodName' => '_hx_error_handler')));
 	$e->setFile($filename);
 	$e->setLine($linenum);
 	throw $e;

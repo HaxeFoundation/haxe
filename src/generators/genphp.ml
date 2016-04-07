@@ -1572,7 +1572,7 @@ and gen_expr ctx e =
 		let catchall = ref false in
 		let evar = define_local ctx "_ex_" in
 		newline ctx;
-		print ctx "$%s = ($%s instanceof HException) ? $%s->e : $%s" evar ex ex ex;
+		print ctx "$%s = ($%s instanceof HException) && $%s->getCode() == null ? $%s->e : $%s" evar ex ex ex ex;
 		old();
 		List.iter (fun (v,e) ->
 			let ev = define_local ctx v.v_name in
