@@ -1423,6 +1423,8 @@ and tcpp_expr_expr =
    | CppSet of tcpplvalue * tcppexpr
    | CppModify of Ast.binop * tcpplvalue * tcppexpr
    | CppBinop of Ast.binop * tcppexpr * tcppexpr
+   | CppCompare of string * tcppexpr * tcppexpr
+   | CppNullCompare of string * tcppexpr
    | CppObjectDecl of (string * tcppexpr) list * bool
    | CppPosition of string * int32 * string * string
    | CppArrayDecl of tcppexpr list
@@ -1493,6 +1495,8 @@ let rec s_tcpp = function
    | CppSet  _ -> "CppSet"
    | CppModify  _ -> "CppModify"
    | CppBinop  _ -> "CppBinop"
+   | CppCompare  _ -> "CppCompare"
+   | CppNullCompare  _ -> "CppNullCompare"
    | CppObjectDecl  _ -> "CppObjectDecl"
    | CppPosition  _ -> "CppPosition"
    | CppArrayDecl  _ -> "CppArrayDecl"
@@ -1879,7 +1883,6 @@ let cpp_base_type_of t =
    | _  -> "Object"
 ;;
 
-
 let ctx_type_string ctx haxe_type =
       tcpp_to_string (cpp_type_of ctx haxe_type)
 ;;
@@ -1889,6 +1892,12 @@ let ctx_cant_be_null ctx haxe_type =
    match cpp_type_of ctx haxe_type with
    | TCppScalar _ -> true
    | _  -> false
+
+let is_complex_compare =  function
+   | TCppScalar _ -> false
+   | _ -> true
+;;
+
 
 
 let ctx_arg_type_name ctx name default_val arg_type prefix =
@@ -2343,11 +2352,41 @@ let retype_expression ctx request_type function_args expression_tree =
             let compareObjC = (objC1<>objC2) && (op=OpEq || op=OpNotEq) in
             let e1 = retype (if compareObjC && objC1 then TCppDynamic else cpp_type_of e1.etype) e1 in
             let e2 = retype (if compareObjC && objC2 then TCppDynamic else cpp_type_of e2.etype) e2 in
+            (*
+            let complex = (is_complex_compare e1.cpptype) || (is_complex_compare e2.cpptype) in
+            let e1_null = e1.cpptype=TCppNull in
+            let e2_null = e2.cpptype=TCppNull in
+            *)
             let reference = match op with
                | OpAssign ->
                   CppSet(to_lvalue e1, e2)
                | OpAssignOp op ->
                   CppModify(op, to_lvalue e1, e2)
+               (* Not ready yet
+               | OpEq when    e1_null && e2_null-> CppBool(true)
+               | OpGte when   e1_null && e2_null-> CppBool(true)
+               | OpLte when   e1_null && e2_null-> CppBool(true)
+               | OpNotEq when e1_null && e2_null-> CppBool(false)
+               | _ when   e1_null && e2_null-> CppBool(false)
+
+               | OpEq when    e1_null -> CppNullCompare("IsNull", e2)
+               | OpGte when   e1_null -> CppNullCompare("IsNull", e2)
+               | OpLte when   e1_null -> CppNullCompare("IsNull", e2)
+               | OpNotEq when e1_null -> CppNullCompare("IsNotNull", e2)
+
+               | OpEq when    e2_null -> CppNullCompare("IsNull", e1)
+               | OpGte when   e2_null -> CppNullCompare("IsNull", e1)
+               | OpLte when   e2_null -> CppNullCompare("IsNull", e1)
+               | OpNotEq when e2_null -> CppNullCompare("IsNotNull", e1)
+
+               | OpEq when complex -> CppCompare("IsEq", e1, e2)
+               | OpNotEq when complex -> CppCompare("IsNotEq", e1, e2)
+               | OpGte when complex -> CppCompare("IsGreaterEq", e1, e2)
+               | OpLte when complex -> CppCompare("IsLessEq", e1, e2)
+               | OpGt when complex -> CppCompare("IsGreater", e1, e2)
+               | OpLt  when complex -> CppCompare("IsLess", e1, e2)
+               *)
+
                | _ -> CppBinop(op,e1,e2)
             in
             reference, cpp_type_of expr.etype
@@ -2939,6 +2978,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
           out (" " ^ op ^ " ");
           out castOpen; gen right; out castClose;
           out ")";
+      | CppCompare(op, left, right) ->
+          out ("hx::" ^ op ^ "( ");
+          gen left;
+          out (",");
+          gen right;
+          out (" )");
+      | CppNullCompare(op, left) ->
+          out ("hx::" ^ op ^ "( "); gen left; out (" )");
 
       | CppThrow(value) ->
          out "HX_STACK_DO_THROW("; gen value; out ")";
