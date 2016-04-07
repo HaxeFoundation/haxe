@@ -168,4 +168,8 @@ class EReg {
 		return buf.toString();
 
 	}
+
+	public static inline function escape( s : String ) : String {
+		return Re.escape(s);
+	}
 }

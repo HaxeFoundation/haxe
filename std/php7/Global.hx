@@ -758,6 +758,11 @@ extern class Global {
 	static function preg_match_all( pattern:String, subject:String, ?matches:NativeArray, ?flags:Int, ?offset:Int ) : EitherType<Bool,Int> ;
 
 	/**
+		@see http://php.net/manual/en/function.preg-quote.php
+	**/
+	static function preg_quote( str:String, ?delimiter:String ) : String;
+
+	/**
 		@see http://php.net/manual/en/function.preg-split.php
 	**/
 	static function preg_split( pattern:String, subject:String, limit:Int = -1, flags:Int = 0 ) : EitherType<Bool,NativeArray> ;
