@@ -1,6 +1,7 @@
 package unit.hxcpp_issues;
 
 class Issue352 extends Test {
+	#if cpp
 	@:keep
 	static function onSample( buf : cpp.Pointer<cpp.Float32>, len : Int ) {
 		var data : haxe.io.BytesData = [];
@@ -9,4 +10,5 @@ class Issue352 extends Test {
 	}
 
 	static function foo(d) { }
+	#end
 }
