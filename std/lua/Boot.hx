@@ -358,5 +358,7 @@ class Boot {
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_function_to_instance_function.lua");
 		// static to instance class wrapper
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_static_to_instance_function.lua");
+		// simple apply method
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_apply.lua");
 	}
 }
