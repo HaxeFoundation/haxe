@@ -55,12 +55,12 @@ class Output {
 		See `writeFullBytes` that tries to write the exact amount of specified bytes.
 	**/
 	public function writeBytes( s : Bytes, pos : Int, len : Int ) : Int {
-		var k = len;
-		var b = s.getData();
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
 		#end
+		var b = #if js @:privateAccess s.b #else s.getData() #end;
+		var k = len;
 		while( k > 0 ) {
 			#if neko
 				writeByte(untyped __dollar__sget(b,pos));
@@ -69,7 +69,7 @@ class Output {
 			#elseif cpp
 				writeByte(untyped b[pos]);
 			#elseif hl
-				writeByte(@:privateAccess b.b[pos]);
+				writeByte(@:privateAccess b[pos]);
 			#else
 				writeByte(untyped b[pos]);
 			#end
