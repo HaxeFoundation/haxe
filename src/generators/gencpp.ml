@@ -1101,19 +1101,6 @@ let array_arg_list inList =
 (* See if there is a haxe break statement that will be swollowed by c++ break *)
 exception BreakFound;;
 
-let contains_break expression =
-   try (
-   let rec check_all expression = match expression.eexpr with
-         | TBreak -> raise BreakFound
-         | TFor _
-         | TFunction _
-         | TWhile (_,_,_) -> ()
-         | _ -> Type.iter check_all expression;
-   in
-   check_all expression;
-   false;
-   ) with BreakFound -> true;;
-
 
 (* Decide is we should look the field up by name *)
 let dynamic_internal = function | "__Is" -> true | _ -> false
@@ -1297,6 +1284,8 @@ let hx_stack_push ctx output clazz func_name pos =
 
 (* { *)
 
+type label = int
+
 type tcpp =
    | TCppDynamic
    | TCppObject
@@ -1433,12 +1422,13 @@ and tcpp_expr_expr =
    | CppBlock of tcppexpr list * tcpp_closure list
    | CppFor of tvar * tcppexpr * tcppexpr
    | CppIf of tcppexpr * tcppexpr * tcppexpr option
-   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
+   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag * label
    | CppIntSwitch of tcppexpr * (Int32.t list * tcppexpr) list * tcppexpr option
    | CppSwitch of tcppexpr * tcpp * (tcppexpr list * tcppexpr) list * tcppexpr option
    | CppTry of tcppexpr * (tvar * tcppexpr) list
    | CppBreak
    | CppContinue
+   | CppGoto of label
    | CppClassOf of path
    | CppReturn of tcppexpr option
    | CppThrow of tcppexpr
@@ -1510,6 +1500,7 @@ let rec s_tcpp = function
    | CppSwitch  _ -> "CppSwitch"
    | CppTry _ -> "CppTry"
    | CppBreak -> "CppBreak"
+   | CppGoto _ -> "CppGoto"
    | CppContinue -> "CppContinue"
    | CppClassOf _ -> "CppClassOf"
    | CppReturn _ -> "CppReturn"
@@ -1999,6 +1990,19 @@ let retype_expression ctx request_type function_args expression_tree =
    let undeclared = ref (Hashtbl.create 0) in
    let uses_this = ref None in
    let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDyanmic) in
+   let label_counter = ref (-1) in
+   let loop_stack = ref [] in
+   let begin_loop () =
+      incr label_counter;
+      loop_stack := (!label_counter,ref false) :: !loop_stack;
+      (fun () -> match !loop_stack with
+         | (label_id,used) :: tl ->
+            loop_stack := tl;
+            if !used then label_id else -1
+         | [] ->
+            error "Invalid inernal loop handling" expression_tree.epos
+      )
+   in
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
    List.iter (fun arg -> Hashtbl.add !declarations arg.v_name () ) function_args;
@@ -2055,7 +2059,13 @@ let retype_expression ctx request_type function_args expression_tree =
             end
 
          | TBreak ->
-            CppBreak, TCppVoid
+            begin match !loop_stack with
+               | [] ->
+                  CppBreak, TCppVoid
+               | (label_id,used) :: _ ->
+                  used := true;
+                  (CppGoto label_id),TCppVoid
+            end
 
          | TContinue ->
             CppContinue, TCppVoid
@@ -2414,8 +2424,9 @@ let retype_expression ctx request_type function_args expression_tree =
 
          | TWhile (e1,e2,flag) ->
             let condition = retype (TCppScalar("Bool")) e1 in
+            let close = begin_loop() in
             let block = retype TCppVoid (mk_block e2) in
-            CppWhile(condition, block, flag), TCppVoid
+            CppWhile(condition, block, flag, close()), TCppVoid
 
          | TArrayDecl el ->
             let retypedEls = List.map (retype TCppDynamic) el in
@@ -2479,9 +2490,7 @@ let retype_expression ctx request_type function_args expression_tree =
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             (try
                (match conditionType with TCppScalar("Int") | TCppScalar("Bool") -> () | _ -> raise Not_found );
-               (match def with None -> () | Some e -> if (contains_break e) then raise Not_found);
                let cases = List.map (fun (el,e2) ->
-                  if (contains_break e2) then raise Not_found;
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
                CppIntSwitch(condition, cases, cppDef), TCppVoid
             with Not_found ->
@@ -2646,7 +2655,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
    in
 
    let cppTree =  retype_expression ctx TCppVoid function_args tree in
-
+   let label_name i = Printf.sprintf "%s_%s_%i" (String.concat "_" (ExtString.String.nsplit class_name ".")) func_name i in
    let rec gen_with_injection injection expr =
       (match expr.cppexpr with
       | CppBlock(exprs,closures) ->
@@ -2682,6 +2691,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppBreak -> out "break"
       | CppContinue -> out "continue"
+      | CppGoto label -> out (Printf.sprintf "goto %s" (label_name label))
 
       | CppVarDecl(var,init) ->
          out ( (cpp_var_type_of ctx var) ^ " " ^ (cpp_var_name_of var) );
@@ -3052,7 +3062,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
            );
            out "(";  gen value; out ")"
 
-      | CppWhile(condition, block, while_flag) ->
+      | CppWhile(condition, block, while_flag, loop_id) ->
           (match while_flag with
           | NormalWhile ->
               out "while("; gen condition; out (")");
@@ -3062,6 +3072,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               gen block;
               out "while("; gen condition; out ")"
           );
+          if loop_id > -1 then output_i (Printf.sprintf "%s:" (label_name loop_id));
 
       | CppIf (condition,block,None) ->
           out "if ("; gen condition; out (") ");
