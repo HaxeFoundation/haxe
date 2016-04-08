@@ -1895,6 +1895,7 @@ let ctx_cant_be_null ctx haxe_type =
 
 let is_complex_compare =  function
    | TCppScalar _ -> false
+   | TCppString  -> false
    | _ -> true
 ;;
 
@@ -2697,7 +2698,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncThis(field) ->
               out ("this->" ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncInstance(expr,objC,field) ->
-              gen expr; out ("->" ^ (cpp_member_name_of field) ^ "_dyn()");
+              gen expr; out ((if expr.cpptype=TCppString then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncInterface(expr,clazz,field) ->
               gen expr;
               out ("__Field(" ^ strq field.cf_name ^ ", hx::paccDynamic)")
