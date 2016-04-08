@@ -1050,13 +1050,14 @@ let rec s_expr s_type e =
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
-let rec s_expr_pretty tabs s_type e =
+let rec s_expr_pretty print_var_ids tabs s_type e =
 	let sprintf = Printf.sprintf in
-	let loop = s_expr_pretty tabs s_type in
+	let loop = s_expr_pretty print_var_ids tabs s_type in
 	let slist f l = String.concat "," (List.map f l) in
+	let local v = if print_var_ids then sprintf "%s<%i>" v.v_name v.v_id else v.v_name in
 	match e.eexpr with
 	| TConst c -> s_const c
-	| TLocal v -> v.v_name
+	| TLocal v -> local v
 	| TArray (e1,e2) -> sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) -> sprintf "%s %s %s" (loop e1) (s_binop op) (loop e2)
 	| TEnumParameter (e1,_,i) -> sprintf "%s[%i]" (loop e1) i
@@ -1073,16 +1074,16 @@ let rec s_expr_pretty tabs s_type e =
 		| Prefix -> sprintf "%s %s" (s_unop op) (loop e)
 		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
 	| TFunction f ->
-		let args = slist (fun (v,o) -> sprintf "%s:%s%s" v.v_name (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		let args = slist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
 		sprintf "function(%s) = %s" args (loop f.tf_expr)
 	| TVar (v,eo) ->
-		sprintf "var %s" (sprintf "%s%s" v.v_name (match eo with None -> "" | Some e -> " = " ^ loop e))
+		sprintf "var %s" (sprintf "%s%s" (local v) (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty ntabs s_type e)) el)) in
+		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs s_type e)) el)) in
 		s ^ tabs ^ "}"
 	| TFor (v,econd,e) ->
-		sprintf "for (%s in %s) %s" v.v_name (loop econd) (loop e)
+		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
 		sprintf "if (%s)%s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
@@ -1091,10 +1092,10 @@ let rec s_expr_pretty tabs s_type e =
 		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
+		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty print_var_ids ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
 	| TTry (e,cl) ->
-		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
+		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (local v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
 		"return"
 	| TReturn (Some e) ->

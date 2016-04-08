@@ -1193,7 +1193,7 @@ module Run = struct
 				prerr_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
 					prerr_endline (Printf.sprintf "<%s>" s);
-					prerr_endline (s_expr_pretty e);
+					prerr_endline (Type.s_expr_pretty true "" (s_type (print_context())) e);
 					prerr_endline (Printf.sprintf "</%s>" s);
 				) (List.rev actx.debug_exprs);
 				Debug.dot_debug actx c cf;
