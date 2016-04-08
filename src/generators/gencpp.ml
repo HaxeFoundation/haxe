@@ -2352,17 +2352,14 @@ let retype_expression ctx request_type function_args expression_tree =
             let compareObjC = (objC1<>objC2) && (op=OpEq || op=OpNotEq) in
             let e1 = retype (if compareObjC && objC1 then TCppDynamic else cpp_type_of e1.etype) e1 in
             let e2 = retype (if compareObjC && objC2 then TCppDynamic else cpp_type_of e2.etype) e2 in
-            (*
             let complex = (is_complex_compare e1.cpptype) || (is_complex_compare e2.cpptype) in
             let e1_null = e1.cpptype=TCppNull in
             let e2_null = e2.cpptype=TCppNull in
-            *)
             let reference = match op with
                | OpAssign ->
                   CppSet(to_lvalue e1, e2)
                | OpAssignOp op ->
                   CppModify(op, to_lvalue e1, e2)
-               (* Not ready yet
                | OpEq when    e1_null && e2_null-> CppBool(true)
                | OpGte when   e1_null && e2_null-> CppBool(true)
                | OpLte when   e1_null && e2_null-> CppBool(true)
@@ -2385,7 +2382,6 @@ let retype_expression ctx request_type function_args expression_tree =
                | OpLte when complex -> CppCompare("IsLessEq", e1, e2)
                | OpGt when complex -> CppCompare("IsGreater", e1, e2)
                | OpLt  when complex -> CppCompare("IsLess", e1, e2)
-               *)
 
                | _ -> CppBinop(op,e1,e2)
             in
