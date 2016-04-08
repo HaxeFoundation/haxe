@@ -2840,9 +2840,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             gen arrayObj; out "->__get("; gen index; out ")"
 
          | ArrayObject(arrayObj,index,elem) ->
-            gen arrayObj; out "->__get("; gen index; out ")";
-            if not (cpp_is_dynamic_type elem) then
-               out (".StaticCast< " ^ tcpp_to_string elem ^ " >()")
+            let close = if cpp_is_dynamic_type elem then
+                  ""
+               else if elem=TCppDynamicArray then begin
+                  out (tcpp_to_string elem ^ "( "); ")"
+               end else
+                  ".StaticCast< " ^ tcpp_to_string elem ^ " >()"
+            in
+            gen arrayObj; out "->__get("; gen index; out (")" ^ close);
 
          | ArrayVirtual(arrayObj,index) ->
             gen arrayObj; out "->__get("; gen index; out ")";
