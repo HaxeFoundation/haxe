@@ -517,7 +517,6 @@ type analyzer_context = {
 	config : AnalyzerConfig.t;
 	graph : Graph.t;
 	temp_var_name : string;
-	is_real_function : bool;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;

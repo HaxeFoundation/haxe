@@ -1102,19 +1102,44 @@ module Run = struct
 		timer();
 		r
 
-	let there com config e =
-		let e = with_timer "analyzer-filter-apply" (fun () -> TexprFilter.apply com e) in
-		let ctx = with_timer "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_texpr com config e) in
+	let create_analyzer_context com config e =
+		let g = Graph.create e.etype e.epos in
+		let ctx = {
+			com = com;
+			config = config;
+			graph = g;
+			(* For CPP we want to use variable names which are "probably" not used by users in order to
+			   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
+			temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
+			entry = g.g_unreachable;
+			has_unbound = false;
+			loop_counter = 0;
+			loop_stack = [];
+		} in
 		ctx
 
-	let back_again ctx =
-		let e = with_timer "analyzer-to-texpr" (fun () -> AnalyzerTexprTransformer.to_texpr ctx) in
+	let there actx e =
+		let e = with_timer "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
+		let tf,is_real_function = match e.eexpr with
+			| TFunction tf ->
+				tf,true
+			| _ ->
+				(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
+				let e = mk (TReturn (Some e)) t_dynamic e.epos in
+				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
+				tf,false
+		in
+		with_timer "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf e.etype e.epos);
+		is_real_function
+
+	let back_again actx is_real_function =
+		let e = with_timer "analyzer-to-texpr" (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
-		) ctx.graph.g_var_infos;
-		let e = with_timer "analyzer-fusion" (fun () -> Fusion.apply ctx.com ctx.config e) in
-		let e = with_timer "analyzer-cleanup" (fun () -> Cleanup.apply ctx.com e) in
-		let e = if ctx.is_real_function then
+		) actx.graph.g_var_infos;
+		let e = with_timer "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
+		let e = with_timer "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
+		let e = if is_real_function then
 			e
 		else begin
 			(* Get rid of the wrapping function and its return expressions. *)
@@ -1128,32 +1153,26 @@ module Run = struct
 		end in
 		e
 
-	let roundtrip com config e =
-		let ctx = there com config e in
-		Graph.infer_immediate_dominators ctx.graph;
-		Graph.infer_scopes ctx.graph;
-		Graph.infer_var_writes ctx.graph;
-		back_again ctx
-
-	let run_on_expr com config e =
-		let ctx = there com config e in
-		Graph.infer_immediate_dominators ctx.graph;
-		Graph.infer_scopes ctx.graph;
-		Graph.infer_var_writes ctx.graph;
-		if com.debug then Graph.check_integrity ctx.graph;
-		if config.optimize && not ctx.has_unbound then begin
-			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply ctx);
-			if config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply ctx);
-			if config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply ctx);
-			if config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply ctx);
-			with_timer "analyzer-local-dce" (fun () -> LocalDce.apply ctx);
+	let run_on_expr actx e =
+		let is_real_function = there actx e in
+		Graph.infer_immediate_dominators actx.graph;
+		Graph.infer_scopes actx.graph;
+		Graph.infer_var_writes actx.graph;
+		if actx.com.debug then Graph.check_integrity actx.graph;
+		if actx.config.optimize && not actx.has_unbound then begin
+			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply actx);
+			if actx.config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply actx);
+			if actx.config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply actx);
+			if actx.config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply actx);
+			with_timer "analyzer-local-dce" (fun () -> LocalDce.apply actx);
 		end;
-		ctx,back_again ctx
+		back_again actx is_real_function
 
 	let run_on_field ctx config c cf = match cf.cf_expr with
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
-			let actx,e = run_on_expr ctx.Typecore.com config e in
+			let actx = create_analyzer_context ctx.Typecore.com config e in
+			let e = run_on_expr actx e in
 			let e = Cleanup.reduce_control_flow ctx e in
 			if config.dot_debug then Debug.dot_debug actx c cf;
 			cf.cf_expr <- Some e;
@@ -1176,7 +1195,9 @@ module Run = struct
 				()
 			| Some e ->
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
-				let e = roundtrip ctx.Typecore.com {config with optimize = false} (mk (TFunction tf) (tfun [] e.etype) e.epos) in
+				let e = mk (TFunction tf) (tfun [] e.etype) e.epos in
+				let actx = create_analyzer_context ctx.Typecore.com {config with optimize = false} e in
+				let e = run_on_expr actx e in
 				let e = match e.eexpr with
 					| TFunction tf -> tf.tf_expr
 					| _ -> assert false
@@ -1200,4 +1221,7 @@ module Run = struct
 		List.iter (fun cf -> cf.cf_meta <- List.filter (fun (m,_,_) -> m <> Meta.Pure) cf.cf_meta) cfl
 end
 ;;
-Typecore.analyzer_run_on_expr_ref := (fun com e -> snd (Run.run_on_expr com (AnalyzerConfig.get_base_config com) e))
+Typecore.analyzer_run_on_expr_ref := (fun com e ->
+	let actx = Run.create_analyzer_context com (AnalyzerConfig.get_base_config com) e in
+	Run.run_on_expr actx e
+)
