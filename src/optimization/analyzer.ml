@@ -1002,10 +1002,13 @@ module Debug = struct
 			end
 		) g.g_var_infos
 
+	let get_dump_path ctx c cf =
+		"dump" :: [Common.platform_name ctx.com.platform] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]
+
 	let dot_debug ctx c cf =
 		let g = ctx.graph in
 		let start_graph ?(graph_config=[]) suffix =
-			let ch = Codegen.Dump.create_file suffix [] ("dump" :: [Common.platform_name ctx.com.platform] @ (fst c.cl_path) @ [Printf.sprintf "%s.%s" (snd c.cl_path) cf.cf_name]) in
+			let ch = Codegen.Dump.create_file suffix [] (get_dump_path ctx c cf) in
 			Printf.fprintf ch "digraph graphname {\n";
 			List.iter (fun s -> Printf.fprintf ch "%s;\n" s) graph_config;
 			ch,(fun () ->
@@ -1115,11 +1118,17 @@ module Run = struct
 			has_unbound = false;
 			loop_counter = 0;
 			loop_stack = [];
+			debug_exprs = [];
 		} in
 		ctx
 
+	let add_debug_expr ctx s e =
+		ctx.debug_exprs <- (s,e) :: ctx.debug_exprs
+
 	let there actx e =
+		if actx.com.debug then add_debug_expr actx "initial" e;
 		let e = with_timer "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
+		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,is_real_function = match e.eexpr with
 			| TFunction tf ->
 				tf,true
@@ -1134,11 +1143,14 @@ module Run = struct
 
 	let back_again actx is_real_function =
 		let e = with_timer "analyzer-to-texpr" (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
+		if actx.com.debug then add_debug_expr actx "after to-texpr" e;
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
 		let e = with_timer "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
+		if actx.com.debug then add_debug_expr actx "after fusion" e;
 		let e = with_timer "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
+		if actx.com.debug then add_debug_expr actx "after to-cleanup" e;
 		let e = if is_real_function then
 			e
 		else begin
@@ -1172,7 +1184,22 @@ module Run = struct
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
 			let actx = create_analyzer_context ctx.Typecore.com config e in
-			let e = run_on_expr actx e in
+			let e = try
+				run_on_expr actx e
+			with
+			| Error _ | Abort _ as exc ->
+				raise exc
+			| exc ->
+				prerr_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
+				List.iter (fun (s,e) ->
+					prerr_endline (Printf.sprintf "<%s>" s);
+					prerr_endline (s_expr_pretty e);
+					prerr_endline (Printf.sprintf "</%s>" s);
+				) (List.rev actx.debug_exprs);
+				Debug.dot_debug actx c cf;
+				prerr_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
+				raise exc
+			in
 			let e = Cleanup.reduce_control_flow ctx e in
 			if config.dot_debug then Debug.dot_debug actx c cf;
 			cf.cf_expr <- Some e;

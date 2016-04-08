@@ -521,4 +521,5 @@ type analyzer_context = {
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
 	mutable loop_stack : int list;
+	mutable debug_exprs : (string * texpr) list;
 }
