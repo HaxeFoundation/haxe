@@ -81,9 +81,9 @@ matrix:
     - os: linux
       env: TEST=flash9
       addons: {apt: {packages: *apt_flash}}
-    - os: linux
-      env: TEST=as3
-      addons: {apt: {packages: *apt_flash}}
+    # - os: linux
+    #   env: TEST=as3
+    #   addons: {apt: {packages: *apt_flash}}
     - os: linux
       env: TEST=java
     - os: linux
