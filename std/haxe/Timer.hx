@@ -36,13 +36,15 @@ package haxe;
 	the child class.
 **/
 class Timer {
-	#if (flash || js || java || python)
+	#if (flash || js || java || cs || python)
 
 	#if (flash || js)
 		private var id : Null<Int>;
 	#elseif java
 		private var timer : java.util.Timer;
 		private var task : java.util.TimerTask;
+	#elseif cs
+		private var timer : cs.system.timers.Timer;
 	#end
 
 	/**
@@ -66,6 +68,11 @@ class Timer {
 		#elseif java
 			timer = new java.util.Timer();
 			timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
+		#elseif cs
+			timer = new cs.system.timers.Timer();
+			timer.Interval = time_ms;
+			timer.add_Elapsed(elapsed);
+			timer.Start();
 		#end
 	}
 
@@ -93,6 +100,9 @@ class Timer {
 				timer = null;
 			}
 			task = null;
+		#elseif cs
+			timer.Stop();
+			timer = null;
 		#end
 	}
 
@@ -170,6 +180,13 @@ class Timer {
 			return 0;
 		#end
 	}
+
+	#if cs
+	private function elapsed(sender : Dynamic, e : cs.system.timers.ElapsedEventArgs) : Void
+	{
+		run();
+	}
+	#end
 
 }
 
