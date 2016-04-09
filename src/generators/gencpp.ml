@@ -646,6 +646,12 @@ let is_native_gen_class class_def =
        | _ -> false );
 ;;
 
+let is_native_gen_module = function
+   | TClassDecl class_def -> is_native_gen_class class_def
+   | _ -> false
+;;
+  
+
 
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
@@ -1439,7 +1445,7 @@ and tcpp_expr_expr =
    | CppTry of tcppexpr * (tvar * tcppexpr) list
    | CppBreak
    | CppContinue
-   | CppClassOf of path
+   | CppClassOf of path * bool
    | CppReturn of tcppexpr option
    | CppThrow of tcppexpr
    | CppEnumParameter of tcppexpr * tenum_field * int
@@ -2041,7 +2047,7 @@ let retype_expression ctx request_type function_args expression_tree =
             cpp_const_type x
 
          | TLocal { v_name = "__global__" } ->
-            CppClassOf([],""), TCppGlobal
+            CppClassOf(([],""),false), TCppGlobal
 
          | TLocal tvar ->
             let name = tvar.v_name in
@@ -2214,7 +2220,7 @@ let retype_expression ctx request_type function_args expression_tree =
                   CppGlobal(fieldName), cpp_type_of expr.etype
                else if (obj.cpptype=TCppClass) then begin
                   match obj.cppexpr with
-                  | CppClassOf(path) ->
+                  | CppClassOf(path,_) ->
                      CppGlobal ( (join_class_path_remap path "::" ) ^ "_obj::" ^ fieldName ), cpp_type_of expr.etype
                   | _ ->
                      CppVar( VarInternal(obj,"->",fieldName)), cpp_type_of expr.etype
@@ -2345,7 +2351,7 @@ let retype_expression ctx request_type function_args expression_tree =
 
          | TTypeExpr module_type ->
             let path = t_path module_type in
-            CppClassOf(path), TCppClass
+            CppClassOf(path, is_native_gen_module module_type), TCppClass
 
          | TBinop (op,e1,e2) ->
             let objC1 = (is_objc_type e1.etype) in
@@ -2897,9 +2903,11 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppPosition(name,line,clazz,func) ->
          out ("hx::SourceInfo(" ^ strq name ^ "," ^ string_of_int(Int32.to_int line) ^ "," ^ strq clazz ^ "," ^ strq func ^ ")")
 
-      | CppClassOf path ->
+      | CppClassOf (path,native) ->
          let path = "::" ^ (join_class_path_remap (path) "::" ) in
-         if (path="::Array") then
+         if (native) then
+            out "null()"
+         else if (path="::Array") then
             out "hx::ArrayBase::__mClass"
          else
             out ("hx::ClassOf< " ^ path ^ " >()")
@@ -5071,8 +5079,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
       if (scriptable) then
          output_cpp ("  HX_SCRIPTABLE_REGISTER_CLASS(\""^class_name_text^"\"," ^ class_name ^ ");\n");
+      Hashtbl.iter (fun _ intf_def ->
+          output_cpp ("\tHX_REGISTER_VTABLE_OFFSET( " ^ class_name ^ "," ^ (join_class_path_remap intf_def.cl_path "::")^ ");\n");
+          ) native_implemented;
       output_cpp ("}\n\n");
-
    end else if not nativeGen then begin
       output_cpp ("hx::Class " ^ class_name ^ "::__mClass;\n\n");
 
@@ -5084,6 +5094,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       output_cpp ("\t__mClass->mMarkFunc = " ^ class_name ^ "_sMarkStatics;\n");
       (*output_cpp ("\t__mClass->mStatics = hx::Class_obj::dupFunctions(" ^ sStaticFields ^ ");\n");*)
       output_cpp ("\t__mClass->mMembers = hx::Class_obj::dupFunctions(" ^ sMemberFields ^ ");\n");
+      output_cpp ("\t__mClass->mCanCast = hx::TIsInterface< " ^ (  gen_hash 0 (cpp_interface_impl_name ctx class_def) ) ^ " >;\n");
       output_cpp ("#ifdef HXCPP_VISIT_ALLOCS\n\t__mClass->mVisitFunc = " ^ class_name ^ "_sVisitStatics;\n#endif\n");
       output_cpp ("\thx::RegisterClass(__mClass->mName, __mClass);\n");
       if (scriptable) then
