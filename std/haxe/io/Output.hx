@@ -65,7 +65,7 @@ class Output {
 			#if neko
 				writeByte(untyped __dollar__sget(b,pos));
 			#elseif php
-				writeByte(untyped __call__("ord", b[pos]));
+				writeByte(b.get(pos));
 			#elseif cpp
 				writeByte(untyped b[pos]);
 			#elseif hl
