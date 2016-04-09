@@ -1184,12 +1184,7 @@ module Run = struct
 		| Some e when not (is_ignored cf.cf_meta) && not (Codegen.is_removable_field ctx cf) ->
 			let config = update_config_from_meta ctx.Typecore.com config cf.cf_meta in
 			let actx = create_analyzer_context ctx.Typecore.com config e in
-			let e = try
-				run_on_expr actx e
-			with
-			| Error _ | Abort _ as exc ->
-				raise exc
-			| exc ->
+			let debug() =
 				prerr_endline (Printf.sprintf "While analyzing %s.%s" (s_type_path c.cl_path) cf.cf_name);
 				List.iter (fun (s,e) ->
 					prerr_endline (Printf.sprintf "<%s>" s);
@@ -1198,10 +1193,22 @@ module Run = struct
 				) (List.rev actx.debug_exprs);
 				Debug.dot_debug actx c cf;
 				prerr_endline (Printf.sprintf "dot graph written to %s" (String.concat "/" (Debug.get_dump_path actx c cf)));
+			in
+			let e = try
+				run_on_expr actx e
+			with
+			| Error _ | Abort _ as exc ->
+				raise exc
+			| exc ->
+				debug();
 				raise exc
 			in
 			let e = Cleanup.reduce_control_flow ctx e in
-			if config.dot_debug then Debug.dot_debug actx c cf;
+			begin match config.debug_kind with
+				| DebugNone -> ()
+				| DebugDot -> Debug.dot_debug actx c cf;
+				| DebugFull -> debug()
+			end;
 			cf.cf_expr <- Some e;
 		| _ -> ()
 
