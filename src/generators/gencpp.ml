@@ -2608,6 +2608,14 @@ let cpp_gen_default_values ctx args prefix =
    ) args;
 ;;
 
+let is_constant_zero expr =
+  match expr.cppexpr with
+  | CppFloat x when (float_of_string x) = 0.0 -> true
+  | CppInt i when i = Int32.of_int 0 -> true
+  | _ -> false
+;;
+
+
 
 (* Generate prototype text, including allowing default values to be null *)
 let cpp_arg_string ctx tvar default_val prefix =
@@ -2974,7 +2982,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out "hx::UShr("; gen left; out ","; gen right; out ")";
 
       | CppBinop( Ast.OpMod, left, right) ->
-         out "hx::Mod("; gen left; out ","; gen right; out ")";
+         if is_constant_zero right then begin
+            out "hx::DivByZero("; gen left; out ")"
+         end else begin
+            out "hx::Mod("; gen left; out ","; gen right; out ")";
+         end
+
+      | CppBinop( Ast.OpDiv, left, right) when is_constant_zero right ->
+         out "hx::DivByZero("; gen left; out ")";
 
       | CppBinop(op, left, right) ->
          let op = string_of_op op expr.cpppos in
