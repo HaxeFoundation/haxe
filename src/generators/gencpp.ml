@@ -2983,7 +2983,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppBinop( Ast.OpMod, left, right) ->
          if is_constant_zero right then begin
-            out "hx::DivByZero("; gen left; out ")"
+            out "hx::Mod("; gen left; out ",(double)( "; gen right; out " ))";
          end else begin
             out "hx::Mod("; gen left; out ","; gen right; out ")";
          end
@@ -3263,7 +3263,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | OpArrow -> "->"
       | OpAssign | OpAssignOp _ -> error "Unprocessed OpAssign" pos
    and string_of_path path =
-      (join_class_path_remap path "::") ^ "_obj"
+      "::" ^ (join_class_path_remap path "::") ^ "_obj"
 
    and gen_closure closure =
       let size = string_of_int( Hashtbl.length closure.close_undeclared ) in
