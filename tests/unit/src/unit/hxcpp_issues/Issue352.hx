@@ -1,7 +1,7 @@
 package unit.hxcpp_issues;
 
 class Issue352 extends Test {
-	#if cpp
+	#if (cpp && !cppia)
 	@:keep
 	static function onSample( buf : cpp.Pointer<cpp.Float32>, len : Int ) {
 		var data : haxe.io.BytesData = [];
