@@ -126,10 +126,29 @@ class Boot {
 				return true;
 			default: {
 				if ( o!= null &&  Lua.type(o)  == "table" && Lua.type(cl) == "table"){
-					// first check if o is instance of cl
-					if (inheritsFrom(o, cl)) return true;
+					var ro = o; // a reference to the object, descending recursively into the ancestors
+					while (ro != null){
+						var cls = getClass(ro); // make sure to getClass here, so that the genlua will keep the __class__ metatdata
+						if (cls == null) {
+							break; // no class for this, just break out.
+						} else if (cls == cl) {
+							return true; // class reference matches exactly, return true.
+						} else if (cls.__interfaces__ != null){
+							for (i in 1...(Table.maxn(cls.__interfaces__) + 1)){
+								// the class/interface shows up in the interface list, return true.
+								if (cls.__interfaces__[i] == cl) return true;
+							}
+						}
 
-					// do not use isClass/isEnum here, perform raw checks
+						// Do some modifications to turn ro into a reference to its parent
+						// prototype, so that we can repeat these steps
+						ro = Lua.getmetatable(ro);
+						if (ro != null){
+							ro = ro.__index;
+						}
+					}
+					// We've exhausted standard inheritance checks.  Check for simple Class/Enum eqauality
+					// Also, do not use isClass/isEnum here, perform raw checks
 					untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
 					untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
 					// last chance, is it an enum instance?
