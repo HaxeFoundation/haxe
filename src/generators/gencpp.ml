@@ -1972,6 +1972,12 @@ let only_stack_access ctx haxe_type =
 ;;
 
 
+let is_array_splice_call obj member =
+   match obj.cpptype, member.cf_name with
+   | TCppScalarArray _, "splice"
+   | TCppObjectArray _, "splice" -> true
+   | _,_ -> false
+;;
 
 let cpp_member_name_of member =
    let rename = get_meta_string member.cf_meta Meta.Native in
@@ -2255,6 +2261,8 @@ let retype_expression ctx request_type function_args expression_tree =
                |  CppEnumIndex(_) ->
                      (* Not actually a TCall...*)
                      retypedFunc.cppexpr, retypedFunc.cpptype
+               |  CppFunction( FuncInstance(obj, false, member), args ) when return_type=TCppVoid && is_array_splice_call obj member ->
+                     CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
                |  CppFunction(func,returnType) ->
                      CppCall(func,retypedArgs), returnType
                |  CppEnumField(enum, field) ->
