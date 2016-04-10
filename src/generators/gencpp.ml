@@ -3277,7 +3277,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       out (") HXARGC(" ^ argsCount ^")\n");
 
       let func_type = tcpp_to_string closure.close_type in
-      output_i (func_type ^ " run(" ^ (cpp_arg_list ctx closure.close_args "__o_") ^ ")");
+      output_i (func_type ^ " _hx_run(" ^ (cpp_arg_list ctx closure.close_args "__o_") ^ ")");
 
       let prologue = function () ->
           cpp_gen_default_values ctx closure.close_args "__o_";
@@ -3452,7 +3452,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let func_name = "__default_" ^ (remap_name) in
          output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
          output return_type;
-         output (" run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
+         output (" _hx_run(" ^ (ctx_arg_list ctx function_def.tf_args "__o_") ^ ")");
          gen_cpp_function_body ctx class_def is_static func_name function_def "" "";
 
          output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
