@@ -105,6 +105,9 @@ class Sha1 {
 		Append padding bits and the length, as described in the SHA1 standard.
 	 */
 	static function str2blks( s :String ) : Array<Int> {
+#if !(neko || cpp || php)
+		var s = haxe.io.Bytes.ofString(s);
+#end
 		var nblk = ((s.length + 8) >> 6) + 1;
 		var blks = new Array<Int>();
 
@@ -112,7 +115,7 @@ class Sha1 {
 			blks[i] = 0;
 		for (i in 0...s.length){
 			var p = i >> 2;
-			blks[p] |= s.charCodeAt(i) << (24 - ((i & 3) << 3));
+			blks[p] |= #if !(neko || cpp || php) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;
 		var p = i >> 2;

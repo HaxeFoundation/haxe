@@ -137,6 +137,9 @@ class Md5 {
 	}
 
 	static function str2blks( str : String ){
+#if !(neko || cpp || php)
+		var str = haxe.io.Bytes.ofString(str);
+#end
 		var nblk = ((str.length + 8) >> 6) + 1;
 		var blks = new Array();
 
@@ -152,7 +155,7 @@ class Md5 {
 
 		var i = 0;
 		while( i < str.length ) {
-			blks[i >> 2] |= str.charCodeAt(i) << (((str.length * 8 + i) % 4) * 8);
+			blks[i >> 2] |= #if !(neko || cpp || php) str.get(i) #else str.charCodeAt(i) #end << (((str.length * 8 + i) % 4) * 8);
 			i++;
 		}
 		blks[i >> 2] |= 0x80 << (((str.length * 8 + i) % 4) * 8);
