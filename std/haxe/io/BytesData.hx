@@ -28,8 +28,7 @@ package haxe.io;
 #elseif php
 	typedef BytesData = php.BytesData;
 #elseif cpp
-	extern class Unsigned_char__ { }
-	typedef BytesData = Array<Unsigned_char__>;
+	typedef BytesData = Array< cpp.UInt8 >;
 #elseif java
 	typedef BytesData = java.NativeArray<java.StdTypes.Int8>;
 #elseif cs

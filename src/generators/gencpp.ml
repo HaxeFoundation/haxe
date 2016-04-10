@@ -61,7 +61,7 @@ let is_internal_class = function
    |  (["cpp"],"RawPointer") | (["cpp"],"RawConstPointer")
    |  (["cpp"],"Function") -> true
    |  (["cpp"],"VirtualArray") -> true
-   |  ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
+   |  ([],"Math") -> true
    |  (["cpp"],"Int8") | (["cpp"],"UInt8") | (["cpp"],"Char")
    |  (["cpp"],"Int16") | (["cpp"],"UInt16")
    |  (["cpp"],"Int32") | (["cpp"],"UInt32")
@@ -247,15 +247,6 @@ let is_cpp_class = function
    | ( [] , "EReg" )  -> true
    | ( ["haxe"] , "Log" )  -> true
    | _ -> false;;
-
-let is_scalar typename = match typename with
-   | "int" | "unsigned int" | "signed int"
-   | "char" | "unsigned char"
-   | "short" | "unsigned short"
-   | "float" | "double"
-   | "bool" -> true
-   | _ -> false
-;;
 
 let is_block exp = match exp.eexpr with | TBlock _ -> true | _ -> false ;;
 
@@ -522,7 +513,7 @@ let gen_close_namespace output class_path =
 
 (* The basic types can have default values and are passesby value *)
 let is_numeric = function
-   | "Int" | "Bool" | "Float" |  "::haxe::io::Unsigned_char__" | "unsigned char" -> true
+   | "Int" | "Bool" | "Float" |  "unsigned char" -> true
    | "::cpp::UInt8" | "::cpp::Int8" | "::cpp::Char"
    | "::cpp::UInt16" | "::cpp::Int16"
    | "::cpp::UInt32" | "::cpp::Int32"
@@ -680,7 +671,7 @@ let rec class_string klass suffix params remap =
         "::cpp::Function< " ^ (cpp_function_signature_params params) ^ " >"
    | _ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
    |  ([],"#Int") -> "/* # */int"
-   |  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
+   |  (["cpp"],"UInt8") -> "unsigned char"
    |  ([],"Class") -> "hx::Class"
    |  ([],"EnumValue") -> "Dynamic"
    |  ([],"Null") -> (match params with
@@ -689,6 +680,7 @@ let rec class_string klass suffix params remap =
             | TAbstract ({ a_path = [],"Int" },_)
             | TAbstract ({ a_path = [],"Float" },_)
             | TAbstract ({ a_path = [],"Bool" },_) -> "Dynamic"
+            | TAbstract ({ a_path = ["cpp"],"UInt8" },_) -> "Dynamic"
             | t when type_has_meta_key t Meta.NotNull -> "Dynamic"
             | _ -> "/*NULL*/" ^ (type_string t) )
          | _ -> assert false);
@@ -718,6 +710,7 @@ and type_string_suff suffix haxe_type remap =
    | TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
    | TAbstract ({ a_path = ([],"Float") },[]) -> "Float"
    | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
+   | TAbstract ({ a_path = (["cpp"],"UInt8") },[]) -> "unsigned char"
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
    | TEnum (enum,params) ->  "::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
    | TInst (klass,params) ->  (class_string klass suffix params remap)
@@ -1686,7 +1679,6 @@ let rec cpp_type_of ctx haxe_type =
       | (["cpp"], "UInt16"),_ -> TCppScalar("unsigned short")
       | (["cpp"], "UInt32"),_ -> TCppScalar("unsigned int")
       | (["cpp"], "UInt64"),_ -> TCppScalar("cpp::UInt64")
-      |  (["haxe";"io"],"Unsigned_char__"),_ -> TCppScalar("unsigned char")
 
       | ([],"String"), [] ->
          TCppString
@@ -5557,6 +5549,7 @@ let rec script_type_string haxe_type =
             | "bool" -> "Array.bool"
             | "::String" -> "Array.String"
             | "unsigned char" -> "Array.unsigned char"
+            | "::cpp::UInt8" -> "Array.unsigned char"
             | "Dynamic" -> "Array.Any"
             | _ -> "Array.Object"
             )
@@ -5914,7 +5907,7 @@ class script_writer ctx filename asciiOut =
             let typeName = type_string_suff "" param false in
             (match typeName with
             | "::String"  -> ArrayData "String"
-            | "int" | "Float" | "bool" | "String" | "unsigned char" ->
+            | "int" | "Float" | "bool" | "String" | "unsigned char" | "::cpp::UInt8" ->
                ArrayData typeName
             | "cpp::ArrayBase" | "cpp::VirtualArray" | "Dynamic" -> ArrayAny
             | _ when is_interface_type param -> ArrayInterface (this#typeId (script_type_string param))
@@ -6561,7 +6554,7 @@ let generate_source ctx =
                (*|  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic" *)
                | _,_ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
                | ([],"Array"), [t] -> "Array<" ^ (stype t) ^ ">"
-               | (["haxe";"io"],"Unsigned_char__"),_ -> "uint8"
+               | (["cpp"],"UInt8"),_ -> "uint8"
                | ([],"EnumValue"),_ -> "Dynamic"
                | ([],"Null"),[t] when ctx_cant_be_null ctx t -> "Null<" ^ (stype t) ^ ">"
                | ([],"Null"),[t] -> (stype t)
