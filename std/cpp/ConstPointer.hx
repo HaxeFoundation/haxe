@@ -35,10 +35,10 @@ extern class ConstPointer<T>
    @:analyzer(no_simplification)
    public function get_value() : T;
 
-	public function lt(inOther:Pointer<T>):Bool;
-	public function leq(inOther:Pointer<T>):Bool;
-	public function gt(inOther:Pointer<T>):Bool;
-	public function geq(inOther:Pointer<T>):Bool;
+	public function lt(inOther:ConstPointer<T>):Bool;
+	public function leq(inOther:ConstPointer<T>):Bool;
+	public function gt(inOther:ConstPointer<T>):Bool;
+	public function geq(inOther:ConstPointer<T>):Bool;
 
    public static function fromRaw<T>(ptr:RawConstPointer<T>) : ConstPointer<T>;
 
