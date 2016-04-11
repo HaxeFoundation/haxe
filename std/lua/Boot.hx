@@ -85,7 +85,7 @@ class Boot {
 	   Returns the class of a given object, and defines the getClass feature
 	   for the given class.
 	*/
-	static inline public function getClass(o:Dynamic) : Dynamic {
+	static inline public function getClass(o:Dynamic) : Class<Dynamic> {
 		if (Std.is(o, Array)) return Array;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
@@ -126,27 +126,7 @@ class Boot {
 				return true;
 			default: {
 				if ( o!= null &&  Lua.type(o)  == "table" && Lua.type(cl) == "table"){
-					var ro = o; // a reference to the object, descending recursively into the ancestors
-					while (ro != null){
-						var cls = getClass(ro); // make sure to getClass here, so that the genlua will keep the __class__ metatdata
-						if (cls == null) {
-							break; // no class for this, just break out.
-						} else if (cls == cl) {
-							return true; // class reference matches exactly, return true.
-						} else if (cls.__interfaces__ != null){
-							for (i in 1...(Table.maxn(cls.__interfaces__) + 1)){
-								// the class/interface shows up in the interface list, return true.
-								if (cls.__interfaces__[i] == cl) return true;
-							}
-						}
-
-						// Do some modifications to turn ro into a reference to its parent
-						// prototype, so that we can repeat these steps
-						ro = Lua.getmetatable(ro);
-						if (ro != null){
-							ro = ro.__index;
-						}
-					}
+					if (extendsOrImplements(getClass(o), cl)) return true;
 					// We've exhausted standard inheritance checks.  Check for simple Class/Enum eqauality
 					// Also, do not use isClass/isEnum here, perform raw checks
 					untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
@@ -334,6 +314,23 @@ class Boot {
 		default:
 			throw "Invalid date format : " + s;
 		}
+	}
+
+	/*
+	  Helper method to determine if class cl1 extends, implements, or otherwise equals cl2
+	*/
+	public static function extendsOrImplements(cl1 : Class<Dynamic>, cl2 : Class<Dynamic>) : Bool {
+		if (cl1 == null || cl2 == null) return false;
+		else if (cl1 == cl2) return true;
+		else if (untyped cl1.__interfaces__ != null) {
+			var intf = untyped cl1.__interfaces__;
+			for (i in 1...(Table.maxn(intf) + 1)){
+				// check each interface, including extended interfaces
+				if (extendsOrImplements(intf[1], cl2)) return true;
+			}
+		}
+		// check standard inheritance
+		return extendsOrImplements(untyped cl1.__super__, cl2);
 	}
 
 	/*
