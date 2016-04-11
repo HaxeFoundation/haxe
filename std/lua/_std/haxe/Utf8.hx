@@ -39,18 +39,30 @@ class Utf8 {
 		return __b;
     }
 
+    static inline function decodeChar( s : String, pos : Int, code : Int, width : Int ) {
+        return
+            if (width == 1)
+                code;
+            else if (width == 2)
+                ((code & 0x3F) << 6) |
+                (s.charCodeAt(pos+1) & 0x7F);
+            else if (width == 3)
+                ((code & 0x1F) << 12) |
+                ((s.charCodeAt(pos+1) & 0x7F) << 6) |
+                (s.charCodeAt(pos+2) & 0x7F);
+            else
+                ((code & 0x0F) << 18) |
+                ((s.charCodeAt(pos+1) & 0x7F) << 12) |
+                ((s.charCodeAt(pos+2) & 0x7F) << 6) |
+                (s.charCodeAt(pos+3) & 0x7F);
+    }
+
     public static function iter( s : String, chars : Int -> Void ) {
 		var cur = 0;
 		while (cur < s.length){
 			var code = s.charCodeAt(cur);
 			var width = charWidth(code);
-			var l = (code << 6)  | s.charCodeAt(cur+1);
-			trace(l + " is the value for l");
-			switch(width){
-			case 1 : chars(code);
-			case 2 : chars((code << 6)  | s.charCodeAt(cur+1));
-			case 3 : chars((code << 12) | (s.charCodeAt(cur+1) << 6) | s.charCodeAt(cur+2));
-			}
+			chars( decodeChar( s, cur, code, width ) );
 			cur += width;
 		}
     }
@@ -135,15 +147,7 @@ class Utf8 {
 		var ret = 0;
 		var code = s.charCodeAt(pos);
 		var bytes = charWidth(code);
-		if (bytes == 1){
-			return code;
-		} else if (bytes == 2){
-			return ((code & 0x1F) << 6) | (s.charCodeAt(pos+1) & 0x3F);
-		} else if (bytes == 3){
-			return ((code & 0x0F) << 12) | (((s.charCodeAt(pos+1) & 0x3F) << 6) | (s.charCodeAt(pos+2) & 0x3F));
-		} else {
-			return null;
-		}
+		return decodeChar( s, pos, code, bytes );
     }
 
     public static function validate( s : String ) : Bool {
