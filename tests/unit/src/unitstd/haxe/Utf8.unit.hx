@@ -44,7 +44,9 @@ haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 0), "") == 0;
 // unspecify outside of range Utf8.sub
 // haxe.Utf8.compare(haxe.Utf8.sub(str, 9, 0), "") == 0;
 
-#if (neko || php || cpp || lua || macro)
+// #if (neko || php || cpp || lua || macro)
+// TODO neko, cpp, macro
+#if (php || lua)
 haxe.Utf8.validate("\xf0\xa9\xb8\xbd\xe3\x81\x82\xc3\xab\x61") == true;
 haxe.Utf8.validate("\xed\x9f\xbf") == true;
 haxe.Utf8.validate("\xee\x80\x80") == true;
