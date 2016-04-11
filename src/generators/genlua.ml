@@ -74,7 +74,7 @@ let s_path ctx = dot_path
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-	    ""; "and"; "break"; "do"; "else"; "elseif";
+	    "_G"; ""; "and"; "break"; "do"; "else"; "elseif";
 	    "end"; "false"; "for"; "function"; "if";
 	    "in"; "local"; "nil"; "not"; "or"; "repeat";
 	    "return"; "then"; "true"; "until"; "while";
