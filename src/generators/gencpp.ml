@@ -1318,6 +1318,7 @@ type tcpp =
    | TCppVariant
    | TCppCode of tcpp
    | TCppInst of tclass
+   | TCppInterface of tclass
    | TCppClass
    | TCppGlobal
 
@@ -1358,7 +1359,7 @@ and tcppunop =
 and tcppthis =
    | ThisReal
    | ThisFake
-   | ThisDyanmic
+   | ThisDynamic
 
 and tcppvarloc =
    | VarLocal of tvar
@@ -1554,6 +1555,9 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
           "hx::Native< " ^ name ^ "* >";
    | TCppInst klass ->
         (cpp_class_path_of klass) ^ suffix
+   | TCppInterface klass when suffix="_obj" ->
+        (cpp_class_path_of klass) ^ suffix
+   | TCppInterface _ -> "::Dynamic"
    | TCppClass -> "hx::Class" ^ suffix;
    | TCppGlobal -> "";
    | TCppNull -> " ::Dynamic";
@@ -1587,7 +1591,8 @@ let is_cpp_scalar cpp_type =
 
 let is_cpp_array_implementer cppType =
    match cppType with
-   | TCppInst (klass) ->
+   | TCppInst (klass)
+   | TCppInterface (klass) ->
       (match klass.cl_array_access with
       | Some _ -> true
       | _ -> false )
@@ -1707,6 +1712,7 @@ let rec cpp_type_of ctx haxe_type =
             | TCppObject
             | TCppEnum _
             | TCppInst _
+            | TCppInterface _
             | TCppClass
             | TCppDynamicArray
             | TCppObjectArray _
@@ -1760,7 +1766,7 @@ let rec cpp_type_of ctx haxe_type =
          else if klass.cl_interface && is_native_gen_class klass then
             TCppNativePointer(klass)
          else if klass.cl_interface then
-            TCppDynamic
+            TCppInterface(klass)
          else if klass.cl_extern && (not (is_internal_class klass.cl_path) ) then
             TCppInst(klass)
          else
@@ -1851,6 +1857,7 @@ let cpp_variant_type_of t = match t with
    | TCppWrapped _
    | TCppObjC _
    | TCppInst _
+   | TCppInterface _
    | TCppCode _
    | TCppClass
    | TCppGlobal
@@ -2002,7 +2009,7 @@ let retype_expression ctx request_type function_args expression_tree =
    let declarations = ref (Hashtbl.create 0) in
    let undeclared = ref (Hashtbl.create 0) in
    let uses_this = ref None in
-   let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDyanmic) in
+   let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
    List.iter (fun arg -> Hashtbl.add !declarations arg.v_name () ) function_args;
@@ -2032,11 +2039,11 @@ let retype_expression ctx request_type function_args expression_tree =
 
          | TConst TThis ->
             uses_this := Some !this_real;
-            CppThis(!this_real), if !this_real=ThisDyanmic then TCppDynamic else cpp_type_of expr.etype
+            CppThis(!this_real), if !this_real=ThisDynamic then TCppDynamic else cpp_type_of expr.etype
 
          | TConst TSuper ->
             uses_this := Some !this_real;
-            CppSuper(!this_real), if !this_real=ThisDyanmic then TCppDynamic else cpp_type_of expr.etype
+            CppSuper(!this_real), if !this_real=ThisDynamic then TCppDynamic else cpp_type_of expr.etype
 
          | TConst TNull when is_objc_type expr.etype ->
             CppNil, TCppNull
@@ -2123,7 +2130,7 @@ let retype_expression ctx request_type function_args expression_tree =
                      | TCppDynamic,_ ->
                         CppDynamicField(retypedObj, member.cf_name), TCppVariant
 
-                     | TCppInst(klass),_ when klass.cl_interface ->
+                     | TCppInterface(klass),_  ->
                         (*CppVar(VarInterface(retypedObj,member) ), exprType*)
                         CppDynamicField(retypedObj, member.cf_name), TCppVariant
 
@@ -4591,8 +4598,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             List.iter (fun interface_name ->
                (try let interface = Hashtbl.find implemented_hash interface_name in
                    output_cpp ("static " ^ cpp_class_name interface ^ " " ^ cname ^ "_" ^ interface_name ^ "= {\n" );
-                   List.iter (fun field ->
-                      match follow field.cf_type, field.cf_kind  with
+                   let rec gen_interface_funcs interface =
+                      let gen_field field = (match follow field.cf_type, field.cf_kind  with
                       | _, Method MethDynamic -> ()
                       | TFun (args,return_type), Method _ ->
                          let cast = cpp_tfun_signature ctx args return_type in
@@ -4610,8 +4617,14 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n");
                          end else
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n");
+                      | _ -> () )
+                      in
+                      List.iter gen_field interface.cl_ordered_fields;
+                      match interface.cl_super with
+                      | Some super -> gen_interface_funcs (fst super)
                       | _ -> ()
-                      ) interface.cl_ordered_fields;
+                      in
+                   gen_interface_funcs interface;
                    output_cpp "};\n\n";
                with Not_found -> () )
                ) implemented;
@@ -5154,7 +5167,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             let name = (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx klass params) ) in
             (if class_def.cl_interface && nativeGen then "virtual " else "" ) ^ name, name
       | None when nativeGen && class_def.cl_interface  -> "virtual hx::NativeInterface", "hx::NativeInterface"
-      | None when class_def.cl_interface -> "hx::Interface", "hx::Interface"
+      | None when class_def.cl_interface -> "", "hx::Object"
       | None when nativeGen -> "", ""
       | None -> "hx::Object", "hx::Object"
       in
@@ -5202,7 +5215,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (class_def.cl_interface && not nativeGen) then begin
       output_h ("class " ^ attribs ^ " " ^ class_name ^ " {\n");
       output_h "\tpublic:\n";
-      output_h ("\t\ttypedef ::hx::Object super;\n");
+      output_h ("\t\ttypedef " ^ super ^ " super;\n");
    end else if (super="") then begin
       output_h ("class " ^ attribs ^ " " ^ class_name);
       dump_native_interfaces();
@@ -5308,9 +5321,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
          if superToo then
             (match interface.cl_super with | Some super -> dump_def (fst super) true | _ -> ());
-         List.iter (fun impl -> dump_def (fst impl) true) (real_interfaces interface.cl_implements);
+         (*List.iter (fun impl -> dump_def (fst impl) true) (real_interfaces interface.cl_implements);*)
       in
-      dump_def class_def false;
+      dump_def class_def true;
    end else begin
       List.iter (gen_member_def ctx class_def false false) (List.filter should_implement_field class_def.cl_ordered_fields);
    end;
