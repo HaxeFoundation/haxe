@@ -154,27 +154,32 @@ class Utf8 {
 		if (s == null) return false;
 		var cur = 0;
 		while (cur < s.length){
-			var code = s.charCodeAt(cur);
-			var width = charWidth(code);
-			var expectedLen = 0;
-
-			 if ((code & 0x10000000) == 0x00000000) expectedLen = 1;
-			else if ((code & 0x11100000) == 0x11000000) expectedLen = 2;
-			else if ((code & 0x11110000) == 0x11100000) expectedLen = 3;
-			else if ((code & 0x11111000) == 0x11110000) expectedLen = 4;
-			else if ((code & 0x11111100) == 0x11111000) expectedLen = 5;
-			else if ((code & 0x11111110) == 0x11111100) expectedLen = 6;
-			else return false;
-
-			if (cur + expectedLen > s.length) return false;
-
-			for (i in (cur + 1)...expectedLen) {
-			if ((s.charCodeAt(i) & 0x11000000) != 0x10000000) {
+			var c1 = s.charCodeAt(cur++);
+			if (c1 < 0x80) continue;
+			if (c1 < 0xC0) return false;
+			if (s.length <= cur) return false;
+			var c2 = s.charCodeAt(cur++);
+			if (c1 < 0xE0) {
+				if ((c1 & 0x1E != 0) && (c2 & 0xC0 == 0x80)) continue;
 				return false;
 			}
+			if (s.length <= cur) return false;
+			var c3 = s.charCodeAt(cur++);
+			if (c1 < 0xF0) {
+				if (((c1 & 0x0F != 0) || (c2 & 0x20 != 0)) && (c2 & 0xC0 == 0x80) && (c3 & 0xC0 == 0x80)
+						&& !(c1 == 0xED && 0xA0 <= c2 && c2 <= 0xBF))
+					continue;
+				return false;
 			}
-
-			cur += width;
+			if (s.length <= cur) return false;
+			var c4 = s.charCodeAt(cur++);
+			if (c1 < 0xF8) {
+				if (((c1 & 0x07 != 0) || (c2 & 0x30 != 0)) && (c2 & 0xC0 == 0x80) && (c3 & 0xC0 == 0x80) && (c4 & 0xC0 == 0x80)
+						&& !((c1 == 0xF4 && c2 > 0x8F) || c1 > 0xF4))
+					continue;
+				return false;
+			}
+			return false;
 		}
 		return true;
     }
