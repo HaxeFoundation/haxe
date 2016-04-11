@@ -134,6 +134,7 @@ class CallStack {
 				var parts = s.split(":");
 				var file  = parts[0];
 				var line  = parts[1];
+				// TODO: Give more information for FilePos
 				stack.push(FilePos(null, file, Std.parseInt(line)));
 			}
 			return stack;
