@@ -3755,6 +3755,14 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
             (* Must visit args too, Type.iter will visit the expressions ... *)
             | TFunction func_def ->
                List.iter (fun (v,_) -> visit_type v.v_type) func_def.tf_args;
+
+            | TField( obj, field ) ->
+               (match field with
+               | FInstance (clazz,params,_)
+               | FClosure (Some (clazz,params),_) ->
+                   visit_type (TInst (clazz,params))
+               | _ -> ()
+               )
             | TConst TSuper ->
                (match follow expression.etype with
                | TInst (klass,params) ->
