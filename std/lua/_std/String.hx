@@ -99,7 +99,7 @@ class String {
 		if (endIndex == null) endIndex = this.length;
 		if (endIndex < 0) endIndex = 0;
 		if (startIndex < 0) startIndex = 0;
-		if (endIndex == 0) {
+		if (endIndex < startIndex) {
 			// swap the index positions
 			return NativeStringTools.sub(this, endIndex+1, startIndex);
 		} else {
