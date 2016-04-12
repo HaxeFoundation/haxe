@@ -156,11 +156,13 @@ abstract Vector<T>(VectorData<T>) {
 	/**
 		Creates a new Array, copy the content from the Vector to it, and returns it.
 	**/
-	public #if (flash || cpp) inline #end function toArray():Array<T> {
+	public #if (flash || cpp || js) inline #end function toArray():Array<T> {
 		#if cpp
 			return this.copy();
 		#elseif python
 			return this.copy();
+		#elseif js
+			return this.slice(0);
 		#else
 			var a = new Array();
 			var len = length;
@@ -213,8 +215,10 @@ abstract Vector<T>(VectorData<T>) {
 		return fromData(java.Lib.nativeArray(array,false));
 		#elseif cs
 		return fromData(cs.Lib.nativeArray(array,false));
+		#elseif js
+		return fromData(array.slice(0));
 		#else
-		// TODO: Optimize this for flash (and others?)
+		// TODO: Optimize this for others?
 		var vec = new Vector<T>(array.length);
 		for (i in 0...array.length)
 			vec.set(i, array[i]);
@@ -249,7 +253,7 @@ abstract Vector<T>(VectorData<T>) {
 		If `sep` is null, the result is unspecified.
 	**/
 	#if cs @:extern #end public inline function join<T>(sep:String):String {
-		#if (flash||cpp)
+		#if (flash10||cpp)
 		return this.join(sep);
 		#else
 		var b = new StringBuf();
