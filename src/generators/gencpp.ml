@@ -2099,7 +2099,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
                if retypedObj.cpptype=TCppNull then
                   CppNullAccess, TCppDynamic
-               else if retypedObj.cpptype=TCppDynamic then begin
+               else if retypedObj.cpptype=TCppDynamic && not clazz.cl_interface then begin
                   if is_internal_member member.cf_name then
                     CppFunction( FuncInstance(retypedObj,false,member), funcReturn ), exprType
                   else
