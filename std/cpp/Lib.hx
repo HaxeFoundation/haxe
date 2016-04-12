@@ -53,7 +53,7 @@ class Lib {
 		if (factory!=null)
 		{
 			var func:Dynamic = factory.call(signature);
-			if (func==null && !quietFail) {
+			if (func==null && !quietFail)
 				throw '$prim does not have signature $signature';
 			return func;
 		}
