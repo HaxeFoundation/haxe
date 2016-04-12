@@ -2003,12 +2003,13 @@ let cpp_enum_name_of field =
       keyword_remap field.ef_name
 ;;
 
-let retype_expression ctx request_type function_args expression_tree =
+let retype_expression ctx request_type function_args expression_tree forInjection =
    let rev_closures = ref [] in
    let closureId = ref 0 in
    let declarations = ref (Hashtbl.create 0) in
    let undeclared = ref (Hashtbl.create 0) in
    let uses_this = ref None in
+   let injection = ref forInjection in
    let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
@@ -2435,6 +2436,8 @@ let retype_expression ctx request_type function_args expression_tree =
             CppArrayDecl(retypedEls), cpp_type_of expr.etype
 
          | TBlock expr_list ->
+            let inject = !injection in
+            injection := false;
             if (return_type<>TCppVoid) then
                print_endline ("Value from a block not handled " ^
                (expr.epos.pfile ) ^ " " ^  (string_of_int (Lexer.get_error_line expr.epos) ));
@@ -2443,8 +2446,11 @@ let retype_expression ctx request_type function_args expression_tree =
             let old_closures = !rev_closures in
             rev_closures := [];
             let local_closures = ref [] in
+            let remaining = ref (List.length expr_list) in
             let cppExprs = List.map ( fun expr ->
-                  let result = retype TCppVoid expr in
+                  let targetType = if inject && (!remaining=1) then cpp_type_of expr.etype else TCppVoid in
+                  decr remaining;
+                  let result = retype targetType expr in
                   local_closures := !rev_closures @ !local_closures;
                   rev_closures := [];
                   result
@@ -2552,7 +2558,9 @@ let retype_expression ctx request_type function_args expression_tree =
       let cppExpr = mk_cppexpr retypedExpr retypedType in
 
       (* Auto cast rules... *)
-      if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic) then begin
+      if return_type=TCppVoid then
+         mk_cppexpr retypedExpr TCppVoid
+      else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic) then begin
          match return_type with
          | TCppObjectArray _
          | TCppScalarArray _
@@ -2666,7 +2674,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
        writer#write_i value
    in
 
-   let cppTree =  retype_expression ctx TCppVoid function_args tree in
+   let forInjection = match injection with Some inject -> inject.inj_setvar<>"" | _ -> false in
+   let cppTree =  retype_expression ctx TCppVoid function_args tree forInjection in
 
    let rec gen_with_injection injection expr =
       (match expr.cppexpr with
@@ -2883,6 +2892,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
 
       | CppSet(lvalue,rvalue) ->
+         let close = if expr.cpptype=TCppVoid then "" else (out "("; ")" ) in
          (match lvalue with
          | CppVarRef varLoc ->
               gen_val_loc varLoc; out " = "; gen rvalue;
@@ -2903,7 +2913,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | CppDynamicRef(expr,name) ->
             gen expr; out ("->__SetField(" ^ (strq name) ^ ","); gen rvalue; out ",hx::paccDynamic)"
          | CppGlobalRef(name) -> out ("::" ^ name ^ " = ");
-         )
+         );
+         out close;
 
       | CppCrement(incFlag,preFlag, lvalue) ->
          let op = if incFlag==CppIncrement then "++" else "--" in
@@ -2972,17 +2983,16 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppArrayDecl(exprList) ->
          let count = List.length exprList in
          let countStr = string_of_int count in
-         let arrayType = match expr.cpptype with
-            | TCppObjectArray _ -> "::Array_obj< ::Dynamic>"
-            | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >"
-            | TCppDynamicArray -> "cpp::VirtualArray_obj"
-            | _ -> " ::Dynamic( cpp::VirtualArray_obj"
+         let arrayType,close = match expr.cpptype with
+            | TCppObjectArray _ -> "::Array_obj< ::Dynamic>",""
+            | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >",""
+            | TCppDynamicArray -> "cpp::VirtualArray_obj",""
+            | _ -> " ::Dynamic( cpp::VirtualArray_obj",")"
          in
          out (arrayType ^ "::__new(" ^ countStr ^ ")" );
          ExtList.List.iteri ( fun idx elem -> out ("->init(" ^ (string_of_int idx) ^ ",");
                      gen elem; out ")" ) exprList;
-
-         if (expr.cpptype==TCppDynamic) then out ")";
+         out close;
 
 
       | CppBinop( Ast.OpUShr, left, right) ->
