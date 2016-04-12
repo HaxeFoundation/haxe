@@ -85,7 +85,7 @@ class Boot {
 	   Returns the class of a given object, and defines the getClass feature
 	   for the given class.
 	*/
-	static inline public function getClass(o:Dynamic) : Dynamic {
+	static inline public function getClass(o:Dynamic) : Class<Dynamic> {
 		if (Std.is(o, Array)) return Array;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
@@ -126,10 +126,9 @@ class Boot {
 				return true;
 			default: {
 				if ( o!= null &&  Lua.type(o)  == "table" && Lua.type(cl) == "table"){
-					// first check if o is instance of cl
-					if (inheritsFrom(o, cl)) return true;
-
-					// do not use isClass/isEnum here, perform raw checks
+					if (extendsOrImplements(getClass(o), cl)) return true;
+					// We've exhausted standard inheritance checks.  Check for simple Class/Enum eqauality
+					// Also, do not use isClass/isEnum here, perform raw checks
 					untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
 					untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
 					// last chance, is it an enum instance?
@@ -318,6 +317,23 @@ class Boot {
 	}
 
 	/*
+	  Helper method to determine if class cl1 extends, implements, or otherwise equals cl2
+	*/
+	public static function extendsOrImplements(cl1 : Class<Dynamic>, cl2 : Class<Dynamic>) : Bool {
+		if (cl1 == null || cl2 == null) return false;
+		else if (cl1 == cl2) return true;
+		else if (untyped cl1.__interfaces__ != null) {
+			var intf = untyped cl1.__interfaces__;
+			for (i in 1...(Table.maxn(intf) + 1)){
+				// check each interface, including extended interfaces
+				if (extendsOrImplements(intf[1], cl2)) return true;
+			}
+		}
+		// check standard inheritance
+		return extendsOrImplements(untyped cl1.__super__, cl2);
+	}
+
+	/*
 	   Create an empty table.
 	*/
 	public inline static function createTable<K,V>() : Table<K,V> {
@@ -358,5 +374,7 @@ class Boot {
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_function_to_instance_function.lua");
 		// static to instance class wrapper
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_static_to_instance_function.lua");
+		// simple apply method
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_apply.lua");
 	}
 }

@@ -413,7 +413,11 @@ and expr dce e =
 		check_and_add_feature dce "add_dynamic";
 		expr dce e1;
 		expr dce e2;
-	| TBinop( (OpAdd | (OpAssignOp OpAdd)),e1,e2) when ((is_string e1.etype || is_string e2.etype) && not ( is_const_string e1 && is_const_string e2)) ->
+	| TBinop( (OpAdd | (OpAssignOp OpAdd)) as op,e1,e2) when ((is_string e1.etype || is_string e2.etype) && not ( is_const_string e1 && is_const_string e2)) ->
+
+		(* add array_write if we're doing += to an array element, since this pattern comes before the array_write one *)
+		(match op, e1 with (OpAssignOp _, {eexpr = TArray({etype = t},_)}) when is_array t -> check_and_add_feature dce "array_write" | _ -> ());
+
 		check_and_add_feature dce "unsafe_string_concat";
 		expr dce e1;
 		expr dce e2;

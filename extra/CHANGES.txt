@@ -15,7 +15,7 @@
 	flash : update flash externs to version 21
 	hl : added HL target (interpreter and C output)
 	lua: added lua target
-	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.12.2 / 2.2.2 support. (#4377)
+	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.12.3 / 2.2.3 support. (#4377)
 	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
 	js : added js.Lib.rethrow (#4551)
 	cs/java : added -D fast_cast as an experimental feature to cleanup casts

@@ -66,7 +66,12 @@ class HostClasses
    "sys.FileSystem",
    "sys.io.File",
    "sys.io.FileInput",
+   "sys.net.UdpSocket",
    "sys.net.Socket",
+   "sys.ssl.Certificate",
+   "sys.ssl.Digest",
+   "sys.ssl.Key",
+   "sys.ssl.Socket",
    "Enum",
    "EnumValue",
    //"Sys",
@@ -194,6 +199,10 @@ class HostClasses
       externs.set("sys.db._Sqlite.SqliteResultSet",true);
       externs.set("sys.db._Mysql.MysqlConnection",true);
       externs.set("sys.db._Mysql.MysqlResultSet",true);
+      externs.set("sys.net._Socket.SocketInput",true);
+      externs.set("sys.net._Socket.SocketOutput",true);
+      externs.set("sys.ssl._Socket.SocketInput",true);
+      externs.set("sys.ssl._Socket.SocketOutput",true);
       externs.set("haxe.ds.TreeNode",true);
       externs.set("haxe.xml.XmlParserException",true);
       for(e in classes)

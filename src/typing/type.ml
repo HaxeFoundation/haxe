@@ -1050,13 +1050,14 @@ let rec s_expr s_type e =
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
-let rec s_expr_pretty tabs s_type e =
+let rec s_expr_pretty print_var_ids tabs s_type e =
 	let sprintf = Printf.sprintf in
-	let loop = s_expr_pretty tabs s_type in
+	let loop = s_expr_pretty print_var_ids tabs s_type in
 	let slist f l = String.concat "," (List.map f l) in
+	let local v = if print_var_ids then sprintf "%s<%i>" v.v_name v.v_id else v.v_name in
 	match e.eexpr with
 	| TConst c -> s_const c
-	| TLocal v -> v.v_name
+	| TLocal v -> local v
 	| TArray (e1,e2) -> sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) -> sprintf "%s %s %s" (loop e1) (s_binop op) (loop e2)
 	| TEnumParameter (e1,_,i) -> sprintf "%s[%i]" (loop e1) i
@@ -1073,16 +1074,16 @@ let rec s_expr_pretty tabs s_type e =
 		| Prefix -> sprintf "%s %s" (s_unop op) (loop e)
 		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
 	| TFunction f ->
-		let args = slist (fun (v,o) -> sprintf "%s:%s%s" v.v_name (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		let args = slist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
 		sprintf "function(%s) = %s" args (loop f.tf_expr)
 	| TVar (v,eo) ->
-		sprintf "var %s" (sprintf "%s%s" v.v_name (match eo with None -> "" | Some e -> " = " ^ loop e))
+		sprintf "var %s" (sprintf "%s%s" (local v) (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty ntabs s_type e)) el)) in
+		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs s_type e)) el)) in
 		s ^ tabs ^ "}"
 	| TFor (v,econd,e) ->
-		sprintf "for (%s in %s) %s" v.v_name (loop econd) (loop e)
+		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
 		sprintf "if (%s)%s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
@@ -1091,10 +1092,10 @@ let rec s_expr_pretty tabs s_type e =
 		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
+		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty print_var_ids ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
 	| TTry (e,cl) ->
-		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
+		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (local v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
 		"return"
 	| TReturn (Some e) ->
@@ -1229,12 +1230,18 @@ module Printer = struct
 	let s_record_field name value =
 		Printf.sprintf "%s = %s;" name value
 
-	let s_record_fields fields =
+	let s_record_fields tabs fields =
 		let sl = List.map (fun (name,value) -> s_record_field name value) fields in
-		Printf.sprintf "{\n\t%s\n}" (String.concat "\n\t" sl)
+		Printf.sprintf "{\n%s\t%s\n%s}" tabs (String.concat ("\n\t" ^ tabs) sl) tabs
 
 	let s_list sep f l =
 		"[" ^ (String.concat sep (List.map f l)) ^ "]"
+
+	let s_opt f o = match o with
+		| None -> "None"
+		| Some v -> f v
+
+	let s_doc = s_opt (fun s -> s)
 
 	let s_metadata_entry (s,el,_) =
 		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> String.concat ", " (List.map Ast.s_expr el))
@@ -1254,48 +1261,104 @@ module Printer = struct
 		s_list ", " s_type_param tl
 
 	let s_tclass_field cf =
-		s_record_fields [
+		s_record_fields "\t" [
 			"cf_name",cf.cf_name;
+			"cf_doc",s_doc cf.cf_doc;
 			"cf_type",s_type_kind (follow cf.cf_type);
 			"cf_public",string_of_bool cf.cf_public;
 			"cf_meta",s_metadata cf.cf_meta;
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
-			"cf_expr",(match cf.cf_expr with None -> "None" | Some e-> s_expr_ast true "" s_type e);
+			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
 		]
 
 	let s_tclass c =
-		s_record_fields [
+		s_record_fields "" [
 			"cl_path",s_type_path c.cl_path;
 			"cl_module",s_type_path c.cl_module.m_path;
 			"cl_private",string_of_bool c.cl_private;
+			"cl_doc",s_doc c.cl_doc;
 			"cl_meta",s_metadata c.cl_meta;
 			"cl_params",s_type_params c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
 			"cl_extern",string_of_bool c.cl_extern;
 			"cl_interface",string_of_bool c.cl_interface;
-			"cl_super",(match c.cl_super with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl)));
+			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
-			"cl_dynamic",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
-			"cl_array_access",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
+			"cl_dynamic",s_opt s_type c.cl_dynamic;
+			"cl_array_access",s_opt s_type c.cl_array_access;
 			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
-			"cl_init",(match c.cl_init with None -> "None" | Some e -> s_expr_ast true "" s_type e);
-			"cl_constructor",(match c.cl_constructor with None -> "None" | Some cf -> s_tclass_field cf);
-			"cl_ordered_fields",s_list "\n" s_tclass_field c.cl_ordered_fields;
-			"cl_ordered_statics",s_list "\n" s_tclass_field c.cl_ordered_statics;
+			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
+			"cl_constructor",s_opt s_tclass_field c.cl_constructor;
+			"cl_ordered_fields",s_list "\n\t" s_tclass_field c.cl_ordered_fields;
+			"cl_ordered_statics",s_list "\n\t" s_tclass_field c.cl_ordered_statics;
 		]
 
-	let s_tvar_extra ve = match ve with
-		| None -> "None"
-		| Some(tl,eo) -> Printf.sprintf "Some(%s, %s)" (s_type_params tl) (match eo with None -> "None" | Some e -> s_expr_ast true "" s_type e)
+	let s_tdef tabs t =
+		s_record_fields tabs [
+			"t_path",s_type_path t.t_path;
+			"t_module",s_type_path t.t_module.m_path;
+			"t_private",string_of_bool t.t_private;
+			"t_doc",s_doc t.t_doc;
+			"t_meta",s_metadata t.t_meta;
+			"t_params",s_type_params t.t_params;
+			"t_type",s_type_kind t.t_type
+		]
+
+	let s_tenum_field ef =
+		s_record_fields "\t" [
+			"ef_name",ef.ef_name;
+			"ef_doc",s_doc ef.ef_doc;
+			"ef_type",s_type_kind ef.ef_type;
+			"ef_index",string_of_int ef.ef_index;
+			"ef_params",s_type_params ef.ef_params;
+			"ef_meta",s_metadata ef.ef_meta
+		]
+
+	let s_tenum en =
+		s_record_fields "" [
+			"e_path",s_type_path en.e_path;
+			"e_module",s_type_path en.e_module.m_path;
+			"e_private",string_of_bool en.e_private;
+			"d_doc",s_doc en.e_doc;
+			"e_meta",s_metadata en.e_meta;
+			"e_params",s_type_params en.e_params;
+			"e_type",s_tdef "\t" en.e_type;
+			"e_extern",string_of_bool en.e_extern;
+			"e_constrs",s_list "\n\t" s_tenum_field (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
+			"e_names",String.concat ", " en.e_names
+		]
+
+	let s_tabstract a =
+		s_record_fields "" [
+			"a_path",s_type_path a.a_path;
+			"a_modules",s_type_path a.a_module.m_path;
+			"a_private",string_of_bool a.a_private;
+			"a_doc",s_doc a.a_doc;
+			"a_meta",s_metadata a.a_meta;
+			"a_params",s_type_params a.a_params;
+			"a_ops",s_list ", " (fun (op,cf) -> Printf.sprintf "%s: %s" (s_binop op) cf.cf_name) a.a_ops;
+			"a_unops",s_list ", " (fun (op,flag,cf) -> Printf.sprintf "%s (%s): %s" (s_unop op) (if flag = Postfix then "postfix" else "prefix") cf.cf_name) a.a_unops;
+			"a_impl",s_opt (fun c -> s_type_path c.cl_path) a.a_impl;
+			"a_this",s_type_kind a.a_this;
+			"a_from",s_list ", " s_type_kind a.a_from;
+			"a_to",s_list ", " s_type_kind a.a_to;
+			"a_from_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_from_field;
+			"a_to_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_to_field;
+			"a_array",s_list ", " (fun cf -> cf.cf_name) a.a_array;
+			"a_resolve",s_opt (fun cf -> cf.cf_name) a.a_resolve;
+		]
+
+	let s_tvar_extra (tl,eo) =
+		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_opt (s_expr_ast true "" s_type) eo)
 
 	let s_tvar v =
-		s_record_fields [
+		s_record_fields "" [
 			"v_id",string_of_int v.v_id;
 			"v_name",v.v_name;
 			"v_type",s_type v.v_type;
 			"v_capture",string_of_bool v.v_capture;
-			"v_extra",s_tvar_extra v.v_extra;
+			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
 		]
 end

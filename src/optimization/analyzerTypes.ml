@@ -111,7 +111,7 @@ module BasicBlock = struct
 		| CFGGoto -> "CFGGoto"
 		| CFGFunction -> "CFGFunction"
 		| CFGMaybeThrow -> "CFGMaybeThrow"
-		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty "" (s_type (print_context())) e)
+		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty false "" (s_type (print_context())) e)
 		| CFGCondElse -> "CFGCondElse"
 
 	let has_flag edge flag =
@@ -517,9 +517,9 @@ type analyzer_context = {
 	config : AnalyzerConfig.t;
 	graph : Graph.t;
 	temp_var_name : string;
-	is_real_function : bool;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
 	mutable loop_stack : int list;
+	mutable debug_exprs : (string * texpr) list;
 }

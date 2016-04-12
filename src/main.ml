@@ -1458,7 +1458,7 @@ try
 			"n"
 		| Js ->
 			if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
-				Common.define_value com Define.JqueryVer "11202";
+				Common.define_value com Define.JqueryVer "11203";
 
 			let es_version =
 				try
@@ -1571,8 +1571,8 @@ try
 			Common.mkdir_from_path file;
 			Genxml.generate com file);
 		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
-		if Common.defined com Define.Dump then Codegen.dump_types com;
-		if Common.defined com Define.DumpDependencies then Codegen.dump_dependencies com;
+		if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
+		if Common.defined com Define.DumpDependencies then Codegen.Dump.dump_dependencies com;
 		t();
 		if not !no_output then begin match com.platform with
 			| Neko when !interp -> ()

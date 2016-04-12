@@ -21,6 +21,11 @@ open Ast
 open Type
 open Common
 
+type debug_kind =
+	| DebugNone
+	| DebugDot
+	| DebugFull
+
 type t = {
 	optimize : bool;
 	const_propagation : bool;
@@ -29,7 +34,7 @@ type t = {
 	local_dce : bool;
 	fusion : bool;
 	purity_inference : bool;
-	dot_debug : bool;
+	debug_kind : debug_kind;
 }
 
 let flag_const_propagation = "const_propagation"
@@ -40,6 +45,7 @@ let flag_fusion = "fusion"
 let flag_purity_inference = "purity_inference"
 let flag_ignore = "ignore"
 let flag_dot_debug = "dot_debug"
+let flag_full_debug = "full_debug"
 
 let all_flags =
 	List.fold_left (fun acc flag ->
@@ -79,7 +85,7 @@ let get_base_config com =
 		local_dce = not (Common.raw_defined com "analyzer-no-local-dce");
 		fusion = not (Common.raw_defined com "analyzer-no-fusion") && (match com.platform with Flash | Java -> false | _ -> true);
 		purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
-		dot_debug = false;
+		debug_kind = DebugNone;
 	}
 
 let update_config_from_meta com config meta =
@@ -98,7 +104,8 @@ let update_config_from_meta com config meta =
 				| EConst (Ident s) when s = flag_fusion -> { config with fusion = true}
 				| EConst (Ident s) when s = "no_" ^ flag_purity_inference -> { config with purity_inference = false}
 				| EConst (Ident s) when s = flag_purity_inference -> { config with purity_inference = true}
-				| EConst (Ident s) when s = flag_dot_debug -> {config with dot_debug = true}
+				| EConst (Ident s) when s = flag_dot_debug -> {config with debug_kind = DebugDot}
+				| EConst (Ident s) when s = flag_full_debug -> {config with debug_kind = DebugFull}
 				| _ ->
 					let s = Ast.s_expr e in
 					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);

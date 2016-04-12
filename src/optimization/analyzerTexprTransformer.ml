@@ -583,36 +583,13 @@ let rec func ctx bb tf t p =
 	close_node g bb_exit;
 	bb_root,bb_exit
 
-let from_texpr com config e =
-	let g = Graph.create e.etype e.epos in
-	let tf,is_real_function = match e.eexpr with
-		| TFunction tf ->
-			tf,true
-		| _ ->
-			(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
-			let e = mk (TReturn (Some e)) t_dynamic e.epos in
-			let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
-			tf,false
-	in
-	let ctx = {
-		com = com;
-		config = config;
-		graph = g;
-		(* For CPP we want to use variable names which are "probably" not used by users in order to
-		   avoid problems with the debugger, see https://github.com/HaxeFoundation/hxcpp/issues/365 *)
-		temp_var_name = (match com.platform with Cpp -> "_hx_tmp" | _ -> "tmp");
-		is_real_function = is_real_function;
-		entry = g.g_unreachable;
-		has_unbound = false;
-		loop_counter = 0;
-		loop_stack = [];
-	} in
-	let bb_func,bb_exit = func ctx g.g_root tf e.etype e.epos in
+let from_tfunction ctx tf t p =
+	let g = ctx.graph in
+	let bb_func,bb_exit = func ctx g.g_root tf t p in
 	ctx.entry <- bb_func;
 	close_node g g.g_root;
 	g.g_exit <- bb_exit;
-	set_syntax_edge bb_exit SEEnd;
-	ctx
+	set_syntax_edge bb_exit SEEnd
 
 let rec block_to_texpr_el ctx bb =
 	if bb.bb_dominator == ctx.graph.g_unreachable then

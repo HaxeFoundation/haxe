@@ -126,6 +126,18 @@ class CallStack {
 			for (elem in infos)
 				stack.push(FilePos(null, elem._1, elem._2));
 			return stack;
+		#elseif lua
+			var stack = [];
+			var infos = lua.Debug.traceback();
+			var luastack = infos.split("\n").slice(2,-1);
+			for (s in luastack){
+				var parts = s.split(":");
+				var file  = parts[0];
+				var line  = parts[1];
+				// TODO: Give more information for FilePos
+				stack.push(FilePos(null, file, Std.parseInt(line)));
+			}
+			return stack;
 		#else
 			return []; // Unsupported
 		#end

@@ -138,6 +138,7 @@ module Meta = struct
 		| Optional
 		| Overload
 		| PhpConstants
+		| PhpGlobal
 		| PrivateAccess
 		| Property
 		| Protected

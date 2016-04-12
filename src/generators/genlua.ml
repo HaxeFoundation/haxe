@@ -74,7 +74,7 @@ let s_path ctx = dot_path
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-	    ""; "and"; "break"; "do"; "else"; "elseif";
+	    "_G"; ""; "and"; "break"; "do"; "else"; "elseif";
 	    "end"; "false"; "for"; "function"; "if";
 	    "in"; "local"; "nil"; "not"; "or"; "repeat";
 	    "return"; "then"; "true"; "until"; "while";
@@ -399,11 +399,6 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx e;
 			spr ctx ")";
 		end
-	| TCall ({eexpr = TField(e,((FInstance _ | FAnon _) as ef)) }, _), el ->
-		gen_value ctx e;
-		print ctx ":%s(" (field_name ef);
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
 	| TField ( { eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)), el ->
 		spr ctx ("(");
 		gen_value ctx e;
@@ -411,12 +406,29 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
-		gen_value ctx e;
-		spr ctx ":";
-		print ctx "%s" (field_name ef);
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		let s = (field_name ef) in
+		if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
+		    match e.eexpr with
+		    |TNew _-> (
+			spr ctx "_hx_apply_self(";
+			gen_value ctx e;
+			print ctx ",\"%s\"" (field_name ef);
+			if List.length(el) > 0 then spr ctx ",";
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")";
+		    );
+		    |_ -> (
+			gen_value ctx e;
+			print ctx "%s(" (anon_field s);
+			concat ctx "," (gen_value ctx) (e::el);
+			spr ctx ")"
+		    )
+		end else begin
+		    gen_value ctx e;
+		    print ctx ":%s(" (field_name ef);
+		    concat ctx "," (gen_value ctx) el;
+		    spr ctx ")"
+		end;
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -456,9 +468,9 @@ and gen_expr ?(local=true) ctx e = begin
 			gen_value ctx x;
 			print ctx "%s)" (field f.cf_name)
 		| _ ->
-			print ctx "(__=";
+			print ctx "(function() local __=";
 			gen_value ctx x;
-			print ctx ",_hx_bind(__,__%s))" (field f.cf_name))
+			print ctx "; return _hx_bind(__,__%s) end)()" (field f.cf_name))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
@@ -1315,7 +1327,7 @@ let gen_class_field ctx c f predelimit =
 	if predelimit then sprln ctx ",";
 	match f.cf_expr with
 	| None ->
-		print ctx "'%s', nil" (anon_field f.cf_name);
+		print ctx "'%s', nil" f.cf_name;
 	| Some e ->
 		ctx.id_counter <- 0;
 		(match e.eexpr with
@@ -1323,7 +1335,7 @@ let gen_class_field ctx c f predelimit =
 		    let old = ctx.in_value, ctx.in_loop in
 		    ctx.in_value <- None;
 		    ctx.in_loop <- false;
-		    print ctx "'%s', function" (anon_field f.cf_name);
+		    print ctx "'%s', function" f.cf_name;
 		    print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with

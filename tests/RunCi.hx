@@ -661,7 +661,7 @@ class RunCi {
 			runCommand("make", ["-s", "install_dox"]);
 			runCommand("make", ["-s", "package_doc"]);
 
-			deployBintray();
+			// deployBintray();
 			deployApiDoc();
 			deployPPA();
 		}

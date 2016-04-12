@@ -873,7 +873,7 @@ package js.jquery;
 		Get the current vertical position of the scroll bar for the first element in the set of matched elements or set the vertical position of the scroll bar for every matched element.
 	**/
 	@:overload(function(value:Float):js.jquery.JQuery { })
-	public function scrollTop():Int;
+	public function scrollTop():Float;
 	/**
 		Bind an event handler to the "select" JavaScript event, or trigger that event on an element.
 	**/

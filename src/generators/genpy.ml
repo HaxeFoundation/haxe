@@ -123,12 +123,12 @@ module Transformer = struct
 
 	and debug_expr e =
 		let s_type = Type.s_type (print_context()) in
-		let s = Type.s_expr_pretty "    " s_type e in
+		let s = Type.s_expr_pretty false "    " s_type e in
 		Printf.printf "%s\n" s
 
 	and debug_expr_with_type e =
 		let s_type = Type.s_type (print_context()) in
-		let es = Type.s_expr_pretty "    " s_type e in
+		let es = Type.s_expr_pretty false "    " s_type e in
 		let t = s_type e.etype in
 		Printf.printf "%s : %s\n" es t
 
@@ -2428,7 +2428,11 @@ module Generator = struct
 			| Some e ->
 				newline ctx;
 				newline ctx;
-				gen_expr ctx e "" ""
+				match e.eexpr with
+				| TBlock el ->
+					List.iter (fun e -> gen_expr ctx e "" ""; newline ctx) el
+				| _ ->
+					gen_expr ctx e "" ""
 
 	(* Entry point *)
 

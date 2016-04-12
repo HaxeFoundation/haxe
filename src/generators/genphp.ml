@@ -774,6 +774,13 @@ and is_static t =
 		| Statics c -> true
 		| _ -> false)
 	| _ -> false
+	
+and get_constant_prefix meta =
+	let (_, args, pos) = Meta.get Meta.PhpConstants meta in
+	(match args with
+		| [EConst(String prefix), _] -> prefix
+		| [] -> ""
+		| _ -> error "Invalid @:phpConstant parameters" pos)
 
 and gen_member_access ctx isvar e s =
 	match follow e.etype with
@@ -782,18 +789,21 @@ and gen_member_access ctx isvar e s =
 		| EnumStatics _ ->
 			print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| Statics sta ->
-			let sep = match sta.cl_path with
-			| ([], "") | ([], "\\") -> ""
-			| _ -> "::" in
+			let sep = if Meta.has Meta.PhpGlobal sta.cl_meta then "" else "::" in
 			let isconst = Meta.has Meta.PhpConstants sta.cl_meta in
-			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else "") (s_ident s)
+			let cprefix = if isconst then get_constant_prefix sta.cl_meta else "" in
+			print ctx "%s%s%s" sep (if isvar && not isconst then "$" else cprefix)
+			(if sta.cl_extern && sep = "" then s else s_ident s)
 		| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s))
 	| _ -> print ctx "->%s" (if isvar then s_ident_field s else s_ident s)
 
 and gen_field_access ctx isvar e s =
 	match e.eexpr with
 	| TTypeExpr t ->
-		spr ctx (s_path ctx (t_path t) false e.epos);
+		let isglobal = match t with
+		| TClassDecl(c) -> Meta.has Meta.PhpGlobal c.cl_meta && c.cl_extern
+		| _ -> false in
+		spr ctx (if isglobal then "" else (s_path ctx (t_path t) false e.epos));
 		gen_member_access ctx isvar e s
 	| TLocal _ ->
 		gen_expr ctx e;
@@ -1562,7 +1572,7 @@ and gen_expr ctx e =
 		let catchall = ref false in
 		let evar = define_local ctx "_ex_" in
 		newline ctx;
-		print ctx "$%s = ($%s instanceof HException) ? $%s->e : $%s" evar ex ex ex;
+		print ctx "$%s = ($%s instanceof HException) && $%s->getCode() == null ? $%s->e : $%s" evar ex ex ex ex;
 		old();
 		List.iter (fun (v,e) ->
 			let ev = define_local ctx v.v_name in
