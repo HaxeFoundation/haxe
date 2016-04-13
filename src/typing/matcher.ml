@@ -343,24 +343,32 @@ module Pattern = struct
 						fail()
 				end
 			| EObjectDecl fl ->
-				let known_fields,map = match follow t with
+				let known_fields = match follow t with
 					| TAnon an ->
-						an.a_fields,(fun t -> t)
-					| TInst(c,tl) -> c.cl_fields,apply_params c.cl_params tl
+						PMap.fold (fun cf acc -> (cf,cf.cf_type) :: acc) an.a_fields []
+					| TInst(c,tl) ->
+						let rec loop fields c tl =
+							let fields = List.fold_left (fun acc cf -> (cf,apply_params c.cl_params tl cf.cf_type) :: acc) fields c.cl_ordered_fields in
+							match c.cl_super with
+								| None -> fields
+								| Some (csup,tlsup) -> loop fields csup (List.map (apply_params c.cl_params tl) tlsup)
+						in
+						loop [] c tl
 					| TAbstract({a_impl = Some c} as a,tl) ->
 						let fields = List.fold_left (fun acc cf ->
 							if Meta.has Meta.Impl cf.cf_meta then
-								PMap.add cf.cf_name cf acc
-							else acc
-						) PMap.empty c.cl_ordered_statics in
-						fields,apply_params a.a_params tl
-					| _ -> error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
+								(cf,apply_params a.a_params tl cf.cf_type) :: acc
+							else
+								acc
+						) [] c.cl_ordered_statics in
+						fields
+					| _ ->
+						error (Printf.sprintf "Cannot field-match against %s" (s_type t)) (pos e)
 				in
 				let is_matchable cf =
 					match cf.cf_kind with Method _ -> false | _ -> true
 				in
-				let patterns,fields = PMap.fold (fun cf (patterns,fields) ->
-					let t = map cf.cf_type in
+				let patterns,fields = List.fold_left (fun (patterns,fields) (cf,t) ->
 					try
 						if pctx.in_reification && cf.cf_name = "pos" then raise Not_found;
 						let e1 = List.assoc cf.cf_name fl in
@@ -370,8 +378,8 @@ module Pattern = struct
 							(PatAny,cf.cf_pos) :: patterns,cf.cf_name :: fields
 						else
 							patterns,fields
-				) known_fields ([],[]) in
-				(* List.iter (fun (s,e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl; *)
+				) ([],[]) known_fields in
+				List.iter (fun (s,e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
 				PatConstructor(ConFields fields,patterns)
 			| EBinop(OpOr,e1,e2) ->
 				let pctx1 = {pctx with current_locals = PMap.empty} in
