@@ -2567,11 +2567,13 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             let baseCpp = retype (cpp_type_of base.etype) base in
             let baseStr = (tcpp_to_string baseCpp.cpptype) in
             let returnStr = (tcpp_to_string return_type) in
+
             if baseStr=returnStr then
                baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *)
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
             | TCppVoid -> baseCpp.cppexpr, TCppVoid
+            | TCppDynamic -> baseCpp.cppexpr, baseCpp.cpptype
             | _ ->
                CppTCast(baseCpp, return_type), return_type
             )
@@ -3424,14 +3426,15 @@ let is_override class_def field =
 
 let all_virtual_functions clazz =
   let rec all_virtual_functions_rev clazz =
+   (match clazz.cl_super with
+   | Some def -> all_virtual_functions_rev (fst def)
+   | _ -> [] ) @
    (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
       | _, Method MethDynamic -> result
       | TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
       | _,_ -> result ) [] clazz.cl_ordered_fields)
-   @ (match clazz.cl_super with
-   | Some def -> all_virtual_functions_rev (fst def)
-   | _ -> [] ) in
-  List.rev (all_virtual_functions_rev clazz)
+   in
+   List.rev (all_virtual_functions_rev clazz)
 ;;
 
 let reflective class_def field = not (
