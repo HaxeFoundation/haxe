@@ -40,7 +40,10 @@ extern class ConstPointer<T>
 	public function gt(inOther:ConstPointer<T>):Bool;
 	public function geq(inOther:ConstPointer<T>):Bool;
 
+   public function setRaw<O>(ptr:RawPointer<O>) : Void;
+
    public static function fromRaw<T>(ptr:RawConstPointer<T>) : ConstPointer<T>;
+
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : ConstPointer<T>;
 

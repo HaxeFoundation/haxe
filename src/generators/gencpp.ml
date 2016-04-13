@@ -587,11 +587,13 @@ let is_objc_type t = match follow t with
   | _ -> false
 ;;
 
-let is_addressOf_call func =
+
+let is_sizeof_call func =
    match (remove_parens func).eexpr with
-   | TField (_,FStatic ({cl_path=["cpp"],"Pointer"},{cf_name="addressOf"} ) ) -> true
+   | TField (_,FStatic ({cl_path=["cpp"],"Stdlib"},{cf_name="sizeof"} ) ) -> true
    | _ -> false
 ;;
+
 
 let is_lvalue var =
    match (remove_parens var).eexpr with
@@ -1383,6 +1385,7 @@ and tcppfuncloc =
    | FuncInternal of tcppexpr * string * string
    | FuncGlobal of string
    | FuncFromStaticFunction
+   | FuncSizeof
 
 and tcpparrayloc =
    | ArrayTyped of tcppexpr * tcppexpr
@@ -1418,6 +1421,7 @@ and tcpp_expr_expr =
    | CppEnumField of tenum * tenum_field
    | CppCall of tcppfuncloc * tcppexpr list
    | CppFunctionAddress of tclass * tclass_field
+   | CppSizeof of path * bool
    | CppArray of tcpparrayloc
    | CppCrement of  tcppcrementop * Ast.unop_flag * tcpplvalue
    | CppSet of tcpplvalue * tcppexpr
@@ -1488,8 +1492,10 @@ let rec s_tcpp = function
    | CppCall (FuncInternal _,_) -> "CppCallInternal"
    | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
+   | CppCall (FuncSizeof,_) -> "CppCallSizeof"
 
    | CppFunctionAddress  _ -> "CppFunctionAddress"
+   | CppSizeof  _ -> "CppSizeof"
    | CppArray  _ -> "CppArray"
    | CppCrement  _ -> "CppCrement"
    | CppSet  _ -> "CppSet"
@@ -2179,6 +2185,11 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                let exprType = cpp_type_of member.cf_type in
                CppFunction( FuncFromStaticFunction, funcReturn ), exprType
 
+            | FStatic ( {cl_path=(["cpp"],"Stdlib")}, ({cf_name="sizeof"} as member) ) ->
+               let funcReturn = cpp_member_return_type ctx member in
+               let exprType = cpp_type_of member.cf_type in
+               CppFunction( FuncSizeof, funcReturn ), exprType
+
             | FStatic (clazz,member) ->
                let funcReturn = cpp_member_return_type ctx member in
                let exprType = cpp_type_of member.cf_type in
@@ -2265,6 +2276,12 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                    | [ {cppexpr=CppFunction( FuncStatic(clazz,false,member), funcReturn)} ] ->
                       CppFunctionAddress(clazz,member), funcReturn
                    | _ -> error "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
+                   )
+               |  CppFunction(FuncSizeof ,returnType) ->
+                   ( match retypedArgs with
+                   | [ {cppexpr=CppClassOf(path,native)} ] ->
+                      CppSizeof(path,native), returnType
+                   | _ -> error "cpp.Stdlib.sizeof must be called on a type name" expr.epos;
                    )
                |  CppEnumIndex(_) ->
                      (* Not actually a TCall...*)
@@ -2748,6 +2765,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncNew _ -> error "Can't create new closure" expr.cpppos
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
          | FuncFromStaticFunction -> error "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
+         | FuncSizeof -> error "Can't create cpp.Stdlib.sizeof closure" expr.cpppos
          );
       | CppCall( FuncInterface(expr,clazz,field), args) when not (is_native_gen_class clazz)->
          out ( cpp_class_name clazz ^ "::" ^ cpp_member_name_of field ^ "(");
@@ -2812,6 +2830,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
          | FuncFromStaticFunction ->
               error "Unexpected FuncFromStaticFunction" expr.cpppos
+         | FuncSizeof ->
+              error "Unexpected FuncSizeof" expr.cpppos
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
@@ -2858,6 +2878,16 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out ("::cpp::Function< " ^ signature ^">(hx::AnyCast(");
          out ("&::" ^(join_class_path_remap klass.cl_path "::")^ "_obj::" ^ name );
          out " ))"
+      | CppSizeof(path,native) ->
+         out ("hx::ClassSizeOf< ");
+         let path = "::" ^ (join_class_path_remap (path) "::" ) in
+         if (native) then
+            out path
+         else if (path="::Array") then
+            out "hx::ArrayBase"
+         else
+            out path;
+         out  " >()";
 
       | CppGlobal(name) ->
          out ("::" ^ name)
