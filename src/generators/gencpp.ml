@@ -1655,7 +1655,8 @@ let rec cpp_type_of ctx haxe_type =
       cpp_instance_type ctx klass params
 
    | TAbstract (abs,pl) when abs.a_impl <> None ->
-       cpp_type_of ctx (Abstract.get_underlying_type abs pl)
+       cpp_type_from_path ctx abs.a_path pl (fun () -> 
+            cpp_type_of ctx (Abstract.get_underlying_type abs pl) )
 
    | TAbstract (a,params) ->
        cpp_type_from_path ctx a.a_path params (fun () -> cpp_type_of ctx (follow haxe_type) )
@@ -1707,6 +1708,8 @@ let rec cpp_type_of ctx haxe_type =
             TCppRawPointer("const ", cpp_type_of ctx p)
       | (["cpp"],"Function"), [function_type; abi] ->
             cpp_function_type_of ctx function_type abi;
+      | (["cpp"],"Callable"), [function_type] ->
+            cpp_function_type_of_string ctx function_type "";
 
       | ([],"Array"), [p] ->
          let arrayOf = cpp_type_of ctx p in
@@ -1752,6 +1755,8 @@ let rec cpp_type_of ctx haxe_type =
                  | TInst (klass1,_) -> get_meta_string klass1.cl_meta Meta.Abi
                  | _ -> assert false )
       in
+      cpp_function_type_of_string ctx function_type abi
+   and cpp_function_type_of_string ctx function_type abi_string =
       match follow function_type with
       | TFun(args,ret) ->
           (* Optional types are Dynamic if they norally could not be null *)
@@ -1761,9 +1766,9 @@ let rec cpp_type_of ctx haxe_type =
              else
                 cpp_type_of ctx haxe_type
           in
-          TCppFunction(List.map cpp_arg_type_of args, cpp_type_of ctx ret, abi)
+          TCppFunction(List.map cpp_arg_type_of args, cpp_type_of ctx ret, abi_string)
       | _ ->  (* ? *)
-          TCppFunction([TCppVoid], TCppVoid, abi)
+          TCppFunction([TCppVoid], TCppVoid, abi_string)
 
    and cpp_instance_type ctx klass params =
       cpp_type_from_path ctx klass.cl_path params (fun () ->

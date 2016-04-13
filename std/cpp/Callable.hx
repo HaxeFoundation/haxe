@@ -19,15 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
+package cpp;
 
-#if cpp
 
-typedef Callable<T> = Function<T, cpp.abi.Abi >
-
-#else
-
-@:noPackageRestrict
+// The generator intercepts this type and converts it to a cpp.Function<T> on cpp
+@:noPackageRestrict @:callable
+#if cpp extern #end
 abstract Callable<T>(T)
 {
    public var call(get,never):T;
@@ -36,8 +33,5 @@ abstract Callable<T>(T)
 
    inline function get_call():T return this;
 }
-
-
-#end
 
 
