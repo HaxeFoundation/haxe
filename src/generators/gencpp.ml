@@ -1989,6 +1989,13 @@ let only_stack_access ctx haxe_type =
    | _ -> false;
 ;;
 
+let cpp_is_real_array obj =
+   match obj.cpptype with
+   | TCppScalarArray _
+   | TCppObjectArray _ -> true
+   | _ -> false
+;;
+
 
 let is_array_splice_call obj member =
    match obj.cpptype, member.cf_name with
@@ -2230,9 +2237,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   CppVar( VarInternal(obj,".","__s")), TCppPointer("ConstPointer", TCppScalar("char"))
                else if fieldName="__Index" then
                   CppEnumIndex(obj), TCppScalar("Int")
-               (*else if fieldName="__Tag" then
-                  CppFunction( FuncInternal(obj,"_hx_getTag","->"), TCppString), TCppString*)
-               else if is_internal_member fieldName then begin
+               else if is_internal_member fieldName || cpp_is_real_array obj then begin
                   let cppType = cpp_return_type ctx expr.etype in
                   if obj.cpptype=TCppString then
                      CppFunction( FuncInternal(obj,fieldName,"."), cppType), cppType

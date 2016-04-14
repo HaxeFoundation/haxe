@@ -40,7 +40,7 @@ extern class NativeArray {
 	public static inline function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
       untyped inArray.setData(inData.raw,inElementCount);
    }
-	public static inline function setUnmanagedData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
+	public static inline function setUnmanagedData<T>( inArray:Array<T>,inData:ConstPointer<T>,inElementCount:Int ) : Void {
       untyped inArray.setUnmanagedData(inData.raw,inElementCount);
    }
 
