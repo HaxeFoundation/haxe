@@ -4708,10 +4708,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
             output_cpp "\t}\n";
 
-            if class_super_name="" then
-               output_cpp ("\treturn 0;\n}\n\n")
-            else
-               output_cpp ("\treturn super::_hx_getInterface(inHash);\n}\n\n");
+            if class_super_name="" then begin
+               output_cpp ("\t#ifdef HXCPP_SCRIPTABLE\n");
+               output_cpp ("\treturn super::_hx_getInterface(inHash);\n");
+               output_cpp ("\t#else\n");
+               output_cpp ("\treturn 0;\n");
+               output_cpp ("\t#endif\n")
+            end else
+               output_cpp ("\treturn super::_hx_getInterface(inHash);\n");
+            output_cpp ("}\n\n");
       end;
    end;
 
@@ -5021,10 +5026,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (scriptable && not nativeGen) then begin
       let delegate = "this->" in
       let dump_script_field idx (field,f_args,return_t) =
-         let args = if (class_def.cl_interface) then
-               gen_tfun_interface_arg_list f_args
-            else
-               ctx_tfun_arg_list ctx f_args in
+         let args = ctx_tfun_arg_list ctx f_args in
          let names = List.map (fun (n,_,_) -> keyword_remap n) f_args in
          let return_type = ctx_type_string ctx return_t in
          let ret = if (return_type="Void" || return_type="void") then " " else "return " in
