@@ -4252,7 +4252,7 @@ and build_call ctx acc el (with_type:with_type) p =
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
 
-let get_main ctx =
+let get_main ctx types =
 	match ctx.com.main_class with
 	| None -> None
 	| Some cl ->
@@ -4271,7 +4271,20 @@ let get_main ctx =
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") c.cl_pos
 		) in
 		let emain = type_type ctx cl null_pos in
-		Some (mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos)
+		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
+		(* add haxe.EntryPoint.run() call *)
+		let main = (try
+			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
+			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
+			let ef = PMap.find "run" ec.cl_statics in
+			let p = null_pos in
+			let et = mk (TTypeExpr et) (TAnon { a_fields = PMap.empty; a_status = ref (Statics ec) }) p in
+			let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
+			mk (TBlock [main;call]) ctx.t.tvoid p
+		with Not_found ->
+			main
+		) in
+		Some main
 
 let finalize ctx =
 	flush_pass ctx PFinal "final";
@@ -4389,7 +4402,7 @@ let generate ctx =
 	in
 	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
-	get_main ctx, List.rev !types, sorted_modules
+	get_main ctx !types, List.rev !types, sorted_modules
 
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)

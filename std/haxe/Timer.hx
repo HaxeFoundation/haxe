@@ -36,13 +36,14 @@ package haxe;
 	the child class.
 **/
 class Timer {
-	#if (flash || js || java || python)
 
 	#if (flash || js)
 		private var id : Null<Int>;
 	#elseif java
 		private var timer : java.util.Timer;
 		private var task : java.util.TimerTask;
+	#else
+		private var event : MainLoop.MainEvent;
 	#end
 
 	/**
@@ -66,6 +67,13 @@ class Timer {
 		#elseif java
 			timer = new java.util.Timer();
 			timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
+		#else
+			var dt = time_ms / 1000;
+			event = MainLoop.add(function() {
+				@:privateAccess event.nextRun += dt;
+				run();
+			});
+			event.delay(dt);
 		#end
 	}
 
@@ -93,6 +101,11 @@ class Timer {
 				timer = null;
 			}
 			task = null;
+		#else
+			if( event != null ) {
+				event.stop();
+				event = null;
+			}
 		#end
 	}
 
@@ -128,8 +141,6 @@ class Timer {
 		};
 		return t;
 	}
-
-	#end
 
 	/**
 		Measures the time it takes to execute `f`, in seconds with fractions.
