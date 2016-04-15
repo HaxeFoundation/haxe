@@ -401,6 +401,9 @@ module Pattern = struct
 				v.v_name <- "tmp";
 				let pat = make pctx e1.etype e2 in
 				PatExtractor(v,e1,pat)
+			| EDisplay(e,call) ->
+				Typer.handle_display ctx e call (WithType t) p;
+				fail()
 			| _ ->
 				fail()
 		in
