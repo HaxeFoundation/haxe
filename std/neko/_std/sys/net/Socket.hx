@@ -144,7 +144,7 @@ class Socket {
 	}
 
 	public function read() : String {
-		return socket_read(__s);
+		return new String(socket_read(__s));
 	}
 
 	public function write( content : String ) : Void {
@@ -232,7 +232,7 @@ class Socket {
 				var i = 0;
 				while( i < a.length ){
 					r[i] = a[i].__s;
-					__dollar__hadd(c,a[i].__s,a[i]);
+					__dollar__hadd(c,a[i].__s,a[i],null);
 					i += 1;
 				}
 				return r;
