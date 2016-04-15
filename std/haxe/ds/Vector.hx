@@ -68,7 +68,7 @@ abstract Vector<T>(VectorData<T>) {
 			this = new java.NativeArray(length);
 		#elseif cpp
 			this = new Array<T>();
-			untyped this.__SetSizeExact(length);
+			this.setSize(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
 		#else
@@ -213,6 +213,8 @@ abstract Vector<T>(VectorData<T>) {
 		return fromData(java.Lib.nativeArray(array,false));
 		#elseif cs
 		return fromData(cs.Lib.nativeArray(array,false));
+		#elseif cpp
+		return cast array.copy();
 		#else
 		// TODO: Optimize this for flash (and others?)
 		var vec = new Vector<T>(array.length);
