@@ -700,21 +700,28 @@ and wait_loop boot_com host port =
 	} in
 	global_cache := Some cache;
 	Typer.macro_enable_cache := true;
+	let current_stdin = ref None in
 	Typeload.parse_hook := (fun com2 file p ->
-		let sign = get_signature com2 in
 		let ffile = Common.unique_full_path file in
-		let ftime = file_time ffile in
-		let fkey = ffile ^ "!" ^ sign in
-		try
-			let time, data = Hashtbl.find cache.c_files fkey in
-			if time <> ftime then raise Not_found;
-			data
-		with Not_found ->
-			has_parse_error := false;
-			let data = Typeload.parse_file com2 file p in
-			if verbose then print_endline ("Parsed " ^ ffile);
-			if not !has_parse_error && ffile <> (!Parser.resume_display).Ast.pfile then Hashtbl.replace cache.c_files fkey (ftime,data);
-			data
+		let is_display_file = ffile = (!Parser.resume_display).Ast.pfile in
+
+		match is_display_file, !current_stdin with
+		| true, Some stdin when Common.raw_defined com2 "display_stdin" ->
+			Typeload.parse_file_from_string com2 file p stdin
+		| _ ->
+			let sign = get_signature com2 in
+			let ftime = file_time ffile in
+			let fkey = ffile ^ "!" ^ sign in
+			try
+				let time, data = Hashtbl.find cache.c_files fkey in
+				if time <> ftime then raise Not_found;
+				data
+			with Not_found ->
+				has_parse_error := false;
+				let data = Typeload.parse_file com2 file p in
+				if verbose then print_endline ("Parsed " ^ ffile);
+				if not !has_parse_error && (not is_display_file) then Hashtbl.replace cache.c_files fkey (ftime,data);
+				data
 	);
 	let cache_module m =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
@@ -894,7 +901,16 @@ and wait_loop boot_com host port =
 			ctx
 		in
 		(try
-			let data = parse_hxml_data (read_loop 0) in
+			let s = (read_loop 0) in
+			let hxml =
+				try
+					let idx = String.index s '\001' in
+					current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
+					(String.sub s 0 idx)
+				with Not_found ->
+					s
+			in
+			let data = parse_hxml_data hxml in
 			Unix.clear_nonblock sin;
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
@@ -934,6 +950,7 @@ and wait_loop boot_com host port =
 			(try ssend sin estr with _ -> ());
 		);
 		Unix.close sin;
+		current_stdin := None;
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		incr run_count;
 		if !run_count mod 10 = 0 then begin
