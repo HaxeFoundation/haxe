@@ -20,8 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package php;
+
 /**
-* TODO: TEST IT!
+	Session consists of a way to preserve certain data across 
+	subsequent accesses.
 */
 class Session {
 	public static function getCacheLimiter() {
