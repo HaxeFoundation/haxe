@@ -774,7 +774,7 @@ and is_static t =
 		| Statics c -> true
 		| _ -> false)
 	| _ -> false
-	
+
 and get_constant_prefix meta =
 	let (_, args, pos) = Meta.get Meta.PhpConstants meta in
 	(match args with
@@ -2158,7 +2158,7 @@ let createmain com e =
 	newline ctx;
 	newline ctx;
 	spr ctx ("require_once dirname(__FILE__).'/" ^ ctx.lib_path ^ "/php/" ^ (prefix_class com "Boot.class.php';\n\n"));
-	gen_value ctx e;
+	gen_expr ctx e;
 	newline ctx;
 	spr ctx "\n?>";
 	close ctx
