@@ -402,7 +402,7 @@ module Pattern = struct
 				let pat = make pctx e1.etype e2 in
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,call) ->
-				Typer.handle_display ctx e call (WithType t) p;
+				let _ = Typer.handle_display ctx e call (WithType t) p in
 				fail()
 			| _ ->
 				fail()
