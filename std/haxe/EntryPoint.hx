@@ -1,6 +1,6 @@
 package haxe;
 
-#if (neko && !macro)
+#if (neko && !macro && !interp)
 import neko.vm.Lock;
 import neko.vm.Mutex;
 import neko.vm.Thread;
