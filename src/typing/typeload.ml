@@ -221,16 +221,22 @@ let module_pass_1 ctx m tdecls loadp =
 	let decls = List.rev !decls in
 	decls, List.rev tdecls
 
-let parse_file com file p =
-	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
+let parse_file_from_lexbuf com file p lexbuf =
 	let t = Common.timer "parsing" in
 	Lexer.init file true;
 	incr stats.s_files_parsed;
-	let data = (try Parser.parse com (Lexing.from_channel ch) with e -> close_in ch; t(); raise e) in
-	close_in ch;
+	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
 	t();
 	Common.log com ("Parsed " ^ file);
 	data
+
+let parse_file_from_string com file p string =
+	parse_file_from_lexbuf com file p (Lexing.from_string string)
+
+let parse_file com file p =
+	let use_stdin = (Common.defined com Define.DisplayStdin) && (Common.unique_full_path file) = !Parser.resume_display.pfile in
+	let ch = if use_stdin then stdin else (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
+	Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Lexing.from_channel ch)
 
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
