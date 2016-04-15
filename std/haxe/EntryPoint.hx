@@ -113,11 +113,16 @@ class EntryPoint {
 		#if js
 
 		processEvents();
+
+		#if nodejs
+		(untyped process).nextTick(run);
+		#else
 		var window : Dynamic = js.Browser.window;
 		var rqf : Dynamic = window.requestAnimationFrame ||
 			window.webkitRequestAnimationFrame ||
 			window.mozRequestAnimationFrame;
 		rqf(run);
+		#end
 
 		#elseif flash
 
