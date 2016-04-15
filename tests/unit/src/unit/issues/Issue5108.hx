@@ -11,10 +11,10 @@ class Signal implements ISignal {
 	public function destroy():Void {}
 }
 
-interface ISignal extends IDestroyable {
+interface ISignal extends IDestroyable2 {
 	public function add(listener:Void->Void):Void;
 }
 
-interface IDestroyable {
+interface IDestroyable2 {
 	public function destroy():Void;
 }
