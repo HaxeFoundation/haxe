@@ -706,7 +706,7 @@ and wait_loop boot_com host port =
 		let is_display_file = ffile = (!Parser.resume_display).Ast.pfile in
 
 		match is_display_file, !current_stdin with
-		| true, Some stdin when Common.raw_defined com2 "display_stdin" ->
+		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
 			Typeload.parse_file_from_string com2 file p stdin
 		| _ ->
 			let sign = get_signature com2 in

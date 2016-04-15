@@ -234,7 +234,7 @@ let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Lexing.from_string string)
 
 let parse_file com file p =
-	let use_stdin = (Common.raw_defined com "display_stdin") && (Common.unique_full_path file) = !Parser.resume_display.pfile in
+	let use_stdin = (Common.defined com Define.DisplayStdin) && (Common.unique_full_path file) = !Parser.resume_display.pfile in
 	let ch = if use_stdin then stdin else (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
 	Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Lexing.from_channel ch)
 
