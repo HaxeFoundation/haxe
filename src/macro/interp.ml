@@ -1923,6 +1923,11 @@ let std_lib =
 			| VAbstract (AProcess p) -> Process.close p; free_abstract vp; VNull
 			| _ -> error()
 		));
+		"process_kill", (Fun1 (fun vp ->
+			match vp with
+			| VAbstract (AProcess p) -> Process.kill p; free_abstract vp; VNull
+			| _ -> error()
+		));
 	(* xml *)
 		"parse_xml", (match neko with
 		| None -> Fun2 (fun str o ->
