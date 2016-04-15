@@ -85,7 +85,7 @@ let rec func ctx bb tf t p =
 	let no_void t p =
 		if ExtType.is_void (follow t) then error "Cannot use Void as value" p
 	in
-	let rec value bb e = match e.eexpr with
+	let rec value' bb e = match e.eexpr with
 		| TLocal v ->
 			bb,e
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
@@ -168,6 +168,10 @@ let rec func ctx bb tf t p =
 			bb,mk (TConst TNull) t_dynamic e.epos
 		| TVar _ | TFor _ | TWhile _ ->
 			error "Cannot use this expression as value" e.epos
+	and value bb e =
+		let bb,e = value' bb e in
+		no_void e.etype e.epos;
+		bb,e
 	and ordered_value_list bb el =
 		let might_be_affected,collect_modified_locals = Optimizer.create_affection_checker() in
 		let rec can_be_optimized e = match e.eexpr with
@@ -479,7 +483,6 @@ let rec func ctx bb tf t p =
 		| TThrow e1 ->
 			begin try
 				let mk_throw e1 =
-					no_void e1.etype e1.epos;
 					mk (TThrow e1) t_dynamic e.epos
 				in
 				block_element_value bb e1 mk_throw
@@ -489,7 +492,6 @@ let rec func ctx bb tf t p =
 					| [] -> add_cfg_edge bb bb_exit CFGGoto
 					| _ -> List.iter (fun bb_exc -> add_cfg_edge bb bb_exc CFGGoto) !b_try_stack;
 				end;
-				no_void e1.etype e1.epos;
 				add_terminator bb {e with eexpr = TThrow e1};
 			end
 		(* side_effects *)
