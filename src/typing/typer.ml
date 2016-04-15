@@ -3773,7 +3773,7 @@ and handle_display ctx e_ast iscall with_type p =
 	| DMResolve _ ->
 		assert false
 	| DMType ->
-		raise (DisplayTypes [e.etype])
+		raise (DisplayTypes [match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype])
 	| DMUsage | DMPosition ->
 		begin match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -3782,7 +3782,7 @@ and handle_display ctx e_ast iscall with_type p =
 			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
 			handle_field cf;
-		| TLocal v ->
+		| TLocal v | TVar(v,_) ->
 			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
 		| TTypeExpr mt ->
 			let ti = t_infos mt in
