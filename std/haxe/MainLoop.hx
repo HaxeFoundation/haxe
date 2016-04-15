@@ -56,7 +56,7 @@ class MainLoop {
 
 	inline static function get_threadCount() return EntryPoint.threadCount;
 
-	public static function hasEvents() {
+	public inline static function hasEvents() {
 		return pending != null;
 	}
 
