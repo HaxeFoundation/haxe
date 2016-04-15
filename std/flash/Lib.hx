@@ -21,6 +21,10 @@
  */
 package flash;
 
+/**
+	Platform-specific Flash Library. Provides some platform-specific 
+	functions for the Flash target.
+**/
 class Lib {
 
 	public static var current : flash.display.MovieClip;

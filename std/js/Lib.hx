@@ -21,6 +21,10 @@
  */
 package js;
 
+/**
+	Platform-specific JavaScript Library. Provides some platform-specific functions 
+	for the JavaScript target.
+**/
 class Lib {
 
 	/**
