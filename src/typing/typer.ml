@@ -1016,9 +1016,9 @@ let rec acc_get ctx g p =
 			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
 			let args = List.map (fun (n,o,t) ->
 				let t = if o then ctx.t.tnull t else t in
-				o,if n = "" then gen_local ctx t else alloc_var n t
+				o,if n = "" then gen_local ctx t e.epos else alloc_var n t e.epos (* TODO: var pos *)
 			) args in
-			let ve = alloc_var "_e" e.etype in
+			let ve = alloc_var "_e" e.etype e.epos in
 			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
 			let ecallb = mk (TFunction {
 				tf_args = List.map (fun (o,v) -> v,if o then Some TNull else None) args;
@@ -1119,7 +1119,7 @@ let get_this ctx p =
 				let v = if ctx.curfun = FunMemberAbstractLocal then
 					PMap.find "this" ctx.locals
 				else
-					add_local ctx "`this" ctx.tthis
+					add_local ctx "`this" ctx.tthis p
 				in
 				ctx.vthis <- Some v;
 				v
@@ -1718,12 +1718,12 @@ let type_bind ctx (e : texpr) params p =
 			error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
-			let v = alloc_var (alloc_name n) (if o then ctx.t.tnull t else t) in
+			let v = alloc_var (alloc_name n) (if o then ctx.t.tnull t else t) p in
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType t) in
 			unify ctx e.etype t p;
-			let v = alloc_var (alloc_name n) t in
+			let v = alloc_var (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
@@ -1731,7 +1731,7 @@ let type_bind ctx (e : texpr) params p =
 		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
 		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
 	in
-	let loc = alloc_var (gen_loc_name 0) e.etype in
+	let loc = alloc_var (gen_loc_name 0) e.etype e.epos in
 	let given_args = (loc,false,Some e) :: given_args in
 	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
 	let t_inner = TFun(inner_fun_args missing_args, ret) in
@@ -1966,7 +1966,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e ->
 			let save = save_locals ctx in
-			let v = gen_local ctx e.etype in
+			let v = gen_local ctx e.etype e.epos in
 			let has_side_effect = Optimizer.has_side_effect e in
 			let e1 = if has_side_effect then (EConst(Ident v.v_name),e.epos) else e1 in
 			let eop = type_binop ctx op e1 e2 true with_type p in
@@ -1981,9 +1981,9 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				check_assign ctx e;
 				begin match e.eexpr with
 					| TArray(ea1,ea2) when has_side_effect ->
-						let v1 = gen_local ctx ea1.etype in
+						let v1 = gen_local ctx ea1.etype ea1.epos in
 						let ev1 = mk (TLocal v1) v1.v_type p in
-						let v2 = gen_local ctx ea2.etype in
+						let v2 = gen_local ctx ea2.etype ea2.epos in
 						let ev2 = mk (TLocal v2) v2.v_type p in
 						let e = {e with eexpr = TArray(ev1,ev2)} in
 						mk (TBlock [
@@ -1993,7 +1993,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 							mk (TBinop (OpAssign,e,e2)) e.etype p;
 						]) e.etype p
 					| TField(ea1,fa) when has_side_effect ->
-						let v1 = gen_local ctx ea1.etype in
+						let v1 = gen_local ctx ea1.etype ea1.epos in
 						let ev1 = mk (TLocal v1) v1.v_type p in
 						let e = {e with eexpr = TField(ev1,fa)} in
 						mk (TBlock [
@@ -2010,7 +2010,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				eop)
 		| AKSet (e,t,cf) ->
 			let l = save_locals ctx in
-			let v = gen_local ctx e.etype in
+			let v = gen_local ctx e.etype e.epos in
 			let ev = mk (TLocal v) e.etype p in
 			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),cf.cf_name),p) e2 true with_type p in
 			let e' = match get.eexpr with
@@ -2036,7 +2036,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			let l = save_locals ctx in
 			let v,is_temp = match et.eexpr with
 				| TLocal v when not (v.v_name = "this") -> v,false
-				| _ -> gen_local ctx ta,true
+				| _ -> gen_local ctx ta ef.epos,true
 			in
 			let ev = mk (TLocal v) ta p in
 			(* this relies on the fact that cf_name is set_name *)
@@ -2059,7 +2059,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| Some e -> e, fun () -> None
 				| None ->
 					let save = save_locals ctx in
-					let v = gen_local ctx ekey.etype in
+					let v = gen_local ctx ekey.etype p in
 					let e = mk (TLocal v) ekey.etype p in
 					e, fun () -> (save(); Some (mk (TVar (v,Some ekey)) ctx.t.tvoid p))
 			in
@@ -2381,7 +2381,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 							else if not (Optimizer.has_side_effect e1) && not (Optimizer.has_side_effect e2) then
 								make e1 e2
 							else
-								let v1,v2 = gen_local ctx t1, gen_local ctx t2 in
+								let v1,v2 = gen_local ctx t1 e1.epos, gen_local ctx t2 e2.epos in
 								let ev1,ev2 = mk (TVar(v1,Some e1)) ctx.t.tvoid p,mk (TVar(v2,Some e2)) ctx.t.tvoid p in
 								let eloc1,eloc2 = mk (TLocal v1) v1.v_type p,mk (TLocal v2) v2.v_type p in
 								let e = make eloc1 eloc2 in
@@ -2488,12 +2488,12 @@ and type_unop ctx op flag e p =
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			begin try
 				(match op with Increment | Decrement -> () | _ -> raise Not_found);
-				let v_key = alloc_var "tmp" ekey.etype in
+				let v_key = alloc_var "tmp" ekey.etype ekey.epos in
 				let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
 				let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
 				(* get *)
 				let e_get = mk_array_get_call ctx (Codegen.AbstractCast.find_array_access_raise ctx a tl ekey None p) c ebase p in
-				let v_get = alloc_var "tmp" e_get.etype in
+				let v_get = alloc_var "tmp" e_get.etype e_get.epos in
 				let ev_get = mk (TLocal v_get) v_get.v_type p in
 				let evar_get = mk (TVar(v_get,Some e_get)) ctx.com.basic.tvoid p in
 				(* op *)
@@ -2511,7 +2511,7 @@ and type_unop ctx op flag e p =
 			error "This kind of operation is not supported" p
 		| AKSet (e,t,cf) ->
 			let l = save_locals ctx in
-			let v = gen_local ctx e.etype in
+			let v = gen_local ctx e.etype p in
 			let ev = mk (TLocal v) e.etype p in
 			let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
 			let one = (EConst (Int "1"),p) in
@@ -2526,7 +2526,7 @@ and type_unop ctx op flag e p =
 					make_call ctx (mk (TField (ev,quick_field_dynamic ev.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [get] t p
 				]) t p
 			| Postfix ->
-				let v2 = gen_local ctx t in
+				let v2 = gen_local ctx t p in
 				let ev2 = mk (TLocal v2) t p in
 				let get = type_expr ctx eget Value in
 				let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one false Value p in
@@ -2595,7 +2595,7 @@ and type_ident ctx i p mode =
 				AKExpr (mk (TConst TThis) ctx.tthis p)
 			else
 				let t = mk_mono() in
-				let v = alloc_unbound_var i t in
+				let v = alloc_unbound_var i t p in
 				AKExpr (mk (TLocal v) t p)
 		end else begin
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
@@ -2604,7 +2604,7 @@ and type_ident ctx i p mode =
 			if ctx.com.display <> DMNone then begin
 				display_error ctx (error_msg err) p;
 				let t = mk_mono() in
-				AKExpr (mk (TLocal (add_local ctx i t)) t p)
+				AKExpr (mk (TLocal (add_local ctx i t p)) t p)
 			end else begin
 				let e = try
 					let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
@@ -2752,7 +2752,7 @@ and type_access ctx e p mode =
 				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 				let ct, cf = get_constructor ctx c monos p in
 				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
-				let vl = List.map (fun (n,_,t) -> alloc_var n t) args in
+				let vl = List.map (fun (n,_,t) -> alloc_var n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
 				let el = List.map vexpr vl in
 				let ec,t = match c.cl_kind with
@@ -2831,11 +2831,11 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
-			add_local ctx v t, e
+			add_local ctx v t p, e (* TODO: var pos *)
 		with
 			Error (e,p) ->
 				display_error ctx (error_msg e) p;
-				add_local ctx v t_dynamic, None
+				add_local ctx v t_dynamic p, None (* TODO: var pos *)
 	) vl in
 	match vl with
 	| [v,eo] ->
@@ -3065,7 +3065,7 @@ and type_object_decl ctx fl with_type p =
 				evars,(s,e) :: elocs,had_side_effect
 			| _ ->
 				if had_side_effect then begin
-					let v = gen_local ctx e.etype in
+					let v = gen_local ctx e.etype e.epos in
 					let ev = mk (TVar(v,Some e)) e.etype e.epos in
 					let eloc = mk (TLocal v) v.v_type e.epos in
 					(ev :: evars),((s,eloc) :: elocs),had_side_effect
@@ -3223,7 +3223,7 @@ and type_try ctx e1 catches with_type p =
 		if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc t2 (pos e);
 		let locals = save_locals ctx in
-		let v = add_local ctx v t in
+		let v = add_local ctx v t (pos e) in (* TODO: var pos *)
 		let e = type_expr ctx e with_type in
 		v.v_type <- t2;
 		locals();
@@ -3293,7 +3293,7 @@ and type_map_declaration ctx e1 el with_type p =
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
 	let cf = PMap.find "set" c.cl_statics in
-	let v = gen_local ctx tmap in
+	let v = gen_local ctx tmap p in
 	let ev = mk (TLocal v) tmap p in
 	let ec = type_module_type ctx (TClassDecl c) None p in
 	let ef = mk (TField(ec,FStatic(c,cf))) (tfun [tkey;tval] ctx.t.tvoid) p in
@@ -3353,7 +3353,7 @@ and type_local_function ctx name f with_type p =
 		| None -> None
 		| Some v ->
 			if v.[0] = '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
-			Some (add_local ctx v ft)
+			Some (add_local ctx v ft p) (* TODO: var pos *)
 	) in
 	let curfun = match ctx.curfun with
 		| FunStatic -> FunStatic
@@ -3381,7 +3381,7 @@ and type_local_function ctx name f with_type p =
 		let is_rec = (try Filters.local_usage loop e; false with Exit -> true) in
 		let decl = (if is_rec then begin
 			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
-			let vnew = add_local ctx v.v_name ft in
+			let vnew = add_local ctx v.v_name ft v.v_pos in
 			mk (TVar (vnew,Some (mk (TBlock [
 				mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p;
 				mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p;
@@ -3476,7 +3476,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EObjectDecl fl ->
 		type_object_decl ctx fl with_type p
 	| EArrayDecl [(EFor _,_) | (EWhile _,_) as e] ->
-		let v = gen_local ctx (mk_mono()) in
+		let v = gen_local ctx (mk_mono()) p in
 		let et = ref (EConst(Ident "null"),p) in
 		let rec map_compr (e,p) =
 			match e with
@@ -3521,7 +3521,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| Some e -> e
 			| None ->
 				let t, pt = Typeload.t_iterator ctx in
-				let i = add_local ctx i pt in
+				let i = add_local ctx i pt pi in
 				let e1 = (match follow e1.etype with
 				| TMono _
 				| TDynamic _ ->
@@ -4056,7 +4056,7 @@ and type_call ctx e el (with_type:with_type) p =
 			with Not_found ->
 				e
 			in
-			let v_trace = alloc_unbound_var "`trace" t_dynamic in
+			let v_trace = alloc_unbound_var "`trace" t_dynamic p in
 			mk (TCall (mk (TLocal v_trace) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) NoValue
@@ -4094,7 +4094,7 @@ and type_call ctx e el (with_type:with_type) p =
 		let e = type_expr ctx e Value in
 		if Common.platform ctx.com Flash then
 			let t = tfun [e.etype] e.etype in
-			let v_unprotect = alloc_unbound_var "__unprotect__" t in
+			let v_unprotect = alloc_unbound_var "__unprotect__" t p in
 			mk (TCall (mk (TLocal v_unprotect) t p,[e])) e.etype e.epos
 		else
 			e

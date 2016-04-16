@@ -202,7 +202,7 @@ let rec func ctx bb tf t p =
 				fl,e
 		in
 		let fl,e = loop [] e in
-		let v = alloc_var ctx.temp_var_name e.etype in
+		let v = alloc_var ctx.temp_var_name e.etype e.epos in
 		begin match ctx.com.platform with
 			| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];

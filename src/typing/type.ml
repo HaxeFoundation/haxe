@@ -78,6 +78,7 @@ and tvar = {
 	mutable v_capture : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
+	v_pos : pos;
 }
 
 and tfunc = {
@@ -309,10 +310,10 @@ and build_state =
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = [] })
+	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
 
-let alloc_unbound_var n t =
-	let v = alloc_var n t in
+let alloc_unbound_var n t p =
+	let v = alloc_var n t p in
 	v.v_meta <- [Meta.Unbound,[],null_pos];
 	v
 
@@ -2529,7 +2530,7 @@ module Texpr = struct
 	let duplicate_tvars e =
 		let vars = Hashtbl.create 0 in
 		let copy_var v =
-			let v2 = alloc_var v.v_name v.v_type in
+			let v2 = alloc_var v.v_name v.v_type v.v_pos in
 			v2.v_meta <- v.v_meta;
 			Hashtbl.add vars v.v_id v2;
 			v2;

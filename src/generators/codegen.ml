@@ -577,9 +577,9 @@ type stack_context = {
 let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 	let t = com.basic in
 	let st = t.tarray t.tstring in
-	let stack_var = alloc_var stack_var st in
-	let exc_var = alloc_var exc_var st in
-	let pos_var = alloc_var pos_var t.tint in
+	let stack_var = alloc_var stack_var st p in
+	let exc_var = alloc_var exc_var st p in
+	let pos_var = alloc_var pos_var t.tint p in
 	let stack_e = mk (TLocal stack_var) st p in
 	let exc_e = mk (TLocal exc_var) st p in
 	let stack_pop = fcall stack_e "pop" [] t.tstring p in
@@ -592,7 +592,7 @@ let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 		] t.tvoid p
 	in
 	let stack_return e =
-		let tmp = alloc_var tmp_var e.etype in
+		let tmp = alloc_var tmp_var e.etype e.epos in
 		mk (TBlock [
 			mk (TVar (tmp, Some e)) t.tvoid e.epos;
 			stack_pop;
@@ -715,7 +715,7 @@ let fix_override com c f fd =
 					end;
 					cur
 				with Unify_error _ ->
-					let v2 = alloc_var (prefix ^ v.v_name) t2 in
+					let v2 = alloc_var (prefix ^ v.v_name) t2 v.v_pos in
 					changed_args := (v,v2) :: !changed_args;
 					v2,ct
 			) fd.tf_args targs in
@@ -972,7 +972,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
 		| TTypeDecl _ -> assert false
 	in
-	let vtmp = alloc_var vtmp e.etype in
+	let vtmp = alloc_var vtmp e.etype e.epos in
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in

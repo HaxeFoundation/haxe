@@ -176,7 +176,7 @@ module Pattern = struct
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
-				let v = alloc_var name t in
+				let v = alloc_var name t (pos e) in
 				pctx.current_locals <- PMap.add name (v,(pos e)) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
@@ -1028,7 +1028,7 @@ module Compile = struct
 					let v,_,_ = List.find (fun (_,_,e2) -> Texpr.equal e1 e2) ex_bindings in
 					v,ex_bindings
 				with Not_found ->
-					let v = alloc_var "_hx_tmp" e1.etype in
+					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
 					v,(v,e1.epos,e1) :: ex_bindings
 				in
 				let ev = mk (TLocal v) v.v_type e1.epos in
@@ -1054,7 +1054,7 @@ module Compile = struct
 			| TConst _ | TLocal _ ->
 				(e :: subjects,vars)
 			| _ ->
-				let v = gen_local ctx e.etype in
+				let v = gen_local ctx e.etype e.epos in
 				let ev = mk (TLocal v) e.etype e.epos in
 				(ev :: subjects,(v,e.epos,e) :: vars)
 		) ([],[]) subjects in

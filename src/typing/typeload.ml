@@ -1243,12 +1243,12 @@ let add_constructor ctx c force_constructor p =
 					| TFun (args,_) ->
 						List.map (fun (n,o,t) ->
 							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) with Not_found -> if o then Some TNull else None in
-							map_arg (alloc_var n (if o then ctx.t.tnull t else t),def)
+							map_arg (alloc_var n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
 					| _ -> assert false
 			) in
 			let p = c.cl_pos in
-			let vars = List.map (fun (v,def) -> alloc_var v.v_name (apply_params csup.cl_params cparams v.v_type), def) args in
+			let vars = List.map (fun (v,def) -> alloc_var v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in
 			let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
 			let constr = mk (TFunction {
 				tf_args = vars;
@@ -1289,7 +1289,7 @@ let check_struct_init_constructor ctx c p = match c.cl_constructor with
 			| Var _ ->
 				let opt = Meta.has Meta.Optional cf.cf_meta in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
-				let v = alloc_var cf.cf_name t in
+				let v = alloc_var cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) t p in
 				let ev = mk (TLocal v) v.v_type p in
 				let e = mk (TBinop(OpAssign,ef,ev)) ev.etype p in
@@ -1595,7 +1595,7 @@ let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map (fun (n,c,t) ->
 		if n.[0] = '$' then error "Function argument names starting with a dollar are not allowed" p;
 		let c = type_function_arg_value ctx t c in
-		let v,c = add_local ctx n t, c in
+		let v,c = add_local ctx n t p, c in (* TODO: var pos *)
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
 	) args in
@@ -3691,7 +3691,7 @@ let generic_substitute_expr gctx e =
 		try
 			Hashtbl.find vars v.v_id
 		with Not_found ->
-			let v2 = alloc_var v.v_name (generic_substitute_type gctx v.v_type) in
+			let v2 = alloc_var v.v_name (generic_substitute_type gctx v.v_type) v.v_pos in
 			v2.v_meta <- v.v_meta;
 			Hashtbl.add vars v.v_id v2;
 			v2

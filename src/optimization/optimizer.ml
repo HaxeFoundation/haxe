@@ -57,7 +57,7 @@ let rec is_exhaustive e1 = match e1.eexpr with
 
 let mk_untyped_call name p params =
 	{
-		eexpr = TCall({ eexpr = TLocal(alloc_unbound_var name t_dynamic); etype = t_dynamic; epos = p }, params);
+		eexpr = TCall({ eexpr = TLocal(alloc_unbound_var name t_dynamic p); etype = t_dynamic; epos = p }, params);
 		etype = t_dynamic;
 		epos = p;
 	}
@@ -161,7 +161,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 			mk (TLocal (try
 				PMap.find n ctx.locals
 			with _ ->
-				let v = add_local ctx n t in
+				let v = add_local ctx n t p in
 				v.v_meta <- [Meta.Unbound,[],p];
 				v
 			)) t pos in
@@ -319,7 +319,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
-			let v' = alloc_var v.v_name v.v_type in
+			let v' = alloc_var v.v_name v.v_type v.v_pos in
 			if Meta.has Meta.Unbound v.v_meta then v'.v_meta <- [Meta.Unbound,[],p];
 			let i = {
 				i_var = v;
@@ -390,7 +390,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		Build the expr/var subst list
 	*)
 	let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
-	let vthis = alloc_var "_this" ethis.etype in
+	let vthis = alloc_var "_this" ethis.etype ethis.epos in
 	let might_be_affected,collect_modified_locals = create_affection_checker() in
 	let had_side_effect = ref false in
 	let inlined_vars = List.map2 (fun e (v,_) ->
@@ -703,12 +703,12 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		TField (e,try quick_field e.etype n with Not_found -> assert false)
 	in
 	let gen_int_iter pt f_get f_length =
-		let i = add_local ctx i pt in
-		let index = gen_local ctx t_int in
+		let i = add_local ctx i pt p in
+		let index = gen_local ctx t_int p in
 		let arr, avars = (match e1.eexpr with
 			| TLocal _ -> e1, None
 			| _ ->
-				let atmp = gen_local ctx e1.etype in
+				let atmp = gen_local ctx e1.etype e1.epos in
 				mk (TLocal atmp) e1.etype e1.epos, (Some (atmp,Some e1))
 		) in
 		let iexpr = mk (TLocal index) t_int p in
@@ -742,10 +742,10 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		let max = (match i1.eexpr , i2.eexpr with
 			| TConst (TInt a), TConst (TInt b) when Int32.compare b a < 0 -> error "Range operator can't iterate backwards" p
 			| _, TConst _ -> None
-			| _ -> Some (gen_local ctx t_int)
+			| _ -> Some (gen_local ctx t_int e1.epos)
 		) in
-		let tmp = gen_local ctx t_int in
-		let i = add_local ctx i t_int in
+		let tmp = gen_local ctx t_int e1.epos in
+		let i = add_local ctx i t_int e1.epos in
 		let rec check e =
 			match e.eexpr with
 			| TBinop (OpAssign,{ eexpr = TLocal l },_)
@@ -803,7 +803,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					Ast.map_expr loop e
 			in
 			ignore(loop e2);
-			let v = add_local ctx i pt in
+			let v = add_local ctx i pt p in
 			let e2 = type_expr ctx e2 NoValue in
 			let cost = (List.length el) * !num_expr in
 			let max_cost = try
@@ -863,8 +863,8 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		end
 	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[t]) } as c,[]) ->
 		let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
-		let i = add_local ctx i t in
-		let cell = gen_local ctx tcell in
+		let i = add_local ctx i t p in
+		let cell = gen_local ctx tcell p in
 		let cexpr = mk (TLocal cell) tcell p in
 		let e2 = type_expr ctx e2 NoValue in
 		let evar = mk (TVar (i,Some (mk (mk_field cexpr "elt") t p))) t_void pi in
@@ -888,7 +888,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 	let c,tl = (match follow e1.etype with TInst (c,pl) -> c,pl | _ -> raise Exit) in
 	let _, _, fhasnext = (try raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "hasNext" with Not_found -> raise Exit) in
 	if fhasnext.cf_kind <> Method MethInline then raise Exit;
-	let tmp = gen_local ctx e1.etype in
+	let tmp = gen_local ctx e1.etype e1.epos in
 	let eit = mk (TLocal tmp) e1.etype p in
 	let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, tl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
 	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,quick_field_dynamic eit.etype "next")) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
@@ -1428,7 +1428,7 @@ let inline_constructors ctx e =
 	in
 	let add_field_var v s t =
 		let ii = IntMap.find v.v_id !vars in
-		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t in
+		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t v.v_pos in
 		ii.ii_fields <- PMap.add s v' ii.ii_fields;
 		v'
 	in

@@ -48,6 +48,8 @@ open Option
 open Printf
 open ExtString
 
+let alloc_var n t = alloc_var n t null_pos
+
 let debug_type_ctor = function
 	| TMono _ -> "TMono"
 	| TEnum _ -> "TEnum"
