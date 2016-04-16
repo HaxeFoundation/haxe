@@ -857,11 +857,14 @@ and wait_loop boot_com host port =
 			if r > 0 && tmp.[r-1] = '\000' then
 				Buffer.sub b 0 (Buffer.length b - 1)
 			else begin
-				if r = 0 then ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
-				if count = 100 then
-					failwith "Aborting unactive connection"
-				else
-					read_loop (count + 1);
+				if r = 0 then begin
+					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
+					if count = 100 then
+						failwith "Aborting inactive connection"
+					else
+						read_loop (count + 1);
+				end else
+					read_loop 0;
 			end;
 		in
 		let rec cache_context com =
