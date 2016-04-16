@@ -3771,7 +3771,7 @@ and handle_display ctx e_ast iscall with_type p =
 	| DMType ->
 		raise (DisplayTypes [match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype])
 	| DMUsage ->
-		begin match e.eexpr with
+		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
 			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
@@ -3788,12 +3788,15 @@ and handle_display ctx e_ast iscall with_type p =
 			with Not_found ->
 				()
 			end
+		| TCall(e1,_) ->
+			loop e1
 		| _ ->
 			()
-		end;
+		in
+		loop e;
 		e
 	| DMPosition ->
-		let pl = match e.eexpr with
+		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) -> [ef.ef_pos]
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_pos]
 		| TLocal v | TVar(v,_) -> [v.v_pos]
@@ -3805,9 +3808,12 @@ and handle_display ctx e_ast iscall with_type p =
 			with Not_found ->
 				[]
 			end
+		| TCall(e1,_) ->
+			loop e1
 		| _ ->
 			[]
 		in
+		let pl = loop e in
 		raise (DisplayPosition pl);
 	| DMToplevel ->
 		collect_toplevel_identifiers ctx;
