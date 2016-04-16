@@ -641,6 +641,8 @@ let s_token = function
 	| At -> "@"
 	| Dollar v -> "$" ^ v
 
+exception Invalid_escape_sequence of char * int
+
 let unescape s =
 	let b = Buffer.create 0 in
 	let rec loop esc i =
@@ -648,6 +650,7 @@ let unescape s =
 			()
 		else
 			let c = s.[i] in
+			let fail () = raise (Invalid_escape_sequence(c,i)) in
 			if esc then begin
 				let inext = ref (i + 1) in
 				(match c with
@@ -656,11 +659,11 @@ let unescape s =
 				| 't' -> Buffer.add_char b '\t'
 				| '"' | '\'' | '\\' -> Buffer.add_char b c
 				| '0'..'3' ->
-					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> raise Exit) in
+					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail()) in
 					Buffer.add_char b c;
 					inext := !inext + 2;
 				| 'x' ->
-					let c = (try char_of_int (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> raise Exit) in
+					let c = (try char_of_int (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> fail()) in
 					Buffer.add_char b c;
 					inext := !inext + 2;
 				| 'u' ->
@@ -674,14 +677,14 @@ let unescape s =
 							assert (u <= 0x10FFFF);
 							(u, l+2)
 						with _ ->
-							raise Exit
+							fail()
 					in
 					let ub = UTF8.Buf.create 0 in
 					UTF8.Buf.add_char ub (UChar.uchar_of_int u);
 					Buffer.add_string b (UTF8.Buf.contents ub);
 					inext := !inext + a;
 				| _ ->
-					raise Exit);
+					fail());
 				loop false !inext;
 			end else
 				match c with
