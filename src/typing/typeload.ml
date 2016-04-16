@@ -2185,7 +2185,8 @@ module ClassInitializer = struct
 		let t = cf.cf_type in
 
 		match e with
-		| None -> ()
+		| None ->
+			check_display (ctx,fctx) cf p
 		| Some e ->
 			if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
 			let check_cast e =
