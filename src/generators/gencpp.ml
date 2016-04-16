@@ -3640,7 +3640,8 @@ let gen_member_def ctx class_def is_static is_interface field =
          end else begin
             let return_type = (ctx_type_string ctx function_def.tf_type) in
             if ( not is_static && not nonVirtual ) then begin
-               if (not (is_internal_member field.cf_name) ) then begin
+               let scriptable = Common.defined ctx.ctx_common Define.Scriptable in
+               if (not (is_internal_member field.cf_name) && not scriptable ) then begin
                   let key = (join_class_path class_def.cl_path ".") ^ "." ^ field.cf_name in
                   try output (Hashtbl.find ctx.ctx_class_member_types key) with Not_found -> ()
                end else
