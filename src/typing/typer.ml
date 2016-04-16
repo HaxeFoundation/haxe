@@ -3735,8 +3735,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		e
 
 and handle_display ctx e_ast iscall with_type p =
-	let old = ctx.in_display in
+	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
+	ctx.in_call_args <- false;
 	ctx.display_handled <- true;
 	let get_submodule_fields path =
 		let m = Hashtbl.find ctx.g.modules path in
@@ -3764,7 +3765,8 @@ and handle_display ctx e_ast iscall with_type p =
 		| WithType t -> (try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
 		| _ -> e
 	in
-	ctx.in_display <- old;
+	ctx.in_display <- fst old;
+	ctx.in_call_args <- snd old;
 	match ctx.com.display with
 	| DMResolve _ ->
 		assert false
