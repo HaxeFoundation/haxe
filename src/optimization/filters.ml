@@ -1026,7 +1026,7 @@ let iter_expressions fl mt =
 
 let run com tctx main =
 	begin match com.display with
-		| DMUsage | DMPosition -> Codegen.detect_usage com;
+		| DMUsage -> Codegen.detect_usage com;
 		| _ -> ()
 	end;
 	if not (Common.defined com Define.NoDeprecationWarnings) then

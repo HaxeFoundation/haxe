@@ -3765,35 +3765,26 @@ and handle_display ctx e_ast iscall with_type p =
 		| _ -> e
 	in
 	ctx.in_display <- old;
-	let handle_field cf =
-		if ctx.com.display = DMPosition then
-			raise (DisplayPosition [cf.cf_pos]);
-		cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
-	in
 	match ctx.com.display with
 	| DMResolve _ ->
 		assert false
 	| DMType ->
 		raise (DisplayTypes [match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype])
-	| DMUsage | DMPosition ->
+	| DMUsage ->
 		begin match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
-			if ctx.com.display = DMPosition then
-				raise (DisplayPosition [ef.ef_pos]);
 			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
-			handle_field cf;
+			cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 		| TLocal v | TVar(v,_) ->
 			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
 		| TTypeExpr mt ->
 			let ti = t_infos mt in
-			if ctx.com.display = DMPosition then
-				raise (DisplayPosition [ti.mt_pos]);
 			ti.mt_meta <- (Meta.Usage,[],p) :: ti.mt_meta;
 		| TNew(c,tl,_) ->
 			begin try
 				let _,cf = get_constructor ctx c tl p in
-				handle_field cf;
+				cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 			with Not_found ->
 				()
 			end
@@ -3801,6 +3792,23 @@ and handle_display ctx e_ast iscall with_type p =
 			()
 		end;
 		e
+	| DMPosition ->
+		let pl = match e.eexpr with
+		| TField(_,FEnum(_,ef)) -> [ef.ef_pos]
+		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_pos]
+		| TLocal v | TVar(v,_) -> [v.v_pos]
+		| TTypeExpr mt -> [(t_infos mt).mt_pos]
+		| TNew(c,tl,_) ->
+			begin try
+				let _,cf = get_constructor ctx c tl p in
+				[cf.cf_pos]
+			with Not_found ->
+				[]
+			end
+		| _ ->
+			[]
+		in
+		raise (DisplayPosition pl);
 	| DMToplevel ->
 		collect_toplevel_identifiers ctx;
 	| DMDefault | DMNone ->
