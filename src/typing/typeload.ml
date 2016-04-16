@@ -2122,8 +2122,7 @@ module ClassInitializer = struct
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 		in
 		if ctx.com.display <> DMNone then begin
-			let cp = !Parser.resume_display in
-			if cctx.is_display_file && (cp.pmin = 0 || (p.pmin <= cp.pmin && p.pmax >= cp.pmax)) then begin
+			if fctx.is_display_field then begin
 				if fctx.is_macro && not ctx.in_macro then
 					(* force macro system loading of this class in order to get completion *)
 					delay ctx PTypeField (fun() -> ignore(ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p))
