@@ -2128,7 +2128,16 @@ module ClassInitializer = struct
 			| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 		in
-		if ctx.com.display <> DMNone then begin
+		match ctx.com.display with
+			| DMNone | DMUsage ->
+				if fctx.is_macro && not ctx.in_macro then
+					()
+				else begin
+					cf.cf_type <- TLazy r;
+					(* is_lib ? *)
+					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+				end
+			| _ ->
 			if fctx.is_display_field then begin
 				if fctx.is_macro && not ctx.in_macro then
 					(* force macro system loading of this class in order to get completion *)
@@ -2143,13 +2152,6 @@ module ClassInitializer = struct
 					cf.cf_type <- TLazy r;
 				end;
 			end
-		end else if fctx.is_macro && not ctx.in_macro then
-			()
-		else begin
-			cf.cf_type <- TLazy r;
-			(* is_lib ? *)
-			cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
-		end
 
 	let check_display (ctx,fctx) cf p =
 		if fctx.is_display_field && not ctx.display_handled then begin

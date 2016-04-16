@@ -1441,7 +1441,7 @@ try
 		com.error <- error ctx;
 		com.main_class <- None;
 		let real = get_real_path (!Parser.resume_display).Ast.pfile in
-		classes := lookup_classes com real;
+		classes := lookup_classes com real @ (if com.display = DMUsage then !classes else []);
 		if !classes = [] then begin
 			if not (Sys.file_exists real) then failwith "Display file does not exist";
 			(match List.rev (ExtString.String.nsplit real path_sep) with
