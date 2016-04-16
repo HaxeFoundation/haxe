@@ -1573,7 +1573,7 @@ let find_enclosing com e =
 let find_before_pos com e =
 	let display_pos = ref (!Parser.resume_display) in
 	let is_annotated p =
-		if p.pmin <= !display_pos.pmin && p.pmax + 1 >= !display_pos.pmax then begin
+		if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
 			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
 			true
 		end else
