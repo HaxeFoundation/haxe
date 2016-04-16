@@ -2541,6 +2541,15 @@ module ClassInitializer = struct
 						cf.cf_type <- t
 					| _ ->
 						let e , fargs = type_function ctx args ret fmode fd is_display_field p in
+						if is_display_field && not ctx.display_handled then begin
+							(* We're in our display field but didn't exit yet, so the position must be on the field itself.
+							   It could also be one of its arguments, but at the moment we cannot detect that. *)
+							match ctx.com.display with
+								| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
+								| DMUsage -> cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+								| DMType -> raise (DisplayTypes [cf.cf_type])
+								| _ -> ()
+						end;
 						let tf = {
 							tf_args = fargs;
 							tf_type = ret;
@@ -3347,6 +3356,7 @@ let type_types_into_module ctx m tdecls p =
 		untyped = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
+		display_handled = false;
 		in_loop = false;
 		opened = [];
 		in_call_args = false;

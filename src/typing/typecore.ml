@@ -108,6 +108,7 @@ and typer = {
 	mutable untyped : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
+	mutable display_handled : bool;
 	mutable in_macro : bool;
 	mutable macro_depth : int;
 	mutable curfun : current_fun;

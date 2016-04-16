@@ -3737,6 +3737,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 and handle_display ctx e_ast iscall with_type p =
 	let old = ctx.in_display in
 	ctx.in_display <- true;
+	ctx.display_handled <- true;
 	let get_submodule_fields path =
 		let m = Hashtbl.find ctx.g.modules path in
 		let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
@@ -5198,6 +5199,7 @@ let rec create com =
 		curfun = FunStatic;
 		in_loop = false;
 		in_display = false;
+		display_handled = false;
 		in_macro = Common.defined com Define.Macro;
 		ret = mk_mono();
 		locals = PMap.empty;
