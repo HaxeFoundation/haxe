@@ -1941,6 +1941,7 @@ module ClassInitializer = struct
 		is_extern : bool;
 		is_macro : bool;
 		is_abstract_member : bool;
+		is_display_field : bool;
 		field_kind : field_kind;
 		mutable do_bind : bool;
 		mutable do_add : bool;
@@ -2031,6 +2032,7 @@ module ClassInitializer = struct
 			is_override = is_override;
 			is_macro = is_macro;
 			is_extern = is_extern;
+			is_display_field = cctx.is_display_file && (cff.cff_pos.pmin <= cctx.completion_position.pmin && cff.cff_pos.pmax >= cctx.completion_position.pmax);
 			is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 			field_kind = field_kind;
 			do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
@@ -2143,6 +2145,17 @@ module ClassInitializer = struct
 			cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 		end
 
+	let check_display (ctx,fctx) cf p =
+		if fctx.is_display_field && not ctx.display_handled then begin
+			(* We're in our display field but didn't exit yet, so the position must be on the field itself.
+			   It could also be one of its arguments, but at the moment we cannot detect that. *)
+			match ctx.com.display with
+				| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
+				| DMUsage -> cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+				| DMType -> raise (DisplayTypes [cf.cf_type])
+				| _ -> ()
+		end
+
 	let bind_var (ctx,cctx,fctx) cf e =
 		let c = cctx.tclass in
 		let p = cf.cf_pos in
@@ -2199,7 +2212,10 @@ module ClassInitializer = struct
 						| TConst _ | TLocal _ | TFunction _ -> e
 						| _ -> !analyzer_run_on_expr_ref ctx.com e
 					in
-					let require_constant_expression e msg = match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+					let require_constant_expression e msg =
+						if ctx.com.display <> DMNone then
+							e
+						else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 						| Some e -> e
 						| None -> display_error ctx msg p; e
 					in
@@ -2248,6 +2264,7 @@ module ClassInitializer = struct
 						e
 					) in
 					let e = check_cast e in
+					check_display (ctx,fctx) cf p;
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 				end;
@@ -2532,7 +2549,6 @@ module ClassInitializer = struct
 					| None ->
 						if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 				) in
-				let is_display_field = cctx.is_display_file && (f.cff_pos.pmin <= cctx.completion_position.pmin && f.cff_pos.pmax >= cctx.completion_position.pmax) in
 				match ctx.com.platform with
 					| Java when is_java_native_function cf.cf_meta ->
 						if fd.f_expr <> None then
@@ -2540,16 +2556,8 @@ module ClassInitializer = struct
 						cf.cf_expr <- None;
 						cf.cf_type <- t
 					| _ ->
-						let e , fargs = type_function ctx args ret fmode fd is_display_field p in
-						if is_display_field && not ctx.display_handled then begin
-							(* We're in our display field but didn't exit yet, so the position must be on the field itself.
-							   It could also be one of its arguments, but at the moment we cannot detect that. *)
-							match ctx.com.display with
-								| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
-								| DMUsage -> cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
-								| DMType -> raise (DisplayTypes [cf.cf_type])
-								| _ -> ()
-						end;
+						let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
+						check_display (ctx,fctx) cf p;
 						let tf = {
 							tf_args = fargs;
 							tf_type = ret;
