@@ -1528,11 +1528,24 @@ let type_function_params ctx fd fname p =
 	params := type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
+module Display = struct
+	let is_display_file ctx p = match ctx.com.display with
+			| DMNone -> false
+			| DMResolve s ->
+				let mt = load_type_def ctx p {tname = s; tpackage = []; tsub = None; tparams = []} in
+				let p = (t_infos mt).mt_pos in
+				raise (DisplayPosition [p]);
+			| _ ->
+				Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
+
+	let encloses_position p_target p =
+		p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
+
 let find_enclosing com e =
 	let display_pos = ref (!Parser.resume_display) in
 	let mk_null p = (EDisplay(((EConst(Ident "null")),p),false),p) in
 	let encloses_display_pos p =
-		if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
+			if encloses_position !display_pos p then begin
 			let p = !display_pos in
 			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
 			Some p
@@ -1590,6 +1603,8 @@ let find_before_pos com e =
 	in
 	map e
 
+end
+
 let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
@@ -1610,8 +1625,8 @@ let type_function ctx args ret fmode f do_display p =
 		type_expr ctx e NoValue
 	else begin
 		let e = match ctx.com.display with
-			| DMToplevel -> find_enclosing ctx.com e
-			| DMPosition | DMUsage | DMType -> find_before_pos ctx.com e
+			| DMToplevel -> Display.find_enclosing ctx.com e
+			| DMPosition | DMUsage | DMType -> Display.find_before_pos ctx.com e
 			| _ -> e
 		in
 		try
@@ -1621,7 +1636,7 @@ let type_function ctx args ret fmode f do_display p =
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
 		| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
-			type_expr ctx (if ctx.com.display = DMToplevel then find_enclosing ctx.com e else e) NoValue
+			type_expr ctx (if ctx.com.display = DMToplevel then Display.find_enclosing ctx.com e else e) NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1
@@ -1983,15 +1998,7 @@ module ClassInitializer = struct
 			| None -> false
 			| Some (c,_) -> extends_public c
 		in
-		let is_display_file = match ctx.com.display with
-			| DMNone -> false
-			| DMResolve s ->
-				let mt = load_type_def ctx p {tname = s; tpackage = []; tsub = None; tparams = []} in
-				let p = (t_infos mt).mt_pos in
-				raise (DisplayPosition [p]);
-			| _ ->
-				Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
-		in
+		let is_display_file = Display.is_display_file ctx p in
 		let cctx = {
 			tclass = c;
 			is_lib = is_lib;
@@ -2032,7 +2039,7 @@ module ClassInitializer = struct
 			is_override = is_override;
 			is_macro = is_macro;
 			is_extern = is_extern;
-			is_display_field = cctx.is_display_file && (cff.cff_pos.pmin <= cctx.completion_position.pmin && cff.cff_pos.pmax >= cctx.completion_position.pmax);
+			is_display_field = cctx.is_display_file && Display.encloses_position cctx.completion_position cff.cff_pos;
 			is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 			field_kind = field_kind;
 			do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
