@@ -1541,67 +1541,67 @@ module Display = struct
 	let encloses_position p_target p =
 		p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
 
-let find_enclosing com e =
-	let display_pos = ref (!Parser.resume_display) in
-	let mk_null p = (EDisplay(((EConst(Ident "null")),p),false),p) in
-	let encloses_display_pos p =
+	let find_enclosing com e =
+		let display_pos = ref (!Parser.resume_display) in
+		let mk_null p = (EDisplay(((EConst(Ident "null")),p),false),p) in
+		let encloses_display_pos p =
 			if encloses_position !display_pos p then begin
-			let p = !display_pos in
-			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-			Some p
-		end else
-			None
-	in
-	let rec loop e = match fst e with
-		| EBlock el ->
-			let p = pos e in
-			(* We want to find the innermost block which contains the display position. *)
-			let el = List.map loop el in
-			let el = match encloses_display_pos p with
-				| None ->
-					el
-				| Some p2 ->
-					let b,el = List.fold_left (fun (b,el) e ->
-						let p = pos e in
-						if b || p.pmax <= p2.pmin then begin
-							(b,e :: el)
-						end else begin
-							let e_d = (EDisplay(mk_null p,false)),p in
-							(true,e :: e_d :: el)
-						end
-					) (false,[]) el in
-					let el = if b then
+				let p = !display_pos in
+				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+				Some p
+			end else
+				None
+		in
+		let rec loop e = match fst e with
+			| EBlock el ->
+				let p = pos e in
+				(* We want to find the innermost block which contains the display position. *)
+				let el = List.map loop el in
+				let el = match encloses_display_pos p with
+					| None ->
 						el
-					else begin
-						mk_null p :: el
-					end in
-					List.rev el
-			in
-			(EBlock el),(pos e)
-		| _ ->
-			Ast.map_expr loop e
-	in
-	loop e
+					| Some p2 ->
+						let b,el = List.fold_left (fun (b,el) e ->
+							let p = pos e in
+							if b || p.pmax <= p2.pmin then begin
+								(b,e :: el)
+							end else begin
+								let e_d = (EDisplay(mk_null p,false)),p in
+								(true,e :: e_d :: el)
+							end
+						) (false,[]) el in
+						let el = if b then
+							el
+						else begin
+							mk_null p :: el
+						end in
+						List.rev el
+				in
+				(EBlock el),(pos e)
+			| _ ->
+				Ast.map_expr loop e
+		in
+		loop e
 
-let find_before_pos com e =
-	let display_pos = ref (!Parser.resume_display) in
-	let is_annotated p =
-		if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
-			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-			true
-		end else
-			false
-	in
-	let rec loop e =
-		if is_annotated (pos e) then
-			(EDisplay(e,false),(pos e))
-		else
-			e
-	in
-	let rec map e =
-		loop (Ast.map_expr map e)
-	in
-	map e
+	let find_before_pos com e =
+		let display_pos = ref (!Parser.resume_display) in
+		let is_annotated p =
+			if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
+				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+				true
+			end else
+				false
+		in
+		let rec loop e =
+			if is_annotated (pos e) then
+				(EDisplay(e,false),(pos e))
+			else
+				e
+		in
+		let rec map e =
+			loop (Ast.map_expr map e)
+		in
+		map e
 
 end
 
@@ -2155,11 +2155,11 @@ module ClassInitializer = struct
 		if fctx.is_display_field && not ctx.display_handled then begin
 			(* We're in our display field but didn't exit yet, so the position must be on the field itself.
 			   It could also be one of its arguments, but at the moment we cannot detect that. *)
-			match ctx.com.display with
-				| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
-				| DMUsage -> cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
-				| DMType -> raise (DisplayTypes [cf.cf_type])
-				| _ -> ()
+		match ctx.com.display with
+			| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
+			| DMUsage -> cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+			| DMType -> raise (DisplayTypes [cf.cf_type])
+			| _ -> ()
 		end
 
 	let bind_var (ctx,cctx,fctx) cf e =
@@ -3150,6 +3150,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let index = ref 0 in
 		let is_flat = ref true in
 		let fields = ref PMap.empty in
+		let is_display_file = Display.is_display_file ctx p in
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
@@ -3197,13 +3198,19 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| TFun _ -> Method MethNormal
 					| _ -> Var { v_read = AccNormal; v_write = AccNo }
 				);
-				cf_pos = e.e_pos;
+				cf_pos = p;
 				cf_doc = f.ef_doc;
 				cf_meta = no_meta;
 				cf_expr = None;
 				cf_params = f.ef_params;
 				cf_overloads = [];
 			} in
+			if is_display_file && Display.encloses_position !Parser.resume_display p then begin match ctx.com.display with
+				| DMPosition -> raise (DisplayPosition [p]);
+				| DMUsage -> f.ef_meta <- (Meta.Usage,[],p) :: f.ef_meta;
+				| DMType -> raise (DisplayTypes [f.ef_type])
+				| _ -> ()
+			end;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
