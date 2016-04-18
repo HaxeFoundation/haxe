@@ -214,8 +214,11 @@ let print_document_symbols (pack,decls) =
 				ignore (add ef.ec_name Method ef.ec_pos (Some si_type))
 			) d.d_data
 		| ETypedef d ->
-			(* TODO: hmm... *)
-			()
+			let si_type = add d.d_name Interface p si_pack in
+			(match d.d_data with
+			| CTAnonymous fields ->
+				List.iter (field si_type) fields
+			| _ -> ())
 		| EAbstract d ->
 			let si_type = add d.d_name Class p si_pack in
 			List.iter (field si_type) d.d_data
