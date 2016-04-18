@@ -1047,7 +1047,7 @@ try
 				l
 		in
 		let parts = Str.split_delim (Str.regexp "[;:]") p in
-		com.class_path <- "" :: List.map normalize_path (loop parts)
+		com.class_path <- "" :: List.map add_trailing_slash (loop parts)
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
