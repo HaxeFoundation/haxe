@@ -1025,10 +1025,6 @@ let iter_expressions fl mt =
 		()
 
 let run com tctx main =
-	begin match com.display with
-		| DMUsage -> Codegen.detect_usage com;
-		| _ -> ()
-	end;
 	if not (Common.defined com Define.NoDeprecationWarnings) then
 		Codegen.DeprecationCheck.run com;
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in

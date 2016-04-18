@@ -1566,7 +1566,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match com.display with
-			| DMNone | DMUsage | DMPosition | DMType | DMResolve _ ->
+			| DMNone | DMUsage ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1577,6 +1577,10 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
+		begin match com.display with
+			| DMUsage -> Codegen.detect_usage com;
+			| _ -> ()
+		end;
 		Filters.run com tctx main;
 		if ctx.has_error then raise Abort;
 		(* check file extension. In case of wrong commandline, we don't want
