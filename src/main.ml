@@ -377,7 +377,7 @@ let lookup_classes com spath =
 		| [] -> []
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = normalize_path (get_real_path (Common.get_full_path cp)) in
+			let c = add_trailing_slash (get_real_path (Common.get_full_path cp)) in
 			let clen = String.length c in
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
@@ -1053,7 +1053,7 @@ try
 			if Sys.os_type = "Unix" then
 				com.class_path <- ["/usr/lib/haxe/std/";"/usr/share/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";""]
 			else
-				let base_path = normalize_path (get_real_path (try executable_path() with _ -> "./")) in
+				let base_path = add_trailing_slash (get_real_path (try executable_path() with _ -> "./")) in
 				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let set_platform pf file =
@@ -1077,7 +1077,7 @@ try
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
 			process_libs();
-			com.class_path <- normalize_path path :: com.class_path
+			com.class_path <- add_trailing_slash path :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
 		("-lua",Arg.String (set_platform Lua),"<file> : compile code to Lua file");

@@ -956,7 +956,7 @@ let get_path_parts f =
 	) in
 	cl
 
-let normalize_path p =
+let add_trailing_slash p =
 	let l = String.length p in
 	if l = 0 then
 		"./"

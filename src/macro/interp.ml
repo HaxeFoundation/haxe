@@ -2655,11 +2655,11 @@ let macro_lib =
 			match v with
 			| VString cp ->
 				let com = ccom() in
-				let norm_path = Common.normalize_path cp in
-				com.class_path <- norm_path :: com.class_path;
+				let cp = Common.add_trailing_slash cp in
+				com.class_path <- cp :: com.class_path;
 				(match com.get_macros() with
 					| Some(mcom) ->
-						mcom.class_path <- norm_path :: com.class_path;
+						mcom.class_path <- cp :: com.class_path;
 					| None ->
 						());
 				Hashtbl.clear com.file_lookup_cache;
