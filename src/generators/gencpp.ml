@@ -1634,6 +1634,7 @@ let rec const_string_of expr =
 
 let cpp_is_dynamic_type = function
    | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
+   | TCppInterface _
       -> true
    | _ -> false
 ;;
@@ -2146,11 +2147,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                      | TCppDynamicArray, "length" ->
                         CppCall(FuncInternal(retypedObj,"get_length","->"),[]), exprType
 
+                     | TCppInterface _,_
                      | TCppDynamic,_ ->
-                        CppDynamicField(retypedObj, member.cf_name), TCppVariant
-
-                     | TCppInterface(klass),_  ->
-                        (*CppVar(VarInterface(retypedObj,member) ), exprType*)
                         CppDynamicField(retypedObj, member.cf_name), TCppVariant
 
                      | _ ->
@@ -2578,7 +2576,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
             | TCppVoid -> baseCpp.cppexpr, TCppVoid
-            | TCppDynamic -> baseCpp.cppexpr, baseCpp.cpptype
+            | TCppInterface _
+            | TCppDynamic ->
+                  baseCpp.cppexpr, baseCpp.cpptype
             | _ ->
                CppTCast(baseCpp, return_type), return_type
             )
@@ -2606,6 +2606,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | TCppString
              -> mk_cppexpr (CppCastScalar(cppExpr,"::String")) return_type
+
+         | TCppInterface _ when cppExpr.cpptype=TCppVariant
+              -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
 
          | TCppDynamic when cppExpr.cpptype=TCppVariant
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
