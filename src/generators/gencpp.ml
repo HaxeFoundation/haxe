@@ -1687,11 +1687,11 @@ let rec cpp_type_of ctx haxe_type =
       | (["cpp"], "Int8"),_ -> TCppScalar("signed char")
       | (["cpp"], "Int16"),_ -> TCppScalar("short")
       | (["cpp"], "Int32"),_ -> TCppScalar("int")
-      | (["cpp"], "Int64"),_ -> TCppScalar("cpp::Int64")
+      | (["cpp"], "Int64"),_ -> TCppScalar("::cpp::Int64")
       | (["cpp"], "UInt8"),_ -> TCppScalar("unsigned char")
       | (["cpp"], "UInt16"),_ -> TCppScalar("unsigned short")
       | (["cpp"], "UInt32"),_ -> TCppScalar("unsigned int")
-      | (["cpp"], "UInt64"),_ -> TCppScalar("cpp::UInt64")
+      | (["cpp"], "UInt64"),_ -> TCppScalar("::cpp::UInt64")
 
       | ([],"String"), [] ->
          TCppString
@@ -3031,8 +3031,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          let arrayType,close = match expr.cpptype with
             | TCppObjectArray _ -> "::Array_obj< ::Dynamic>",""
             | TCppScalarArray(value) -> "::Array_obj< " ^ (tcpp_to_string value) ^ " >",""
-            | TCppDynamicArray -> "cpp::VirtualArray_obj",""
-            | _ -> " ::Dynamic( cpp::VirtualArray_obj",")"
+            | TCppDynamicArray -> "::cpp::VirtualArray_obj",""
+            | _ -> " ::Dynamic( ::cpp::VirtualArray_obj",")"
          in
          out (arrayType ^ "::__new(" ^ countStr ^ ")" );
          ExtList.List.iteri ( fun idx elem -> out ("->init(" ^ (string_of_int idx) ^ ",");
