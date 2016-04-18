@@ -3778,7 +3778,7 @@ let rec build_generic ctx c p tl =
 			()
 	in
 	List.iter check_recursive tl;
-	if !recurse then begin
+	if !recurse || ctx.com.display <> DMNone then begin
 		TInst (c,tl) (* build a normal instance *)
 	end else begin
 	let gctx = make_generic ctx c.cl_params tl p in
