@@ -1276,6 +1276,9 @@ try
 					| "toplevel" ->
 						activate_special_display_mode();
 						DMToplevel
+					| "document-symbols" ->
+						Common.define com Define.NoCOpt;
+						DMDocumentSymbols;
 					| "" ->
 						Parser.use_parser_resume := true;
 						DMDefault
@@ -1803,6 +1806,8 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
+	| Display.DocumentSymbols s ->
+		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();
 		exit i

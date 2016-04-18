@@ -226,6 +226,8 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
+	if com.display = DMDocumentSymbols && Common.unique_full_path file = (!Parser.resume_display).pfile then
+		raise (Display.DocumentSymbols(Display.print_document_symbols data));
 	t();
 	Common.log com ("Parsed " ^ file);
 	data
@@ -1528,83 +1530,6 @@ let type_function_params ctx fd fname p =
 	params := type_type_params ctx ([],fname) (fun() -> !params) p fd.f_params;
 	!params
 
-module Display = struct
-	let is_display_file ctx p = match ctx.com.display with
-			| DMNone -> false
-			| DMResolve s ->
-				let mt = load_type_def ctx p {tname = s; tpackage = []; tsub = None; tparams = []} in
-				let p = (t_infos mt).mt_pos in
-				raise (DisplayPosition [p]);
-			| _ ->
-				Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
-
-	let encloses_position p_target p =
-		p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
-
-	let find_enclosing com e =
-		let display_pos = ref (!Parser.resume_display) in
-		let mk_null p = (EDisplay(((EConst(Ident "null")),p),false),p) in
-		let encloses_display_pos p =
-			if encloses_position !display_pos p then begin
-				let p = !display_pos in
-				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-				Some p
-			end else
-				None
-		in
-		let rec loop e = match fst e with
-			| EBlock el ->
-				let p = pos e in
-				(* We want to find the innermost block which contains the display position. *)
-				let el = List.map loop el in
-				let el = match encloses_display_pos p with
-					| None ->
-						el
-					| Some p2 ->
-						let b,el = List.fold_left (fun (b,el) e ->
-							let p = pos e in
-							if b || p.pmax <= p2.pmin then begin
-								(b,e :: el)
-							end else begin
-								let e_d = (EDisplay(mk_null p,false)),p in
-								(true,e :: e_d :: el)
-							end
-						) (false,[]) el in
-						let el = if b then
-							el
-						else begin
-							mk_null p :: el
-						end in
-						List.rev el
-				in
-				(EBlock el),(pos e)
-			| _ ->
-				Ast.map_expr loop e
-		in
-		loop e
-
-	let find_before_pos com e =
-		let display_pos = ref (!Parser.resume_display) in
-		let is_annotated p =
-			if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
-				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-				true
-			end else
-				false
-		in
-		let rec loop e =
-			if is_annotated (pos e) then
-				(EDisplay(e,false),(pos e))
-			else
-				e
-		in
-		let rec map e =
-			loop (Ast.map_expr map e)
-		in
-		map e
-
-end
-
 let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
@@ -1929,6 +1854,15 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
+let is_display_file ctx p = match ctx.com.display with
+	| DMNone -> false
+	| DMResolve s ->
+		let mt = load_type_def ctx p {tname = s; tpackage = []; tsub = None; tparams = []} in
+		let p = (t_infos mt).mt_pos in
+		raise (DisplayPosition [p]);
+	| _ ->
+		Display.is_display_file p
+
 module ClassInitializer = struct
 	type class_init_ctx = {
 		tclass : tclass; (* I don't trust ctx.curclass because it's mutable. *)
@@ -1998,7 +1932,7 @@ module ClassInitializer = struct
 			| None -> false
 			| Some (c,_) -> extends_public c
 		in
-		let is_display_file = Display.is_display_file ctx p in
+		let is_display_file = is_display_file ctx p in
 		let cctx = {
 			tclass = c;
 			is_lib = is_lib;
@@ -3152,7 +3086,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let index = ref 0 in
 		let is_flat = ref true in
 		let fields = ref PMap.empty in
-		let is_display_file = Display.is_display_file ctx p in
+		let is_display_file = is_display_file ctx p in
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in

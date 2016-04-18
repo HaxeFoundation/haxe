@@ -98,6 +98,7 @@ type display_mode =
 	| DMToplevel
 	| DMResolve of string
 	| DMType
+	| DMDocumentSymbols
 
 type compiler_callback = {
 	mutable after_typing : (module_type list -> unit) list;
@@ -207,8 +208,8 @@ module Define = struct
 		| JsUnflatten
 		| KeepOldOutput
 		| LoopUnrollMaxCost
-	        | LuaVer
-	        | LuaJit
+		| LuaVer
+		| LuaJit
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -968,9 +969,9 @@ let rec mkdir_recursive base dir_list =
 	| [] -> ()
 	| dir :: remaining ->
 		let path = match base with
-		           | "" ->  dir
-		           | "/" -> "/" ^ dir
-		           | _ -> base ^ "/" ^ dir
+				   | "" ->  dir
+				   | "/" -> "/" ^ dir
+				   | _ -> base ^ "/" ^ dir
 		in
 		if not ( (path = "") || ( ((String.length path) = 2) && ((String.sub path 1 1) = ":") ) ) then
 			if not (Sys.file_exists path) then
@@ -1043,8 +1044,8 @@ Ast.Meta.to_string_ref := fun m -> fst (MetaInfo.to_string m)
 
 (*  Taken from OCaml source typing/oprint.ml
 
-    This is a better version of string_of_float which prints without loss of precision
-    so that float_of_string (float_repres x) = x for all floats x
+	This is a better version of string_of_float which prints without loss of precision
+	so that float_of_string (float_repres x) = x for all floats x
 *)
 let valid_float_lexeme s =
 	let l = String.length s in
