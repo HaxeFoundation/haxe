@@ -34,6 +34,8 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
    @:analyzer(no_simplification)
    public function set_ref(t:T) : T;
 
+   @:analyzer(no_simplification)
+   public function setAt(inIndex:Int, value:T):Void;
 
    public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
 
@@ -45,6 +47,17 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
    public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
 
+   public static function ofArray<T>(array:Array<T>):Pointer<T>;
+
+   inline public function toUnmanagedArray(elementCount:Int) : Array<T>
+   {
+      var result = new Array<T>();
+      NativeArray.setUnmanagedData(result,this,elementCount);
+      return result;
+   }
+
+   inline public function toUnmanagedVector(elementCount:Int) : haxe.ds.Vector<T>
+      return cast toUnmanagedArray(elementCount);
  
 
    override public function inc():Pointer<T>;
