@@ -2369,31 +2369,31 @@ module TExprToExpr = struct
 			CTPath {
 				tpackage = [];
 				tname = name;
-				tparams = List.map (fun t -> TPType (convert_type t)) tl;
+				tparams = List.map (fun t -> TPType (convert_type' t)) tl;
 				tsub = None;
 			}
 		| TEnum (e,pl) ->
-			tpath e.e_path e.e_module.m_path (List.map convert_type pl)
+			tpath e.e_path e.e_module.m_path (List.map convert_type' pl)
 		| TInst({cl_kind = KTypeParameter _} as c,pl) ->
-			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map convert_type pl)
+			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map convert_type' pl)
 		| TInst (c,pl) ->
-			tpath c.cl_path c.cl_module.m_path (List.map convert_type pl)
+			tpath c.cl_path c.cl_module.m_path (List.map convert_type' pl)
 		| TType (t,pl) as tf ->
 			(* recurse on type-type *)
-			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map convert_type pl)
+			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map convert_type' pl)
 		| TAbstract (a,pl) ->
-			tpath a.a_path a.a_module.m_path (List.map convert_type pl)
+			tpath a.a_path a.a_module.m_path (List.map convert_type' pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type t) args, convert_type ret)
+			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
-			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path []]
-			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path []]
+			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path [],null_pos]
+			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path [],null_pos]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
 					{
 						cff_name = f.cf_name;
-						cff_kind = FVar (mk_ot f.cf_type,None);
+						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
 						cff_pos = f.cf_pos;
 						cff_doc = f.cf_doc;
 						cff_meta = f.cf_meta;
@@ -2402,14 +2402,17 @@ module TExprToExpr = struct
 				) a.a_fields [])
 			end
 		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type t2])
+			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type' t2])
 		| TLazy f ->
 			convert_type ((!f)())
 
-	and mk_ot t =
+	and convert_type' t =
+		convert_type t,null_pos
+
+	and mk_type_hint t p =
 		match follow t with
 		| TMono _ -> None
-		| _ -> (try Some (convert_type t) with Exit -> None)
+		| _ -> (try Some (convert_type t,p) with Exit -> None)
 
 	let rec convert_expr e =
 		let full_type_path t =
@@ -2439,13 +2442,13 @@ module TExprToExpr = struct
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
-		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p | _ -> assert false),List.map convert_expr el)
+		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
-			let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (tconst_to_const c),e.epos)) in
-			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = Some (convert_expr f.tf_expr) })
+			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (EConst (tconst_to_const c),e.epos)) in
+			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([v.v_name, mk_ot v.v_type, eopt eo])
+			EVars ([(v.v_name,v.v_pos), mk_type_hint v.v_type v.v_pos, eopt eo])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EIn ((EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
@@ -2461,7 +2464,7 @@ module TExprToExpr = struct
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
 			assert false
-		| TTry (e,catches) -> ETry (convert_expr e,List.map (fun (v,e) -> v.v_name, (try convert_type v.v_type with Exit -> assert false), convert_expr e) catches)
+		| TTry (e,catches) -> ETry (convert_expr e,List.map (fun (v,e) -> (v.v_name,v.v_pos), (try convert_type v.v_type,null_pos with Exit -> assert false), convert_expr e) catches)
 		| TReturn e -> EReturn (eopt e)
 		| TBreak -> EBreak
 		| TContinue -> EContinue
@@ -2471,7 +2474,7 @@ module TExprToExpr = struct
 				| None -> None
 				| Some t ->
 					let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
-					Some (try convert_type t with Exit -> assert false)
+					Some (try convert_type t,null_pos with Exit -> assert false)
 			) in
 			ECast (convert_expr e,t)
 		| TMeta ((Meta.Ast,[e1,_],_),_) -> e1

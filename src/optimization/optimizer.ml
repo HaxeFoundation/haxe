@@ -1652,10 +1652,10 @@ let optimize_completion_expr e =
 				());
 			map e
 		| EVars vl ->
-			let vl = List.map (fun (v,t,e) ->
+			let vl = List.map (fun ((v,pv),t,e) ->
 				let e = (match e with None -> None | Some e -> Some (loop e)) in
-				decl v t e;
-				(v,t,e)
+				decl v (Option.map fst t) e;
+				((v,pv),t,e)
 			) vl in
 			(EVars vl,p)
 		| EBlock el ->
@@ -1675,7 +1675,7 @@ let optimize_completion_expr e =
 			| Some name ->
 				decl name None (Some e));
 			let old = save() in
-			List.iter (fun (n,_,t,e) -> decl n t e) f.f_args;
+			List.iter (fun ((n,_),_,_,t,e) -> decl n (Option.map fst t) e) f.f_args;
 			let e = map e in
 			old();
 			e
@@ -1684,7 +1684,7 @@ let optimize_completion_expr e =
 			let old = save() in
 			let etmp = (EConst (Ident "$tmp"),p) in
 			decl n None (Some (EBlock [
-				(EVars ["$tmp",None,None],p);
+				(EVars [("$tmp",null_pos),None,None],p);
 				(EFor ((EIn (id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
 				etmp
 			],p));
@@ -1724,12 +1724,12 @@ let optimize_completion_expr e =
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
-			let cl = List.map (fun (n,t,e) ->
+			let cl = List.map (fun ((n,pn),(t,pt),e) ->
 				let old = save() in
 				decl n (Some t) None;
 				let e = loop e in
 				old();
-				n, t, e
+				(n,pn), (t,pt), e
 			) cl in
 			(ETry (et,cl),p)
 		| EDisplay (s,call) ->
@@ -1742,14 +1742,14 @@ let optimize_completion_expr e =
 					let p = snd e in
 					(try
 						(match PMap.find n locals.r with
-						| Some t , _ -> (ECheckType ((EConst (Ident "null"),p),t),p)
+						| Some t , _ -> (ECheckType ((EConst (Ident "null"),p),(t,p)),p)
 						| _, Some (id,e,lc) ->
 							let name = (try
 								PMap.find id (!tmp_hlocals)
 							with Not_found ->
 								let e = subst_locals lc e in
 								let name = "$tmp_" ^ string_of_int id in
-								tmp_locals := (name,None,Some e) :: !tmp_locals;
+								tmp_locals := ((name,null_pos),None,Some e) :: !tmp_locals;
 								tmp_hlocals := PMap.add id name !tmp_hlocals;
 								name
 							) in
@@ -1761,7 +1761,7 @@ let optimize_completion_expr e =
 						(* not found locals are most likely to be member/static vars *)
 						e)
 				| EFunction (_,f) ->
-					Ast.map_expr (subst_locals { r = PMap.foldi (fun n i acc -> if List.exists (fun (a,_,_,_) -> a = n) f.f_args then acc else PMap.add n i acc) locals.r PMap.empty }) e
+					Ast.map_expr (subst_locals { r = PMap.foldi (fun n i acc -> if List.exists (fun ((a,_),_,_,_,_) -> a = n) f.f_args then acc else PMap.add n i acc) locals.r PMap.empty }) e
 				| EObjectDecl [] ->
 					(* this probably comes from { | completion so we need some context} *)
 					raise Exit

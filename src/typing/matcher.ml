@@ -54,7 +54,7 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx {tname=loop mt;tpackage=[];tsub=None;tparams=[]} p true
+	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) true
 
 module Constructor = struct
 	type t =
@@ -252,7 +252,7 @@ module Pattern = struct
 		let rec loop e = match fst e with
 			| EParenthesis e1 | ECast(e1,None) ->
 				loop e1
-			| ECheckType(e, CTPath({tpackage=["haxe";"macro"]; tname="Expr"})) ->
+			| ECheckType(e, (CTPath({tpackage=["haxe";"macro"]; tname="Expr"}),_)) ->
 				let old = pctx.in_reification in
 				pctx.in_reification <- true;
 				let e = loop e in
@@ -275,7 +275,7 @@ module Pattern = struct
 					| _ ->
 						handle_ident i
 				end
-			| EVars([s,None,None]) ->
+			| EVars([(s,_),None,None]) ->
 				let v = add_local s in
 				PatVariable v
 			| ECall(e1,el) ->
@@ -1224,7 +1224,7 @@ module TexprConverter = struct
 	let to_texpr ctx t_switch match_debug with_type dt =
 		let com = ctx.com in
 		let p = dt.dt_pos in
-		let c_type = match follow (Typeload.load_instance ctx { tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None} p true) with TInst(c,_) -> c | t -> assert false in
+		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},p) true) with TInst(c,_) -> c | t -> assert false in
 		let mk_index_call e =
 			let cf = PMap.find "enumIndex" c_type.cl_statics in
 			make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos

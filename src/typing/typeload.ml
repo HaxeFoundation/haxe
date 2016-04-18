@@ -37,7 +37,7 @@ let transform_abstract_field com this_t a_t a f =
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
 	| FFun fu when f.cff_name = "new" && not stat ->
-		let init p = (EVars ["this",Some this_t,None],p) in
+		let init p = (EVars [("this",null_pos),Some this_t,None],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 		let meta = (Meta.Impl,[],p) :: f.cff_meta in
@@ -61,7 +61,7 @@ let transform_abstract_field com this_t a_t a f =
 		{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
-		let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else ("this",false,Some this_t,None) :: fu.f_args) } in
+		let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else (("this",null_pos),false,[],Some this_t,None) :: fu.f_args) } in
 		{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 	| _ ->
 		f
@@ -189,8 +189,8 @@ let module_pass_1 ctx m tdecls loadp =
 				acc
 			| fields ->
 				let a_t =
-					let params = List.map (fun t -> TPType (CTPath { tname = t.tp_name; tparams = []; tsub = None; tpackage = [] })) d.d_params in
-					CTPath { tpackage = []; tname = d.d_name; tparams = params; tsub = None }
+					let params = List.map (fun t -> TPType (CTPath { tname = t.tp_name; tparams = []; tsub = None; tpackage = [] },null_pos)) d.d_params in
+					CTPath { tpackage = []; tname = d.d_name; tparams = params; tsub = None },null_pos
 				in
 				let rec loop = function
 					| [] -> a_t
@@ -368,15 +368,15 @@ let requires_value_meta com co =
 
 let generate_value_meta com co cf args =
 	if requires_value_meta com co then begin
-		let values = List.fold_left (fun acc (name,_,_,eo) -> match eo with Some e -> (name,e) :: acc | _ -> acc) [] args in
+		let values = List.fold_left (fun acc ((name,_),_,_,_,eo) -> match eo with Some e -> (name,e) :: acc | _ -> acc) [] args in
 		match values with
 			| [] -> ()
 			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],cf.cf_pos) :: cf.cf_meta)
 	end
 
 (* build an instance from a full type *)
-let rec load_instance ctx t p allow_no_params =
-	try
+let rec load_instance ?(allow_display=false) ctx (t,p) allow_no_params =
+	let t = try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
 		let pt = List.assoc t.tname ctx.type_params in
 		if t.tparams <> [] then error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
@@ -404,7 +404,7 @@ let rec load_instance ctx t p allow_no_params =
 		end else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (load_complex_type ctx p t)
+			| [TPType t] -> TDynamic (load_complex_type ctx false t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
 			if not is_rest && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
@@ -420,7 +420,7 @@ let rec load_instance ctx t p allow_no_params =
 					let c = mk_class null_module ([],name) p in
 					c.cl_kind <- KExpr e;
 					TInst (c,[])
-				| TPType t -> load_complex_type ctx p t
+				| TPType t -> load_complex_type ctx true t
 			) t.tparams in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
@@ -466,16 +466,21 @@ let rec load_instance ctx t p allow_no_params =
 			let params = loop tparams types false in
 			f params
 		end
+	in
+	if allow_display && ctx.com.display <> DMNone && Display.is_display_file p && Display.encloses_position !Parser.resume_display p then
+		Display.display_type ctx.com.display t;
+	t
+
 (*
 	build an instance from a complex type
 *)
-and load_complex_type ctx p t =
+and load_complex_type ctx allow_display (t,p) =
 	match t with
-	| CTParent t -> load_complex_type ctx p t
-	| CTPath t -> load_instance ctx t p false
+	| CTParent t -> load_complex_type ctx allow_display t
+	| CTPath t -> load_instance ~allow_display ctx (t,p) false
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTExtend (tl,l) ->
-		(match load_complex_type ctx p (CTAnonymous l) with
+		(match load_complex_type ctx allow_display (CTAnonymous l,p) with
 		| TAnon a as ta ->
 			let is_redefined cf1 a2 =
 				try
@@ -526,7 +531,7 @@ and load_complex_type ctx p t =
 				| _ ->
 					error "Multiple structural extension is only allowed for structures" p
 			in
-			let il = List.map (fun t -> load_instance ctx t p false) tl in
+			let il = List.map (fun (t,_) -> load_instance ctx ~allow_display (t,p) false) tl in
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
@@ -550,7 +555,7 @@ and load_complex_type ctx p t =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
 			let topt = function
 				| None -> error ("Explicit type required for field " ^ n) p
-				| Some t -> load_complex_type ctx p t
+				| Some t -> load_complex_type ctx allow_display t
 			in
 			if n = "new" then ctx.com.warning "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
 			let no_expr = function
@@ -568,7 +573,7 @@ and load_complex_type ctx p t =
 				| AStatic | AOverride | AInline | ADynamic | AMacro -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
-				| FVar (Some (CTPath({tpackage=[];tname="Void"})), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"})),_) ->
+				| FVar (Some (CTPath({tpackage=[];tname="Void"}),_), _)  | FProp (_,_,Some (CTPath({tpackage=[];tname="Void"}),_),_) ->
 					error "Fields of type Void are not allowed in structures" p
 				| FVar (t, e) ->
 					no_expr e;
@@ -578,7 +583,7 @@ and load_complex_type ctx p t =
 					no_expr fd.f_expr;
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
-					let args = List.map (fun (name,o,t,e) -> no_expr e; name, o, topt t) fd.f_args in
+					let args = List.map (fun ((name,_),o,_,t,e) -> no_expr e; name, o, topt t) fd.f_args in
 					let t = TFun (args,topt fd.f_type), Method (if !dyn then MethDynamic else MethNormal) in
 					ctx.type_params <- old;
 					t
@@ -598,7 +603,7 @@ and load_complex_type ctx p t =
 							error "Custom property access is no longer supported in Haxe 3" f.cff_pos;
 					in
 					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
-					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
+					load_complex_type ctx allow_display t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
@@ -619,13 +624,13 @@ and load_complex_type ctx p t =
 		mk_anon (List.fold_left loop PMap.empty l)
 	| CTFunction (args,r) ->
 		match args with
-		| [CTPath { tpackage = []; tparams = []; tname = "Void" }] ->
-			TFun ([],load_complex_type ctx p r)
+		| [CTPath { tpackage = []; tparams = []; tname = "Void" },_] ->
+			TFun ([],load_complex_type ctx allow_display r)
 		| _ ->
 			TFun (List.map (fun t ->
-				let t, opt = (match t with CTOptional t -> t, true | _ -> t,false) in
-				"",opt,load_complex_type ctx p t
-			) args,load_complex_type ctx p r)
+				let t, opt = (match fst t with CTOptional t -> t, true | _ -> t,false) in
+				"",opt,load_complex_type ctx allow_display t
+			) args,load_complex_type ctx allow_display r)
 
 and init_meta_overloads ctx co cf =
 	let overloads = ref [] in
@@ -645,8 +650,8 @@ and init_meta_overloads ctx co cf =
 			| l -> ctx.type_params <- List.filter (fun t -> not (List.mem t l)) ctx.type_params);
 			let params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
-			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx p t in
-			let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) f.f_args in
+			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
+			let args = List.map (fun ((a,_),opt,_,t,_) -> a,opt,topt t) f.f_args in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
 			generate_value_meta ctx.com co cf f.f_args;
 			overloads := cf :: !overloads;
@@ -692,7 +697,7 @@ let hide_params ctx =
 *)
 let load_core_type ctx name =
 	let show = hide_params ctx in
-	let t = load_instance ctx { tpackage = []; tname = name; tparams = []; tsub = None; } null_pos false in
+	let t = load_instance ctx ({ tpackage = []; tname = name; tparams = []; tsub = None; },null_pos) false in
 	show();
 	add_dependency ctx.m.curmod (match t with
 	| TInst (c,_) -> c.cl_module
@@ -717,8 +722,11 @@ let t_iterator ctx =
 (*
 	load either a type t or Null<Unknown> if not defined
 *)
-let load_type_opt ?(opt=false) ctx p t =
-	let t = (match t with None -> mk_mono() | Some t -> load_complex_type ctx p t) in
+let load_type_hint ?(opt=false) ctx t =
+	let t = match t with
+		| None -> mk_mono()
+		| Some (t,p) -> load_complex_type ctx true (t,p)
+	in
 	if opt then ctx.t.tnull t else t
 
 (* ---------------------------------------------------------------------- *)
@@ -1165,19 +1173,19 @@ let get_strict_meta ctx params pos =
 			in
 			let tpath = field_to_type_path ctx ef in
 			if pf = Cs then
-				(ENew(tpath, el), p), fields, CTPath tpath
+				(ENew((tpath,snd ef), el), p), fields, CTPath tpath
 			else
 				ef, fields, CTPath tpath
 		| [EConst(Ident i),p as expr] ->
 			let tpath = { tpackage=[]; tname=i; tparams=[]; tsub=None } in
 			if pf = Cs then
-				(ENew(tpath, []), p), [], CTPath tpath
+				(ENew((tpath,p), []), p), [], CTPath tpath
 			else
 				expr, [], CTPath tpath
 		| [ (EField(_),p as field) ] ->
 			let tpath = field_to_type_path ctx field in
 			if pf = Cs then
-				(ENew(tpath, []), p), [], CTPath tpath
+				(ENew((tpath,p), []), p), [], CTPath tpath
 			else
 				field, [], CTPath tpath
 		| _ ->
@@ -1185,7 +1193,7 @@ let get_strict_meta ctx params pos =
 			raise Exit
 	in
 	let texpr = type_expr ctx changed_expr NoValue in
-	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), ctype ), pos) in
+	let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 	let extra = handle_fields ctx fields_to_check with_type_expr in
 	Meta.Meta, [make_meta ctx texpr extra], pos
 
@@ -1418,16 +1426,16 @@ module Inheritance = struct
 			resolve imports before calling build_inheritance, since it requires full paths.
 			that means that typedefs are not working, but that's a fair limitation
 		*)
-		let resolve_imports t =
+		let resolve_imports (t,p) =
 			match t.tpackage with
-			| _ :: _ -> t
+			| _ :: _ -> t,p
 			| [] ->
 				try
 					let find = List.find (fun lt -> snd (t_path lt) = t.tname) in
 					let lt = try find ctx.m.curmod.m_types with Not_found -> find ctx.m.module_types in
-					{ t with tpackage = fst (t_path lt) }
+					{ t with tpackage = fst (t_path lt) },p
 				with
-					Not_found -> t
+					Not_found -> t,p
 		in
 		let herits = ExtList.List.filter_map (function
 			| HExtends t -> Some(true,resolve_imports t)
@@ -1437,7 +1445,7 @@ module Inheritance = struct
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
 		let fl = List.map (fun (is_extends,t) ->
-			let t = load_instance ctx t p false in
+			let t = load_instance ~allow_display:true ctx t false in
 			if is_extends then begin
 				if c.cl_super <> None then error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -1500,7 +1508,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 		let r = exc_protect ctx (fun r ->
 			r := (fun _ -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			let constr = List.map (load_complex_type ctx p) tp.tp_constraints in
+			let constr = List.map (load_complex_type ctx true) tp.tp_constraints in
 			(* check against direct recursion *)
 			let rec loop t =
 				match follow t with
@@ -1532,13 +1540,14 @@ let type_function_params ctx fd fname p =
 
 let type_function ctx args ret fmode f do_display p =
 	let locals = save_locals ctx in
-	let fargs = List.map (fun (n,c,t) ->
+	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
 		if n.[0] = '$' then error "Function argument names starting with a dollar are not allowed" p;
 		let c = type_function_arg_value ctx t c in
-		let v,c = add_local ctx n t p, c in (* TODO: var pos *)
+		let v,c = add_local ctx n t pn, c in
+		v.v_meta <- m;
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
-	) args in
+	) args f.f_args in
 	let old_ret = ctx.ret in
 	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
@@ -1656,7 +1665,7 @@ let load_core_class ctx c =
 		| KAbstractImpl a -> { tpackage = fst a.a_path; tname = snd a.a_path; tparams = []; tsub = None; }
 		| _ -> { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; }
 	in
-	let t = load_instance ctx2 tpath c.cl_pos true in
+	let t = load_instance ctx2 (tpath,c.cl_pos) true in
 	flush_pass ctx2 PFinal "core_final";
 	match t with
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
@@ -1758,10 +1767,10 @@ let patch_class ctx c fields =
 				(* patch arguments types *)
 				(match f.cff_kind with
 				| FFun ff ->
-					let param ((n,opt,t,e) as p) =
+					let param (((n,pn),opt,m,_,e) as p) =
 						try
 							let t2 = (try Hashtbl.find h (("$" ^ f.cff_name ^ "__" ^ n),false) with Not_found -> Hashtbl.find h (("$" ^ n),false)) in
-							n, opt, t2.tp_type, e
+							(n,pn), opt, m, (match t2.tp_type with None -> None | Some t -> Some (t,null_pos)), e
 						with Not_found ->
 							p
 					in
@@ -1777,9 +1786,9 @@ let patch_class ctx c fields =
 					| None -> ()
 					| Some t ->
 						f.cff_kind <- match f.cff_kind with
-						| FVar (_,e) -> FVar (Some t,e)
-						| FProp (get,set,_,eo) -> FProp (get,set,Some t,eo)
-						| FFun f -> FFun { f with f_type = Some t });
+						| FVar (_,e) -> FVar (Some (t,null_pos),e)
+						| FProp (get,set,_,eo) -> FProp (get,set,Some (t,null_pos),eo)
+						| FFun f -> FFun { f with f_type = Some (t,null_pos) });
 					loop (f :: acc) l
 		in
 		List.rev (loop [] fields)
@@ -1796,7 +1805,7 @@ let build_enum_abstract ctx c a fields p =
 			field.cff_meta <- (Meta.Enum,[],field.cff_pos) :: (Meta.Impl,[],field.cff_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
-				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)))
+				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
 			in
 			begin match eo with
 				| None ->
@@ -1810,7 +1819,7 @@ let build_enum_abstract ctx c a fields p =
 		| _ ->
 			()
 	) fields;
-	EVars ["",Some (CTAnonymous fields),None],p
+	EVars [("",null_pos),Some (CTAnonymous fields,p),None],p
 
 let is_java_native_function meta = try
 	match Meta.get Meta.Native meta with
@@ -2019,7 +2028,7 @@ module ClassInitializer = struct
 			display_error ctx "Type required for core api classes" p;
 			t_dynamic
 		| _ ->
-			load_type_opt ctx p t
+			load_type_hint ctx t
 
 	let build_fields (ctx,cctx) c fields =
 		let fields = ref fields in
@@ -2028,12 +2037,12 @@ module ClassInitializer = struct
 		c.cl_build <- (fun() -> BuildMacro pending);
 		build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 			match e with
-			| EVars [_,Some (CTAnonymous f),None] ->
+			| EVars [_,Some (CTAnonymous f,p),None] ->
 				let f = List.map (fun f ->
 					let f = match cctx.abstract with
 						| Some a ->
-							let a_t = TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)) in
-							let this_t = TExprToExpr.convert_type a.a_this in
+							let a_t = TExprToExpr.convert_type' (TAbstract(a,List.map snd a.a_params)) in
+							let this_t = TExprToExpr.convert_type' a.a_this in (* TODO: better pos? *)
 							transform_abstract_field ctx.com this_t a_t a f
 						| None ->
 							f
@@ -2230,7 +2239,7 @@ module ClassInitializer = struct
 				(* TODO is_lib: only load complex type if needed *)
 				let old = ctx.type_params in
 				if fctx.is_static then ctx.type_params <- [];
-				let t = load_complex_type ctx p t in
+				let t = load_complex_type ctx true t in
 				if fctx.is_static then ctx.type_params <- old;
 				t
 		) in
@@ -2387,20 +2396,20 @@ module ClassInitializer = struct
 				c.cl_extern <- false;
 				let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 				(* ExprOf type parameter might contain platform-specific type, let's replace it by Expr *)
-				let no_expr_of = function
+				let no_expr_of (t,p) = match t with
 					| CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType _] }
-					| CTPath { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] } -> Some texpr
-					| t -> Some t
+					| CTPath { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType _] } -> Some (texpr,p)
+					| t -> Some (t,p)
 				in
 				{
 					f_params = fd.f_params;
-					f_type = (match fd.f_type with None -> Some texpr | Some t -> no_expr_of t);
-					f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | Some t -> no_expr_of t),e) fd.f_args;
+					f_type = (match fd.f_type with None -> Some (texpr,null_pos) | Some t -> no_expr_of t);
+					f_args = List.map (fun (a,o,m,t,e) -> a,o,m,(match t with None -> Some (texpr,null_pos) | Some t -> no_expr_of t),e) fd.f_args;
 					f_expr = fd.f_expr;
 				}
 			end else
-				let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }) in
-				let to_dyn = function
+				let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None },null_pos) in
+				let to_dyn p t = match t with
 					| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some ("ExprOf"); tparams = [TPType t] } -> Some t
 					| { tpackage = []; tname = ("ExprOf"); tsub = None; tparams = [TPType t] } -> Some t
 					| { tpackage = ["haxe"]; tname = ("PosInfos"); tsub = None; tparams = [] } -> error "haxe.PosInfos is not allowed on macro functions, use Context.currentPos() instead" p
@@ -2408,8 +2417,8 @@ module ClassInitializer = struct
 				in
 				{
 					f_params = fd.f_params;
-					f_type = (match fd.f_type with Some (CTPath t) -> to_dyn t | _ -> tdyn);
-					f_args = List.map (fun (a,o,t,_) -> a,o,(match t with Some (CTPath t) -> to_dyn t | _ -> tdyn),None) fd.f_args;
+					f_type = (match fd.f_type with Some (CTPath t,p) -> to_dyn p t | _ -> tdyn);
+					f_args = List.map (fun (a,o,m,t,_) -> a,o,m,(match t with Some (CTPath t,p) -> to_dyn p t | _ -> tdyn),None) fd.f_args;
 					f_expr = None;
 				}
 		end in
@@ -2422,7 +2431,7 @@ module ClassInitializer = struct
 			| false,FKConstructor ->
 				if fctx.is_static then error "A constructor must not be static" p;
 				begin match fd.f_type with
-					| None | Some (CTPath { tpackage = []; tname = "Void" }) -> ()
+					| None | Some (CTPath { tpackage = []; tname = "Void" },_) -> ()
 					| _ -> error "A class constructor can't have a return value" p;
 				end
 			| false,_ ->
@@ -2439,7 +2448,7 @@ module ClassInitializer = struct
 		(* TODO is_lib: avoid forcing the return type to be typed *)
 		let ret = if fctx.field_kind = FKConstructor then ctx.t.tvoid else type_opt (ctx,cctx) p fd.f_type in
 		let rec loop args = match args with
-			| (name,opt,t,ct) :: args ->
+			| ((name,_),opt,m,t,ct) :: args ->
 				(* TODO is_lib: avoid forcing the field to be typed *)
 				let t, ct = type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
 				delay ctx PTypeField (fun() -> match follow t with
@@ -2527,7 +2536,7 @@ module ClassInitializer = struct
 		let ret = (match t, eo with
 			| None, None -> error (f.cff_name ^ ": Property must either define a type or a default value") p;
 			| None, _ -> mk_mono()
-			| Some t, _ -> load_complex_type ctx p t
+			| Some t, _ -> load_complex_type ctx true t
 		) in
 		let t_get,t_set = match cctx.abstract with
 			| Some a when fctx.is_abstract_member ->
@@ -2944,7 +2953,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 						error "No statics to import from this type" p
 				) :: !context_init
 			))
-	| EUsing t ->
+	| EUsing (t,_) ->
 		(* do the import first *)
 		let types = (match t.tsub with
 			| None ->
@@ -3052,19 +3061,19 @@ let init_module_type ctx context_init do_init (decl,p) =
 					cff_access = [];
 					cff_kind = (match c.ec_args, c.ec_params with
 						| [], [] -> FVar (c.ec_type,None)
-						| _ -> FFun { f_params = c.ec_params; f_type = c.ec_type; f_expr = None; f_args = List.map (fun (n,o,t) -> n,o,Some t,None) c.ec_args });
+						| _ -> FFun { f_params = c.ec_params; f_type = c.ec_type; f_expr = None; f_args = List.map (fun (n,o,t) -> (n,null_pos),o,[],Some t,None) c.ec_args });
 				}
 			) (!constructs)
 		in
 		let init () = List.iter (fun f -> f()) !context_init in
 		build_module_def ctx (TEnumDecl e) e.e_meta get_constructs init (fun (e,p) ->
 			match e with
-			| EVars [_,Some (CTAnonymous fields),None] ->
+			| EVars [_,Some (CTAnonymous fields,p),None] ->
 				constructs := List.map (fun f ->
 					let args, params, t = (match f.cff_kind with
 					| FVar (t,None) -> [], [], t
 					| FFun { f_params = pl; f_type = t; f_expr = (None|Some (EBlock [],_)); f_args = al } ->
-						let al = List.map (fun (n,o,t,_) -> match t with None -> error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) al in
+						let al = List.map (fun ((n,_),o,_,t,_) -> match t with None -> error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) al in
 						al, pl, t
 					| _ ->
 						error "Invalid enum constructor in @:build result" p
@@ -3096,7 +3105,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let rt = (match c.ec_type with
 				| None -> et
 				| Some t ->
-					let t = load_complex_type ctx p t in
+					let t = load_complex_type ctx true t in
 					(match follow t with
 					| TEnum (te,_) when te == e ->
 						()
@@ -3109,11 +3118,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| l ->
 					is_flat := false;
 					let pnames = ref PMap.empty in
-					TFun (List.map (fun (s,opt,t) ->
+					TFun (List.map (fun (s,opt,(t,tp)) ->
 						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" c.ec_pos | _ -> ());
 						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ c.ec_name) p;
 						pnames := PMap.add s () (!pnames);
-						s, opt, load_type_opt ~opt ctx p (Some t)
+						s, opt, load_type_hint ~opt ctx (Some (t,tp))
 					) l, rt)
 			) in
 			if PMap.mem c.ec_name e.e_constrs then error ("Duplicate constructor " ^ c.ec_name) p;
@@ -3174,8 +3183,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let t = (match get_type d.d_name with TTypeDecl t -> t | _ -> assert false) in
 		check_global_metadata ctx (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
-		let tt = load_complex_type ctx p d.d_data in
-		let tt = (match d.d_data with
+		let tt = load_complex_type ctx true d.d_data in
+		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
 		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
 			(* we need to follow MacroType immediately since it might define other module types that we will load afterwards *)
@@ -3205,7 +3214,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
 		let load_type t from =
-			let t = load_complex_type ctx p t in
+			let t = load_complex_type ctx true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
@@ -3231,7 +3240,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| AIsType t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
-				let at = load_complex_type ctx p t in
+				let at = load_complex_type ctx true t in
 				delay ctx PForce (fun () ->
 					begin match follow at with
 						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos
@@ -3448,10 +3457,10 @@ let parse_module ctx m p =
 							tpackage = !remap;
 							tname = d.d_name;
 							tparams = List.map (fun tp ->
-								TPType (CTPath { tpackage = []; tname = tp.tp_name; tparams = []; tsub = None; })
+								TPType (CTPath { tpackage = []; tname = tp.tp_name; tparams = []; tsub = None; },null_pos)
 							) d.d_params;
 							tsub = None;
-						});
+						}),null_pos;
 				},p) :: acc
 			in
 			match t with
@@ -3527,8 +3536,8 @@ let extend_remoting ctx c t p async prot =
 		| e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		{ cff_name = "__cnx"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None) };
-		{ cff_name = "new"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun { f_args = ["c",false,None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
+		{ cff_name = "__cnx"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
+		{ cff_name = "new"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
 	] in
 	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
 	let build_field is_public acc f =
@@ -3536,11 +3545,11 @@ let extend_remoting ctx c t p async prot =
 			acc
 		else match f.cff_kind with
 		| FFun fd when (is_public || List.mem APublic f.cff_access) && not (List.mem AStatic f.cff_access) ->
-			if List.exists (fun (_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
-			let eargs = [EArrayDecl (List.map (fun (a,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
-			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" }) -> None | _ -> fd.f_type) in
+			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
+			let eargs = [EArrayDecl (List.map (fun ((a,_),_,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
+			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" },_) -> None | _ -> fd.f_type) in
 			let fargs, eargs = if async then match ftype with
-				| Some tret -> fd.f_args @ ["__callb",true,Some (CTFunction ([tret],tvoid)),None], eargs @ [EConst (Ident "__callb"),p]
+				| Some (tret,_) -> fd.f_args @ [("__callb",null_pos),true,[],Some (CTFunction ([tret,null_pos],(tvoid,null_pos)),null_pos),None], eargs @ [EConst (Ident "__callb"),p]
 				| _ -> fd.f_args, eargs @ [EConst (Ident "null"),p]
 			else
 				fd.f_args, eargs
@@ -3718,7 +3727,7 @@ let rec build_generic ctx c p tl =
 	let gctx = make_generic ctx c.cl_params tl p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
-		load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
+		load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
 		let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in
@@ -3889,7 +3898,7 @@ let rec build_generic ctx c p tl =
 (* HAXE.XML.PROXY *)
 
 let extend_xml_proxy ctx c t file p =
-	let t = load_complex_type ctx p t in
+	let t = load_complex_type ctx false (t,p) in
 	let file = (try Common.find_file ctx.com file with Not_found -> file) in
 	add_dependency c.cl_module (create_fake_module ctx file);
 	let used = ref PMap.empty in
@@ -4034,14 +4043,14 @@ let build_instance ctx mtype p =
 let on_inherit ctx c p (is_extends,tp) =
 	if not is_extends then
 		true
-	else match tp with
-	| { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(CTPath t)] } ->
+	else match fst tp with
+	| { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(CTPath t,null_pos)] } ->
 		extend_remoting ctx c t p false true;
 		false
-	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
+	| { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t,null_pos)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
+	| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType (t,_)] } ->
 		extend_xml_proxy ctx c t file p;
 		true
 	| _ ->

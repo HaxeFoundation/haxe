@@ -78,7 +78,7 @@ type typer_globals = {
 	delayed_macros : (unit -> unit) DynArray.t;
 	mutable global_using : tclass list;
 	(* api *)
-	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.type_path) -> bool;
+	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.placed_type_path) -> bool;
 	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
 	do_load_module : typer -> path -> pos -> module_def;

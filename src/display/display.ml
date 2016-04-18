@@ -74,6 +74,16 @@ let find_before_pos com e =
 	in
 	map e
 
+let display_type dm t =
+	let mt = module_type_of_type t in
+	match dm with
+	| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
+	| DMUsage ->
+		let ti = t_infos mt in
+		ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
+	| DMType -> raise (DisplayTypes [t])
+	| _ -> raise Exit
+
 module SymbolKind = struct
 	type t =
 		| File
@@ -174,14 +184,14 @@ let print_document_symbols (pack,decls) =
 				| _ -> ()
 			end *)
 		| EVars vl ->
-			List.iter (fun (s,_,eo) ->
-				add_ignore s Variable p; (* TODO: Don't have a good pos here... *)
+			List.iter (fun ((s,p),_,eo) ->
+				add_ignore s Variable p;
 				expr_opt si eo
 			) vl
 		| ETry(e1,catches) ->
 			expr si e1;
-			List.iter (fun (s,_,e) ->
-				add_ignore s Variable (pos e); (* TODO: No good pos as usual... *)
+			List.iter (fun ((s,p),_,e) ->
+				add_ignore s Variable p;
 				expr si e
 			) catches;
 		| EFunction(Some s,f) ->
@@ -197,8 +207,8 @@ let print_document_symbols (pack,decls) =
 		| None -> ()
 		| Some e -> expr si e
 	and func si f =
-		List.iter (fun (s,_,_,eo) ->
-			let si_arg = add s Variable si.location (* TODO: don't have *) (Some si) in
+		List.iter (fun ((s,p),_,_,_,eo) ->
+			let si_arg = add s Variable p (Some si) in
 			expr_opt (Some si_arg) eo
 		) f.f_args;
 		expr_opt (Some si) f.f_expr

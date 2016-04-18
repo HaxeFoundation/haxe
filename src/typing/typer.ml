@@ -2820,9 +2820,9 @@ and type_access ctx e p mode =
 		AKExpr (type_expr ctx (e,p) Value)
 
 and type_vars ctx vl p =
-	let vl = List.map (fun (v,t,e) ->
+	let vl = List.map (fun ((v,pv),t,e) ->
 		try
-			let t = Typeload.load_type_opt ctx p t in
+			let t = Typeload.load_type_hint ctx t in
 			let e = (match e with
 				| None -> None
 				| Some e ->
@@ -2831,11 +2831,11 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
-			add_local ctx v t p, e (* TODO: var pos *)
+			add_local ctx v t pv, e
 		with
 			Error (e,p) ->
 				display_error ctx (error_msg e) p;
-				add_local ctx v t_dynamic p, None (* TODO: var pos *)
+				add_local ctx v t_dynamic pv, None
 	) vl in
 	match vl with
 	| [v,eo] ->
@@ -3081,7 +3081,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
 	)
 
-and type_new ctx t el with_type p =
+and type_new ctx (t,_) el with_type p =
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
@@ -3094,10 +3094,10 @@ and type_new ctx t el with_type p =
 			error "Constructor is not a function" p
 	in
 	let t = if t.tparams <> [] then
-		follow (Typeload.load_instance ctx t p false)
+		follow (Typeload.load_instance ctx (t,p) false)
 	else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
-		let t = follow (Typeload.load_instance ctx t p true) in
+		let t = follow (Typeload.load_instance ctx (t,p) true) in
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
 		begin match t with
@@ -3204,8 +3204,8 @@ and type_try ctx e1 catches with_type p =
 		| x :: _ , _ -> x
 		| [] , name -> name)
 	in
-	let catches = List.fold_left (fun acc (v,t,e) ->
-		let t = Typeload.load_complex_type ctx (pos e) t in
+	let catches = List.fold_left (fun acc ((v,pv),t,e) ->
+		let t = Typeload.load_complex_type ctx true t in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (Typeload.is_generic_parameter ctx c) ->
 				error "Cannot catch non-generic type parameter" p
@@ -3223,7 +3223,7 @@ and type_try ctx e1 catches with_type p =
 		if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc t2 (pos e);
 		let locals = save_locals ctx in
-		let v = add_local ctx v t (pos e) in (* TODO: var pos *)
+		let v = add_local ctx v t pv in
 		let e = type_expr ctx e with_type in
 		v.v_type <- t2;
 		locals();
@@ -3317,9 +3317,9 @@ and type_local_function ctx name f with_type p =
 	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 	ctx.type_params <- params @ ctx.type_params;
 	if not inline then ctx.in_loop <- false;
-	let rt = Typeload.load_type_opt ctx p f.f_type in
-	let args = List.map (fun (s,opt,t,c) ->
-		let t = Typeload.load_type_opt ctx p t in
+	let rt = Typeload.load_type_hint ctx f.f_type in
+	let args = List.map (fun ((s,_),opt,_,t,c) ->
+		let t = Typeload.load_type_hint ctx t in
 		let t, c = Typeload.type_function_arg ctx t c opt p in
 		s , c, t
 	) f.f_args in
@@ -3486,7 +3486,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			| EBlock [e] -> (EBlock [map_compr e],p)
 			| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 			| EBinop(OpArrow,a,b) ->
-				et := (ENew({tpackage=[];tname="Map";tparams=[];tsub=None},[]),p);
+				et := (ENew(({tpackage=[];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
 				(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 			| _ ->
 				et := (EArrayDecl [],p);
@@ -3652,7 +3652,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx e Value in
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
-		let t = Typeload.load_complex_type ctx (pos e) t in
+		let t = Typeload.load_complex_type ctx true t in
 		let check_param pt = match follow pt with
 			| TMono _ -> () (* This probably means that Dynamic wasn't bound (issue #4675). *)
 			| t when t == t_dynamic -> ()
@@ -3679,8 +3679,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) ->
 		handle_display ctx e iscall with_type p
-	| EDisplayNew t ->
-		let t = Typeload.load_instance ctx t p true in
+	| EDisplayNew (t,_) ->
+		let t = Typeload.load_instance ctx (t,p) true in
 		(match follow t with
 		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 			let ct, f = get_constructor ctx c params p in
@@ -3688,7 +3688,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		| _ ->
 			error "Not a class" p)
 	| ECheckType (e,t) ->
-		let t = Typeload.load_complex_type ctx p t in
+		let t = Typeload.load_complex_type ctx true t in
 		let e = type_expr ctx e (WithType t) in
 		let e = Codegen.AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p
@@ -4507,14 +4507,14 @@ let make_macro_api ctx p =
 						{ tpackage = fst path; tname = snd path; tparams = []; tsub = None }
 				in
 				try
-					let m = Some (Typeload.load_instance ctx tp p true) in
+					let m = Some (Typeload.load_instance ctx (tp,p) true) in
 					m
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None
 			)
 		);
 		Interp.resolve_type = (fun t p ->
-			typing_timer ctx true (fun() -> Typeload.load_complex_type ctx p t)
+			typing_timer ctx true (fun() -> Typeload.load_complex_type ctx false (t,p))
 		);
 		Interp.get_module = (fun s ->
 			typing_timer ctx true (fun() ->
@@ -4630,7 +4630,7 @@ let make_macro_api ctx p =
 				let tp = get_type_patch ctx t (Some (f,s)) in
 				match v with
 				| None -> tp.tp_remove <- true
-				| Some _ -> tp.tp_type <- v
+				| Some _ -> tp.tp_type <- Option.map fst v
 			);
 		);
 		Interp.meta_patch = (fun m t f s ->
@@ -4760,7 +4760,7 @@ let make_macro_api ctx p =
 			) types in
 			let pos = (match types with [] -> Ast.null_pos | (_,p) :: _ -> p) in
 			let imports = List.map (fun (il,ik) -> EImport(il,ik),pos) imports in
-			let usings = List.map (fun tp -> EUsing tp,pos) usings in
+			let usings = List.map (fun tp -> EUsing (tp,null_pos),pos) usings in
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
 			begin try
@@ -4964,24 +4964,24 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx cpath f p in
 	let mpos = mfield.cf_pos in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
-	let expr = Typeload.load_instance mctx ctexpr p false in
+	let expr = Typeload.load_instance mctx (ctexpr,p) false in
 	(match mode with
 	| MExpr ->
 		unify mctx mret expr mpos;
 	| MBuild ->
-		let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" })]; tsub = None } in
-		let tfields = Typeload.load_instance mctx ctfields p false in
+		let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" },null_pos)]; tsub = None } in
+		let tfields = Typeload.load_instance mctx (ctfields,p) false in
 		unify mctx mret tfields mpos
 	| MMacroType ->
 		let cttype = { tpackage = ["haxe";"macro"]; tname = "Type"; tparams = []; tsub = None } in
-		let ttype = Typeload.load_instance mctx cttype p false in
+		let ttype = Typeload.load_instance mctx (cttype,p) false in
 		try
 			unify_raise mctx mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* ctx.com.warning "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
 		with Error (Unify _,_) ->
 			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("ComplexType") } in
-			let ttype = Typeload.load_instance mctx cttype p false in
+			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			unify_raise mctx mret ttype mpos;
 	);
 	(*
@@ -5038,7 +5038,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			with Error (Custom _,_) ->
 				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
 				(EBlock [
-					(EVars ["__tmp",Some (CTPath ctexpr),Some (EConst (Ident "null"),p)],p);
+					(EVars [("__tmp",null_pos),Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
 					(EConst (Ident "__tmp"),p);
 				],p)
 			) in
@@ -5091,13 +5091,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						| _ ->
 							List.map Interp.decode_field (Interp.dec_array v)
 					) in
-					(EVars ["fields",Some (CTAnonymous fields),None],p)
+					(EVars [("fields",null_pos),Some (CTAnonymous fields,p),None],p)
 				| MMacroType ->
 					let t = if v = Interp.VNull then
 						mk_mono()
 					else try
 						let ct = Interp.decode_ctype v in
-						Typeload.load_complex_type ctx p ct;
+						Typeload.load_complex_type ctx false ct;
 					with Interp.Invalid_expr ->
 						Interp.decode_type v
 					in

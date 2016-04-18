@@ -2658,8 +2658,8 @@ let has_tparam name params = List.exists(fun (n,_,_) -> n = name) params
 
 let rec convert_arg ctx p arg =
 	match arg with
-	| TAny | TType (WSuper, _) -> TPType (mk_type_path ctx ([], "Dynamic") [])
-	| TType (_, jsig) -> TPType (convert_signature ctx p jsig)
+	| TAny | TType (WSuper, _) -> TPType (mk_type_path ctx ([], "Dynamic") [],null_pos)
+	| TType (_, jsig) -> TPType (convert_signature ctx p jsig,null_pos)
 
 and convert_signature ctx p jsig =
 	match jsig with
@@ -2698,7 +2698,7 @@ and convert_signature ctx p jsig =
 			| _ -> assert false in
 			mk_type_path ctx (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
 	| TObjectInner (pack, inners) -> assert false
-	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig) ]
+	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,null_pos) ]
 	| TMethod _ -> JReader.error "TMethod cannot be converted directly into Complex Type"
 	| TTypeParameter s -> (match ctx.jtparams with
 		| cur :: others ->
@@ -2739,7 +2739,7 @@ let convert_param ctx p parent param =
 		{
 			tp_name = name;
 			tp_params = [];
-			tp_constraints = List.map (convert_signature ctx p) constraints;
+			tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) constraints;
 			tp_meta = [];
 		}
 
@@ -2837,9 +2837,9 @@ let convert_java_enum ctx p pe =
 
 		let kind = match field.jf_kind with
 			| JKField when !readonly ->
-				FProp ("default", "null", Some (convert_signature ctx p field.jf_signature), None)
+				FProp ("default", "null", Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKField ->
-				FVar (Some (convert_signature ctx p field.jf_signature), None)
+				FVar (Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKMethod ->
 				match field.jf_signature with
 				| TMethod (args, ret) ->
@@ -2850,7 +2850,7 @@ let convert_java_enum ctx p pe =
 					let i = ref 0 in
 					let args = List.map (fun s ->
 						incr i;
-						"param" ^ string_of_int !i, false, Some(convert_signature ctx p s), None
+						("param" ^ string_of_int !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
 					cff_meta := (Meta.Overload, [], p) :: !cff_meta;
@@ -2860,14 +2860,14 @@ let convert_java_enum ctx p pe =
 							{
 								tp_name = name;
 								tp_params = [];
-								tp_constraints = List.map (convert_signature ctx p) (ext :: impl);
+								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (ext :: impl);
 								tp_meta = [];
 							}
 						| (name, None, impl) ->
 							{
 								tp_name = name;
 								tp_params = [];
-								tp_constraints = List.map (convert_signature ctx p) (impl);
+								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (impl);
 								tp_meta = [];
 							}
 					) field.jf_types in
@@ -2876,7 +2876,7 @@ let convert_java_enum ctx p pe =
 					FFun ({
 						f_params = types;
 						f_args = args;
-						f_type = Some t;
+						f_type = Some (t,null_pos);
 						f_expr = None
 					})
 				| _ -> error "Method signature was expected" p
@@ -2965,7 +2965,7 @@ let convert_java_enum ctx p pe =
 			(match jc.csuper with
 				| TObject( (["java";"lang"], "Object"), _ ) -> ()
 				| TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
-				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper)) :: !flags
+				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper),null_pos) :: !flags
 			);
 
 			List.iter (fun i ->
@@ -2973,9 +2973,9 @@ let convert_java_enum ctx p pe =
 				| TObject ( (["haxe";"lang"], "IHxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
 				| _ -> flags :=
 					if !is_interface then
-						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
+						HExtends (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
 					else
-						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
+						HImplements (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
 			) jc.cinterfaces;
 
 			let fields = ref [] in
@@ -3640,10 +3640,10 @@ let add_java_lib com file std =
 																tname = tp.tp_name;
 																tparams = [];
 																tsub = None;
-															})
+															},null_pos)
 														) c.d_params;
 														tsub = Some(c.d_name);
-													};
+													},null_pos;
 												} in
 												inner_alias := SS.add alias_name !inner_alias;
 												alias_list := (alias_def, pos) :: !alias_list;
