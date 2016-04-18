@@ -3684,7 +3684,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match follow t with
 		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 			let ct, f = get_constructor ctx c params p in
-			raise (DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
+			raise (Display.DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
 		| _ ->
 			error "Not a class" p)
 	| ECheckType (e,t) ->
@@ -3753,7 +3753,7 @@ and handle_display ctx e_ast iscall with_type p =
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None,false))
 	| Error (Unknown_ident "trace",_) ->
-		raise (DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+		raise (Display.DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
 			raise (DisplayFields (get_submodule_fields path))
@@ -3771,7 +3771,7 @@ and handle_display ctx e_ast iscall with_type p =
 	| DMResolve _ ->
 		assert false
 	| DMType ->
-		raise (DisplayTypes [match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype])
+		raise (Display.DisplayTypes [match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype])
 	| DMUsage ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -3816,7 +3816,7 @@ and handle_display ctx e_ast iscall with_type p =
 			[]
 		in
 		let pl = loop e in
-		raise (DisplayPosition pl);
+		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
 		collect_toplevel_identifiers ctx;
 	| DMDefault | DMNone | DMDocumentSymbols ->
@@ -4004,7 +4004,7 @@ and handle_display ctx e_ast iscall with_type p =
 		in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
-		| _ -> raise (DisplayTypes [t]))
+		| _ -> raise (Display.DisplayTypes [t]))
 
 and maybe_type_against_enum ctx f with_type p =
 	try
@@ -4604,7 +4604,7 @@ let make_macro_api ctx p =
 			with DisplayFields fields ->
 				let pctx = print_context() in
 				String.concat "," (List.map (fun (f,t,_,_) -> f ^ ":" ^ s_type pctx t) fields)
-			| DisplayTypes tl ->
+			| Display.DisplayTypes tl ->
 				let pctx = print_context() in
 				String.concat "," (List.map (s_type pctx) tl)
 			| Parser.TypePath (p,sub,_) ->

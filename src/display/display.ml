@@ -1,6 +1,10 @@
 open Ast
+open Common
+open Type
 
 exception DocumentSymbols of string
+exception DisplayTypes of t list
+exception DisplayPosition of Ast.pos list
 
 let is_display_file p =
 	Common.unique_full_path p.pfile = (!Parser.resume_display).pfile

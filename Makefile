@@ -133,11 +133,11 @@ uninstall:
 
 # display
 
-src/display/display.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT)
+src/display/display.$(MODULE_EXT): src/syntax/ast.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT)
 
 # generators
 
-src/generators/codegen.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
+src/generators/codegen.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/generators/genxml.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
 src/generators/genas3.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT)
 
@@ -210,7 +210,7 @@ src/typing/typecore.$(MODULE_EXT): src/typing/type.$(MODULE_EXT) src/typing/comm
 
 src/typing/typeload.$(MODULE_EXT): src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/json.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
-src/typing/typer.$(MODULE_EXT): src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/gencommon.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/generators/genlua.$(MODULE_EXT)
+src/typing/typer.$(MODULE_EXT): src/typing/typeload.$(MODULE_EXT) src/typing/typecore.$(MODULE_EXT) src/typing/type.$(MODULE_EXT) src/syntax/parser.$(MODULE_EXT) src/optimization/optimizer.$(MODULE_EXT) src/syntax/lexer.$(MODULE_EXT) src/macro/interp.$(MODULE_EXT) src/typing/common.$(MODULE_EXT) src/generators/codegen.$(MODULE_EXT) src/syntax/ast.$(MODULE_EXT) src/optimization/filters.$(MODULE_EXT) src/generators/gencommon.$(MODULE_EXT) src/generators/genjs.$(MODULE_EXT) src/generators/genlua.$(MODULE_EXT) src/display/display.$(MODULE_EXT)
 
 
 # main

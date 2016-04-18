@@ -511,7 +511,7 @@ let detect_usage com =
 		let c = compare p1.pfile p2.pfile in
 		if c <> 0 then c else compare p1.pmin p2.pmin
 	) !usage in
-	raise (Typecore.DisplayPosition usage)
+	raise (Display.DisplayPosition usage)
 
 let update_cache_dependencies t =
 	let rec check_t m t = match t with

@@ -1710,7 +1710,7 @@ with
 			fields
 		in
 		complete_fields com fields
-	| Typecore.DisplayTypes tl ->
+	| Display.DisplayTypes tl ->
 		let ctx = print_context() in
 		let b = Buffer.create 0 in
 		List.iter (fun t ->
@@ -1719,7 +1719,7 @@ with
 			Buffer.add_string b "\n</type>\n";
 		) tl;
 		raise (Completion (Buffer.contents b))
-	| Typecore.DisplayPosition pl ->
+	| Display.DisplayPosition pl ->
 		let b = Buffer.create 0 in
 		let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
 		Buffer.add_string b "<list>\n";

@@ -1560,7 +1560,7 @@ let type_function ctx args ret fmode f do_display p =
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
-		| DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
+		| Display.DisplayTypes [t] when (match follow t with TMono _ -> true | _ -> false) ->
 			type_expr ctx (if ctx.com.display = DMToplevel then Display.find_enclosing ctx.com e else e) NoValue
 	end in
 	let e = match e.eexpr with
@@ -1859,7 +1859,7 @@ let is_display_file ctx p = match ctx.com.display with
 	| DMResolve s ->
 		let mt = load_type_def ctx p {tname = s; tpackage = []; tsub = None; tparams = []} in
 		let p = (t_infos mt).mt_pos in
-		raise (DisplayPosition [p]);
+		raise (Display.DisplayPosition [p]);
 	| _ ->
 		Display.is_display_file p
 
@@ -2092,9 +2092,9 @@ module ClassInitializer = struct
 			(* We're in our display field but didn't exit yet, so the position must be on the field itself.
 			   It could also be one of its arguments, but at the moment we cannot detect that. *)
 		match ctx.com.display with
-			| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
+			| DMPosition -> raise (Display.DisplayPosition [cf.cf_pos]);
 			| DMUsage -> cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
-			| DMType -> raise (DisplayTypes [cf.cf_type])
+			| DMType -> raise (Display.DisplayTypes [cf.cf_type])
 			| _ -> ()
 		end
 
@@ -3142,9 +3142,9 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_overloads = [];
 			} in
 			if is_display_file && Display.encloses_position !Parser.resume_display p then begin match ctx.com.display with
-				| DMPosition -> raise (DisplayPosition [p]);
+				| DMPosition -> raise (Display.DisplayPosition [p]);
 				| DMUsage -> f.ef_meta <- (Meta.Usage,[],p) :: f.ef_meta;
-				| DMType -> raise (DisplayTypes [f.ef_type])
+				| DMType -> raise (Display.DisplayTypes [f.ef_type])
 				| _ -> ()
 			end;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
