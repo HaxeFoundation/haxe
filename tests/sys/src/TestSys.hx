@@ -30,13 +30,6 @@ class TestSys extends TestCommandBase {
 			switch (Sys.systemName()) {
 				case "Windows":
 					assertTrue(StringTools.endsWith(p, "Main-debug.exe"));
-				case "Linux":
-					if (Sys.getEnv("CI") != null) {
-						// pass
-						// when run through RunCi.n, programPath will report the path to Neko VM...
-					} else {
-						assertTrue(StringTools.endsWith(p, "Main-debug"));
-					}
 				case _:
 					assertTrue(StringTools.endsWith(p, "Main-debug"));
 			}
