@@ -238,7 +238,7 @@ let print_document_symbols (pack,decls) =
 		| ETypedef d ->
 			let si_type = add d.d_name Interface p si_pack in
 			(match d.d_data with
-			| CTAnonymous fields ->
+			| CTAnonymous fields,_ ->
 				List.iter (field si_type) fields
 			| _ -> ())
 		| EAbstract d ->
