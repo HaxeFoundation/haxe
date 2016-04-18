@@ -182,13 +182,17 @@ let get_error_line p =
 	let l, _ = find_pos p in
 	l
 
+let get_pos_coords p =
+	let file = find_file p.pfile in
+	let l1, p1 = find_line p.pmin file in
+	let l2, p2 = find_line p.pmax file in
+	l1, p1, l2, p2
+
 let get_error_pos printer p =
 	if p.pmin = -1 then
 		"(unknown)"
 	else
-		let file = find_file p.pfile in
-		let l1, p1 = find_line p.pmin file in
-		let l2, p2 = find_line p.pmax file in
+		let l1, p1, l2, p2 = get_pos_coords p in
 		if l1 = l2 then begin
 			let s = (if p1 = p2 then Printf.sprintf " %d" p1 else Printf.sprintf "s %d-%d" p1 p2) in
 			Printf.sprintf "%s character%s" (printer p.pfile l1) s

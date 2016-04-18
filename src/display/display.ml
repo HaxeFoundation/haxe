@@ -132,9 +132,21 @@ module SymbolInformation = struct
 	}
 end
 
-open Json
 open SymbolKind
 open SymbolInformation
+open Json
+
+let pos_to_json_location p =
+	if p.pmin = -1 then
+		JNull
+	else
+		let l1, p1, l2, p2 = Lexer.get_pos_coords p in
+		let to_json l c = JObject [("line", JInt l); ("character", JInt c)] in
+		JObject [
+			("file", JString (Common.unique_full_path p.pfile));
+			("start", to_json l1 p1);
+			("end", to_json l2 p2);
+		]
 
 let print_document_symbols (pack,decls) =
 	let l = DynArray.create() in
@@ -223,12 +235,11 @@ let print_document_symbols (pack,decls) =
 			let si_type = add d.d_name Class p si_pack in
 			List.iter (field si_type) d.d_data
 	) decls;
-	let error_printer file line = Printf.sprintf "%s:%d:" (Common.unique_full_path file) line in
 	let jl = List.map (fun si ->
 		let l =
 			("name",JString si.name) ::
 			("kind",JInt (to_int si.kind)) ::
-			("location",JString (Lexer.get_error_pos error_printer si.location)) ::
+			("location", pos_to_json_location si.location) ::
 			(match si.containerName with None -> [] | Some s -> ["containerName",JString s])
 		in
 		JObject l
