@@ -51,7 +51,7 @@ CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(CFLAGS) -c src/syntax/parser.ml
 
 RELDIR=../../..
 
-MODULES=syntax/ast typing/type syntax/lexer typing/common generators/genxml syntax/parser typing/typecore \
+MODULES=json syntax/ast typing/type syntax/lexer typing/common generators/genxml syntax/parser typing/typecore \
 	optimization/optimizer typing/typeload generators/codegen generators/gencommon generators/genas3 \
 	generators/gencpp generators/genjs generators/genneko generators/genphp generators/genswf9 \
 	generators/genswf generators/genjava generators/gencs generators/genpy macro/interp generators/genhl \
