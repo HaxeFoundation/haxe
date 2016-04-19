@@ -1038,7 +1038,9 @@ let type_function_arg_value ctx t c =
 			let rec loop e = match e.eexpr with
 				| TConst c -> Some c
 				| TCast(e,None) -> loop e
-				| _ -> display_error ctx "Parameter default value should be constant" p; None
+				| _ ->
+					if ctx.com.display = DMNone then display_error ctx "Parameter default value should be constant" p;
+					None
 			in
 			loop e
 
@@ -1593,6 +1595,7 @@ let type_function ctx args ret fmode f do_display p =
 		   can _not_ use type_iseq to avoid the Void check above because that
 		   would turn Dynamic returns to Void returns. *)
 		| TMono t when not (has_return e) -> ignore(link t ret ctx.t.tvoid)
+		| _ when ctx.com.display <> DMNone -> ()
 		| _ -> (try return_flow ctx e with Exit -> ())
 	end;
 	let rec loop e =

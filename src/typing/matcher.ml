@@ -1249,6 +1249,7 @@ module TexprConverter = struct
 					with Not_exhaustive -> match with_type,finiteness with
 						| NoValue,Infinite -> None
 						| _,CompileTimeFinite when unmatched = [] -> None
+						| _ when ctx.com.display <> DMNone -> None
 						| _ -> report_not_exhaustive e_subject unmatched
 				in
 				let cases = ExtList.List.filter_map (fun (con,_,dt) -> match unify_constructor ctx params e_subject.etype con with
@@ -1321,6 +1322,7 @@ module TexprConverter = struct
 					)
 				with Not_exhaustive ->
 					if toplevel then (fun () -> loop false params dt2)
+					else if ctx.com.display <> DMNone then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
 					else report_not_exhaustive e [ConConst TNull,dt.dt_pos]
 				in
 				f()

@@ -1037,13 +1037,10 @@ let rec acc_get ctx g p =
 		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
-		| None ->
-			if ctx.com.display <> DMNone then
-				mk (TField (e,cmode)) t p
-			else
-				error "Recursive inline is not supported" p
-		| Some _ when ctx.com.display <> DMNone ->
+		| _ when ctx.com.display <> DMNone ->
 			mk (TField (e,cmode)) t p
+		| None ->
+			error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
 			let chk_class c = (c.cl_extern || Meta.has Meta.Extern f.cf_meta) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
