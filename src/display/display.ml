@@ -269,21 +269,21 @@ let print_document_symbols (pack,decls) =
 		| EImport _ | EUsing _ ->
 			() (* TODO: Can we do anything with these? *)
 		| EClass d ->
-			let si_type = add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) (pos d.d_name) si_pack in
+			let si_type = add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) p si_pack in
 			List.iter (field si_type) d.d_data
 		| EEnum d ->
-			let si_type = add (fst d.d_name) Enum (pos d.d_name) si_pack in
+			let si_type = add (fst d.d_name) Enum p si_pack in
 			List.iter (fun ef ->
-				ignore (add (fst ef.ec_name) Method (pos ef.ec_name) (Some si_type))
+				ignore (add (fst ef.ec_name) Method ef.ec_pos (Some si_type))
 			) d.d_data
 		| ETypedef d ->
-			let si_type = add (fst d.d_name) Interface (pos d.d_name) si_pack in
+			let si_type = add (fst d.d_name) Interface p si_pack in
 			(match d.d_data with
 			| CTAnonymous fields,_ ->
 				List.iter (field si_type) fields
 			| _ -> ())
 		| EAbstract d ->
-			let si_type = add (fst d.d_name) Class (pos d.d_name) si_pack in
+			let si_type = add (fst d.d_name) Class p si_pack in
 			List.iter (field si_type) d.d_data
 	) decls;
 	let jl = List.map (fun si ->
