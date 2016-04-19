@@ -1547,8 +1547,10 @@ let type_function ctx args ret fmode f do_display p =
 		let c = type_function_arg_value ctx t c in
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
-		if do_display && Display.encloses_position !Parser.resume_display pn then
+		if do_display && Display.encloses_position !Parser.resume_display pn then begin
+			ctx.display_handled <- true;
 			Display.display_variable ctx.com.display v;
+		end;
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
 	) args f.f_args in
