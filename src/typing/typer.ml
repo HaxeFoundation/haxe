@@ -379,7 +379,7 @@ let collect_toplevel_identifiers ctx =
 	if ctx.curfun <> FunStatic then begin
 		let rec loop c =
 			List.iter (fun cf ->
-				DynArray.add acc (ITMember(ctx.curclass,cf))
+				DynArray.add acc (Display.ITMember(ctx.curclass,cf))
 			) c.cl_ordered_fields;
 			match c.cl_super with
 				| None ->
@@ -393,7 +393,7 @@ let collect_toplevel_identifiers ctx =
 
 	(* statics *)
 	List.iter (fun cf ->
-		DynArray.add acc (ITStatic(ctx.curclass,cf))
+		DynArray.add acc (Display.ITStatic(ctx.curclass,cf))
 	) ctx.curclass.cl_ordered_statics;
 
 	(* enum constructors *)
@@ -408,7 +408,7 @@ let collect_toplevel_identifiers ctx =
 			end
 		| TEnumDecl e ->
 			PMap.iter (fun _ ef ->
-				DynArray.add acc (ITEnum(e,ef))
+				DynArray.add acc (Display.ITEnum(e,ef))
 			) e.e_constrs;
 	in
 	List.iter enum_ctors ctx.m.curmod.m_types;
@@ -423,7 +423,7 @@ let collect_toplevel_identifiers ctx =
 				| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
 				| _ -> raise Not_found
 			in
-			DynArray.add acc (ITGlobal(mt,s,t))
+			DynArray.add acc (Display.ITGlobal(mt,s,t))
 		with Not_found ->
 			()
 	) ctx.m.module_globals;
@@ -495,11 +495,11 @@ let collect_toplevel_identifiers ctx =
 	) class_paths;
 
 	List.iter (fun pack ->
-		DynArray.add acc (ITPackage pack)
+		DynArray.add acc (Display.ITPackage pack)
 	) !packages;
 
 	List.iter (fun mt ->
-		DynArray.add acc (ITType mt)
+		DynArray.add acc (Display.ITType mt)
 	) !module_types;
 
 	raise (Display.DisplayToplevel (DynArray.to_list acc))
