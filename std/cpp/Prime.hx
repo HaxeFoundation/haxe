@@ -95,6 +95,7 @@ class Prime {
       var parts = inSig.split("");
       if (parts.length<1)
          throw "Invalid function signature " + inSig;
+      var argCount = parts.length-1;
 
       var cppMode = Context.defined("cpp");
 
@@ -110,11 +111,10 @@ class Prime {
       }
       else
       {
-         var len = parts.length;
-         if (len>5)
-            len = -1;
+         if (argCount>5)
+            argCount = -1;
          var lazy = inAllowFail ? "loadLazy" : "load";
-         var expr = 'new cpp.Callable<$typeString>(neko.Lib.$lazy("$inModule","$inName",$len))';
+         var expr = 'new cpp.Callable<$typeString>(neko.Lib.$lazy("$inModule","$inName",$argCount))';
          return Context.parse( expr, Context.currentPos() );
       }
    }
