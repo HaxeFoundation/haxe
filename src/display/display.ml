@@ -2,10 +2,28 @@ open Ast
 open Common
 open Type
 
+(* order of these variants affects output sorting *)
+type display_field_kind =
+	| FKVar
+	| FKMethod
+	| FKType
+	| FKPackage
+
+type identifier_type =
+	| ITLocal of tvar
+	| ITMember of tclass * tclass_field
+	| ITStatic of tclass * tclass_field
+	| ITEnum of tenum * tenum_field
+	| ITGlobal of module_type * string * t
+	| ITType of module_type
+	| ITPackage of string
+
 exception DocumentSymbols of string
 exception DisplayTypes of t list
 exception DisplayPosition of Ast.pos list
 exception DisplaySubExpression of Ast.expr
+exception DisplayFields of (string * t * display_field_kind option * documentation) list
+exception DisplayToplevel of identifier_type list
 
 let is_display_file p =
 	Common.unique_full_path p.pfile = (!Parser.resume_display).pfile

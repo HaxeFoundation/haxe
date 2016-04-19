@@ -34,25 +34,6 @@ type access_mode =
 	| MSet
 	| MCall
 
-type identifier_type =
-	| ITLocal of tvar
-	| ITMember of tclass * tclass_field
-	| ITStatic of tclass * tclass_field
-	| ITEnum of tenum * tenum_field
-	| ITGlobal of module_type * string * t
-	| ITType of module_type
-	| ITPackage of string
-
-(* order of these variants affects output sorting *)
-type display_field_kind =
-	| FKVar
-	| FKMethod
-	| FKType
-	| FKPackage
-
-exception DisplayFields of (string * t * display_field_kind option * documentation) list
-exception DisplayToplevel of identifier_type list
-
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
@@ -391,7 +372,7 @@ let collect_toplevel_identifiers ctx =
 	(* locals *)
 	PMap.iter (fun _ v ->
 		if not (is_gen_local v) then
-			DynArray.add acc (ITLocal v)
+			DynArray.add acc (Display.ITLocal v)
 	) ctx.locals;
 
 	(* member vars *)
@@ -521,7 +502,7 @@ let collect_toplevel_identifiers ctx =
 		DynArray.add acc (ITType mt)
 	) !module_types;
 
-	raise (DisplayToplevel (DynArray.to_list acc))
+	raise (Display.DisplayToplevel (DynArray.to_list acc))
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -3757,7 +3738,7 @@ and handle_display ctx e_ast iscall with_type p =
 		let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
 		let tl = List.map (fun mt ->
 			let infos = t_infos mt in
-			(snd infos.mt_path),type_of_module_type mt,Some FKType,infos.mt_doc
+			(snd infos.mt_path),type_of_module_type mt,Some Display.FKType,infos.mt_doc
 		) tl in
 		tl
 	in
@@ -3769,7 +3750,7 @@ and handle_display ctx e_ast iscall with_type p =
 		raise (Display.DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
-			raise (DisplayFields (get_submodule_fields path))
+			raise (Display.DisplayFields (get_submodule_fields path))
 		with Not_found ->
 			raise err
 		end
@@ -4004,7 +3985,7 @@ and handle_display ctx e_ast iscall with_type p =
 		else
 			let get_field acc f =
 				List.fold_left (fun acc f ->
-					let kind = match f.cf_kind with Method _ -> FKMethod | Var _ -> FKVar in
+					let kind = match f.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar in
 					if f.cf_public then (f.cf_name,f.cf_type,Some kind,f.cf_doc) :: acc else acc
 				) acc (f :: f.cf_overloads)
 			in
@@ -4018,7 +3999,7 @@ and handle_display ctx e_ast iscall with_type p =
 			if fields = [] then
 				e.etype
 			else
-				raise (DisplayFields fields)
+				raise (Display.DisplayFields fields)
 		in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
@@ -4619,7 +4600,7 @@ let make_macro_api ctx p =
 				let e = Optimizer.optimize_completion_expr e in
 				ignore (type_expr ctx e Value);
 				"NO COMPLETION"
-			with DisplayFields fields ->
+			with Display.DisplayFields fields ->
 				let pctx = print_context() in
 				String.concat "," (List.map (fun (f,t,_,_) -> f ^ ":" ^ s_type pctx t) fields)
 			| Display.DisplayTypes tl ->

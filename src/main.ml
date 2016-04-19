@@ -176,10 +176,10 @@ let complete_fields com fields =
 	List.iter (fun (n,t,k,d) ->
 		let s_kind = match k with
 			| Some k -> (match k with
-				| Typer.FKVar -> "var"
-				| Typer.FKMethod -> "method"
-				| Typer.FKType -> "type"
-				| Typer.FKPackage -> "package")
+				| Display.FKVar -> "var"
+				| Display.FKMethod -> "method"
+				| Display.FKType -> "type"
+				| Display.FKPackage -> "package")
 			| None -> ""
 		in
 		if details then
@@ -1697,7 +1697,7 @@ with
 		error ctx ("Error: " ^ msg) Ast.null_pos
 	| Arg.Help msg ->
 		message ctx msg Ast.null_pos
-	| Typer.DisplayFields fields ->
+	| Display.DisplayFields fields ->
 		let ctx = print_context() in
 		let fields = List.map (fun (name,t,kind,doc) -> name, s_type ctx t, kind, (match doc with None -> "" | Some d -> d)) fields in
 		let fields = if !measure_times then begin
@@ -1735,19 +1735,19 @@ with
 		) pl;
 		Buffer.add_string b "</list>";
 		raise (Completion (Buffer.contents b))
-	| Typer.DisplayToplevel il ->
+	| Display.DisplayToplevel il ->
 		let b = Buffer.create 0 in
 		Buffer.add_string b "<il>\n";
 		let ctx = print_context() in
 		let s_type t = htmlescape (s_type ctx t) in
 		List.iter (fun id -> match id with
-			| Typer.ITLocal v -> Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| Typer.ITMember(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Typer.ITStatic(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Typer.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
-			| Typer.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| Typer.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
-			| Typer.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+			| Display.ITLocal v -> Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
+			| Display.ITMember(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
+			| Display.ITStatic(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
+			| Display.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
+			| Display.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
+			| Display.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
+			| Display.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
@@ -1760,7 +1760,7 @@ with
 			else
 				complete_fields com (
 					let convert k f = (f,"",Some k,"") in
-					(List.map (convert Typer.FKPackage) packs) @ (List.map (convert Typer.FKType) classes)
+					(List.map (convert Display.FKPackage) packs) @ (List.map (convert Display.FKType) classes)
 				)
 		| Some (c,cur_package) ->
 			try
@@ -1793,12 +1793,12 @@ with
 					end;
 					not tinfos.mt_private
 				) m.m_types in
-				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") public_types in
+				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
 				let ctx = print_context() in
 				let make_field_doc cf =
 					cf.cf_name,
 					s_type ctx cf.cf_type,
-					Some (match cf.cf_kind with Method _ -> Typer.FKMethod | Var _ -> Typer.FKVar),
+					Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
 					(match cf.cf_doc with Some s -> s | None -> "")
 				in
 				let types = match !statics with
