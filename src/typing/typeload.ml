@@ -1534,7 +1534,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
 	let names = ref [] in
 	List.map (fun tp ->
-		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx ("Duplicate type parameter name: " ^ fst tp.tp_name) p;
+		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx ("Duplicate type parameter name: " ^ fst tp.tp_name) (pos tp.tp_name);
 		names := (fst tp.tp_name) :: !names;
 		type_type_param ~enum_constructor ctx path get_params p tp
 	) tpl
