@@ -12,6 +12,9 @@ let is_display_file p =
 let encloses_position p_target p =
 	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
 
+let is_display_position p =
+	is_display_file p && encloses_position !Parser.resume_display p
+
 let find_enclosing com e =
 	let display_pos = ref (!Parser.resume_display) in
 	let mk_null p = (EDisplay(((EConst(Ident "null")),p),false),p) in
@@ -82,7 +85,13 @@ let display_type dm t =
 		let ti = t_infos mt in
 		ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
 	| DMType -> raise (DisplayTypes [t])
-	| _ -> raise Exit
+	| _ -> ()
+
+let display_variable dm v = match dm with
+	| DMPosition -> raise (DisplayPosition [v.v_pos])
+	| DMUsage -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
+	| DMType -> raise (DisplayTypes [v.v_type])
+	| _ -> ()
 
 module SymbolKind = struct
 	type t =

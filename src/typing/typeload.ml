@@ -467,7 +467,7 @@ let rec load_instance ?(allow_display=false) ctx (t,p) allow_no_params =
 			f params
 		end
 	in
-	if allow_display && ctx.com.display <> DMNone && Display.is_display_file p && Display.encloses_position !Parser.resume_display p then
+	if allow_display && ctx.com.display <> DMNone && Display.is_display_position p then
 		Display.display_type ctx.com.display t;
 	t
 
@@ -1547,6 +1547,8 @@ let type_function ctx args ret fmode f do_display p =
 		let c = type_function_arg_value ctx t c in
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
+		if do_display && Display.encloses_position !Parser.resume_display pn then
+			Display.display_variable ctx.com.display v;
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
 	) args f.f_args in

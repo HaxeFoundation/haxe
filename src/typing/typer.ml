@@ -2828,7 +2828,10 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
-			add_local ctx v t pv, e
+			let v,e = add_local ctx v t pv, e in
+			if Display.is_display_position pv then
+				Display.display_variable ctx.com.display v;
+			v,e
 		with
 			Error (e,p) ->
 				display_error ctx (error_msg e) p;
@@ -3221,6 +3224,8 @@ and type_try ctx e1 catches with_type p =
 		check_unreachable acc t2 (pos e);
 		let locals = save_locals ctx in
 		let v = add_local ctx v t pv in
+		if Display.is_display_position pv then
+			Display.display_variable ctx.com.display v;
 		let e = type_expr ctx e with_type in
 		v.v_type <- t2;
 		locals();
