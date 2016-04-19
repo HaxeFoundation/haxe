@@ -627,7 +627,7 @@ and parse_type_decl s =
 				d_params = tl;
 				d_flags = List.map snd c;
 				d_data = t;
-			}, punion p1 p2)
+			}, punion p1 (pos t))
 		| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			let flags = List.map (fun (_,c) -> match c with EPrivate -> APrivAbstract | EExtern -> AExtern) c in
 			let flags = (match st with None -> flags | Some t -> AIsType t :: flags) in
