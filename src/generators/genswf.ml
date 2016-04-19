@@ -122,7 +122,7 @@ let build_class com c file =
 	match path with
 	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } ->
 		let inf = {
-			d_name = path.tname;
+			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
 			d_meta = [];
@@ -186,7 +186,7 @@ let build_class com c file =
 			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl, pos) (!meta)
 		in
 		let cf = {
-			cff_name = name;
+			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = pos;
 			cff_meta = mk_meta();
@@ -296,7 +296,7 @@ let build_class com c file =
 		let flags = [APublic] in
 		let flags = if stat then AStatic :: flags else flags in
 		{
-			cff_name = name;
+			cff_name = name,null_pos;
 			cff_pos = pos;
 			cff_doc = None;
 			cff_access = flags;
@@ -335,7 +335,7 @@ let build_class com c file =
 						ec_doc = None;
 						ec_type = None;
 					} :: loop l
-				| FFun { f_args = [] } when f.cff_name = "new" -> loop l
+				| FFun { f_args = [] } when fst f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in
 		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;
@@ -343,7 +343,7 @@ let build_class com c file =
 		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
 		if not (Common.raw_defined com name) then raise Exit;
 		let enum_data = {
-			d_name = path.tname;
+			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
 			d_meta = [(Meta.FakeEnum,[EConst (Ident !real_type),pos],pos)];
@@ -353,10 +353,10 @@ let build_class com c file =
 		(path.tpackage, [(EEnum enum_data,pos)])
 	with Exit ->
 	let class_data = {
-		d_name = path.tname;
+		d_name = path.tname,null_pos;
 		d_doc = None;
 		d_params = [];
-		d_meta = if c.hlc_final && List.exists (fun f -> f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
+		d_meta = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
 		d_flags = flags;
 		d_data = fields;
 	} in

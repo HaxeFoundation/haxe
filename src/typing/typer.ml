@@ -354,16 +354,16 @@ let eval ctx s =
 	let pack,decls = parse_string ctx.com s p false in
 	let rec find_main current decls = match decls with
 		| (EClass c,_) :: decls ->
-			let path = pack,c.d_name in
+			let path = pack,fst c.d_name in
 			begin try
-				let cff = List.find (fun cff -> cff.cff_name = "main") c.d_data in
+				let cff = List.find (fun cff -> fst cff.cff_name = "main") c.d_data in
 				if ctx.com.main_class <> None then error "Multiple main" cff.cff_pos;
 				ctx.com.main_class <- Some path;
 				Some path
 			with Not_found ->
 				find_main (if current = None then Some path else current) decls
 			end
-		| ((EEnum {d_name = s} | ETypedef {d_name = s} | EAbstract {d_name = s}),_) :: decls when current = None ->
+		| ((EEnum {d_name = (s,_)} | ETypedef {d_name = (s,_)} | EAbstract {d_name = (s,_)}),_) :: decls when current = None ->
 			find_main (Some (pack,s)) decls
 		| _ :: decls ->
 			find_main current decls
@@ -382,7 +382,7 @@ let parse_expr_string ctx s p inl =
 	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
 	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
 	match parse_string ctx.com (head ^ s ^ ";}") p inl with
-	| _,[EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
+	| _,[EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
 	| _ -> raise Interp.Invalid_expr
 
 let collect_toplevel_identifiers ctx =
@@ -809,10 +809,20 @@ let unify_field_call ctx fa el args ret p inline =
 				candidates,(cf,err,p) :: failures
 			end
 	in
+	let fail_fun () =
+		let tf = TFun(args,ret) in
+		[],tf,(fun ethis p_field ->
+			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
+			mk (TCall(e1,[])) ret p)
+	in
 	match candidates with
 	| [t,cf] ->
-		let el,tf,mk_call = attempt_call t cf in
-		List.map fst el,tf,mk_call
+		begin try
+			let el,tf,mk_call = attempt_call t cf in
+			List.map fst el,tf,mk_call
+		with Error _ when ctx.com.display <> DMNone ->
+			fail_fun();
+		end
 	| _ ->
 		let candidates,failures = loop candidates in
 		let fail () =
@@ -2829,10 +2839,8 @@ and type_vars ctx vl p =
 			) in
 			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
 			let v,e = add_local ctx v t pv, e in
-			if Display.is_display_position pv then begin
-				ctx.display_handled <- true;
+			if Display.is_display_position pv then
 				Display.display_variable ctx.com.display v;
-			end;
 			v,e
 		with
 			Error (e,p) ->
@@ -2852,6 +2860,8 @@ and format_string ctx s p =
 	let min = ref (p.pmin + 1) in
 	let add_expr (enext,p) len =
 		min := !min + len;
+		if ctx.in_display && Display.encloses_position !Parser.resume_display p then
+			raise (Display.DisplaySubExpression (enext,p));
 		match !e with
 		| None -> e := Some (enext,p)
 		| Some prev ->
@@ -3226,10 +3236,8 @@ and type_try ctx e1 catches with_type p =
 		check_unreachable acc t2 (pos e);
 		let locals = save_locals ctx in
 		let v = add_local ctx v t pv in
-		if Display.is_display_position pv then begin
-			ctx.display_handled <- true;
+		if Display.is_display_position pv then
 			Display.display_variable ctx.com.display v;
-		end;
 		let e = type_expr ctx e with_type in
 		v.v_type <- t2;
 		locals();
@@ -3744,7 +3752,6 @@ and handle_display ctx e_ast iscall with_type p =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
-	ctx.display_handled <- true;
 	let get_submodule_fields path =
 		let m = Hashtbl.find ctx.g.modules path in
 		let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
@@ -3766,6 +3773,11 @@ and handle_display ctx e_ast iscall with_type p =
 		with Not_found ->
 			raise err
 		end
+	| Display.DisplaySubExpression e ->
+		ctx.in_display <- false;
+		let e = type_expr ctx e Value in
+		ctx.in_display <- true;
+		e
 	in
 	let e = match with_type with
 		| WithType t -> (try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
@@ -5221,7 +5233,6 @@ let rec create com =
 		curfun = FunStatic;
 		in_loop = false;
 		in_display = false;
-		display_handled = false;
 		in_macro = Common.defined com Define.Macro;
 		ret = mk_mono();
 		locals = PMap.empty;

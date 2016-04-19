@@ -379,7 +379,7 @@ and expr_def =
 and expr = expr_def * pos
 
 and type_param = {
-	tp_name : string;
+	tp_name : placed_name;
 	tp_params :	type_param list;
 	tp_constraints : type_hint list;
 	tp_meta : metadata;
@@ -405,7 +405,7 @@ and class_field_kind =
 	| FProp of string * string * type_hint option * expr option
 
 and class_field = {
-	cff_name : string;
+	cff_name : placed_name;
 	cff_doc : documentation;
 	cff_pos : pos;
 	mutable cff_meta : metadata;
@@ -432,7 +432,7 @@ type abstract_flag =
 	| AExtern
 
 type enum_constructor = {
-	ec_name : string;
+	ec_name : placed_name;
 	ec_doc : documentation;
 	ec_meta : metadata;
 	ec_args : (string * bool * type_hint) list;
@@ -442,7 +442,7 @@ type enum_constructor = {
 }
 
 type ('a,'b) definition = {
-	d_name : string;
+	d_name : placed_name;
 	d_doc : documentation;
 	d_params : type_param list;
 	d_meta : metadata;
@@ -867,9 +867,9 @@ let s_expr e =
 		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
 		if List.length f.cff_access > 0 then String.concat " " (List.map s_access f.cff_access) else "" ^
 		match f.cff_kind with
-		| FVar (t,e) -> "var " ^ f.cff_name ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FProp (get,set,t,e) -> "var " ^ f.cff_name ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FFun func -> "function " ^ f.cff_name ^ s_func tabs func
+		| FVar (t,e) -> "var " ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FProp (get,set,t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FFun func -> "function " ^ (fst f.cff_name) ^ s_func tabs func
 	and s_metadata tabs (s,e,_) =
 		"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list tabs e ", " ^ ")" else ""
 	and s_opt_expr tabs e pre =
@@ -886,7 +886,7 @@ let s_expr e =
 		s_opt_type_hint tabs f.f_type ":" ^
 		s_opt_expr tabs f.f_expr " "
 	and s_type_param tabs t =
-		t.tp_name ^ s_type_param_list tabs t.tp_params ^
+		fst (t.tp_name) ^ s_type_param_list tabs t.tp_params ^
 		if List.length t.tp_constraints > 0 then ":(" ^ String.concat ", " (List.map ((fun (t,_) -> s_complex_type tabs t)) t.tp_constraints) ^ ")" else ""
 	and s_type_param_list tabs tl =
 		if List.length tl > 0 then "<" ^ String.concat ", " (List.map (s_type_param tabs) tl) ^ ">" else ""

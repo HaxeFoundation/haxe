@@ -3986,7 +3986,7 @@ and encode_field (f:class_field) =
 		| FProp (get,set, t, e) -> 2, [enc_string get; enc_string set; null encode_ctype t; null encode_expr e]
 	in
 	enc_obj [
-		"name",enc_string f.cff_name;
+		"name",encode_placed_name f.cff_name;
 		"doc", null enc_string f.cff_doc;
 		"pos", encode_pos f.cff_pos;
 		"kind", enc_enum IField tag pl;
@@ -4013,7 +4013,7 @@ and encode_ctype t =
 
 and encode_tparam_decl tp =
 	enc_obj [
-		"name", enc_string tp.tp_name;
+		"name", encode_placed_name tp.tp_name;
 		"params", enc_array (List.map encode_tparam_decl tp.tp_params);
 		"constraints", enc_array (List.map encode_ctype tp.tp_constraints);
 		"meta", encode_meta_content tp.tp_meta;
@@ -4254,7 +4254,7 @@ and decode_tparams = function
 
 and decode_tparam_decl v =
 	{
-		tp_name = dec_string (field v "name");
+		tp_name = decode_placed_name (field v "name");
 		tp_constraints = (match field v "constraints" with VNull -> [] | a -> List.map decode_ctype (dec_array a));
 		tp_params = decode_tparams (field v "params");
 		tp_meta = decode_meta_content (field v "meta");
@@ -4300,7 +4300,7 @@ and decode_field v =
 			raise Invalid_expr
 	in
 	{
-		cff_name = dec_string (field v "name");
+		cff_name = decode_placed_name (field v "name");
 		cff_doc = opt dec_string (field v "doc");
 		cff_pos = decode_pos (field v "pos");
 		cff_kind = fkind;
@@ -4991,7 +4991,7 @@ let rec decode_texpr v =
 
 let decode_type_def v =
 	let pack = List.map dec_string (dec_array (field v "pack")) in
-	let name = dec_string (field v "name") in
+	let name = decode_placed_name (field v "name") in
 	let meta = decode_meta_content (field v "meta") in
 	let pos = decode_pos (field v "pos") in
 	let isExtern = (match field v "isExtern" with VNull -> false | v -> dec_bool v) in
@@ -5051,7 +5051,7 @@ let decode_type_def v =
 	(* if our package ends with an uppercase letter, then it's the module name *)
 	let pack,name = (match List.rev pack with
 		| last :: l when not (is_lower_ident last) -> List.rev l, last
-		| _ -> pack, name
+		| _ -> pack, fst name
 	) in
 	(pack, name), tdef, pos
 

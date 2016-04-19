@@ -5,6 +5,7 @@ open Type
 exception DocumentSymbols of string
 exception DisplayTypes of t list
 exception DisplayPosition of Ast.pos list
+exception DisplaySubExpression of Ast.expr
 
 let is_display_file p =
 	Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
@@ -78,19 +79,32 @@ let find_before_pos com e =
 	map e
 
 let display_type dm t =
-	let mt = module_type_of_type t in
-	match dm with
-	| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
-	| DMUsage ->
-		let ti = t_infos mt in
-		ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
-	| DMType -> raise (DisplayTypes [t])
-	| _ -> ()
+	try
+		let mt = module_type_of_type t in
+		begin match dm with
+			| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
+			| DMUsage ->
+				let ti = t_infos mt in
+				ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
+			| DMType -> raise (DisplayTypes [t])
+			| _ -> ()
+		end
+	with Exit ->
+		()
+
+let display_module_type dm mt =
+	display_type dm (type_of_module_type mt)
 
 let display_variable dm v = match dm with
 	| DMPosition -> raise (DisplayPosition [v.v_pos])
 	| DMUsage -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
 	| DMType -> raise (DisplayTypes [v.v_type])
+	| _ -> ()
+
+let display_field dm cf = match dm with
+	| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
+	| DMUsage -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
+	| DMType -> raise (DisplayTypes [cf.cf_type])
 	| _ -> ()
 
 module SymbolKind = struct
@@ -224,34 +238,34 @@ let print_document_symbols (pack,decls) =
 	in
 	let field si_type cff = match cff.cff_kind with
 		| FVar(_,eo) ->
-			let si_field = add cff.cff_name Field cff.cff_pos (Some si_type) in
+			let si_field = add (fst cff.cff_name) Field (pos cff.cff_name) (Some si_type) in
 			expr_opt (Some si_field) eo
 		| FFun f ->
-			let si_method = add cff.cff_name (if cff.cff_name = "new" then Constructor else Method) cff.cff_pos (Some si_type) in
+			let si_method = add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) (pos cff.cff_name) (Some si_type) in
 			func si_method f
 		| FProp(_,_,_,eo) ->
-			let si_property = add cff.cff_name Property cff.cff_pos (Some si_type) in
+			let si_property = add (fst cff.cff_name) Property (pos cff.cff_name) (Some si_type) in
 			expr_opt (Some si_property) eo
 	in
 	List.iter (fun (td,p) -> match td with
 		| EImport _ | EUsing _ ->
 			() (* TODO: Can we do anything with these? *)
 		| EClass d ->
-			let si_type = add d.d_name (if List.mem HInterface d.d_flags then Interface else Class) p si_pack in
+			let si_type = add (fst d.d_name) (if List.mem HInterface d.d_flags then Interface else Class) (pos d.d_name) si_pack in
 			List.iter (field si_type) d.d_data
 		| EEnum d ->
-			let si_type = add d.d_name Enum p si_pack in
+			let si_type = add (fst d.d_name) Enum (pos d.d_name) si_pack in
 			List.iter (fun ef ->
-				ignore (add ef.ec_name Method ef.ec_pos (Some si_type))
+				ignore (add (fst ef.ec_name) Method (pos ef.ec_name) (Some si_type))
 			) d.d_data
 		| ETypedef d ->
-			let si_type = add d.d_name Interface p si_pack in
+			let si_type = add (fst d.d_name) Interface (pos d.d_name) si_pack in
 			(match d.d_data with
 			| CTAnonymous fields,_ ->
 				List.iter (field si_type) fields
 			| _ -> ())
 		| EAbstract d ->
-			let si_type = add d.d_name Class p si_pack in
+			let si_type = add (fst d.d_name) Class (pos d.d_name) si_pack in
 			List.iter (field si_type) d.d_data
 	) decls;
 	let jl = List.map (fun si ->

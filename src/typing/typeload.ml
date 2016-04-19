@@ -36,7 +36,7 @@ let transform_abstract_field com this_t a_t a f =
 		{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],p) :: f.cff_meta }
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
-	| FFun fu when f.cff_name = "new" && not stat ->
+	| FFun fu when fst f.cff_name = "new" && not stat ->
 		let init p = (EVars [("this",null_pos),Some this_t,None],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
@@ -58,7 +58,7 @@ let transform_abstract_field com this_t a_t a f =
 			f_type = Some a_t;
 		} in
 
-		{ f with cff_name = "_new"; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
+		{ f with cff_name = "_new",pos f.cff_name; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
 		let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else (("this",null_pos),false,[],Some this_t,None) :: fu.f_args) } in
@@ -94,10 +94,11 @@ let module_pass_1 ctx m tdecls loadp =
 			| None -> acc
 			| Some _ -> error "import and using may not appear after a type declaration" p)
 		| EClass d ->
-			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			let name = fst d.d_name in
+			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
-			let path = make_path d.d_name priv in
+			let path = make_path name priv in
 			let c = mk_class m path p in
 			(* we shouldn't load any other type until we propertly set cl_build *)
 			c.cl_build <- (fun() -> assert false);
@@ -108,10 +109,11 @@ let module_pass_1 ctx m tdecls loadp =
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
-			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			let name = fst d.d_name in
+			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path d.d_name priv in
+			let path = make_path name priv in
 			let e = {
 				e_path = path;
 				e_module = m;
@@ -137,10 +139,11 @@ let module_pass_1 ctx m tdecls loadp =
 			decls := (TEnumDecl e, decl) :: !decls;
 			acc
 		| ETypedef d ->
-			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			let name = fst d.d_name in
+			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
-			let path = make_path d.d_name priv in
+			let path = make_path name priv in
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -160,9 +163,10 @@ let module_pass_1 ctx m tdecls loadp =
 			decls := (TTypeDecl t, decl) :: !decls;
 			acc
 		 | EAbstract d ->
-			if String.length d.d_name > 0 && d.d_name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+		 	let name = fst d.d_name in
+			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
 			let priv = List.mem APrivAbstract d.d_flags in
-			let path = make_path d.d_name priv in
+			let path = make_path name priv in
 			let a = {
 				a_path = path;
 				a_private = priv;
@@ -189,8 +193,8 @@ let module_pass_1 ctx m tdecls loadp =
 				acc
 			| fields ->
 				let a_t =
-					let params = List.map (fun t -> TPType (CTPath { tname = t.tp_name; tparams = []; tsub = None; tpackage = [] },null_pos)) d.d_params in
-					CTPath { tpackage = []; tname = d.d_name; tparams = params; tsub = None },null_pos
+					let params = List.map (fun t -> TPType (CTPath { tname = fst t.tp_name; tparams = []; tsub = None; tpackage = [] },null_pos)) d.d_params in
+					CTPath { tpackage = []; tname = fst d.d_name; tparams = params; tsub = None },null_pos
 				in
 				let rec loop = function
 					| [] -> a_t
@@ -201,7 +205,7 @@ let module_pass_1 ctx m tdecls loadp =
 				let fields = List.map (transform_abstract_field com this_t a_t a) fields in
 				let meta = ref [] in
 				if has_meta Meta.Dce a.a_meta then meta := (Meta.Dce,[],p) :: !meta;
-				let acc = make_decl acc (EClass { d_name = d.d_name ^ "_Impl_"; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta },p) in
+				let acc = make_decl acc (EClass { d_name = (fst d.d_name) ^ "_Impl_",snd d.d_name; d_flags = [HPrivate]; d_data = fields; d_doc = None; d_params = []; d_meta = !meta },p) in
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
@@ -550,7 +554,7 @@ and load_complex_type ctx allow_display (t,p) =
 		| _ -> assert false)
 	| CTAnonymous l ->
 		let rec loop acc f =
-			let n = f.cff_name in
+			let n = fst f.cff_name in
 			let p = f.cff_pos in
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
 			let topt = function
@@ -579,7 +583,7 @@ and load_complex_type ctx allow_display (t,p) =
 					no_expr e;
 					topt t, Var { v_read = AccNormal; v_write = AccNormal }
 				| FFun fd ->
-					params := (!type_function_params_rec) ctx fd f.cff_name p;
+					params := (!type_function_params_rec) ctx fd (fst f.cff_name) p;
 					no_expr fd.f_expr;
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
@@ -1496,7 +1500,7 @@ module Inheritance = struct
 end
 
 let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
-	let n = tp.tp_name in
+	let n = fst tp.tp_name in
 	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) p in
 	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
@@ -1530,8 +1534,8 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 and type_type_params ?(enum_constructor=false) ctx path get_params p tpl =
 	let names = ref [] in
 	List.map (fun tp ->
-		if List.mem tp.tp_name !names then display_error ctx ("Duplicate type parameter name: " ^ tp.tp_name) p;
-		names := tp.tp_name :: !names;
+		if List.exists (fun name -> name = fst tp.tp_name) !names then display_error ctx ("Duplicate type parameter name: " ^ fst tp.tp_name) p;
+		names := (fst tp.tp_name) :: !names;
 		type_type_param ~enum_constructor ctx path get_params p tp
 	) tpl
 
@@ -1547,10 +1551,8 @@ let type_function ctx args ret fmode f do_display p =
 		let c = type_function_arg_value ctx t c in
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
-		if do_display && Display.encloses_position !Parser.resume_display pn then begin
-			ctx.display_handled <- true;
+		if do_display && Display.encloses_position !Parser.resume_display pn then
 			Display.display_variable ctx.com.display v;
-		end;
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
 	) args f.f_args in
@@ -1776,7 +1778,7 @@ let patch_class ctx c fields =
 				| FFun ff ->
 					let param (((n,pn),opt,m,_,e) as p) =
 						try
-							let t2 = (try Hashtbl.find h (("$" ^ f.cff_name ^ "__" ^ n),false) with Not_found -> Hashtbl.find h (("$" ^ n),false)) in
+							let t2 = (try Hashtbl.find h (("$" ^ (fst f.cff_name) ^ "__" ^ n),false) with Not_found -> Hashtbl.find h (("$" ^ n),false)) in
 							(n,pn), opt, m, (match t2.tp_type with None -> None | Some t -> Some (t,null_pos)), e
 						with Not_found ->
 							p
@@ -1784,7 +1786,7 @@ let patch_class ctx c fields =
 					f.cff_kind <- FFun { ff with f_args = List.map param ff.f_args }
 				| _ -> ());
 				(* other patches *)
-				match (try Some (Hashtbl.find h (f.cff_name,List.mem AStatic f.cff_access)) with Not_found -> None) with
+				match (try Some (Hashtbl.find h (fst f.cff_name,List.mem AStatic f.cff_access)) with Not_found -> None) with
 				| None -> loop (f :: acc) l
 				| Some { tp_remove = true } -> loop acc l
 				| Some p ->
@@ -1978,7 +1980,7 @@ module ClassInitializer = struct
 		let is_inline = allow_inline && List.mem AInline cff.cff_access in
 		let is_override = List.mem AOverride cff.cff_access in
 		let is_macro = List.mem AMacro cff.cff_access in
-		let field_kind = match cff.cff_name with
+		let field_kind = match fst cff.cff_name with
 			| "new" -> FKConstructor
 			| "__init__" when is_static -> FKInit
 			| _ -> FKNormal
@@ -2103,17 +2105,6 @@ module ClassInitializer = struct
 				end;
 			end
 
-	let check_display (ctx,fctx) cf p =
-		if fctx.is_display_field && not ctx.display_handled then begin
-			(* We're in our display field but didn't exit yet, so the position must be on the field itself.
-			   It could also be one of its arguments, but at the moment we cannot detect that. *)
-		match ctx.com.display with
-			| DMPosition -> raise (Display.DisplayPosition [cf.cf_pos]);
-			| DMUsage -> cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
-			| DMType -> raise (Display.DisplayTypes [cf.cf_type])
-			| _ -> ()
-		end
-
 	let bind_var (ctx,cctx,fctx) cf e =
 		let c = cctx.tclass in
 		let p = cf.cf_pos in
@@ -2145,7 +2136,7 @@ module ClassInitializer = struct
 
 		match e with
 		| None ->
-			check_display (ctx,fctx) cf p
+			()
 		| Some e ->
 			if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],cf.cf_pos) :: cf.cf_meta);
 			let check_cast e =
@@ -2223,7 +2214,6 @@ module ClassInitializer = struct
 						e
 					) in
 					let e = check_cast e in
-					check_display (ctx,fctx) cf p;
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
 				end;
@@ -2232,14 +2222,18 @@ module ClassInitializer = struct
 			if not fctx.is_static then cctx.force_constructor <- true;
 			bind_type (ctx,cctx,fctx) cf r (snd e)
 
+	let check_field_display com p cf =
+ 		if Display.encloses_position !Parser.resume_display p then
+			Display.display_field com.display cf
+
 	let create_variable (ctx,cctx,fctx) c f t eo p =
-		if not fctx.is_static && cctx.abstract <> None then error (f.cff_name ^ ": Cannot declare member variable in abstract") p;
-		if fctx.is_inline && not fctx.is_static then error (f.cff_name ^ ": Inline variable must be static") p;
-		if fctx.is_inline && eo = None then error (f.cff_name ^ ": Inline variable must be initialized") p;
+		if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
+		if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
+		if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
 
 		let t = (match t with
 			| None when not fctx.is_static && eo = None ->
-				error ("Type required for member variable " ^ f.cff_name) p;
+				error ("Type required for member variable " ^ fst f.cff_name) p;
 			| None ->
 				mk_mono()
 			| Some t ->
@@ -2251,7 +2245,7 @@ module ClassInitializer = struct
 				t
 		) in
 		let cf = {
-			cf_name = f.cff_name;
+			cf_name = fst f.cff_name;
 			cf_doc = f.cff_doc;
 			cf_meta = f.cff_meta;
 			cf_type = t;
@@ -2264,6 +2258,7 @@ module ClassInitializer = struct
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
+		if fctx.is_display_field then check_field_display ctx.com (pos f.cff_name) cf;
 		cf
 
 	let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
@@ -2385,9 +2380,9 @@ module ClassInitializer = struct
 				()
 
 	let create_method (ctx,cctx,fctx) c f fd p =
-		let params = type_function_params ctx fd f.cff_name p in
+		let params = type_function_params ctx fd (fst f.cff_name) p in
 		if Meta.has Meta.Generic f.cff_meta then begin
-			if params = [] then error (f.cff_name ^ ": Generic functions must have type parameters") p;
+			if params = [] then error (fst f.cff_name ^ ": Generic functions must have type parameters") p;
 		end;
 		let fd = if fctx.is_macro && not ctx.in_macro && not fctx.is_static then
 			(* remove display of first argument which will contain the "this" expression *)
@@ -2433,8 +2428,8 @@ module ClassInitializer = struct
 			| true,FKConstructor ->
 				error "An interface cannot have a constructor" p;
 			| true,_ ->
-				if not fctx.is_static && fd.f_expr <> None then error (f.cff_name ^ ": An interface method cannot have a body") p;
-				if fctx.is_inline && c.cl_interface then error (f.cff_name ^ ": You can't declare inline methods in interfaces") p;
+				if not fctx.is_static && fd.f_expr <> None then error (fst f.cff_name ^ ": An interface method cannot have a body") p;
+				if fctx.is_inline && c.cl_interface then error (fst f.cff_name ^ ": You can't declare inline methods in interfaces") p;
 			| false,FKConstructor ->
 				if fctx.is_static then error "A constructor must not be static" p;
 				begin match fd.f_type with
@@ -2444,9 +2439,9 @@ module ClassInitializer = struct
 			| false,_ ->
 				()
 		end;
-		let parent = (if not fctx.is_static then get_parent c f.cff_name else None) in
+		let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
 		let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
-		if fctx.is_inline && dynamic then error (f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
+		if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
 		ctx.type_params <- (match cctx.abstract with
 			| Some a when fctx.is_abstract_member ->
 				params @ a.a_params
@@ -2474,7 +2469,7 @@ module ClassInitializer = struct
 		let args = loop fd.f_args in
 		let t = TFun (fun_args args,ret) in
 		let cf = {
-			cf_name = f.cff_name;
+			cf_name = fst f.cff_name;
 			cf_doc = f.cff_doc;
 			cf_meta = f.cff_meta;
 			cf_type = t;
@@ -2498,12 +2493,12 @@ module ClassInitializer = struct
 				r := (fun() -> t);
 				cctx.context_init();
 				incr stats.s_methods_typed;
-				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ f.cff_name);
+				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ fst f.cff_name);
 				let fmode = (match cctx.abstract with
 					| Some _ ->
 						(match args with
 						| ("this",_,_) :: _ -> FunMemberAbstract
-						| _ when f.cff_name = "_new" -> FunMemberAbstract
+						| _ when fst f.cff_name = "_new" -> FunMemberAbstract
 						| _ -> FunStatic)
 					| None ->
 						if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
@@ -2516,7 +2511,6 @@ module ClassInitializer = struct
 						cf.cf_type <- t
 					| _ ->
 						let e , fargs = type_function ctx args ret fmode fd fctx.is_display_field p in
-						check_display (ctx,fctx) cf p;
 						let tf = {
 							tf_args = fargs;
 							tf_type = ret;
@@ -2532,22 +2526,24 @@ module ClassInitializer = struct
 			t
 		) "type_fun" in
 		if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos);
+		if fctx.is_display_field then check_field_display ctx.com (pos f.cff_name) cf;
 		cf
 
 	let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
+		let name = fst f.cff_name in
 		(match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
 			ctx.type_params <- a.a_params;
 		| _ -> ());
 		(* TODO is_lib: lazify load_complex_type *)
 		let ret = (match t, eo with
-			| None, None -> error (f.cff_name ^ ": Property must either define a type or a default value") p;
+			| None, None -> error (name ^ ": Property must either define a type or a default value") p;
 			| None, _ -> mk_mono()
 			| Some t, _ -> load_complex_type ctx true t
 		) in
 		let t_get,t_set = match cctx.abstract with
 			| Some a when fctx.is_abstract_member ->
-				if Meta.has Meta.IsVar f.cff_meta then error (f.cff_name ^ ": Abstract properties cannot be real variables") f.cff_pos;
+				if Meta.has Meta.IsVar f.cff_meta then error (name ^ ": Abstract properties cannot be real variables") f.cff_pos;
 				let ta = apply_params a.a_params (List.map snd a.a_params) a.a_this in
 				tfun [ta] ret, tfun [ta;ret] ret
 			| _ -> tfun [] ret, TFun(["value",false,ret],ret)
@@ -2583,7 +2579,7 @@ module ClassInitializer = struct
 							raise Not_found
 						else
 							raise (Error (Custom
-								(Printf.sprintf "No overloaded method named %s was compatible with the property %s with expected type %s" m f.cff_name (s_type (print_context()) t)
+								(Printf.sprintf "No overloaded method named %s was compatible with the property %s with expected type %s" m (name) (s_type (print_context()) t)
 							), p))
 				in
 				let t2, f2 = get_overload overloads in
@@ -2603,9 +2599,9 @@ module ClassInitializer = struct
 					| _ -> acc
 				) f2.cf_meta f.cff_meta;
 			with
-				| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ f.cff_name),Unify l),p))
+				| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 				| Not_found ->
-					if req_name <> None then display_error ctx (f.cff_name ^ ": Custom property accessor is no longer supported, please use get/set") p else
+					if req_name <> None then display_error ctx (name ^ ": Custom property accessor is no longer supported, please use get/set") p else
 					if c.cl_interface then begin
 						let cf = mk_field m t p in
 						cf.cf_meta <- [Meta.CompilerGenerated,[],p];
@@ -2615,9 +2611,9 @@ module ClassInitializer = struct
 					end else if not c.cl_extern then begin
 						try
 							let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (List.map snd c.cl_params) m) in
-							display_error ctx (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m f.cff_name (if fctx.is_static then "not " else "")) f2.cf_pos
+							display_error ctx (Printf.sprintf "Method %s is no valid accessor for %s because it is %sstatic" m (name) (if fctx.is_static then "not " else "")) f2.cf_pos
 						with Not_found ->
-							display_error ctx ("Method " ^ m ^ " required by property " ^ f.cff_name ^ " is missing") p
+							display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 					end
 		in
 		let get = (match get with
@@ -2626,8 +2622,8 @@ module ClassInitializer = struct
 			| "never" -> AccNever
 			| "default" -> AccNormal
 			| _ ->
-				let get = if get = "get" then "get_" ^ f.cff_name else get in
-				if not cctx.is_lib then delay ctx PTypeField (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ f.cff_name then Some ("get_" ^ f.cff_name) else None));
+				let get = if get = "get" then "get_" ^ name else get in
+				if not cctx.is_lib then delay ctx PTypeField (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 				AccCall
 		) in
 		let set = (match set with
@@ -2641,13 +2637,13 @@ module ClassInitializer = struct
 			| "dynamic" -> AccCall
 			| "default" -> AccNormal
 			| _ ->
-				let set = if set = "set" then "set_" ^ f.cff_name else set in
-				if not cctx.is_lib then delay ctx PTypeField (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ f.cff_name then Some ("set_" ^ f.cff_name) else None));
+				let set = if set = "set" then "set_" ^ name else set in
+				if not cctx.is_lib then delay ctx PTypeField (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 				AccCall
 		) in
-		if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (f.cff_name ^ ": Unsupported property combination") p;
+		if set = AccNormal && (match get with AccCall -> true | _ -> false) then error (name ^ ": Unsupported property combination") p;
 		let cf = {
-			cf_name = f.cff_name;
+			cf_name = name;
 			cf_doc = f.cff_doc;
 			cf_meta = f.cff_meta;
 			cf_pos = f.cff_pos;
@@ -2660,21 +2656,23 @@ module ClassInitializer = struct
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
+		if fctx.is_display_field then check_field_display ctx.com (pos f.cff_name) cf;
 		cf
 
 	let init_field (ctx,cctx,fctx) f =
 		let c = cctx.tclass in
-		check_global_metadata ctx (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some f.cff_name);
+		let name = fst f.cff_name in
+		check_global_metadata ctx (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 		let p = f.cff_pos in
-		if f.cff_name.[0] = '$' && ctx.com.display = DMNone then error "Field names starting with a dollar are not allowed" p;
+		if name.[0] = '$' && ctx.com.display = DMNone then error "Field names starting with a dollar are not allowed" p;
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
 			| APublic, _ | APrivate, _ | AStatic, _ -> ()
 			| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
-			| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ f.cff_name) p
-			| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ f.cff_name) p
+			| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ name) p
+			| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ name) p
 		) f.cff_access;
-		if fctx.is_override then (match c.cl_super with None -> error ("Invalid override on field '" ^ f.cff_name ^ "': class has no super class") p | _ -> ());
+		if fctx.is_override then (match c.cl_super with None -> error ("Invalid override on field '" ^ name ^ "': class has no super class") p | _ -> ());
 		match f.cff_kind with
 		| FVar (t,e) ->
 			create_variable (ctx,cctx,fctx) c f t e p
@@ -2989,7 +2987,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		in
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
-		let c = (match get_type d.d_name with TClassDecl c -> c | _ -> assert false) in
+		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
+		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TClassDecl c);
 		check_global_metadata ctx (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
 		if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
@@ -3048,7 +3047,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| _ -> ()
 			);
 	| EEnum d ->
-		let e = (match get_type d.d_name with TEnumDecl e -> e | _ -> assert false) in
+		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
+		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TEnumDecl e);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
 		check_global_metadata ctx (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
@@ -3106,7 +3106,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
-			params := type_type_params ~enum_constructor:true ctx ([],c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
+			params := type_type_params ~enum_constructor:true ctx ([],fst c.ec_name) (fun() -> !params) c.ec_pos c.ec_params;
 			let params = !params in
 			let ctx = { ctx with type_params = params @ ctx.type_params } in
 			let rt = (match c.ec_type with
@@ -3127,14 +3127,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 					let pnames = ref PMap.empty in
 					TFun (List.map (fun (s,opt,(t,tp)) ->
 						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" c.ec_pos | _ -> ());
-						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ c.ec_name) p;
+						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ fst c.ec_name) p;
 						pnames := PMap.add s () (!pnames);
 						s, opt, load_type_hint ~opt ctx (Some (t,tp))
 					) l, rt)
 			) in
-			if PMap.mem c.ec_name e.e_constrs then error ("Duplicate constructor " ^ c.ec_name) p;
+			if PMap.mem (fst c.ec_name) e.e_constrs then error ("Duplicate constructor " ^ fst c.ec_name) p;
 			let f = {
-				ef_name = c.ec_name;
+				ef_name = fst c.ec_name;
 				ef_type = t;
 				ef_pos = p;
 				ef_doc = c.ec_doc;
@@ -3166,7 +3166,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
-			names := c.ec_name :: !names;
+			names := (fst c.ec_name) :: !names;
 		) (!constructs);
 		e.e_names <- List.rev !names;
 		e.e_extern <- e.e_extern;
@@ -3187,7 +3187,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				) e.e_constrs
 			);
 	| ETypedef d ->
-		let t = (match get_type d.d_name with TTypeDecl t -> t | _ -> assert false) in
+		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
+		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TTypeDecl t);
 		check_global_metadata ctx (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
 		let tt = load_complex_type ctx true d.d_data in
@@ -3216,7 +3217,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				if metas <> [] then t.t_meta <- metas @ t.t_meta;
 			);
 	| EAbstract d ->
-		let a = (match get_type d.d_name with TAbstractDecl a -> a | _ -> assert false) in
+		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
+		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TAbstractDecl a);
 		check_global_metadata ctx (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
@@ -3330,7 +3332,6 @@ let type_types_into_module ctx m tdecls p =
 		untyped = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
-		display_handled = false;
 		in_loop = false;
 		opened = [];
 		in_call_args = false;
@@ -3462,9 +3463,9 @@ let parse_module ctx m p =
 					d_data = CTPath (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else
 						{
 							tpackage = !remap;
-							tname = d.d_name;
+							tname = fst d.d_name;
 							tparams = List.map (fun tp ->
-								TPType (CTPath { tpackage = []; tname = tp.tp_name; tparams = []; tsub = None; },null_pos)
+								TPType (CTPath { tpackage = []; tname = fst tp.tp_name; tparams = []; tsub = None; },null_pos)
 							) d.d_params;
 							tsub = None;
 						}),null_pos;
@@ -3543,16 +3544,16 @@ let extend_remoting ctx c t p async prot =
 		| e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		{ cff_name = "__cnx"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
-		{ cff_name = "new"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
+		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
+		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
 	] in
 	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
 	let build_field is_public acc f =
-		if f.cff_name = "new" then
+		if fst f.cff_name = "new" then
 			acc
 		else match f.cff_kind with
 		| FFun fd when (is_public || List.mem APublic f.cff_access) && not (List.mem AStatic f.cff_access) ->
-			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
+			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ fst f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
 			let eargs = [EArrayDecl (List.map (fun ((a,_),_,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
 			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" },_) -> None | _ -> fd.f_type) in
 			let fargs, eargs = if async then match ftype with
@@ -3561,7 +3562,7 @@ let extend_remoting ctx c t p async prot =
 			else
 				fd.f_args, eargs
 			in
-			let id = (EConst (String f.cff_name), p) in
+			let id = (EConst (String (fst f.cff_name)), p) in
 			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
 			let expr = ECall (
 				(EField (
@@ -3581,10 +3582,10 @@ let extend_remoting ctx c t p async prot =
 	in
 	let decls = List.map (fun d ->
 		match d with
-		| EClass c, p when c.d_name = t.tname ->
+		| EClass c, p when fst c.d_name = t.tname ->
 			let is_public = List.mem HExtern c.d_flags || List.mem HInterface c.d_flags in
 			let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in
-			(EClass { c with d_flags = []; d_name = new_name; d_data = fields },p)
+			(EClass { c with d_flags = []; d_name = new_name,pos c.d_name; d_data = fields },p)
 		| _ -> d
 	) decls in
 	let m = type_module ctx (t.tpackage,new_name) file decls p in

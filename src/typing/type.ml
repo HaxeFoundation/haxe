@@ -2392,7 +2392,7 @@ module TExprToExpr = struct
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
 					{
-						cff_name = f.cf_name;
+						cff_name = f.cf_name,null_pos;
 						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
 						cff_pos = f.cf_pos;
 						cff_doc = f.cf_doc;

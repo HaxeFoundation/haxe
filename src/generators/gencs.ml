@@ -3581,14 +3581,14 @@ let convert_ilenum ctx p ?(is_flag=false) ilcls =
 				| _ ->
 					[], Int64.zero
 			in
-			data := ( { ec_name = f.fname; ec_doc = None; ec_meta = meta; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; }, const) :: !data;
+			data := ( { ec_name = f.fname,null_pos; ec_doc = None; ec_meta = meta; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; }, const) :: !data;
 	) ilcls.cfields;
 	let data = List.stable_sort (fun (_,i1) (_,i2) -> Int64.compare i1 i2) (List.rev !data) in
 
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	let name = netname_to_hx c in
 	EEnum {
-		d_name = if is_flag then name ^ "_FlagsEnum" else name;
+		d_name = (if is_flag then name ^ "_FlagsEnum" else name),null_pos;
 		d_doc = None;
 		d_params = []; (* enums never have type parameters *)
 		d_meta = !meta;
@@ -3647,7 +3647,7 @@ let convert_ilfield ctx p field =
 			cff_name, !cff_meta
 	in
 	{
-		cff_name = cff_name;
+		cff_name = cff_name,null_pos;
 		cff_doc = cff_doc;
 		cff_pos = cff_pos;
 		cff_meta = cff_meta;
@@ -3675,7 +3675,7 @@ let convert_ilevent ctx p ev =
 	let acc = add_m acc ev.eremove in
 	let acc = add_m acc ev.eraise in
 	{
-		cff_name = name;
+		cff_name = name,null_pos;
 		cff_doc = None;
 		cff_pos = p;
 		cff_meta = meta;
@@ -3776,7 +3776,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		let ret = convert_signature ctx p (change_sig ret) in
 		let types = List.map (fun t ->
 			{
-				tp_name = "M" ^ string_of_int t.tnumber;
+				tp_name = "M" ^ string_of_int t.tnumber,null_pos;
 				tp_params = [];
 				tp_constraints = [];
 				tp_meta = [];
@@ -3809,7 +3809,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			| _ -> acc
 	in
 	{
-		cff_name = cff_name;
+		cff_name = cff_name,null_pos;
 		cff_doc = cff_doc;
 		cff_pos = cff_pos;
 		cff_meta = cff_meta;
@@ -3873,7 +3873,7 @@ let convert_ilprop ctx p prop is_explicit_impl =
 		FProp (get, set, Some(convert_signature ctx p ilsig,null_pos), None)
 	in
 	{
-		cff_name = prop.pname;
+		cff_name = prop.pname,null_pos;
 		cff_doc = None;
 		cff_pos = p;
 		cff_meta = meta;
@@ -3907,7 +3907,7 @@ let mk_metas metas p =
 let mk_abstract_fun name p kind metas acc =
 	let metas = mk_metas metas p in
 	{
-		cff_name = name;
+		cff_name = name,null_pos;
 		cff_doc = None;
 		cff_pos = p;
 		cff_meta = metas;
@@ -3945,7 +3945,7 @@ let convert_delegate ctx p ilcls =
 	let haxe_type = convert_fun ctx p ret args in
 	let types = List.map (fun t ->
 		{
-			tp_name = "T" ^ string_of_int t.tnumber;
+			tp_name = ("T" ^ string_of_int t.tnumber),null_pos;
 			tp_params = [];
 			tp_constraints = [];
 			tp_meta = [];
@@ -3967,7 +3967,7 @@ let convert_delegate ctx p ilcls =
 	let mk_op op name =
 		let p = { p with pfile = p.pfile ^" (op " ^ name ^ ")" } in
 		{
-			cff_name = name;
+			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = p;
 			cff_meta = [ Meta.Extern,[],p ; Meta.Op, [ (EBinop(op, (EConst(Ident"A"),p), (EConst(Ident"B"),p)),p) ], p ];
@@ -3976,7 +3976,7 @@ let convert_delegate ctx p ilcls =
 		}
 	in
 	let params = (List.map (fun s ->
-		TPType (mk_type_path ctx ([],[],s.tp_name) [],null_pos)
+		TPType (mk_type_path ctx ([],[],fst s.tp_name) [],null_pos)
 	) types) in
 	let underlying_type = match ilcls.cpath with
 		| ns,inner,name ->
@@ -4008,7 +4008,7 @@ let convert_delegate ctx p ilcls =
 	let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [Meta.Extern] [APublic;AInline] in
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	EAbstract {
-		d_name = netname_to_hx c;
+		d_name = netname_to_hx c,null_pos;
 		d_doc = None;
 		d_params = types;
 		d_meta = mk_metas [Meta.Delegate; Meta.Forward] p;
@@ -4109,7 +4109,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 
 			let params = List.map (fun p ->
 				{
-					tp_name = "T" ^ string_of_int p.tnumber;
+					tp_name = "T" ^ string_of_int p.tnumber,null_pos;
 					tp_params = [];
 					tp_constraints = [];
 					tp_meta = [];
@@ -4122,7 +4122,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				let thist = mk_type_path ctx path (List.map (fun t -> TPType (mk_type_path ctx ([],[],"T" ^ string_of_int t.tnumber) [],null_pos)) ilcls.ctypes) in
 				let op name =
 					{
-						cff_name = name;
+						cff_name = name,null_pos;
 						cff_doc = None;
 						cff_pos = p;
 						cff_meta = [];
@@ -4144,7 +4144,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			in
 			let _, c = netpath_to_hx ctx.nstd path in
 			EClass {
-				d_name = netname_to_hx c;
+				d_name = netname_to_hx c,null_pos;
 				d_doc = None;
 				d_params = params;
 				d_meta = !meta;

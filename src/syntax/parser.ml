@@ -206,6 +206,9 @@ let reify in_macro =
 		else
 			(EConst (String s),p)
 	in
+	let to_placed_name (s,p) =
+		to_string s p
+	in
 	let to_array f a p =
 		(EArrayDecl (List.map (fun s -> f s p) a),p)
 	in
@@ -266,7 +269,7 @@ let reify in_macro =
 		in
 		let rec fparam t p =
 			let fields = [
-				"name", to_string t.tp_name p;
+				"name", to_placed_name t.tp_name;
 				"constraints", to_array to_ctype t.tp_constraints p;
 				"params", to_array fparam t.tp_params p;
 			] in
@@ -302,7 +305,7 @@ let reify in_macro =
 			mk_enum "FieldType" n vl p
 		in
 		let fields = [
-			Some ("name", to_string f.cff_name p);
+			Some ("name", to_placed_name f.cff_name);
 			(match f.cff_doc with None -> None | Some s -> Some ("doc", to_string s p));
 			(match f.cff_access with [] -> None | l -> Some ("access", to_array to_access l p));
 			Some ("kind", to_kind f.cff_kind);
@@ -467,7 +470,7 @@ let reify in_macro =
 				expr "EMeta" [to_obj [("name",to_string (fst (Common.MetaInfo.to_string m)) p);("params",to_expr_array ml p);("pos",to_pos p)] p;loop e1]
 	and to_tparam_decl p t =
 		to_obj [
-			"name", to_string t.tp_name p;
+			"name", to_placed_name t.tp_name;
 			"params", (EArrayDecl (List.map (to_tparam_decl p) t.tp_params),p);
 			"constraints", (EArrayDecl (List.map (fun t -> to_ctype t p) t.tp_constraints),p)
 		] p
@@ -483,7 +486,7 @@ let reify in_macro =
 			) d.d_flags;
 			to_obj [
 				"pack", (EArrayDecl [],p);
-				"name", to_string d.d_name p;
+				"name", to_string (fst d.d_name) (pos d.d_name);
 				"pos", to_pos p;
 				"meta", to_meta d.d_meta p;
 				"params", (EArrayDecl (List.map (to_tparam_decl p) d.d_params),p);
@@ -638,7 +641,7 @@ and parse_type_decl s =
 			},punion p1 p2)
 
 and parse_class doc meta cflags need_name s =
-	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "" | Some n -> n) in
+	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "",null_pos | Some n -> n) in
 	match s with parser
 	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
 		(EClass {
@@ -899,8 +902,8 @@ and type_name = parser
 		if is_lower_ident name then
 			error (Custom "Type name should start with an uppercase letter") p
 		else
-			name
-	| [< '(Dollar name,_) >] -> "$" ^ name
+			name,p
+	| [< '(Dollar name,p) >] -> "$" ^ name,p
 
 and parse_type_path_or_const = parser
 	(* we can't allow (expr) here *)
@@ -924,7 +927,7 @@ and parse_type_anonymous opt = parser
 	| [< name, p1 = ident; t = parse_type_hint_with_pos; s >] ->
 		let next p2 acc =
 			{
-				cff_name = name;
+				cff_name = name,p1;
 				cff_meta = if opt then [Meta.Optional,[],p1] else [];
 				cff_access = [];
 				cff_doc = None;
@@ -956,7 +959,7 @@ and parse_enum s =
 			| [< >] -> serror()
 		) in
 		{
-			ec_name = name;
+			ec_name = name,p1;
 			ec_doc = doc;
 			ec_meta = meta;
 			ec_args = args;
@@ -974,7 +977,7 @@ and parse_class_field s =
 	match s with parser
 	| [< meta = parse_meta; al = parse_cf_rights true []; s >] ->
 		let name, pos, k = (match s with parser
-		| [< '(Kwd Var,p1); name, _ = dollar_ident; s >] ->
+		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
 			(match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = popt parse_type_hint_with_pos s in
@@ -1029,8 +1032,8 @@ and parse_cf_rights allow_static l = parser
 	| [< >] -> l
 
 and parse_fun_name = parser
-	| [< name,_ = dollar_ident >] -> name
-	| [< '(Kwd New,_) >] -> "new"
+	| [< name,p = dollar_ident >] -> name,p
+	| [< '(Kwd New,p) >] -> "new",p
 
 and parse_fun_param s =
 	let meta = parse_meta s in
