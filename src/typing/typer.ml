@@ -3820,15 +3820,19 @@ and handle_display ctx e_ast iscall with_type p =
 		collect_toplevel_identifiers ctx;
 	| DMDefault | DMNone | DMDocumentSymbols ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
-		let e = match e.eexpr with
+		let e,tl_overloads = match e.eexpr with
 			| TField (e1,fa) ->
+				let tl = match extract_field fa with
+					| Some cf when iscall -> List.map (fun cf -> cf.cf_type) cf.cf_overloads
+					| _ -> []
+				in
 				if field_name fa = "bind" then (match follow e1.etype with
-					| TFun(args,ret) -> {e1 with etype = opt_args args ret}
-					| _ -> e)
+					| TFun(args,ret) -> {e1 with etype = opt_args args ret},tl
+					| _ -> e,tl)
 				else
-					e
+					e,tl
 			| _ ->
-				e
+				e,[]
 		in
 		let opt_type t =
 			match t with
@@ -4003,7 +4007,7 @@ and handle_display ctx e_ast iscall with_type p =
 		in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
-		| _ -> raise (Display.DisplayTypes [t]))
+		| _ -> raise (Display.DisplayTypes (t :: tl_overloads)))
 
 and maybe_type_against_enum ctx f with_type p =
 	try
