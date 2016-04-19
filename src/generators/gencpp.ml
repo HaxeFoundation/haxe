@@ -2761,9 +2761,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               out ("this->" ^ (cpp_member_name_of field) ^ "_dyn()");
          | FuncInstance(expr,objC,field) ->
               gen expr; out ((if expr.cpptype=TCppString then "." else "->") ^ (cpp_member_name_of field) ^ "_dyn()");
-         | FuncInterface(expr,clazz,field) ->
+         | FuncInterface(expr,_,field) ->
               gen expr;
-              out ("__Field(" ^ strq field.cf_name ^ ", hx::paccDynamic)")
+              out ("->__Field(" ^ strq field.cf_name ^ ", hx::paccDynamic)")
          | FuncStatic(clazz,_,field) ->
               let rename = get_meta_string field.cf_meta Meta.Native in
               if rename<>"" then
