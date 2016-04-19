@@ -256,13 +256,13 @@ let print_document_symbols (pack,decls) =
 	in
 	let field si_type cff = match cff.cff_kind with
 		| FVar(_,eo) ->
-			let si_field = add (fst cff.cff_name) Field (pos cff.cff_name) (Some si_type) in
+			let si_field = add (fst cff.cff_name) Field cff.cff_pos (Some si_type) in
 			expr_opt (Some si_field) eo
 		| FFun f ->
-			let si_method = add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) (pos cff.cff_name) (Some si_type) in
+			let si_method = add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) cff.cff_pos (Some si_type) in
 			func si_method f
 		| FProp(_,_,_,eo) ->
-			let si_property = add (fst cff.cff_name) Property (pos cff.cff_name) (Some si_type) in
+			let si_property = add (fst cff.cff_name) Property cff.cff_pos (Some si_type) in
 			expr_opt (Some si_property) eo
 	in
 	List.iter (fun (td,p) -> match td with
