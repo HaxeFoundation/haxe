@@ -3512,7 +3512,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let old_locals = save_locals ctx in
 		ctx.in_loop <- true;
 		let e2 = Expr.ensure_block e2 in
-		let e = (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
+		let e = if ctx.com.display <> DMNone then begin
+			(* Don't be fancy in display mode because there's no point. *)
+			let t, pt = Typeload.t_iterator ctx in
+			let i = add_local ctx i pt pi in
+			let e2 = type_expr ctx e2 NoValue in
+			mk (TFor (i,e1,e2)) ctx.t.tvoid p
+		end else (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
 			| Some e -> e
 			| None ->
 				let t, pt = Typeload.t_iterator ctx in

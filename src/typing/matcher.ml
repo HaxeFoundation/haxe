@@ -1226,12 +1226,20 @@ module TexprConverter = struct
 		let p = dt.dt_pos in
 		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},p) true) with TInst(c,_) -> c | t -> assert false in
 		let mk_index_call e =
-			let cf = PMap.find "enumIndex" c_type.cl_statics in
-			make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos
+			if ctx.com.display <> DMNone then
+				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
+				   (correctly typed) neutral value because it doesn't actually matter. *)
+				mk (TConst (TInt (Int32.of_int 0))) ctx.t.tint e.epos
+			else
+				let cf = PMap.find "enumIndex" c_type.cl_statics in
+				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tint e.epos
 		in
 		let mk_name_call e =
-			let cf = PMap.find "enumConstructor" c_type.cl_statics in
-			make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tstring e.epos
+			if ctx.com.display <> DMNone then
+				mk (TConst (TString "")) ctx.t.tstring e.epos
+			else
+				let cf = PMap.find "enumConstructor" c_type.cl_statics in
+				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tstring e.epos
 		in
 		let rec loop toplevel params dt = match dt.dt_t with
 			| Leaf case ->
