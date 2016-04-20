@@ -1501,12 +1501,13 @@ end
 
 let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	let n = fst tp.tp_name in
-	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) p in
+	let c = mk_class ctx.m.curmod (fst path @ [snd path],n) (pos tp.tp_name) in
 	c.cl_params <- type_type_params ctx c.cl_path get_params p tp.tp_params;
 	c.cl_kind <- KTypeParameter [];
 	c.cl_meta <- tp.Ast.tp_meta;
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],c.cl_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
+	if Display.is_display_position (pos tp.tp_name) then Display.display_type ctx.com.display t;
 	match tp.tp_constraints with
 	| [] ->
 		n, t
