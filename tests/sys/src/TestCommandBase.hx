@@ -19,7 +19,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 
 		var exitCode =
 			#if (macro || interp)
-				run(Sys.executablePath(), ["compile-each.hxml", "--run", "TestArguments"].concat(args));
+				run("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
 			#elseif cpp
 				run(bin, args);
 			#elseif cs
@@ -34,7 +34,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 			#elseif python
 				run(python.lib.Sys.executable, [bin].concat(args));
 			#elseif neko
-				run(Sys.executablePath(), [bin].concat(args));
+				run("neko", [bin].concat(args));
 			#elseif php
 				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 			#elseif lua
@@ -104,7 +104,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 			var args = [Std.string(code)];
 			var exitCode =
 				#if (macro || interp)
-					run(Sys.executablePath(), ["compile-each.hxml", "--run", "ExitCode"].concat(args));
+					run("haxe", ["compile-each.hxml", "--run", "ExitCode"].concat(args));
 				#elseif cpp
 					run(bin, args);
 				#elseif cs
@@ -119,7 +119,7 @@ class TestCommandBase extends haxe.unit.TestCase {
 				#elseif python
 					run(python.lib.Sys.executable, [bin].concat(args));
 				#elseif neko
-					run(Sys.executablePath(), [bin].concat(args));
+					run("neko", [bin].concat(args));
 				#elseif php
 					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
 				#elseif lua
