@@ -951,6 +951,7 @@ and wait_loop boot_com host port =
 			let estr = Printexc.to_string e in
 			if verbose then print_endline ("Uncaught Error : " ^ estr);
 			(try ssend sin estr with _ -> ());
+			if is_debug_run() then print_endline (Printexc.get_backtrace());
 		);
 		Unix.close sin;
 		current_stdin := None;
