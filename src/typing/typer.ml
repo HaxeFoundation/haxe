@@ -3503,50 +3503,55 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EVars vl ->
 		type_vars ctx vl p
 	| EFor (it,e2) ->
-		let i, pi, e1 = (match it with
-			| (EIn ((EConst (Ident i),pi),e),_) -> i, pi, e
+		let rec loop_ident display e1 = match e1 with
+			| EConst(Ident i),p -> i,p,display
+			| EDisplay(e1,_),_ -> loop_ident true e1
+			| _ -> error "Identifier expected" (pos e1)
+		in
+		let rec loop display e1 = match fst e1 with
+			| EIn(e1,e2) -> loop_ident display e1,e2
+			| EDisplay(e1,_) -> loop true e1
 			| _ -> error "For expression should be 'v in expr'" (snd it)
-		) in
+		in
+		let (i, pi, display), e1 = loop false it in
 		let e1 = type_expr ctx e1 Value in
 		let old_loop = ctx.in_loop in
 		let old_locals = save_locals ctx in
 		ctx.in_loop <- true;
 		let e2 = Expr.ensure_block e2 in
-		let e = if ctx.com.display <> DMNone then begin
-			(* Don't be fancy in display mode because there's no point. *)
+		let default() =
 			let t, pt = Typeload.t_iterator ctx in
 			let i = add_local ctx i pt pi in
-			unify ctx e1.etype t e1.epos;
+			let e1 = (match follow e1.etype with
+			| TMono _
+			| TDynamic _ ->
+				display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
+				e1
+			| TLazy _ ->
+				assert false
+			| _ ->
+				(try
+					Codegen.AbstractCast.cast_or_unify_raise ctx t e1 p
+				with Error (Unify _,_) ->
+					let acc = build_call ctx (type_field ctx e1 "iterator" e1.epos MCall) [] Value e1.epos in
+					try
+						unify_raise ctx acc.etype t acc.epos;
+						acc
+					with Error (Unify(l),p) ->
+						display_error ctx "Field iterator has an invalid type" acc.epos;
+						display_error ctx (error_msg (Unify l)) p;
+						mk (TConst TNull) t_dynamic p
+				)
+			) in
+			if display then ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) false (WithType i.v_type) i.v_pos);
 			let e2 = type_expr ctx e2 NoValue in
-			mk (TFor (i,e1,e2)) ctx.t.tvoid p
-		end else (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
+			(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
+		in
+		let e = if ctx.com.display <> DMNone then
+			default()
+		else (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
 			| Some e -> e
-			| None ->
-				let t, pt = Typeload.t_iterator ctx in
-				let i = add_local ctx i pt pi in
-				let e1 = (match follow e1.etype with
-				| TMono _
-				| TDynamic _ ->
-					display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
-					e1
-				| TLazy _ ->
-					assert false
-				| _ ->
-					(try
-						Codegen.AbstractCast.cast_or_unify_raise ctx t e1 p
-					with Error (Unify _,_) ->
-						let acc = build_call ctx (type_field ctx e1 "iterator" e1.epos MCall) [] Value e1.epos in
-						try
-							unify_raise ctx acc.etype t acc.epos;
-							acc
-						with Error (Unify(l),p) ->
-							display_error ctx "Field iterator has an invalid type" acc.epos;
-							display_error ctx (error_msg (Unify l)) p;
-							mk (TConst TNull) t_dynamic p
-					)
-				) in
-				let e2 = type_expr ctx e2 NoValue in
-				(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
+			| None -> default()
 		) in
 		ctx.in_loop <- old_loop;
 		old_locals();
