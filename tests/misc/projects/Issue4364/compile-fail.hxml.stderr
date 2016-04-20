@@ -1,2 +1,2 @@
-Main.hx:22: characters 10-20 : Constraint check failure for G.T
-Main.hx:22: characters 10-20 : A should be haxe.Constructible<Void -> Void>
+Main.hx:22: characters 14-18 : Constraint check failure for G.T
+Main.hx:22: characters 14-18 : A should be haxe.Constructible<Void -> Void>
