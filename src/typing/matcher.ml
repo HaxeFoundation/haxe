@@ -166,7 +166,7 @@ module Pattern = struct
 		let verror name p =
 			error (Printf.sprintf "Variable %s must appear exactly once in each sub-pattern" name) p
 		in
-		let add_local name =
+		let add_local name p =
 			let is_wildcard_local = name = "_" in
 			if not is_wildcard_local && PMap.mem name pctx.current_locals then error (Printf.sprintf "Variable %s is bound multiple times" name) p;
 			match pctx.or_locals with
@@ -176,8 +176,8 @@ module Pattern = struct
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
-				let v = alloc_var name t (pos e) in
-				pctx.current_locals <- PMap.add name (v,(pos e)) pctx.current_locals;
+				let v = alloc_var name t p in
+				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
 		in
@@ -220,7 +220,7 @@ module Pattern = struct
 					end;
 					check_expr e
 		in
-		let handle_ident s =
+		let handle_ident s p =
 			let save =
 				let old = ctx.in_call_args,ctx.locals in
 				ctx.in_call_args <- true;
@@ -246,7 +246,7 @@ module Pattern = struct
 				if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 					display_error ctx "Capture variables must be lower-case" p;
 				end;
-				let v = add_local s in
+				let v = add_local s p in
 				PatVariable v
 		in
 		let rec loop e = match fst e with
@@ -273,10 +273,10 @@ module Pattern = struct
 								PatAny
 						end
 					| _ ->
-						handle_ident i
+						handle_ident i (pos e)
 				end
-			| EVars([(s,_),None,None]) ->
-				let v = add_local s in
+			| EVars([(s,p),None,None]) ->
+				let v = add_local s p in
 				PatVariable v
 			| ECall(e1,el) ->
 				let t = tfun (List.map (fun _ -> mk_mono()) el) t in
@@ -392,19 +392,20 @@ module Pattern = struct
 					pctx.current_locals <- PMap.add name (v,p) pctx.current_locals
 				) pctx1.current_locals;
 				PatOr(pat1,pat2)
-			| EBinop(OpAssign,(EConst (Ident s),_),e2) ->
+			| EBinop(OpAssign,(EConst (Ident s),p),e2) ->
 				let pat = make pctx t e2 in
-				let v = add_local s in
+				let v = add_local s p in
 				PatBind(v,pat)
 			| EBinop(OpArrow,e1,e2) ->
-				let v = add_local "_" in
+				let v = add_local "_" null_pos in
 				let e1 = type_expr ctx e1 Value in
 				v.v_name <- "tmp";
 				let pat = make pctx e1.etype e2 in
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,call) ->
+				let pat = loop e in
 				let _ = Typer.handle_display ctx e call (WithType t) p in
-				fail()
+				pat
 			| _ ->
 				fail()
 		in
