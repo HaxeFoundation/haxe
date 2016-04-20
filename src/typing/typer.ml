@@ -3516,6 +3516,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			(* Don't be fancy in display mode because there's no point. *)
 			let t, pt = Typeload.t_iterator ctx in
 			let i = add_local ctx i pt pi in
+			unify ctx e1.etype t e1.epos;
 			let e2 = type_expr ctx e2 NoValue in
 			mk (TFor (i,e1,e2)) ctx.t.tvoid p
 		end else (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
