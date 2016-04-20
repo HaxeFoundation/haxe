@@ -49,5 +49,5 @@ extern class Promise<T>
 typedef PromiseCallback<T, TOut> = EitherType<T -> TOut, T -> Promise<TOut>>;
 
 typedef Thenable<T> = {
-	then : EitherType<(T -> Void) -> (Dynamic -> Void) -> Void, (T -> Void) -> Void>
+	function then(resolve:T->Void, ?reject:Dynamic->Void):Void;
 }
