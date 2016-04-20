@@ -1416,7 +1416,7 @@ try
 			classes := (path,name) :: !classes
 		else begin
 			force_typing := true;
-			config_macros := (Printf.sprintf "include('%s')" cl) :: !config_macros;
+			config_macros := (Printf.sprintf "include('%s', true, null, null, true)" cl) :: !config_macros;
 		end
 	in
 	let all_args_spec = basic_args_spec @ adv_args_spec in
