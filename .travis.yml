@@ -107,6 +107,9 @@ matrix:
             libxcursor1:i386
             libnss3:i386
             libgtk2.0-0:i386
+        - "export DISPLAY=:99.0"
+        - "sh -e /etc/init.d/xvfb start"
+        - "export AUDIODEV=null"
       install: *install_linux
 
     - os: linux

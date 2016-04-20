@@ -167,9 +167,6 @@ class RunCi {
 
 		switch (systemName) {
 			case "Linux":
-				Sys.putEnv("DISPLAY", ":99.0");
-				runCommand("sh", ["-e", "/etc/init.d/xvfb", "start"]);
-				Sys.putEnv("AUDIODEV", "null");
 				requireAptPackages([
 					"libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386",
 					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"
