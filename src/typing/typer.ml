@@ -4934,6 +4934,8 @@ let load_macro ctx cpath f p =
 		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 		| _ -> cpath, None
 	) in
+	(* Temporarily enter display mode while typing the macro. *)
+	if ctx.in_display then mctx.com.display <- ctx.com.display;
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	let mloaded = Typeload.load_module mctx m p in
 	api.Interp.current_macro_module <- (fun() -> mloaded);
@@ -4954,6 +4956,7 @@ let load_macro ctx cpath f p =
 		| _ -> error "Macro should be called on a class" p
 	) in
 	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
+	mctx.com.display <- DMNone;
 	if not ctx.in_macro then flush_macro_context mint ctx;
 	t();
 	let call args =
@@ -4971,11 +4974,21 @@ type macro_arg_type =
 	| MAOther
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
+	let reset = if mode = MDisplay then begin
+		let old = ctx.in_display in
+		ctx.in_display <- true;
+		(fun () -> ctx.in_display <- old)
+	end else
+		(fun () -> ())
+	in
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx cpath f p in
+	reset();
 	let mpos = mfield.cf_pos in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 	let expr = Typeload.load_instance mctx (ctexpr,p) false in
 	(match mode with
+	| MDisplay ->
+		()
 	| MExpr ->
 		unify mctx mret expr mpos;
 	| MBuild ->
@@ -5091,7 +5104,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| Some v ->
 			try
 				Some (match mode with
-				| MExpr -> Interp.decode_expr v
+				| MExpr | MDisplay -> Interp.decode_expr v
 				| MBuild ->
 					let fields = (match v with
 						| Interp.VNull ->

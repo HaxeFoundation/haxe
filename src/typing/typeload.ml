@@ -2094,7 +2094,7 @@ module ClassInitializer = struct
 			if fctx.is_display_field then begin
 				if fctx.is_macro && not ctx.in_macro then
 					(* force macro system loading of this class in order to get completion *)
-					delay ctx PTypeField (fun() -> ignore(ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p))
+					delay ctx PTypeField (fun() -> ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p))
 				else begin
 					cf.cf_type <- TLazy r;
 					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;

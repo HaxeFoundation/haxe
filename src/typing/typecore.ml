@@ -43,7 +43,7 @@ type macro_mode =
 	| MExpr
 	| MBuild
 	| MMacroType
-
+	| MDisplay
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
