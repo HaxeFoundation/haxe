@@ -3074,7 +3074,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
 	)
 
-and type_new ctx (t,_) el with_type p =
+and type_new ctx path el with_type p =
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
@@ -3086,11 +3086,11 @@ and type_new ctx (t,_) el with_type p =
 		| _ ->
 			error "Constructor is not a function" p
 	in
-	let t = if t.tparams <> [] then
-		follow (Typeload.load_instance ctx (t,p) false)
+	let t = if (fst path).tparams <> [] then
+		follow (Typeload.load_instance ctx path false)
 	else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
-		let t = follow (Typeload.load_instance ctx (t,p) true) in
+		let t = follow (Typeload.load_instance ctx path true) in
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
 		begin match t with
@@ -3099,7 +3099,7 @@ and type_new ctx (t,_) el with_type p =
 		end
 	with Typeload.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
-		match Typeload.resolve_typedef (Typeload.load_type_def ctx p t) with
+		match Typeload.resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
@@ -3124,6 +3124,7 @@ and type_new ctx (t,_) el with_type p =
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 	in
+	if Display.is_display_position (pos path) then Display.display_type ctx.com.display t;
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
