@@ -927,24 +927,6 @@ class RunCi {
 					changeDirectory(sysDir);
 					runCommand("haxe", ["compile-macro.hxml"]);
 					runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
-
-					//BYTECODE
-					switch (ci) {
-						case null:
-							//pass
-						case TravisCI:
-							changeDirectory(repoDir);
-							runCommand("make", ["BYTECODE=1", "-s"]);
-							// runCommand("sudo", ["make", "install", "-s"]);
-							changeDirectory(unitDir);
-							runCommand("haxe", ["compile-macro.hxml"]);
-						case AppVeyor:
-							// save time...
-							// changeDirectory(repoDir);
-							// runCommand(Sys.getEnv("CYG_ROOT") + "/bin/bash", ["-lc", 'cd \"$$OLDPWD\" && make -s -f Makefile.win BYTECODE=1']);
-							// changeDirectory(unitDir);
-							// runCommand("haxe", ["compile-macro.hxml"]);
-					}
 				case Neko:
 					runCommand("haxe", ["compile-neko.hxml", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 					runCommand("neko", ["bin/unit.n"]);
