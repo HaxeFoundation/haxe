@@ -19,7 +19,8 @@ type identifier_type =
 	| ITPackage of string
 
 exception DocumentSymbols of string
-exception DisplayTypes of t list
+exception DisplaySignatures of t list
+exception DisplayType of t * pos
 exception DisplayPosition of Ast.pos list
 exception DisplaySubExpression of Ast.expr
 exception DisplayFields of (string * t * display_field_kind option * documentation) list
@@ -96,7 +97,7 @@ let find_before_pos com e =
 	in
 	map e
 
-let display_type dm t =
+let display_type dm t p =
 	try
 		let mt = module_type_of_type t in
 		begin match dm with
@@ -104,7 +105,7 @@ let display_type dm t =
 			| DMUsage ->
 				let ti = t_infos mt in
 				ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
-			| DMType -> raise (DisplayTypes [t])
+			| DMType -> raise (DisplayType (t,p))
 			| _ -> ()
 		end
 	with Exit ->
@@ -113,16 +114,16 @@ let display_type dm t =
 let display_module_type dm mt =
 	display_type dm (type_of_module_type mt)
 
-let display_variable dm v = match dm with
+let display_variable dm v p = match dm with
 	| DMPosition -> raise (DisplayPosition [v.v_pos])
 	| DMUsage -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
-	| DMType -> raise (DisplayTypes [v.v_type])
+	| DMType -> raise (DisplayType (v.v_type,p))
 	| _ -> ()
 
-let display_field dm cf = match dm with
+let display_field dm cf p = match dm with
 	| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
 	| DMUsage -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
-	| DMType -> raise (DisplayTypes [cf.cf_type])
+	| DMType -> raise (DisplayType (cf.cf_type,p))
 	| _ -> ()
 
 module SymbolKind = struct

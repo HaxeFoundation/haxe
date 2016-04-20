@@ -2821,7 +2821,7 @@ and type_vars ctx vl p =
 			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
 			let v,e = add_local ctx v t pv, e in
 			if Display.is_display_position pv then
-				Display.display_variable ctx.com.display v;
+				Display.display_variable ctx.com.display v pv;
 			v,e
 		with
 			Error (e,p) ->
@@ -3124,7 +3124,7 @@ and type_new ctx path el with_type p =
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 	in
-	if Display.is_display_position (pos path) then Display.display_type ctx.com.display t;
+	if Display.is_display_position (pos path) then Display.display_type ctx.com.display t (pos path);
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
@@ -3219,7 +3219,7 @@ and type_try ctx e1 catches with_type p =
 		let locals = save_locals ctx in
 		let v = add_local ctx v t pv in
 		if Display.is_display_position pv then
-			Display.display_variable ctx.com.display v;
+			Display.display_variable ctx.com.display v pv;
 		let e = type_expr ctx e with_type in
 		v.v_type <- t2;
 		locals();
@@ -3692,7 +3692,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match follow t with
 		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 			let ct, f = get_constructor ctx c params p in
-			raise (Display.DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
+			raise (Display.DisplaySignatures (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
 		| _ ->
 			error "Not a class" p)
 	| ECheckType (e,t) ->
@@ -3760,7 +3760,7 @@ and handle_display ctx e_ast iscall with_type p =
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None,false))
 	| Error (Unknown_ident "trace",_) ->
-		raise (Display.DisplayTypes [tfun [t_dynamic] ctx.com.basic.tvoid])
+		raise (Display.DisplaySignatures [tfun [t_dynamic] ctx.com.basic.tvoid])
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
 			raise (Display.DisplayFields (get_submodule_fields path))
@@ -3783,7 +3783,7 @@ and handle_display ctx e_ast iscall with_type p =
 	| DMResolve _ ->
 		assert false
 	| DMType ->
-		raise (Display.DisplayTypes [match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype])
+		raise (Display.DisplayType ((match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype),p))
 	| DMUsage ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -4020,7 +4020,7 @@ and handle_display ctx e_ast iscall with_type p =
 		in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
-		| _ -> raise (Display.DisplayTypes (t :: tl_overloads)))
+		| _ -> raise (Display.DisplaySignatures (t :: tl_overloads)))
 
 and maybe_type_against_enum ctx f with_type p =
 	try
@@ -4620,9 +4620,12 @@ let make_macro_api ctx p =
 			with Display.DisplayFields fields ->
 				let pctx = print_context() in
 				String.concat "," (List.map (fun (f,t,_,_) -> f ^ ":" ^ s_type pctx t) fields)
-			| Display.DisplayTypes tl ->
+			| Display.DisplaySignatures tl ->
 				let pctx = print_context() in
 				String.concat "," (List.map (s_type pctx) tl)
+			| Display.DisplayType (t,_) ->
+				let pctx = print_context() in
+				s_type pctx t
 			| Parser.TypePath (p,sub,_) ->
 				(match sub with
 				| None ->
