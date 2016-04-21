@@ -1974,6 +1974,16 @@ let cpp_var_name_of var =
       keyword_remap var.v_name
 ;;
 
+let cpp_var_debug_name_of v =
+   let rec loop meta = match meta with
+      | (Meta.RealPath,[EConst (String s),_],_) :: _ -> s
+      | _ :: meta -> loop meta
+      | [] -> v.v_name
+   in
+   loop v.v_meta
+;;
+
+
 let cpp_debug_name_of var =
    keyword_remap var.v_name
 ;;
@@ -2723,7 +2733,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
                (match injection with Some inject -> out inject.inj_setvar | _ -> () );
             gen e;
             decr remaining;
-            writer#terminate_line
+            writer#terminate_line;
+            if !remaining>0 && ctx.ctx_debug_level>0 then begin match e.cppexpr with
+               | CppVarDecl(var,_) ->
+                  out "HX_STACK_VAR\t";
+                  writer#write_i ("(" ^ (cpp_var_name_of var)  ^ ",\"" ^ (cpp_var_debug_name_of var) ^ "\")");
+                  writer#terminate_line
+               | _ -> ()
+            end
          ) exprs;
          (match injection with Some inject -> out inject.inj_tail | _ -> () );
          out spacer;
@@ -2746,8 +2763,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppContinue -> out "continue"
 
       | CppVarDecl(var,init) ->
-         out ( (cpp_var_type_of ctx var) ^ " " ^ (cpp_var_name_of var) );
-         (match init with Some init -> out " = "; gen init | _ -> () )
+         let name =  cpp_var_name_of var in
+         out ( (cpp_var_type_of ctx var) ^ " " ^ name );
+         (match init with Some init -> out " = "; gen init | _ -> () );
       | CppEnumIndex(obj) ->
          gen obj;
          (*if cpp_is_dynamic_type obj.cpptype then*)
@@ -6523,7 +6541,6 @@ let generate_source ctx =
    let boot_enums = ref [] in
    let nonboot_classes = ref [] in
    let init_classes = ref [] in
-   let file_info = ref PMap.empty in
    let class_text path = join_class_path path "::" in
    let super_deps = create_super_dependencies common_ctx in
    let constructor_deps = create_constructor_dependencies common_ctx in
@@ -6592,7 +6609,7 @@ let generate_source ctx =
 
    generate_boot ctx !boot_enums !boot_classes !nonboot_classes !init_classes;
 
-   generate_files common_ctx file_info;
+   generate_files common_ctx ctx.ctx_file_info;
 
    write_resources common_ctx;
 
@@ -6717,7 +6734,7 @@ let generate_source ctx =
          List.iter ( fun file ->
                let full_path = Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
                out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
-            ( List.sort String.compare ( pmap_keys !file_info) );
+            ( List.sort String.compare ( pmap_keys !(ctx.ctx_file_info) ) );
          close_out exeClasses;
      end;
    end;
