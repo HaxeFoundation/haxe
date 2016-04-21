@@ -3753,8 +3753,8 @@ and handle_display ctx e_ast iscall with_type p =
 		) tl in
 		tl
 	in
-	let e = try
-		type_expr ctx e_ast with_type
+	let e,p = try
+		type_expr ctx e_ast with_type,p
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None,false))
 	| Error (Unknown_ident "trace",_) ->
@@ -3765,11 +3765,11 @@ and handle_display ctx e_ast iscall with_type p =
 		with Not_found ->
 			raise err
 		end
-	| Display.DisplaySubExpression e ->
+	| Display.DisplaySubExpression ((_,p) as e) ->
 		ctx.in_display <- false;
 		let e = type_expr ctx e Value in
 		ctx.in_display <- true;
-		e
+		e,p
 	in
 	let e = match with_type with
 		| WithType t -> (try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
