@@ -81,7 +81,7 @@
 		return untyped s.replace(r,d).split(d);
 	}
 
-	public function replace( s : String, by : String ) : String {
+	public inline function replace( s : String, by : String ) : String {
 		return untyped s.replace(r,by);
 	}
 
