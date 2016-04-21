@@ -4748,7 +4748,7 @@ and encode_tvar v =
 		"t", encode_type v.v_type;
 		"capture", VBool v.v_capture;
 		"extra", vopt f_extra v.v_extra;
-		"meta", encode_meta_content v.v_meta;
+		"meta", encode_meta v.v_meta (fun m -> v.v_meta <- m);
 		"$", VAbstract (AUnsafe (Obj.repr v));
 	]
 
