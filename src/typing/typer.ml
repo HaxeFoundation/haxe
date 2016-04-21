@@ -3548,12 +3548,10 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			let e2 = type_expr ctx e2 NoValue in
 			(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 		in
-		let e = if ctx.com.display <> DMNone then
-			default()
-		else (match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
+		let e = match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
 			| Some e -> e
 			| None -> default()
-		) in
+		in
 		ctx.in_loop <- old_loop;
 		old_locals();
 		e
