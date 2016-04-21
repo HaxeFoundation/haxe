@@ -1273,9 +1273,9 @@ try
 					| "toplevel" ->
 						Common.define com Define.NoCOpt;
 						DMToplevel
-					| "document-symbols" ->
+					| "module-symbols" ->
 						Common.define com Define.NoCOpt;
-						DMDocumentSymbols;
+						DMModuleSymbols;
 					| "" ->
 						DMDefault
 					| _ ->
@@ -1817,7 +1817,7 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
-	| Display.DocumentSymbols s ->
+	| Display.ModuleSymbols s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();

@@ -18,7 +18,7 @@ type identifier_type =
 	| ITType of module_type
 	| ITPackage of string
 
-exception DocumentSymbols of string
+exception ModuleSymbols of string
 exception DisplaySignatures of t list
 exception DisplayType of t * pos
 exception DisplayPosition of Ast.pos list
@@ -128,59 +128,45 @@ let display_field dm cf p = match dm with
 
 module SymbolKind = struct
 	type t =
-		| File
-		| Module
-		| Namespace
-		| Package
 		| Class
-		| Method
-		| Property
-		| Field
-		| Constructor
-		| Enum
 		| Interface
+		| Enum
+		| Typedef
+		| Abstract
+		| Field
+		| Property
+		| Method
+		| Constructor
 		| Function
 		| Variable
-		| Constant
-		| String
-		| Number
-		| Boolean
-		| Array
 
 	let to_int = function
-		| File -> 1
-		| Module -> 2
-		| Namespace -> 3
-		| Package -> 4
-		| Class -> 5
-		| Method -> 6
+		| Class -> 1
+		| Interface -> 2
+		| Enum -> 3
+		| Typedef -> 4
+		| Abstract -> 5
+		| Field -> 6
 		| Property -> 7
-		| Field -> 8
+		| Method -> 8
 		| Constructor -> 9
-		| Enum -> 10
-		| Interface -> 11
-		| Function -> 12
-		| Variable -> 13
-		| Constant -> 14
-		| String -> 15
-		| Number -> 16
-		| Boolean -> 17
-		| Array -> 18
+		| Function -> 10
+		| Variable -> 11
 end
 
 module SymbolInformation = struct
 	type t = {
 		name : string;
 		kind : SymbolKind.t;
-		location : pos;
-		containerName : string option;
+		pos : pos;
+		container_name : string option;
 	}
 
-	let make name kind location containerName = {
+	let make name kind pos container_name = {
 		name = name;
 		kind = kind;
-		location = location;
-		containerName = containerName;
+		pos = pos;
+		container_name = container_name;
 	}
 end
 
@@ -188,19 +174,18 @@ open SymbolKind
 open SymbolInformation
 open Json
 
-let pos_to_json_location p =
+let pos_to_json_range p =
 	if p.pmin = -1 then
 		JNull
 	else
 		let l1, p1, l2, p2 = Lexer.get_pos_coords p in
 		let to_json l c = JObject [("line", JInt l); ("character", JInt c)] in
 		JObject [
-			("file", JString (Common.unique_full_path p.pfile));
 			("start", to_json l1 p1);
 			("end", to_json l2 p2);
 		]
 
-let print_document_symbols (pack,decls) =
+let print_module_symbols (pack,decls) =
 	let l = DynArray.create() in
 	let add name kind location parent =
 		let si = SymbolInformation.make name kind location (match parent with None -> None | Some si -> Some si.name) in
@@ -278,21 +263,21 @@ let print_document_symbols (pack,decls) =
 				ignore (add (fst ef.ec_name) Method ef.ec_pos (Some si_type))
 			) d.d_data
 		| ETypedef d ->
-			let si_type = add (fst d.d_name) Interface p si_pack in
+			let si_type = add (fst d.d_name) Typedef p si_pack in
 			(match d.d_data with
 			| CTAnonymous fields,_ ->
 				List.iter (field si_type) fields
 			| _ -> ())
 		| EAbstract d ->
-			let si_type = add (fst d.d_name) Class p si_pack in
+			let si_type = add (fst d.d_name) Abstract p si_pack in
 			List.iter (field si_type) d.d_data
 	) decls;
 	let jl = List.map (fun si ->
 		let l =
 			("name",JString si.name) ::
 			("kind",JInt (to_int si.kind)) ::
-			("location", pos_to_json_location si.location) ::
-			(match si.containerName with None -> [] | Some s -> ["containerName",JString s])
+			("range", pos_to_json_range si.pos) ::
+			(match si.container_name with None -> [] | Some s -> ["containerName",JString s])
 		in
 		JObject l
 	) (DynArray.to_list l) in

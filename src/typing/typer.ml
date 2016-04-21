@@ -3831,7 +3831,7 @@ and handle_display ctx e_ast iscall with_type p =
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
 		collect_toplevel_identifiers ctx;
-	| DMDefault | DMNone | DMDocumentSymbols ->
+	| DMDefault | DMNone | DMModuleSymbols ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e,tl_overloads = match e.eexpr with
 			| TField (e1,fa) ->

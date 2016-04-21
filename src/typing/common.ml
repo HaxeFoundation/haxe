@@ -98,7 +98,7 @@ type display_mode =
 	| DMToplevel
 	| DMResolve of string
 	| DMType
-	| DMDocumentSymbols
+	| DMModuleSymbols
 
 type compiler_callback = {
 	mutable after_typing : (module_type list -> unit) list;

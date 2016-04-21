@@ -230,8 +230,8 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
-	if com.display = DMDocumentSymbols && Common.unique_full_path file = (!Parser.resume_display).pfile then
-		raise (Display.DocumentSymbols(Display.print_document_symbols data));
+	if com.display = DMModuleSymbols && Common.unique_full_path file = (!Parser.resume_display).pfile then
+		raise (Display.ModuleSymbols(Display.print_module_symbols data));
 	t();
 	Common.log com ("Parsed " ^ file);
 	data
