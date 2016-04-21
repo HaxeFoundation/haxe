@@ -1,10 +1,11 @@
 version: "{build}"
 
-platform:
-    - Win32
+platform: Win32
+configuration: Release
 
 environment:
     global:
+        VisualStudioVersion: 12.0
         NEKO_ROOT: C:/projects/neko
         HAXELIB_ROOT: C:/projects/haxelib
         CYG_ARCH: x86
@@ -39,15 +40,12 @@ install:
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/%WODI%/bin'
     # Install neko
     - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
-    - 'cd %NEKO_ROOT%'
-    - set PATH=%PATH%;%NEKO_ROOT%/bin
-    - msbuild vm\nekovm.vcxproj     /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
-    - msbuild vm\nekovm_dll.vcxproj /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
-    - msbuild libs\libs_vc10.sln    /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" > log.txt || type log.txt
-    - copy /y libs\include\gc\gc.dll bin
-    - cd %NEKO_ROOT%/src
-    - neko ../boot/nekoc tools/install.neko
-    - neko tools/install -nolibs > log.txt || type log.txt
+    - cd %NEKO_ROOT%
+    - mkdir build
+    - cd build
+    - cmake -G "Visual Studio 12 2013" ..
+    - msbuild ALL_BUILD.vcxproj /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    - set PATH=%PATH%;%NEKO_ROOT%/build/bin
     - neko -version
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe

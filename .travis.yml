@@ -1,5 +1,3 @@
-language: generic
-
 env:
   global:
     # make variables
@@ -30,8 +28,6 @@ addons:
     packages: &apt_common
       - ocaml-native-compilers
       - camlp4
-      - zlib1g-dev
-      - libgc-dev
 
 apt_targets:
   - &apt_cpp    [*apt_common, gcc-multilib, g++-multilib]
@@ -128,22 +124,27 @@ matrix:
 
 install:
   # Install haxe and neko dependencies
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-    travis_retry brew update;
-    travis_retry brew install ocaml camlp4 pcre mbedtls;
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      sudo apt-get update -qq;
+      sudo apt-get install pkg-config libgc-dev libssl-dev libpcre3-dev zlib1g-dev apache2-dev libmysqlclient-dev libsqlite3-dev libgtk2.0-dev -y;
+    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      travis_retry brew update;
+      travis_retry brew install ocaml camlp4 bdw-gc pcre mariadb-connector-c mbedtls;
     fi
   # Install neko
+  - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
+  - mkdir -p ~/neko/build;
+  - pushd ~/neko/build;
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-      travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
-      cd ~/neko;
-      (cd libs/include/ssl/ && wget --no-check-certificate https://tls.mbed.org/download/mbedtls-2.2.1-apache.tgz && tar xzf mbedtls-2.2.1-apache.tgz && cd mbedtls-2.2.1 && sed -i "s/\/\/#define MBEDTLS_THREADING_PTHREAD/#define MBEDTLS_THREADING_PTHREAD/; s/\/\/#define MBEDTLS_THREADING_C/#define MBEDTLS_THREADING_C/; s/#define MBEDTLS_SSL_PROTO_SSL3/\/\/#define MBEDTLS_SSL_PROTO_SSL3/" include/mbedtls/config.h && SHARED=1 make lib && sudo make install);
-      make os=${TRAVIS_OS_NAME} -s;
-      export PATH="$PATH:$HOME/neko/bin";
-      export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/neko/bin";
-      export NEKOPATH="$HOME/neko/bin";
-      cd $TRAVIS_BUILD_DIR;
+      cmake -DSTATIC_DEPS=MbedTLS ..;
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      travis_retry brew install neko --HEAD;
+      cmake ..;
+    fi
+  - make -s;
+  - sudo make install;
+  - popd;
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      brew unlink mariadb-connector-c;
     fi
 
 script:
