@@ -845,27 +845,26 @@ and wait_loop boot_com host port =
 		if verbose then print_endline "Client connected";
 		let b = Buffer.create 0 in
 		let rec read_loop count =
-			let r = try
-				Unix.recv sin tmp 0 bufsize []
-			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
-				0
-			in
-			if verbose then begin
-				if r > 0 then Printf.printf "Reading %d bytes\n" r else print_endline "Waiting for data...";
-			end;
-			Buffer.add_substring b tmp 0 r;
-			if r > 0 && tmp.[r-1] = '\000' then
-				Buffer.sub b 0 (Buffer.length b - 1)
-			else begin
-				if r = 0 then begin
-					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
-					if count = 100 then
-						failwith "Aborting inactive connection"
+			try
+				let r = Unix.recv sin tmp 0 bufsize [] in
+				if r = 0 then
+					failwith "Incomplete request"
+				else begin
+					if verbose then Printf.printf "Reading %d bytes\n" r;
+					Buffer.add_substring b tmp 0 r;
+					if tmp.[r-1] = '\000' then
+						Buffer.sub b 0 (Buffer.length b - 1)
 					else
-						read_loop (count + 1);
-				end else
-					read_loop 0;
-			end;
+						read_loop 0
+				end
+			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
+				if count = 100 then
+					failwith "Aborting inactive connection"
+				else begin
+					if verbose then print_endline "Waiting for data...";
+					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
+					read_loop (count + 1);
+				end
 		in
 		let rec cache_context com =
 			if com.display = DMNone then begin
