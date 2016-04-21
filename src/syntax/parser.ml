@@ -71,7 +71,6 @@ let unquote_ident f =
 let cache = ref (DynArray.create())
 let last_doc = ref None
 let use_doc = ref false
-let use_parser_resume = ref true
 let resume_display = ref null_pos
 let in_macro = ref false
 
@@ -91,7 +90,7 @@ let type_path sl in_import = match sl with
 
 let is_resuming p =
 	let p2 = !resume_display in
-	p.pmax = p2.pmin && !use_parser_resume && Common.unique_full_path p.pfile = p2.pfile
+	p.pmax = p2.pmin && Common.unique_full_path p.pfile = p2.pfile
 
 let set_resume p =
 	resume_display := { p with pfile = Common.unique_full_path p.pfile }
@@ -1217,7 +1216,16 @@ and expr = parser
 		| [< '(Binop OpOr,p2) when do_resume() >] ->
 			set_resume p1;
 			display (EDisplay ((EObjectDecl [],p1),false),p1);
-		| [< b = block1; '(BrClose,p2); s >] ->
+		| [< b = block1; s >] ->
+			let p2 = match s with parser
+				| [< '(BrClose,p2) >] -> p2
+				| [< >] ->
+					(* Ignore missing } if we are resuming and "guess" the last position. *)
+					if do_resume() then begin match Stream.peek s with
+						| Some (_,p) -> p
+						| None -> pos (last_token s)
+					end else serror()
+			in
 			let e = (b,punion p1 p2) in
 			(match b with
 			| EObjectDecl _ -> expr_next e s
