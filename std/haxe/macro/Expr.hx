@@ -655,6 +655,11 @@ typedef FunctionArg = {
 		The optional value of the function argument, if available.
 	**/
 	@:optional var value : Null<Expr>;
+
+	/**
+		The metadata of the function argument.
+	**/
+	@:optional var meta : Metadata;
 }
 
 /**

@@ -4026,7 +4026,7 @@ and encode_fun f =
 			enc_obj [
 				"name", encode_placed_name n;
 				"opt", VBool opt;
-				(* "meta", encode_meta_content m; *)
+				"meta", encode_meta_content m;
 				"type", null encode_ctype t;
 				"value", null encode_expr e;
 			]
@@ -4264,7 +4264,11 @@ and decode_fun v =
 	{
 		f_params = decode_tparams (field v "params");
 		f_args = List.map (fun o ->
-			(decode_placed_name (field o "name"),(match field o "opt" with VNull -> false | v -> dec_bool v),[],opt decode_ctype (field o "type"),opt decode_expr (field o "value")) (* TODO meta *)
+			decode_placed_name (field o "name"),
+			(match field o "opt" with VNull -> false | v -> dec_bool v),
+			decode_meta_content (field o "meta"),
+			opt decode_ctype (field o "type"),
+			opt decode_expr (field o "value")
 		) (dec_array (field v "args"));
 		f_type = opt decode_ctype (field v "ret");
 		f_expr = opt decode_expr (field v "expr");
