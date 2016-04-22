@@ -82,7 +82,7 @@ let should_prefix_include = function
    |  ([],"hxMath") -> true
    | _ -> false;;
 
-class source_writer common_ctx write_func close_func =
+class source_writer common_ctx write_header_func write_func close_func =
    object(this)
    val indent_str = "\t"
    val mutable indent = ""
@@ -90,6 +90,7 @@ class source_writer common_ctx write_func close_func =
    val mutable just_finished_block = false
    method close = close_func(); ()
    method write x = write_func x; just_finished_block <- false
+   method write_h x = write_header_func x; ()
    method indent_one = this#write indent_str
 
    method push_indent = indents <- indent_str::indents; indent <- String.concat "" indents
@@ -106,19 +107,14 @@ class source_writer common_ctx write_func close_func =
 
    method add_include class_path =
       ( match class_path with
-         | (["@verbatim"],file) -> this#write ("#include \"" ^ file ^ "\"\n");
+         | (["@verbatim"],file) -> this#write_h ("#include \"" ^ file ^ "\"\n");
          | _ ->
             let prefix = if should_prefix_include class_path then "" else get_include_prefix common_ctx true in
-            this#write ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
-            this#write ("#include <" ^ prefix ^ (join_class_path class_path "/") ^ ".h>\n");
-            this#write ("#endif\n")
+            this#write_h ("#ifndef INCLUDED_" ^ (join_class_path class_path "_") ^ "\n");
+            this#write_h ("#include <" ^ prefix ^ (join_class_path class_path "/") ^ ".h>\n");
+            this#write_h ("#endif\n")
       )
 end;;
-
-let file_source_writer common_ctx filename =
-   let out_file = open_out filename in
-   new source_writer common_ctx (output_string out_file) (fun ()-> close_out out_file);;
-
 
 let read_whole_file chan =
    Std.input_all chan;;
@@ -126,23 +122,30 @@ let read_whole_file chan =
 (* The cached_source_writer will not write to the file if it has not changed,
    thus allowing the makefile dependencies to work correctly *)
 let cached_source_writer common_ctx filename =
-   try
-      let in_file = open_in filename in
-      let old_contents = read_whole_file in_file in
-      close_in in_file;
-      let buffer = Buffer.create 0 in
-      let add_buf str = Buffer.add_string buffer str in
-      let close = fun () ->
-         let contents = Buffer.contents buffer in
-         if (not (contents=old_contents) ) then begin
-            let out_file = open_out filename in
-            output_string out_file contents;
-            close_out out_file;
-         end;
+   let header = Buffer.create 0 in
+   let add_header str = Buffer.add_string header str in
+   let buffer = Buffer.create 0 in
+   let add_buf str = Buffer.add_string buffer str in
+   let close = fun() ->
+      Buffer.add_buffer header buffer;
+      let contents = Buffer.contents header in
+      let same =
+         try
+            let in_file = open_in filename in
+            let old_contents = read_whole_file in_file in
+            close_in in_file;
+            contents=old_contents
+         with _ ->
+            false
       in
-      new source_writer common_ctx (add_buf) (close);
-   with _ ->
-      file_source_writer common_ctx filename;;
+      if not same then begin
+         let out_file = open_out filename in
+         output_string out_file contents;
+         close_out out_file;
+      end;
+   in
+   new source_writer common_ctx (add_header) (add_buf) (close)
+;;
 
 let make_class_directories = Common.mkdir_recursive;;
 
@@ -164,7 +167,7 @@ let new_source_file common_ctx base_dir sub_dir extension class_path =
       end
    in
    let file = cached_source_writer common_ctx (full_dir ^ "/" ^ ((snd class_path) ^ extension)) in
-   Codegen.map_source_header common_ctx (fun s -> file#write (Printf.sprintf "// %s\n" s));
+   Codegen.map_source_header common_ctx (fun s -> file#write_h (Printf.sprintf "// %s\n" s));
    file
 
 
@@ -209,7 +212,7 @@ type context =
 }
 
 let new_context common_ctx debug file_info member_types =
-let null_file = new source_writer common_ctx ignore (fun () -> () ) in
+let null_file = new source_writer common_ctx ignore ignore (fun () -> () ) in
 let result =
 {
    ctx_common = common_ctx;
@@ -4112,7 +4115,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
    if (debug>1) then
       print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
-   output_cpp "#include <hxcpp.h>\n\n";
+   cpp_file#write_h "#include <hxcpp.h>\n\n";
 
    let referenced,flags = find_referenced_types_flags ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false false false in
    List.iter (add_include cpp_file) referenced;
@@ -4268,7 +4271,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    let ctx = file_context baseCtx h_file debug in
 
-   begin_header_file output_h def_string false;
+   begin_header_file (h_file#write_h) def_string false;
 
    List.iter2 (fun r f -> gen_forward_decl h_file r f) referenced flags;
 
@@ -4632,13 +4635,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (debug>1) then print_endline ("Found class definition:" ^ (join_class_path class_def.cl_path "::"));
 
 
-   output_cpp "#include <hxcpp.h>\n\n";
+   cpp_file#write_h "#include <hxcpp.h>\n\n";
 
    let all_referenced = find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false false scriptable in
    List.iter ( add_include cpp_file  ) all_referenced;
 
    if (scriptable) then
-      output_cpp "#include <hx/Scriptable.h>\n";
+      cpp_file#write_h "#include <hx/Scriptable.h>\n";
+
+   cpp_file#write_h "\n";
 
    output_cpp ( get_class_code class_def Meta.CppFileCode );
    let inc = get_meta_string_path class_def.cl_meta Meta.CppInclude in
@@ -5268,7 +5273,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let def_string = join_class_path class_path "_"  in
 
 
-   begin_header_file output_h def_string nativeGen;
+   begin_header_file (h_file#write_h) def_string nativeGen;
 
    (* Include the real header file for the super class *)
    (match class_def.cl_super with
