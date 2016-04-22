@@ -404,7 +404,7 @@ module Pattern = struct
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,call) ->
 				let pat = loop e in
-				let _ = Typer.handle_display ctx e call (WithType t) p in
+				let _ = Typer.handle_display ctx e call (WithType t) in
 				pat
 			| _ ->
 				fail()

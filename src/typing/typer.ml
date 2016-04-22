@@ -3544,7 +3544,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 						mk (TConst TNull) t_dynamic p
 				)
 			) in
-			if display then ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) false (WithType i.v_type) i.v_pos);
+			if display then ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) false (WithType i.v_type));
 			let e2 = type_expr ctx e2 NoValue in
 			(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 		in
@@ -3684,7 +3684,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let texpr = loop t in
 		mk (TCast (type_expr ctx e Value,Some texpr)) t p
 	| EDisplay (e,iscall) ->
-		handle_display ctx e iscall with_type p
+		handle_display ctx e iscall with_type
 	| EDisplayNew (t,_) ->
 		let t = Typeload.load_instance ctx (t,p) true in
 		(match follow t with
@@ -3740,7 +3740,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		ctx.meta <- old;
 		e
 
-and handle_display ctx e_ast iscall with_type p =
+and handle_display ctx e_ast iscall with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
@@ -3753,8 +3753,8 @@ and handle_display ctx e_ast iscall with_type p =
 		) tl in
 		tl
 	in
-	let e,p = try
-		type_expr ctx e_ast with_type,p
+	let e = try
+		type_expr ctx e_ast with_type
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None,false))
 	| Error (Unknown_ident "trace",_) ->
@@ -3765,12 +3765,13 @@ and handle_display ctx e_ast iscall with_type p =
 		with Not_found ->
 			raise err
 		end
-	| Display.DisplaySubExpression ((_,p) as e) ->
+	| Display.DisplaySubExpression e ->
 		ctx.in_display <- false;
 		let e = type_expr ctx e Value in
 		ctx.in_display <- true;
-		e,p
+		e
 	in
+	let p = e.epos in
 	let e = match with_type with
 		| WithType t -> (try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
 		| _ -> e
