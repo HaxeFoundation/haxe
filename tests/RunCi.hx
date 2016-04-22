@@ -597,6 +597,7 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
+	static var displayDir(default, never) = cwd + "display/";
 	static var gitInfo(get, null):{repo:String, branch:String, commit:String, timestamp:Float, date:String};
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
 		repo: switch (ci) {
@@ -914,6 +915,9 @@ class RunCi {
 			switch (test) {
 				case Macro:
 					runCommand("haxe", ["compile-macro.hxml"].concat(args));
+
+					changeDirectory(displayDir);
+					runCommand("haxe", ["build.hxml"]);
 
 					changeDirectory(miscDir);
 					getCsDependencies();
