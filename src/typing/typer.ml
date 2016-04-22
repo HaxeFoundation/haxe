@@ -3690,7 +3690,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		(match follow t with
 		| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 			let ct, f = get_constructor ctx c params p in
-			raise (Display.DisplaySignatures (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
+			raise (Display.DisplaySignatures ((ct,f.cf_doc) :: List.map (fun f -> (f.cf_type,f.cf_doc)) f.cf_overloads))
 		| _ ->
 			error "Not a class" p)
 	| ECheckType (e,t) ->
@@ -3758,7 +3758,7 @@ and handle_display ctx e_ast iscall with_type p =
 	with Error (Unknown_ident n,_) when not iscall ->
 		raise (Parser.TypePath ([n],None,false))
 	| Error (Unknown_ident "trace",_) ->
-		raise (Display.DisplaySignatures [tfun [t_dynamic] ctx.com.basic.tvoid])
+		raise (Display.DisplaySignatures [(tfun [t_dynamic] ctx.com.basic.tvoid,Some "Print given arguments")])
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
 			raise (Display.DisplayFields (get_submodule_fields path))
@@ -3831,19 +3831,19 @@ and handle_display ctx e_ast iscall with_type p =
 		collect_toplevel_identifiers ctx;
 	| DMDefault | DMNone | DMModuleSymbols ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
-		let e,tl_overloads = match e.eexpr with
+		let e,tl_overloads,doc = match e.eexpr with
 			| TField (e1,fa) ->
-				let tl = match extract_field fa with
-					| Some cf when iscall -> List.map (fun cf -> cf.cf_type) cf.cf_overloads
-					| _ -> []
+				let tl,doc = match extract_field fa with
+					| Some cf when iscall -> (List.map (fun cf -> (cf.cf_type,cf.cf_doc)) cf.cf_overloads),cf.cf_doc
+					| _ -> [],None
 				in
 				if field_name fa = "bind" then (match follow e1.etype with
-					| TFun(args,ret) -> {e1 with etype = opt_args args ret},tl
-					| _ -> e,tl)
+					| TFun(args,ret) -> {e1 with etype = opt_args args ret},tl,doc
+					| _ -> e,tl,doc)
 				else
-					e,tl
+					e,tl,doc
 			| _ ->
-				e,[]
+				e,[],None
 		in
 		let opt_type t =
 			match t with
@@ -4018,7 +4018,7 @@ and handle_display ctx e_ast iscall with_type p =
 		in
 		(match follow t with
 		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
-		| _ -> raise (Display.DisplaySignatures (t :: tl_overloads)))
+		| _ -> raise (Display.DisplaySignatures ((t,doc) :: tl_overloads)))
 
 and maybe_type_against_enum ctx f with_type p =
 	try
@@ -4620,7 +4620,7 @@ let make_macro_api ctx p =
 				String.concat "," (List.map (fun (f,t,_,_) -> f ^ ":" ^ s_type pctx t) fields)
 			| Display.DisplaySignatures tl ->
 				let pctx = print_context() in
-				String.concat "," (List.map (s_type pctx) tl)
+				String.concat "," (List.map (fun (t,_) -> s_type pctx t) tl)
 			| Display.DisplayType (t,_) ->
 				let pctx = print_context() in
 				s_type pctx t

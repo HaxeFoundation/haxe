@@ -19,7 +19,7 @@ type identifier_type =
 	| ITPackage of string
 
 exception ModuleSymbols of string
-exception DisplaySignatures of t list
+exception DisplaySignatures of (t * documentation) list
 exception DisplayType of t * pos
 exception DisplayPosition of Ast.pos list
 exception DisplaySubExpression of Ast.expr
