@@ -345,6 +345,11 @@ let rec load_type_def ctx p t =
 			with
 				Exit -> next()
 
+let resolve_position_by_path ctx path p =
+	let mt = load_type_def ctx p path in
+	let p = (t_infos mt).mt_pos in
+	raise (Display.DisplayPosition [p])
+
 let check_param_constraints ctx types t pl c p =
 	match follow t with
 	| TMono _ -> ()
@@ -1875,12 +1880,8 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 
 let is_display_file ctx p = match ctx.com.display with
 	| DMNone -> false
-	| DMResolve s ->
-		let mt = load_type_def ctx p {tname = s; tpackage = []; tsub = None; tparams = []} in
-		let p = (t_infos mt).mt_pos in
-		raise (Display.DisplayPosition [p]);
-	| _ ->
-		Display.is_display_file p
+	| DMResolve s -> resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
+	| _ -> Display.is_display_file p
 
 module ClassInitializer = struct
 	type class_init_ctx = {
@@ -2848,6 +2849,35 @@ let init_module_type ctx context_init do_init (decl,p) =
 	match decl with
 	| EImport (path,mode) ->
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
+		if Display.is_display_file p then begin match Display.convert_import_to_something_usable path,ctx.com.display with
+			| Display.IDKPackage sl,_ ->
+				raise (Parser.TypePath(sl,None,true))
+			| Display.IDKModule(sl,s),DMPosition ->
+				(* We assume that we want to go to the module file, not a specific type
+				   which might not even exist anyway. *)
+				let mt = ctx.g.do_load_module ctx (sl,s) p in
+				let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
+				raise (Display.DisplayPosition [p])
+			| Display.IDKModule(sl,s),_ ->
+				(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
+				raise (Parser.TypePath(sl,Some(s,false),true))
+			| Display.IDKSubType(sl,sm,st),DMPosition ->
+				resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
+			| Display.IDKSubType(sl,sm,st),_ ->
+				raise (Parser.TypePath(sl @ [sm],Some(st,false),true))
+			| (Display.IDKSubTypeField(sl,sm,st,sf) | Display.IDKModuleField(sl,(sm as st),sf)),_ ->
+				let m = ctx.g.do_load_module ctx (sl,sm) p in
+				List.iter (fun t -> match t with
+					| TClassDecl c when snd c.cl_path = st ->
+						ignore(c.cl_build());
+						let cf = PMap.find sf c.cl_statics in
+						Display.display_field ctx.com.display cf p
+					| _ ->
+						()
+				) m.m_types;
+			| Display.IDK,_ ->
+				()
+		end;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
 			| rest -> List.rev acc, rest

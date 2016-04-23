@@ -1,3 +1,7 @@
+import Types;
+
+using Lambda;
+
 @:autoBuild(Macro.buildTestCase())
 class DisplayTestCase {
 	var ctx:DisplayTestContext;
@@ -43,6 +47,14 @@ class DisplayTestCase {
 			report(leftover, pos);
 			return;
 		}
+	}
+
+	function hasField(a:Array<FieldElement>, name:String, type:String):Bool {
+		return a.exists(function(t) return t.type == type && t.name == name);
+	}
+
+	function hasPath(a:Array<FieldElement>, name:String):Bool {
+		return a.exists(function(t) return t.name == name);
 	}
 
 	function report(message, pos:haxe.PosInfos) {

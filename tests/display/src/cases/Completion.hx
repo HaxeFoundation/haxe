@@ -1,8 +1,5 @@
 package cases;
 
-import Types;
-using Lambda;
-
 class Completion extends DisplayTestCase {
 	/**
 	var s = { foo: 1 };
@@ -47,13 +44,5 @@ class Completion extends DisplayTestCase {
 	**/
 	@:funcCode function testHaxeUnitPort5() {
 		eq(true, hasPath(fields(pos(1)), "ExprDef"));
-	}
-
-	static function hasField(a:Array<FieldElement>, name:String, type:String):Bool {
-		return a.exists(function(t) return t.type == type && t.name == name);
-	}
-
-	static function hasPath(a:Array<FieldElement>, name:String):Bool {
-		return a.exists(function(t) return t.name == name);
 	}
 }

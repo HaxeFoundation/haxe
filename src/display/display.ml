@@ -285,3 +285,40 @@ let print_module_symbols (pack,decls) =
 	let b = Buffer.create 0 in
 	write_json (Buffer.add_string b) js;
 	Buffer.contents b
+
+type import_display_kind =
+	| IDKPackage of string list
+	| IDKModule of string list * string
+	| IDKSubType of string list * string * string
+	| IDKModuleField of string list * string * string
+	| IDKSubTypeField of string list * string * string * string
+	| IDK
+
+let convert_import_to_something_usable path =
+	let rec loop pack m t = function
+		| (s,p) :: l ->
+			let is_lower = is_lower_ident s in
+			let is_display_pos = encloses_position !Parser.resume_display p in
+			begin match is_lower,m,t with
+				| _,None,Some _ | false,Some _,Some _ ->
+					assert false (* impossible, I think *)
+				| true,Some m,None ->
+					if is_display_pos then IDKModuleField(List.rev pack,m,s)
+					else IDK (* assume that we're done *)
+				| true,Some m,Some t ->
+					if is_display_pos then IDKSubTypeField(List.rev pack,m,t,s)
+					else IDK
+				| true,None,None ->
+					if is_display_pos then IDKPackage (List.rev (s :: pack))
+					else loop (s :: pack) m t l
+				| false,Some sm,None ->
+					if is_display_pos then IDKSubType (List.rev pack,sm,s)
+					else loop pack m (Some s) l
+				| false,None,None ->
+					if is_display_pos then IDKModule (List.rev pack,s)
+					else loop pack (Some s) None l
+			end
+		| [] ->
+			IDK
+	in
+	loop [] None None path
