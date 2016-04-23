@@ -1,6 +1,8 @@
 import haxe.macro.Context;
 import haxe.macro.Expr;
 
+using Lambda;
+
 class Macro {
 	static function buildTestCase():Array<Field> {
 		var fields = Context.getBuildFields();
@@ -13,7 +15,12 @@ class Macro {
 			if (field.doc == null) {
 				continue;
 			}
-			var doc = (c.pack.length > 0 ? "package " + c.pack.join(".") + ";\n" : "") + field.doc;
+			var doc = (c.pack.length > 0 ? "package " + c.pack.join(".") + ";\n" : "");
+			if (field.meta.exists(function(meta) return meta.name == ":funcCode")) {
+				doc += "class Main { static function main() { " + field.doc + "}}";
+			} else {
+				doc += field.doc;
+			}
 			var src = markerRe.map(doc, function(r) {
 				var p = r.matchedPos();
 				var name = r.matched(1);
@@ -22,8 +29,9 @@ class Macro {
 				markers.push(macro $v{Std.parseInt(name)} => $v{pos});
 				return "";
 			});
+			var markers = markers.length > 0 ? macro $a{markers} : macro new Map();
 			testCases.push(macro function() {
-				ctx = new DisplayTestContext($v{Context.getPosInfos(c.pos).file}, $v{field.name}, $v{src}, $a{markers});
+				ctx = new DisplayTestContext($v{Context.getPosInfos(c.pos).file}, $v{field.name}, $v{src}, $markers);
 				$i{field.name}();
 			});
 		}

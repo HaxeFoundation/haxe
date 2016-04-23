@@ -27,37 +27,37 @@ class DisplayTestContext {
 		this.markers = markers;
 	}
 
-	public function pos(id:Int):Int {
+	public function pos(id:Int):Position {
 		var r = markers[id];
 		if (r == null) throw "No such marker: " + id;
-		return r;
+		return new Position(r);
 	}
 
 	public function range(pos1:Int, pos2:Int) {
 		return normalizePath(source.formatPosition(pos(pos1), pos(pos2)));
 	}
 
-	public function field(pos:Int):String {
-		return callHaxe('$pos');
+	public function fields(pos:Position):Array<FieldElement> {
+		return extractFields(callHaxe('$pos'));
 	}
 
-	public function toplevel(pos:Int):Array<ToplevelElement> {
+	public function toplevel(pos:Position):Array<ToplevelElement> {
 		return extractToplevel(callHaxe('$pos@toplevel'));
 	}
 
-	public function type(pos:Int):String {
+	public function type(pos:Position):String {
 		return extractType(callHaxe('$pos@type'));
 	}
 
-	public function positions(pos:Int):Array<String> {
+	public function positions(pos:Position):Array<String> {
 		return extractPositions(callHaxe('$pos@position'));
 	}
 
-	public function position(pos:Int):String {
+	public function position(pos:Position):String {
 		return positions(pos)[0];
 	}
 
-	public function usage(pos:Int):Array<String> {
+	public function usage(pos:Position):Array<String> {
 		return extractPositions(callHaxe('$pos@usage'));
 	}
 
@@ -114,6 +114,19 @@ class DisplayTestContext {
 		var ret = [];
 		for (xml in xml.elementsNamed("i")) {
 			ret.push({kind: xml.get("k"), name: xml.firstChild().nodeValue});
+		}
+		return ret;
+	}
+
+	static function extractFields(result:String) {
+		var xml = Xml.parse(result);
+		xml = xml.firstElement();
+		if (xml.nodeName != "list") {
+			return null;
+		}
+		var ret = [];
+		for (xml in xml.elementsNamed("i")) {
+			ret.push({name: xml.get("n"), type: xml.firstElement().firstChild().nodeValue});
 		}
 		return ret;
 	}

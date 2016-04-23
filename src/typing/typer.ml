@@ -4626,55 +4626,6 @@ let make_macro_api ctx p =
 			let eid = (EConst (Int (string_of_int id))), p in
 			(EMeta ((Meta.StoredTypedExpr,[],p), eid)), p
 		);
-		Interp.get_display = (fun s ->
-			let is_displaying = ctx.com.display <> DMNone in
-			let old_resume = !Parser.resume_display in
-			let old_error = ctx.on_error in
-			let restore () =
-				if not is_displaying then begin
-					ctx.com.defines <- PMap.remove (fst (Define.infos Define.Display)) ctx.com.defines;
-					ctx.com.display <- DMNone
-				end;
-				Parser.resume_display := old_resume;
-				ctx.on_error <- old_error;
-			in
-			(* temporarily enter display mode with a fake position *)
-			if not is_displaying then begin
-				Common.define ctx.com Define.Display;
-				ctx.com.display <- DMDefault;
-			end;
-			Parser.resume_display := {
-				Ast.pfile = "macro";
-				Ast.pmin = 0;
-				Ast.pmax = 0;
-			};
-			ctx.on_error <- (fun ctx msg p -> raise (Error(Custom msg,p)));
-			let str = try
-				let e = parse_expr_string s Ast.null_pos true in
-				let e = Optimizer.optimize_completion_expr e in
-				ignore (type_expr ctx e Value);
-				"NO COMPLETION"
-			with Display.DisplayFields fields ->
-				let pctx = print_context() in
-				String.concat "," (List.map (fun (f,t,_,_) -> f ^ ":" ^ s_type pctx t) fields)
-			| Display.DisplaySignatures tl ->
-				let pctx = print_context() in
-				String.concat "," (List.map (fun (t,_) -> s_type pctx t) tl)
-			| Display.DisplayType (t,_) ->
-				let pctx = print_context() in
-				s_type pctx t
-			| Parser.TypePath (p,sub,_) ->
-				(match sub with
-				| None ->
-					"path(" ^ String.concat "." p ^ ")"
-				| Some (c,_) ->
-					"path(" ^ String.concat "." p ^ ":" ^ c ^ ")")
-			| Typecore.Error (msg,p) ->
-				"error(" ^ error_msg msg ^ ")"
-			in
-			restore();
-			str
-		);
 		Interp.allow_package = (fun v -> Common.allow_package ctx.com v);
 		Interp.type_patch = (fun t f s v ->
 			typing_timer ctx false (fun() ->

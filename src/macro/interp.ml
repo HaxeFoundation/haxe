@@ -107,7 +107,6 @@ type extern_api = {
 	resolve_type  : Ast.complex_type -> Ast.pos -> t;
 	type_macro_expr : Ast.expr -> Type.texpr;
 	store_typed_expr : Type.texpr -> Ast.expr;
-	get_display : string -> string;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> unit;
@@ -2484,13 +2483,6 @@ let macro_lib =
 			match s,p with
 			| VString(s),VAbstract(APos p) -> encode_expr ((get_ctx()).curapi.format_string s p)
 			| _ -> VNull
-		);
-		"display", Fun1 (fun v ->
-			match v with
-			| VString s ->
-				VString ((get_ctx()).curapi.get_display s)
-			| _ ->
-				error()
 		);
 		"allow_package", Fun1 (fun v ->
 			match v with

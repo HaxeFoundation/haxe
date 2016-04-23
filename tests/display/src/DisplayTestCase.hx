@@ -8,7 +8,7 @@ class DisplayTestCase {
 
 	// api
 	inline function pos(name) return ctx.pos(name);
-	inline function field(pos) return ctx.field(pos);
+	inline function fields(pos) return ctx.fields(pos);
 	inline function toplevel(pos) return ctx.toplevel(pos);
 	inline function type(pos) return ctx.type(pos);
 	inline function position(pos) return ctx.position(pos);
