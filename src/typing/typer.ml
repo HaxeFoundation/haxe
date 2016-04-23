@@ -3442,7 +3442,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EField(_,n) when n.[0] = '$' ->
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
-		if s = "super" && with_type <> NoValue then error "Cannot use super as value" p;
+		if s = "super" && with_type <> NoValue && not ctx.in_display then error "Cannot use super as value" p;
 		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p MGet) with_type p in
 		acc_get ctx e p
 	| EField _
@@ -3778,11 +3778,23 @@ and handle_display ctx e_ast iscall with_type =
 	in
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
+	let get_super_constructor () = match ctx.curclass.cl_super with
+		| None -> error "Current class does not have a super" p
+		| Some (c,params) ->
+			let _, f = get_constructor ctx c params p in
+			f
+	in
 	match ctx.com.display with
 	| DMResolve _ ->
 		assert false
 	| DMType ->
-		raise (Display.DisplayType ((match e.eexpr with TVar(v,_) -> v.v_type | _ -> e.etype),p))
+		let t = match e.eexpr with
+			| TVar(v,_) -> v.v_type
+			| TCall({eexpr = TConst TSuper; etype = t},_) -> t
+			| TNew(c,tl,_) -> TInst(c,tl)
+			| _ -> e.etype
+		in
+		raise (Display.DisplayType (t,p))
 	| DMUsage ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -3800,6 +3812,18 @@ and handle_display ctx e_ast iscall with_type =
 				cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
 			with Not_found ->
 				()
+			end
+		| TCall({eexpr = TConst TSuper},_) ->
+			begin try
+				let cf = get_super_constructor() in
+				cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+			with Not_found ->
+				()
+			end
+		| TConst TSuper ->
+			begin match ctx.curclass.cl_super with
+				| None -> ()
+				| Some (c,_) -> c.cl_meta <- (Meta.Usage,[],p) :: c.cl_meta;
 			end
 		| TCall(e1,_) ->
 			loop e1
@@ -3820,6 +3844,18 @@ and handle_display ctx e_ast iscall with_type =
 				[cf.cf_pos]
 			with Not_found ->
 				[]
+			end
+		| TCall({eexpr = TConst TSuper},_) ->
+			begin try
+				let cf = get_super_constructor() in
+				[cf.cf_pos]
+			with Not_found ->
+				[]
+			end
+		| TConst TSuper ->
+			begin match ctx.curclass.cl_super with
+				| None -> []
+				| Some (c,_) -> [c.cl_pos]
 			end
 		| TCall(e1,_) ->
 			loop e1
@@ -4129,6 +4165,8 @@ and type_call ctx e el (with_type:with_type) p =
 			mk (TCall (mk (TLocal v_unprotect) t p,[e])) e.etype e.epos
 		else
 			e
+	| (EDisplay((EConst (Ident "super"),_ as e1),false),_),_ ->
+		handle_display ctx (ECall(e1,el),p) false with_type
 	| (EConst (Ident "super"),sp) , el ->
 		if ctx.curfun <> FunConstructor then error "Cannot call super constructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
