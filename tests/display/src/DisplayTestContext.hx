@@ -1,4 +1,5 @@
 using StringTools;
+import Types;
 
 class HaxeInvocationException {
 
@@ -40,8 +41,8 @@ class DisplayTestContext {
 		return callHaxe('$pos');
 	}
 
-	public function toplevel(pos:Int):String {
-		return callHaxe('$pos');
+	public function toplevel(pos:Int):Array<ToplevelElement> {
+		return extractToplevel(callHaxe('$pos@toplevel'));
 	}
 
 	public function type(pos:Int):String {
@@ -100,6 +101,19 @@ class DisplayTestContext {
 		var ret = [];
 		for (xml in xml.elementsNamed("pos")) {
 			ret.push(normalizePath(xml.firstChild().nodeValue.trim()));
+		}
+		return ret;
+	}
+
+	static function extractToplevel(result:String) {
+		var xml = Xml.parse(result);
+		xml = xml.firstElement();
+		if (xml.nodeName != "il") {
+			return null;
+		}
+		var ret = [];
+		for (xml in xml.elementsNamed("i")) {
+			ret.push({kind: xml.get("k"), name: xml.firstChild().nodeValue});
 		}
 		return ret;
 	}

@@ -10,6 +10,9 @@ class Macro {
 		for (field in fields) {
 			var markers = [];
 			var posAcc = 0;
+			if (field.doc == null) {
+				continue;
+			}
 			var doc = (c.pack.length > 0 ? "package " + c.pack.join(".") + ";\n" : "") + field.doc;
 			var src = markerRe.map(doc, function(r) {
 				var p = r.matchedPos();

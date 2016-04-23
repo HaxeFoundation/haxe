@@ -17,7 +17,7 @@ class DisplayTestCase {
 
 	function assert(v:Bool) if (!v) throw "assertion failed";
 
-	function eq(expected:String, actual:String, ?pos:haxe.PosInfos) {
+	function eq<T>(expected:T, actual:T, ?pos:haxe.PosInfos) {
 		numTests++;
 		if (expected != actual) {
 			numFailures++;
