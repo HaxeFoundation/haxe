@@ -594,7 +594,7 @@ and parse_type_decls pack acc s =
 and parse_type_decl s =
 	match s with parser
 	| [< '(Kwd Import,p1) >] -> parse_import s p1
-	| [< '(Kwd Using,p1); t = parse_type_path; p2 = semicolon >] -> EUsing t, punion p1 p2
+	| [< '(Kwd Using,p1) >] -> parse_using s p1
 	| [< doc = get_doc; meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
 		| [< n , p1 = parse_enum_flags; name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
@@ -688,6 +688,29 @@ and parse_import s p1 =
 		| [< >] -> serror()
 	) in
 	(EImport (path,mode),punion p1 p2)
+
+and parse_using s p1 =
+	let rec loop acc =
+		match s with parser
+		| [< '(Dot,p) >] ->
+			begin match s with parser
+			| [< '(Const (Ident k),p) >] ->
+				loop ((k,p) :: acc)
+			| [< '(Kwd Macro,p) >] ->
+				loop (("macro",p) :: acc)
+			| [< '(Kwd Extern,p) >] ->
+				loop (("extern",p) :: acc)
+			| [< >] ->
+				serror()
+			end
+		| [< '(Semicolon,p2) >] ->
+			p2,List.rev acc
+	in
+	let p2, path = (match s with parser
+		| [< '(Const (Ident name),p) >] -> loop [name,p]
+		| [< >] -> serror()
+	) in
+	(EUsing path,punion p1 p2)
 
 and parse_abstract_relations s =
 	match s with parser

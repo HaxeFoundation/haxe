@@ -4767,7 +4767,10 @@ let make_macro_api ctx p =
 			) types in
 			let pos = (match types with [] -> Ast.null_pos | (_,p) :: _ -> p) in
 			let imports = List.map (fun (il,ik) -> EImport(il,ik),pos) imports in
-			let usings = List.map (fun tp -> EUsing (tp,null_pos),pos) usings in
+			let usings = List.map (fun tp ->
+				let sl = tp.tpackage @ [tp.tname] @ (match tp.tsub with None -> [] | Some s -> [s]) in
+				EUsing (List.map (fun s -> s,null_pos) sl),pos
+			) usings in
 			let types = imports @ usings @ types in
 			let mpath = Ast.parse_path m in
 			begin try

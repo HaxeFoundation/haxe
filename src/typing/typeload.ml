@@ -2837,6 +2837,36 @@ let add_module ctx m p =
 	List.iter (check_module_types ctx m p) m.m_types;
 	Hashtbl.add ctx.g.modules m.m_path m
 
+let handle_path_display ctx path p =
+	match Display.convert_import_to_something_usable path,ctx.com.display with
+		| Display.IDKPackage sl,_ ->
+			raise (Parser.TypePath(sl,None,true))
+		| Display.IDKModule(sl,s),DMPosition ->
+			(* We assume that we want to go to the module file, not a specific type
+			   which might not even exist anyway. *)
+			let mt = ctx.g.do_load_module ctx (sl,s) p in
+			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
+			raise (Display.DisplayPosition [p])
+		| Display.IDKModule(sl,s),_ ->
+			(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
+			raise (Parser.TypePath(sl,Some(s,false),true))
+		| Display.IDKSubType(sl,sm,st),DMPosition ->
+			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
+		| Display.IDKSubType(sl,sm,st),_ ->
+			raise (Parser.TypePath(sl @ [sm],Some(st,false),true))
+		| (Display.IDKSubTypeField(sl,sm,st,sf) | Display.IDKModuleField(sl,(sm as st),sf)),_ ->
+			let m = ctx.g.do_load_module ctx (sl,sm) p in
+			List.iter (fun t -> match t with
+				| TClassDecl c when snd c.cl_path = st ->
+					ignore(c.cl_build());
+					let cf = PMap.find sf c.cl_statics in
+					Display.display_field ctx.com.display cf p
+				| _ ->
+					()
+			) m.m_types;
+		| Display.IDK,_ ->
+			()
+
 (*
 	In this pass, we can access load and access other modules types, but we cannot follow them or access their structure
 	since they have not been setup. We also build a context_init list that will be evaluated the first time we evaluate
@@ -2849,35 +2879,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	match decl with
 	| EImport (path,mode) ->
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
-		if Display.is_display_file p then begin match Display.convert_import_to_something_usable path,ctx.com.display with
-			| Display.IDKPackage sl,_ ->
-				raise (Parser.TypePath(sl,None,true))
-			| Display.IDKModule(sl,s),DMPosition ->
-				(* We assume that we want to go to the module file, not a specific type
-				   which might not even exist anyway. *)
-				let mt = ctx.g.do_load_module ctx (sl,s) p in
-				let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
-				raise (Display.DisplayPosition [p])
-			| Display.IDKModule(sl,s),_ ->
-				(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
-				raise (Parser.TypePath(sl,Some(s,false),true))
-			| Display.IDKSubType(sl,sm,st),DMPosition ->
-				resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
-			| Display.IDKSubType(sl,sm,st),_ ->
-				raise (Parser.TypePath(sl @ [sm],Some(st,false),true))
-			| (Display.IDKSubTypeField(sl,sm,st,sf) | Display.IDKModuleField(sl,(sm as st),sf)),_ ->
-				let m = ctx.g.do_load_module ctx (sl,sm) p in
-				List.iter (fun t -> match t with
-					| TClassDecl c when snd c.cl_path = st ->
-						ignore(c.cl_build());
-						let cf = PMap.find sf c.cl_statics in
-						Display.display_field ctx.com.display cf p
-					| _ ->
-						()
-				) m.m_types;
-			| Display.IDK,_ ->
-				()
-		end;
+		if Display.is_display_file p then handle_path_display ctx path p;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
 			| rest -> List.rev acc, rest
@@ -2989,7 +2991,17 @@ let init_module_type ctx context_init do_init (decl,p) =
 						error "No statics to import from this type" p
 				) :: !context_init
 			))
-	| EUsing (t,_) ->
+	| EUsing path ->
+		if Display.is_display_file p then handle_path_display ctx path p;
+		let t = match List.rev path with
+			| (s1,_) :: (s2,_) :: sl ->
+				if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
+				else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
+			| (s1,_) :: sl ->
+				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
+			| [] ->
+				assert false
+		in
 		(* do the import first *)
 		let types = (match t.tsub with
 			| None ->

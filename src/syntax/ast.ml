@@ -455,7 +455,7 @@ type import_mode =
 	| IAsName of string
 	| IAll
 
-type import = (string * pos) list * import_mode
+type import = placed_name list * import_mode
 
 type type_def =
 	| EClass of (class_flag, class_field list) definition
@@ -463,7 +463,7 @@ type type_def =
 	| ETypedef of (enum_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
 	| EImport of import
-	| EUsing of placed_type_path
+	| EUsing of placed_name list
 
 type type_decl = type_def * pos
 
