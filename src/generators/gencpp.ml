@@ -349,16 +349,18 @@ let keyword_remap name =
 ;;
 
 let remap_class_path class_path =
-   let path_remap name =
+   let path_remap with_keywords name =
       let len = String.length name in
       if (len > 3) && (String.sub name 0 3 = " ::") then
          String.sub name 3 (len-3)
       else if (len > 2) && (String.sub name 0 2 = "::") then
          String.sub name 2 (len-2)
-      else
+      else if with_keywords then
          keyword_remap name
+      else
+         name
    in
-   (List.map path_remap (fst class_path)) , path_remap (snd class_path)
+   (List.map (path_remap true) (fst class_path)) , path_remap false (snd class_path)
 ;;
 
 let join_class_path_remap path separator =
