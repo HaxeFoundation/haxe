@@ -41,6 +41,10 @@ class DisplayTestContext {
 		return extractFields(callHaxe('$pos'));
 	}
 
+	public function signatures(pos:Position):Array<String> {
+		return extractSignatures(callHaxe('$pos'));
+	}
+
 	public function toplevel(pos:Position):Array<ToplevelElement> {
 		return extractToplevel(callHaxe('$pos@toplevel'));
 	}
@@ -90,6 +94,16 @@ class DisplayTestContext {
 			return null;
 		}
 		return StringTools.trim(xml.firstChild().nodeValue);
+	}
+
+	static function extractSignatures(result:String) {
+		var xml = Xml.parse('<x>$result</x>');
+		xml = xml.firstElement();
+		var ret = [];
+		for (xml in xml.elementsNamed("type")) {
+			ret.push(StringTools.trim(xml.firstChild().nodeValue));
+		}
+		return ret;
 	}
 
 	static function extractPositions(result:String) {
