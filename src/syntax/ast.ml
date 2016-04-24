@@ -156,6 +156,7 @@ module Meta = struct
 		| Rtti
 		| Runtime
 		| RuntimeValue
+		| Scalar
 		| SelfCall
 		| Setter
 		| SkipCtor
