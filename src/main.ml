@@ -50,6 +50,7 @@ open Type
 
 type context = {
 	com : Common.context;
+	params : string list;
 	mutable flush : unit -> unit;
 	mutable setup : unit -> unit;
 	mutable messages : string list;
@@ -627,24 +628,46 @@ let create_context params =
 		messages = [];
 		has_next = false;
 		has_error = false;
+		params = params;
 	} in
 	ctx.flush <- (fun() -> default_flush ctx);
 	ctx
 
 let rec process_params create pl =
 	let each_params = ref [] in
+	let rec filters acc pl = match pl with
+		| filter :: "--filter" :: pl -> filters (filter :: acc) pl
+		| _ -> List.rev pl,acc
+	in
+	let pl,filters = filters [] (List.rev pl) in
+	let execute ctx = match filters with
+		| [] ->
+			init ctx;
+			ctx.flush();
+		| _ ->
+			let params_string = String.concat " " ctx.params in
+			if List.for_all (fun s ->
+				try
+					let r = Str.regexp s in
+					ignore(Str.search_forward r params_string 0);
+					true
+				with Not_found ->
+					false;
+			) filters then begin
+				init ctx;
+				ctx.flush();
+			end
+	in
 	let rec loop acc = function
 		| [] ->
 			let ctx = create (!each_params @ (List.rev acc)) in
-			init ctx;
-			ctx.flush()
+			execute ctx;
 		| "--next" :: l when acc = [] -> (* skip empty --next *)
 			loop [] l
 		| "--next" :: l ->
 			let ctx = create (!each_params @ (List.rev acc)) in
 			ctx.has_next <- true;
-			init ctx;
-			ctx.flush();
+			execute ctx;
 			loop [] l
 		| "--each" :: l ->
 			each_params := List.rev acc;
@@ -665,8 +688,7 @@ let rec process_params create pl =
 			let acc = cl :: "-main" :: "--interp" :: acc in
 			let ctx = create (!each_params @ (List.rev acc)) in
 			ctx.com.sys_args <- args;
-			init ctx;
-			ctx.flush()
+			execute ctx;
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
 			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) ->
