@@ -122,11 +122,7 @@ let rec func ctx bb tf t p =
 		| TField({eexpr = TTypeExpr _},fa) ->
 			bb,e
 		| TField(e1,fa) ->
-			let bb,e1 = match ctx.com.platform,e1.eexpr with
-				| Cpp,(TLocal _ | TConst _) -> value bb e1
-				| Cpp,_ -> bind_to_temp bb false e1
-				| _ -> value bb e1
-			in
+			let bb,e1 = value bb e1 in
 			bb,{e with eexpr = TField(e1,fa)}
 		| TArray(e1,e2) ->
 			let bb,e1,e2 = match ordered_value_list bb [e1;e2] with
