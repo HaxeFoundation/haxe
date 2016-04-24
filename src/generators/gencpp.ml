@@ -1958,7 +1958,7 @@ let ctx_arg_list ctx arg_list prefix =
    String.concat "," (List.map (fun (v,o) -> (ctx_arg ctx v.v_name o v.v_type prefix) ) arg_list)
 
 
-let rec ctx_tfun_arg_list ctx arg_list =
+let rec ctx_tfun_arg_list ctx include_names arg_list =
    let oType o arg_type =
       let type_str = (ctx_type_string ctx arg_type) in
       (* type_str may have already converted Null<X> to Dynamic because of NotNull tag ... *)
@@ -1969,18 +1969,18 @@ let rec ctx_tfun_arg_list ctx arg_list =
    in
    match arg_list with
    | [] -> ""
-   | [(name,o,arg_type)] -> (oType o arg_type) ^ " " ^ (keyword_remap name)
+   | [(name,o,arg_type)] -> (oType o arg_type) ^ (if include_names then " " ^ (keyword_remap name) else "")
    | (name,o,arg_type) :: remaining  ->
-      (oType o arg_type) ^ " " ^ (keyword_remap name) ^  "," ^ (ctx_tfun_arg_list ctx remaining)
+      (oType o arg_type) ^ (if include_names then " " ^ (keyword_remap name) else "") ^  "," ^ (ctx_tfun_arg_list ctx include_names remaining)
 
 let cpp_var_type_of ctx var =
    tcpp_to_string (cpp_type_of ctx var.v_type)
 ;;
 
 
-let ctx_function_signature ctx tfun abi =
+let ctx_function_signature ctx include_names tfun abi =
    match follow tfun with
-   | TFun(args,ret) -> (ctx_type_string ctx ret) ^ " " ^ abi ^ "(" ^ (ctx_tfun_arg_list ctx args) ^ ")"
+   | TFun(args,ret) -> (ctx_type_string ctx ret) ^ " " ^ abi ^ "(" ^ (ctx_tfun_arg_list ctx include_names args) ^ ")"
    | _ -> "void *"
 
 
@@ -2924,7 +2924,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out (")" ^ !closeCall);
 
       | CppFunctionAddress(klass, member) ->
-         let signature = ctx_function_signature ctx member.cf_type "" in
+         let signature = ctx_function_signature ctx false member.cf_type "" in
          let name = cpp_member_name_of member in
          (*let void_cast = has_meta_key field.cf_meta Meta.Void in*)
          out ("::cpp::Function< " ^ signature ^">(hx::AnyCast(");
@@ -3643,7 +3643,7 @@ let gen_member_def ctx class_def is_static is_interface field =
       match follow field.cf_type, field.cf_kind with
       | _, Method MethDynamic  -> ()
       | TFun (args,return_type), Method _  ->
-         let gen_args = ctx_tfun_arg_list ctx in
+         let gen_args = ctx_tfun_arg_list ctx true in
          if is_static || nativeGen then begin
             output ( (if (not is_static) then "		virtual " else "		" ) ^ (ctx_type_string ctx return_type) );
             output (" " ^ remap_name ^ "( " );
@@ -4149,7 +4149,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       match constructor.ef_type with
       | TFun (args,_) ->
          output_cpp (remap_class_name ^ " " ^ class_name ^ "::" ^ name ^ "(" ^
-            (ctx_tfun_arg_list ctx args) ^")\n");
+            (ctx_tfun_arg_list ctx true args) ^")\n");
 
          output_cpp ("{\n\treturn hx::CreateEnum< " ^ class_name ^ " >(" ^ (strq name) ^ "," ^
             (string_of_int constructor.ef_index) ^ "," ^ (string_of_int (List.length args)) ^  ")" );
@@ -4317,7 +4317,7 @@ let generate_enum_files baseCtx enum_def super_deps meta =
       output_h ( "\t\tstatic " ^  remap_class_name ^ " " ^ name );
       match constructor.ef_type with
       | TFun (args,_) ->
-         output_h ( "(" ^ (ctx_tfun_arg_list ctx args) ^");\n");
+         output_h ( "(" ^ (ctx_tfun_arg_list ctx true args) ^");\n");
          output_h ( "\t\tstatic ::Dynamic " ^ name ^ "_dyn();\n");
       | _ ->
          output_h ";\n";
@@ -4447,8 +4447,8 @@ let has_boot_field class_def =
    | _ -> true
 ;;
 
-let cpp_tfun_signature ctx args return_type =
-  let argList = ctx_tfun_arg_list ctx args in
+let cpp_tfun_signature ctx include_names args return_type =
+  let argList = ctx_tfun_arg_list ctx include_names args in
   let returnType = ctx_type_string ctx return_type in
   ("( " ^ returnType ^ " (hx::Object::*)(" ^ argList ^ "))")
 ;;
@@ -4470,7 +4470,7 @@ let find_class_implementation ctx class_def name interface =
       match follow field.cf_type, field.cf_kind  with
       | _, Method MethDynamic -> ""
       | TFun (args,return_type), Method _ ->
-         cpp_tfun_signature ctx args return_type
+         cpp_tfun_signature ctx false args return_type
       | _,_ -> ""
 ;;
 
@@ -4719,13 +4719,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                       let gen_field field = (match follow field.cf_type, field.cf_kind  with
                       | _, Method MethDynamic -> ()
                       | TFun (args,return_type), Method _ ->
-                         let cast = cpp_tfun_signature ctx args return_type in
+                         let cast = cpp_tfun_signature ctx false args return_type in
                          let class_implementation = find_class_implementation ctx class_def field.cf_name interface in
                          let realName= cpp_member_name_of field in
-                         if class_implementation<> cast && not (Hashtbl.mem alreadyGlued cast) then begin
-                            Hashtbl.replace alreadyGlued cast ();
+                         let castKey = realName ^ "::" ^ cast in
+                         let implementationKey = realName ^ "::" ^ class_implementation in
+                         if castKey <> implementationKey && not (Hashtbl.mem alreadyGlued castKey) then begin
+                            Hashtbl.replace alreadyGlued castKey ();
                             let glue =  Printf.sprintf "%s_%08lx" field.cf_name (gen_hash32 0 cast) in
-                            let argList = ctx_tfun_arg_list ctx args in
+                            let argList = ctx_tfun_arg_list ctx true args in
                             let returnType = ctx_type_string ctx return_type in
                             let returnStr = if returnType="void" then "" else "return " in
                             let glueCode = "\t\tinline " ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ") {\n" ^
@@ -5074,7 +5076,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    if (scriptable && not nativeGen) then begin
       let delegate = "this->" in
       let dump_script_field idx (field,f_args,return_t) =
-         let args = ctx_tfun_arg_list ctx f_args in
+         let args = ctx_tfun_arg_list ctx true f_args in
          let names = List.map (fun (n,_,_) -> keyword_remap n) f_args in
          let return_type = ctx_type_string ctx return_t in
          let ret = if (return_type="Void" || return_type="void") then " " else "return " in
@@ -5171,7 +5173,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if newInteface then begin
          output_cpp ("\n\n" ^ class_name ^ " " ^ class_name ^ "_scriptable = {\n");
          List.iter (fun (f,args,return_type) ->
-            let cast = cpp_tfun_signature ctx args return_type in
+            let cast = cpp_tfun_signature ctx true args return_type in
             output_cpp ("\t" ^ cast ^ "&" ^ sctipt_name ^ "::" ^ (keyword_remap f.cf_name) ^ ",\n")
          ) new_sctipt_functions;
          output_cpp ("};\n");
@@ -5395,7 +5397,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                 let ret = if retVal="void" then "" else "return " in
                 let name = keyword_remap field.cf_name in
                 let argNames = List.map (fun (name,_,_) -> keyword_remap name ) args in
-                output_h ( "\t\t" ^ retVal ^" " ^ name ^ "( " ^ ctx_tfun_arg_list ctx args ^ ") {\n");
+                output_h ( "\t\t" ^ retVal ^" " ^ name ^ "( " ^ ctx_tfun_arg_list ctx true args ^ ") {\n");
                 output_h ( "\t\t\t" ^ ret ^ "super::" ^ name ^ "( " ^ (String.concat "," argNames) ^ ");\n\t\t}\n");
             | _ -> ()
             ) neededInterfaceFunctions;
