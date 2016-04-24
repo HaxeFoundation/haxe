@@ -88,6 +88,7 @@ class source_writer common_ctx write_header_func write_func close_func =
    val mutable indent = ""
    val mutable indents = []
    val mutable just_finished_block = false
+   val mutable has_big_closures = false
    method close = close_func(); ()
    method write x = write_func x; just_finished_block <- false
    method write_h x = write_header_func x; ()
@@ -103,6 +104,10 @@ class source_writer common_ctx write_header_func write_func close_func =
    method end_block = this#pop_indent; this#write_i "}\n"; just_finished_block <- true
    method end_block_line = this#pop_indent; this#write_i "}"; just_finished_block <- true
    method terminate_line = this#write (if just_finished_block then "" else ";\n")
+   method add_big_closures = if not has_big_closures then begin
+     this#write_h "#include <hx/MacrosJumbo.h>";
+     has_big_closures <- true
+   end
 
 
    method add_include class_path =
@@ -3349,7 +3354,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       "::" ^ (join_class_path_remap path "::") ^ "_obj"
 
    and gen_closure closure =
-      let size = string_of_int( Hashtbl.length closure.close_undeclared ) in
+      let argc = Hashtbl.length closure.close_undeclared in
+      let size = string_of_int argc in
+      if argc >= 62 then (* Limited by c++ macro size of 128 args *)
+         error "Too many capture variables" closure.close_expr.cpppos;
+      if argc >= 20 then
+         writer#add_big_closures;
       let argsCount = list_num closure.close_args in
       output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ size ^ "(");
       out (if closure.close_this != None then "hx::LocalThisFunc," else "hx::LocalFunc,");
