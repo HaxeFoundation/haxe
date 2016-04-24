@@ -646,7 +646,7 @@ let is_native_gen_module = function
    | TClassDecl class_def -> is_native_gen_class class_def
    | _ -> false
 ;;
-  
+
 
 
 (*  Get a string to represent a type.
@@ -1658,12 +1658,13 @@ let rec cpp_type_of ctx haxe_type =
    | TInst (klass,params) ->
       cpp_instance_type ctx klass params
 
-   | TAbstract (abs,pl) when abs.a_impl <> None ->
-       cpp_type_from_path ctx abs.a_path pl (fun () -> 
+   | TAbstract (abs,pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
+       cpp_type_from_path ctx abs.a_path pl (fun () ->
             cpp_type_of ctx (Abstract.get_underlying_type abs pl) )
 
    | TAbstract (a,params) ->
-       cpp_type_from_path ctx a.a_path params (fun () -> cpp_type_of ctx (follow haxe_type) )
+       cpp_type_from_path ctx a.a_path params (fun () ->
+            TCppScalar(join_class_path a.a_path "::") )
 
    | TType (type_def,params) ->
        cpp_type_from_path ctx type_def.t_path params (fun () ->
