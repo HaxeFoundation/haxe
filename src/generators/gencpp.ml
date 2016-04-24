@@ -349,7 +349,16 @@ let keyword_remap name =
 ;;
 
 let remap_class_path class_path =
-   (List.map keyword_remap (fst class_path)) , (snd class_path)
+   let path_remap name =
+      let len = String.length name in
+      if (len > 3) && (String.sub name 0 3 = " ::") then
+         String.sub name 3 (len-3)
+      else if (len > 2) && (String.sub name 0 2 = "::") then
+         String.sub name 2 (len-2)
+      else
+         keyword_remap name
+   in
+   (List.map path_remap (fst class_path)) , path_remap (snd class_path)
 ;;
 
 let join_class_path_remap path separator =
@@ -1581,7 +1590,7 @@ and tcpp_to_string tcpp =
     tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass =
-      "::" ^ (join_class_path_remap klass.cl_path "::")
+      " ::" ^ (join_class_path_remap klass.cl_path "::")
 ;;
 
 
