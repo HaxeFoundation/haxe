@@ -1468,6 +1468,7 @@ and tcpp_expr_expr =
    | CppEnumParameter of tcppexpr * tenum_field * int
    | CppTCast of tcppexpr * tcpp
    | CppCast of tcppexpr * tcpp
+   | CppCastStatic of tcppexpr * tcpp
    | CppCastScalar of tcppexpr * string
    | CppCastVariant of tcppexpr
    | CppCastObjC of tcppexpr * tclass
@@ -1542,6 +1543,7 @@ let rec s_tcpp = function
    | CppEnumParameter _ -> "CppEnumParameter"
    | CppTCast _ -> "CppTCast"
    | CppCast _ -> "CppCast"
+   | CppCastStatic _ -> "CppCastStatic"
    | CppCastScalar _ -> "CppCastScalar"
    | CppCastVariant _ -> "CppCastVariant"
    | CppCastObjC _ -> "CppCastObjC"
@@ -2043,6 +2045,15 @@ let is_array_splice_call obj member =
    | _,_ -> false
 ;;
 
+let cpp_is_fixed_override funcType expectedType =
+   match expectedType with
+   | TCppInst _
+   | TCppClass
+   | TCppEnum _
+      -> (tcpp_to_string funcType) <> (tcpp_to_string expectedType)
+   | _ -> false
+;;
+
 let cpp_member_name_of member =
    let rename = get_meta_string member.cf_meta Meta.Native in
    if rename <> "" then
@@ -2079,6 +2090,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
       | CppDynamicField(expr, name) -> CppDynamicRef(expr,name)
       | CppTCast(cppExpr,_)
       | CppCast(cppExpr,_)
+      | CppCastStatic(cppExpr,_)
       | CppCastObjC(cppExpr,_)
       | CppCastScalar(cppExpr,_) -> to_lvalue cppExpr
       | CppCastVariant(cppExpr) -> to_lvalue cppExpr
@@ -2651,8 +2663,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
               -> mk_cppexpr (CppCastVariant(cppExpr)) return_type
 
          | _ -> cppExpr
-      end else match cppExpr.cpptype, return_type with
-         | TCppObjC(k), TCppDynamic
+      end else match cppExpr.cppexpr, cppExpr.cpptype, return_type with
+         | CppCall( FuncInstance(_,false,_), _ ), _,_ when cpp_is_fixed_override cppExpr.cpptype return_type
+              -> mk_cppexpr (CppCastStatic(cppExpr,return_type)) return_type
+         | _, TCppObjC(k), TCppDynamic
               -> mk_cppexpr (CppCast(cppExpr,TCppDynamic)) return_type
          | _ -> cppExpr
    in
@@ -3274,6 +3288,13 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             (out " ::Dynamic("; gen expr; out ")")
          else
             (out ("hx::TCast< " ^ toType ^ " >::cast("); gen expr; out ")")
+
+      | CppCastStatic(expr,toType) ->
+         let close = match expr.cpptype with
+         | TCppDynamic -> ""
+         | _ -> out "Dynamic( "; ")"
+         in
+         gen expr; out (close ^ ".StaticCast< " ^ tcpp_to_string toType ^" >()")
 
       | CppCast(expr,toType) ->
          (match expr.cppexpr with
