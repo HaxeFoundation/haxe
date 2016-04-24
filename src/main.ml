@@ -1725,7 +1725,7 @@ with
 		let b = Buffer.create 0 in
 		List.iter (fun (t,doc) ->
 			Buffer.add_string b "<type>\n";
-			Buffer.add_string b (htmlescape (s_type ctx t));
+			Buffer.add_string b (htmlescape (s_type ctx (follow t)));
 			Buffer.add_string b "\n</type>\n";
 		) tl;
 		raise (Completion (Buffer.contents b))
