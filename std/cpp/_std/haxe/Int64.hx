@@ -326,7 +326,7 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 		Returns the quotient of `a` divided by `b`.
 	**/
 	@:op(A / B) public static #if !cppia inline #end function div( a : Int64, b : Int64 ) : Int64 {
-		if (__Int64.isZero(a))
+		if (__Int64.isZero(b))
 			throw "divide by zero";
 		return __Int64.div(a,b);
 	}
@@ -343,7 +343,7 @@ abstract Int64( __Int64 ) from __Int64 to __Int64
 	**/
 	@:op(A % B) public static #if !cppia inline #end function mod( a : Int64, b : Int64 ) : Int64
    {
-		if (__Int64.isZero(a))
+		if (__Int64.isZero(b))
 			throw "divide by zero";
 		return __Int64.mod(a, b);
    }
