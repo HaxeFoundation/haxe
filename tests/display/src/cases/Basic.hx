@@ -49,4 +49,12 @@ class Basic extends DisplayTestCase {
 	function testUsage2() {
 		arrayEq([range(2, 3), range(4, 5)], usage(pos(1)));
 	}
+
+	/**
+	function test(na{-1-}me:St{-2-}ring) { }
+	**/
+	@:funcCode function testLocalFunction() {
+		eq("String", type(pos(1)));
+		eq("String", type(pos(2)));
+	}
 }

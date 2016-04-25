@@ -3356,7 +3356,7 @@ and type_local_function ctx name f with_type p =
 		| FunMemberAbstract -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let e , fargs = Typeload.type_function ctx args rt curfun f false p in
+	let e , fargs = Typeload.type_function ctx args rt curfun f ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
 	let f = {
