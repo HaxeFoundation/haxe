@@ -2013,6 +2013,11 @@ let cpp_var_debug_name_of v =
 ;;
 
 
+let cpp_var_is_internal v =
+   let name = cpp_var_debug_name_of v in
+   (String.length name) >4 && (String.sub name 0 4) = "_hx_"
+;;
+
 let cpp_debug_name_of var =
    keyword_remap var.v_name
 ;;
@@ -2809,13 +2814,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
             gen e;
             decr remaining;
             writer#terminate_line;
-            if !remaining>0 && ctx.ctx_debug_level>0 then begin match e.cppexpr with
-               | CppVarDecl(var,_) ->
-                  out "HX_STACK_VAR\t";
-                  writer#write_i ("(" ^ (cpp_var_name_of var)  ^ ",\"" ^ (cpp_var_debug_name_of var) ^ "\")");
-                  writer#terminate_line
-               | _ -> ()
-            end
          ) exprs;
          (match injection with Some inject -> out inject.inj_tail | _ -> () );
          out spacer;
@@ -2840,8 +2838,18 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppVarDecl(var,init) ->
          let name =  cpp_var_name_of var in
-         out ( (cpp_var_type_of ctx var) ^ " " ^ name );
+         if cpp_var_is_internal var then
+            out ( (cpp_var_type_of ctx var) ^ " " ^ name )
+         else begin
+            let dbgName =  cpp_var_debug_name_of var in
+            let macro = if init=None then "HX_VAR" else "HX_VARI" in
+            if name<>dbgName then
+               out ( macro ^ "_NAME( " ^ (cpp_var_type_of ctx var) ^ "," ^ name ^ ",\"" ^ dbgName ^ "\")" )
+            else
+               out ( macro ^ "( " ^ (cpp_var_type_of ctx var) ^ "," ^ name ^ ")");
+         end;
          (match init with Some init -> out " = "; gen init | _ -> () );
+
       | CppEnumIndex(obj) ->
          gen obj;
          (*if cpp_is_dynamic_type obj.cpptype then*)
