@@ -239,10 +239,25 @@ let parse_file_from_lexbuf com file p lexbuf =
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Lexing.from_string string)
 
+let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
+
 let parse_file com file p =
 	let use_stdin = (Common.defined com Define.DisplayStdin) && (Common.unique_full_path file) = !Parser.resume_display.pfile in
-	let ch = if use_stdin then stdin else (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
-	Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Lexing.from_channel ch)
+	if use_stdin then
+		let s =
+			match !current_stdin with
+			| Some s ->
+				s
+			| None ->
+				let s = Std.input_all stdin in
+				close_in stdin;
+				current_stdin := Some s;
+				s
+		in
+		parse_file_from_string com file p s
+	else
+		let ch = try open_in_bin file with _ -> error ("Could not open " ^ file) p in
+		Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Lexing.from_channel ch)
 
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
