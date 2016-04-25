@@ -398,8 +398,12 @@ let generate_value_meta com co cf args =
 			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],cf.cf_pos) :: cf.cf_meta)
 	end
 
+let pselect p1 p2 =
+	if p1 = null_pos then p2 else p1
+
 (* build an instance from a full type *)
-let rec load_instance ?(allow_display=false) ctx (t,p) allow_no_params =
+let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
+	let p = pselect pn p in
 	let t = try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
 		let pt = List.assoc t.tname ctx.type_params in
@@ -428,7 +432,7 @@ let rec load_instance ?(allow_display=false) ctx (t,p) allow_no_params =
 		end else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (load_complex_type ctx false t)
+			| [TPType t] -> TDynamic (load_complex_type ctx false p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
 			if not is_rest && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
@@ -444,7 +448,7 @@ let rec load_instance ?(allow_display=false) ctx (t,p) allow_no_params =
 					let c = mk_class null_module ([],name) p in
 					c.cl_kind <- KExpr e;
 					TInst (c,[])
-				| TPType t -> load_complex_type ctx true t
+				| TPType t -> load_complex_type ctx true p t
 			) t.tparams in
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
@@ -491,20 +495,21 @@ let rec load_instance ?(allow_display=false) ctx (t,p) allow_no_params =
 			f params
 		end
 	in
-	if allow_display && ctx.com.display <> DMNone && Display.is_display_position p then
-		Display.display_type ctx.com.display t p;
+	if allow_display && ctx.com.display <> DMNone && Display.is_display_position pn then
+		Display.display_type ctx.com.display t pn;
 	t
 
 (*
 	build an instance from a complex type
 *)
-and load_complex_type ctx allow_display (t,p) =
+and load_complex_type ctx allow_display p (t,pn) =
+	let p = pselect pn p in
 	match t with
-	| CTParent t -> load_complex_type ctx allow_display t
-	| CTPath t -> load_instance ~allow_display ctx (t,p) false
+	| CTParent t -> load_complex_type ctx allow_display p t
+	| CTPath t -> load_instance ~allow_display ctx (t,pn) false p
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTExtend (tl,l) ->
-		(match load_complex_type ctx allow_display (CTAnonymous l,p) with
+		(match load_complex_type ctx allow_display p (CTAnonymous l,p) with
 		| TAnon a as ta ->
 			let is_redefined cf1 a2 =
 				try
@@ -555,7 +560,7 @@ and load_complex_type ctx allow_display (t,p) =
 				| _ ->
 					error "Multiple structural extension is only allowed for structures" p
 			in
-			let il = List.map (fun (t,_) -> load_instance ctx ~allow_display (t,p) false) tl in
+			let il = List.map (fun (t,_) -> load_instance ctx ~allow_display (t,pn) false p) tl in
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
@@ -579,7 +584,7 @@ and load_complex_type ctx allow_display (t,p) =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
 			let topt = function
 				| None -> error ("Explicit type required for field " ^ n) p
-				| Some t -> load_complex_type ctx allow_display t
+				| Some t -> load_complex_type ctx allow_display p t
 			in
 			if n = "new" then ctx.com.warning "Structures with new are deprecated, use haxe.Constraints.Constructible instead" p;
 			let no_expr = function
@@ -627,7 +632,7 @@ and load_complex_type ctx allow_display (t,p) =
 							error "Custom property access is no longer supported in Haxe 3" f.cff_pos;
 					in
 					let t = (match t with None -> error "Type required for structure property" p | Some t -> t) in
-					load_complex_type ctx allow_display t, Var { v_read = access i1 true; v_write = access i2 false }
+					load_complex_type ctx allow_display p t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
@@ -649,12 +654,12 @@ and load_complex_type ctx allow_display (t,p) =
 	| CTFunction (args,r) ->
 		match args with
 		| [CTPath { tpackage = []; tparams = []; tname = "Void" },_] ->
-			TFun ([],load_complex_type ctx allow_display r)
+			TFun ([],load_complex_type ctx allow_display p r)
 		| _ ->
 			TFun (List.map (fun t ->
 				let t, opt = (match fst t with CTOptional t -> t, true | _ -> t,false) in
-				"",opt,load_complex_type ctx allow_display t
-			) args,load_complex_type ctx allow_display r)
+				"",opt,load_complex_type ctx allow_display p t
+			) args,load_complex_type ctx allow_display p r)
 
 and init_meta_overloads ctx co cf =
 	let overloads = ref [] in
@@ -674,7 +679,7 @@ and init_meta_overloads ctx co cf =
 			| l -> ctx.type_params <- List.filter (fun t -> not (List.mem t l)) ctx.type_params);
 			let params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
-			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
+			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true p t in
 			let args = List.map (fun ((a,_),opt,_,t,_) -> a,opt,topt t) f.f_args in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
 			generate_value_meta ctx.com co cf f.f_args;
@@ -721,7 +726,7 @@ let hide_params ctx =
 *)
 let load_core_type ctx name =
 	let show = hide_params ctx in
-	let t = load_instance ctx ({ tpackage = []; tname = name; tparams = []; tsub = None; },null_pos) false in
+	let t = load_instance ctx ({ tpackage = []; tname = name; tparams = []; tsub = None; },null_pos) false null_pos in
 	show();
 	add_dependency ctx.m.curmod (match t with
 	| TInst (c,_) -> c.cl_module
@@ -746,10 +751,10 @@ let t_iterator ctx =
 (*
 	load either a type t or Null<Unknown> if not defined
 *)
-let load_type_hint ?(opt=false) ctx t =
+let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
 		| None -> mk_mono()
-		| Some (t,p) -> load_complex_type ctx true (t,p)
+		| Some (t,p) -> load_complex_type ctx true pcur (t,p)
 	in
 	if opt then ctx.t.tnull t else t
 
@@ -1471,7 +1476,7 @@ module Inheritance = struct
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
 		let fl = List.map (fun (is_extends,t) ->
-			let t = load_instance ~allow_display:true ctx t false in
+			let t = load_instance ~allow_display:true ctx t false p in
 			if is_extends then begin
 				if c.cl_super <> None then error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -1535,7 +1540,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 		let r = exc_protect ctx (fun r ->
 			r := (fun _ -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			let constr = List.map (load_complex_type ctx true) tp.tp_constraints in
+			let constr = List.map (load_complex_type ctx true p) tp.tp_constraints in
 			(* check against direct recursion *)
 			let rec loop t =
 				match follow t with
@@ -1695,7 +1700,7 @@ let load_core_class ctx c =
 		| KAbstractImpl a -> { tpackage = fst a.a_path; tname = snd a.a_path; tparams = []; tsub = None; }
 		| _ -> { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; }
 	in
-	let t = load_instance ctx2 (tpath,c.cl_pos) true in
+	let t = load_instance ctx2 (tpath,c.cl_pos) true c.cl_pos in
 	flush_pass ctx2 PFinal "core_final";
 	match t with
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->
@@ -2054,7 +2059,7 @@ module ClassInitializer = struct
 			display_error ctx "Type required for core api classes" p;
 			t_dynamic
 		| _ ->
-			load_type_hint ctx t
+			load_type_hint ctx p t
 
 	let build_fields (ctx,cctx) c fields =
 		let fields = ref fields in
@@ -2257,7 +2262,7 @@ module ClassInitializer = struct
 				(* TODO is_lib: only load complex type if needed *)
 				let old = ctx.type_params in
 				if fctx.is_static then ctx.type_params <- [];
-				let t = load_complex_type ctx true t in
+				let t = load_complex_type ctx true p t in
 				if fctx.is_static then ctx.type_params <- old;
 				t
 		) in
@@ -2556,7 +2561,7 @@ module ClassInitializer = struct
 		let ret = (match t, eo with
 			| None, None -> error (name ^ ": Property must either define a type or a default value") p;
 			| None, _ -> mk_mono()
-			| Some t, _ -> load_complex_type ctx true t
+			| Some t, _ -> load_complex_type ctx true p t
 		) in
 		let t_get,t_set = match cctx.abstract with
 			| Some a when fctx.is_abstract_member ->
@@ -3170,7 +3175,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let rt = (match c.ec_type with
 				| None -> et
 				| Some t ->
-					let t = load_complex_type ctx true t in
+					let t = load_complex_type ctx true p t in
 					(match follow t with
 					| TEnum (te,_) when te == e ->
 						()
@@ -3187,7 +3192,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" c.ec_pos | _ -> ());
 						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ fst c.ec_name) p;
 						pnames := PMap.add s () (!pnames);
-						s, opt, load_type_hint ~opt ctx (Some (t,tp))
+						s, opt, load_type_hint ~opt ctx p (Some (t,tp))
 					) l, rt)
 			) in
 			if PMap.mem (fst c.ec_name) e.e_constrs then error ("Duplicate constructor " ^ fst c.ec_name) p;
@@ -3249,7 +3254,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TTypeDecl t) (pos d.d_name);
 		check_global_metadata ctx (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
-		let tt = load_complex_type ctx true d.d_data in
+		let tt = load_complex_type ctx true p d.d_data in
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
 		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
@@ -3281,7 +3286,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
 		let load_type t from =
-			let t = load_complex_type ctx true t in
+			let t = load_complex_type ctx true p t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
@@ -3307,7 +3312,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| AIsType t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
-				let at = load_complex_type ctx true t in
+				let at = load_complex_type ctx true p t in
 				delay ctx PForce (fun () ->
 					begin match follow at with
 						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos
@@ -3793,7 +3798,7 @@ let rec build_generic ctx c p tl =
 	let gctx = make_generic ctx c.cl_params tl p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
 	try
-		load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) false
+		load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) false p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
 		let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in
@@ -3964,7 +3969,7 @@ let rec build_generic ctx c p tl =
 (* HAXE.XML.PROXY *)
 
 let extend_xml_proxy ctx c t file p =
-	let t = load_complex_type ctx false (t,p) in
+	let t = load_complex_type ctx false p (t,p) in
 	let file = (try Common.find_file ctx.com file with Not_found -> file) in
 	add_dependency c.cl_module (create_fake_module ctx file);
 	let used = ref PMap.empty in
