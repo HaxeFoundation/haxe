@@ -3857,17 +3857,18 @@ let enc_hash h =
 
 let enc_obj l = VObject (obj hash l)
 
-let enc_enum (i:enum_index) index pl =
+let enc_enum ?(pos=None) (i:enum_index) index pl =
 	let eindex : int = Obj.magic i in
 	let edef = (get_ctx()).enums.(eindex) in
 	if pl = [] then
 		fst edef.(index)
 	else
-		enc_inst ["haxe";"macro";enum_name i] [
-			"tag", VString (snd edef.(index));
-			"index", VInt index;
-			"args", VArray (Array.of_list pl);
-		]
+		enc_inst ["haxe";"macro";enum_name i] (
+			("tag", VString (snd edef.(index))) ::
+			("index", VInt index) ::
+			("args", VArray (Array.of_list pl)) ::
+			(match pos with None -> [] | Some p -> ["pos", encode_pos p])
+		)
 
 let compiler_error msg pos =
 	exc (enc_inst ["haxe";"macro";"Error"] [("message",enc_string msg);("pos",encode_pos pos)])
@@ -4002,7 +4003,7 @@ and encode_ctype t =
 	| CTOptional t ->
 		5, [encode_ctype t]
 	in
-	enc_enum ICType tag pl
+	enc_enum ~pos:(Some (pos t)) ICType tag pl
 
 and encode_tparam_decl tp =
 	enc_obj [
@@ -4159,6 +4160,14 @@ let decode_enum v =
 	| VInt i, VArray a -> i, Array.to_list a
 	| _ -> raise Invalid_expr
 
+let decode_enum_with_pos v =
+	(match field v "index", field v "args" with
+	| VInt i, VNull -> i, []
+	| VInt i, VArray a -> i, Array.to_list a
+	| _ -> raise Invalid_expr),(match field v "pos" with
+		| VAbstract(APos p) -> p
+		| _ -> Ast.null_pos) (* Can happen from reification and other sources. *)
+
 let dec_bool = function
 	| VBool b -> b
 	| _ -> raise Invalid_expr
@@ -4310,7 +4319,8 @@ and decode_field v =
 	}
 
 and decode_ctype t =
-	(match decode_enum t with
+	let (i,args),p = decode_enum_with_pos t in
+	(match i,args with
 	| 0, [p] ->
 		CTPath (fst (decode_path p))
 	| 1, [a;r] ->
@@ -4324,7 +4334,7 @@ and decode_ctype t =
 	| 5, [t] ->
 		CTOptional (decode_ctype t)
 	| _ ->
-		raise Invalid_expr),null_pos
+		raise Invalid_expr),p
 
 let rec decode_expr v =
 	let rec loop v =
