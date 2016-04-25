@@ -2859,22 +2859,22 @@ let add_module ctx m p =
 
 let handle_path_display ctx path p =
 	match Display.convert_import_to_something_usable path,ctx.com.display with
-		| Display.IDKPackage sl,_ ->
+		| (Display.IDKPackage sl,_),_ ->
 			raise (Parser.TypePath(sl,None,true))
-		| Display.IDKModule(sl,s),DMPosition ->
+		| (Display.IDKModule(sl,s),_),DMPosition ->
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
 			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
 			raise (Display.DisplayPosition [p])
-		| Display.IDKModule(sl,s),_ ->
+		| (Display.IDKModule(sl,s),_),_ ->
 			(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
 			raise (Parser.TypePath(sl,Some(s,false),true))
-		| Display.IDKSubType(sl,sm,st),DMPosition ->
+		| (Display.IDKSubType(sl,sm,st),p),DMPosition ->
 			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
-		| Display.IDKSubType(sl,sm,st),_ ->
+		| (Display.IDKSubType(sl,sm,st),_),_ ->
 			raise (Parser.TypePath(sl @ [sm],Some(st,false),true))
-		| (Display.IDKSubTypeField(sl,sm,st,sf) | Display.IDKModuleField(sl,(sm as st),sf)),_ ->
+		| ((Display.IDKSubTypeField(sl,sm,st,sf) | Display.IDKModuleField(sl,(sm as st),sf)),p),_ ->
 			let m = ctx.g.do_load_module ctx (sl,sm) p in
 			List.iter (fun t -> match t with
 				| TClassDecl c when snd c.cl_path = st ->
@@ -2884,7 +2884,7 @@ let handle_path_display ctx path p =
 				| _ ->
 					()
 			) m.m_types;
-		| Display.IDK,_ ->
+		| (Display.IDK,_),_ ->
 			()
 
 (*

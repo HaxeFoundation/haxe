@@ -294,6 +294,8 @@ type import_display_kind =
 	| IDKSubTypeField of string list * string * string * string
 	| IDK
 
+type import_display = import_display_kind * pos
+
 let convert_import_to_something_usable path =
 	let rec loop pack m t = function
 		| (s,p) :: l ->
@@ -303,22 +305,22 @@ let convert_import_to_something_usable path =
 				| _,None,Some _ | false,Some _,Some _ ->
 					assert false (* impossible, I think *)
 				| true,Some m,None ->
-					if is_display_pos then IDKModuleField(List.rev pack,m,s)
-					else IDK (* assume that we're done *)
+					if is_display_pos then (IDKModuleField(List.rev pack,m,s),p)
+					else (IDK,p) (* assume that we're done *)
 				| true,Some m,Some t ->
-					if is_display_pos then IDKSubTypeField(List.rev pack,m,t,s)
-					else IDK
+					if is_display_pos then (IDKSubTypeField(List.rev pack,m,t,s),p)
+					else (IDK,p)
 				| true,None,None ->
-					if is_display_pos then IDKPackage (List.rev (s :: pack))
+					if is_display_pos then (IDKPackage (List.rev (s :: pack)),p)
 					else loop (s :: pack) m t l
 				| false,Some sm,None ->
-					if is_display_pos then IDKSubType (List.rev pack,sm,s)
+					if is_display_pos then (IDKSubType (List.rev pack,sm,s),p)
 					else loop pack m (Some s) l
 				| false,None,None ->
-					if is_display_pos then IDKModule (List.rev pack,s)
+					if is_display_pos then (IDKModule (List.rev pack,s),p)
 					else loop pack (Some s) None l
 			end
 		| [] ->
-			IDK
+			(IDK,null_pos)
 	in
 	loop [] None None path
