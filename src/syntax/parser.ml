@@ -233,9 +233,23 @@ let reify in_macro =
 		mk_enum "TypeParam" n [v] p
 	and to_tpath (t,_) p =
 		let len = String.length t.tname in
-		if t.tpackage = [] && len > 1 && t.tname.[0] = '$' then
-			(EConst (Ident (String.sub t.tname 1 (len - 1))),p)
-		else begin
+		if t.tpackage = [] && len > 1 && t.tname.[0] = '$' then begin
+			let name = String.sub t.tname 1 (len - 1) in
+			let ei = (EConst (Ident name),p) in
+			match t.tparams with
+			| [] -> ei
+			| _ ->
+				(* `macro : $TP<Int>` conveys the intent to use TP and overwrite the
+				   type parameters. *)
+				let ea = to_array to_tparam t.tparams p in
+				let fields = [
+					("pack", (EField(ei,"pack"),p));
+					("name", (EField(ei,"name"),p));
+					("sub", (EField(ei,"sub"),p));
+					("params", ea);
+				] in
+				to_obj fields p
+		end else begin
 			let fields = [
 				("pack", to_array to_string t.tpackage p);
 				("name", to_string t.tname p);

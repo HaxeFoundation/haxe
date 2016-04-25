@@ -3857,17 +3857,18 @@ let enc_hash h =
 
 let enc_obj l = VObject (obj hash l)
 
-let enc_enum (i:enum_index) index pl =
+let enc_enum ?(pos=None) (i:enum_index) index pl =
 	let eindex : int = Obj.magic i in
 	let edef = (get_ctx()).enums.(eindex) in
 	if pl = [] then
 		fst edef.(index)
 	else
-		enc_inst ["haxe";"macro";enum_name i] [
-			"tag", VString (snd edef.(index));
-			"index", VInt index;
-			"args", VArray (Array.of_list pl);
-		]
+		enc_inst ["haxe";"macro";enum_name i] (
+			("tag", VString (snd edef.(index))) ::
+			("index", VInt index) ::
+			("args", VArray (Array.of_list pl)) ::
+			(match pos with None -> [] | Some p -> ["pos", encode_pos p])
+		)
 
 let compiler_error msg pos =
 	exc (enc_inst ["haxe";"macro";"Error"] [("message",enc_string msg);("pos",encode_pos pos)])
@@ -3979,6 +3980,7 @@ and encode_field (f:class_field) =
 	in
 	enc_obj [
 		"name",encode_placed_name f.cff_name;
+		"name_pos", encode_pos (pos f.cff_name);
 		"doc", null enc_string f.cff_doc;
 		"pos", encode_pos f.cff_pos;
 		"kind", enc_enum IField tag pl;
@@ -4001,11 +4003,12 @@ and encode_ctype t =
 	| CTOptional t ->
 		5, [encode_ctype t]
 	in
-	enc_enum ICType tag pl
+	enc_enum ~pos:(Some (pos t)) ICType tag pl
 
 and encode_tparam_decl tp =
 	enc_obj [
 		"name", encode_placed_name tp.tp_name;
+		"name_pos", encode_pos (pos tp.tp_name);
 		"params", enc_array (List.map encode_tparam_decl tp.tp_params);
 		"constraints", enc_array (List.map encode_ctype tp.tp_constraints);
 		"meta", encode_meta_content tp.tp_meta;
@@ -4017,6 +4020,7 @@ and encode_fun f =
 		"args", enc_array (List.map (fun (n,opt,m,t,e) ->
 			enc_obj [
 				"name", encode_placed_name n;
+				"name_pos", encode_pos (pos n);
 				"opt", VBool opt;
 				"meta", encode_meta_content m;
 				"type", null encode_ctype t;
@@ -4057,6 +4061,7 @@ and encode_expr e =
 				10, [enc_array (List.map (fun (v,t,eo) ->
 					enc_obj [
 						"name",encode_placed_name v;
+						"name_pos",encode_pos (pos v);
 						"type",null encode_ctype t;
 						"expr",null loop eo;
 					]
@@ -4085,6 +4090,7 @@ and encode_expr e =
 				18, [loop e;enc_array (List.map (fun (v,t,e) ->
 					enc_obj [
 						"name",encode_placed_name v;
+						"name_pos",encode_pos (pos v);
 						"type",encode_ctype t;
 						"expr",loop e
 					]
@@ -4153,6 +4159,14 @@ let decode_enum v =
 	| VInt i, VNull -> i, []
 	| VInt i, VArray a -> i, Array.to_list a
 	| _ -> raise Invalid_expr
+
+let decode_enum_with_pos v =
+	(match field v "index", field v "args" with
+	| VInt i, VNull -> i, []
+	| VInt i, VArray a -> i, Array.to_list a
+	| _ -> raise Invalid_expr),(match field v "pos" with
+		| VAbstract(APos p) -> p
+		| _ -> Ast.null_pos) (* Can happen from reification and other sources. *)
 
 let dec_bool = function
 	| VBool b -> b
@@ -4223,8 +4237,8 @@ let decode_import_mode t =
 
 let decode_import t = (List.map (fun o -> ((dec_string (field o "name")), (decode_pos (field o "pos")))) (dec_array (field t "path")), decode_import_mode (field t "mode"))
 
-let decode_placed_name v =
-	dec_string v,null_pos
+let decode_placed_name vp v =
+	dec_string v,(match vp with VAbstract (APos p) -> p | _ -> null_pos)
 
 let rec decode_path t =
 	{
@@ -4246,7 +4260,7 @@ and decode_tparams = function
 
 and decode_tparam_decl v =
 	{
-		tp_name = decode_placed_name (field v "name");
+		tp_name = decode_placed_name (field v "name_pos") (field v "name");
 		tp_constraints = (match field v "constraints" with VNull -> [] | a -> List.map decode_ctype (dec_array a));
 		tp_params = decode_tparams (field v "params");
 		tp_meta = decode_meta_content (field v "meta");
@@ -4256,7 +4270,7 @@ and decode_fun v =
 	{
 		f_params = decode_tparams (field v "params");
 		f_args = List.map (fun o ->
-			decode_placed_name (field o "name"),
+			decode_placed_name (field o "name_pos") (field o "name"),
 			(match field o "opt" with VNull -> false | v -> dec_bool v),
 			decode_meta_content (field o "meta"),
 			opt decode_ctype (field o "type"),
@@ -4296,7 +4310,7 @@ and decode_field v =
 			raise Invalid_expr
 	in
 	{
-		cff_name = decode_placed_name (field v "name");
+		cff_name = decode_placed_name (field v "name_pos") (field v "name");
 		cff_doc = opt dec_string (field v "doc");
 		cff_pos = decode_pos (field v "pos");
 		cff_kind = fkind;
@@ -4305,7 +4319,8 @@ and decode_field v =
 	}
 
 and decode_ctype t =
-	(match decode_enum t with
+	let (i,args),p = decode_enum_with_pos t in
+	(match i,args with
 	| 0, [p] ->
 		CTPath (fst (decode_path p))
 	| 1, [a;r] ->
@@ -4319,7 +4334,7 @@ and decode_ctype t =
 	| 5, [t] ->
 		CTOptional (decode_ctype t)
 	| _ ->
-		raise Invalid_expr),null_pos
+		raise Invalid_expr),p
 
 let rec decode_expr v =
 	let rec loop v =
@@ -4351,7 +4366,7 @@ let rec decode_expr v =
 			EUnop (decode_unop op,(if f then Postfix else Prefix),loop e)
 		| 10, [vl] ->
 			EVars (List.map (fun v ->
-				((dec_string (field v "name"),p),opt decode_ctype (field v "type"),opt loop (field v "expr"))
+				((decode_placed_name (field v "name_pos") (field v "name")),opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (dec_array vl))
 		| 11, [fname;f] ->
 			EFunction (opt dec_string fname,decode_fun f)
@@ -4372,7 +4387,7 @@ let rec decode_expr v =
 			ESwitch (loop e,cases,opt decode_null_expr eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
-				((dec_string (field c "name"),p),(decode_ctype (field c "type")),loop (field c "expr"))
+				((decode_placed_name (field c "name_pos") (field c "name")),(decode_ctype (field c "type")),loop (field c "expr"))
 			) (dec_array catches) in
 			ETry (loop e, catches)
 		| 19, [e] ->
@@ -4987,7 +5002,7 @@ let rec decode_texpr v =
 
 let decode_type_def v =
 	let pack = List.map dec_string (dec_array (field v "pack")) in
-	let name = decode_placed_name (field v "name") in
+	let name = decode_placed_name (field v "name_pos") (field v "name") in
 	let meta = decode_meta_content (field v "meta") in
 	let pos = decode_pos (field v "pos") in
 	let isExtern = (match field v "isExtern" with VNull -> false | v -> dec_bool v) in
