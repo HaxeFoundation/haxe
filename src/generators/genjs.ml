@@ -838,7 +838,7 @@ and gen_value ctx e =
 	in
 	let value() =
 		let old = ctx.in_value, ctx.in_loop in
-		let r = alloc_var "$r" t_dynamic in
+		let r = alloc_var "$r" t_dynamic e.epos in
 		ctx.in_value <- Some r;
 		ctx.in_loop <- false;
 		spr ctx "(function($this) ";

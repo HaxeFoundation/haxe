@@ -43,7 +43,7 @@ type macro_mode =
 	| MExpr
 	| MBuild
 	| MMacroType
-
+	| MDisplay
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
@@ -78,7 +78,7 @@ type typer_globals = {
 	delayed_macros : (unit -> unit) DynArray.t;
 	mutable global_using : tclass list;
 	(* api *)
-	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.type_path) -> bool;
+	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.placed_type_path) -> bool;
 	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
 	do_load_module : typer -> path -> pos -> module_def;
@@ -140,10 +140,6 @@ exception Fatal_error of string * Ast.pos
 exception Forbid_package of (string * path * pos) * pos list * string
 
 exception Error of error_msg * pos
-
-exception DisplayTypes of t list
-
-exception DisplayPosition of Ast.pos list
 
 exception WithTypeError of unify_error list * pos
 
@@ -261,7 +257,7 @@ let make_static_call ctx c cf map args t p =
 	make_call ctx ef args (map t) p
 
 let raise_or_display ctx l p =
-	if ctx.untyped then ()
+	if ctx.untyped || ctx.com.display <> DMNone then ()
 	else if ctx.in_call_args then raise (WithTypeError(l,p))
 	else display_error ctx (error_msg (Unify l)) p
 
@@ -288,14 +284,14 @@ let save_locals ctx =
 	let locals = ctx.locals in
 	(fun() -> ctx.locals <- locals)
 
-let add_local ctx n t =
-	let v = alloc_var n t in
+let add_local ctx n t p =
+	let v = alloc_var n t p in
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
 let gen_local_prefix = "`"
 
-let gen_local ctx t =
+let gen_local ctx t p =
 	(* ensure that our generated local does not mask an existing one *)
 	let rec loop n =
 		let nv = (if n = 0 then gen_local_prefix else gen_local_prefix ^ string_of_int n) in
@@ -304,7 +300,7 @@ let gen_local ctx t =
 		else
 			nv
 	in
-	add_local ctx (loop 0) t
+	add_local ctx (loop 0) t p
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0

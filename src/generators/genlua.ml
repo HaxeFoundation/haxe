@@ -941,7 +941,7 @@ and gen_value ctx e =
 	let value() =
 		let old = ctx.in_value, ctx.in_loop in
 		let r_id = temp ctx in
-		let r = alloc_var r_id t_dynamic in
+		let r = alloc_var r_id t_dynamic e.epos in
 		ctx.in_value <- Some r;
 		ctx.in_loop <- false;
 		spr ctx "(function() ";
@@ -1127,10 +1127,10 @@ and gen_tbinop ctx op e1 e2 =
     | Ast.OpAssignOp(op2), TArray(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
 	    sprln ctx "(function() ";
-	    let idx = alloc_var "idx" e4.etype in
+	    let idx = alloc_var "idx" e4.etype e4.epos in
 	    let idx_var =  mk (TVar( idx , Some(e4))) e4.etype e4.epos in
 	    gen_expr ctx idx_var;
-	    let arr = alloc_var "arr" e3.etype in
+	    let arr = alloc_var "arr" e3.etype e3.epos in
 	    let arr_var = mk (TVar(arr, Some(e3))) e3.etype e3.epos in
 	    gen_expr ctx arr_var;
 	    newline ctx;
@@ -1145,7 +1145,7 @@ and gen_tbinop ctx op e1 e2 =
     | Ast.OpAssignOp(op2), TField(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
 	    sprln ctx "(function() ";
-	    let obj = alloc_var "obj" e3.etype in
+	    let obj = alloc_var "obj" e3.etype e3.epos in
 	    spr ctx "local fld = ";
 	    (match e4 with
 	    | FInstance(_,_,fld)

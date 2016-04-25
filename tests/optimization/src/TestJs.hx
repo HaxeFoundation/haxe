@@ -567,6 +567,7 @@ class TestJs {
 		return call(d2, d1);
 	}
 
+	@:impure
 	static function getInt(?d:Dynamic) { return 1; }
 	static function getArray() { return [0, 1]; }
 	@:impure

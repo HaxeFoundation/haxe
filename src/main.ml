@@ -176,10 +176,10 @@ let complete_fields com fields =
 	List.iter (fun (n,t,k,d) ->
 		let s_kind = match k with
 			| Some k -> (match k with
-				| Typer.FKVar -> "var"
-				| Typer.FKMethod -> "method"
-				| Typer.FKType -> "type"
-				| Typer.FKPackage -> "package")
+				| Display.FKVar -> "var"
+				| Display.FKMethod -> "method"
+				| Display.FKType -> "type"
+				| Display.FKPackage -> "package")
 			| None -> ""
 		in
 		if details then
@@ -372,20 +372,20 @@ let parse_hxml file =
 	IO.close_in ch;
 	parse_hxml_data data
 
-let lookup_classes com spath =
+let get_module_path_from_file_path com spath =
 	let rec loop = function
-		| [] -> []
+		| [] -> None
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = normalize_path (get_real_path (Common.unique_full_path cp)) in
+			let c = add_trailing_slash (get_real_path (Common.get_full_path cp)) in
 			let clen = String.length c in
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
 				(try
 					let path = make_type_path path in
 					(match loop l with
-					| [x] when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> [x]
-					| _ -> [path])
+					| Some x as r when String.length (Ast.s_type_path x) < String.length (Ast.s_type_path path) -> r
+					| _ -> Some path)
 				with _ -> loop l)
 			end else
 				loop l
@@ -621,7 +621,7 @@ let default_flush ctx =
 
 let create_context params =
 	let ctx = {
-		com = Common.create version params;
+		com = Common.create version s_version params;
 		flush = (fun()->());
 		setup = (fun()->());
 		messages = [];
@@ -700,21 +700,28 @@ and wait_loop boot_com host port =
 	} in
 	global_cache := Some cache;
 	Typer.macro_enable_cache := true;
+	let current_stdin = ref None in
 	Typeload.parse_hook := (fun com2 file p ->
-		let sign = get_signature com2 in
 		let ffile = Common.unique_full_path file in
-		let ftime = file_time ffile in
-		let fkey = ffile ^ "!" ^ sign in
-		try
-			let time, data = Hashtbl.find cache.c_files fkey in
-			if time <> ftime then raise Not_found;
-			data
-		with Not_found ->
-			has_parse_error := false;
-			let data = Typeload.parse_file com2 file p in
-			if verbose then print_endline ("Parsed " ^ ffile);
-			if not !has_parse_error && ffile <> (!Parser.resume_display).Ast.pfile then Hashtbl.replace cache.c_files fkey (ftime,data);
-			data
+		let is_display_file = ffile = (!Parser.resume_display).Ast.pfile in
+
+		match is_display_file, !current_stdin with
+		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
+			Typeload.parse_file_from_string com2 file p stdin
+		| _ ->
+			let sign = get_signature com2 in
+			let ftime = file_time ffile in
+			let fkey = ffile ^ "!" ^ sign in
+			try
+				let time, data = Hashtbl.find cache.c_files fkey in
+				if time <> ftime then raise Not_found;
+				data
+			with Not_found ->
+				has_parse_error := false;
+				let data = Typeload.parse_file com2 file p in
+				if verbose then print_endline ("Parsed " ^ ffile);
+				if not !has_parse_error && (not is_display_file) then Hashtbl.replace cache.c_files fkey (ftime,data);
+				data
 	);
 	let cache_module m =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
@@ -838,24 +845,26 @@ and wait_loop boot_com host port =
 		if verbose then print_endline "Client connected";
 		let b = Buffer.create 0 in
 		let rec read_loop count =
-			let r = try
-				Unix.recv sin tmp 0 bufsize []
+			try
+				let r = Unix.recv sin tmp 0 bufsize [] in
+				if r = 0 then
+					failwith "Incomplete request"
+				else begin
+					if verbose then Printf.printf "Reading %d bytes\n" r;
+					Buffer.add_substring b tmp 0 r;
+					if tmp.[r-1] = '\000' then
+						Buffer.sub b 0 (Buffer.length b - 1)
+					else
+						read_loop 0
+				end
 			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
-				0
-			in
-			if verbose then begin
-				if r > 0 then Printf.printf "Reading %d bytes\n" r else print_endline "Waiting for data...";
-			end;
-			Buffer.add_substring b tmp 0 r;
-			if r > 0 && tmp.[r-1] = '\000' then
-				Buffer.sub b 0 (Buffer.length b - 1)
-			else begin
-				if r = 0 then ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
 				if count = 100 then
-					failwith "Aborting unactive connection"
-				else
+					failwith "Aborting inactive connection"
+				else begin
+					if verbose then print_endline "Waiting for data...";
+					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
 					read_loop (count + 1);
-			end;
+				end
 		in
 		let rec cache_context com =
 			if com.display = DMNone then begin
@@ -894,7 +903,16 @@ and wait_loop boot_com host port =
 			ctx
 		in
 		(try
-			let data = parse_hxml_data (read_loop 0) in
+			let s = (read_loop 0) in
+			let hxml =
+				try
+					let idx = String.index s '\001' in
+					current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
+					(String.sub s 0 idx)
+				with Not_found ->
+					s
+			in
+			let data = parse_hxml_data hxml in
 			Unix.clear_nonblock sin;
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
@@ -932,8 +950,10 @@ and wait_loop boot_com host port =
 			let estr = Printexc.to_string e in
 			if verbose then print_endline ("Uncaught Error : " ^ estr);
 			(try ssend sin estr with _ -> ());
+			if is_debug_run() then print_endline (Printexc.get_backtrace());
 		);
 		Unix.close sin;
+		current_stdin := None;
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		incr run_count;
 		if !run_count mod 10 = 0 then begin
@@ -1027,13 +1047,13 @@ try
 				l
 		in
 		let parts = Str.split_delim (Str.regexp "[;:]") p in
-		com.class_path <- "" :: List.map normalize_path (loop parts)
+		com.class_path <- "" :: List.map add_trailing_slash (loop parts)
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
 				com.class_path <- ["/usr/lib/haxe/std/";"/usr/share/haxe/std/";"/usr/local/lib/haxe/std/";"/usr/lib/haxe/extraLibs/";"/usr/local/lib/haxe/extraLibs/";""]
 			else
-				let base_path = normalize_path (get_real_path (try executable_path() with _ -> "./")) in
+				let base_path = add_trailing_slash (get_real_path (try executable_path() with _ -> "./")) in
 				com.class_path <- [base_path ^ "std/";base_path ^ "extraLibs/";""]);
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let set_platform pf file =
@@ -1057,7 +1077,7 @@ try
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
 			process_libs();
-			com.class_path <- normalize_path path :: com.class_path
+			com.class_path <- add_trailing_slash path :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
 		("-lua",Arg.String (set_platform Lua),"<file> : compile code to Lua file");
@@ -1239,34 +1259,30 @@ try
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let file = unquote file in
 				let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-				let activate_special_display_mode () =
-					Common.define com Define.NoCOpt;
-					Parser.use_parser_resume := false
-				in
 				let mode = match smode with
 					| "position" ->
-						activate_special_display_mode();
+						Common.define com Define.NoCOpt;
 						DMPosition
 					| "usage" ->
-						activate_special_display_mode();
+						Common.define com Define.NoCOpt;
 						DMUsage
 					| "type" ->
-						activate_special_display_mode();
+						Common.define com Define.NoCOpt;
 						DMType
 					| "toplevel" ->
-						activate_special_display_mode();
+						Common.define com Define.NoCOpt;
 						DMToplevel
+					| "module-symbols" ->
+						Common.define com Define.NoCOpt;
+						DMModuleSymbols;
 					| "" ->
-						Parser.use_parser_resume := true;
 						DMDefault
 					| _ ->
 						let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
 						match smode with
 							| "resolve" ->
-								activate_special_display_mode();
 								DMResolve arg
 							| _ ->
-								Parser.use_parser_resume := true;
 								DMDefault
 				in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
@@ -1392,7 +1408,7 @@ try
 			classes := (path,name) :: !classes
 		else begin
 			force_typing := true;
-			config_macros := (Printf.sprintf "include('%s')" cl) :: !config_macros;
+			config_macros := (Printf.sprintf "include('%s', true, null, null, true)" cl) :: !config_macros;
 		end
 	in
 	let all_args_spec = basic_args_spec @ adv_args_spec in
@@ -1420,15 +1436,19 @@ try
 		com.warning <- message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
+		if com.display <> DMUsage then
+			classes := [];
 		let real = get_real_path (!Parser.resume_display).Ast.pfile in
-		classes := lookup_classes com real;
-		if !classes = [] then begin
+		(match get_module_path_from_file_path com real with
+		| Some path ->
+			classes := path :: !classes
+		| None ->
 			if not (Sys.file_exists real) then failwith "Display file does not exist";
 			(match List.rev (ExtString.String.nsplit real path_sep) with
 			| file :: _ when file.[0] >= 'a' && file.[1] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 			| _ -> ());
-			failwith "Display file was not found in class path";
-		end;
+			failwith "Display file was not found in class path"
+		);
 		Common.log com ("Display file : " ^ real);
 		Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]");
 	end;
@@ -1546,7 +1566,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match com.display with
-			| DMNone | DMUsage | DMPosition | DMType | DMResolve _ ->
+			| DMNone | DMUsage ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1557,6 +1577,10 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
+		begin match com.display with
+			| DMUsage -> Codegen.detect_usage com;
+			| _ -> ()
+		end;
 		Filters.run com tctx main;
 		if ctx.has_error then raise Abort;
 		(* check file extension. In case of wrong commandline, we don't want
@@ -1666,7 +1690,7 @@ with
 		error ctx ("Error: " ^ msg) Ast.null_pos
 	| Arg.Help msg ->
 		message ctx msg Ast.null_pos
-	| Typer.DisplayFields fields ->
+	| Display.DisplayFields fields ->
 		let ctx = print_context() in
 		let fields = List.map (fun (name,t,kind,doc) -> name, s_type ctx t, kind, (match doc with None -> "" | Some d -> d)) fields in
 		let fields = if !measure_times then begin
@@ -1683,16 +1707,29 @@ with
 			fields
 		in
 		complete_fields com fields
-	| Typecore.DisplayTypes tl ->
+	| Display.DisplayType (t,p) ->
 		let ctx = print_context() in
 		let b = Buffer.create 0 in
-		List.iter (fun t ->
+		if p = null_pos then
+			Buffer.add_string b "<type>\n"
+		else begin
+			let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
+			let epos = Lexer.get_error_pos error_printer p in
+			Buffer.add_string b ("<type p=\"" ^ (htmlescape epos) ^ "\">\n")
+		end;
+		Buffer.add_string b (htmlescape (s_type ctx t));
+		Buffer.add_string b "\n</type>\n";
+		raise (Completion (Buffer.contents b))
+	| Display.DisplaySignatures tl ->
+		let ctx = print_context() in
+		let b = Buffer.create 0 in
+		List.iter (fun (t,doc) ->
 			Buffer.add_string b "<type>\n";
-			Buffer.add_string b (htmlescape (s_type ctx t));
+			Buffer.add_string b (htmlescape (s_type ctx (follow t)));
 			Buffer.add_string b "\n</type>\n";
 		) tl;
 		raise (Completion (Buffer.contents b))
-	| Typecore.DisplayPosition pl ->
+	| Display.DisplayPosition pl ->
 		let b = Buffer.create 0 in
 		let error_printer file line = sprintf "%s:%d:" (Common.unique_full_path file) line in
 		Buffer.add_string b "<list>\n";
@@ -1704,19 +1741,19 @@ with
 		) pl;
 		Buffer.add_string b "</list>";
 		raise (Completion (Buffer.contents b))
-	| Typer.DisplayToplevel il ->
+	| Display.DisplayToplevel il ->
 		let b = Buffer.create 0 in
 		Buffer.add_string b "<il>\n";
 		let ctx = print_context() in
 		let s_type t = htmlescape (s_type ctx t) in
 		List.iter (fun id -> match id with
-			| Typer.ITLocal v -> Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| Typer.ITMember(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Typer.ITStatic(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Typer.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
-			| Typer.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| Typer.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
-			| Typer.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+			| Display.ITLocal v -> Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
+			| Display.ITMember(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
+			| Display.ITStatic(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
+			| Display.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
+			| Display.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
+			| Display.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
+			| Display.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
@@ -1729,7 +1766,7 @@ with
 			else
 				complete_fields com (
 					let convert k f = (f,"",Some k,"") in
-					(List.map (convert Typer.FKPackage) packs) @ (List.map (convert Typer.FKType) classes)
+					(List.map (convert Display.FKPackage) packs) @ (List.map (convert Display.FKType) classes)
 				)
 		| Some (c,cur_package) ->
 			try
@@ -1762,12 +1799,12 @@ with
 					end;
 					not tinfos.mt_private
 				) m.m_types in
-				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Typer.FKType,"") public_types in
+				let types = if c <> s_module then [] else List.map (fun t -> snd (t_path t),"",Some Display.FKType,"") public_types in
 				let ctx = print_context() in
 				let make_field_doc cf =
 					cf.cf_name,
 					s_type ctx cf.cf_type,
-					Some (match cf.cf_kind with Method _ -> Typer.FKMethod | Var _ -> Typer.FKVar),
+					Some (match cf.cf_kind with Method _ -> Display.FKMethod | Var _ -> Display.FKVar),
 					(match cf.cf_doc with Some s -> s | None -> "")
 				in
 				let types = match !statics with
@@ -1779,6 +1816,8 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
+	| Display.ModuleSymbols s ->
+		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();
 		exit i

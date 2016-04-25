@@ -24,14 +24,18 @@
 @:coreType
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
+   public var elementSize(default,never):Int;
+
    @:analyzer(no_simplification)
-	public var ref(get,set):T;
+   public var ref(get,set):T;
 
    @:analyzer(no_simplification)
    public function get_ref() : T;
    @:analyzer(no_simplification)
    public function set_ref(t:T) : T;
 
+   @:analyzer(no_simplification)
+   public function setAt(inIndex:Int, value:T):Void;
 
    public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
 
@@ -41,19 +45,30 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
    public static function addressOf<T>(inVariable:T) : Pointer<T>;
 
-	public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+   public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
 
-   public function get_raw() : RawPointer<T>;
+   public static function ofArray<T>(array:Array<T>):Pointer<T>;
 
-	override public function inc():Pointer<T>;
-	override public function dec():Pointer<T>;
-	override public function incBy(inT:Int):Pointer<T>;
-	override public function add(inT:Int):Pointer<T>;
+   inline public function toUnmanagedArray(elementCount:Int) : Array<T>
+   {
+      var result = new Array<T>();
+      NativeArray.setUnmanagedData(result,this,elementCount);
+      return result;
+   }
+
+   inline public function toUnmanagedVector(elementCount:Int) : haxe.ds.Vector<T>
+      return cast toUnmanagedArray(elementCount);
+ 
+
+   override public function inc():Pointer<T>;
+   override public function dec():Pointer<T>;
+   override public function incBy(inT:Int):Pointer<T>;
+   override public function add(inT:Int):Pointer<T>;
 
    @:analyzer(no_simplification)
-	public function postIncRef():T;
+   public function postIncRef():T;
 
-	public function destroy():Void;
-	public function destroyArray():Void;
+   public function destroy():Void;
+   public function destroyArray():Void;
 }
 

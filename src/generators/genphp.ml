@@ -209,7 +209,7 @@ let rec is_string_type t =
 let is_string_expr e = is_string_type e.etype
 
 let to_string ctx e =
-	let v = alloc_var "__call__" t_dynamic in
+	let v = alloc_var "__call__" t_dynamic e.epos in
 	let f = mk (TLocal v) t_dynamic e.epos in
 	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_rec" e.epos; e; Codegen.string ctx.com "" e.epos])) ctx.com.basic.tstring e.epos
 
@@ -222,7 +222,7 @@ let as_string_expr ctx e =
 	| _ -> e
 (* for known String type that could have null value *)
 let to_string_null ctx e =
-	let v = alloc_var "__call__" t_dynamic in
+	let v = alloc_var "__call__" t_dynamic e.epos in
 	let f = mk (TLocal v) t_dynamic e.epos in
 	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_or_null" e.epos; e])) ctx.com.basic.tstring e.epos
 
@@ -774,7 +774,7 @@ and is_static t =
 		| Statics c -> true
 		| _ -> false)
 	| _ -> false
-	
+
 and get_constant_prefix meta =
 	let (_, args, pos) = Meta.get Meta.PhpConstants meta in
 	(match args with
@@ -2158,7 +2158,7 @@ let createmain com e =
 	newline ctx;
 	newline ctx;
 	spr ctx ("require_once dirname(__FILE__).'/" ^ ctx.lib_path ^ "/php/" ^ (prefix_class com "Boot.class.php';\n\n"));
-	gen_value ctx e;
+	gen_expr ctx e;
 	newline ctx;
 	spr ctx "\n?>";
 	close ctx

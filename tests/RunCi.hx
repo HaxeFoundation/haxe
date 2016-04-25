@@ -597,6 +597,7 @@ class RunCi {
 	static var sysDir(default, never) = cwd + "sys/";
 	static var optDir(default, never) = cwd + "optimization/";
 	static var miscDir(default, never) = cwd + "misc/";
+	static var displayDir(default, never) = cwd + "display/";
 	static var gitInfo(get, null):{repo:String, branch:String, commit:String, timestamp:Float, date:String};
 	static function get_gitInfo() return if (gitInfo != null) gitInfo else gitInfo = {
 		repo: switch (ci) {
@@ -850,7 +851,7 @@ class RunCi {
 				runCommand("cp", ["-rf", orig, dest]);
 			}
 			changeDirectory(haxe_output);
-			runCommand("git", ["add", haxe_output]);
+			runCommand("git", ["add", "--all", haxe_output]);
 			var commitMsg = [
 				'-m', '${Sys.getEnv("TRAVIS_JOB_NUMBER")} ${TEST} https://github.com/HaxeFoundation/haxe/commit/${gitInfo.commit}',
 				'-m', 'https://travis-ci.org/HaxeFoundation/haxe/jobs/${Sys.getEnv("TRAVIS_JOB_ID")}',
@@ -914,6 +915,9 @@ class RunCi {
 			switch (test) {
 				case Macro:
 					runCommand("haxe", ["compile-macro.hxml"].concat(args));
+
+					changeDirectory(displayDir);
+					runCommand("haxe", ["build.hxml"]);
 
 					changeDirectory(miscDir);
 					getCsDependencies();

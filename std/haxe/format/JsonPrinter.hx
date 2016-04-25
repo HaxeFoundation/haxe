@@ -32,10 +32,10 @@ package haxe.format;
 class JsonPrinter {
 
 	/**
-		Encodes `o` value and returns the resulting JSON string.
+		Encodes `o`'s value and returns the resulting JSON string.
 
 		If `replacer` is given and is not null, it is used to retrieve
-		actual object to be encoded. The `replacer` function two parameters,
+		actual object to be encoded. The `replacer` function takes two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
 
 		If `space` is given and is not null, the result will be pretty-printed.

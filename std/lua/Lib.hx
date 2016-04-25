@@ -24,12 +24,20 @@ import lua.Lua;
 import lua.Io;
 import lua.NativeStringTools;
 
+/**
+	Platform-specific Lua Library. Provides some platform-specific functions 
+	for the Lua target, such as conversion from Haxe types to native types 
+	and vice-versa.
+**/
 class Lib {
 
 	public static inline function println( v : Dynamic ) : Void {
 		Lua.print(Std.string(v));
 	}
 
+	/**
+		Print the specified value on the default output.
+	**/
 	public static inline function print(v:Dynamic) : Void {
 		Io.write(Std.string(v));
 		Io.flush();

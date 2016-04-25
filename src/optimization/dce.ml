@@ -572,7 +572,7 @@ let run com main full =
 		curclass = null_class;
 	} in
 	begin match main with
-		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
+		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
 			cf.cf_meta <- (Meta.Keep,[],cf.cf_pos) :: cf.cf_meta
 		| _ ->
 			()

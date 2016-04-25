@@ -2658,8 +2658,8 @@ let has_tparam name params = List.exists(fun (n,_,_) -> n = name) params
 
 let rec convert_arg ctx p arg =
 	match arg with
-	| TAny | TType (WSuper, _) -> TPType (mk_type_path ctx ([], "Dynamic") [])
-	| TType (_, jsig) -> TPType (convert_signature ctx p jsig)
+	| TAny | TType (WSuper, _) -> TPType (mk_type_path ctx ([], "Dynamic") [],null_pos)
+	| TType (_, jsig) -> TPType (convert_signature ctx p jsig,null_pos)
 
 and convert_signature ctx p jsig =
 	match jsig with
@@ -2698,7 +2698,7 @@ and convert_signature ctx p jsig =
 			| _ -> assert false in
 			mk_type_path ctx (pack, name ^ "$" ^ String.concat "$" (List.map fst inners)) (List.map (fun param -> convert_arg ctx p param) actual_param)
 	| TObjectInner (pack, inners) -> assert false
-	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig) ]
+	| TArray (jsig, _) -> mk_type_path ctx (["java"], "NativeArray") [ TPType (convert_signature ctx p jsig,null_pos) ]
 	| TMethod _ -> JReader.error "TMethod cannot be converted directly into Complex Type"
 	| TTypeParameter s -> (match ctx.jtparams with
 		| cur :: others ->
@@ -2737,9 +2737,9 @@ let convert_param ctx p parent param =
 		in
 		let constraints = List.map (fun s -> if same_sig parent s then (TObject( (["java";"lang"], "Object"), [])) else s) constraints in
 		{
-			tp_name = name;
+			tp_name = name,null_pos;
 			tp_params = [];
-			tp_constraints = List.map (convert_signature ctx p) constraints;
+			tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) constraints;
 			tp_meta = [];
 		}
 
@@ -2764,12 +2764,12 @@ let convert_java_enum ctx p pe =
 		(* if List.mem JEnum f.jf_flags then *)
 		match f.jf_vmsignature with
 		| TObject( path, [] ) when path = pe.cpath && List.mem JStatic f.jf_flags && List.mem JFinal f.jf_flags ->
-			data := { ec_name = f.jf_name; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
+			data := { ec_name = f.jf_name,null_pos; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
 		| _ -> ()
 	) pe.cfields;
 
 	EEnum {
-		d_name = jname_to_hx (snd pe.cpath);
+		d_name = jname_to_hx (snd pe.cpath),null_pos;
 		d_doc = None;
 		d_params = []; (* enums never have type parameters *)
 		d_meta = !meta;
@@ -2837,9 +2837,9 @@ let convert_java_enum ctx p pe =
 
 		let kind = match field.jf_kind with
 			| JKField when !readonly ->
-				FProp ("default", "null", Some (convert_signature ctx p field.jf_signature), None)
+				FProp ("default", "null", Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKField ->
-				FVar (Some (convert_signature ctx p field.jf_signature), None)
+				FVar (Some (convert_signature ctx p field.jf_signature,null_pos), None)
 			| JKMethod ->
 				match field.jf_signature with
 				| TMethod (args, ret) ->
@@ -2850,7 +2850,7 @@ let convert_java_enum ctx p pe =
 					let i = ref 0 in
 					let args = List.map (fun s ->
 						incr i;
-						"param" ^ string_of_int !i, false, Some(convert_signature ctx p s), None
+						("param" ^ string_of_int !i,null_pos), false, [], Some(convert_signature ctx p s,null_pos), None
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
 					cff_meta := (Meta.Overload, [], p) :: !cff_meta;
@@ -2858,16 +2858,16 @@ let convert_java_enum ctx p pe =
 					let types = List.map (function
 						| (name, Some ext, impl) ->
 							{
-								tp_name = name;
+								tp_name = name,null_pos;
 								tp_params = [];
-								tp_constraints = List.map (convert_signature ctx p) (ext :: impl);
+								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (ext :: impl);
 								tp_meta = [];
 							}
 						| (name, None, impl) ->
 							{
-								tp_name = name;
+								tp_name = name,null_pos;
 								tp_params = [];
-								tp_constraints = List.map (convert_signature ctx p) (impl);
+								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (impl);
 								tp_meta = [];
 							}
 					) field.jf_types in
@@ -2876,7 +2876,7 @@ let convert_java_enum ctx p pe =
 					FFun ({
 						f_params = types;
 						f_args = args;
-						f_type = Some t;
+						f_type = Some (t,null_pos);
 						f_expr = None
 					})
 				| _ -> error "Method signature was expected" p
@@ -2903,7 +2903,7 @@ let convert_java_enum ctx p pe =
 			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem AStatic !cff_access then "static " else "") (if List.mem AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
 
 		{
-			cff_name = cff_name;
+			cff_name = cff_name,null_pos;
 			cff_doc = cff_doc;
 			cff_pos = cff_pos;
 			cff_meta = cff_meta;
@@ -2965,7 +2965,7 @@ let convert_java_enum ctx p pe =
 			(match jc.csuper with
 				| TObject( (["java";"lang"], "Object"), _ ) -> ()
 				| TObject( (["haxe";"lang"], "HxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
-				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper)) :: !flags
+				| _ -> flags := HExtends (get_type_path ctx (convert_signature ctx p jc.csuper),null_pos) :: !flags
 			);
 
 			List.iter (fun i ->
@@ -2973,9 +2973,9 @@ let convert_java_enum ctx p pe =
 				| TObject ( (["haxe";"lang"], "IHxObject"), _ ) -> meta := (Meta.HxGen,[],p) :: !meta
 				| _ -> flags :=
 					if !is_interface then
-						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
+						HExtends (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
 					else
-						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
+						HImplements (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
 			) jc.cinterfaces;
 
 			let fields = ref [] in
@@ -3006,7 +3006,7 @@ let convert_java_enum ctx p pe =
 			) jc.cmethods) in
 
 			(EClass {
-				d_name = jname_to_hx (snd jc.cpath);
+				d_name = jname_to_hx (snd jc.cpath),null_pos;
 				d_doc = None;
 				d_params = List.map (convert_param ctx p jc.cpath) jc.ctypes;
 				d_meta = !meta;
@@ -3539,11 +3539,11 @@ let add_java_lib com file std =
 		in
 		match decl with
 			| EClass c ->
-				EClass { c with d_meta = add_meta c.d_name c.d_meta }
+				EClass { c with d_meta = add_meta (fst c.d_name) c.d_meta }
 			| EEnum e ->
-				EEnum { e with d_meta = add_meta e.d_name e.d_meta }
+				EEnum { e with d_meta = add_meta (fst e.d_name) e.d_meta }
 			| EAbstract a ->
-				EAbstract { a with d_meta = add_meta a.d_name a.d_meta }
+				EAbstract { a with d_meta = add_meta (fst a.d_name) a.d_meta }
 			| d -> d
 	in
 	let rec build ctx path p types =
@@ -3604,7 +3604,7 @@ let add_java_lib com file std =
 								let ncls = convert_java_class ctx pos { cls with cmethods = smethods; cfields = sfields; cflags = []; csuper = obj; cinterfaces = []; cinner_types = []; ctypes = [] } in
 								match ncls with
 								| EClass c :: imports ->
-									(EClass { c with d_name = c.d_name ^ "_Statics" }, pos) :: inner @ List.map (fun i -> i,pos) imports
+									(EClass { c with d_name = (fst c.d_name ^ "_Statics"),snd c.d_name }, pos) :: inner @ List.map (fun i -> i,pos) imports
 								| _ -> assert false
 							with | Not_found ->
 								inner
@@ -3613,20 +3613,20 @@ let add_java_lib com file std =
 							List.iter (fun x ->
 								match fst x with
 								| EClass c ->
-									inner_alias := SS.add c.d_name !inner_alias;
+									inner_alias := SS.add (fst c.d_name) !inner_alias;
 								| _ -> ()
 							) inner;
 							let alias_list = ref [] in
 							List.iter (fun x ->
 								match x with
 								| (EClass c, pos) -> begin
-									let parts = String.nsplit c.d_name "_24" in
+									let parts = String.nsplit (fst c.d_name) "_24" in
 									match parts with
 										| _ :: _ ->
 											let alias_name = String.concat "_" parts in
 											if (not (SS.mem alias_name !inner_alias)) && (not (String.exists (snd path) "_24")) then begin
 												let alias_def = ETypedef {
-													d_name = alias_name;
+													d_name = alias_name,null_pos;
 													d_doc = None;
 													d_params = c.d_params;
 													d_meta = [];
@@ -3637,13 +3637,13 @@ let add_java_lib com file std =
 														tparams = List.map (fun tp ->
 															TPType (CTPath {
 																tpackage = [];
-																tname = tp.tp_name;
+																tname = fst tp.tp_name;
 																tparams = [];
 																tsub = None;
-															})
+															},null_pos)
 														) c.d_params;
-														tsub = Some(c.d_name);
-													};
+														tsub = Some(fst c.d_name);
+													},null_pos;
 												} in
 												inner_alias := SS.add alias_name !inner_alias;
 												alias_list := (alias_def, pos) :: !alias_list;

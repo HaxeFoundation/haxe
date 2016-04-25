@@ -139,7 +139,7 @@ module Ssa = struct
 	let rec rename_in_block ctx bb =
 		let write_var v is_phi i =
 			update_reaching_def ctx v bb;
-			let v' = alloc_var (v.v_name) v.v_type in
+			let v' = alloc_var (v.v_name) v.v_type v.v_pos in
 			declare_var ctx.graph v' bb;
 			v'.v_meta <- v.v_meta;
 			v'.v_capture <- v.v_capture;
@@ -665,7 +665,7 @@ module CodeMotion = DataFlow(struct
 					let v' = if decl then begin
 						v
 					end else begin
-						let v' = alloc_var ctx.temp_var_name v.v_type in
+						let v' = alloc_var ctx.temp_var_name v.v_type v.v_pos in
 						declare_var ctx.graph v' bb_loop_pre;
 						v'.v_meta <- [Meta.CompilerGenerated,[],p];
 						v'
@@ -814,6 +814,7 @@ module LocalDce = struct
 			| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
 			| TCall ({eexpr = TField(_,FEnum _)},_) -> Type.iter loop e
 			| TCall ({eexpr = TConst (TString ("phi" | "fun"))},_) -> ()
+			| TCall({eexpr = TField(e1,fa)},el) -> Optimizer.field_call_has_side_effect loop e1 fa el
 			| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 			| TFor _ -> raise Exit

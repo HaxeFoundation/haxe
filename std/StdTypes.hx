@@ -58,6 +58,9 @@
 @:coreType @:notNull @:runtimeValue abstract Int to Float { }
 
 #if (java || cs || hl)
+/**
+	Single-precision IEEE 32bit float (4-byte).
+**/
 @:coreType @:notNull @:runtimeValue abstract Single to Float from Float {}
 #end
 
