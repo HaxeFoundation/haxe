@@ -30,7 +30,9 @@ import lua.NativeStringTools;
 	and vice-versa.
 **/
 class Lib {
-
+	/**
+		Print the specified value on the default output followed by a newline character.
+	**/
 	public static inline function println( v : Dynamic ) : Void {
 		Lua.print(Std.string(v));
 	}
@@ -67,8 +69,8 @@ class Lib {
 		}
 		return ret;
 	}
+
 	public inline static function isShellAvailable() : Bool {
 		return Os.execute();
 	}
-
 }

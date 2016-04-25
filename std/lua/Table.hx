@@ -1,5 +1,8 @@
 package lua;
 
+/**
+	This library provides generic functions for table manipulation. 
+**/
 @:native("_G.table") 
 extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 	@:overload(function<A,B>(table:Table<A,B>):Void{})
