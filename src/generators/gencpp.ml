@@ -662,7 +662,7 @@ let is_native_gen_module = function
    | TClassDecl class_def -> is_native_gen_class class_def
    | _ -> false
 ;;
-  
+
 
 
 (*  Get a string to represent a type.
@@ -940,6 +940,10 @@ let is_extern_class class_def =
       (match class_def.cl_kind with
        | KAbstractImpl abstract_def -> (has_meta_key abstract_def.a_meta Meta.Extern)
        | _ -> false );
+;;
+
+let is_scalar_abstract abstract_def =
+   Meta.has Meta.Scalar abstract_def.a_meta && Meta.has Meta.CoreType abstract_def.a_meta
 ;;
 
 
@@ -1676,12 +1680,16 @@ let rec cpp_type_of ctx haxe_type =
    | TInst (klass,params) ->
       cpp_instance_type ctx klass params
 
-   | TAbstract (abs,pl) when abs.a_impl <> None ->
-       cpp_type_from_path ctx abs.a_path pl (fun () -> 
+   | TAbstract (abs,pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
+       cpp_type_from_path ctx abs.a_path pl (fun () ->
             cpp_type_of ctx (Abstract.get_underlying_type abs pl) )
 
    | TAbstract (a,params) ->
-       cpp_type_from_path ctx a.a_path params (fun () -> cpp_type_of ctx (follow haxe_type) )
+       cpp_type_from_path ctx a.a_path params (fun () ->
+            if is_scalar_abstract a then
+               TCppScalar(join_class_path a.a_path "::")
+            else
+               TCppDynamic)
 
    | TType (type_def,params) ->
        cpp_type_from_path ctx type_def.t_path params (fun () ->
@@ -3798,12 +3806,17 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
    and add_type in_path =
       add_type_flag false in_path
    in
-   let add_extern_class klass =
-      let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
+   let add_extern_type decl =
+      let tinfo = t_infos decl in
+      let include_file = get_meta_string_path tinfo.mt_meta (if for_depends then Meta.Depend else Meta.Include) in
       if (include_file<>"") then
          add_type ( path_of_string include_file )
-      else if (not for_depends) && (has_meta_key klass.cl_meta Meta.Include) then
-         add_type klass.cl_path
+      else if (not for_depends) && (has_meta_key tinfo.mt_meta Meta.Include) then
+         add_type tinfo.mt_path
+   in
+
+   let add_extern_class klass =
+      add_extern_type (TClassDecl klass)
    in
    let add_native_gen_class klass =
       let include_file = get_meta_string_path klass.cl_meta (if for_depends then Meta.Depend else Meta.Include) in
@@ -3839,6 +3852,8 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
             | _ when is_extern_class klass -> add_extern_class klass
             | _ -> (match klass.cl_kind with KTypeParameter _ -> () | _ -> add_type klass.cl_path);
             )
+         | TAbstract (a,params) when is_scalar_abstract a ->
+            add_extern_type (TAbstractDecl a)
          | TFun (args,haxe_type) -> visit_type haxe_type;
             List.iter (fun (_,_,t) -> visit_type t; ) args;
          | _ -> ()
