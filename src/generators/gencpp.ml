@@ -3155,7 +3155,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | TCppDynamicArray
          | TCppClass
          | TCppEnum _
-         | TCppInst _ -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ ">()")
+         | TCppInst _ -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ " >()")
          | _ ->() 
          )
 
