@@ -208,6 +208,7 @@ type context =
    (* Per file *)
    ctx_output : string -> unit;
    ctx_writer : source_writer;
+   ctx_label_id : int ref;
 
    ctx_interface_slot : (string,int) Hashtbl.t ref;
    ctx_interface_slot_count : int ref;
@@ -222,6 +223,7 @@ let result =
 {
    ctx_common = common_ctx;
    ctx_writer = null_file;
+   ctx_label_id = ref (-1);
    ctx_output = (null_file#write);
    ctx_interface_slot = ref (Hashtbl.create 0);
    ctx_interface_slot_count = ref 2;
@@ -237,6 +239,7 @@ let file_context ctx writer debug =
    { ctx with
       ctx_writer = writer;
       ctx_output = (writer#write);
+      ctx_label_id = ref (-1);
    }
 ;;
 
@@ -1125,20 +1128,6 @@ let array_arg_list inList =
 (* See if there is a haxe break statement that will be swollowed by c++ break *)
 exception BreakFound;;
 
-let contains_break expression =
-   try (
-   let rec check_all expression = match expression.eexpr with
-         | TBreak -> raise BreakFound
-         | TFor _
-         | TFunction _
-         | TWhile (_,_,_) -> ()
-         | _ -> Type.iter check_all expression;
-   in
-   check_all expression;
-   false;
-   ) with BreakFound -> true;;
-
-
 (* Decide is we should look the field up by name *)
 let dynamic_internal = function | "__Is" -> true | _ -> false
 
@@ -1460,13 +1449,14 @@ and tcpp_expr_expr =
    | CppBlock of tcppexpr list * tcpp_closure list
    | CppFor of tvar * tcppexpr * tcppexpr
    | CppIf of tcppexpr * tcppexpr * tcppexpr option
-   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag
+   | CppWhile of tcppexpr * tcppexpr * Ast.while_flag * int
    | CppIntSwitch of tcppexpr * (Int32.t list * tcppexpr) list * tcppexpr option
-   | CppSwitch of tcppexpr * tcpp * (tcppexpr list * tcppexpr) list * tcppexpr option
+   | CppSwitch of tcppexpr * tcpp * (tcppexpr list * tcppexpr) list * tcppexpr option * int
    | CppTry of tcppexpr * (tvar * tcppexpr) list
    | CppBreak
    | CppContinue
    | CppClassOf of path * bool
+   | CppGoto of int
    | CppReturn of tcppexpr option
    | CppThrow of tcppexpr
    | CppEnumParameter of tcppexpr * tenum_field * int
@@ -1542,6 +1532,7 @@ let rec s_tcpp = function
    | CppBreak -> "CppBreak"
    | CppContinue -> "CppContinue"
    | CppClassOf _ -> "CppClassOf"
+   | CppGoto _ -> "CppGoto"
    | CppReturn _ -> "CppReturn"
    | CppThrow _ -> "CppThrow"
    | CppEnumParameter _ -> "CppEnumParameter"
@@ -2071,6 +2062,15 @@ let cpp_member_name_of member =
 ;;
 
 
+let cpp_append_block block expr =
+   match block.cppexpr with
+   | CppBlock(expr_list, closures) ->
+       { block with cppexpr = CppBlock( expr_list @ [expr], closures) }
+   | _ -> error "Internal error appending expression" block.cpppos
+;;
+
+
+
 let cpp_enum_name_of field =
    let rename = get_meta_string field.ef_meta Meta.Native in
    if rename <> "" then
@@ -2087,6 +2087,23 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
    let uses_this = ref None in
    let injection = ref forInjection in
    let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
+   let label_counter = ctx.ctx_label_id in
+   let loop_stack = ref [] in
+   let alloc_label () =
+      incr label_counter;
+      !label_counter
+   in
+   let begin_loop () =
+      loop_stack := (alloc_label (),ref false) :: !loop_stack;
+      (fun () -> match !loop_stack with
+         | (label_id,used) :: tl ->
+            loop_stack := tl;
+            if !used then label_id else -1
+         | [] ->
+            error "Invalid inernal loop handling" expression_tree.epos
+      )
+   in
+
    (* '__trace' is at the top-level *)
    Hashtbl.add !declarations "__trace" ();
    List.iter (fun arg -> Hashtbl.add !declarations arg.v_name () ) function_args;
@@ -2108,6 +2125,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
    let rec retype return_type expr =
       let cpp_type_of t = cpp_type_of ctx t in
+      let mk_cppexpr newExpr newType = { cppexpr = newExpr; cpptype = newType; cpppos = expr.epos } in
       let retypedExpr, retypedType =
          match expr.eexpr with
          | TEnumParameter( enumObj, enumField, enumIndex  ) ->
@@ -2143,7 +2161,13 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             end
 
          | TBreak ->
-            CppBreak, TCppVoid
+            begin match !loop_stack with
+               | [] ->
+                  CppBreak, TCppVoid
+               | (label_id,used) :: _ ->
+                  used := true;
+                  (CppGoto label_id),TCppVoid
+            end
 
          | TContinue ->
             CppContinue, TCppVoid
@@ -2510,8 +2534,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | TWhile (e1,e2,flag) ->
             let condition = retype (TCppScalar("Bool")) e1 in
+            let close = begin_loop() in
             let block = retype TCppVoid (mk_block e2) in
-            CppWhile(condition, block, flag), TCppVoid
+            CppWhile(condition, block, flag, close()), TCppVoid
 
          | TArrayDecl el ->
             let retypedEls = List.map (retype TCppDynamic) el in
@@ -2580,16 +2605,18 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             let cppDef = match def with None -> None | Some e -> Some (retype TCppVoid (mk_block e)) in
             (try
                (match conditionType with TCppScalar("Int") | TCppScalar("Bool") -> () | _ -> raise Not_found );
-               (match def with None -> () | Some e -> if (contains_break e) then raise Not_found);
                let cases = List.map (fun (el,e2) ->
-                  if (contains_break e2) then raise Not_found;
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
                CppIntSwitch(condition, cases, cppDef), TCppVoid
             with Not_found ->
+               let label = alloc_label () in
                (* do something better maybe ... *)
                let cases = List.map (fun (el,e2) ->
-                  (List.map (retype conditionType) el), (retype TCppVoid (mk_block e2)) ) cases in
-               CppSwitch(condition, conditionType, cases, cppDef), TCppVoid
+                  let cppBlock = retype TCppVoid (mk_block e2) in
+                  let gotoExpr = { cppexpr = CppGoto(label); cpptype = TCppVoid; cpppos = e2.epos } in
+                  let cppBlock = cpp_append_block cppBlock  gotoExpr in
+                  (List.map (retype conditionType) el), cppBlock ) cases in
+               CppSwitch(condition, conditionType, cases, cppDef, label), TCppVoid
             )
 
          | TTry (try_block,catches) ->
@@ -2640,7 +2667,6 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                CppTCast(baseCpp, return_type), return_type
             )
       in
-      let mk_cppexpr newExpr newType = { cppexpr = newExpr; cpptype = newType; cpppos = expr.epos } in
       let cppExpr = mk_cppexpr retypedExpr retypedType in
 
       (* Auto cast rules... *)
@@ -2744,7 +2770,6 @@ let gen_type ctx haxe_type =
 ;;
 
 
-
 let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
@@ -2767,6 +2792,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
    let forInjection = match injection with Some inject -> inject.inj_setvar<>"" | _ -> false in
    let cppTree =  retype_expression ctx TCppVoid function_args tree forInjection in
+   let label_name i = Printf.sprintf "_hx_goto_%i" i in
 
    let rec gen_with_injection injection expr =
       (match expr.cppexpr with
@@ -2810,6 +2836,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppBreak -> out "break"
       | CppContinue -> out "continue"
+      | CppGoto label -> out ("goto " ^ (label_name label));
 
       | CppVarDecl(var,init) ->
          let name =  cpp_var_name_of var in
@@ -3180,31 +3207,28 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | Some expr -> output_i "default:"; gen expr; | _ -> ()  );
          out spacer;
          writer#end_block;
-      | CppSwitch(condition, conditionType, cases, optional_default) ->
+      | CppSwitch(condition, conditionType, cases, optional_default, label) ->
          let tmp_name = "_hx_switch_" ^ (string_of_int !tempId) in
          incr tempId;
          out ( (tcpp_to_string conditionType) ^ " " ^ tmp_name ^ " = " );
          gen condition;
          out ";\n";
-         let else_str = ref "" in
-         if (List.length cases > 0) then
-            List.iter (fun (cases,expression) ->
-               output_i ( !else_str ^ "if ( ");
-               else_str := "else ";
-               let or_str = ref "" in
-               List.iter (fun value ->
-                  out (!or_str ^ " (" ^ tmp_name ^ "=="); gen value; out ")";
-                  or_str := " || ";
-                  ) cases;
-               out (" )");
-               gen expression;
+         List.iter (fun (cases,expression) ->
+            output_i "if ( ";
+            let or_str = ref "" in
+            List.iter (fun value ->
+               out (!or_str ^ " (" ^ tmp_name ^ "=="); gen value; out ")";
+               or_str := " || ";
                ) cases;
+            out (" )");
+            gen expression;
+            ) cases;
          (match optional_default with | None -> ()
          | Some default ->
-            out spacer;
-            output_i ( !else_str ^ " ");
+            output_i "/* default */";
             gen default;
          );
+         output_i ((label_name label) ^ ":")
 
       | CppUnop(unop,value) ->
            out (match unop with
@@ -3214,7 +3238,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
            );
            out "(";  gen value; out ")"
 
-      | CppWhile(condition, block, while_flag) ->
+      | CppWhile(condition, block, while_flag, loop_id) ->
           (match while_flag with
           | NormalWhile ->
               out "while("; gen condition; out (")");
@@ -3224,6 +3248,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               gen block;
               out "while("; gen condition; out ")"
           );
+          if loop_id > -1 then output_i ((label_name loop_id) ^ ":");
 
       | CppIf (condition,block,None) ->
           out "if ("; gen condition; out (") ");
