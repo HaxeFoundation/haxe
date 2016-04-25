@@ -324,3 +324,8 @@ let convert_import_to_something_usable path =
 			(IDK,null_pos)
 	in
 	loop [] None None path
+
+let process_expr com e = match com.display with
+	| DMToplevel -> find_enclosing com e
+	| DMPosition | DMUsage | DMType -> find_before_pos com e
+	| _ -> e

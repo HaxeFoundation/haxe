@@ -272,8 +272,9 @@ let type_function_arg ctx t e opt p =
 		let t = match e with Some (EConst (Ident "null"),p) -> ctx.t.tnull t | _ -> t in
 		t, e
 
-let type_var_field ctx t e stat p =
+let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
+	let e = if do_display then Display.process_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType t) in
 	let e = (!cast_or_unify_ref) ctx t e p in
 	match t with
@@ -1592,11 +1593,7 @@ let type_function ctx args ret fmode f do_display p =
 	let e = if not do_display then
 		type_expr ctx e NoValue
 	else begin
-		let e = match ctx.com.display with
-			| DMToplevel -> Display.find_enclosing ctx.com e
-			| DMPosition | DMUsage | DMType -> Display.find_before_pos ctx.com e
-			| _ -> e
-		in
+		let e = Display.process_expr ctx.com e in
 		try
 			if Common.defined ctx.com Define.NoCOpt then raise Exit;
 			type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
@@ -2179,7 +2176,7 @@ module ClassInitializer = struct
 					r := (fun() -> t);
 					cctx.context_init();
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
-					let e = type_var_field ctx t e fctx.is_static p in
+					let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
 					let maybe_run_analyzer e = match e.eexpr with
 						| TConst _ | TLocal _ | TFunction _ -> e
 						| _ -> !analyzer_run_on_expr_ref ctx.com e
