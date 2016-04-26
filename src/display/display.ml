@@ -26,6 +26,10 @@ exception DisplaySubExpression of Ast.expr
 exception DisplayFields of (string * t * display_field_kind option * documentation) list
 exception DisplayToplevel of identifier_type list
 
+let requires_full_typing = function
+	| DMUsage | DMNone -> true
+	| DMPosition | DMResolve _ | DMDefault | DMModuleSymbols | DMToplevel | DMType -> false
+
 let is_display_file p =
 	Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
 

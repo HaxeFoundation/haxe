@@ -2099,8 +2099,7 @@ module ClassInitializer = struct
 			| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 		in
-		match ctx.com.display with
-			| DMNone | DMUsage ->
+		if Display.requires_full_typing ctx.com.display then begin
 				if fctx.is_macro && not ctx.in_macro then
 					()
 				else begin
@@ -2108,7 +2107,7 @@ module ClassInitializer = struct
 					(* is_lib ? *)
 					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 				end
-			| _ ->
+		end else begin
 			if fctx.is_display_field then begin
 				if fctx.is_macro && not ctx.in_macro then
 					(* force macro system loading of this class in order to get completion *)
@@ -2123,6 +2122,7 @@ module ClassInitializer = struct
 					cf.cf_type <- TLazy r;
 				end;
 			end
+		end
 
 	let bind_var (ctx,cctx,fctx) cf e =
 		let c = cctx.tclass in

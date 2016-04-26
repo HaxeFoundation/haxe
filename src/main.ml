@@ -1566,12 +1566,9 @@ try
 		Typer.finalize tctx;
 		t();
 		if ctx.has_error then raise Abort;
-		begin match com.display with
-			| DMNone | DMUsage ->
-				()
-			| _ ->
-				if ctx.has_next then raise Abort;
-				failwith "No completion point was found";
+		if not (Display.requires_full_typing ctx.com.display) then begin
+			if ctx.has_next then raise Abort;
+			failwith "No completion point was found";
 		end;
 		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate tctx in
