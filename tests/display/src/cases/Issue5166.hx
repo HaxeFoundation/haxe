@@ -7,7 +7,7 @@ class Issue5166 extends DisplayTestCase {
 		}
 
 	**/
-	function testHaxeUnitPort1() {
+	function test() {
 		eq("cases.E", type(pos(1)));
 		eq(range(2, 3), position(pos(1)));
 	}

@@ -3549,7 +3549,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 			(try Optimizer.optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 		in
 		let e = match Optimizer.optimize_for_loop ctx (i,pi) e1 e2 p with
-			| Some e -> e
+			| Some e ->
+				if display then ignore(handle_display ctx (EConst(Ident i),pi) false Value);
+				e
 			| None -> default()
 		in
 		ctx.in_loop <- old_loop;
