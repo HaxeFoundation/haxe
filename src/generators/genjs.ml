@@ -142,10 +142,11 @@ let handle_newlines ctx str =
 				let next = String.index_from str from '\n' + 1 in
 				Rbuffer.add_char ctx.smap.mappings ';';
 				ctx.smap.output_last_col <- 0;
+				ctx.smap.output_current_col <- 0;
 				ctx.smap.print_comma <- false;
 				loop next
 			end with Not_found ->
-				ctx.smap.output_current_col <- String.length str - from
+				ctx.smap.output_current_col <- ctx.smap.output_current_col + (String.length str - from);
 		in
 		loop 0
 	else ()
