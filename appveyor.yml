@@ -39,13 +39,10 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip" > log.txt || type log.txt'
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/%WODI%/bin'
     # Install neko
-    - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
-    - cd %NEKO_ROOT%
-    - mkdir build
-    - cd build
-    - cmake -G "Visual Studio 12 2013" ..
-    - msbuild ALL_BUILD.vcxproj /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    - set PATH=%PATH%;%NEKO_ROOT%/build/bin
+    - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
+    - RefreshEnv
+    # do not use chocolatey's shim, which is buggy when processing arguments
+    - set PATH=C:\ProgramData\chocolatey\lib\neko;%PATH%
     - neko -version
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
