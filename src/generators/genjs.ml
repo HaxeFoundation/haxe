@@ -1345,7 +1345,7 @@ let generate com =
 
 	let var_exports = (
 		"$hx_exports",
-		"typeof window != \"undefined\" ? window : typeof exports != \"undefined\" ? exports : typeof self != \"undefined\" ? self : this"
+		"typeof exports != \"undefined\" ? exports : typeof window != \"undefined\" ? window : typeof self != \"undefined\" ? self : this"
 	) in
 
 	let var_global = (
