@@ -182,7 +182,6 @@ let add_mapping ctx e =
 	in
 	let line, col = Lexer.find_pos pos in
 	let line = line - 1 in
-	let col = col - 1 in
 	if smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
 		if smap.print_comma then
 			Rbuffer.add_char smap.mappings ','
