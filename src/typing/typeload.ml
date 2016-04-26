@@ -1845,7 +1845,7 @@ let build_enum_abstract ctx c a fields p =
 					else field.cff_kind <- FProp("default","never",ct,None)
 				| Some e ->
 					field.cff_access <- AInline :: field.cff_access;
-					let e = (ECast(e,None),field.cff_pos) in
+					let e = (ECast(e,None),(pos e)) in
 					field.cff_kind <- FVar(ct,Some e)
 			end
 		| _ ->
