@@ -1763,7 +1763,7 @@ with
 				let infos = t_infos mt in
 				Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
 			| Display.ITPackage s ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+				Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
