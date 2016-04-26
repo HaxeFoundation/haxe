@@ -1747,14 +1747,23 @@ with
 		Buffer.add_string b "<il>\n";
 		let ctx = print_context() in
 		let s_type t = htmlescape (s_type ctx t) in
+		let s_doc d = Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d in
 		List.iter (fun id -> match id with
-			| Display.ITLocal v -> Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| Display.ITMember(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Display.ITStatic(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Display.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
-			| Display.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| Display.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
-			| Display.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+			| Display.ITLocal v ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
+			| Display.ITMember(c,cf) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
+			| Display.ITStatic(c,cf) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
+			| Display.ITEnum(en,ef) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
+			| Display.ITGlobal(mt,s,t) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
+			| Display.ITType(mt) ->
+				let infos = t_infos mt in
+				Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
+			| Display.ITPackage s ->
+			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
