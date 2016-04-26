@@ -941,10 +941,10 @@ module Debug = struct
 		| SESubBlock(bb_sub,bb_next) ->
 			edge bb_sub "sub";
 			edge bb_next "next";
-		| SEIfThen(bb_then,bb_next) ->
+		| SEIfThen(bb_then,bb_next,_) ->
 			edge bb_then "then";
 			edge bb_next "next"
-		| SEIfThenElse(bb_then,bb_else,bb_next,_) ->
+		| SEIfThenElse(bb_then,bb_else,bb_next,_,_) ->
 			edge bb_then "then";
 			edge bb_else "else";
 			edge bb_next "next";
@@ -954,11 +954,11 @@ module Debug = struct
 			edge bb_next "next";
 		| SEMerge bb_next ->
 			edge bb_next "merge"
-		| SESwitch(bbl,bo,bb_next) ->
+		| SESwitch(bbl,bo,bb_next,_) ->
 			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) bbl;
 			(match bo with None -> () | Some bb -> edge bb "default");
 			edge bb_next "next";
-		| SETry(bb_try,_,bbl,bb_next) ->
+		| SETry(bb_try,_,bbl,bb_next,_) ->
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
 			edge bb_next "next";
