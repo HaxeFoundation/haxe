@@ -162,6 +162,7 @@ let htmlescape s =
 	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
 	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
 	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
+	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
 	s
 
 let reserved_flags = [
