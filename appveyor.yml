@@ -42,6 +42,7 @@ install:
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     - RefreshEnv
     # do not use chocolatey's shim, which is buggy when processing arguments
+    # see https://github.com/chocolatey/shimgen/issues/27
     - set PATH=C:\ProgramData\chocolatey\lib\neko;%PATH%
     - neko -version
     # setup python
