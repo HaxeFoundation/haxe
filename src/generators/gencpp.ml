@@ -21,8 +21,6 @@ open Ast
 open Type
 open Common
 
-let unsupported p = error "This expression cannot be generated to Cpp" p
-
 (*
    Generators do not care about non-core-type abstracts, so let us follow them
    away by default.
@@ -1964,9 +1962,21 @@ let ctx_arg ctx name default_val arg_type prefix =
    (fst pair) ^ " " ^ (snd pair);;
 
 
+(* Generate prototype text, including allowing default values to be null *)
+let ctx_arg_name ctx name default_val arg_type prefix =
+   let pair = ctx_arg_type_name ctx name default_val arg_type prefix in
+   (snd pair);;
+
+
 let ctx_arg_list ctx arg_list prefix =
    String.concat "," (List.map (fun (v,o) -> (ctx_arg ctx v.v_name o v.v_type prefix) ) arg_list)
 
+let ctx_arg_list_name ctx arg_list prefix =
+   String.concat "," (List.map (fun (v,o) -> (ctx_arg_name ctx v.v_name o v.v_type prefix) ) arg_list)
+
+let cpp_arg_names args =
+   String.concat "," (List.map (fun (name,_,_) -> keyword_remap name) args)
+;;
 
 let rec ctx_tfun_arg_list ctx include_names arg_list =
    let oType o arg_type =
@@ -3589,6 +3599,19 @@ let field_arg_count field =
       | _,_ -> -1
 ;;
 
+let native_field_name_remap field =
+   let remap_name = keyword_remap field.cf_name in
+   let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
+   if nativeImpl<>"" then begin
+      let r = Str.regexp "^[a-zA-Z_0-9]+$" in
+         if Str.string_match r remap_name 0 then
+            "_hx_" ^ remap_name
+         else
+            "_hx_f" ^ (gen_hash 0 remap_name)
+   end else
+      remap_name
+;;
+
 
             (* external mem  Dynamic & *)
 
@@ -3612,6 +3635,8 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
+         let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
+         let remap_name = native_field_name_remap field in
          output (if is_void then "void" else return_type );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
          output (ctx_arg_list ctx function_def.tf_args "__o_");
@@ -3620,7 +3645,12 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
          let code = (get_code field.cf_meta Meta.FunctionCode) in
          let tail_code = (get_code field.cf_meta Meta.FunctionTailCode) in
 
-         gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code;
+         if nativeImpl<>"" && is_static then begin
+            output " {\n";
+            output ("\t" ^ ret ^ "::" ^ nativeImpl ^ "(" ^ (ctx_arg_list_name ctx function_def.tf_args "__o_") ^ ");\n");
+            output "}\n\n";
+         end else
+            gen_cpp_function_body ctx class_def is_static field.cf_name function_def code tail_code;
 
          output "\n\n";
          let nonVirtual = has_meta_key field.cf_meta Meta.NonVirtual in
@@ -3710,9 +3740,6 @@ let has_field_init field =
    | _ -> false
 ;;
 
-let cpp_arg_names args =
-   String.concat "," (List.map (fun (name,_,_) -> keyword_remap name) args)
-;;
 
 let gen_member_def ctx class_def is_static is_interface field =
    let output = ctx.ctx_output in
@@ -3730,6 +3757,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             output (gen_args args);
             output (if (not is_static) then ")=0;\n" else ");\n");
             if (reflective class_def field) then begin
+               let remap_name = native_field_name_remap field in
                if (Common.defined ctx.ctx_common Define.DynamicInterfaceClosures) then
                   output ("		inline ::Dynamic " ^ remap_name ^ "_dyn() { return __Field( " ^ (str field.cf_name) ^ ", hx::paccDynamic); }\n" )
                else
@@ -3774,6 +3802,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             end;
             output (if return_type="Void" then "void" else return_type );
 
+            let remap_name = native_field_name_remap field in
             output (" " ^ remap_name ^ "(" );
             output (ctx_arg_list ctx function_def.tf_args "" );
             output ");\n";
@@ -4989,7 +5018,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") { outValue = " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "(); return true; }"
                | Var { v_read = AccCall } -> "outValue = " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
                      ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()") ^ "; return true;";
-               | _ -> "outValue = " ^ ((keyword_remap f.cf_name) ^ (if (variable_field f) then "" else "_dyn()") ^ "; return true;")
+               | _ -> "outValue = " ^ ((native_field_name_remap f) ^ (if (variable_field f) then "" else "_dyn()") ^ "; return true;")
                )
             ) )
          in
