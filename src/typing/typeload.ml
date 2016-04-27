@@ -230,7 +230,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = (try Parser.parse com lexbuf with e -> t(); raise e) in
-	if com.display = DMModuleSymbols && Common.unique_full_path file = (!Parser.resume_display).pfile then
+	if com.display = DMModuleSymbols && Display.is_display_file file then
 		raise (Display.ModuleSymbols(Display.print_module_symbols data));
 	t();
 	Common.log com ("Parsed " ^ file);
@@ -242,7 +242,7 @@ let parse_file_from_string com file p string =
 let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
 
 let parse_file com file p =
-	let use_stdin = (Common.defined com Define.DisplayStdin) && (Common.unique_full_path file) = !Parser.resume_display.pfile in
+	let use_stdin = (Common.defined com Define.DisplayStdin) && Display.is_display_file file in
 	if use_stdin then
 		let s =
 			match !current_stdin with
@@ -504,7 +504,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 			f params
 		end
 	in
-	if allow_display && ctx.com.display <> DMNone && Display.is_display_position pn then
+	if allow_display && ctx.is_display_file && Display.is_display_position pn then
 		Display.display_type ctx.com.display t pn;
 	t
 
@@ -1547,7 +1547,8 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	c.cl_meta <- tp.Ast.tp_meta;
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],c.cl_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
-	if Display.is_display_position (pos tp.tp_name) then Display.display_type ctx.com.display t (pos tp.tp_name);
+	if ctx.is_display_file && Display.is_display_position (pos tp.tp_name) then
+		Display.display_type ctx.com.display t (pos tp.tp_name);
 	match tp.tp_constraints with
 	| [] ->
 		n, t
@@ -1592,7 +1593,7 @@ let type_function ctx args ret fmode f do_display p =
 		let c = type_function_arg_value ctx t c in
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
-		if do_display && Display.encloses_position !Parser.resume_display pn then
+		if do_display && Display.is_display_position pn then
 			Display.display_variable ctx.com.display v pn;
 		if n = "this" then v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 		v,c
@@ -1909,18 +1910,12 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
-let is_display_file ctx p = match ctx.com.display with
-	| DMNone -> false
-	| DMResolve s -> resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
-	| _ -> Display.is_display_file p
-
 module ClassInitializer = struct
 	type class_init_ctx = {
 		tclass : tclass; (* I don't trust ctx.curclass because it's mutable. *)
 		is_lib : bool;
 		is_native : bool;
 		is_core_api : bool;
-		is_display_file : bool;
 		extends_public : bool;
 		abstract : tabstract option;
 		context_init : unit -> unit;
@@ -1983,14 +1978,12 @@ module ClassInitializer = struct
 			| None -> false
 			| Some (c,_) -> extends_public c
 		in
-		let is_display_file = is_display_file ctx p in
 		let cctx = {
 			tclass = c;
 			is_lib = is_lib;
 			is_native = is_native;
 			is_core_api = Meta.has Meta.CoreApi c.cl_meta;
 			extends_public = extends_public c;
-			is_display_file = is_display_file;
 			abstract = abstract;
 			context_init = context_init;
 			completion_position = !Parser.resume_display;
@@ -2024,7 +2017,7 @@ module ClassInitializer = struct
 			is_override = is_override;
 			is_macro = is_macro;
 			is_extern = is_extern;
-			is_display_field = cctx.is_display_file && Display.encloses_position cctx.completion_position cff.cff_pos;
+			is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
 			is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 			field_kind = field_kind;
 			do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
@@ -2262,7 +2255,7 @@ module ClassInitializer = struct
 			bind_type (ctx,cctx,fctx) cf r (snd e)
 
 	let check_field_display com p cf =
- 		if Display.encloses_position !Parser.resume_display p then
+ 		if Display.is_display_position p then
 			Display.display_field com.display cf p
 
 	let create_variable (ctx,cctx,fctx) c f t eo p =
@@ -2915,7 +2908,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	match decl with
 	| EImport (path,mode) ->
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
-		if Display.is_display_file p then begin
+		if ctx.is_display_file then begin
 			Display.add_import_position ctx.com p;
 			handle_path_display ctx path p;
 		end;
@@ -3031,7 +3024,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				) :: !context_init
 			))
 	| EUsing path ->
-		if Display.is_display_file p then begin
+		if ctx.is_display_file then begin
 			Display.add_import_position ctx.com p;
 			handle_path_display ctx path p;
 		end;
@@ -3073,7 +3066,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
-		if Display.is_display_position (pos d.d_name) then
+		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
 			Display.display_module_type ctx.com.display (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		check_global_metadata ctx (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
@@ -3134,7 +3127,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EEnum d ->
 		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
-		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TEnumDecl e) (pos d.d_name);
+		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
+			Display.display_module_type ctx.com.display (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
 		check_global_metadata ctx (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
@@ -3188,7 +3182,6 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let index = ref 0 in
 		let is_flat = ref true in
 		let fields = ref PMap.empty in
-		let is_display_file = is_display_file ctx p in
 		List.iter (fun c ->
 			let p = c.ec_pos in
 			let params = ref [] in
@@ -3243,12 +3236,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_params = f.ef_params;
 				cf_overloads = [];
 			} in
-			if is_display_file && Display.encloses_position !Parser.resume_display p then begin match ctx.com.display with
-				| DMPosition -> raise (Display.DisplayPosition [p]);
-				| DMUsage -> f.ef_meta <- (Meta.Usage,[],p) :: f.ef_meta;
-				| DMType -> raise (Display.DisplayType (f.ef_type,p))
-				| _ -> ()
-			end;
+ 			if ctx.is_display_file && Display.is_display_position p then
+ 				Display.display_enum_field ctx.com.display f p;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
@@ -3274,7 +3263,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| ETypedef d ->
 		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
-		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TTypeDecl t) (pos d.d_name);
+		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
+			Display.display_module_type ctx.com.display (TTypeDecl t) (pos d.d_name);
 		check_global_metadata ctx (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
 		let tt = load_complex_type ctx true p d.d_data in
@@ -3304,7 +3294,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EAbstract d ->
 		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
-		if Display.is_display_position (pos d.d_name) then Display.display_module_type ctx.com.display (TAbstractDecl a) (pos d.d_name);
+		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
+			Display.display_module_type ctx.com.display (TAbstractDecl a) (pos d.d_name);
 		check_global_metadata ctx (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
@@ -3401,6 +3392,7 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
+		is_display_file = (match ctx.com.display with DMNone -> false | _ -> Display.is_display_file m.m_extra.m_file);
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
@@ -3428,7 +3420,8 @@ let type_types_into_module ctx m tdecls p =
 		(* this will ensure both String and (indirectly) Array which are basic types which might be referenced *)
 		ignore(load_core_type ctx "String");
 	end;
-	module_pass_2 ctx m decls tdecls p
+	module_pass_2 ctx m decls tdecls p;
+	ctx
 
 let handle_import_hx ctx m decls p =
 	let path_split = List.tl (List.rev (get_path_parts m.m_extra.m_file)) in
@@ -3475,9 +3468,9 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let m = make_module ctx mpath file p in
 	Hashtbl.add ctx.g.modules m.m_path m;
 	let tdecls = handle_import_hx ctx m tdecls p in
-	type_types_into_module ctx m tdecls p;
+	let ctx = type_types_into_module ctx m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern;
-	begin if Common.unique_full_path file = (!Parser.resume_display).pfile then match ctx.com.display with
+	begin if ctx.is_display_file then match ctx.com.display with
 		| DMDiagnostics ->
 			List.iter (fun mt -> match mt with
 				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
@@ -3492,6 +3485,8 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 					()
 			) m.m_types;
 			raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
+		| DMResolve s ->
+			resolve_position_by_path ctx {tname = s; tpackage = []; tsub = None; tparams = []} p
 		| _ ->
 			()
 	end;

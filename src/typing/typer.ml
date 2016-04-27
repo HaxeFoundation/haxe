@@ -1262,7 +1262,7 @@ let rec using_field ctx mode e i p =
 						| _ -> ()
 					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
-					Display.mark_import_position ctx.com pc;
+					if ctx.is_display_file then Display.mark_import_position ctx.com pc;
 					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e)
 				| _ ->
 					raise Not_found
@@ -1383,7 +1383,7 @@ let rec type_ident_raise ctx i p mode =
 							let et = type_module_type ctx (TClassDecl c) None p in
 							let fa = FStatic(c,cf) in
 							let t = monomorphs cf.cf_params cf.cf_type in
-							Display.mark_import_position ctx.com pt;
+							if ctx.is_display_file then Display.mark_import_position ctx.com pt;
 							begin match cf.cf_kind with
 								| Var {v_read = AccInline} -> AKInline(et,cf,fa,t)
 								| _ -> AKExpr (mk (TField(et,fa)) t p)
@@ -1404,7 +1404,7 @@ let rec type_ident_raise ctx i p mode =
 						let et = type_module_type ctx t None p in
 						let monos = List.map (fun _ -> mk_mono()) e.e_params in
 						let monos2 = List.map (fun _ -> mk_mono()) ef.ef_params in
-						Display.mark_import_position ctx.com pt;
+						if ctx.is_display_file then Display.mark_import_position ctx.com pt;
 						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef monos monos2 p) p)
 					with
 						Not_found -> loop l
@@ -1413,7 +1413,7 @@ let rec type_ident_raise ctx i p mode =
 	with Not_found ->
 		(* lookup imported globals *)
 		let t, name, pi = PMap.find i ctx.m.module_globals in
-		Display.mark_import_position ctx.com pi;
+		if ctx.is_display_file then Display.mark_import_position ctx.com pi;
 		let e = type_module_type ctx t None p in
 		type_field ctx e name p mode
 
@@ -2705,7 +2705,7 @@ and handle_efield ctx e p mode =
 								List.find path_match ctx.m.curmod.m_types
 							with Not_found ->
 								let t,p = List.find (fun (t,_) -> path_match t) ctx.m.module_types in
-								Display.mark_import_position ctx.com p;
+								if ctx.is_display_file then Display.mark_import_position ctx.com p;
 								t
 							in
 							(* if the static is not found, look for a subtype instead - #1916 *)
@@ -2831,7 +2831,7 @@ and type_vars ctx vl p =
 			) in
 			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
 			let v,e = add_local ctx v t pv, e in
-			if Display.is_display_position pv then
+			if ctx.in_display && Display.is_display_position pv then
 				Display.display_variable ctx.com.display v pv;
 			v,e
 		with
@@ -2852,7 +2852,7 @@ and format_string ctx s p =
 	let min = ref (p.pmin + 1) in
 	let add_expr (enext,p) len =
 		min := !min + len;
-		if ctx.in_display && Display.encloses_position !Parser.resume_display p then
+		if ctx.in_display && Display.is_display_position p then
 			raise (Display.DisplaySubExpression (enext,p));
 		match !e with
 		| None -> e := Some (enext,p)
@@ -3135,7 +3135,7 @@ and type_new ctx path el with_type p =
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 	in
-	if Display.is_display_position (pos path) then Display.display_type ctx.com.display t (pos path);
+	if ctx.in_display && Display.is_display_position (pos path) then Display.display_type ctx.com.display t (pos path);
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (s_type_path c.cl_path ^ " does not have a constructor") p;
@@ -3229,7 +3229,7 @@ and type_try ctx e1 catches with_type p =
 		check_unreachable acc t2 (pos e);
 		let locals = save_locals ctx in
 		let v = add_local ctx v t pv in
-		if Display.is_display_position pv then
+		if ctx.is_display_file && Display.is_display_position pv then
 			Display.display_variable ctx.com.display v pv;
 		let e = type_expr ctx e with_type in
 		v.v_type <- t2;
@@ -4788,7 +4788,7 @@ let make_macro_api ctx p =
 			let mpath = Ast.parse_path m in
 			begin try
 				let m = Hashtbl.find ctx.g.modules mpath in
-				Typeload.type_types_into_module ctx m types pos
+				ignore(Typeload.type_types_into_module ctx m types pos)
 			with Not_found ->
 				let mnew = Typeload.type_module ctx mpath ctx.m.curmod.m_extra.m_file types pos in
 				mnew.m_extra.m_kind <- MFake;
@@ -5233,6 +5233,7 @@ let rec create com =
 			wildcard_packages = [];
 			module_imports = [];
 		};
+		is_display_file = false;
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];

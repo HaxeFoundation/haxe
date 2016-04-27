@@ -27,14 +27,14 @@ exception DisplaySubExpression of Ast.expr
 exception DisplayFields of (string * t * display_field_kind option * documentation) list
 exception DisplayToplevel of identifier_type list
 
-let is_display_file p =
-	Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
+let is_display_file file =
+	Common.unique_full_path file = (!Parser.resume_display).pfile
 
 let encloses_position p_target p =
 	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
 
 let is_display_position p =
-	is_display_file p && encloses_position !Parser.resume_display p
+	encloses_position !Parser.resume_display p
 
 let find_enclosing com e =
 	let display_pos = ref (!Parser.resume_display) in
@@ -125,6 +125,12 @@ let display_field dm cf p = match dm with
 	| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
 	| DMUsage -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
 	| DMType -> raise (DisplayType (cf.cf_type,p))
+	| _ -> ()
+
+let display_enum_field dm ef p = match dm with
+	| DMPosition -> raise (DisplayPosition [p]);
+	| DMUsage -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
+	| DMType -> raise (DisplayType (ef.ef_type,p))
 	| _ -> ()
 
 module SymbolKind = struct
@@ -336,7 +342,6 @@ let add_import_position com p =
 
 let mark_import_position com p =
 	try
-		if not (is_display_file p) then raise Not_found;
 		let r = PMap.find p com.shared.display_information.import_positions in
 		r := true
 	with Not_found ->
