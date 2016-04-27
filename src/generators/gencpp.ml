@@ -3599,21 +3599,23 @@ let field_arg_count field =
       | _,_ -> -1
 ;;
 
-let native_field_name_remap field =
+let native_field_name_remap is_static field =
    let remap_name = keyword_remap field.cf_name in
-   let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
-   if nativeImpl<>"" then begin
-      let r = Str.regexp "^[a-zA-Z_0-9]+$" in
-         if Str.string_match r remap_name 0 then
-            "_hx_" ^ remap_name
-         else
-            "_hx_f" ^ (gen_hash 0 remap_name)
-   end else
+   if not is_static then
       remap_name
+   else begin
+      let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
+      if nativeImpl<>"" then begin
+         let r = Str.regexp "^[a-zA-Z_0-9]+$" in
+            if Str.string_match r remap_name 0 then
+               "_hx_" ^ remap_name
+            else
+               "_hx_f" ^ (gen_hash 0 remap_name)
+      end else
+         remap_name
+   end
 ;;
 
-
-            (* external mem  Dynamic & *)
 
 let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface field =
    let output = ctx.ctx_output in
@@ -3636,7 +3638,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
          let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
-         let remap_name = native_field_name_remap field in
+         let remap_name = native_field_name_remap is_static field in
          output (if is_void then "void" else return_type );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
          output (ctx_arg_list ctx function_def.tf_args "__o_");
@@ -3757,7 +3759,6 @@ let gen_member_def ctx class_def is_static is_interface field =
             output (gen_args args);
             output (if (not is_static) then ")=0;\n" else ");\n");
             if (reflective class_def field) then begin
-               let remap_name = native_field_name_remap field in
                if (Common.defined ctx.ctx_common Define.DynamicInterfaceClosures) then
                   output ("		inline ::Dynamic " ^ remap_name ^ "_dyn() { return __Field( " ^ (str field.cf_name) ^ ", hx::paccDynamic); }\n" )
                else
@@ -3802,7 +3803,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             end;
             output (if return_type="Void" then "void" else return_type );
 
-            let remap_name = native_field_name_remap field in
+            let remap_name = native_field_name_remap is_static field in
             output (" " ^ remap_name ^ "(" );
             output (ctx_arg_list ctx function_def.tf_args "" );
             output ");\n";
@@ -5018,7 +5019,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                | Var { v_read = AccCall } when is_extern_field f -> "if (" ^ (checkPropCall f) ^ ") { outValue = " ^(keyword_remap ("get_" ^ f.cf_name)) ^ "(); return true; }"
                | Var { v_read = AccCall } -> "outValue = " ^ (checkPropCall f) ^ " ? " ^ (keyword_remap ("get_" ^ f.cf_name)) ^ "() : " ^
                      ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()") ^ "; return true;";
-               | _ -> "outValue = " ^ ((native_field_name_remap f) ^ (if (variable_field f) then "" else "_dyn()") ^ "; return true;")
+               | _ when variable_field f -> "outValue = " ^ (keyword_remap f.cf_name) ^ "; return true;"
+               | _ -> "outValue = " ^ ((native_field_name_remap true f) ^ "_dyn(); return true;")
                )
             ) )
          in
