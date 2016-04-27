@@ -207,11 +207,11 @@ let rec func ctx bb tf t p =
 			| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
 		end;
-		let bb = declare_var_and_assign bb v e in
+		let bb = declare_var_and_assign bb v e e.epos in
 		let e = {e with eexpr = TLocal v} in
 		let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
 		bb,e
-	and declare_var_and_assign bb v e =
+	and declare_var_and_assign bb v e p =
 		let rec loop bb e = match e.eexpr with
 			| TParenthesis e1 ->
 				loop bb e1
@@ -231,18 +231,18 @@ let rec func ctx bb tf t p =
 				bb,e
 		in
 		let bb,e = loop bb e in
-		no_void v.v_type e.epos;
-		let ev = mk (TLocal v) v.v_type e.epos in
+		no_void v.v_type p;
+		let ev = mk (TLocal v) v.v_type p in
 		let was_assigned = ref false in
 		let assign e =
 			if not !was_assigned then begin
 				was_assigned := true;
 				add_texpr bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
 			end;
-			mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
+			mk (TBinop(OpAssign,ev,e)) ev.etype ev.epos
 		in
 		begin try
-			block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid e.epos)
+			block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos)
 		with Exit ->
 			let bb,e = value bb e in
 			add_texpr bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
@@ -282,7 +282,7 @@ let rec func ctx bb tf t p =
 			add_texpr bb e;
 			bb
 		| TVar(v,Some e1) ->
-			declare_var_and_assign bb v e1
+			declare_var_and_assign bb v e1 e.epos
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 			let assign e =
 				mk (TBinop(OpAssign,e1,e)) e.etype e.epos
