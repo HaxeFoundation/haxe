@@ -49,6 +49,14 @@ class TestCase {
 			throw currentTest;
 		}
 	}
+	
+	function fail( reason:String, ?c : PosInfos ) : Void {
+		currentTest.done = true;
+		currentTest.success = false;
+		currentTest.error   = reason;
+		currentTest.posInfos = c;
+		throw currentTest;
+	}	
 
 	function assertFalse( b:Bool, ?c : PosInfos ) : Void {
 		currentTest.done = true;
