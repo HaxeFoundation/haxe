@@ -55,10 +55,10 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_types : module_type list;
-	mutable module_using : tclass list;
-	mutable module_globals : (string, (module_type * string)) PMap.t;
-	mutable wildcard_packages : string list list;
+	mutable module_types : (module_type * pos) list;
+	mutable module_using : (tclass * pos) list;
+	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
+	mutable wildcard_packages : (string list * pos) list;
 	mutable module_imports : Ast.import list;
 }
 
@@ -76,7 +76,7 @@ type typer_globals = {
 	mutable global_metadata : (string list * Ast.metadata_entry * (bool * bool * bool)) list;
 	mutable get_build_infos : unit -> (module_type * t list * Ast.class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
-	mutable global_using : tclass list;
+	mutable global_using : (tclass * Ast.pos) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.placed_type_path) -> bool;
 	do_create : Common.context -> typer;

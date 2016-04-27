@@ -99,6 +99,7 @@ type display_mode =
 	| DMResolve of string
 	| DMType
 	| DMModuleSymbols
+	| DMDiagnostics
 
 type compiler_callback = {
 	mutable after_typing : (module_type list -> unit) list;
@@ -106,10 +107,20 @@ type compiler_callback = {
 	mutable after_generation : (unit -> unit) list;
 }
 
+type display_information = {
+	mutable import_positions : (pos,bool ref) PMap.t;
+}
+
+(* This information is shared between normal and macro context. *)
+type shared_context = {
+	display_information : display_information;
+}
+
 type context = {
 	(* config *)
 	version : int;
 	args : string list;
+	shared : shared_context;
 	mutable sys_args : string list;
 	mutable display : display_mode;
 	mutable debug : bool;
@@ -667,6 +678,11 @@ let create version s_version args =
 	{
 		version = version;
 		args = args;
+		shared = {
+			display_information = {
+				import_positions = PMap.empty;
+			}
+		};
 		sys_args = args;
 		debug = false;
 		display = !display_default;

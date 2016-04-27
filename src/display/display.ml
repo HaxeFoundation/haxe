@@ -18,6 +18,7 @@ type identifier_type =
 	| ITType of module_type
 	| ITPackage of string
 
+exception Diagnostics of string
 exception ModuleSymbols of string
 exception DisplaySignatures of (t * documentation) list
 exception DisplayType of t * pos
@@ -25,10 +26,6 @@ exception DisplayPosition of Ast.pos list
 exception DisplaySubExpression of Ast.expr
 exception DisplayFields of (string * t * display_field_kind option * documentation) list
 exception DisplayToplevel of identifier_type list
-
-let requires_full_typing = function
-	| DMUsage | DMNone -> true
-	| DMPosition | DMResolve _ | DMDefault | DMModuleSymbols | DMToplevel | DMType -> false
 
 let is_display_file p =
 	Common.unique_full_path p.pfile = (!Parser.resume_display).pfile
@@ -333,3 +330,42 @@ let process_expr com e = match com.display with
 	| DMToplevel -> find_enclosing com e
 	| DMPosition | DMUsage | DMType -> find_before_pos com e
 	| _ -> e
+
+let add_import_position com p =
+	com.shared.display_information.import_positions <- PMap.add p (ref false) com.shared.display_information.import_positions
+
+let mark_import_position com p =
+	try
+		if not (is_display_file p) then raise Not_found;
+		let r = PMap.find p com.shared.display_information.import_positions in
+		r := true
+	with Not_found ->
+		()
+
+module DiagnosticsKind = struct
+	type t =
+		| DKUnusedImport
+
+	let to_int = function
+		| DKUnusedImport -> 0
+end
+
+module Diagnostics = struct
+	open DiagnosticsKind
+
+	type t = DiagnosticsKind.t * pos
+
+	let print_diagnostics com =
+		let diag = DynArray.create() in
+		PMap.iter (fun p r ->
+			if not !r then DynArray.add diag (DKUnusedImport,p)
+		) com.shared.display_information.import_positions;
+		let jl = DynArray.fold_left (fun acc (dk,p) ->
+			(JObject ["kind",JInt (to_int dk);"range",pos_to_json_range p]) :: acc
+		) [] diag in
+		let js = JArray jl in
+		let b = Buffer.create 0 in
+		write_json (Buffer.add_string b) js;
+		Buffer.contents b
+end
+

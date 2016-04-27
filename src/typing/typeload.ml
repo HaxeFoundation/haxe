@@ -298,10 +298,16 @@ let rec load_type_def ctx p t =
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
 		if t.tsub <> None then raise Not_found;
-		List.find (fun t2 ->
+		let path_matches t2 =
 			let tp = t_path t2 in
 			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
-		) (ctx.m.curmod.m_types @ ctx.m.module_types)
+		in
+		try
+			List.find path_matches ctx.m.curmod.m_types
+		with Not_found ->
+			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
+			Display.mark_import_position ctx.com pi;
+			t
 	with
 		Not_found ->
 			let next() =
@@ -323,11 +329,13 @@ let rec load_type_def ctx p t =
 			(* lookup in wildcard imported packages *)
 			try
 				if not no_pack then raise Exit;
-				let rec loop = function
+				let rec loop l = match l with
 					| [] -> raise Exit
-					| wp :: l ->
+					| (wp,pi) :: l ->
 						try
-							load_type_def ctx p { t with tpackage = wp }
+							let t = load_type_def ctx p { t with tpackage = wp } in
+							Display.mark_import_position ctx.com pi;
+							t
 						with
 							| Error (Module_not_found _,p2)
 							| Error (Type_not_found _,p2) when p == p2 -> loop l
@@ -1463,8 +1471,14 @@ module Inheritance = struct
 			| _ :: _ -> t,p
 			| [] ->
 				try
-					let find = List.find (fun lt -> snd (t_path lt) = t.tname) in
-					let lt = try find ctx.m.curmod.m_types with Not_found -> find ctx.m.module_types in
+					let path_matches lt = snd (t_path lt) = t.tname in
+					let lt = try
+						List.find path_matches ctx.m.curmod.m_types
+					with Not_found ->
+						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_types in
+						Display.mark_import_position ctx.com pi;
+						t
+					in
 					{ t with tpackage = fst (t_path lt) },p
 				with
 					Not_found -> t,p
@@ -2099,7 +2113,17 @@ module ClassInitializer = struct
 			| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
 			| TAbstract _ | TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 		in
-		if Display.requires_full_typing ctx.com.display then begin
+		let handle_display_field () =
+			if fctx.is_macro && not ctx.in_macro then
+				(* force macro system loading of this class in order to get completion *)
+				delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit -> ())
+			else begin
+				cf.cf_type <- TLazy r;
+				cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+			end
+		in
+		begin match ctx.com.display with
+			| DMNone | DMUsage ->
 				if fctx.is_macro && not ctx.in_macro then
 					()
 				else begin
@@ -2107,21 +2131,17 @@ module ClassInitializer = struct
 					(* is_lib ? *)
 					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
 				end
-		end else begin
-			if fctx.is_display_field then begin
-				if fctx.is_macro && not ctx.in_macro then
-					(* force macro system loading of this class in order to get completion *)
-					delay ctx PTypeField (fun() -> ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p))
-				else begin
-					cf.cf_type <- TLazy r;
-					cctx.delayed_expr <- (ctx,Some r) :: cctx.delayed_expr;
+			| DMDiagnostics ->
+				handle_display_field()
+			| _ ->
+				if fctx.is_display_field then begin
+					handle_display_field()
+				end else begin
+					if not (is_full_type cf.cf_type) then begin
+						cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
+						cf.cf_type <- TLazy r;
+					end;
 				end
-			end else begin
-				if not (is_full_type cf.cf_type) then begin
-					cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
-					cf.cf_type <- TLazy r;
-				end;
-			end
 		end
 
 	let bind_var (ctx,cctx,fctx) cf e =
@@ -2827,7 +2847,6 @@ module ClassInitializer = struct
 			| None -> ()
 			| Some r -> delay ctx PTypeField (fun() -> ignore((!r)())))
 		) cctx.delayed_expr
-
 end
 
 let resolve_typedef t =
@@ -2896,7 +2915,10 @@ let init_module_type ctx context_init do_init (decl,p) =
 	match decl with
 	| EImport (path,mode) ->
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
-		if Display.is_display_file p then handle_path_display ctx path p;
+		if Display.is_display_file p then begin
+			Display.add_import_position ctx.com p;
+			handle_path_display ctx path p;
+		end;
 		let rec loop acc = function
 			| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
 			| rest -> List.rev acc, rest
@@ -2906,7 +2928,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		| [] ->
 			(match mode with
 			| IAll ->
-				ctx.m.wildcard_packages <- List.map fst pack :: ctx.m.wildcard_packages
+				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
 			| _ ->
 				(match List.rev path with
 				| [] -> assert false
@@ -2916,7 +2938,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let p_type = punion p1 p2 in
 			let md = ctx.g.do_load_module ctx (List.map fst pack,tname) p_type in
 			let types = md.m_types in
-			let no_private t = not (t_infos t).mt_private in
+			let no_private (t,_) = not (t_infos t).mt_private in
 			let chk_private t p = if (t_infos t).mt_private then error "You can't import a private type" p in
 			let has_name name t = snd (t_infos t).mt_path = name in
 			let get_type tname =
@@ -2946,10 +2968,10 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| TClassDecl c ->
 					ignore(c.cl_build());
 					ignore(PMap.find s c.cl_statics);
-					ctx.m.module_globals <- PMap.add name (TClassDecl c,s) ctx.m.module_globals
+					ctx.m.module_globals <- PMap.add name (TClassDecl c,s,p) ctx.m.module_globals
 				| TEnumDecl e ->
 					ignore(PMap.find s e.e_constrs);
-					ctx.m.module_globals <- PMap.add name (TEnumDecl e,s) ctx.m.module_globals
+					ctx.m.module_globals <- PMap.add name (TEnumDecl e,s,p) ctx.m.module_globals
 				| _ ->
 					raise Not_found
 			in
@@ -2960,15 +2982,15 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| [] ->
 					(match name with
 					| None ->
-						ctx.m.module_types <- List.filter no_private types @ ctx.m.module_types
+						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types
 					| Some newname ->
-						ctx.m.module_types <- rebind (get_type tname) newname :: ctx.m.module_types);
+						ctx.m.module_types <- (rebind (get_type tname) newname,p) :: ctx.m.module_types);
 				| [tsub,p2] ->
-					let p = punion p1 p2 in
+					let pu = punion p1 p2 in
 					(try
 						let tsub = List.find (has_name tsub) types in
-						chk_private tsub p;
-						ctx.m.module_types <- (match name with None -> tsub | Some n -> rebind tsub n) :: ctx.m.module_types
+						chk_private tsub pu;
+						ctx.m.module_types <- ((match name with None -> tsub | Some n -> rebind tsub n),p) :: ctx.m.module_types
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
 						let tmain = get_type tname in
@@ -3001,15 +3023,18 @@ let init_module_type ctx context_init do_init (decl,p) =
 					| TClassDecl c
 					| TAbstractDecl {a_impl = Some c} ->
 						ignore(c.cl_build());
-						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name) ctx.m.module_globals) c.cl_statics
+						PMap.iter (fun _ cf -> if not (has_meta Meta.NoImportGlobal cf.cf_meta) then ctx.m.module_globals <- PMap.add cf.cf_name (TClassDecl c,cf.cf_name,p) ctx.m.module_globals) c.cl_statics
 					| TEnumDecl e ->
-						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name) ctx.m.module_globals) e.e_constrs
+						PMap.iter (fun _ c -> if not (has_meta Meta.NoImportGlobal c.ef_meta) then ctx.m.module_globals <- PMap.add c.ef_name (TEnumDecl e,c.ef_name,p) ctx.m.module_globals) e.e_constrs
 					| _ ->
 						error "No statics to import from this type" p
 				) :: !context_init
 			))
 	| EUsing path ->
-		if Display.is_display_file p then handle_path_display ctx path p;
+		if Display.is_display_file p then begin
+			Display.add_import_position ctx.com p;
+			handle_path_display ctx path p;
+		end;
 		let t = match List.rev path with
 			| (s1,_) :: (s2,_) :: sl ->
 				if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
@@ -3024,11 +3049,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.m.module_types <- types @ ctx.m.module_types;
+				ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
 				types
 			| Some _ ->
 				let t = load_type_def ctx p t in
-				ctx.m.module_types <- t :: ctx.m.module_types;
+				ctx.m.module_types <- (t,p) :: ctx.m.module_types;
 				[t]
 		) in
 		(* delay the using since we need to resolve typedefs *)
@@ -3037,7 +3062,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				| td :: l ->
 					(match resolve_typedef td with
 					| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-						loop (c :: acc) l
+						loop ((c,p) :: acc) l
 					| td ->
 						loop acc l)
 				| [] ->
@@ -3370,7 +3395,7 @@ let type_types_into_module ctx m tdecls p =
 		t = ctx.t;
 		m = {
 			curmod = m;
-			module_types = ctx.g.std.m_types;
+			module_types = List.map (fun t -> t,null_pos) ctx.g.std.m_types;
 			module_using = [];
 			module_globals = PMap.empty;
 			wildcard_packages = [];
@@ -3452,6 +3477,24 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	let tdecls = handle_import_hx ctx m tdecls p in
 	type_types_into_module ctx m tdecls p;
 	if is_extern then m.m_extra.m_kind <- MExtern;
+	begin if Common.unique_full_path file = (!Parser.resume_display).pfile then match ctx.com.display with
+		| DMDiagnostics ->
+			List.iter (fun mt -> match mt with
+				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
+					ignore(c.cl_build());
+					let field cf =
+						ignore(follow cf.cf_type);
+					in
+					List.iter field c.cl_ordered_fields;
+					List.iter field c.cl_ordered_statics;
+					(match c.cl_constructor with None -> () | Some cf -> field cf);
+				| _ ->
+					()
+			) m.m_types;
+			raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
+		| _ ->
+			()
+	end;
 	m
 
 let resolve_module_file com m remap p =
@@ -3799,7 +3842,7 @@ let rec build_generic ctx c p tl =
 		load_instance ctx ({ tpackage = pack; tname = name; tparams = []; tsub = None },p) false p
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
-		let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in
+		(* let ctx = { ctx with m = { ctx.m with module_types = m.m_types @ ctx.m.module_types } } in *)
 		ignore(c.cl_build()); (* make sure the super class is already setup *)
 		let mg = {
 			m_id = alloc_mid();
@@ -4028,7 +4071,7 @@ let get_macro_path ctx e args p =
 				if not (PMap.mem i ctx.curclass.cl_statics) then raise Not_found;
 				ctx.curclass.cl_path
 			with Not_found -> try
-				(t_infos (fst (PMap.find i ctx.m.module_globals))).mt_path
+				(t_infos (let path,_,_ = PMap.find i ctx.m.module_globals in path)).mt_path
 			with Not_found ->
 				error "Invalid macro call" p
 			in
