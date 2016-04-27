@@ -99,7 +99,7 @@ and typer = {
 	mutable pass : typer_pass;
 	(* per-module *)
 	mutable m : typer_module;
-	is_display_file : bool;
+	mutable is_display_file : bool;
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable tthis : t;

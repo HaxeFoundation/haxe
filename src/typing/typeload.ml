@@ -2908,7 +2908,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 	match decl with
 	| EImport (path,mode) ->
 		ctx.m.module_imports <- (path,mode) :: ctx.m.module_imports;
-		if ctx.is_display_file then begin
+		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
+		if Display.is_display_file p.pfile then begin
 			Display.add_import_position ctx.com p;
 			handle_path_display ctx path p;
 		end;
@@ -3024,7 +3025,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				) :: !context_init
 			))
 	| EUsing path ->
-		if ctx.is_display_file then begin
+		if Display.is_display_file p.pfile then begin
 			Display.add_import_position ctx.com p;
 			handle_path_display ctx path p;
 		end;
@@ -3475,8 +3476,11 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 			List.iter (fun mt -> match mt with
 				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
 					ignore(c.cl_build());
-					let field cf =
-						ignore(follow cf.cf_type);
+					let field cf = match cf.cf_kind with
+						| Method MethMacro ->
+							(try ignore (ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit -> ())
+						| _ ->
+							ignore(follow cf.cf_type);
 					in
 					List.iter field c.cl_ordered_fields;
 					List.iter field c.cl_ordered_statics;

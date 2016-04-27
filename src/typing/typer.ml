@@ -4931,6 +4931,7 @@ let get_macro_context ctx p =
 		Common.define com2 Define.Macro;
 		Common.init_platform com2 Neko;
 		let mctx = ctx.g.do_create com2 in
+		mctx.is_display_file <- ctx.is_display_file;
 		create_macro_interp ctx mctx;
 		api, mctx
 
