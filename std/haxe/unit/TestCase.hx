@@ -40,41 +40,32 @@ class TestCase {
 		haxe.unit.TestRunner.print(v);
 	}
 
-	function assertTrue( b:Bool, ?c : PosInfos ) : Void {
-		currentTest.done = true;
-		if (b != true){
-			currentTest.success = false;
-			currentTest.error   = "expected true but was false";
-			currentTest.posInfos = c;
-			throw currentTest;
-		}
-	}
-	
 	function fail( reason:String, ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		currentTest.success = false;
 		currentTest.error   = reason;
 		currentTest.posInfos = c;
 		throw currentTest;
-	}	
-
-	function assertFalse( b:Bool, ?c : PosInfos ) : Void {
+	}
+	
+	function assertTrue( b:Bool, ?c : PosInfos ) : Void {
 		currentTest.done = true;
-		if (b == true){
-			currentTest.success = false;
-			currentTest.error   = "expected false but was true";
-			currentTest.posInfos = c;
-			throw currentTest;
+		if (b != true){
+			fail("expected true but was false");
 		}
 	}
 
-	function assertEquals<T>( expected: T , actual: T,  ?c : PosInfos ) : Void 	{
+	function assertFalse( b:Bool, ?c : PosInfos ) : Void {
+		currentTest.done = true;
+		if (b){
+			fail("expected false but was true");
+		}
+	}
+
+	function assertEquals<T>( expected: T , actual: T,  ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		if (actual != expected){
-			currentTest.success = false;
-			currentTest.error   = "expected '" + expected + "' but was '" + actual + "'";
-			currentTest.posInfos = c;
-			throw currentTest;
+			fail("expected '" + expected + "' but was '" + actual + "'";
 		}
 	}
 
