@@ -51,21 +51,21 @@ class TestCase {
 	function assertTrue( b:Bool, ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		if (b != true){
-			fail("expected true but was false");
+			fail("expected true but was false", c);
 		}
 	}
 
 	function assertFalse( b:Bool, ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		if (b){
-			fail("expected false but was true");
+			fail("expected false but was true", c);
 		}
 	}
 
 	function assertEquals<T>( expected: T , actual: T,  ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		if (actual != expected){
-			fail("expected '" + expected + "' but was '" + actual + "'";
+			fail("expected '" + expected + "' but was '" + actual + "'", c);
 		}
 	}
 
