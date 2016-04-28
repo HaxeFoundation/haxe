@@ -48,16 +48,17 @@ let transform_abstract_field com this_t a_t a f =
 		end else
 			meta
 		in
+		(* We don't want the generated expression positions to shadow the real code. *)
+		let p = { p with pmax = p.pmin } in
 		let fu = {
 			fu with
 			f_expr = (match fu.f_expr with
 			| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
-			| Some (EBlock el,p) -> Some (EBlock (init p :: el @ [ret p]),p)
+			| Some (EBlock el,_) -> Some (EBlock (init p :: el @ [ret p]),p)
 			| Some e -> Some (EBlock [init p;e;ret p],p)
 			);
 			f_type = Some a_t;
 		} in
-
 		{ f with cff_name = "_new",pos f.cff_name; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
