@@ -1883,7 +1883,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 					| _ -> error "Invalid build parameters" p
 				) in
 				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
-				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your enum is not used in macro" p;
+				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
 				let old = ctx.g.get_build_infos in
 				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
 				context_init();
