@@ -49,17 +49,17 @@ class StringBuf {
 		b.push(Std.string(x));
 	}
 
-	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
+	public #if !cppia inline #end function addSub( s : String, pos : Int, ?len : Int ) : Void {
 		if (charBuf!=null) flush();
 		b.push(s.substr(pos,len));
 	}
 
-	public inline function addChar( c : Int ) : Void {
+	public #if !cppia inline #end function addChar( c : Int ) : Void {
 		if (charBuf==null) charBuf = new Array<cpp.Char>();
 		charBuf.push(c);
 	}
 
-	public inline function toString() : String {
+	public #if !cppia inline #end function toString() : String {
 		if (charBuf!=null) flush();
 		return b.join("");
 	}
