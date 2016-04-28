@@ -608,13 +608,6 @@ let is_objc_type t = match follow t with
 ;;
 
 
-let is_sizeof_call func =
-   match (remove_parens func).eexpr with
-   | TField (_,FStatic ({cl_path=["cpp"],"Stdlib"},{cf_name="sizeof"} ) ) -> true
-   | _ -> false
-;;
-
-
 let is_lvalue var =
    match (remove_parens var).eexpr with
    | TLocal _ -> true
@@ -1386,6 +1379,7 @@ and tcppfuncloc =
    | FuncThis of tclass_field
    | FuncInstance of tcppexpr * bool * tclass_field
    | FuncStatic of tclass * bool * tclass_field
+   | FuncTemplate of tclass * tclass_field * path * bool
    | FuncInterface of tcppexpr * tclass * tclass_field
    | FuncEnumConstruct of tenum * tenum_field
    | FuncSuperConstruct
@@ -1395,7 +1389,6 @@ and tcppfuncloc =
    | FuncInternal of tcppexpr * string * string
    | FuncGlobal of string
    | FuncFromStaticFunction
-   | FuncSizeof
 
 and tcpparrayloc =
    | ArrayTyped of tcppexpr * tcppexpr
@@ -1431,7 +1424,6 @@ and tcpp_expr_expr =
    | CppEnumField of tenum * tenum_field
    | CppCall of tcppfuncloc * tcppexpr list
    | CppFunctionAddress of tclass * tclass_field
-   | CppSizeof of path * bool
    | CppArray of tcpparrayloc
    | CppCrement of  tcppcrementop * Ast.unop_flag * tcpplvalue
    | CppSet of tcpplvalue * tcppexpr
@@ -1496,6 +1488,7 @@ let rec s_tcpp = function
        (if objC then "CppCallObjCInstance" else "CppCallInstance(") ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
    | CppCall (FuncInterface  _,_) -> "CppCallInterface"
    | CppCall (FuncStatic  (_,objC,_),_) -> if objC then "CppCallStaticObjC" else "CppCallStatic"
+   | CppCall (FuncTemplate  _,_) -> "CppCallTemplate"
    | CppCall (FuncEnumConstruct _,_) -> "CppCallEnumConstruct"
    | CppCall (FuncSuperConstruct,_) -> "CppCallSuperConstruct"
    | CppCall (FuncSuper _,_) -> "CppCallSuper"
@@ -1504,10 +1497,8 @@ let rec s_tcpp = function
    | CppCall (FuncInternal _,_) -> "CppCallInternal"
    | CppCall (FuncGlobal _,_) -> "CppCallGlobal"
    | CppCall (FuncFromStaticFunction,_) -> "CppCallFromStaticFunction"
-   | CppCall (FuncSizeof,_) -> "CppCallSizeof"
 
    | CppFunctionAddress  _ -> "CppFunctionAddress"
-   | CppSizeof  _ -> "CppSizeof"
    | CppArray  _ -> "CppArray"
    | CppCrement  _ -> "CppCrement"
    | CppSet  _ -> "CppSet"
@@ -2076,6 +2067,21 @@ let cpp_member_name_of member =
       keyword_remap member.cf_name
 ;;
 
+let cpp_is_templated_call ctx member =
+   has_meta_key member.cf_meta Meta.TemplatedCall
+;;
+
+let cpp_template_param path native =
+   let path = "::" ^ (join_class_path_remap (path) "::" ) in
+   if (native) then
+      path
+   else if (path="::Array") then
+      "hx::ArrayBase"
+   else
+      path
+;;
+
+
 
 let cpp_append_block block expr =
    match block.cppexpr with
@@ -2291,11 +2297,6 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                let exprType = cpp_type_of member.cf_type in
                CppFunction( FuncFromStaticFunction, funcReturn ), exprType
 
-            | FStatic ( {cl_path=(["cpp"],"Stdlib")}, ({cf_name="sizeof"} as member) ) ->
-               let funcReturn = cpp_member_return_type ctx member in
-               let exprType = cpp_type_of member.cf_type in
-               CppFunction( FuncSizeof, funcReturn ), exprType
-
             | FStatic (clazz,member) ->
                let funcReturn = cpp_member_return_type ctx member in
                let exprType = cpp_type_of member.cf_type in
@@ -2381,17 +2382,18 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                       CppFunctionAddress(clazz,member), funcReturn
                    | _ -> error "cpp.Function.fromStaticFunction must be called on static function" expr.epos;
                    )
-               |  CppFunction(FuncSizeof ,returnType) ->
-                   ( match retypedArgs with
-                   | [ {cppexpr=CppClassOf(path,native)} ] ->
-                      CppSizeof(path,native), returnType
-                   | _ -> error "cpp.Stdlib.sizeof must be called on a type name" expr.epos;
-                   )
                |  CppEnumIndex(_) ->
                      (* Not actually a TCall...*)
                      retypedFunc.cppexpr, retypedFunc.cpptype
                |  CppFunction( FuncInstance(obj, false, member), args ) when return_type=TCppVoid && is_array_splice_call obj member ->
                      CppCall( FuncInstance(obj, false, {member with cf_name="removeRange"}), retypedArgs), TCppVoid
+               |  CppFunction( FuncStatic(obj, false, member), returnType ) when cpp_is_templated_call ctx member ->
+                     (match retypedArgs with
+                     | {cppexpr = CppClassOf(path,native) }::rest ->
+                         CppCall( FuncTemplate(obj,member,path,native), rest), returnType
+                     | _ -> error "First parameter of template function must be a Class" retypedFunc.cpppos
+                     )
+               (* Other functions ... *)
                |  CppFunction(func,returnType) ->
                      CppCall(func,retypedArgs), returnType
                |  CppEnumField(enum, field) ->
@@ -2892,7 +2894,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncNew _ -> error "Can't create new closure" expr.cpppos
          | FuncEnumConstruct _ -> error "Enum constructor outside of CppCall" expr.cpppos
          | FuncFromStaticFunction -> error "Can't create cpp.Function.fromStaticFunction closure" expr.cpppos
-         | FuncSizeof -> error "Can't create cpp.Stdlib.sizeof closure" expr.cpppos
+         | FuncTemplate _ -> error "Can't create template function closure" expr.cpppos
          );
       | CppCall( FuncInterface(expr,clazz,field), args) when not (is_native_gen_class clazz)->
          out ( cpp_class_name clazz ^ "::" ^ cpp_member_name_of field ^ "(");
@@ -2955,10 +2957,21 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
               end else
                  (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ))
 
+         | FuncTemplate(clazz,field,tpath,native) ->
+              let rename = get_meta_string field.cf_meta Meta.Native in
+              if rename<>"" then begin
+                 (* This is the case if you use @:native('new foo').  c++ wil group the space undesirably *)
+                 if String.contains rename ' ' then begin
+                    out "(";
+                    closeCall := ")"
+                 end;
+                 out rename
+              end else
+                 (out (cpp_class_name clazz); out ("::" ^ (cpp_member_name_of field) ));
+              out ("< " ^ (cpp_template_param tpath native) ^ "  >")
+
          | FuncFromStaticFunction ->
               error "Unexpected FuncFromStaticFunction" expr.cpppos
-         | FuncSizeof ->
-              error "Unexpected FuncSizeof" expr.cpppos
          | FuncEnumConstruct(enum,field) ->
             out ((string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field));
 
@@ -3005,16 +3018,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          out ("::cpp::Function< " ^ signature ^">(hx::AnyCast(");
          out ("&::" ^(join_class_path_remap klass.cl_path "::")^ "_obj::" ^ name );
          out " ))"
-      | CppSizeof(path,native) ->
-         out ("hx::ClassSizeOf< ");
-         let path = "::" ^ (join_class_path_remap (path) "::" ) in
-         if (native) then
-            out path
-         else if (path="::Array") then
-            out "hx::ArrayBase"
-         else
-            out path;
-         out  " >()";
 
       | CppGlobal(name) ->
          out ("::" ^ name)
@@ -5473,12 +5476,14 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    if (not class_def.cl_interface && not nativeGen) then begin
       output_h ("\t\t" ^ class_name ^  "();\n");
-      output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
       output_h "\n\tpublic:\n";
+      output_h ("\t\tvoid __construct(" ^ constructor_type_args ^ ");\n");
       let new_arg = if (has_gc_references ctx class_def) then "true" else "false" in
-      output_h ("\t\tinline void *operator new(size_t inSize, bool inContainer=" ^ new_arg
-         ^",const char *inName=" ^ (const_char_star class_name_text )^ ")\n" );
+      let name = const_char_star class_name_text in
+      output_h ("\t\tinline void *operator new(size_t inSize, bool inContainer=" ^ new_arg ^",const char *inName=" ^name^ ")\n" );
       output_h ("\t\t\t{ return hx::Object::operator new(inSize,inContainer,inName); }\n" );
+      output_h ("\t\tinline void *operator new(size_t inSize, int extra)\n" );
+      output_h ("\t\t\t{ return hx::Object::operator new(inSize+extra," ^ new_arg ^ "," ^ name ^ "); }\n" );
       output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
       output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
       output_h ("\t\tstatic Dynamic __Create(hx::DynamicArray inArgs);\n");
