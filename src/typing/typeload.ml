@@ -2271,7 +2271,10 @@ module ClassInitializer = struct
 			| Some t ->
 				(* TODO is_lib: only load complex type if needed *)
 				let old = ctx.type_params in
-				if fctx.is_static then ctx.type_params <- [];
+				if fctx.is_static then ctx.type_params <- (match cctx.abstract with
+					| Some a -> a.a_params
+					| _ -> []
+				);
 				let t = load_complex_type ctx true p t in
 				if fctx.is_static then ctx.type_params <- old;
 				t
