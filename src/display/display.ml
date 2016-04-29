@@ -28,7 +28,7 @@ exception DisplayFields of (string * t * display_field_kind option * documentati
 exception DisplayToplevel of identifier_type list
 
 let is_display_file file =
-	Common.unique_full_path file = (!Parser.resume_display).pfile
+	file <> "?" && Common.unique_full_path file = (!Parser.resume_display).pfile
 
 let encloses_position p_target p =
 	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
