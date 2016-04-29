@@ -383,7 +383,7 @@ let rec parse_name names ctx = function
 	| A3MRuntimeNameLate -> HMRuntimeNameLate
 	| A3MMultiNameLate ns -> HMMultiNameLate ctx.nsets.(idx ns)
 	| A3MAttrib multi -> HMAttrib (parse_name names ctx multi)
-	| A3MParams (id,pl) -> HMParams (parse_name names ctx names.(idx id),List.map (fun id -> parse_name names ctx names.(idx id)) pl)
+	| A3MParams (id,pl) -> HMParams (parse_name names ctx names.(idx id),List.map (fun id -> if idx id = -1 then HMAny else parse_name names ctx names.(idx id)) pl)
 
 let parse_try_catch ctx t =
 	{
