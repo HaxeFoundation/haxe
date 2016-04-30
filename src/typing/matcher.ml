@@ -1195,13 +1195,10 @@ module TexprConverter = struct
 				SKValue,Infinite
 		in
 		let kind,finiteness = loop t in
-		let compatible_kind con = match con,kind with
-			| (ConEnum _,(SKEnum | SKFakeEnum))
-			| (ConArray _,SKLength)
-			| (_,SKValue) ->
-				true
-			| _ ->
-				false
+		let compatible_kind con = match con with
+			| ConEnum _ -> kind = SKEnum || kind = SKFakeEnum
+			| ConArray _ -> kind = SKLength
+			| _ -> kind = SKValue
 		in
 		List.iter (fun (con,unguarded,dt) ->
 			if not (compatible_kind con) then error "Incompatible pattern" dt.dt_pos;
