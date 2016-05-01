@@ -2715,8 +2715,11 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | _ -> cppExpr
       end else match cppExpr.cppexpr, cppExpr.cpptype, return_type with
+         (*  This detection of cpp_is_fixed_override and the real type is wrong then
+             the code explicitly casts the return value of a function
          | CppCall( FuncInstance(_,false,_), _ ), _,_ when cpp_is_fixed_override cppExpr.cpptype return_type
               -> mk_cppexpr (CppCastStatic(cppExpr,return_type)) return_type
+         *)
          | _, TCppObjC(k), TCppDynamic
               -> mk_cppexpr (CppCast(cppExpr,TCppDynamic)) return_type
          | _ -> cppExpr
