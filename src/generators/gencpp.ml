@@ -4079,7 +4079,7 @@ let generate_main ctx super_deps class_def =
       let cpp_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
       let output_main = (cpp_file#write) in
 
-      generate_main_header output_main;
+      generate_main_header (cpp_file#write_h);
 
       List.iter ( add_include cpp_file ) depend_referenced;
       output_main "\n\n";
@@ -4103,7 +4103,7 @@ let generate_dummy_main common_ctx =
    let generate_startup filename is_main =
       let main_file = new_cpp_file common_ctx common_ctx.file ([],filename) in
       let output_main = (main_file#write) in
-      generate_main_header output_main;
+      generate_main_header (main_file#write_h);
       if is_main then output_main "\n#include <hx/HxcppMain.h>\n\n";
       generate_main_footer1 output_main;
       generate_main_footer2 output_main;
@@ -4119,7 +4119,8 @@ let generate_boot ctx boot_enums boot_classes nonboot_classes init_classes =
    let base_dir = common_ctx.file in
    let boot_file = new_cpp_file common_ctx base_dir ([],"__boot__") in
    let output_boot = (boot_file#write) in
-   output_boot "#include <hxcpp.h>\n\n";
+   boot_file#write_h "#include <hxcpp.h>\n\n";
+
    List.iter ( fun class_path -> boot_file#add_include class_path )
       (boot_enums @ boot_classes @ nonboot_classes);
 
@@ -4167,7 +4168,7 @@ let generate_files common_ctx file_info =
    let files_file = new_cpp_file common_ctx base_dir ([],"__files__") in
    let output_files = (files_file#write) in
    let types = common_ctx.types in
-   output_files "#include <hxcpp.h>\n\n";
+   files_file#write_h "#include <hxcpp.h>\n\n";
    output_files "namespace hx {\n";
    output_files "const char *__hxcpp_all_files[] = {\n";
    output_files "#ifdef HXCPP_DEBUGGER\n";
@@ -5611,7 +5612,7 @@ let write_resources common_ctx =
 
 
    let resource_file = new_cpp_file common_ctx common_ctx.file ([],"__resources__") in
-   resource_file#write "#include <hxcpp.h>\n\n";
+   resource_file#write_h "#include <hxcpp.h>\n\n";
    resource_file#write "namespace hx {\n";
 
    idx := 0;
