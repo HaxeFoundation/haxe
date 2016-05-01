@@ -946,10 +946,10 @@ and init_wait_stdio() =
 		let len = IO.read_i32 chin in
 		IO.really_nread chin len
 	in
-	let write = Buffer.add_bytes berr in
+	let write = Buffer.add_string berr in
 	let close = fun() ->
 		IO.write_i32 cherr (Buffer.length berr);
-		IO.nwrite cherr (Buffer.to_bytes berr);
+		IO.nwrite cherr (Buffer.contents berr);
 		IO.flush cherr
 	in
 	fun() ->
