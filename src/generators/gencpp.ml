@@ -2050,12 +2050,12 @@ let is_array_splice_call obj member =
    | _,_ -> false
 ;;
 
-let cpp_is_fixed_override funcType expectedType =
-   match expectedType with
+let cpp_can_static_cast funcType inferredType =
+   match inferredType with
    | TCppInst _
    | TCppClass
    | TCppEnum _
-      -> (tcpp_to_string funcType) <> (tcpp_to_string expectedType)
+      -> (tcpp_to_string funcType) <> (tcpp_to_string inferredType)
    | _ -> false
 ;;
 
@@ -2393,9 +2393,21 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                          CppCall( FuncTemplate(obj,member,path,native), rest), returnType
                      | _ -> error "First parameter of template function must be a Class" retypedFunc.cpppos
                      )
+
+               | CppFunction( FuncInstance(obj,false,member) as func, returnType ) when cpp_can_static_cast returnType cppType ->
+                  let call = mk_cppexpr (CppCall(func,retypedArgs)) returnType in
+                  CppCastStatic(call, cppType), cppType
+                  (*
+                  let error_printer file line = Printf.sprintf "%s:%d:" file line in
+                  let epos = Lexer.get_error_pos error_printer expr.epos in
+                  print_endline ( "fixed override " ^ member.cf_name ^ " @ " ^  epos ^ " " ^ (tcpp_to_string returnType) ^ "->" ^ (ctx_type_string ctx expr.etype) );
+                  CppCall(func,retypedArgs), returnType
+                  *)
+
                (* Other functions ... *)
                |  CppFunction(func,returnType) ->
                      CppCall(func,retypedArgs), returnType
+
                |  CppEnumField(enum, field) ->
                      CppCall( FuncEnumConstruct(enum,field),retypedArgs), cppType
                |  CppSuper(_) ->
@@ -2715,11 +2727,6 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
 
          | _ -> cppExpr
       end else match cppExpr.cppexpr, cppExpr.cpptype, return_type with
-         (*  This detection of cpp_is_fixed_override and the real type is wrong then
-             the code explicitly casts the return value of a function
-         | CppCall( FuncInstance(_,false,_), _ ), _,_ when cpp_is_fixed_override cppExpr.cpptype return_type
-              -> mk_cppexpr (CppCastStatic(cppExpr,return_type)) return_type
-         *)
          | _, TCppObjC(k), TCppDynamic
               -> mk_cppexpr (CppCast(cppExpr,TCppDynamic)) return_type
          | _ -> cppExpr
