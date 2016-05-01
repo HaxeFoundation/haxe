@@ -3075,12 +3075,6 @@ let init_module_type ctx context_init do_init (decl,p) =
 			Display.display_module_type ctx.com.display (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		check_global_metadata ctx (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
-		if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
-		if Meta.has Meta.GenericBuild c.cl_meta then begin
-			if ctx.in_macro then error "@:genericBuild cannot be used in macros" c.cl_pos;
-			c.cl_kind <- KGenericBuild d.d_data;
-		end;
-		if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		c.cl_extern <- List.mem HExtern herits;
 		c.cl_interface <- List.mem HInterface herits;
 		let build() =
@@ -3360,6 +3354,12 @@ let module_pass_2 ctx m decls tdecls p =
 		match d with
 		| (TClassDecl c, (EClass d, p)) ->
 			c.cl_params <- type_type_params ctx c.cl_path (fun() -> c.cl_params) p d.d_params;
+			if Meta.has Meta.Generic c.cl_meta && c.cl_params <> [] then c.cl_kind <- KGeneric;
+			if Meta.has Meta.GenericBuild c.cl_meta then begin
+				if ctx.in_macro then error "@:genericBuild cannot be used in macros" c.cl_pos;
+				c.cl_kind <- KGenericBuild d.d_data;
+			end;
+			if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 		| (TEnumDecl e, (EEnum d, p)) ->
 			e.e_params <- type_type_params ctx e.e_path (fun() -> e.e_params) p d.d_params;
 		| (TTypeDecl t, (ETypedef d, p)) ->
