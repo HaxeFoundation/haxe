@@ -3280,11 +3280,13 @@ let init_module_type ctx context_init do_init (decl,p) =
 			if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
 			tt
 		| _ ->
-			TLazy (exc_protect ctx (fun r ->
+			let r = exc_protect ctx (fun r ->
 				if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
 				r := (fun() -> tt);
 				tt
-			) "typedef_rec_check")
+			) "typedef_rec_check" in
+			delay ctx PForce (fun () -> ignore(!r()));
+			TLazy r
 		) in
 		(match t.t_type with
 		| TMono r ->
