@@ -4758,7 +4758,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let constructor_args = String.concat "," constructor_var_list in
 
    (* State *)
-   let interface_glue = ref [] in
+   let header_glue = ref [] in
 
  (*
    Generate cpp code
@@ -4832,6 +4832,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             let alreadyGlued = Hashtbl.create 0 in
             let cname = "_hx_" ^ (join_class_path class_def.cl_path "_") in
             let implname = (cpp_class_name class_def) in
+            let cpp_glue = ref [] in
             List.iter (fun interface_name ->
                (try let interface = Hashtbl.find implemented_hash interface_name in
                    output_cpp ("static " ^ cpp_class_name interface ^ " " ^ cname ^ "_" ^ interface_name ^ "= {\n" );
@@ -4850,9 +4851,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                             let argList = ctx_tfun_arg_list ctx true args in
                             let returnType = ctx_type_string ctx return_type in
                             let returnStr = if returnType="void" then "" else "return " in
-                            let glueCode = "\t\tinline " ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ") {\n" ^
-                               "\t\t\t" ^ returnStr ^ realName ^ "(" ^ cpp_arg_names args ^ ");\n\t\t}\n" in
-                            interface_glue := glueCode :: !interface_glue;
+                            let cppCode = returnType ^ " " ^ class_name ^ "::" ^ glue ^ "(" ^ argList ^ ") {\n" ^
+                               "\t\t\t" ^ returnStr ^ realName ^ "(" ^ cpp_arg_names args ^ ");\n}\n" in
+                            let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
+                            header_glue := headerCode :: !header_glue;
+                            cpp_glue := cppCode :: !cpp_glue;
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n");
                          end else
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n");
@@ -4867,6 +4870,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                    output_cpp "};\n\n";
                with Not_found -> () )
                ) implemented;
+
+            output_cpp (String.concat "\n" !cpp_glue);
 
             output_cpp ("void *" ^ class_name ^ "::_hx_getInterface(int inHash) {\n");
             output_cpp "\tswitch(inHash) {\n";
@@ -5529,7 +5534,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
       if ( (List.length implemented) > 0 ) then begin
          output_h "\t\tvoid *_hx_getInterface(int inHash);\n";
-         output_h (String.concat "\n" !interface_glue);
+         output_h (String.concat "\n" !header_glue);
       end;
 
 
