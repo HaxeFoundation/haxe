@@ -43,6 +43,8 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
    public static function addressOf<T>(inVariable:T) : Pointer<T>;
 
+   public static function endOf<T:{}>(inVariable:T) : Pointer<cpp.Void>;
+
    public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
 
    public static function ofArray<T>(array:Array<T>):Pointer<T>;

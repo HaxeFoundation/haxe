@@ -2371,7 +2371,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                let cppType = cpp_type_of expr.etype in
                (*
                let retypedArgs = List.map2 (fun arg (var,opt) ->
-                   retype (cpp_fun_arg_type_of var opt) arg
+                   retype (cpp_fun_arg_type_of ctx var opt) arg
                    ) args, func.tf_args in
                *)
                let retypedArgs = List.map (retype TCppDynamic ) args in
@@ -2665,6 +2665,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TReturn eo ->
             CppReturn(match eo with None -> None | Some e -> Some (retype (cpp_type_of e.etype) e)), TCppVoid
          | TCast (base,None) -> (* Use auto-cast rules *)
+            let return_type = cpp_type_of expr.etype in
             let baseCpp = retype (return_type) base in
             let baseStr = (tcpp_to_string baseCpp.cpptype) in
             let returnStr = (tcpp_to_string return_type) in
