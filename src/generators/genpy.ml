@@ -1569,7 +1569,7 @@ module Printer = struct
 				in
 				Printf.sprintf "%s[%s%s]" (print_expr pctx e1) (print_exprs pctx ":" el) (if trailing_colon then ":" else "")
 			| "python_Syntax.isIn",[e1;e2] ->
-				Printf.sprintf "%s in %s" (print_expr pctx e1) (print_expr pctx e2)
+				Printf.sprintf "(%s in %s)" (print_expr pctx e1) (print_expr pctx e2)
 			| "python_Syntax.delete",[e1] ->
 				Printf.sprintf "del %s" (print_expr pctx e1)
 			| "python_Syntax.binop",[e0;{eexpr = TConst(TString id)};e2] ->
