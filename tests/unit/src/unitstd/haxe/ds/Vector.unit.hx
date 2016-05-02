@@ -89,6 +89,30 @@ vec3[4] == 4;
 vec3[5] == 5;
 vec3[6] == 6;
 
+var vec5 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4]);
+haxe.ds.Vector.blit(vec5, 0, vec5, 1, 4);
+vec5[0] == 0;
+vec5[1] == 0;
+vec5[2] == 1;
+vec5[3] == 2;
+vec5[4] == 3;
+
+var vec5 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4]);
+haxe.ds.Vector.blit(vec5, 1, vec5, 0, 4);
+vec5[0] == 1;
+vec5[1] == 2;
+vec5[2] == 3;
+vec5[3] == 4;
+vec5[4] == 4;
+
+var vec5 = haxe.ds.Vector.fromArrayCopy([0,1,2,3,4]);
+haxe.ds.Vector.blit(vec5, 0, vec5, 0, 5);
+vec5[0] == 0;
+vec5[1] == 1;
+vec5[2] == 2;
+vec5[3] == 3;
+vec5[4] == 4;
+
 // test iteration
 
 var vec1 = new haxe.ds.Vector(2);

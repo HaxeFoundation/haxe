@@ -157,8 +157,7 @@ abstract Vector<T>(VectorData<T>) {
 						src[j] = src[i];
 					}
 				}
-				else
-				if (srcPos > destPos) {
+				else if (srcPos > destPos) {
 					var i = srcPos;
 					var j = destPos;
 					for (k in 0...len) {
