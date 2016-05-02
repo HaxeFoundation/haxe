@@ -1577,6 +1577,18 @@ let rec type_eq param a b =
 	| TAnon a1, TAnon a2 ->
 		(try
 			PMap.iter (fun n f1 ->
+				if not (PMap.mem n a2.a_fields) then begin
+					if is_closed a2 then error [has_no_field b n];
+					if not (link (ref None) b f1.cf_type) then error [cannot_unify a b];
+				end
+			) a1.a_fields;
+			PMap.iter (fun n f2 ->
+				if not (PMap.mem n a1.a_fields) then begin
+					if is_closed a1 then error [has_no_field a n];
+					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
+				end
+			) a2.a_fields;
+			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
@@ -1593,17 +1605,9 @@ let rec type_eq param a b =
 					end;
 				with
 					Not_found ->
-						if is_closed a2 then error [has_no_field b n];
-						if not (link (ref None) b f1.cf_type) then error [cannot_unify a b];
 						a2.a_fields <- PMap.add n f1 a2.a_fields
 			) a1.a_fields;
-			PMap.iter (fun n f2 ->
-				if not (PMap.mem n a1.a_fields) then begin
-					if is_closed a1 then error [has_no_field a n];
-					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
-					a1.a_fields <- PMap.add n f2 a1.a_fields
-				end;
-			) a2.a_fields;
+			PMap.iter (fun n f2 -> if not (PMap.mem n a1.a_fields) then a1.a_fields <- PMap.add n f2 a1.a_fields ) a2.a_fields;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , _ ->
@@ -2049,7 +2053,17 @@ and unify_with_variance f t1 t2 =
 		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
 		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
 	| TAnon a1,TAnon a2 ->
-		unify_anons t1 t2 a1 a2
+			if not (List.exists (fun (t1',t2') -> fast_eq t1 t1' && fast_eq t2 t2'  ) (!unify_stack)) then begin
+			unify_stack := (t1,t2) :: !unify_stack;
+			(try
+				unify_anons t1 t2 a1 a2
+			with
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error l);
+			unify_stack := List.tl !unify_stack;
+		end else
+			type_eq EqRightDynamic t1 t2
 	| _ ->
 		error [cannot_unify t1 t2]
 
