@@ -75,4 +75,11 @@ class Basic extends DisplayTestCase {
 		eq("String", type(pos(4)));
 		eq("String", type(pos(5)));
 	}
+
+	/**
+	var a:Ar{-1-}ray;
+	**/
+	@:funcCode function testMissingParams() {
+		eq("Array<Unknown<0>>", type(pos(1)));
+	}
 }
