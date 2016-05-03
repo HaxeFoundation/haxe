@@ -2215,18 +2215,23 @@ module ClassInitializer = struct
 						(* disallow initialization of non-physical fields (issue #1958) *)
 						display_error ctx "This field cannot be initialized because it is not a real variable" p; e
 					| Var v when not fctx.is_static ->
-						let e = match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
-							| Some e -> e
-							| None ->
-								let rec has_this e = match e.eexpr with
-									| TConst TThis ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
-										display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
-									| _ ->
-									Type.iter has_this e
-								in
-								has_this e;
+						let e = match ctx.com.display with
+							| DMNone ->
+								begin match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
+									| Some e -> e
+									| None ->
+										let rec has_this e = match e.eexpr with
+											| TConst TThis ->
+												display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+											| TLocal v when (match ctx.vthis with Some v2 -> v == v2 | None -> false) ->
+												display_error ctx "Cannot access this or other member field in variable initialization" e.epos;
+											| _ ->
+											Type.iter has_this e
+										in
+										has_this e;
+										e
+								end
+							| _ ->
 								e
 						in
 						e
