@@ -1896,7 +1896,12 @@ let unify_int ctx e k =
 			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata;
 			cf2
 		in
-		let e = if stat then type_type ctx c.cl_path p else e in
+		let path = match c.cl_kind with
+			| KAbstractImpl(a) ->
+				a.a_path
+			| _ -> c.cl_path
+		in
+		let e = if stat then type_type ctx path p else e in
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
 		let e = mk (TField(e,fa)) cf2.cf_type p in
 		make_call ctx e el ret p
