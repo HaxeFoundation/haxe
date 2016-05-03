@@ -3052,8 +3052,8 @@ and type_object_decl ctx fl with_type p =
 		let t, fl = type_fields a.a_fields in
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
-		let _,ctor = get_constructor ctx c tl p in
-		let args = match follow ctor.cf_type with
+		let t,ctor = get_constructor ctx c tl p in
+		let args = match follow t with
 			| TFun(args,_) -> args
 			| _ -> assert false
 		in
