@@ -41,6 +41,7 @@ class EReg {
 				case "i" : ropt |= FLAGS.CASELESS;
 				case "m" : ropt |= FLAGS.MULTILINE;
 				case "s" : ropt |= FLAGS.DOTALL;
+				case "u" : ropt |= FLAGS.UTF8;
 				case "g" : global = true;
 				default : null;
 			}
