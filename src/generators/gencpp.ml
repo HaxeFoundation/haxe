@@ -1313,6 +1313,7 @@ type tcpp =
    | TCppPointer of string * tcpp
    | TCppRawPointer of string * tcpp
    | TCppFunction of tcpp list * tcpp * string
+   | TCppReference
    | TCppVoidStar
    | TCppDynamicArray
    | TCppObjectArray of tcpp
@@ -1536,6 +1537,7 @@ let rec s_tcpp = function
 and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppDynamic -> " ::Dynamic"
    | TCppObject -> " ::Dynamic"
+   | TCppReference -> " Reference<>"
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
    | TCppVariant -> "::cpp::Variant"
@@ -1636,6 +1638,12 @@ let rec const_string_of expr =
 ;;
 
 
+let cpp_is_struct_access t =
+   match t with
+   | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
+   | _ -> false
+;;
+
 
 let cpp_is_dynamic_type = function
    | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
@@ -1720,6 +1728,8 @@ let rec cpp_type_of ctx haxe_type =
             cpp_function_type_of ctx function_type abi;
       | (["cpp"],"Callable"), [function_type] ->
             cpp_function_type_of_string ctx function_type "";
+      | (["cpp"],"Reference"), [_] ->
+            TCppReference
 
       | ([],"Array"), [p] ->
          let arrayOf = cpp_type_of ctx p in
@@ -1729,6 +1739,7 @@ let rec cpp_type_of ctx haxe_type =
               TCppDynamicArray
 
             | TCppObject
+            | TCppReference
             | TCppEnum _
             | TCppInst _
             | TCppInterface _
@@ -1870,6 +1881,7 @@ let cpp_class_name klass =
 let cpp_variant_type_of t = match t with
    | TCppDynamic
    | TCppObject
+   | TCppReference
    | TCppVoid
    | TCppFastIterator _
    | TCppDynamicArray
@@ -2254,7 +2266,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                         CppDynamicField(retypedObj, member.cf_name), TCppVariant
 
                      | _ ->
-                        let operator = if is_struct_access obj.etype || retypedObj.cpptype=TCppString then "." else "->" in
+                        let operator = if cpp_is_struct_access retypedObj.cpptype || retypedObj.cpptype=TCppString then "." else "->" in
                         CppVar(VarInstance(retypedObj,member,tcpp_to_string clazzType, operator) ), exprType
                      )
                end else if (clazz.cl_interface && not is_objc (* Use instance call for objc interfaces *)) then
@@ -2702,6 +2714,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
       (* Auto cast rules... *)
       if return_type=TCppVoid then
          mk_cppexpr retypedExpr TCppVoid
+      else if (cppExpr.cpptype=TCppReference) then
+         mk_cppexpr retypedExpr return_type
       else if (cppExpr.cpptype=TCppVariant || cppExpr.cpptype=TCppDynamic) then begin
          match return_type with
          | TCppObjectArray _

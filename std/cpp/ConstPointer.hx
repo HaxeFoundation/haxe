@@ -26,7 +26,7 @@ extern class ConstPointer<T>
 {
    // ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
    // Use value or ref to get dereferenced value
-   public var ptr:T;
+   public var ptr:Reference<T>;
 
    @:analyzer(no_simplification)
    public var value(get,never):T;

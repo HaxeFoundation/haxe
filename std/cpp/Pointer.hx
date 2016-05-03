@@ -25,12 +25,12 @@
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
    @:analyzer(no_simplification)
-   public var ref(get,set):T;
+   public var ref(get,set):Reference<T>;
 
    @:analyzer(no_simplification)
-   public function get_ref() : T;
+   public function get_ref() : Reference<T>;
    @:analyzer(no_simplification)
-   public function set_ref(t:T) : T;
+   public function set_ref(t:T) : Reference<T>;
 
    @:analyzer(no_simplification)
    public function setAt(inIndex:Int, value:T):Void;
@@ -66,7 +66,7 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
    override public function add(inT:Int):Pointer<T>;
 
    @:analyzer(no_simplification)
-   public function postIncRef():T;
+   public function postIncRef():Reference<T>;
 
    public function destroy():Void;
    public function destroyArray():Void;
