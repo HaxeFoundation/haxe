@@ -9,15 +9,6 @@ type display_field_kind =
 	| FKType
 	| FKPackage
 
-type identifier_type =
-	| ITLocal of tvar
-	| ITMember of tclass * tclass_field
-	| ITStatic of tclass * tclass_field
-	| ITEnum of tenum * tenum_field
-	| ITGlobal of module_type * string * t
-	| ITType of module_type
-	| ITPackage of string
-
 exception Diagnostics of string
 exception ModuleSymbols of string
 exception DisplaySignatures of (t * documentation) list
@@ -25,7 +16,7 @@ exception DisplayType of t * pos
 exception DisplayPosition of Ast.pos list
 exception DisplaySubExpression of Ast.expr
 exception DisplayFields of (string * t * display_field_kind option * documentation) list
-exception DisplayToplevel of identifier_type list
+exception DisplayToplevel of IdentifierType.t list
 
 let is_display_file file =
 	file <> "?" && Common.unique_full_path file = (!Parser.resume_display).pfile

@@ -57,15 +57,8 @@ type context = {
 	mutable has_error : bool;
 }
 
-type cache = {
-	mutable c_haxelib : (string list, string list) Hashtbl.t;
-	mutable c_files : (string, float * Ast.package) Hashtbl.t;
-	mutable c_modules : (path * string, module_def) Hashtbl.t;
-}
-
 exception Abort
 exception Completion of string
-
 
 let version = 3300
 let version_major = version / 1000
@@ -76,7 +69,6 @@ let version_is_stable = version_minor land 1 = 0
 let measure_times = ref false
 let prompt = ref false
 let start_time = ref (get_time())
-let global_cache = ref None
 
 let path_sep = if Sys.os_type = "Unix" then "/" else "\\"
 
@@ -1789,20 +1781,20 @@ with
 		let s_type t = htmlescape (s_type ctx t) in
 		let s_doc d = Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d in
 		List.iter (fun id -> match id with
-			| Display.ITLocal v ->
+			| IdentifierType.ITLocal v ->
 				Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| Display.ITMember(c,cf) ->
+			| IdentifierType.ITMember(c,cf) ->
 				Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| Display.ITStatic(c,cf) ->
+			| IdentifierType.ITStatic(c,cf) ->
 				Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-			| Display.ITEnum(en,ef) ->
+			| IdentifierType.ITEnum(en,ef) ->
 				Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
-			| Display.ITGlobal(mt,s,t) ->
+			| IdentifierType.ITGlobal(mt,s,t) ->
 				Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| Display.ITType(mt) ->
+			| IdentifierType.ITType(mt) ->
 				let infos = t_infos mt in
 				Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
-			| Display.ITPackage s ->
+			| IdentifierType.ITPackage s ->
 				Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";

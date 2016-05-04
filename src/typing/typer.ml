@@ -366,20 +366,24 @@ let parse_expr_string ctx s p inl =
 	| _,[EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
 	| _ -> raise Interp.Invalid_expr
 
-let collect_toplevel_identifiers ctx =
+
+module ToplevelCollecter = struct
+	open IdentifierType
+
+	let run ctx =
 	let acc = DynArray.create () in
 
 	(* locals *)
 	PMap.iter (fun _ v ->
 		if not (is_gen_local v) then
-			DynArray.add acc (Display.ITLocal v)
+				DynArray.add acc (ITLocal v)
 	) ctx.locals;
 
 	(* member vars *)
 	if ctx.curfun <> FunStatic then begin
 		let rec loop c =
 			List.iter (fun cf ->
-				DynArray.add acc (Display.ITMember(ctx.curclass,cf))
+					DynArray.add acc (ITMember(ctx.curclass,cf))
 			) c.cl_ordered_fields;
 			match c.cl_super with
 				| None ->
@@ -393,7 +397,7 @@ let collect_toplevel_identifiers ctx =
 
 	(* statics *)
 	List.iter (fun cf ->
-		DynArray.add acc (Display.ITStatic(ctx.curclass,cf))
+			DynArray.add acc (ITStatic(ctx.curclass,cf))
 	) ctx.curclass.cl_ordered_statics;
 
 	(* enum constructors *)
@@ -408,7 +412,7 @@ let collect_toplevel_identifiers ctx =
 			end
 		| TEnumDecl e ->
 			PMap.iter (fun _ ef ->
-				DynArray.add acc (Display.ITEnum(e,ef))
+					DynArray.add acc (ITEnum(e,ef))
 			) e.e_constrs;
 	in
 	List.iter enum_ctors ctx.m.curmod.m_types;
@@ -423,7 +427,7 @@ let collect_toplevel_identifiers ctx =
 				| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
 				| _ -> raise Not_found
 			in
-			DynArray.add acc (Display.ITGlobal(mt,s,t))
+				DynArray.add acc (ITGlobal(mt,s,t))
 		with Not_found ->
 			()
 	) ctx.m.module_globals;
@@ -495,14 +499,14 @@ let collect_toplevel_identifiers ctx =
 	) class_paths;
 
 	List.iter (fun pack ->
-		DynArray.add acc (Display.ITPackage pack)
+			DynArray.add acc (ITPackage pack)
 	) !packages;
 
 	List.iter (fun mt ->
-		DynArray.add acc (Display.ITType mt)
+			DynArray.add acc (ITType mt)
 	) !module_types;
-
-	raise (Display.DisplayToplevel (DynArray.to_list acc))
+		DynArray.to_list acc
+end
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -3883,7 +3887,7 @@ and handle_display ctx e_ast iscall with_type =
 		let pl = loop e in
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
-		collect_toplevel_identifiers ctx;
+		raise (Display.DisplayToplevel (ToplevelCollecter.run ctx))
 	| DMDefault | DMNone | DMModuleSymbols | DMDiagnostics ->
 		let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 		let e,tl_overloads,doc = match e.eexpr with
