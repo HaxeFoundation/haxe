@@ -126,13 +126,18 @@ module IdentifierType = struct
 		| ITPackage s -> s
 end
 
-type display_information = {
+type shared_display_information = {
 	mutable import_positions : (pos,bool ref) PMap.t;
+	mutable compiler_errors : (string * pos) list;
+}
+
+type display_information = {
+	mutable unresolved_identifiers : (string * pos * (string * IdentifierType.t) list) list;
 }
 
 (* This information is shared between normal and macro context. *)
 type shared_context = {
-	display_information : display_information;
+	shared_display_information : shared_display_information;
 }
 
 type context = {
@@ -140,6 +145,7 @@ type context = {
 	version : int;
 	args : string list;
 	shared : shared_context;
+	display_information : display_information;
 	mutable sys_args : string list;
 	mutable display : display_mode;
 	mutable debug : bool;
@@ -707,9 +713,13 @@ let create version s_version args =
 		version = version;
 		args = args;
 		shared = {
-			display_information = {
+			shared_display_information = {
 				import_positions = PMap.empty;
+				compiler_errors = [];
 			}
+		};
+		display_information = {
+			unresolved_identifiers = [];
 		};
 		sys_args = args;
 		debug = false;
@@ -1114,3 +1124,7 @@ let float_repres f =
 			if f = float_of_string s2 then s2 else
 			Printf.sprintf "%.18g" f
 		in valid_float_lexeme float_val
+
+let add_diagnostics_error com s p =
+	let di = com.shared.shared_display_information in
+	di.compiler_errors <- (s,p) :: di.compiler_errors

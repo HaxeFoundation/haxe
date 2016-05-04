@@ -371,140 +371,140 @@ module ToplevelCollecter = struct
 	open IdentifierType
 
 	let run ctx =
-	let acc = DynArray.create () in
+		let acc = DynArray.create () in
 
-	(* locals *)
-	PMap.iter (fun _ v ->
-		if not (is_gen_local v) then
+		(* locals *)
+		PMap.iter (fun _ v ->
+			if not (is_gen_local v) then
 				DynArray.add acc (ITLocal v)
-	) ctx.locals;
+		) ctx.locals;
 
-	(* member vars *)
-	if ctx.curfun <> FunStatic then begin
-		let rec loop c =
-			List.iter (fun cf ->
+		(* member vars *)
+		if ctx.curfun <> FunStatic then begin
+			let rec loop c =
+				List.iter (fun cf ->
 					DynArray.add acc (ITMember(ctx.curclass,cf))
-			) c.cl_ordered_fields;
-			match c.cl_super with
-				| None ->
-					()
-				| Some (csup,tl) ->
-					loop csup; (* TODO: type parameters *)
-		in
-		loop ctx.curclass;
-		(* TODO: local using? *)
-	end;
-
-	(* statics *)
-	List.iter (fun cf ->
-			DynArray.add acc (ITStatic(ctx.curclass,cf))
-	) ctx.curclass.cl_ordered_statics;
-
-	(* enum constructors *)
-	let rec enum_ctors t =
-		match t with
-		| TClassDecl _ | TAbstractDecl _ ->
-			()
-		| TTypeDecl t ->
-			begin match follow t.t_type with
-				| TEnum (e,_) -> enum_ctors (TEnumDecl e)
-				| _ -> ()
-			end
-		| TEnumDecl e ->
-			PMap.iter (fun _ ef ->
-					DynArray.add acc (ITEnum(e,ef))
-			) e.e_constrs;
-	in
-	List.iter enum_ctors ctx.m.curmod.m_types;
-	List.iter enum_ctors (List.map fst ctx.m.module_types);
-
-	(* imported globals *)
-	PMap.iter (fun _ (mt,s,_) ->
-		try
-			let t = match Typeload.resolve_typedef mt with
-				| TClassDecl c -> (PMap.find s c.cl_statics).cf_type
-				| TEnumDecl en -> (PMap.find s en.e_constrs).ef_type
-				| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
-				| _ -> raise Not_found
-			in
-				DynArray.add acc (ITGlobal(mt,s,t))
-		with Not_found ->
-			()
-	) ctx.m.module_globals;
-
-	let module_types = ref [] in
-
-	let add_type mt =
-		match mt with
-		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
-		| _ ->
-			let path = (t_infos mt).mt_path in
-			if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_types) then module_types := mt :: !module_types
-	in
-
-	(* module types *)
-	List.iter add_type ctx.m.curmod.m_types;
-
-	(* module imports *)
-	List.iter add_type (List.map fst ctx.m.module_types);
-
-	(* module using *)
-	List.iter (fun (c,_) ->
-		add_type (TClassDecl c)
-	) ctx.m.module_using;
-
-	(* TODO: wildcard packages. How? *)
-
-	(* packages and toplevel types *)
-	let class_paths = ctx.com.class_path in
-	let class_paths = List.filter (fun s -> s <> "") class_paths in
-
-	let packages = ref [] in
-	let add_package pack =
-		try
-			begin match PMap.find pack ctx.com.package_rules with
-				| Forbidden ->
-					()
-				| _ ->
-					raise Not_found
-			end
-		with Not_found ->
-			if not (List.mem pack !packages) then packages := pack :: !packages
-	in
-
-	List.iter (fun dir ->
-		try
-			let entries = Sys.readdir dir in
-			Array.iter (fun file ->
-				match file with
-					| "." | ".." ->
+				) c.cl_ordered_fields;
+				match c.cl_super with
+					| None ->
 						()
-					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-						add_package file
+					| Some (csup,tl) ->
+						loop csup; (* TODO: type parameters *)
+			in
+			loop ctx.curclass;
+			(* TODO: local using? *)
+		end;
+
+		(* statics *)
+		List.iter (fun cf ->
+			DynArray.add acc (ITStatic(ctx.curclass,cf))
+		) ctx.curclass.cl_ordered_statics;
+
+		(* enum constructors *)
+		let rec enum_ctors t =
+			match t with
+			| TClassDecl _ | TAbstractDecl _ ->
+				()
+			| TTypeDecl t ->
+				begin match follow t.t_type with
+					| TEnum (e,_) -> enum_ctors (TEnumDecl e)
+					| _ -> ()
+				end
+			| TEnumDecl e ->
+				PMap.iter (fun _ ef ->
+					DynArray.add acc (ITEnum(e,ef))
+				) e.e_constrs;
+		in
+		List.iter enum_ctors ctx.m.curmod.m_types;
+		List.iter enum_ctors (List.map fst ctx.m.module_types);
+
+		(* imported globals *)
+		PMap.iter (fun _ (mt,s,_) ->
+			try
+				let t = match Typeload.resolve_typedef mt with
+					| TClassDecl c -> (PMap.find s c.cl_statics).cf_type
+					| TEnumDecl en -> (PMap.find s en.e_constrs).ef_type
+					| TAbstractDecl {a_impl = Some c} -> (PMap.find s c.cl_statics).cf_type
+					| _ -> raise Not_found
+				in
+				DynArray.add acc (ITGlobal(mt,s,t))
+			with Not_found ->
+				()
+		) ctx.m.module_globals;
+
+		let module_types = ref [] in
+
+		let add_type mt =
+			match mt with
+			| TClassDecl {cl_kind = KAbstractImpl _} -> ()
+			| _ ->
+				let path = (t_infos mt).mt_path in
+				if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_types) then module_types := mt :: !module_types
+		in
+
+		(* module types *)
+		List.iter add_type ctx.m.curmod.m_types;
+
+		(* module imports *)
+		List.iter add_type (List.map fst ctx.m.module_types);
+
+		(* module using *)
+		List.iter (fun (c,_) ->
+			add_type (TClassDecl c)
+		) ctx.m.module_using;
+
+		(* TODO: wildcard packages. How? *)
+
+		(* packages and toplevel types *)
+		let class_paths = ctx.com.class_path in
+		let class_paths = List.filter (fun s -> s <> "") class_paths in
+
+		let packages = ref [] in
+		let add_package pack =
+			try
+				begin match PMap.find pack ctx.com.package_rules with
+					| Forbidden ->
+						()
 					| _ ->
-						let l = String.length file in
-						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-							try
-								let name = String.sub file 0 (l - 3) in
-								let md = Typeload.load_module ctx ([],name) Ast.null_pos in
-								List.iter (fun mt ->
-									if (t_infos mt).mt_path = md.m_path then add_type mt
-								) md.m_types
-							with _ ->
-								()
-						end
-			) entries;
-		with Sys_error _ ->
-			()
-	) class_paths;
+						raise Not_found
+				end
+			with Not_found ->
+				if not (List.mem pack !packages) then packages := pack :: !packages
+		in
 
-	List.iter (fun pack ->
+		List.iter (fun dir ->
+			try
+				let entries = Sys.readdir dir in
+				Array.iter (fun file ->
+					match file with
+						| "." | ".." ->
+							()
+						| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+							add_package file
+						| _ ->
+							let l = String.length file in
+							if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+								try
+									let name = String.sub file 0 (l - 3) in
+									let md = Typeload.load_module ctx ([],name) Ast.null_pos in
+									List.iter (fun mt ->
+										if (t_infos mt).mt_path = md.m_path then add_type mt
+									) md.m_types
+								with _ ->
+									()
+							end
+				) entries;
+			with Sys_error _ ->
+				()
+		) class_paths;
+
+		List.iter (fun pack ->
 			DynArray.add acc (ITPackage pack)
-	) !packages;
+		) !packages;
 
-	List.iter (fun mt ->
+		List.iter (fun mt ->
 			DynArray.add acc (ITType mt)
-	) !module_types;
+		) !module_types;
 		DynArray.to_list acc
 end
 
@@ -2602,25 +2602,36 @@ and type_ident ctx i p mode =
 			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			let err = Unknown_ident i in
 			if ctx.in_display then raise (Error (err,p));
-			if ctx.com.display <> DMNone then begin
-				display_error ctx (error_msg err) p;
-				let t = mk_mono() in
-				AKExpr (mk (TLocal (add_local ctx i t p)) t p)
-			end else begin
-				let e = try
-					let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
-					let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
-					if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then
-						AKExpr (type_module_type ctx (TClassDecl c) None p)
-					else begin
-						display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p;
-						AKExpr (mk (TConst TNull) t_dynamic p)
-					end
-				with Not_found ->
-					raise (Error(err,p))
-				in
-				e
-			end
+			match ctx.com.display with
+				| DMNone ->
+					let e = try
+						let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
+						let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
+						if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then
+							AKExpr (type_module_type ctx (TClassDecl c) None p)
+						else begin
+							display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p;
+							AKExpr (mk (TConst TNull) t_dynamic p)
+						end
+					with Not_found ->
+						raise (Error(err,p))
+					in
+					e
+				| DMDiagnostics when ctx.is_display_file ->
+					let l = ToplevelCollecter.run ctx in
+					let cl = List.map (fun it ->
+						let s = IdentifierType.get_name it in
+						(s,it),StringError.levenshtein i s
+					) l in
+					let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
+					let cl = StringError.filter_similar (fun (s,_) r -> r <= (min (String.length s) (String.length i)) / 3) cl in
+					ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers;
+					let t = mk_mono() in
+					AKExpr (mk (TLocal (add_local ctx i t p)) t p)
+				| _ ->
+					display_error ctx (error_msg err) p;
+					let t = mk_mono() in
+					AKExpr (mk (TLocal (add_local ctx i t p)) t p)
 		end
 
 (* MORDOR *)
