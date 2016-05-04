@@ -182,6 +182,7 @@ type context = {
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
+	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
@@ -789,6 +790,7 @@ let create version s_version args =
 		};
 		file_lookup_cache = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
+		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 	}
