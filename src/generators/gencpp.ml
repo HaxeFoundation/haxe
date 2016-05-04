@@ -1537,7 +1537,7 @@ let rec s_tcpp = function
 and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppDynamic -> " ::Dynamic"
    | TCppObject -> " ::Dynamic"
-   | TCppReference t -> "::cpp::Reference< " ^ (tcpp_to_string t) ^" >"
+   | TCppReference t -> (tcpp_to_string t) ^" &"
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
    | TCppVariant -> "::cpp::Variant"
@@ -1638,9 +1638,19 @@ let rec const_string_of expr =
 ;;
 
 
-let cpp_is_struct_access t =
-   match t with
+let rec cpp_is_struct_access obj =
+   match obj.cpptype with
    | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
+   | TCppReference (r) ->
+       (match obj.cppexpr with
+       (* Magic cpp.Pointer.ptr is actually a pointer, not a reference (when it is not stored in a temp) *)
+       | CppVar(VarInstance(_,{ cf_name="ptr"} , class_name, _) ) when
+          (String.length class_name > 15) && String.sub class_name 0 15 = "::cpp::Pointer<" -> false
+       | _ -> (match r with
+              | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
+              | _ -> false
+              )
+       )
    | _ -> false
 ;;
 
@@ -2237,7 +2247,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                     CppFunction( FuncInstance(retypedObj,false,member), funcReturn ), exprType
                   else
                      CppDynamicField(retypedObj, member.cf_name), TCppVariant
-               end else if cpp_is_struct_access retypedObj.cpptype then begin
+               end else if cpp_is_struct_access retypedObj then begin
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                       CppVar(VarThis(member)), exprType
@@ -2266,7 +2276,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                         CppDynamicField(retypedObj, member.cf_name), TCppVariant
 
                      | _ ->
-                        let operator = if cpp_is_struct_access retypedObj.cpptype || retypedObj.cpptype=TCppString then "." else "->" in
+                        let operator = if cpp_is_struct_access retypedObj || retypedObj.cpptype=TCppString then "." else "->" in
                         CppVar(VarInstance(retypedObj,member,tcpp_to_string clazzType, operator) ), exprType
                      )
                end else if (clazz.cl_interface && not is_objc (* Use instance call for objc interfaces *)) then
