@@ -80,6 +80,6 @@ class Basic extends DisplayTestCase {
 	var a:Ar{-1-}ray;
 	**/
 	@:funcCode function testMissingParams() {
-		eq("Array<Unknown<0>>", type(pos(1)));
+		eq("Array<Array.T>", type(pos(1)));
 	}
 }

@@ -428,7 +428,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
 		let is_rest = is_generic_build && (match types with ["Rest",_] -> true | _ -> false) in
-		if (allow_no_params || ctx.com.display <> DMNone) && t.tparams = [] && not is_rest then begin
+		if allow_no_params && t.tparams = [] && not is_rest then begin
 			let pl = ref [] in
 			pl := List.map (fun (name,t) ->
 				match follow t with
@@ -445,7 +445,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 			| [TPType t] -> TDynamic (load_complex_type ctx false p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
-			if not is_rest && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
+			if not is_rest && ctx.com.display = DMNone && List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
 			let tparams = List.map (fun t ->
 				match t with
 				| TPExpr e ->
@@ -493,6 +493,8 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 					[]
 				| [],["Rest",_] when is_generic_build ->
 					[]
+				| [],(_,t) :: tl when ctx.com.display <> DMNone ->
+					t :: loop [] tl is_rest
 				| [],_ ->
 					error ("Not enough type parameters for " ^ s_type_path path) p
 				| t :: tl,[] ->
