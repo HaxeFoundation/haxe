@@ -2624,7 +2624,7 @@ and type_ident ctx i p mode =
 						(s,it),StringError.levenshtein i s
 					) l in
 					let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-					let cl = StringError.filter_similar (fun (s,_) r -> r <= (min (String.length s) (String.length i)) / 3) cl in
+					let cl = StringError.filter_similar (fun (s,_) r -> r > 0 && r <= (min (String.length s) (String.length i)) / 3) cl in
 					ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers;
 					let t = mk_mono() in
 					AKExpr (mk (TLocal (add_local ctx i t p)) t p)
