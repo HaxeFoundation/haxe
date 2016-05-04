@@ -126,9 +126,23 @@ module IdentifierType = struct
 		| ITPackage s -> s
 end
 
+module DiagnosticsSeverity = struct
+	type t =
+		| Error
+		| Warning
+		| Information
+		| Hint
+
+	let to_int = function
+		| Error -> 1
+		| Warning -> 2
+		| Information -> 3
+		| Hint -> 4
+end
+
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref) PMap.t;
-	mutable compiler_errors : (string * pos) list;
+	mutable diagnostics_messages : (string * pos * DiagnosticsSeverity.t) list;
 }
 
 type display_information = {
@@ -715,7 +729,7 @@ let create version s_version args =
 		shared = {
 			shared_display_information = {
 				import_positions = PMap.empty;
-				compiler_errors = [];
+				diagnostics_messages = [];
 			}
 		};
 		display_information = {
@@ -1125,6 +1139,7 @@ let float_repres f =
 			Printf.sprintf "%.18g" f
 		in valid_float_lexeme float_val
 
-let add_diagnostics_error com s p =
+
+let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
-	di.compiler_errors <- (s,p) :: di.compiler_errors
+	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages

@@ -232,7 +232,7 @@ let pass_name = function
 	| PFinal -> "final"
 
 let display_error ctx msg p = match ctx.com.display with
-	| DMDiagnostics -> add_diagnostics_error ctx.com msg p
+	| DMDiagnostics -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
 	| _ -> ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
@@ -259,16 +259,10 @@ let make_static_call ctx c cf map args t p =
 	let ef = make_static_field_access c cf (map cf.cf_type) p in
 	make_call ctx ef args (map t) p
 
-let raise_or_display ctx l p = match ctx.com.display with
-	| DMDiagnostics when ctx.is_display_file ->
-		let di = ctx.com.shared.shared_display_information in
-		di.compiler_errors <- (error_msg (Unify l),p) :: di.compiler_errors
-	| DMNone when ctx.untyped -> ()
-	| DMNone ->
-		if ctx.in_call_args then raise (WithTypeError(l,p))
-		else display_error ctx (error_msg (Unify l)) p
-	| _ ->
-		()
+let raise_or_display ctx l p =
+	if ctx.untyped then ()
+	else if ctx.in_call_args then raise (WithTypeError(l,p))
+	else display_error ctx (error_msg (Unify l)) p
 
 let raise_or_display_message ctx msg p =
 	if ctx.in_call_args then raise (WithTypeError ([Unify_custom msg],p))

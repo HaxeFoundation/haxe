@@ -1466,7 +1466,7 @@ try
 	process ctx.com.args;
 	process_libs();
 	if com.display <> DMNone then begin
-		com.warning <- message ctx;
+		com.warning <- if com.display = DMDiagnostics then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
 		if com.display <> DMUsage then
@@ -1612,7 +1612,9 @@ try
 		com.modules <- modules;
 		begin match com.display with
 			| DMUsage -> Codegen.detect_usage com;
-			| DMDiagnostics -> raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
+			| DMDiagnostics ->
+				Codegen.DeprecationCheck.run com;
+				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;
