@@ -1612,9 +1612,6 @@ try
 		com.modules <- modules;
 		begin match com.display with
 			| DMUsage -> Codegen.detect_usage com;
-			| DMDiagnostics ->
-				Codegen.DeprecationCheck.run com;
-				raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;
