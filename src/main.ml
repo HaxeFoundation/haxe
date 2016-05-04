@@ -1599,7 +1599,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		begin match ctx.com.display with
-			| DMNone | DMUsage ->
+			| DMNone | DMUsage | DMDiagnostics ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1612,6 +1612,7 @@ try
 		com.modules <- modules;
 		begin match com.display with
 			| DMUsage -> Codegen.detect_usage com;
+			| DMDiagnostics -> raise (Display.Diagnostics (Display.Diagnostics.print_diagnostics ctx.com))
 			| _ -> ()
 		end;
 		Filters.run com tctx main;
