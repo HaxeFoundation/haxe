@@ -2076,12 +2076,16 @@ let is_array_splice_call obj member =
 ;;
 
 let cpp_can_static_cast funcType inferredType =
-   match inferredType with
-   | TCppInst _
-   | TCppClass
-   | TCppEnum _
-      -> (tcpp_to_string funcType) <> (tcpp_to_string inferredType)
-   | _ -> false
+   match funcType with
+   | TCppReference(_) | TCppStar(_) -> false
+   | _ ->
+      (match inferredType with
+      | TCppInst _
+      | TCppClass
+      | TCppEnum _
+         -> (tcpp_to_string funcType) <> (tcpp_to_string inferredType)
+      | _ -> false
+   )
 ;;
 
 let cpp_member_name_of member =
