@@ -1314,6 +1314,7 @@ type tcpp =
    | TCppRawPointer of string * tcpp
    | TCppFunction of tcpp list * tcpp * string
    | TCppReference of tcpp
+   | TCppStar of tcpp
    | TCppVoidStar
    | TCppDynamicArray
    | TCppObjectArray of tcpp
@@ -1538,6 +1539,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppDynamic -> " ::Dynamic"
    | TCppObject -> " ::Dynamic"
    | TCppReference t -> (tcpp_to_string t) ^" &"
+   | TCppStar t -> (tcpp_to_string t) ^" *"
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
    | TCppVariant -> "::cpp::Variant"
@@ -1638,19 +1640,10 @@ let rec const_string_of expr =
 ;;
 
 
-let rec cpp_is_struct_access obj =
-   match obj.cpptype with
+let rec cpp_is_struct_access t =
+   match t with
    | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
-   | TCppReference (r) ->
-       (match obj.cppexpr with
-       (* Magic cpp.Pointer.ptr is actually a pointer, not a reference (when it is not stored in a temp) *)
-       | CppVar(VarInstance(_,{ cf_name="ptr"} , class_name, _) ) when
-          (String.length class_name > 15) && String.sub class_name 0 15 = "::cpp::Pointer<" -> false
-       | _ -> (match r with
-              | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
-              | _ -> false
-              )
-       )
+   | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
 ;;
 
@@ -1740,6 +1733,8 @@ let rec cpp_type_of ctx haxe_type =
             cpp_function_type_of_string ctx function_type "";
       | (["cpp"],"Reference"), [param] ->
             TCppReference(cpp_type_of ctx param)
+      | (["cpp"],"Star"), [param] ->
+            TCppStar(cpp_type_of ctx param)
 
       | ([],"Array"), [p] ->
          let arrayOf = cpp_type_of ctx p in
@@ -1750,6 +1745,7 @@ let rec cpp_type_of ctx haxe_type =
 
             | TCppObject
             | TCppReference _
+            | TCppStar _
             | TCppEnum _
             | TCppInst _
             | TCppInterface _
@@ -1892,6 +1888,7 @@ let cpp_variant_type_of t = match t with
    | TCppDynamic
    | TCppObject
    | TCppReference _
+   | TCppStar _
    | TCppVoid
    | TCppFastIterator _
    | TCppDynamicArray
@@ -2247,7 +2244,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                     CppFunction( FuncInstance(retypedObj,false,member), funcReturn ), exprType
                   else
                      CppDynamicField(retypedObj, member.cf_name), TCppVariant
-               end else if cpp_is_struct_access retypedObj then begin
+               end else if cpp_is_struct_access retypedObj.cpptype then begin
                   match retypedObj.cppexpr with
                   | CppThis ThisReal ->
                       CppVar(VarThis(member)), exprType
@@ -2276,7 +2273,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                         CppDynamicField(retypedObj, member.cf_name), TCppVariant
 
                      | _ ->
-                        let operator = if cpp_is_struct_access retypedObj || retypedObj.cpptype=TCppString then "." else "->" in
+                        let operator = if cpp_is_struct_access retypedObj.cpptype || retypedObj.cpptype=TCppString then "." else "->" in
                         CppVar(VarInstance(retypedObj,member,tcpp_to_string clazzType, operator) ), exprType
                      )
                end else if (clazz.cl_interface && not is_objc (* Use instance call for objc interfaces *)) then
@@ -2755,6 +2752,9 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
          | TCppReference(TCppDynamic), TCppReference(_) -> cppExpr
          | TCppReference(TCppDynamic),  t ->
              mk_cppexpr retypedExpr (TCppReference(t))
+         | TCppStar(TCppDynamic), TCppStar(_) -> cppExpr
+         | TCppStar(TCppDynamic),  t ->
+             mk_cppexpr retypedExpr (TCppStar(t))
          | _ -> cppExpr
    in
    retype request_type expression_tree
