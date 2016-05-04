@@ -2033,17 +2033,23 @@ let cpp_var_debug_name_of v =
 ;;
 
 
-let cpp_var_is_internal v =
-   let name = cpp_var_debug_name_of v in
-   (String.length name) >4 && (String.sub name 0 4) = "_hx_"
+let cpp_no_debug_synbol ctx var =
+   (has_meta_key var.v_meta Meta.CompilerGenerated) ||
+      match cpp_type_of ctx var.v_type with
+      | TCppStar _ | TCppReference _ -> true
+      | TCppInst (class_def) when (has_meta_key class_def.cl_meta Meta.StructAccess) -> true
+      | TCppInst (class_def) when (has_meta_key class_def.cl_meta Meta.Unreflective) -> true
+      | _->
+         let name = cpp_var_debug_name_of var in
+         (String.length name) >4 && (String.sub name 0 4) = "_hx_"
 ;;
 
 let cpp_debug_name_of var =
    keyword_remap var.v_name
 ;;
 
-let cpp_debug_var_visible var =
-   true
+let cpp_debug_var_visible ctx var =
+   not (cpp_no_debug_synbol ctx (fst var))
 ;;
 
 
@@ -2886,7 +2892,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppVarDecl(var,init) ->
          let name =  cpp_var_name_of var in
-         if cpp_var_is_internal var then
+         if cpp_no_debug_synbol ctx var then
             out ( (cpp_var_type_of ctx var) ^ " " ^ name )
          else begin
             let dbgName =  cpp_var_debug_name_of var in
@@ -3519,7 +3525,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
              if (closure.close_this != None) then
                 output_i ("HX_STACK_THIS(__this.mPtr)\n");
              List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ (cpp_debug_name_of v) ^"\")\n") )
-                (List.filter cpp_debug_var_visible closure.close_args);
+                (List.filter (cpp_debug_var_visible ctx) closure.close_args);
           end
       in
 
@@ -3551,7 +3557,8 @@ let gen_cpp_function_body ctx clazz is_static func_name function_def head_code t
          hx_stack_push ctx output_i dot_name func_name function_def.tf_expr.epos;
          if (not is_static)
             then output_i ("HX_STACK_THIS(this)\n");
-         List.iter (fun (v,_) -> output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ v.v_name ^"\")\n") ) function_def.tf_args;
+         List.iter (fun (v,_) -> if not (cpp_no_debug_synbol ctx v) then
+              output_i ("HX_STACK_ARG(" ^ (cpp_var_name_of v) ^ ",\"" ^ v.v_name ^"\")\n") ) function_def.tf_args;
       end;
       if (head_code<>"") then
          output_i (head_code ^ "\n");
