@@ -4961,7 +4961,7 @@ let load_macro ctx display cpath f p =
 		shows that - unless you re doing heavy statics vars init - the time is mostly spent in
 		typing the classes needed for macro execution.
 	*)
-	let t = macro_timer ctx "typing (+init)" in
+	let t = macro_timer ctx ("typing (+init) " ^ (String.concat "." (fst cpath)) ^ "." ^ (snd cpath) ^ "." ^ f) in
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
 	let cpath, sub = (match List.rev (fst cpath) with
