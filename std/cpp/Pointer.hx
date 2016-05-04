@@ -24,15 +24,11 @@
 @:coreType
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
-   @:analyzer(no_simplification)
    public var ref(get,set):Reference<T>;
 
-   @:analyzer(no_simplification)
    public function get_ref() : Reference<T>;
-   @:analyzer(no_simplification)
    public function set_ref(t:T) : Reference<T>;
 
-   @:analyzer(no_simplification)
    public function setAt(inIndex:Int, value:T):Void;
 
    public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
@@ -65,7 +61,6 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
    override public function incBy(inT:Int):Pointer<T>;
    override public function add(inT:Int):Pointer<T>;
 
-   @:analyzer(no_simplification)
    public function postIncRef():Reference<T>;
 
    public function destroy():Void;
