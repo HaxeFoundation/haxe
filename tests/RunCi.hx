@@ -908,7 +908,13 @@ class RunCi {
 		Sys.println('Going to test: $tests');
 
 		for (test in tests) {
-			Sys.println('travis_fold:start:test-${test}');
+			switch (ci) {
+				case TravisCI:
+					Sys.println('travis_fold:start:test-${test}');
+				case _:
+					//pass
+			}
+			
 			infoMsg('test $test');
 			var success = true;
 			try {
@@ -1188,7 +1194,14 @@ class RunCi {
 			} catch(f:Failure) {
 				success = false;
 			}
-			Sys.println('travis_fold:end:test-${test}');
+			
+			switch (ci) {
+				case TravisCI:
+					Sys.println('travis_fold:end:test-${test}');
+				case _:
+					//pass
+			}
+			
 			if (success) {
 				successMsg('test ${test} succeeded');
 			} else {
