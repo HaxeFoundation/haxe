@@ -1,12 +1,7 @@
 version: "{build}"
 
-platform: Win32
-configuration: Release
-
 environment:
     global:
-        VisualStudioVersion: 12.0
-        NEKO_ROOT: C:/projects/neko
         HAXELIB_ROOT: C:/projects/haxelib
         CYG_ARCH: x86
         CYG_ROOT: C:/cygwin
