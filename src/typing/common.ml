@@ -30,6 +30,7 @@ type pos = Ast.pos
 type basic_types = {
 	mutable tvoid : t;
 	mutable tint : t;
+	mutable tint64 : t;
 	mutable tfloat : t;
 	mutable tbool : t;
 	mutable tnull : t -> t;
@@ -207,6 +208,7 @@ type context = {
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
+	int64_storage : Int64.t DynArray.t;
 }
 
 exception Abort of string * Ast.pos
@@ -782,6 +784,7 @@ let create version s_version args =
 		basic = {
 			tvoid = m;
 			tint = m;
+			tint64 = m;
 			tfloat = m;
 			tbool = m;
 			tnull = (fun _ -> assert false);
@@ -793,6 +796,7 @@ let create version s_version args =
 		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
+		int64_storage = DynArray.create ();
 	}
 
 let log com str =

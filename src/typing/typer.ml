@@ -5286,6 +5286,11 @@ let rec create com =
 	with
 		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
 	);
+	let m_64 = (try
+		Typeload.load_module ctx (["haxe"],"Int64") null_pos
+	with
+		Error (Module_not_found (["haxe"],"Int64"),_) -> error "haxe.Int64 not found" null_pos
+	) in
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	ctx.m.module_types <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;
 	List.iter (fun t ->
@@ -5320,6 +5325,12 @@ let rec create com =
 				ctx.t.tnull <- mk_null;
 			| _ -> ());
 	) ctx.g.std.m_types;
+	List.iter ( fun t -> match t with
+		| TAbstractDecl a -> (match snd a.a_path with
+			| "Int64" -> ctx.t.tint64 <- TAbstract (a,[])
+			| _ -> ())
+		| _ -> ()
+	) m_64.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in
 	(match m.m_types with
 	| [TClassDecl c] -> ctx.t.tstring <- TInst (c,[])
