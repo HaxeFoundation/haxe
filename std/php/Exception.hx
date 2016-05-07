@@ -22,7 +22,7 @@
 package php;
 
 extern class Exception {
-  public function new(?message : String, ?code : Int) : Void;
+  public function new(?message : String = "", ?code : Int = 0, ?previous:Exception = null) : Void;
 
   private var message : String;
   private var code : Int;
