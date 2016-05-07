@@ -127,6 +127,9 @@ extern class PDOClass
 	public static var FETCH_OBJ(get, never):Int;
 	private static inline function get_FETCH_OBJ() : Int return untyped __php__("PDO::FETCH_OBJ"); 
 	
+	public static inline var FETCH_ORI_NEXT(get, never):Int;
+	private static inline function get_FETCH_ORI_NEXT() : Int return untyped __php__("PDO::FETCH_ORI_NEXT"); 
+	
 	public static var PARAM_STR(get, never):Int;
 	private static inline function get_PARAM_STR():Int return untyped __php__("PDO::PARAM_STR");
 	
@@ -160,25 +163,49 @@ extern class PDOClass
 
 extern class PDOStatement
 {
-	public function bindColumn(column : Dynamic, param : Dynamic, ?type : Int, ?maxlen : Int, ?driverdata : Dynamic) : Bool;
-	public function bindParam(parameter : Dynamic, variable : Dynamic, ?data_type : Int, ?length : Int, ?driver_options : Dynamic) : Bool;
-	public function bindValue(parameter : Dynamic, value : Dynamic, ?data_type : Int) : Bool;
+	public var queryString(default, null):String;
+	
+	@:overload(function(column : Dynamic, param : Dynamic):Bool { })
+	@:overload(function(column : Dynamic, param : Dynamic, type : Int):Bool { })
+	@:overload(function(column : Dynamic, param : Dynamic, type : Int, maxlen : Int):Bool { })
+	public function bindColumn(column : Dynamic, param : Dynamic, type : Int, maxlen : Int, driverdata : Dynamic) : Bool;
+	
+	@:overload(function(parameter : Dynamic, variable : Dynamic, data_type : Int, length : Int):Bool{})
+	@:overload(function(parameter : Dynamic, variable : Dynamic, data_type : Int, length : Int, driver_options : Dynamic):Bool{})
+	public function bindParam(parameter : Dynamic, variable : Dynamic, ?data_type : Int = PDOClass.PARAM_STR) : Bool;
+	
+	public function bindValue(parameter : Dynamic, value : Dynamic, ?data_type : Int = PDOClass.PARAM_STR) : Bool;
 	public function closeCursor() : Bool;
 	public function columnCount() : Int;
 	public function debugDumpParams() : Bool;
 	public function errorCode() : String;
 	public function errorInfo() : NativeArray;
+	
+	@:overload(function():Bool{})
 	public function execute(input_parameters : NativeArray) : Bool;
-	public function fetch(?fetch_style : Int = 4, ?cursor_orientation : Int = 0, ?cursor_offset : Int = 0) : Dynamic;
-	public function fetchAll(?fetch_style : Int) : NativeArray;
+	
+	@:overload(function():Dynamic{})
+	public function fetch(fetch_style : Int, ?cursor_orientation : Int = PDOClass.FETCH_ORI_NEXT, ?cursor_offset : Int = 0) : Dynamic;
+	
+	@:overload(function():Dynamic{})
+	@:overload(function(fetch_style : Int):Dynamic{})
+	@:overload(function(fetch_style : Int, fetch_argument:Dynamic):Dynamic{})
+	public function fetchAll(fetch_style : Int, fetch_argument:Dynamic, ctor_args:NativeArray) : NativeArray;
+	
 	public function fetchColumn(?column_number : Int = 0) : String;
-	public function fetchObject(?class_name : String, ?ctor_args : NativeArray) : Dynamic;
+	
+	@:overload(function(?class_name : String = "stdClass"){})
+	public function fetchObject(?class_name : String = "stdClass", ctor_args : NativeArray) : Dynamic;
+	
 	public function getAttribute(attribute : Int) : Dynamic;
 	public function getColumnMeta(column : Int) : NativeArray;
 	public function nextRowset() : Bool;
 	public function rowCount() : Int;
 	public function setAttribute(attribute : Int, value : Dynamic) : Bool;
-	public function setFetchMode(mode : Int, ?fetch : Dynamic, ?ctorargs : NativeArray) : Bool;
+	
+	@:overload(function(mode : Int){})
+	@:overload(function(mode : Int, fetch : Dynamic){})
+	public function setFetchMode(mode : Int, fetch : Dynamic, ctorargs : NativeArray) : Bool;
 }
 
 private class PDOConnection implements Connection {
