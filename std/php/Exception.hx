@@ -30,6 +30,7 @@ extern class Exception {
   private var line : Int;
 
   public function getMessage() : String;       // message of the exception
+  public function getPrevious() : Exception;   // last exception
   public function getCode() : Int;             // code of the exception
   public function getFile() : String;          // source filename
   public function getLine() : Int;             // source line
