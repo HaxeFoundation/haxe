@@ -46,6 +46,9 @@ class PDO
 @:native("PDO")
 extern class PDOClass
 {
+	public static var PARAM_STR(get, never):Int;
+	private static inline function get_PARAM_STR():Int return untyped __php__("PDO::PARAM_STR");
+	
 	@:overload(function(dns : String):Void{})
 	@:overload(function(dns : String, username : String):Void{})
 	@:overload(function(dns : String, username : String, password : String):Void{})
@@ -69,7 +72,7 @@ extern class PDOClass
 	@:overload(function(statement : String, mode : Int, classname:String, ctorargs:NativeArray):PDOStatement { })
 	public function query(statement : String) : PDOStatement;
 	
-	public function quote(String : String, ?parameter_type : Int = 2) : String;
+	public function quote(String : String, ?parameter_type : Int = PDO.PARAM_STR) : String;
 	public function rollBack() : Bool;
 	public function setAttribute(attribute : Int, value : Dynamic) : Bool;
 }
