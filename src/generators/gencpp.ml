@@ -2076,12 +2076,16 @@ let is_array_splice_call obj member =
 ;;
 
 let cpp_can_static_cast funcType inferredType =
-   match inferredType with
-   | TCppInst _
-   | TCppClass
-   | TCppEnum _
-      -> (tcpp_to_string funcType) <> (tcpp_to_string inferredType)
-   | _ -> false
+   match funcType with
+   | TCppReference(_) | TCppStar(_) -> false
+   | _ ->
+      (match inferredType with
+      | TCppInst _
+      | TCppClass
+      | TCppEnum _
+         -> (tcpp_to_string funcType) <> (tcpp_to_string inferredType)
+      | _ -> false
+   )
 ;;
 
 let cpp_member_name_of member =
@@ -3623,15 +3627,21 @@ let all_virtual_functions clazz =
    List.rev (all_virtual_functions_rev clazz)
 ;;
 
+
+let rec unreflective_type t =
+    match follow t with
+       | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
+       | TFun (args,ret) -> 
+           List.fold_left (fun result (_,_,t) -> result || (unreflective_type t)) (unreflective_type ret) args;
+       | _ -> false
+;;
+
 let reflective class_def field = not (
     (Meta.has Meta.NativeGen class_def.cl_meta) ||
     (Meta.has Meta.Unreflective class_def.cl_meta) ||
     (Meta.has Meta.Unreflective field.cf_meta) ||
-    (match field.cf_type with
-       | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-       | _ -> false
-    )
-)
+    unreflective_type field.cf_type
+   )
 ;;
 
 

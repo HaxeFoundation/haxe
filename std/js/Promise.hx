@@ -29,7 +29,7 @@ extern class Promise<T>
 {
 	@:overload(function<T>(promise : Promise<T>) : Promise<T> {})
 	@:overload(function<T>(thenable : Thenable<T>) : Promise<T> {})
-	static function resolve<T>( value : T ) : Promise<T>;
+	static function resolve<T>( ?value : T ) : Promise<T>;
 
 	static function reject<T>( ?value : Dynamic ) : Promise<T>;
 

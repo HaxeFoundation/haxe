@@ -1,12 +1,7 @@
 version: "{build}"
 
-platform: Win32
-configuration: Release
-
 environment:
     global:
-        VisualStudioVersion: 12.0
-        NEKO_ROOT: C:/projects/neko
         HAXELIB_ROOT: C:/projects/haxelib
         CYG_ARCH: x86
         CYG_ROOT: C:/cygwin
@@ -15,7 +10,7 @@ environment:
         WODI: wodi32
         ADD_REVISION: 1
         OCAMLOPT: ocamlopt.opt
-        MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.6
+        MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.7
         MYSQL_USER: root
         MYSQL_PASSWORD: Password12!
     matrix:

@@ -4961,37 +4961,41 @@ let load_macro ctx display cpath f p =
 		shows that - unless you re doing heavy statics vars init - the time is mostly spent in
 		typing the classes needed for macro execution.
 	*)
-	let t = macro_timer ctx "typing (+init)" in
+	let t = macro_timer ctx ("typing (+init) " ^ (Ast.s_type_path cpath) ^ "." ^ f) in
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
 	let cpath, sub = (match List.rev (fst cpath) with
 		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 		| _ -> cpath, None
 	) in
-	(* Temporarily enter display mode while typing the macro. *)
-	if display then mctx.com.display <- ctx.com.display;
-	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
-	let mloaded = Typeload.load_module mctx m p in
-	api.Interp.current_macro_module <- (fun() -> mloaded);
-	mctx.m <- {
-		curmod = mloaded;
-		module_types = [];
-		module_using = [];
-		module_globals = PMap.empty;
-		wildcard_packages = [];
-		module_imports = [];
-	};
-	add_dependency ctx.m.curmod mloaded;
-	let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
-	let cl, meth = (match mt with
-		| TClassDecl c ->
-			finalize mctx;
-			c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
-		| _ -> error "Macro should be called on a class" p
-	) in
-	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
-	mctx.com.display <- DMNone;
-	if not ctx.in_macro then flush_macro_context mint ctx;
+	let meth = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
+		(* Temporarily enter display mode while typing the macro. *)
+		if display then mctx.com.display <- ctx.com.display;
+		let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
+		let mloaded = Typeload.load_module mctx m p in
+		api.Interp.current_macro_module <- (fun() -> mloaded);
+		mctx.m <- {
+			curmod = mloaded;
+			module_types = [];
+			module_using = [];
+			module_globals = PMap.empty;
+			wildcard_packages = [];
+			module_imports = [];
+		};
+		add_dependency ctx.m.curmod mloaded;
+		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
+		let cl, meth = (match mt with
+			| TClassDecl c ->
+				finalize mctx;
+				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
+			| _ -> error "Macro should be called on a class" p
+		) in
+		let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
+		mctx.com.display <- DMNone;
+		if not ctx.in_macro then flush_macro_context mint ctx;
+		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
+		meth
+	in
 	t();
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in

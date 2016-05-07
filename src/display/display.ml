@@ -369,8 +369,8 @@ module Diagnostics = struct
 
 	let print_diagnostics com =
 		let diag = DynArray.create() in
-		let add dk p args =
-			DynArray.add diag (dk,p,args)
+		let add dk p sev args =
+			DynArray.add diag (dk,p,sev,args)
 		in
 		begin match !(Common.global_cache) with
 			| None ->
@@ -397,17 +397,22 @@ module Diagnostics = struct
 						"name",JString s
 					]
 				) suggestions in
-				add DKUnresolvedIdentifier p (suggestions @ (find_type s));
+				add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (suggestions @ (find_type s));
 			) com.display_information.unresolved_identifiers;
 		end;
 		PMap.iter (fun p r ->
-			if not !r then add DKUnusedImport p []
+			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning []
 		) com.shared.shared_display_information.import_positions;
-		List.iter (fun (s,p) ->
-			add DKCompilerError p [JString s]
-		) com.shared.shared_display_information.compiler_errors;
-		let jl = DynArray.fold_left (fun acc (dk,p,args) ->
-			(JObject ["kind",JInt (to_int dk);"range",pos_to_json_range p;"args",JArray args]) :: acc
+		List.iter (fun (s,p,sev) ->
+			add DKCompilerError p sev [JString s]
+		) com.shared.shared_display_information.diagnostics_messages;
+		let jl = DynArray.fold_left (fun acc (dk,p,sev,args) ->
+			(JObject [
+				"kind",JInt (to_int dk);
+				"severity",JInt (DiagnosticsSeverity.to_int sev);
+				"range",pos_to_json_range p;
+				"args",JArray args
+			]) :: acc
 		) [] diag in
 		let js = JArray jl in
 		let b = Buffer.create 0 in

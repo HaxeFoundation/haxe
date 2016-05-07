@@ -126,9 +126,23 @@ module IdentifierType = struct
 		| ITPackage s -> s
 end
 
+module DiagnosticsSeverity = struct
+	type t =
+		| Error
+		| Warning
+		| Information
+		| Hint
+
+	let to_int = function
+		| Error -> 1
+		| Warning -> 2
+		| Information -> 3
+		| Hint -> 4
+end
+
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref) PMap.t;
-	mutable compiler_errors : (string * pos) list;
+	mutable diagnostics_messages : (string * pos * DiagnosticsSeverity.t) list;
 }
 
 type display_information = {
@@ -168,6 +182,7 @@ type context = {
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
+	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
@@ -715,7 +730,7 @@ let create version s_version args =
 		shared = {
 			shared_display_information = {
 				import_positions = PMap.empty;
-				compiler_errors = [];
+				diagnostics_messages = [];
 			}
 		};
 		display_information = {
@@ -775,6 +790,7 @@ let create version s_version args =
 		};
 		file_lookup_cache = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
+		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 	}
@@ -1125,6 +1141,7 @@ let float_repres f =
 			Printf.sprintf "%.18g" f
 		in valid_float_lexeme float_val
 
-let add_diagnostics_error com s p =
+
+let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
-	di.compiler_errors <- (s,p) :: di.compiler_errors
+	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
