@@ -38,3 +38,12 @@ extern class Exception {
 
   public function __toString() : String;       // formated string for display
 }
+
+extern class RuntimeException extends Exception {
+	
+}
+
+extern class PDOException extends RuntimeException{
+	public var errorInfo:NativeArray;
+	//private var code:String;
+}
