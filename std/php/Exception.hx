@@ -22,22 +22,22 @@
 package php;
 
 extern class Exception {
-  public function new(?message : String = "", ?code : Int = 0, ?previous:Exception = null) : Void;
+	public function new(?message : String = "", ?code : Int = 0, ?previous:Exception = null) : Void;
 
-  private var message : String;
-  private var code : Int;
-  private var file : String;
-  private var line : Int;
+	private var message : String;
+	private var code : Int;
+	private var file : String;
+	private var line : Int;
 
-  public function getMessage() : String;       // message of the exception
-  public function getPrevious() : Exception;   // last exception
-  public function getCode() : Dynamic;         // code of the exception
-  public function getFile() : String;          // source filename
-  public function getLine() : Int;             // source line
-  public function getTrace() : Array<String>;  // an array of the backtrace()
-  public function getTraceAsString() : String; // formated string of trace
+	public function getMessage() : String;       // message of the exception
+	public function getPrevious() : Exception;   // last exception
+	public function getCode() : Dynamic;         // code of the exception
+	public function getFile() : String;          // source filename
+	public function getLine() : Int;             // source line
+	public function getTrace() : Array<String>;  // an array of the backtrace()
+	public function getTraceAsString() : String; // formated string of trace
 
-  public function __toString() : String;       // formated string for display
+	public function __toString() : String;       // formated string for display
 }
 
 extern class RuntimeException extends Exception {
