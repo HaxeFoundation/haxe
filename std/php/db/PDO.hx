@@ -54,8 +54,16 @@ extern class PDOClass
 	public function getAttribute(attribute : Int) : Dynamic;
 	public function getAvailableDrivers() : NativeArray;
 	public function lastInsertId(?name : String) : String;
-	public function prepare(statement : String, driver_options : NativeArray) : PDOStatement;
-	public function query(statement : String, mode : Int) : PDOStatement;
+	
+	@:overload(function(statement : String, driver_options : NativeArray):PDOStatement { })
+	public function prepare(statement : String) : PDOStatement;
+	
+	@:overload(function(statement : String, mode : Int):PDOStatement { })
+	@:overload(function(statement : String, mode : Int, colno:Int):PDOStatement { })
+	@:overload(function(statement : String, mode : Int, object:Dynamic):PDOStatement { })
+	@:overload(function(statement : String, mode : Int, classname:String, ctorargs:NativeArray):PDOStatement { })
+	public function query(statement : String) : PDOStatement;
+	
 	public function quote(String : String, ?parameter_type : Int = 2) : String;
 	public function rollBack() : Bool;
 	public function setAttribute(attribute : Int, value : Dynamic) : Bool;
