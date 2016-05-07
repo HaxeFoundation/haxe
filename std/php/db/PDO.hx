@@ -127,7 +127,7 @@ extern class PDOClass
 	public static var FETCH_OBJ(get, never):Int;
 	private static inline function get_FETCH_OBJ() : Int return untyped __php__("PDO::FETCH_OBJ"); 
 	
-	public static inline var FETCH_ORI_NEXT(get, never):Int;
+	public static var FETCH_ORI_NEXT(get, never):Int;
 	private static inline function get_FETCH_ORI_NEXT() : Int return untyped __php__("PDO::FETCH_ORI_NEXT"); 
 	
 	public static var PARAM_STR(get, never):Int;
