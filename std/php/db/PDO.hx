@@ -194,7 +194,7 @@ extern class PDOStatement
 	
 	public function fetchColumn(?column_number : Int = 0) : String;
 	
-	@:overload(function(?class_name : String = "stdClass"){})
+	@:overload(function(?class_name : String = "stdClass"): Dynamic{})
 	public function fetchObject(?class_name : String = "stdClass", ctor_args : NativeArray) : Dynamic;
 	
 	public function getAttribute(attribute : Int) : Dynamic;
@@ -203,8 +203,8 @@ extern class PDOStatement
 	public function rowCount() : Int;
 	public function setAttribute(attribute : Int, value : Dynamic) : Bool;
 	
-	@:overload(function(mode : Int){})
-	@:overload(function(mode : Int, fetch : Dynamic){})
+	@:overload(function(mode : Int) : Bool{})
+	@:overload(function(mode : Int, fetch : Dynamic) : Bool{})
 	public function setFetchMode(mode : Int, fetch : Dynamic, ctorargs : NativeArray) : Bool;
 }
 
