@@ -43,9 +43,14 @@ class PDO
 	}
 }
 
+@:native("PDO")
 extern class PDOClass
 {
-//	public function new(dns : String, ?username : String, ?password : String, ?driver_options : NativeArray) : Void;
+	@:overload(function(dns : String):Void{})
+	@:overload(function(dns : String, username : String):Void{})
+	@:overload(function(dns : String, username : String, password : String):Void{})
+	public function new(dns : String, username : String, password : String, driver_options : NativeArray):Void;
+	
 	public function beginTransaction() : Bool;
 	public function commit() : Bool;
 	public function errorCode() : Dynamic;
