@@ -2100,6 +2100,10 @@ let cpp_is_templated_call ctx member =
    has_meta_key member.cf_meta Meta.TemplatedCall
 ;;
 
+let cpp_is_static_extension ctx member =
+   has_meta_key member.cf_meta Meta.NativeStaticExtension
+;;
+
 let cpp_template_param path native =
    let path = "::" ^ (join_class_path_remap (path) "::" ) in
    if (native) then
@@ -2984,6 +2988,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppCall(func, args) ->
          let closeCall = ref "" in
+         let argsRef = ref args in
          (match func with
          | FuncThis(field) ->
               out ("this->" ^ (cpp_member_name_of field) );
@@ -2991,6 +2996,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncInterface(expr,_,field) ->
               let operator = if expr.cpptype = TCppString then "." else "->" in
               gen expr; out (operator ^ (cpp_member_name_of field) );
+         | FuncStatic(clazz,false,field) when cpp_is_static_extension ctx field ->
+            (match args with
+            | fst :: remaining ->
+               argsRef := remaining;
+               gen fst; out ("->" ^ (cpp_member_name_of field) );
+            | _ -> error "Native static extensions must have at least 1 argument" expr.cpppos
+            );
+
          | FuncStatic(clazz,_,field) ->
               let rename = get_meta_string field.cf_meta Meta.Native in
               if rename<>"" then begin
@@ -3054,7 +3067,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          List.iter (fun arg ->
             out !sep; sep := ",";
             gen arg;
-            ) args;
+            ) !argsRef;
          out (")" ^ !closeCall);
 
       | CppFunctionAddress(klass, member) ->

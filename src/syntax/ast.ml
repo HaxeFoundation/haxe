@@ -121,6 +121,7 @@ module Meta = struct
 		| NativeGen
 		| NativeGeneric
 		| NativeProperty
+		| NativeStaticExtension
 		| NoCompletion
 		| NoDebug
 		| NoDoc
