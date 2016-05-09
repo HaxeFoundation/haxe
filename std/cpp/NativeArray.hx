@@ -33,6 +33,9 @@ extern class NativeArray {
       return untyped inArray;
    }
 
+   @:nativeStaticExtension
+	public static function reserve<T>( inArray:Array<T>,inElements:Int ) : Void { }
+
 	public static inline function address<T>( inArray:Array<T>,inIndex:Int ) : Pointer<T> {
       return Pointer.arrayElem(inArray,inIndex);
    }
