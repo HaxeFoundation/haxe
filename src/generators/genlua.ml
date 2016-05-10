@@ -675,11 +675,12 @@ and gen_expr ?(local=true) ctx e = begin
 		let b = open_block ctx in
 		gen_block_element ctx e;
 		b();
-		handle_break();
 		if has_continue e then begin
 		    newline ctx;
 		    spr ctx "::_hx_continue::";
 		end;
+		newline ctx;
+		handle_break();
 		newline ctx;
 		spr ctx "end";
 	| TWhile (cond,e,Ast.DoWhile) ->
