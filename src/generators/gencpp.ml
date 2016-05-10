@@ -585,12 +585,6 @@ let is_cpp_function_class haxe_type =
    | _ -> false
    ;;
 
-let is_fromStaticFunction_call func =
-   match (remove_parens func).eexpr with
-   | TField (_,FStatic ({cl_path=["cpp"],"Function"},{cf_name="fromStaticFunction"} ) ) -> true
-   | _ -> false
-;;
-
 let is_objc_call field =
   match field with
   | FStatic(cl,_) | FInstance(cl,_,_) ->
@@ -2325,7 +2319,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                  )
                end
 
-            | FStatic ( {cl_path=(["cpp"],"Function")}, ({cf_name="fromStaticFunction"} as member) ) ->
+            | FStatic ( _, ({cf_name="::cpp::Function_obj::fromStaticFunction"} as member) ) ->
                let funcReturn = cpp_member_return_type ctx member in
                let exprType = cpp_type_of member.cf_type in
                CppFunction( FuncFromStaticFunction, funcReturn ), exprType
