@@ -406,6 +406,8 @@ module Fusion = struct
 							let rec loop e = match e.eexpr with
 								| TMeta((Meta.Pure,_,_),_) ->
 									()
+								| TArray _ ->
+									raise Exit
 								| TField _ when Optimizer.is_affected_type e.etype ->
 									raise Exit
 								| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->

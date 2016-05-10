@@ -87,5 +87,4 @@ tests/misc/projects/Issue4070/cpp/
 /tests/misc/eventLoop/dump
 /tests/misc/eventLoop/eventLoop.py
 /tests/misc/eventLoop/php
-tests/display/.vscode/
-tests/unit/.vscode/
+*.vscode/
