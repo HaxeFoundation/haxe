@@ -121,6 +121,7 @@ module Meta = struct
 		| NativeGen
 		| NativeGeneric
 		| NativeProperty
+		| NativeStaticExtension
 		| NoCompletion
 		| NoDebug
 		| NoDoc
@@ -175,6 +176,7 @@ module Meta = struct
 		| To
 		| ToString
 		| Transient
+		| TemplatedCall
 		| ValueUsed
 		| Volatile
 		| Unbound

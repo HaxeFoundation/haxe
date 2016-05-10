@@ -11,8 +11,8 @@ extern class Stdlib
    public static function nativeRealloc(inPtr:cpp.RawPointer<Void>,bytes:Int) : cpp.RawPointer<Void> return null;
    @:native("free")
    public static function nativeFree(ptr:cpp.RawPointer<Void>) : Void { }
-   // This needs a special compiler hack to avoid getting the size of a class pointer
-   @:native("sizeof")
+
+   @:native("hx::ClassSizeOf") @:templatedCall
    public static function sizeof<T>(t:T) : Int { }
 
    inline public static function malloc<T>(bytes:Int) : cpp.Pointer<T>

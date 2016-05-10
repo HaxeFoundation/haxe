@@ -32,6 +32,10 @@ extern class NativeString {
 	public static inline function fromPointer(inPtr:ConstPointer<Char> ) : String {
       return untyped __global__.String(inPtr.ptr);
    }
+	public static inline function fromGcPointer(inPtr:ConstPointer<Char>, inLen:Int ) : String {
+      return untyped __global__.String(inPtr.ptr,inLen);
+   }
+
 
    @:native("_hx_string_compare")
    public static function compare(inString0:String, inString1:String) : Int return 0;

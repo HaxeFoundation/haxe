@@ -55,10 +55,10 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_types : module_type list;
-	mutable module_using : tclass list;
-	mutable module_globals : (string, (module_type * string)) PMap.t;
-	mutable wildcard_packages : string list list;
+	mutable module_types : (module_type * pos) list;
+	mutable module_using : (tclass * pos) list;
+	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
+	mutable wildcard_packages : (string list * pos) list;
 	mutable module_imports : Ast.import list;
 }
 
@@ -76,7 +76,7 @@ type typer_globals = {
 	mutable global_metadata : (string list * Ast.metadata_entry * (bool * bool * bool)) list;
 	mutable get_build_infos : unit -> (module_type * t list * Ast.class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
-	mutable global_using : tclass list;
+	mutable global_using : (tclass * Ast.pos) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.placed_type_path) -> bool;
 	do_create : Common.context -> typer;
@@ -99,6 +99,7 @@ and typer = {
 	mutable pass : typer_pass;
 	(* per-module *)
 	mutable m : typer_module;
+	mutable is_display_file : bool;
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable tthis : t;
@@ -230,7 +231,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let display_error ctx msg p = ctx.on_error ctx msg p
+let display_error ctx msg p = match ctx.com.display with
+	| DMDiagnostics -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
+	| _ -> ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
 
@@ -257,7 +260,7 @@ let make_static_call ctx c cf map args t p =
 	make_call ctx ef args (map t) p
 
 let raise_or_display ctx l p =
-	if ctx.untyped || ctx.com.display <> DMNone then ()
+	if ctx.untyped then ()
 	else if ctx.in_call_args then raise (WithTypeError(l,p))
 	else display_error ctx (error_msg (Unify l)) p
 

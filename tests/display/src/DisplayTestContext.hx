@@ -76,8 +76,8 @@ class DisplayTestContext {
 		var proc = new sys.io.Process("haxe", args);
 		proc.stdin.writeString(stdin);
 		proc.stdin.close();
-		var stdout = proc.stdout.readAll();
 		var stderr = proc.stderr.readAll();
+		var stdout = proc.stdout.readAll();
 		var exit = proc.exitCode();
 		var success = exit == 0;
 		var s = stderr.toString();

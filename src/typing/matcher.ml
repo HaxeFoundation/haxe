@@ -103,8 +103,11 @@ module Constructor = struct
 	open Typecore
 
 	let to_texpr ctx match_debug p con = match con with
-		| ConEnum(_,ef) ->
-			if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
+		| ConEnum(en,ef) ->
+			if Meta.has Meta.FakeEnum en.e_meta then begin
+				let e_mt = !type_module_type_ref ctx (TEnumDecl en) None p in
+ 				mk (TField(e_mt,FEnum(en,ef))) ef.ef_type p
+ 			end else if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
 			else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
 		| ConConst ct -> Codegen.ExprBuilder.make_const_texpr ctx.com ct p
 		| ConArray i -> Codegen.ExprBuilder.make_int ctx.com i p
@@ -1075,6 +1078,7 @@ module TexprConverter = struct
 	type match_kind =
 		| SKValue
 		| SKEnum
+		| SKFakeEnum
 		| SKLength
 
 	exception Not_exhaustive
@@ -1095,6 +1099,7 @@ module TexprConverter = struct
 	let s_match_kind = function
 		| SKValue -> "value"
 		| SKEnum -> "enum"
+		| SKFakeEnum -> "fakeEnum"
 		| SKLength -> "length"
 
 	let unify_constructor ctx params t con =
@@ -1178,7 +1183,10 @@ module TexprConverter = struct
 				SKLength,Infinite
 			| TEnum(en,pl) ->
 				PMap.iter (fun _ ef -> add (ConEnum(en,ef))) en.e_constrs;
-				SKEnum,RunTimeFinite
+				if Meta.has Meta.FakeEnum en.e_meta then
+					SKFakeEnum,CompileTimeFinite
+				else
+					SKEnum,RunTimeFinite
 			| TAnon _ ->
 				SKValue,CompileTimeFinite
 			| TInst(_,_) ->
@@ -1188,7 +1196,7 @@ module TexprConverter = struct
 		in
 		let kind,finiteness = loop t in
 		let compatible_kind con = match con with
-			| ConEnum _ -> kind = SKEnum
+			| ConEnum _ -> kind = SKEnum || kind = SKFakeEnum
 			| ConArray _ -> kind = SKLength
 			| _ -> kind = SKValue
 		in
@@ -1292,7 +1300,7 @@ module TexprConverter = struct
 					end
 				) cases in
 				let e_subject = match kind with
-					| SKValue -> e_subject
+					| SKValue | SKFakeEnum -> e_subject
 					| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
 					| SKLength -> type_field_access ctx e_subject "length"
 				in

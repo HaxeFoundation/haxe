@@ -30,6 +30,12 @@ class Host
       untyped __global__.__scriptable_load_cppia(source);
    }
 
+   public static function runFile(filename:String)
+   {
+      run( sys.io.File.getContent(filename) );
+   }
+
+
    public static function main()
    {
       var script = Sys.args()[0];

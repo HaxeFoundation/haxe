@@ -207,11 +207,11 @@ let rec func ctx bb tf t p =
 			| Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
 		end;
-		let bb = declare_var_and_assign bb v e in
+		let bb = declare_var_and_assign bb v e e.epos in
 		let e = {e with eexpr = TLocal v} in
 		let e = List.fold_left (fun e f -> f e) e (List.rev fl) in
 		bb,e
-	and declare_var_and_assign bb v e =
+	and declare_var_and_assign bb v e p =
 		let rec loop bb e = match e.eexpr with
 			| TParenthesis e1 ->
 				loop bb e1
@@ -231,18 +231,18 @@ let rec func ctx bb tf t p =
 				bb,e
 		in
 		let bb,e = loop bb e in
-		no_void v.v_type e.epos;
-		let ev = mk (TLocal v) v.v_type e.epos in
+		no_void v.v_type p;
+		let ev = mk (TLocal v) v.v_type p in
 		let was_assigned = ref false in
 		let assign e =
 			if not !was_assigned then begin
 				was_assigned := true;
 				add_texpr bb (mk (TVar(v,None)) ctx.com.basic.tvoid ev.epos);
 			end;
-			mk (TBinop(OpAssign,ev,e)) ev.etype e.epos
+			mk (TBinop(OpAssign,ev,e)) ev.etype ev.epos
 		in
 		begin try
-			block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid e.epos)
+			block_element_plus bb (map_values assign e) (fun e -> mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos)
 		with Exit ->
 			let bb,e = value bb e in
 			add_texpr bb (mk (TVar(v,Some e)) ctx.com.basic.tvoid ev.epos);
@@ -282,7 +282,7 @@ let rec func ctx bb tf t p =
 			add_texpr bb e;
 			bb
 		| TVar(v,Some e1) ->
-			declare_var_and_assign bb v e1
+			declare_var_and_assign bb v e1 e.epos
 		| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 			let assign e =
 				mk (TBinop(OpAssign,e1,e)) e.etype e.epos
@@ -320,7 +320,7 @@ let rec func ctx bb tf t p =
 			add_cfg_edge bb bb_then (CFGCondBranch (mk (TConst (TBool true)) ctx.com.basic.tbool e2.epos));
 			let bb_then_next = block bb_then e2 in
 			let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
-			set_syntax_edge bb (SEIfThen(bb_then,bb_next));
+			set_syntax_edge bb (SEIfThen(bb_then,bb_next,e.epos));
 			add_cfg_edge bb bb_next CFGCondElse;
 			close_node g bb;
 			add_cfg_edge bb_then_next bb_next CFGGoto;
@@ -337,11 +337,11 @@ let rec func ctx bb tf t p =
 			let bb_then_next = block bb_then e2 in
 			let bb_else_next = block bb_else e3 in
 			if bb_then_next == g.g_unreachable && bb_else_next == g.g_unreachable then begin
-				set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype));
+				set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,g.g_unreachable,e.etype,e.epos));
 				g.g_unreachable
 			end else begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
-				set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype));
+				set_syntax_edge bb (SEIfThenElse(bb_then,bb_else,bb_next,e.etype,e.epos));
 				add_cfg_edge bb_then_next bb_next CFGGoto;
 				add_cfg_edge bb_else_next bb_next CFGGoto;
 				close_node g bb_then_next;
@@ -375,14 +375,14 @@ let rec func ctx bb tf t p =
 					Some (bb_case)
 			in
 			if is_exhaustive && !reachable = [] then begin
-				set_syntax_edge bb (SESwitch(cases,def,g.g_unreachable));
+				set_syntax_edge bb (SESwitch(cases,def,g.g_unreachable,e.epos));
 				close_node g bb;
 				g.g_unreachable;
 			end else begin
 				let bb_next = create_node BKNormal bb.bb_type bb.bb_pos in
 				if not is_exhaustive then add_cfg_edge bb bb_next CFGGoto;
 				List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) !reachable;
-				set_syntax_edge bb (SESwitch(cases,def,bb_next));
+				set_syntax_edge bb (SESwitch(cases,def,bb_next,e.epos));
 				close_node g bb;
 				bb_next
 			end
@@ -447,7 +447,7 @@ let rec func ctx bb tf t p =
 					close_node g bb_catch_next;
 					v,bb_catch
 				) catches in
-				set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next));
+				set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next,e.epos));
 				if bb_try_next != g.g_unreachable then add_cfg_edge bb_try_next bb_next CFGGoto;
 				close_node g bb_try_next;
 				bb_next
@@ -610,17 +610,17 @@ let rec block_to_texpr_el ctx bb =
 			| {eexpr = TWhile(e1,_,flag)} as e :: el,(SEWhile(_,bb_body,bb_next)) ->
 				let e2 = block bb_body in
 				Some bb_next,{e with eexpr = TWhile(e1,e2,flag)} :: el
-			| el,SETry(bb_try,_,bbl,bb_next) ->
-				Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid bb_try.bb_pos) :: el
+			| el,SETry(bb_try,_,bbl,bb_next,p) ->
+				Some bb_next,(mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid p) :: el
 			| e1 :: el,se ->
 				let e1 = Texpr.skip e1 in
-				let bb_next,e1_def,t = match se with
-					| SEIfThen(bb_then,bb_next) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid
-					| SEIfThenElse(bb_then,bb_else,bb_next,t) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t
-					| SESwitch(bbl,bo,bb_next) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid
+				let bb_next,e1_def,t,p = match se with
+					| SEIfThen(bb_then,bb_next,p) -> Some bb_next,TIf(e1,block bb_then,None),ctx.com.basic.tvoid,p
+					| SEIfThenElse(bb_then,bb_else,bb_next,t,p) -> Some bb_next,TIf(e1,block bb_then,Some (block bb_else)),t,p
+					| SESwitch(bbl,bo,bb_next,p) -> Some bb_next,TSwitch(e1,List.map (fun (el,bb) -> el,block bb) bbl,Option.map block bo),ctx.com.basic.tvoid,p
 					| _ -> error (Printf.sprintf "Invalid node exit: %s" (s_expr_pretty e1)) bb.bb_pos
 				in
-				bb_next,(mk e1_def t e1.epos) :: el
+				bb_next,(mk e1_def t p) :: el
 			| [],_ ->
 				None,[]
 		in

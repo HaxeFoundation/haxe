@@ -24,30 +24,44 @@
 @:coreType
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
-   public var elementSize(default,never):Int;
+   public var ref(get,set):Reference<T>;
 
-   @:analyzer(no_simplification)
-   public var ref(get,set):T;
+   public function get_ref() : Reference<T>;
+   public function set_ref(t:T) : Reference<T>;
 
-   @:analyzer(no_simplification)
-   public function get_ref() : T;
-   @:analyzer(no_simplification)
-   public function set_ref(t:T) : T;
-
-   @:analyzer(no_simplification)
    public function setAt(inIndex:Int, value:T):Void;
 
    public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
 
-   public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>;
+   @:native("::cpp::Pointer_obj::fromHandle")
+   static function nativeFromHandle<T>(inHandle:Dynamic,?inKind:String):Pointer<T>;
+   inline public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>
+   {
+     var autoCast = nativeFromHandle(inHandle,inKind);
+     return autoCast;
+   }
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
 
    public static function addressOf<T>(inVariable:T) : Pointer<T>;
 
-   public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+   public static function endOf<T:{}>(inVariable:T) : Pointer<cpp.Void>;
 
-   public static function ofArray<T>(array:Array<T>):Pointer<T>;
+   @:native("::cpp::Pointer_obj::arrayElem")
+   static function nativeArrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+   inline static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>
+   {
+      var autoCast = nativeArrayElem(array,inElem);
+      return autoCast;
+   }
+
+   @:native("::cpp::Pointer_obj::ofArray")
+   static function nativeOfArray<T>(array:Array<T>):Pointer<T>;
+   inline public static function ofArray<T>(array:Array<T>):Pointer<T>
+   {
+     var autoCast = nativeOfArray(array);
+     return autoCast;
+   }
 
    inline public function toUnmanagedArray(elementCount:Int) : Array<T>
    {
@@ -65,8 +79,7 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
    override public function incBy(inT:Int):Pointer<T>;
    override public function add(inT:Int):Pointer<T>;
 
-   @:analyzer(no_simplification)
-   public function postIncRef():T;
+   public function postIncRef():Reference<T>;
 
    public function destroy():Void;
    public function destroyArray():Void;

@@ -26,9 +26,8 @@ extern class ConstPointer<T>
 {
    // ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
    // Use value or ref to get dereferenced value
-   public var ptr:T;
+   public var ptr:Star<T>;
 
-   @:analyzer(no_simplification)
    public var value(get,never):T;
 
    // Typecast to non-const
@@ -37,8 +36,7 @@ extern class ConstPointer<T>
    // const version
    public var constRaw(get,never):RawConstPointer<T>;
 
-   @:analyzer(no_simplification)
-   public function get_value() : T;
+   public function get_value() : Reference<T>;
 
    public function get_constRaw() : RawConstPointer<T>;
    public function get_raw() : RawPointer<T>;
@@ -59,13 +57,11 @@ extern class ConstPointer<T>
    public function reinterpret<Other>():Pointer<Other>;
    public function rawCast<Other>():RawPointer<Other>;
 
-   @:analyzer(no_simplification)
-   public function at(inIndex:Int):T;
+   public function at(inIndex:Int):Reference<T>;
 
    public function inc():ConstPointer<T>;
    public function dec():ConstPointer<T>;
-   @:analyzer(no_simplification)
-   public function postIncVal():T;
+   public function postIncVal():Reference<T>;
    public function incBy(inT:Int):ConstPointer<T>;
    public function add(inT:Int):ConstPointer<T>;
 

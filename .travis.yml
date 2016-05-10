@@ -22,153 +22,128 @@ env:
     - LUA=lua5.2
 
 sudo: required
-addons:
+dist: trusty
+addons: &addons
   ssh_known_hosts: haxe.org
-  apt:
-    packages: &apt_common
-      - ocaml-native-compilers
-      - camlp4
 
-apt_targets:
-  - &apt_cpp    [*apt_common, gcc-multilib, g++-multilib]
-  - &apt_cs     [*apt_common, mono-devel, mono-mcs]
-  - &apt_python [*apt_common, python3]
-  - &apt_flash  [*apt_common, "libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386", "libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"]
+install_linux: &install_linux
+  # Install neko and haxe dependencies
+  - sudo apt-get install -y
+      ocaml-native-compilers
+      camlp4
+      pkg-config
+      libgc-dev
+      libssl-dev
+      libpcre3-dev
+      zlib1g-dev
+      apache2-dev
+      libmysqlclient-dev
+      libsqlite3-dev
+      libgtk2.0-dev
+  # Install neko
+  - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko
+  - pushd ~/neko
+  - cmake -DSTATIC_DEPS=MbedTLS
+  - make
+  - sudo make install
+  - popd
+  # Setup database
+  - travis_retry sudo apt-get install mysql-server -y
+  - mysql -u root -e "create user travis@localhost identified by '';"
+  - mysql -u root -e "create database haxe_test;"
+  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
+  # Build haxe
+  - make package_src -s
+  - make -s
+  - make package_bin -s
+  - export PATH="$PATH:$TRAVIS_BUILD_DIR"
+  - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
+
+install_osx: &install_osx
+  # Install haxe dependencies
+  - travis_retry brew update
+  - travis_retry brew install ocaml camlp4;
+  # Install neko
+  - travis_retry brew install neko --HEAD;
+  # Setup database
+  - travis_retry brew install mysql
+  - mysql.server start
+  - mysql -u root -e "create user if not exists travis@localhost identified by '';"
+  - mysql -u root -e "create database haxe_test;"
+  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
+  # Build haxe
+  - make package_src -s
+  - make -s
+  - make package_bin -s
+  - export PATH="$PATH:$TRAVIS_BUILD_DIR"
+  - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
 matrix:
   include:
     #########
     # linux #
     #########
-    # - os: linux
-    #   env: TEST=third-party
-    #   language: php
-    #   php: 5.4
-    #   addons: {apt: {packages: [*apt_cpp, *apt_cs, *apt_python]}}
     - os: linux
-      env: TEST=macro
-      addons: {apt: {packages: [*apt_cs, *apt_python]}}
-    - os: linux
-      sudo: required
-      dist: trusty
       env:
-        - TEST=neko
+        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
         - DEPLOY=1
+        - SAUCE=1
         # haxeci_decrypt (Deploy source package to ppa:haxe/snapshots.)
         - secure: "Mw3p6bDZuqVQ6u7GrwLQfje5hhIOA4+mdqqLXYHP79UKdhgqb91Dn6IbG9vQ1VXVe64W4YZbQAMBMMRX5kEPDl6JvTVGSBhg00Mi69oO5qrCMcBI6f9FntG72YaVvLf+PA7co+vKrnJzaP2M9pe4SH9Ztbhy0YNxULp7NQ8FLsM="
         # deploy_key_decrypt (Deploy doc to api.haxe.org.)
         - secure: "A75uYqU0Xz6plIgSewEs0QQWe472dCMb9kf3j7Hx0DS7dApXgx8++189sw9Sv0wam5KPtbcIM292MucjGCb5zocVj9xCUVgajhEA0QpTuDMBjk/cg3ClWCGjfybaCl2E5LLdUs7Zy4b4oNWtVikOWLWJ4sC1kaarR9p6kv8yYZg="
-      before_script:
-        - travis_retry sudo apt-get install mysql-server -y
-        - mysql -u root -e "create user travis@localhost identified by '';"
+      addons:
+        <<: *addons
+        sauce_connect: true
+      before_install:
+        - sudo dpkg --add-architecture i386
+        - sudo apt-get update -y || true
+        - travis_retry sudo apt-get install -y
+            libcurl3:i386
+            libglib2.0-0:i386
+            libx11-6:i386
+            libxext6:i386
+            libxt6:i386
+            libxcursor1:i386
+            libnss3:i386
+            libgtk2.0-0:i386
+        - "export DISPLAY=:99.0"
+        - "sh -e /etc/init.d/xvfb start"
+        - "export AUDIODEV=null"
+      install: *install_linux
+
     - os: linux
       env:
-        - TEST=js
-        - SAUCE=1
-      addons: {apt: {packages: *apt_common}, sauce_connect: true}
-    - os: linux
-      env: TEST=php
-      language: php
-      php: 5.4
-    - os: linux
-      env: TEST=cpp
-      addons: {apt: {packages: *apt_cpp}}
-    - os: linux
-      env: TEST=flash9
-      addons: {apt: {packages: *apt_flash}}
-    # - os: linux
-    #   env: TEST=as3
-    #   addons: {apt: {packages: *apt_flash}}
-    - os: linux
-      env: TEST=java
-    - os: linux
-      env: TEST=cs
-      addons: {apt: {packages: *apt_cs}}
-    - os: linux
-      env: TEST=python
-      addons: {apt: {packages: *apt_python}}
-    - os: linux
-      env: TEST=hl
-    - os: linux
-      env: TEST=lua
+        - TEST=cpp
+      before_install:
+        - sudo apt-get update -y || true
+        - travis_retry sudo apt-get install -y
+            gcc-multilib
+            g++-multilib
+      install: *install_linux
 
     #######
     # osx #
     #######
-    # - os: osx
-    #   env: TEST=third-party
-    # - os: osx
-    #   env: TEST=macro
-    # - os: osx
-    #   env:
-    #     - TEST=neko
-    #     - DEPLOY=1
-    # - os: osx
-    #   env: TEST=js
     - os: osx
-      env: TEST=php
-    - os: osx
-      env: TEST=cpp
-    # - os: osx
-    #   env: TEST=flash9
-    # - os: osx
-    #   env: TEST=as3
-    # - os: osx
-    #   env: TEST=java
-    # - os: osx
-    #   env: TEST=cs
-    # - os: osx
-    #   env: TEST=python
-    # - os: osx
-    #   env: TEST=lua
+      env:
+        - TEST=macro,neko,js,php,flash9,as3,java,cs,python,hl,lua
+        - DEPLOY=1
+      install: *install_osx
 
-install:
-  # Install haxe and neko dependencies
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-      sudo apt-get update -qq;
-      sudo apt-get install pkg-config libgc-dev libssl-dev libpcre3-dev zlib1g-dev apache2-dev libmysqlclient-dev libsqlite3-dev libgtk2.0-dev -y;
-    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      travis_retry brew update;
-      travis_retry brew install ocaml camlp4 bdw-gc pcre mariadb-connector-c mbedtls;
-    fi
-  # Install neko
-  - travis_retry git clone https://github.com/HaxeFoundation/neko.git ~/neko;
-  - mkdir -p ~/neko/build;
-  - pushd ~/neko/build;
-  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-      cmake -DSTATIC_DEPS=MbedTLS ..;
-    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      cmake ..;
-    fi
-  - make -s;
-  - sudo make install;
-  - popd;
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      brew unlink mariadb-connector-c;
-    fi
+    - os: osx
+      env:
+        - TEST=cpp
+      install: *install_osx
 
 script:
-  # setup database
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      travis_retry brew install mysql &&
-      mysql.server start;
-      mysql -u root -e "create user if not exists travis@localhost identified by '';";
-    fi
-  - mysql -u root -e "CREATE DATABASE haxe_test;"
-  - mysql -u root -e "grant all on haxe_test.* to travis@localhost;"
-  # start ssh-agent for deployment to haxe.org
-  - eval `ssh-agent -s`
-  - make package_src -s
-  - make -s
-  - make package_bin -s
-  - export PATH="$PATH:$TRAVIS_BUILD_DIR"
-  - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
-  - cd tests/
-  - mkdir ~/haxelib && haxelib setup ~/haxelib
-  - haxe -version
-  - haxe RunCi.hxml
-  - neko RunCi.n
-  - cd $TRAVIS_BUILD_DIR
+  - eval `ssh-agent -s` # for deployment to haxe.org
+  - pushd tests
+  -   mkdir ~/haxelib && haxelib setup ~/haxelib
+  -   haxe -version
+  -   haxe RunCi.hxml
+  -   neko RunCi.n
+  - popd
 
 branches:
   except:

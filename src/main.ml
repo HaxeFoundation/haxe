@@ -57,15 +57,8 @@ type context = {
 	mutable has_error : bool;
 }
 
-type cache = {
-	mutable c_haxelib : (string list, string list) Hashtbl.t;
-	mutable c_files : (string, float * Ast.package) Hashtbl.t;
-	mutable c_modules : (path * string, module_def) Hashtbl.t;
-}
-
 exception Abort
 exception Completion of string
-
 
 let version = 3300
 let version_major = version / 1000
@@ -76,7 +69,6 @@ let version_is_stable = version_minor land 1 = 0
 let measure_times = ref false
 let prompt = ref false
 let start_time = ref (get_time())
-let global_cache = ref None
 
 let path_sep = if Sys.os_type = "Unix" then "/" else "\\"
 
@@ -162,6 +154,7 @@ let htmlescape s =
 	let s = String.concat "&amp;" (ExtString.String.nsplit s "&") in
 	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
 	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
+	let s = String.concat "&quot;" (ExtString.String.nsplit s "\"") in
 	s
 
 let reserved_flags = [
@@ -682,17 +675,9 @@ let rec process_params create pl =
 	) in
 	loop [] pl
 
-and wait_loop boot_com host port =
-	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
-	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
-	Unix.listen sock 10;
+and wait_loop verbose accept =
 	Sys.catch_break false;
-	let verbose = boot_com.verbose in
 	let has_parse_error = ref false in
-	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
-	let bufsize = 1024 in
-	let tmp = String.create bufsize in
 	let cache = {
 		c_haxelib = Hashtbl.create 0;
 		c_files = Hashtbl.create 0;
@@ -839,8 +824,140 @@ and wait_loop boot_com host port =
 	);
 	let run_count = ref 0 in
 	while true do
-		let sin, _ = Unix.accept sock in
+		let read, write, close = accept() in
 		let t0 = get_time() in
+		let rec cache_context com =
+			if com.display = DMNone then begin
+				List.iter cache_module com.modules;
+				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
+			end;
+			match com.get_macros() with
+			| None -> ()
+			| Some com -> cache_context com
+		in
+		let create params =
+			let ctx = create_context params in
+			ctx.flush <- (fun() ->
+				incr compilation_step;
+				compilation_mark := !mark_loop;
+				List.iter (fun s -> write (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
+				if ctx.has_error then write "\x02\n" else cache_context ctx.com;
+			);
+			ctx.setup <- (fun() ->
+				if verbose then begin
+					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
+					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
+					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
+				end;
+				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
+				if ctx.com.display <> DMNone then begin
+					let file = (!Parser.resume_display).Ast.pfile in
+					let fkey = file ^ "!" ^ get_signature ctx.com in
+					(* force parsing again : if the completion point have been changed *)
+					Hashtbl.remove cache.c_files fkey;
+					(* force module reloading (if cached) *)
+					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
+				end
+			);
+			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
+			ctx
+		in
+		(try
+			let s = read() in
+			let hxml =
+				try
+					let idx = String.index s '\001' in
+					current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
+					(String.sub s 0 idx)
+				with Not_found ->
+					s
+			in
+			let data = parse_hxml_data hxml in
+			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
+			(try
+				Common.display_default := DMNone;
+				Parser.resume_display := Ast.null_pos;
+				Typeload.return_partial_type := false;
+				measure_times := false;
+				close_times();
+				stats.s_files_parsed := 0;
+				stats.s_classes_built := 0;
+				stats.s_methods_typed := 0;
+				stats.s_macros_called := 0;
+				Hashtbl.clear Common.htimers;
+				let _ = Common.timer "other" in
+				incr compilation_step;
+				compilation_mark := !mark_loop;
+				start_time := get_time();
+				process_params create data;
+				close_times();
+				if !measure_times then report_times (fun s -> write (s ^ "\n"))
+			with
+			| Completion str ->
+				if verbose then print_endline ("Completion Response =\n" ^ str);
+				write str
+			| Arg.Bad msg ->
+				prerr_endline ("Error: " ^ msg);
+			);
+			if verbose then begin
+				print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
+				print_endline (Printf.sprintf "Time spent : %.3fs" (get_time() -. t0));
+			end
+		with Unix.Unix_error _ ->
+			if verbose then print_endline "Connection Aborted"
+		| e ->
+			let estr = Printexc.to_string e in
+			if verbose then print_endline ("Uncaught Error : " ^ estr);
+			(try write estr with _ -> ());
+			if is_debug_run() then print_endline (Printexc.get_backtrace());
+		);
+		close();
+		current_stdin := None;
+		(* prevent too much fragmentation by doing some compactions every X run *)
+		incr run_count;
+		if !run_count mod 10 = 0 then begin
+			let t0 = get_time() in
+			Gc.compact();
+			if verbose then begin
+				let stat = Gc.quick_stat() in
+				let size = (float_of_int stat.Gc.heap_words) *. 4. in
+				print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" (get_time() -. t0) (size /. (1024. *. 1024.)));
+			end
+		end else Gc.minor();
+	done
+
+and init_wait_stdio() =
+	set_binary_mode_in stdin true;
+	set_binary_mode_out stderr true;
+
+	let chin = IO.input_channel stdin in
+	let cherr = IO.output_channel stderr in
+
+	let berr = Buffer.create 0 in
+	let read = fun () ->
+		let len = IO.read_i32 chin in
+		IO.really_nread chin len
+	in
+	let write = Buffer.add_string berr in
+	let close = fun() ->
+		IO.write_i32 cherr (Buffer.length berr);
+		IO.nwrite cherr (Buffer.contents berr);
+		IO.flush cherr
+	in
+	fun() ->
+		Buffer.clear berr;
+		read, write, close
+
+and init_wait_socket verbose host port =
+	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
+	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
+	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
+	Unix.listen sock 10;
+	let bufsize = 1024 in
+	let tmp = String.create bufsize in
+	let accept() = (
+		let sin, _ = Unix.accept sock in
 		Unix.set_nonblock sin;
 		if verbose then print_endline "Client connected";
 		let b = Buffer.create 0 in
@@ -866,106 +983,12 @@ and wait_loop boot_com host port =
 					read_loop (count + 1);
 				end
 		in
-		let rec cache_context com =
-			if com.display = DMNone then begin
-				List.iter cache_module com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
-			end;
-			match com.get_macros() with
-			| None -> ()
-			| Some com -> cache_context com
-		in
-		let create params =
-			let ctx = create_context params in
-			ctx.flush <- (fun() ->
-				incr compilation_step;
-				compilation_mark := !mark_loop;
-				List.iter (fun s -> ssend sin (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
-				if ctx.has_error then ssend sin "\x02\n" else cache_context ctx.com;
-			);
-			ctx.setup <- (fun() ->
-				if verbose then begin
-					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines [] in
-					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
-					print_endline ("Using signature " ^ Digest.to_hex (get_signature ctx.com));
-				end;
-				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				if ctx.com.display <> DMNone then begin
-					let file = (!Parser.resume_display).Ast.pfile in
-					let fkey = file ^ "!" ^ get_signature ctx.com in
-					(* force parsing again : if the completion point have been changed *)
-					Hashtbl.remove cache.c_files fkey;
-					(* force module reloading (if cached) *)
-					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
-				end
-			);
-			ctx.com.print <- (fun str -> ssend sin ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
-			ctx
-		in
-		(try
-			let s = (read_loop 0) in
-			let hxml =
-				try
-					let idx = String.index s '\001' in
-					current_stdin := Some (String.sub s (idx + 1) ((String.length s) - idx - 1));
-					(String.sub s 0 idx)
-				with Not_found ->
-					s
-			in
-			let data = parse_hxml_data hxml in
-			Unix.clear_nonblock sin;
-			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
-			(try
-				Common.display_default := DMNone;
-				Parser.resume_display := Ast.null_pos;
-				Typeload.return_partial_type := false;
-				measure_times := false;
-				close_times();
-				stats.s_files_parsed := 0;
-				stats.s_classes_built := 0;
-				stats.s_methods_typed := 0;
-				stats.s_macros_called := 0;
-				Hashtbl.clear Common.htimers;
-				let _ = Common.timer "other" in
-				incr compilation_step;
-				compilation_mark := !mark_loop;
-				start_time := get_time();
-				process_params create data;
-				close_times();
-				if !measure_times then report_times (fun s -> ssend sin (s ^ "\n"))
-			with
-			| Completion str ->
-				if verbose then print_endline ("Completion Response =\n" ^ str);
-				ssend sin str
-			| Arg.Bad msg ->
-				prerr_endline ("Error: " ^ msg);
-			);
-			if verbose then begin
-				print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
-				print_endline (Printf.sprintf "Time spent : %.3fs" (get_time() -. t0));
-			end
-		with Unix.Unix_error _ ->
-			if verbose then print_endline "Connection Aborted"
-		| e ->
-			let estr = Printexc.to_string e in
-			if verbose then print_endline ("Uncaught Error : " ^ estr);
-			(try ssend sin estr with _ -> ());
-			if is_debug_run() then print_endline (Printexc.get_backtrace());
-		);
-		Unix.close sin;
-		current_stdin := None;
-		(* prevent too much fragmentation by doing some compactions every X run *)
-		incr run_count;
-		if !run_count mod 10 = 0 then begin
-			let t0 = get_time() in
-			Gc.compact();
-			if verbose then begin
-				let stat = Gc.quick_stat() in
-				let size = (float_of_int stat.Gc.heap_words) *. 4. in
-				print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" (get_time() -. t0) (size /. (1024. *. 1024.)));
-			end
-		end else Gc.minor();
-	done
+		let read = fun() -> (let s = read_loop 0 in Unix.clear_nonblock sin; s) in
+		let write = ssend sin in
+		let close() = Unix.close sin in
+		read, write, close
+	) in
+	accept
 
 and do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
@@ -1275,6 +1298,9 @@ try
 					| "module-symbols" ->
 						Common.define com Define.NoCOpt;
 						DMModuleSymbols;
+					| "diagnostics" ->
+						Common.define com Define.NoCOpt;
+						DMDiagnostics;
 					| "" ->
 						DMDefault
 					| _ ->
@@ -1334,8 +1360,15 @@ try
 			evals := s :: !evals;
 		), " : evaluates argument as Haxe module code");
 		("--wait", Arg.String (fun hp ->
-			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-			wait_loop com host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port"))
+			let accept = match hp with
+				| "stdio" ->
+					init_wait_stdio()
+				| _ ->
+					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+					let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
+					init_wait_socket com.verbose host port
+			in
+			wait_loop com.verbose accept
 		),"<[host:]port> : wait on the given port for commands to run)");
 		("--connect",Arg.String (fun _ ->
 			assert false
@@ -1433,7 +1466,7 @@ try
 	process ctx.com.args;
 	process_libs();
 	if com.display <> DMNone then begin
-		com.warning <- message ctx;
+		com.warning <- if com.display = DMDiagnostics then (fun s p -> add_diagnostics_message com s p DiagnosticsSeverity.Warning) else message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
 		if com.display <> DMUsage then
@@ -1565,8 +1598,8 @@ try
 		Typer.finalize tctx;
 		t();
 		if ctx.has_error then raise Abort;
-		begin match com.display with
-			| DMNone | DMUsage ->
+		begin match ctx.com.display with
+			| DMNone | DMUsage | DMDiagnostics ->
 				()
 			| _ ->
 				if ctx.has_next then raise Abort;
@@ -1746,14 +1779,23 @@ with
 		Buffer.add_string b "<il>\n";
 		let ctx = print_context() in
 		let s_type t = htmlescape (s_type ctx t) in
+		let s_doc d = Option.map_default (fun s -> Printf.sprintf " d=\"%s\"" (htmlescape s)) "" d in
 		List.iter (fun id -> match id with
-			| Display.ITLocal v -> Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-			| Display.ITMember(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Display.ITStatic(c,cf) -> Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\">%s</i>\n" (s_type cf.cf_type) cf.cf_name);
-			| Display.ITEnum(en,ef) -> Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\">%s</i>\n" (s_type ef.ef_type) ef.ef_name);
-			| Display.ITGlobal(mt,s,t) -> Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-			| Display.ITType(mt) -> Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (snd (t_infos mt).mt_path));
-			| Display.ITPackage s -> Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+			| IdentifierType.ITLocal v ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
+			| IdentifierType.ITMember(c,cf) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
+			| IdentifierType.ITStatic(c,cf) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
+			| IdentifierType.ITEnum(en,ef) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
+			| IdentifierType.ITGlobal(mt,s,t) ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
+			| IdentifierType.ITType(mt) ->
+				let infos = t_infos mt in
+				Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
+			| IdentifierType.ITPackage s ->
+				Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		) il;
 		Buffer.add_string b "</il>";
 		raise (Completion (Buffer.contents b))
@@ -1816,7 +1858,7 @@ with
 				raise (Completion c)
 			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
-	| Display.ModuleSymbols s ->
+	| Display.ModuleSymbols s | Display.Diagnostics s ->
 		raise (Completion s)
 	| Interp.Sys_exit i ->
 		ctx.flush();

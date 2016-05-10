@@ -1,12 +1,7 @@
 version: "{build}"
 
-platform: Win32
-configuration: Release
-
 environment:
     global:
-        VisualStudioVersion: 12.0
-        NEKO_ROOT: C:/projects/neko
         HAXELIB_ROOT: C:/projects/haxelib
         CYG_ARCH: x86
         CYG_ROOT: C:/cygwin
@@ -15,7 +10,7 @@ environment:
         WODI: wodi32
         ADD_REVISION: 1
         OCAMLOPT: ocamlopt.opt
-        MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.6
+        MYSQL_PATH: C:\Program Files\MySQL\MySQL Server 5.7
         MYSQL_USER: root
         MYSQL_PASSWORD: Password12!
     matrix:
@@ -39,13 +34,11 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "godi_add godi-zip" > log.txt || type log.txt'
     - 'set PATH=%PATH%;%CYG_ROOT%/opt/%WODI%/bin'
     # Install neko
-    - 'git clone --recursive https://github.com/HaxeFoundation/neko.git %NEKO_ROOT%'
-    - cd %NEKO_ROOT%
-    - mkdir build
-    - cd build
-    - cmake -G "Visual Studio 12 2013" ..
-    - msbuild ALL_BUILD.vcxproj /verbosity:minimal /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-    - set PATH=%PATH%;%NEKO_ROOT%/build/bin
+    - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
+    - RefreshEnv
+    # do not use chocolatey's shim, which is buggy when processing arguments
+    # see https://github.com/chocolatey/shimgen/issues/27
+    - set PATH=C:\ProgramData\chocolatey\lib\neko;%PATH%
     - neko -version
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe

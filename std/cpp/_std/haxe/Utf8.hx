@@ -31,7 +31,7 @@ class Utf8
 	public function new( ?size : Null<Int> ) : Void {
       __s = new Array<Int>();
       if (size!=null && size>0)
-         __s[size-1] = 0;
+         cpp.NativeArray.reserve(__s,size);
 	}
 
 	public function addChar( c : Int ) : Void {

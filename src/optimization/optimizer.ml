@@ -703,8 +703,8 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		TField (e,try quick_field e.etype n with Not_found -> assert false)
 	in
 	let gen_int_iter pt f_get f_length =
-		let i = add_local ctx i pt p in
-		let index = gen_local ctx t_int p in
+		let i = add_local ctx i pt pi in
+		let index = gen_local ctx t_int pi in
 		let arr, avars = (match e1.eexpr with
 			| TLocal _ -> e1, None
 			| _ ->
@@ -744,8 +744,8 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 			| _, TConst _ -> None
 			| _ -> Some (gen_local ctx t_int e1.epos)
 		) in
-		let tmp = gen_local ctx t_int e1.epos in
-		let i = add_local ctx i t_int e1.epos in
+		let tmp = gen_local ctx t_int pi in
+		let i = add_local ctx i t_int pi in
 		let rec check e =
 			match e.eexpr with
 			| TBinop (OpAssign,{ eexpr = TLocal l },_)

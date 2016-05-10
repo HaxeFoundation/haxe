@@ -2,6 +2,7 @@ package lua.lib.lrexlib;
 @:luaRequire("rex_pcre")
 extern class Rex {
 
+	@:overload(          function       (expr : String, flag : Int) : Rex{})
 	inline public static function create(expr : String, flag : String) : Rex{
 		return untyped Rex['new'](expr, flag);
 	}
@@ -35,7 +36,7 @@ extern class Rex {
 	  This function counts matches of the pattern `patt` in the string `subj`.
 	**/	
 	public static function count(subj : String, patt : String, cf : Int, ef : Int) : Dynamic;
-	public static function flags(tb:Dynamic) : Dynamic;
+	public static function flags(?tb:Dynamic) : Dynamic;
 
   /**
     The function searches for the first match of the regexp in the string 
