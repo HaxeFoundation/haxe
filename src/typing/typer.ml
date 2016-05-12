@@ -1663,9 +1663,12 @@ and type_field ?(resume=false) ctx e i p mode =
 				AKUsing (ef,c,f,e)
 			| MSet, _ ->
 				error "This operation is unsupported" p)
-		with Not_found when does_forward a false ->
-			type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
-		| Not_found -> try
+		with Not_found -> try
+			if does_forward a false then
+				type_field ~resume:true ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode
+			else
+				raise Not_found
+		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
 			(match ctx.curfun, e.eexpr with
