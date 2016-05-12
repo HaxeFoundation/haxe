@@ -951,14 +951,6 @@ let is_extern_class_instance obj =
 ;;
 
 
-let is_struct_access t =
-   match follow t with
-   | TInst (class_def,_) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
-   | _ -> false
-;;
-
-
-
 let rec is_dynamic_accessor name acc field class_def =
  ( ( acc ^ "_" ^ field.cf_name) = name ) &&
    ( not (List.exists (fun f -> f.cf_name=name) class_def.cl_ordered_fields) )
@@ -1636,6 +1628,7 @@ let rec const_string_of expr =
 
 let rec cpp_is_struct_access t =
    match t with
+   | TCppFunction _ -> true
    | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
    | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
