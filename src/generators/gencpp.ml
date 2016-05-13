@@ -6850,100 +6850,20 @@ let generate_source ctx =
          let out = output_string exeClasses in
          let outline str = output_string exeClasses (str ^ "\n") in
          let spath path = (join_class_path path ".") in
-         let rec stype = function
-            | TMono r -> (match !r with None -> "Dynamic" | Some t -> stype t)
-            | TAbstract ({ a_path = ([],"Void") },[]) -> "void"
-            | TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
-            | TAbstract ({ a_path = ([],"Float") },[]) -> "float"
-            | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
-            | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
-            | TEnum (enum,params) -> spath enum.e_path
-            | TInst (klass,params) ->
-               (match klass.cl_path, params with
-               (* Array class *)
-               (*|  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic" *)
-               | _,_ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
-               | ([],"Array"), [t] -> "Array<" ^ (stype t) ^ ">"
-               | (["cpp"],"UInt8"),_ -> "uint8"
-               | ([],"EnumValue"),_ -> "Dynamic"
-               | ([],"Null"),[t] when ctx_cant_be_null ctx t -> "Null<" ^ (stype t) ^ ">"
-               | ([],"Null"),[t] -> (stype t)
-               | _ -> spath klass.cl_path
-               )
-            | TType (type_def,params) ->
-               (match type_def.t_path, params with
-               | ([],"Null"),[t] when ctx_cant_be_null ctx t -> "Null<" ^ (stype t) ^ ">"
-               | ([],"Array"), [t] -> "Array< " ^ (stype (follow t) ) ^ " >"
-               | _,_ ->  stype (apply_params type_def.t_params params type_def.t_type)
-               )
-            | TLazy func -> stype ((!func)())
-            | TAbstract (abs,pl) when abs.a_impl <> None ->
-               stype (Abstract.get_underlying_type abs pl)
-            | TAbstract (abs,_) -> spath abs.a_path
-            | TFun (args,ret) -> "fun<" ^ (List.fold_left (fun s (_,opt,t) -> s ^ (if opt then "?" else "") ^ (stype t) ^ ",") "" args) ^ (stype ret) ^ ">"
-            | _ -> "Dynamic"
-            in
          List.iter (fun (name,_,def) ->
             match def with
             | TClassDecl class_def ->
                 outline ((if class_def.cl_interface then "interface " else "class ") ^ (spath name) );
-                (match class_def.cl_super with
-                | Some (super,_) -> outline ("super " ^ (spath super.cl_path) )
-                | _ -> () );
-                List.iter ( fun(c,_) -> out ("implements " ^ (spath c.cl_path) ^ "\n") ) class_def.cl_implements;
-                (match class_def.cl_dynamic with None -> () | Some t -> outline ("implementsdynamic " ^ (stype t)));
-                (match class_def.cl_array_access with None -> () | Some t -> outline ("arrayaccess " ^ (stype t)));
-
-                let args  = function
-                   | TFun (args,_) ->
-                       List.iter  (fun (name,opt,t) ->
-                          outline ("arg " ^ name ^ (if opt then " ? " else " : ") ^ (stype t) )
-                       ) args;
-                   | _ -> () in
-                let ret  = function  TFun (_,ret) -> stype ret | _ -> "Dynamic" in
-
-                let print_field stat f =
-                   let pub = if f.cf_public then "pub " else "priv " in
-                   let stat = pub ^ ( if stat then "s " else "m " ) in
-                   (match f.cf_kind, f.cf_name with
-                   | Var { v_read = AccInline; v_write = AccNever },_ ->
-                        outline ("inlinevar " ^ f.cf_name ^ " " ^ (stype f.cf_type) )
-                   | Var { v_read = AccNormal; v_write = AccNormal },_ ->
-                        outline ("var " ^ stat ^ f.cf_name ^ " " ^ (stype f.cf_type) )
-                   | Var v,_ ->
-                        let saccess = function | AccNormal -> "v" | AccNo -> "0" | AccNever -> "!"
-                           | AccResolve -> "r" | AccCall -> "c" | AccInline -> "i" | AccRequire (_,_) -> "v" in
-                        outline ("property " ^ stat ^ (saccess v.v_read) ^ " " ^ (saccess v.v_write)
-                           ^ " " ^ f.cf_name ^ " " ^ (stype f.cf_type) )
-                   | Method _, "new" ->
-                        outline ("function " ^ stat ^ "new " ^ (ret f.cf_type) );
-                        args f.cf_type
-                   | Method MethDynamic, _  ->
-                        outline ("dynamicfunction " ^ stat ^ f.cf_name ^ " " ^ (ret f.cf_type) );
-                        args f.cf_type
-                   | Method _, _  ->
-                        outline ("function " ^ stat ^ f.cf_name ^ " " ^ (ret f.cf_type) );
-                        args f.cf_type
-                  ) in
-                (match class_def.cl_constructor with | None -> () | Some f -> print_field false f);
-                List.iter (print_field false) class_def.cl_ordered_fields;
-                List.iter (print_field true) class_def.cl_ordered_statics;
             | TEnumDecl enum_def ->
                 out ("enum " ^ (spath name) ^ "\n");
-                let sorted_items = List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) in
-                List.iter (fun constructor ->
-                   outline ("constructor " ^ constructor.ef_name);
-                   match constructor.ef_type with
-                   | TFun (args,_) -> List.iter (fun (arg,_,t) -> outline ("eparam " ^ arg ^ " " ^ (stype t) ) ) args;
-                   | _ -> ()
-                ) sorted_items;
             | _ -> ()
             ) !exe_classes;
 
          (* Output file info too *)
          List.iter ( fun file ->
                let full_path = Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
-               out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
+               if file <> "?" then
+                  out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
             ( List.sort String.compare ( pmap_keys !(ctx.ctx_file_info) ) );
          close_out exeClasses;
      end;
