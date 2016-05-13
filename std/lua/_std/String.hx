@@ -32,12 +32,6 @@ class String {
 
 	public function new(string:String) untyped {}
 
-	static function __init__() : Void untyped{
-		__lua__("getmetatable('').__index = String.__index;");
-		__lua__("getmetatable('').__add = function(a,b) return Std.string(a)..Std.string(b) end;");
-		__lua__("getmetatable('').__concat = getmetatable('').__add");
-	}
-
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
 		if (k == "length") return untyped __lua__("#s");

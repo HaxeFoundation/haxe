@@ -298,7 +298,10 @@ let rec should_wrap_int_op ctx op e1 e2 =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> begin
+	    add_feature ctx "use.string";
+	    print ctx "\"%s\"" (Ast.s_escape s)
+	end
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "nil"
 	| TThis -> spr ctx (this ctx)
@@ -851,13 +854,13 @@ and gen__init__hoist ctx e =
 				    | e :: _ -> gen__init__hoist ctx e)
 		    |_->());
 	| _ -> ()
-    end
+    end;
 
 and gen__init__impl ctx e =
     begin match e.eexpr with
 	| TVar (v,eo) ->
 		newline ctx;
-		gen_expr ~local:false ctx e
+		gen_expr ctx e
 	| TBlock el ->
 		List.iter (gen__init__impl ctx) el
 	| TCall (e, el) ->
@@ -875,7 +878,7 @@ and gen__init__impl ctx e =
 			end;
 			    );
 	| _ -> gen_block_element ctx e;
-    end
+    end;
 
 and gen_block_element ?(after=false) ctx e  =
     newline ctx;
@@ -1691,7 +1694,6 @@ let generate com =
 		| _ -> ()
 	) include_files;
 
-	sprln ctx "local _hxClasses = {}";
 	let vars = [] in
 	(* let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in *)
 	let vars = if has_feature ctx "may_print_enum"
@@ -1713,6 +1715,26 @@ let generate com =
 
 	List.iter (generate_type ctx) com.types;
 
+	(* If we use haxe Strings, patch Lua's string *)
+	if has_feature ctx "use.string" then begin
+	    sprln ctx "_G.getmetatable('').__index = String.__index;";
+	    sprln ctx "_G.getmetatable('').__add = function(a,b) return Std.string(a)..Std.string(b) end;";
+	    sprln ctx "_G.getmetatable('').__concat = getmetatable('').__add";
+	end;
+
+	(* Array is required, always patch it *)
+	sprln ctx "_hx_array_mt.__index = Array.prototype";
+
+	(* Generate statics *)
+	List.iter (generate_static ctx) (List.rev ctx.statics);
+
+	(* Localize init variables inside a do-block *)
+	(* Note: __init__ logic can modify static variables. *)
+	sprln ctx "do";
+	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
+	newline ctx;
+	sprln ctx "end";
+
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
 		match e.eexpr with
@@ -1721,7 +1743,9 @@ let generate com =
 		| _ ->
 			Type.iter chk_features e
 	in
+
 	List.iter chk_features ctx.inits;
+
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
 		add_feature ctx "use._hx_bind";
@@ -1729,9 +1753,7 @@ let generate com =
 	end;
 	if has_feature ctx "use._hx_bind" then println ctx "_hx_bind = lua.Boot.bind";
 
-	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
 	List.iter (generate_enumMeta_fields ctx) com.types;
-	List.iter (generate_static ctx) (List.rev ctx.statics);
 
 	(match com.main with
 	| None -> ()
