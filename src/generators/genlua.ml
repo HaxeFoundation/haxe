@@ -504,7 +504,7 @@ and gen_expr ?(local=true) ctx e = begin
 	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then spr ctx "error(\"_hx__break__\")" else spr ctx "break" (*todo*)
+		if ctx.handle_break then spr ctx "_G.error(\"_hx__break__\")" else spr ctx "break" (*todo*)
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "goto _hx_continue";
@@ -544,7 +544,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    gen_value ctx e) el;
 		print ctx " }, %i)" !count;
 	| TThrow e ->
-		spr ctx "error(";
+		spr ctx "_G.error(";
 		gen_value ctx e;
 		spr ctx ",0)";
 	| TVar (v,eo) ->
@@ -793,7 +793,7 @@ and gen_expr ?(local=true) ctx e = begin
 				else_block := true
 		) catchs;
 		if not !last then begin
-		    println ctx " error(%s)" vname;
+		    println ctx " _G.error(%s)" vname;
 		    spr ctx "end";
 		end;
 		bend();
