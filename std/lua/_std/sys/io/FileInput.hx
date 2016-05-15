@@ -53,7 +53,9 @@ class FileInput extends haxe.io.Input {
 	}
 
 	override inline public function readByte() : Int {
-		return NativeStringTools.byte(f.read(1));
+		var byte = f.read(1);
+		if (byte == null) throw new haxe.io.Eof();
+		return NativeStringTools.byte(byte);
 	}
 
 	override inline public function close() : Void {
