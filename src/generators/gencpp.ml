@@ -1394,6 +1394,7 @@ and tcpplvalue =
 
 and tcpp_expr_expr =
    | CppInt of int32
+   | CppInt64 of int64
    | CppFloat of string
    | CppString of string
    | CppBool of bool
@@ -1448,6 +1449,7 @@ and tcpp_expr_expr =
 
 let rec s_tcpp = function
    | CppInt _  -> "CppInt"
+   | CppInt64 _ -> "CppInt64"
    | CppFloat _ -> "CppFloat"
    | CppString _ -> "CppString"
    | CppBool _ -> "CppBool"
@@ -1573,8 +1575,13 @@ and cpp_class_path_of klass =
 
 
 
-let cpp_const_type cval = match cval with
-   | TInt i -> CppInt(i) , TCppScalar("Int")
+let cpp_const_type ctx cval t = match cval with
+   | TInt i -> (match t with
+		| TAbstract({a_path=["haxe"],"Int64"},_) ->
+			let v = DynArray.get ctx.ctx_common.int64_storage (Int32.to_int i) in
+			CppInt64(v), TCppScalar("::cpp::Int64")
+		| _ ->
+		    CppInt(i), TCppScalar("Int"))
    | TBool b -> CppBool(b) , TCppScalar("Bool")
    | TFloat f -> CppFloat(f) , TCppScalar("Float")
    | TString s -> CppString(s) , TCppString
@@ -2185,7 +2192,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             CppNil, TCppNull
 
          | TConst x ->
-            cpp_const_type x
+            cpp_const_type ctx x expr.etype
 
          | TLocal { v_name = "__global__" } ->
             CppClassOf(([],""),false), TCppGlobal
@@ -2867,7 +2874,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          (match injection with Some inject -> out inject.inj_tail | _ -> () );
          out spacer;
          writer#end_block;
-
+	  | CppInt64 i -> out ( Printf.sprintf "((::cpp::Int64)%Ld)" i )
       | CppInt i -> out (Printf.sprintf "(int)%ld" i)
       | CppFloat float_as_string -> out ("((Float)" ^ float_as_string ^")")
       | CppString s -> out (strq s)

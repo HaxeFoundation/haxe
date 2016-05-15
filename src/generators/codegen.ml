@@ -55,7 +55,15 @@ let type_constant com c p =
 	let t = com.basic in
 	match c with
 	| Int s ->
-		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
+		if String.length s > 10 && String.sub s 0 2 = "0x" then
+			(try
+				let v = Int64.of_string s in
+				let idx = DynArray.length com.int64_storage in
+				DynArray.add com.int64_storage v;
+				mk (TConst (TInt (Int32.of_int idx))) t.tint64 p
+			with _ ->
+				assert false (*error "Invalid hexadecimal integer" p*))
+		else
 		(try mk (TConst (TInt (Int32.of_string s))) t.tint p
 		with _ -> mk (TConst (TFloat s)) t.tfloat p)
 	| Float f -> mk (TConst (TFloat f)) t.tfloat p

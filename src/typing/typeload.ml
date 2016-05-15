@@ -279,6 +279,7 @@ let type_var_field ctx t e stat do_display p =
 	let e = type_expr ctx e (WithType t) in
 	let e = (!cast_or_unify_ref) ctx t e p in
 	match t with
+	| TAbstract ({ a_path = (["haxe"],"Int64") },[]) when stat -> { e with etype = t }
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e
 
