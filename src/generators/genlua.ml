@@ -1827,6 +1827,9 @@ let generate com =
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
+
+	sprln ctx "return _G";
+
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch;
