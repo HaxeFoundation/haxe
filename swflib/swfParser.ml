@@ -2021,7 +2021,7 @@ let rec write_tag_data ch = function
 		List.iter (fun (n,s) ->
 			As3parse.write_int ch n;
 			write_string ch s;
-		) sl;
+		) fl;
 	| TBinaryData (id,data) ->
 		write_ui16 ch id;
 		write_i32 ch 0;

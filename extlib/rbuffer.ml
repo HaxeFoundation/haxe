@@ -15,7 +15,7 @@
 
 (* Ropes-based implementation of Buffer *)
 
-type rope = 
+type rope =
   | Str of string
   | App of rope * rope * int (* total length *)
 
@@ -26,7 +26,7 @@ let rope_length = function
   | App (_, _, n) -> n
 
 let rec rope_nth i = function
-  | Str s -> 
+  | Str s ->
       String.unsafe_get s i
   | App (l, r, _) ->
       let ll = rope_length l in
@@ -50,12 +50,12 @@ let reset b =
 
 let clear = reset
 
-let length b = 
+let length b =
   rope_length b.rope + b.position
 
 (* [blit s i r] blits the contents of rope [r] in string [s] at index [i] *)
 let rec blit_rope s i = function
-  | Str str -> 
+  | Str str ->
       String.blit str 0 s i (String.length str)
   | App (l, r, _) ->
       let ll = rope_length l in
@@ -81,10 +81,10 @@ let rec blit_subrope s i ofs len = function
       String.blit str ofs s i len
   | App (l, r, _) ->
       let ll = rope_length l in
-      if ofs + len <= ll then 
+      if ofs + len <= ll then
 	blit_subrope s i ofs len l
-      else if ofs >= ll then 
-	blit_subrope s i (ofs - ll) len r 
+      else if ofs >= ll then
+	blit_subrope s i (ofs - ll) len r
       else begin
 	let lenl = ll - ofs in
 	blit_subrope s i ofs lenl l;
@@ -93,11 +93,11 @@ let rec blit_subrope s i ofs len = function
 
 let sub b ofs len =
   let r = rope_length b.rope in
-  if len > Sys.max_string_length || 
+  if len > Sys.max_string_length ||
      ofs < 0 || len < 0 || ofs > r + b.position - len
   then invalid_arg "Buffer.sub";
   let s = String.create len in
-  if ofs + len <= r then 
+  if ofs + len <= r then
     blit_subrope s 0 ofs len b.rope
   else if ofs >= r then
     String.blit b.buffer (ofs - r) s 0 len
@@ -128,8 +128,8 @@ let move_buffer_to_rope b =
     end;
     b.position <- 0
   end
-  
-let add_char b c =  
+
+let add_char b c =
   if b.position = String.length b.buffer then move_buffer_to_rope b;
   let pos = b.position in
   b.buffer.[pos] <- c;
@@ -155,7 +155,7 @@ let alloc b len =
   end else begin
     (* buffer and len require two strings, allocated in the rope *)
     let str = String.create len in
-    b.rope <- App (b.rope, 
+    b.rope <- App (b.rope,
 		   App (Str (String.sub b.buffer 0 pos), Str str, len'),
 		   rope_length b.rope + len');
     b.position <- 0;
@@ -191,19 +191,29 @@ let rec add_channel b ic len =
   end
 
 let output_buffer oc b =
-  let rec output_rope = function
-    | Str s -> output oc s 0 (String.length s)
-    | App (l, r, _) -> output_rope l; output_rope r
+  let rec loop wl = match wl with
+    | Str s :: wl ->
+      output oc s 0 (String.length s);
+      loop wl
+    | App( l, r, _) :: wl ->
+      loop (l :: r :: wl)
+    | [] ->
+      ()
   in
-  output_rope b.rope;
+  loop [b.rope];
   output oc b.buffer 0 b.position
 
 open Format
 
 let print fmt b =
-  let rec print_rope = function
-    | Str s -> pp_print_string fmt s
-    | App (l, r, _) -> print_rope l; print_rope r
+  let rec loop wl = match wl with
+    | Str s :: wl ->
+      pp_print_string fmt s;
+      loop wl
+    | App( l, r, _) :: wl ->
+      loop (l :: r :: wl)
+    | [] ->
+      ()
   in
-  print_rope b.rope;
+  loop [b.rope];
   pp_print_string fmt (String.sub b.buffer 0 b.position)
