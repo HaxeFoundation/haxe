@@ -98,6 +98,10 @@ let field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "[\"" ^ s ^ 
 let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ (Ast.s_escape s) ^ "']" else s
+let static_field c s =
+	match s with
+	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
+	| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
@@ -1307,6 +1311,11 @@ let check_field_name c f =
 		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
+(* convert a.b.c to ["a"]["b"]["c"] *)
+let path_to_brackets path =
+	let parts = ExtString.String.nsplit path "." in
+	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
+
 let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
@@ -1319,10 +1328,12 @@ let gen_class_static_field ctx c f =
 		match e.eexpr with
 		| TFunction _ ->
 			let path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
+			let dot_path = (dot_path c.cl_path) ^ (static_field c f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			gen_value ctx e;
 			newline ctx;
+			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; newline ctx) | _ -> ());
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
@@ -1426,6 +1437,7 @@ let generate_class ctx c =
 			| _ -> (print ctx "{}"); ctx.separator <- true)
 	);
 	newline ctx;
+	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
 	if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 	generate_class___name__ ctx c;
 	(match c.cl_implements with
@@ -1683,7 +1695,46 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
+	let var_exports = (
+		"_hx_exports",
+		"_G"
+	) in
+
+	let exposed = List.concat (List.map (fun t ->
+		match t with
+			| TClassDecl c ->
+				let path = dot_path c.cl_path in
+				let class_exposed = get_exposed ctx path c.cl_meta in
+				let static_exposed = List.map (fun f ->
+					get_exposed ctx (path ^ static_field c f.cf_name) f.cf_meta
+				) c.cl_ordered_statics in
+				List.concat (class_exposed :: static_exposed)
+			| _ -> []
+		) com.types) in
+	let anyExposed = exposed <> [] in
+	let exportMap = ref (PMap.create String.compare) in
+	let exposedObject = { os_name = ""; os_fields = [] } in
+	let toplevelExposed = ref [] in
+	List.iter (fun path -> (
+		let parts = ExtString.String.nsplit path "." in
+		let rec loop p pre = match p with
+			| f :: g :: ls ->
+				let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
+				if not (PMap.exists path !exportMap) then (
+					let elts = { os_name = f; os_fields = [] } in
+					exportMap := PMap.add path elts !exportMap;
+					let cobject = match pre with "" -> exposedObject | pre -> PMap.find pre !exportMap in
+					cobject.os_fields <- elts :: cobject.os_fields
+				);
+				loop (g :: ls) path;
+			| f :: [] when pre = "" ->
+				toplevelExposed := f :: !toplevelExposed;
+			| _ -> ()
+		in loop parts "";
+	)) exposed;
+
 	let include_files = List.rev com.include_files in
+
 
 	List.iter (fun file ->
 		match file with
@@ -1693,6 +1744,23 @@ let generate com =
 			()
 		| _ -> ()
 	) include_files;
+
+	if (anyExposed) then (
+		print ctx "local %s = %s" (fst var_exports) (snd var_exports);
+		ctx.separator <- true;
+		newline ctx
+	);
+
+	let rec print_obj f root = (
+		let path = root ^ (path_to_brackets f.os_name) in
+		print ctx "%s = %s or _hx_empty()" path path;
+		ctx.separator <- true;
+		newline ctx;
+		concat ctx ";" (fun g -> print_obj g path) f.os_fields
+	)
+	in
+	List.iter (fun f -> print_obj f "_hx_exports") exposedObject.os_fields;
+
 
 	let vars = [] in
 	(* let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in *)
@@ -1706,6 +1774,7 @@ let generate com =
 		ctx.separator <- true;
 		newline ctx
 	);
+
 
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
