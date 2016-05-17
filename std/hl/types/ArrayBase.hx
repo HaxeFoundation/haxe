@@ -372,4 +372,6 @@ class BasicIterator<T> {
 }
 
 typedef ArrayI32 = ArrayBasic<Int>;
+typedef ArrayI16 = ArrayBasic<I16>;
+typedef ArrayF32 = ArrayBasic<F32>;
 typedef ArrayF64 = ArrayBasic<Float>;

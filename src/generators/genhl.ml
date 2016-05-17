@@ -164,11 +164,13 @@ type opcode =
 	| OEndTrap of bool
 	(* memory access *)
 	| OGetI8 of reg * reg * reg
+	| OGetI16 of reg * reg * reg
 	| OGetI32 of reg * reg * reg
 	| OGetF32 of reg * reg * reg
 	| OGetF64 of reg * reg * reg
 	| OGetArray of reg * reg * reg
 	| OSetI8 of reg * reg * reg
+	| OSetI16 of reg * reg * reg
 	| OSetI32 of reg * reg * reg
 	| OSetF32 of reg * reg * reg
 	| OSetF64 of reg * reg * reg
@@ -794,6 +796,7 @@ let rec to_type ?tref ctx t =
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], ("Bytes" | "BytesAccess") -> HBytes
 			| ["hl";"types"], "Type" -> HType
+			| ["hl";"types"], "I16" -> HI16
 			| ["hl";"types"], "NativeArray" -> HArray
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
@@ -1206,22 +1209,10 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		tmp
-	| HNull ((HI8 | HI16 | HI32) as it), (HF32 | HF64) ->
-		let i = alloc_tmp ctx it in
-		op ctx (OSafeCast (i,r));
-		let tmp = alloc_tmp ctx t in
-		op ctx (OToSFloat (tmp, i));
-		tmp
-	| (HF32 | HF64), (HI8 | HI16 | HI32) ->
+	| (HI8 | HI16 | HI32 | HF32 | HF64), (HI8 | HI16 | HI32) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		tmp
-	| (HI8 | HI16 | HI32), HNull ((HF32 | HF64) as t) ->
-		let tmp = alloc_tmp ctx t in
-		op ctx (OToSFloat (tmp, r));
-		let r = alloc_tmp ctx (HNull t) in
-		op ctx (OToDyn (r,tmp));
-		r
 	| (HI8 | HI16 | HI32), HObj { pname = "String" } ->
 		let out = alloc_tmp ctx t in
 		let len = alloc_tmp ctx HI32 in
@@ -1281,6 +1272,30 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
+	| (HI8 | HI16 | HI32 | HF32 | HF64), HNull ((HF32 | HF64) as t) ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToSFloat (tmp, r));
+		let r = alloc_tmp ctx (HNull t) in
+		op ctx (OToDyn (r,tmp));
+		r
+	| (HI8 | HI16 | HI32 | HF32 | HF64), HNull ((HI8 | HI16 | HI32) as t) ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToInt (tmp, r));
+		let r = alloc_tmp ctx (HNull t) in
+		op ctx (OToDyn (r,tmp));
+		r
+	| HNull ((HI8 | HI16 | HI32) as it), (HF32 | HF64) ->
+		let i = alloc_tmp ctx it in
+		op ctx (OSafeCast (i,r));
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToSFloat (tmp, i));
+		tmp
+	| HNull ((HF32 | HF64) as it), (HI8 | HI16 | HI32) ->
+		let i = alloc_tmp ctx it in
+		op ctx (OSafeCast (i,r));
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToInt (tmp, i));
+		tmp
 	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
 		let fid = gen_method_wrapper ctx rt t p in
 		let fr = alloc_tmp ctx t in
@@ -1672,6 +1687,10 @@ and eval_expr ctx e =
 					let r = alloc_tmp ctx HI32 in
 					op ctx (OGetI8 (r, b, pos));
 					r
+				| HI16 ->
+					let r = alloc_tmp ctx HI32 in
+					op ctx (OGetI16 (r, b, shl ctx pos 1));
+					r
 				| HI32 ->
 					let r = alloc_tmp ctx HI32 in
 					op ctx (OGetI32 (r, b, shl ctx pos 2));
@@ -1698,6 +1717,10 @@ and eval_expr ctx e =
 				| HI8 ->
 					let v = eval_to ctx value HI32 in
 					op ctx (OSetI8 (b, pos, v));
+					v
+				| HI16 ->
+					let v = eval_to ctx value HI32 in
+					op ctx (OSetI16 (b, shl ctx pos 1, v));
 					v
 				| HI32 ->
 					let v = eval_to ctx value HI32 in
@@ -3324,7 +3347,7 @@ let check code =
 				reg r HI32;
 				reg b HBytes;
 				reg p HI32;
-			| OGetI32 (r,b,p) ->
+			| OGetI32 (r,b,p) | OGetI16(r,b,p) ->
 				reg r HI32;
 				reg b HBytes;
 				reg p HI32;
@@ -3340,7 +3363,7 @@ let check code =
 				reg r HBytes;
 				reg p HI32;
 				reg v HI32;
-			| OSetI32 (r,p,v) ->
+			| OSetI32 (r,p,v) | OSetI16 (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
 				reg v HI32;
@@ -4315,6 +4338,13 @@ let interp code =
 				(match get b, get p with
 				| VBytes b, VInt p -> set r (VInt (Int32.of_int (int_of_char (String.get b (Int32.to_int p)))))
 				| _ -> assert false)
+			| OGetI16 (r,b,p) ->
+				(match get b, get p with
+				| VBytes b, VInt p ->
+					let a = int_of_char (String.get b (Int32.to_int p)) in
+					let b = int_of_char (String.get b (Int32.to_int p + 1)) in
+					set r (VInt (Int32.of_int (a lor (b lsl 8))))
+				| _ -> assert false)
 			| OGetI32 (r,b,p) ->
 				(match get b, get p with
 				| VBytes b, VInt p -> set r (VInt (get_i32 b (Int32.to_int p)))
@@ -4337,6 +4367,12 @@ let interp code =
 			| OSetI8 (r,p,v) ->
 				(match get r, get p, get v with
 				| VBytes b, VInt p, VInt v -> String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF))
+				| _ -> assert false)
+			| OSetI16 (r,p,v) ->
+				(match get r, get p, get v with
+				| VBytes b, VInt p, VInt v ->
+					String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF));
+					String.set b (Int32.to_int p + 1) (char_of_int (((Int32.to_int v) lsr 8) land 0xFF))
 				| _ -> assert false)
 			| OSetI32 (r,p,v) ->
 				(match get r, get p, get v with
@@ -5559,11 +5595,13 @@ let ostr o =
 	| OThrow r -> Printf.sprintf "throw %d" r
 	| ORethrow r -> Printf.sprintf "rethrow %d" r
 	| OGetI8 (r,b,p) -> Printf.sprintf "geti8 %d,%d[%d]" r b p
+	| OGetI16 (r,b,p) -> Printf.sprintf "geti16 %d,%d[%d]" r b p
 	| OGetI32 (r,b,p) -> Printf.sprintf "geti32 %d,%d[%d]" r b p
 	| OGetF32 (r,b,p) -> Printf.sprintf "getf32 %d,%d[%d]" r b p
 	| OGetF64 (r,b,p) -> Printf.sprintf "getf64 %d,%d[%d]" r b p
 	| OGetArray (r,a,i) -> Printf.sprintf "getarray %d,%d[%d]" r a i
 	| OSetI8 (r,p,v) -> Printf.sprintf "seti8 %d,%d,%d" r p v
+	| OSetI16 (r,p,v) -> Printf.sprintf "seti16 %d,%d,%d" r p v
 	| OSetI32 (r,p,v) -> Printf.sprintf "seti32 %d,%d,%d" r p v
 	| OSetF32 (r,p,v) -> Printf.sprintf "setf32 %d,%d,%d" r p v
 	| OSetF64 (r,p,v) -> Printf.sprintf "setf64 %d,%d,%d" r p v
@@ -6633,6 +6671,8 @@ let write_c version file (code:code) =
 				sexpr "hl_rethrow((vdynamic*)%s)" (reg r)
 			| OGetI8 (r,b,idx) ->
 				sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
+			| OGetI16 (r,b,idx) ->
+				sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
 			| OGetI32 (r,b,idx) ->
 				sexpr "%s = *(int*)(%s + %s)" (reg r) (reg b) (reg idx)
 			| OGetF32 (r,b,idx) ->
@@ -6643,6 +6683,8 @@ let write_c version file (code:code) =
 				sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
 			| OSetI8 (b,idx,r) ->
 				sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
+			| OSetI16 (b,idx,r) ->
+				sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
 			| OSetI32 (b,idx,r) ->
 				sexpr "*(int*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
 			| OSetF32 (b,idx,r) ->
