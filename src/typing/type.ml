@@ -90,6 +90,7 @@ and tfunc = {
 and anon_status =
 	| Closed
 	| Opened
+	| Const
 	| Extend of t list
 	| Statics of tclass
 	| EnumStatics of tenum
@@ -1577,6 +1578,18 @@ let rec type_eq param a b =
 	| TAnon a1, TAnon a2 ->
 		(try
 			PMap.iter (fun n f1 ->
+				if not (PMap.mem n a2.a_fields) then begin
+					if is_closed a2 then error [has_no_field b n];
+					if not (link (ref None) b f1.cf_type) then error [cannot_unify a b];
+				end
+			) a1.a_fields;
+			PMap.iter (fun n f2 ->
+				if not (PMap.mem n a1.a_fields) then begin
+					if is_closed a1 then error [has_no_field a n];
+					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
+				end
+			) a2.a_fields;
+			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
@@ -1593,17 +1606,9 @@ let rec type_eq param a b =
 					end;
 				with
 					Not_found ->
-						if is_closed a2 then error [has_no_field b n];
-						if not (link (ref None) b f1.cf_type) then error [cannot_unify a b];
 						a2.a_fields <- PMap.add n f1 a2.a_fields
 			) a1.a_fields;
-			PMap.iter (fun n f2 ->
-				if not (PMap.mem n a1.a_fields) then begin
-					if is_closed a1 then error [has_no_field a n];
-					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
-					a1.a_fields <- PMap.add n f2 a1.a_fields
-				end;
-			) a2.a_fields;
+			PMap.iter (fun n f2 -> if not (PMap.mem n a1.a_fields) then a1.a_fields <- PMap.add n f2 a1.a_fields ) a2.a_fields;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , _ ->
@@ -1805,7 +1810,7 @@ let rec unify a b =
 			(match !(an.a_status) with
 			| Opened -> an.a_status := Closed;
 			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
-			| Closed | Extend _ -> ())
+			| Closed | Extend _ | Const -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
@@ -1929,11 +1934,14 @@ and unify_anons a b a1 a2 =
 				| Opened ->
 					if not (link (ref None) a f2.cf_type) then error [];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
+				| Const when Meta.has Meta.Optional f2.cf_meta ->
+					()
 				| _ ->
-					if not (Meta.has Meta.Optional f2.cf_meta) then
-						error [has_no_field a n];
+					error [has_no_field a n];
 		) a2.a_fields;
 		(match !(a1.a_status) with
+		| Const when not (PMap.is_empty a2.a_fields) ->
+			PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
 		| Opened ->
 			a1.a_status := Closed
 		| _ -> ());
@@ -1942,7 +1950,7 @@ and unify_anons a b a1 a2 =
 		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 		| Opened -> a2.a_status := Closed
-		| Extend _ | Closed -> ())
+		| Const | Extend _ | Closed -> ())
 	with
 		Unify_error l -> error (cannot_unify a b :: l))
 
@@ -2049,7 +2057,17 @@ and unify_with_variance f t1 t2 =
 		type_eq EqBothDynamic t (apply_params a.a_params pl a.a_this);
 		if not (List.exists (fun t2 -> allows_variance_to t (apply_params a.a_params pl t2)) a.a_from) then error [cannot_unify t1 t2]
 	| TAnon a1,TAnon a2 ->
-		unify_anons t1 t2 a1 a2
+			if not (List.exists (fun (t1',t2') -> fast_eq t1 t1' && fast_eq t2 t2'  ) (!unify_stack)) then begin
+			unify_stack := (t1,t2) :: !unify_stack;
+			(try
+				unify_anons t1 t2 a1 a2
+			with
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error l);
+			unify_stack := List.tl !unify_stack;
+		end else
+			type_eq EqRightDynamic t1 t2
 	| _ ->
 		error [cannot_unify t1 t2]
 
