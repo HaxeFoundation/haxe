@@ -5970,7 +5970,7 @@ let write_c version file (code:code) =
 				let lib = if lib = "std" then "hl" else lib in
 				lib ^ "_" ^ code.strings.(name)
 			in
-			sexpr "%s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
+			sexpr "HL_API %s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
 			funnames.(idx) <- fname;
 			Array.set tfuns idx (args,t)
 		| _ ->
@@ -6882,7 +6882,26 @@ let generate com =
 					false
 			in
 			List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
-			Hashtbl.add all_classes c.cl_path c
+			Hashtbl.add all_classes c.cl_path c;
+			List.iter (fun (m,args,p) ->
+				if m = Meta.Custom ":hlNative" then
+					let lib, prefix = (match args with
+					| [(EConst (String lib),_)] -> lib, ""
+					| [(EConst (String lib),_);(EConst (String p),_)] -> lib, p
+					| _ -> error "hlNative on class requires library name" p
+					) in
+					(* adds :hlNative for all empty methods *)
+					List.iter (fun f ->
+						match f.cf_kind with
+						| Method MethNormal when not (List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta) ->
+							(match f.cf_expr with
+							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } ->
+								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
+								f.cf_meta <- (Meta.Custom ":hlNative", [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
+							| _ -> ())
+						| _ -> ()
+					) c.cl_ordered_statics
+			) c.cl_meta;
  		| _ -> ()
 	) com.types;
 	ignore(alloc_string ctx "");
