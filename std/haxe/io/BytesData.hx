@@ -39,14 +39,25 @@ package haxe.io;
 	typedef BytesData = js.html.ArrayBuffer;
 #elseif hl
 	class BytesDataImpl {
-		public var b : hl.types.Bytes;
+		public var bytes : hl.types.Bytes;
 		public var length : Int;
 		public function new(b,length) {
-			this.b = b;
+			this.bytes = b;
 			this.length = length;
 		}
 	}
-	typedef BytesData = BytesDataImpl;
+	@:forward(bytes,length)
+	abstract BytesDataAbstract(BytesDataImpl) {
+		public inline function new(b, length) {
+			this = new BytesDataImpl(b, length);
+		}
+		@:arrayAccess inline function get(i:Int) return this.bytes[i];
+		@:arrayAccess inline function set(i:Int,v:Int) return this.bytes[i] = v;
+		@:to inline function toBytes() : hl.types.Bytes {
+			return this == null ? null : this.bytes;
+		}
+	}
+	typedef BytesData = BytesDataAbstract;
 #else
 	typedef BytesData = Array<Int>;
 #end
