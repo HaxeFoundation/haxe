@@ -5728,7 +5728,8 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
    List.iter add_classdef_to_buildfile classes;
    add_class_to_buildfile ( [] , "__boot__")  boot_deps "";
-   add_class_to_buildfile ( [] , "__files__")  [] "";
+   add_class_to_buildfile ( [] , "__files__")  [] "if='HXCPP_DEBUGGER'";
+   output_string buildfile ("   <file name=\"${HXCPP}/src/hx/NoFiles.cpp\" unless=\"HXCPP_DEBUGGER\" />\n");
    add_class_to_buildfile ( [] , "__resources__")  [] "";
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__lib__\">\n";
