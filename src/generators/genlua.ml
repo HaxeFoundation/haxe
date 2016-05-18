@@ -473,14 +473,16 @@ and gen_expr ?(local=true) ctx e = begin
 			gen_value ctx x;
 			print ctx ",";
 			gen_value ctx x;
-			print ctx "%s)" (field f.cf_name)
+			print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
 		| _ ->
 			print ctx "(function() local __=";
 			gen_value ctx x;
-			print ctx "; return _hx_bind(__,__%s) end)()" (field f.cf_name))
+			print ctx "; return _hx_bind(__,__%s) end)()" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
+	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
+		gen_value ctx x;
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
 		spr ctx ("(");
 		gen_value ctx e;
@@ -577,8 +579,11 @@ and gen_expr ?(local=true) ctx e = begin
 				    semicolon ctx;
 		end
 	| TNew (c,_,el) ->
-		print ctx "%s.new(" (ctx.type_accessor (TClassDecl c));
-		    concat ctx "," (gen_value ctx) el;
+		(match c.cl_constructor with
+		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
+		| _ -> print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
 		ctx.iife_assign <- true;
@@ -1437,7 +1442,9 @@ let generate_class ctx c =
 			| _ -> (print ctx "{}"); ctx.separator <- true)
 	);
 	newline ctx;
+
 	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+
 	if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 	generate_class___name__ ctx c;
 	(match c.cl_implements with
@@ -1694,6 +1701,7 @@ let generate com =
 
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
+
 
 	let var_exports = (
 		"_hx_exports",
