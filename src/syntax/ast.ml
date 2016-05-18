@@ -171,6 +171,7 @@ module Meta = struct
 		| StructAccess
 		| StructInit
 		| SuppressWarnings
+		| SwitchVariable
 		| This
 		| Throws
 		| To
