@@ -1600,9 +1600,9 @@ let generate_require ctx path meta =
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
-		print ctx "%s = require(\"%s\")" p module_name
+		print ctx "%s = _G.require(\"%s\")" p module_name
 	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
-		print ctx "%s = require(\"%s\").%s" p module_name object_path
+		print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
 	| _ ->
 		error "Unsupported @:luaRequire format" mp);
 
@@ -1794,13 +1794,16 @@ let generate com =
 
 	(* If we use haxe Strings, patch Lua's string *)
 	if has_feature ctx "use.string" then begin
-	    sprln ctx "_G.getmetatable('').__index = String.__index;";
-	    sprln ctx "_G.getmetatable('').__add = function(a,b) return Std.string(a)..Std.string(b) end;";
-	    sprln ctx "_G.getmetatable('').__concat = getmetatable('').__add";
+	    sprln ctx "local _hx_stringmt = _G.getmetatable('');";
+	    sprln ctx "String.__oldindex = _hx_stringmt.__index;";
+	    sprln ctx "_hx_stringmt.__index = String.__index;";
+	    sprln ctx "_hx_stringmt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
+	    sprln ctx "_hx_stringmt.__concat = _hx_stringmt.__add";
 	end;
 
 	(* Array is required, always patch it *)
 	sprln ctx "_hx_array_mt.__index = Array.prototype";
+	newline ctx;
 
 	(* Generate statics *)
 	List.iter (generate_static ctx) (List.rev ctx.statics);
