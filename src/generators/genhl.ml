@@ -255,7 +255,9 @@ type array_impl = {
 	abase : tclass;
 	adyn : tclass;
 	aobj : tclass;
+	ai16 : tclass;
 	ai32 : tclass;
+	af32 : tclass;
 	af64 : tclass;
 }
 
@@ -641,6 +643,10 @@ let array_class ctx t =
 	match t with
 	| HI32 ->
 		ctx.array_impl.ai32
+	| HI16 ->
+		ctx.array_impl.ai16
+	| HF32 ->
+		ctx.array_impl.af32
 	| HF64 ->
 		ctx.array_impl.af64
 	| HDyn ->
@@ -1099,8 +1105,8 @@ let read_mem ctx rdst bytes index t =
 	match t with
 	| HI8 ->
 		op ctx (OGetI8 (rdst,bytes,index))
-(*	| HI16 ->
-		op ctx (OGetI16 (rdst,bytes,index))*)
+	| HI16 ->
+		op ctx (OGetI16 (rdst,bytes,index))
 	| HI32 ->
 		op ctx (OGetI32 (rdst,bytes,index))
 	| HF32 ->
@@ -1114,8 +1120,8 @@ let write_mem ctx bytes index t r=
 	match t with
 	| HI8 ->
 		op ctx (OSetI8 (bytes,index,r))
-(*	| HI16 ->
-		op ctx (OSetI16 (bytes,index,r))*)
+	| HI16 ->
+		op ctx (OSetI16 (bytes,index,r))
 	| HI32 ->
 		op ctx (OSetI32 (bytes,index,r))
 	| HF32 ->
@@ -1419,7 +1425,7 @@ and array_read ctx ra (at,vt) ridx p =
 		(* check bounds *)
 		let length = alloc_tmp ctx HI32 in
 		op ctx (OField (length, ra, 0));
-		let r = alloc_tmp ctx at in
+		let r = alloc_tmp ctx (match at with HI8 | HI16 -> HI32 | _ -> at) in
 		let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
 		(match at with
 		| HI8 | HI16 | HI32 ->
@@ -2135,7 +2141,7 @@ and eval_expr ctx e =
 				op ctx (OMov (l, r));
 				r
 			| AArray (ra,(at,vt),ridx) ->
-				let v = cast_to ctx (value()) at e.epos in
+				let v = cast_to ctx (value()) (match at with HI16 | HI8 -> HI32 | _ -> at) e.epos in
 				(* bounds check against length *)
 				(match at with
 				| HDyn ->
@@ -2148,7 +2154,7 @@ and eval_expr ctx e =
 					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 					j();
 					match at with
-					| HI32 | HF64 ->
+					| HI32 | HF64 | HI16 | HF32 ->
 						let b = alloc_tmp ctx HBytes in
 						op ctx (OField (b,ra,1));
 						write_mem ctx b (shl ctx ridx (type_size_bits at)) at v
@@ -2348,6 +2354,24 @@ and eval_expr ctx e =
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocI32", b, reg_int ctx (List.length el)));
+		| HI16 ->
+			let b = alloc_tmp ctx HBytes in
+			let size = reg_int ctx ((List.length el) * 2) in
+			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
+			list_iteri (fun i e ->
+				let r = eval_to ctx e HI32 in
+				op ctx (OSetI16 (b,reg_int ctx (i * 2),r));
+			) el;
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocI16", b, reg_int ctx (List.length el)));
+		| HF32 ->
+			let b = alloc_tmp ctx HBytes in
+			let size = reg_int ctx ((List.length el) * 4) in
+			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
+			list_iteri (fun i e ->
+				let r = eval_to ctx e HF32 in
+				op ctx (OSetF32 (b,reg_int ctx (i * 4),r));
+			) el;
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocF32", b, reg_int ctx (List.length el)));
 		| HF64 ->
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 8) in
@@ -6854,7 +6878,9 @@ let generate com =
 			abase = get_class "ArrayBase";
 			adyn = get_class "ArrayDyn";
 			aobj = get_class "ArrayObj";
+			ai16 = get_class "ArrayBasic_hl_types_I16";
 			ai32 = get_class "ArrayBasic_Int";
+			af32 = get_class "ArrayBasic_Single";
 			af64 = get_class "ArrayBasic_Float";
 		};
 		base_class = get_class "Class";
