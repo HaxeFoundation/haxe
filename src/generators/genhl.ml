@@ -742,11 +742,6 @@ let rec to_type ?tref ctx t =
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc ->
 				match cf.cf_kind with
-				| Var _ when has_meta Meta.Optional cf.cf_meta ->
-					(*
-						if it's optional it might not be present, handle the field access as fully Dynamic
-					*)
-					acc
 				| Var _ when (match follow cf.cf_type with TAnon _ | TFun _ -> true | _ -> false) ->
 					(*
 						if it's another virtual or a method, it might not match our own (might be larger, or class)
