@@ -65,6 +65,7 @@ module Meta = struct
 		| Deprecated
 		| DirectlyUsed
 		| DynamicObject
+		| Eager
 		| Enum
 		| EnumConstructorParam
 		| Event

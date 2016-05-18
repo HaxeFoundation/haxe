@@ -466,6 +466,7 @@ module MetaInfo = struct
 		| Deprecated -> ":deprecated",("Mark a type or field as deprecated",[])
 		| DirectlyUsed -> ":directlyUsed",("Marks types that are directly referenced by non-extern code",[Internal])
 		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
+		| Eager -> ":eager",("Forces typedefs to be followed early",[UsedOn TTypedef])
 		| Enum -> ":enum",("Defines finite value sets to abstract definitions",[UsedOn TAbstract])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
 		| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe",[Platform Cs; UsedOn TClassField])
