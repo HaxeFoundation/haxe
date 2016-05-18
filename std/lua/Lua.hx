@@ -67,6 +67,8 @@ extern class Lua {
 
 	public static function pairs<A,B>(t:Table<A,B>): Void->A;
 
+	public static function require(module:String) : Dynamic;
+
 	/**
 		Converts the Lua value at the given acceptable base to `Int`. 
 		The Lua value must be a number or a string convertible to a number, 
