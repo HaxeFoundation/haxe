@@ -5793,7 +5793,7 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    let idx = ref 0 in
    Hashtbl.iter (fun _ data ->
       let id = "__res_" ^ (string_of_int !idx) in
-      output_string buildfile ("<file name=\"src/resources/" ^ id ^ ".cpp\" />\n");
+      output_string buildfile ("<file name=\"src/resources/" ^ id ^ ".cpp\" tags=\"optim-none\" />\n");
       incr idx;
    ) common_ctx.resources;
    output_string buildfile "</files>\n";
