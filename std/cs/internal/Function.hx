@@ -80,10 +80,9 @@ package cs.internal;
 
 	public function Equals(obj:Dynamic):Bool
 	{
-		if (obj == null)
+		var c = cs.Lib.as(obj, Closure);
+		if (c == null)
 			return false;
-
-		var c:Closure = cast obj;
 		return (c.obj == this.obj && c.field == this.field);
 	}
 
