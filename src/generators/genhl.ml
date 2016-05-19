@@ -837,7 +837,17 @@ and field_type ctx f p =
 and real_type ctx e =
 	let rec loop e =
 		match e.eexpr with
-		| TField (_,f) -> field_type ctx f e.epos
+		| TField (_,f) ->
+			let ft = field_type ctx f e.epos in
+			(*
+				Handle function variance:
+				If we have type parameters which are function types, we need to keep the functions
+				because we might need to insert a cast to coerce Void->Bool to Void->Dynamic for instance.
+			*)
+			(match ft, e.etype with
+			| TFun (args,ret), TFun (args2,_) ->
+				TFun (List.map2 (fun ((_,_,t) as a) ((_,_,t2) as a2) -> match t, t2 with TInst ({cl_kind=KTypeParameter _},_), TFun _ -> a2 | _ -> a) args args2, ret)
+			| _ -> ft)
 		| TLocal v -> v.v_type
 		| TParenthesis e -> loop e
 		| _ -> e.etype
