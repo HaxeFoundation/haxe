@@ -1380,6 +1380,8 @@ and tcppfuncloc =
 
 and tcpparrayloc =
    | ArrayTyped of tcppexpr * tcppexpr
+   | ArrayPointer of tcppexpr * tcppexpr
+   | ArrayRawPointer of tcppexpr * tcppexpr
    | ArrayObject of tcppexpr * tcppexpr * tcpp
    | ArrayVirtual of tcppexpr * tcppexpr
    | ArrayImplements of tclass * tcppexpr * tcppexpr
@@ -2500,6 +2502,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             (match retypedObj.cpptype with
               | TCppScalarArray scalar ->
                  CppArray( ArrayTyped(retypedObj,retypedIdx) ), scalar
+              | TCppPointer (_,elem) ->
+                 CppArray( ArrayPointer(retypedObj, retypedIdx) ), elem
+              | TCppRawPointer (_,elem) ->
+                 CppArray( ArrayRawPointer(retypedObj, retypedIdx) ), elem
               | TCppObjectArray TCppDynamic ->
                  CppArray( ArrayObject(retypedObj,retypedIdx,TCppDynamic) ), TCppDynamic
               | TCppObjectArray elem ->
@@ -3076,6 +3082,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | ArrayTyped(arrayObj,index) ->
             gen arrayObj; out "->__get("; gen index; out ")"
 
+         | ArrayPointer(arrayObj,index) ->
+            gen arrayObj; out ".ptr["; gen index; out "]"
+
+         | ArrayRawPointer(arrayObj,index) ->
+            gen arrayObj; out "["; gen index; out "]"
+
          | ArrayObject(arrayObj,index,elem) ->
             let close = if cpp_is_dynamic_type elem then
                   ""
@@ -3106,6 +3118,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | CppArrayRef arrayLoc -> (match arrayLoc with
             | ArrayObject(arrayObj, index, _)
             | ArrayTyped(arrayObj, index) ->
+               gen arrayObj; out "["; gen index; out "] = "; gen rvalue
+            | ArrayPointer(arrayObj, index) ->
+               gen arrayObj; out ".ptr["; gen index; out "] = "; gen rvalue
+            | ArrayRawPointer(arrayObj, index) ->
                gen arrayObj; out "["; gen index; out "] = "; gen rvalue
             | ArrayVirtual(arrayObj, index) ->
                gen arrayObj; out "->set("; gen index; out ","; gen rvalue; out ")"
@@ -3431,6 +3447,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppArrayRef arrayLoc -> (match arrayLoc with
          | ArrayObject(arrayObj, index, _)
          | ArrayTyped(arrayObj, index) ->
+            gen arrayObj; out "["; gen index; out "]";
+         | ArrayPointer(arrayObj, index) ->
+            gen arrayObj; out ".ptr["; gen index; out "]";
+         | ArrayRawPointer(arrayObj, index) ->
             gen arrayObj; out "["; gen index; out "]";
          | ArrayVirtual(arrayObj, index)
          | ArrayDynamic(arrayObj, index) ->
