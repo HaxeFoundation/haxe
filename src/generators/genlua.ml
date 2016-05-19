@@ -1794,11 +1794,11 @@ let generate com =
 
 	(* If we use haxe Strings, patch Lua's string *)
 	if has_feature ctx "use.string" then begin
-	    sprln ctx "local _hx_stringmt = _G.getmetatable('');";
-	    sprln ctx "String.__oldindex = _hx_stringmt.__index;";
-	    sprln ctx "_hx_stringmt.__index = String.__index;";
-	    sprln ctx "_hx_stringmt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
-	    sprln ctx "_hx_stringmt.__concat = _hx_stringmt.__add";
+	    sprln ctx "local _hx_string_mt = _G.getmetatable('');";
+	    sprln ctx "String.__oldindex = _hx_string_mt.__index;";
+	    sprln ctx "_hx_string_mt.__index = String.__index;";
+	    sprln ctx "_hx_string_mt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
+	    sprln ctx "_hx_string_mt.__concat = _hx_string_mt.__add";
 	end;
 
 	(* Array is required, always patch it *)
