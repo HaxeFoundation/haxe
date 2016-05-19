@@ -106,8 +106,10 @@ class EReg {
 			var res = by;
 			var g = x.groups();
 			for (i in 0...g.length) {
-
-				res = res.split("$"+UBuiltins.str(i+1)).join(g[i]);
+				var gs = g[i];
+				if (gs == null)
+					continue;
+				res = res.split("$"+UBuiltins.str(i+1)).join(gs);
 			}
 			res = res.split("_hx_#repl#__").join("$");
 			return res;

@@ -99,6 +99,8 @@ pos.len == 2;
 #end
 
 ~/a(b)c/g.replace("abcabc", "$1") == "bb";
+~/(a)|(b)/.replace("abc", '*') == "*bc";
+~/(a)|(b)/g.replace("abc", '*') == "**c";
 
 // map
 ~/(Hello)/.map("Hello World", function(e) return "Hallo") == "Hallo World";
