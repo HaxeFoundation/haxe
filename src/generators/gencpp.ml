@@ -206,7 +206,7 @@ type context =
    (* Per file *)
    ctx_output : string -> unit;
    ctx_writer : source_writer;
-   ctx_label_id : int ref;
+   ctx_file_id : int ref;
 
    ctx_interface_slot : (string,int) Hashtbl.t ref;
    ctx_interface_slot_count : int ref;
@@ -221,7 +221,7 @@ let result =
 {
    ctx_common = common_ctx;
    ctx_writer = null_file;
-   ctx_label_id = ref (-1);
+   ctx_file_id = ref (-1);
    ctx_output = (null_file#write);
    ctx_interface_slot = ref (Hashtbl.create 0);
    ctx_interface_slot_count = ref 2;
@@ -237,7 +237,7 @@ let file_context ctx writer debug =
    { ctx with
       ctx_writer = writer;
       ctx_output = (writer#write);
-      ctx_label_id = ref (-1);
+      ctx_file_id = ref (-1);
    }
 ;;
 
@@ -2130,14 +2130,14 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
    let uses_this = ref None in
    let injection = ref forInjection in
    let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
-   let label_counter = ctx.ctx_label_id in
+   let file_id = ctx.ctx_file_id in
    let loop_stack = ref [] in
-   let alloc_label () =
-      incr label_counter;
-      !label_counter
+   let alloc_file_id () =
+      incr file_id;
+      !file_id
    in
    let begin_loop () =
-      loop_stack := (alloc_label (),ref false) :: !loop_stack;
+      loop_stack := (alloc_file_id (),ref false) :: !loop_stack;
       (fun () -> match !loop_stack with
          | (label_id,used) :: tl ->
             loop_stack := tl;
@@ -2664,7 +2664,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
                CppIntSwitch(condition, cases, cppDef), TCppVoid
             with Not_found ->
-               let label = alloc_label () in
+               let label = alloc_file_id () in
                (* do something better maybe ... *)
                let cases = List.map (fun (el,e2) ->
                   let cppBlock = retype TCppVoid (mk_block e2) in
@@ -2806,6 +2806,17 @@ let is_constant_zero expr =
   | CppInt i when i = Int32.of_int 0 -> true
   | _ -> false
 ;;
+
+let cpp_is_const_scalar_array arrayType expressions =
+   List.length expressions>0 && (match arrayType with
+   | TCppScalarArray _ ->
+        List.for_all (fun expr -> match expr.cppexpr with
+            | CppInt _ | CppFloat _ | CppString _ | CppBool _ -> true
+            | _ -> false
+         ) expressions
+   | _ -> false)
+;;
+
 
 
 
@@ -3201,6 +3212,24 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          end;
          if (expr.cpptype!=TCppVoid) then out ")";
          writer#pop_indent;
+
+      | CppArrayDecl(exprList) when cpp_is_const_scalar_array expr.cpptype exprList ->
+         let arrayType = match expr.cpptype with TCppScalarArray(value) -> value | _ -> assert  false in
+         let typeName = tcpp_to_string arrayType in
+         incr ctx.ctx_file_id;
+         let id = "_hx_array_data_" ^ string_of_int( !(ctx.ctx_file_id) ) in
+
+         let out_top = ctx.ctx_writer#write_h in
+         out_top ("static const " ^ typeName ^ " " ^ id ^ "[] = {\n\t");
+         List.iter (fun expr -> match expr.cppexpr with
+            | CppInt i -> out_top (Printf.sprintf "(%s)%ld," typeName i)
+            | CppFloat f -> out_top ( f ^ "," )
+            | CppString s -> out_top ( (strq s) ^ "," )
+            | CppBool b -> out_top (if b then "1," else "0,")
+            | _ -> assert false
+         ) exprList;
+         out_top ("\n};\n");
+         out ("::Array_obj< " ^ typeName ^ " >::fromData( " ^ id ^ "," ^ list_num exprList ^ ")");
 
       | CppArrayDecl(exprList) ->
          let count = List.length exprList in
