@@ -293,7 +293,7 @@ class Bytes {
 		untyped __global__.__hxcpp_memory_set_double(b,pos,v);
 		#elseif cs
 		#if unsafe
-		var uv:cs.types.UInt64 = untyped __cs__("*(((ulong*)&v))");
+		var uv:cs.types.UInt64 = untyped __cs__("*(ulong*)&v");
 		b[pos] = untyped (uv & 0xFF);
 		b[pos + 1] = untyped ((uv >> 8) & 0xFF);
 		b[pos + 2] = untyped ((uv >> 16) & 0xFF);
@@ -336,7 +336,7 @@ class Bytes {
 		#elseif cs
 		#if unsafe
 		untyped __cs__("float fv = (float)v"); 
-		var value:UInt = untyped __cs__("*((uint*)&fv)");
+		var value:UInt = untyped __cs__("*(uint*)&fv");
 		b[pos] = (value & 0xFF);
 		b[pos + 1] = ((value >> 8) & 0xFF);
 		b[pos + 2] = ((value >> 16) & 0xFF);
