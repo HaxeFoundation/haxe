@@ -1511,7 +1511,7 @@ try
 			"n"
 		| Js ->
 			if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines) then
-				Common.define_value com Define.JqueryVer "11203";
+				Common.define_value com Define.JqueryVer "11204";
 
 			let es_version =
 				try
