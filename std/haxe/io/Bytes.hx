@@ -209,6 +209,9 @@ class Bytes {
 		Returns the IEEE double precision value at given position (in low endian encoding).
 		Result is unspecified if reading outside of the bounds
 	**/
+	#if (cs && unsafe)
+	@:unsafe
+	#end
 	#if (neko_v21 || (cpp && !cppia) || flash) inline #end
 	public function getDouble( pos : Int ) : Float {
 		#if neko_v21
@@ -220,7 +223,16 @@ class Bytes {
 		if( pos < 0 || pos + 8 > length ) throw Error.OutsideBounds;
 		return untyped __global__.__hxcpp_memory_get_double(b,pos);
 		#elseif cs
+		#if unsafe
+		var r:Float = 0;
+		untyped __cs__("fixed(byte* src = b)
+			{
+				r = *(((double*)&src[pos]));
+			}");
+		return r;
+		#else
 		return cs.system.BitConverter.ToDouble(b, pos);
+		#end
 		#else
 		return FPHelper.i64ToDouble(getInt32(pos),getInt32(pos+4));
 		#end
@@ -245,12 +257,12 @@ class Bytes {
 		return untyped __global__.__hxcpp_memory_get_float(b,pos);
 		#elseif cs
 		#if unsafe
-		var value:UInt =
-			b[0 + pos] << 0 |
-			b[1 + pos] << 8 |
-			b[2 + pos] << 16 |
-			b[3 + pos] << 24;
-		return untyped __cs__("*(((float*)&value))");
+		var r:Float = 0;
+		untyped __cs__("fixed(byte* src = b)
+			{
+				r = *(((float*)&src[pos]));
+			}");
+		return r;
 		#else
 		return cs.system.BitConverter.ToSingle(b, pos);
 		#end
