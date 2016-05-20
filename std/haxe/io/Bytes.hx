@@ -227,7 +227,7 @@ class Bytes {
 		var r:Float = 0;
 		untyped __cs__("fixed(byte* src = b)
 			{
-				r = *(((double*)&src[pos]));
+				r = *(double*)&src[pos];
 			}");
 		return r;
 		#else
@@ -260,7 +260,7 @@ class Bytes {
 		var r:Float = 0;
 		untyped __cs__("fixed(byte* src = b)
 			{
-				r = *(((float*)&src[pos]));
+				r = *(float*)&src[pos];
 			}");
 		return r;
 		#else
