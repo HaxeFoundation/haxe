@@ -90,7 +90,7 @@ class Bytes {
 		#elseif java
 		java.lang.System.arraycopy(src.b, srcpos, b, pos, len);
 		#elseif cs
-		cs.system.Array.Copy(src.b, srcpos, b, pos, len);
+		cs.system.Buffer.BlockCopy(src.b, srcpos, b, pos, len);
 		#elseif python
 		python.Syntax.pythonCode("self.b[{0}:{0}+{1}] = src.b[srcpos:srcpos+{1}]", pos, len);
 		#elseif cpp
@@ -149,7 +149,7 @@ class Bytes {
 		return new Bytes(len, newarr);
 		#elseif cs
 		var newarr = new cs.NativeArray(len);
-		cs.system.Array.Copy(b, pos, newarr, 0, len);
+		cs.system.Buffer.BlockCopy(b, pos, newarr, 0, len);
 		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos+len) );
