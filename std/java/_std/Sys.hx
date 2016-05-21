@@ -144,7 +144,7 @@ using haxe.Int64;
 
 	public static function time() : Float
 	{
-		return cast(System.currentTimeMillis().div(Int64.ofInt(1000)), Float);
+		return cast(System.currentTimeMillis(), Float) / 1000;
 	}
 
 	public static function cpuTime() : Float
