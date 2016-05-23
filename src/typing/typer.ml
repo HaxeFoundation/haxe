@@ -1985,10 +1985,9 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			mk_array_set_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
-			let ret = match follow ef.etype with
+			let e2,ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
-					unify ctx e2.etype t p;
-					ret
+					Codegen.AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
 			make_call ctx ef [et;e2] ret p
