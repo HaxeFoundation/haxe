@@ -3792,7 +3792,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				{e with eexpr = TMeta(m,e)}
 			| (Meta.MergeBlock,_,_) ->
 				begin match fst e1 with
-				| EBlock el -> type_block ctx el with_type p
+				| EBlock el ->
+					let e = type_block ctx el with_type p in
+					{e with eexpr = TMeta(m,e)}
 				| _ -> e()
 				end
 			| (Meta.StoredTypedExpr,_,_) ->
