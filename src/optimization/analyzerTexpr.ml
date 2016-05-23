@@ -115,6 +115,7 @@ let rec can_be_used_as_value com e =
 		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
 		| TNew _ when com.platform = Php -> raise Exit
 		| TFunction _ -> ()
+		| TConst TNull when (match com.platform with Cs | Cpp | Java | Flash -> true | _ -> false) -> raise Exit
 		| _ -> Type.iter loop e
 	in
 	try
