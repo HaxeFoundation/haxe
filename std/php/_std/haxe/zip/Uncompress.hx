@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2016 Haxe Foundation
+ * Copyright (C)2005-2012 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,35 +21,25 @@
  */
 package haxe.zip;
 
-@:coreApi
-class Compress {
+class Uncompress {
 
-	private var level : Int;
-
-	public function new( level : Int ) : Void {
-		this.level = level;
+	public function new( ?windowBits : Int ) {
+		throw "Not implemented for this platform";
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		var input = src.sub( srcPos , src.length - srcPos );
-		var data = run( input , level );
-		dst.blit( dstPos , data , 0 , data.length );
-
-		return {
-			done: true,
-			read: input.length,
-			write: data.length
-		};
+		return null;
 	}
 
-	public function setFlushMode( f : FlushMode ) : Void {
+	public function setFlushMode( f : FlushMode ) {
 	}
 
-	public function close() : Void {
+	public function close() {
 	}
 
-	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
-		var c = untyped __call__("gzcompress", s.toString(), level);
+	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
+		var c = untyped __call__("gzuncompress", src.toString());
 		return haxe.io.Bytes.ofString(c);
 	}
+
 }
