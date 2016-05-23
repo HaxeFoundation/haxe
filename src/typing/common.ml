@@ -720,6 +720,13 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
+let create_callbacks () =
+	{
+		after_typing = [];
+		before_dce = [];
+		after_generation = [];
+	}
+
 let create version s_version args =
 	let m = Type.mk_mono() in
 	let defines =
@@ -756,11 +763,7 @@ let create version s_version args =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
-		callbacks = {
-			after_typing = [];
-			before_dce = [];
-			after_generation = [];
-		};
+		callbacks = create_callbacks();
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -808,6 +811,7 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		callbacks = create_callbacks();
 	}
 
 let file_time file =
