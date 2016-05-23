@@ -693,10 +693,10 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	in
 	let skipped = ref [] in
 	let invalid_skips = ref [] in
-	let skip name ul t =
+	let skip name ul t p =
 		if not ctx.com.config.pf_can_skip_non_nullable_argument && not (is_nullable t) then
 			invalid_skips := name :: !invalid_skips;
-		skipped := (name,ul) :: !skipped;
+		skipped := (name,ul,p) :: !skipped;
 		default_value name t
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
@@ -732,7 +732,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		| (_,p) :: _, [] ->
 			begin match List.rev !skipped with
 				| [] -> call_error Too_many_arguments p
-				| (s,ul) :: _ -> arg_error ul s true p
+				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
 			begin try
@@ -741,7 +741,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			with
 				WithTypeError (ul,p) ->
 					if opt then
-						let e_def = skip name ul t in
+						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
 						arg_error ul name false p
