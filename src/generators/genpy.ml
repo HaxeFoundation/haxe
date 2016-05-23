@@ -1918,6 +1918,9 @@ module Generator = struct
 							assigned_fields := cf :: !assigned_fields
 						| TConst (TSuper | TThis) | TThrow _ | TReturn _ ->
 							raise Exit
+						(* TODO: We could do some branch intersection stunts to make this more accurate. *)
+						| TIf(e1,_,_) | TSwitch(e1,_,_) | TWhile(e1,_,_) ->
+							loop e1
 						| _ ->
 							Type.iter loop e
 					in
