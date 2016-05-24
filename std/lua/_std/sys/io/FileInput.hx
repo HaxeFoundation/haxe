@@ -26,6 +26,9 @@ import lua.Io;
 import lua.NativeStringTools;
 import lua.Boot;
 import lua.Os;
+import haxe.io.Bytes;
+import haxe.io.Error;
+import haxe.io.Eof;
 
 class FileInput extends haxe.io.Input {
 	var f:FileHandle;
@@ -61,5 +64,20 @@ class FileInput extends haxe.io.Input {
 	override inline public function close() : Void {
 		f.close();
 	}
+	override public function readAll( ?bufsize : Int ) : Bytes {
+		if( bufsize == null )
+			bufsize = (1 << 14); // 16 Ko
+		var buf = Bytes.alloc(bufsize);
+		var total = new haxe.io.BytesBuffer();
+		try {
+			while( true ) {
+				var len = readBytes(buf,0,bufsize);
+				if (len == 0) break;
+				total.addBytes(buf,0,len);
+			}
+		} catch( e : Eof ) { }
+		return total.getBytes();
+	}
+
 
 }
