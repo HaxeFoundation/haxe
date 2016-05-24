@@ -22,6 +22,7 @@
 package php;
 
 import php.NativeArray;
+import php.PDO;
 
 import php.Lib;
 
@@ -38,7 +39,8 @@ extern class PDOStatement
 	@:overload(function(parameter : Dynamic, variable : Dynamic, data_type : Int, length : Int, driver_options : Dynamic):Bool{})
 	public function bindParam(parameter : Dynamic, variable : Dynamic, ?data_type : Int = PDOClass.PARAM_STR) : Bool;
 	
-	public function bindValue(parameter : Dynamic, value : Dynamic, ?data_type : Int = PDOClass.PARAM_STR) : Bool;
+    @:overload(function(parameter : Dynamic, value : Dynamic) : Bool{})
+	public function bindValue(parameter : Dynamic, value : Dynamic, data_type : Int) : Bool;
 	public function closeCursor() : Bool;
 	public function columnCount() : Int;
 	public function debugDumpParams() : Bool;
@@ -49,17 +51,21 @@ extern class PDOStatement
 	public function execute(input_parameters : NativeArray) : Bool;
 	
 	@:overload(function():Dynamic{})
-	public function fetch(fetch_style : Int, ?cursor_orientation : Int = PDOClass.FETCH_ORI_NEXT, ?cursor_offset : Int = 0) : Dynamic;
+	@:overload(function(fetch_style : Int):Dynamic{})
+	@:overload(function(fetch_style : Int, cursor_orientation : Int):Dynamic{})
+	public function fetch(fetch_style : Int, cursor_orientation : Int, cursor_offset : Int) : Dynamic;
 	
 	@:overload(function():Dynamic{})
 	@:overload(function(fetch_style : Int):Dynamic{})
 	@:overload(function(fetch_style : Int, fetch_argument:Dynamic):Dynamic{})
 	public function fetchAll(fetch_style : Int, fetch_argument:Dynamic, ctor_args:NativeArray) : NativeArray;
 	
-	public function fetchColumn(?column_number : Int = 0) : String;
+    @:overload(function():String{})
+	public function fetchColumn(column_number : Int) : String;
 	
-	@:overload(function(?class_name : String = "stdClass"): Dynamic{})
-	public function fetchObject(?class_name : String = "stdClass", ctor_args : NativeArray) : Dynamic;
+	@:overload(function(): Dynamic{})
+	@:overload(function(class_name : String): Dynamic{})
+	public function fetchObject(class_name : String, ctor_args : NativeArray) : Dynamic;
 	
 	public function getAttribute(attribute : Int) : Dynamic;
 	public function getColumnMeta(column : Int) : NativeArray;

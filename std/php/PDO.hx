@@ -166,10 +166,9 @@ extern class PDO
 
     
     
-    
 	@:overload(function(dns : String):Void{})
 	@:overload(function(dns : String, username : String):Void{})
-	@:overload(function(dns : String, username : String, password : String):Void{})
+	@:overload(function(dns : String, username : String, password : String):Void { } )
 	public function new(dns : String, username : String, password : String, driver_options : NativeArray):Void;
 	
 	public function beginTransaction() : Bool;
@@ -181,8 +180,8 @@ extern class PDO
 	public function getAvailableDrivers() : NativeArray;
 	public function lastInsertId(?name : String) : String;
 	
-	@:overload(function(statement : String, driver_options : NativeArray):PDOStatement { })
-	public function prepare(statement : String) : PDOStatement;
+	@:overload(function(statement : String):PDOStatement { })
+	public function prepare(statement : String, driver_options : NativeArray) : PDOStatement;
 	
 	@:overload(function(statement : String, mode : Int):PDOStatement { })
 	@:overload(function(statement : String, mode : Int, colno:Int):PDOStatement { })
@@ -190,7 +189,8 @@ extern class PDO
 	@:overload(function(statement : String, mode : Int, classname:String, ctorargs:NativeArray):PDOStatement { })
 	public function query(statement : String) : PDOStatement;
 	
-	public function quote(String : String, ?parameter_type : Int = PDO.PARAM_STR) : String;
+    @:overload(function(string:String):String {})
+	public function quote(string : String, parameter_type : Int) : String;
 	public function rollBack() : Bool;
 	public function setAttribute(attribute : Int, value : Dynamic) : Bool;
 }
