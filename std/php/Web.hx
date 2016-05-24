@@ -189,8 +189,7 @@ class Web {
 		Retrieve a client header value sent with the request.
 	**/
 	public static function getClientHeader( k : String ) : String {
-		//Remark : PHP puts all headers in uppercase and replaces - with _, we deal with that here
-		var k = StringTools.replace(k.toUpperCase(),"-","_");
+		var k = k.toUpperCase();
 		for(i in getClientHeaders()) {
 			if(i.header == k)
 				return i.value;
@@ -209,10 +208,10 @@ class Web {
 			var h = Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
 			for(k in h.keys()) {
 				if(k.substr(0,5) == "HTTP_") {
-					_client_headers.add({ header : k.substr(5).split('_').join('-'), value : h.get(k)});
+					_client_headers.add({ header : StringTools.replace(k.substr(5), '_', '-'), value : h.get(k)});
 				// this is also a valid prefix (issue #1883)
 				} else if(k.substr(0,8) == "CONTENT_") {
-					_client_headers.add({ header : k.split('_').join('-'), value : h.get(k)});
+					_client_headers.add({ header : StringTools.replace(k, '_', '-'), value : h.get(k)});
 				}
 			}
 		}
