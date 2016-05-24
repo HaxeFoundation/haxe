@@ -1080,7 +1080,7 @@ and gen_value ctx e =
 		v()
 
 and is_function_type ctx t =
-    match t.v_type with
+    match t with
     | TFun _ -> true
     | TMono r -> (match !r with | Some (TFun _) -> true | _ -> false)
     | _ -> false;
@@ -1122,7 +1122,13 @@ and gen_tbinop ctx op e1 e2 =
 		gen_value ctx e1;
 		spr ctx " = ";
 		gen_value ctx e3;
-	    | TField(e3, FInstance _ ), TLocal t  when (is_function_type ctx t)   ->
+	    | TField(e3, FInstance _ ), TField(e4, FClosure _ )  ->
+		gen_value ctx e1;
+		print ctx " %s " (Ast.s_binop op);
+		spr ctx "_hx_functionToInstanceFunction(";
+		gen_value ctx e2;
+		spr ctx ")";
+	    | TField(_, FInstance _ ), TLocal t  when (is_function_type ctx t.v_type)   ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		spr ctx "_hx_functionToInstanceFunction(";
