@@ -97,9 +97,6 @@ extern class PDOClass
 	public static var ATTR_EMULATE_PREPARES(get, never):Int;
 	private static inline function get_ATTR_EMULATE_PREPARES() : Int return untyped __php__("PDO::ATTR_EMULATE_PREPARES"); 
 	
-	public static var MYSQL_ATTR_USE_BUFFERED_QUERY(get, never):Int;
-	private static inline function get_MYSQL_ATTR_USE_BUFFERED_QUERY() : Int return untyped __php__("PDO::MYSQL_ATTR_USE_BUFFERED_QUERY"); 
-	
 	public static var ATTR_DEFAULT_FETCH_MODE(get, never):Int;
 	private static inline function get_ATTR_DEFAULT_FETCH_MODE() : Int return untyped __php__("PDO::ATTR_DEFAULT_FETCH_MODE"); 
 	
@@ -133,6 +130,62 @@ extern class PDOClass
 	public static var PARAM_STR(get, never):Int;
 	private static inline function get_PARAM_STR():Int return untyped __php__("PDO::PARAM_STR");
 	
+
+    
+    
+    
+    
+    public static var MYSQL_ATTR_USE_BUFFERED_QUERY(get, never):Int;
+	private static inline function get_MYSQL_ATTR_USE_BUFFERED_QUERY():Int return untyped __php__("PDO::MYSQL_ATTR_USE_BUFFERED_QUERY");
+    
+    public static var MYSQL_ATTR_LOCAL_INFILE(get, never):Int;
+	private static inline function get_MYSQL_ATTR_LOCAL_INFILE():Int return untyped __php__("PDO::MYSQL_ATTR_LOCAL_INFILE");
+    
+    public static var MYSQL_ATTR_INIT_COMMAND(get, never):Int;
+	private static inline function get_MYSQL_ATTR_INIT_COMMAND():Int return untyped __php__("PDO::MYSQL_ATTR_INIT_COMMAND");
+    
+    public static var MYSQL_ATTR_READ_DEFAULT_FILE(get, never):Int;
+	private static inline function get_MYSQL_ATTR_READ_DEFAULT_FILE():Int return untyped __php__("PDO::MYSQL_ATTR_READ_DEFAULT_FILE");
+    
+    public static var MYSQL_ATTR_READ_DEFAULT_GROUP(get, never):Int;
+	private static inline function get_MYSQL_ATTR_READ_DEFAULT_GROUP():Int return untyped __php__("PDO::MYSQL_ATTR_READ_DEFAULT_GROUP");
+    
+    public static var MYSQL_ATTR_MAX_BUFFER_SIZE(get, never):Int;
+	private static inline function get_MYSQL_ATTR_MAX_BUFFER_SIZE():Int return untyped __php__("PDO::MYSQL_ATTR_MAX_BUFFER_SIZE");
+    
+    public static var MYSQL_ATTR_DIRECT_QUERY(get, never):Int;
+	private static inline function get_MYSQL_ATTR_DIRECT_QUERY():Int return untyped __php__("PDO::MYSQL_ATTR_DIRECT_QUERY");
+    
+    public static var MYSQL_ATTR_FOUND_ROWS(get, never):Int;
+	private static inline function get_MYSQL_ATTR_FOUND_ROWS():Int return untyped __php__("PDO::MYSQL_ATTR_FOUND_ROWS");
+    
+    public static var MYSQL_ATTR_IGNORE_SPACE(get, never):Int;
+	private static inline function get_MYSQL_ATTR_IGNORE_SPACE():Int return untyped __php__("PDO::MYSQL_ATTR_IGNORE_SPACE");
+    
+    public static var MYSQL_ATTR_COMPRESS(get, never):Int;
+	private static inline function get_MYSQL_ATTR_COMPRESS():Int return untyped __php__("PDO::MYSQL_ATTR_COMPRESS");
+    
+    public static var MYSQL_ATTR_SSL_CA(get, never):Int;
+	private static inline function get_MYSQL_ATTR_SSL_CA():Int return untyped __php__("PDO::MYSQL_ATTR_SSL_CA");
+    
+    public static var MYSQL_ATTR_SSL_CAPATH(get, never):Int;
+	private static inline function get_MYSQL_ATTR_SSL_CAPATH():Int return untyped __php__("PDO::MYSQL_ATTR_SSL_CAPATH");
+    
+    public static var MYSQL_ATTR_SSL_CERT(get, never):Int;
+	private static inline function get_MYSQL_ATTR_SSL_CERT():Int return untyped __php__("PDO::MYSQL_ATTR_SSL_CERT");
+    
+    public static var MYSQL_ATTR_SSL_CIPHER(get, never):Int;
+	private static inline function get_MYSQL_ATTR_SSL_CIPHER():Int return untyped __php__("PDO::MYSQL_ATTR_SSL_CIPHER");
+    
+    public static var MYSQL_ATTR_SSL_KEY(get, never):Int;
+	private static inline function get_MYSQL_ATTR_SSL_KEY():Int return untyped __php__("PDO::MYSQL_ATTR_SSL_KEY");
+    
+    public static var MYSQL_ATTR_MULTI_STATEMENTS(get, never):Int;
+	private static inline function get_MYSQL_ATTR_MULTI_STATEMENTS():Int return untyped __php__("PDO::MYSQL_ATTR_MULTI_STATEMENTS");
+
+    
+    
+    
 	@:overload(function(dns : String):Void{})
 	@:overload(function(dns : String, username : String):Void{})
 	@:overload(function(dns : String, username : String, password : String):Void{})
