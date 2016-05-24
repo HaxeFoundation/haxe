@@ -36,7 +36,7 @@ import sys.io.File;
 
 	public override function writeBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
 		if( p < 0 || l < 0 || p + l > s.length ) throw haxe.io.Error.OutsideBounds;
-		var v = file_write(__f, s.getData().b, p, l);
+		var v = file_write(__f, s.getData(), p, l);
 		if( v <= 0 ) throw new haxe.io.Eof();
 		return v;
 	}

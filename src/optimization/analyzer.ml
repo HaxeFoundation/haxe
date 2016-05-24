@@ -465,7 +465,7 @@ module ConstPropagation = DataFlow(struct
 				end
 			| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TLocal v} as e1),e2) ->
 				let e2 = try
-					if (Optimizer.has_side_effect e1) then raise Not_found;
+					if (Optimizer.has_side_effect e2) then raise Not_found;
 					inline e2 v.v_id
 				with Not_found ->
 					commit e2

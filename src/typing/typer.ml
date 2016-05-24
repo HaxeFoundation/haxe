@@ -133,6 +133,34 @@ let get_abstract_froms a pl =
 			acc
 	) l a.a_from_field
 
+(*
+	temporally remove the constant flag from structures to allow larger unification
+*)
+let remove_constant_flag t callb =
+	let tmp = ref [] in
+	let rec loop t =
+		match follow t with
+		| TAnon a ->
+			if !(a.a_status) = Const then begin
+				a.a_status := Closed;
+				tmp := a :: !tmp;
+			end;
+			PMap.iter (fun _ f -> loop f.cf_type) a.a_fields;
+		|  _ ->
+			()
+	in
+	let restore() =
+		List.iter (fun a -> a.a_status := Const) (!tmp)
+	in
+	try
+		loop t;
+		let ret = callb (!tmp <> []) in
+		restore();
+		ret
+	with e ->
+		restore();
+		raise e
+
 let rec is_pos_infos = function
 	| TMono r ->
 		(match !r with
@@ -583,7 +611,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			let expr f = match f.cf_expr with None -> mk (TBlock []) f.cf_type f.cf_pos | Some e -> e in
 			let fields = List.fold_left (fun acc e ->
 				match follow e.etype with
-				| TAnon a ->
+				| TAnon a when !(a.a_status) = Const ->
 					if !fcount = -1 then begin
 						fcount := field_count a;
 						PMap.map (fun f -> [expr f]) a.a_fields
@@ -665,10 +693,10 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	in
 	let skipped = ref [] in
 	let invalid_skips = ref [] in
-	let skip name ul t =
+	let skip name ul t p =
 		if not ctx.com.config.pf_can_skip_non_nullable_argument && not (is_nullable t) then
 			invalid_skips := name :: !invalid_skips;
-		skipped := (name,ul) :: !skipped;
+		skipped := (name,ul,p) :: !skipped;
 		default_value name t
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
@@ -704,7 +732,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		| (_,p) :: _, [] ->
 			begin match List.rev !skipped with
 				| [] -> call_error Too_many_arguments p
-				| (s,ul) :: _ -> arg_error ul s true p
+				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
 			begin try
@@ -713,7 +741,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			with
 				WithTypeError (ul,p) ->
 					if opt then
-						let e_def = skip name ul t in
+						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
 						arg_error ul name false p
@@ -1245,6 +1273,7 @@ let rec using_field ctx mode e i p =
 		| TMono _ -> raise Not_found
 		| t -> t == t_dynamic
 	in
+	let check_constant_struct = ref false in
 	let rec loop = function
 	| [] ->
 		raise Not_found
@@ -1274,6 +1303,7 @@ let rec using_field ctx mode e i p =
 		with Not_found ->
 			loop l
 		| Unify_error el | Error (Unify el,_) ->
+			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
 	try loop ctx.m.module_using with Not_found ->
@@ -1284,7 +1314,8 @@ let rec using_field ctx mode e i p =
 		| _ -> assert false);
 		acc
 	with Not_found ->
-	raise Not_found
+	if not !check_constant_struct then raise Not_found;
+	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
 let rec type_ident_raise ctx i p mode =
 	match i with
@@ -1663,9 +1694,12 @@ and type_field ?(resume=false) ctx e i p mode =
 				AKUsing (ef,c,f,e)
 			| MSet, _ ->
 				error "This operation is unsupported" p)
-		with Not_found when does_forward a false ->
-			type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
-		| Not_found -> try
+		with Not_found -> try
+			if does_forward a false then
+				type_field ~resume:true ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode
+			else
+				raise Not_found
+		with Not_found -> try
 			using_field ctx mode e i p
 		with Not_found -> try
 			(match ctx.curfun, e.eexpr with
@@ -1951,10 +1985,9 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			mk_array_set_call ctx (Codegen.AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
-			let ret = match follow ef.etype with
+			let e2,ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
-					unify ctx e2.etype t p;
-					ret
+					Codegen.AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
 			make_call ctx ef [et;e2] ret p
@@ -3040,7 +3073,7 @@ and type_object_decl ctx fl with_type p =
 			let e = if is_quoted then wrap_quoted_meta e else e in
 			(n,e)
 		) fl in
-		let t = (TAnon { a_fields = !fields; a_status = ref Closed }) in
+		let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
 		if not ctx.untyped then begin
 			(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) field_map [] with
 				| [] -> ()
@@ -3067,9 +3100,12 @@ and type_object_decl ctx fl with_type p =
 			end else acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
-		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = ref Closed }) p
+		let x = ref Const in
+		ctx.opened <- x :: ctx.opened;
+		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
+		if !(a.a_status) <> Const then a.a_status := Closed;
 		mk (TObjectDecl fl) t p
 	| ODKWithClass (c,tl) ->
 		let t,ctor = get_constructor ctx c tl p in
@@ -3756,7 +3792,9 @@ and type_expr ctx (e,p) (with_type:with_type) =
 				{e with eexpr = TMeta(m,e)}
 			| (Meta.MergeBlock,_,_) ->
 				begin match fst e1 with
-				| EBlock el -> type_block ctx el with_type p
+				| EBlock el ->
+					let e = type_block ctx el with_type p in
+					{e with eexpr = TMeta(m,e)}
 				| _ -> e()
 				end
 			| (Meta.StoredTypedExpr,_,_) ->

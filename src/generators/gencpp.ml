@@ -206,7 +206,7 @@ type context =
    (* Per file *)
    ctx_output : string -> unit;
    ctx_writer : source_writer;
-   ctx_label_id : int ref;
+   ctx_file_id : int ref;
 
    ctx_interface_slot : (string,int) Hashtbl.t ref;
    ctx_interface_slot_count : int ref;
@@ -221,7 +221,7 @@ let result =
 {
    ctx_common = common_ctx;
    ctx_writer = null_file;
-   ctx_label_id = ref (-1);
+   ctx_file_id = ref (-1);
    ctx_output = (null_file#write);
    ctx_interface_slot = ref (Hashtbl.create 0);
    ctx_interface_slot_count = ref 2;
@@ -237,7 +237,7 @@ let file_context ctx writer debug =
    { ctx with
       ctx_writer = writer;
       ctx_output = (writer#write);
-      ctx_label_id = ref (-1);
+      ctx_file_id = ref (-1);
    }
 ;;
 
@@ -584,12 +584,6 @@ let is_cpp_function_class haxe_type =
       | _ -> false )
    | _ -> false
    ;;
-
-let is_fromStaticFunction_call func =
-   match (remove_parens func).eexpr with
-   | TField (_,FStatic ({cl_path=["cpp"],"Function"},{cf_name="fromStaticFunction"} ) ) -> true
-   | _ -> false
-;;
 
 let is_objc_call field =
   match field with
@@ -955,14 +949,6 @@ let is_extern_class_instance obj =
    | TInst (klass,params) -> klass.cl_extern
    | _ -> false
 ;;
-
-
-let is_struct_access t =
-   match follow t with
-   | TInst (class_def,_) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
-   | _ -> false
-;;
-
 
 
 let rec is_dynamic_accessor name acc field class_def =
@@ -1394,6 +1380,8 @@ and tcppfuncloc =
 
 and tcpparrayloc =
    | ArrayTyped of tcppexpr * tcppexpr
+   | ArrayPointer of tcppexpr * tcppexpr
+   | ArrayRawPointer of tcppexpr * tcppexpr
    | ArrayObject of tcppexpr * tcppexpr * tcpp
    | ArrayVirtual of tcppexpr * tcppexpr
    | ArrayImplements of tclass * tcppexpr * tcppexpr
@@ -1642,6 +1630,7 @@ let rec const_string_of expr =
 
 let rec cpp_is_struct_access t =
    match t with
+   | TCppFunction _ -> true
    | TCppInst (class_def) -> (has_meta_key class_def.cl_meta Meta.StructAccess)
    | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
@@ -2100,6 +2089,10 @@ let cpp_is_templated_call ctx member =
    has_meta_key member.cf_meta Meta.TemplatedCall
 ;;
 
+let cpp_is_static_extension ctx member =
+   has_meta_key member.cf_meta Meta.NativeStaticExtension
+;;
+
 let cpp_template_param path native =
    let path = "::" ^ (join_class_path_remap (path) "::" ) in
    if (native) then
@@ -2137,14 +2130,14 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
    let uses_this = ref None in
    let injection = ref forInjection in
    let this_real = ref (if ctx.ctx_real_this_ptr then ThisReal else ThisDynamic) in
-   let label_counter = ctx.ctx_label_id in
+   let file_id = ctx.ctx_file_id in
    let loop_stack = ref [] in
-   let alloc_label () =
-      incr label_counter;
-      !label_counter
+   let alloc_file_id () =
+      incr file_id;
+      !file_id
    in
    let begin_loop () =
-      loop_stack := (alloc_label (),ref false) :: !loop_stack;
+      loop_stack := (alloc_file_id (),ref false) :: !loop_stack;
       (fun () -> match !loop_stack with
          | (label_id,used) :: tl ->
             loop_stack := tl;
@@ -2321,7 +2314,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                  )
                end
 
-            | FStatic ( {cl_path=(["cpp"],"Function")}, ({cf_name="fromStaticFunction"} as member) ) ->
+            | FStatic ( _, ({cf_name="::cpp::Function_obj::fromStaticFunction"} as member) ) ->
                let funcReturn = cpp_member_return_type ctx member in
                let exprType = cpp_type_of member.cf_type in
                CppFunction( FuncFromStaticFunction, funcReturn ), exprType
@@ -2509,6 +2502,10 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             (match retypedObj.cpptype with
               | TCppScalarArray scalar ->
                  CppArray( ArrayTyped(retypedObj,retypedIdx) ), scalar
+              | TCppPointer (_,elem) ->
+                 CppArray( ArrayPointer(retypedObj, retypedIdx) ), elem
+              | TCppRawPointer (_,elem) ->
+                 CppArray( ArrayRawPointer(retypedObj, retypedIdx) ), elem
               | TCppObjectArray TCppDynamic ->
                  CppArray( ArrayObject(retypedObj,retypedIdx,TCppDynamic) ), TCppDynamic
               | TCppObjectArray elem ->
@@ -2667,7 +2664,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                   (List.map const_int_of el), (retype TCppVoid (mk_block e2)) ) cases in
                CppIntSwitch(condition, cases, cppDef), TCppVoid
             with Not_found ->
-               let label = alloc_label () in
+               let label = alloc_file_id () in
                (* do something better maybe ... *)
                let cases = List.map (fun (el,e2) ->
                   let cppBlock = retype TCppVoid (mk_block e2) in
@@ -2809,6 +2806,17 @@ let is_constant_zero expr =
   | CppInt i when i = Int32.of_int 0 -> true
   | _ -> false
 ;;
+
+let cpp_is_const_scalar_array arrayType expressions =
+   List.length expressions>0 && (match arrayType with
+   | TCppScalarArray _ ->
+        List.for_all (fun expr -> match expr.cppexpr with
+            | CppInt _ | CppFloat _ | CppString _ | CppBool _ -> true
+            | _ -> false
+         ) expressions
+   | _ -> false)
+;;
+
 
 
 
@@ -2984,6 +2992,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
 
       | CppCall(func, args) ->
          let closeCall = ref "" in
+         let argsRef = ref args in
          (match func with
          | FuncThis(field) ->
               out ("this->" ^ (cpp_member_name_of field) );
@@ -2991,6 +3000,14 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | FuncInterface(expr,_,field) ->
               let operator = if expr.cpptype = TCppString then "." else "->" in
               gen expr; out (operator ^ (cpp_member_name_of field) );
+         | FuncStatic(clazz,false,field) when cpp_is_static_extension ctx field ->
+            (match args with
+            | fst :: remaining ->
+               argsRef := remaining;
+               gen fst; out ("->" ^ (cpp_member_name_of field) );
+            | _ -> error "Native static extensions must have at least 1 argument" expr.cpppos
+            );
+
          | FuncStatic(clazz,_,field) ->
               let rename = get_meta_string field.cf_meta Meta.Native in
               if rename<>"" then begin
@@ -3054,7 +3071,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          List.iter (fun arg ->
             out !sep; sep := ",";
             gen arg;
-            ) args;
+            ) !argsRef;
          out (")" ^ !closeCall);
 
       | CppFunctionAddress(klass, member) ->
@@ -3075,6 +3092,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppArray(arrayLoc) -> (match arrayLoc with
          | ArrayTyped(arrayObj,index) ->
             gen arrayObj; out "->__get("; gen index; out ")"
+
+         | ArrayPointer(arrayObj,index) ->
+            gen arrayObj; out ".ptr["; gen index; out "]"
+
+         | ArrayRawPointer(arrayObj,index) ->
+            gen arrayObj; out "["; gen index; out "]"
 
          | ArrayObject(arrayObj,index,elem) ->
             let close = if cpp_is_dynamic_type elem then
@@ -3106,6 +3129,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | CppArrayRef arrayLoc -> (match arrayLoc with
             | ArrayObject(arrayObj, index, _)
             | ArrayTyped(arrayObj, index) ->
+               gen arrayObj; out "["; gen index; out "] = "; gen rvalue
+            | ArrayPointer(arrayObj, index) ->
+               gen arrayObj; out ".ptr["; gen index; out "] = "; gen rvalue
+            | ArrayRawPointer(arrayObj, index) ->
                gen arrayObj; out "["; gen index; out "] = "; gen rvalue
             | ArrayVirtual(arrayObj, index) ->
                gen arrayObj; out "->set("; gen index; out ","; gen rvalue; out ")"
@@ -3185,6 +3212,24 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          end;
          if (expr.cpptype!=TCppVoid) then out ")";
          writer#pop_indent;
+
+      | CppArrayDecl(exprList) when cpp_is_const_scalar_array expr.cpptype exprList ->
+         let arrayType = match expr.cpptype with TCppScalarArray(value) -> value | _ -> assert  false in
+         let typeName = tcpp_to_string arrayType in
+         incr ctx.ctx_file_id;
+         let id = "_hx_array_data_" ^ string_of_int( !(ctx.ctx_file_id) ) in
+
+         let out_top = ctx.ctx_writer#write_h in
+         out_top ("static const " ^ typeName ^ " " ^ id ^ "[] = {\n\t");
+         List.iter (fun expr -> match expr.cppexpr with
+            | CppInt i -> out_top (Printf.sprintf "(%s)%ld," typeName i)
+            | CppFloat f -> out_top ( f ^ "," )
+            | CppString s -> out_top ( (strq s) ^ "," )
+            | CppBool b -> out_top (if b then "1," else "0,")
+            | _ -> assert false
+         ) exprList;
+         out_top ("\n};\n");
+         out ("::Array_obj< " ^ typeName ^ " >::fromData( " ^ id ^ "," ^ list_num exprList ^ ")");
 
       | CppArrayDecl(exprList) ->
          let count = List.length exprList in
@@ -3431,6 +3476,10 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       | CppArrayRef arrayLoc -> (match arrayLoc with
          | ArrayObject(arrayObj, index, _)
          | ArrayTyped(arrayObj, index) ->
+            gen arrayObj; out "["; gen index; out "]";
+         | ArrayPointer(arrayObj, index) ->
+            gen arrayObj; out ".ptr["; gen index; out "]";
+         | ArrayRawPointer(arrayObj, index) ->
             gen arrayObj; out "["; gen index; out "]";
          | ArrayVirtual(arrayObj, index)
          | ArrayDynamic(arrayObj, index) ->
@@ -5728,7 +5777,8 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
    List.iter add_classdef_to_buildfile classes;
    add_class_to_buildfile ( [] , "__boot__")  boot_deps "";
-   add_class_to_buildfile ( [] , "__files__")  [] "";
+   add_class_to_buildfile ( [] , "__files__")  [] "if='HXCPP_DEBUGGER'";
+   output_string buildfile ("   <file name=\"${HXCPP}/src/hx/NoFiles.cpp\" unless=\"HXCPP_DEBUGGER\" />\n");
    add_class_to_buildfile ( [] , "__resources__")  [] "";
    output_string buildfile "</files>\n";
    output_string buildfile "<files id=\"__lib__\">\n";
@@ -5743,7 +5793,7 @@ let write_build_data common_ctx filename classes main_deps boot_deps build_extra
    let idx = ref 0 in
    Hashtbl.iter (fun _ data ->
       let id = "__res_" ^ (string_of_int !idx) in
-      output_string buildfile ("<file name=\"src/resources/" ^ id ^ ".cpp\" />\n");
+      output_string buildfile ("<file name=\"src/resources/" ^ id ^ ".cpp\" tags=\"optim-none\" />\n");
       incr idx;
    ) common_ctx.resources;
    output_string buildfile "</files>\n";
@@ -6850,100 +6900,20 @@ let generate_source ctx =
          let out = output_string exeClasses in
          let outline str = output_string exeClasses (str ^ "\n") in
          let spath path = (join_class_path path ".") in
-         let rec stype = function
-            | TMono r -> (match !r with None -> "Dynamic" | Some t -> stype t)
-            | TAbstract ({ a_path = ([],"Void") },[]) -> "void"
-            | TAbstract ({ a_path = ([],"Bool") },[]) -> "bool"
-            | TAbstract ({ a_path = ([],"Float") },[]) -> "float"
-            | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
-            | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
-            | TEnum (enum,params) -> spath enum.e_path
-            | TInst (klass,params) ->
-               (match klass.cl_path, params with
-               (* Array class *)
-               (*|  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic" *)
-               | _,_ when is_dynamic_type_param klass.cl_kind -> "Dynamic"
-               | ([],"Array"), [t] -> "Array<" ^ (stype t) ^ ">"
-               | (["cpp"],"UInt8"),_ -> "uint8"
-               | ([],"EnumValue"),_ -> "Dynamic"
-               | ([],"Null"),[t] when ctx_cant_be_null ctx t -> "Null<" ^ (stype t) ^ ">"
-               | ([],"Null"),[t] -> (stype t)
-               | _ -> spath klass.cl_path
-               )
-            | TType (type_def,params) ->
-               (match type_def.t_path, params with
-               | ([],"Null"),[t] when ctx_cant_be_null ctx t -> "Null<" ^ (stype t) ^ ">"
-               | ([],"Array"), [t] -> "Array< " ^ (stype (follow t) ) ^ " >"
-               | _,_ ->  stype (apply_params type_def.t_params params type_def.t_type)
-               )
-            | TLazy func -> stype ((!func)())
-            | TAbstract (abs,pl) when abs.a_impl <> None ->
-               stype (Abstract.get_underlying_type abs pl)
-            | TAbstract (abs,_) -> spath abs.a_path
-            | TFun (args,ret) -> "fun<" ^ (List.fold_left (fun s (_,opt,t) -> s ^ (if opt then "?" else "") ^ (stype t) ^ ",") "" args) ^ (stype ret) ^ ">"
-            | _ -> "Dynamic"
-            in
          List.iter (fun (name,_,def) ->
             match def with
             | TClassDecl class_def ->
                 outline ((if class_def.cl_interface then "interface " else "class ") ^ (spath name) );
-                (match class_def.cl_super with
-                | Some (super,_) -> outline ("super " ^ (spath super.cl_path) )
-                | _ -> () );
-                List.iter ( fun(c,_) -> out ("implements " ^ (spath c.cl_path) ^ "\n") ) class_def.cl_implements;
-                (match class_def.cl_dynamic with None -> () | Some t -> outline ("implementsdynamic " ^ (stype t)));
-                (match class_def.cl_array_access with None -> () | Some t -> outline ("arrayaccess " ^ (stype t)));
-
-                let args  = function
-                   | TFun (args,_) ->
-                       List.iter  (fun (name,opt,t) ->
-                          outline ("arg " ^ name ^ (if opt then " ? " else " : ") ^ (stype t) )
-                       ) args;
-                   | _ -> () in
-                let ret  = function  TFun (_,ret) -> stype ret | _ -> "Dynamic" in
-
-                let print_field stat f =
-                   let pub = if f.cf_public then "pub " else "priv " in
-                   let stat = pub ^ ( if stat then "s " else "m " ) in
-                   (match f.cf_kind, f.cf_name with
-                   | Var { v_read = AccInline; v_write = AccNever },_ ->
-                        outline ("inlinevar " ^ f.cf_name ^ " " ^ (stype f.cf_type) )
-                   | Var { v_read = AccNormal; v_write = AccNormal },_ ->
-                        outline ("var " ^ stat ^ f.cf_name ^ " " ^ (stype f.cf_type) )
-                   | Var v,_ ->
-                        let saccess = function | AccNormal -> "v" | AccNo -> "0" | AccNever -> "!"
-                           | AccResolve -> "r" | AccCall -> "c" | AccInline -> "i" | AccRequire (_,_) -> "v" in
-                        outline ("property " ^ stat ^ (saccess v.v_read) ^ " " ^ (saccess v.v_write)
-                           ^ " " ^ f.cf_name ^ " " ^ (stype f.cf_type) )
-                   | Method _, "new" ->
-                        outline ("function " ^ stat ^ "new " ^ (ret f.cf_type) );
-                        args f.cf_type
-                   | Method MethDynamic, _  ->
-                        outline ("dynamicfunction " ^ stat ^ f.cf_name ^ " " ^ (ret f.cf_type) );
-                        args f.cf_type
-                   | Method _, _  ->
-                        outline ("function " ^ stat ^ f.cf_name ^ " " ^ (ret f.cf_type) );
-                        args f.cf_type
-                  ) in
-                (match class_def.cl_constructor with | None -> () | Some f -> print_field false f);
-                List.iter (print_field false) class_def.cl_ordered_fields;
-                List.iter (print_field true) class_def.cl_ordered_statics;
             | TEnumDecl enum_def ->
                 out ("enum " ^ (spath name) ^ "\n");
-                let sorted_items = List.sort (fun f1 f2 -> (f1.ef_index - f2.ef_index ) ) (pmap_values enum_def.e_constrs) in
-                List.iter (fun constructor ->
-                   outline ("constructor " ^ constructor.ef_name);
-                   match constructor.ef_type with
-                   | TFun (args,_) -> List.iter (fun (arg,_,t) -> outline ("eparam " ^ arg ^ " " ^ (stype t) ) ) args;
-                   | _ -> ()
-                ) sorted_items;
             | _ -> ()
             ) !exe_classes;
 
          (* Output file info too *)
          List.iter ( fun file ->
                let full_path = Common.get_full_path (try Common.find_file common_ctx file with Not_found -> file) in
-               out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
+               if file <> "?" then
+                  out ("file " ^ (escape file) ^ " " ^ (escape full_path) ^"\n") )
             ( List.sort String.compare ( pmap_keys !(ctx.ctx_file_info) ) );
          close_out exeClasses;
      end;

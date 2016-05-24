@@ -66,6 +66,7 @@ For information on on using Haxe, consult the [Haxe documentation](http://haxe.o
 
  * [Haxe Introduction](http://haxe.org/documentation/introduction), an introduction to the Haxe toolkit
  * [The Haxe Manual](http://haxe.org/manual), the reference manual for the Haxe language
+ * [Haxe Code Cookbook](http://code.haxe.org), code snippets / learning resource
  * [Haxe API](http://api.haxe.org), documentation for the Haxe standard and native APIs
  * [Haxelib](http://lib.haxe.org), a repository of Haxe libraries for a variety of needs
 

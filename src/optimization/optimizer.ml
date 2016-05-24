@@ -371,7 +371,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				if we cast from Dynamic, create a local var as well to do the cast
 				once and allow DCE to perform properly.
 			*)
-			let e = if v.v_type != t_dynamic && follow e.etype == t_dynamic then mk (TCast(e,None)) v.v_type e.epos else e in
+			let e = if follow v.v_type != t_dynamic && follow e.etype == t_dynamic then mk (TCast(e,None)) v.v_type e.epos else e in
 			(match e.eexpr, opt with
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 			(*
@@ -531,6 +531,14 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			l.i_write <- true;
 			let e2 = map false e2 in
 			{e with eexpr = TBinop(op,{e1 with eexpr = TLocal l.i_subst},e2)}
+		| TObjectDecl fl ->
+			let fl = List.map (fun (s,e) -> s,map false e) fl in
+			begin match follow e.etype with
+				| TAnon an when (match !(an.a_status) with Const -> true | _ -> false) ->
+					{e with eexpr = TObjectDecl fl; etype = TAnon { an with a_status = ref Closed}}
+				| _ ->
+					{e with eexpr = TObjectDecl fl}
+			end
 		| TFunction f ->
 			(match f.tf_args with [] -> () | _ -> has_vars := true);
 			let old = save_locals ctx and old_fun = !in_local_fun in

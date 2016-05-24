@@ -24,12 +24,22 @@ package haxe.zip;
 @:coreApi
 class Compress {
 
+	private var level : Int;
+
 	public function new( level : Int ) : Void {
-		throw "Not implemented for this platform";
+		this.level = level;
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return null;
+		var input = src.sub( srcPos , src.length - srcPos );
+		var data = run( input , level );
+		dst.blit( dstPos , data , 0 , data.length );
+
+		return {
+			done: true,
+			read: input.length,
+			write: data.length
+		};
 	}
 
 	public function setFlushMode( f : FlushMode ) : Void {

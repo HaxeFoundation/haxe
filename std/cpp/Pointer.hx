@@ -33,7 +33,13 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
    public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
 
-   public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>;
+   @:native("::cpp::Pointer_obj::fromHandle")
+   static function nativeFromHandle<T>(inHandle:Dynamic,?inKind:String):Pointer<T>;
+   inline public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>
+   {
+     var autoCast = nativeFromHandle(inHandle,inKind);
+     return autoCast;
+   }
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
 
@@ -41,9 +47,21 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 
    public static function endOf<T:{}>(inVariable:T) : Pointer<cpp.Void>;
 
-   public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+   @:native("::cpp::Pointer_obj::arrayElem")
+   static function nativeArrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+   inline static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>
+   {
+      var autoCast = nativeArrayElem(array,inElem);
+      return autoCast;
+   }
 
-   public static function ofArray<T>(array:Array<T>):Pointer<T>;
+   @:native("::cpp::Pointer_obj::ofArray")
+   static function nativeOfArray<T>(array:Array<T>):Pointer<T>;
+   inline public static function ofArray<T>(array:Array<T>):Pointer<T>
+   {
+     var autoCast = nativeOfArray(array);
+     return autoCast;
+   }
 
    inline public function toUnmanagedArray(elementCount:Int) : Array<T>
    {

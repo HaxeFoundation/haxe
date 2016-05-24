@@ -466,6 +466,7 @@ module MetaInfo = struct
 		| Deprecated -> ":deprecated",("Mark a type or field as deprecated",[])
 		| DirectlyUsed -> ":directlyUsed",("Marks types that are directly referenced by non-extern code",[Internal])
 		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
+		| Eager -> ":eager",("Forces typedefs to be followed early",[UsedOn TTypedef])
 		| Enum -> ":enum",("Defines finite value sets to abstract definitions",[UsedOn TAbstract])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
 		| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe",[Platform Cs; UsedOn TClassField])
@@ -522,6 +523,7 @@ module MetaInfo = struct
 		| NativeGen -> ":nativeGen",("Annotates that a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs;Python]; UsedOnEither[TClass;TEnum]])
 		| NativeGeneric -> ":nativeGeneric",("Used internally to annotate native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
 		| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
+		| NativeStaticExtension -> ":nativeStaticExtension",("Converts static function syntax into member call",[Platform Cpp])
 		| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
 		| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
@@ -571,6 +573,7 @@ module MetaInfo = struct
 		| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
 		| StructInit -> ":structInit",("Allows to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
 		| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
+		| SwitchVariable -> ":switchVariable",("Used internally to mark switch subject variables",[Internal])
 		| TemplatedCall -> ":templatedCall",("Indicates that the first parameter of static call should be treated as a template arguement",[Platform Cpp; UsedOn TClassField])
 		| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
 		| This -> ":this",("Internally used to pass a 'this' expression to macros",[Internal; UsedOn TExpr])
@@ -717,6 +720,13 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
+let create_callbacks () =
+	{
+		after_typing = [];
+		before_dce = [];
+		after_generation = [];
+	}
+
 let create version s_version args =
 	let m = Type.mk_mono() in
 	let defines =
@@ -753,11 +763,7 @@ let create version s_version args =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
-		callbacks = {
-			after_typing = [];
-			before_dce = [];
-			after_generation = [];
-		};
+		callbacks = create_callbacks();
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -805,6 +811,7 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		callbacks = create_callbacks();
 	}
 
 let file_time file =
@@ -880,12 +887,7 @@ let flash_version_tag = function
 	| 11.7 -> 20
 	| 11.8 -> 21
 	| 11.9 -> 22
-	| 12.0 -> 23
-	| 13.0 -> 24
-	| 14.0 -> 25
-	| 15.0 -> 26
-	| 16.0 -> 27
-	| 17.0 -> 28
+	| v when v >= 12.0 && float_of_int (int_of_float v) = v -> int_of_float v + 11
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
 let raw_defined ctx v =

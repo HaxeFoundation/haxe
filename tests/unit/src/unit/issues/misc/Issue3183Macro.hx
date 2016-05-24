@@ -80,7 +80,8 @@ class Issue3183Macro {
 						name: field.name,
 						type: null,
 						opt: false,
-						value: null
+						value: null,
+						meta: []
 					}
 				})
 			})

@@ -65,6 +65,7 @@ module Meta = struct
 		| Deprecated
 		| DirectlyUsed
 		| DynamicObject
+		| Eager
 		| Enum
 		| EnumConstructorParam
 		| Event
@@ -121,6 +122,7 @@ module Meta = struct
 		| NativeGen
 		| NativeGeneric
 		| NativeProperty
+		| NativeStaticExtension
 		| NoCompletion
 		| NoDebug
 		| NoDoc
@@ -170,6 +172,7 @@ module Meta = struct
 		| StructAccess
 		| StructInit
 		| SuppressWarnings
+		| SwitchVariable
 		| This
 		| Throws
 		| To

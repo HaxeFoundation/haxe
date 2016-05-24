@@ -115,6 +115,7 @@ let rec can_be_used_as_value com e =
 		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
 		| TNew _ when com.platform = Php -> raise Exit
 		| TFunction _ -> ()
+		| TConst TNull when (match com.platform with Cs | Cpp | Java | Flash -> true | _ -> false) -> raise Exit
 		| _ -> Type.iter loop e
 	in
 	try
@@ -365,7 +366,16 @@ module Fusion = struct
 		in
 		loop e;
 		let can_be_fused v e =
-			let b = get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.AnalyzerConfig.optimize && config.AnalyzerConfig.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None) in
+			let check_switch_variable v = match com.platform with
+				| Python | Lua when Meta.has Meta.SwitchVariable v.v_meta -> false
+				| _ -> true
+			in
+			let b = get_num_uses v <= 1 &&
+			        get_num_writes v = 0 &&
+			        can_be_used_as_value com e &&
+			        (Meta.has Meta.CompilerGenerated v.v_meta || config.AnalyzerConfig.optimize && config.AnalyzerConfig.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None) &&
+			        check_switch_variable v
+			in
 			(* let st = s_type (print_context()) in *)
 			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
 			b
@@ -406,6 +416,8 @@ module Fusion = struct
 							let rec loop e = match e.eexpr with
 								| TMeta((Meta.Pure,_,_),_) ->
 									()
+								| TArray _ ->
+									raise Exit
 								| TField _ when Optimizer.is_affected_type e.etype ->
 									raise Exit
 								| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->

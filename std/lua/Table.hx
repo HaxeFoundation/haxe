@@ -25,11 +25,6 @@ extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 	private static function __init__() : Void {
 		// lua table polyfills
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_table_polyfill.lua");
-
-		// lua workarounds for basic anonymous object functionality
-		// (built on tables)
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_anon.lua");
-
 	}
 }
 

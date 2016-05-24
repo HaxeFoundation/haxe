@@ -64,7 +64,7 @@ class Reflect {
 			throw "Invalid function " + func;
 		var need = ft.getArgsCount();
 		var cval = hl.types.Api.getClosureValue(func);
-		var isClosure = cval != null;
+		var isClosure = cval != null && need >= 0;
 		if( o == null )
 			o = cval;
 		else if( !isClosure && count == need )
@@ -73,7 +73,7 @@ class Reflect {
 		if( isClosure ) need++;
 		if( nargs < need ) nargs = need;
 		var a = new hl.types.NativeArray<Dynamic>(nargs);
-		if( o == null ) {
+		if( o == null || need < 0 ) {
 			for( i in 0...count )
 				a[i] = args.getDyn(i);
 		} else {

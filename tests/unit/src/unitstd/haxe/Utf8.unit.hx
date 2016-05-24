@@ -30,6 +30,8 @@ haxe.Utf8.length(str) == 3;
 haxe.Utf8.charCodeAt(str, 0) == 0x3042;
 haxe.Utf8.charCodeAt(str, 1) == 0xE9;
 haxe.Utf8.charCodeAt(str, 2) == 0x3044;
+var big = new haxe.Utf8(10);
+big.toString().length == 0;
 var buf = new haxe.Utf8();
 buf.addChar(0x3042);
 buf.addChar(0xE9);

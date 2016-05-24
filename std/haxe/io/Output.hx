@@ -69,7 +69,7 @@ class Output {
 			#elseif cpp
 				writeByte(untyped b[pos]);
 			#elseif hl
-				writeByte(@:privateAccess b.b[pos]);
+				writeByte(b[pos]);
 			#else
 				writeByte(untyped b[pos]);
 			#end

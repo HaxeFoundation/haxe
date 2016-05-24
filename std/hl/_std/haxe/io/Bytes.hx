@@ -165,11 +165,11 @@ class Bytes {
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
-		return new Bytes(b.b,b.length);
+		return new Bytes(b.bytes,b.length);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
-		return b.b[pos];
+		return b[pos];
 	}
 
 }

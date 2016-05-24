@@ -22,7 +22,9 @@
 package haxe.rtti;
 
 /**
-	An api to access classes and enums metadata at runtime.
+	An API to access classes and enums metadata at runtime.
+	
+	@see <http://haxe.org/manual/cr-rtti.html>
 **/
 class Meta {
 
