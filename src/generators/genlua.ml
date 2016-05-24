@@ -1702,6 +1702,15 @@ let generate com =
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
+	let include_files = List.rev com.include_files in
+	List.iter (fun file ->
+		match file with
+		| path, "top" ->
+			let file_content = Std.input_file ~bin:true (fst file) in
+			print ctx "%s\n" file_content;
+			()
+		| _ -> ()
+	) include_files;
 
 	let var_exports = (
 		"_hx_exports",
@@ -1741,17 +1750,6 @@ let generate com =
 		in loop parts "";
 	)) exposed;
 
-	let include_files = List.rev com.include_files in
-
-
-	List.iter (fun file ->
-		match file with
-		| path, "top" ->
-			let file_content = Std.input_file ~bin:true (fst file) in
-			print ctx "%s\n" file_content;
-			()
-		| _ -> ()
-	) include_files;
 
 	if (anyExposed) then (
 		print ctx "local %s = %s" (fst var_exports) (snd var_exports);
