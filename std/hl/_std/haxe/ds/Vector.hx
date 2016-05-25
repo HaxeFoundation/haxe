@@ -23,6 +23,7 @@ package haxe.ds;
 
 private typedef VectorData<T> = Array<T>
 
+@:coreApi
 abstract Vector<T>(VectorData<T>) {
 
 	public inline function new(length:Int) {

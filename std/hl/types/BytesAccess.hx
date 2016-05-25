@@ -35,6 +35,10 @@ package hl.types;
 		return untyped $bytes_nullvalue(this);
 	}
 
+	@:extern public inline function blit( pos : Int, src : BytesAccess<T>, srcPos : Int, len : Int ) : Void {
+		(this:Bytes).blit(pos << sizeBits, src, srcPos << sizeBits, len << sizeBits);
+	}
+
 	@:extern @:arrayAccess public inline function get( pos : Int ) : T {
 		return untyped $bget(this,pos);
 	}

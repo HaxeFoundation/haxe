@@ -71,9 +71,6 @@ abstract Vector<T>(VectorData<T>) {
 			this.setSize(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
-		#elseif hl
-			this = [];
-			if( length > 0 ) this[length - 1] = cast null;
 		#else
 			this = [];
 			untyped this.length = length;
