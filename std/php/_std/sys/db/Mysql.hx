@@ -33,7 +33,8 @@ import sys.db.Connection;
 		?socket : String,
 		database : String
 	} ) : sys.db.Connection {
-		var dsn="mysql:";
+		var dsn = "mysql:";
+        
 		if (params.socket !=null)
 			dsn+="unix_socket="+params.socket+";";
 		else{
