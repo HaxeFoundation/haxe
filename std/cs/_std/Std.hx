@@ -59,7 +59,7 @@ import cs.internal.Exceptions;
 		return s.ToString();
 	}
 
-	public static inline function int( x : Float ) : Int {
+	public static function int( x : Float ) : Int {
 		return cast x;
 	}
 

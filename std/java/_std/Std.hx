@@ -57,7 +57,7 @@ import java.internal.Exceptions;
 		return cast(s, String) + "";
 	}
 
-	public static inline function int( x : Float ) : Int {
+	public static function int( x : Float ) : Int {
 		return cast x;
 	}
 
