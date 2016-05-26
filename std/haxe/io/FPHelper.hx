@@ -192,7 +192,7 @@ class FPHelper {
 			return untyped  __call__('unpack', 'd', __call__('pack', 'ii', isLittleEndian ? low : high, isLittleEndian ? high : low))[1];
 		#else
 			#if python
-			if (low == 0 && (high == 2146435072)) {
+			if (low == 0 && high == 2146435072) {
 				return Math.POSITIVE_INFINITY;
 			} else if (low == 0 && high == -1048576 ) {
 				return Math.NEGATIVE_INFINITY;
