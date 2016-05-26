@@ -1236,6 +1236,12 @@ let configure gen =
 		List.rev !ret
 	in
 
+	let field_hxgen f = match f with
+		| FInstance(c,_,_) | FStatic(c,_) ->
+			is_hxgen (TClassDecl c)
+		| _ -> true (* dynamic, etc will be considered hxgen *)
+	in
+
 	let expr_s w e =
 		last_line := -1;
 		in_value := false;
@@ -1243,7 +1249,7 @@ let configure gen =
 			let was_in_value = !in_value in
 			in_value := true;
 			(match e.eexpr with
-				| TCall({ eexpr = TField(ef,f) }, (_ :: _ as args) ) when (field_name f) = "get_Item" ->
+				| TCall({ eexpr = TField(ef,f) }, (_ :: _ as args) ) when field_hxgen f && (field_name f) = "get_Item" ->
 					expr_s w ef;
 					write w "[";
 					let first = ref true in
@@ -1252,7 +1258,7 @@ let configure gen =
 						expr_s w f
 					) args;
 					write w "]"
-				| TCall({ eexpr = TField(ef,f) }, (_ :: _ :: _ as args) ) when (field_name f) = "set_Item" ->
+				| TCall({ eexpr = TField(ef,f) }, (_ :: _ :: _ as args) ) when field_hxgen f && (field_name f) = "set_Item" ->
 					expr_s w ef;
 					write w "[";
 					let args, value = match List.rev args with
