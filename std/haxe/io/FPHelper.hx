@@ -191,6 +191,13 @@ class FPHelper {
 		#elseif php
 			return untyped  __call__('unpack', 'd', __call__('pack', 'ii', isLittleEndian ? low : high, isLittleEndian ? high : low))[1];
 		#else
+			#if python
+			if (low == 0 && high == 2146435072) {
+				return Math.POSITIVE_INFINITY;
+			} else if (low == 0 && high == -1048576 ) {
+				return Math.NEGATIVE_INFINITY;
+			}
+			#end
 			var sign = 1 - ((high >>> 31) << 1);
 			var exp = ((high >> 20) & 0x7FF) - 1023;
 			var sig = (high&0xFFFFF) * 4294967296. + (low>>>31) * 2147483648. + (low&0x7FFFFFFF);
@@ -275,6 +282,14 @@ class FPHelper {
 				@:privateAccess {
 					i64.set_low(0);
 					i64.set_high(0);
+				}
+			} else if (!Math.isFinite(v)) @:privateAccess {
+				if (v > 0) {
+					i64.set_low(0);
+					i64.set_high(2146435072);
+				} else {
+					i64.set_low(0);
+					i64.set_high(-1048576);
 				}
 			} else {
 				var av = v < 0 ? -v : v;
