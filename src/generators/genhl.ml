@@ -5058,7 +5058,7 @@ let interp code =
 							else c
 						in
 						utf16_add buf c
-					) (String.sub s (int pos) (int len));
+					) (String.sub s (int pos) ((int len) lsl 1));
 					utf16_add buf 0;
 					VBytes (Buffer.contents buf)
 				| _ -> assert false)
@@ -5072,7 +5072,7 @@ let interp code =
 							else c
 						in
 						utf16_add buf c
-					) (String.sub s (int pos) (int len));
+					) (String.sub s (int pos) ((int len) lsl 1));
 					utf16_add buf 0;
 					VBytes (Buffer.contents buf)
 				| _ -> assert false)
