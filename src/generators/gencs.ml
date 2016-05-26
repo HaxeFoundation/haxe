@@ -1344,6 +1344,10 @@ let configure gen =
 						| TNull -> write w "null"
 						| TThis -> write w "this"
 						| TSuper -> write w "base")
+				| TCast({ eexpr = TConst(TNull) }, _) ->
+							write w "default(";
+							write w (t_s e.etype);
+							write w ")"
 				| TLocal { v_name = "__sbreak__" } -> write w "break"
 				| TLocal { v_name = "__undefined__" } ->
 					write w (t_s (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_params)));
