@@ -25,16 +25,20 @@ out.addByte(42);
 out.addFloat(1.3);
 out.addDouble(2.4);
 out.addInt64(haxe.Int64.make(0xABCDEF00,0xCAFFEED1));
+out.addDouble(Math.POSITIVE_INFINITY);
+out.addDouble(Math.NEGATIVE_INFINITY);
 
 var b = out.getBytes();
 
-b.length == 25;
+b.length == 41;
 
 b.getInt32(0) == 0xABCDEF00;
 b.get(4) == 42;
 b.getFloat(5) == 1.2999999523162842;
 b.getDouble(9) == 2.4;
 t(b.getInt64(17) == haxe.Int64.make(0xABCDEF00,0xCAFFEED1));
+b.getDouble(25) == Math.POSITIVE_INFINITY;
+b.getDouble(33) == Math.NEGATIVE_INFINITY;
 
 // check correct low endian encoding
 b.get(3) == 0xAB;

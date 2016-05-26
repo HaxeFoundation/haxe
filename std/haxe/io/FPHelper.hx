@@ -276,6 +276,14 @@ class FPHelper {
 					i64.set_low(0);
 					i64.set_high(0);
 				}
+			} else if (!Math.isFinite(v)) @:privateAccess {
+				if (v > 0) {
+					i64.set_low(0);
+					i64.set_high(2146435072);
+				} else {
+					i64.set_low(0);
+					i64.set_high(-1048576);
+				}
 			} else {
 				var av = v < 0 ? -v : v;
 				var exp = Math.floor(Math.log(av) / LN2);
