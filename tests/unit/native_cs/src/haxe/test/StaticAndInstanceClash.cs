@@ -3,6 +3,7 @@ namespace haxe.test
 
 public class StaticAndInstanceClash : Base.InnerClass
 {
+	~StaticAndInstanceClash() {}
 	public static string someString;
 
 	public class StaticAndInstanceClashSame : StaticAndInstanceClash
