@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ package js;
 class Cookie {
 	/**
 		Create or update a cookie.
-		expireDelay (seconds), if null, the cookie expires at end of session
+		@param  expireDelay  In seconds. If null, the cookie expires at end of session.
 	**/
 	public static function set( name : String, value : String, ?expireDelay : Int, ?path : String, ?domain : String ){
 		var s = name+"="+StringTools.urlEncode(value);
@@ -42,7 +42,7 @@ class Cookie {
 	}
 
 	/**
-		Returns all cookies
+		Returns all cookies.
 	**/
 	public static function all(){
 		var h = new haxe.ds.StringMap();
@@ -65,14 +65,14 @@ class Cookie {
 	}
 
 	/**
-		Returns true if a cookie [name] exists
+		Returns true if a cookie `name` exists.
 	**/
 	public static function exists( name : String ){
 		return all().exists(name);
 	}
 
 	/**
-		Remove a cookie
+		Remove a cookie.
 	**/
 	public static function remove( name : String, ?path : String, ?domain : String ){
 		set(name,"",-10,path,domain);

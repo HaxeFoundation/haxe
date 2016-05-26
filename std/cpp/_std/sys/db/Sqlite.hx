@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -47,7 +47,12 @@ private class SqliteConnection implements Connection {
 
 	public function quote( s : String ) {
 		if( s.indexOf("\000") >= 0 )
-			return "x'"+new String(_encode(s,"0123456789ABCDEF"))+"'";
+      {
+         var hexChars = new Array<String>();
+         for(i in 0...s.length)
+           hexChars.push( StringTools.hex( StringTools.fastCodeAt(s,i),2 ) );
+			return "x'"+ hexChars.join("") +"'";
+      }
 		return "'"+s.split("'").join("''")+"'";
 	}
 
@@ -68,7 +73,7 @@ private class SqliteConnection implements Connection {
 		}
 	}
 
-	public function lastInsertId() {
+	public function lastInsertId() : Int{
 		return _last_id(c);
 	}
 
@@ -90,11 +95,16 @@ private class SqliteConnection implements Connection {
 		startTransaction(); // match mysql usage
 	}
 
-	static var _encode = cpp.Lib.load("std","base_encode",2);
-	static var _connect = cpp.Lib.load("sqlite","sqlite_connect",1);
-	static var _close = cpp.Lib.load("sqlite","close",1);
-	static var _request = cpp.Lib.load("sqlite","request",2);
-	static var _last_id = cpp.Lib.load("sqlite","last_insert_id",1);
+
+   @:extern @:native("_hx_sqlite_connect")
+	public static function _connect(filename:String):Dynamic return null;
+   @:extern @:native("_hx_sqlite_request")
+	public static function _request(handle:Dynamic,req:String):Dynamic return null;
+   @:extern @:native("_hx_sqlite_close")
+	public static function _close(handle:Dynamic):Void { };
+   @:extern @:native("_hx_sqlite_last_insert_id")
+	public static function _last_id(handle:Dynamic):Int return 0;
+
 }
 
 
@@ -170,15 +180,24 @@ private class SqliteResultSet implements ResultSet {
 		return null;
 	}
 
-	static var result_next = cpp.Lib.load("sqlite","result_next",1);
-	static var result_get_length = cpp.Lib.load("sqlite","result_get_length",1);
-	static var result_get_nfields = cpp.Lib.load("sqlite","result_get_nfields",1);
-	static var result_get = cpp.Lib.load("sqlite","result_get",2);
-	static var result_get_int = cpp.Lib.load("sqlite","result_get_int",2);
-	static var result_get_float = cpp.Lib.load("sqlite","result_get_float",2);
+
+
+   @:extern @:native("_hx_sqlite_result_next")
+	public static function result_next(handle:Dynamic):Dynamic return null;
+   @:extern @:native("_hx_sqlite_result_get_length")
+	public static function result_get_length(handle:Dynamic):Int return 0;
+   @:extern @:native("_hx_sqlite_result_get_nfields")
+	public static function result_get_nfields(handle:Dynamic):Int return 0;
+   @:extern @:native("_hx_sqlite_result_get")
+	public static function result_get(handle:Dynamic,i:Int) : String return null;
+   @:extern @:native("_hx_sqlite_result_get_int")
+	public static function result_get_int(handle:Dynamic,i:Int) : Int return 0;
+   @:extern @:native("_hx_sqlite_result_get_float")
+	public static function result_get_float(handle:Dynamic,i:Int):Float return 0.0;
 
 }
 
+@:buildXml('<include name="${HXCPP}/src/hx/libs/sqlite/Build.xml"/>')
 @:coreApi class Sqlite {
 
 	public static function open( file : String ) : Connection {

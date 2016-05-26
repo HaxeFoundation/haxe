@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -68,7 +69,7 @@ enum ValueType {
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		var path = name.split(".");
-		cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
+		var cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
 		var i = 1;
 		while( cl != null && i < path.length ) {
 			cl = Reflect.field(cl,path[i]);
@@ -83,7 +84,7 @@ enum ValueType {
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
 		var path = name.split(".");
-		e = Reflect.field(neko.Boot.__classes,path[0]);
+		var e = Reflect.field(neko.Boot.__classes,path[0]);
 		var i = 1;
 		while( e != null && i < path.length ) {
 			e = Reflect.field(e,path[i]);

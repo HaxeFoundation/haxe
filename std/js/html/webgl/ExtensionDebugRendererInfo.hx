@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 812:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 774:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionDebugRendererInfo")
+@:native("WEBGL_debug_renderer_info")
 extern class ExtensionDebugRendererInfo
 {
 	static inline var UNMASKED_VENDOR_WEBGL : Int = 37445;

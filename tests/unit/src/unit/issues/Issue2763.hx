@@ -16,7 +16,7 @@ class Issue2763 extends Test {
 			acc += ";" + i;
 		} while (call(i++) < call2(i++));
 		eq(";0;2;4", acc);
-    }
+	}
 
 	static function call(i:Int) {
 		return i;

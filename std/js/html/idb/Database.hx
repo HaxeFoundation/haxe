@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBDatabase.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/IDBDatabase.webidl line 45:0. Do not edit!
 
 package js.html.idb;
 
@@ -39,8 +39,7 @@ extern class Database extends js.html.EventTarget
 	/** @throws DOMError */
 	function deleteObjectStore( name : String ) : Void;
 	/** @throws DOMError */
-	@:overload( function( storeName : String, ?mode : TransactionMode = "readonly" ) : Transaction {} )
-	function transaction( storeNames : Array<String>, ?mode : TransactionMode = "readonly" ) : Transaction;
+	function transaction( storeNames : haxe.extern.EitherType<String,Array<String>>, ?mode : TransactionMode = "readonly" ) : Transaction;
 	function close() : Void;
 	/** @throws DOMError */
 	function createMutableFile( name : String, ?type : String ) : Request;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/FormData.webidl line 11:0. Do not edit!
+// This file is generated from mozilla/FormData.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -29,6 +29,23 @@ extern class FormData
 {
 	/** @throws DOMError */
 	function new( ?form : FormElement ) : Void;
+	/** @throws DOMError */
 	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	function append( name : String, value : String ) : Void;
+	@:native("delete")
+	function delete_( name : String ) : Void;
+	function get( name : String ) : haxe.extern.EitherType<Blob,String>;
+	function getAll( name : String ) : Array<haxe.extern.EitherType<Blob,String>>;
+	function has( name : String ) : Bool;
+	/** @throws DOMError */
+	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
+	function set( name : String, value : String ) : Void;
+	/** @throws DOMError */
+	function entries() : FormDataIterator;
+	/** @throws DOMError */
+	function keys() : FormDataIterator;
+	/** @throws DOMError */
+	function values() : FormDataIterator;
+	/** @throws DOMError */
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

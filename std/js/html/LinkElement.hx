@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLLinkElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/HTMLLinkElement.webidl line 46:0. Do not edit!
 
 package js.html;
 
@@ -35,12 +35,13 @@ extern class LinkElement extends Element
 	var media : String;
 	var hreflang : String;
 	var type : String;
-	var sizes(default,null) : DOMSettableTokenList;
+	var sizes(default,null) : DOMTokenList;
 	var charset : String;
 	var rev : String;
 	var target : String;
 	@:native("import")
 	var import_(default,null) : HTMLDocument;
+	var integrity : String;
 	var sheet(default,null) : StyleSheet;
 	
 }

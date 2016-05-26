@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,23 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ServiceWorkerGlobalScope.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/ServiceWorkerGlobalScope.webidl line 46:0. Do not edit!
 
 package js.html;
 
 @:native("ServiceWorkerGlobalScope")
 extern class ServiceWorkerGlobalScope extends WorkerGlobalScope
 {
-	var clients(default,null) : ServiceWorkerClients;
-	var scope(default,null) : String;
+	var clients(default,null) : Clients;
+	var registration(default,null) : ServiceWorkerRegistration;
 	var oninstall : haxe.Constraints.Function;
 	var onactivate : haxe.Constraints.Function;
 	var onfetch : haxe.Constraints.Function;
-	var onbeforeevicted : haxe.Constraints.Function;
-	var onevicted : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
+	var onpush : haxe.Constraints.Function;
+	var onpushsubscriptionchange : haxe.Constraints.Function;
+	var onnotificationclick : haxe.Constraints.Function;
 	
-	function update() : Void;
 	/** @throws DOMError */
-	function unregister() : Promise<Bool>;
+	function skipWaiting() : Promise<Void>;
 }

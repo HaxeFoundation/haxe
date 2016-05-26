@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,7 @@
  */
 package python.lib.datetime;
 
+import python.lib.time.StructTime;
 
 @:pythonImport("datetime", "datetime")
 extern class Datetime {
@@ -49,6 +50,7 @@ extern class Datetime {
 	public static function utcfromtimestamp (timestamp:Int):Datetime;
 	public static function fromordinal (ordinal:Int):Datetime;
 
+	public function timetuple():StructTime;
 	public function strftime (format:String):String;
 	public function replace (?year:Int = 1970, ?month:Int = 1, ?day:Int = 1, ?hour:Int = 0, ?minute:Int = 0, ?second:Int, ?microsecond:Int, ?tzinfo:Tzinfo):Datetime;
 	/* 0-6 */

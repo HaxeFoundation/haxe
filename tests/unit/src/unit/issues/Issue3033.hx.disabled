@@ -11,15 +11,15 @@ class Issue3033 extends Test
 
 	public static function guessReturnType<T>()
 	{
-    var result = new Ref();
-    function tt(r:Ref<T>):T return dynamicReturnType();
-    if (Math.random() < 0.5) result.t = tt(new Ref<T>());
-    return result;
+	var result = new Ref();
+	function tt(r:Ref<T>):T return dynamicReturnType();
+	if (Math.random() < 0.5) result.t = tt(new Ref<T>());
+	return result;
 	}
 
   public static function dynamicReturnType():Dynamic
   {
-    return guessReturnType();
+	return guessReturnType();
   }
 }
 

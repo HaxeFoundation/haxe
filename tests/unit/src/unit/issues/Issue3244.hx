@@ -1,11 +1,11 @@
 package unit.issues;
 
 private abstract A(String) from String {
-    @:from static function fromInt(v:Int):A return "abc";
+	@:from static function fromInt(v:Int):A return "abc";
 }
 
 private class TestClass {
-    static public var a:A = 1;
+	static public var a:A = 1;
 	public var b:A = 1;
 
 	public function new() { }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -49,11 +49,19 @@ class Resource {
 	}
 
 	public static function getString( name : String ) : String {
-		return sys.io.File.getContent(getPath(name));
+		var path = getPath(name);
+		return if (!sys.FileSystem.exists(path))
+			null;
+		else
+			sys.io.File.getContent(path);
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		return sys.io.File.getBytes(getPath(name));
+		var path = getPath(name);
+		return if (!sys.FileSystem.exists(path))
+			null;
+		else
+			sys.io.File.getBytes(path);
 	}
 
 }

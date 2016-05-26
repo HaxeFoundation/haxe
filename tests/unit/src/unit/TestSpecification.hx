@@ -127,10 +127,10 @@ class NonRttiClass { }
 @:rtti
 @:keepSub
 class RttiClass1 {
-    static var v:String;
-    public function f() {
-        return 33.0;
-    }
+	static var v:String;
+	public function f() {
+		return 33.0;
+	}
 }
 
 class RttiClass2 extends RttiClass1 { }

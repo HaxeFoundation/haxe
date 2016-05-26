@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,6 +38,7 @@ class FileSystem {
 		Directory.Move(path, newPath);
 	}
 
+	@:access(Date.fromNative)
 	public static function stat( path : String ) : FileStat
 	{
 		if (File.Exists(path))
@@ -46,9 +47,9 @@ class FileSystem {
 			return {
 				gid: 0, //C# doesn't let you get this info
 				uid: 0, //same
-				atime: untyped Date.fromNative(fi.LastAccessTime),
-				mtime: untyped Date.fromNative(fi.LastWriteTime),
-				ctime: untyped Date.fromNative(fi.CreationTime),
+				atime: Date.fromNative(fi.LastAccessTime),
+				mtime: Date.fromNative(fi.LastWriteTime),
+				ctime: Date.fromNative(fi.CreationTime),
 				size: cast(fi.Length, Int), //TODO: maybe change to Int64 for Haxe 3?
 				dev: 0, //FIXME: not sure what that is
 				ino: 0, //FIXME: not sure what that is
@@ -61,9 +62,9 @@ class FileSystem {
 			return {
 				gid: 0, //C# doesn't let you get this info
 				uid: 0, //same
-				atime: untyped Date.fromNative(fi.LastAccessTime),
-				mtime: untyped Date.fromNative(fi.LastWriteTime),
-				ctime: untyped Date.fromNative(fi.CreationTime),
+				atime: Date.fromNative(fi.LastAccessTime),
+				mtime: Date.fromNative(fi.LastWriteTime),
+				ctime: Date.fromNative(fi.CreationTime),
 				size: 0, //TODO: maybe change to Int64 for Haxe 3?
 				dev: 0, //FIXME: not sure what that is
 				ino: 0, //FIXME: not sure what that is

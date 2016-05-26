@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,7 +45,7 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.remove(this,x);
 	}
 
-#if js_es5
+#if (js_es >= 5)
 	function indexOf( x : T, ?fromIndex:Int ) : Int;
 	function lastIndexOf( x : T, ?fromIndex:Int ) : Int;
 

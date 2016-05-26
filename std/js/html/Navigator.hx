@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Navigator.webidl line 23:0. Do not edit!
+// This file is generated from mozilla/Navigator.webidl line 55:0. Do not edit!
 
 package js.html;
 
 @:native("Navigator")
 extern class Navigator
 {
+	var permissions(default,null) : Permissions;
 	var mimeTypes(default,null) : MimeTypeArray;
 	var plugins(default,null) : PluginArray;
 	var doNotTrack(default,null) : String;
+	var battery(default,null) : BatteryManager;
 	var maxTouchPoints(default,null) : Int;
 	var oscpu(default,null) : String;
 	var vendor(default,null) : String;
@@ -37,7 +39,7 @@ extern class Navigator
 	var productSub(default,null) : String;
 	var cookieEnabled(default,null) : Bool;
 	var buildID(default,null) : String;
-	var battery(default,null) : BatteryManager;
+	var hardwareConcurrency(default,null) : Int;
 	var geolocation(default,null) : Geolocation;
 	var appCodeName(default,null) : String;
 	var appName(default,null) : String;
@@ -49,6 +51,8 @@ extern class Navigator
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
 	
+	/** @throws DOMError */
+	function getBattery() : Promise<BatteryManager>;
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
 	/** @throws DOMError */
@@ -57,7 +61,6 @@ extern class Navigator
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
 	function sendBeacon( url : String, ?data : haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<String,FormData>>> ) : Bool;
-	function requestMediaKeySystemAccess( keySystem : String, ?supportedConfigurations : Array<MediaKeySystemOptions> ) : Promise<MediaKeySystemAccess>;
 	/** @throws DOMError */
 	function registerProtocolHandler( scheme : String, url : String, title : String ) : Void;
 	/** @throws DOMError */

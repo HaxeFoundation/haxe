@@ -198,10 +198,10 @@ class TestXML extends Test {
 	}
 
 	function testIssue3058() {
-        var xml = Xml.createElement("node");
-        xml.set("key", 'a"b\'&c>d<e');
-        eq('a"b\'&c>d<e', xml.get("key"));
-        eq('<node key="a&quot;b&#039;&amp;c&gt;d&lt;e"/>', xml.toString());
+		var xml = Xml.createElement("node");
+		xml.set("key", 'a"b\'&c>d<e');
+		eq('a"b\'&c>d<e', xml.get("key"));
+		eq('<node key="a&quot;b&#039;&amp;c&gt;d&lt;e"/>', xml.toString());
 	}
 
 	function testIssue3630() {

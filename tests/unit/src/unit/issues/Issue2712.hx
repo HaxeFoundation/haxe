@@ -4,17 +4,17 @@ import unit.Test;
 class Item implements Heapable {}
 
 interface Collection<T> {
-    function contains(x:T):Bool;
+	function contains(x:T):Bool;
 }
 
 interface Heapable {}
 
 class Heap<T:(Heapable)> implements Collection<T> {
-    public function new() {}
+	public function new() {}
 
-    public function contains(x:T):Bool {
-        return true;
-    }
+	public function contains(x:T):Bool {
+		return true;
+	}
 }
 
 class Issue2712 extends Test {

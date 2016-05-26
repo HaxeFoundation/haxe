@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaStream.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/MediaStream.webidl line 46:0. Do not edit!
 
 package js.html;
 
 typedef MediaStreamConstraints =
 {
-	@:optional var audio : haxe.extern.EitherType<Bool,Dynamic/*MISSING MediaTrackConstraints*/>;
+	@:optional var audio : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
 	@:optional var fake : Bool;
 	@:optional var fakeTracks : Bool;
 	@:optional var peerIdentity : String;
 	@:optional var picture : Bool;
-	@:optional var video : haxe.extern.EitherType<Bool,Dynamic/*MISSING MediaTrackConstraints*/>;
+	@:optional var video : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
 }

@@ -116,3 +116,33 @@ function idx(x, y) {
 var end = begin();
 var _ = (arr(a(), b()))[idx(c(), d())];
 eq(end(), "1_2_3_4");
+
+function f1() {
+	buf.push(1);
+	return function(i) { };
+}
+
+function f2() {
+	buf.push(2);
+	return 2;
+}
+
+var end = begin();
+f1()(f2());
+eq(end(), "1_2");
+
+var d:Dynamic = { f1: f1 };
+
+function f3() {
+	buf.push(3);
+	d.f1 = function(i) {
+		buf.push(4);
+		return 4;
+	}
+	return 3;
+}
+
+var end = begin();
+d.f1()(f3());
+d.f1(f2());
+eq(end(), "1_3_2_4");

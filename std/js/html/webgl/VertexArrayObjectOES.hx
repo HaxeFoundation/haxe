@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,8 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 105:0. Do not edit!
+
 package js.html.webgl;
 
-/** @deprecated Use VertexArray instead. */
-@:deprecated("VertexArrayObjectOES is deprecated, use VertexArray instead")
-typedef VertexArrayObjectOES = VertexArray;
+@:native("WebGLVertexArrayObjectOES")
+extern class VertexArrayObjectOES
+{
+}

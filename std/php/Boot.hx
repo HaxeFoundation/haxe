@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,7 @@
  */
 package php;
 
+@:dox(hide)
 @:keep
 class Boot {
 	static var qtypes;
@@ -318,8 +319,8 @@ function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
 	if (!(error_reporting() & $errno)) {
 		return false;
 	}
-	$msg = $errmsg . ' (errno: ' . $errno . ') in ' . $filename . ' at line #' . $linenum;
-	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => __LINE__, 'className' => 'php.Boot', 'methodName' => '_hx_error_handler')));
+	$msg = $errmsg . ' (errno: ' . $errno . ')';
+	$e = new HException($msg, '', $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => __LINE__, 'className' => 'php.Boot', 'methodName' => '_hx_error_handler')));
 	$e->setFile($filename);
 	$e->setLine($linenum);
 	throw $e;
@@ -398,7 +399,7 @@ function _hx_field($o, $field) {
 							return $o->$field;
 						}
 					}
-				} else if(isset($o->__dynamics[$field])) {
+				} else if(isset($o->__dynamics) && isset($o->__dynamics[$field])) {
 					return $o->__dynamics[$field];
 				} else {
 					return array($o, $field);
@@ -554,7 +555,7 @@ function _hx_set_method($o, $field, $func) {
 }
 
 function _hx_shift_right($v, $n) {
-	return ($v >= 0) ? ($v >> $n) : ($v >> $n) & (0x7fffffff >> ($n-1));
+	return ($n == 0) ? $v : ($v >= 0) ? ($v >> $n) : ($v >> $n) & (0x7fffffff >> ($n-1));
 }
 
 function _hx_string_call($s, $method, $params) {
@@ -862,7 +863,7 @@ class Enum {
 }
 
 error_reporting(E_ALL & ~E_STRICT);
-set_error_handler('_hx_error_handler', E_ALL);
+set_error_handler('_hx_error_handler', E_ALL & ~E_STRICT);
 set_exception_handler('_hx_exception_handler');
 
 php_Boot::$qtypes = array();

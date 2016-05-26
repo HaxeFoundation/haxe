@@ -1,8 +1,8 @@
 package unit.issues;
 
 enum Tree<T> {
-    Leaf(v:T);
-    Node(l:Tree<T>, r:Tree<T>);
+	Leaf(v:T);
+	Node(l:Tree<T>, r:Tree<T>);
 }
 
 class Issue2508 extends unit.Test {

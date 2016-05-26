@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLMediaElement.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/HTMLMediaElement.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -63,9 +63,7 @@ extern class MediaElement extends Element
 	var audioTracks(default,null) : AudioTrackList;
 	var videoTracks(default,null) : VideoTrackList;
 	var textTracks(default,null) : TextTrackList;
-	var mediaKeys(default,null) : MediaKeys;
-	var onencrypted : haxe.Constraints.Function;
-	var waitingFor(default,null) : MediaWaitingFor;
+	var srcObject : MediaStream;
 	
 	function load() : Void;
 	function canPlayType( type : String ) : String;
@@ -76,5 +74,4 @@ extern class MediaElement extends Element
 	/** @throws DOMError */
 	function pause() : Void;
 	function addTextTrack( kind : TextTrackKind, ?label : String = "", ?language : String = "" ) : TextTrack;
-	function setMediaKeys( mediaKeys : MediaKeys ) : Promise<Void>;
 }

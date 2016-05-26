@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ package haxe.io;
 	common path formats:
 
 	- directory1/directory2/filename.extension
-	- directory1\directory2\filename.excention
+	- directory1\directory2\filename.extension
 **/
 class Path {
 
@@ -111,7 +111,7 @@ class Path {
 		If `this.directory` or `this.extension` is null, their representation
 		is the empty String "".
 	**/
-	public function toString() {
+	public function toString() : String {
 		return (if( dir == null ) "" else dir + if( backslash ) "\\" else "/") + file + (if( ext == null ) "" else "." + ext);
 	}
 
@@ -120,7 +120,7 @@ class Path {
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function withoutExtension( path : String ) {
+	public static function withoutExtension( path : String ) : String {
 		var s = new Path(path);
 		s.ext = null;
 		return s.toString();
@@ -131,7 +131,7 @@ class Path {
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function withoutDirectory( path ) {
+	public static function withoutDirectory( path ) : String {
 		var s = new Path(path);
 		s.dir = null;
 		return s.toString();
@@ -140,11 +140,11 @@ class Path {
 	/**
 		Returns the directory of `path`.
 
-		If the directory is null, the empty String "" is returned.
+		If the directory is null, the empty String `""` is returned.
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function directory( path ) {
+	public static function directory( path ) : String {
 		var s = new Path(path);
 		if( s.dir == null )
 			return "";
@@ -154,11 +154,11 @@ class Path {
 	/**
 		Returns the extension of `path`.
 
-		If the extension is null, the empty String "" is returned.
+		If the extension is null, the empty String `""` is returned.
 
 		If `path` is null, the result is unspecified.
 	**/
-	public static function extension( path ) {
+	public static function extension( path ) : String {
 		var s = new Path(path);
 		if( s.ext == null )
 			return "";
@@ -172,7 +172,7 @@ class Path {
 
 		If `path` or `ext` are null, the result is unspecified.
 	**/
-	public static function withExtension( path, ext ) {
+	public static function withExtension( path, ext ) : String {
 		var s = new Path(path);
 		s.ext = ext;
 		return s.toString();
@@ -208,11 +208,9 @@ class Path {
 		If `path` is null, the result is unspecified.
 	**/
 	public static function normalize(path : String) : String {
-		var slash = '/';
-		path = path.split("\\").join("/");
-		if( path == null || path == slash ) {
-			return slash;
-		}
+		var slash = "/";
+		path = path.split("\\").join(slash);
+		if (path == slash) return slash;
 
 		var target = [];
 
@@ -235,7 +233,7 @@ class Path {
 				case ":".code:
 					acc.add(":");
 					colon = true;
-				case "/".code if (colon == false):
+				case "/".code if (!colon):
 					slashes = true;
 				case i:
 					colon = false;
@@ -246,8 +244,7 @@ class Path {
 					acc.add(String.fromCharCode(i));
 			}
 		}
-		var result = acc.toString();
-		return result;
+		return acc.toString();
 	}
 
 	/**
@@ -258,7 +255,7 @@ class Path {
 
 		If the last slash in `path` is a slash, or if no slash is found, a slash
 		is appended to `path`. In particular, this applies to the empty String
-		"".
+		`""`.
 
 		If `path` is null, the result is unspecified.
 	**/

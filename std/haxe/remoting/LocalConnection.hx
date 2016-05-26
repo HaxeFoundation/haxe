@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+    Allows communications to a different application that runs on the same client device
+*/
 class LocalConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	static var ID = 0;

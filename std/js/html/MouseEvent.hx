@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MouseEvent.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/MouseEvent.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -31,6 +31,8 @@ extern class MouseEvent extends UIEvent
 	var screenY(default,null) : Int;
 	var clientX(default,null) : Int;
 	var clientY(default,null) : Int;
+	var offsetX(default,null) : Int;
+	var offsetY(default,null) : Int;
 	var ctrlKey(default,null) : Bool;
 	var shiftKey(default,null) : Bool;
 	var altKey(default,null) : Bool;
@@ -44,9 +46,7 @@ extern class MouseEvent extends UIEvent
 	
 	/** @throws DOMError */
 	function new( typeArg : String, ?mouseEventInitDict : MouseEventInit ) : Void;
-	/** @throws DOMError */
 	function initMouseEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, viewArg : Window, detailArg : Int, screenXArg : Int, screenYArg : Int, clientXArg : Int, clientYArg : Int, ctrlKeyArg : Bool, altKeyArg : Bool, shiftKeyArg : Bool, metaKeyArg : Bool, buttonArg : Int, relatedTargetArg : EventTarget ) : Void;
 	function getModifierState( keyArg : String ) : Bool;
-	/** @throws DOMError */
 	function initNSMouseEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, viewArg : Window, detailArg : Int, screenXArg : Int, screenYArg : Int, clientXArg : Int, clientYArg : Int, ctrlKeyArg : Bool, altKeyArg : Bool, shiftKeyArg : Bool, metaKeyArg : Bool, buttonArg : Int, relatedTargetArg : EventTarget, pressure : Float, inputSourceArg : Int ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,17 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MutationObserver.webidl line 48:0. Do not edit!
+// This file is generated from mozilla/MutationObserver.webidl line 84:0. Do not edit!
 
 package js.html;
 
 typedef MutationObserverInit =
 {
+	@:optional var animations : Bool;
 	@:optional var attributeFilter : Array<String>;
 	@:optional var attributeOldValue : Bool;
 	@:optional var attributes : Bool;
 	@:optional var characterData : Bool;
 	@:optional var characterDataOldValue : Bool;
 	@:optional var childList : Bool;
+	@:optional var nativeAnonymousChildList : Bool;
 	@:optional var subtree : Bool;
 }

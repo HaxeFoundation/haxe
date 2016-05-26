@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,9 +26,6 @@ import python.Syntax;
 @:coreApi class Date
 {
 	static var EPOCH_UTC = Datetime.fromtimestamp(0, python.lib.datetime.Timezone.utc);
-	static var EPOCH_LOCAL = Datetime.fromtimestamp(0);
-
-	var epoch : Datetime;
 
 	private var date:Datetime;
 
@@ -41,7 +38,7 @@ import python.Syntax;
 
 	public inline function getTime() : Float
 	{
-		return datetimeTimestamp(date, EPOCH_LOCAL);
+		return python.lib.Time.mktime(date.timetuple()) * 1000;
 	}
 
 	public inline function getHours() : Int

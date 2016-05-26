@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,6 +46,7 @@ package haxe.ds;
 ")
 @:coreApi
 class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
+	@:ifFeature("haxe.ds.ObjectMap.*")
 	private var h : Dynamic;
 
 	public function new() : Void { }

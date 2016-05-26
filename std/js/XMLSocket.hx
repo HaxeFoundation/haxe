@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,8 @@
 package js;
 
 /**
-	By compiling the [haxe.remoting.SocketWrapper] into a SWF, you can create and use XMLSockets directly from Javascript.
+	By compiling the `haxe.remoting.SocketWrapper` into a SWF, you can create 
+	and use XMLSockets directly from Javascript.
 **/
 class XMLSocket {
 

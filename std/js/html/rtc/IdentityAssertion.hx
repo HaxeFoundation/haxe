@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCIdentityAssertion.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/RTCIdentityAssertion.webidl line 41:0. Do not edit!
 
 package js.html.rtc;
 
-@:native("RTCIdentityAssertion")
-extern class IdentityAssertion
+typedef IdentityAssertion =
 {
-	var idp : String;
-	var name : String;
-	
-	/** @throws DOMError */
-	function new( idp : String, name : String ) : Void;
+	@:optional var idp : String;
+	@:optional var name : String;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,10 +21,13 @@
  */
 package python.lib;
 
+import python.lib.time.StructTime;
+
 @:pythonImport("time")
 extern class Time {
 
 	public static function time ():Float;
 	public static function clock ():Float;
 	public static function sleep (t:Float):Void;
+	public static function mktime(s:StructTime):Float;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,6 +29,8 @@ package haxe.ds;
 	to `haxe.ds.WeakMap` for a weak reference version.
 
 	See `Map` for documentation details.
+
+	@see http://haxe.org/manual/std-Map.html
 **/
 extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 

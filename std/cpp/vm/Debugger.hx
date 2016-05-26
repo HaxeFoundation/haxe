@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -279,7 +279,7 @@ class Debugger
      * Breaks all threads except the debugger thread (which should be the same
      * as the calling thread!).
      *
-     * If [wait] is true, waits up to 2 seconds for all threads to be broken.
+     * If `wait` is true, waits up to 2 seconds for all threads to be broken.
      * Threads which are in blocking system calls and cannot break after 2
      * seconds remain running when this function returns.
      **/
@@ -291,7 +291,7 @@ class Debugger
     /**
      * Continue execution of all stopped threads.  If specialThreadNumber
      * is a valid thread number, then it will be continued past
-     * [continueCount] breakpoints instead of just 1 like all of the other
+     * `continueCount` breakpoints instead of just 1 like all of the other
      * threads.
      **/
     public static function continueThreads(specialThreadNumber : Int,

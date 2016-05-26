@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MouseScrollEvent.webidl line 7:0. Do not edit!
+// This file is generated from mozilla/MouseScrollEvent.webidl line 38:0. Do not edit!
 
 package js.html;
 
@@ -32,6 +32,5 @@ extern class MouseScrollEvent extends MouseEvent
 	
 	var axis(default,null) : Int;
 	
-	/** @throws DOMError */
 	function initMouseScrollEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, screenX : Int, screenY : Int, clientX : Int, clientY : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, button : Int, relatedTarget : EventTarget, axis : Int ) : Void;
 }

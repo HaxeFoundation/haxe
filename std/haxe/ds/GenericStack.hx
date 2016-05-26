@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,11 @@
  */
 package haxe.ds;
 
+/**
+	A cell of `haxe.ds.GenericStack`.
+  
+	@see http://haxe.org/manual/std-GenericStack.html
+**/
 #if (flash || cpp)
 @:generic
 #end
@@ -53,6 +58,8 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	The generated name is an implementation detail and should not be relied
 	upon.
+
+	@see http://haxe.org/manual/std-GenericStack.html
 **/
 #if (flash || cpp)
 @:generic

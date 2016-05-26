@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package sys.io;
 
 /**
-	Use [sys.io.File.read] to create a [FileInput]
+	Use `sys.io.File.read` to create a `FileInput`.
 **/
 extern class FileInput extends haxe.io.Input {
 

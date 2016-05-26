@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,8 +27,15 @@ import python.NativeStringTools;
 
 typedef PySys = python.lib.Sys;
 
+/**
+	Platform-specific Python Library. Provides some platform-specific functions 
+	for the Python target, such as conversion from Haxe types to native types 
+	and vice-versa.
+**/
 class Lib {
-
+	/**
+		Print the specified value on the default output.
+	**/
 	public static function print(v:Dynamic):Void {
 		var str = Std.string(v);
 
@@ -36,6 +43,9 @@ class Lib {
 		PySys.stdout.flush();
 	}
 
+	/**
+		Print the specified value on the default output followed by a newline character.
+	**/
 	public static function println(v:Dynamic):Void {
 		var str = Std.string(v);
 
@@ -85,6 +95,9 @@ class Lib {
 		return new AnonObject(d);
 	}
 
+	/**
+		Return Python native iterable from Haxe iterable.
+	**/
 	public static function toPythonIterable <T>(it:Iterable<T>):python.NativeIterable<T> {
 		return {
 			__iter__ : function () {
@@ -105,10 +118,16 @@ class Lib {
 		}
 	}
 
+	/**
+		Return Haxe iterable from Python native iterable.
+	**/
 	public static inline function toHaxeIterable <T>(it:NativeIterable<T>):HaxeIterable<T> {
 		return new HaxeIterable(it);
 	}
 
+	/**
+		Return Haxe iterator instance from Python native iterable.
+	**/
 	public static inline function toHaxeIterator <T>(it:NativeIterator<T>):HaxeIterator<T> {
 		return new HaxeIterator(it);
 	}

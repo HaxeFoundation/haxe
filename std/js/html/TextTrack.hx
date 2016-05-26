@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/TextTrack.webidl line 25:0. Do not edit!
+// This file is generated from mozilla/TextTrack.webidl line 54:0. Do not edit!
 
 package js.html;
 
@@ -35,6 +35,7 @@ extern class TextTrack extends EventTarget
 	var mode : TextTrackMode;
 	var cues(default,null) : TextTrackCueList;
 	var activeCues(default,null) : TextTrackCueList;
+	var oncuechange : haxe.Constraints.Function;
 	
 	function addCue( cue : VTTCue ) : Void;
 	/** @throws DOMError */

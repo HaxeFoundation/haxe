@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,22 +20,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MouseEvent.webidl line 55:0. Do not edit!
+// This file is generated from mozilla/MouseEvent.webidl line 83:0. Do not edit!
 
 package js.html;
 
 typedef MouseEventInit =
 {
-	> UIEventInit,
-	@:optional var altKey : Bool;
+	// > EventModifierInit,
 	@:optional var button : Int;
 	@:optional var buttons : Int;
 	@:optional var clientX : Int;
 	@:optional var clientY : Int;
-	@:optional var ctrlKey : Bool;
-	@:optional var metaKey : Bool;
+	@:optional var movementX : Int;
+	@:optional var movementY : Int;
 	@:optional var relatedTarget : EventTarget;
 	@:optional var screenX : Int;
 	@:optional var screenY : Int;
-	@:optional var shiftKey : Bool;
 }

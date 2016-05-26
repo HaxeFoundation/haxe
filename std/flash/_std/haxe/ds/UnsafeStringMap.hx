@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,6 +52,10 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String,T> {
 		return true;
 	}
 
+	#if as3
+
+	// unoptimized version
+	
 	public function keys() : Iterator<String> {
 		return untyped (__keys__(h)).iterator();
 	}
@@ -64,6 +68,18 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String,T> {
 			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
 		};
 	}
+
+	#else
+
+	public inline function keys() : Iterator<String> {
+		return new UnsafeStringMapKeysIterator(h);
+	}
+
+	public inline function iterator() : Iterator<T> {
+		return new UnsafeStringMapValuesIterator<T>(h);
+	}
+
+	#end
 
 	public function toString() : String {
 		var s = new StringBuf();
@@ -81,3 +97,62 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String,T> {
 	}
 
 }
+
+#if !as3
+
+// this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
+
+@:allow(haxe.ds.UnsafeStringMap)
+private class UnsafeStringMapKeysIterator {
+	var h:flash.utils.Dictionary;
+	var index : Int;
+	var nextIndex : Int;
+
+	inline function new(h:flash.utils.Dictionary):Void {
+		this.h = h;
+		this.index = 0;
+		hasNext();
+	}
+
+	public inline function hasNext():Bool {
+		var h = h, index = index; // tmp vars required for __has_next
+		var n = untyped __has_next__(h, index);
+		this.nextIndex = index; // store next index
+		return n;
+	}
+
+	public inline function next():String {
+		var r : String = untyped __forin__(h, nextIndex);
+		index = nextIndex;
+		return r;
+	}
+
+}
+
+@:allow(haxe.ds.UnsafeStringMap)
+private class UnsafeStringMapValuesIterator<T> {
+	var h:flash.utils.Dictionary;
+	var index : Int;
+	var nextIndex : Int;
+
+	inline function new(h:flash.utils.Dictionary):Void {
+		this.h = h;
+		this.index = 0;
+		hasNext();
+	}
+
+	public inline function hasNext():Bool {
+		var h = h, index = index; // tmp vars required for __has_next
+		var n = untyped __has_next__(h, index);
+		this.nextIndex = index; // store next index
+		return n;
+	}
+
+	public inline function next():T {
+		var r = untyped __foreach__(h, nextIndex);
+		index = nextIndex;
+		return r;
+	}
+
+}
+#end

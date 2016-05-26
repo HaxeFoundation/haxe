@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 973:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 911:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionBlendMinMax")
+@:native("EXT_blend_minmax")
 extern class ExtensionBlendMinMax
 {
 	static inline var MIN_EXT : Int = 32775;

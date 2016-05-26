@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,8 @@
  */
 package haxe;
 
+using cpp.NativeString;
+
 @:coreApi
 class Utf8
 {
@@ -29,7 +31,7 @@ class Utf8
 	public function new( ?size : Null<Int> ) : Void {
       __s = new Array<Int>();
       if (size!=null && size>0)
-         __s[size-1] = 0;
+         cpp.NativeArray.reserve(__s,size);
 	}
 
 	public function addChar( c : Int ) : Void {
@@ -52,60 +54,33 @@ class Utf8
 		return untyped __global__.__hxcpp_utf8_string_to_char_bytes(s);
 	}
 
-	public static function iter( s : String, chars : Int -> Void ) : Void {
-      var array:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(s);
-      for(a in array)
-         chars(a);
+	public #if !cppia inline #end static function iter( s : String, chars : Int -> Void ) : Void {
+      var src = s.c_str();
+      var end = src.add( s.length );
+
+      while(src.lt(end))
+         chars(src.ptr.utf8DecodeAdvance());
 	}
 
 	public static function charCodeAt( s : String, index : Int ) : Int {
-      var array:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(s);
-		return array[index];
+      return s.utf8CharCodeAt(index);
 	}
 
 	public static function validate( s : String ) : Bool {
-      try {
-          untyped __global__.__hxcpp_utf8_string_to_char_array(s);
-          return true;
-      } catch(e:Dynamic) { }
-      return false;
+      return s.utf8IsValid();
 	}
 
 	public static function length( s : String ) : Int {
-      var array:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(s);
-      return array.length;
+      return s.utf8Length();
 	}
 
 	public static function compare( a : String, b : String ) : Int {
-      var a_:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(a);
-      var b_:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(b);
-      var min = a_.length < b_.length ? a_.length : b_.length;
-      for(i in 0...min)
-      {
-         if (a_[i] < b_[i]) return -1;
-         if (a_[i] > b_[i]) return 1;
-      }
-      return a_.length==b_.length ? 0 : a_.length<b_.length ? -1 : 1;
+      return a.compare(b);
 	}
 
 	public static function sub( s : String, pos : Int, len : Int ) : String {
-      var array:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(s);
-      var last = len < 0 ? array.length : pos+len;
-      if (last>array.length) last = array.length;
-      var sub = array.slice(pos,last);
-		return untyped __global__.__hxcpp_char_array_to_utf8_string(sub);
+      return s.utf8Sub(pos,len);
 	}
-
-
-
-
-
-
-
-
-
-
-
 
 }
 

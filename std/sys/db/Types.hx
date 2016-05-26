@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,13 +45,13 @@ typedef SSingle = Null<Float>
 /** double precision float **/
 typedef SFloat = Null<Float>
 
-/** use tinyint(1) to distinguish with int **/
+/** use `tinyint(1)` to distinguish with int **/
 typedef SBool = Null<Bool>
 
-/** same as varchar(n) **/
+/** same as `varchar(n)` **/
 typedef SString<Const> = String
 
-/** date only, use SDateTime for date+time **/
+/** date only, use `SDateTime` for date+time **/
 typedef SDate = Date
 
 /** mysql DateTime **/
@@ -81,22 +81,22 @@ typedef SBinary = haxe.io.Bytes
 /** same as binary(n) **/
 typedef SBytes<Const> = haxe.io.Bytes
 
-/** one byte signed [-128...127] **/
+/** one byte signed `-128...127` **/
 typedef STinyInt = Null<Int>
 
-/** two bytes signed [-32768...32767] **/
+/** two bytes signed `-32768...32767` **/
 typedef SSmallInt = Null<Int>
 
-/** three bytes signed [-8388608...8388607] **/
+/** three bytes signed `-8388608...8388607` **/
 typedef SMediumInt = Null<Int>
 
-/** one byte [0...255] **/
+/** one byte `0...255` **/
 typedef STinyUInt = Null<Int>
 
-/** two bytes [0...65535] **/
+/** two bytes `0...65535` **/
 typedef SSmallUInt = Null<Int>
 
-/** three bytes [0...16777215] **/
+/** three bytes `0...16777215` **/
 typedef SMediumUInt = Null<Int>
 
 // extra
@@ -107,7 +107,7 @@ typedef SNull<T> = Null<T>
 /** specify that the integer use custom encoding **/
 typedef SEncoded = Null<Int>
 
-/** haxe Serialized string **/
+/** Haxe Serialized string **/
 typedef SSerialized = String
 
 /** native neko serialized bytes **/
@@ -116,7 +116,7 @@ typedef SNekoSerialized = haxe.io.Bytes
 /** a set of bitflags of different enum values **/
 typedef SFlags<T:EnumValue> = Null<haxe.EnumFlags<T>>
 
-/** same as [SFlags] but will adapt the storage size to the number of flags **/
+/** same as `SFlags` but will adapt the storage size to the number of flags **/
 typedef SSmallFlags<T:EnumValue> = SFlags<T>;
 
 /** allow to store any value in serialized form **/

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,15 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 /**
-	A linked-list of elements. The list is composed of two-elements arrays
+	A linked-list of elements. The list is composed of element container objects
 	that are chained together. It is optimized so that adding or removing an
-	element does not imply copying the whole array content every time.
+	element does not imply copying the whole list content every time.
+
+	@see http://haxe.org/manual/std-List.html
 **/
 class List<T> {
 
-	private var h : Array<Dynamic>;
-	private var q : Array<Dynamic>;
+	private var h : ListNode<T>;
+	private var q : ListNode<T>;
 
 	/**
 		The length of `this` List.
@@ -47,11 +50,11 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function add( item : T ) {
-		var x:Array<Dynamic> = #if neko untyped __dollar__array(item,null) #else [item] #end;
+		var x = ListNode.create(item, null);
 		if( h == null )
 			h = x;
 		else
-			q[1] = x;
+			q.next = x;
 		q = x;
 		length++;
 	}
@@ -62,11 +65,7 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function push( item : T ) {
-		var x : Array<Dynamic> = #if neko
-			untyped __dollar__array(item,h)
-		#else
-			[item,h]
-		#end;
+		var x = ListNode.create(item, h);
 		h = x;
 		if( q == null )
 			q = x;
@@ -79,7 +78,7 @@ class List<T> {
 		This function does not modify `this` List.
 	**/
 	public function first() : Null<T> {
-		return if( h == null ) null else h[0];
+		return if( h == null ) null else h.item;
 	}
 
 	/**
@@ -88,7 +87,7 @@ class List<T> {
 		This function does not modify `this` List.
 	**/
 	public function last() : Null<T> {
-		return if( q == null ) null else q[0];
+		return if( q == null ) null else q.item;
 	}
 
 
@@ -100,8 +99,8 @@ class List<T> {
 	public function pop() : Null<T> {
 		if( h == null )
 			return null;
-		var x = h[0];
-		h = h[1];
+		var x = h.item;
+		h = h.next;
 		if( h == null )
 			q = null;
 		length--;
@@ -136,21 +135,21 @@ class List<T> {
 		Otherwise, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
-		var prev = null;
+		var prev:ListNode<T> = null;
 		var l = h;
 		while( l != null ) {
-			if( l[0] == v ) {
+			if( l.item == v ) {
 				if( prev == null )
-					h = l[1];
+					h = l.next;
 				else
-					prev[1] = l[1];
+					prev.next = l.next;
 				if( q == l )
 					q = prev;
 				length--;
 				return true;
 			}
 			prev = l;
-			l = l[1];
+			l = l.next;
 		}
 		return false;
 	}
@@ -178,8 +177,8 @@ class List<T> {
 				first = false;
 			else
 				s.add(", ");
-			s.add(Std.string(l[0]));
-			l = l[1];
+			s.add(Std.string(l.item));
+			l = l.next;
 		}
 		s.add("}");
 		return s.toString();
@@ -198,8 +197,8 @@ class List<T> {
 				first = false;
 			else
 				s.add(sep);
-			s.add(l[0]);
-			l = l[1];
+			s.add(l.item);
+			l = l.next;
 		}
 		return s.toString();
 	}
@@ -212,8 +211,8 @@ class List<T> {
 		var l2 = new List();
 		var l = h;
 		while( l != null ) {
-			var v = l[0];
-			l = l[1];
+			var v = l.item;
+			l = l.next;
 			if( f(v) )
 				l2.add(v);
 		}
@@ -228,8 +227,8 @@ class List<T> {
 		var b = new List();
 		var l = h;
 		while( l != null ) {
-			var v = l[0];
-			l = l[1];
+			var v = l.item;
+			l = l.next;
 			b.add(f(v));
 		}
 		return b;
@@ -237,13 +236,37 @@ class List<T> {
 
 }
 
-private class ListIterator<T> {
-	var head:Array<Dynamic>;
-	var val:Dynamic;
+#if neko
+private extern class ListNode<T> extends neko.NativeArray<Dynamic> {
+	var item(get,set):T;
+	var next(get,set):ListNode<T>;
+	private inline function get_item():T return this[0];
+	private inline function set_item(v:T):T return this[0] = v;
+	private inline function get_next():ListNode<T> return this[1];
+	private inline function set_next(v:ListNode<T>):ListNode<T> return this[1] = v;
+	inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
+		return untyped __dollar__array(item, next);
+	}
+}
+#else
+private class ListNode<T> {
+	public var item:T;
+	public var next:ListNode<T>;
+	public function new(item:T, next:ListNode<T>) {
+		this.item = item;
+		this.next = next;
+	}
+	@:extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
+		return new ListNode(item, next);
+	}
+}
+#end
 
-	public inline function new(head:Array<Dynamic>) {
+private class ListIterator<T> {
+	var head:ListNode<T>;
+
+	public inline function new(head:ListNode<T>) {
 		this.head = head;
-		this.val = null;
 	}
 
 	public inline function hasNext():Bool {
@@ -251,8 +274,8 @@ private class ListIterator<T> {
 	}
 
 	public inline function next():T {
-		val = head[0];
-		head = head[1];
+		var val = head.item;
+		head = head.next;
 		return val;
 	}
 }

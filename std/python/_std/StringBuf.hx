@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,27 +23,8 @@
 import python.lib.io.IOBase.SeekSet;
 import python.lib.io.StringIO;
 
-
-/**
-	A String buffer is an efficient way to build a big string by appending small
-	elements together.
-
-	Its cross-platform implementation uses String concatenation internally, but
-	StringBuf may be optimized for different targets.
-
-	Unlike String, an instance of StringBuf is not immutable in the sense that
-	it can be passed as argument to functions which modify it by appending more
-	values. However, the internal buffer cannot be modified.
-**/
-
 @:coreApi
 class StringBuf {
-
-	/**
-		Creates a new StringBuf instance.
-
-		This may involve initialization of the internal buffer.
-	**/
 
 	private var b : StringIO;
 
@@ -61,15 +42,6 @@ class StringBuf {
 		return len;
 	}
 
-	/**
-		Appends the representation of [x] to [this] StringBuf.
-
-		The exact representation of [x] may vary per platform. To get more
-		consistent behavior, this function should be called with
-		Std.string(x).
-
-		If [x] is null, the String "null" is appended.
-	**/
 	public inline function add<T>( x : T ) : Void {
 		add1(Std.string(x));
 	}
@@ -78,37 +50,14 @@ class StringBuf {
 		b.write(s);
 	}
 
-	/**
-		Appends the character identified by [c] to [this] StringBuf.
-
-		If [c] is negative or has another invalid value, the result is
-		unspecified.
-	**/
 	public inline function addChar( c : Int ) : Void {
 		add1(String.fromCharCode(c));
 	}
 
-	/**
-		Appends a substring of [s] to [this] StringBuf.
-
-		This function expects [pos] and [len] to describe a valid substring of
-		[s], or else the result is unspecified. To get more robust behavior,
-		[this].add(s.substr(pos,len)) can be used instead.
-
-		If [s] or [pos] are null, the result is unspecified.
-
-		If [len] is omitted or null, the substring ranges from [pos] to the end
-		of [s].
-	**/
 	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
 		add1((len == null ? s.substr(pos) : s.substr(pos, len)));
 	}
 
-	/**
-		Returns the content of [this] StringBuf as String.
-
-		The buffer is not emptied by this operation.
-	**/
 	public inline function toString() : String {
 		return b.getvalue();
 	}

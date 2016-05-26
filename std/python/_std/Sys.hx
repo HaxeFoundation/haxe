@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -100,16 +100,25 @@ class Sys {
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		var args = args == null ? [cmd] : [cmd].concat(args);
-		return python.lib.Subprocess.call(args);
+		return
+			if (args == null)
+				python.lib.Subprocess.call(cmd, { shell: true });
+			else
+				python.lib.Subprocess.call([cmd].concat(args));
 	}
 
 	public static function cpuTime() : Float {
 		return python.lib.Time.clock();
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
 		return python.lib.Sys.argv[0];
+	}
+
+	// It has to be initialized before any call to Sys.setCwd()...
+	static var _programPath = sys.FileSystem.fullPath(python.lib.Inspect.getsourcefile(Sys));
+	public static function programPath() : String {
+		return _programPath;
 	}
 
 	public static function getChar( echo : Bool ) : Int {

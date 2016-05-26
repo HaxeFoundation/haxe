@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,8 @@
 package sys.net;
 
 /**
-	An address is used to represent a port on a given host ip. It is used by UdpSocket.
+	An address is used to represent a port on a given host ip. 
+	It is used by `sys.net.UdpSocket`.
 **/
 class Address {
 	public var host : Int;

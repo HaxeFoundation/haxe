@@ -1,9 +1,9 @@
 package flash.net.drm;
 
 @:final extern class DRMDeviceGroup {
-	var authenticationMethod(default,null) : String;
-	var domain(default,null) : String;
+	var authenticationMethod(default,never) : String;
+	var domain(default,never) : String;
 	var name : String;
-	var serverURL(default,null) : String;
+	var serverURL(default,never) : String;
 	function new() : Void;
 }

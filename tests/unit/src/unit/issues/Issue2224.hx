@@ -11,20 +11,20 @@ class Issue2224 extends unit.Test {
 		#end
 	}
 
-    static function getEF1( ?opt : Null<haxe.EnumFlags<MyEnum>> ){
-        return( 'opt=$opt' );
-    }
+	static function getEF1( ?opt : Null<haxe.EnumFlags<MyEnum>> ){
+		return( 'opt=$opt' );
+	}
 
-    static function getEF2( ?opt : haxe.EnumFlags<MyEnum> ){
-        return( 'opt=$opt' );
-    }
+	static function getEF2( ?opt : haxe.EnumFlags<MyEnum> ){
+		return( 'opt=$opt' );
+	}
 
-    static function getInt( ?opt : Int ){
-        return( 'opt=$opt' );
-    }
+	static function getInt( ?opt : Int ){
+		return( 'opt=$opt' );
+	}
 
-    static function getClass( ?opt : MyClass ){
-        return( 'opt=$opt' );
-    }
+	static function getClass( ?opt : MyClass ){
+		return( 'opt=$opt' );
+	}
 
 }

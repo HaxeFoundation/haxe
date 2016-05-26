@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,9 +25,9 @@ import haxe.io.Error;
 @:coreApi
 class UdpSocket extends Socket {
 
-	public function new() : Void {
+	private override function init() : Void {
 		__s = Socket.socket_new(true);
-		super();
+		super.init();
 	}
 
 	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {

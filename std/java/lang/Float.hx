@@ -1,44 +1,34 @@
-package java.lang;
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+ package java.lang;
 
 @:native("") // make sure the generator won't see this
+@:forwardStatics
 @:forward abstract Float(FloatClass) from FloatClass to FloatClass
 {
 	@:to @:extern inline public function toFloat():std.StdTypes.Float
 		return this.floatValue();
 	@:from @:extern inline public static function fromFloat(b:std.StdTypes.Single):Float
 		return FloatClass.valueOf(b);
-
-	@:extern public static var MAX_EXPONENT(get,never):Int;
-	@:extern static inline function get_MAX_EXPONENT():Int return FloatClass.MAX_EXPONENT;
-	@:extern public static var MAX_VALUE(get,never):Single;
-	@:extern static inline function get_MAX_VALUE():Single return FloatClass.MAX_VALUE;
-	@:extern public static var MIN_EXPONENT(get,never):Int;
-	@:extern static inline function get_MIN_EXPONENT():Int return FloatClass.MIN_EXPONENT;
-	@:extern public static var MIN_NORMAL(get,never):Single;
-	@:extern static inline function get_MIN_NORMAL():Single return FloatClass.MIN_NORMAL;
-	@:extern public static var MIN_VALUE(get,never):Single;
-	@:extern static inline function get_MIN_VALUE():Single return FloatClass.MIN_VALUE;
-	@:extern public static var NEGATIVE_INFINITY(get,never):Single;
-	@:extern static inline function get_NEGATIVE_INFINITY():Single return FloatClass.NEGATIVE_INFINITY;
-	@:extern public static var NaN(get,never):Single;
-	@:extern static inline function get_NaN():Single return FloatClass.NaN;
-	@:extern public static var POSITIVE_INFINITY(get,never):Single;
-	@:extern static inline function get_POSITIVE_INFINITY():Single return FloatClass.POSITIVE_INFINITY;
-	@:extern public static var SIZE(get,never):Int;
-	@:extern static inline function get_SIZE():Int return FloatClass.SIZE;
-	@:extern public static var TYPE(get,set):Class<std.StdTypes.Float>;
-	@:extern static inline function get_TYPE():Class<std.StdTypes.Float> return FloatClass.TYPE;
-	@:extern static inline function set_TYPE(val:Class<std.StdTypes.Float>):Class<std.StdTypes.Float> return FloatClass.TYPE = val;
-	@:extern @:overload inline public static function compare(param1:Single, param2:Single):Int return FloatClass.compare(param1, param2);
-	@:extern @:overload inline public static function floatToIntBits(param1:Single):Int return FloatClass.floatToIntBits(param1);
-	@:extern @:overload inline public static function floatToRawIntBits(param1:Single):Int return FloatClass.floatToRawIntBits(param1);
-	@:extern @:overload inline public static function intBitsToFloat(param1:Int):Single return FloatClass.intBitsToFloat(param1);
-	@:extern @:overload inline public static function _isInfinite(param1:Single):Bool return FloatClass._isInfinite(param1);
-	@:extern @:overload inline public static function _isNaN(param1:Single):Bool return FloatClass._isNaN(param1);
-	@:extern @:overload inline public static function parseFloat(param1:String):Single return FloatClass.parseFloat(param1);
-	@:extern @:overload inline public static function toHexString(param1:Single):String return FloatClass.toHexString(param1);
-	@:extern @:overload inline public static function _toString(param1:Single):String return FloatClass._toString(param1);
-	@:extern @:overload inline public static function valueOf(param1:String):Float return FloatClass.valueOf(param1);
 }
 
 @:native("java.lang.Float") extern class FloatClass extends Number implements Comparable<Float>

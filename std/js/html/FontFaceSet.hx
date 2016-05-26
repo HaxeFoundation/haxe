@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,27 +20,31 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/FontFaceSet.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/FontFaceSet.webidl line 60:0. Do not edit!
 
 package js.html;
 
 @:native("FontFaceSet")
-extern class FontFaceSet extends EventTarget implements ArrayAccess<FontFace>
+extern class FontFaceSet extends EventTarget
 {
+	var size(default,null) : Int;
 	var onloading : haxe.Constraints.Function;
 	var onloadingdone : haxe.Constraints.Function;
 	var onloadingerror : haxe.Constraints.Function;
 	var ready(default,null) : Promise<Void>;
 	var status(default,null) : FontFaceSetLoadStatus;
-	var length(default,null) : Int;
 	
 	/** @throws DOMError */
 	function add( font : FontFace ) : Void;
 	function has( font : FontFace ) : Bool;
-	/** @throws DOMError */
 	@:native("delete")
 	function delete_( font : FontFace ) : Bool;
 	function clear() : Void;
+	function entries() : FontFaceSetIterator;
+	function values() : FontFaceSetIterator;
 	/** @throws DOMError */
+	function forEach( cb : FontFace -> FontFace -> FontFaceSet -> Void, ?thisArg : Dynamic ) : Void;
 	function load( font : String, ?text : String = " " ) : Promise<Array<FontFace>>;
+	/** @throws DOMError */
+	function check( font : String, ?text : String = " " ) : Bool;
 }

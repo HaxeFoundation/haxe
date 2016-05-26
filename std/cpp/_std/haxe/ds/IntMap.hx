@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -47,7 +47,8 @@ package haxe.ds;
 ")
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
-	@:ifFeature("haxe.ds.IntMap.*") private var h : Dynamic;
+	@:ifFeature("haxe.ds.IntMap.*")
+	private var h : Dynamic;
 
 	public function new() : Void { }
 

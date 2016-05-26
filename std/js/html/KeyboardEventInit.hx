@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,23 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/KeyboardEvent.webidl line 36:0. Do not edit!
+// This file is generated from mozilla/KeyboardEvent.webidl line 59:0. Do not edit!
 
 package js.html;
 
 typedef KeyboardEventInit =
 {
-	> UIEventInit,
-	@:optional var altKey : Bool;
+	// > EventModifierInit,
 	@:optional var charCode : Int;
 	@:optional var code : String;
-	@:optional var ctrlKey : Bool;
 	@:optional var isComposing : Bool;
 	@:optional var key : String;
 	@:optional var keyCode : Int;
 	@:optional var location : Int;
-	@:optional var metaKey : Bool;
 	@:optional var repeat : Bool;
-	@:optional var shiftKey : Bool;
 	@:optional var which : Int;
 }

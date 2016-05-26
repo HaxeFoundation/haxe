@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DynamicsCompressorNode.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/DynamicsCompressorNode.webidl line 44:0. Do not edit!
 
 package js.html.audio;
 
@@ -30,7 +30,7 @@ extern class DynamicsCompressorNode extends AudioNode
 	var threshold(default,null) : AudioParam;
 	var knee(default,null) : AudioParam;
 	var ratio(default,null) : AudioParam;
-	var reduction(default,null) : AudioParam;
+	var reduction(default,null) : Float;
 	var attack(default,null) : AudioParam;
 	var release(default,null) : AudioParam;
 	

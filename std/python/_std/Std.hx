@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,6 +45,7 @@ import python.Syntax;
 	}
 
 	@:access(python.Boot)
+	@:ifFeature("typed_cast")
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 
 		if (v == null && t == null) {

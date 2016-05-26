@@ -1,4 +1,3 @@
-#if !php
 // hasField
 var x = { a: 1, b: null };
 Reflect.hasField(x, "a") == true;
@@ -15,7 +14,8 @@ Reflect.field(c, "prop") == "prop";
 Reflect.field(c, "func")() == "foo";
 // As3 invokes the getter
 Reflect.field(c, "propAcc") == #if as3 "1" #else "0" #end;
-Reflect.field(null, null) == null;
+var n = null;
+Reflect.field(n, n) == null;
 Reflect.field(1, "foo") == null;
 
 // setField
@@ -35,7 +35,7 @@ c.v == "bar";
 var c = new C2();
 Reflect.getProperty(c, "v") == "var";
 Reflect.getProperty(c, "prop") == "prop";
-//Reflect.getProperty(c, "func")() == "foo";
+Reflect.getProperty(c, "func")() == "foo";
 Reflect.getProperty(c, "propAcc") == "1";
 //Reflect.getProperty(null, "a") == null;
 //Reflect.getProperty(null, null) == null;
@@ -48,10 +48,6 @@ Reflect.field(x, "c") == "foo";
 var c = new C2();
 Reflect.setProperty(c, "v", "bar");
 c.v == "bar";
-//Reflect.setProperty(c, "v2", "bar2");
-//c.v2 == "bar";
-//Reflect.setProperty(c, "func2", function() return "x");
-//Reflect.field(c, "func2")() == "x";
 Reflect.setProperty(c, "propAcc", "abc");
 #if !as3
 // not supported on AS3
@@ -153,4 +149,3 @@ Reflect.isEnumValue(true) == false;
 Reflect.isEnumValue(null) == false;
 var x:C = null;
 Reflect.isEnumValue(x) == false;
-#end

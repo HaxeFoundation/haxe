@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DeviceOrientationEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/DeviceOrientationEvent.webidl line 39:0. Do not edit!
 
 package js.html;
 
@@ -34,6 +34,5 @@ extern class DeviceOrientationEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : DeviceOrientationEventInit ) : Void;
-	/** @throws DOMError */
 	function initDeviceOrientationEvent( type : String, canBubble : Bool, cancelable : Bool, alpha : Float, beta : Float, gamma : Float, absolute : Bool ) : Void;
 }

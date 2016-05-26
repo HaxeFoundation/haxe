@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,12 +28,12 @@ class Sys {
 	private static var _env:haxe.ds.StringMap<String>;
 	private static var _args:Array<String>;
 
-	public static function print( v : Dynamic ) : Void
+	public static inline function print( v : Dynamic ) : Void
 	{
 		cs.system.Console.Write(v);
 	}
 
-	public static function println( v : Dynamic ) : Void
+	public static inline function println( v : Dynamic ) : Void
 	{
 		cs.system.Console.WriteLine(v);
 	}
@@ -49,7 +49,7 @@ class Sys {
 		return _args.copy();
 	}
 
-	public static function getEnv( s : String ) : String
+	public static inline function getEnv( s : String ) : String
 	{
 		return Environment.GetEnvironmentVariable(s);
 	}
@@ -76,7 +76,7 @@ class Sys {
 		return _env;
 	}
 
-	public static function sleep( seconds : Float ) : Void
+	public static inline function sleep( seconds : Float ) : Void
 	{
 		Thread.Sleep( Std.int(seconds * 1000) );
 	}
@@ -87,12 +87,12 @@ class Sys {
 		return false;
 	}
 
-	public static function getCwd() : String
+	public static inline function getCwd() : String
 	{
 		return cs.system.io.Directory.GetCurrentDirectory();
 	}
 
-	public static function setCwd( s : String ) : Void
+	public static inline function setCwd( s : String ) : Void
 	{
 		cs.system.io.Directory.SetCurrentDirectory(s);
 	}
@@ -115,31 +115,54 @@ class Sys {
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int
 	{
-		var proc:Process = new Process(cmd, args == null ? [] : args);
-		var ret = proc.exitCode();
-		proc.close();
-
-		return ret;
+		var proc = Process.createNativeProcess(cmd, args);
+		proc.add_OutputDataReceived(new cs.system.diagnostics.DataReceivedEventHandler(
+			function(p, evtArgs) {
+				var data = evtArgs.Data;
+				if (data != null && data != "")
+					println(data);
+			}
+		));
+		var stderr = stderr();
+		proc.add_ErrorDataReceived(new cs.system.diagnostics.DataReceivedEventHandler(
+			function(p, evtArgs) {
+				var data = evtArgs.Data;
+				if (data != null && data != "")
+					stderr.writeString(data + "\n");
+			}
+		));
+		proc.Start();
+		proc.BeginOutputReadLine();
+		proc.BeginErrorReadLine();
+		proc.WaitForExit();
+		var exitCode = proc.ExitCode;
+		proc.Dispose();
+		return exitCode;
 	}
 
-	public static function exit( code : Int ) : Void
+	public static inline function exit( code : Int ) : Void
 	{
 		Environment.Exit(code);
 	}
 
+	@:readOnly static var epochTicks = new cs.system.DateTime(1970, 1, 1).Ticks;
 	public static function time() : Float
 	{
-		return Date.now().getTime() / 1000;
+		return cast((cs.system.DateTime.UtcNow.Ticks - epochTicks), Float) / cast(cs.system.TimeSpan.TicksPerSecond, Float);
 	}
 
-	public static function cpuTime() : Float
+	public static inline function cpuTime() : Float
 	{
 		return Environment.TickCount / 1000;
 	}
 
-	public static inline function executablePath() : String
+	@:deprecated("Use programPath instead") public static inline function executablePath() : String
 	{
 		return cs.system.reflection.Assembly.GetExecutingAssembly().GetName().CodeBase;
+	}
+
+	public static function programPath() : String {
+		return cs.system.reflection.Assembly.GetExecutingAssembly().Location;
 	}
 
 	public static function getChar( echo : Bool ) : Int
@@ -151,7 +174,7 @@ class Sys {
 		#end
 	}
 
-	public static function stdin() : haxe.io.Input
+	public static inline function stdin() : haxe.io.Input
 	{
 #if !(Xbox || CF || MF)
 		return new cs.io.NativeInput(cs.system.Console.OpenStandardInput());
@@ -160,7 +183,7 @@ class Sys {
 #end
 	}
 
-	public static function stdout() : haxe.io.Output
+	public static inline function stdout() : haxe.io.Output
 	{
 #if !(Xbox || CF || MF)
 		return new cs.io.NativeOutput(cs.system.Console.OpenStandardOutput());
@@ -169,7 +192,7 @@ class Sys {
 #end
 	}
 
-	public static function stderr() : haxe.io.Output
+	public static inline function stderr() : haxe.io.Output
 	{
 #if !(Xbox || CF || MF)
 		return new cs.io.NativeOutput(cs.system.Console.OpenStandardError());

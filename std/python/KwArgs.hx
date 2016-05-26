@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,8 +29,10 @@ import python.Dict;
 
 	Example:
 
-        function f(kwargs:KwArgs<{a:Int}>) {}
-        f({a: 10});
+	```haxe
+	function f(kwargs:KwArgs<{a:Int}>) {}
+	f({a: 10});
+	```
 **/
 abstract KwArgs<T:{}>(Dict<String,Dynamic>) {
 	inline function new (d:Dict<String,Dynamic>) {

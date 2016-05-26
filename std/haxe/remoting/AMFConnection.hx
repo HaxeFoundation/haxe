@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+	Allows a connection to an AMF Remoting server such as Flash Media Server or AMFPHP.
+*/
 class AMFConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	var __data : {

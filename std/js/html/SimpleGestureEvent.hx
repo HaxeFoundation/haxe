@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SimpleGestureEvent.webidl line 9:0. Do not edit!
+// This file is generated from mozilla/SimpleGestureEvent.webidl line 40:0. Do not edit!
 
 package js.html;
 
@@ -39,6 +39,5 @@ extern class SimpleGestureEvent extends MouseEvent
 	var delta(default,null) : Float;
 	var clickCount(default,null) : Int;
 	
-	/** @throws DOMError */
 	function initSimpleGestureEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, viewArg : Window, detailArg : Int, screenXArg : Int, screenYArg : Int, clientXArg : Int, clientYArg : Int, ctrlKeyArg : Bool, altKeyArg : Bool, shiftKeyArg : Bool, metaKeyArg : Bool, buttonArg : Int, relatedTargetArg : EventTarget, allowedDirectionsArg : Int, directionArg : Int, deltaArg : Float, clickCount : Int ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,10 +21,10 @@
  */
 package java;
 
-@:notNull @:runtimeValue @:coreType abstract Int8 from Int {}
-@:notNull @:runtimeValue @:coreType abstract Int16 from Int {}
-@:notNull @:runtimeValue @:coreType abstract Char16 from Int {}
-@:notNull @:runtimeValue @:coreType abstract Int64 from Int from Float
+@:notNull @:runtimeValue @:coreType extern abstract Int8 from Int {}
+@:notNull @:runtimeValue @:coreType extern abstract Int16 from Int {}
+@:notNull @:runtimeValue @:coreType extern abstract Char16 from Int {}
+@:notNull @:runtimeValue @:coreType extern abstract Int64 from Int from Float
 {
 	@:op(A+B) public static function addI(lhs:Int64, rhs:Int):Int64;
 	@:op(A+B) public static function add(lhs:Int64, rhs:Int64):Int64;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/AudioNode.webidl line 24:0. Do not edit!
+// This file is generated from mozilla/AudioNode.webidl line 53:0. Do not edit!
 
 package js.html.audio;
 
@@ -35,7 +35,7 @@ extern class AudioNode extends js.html.EventTarget
 	var channelInterpretation : ChannelInterpretation;
 	
 	/** @throws DOMError */
-	@:overload( function( destination : AudioNode, ?output : Int = 0, ?input : Int = 0 ) : Void {} )
+	@:overload( function( destination : AudioNode, ?output : Int = 0, ?input : Int = 0 ) : AudioNode {} )
 	function connect( destination : AudioParam, ?output : Int = 0 ) : Void;
 	/** @throws DOMError */
 	function disconnect( ?output : Int = 0 ) : Void;

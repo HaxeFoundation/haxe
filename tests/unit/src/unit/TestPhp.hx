@@ -39,12 +39,12 @@ class TestPhp extends Test
 
 	function testIssue1828()
 	{
-        var x = try {
-            throw "foo";
-        } catch (e:String) {
-            true;
-        }
-        t(x);
+		var x = try {
+			throw "foo";
+		} catch (e:String) {
+			true;
+		}
+		t(x);
 	}
 
 	function testIssue1521()
@@ -61,20 +61,20 @@ class TestPhp extends Test
 }
 
 class Class2146 {
-    var array:Array<Class2146>;
-    function new() {
-        array = new Array<Class2146>();
-    }
+	var array:Array<Class2146>;
+	function new() {
+		array = new Array<Class2146>();
+	}
 
-    public static function test() {
-        var a = new Class2146();
-        var b = new Class2146();
-        var c = new Class2146();
-        a.array.push(b);
-        b.array.push(a);
-        c.array.push(a);
-        return Lambda.has(c.array,b);
-    }
+	public static function test() {
+		var a = new Class2146();
+		var b = new Class2146();
+		var c = new Class2146();
+		a.array.push(b);
+		b.array.push(a);
+		c.array.push(a);
+		return Lambda.has(c.array,b);
+	}
 }
 
 enum Annotation {

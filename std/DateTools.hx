@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@
 	The DateTools class contains some extra functionalities for handling `Date`
 	instances and timestamps.
 
-	In the context of haxe dates, a timestamp is defined as the number of
+	In the context of Haxe dates, a timestamp is defined as the number of
 	milliseconds elapsed since 1st January 1970.
 **/
 class DateTools {
@@ -161,7 +161,7 @@ class DateTools {
 	/**
 		Converts a number of minutes to a timestamp.
 	**/
-	public static inline function minutes( n : Float ) : Float {
+	#if as3 @:extern #end public static inline function minutes( n : Float ) : Float {
 		return n * 60.0 * 1000.0;
 	}
 

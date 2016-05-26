@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,29 +38,16 @@ import haxe.io.BytesData;
 	}
 
 	public static function getString( name : String ) : String {
-        #if embed_resources
-		for (k in getContent().keys().iter()) {
-			if (k == name) {
-				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(getContent().get(k, null));
-				return b.toString();
-			}
-		}
+		var bytes = getBytes(name);
+		if (bytes != null)
+			return bytes.toString();
 		return null;
-        #else
-        return getContent().hasKey(name) ? Bytes.ofData(getContent().get(name, null)).toString() : null;
-        #end
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-        #if embed_resources
-		for( k in getContent().keys().iter() )
-			if( k == name ) {
-				var b : haxe.io.Bytes = haxe.crypto.Base64.decode(getContent().get(k, null));
-				return b;
-
-			}
-        #else
-        return Bytes.ofData(getContent().get(name,null));
-        #end
+		var data = getContent().get(name, null);
+		if (data == null)
+			return null;
+		return Bytes.ofData(data);
 	}
 }

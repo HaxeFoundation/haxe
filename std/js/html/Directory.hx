@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Directory.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/Directory.webidl line 50:0. Do not edit!
 
 package js.html;
 
@@ -28,10 +28,7 @@ package js.html;
 extern class Directory
 {
 	var name(default,null) : String;
+	var path(default,null) : String;
 	
-	function createFile( path : String, ?options : CreateFileOptions ) : Promise<File>;
-	function createDirectory( path : String ) : Promise<Directory>;
-	function get( path : String ) : Promise<haxe.extern.EitherType<File,Directory>>;
-	function remove( path : haxe.extern.EitherType<String,haxe.extern.EitherType<File,Directory>> ) : Promise<Bool>;
-	function removeDeep( path : haxe.extern.EitherType<String,haxe.extern.EitherType<File,Directory>> ) : Promise<Bool>;
+	function getFilesAndDirectories() : Promise<Array<haxe.extern.EitherType<File,Directory>>>;
 }

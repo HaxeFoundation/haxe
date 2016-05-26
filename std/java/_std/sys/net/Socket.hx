@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -137,6 +137,11 @@ class Socket {
 		var local = sock.getLocalAddress();
 		var host = new Host(null);
 		host.wrapped = local;
+ 
+		if (boundAddr != null)
+		{
+			return { host: host, port: server.getLocalPort() };
+		}
 
 		return { host: host, port: sock.getLocalPort() };
 	}

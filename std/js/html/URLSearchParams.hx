@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/URLSearchParams.webidl line 19:0. Do not edit!
+// This file is generated from mozilla/URLSearchParams.webidl line 50:0. Do not edit!
 
 package js.html;
 
@@ -37,4 +37,12 @@ extern class URLSearchParams
 	function getAll( name : String ) : Array<String>;
 	function has( name : String ) : Bool;
 	function set( name : String, value : String ) : Void;
+	/** @throws DOMError */
+	function entries() : URLSearchParamsIterator;
+	/** @throws DOMError */
+	function keys() : URLSearchParamsIterator;
+	/** @throws DOMError */
+	function values() : URLSearchParamsIterator;
+	/** @throws DOMError */
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

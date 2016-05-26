@@ -47,6 +47,9 @@ class Macro {
 			case TInst(c, _): c.get();
 			case _: Context.error('$className should be a class', Context.currentPos());
 		}
+		#if !js_unflatten
+		className = className.replace(".", "_");
+		#end
 		var fields = [];
 		function checkField(cf:ClassField) {
 			if (cf.meta.has(":js")) {
@@ -62,7 +65,9 @@ class Macro {
 			++tests;
 			if (output != field.js) {
 				++failures;
-				Context.warning('$output should be ${field.js}', field.pos);
+				Context.warning('Test failed', field.pos);
+				Context.warning('Expected: ' + field.js, field.pos);
+				Context.warning('Actual  : ' +output, field.pos);
 			}
 		}
 	}

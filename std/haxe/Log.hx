@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,8 +22,8 @@
 package haxe;
 
 /**
-	Log primarily provides the trace() method, which is invoked upon a call to
-	trace() in haxe code.
+	Log primarily provides the `trace()` method, which is invoked upon a call to
+	`trace()` in Haxe code.
 **/
 class Log {
 
@@ -31,7 +31,7 @@ class Log {
 		Outputs `v` in a platform-dependent way.
 
 		The second parameter `infos` is injected by the compiler and contains
-		information about the position where the trace() call was made.
+		information about the position where the `trace()` call was made.
 
 		This method can be rebound to a custom function:
 			var oldTrace = haxe.Log.trace; // store old function
@@ -39,7 +39,7 @@ class Log {
 			...
 			haxe.Log.trace = oldTrace;
 
-		If it is bound to null, subsequent calls to trace() will cause an
+		If it is bound to null, subsequent calls to `trace()` will cause an
 		exception.
 	**/
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
@@ -78,7 +78,7 @@ class Log {
 			}
 			else
 				untyped __trace(v,infos);
-		#elseif (cs || java)
+		#elseif (cs || java || lua)
 			var str:String = null;
 			if (infos != null) {
 				str = infos.fileName + ":" + infos.lineNumber + ": " + v;
@@ -93,6 +93,8 @@ class Log {
 			cs.system.Console.WriteLine(str);
 			#elseif java
 			untyped __java__("java.lang.System.out.println(str)");
+			#elseif lua
+			untyped __lua__("_hx_print({0})", lua.Boot.__string_rec(str));
 			#end
 		#elseif (python)
 			var str:String = null;
@@ -105,6 +107,11 @@ class Log {
 				str = v;
 			}
 			python.Lib.println(str);
+		#elseif hl
+			var pstr = infos == null ? "(null)" : infos.fileName + ":" + infos.lineNumber;
+			var str = Std.string(v);
+			if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += "," + Std.string(v);
+			Sys.println(pstr+": "+str);
 		#end
 	}
 

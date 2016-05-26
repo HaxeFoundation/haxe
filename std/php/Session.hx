@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,8 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package php;
+
 /**
-* TODO: TEST IT!
+	Session consists of a way to preserve certain data across 
+	subsequent accesses.
 */
 class Session {
 	public static function getCacheLimiter() {

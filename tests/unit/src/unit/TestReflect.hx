@@ -129,6 +129,10 @@ class TestReflect extends Test {
 		is("false",String);
 		is("",String);
 		is([],Array);
+		is([1, 2], Array);
+		is([1.1, 2.2], Array);
+		is(["a", "b"], Array);
+		is((["a",2]:Array<Dynamic>),Array);
 		is(new List(),List);
 		is(new haxe.ds.StringMap(),haxe.ds.StringMap);
 		is(new MyClass(0),MyClass);
@@ -150,7 +154,7 @@ class TestReflect extends Test {
 			eq( Std.is(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
 		}
 		infos(null);
-		t( Std.is(v,Dynamic), pos );
+		t( (v is Dynamic), pos );
 	}
 
 	public function testTypeEq()
@@ -176,6 +180,10 @@ class TestReflect extends Test {
 		typeof("Hello",TClass(String));
 		typeof("",TClass(String));
 		typeof([],TClass(Array));
+		typeof([1, 2], TClass(Array));
+		typeof([1., 2.], TClass(Array));
+		typeof(["1", "2"], TClass(Array));
+		typeof((["1",2]:Array<Dynamic>),TClass(Array));
 		typeof(new List(),TClass(List));
 		typeof(new haxe.ds.StringMap(),TClass(haxe.ds.StringMap));
 		typeof(new MyClass(0),TClass(MyClass));
@@ -222,13 +230,13 @@ class TestReflect extends Test {
 
 	function testCreate() {
 		var i = Type.createInstance(MyClass,[33]);
-		t( Std.is(i,MyClass) );
+		t( (i is MyClass) );
 		eq( i.get(), 33 );
 		eq( i.intValue, 55 );
 		var i = Type.createEmptyInstance(MyClass);
-		t( Std.is(i,MyClass) );
-		eq( i.get(), #if (flash || cpp || java || cs) 0 #else null #end );
-		eq( i.intValue, #if (flash || cpp || java || cs) 0 #else null #end );
+		t( (i is MyClass) );
+		eq( i.get(), #if (flash || cpp || java || cs || hl) 0 #else null #end );
+		eq( i.intValue, #if (flash || cpp || java || cs || hl) 0 #else null #end );
 		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("A"));
 		eq( e, MyEnum.A );
 		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("C"),[55,"hello"]);

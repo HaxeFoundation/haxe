@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,20 +21,19 @@
  */
 package neko;
 
-enum XmlType {
-}
+@:enum abstract XmlType(String) {}
 
 typedef NativeXml = Xml;
 
 class Xml {
 
-	public static var Element(default,null) : XmlType;
-	public static var PCData(default,null) : XmlType;
-	public static var CData(default,null) : XmlType;
-	public static var Comment(default,null) : XmlType;
-	public static var DocType(default,null) : XmlType;
-	public static var ProcessingInstruction(default,null) : XmlType;
-	public static var Document(default,null) : XmlType;
+	public static var Element(default,never) : XmlType;
+	public static var PCData(default,never) : XmlType;
+	public static var CData(default,never) : XmlType;
+	public static var Comment(default,never) : XmlType;
+	public static var DocType(default,never) : XmlType;
+	public static var ProcessingInstruction(default,never) : XmlType;
+	public static var Document(default,never) : XmlType;
 
 
 	public var nodeName(get,set) : String;

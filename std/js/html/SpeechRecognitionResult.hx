@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SpeechRecognitionResult.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/SpeechRecognitionResult.webidl line 46:0. Do not edit!
 
 package js.html;
 
@@ -28,8 +28,7 @@ package js.html;
 extern class SpeechRecognitionResult implements ArrayAccess<SpeechRecognitionAlternative>
 {
 	var length(default,null) : Int;
-	@:native("final")
-	var final_(default,null) : Bool;
+	var isFinal(default,null) : Bool;
 	
 	function item( index : Int ) : SpeechRecognitionAlternative;
 }

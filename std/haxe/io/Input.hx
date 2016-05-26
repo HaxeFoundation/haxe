@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -60,23 +60,25 @@ class Input {
 	**/
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
-		var b = #if js @:privateAccess s.b #else s.getData() #end;
+		var b = #if (js || hl) @:privateAccess s.b #else s.getData() #end;
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
-		while( k > 0 ) {
-			#if neko
-				untyped __dollar__sset(b,pos,readByte());
-			#elseif php
-				b[pos] = untyped __call__("chr", readByte());
-			#elseif cpp
-				b[pos] = untyped readByte();
-			#else
-				b[pos] = cast readByte();
-			#end
-			pos++;
-			k--;
-		}
-		return len;
+		try {
+			while( k > 0 ) {
+			    #if neko
+				    untyped __dollar__sset(b,pos,readByte());
+			    #elseif php
+				    b.set(pos, readByte());
+			    #elseif cpp
+				    b[pos] = untyped readByte();
+			    #else
+				    b[pos] = cast readByte();
+			    #end
+			    pos++;
+			    k--;
+			}
+		} catch (eof: haxe.io.Eof){}
+		return len-k;
 	}
 
 	/**
@@ -117,8 +119,7 @@ class Input {
 					throw Error.Blocked;
 				total.addBytes(buf,0,len);
 			}
-		} catch( e : Eof ) {
-		}
+		} catch( e : Eof ) { }
 		return total.getBytes();
 	}
 
@@ -130,6 +131,8 @@ class Input {
 	public function readFullBytes( s : Bytes, pos : Int, len : Int ) : Void {
 		while( len > 0 ) {
 			var k = readBytes(s,pos,len);
+			if (k == 0)
+				throw Error.Blocked;
 			pos += k;
 			len -= k;
 		}
@@ -278,11 +281,16 @@ class Input {
 		var ch3 = readByte();
 		var ch4 = readByte();
 #if (php || python)
-        // php will overflow integers.  Convert them back to signed 32-bit ints.
-        var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-        if (n & 0x80000000 != 0)
-            return ( n | 0x80000000);
-        else return n;
+		// php will overflow integers.  Convert them back to signed 32-bit ints.
+		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+		if (n & 0x80000000 != 0)
+		    return ( n | 0x80000000);
+		else return n;
+#elseif lua
+		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+		// lua can't do 32 bit ints, the adjustment for 64 bits must be numeric
+		if (n > 2147483647) n -=  untyped 4294967296.;
+		return n ;
 #else
 		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 #end
@@ -307,9 +315,6 @@ class Input {
 	static function __init__() untyped {
 		Input.prototype.bigEndian = false;
 	}
-#elseif cpp
-	static var _float_of_bytes = cpp.Lib.load("std","float_of_bytes",2);
-	static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 #end
 
 #if (flash || js || python)

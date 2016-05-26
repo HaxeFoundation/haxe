@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,10 +36,8 @@ class Process {
 
 	var p:Popen;
 
-	public function new( cmd : String, args : Array<String> ) : Void {
-
-		p = Popen.create([cmd].concat(args), { stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
-
+	public function new( cmd : String, ?args : Array<String> ) : Void {
+		p = Popen.create(args == null ? cmd : [cmd].concat(args), { shell : args == null, stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
 		this.stdout = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stdout)));
 		this.stderr = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stderr)));
 		this.stdin =  IoTools.createFileOutputFromText(new TextIOWrapper(new BufferedWriter(p.stdin)));
@@ -52,7 +50,19 @@ class Process {
 		return p.wait();
 	}
 	public function close() : Void {
-		p.terminate();
+		var ver = python.lib.Sys.version_info;
+		if (ver[0] > 3 || (ver[0] == 3 && ver[1] >= 3)) // >= 3.3
+			try {
+				p.terminate();
+			} catch (e:python.Exceptions.ProcessLookupError) {
+				// it has already terminated 
+			}
+		else
+			try {
+				p.terminate();
+			} catch (e:python.Exceptions.OSError) {
+				// it has already terminated 
+			}
 	}
 	public function kill() : Void {
 		p.kill();

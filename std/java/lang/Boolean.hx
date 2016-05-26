@@ -1,27 +1,34 @@
-package java.lang;
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+ package java.lang;
 
 @:native("") // make sure the generator won't see this
-@:forward abstract Boolean(BooleanClass) from BooleanClass to BooleanClass
+@:forward
+@:forwardStatics abstract Boolean(BooleanClass) from BooleanClass to BooleanClass
 {
 	@:to @:extern inline public function toBool():Bool
 		return this.booleanValue();
 	@:from @:extern inline public static function fromBool(b:Bool):Boolean
 		return BooleanClass.valueOf(b);
-
-	@:extern public static var FALSE(get,set):Boolean;
-	@:extern static inline function get_FALSE():Boolean return BooleanClass.FALSE;
-	@:extern static inline function set_FALSE(val:Boolean):Boolean return BooleanClass.FALSE = val;
-	@:extern public static var TRUE(get,set):Boolean;
-	@:extern static inline function get_TRUE():Boolean return BooleanClass.TRUE;
-	@:extern static inline function set_TRUE(val:Boolean):Boolean return BooleanClass.TRUE = val;
-	@:extern public static var TYPE(get,set):Class<java.lang.Boolean>;
-	@:extern static inline function get_TYPE():Class<java.lang.Boolean> return BooleanClass.TYPE;
-	@:extern static inline function set_TYPE(val:Class<java.lang.Boolean>):Class<java.lang.Boolean> return BooleanClass.TYPE = val;
-	@:extern @:overload inline public static function compare(param1:Bool, param2:Bool):Int return BooleanClass.compare(param1, param2);
-	@:extern @:overload inline public static function getBoolean(param1:String):Bool return BooleanClass.getBoolean(param1);
-	@:extern @:overload inline public static function parseBoolean(param1:String):Bool return BooleanClass.parseBoolean(param1);
-	@:extern @:overload inline public static function _toString(param1:Bool):String return BooleanClass._toString(param1);
-	@:extern @:overload inline public static function valueOf(param1:Bool):Boolean return BooleanClass.valueOf(param1);
 }
 
 @:native("java.lang.Boolean") extern class BooleanClass extends Number implements Comparable<Boolean>

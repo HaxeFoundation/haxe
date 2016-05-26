@@ -9,6 +9,6 @@ class Issue3218 extends Test {
 		eq(2, a(1));
 
 		var f:haxe.Constraints.Function = function(){ return 12; }
-        eq(12, f());
+		eq(12, f());
 	}
 }

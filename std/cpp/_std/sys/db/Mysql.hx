@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,26 +21,44 @@
  */
 package sys.db;
 
+@:keep
 private class D {
 
-	static function load(fun,args) : Dynamic {
-		return cpp.Lib.load(lib,fun,args);
-	}
+   @:extern @:native("_hx_mysql_connect")
+	public static function connect(params:Dynamic):Dynamic return null;
+   @:extern @:native("_hx_mysql_select_db")
+	public static function select_db(handle:Dynamic, db:String):Void { }
+   @:extern @:native("_hx_mysql_request")
+	public static function request(handle:Dynamic,req:String):Dynamic return null;
+   @:extern @:native("_hx_mysql_close")
+	public static function close(handle:Dynamic):Dynamic return null;
+   @:extern @:native("_hx_mysql_escape")
+	public static function escape(handle:Dynamic,str:String):String return null;
+   @:extern @:native("_hx_mysql_result_get_length")
+	public static function result_get_length(handle:Dynamic):Int return 0;
+   @:extern @:native("_hx_mysql_result_get_nfields")
+	public static function result_get_nfields(handle:Dynamic):Int return 0;
+   @:extern @:native("_hx_mysql_result_next")
+	public static function result_next(handle:Dynamic):Dynamic return null;
+   @:extern @:native("_hx_mysql_result_get")
+	public static function result_get(handle:Dynamic,i:Int) : String return null;
+   @:extern @:native("_hx_mysql_result_get_int")
+	public static function result_get_int(handle:Dynamic,i:Int) : Int return 0;
+   @:extern @:native("_hx_mysql_result_get_float")
+	public static function result_get_float(handle:Dynamic,i:Int):Float return 0.0;
+   @:extern @:native("_hx_mysql_result_get_fields_names")
+	public static function result_fields_names(handle:Dynamic):Array<String> return null;
 
-	static var lib = "mysql5";
-	public static var connect = load("mysql_connect",1);
-	public static var select_db = load("select_db",2);
-	public static var request = load("request",2);
-	public static var close = load("close",1);
-	public static var escape = load("escape", 2);
-	public static var set_conv_funs = load("set_conv_funs", 4);
-	public static var result_get_length = load("result_get_length",1);
-	public static var result_get_nfields = load("result_get_nfields",1);
-	public static var result_next = load("result_next",1);
-	public static var result_get = load("result_get",2);
-	public static var result_get_int = load("result_get_int",2);
-	public static var result_get_float = load("result_get_float",2);
-	public static var result_fields_names = cpp.Lib.loadLazy(lib,"result_get_fields_names",1);
+   @:extern @:native("_hx_mysql_set_conversion")
+	public static function set_conv_funs(
+      charsToBytes: cpp.Callable< Dynamic -> Dynamic >,
+      intToDate: cpp.Callable< Float -> Dynamic > ) : Void {}
+
+   public static function charsToBytes(data:Dynamic) : Dynamic
+      return haxe.io.Bytes.ofData(data);
+
+   public static function secondsToDate(seconds:Float) : Dynamic
+      return Date.fromTime(seconds);
 
 }
 
@@ -87,7 +105,7 @@ private class MysqlResultSet implements sys.db.ResultSet {
 	}
 
 	public function getResult( n : Int ) {
-		return new String(D.result_get(__r,n));
+		return D.result_get(__r,n);
 	}
 
 	public function getIntResult( n : Int ) : Int {
@@ -111,7 +129,9 @@ private class MysqlConnection implements sys.db.Connection {
 
 	public function new(c) {
 		__c = c;
-		D.set_conv_funs(c, function(s) return new String(s), function(d) return untyped Date.new1(d), function(b) return haxe.io.Bytes.ofData(b));
+	 D.set_conv_funs( cpp.Function.fromStaticFunction(D.charsToBytes),
+                     cpp.Function.fromStaticFunction(D.secondsToDate) );
+    
 	}
 
 	public function request( s : String ) : sys.db.ResultSet {
@@ -124,7 +144,7 @@ private class MysqlConnection implements sys.db.Connection {
 	}
 
 	public function escape( s : String ) {
-		return new String(D.escape(__c,s));
+		return D.escape(__c,s);
 	}
 
 	public function quote( s : String ) {
@@ -174,6 +194,7 @@ private class MysqlConnection implements sys.db.Connection {
 	private static var __use_date = Date;
 }
 
+@:buildXml('<include name="${HXCPP}/src/hx/libs/mysql/Build.xml"/>')
 @:coreApi class Mysql {
 
 	public static function connect( params : {

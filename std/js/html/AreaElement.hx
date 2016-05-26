@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLAreaElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/HTMLAreaElement.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -47,6 +47,5 @@ extern class AreaElement extends Element
 	var pathname : String;
 	var search : String;
 	var hash : String;
-	var searchParams : URLSearchParams;
 	
 }

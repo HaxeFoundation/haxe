@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGSVGElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/SVGSVGElement.webidl line 45:0. Do not edit!
 
 package js.html.svg;
 
@@ -49,7 +49,6 @@ extern class SVGElement extends GraphicsElement
 	function suspendRedraw( maxWaitMilliseconds : Int ) : Int;
 	function unsuspendRedraw( suspendHandleID : Int ) : Void;
 	function unsuspendRedrawAll() : Void;
-	/** @throws DOMError */
 	function forceRedraw() : Void;
 	function pauseAnimations() : Void;
 	function unpauseAnimations() : Void;

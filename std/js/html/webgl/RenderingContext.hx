@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 82:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 123:0. Do not edit!
 
 package js.html.webgl;
 
@@ -348,9 +348,11 @@ extern class RenderingContext
 	function blendFuncSeparate( srcRGB : Int, dstRGB : Int, srcAlpha : Int, dstAlpha : Int ) : Void;
 	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
 	@:overload( function( target : Int, data : js.html.ArrayBufferView, usage : Int ) : Void {} )
-	function bufferData( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void;
+	@:overload( function( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void {} )
+	function bufferData( target : Int, data : Dynamic/*MISSING SharedArrayBuffer*/, usage : Int ) : Void;
 	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBufferView ) : Void {} )
-	function bufferSubData( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void;
+	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void {} )
+	function bufferSubData( target : Int, offset : Int, data : Dynamic/*MISSING SharedArrayBuffer*/ ) : Void;
 	function checkFramebufferStatus( target : Int ) : Int;
 	function clear( mask : Int ) : Void;
 	function clearColor( red : Float, green : Float, blue : Float, alpha : Float ) : Void;

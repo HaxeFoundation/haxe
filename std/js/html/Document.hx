@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Document.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/Document.webidl line 48:0. Do not edit!
 
 package js.html;
 
@@ -32,14 +32,11 @@ extern class Document extends Node
 	var documentURI(default,null) : String;
 	var compatMode(default,null) : String;
 	var characterSet(default,null) : String;
+	var charset(default,null) : String;
+	var inputEncoding(default,null) : String;
 	var contentType(default,null) : String;
 	var doctype(default,null) : DocumentType;
 	var documentElement(default,null) : Element;
-	var inputEncoding(default,null) : String;
-	var fullscreenEnabled(default,null) : Bool;
-	var fullscreenElement(default,null) : Element;
-	var onfullscreenchange : haxe.Constraints.Function;
-	var onfullscreenerror : haxe.Constraints.Function;
 	var location(default,null) : Location;
 	var referrer(default,null) : String;
 	var lastModified(default,null) : String;
@@ -56,6 +53,8 @@ extern class Document extends Node
 	var onbeforescriptexecute : haxe.Constraints.Function;
 	var onafterscriptexecute : haxe.Constraints.Function;
 	var currentScript(default,null) : Element;
+	var fullscreenEnabled(default,null) : Bool;
+	var fullscreenElement(default,null) : Element;
 	var pointerLockElement(default,null) : Element;
 	var hidden(default,null) : Bool;
 	var visibilityState(default,null) : VisibilityState;
@@ -64,7 +63,7 @@ extern class Document extends Node
 	var lastStyleSheetSet(default,null) : String;
 	var preferredStyleSheetSet(default,null) : String;
 	var styleSheetSets(default,null) : DOMStringList;
-	var timeline(default,null) : AnimationTimeline;
+	var timeline(default,null) : DocumentTimeline;
 	var fonts(default,null) : FontFaceSet;
 	var onabort : haxe.Constraints.Function;
 	var onblur : haxe.Constraints.Function;
@@ -107,6 +106,7 @@ extern class Document extends Node
 	var onprogress : haxe.Constraints.Function;
 	var onratechange : haxe.Constraints.Function;
 	var onreset : haxe.Constraints.Function;
+	var onresize : haxe.Constraints.Function;
 	var onscroll : haxe.Constraints.Function;
 	var onseeked : haxe.Constraints.Function;
 	var onseeking : haxe.Constraints.Function;
@@ -128,6 +128,8 @@ extern class Document extends Node
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
+	var onfullscreenchange : haxe.Constraints.Function;
+	var onfullscreenerror : haxe.Constraints.Function;
 	var onpointerlockchange : haxe.Constraints.Function;
 	var onpointerlockerror : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
@@ -176,20 +178,22 @@ extern class Document extends Node
 	function createAttribute( name : String ) : Attr;
 	/** @throws DOMError */
 	function createAttributeNS( namespace_ : String, name : String ) : Attr;
-	function exitFullscreen() : Void;
 	/** @throws DOMError */
 	function hasFocus() : Bool;
 	function releaseCapture() : Void;
+	function exitFullscreen() : Void;
 	function exitPointerLock() : Void;
 	/** @throws DOMError */
 	function registerElement( name : String, ?options : ElementRegistrationOptions ) : Dynamic;
 	function enableStyleSheetsForSet( name : String ) : Void;
 	function elementFromPoint( x : Float, y : Float ) : Element;
+	function elementsFromPoint( x : Float, y : Float ) : Array<Element>;
 	function caretPositionFromPoint( x : Float, y : Float ) : CaretPosition;
 	/** @throws DOMError */
 	function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
 	function querySelectorAll( selectors : String ) : NodeList;
+	function getAnimations() : Array<Animation>;
 	function createTouch( ?view : Window, ?target : EventTarget, ?identifier : Int = 0, ?pageX : Int = 0, ?pageY : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?radiusX : Int = 0, ?radiusY : Int = 0, ?rotationAngle : Float = 0.0, ?force : Float = 0.0 ) : Touch;
 	@:overload( function( touch : Touch, touches : haxe.extern.Rest<Touch> ) : TouchList {} )
 	@:overload( function() : TouchList {} )

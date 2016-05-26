@@ -1,0 +1,7 @@
+-main Mandelbrot
+-cpp bin/cpp
+
+--next
+-main Mandelbrot
+-cpp bin/cpp-anon
+-D anon_objects

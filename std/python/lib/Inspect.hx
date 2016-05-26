@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,4 +29,5 @@ extern class Inspect {
 	static function ismethod(object:Dynamic):Bool;
 	static function isclass(object:Dynamic):Bool;
 	static function isfunction(object:Dynamic):Bool;
+	static function getsourcefile(object:Dynamic):String;
 }

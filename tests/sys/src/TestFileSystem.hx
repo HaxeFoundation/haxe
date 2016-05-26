@@ -91,4 +91,21 @@ class TestFileSystem extends haxe.unit.TestCase {
 			FileSystem.deleteDirectory(dir + "complex");
 		}
 	}
+
+	function testWindowsSpecialCases() {
+		if (Sys.systemName() != "Windows" #if python || true #end) {
+			assertTrue(true);
+			return;
+		}
+		var withSlash = "C:/";
+		var withBackslash = "C:\\";
+		var without = "C:";
+
+		for (path in [withSlash, withBackslash, without]) {
+			assertTrue(FileSystem.exists(path));
+			assertTrue(FileSystem.isDirectory(path));
+			assertTrue(FileSystem.stat(path) != null);
+			assertTrue(FileSystem.readDirectory(path) != null);
+		}
+	}
 }

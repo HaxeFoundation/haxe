@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HashChangeEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/HashChangeEvent.webidl line 39:0. Do not edit!
 
 package js.html;
 
@@ -32,6 +32,5 @@ extern class HashChangeEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : HashChangeEventInit ) : Void;
-	/** @throws DOMError */
 	function initHashChangeEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, oldURLArg : String, newURLArg : String ) : Void;
 }

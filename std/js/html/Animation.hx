@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Animation.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/Animation.webidl line 48:0. Do not edit!
 
 package js.html;
 
 @:native("Animation")
-extern class Animation
+extern class Animation extends EventTarget
 {
-	var effect(default,null) : AnimationEffect;
-	var target(default,null) : Element;
+	var id : String;
+	var effect(default,null) : AnimationEffectReadOnly;
+	var timeline(default,null) : AnimationTimeline;
+	var startTime : Float;
+	var currentTime : Float;
+	var playbackRate : Float;
+	var playState(default,null) : AnimationPlayState;
+	var ready(default,null) : Promise<Animation>;
+	var finished(default,null) : Promise<Animation>;
+	var onfinish : haxe.Constraints.Function;
+	var oncancel : haxe.Constraints.Function;
 	
+	/** @throws DOMError */
+	function new( ?effect : KeyframeEffectReadOnly, ?timeline : AnimationTimeline ) : Void;
+	function cancel() : Void;
+	/** @throws DOMError */
+	function finish() : Void;
+	/** @throws DOMError */
+	function play() : Void;
+	/** @throws DOMError */
+	function pause() : Void;
+	/** @throws DOMError */
+	function reverse() : Void;
 }

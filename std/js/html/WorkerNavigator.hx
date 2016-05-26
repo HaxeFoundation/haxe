@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WorkerNavigator.webidl line 7:0. Do not edit!
+// This file is generated from mozilla/WorkerNavigator.webidl line 37:0. Do not edit!
 
 package js.html;
 
 @:native("WorkerNavigator")
 extern class WorkerNavigator
 {
+	var hardwareConcurrency(default,null) : Int;
 	var appCodeName(default,null) : String;
 	var appName(default,null) : String;
 	var appVersion(default,null) : String;

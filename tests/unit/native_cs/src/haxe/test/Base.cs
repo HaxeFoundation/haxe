@@ -3,6 +3,7 @@ namespace haxe.test
 
 public class Base
 {
+	~Base() { someString = null; }
 	//some haxe-specific keywords
 
 	public static readonly int inline = 42;
@@ -37,6 +38,13 @@ public class Base
 	public int this[int i]
 	{
 		get { return i * 20; }
+	}
+
+	public int Issue4325 { get; protected set; }
+
+	public void setIssue4325(int val)
+	{
+		this.Issue4325 = val;
 	}
 
 	public int this[int i, int j]
@@ -81,6 +89,8 @@ public class Base
 
 	public class InnerClass : Base
 	{
+		~InnerClass() { privateField = 0; }
+
 		private int privateField = 42;
 
 		//protected override without explicit override tag

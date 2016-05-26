@@ -11,8 +11,8 @@ private class A {
 
 class Issue3967 extends Test {
 	function testAndy() {
-        var a = ["a", "b"];
-        var b = a.copy();
+		var a = ["a", "b"];
+		var b = a.copy();
 		eq("a", b[0]);
 		eq("b", b[1]);
 		f(a == b);

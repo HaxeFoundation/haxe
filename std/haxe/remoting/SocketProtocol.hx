@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,15 +35,20 @@ typedef Socket =
 /**
 	The Haxe Remoting Socket Protocol is composed of serialized string exchanges.
 	Each string is prefixed with a 2-chars header encoding the string size (up to 4KB)
-	and postfixed with the \0 message delimiting char.
+	and postfixed with the `\0` message delimiting char.
+
 	A request string is composed of the following serialized values :
-		- the boolean true for a request
-		- an array of strings representing the object+method path
-		- an array of parameters
+
+	 - the boolean true for a request
+	 - an array of strings representing the object+method path
+	 - an array of parameters
+
 	A response string is composed of the following serialized values :
-		- the boolean false for a response
-		- a serialized value representing the result
-	Exceptions are serialized with [serializeException] so they will be thrown immediatly
+
+	 - the boolean false for a response
+	 - a serialized value representing the result
+
+	Exceptions are serialized with `serializeException` so they will be thrown immediatly
 	when they are unserialized.
 **/
 class SocketProtocol {

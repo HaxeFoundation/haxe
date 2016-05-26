@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+    Allows an asynchronous connection to the given URL which should link to a Haxe server application.
+*/
 class HttpAsyncConnection implements AsyncConnection implements Dynamic<AsyncConnection> {
 
 	var __data : { url : String, error : Dynamic -> Void };

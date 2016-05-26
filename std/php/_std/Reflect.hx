@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,17 +40,17 @@
 		if (untyped __php__("isset($cls_vars['__properties__']) && isset($cls_vars['__properties__']['get_'.$field]) && ($field = $cls_vars['__properties__']['get_'.$field])"))
 			return untyped __php__("$o->$field()");
 		else
-			return untyped __php__("$o->$field");
+			return untyped __call__("_hx_field", o, field);
 	}
 
-	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 		if (null == o) return null;
 		var cls : String = Std.is(o, Class) ? untyped __php__("$o->__tname__") : untyped __call__("get_class", o);
 		var cls_vars : php.NativeArray = untyped __call__("get_class_vars", cls);
 		if (untyped __php__("isset($cls_vars['__properties__']) && isset($cls_vars['__properties__']['set_'.$field]) && ($field = $cls_vars['__properties__']['set_'.$field])"))
-			return untyped __php__("$o->$field($value)");
+			untyped __php__("$o->$field($value)");
 		else
-			return untyped __php__("$o->$field = $value");
+			untyped __setfield__(o, field, value);
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
@@ -86,12 +86,14 @@
 		if( v == null )
 			return false;
 		if(untyped __call__("is_object", v))
-			return untyped __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
+			return untyped __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null
+			  || untyped __php__("$v instanceof _hx_class")
+			  || untyped __php__("$v instanceof _hx_enum");
 		return untyped __php__("is_string($v) && !_hx_is_lambda($v)");
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool {
-		return untyped __php__("$v instanceof _hx_enum");
+		return untyped __php__("$v instanceof Enum");
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {

@@ -24,6 +24,14 @@ class TestCSharp extends Test
 {
 #if cs
 
+	function testIssue4325()
+	{
+		var b = new Base();
+		eq(b.Issue4325, 0);
+		b.setIssue4325(10);
+		eq(b.Issue4325, 10);
+	}
+
 	// -net-lib tests
 	function testHaxeKeywords()
 	{
@@ -37,7 +45,7 @@ class TestCSharp extends Test
 
 	function testIssue3474()
 	{
-		var a:IEditableTextBuffer = null;
+		var a:IEditableTextBuffer = cast null;
 		eq(a,null);
 		var didRun = false;
 		try
@@ -248,7 +256,7 @@ class TestCSharp extends Test
 		t(run);
 
 		//var dyn:Dynamic = v;
-		//t(Std.is(dyn, haxe.test.VoidVoid));
+		//t((dyn is haxe.test.VoidVoid));
 	}
 
 	var didRun = false;
@@ -389,6 +397,24 @@ class TestCSharp extends Test
 		//issue #2308
 		var fn = getEnumValue;
 		eq(0x100, Reflect.callMethod(null, fn, [TEnumWithValue.TVA]));
+
+		var e = getTVA();
+		switch(e) {
+			case TVA if (getEnumValue(e) == getEnumValue(getTVA())):
+				t(true);
+			case _:
+				t(false);
+		}
+
+		var e = getTVB();
+		switch(e) {
+			case TVA:
+				t(false);
+			case TVB if (getEnumValue(e) != getEnumValue(getTVA())):
+				t(true);
+			case _:
+				t(false);
+		}
 	}
 
 	static function getEnumValue(e:TEnumWithValue):Int
@@ -766,47 +792,47 @@ private class TestMyClass extends haxe.test.MyClass
 
 private interface IEventIface {
 	@:keep
-    @:event private var IfaceEvent1:Action_1<Int>;
-    function add_IfaceEvent1(cb:Action_1<Int>):Void;
-    function remove_IfaceEvent1(cb:Action_1<Int>):Void;
+	@:event private var IfaceEvent1:Action_1<Int>;
+	function add_IfaceEvent1(cb:Action_1<Int>):Void;
+	function remove_IfaceEvent1(cb:Action_1<Int>):Void;
 
-    @:keep
-    @:event private var IfaceEvent2:Action_1<Int>;
-    function add_IfaceEvent2(cb:Action_1<Int>):Void;
-    function remove_IfaceEvent2(cb:Action_1<Int>):Void;
+	@:keep
+	@:event private var IfaceEvent2:Action_1<Int>;
+	function add_IfaceEvent2(cb:Action_1<Int>):Void;
+	function remove_IfaceEvent2(cb:Action_1<Int>):Void;
 }
 
 @:publicFields
 private class EventClass implements IEventIface {
 	function new() {}
 
-    @:event private var Event1:Action_1<Int>;
-    function add_Event1(cb:Action_1<Int>) {}
-    function remove_Event1(cb:Action_1<Int>) {}
-    function invokeEvent1(i) if (Event1 != null) Event1.Invoke(i);
+	@:event private var Event1:Action_1<Int>;
+	function add_Event1(cb:Action_1<Int>) {}
+	function remove_Event1(cb:Action_1<Int>) {}
+	function invokeEvent1(i) if (Event1 != null) Event1.Invoke(i);
 
-    @:event private var Event2:Action_1<Int>;
-    var event2Counter = 0;
-    function add_Event2(cb:Action_1<Int>) event2Counter++;
-    function remove_Event2(cb:Action_1<Int>) event2Counter--;
+	@:event private var Event2:Action_1<Int>;
+	var event2Counter = 0;
+	function add_Event2(cb:Action_1<Int>) event2Counter++;
+	function remove_Event2(cb:Action_1<Int>) event2Counter--;
 
-    @:event private static var SEvent1:Action_1<Int>;
-    static function add_SEvent1(cb:Action_1<Int>) {}
-    static function remove_SEvent1(cb:Action_1<Int>) {}
-    static function invokeSEvent1(i) if (SEvent1 != null) SEvent1.Invoke(i);
+	@:event private static var SEvent1:Action_1<Int>;
+	static function add_SEvent1(cb:Action_1<Int>) {}
+	static function remove_SEvent1(cb:Action_1<Int>) {}
+	static function invokeSEvent1(i) if (SEvent1 != null) SEvent1.Invoke(i);
 
-    @:event private static var SEvent2:Action_1<Int>;
-    static var sEvent2Counter = 0;
-    static function add_SEvent2(cb:Action_1<Int>) sEvent2Counter++;
-    static function remove_SEvent2(cb:Action_1<Int>) sEvent2Counter--;
+	@:event private static var SEvent2:Action_1<Int>;
+	static var sEvent2Counter = 0;
+	static function add_SEvent2(cb:Action_1<Int>) sEvent2Counter++;
+	static function remove_SEvent2(cb:Action_1<Int>) sEvent2Counter--;
 
-    @:event private var IfaceEvent1:Action_1<Int>;
-    function add_IfaceEvent1(cb:Action_1<Int>) {}
-    function remove_IfaceEvent1(cb:Action_1<Int>) {}
-    function invokeIfaceEvent1(i) if (IfaceEvent1 != null) IfaceEvent1.Invoke(i);
+	@:event private var IfaceEvent1:Action_1<Int>;
+	function add_IfaceEvent1(cb:Action_1<Int>) {}
+	function remove_IfaceEvent1(cb:Action_1<Int>) {}
+	function invokeIfaceEvent1(i) if (IfaceEvent1 != null) IfaceEvent1.Invoke(i);
 
-    @:event private var IfaceEvent2:Action_1<Int>;
-    var ifaceEvent2Counter = 0;
-    function add_IfaceEvent2(cb:Action_1<Int>) ifaceEvent2Counter++;
-    function remove_IfaceEvent2(cb:Action_1<Int>) ifaceEvent2Counter--;
+	@:event private var IfaceEvent2:Action_1<Int>;
+	var ifaceEvent2Counter = 0;
+	function add_IfaceEvent2(cb:Action_1<Int>) ifaceEvent2Counter++;
+	function remove_IfaceEvent2(cb:Action_1<Int>) ifaceEvent2Counter--;
 }

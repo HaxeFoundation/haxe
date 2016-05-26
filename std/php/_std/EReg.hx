@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -90,7 +90,7 @@
 	public function replace( s : String, by : String ) : String {
 		by = untyped __call__("str_replace", "\\$", "\\\\$", by);
 		by = untyped __call__("str_replace", "$$", "\\$", by);
-		untyped __php__("if(!preg_match('/\\\\([^?].+?\\\\)/', $this->re)) $by = preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', $by)");
+		untyped __php__("if(!preg_match('/\\\\([^?].*?\\\\)/', $this->re)) $by = preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', $by)");
 		return untyped __call__("preg_replace", re, by, s, global ? -1 : 1);
 	}
 

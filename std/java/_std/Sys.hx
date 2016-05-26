@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -112,11 +112,29 @@ using haxe.Int64;
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int
 	{
-		var proc:Process = new Process(cmd, args == null ? [] : args);
-		var ret = proc.exitCode();
-		proc.close();
-
-		return ret;
+		var pb = Process.createProcessBuilder(cmd, args);
+#if java6
+		pb.redirectErrorStream(true);
+#else
+		pb.redirectOutput(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
+		pb.redirectError(java.lang.ProcessBuilder.ProcessBuilder_Redirect.INHERIT);
+#end
+		var proc = pb.start();
+#if java6
+		var reader = new java.io.NativeInput(proc.getInputStream());
+		try
+		{
+			while(true) {
+				var ln = reader.readLine();
+				Sys.println(ln);
+			}
+		}
+		catch(e:haxe.io.Eof) {}
+#end
+		proc.waitFor();
+		var exitCode = proc.exitValue();
+		proc.destroy();
+		return exitCode;
 	}
 
 	public static function exit( code : Int ) : Void
@@ -126,7 +144,7 @@ using haxe.Int64;
 
 	public static function time() : Float
 	{
-		return cast(System.currentTimeMillis().div(Int64.ofInt(1000)), Float);
+		return cast(System.currentTimeMillis(), Float) / 1000;
 	}
 
 	public static function cpuTime() : Float
@@ -134,9 +152,16 @@ using haxe.Int64;
 		return cast(System.nanoTime(), Float) / 1000000000;
 	}
 
-	public static function executablePath() : String
+	@:deprecated("Use programPath instead") public static function executablePath() : String
 	{
 		return getCwd();
+	}
+
+	public static function programPath() : String {
+		return java.Lib.toNativeType(Sys)
+			.getProtectionDomain()
+			.getCodeSource()
+			.getLocation().toURI().getPath();
 	}
 
 	public static function getChar( echo : Bool ) : Int

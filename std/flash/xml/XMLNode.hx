@@ -2,17 +2,17 @@ package flash.xml;
 
 extern class XMLNode {
 	var attributes : Dynamic;
-	var childNodes(default,null) : Array<Dynamic>;
+	var childNodes(default,never) : Array<Dynamic>;
 	var firstChild : XMLNode;
 	var lastChild : XMLNode;
-	var localName(default,null) : String;
-	var namespaceURI(default,null) : String;
+	var localName(default,never) : String;
+	var namespaceURI(default,never) : String;
 	var nextSibling : XMLNode;
 	var nodeName : String;
 	var nodeType : XMLNodeType;
 	var nodeValue : String;
 	var parentNode : XMLNode;
-	var prefix(default,null) : String;
+	var prefix(default,never) : String;
 	var previousSibling : XMLNode;
 	function new(type : XMLNodeType, value : String) : Void;
 	function appendChild(node : XMLNode) : Void;

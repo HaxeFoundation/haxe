@@ -1,0 +1,3 @@
+enum OnEnum<T, T> {
+
+}

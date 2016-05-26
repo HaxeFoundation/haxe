@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,6 +30,8 @@
 	field, it is worth noting that IntIterator does not reset after being used
 	in a for-loop. Subsequent uses of the same instance will then have no
 	effect.
+
+	@see http://haxe.org/manual/lf-iterators.html
 **/
 class IntIterator {
 

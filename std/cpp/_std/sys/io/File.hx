@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,16 +21,17 @@
  */
 package sys.io;
 
+import cpp.NativeFile;
+
 @:coreApi
 class File {
 
 	public static function getContent( path : String ) : String {
-		var b = getBytes(path);
-		return b.toString();
+		return NativeFile.file_contents_string(path);
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
-		var data:haxe.io.BytesData = file_contents(path);
+		var data = NativeFile.file_contents_bytes(path);
 		return haxe.io.Bytes.ofData(data);
 	}
 
@@ -47,15 +48,15 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		return untyped new FileInput(file_open(path,(if( binary ) "rb" else "r")));
+		return untyped new FileInput(NativeFile.file_open(path,(if( binary ) "rb" else "r")));
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		return untyped new FileOutput(file_open(path,(if( binary ) "wb" else "w")));
+		return untyped new FileOutput(NativeFile.file_open(path,(if( binary ) "wb" else "w")));
 	}
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
-		return untyped new FileOutput(file_open(path,(if( binary ) "ab" else "a")));
+		return untyped new FileOutput(NativeFile.file_open(path,(if( binary ) "ab" else "a")));
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
@@ -65,9 +66,5 @@ class File {
 		s.close();
 		d.close();
 	}
-
-	private static var file_contents = cpp.Lib.load("std","file_contents",1);
-	private static var file_open = cpp.Lib.load("std","file_open",2);
-
 
 }

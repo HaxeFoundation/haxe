@@ -1,4 +1,25 @@
-
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+ 
 package sys.net;
 
 import cs.system.net.IPEndPoint;
@@ -23,17 +44,17 @@ class Socket {
 
 	/**
 		The stream on which you can read available data. By default the stream is blocking until the requested data is available,
-		use [setBlocking(false)] or [setTimeout] to prevent infinite waiting.
+		use `setBlocking(false)` or `setTimeout` to prevent infinite waiting.
 	**/
 	public var input(default,null) : haxe.io.Input;
 
 	/**
-		The stream on which you can send data. Please note that in case the output buffer you will block while writing the data, use [setBlocking(false)] or [setTimeout] to prevent that.
+		The stream on which you can send data. Please note that in case the output buffer you will block while writing the data, use `setBlocking(false)` or `setTimeout` to prevent that.
 	**/
 	public var output(default,null) : haxe.io.Output;
 
 	/**
-		A custom value that can be associated with the socket. Can be used to retreive your custom infos after a [select].
+		A custom value that can be associated with the socket. Can be used to retreive your custom infos after a `select`.
 	***/
 	public var custom : Dynamic;
 
@@ -82,7 +103,7 @@ class Socket {
 	}
 
 	/**
-		Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use [accept()] to accept incoming connections.
+		Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use `accept()` to accept incoming connections.
 	**/
 	public function listen( connections : Int ) : Void {
 		sock.Listen( connections );
@@ -173,11 +194,11 @@ class Socket {
 
 	/**
 		Wait until one of the sockets groups is ready for the given operation :
-		[read] contains sockets on which we want to wait for available data to be read,
-		[write] contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
-		[others] contains sockets on which we want to wait for exceptional conditions.
-		[select] will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
-		In case a [timeout] (in seconds) is specified, select might wait at worse until the timeout expires.
+		* `read` contains sockets on which we want to wait for available data to be read,
+		* `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
+		* `others` contains sockets on which we want to wait for exceptional conditions.
+		* `select` will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
+		In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
 	**/
 	static public function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
 		throw "Not implemented yet.";

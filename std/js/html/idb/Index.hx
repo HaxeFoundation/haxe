@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBIndex.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/IDBIndex.webidl line 52:0. Do not edit!
 
 package js.html.idb;
 
@@ -43,4 +43,8 @@ extern class Index
 	function getKey( key : Dynamic ) : Request;
 	/** @throws DOMError */
 	function count( ?key : Dynamic ) : Request;
+	/** @throws DOMError */
+	function getAll( ?key : Dynamic, ?limit : Int ) : Request;
+	/** @throws DOMError */
+	function getAllKeys( ?key : Dynamic, ?limit : Int ) : Request;
 }

@@ -8,6 +8,9 @@
 
 - Make sure CHANGES.txt has a proper date set!
 - Make sure `version` in main.ml has the correct value.
+- Update README.md:
+  - Installing Haxe: update "Latest stable version"
+  - Version compatibility: add/update the Haxe/Neko version
 - Merge development branch into master.
 - Wait for Travis to greenlight master.
 - Tag master as MAJOR.MINOR.PATCH.
@@ -17,15 +20,14 @@
 
 # Making the release
 
-- Push the generated binaries and installers to haxe.org.
 - Copy relevant changelog part to CHANGES.md.
 - Write announcement post.
 - Copy announcement post to RELEASE.md.
 - Update versions.json
+- Push the generated binaries and installers to haxe.org.
 
 # Announcing the release
 
-- Update Github README page.
-- Regenerate and upload API documentation.
+- Regenerate and upload API documentation (check --title and -D version values).
 - Update http://haxe.org/file/CHANGES.txt
 - Post announcement post to haxelang.

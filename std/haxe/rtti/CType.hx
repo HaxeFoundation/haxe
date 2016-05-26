@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,12 +21,24 @@
  */
 package haxe.rtti;
 
+/**
+	The (dot-)path of the runtime type.
+**/
 typedef Path = String
 
+/**
+	A list of strings representing the targets where the type is available.
+**/
 typedef Platforms = List<String>
 
+/**
+	The function argument runtime type information.
+**/
 typedef FunctionArgument = { name : String, opt : Bool, t : CType, ?value:String }
 
+/**
+	The runtime member types.
+**/
 enum CType {
 	CUnknown;
 	CEnum( name : Path, params : List<CType> );
@@ -38,13 +50,30 @@ enum CType {
 	CAbstract( name : Path, params : List<CType> );
 }
 
+/**
+	The type parameters in the runtime type information.
+**/
 typedef PathParams = {
+	/**
+		The path of the type.
+	**/
 	var path : Path;
+
+	/**
+		The list of parameters types.
+	**/
 	var params : List<CType>;
 }
 
-typedef TypeParams = Array<String> // no contraints
+/**
+	An array of strings representing the names of the type parameters the type 
+	has. As of Haxe 3.2.0, this does not include the constraints.
+**/
+typedef TypeParams = Array<String> // no constraints
 
+/**
+	Represents the runtime rights of a type.
+**/
 enum Rights {
 	RNormal;
 	RNo;
@@ -54,63 +83,258 @@ enum Rights {
 	RInline;
 }
 
+/**
+	The list of runtime metadata.
+**/
 typedef MetaData = Array<{ name : String, params : Array<String> }>;
 
+/**
+	The runtime class field information.
+	
+	@see <http://haxe.org/manual/cr-rtti-structure.html#class-field-information>
+**/
 typedef ClassField = {
+	/**
+		The name of the field.
+	**/
 	var name : String;
+
+	/**
+		The type of the field.
+	**/
 	var type : CType;
+
+	/**
+		Whether or not the field is public.
+	**/
 	var isPublic : Bool;
+
+	/**
+		Whether or not the field overrides another field.
+	**/
 	var isOverride : Bool;
+
+	/**
+		The documentation of the field. This information is only available 
+		if the compiler flag `-D use_rtti_doc` was in place. Otherwise, or 
+		if the field has no documentation, the value is `null`.
+	**/
 	var doc : Null<String>;
+
+	/**
+		The [read access](http://haxe.org/manual/dictionary.html#define-read-access) 
+		behavior of the field.
+	**/
 	var get : Rights;
+
+	/**
+		The [write access](http://haxe.org/manual/dictionary.html#define-write-access)
+		behavior of the field.
+	**/
 	var set : Rights;
+
+	/**
+		An array of strings representing the names of the type parameters 
+		the field has. 
+	**/
 	var params : TypeParams;
+
+	/**
+		A list of strings representing the targets where the field is available.
+	**/
 	var platforms : Platforms;
+
+	/**
+		The meta data the field was annotated with.
+	**/
 	var meta : MetaData;
+
+	/**
+		The line number where the field is defined. This information is only 
+		available if the field has an expression. 
+		Otherwise the value is `null`.
+	**/
 	var line : Null<Int>;
+
+	/**
+		The list of available overloads for the fields or `null` if no overloads 
+		exists.
+	**/
 	var overloads : Null<List<ClassField>>;
+
+	/**
+		The actual expression of the field or `null` if there is no expression. 
+	**/
 	var expr : Null<String>;
 }
 
+/**
+	The general runtime type information.
+**/
 typedef TypeInfos = {
+	/**
+		The type path of the type.
+	**/
 	var path : Path;
+
+	/**
+		The type path of the module containing the type.
+	**/
 	var module : Path;
+
+	/**
+		The full slash path of the .hx file containing the type. 
+		This might be `null` in case there is no such file, e.g. if the
+		type is defined through a macro.
+	**/
 	var file : Null<String>;
+
+	/**
+		An array of strings representing the names of the type parameters the 
+		type has. 
+	**/
 	var params : TypeParams;
+
+	/**
+		The documentation of the type. This information is only available
+		if the compiler flag `-D use_rtti_doc` was in place. Otherwise, or if
+		the constructor has no documentation, the value is `null`.
+	**/
 	var doc : Null<String>;
+
+	/**
+		Whether or not the type is [private](http://haxe.org/manual/dictionary.html#define-private-type).
+	**/
 	var isPrivate : Bool;
+
+	/**
+		A list of strings representing the targets where the type is available.
+	**/
 	var platforms : Platforms;
+
+	/**
+		The [metadata](http://haxe.org/manual/lf-metadata.html) the type was 
+		annotated with.
+	**/
 	var meta : MetaData;
 }
 
+/**
+	The runtime class definition information.
+**/
 typedef Classdef = {> TypeInfos,
+	/**
+		Whether or not the class is [extern](http://haxe.org/manual/lf-externs.html).
+	**/
 	var isExtern : Bool;
+
+	/**
+		Whether or not the class is actually an [interface](http://haxe.org/manual/types-interfaces.html).
+	**/
 	var isInterface : Bool;
+
+	/**
+		The class' parent class defined by its type path and list of type 
+		parameters.
+	**/
 	var superClass : Null<PathParams>;
+
+	/**
+		The list of interfaces defined by their type path and list of type 
+		parameters.
+	**/
 	var interfaces : List<PathParams>;
+
+	/**
+		The list of member [class fields](http://haxe.org/manual/class-field.html).
+	**/
 	var fields : List<ClassField>;
+
+	/**
+		The list of static class fields.
+	**/
 	var statics : List<ClassField>;
+
+	/**
+		The type which is dynamically implemented by the class or `null` if no
+		such type exists.
+	**/
 	var tdynamic : Null<CType>;
 }
 
+/**
+	The runtime enum constructor information.
+	
+	@see <http://haxe.org/manual/cr-rtti-structure.html#enum-constructor-information>
+**/
 typedef EnumField = {
+	/**
+		The name of the constructor.
+	**/
 	var name : String;
+
+	/**
+		The list of arguments the constructor has or `null` if no arguments are 
+		available.
+	**/
 	var args : Null<List<{ name : String, opt : Bool, t : CType }>>;
+
+	/**
+		The documentation of the constructor. This information is only available
+		if the compiler flag `-D use_rtti_doc` was in place. Otherwise, or if
+		the constructor has no documentation, the value is `null`.
+	**/
 	var doc : String;
+
+	/**
+		A list of strings representing the targets where the constructor is
+		available.
+	**/
 	var platforms : Platforms;
+
+	/**
+		The meta data the constructor was annotated with.
+	**/
 	var meta : MetaData;
 }
 
+/**
+	The enum runtime type information.
+	
+	@see <http://haxe.org/manual/cr-rtti-structure.html#enum-type-information>
+**/
 typedef Enumdef = {> TypeInfos,
+	/**
+		Whether or not the enum is [extern](http://haxe.org/manual/lf-externs.html).
+	**/
 	var isExtern : Bool;
+
+	/**
+		The list of enum constructors.
+	**/
 	var constructors : List<EnumField>;
 }
 
+/**
+	The typedef runtime information.
+**/
 typedef Typedef = {> TypeInfos,
+	/**
+		The type of the typedef.
+	**/
 	var type : CType;
+
+	/**
+		The types of the typedef, by platform.
+	**/
 	var types : Map<String,CType>; // by platform
 }
 
+/**
+	The abstract type runtime information.
+	
+	@see <http://haxe.org/manual/cr-rtti-structure.html#abstract-type-information>
+**/
 typedef Abstractdef = {> TypeInfos,
 	var to : Array<{t:CType, field:Null<String>}>;
 	var from : Array<{t:CType, field:Null<String>}>;
@@ -118,6 +342,9 @@ typedef Abstractdef = {> TypeInfos,
 	var athis : CType;
 }
 
+/**
+	The tree types of the runtime type.
+**/
 enum TypeTree {
 	TPackage( name : String, full : String, subs : Array<TypeTree> );
 	TClassdecl( c : Classdef );
@@ -126,8 +353,14 @@ enum TypeTree {
 	TAbstractdecl( a : Abstractdef );
 }
 
+/**
+	List of `TypeTree`.
+**/
 typedef TypeRoot = Array<TypeTree>
 
+/**
+	Contains type and equality checks functionalities for RTTI.
+**/
 class TypeApi {
 
 	public static function typeInfos( t : TypeTree ) : TypeInfos {
@@ -142,6 +375,10 @@ class TypeApi {
 		return inf;
 	}
 
+	/**
+		Returns `true` if the given `CType` is a variable or `false` if it is a
+		function.
+	**/
 	public static function isVar( t : CType ) {
 		return switch( t ) {
 		case CFunction(_,_): false;
@@ -163,6 +400,12 @@ class TypeApi {
 		return true;
 	}
 
+	/**
+		Unlike `r1 == r2`, this function performs a deep equality check on 
+		the given `Rights` instances.
+
+		If `r1` or `r2` are `null`, the result is unspecified.
+	**/
 	public static function rightsEq( r1 : Rights, r2 : Rights ) {
 		if( r1 == r2 )
 			return true;
@@ -178,6 +421,12 @@ class TypeApi {
 		return false;
 	}
 
+	/**
+		Unlike `t1 == t2`, this function performs a deep equality check on 
+		the given `CType` instances.
+
+		If `t1` or `t2` are `null`, the result is unspecified.
+	**/
 	public static function typeEq( t1 : CType, t2 : CType ) {
 		switch( t1 ) {
 		case CUnknown: return t2 == CUnknown;
@@ -231,6 +480,12 @@ class TypeApi {
 		return false;
 	}
 
+	/**
+		Unlike `f1 == f2`, this function performs a deep equality check on 
+		the given `ClassField` instances.
+
+		If `f1` or `f2` are `null`, the result is unspecified.
+	**/
 	public static function fieldEq( f1 : ClassField, f2 : ClassField ) {
 		if( f1.name != f2.name )
 			return false;
@@ -251,6 +506,12 @@ class TypeApi {
 		return true;
 	}
 
+	/**
+		Unlike `c1 == c2`, this function performs a deep equality check on 
+		the arguments of the enum constructors, if exists.
+
+		If `c1` or `c2` are `null`, the result is unspecified.
+	**/
 	public static function constructorEq( c1 : EnumField, c2: EnumField ) {
 		if( c1.name != c2.name )
 			return false;
@@ -265,7 +526,14 @@ class TypeApi {
 
 }
 
+/**
+	The CTypeTools class contains some extra functionalities for handling
+	`CType` instances.
+**/
 class CTypeTools {
+	/**
+		Get the string representation of `CType`.
+	**/
 	static public function toString(t:CType):String {
 		return switch (t) {
 			case CUnknown:
@@ -276,7 +544,7 @@ class CTypeTools {
 				if (args.length == 0) {
 					"Void -> " +toString(ret);
 				} else {
-					args.map(functionArgumentName).join(" -> ");
+					args.map(functionArgumentName).join(" -> ")+" -> "+toString(ret);
 				}
 			case CDynamic(d):
 				if (d == null) {
@@ -297,7 +565,7 @@ class CTypeTools {
 	}
 
 	static function functionArgumentName(arg:FunctionArgument) {
-		return (arg.opt ? "?" : "") + arg.name + ":" + toString(arg.t) + (arg.value == null ? "" : " = " +arg.value);
+		return (arg.opt ? "?" : "") + (arg.name == "" ? "" : arg.name + ":") + toString(arg.t) + (arg.value == null ? "" : " = " +arg.value);
 	}
 
 	static function classField(cf:ClassField) {

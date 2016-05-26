@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -97,7 +97,7 @@ class BytesBuffer {
 		#elseif flash
 		b.writeBytes(src.getData());
 		#elseif php
-		b += cast src.getData();
+		b += src.getData().toString();
 		#elseif cs
 		b.Write(src.getData(), 0, src.length);
 		#elseif java
@@ -166,7 +166,7 @@ class BytesBuffer {
 		#elseif flash
 		if( len > 0 ) b.writeBytes(src.getData(),pos,len);
 		#elseif php
-		b += untyped __call__("substr", src.b, pos, len);
+		b += src.getData().sub(pos, len).toString() ;
 		#elseif cs
 		b.Write(src.getData(), pos, len);
 		#elseif java
@@ -196,7 +196,7 @@ class BytesBuffer {
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;
 		#elseif php
-		var bytes = new Bytes(b.length, cast b);
+		var bytes = new Bytes(b.length, BytesData.ofString(b));
 		#elseif cs
 		var buf = b.GetBuffer();
 		var bytes = new Bytes(cast b.Length, buf);

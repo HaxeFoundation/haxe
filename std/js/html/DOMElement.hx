@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Element.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/Element.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -37,11 +37,12 @@ extern class DOMElement extends Node
 	var lang : String;
 	var dir : String;
 	var dataset(default,null) : DOMStringMap;
+	var innerText : String;
 	var itemScope : Bool;
-	var itemType(default,null) : DOMSettableTokenList;
+	var itemType(default,null) : DOMTokenList;
 	var itemId : String;
-	var itemRef(default,null) : DOMSettableTokenList;
-	var itemProp(default,null) : DOMSettableTokenList;
+	var itemRef(default,null) : DOMTokenList;
+	var itemProp(default,null) : DOMTokenList;
 	var properties(default,null) : HTMLPropertiesCollection;
 	var itemValue : Dynamic;
 	var hidden : Bool;
@@ -57,7 +58,6 @@ extern class DOMElement extends Node
 	var oncopy : haxe.Constraints.Function;
 	var oncut : haxe.Constraints.Function;
 	var onpaste : haxe.Constraints.Function;
-	var innerText : String;
 	var offsetParent(default,null) : Element;
 	var offsetTop(default,null) : Int;
 	var offsetLeft(default,null) : Int;
@@ -117,6 +117,7 @@ extern class DOMElement extends Node
 	var onprogress : haxe.Constraints.Function;
 	var onratechange : haxe.Constraints.Function;
 	var onreset : haxe.Constraints.Function;
+	var onresize : haxe.Constraints.Function;
 	var onscroll : haxe.Constraints.Function;
 	var onseeked : haxe.Constraints.Function;
 	var onseeking : haxe.Constraints.Function;
@@ -138,6 +139,8 @@ extern class DOMElement extends Node
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
+	var onfullscreenchange : haxe.Constraints.Function;
+	var onfullscreenerror : haxe.Constraints.Function;
 	var onpointerlockchange : haxe.Constraints.Function;
 	var onpointerlockerror : haxe.Constraints.Function;
 	var previousElementSibling(default,null) : Element;
@@ -152,6 +155,7 @@ extern class DOMElement extends Node
 	var ontouchmove : haxe.Constraints.Function;
 	var ontouchcancel : haxe.Constraints.Function;
 	
+	function getAttributeNames() : Array<String>;
 	function getAttribute( name : String ) : String;
 	function getAttributeNS( namespace_ : String, localName : String ) : String;
 	/** @throws DOMError */
@@ -169,6 +173,8 @@ extern class DOMElement extends Node
 	function closest( selector : String ) : Element;
 	/** @throws DOMError */
 	function matches( selector : String ) : Bool;
+	/** @throws DOMError */
+	function webkitMatchesSelector( selector : String ) : Bool;
 	function getElementsByTagName( localName : String ) : HTMLCollection;
 	/** @throws DOMError */
 	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
@@ -188,7 +194,6 @@ extern class DOMElement extends Node
 	function getAttributeNodeNS( namespaceURI : String, localName : String ) : Attr;
 	/** @throws DOMError */
 	function setAttributeNodeNS( newAttr : Attr ) : Attr;
-	function requestFullscreen() : Void;
 	function click() : Void;
 	/** @throws DOMError */
 	function focus() : Void;
@@ -213,7 +218,11 @@ extern class DOMElement extends Node
 	/** @throws DOMError */
 	function createShadowRoot() : ShadowRoot;
 	function getDestinationInsertionPoints() : NodeList;
-	function getAnimationPlayers() : Array<AnimationPlayer>;
+	/** @throws DOMError */
+	function requestFullscreen( ?options : Dynamic ) : Void;
+	/** @throws DOMError */
+	function animate( frames : Dynamic, ?options : haxe.extern.EitherType<Float,Dynamic/*MISSING KeyframeAnimationOptions*/> ) : Animation;
+	function getAnimations() : Array<Animation>;
 	function remove() : Void;
 	/** @throws DOMError */
 	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -134,7 +134,7 @@ private class StringMapIterator<T> {
 			s.add(k);
 			s.add(" => ");
 			s.add(Std.string(get(k)));
-			if( i < keys.length )
+			if( i < keys.length-1 )
 				s.add(", ");
 		}
 		s.add("}");

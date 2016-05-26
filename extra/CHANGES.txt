@@ -1,3 +1,70 @@
+2016-05-27: 3.3.0-RC1
+
+	New features:
+
+	all : support @:resolve on abstracts (#3753)
+	all : support extern abstracts and extern @:enum abstracts (#4862)
+	all : support completion on { if the expected type is a structure (#3907)
+	all : support (expr is Type) with mandatory parentheses (#2976)
+	all : allowed passing package dot-paths on command line (#4227)
+	all : support import.hx modules that define per-directory import/using directives (#1138)
+	all : support parsing of postfix ! operator (can be used by abstract operator overloading and macros) (#4284)
+	all : support parsing of ||= and &&= operators (can be used by abstract operator overloading and macros) (#4427)
+	all : support @:structInit classes (#4526)
+	all : reworked static analyzer and enabled it by default
+	flash : update flash externs to version 21
+	hl : added HL target (interpreter and C output)
+	lua: added lua target
+	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.12.4 / 2.2.4 support. (#4377)
+	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
+	js : added js.Lib.rethrow (#4551)
+	cs/java : added -D fast_cast as an experimental feature to cleanup casts
+
+	Bugfixes:
+
+	all : properly disallowed assigning methods to structures with read-accessors (#3975)
+	all : fixed a bug related to abstract + Int/Float and implicit casts (#4122)
+	all : disallowed duplicate type parameter names (#4293)
+	all : made UInt's >>> behave like >> (#2736)
+	all : fixed various type loading issues
+	all : fixed code generation problems with `inline` (#1827)
+	php/as3 : support run-time metadata on interfaces (#2042)
+	php : fixed argument passing to closures (#2587)
+	neko/cpp : fixed various sys.Filesystem issues with Windows drive paths (#3266)
+	as3 : fixed problem with covariant return types (#4222)
+	as3 : fixed rare problem with static initialization order (#3563)
+	python : fixed various reflection problems
+
+	General improvements and optimizations:
+
+	all : added support for determining minimal types in Map literals (#4196)
+	all : allowed @:native on abstracts to set the name of the implementation class (#4158)
+	all : allowed creating closures on abstract inline methods (#4165)
+	all : type parameter declarations can now have metadata (#3836)
+	all : optimize Math.ceil/floor on constant arguments (#4223)
+	all : allowed extern classes to have field names being used for both static and instance (#4376)
+	all : added haxe.Constraints.Constructible (#4761)
+	all : rewrote pattern matcher to improve output in many cases (#4940)
+	python : use spaces instead of tabs to indent the output (#4299)
+	cpp : reworked backend to improve overall code output quality and fix various issues
+	swf : added scene-tag to allow creating accessible SWF files
+
+	Standard Library:
+
+	all : added Lambda.flatten and Lambda.flatMap (#3553)
+	all : added haxe.Constraints.Constructible (#4761)
+	sys : proper quoting/escaping (can be opt-out) for Sys.command and sys.io.Process (#3603)
+	js : added position parameter to haxe.macro.Compiler.includeFile
+	js : removed -D embed-js (#4074)
+	js : updated HTML externs
+
+	Macro features and changes:
+
+	macro : added overloads field to ClassField (#3460)
+	macro : added Context.getLocalImports (#3560)
+	macro : added Context.onAfterTyping (#4714)
+	macro : added Context.resolveType
+
 2015-10-11: 3.2.1
 
 	Bugfixes:
@@ -1449,7 +1516,7 @@
 	fixed infinite loop in neko EReg split/replace and epsilon matching
 	added neko native serialization support
 	fixed syntax for multiple constraints in type parameter
-	added recursive type parameters contraints (T : C<T> constraints)
+	added recursive type parameters constraints (T : C<T> constraints)
 	updated Xml handling
 
 2006-04-17: beta 5

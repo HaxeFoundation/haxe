@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 925:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 871:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionTextureHalfFloat")
+@:native("OES_texture_half_float")
 extern class ExtensionTextureHalfFloat
 {
 	static inline var HALF_FLOAT_OES : Int = 36193;

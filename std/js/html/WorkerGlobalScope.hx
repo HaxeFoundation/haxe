@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WorkerGlobalScope.webidl line 16:0. Do not edit!
+// This file is generated from mozilla/WorkerGlobalScope.webidl line 47:0. Do not edit!
 
 package js.html;
 
@@ -36,11 +36,18 @@ extern class WorkerGlobalScope extends EventTarget
 	var navigator(default,null) : WorkerNavigator;
 	var onclose : haxe.Constraints.Function;
 	var performance(default,null) : Performance;
+	var indexedDB(default,null) : js.html.idb.Factory;
 	
+	/** @throws DOMError */
 	function close() : Void;
 	/** @throws DOMError */
 	function importScripts( urls : haxe.extern.Rest<String> ) : Void;
 	function dump( ?str : String ) : Void;
+	/** @throws DOMError */
+	function fetch( input : haxe.extern.EitherType<Request,String>, ?init : RequestInit ) : Promise<Response>;
+	/** @throws DOMError */
+	@:overload( function( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,ImageBitmap>>>>>> ) : Promise<ImageBitmap> {} )
+	function createImageBitmap( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,ImageBitmap>>>>>>, aSx : Int, aSy : Int, aSw : Int, aSh : Int ) : Promise<ImageBitmap>;
 	/** @throws DOMError */
 	function btoa( btoa : String ) : String;
 	/** @throws DOMError */
@@ -48,11 +55,9 @@ extern class WorkerGlobalScope extends EventTarget
 	/** @throws DOMError */
 	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
 	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
-	/** @throws DOMError */
 	function clearTimeout( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
 	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
 	function setInterval( handler : String, ?timeout : Int, unused : haxe.extern.Rest<Dynamic> ) : Int;
-	/** @throws DOMError */
 	function clearInterval( ?handle : Int = 0 ) : Void;
 }

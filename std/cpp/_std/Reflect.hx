@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi class Reflect {
+
+import cpp.ObjectType;
+
+@:coreApi
+@:analyzer(ignore)
+class Reflect {
 
 	public  static function hasField( o : Dynamic, field : String ) : Bool untyped {
 		return o!=null && o.__HasField(field);
@@ -44,7 +49,7 @@
 	}
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
-			if (func!=null && func.__GetType()==__global__.vtString)
+			if (func!=null && func.__GetType()==ObjectType.vtString)
 				func = o.__Field(func,untyped __cpp__("hx::paccDynamic"));
 			untyped func.__SetThis(o);
          return untyped func.__Run(args);
@@ -58,7 +63,7 @@
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return f!=null && f.__GetType() ==  __global__.vtFunction;
+		return f!=null && f.__GetType() ==  ObjectType.vtFunction;
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -76,12 +81,12 @@
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		if (v==null) return false;
 		var t:Int = v.__GetType();
-		return t ==  __global__.vtObject || t==__global__.vtClass || t==__global__.vtString ||
-				t==__global__.vtArray;
+		return t ==  ObjectType.vtObject || t==ObjectType.vtClass || t==ObjectType.vtString ||
+				t==ObjectType.vtArray;
 	}
 
 	public static function isEnumValue( v : Dynamic ) : Bool untyped {
-		return v!=null && v.__GetType() == __global__.vtEnum;
+		return v!=null && v.__GetType() == ObjectType.vtEnum;
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
@@ -91,8 +96,8 @@
 
 	public static function copy<T>( o : T ) : T {
 		if (o==null) return null;
-		if(untyped o.__GetType()==__global__.vtString ) return o;
-		if(untyped o.__GetType()==__global__.vtArray )
+		if(untyped o.__GetType()==ObjectType.vtString ) return o;
+		if(untyped o.__GetType()==ObjectType.vtArray )
 			return untyped o.__Field("copy", untyped __cpp__("hx::paccDynamic"))();
 		var o2 : Dynamic = {};
 		for( f in Reflect.fields(o) )

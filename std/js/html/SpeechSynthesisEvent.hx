@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,17 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SpeechSynthesisEvent.webidl line 15:0. Do not edit!
+// This file is generated from mozilla/SpeechSynthesisEvent.webidl line 46:0. Do not edit!
 
 package js.html;
 
 @:native("SpeechSynthesisEvent")
 extern class SpeechSynthesisEvent extends Event
 {
+	var utterance(default,null) : SpeechSynthesisUtterance;
 	var charIndex(default,null) : Int;
 	var elapsedTime(default,null) : Float;
 	var name(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( type : String, ?eventInitDict : SpeechSynthesisEventInit ) : Void;
+	function new( type : String, eventInitDict : SpeechSynthesisEventInit ) : Void;
 }

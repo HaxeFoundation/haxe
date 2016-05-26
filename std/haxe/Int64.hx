@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,7 +52,11 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		`x` is sign-extended to fill 64 bits.
 	**/
 	@:from public static inline function ofInt( x : Int ) : Int64
+#if lua
+		return make( (x:Int32) >> 31, (x:Int32));
+#else
 		return make( x >> 31, x );
+#end
 
 	/**
 		Returns an Int with the value of the Int64 `x`.
@@ -133,16 +137,29 @@ abstract Int64(__Int64) from __Int64 to __Int64
 		var neg = false;
 		if( i.isNeg() ) {
 			neg = true;
-			i = -i;
+			// i = -i; cannot negate here as --9223372036854775808 = -9223372036854775808
 		}
 		var ten : Int64 = 10;
 		while( i != 0 ) {
 			var r = i.divMod( ten );
-			str = r.modulus.low + str;
-			i = r.quotient;
+			if (r.modulus.isNeg()) {
+				str = Int64.neg(r.modulus).low + str;
+				i = Int64.neg(r.quotient);
+			} else {
+				str = r.modulus.low + str;
+				i = r.quotient;
+			}
 		}
 		if( neg ) str = "-" + str;
 		return str;
+	}
+
+	public static inline function parseString( sParam : String ) : Int64 {
+		return Int64Helper.parseString( sParam );
+	}
+
+	public static inline function fromFloat( f : Float ) : Int64 {
+		return Int64Helper.fromFloat( f );
 	}
 
 	/**
@@ -205,25 +222,27 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	}
 
 	@:op(++A) private inline function preIncrement() : Int64 {
+		this = copy();
 		this.low++;
 		if( this.low == 0 ) this.high++;
 		return cast this;
 	}
 
 	@:op(A++) private inline function postIncrement() : Int64 {
-		var ret = copy();
+		var ret = this;
 		preIncrement();
 		return ret;
 	}
 
 	@:op(--A) private inline function preDecrement() : Int64 {
+		this = copy();
 		if( this.low == 0 ) this.high--;
 		this.low--;
 		return cast this;
 	}
 
 	@:op(A--) private inline function postDecrement() : Int64 {
-		var ret = copy();
+		var ret = this;
 		preDecrement();
 		return ret;
 	}
@@ -260,7 +279,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	/**
 		Returns the product of `a` and `b`.
 	**/
-	@:op(A * B) public static inline function mul( a : Int64, b : Int64 ) : Int64 {
+	@:op(A * B) public static #if !lua inline #end function mul( a : Int64, b : Int64 ) : Int64 {
 		var mask = 0xFFFF;
 		var al = a.low & mask, ah = a.low >>> 16;
 		var bl = b.low & mask, bh = b.low >>> 16;
@@ -402,7 +421,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	@:op(A >> B) public static inline function shr( a : Int64, b : Int) : Int64 {
 		b &= 63;
 		return if( b == 0 ) a.copy()
-			else if( b < 32 ) make( a.high >> b, (a.high << (32-b)) | (a.low >>> b) )
+			else if( b < 32 ) make( a.high >> b, (a.high << (32-b)) | (a.low >>> b) );
 			else make( a.high >> 31, a.high >> (b - 32) );
 	}
 
@@ -413,7 +432,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	@:op(A >>> B) public static inline function ushr( a : Int64, b : Int ) : Int64 {
 		b &= 63;
 		return if( b == 0 ) a.copy()
-			else if( b < 32 ) make( a.high >>> b, (a.high << (32-b)) | (a.low >>> b) )
+			else if( b < 32 ) make( a.high >>> b, (a.high << (32-b)) | (a.low >>> b) );
 			else make( 0, a.high >>> (b - 32) );
 	}
 
@@ -435,7 +454,7 @@ private typedef __Int64 = ___Int64;
 
 private class ___Int64 {
 	public var high : Int32;
-	public var low : Int32;
+	public var low : Int32; 
 
 	public inline function new( high, low ) {
 		this.high = high;

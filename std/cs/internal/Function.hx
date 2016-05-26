@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -80,10 +80,9 @@ package cs.internal;
 
 	public function Equals(obj:Dynamic):Bool
 	{
-		if (obj == null)
+		var c = cs.Lib.as(obj, Closure);
+		if (c == null)
 			return false;
-
-		var c:Closure = cast obj;
 		return (c.obj == this.obj && c.field == this.field);
 	}
 

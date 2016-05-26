@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -87,7 +87,7 @@ import cs.system.reflection.*;
 	public static function fields( o : Dynamic ) : Array<String>
 	{
 		var ihx = Lib.as(o,IHxObject);
-		if (o != null)
+		if (ihx != null)
 		{
 			var ret = [];
 			untyped ihx.__hx_getFields(ret);

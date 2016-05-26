@@ -10,8 +10,8 @@ abstract Lazy<T>(Void->T) {
 		return this();
 	}
 
-    @:from static function ofConst<T>(c:T):Lazy<T> {
-        return new Lazy(function() return c);
+	@:from static function ofConst<T>(c:T):Lazy<T> {
+		return new Lazy(function() return c);
 	}
 }
 
@@ -27,6 +27,6 @@ class Issue2614 extends Test {
 	}
 
 	static public function lazy<A>(l:Lazy<A>):Lazy<A> {
-        return l;
+		return l;
 	}
 }

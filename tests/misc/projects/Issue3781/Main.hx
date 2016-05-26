@@ -2,7 +2,7 @@ enum E {
     E1<T:String>(v:T);
 }
 
-abstract Ab(String) to String {}
+abstract Ab(String) {}
 
 class Main<T:Ab> {
     static function main() {

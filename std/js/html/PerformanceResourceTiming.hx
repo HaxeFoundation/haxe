@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/PerformanceResourceTiming.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/PerformanceResourceTiming.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -28,6 +28,7 @@ package js.html;
 extern class PerformanceResourceTiming extends PerformanceEntry
 {
 	var initiatorType(default,null) : String;
+	var nextHopProtocol(default,null) : String;
 	var redirectStart(default,null) : Float;
 	var redirectEnd(default,null) : Float;
 	var fetchStart(default,null) : Float;
@@ -39,5 +40,8 @@ extern class PerformanceResourceTiming extends PerformanceEntry
 	var requestStart(default,null) : Float;
 	var responseStart(default,null) : Float;
 	var responseEnd(default,null) : Float;
+	var transferSize(default,null) : Int;
+	var encodedBodySize(default,null) : Int;
+	var decodedBodySize(default,null) : Int;
 	
 }

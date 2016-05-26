@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -44,8 +44,8 @@ class Web {
 
 	/**
 		Returns an Array of Strings built using GET / POST values.
-		If you have in your URL the parameters [a[]=foo;a[]=hello;a[5]=bar;a[3]=baz] then
-		[neko.Web.getParamValues("a")] will return [["foo","hello",null,"baz",null,"bar"]]
+		If the URL contains the parameters `[a[]=foo;a[]=hello;a[5]=bar;a[3]=baz]` then
+		`neko.Web.getParamValues("a")` will return `["foo","hello",null,"baz",null,"bar"]`
 	**/
 	public static function getParamValues( param : String ) : Array<String> {
 		var reg = new EReg("^"+param+"(\\[|%5B)([0-9]*?)(\\]|%5D)=(.*?)$", "");
@@ -72,7 +72,7 @@ class Web {
 	}
 
 	/**
-		Returns the local server host name
+		Returns the local server host name.
 	**/
 	public static function getHostName() {
 		return new String(_get_host_name());
@@ -138,7 +138,7 @@ class Web {
 	}
 
 	/**
-		Returns all the GET parameters String
+		Returns all the GET parameters String.
 	**/
 	public static function getParamsString() {
 		var p = _get_params_string();
@@ -147,10 +147,10 @@ class Web {
 
 	/**
 		Returns all the POST data. POST Data is always parsed as
-		being application/x-www-form-urlencoded and is stored into
+		being `application/x-www-form-urlencoded` and is stored into
 		the getParams hashtable. POST Data is maximimized to 256K
-		unless the content type is multipart/form-data. In that
-		case, you will have to use [getMultipart] or [parseMultipart]
+		unless the content type is `multipart/form-data`. In that
+		case, you will have to use `getMultipart` or `parseMultipart`
 		methods.
 	**/
 	public static function getPostData() {
@@ -162,7 +162,7 @@ class Web {
 
 	/**
 		Returns an hashtable of all Cookies sent by the client.
-		Modifying the hashtable will not modify the cookie, use setCookie instead.
+		Modifying the hashtable will not modify the cookie, use `setCookie` instead.
 	**/
 	public static function getCookies():Map<String,String> {
 		var p = _get_cookies();
@@ -178,7 +178,7 @@ class Web {
 
 
 	/**
-		Set a Cookie value in the HTTP headers. Same remark as setHeader.
+		Set a Cookie value in the HTTP headers. Same remark as `setHeader`.
 	**/
 	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool, ?httpOnly: Bool ) {
 		var buf = new StringBuf();
@@ -260,9 +260,9 @@ class Web {
 	}
 
 	/**
-		Parse the multipart data. Call [onPart] when a new part is found
+		Parse the multipart data. Call `onPart` when a new part is found
 		with the part name and the filename if present
-		and [onData] when some part data is readed. You can this way
+		and `onData` when some part data is readed. You can this way
 		directly save the data on hard drive in the case of a file upload.
 	**/
 	public static function parseMultipart( onPart : String -> String -> Void, onData : haxe.io.Bytes -> Int -> Int -> Void ) : Void {
@@ -281,14 +281,14 @@ class Web {
 	}
 
 	/**
-		Get the HTTP method used by the client. This api requires Neko 1.7.1+
+		Get the HTTP method used by the client. This API requires Neko 1.7.1+.
 	**/
 	public static function getMethod() : String {
 		return new String(_get_http_method());
 	}
 
 	/**
-		Write a message into the web server log file. This api requires Neko 1.7.1+
+		Write a message into the web server log file. This API requires Neko 1.7.1+.
 	**/
 	public static function logMessage( msg : String ) {
 		_log_message(untyped msg.__s);

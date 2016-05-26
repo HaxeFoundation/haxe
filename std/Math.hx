@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,8 @@
  */
 /**
 	This class defines mathematical functions and constants.
+
+	@see http://haxe.org/manual/std-math.html
 **/
 #if cpp @:include("hxMath.h") #end
 extern class Math
@@ -73,7 +75,7 @@ extern class Math
 
 		@php In PHP versions prior to 5.3.1 VC 9 there may be unexpected
 		results when performing arithmetic operations with `NaN` on Windows,
-		see [https://bugs.php.net/bug.php?id=42143]
+		see <https://bugs.php.net/bug.php?id=42143>
 	**/
 	static var NaN(default, null) : Float;
 

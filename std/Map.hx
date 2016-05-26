@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,8 +41,10 @@ import haxe.Constraints.IMap;
 	Maps can also be created with `key1 => value1, key2 => value2` syntax.
 
 	Map is an abstract type, it is not available at runtime.
+
+	@see http://haxe.org/manual/std-Map.html
 **/
-@:multiType(K)
+@:multiType(@:followWithAbstracts K)
 abstract Map<K,V>(IMap<K,V> ) {
 
 	/**
@@ -163,5 +165,6 @@ abstract Map<K,V>(IMap<K,V> ) {
 	}
 }
 
+@:dox(hide)
 @:deprecated
 typedef IMap<K, V> = haxe.Constraints.IMap<K, V>;

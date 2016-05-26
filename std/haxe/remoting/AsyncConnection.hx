@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+	For asynchronous connections, where the results are events that will be resolved later in the execution process.
+*/
 interface AsyncConnection implements Dynamic<AsyncConnection> {
 
 	function resolve( name : String ) : AsyncConnection;

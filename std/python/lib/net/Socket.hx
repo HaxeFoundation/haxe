@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,7 +30,93 @@ import python.Tuple;
 
 @:pythonImport("socket", "socket")
 extern class Socket {
+    function send(d:BytesData,flags:Int):Int;
+    function recv(n:Int,flags:Int):BytesData;
 
+    /**
+        Creates a new unconnected socket.
+    **/
+    function new() : Void;
+
+    /**
+        Closes the socket : make sure to properly close all your sockets or you will crash when you run out of file descriptors.
+    **/
+    function close() : Void;
+
+    /**
+        Connect to the given server host/port. Throw an exception in case we couldn't sucessfully connect.
+    **/
+    function connect( addr : python.lib.net.Address ) : Void;
+
+    //function create_connection() :
+
+    /**
+        Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use `accept()` to accept incoming connections.
+    **/
+    function listen( connections : Int ) : Void;
+
+    /**
+        Shutdown the socket, either for reading or writing.
+    **/
+    function shutdown( how :Int ) : Void;
+
+    /**
+        Bind the socket to the given host/port so it can afterwards listen for connections there.
+    **/
+    function bind( address : python.lib.net.Address ) : Void;
+
+    /**
+        Accept a new connected client. This will return a connected socket on which you can read/write some data.
+    **/
+    function accept() : Tuple2<Socket,Address>;
+
+    /**
+        Return the informations about the other side of a connected socket.
+    **/
+    function getpeername() : python.lib.net.Address;
+
+    /**
+        Return the informations about our side of a connected socket.
+    **/
+    function getsockname() : python.lib.net.Address;
+
+    /**
+        Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
+    **/
+    function settimeout( timeout : Float ) : Void;
+
+    /**
+        Block until some data is available for read on the socket.
+    **/
+    function waitForRead() : Void;
+
+    /**
+        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediatly by throwing a haxe.io.Error.Blocking value.
+    **/
+    function setblocking( b : Bool ) : Void;
+
+    /**
+
+    **/
+    function setsockopt( family:Int, option:Int, value : Bool ) : Void;
+
+
+    function fileno():Int;
+
+    /**
+        Wait until one of the sockets groups is ready for the given operation :
+        - `read` contains sockets on which we want to wait for available data to be read,
+        - `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
+        - `others` contains sockets on which we want to wait for exceptional conditions.
+        - `select` will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
+        In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
+    **/
+    //static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> };
+
+}
+
+@:pythonImport("socket")
+extern class SocketModule {
     static var AF_APPLETALK:Int;
     static var AF_ASH:Int;
     static var AF_ATMPVC:Int;
@@ -292,90 +378,4 @@ extern class Socket {
     static var TIPC_WITHDRAWN:Int;
     static var TIPC_ZONE_SCOPE:Int;
     static var _GLOBAL_DEFAULT_TIMEOUT:Int;
-
-    function send(d:BytesData,flags:Int):Int;
-    function recv(n:Int,flags:Int):BytesData;
-
-
-
-    /**
-        Creates a new unconnected socket.
-    **/
-    function new() : Void;
-
-    /**
-        Closes the socket : make sure to properly close all your sockets or you will crash when you run out of file descriptors.
-    **/
-    function close() : Void;
-
-    /**
-        Connect to the given server host/port. Throw an exception in case we couldn't sucessfully connect.
-    **/
-    function connect( addr : python.lib.net.Address ) : Void;
-
-    //function create_connection() :
-
-    /**
-        Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use [accept()] to accept incoming connections.
-    **/
-    function listen( connections : Int ) : Void;
-
-    /**
-        Shutdown the socket, either for reading or writing.
-    **/
-    function shutdown( how :Int ) : Void;
-
-    /**
-        Bind the socket to the given host/port so it can afterwards listen for connections there.
-    **/
-    function bind( address : python.lib.net.Address ) : Void;
-
-    /**
-        Accept a new connected client. This will return a connected socket on which you can read/write some data.
-    **/
-    function accept() : Tuple2<Socket,Address>;
-
-    /**
-        Return the informations about the other side of a connected socket.
-    **/
-    function getpeername() : python.lib.net.Address;
-
-    /**
-        Return the informations about our side of a connected socket.
-    **/
-    function getsockname() : python.lib.net.Address;
-
-    /**
-        Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
-    **/
-    function settimeout( timeout : Float ) : Void;
-
-    /**
-        Block until some data is available for read on the socket.
-    **/
-    function waitForRead() : Void;
-
-    /**
-        Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediatly by throwing a haxe.io.Error.Blocking value.
-    **/
-    function setblocking( b : Bool ) : Void;
-
-    /**
-
-    **/
-    function setsockopt( family:Int, option:Int, value : Bool ) : Void;
-
-
-    function fileno():Int;
-
-    /**
-        Wait until one of the sockets groups is ready for the given operation :
-        [read] contains sockets on which we want to wait for available data to be read,
-        [write] contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
-        [others] contains sockets on which we want to wait for exceptional conditions.
-        [select] will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
-        In case a [timeout] (in seconds) is specified, select might wait at worse until the timeout expires.
-    **/
-    //static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> };
-
 }

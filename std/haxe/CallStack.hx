@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -125,6 +125,18 @@ class CallStack {
 			infos.reverse();
 			for (elem in infos)
 				stack.push(FilePos(null, elem._1, elem._2));
+			return stack;
+		#elseif lua
+			var stack = [];
+			var infos = lua.Debug.traceback();
+			var luastack = infos.split("\n").slice(2,-1);
+			for (s in luastack){
+				var parts = s.split(":");
+				var file  = parts[0];
+				var line  = parts[1];
+				// TODO: Give more information for FilePos
+				stack.push(FilePos(null, file, Std.parseInt(line)));
+			}
 			return stack;
 		#else
 			return []; // Unsupported
@@ -328,6 +340,9 @@ class CallStack {
 				var frame = s.GetFrame(i);
 				var m = frame.GetMethod();
 
+				if (m == null) {
+					continue;
+				}
 				var method = StackItem.Method(m.ReflectedType.ToString(), m.Name);
 
 				var fileName = frame.GetFileName();

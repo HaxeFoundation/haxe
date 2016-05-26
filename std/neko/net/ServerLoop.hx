@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -59,16 +59,16 @@ class ServerLoop<ClientData> {
 	public var listenCount : Int;
 
 	/**
-		See [update].
+		See `update`.
 	**/
 	public var updateTime : Float;
 
 	var newData : Socket -> ClientData;
-	var socks : Array<Socket>;
+	var socks : Array<sys.net.Socket>;
 	public var clients : List<ClientData>;
 
 	/**
-		Creates a server instance. The [newData] methods must return
+		Creates a server instance. The `newData` methods must return
 		the data associated with the Client.
 	**/
 	public function new( ?newData ) {
@@ -93,9 +93,9 @@ class ServerLoop<ClientData> {
 	}
 
 	/**
-		The [update] method is called after each socket event has been
-		processed or when [updateTime] has been reached. It can be used
-		to perform time-regular tasks such as pings. By default [updateTime]
+		The `update` method is called after each socket event has been
+		processed or when `updateTime` has been reached. It can be used
+		to perform time-regular tasks such as pings. By default `updateTime`
 		is set to one second.
 	**/
 	public function update() {
@@ -138,7 +138,7 @@ class ServerLoop<ClientData> {
 
 	/**
 		Called when an error occured. This enable you to log the error somewhere.
-		By default the error is displayed using [trace].
+		By default the error is displayed using `trace`.
 	**/
 	public function onError( e : Dynamic ) {
 		trace(Std.string(e)+"\n"+haxe.CallStack.toString(haxe.CallStack.exceptionStack()));

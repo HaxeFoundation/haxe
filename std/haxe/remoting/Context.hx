@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package haxe.remoting;
 
+/**
+    Allows communication between platforms. This is a shared API that can be called on the connection at the client code.
+*/
 class Context {
 
 	var objects : haxe.ds.StringMap<{ obj : Dynamic, rec : Bool }>;

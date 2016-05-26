@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -73,6 +73,15 @@ class Exceptions {
 	{
 		return "Haxe Exception: " + obj;
 	}
+	
+	@:overload override public function getMessage():String
+	{
+		return switch (super.getMessage())
+		{
+			case null: Std.string(obj);
+			case message: message;
+		}
+	}
 
 	public static function wrap(obj:Dynamic):RuntimeException
 	{
@@ -82,9 +91,9 @@ class Exceptions {
 		else if (Std.is(obj, String))
 			ret = new HaxeException(obj, obj, null);
  		else if (Std.is(obj, Throwable))
-			ret = new HaxeException(obj, null, obj);
+			ret = new HaxeException(obj, Std.string(obj), obj);
 		else
-			ret = new HaxeException(obj, null, null);
+			ret = new HaxeException(obj, Std.string(obj), null);
 		return ret;
 	}
 }

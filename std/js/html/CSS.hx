@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CSS.webidl line 13:0. Do not edit!
+// This file is generated from mozilla/CSS.webidl line 44:0. Do not edit!
 
 package js.html;
 
@@ -30,6 +30,5 @@ extern class CSS
 	/** @throws DOMError */
 	@:overload( function( property : String, value : String ) : Bool {} )
 	static function supports( conditionText : String ) : Bool;
-	/** @throws DOMError */
 	static function escape( ident : String ) : String;
 }

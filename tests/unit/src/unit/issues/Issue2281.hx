@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue2281 extends Test
 {
-    function test() {
+	function test() {
 			var fint = new Foo();
 			fint.val = 0;
 			eq(0, fint.val++);
@@ -19,7 +19,7 @@ class Issue2281 extends Test
 			eq(1,fint.val2);
 			eq(2,++fint.val2);
 			eq(12, fint.val2 += 10);
-    }
+	}
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DataChannel.webidl line 18:0. Do not edit!
+// This file is generated from mozilla/DataChannel.webidl line 47:0. Do not edit!
 
 package js.html.rtc;
 
@@ -31,10 +31,12 @@ extern class DataChannel extends js.html.EventTarget
 	var reliable(default,null) : Bool;
 	var readyState(default,null) : DataChannelState;
 	var bufferedAmount(default,null) : Int;
+	var bufferedAmountLowThreshold : Int;
 	var onopen : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	var onclose : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
+	var onbufferedamountlow : haxe.Constraints.Function;
 	var binaryType : DataChannelType;
 	var protocol(default,null) : String;
 	var ordered(default,null) : Bool;

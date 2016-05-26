@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,8 +23,8 @@ package haxe.io;
 
 /**
 	An Output is an abstract write. A specific output implementation will only
-	have to override the [writeByte] and maybe the [write], [flush] and [close]
-	methods. See [File.write] and [String.write] for two ways of creating an
+	have to override the `writeByte` and maybe the `write`, `flush` and `close`
+	methods. See `File.write` and `String.write` for two ways of creating an
 	Output.
 **/
 class Output {
@@ -55,19 +55,21 @@ class Output {
 		See `writeFullBytes` that tries to write the exact amount of specified bytes.
 	**/
 	public function writeBytes( s : Bytes, pos : Int, len : Int ) : Int {
-		var k = len;
-		var b = s.getData();
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
 		#end
+		var b = #if js @:privateAccess s.b #else s.getData() #end;
+		var k = len;
 		while( k > 0 ) {
 			#if neko
 				writeByte(untyped __dollar__sget(b,pos));
 			#elseif php
-				writeByte(untyped __call__("ord", b[pos]));
+				writeByte(b.get(pos));
 			#elseif cpp
 				writeByte(untyped b[pos]);
+			#elseif hl
+				writeByte(b[pos]);
 			#else
 				writeByte(untyped b[pos]);
 			#end

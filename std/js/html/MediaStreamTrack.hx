@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/MediaStreamTrack.webidl line 27:0. Do not edit!
+// This file is generated from mozilla/MediaStreamTrack.webidl line 91:0. Do not edit!
 
 package js.html;
 
 @:native("MediaStreamTrack")
-extern class MediaStreamTrack
+extern class MediaStreamTrack extends EventTarget
 {
 	var kind(default,null) : String;
 	var id(default,null) : String;
@@ -33,4 +33,6 @@ extern class MediaStreamTrack
 	var enabled : Bool;
 	
 	function stop() : Void;
+	/** @throws DOMError */
+	function applyConstraints( ?constraints : MediaTrackConstraints ) : Promise<Void>;
 }

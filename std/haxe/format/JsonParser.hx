@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +26,8 @@ package haxe.format;
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
+
+	@see http://haxe.org/manual/std-Json-parsing.html
 **/
 class JsonParser {
 
@@ -33,7 +35,7 @@ class JsonParser {
 		Parses given JSON-encoded `str` and returns the resulting object.
 
 		JSON objects are parsed into anonymous structures and JSON arrays
-		are parsed into Array<Dynamic>.
+		are parsed into `Array<Dynamic>`.
 
 		If given `str` is not valid JSON, an exception will be thrown.
 
@@ -156,7 +158,7 @@ class JsonParser {
 				case 'u'.code:
 					var uc = Std.parseInt("0x" + str.substr(pos, 4));
 					pos += 4;
-					#if (neko || php || cpp)
+					#if (neko || php || cpp || lua)
 					if( uc <= 0x7F )
 						buf.addChar(uc);
 					else if( uc <= 0x7FF ) {

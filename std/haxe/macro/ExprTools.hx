@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,20 +36,20 @@ using Lambda;
 class ExprTools {
 
 	/**
-		Converts expression [e] to a human-readable String representation.
+		Converts expression `e` to a human-readable String representation.
 
-		The result is guaranteed to be valid haxe code, but there may be
+		The result is guaranteed to be valid Haxe code, but there may be
 		differences from the original lexical syntax.
 	**/
 	static public function toString( e : Expr ) : String
 		return new Printer().printExpr(e);
 
 	/**
-		Calls function [f] on each sub-expression of [e].
+		Calls function `f` on each sub-expression of `e`.
 
-		If [e] has no sub-expressions, this operation has no effect.
+		If `e` has no sub-expressions, this operation has no effect.
 
-		Otherwise [f] is called once per sub-expression of [e], with the
+		Otherwise `f` is called once per sub-expression of `e`, with the
 		sub-expression as argument. These calls are done in order of the
 		sub-expression declarations.
 
@@ -57,7 +57,7 @@ class ExprTools {
 		in a recursive function which handles the expression nodes of interest.
 
 		Usage example:
-
+		```haxe
 		function findStrings(e:Expr) {
 			switch(e.expr) {
 				case EConst(CString(s)):
@@ -66,6 +66,7 @@ class ExprTools {
 					ExprTools.iter(e, findStrings);
 			}
 		}
+		```
 	**/
 	static public function iter( e : Expr, f : Expr -> Void ) : Void {
 		switch(e.expr) {
@@ -131,11 +132,11 @@ class ExprTools {
 	}
 
 	/**
-		Transforms the sub-expressions of [e] by calling [f] on each of them.
+		Transforms the sub-expressions of `e` by calling `f` on each of them.
 
-		If [e] has no sub-expressions, this operation returns [e] unchanged.
+		If `e` has no sub-expressions, this operation returns `e` unchanged.
 
-		Otherwise [f] is called once per sub-expression of [e], with the
+		Otherwise `f` is called once per sub-expression of `e`, with the
 		sub-expression as argument. These calls are done in order of the
 		sub-expression declarations.
 
@@ -143,7 +144,7 @@ class ExprTools {
 		in a recursive function which handles the expression nodes of interest.
 
 		Usage example:
-
+		```haxe
 		function capitalizeStrings(e:Expr) {
 			return switch(e.expr) {
 				case EConst(CString(s)):
@@ -152,6 +153,7 @@ class ExprTools {
 					ExprTools.map(e, capitalizeStrings);
 			}
 		}
+		```haxe
 	**/
 	static public function map( e : Expr, f : Expr -> Expr ) : Expr {
 		return {pos: e.pos, expr: switch(e.expr) {

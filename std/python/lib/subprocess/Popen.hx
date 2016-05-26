@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,6 +27,7 @@ import python.lib.io.TextIOBase;
 import python.lib.Subprocess.StartupInfo;
 import python.Tuple;
 import python.Dict;
+import haxe.extern.EitherType;
 
 typedef PopenOptions = {
 	?bufsize : Int,
@@ -47,7 +48,7 @@ typedef PopenOptions = {
 @:pythonImport("subprocess", "Popen")
 extern class Popen {
 
-	public static inline function create (args:Array<String>, o:PopenOptions):Popen {
+	public static inline function create (args:EitherType<String, Array<String>>, o:PopenOptions):Popen {
 
 		o.bufsize = if (Reflect.hasField(o, "bufsize")) o.bufsize else 0;
 		o.executable = if (Reflect.hasField(o, "executable")) o.executable else null;

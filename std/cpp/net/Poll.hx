@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,46 +21,34 @@
  */
 package cpp.net;
 import sys.net.Socket;
+import cpp.NativeSocket;
 
 class Poll {
 
 	var mPollHandle : Dynamic;
-	public var readIndexes : Array<Dynamic>;
-	public var writeIndexes : Array<Dynamic>;
+	public var readIndexes : Array<Int>;
+	public var writeIndexes : Array<Int>;
 
 	public function new( n : Int ) {
-		mPollHandle = socket_poll_alloc(n);
+		mPollHandle = NativeSocket.socket_poll_alloc(n);
 		readIndexes = [];
 		writeIndexes = [];
 	}
 
 	public function prepare( read : Array<Socket>, write : Array<Socket> ) {
-		var k = socket_poll_prepare(mPollHandle,read,write);
+		var k = NativeSocket.socket_poll_prepare(mPollHandle,read,write);
 		readIndexes = k[0];
 		writeIndexes = k[1];
 	}
 
 	public function events( ?t : Float ) {
 		if (t==null) t=-1.0;
-		socket_poll_events(mPollHandle,t);
+		NativeSocket.socket_poll_events(mPollHandle,t);
 	}
 
 	public function poll( a : Array<Socket>, ?t : Float ) : Array<Socket> {
 		if (t==null) t=-1.0;
-		var read:Array<Dynamic> = socket_poll(a,mPollHandle,t);
-		// Convert to array of sockets...
-		var result = new Array<Socket>();
-		if (read!=null && read.length>0) {
-			result[read.length-1]=null;
-			for(i in 0...read.length)
-				result[i] = read[i];
-		}
-		return result;
+		return NativeSocket.socket_poll(a,mPollHandle,t);
 	}
-
-	static var socket_poll_alloc = cpp.Lib.load("std","socket_poll_alloc",1);
-	static var socket_poll = cpp.Lib.load("std","socket_poll",3);
-	static var socket_poll_prepare = cpp.Lib.loadLazy("std","socket_poll_prepare",3);
-	static var socket_poll_events = cpp.Lib.loadLazy("std","socket_poll_events",2);
 
 }

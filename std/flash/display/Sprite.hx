@@ -2,8 +2,8 @@ package flash.display;
 
 extern class Sprite extends DisplayObjectContainer {
 	var buttonMode : Bool;
-	var dropTarget(default,null) : DisplayObject;
-	var graphics(default,null) : Graphics;
+	var dropTarget(default,never) : DisplayObject;
+	var graphics(default,never) : Graphics;
 	var hitArea : Sprite;
 	var soundTransform : flash.media.SoundTransform;
 	var useHandCursor : Bool;

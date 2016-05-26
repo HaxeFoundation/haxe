@@ -1,4 +1,25 @@
-package cpp.cppia;
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+ package cpp.cppia;
 
 import haxe.macro.Compiler;
 import haxe.macro.Context;
@@ -41,16 +62,23 @@ class HostClasses
    "sys.db.Object",
    "sys.db.Manager",
    "sys.db.Connection",
+   "sys.db.Object",
    "sys.FileSystem",
    "sys.io.File",
    "sys.io.FileInput",
+   "sys.net.UdpSocket",
    "sys.net.Socket",
+   "sys.ssl.Certificate",
+   "sys.ssl.Digest",
+   "sys.ssl.Key",
+   "sys.ssl.Socket",
    "Enum",
    "EnumValue",
    //"Sys",
    "Type",
    "Xml",
    "Date",
+   "Lambda",
    "DateTools",
    "List",
    "Math",
@@ -61,6 +89,7 @@ class HostClasses
    "haxe.ds.IntMap",
    "haxe.ds.ObjectMap",
    "haxe.ds.StringMap",
+   "haxe.ds.BalancedTree",
    "haxe.CallStack",
    "haxe.Serializer",
    "haxe.Unserializer",
@@ -68,6 +97,7 @@ class HostClasses
    "haxe.Template",
    "haxe.Utf8",
    "haxe.Log",
+   "haxe.zip.Compress",
    "haxe.zip.Uncompress",
 
    "haxe.crypto.BaseCode",
@@ -163,6 +193,18 @@ class HostClasses
       externs.set("haxe._Int64.___Int64",true);
       externs.set("haxe._Int32.Int32_Impl_",true);
       externs.set("haxe._Int32.___Int32",true);
+      // Hidded in implementation classes
+      externs.set("sys.db.RecordType",true);
+      externs.set("sys.db._Sqlite.SqliteConnection",true);
+      externs.set("sys.db._Sqlite.SqliteResultSet",true);
+      externs.set("sys.db._Mysql.MysqlConnection",true);
+      externs.set("sys.db._Mysql.MysqlResultSet",true);
+      externs.set("sys.net._Socket.SocketInput",true);
+      externs.set("sys.net._Socket.SocketOutput",true);
+      externs.set("sys.ssl._Socket.SocketInput",true);
+      externs.set("sys.ssl._Socket.SocketOutput",true);
+      externs.set("haxe.ds.TreeNode",true);
+      externs.set("haxe.xml.XmlParserException",true);
       for(e in classes)
          externs.set(e,true);
 

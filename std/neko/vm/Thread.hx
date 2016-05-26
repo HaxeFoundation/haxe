@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,7 +33,7 @@ class Thread {
 	}
 
 	/**
-		Send a message to the thread queue. This message can be readed by using [readMessage].
+		Send a message to the thread queue. This message can be readed by using `readMessage`.
 	**/
 	public function sendMessage( msg : Dynamic ) {
 		thread_send(handle,msg);
@@ -48,16 +48,16 @@ class Thread {
 	}
 
 	/**
-		Creates a new thread that will execute the [callb] function, then exit.
+		Creates a new thread that will execute the `callb` function, then exit.
 	**/
 	public static function create( callb : Void -> Void ) {
 		return new Thread(thread_create(function(_) { return callb(); },null));
 	}
 
 	/**
-		Reads a message from the thread queue. If [block] is true, the function
-		blocks until a message is available. If [block] is false, the function
-		returns [null] if no message is available.
+		Reads a message from the thread queue. If `block` is true, the function
+		blocks until a message is available. If `block` is false, the function
+		returns `null` if no message is available.
 	**/
 	public static function readMessage( block : Bool ) : Dynamic {
 		return thread_read_message(block);

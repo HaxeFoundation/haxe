@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,10 @@
  */
 package flash;
 
+/**
+	Platform-specific Flash Library. Provides some platform-specific 
+	functions for the Flash target.
+**/
 class Lib {
 
 	public static var current : flash.display.MovieClip;

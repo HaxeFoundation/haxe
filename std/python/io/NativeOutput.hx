@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,9 +30,11 @@ class NativeOutput<T:IOBase> extends Output {
 
 	var stream:T;
 
-	public var canSeek(get_canSeek, null):Bool;
+	public var canSeek(get,never):Bool;
+	inline function get_canSeek():Bool return stream.seekable();
 
 	public function new (stream:T) {
+		this.bigEndian = false;
 		this.stream = stream;
 		if (!stream.writable()) throw "Read only stream";
 	}
@@ -40,11 +42,6 @@ class NativeOutput<T:IOBase> extends Output {
 	override public function close():Void
 	{
 		stream.close();
-	}
-
-	private function get_canSeek():Bool
-	{
-		return stream.seekable();
 	}
 
 	override public function prepare(nbytes:Int):Void

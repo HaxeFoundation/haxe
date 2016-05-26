@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,6 +48,8 @@ package haxe;
 	public static function getString( name : String ) : String {
 		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
+		if (path == null)
+			return null;
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll().toString();
@@ -58,6 +60,8 @@ package haxe;
 	public static function getBytes( name : String ) : haxe.io.Bytes {
 		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
+		if (path == null)
+			return null;
 		var str = cs.Lib.toNativeType(haxe.Resource).Assembly.GetManifestResourceStream(path);
 		if (str != null)
 			return new cs.io.NativeInput(str).readAll();

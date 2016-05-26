@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -62,7 +62,7 @@ abstract UInt8Array(UInt8ArrayData) {
 		return this;
 	}
 
-	public static function fromData( d : UInt8ArrayData ) : UInt8Array {
+	public static inline function fromData( d : UInt8ArrayData ) : UInt8Array {
 		return cast d;
 	}
 

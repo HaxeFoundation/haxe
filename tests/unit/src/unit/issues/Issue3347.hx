@@ -1,25 +1,25 @@
 package unit.issues;
 
 private abstract IntMap<V>(Dynamic<V>) {
-    public function new() this = {};
-    @:arrayAccess public function get(k:IntKey):V return Reflect.field(this, k);
-    @:arrayAccess public function set(k:IntKey, i:V):Void Reflect.setField(this, k, i);
+	public function new() this = {};
+	@:arrayAccess public function get(k:IntKey):V return Reflect.field(this, k);
+	@:arrayAccess public function set(k:IntKey, i:V):Void Reflect.setField(this, k, i);
 }
 
 private abstract IntMap2<V>(Dynamic<V>) {
-    public function new() this = {};
-    @:arrayAccess public function get<T:IntKey>(k:T):V return Reflect.field(this, cast k);
-    @:arrayAccess public function set<T:IntKey>(k:T, i:V):Void Reflect.setField(this, cast k, i);
+	public function new() this = {};
+	@:arrayAccess public function get<T:IntKey>(k:T):V return Reflect.field(this, cast k);
+	@:arrayAccess public function set<T:IntKey>(k:T, i:V):Void Reflect.setField(this, cast k, i);
 }
 
 abstract IntMap3<V>(Dynamic<V>) {
-    static public var called = false;
+	static public var called = false;
 	public function new() this = {};
-    @:arrayAccess function get(k:IntKey):V return {
+	@:arrayAccess function get(k:IntKey):V return {
 		called = true;
 		Reflect.field(this, k);
 	}
-    @:arrayAccess function getInt(k:Int):V return Reflect.field(this, Std.string(k));
+	@:arrayAccess function getInt(k:Int):V return Reflect.field(this, Std.string(k));
 }
 
 private abstract IntKey(String) to String {
@@ -51,12 +51,12 @@ class Issue3347 extends Test {
 		t(unit.TestType.typeError(m["1"] = 1));
 		t(unit.TestType.typeError(m[1] = "1"));
 
-        var m2 = new IntMap2();
+		var m2 = new IntMap2();
 		// should fail because constraints unify without casts
 		t(unit.TestType.typeError(m2[1]));
 
-        var m3 = new IntMap3();
-        var v = m3[0];
+		var m3 = new IntMap3();
+		var v = m3[0];
 		t(IntMap3.called);
 	}
 }

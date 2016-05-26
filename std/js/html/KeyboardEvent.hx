@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/KeyboardEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla/KeyboardEvent.webidl line 39:0. Do not edit!
 
 package js.html;
 
@@ -31,8 +31,6 @@ extern class KeyboardEvent extends UIEvent
 	static inline var DOM_KEY_LOCATION_LEFT : Int = 1;
 	static inline var DOM_KEY_LOCATION_RIGHT : Int = 2;
 	static inline var DOM_KEY_LOCATION_NUMPAD : Int = 3;
-	static inline var DOM_KEY_LOCATION_MOBILE : Int = 4;
-	static inline var DOM_KEY_LOCATION_JOYSTICK : Int = 5;
 	static inline var DOM_VK_CANCEL : Int = 3;
 	static inline var DOM_VK_HELP : Int = 6;
 	static inline var DOM_VK_BACK_SPACE : Int = 8;
@@ -233,6 +231,5 @@ extern class KeyboardEvent extends UIEvent
 	/** @throws DOMError */
 	function new( typeArg : String, ?keyboardEventInitDict : KeyboardEventInit ) : Void;
 	function getModifierState( key : String ) : Bool;
-	/** @throws DOMError */
 	function initKeyEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, keyCode : Int, charCode : Int ) : Void;
 }

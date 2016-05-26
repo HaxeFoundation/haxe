@@ -1,13 +1,13 @@
 package flash.utils;
 
-@:native("RegExp") extern class RegExp implements Dynamic {
-	var dotall(default,null) : Bool;
-	var extended(default,null) : Bool;
-	var global(default,null) : Bool;
-	var ignoreCase(default,null) : Bool;
+@:realPath("flash.utils.RegExp") @:native("RegExp") extern class RegExp implements Dynamic {
+	var dotall(default,never) : Bool;
+	var extended(default,never) : Bool;
+	var global(default,never) : Bool;
+	var ignoreCase(default,never) : Bool;
 	var lastIndex : Int;
-	var multiline(default,null) : Bool;
-	var source(default,null) : String;
+	var multiline(default,never) : Bool;
+	var source(default,never) : String;
 	function new(?pattern : Dynamic, ?options : Dynamic) : Void;
 	@:ns("http://adobe.com/AS3/2006/builtin") function exec(?s : String) : Dynamic;
 	@:ns("http://adobe.com/AS3/2006/builtin") function test(?s : String) : Bool;

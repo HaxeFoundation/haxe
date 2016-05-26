@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,8 +29,10 @@ import python.internal.UBuiltins.list;
 
 	Example:
 
-		function f(args:VarArgs<Int>) {}
-		f([1, 2, 3]);
+	```haxe
+	function f(args:VarArgs<Int>) {}
+	f([1, 2, 3]);
+	```
 **/
 @:analyzer(no_simplification)
 abstract VarArgs<T>(Dynamic) {

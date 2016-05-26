@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,12 +22,32 @@
 package haxe.macro;
 
 /**
-	This class can be added via 'using haxe.macro.Tools' in order to enable
-	'using' functionality on all macro tool classes listed below.
+	This class can be added via `using haxe.macro.Tools` in order to enable
+	`using` functionality on these macro tool classes:
+
+	- `haxe.macro.ExprTools`
+	- `haxe.macro.ComplexTypeTools`
+	- `haxe.macro.TypeTools`
+	- `haxe.macro.MacroStringTools`
+	- `haxe.macro.TypedExprTools`
+	- `haxe.macro.PositionTools`
+  
+  @see <http://haxe.org/manual/lf-static-extension.html>
 **/
+@:dox(hide)
 typedef TExprTools = ExprTools;
+
+@:dox(hide)
 typedef TComplexTypeTools = ComplexTypeTools;
+
+@:dox(hide)
 typedef TTypeTools = TypeTools;
+
+@:dox(hide)
 typedef TMacroStringTools = MacroStringTools;
+
+@:dox(hide)
 typedef TTypedExprTools = TypedExprTools;
+
+@:dox(hide)
 typedef TPositionTools = PositionTools;

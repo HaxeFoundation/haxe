@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -47,7 +47,7 @@ private typedef ExprToken = {
 	String, and to have some basic logic.
 
 	A complete documentation of the supported syntax is available at:
-	<a href="http://haxe.org/manual/std-template.html">http://haxe.org/manual/std-template.html</a>
+	<http://haxe.org/manual/std-template.html>
 **/
 class Template {
 
@@ -112,11 +112,14 @@ class Template {
 	}
 
 	function resolve( v : String ) : Dynamic {
-		if( Reflect.hasField(context,v) )
-			return Reflect.field(context,v);
-		for( ctx in stack )
-			if( Reflect.hasField(ctx,v) )
-				return Reflect.field(ctx,v);
+		var value = Reflect.getProperty(context, v);
+		if( value != null || Reflect.hasField(context,v) )
+			return value;
+		for( ctx in stack ) {
+			var v = Reflect.getProperty(ctx,v);
+			if( v != null || Reflect.hasField(ctx,v) )
+				return v;
+		}
 		if( v == "__current__" )
 			return context;
 		return Reflect.field(globals,v);
@@ -312,13 +315,13 @@ class Template {
 			var e1:Dynamic = makeExpr(l);
 			var p = l.pop();
 			if( p == null || p.s )
-				throw p.p;
+				throw p;
 			if( p.p == ")" )
 				return e1;
 			var e2:Dynamic = makeExpr(l);
 			var p2 = l.pop();
 			if( p2 == null || p2.p != ")" )
-				throw p2.p;
+				throw p2;
 			return switch( p.p ) {
 			case "+": function() { return cast e1() + e2(); };
 			case "-": function() { return cast e1() - e2(); };

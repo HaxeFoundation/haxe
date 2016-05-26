@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,6 @@ package sys.io;
 import python.io.IoTools;
 import sys.io.FileInput;
 
-/**
-	API for reading and writing to files.
-
-	See `sys.FileSystem` for the complementary file system API.
-**/
 @:coreApi
 class File {
 

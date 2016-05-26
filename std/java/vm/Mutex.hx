@@ -1,9 +1,30 @@
-package java.vm;
-import java.util.concurrent.Semaphore;
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+ package java.vm;
+import java.util.concurrent.locks.ReentrantLock;
 
 @:native('haxe.java.vm.Mutex') class Mutex
 {
-	@:private var lock:Semaphore;
+	@:private var lock:ReentrantLock;
 
 	/**
 		Creates a mutex, which can be used to acquire a temporary lock to access some resource.
@@ -11,7 +32,7 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function new()
 	{
-		this.lock = new Semaphore(1);
+		this.lock = new ReentrantLock();
 	}
 
 	/**
@@ -19,7 +40,7 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function tryAcquire():Bool
 	{
-		return this.lock.tryAcquire();
+		return this.lock.tryLock();
 	}
 
 	/**
@@ -28,7 +49,7 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function acquire():Void
 	{
-		this.lock.acquire();
+		this.lock.lock();
 	}
 
 	/**
@@ -36,6 +57,6 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function release():Void
 	{
-		this.lock.release();
+		this.lock.unlock();
 	}
 }

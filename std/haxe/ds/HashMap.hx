@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2013 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,27 +21,61 @@
  */
 package haxe.ds;
 
+/**
+	HashMap allows mapping of hashable objects to arbitrary values.
+
+	See `Map` for documentation details.
+
+	@see http://haxe.org/manual/std-Map.html
+**/
 abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
+	/**
+		Creates a new HashMap.
+	**/
 	public inline function new() {
 		this = new HashMapData();
 	}
+
+	/**
+		See `Map.set`
+	**/
 	public inline function set(k:K, v:V) {
 		this.keys.set(k.hashCode(), k);
 		this.values.set(k.hashCode(), v);
 	}
+
+	/**
+		See `Map.get`
+	**/
 	public inline function get(k:K) {
 		return this.values.get(k.hashCode());
 	}
+
+	/**
+		See `Map.exists`
+	**/
 	public inline function exists(k:K) {
 		return this.values.exists(k.hashCode());
 	}
+
+	/**
+		See `Map.remove`
+	**/
 	public inline function remove(k:K) {
 		this.values.remove(k.hashCode());
 		return this.keys.remove(k.hashCode());
 	}
+
+	/**
+		See `Map.keys`
+	**/
 	public inline function keys() {
 		return this.keys.iterator();
 	}
+
+	/**
+		See `Map.iterator`
+	**/
 	public inline function iterator() {
 		return this.values.iterator();
 	}

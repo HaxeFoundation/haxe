@@ -1,25 +1,25 @@
 package flash.events;
 
 extern class AVStatusEvent extends Event {
-	var description(default,null) : String;
-	var notificationType(default,null) : String;
-	var result(default,null) : flash.media.AVResult;
+	var description(default,never) : String;
+	var notificationType(default,never) : String;
+	var result(default,never) : flash.media.AVResult;
 	function new(?type : String, bubbles : Bool = false, cancelable : Bool = false, ?inNotificationType : String, inResult : Int = 0, ?inDescription : String) : Void;
-	static var AV_STATUS : String;
-	static var BACKGROUND_MANIFEST_ERROR : String;
-	static var BACKGROUND_MANIFEST_WARNING : String;
-	static var BUFFER_STATE : String;
-	static var DECODER_TYPE : String;
-	static var DIMENSION_CHANGE : String;
-	static var ERROR : String;
-	static var INSERTION_COMPLETE : String;
-	static var LOAD_COMPLETE : String;
-	static var MANIFEST_UPDATE : String;
-	static var PLAY_STATE : String;
-	static var RENDER_TYPE : String;
-	static var SEEK_COMPLETE : String;
-	static var STEP_COMPLETE : String;
-	static var STREAM_SWITCH : String;
-	static var TRICKPLAY_ENDED : String;
-	static var WARNING : String;
+	static var AV_STATUS(default,never) : String;
+	static var BACKGROUND_MANIFEST_ERROR(default,never) : String;
+	static var BACKGROUND_MANIFEST_WARNING(default,never) : String;
+	static var BUFFER_STATE(default,never) : String;
+	static var DECODER_TYPE(default,never) : String;
+	static var DIMENSION_CHANGE(default,never) : String;
+	static var ERROR(default,never) : String;
+	static var INSERTION_COMPLETE(default,never) : String;
+	static var LOAD_COMPLETE(default,never) : String;
+	static var MANIFEST_UPDATE(default,never) : String;
+	static var PLAY_STATE(default,never) : String;
+	static var RENDER_TYPE(default,never) : String;
+	static var SEEK_COMPLETE(default,never) : String;
+	static var STEP_COMPLETE(default,never) : String;
+	static var STREAM_SWITCH(default,never) : String;
+	static var TRICKPLAY_ENDED(default,never) : String;
+	static var WARNING(default,never) : String;
 }

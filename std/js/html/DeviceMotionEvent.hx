@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DeviceMotionEvent.webidl line 22:0. Do not edit!
+// This file is generated from mozilla/DeviceMotionEvent.webidl line 51:0. Do not edit!
 
 package js.html;
 
@@ -34,6 +34,5 @@ extern class DeviceMotionEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : DeviceMotionEventInit ) : Void;
-	/** @throws DOMError */
 	function initDeviceMotionEvent( type : String, canBubble : Bool, cancelable : Bool, acceleration : DeviceAccelerationInit, accelerationIncludingGravity : DeviceAccelerationInit, rotationRate : DeviceRotationRateInit, interval : Float ) : Void;
 }

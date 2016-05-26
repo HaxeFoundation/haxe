@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -75,18 +75,17 @@ enum ValueType {
 		if (Internal.hasClassName(c)) {
 			return Internal.fieldClassName(c);
 		} else {
-			// it's not a haxe class
+			// it's not a Haxe class
 			if (c == Array) return "Array";
 			if (c == Math) return "Math";
 			if (c == String) return "String";
 
 			try {
-				var s :String = Syntax.field(c, "__name__");
-			} catch (e:Dynamic) {}
+				return Syntax.field(c, "__name__");
+			} catch (e:Dynamic) {
+				return null;
+			}
 		}
-		var res = null;
-
-		return res;
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
@@ -112,32 +111,9 @@ enum ValueType {
 		return if (Internal.hasConstructs(o)) cast o else null;
 	}
 
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
+	public static inline function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
-		var l = args.length;
-		switch( l )
-		{
-			case 0:
-				return Syntax.newInstance(cl);
-			case 1:
-				return Syntax.newInstance(cl,args[0]);
-			case 2:
-				return Syntax.newInstance(cl,args[0],args[1]);
-			case 3:
-				return Syntax.newInstance(cl,args[0],args[1],args[2]);
-			case 4:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3]);
-			case 5:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4]);
-			case 6:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
-			case 7:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
-			case 8:
-				return Syntax.newInstance(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
-			default:
-				throw "Too many arguments";
-		}
+		return Syntax.newInstance(cl, Syntax.varArgs(args));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CloseEvent.webidl line 14:0. Do not edit!
+// This file is generated from mozilla/CloseEvent.webidl line 45:0. Do not edit!
 
 package js.html;
 
@@ -33,6 +33,4 @@ extern class CloseEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : CloseEventInit ) : Void;
-	/** @throws DOMError */
-	function initCloseEvent( aType : String, aCanBubble : Bool, aCancelable : Bool, aWasClean : Bool, aReasonCode : Int, aReason : String ) : Void;
 }

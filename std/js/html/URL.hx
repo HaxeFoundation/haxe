@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/URL.webidl line 19:0. Do not edit!
+// This file is generated from mozilla/URL.webidl line 50:0. Do not edit!
 
 package js.html;
 
@@ -31,6 +31,7 @@ extern class URL
 	@:overload( function( blob : Blob, ?options : ObjectURLOptions ) : String {} )
 	@:overload( function( stream : MediaStream, ?options : ObjectURLOptions ) : String {} )
 	static function createObjectURL( source : MediaSource, ?options : ObjectURLOptions ) : String;
+	/** @throws DOMError */
 	static function revokeObjectURL( url : String ) : Void;
 	var href : String;
 	var origin(default,null) : String;
@@ -42,10 +43,10 @@ extern class URL
 	var port : String;
 	var pathname : String;
 	var search : String;
+	var searchParams(default,null) : URLSearchParams;
 	var hash : String;
-	var searchParams : URLSearchParams;
 	
 	/** @throws DOMError */
 	@:overload( function( url : String, base : URL ) : Void {} )
-	function new( url : String, ?base : String = "about:blank" ) : Void;
+	function new( url : String, ?base : String ) : Void;
 }

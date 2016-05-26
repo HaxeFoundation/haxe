@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLScriptElement.webidl line 11:0. Do not edit!
+// This file is generated from mozilla/HTMLScriptElement.webidl line 42:0. Do not edit!
 
 package js.html;
 
@@ -36,5 +36,6 @@ extern class ScriptElement extends Element
 	var text : String;
 	var event : String;
 	var htmlFor : String;
+	var integrity : String;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,45 +20,45 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCPeerConnection.webidl line 80:0. Do not edit!
+// This file is generated from mozilla/RTCPeerConnection.webidl line 107:0. Do not edit!
 
 package js.html.rtc;
 
 @:native("RTCPeerConnection")
 extern class PeerConnection extends js.html.EventTarget
 {
+	/** @throws DOMError */
+	static function generateCertificate( keygenAlgorithm : haxe.extern.EitherType<Dynamic,String> ) : Promise<Certificate>;
 	var localDescription(default,null) : SessionDescription;
 	var remoteDescription(default,null) : SessionDescription;
 	var signalingState(default,null) : SignalingState;
+	var canTrickleIceCandidates(default,null) : Bool;
 	var iceGatheringState(default,null) : IceGatheringState;
 	var iceConnectionState(default,null) : IceConnectionState;
-	var peerIdentity(default,null) : IdentityAssertion;
+	var peerIdentity(default,null) : Promise<IdentityAssertion>;
+	var idpLoginUrl(default,null) : String;
 	var onnegotiationneeded : haxe.Constraints.Function;
 	var onicecandidate : haxe.Constraints.Function;
 	var onsignalingstatechange : haxe.Constraints.Function;
 	var onaddstream : haxe.Constraints.Function;
 	var onaddtrack : haxe.Constraints.Function;
+	var ontrack : haxe.Constraints.Function;
 	var onremovestream : haxe.Constraints.Function;
 	var oniceconnectionstatechange : haxe.Constraints.Function;
 	var ondatachannel : haxe.Constraints.Function;
-	var onidentityresult : haxe.Constraints.Function;
-	var onpeeridentity : haxe.Constraints.Function;
-	var onidpassertionerror : haxe.Constraints.Function;
-	var onidpvalidationerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function new( ?configuration : Configuration, ?constraints : Dynamic ) : Void;
 	function setIdentityProvider( provider : String, ?protocol : String, ?username : String ) : Void;
-	function getIdentityAssertion() : Void;
+	function getIdentityAssertion() : Promise<String>;
 	@:overload( function( ?options : OfferOptions ) : Promise<SessionDescription> {} )
 	function createOffer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void, ?options : OfferOptions ) : Promise<Void>;
-	@:overload( function() : Promise<SessionDescription> {} )
+	@:overload( function( ?options : AnswerOptions ) : Promise<SessionDescription> {} )
 	function createAnswer( successCallback : SessionDescription -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
 	@:overload( function( description : SessionDescription ) : Promise<Void> {} )
 	function setLocalDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
 	@:overload( function( description : SessionDescription ) : Promise<Void> {} )
 	function setRemoteDescription( description : SessionDescription, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
-	function updateIce( ?configuration : Configuration ) : Void;
 	@:overload( function( candidate : IceCandidate ) : Promise<Void> {} )
 	function addIceCandidate( candidate : IceCandidate, successCallback : Void -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
 	function getConfiguration() : Configuration;
@@ -72,7 +72,7 @@ extern class PeerConnection extends js.html.EventTarget
 	function getSenders() : Array<RtpSender>;
 	function getReceivers() : Array<RtpReceiver>;
 	function close() : Void;
-	@:overload( function( selector : js.html.MediaStreamTrack ) : Promise<StatsReport> {} )
+	@:overload( function( ?selector : js.html.MediaStreamTrack ) : Promise<StatsReport> {} )
 	function getStats( selector : js.html.MediaStreamTrack, successCallback : StatsReport -> Void, failureCallback : js.html.DOMError -> Void ) : Promise<Void>;
 	function createDataChannel( label : String, ?dataChannelDict : DataChannelInit ) : Dynamic/*MISSING RTCDataChannel*/;
 }

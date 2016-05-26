@@ -139,9 +139,7 @@ Math.log(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
 // exp + log
 var floats = [1.33, 12.0, -112.999992, 0.0, Math.NEGATIVE_INFINITY, Math.POSITIVE_INFINITY];
 for (f in floats) {
-	#if !php
 	feq(Math.log(Math.exp(f)), f);
-	#end
 }
 
 // sqrt
@@ -434,6 +432,3 @@ math.isNaN(math.POSITIVE_INFINITY) == false;
 math.isNaN(math.NEGATIVE_INFINITY) == false;
 math.isNaN(math.NaN) == true;
 math.isNaN(0.0) == false;
-
-
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2014 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,8 @@ import haxe.rtti.CType;
 
 /**
 	Rtti is a helper class which supplements the `@:rtti` metadata.
+	
+	@see <http://haxe.org/manual/cr-rtti.html>
 **/
 class Rtti {
 

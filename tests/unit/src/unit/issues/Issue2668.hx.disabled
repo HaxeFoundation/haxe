@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue2688 extends Test {
-    function test() {
+	function test() {
 			var called = false;
 			function isCalled() {
 				called = true;
@@ -9,7 +9,7 @@ class Issue2688 extends Test {
 			var child = new Child(test);
 			child.task([1,2,3,4]);
 			t(called);
-    }
+	}
 }
 
 @:nativeGen private class NativeGen

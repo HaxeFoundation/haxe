@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ package haxe;
 	interface for an actual Int. Each flag can be tested/set with the
 	corresponding enum instance. Up to 32 flags can be stored that way.
 
-	Enum constructor indices are preserved from haxe syntax, so the first
+	Enum constructor indices are preserved from Haxe syntax, so the first
 	declared is index 0, the next index 1 etc. The methods are optimized if the
 	enum instance is passed directly, e.g. as has(EnumCtor). Otherwise
 	Type.enumIndex() reflection is used.

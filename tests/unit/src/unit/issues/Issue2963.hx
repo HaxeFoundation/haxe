@@ -17,6 +17,6 @@ class Issue2963 extends Test {
 }
 
 private abstract A<T>(Dynamic<Null<T>>) from Dynamic<Null<T>> {
-    public inline function new() this = {}
-    public inline function get(k:String):Null<T> return Reflect.field(this, k);
+	public inline function new() this = {}
+	public inline function get(k:String):Null<T> return Reflect.field(this, k);
 }

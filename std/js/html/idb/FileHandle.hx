@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBFileHandle.webidl line 11:0. Do not edit!
+// This file is generated from mozilla/IDBFileHandle.webidl line 41:0. Do not edit!
 
 package js.html.idb;
 
@@ -43,13 +43,9 @@ extern class FileHandle extends js.html.EventTarget
 	/** @throws DOMError */
 	function readAsText( size : Int, ?encoding : String ) : FileRequest;
 	/** @throws DOMError */
-	@:overload( function( value : js.html.ArrayBuffer ) : FileRequest {} )
-	@:overload( function( value : js.html.Blob ) : FileRequest {} )
-	function write( value : String ) : FileRequest;
+	function write( value : haxe.extern.EitherType<String,haxe.extern.EitherType<js.html.ArrayBuffer,haxe.extern.EitherType<js.html.ArrayBufferView,js.html.Blob>>> ) : FileRequest;
 	/** @throws DOMError */
-	@:overload( function( value : js.html.ArrayBuffer ) : FileRequest {} )
-	@:overload( function( value : js.html.Blob ) : FileRequest {} )
-	function append( value : String ) : FileRequest;
+	function append( value : haxe.extern.EitherType<String,haxe.extern.EitherType<js.html.ArrayBuffer,haxe.extern.EitherType<js.html.ArrayBufferView,js.html.Blob>>> ) : FileRequest;
 	/** @throws DOMError */
 	function truncate( ?size : Int ) : FileRequest;
 	/** @throws DOMError */

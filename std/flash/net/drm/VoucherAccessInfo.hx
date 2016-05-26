@@ -1,10 +1,10 @@
 package flash.net.drm;
 
 @:final extern class VoucherAccessInfo {
-	var authenticationMethod(default,null) : String;
-	var deviceGroup(default,null) : DRMDeviceGroup;
-	var displayName(default,null) : String;
-	var domain(default,null) : String;
-	var policyID(default,null) : String;
+	var authenticationMethod(default,never) : String;
+	var deviceGroup(default,never) : DRMDeviceGroup;
+	var displayName(default,never) : String;
+	var domain(default,never) : String;
+	var policyID(default,never) : String;
 	function new() : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,8 @@
  */
 package sys.io;
 
+import cpp.NativeProcess;
+
 private class Stdin extends haxe.io.Output {
 
 	var p : Dynamic;
@@ -33,7 +35,7 @@ private class Stdin extends haxe.io.Output {
 
 	public override function close() {
 		super.close();
-		_stdin_close(p);
+		NativeProcess.process_stdin_close(p);
 	}
 
 	public override function writeByte(c) {
@@ -43,15 +45,12 @@ private class Stdin extends haxe.io.Output {
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		try {
-			return _stdin_write(p,buf.getData(),pos,len);
+			return NativeProcess.process_stdin_write(p,buf.getData(),pos,len);
 		} catch( e : Dynamic ) {
 			throw new haxe.io.Eof();
 		}
 		return 0;
 	}
-
-	static var _stdin_write = cpp.Lib.load("std","process_stdin_write",4);
-	static var _stdin_close = cpp.Lib.load("std","process_stdin_close",1);
 
 }
 
@@ -76,17 +75,14 @@ private class Stdout extends haxe.io.Input {
 	public override function readBytes( str : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		var result:Int;
 		try {
-			result = (out?_stdout_read:_stderr_read)(p,str.getData(),pos,len);
+			result = out? NativeProcess.process_stdout_read(p,str.getData(),pos,len) :
+                       NativeProcess.process_stderr_read(p,str.getData(),pos,len);
 		} catch( e : Dynamic ) {
 			throw new haxe.io.Eof();
 		}
 		if (result==0)throw new haxe.io.Eof();
 		return result;
 	}
-
-	static var _stdout_read = cpp.Lib.load("std","process_stdout_read",4);
-	static var _stderr_read = cpp.Lib.load("std","process_stderr_read",4);
-
 }
 
 @:coreApi
@@ -97,32 +93,27 @@ class Process {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, args : Array<String> ) : Void {
-		p = try _run(cmd,args) catch( e : Dynamic ) throw "Process creation failure : "+cmd;
+	public function new( cmd : String, ?args : Array<String> ) : Void {
+		p = try NativeProcess.process_run(cmd,args) catch( e : Dynamic ) throw "Process creation failure : "+cmd;
 		stdin = new Stdin(p);
 		stdout = new Stdout(p,true);
 		stderr = new Stdout(p,false);
 	}
 
 	public function getPid() : Int {
-		return _pid(p);
+		return NativeProcess.process_pid(p);
 	}
 
 	public function exitCode() : Int {
-		return _exit(p);
+		return NativeProcess.process_exit(p);
 	}
 
 	public function close() : Void {
-		_close(p);
+		NativeProcess.process_close(p);
 	}
 
 	public function kill() : Void {
 		throw "Not implemented";
 	}
-
-	static var _run = cpp.Lib.load("std","process_run",2);
-	static var _exit = cpp.Lib.load("std","process_exit",1);
-	static var _pid = cpp.Lib.load("std","process_pid",1);
-	static var _close = cpp.Lib.loadLazy("std","process_close",1);
 
 }

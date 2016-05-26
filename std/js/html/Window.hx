@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Window.webidl line 28:11. Do not edit!
+// This file is generated from mozilla/Window.webidl line 57:11. Do not edit!
 
 package js.html;
 
@@ -48,22 +48,20 @@ extern class Window extends EventTarget
 	var parent(default,null) : Window;
 	var frameElement(default,null) : Element;
 	var navigator(default,null) : Navigator;
-	var applicationCache(default,null) : ApplicationCache;
 	var orientation(default,null) : Int;
 	var onorientationchange : haxe.Constraints.Function;
 	var screen(default,null) : Screen;
-	var innerWidth : Int;
-	var innerHeight : Int;
+	var innerWidth : Dynamic;
+	var innerHeight : Dynamic;
 	var scrollX(default,null) : Int;
 	var pageXOffset(default,null) : Int;
 	var scrollY(default,null) : Int;
 	var pageYOffset(default,null) : Int;
-	var screenX : Int;
-	var screenY : Int;
-	var outerWidth : Int;
-	var outerHeight : Int;
+	var screenX : Dynamic;
+	var screenY : Dynamic;
+	var outerWidth : Dynamic;
+	var outerHeight : Dynamic;
 	var performance(default,null) : Performance;
-	var crypto(default,null) : Dynamic/*MISSING nsIDOMCrypto*/;
 	var devicePixelRatio(default,null) : Float;
 	var scrollMaxX(default,null) : Int;
 	var scrollMaxY(default,null) : Int;
@@ -71,11 +69,13 @@ extern class Window extends EventTarget
 	var onwheel : haxe.Constraints.Function;
 	var ondevicemotion : haxe.Constraints.Function;
 	var ondeviceorientation : haxe.Constraints.Function;
+	var onabsolutedeviceorientation : haxe.Constraints.Function;
 	var ondeviceproximity : haxe.Constraints.Function;
 	var onuserproximity : haxe.Constraints.Function;
 	var ondevicelight : haxe.Constraints.Function;
 	var content(default,null) : Dynamic;
 	var console(default,null) : Console;
+	var crypto(default,null) : Crypto;
 	var onabort : haxe.Constraints.Function;
 	var onblur : haxe.Constraints.Function;
 	var onfocus : haxe.Constraints.Function;
@@ -117,6 +117,7 @@ extern class Window extends EventTarget
 	var onprogress : haxe.Constraints.Function;
 	var onratechange : haxe.Constraints.Function;
 	var onreset : haxe.Constraints.Function;
+	var onresize : haxe.Constraints.Function;
 	var onscroll : haxe.Constraints.Function;
 	var onseeked : haxe.Constraints.Function;
 	var onseeking : haxe.Constraints.Function;
@@ -138,6 +139,8 @@ extern class Window extends EventTarget
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
+	var onfullscreenchange : haxe.Constraints.Function;
+	var onfullscreenerror : haxe.Constraints.Function;
 	var onpointerlockchange : haxe.Constraints.Function;
 	var onpointerlockerror : haxe.Constraints.Function;
 	var indexedDB(default,null) : js.html.idb.Factory;
@@ -158,7 +161,7 @@ extern class Window extends EventTarget
 	var onpagehide : haxe.Constraints.Function;
 	var onpageshow : haxe.Constraints.Function;
 	var onpopstate : haxe.Constraints.Function;
-	var onresize : haxe.Constraints.Function;
+	var onstorage : haxe.Constraints.Function;
 	var onunload : haxe.Constraints.Function;
 	var localStorage(default,null) : Storage;
 	var sessionStorage(default,null) : Storage;
@@ -222,17 +225,20 @@ extern class Window extends EventTarget
 	function dump( str : String ) : Void;
 	function setResizable( resizable : Bool ) : Void;
 	/** @throws DOMError */
+	function fetch( input : haxe.extern.EitherType<Request,String>, ?init : RequestInit ) : Promise<Response>;
+	/** @throws DOMError */
+	@:overload( function( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,ImageBitmap>>>>>> ) : Promise<ImageBitmap> {} )
+	function createImageBitmap( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,ImageBitmap>>>>>>, aSx : Int, aSy : Int, aSw : Int, aSh : Int ) : Promise<ImageBitmap>;
+	/** @throws DOMError */
 	function btoa( btoa : String ) : String;
 	/** @throws DOMError */
 	function atob( atob : String ) : String;
 	/** @throws DOMError */
 	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
 	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
-	/** @throws DOMError */
 	function clearTimeout( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
 	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
 	function setInterval( handler : String, ?timeout : Int, unused : haxe.extern.Rest<Dynamic> ) : Int;
-	/** @throws DOMError */
 	function clearInterval( ?handle : Int = 0 ) : Void;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -47,6 +47,10 @@ package haxe.ds;
 		return true;
 	}
 
+	#if as3
+
+	// unoptimized version
+	
 	public function keys() : Iterator<Int> {
 		return untyped (__keys__(h)).iterator();
 	}
@@ -60,6 +64,18 @@ package haxe.ds;
 		};
 	}
 
+	#else
+
+	public inline function keys() : Iterator<Int> {
+		return new IntMapKeysIterator(h);
+	}
+
+	public inline function iterator() : Iterator<T> {
+		return new IntMapValuesIterator<T>(h);
+	}
+
+	#end
+	
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");
@@ -74,5 +90,63 @@ package haxe.ds;
 		s.add("}");
 		return s.toString();
 	}
+}
+
+#if !as3
+
+// this version uses __has_next__/__forin__ special SWF opcodes for iteration with no allocation
+
+@:allow(haxe.ds.IntMap)
+private class IntMapKeysIterator {
+	var h:flash.utils.Dictionary;
+	var index : Int;
+	var nextIndex : Int;
+
+	inline function new(h:flash.utils.Dictionary):Void {
+		this.h = h;
+		this.index = 0;
+		hasNext();
+	}
+
+	public inline function hasNext():Bool {
+		var h = h, index = index; // tmp vars required for __has_next
+		var n = untyped __has_next__(h, index);
+		this.nextIndex = index; // store next index
+		return n;
+	}
+
+	public inline function next():Int {
+		var r : Int = untyped __forin__(h, nextIndex);
+		index = nextIndex;
+		return r;
+	}
 
 }
+
+@:allow(haxe.ds.IntMap)
+private class IntMapValuesIterator<T> {
+	var h:flash.utils.Dictionary;
+	var index : Int;
+	var nextIndex : Int;
+
+	inline function new(h:flash.utils.Dictionary):Void {
+		this.h = h;
+		this.index = 0;
+		hasNext();
+	}
+
+	public inline function hasNext():Bool {
+		var h = h, index = index; // tmp vars required for __has_next
+		var n = untyped __has_next__(h, index);
+		this.nextIndex = index; // store next index
+		return n;
+	}
+
+	public inline function next():T {
+		var r = untyped __foreach__(h, nextIndex);
+		index = nextIndex;
+		return r;
+	}
+
+}
+#end

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 920:0. Do not edit!
+// This file is generated from mozilla/WebGLRenderingContext.webidl line 867:0. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionShaderTextureLod")
+@:native("EXT_shader_texture_lod")
 extern class ExtensionShaderTextureLod
 {
 }
