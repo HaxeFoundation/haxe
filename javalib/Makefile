@@ -1,6 +1,6 @@
 OCAMLOPT=ocamlopt
 OCAMLC=ocamlc
-SRC=jData.ml jReader.ml
+SRC=jData.ml jReader.ml jWriter.ml
 
 all: bytecode native
 
