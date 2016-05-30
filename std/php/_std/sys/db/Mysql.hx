@@ -43,7 +43,7 @@ import sys.db.Connection;
 				dsn+='port='+params.port+";";
 		}
 		dsn+="dbname="+params.database;
-		return php.PDOConnection.PDO.open(dsn,params.user,params.pass);
+		return php.PDO.open(dsn,params.user,params.pass);
 	}
 
 }
