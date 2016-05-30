@@ -56,7 +56,8 @@ class Boot {
 		if (m == null) return null;
 		// if (m.__id.__ == nil) m.__id__ = _fid + 1;
 		var f: Function = null;
-		if ( o.hx__closures__ == null ) o.hx__closures__ = {};
+		if ( o.hx__closures__ == null )
+			Lua.rawset(o,"hx__closures__", {});
 		else untyped f = o.hx__closures__[m];
 		if (f == null){
 			f = untyped __lua__("function(...) return m(o, ...) end");
@@ -253,7 +254,7 @@ class Boot {
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
 		if (length == null) length = Table.maxn(tab) + 1; // maxn doesn't count 0 index
-		return untyped _hx_tabArray(tab, length);
+		return untyped _hx_tab_array(tab, length);
 	}
 
 	/*

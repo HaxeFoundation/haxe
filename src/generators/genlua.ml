@@ -379,7 +379,7 @@ let rec gen_call ctx e el in_value =
 			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
 		(* TODO: Array declaration helper *)
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
 		concat ctx "," (fun (name,data) ->
 			if (!count == 0) then spr ctx "[0]=";
@@ -541,7 +541,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    gen_call ctx e el false;
 		end;
 	| TArrayDecl el ->
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
 		List.iteri (fun i e ->
 		    incr count;
@@ -1527,8 +1527,8 @@ let generate_enum ctx e =
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
 	    end;
-	    (* TODO :  Come up with a helper function for _hx_tabArray declarations *)
-	    spr ctx " __constructs__ = _hx_tabArray({";
+	    (* TODO :  Come up with a helper function for _hx_tab_array declarations *)
+	    spr ctx " __constructs__ = _hx_tab_array({";
 	    if ((List.length e.e_names) > 0) then begin
 		    spr ctx "[0]=";
 		    spr ctx (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1549,18 +1549,17 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) local _x = _hx_tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
+			print ctx "function(%s) local _x = _hx_tab_array({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			println ctx "_hx_tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
+			println ctx "_hx_tab_array({[0]=\"%s\",%d,__enum__ = %s},2)" f.ef_name f.ef_index p;
 			if has_feature ctx "may_print_enum" then begin
 				println ctx "%s%s.toString = _estr" p (field f.ef_name);
 			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
 		newline ctx
 	) e.e_names;
@@ -1572,7 +1571,7 @@ let generate_enum ctx e =
 				| _ -> true
 		) e.e_names in
 		print ctx "%s.__empty_constructs__ = " p;
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		if (List.length ctors_without_args)  > 0 then
 		    begin
 			spr ctx "[0] = ";
