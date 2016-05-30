@@ -22,9 +22,9 @@
 package php;
 
 import php.NativeArray;
+import sys.db.Connection;
 
-import sys.Connection;
-import sys.ResultSet;
+import sys.db.ResultSet;
 
 import php.Lib;
 
