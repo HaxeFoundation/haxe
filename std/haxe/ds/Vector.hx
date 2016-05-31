@@ -33,6 +33,8 @@ private typedef VectorData<T> = #if flash10
 	cs.NativeArray<T>
 #elseif java
 	java.NativeArray<T>
+#elseif lua
+    lua.Table<Int,T>
 #else
 	Array<T>
 #end
@@ -71,6 +73,9 @@ abstract Vector<T>(VectorData<T>) {
 			this.setSize(length);
 		#elseif python
 			this = python.Syntax.pythonCode("[{0}]*{1}", null, length);
+		#elseif lua
+			this = lua.Boot.createTable();
+			untyped this.length = length;
 		#else
 			this = [];
 			untyped this.length = length;
@@ -301,6 +306,8 @@ abstract Vector<T>(VectorData<T>) {
 	public inline function sort<T>(f:T->T->Int):Void {
 		#if (neko || cs || java)
 		throw "not yet supported";
+		#elseif lua
+		haxe.ds.ArraySort.sort(cast this, f);
 		#else
 		this.sort(f);
 		#end
