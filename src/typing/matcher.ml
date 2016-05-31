@@ -1059,7 +1059,6 @@ module Compile = struct
 				(e :: subjects,vars)
 			| _ ->
 				let v = gen_local ctx e.etype e.epos in
-				v.v_meta <- (Meta.SwitchVariable,[],e.epos) :: v.v_meta;
 				let ev = mk (TLocal v) e.etype e.epos in
 				(ev :: subjects,(v,e.epos,e) :: vars)
 		) ([],[]) subjects in

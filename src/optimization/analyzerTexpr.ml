@@ -366,15 +366,10 @@ module Fusion = struct
 		in
 		loop e;
 		let can_be_fused v e =
-			let check_switch_variable v = match com.platform with
-				| Python | Lua when Meta.has Meta.SwitchVariable v.v_meta -> false
-				| _ -> true
-			in
 			let b = get_num_uses v <= 1 &&
 			        get_num_writes v = 0 &&
 			        can_be_used_as_value com e &&
-			        (Meta.has Meta.CompilerGenerated v.v_meta || config.AnalyzerConfig.optimize && config.AnalyzerConfig.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None) &&
-			        check_switch_variable v
+			        (Meta.has Meta.CompilerGenerated v.v_meta || config.AnalyzerConfig.optimize && config.AnalyzerConfig.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
 			in
 			(* let st = s_type (print_context()) in *)
 			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
@@ -453,7 +448,10 @@ module Fusion = struct
 							let e1 = replace e1 in
 							{e with eexpr = TIf(e1,e2,eo)}
 						| TSwitch(e1,cases,edef) ->
-							let e1 = replace e1 in
+							let e1 = match com.platform with
+								| Lua | Python -> e1
+								| _ -> replace e1
+							in
 							{e with eexpr = TSwitch(e1,cases,edef)}
 						| TLocal v2 when v1 == v2 && not !affected ->
 							found := true;
