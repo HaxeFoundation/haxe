@@ -118,7 +118,7 @@ class Template {
 		for( ctx in stack ) {
 			value = Reflect.getProperty(ctx,v);
 			if( value != null || Reflect.hasField(ctx,v) )
-				return v;
+				return value;
 		}
 		if( v == "__current__" )
 			return context;
