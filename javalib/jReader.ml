@@ -82,11 +82,11 @@ let parse_constant max idx ch =
     (* TODO: correctly decode modified UTF8 *)
     KUtf8String str
   | 15 ->
-  	let reft = get_reference_type (IO.read_byte ch) idx in
-  	let dynref = index() in
-  	KMethodHandle (reft, dynref)
+    let reft = get_reference_type (IO.read_byte ch) idx in
+    let dynref = index() in
+    KMethodHandle (reft, dynref)
   | 16 ->
-  	KMethodType (index())
+    KMethodType (index())
   | 18 ->
     let bootstrapref = read_ui16 ch in (* not index *)
     let nametyperef = index() in
@@ -368,8 +368,14 @@ let get_string consts ch =
 let rec parse_element_value consts ch =
   let tag = IO.read_byte ch in
   match Char.chr tag with
-  | 'B' | 'C' | 'D' | 'E' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' ->
-    ValConst (get_constant consts (read_ui16 ch))
+  | 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' ->
+    let jsig = match (Char.chr tag) with
+      | 's' ->
+        TObject( (["java";"lang"],"String"), [] )
+      | tag ->
+        fst (parse_signature_part (Char.escaped tag))
+    in
+    ValConst(jsig, get_constant consts (read_ui16 ch))
   | 'e' ->
     let path = parse_signature (get_string consts ch) in
     let name = get_string consts ch in
@@ -500,23 +506,23 @@ let parse_class ch =
   let constant_count = read_ui16 ch in
   let const_big = ref true in
   let consts = Array.init constant_count (fun idx ->
-  	if !const_big then begin
-  	  const_big := false;
-  	  KUnusable
-  	end else
-  	  let c = parse_constant constant_count idx ch in
-  	  (match c with KLong _ | KDouble _ -> const_big := true | _ -> ());
-  	  c
+    if !const_big then begin
+      const_big := false;
+      KUnusable
+    end else
+      let c = parse_constant constant_count idx ch in
+      (match c with KLong _ | KDouble _ -> const_big := true | _ -> ());
+      c
   ) in
   let consts = Array.mapi (fun i _ -> expand_constant consts i) consts in
   let flags = parse_access_flags ch [JPublic; JUnusable; JUnusable; JUnusable; JFinal; JSuper; JUnusable; JUnusable; JUnusable; JInterface; JAbstract; JUnusable; JSynthetic; JAnnotation; JEnum] in
   let this = get_class consts ch in
   let super_idx = read_ui16 ch in
   let super = match super_idx with
-  	| 0 -> TObject((["java";"lang"], "Object"), []);
-  	| idx -> match get_constant consts idx with
-  	  | ConstClass path -> TObject(path,[])
-  	  | _ -> error "Invalid super index"
+    | 0 -> TObject((["java";"lang"], "Object"), []);
+    | idx -> match get_constant consts idx with
+      | ConstClass path -> TObject(path,[])
+      | _ -> error "Invalid super index"
   in
   let interfaces = List.init (read_ui16 ch) (fun _ -> TObject (get_class consts ch, [])) in
   let fields = List.init (read_ui16 ch) (fun _ -> parse_field JKField consts ch) in
@@ -575,7 +581,7 @@ let parse_class ch =
       None
     | _ -> do_default()
   ) consts ch attribs in
-	IO.close_in ch;
+  IO.close_in ch;
   {
     cversion = majorv, minorv;
     cpath = this;

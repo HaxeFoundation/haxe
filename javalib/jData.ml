@@ -129,7 +129,7 @@ type jannotation = {
 }
 
 and jannotation_value =
-  | ValConst of jconstant (* B, C, D, E, F, I, J, S, Z, s *)
+  | ValConst of jsignature * jconstant (* B, C, D, E, F, I, J, S, Z, s *)
   | ValEnum of jsignature * string (* e *)
   | ValClass of jsignature (* c *) (* V -> Void *)
   | ValAnnotation of jannotation (* @ *)

@@ -56,9 +56,9 @@ let rec encode_param ctx ch param =
     | WExtends -> write_byte ch (Char.code '+')
     | WSuper -> write_byte ch (Char.code '-')
     | WNone -> ());
-    encode_sig_worker ctx ch s
+    encode_sig_part ctx ch s
 
-and encode_sig_worker ctx ch jsig = match jsig with
+and encode_sig_part ctx ch jsig = match jsig with
   | TByte -> write_byte ch (Char.code 'B')
   | TChar -> write_byte ch (Char.code 'C')
   | TDouble -> write_byte ch (Char.code 'D')
@@ -100,13 +100,13 @@ and encode_sig_worker ctx ch jsig = match jsig with
     | Some size ->
       write_string ch (string_of_int size);
     | None -> ());
-    encode_sig_worker ctx ch s
+    encode_sig_part ctx ch s
   | TMethod(args, ret) ->
     write_byte ch (Char.code '(');
-    List.iter (encode_sig_worker ctx ch) args;
+    List.iter (encode_sig_part ctx ch) args;
     (match ret with
       | None -> write_byte ch (Char.code 'V')
-      | Some jsig -> encode_sig_worker ctx ch jsig)
+      | Some jsig -> encode_sig_part ctx ch jsig)
   | TTypeParameter name ->
     write_byte ch (Char.code 'T');
     write_string ch name;
@@ -114,7 +114,7 @@ and encode_sig_worker ctx ch jsig = match jsig with
 
 let encode_sig ctx jsig =
   let buf = IO.output_string() in
-  encode_sig_worker ctx buf jsig;
+  encode_sig_part ctx buf jsig;
   close_out buf
 
 let write_utf8 ch s =
@@ -205,6 +205,10 @@ let rec const ctx c =
     ctx.ccount <- ret + 1;
     ret
 
+let write_const ctx ch cconst =
+  write_ui16 ch (const ctx cconst)
+;;
+
 let write_formal_type_params ctx ch tparams =
   write_byte ch (Char.code '<');
   List.iter (fun (name,ext,impl) ->
@@ -241,6 +245,45 @@ let write_access_flags ctx ch all_flags flags =
   write_ui16 ch value
 ;;
 
-let write_element_value ctx ch value =
-  ()
+let rec write_ann_element ctx ch (name,eval) =
+  write_const ctx ch (ConstUtf8 name);
+  write_element_value ctx ch eval
+
+and write_annotation ctx ch ann =
+  write_const ctx ch (ConstUtf8 (encode_sig ctx ann.ann_type));
+  write_ui16 ch (List.length ann.ann_elements);
+  List.iter (write_ann_element ctx ch) ann.ann_elements
+
+and write_element_value ctx ch value = match value with
+  | ValConst(jsig, cconst) -> (match jsig with
+    | TObject((["java";"lang"],"String"), []) ->
+      write_byte ch (Char.code 's')
+    | TByte | TChar | TDouble | TFloat | TInt | TLong | TShort | TBool ->
+      write_string ch (encode_sig ctx jsig)
+    | _ ->
+      let s = encode_sig ctx jsig in
+      error ("Invalid signature " ^ s ^ " for constant value"));
+    write_ui16 ch (const ctx cconst)
+  | ValEnum(jsig,name) ->
+    write_byte ch (Char.code 'e');
+    write_const ctx ch (ConstUtf8 (encode_sig ctx jsig));
+    write_const ctx ch (ConstUtf8 name)
+  | ValClass(jsig) ->
+    write_byte ch (Char.code 'c');
+    let esig = match jsig with
+      | TObject(([],"Void"),[])
+      | TObject((["java";"lang"],"Void"),[]) ->
+        "V"
+      | _ ->
+        encode_sig ctx jsig
+    in
+    write_const ctx ch (ConstUtf8 (esig))
+  | ValAnnotation ann ->
+    write_byte ch (Char.code '@');
+    write_annotation ctx ch ann
+  | ValArray(lvals) ->
+    write_byte ch (Char.code '[');
+    write_ui16 ch (List.length lvals);
+    List.iter (write_element_value ctx ch) lvals
 ;;
+
