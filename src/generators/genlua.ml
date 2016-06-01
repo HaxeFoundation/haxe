@@ -358,9 +358,24 @@ let rec gen_call ctx e el in_value =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal { v_name = "__lua_table__" }, el ->
-		spr ctx "{";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx "}";
+		let count = ref 0 in
+		spr ctx "({";
+		List.iter (fun e ->
+		    (match e with
+		    | { eexpr = TArrayDecl arr } ->
+			    if (!count > 0 && List.length(arr) > 0) then spr ctx ",";
+			    concat ctx "," (gen_value ctx) arr;
+			    if List.length(arr) > 0 then incr count;
+		    | { eexpr = TObjectDecl fields } ->
+			    if (!count > 0 && List.length(fields) > 0) then spr ctx ",";
+			    concat ctx ", " (fun (f,e) ->
+				print ctx "%s = " (anon_field f);
+				gen_value ctx e
+			    ) fields;
+			    if List.length(fields) > 0 then incr count;
+		    | _ ->()
+		)) el;
+		spr ctx "})";
 	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->

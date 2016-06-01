@@ -337,8 +337,8 @@ class Boot {
 	/*
 	   Create an empty table.
 	*/
-	public inline static function createTable<K,V>() : Table<K,V> {
-		return untyped __lua__("{}");
+	public inline static function createTable<K,V>(?arr:Array<V>, ?hsh:Dynamic<V>) : Table<K,V> {
+		return untyped __lua_table__(arr,hsh);
 	}
 
 	/*
