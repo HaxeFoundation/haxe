@@ -373,7 +373,8 @@ let rec gen_call ctx e el in_value =
 				gen_value ctx e
 			    ) fields;
 			    if List.length(fields) > 0 then incr count;
-		    | _ ->()
+		    | _ ->
+			    error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
 		)) el;
 		spr ctx "})";
 	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
