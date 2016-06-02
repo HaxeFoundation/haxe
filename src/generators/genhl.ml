@@ -5224,10 +5224,6 @@ let interp code =
 				(function
 				| [VInt max] -> VInt (if max <= 0l then 0l else Random.int32 max)
 				| _ -> assert false)
-			| _ ->
-				unresolved())
-		| "regexp" ->
-			(match name with
 			| "regexp_new_options" ->
 				(function
 				| [VBytes str; VBytes opt] ->

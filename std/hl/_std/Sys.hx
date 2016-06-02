@@ -79,7 +79,7 @@ class Sys {
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
-		put_env(getPath(s),if( v == null ) null else getPath(v));
+		if( !put_env(getPath(s), if( v == null ) null else getPath(v)) ) throw "putEnv() failure";
 	}
 
 	public static function environment() : Map<String,String> {
@@ -154,7 +154,7 @@ class Sys {
 	@:hlNative("std", "file_stderr") static function file_stderr() : sys.io.File.FileHandle { return null; }
 	@:hlNative("std", "sys_args") static function sys_args() : hl.types.NativeArray<hl.types.Bytes> { return null; }
 	@:hlNative("std", "sys_get_env") static function get_env( key : hl.types.Bytes ) : hl.types.Bytes { return null; }
-	@:hlNative("std", "sys_put_env") static function put_env( key : hl.types.Bytes, val : hl.types.Bytes ) : Void {}
+	@:hlNative("std", "sys_put_env") static function put_env( key : hl.types.Bytes, val : hl.types.Bytes ) : Bool { return false; }
 	@:hlNative("std", "sys_env") static function sys_env() : hl.types.NativeArray<hl.types.Bytes> { return null; }
 	@:hlNative("std", "sys_set_time_locale") static function set_time_locale( loc : hl.types.Bytes ) : Bool { return true; }
 	@:hlNative("std", "sys_get_cwd") static function get_cwd() : hl.types.Bytes { return null; }
