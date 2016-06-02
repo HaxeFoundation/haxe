@@ -35,6 +35,7 @@ type t = {
 	fusion : bool;
 	purity_inference : bool;
 	debug_kind : debug_kind;
+	detail_times : bool;
 }
 
 let flag_const_propagation = "const_propagation"
@@ -86,6 +87,7 @@ let get_base_config com =
 		fusion = not (Common.raw_defined com "analyzer-no-fusion") && (match com.platform with Flash | Java -> false | _ -> true);
 		purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
 		debug_kind = DebugNone;
+		detail_times = Common.raw_defined com "analyzer-times";
 	}
 
 let update_config_from_meta com config meta =

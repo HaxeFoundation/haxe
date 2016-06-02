@@ -1100,8 +1100,8 @@ module Run = struct
 	open AnalyzerConfig
 	open Graph
 
-	let with_timer s f =
-		let timer = timer s in
+	let with_timer actx s f =
+		let timer = timer (if actx.config.detail_times then s else "analyzer") in
 		let r = f() in
 		timer();
 		r
@@ -1128,7 +1128,7 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
-		let e = with_timer "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
+		let e = with_timer actx "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,is_real_function = match e.eexpr with
 			| TFunction tf ->
@@ -1139,18 +1139,18 @@ module Run = struct
 				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
 				tf,false
 		in
-		with_timer "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf e.etype e.epos);
+		with_timer actx "analyzer-from-texpr" (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf e.etype e.epos);
 		is_real_function
 
 	let back_again actx is_real_function =
-		let e = with_timer "analyzer-to-texpr" (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
+		let e = with_timer actx "analyzer-to-texpr" (fun () -> AnalyzerTexprTransformer.to_texpr actx) in
 		if actx.com.debug then add_debug_expr actx "after to-texpr" e;
 		DynArray.iter (fun vi ->
 			vi.vi_var.v_extra <- vi.vi_extra;
 		) actx.graph.g_var_infos;
-		let e = with_timer "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
+		let e = with_timer actx "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
-		let e = with_timer "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
+		let e = with_timer actx "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after to-cleanup" e;
 		let e = if is_real_function then
 			e
@@ -1173,11 +1173,11 @@ module Run = struct
 		Graph.infer_var_writes actx.graph;
 		if actx.com.debug then Graph.check_integrity actx.graph;
 		if actx.config.optimize && not actx.has_unbound then begin
-			with_timer "analyzer-ssa-apply" (fun () -> Ssa.apply actx);
-			if actx.config.const_propagation then with_timer "analyzer-const-propagation" (fun () -> ConstPropagation.apply actx);
-			if actx.config.copy_propagation then with_timer "analyzer-copy-propagation" (fun () -> CopyPropagation.apply actx);
-			if actx.config.code_motion then with_timer "analyzer-code-motion" (fun () -> CodeMotion.apply actx);
-			with_timer "analyzer-local-dce" (fun () -> LocalDce.apply actx);
+			with_timer actx "analyzer-ssa-apply" (fun () -> Ssa.apply actx);
+			if actx.config.const_propagation then with_timer actx "analyzer-const-propagation" (fun () -> ConstPropagation.apply actx);
+			if actx.config.copy_propagation then with_timer actx "analyzer-copy-propagation" (fun () -> CopyPropagation.apply actx);
+			if actx.config.code_motion then with_timer actx "analyzer-code-motion" (fun () -> CodeMotion.apply actx);
+			with_timer actx "analyzer-local-dce" (fun () -> LocalDce.apply actx);
 		end;
 		back_again actx is_real_function
 
