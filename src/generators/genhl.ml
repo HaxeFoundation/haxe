@@ -5423,9 +5423,7 @@ let write_code ch code =
 			write_type t
 		| OSwitch (r,pl,eend) ->
 			byte oid;
-			let n = Array.length pl in
-			if n > 0xFF then assert false;
-			byte n;
+			write_index (Array.length pl);
 			Array.iter write_index pl;
 			write_index eend
 		| OEnumField (r,e,i,idx) ->
@@ -6959,10 +6957,13 @@ let generate com =
 		dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;
 	end;
-	PMap.iter (fun (s,p) fid ->
-		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
-	) ctx.cfids.map;
-	check code;
+	if Common.raw_defined com "check" then begin
+		PMap.iter (fun (s,p) fid ->
+			if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
+		) ctx.cfids.map;
+		check code;
+	end;
+	let t = Common.timer "write hl" in
 	if file_extension com.file = "c" then
 		write_c com.Common.version com.file code
 	else begin
@@ -6973,5 +6974,6 @@ let generate com =
 		output_string ch str;
 		close_out ch;
 	end;
+	t();
 	if Common.defined com Define.Interp then ignore(interp code)
 
