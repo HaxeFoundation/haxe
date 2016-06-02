@@ -111,7 +111,6 @@ type opcode =
 	(* unops *)
 	| ONeg of reg * reg
 	| ONot of reg * reg
-	(* unops *)
 	| OIncr of reg
 	| ODecr of reg
 	(* calls *)
@@ -135,6 +134,8 @@ type opcode =
 	| OSetField of reg * field index * reg
 	| OGetThis of reg * field index
 	| OSetThis of field index * reg
+	| ODynGet of reg * reg * string index
+	| ODynSet of reg * string index * reg
 	(* jumps *)
 	| OJTrue of reg * int
 	| OJFalse of reg * int
@@ -149,10 +150,14 @@ type opcode =
 	| OJEq of reg * reg * int
 	| OJNotEq of reg * reg * int
 	| OJAlways of int
+	(* coerce *)
 	| OToDyn of reg * reg
 	| OToSFloat of reg * reg
 	| OToUFloat of reg * reg
 	| OToInt of reg * reg
+	| OSafeCast of reg * reg
+	| OUnsafeCast of reg * reg
+	| OToVirtual of reg * reg
 	(* control flow *)
 	| OLabel of unused
 	| ORet of reg
@@ -177,16 +182,10 @@ type opcode =
 	| OSetArray of reg * reg * reg
 	(* type operations *)
 	| ONew of reg
-	| OSafeCast of reg * reg
-	| OUnsafeCast of reg * reg
 	| OArraySize of reg * reg
 	| OType of reg * ttype
 	| OGetType of reg * reg
 	| OGetTID of reg * reg
-	| OToVirtual of reg * reg
-	(* dynamic *)
-	| ODynGet of reg * reg * string index
-	| ODynSet of reg * string index * reg
 	(* references *)
 	| ORef of reg * reg
 	| OUnref of reg * reg
@@ -5526,12 +5525,14 @@ let write_code ch code =
 			byte 17;
 			write_index e.eid;
 			write_index (Array.length e.efields);
-			Array.iter (fun (_,n,tl) ->
-				write_index (Array.length tl);
+			Array.iter (fun (_,nid,tl) ->
+				write_index nid;
+				if Array.length tl > 0xFF then assert false;
+				byte (Array.length tl);
 				Array.iter write_type tl;
 			) e.efields
 		| HNull t ->
-			byte 0x18;
+			byte 18;
 			write_type t
 	) types.arr;
 
