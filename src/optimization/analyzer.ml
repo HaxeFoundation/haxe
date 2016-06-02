@@ -1128,6 +1128,8 @@ module Run = struct
 
 	let there actx e =
 		if actx.com.debug then add_debug_expr actx "initial" e;
+		let e = with_timer actx "analyzer-var-lazifier" (fun () -> VarLazifier.apply actx.com e) in
+		if actx.com.debug then add_debug_expr actx "after var-lazifier" e;
 		let e = with_timer actx "analyzer-filter-apply" (fun () -> TexprFilter.apply actx.com e) in
 		if actx.com.debug then add_debug_expr actx "after filter-apply" e;
 		let tf,is_real_function = match e.eexpr with
@@ -1151,7 +1153,7 @@ module Run = struct
 		let e = with_timer actx "analyzer-fusion" (fun () -> Fusion.apply actx.com actx.config e) in
 		if actx.com.debug then add_debug_expr actx "after fusion" e;
 		let e = with_timer actx "analyzer-cleanup" (fun () -> Cleanup.apply actx.com e) in
-		if actx.com.debug then add_debug_expr actx "after to-cleanup" e;
+		if actx.com.debug then add_debug_expr actx "after cleanup" e;
 		let e = if is_real_function then
 			e
 		else begin

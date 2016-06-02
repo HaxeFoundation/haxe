@@ -1033,6 +1033,7 @@ module Compile = struct
 					v,ex_bindings
 				with Not_found ->
 					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
+					v.v_meta <- (Meta.Custom ":extractorVariable",[],v.v_pos) :: v.v_meta;
 					v,(v,e1.epos,e1) :: ex_bindings
 				in
 				let ev = mk (TLocal v) v.v_type e1.epos in
