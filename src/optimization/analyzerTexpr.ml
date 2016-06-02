@@ -606,6 +606,8 @@ module Cleanup = struct
 				let e2 = loop e2 in
 				let e3 = loop e3 in
 				if_or_op e e1 e2 e3;
+			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+				e
 			| TBlock el ->
 				let el = List.map (fun e ->
 					let e = loop e in
