@@ -112,6 +112,8 @@ class Template {
 	}
 
 	function resolve( v : String ) : Dynamic {
+		if( v == "__current__" )
+			return context;
 		var value = Reflect.getProperty(context, v);
 		if( value != null || Reflect.hasField(context,v) )
 			return value;
@@ -120,8 +122,6 @@ class Template {
 			if( value != null || Reflect.hasField(ctx,v) )
 				return value;
 		}
-		if( v == "__current__" )
-			return context;
 		return Reflect.field(globals,v);
 	}
 
