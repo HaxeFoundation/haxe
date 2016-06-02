@@ -102,6 +102,7 @@ module Meta = struct
 		| ImplicitCast
 		| Include
 		| InitPackage
+		| InlineConstructorVariable
 		| Internal
 		| IsVar
 		| JavaCanonical

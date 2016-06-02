@@ -117,7 +117,7 @@ let check_local_vars_init e =
 		| TVar (v,eo) ->
 			begin
 				match eo with
-				| None when Meta.has Meta.CompilerGenerated v.v_meta ->
+				| None when Meta.has Meta.InlineConstructorVariable v.v_meta ->
 					()
 				| None ->
 					declared := v.v_id :: !declared;
