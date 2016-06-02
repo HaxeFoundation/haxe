@@ -4893,7 +4893,7 @@ let interp code =
 						VNull
 				in
 				(function
-				| [v; VBool r] -> get_fields v r
+				| [v] -> get_fields v true
 				| _ -> assert false)
 			| "obj_copy" ->
 				(function

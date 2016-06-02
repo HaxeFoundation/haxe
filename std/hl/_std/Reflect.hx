@@ -85,12 +85,12 @@ class Reflect {
 		return hl.types.Api.callMethod(func,a);
 	}
 
-	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic, rec : Bool ) : hl.types.NativeArray<hl.types.Bytes> {
+	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic ) : hl.types.NativeArray<hl.types.Bytes> {
 		return null;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		var fields = getObjectFields(o, true);
+		var fields = getObjectFields(o);
 		if( fields == null ) return [];
 		return [for( f in fields ) @:privateAccess String.fromUCS2(f)];
 	}
