@@ -137,9 +137,14 @@ let rec make_binop op e ((v,p2) as e2) =
 		EBinop (op,e,e2) , punion (pos e) (pos e2)
 
 let rec make_unop op ((v,p2) as e) p1 =
+	let neg s =
+		if s.[0] = '-' then String.sub s 1 (String.length s - 1) else "-" ^ s
+	in
 	match v with
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
 	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
+	| EConst (Int i) when op = Neg -> EConst (Int (neg i)),punion p1 p2
+	| EConst (Float j) when op = Neg -> EConst (Float (neg j)),punion p1 p2
 	| _ -> EUnop (op,Prefix,e), punion p1 p2
 
 let rec make_meta name params ((v,p2) as e) p1 =
@@ -1306,13 +1311,7 @@ and expr = parser
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
 	| [< '(Binop OpSub,p1); e = expr >] ->
-		let neg s =
-			if s.[0] = '-' then String.sub s 1 (String.length s - 1) else "-" ^ s
-		in
-		(match make_unop Neg e p1 with
-		| EUnop (Neg,Prefix,(EConst (Int i),pc)),p -> EConst (Int (neg i)),p
-		| EUnop (Neg,Prefix,(EConst (Float j),pc)),p -> EConst (Float (neg j)),p
-		| e -> e)
+		make_unop Neg e p1
 	(*/* removed unary + : this cause too much syntax errors go unnoticed, such as "a + + 1" (missing 'b')
 						without adding anything to the language
 	| [< '(Binop OpAdd,p1); s >] ->
