@@ -1437,6 +1437,7 @@ let inline_constructors ctx e =
 	let add_field_var v s t =
 		let ii = IntMap.find v.v_id !vars in
 		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t v.v_pos in
+		v'.v_meta <- (Meta.CompilerGenerated,[],v.v_pos) :: v'.v_meta;
 		ii.ii_fields <- PMap.add s v' ii.ii_fields;
 		v'
 	in
