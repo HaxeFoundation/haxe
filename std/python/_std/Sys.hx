@@ -38,7 +38,7 @@ class Sys {
 		environ;
 	}
 
-	public static function time():Float {
+	public static inline function time():Float {
 		return Time.time();
 	}
 
