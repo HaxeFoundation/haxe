@@ -2107,7 +2107,17 @@ module Abstract = struct
 	let rec get_underlying_type a pl =
 		let maybe_recurse t =
 			underlying_type_stack := (TAbstract(a,pl)) :: !underlying_type_stack;
-			let t = match follow t with
+			let rec loop t = match t with
+				| TMono r ->
+					(match !r with
+					| Some t -> loop t
+					| _ -> t)
+				| TLazy f ->
+					loop (!f())
+				| TType({t_path=([],"Null")} as tn,[t1]) ->
+					TType(tn,[loop t1])
+				| TType (t,tl) ->
+					loop (apply_params t.t_params tl t.t_type)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					if List.exists (fast_eq t) !underlying_type_stack then begin
 						let pctx = print_context() in
@@ -2119,6 +2129,7 @@ module Abstract = struct
 				| _ ->
 					t
 			in
+			let t = loop t in
 			underlying_type_stack := List.tl !underlying_type_stack;
 			t
 		in
