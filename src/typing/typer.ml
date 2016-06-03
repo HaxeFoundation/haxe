@@ -2883,7 +2883,8 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if v.[0] = '$' && ctx.com.display = DMNone then error "Variables names starting with a dollar are not allowed" p;
-			let v,e = add_local ctx v t pv, e in
+			let v = add_local ctx v t pv in
+			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
 			if ctx.in_display && Display.is_display_position pv then
 				Display.display_variable ctx.com.display v pv;
 			v,e

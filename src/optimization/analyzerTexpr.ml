@@ -307,6 +307,8 @@ end
 
 module Fusion = struct
 
+	open AnalyzerConfig
+
 	type interference_kind =
 		| IKVarMod of tvar list
 		| IKSideEffect
@@ -348,7 +350,7 @@ module Fusion = struct
 		let rec block_element acc el = match el with
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
-			| {eexpr = TLocal _} as e1 :: el when not config.AnalyzerConfig.local_dce ->
+			| {eexpr = TLocal _} as e1 :: el when not config.local_dce ->
 				block_element (e1 :: acc) el
 			(* no-side-effect *)
 			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _} :: el ->
@@ -405,7 +407,7 @@ module Fusion = struct
 			let b = get_num_uses v <= 1 &&
 			        get_num_writes v = 0 &&
 			        can_be_used_as_value com e &&
-			        (Meta.has Meta.CompilerGenerated v.v_meta || config.AnalyzerConfig.optimize && config.AnalyzerConfig.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
+			        (not (Meta.has Meta.UserVariable v.v_meta) || config.optimize && config.fusion && config.user_var_fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
 			in
 			(* let st = s_type (print_context()) in *)
 			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)

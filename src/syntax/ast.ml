@@ -187,6 +187,7 @@ module Meta = struct
 		| Unsafe
 		| Usage
 		| Used
+		| UserVariable
 		| Value
 		| Void
 		| Last
