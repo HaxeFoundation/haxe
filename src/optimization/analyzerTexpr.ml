@@ -407,7 +407,7 @@ module Fusion = struct
 			let b = get_num_uses v <= 1 &&
 			        get_num_writes v = 0 &&
 			        can_be_used_as_value com e &&
-			        (not (Meta.has Meta.UserVariable v.v_meta) || config.optimize && config.fusion && config.user_var_fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
+			        (Meta.has Meta.CompilerGenerated v.v_meta || config.optimize && config.fusion && config.user_var_fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
 			in
 			(* let st = s_type (print_context()) in *)
 			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
