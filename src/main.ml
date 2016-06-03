@@ -130,7 +130,8 @@ let deprecated = [
 	"Type not found : neko.zip.Reader", "neko.zip.Reader has been removed, use haxe.zip.Reader instead";
 	"Type not found : neko.zip.Writer", "neko.zip.Writer has been removed, use haxe.zip.Writer instead";
 	"Type not found : haxe.Public", "Use @:publicFields instead of implementing or extending haxe.Public";
-	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction"
+	"#Xml has no field createProlog", "Xml.createProlog was renamed to Xml.createProcessingInstruction";
+	"Duplicate type parameter name: Const", "Multiple Const type parameters are no longer allowed, use @:const T instead"
 ]
 
 let limit_string s offset =
