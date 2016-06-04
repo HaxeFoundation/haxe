@@ -74,7 +74,7 @@ import lua.Boot;
 				// self or not
 				self_arg = true;
 			}
-			var new_args = lua.Boot.createTable();
+			var new_args = lua.Table.create();
 			for (i in 0...args.length){
 				// copy args to 1-indexed table
 				new_args[i + 1] = args[i];

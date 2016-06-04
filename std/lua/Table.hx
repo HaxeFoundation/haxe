@@ -5,7 +5,9 @@ package lua;
 **/
 @:native("_G.table")
 extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
-	static inline function create<A,B>():Table<A,B> return untyped __lua__("{}");
+	public inline static function create<A,B>(?arr:Array<B>, ?hsh:Dynamic<B>) : Table<A,B> {
+		return untyped __lua_table__(arr,hsh);
+	}
 
 	@:overload(function<A,B>(table:Table<A,B>):Void{})
 	public static function concat<A,B>(table:Table<A,B>, ?sep:String) : String;
