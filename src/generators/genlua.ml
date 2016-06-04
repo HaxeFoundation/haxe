@@ -1719,6 +1719,8 @@ let generate com =
 	let t = Common.timer "generate lua" in
 	let ctx = alloc_ctx com in
 
+	Codegen.map_source_header com (fun s -> print ctx "-- %s\n" s);
+
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
