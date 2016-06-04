@@ -280,6 +280,34 @@ let rec is_string_type t =
 let is_string_expr e = is_string_type e.etype
 (* /from genphp *)
 
+let is_multireturn ctx e =
+    match follow(e.etype) with
+	| TInst(cl,_) ->  Meta.has Meta.MultiReturn cl.cl_meta
+	| TType (t,_) ->  Meta.has Meta.MultiReturn t.t_meta
+	| _ -> false
+
+let multireturn_ordered_fields e =
+    match follow(e.etype) with
+	| TInst (tc,_) ->
+	    let l_fold = PMap.fold (fun f acc -> f :: acc ) tc.cl_fields [] in
+	    List.sort ~cmp:(fun v1 v2 ->
+		compare v1.cf_pos.pmin v2.cf_pos.pmin
+	    ) l_fold
+	| _ ->
+	    []
+
+let multireturn_idx e name =
+    let l_sort = multireturn_ordered_fields e in
+    let idx = ref (-1) in
+    List.iteri (fun i f ->
+	if f.cf_name == name then idx := i
+    ) l_sort;
+    if !idx == (-1) then
+	error "Field is not in instance" e.epos
+    else
+	!idx;;
+
+
 let rec is_int_type ctx t =
     match follow t with
 	| TInst ({cl_path = ([], "Int")}, _) -> true
@@ -477,6 +505,10 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
 		gen_tbinop ctx op e1 e2;
+	| TField ({eexpr = TCall _} as e, f) when is_multireturn ctx e ->
+		print ctx "_G.select(%i, " (multireturn_idx e (field_name f) + 1);
+		gen_value ctx e;
+		spr ctx ")";
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use._iterator";
 		print ctx "_iterator(";
@@ -512,8 +544,18 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx " end )({";
 		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
 		spr ctx "})";
-	| TField (x,f) ->
-		gen_value ctx x;
+	| TField ({eexpr = TCall _; etype = TType (t,_)  } as e, f) when is_multireturn ctx e ->
+		print ctx "_G.select(%i, " (multireturn_idx e (field_name f));
+		gen_value ctx e;
+		spr ctx ")";
+	| TField ({eexpr = TLocal tv} as e, f) when is_multireturn ctx e ->
+		(match f with
+		| FInstance(_,_,cf)->
+			let idx = multireturn_idx e cf.cf_name in
+			spr ctx (List.nth tv.v_multi idx);
+		| _-> ());
+	| TField (e,f) ->
+		gen_value ctx e;
 		let name = field_name f in
 		spr ctx (match f with FStatic _ | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
@@ -553,10 +595,8 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
-	| TCall (e,el) ->
-		begin
-		    gen_call ctx e el false;
-		end;
+	| TCall (e2,e2args) ->
+		    gen_call ctx e2 e2args false;
 	| TArrayDecl el ->
 		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
@@ -578,6 +618,15 @@ and gen_expr ?(local=true) ctx e = begin
 				spr ctx (ident v.v_name);
 			| Some e ->
 				match e.eexpr with
+				| TCall _ when is_multireturn ctx e ->
+				    let mr_fields = multireturn_ordered_fields e in
+				    v.v_multi <- List.map (fun _ -> temp ctx ) mr_fields;
+				    v.v_name <- String.concat ", " v.v_multi;
+				    spr ctx "local ";
+				    concat ctx ", " (spr ctx) v.v_multi;
+				    spr ctx " = ";
+				    gen_value ctx e;
+				    semicolon ctx;
 				| TBinop(OpAssign, e1, e2) ->
 				    gen_tbinop ctx OpAssign e1 e2;
 				    if local then
