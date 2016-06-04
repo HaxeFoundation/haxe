@@ -32,7 +32,7 @@ class EReg {
 	var s : String; // the last matched string
 	var m : Table<Int,Int>; // the [start:Int, end:Int, and submatches:String (matched groups)] as a single table.
 
-	static var FLAGS = Rex.flags();
+	static var FLAGS : Table<String,Int> = Rex.flags();
 
 	public function new( r : String, opt : String ) : Void {
 		var ropt = 0;
