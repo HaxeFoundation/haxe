@@ -71,7 +71,7 @@ enum Constant {
 	**/
 	CIdent( s : String );
 
-	/*
+	/**
 		Represents a regular expression literal.
 
 		Example: `~/haxe/i`
