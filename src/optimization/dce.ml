@@ -57,7 +57,7 @@ let keep_whole_class dce c =
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
-		| { cl_path = [],"Array" } -> not (dce.com.platform = Js)
+		| { cl_path = [],"Array" } -> (match dce.com.platform with Js | Lua -> false | _ -> true)
 		| _ -> false)
 
 let keep_whole_enum dce en =
