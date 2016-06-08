@@ -78,7 +78,7 @@ module KeywordHandler = struct
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"len"; "int"; "float"; "list"; "bool"; "str"; "isinstance"; "print"; "min"; "max";
 			"hasattr"; "getattr"; "setattr"; "delattr"; "callable"; "type"; "ord"; "chr"; "iter"; "map"; "filter";
-			"tuple"; "dict"; "set"; "bytes"; "bytearray"
+			"tuple"; "dict"; "set"; "bytes"; "bytearray"; "self";
 		];
 		h
 
@@ -95,7 +95,8 @@ module KeywordHandler = struct
 		else s
 
 	let check_var_declaration v =
-		if Hashtbl.mem kwds2 v.v_name then v.v_name <- "_hx_" ^ v.v_name
+		if not (Meta.has Meta.This v.v_meta) then
+			if Hashtbl.mem kwds2 v.v_name then v.v_name <- "_hx_" ^ v.v_name
 end
 
 module Transformer = struct
@@ -1875,14 +1876,18 @@ module Generator = struct
 				else
 					print ctx "%s%s = %s" indent field expr_string_2
 
-	let gen_func_expr ctx e c name metas extra_args indent stat p =
+	let gen_func_expr ctx e c name metas add_self indent stat p =
 		let pctx = Printer.create_context indent ctx.com ctx.com.debug in
 		let e = match e.eexpr with
 			| TFunction(f) ->
-				let args = List.map (fun s ->
-					alloc_var s t_dynamic p,None
-				) extra_args in
-				{e with eexpr = TFunction {f with tf_args = args @ f.tf_args}}
+				let args = if add_self then
+					let v = alloc_var "self" t_dynamic p in
+					v.v_meta <- (Meta.This,[],p) :: v.v_meta;
+					(v,None) :: f.tf_args
+				else
+					f.tf_args
+				in
+				{e with eexpr = TFunction {f with tf_args = args}}
 			| _ ->
 				e
 		in
@@ -1941,7 +1946,7 @@ module Generator = struct
 
 				newline ctx;
 				newline ctx;
-				gen_func_expr ctx ef c "__init__" py_metas ["self"] "    " false cf.cf_pos
+				gen_func_expr ctx ef c "__init__" py_metas true "    " false cf.cf_pos
 			| _ ->
 				assert false
 		end
@@ -1957,7 +1962,7 @@ module Generator = struct
 				begin match cf.cf_kind with
 					| Method _ ->
 						let py_metas = filter_py_metas cf.cf_meta in
-						gen_func_expr ctx e c field py_metas ["self"] "    " false cf.cf_pos;
+						gen_func_expr ctx e c field py_metas true "    " false cf.cf_pos;
 
 					| _ ->
 						gen_expr ctx e (Printf.sprintf "# var %s" field) "    ";
@@ -2019,7 +2024,7 @@ module Generator = struct
 			let py_metas = filter_py_metas cf.cf_meta in
 			let e = match cf.cf_expr with Some e -> e | _ -> assert false in
 			newline ctx;
-			gen_func_expr ctx e c field py_metas [] "    " true cf.cf_pos;
+			gen_func_expr ctx e c field py_metas false "    " true cf.cf_pos;
 		) methods;
 
 		!has_static_methods || !has_empty_static_vars
