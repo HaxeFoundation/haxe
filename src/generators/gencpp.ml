@@ -4964,10 +4964,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n");
                       | _ -> () )
                       in
-                      List.iter gen_field interface.cl_ordered_fields;
-                      match interface.cl_super with
+                      (match interface.cl_super with
                       | Some super -> gen_interface_funcs (fst super)
-                      | _ -> ()
+                      | _ -> ());
+                      List.iter gen_field interface.cl_ordered_fields
                       in
                    gen_interface_funcs interface;
                    output_cpp "};\n\n";
