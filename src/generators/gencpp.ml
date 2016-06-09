@@ -1912,7 +1912,7 @@ let cpp_cast_variant_type_of t = match t with
    | TCppScalarArray _
    | TCppDynamicArray
    | TCppClass
-   | TCppEnum _ 
+   | TCppEnum _
    | TCppInst _ -> t
    | _ -> cpp_variant_type_of t;
 ;;
@@ -3303,7 +3303,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | TCppClass
          | TCppEnum _
          | TCppInst _ -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ " >()")
-         | _ ->() 
+         | _ ->()
          )
 
       | CppIntSwitch(condition, cases, defVal) ->
@@ -3664,23 +3664,23 @@ let is_override class_def field =
 ;;
 
 let all_virtual_functions clazz =
-  let rec all_virtual_functions_rev clazz =
+  let rec all_virtual_functions clazz =
    (match clazz.cl_super with
-   | Some def -> all_virtual_functions_rev (fst def)
+   | Some def -> all_virtual_functions (fst def)
    | _ -> [] ) @
-   (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+   List.rev (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
       | _, Method MethDynamic -> result
       | TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
       | _,_ -> result ) [] clazz.cl_ordered_fields)
    in
-   List.rev (all_virtual_functions_rev clazz)
+   all_virtual_functions clazz
 ;;
 
 
 let rec unreflective_type t =
     match follow t with
        | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-       | TFun (args,ret) -> 
+       | TFun (args,ret) ->
            List.fold_left (fun result (_,_,t) -> result || (unreflective_type t)) (unreflective_type ret) args;
        | _ -> false
 ;;
@@ -3709,7 +3709,7 @@ let native_field_name_remap is_static field =
    if not is_static then
       remap_name
    else begin
-      let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
+      let nativeImpl = get_meta_string field.cf_meta Meta.Native in
       if nativeImpl<>"" then begin
          let r = Str.regexp "^[a-zA-Z_0-9]+$" in
             if Str.string_match r remap_name 0 then
@@ -3742,7 +3742,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
-         let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
+         let nativeImpl = get_meta_string field.cf_meta Meta.Native in
          let remap_name = native_field_name_remap is_static field in
          output (if is_void then "void" else return_type );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
