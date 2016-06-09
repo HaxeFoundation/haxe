@@ -3127,18 +3127,9 @@ let generate_static_init ctx =
 		| _ -> ()
 	) ctx.com.types;
 	(* call main() *)
-	(match ctx.com.main_class with
+	(match ctx.com.main with
 	| None -> ()
-	| Some m ->
-		let t = (try List.find (fun t -> t_path t = m) ctx.com.types with Not_found -> assert false) in
-		match t with
-		| TClassDecl c ->
-			let f = (try PMap.find "main" c.cl_statics with Not_found -> assert false) in
-			let p = { pfile = "<startup>"; pmin = 0; pmax = 0; } in
-			exprs := mk (TCall (mk (TField (mk (TTypeExpr t) t_dynamic p, FStatic (c,f))) f.cf_type p,[])) t_void p :: !exprs
-		| _ ->
-			assert false
-	);
+	| Some e -> exprs := e :: !exprs);
 	let fid = alloc_function_name ctx "<entry>" in
 	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None None);
 	fid
