@@ -205,7 +205,7 @@ class RunCi {
 			case "Linux":
 				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
 			case "Mac":
-				Sys.command("open", ["-a", Sys.getEnv("HOME") + "/Applications/Flash Player Debugger.app", swf]);
+				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
 		}
 
 		//wait a little until flashlog.txt is created
