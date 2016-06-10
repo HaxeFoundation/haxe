@@ -1738,7 +1738,7 @@ let generate com =
 
 	let var_exports = (
 		"_hx_exports",
-		"_G"
+		"_hx_exports or {}"
 	) in
 
 	let exposed = List.concat (List.map (fun t ->
@@ -1861,7 +1861,7 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 
-	sprln ctx "return _G";
+	sprln ctx "return _hx_exports";
 
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
