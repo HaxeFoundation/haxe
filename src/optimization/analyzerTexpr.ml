@@ -407,7 +407,7 @@ module Fusion = struct
 			let b = get_num_uses v <= 1 &&
 			        get_num_writes v = 0 &&
 			        can_be_used_as_value com e &&
-			        (Meta.has Meta.CompilerGenerated v.v_meta || config.optimize && config.fusion && config.user_var_fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
+			        (Meta.has Meta.CompilerGenerated v.v_meta || config.optimize && config.fusion && config.user_var_fusion && v.v_extra = None)
 			in
 (* 			let st = s_type (print_context()) in
 			if e.epos.pfile = "src/Main.hx" then
@@ -498,7 +498,7 @@ module Fusion = struct
 							{e with eexpr = TSwitch(e1,cases,edef)}
 						| TLocal v2 when v1 == v2 && not !affected ->
 							found := true;
-							e1
+							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
 						| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TArray(e1,e2)} as ea),e3) ->
 							let e1 = replace e1 in
 							let e2 = replace e2 in
