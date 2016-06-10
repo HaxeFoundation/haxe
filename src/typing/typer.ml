@@ -678,7 +678,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		raise (Error (Call_error err,p))
 	in
 	let arg_error ul name opt p =
-		let err = Stack (Unify ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")) in
+		let err = Stack (ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")) in
 		call_error (Could_not_unify err) p
 	in
 	let mk_pos_infos t =
@@ -701,8 +701,11 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
 	let type_against t e =
-		let e = type_expr ctx e (WithType t) in
-		(try Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> raise (WithTypeError (l,p)))
+		try
+			let e = type_expr ctx e (WithType t) in
+			Codegen.AbstractCast.cast_or_unify_raise ctx t e e.epos
+		with Error(l,p) when (match l with Call_error _ -> false | _ -> true) ->
+			raise (WithTypeError (l,p))
 	in
 	let rec loop el args = match el,args with
 		| [],[] ->
@@ -739,7 +742,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				let e = type_against t e in
 				(e,opt) :: loop el args
 			with
-				WithTypeError (ul,p) ->
+				WithTypeError (ul,p)->
 					if opt then
 						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
@@ -3344,7 +3347,7 @@ and type_map_declaration ctx e1 el with_type p =
 		let unify_min_resume el = try
 			unify_min_raise ctx el
 		with Error (Unify l,p) when ctx.in_call_args ->
-			 raise (WithTypeError(l,p))
+			 raise (WithTypeError(Unify l,p))
 		in
 		let tkey = unify_min_resume el_k in
 		let tval = unify_min_resume el_v in
@@ -4608,7 +4611,7 @@ let typing_timer ctx need_type f =
 			Interp.compiler_error (Typecore.error_msg ekind) p
 		| WithTypeError (l,p) ->
 			exit();
-			Interp.compiler_error (Typecore.error_msg (Unify l)) p
+			Interp.compiler_error (Typecore.error_msg l) p
 		| e ->
 			exit();
 			raise e
