@@ -1463,8 +1463,8 @@ let inline_constructors ctx e =
 						let ev = mk (TLocal v) v.v_type e.epos in
 						let el_init = List.fold_left (fun acc cf -> match cf.cf_kind,cf.cf_expr with
 							| Var _,Some e ->
-								let ef = mk (TField(ev,FInstance(c,tl,cf))) e.etype e.epos in
-								let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
+								let ef = mk (TField(ev,FInstance(c,tl,cf))) cf.cf_type e.epos in
+								let e = mk (TBinop(OpAssign,ef,e)) cf.cf_type e.epos in
 								e :: acc
 							| _ -> acc
 						) el_init c.cl_ordered_fields in
