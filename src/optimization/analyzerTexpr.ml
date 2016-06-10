@@ -409,8 +409,13 @@ module Fusion = struct
 			        can_be_used_as_value com e &&
 			        (Meta.has Meta.CompilerGenerated v.v_meta || config.optimize && config.fusion && config.user_var_fusion && type_change_ok com v.v_type e.etype && v.v_extra = None)
 			in
-			(* let st = s_type (print_context()) in *)
-			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
+(* 			let st = s_type (print_context()) in
+			if e.epos.pfile = "src/Main.hx" then
+				print_endline (Printf.sprintf "%s(%s) -> %s: #uses=%i && #writes=%i && used_as_value=%b && (compiler-generated=%b || optimize=%b && fusion=%b && user_var_fusion=%b && type_change_ok=%b && v_extra=%b) -> %b"
+					v.v_name (st v.v_type) (st e.etype)
+					(get_num_uses v) (get_num_writes v) (can_be_used_as_value com e)
+					(Meta.has Meta.CompilerGenerated v.v_meta) config.optimize config.fusion
+					config.user_var_fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
 			b
 		in
 		let rec fuse acc el = match el with
