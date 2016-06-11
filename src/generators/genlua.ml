@@ -283,29 +283,20 @@ let is_string_expr e = is_string_type e.etype
 let is_multireturn ctx e =
     match follow(e.etype) with
 	| TInst(cl,_) ->  Meta.has Meta.MultiReturn cl.cl_meta
-	| TType (t,_) ->  Meta.has Meta.MultiReturn t.t_meta
 	| _ -> false
 
 let multireturn_ordered_fields e =
     match follow(e.etype) with
-	| TInst (tc,_) ->
-	    let l_fold = PMap.fold (fun f acc -> f :: acc ) tc.cl_fields [] in
-	    List.sort ~cmp:(fun v1 v2 ->
-		compare v1.cf_pos.pmin v2.cf_pos.pmin
-	    ) l_fold
-	| _ ->
-	    []
+	| TInst (tc,_) -> tc.cl_ordered_fields
+	| _ -> []
+
+let rec find f lst =
+    match lst with
+    | [] -> raise (Failure "Not Found")
+    | h :: t -> if (f h) then 0 else 1 + (find f t)
 
 let multireturn_idx e name =
-    let l_sort = multireturn_ordered_fields e in
-    let idx = ref (-1) in
-    List.iteri (fun i f ->
-	if f.cf_name == name then idx := i
-    ) l_sort;
-    if !idx == (-1) then
-	error "Field is not in instance" e.epos
-    else
-	!idx;;
+    find (fun f -> f.cf_name == name) (multireturn_ordered_fields e)
 
 
 let rec is_int_type ctx t =
@@ -1688,7 +1679,9 @@ let check_multireturn ctx c =
 		error "MultiReturns must be externs" c.cl_pos
 	    else if (match c.cl_kind with KExtension _ -> true | _ -> false) then
 		error "MultiReturns must not extend another class" c.cl_pos
-	    else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) (c.cl_ordered_statics@c.cl_ordered_fields)) then
+	    else if List.length c.cl_ordered_statics > 0 then
+		error "MultiReturns must not contain static fields c.cl_pos
+	    else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
 		error "MultiReturns must not contain methods" c.cl_pos;
     | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
 		error "Cannot extend a MultiReturn" c.cl_pos
