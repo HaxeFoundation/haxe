@@ -1680,7 +1680,7 @@ let check_multireturn ctx c =
 	    else if (match c.cl_kind with KExtension _ -> true | _ -> false) then
 		error "MultiReturns must not extend another class" c.cl_pos
 	    else if List.length c.cl_ordered_statics > 0 then
-		error "MultiReturns must not contain static fields c.cl_pos
+		error "MultiReturns must not contain static fields" c.cl_pos
 	    else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
 		error "MultiReturns must not contain methods" c.cl_pos;
     | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
