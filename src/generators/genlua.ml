@@ -1474,6 +1474,7 @@ let generate_class ctx c =
 	let p = s_path ctx c.cl_path in
 	let hxClasses = has_feature ctx "Type.resolveClass" in
 	newline ctx;
+
 	print ctx "%s.new = " p;
 	(match c.cl_kind with
 		| KAbstractImpl _ ->
@@ -1679,6 +1680,20 @@ let generate_require ctx path meta =
 
 	newline ctx
 
+
+let check_multireturn ctx c =
+    match c with
+    | _ when Meta.has Meta.MultiReturn c.cl_meta ->
+	    if not c.cl_extern then
+		error "MultiReturns must be externs" c.cl_pos
+	    else if (match c.cl_kind with KExtension _ -> true | _ -> false) then
+		error "MultiReturns must not extend another class" c.cl_pos
+	    else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) (c.cl_ordered_statics@c.cl_ordered_fields)) then
+		error "MultiReturns must not contain methods" c.cl_pos;
+    | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
+		error "Cannot extend a MultiReturn" c.cl_pos
+    | _ -> ()
+
 let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
@@ -1698,7 +1713,9 @@ let generate_type ctx = function
 		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
-			| _ -> generate_package_create ctx c.cl_path)
+			| _ -> generate_package_create ctx c.cl_path);
+
+		check_multireturn ctx c;
 	| TEnumDecl e when e.e_extern ->
 		if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
 		    generate_require ctx e.e_path e.e_meta;
