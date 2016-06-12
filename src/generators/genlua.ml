@@ -479,11 +479,16 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")");
 	ctx.iife_assign <- false;
 
-and gen_arg_name ctx (a,_) =   
+and gen_mvar_name v f ctx =
+    ctx.id_counter <- ctx.id_counter + 1;
+    "_hx_" ^ (string_of_int ctx.id_counter) ^ "_" ^ v.v_name ^ "_" ^ f.cf_name
+
+
+and gen_arg_name ctx (a,_) =
     match a.v_type with
     TInst (tc,_) when Meta.has Meta.MultiReturn tc.cl_meta->
 	let mr_fields = multireturn_ordered_fields a.v_type in
-	a.v_multi <- List.map (fun _ -> temp ctx ) mr_fields;
+	a.v_multi <- List.map (fun f -> gen_mvar_name a f ctx  ) mr_fields;
 	a.v_name <- String.concat ", " a.v_multi;
 	a.v_name;
     | _->
@@ -621,7 +626,7 @@ and gen_expr ?(local=true) ctx e = begin
 				match e.eexpr with
 				| TCall _ when is_multireturn ctx e ->
 				    let mr_fields = multireturn_ordered_fields e.etype in
-				    v.v_multi <- List.map (fun _ -> temp ctx ) mr_fields;
+				    v.v_multi <- List.map (fun f -> gen_mvar_name v f ctx) mr_fields;
 				    v.v_name <- String.concat ", " v.v_multi;
 				    spr ctx "local ";
 				    concat ctx ", " (spr ctx) v.v_multi;
