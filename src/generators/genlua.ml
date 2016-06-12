@@ -285,8 +285,8 @@ let is_multireturn ctx e =
 	| TInst(cl,_) ->  Meta.has Meta.MultiReturn cl.cl_meta
 	| _ -> false
 
-let multireturn_ordered_fields e =
-    match follow(e.etype) with
+let multireturn_ordered_fields t =
+    match follow(t) with
 	| TInst (tc,_) -> tc.cl_ordered_fields
 	| _ -> []
 
@@ -296,7 +296,7 @@ let rec find f lst =
     | h :: t -> if (f h) then 0 else 1 + (find f t)
 
 let multireturn_idx e name =
-    find (fun f -> f.cf_name == name) (multireturn_ordered_fields e)
+    find (fun f -> f.cf_name == name) (multireturn_ordered_fields e.etype)
 
 
 let rec is_int_type ctx t =
@@ -479,6 +479,16 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")");
 	ctx.iife_assign <- false;
 
+and gen_arg_name ctx (a,_) =   
+    match a.v_type with
+    TInst (tc,_) when Meta.has Meta.MultiReturn tc.cl_meta->
+	let mr_fields = multireturn_ordered_fields a.v_type in
+	a.v_multi <- List.map (fun _ -> temp ctx ) mr_fields;
+	a.v_name <- String.concat ", " a.v_multi;
+	a.v_name;
+    | _->
+    	a.v_name
+
 and gen_expr ?(local=true) ctx e = begin
 	match e.eexpr with
 	 TConst c ->
@@ -573,7 +583,7 @@ and gen_expr ?(local=true) ctx e = begin
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+		print ctx "function(%s) " (String.concat "," (List.map ident (List.map (gen_arg_name ctx) f.tf_args)));
 		let fblock = fun_block ctx f e.epos in
 		(match fblock.eexpr with
 		| TBlock el ->
@@ -610,7 +620,7 @@ and gen_expr ?(local=true) ctx e = begin
 			| Some e ->
 				match e.eexpr with
 				| TCall _ when is_multireturn ctx e ->
-				    let mr_fields = multireturn_ordered_fields e in
+				    let mr_fields = multireturn_ordered_fields e.etype in
 				    v.v_multi <- List.map (fun _ -> temp ctx ) mr_fields;
 				    v.v_name <- String.concat ", " v.v_multi;
 				    spr ctx "local ";
