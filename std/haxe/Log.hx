@@ -35,7 +35,9 @@ class Log {
 
 		This method can be rebound to a custom function:
 			var oldTrace = haxe.Log.trace; // store old function
-			haxe.Log.trace = function(v,infos) { // handle trace }
+			haxe.Log.trace = function(v, ?infos:haxe.PosInfos) { 
+			  // handle trace 
+			}
 			...
 			haxe.Log.trace = oldTrace;
 
