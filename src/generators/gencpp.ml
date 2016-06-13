@@ -2700,6 +2700,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
             else (match return_type with
                | TCppObjC(k) -> CppCastObjC(baseCpp,k), return_type
                | TCppInst(k) -> CppCast(baseCpp,return_type), return_type
+               | TCppString -> CppCastScalar(baseCpp,"::String"), return_type
                | TCppCode(t) when baseStr <> (tcpp_to_string t)  ->
                      CppCast(baseCpp, t),  t
                | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
