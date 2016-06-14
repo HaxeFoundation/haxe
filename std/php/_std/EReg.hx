@@ -53,8 +53,9 @@
 		if (matches == null ||  n < 0 ) throw "EReg::matched";
 		// we can't differenciate between optional groups at the end of a match
 		// that have not been matched and invalid groups
-		if( n >= untyped __call__("count", matches)) return null;
-		if(untyped __php__("$this->matches[$n][1] < 0")) return null;
+		if(untyped __php__("!array_key_exists(n, $$this->matches) || $this->matches[$n][1] < 0")) {
+			throw "Match group not found";
+		}
 		return untyped __php__("$this->matches[$n][0]");
 	}
 
