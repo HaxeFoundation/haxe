@@ -513,6 +513,12 @@ module Fusion = struct
 							e
 						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 							e
+						(* TODO: this is a pretty outrageous hack for https://github.com/HaxeFoundation/haxe/issues/5366 *)
+						| TCall({eexpr = TField(_,FStatic({cl_path=["python"],"Syntax"},{cf_name="arraySet"}))} as ef,[e1;e2;e3]) ->
+							let e3 = replace e3 in
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							{e with eexpr = TCall(ef,[e1;e2;e3])}
 						| TCall(e1,el) when com.platform = Neko ->
 							(* Neko has this reversed at the moment (issue #4787) *)
 							let el = List.map replace el in
