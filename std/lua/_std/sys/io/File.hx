@@ -44,7 +44,10 @@ class File {
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
-		return haxe.io.Bytes.ofString(getContent(path));
+		var finput = read(path, true);
+		var res = finput.readAll();
+		finput.close();
+		return res;
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {

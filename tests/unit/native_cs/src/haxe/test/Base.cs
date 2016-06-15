@@ -3,6 +3,7 @@ namespace haxe.test
 
 public class Base
 {
+	~Base() { someString = null; }
 	//some haxe-specific keywords
 
 	public static readonly int inline = 42;
@@ -88,6 +89,8 @@ public class Base
 
 	public class InnerClass : Base
 	{
+		~InnerClass() { privateField = 0; }
+
 		private int privateField = 42;
 
 		//protected override without explicit override tag

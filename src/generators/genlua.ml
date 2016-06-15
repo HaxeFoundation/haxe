@@ -78,7 +78,7 @@ let kwds =
 	    "end"; "false"; "for"; "function"; "if";
 	    "in"; "local"; "nil"; "not"; "or"; "repeat";
 	    "return"; "then"; "true"; "until"; "while";
-	    "goto"
+	    "goto"; "self";
 	];
 	h
 
@@ -358,9 +358,26 @@ let rec gen_call ctx e el in_value =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal { v_name = "__lua_table__" }, el ->
-		spr ctx "{";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx "}";
+		let count = ref 0 in
+		spr ctx "({";
+		List.iter (fun e ->
+		    (match e with
+		    | { eexpr = TArrayDecl arr } ->
+			    if (!count > 0 && List.length(arr) > 0) then spr ctx ",";
+			    concat ctx "," (gen_value ctx) arr;
+			    if List.length(arr) > 0 then incr count;
+		    | { eexpr = TObjectDecl fields } ->
+			    if (!count > 0 && List.length(fields) > 0) then spr ctx ",";
+			    concat ctx ", " (fun (f,e) ->
+				print ctx "%s = " (anon_field f);
+				gen_value ctx e
+			    ) fields;
+			    if List.length(fields) > 0 then incr count;
+		    | { eexpr = TConst(TNull)} -> ()
+		    | _ ->
+			    error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+		)) el;
+		spr ctx "})";
 	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
@@ -379,7 +396,7 @@ let rec gen_call ctx e el in_value =
 			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
 		(* TODO: Array declaration helper *)
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
 		concat ctx "," (fun (name,data) ->
 			if (!count == 0) then spr ctx "[0]=";
@@ -541,7 +558,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    gen_call ctx e el false;
 		end;
 	| TArrayDecl el ->
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
 		List.iteri (fun i e ->
 		    incr count;
@@ -1527,8 +1544,8 @@ let generate_enum ctx e =
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
 	    end;
-	    (* TODO :  Come up with a helper function for _hx_tabArray declarations *)
-	    spr ctx " __constructs__ = _hx_tabArray({";
+	    (* TODO :  Come up with a helper function for _hx_tab_array declarations *)
+	    spr ctx " __constructs__ = _hx_tab_array({";
 	    if ((List.length e.e_names) > 0) then begin
 		    spr ctx "[0]=";
 		    spr ctx (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1549,18 +1566,17 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) local _x = _hx_tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
+			print ctx "function(%s) local _x = _hx_tab_array({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			println ctx "_hx_tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
+			println ctx "_hx_tab_array({[0]=\"%s\",%d,__enum__ = %s},2)" f.ef_name f.ef_index p;
 			if has_feature ctx "may_print_enum" then begin
 				println ctx "%s%s.toString = _estr" p (field f.ef_name);
 			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
 		newline ctx
 	) e.e_names;
@@ -1572,7 +1588,7 @@ let generate_enum ctx e =
 				| _ -> true
 		) e.e_names in
 		print ctx "%s.__empty_constructs__ = " p;
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		if (List.length ctors_without_args)  > 0 then
 		    begin
 			spr ctx "[0] = ";
@@ -1649,14 +1665,14 @@ let generate_type_forward ctx = function
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
-		    print ctx "%s = _hx_empty() " p;
+		    println ctx "%s = _hx_empty()" p;
 		end
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
-		print ctx "%s = _hx_empty() " p;
+		println ctx "%s = _hx_empty()" p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let set_current_class ctx c =
@@ -1705,6 +1721,8 @@ let generate com =
 	let t = Common.timer "generate lua" in
 	let ctx = alloc_ctx com in
 
+	Codegen.map_source_header com (fun s -> print ctx "-- %s\n" s);
+
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
@@ -1720,7 +1738,7 @@ let generate com =
 
 	let var_exports = (
 		"_hx_exports",
-		"_G"
+		"_hx_exports or {}"
 	) in
 
 	let exposed = List.concat (List.map (fun t ->
@@ -1843,7 +1861,7 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 
-	sprln ctx "return _G";
+	sprln ctx "return _hx_exports";
 
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);

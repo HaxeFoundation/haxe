@@ -798,7 +798,7 @@ import cs.system.Object;
 
 
 #if !erase_generics
-	private static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
+	public static function getGenericAttr(t:cs.system.Type):cs.internal.HxObject.GenericInterface
 	{
 		for (attr in t.GetCustomAttributes(true))
 			if (Std.is(attr,cs.internal.HxObject.GenericInterface))

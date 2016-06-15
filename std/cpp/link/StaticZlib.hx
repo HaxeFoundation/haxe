@@ -19,7 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.link;
+package cpp.link;
+
+#if (hxcpp_api_level>=330)
+class StaticZlib { }
+#else
 
 @:cppFileCode( 'extern "C" int zlib_register_prims();')
 @:buildXml("
@@ -34,4 +38,6 @@
      untyped __cpp__("zlib_register_prims();");
    }
 }
+
+#end
 

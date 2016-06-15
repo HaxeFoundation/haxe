@@ -166,7 +166,7 @@ class Timer {
 		The value itself might differ depending on platforms, only differences
 		between two values make sense.
 	**/
-	public static function stamp() : Float {
+	public static inline function stamp() : Float {
 		#if flash
 			return flash.Lib.getTimer() / 1000;
 		#elseif (neko || php)

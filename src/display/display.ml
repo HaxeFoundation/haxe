@@ -301,12 +301,12 @@ let convert_import_to_something_usable path =
 			let is_lower = is_lower_ident s in
 			let is_display_pos = encloses_position !Parser.resume_display p in
 			begin match is_lower,m,t with
-				| _,None,Some _ | false,Some _,Some _ ->
+				| _,None,Some _ ->
 					assert false (* impossible, I think *)
 				| true,Some m,None ->
 					if is_display_pos then (IDKModuleField(List.rev pack,m,s),p)
 					else (IDK,p) (* assume that we're done *)
-				| true,Some m,Some t ->
+				| _,Some m,Some t ->
 					if is_display_pos then (IDKSubTypeField(List.rev pack,m,t,s),p)
 					else (IDK,p)
 				| true,None,None ->

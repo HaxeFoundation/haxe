@@ -35,6 +35,8 @@ type t = {
 	fusion : bool;
 	purity_inference : bool;
 	debug_kind : debug_kind;
+	detail_times : bool;
+	user_var_fusion : bool;
 }
 
 let flag_const_propagation = "const_propagation"
@@ -46,11 +48,12 @@ let flag_purity_inference = "purity_inference"
 let flag_ignore = "ignore"
 let flag_dot_debug = "dot_debug"
 let flag_full_debug = "full_debug"
+let flag_user_var_fusion = "user_var_fusion"
 
 let all_flags =
 	List.fold_left (fun acc flag ->
 		flag :: ("no_" ^ flag) :: acc
-	) [] [flag_const_propagation;flag_copy_propagation;flag_code_motion;flag_local_dce;flag_fusion;flag_purity_inference;flag_ignore;flag_dot_debug]
+	) [] [flag_const_propagation;flag_copy_propagation;flag_code_motion;flag_local_dce;flag_fusion;flag_purity_inference;flag_ignore;flag_dot_debug;flag_user_var_fusion]
 
 let has_analyzer_option meta s =
 	try
@@ -86,6 +89,8 @@ let get_base_config com =
 		fusion = not (Common.raw_defined com "analyzer-no-fusion") && (match com.platform with Flash | Java -> false | _ -> true);
 		purity_inference = not (Common.raw_defined com "analyzer-no-purity-inference");
 		debug_kind = DebugNone;
+		detail_times = Common.raw_defined com "analyzer-times";
+		user_var_fusion = Common.raw_defined com "analyzer-user-var-fusion" || (not com.debug && not (Common.raw_defined com "analyzer-no-user-var-fusion"));
 	}
 
 let update_config_from_meta com config meta =
@@ -106,6 +111,8 @@ let update_config_from_meta com config meta =
 				| EConst (Ident s) when s = flag_purity_inference -> { config with purity_inference = true}
 				| EConst (Ident s) when s = flag_dot_debug -> {config with debug_kind = DebugDot}
 				| EConst (Ident s) when s = flag_full_debug -> {config with debug_kind = DebugFull}
+				| EConst (Ident s) when s = flag_user_var_fusion -> {config with user_var_fusion = true}
+				| EConst (Ident s) when s = "no_" ^ flag_user_var_fusion -> {config with user_var_fusion = false}
 				| _ ->
 					let s = Ast.s_expr e in
 					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);

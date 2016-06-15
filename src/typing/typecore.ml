@@ -142,7 +142,7 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception Error of error_msg * pos
 
-exception WithTypeError of unify_error list * pos
+exception WithTypeError of error_msg * pos
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
@@ -261,11 +261,11 @@ let make_static_call ctx c cf map args t p =
 
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError(l,p))
+	else if ctx.in_call_args then raise (WithTypeError(Unify l,p))
 	else display_error ctx (error_msg (Unify l)) p
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise (WithTypeError ([Unify_custom msg],p))
+	if ctx.in_call_args then raise (WithTypeError (Custom msg,p))
 	else display_error ctx msg p
 
 let unify ctx t1 t2 p =

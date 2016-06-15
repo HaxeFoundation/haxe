@@ -19,7 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.link;
+package cpp.link;
+
+#if (hxcpp_api_level>=330)
+class StaticRegexp { }
+#else
 
 @:cppFileCode( 'extern "C" int regexp_register_prims();')
 @:buildXml("
@@ -35,3 +39,4 @@
    }
 }
 
+#end

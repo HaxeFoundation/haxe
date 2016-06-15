@@ -31,11 +31,11 @@ class String {
 	}
 
 	public function toUpperCase() : String {
-		return __alloc__(@:privateAccess bytes.ucs2Upper(0,length<<1), length);
+		return __alloc__(@:privateAccess bytes.ucs2Upper(0,length), length);
 	}
 
 	public function toLowerCase() : String {
-		return __alloc__(@:privateAccess bytes.ucs2Lower(0,length<<1), length);
+		return __alloc__(@:privateAccess bytes.ucs2Lower(0,length), length);
 	}
 
 	public function charAt(index : Int) : String {

@@ -111,7 +111,6 @@ type opcode =
 	(* unops *)
 	| ONeg of reg * reg
 	| ONot of reg * reg
-	(* unops *)
 	| OIncr of reg
 	| ODecr of reg
 	(* calls *)
@@ -135,6 +134,8 @@ type opcode =
 	| OSetField of reg * field index * reg
 	| OGetThis of reg * field index
 	| OSetThis of field index * reg
+	| ODynGet of reg * reg * string index
+	| ODynSet of reg * string index * reg
 	(* jumps *)
 	| OJTrue of reg * int
 	| OJFalse of reg * int
@@ -149,10 +150,14 @@ type opcode =
 	| OJEq of reg * reg * int
 	| OJNotEq of reg * reg * int
 	| OJAlways of int
+	(* coerce *)
 	| OToDyn of reg * reg
 	| OToSFloat of reg * reg
 	| OToUFloat of reg * reg
 	| OToInt of reg * reg
+	| OSafeCast of reg * reg
+	| OUnsafeCast of reg * reg
+	| OToVirtual of reg * reg
 	(* control flow *)
 	| OLabel of unused
 	| ORet of reg
@@ -177,16 +182,10 @@ type opcode =
 	| OSetArray of reg * reg * reg
 	(* type operations *)
 	| ONew of reg
-	| OSafeCast of reg * reg
-	| OUnsafeCast of reg * reg
 	| OArraySize of reg * reg
 	| OType of reg * ttype
 	| OGetType of reg * reg
 	| OGetTID of reg * reg
-	| OToVirtual of reg * reg
-	(* dynamic *)
-	| ODynGet of reg * reg * string index
-	| ODynSet of reg * string index * reg
 	(* references *)
 	| ORef of reg * reg
 	| OUnref of reg * reg
@@ -3128,18 +3127,9 @@ let generate_static_init ctx =
 		| _ -> ()
 	) ctx.com.types;
 	(* call main() *)
-	(match ctx.com.main_class with
+	(match ctx.com.main with
 	| None -> ()
-	| Some m ->
-		let t = (try List.find (fun t -> t_path t = m) ctx.com.types with Not_found -> assert false) in
-		match t with
-		| TClassDecl c ->
-			let f = (try PMap.find "main" c.cl_statics with Not_found -> assert false) in
-			let p = { pfile = "<startup>"; pmin = 0; pmax = 0; } in
-			exprs := mk (TCall (mk (TField (mk (TTypeExpr t) t_dynamic p, FStatic (c,f))) f.cf_type p,[])) t_void p :: !exprs
-		| _ ->
-			assert false
-	);
+	| Some e -> exprs := e :: !exprs);
 	let fid = alloc_function_name ctx "<entry>" in
 	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None None);
 	fid
@@ -4894,7 +4884,7 @@ let interp code =
 						VNull
 				in
 				(function
-				| [v; VBool r] -> get_fields v r
+				| [v] -> get_fields v true
 				| _ -> assert false)
 			| "obj_copy" ->
 				(function
@@ -5058,7 +5048,7 @@ let interp code =
 							else c
 						in
 						utf16_add buf c
-					) (String.sub s (int pos) (int len));
+					) (String.sub s (int pos) ((int len) lsl 1));
 					utf16_add buf 0;
 					VBytes (Buffer.contents buf)
 				| _ -> assert false)
@@ -5072,7 +5062,7 @@ let interp code =
 							else c
 						in
 						utf16_add buf c
-					) (String.sub s (int pos) (int len));
+					) (String.sub s (int pos) ((int len) lsl 1));
 					utf16_add buf 0;
 					VBytes (Buffer.contents buf)
 				| _ -> assert false)
@@ -5225,10 +5215,6 @@ let interp code =
 				(function
 				| [VInt max] -> VInt (if max <= 0l then 0l else Random.int32 max)
 				| _ -> assert false)
-			| _ ->
-				unresolved())
-		| "regexp" ->
-			(match name with
 			| "regexp_new_options" ->
 				(function
 				| [VBytes str; VBytes opt] ->
@@ -5423,9 +5409,7 @@ let write_code ch code =
 			write_type t
 		| OSwitch (r,pl,eend) ->
 			byte oid;
-			let n = Array.length pl in
-			if n > 0xFF then assert false;
-			byte n;
+			write_index (Array.length pl);
 			Array.iter write_index pl;
 			write_index eend
 		| OEnumField (r,e,i,idx) ->
@@ -5528,12 +5512,14 @@ let write_code ch code =
 			byte 17;
 			write_index e.eid;
 			write_index (Array.length e.efields);
-			Array.iter (fun (_,n,tl) ->
-				write_index (Array.length tl);
+			Array.iter (fun (_,nid,tl) ->
+				write_index nid;
+				if Array.length tl > 0xFF then assert false;
+				byte (Array.length tl);
 				Array.iter write_type tl;
 			) e.efields
 		| HNull t ->
-			byte 0x18;
+			byte 18;
 			write_type t
 	) types.arr;
 
@@ -6846,6 +6832,9 @@ let write_c version file (code:code) =
 		| _ ->
 			()
 	) types.arr;
+	Array.iteri (fun i t ->
+		if is_ptr t then sexpr "hl_add_root(&global$%d)" i;
+	) code.globals;
 	sexpr "%s()" funnames.(code.entrypoint);
 	unblock();
 	line "}";
@@ -6956,10 +6945,13 @@ let generate com =
 		dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;
 	end;
-	PMap.iter (fun (s,p) fid ->
-		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
-	) ctx.cfids.map;
-	check code;
+	if Common.raw_defined com "check" then begin
+		PMap.iter (fun (s,p) fid ->
+			if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
+		) ctx.cfids.map;
+		check code;
+	end;
+	let t = Common.timer "write hl" in
 	if file_extension com.file = "c" then
 		write_c com.Common.version com.file code
 	else begin
@@ -6970,5 +6962,6 @@ let generate com =
 		output_string ch str;
 		close_out ch;
 	end;
+	t();
 	if Common.defined com Define.Interp then ignore(interp code)
 

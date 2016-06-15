@@ -187,7 +187,8 @@ module Pattern = struct
 		let check_expr e =
 			let rec loop e = match e.eexpr with
 				| TField(_,FEnum(en,ef)) ->
-					(match follow ef.ef_type with TFun _ -> raise Exit | _ -> ());
+					(* Let the unification afterwards fail so we don't recover. *)
+					(* (match follow ef.ef_type with TFun _ -> raise Exit | _ -> ()); *)
 					PatConstructor(ConEnum(en,ef),[])
 				| TField(_,FStatic(c,({cf_kind = Var {v_write = AccNever}} as cf))) ->
 					PatConstructor(ConStatic(c,cf),[])
@@ -212,6 +213,7 @@ module Pattern = struct
 					unify_type_pattern ctx mt t e.epos;
 					PatConstructor(ConTypeExpr mt,[])
 				| _ ->
+					let pat = check_expr e in
 					begin try
 						Type.unify e.etype t
 					with (Unify_error l) ->
@@ -221,36 +223,40 @@ module Pattern = struct
 							| _ -> raise_or_display ctx l p
 						end
 					end;
-					check_expr e
+					pat
 		in
 		let handle_ident s p =
 			let save =
-				let old = ctx.in_call_args,ctx.locals in
-				ctx.in_call_args <- true;
+				let old = ctx.locals in
 				ctx.locals <- PMap.empty;
 				(fun () ->
-					ctx.in_call_args <- fst old;
-					ctx.locals <- snd old;
+					ctx.locals <- old;
 				)
 			in
 			try
 				let pat = try_typing (EConst (Ident s),p) in
 				save();
 				pat
-			with _ -> try
-				let mt = module_type_of_type t in
-				let e_mt = Typer.type_module_type ctx mt None p in
-				let e = type_field_access ctx ~resume:true e_mt s in
-				let pat = check_expr e in
+			with
+			| Exit | Bad_pattern _ ->
+				begin try
+					let mt = module_type_of_type t in
+					let e_mt = Typer.type_module_type ctx mt None p in
+					let e = type_field_access ctx ~resume:true e_mt s in
+					let pat = check_expr e in
+					save();
+					pat
+				with _ ->
+					save();
+					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
+						display_error ctx "Capture variables must be lower-case" p;
+					end;
+					let v = add_local s p in
+					PatVariable v
+				end
+			| exc ->
 				save();
-				pat
-			with _ ->
-				save();
-				if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
-					display_error ctx "Capture variables must be lower-case" p;
-				end;
-				let v = add_local s p in
-				PatVariable v
+				raise exc
 		in
 		let rec loop e = match fst e with
 			| EParenthesis e1 | ECast(e1,None) ->
@@ -1033,6 +1039,7 @@ module Compile = struct
 					v,ex_bindings
 				with Not_found ->
 					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
+					v.v_meta <- (Meta.Custom ":extractorVariable",[],v.v_pos) :: v.v_meta;
 					v,(v,e1.epos,e1) :: ex_bindings
 				in
 				let ev = mk (TLocal v) v.v_type e1.epos in
@@ -1059,7 +1066,6 @@ module Compile = struct
 				(e :: subjects,vars)
 			| _ ->
 				let v = gen_local ctx e.etype e.epos in
-				v.v_meta <- (Meta.SwitchVariable,[],e.epos) :: v.v_meta;
 				let ev = mk (TLocal v) e.etype e.epos in
 				(ev :: subjects,(v,e.epos,e) :: vars)
 		) ([],[]) subjects in

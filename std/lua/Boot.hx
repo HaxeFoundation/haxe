@@ -56,7 +56,8 @@ class Boot {
 		if (m == null) return null;
 		// if (m.__id.__ == nil) m.__id__ = _fid + 1;
 		var f: Function = null;
-		if ( o.hx__closures__ == null ) o.hx__closures__ = {};
+		if ( o.hx__closures__ == null )
+			Lua.rawset(o,"hx__closures__", {});
 		else untyped f = o.hx__closures__[m];
 		if (f == null){
 			f = untyped __lua__("function(...) return m(o, ...) end");
@@ -188,11 +189,8 @@ class Boot {
 	   Helper method to generate a string representation of a class
 	*/
 	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
-		c.pairsEach(function(k,v){
-			if (result != "")
-				result += ", ";
-			result += '$k: ${__string_rec(v, s + "\t")}';
-		});
+		var f = lua.Boot.__string_rec;
+		untyped __lua__("for k,v in pairs(c) do if result ~= '' then result = result .. ', ' end result = result .. k .. ':' .. f(v, s.. '\t') end");
 		return result;
 	}
 
@@ -253,7 +251,7 @@ class Boot {
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
 		if (length == null) length = Table.maxn(tab) + 1; // maxn doesn't count 0 index
-		return untyped _hx_tabArray(tab, length);
+		return untyped _hx_tab_array(tab, length);
 	}
 
 	/*
@@ -336,8 +334,18 @@ class Boot {
 	/*
 	   Create an empty table.
 	*/
-	public inline static function createTable<K,V>() : Table<K,V> {
-		return untyped __lua__("{}");
+	public inline static function createTable<K,V>(?arr:Array<V>, ?hsh:Dynamic<V>) : Table<K,V> {
+		return untyped __lua_table__(arr,hsh);
+	}
+
+	/*
+	   Create an empty table for vectors
+	*/
+	// TODO: provide a simpler anonymous table generator syntax in genlua
+	public static function createVectorTable<K,V>(length:Int) : Table<K,V> {
+		var table : Table<K,V> = untyped __lua__("{}");
+		untyped table.length = length;
+		return table;
 	}
 
 	/*

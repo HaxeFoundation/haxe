@@ -397,6 +397,24 @@ class TestCSharp extends Test
 		//issue #2308
 		var fn = getEnumValue;
 		eq(0x100, Reflect.callMethod(null, fn, [TEnumWithValue.TVA]));
+
+		var e = getTVA();
+		switch(e) {
+			case TVA if (getEnumValue(e) == getEnumValue(getTVA())):
+				t(true);
+			case _:
+				t(false);
+		}
+
+		var e = getTVB();
+		switch(e) {
+			case TVA:
+				t(false);
+			case TVB if (getEnumValue(e) != getEnumValue(getTVA())):
+				t(true);
+			case _:
+				t(false);
+		}
 	}
 
 	static function getEnumValue(e:TEnumWithValue):Int

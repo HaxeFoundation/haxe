@@ -102,6 +102,7 @@ module Meta = struct
 		| ImplicitCast
 		| Include
 		| InitPackage
+		| InlineConstructorVariable
 		| Internal
 		| IsVar
 		| JavaCanonical
@@ -172,7 +173,6 @@ module Meta = struct
 		| StructAccess
 		| StructInit
 		| SuppressWarnings
-		| SwitchVariable
 		| This
 		| Throws
 		| To
@@ -187,6 +187,7 @@ module Meta = struct
 		| Unsafe
 		| Usage
 		| Used
+		| UserVariable
 		| Value
 		| Void
 		| Last
