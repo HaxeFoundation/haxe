@@ -189,11 +189,8 @@ class Boot {
 	   Helper method to generate a string representation of a class
 	*/
 	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
-		c.pairsEach(function(k,v){
-			if (result != "")
-				result += ", ";
-			result += '$k: ${__string_rec(v, s + "\t")}';
-		});
+		var f = lua.Boot.__string_rec;
+		untyped __lua__("for k,v in pairs(c) do if result ~= '' then result = result .. ', ' end result = result .. k .. ':' .. f(v, s.. '\t') end");
 		return result;
 	}
 
