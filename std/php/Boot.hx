@@ -96,7 +96,8 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function remove($x) {
-		for($i = 0; $i < count($this->a); $i++)
+		$len = count($this->a);
+		for($i = 0; $i < $len; $i++)
 			if($this->a[$i] === $x) {
 				unset($this->a[$i]);
 				$this->a = array_values($this->a);
@@ -416,7 +417,8 @@ function _hx_get_object_vars($o) {
 	if(isset($o->__dynamics))
 		$a = array_merge($a, array_keys($o->__dynamics));
 	$arr = array();
-	for($i=0;$i<count($a); $i++)
+	$len = count($a);
+	for($i=0;$i<$len; $i++)
 	{
 		$arr[] = '' . $a[$i];
 	}
@@ -590,7 +592,8 @@ function _hx_string_rec($o, $s) {
 			if(!empty($o->params)) {
 				$s .= \"\t\";
 				$b .= '(';
-				for($i = 0; $i < count($o->params); $i++) {
+				$len = count($o->params);
+				for($i = 0; $i < $len; $i++) {
 					if($i > 0)
 						$b .= ',' . _hx_string_rec($o->params[$i], $s);
 					else
@@ -609,7 +612,8 @@ function _hx_string_rec($o, $s) {
 				$s .= \"\t\";
 				$properties = $rfl->getProperties();
 
-				for($i = 0; $i < count($properties); $i++) {
+                                $len = count($properties);
+				for($i = 0; $i < $len; $i++) {
 					$prop = $properties[$i];
 					$f = $prop->getName();
 					if($i > 0)
@@ -844,7 +848,8 @@ class _hx_lambda {
 		// if use $this->locals directly in array_merge it works only if I make the assignement loop,
 		// so I've decided to reference $arr
 		$arr = array();
-		for ($i = 0; $i<count($this->locals);$i++)
+		$len = count($this->locals);
+		for ($i = 0; $i<$len;$i++)
 			$arr[] = & $this->locals[$i];
 		$args = func_get_args();
 		return call_user_func_array($this->func, array_merge($arr, $args));
@@ -931,7 +936,8 @@ if(!file_exists($_hx_autload_cache_file)) {
 
 	_hx_build_paths($_hx_libdir, $_hx_types_array, array(), $_hx_class_prefix);
 
-	for($i=0;$i<count($_hx_types_array);$i++) {
+        $len = count($_hx_types_array);
+	for($i=0;$i<$len;$i++) {
 		$_hx_cache_content .= '_hx_register_type(new ';
 		$t = null;
 		if($_hx_types_array[$i]['type'] == 0) {
