@@ -304,6 +304,9 @@
     <hidden path="src\typing\typeload.o" />
     <hidden path="src\typing\typer.o" />
     <hidden path=".travis" />
+    <hidden path="src\json.obj" />
+    <hidden path="src\display\display.obj" />
+    <hidden path="src\generators\genlua.obj" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
