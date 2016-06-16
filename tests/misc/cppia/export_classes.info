@@ -1,0 +1,89 @@
+enum sys.io.FileSeek
+class sys.io.FileOutput
+class sys.io.FileInput
+class sys.io.File
+class haxe.unit.TestStatus
+class haxe.unit.TestRunner
+class haxe.unit.TestResult
+class haxe.io.Output
+class haxe.io.Input
+class haxe.io.FPHelper
+enum haxe.io.Error
+class haxe.io.Eof
+class haxe.io.BytesBuffer
+class haxe.io.Bytes
+class haxe.ds.WeakMap
+class haxe.ds._Vector.Vector_Impl_
+class haxe.ds.StringMap
+class haxe.ds.ObjectMap
+class haxe.ds.IntMap
+class haxe.ds._HashMap.HashMapData
+class haxe.ds._HashMap.HashMap_Impl_
+class haxe.ds.EnumValueMap
+class haxe.ds.TreeNode
+class haxe.ds.BalancedTree
+class haxe.Log
+class haxe.Int64Helper
+class haxe._Int64.Int64_Impl_
+class haxe._Int32.Int32_Impl_
+interface haxe.IMap
+class haxe.CallStack
+enum haxe.StackItem
+class cpp.Lib
+class Type
+enum ValueType
+class TestCppia
+class Sys
+class StringTools
+class StringBuf
+class Std
+class Reflect
+class _Map.Map_Impl_
+class _List.ListIterator
+class _List.ListNode
+class List
+class I5351Test2
+class I5351Test
+class Issue5351
+class haxe.unit.TestCase
+class IntIterator
+class EReg
+file /usr/lib/haxe/std/IntIterator.hx /var/dev/main/haxe/std/IntIterator.hx
+file /usr/lib/haxe/std/List.hx /var/dev/main/haxe/std/List.hx
+file /usr/lib/haxe/std/Map.hx /var/dev/main/haxe/std/Map.hx
+file /usr/lib/haxe/std/StringTools.hx /var/dev/main/haxe/std/StringTools.hx
+file /usr/lib/haxe/std/cpp/Lib.hx /var/dev/main/haxe/std/cpp/Lib.hx
+file /usr/lib/haxe/std/cpp/_std/EReg.hx /var/dev/main/haxe/std/cpp/_std/EReg.hx
+file /usr/lib/haxe/std/cpp/_std/Reflect.hx /var/dev/main/haxe/std/cpp/_std/Reflect.hx
+file /usr/lib/haxe/std/cpp/_std/Std.hx /var/dev/main/haxe/std/cpp/_std/Std.hx
+file /usr/lib/haxe/std/cpp/_std/StringBuf.hx /var/dev/main/haxe/std/cpp/_std/StringBuf.hx
+file /usr/lib/haxe/std/cpp/_std/Sys.hx /var/dev/main/haxe/std/cpp/_std/Sys.hx
+file /usr/lib/haxe/std/cpp/_std/Type.hx /var/dev/main/haxe/std/cpp/_std/Type.hx
+file /usr/lib/haxe/std/cpp/_std/haxe/Int64.hx /var/dev/main/haxe/std/cpp/_std/haxe/Int64.hx
+file /usr/lib/haxe/std/cpp/_std/haxe/ds/IntMap.hx /var/dev/main/haxe/std/cpp/_std/haxe/ds/IntMap.hx
+file /usr/lib/haxe/std/cpp/_std/haxe/ds/ObjectMap.hx /var/dev/main/haxe/std/cpp/_std/haxe/ds/ObjectMap.hx
+file /usr/lib/haxe/std/cpp/_std/haxe/ds/StringMap.hx /var/dev/main/haxe/std/cpp/_std/haxe/ds/StringMap.hx
+file /usr/lib/haxe/std/cpp/_std/haxe/ds/WeakMap.hx /var/dev/main/haxe/std/cpp/_std/haxe/ds/WeakMap.hx
+file /usr/lib/haxe/std/cpp/_std/sys/io/File.hx /var/dev/main/haxe/std/cpp/_std/sys/io/File.hx
+file /usr/lib/haxe/std/cpp/_std/sys/io/FileInput.hx /var/dev/main/haxe/std/cpp/_std/sys/io/FileInput.hx
+file /usr/lib/haxe/std/cpp/_std/sys/io/FileOutput.hx /var/dev/main/haxe/std/cpp/_std/sys/io/FileOutput.hx
+file /usr/lib/haxe/std/haxe/CallStack.hx /var/dev/main/haxe/std/haxe/CallStack.hx
+file /usr/lib/haxe/std/haxe/Int32.hx /var/dev/main/haxe/std/haxe/Int32.hx
+file /usr/lib/haxe/std/haxe/Int64Helper.hx /var/dev/main/haxe/std/haxe/Int64Helper.hx
+file /usr/lib/haxe/std/haxe/Log.hx /var/dev/main/haxe/std/haxe/Log.hx
+file /usr/lib/haxe/std/haxe/ds/BalancedTree.hx /var/dev/main/haxe/std/haxe/ds/BalancedTree.hx
+file /usr/lib/haxe/std/haxe/ds/EnumValueMap.hx /var/dev/main/haxe/std/haxe/ds/EnumValueMap.hx
+file /usr/lib/haxe/std/haxe/ds/HashMap.hx /var/dev/main/haxe/std/haxe/ds/HashMap.hx
+file /usr/lib/haxe/std/haxe/ds/Vector.hx /var/dev/main/haxe/std/haxe/ds/Vector.hx
+file /usr/lib/haxe/std/haxe/io/Bytes.hx /var/dev/main/haxe/std/haxe/io/Bytes.hx
+file /usr/lib/haxe/std/haxe/io/BytesBuffer.hx /var/dev/main/haxe/std/haxe/io/BytesBuffer.hx
+file /usr/lib/haxe/std/haxe/io/Eof.hx /var/dev/main/haxe/std/haxe/io/Eof.hx
+file /usr/lib/haxe/std/haxe/io/FPHelper.hx /var/dev/main/haxe/std/haxe/io/FPHelper.hx
+file /usr/lib/haxe/std/haxe/io/Input.hx /var/dev/main/haxe/std/haxe/io/Input.hx
+file /usr/lib/haxe/std/haxe/io/Output.hx /var/dev/main/haxe/std/haxe/io/Output.hx
+file /usr/lib/haxe/std/haxe/unit/TestCase.hx /var/dev/main/haxe/std/haxe/unit/TestCase.hx
+file /usr/lib/haxe/std/haxe/unit/TestResult.hx /var/dev/main/haxe/std/haxe/unit/TestResult.hx
+file /usr/lib/haxe/std/haxe/unit/TestRunner.hx /var/dev/main/haxe/std/haxe/unit/TestRunner.hx
+file /usr/lib/haxe/std/haxe/unit/TestStatus.hx /var/dev/main/haxe/std/haxe/unit/TestStatus.hx
+file Issue5351.hx /var/dev/main/haxe/tests/misc/cppia/Issue5351.hx
+file TestCppia.hx /var/dev/main/haxe/tests/misc/cppia/TestCppia.hx

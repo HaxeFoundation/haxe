@@ -1,0 +1,8 @@
+-main TestCppia
+-cpp bin
+-debug
+-D scriptable
+-dce no
+--next
+-cppia bin/cppia.cppia
+Issue5351
