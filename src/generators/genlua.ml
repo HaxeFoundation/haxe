@@ -1104,7 +1104,7 @@ and is_function_type ctx t =
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
-    | Ast.OpAssign, TField(e3, FInstance(_,_,_) ), TFunction f ->
+    | Ast.OpAssign, TField(e3, FInstance _), TFunction f ->
 	    gen_expr ctx e1;
 	    spr ctx " = " ;
 	    print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
@@ -1151,7 +1151,7 @@ and gen_tbinop ctx op e1 e2 =
 		spr ctx "_hx_functionToInstanceFunction(";
 		gen_value ctx e2;
 		spr ctx ")";
-	    | _,_ ->
+	    | _ ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2);
