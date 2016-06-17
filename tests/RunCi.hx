@@ -914,7 +914,7 @@ class RunCi {
 				case _:
 					//pass
 			}
-			
+
 			infoMsg('test $test');
 			var success = true;
 			try {
@@ -1000,12 +1000,12 @@ class RunCi {
 						runCommand("haxe", ["compile-cpp.hxml"]);
 						runCpp("bin/cpp/Main-debug", []);
 
-						if (Sys.systemName() == "Mac")
-						{
-							changeDirectory(miscDir + "cppObjc");
-							runCommand("haxe", ["build.hxml"]);
-							runCpp("bin/TestObjc-debug");
-						}
+						// if (Sys.systemName() == "Mac")
+						// {
+						// 	changeDirectory(miscDir + "cppObjc");
+						// 	runCommand("haxe", ["build.hxml"]);
+						// 	runCpp("bin/TestObjc-debug");
+						// }
 					case Js:
 						getJSDependencies();
 
@@ -1194,14 +1194,14 @@ class RunCi {
 			} catch(f:Failure) {
 				success = false;
 			}
-			
+
 			switch (ci) {
 				case TravisCI:
 					Sys.println('travis_fold:end:test-${test}');
 				case _:
 					//pass
 			}
-			
+
 			if (success) {
 				successMsg('test ${test} succeeded');
 			} else {
