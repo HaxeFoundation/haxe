@@ -470,7 +470,7 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 							if not expects_expression && not accepts_expression then
 								error "Constant value unexpected here" p
 						end else if expects_expression then
-							error "Constant value excepted as type parameter" p
+							error "Type parameter is expected to be a constant value" p
 					in
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
 					let t = match follow t2 with
