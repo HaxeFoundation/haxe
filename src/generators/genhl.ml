@@ -6774,10 +6774,10 @@ let write_c version file (code:code) =
 			| ONullCheck r ->
 				sexpr "if( %s == NULL ) hl_null_access()" (reg r)
 			| OTrap (r,d) ->
-				sexpr "hlc_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
+				sexpr "hl_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
 				incr trap_depth
 			| OEndTrap b ->
-				sexpr "hlc_endtrap(trap$%d)" (!trap_depth - 1);
+				sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1);
 				if b then decr trap_depth;
 			| ODump r ->
 				todo()
