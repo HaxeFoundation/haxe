@@ -5542,7 +5542,7 @@ let write_code ch code =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* DUMP *)
 
-let ostr o =
+let ostr fstr o =
 	match o with
 	| OMov (a,b) -> Printf.sprintf "mov %d,%d" a b
 	| OInt (r,i) -> Printf.sprintf "int %d,@%d" r i
@@ -5568,18 +5568,18 @@ let ostr o =
 	| ONot (r,v) -> Printf.sprintf "not %d,%d" r v
 	| OIncr r -> Printf.sprintf "incr %d" r
 	| ODecr r -> Printf.sprintf "decr %d" r
-	| OCall0 (r,g) -> Printf.sprintf "call %d, f%d()" r g
-	| OCall1 (r,g,a) -> Printf.sprintf "call %d, f%d(%d)" r g a
-	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, f%d(%d,%d)" r g a b
-	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, f%d(%d,%d,%d)" r g a b c
-	| OCall4 (r,g,a,b,c,d) -> Printf.sprintf "call %d, f%d(%d,%d,%d,%d)" r g a b c d
-	| OCallN (r,g,rl) -> Printf.sprintf "call %d, f%d(%s)" r g (String.concat "," (List.map string_of_int rl))
+	| OCall0 (r,g) -> Printf.sprintf "call %d, %s()" r (fstr g)
+	| OCall1 (r,g,a) -> Printf.sprintf "call %d, %s(%d)" r (fstr g) a
+	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, %s(%d,%d)" r (fstr g) a b
+	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, %s(%d,%d,%d)" r (fstr g) a b c
+	| OCall4 (r,g,a,b,c,d) -> Printf.sprintf "call %d, %s(%d,%d,%d,%d)" r (fstr g) a b c d
+	| OCallN (r,g,rl) -> Printf.sprintf "call %d, %s(%s)" r (fstr g) (String.concat "," (List.map string_of_int rl))
 	| OCallMethod (r,f,[]) -> "callmethod ???"
 	| OCallMethod (r,f,o :: rl) -> Printf.sprintf "callmethod %d, %d[%d](%s)" r o f (String.concat "," (List.map string_of_int rl))
 	| OCallClosure (r,f,rl) -> Printf.sprintf "callclosure %d, %d(%s)" r f (String.concat "," (List.map string_of_int rl))
 	| OCallThis (r,f,rl) -> Printf.sprintf "callthis %d, [%d](%s)" r f (String.concat "," (List.map string_of_int rl))
-	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, f%d" r f
-	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, f%d(%d)" r f v
+	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, %s" r (fstr f)
+	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, %s(%d)" r (fstr f) v
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| ORet r -> Printf.sprintf "ret %d" r
@@ -5646,6 +5646,7 @@ let ostr o =
 
 let dump pr code =
 	let all_protos = Hashtbl.create 0 in
+	let funnames = Hashtbl.create 0 in
 	let tstr t =
 		(match t with
 		| HObj p -> Hashtbl.replace all_protos p.pname p
@@ -5657,6 +5658,12 @@ let dump pr code =
 			code.strings.(idx)
 		with _ ->
 			"INVALID:" ^ string_of_int idx
+	in
+	let fstr fid =
+		try
+			Hashtbl.find funnames fid
+		with _ ->
+			Printf.sprintf "f@%X" fid
 	in
 	let debug_infos (fid,line) =
 		(try code.debugfiles.(fid) with _ -> "???") ^ ":" ^ string_of_int line
@@ -5682,7 +5689,9 @@ let dump pr code =
 	pr (string_of_int (Array.length code.natives) ^ " natives");
 	Array.iter (fun (lib,name,t,fidx) ->
 		pr ("	@" ^ string_of_int fidx ^ " native " ^ str lib ^ "@" ^ str name ^ " " ^ tstr t);
+		Hashtbl.add funnames fidx (str lib ^ "@" ^ str name)
 	) code.natives;
+	Array.iter (fun f -> Hashtbl.add funnames f.findex (fundecl_name f)) code.functions;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr (Printf.sprintf "	fun@%d(%Xh) %s" f.findex f.findex (tstr f.ftype));
@@ -5691,7 +5700,7 @@ let dump pr code =
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
 		Array.iteri (fun i o ->
-			pr (Printf.sprintf "		.%-5d @%X %s" (snd f.debug.(i)) i (ostr o))
+			pr (Printf.sprintf "		.%-5d @%X %s" (snd f.debug.(i)) i (ostr fstr o))
 		) f.code;
 	) code.functions;
 	let protos = Hashtbl.fold (fun _ p acc -> p :: acc) all_protos [] in
@@ -6449,7 +6458,7 @@ let write_c version file (code:code) =
 				label
 			in
 			let todo() =
-				sexpr "hl_fatal(\"%s\")" (ostr op)
+				sexpr "hl_fatal(\"%s\")" (ostr (fun id -> "f" ^ string_of_int id) op)
 			in
 			let compare_op op a b d =
 				let phys_compare() =
