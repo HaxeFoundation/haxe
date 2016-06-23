@@ -249,7 +249,7 @@ install_dox:
 	haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp
 	haxelib git hxjava https://github.com/HaxeFoundation/hxjava
 	haxelib git hxcs https://github.com/HaxeFoundation/hxcs
-	haxelib git dox https://github.com/dpeek/dox
+	haxelib git dox https://github.com/HaxeFoundation/dox
 
 package_doc:
 	mkdir -p $(PACKAGE_OUT_DIR)
