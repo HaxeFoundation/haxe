@@ -21,10 +21,16 @@
  */
  package haxe.unit;
 
+/**
+	TestResult contains the result of the executed unit tests.
+**/
 class TestResult {
-
 	var m_tests : List<TestStatus>;
-	public var success(default,null) : Bool;
+
+	/**
+		`true` if the unit test succesfully executed the test cases.
+	**/
+	public var success(default, null) : Bool;
 
 	public function new() {
 		m_tests = new List();
@@ -37,6 +43,9 @@ class TestResult {
 			success = false;
 	}
 
+	/**
+		String representation from the result of the unit test.
+	**/
 	public function toString() : String 	{
 		var buf = new StringBuf();
 		var failures = 0;
