@@ -34,7 +34,7 @@ class StringBuf {
 
 	public var length(get, never):Int;
 
-	public function get_length ():Int {
+	function get_length ():Int {
 		var pos = b.tell();
 		b.seek(0, SeekEnd);
 		var len = b.tell();
