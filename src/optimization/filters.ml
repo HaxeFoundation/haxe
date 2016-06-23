@@ -79,7 +79,7 @@ let rec wrap_js_exceptions com e =
 				let ewrap = Codegen.fcall eterr "wrap" [eerr] t_dynamic e.epos in
 				{ e with eexpr = TThrow ewrap }
 			| _ ->
-				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
+				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]); etype = TInst (cerr,[]) } in
 				{ e with eexpr = TThrow ewrap }
 			)
 		| _ ->
