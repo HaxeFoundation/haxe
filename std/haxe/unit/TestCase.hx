@@ -66,7 +66,7 @@ class TestCase {
 	}
 
 	/**
-		Override this method to execute code after the test runned.
+		Override this method to execute code after the test ran.
 	**/
 	public function tearDown() : Void {
 	}
