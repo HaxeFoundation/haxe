@@ -25,7 +25,7 @@ package haxe.xml;
 /**
 	This class provides utility methods to convert Xml instances to 
 	String representation.
-*/
+**/
 class Printer {
 	/**
 		Convert `Xml` to string representation.
