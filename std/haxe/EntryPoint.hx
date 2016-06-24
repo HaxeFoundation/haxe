@@ -115,7 +115,7 @@ class EntryPoint {
 		processEvents();
 
 		#if nodejs
-		(untyped process).nextTick(run);
+		(untyped setImmediate)(run);
 		#else
 		var window : Dynamic = js.Browser.window;
 		var rqf : Dynamic = window.requestAnimationFrame ||
