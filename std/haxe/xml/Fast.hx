@@ -140,7 +140,7 @@ class Fast {
 		An exception is thrown if the element doesn't exists.
 		Use `hasNode` to check the existence of a node.
 		
-		```
+		```haxe
 		var fast = new haxe.xml.Fast(Xml.parse("<user><name>John</name></user>"));
 		var user = fast.node.user;
 		var name = user.node.name;
@@ -175,7 +175,7 @@ class Fast {
 		An exception is thrown if the attribute doesn't exists.
 		Use `has` to check the existence of an attribute.
 		
-		```
+		```haxe
 		var f = new haxe.xml.Fast(Xml.parse("<user name='Mark'></user>"));
 		var user = f.node.user;
 		if (user.has.name) {
@@ -193,7 +193,7 @@ class Fast {
 	/**
 		Check the existence of a sub node with the given name.
 		
-		```
+		```haxe
 		var f = new haxe.xml.Fast(Xml.parse("<user><age>31</age></user>"));
 		var user = f.node.user;
 		if (user.hasNode.age) {
