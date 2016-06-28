@@ -149,7 +149,7 @@ class Fast {
 		// Uncaught Error: Document is missing element password
 		var password = user.node.password; 
 		```
-		**/
+	**/
 	public var node(default,null) : NodeAccess;
 
 	/**
