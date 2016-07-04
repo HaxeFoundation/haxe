@@ -78,6 +78,7 @@ and tvar = {
 	mutable v_capture : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
+	mutable v_multi : string list;
 	v_pos : pos;
 }
 
@@ -311,7 +312,7 @@ and build_state =
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
+	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_multi = []; v_pos = p })
 
 let alloc_unbound_var n t p =
 	let v = alloc_var n t p in
@@ -456,6 +457,10 @@ let rec is_parent csup c =
 	else match c.cl_super with
 		| None -> false
 		| Some (c,_) -> is_parent csup c
+
+let rec find_index x lst = match lst with 
+		| [] -> raise Not_found
+		| h :: t -> if x = h then 0 else 1 + find_index x t 
 
 let map loop t =
 	match t with
@@ -2404,17 +2409,20 @@ module TExprToExpr = struct
 			begin match !(a.a_status) with
 			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path [],null_pos]
 			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path [],null_pos]
-			| _ ->
-				CTAnonymous (PMap.foldi (fun _ f acc ->
-					{
-						cff_name = f.cf_name,null_pos;
-						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
-						cff_pos = f.cf_pos;
-						cff_doc = f.cf_doc;
-						cff_meta = f.cf_meta;
-						cff_access = [];
-					} :: acc
-				) a.a_fields [])
+			| _ -> 
+				CTAnonymous (
+					PMap.foldi (fun i f acc -> (
+						{
+							cff_name = f.cf_name,null_pos;
+							cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
+							cff_pos = f.cf_pos;
+							cff_doc = f.cf_doc;
+							cff_meta = f.cf_meta;
+							cff_access = [];
+						} :: acc;
+					)
+					) a.a_fields [];
+				)
 			end
 		| (TDynamic t2) as t ->
 			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type' t2])

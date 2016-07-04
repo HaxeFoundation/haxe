@@ -117,6 +117,7 @@ module Meta = struct
 		| Macro
 		| MaybeUsed
 		| MergeBlock
+		| MultiReturn
 		| MultiType
 		| Native
 		| NativeChildren

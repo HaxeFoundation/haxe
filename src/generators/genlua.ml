@@ -280,6 +280,25 @@ let rec is_string_type t =
 let is_string_expr e = is_string_type e.etype
 (* /from genphp *)
 
+let is_multireturn ctx e =
+    match follow(e.etype) with
+	| TInst(cl,_) ->  Meta.has Meta.MultiReturn cl.cl_meta
+	| _ -> false
+
+let multireturn_ordered_fields t =
+    match follow(t) with
+	| TInst (tc,_) -> tc.cl_ordered_fields
+	| _ -> []
+
+let rec find f lst =
+    match lst with
+    | [] -> raise (Failure "Not Found")
+    | h :: t -> if (f h) then 0 else 1 + (find f t)
+
+let multireturn_idx e name =
+    find (fun f -> f.cf_name == name) (multireturn_ordered_fields e.etype)
+
+
 let rec is_int_type ctx t =
     match follow t with
 	| TInst ({cl_path = ([], "Int")}, _) -> true
@@ -460,6 +479,21 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")");
 	ctx.iife_assign <- false;
 
+and gen_mvar_name v f ctx =
+    ctx.id_counter <- ctx.id_counter + 1;
+    "_hx_" ^ (string_of_int ctx.id_counter) ^ "_" ^ v.v_name ^ "_" ^ f.cf_name
+
+
+and gen_arg_name ctx (a,_) =
+    match a.v_type with
+    TInst (tc,_) when Meta.has Meta.MultiReturn tc.cl_meta->
+	let mr_fields = multireturn_ordered_fields a.v_type in
+	a.v_multi <- List.map (fun f -> gen_mvar_name a f ctx  ) mr_fields;
+	a.v_name <- String.concat ", " a.v_multi;
+	a.v_name;
+    | _->
+    	a.v_name
+
 and gen_expr ?(local=true) ctx e = begin
 	match e.eexpr with
 	 TConst c ->
@@ -477,6 +511,10 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
 		gen_tbinop ctx op e1 e2;
+	| TField ({eexpr = TCall _} as e, f) when is_multireturn ctx e ->
+		print ctx "_G.select(%i, " (multireturn_idx e (field_name f) + 1);
+		gen_value ctx e;
+		spr ctx ")";
 	| TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use._iterator";
 		print ctx "_iterator(";
@@ -512,8 +550,18 @@ and gen_expr ?(local=true) ctx e = begin
 		spr ctx " end )({";
 		concat ctx ", " (fun (f,e) -> print ctx "%s = " (anon_field f); gen_value ctx e) fields;
 		spr ctx "})";
-	| TField (x,f) ->
-		gen_value ctx x;
+	| TField ({eexpr = TCall _; etype = TType (t,_)  } as e, f) when is_multireturn ctx e ->
+		print ctx "_G.select(%i, " (multireturn_idx e (field_name f));
+		gen_value ctx e;
+		spr ctx ")";
+	| TField ({eexpr = TLocal tv} as e, f) when is_multireturn ctx e ->
+		(match f with
+		| FInstance(_,_,cf)->
+			let idx = multireturn_idx e cf.cf_name in
+			spr ctx (List.nth tv.v_multi idx);
+		| _-> ());
+	| TField (e,f) ->
+		gen_value ctx e;
 		let name = field_name f in
 		spr ctx (match f with FStatic _ | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
 	| TTypeExpr t ->
@@ -540,7 +588,7 @@ and gen_expr ?(local=true) ctx e = begin
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
+		print ctx "function(%s) " (String.concat "," (List.map ident (List.map (gen_arg_name ctx) f.tf_args)));
 		let fblock = fun_block ctx f e.epos in
 		(match fblock.eexpr with
 		| TBlock el ->
@@ -553,10 +601,8 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
-	| TCall (e,el) ->
-		begin
-		    gen_call ctx e el false;
-		end;
+	| TCall (e2,e2args) ->
+		    gen_call ctx e2 e2args false;
 	| TArrayDecl el ->
 		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
@@ -578,6 +624,15 @@ and gen_expr ?(local=true) ctx e = begin
 				spr ctx (ident v.v_name);
 			| Some e ->
 				match e.eexpr with
+				| TCall _ when is_multireturn ctx e ->
+				    let mr_fields = multireturn_ordered_fields e.etype in
+				    v.v_multi <- List.map (fun f -> gen_mvar_name v f ctx) mr_fields;
+				    v.v_name <- String.concat ", " v.v_multi;
+				    spr ctx "local ";
+				    concat ctx ", " (spr ctx) v.v_multi;
+				    spr ctx " = ";
+				    gen_value ctx e;
+				    semicolon ctx;
 				| TBinop(OpAssign, e1, e2) ->
 				    gen_tbinop ctx OpAssign e1 e2;
 				    if local then
@@ -1425,6 +1480,7 @@ let generate_class ctx c =
 	let p = s_path ctx c.cl_path in
 	let hxClasses = has_feature ctx "Type.resolveClass" in
 	newline ctx;
+
 	print ctx "%s.new = " p;
 	(match c.cl_kind with
 		| KAbstractImpl _ ->
@@ -1630,6 +1686,22 @@ let generate_require ctx path meta =
 
 	newline ctx
 
+
+let check_multireturn ctx c =
+    match c with
+    | _ when Meta.has Meta.MultiReturn c.cl_meta ->
+	    if not c.cl_extern then
+		error "MultiReturns must be externs" c.cl_pos
+	    else if (match c.cl_kind with KExtension _ -> true | _ -> false) then
+		error "MultiReturns must not extend another class" c.cl_pos
+	    else if List.length c.cl_ordered_statics > 0 then
+		error "MultiReturns must not contain static fields" c.cl_pos
+	    else if (List.exists (fun cf -> match cf.cf_kind with Method _ -> true | _-> false) c.cl_ordered_fields) then
+		error "MultiReturns must not contain methods" c.cl_pos;
+    | {cl_super = Some(csup,_)} when Meta.has Meta.MultiReturn csup.cl_meta ->
+		error "Cannot extend a MultiReturn" c.cl_pos
+    | _ -> ()
+
 let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
@@ -1649,7 +1721,9 @@ let generate_type ctx = function
 		else if Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
 			| ([],_) -> ()
-			| _ -> generate_package_create ctx c.cl_path)
+			| _ -> generate_package_create ctx c.cl_path);
+
+		check_multireturn ctx c;
 	| TEnumDecl e when e.e_extern ->
 		if Meta.has Meta.LuaRequire e.e_meta && is_directly_used ctx.com e.e_meta then
 		    generate_require ctx e.e_path e.e_meta;
