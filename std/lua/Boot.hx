@@ -113,10 +113,7 @@ class Boot {
 			case UserData:
 				return Lua.type(o) == "userdata";
 			case Array:
-				return Lua.type(o) == "table"
-					&& untyped o.__enum__ == null
-					&& lua.Lua.getmetatable(o) != null
-					&& lua.Lua.getmetatable(o).__index == untyped Array.prototype;
+				return isArray(o);
 			case Table:
 				return Lua.type(o) == "table";
 			case Dynamic:
@@ -135,6 +132,12 @@ class Boot {
 				}
 			}
 		}
+	}
+	static function isArray(o:Dynamic) : Bool {
+		return Lua.type(o) == "table"
+			&& untyped o.__enum__ == null
+			&& Lua.getmetatable(o) != null
+			&& Lua.getmetatable(o).__index == untyped Array.prototype;
 	}
 
 	/*
@@ -210,10 +213,11 @@ class Boot {
 			case "thread"  : "<thread>";
 			case "table": {
 			    if (o.__enum__ != null) printEnum(o,s);
-				else if (o.toString != null && !__instanceof(o,Array)) o.toString();
-				else if (__instanceof(o, Array)) {
+				else if (o.toString != null && !isArray(o)) o.toString();
+				else if (isArray(o)) {
+					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
-					else '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
+					else '[${[for (i in  o2) __string_rec(i,s+1)].join(",")}]';
 				} else if (s.length > 5){
 					"{...}";
 				}
