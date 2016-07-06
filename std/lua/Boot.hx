@@ -222,16 +222,16 @@ class Boot {
 				else if (Lua.next(o) == null) "{}";
 				else {
 					var fields = Reflect.fields(o);
-					var buffer = new StringBuf();
+					var buffer:Table<Int,String> = Table.create();
 					var first = true;
-					buffer.add("{ ");
+					Table.insert(buffer,"{ ");
 					for (f in fields){
 						if (first) first = false;
-						else buffer.add(", ");
-						buffer.add('${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
+						else Table.insert(buffer,", ");
+						Table.insert(buffer,'${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
 					}
-					buffer.add(" }");
-					buffer.toString();
+					Table.insert(buffer, " }");
+					Table.concat(buffer, "");
 				}
 			};
 			default : {

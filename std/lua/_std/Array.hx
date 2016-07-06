@@ -33,14 +33,11 @@ class Array<T> {
 		return ret;
 	}
 	public function join( sep : String ) : String {
-		var sb = new StringBuf();
-		var first = true;
+		var tbl : lua.Table<Int,String> = lua.Table.create();
 		for (i in iterator()){
-			if (first) first = false;
-			else sb.add(sep);
-			sb.add(Std.string(i));
+			lua.Table.insert(tbl,Std.string(i));
 		}
-		return sb.toString();
+		return lua.Table.concat(tbl,sep);
 	}
 
 	public function pop() : Null<T> {
@@ -101,11 +98,11 @@ class Array<T> {
 	}
 
 	public function toString() : String {
-		var sb = new StringBuf();
-		sb.add("[");
-		sb.add(join(","));
-		sb.add("]");
-		return sb.toString();
+		var tbl : lua.Table<Int,String> = lua.Table.create();
+		lua.Table.insert(tbl, '[');
+		lua.Table.insert(tbl, join(","));
+		lua.Table.insert(tbl, ']');
+		return lua.Table.concat(tbl,"");
 	}
 
 	public function unshift( x : T ) : Void {
@@ -134,9 +131,9 @@ class Array<T> {
 				for (j in i...length-1){
 					this[j] = this[j+1];
 				}
-				// We need to decrement the length variable, and set its 
-				// value to null to avoid hanging on to a reference in the 
-				// underlying lua table.  
+				// We need to decrement the length variable, and set its
+				// value to null to avoid hanging on to a reference in the
+				// underlying lua table.
 				this[length-1] = null;
 				// Do this in two steps to avoid re-updating the __index metamethod
 				length--;
