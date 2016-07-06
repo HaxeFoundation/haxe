@@ -43,7 +43,6 @@
 	public function getDate()     : Int return d.day;
 	public function getDay()      : Int return d.wday-1;
 
-	@:keep
 	public inline function toString() : String {
 		return lua.Boot.dateStr(this);
 	}
