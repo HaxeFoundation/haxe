@@ -22,14 +22,10 @@
 
 package lua;
 
-// Bit and Table must be imported for basic Haxe datatypes to work.
-import lua.Bit;
-import lua.Table;
-import lua.Thread;
-import haxe.io.Path;
-
 import haxe.Constraints.Function;
-using lua.PairTools;
+
+// TODO: seperate bit helper method from extern so operators can use it.
+import lua.Bit;
 
 @:dox(hide)
 class Boot {
@@ -189,7 +185,7 @@ class Boot {
 	   Helper method to generate a string representation of a class
 	*/
 	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
-		var f = lua.Boot.__string_rec;
+		var f = Boot.__string_rec;
 		untyped __lua__("for k,v in pairs(c) do if result ~= '' then result = result .. ', ' end result = result .. k .. ':' .. f(v, s.. '\t') end");
 		return result;
 	}
@@ -371,7 +367,7 @@ class Boot {
 	*/
 	public static function tempFile() : String {
 		switch (Sys.systemName()){
-			case "Windows" : return Path.join([Os.getenv("TMP"), Os.tmpname()]);
+			case "Windows" : return haxe.io.Path.join([Os.getenv("TMP"), Os.tmpname()]);
 			default : return Os.tmpname();
 		}
 	}
