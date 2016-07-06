@@ -78,8 +78,28 @@ class Array<T> {
 		}
 		return ret;
 	}
+
+	// TODO: copied from neko Array.sort, move to general util library?
 	public function sort( f : T -> T -> Int ) : Void {
-		return haxe.ds.ArraySort.sort(this,f);
+		var i = 0;
+		var l = this.length;
+		while( i < l ) {
+			var swap = false;
+			var j = 0;
+			var max = l - i - 1;
+			while( j < max ) {
+				if( f(this[j],this[j+1]) > 0 ) {
+					var tmp = this[j+1];
+					this[j+1] = this[j];
+					this[j] = tmp;
+					swap = true;
+				}
+				j += 1;
+			}
+			if( !swap )
+				break;
+			i += 1;
+		}
 	}
 	public function splice( pos : Int, len : Int ) : Array<T> {
 		if (len < 0 || pos > length) return [];
