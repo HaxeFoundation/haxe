@@ -159,11 +159,11 @@ class Input {
 		The final character is not included in the resulting string.
 	**/
 	public function readUntil( end : Int ) : String {
-		var buf = new StringBuf();
+		var buf = new BytesBuffer();
 		var last : Int;
 		while( (last = readByte()) != end )
-			buf.addChar( last );
-		return buf.toString();
+			buf.addByte( last );
+		return buf.getBytes().toString();
 	}
 
 	/**
@@ -172,16 +172,16 @@ class Input {
 		The CR/LF characters are not included in the resulting string.
 	**/
 	public function readLine() : String {
-		var buf = new StringBuf();
+		var buf = new BytesBuffer();
 		var last : Int;
 		var s;
 		try {
 			while( (last = readByte()) != 10 )
-				buf.addChar( last );
-			s = buf.toString();
+				buf.addByte( last );
+			s = buf.getBytes().toString();
 			if( s.charCodeAt(s.length-1) == 13 ) s = s.substr(0,-1);
 		} catch( e : Eof ) {
-			s = buf.toString();
+			s = buf.getBytes().toString();
 			if( s.length == 0 )
 				#if neko neko.Lib.rethrow #else throw #end (e);
 		}
