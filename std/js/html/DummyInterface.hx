@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DummyBinding.webidl line 40:0. Do not edit!
+// This file is generated from mozilla\DummyBinding.webidl line 14:0. Do not edit!
 
 package js.html;
 

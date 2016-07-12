@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SpeechSynthesisEvent.webidl line 53:0. Do not edit!
+// This file is generated from mozilla\SpeechSynthesisEvent.webidl line 25:0. Do not edit!
 
 package js.html;
 

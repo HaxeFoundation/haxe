@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBFileHandle.webidl line 36:0. Do not edit!
+// This file is generated from mozilla\IDBFileHandle.webidl line 6:0. Do not edit!
 
 package js.html.idb;
 

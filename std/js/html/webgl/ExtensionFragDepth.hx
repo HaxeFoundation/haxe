@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 794:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl line 988:0. Do not edit!
 
 package js.html.webgl;
 
