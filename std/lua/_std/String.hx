@@ -47,7 +47,7 @@ class String {
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
-		var r = NativeStringTools.find(this, str, startIndex, true);
+		var r = NativeStringTools.find(this, str, startIndex, true).begin;
 		if (r != null && r > 0) return r-1;
 		else return -1;
 	}
@@ -70,7 +70,7 @@ class String {
 		while (idx != null){
 			var newidx = 0;
 			if (delimiter.length > 0){
-				newidx = NativeStringTools.find(this, delimiter, idx, true);
+				newidx = NativeStringTools.find(this, delimiter, idx, true).begin;
 			} else if (idx >= this.length){
 				newidx = null;
 			} else {
