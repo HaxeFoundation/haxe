@@ -309,13 +309,9 @@ module Fusion = struct
 
 	open AnalyzerConfig
 
-	type interference_kind =
-		| IKVarMod of tvar list
-		| IKSideEffect
-		| IKNone
-
 	let get_interference_kind e =
 		let vars = ref [] in
+		let has_side_effect = ref false in
 		let rec loop e = match e.eexpr with
 			| TMeta((Meta.Pure,_,_),_) ->
 				()
@@ -324,27 +320,31 @@ module Fusion = struct
 			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) ->
 				vars := v :: !vars;
 				loop e2
-			| TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
-				raise Exit
+			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
+				has_side_effect := true;
+				loop e1;
+				loop e2;
+			| TUnop((Increment | Decrement),_,e1) ->
+				has_side_effect := true;
+				loop e1
 			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 				List.iter loop el
 			| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
 				List.iter loop el
 			| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) ->
 				List.iter loop el;
-			| TCall _ | TNew _ ->
-				raise Exit
+			| TCall(e1,el) ->
+				has_side_effect := true;
+				loop e1;
+				List.iter loop el
+			| TNew(_,_,el) ->
+				has_side_effect := true;
+				List.iter loop el;
 			| _ ->
 				Type.iter loop e
 		in
-		try
-			loop e;
-			begin match !vars with
-				| [] -> IKNone
-				| vars -> IKVarMod vars
-			end
-		with Exit ->
-			IKSideEffect
+		loop e;
+		!has_side_effect,!vars
 
 	let apply com config e =
 		let rec block_element acc el = match el with
@@ -448,9 +448,8 @@ module Fusion = struct
 				let affected = ref false in
 				let ik1 = get_interference_kind e1 in
 				let check_interference e2 =
-					let check ik e2 = match ik with
-						| IKNone -> ()
-						| IKSideEffect -> (* TODO: Could this miss a IKVarMod case? *)
+					let check (has_side_effect,modified_vars) e2 =
+						if has_side_effect then begin
 							let rec loop e = match e.eexpr with
 								| TMeta((Meta.Pure,_,_),_) ->
 									()
@@ -468,12 +467,14 @@ module Fusion = struct
 									Type.iter loop e
 							in
 							loop e2
-						| IKVarMod vl ->
+						end;
+						if modified_vars <> [] then begin
 							let rec loop e = match e.eexpr with
-								| TLocal v when List.exists (fun v' -> v == v') vl -> raise Exit
+								| TLocal v when List.memq v modified_vars -> raise Exit
 								| _ -> Type.iter loop e
 							in
 							loop e2
+						end
 					in
 					try
 						check ik1 e2;
