@@ -218,6 +218,10 @@ package js.jquery;
 	@:overload(function(element:js.html.Element, queueName:String, callback:haxe.Constraints.Function):js.jquery.JQuery { })
 	static public function queue(element:js.html.Element, ?queueName:String):Array<Void -> Void>;
 	/**
+		Handles errors thrown synchronously in functions wrapped in <code>jQuery()</code>.
+	**/
+	static public dynamic function readyException(error:js.Error):String;
+	/**
 		Remove a previously-stored piece of data.
 	**/
 	static public function removeData(element:js.html.Element, ?name:String):js.jquery.JQuery;
