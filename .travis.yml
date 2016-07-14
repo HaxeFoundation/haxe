@@ -24,7 +24,9 @@ env:
 sudo: required
 dist: trusty
 addons: &addons
-  ssh_known_hosts: haxe.org
+  ssh_known_hosts:
+    - haxe.org
+    - api.haxe.org
 
 install_linux: &install_linux
   # Install neko and haxe dependencies
