@@ -517,6 +517,7 @@ and expr dce e =
 		expr dce e;
 	| TThrow e ->
 		check_and_add_feature dce "has_throw";
+		expr dce e;
 		(*
 			TODO: Simon, save me! \o
 			This is a hack needed to keep toString field of the actual exception objects
@@ -526,8 +527,7 @@ and expr dce e =
 			| TNew({cl_path=(["js";"_Boot"],"HaxeError")}, _, [eoriginal]) -> eoriginal
 			| _ -> e
 		) in
-		to_string dce e.etype;
-		expr dce e
+		to_string dce e.etype
 	| _ ->
 		Type.iter (expr dce) e
 
