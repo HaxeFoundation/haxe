@@ -23,10 +23,12 @@
 package haxe.extern;
 
 /**
-    A special abstract type that represents "rest" function argument.
+	A special abstract type that represents "rest" function argument.
 
-    Should be used as a type for the last argument of an extern method,
-    representing that arbitrary number of arguments of given type can be
-    passed to that method.
+	Should be used as a type for the last argument of an extern method,
+	representing that arbitrary number of arguments of given type can be
+	passed to that method.
+	
+	@see <http://haxe.org/manual/lf-externs.html>
 **/
 abstract Rest<T>(Array<T>) {}
