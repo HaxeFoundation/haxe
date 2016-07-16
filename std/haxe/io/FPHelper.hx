@@ -140,7 +140,11 @@ class FPHelper {
 			var af = f < 0 ? -f : f;
 			var exp = Math.floor(Math.log(af) / LN2);
 			if( exp < -127 ) exp = -127 else if( exp > 128 ) exp = 128;
-			var sig = Math.round((af / Math.pow(2, exp) - 1) * 0x800000) & 0x7FFFFF;
+			var sig = Math.round((af / Math.pow(2, exp) - 1) * 0x800000);
+			if( sig == 0x800000 && exp < 128 ){
+				sig = 0;
+				exp++;
+			}
 			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig;
 		#end
 	}
