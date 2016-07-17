@@ -228,7 +228,7 @@ module Pattern = struct
 		let handle_ident s p =
 			let save =
 				let old = ctx.locals in
-				ctx.locals <- PMap.empty;
+				ctx.locals <- (try PMap.add "this" (PMap.find "this" old) PMap.empty with Not_found -> PMap.empty);
 				(fun () ->
 					ctx.locals <- old;
 				)
