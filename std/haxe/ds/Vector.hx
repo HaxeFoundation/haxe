@@ -151,8 +151,7 @@ abstract Vector<T>(VectorData<T>) {
 			dest.toData().blit(destPos,src.toData(), srcPos,len);
 		#else
 			if (src == dest) {
-				if (srcPos < destPos)
-				{
+				if (srcPos < destPos) {
 					var i = srcPos + len;
 					var j = destPos + len;
 					for (k in 0...len) {
@@ -160,8 +159,7 @@ abstract Vector<T>(VectorData<T>) {
 						j--;
 						src[j] = src[i];
 					}
-				}
-				else if (srcPos > destPos) {
+				} else if (srcPos > destPos) {
 					var i = srcPos;
 					var j = destPos;
 					for (k in 0...len) {
@@ -170,8 +168,7 @@ abstract Vector<T>(VectorData<T>) {
 						j++;
 					}
 				}
-			}
-			else {
+			} else {
 				for (i in 0...len) {
 					dest[destPos + i] = src[srcPos + i];
 				}
