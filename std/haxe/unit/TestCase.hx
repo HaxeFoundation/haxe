@@ -35,7 +35,7 @@ import haxe.PosInfos;
 
 	```haxe
 	class MyTestCase extends haxe.unit.TestCase {
-		public function testBasic() {
+		function testBasic() {
 			assertEquals("A", "A");
 		}
 	}
