@@ -100,7 +100,6 @@ class Boot {
 
 		switch( cl ) {
 			case Int:
-				// TODO: matching js behavior here, but js behavior clamps.  Is that correct?
 				return (Lua.type(o) == "number" &&  clamp(o) == o);
 			case Float:
 				return Lua.type(o) == "number";
