@@ -150,9 +150,31 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cpp
 			dest.toData().blit(destPos,src.toData(), srcPos,len);
 		#else
-			for (i in 0...len)
-			{
-				dest[destPos + i] = src[srcPos + i];
+			if (src == dest) {
+				if (srcPos < destPos)
+				{
+					var i = srcPos + len;
+					var j = destPos + len;
+					for (k in 0...len) {
+						i--;
+						j--;
+						src[j] = src[i];
+					}
+				}
+				else if (srcPos > destPos) {
+					var i = srcPos;
+					var j = destPos;
+					for (k in 0...len) {
+						src[j] = src[i];
+						i++;
+						j++;
+					}
+				}
+			}
+			else {
+				for (i in 0...len) {
+					dest[destPos + i] = src[srcPos + i];
+				}
 			}
 		#end
 	}
