@@ -54,6 +54,8 @@ class TestRunner {
 		 * Flash outputs the result in a new `TextField` on stage.
 		 * JavaScript outputs the result using `console.log`.
 		 * Other targets use native `print` to output the result.
+
+		This function is `dynamic` so it can be overriden in custom setups.
 	**/
 	public static dynamic function print( v : Dynamic ) untyped {
 		#if flash
