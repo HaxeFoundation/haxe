@@ -993,8 +993,7 @@ let builtins =
 			Hashtbl.replace h k v;
 			VBool (not old);
 		);
-		"hadd", Fun4 (fun h k v cmp ->
-			if cmp <> VNull then assert false;
+		"hadd", Fun3 (fun h k v ->
 			let h = vhash h in
 			let old = Hashtbl.mem h k in
 			Hashtbl.add h k v;

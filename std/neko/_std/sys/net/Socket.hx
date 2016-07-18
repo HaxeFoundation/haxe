@@ -232,7 +232,7 @@ class Socket {
 				var i = 0;
 				while( i < a.length ){
 					r[i] = a[i].__s;
-					__dollar__hadd(c,a[i].__s,a[i],null);
+					__dollar__hadd(c,a[i].__s,a[i]);
 					i += 1;
 				}
 				return r;
