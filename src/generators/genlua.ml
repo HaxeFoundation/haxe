@@ -1248,6 +1248,7 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
+    add_feature ctx "use._bitop";
     print ctx "_hx_bit.%s(" (match op with
 	| Ast.OpXor  ->  "bxor"
 	| Ast.OpAnd  ->  "band"
@@ -1808,11 +1809,25 @@ let generate com =
 
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
-	spr ctx "local _hx_bind";
+	(* Generate some dummy placeholders for bind/bit behavior that may be *)
+	(* generated later *)
+	spr ctx "local _hx_bind,_hx_bit";
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
 	ctx.inits <- []; (* reset inits *)
 
 	List.iter (generate_type ctx) com.types;
+
+	if has_feature ctx "use._bitop" then begin
+	    sprln ctx "pcall(require, 'bit32') pcall(require, 'bit')";
+	    sprln ctx "local _hx_bit_raw = bit or bit32";
+	    sprln ctx "local function _hx_bit_clamp(v) return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648) end";
+	    sprln ctx "if type(jit) == 'table' then";
+	    sprln ctx "_hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
+	    sprln ctx "else";
+	    sprln ctx "_hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
+	    sprln ctx "_hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
+	    sprln ctx "end";
+	end;
 
 	(* If we use haxe Strings, patch Lua's string *)
 	if has_feature ctx "use.string" then begin
@@ -1854,6 +1869,7 @@ let generate com =
 		println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
 	end;
 	if has_feature ctx "use._hx_bind" then println ctx "_hx_bind = lua.Boot.bind";
+
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
 

@@ -24,9 +24,6 @@ package lua;
 
 import haxe.Constraints.Function;
 
-// TODO: seperate bit helper method from extern so operators can use it.
-import lua.Bit;
-
 @:dox(hide)
 class Boot {
 
