@@ -987,9 +987,9 @@ and gen_tfield ctx e e1 s =
 				| _ ->
 					gen_expr ctx e1) in
 
-			spr ctx "(isset(";
-			gen_field_access ctx true e1 s;
-			spr ctx ") ? ";
+			spr ctx "(property_exists(";
+			ob e1.eexpr;
+			print ctx ", \"%s\") ? " (s_ident s);
 			gen_field_access ctx true e1 s;
 			spr ctx ": array(";
 			ob e1.eexpr;
