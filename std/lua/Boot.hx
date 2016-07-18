@@ -24,6 +24,7 @@ package lua;
 
 import haxe.Constraints.Function;
 
+
 @:dox(hide)
 class Boot {
 
@@ -278,7 +279,7 @@ class Boot {
 	   A 32 bit clamp function for integers
 	*/
 	public inline static function clamp(x:Int){
-		return untyped _hx_bit_clamp(x);
+		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
 	}
 
 	/*
@@ -292,19 +293,19 @@ class Boot {
 				year  : 0,
 				month : 1,
 				day   : 1,
-				hour  : Std.parseInt(k[0]),
-				min   : Std.parseInt(k[1]),
-				sec   : Std.parseInt(k[2])
+				hour  : Lua.tonumber(k[0]),
+				min   : Lua.tonumber(k[1]),
+				sec   : Lua.tonumber(k[2])
 			});
 			return std.Date.fromTime(t);
 		case 10: // YYYY-MM-DD
 			var k = s.split("-");
-			return new std.Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]),0,0,0);
+			return new std.Date(Lua.tonumber(k[0]), Lua.tonumber(k[1]) - 1, Lua.tonumber(k[2]),0,0,0);
 		case 19: // YYYY-MM-DD hh:mm:ss
 			var k = s.split(" ");
 			var y = k[0].split("-");
 			var t = k[1].split(":");
-			return new std.Date(cast y[0],Std.parseInt(y[1]) - 1, Std.parseInt(y[2]),Std.parseInt(t[0]),Std.parseInt(t[1]),Std.parseInt(t[2]));
+			return new std.Date(cast y[0],Lua.tonumber(y[1]) - 1, Lua.tonumber(y[2]),Lua.tonumber(t[0]),Lua.tonumber(t[1]),Lua.tonumber(t[2]));
 		default:
 			throw "Invalid date format : " + s;
 		}

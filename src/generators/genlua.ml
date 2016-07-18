@@ -1806,18 +1806,12 @@ let generate com =
 		newline ctx
 	);
 
-
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
-	(* Generate some dummy placeholders for bind/bit behavior that may be *)
-	(* generated later *)
+	(* Generate some dummy placeholders for utility libs that may be required*)
 	spr ctx "local _hx_bind,_hx_bit";
-	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
-	ctx.inits <- []; (* reset inits *)
 
-	List.iter (generate_type ctx) com.types;
-
-	if has_feature ctx "use._bitop" then begin
+	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    sprln ctx "pcall(require, 'bit32') pcall(require, 'bit')";
 	    sprln ctx "local _hx_bit_raw = bit or bit32";
 	    sprln ctx "local function _hx_bit_clamp(v) return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648) end";
@@ -1828,6 +1822,13 @@ let generate com =
 	    sprln ctx "_hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
 	    sprln ctx "end";
 	end;
+
+	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
+	ctx.inits <- []; (* reset inits after hoist *)
+
+	List.iter (generate_type ctx) com.types;
+
+
 
 	(* If we use haxe Strings, patch Lua's string *)
 	if has_feature ctx "use.string" then begin
