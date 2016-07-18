@@ -195,8 +195,15 @@ let rec func ctx bb tf t p =
 		) (bb,[]) el in
 		bb,List.rev values
 	and bind_to_temp bb sequential e =
+		let is_probably_not_affected e e1 fa = match extract_field fa with
+			| Some {cf_kind = Method MethNormal} -> true
+			| _ -> match follow e.etype,follow e1.etype with
+				| TFun _,TInst _ -> false
+				| TFun _,_ -> true (* We don't know what's going on here, don't create a temp var (see #5082). *)
+				| _ -> false
+		in
 		let rec loop fl e = match e.eexpr with
-			| TField(e1,fa) when (match extract_field fa with Some {cf_kind = Method MethNormal} -> true | _ -> false) ->
+			| TField(e1,fa) when is_probably_not_affected e e1 fa ->
 				loop ((fun e' -> {e with eexpr = TField(e',fa)}) :: fl) e1
 			| _ ->
 				fl,e
