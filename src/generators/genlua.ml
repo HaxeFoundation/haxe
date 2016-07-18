@@ -122,9 +122,6 @@ let print ctx =
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
-(* spr with newline *)
-let sprln ctx s = spr ctx s; newline ctx
-
 (* print with newline *)
 let println ctx =
 	ctx.separator <- false;
@@ -193,8 +190,8 @@ let handle_break ctx e =
 		)
 	with
 		Exit ->
-			sprln ctx "local _hx_expected_result = {}";
-			sprln ctx "local _hx_status, _hx_result = pcall(function() ";
+			println ctx "local _hx_expected_result = {}";
+			println ctx "local _hx_status, _hx_result = pcall(function() ";
 			let b = open_block ctx in
 			newline ctx;
 			ctx.handle_break <- true;
@@ -203,8 +200,8 @@ let handle_break ctx e =
 				ctx.in_loop <- fst old;
 				ctx.handle_break <- snd old;
 				newline ctx;
-				sprln ctx "end";
-				sprln ctx " return _hx_expected_result end)";
+				println ctx "end";
+				println ctx " return _hx_expected_result end)";
 				spr ctx " if not _hx_status then ";
 				newline ctx;
 				spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
@@ -626,7 +623,7 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.iife_assign <- false;
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		(* TODO: Refactor this mess *)
-		sprln ctx "(function() ";
+		println ctx "(function() ";
 		(match e.eexpr, unop_flag with
 		    | TArray(e1,e2), _ ->
 			spr ctx "local _hx_idx = "; gen_value ctx e2; semicolon ctx; newline ctx;
@@ -728,7 +725,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    spr ctx "::_hx_continue::";
 		end;
 		newline ctx;
-		sprln ctx "end";
+		println ctx "end";
 		spr ctx "break end";
 	| TObjectDecl [] ->
 		spr ctx "_hx_empty()";
@@ -763,11 +760,11 @@ and gen_expr ?(local=true) ctx e = begin
 		newline ctx;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
-		sprln ctx "local _hx_expected_result = {}";
+		println ctx "local _hx_expected_result = {}";
 		spr ctx "local _hx_status, _hx_result = pcall(function() ";
 		gen_expr ctx e;
 		let vname = temp ctx in
-		sprln ctx " return _hx_expected_result end)";
+		println ctx " return _hx_expected_result end)";
 		spr ctx " if not _hx_status then ";
 		let bend = open_block ctx in
 		newline ctx;
@@ -977,7 +974,7 @@ and gen_value ctx e =
 		spr ctx "(function() ";
 		let b = open_block ctx in
 		newline ctx;
-		sprln ctx ("local " ^ r_id);
+		println ctx "local %s" r_id;
 		(fun() ->
 			newline ctx;
 			spr ctx ("return " ^ r_id);
@@ -1162,7 +1159,7 @@ and gen_tbinop ctx op e1 e2 =
 	    end;
     | Ast.OpAssignOp(op2), TArray(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
-	    sprln ctx "(function() ";
+	    println ctx "(function() ";
 	    let idx = alloc_var "idx" e4.etype e4.epos in
 	    let idx_var =  mk (TVar( idx , Some(e4))) e4.etype e4.epos in
 	    gen_expr ctx idx_var;
@@ -1180,7 +1177,7 @@ and gen_tbinop ctx op e1 e2 =
 	    spr ctx " end)()";
     | Ast.OpAssignOp(op2), TField(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
-	    sprln ctx "(function() ";
+	    println ctx "(function() ";
 	    let obj = alloc_var "obj" e3.etype e3.epos in
 	    spr ctx "local fld = ";
 	    (match e4 with
@@ -1368,7 +1365,7 @@ let gen_class_static_field ctx c f =
 
 let gen_class_field ctx c f predelimit =
 	check_field_name c f;
-	if predelimit then sprln ctx ",";
+	if predelimit then println ctx ",";
 	match f.cf_expr with
 	| None ->
 		print ctx "'%s', nil" f.cf_name;
@@ -1448,7 +1445,7 @@ let generate_class ctx c =
 					if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
 					println ctx "local self = _hx_new(%s.prototype)" p;
 					println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
-					if p = "String" then sprln ctx "self = string";
+					if p = "String" then println ctx "self = string";
 					spr ctx "return self";
 					bend(); newline ctx;
 					spr ctx "end"; newline ctx; newline ctx;
@@ -1809,18 +1806,18 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	spr ctx "local _hx_bind,_hx_bit";
+	println ctx "local _hx_bind,_hx_bit";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-	    sprln ctx "pcall(require, 'bit32') pcall(require, 'bit')";
-	    sprln ctx "local _hx_bit_raw = bit or bit32";
-	    sprln ctx "local function _hx_bit_clamp(v) return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648) end";
-	    sprln ctx "if type(jit) == 'table' then";
-	    sprln ctx "_hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
-	    sprln ctx "else";
-	    sprln ctx "_hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
-	    sprln ctx "_hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
-	    sprln ctx "end";
+	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
+	    println ctx "local _hx_bit_raw = bit or bit32";
+	    println ctx "local function _hx_bit_clamp(v) return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648) end";
+	    println ctx "if type(jit) == 'table' then";
+	    println ctx "_hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
+	    println ctx "else";
+	    println ctx "_hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
+	    println ctx "_hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
+	    println ctx "end";
 	end;
 
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
@@ -1832,15 +1829,15 @@ let generate com =
 
 	(* If we use haxe Strings, patch Lua's string *)
 	if has_feature ctx "use.string" then begin
-	    sprln ctx "local _hx_string_mt = _G.getmetatable('');";
-	    sprln ctx "String.__oldindex = _hx_string_mt.__index;";
-	    sprln ctx "_hx_string_mt.__index = String.__index;";
-	    sprln ctx "_hx_string_mt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
-	    sprln ctx "_hx_string_mt.__concat = _hx_string_mt.__add";
+	    println ctx "local _hx_string_mt = _G.getmetatable('');";
+	    println ctx "String.__oldindex = _hx_string_mt.__index;";
+	    println ctx "_hx_string_mt.__index = String.__index;";
+	    println ctx "_hx_string_mt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
+	    println ctx "_hx_string_mt.__concat = _hx_string_mt.__add";
 	end;
 
 	(* Array is required, always patch it *)
-	sprln ctx "_hx_array_mt.__index = Array.prototype";
+	println ctx "_hx_array_mt.__index = Array.prototype";
 	newline ctx;
 
 	(* Generate statics *)
@@ -1848,10 +1845,10 @@ let generate com =
 
 	(* Localize init variables inside a do-block *)
 	(* Note: __init__ logic can modify static variables. *)
-	sprln ctx "do";
+	println ctx "do";
 	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
 	newline ctx;
-	sprln ctx "end";
+	println ctx "end";
 
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
@@ -1878,7 +1875,7 @@ let generate com =
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 
-	sprln ctx "return _hx_exports";
+	println ctx "return _hx_exports";
 
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
