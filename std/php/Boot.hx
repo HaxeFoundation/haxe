@@ -96,8 +96,8 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function remove($x) {
-		for($i = 0; $i < count($this->a); $i++)
-			if($this->a[$i] === $x) {
+		foreach($this->a as $i => $val)
+			if($val === $x) {
 				unset($this->a[$i]);
 				$this->a = array_values($this->a);
 				$this->length--;
@@ -416,10 +416,8 @@ function _hx_get_object_vars($o) {
 	if(isset($o->__dynamics))
 		$a = array_merge($a, array_keys($o->__dynamics));
 	$arr = array();
-	for($i=0;$i<count($a); $i++)
-	{
-		$arr[] = '' . $a[$i];
-	}
+	foreach($a as $val)
+		$arr[] = '' . $val;
 	return $arr;
 }
 
@@ -590,11 +588,11 @@ function _hx_string_rec($o, $s) {
 			if(!empty($o->params)) {
 				$s .= \"\t\";
 				$b .= '(';
-				for($i = 0; $i < count($o->params); $i++) {
+				foreach($o->params as $i => $val) {
 					if($i > 0)
-						$b .= ',' . _hx_string_rec($o->params[$i], $s);
+						$b .= ',' . _hx_string_rec($val, $s);
 					else
-						$b .= _hx_string_rec($o->params[$i], $s);
+						$b .= _hx_string_rec($val, $s);
 				}
 				$b .= ')';
 			}
@@ -609,8 +607,7 @@ function _hx_string_rec($o, $s) {
 				$s .= \"\t\";
 				$properties = $rfl->getProperties();
 
-				for($i = 0; $i < count($properties); $i++) {
-					$prop = $properties[$i];
+				foreach($properties as $i => $prop) {
 					$f = $prop->getName();
 					if($i > 0)
 						$b2 .= \", \n\";
@@ -844,7 +841,7 @@ class _hx_lambda {
 		// if use $this->locals directly in array_merge it works only if I make the assignement loop,
 		// so I've decided to reference $arr
 		$arr = array();
-		for ($i = 0; $i<count($this->locals);$i++)
+		foreach($this->locals as $i => $val)
 			$arr[] = & $this->locals[$i];
 		$args = func_get_args();
 		return call_user_func_array($this->func, array_merge($arr, $args));
@@ -931,24 +928,24 @@ if(!file_exists($_hx_autload_cache_file)) {
 
 	_hx_build_paths($_hx_libdir, $_hx_types_array, array(), $_hx_class_prefix);
 
-	for($i=0;$i<count($_hx_types_array);$i++) {
+	foreach($_hx_types_array as $val) {
 		$_hx_cache_content .= '_hx_register_type(new ';
 		$t = null;
-		if($_hx_types_array[$i]['type'] == 0) {
-			$t = new _hx_class($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+		if($val['type'] == 0) {
+			$t = new _hx_class($val['phpname'], $val['qname'], $val['path']);
 			$_hx_cache_content .= '_hx_class';
-		} else if($_hx_types_array[$i]['type'] == 1) {
-			$t = new _hx_enum($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+		} else if($val['type'] == 1) {
+			$t = new _hx_enum($val['phpname'], $val['qname'], $val['path']);
 			$_hx_cache_content .= '_hx_enum';
-		} else if($_hx_types_array[$i]['type'] == 2) {
-			$t = new _hx_interface($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+		} else if($val['type'] == 2) {
+			$t = new _hx_interface($val['phpname'], $val['qname'], $val['path']);
 			$_hx_cache_content .= '_hx_interface';
-		} else if($_hx_types_array[$i]['type'] == 3) {
-			$t = new _hx_class($_hx_types_array[$i]['name'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+		} else if($val['type'] == 3) {
+			$t = new _hx_class($val['name'], $val['qname'], $val['path']);
 			$_hx_cache_content .= '_hx_class';
 		}
 		_hx_register_type($t);
-		$_hx_cache_content .= '(\\''.($_hx_types_array[$i]['type'] == 3 ? $_hx_types_array[$i]['name'] : $_hx_types_array[$i]['phpname']).'\\', \\''.$_hx_types_array[$i]['qname'].'\\', \\''.$_hx_types_array[$i]['path'].'\\'));\n';
+		$_hx_cache_content .= '(\\''.($val['type'] == 3 ? $val['name'] : $val['phpname']).'\\', \\''.$val['qname'].'\\', \\''.$val['path'].'\\'));\n';
 	}
 	try {
 		file_put_contents($_hx_autload_cache_file, $_hx_cache_content);
