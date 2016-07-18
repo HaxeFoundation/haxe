@@ -36,7 +36,6 @@ extern class Bit {
 	public static function arshift(x:Float, places:Int) : Int;
 	public static function mod(numerator:Float, denominator:Float) : Int;
 	public static function __init__() : Void {
-		//bit library fixes
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_bit.lua");
+		untyped _hx_bit = __define_feature__("use._bitop",_hx_bit);
 	}
 }
