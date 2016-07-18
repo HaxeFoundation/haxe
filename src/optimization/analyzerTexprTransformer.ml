@@ -668,7 +668,7 @@ and func ctx i =
 					false
 			in
 			begin match e1.eexpr,e2.eexpr with
-				| TLocal v1,TLocal v2 when v1 == v2 && is_valid_assign_op op ->
+				| TLocal v1,TLocal v2 when v1 == v2 && not v1.v_capture && is_valid_assign_op op ->
 					begin match op,e3.eexpr with
 						| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 && target_handles_assign_ops ctx.com -> {e with eexpr = TUnop(Increment,Prefix,e1)}
 						| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 && target_handles_assign_ops ctx.com -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
