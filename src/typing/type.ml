@@ -155,6 +155,7 @@ and tclass_field = {
 	mutable cf_kind : field_kind;
 	mutable cf_params : type_params;
 	mutable cf_expr : texpr option;
+	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
 }
 
@@ -416,6 +417,7 @@ let mk_field name t p name_pos = {
 	cf_public = true;
 	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 	cf_expr = None;
+	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
 }

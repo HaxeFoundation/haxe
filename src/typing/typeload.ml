@@ -652,6 +652,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				cf_kind = access;
 				cf_params = !params;
 				cf_expr = None;
+				cf_expr_unoptimized = None;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
 				cf_overloads = [];
@@ -2286,6 +2287,7 @@ module ClassInitializer = struct
 			cf_name_pos = pos f.cff_name;
 			cf_kind = Var (if fctx.is_inline then { v_read = AccInline ; v_write = AccNever } else { v_read = AccNormal; v_write = AccNormal });
 			cf_expr = None;
+			cf_expr_unoptimized = None;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
 			cf_params = [];
 			cf_overloads = [];
@@ -2510,6 +2512,7 @@ module ClassInitializer = struct
 			cf_name_pos = pos f.cff_name;
 			cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 			cf_expr = None;
+			cf_expr_unoptimized = None;
 			cf_public = is_public (ctx,cctx) f.cff_access parent;
 			cf_params = params;
 			cf_overloads = [];
@@ -2684,6 +2687,7 @@ module ClassInitializer = struct
 			cf_name_pos = pos f.cff_name;
 			cf_kind = Var { v_read = get; v_write = set };
 			cf_expr = None;
+			cf_expr_unoptimized = None;
 			cf_type = ret;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
 			cf_params = [];
@@ -3240,6 +3244,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_doc = f.ef_doc;
 				cf_meta = no_meta;
 				cf_expr = None;
+				cf_expr_unoptimized = None;
 				cf_params = f.ef_params;
 				cf_overloads = [];
 			} in
@@ -4044,6 +4049,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
 						cf_params = [];
 						cf_expr = None;
+						cf_expr_unoptimized = None;
 						cf_overloads = [];
 					} in
 					c.cl_fields <- PMap.add id f c.cl_fields;

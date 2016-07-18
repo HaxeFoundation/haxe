@@ -4916,6 +4916,7 @@ let decode_cfield v =
 		cf_kind = decode_field_kind (field v "kind");
 		cf_params = decode_type_params (field v "params");
 		cf_expr = None;
+		cf_expr_unoptimized = None;
 		cf_overloads = decode_ref (field v "overloads");
 	}
 
