@@ -3455,6 +3455,7 @@ let handle_import_hx ctx m decls p =
 		Hashtbl.replace ctx.com.parser_cache path r;
 		(* We use the file path as module name to make it unique. This may or may not be a good idea... *)
 		let m_import = make_module ctx ([],path) path p in
+		m_import.m_extra.m_kind <- MImport;
 		add_module ctx m_import p;
 		m_import
 	in

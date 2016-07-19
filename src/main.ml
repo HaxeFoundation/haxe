@@ -738,7 +738,7 @@ and wait_loop verbose accept =
 			else try
 				if m.m_extra.m_mark <= start_mark then begin
 					(match m.m_extra.m_kind with
-					| MFake | MSub -> () (* don't get classpath *)
+					| MFake | MSub | MImport -> () (* don't get classpath *)
 					| MExtern ->
 						(* if we have a file then this will override our extern type *)
 						let has_file = (try ignore(Typeload.resolve_module_file com2 m.m_path (ref[]) p); true with Not_found -> false) in

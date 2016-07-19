@@ -301,6 +301,7 @@ and module_kind =
 	| MFake
 	| MSub
 	| MExtern
+	| MImport
 
 and build_state =
 	| Built
@@ -1243,6 +1244,9 @@ module Printer = struct
 		| None -> "None"
 		| Some v -> f v
 
+	let s_pmap fk fv pm =
+		"{" ^ (String.concat ", " (PMap.foldi (fun k v acc -> (Printf.sprintf "%s = %s" (fk k) (fv v)) :: acc) pm [])) ^ "}"
+
 	let s_doc = s_opt (fun s -> s)
 
 	let s_metadata_entry (s,el,_) =
@@ -1362,6 +1366,38 @@ module Printer = struct
 			"v_capture",string_of_bool v.v_capture;
 			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
+		]
+
+	let s_module_kind = function
+		| MCode -> "MCode"
+		| MMacro -> "MMacro"
+		| MFake -> "MFake"
+		| MSub -> "MSub"
+		| MExtern -> "MExtern"
+		| MImport -> "MImport"
+
+	let s_module_def_extra tabs me =
+		s_record_fields tabs [
+			"m_file",me.m_file;
+			"m_sign",me.m_sign;
+			"m_time",string_of_float me.m_time;
+			"m_dirty",string_of_bool me.m_dirty;
+			"m_added",string_of_int me.m_added;
+			"m_mark",string_of_int me.m_mark;
+			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
+			"m_processed",string_of_int me.m_processed;
+			"m_kind",s_module_kind me.m_kind;
+			"m_binded_res",""; (* TODO *)
+			"m_macro_calls",String.concat ", " me.m_macro_calls;
+			"m_if_feature",""; (* TODO *)
+			"m_features",""; (* TODO *)
+		]
+
+	let s_module_def m =
+		s_record_fields "" [
+			"m_id",string_of_int m.m_id;
+			"m_path",s_type_path m.m_path;
+			"m_extra",s_module_def_extra "\t" m.m_extra
 		]
 end
 
