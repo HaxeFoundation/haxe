@@ -22,14 +22,41 @@
 package haxe.unit;
 import Reflect;
 
+/**
+	This class runs unit test cases and prints the result.
+	
+	```haxe
+	var r = new haxe.unit.TestRunner();
+	r.add(new MyTestCase());
+	// add other TestCases here
+	
+	// finally, run the tests
+	r.run();
+	```
+	
+	@see <http://haxe.org/manual/std-unit-testing.html>
+**/
 class TestRunner {
+	/**
+		The unit test results. Available after the `run()` is called.
+	**/
 	public var result(default, null) : TestResult;
+
 	var cases  : List<TestCase>;
 
 #if flash
 	static var tf : flash.text.TextField = null;
 #end
 
+	/**
+		Prints the given object/value.
+		
+		 * Flash outputs the result in a new `TextField` on stage.
+		 * JavaScript outputs the result using `console.log`.
+		 * Other targets use native `print` to output the result.
+
+		This function is `dynamic` so it can be overriden in custom setups.
+	**/
 	public static dynamic function print( v : Dynamic ) untyped {
 		#if flash
 			if( tf == null ) {
@@ -49,11 +76,11 @@ class TestRunner {
 		#elseif js
 			var msg = js.Boot.__string_rec(v,"");
 			var d;
-            if( __js__("typeof")(document) != "undefined"
-                    && (d = document.getElementById("haxe:trace")) != null ) {
-                msg = StringTools.htmlEscape(msg).split("\n").join("<br/>");
-                d.innerHTML += msg+"<br/>";
-            }
+			if( __js__("typeof")(document) != "undefined"
+				&& (d = document.getElementById("haxe:trace")) != null ) {
+				msg = StringTools.htmlEscape(msg).split("\n").join("<br/>");
+				d.innerHTML += msg+"<br/>";
+			}
 			else if (  __js__("typeof process") != "undefined"
 					&& __js__("process").stdout != null
 					&& __js__("process").stdout.write != null)
@@ -83,10 +110,18 @@ class TestRunner {
 		cases = new List();
 	}
 
+	/**
+		Add TestCase instances to the unit test.
+	**/
 	public function add( c:TestCase ) : Void{
 		cases.add(c);
 	}
 
+	/**
+		Runs the unit tests and prints the results.
+		
+		@return `true` if the unit test succesfully executed the test cases.
+	**/
 	public function run() : Bool {
 		result = new TestResult();
 		for ( c in cases ){

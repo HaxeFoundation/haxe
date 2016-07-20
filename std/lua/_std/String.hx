@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,21 +27,18 @@ import lua.NativeStringTools;
 
 @:coreApi
 class String {
+	static var __oldindex : Table<Dynamic,Dynamic>;
 	public var length(default,null) : Int;
 
 
 	public function new(string:String) untyped {}
 
-	static function __init__() : Void untyped{
-		__lua__("getmetatable('').__index = String.__index;");
-		__lua__("getmetatable('').__add = function(a,b) return Std.string(a)..Std.string(b) end;");
-		__lua__("getmetatable('').__concat = getmetatable('').__add");
-	}
-
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
 		if (k == "length") return untyped __lua__("#s");
-		else return untyped String.prototype[k];
+		else if (Reflect.hasField(untyped String.prototype, k)) return untyped String.prototype[k];
+		else if (__oldindex != null) return  __oldindex[k];
+		else return null;
 	}
 
 
@@ -99,7 +96,7 @@ class String {
 		if (endIndex == null) endIndex = this.length;
 		if (endIndex < 0) endIndex = 0;
 		if (startIndex < 0) startIndex = 0;
-		if (endIndex == 0) {
+		if (endIndex < startIndex) {
 			// swap the index positions
 			return NativeStringTools.sub(this, endIndex+1, startIndex);
 		} else {

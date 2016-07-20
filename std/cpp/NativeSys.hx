@@ -3,6 +3,11 @@ package cpp;
 @:buildXml('<include name="${HXCPP}/src/hx/libs/std/Build.xml"/>')
 extern class NativeSys
 {
+   @:native("__hxcpp_print")
+   public static function print( v : Dynamic ) : Void { }
+
+   @:native("__hxcpp_println")
+   public static function println( v : Dynamic ) : Void { }
 
    @:extern @:native("_hx_std_get_env")
    public static function get_env(v:String) : String return null;

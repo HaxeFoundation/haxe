@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -165,11 +165,11 @@ class Bytes {
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
-		return new Bytes(b.b,b.length);
+		return new Bytes(b.bytes,b.length);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
-		return b.b[pos];
+		return b[pos];
 	}
 
 }

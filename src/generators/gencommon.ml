@@ -48,6 +48,8 @@ open Option
 open Printf
 open ExtString
 
+let alloc_var n t = alloc_var n t null_pos
+
 let debug_type_ctor = function
 	| TMono _ -> "TMono"
 	| TEnum _ -> "TEnum"
@@ -10864,7 +10866,10 @@ struct
 
 	let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority ]
 
-	let is_int t = like_int t && not (like_i64 t)
+	let rec is_int t = match follow t with
+		| TInst({ cl_path = (["haxe";"lang"],"Null") }, [t]) -> is_int t
+		| t ->
+			like_int t && not (like_i64 t)
 
 	let is_exactly_int t = match follow t with
 		| TAbstract ({ a_path=[],"Int" }, []) -> true

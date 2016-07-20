@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -64,7 +64,7 @@ class Reflect {
 			throw "Invalid function " + func;
 		var need = ft.getArgsCount();
 		var cval = hl.types.Api.getClosureValue(func);
-		var isClosure = cval != null;
+		var isClosure = cval != null && need >= 0;
 		if( o == null )
 			o = cval;
 		else if( !isClosure && count == need )
@@ -73,7 +73,7 @@ class Reflect {
 		if( isClosure ) need++;
 		if( nargs < need ) nargs = need;
 		var a = new hl.types.NativeArray<Dynamic>(nargs);
-		if( o == null ) {
+		if( o == null || need < 0 ) {
 			for( i in 0...count )
 				a[i] = args.getDyn(i);
 		} else {
@@ -85,12 +85,12 @@ class Reflect {
 		return hl.types.Api.callMethod(func,a);
 	}
 
-	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic, rec : Bool ) : hl.types.NativeArray<hl.types.Bytes> {
+	@:hlNative("std","obj_fields") static function getObjectFields( v : Dynamic ) : hl.types.NativeArray<hl.types.Bytes> {
 		return null;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		var fields = getObjectFields(o, true);
+		var fields = getObjectFields(o);
 		if( fields == null ) return [];
 		return [for( f in fields ) @:privateAccess String.fromUCS2(f)];
 	}

@@ -74,11 +74,11 @@ let s_path ctx = dot_path
 let kwds =
 	let h = Hashtbl.create 0 in
 	List.iter (fun s -> Hashtbl.add h s ()) [
-	    ""; "and"; "break"; "do"; "else"; "elseif";
+	    "_G"; ""; "and"; "break"; "do"; "else"; "elseif";
 	    "end"; "false"; "for"; "function"; "if";
 	    "in"; "local"; "nil"; "not"; "or"; "repeat";
 	    "return"; "then"; "true"; "until"; "while";
-	    "goto"
+	    "goto"; "self";
 	];
 	h
 
@@ -98,6 +98,10 @@ let field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "[\"" ^ s ^ 
 let ident s = if Hashtbl.mem kwds s then "_" ^ s else s
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_lua_ident s) then "['" ^ (Ast.s_escape s) ^ "']" else s
+let static_field c s =
+	match s with
+	| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> "._hx" ^ s
+	| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
@@ -118,9 +122,6 @@ let print ctx =
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
-(* spr with newline *)
-let sprln ctx s = spr ctx s; newline ctx
-
 (* print with newline *)
 let println ctx =
 	ctx.separator <- false;
@@ -137,7 +138,7 @@ let basename path =
 		String.sub path (idx + 1) (String.length path - idx - 1)
 	with Not_found -> path
 
-(* TODO : make this work properly... it was inserting commas where they shouldn't be *)
+(* TODO : is this necessary any more?*)
 let newprop ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '{' -> print ctx "\n%s" ctx.tabs
@@ -189,8 +190,8 @@ let handle_break ctx e =
 		)
 	with
 		Exit ->
-			sprln ctx "local _hx_expected_result = {}";
-			sprln ctx "local _hx_status, _hx_result = pcall(function() ";
+			println ctx "local _hx_expected_result = {}";
+			println ctx "local _hx_status, _hx_result = pcall(function() ";
 			let b = open_block ctx in
 			newline ctx;
 			ctx.handle_break <- true;
@@ -199,8 +200,8 @@ let handle_break ctx e =
 				ctx.in_loop <- fst old;
 				ctx.handle_break <- snd old;
 				newline ctx;
-				sprln ctx "end";
-				sprln ctx " return _hx_expected_result end)";
+				println ctx "end";
+				println ctx " return _hx_expected_result end)";
 				spr ctx " if not _hx_status then ";
 				newline ctx;
 				spr ctx " elseif _hx_result ~= _hx_expected_result then return _hx_result";
@@ -298,7 +299,10 @@ let rec should_wrap_int_op ctx op e1 e2 =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> begin
+	    add_feature ctx "use.string";
+	    print ctx "\"%s\"" (Ast.s_escape s)
+	end
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "nil"
 	| TThis -> spr ctx (this ctx)
@@ -351,9 +355,26 @@ let rec gen_call ctx e el in_value =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal { v_name = "__lua_table__" }, el ->
-		spr ctx "{";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx "}";
+		let count = ref 0 in
+		spr ctx "({";
+		List.iter (fun e ->
+		    (match e with
+		    | { eexpr = TArrayDecl arr } ->
+			    if (!count > 0 && List.length(arr) > 0) then spr ctx ",";
+			    concat ctx "," (gen_value ctx) arr;
+			    if List.length(arr) > 0 then incr count;
+		    | { eexpr = TObjectDecl fields } ->
+			    if (!count > 0 && List.length(fields) > 0) then spr ctx ",";
+			    concat ctx ", " (fun (f,e) ->
+				print ctx "%s = " (anon_field f);
+				gen_value ctx e
+			    ) fields;
+			    if List.length(fields) > 0 then incr count;
+		    | { eexpr = TConst(TNull)} -> ()
+		    | _ ->
+			    error "__lua_table__ only accepts array or anonymous object arguments" e.epos;
+		)) el;
+		spr ctx "})";
 	| TLocal { v_name = "__lua__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal { v_name = "__lua__" }, { eexpr = TConst (TString code); epos = p } :: tl ->
@@ -372,7 +393,7 @@ let rec gen_call ctx e el in_value =
 			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
 		(* TODO: Array declaration helper *)
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
 		concat ctx "," (fun (name,data) ->
 			if (!count == 0) then spr ctx "[0]=";
@@ -399,11 +420,6 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx e;
 			spr ctx ")";
 		end
-	| TCall ({eexpr = TField(e,((FInstance _ | FAnon _) as ef)) }, _), el ->
-		gen_value ctx e;
-		print ctx ":%s(" (field_name ef);
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")";
 	| TField ( { eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)), el ->
 		spr ctx ("(");
 		gen_value ctx e;
@@ -411,12 +427,29 @@ let rec gen_call ctx e el in_value =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 	| TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
-		gen_value ctx e;
-		spr ctx ":";
-		print ctx "%s" (field_name ef);
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		let s = (field_name ef) in
+		if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
+		    match e.eexpr with
+		    |TNew _-> (
+			spr ctx "_hx_apply_self(";
+			gen_value ctx e;
+			print ctx ",\"%s\"" (field_name ef);
+			if List.length(el) > 0 then spr ctx ",";
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")";
+		    );
+		    |_ -> (
+			gen_value ctx e;
+			print ctx "%s(" (anon_field s);
+			concat ctx "," (gen_value ctx) (e::el);
+			spr ctx ")"
+		    )
+		end else begin
+		    gen_value ctx e;
+		    print ctx ":%s(" (field_name ef);
+		    concat ctx "," (gen_value ctx) el;
+		    spr ctx ")"
+		end;
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -454,14 +487,16 @@ and gen_expr ?(local=true) ctx e = begin
 			gen_value ctx x;
 			print ctx ",";
 			gen_value ctx x;
-			print ctx "%s)" (field f.cf_name)
+			print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
 		| _ ->
-			print ctx "(__=";
+			print ctx "(function() local __=";
 			gen_value ctx x;
-			print ctx ",_hx_bind(__,__%s))" (field f.cf_name))
+			print ctx "; return _hx_bind(__,__%s) end)()" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
 	| TEnumParameter (x,_,i) ->
 		gen_value ctx x;
 		print ctx "[%i]" (i + 2)
+	| TField (x, (FInstance(_,_,f) | FStatic(_,f) | FAnon(f))) when Meta.has Meta.SelfCall f.cf_meta ->
+		gen_value ctx x;
 	| TField ({ eexpr = TConst(TInt _ | TFloat _| TString _| TBool _) } as e , ((FInstance _ | FAnon _) as ef)) ->
 		spr ctx ("(");
 		gen_value ctx e;
@@ -489,7 +524,7 @@ and gen_expr ?(local=true) ctx e = begin
 	| TReturn eo -> gen_return ctx e eo;
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then spr ctx "error(\"_hx__break__\")" else spr ctx "break" (*todo*)
+		if ctx.handle_break then spr ctx "_G.error(\"_hx__break__\")" else spr ctx "break" (*todo*)
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "goto _hx_continue";
@@ -520,7 +555,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    gen_call ctx e el false;
 		end;
 	| TArrayDecl el ->
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		let count = ref 0 in
 		List.iteri (fun i e ->
 		    incr count;
@@ -529,7 +564,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    gen_value ctx e) el;
 		print ctx " }, %i)" !count;
 	| TThrow e ->
-		spr ctx "error(";
+		spr ctx "_G.error(";
 		gen_value ctx e;
 		spr ctx ",0)";
 	| TVar (v,eo) ->
@@ -558,8 +593,11 @@ and gen_expr ?(local=true) ctx e = begin
 				    semicolon ctx;
 		end
 	| TNew (c,_,el) ->
-		print ctx "%s.new(" (ctx.type_accessor (TClassDecl c));
-		    concat ctx "," (gen_value ctx) el;
+		(match c.cl_constructor with
+		| Some cf when Meta.has Meta.SelfCall cf.cf_meta -> ()
+		| _ -> print ctx "%s.new" (ctx.type_accessor (TClassDecl c)));
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
 		ctx.iife_assign <- true;
@@ -585,7 +623,7 @@ and gen_expr ?(local=true) ctx e = begin
 		ctx.iife_assign <- false;
 	| TUnop ((Increment|Decrement) as op,unop_flag, e) ->
 		(* TODO: Refactor this mess *)
-		sprln ctx "(function() ";
+		println ctx "(function() ";
 		(match e.eexpr, unop_flag with
 		    | TArray(e1,e2), _ ->
 			spr ctx "local _hx_idx = "; gen_value ctx e2; semicolon ctx; newline ctx;
@@ -663,11 +701,12 @@ and gen_expr ?(local=true) ctx e = begin
 		let b = open_block ctx in
 		gen_block_element ctx e;
 		b();
-		handle_break();
 		if has_continue e then begin
 		    newline ctx;
 		    spr ctx "::_hx_continue::";
 		end;
+		newline ctx;
+		handle_break();
 		newline ctx;
 		spr ctx "end";
 	| TWhile (cond,e,Ast.DoWhile) ->
@@ -686,7 +725,7 @@ and gen_expr ?(local=true) ctx e = begin
 		    spr ctx "::_hx_continue::";
 		end;
 		newline ctx;
-		sprln ctx "end";
+		println ctx "end";
 		spr ctx "break end";
 	| TObjectDecl [] ->
 		spr ctx "_hx_empty()";
@@ -721,11 +760,11 @@ and gen_expr ?(local=true) ctx e = begin
 		newline ctx;
 	| TTry (e,catchs) ->
 		(* TODO: add temp variables *)
-		sprln ctx "local _hx_expected_result = {}";
+		println ctx "local _hx_expected_result = {}";
 		spr ctx "local _hx_status, _hx_result = pcall(function() ";
 		gen_expr ctx e;
 		let vname = temp ctx in
-		sprln ctx " return _hx_expected_result end)";
+		println ctx " return _hx_expected_result end)";
 		spr ctx " if not _hx_status then ";
 		let bend = open_block ctx in
 		newline ctx;
@@ -777,7 +816,7 @@ and gen_expr ?(local=true) ctx e = begin
 				else_block := true
 		) catchs;
 		if not !last then begin
-		    println ctx " error(%s)" vname;
+		    println ctx " _G.error(%s)" vname;
 		    spr ctx "end";
 		end;
 		bend();
@@ -838,13 +877,13 @@ and gen__init__hoist ctx e =
 				    | e :: _ -> gen__init__hoist ctx e)
 		    |_->());
 	| _ -> ()
-    end
+    end;
 
 and gen__init__impl ctx e =
     begin match e.eexpr with
 	| TVar (v,eo) ->
 		newline ctx;
-		gen_expr ~local:false ctx e
+		gen_expr ctx e
 	| TBlock el ->
 		List.iter (gen__init__impl ctx) el
 	| TCall (e, el) ->
@@ -862,7 +901,7 @@ and gen__init__impl ctx e =
 			end;
 			    );
 	| _ -> gen_block_element ctx e;
-    end
+    end;
 
 and gen_block_element ?(after=false) ctx e  =
     newline ctx;
@@ -929,13 +968,13 @@ and gen_value ctx e =
 	let value() =
 		let old = ctx.in_value, ctx.in_loop in
 		let r_id = temp ctx in
-		let r = alloc_var r_id t_dynamic in
+		let r = alloc_var r_id t_dynamic e.epos in
 		ctx.in_value <- Some r;
 		ctx.in_loop <- false;
 		spr ctx "(function() ";
 		let b = open_block ctx in
 		newline ctx;
-		sprln ctx ("local " ^ r_id);
+		println ctx "local %s" r_id;
 		(fun() ->
 			newline ctx;
 			spr ctx ("return " ^ r_id);
@@ -1055,14 +1094,14 @@ and gen_value ctx e =
 		v()
 
 and is_function_type ctx t =
-    match t.v_type with
+    match t with
     | TFun _ -> true
     | TMono r -> (match !r with | Some (TFun _) -> true | _ -> false)
     | _ -> false;
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
-    | Ast.OpAssign, TField(e3, FInstance(_,_,_) ), TFunction f ->
+    | Ast.OpAssign, TField(e3, FInstance _), TFunction f ->
 	    gen_expr ctx e1;
 	    spr ctx " = " ;
 	    print ctx "function(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f.tf_args)));
@@ -1097,13 +1136,19 @@ and gen_tbinop ctx op e1 e2 =
 		gen_value ctx e1;
 		spr ctx " = ";
 		gen_value ctx e3;
-	    | TField(e3, FInstance _ ), TLocal t  when (is_function_type ctx t)   ->
+	    | TField(e3, FInstance _ ), TField(e4, FClosure _ )  ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		spr ctx "_hx_functionToInstanceFunction(";
 		gen_value ctx e2;
 		spr ctx ")";
-	    | _,_ ->
+	    | TField(_, FInstance _ ), TLocal t  when (is_function_type ctx t.v_type)   ->
+		gen_value ctx e1;
+		print ctx " %s " (Ast.s_binop op);
+		spr ctx "_hx_functionToInstanceFunction(";
+		gen_value ctx e2;
+		spr ctx ")";
+	    | _ ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2);
@@ -1114,11 +1159,11 @@ and gen_tbinop ctx op e1 e2 =
 	    end;
     | Ast.OpAssignOp(op2), TArray(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
-	    sprln ctx "(function() ";
-	    let idx = alloc_var "idx" e4.etype in
+	    println ctx "(function() ";
+	    let idx = alloc_var "idx" e4.etype e4.epos in
 	    let idx_var =  mk (TVar( idx , Some(e4))) e4.etype e4.epos in
 	    gen_expr ctx idx_var;
-	    let arr = alloc_var "arr" e3.etype in
+	    let arr = alloc_var "arr" e3.etype e3.epos in
 	    let arr_var = mk (TVar(arr, Some(e3))) e3.etype e3.epos in
 	    gen_expr ctx arr_var;
 	    newline ctx;
@@ -1132,8 +1177,8 @@ and gen_tbinop ctx op e1 e2 =
 	    spr ctx " end)()";
     | Ast.OpAssignOp(op2), TField(e3,e4), _ ->
 	    (* TODO: Figure out how to rewrite this expression more cleanly *)
-	    sprln ctx "(function() ";
-	    let obj = alloc_var "obj" e3.etype in
+	    println ctx "(function() ";
+	    let obj = alloc_var "obj" e3.etype e3.epos in
 	    spr ctx "local fld = ";
 	    (match e4 with
 	    | FInstance(_,_,fld)
@@ -1200,6 +1245,7 @@ and gen_wrap_tbinop ctx e=
 	    gen_value ctx e
 
 and gen_bitop ctx op e1 e2 =
+    add_feature ctx "use._bitop";
     print ctx "_hx_bit.%s(" (match op with
 	| Ast.OpXor  ->  "bxor"
 	| Ast.OpAnd  ->  "band"
@@ -1291,6 +1337,11 @@ let check_field_name c f =
 		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in Lua") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
+(* convert a.b.c to ["a"]["b"]["c"] *)
+let path_to_brackets path =
+	let parts = ExtString.String.nsplit path "." in
+	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
+
 let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
@@ -1303,19 +1354,21 @@ let gen_class_static_field ctx c f =
 		match e.eexpr with
 		| TFunction _ ->
 			let path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
+			let dot_path = (dot_path c.cl_path) ^ (static_field c f.cf_name) in
 			ctx.id_counter <- 0;
 			print ctx "%s = " path;
 			gen_value ctx e;
 			newline ctx;
+			(match (get_exposed ctx dot_path f.cf_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) path; newline ctx) | _ -> ());
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
 let gen_class_field ctx c f predelimit =
 	check_field_name c f;
-	if predelimit then sprln ctx ",";
+	if predelimit then println ctx ",";
 	match f.cf_expr with
 	| None ->
-		print ctx "'%s', nil" (anon_field f.cf_name);
+		print ctx "'%s', nil" f.cf_name;
 	| Some e ->
 		ctx.id_counter <- 0;
 		(match e.eexpr with
@@ -1323,7 +1376,7 @@ let gen_class_field ctx c f predelimit =
 		    let old = ctx.in_value, ctx.in_loop in
 		    ctx.in_value <- None;
 		    ctx.in_loop <- false;
-		    print ctx "'%s', function" (anon_field f.cf_name);
+		    print ctx "'%s', function" f.cf_name;
 		    print ctx "(%s) " (String.concat "," ("self" :: List.map ident (List.map arg_name f2.tf_args)));
 		    let fblock = fun_block ctx f2 e.epos in
 		    (match fblock.eexpr with
@@ -1392,7 +1445,7 @@ let generate_class ctx c =
 					if not (has_prototype ctx c) then println ctx "local self = _hx_new()" else
 					println ctx "local self = _hx_new(%s.prototype)" p;
 					println ctx "%s.super(%s)" p (String.concat "," ("self" :: (List.map ident (List.map arg_name f.tf_args))));
-					if p = "String" then sprln ctx "self = string";
+					if p = "String" then println ctx "self = string";
 					spr ctx "return self";
 					bend(); newline ctx;
 					spr ctx "end"; newline ctx; newline ctx;
@@ -1410,6 +1463,9 @@ let generate_class ctx c =
 			| _ -> (print ctx "{}"); ctx.separator <- true)
 	);
 	newline ctx;
+
+	(match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+
 	if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 	generate_class___name__ ctx c;
 	(match c.cl_implements with
@@ -1486,8 +1542,8 @@ let generate_enum ctx e =
 	    if has_feature ctx "lua.Boot.isEnum" then  begin
 		print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
 	    end;
-	    (* TODO :  Come up with a helper function for _hx_tabArray declarations *)
-	    spr ctx " __constructs__ = _hx_tabArray({";
+	    (* TODO :  Come up with a helper function for _hx_tab_array declarations *)
+	    spr ctx " __constructs__ = _hx_tab_array({";
 	    if ((List.length e.e_names) > 0) then begin
 		    spr ctx "[0]=";
 		    spr ctx (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1508,18 +1564,17 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			let count = List.length args in
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in
-			print ctx "function(%s) local _x = _hx_tabArray({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
+			print ctx "function(%s) local _x = _hx_tab_array({[0]=\"%s\",%d,%s,__enum__=%s}, %i);" sargs f.ef_name f.ef_index sargs p (count + 2);
 			if has_feature ctx "may_print_enum" then
 				(* TODO: better namespacing for _estr *)
 				spr ctx " _x.toString = _estr;";
 			spr ctx " return _x; end ";
 			ctx.separator <- true;
 		| _ ->
-			println ctx "_hx_tabArray({[0]=\"%s\",%d},2)" f.ef_name f.ef_index;
+			println ctx "_hx_tab_array({[0]=\"%s\",%d,__enum__ = %s},2)" f.ef_name f.ef_index p;
 			if has_feature ctx "may_print_enum" then begin
 				println ctx "%s%s.toString = _estr" p (field f.ef_name);
 			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
 		newline ctx
 	) e.e_names;
@@ -1531,7 +1586,7 @@ let generate_enum ctx e =
 				| _ -> true
 		) e.e_names in
 		print ctx "%s.__empty_constructs__ = " p;
-		spr ctx "_hx_tabArray({";
+		spr ctx "_hx_tab_array({";
 		if (List.length ctors_without_args)  > 0 then
 		    begin
 			spr ctx "[0] = ";
@@ -1565,9 +1620,9 @@ let generate_require ctx path meta =
 
 	(match args with
 	| [(EConst(String(module_name)),_)] ->
-		print ctx "%s = require(\"%s\")" p module_name
+		print ctx "%s = _G.require(\"%s\")" p module_name
 	| [(EConst(String(module_name)),_) ; (EConst(String(object_path)),_)] ->
-		print ctx "%s = require(\"%s\").%s" p module_name object_path
+		print ctx "%s = _G.require(\"%s\").%s" p module_name object_path
 	| _ ->
 		error "Unsupported @:luaRequire format" mp);
 
@@ -1608,14 +1663,14 @@ let generate_type_forward ctx = function
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
-		    print ctx "%s = _hx_empty() " p;
+		    println ctx "%s = _hx_empty()" p;
 		end
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
-		print ctx "%s = _hx_empty() " p;
+		println ctx "%s = _hx_empty()" p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let set_current_class ctx c =
@@ -1664,11 +1719,12 @@ let generate com =
 	let t = Common.timer "generate lua" in
 	let ctx = alloc_ctx com in
 
+	Codegen.map_source_header com (fun s -> print ctx "-- %s\n" s);
+
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
 	let include_files = List.rev com.include_files in
-
 	List.iter (fun file ->
 		match file with
 		| path, "top" ->
@@ -1678,7 +1734,62 @@ let generate com =
 		| _ -> ()
 	) include_files;
 
-	sprln ctx "local _hxClasses = {}";
+	let var_exports = (
+		"_hx_exports",
+		"_hx_exports or {}"
+	) in
+
+	let exposed = List.concat (List.map (fun t ->
+		match t with
+			| TClassDecl c ->
+				let path = dot_path c.cl_path in
+				let class_exposed = get_exposed ctx path c.cl_meta in
+				let static_exposed = List.map (fun f ->
+					get_exposed ctx (path ^ static_field c f.cf_name) f.cf_meta
+				) c.cl_ordered_statics in
+				List.concat (class_exposed :: static_exposed)
+			| _ -> []
+		) com.types) in
+	let anyExposed = exposed <> [] in
+	let exportMap = ref (PMap.create String.compare) in
+	let exposedObject = { os_name = ""; os_fields = [] } in
+	let toplevelExposed = ref [] in
+	List.iter (fun path -> (
+		let parts = ExtString.String.nsplit path "." in
+		let rec loop p pre = match p with
+			| f :: g :: ls ->
+				let path = match pre with "" -> f | pre -> (pre ^ "." ^ f) in
+				if not (PMap.exists path !exportMap) then (
+					let elts = { os_name = f; os_fields = [] } in
+					exportMap := PMap.add path elts !exportMap;
+					let cobject = match pre with "" -> exposedObject | pre -> PMap.find pre !exportMap in
+					cobject.os_fields <- elts :: cobject.os_fields
+				);
+				loop (g :: ls) path;
+			| f :: [] when pre = "" ->
+				toplevelExposed := f :: !toplevelExposed;
+			| _ -> ()
+		in loop parts "";
+	)) exposed;
+
+
+	if (anyExposed) then (
+		print ctx "local %s = %s" (fst var_exports) (snd var_exports);
+		ctx.separator <- true;
+		newline ctx
+	);
+
+	let rec print_obj f root = (
+		let path = root ^ (path_to_brackets f.os_name) in
+		print ctx "%s = %s or _hx_empty()" path path;
+		ctx.separator <- true;
+		newline ctx;
+		concat ctx ";" (fun g -> print_obj g path) f.os_fields
+	)
+	in
+	List.iter (fun f -> print_obj f "_hx_exports") exposedObject.os_fields;
+
+
 	let vars = [] in
 	(* let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("_hxClasses = " ^ "{}") :: vars else vars) in *)
 	let vars = if has_feature ctx "may_print_enum"
@@ -1694,11 +1805,50 @@ let generate com =
 
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
-	spr ctx "local _hx_bind";
+	(* Generate some dummy placeholders for utility libs that may be required*)
+	println ctx "local _hx_bind,_hx_bit";
+
+	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
+	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
+	    println ctx "local _hx_bit_raw = bit or bit32";
+	    println ctx "local function _hx_bit_clamp(v) return _hx_bit_raw.band(v, 2147483647 ) - _hx_bit_raw.band(v, 2147483648) end";
+	    println ctx "if type(jit) == 'table' then";
+	    println ctx "_hx_bit = setmetatable({},{__index = function(t,k) return function(...) return _hx_bit_clamp(rawget(_hx_bit_raw,k)(...)) end end})";
+	    println ctx "else";
+	    println ctx "_hx_bit = setmetatable({}, { __index = _hx_bit_raw })";
+	    println ctx "_hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end";
+	    println ctx "end";
+	end;
+
 	List.iter (gen__init__hoist ctx) (List.rev ctx.inits); newline ctx;
-	ctx.inits <- []; (* reset inits *)
+	ctx.inits <- []; (* reset inits after hoist *)
 
 	List.iter (generate_type ctx) com.types;
+
+
+
+	(* If we use haxe Strings, patch Lua's string *)
+	if has_feature ctx "use.string" then begin
+	    println ctx "local _hx_string_mt = _G.getmetatable('');";
+	    println ctx "String.__oldindex = _hx_string_mt.__index;";
+	    println ctx "_hx_string_mt.__index = String.__index;";
+	    println ctx "_hx_string_mt.__add = function(a,b) return Std.string(a)..Std.string(b) end;";
+	    println ctx "_hx_string_mt.__concat = _hx_string_mt.__add";
+	end;
+
+	(* Array is required, always patch it *)
+	println ctx "_hx_array_mt.__index = Array.prototype";
+	newline ctx;
+
+	(* Generate statics *)
+	List.iter (generate_static ctx) (List.rev ctx.statics);
+
+	(* Localize init variables inside a do-block *)
+	(* Note: __init__ logic can modify static variables. *)
+	println ctx "do";
+	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
+	newline ctx;
+	println ctx "end";
 
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use._iterator";
@@ -1708,21 +1858,25 @@ let generate com =
 		| _ ->
 			Type.iter chk_features e
 	in
+
 	List.iter chk_features ctx.inits;
+
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use._iterator" then begin
 		add_feature ctx "use._hx_bind";
-		println ctx "function _hx_iterator(o) { if ( lua.Boot.__instanceof(o, Array) ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? _hx_bind(o,o.iterator) : o.iterator; }";
+		println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
 	end;
 	if has_feature ctx "use._hx_bind" then println ctx "_hx_bind = lua.Boot.bind";
 
-	List.iter (gen__init__impl ctx) (List.rev ctx.inits);
+
 	List.iter (generate_enumMeta_fields ctx) com.types;
-	List.iter (generate_static ctx) (List.rev ctx.statics);
 
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
+
+	println ctx "return _hx_exports";
+
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch;

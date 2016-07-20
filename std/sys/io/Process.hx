@@ -22,10 +22,20 @@
 package sys.io;
 
 extern class Process {
+	/**
+		Standard output. The output stream where a process writes its output data.
+	**/
+	var stdout(default, null) : haxe.io.Input;
 
-	var stdout(default,null) : haxe.io.Input;
-	var stderr(default,null) : haxe.io.Input;
-	var stdin(default,null) : haxe.io.Output;
+	/**
+		Standard error. The output stream to output error messages or diagnostics.
+	**/
+	var stderr(default, null) : haxe.io.Input;
+
+	/**
+		Standard input. The stream data going into a process.
+	**/
+	var stdin(default, null) : haxe.io.Output;
 
 	/**
 		Construct a `Process` object, which run the given command immediately.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -74,7 +74,7 @@ import lua.Boot;
 				// self or not
 				self_arg = true;
 			}
-			var new_args = lua.Boot.createTable();
+			var new_args = lua.Table.create();
 			for (i in 0...args.length){
 				// copy args to 1-indexed table
 				new_args[i + 1] = args[i];
@@ -90,17 +90,14 @@ import lua.Boot;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
+		var ret = new Array<String>();
+		var fields = lua.Boot.hiddenFields;
 		if (untyped o.__fields__ != null) {
-			return lua.PairTools.pairsFold(o.__fields__, function(a,b,c:Array<String>){
-				if (Boot.hiddenFields.indexOf(a) == -1) c.push(a);
-				return c;
-			}, []);
+			untyped __lua__("for k,_ in pairs(o.__fields__) do if fields:indexOf(k) == -1 then ret:push(k) end end");
 		} else {
-			return lua.PairTools.pairsFold(o, function(a,b,c:Array<String>){
-			if (Boot.hiddenFields.indexOf(a) == -1) c.push(cast a);
-			return c;
-			}, []);
+			untyped __lua__("for k,_ in pairs(o) do if fields:indexOf(k) == -1 then ret:push(k) end end");
 		}
+		return ret;
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {
@@ -160,7 +157,7 @@ import lua.Boot;
 				b[k-1] = v
 				l = math.max(k,l)
 			end
-			return f(_hx_tabArray(b, l))
+			return f(_hx_tab_array(b, l))
 		end");
 	}
 

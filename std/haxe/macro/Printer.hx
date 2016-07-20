@@ -27,7 +27,7 @@ using Lambda;
 using StringTools;
 
 /**
-	This class provides some utility methods to convert elements from the 
+	This class provides some utility methods to convert elements from the
 	macro context to a human-readable String representation.
 */
 class Printer {
@@ -110,7 +110,12 @@ class Printer {
 	// TODO: check if this can cause loops
 	public function printComplexType(ct:ComplexType) return switch(ct) {
 		case TPath(tp): printTypePath(tp);
-		case TFunction(args, ret): (args.length>0 ? args.map(printComplexType).join(" -> ") : "Void") + " -> " + printComplexType(ret);
+		case TFunction(args, ret):
+			function printArg(ct) return switch ct {
+				case TFunction(_): "(" + printComplexType(ct) + ")";
+				default: printComplexType(ct);
+			};
+			(args.length>0 ? args.map(printArg).join(" -> ") :"Void") + " -> " + printComplexType(ret);
 		case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
@@ -248,7 +253,7 @@ class Printer {
 			(printPackage && t.pack.length > 0 && t.pack[0] != "" ? "package " + t.pack.join(".") + ";\n" : "") +
 			(t.meta != null && t.meta.length > 0 ? t.meta.map(printMetadata).join(" ") + " " : "") + (t.isExtern ? "extern " : "") + switch (t.kind) {
 				case TDEnum:
-					"enum " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "") + " {\n"
+					"enum " + t.name + ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "") + " {\n"
 					+ [for (field in t.fields)
 						tabs + (field.doc != null && field.doc != "" ? "/**\n" + tabs + tabString + StringTools.replace(field.doc, "\n", "\n" + tabs + tabString) + "\n" + tabs + "**/\n" + tabs : "")
 						+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join(" ") + " " : "")
@@ -260,7 +265,7 @@ class Printer {
 					].join("\n")
 					+ "\n}";
 				case TDStructure:
-					"typedef " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "") + " = {\n"
+					"typedef " + t.name + ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "") + " = {\n"
 					+ [for (f in t.fields) {
 						tabs + printField(f) + ";";
 					}].join("\n")
@@ -282,7 +287,7 @@ class Printer {
 					}].join("\n")
 					+ "\n}";
 				case TDAlias(ct):
-					"typedef " + t.name + (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "") + " = "
+					"typedef " + t.name + ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "") + " = "
 					+ (switch(ct) {
 						case TExtend(tpl, fields): printExtension(tpl, fields);
 						case TAnonymous(fields): printStructure(fields);
@@ -291,7 +296,7 @@ class Printer {
 					+ ";";
 				case TDAbstract(tthis, from, to):
 					"abstract " + t.name
-					+ (t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
+					+ ((t.params != null && t.params.length > 0) ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
 					+ (tthis == null ? "" : "(" + printComplexType(tthis) + ")")
 					+ (from == null ? "" : [for (f in from) " from " + printComplexType(f)].join(""))
 					+ (to == null ? "" : [for (t in to) " to " + printComplexType(t)].join(""))

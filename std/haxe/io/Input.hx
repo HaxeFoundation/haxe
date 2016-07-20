@@ -63,20 +63,22 @@ class Input {
 		var b = #if (js || hl) @:privateAccess s.b #else s.getData() #end;
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
-		while( k > 0 ) {
-			#if neko
-				untyped __dollar__sset(b,pos,readByte());
-			#elseif php
-				b.set(pos, readByte());
-			#elseif cpp
-				b[pos] = untyped readByte();
-			#else
-				b[pos] = cast readByte();
-			#end
-			pos++;
-			k--;
-		}
-		return len;
+		try {
+			while( k > 0 ) {
+			    #if neko
+				    untyped __dollar__sset(b,pos,readByte());
+			    #elseif php
+				    b.set(pos, readByte());
+			    #elseif cpp
+				    b[pos] = untyped readByte();
+			    #else
+				    b[pos] = cast readByte();
+			    #end
+			    pos++;
+			    k--;
+			}
+		} catch (eof: haxe.io.Eof){}
+		return len-k;
 	}
 
 	/**
@@ -117,8 +119,7 @@ class Input {
 					throw Error.Blocked;
 				total.addBytes(buf,0,len);
 			}
-		} catch( e : Eof ) {
-		}
+		} catch( e : Eof ) { }
 		return total.getBytes();
 	}
 
@@ -130,6 +131,8 @@ class Input {
 	public function readFullBytes( s : Bytes, pos : Int, len : Int ) : Void {
 		while( len > 0 ) {
 			var k = readBytes(s,pos,len);
+			if (k == 0)
+				throw Error.Blocked;
 			pos += k;
 			len -= k;
 		}
@@ -190,7 +193,7 @@ class Input {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public #if !(flash || python) inline #end function readFloat() : Float {
+	public function readFloat() : Float {
 		return FPHelper.i32ToFloat(readInt32());
 	}
 

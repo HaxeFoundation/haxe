@@ -139,8 +139,9 @@ class Compiler {
 		@param ignore Array of module names to ignore for inclusion.
 		@param classPaths An alternative array of paths (directory names) to use to search for modules to include.
 		       Note that if you pass this argument, only the specified paths will be used for inclusion.
+		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
-	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {
+	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String>, strict = false ) {
 		var skip = if( ignore == null ) {
 			function(c) return false;
 		} else {
@@ -166,10 +167,12 @@ class Compiler {
 			}
 		}
 		var prefix = pack == '' ? '' : pack + '.';
+		var found = false;
 		for( cp in classPaths ) {
 			var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
 			if( !sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path) )
 				continue;
+			found = true;
 			for( file in sys.FileSystem.readDirectory(path) ) {
 				if( StringTools.endsWith(file, ".hx") ) {
 					var cl = prefix + file.substr(0, file.length - 3);
@@ -180,6 +183,8 @@ class Compiler {
 					include(prefix + file, true, ignore, classPaths);
 			}
 		}
+		if (strict && !found)
+			Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 	}
 
 	/**

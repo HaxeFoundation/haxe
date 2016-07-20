@@ -49,7 +49,7 @@ let rec make_tpath = function
 		{
 			tpackage = pack;
 			tname = name;
-			tparams = if !pdyn then [TPType (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; })] else[];
+			tparams = if !pdyn then [TPType (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos)] else[];
 			tsub = None;
 		}
 	| HMName (id,ns) ->
@@ -87,11 +87,11 @@ let rec make_tpath = function
 	| HMAny ->
 		assert false
 	| HMParams (t,params) ->
-		let params = List.map (fun t -> TPType (CTPath (make_tpath t))) params in
+		let params = List.map (fun t -> TPType (CTPath (make_tpath t),null_pos)) params in
 		{ (make_tpath t) with tparams = params }
 
 let make_param cl p =
-	{ tpackage = fst cl; tname = snd cl; tparams = [TPType (CTPath { tpackage = fst p; tname = snd p; tparams = []; tsub = None })]; tsub = None }
+	{ tpackage = fst cl; tname = snd cl; tparams = [TPType (CTPath { tpackage = fst p; tname = snd p; tparams = []; tsub = None },null_pos)]; tsub = None }
 
 let make_topt = function
 	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
@@ -122,12 +122,12 @@ let build_class com c file =
 	match path with
 	| { tpackage = ["flash";"utils"]; tname = ("Object"|"Function") } ->
 		let inf = {
-			d_name = path.tname;
+			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
 			d_meta = [];
 			d_flags = [];
-			d_data = CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; };
+			d_data = CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos;
 		} in
 		(path.tpackage, [(ETypedef inf,pos)])
 	| _ ->
@@ -137,7 +137,7 @@ let build_class com c file =
 	let flags = (match c.hlc_super with
 		| None | Some (HMPath ([],"Object")) -> flags
 		| Some (HMPath ([],"Function")) -> flags (* found in AIR SDK *)
-		| Some s -> HExtends (make_tpath s) :: flags
+		| Some s -> HExtends (make_tpath s,null_pos) :: flags
 	) in
 	let flags = List.map (fun i ->
 		let i = (match i with
@@ -151,9 +151,9 @@ let build_class com c file =
 			| HMPath _ -> i
 			| _ -> assert false
 		) in
-		if c.hlc_interface then HExtends (make_tpath i) else HImplements (make_tpath i)
+		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
 	) (Array.to_list c.hlc_implements) @ flags in
-	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
+	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic")),null_pos) :: flags in
 	(* make fields *)
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
@@ -186,7 +186,7 @@ let build_class com c file =
 			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl, pos) (!meta)
 		in
 		let cf = {
-			cff_name = name;
+			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = pos;
 			cff_meta = mk_meta();
@@ -196,9 +196,9 @@ let build_class com c file =
 		match f.hlf_kind with
 		| HFVar v ->
 			if v.hlv_const then
-				cf.cff_kind <- FProp ("default","never",Some (make_type v.hlv_type),None)
+				cf.cff_kind <- FProp ("default","never",Some (make_type v.hlv_type,null_pos),None)
 			else
-				cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type),None);
+				cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
 			cf :: acc
 		| HFMethod m when m.hlm_override ->
 			Hashtbl.add override (name,stat) ();
@@ -249,15 +249,15 @@ let build_class com c file =
 								meta := (Meta.DefParam,[String aname;v]) :: !meta;
 								Some (EConst v,pos)
 					in
-					(aname,!is_opt,Some t,def_val)
+					((aname,null_pos),!is_opt,[],Some (t,null_pos),def_val)
 				) t.hlmt_args in
 				let args = if t.hlmt_var_args then
-					args @ List.map (fun _ -> incr pn; ("p" ^ string_of_int !pn,true,Some (make_type None),None)) [1;2;3;4;5]
+					args @ List.map (fun _ -> incr pn; (("p" ^ string_of_int !pn,null_pos),true,[],Some (make_type None,null_pos),None)) [1;2;3;4;5]
 				else args in
 				let f = {
 					f_params = [];
 					f_args = args;
-					f_type = Some (make_type t.hlmt_ret);
+					f_type = Some (make_type t.hlmt_ret,null_pos);
 					f_expr = None;
 				} in
 				cf.cff_meta <- mk_meta();
@@ -296,12 +296,12 @@ let build_class com c file =
 		let flags = [APublic] in
 		let flags = if stat then AStatic :: flags else flags in
 		{
-			cff_name = name;
+			cff_name = name,null_pos;
 			cff_pos = pos;
 			cff_doc = None;
 			cff_access = flags;
 			cff_meta = [];
-			cff_kind = if get && set then FVar (Some (make_dyn_type t), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),Some (make_dyn_type t),None);
+			cff_kind = if get && set then FVar (Some (make_dyn_type t,null_pos), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),Some (make_dyn_type t,null_pos),None);
 		}
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
@@ -323,8 +323,8 @@ let build_class com c file =
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None)
-				| FProp ("default","never",Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None) when List.mem AStatic f.cff_access ->
+				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None)
+				| FProp ("default","never",Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem AStatic f.cff_access ->
 					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
 					{
 						ec_name = f.cff_name;
@@ -335,7 +335,7 @@ let build_class com c file =
 						ec_doc = None;
 						ec_type = None;
 					} :: loop l
-				| FFun { f_args = [] } when f.cff_name = "new" -> loop l
+				| FFun { f_args = [] } when fst f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in
 		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;
@@ -343,7 +343,7 @@ let build_class com c file =
 		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
 		if not (Common.raw_defined com name) then raise Exit;
 		let enum_data = {
-			d_name = path.tname;
+			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
 			d_meta = [(Meta.FakeEnum,[EConst (Ident !real_type),pos],pos)];
@@ -353,10 +353,10 @@ let build_class com c file =
 		(path.tpackage, [(EEnum enum_data,pos)])
 	with Exit ->
 	let class_data = {
-		d_name = path.tname;
+		d_name = path.tname,null_pos;
 		d_doc = None;
 		d_params = [];
-		d_meta = if c.hlc_final && List.exists (fun f -> f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
+		d_meta = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
 		d_flags = flags;
 		d_data = fields;
 	} in

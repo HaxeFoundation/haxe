@@ -43,7 +43,7 @@ type macro_mode =
 	| MExpr
 	| MBuild
 	| MMacroType
-
+	| MDisplay
 
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
@@ -55,10 +55,10 @@ type typer_pass =
 
 type typer_module = {
 	curmod : module_def;
-	mutable module_types : module_type list;
-	mutable module_using : tclass list;
-	mutable module_globals : (string, (module_type * string)) PMap.t;
-	mutable wildcard_packages : string list list;
+	mutable module_types : (module_type * pos) list;
+	mutable module_using : (tclass * pos) list;
+	mutable module_globals : (string, (module_type * string * pos)) PMap.t;
+	mutable wildcard_packages : (string list * pos) list;
 	mutable module_imports : Ast.import list;
 }
 
@@ -76,9 +76,9 @@ type typer_globals = {
 	mutable global_metadata : (string list * Ast.metadata_entry * (bool * bool * bool)) list;
 	mutable get_build_infos : unit -> (module_type * t list * Ast.class_field list) option;
 	delayed_macros : (unit -> unit) DynArray.t;
-	mutable global_using : tclass list;
+	mutable global_using : (tclass * Ast.pos) list;
 	(* api *)
-	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.type_path) -> bool;
+	do_inherit : typer -> Type.tclass -> Ast.pos -> (bool * Ast.placed_type_path) -> bool;
 	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
 	do_load_module : typer -> path -> pos -> module_def;
@@ -99,6 +99,7 @@ and typer = {
 	mutable pass : typer_pass;
 	(* per-module *)
 	mutable m : typer_module;
+	mutable is_display_file : bool;
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable tthis : t;
@@ -141,11 +142,7 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception Error of error_msg * pos
 
-exception DisplayTypes of t list
-
-exception DisplayPosition of Ast.pos list
-
-exception WithTypeError of unify_error list * pos
+exception WithTypeError of error_msg * pos
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 let type_expr_ref : (typer -> Ast.expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
@@ -234,7 +231,9 @@ let pass_name = function
 	| PForce -> "force"
 	| PFinal -> "final"
 
-let display_error ctx msg p = ctx.on_error ctx msg p
+let display_error ctx msg p = match ctx.com.display with
+	| DMDiagnostics -> add_diagnostics_message ctx.com msg p DiagnosticsSeverity.Error
+	| _ -> ctx.on_error ctx msg p
 
 let error msg p = raise (Error (Custom msg,p))
 
@@ -262,11 +261,11 @@ let make_static_call ctx c cf map args t p =
 
 let raise_or_display ctx l p =
 	if ctx.untyped then ()
-	else if ctx.in_call_args then raise (WithTypeError(l,p))
+	else if ctx.in_call_args then raise (WithTypeError(Unify l,p))
 	else display_error ctx (error_msg (Unify l)) p
 
 let raise_or_display_message ctx msg p =
-	if ctx.in_call_args then raise (WithTypeError ([Unify_custom msg],p))
+	if ctx.in_call_args then raise (WithTypeError (Custom msg,p))
 	else display_error ctx msg p
 
 let unify ctx t1 t2 p =
@@ -288,14 +287,14 @@ let save_locals ctx =
 	let locals = ctx.locals in
 	(fun() -> ctx.locals <- locals)
 
-let add_local ctx n t =
-	let v = alloc_var n t in
+let add_local ctx n t p =
+	let v = alloc_var n t p in
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
 let gen_local_prefix = "`"
 
-let gen_local ctx t =
+let gen_local ctx t p =
 	(* ensure that our generated local does not mask an existing one *)
 	let rec loop n =
 		let nv = (if n = 0 then gen_local_prefix else gen_local_prefix ^ string_of_int n) in
@@ -304,7 +303,7 @@ let gen_local ctx t =
 		else
 			nv
 	in
-	add_local ctx (loop 0) t
+	add_local ctx (loop 0) t p
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0

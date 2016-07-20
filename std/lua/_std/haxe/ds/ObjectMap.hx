@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,8 +36,8 @@ class ObjectMap<A,B> implements haxe.Constraints.IMap<A,B> {
 	var k : Dynamic;
 
 	public inline function new() : Void {
-		h = lua.Boot.createTable();
-		k = lua.Boot.createTable();
+		h = lua.Table.create();
+		k = lua.Table.create();
 	}
 
 	public inline function set( key : A, value : B ) : Void untyped {

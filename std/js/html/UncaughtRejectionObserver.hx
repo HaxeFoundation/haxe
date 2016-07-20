@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/PromiseDebugging.webidl line 60:9. Do not edit!
+// This file is generated from mozilla\PromiseDebugging.webidl line 36:9. Do not edit!
 
 package js.html;
 

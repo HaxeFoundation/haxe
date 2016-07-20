@@ -63,15 +63,15 @@ module BasicBlock = struct
 	}
 
 	and syntax_edge =
-		| SEIfThen of t * t                                (* `if` with "then" and "next" *)
-		| SEIfThenElse of t * t * t * Type.t               (* `if` with "then", "else" and "next" *)
-		| SESwitch of (texpr list * t) list * t option * t (* `switch` with cases, "default" and "next" *)
-		| SETry of t * t * (tvar * t) list * t             (* `try` with "exc", catches and "next" *)
-		| SEWhile of t * t * t                             (* `while` with "head", "body" and "next" *)
-		| SESubBlock of t * t                              (* "sub" with "next" *)
-		| SEMerge of t                                     (* Merge to same block *)
-		| SEEnd                                            (* End of syntax *)
-		| SENone                                           (* No syntax exit *)
+		| SEIfThen of t * t * pos                                (* `if` with "then" and "next" *)
+		| SEIfThenElse of t * t * t * Type.t * pos               (* `if` with "then", "else" and "next" *)
+		| SESwitch of (texpr list * t) list * t option * t * pos (* `switch` with cases, "default" and "next" *)
+		| SETry of t * t * (tvar * t) list * t *  pos            (* `try` with "exc", catches and "next" *)
+		| SEWhile of t * t * t                                   (* `while` with "head", "body" and "next" *)
+		| SESubBlock of t * t                                    (* "sub" with "next" *)
+		| SEMerge of t                                           (* Merge to same block *)
+		| SEEnd                                                  (* End of syntax *)
+		| SENone                                                 (* No syntax exit *)
 
 	and t = {
 		bb_id : int;                          (* The unique ID of the block *)
@@ -111,7 +111,7 @@ module BasicBlock = struct
 		| CFGGoto -> "CFGGoto"
 		| CFGFunction -> "CFGFunction"
 		| CFGMaybeThrow -> "CFGMaybeThrow"
-		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty "" (s_type (print_context())) e)
+		| CFGCondBranch e -> "CFGCondBranch " ^ (s_expr_pretty false "" (s_type (print_context())) e)
 		| CFGCondElse -> "CFGCondElse"
 
 	let has_flag edge flag =
@@ -478,18 +478,18 @@ module Graph = struct
 		let rec loop scopes bb =
 			bb.bb_scopes <- scopes;
 			begin match bb.bb_syntax_edge with
-				| SEIfThen(bb_then,bb_next) ->
+				| SEIfThen(bb_then,bb_next,_) ->
 					loop (next_scope scopes) bb_then;
 					loop scopes bb_next
-				| SEIfThenElse(bb_then,bb_else,bb_next,_) ->
+				| SEIfThenElse(bb_then,bb_else,bb_next,_,_) ->
 					loop (next_scope scopes) bb_then;
 					loop (next_scope scopes) bb_else;
 					loop scopes bb_next
-				| SESwitch(cases,bbo,bb_next) ->
+				| SESwitch(cases,bbo,bb_next,_) ->
 					List.iter (fun (_,bb_case) -> loop (next_scope scopes) bb_case) cases;
 					(match bbo with None -> () | Some bb -> loop (next_scope scopes) bb);
 					loop scopes bb_next;
-				| SETry(bb_try,bb_exc,catches,bb_next) ->
+				| SETry(bb_try,bb_exc,catches,bb_next,_) ->
 					let scopes' = next_scope scopes in
 					loop scopes' bb_try;
 					loop scopes' bb_exc;
@@ -517,9 +517,9 @@ type analyzer_context = {
 	config : AnalyzerConfig.t;
 	graph : Graph.t;
 	temp_var_name : string;
-	is_real_function : bool;
 	mutable entry : BasicBlock.t;
 	mutable has_unbound : bool;
 	mutable loop_counter : int;
 	mutable loop_stack : int list;
+	mutable debug_exprs : (string * texpr) list;
 }

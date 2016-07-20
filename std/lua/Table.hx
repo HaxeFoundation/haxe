@@ -1,7 +1,14 @@
 package lua;
 
-@:native("_G.table") 
+/**
+	This library provides generic functions for table manipulation.
+**/
+@:native("_G.table")
 extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
+	public inline static function create<A,B>(?arr:Array<B>, ?hsh:Dynamic<B>) : Table<A,B> {
+		return untyped __lua_table__(arr,hsh);
+	}
+
 	@:overload(function<A,B>(table:Table<A,B>):Void{})
 	public static function concat<A,B>(table:Table<A,B>, ?sep:String) : String;
 
@@ -18,15 +25,10 @@ extern class Table<A,B> implements ArrayAccess<B> implements Dynamic<B> {
 
 	public static function maxn<B>(table: Table<Int,B>) : Int;
 	public static function pack<T>(args:T) : Table<Int,T>;
-	public static function unpack(arg:lua.Table<Dynamic,Dynamic>, ?min:Int, ?max:Int) : Dynamic;
+	public static function unpack(arg:Table<Dynamic,Dynamic>, ?min:Int, ?max:Int) : Dynamic;
 	private static function __init__() : Void {
 		// lua table polyfills
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_table_polyfill.lua");
-
-		// lua workarounds for basic anonymous object functionality
-		// (built on tables)
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_anon.lua");
-
 	}
 }
 

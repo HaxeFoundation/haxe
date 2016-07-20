@@ -25,12 +25,21 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* API OPTIMIZATIONS *)
 
+let field_call_has_side_effect f e1 fa el =
+	begin match extract_field fa with
+		| Some cf when Meta.has Meta.Pure cf.cf_meta -> ()
+		| _ -> raise Exit
+	end;
+	f e1;
+	List.iter f el
+
 (* tells if an expression causes side effects. This does not account for potential null accesses (fields/arrays/ops) *)
 let has_side_effect e =
 	let rec loop e =
 		match e.eexpr with
 		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> ()
 		| TCall ({ eexpr = TField(_,FStatic({ cl_path = ([],"Std") },{ cf_name = "string" })) },args) -> Type.iter loop e
+		| TCall({eexpr = TField(e1,fa)},el) -> field_call_has_side_effect loop e1 fa el
 		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) -> raise Exit
 		| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _) -> raise Exit
 		| TArray _ | TEnumParameter _ | TCast (_,None) | TBinop _ | TUnop _ | TParenthesis _ | TMeta _ | TWhile _ | TFor _
@@ -48,7 +57,7 @@ let rec is_exhaustive e1 = match e1.eexpr with
 
 let mk_untyped_call name p params =
 	{
-		eexpr = TCall({ eexpr = TLocal(alloc_unbound_var name t_dynamic); etype = t_dynamic; epos = p }, params);
+		eexpr = TCall({ eexpr = TLocal(alloc_unbound_var name t_dynamic p); etype = t_dynamic; epos = p }, params);
 		etype = t_dynamic;
 		epos = p;
 	}
@@ -152,7 +161,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 			mk (TLocal (try
 				PMap.find n ctx.locals
 			with _ ->
-				let v = add_local ctx n t in
+				let v = add_local ctx n t p in
 				v.v_meta <- [Meta.Unbound,[],p];
 				v
 			)) t pos in
@@ -310,7 +319,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
-			let v' = alloc_var v.v_name v.v_type in
+			let v' = alloc_var v.v_name v.v_type v.v_pos in
 			if Meta.has Meta.Unbound v.v_meta then v'.v_meta <- [Meta.Unbound,[],p];
 			let i = {
 				i_var = v;
@@ -362,7 +371,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				if we cast from Dynamic, create a local var as well to do the cast
 				once and allow DCE to perform properly.
 			*)
-			let e = if v.v_type != t_dynamic && follow e.etype == t_dynamic then mk (TCast(e,None)) v.v_type e.epos else e in
+			let e = if follow v.v_type != t_dynamic && follow e.etype == t_dynamic then mk (TCast(e,None)) v.v_type e.epos else e in
 			(match e.eexpr, opt with
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 			(*
@@ -381,7 +390,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		Build the expr/var subst list
 	*)
 	let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
-	let vthis = alloc_var "_this" ethis.etype in
+	let vthis = alloc_var "_this" ethis.etype ethis.epos in
 	let might_be_affected,collect_modified_locals = create_affection_checker() in
 	let had_side_effect = ref false in
 	let inlined_vars = List.map2 (fun e (v,_) ->
@@ -522,6 +531,14 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			l.i_write <- true;
 			let e2 = map false e2 in
 			{e with eexpr = TBinop(op,{e1 with eexpr = TLocal l.i_subst},e2)}
+		| TObjectDecl fl ->
+			let fl = List.map (fun (s,e) -> s,map false e) fl in
+			begin match follow e.etype with
+				| TAnon an when (match !(an.a_status) with Const -> true | _ -> false) ->
+					{e with eexpr = TObjectDecl fl; etype = TAnon { an with a_status = ref Closed}}
+				| _ ->
+					{e with eexpr = TObjectDecl fl}
+			end
 		| TFunction f ->
 			(match f.tf_args with [] -> () | _ -> has_vars := true);
 			let old = save_locals ctx and old_fun = !in_local_fun in
@@ -694,12 +711,12 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		TField (e,try quick_field e.etype n with Not_found -> assert false)
 	in
 	let gen_int_iter pt f_get f_length =
-		let i = add_local ctx i pt in
-		let index = gen_local ctx t_int in
+		let i = add_local ctx i pt pi in
+		let index = gen_local ctx t_int pi in
 		let arr, avars = (match e1.eexpr with
 			| TLocal _ -> e1, None
 			| _ ->
-				let atmp = gen_local ctx e1.etype in
+				let atmp = gen_local ctx e1.etype e1.epos in
 				mk (TLocal atmp) e1.etype e1.epos, (Some (atmp,Some e1))
 		) in
 		let iexpr = mk (TLocal index) t_int p in
@@ -733,10 +750,10 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		let max = (match i1.eexpr , i2.eexpr with
 			| TConst (TInt a), TConst (TInt b) when Int32.compare b a < 0 -> error "Range operator can't iterate backwards" p
 			| _, TConst _ -> None
-			| _ -> Some (gen_local ctx t_int)
+			| _ -> Some (gen_local ctx t_int e1.epos)
 		) in
-		let tmp = gen_local ctx t_int in
-		let i = add_local ctx i t_int in
+		let tmp = gen_local ctx t_int pi in
+		let i = add_local ctx i t_int pi in
 		let rec check e =
 			match e.eexpr with
 			| TBinop (OpAssign,{ eexpr = TLocal l },_)
@@ -794,7 +811,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					Ast.map_expr loop e
 			in
 			ignore(loop e2);
-			let v = add_local ctx i pt in
+			let v = add_local ctx i pt p in
 			let e2 = type_expr ctx e2 NoValue in
 			let cost = (List.length el) * !num_expr in
 			let max_cost = try
@@ -854,8 +871,8 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		end
 	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[t]) } as c,[]) ->
 		let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
-		let i = add_local ctx i t in
-		let cell = gen_local ctx tcell in
+		let i = add_local ctx i t p in
+		let cell = gen_local ctx tcell p in
 		let cexpr = mk (TLocal cell) tcell p in
 		let e2 = type_expr ctx e2 NoValue in
 		let evar = mk (TVar (i,Some (mk (mk_field cexpr "elt") t p))) t_void pi in
@@ -879,7 +896,7 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 	let c,tl = (match follow e1.etype with TInst (c,pl) -> c,pl | _ -> raise Exit) in
 	let _, _, fhasnext = (try raw_class_field (fun cf -> apply_params c.cl_params tl cf.cf_type) c tl "hasNext" with Not_found -> raise Exit) in
 	if fhasnext.cf_kind <> Method MethInline then raise Exit;
-	let tmp = gen_local ctx e1.etype in
+	let tmp = gen_local ctx e1.etype e1.epos in
 	let eit = mk (TLocal tmp) e1.etype p in
 	let ehasnext = make_call ctx (mk (TField (eit,FInstance (c, tl, fhasnext))) (TFun([],ctx.t.tbool)) p) [] ctx.t.tbool p in
 	let enext = mk (TVar (v,Some (make_call ctx (mk (TField (eit,quick_field_dynamic eit.etype "next")) (TFun ([],v.v_type)) p) [] v.v_type p))) ctx.t.tvoid p in
@@ -1419,7 +1436,8 @@ let inline_constructors ctx e =
 	in
 	let add_field_var v s t =
 		let ii = IntMap.find v.v_id !vars in
-		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t in
+		let v' = alloc_var (Printf.sprintf "%s_%s" v.v_name s) t v.v_pos in
+		v'.v_meta <- (Meta.InlineConstructorVariable,[],v.v_pos) :: v'.v_meta;
 		ii.ii_fields <- PMap.add s v' ii.ii_fields;
 		v'
 	in
@@ -1445,8 +1463,8 @@ let inline_constructors ctx e =
 						let ev = mk (TLocal v) v.v_type e.epos in
 						let el_init = List.fold_left (fun acc cf -> match cf.cf_kind,cf.cf_expr with
 							| Var _,Some e ->
-								let ef = mk (TField(ev,FInstance(c,tl,cf))) e.etype e.epos in
-								let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
+								let ef = mk (TField(ev,FInstance(c,tl,cf))) cf.cf_type e.epos in
+								let e = mk (TBinop(OpAssign,ef,e)) cf.cf_type e.epos in
 								e :: acc
 							| _ -> acc
 						) el_init c.cl_ordered_fields in
@@ -1643,10 +1661,10 @@ let optimize_completion_expr e =
 				());
 			map e
 		| EVars vl ->
-			let vl = List.map (fun (v,t,e) ->
+			let vl = List.map (fun ((v,pv),t,e) ->
 				let e = (match e with None -> None | Some e -> Some (loop e)) in
-				decl v t e;
-				(v,t,e)
+				decl v (Option.map fst t) e;
+				((v,pv),t,e)
 			) vl in
 			(EVars vl,p)
 		| EBlock el ->
@@ -1666,7 +1684,7 @@ let optimize_completion_expr e =
 			| Some name ->
 				decl name None (Some e));
 			let old = save() in
-			List.iter (fun (n,_,t,e) -> decl n t e) f.f_args;
+			List.iter (fun ((n,_),_,_,t,e) -> decl n (Option.map fst t) e) f.f_args;
 			let e = map e in
 			old();
 			e
@@ -1675,7 +1693,7 @@ let optimize_completion_expr e =
 			let old = save() in
 			let etmp = (EConst (Ident "$tmp"),p) in
 			decl n None (Some (EBlock [
-				(EVars ["$tmp",None,None],p);
+				(EVars [("$tmp",null_pos),None,None],p);
 				(EFor ((EIn (id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
 				etmp
 			],p));
@@ -1715,12 +1733,12 @@ let optimize_completion_expr e =
 			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
-			let cl = List.map (fun (n,t,e) ->
+			let cl = List.map (fun ((n,pn),(t,pt),e) ->
 				let old = save() in
 				decl n (Some t) None;
 				let e = loop e in
 				old();
-				n, t, e
+				(n,pn), (t,pt), e
 			) cl in
 			(ETry (et,cl),p)
 		| EDisplay (s,call) ->
@@ -1733,14 +1751,14 @@ let optimize_completion_expr e =
 					let p = snd e in
 					(try
 						(match PMap.find n locals.r with
-						| Some t , _ -> (ECheckType ((EConst (Ident "null"),p),t),p)
+						| Some t , _ -> (ECheckType ((EConst (Ident "null"),p),(t,p)),p)
 						| _, Some (id,e,lc) ->
 							let name = (try
 								PMap.find id (!tmp_hlocals)
 							with Not_found ->
 								let e = subst_locals lc e in
 								let name = "$tmp_" ^ string_of_int id in
-								tmp_locals := (name,None,Some e) :: !tmp_locals;
+								tmp_locals := ((name,null_pos),None,Some e) :: !tmp_locals;
 								tmp_hlocals := PMap.add id name !tmp_hlocals;
 								name
 							) in
@@ -1752,7 +1770,7 @@ let optimize_completion_expr e =
 						(* not found locals are most likely to be member/static vars *)
 						e)
 				| EFunction (_,f) ->
-					Ast.map_expr (subst_locals { r = PMap.foldi (fun n i acc -> if List.exists (fun (a,_,_,_) -> a = n) f.f_args then acc else PMap.add n i acc) locals.r PMap.empty }) e
+					Ast.map_expr (subst_locals { r = PMap.foldi (fun n i acc -> if List.exists (fun ((a,_),_,_,_,_) -> a = n) f.f_args then acc else PMap.add n i acc) locals.r PMap.empty }) e
 				| EObjectDecl [] ->
 					(* this probably comes from { | completion so we need some context} *)
 					raise Exit

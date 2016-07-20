@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,14 +33,11 @@ class Array<T> {
 		return ret;
 	}
 	public function join( sep : String ) : String {
-		var sb = new StringBuf();
-		var first = true;
+		var tbl : lua.Table<Int,String> = lua.Table.create();
 		for (i in iterator()){
-			if (first) first = false;
-			else sb.add(sep);
-			sb.add(Std.string(i));
+			lua.Table.insert(tbl,Std.string(i));
 		}
-		return sb.toString();
+		return lua.Table.concat(tbl,sep);
 	}
 
 	public function pop() : Null<T> {
@@ -81,8 +78,28 @@ class Array<T> {
 		}
 		return ret;
 	}
+
+	// TODO: copied from neko Array.sort, move to general util library?
 	public function sort( f : T -> T -> Int ) : Void {
-		return haxe.ds.ArraySort.sort(this,f);
+		var i = 0;
+		var l = this.length;
+		while( i < l ) {
+			var swap = false;
+			var j = 0;
+			var max = l - i - 1;
+			while( j < max ) {
+				if( f(this[j],this[j+1]) > 0 ) {
+					var tmp = this[j+1];
+					this[j+1] = this[j];
+					this[j] = tmp;
+					swap = true;
+				}
+				j += 1;
+			}
+			if( !swap )
+				break;
+			i += 1;
+		}
 	}
 	public function splice( pos : Int, len : Int ) : Array<T> {
 		if (len < 0 || pos > length) return [];
@@ -101,11 +118,11 @@ class Array<T> {
 	}
 
 	public function toString() : String {
-		var sb = new StringBuf();
-		sb.add("[");
-		sb.add(join(","));
-		sb.add("]");
-		return sb.toString();
+		var tbl : lua.Table<Int,String> = lua.Table.create();
+		lua.Table.insert(tbl, '[');
+		lua.Table.insert(tbl, join(","));
+		lua.Table.insert(tbl, ']');
+		return lua.Table.concat(tbl,"");
 	}
 
 	public function unshift( x : T ) : Void {
@@ -134,9 +151,9 @@ class Array<T> {
 				for (j in i...length-1){
 					this[j] = this[j+1];
 				}
-				// We need to decrement the length variable, and set its 
-				// value to null to avoid hanging on to a reference in the 
-				// underlying lua table.  
+				// We need to decrement the length variable, and set its
+				// value to null to avoid hanging on to a reference in the
+				// underlying lua table.
 				this[length-1] = null;
 				// Do this in two steps to avoid re-updating the __index metamethod
 				length--;
@@ -191,9 +208,6 @@ class Array<T> {
 	private static function __init__() : Void{
 		// table-to-array helper
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_tab_array.lua");
-		// attach the prototype for Array to the metatable for 
-		// the tabToArray helper function
-		untyped __lua__("_hx_array_mt.__index = Array.prototype");
 	}
 
 }

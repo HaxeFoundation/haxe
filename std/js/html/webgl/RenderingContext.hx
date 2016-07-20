@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 123:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl line 118:0. Do not edit!
 
 package js.html.webgl;
 
@@ -325,7 +325,7 @@ extern class RenderingContext
 	static inline var UNPACK_COLORSPACE_CONVERSION_WEBGL : Int = 37443;
 	static inline var BROWSER_DEFAULT_WEBGL : Int = 37444;
 	
-	var canvas(default,null) : haxe.extern.EitherType<js.html.CanvasElement,Dynamic/*MISSING OffscreenCanvas*/>;
+	var canvas(default,null) : js.html.CanvasElement;
 	var drawingBufferWidth(default,null) : Int;
 	var drawingBufferHeight(default,null) : Int;
 	

@@ -22,6 +22,7 @@ Haxe allows you to compile for the following targets:
  * NekoVM
  * PHP
  * Python
+ * Lua
 
 You can try Haxe directly from your browser at [try.haxe.org](http://try.haxe.org)!
 
@@ -39,15 +40,15 @@ For the complete Haxe licenses, please see http://haxe.org/foundation/open-sourc
 
 ## Installing Haxe
 
-The latest stable release is [Haxe 3.2.1](http://haxe.org/download/version/3.2.1/). Pre-built binaries are available for your platform:
+The latest stable release is [Haxe 3.3.0-rc.1](http://haxe.org/download/version/3.3.0-rc.1/). Pre-built binaries are available for your platform:
 
- * **[Windows installer](http://haxe.org/download/file/3.2.1/haxe-3.2.1-win.exe)**
- * **[Windows binaries](http://haxe.org/download/file/3.2.1/haxe-3.2.1-win.zip)**
- * **[OSX installer](http://haxe.org/download/file/3.2.1/haxe-3.2.1-osx-installer.pkg)**
- * **[OSX binaries](http://haxe.org/download/file/3.2.1/haxe-3.2.1-osx.tar.gz)**
+ * **[Windows installer](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.exe)**
+ * **[Windows binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-win.zip)**
+ * **[OSX installer](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx-installer.pkg)**
+ * **[OSX binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-osx.tar.gz)**
  * **[Linux Software Packages](http://haxe.org/download/linux)**
- * **[Linux 32-bit binaries](http://haxe.org/download/file/3.2.1/haxe-3.2.1-linux32.tar.gz)**
- * **[Linux 64-bit binaries](http://haxe.org/download/file/3.2.1/haxe-3.2.1-linux64.tar.gz)**
+ * **[Linux 32-bit binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux32.tar.gz)**
+ * **[Linux 64-bit binaries](http://haxe.org/download/file/3.3.0-rc.1/haxe-3.3.0-rc.1-linux64.tar.gz)**
 
 Automated development builds are available from [build.haxe.org](http://build.haxe.org).
 
@@ -66,6 +67,7 @@ For information on on using Haxe, consult the [Haxe documentation](http://haxe.o
 
  * [Haxe Introduction](http://haxe.org/documentation/introduction), an introduction to the Haxe toolkit
  * [The Haxe Manual](http://haxe.org/manual), the reference manual for the Haxe language
+ * [Haxe Code Cookbook](http://code.haxe.org), code snippets / learning resource
  * [Haxe API](http://api.haxe.org), documentation for the Haxe standard and native APIs
  * [Haxelib](http://lib.haxe.org), a repository of Haxe libraries for a variety of needs
 
@@ -88,3 +90,9 @@ Haxe   | neko
 3.0.0  | 2.0.0
 3.1.3  | 2.0.0
 3.2.0  | 2.0.0
+3.3.0  | 2.1.0
+
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more. Thank you!

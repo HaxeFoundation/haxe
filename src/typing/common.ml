@@ -98,6 +98,8 @@ type display_mode =
 	| DMToplevel
 	| DMResolve of string
 	| DMType
+	| DMModuleSymbols
+	| DMDiagnostics
 
 type compiler_callback = {
 	mutable after_typing : (module_type list -> unit) list;
@@ -105,10 +107,59 @@ type compiler_callback = {
 	mutable after_generation : (unit -> unit) list;
 }
 
+module IdentifierType = struct
+	type t =
+		| ITLocal of tvar
+		| ITMember of tclass * tclass_field
+		| ITStatic of tclass * tclass_field
+		| ITEnum of tenum * tenum_field
+		| ITGlobal of module_type * string * Type.t
+		| ITType of module_type
+		| ITPackage of string
+
+	let get_name = function
+		| ITLocal v -> v.v_name
+		| ITMember(_,cf) | ITStatic(_,cf) -> cf.cf_name
+		| ITEnum(_,ef) -> ef.ef_name
+		| ITGlobal(_,s,_) -> s
+		| ITType mt -> snd (t_infos mt).mt_path
+		| ITPackage s -> s
+end
+
+module DiagnosticsSeverity = struct
+	type t =
+		| Error
+		| Warning
+		| Information
+		| Hint
+
+	let to_int = function
+		| Error -> 1
+		| Warning -> 2
+		| Information -> 3
+		| Hint -> 4
+end
+
+type shared_display_information = {
+	mutable import_positions : (pos,bool ref) PMap.t;
+	mutable diagnostics_messages : (string * pos * DiagnosticsSeverity.t) list;
+}
+
+type display_information = {
+	mutable unresolved_identifiers : (string * pos * (string * IdentifierType.t) list) list;
+}
+
+(* This information is shared between normal and macro context. *)
+type shared_context = {
+	shared_display_information : shared_display_information;
+}
+
 type context = {
 	(* config *)
 	version : int;
 	args : string list;
+	shared : shared_context;
+	display_information : display_information;
 	mutable sys_args : string list;
 	mutable display : display_mode;
 	mutable debug : bool;
@@ -131,6 +182,7 @@ type context = {
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
+	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
@@ -161,6 +213,14 @@ exception Abort of string * Ast.pos
 
 let display_default = ref DMNone
 
+type cache = {
+	mutable c_haxelib : (string list, string list) Hashtbl.t;
+	mutable c_files : (string, float * Ast.package) Hashtbl.t;
+	mutable c_modules : (path * string, module_def) Hashtbl.t;
+}
+
+let global_cache : cache option ref = ref None
+
 module Define = struct
 
 	type strict_defined =
@@ -177,6 +237,7 @@ module Define = struct
 		| DceDebug
 		| Debug
 		| Display
+		| DisplayStdin
 		| DllExport
 		| DllImport
 		| DocGen
@@ -206,8 +267,8 @@ module Define = struct
 		| JsUnflatten
 		| KeepOldOutput
 		| LoopUnrollMaxCost
-	        | LuaVer
-	        | LuaJit
+		| LuaVer
+		| LuaJit
 		| Macro
 		| MacroTimes
 		| NekoSource
@@ -263,14 +324,15 @@ module Define = struct
 		| CoreApi -> ("core_api","Defined in the core api context")
 		| CoreApiSerialize -> ("core_api_serialize","Mark some generated core api classes with the Serializable attribute on C#")
 		| Cppia -> ("cppia", "Generate cpp instruction assembly")
-		| Dce -> ("dce","<mode:std|full||no> Set the dead code elimination mode (default std)")
+		| Dce -> ("dce","<mode:std|full|no> Set the dead code elimination mode (default std)")
 		| DceDebug -> ("dce_debug","Show DCE log")
 		| Debug -> ("debug","Activated when compiling with -debug")
 		| Display -> ("display","Activated during completion")
+		| DisplayStdin -> ("display_stdin","Read the contents of a file specified in --display from standard input")
 		| DllExport -> ("dll_export", "GenCPP experimental linking")
 		| DllImport -> ("dll_import", "GenCPP experimental linking")
 		| DocGen -> ("doc_gen","Do not perform any removal/change in order to correctly generate documentation")
-		| Dump -> ("dump","Dump the complete typed AST for internal debugging in a dump subdirectory - use dump=pretty for Haxe-like formatting")
+		| Dump -> ("dump","<mode:pretty|record|legacy> Dump typed AST in dump subdirectory using specified mode or non-prettified default")
 		| DumpDependencies -> ("dump_dependencies","Dump the classes dependencies in a dump subdirectory")
 		| DumpIgnoreVarIds -> ("dump_ignore_var_ids","Remove variable IDs from non-pretty dumps (helps with diff)")
 		| DynamicInterfaceClosures -> ("dynamic_interface_closures","Use slow path for interface closures to save space")
@@ -404,6 +466,7 @@ module MetaInfo = struct
 		| Deprecated -> ":deprecated",("Mark a type or field as deprecated",[])
 		| DirectlyUsed -> ":directlyUsed",("Marks types that are directly referenced by non-extern code",[Internal])
 		| DynamicObject -> ":dynamicObject",("Used internally to identify the Dynamic Object implementation",[Platforms [Java;Cs]; UsedOn TClass; Internal])
+		| Eager -> ":eager",("Forces typedefs to be followed early",[UsedOn TTypedef])
 		| Enum -> ":enum",("Defines finite value sets to abstract definitions",[UsedOn TAbstract])
 		| EnumConstructorParam -> ":enumConstructorParam",("Used internally to annotate GADT type parameters",[UsedOn TClass; Internal])
 		| Event -> ":event",("Automatically added by -net-lib on events. Has no effect on types compiled by Haxe",[Platform Cs; UsedOn TClassField])
@@ -440,6 +503,7 @@ module MetaInfo = struct
 		| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[Internal; UsedOn TExpr])
 		| Include -> ":include",("",[Platform Cpp])
 		| InitPackage -> ":initPackage",("?",[])
+		| InlineConstructorVariable -> ":inlineConstructorVariable",("Internally used to mark variables that come from inlined constructors",[Internal])
 		| Meta.Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 		| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
 		| JavaCanonical -> ":javaCanonical",("Used by the Java target to annotate the canonical path of the type",[HasParam "Output type package";HasParam "Output type name";UsedOnEither [TClass;TEnum]; Platform Java])
@@ -460,6 +524,7 @@ module MetaInfo = struct
 		| NativeGen -> ":nativeGen",("Annotates that a type should be treated as if it were an extern definition - platform native",[Platforms [Java;Cs;Python]; UsedOnEither[TClass;TEnum]])
 		| NativeGeneric -> ":nativeGeneric",("Used internally to annotate native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; Internal])
 		| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
+		| NativeStaticExtension -> ":nativeStaticExtension",("Converts static function syntax into member call",[Platform Cpp])
 		| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
 		| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 		| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
@@ -476,12 +541,13 @@ module MetaInfo = struct
 		| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
 		| Optional -> ":optional",("Marks the field of a structure as optional",[UsedOn TClassField])
 		| Overload -> ":overload",("Allows the field to be called with different argument types",[HasParam "Function specification (no expression)";UsedOn TClassField])
-		| PhpConstants -> ":phpConstants",("Marks the fields of an TAbstract as php constants, without $",[Platform Php;UsedOn TClass])
-		| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField])
+		| PhpConstants -> ":phpConstants",("Marks the static fields of a class as PHP constants, without $",[Platform Php;UsedOn TClass])
+		| PhpGlobal -> ":phpGlobal",("Puts the static fields of a class in the global PHP namespace",[Platform Php;UsedOn TClass])
+		| Public -> ":public",("Marks a class field as being public",[UsedOn TClassField;Internal])
 		| PublicFields -> ":publicFields",("Forces all class fields of inheriting classes to be public",[UsedOn TClass])
 		| QuotedField -> ":quotedField",("Used internally to mark structure fields which are quoted in syntax",[Internal])
 		| PrivateAccess -> ":privateAccess",("Allow private access to anything for the annotated expression",[UsedOn TExpr])
-		| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField])
+		| Protected -> ":protected",("Marks a class field as being protected",[UsedOn TClassField;Platforms [Cs;Java;Flash]])
 		| Property -> ":property",("Marks a property field to be compiled as a native C# property",[UsedOn TClassField;Platform Cs])
 		| Pure -> ":pure",("Marks a class field, class or expression as pure (side-effect free)",[UsedOnEither [TClass;TClassField;TExpr]])
 		| ReadOnly -> ":readOnly",("Generates a field with the 'readonly' native keyword",[Platform Cs; UsedOn TClassField])
@@ -494,6 +560,7 @@ module MetaInfo = struct
 		| Rtti -> ":rtti",("Adds runtime type informations",[UsedOn TClass])
 		| Runtime -> ":runtime",("?",[])
 		| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
+		| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
 		| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platform Js])
 		| Setter -> ":setter",("Generates a native setter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 		| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
@@ -507,6 +574,7 @@ module MetaInfo = struct
 		| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
 		| StructInit -> ":structInit",("Allows to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
 		| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
+		| TemplatedCall -> ":templatedCall",("Indicates that the first parameter of static call should be treated as a template arguement",[Platform Cpp; UsedOn TClassField])
 		| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
 		| This -> ":this",("Internally used to pass a 'this' expression to macros",[Internal; UsedOn TExpr])
 		| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
@@ -520,6 +588,7 @@ module MetaInfo = struct
 		| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
 		| Usage -> ":usage",("?",[])
 		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[Internal])
+		| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[Internal])
 		| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
 		| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
 		| Last -> assert false
@@ -652,16 +721,32 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create v args =
+let create_callbacks () =
+	{
+		after_typing = [];
+		before_dce = [];
+		after_generation = [];
+	}
+
+let create version s_version args =
 	let m = Type.mk_mono() in
 	let defines =
 		PMap.add "true" "1" (
-		PMap.add "source-header" "Generated by Haxe" (
+		PMap.add "source-header" ("Generated by Haxe " ^ s_version) (
 		if !display_default <> DMNone then PMap.add "display" "1" PMap.empty else PMap.empty))
 	in
 	{
-		version = v;
+		version = version;
 		args = args;
+		shared = {
+			shared_display_information = {
+				import_positions = PMap.empty;
+				diagnostics_messages = [];
+			}
+		};
+		display_information = {
+			unresolved_identifiers = [];
+		};
 		sys_args = args;
 		debug = false;
 		display = !display_default;
@@ -679,11 +764,7 @@ let create v args =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
-		callbacks = {
-			after_typing = [];
-			before_dce = [];
-			after_generation = [];
-		};
+		callbacks = create_callbacks();
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -716,6 +797,7 @@ let create v args =
 		};
 		file_lookup_cache = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
+		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 	}
@@ -730,6 +812,7 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		callbacks = create_callbacks();
 	}
 
 let file_time file =
@@ -805,12 +888,7 @@ let flash_version_tag = function
 	| 11.7 -> 20
 	| 11.8 -> 21
 	| 11.9 -> 22
-	| 12.0 -> 23
-	| 13.0 -> 24
-	| 14.0 -> 25
-	| 15.0 -> 26
-	| 16.0 -> 27
-	| 17.0 -> 28
+	| v when v >= 12.0 && float_of_int (int_of_float v) = v -> int_of_float v + 11
 	| v -> failwith ("Invalid SWF version " ^ string_of_float v)
 
 let raw_defined ctx v =
@@ -928,9 +1006,14 @@ let find_file ctx f =
 			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
-				if Sys.file_exists file then
-					file
-				else
+				if Sys.file_exists file then begin
+					(try
+						let ext = String.rindex file '.' in
+						let file_pf = String.sub file 0 (ext + 1) ^ platform_name ctx.platform ^ String.sub file ext (String.length file - ext) in
+						if not (defined ctx Define.CoreApi) && Sys.file_exists file_pf then file_pf else file
+					with Not_found ->
+						file)
+				end else
 					loop (had_empty || p = "") l
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
@@ -952,7 +1035,7 @@ let get_path_parts f =
 	) in
 	cl
 
-let normalize_path p =
+let add_trailing_slash p =
 	let l = String.length p in
 	if l = 0 then
 		"./"
@@ -965,9 +1048,9 @@ let rec mkdir_recursive base dir_list =
 	| [] -> ()
 	| dir :: remaining ->
 		let path = match base with
-		           | "" ->  dir
-		           | "/" -> "/" ^ dir
-		           | _ -> base ^ "/" ^ dir
+				   | "" ->  dir
+				   | "/" -> "/" ^ dir
+				   | _ -> base ^ "/" ^ dir
 		in
 		if not ( (path = "") || ( ((String.length path) = 2) && ((String.sub path 1 1) = ":") ) ) then
 			if not (Sys.file_exists path) then
@@ -1040,8 +1123,8 @@ Ast.Meta.to_string_ref := fun m -> fst (MetaInfo.to_string m)
 
 (*  Taken from OCaml source typing/oprint.ml
 
-    This is a better version of string_of_float which prints without loss of precision
-    so that float_of_string (float_repres x) = x for all floats x
+	This is a better version of string_of_float which prints without loss of precision
+	so that float_of_string (float_repres x) = x for all floats x
 *)
 let valid_float_lexeme s =
 	let l = String.length s in
@@ -1065,3 +1148,8 @@ let float_repres f =
 			if f = float_of_string s2 then s2 else
 			Printf.sprintf "%.18g" f
 		in valid_float_lexeme float_val
+
+
+let add_diagnostics_message com s p sev =
+	let di = com.shared.shared_display_information in
+	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages

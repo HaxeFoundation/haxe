@@ -15,7 +15,7 @@
   </output>
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
-    <!-- example: <class path="..." /> -->
+    <class path="std" />
   </classpaths>
   <!-- Build options -->
   <build>
@@ -260,9 +260,56 @@
     <hidden path="src\optimization\analyzerTypes.cmi" />
     <hidden path="src\optimization\analyzerTypes.cmx" />
     <hidden path="src\optimization\analyzerTypes.obj" />
+    <hidden path="src\json.cmi" />
+    <hidden path="src\json.cmx" />
+    <hidden path="src\json.o" />
+    <hidden path="src\main.o" />
+    <hidden path="src\version.o" />
+    <hidden path="src\display\display.cmx" />
+    <hidden path="src\display\display.o" />
+    <hidden path="src\display\display.cmi" />
+    <hidden path="src\generators\codegen.o" />
+    <hidden path="src\generators\genas3.o" />
+    <hidden path="src\generators\gencommon.o" />
+    <hidden path="src\generators\gencpp.o" />
+    <hidden path="src\generators\gencs.o" />
+    <hidden path="src\generators\genhl.o" />
+    <hidden path="src\generators\genjava.o" />
+    <hidden path="src\generators\genjs.o" />
+    <hidden path="src\generators\genlua.cmi" />
+    <hidden path="src\generators\genlua.cmx" />
+    <hidden path="src\generators\genlua.o" />
+    <hidden path="src\generators\genneko.o" />
+    <hidden path="src\generators\genphp.o" />
+    <hidden path="src\generators\genpy.o" />
+    <hidden path="src\generators\genswf.o" />
+    <hidden path="src\generators\genswf9.o" />
+    <hidden path="src\generators\genxml.o" />
+    <hidden path="src\macro\interp.o" />
+    <hidden path="src\optimization\analyzer.o" />
+    <hidden path="src\optimization\analyzerConfig.o" />
+    <hidden path="src\optimization\analyzerTexpr.o" />
+    <hidden path="src\optimization\analyzerTexprTransformer.o" />
+    <hidden path="src\optimization\analyzerTypes.o" />
+    <hidden path="src\optimization\dce.o" />
+    <hidden path="src\optimization\filters.o" />
+    <hidden path="src\optimization\optimizer.o" />
+    <hidden path="src\syntax\ast.o" />
+    <hidden path="src\syntax\lexer.o" />
+    <hidden path="src\syntax\parser.o" />
+    <hidden path="src\typing\common.o" />
+    <hidden path="src\typing\matcher.o" />
+    <hidden path="src\typing\type.o" />
+    <hidden path="src\typing\typecore.o" />
+    <hidden path="src\typing\typeload.o" />
+    <hidden path="src\typing\typer.o" />
+    <hidden path=".travis" />
+    <hidden path="src\json.obj" />
+    <hidden path="src\display\display.obj" />
+    <hidden path="src\generators\genlua.obj" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>make -j4 MSVC=1 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
+  <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->

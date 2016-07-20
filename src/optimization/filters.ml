@@ -79,7 +79,7 @@ let rec wrap_js_exceptions com e =
 				let ewrap = Codegen.fcall eterr "wrap" [eerr] t_dynamic e.epos in
 				{ e with eexpr = TThrow ewrap }
 			| _ ->
-				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]) } in
+				let ewrap = { eerr with eexpr = TNew (cerr,[],[eerr]); etype = TInst (cerr,[]) } in
 				{ e with eexpr = TThrow ewrap }
 			)
 		| _ ->
@@ -117,6 +117,8 @@ let check_local_vars_init e =
 		| TVar (v,eo) ->
 			begin
 				match eo with
+				| None when Meta.has Meta.InlineConstructorVariable v.v_meta ->
+					()
 				| None ->
 					declared := v.v_id :: !declared;
 					vars := PMap.add v.v_id false !vars
@@ -327,7 +329,7 @@ let captured_vars com e =
 	in
 
 	let mk_var v used =
-		let v2 = alloc_var v.v_name (PMap.find v.v_id used) in
+		let v2 = alloc_var v.v_name (PMap.find v.v_id used) v.v_pos in
 		v2.v_meta <- v.v_meta;
 		v2
 	in
@@ -393,7 +395,7 @@ let captured_vars com e =
 			*)
 			if com.config.pf_capture_policy = CPLoopVars then
 				(* We don't want to duplicate any variable declarations, so let's make copies (issue #3902). *)
-				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_name v.v_type) vars in
+				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_name v.v_type v.v_pos) vars in
 				let rec loop e = match e.eexpr with
 					| TLocal v ->
 						begin try
@@ -802,7 +804,7 @@ let add_field_inits ctx t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
-		let v = alloc_var "_g" ethis.etype in
+		let v = alloc_var "_g" ethis.etype ethis.epos in
 		let need_this = ref false in
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with
@@ -1025,10 +1027,6 @@ let iter_expressions fl mt =
 		()
 
 let run com tctx main =
-	begin match com.display with
-		| DMUsage | DMPosition -> Codegen.detect_usage com;
-		| _ -> ()
-	end;
 	if not (Common.defined com Define.NoDeprecationWarnings) then
 		Codegen.DeprecationCheck.run com;
 	let new_types = List.filter (fun t -> not (is_cached t)) com.types in

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCPeerConnection.webidl line 85:0. Do not edit!
+// This file is generated from mozilla\RTCPeerConnection.webidl line 71:0. Do not edit!
 
 package js.html.rtc;
 

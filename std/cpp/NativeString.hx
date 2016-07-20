@@ -32,8 +32,31 @@ extern class NativeString {
 	public static inline function fromPointer(inPtr:ConstPointer<Char> ) : String {
       return untyped __global__.String(inPtr.ptr);
    }
+	public static inline function fromGcPointer(inPtr:ConstPointer<Char>, inLen:Int ) : String {
+      return untyped __global__.String(inPtr.ptr,inLen);
+   }
+
+
+   @:native("_hx_string_compare")
+   public static function compare(inString0:String, inString1:String) : Int return 0;
+
+   @:native("_hx_utf8_char_code_at")
+   public static function utf8CharCodeAt(inString:String, inIndex:Int) : Int return 0;
+
+   @:native("_hx_utf8_length")
+   public static function utf8Length(inString:String) : Int return 1;
+
+   @:native("_hx_utf8_is_valid")
+   public static function utf8IsValid(inString:String) : Bool return false;
+
+   @:native("_hx_utf8_sub")
+   public static function utf8Sub(inString:String,charStart:Int, inLen:Int) : String return null;
 
    @:native("_hx_string_create")
-	public static function fromPointerLen(inPtr:ConstPointer<Char>, len:Int ) : String;
+   public static function fromPointerLen(inPtr:ConstPointer<Char>, len:Int ) : String;
+
+   @:native("_hx_utf8_decode_advance")
+   public static function utf8DecodeAdvance(reference:Char) : Int  return 0;
+
 }
 

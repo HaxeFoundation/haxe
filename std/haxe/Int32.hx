@@ -69,8 +69,24 @@ abstract Int32(Int) from Int to Int {
 
 	#if (as3 || js || php || python || lua)
 
+	#if js
+	// on JS we want to try using Math.imul, but we have to assign that function to Int32.mul only once,
+	// or else V8 will deoptimize it, so we need to be a bit funky with this.
+	// See https://github.com/HaxeFoundation/haxe/issues/5367 for benchmarks.
+	@:op(A * B) inline static function mul(a:Int32, b:Int32):Int32
+		return _mul(a, b);
+
+	static var _mul:Int32->Int32->Int32 = untyped
+		if (Math.imul != null)
+			Math.imul
+		else
+			function(a:Int32, b:Int32):Int32
+				return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
+
+	#else
 	@:op(A * B) private static function mul(a:Int32, b:Int32):Int32
 		return clamp( (a : Int) * ((b : Int) & 0xFFFF) + clamp( (a : Int) * ((b : Int) >>> 16) << 16 ) );
+	#end
 
 	@:op(A * B) @:commutative private static inline function mulInt(a:Int32, b:Int):Int32
 		return mul(a, b);
@@ -229,10 +245,4 @@ abstract Int32(Int) from Int to Int {
 		return (x);
 		#end
 	}
-
-	#if js
-	static function __init__() {
-		untyped __feature__("haxe._Int32.Int32_Impl_.mul", if (Math.imul != null) Int32.mul = Math.imul);
-	}
-	#end
 }

@@ -47,4 +47,8 @@ class FileOutput extends haxe.io.Output {
 		f.write(String.fromCharCode(c));
 	}
 
+	override public function close() {
+		f.close();
+	}
+
 }

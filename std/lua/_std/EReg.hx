@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,17 +32,22 @@ class EReg {
 	var s : String; // the last matched string
 	var m : Table<Int,Int>; // the [start:Int, end:Int, and submatches:String (matched groups)] as a single table.
 
+	static var FLAGS : Table<String,Int> = Rex.flags();
+
 	public function new( r : String, opt : String ) : Void {
-		var ropt = new StringBuf();
+		var ropt = 0;
 		for (i in 0...opt.length){
 			switch(opt.charAt(i)){
-				case "i", "m", "s" : ropt.add(opt.charAt(i));
+				case "i" : ropt |= FLAGS.CASELESS;
+				case "m" : ropt |= FLAGS.MULTILINE;
+				case "s" : ropt |= FLAGS.DOTALL;
+				case "u" : ropt |= FLAGS.UTF8;
 				case "g" : global = true;
 				default : null;
 			}
 		}
 		if (global == null) global = false;
-		this.r = Rex.create(r, ropt.toString());
+		this.r = Rex.create(r, ropt);
 	}
 
 	public function match( s : String ) : Bool {
@@ -153,6 +158,5 @@ class EReg {
 			throw "Rex is missing.  Please install lrexlib-pcre.";
 		}
 	}
-
 }
 

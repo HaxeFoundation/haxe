@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -131,17 +132,17 @@ enum ValueType {
 
 	public static function enumConstructor( e : EnumValue ) : String {
 			var value:cpp.EnumBase = cast e;
-			return value.getTag();
+			return value._hx_getTag();
 	}
 
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> {
 			var value:cpp.EnumBase = cast e;
-			return value.getParameters();
+			return value._hx_getParameters();
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
 			var value:cpp.EnumBase = cast e;
-			return value.getIndex();
+			return value._hx_getIndex();
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {

@@ -120,7 +120,11 @@ class Socket {
 	public var custom : Dynamic;
 
 	public function new() : Void {
-		__s = NativeSocket.socket_new(false);
+		init();
+	}
+
+	private function init() : Void {
+		if( __s == null )__s = NativeSocket.socket_new(false);
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}

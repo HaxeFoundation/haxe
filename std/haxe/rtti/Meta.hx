@@ -21,8 +21,16 @@
  */
 package haxe.rtti;
 
+private typedef MetaObject = {
+	?fields:Dynamic<Dynamic<Null<Array<Dynamic>>>>,
+	?statics:Dynamic<Dynamic<Null<Array<Dynamic>>>>,
+	?obj:Dynamic<Null<Array<Dynamic>>>,
+}
+
 /**
-	An api to access classes and enums metadata at runtime.
+	An API to access classes and enums metadata at runtime.
+
+	@see <http://haxe.org/manual/cr-rtti.html>
 **/
 class Meta {
 
@@ -49,7 +57,7 @@ class Meta {
 		#end
 	}
 
-	private static function getMeta(t:Dynamic):Dynamic
+	private static function getMeta(t:Dynamic):MetaObject
 	{
 #if (java || cs || php || (flash && as3))
 		var ret = Reflect.field(t, "__meta__");

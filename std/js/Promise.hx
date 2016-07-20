@@ -29,7 +29,7 @@ extern class Promise<T>
 {
 	@:overload(function<T>(promise : Promise<T>) : Promise<T> {})
 	@:overload(function<T>(thenable : Thenable<T>) : Promise<T> {})
-	static function resolve<T>( value : T ) : Promise<T>;
+	static function resolve<T>( ?value : T ) : Promise<T>;
 
 	static function reject<T>( ?value : Dynamic ) : Promise<T>;
 
@@ -49,5 +49,5 @@ extern class Promise<T>
 typedef PromiseCallback<T, TOut> = EitherType<T -> TOut, T -> Promise<TOut>>;
 
 typedef Thenable<T> = {
-	then : EitherType<(T -> Void) -> (Dynamic -> Void) -> Void, (T -> Void) -> Void>
+	function then(resolve:T->Void, ?reject:Dynamic->Void):Void;
 }

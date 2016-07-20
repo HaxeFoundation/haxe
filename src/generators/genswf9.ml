@@ -1994,7 +1994,7 @@ let generate_field_kind ctx f c stat =
 			) args;
 			let dparams = (match !dparams with None -> None | Some l -> Some (List.rev l)) in
 			Some (HFMethod {
-				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> alloc_var a t, (if opt then Some TNull else None)) args) dparams tret;
+				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> alloc_var a t f.cf_pos, (if opt then Some TNull else None)) args) dparams tret;
 				hlm_final = false;
 				hlm_override = false;
 				hlm_kind = snd (method_kind());
@@ -2193,7 +2193,7 @@ let generate_class ctx c =
 let generate_enum ctx e meta =
 	let name_id = type_path ctx e.e_path in
 	let api = ctx.com.basic in
-	let f = begin_fun ctx [alloc_var "tag" api.tstring, None;alloc_var "index" api.tint, None;alloc_var "params" (api.tarray (mk_mono())), None] api.tvoid [ethis] false e.e_pos in
+	let f = begin_fun ctx [alloc_var "tag" api.tstring e.e_pos, None;alloc_var "index" api.tint e.e_pos, None;alloc_var "params" (api.tarray (mk_mono())) e.e_pos, None] api.tvoid [ethis] false e.e_pos in
 	let tag_id = ident "tag" in
 	let index_id = ident "index" in
 	let params_id = ident "params" in
@@ -2224,7 +2224,7 @@ let generate_enum ctx e meta =
 			hlf_slot = !st_count;
 			hlf_kind = (match f.ef_type with
 				| TFun (args,_) ->
-					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> alloc_var a t, (if opt then Some TNull else None)) args) (TEnum (e,[])) [] true f.ef_pos in
+					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> alloc_var a t e.e_pos, (if opt then Some TNull else None)) args) (TEnum (e,[])) [] true f.ef_pos in
 					write ctx (HFindPropStrict name_id);
 					write ctx (HString f.ef_name);
 					write ctx (HInt f.ef_index);

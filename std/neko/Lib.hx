@@ -21,6 +21,11 @@
  */
 package neko;
 
+/**
+	Platform-specific Neko Library. Provides some platform-specific functions 
+	for the Neko target, such as conversion from Haxe types to native types 
+	and vice-versa.
+**/
 class Lib {
 
 	/**

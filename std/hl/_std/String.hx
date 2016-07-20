@@ -1,4 +1,24 @@
-
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 @:coreApi
 class String {
 
@@ -11,11 +31,11 @@ class String {
 	}
 
 	public function toUpperCase() : String {
-		return __alloc__(@:privateAccess bytes.ucs2Upper(0,length<<1), length);
+		return __alloc__(@:privateAccess bytes.ucs2Upper(0,length), length);
 	}
 
 	public function toLowerCase() : String {
-		return __alloc__(@:privateAccess bytes.ucs2Lower(0,length<<1), length);
+		return __alloc__(@:privateAccess bytes.ucs2Lower(0,length), length);
 	}
 
 	public function charAt(index : Int) : String {
@@ -150,6 +170,11 @@ class String {
 			return __alloc__(b, 2); // UTF16 encoding but UCS2 API (same as JS)
 		} else
 			throw "Invalid unicode char " + code;
+	}
+
+	function toUtf8() : hl.types.Bytes {
+		var size = 0;
+		return bytes.utf16ToUtf8(0, size);
 	}
 
 	@:keep function __string() : hl.types.Bytes {

@@ -26,16 +26,6 @@ package haxe;
 import sys.net.Host;
 import sys.net.Socket;
 
-private typedef AbstractSocket = {
-	var input(default,null) : haxe.io.Input;
-	var output(default,null) : haxe.io.Output;
-	function connect( host : Host, port : Int ) : Void;
-	function setTimeout( t : Float ) : Void;
-	function write( str : String ) : Void;
-	function close() : Void;
-	function shutdown( read : Bool, write : Bool ) : Void;
-}
-
 #end
 
 /**
@@ -63,7 +53,7 @@ class Http {
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int, mimeType : String };
-#elseif js
+#elseif (js && !nodejs)
 	public var async : Bool;
 	public var withCredentials : Bool;
 #end
@@ -91,7 +81,7 @@ class Http {
 		headers = new List<{ header:String, value:String }>();
 		params = new List<{ param:String, value:String }>();
 
-		#if js
+		#if (js && !nodejs)
 		async = true;
 		withCredentials = false;
 		#elseif sys
@@ -155,7 +145,9 @@ class Http {
 
 	#if (js || flash)
 
-	#if js
+	#if nodejs
+	var req:js.node.http.ClientRequest;
+	#elseif js
 	var req:js.html.XMLHttpRequest;
 	#elseif flash
 	var req:flash.net.URLLoader;
@@ -196,7 +188,66 @@ class Http {
 	**/
 	public function request( ?post : Bool ) : Void {
 		var me = this;
-	#if js
+	#if nodejs
+		me.responseData = null;
+		var parsedUrl = js.node.Url.parse(url);
+		var secure = (parsedUrl.protocol == "https:");
+		var host = parsedUrl.hostname;
+		var path = parsedUrl.path;
+		var port = if (parsedUrl.port != null) Std.parseInt(parsedUrl.port) else (secure ? 443 : 80);
+		var h:Dynamic = {};
+		for (i in headers) {
+			var arr = Reflect.field(h, i.header);
+			if (arr == null) {
+				arr = new Array<String>();
+				Reflect.setField(h, i.header, arr);
+			}
+			
+			arr.push(i.value);
+		}
+		var uri = postData;
+		if( uri != null )
+			post = true;
+		else for( p in params ) {
+			if( uri == null )
+				uri = "";
+			else
+				uri += "&";
+			uri += StringTools.urlEncode(p.param)+"="+StringTools.urlEncode(p.value);
+		}
+		var question = path.split("?").length <= 1;
+		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
+		
+		var opts = {
+			protocol: parsedUrl.protocol,
+			hostname: host,
+			port: port,
+			method: post ? 'POST' : 'GET',
+			path: path,
+			headers: h
+		};
+		function httpResponse (res) {
+			var s = res.statusCode;
+			if (s != null)
+				me.onStatus(s);
+			var body = '';
+			res.on('data', function (d) {
+				body += d;
+			});
+			res.on('end', function (_) {
+				me.responseData = body;
+				me.req = null;
+				if (s != null && s >= 200 && s < 400) {
+					me.onData(body);
+				} else {
+					me.onError("Http Error #"+s);
+				}
+			});
+		}
+		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
+		if (post) req.write(uri);
+		req.end();
+	#elseif js
 		me.responseData = null;
 		var r = req = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
@@ -371,7 +422,7 @@ class Http {
 		this.file = { param : argname, filename : filename, io : file, size : size, mimeType : mimeType };
 	}
 
-	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
+	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : sys.net.Socket, ?method : String  ) {
 		this.responseData = null;
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
@@ -385,12 +436,8 @@ class Http {
 				sock = new php.net.SslSocket();
 				#elseif java
 				sock = new java.net.SslSocket();
-				#elseif hxssl
-				#if neko
-				sock = new neko.tls.Socket();
-				#else
+				#elseif (!no_ssl && (hxssl || cpp || (neko && !(macro || interp))))
 				sock = new sys.ssl.Socket();
-				#end
 				#else
 				throw "Https is only supported with -lib hxssl";
 				#end
@@ -535,7 +582,7 @@ class Http {
 		}
 	}
 
-	function readHttpResponse( api : haxe.io.Output, sock : AbstractSocket ) {
+	function readHttpResponse( api : haxe.io.Output, sock : sys.net.Socket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new haxe.io.BytesBuffer();
 		var k = 4;
@@ -766,7 +813,7 @@ class Http {
 	public dynamic function onStatus( status : Int ) {
 	}
 
-#if !flash
+#if (!flash && !nodejs)
 	/**
 		Makes a synchronous request to `url`.
 

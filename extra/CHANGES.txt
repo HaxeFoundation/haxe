@@ -1,4 +1,11 @@
-2016-04-03: 3.3.0-RC1
+2016-??-??: 3.3.0-RC2
+
+	General improvements and optimizations:
+
+	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.1.0 support.
+	js : jQuery extern (js.jquery.*) now includes deprecated fields marked with @:deprecated.
+
+2016-05-27: 3.3.0-RC1
 
 	New features:
 
@@ -15,7 +22,7 @@
 	flash : update flash externs to version 21
 	hl : added HL target (interpreter and C output)
 	lua: added lua target
-	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.12.2 / 2.2.2 support. (#4377)
+	js : introduced new jQuery extern (js.jquery.*) for jQuery 1.12.4 / 2.2.4 support. (#4377)
 	js : introduced new SWFObject extern (js.swfobject.SWFObject) for SWFObject 2.3.20130521 (#4451)
 	js : added js.Lib.rethrow (#4551)
 	cs/java : added -D fast_cast as an experimental feature to cleanup casts

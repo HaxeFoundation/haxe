@@ -23,9 +23,8 @@
 
 	var r : HaxeRegExp;
 
-	public function new( r : String, opt : String ) : Void {
-		opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
-		this.r = new HaxeRegExp(r, opt);
+	public inline function new( r : String, opt : String ) : Void {
+		this.r = new HaxeRegExp(r, opt.split("u").join("")); // 'u' (utf8) depends on page encoding
 	}
 
 	public function match( s : String ) : Bool {
@@ -81,7 +80,7 @@
 		return untyped s.replace(r,d).split(d);
 	}
 
-	public function replace( s : String, by : String ) : String {
+	public inline function replace( s : String, by : String ) : String {
 		return untyped s.replace(r,by);
 	}
 

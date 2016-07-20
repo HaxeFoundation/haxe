@@ -27,7 +27,7 @@ type error_msg =
 	| Unterminated_regexp
 	| Unclosed_comment
 	| Unclosed_code
-	| Invalid_escape
+	| Invalid_escape of char
 	| Invalid_option
 
 exception Error of error_msg * pos
@@ -39,7 +39,7 @@ let error_msg = function
 	| Unterminated_regexp -> "Unterminated regular expression"
 	| Unclosed_comment -> "Unclosed comment"
 	| Unclosed_code -> "Unclosed code string"
-	| Invalid_escape -> "Invalid escape sequence"
+	| Invalid_escape c -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
 	| Invalid_option -> "Invalid regular expression option"
 
 type lexer_file = {
@@ -182,13 +182,17 @@ let get_error_line p =
 	let l, _ = find_pos p in
 	l
 
+let get_pos_coords p =
+	let file = find_file p.pfile in
+	let l1, p1 = find_line p.pmin file in
+	let l2, p2 = find_line p.pmax file in
+	l1, p1, l2, p2
+
 let get_error_pos printer p =
 	if p.pmin = -1 then
 		"(unknown)"
 	else
-		let file = find_file p.pfile in
-		let l1, p1 = find_line p.pmin file in
-		let l2, p2 = find_line p.pmax file in
+		let l1, p1, l2, p2 = get_pos_coords p in
 		if l1 = l2 then begin
 			let s = (if p1 = p2 then Printf.sprintf " %d" p1 else Printf.sprintf "s %d-%d" p1 p2) in
 			Printf.sprintf "%s character%s" (printer p.pfile l1) s
@@ -303,14 +307,14 @@ and token = parse
 			reset();
 			let pmin = lexeme_start lexbuf in
 			let pmax = (try string lexbuf with Exit -> error Unterminated_string pmin) in
-			let str = (try unescape (contents()) with Exit -> error Invalid_escape pmin) in
+			let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
 			mk_tok (Const (String str)) pmin pmax;
 		}
 	| "'" {
 			reset();
 			let pmin = lexeme_start lexbuf in
 			let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
-			let str = (try unescape (contents()) with Exit -> error Invalid_escape pmin) in
+			let str = (try unescape (contents()) with Invalid_escape_sequence(c,i) -> error (Invalid_escape c) (pmin + i)) in
 			let t = mk_tok (Const (String str)) pmin pmax in
 			fast_add_fmt_string (snd t);
 			t

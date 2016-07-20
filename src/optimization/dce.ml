@@ -413,7 +413,11 @@ and expr dce e =
 		check_and_add_feature dce "add_dynamic";
 		expr dce e1;
 		expr dce e2;
-	| TBinop( (OpAdd | (OpAssignOp OpAdd)),e1,e2) when ((is_string e1.etype || is_string e2.etype) && not ( is_const_string e1 && is_const_string e2)) ->
+	| TBinop( (OpAdd | (OpAssignOp OpAdd)) as op,e1,e2) when ((is_string e1.etype || is_string e2.etype) && not ( is_const_string e1 && is_const_string e2)) ->
+
+		(* add array_write if we're doing += to an array element, since this pattern comes before the array_write one *)
+		(match op, e1 with (OpAssignOp _, {eexpr = TArray({etype = t},_)}) when is_array t -> check_and_add_feature dce "array_write" | _ -> ());
+
 		check_and_add_feature dce "unsafe_string_concat";
 		expr dce e1;
 		expr dce e2;
@@ -513,8 +517,17 @@ and expr dce e =
 		expr dce e;
 	| TThrow e ->
 		check_and_add_feature dce "has_throw";
-		to_string dce e.etype;
-		expr dce e
+		expr dce e;
+		(*
+			TODO: Simon, save me! \o
+			This is a hack needed to keep toString field of the actual exception objects
+			that are thrown, but are wrapped into HaxeError before DCE comes into play.
+		*)
+		let e = (match e.eexpr with
+			| TNew({cl_path=(["js";"_Boot"],"HaxeError")}, _, [eoriginal]) -> eoriginal
+			| _ -> e
+		) in
+		to_string dce e.etype
 	| _ ->
 		Type.iter (expr dce) e
 
@@ -568,7 +581,7 @@ let run com main full =
 		curclass = null_class;
 	} in
 	begin match main with
-		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} ->
+		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
 			cf.cf_meta <- (Meta.Keep,[],cf.cf_pos) :: cf.cf_meta
 		| _ ->
 			()

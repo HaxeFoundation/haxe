@@ -840,7 +840,7 @@ and gen_value ctx e =
 	let value block =
 		let old = ctx.in_value in
 		let t = type_str ctx e.etype e.epos in
-		let r = alloc_var (gen_local ctx "$r") e.etype in
+		let r = alloc_var (gen_local ctx "$r") e.etype e.epos in
 		ctx.in_value <- Some r;
 		if ctx.in_static then
 			print ctx "function() : %s " t

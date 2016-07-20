@@ -65,6 +65,7 @@ module Meta = struct
 		| Deprecated
 		| DirectlyUsed
 		| DynamicObject
+		| Eager
 		| Enum
 		| EnumConstructorParam
 		| Event
@@ -101,6 +102,7 @@ module Meta = struct
 		| ImplicitCast
 		| Include
 		| InitPackage
+		| InlineConstructorVariable
 		| Internal
 		| IsVar
 		| JavaCanonical
@@ -121,6 +123,7 @@ module Meta = struct
 		| NativeGen
 		| NativeGeneric
 		| NativeProperty
+		| NativeStaticExtension
 		| NoCompletion
 		| NoDebug
 		| NoDoc
@@ -138,6 +141,7 @@ module Meta = struct
 		| Optional
 		| Overload
 		| PhpConstants
+		| PhpGlobal
 		| PrivateAccess
 		| Property
 		| Protected
@@ -155,6 +159,7 @@ module Meta = struct
 		| Rtti
 		| Runtime
 		| RuntimeValue
+		| Scalar
 		| SelfCall
 		| Setter
 		| SkipCtor
@@ -173,6 +178,7 @@ module Meta = struct
 		| To
 		| ToString
 		| Transient
+		| TemplatedCall
 		| ValueUsed
 		| Volatile
 		| Unbound
@@ -181,6 +187,7 @@ module Meta = struct
 		| Unsafe
 		| Usage
 		| Used
+		| UserVariable
 		| Value
 		| Void
 		| Last
@@ -318,24 +325,30 @@ type type_path = {
 	tsub : string option;
 }
 
+and placed_type_path = type_path * pos
+
 and type_param_or_const =
-	| TPType of complex_type
+	| TPType of type_hint
 	| TPExpr of expr
 
 and complex_type =
 	| CTPath of type_path
-	| CTFunction of complex_type list * complex_type
+	| CTFunction of type_hint list * type_hint
 	| CTAnonymous of class_field list
-	| CTParent of complex_type
-	| CTExtend of type_path list * class_field list
-	| CTOptional of complex_type
+	| CTParent of type_hint
+	| CTExtend of placed_type_path list * class_field list
+	| CTOptional of type_hint
+
+and type_hint = complex_type * pos
 
 and func = {
 	f_params : type_param list;
-	f_args : (string * bool * complex_type option * expr option) list;
-	f_type : complex_type option;
+	f_args : (placed_name * bool * metadata * type_hint option * expr option) list;
+	f_type : type_hint option;
 	f_expr : expr option;
 }
+
+and placed_name = string * pos
 
 and expr_def =
 	| EConst of constant
@@ -346,9 +359,9 @@ and expr_def =
 	| EObjectDecl of (string * expr) list
 	| EArrayDecl of expr list
 	| ECall of expr * expr list
-	| ENew of type_path * expr list
+	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
-	| EVars of (string * complex_type option * expr option) list
+	| EVars of (placed_name * type_hint option * expr option) list
 	| EFunction of string option * func
 	| EBlock of expr list
 	| EFor of expr * expr
@@ -356,25 +369,25 @@ and expr_def =
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option) list * expr option option
-	| ETry of expr * (string * complex_type * expr) list
+	| ETry of expr * (placed_name * type_hint * expr) list
 	| EReturn of expr option
 	| EBreak
 	| EContinue
 	| EUntyped of expr
 	| EThrow of expr
-	| ECast of expr * complex_type option
+	| ECast of expr * type_hint option
 	| EDisplay of expr * bool
-	| EDisplayNew of type_path
+	| EDisplayNew of placed_type_path
 	| ETernary of expr * expr * expr
-	| ECheckType of expr * complex_type
+	| ECheckType of expr * type_hint
 	| EMeta of metadata_entry * expr
 
 and expr = expr_def * pos
 
 and type_param = {
-	tp_name : string;
+	tp_name : placed_name;
 	tp_params :	type_param list;
-	tp_constraints : complex_type list;
+	tp_constraints : type_hint list;
 	tp_meta : metadata;
 }
 
@@ -393,12 +406,12 @@ and access =
 	| AMacro
 
 and class_field_kind =
-	| FVar of complex_type option * expr option
+	| FVar of type_hint option * expr option
 	| FFun of func
-	| FProp of string * string * complex_type option * expr option
+	| FProp of string * string * type_hint option * expr option
 
 and class_field = {
-	cff_name : string;
+	cff_name : placed_name;
 	cff_doc : documentation;
 	cff_pos : pos;
 	mutable cff_meta : metadata;
@@ -414,28 +427,28 @@ type class_flag =
 	| HInterface
 	| HExtern
 	| HPrivate
-	| HExtends of type_path
-	| HImplements of type_path
+	| HExtends of placed_type_path
+	| HImplements of placed_type_path
 
 type abstract_flag =
 	| APrivAbstract
-	| AFromType of complex_type
-	| AToType of complex_type
-	| AIsType of complex_type
+	| AFromType of type_hint
+	| AToType of type_hint
+	| AIsType of type_hint
 	| AExtern
 
 type enum_constructor = {
-	ec_name : string;
+	ec_name : placed_name;
 	ec_doc : documentation;
 	ec_meta : metadata;
-	ec_args : (string * bool * complex_type) list;
+	ec_args : (string * bool * type_hint) list;
 	ec_pos : pos;
 	ec_params : type_param list;
-	ec_type : complex_type option;
+	ec_type : type_hint option;
 }
 
 type ('a,'b) definition = {
-	d_name : string;
+	d_name : placed_name;
 	d_doc : documentation;
 	d_params : type_param list;
 	d_meta : metadata;
@@ -448,15 +461,15 @@ type import_mode =
 	| IAsName of string
 	| IAll
 
-type import = (string * pos) list * import_mode
+type import = placed_name list * import_mode
 
 type type_def =
 	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
-	| ETypedef of (enum_flag, complex_type) definition
+	| ETypedef of (enum_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
 	| EImport of import
-	| EUsing of type_path
+	| EUsing of placed_name list
 
 type type_decl = type_def * pos
 
@@ -640,6 +653,8 @@ let s_token = function
 	| At -> "@"
 	| Dollar v -> "$" ^ v
 
+exception Invalid_escape_sequence of char * int
+
 let unescape s =
 	let b = Buffer.create 0 in
 	let rec loop esc i =
@@ -647,6 +662,7 @@ let unescape s =
 			()
 		else
 			let c = s.[i] in
+			let fail () = raise (Invalid_escape_sequence(c,i)) in
 			if esc then begin
 				let inext = ref (i + 1) in
 				(match c with
@@ -655,11 +671,11 @@ let unescape s =
 				| 't' -> Buffer.add_char b '\t'
 				| '"' | '\'' | '\\' -> Buffer.add_char b c
 				| '0'..'3' ->
-					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> raise Exit) in
+					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail()) in
 					Buffer.add_char b c;
 					inext := !inext + 2;
 				| 'x' ->
-					let c = (try char_of_int (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> raise Exit) in
+					let c = (try char_of_int (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> fail()) in
 					Buffer.add_char b c;
 					inext := !inext + 2;
 				| 'u' ->
@@ -673,14 +689,14 @@ let unescape s =
 							assert (u <= 0x10FFFF);
 							(u, l+2)
 						with _ ->
-							raise Exit
+							fail()
 					in
 					let ub = UTF8.Buf.create 0 in
 					UTF8.Buf.add_char ub (UChar.uchar_of_int u);
 					Buffer.add_string b (UTF8.Buf.contents ub);
 					inext := !inext + a;
 				| _ ->
-					raise Exit);
+					fail());
 				loop false !inext;
 			end else
 				match c with
@@ -692,37 +708,36 @@ let unescape s =
 	loop false 0;
 	Buffer.contents b
 
-
 let map_expr loop (e,p) =
 	let opt f o =
 		match o with None -> None | Some v -> Some (f v)
 	in
 	let rec tparam = function
-		| TPType t -> TPType (ctype t)
+		| TPType t -> TPType (type_hint t)
 		| TPExpr e -> TPExpr (loop e)
 	and cfield f =
 		{ f with cff_kind = (match f.cff_kind with
-			| FVar (t,e) -> FVar (opt ctype t, opt loop e)
+			| FVar (t,e) -> FVar (opt type_hint t, opt loop e)
 			| FFun f -> FFun (func f)
-			| FProp (get,set,t,e) -> FProp (get,set,opt ctype t,opt loop e))
+			| FProp (get,set,t,e) -> FProp (get,set,opt type_hint t,opt loop e))
 		}
-	and ctype = function
-		| CTPath t -> CTPath (tpath t)
-		| CTFunction (cl,c) -> CTFunction (List.map ctype cl, ctype c)
+	and type_hint (t,p) = (match t with
+		| CTPath t -> CTPath { t with tparams = List.map tparam t.tparams }
+		| CTFunction (cl,c) -> CTFunction (List.map type_hint cl, type_hint c)
 		| CTAnonymous fl -> CTAnonymous (List.map cfield fl)
-		| CTParent t -> CTParent (ctype t)
+		| CTParent t -> CTParent (type_hint t)
 		| CTExtend (tl,fl) -> CTExtend (List.map tpath tl, List.map cfield fl)
-		| CTOptional t -> CTOptional (ctype t)
+		| CTOptional t -> CTOptional (type_hint t)),p
 	and tparamdecl t =
-		{ tp_name = t.tp_name; tp_constraints = List.map ctype t.tp_constraints; tp_params = List.map tparamdecl t.tp_params; tp_meta = t.tp_meta }
+		{ tp_name = t.tp_name; tp_constraints = List.map type_hint t.tp_constraints; tp_params = List.map tparamdecl t.tp_params; tp_meta = t.tp_meta }
 	and func f =
 		{
 			f_params = List.map tparamdecl f.f_params;
-			f_args = List.map (fun (n,o,t,e) -> n,o,opt ctype t,opt loop e) f.f_args;
-			f_type = opt ctype f.f_type;
+			f_args = List.map (fun (n,o,m,t,e) -> n,o,m,opt type_hint t,opt loop e) f.f_args;
+			f_type = opt type_hint f.f_type;
 			f_expr = opt loop f.f_expr;
 		}
-	and tpath t = { t with tparams = List.map tparam t.tparams }
+	and tpath (t,p) = { t with tparams = List.map tparam t.tparams },p
 	in
 	let e = (match e with
 	| EConst _ -> e
@@ -735,7 +750,7 @@ let map_expr loop (e,p) =
 	| ECall (e,el) -> ECall (loop e, List.map loop el)
 	| ENew (t,el) -> ENew (tpath t,List.map loop el)
 	| EUnop (op,f,e) -> EUnop (op,f,loop e)
-	| EVars vl -> EVars (List.map (fun (n,t,eo) -> n,opt ctype t,opt loop eo) vl)
+	| EVars vl -> EVars (List.map (fun (n,t,eo) -> n,opt type_hint t,opt loop eo) vl)
 	| EFunction (n,f) -> EFunction (n,func f)
 	| EBlock el -> EBlock (List.map loop el)
 	| EFor (e1,e2) -> EFor (loop e1, loop e2)
@@ -743,20 +758,48 @@ let map_expr loop (e,p) =
 	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
 	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
 	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,eg,e) -> List.map loop el, opt loop eg, opt loop e) cases, opt (opt loop) def)
-	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,ctype t,loop e) catches)
+	| ETry (e,catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,type_hint t,loop e) catches)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
 	| EContinue -> EContinue
 	| EUntyped e -> EUntyped (loop e)
 	| EThrow e -> EThrow (loop e)
-	| ECast (e,t) -> ECast (loop e,opt ctype t)
+	| ECast (e,t) -> ECast (loop e,opt type_hint t)
 	| EDisplay (e,f) -> EDisplay (loop e,f)
 	| EDisplayNew t -> EDisplayNew (tpath t)
 	| ETernary (e1,e2,e3) -> ETernary (loop e1,loop e2,loop e3)
-	| ECheckType (e,t) -> ECheckType (loop e, ctype t)
+	| ECheckType (e,t) -> ECheckType (loop e, type_hint t)
 	| EMeta (m,e) -> EMeta(m, loop e)
 	) in
 	(e,p)
+
+let iter_expr loop (e,p) =
+	let opt eo = match eo with None -> () | Some e -> loop e in
+	let exprs = List.iter loop in
+	match e with
+	| EConst _ | EContinue | EBreak | EDisplayNew _ | EReturn None -> ()
+	| EParenthesis e1 | EField(e1,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
+	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EUntyped e1 -> loop e1;
+	| EArray(e1,e2) | EBinop(_,e1,e2) | EIn(e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
+	| ETernary(e1,e2,e3) | EIf(e1,e2,Some e3) -> loop e1; loop e2; loop e3;
+	| EArrayDecl el | ENew(_,el) | EBlock el -> List.iter loop el
+	| ECall(e1,el) -> loop e1; exprs el;
+	| EObjectDecl fl -> List.iter (fun (_,e) -> loop e) fl;
+	| ETry(e1,catches) ->
+		loop e1;
+		List.iter (fun (_,_,e) -> loop e) catches
+	| ESwitch(e1,cases,def) ->
+		loop e1;
+		List.iter (fun (el,eg,e) ->
+			exprs el;
+			opt eg;
+			opt e;
+		) cases;
+		(match def with None -> () | Some e -> opt e);
+	| EFunction(_,f) ->
+		List.iter (fun (_,_,_,_,eo) -> opt eo) f.f_args;
+		opt f.f_expr
+	| EVars vl -> List.iter (fun (_,_,eo) -> opt eo) vl
 
 let s_expr e =
 	let rec s_expr_inner tabs (e,_) =
@@ -792,15 +835,16 @@ let s_expr e =
 		| EContinue -> "continue"
 		| EUntyped e -> "untyped " ^ s_expr_inner tabs e
 		| EThrow e -> "throw " ^ s_expr_inner tabs e
-		| ECast (e,Some t) -> "cast (" ^ s_expr_inner tabs e ^ ", " ^ s_complex_type tabs t ^ ")"
+		| ECast (e,Some (t,_)) -> "cast (" ^ s_expr_inner tabs e ^ ", " ^ s_complex_type tabs t ^ ")"
 		| ECast (e,None) -> "cast " ^ s_expr_inner tabs e
 		| ETernary (e1,e2,e3) -> s_expr_inner tabs e1 ^ " ? " ^ s_expr_inner tabs e2 ^ " : " ^ s_expr_inner tabs e3
-		| ECheckType (e,t) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
+		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
-		| _ -> ""
+		| EDisplay (e1,_) -> Printf.sprintf "#DISPLAY(%s)" (s_expr_inner tabs e1)
+		| EDisplayNew tp -> Printf.sprintf "#DISPLAY_NEW(%s)" (s_complex_type_path tabs tp)
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))
-	and s_complex_type_path tabs t =
+	and s_complex_type_path tabs (t,_) =
 		(String.concat "." t.tpackage) ^ if List.length t.tpackage > 0 then "." else "" ^
 		t.tname ^
 		match t.tsub with
@@ -813,15 +857,15 @@ let s_expr e =
 		else ""
 	and s_type_param_or_const tabs p =
 		match p with
-		| TPType t -> s_complex_type tabs t
+		| TPType (t,_) -> s_complex_type tabs t
 		| TPExpr e -> s_expr_inner tabs e
 	and s_complex_type tabs ct =
 		match ct with
-		| CTPath t -> s_complex_type_path tabs t
-		| CTFunction (cl,c) -> if List.length cl > 0 then String.concat " -> " (List.map (s_complex_type tabs) cl) else "Void" ^ " -> " ^ s_complex_type tabs c
+		| CTPath t -> s_complex_type_path tabs (t,null_pos)
+		| CTFunction (cl,(c,_)) -> if List.length cl > 0 then String.concat " -> " (List.map (fun (t,_) -> s_complex_type tabs t) cl) else "Void" ^ " -> " ^ s_complex_type tabs c
 		| CTAnonymous fl -> "{ " ^ String.concat "; " (List.map (s_class_field tabs) fl) ^ "}";
-		| CTParent t -> "(" ^ s_complex_type tabs t ^ ")"
-		| CTOptional t -> "?" ^ s_complex_type tabs t
+		| CTParent(t,_) -> "(" ^ s_complex_type tabs t ^ ")"
+		| CTOptional(t,_) -> "?" ^ s_complex_type tabs t
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
 	and s_class_field tabs f =
 		match f.cff_doc with
@@ -830,38 +874,38 @@ let s_expr e =
 		if List.length f.cff_meta > 0 then String.concat ("\n" ^ tabs) (List.map (s_metadata tabs) f.cff_meta) else "" ^
 		if List.length f.cff_access > 0 then String.concat " " (List.map s_access f.cff_access) else "" ^
 		match f.cff_kind with
-		| FVar (t,e) -> "var " ^ f.cff_name ^ s_opt_complex_type tabs t " : " ^ s_opt_expr tabs e " = "
-		| FProp (get,set,t,e) -> "var " ^ f.cff_name ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_complex_type tabs t " : " ^ s_opt_expr tabs e " = "
-		| FFun func -> "function " ^ f.cff_name ^ s_func tabs func
+		| FVar (t,e) -> "var " ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FProp (get,set,t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FFun func -> "function " ^ (fst f.cff_name) ^ s_func tabs func
 	and s_metadata tabs (s,e,_) =
 		"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list tabs e ", " ^ ")" else ""
-	and s_opt_complex_type tabs t pre =
-		match t with
-		| Some s -> pre ^ s_complex_type tabs s
-		| None -> ""
 	and s_opt_expr tabs e pre =
 		match e with
 		| Some s -> pre ^ s_expr_inner tabs s
 		| None -> ""
+	and s_opt_type_hint tabs t pre =
+		match t with
+		| Some(t,_) -> pre ^ s_complex_type tabs t
+		| None -> ""
 	and s_func tabs f =
 		s_type_param_list tabs f.f_params ^
 		"(" ^ String.concat ", " (List.map (s_func_arg tabs) f.f_args) ^ ")" ^
-		s_opt_complex_type tabs f.f_type ":" ^
+		s_opt_type_hint tabs f.f_type ":" ^
 		s_opt_expr tabs f.f_expr " "
 	and s_type_param tabs t =
-		t.tp_name ^ s_type_param_list tabs t.tp_params ^
-		if List.length t.tp_constraints > 0 then ":(" ^ String.concat ", " (List.map (s_complex_type tabs) t.tp_constraints) ^ ")" else ""
+		fst (t.tp_name) ^ s_type_param_list tabs t.tp_params ^
+		if List.length t.tp_constraints > 0 then ":(" ^ String.concat ", " (List.map ((fun (t,_) -> s_complex_type tabs t)) t.tp_constraints) ^ ")" else ""
 	and s_type_param_list tabs tl =
 		if List.length tl > 0 then "<" ^ String.concat ", " (List.map (s_type_param tabs) tl) ^ ">" else ""
-	and s_func_arg tabs (n,o,t,e) =
-		if o then "?" else "" ^ n ^ s_opt_complex_type tabs t ":" ^ s_opt_expr tabs e " = "
-	and s_var tabs (n,t,e) =
-		n ^ s_opt_complex_type tabs t ":" ^ s_opt_expr tabs e " = "
+	and s_func_arg tabs ((n,_),o,_,t,e) =
+		if o then "?" else "" ^ n ^ s_opt_type_hint tabs t ":" ^ s_opt_expr tabs e " = "
+	and s_var tabs ((n,_),t,e) =
+		n ^ (s_opt_type_hint tabs t ":") ^ s_opt_expr tabs e " = "
 	and s_case tabs (el,e1,e2) =
 		"case " ^ s_expr_list tabs el ", " ^
 		(match e1 with None -> ":" | Some e -> " if (" ^ s_expr_inner tabs e ^ "):") ^
 		(match e2 with None -> "" | Some e -> s_expr_omit_block tabs e)
-	and s_catch tabs (n,t,e) =
+	and s_catch tabs ((n,_),(t,_),e) =
 		" catch(" ^ n ^ ":" ^ s_complex_type tabs t ^ ") " ^ s_expr_inner tabs e
 	and s_block tabs el opn nl cls =
 		 opn ^ "\n\t" ^ tabs ^ (s_expr_list (tabs ^ "\t") el (";\n\t" ^ tabs)) ^ ";" ^ nl ^ tabs ^ cls

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2012 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,14 +22,8 @@
 
 package lua;
 
-// Bit and Table must be imported for basic Haxe datatypes to work.
-import lua.Bit;
-import lua.Table;
-import lua.Thread;
-import haxe.io.Path;
-
 import haxe.Constraints.Function;
-using lua.PairTools;
+
 
 @:dox(hide)
 class Boot {
@@ -56,7 +50,8 @@ class Boot {
 		if (m == null) return null;
 		// if (m.__id.__ == nil) m.__id__ = _fid + 1;
 		var f: Function = null;
-		if ( o.hx__closures__ == null ) o.hx__closures__ = {};
+		if ( o.hx__closures__ == null )
+			Lua.rawset(o,"hx__closures__", {});
 		else untyped f = o.hx__closures__[m];
 		if (f == null){
 			f = untyped __lua__("function(...) return m(o, ...) end");
@@ -85,7 +80,7 @@ class Boot {
 	   Returns the class of a given object, and defines the getClass feature
 	   for the given class.
 	*/
-	static inline public function getClass(o:Dynamic) : Dynamic {
+	static inline public function getClass(o:Dynamic) : Class<Dynamic> {
 		if (Std.is(o, Array)) return Array;
 		else {
 			var cl = untyped __define_feature__("lua.Boot.getClass", o.__class__);
@@ -103,7 +98,6 @@ class Boot {
 
 		switch( cl ) {
 			case Int:
-				// TODO: matching js behavior here, but js behavior clamps.  Is that correct?
 				return (Lua.type(o) == "number" &&  clamp(o) == o);
 			case Float:
 				return Lua.type(o) == "number";
@@ -116,20 +110,16 @@ class Boot {
 			case UserData:
 				return Lua.type(o) == "userdata";
 			case Array:
-				return Lua.type(o) == "table"
-					&& untyped o.__enum__ == null
-					&& lua.Lua.getmetatable(o) != null
-					&& lua.Lua.getmetatable(o).__index == untyped Array.prototype;
+				return isArray(o);
 			case Table:
 				return Lua.type(o) == "table";
 			case Dynamic:
 				return true;
 			default: {
 				if ( o!= null &&  Lua.type(o)  == "table" && Lua.type(cl) == "table"){
-					// first check if o is instance of cl
-					if (inheritsFrom(o, cl)) return true;
-
-					// do not use isClass/isEnum here, perform raw checks
+					if (extendsOrImplements(getClass(o), cl)) return true;
+					// We've exhausted standard inheritance checks.  Check for simple Class/Enum eqauality
+					// Also, do not use isClass/isEnum here, perform raw checks
 					untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
 					untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
 					// last chance, is it an enum instance?
@@ -139,6 +129,12 @@ class Boot {
 				}
 			}
 		}
+	}
+	static function isArray(o:Dynamic) : Bool {
+		return Lua.type(o) == "table"
+			&& untyped o.__enum__ == null
+			&& Lua.getmetatable(o) != null
+			&& Lua.getmetatable(o).__index == untyped Array.prototype;
 	}
 
 	/*
@@ -189,11 +185,8 @@ class Boot {
 	   Helper method to generate a string representation of a class
 	*/
 	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
-		c.pairsEach(function(k,v){
-			if (result != "")
-				result += ", ";
-			result += '$k: ${__string_rec(v, s + "\t")}';
-		});
+		var f = Boot.__string_rec;
+		untyped __lua__("for k,v in pairs(c) do if result ~= '' then result = result .. ', ' end result = result .. k .. ':' .. f(v, s.. '\t') end");
 		return result;
 	}
 
@@ -217,10 +210,11 @@ class Boot {
 			case "thread"  : "<thread>";
 			case "table": {
 			    if (o.__enum__ != null) printEnum(o,s);
-				else if (o.toString != null && !__instanceof(o,Array)) o.toString();
-				else if (__instanceof(o, Array)) {
+				else if (o.toString != null && !isArray(o)) o.toString();
+				else if (isArray(o)) {
+					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
-					else '[${[for (i in cast(o,Array<Dynamic>)) __string_rec(i,s+1)].join(",")}]';
+					else '[${[for (i in  o2) __string_rec(i,s+1)].join(",")}]';
 				} else if (s.length > 5){
 					"{...}";
 				}
@@ -229,16 +223,16 @@ class Boot {
 				else if (Lua.next(o) == null) "{}";
 				else {
 					var fields = Reflect.fields(o);
-					var buffer = new StringBuf();
+					var buffer:Table<Int,String> = Table.create();
 					var first = true;
-					buffer.add("{ ");
+					Table.insert(buffer,"{ ");
 					for (f in fields){
 						if (first) first = false;
-						else buffer.add(", ");
-						buffer.add('${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
+						else Table.insert(buffer,", ");
+						Table.insert(buffer,'${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
 					}
-					buffer.add(" }");
-					buffer.toString();
+					Table.insert(buffer, " }");
+					Table.concat(buffer, "");
 				}
 			};
 			default : {
@@ -253,8 +247,8 @@ class Boot {
 	   Define an array from the given table
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
-		if (length == null) length = Table.maxn(tab);
-		return untyped _hx_tabArray(tab, length);
+		if (length == null) length = Table.maxn(tab) + 1; // maxn doesn't count 0 index
+		return untyped _hx_tab_array(tab, length);
 	}
 
 	/*
@@ -285,7 +279,7 @@ class Boot {
 	   A 32 bit clamp function for integers
 	*/
 	public inline static function clamp(x:Int){
-		return untyped _hx_bit_clamp(x);
+		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
 	}
 
 	/*
@@ -299,29 +293,56 @@ class Boot {
 				year  : 0,
 				month : 1,
 				day   : 1,
-				hour  : Std.parseInt(k[0]),
-				min   : Std.parseInt(k[1]),
-				sec   : Std.parseInt(k[2])
+				hour  : Lua.tonumber(k[0]),
+				min   : Lua.tonumber(k[1]),
+				sec   : Lua.tonumber(k[2])
 			});
 			return std.Date.fromTime(t);
 		case 10: // YYYY-MM-DD
 			var k = s.split("-");
-			return new std.Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]),0,0,0);
+			return new std.Date(Lua.tonumber(k[0]), Lua.tonumber(k[1]) - 1, Lua.tonumber(k[2]),0,0,0);
 		case 19: // YYYY-MM-DD hh:mm:ss
 			var k = s.split(" ");
 			var y = k[0].split("-");
 			var t = k[1].split(":");
-			return new std.Date(cast y[0],Std.parseInt(y[1]) - 1, Std.parseInt(y[2]),Std.parseInt(t[0]),Std.parseInt(t[1]),Std.parseInt(t[2]));
+			return new std.Date(cast y[0],Lua.tonumber(y[1]) - 1, Lua.tonumber(y[2]),Lua.tonumber(t[0]),Lua.tonumber(t[1]),Lua.tonumber(t[2]));
 		default:
 			throw "Invalid date format : " + s;
 		}
 	}
 
 	/*
+	  Helper method to determine if class cl1 extends, implements, or otherwise equals cl2
+	*/
+	public static function extendsOrImplements(cl1 : Class<Dynamic>, cl2 : Class<Dynamic>) : Bool {
+		if (cl1 == null || cl2 == null) return false;
+		else if (cl1 == cl2) return true;
+		else if (untyped cl1.__interfaces__ != null) {
+			var intf = untyped cl1.__interfaces__;
+			for (i in 1...(Table.maxn(intf) + 1)){
+				// check each interface, including extended interfaces
+				if (extendsOrImplements(intf[1], cl2)) return true;
+			}
+		}
+		// check standard inheritance
+		return extendsOrImplements(untyped cl1.__super__, cl2);
+	}
+
+	/*
 	   Create an empty table.
 	*/
-	public inline static function createTable<K,V>() : Table<K,V> {
-		return untyped __lua__("{}");
+	public inline static function createTable<K,V>(?arr:Array<V>, ?hsh:Dynamic<V>) : Table<K,V> {
+		return untyped __lua_table__(arr,hsh);
+	}
+
+	/*
+	   Create an empty table for vectors
+	*/
+	// TODO: provide a simpler anonymous table generator syntax in genlua
+	public static function createVectorTable<K,V>(length:Int) : Table<K,V> {
+		var table : Table<K,V> = untyped __lua__("{}");
+		untyped table.length = length;
+		return table;
 	}
 
 	/*
@@ -347,7 +368,7 @@ class Boot {
 	*/
 	public static function tempFile() : String {
 		switch (Sys.systemName()){
-			case "Windows" : return Path.join([Os.getenv("TMP"), Os.tmpname()]);
+			case "Windows" : return haxe.io.Path.join([Os.getenv("TMP"), Os.tmpname()]);
 			default : return Os.tmpname();
 		}
 	}
@@ -358,5 +379,7 @@ class Boot {
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_function_to_instance_function.lua");
 		// static to instance class wrapper
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_static_to_instance_function.lua");
+		// simple apply method
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_apply.lua");
 	}
 }

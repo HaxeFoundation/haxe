@@ -42,7 +42,7 @@ private class SocketOutput extends haxe.io.Output {
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
 		if( pos < 0 || len < 0 || pos + len > buf.length ) throw haxe.io.Error.OutsideBounds;
-		var n = socket_send(@:privateAccess sock.__s, buf.getData().b, pos, len);
+		var n = socket_send(@:privateAccess sock.__s, buf.getData().bytes, pos, len);
 		if( n < 0 ) {
 			if( n == -1 ) throw Blocked;
 			throw new haxe.io.Eof();
@@ -79,7 +79,7 @@ private class SocketInput extends haxe.io.Input {
 
 	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		if( pos < 0 || len < 0 || pos + len > buf.length ) throw haxe.io.Error.OutsideBounds;
-		var r = socket_recv(@:privateAccess sock.__s,buf.getData().b,pos,len);
+		var r = socket_recv(@:privateAccess sock.__s,buf.getData().bytes,pos,len);
 		if( r < 0 ) {
 			if( r == -1 ) throw Blocked;
 			throw new haxe.io.Eof();

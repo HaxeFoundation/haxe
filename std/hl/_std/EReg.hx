@@ -185,15 +185,15 @@ private typedef ERegValue = hl.types.NativeAbstract<"ereg">;
 	}
 
 
-	@:hlNative("regexp", "regexp_new_options") static function regexp_new_options( bytes : hl.types.Bytes, options : hl.types.Bytes ) : ERegValue {
+	@:hlNative("std", "regexp_new_options") static function regexp_new_options( bytes : hl.types.Bytes, options : hl.types.Bytes ) : ERegValue {
 		return null;
 	}
 
-	@:hlNative("regexp", "regexp_match") static function regexp_match( r : ERegValue, str : hl.types.Bytes, pos : Int, size : Int ) : Bool {
+	@:hlNative("std", "regexp_match") static function regexp_match( r : ERegValue, str : hl.types.Bytes, pos : Int, size : Int ) : Bool {
 		return false;
 	}
 
-	@:hlNative("regexp", "regexp_matched_pos") static function regexp_matched_pos( r : ERegValue, n : Int, size : hl.types.Ref<Int> ) : Int {
+	@:hlNative("std", "regexp_matched_pos") static function regexp_matched_pos( r : ERegValue, n : Int, size : hl.types.Ref<Int> ) : Int {
 		return 0;
 	}
 

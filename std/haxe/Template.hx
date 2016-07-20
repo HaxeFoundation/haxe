@@ -112,14 +112,16 @@ class Template {
 	}
 
 	function resolve( v : String ) : Dynamic {
-		var value = Reflect.field(context, v);
-		if( value != null || Reflect.hasField(context,v) )
-			return value;
-		for( ctx in stack )
-			if( Reflect.hasField(ctx,v) )
-				return Reflect.field(ctx,v);
 		if( v == "__current__" )
 			return context;
+		var value = Reflect.getProperty(context, v);
+		if( value != null || Reflect.hasField(context,v) )
+			return value;
+		for( ctx in stack ) {
+			value = Reflect.getProperty(ctx,v);
+			if( value != null || Reflect.hasField(ctx,v) )
+				return value;
+		}
 		return Reflect.field(globals,v);
 	}
 

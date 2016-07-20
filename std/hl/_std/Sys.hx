@@ -1,3 +1,24 @@
+/*
+ * Copyright (C)2005-2016 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 class SysError {
 	public var msg : String;
 	public function new(msg) {
@@ -58,7 +79,7 @@ class Sys {
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
-		put_env(getPath(s),if( v == null ) null else getPath(v));
+		if( !put_env(getPath(s), if( v == null ) null else getPath(v)) ) throw "putEnv() failure";
 	}
 
 	public static function environment() : Map<String,String> {
@@ -94,9 +115,8 @@ class Sys {
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
 		var code = 0;
-		var ok;
 		if (args == null) {
-			ok = sys_command(getPath(cmd), code);
+			code = sys_command(getPath(cmd));
 		} else {
 			switch (systemName()) {
 				case "Windows":
@@ -104,13 +124,12 @@ class Sys {
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
 						StringTools.quoteWinArg(a, true)
 					].join(" ");
-					ok = sys_command(getPath(cmd), code);
+					code = sys_command(getPath(cmd));
 				case _:
 					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
-					ok = sys_command(getPath(cmd), code);
+					code = sys_command(getPath(cmd));
 			}
 		}
-		if( !ok ) throw new SysError("Failed to run command " + cmd);
 		return code;
 	}
 
@@ -135,12 +154,12 @@ class Sys {
 	@:hlNative("std", "file_stderr") static function file_stderr() : sys.io.File.FileHandle { return null; }
 	@:hlNative("std", "sys_args") static function sys_args() : hl.types.NativeArray<hl.types.Bytes> { return null; }
 	@:hlNative("std", "sys_get_env") static function get_env( key : hl.types.Bytes ) : hl.types.Bytes { return null; }
-	@:hlNative("std", "sys_put_env") static function put_env( key : hl.types.Bytes, val : hl.types.Bytes ) : Void {}
+	@:hlNative("std", "sys_put_env") static function put_env( key : hl.types.Bytes, val : hl.types.Bytes ) : Bool { return false; }
 	@:hlNative("std", "sys_env") static function sys_env() : hl.types.NativeArray<hl.types.Bytes> { return null; }
 	@:hlNative("std", "sys_set_time_locale") static function set_time_locale( loc : hl.types.Bytes ) : Bool { return true; }
 	@:hlNative("std", "sys_get_cwd") static function get_cwd() : hl.types.Bytes { return null; }
 	@:hlNative("std", "sys_set_cwd") static function set_cwd( path : hl.types.Bytes ) : Bool { return true; }
-	@:hlNative("std", "sys_command") static function sys_command( cmd : hl.types.Bytes, code : hl.types.Ref<Int> ) : Bool { return false; }
+	@:hlNative("std", "sys_command") static function sys_command( cmd : hl.types.Bytes ) : Int { return 0; }
 	@:hlNative("std", "sys_exe_path") static function sys_exe_path() : hl.types.Bytes { return null; }
 	@:hlNative("std", "sys_string") static function sys_string() : hl.types.Bytes { return null; }
 

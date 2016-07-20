@@ -26,9 +26,9 @@ import cpp.NativeSocket;
 @:coreApi
 class UdpSocket extends Socket {
 
-	public function new() : Void {
+	private override function init() : Void {
 		__s = NativeSocket.socket_new(true);
-		super();
+		super.init();
 	}
 
 	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {

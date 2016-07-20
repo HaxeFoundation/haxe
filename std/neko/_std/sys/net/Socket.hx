@@ -124,6 +124,10 @@ class Socket {
 	public var custom : Dynamic;
 
 	public function new() : Void {
+		init();
+	}
+
+	private function init() : Void {
 		if( __s == null ) __s = socket_new(false);
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
@@ -140,7 +144,7 @@ class Socket {
 	}
 
 	public function read() : String {
-		return socket_read(__s);
+		return new String(socket_read(__s));
 	}
 
 	public function write( content : String ) : Void {

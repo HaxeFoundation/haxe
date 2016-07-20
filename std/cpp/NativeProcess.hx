@@ -7,6 +7,8 @@ extern class NativeProcess
    @:extern @:native("_hx_std_process_run")
    public static function process_run(cmd:String,vargs:Array<String>) : Dynamic return null;
 
+   @:extern @:native("_hx_std_process_run")
+   public static function process_run_with_show(cmd:String,vargs:Array<String>,inShow:Int) : Dynamic return null;
 
    @:extern @:native("_hx_std_process_stdout_read")
    public static function process_stdout_read(handle:Dynamic,buf:haxe.io.BytesData,pos:Int,len:Int) : Int return 0;

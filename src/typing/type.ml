@@ -78,6 +78,7 @@ and tvar = {
 	mutable v_capture : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
+	v_pos : pos;
 }
 
 and tfunc = {
@@ -89,6 +90,7 @@ and tfunc = {
 and anon_status =
 	| Closed
 	| Opened
+	| Const
 	| Extend of t list
 	| Statics of tclass
 	| EnumStatics of tenum
@@ -299,6 +301,7 @@ and module_kind =
 	| MFake
 	| MSub
 	| MExtern
+	| MImport
 
 and build_state =
 	| Built
@@ -309,10 +312,10 @@ and build_state =
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = [] })
+	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
 
-let alloc_unbound_var n t =
-	let v = alloc_var n t in
+let alloc_unbound_var n t p =
+	let v = alloc_var n t p in
 	v.v_meta <- [Meta.Unbound,[],null_pos];
 	v
 
@@ -1050,13 +1053,14 @@ let rec s_expr s_type e =
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)
 
-let rec s_expr_pretty tabs s_type e =
+let rec s_expr_pretty print_var_ids tabs s_type e =
 	let sprintf = Printf.sprintf in
-	let loop = s_expr_pretty tabs s_type in
+	let loop = s_expr_pretty print_var_ids tabs s_type in
 	let slist f l = String.concat "," (List.map f l) in
+	let local v = if print_var_ids then sprintf "%s<%i>" v.v_name v.v_id else v.v_name in
 	match e.eexpr with
 	| TConst c -> s_const c
-	| TLocal v -> v.v_name
+	| TLocal v -> local v
 	| TArray (e1,e2) -> sprintf "%s[%s]" (loop e1) (loop e2)
 	| TBinop (op,e1,e2) -> sprintf "%s %s %s" (loop e1) (s_binop op) (loop e2)
 	| TEnumParameter (e1,_,i) -> sprintf "%s[%i]" (loop e1) i
@@ -1073,16 +1077,16 @@ let rec s_expr_pretty tabs s_type e =
 		| Prefix -> sprintf "%s %s" (s_unop op) (loop e)
 		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
 	| TFunction f ->
-		let args = slist (fun (v,o) -> sprintf "%s:%s%s" v.v_name (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		let args = slist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
 		sprintf "function(%s) = %s" args (loop f.tf_expr)
 	| TVar (v,eo) ->
-		sprintf "var %s" (sprintf "%s%s" v.v_name (match eo with None -> "" | Some e -> " = " ^ loop e))
+		sprintf "var %s" (sprintf "%s%s" (local v) (match eo with None -> "" | Some e -> " = " ^ loop e))
 	| TBlock el ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty ntabs s_type e)) el)) in
+		let s = sprintf "{\n%s" (String.concat "" (List.map (fun e -> sprintf "%s%s;\n" ntabs (s_expr_pretty print_var_ids ntabs s_type e)) el)) in
 		s ^ tabs ^ "}"
 	| TFor (v,econd,e) ->
-		sprintf "for (%s in %s) %s" v.v_name (loop econd) (loop e)
+		sprintf "for (%s in %s) %s" (local v) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
 		sprintf "if (%s)%s%s" (loop e) (loop e1) (match e2 with None -> "" | Some e -> " else " ^ loop e)
 	| TWhile (econd,e,flag) ->
@@ -1091,10 +1095,10 @@ let rec s_expr_pretty tabs s_type e =
 		| DoWhile -> sprintf "do (%s) while(%s)" (loop e) (loop econd))
 	| TSwitch (e,cases,def) ->
 		let ntabs = tabs ^ "\t" in
-		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty ntabs s_type e) ^ "\n") in
+		let s = sprintf "switch (%s) {\n%s%s" (loop e) (slist (fun (cl,e) -> sprintf "%scase %s: %s\n" ntabs (slist loop cl) (s_expr_pretty print_var_ids ntabs s_type e)) cases) (match def with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
 	| TTry (e,cl) ->
-		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" v.v_name (s_type v.v_type) (loop e)) cl)
+		sprintf "try %s%s" (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (local v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
 		"return"
 	| TReturn (Some e) ->
@@ -1229,12 +1233,21 @@ module Printer = struct
 	let s_record_field name value =
 		Printf.sprintf "%s = %s;" name value
 
-	let s_record_fields fields =
+	let s_record_fields tabs fields =
 		let sl = List.map (fun (name,value) -> s_record_field name value) fields in
-		Printf.sprintf "{\n\t%s\n}" (String.concat "\n\t" sl)
+		Printf.sprintf "{\n%s\t%s\n%s}" tabs (String.concat ("\n\t" ^ tabs) sl) tabs
 
 	let s_list sep f l =
 		"[" ^ (String.concat sep (List.map f l)) ^ "]"
+
+	let s_opt f o = match o with
+		| None -> "None"
+		| Some v -> f v
+
+	let s_pmap fk fv pm =
+		"{" ^ (String.concat ", " (PMap.foldi (fun k v acc -> (Printf.sprintf "%s = %s" (fk k) (fv v)) :: acc) pm [])) ^ "}"
+
+	let s_doc = s_opt (fun s -> s)
 
 	let s_metadata_entry (s,el,_) =
 		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> String.concat ", " (List.map Ast.s_expr el))
@@ -1254,49 +1267,137 @@ module Printer = struct
 		s_list ", " s_type_param tl
 
 	let s_tclass_field cf =
-		s_record_fields [
+		s_record_fields "\t" [
 			"cf_name",cf.cf_name;
+			"cf_doc",s_doc cf.cf_doc;
 			"cf_type",s_type_kind (follow cf.cf_type);
 			"cf_public",string_of_bool cf.cf_public;
 			"cf_meta",s_metadata cf.cf_meta;
 			"cf_kind",s_kind cf.cf_kind;
 			"cf_params",s_type_params cf.cf_params;
-			"cf_expr",(match cf.cf_expr with None -> "None" | Some e-> s_expr_ast true "" s_type e);
+			"cf_expr",s_opt (s_expr_ast true "\t\t" s_type) cf.cf_expr;
 		]
 
 	let s_tclass c =
-		s_record_fields [
+		s_record_fields "" [
 			"cl_path",s_type_path c.cl_path;
 			"cl_module",s_type_path c.cl_module.m_path;
 			"cl_private",string_of_bool c.cl_private;
+			"cl_doc",s_doc c.cl_doc;
 			"cl_meta",s_metadata c.cl_meta;
 			"cl_params",s_type_params c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
 			"cl_extern",string_of_bool c.cl_extern;
 			"cl_interface",string_of_bool c.cl_interface;
-			"cl_super",(match c.cl_super with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl)));
+			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
-			"cl_dynamic",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
-			"cl_array_access",(match c.cl_dynamic with None -> "None" | Some t -> s_type t);
+			"cl_dynamic",s_opt s_type c.cl_dynamic;
+			"cl_array_access",s_opt s_type c.cl_array_access;
 			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
-			"cl_init",(match c.cl_init with None -> "None" | Some e -> s_expr_ast true "" s_type e);
-			"cl_constructor",(match c.cl_constructor with None -> "None" | Some cf -> s_tclass_field cf);
-			"cl_ordered_fields",s_list "\n" s_tclass_field c.cl_ordered_fields;
-			"cl_ordered_statics",s_list "\n" s_tclass_field c.cl_ordered_statics;
+			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;
+			"cl_constructor",s_opt s_tclass_field c.cl_constructor;
+			"cl_ordered_fields",s_list "\n\t" s_tclass_field c.cl_ordered_fields;
+			"cl_ordered_statics",s_list "\n\t" s_tclass_field c.cl_ordered_statics;
 		]
 
-	let s_tvar_extra ve = match ve with
-		| None -> "None"
-		| Some(tl,eo) -> Printf.sprintf "Some(%s, %s)" (s_type_params tl) (match eo with None -> "None" | Some e -> s_expr_ast true "" s_type e)
+	let s_tdef tabs t =
+		s_record_fields tabs [
+			"t_path",s_type_path t.t_path;
+			"t_module",s_type_path t.t_module.m_path;
+			"t_private",string_of_bool t.t_private;
+			"t_doc",s_doc t.t_doc;
+			"t_meta",s_metadata t.t_meta;
+			"t_params",s_type_params t.t_params;
+			"t_type",s_type_kind t.t_type
+		]
+
+	let s_tenum_field ef =
+		s_record_fields "\t" [
+			"ef_name",ef.ef_name;
+			"ef_doc",s_doc ef.ef_doc;
+			"ef_type",s_type_kind ef.ef_type;
+			"ef_index",string_of_int ef.ef_index;
+			"ef_params",s_type_params ef.ef_params;
+			"ef_meta",s_metadata ef.ef_meta
+		]
+
+	let s_tenum en =
+		s_record_fields "" [
+			"e_path",s_type_path en.e_path;
+			"e_module",s_type_path en.e_module.m_path;
+			"e_private",string_of_bool en.e_private;
+			"d_doc",s_doc en.e_doc;
+			"e_meta",s_metadata en.e_meta;
+			"e_params",s_type_params en.e_params;
+			"e_type",s_tdef "\t" en.e_type;
+			"e_extern",string_of_bool en.e_extern;
+			"e_constrs",s_list "\n\t" s_tenum_field (PMap.fold (fun ef acc -> ef :: acc) en.e_constrs []);
+			"e_names",String.concat ", " en.e_names
+		]
+
+	let s_tabstract a =
+		s_record_fields "" [
+			"a_path",s_type_path a.a_path;
+			"a_modules",s_type_path a.a_module.m_path;
+			"a_private",string_of_bool a.a_private;
+			"a_doc",s_doc a.a_doc;
+			"a_meta",s_metadata a.a_meta;
+			"a_params",s_type_params a.a_params;
+			"a_ops",s_list ", " (fun (op,cf) -> Printf.sprintf "%s: %s" (s_binop op) cf.cf_name) a.a_ops;
+			"a_unops",s_list ", " (fun (op,flag,cf) -> Printf.sprintf "%s (%s): %s" (s_unop op) (if flag = Postfix then "postfix" else "prefix") cf.cf_name) a.a_unops;
+			"a_impl",s_opt (fun c -> s_type_path c.cl_path) a.a_impl;
+			"a_this",s_type_kind a.a_this;
+			"a_from",s_list ", " s_type_kind a.a_from;
+			"a_to",s_list ", " s_type_kind a.a_to;
+			"a_from_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_from_field;
+			"a_to_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_to_field;
+			"a_array",s_list ", " (fun cf -> cf.cf_name) a.a_array;
+			"a_resolve",s_opt (fun cf -> cf.cf_name) a.a_resolve;
+		]
+
+	let s_tvar_extra (tl,eo) =
+		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_opt (s_expr_ast true "" s_type) eo)
 
 	let s_tvar v =
-		s_record_fields [
+		s_record_fields "" [
 			"v_id",string_of_int v.v_id;
 			"v_name",v.v_name;
 			"v_type",s_type v.v_type;
 			"v_capture",string_of_bool v.v_capture;
-			"v_extra",s_tvar_extra v.v_extra;
+			"v_extra",s_opt s_tvar_extra v.v_extra;
 			"v_meta",s_metadata v.v_meta;
+		]
+
+	let s_module_kind = function
+		| MCode -> "MCode"
+		| MMacro -> "MMacro"
+		| MFake -> "MFake"
+		| MSub -> "MSub"
+		| MExtern -> "MExtern"
+		| MImport -> "MImport"
+
+	let s_module_def_extra tabs me =
+		s_record_fields tabs [
+			"m_file",me.m_file;
+			"m_sign",me.m_sign;
+			"m_time",string_of_float me.m_time;
+			"m_dirty",string_of_bool me.m_dirty;
+			"m_added",string_of_int me.m_added;
+			"m_mark",string_of_int me.m_mark;
+			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
+			"m_processed",string_of_int me.m_processed;
+			"m_kind",s_module_kind me.m_kind;
+			"m_binded_res",""; (* TODO *)
+			"m_macro_calls",String.concat ", " me.m_macro_calls;
+			"m_if_feature",""; (* TODO *)
+			"m_features",""; (* TODO *)
+		]
+
+	let s_module_def m =
+		s_record_fields "" [
+			"m_id",string_of_int m.m_id;
+			"m_path",s_type_path m.m_path;
+			"m_extra",s_module_def_extra "\t" m.m_extra
 		]
 end
 
@@ -1741,7 +1842,7 @@ let rec unify a b =
 			(match !(an.a_status) with
 			| Opened -> an.a_status := Closed;
 			| Statics _ | EnumStatics _ | AbstractStatics _ -> error []
-			| Closed | Extend _ -> ())
+			| Closed | Extend _ | Const -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
@@ -1865,11 +1966,14 @@ and unify_anons a b a1 a2 =
 				| Opened ->
 					if not (link (ref None) a f2.cf_type) then error [];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
+				| Const when Meta.has Meta.Optional f2.cf_meta ->
+					()
 				| _ ->
-					if not (Meta.has Meta.Optional f2.cf_meta) then
-						error [has_no_field a n];
+					error [has_no_field a n];
 		) a2.a_fields;
 		(match !(a1.a_status) with
+		| Const when not (PMap.is_empty a2.a_fields) ->
+			PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
 		| Opened ->
 			a1.a_status := Closed
 		| _ -> ());
@@ -1878,7 +1982,7 @@ and unify_anons a b a1 a2 =
 		| EnumStatics e -> (match !(a1.a_status) with EnumStatics e2 when e == e2 -> () | _ -> error [])
 		| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 		| Opened -> a2.a_status := Closed
-		| Extend _ | Closed -> ())
+		| Const | Extend _ | Closed -> ())
 	with
 		Unify_error l -> error (cannot_unify a b :: l))
 
@@ -2039,7 +2143,17 @@ module Abstract = struct
 	let rec get_underlying_type a pl =
 		let maybe_recurse t =
 			underlying_type_stack := (TAbstract(a,pl)) :: !underlying_type_stack;
-			let t = match follow t with
+			let rec loop t = match t with
+				| TMono r ->
+					(match !r with
+					| Some t -> loop t
+					| _ -> t)
+				| TLazy f ->
+					loop (!f())
+				| TType({t_path=([],"Null")} as tn,[t1]) ->
+					TType(tn,[loop t1])
+				| TType (t,tl) ->
+					loop (apply_params t.t_params tl t.t_type)
 				| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					if List.exists (fast_eq t) !underlying_type_stack then begin
 						let pctx = print_context() in
@@ -2051,6 +2165,7 @@ module Abstract = struct
 				| _ ->
 					t
 			in
+			let t = loop t in
 			underlying_type_stack := List.tl !underlying_type_stack;
 			t
 		in
@@ -2305,31 +2420,31 @@ module TExprToExpr = struct
 			CTPath {
 				tpackage = [];
 				tname = name;
-				tparams = List.map (fun t -> TPType (convert_type t)) tl;
+				tparams = List.map (fun t -> TPType (convert_type' t)) tl;
 				tsub = None;
 			}
 		| TEnum (e,pl) ->
-			tpath e.e_path e.e_module.m_path (List.map convert_type pl)
+			tpath e.e_path e.e_module.m_path (List.map convert_type' pl)
 		| TInst({cl_kind = KTypeParameter _} as c,pl) ->
-			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map convert_type pl)
+			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map convert_type' pl)
 		| TInst (c,pl) ->
-			tpath c.cl_path c.cl_module.m_path (List.map convert_type pl)
+			tpath c.cl_path c.cl_module.m_path (List.map convert_type' pl)
 		| TType (t,pl) as tf ->
 			(* recurse on type-type *)
-			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map convert_type pl)
+			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map convert_type' pl)
 		| TAbstract (a,pl) ->
-			tpath a.a_path a.a_module.m_path (List.map convert_type pl)
+			tpath a.a_path a.a_module.m_path (List.map convert_type' pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> convert_type t) args, convert_type ret)
+			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
-			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path []]
-			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path []]
+			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path [],null_pos]
+			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path [],null_pos]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
 					{
-						cff_name = f.cf_name;
-						cff_kind = FVar (mk_ot f.cf_type,None);
+						cff_name = f.cf_name,null_pos;
+						cff_kind = FVar (mk_type_hint f.cf_type null_pos,None);
 						cff_pos = f.cf_pos;
 						cff_doc = f.cf_doc;
 						cff_meta = f.cf_meta;
@@ -2338,14 +2453,17 @@ module TExprToExpr = struct
 				) a.a_fields [])
 			end
 		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type t2])
+			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type' t2])
 		| TLazy f ->
 			convert_type ((!f)())
 
-	and mk_ot t =
+	and convert_type' t =
+		convert_type t,null_pos
+
+	and mk_type_hint t p =
 		match follow t with
 		| TMono _ -> None
-		| _ -> (try Some (convert_type t) with Exit -> None)
+		| _ -> (try Some (convert_type t,p) with Exit -> None)
 
 	let rec convert_expr e =
 		let full_type_path t =
@@ -2375,13 +2493,13 @@ module TExprToExpr = struct
 		| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, convert_expr e) fl)
 		| TArrayDecl el -> EArrayDecl (List.map convert_expr el)
 		| TCall (e,el) -> ECall (convert_expr e,List.map convert_expr el)
-		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p | _ -> assert false),List.map convert_expr el)
+		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
-			let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (tconst_to_const c),e.epos)) in
-			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = Some (convert_expr f.tf_expr) })
+			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (EConst (tconst_to_const c),e.epos)) in
+			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([v.v_name, mk_ot v.v_type, eopt eo])
+			EVars ([(v.v_name,v.v_pos), mk_type_hint v.v_type v.v_pos, eopt eo])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EIn ((EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
@@ -2397,7 +2515,7 @@ module TExprToExpr = struct
 		| TEnumParameter _ ->
 			(* these are considered complex, so the AST is handled in TMeta(Meta.Ast) *)
 			assert false
-		| TTry (e,catches) -> ETry (convert_expr e,List.map (fun (v,e) -> v.v_name, (try convert_type v.v_type with Exit -> assert false), convert_expr e) catches)
+		| TTry (e,catches) -> ETry (convert_expr e,List.map (fun (v,e) -> (v.v_name,v.v_pos), (try convert_type v.v_type,null_pos with Exit -> assert false), convert_expr e) catches)
 		| TReturn e -> EReturn (eopt e)
 		| TBreak -> EBreak
 		| TContinue -> EContinue
@@ -2407,7 +2525,7 @@ module TExprToExpr = struct
 				| None -> None
 				| Some t ->
 					let t = (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]) | TAbstractDecl a -> TAbstract (a,[])) in
-					Some (try convert_type t with Exit -> assert false)
+					Some (try convert_type t,null_pos with Exit -> assert false)
 			) in
 			ECast (convert_expr e,t)
 		| TMeta ((Meta.Ast,[e1,_],_),_) -> e1
@@ -2466,7 +2584,7 @@ module Texpr = struct
 	let duplicate_tvars e =
 		let vars = Hashtbl.create 0 in
 		let copy_var v =
-			let v2 = alloc_var v.v_name v.v_type in
+			let v2 = alloc_var v.v_name v.v_type v.v_pos in
 			v2.v_meta <- v.v_meta;
 			Hashtbl.add vars v.v_id v2;
 			v2;
@@ -2507,6 +2625,115 @@ module Texpr = struct
 	let rec skip e = match e.eexpr with
 		| TParenthesis e1 | TMeta(_,e1) | TBlock [e1] | TCast(e1,None) -> skip e1
 		| _ -> e
+
+	let foldmap_list f acc el =
+		let rec loop acc el acc2 = (match el with
+			| [] -> acc,(List.rev acc2)
+			| e1 :: el ->
+				let acc,e1 = f acc e1 in
+				loop acc el (e1 :: acc2))
+		in loop acc el []
+
+	let foldmap_opt f acc eo = match eo with
+		| Some(e) -> let acc,e = f acc e in acc,Some(e)
+		| None    -> acc,eo
+
+	let foldmap_pairs f acc pairs =
+		let acc,pairs = List.fold_left
+			(fun (acc,el) (v,e) -> let acc,e = f acc e in (acc,(v,e) :: el))
+			(acc,[])
+			pairs
+		in acc,(List.rev pairs)
+
+	let foldmap f acc e =
+		begin match e.eexpr with
+		| TConst _
+		| TLocal _
+		| TBreak
+		| TContinue
+		| TTypeExpr _ ->
+			acc,e
+		| TArray (e1,e2) ->
+			let acc,e1 = f acc e1 in
+			let acc,e2 = f acc e2 in
+			acc,{ e with eexpr = TArray (e1, e2) }
+		| TBinop (op,e1,e2) ->
+			let acc,e1 = f acc e1 in
+			let acc,e2 = f acc e2 in
+			acc,{ e with eexpr = TBinop (op,e1,e2) }
+		| TFor (v,e1,e2) ->
+			let acc,e1 = f acc e1 in
+			let acc,e2 = f acc e2 in
+			acc,{ e with eexpr = TFor (v,e1,e2) }
+		| TWhile (e1,e2,flag) ->
+			let acc,e1 = f acc e1 in
+			let acc,e2 = f acc e2 in
+			acc,{ e with eexpr = TWhile (e1,e2,flag) }
+		| TThrow e1 ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TThrow (e1) }
+		| TEnumParameter (e1,ef,i) ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TEnumParameter(e1,ef,i) }
+		| TField (e1,v) ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TField (e1,v) }
+		| TParenthesis e1 ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TParenthesis (e1) }
+		| TUnop (op,pre,e1) ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TUnop (op,pre,e1) }
+		| TArrayDecl el ->
+			let acc,el = foldmap_list f acc el in
+			acc,{ e with eexpr = TArrayDecl el }
+		| TNew (t,pl,el) ->
+			let acc,el = foldmap_list f acc el in
+			acc,{ e with eexpr = TNew (t,pl,el) }
+		| TBlock el ->
+			let acc,el = foldmap_list f acc el in
+			acc,{ e with eexpr = TBlock (el) }
+		| TObjectDecl el ->
+			let acc,el = foldmap_pairs f acc el in
+			acc,{ e with eexpr = TObjectDecl el }
+		| TCall (e1,el) ->
+			let acc,e1 = f acc e1 in
+			let acc,el = foldmap_list f acc el in
+			acc,{ e with eexpr = TCall (e1,el) }
+		| TVar (v,eo) ->
+			let acc,eo = foldmap_opt f acc eo in
+			acc,{ e with eexpr = TVar (v, eo) }
+		| TFunction fu ->
+			let acc,e1 = f acc fu.tf_expr in
+			acc,{ e with eexpr = TFunction { fu with tf_expr = e1 } }
+		| TIf (ec,e1,eo) ->
+			let acc,ec = f acc ec in
+			let acc,e1 = f acc e1 in
+			let acc,eo = foldmap_opt f acc eo in
+			acc,{ e with eexpr = TIf (ec,e1,eo)}
+		| TSwitch (e1,cases,def) ->
+			let acc,e1 = f acc e1 in
+			let acc,cases = List.fold_left (fun (acc,cases) (el,e2) ->
+				let acc,el = foldmap_list f acc el in
+				let acc,e2 = f acc e2 in
+				acc,((el,e2) :: cases)
+			) (acc,[]) cases in
+			let acc,def = foldmap_opt f acc def in
+			acc,{ e with eexpr = TSwitch (e1, cases, def) }
+		| TTry (e1,catches) ->
+			let acc,e1 = f acc e1 in
+			let acc,catches = foldmap_pairs f acc catches in
+			acc,{ e with eexpr = TTry (e1, catches) }
+		| TReturn eo ->
+			let acc,eo = foldmap_opt f acc eo in
+			acc,{ e with eexpr = TReturn eo }
+		| TCast (e1,t) ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TCast (e1,t) }
+		| TMeta (m,e1) ->
+			let acc,e1 = f acc e1 in
+			acc,{ e with eexpr = TMeta(m,e1)}
+		end
 end
 
 module ExtType = struct
@@ -2545,15 +2772,19 @@ module StringError = struct
 				done;
 				matrix.(m).(n)
 
+	let filter_similar f cl =
+		let rec loop sl = match sl with
+			| (x,i) :: sl when f x i -> x :: loop sl
+			| _ -> []
+		in
+		loop cl
+
 	let string_error_raise s sl msg =
 		if sl = [] then msg else
 		let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
 		let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-		let rec loop sl = match sl with
-			| (s2,i) :: sl when i <= (min (String.length s) (String.length s2)) / 3 -> s2 :: loop sl
-			| _ -> []
-		in
-		match loop cl with
+		let cl = filter_similar (fun s2 i -> i <= (min (String.length s) (String.length s2)) / 3) cl in
+		match cl with
 			| [] -> raise Not_found
 			| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
 			| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)

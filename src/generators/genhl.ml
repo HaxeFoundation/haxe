@@ -111,7 +111,6 @@ type opcode =
 	(* unops *)
 	| ONeg of reg * reg
 	| ONot of reg * reg
-	(* unops *)
 	| OIncr of reg
 	| ODecr of reg
 	(* calls *)
@@ -135,6 +134,8 @@ type opcode =
 	| OSetField of reg * field index * reg
 	| OGetThis of reg * field index
 	| OSetThis of field index * reg
+	| ODynGet of reg * reg * string index
+	| ODynSet of reg * string index * reg
 	(* jumps *)
 	| OJTrue of reg * int
 	| OJFalse of reg * int
@@ -149,10 +150,14 @@ type opcode =
 	| OJEq of reg * reg * int
 	| OJNotEq of reg * reg * int
 	| OJAlways of int
+	(* coerce *)
 	| OToDyn of reg * reg
 	| OToSFloat of reg * reg
 	| OToUFloat of reg * reg
 	| OToInt of reg * reg
+	| OSafeCast of reg * reg
+	| OUnsafeCast of reg * reg
+	| OToVirtual of reg * reg
 	(* control flow *)
 	| OLabel of unused
 	| ORet of reg
@@ -164,27 +169,23 @@ type opcode =
 	| OEndTrap of bool
 	(* memory access *)
 	| OGetI8 of reg * reg * reg
+	| OGetI16 of reg * reg * reg
 	| OGetI32 of reg * reg * reg
 	| OGetF32 of reg * reg * reg
 	| OGetF64 of reg * reg * reg
 	| OGetArray of reg * reg * reg
 	| OSetI8 of reg * reg * reg
+	| OSetI16 of reg * reg * reg
 	| OSetI32 of reg * reg * reg
 	| OSetF32 of reg * reg * reg
 	| OSetF64 of reg * reg * reg
 	| OSetArray of reg * reg * reg
 	(* type operations *)
 	| ONew of reg
-	| OSafeCast of reg * reg
-	| OUnsafeCast of reg * reg
 	| OArraySize of reg * reg
 	| OType of reg * ttype
 	| OGetType of reg * reg
 	| OGetTID of reg * reg
-	| OToVirtual of reg * reg
-	(* dynamic *)
-	| ODynGet of reg * reg * string index
-	| ODynSet of reg * string index * reg
 	(* references *)
 	| ORef of reg * reg
 	| OUnref of reg * reg
@@ -253,7 +254,9 @@ type array_impl = {
 	abase : tclass;
 	adyn : tclass;
 	aobj : tclass;
+	ai16 : tclass;
 	ai32 : tclass;
+	af32 : tclass;
 	af64 : tclass;
 }
 
@@ -639,6 +642,10 @@ let array_class ctx t =
 	match t with
 	| HI32 ->
 		ctx.array_impl.ai32
+	| HI16 ->
+		ctx.array_impl.ai16
+	| HF32 ->
+		ctx.array_impl.af32
 	| HF64 ->
 		ctx.array_impl.af64
 	| HDyn ->
@@ -734,11 +741,6 @@ let rec to_type ?tref ctx t =
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc ->
 				match cf.cf_kind with
-				| Var _ when has_meta Meta.Optional cf.cf_meta ->
-					(*
-						if it's optional it might not be present, handle the field access as fully Dynamic
-					*)
-					acc
 				| Var _ when (match follow cf.cf_type with TAnon _ | TFun _ -> true | _ -> false) ->
 					(*
 						if it's another virtual or a method, it might not match our own (might be larger, or class)
@@ -794,6 +796,7 @@ let rec to_type ?tref ctx t =
 			| ["hl";"types"], "Ref" -> HRef (to_type ctx (List.hd pl))
 			| ["hl";"types"], ("Bytes" | "BytesAccess") -> HBytes
 			| ["hl";"types"], "Type" -> HType
+			| ["hl";"types"], "I16" -> HI16
 			| ["hl";"types"], "NativeArray" -> HArray
 			| _ -> failwith ("Unknown core type " ^ s_type_path a.a_path))
 		else
@@ -833,7 +836,17 @@ and field_type ctx f p =
 and real_type ctx e =
 	let rec loop e =
 		match e.eexpr with
-		| TField (_,f) -> field_type ctx f e.epos
+		| TField (_,f) ->
+			let ft = field_type ctx f e.epos in
+			(*
+				Handle function variance:
+				If we have type parameters which are function types, we need to keep the functions
+				because we might need to insert a cast to coerce Void->Bool to Void->Dynamic for instance.
+			*)
+			(match ft, e.etype with
+			| TFun (args,ret), TFun (args2,_) ->
+				TFun (List.map2 (fun ((_,_,t) as a) ((_,_,t2) as a2) -> match t, t2 with TInst ({cl_kind=KTypeParameter _},_), TFun _ -> a2 | _ -> a) args args2, ret)
+			| _ -> ft)
 		| TLocal v -> v.v_type
 		| TParenthesis e -> loop e
 		| _ -> e.etype
@@ -1096,8 +1109,8 @@ let read_mem ctx rdst bytes index t =
 	match t with
 	| HI8 ->
 		op ctx (OGetI8 (rdst,bytes,index))
-(*	| HI16 ->
-		op ctx (OGetI16 (rdst,bytes,index))*)
+	| HI16 ->
+		op ctx (OGetI16 (rdst,bytes,index))
 	| HI32 ->
 		op ctx (OGetI32 (rdst,bytes,index))
 	| HF32 ->
@@ -1111,8 +1124,8 @@ let write_mem ctx bytes index t r=
 	match t with
 	| HI8 ->
 		op ctx (OSetI8 (bytes,index,r))
-(*	| HI16 ->
-		op ctx (OSetI16 (bytes,index,r))*)
+	| HI16 ->
+		op ctx (OSetI16 (bytes,index,r))
 	| HI32 ->
 		op ctx (OSetI32 (bytes,index,r))
 	| HF32 ->
@@ -1206,22 +1219,10 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
 		tmp
-	| HNull ((HI8 | HI16 | HI32) as it), (HF32 | HF64) ->
-		let i = alloc_tmp ctx it in
-		op ctx (OSafeCast (i,r));
-		let tmp = alloc_tmp ctx t in
-		op ctx (OToSFloat (tmp, i));
-		tmp
-	| (HF32 | HF64), (HI8 | HI16 | HI32) ->
+	| (HI8 | HI16 | HI32 | HF32 | HF64), (HI8 | HI16 | HI32) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToInt (tmp, r));
 		tmp
-	| (HI8 | HI16 | HI32), HNull ((HF32 | HF64) as t) ->
-		let tmp = alloc_tmp ctx t in
-		op ctx (OToSFloat (tmp, r));
-		let r = alloc_tmp ctx (HNull t) in
-		op ctx (OToDyn (r,tmp));
-		r
 	| (HI8 | HI16 | HI32), HObj { pname = "String" } ->
 		let out = alloc_tmp ctx t in
 		let len = alloc_tmp ctx HI32 in
@@ -1281,6 +1282,30 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
+	| (HI8 | HI16 | HI32 | HF32 | HF64), HNull ((HF32 | HF64) as t) ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToSFloat (tmp, r));
+		let r = alloc_tmp ctx (HNull t) in
+		op ctx (OToDyn (r,tmp));
+		r
+	| (HI8 | HI16 | HI32 | HF32 | HF64), HNull ((HI8 | HI16 | HI32) as t) ->
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToInt (tmp, r));
+		let r = alloc_tmp ctx (HNull t) in
+		op ctx (OToDyn (r,tmp));
+		r
+	| HNull ((HI8 | HI16 | HI32) as it), (HF32 | HF64) ->
+		let i = alloc_tmp ctx it in
+		op ctx (OSafeCast (i,r));
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToSFloat (tmp, i));
+		tmp
+	| HNull ((HF32 | HF64) as it), (HI8 | HI16 | HI32) ->
+		let i = alloc_tmp ctx it in
+		op ctx (OSafeCast (i,r));
+		let tmp = alloc_tmp ctx t in
+		op ctx (OToInt (tmp, i));
+		tmp
 	| HFun (args1,ret1), HFun (args2, ret2) when List.length args1 = List.length args2 ->
 		let fid = gen_method_wrapper ctx rt t p in
 		let fr = alloc_tmp ctx t in
@@ -1404,7 +1429,7 @@ and array_read ctx ra (at,vt) ridx p =
 		(* check bounds *)
 		let length = alloc_tmp ctx HI32 in
 		op ctx (OField (length, ra, 0));
-		let r = alloc_tmp ctx at in
+		let r = alloc_tmp ctx (match at with HI8 | HI16 -> HI32 | _ -> at) in
 		let j = jump ctx (fun i -> OJULt (ridx,length,i)) in
 		(match at with
 		| HI8 | HI16 | HI32 ->
@@ -1672,6 +1697,10 @@ and eval_expr ctx e =
 					let r = alloc_tmp ctx HI32 in
 					op ctx (OGetI8 (r, b, pos));
 					r
+				| HI16 ->
+					let r = alloc_tmp ctx HI32 in
+					op ctx (OGetI16 (r, b, shl ctx pos 1));
+					r
 				| HI32 ->
 					let r = alloc_tmp ctx HI32 in
 					op ctx (OGetI32 (r, b, shl ctx pos 2));
@@ -1698,6 +1727,10 @@ and eval_expr ctx e =
 				| HI8 ->
 					let v = eval_to ctx value HI32 in
 					op ctx (OSetI8 (b, pos, v));
+					v
+				| HI16 ->
+					let v = eval_to ctx value HI32 in
+					op ctx (OSetI16 (b, shl ctx pos 1, v));
 					v
 				| HI32 ->
 					let v = eval_to ctx value HI32 in
@@ -1932,7 +1965,7 @@ and eval_expr ctx e =
 				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 				let ct = ctx.com.basic in
 				let p = ef.ef_pos in
-				let eargs = List.map (fun (n,o,t) -> alloc_var n t, if o then Some TNull else None) eargs in
+				let eargs = List.map (fun (n,o,t) -> alloc_var n t en.e_pos, if o then Some TNull else None) eargs in
 				let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
 				let f = {
 					tf_args = eargs;
@@ -2112,7 +2145,7 @@ and eval_expr ctx e =
 				op ctx (OMov (l, r));
 				r
 			| AArray (ra,(at,vt),ridx) ->
-				let v = cast_to ctx (value()) at e.epos in
+				let v = cast_to ctx (value()) (match at with HI16 | HI8 -> HI32 | _ -> at) e.epos in
 				(* bounds check against length *)
 				(match at with
 				| HDyn ->
@@ -2125,7 +2158,7 @@ and eval_expr ctx e =
 					op ctx (OCall2 (alloc_tmp ctx HVoid, alloc_fun_path ctx (array_class ctx at).cl_path "__expand", ra, ridx));
 					j();
 					match at with
-					| HI32 | HF64 ->
+					| HI32 | HF64 | HI16 | HF32 ->
 						let b = alloc_tmp ctx HBytes in
 						op ctx (OField (b,ra,1));
 						write_mem ctx b (shl ctx ridx (type_size_bits at)) at v
@@ -2325,6 +2358,24 @@ and eval_expr ctx e =
 				op ctx (OSetI32 (b,reg_int ctx (i * 4),r));
 			) el;
 			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocI32", b, reg_int ctx (List.length el)));
+		| HI16 ->
+			let b = alloc_tmp ctx HBytes in
+			let size = reg_int ctx ((List.length el) * 2) in
+			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
+			list_iteri (fun i e ->
+				let r = eval_to ctx e HI32 in
+				op ctx (OSetI16 (b,reg_int ctx (i * 2),r));
+			) el;
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocI16", b, reg_int ctx (List.length el)));
+		| HF32 ->
+			let b = alloc_tmp ctx HBytes in
+			let size = reg_int ctx ((List.length el) * 4) in
+			op ctx (OCall1 (b,alloc_std ctx "alloc_bytes" [HI32] HBytes,size));
+			list_iteri (fun i e ->
+				let r = eval_to ctx e HF32 in
+				op ctx (OSetF32 (b,reg_int ctx (i * 4),r));
+			) el;
+			op ctx (OCall2 (r, alloc_fun_path ctx (["hl";"types"],"ArrayBase") "allocF32", b, reg_int ctx (List.length el)));
 		| HF64 ->
 			let b = alloc_tmp ctx HBytes in
 			let size = reg_int ctx ((List.length el) * 8) in
@@ -3076,18 +3127,9 @@ let generate_static_init ctx =
 		| _ -> ()
 	) ctx.com.types;
 	(* call main() *)
-	(match ctx.com.main_class with
+	(match ctx.com.main with
 	| None -> ()
-	| Some m ->
-		let t = (try List.find (fun t -> t_path t = m) ctx.com.types with Not_found -> assert false) in
-		match t with
-		| TClassDecl c ->
-			let f = (try PMap.find "main" c.cl_statics with Not_found -> assert false) in
-			let p = { pfile = "<startup>"; pmin = 0; pmax = 0; } in
-			exprs := mk (TCall (mk (TField (mk (TTypeExpr t) t_dynamic p, FStatic (c,f))) f.cf_type p,[])) t_void p :: !exprs
-		| _ ->
-			assert false
-	);
+	| Some e -> exprs := e :: !exprs);
 	let fid = alloc_function_name ctx "<entry>" in
 	ignore(make_fun ~gen_content ctx ("","") fid { tf_expr = mk (TBlock (List.rev !exprs)) t_void null_pos; tf_args = []; tf_type = t_void } None None);
 	fid
@@ -3324,7 +3366,7 @@ let check code =
 				reg r HI32;
 				reg b HBytes;
 				reg p HI32;
-			| OGetI32 (r,b,p) ->
+			| OGetI32 (r,b,p) | OGetI16(r,b,p) ->
 				reg r HI32;
 				reg b HBytes;
 				reg p HI32;
@@ -3340,7 +3382,7 @@ let check code =
 				reg r HBytes;
 				reg p HI32;
 				reg v HI32;
-			| OSetI32 (r,p,v) ->
+			| OSetI32 (r,p,v) | OSetI16 (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
 				reg v HI32;
@@ -4315,6 +4357,13 @@ let interp code =
 				(match get b, get p with
 				| VBytes b, VInt p -> set r (VInt (Int32.of_int (int_of_char (String.get b (Int32.to_int p)))))
 				| _ -> assert false)
+			| OGetI16 (r,b,p) ->
+				(match get b, get p with
+				| VBytes b, VInt p ->
+					let a = int_of_char (String.get b (Int32.to_int p)) in
+					let b = int_of_char (String.get b (Int32.to_int p + 1)) in
+					set r (VInt (Int32.of_int (a lor (b lsl 8))))
+				| _ -> assert false)
 			| OGetI32 (r,b,p) ->
 				(match get b, get p with
 				| VBytes b, VInt p -> set r (VInt (get_i32 b (Int32.to_int p)))
@@ -4337,6 +4386,12 @@ let interp code =
 			| OSetI8 (r,p,v) ->
 				(match get r, get p, get v with
 				| VBytes b, VInt p, VInt v -> String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF))
+				| _ -> assert false)
+			| OSetI16 (r,p,v) ->
+				(match get r, get p, get v with
+				| VBytes b, VInt p, VInt v ->
+					String.set b (Int32.to_int p) (char_of_int ((Int32.to_int v) land 0xFF));
+					String.set b (Int32.to_int p + 1) (char_of_int (((Int32.to_int v) lsr 8) land 0xFF))
 				| _ -> assert false)
 			| OSetI32 (r,p,v) ->
 				(match get r, get p, get v with
@@ -4829,7 +4884,7 @@ let interp code =
 						VNull
 				in
 				(function
-				| [v; VBool r] -> get_fields v r
+				| [v] -> get_fields v true
 				| _ -> assert false)
 			| "obj_copy" ->
 				(function
@@ -4993,7 +5048,7 @@ let interp code =
 							else c
 						in
 						utf16_add buf c
-					) (String.sub s (int pos) (int len));
+					) (String.sub s (int pos) ((int len) lsl 1));
 					utf16_add buf 0;
 					VBytes (Buffer.contents buf)
 				| _ -> assert false)
@@ -5007,7 +5062,7 @@ let interp code =
 							else c
 						in
 						utf16_add buf c
-					) (String.sub s (int pos) (int len));
+					) (String.sub s (int pos) ((int len) lsl 1));
 					utf16_add buf 0;
 					VBytes (Buffer.contents buf)
 				| _ -> assert false)
@@ -5160,10 +5215,6 @@ let interp code =
 				(function
 				| [VInt max] -> VInt (if max <= 0l then 0l else Random.int32 max)
 				| _ -> assert false)
-			| _ ->
-				unresolved())
-		| "regexp" ->
-			(match name with
 			| "regexp_new_options" ->
 				(function
 				| [VBytes str; VBytes opt] ->
@@ -5358,9 +5409,7 @@ let write_code ch code =
 			write_type t
 		| OSwitch (r,pl,eend) ->
 			byte oid;
-			let n = Array.length pl in
-			if n > 0xFF then assert false;
-			byte n;
+			write_index (Array.length pl);
 			Array.iter write_index pl;
 			write_index eend
 		| OEnumField (r,e,i,idx) ->
@@ -5463,12 +5512,14 @@ let write_code ch code =
 			byte 17;
 			write_index e.eid;
 			write_index (Array.length e.efields);
-			Array.iter (fun (_,n,tl) ->
-				write_index (Array.length tl);
+			Array.iter (fun (_,nid,tl) ->
+				write_index nid;
+				if Array.length tl > 0xFF then assert false;
+				byte (Array.length tl);
 				Array.iter write_type tl;
 			) e.efields
 		| HNull t ->
-			byte 0x18;
+			byte 18;
 			write_type t
 	) types.arr;
 
@@ -5491,7 +5542,7 @@ let write_code ch code =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* DUMP *)
 
-let ostr o =
+let ostr fstr o =
 	match o with
 	| OMov (a,b) -> Printf.sprintf "mov %d,%d" a b
 	| OInt (r,i) -> Printf.sprintf "int %d,@%d" r i
@@ -5517,18 +5568,18 @@ let ostr o =
 	| ONot (r,v) -> Printf.sprintf "not %d,%d" r v
 	| OIncr r -> Printf.sprintf "incr %d" r
 	| ODecr r -> Printf.sprintf "decr %d" r
-	| OCall0 (r,g) -> Printf.sprintf "call %d, f%d()" r g
-	| OCall1 (r,g,a) -> Printf.sprintf "call %d, f%d(%d)" r g a
-	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, f%d(%d,%d)" r g a b
-	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, f%d(%d,%d,%d)" r g a b c
-	| OCall4 (r,g,a,b,c,d) -> Printf.sprintf "call %d, f%d(%d,%d,%d,%d)" r g a b c d
-	| OCallN (r,g,rl) -> Printf.sprintf "call %d, f%d(%s)" r g (String.concat "," (List.map string_of_int rl))
+	| OCall0 (r,g) -> Printf.sprintf "call %d, %s()" r (fstr g)
+	| OCall1 (r,g,a) -> Printf.sprintf "call %d, %s(%d)" r (fstr g) a
+	| OCall2 (r,g,a,b) -> Printf.sprintf "call %d, %s(%d,%d)" r (fstr g) a b
+	| OCall3 (r,g,a,b,c) -> Printf.sprintf "call %d, %s(%d,%d,%d)" r (fstr g) a b c
+	| OCall4 (r,g,a,b,c,d) -> Printf.sprintf "call %d, %s(%d,%d,%d,%d)" r (fstr g) a b c d
+	| OCallN (r,g,rl) -> Printf.sprintf "call %d, %s(%s)" r (fstr g) (String.concat "," (List.map string_of_int rl))
 	| OCallMethod (r,f,[]) -> "callmethod ???"
 	| OCallMethod (r,f,o :: rl) -> Printf.sprintf "callmethod %d, %d[%d](%s)" r o f (String.concat "," (List.map string_of_int rl))
 	| OCallClosure (r,f,rl) -> Printf.sprintf "callclosure %d, %d(%s)" r f (String.concat "," (List.map string_of_int rl))
 	| OCallThis (r,f,rl) -> Printf.sprintf "callthis %d, [%d](%s)" r f (String.concat "," (List.map string_of_int rl))
-	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, f%d" r f
-	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, f%d(%d)" r f v
+	| OStaticClosure (r,f) -> Printf.sprintf "staticclosure %d, %s" r (fstr f)
+	| OInstanceClosure (r,f,v) -> Printf.sprintf "instanceclosure %d, %s(%d)" r (fstr f) v
 	| OGetGlobal (r,g) -> Printf.sprintf "global %d, %d" r g
 	| OSetGlobal (g,r) -> Printf.sprintf "setglobal %d, %d" g r
 	| ORet r -> Printf.sprintf "ret %d" r
@@ -5559,11 +5610,13 @@ let ostr o =
 	| OThrow r -> Printf.sprintf "throw %d" r
 	| ORethrow r -> Printf.sprintf "rethrow %d" r
 	| OGetI8 (r,b,p) -> Printf.sprintf "geti8 %d,%d[%d]" r b p
+	| OGetI16 (r,b,p) -> Printf.sprintf "geti16 %d,%d[%d]" r b p
 	| OGetI32 (r,b,p) -> Printf.sprintf "geti32 %d,%d[%d]" r b p
 	| OGetF32 (r,b,p) -> Printf.sprintf "getf32 %d,%d[%d]" r b p
 	| OGetF64 (r,b,p) -> Printf.sprintf "getf64 %d,%d[%d]" r b p
 	| OGetArray (r,a,i) -> Printf.sprintf "getarray %d,%d[%d]" r a i
 	| OSetI8 (r,p,v) -> Printf.sprintf "seti8 %d,%d,%d" r p v
+	| OSetI16 (r,p,v) -> Printf.sprintf "seti16 %d,%d,%d" r p v
 	| OSetI32 (r,p,v) -> Printf.sprintf "seti32 %d,%d,%d" r p v
 	| OSetF32 (r,p,v) -> Printf.sprintf "setf32 %d,%d,%d" r p v
 	| OSetF64 (r,p,v) -> Printf.sprintf "setf64 %d,%d,%d" r p v
@@ -5593,6 +5646,7 @@ let ostr o =
 
 let dump pr code =
 	let all_protos = Hashtbl.create 0 in
+	let funnames = Hashtbl.create 0 in
 	let tstr t =
 		(match t with
 		| HObj p -> Hashtbl.replace all_protos p.pname p
@@ -5604,6 +5658,12 @@ let dump pr code =
 			code.strings.(idx)
 		with _ ->
 			"INVALID:" ^ string_of_int idx
+	in
+	let fstr fid =
+		try
+			Hashtbl.find funnames fid
+		with _ ->
+			Printf.sprintf "f@%X" fid
 	in
 	let debug_infos (fid,line) =
 		(try code.debugfiles.(fid) with _ -> "???") ^ ":" ^ string_of_int line
@@ -5629,16 +5689,18 @@ let dump pr code =
 	pr (string_of_int (Array.length code.natives) ^ " natives");
 	Array.iter (fun (lib,name,t,fidx) ->
 		pr ("	@" ^ string_of_int fidx ^ " native " ^ str lib ^ "@" ^ str name ^ " " ^ tstr t);
+		Hashtbl.add funnames fidx (str lib ^ "@" ^ str name)
 	) code.natives;
+	Array.iter (fun f -> Hashtbl.add funnames f.findex (fundecl_name f)) code.functions;
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr (Printf.sprintf "	fun@%d(%Xh) %s" f.findex f.findex (tstr f.ftype));
-		pr (Printf.sprintf "	; %s" (debug_infos f.debug.(0)));
+		pr (Printf.sprintf "	; %s (%s)" (debug_infos f.debug.(0)) (fundecl_name f));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
 		Array.iteri (fun i o ->
-			pr (Printf.sprintf "		.%-5d @%d %s" (snd f.debug.(i)) i (ostr o))
+			pr (Printf.sprintf "		.%-5d @%X %s" (snd f.debug.(i)) i (ostr fstr o))
 		) f.code;
 	) code.functions;
 	let protos = Hashtbl.fold (fun _ p acc -> p :: acc) all_protos [] in
@@ -5932,7 +5994,7 @@ let write_c version file (code:code) =
 				let lib = if lib = "std" then "hl" else lib in
 				lib ^ "_" ^ code.strings.(name)
 			in
-			sexpr "%s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
+			sexpr "HL_API %s %s(%s)" (ctype t) fname (String.concat "," (List.map ctype args));
 			funnames.(idx) <- fname;
 			Array.set tfuns idx (args,t)
 		| _ ->
@@ -6396,7 +6458,7 @@ let write_c version file (code:code) =
 				label
 			in
 			let todo() =
-				sexpr "hl_fatal(\"%s\")" (ostr op)
+				sexpr "hl_fatal(\"%s\")" (ostr (fun id -> "f" ^ string_of_int id) op)
 			in
 			let compare_op op a b d =
 				let phys_compare() =
@@ -6633,6 +6695,8 @@ let write_c version file (code:code) =
 				sexpr "hl_rethrow((vdynamic*)%s)" (reg r)
 			| OGetI8 (r,b,idx) ->
 				sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
+			| OGetI16 (r,b,idx) ->
+				sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
 			| OGetI32 (r,b,idx) ->
 				sexpr "%s = *(int*)(%s + %s)" (reg r) (reg b) (reg idx)
 			| OGetF32 (r,b,idx) ->
@@ -6643,6 +6707,8 @@ let write_c version file (code:code) =
 				sexpr "%s = ((%s*)(%s + 1))[%s]" (reg r) (ctype (rtype r)) (reg arr) (reg idx)
 			| OSetI8 (b,idx,r) ->
 				sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
+			| OSetI16 (b,idx,r) ->
+				sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
 			| OSetI32 (b,idx,r) ->
 				sexpr "*(int*)(%s + %s) = %s" (reg b) (reg idx) (reg r)
 			| OSetF32 (b,idx,r) ->
@@ -6717,10 +6783,10 @@ let write_c version file (code:code) =
 			| ONullCheck r ->
 				sexpr "if( %s == NULL ) hl_null_access()" (reg r)
 			| OTrap (r,d) ->
-				sexpr "hlc_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
+				sexpr "hl_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
 				incr trap_depth
 			| OEndTrap b ->
-				sexpr "hlc_endtrap(trap$%d)" (!trap_depth - 1);
+				sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1);
 				if b then decr trap_depth;
 			| ODump r ->
 				todo()
@@ -6775,6 +6841,9 @@ let write_c version file (code:code) =
 		| _ ->
 			()
 	) types.arr;
+	Array.iteri (fun i t ->
+		if is_ptr t then sexpr "hl_add_root(&global$%d)" i;
+	) code.globals;
 	sexpr "%s()" funnames.(code.entrypoint);
 	unblock();
 	line "}";
@@ -6812,7 +6881,9 @@ let generate com =
 			abase = get_class "ArrayBase";
 			adyn = get_class "ArrayDyn";
 			aobj = get_class "ArrayObj";
+			ai16 = get_class "ArrayBasic_hl_types_I16";
 			ai32 = get_class "ArrayBasic_Int";
+			af32 = get_class "ArrayBasic_Single";
 			af64 = get_class "ArrayBasic_Float";
 		};
 		base_class = get_class "Class";
@@ -6840,7 +6911,26 @@ let generate com =
 					false
 			in
 			List.iter (fun f -> ignore(loop c.cl_super f)) c.cl_overrides;
-			Hashtbl.add all_classes c.cl_path c
+			Hashtbl.add all_classes c.cl_path c;
+			List.iter (fun (m,args,p) ->
+				if m = Meta.Custom ":hlNative" then
+					let lib, prefix = (match args with
+					| [(EConst (String lib),_)] -> lib, ""
+					| [(EConst (String lib),_);(EConst (String p),_)] -> lib, p
+					| _ -> error "hlNative on class requires library name" p
+					) in
+					(* adds :hlNative for all empty methods *)
+					List.iter (fun f ->
+						match f.cf_kind with
+						| Method MethNormal when not (List.exists (fun (m,_,_) -> m = Meta.Custom ":hlNative") f.cf_meta) ->
+							(match f.cf_expr with
+							| Some { eexpr = TFunction { tf_expr = { eexpr = TBlock ([] | [{ eexpr = TReturn (Some { eexpr = TConst _ })}]) } } } ->
+								let name = prefix ^ String.lowercase (Str.global_replace (Str.regexp "[A-Z]+") "_\\0" f.cf_name) in
+								f.cf_meta <- (Meta.Custom ":hlNative", [(EConst (String lib),p);(EConst (String name),p)], p) :: f.cf_meta;
+							| _ -> ())
+						| _ -> ()
+					) c.cl_ordered_statics
+			) c.cl_meta;
  		| _ -> ()
 	) com.types;
 	ignore(alloc_string ctx "");
@@ -6864,10 +6954,13 @@ let generate com =
 		dump (fun s -> output_string ch (s ^ "\n")) code;
 		close_out ch;
 	end;
-	PMap.iter (fun (s,p) fid ->
-		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
-	) ctx.cfids.map;
-	check code;
+	if Common.raw_defined com "check" then begin
+		PMap.iter (fun (s,p) fid ->
+			if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
+		) ctx.cfids.map;
+		check code;
+	end;
+	let t = Common.timer "write hl" in
 	if file_extension com.file = "c" then
 		write_c com.Common.version com.file code
 	else begin
@@ -6878,5 +6971,6 @@ let generate com =
 		output_string ch str;
 		close_out ch;
 	end;
+	t();
 	if Common.defined com Define.Interp then ignore(interp code)
 

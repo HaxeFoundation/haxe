@@ -1344,6 +1344,10 @@ let configure gen =
 						| TNull -> write w "null"
 						| TThis -> write w "this"
 						| TSuper -> write w "base")
+				| TCast({ eexpr = TConst(TNull) }, _) ->
+							write w "default(";
+							write w (t_s e.etype);
+							write w ")"
 				| TLocal { v_name = "__sbreak__" } -> write w "break"
 				| TLocal { v_name = "__undefined__" } ->
 					write w (t_s (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_params)));
@@ -3502,7 +3506,7 @@ let rec convert_signature ctx p = function
 	| LObject ->
 		mk_type_path ctx ([],[],"Dynamic") []
 	| LPointer s | LManagedPointer s ->
-		mk_type_path ctx (["cs"],[],"Pointer") [ TPType (convert_signature ctx p s) ]
+		mk_type_path ctx (["cs"],[],"Pointer") [ TPType (convert_signature ctx p s,null_pos) ]
 	| LTypedReference ->
 		mk_type_path ctx (["cs";"system"],[],"TypedReference") []
 	| LIntPtr ->
@@ -3510,16 +3514,16 @@ let rec convert_signature ctx p = function
 	| LUIntPtr ->
 		mk_type_path ctx (["cs";"system"],[],"UIntPtr") []
 	| LValueType (s,args) | LClass (s,args) ->
-		mk_type_path ctx s (List.map (fun s -> TPType (convert_signature ctx p s)) args)
+		mk_type_path ctx s (List.map (fun s -> TPType (convert_signature ctx p s,null_pos)) args)
 	| LTypeParam i ->
 		mk_type_path ctx ([],[],"T" ^ string_of_int i) []
 	| LMethodTypeParam i ->
 		mk_type_path ctx ([],[],"M" ^ string_of_int i) []
 	| LVector s ->
-		mk_type_path ctx (["cs"],[],"NativeArray") [TPType (convert_signature ctx p s)]
+		mk_type_path ctx (["cs"],[],"NativeArray") [TPType (convert_signature ctx p s,null_pos)]
 	(* | LArray of ilsig_norm * (int option * int option) array *)
 	| LMethod (_,ret,args) ->
-		CTFunction (List.map (convert_signature ctx p) args, convert_signature ctx p ret)
+		CTFunction (List.map (fun v -> convert_signature ctx p v,null_pos) args, (convert_signature ctx p ret,null_pos))
 	| _ -> mk_type_path ctx ([],[], "Dynamic") []
 
 let ilpath_s = function
@@ -3581,14 +3585,14 @@ let convert_ilenum ctx p ?(is_flag=false) ilcls =
 				| _ ->
 					[], Int64.zero
 			in
-			data := ( { ec_name = f.fname; ec_doc = None; ec_meta = meta; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; }, const) :: !data;
+			data := ( { ec_name = f.fname,null_pos; ec_doc = None; ec_meta = meta; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; }, const) :: !data;
 	) ilcls.cfields;
 	let data = List.stable_sort (fun (_,i1) (_,i2) -> Int64.compare i1 i2) (List.rev !data) in
 
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	let name = netname_to_hx c in
 	EEnum {
-		d_name = if is_flag then name ^ "_FlagsEnum" else name;
+		d_name = (if is_flag then name ^ "_FlagsEnum" else name),null_pos;
 		d_doc = None;
 		d_params = []; (* enums never have type parameters *)
 		d_meta = !meta;
@@ -3634,9 +3638,9 @@ let convert_ilfield ctx p field =
 	let kind = match readonly with
 		| true ->
 			cff_meta := (Meta.ReadOnly, [], cff_pos) :: !cff_meta;
-			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm), None)
+			FProp ("default", "never", Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
 		| false ->
-			FVar (Some (convert_signature ctx p field.fsig.snorm), None)
+			FVar (Some (convert_signature ctx p field.fsig.snorm,null_pos), None)
 	in
 	let cff_name, cff_meta =
 		if String.get cff_name 0 = '%' then
@@ -3647,7 +3651,7 @@ let convert_ilfield ctx p field =
 			cff_name, !cff_meta
 	in
 	{
-		cff_name = cff_name;
+		cff_name = cff_name,null_pos;
 		cff_doc = cff_doc;
 		cff_pos = cff_pos;
 		cff_meta = cff_meta;
@@ -3658,7 +3662,7 @@ let convert_ilfield ctx p field =
 let convert_ilevent ctx p ev =
 	let p = { p with pfile =	p.pfile ^" (" ^ev.ename ^")" } in
 	let name = ev.ename in
-	let kind = FVar (Some (convert_signature ctx p ev.esig.snorm), None) in
+	let kind = FVar (Some (convert_signature ctx p ev.esig.snorm,null_pos), None) in
 	let meta = [Meta.Event, [], p; Meta.Keep,[],p; Meta.SkipReflection,[],p] in
 	let acc = [APrivate] in
 	let add_m acc m = match m with
@@ -3675,7 +3679,7 @@ let convert_ilevent ctx p ev =
 	let acc = add_m acc ev.eremove in
 	let acc = add_m acc ev.eraise in
 	{
-		cff_name = name;
+		cff_name = name,null_pos;
 		cff_doc = None;
 		cff_pos = p;
 		cff_meta = meta;
@@ -3767,16 +3771,16 @@ let convert_ilmethod ctx p m is_explicit_impl =
 				| LManagedPointer s ->
 					let is_out = List.mem POut flag.pf_io && not (List.mem PIn flag.pf_io) in
 					let name = if is_out then "Out" else "Ref" in
-					mk_type_path ctx (["cs"],[],name) [ TPType (convert_signature ctx p s) ]
+					mk_type_path ctx (["cs"],[],name) [ TPType (convert_signature ctx p s,null_pos) ]
 				| _ ->
 					convert_signature ctx p (change_sig s.snorm)
 			in
-			name,false,Some t,None) m.margs
+			(name,null_pos),false,[],Some (t,null_pos),None) m.margs
 		in
 		let ret = convert_signature ctx p (change_sig ret) in
 		let types = List.map (fun t ->
 			{
-				tp_name = "M" ^ string_of_int t.tnumber;
+				tp_name = "M" ^ string_of_int t.tnumber,null_pos;
 				tp_params = [];
 				tp_constraints = [];
 				tp_meta = [];
@@ -3785,7 +3789,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		FFun {
 			f_params = types;
 			f_args = args;
-			f_type = Some ret;
+			f_type = Some (ret,null_pos);
 			f_expr = None;
 		}
 	in
@@ -3809,7 +3813,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			| _ -> acc
 	in
 	{
-		cff_name = cff_name;
+		cff_name = cff_name,null_pos;
 		cff_doc = cff_doc;
 		cff_pos = cff_pos;
 		cff_meta = cff_meta;
@@ -3870,10 +3874,10 @@ let convert_ilprop ctx p prop is_explicit_impl =
 	in
 
 	let kind =
-		FProp (get, set, Some(convert_signature ctx p ilsig), None)
+		FProp (get, set, Some(convert_signature ctx p ilsig,null_pos), None)
 	in
 	{
-		cff_name = prop.pname;
+		cff_name = prop.pname,null_pos;
 		cff_doc = None;
 		cff_pos = p;
 		cff_meta = meta;
@@ -3907,7 +3911,7 @@ let mk_metas metas p =
 let mk_abstract_fun name p kind metas acc =
 	let metas = mk_metas metas p in
 	{
-		cff_name = name;
+		cff_name = name,null_pos;
 		cff_doc = None;
 		cff_pos = p;
 		cff_meta = metas;
@@ -3917,13 +3921,13 @@ let mk_abstract_fun name p kind metas acc =
 
 let convert_fun_arg ctx p = function
 	| LManagedPointer s ->
-		mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s) ]
+		mk_type_path ctx (["cs"],[],"Ref") [ TPType (convert_signature ctx p s,null_pos) ],p
 	| s ->
-		convert_signature ctx p s
+		convert_signature ctx p s,p
 
 let convert_fun ctx p ret args =
 	let args = List.map (convert_fun_arg ctx p) args in
-	CTFunction(args, convert_signature ctx p ret)
+	CTFunction(args, (convert_signature ctx p ret,null_pos))
 
 let get_clsname ctx cpath =
 	match netpath_to_hx ctx.nstd cpath with
@@ -3938,14 +3942,14 @@ let convert_delegate ctx p ilcls =
 	(* - AsDelegate():Super *)
 	(* - @:op(A+B) Add(d:absType) *)
 	(* - @:op(A-B) Remove(d:absType) *)
-	let abs_type = mk_type_path ctx (ilcls.cpath) (List.map (fun t -> TPType (mk_type_path ctx ([],[],"T" ^ string_of_int t.tnumber) [])) ilcls.ctypes) in
+	let abs_type = mk_type_path ctx (ilcls.cpath) (List.map (fun t -> TPType (mk_type_path ctx ([],[],"T" ^ string_of_int t.tnumber) [],null_pos)) ilcls.ctypes) in
 	let invoke = List.find (fun m -> m.mname = "Invoke") ilcls.cmethods in
 	let ret = invoke.mret.snorm in
 	let args = List.map (fun (_,_,s) -> s.snorm) invoke.margs in
 	let haxe_type = convert_fun ctx p ret args in
 	let types = List.map (fun t ->
 		{
-			tp_name = "T" ^ string_of_int t.tnumber;
+			tp_name = ("T" ^ string_of_int t.tnumber),null_pos;
 			tp_params = [];
 			tp_constraints = [];
 			tp_meta = [];
@@ -3959,15 +3963,15 @@ let convert_delegate ctx p ilcls =
 		let expr = (ECall( (EField( (EConst(Ident (clsname)),p), fn_name ),p), [(EConst(Ident"arg1"),p);(EConst(Ident"arg2"),p)]),p) in
 		FFun {
 			f_params = types;
-			f_args = ["arg1",false,Some abs_type,None;"arg2",false,Some abs_type,None];
-			f_type = Some abs_type;
+			f_args = [("arg1",null_pos),false,[],Some (abs_type,null_pos),None;("arg2",null_pos),false,[],Some (abs_type,null_pos),None];
+			f_type = Some (abs_type,null_pos);
 			f_expr = Some ( (EReturn (Some expr), p) );
 		}
 	in
 	let mk_op op name =
 		let p = { p with pfile = p.pfile ^" (op " ^ name ^ ")" } in
 		{
-			cff_name = name;
+			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = p;
 			cff_meta = [ Meta.Extern,[],p ; Meta.Op, [ (EBinop(op, (EConst(Ident"A"),p), (EConst(Ident"B"),p)),p) ], p ];
@@ -3976,7 +3980,7 @@ let convert_delegate ctx p ilcls =
 		}
 	in
 	let params = (List.map (fun s ->
-		TPType (mk_type_path ctx ([],[],s.tp_name) [])
+		TPType (mk_type_path ctx ([],[],fst s.tp_name) [],null_pos)
 	) types) in
 	let underlying_type = match ilcls.cpath with
 		| ns,inner,name ->
@@ -3985,14 +3989,14 @@ let convert_delegate ctx p ilcls =
 
 	let fn_new = FFun {
 		f_params = [];
-		f_args = ["hxfunc",false,Some haxe_type,None];
+		f_args = [("hxfunc",null_pos),false,[],Some (haxe_type,null_pos),None];
 		f_type = None;
 		f_expr = Some ( EBinop(Ast.OpAssign, (EConst(Ident "this"),p), (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p]) ), p );
 	} in
 	let fn_from_hx = FFun {
 		f_params = types;
-		f_args = ["hxfunc",false,Some haxe_type,None];
-		f_type = Some( mk_type_path ctx ilcls.cpath params );
+		f_args = [("hxfunc",null_pos),false,[],Some (haxe_type,null_pos),None];
+		f_type = Some( mk_type_path ctx ilcls.cpath params,null_pos );
 		f_expr = Some( EReturn( Some (mk_special_call "__delegate__" p [EConst(Ident "hxfunc"),p] )), p);
 	} in
 	let fn_asdel = FFun {
@@ -4008,11 +4012,11 @@ let convert_delegate ctx p ilcls =
 	let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [Meta.Extern] [APublic;AInline] in
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	EAbstract {
-		d_name = netname_to_hx c;
+		d_name = netname_to_hx c,null_pos;
 		d_doc = None;
 		d_params = types;
 		d_meta = mk_metas [Meta.Delegate; Meta.Forward] p;
-		d_flags = [AIsType underlying_type];
+		d_flags = [AIsType (underlying_type,null_pos)];
 		d_data = [fn_new;fn_from_hx;fn_asdel;mk_op Ast.OpAdd "Add";mk_op Ast.OpSub "Remove"];
 	}
 
@@ -4048,12 +4052,12 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 		(match ilcls.csuper with
 			| Some { snorm = LClass ( (["System"],[],"Object"), [] ) } -> ()
 			| Some ({ snorm = LClass ( (["System"],[],"ValueType"), [] ) } as s) ->
-				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags;
+				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm),null_pos) :: !flags;
 				meta := (Meta.Struct,[],p) :: !meta
 			| Some { snorm = LClass ( (["haxe";"lang"],[],"HxObject"), [] ) } ->
 				meta := (Meta.HxGen,[],p) :: !meta
 			| Some s ->
-				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm)) :: !flags
+				flags := HExtends (get_type_path ctx (convert_signature ctx p s.snorm),null_pos) :: !flags
 			| _ -> ());
 
 			let has_explicit_ifaces = ref false in
@@ -4065,9 +4069,9 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				| i ->
 					if is_explicit ctx ilcls i then has_explicit_ifaces := true;
 					flags := if !is_interface then
-						HExtends (get_type_path ctx (convert_signature ctx p i)) :: !flags
+						HExtends (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
 					else
-						HImplements (get_type_path ctx (convert_signature ctx p i)) :: !flags
+						HImplements (get_type_path ctx (convert_signature ctx p i),null_pos) :: !flags
 			) ilcls.cimplements;
 			(* this is needed because of explicit interfaces. see http://msdn.microsoft.com/en-us/library/aa288461(v=vs.71).aspx *)
 			(* explicit interfaces can't be mapped into Haxe in any way - since their fields can't be accessed directly, but they still implement that interface *)
@@ -4078,9 +4082,9 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			ignore (List.exists (function
 			| { psig = { snorm = LMethod(_,ret,[v]) } } ->
 				flags := if !is_interface then
-					(HExtends( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret) ]) :: !flags)
+					(HExtends( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret,null_pos) ],null_pos) :: !flags)
 				else
-					(HImplements( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret) ]) :: !flags);
+					(HImplements( raw_type_path ctx ([],"ArrayAccess") [ TPType (convert_signature ctx p ret,null_pos) ],null_pos) :: !flags);
 				true
 			| _ -> false) ilcls.cprops);
 
@@ -4109,7 +4113,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 
 			let params = List.map (fun p ->
 				{
-					tp_name = "T" ^ string_of_int p.tnumber;
+					tp_name = "T" ^ string_of_int p.tnumber,null_pos;
 					tp_params = [];
 					tp_constraints = [];
 					tp_meta = [];
@@ -4119,18 +4123,18 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			if delegate then begin
 				(* add op_Addition and op_Subtraction *)
 				let path = ilcls.cpath in
-				let thist = mk_type_path ctx path (List.map (fun t -> TPType (mk_type_path ctx ([],[],"T" ^ string_of_int t.tnumber) [])) ilcls.ctypes) in
+				let thist = mk_type_path ctx path (List.map (fun t -> TPType (mk_type_path ctx ([],[],"T" ^ string_of_int t.tnumber) [],null_pos)) ilcls.ctypes) in
 				let op name =
 					{
-						cff_name = name;
+						cff_name = name,null_pos;
 						cff_doc = None;
 						cff_pos = p;
 						cff_meta = [];
 						cff_access = [APublic;AStatic];
 						cff_kind = FFun {
 							f_params = params;
-							f_args = ["arg1",false,Some thist,None;"arg2",false,Some thist,None];
-							f_type = Some thist;
+							f_args = [("arg1",null_pos),false,[],Some (thist,null_pos),None;("arg2",null_pos),false,[],Some (thist,null_pos),None];
+							f_type = Some (thist,null_pos);
 							f_expr = None;
 						};
 					}
@@ -4144,7 +4148,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 			in
 			let _, c = netpath_to_hx ctx.nstd path in
 			EClass {
-				d_name = netname_to_hx c;
+				d_name = netname_to_hx c,null_pos;
 				d_doc = None;
 				d_params = params;
 				d_meta = !meta;

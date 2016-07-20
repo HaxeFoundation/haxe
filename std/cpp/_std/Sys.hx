@@ -28,8 +28,7 @@ import cpp.NativeSys;
 	}
 
 	public static function println( v : Dynamic ) : Void {
-		print(v);
-		print("\n");
+		untyped __global__.__hxcpp_println(v);
 	}
 
    @:access(sys.io.FileInput)

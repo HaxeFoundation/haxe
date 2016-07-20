@@ -106,17 +106,106 @@ private class NodeListAccess implements Dynamic<List<Fast>> {
 
 }
 
+/**
+	The `haxe.xml.Fast` API helps providing a fast dot-syntax access to the 
+	most common `Xml` methods.
+**/
 class Fast {
+	/**
+		The current corresponding `Xml` node.
+	**/
+	public var x(default, null) : Xml;
 
-	public var x(default,null) : Xml;
+	/**
+		The name of the current element. This is the same as `Xml.nodeName`.
+	**/
 	public var name(get,null) : String;
+
+	/**
+		The inner PCDATA or CDATA of the node. 
+		
+		An exception is thrown if there is no data or if there not only data
+		but also other nodes.
+	**/
 	public var innerData(get,null) : String;
+
+	/**
+		The XML string built with all the sub nodes, excluding the current one.
+	**/
 	public var innerHTML(get,null) : String;
+
+	/**
+		Access to the first sub element with the given name. 
+		
+		An exception is thrown if the element doesn't exists.
+		Use `hasNode` to check the existence of a node.
+		
+		```haxe
+		var fast = new haxe.xml.Fast(Xml.parse("<user><name>John</name></user>"));
+		var user = fast.node.user;
+		var name = user.node.name;
+		trace(name.innerData); // John
+
+		// Uncaught Error: Document is missing element password
+		var password = user.node.password; 
+		```
+	**/
 	public var node(default,null) : NodeAccess;
+
+	/**
+		Access to the List of elements with the given name.
+		```haxe
+		var fast = new haxe.xml.Fast(Xml.parse("<users>
+				<user name='John'/>
+				<user name='Andy'/>
+				<user name='Dan'/>
+		</users>"));
+
+		var users = fast.node.users;
+		for(user in users.nodes.user) {
+				trace(user.att.name);
+		}
+		```
+	**/
 	public var nodes(default,null) : NodeListAccess;
+
+	/**
+		Access to a given attribute. 
+		
+		An exception is thrown if the attribute doesn't exists.
+		Use `has` to check the existence of an attribute.
+		
+		```haxe
+		var f = new haxe.xml.Fast(Xml.parse("<user name='Mark'></user>"));
+		var user = f.node.user;
+		if (user.has.name) {
+			trace(user.att.name); // Mark
+		}
+		```
+	**/
 	public var att(default,null) : AttribAccess;
+
+	/**
+		Check the existence of an attribute with the given name.
+	**/
 	public var has(default,null) : HasAttribAccess;
+
+	/**
+		Check the existence of a sub node with the given name.
+		
+		```haxe
+		var f = new haxe.xml.Fast(Xml.parse("<user><age>31</age></user>"));
+		var user = f.node.user;
+		if (user.hasNode.age) {
+			trace(user.node.age.innerData); // 31
+		}
+		```
+	**/
 	public var hasNode(default,null) : HasNodeAccess;
+
+	/**
+		The list of all sub-elements which are the nodes with type `Xml.Element`.
+	**/
 	public var elements(get,null) : Iterator<Fast>;
 
 	public function new( x : Xml ) {

@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DOMQuad.webidl line 48:0. Do not edit!
+// This file is generated from mozilla\DOMQuad.webidl line 19:0. Do not edit!
 
 package js.html;
 

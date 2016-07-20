@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2016 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -80,34 +80,15 @@ import lua.NativeStringTools;
 	}
 
 	static function __init__() : Void untyped {
-		__feature__("lua.Boot.getClass", String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
-		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__("String"),true));
-		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
-		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__("Array"),true));
-		__feature__("Int.*",{
-			var Int = __feature__("Type.resolveClass", _hxClasses["Int"] = { __name__ : __lua_table__("Int") }, { __name__ : __lua_table__("Int") });
-		});
-		__feature__("Dynamic.*",{
-			var Dynamic = __feature__("Type.resolveClass", _hxClasses["Dynamic"] = { __name__ : __lua_table__("Dynamic") }, { __name__ : __lua_table__("Dynamic") });
-		});
-		__feature__("Float.*",{
-			var Float = __feature__("Type.resolveClass", _hxClasses["Float"]={}, {});
-			Float.__name__ = __lua_table__("Float");
-		});
-		__feature__("Bool.*",{
-			var Bool = __feature__("Type.resolveEnum",_hxClasses["Bool"] = {}, {});
-			Bool.__ename__ = __lua_table__("Bool");
-		});
-		__feature__("Class.*",{
-			var Class = __feature__("Type.resolveClass", _hxClasses["Class"] = { __name__ : __lua_table__("Class") }, { __name__ : __lua_table__("Class") });
-		});
-		__feature__("Enum.*",{
-			var Enum = {};
-		});
-		__feature__("Void.*",{
-			var Void = __feature__("Type.resolveEnum", _hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
-		});
+		// lua workarounds for basic anonymous object functionality
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_anon.lua");
 
+		// class reflection metadata
+		haxe.macro.Compiler.includeFile("lua/_lua/_hx_classes.lua");
+		__feature__("lua.Boot.getClass", String.prototype.__class__ = __feature__("Type.resolveClass",_hxClasses["String"] = String,String));
+		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__(["String"]),true));
+		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
+		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__(["Array"]),true));
 	}
 
 }

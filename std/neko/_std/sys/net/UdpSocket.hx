@@ -25,9 +25,9 @@ import haxe.io.Error;
 @:coreApi
 class UdpSocket extends Socket {
 
-	public function new() : Void {
+	private override function init() : Void {
 		__s = Socket.socket_new(true);
-		super();
+		super.init();
 	}
 
 	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {

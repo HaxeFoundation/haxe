@@ -23,9 +23,9 @@ package haxe;
 
 /**
 	Crossplatform JSON API: it will automatically use the optimized native API if available.
-	Use `-D haxeJSON` to force usage of the Haxe implementation even if a native API is found: 
-	this will provide extra encoding features such as enums (replaced by their index) and StringMaps.
-	=
+	Use `-D haxeJSON` to force usage of the Haxe implementation even if a native API is found:
+	This will provide extra encoding features such as enums (replaced by their index) and StringMaps.
+
 	@see http://haxe.org/manual/std-Json.html
 **/
 class Json {
@@ -34,7 +34,7 @@ class Json {
 		Parses given JSON-encoded `text` and returns the resulting object.
 
 		JSON objects are parsed into anonymous structures and JSON arrays
-		are parsed into Array<Dynamic>.
+		are parsed into `Array<Dynamic>`.
 
 		If given `text` is not valid JSON, an exception will be thrown.
 
@@ -45,10 +45,10 @@ class Json {
 	}
 
 	/**
-		Encodes given `value` and returns the resulting JSON string.
+		Encodes the given `value` and returns the resulting JSON string.
 
-		If `replacer` is given and is not null, it is used to retrieve
-		actual object to be encoded. The `replacer` function two parameters,
+		If `replacer` is given and is not null, it is used to retrieve the
+		actual object to be encoded. The `replacer` function takes two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
 		
 		If `space` is given and is not null, the result will be pretty-printed.

@@ -728,6 +728,11 @@ typedef TVar = {
 		information
 	**/
 	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>;
+
+	/**
+		The metadata of the variable.
+	**/
+	public var meta(default,never):Null<MetaAccess>;
 }
 
 /**

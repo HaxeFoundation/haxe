@@ -44,18 +44,18 @@ class File {
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
-		var f = read(path, true);
-		var ret = f.readAll();
-		f.close();
-		return ret;
+		var finput = read(path, true);
+		var res = finput.readAll();
+		finput.close();
+		return res;
 	}
 
 	public static function read( path : String, binary : Bool = true ) : FileInput {
-		return new FileInput(Io.open(path,'r'));
+		return new FileInput(Io.open(path, binary ? 'rb' : 'r'));
 	}
 
 	public static function write( path : String, binary : Bool = true ) : FileOutput {
-		return new FileOutput(Io.open(path,'w'));
+		return new FileOutput(Io.open(path, binary ? 'wb' : 'w'));
 	}
 
 	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {

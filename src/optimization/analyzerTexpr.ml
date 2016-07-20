@@ -21,7 +21,7 @@ open Ast
 open Type
 open Common
 
-let s_expr_pretty e = s_expr_pretty "" (s_type (print_context())) e
+let s_expr_pretty e = s_expr_pretty false "" (s_type (print_context())) e
 
 let rec is_true_expr e1 = match e1.eexpr with
 	| TConst(TBool true) -> true
@@ -115,6 +115,7 @@ let rec can_be_used_as_value com e =
 		| TUnop((Increment | Decrement),_,_) when not (target_handles_unops com) -> raise Exit
 		| TNew _ when com.platform = Php -> raise Exit
 		| TFunction _ -> ()
+		| TConst TNull when (match com.platform with Cs | Cpp | Java | Flash -> true | _ -> false) -> raise Exit
 		| _ -> Type.iter loop e
 	in
 	try
@@ -248,7 +249,7 @@ module TexprFilter = struct
 			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
 		| TFor(v,e1,e2) ->
-			let v' = alloc_var "tmp" e1.etype in
+			let v' = alloc_var "tmp" e1.etype e1.epos in
 			let ev' = mk (TLocal v') e1.etype e1.epos in
 			let t1 = (Abstract.follow_with_abstracts e1.etype) in
 			let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in
@@ -268,15 +269,49 @@ module TexprFilter = struct
 		loop e
 end
 
+module VarLazifier = struct
+	let apply com e =
+		let rec loop var_inits e = match e.eexpr with
+			| TVar(v,Some e1) when (Meta.has (Meta.Custom ":extractorVariable") v.v_meta) ->
+				let var_inits,e1 = loop var_inits e1 in
+				let var_inits = PMap.add v.v_id e1 var_inits in
+				var_inits,{e with eexpr = TVar(v,None)}
+			| TLocal v ->
+				begin try
+					let e_init = PMap.find v.v_id var_inits in
+					let e = {e with eexpr = TBinop(OpAssign,e,e_init)} in
+					let e = {e with eexpr = TParenthesis e} in
+					let var_inits = PMap.remove v.v_id var_inits in
+					var_inits,e
+				with Not_found ->
+					var_inits,e
+				end
+			| TIf(e1,e2,eo) ->
+				let var_inits,e1 = loop var_inits e1 in
+				let _,e2 = loop var_inits e2 in
+				let eo = match eo with None -> None | Some e -> Some (snd (loop var_inits e)) in
+				var_inits,{e with eexpr = TIf(e1,e2,eo)}
+			| TSwitch(e1,cases,edef) ->
+				let var_inits,e1 = loop var_inits e1 in
+				let cases = List.map (fun (el,e) ->
+					let _,e = loop var_inits e in
+					el,e
+				) cases in
+				let edef = match edef with None -> None | Some e -> Some (snd (loop var_inits e)) in
+				var_inits,{e with eexpr = TSwitch(e1,cases,edef)}
+			| _ ->
+				Texpr.foldmap loop var_inits e
+		in
+		snd (loop PMap.empty e)
+end
+
 module Fusion = struct
 
-	type interference_kind =
-		| IKVarMod of tvar list
-		| IKSideEffect
-		| IKNone
+	open AnalyzerConfig
 
 	let get_interference_kind e =
 		let vars = ref [] in
+		let has_side_effect = ref false in
 		let rec loop e = match e.eexpr with
 			| TMeta((Meta.Pure,_,_),_) ->
 				()
@@ -285,33 +320,37 @@ module Fusion = struct
 			| TBinop((OpAssign | OpAssignOp _),{eexpr = TLocal v},e2) ->
 				vars := v :: !vars;
 				loop e2
-			| TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_) ->
-				raise Exit
+			| TBinop((OpAssign | OpAssignOp _),e1,e2) ->
+				has_side_effect := true;
+				loop e1;
+				loop e2;
+			| TUnop((Increment | Decrement),_,e1) ->
+				has_side_effect := true;
+				loop e1
 			| TCall({eexpr = TLocal v},el) when not (is_unbound_call_that_might_have_side_effects v el) ->
 				List.iter loop el
 			| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
 				List.iter loop el
 			| TNew(c,_,el) when (match c.cl_constructor with Some cf when is_pure c cf -> true | _ -> false) ->
 				List.iter loop el;
-			| TCall _ | TNew _ ->
-				raise Exit
+			| TCall(e1,el) ->
+				has_side_effect := true;
+				loop e1;
+				List.iter loop el
+			| TNew(_,_,el) ->
+				has_side_effect := true;
+				List.iter loop el;
 			| _ ->
 				Type.iter loop e
 		in
-		try
-			loop e;
-			begin match !vars with
-				| [] -> IKNone
-				| vars -> IKVarMod vars
-			end
-		with Exit ->
-			IKSideEffect
+		loop e;
+		!has_side_effect,!vars
 
 	let apply com config e =
 		let rec block_element acc el = match el with
 			| {eexpr = TBinop((OpAssign | OpAssignOp _),_,_) | TUnop((Increment | Decrement),_,_)} as e1 :: el ->
 				block_element (e1 :: acc) el
-			| {eexpr = TLocal _} as e1 :: el when not config.AnalyzerConfig.local_dce ->
+			| {eexpr = TLocal _} as e1 :: el when not config.local_dce ->
 				block_element (e1 :: acc) el
 			(* no-side-effect *)
 			| {eexpr = TEnumParameter _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _} :: el ->
@@ -365,9 +404,18 @@ module Fusion = struct
 		in
 		loop e;
 		let can_be_fused v e =
-			let b = get_num_uses v <= 1 && get_num_writes v = 0 && can_be_used_as_value com e && (Meta.has Meta.CompilerGenerated v.v_meta || config.AnalyzerConfig.optimize && config.AnalyzerConfig.fusion && type_change_ok com v.v_type e.etype && v.v_extra = None) in
-			(* let st = s_type (print_context()) in *)
-			(* if e.epos.pfile = "src/Main.hx" then print_endline (Printf.sprintf "%s: %i %i %b %s %s (%b %b %b %b %b) -> %b" v.v_name (get_num_uses v) (get_num_writes v) (can_be_used_as_value com e) (st v.v_type) (st e.etype) (Meta.has Meta.CompilerGenerated v.v_meta) config.Config.optimize config.Config.fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
+			let b = get_num_uses v <= 1 &&
+			        get_num_writes v = 0 &&
+			        can_be_used_as_value com e &&
+			        (Meta.has Meta.CompilerGenerated v.v_meta || config.optimize && config.fusion && config.user_var_fusion && v.v_extra = None)
+			in
+(* 			let st = s_type (print_context()) in
+			if e.epos.pfile = "src/Main.hx" then
+				print_endline (Printf.sprintf "%s(%s) -> %s: #uses=%i && #writes=%i && used_as_value=%b && (compiler-generated=%b || optimize=%b && fusion=%b && user_var_fusion=%b && type_change_ok=%b && v_extra=%b) -> %b"
+					v.v_name (st v.v_type) (st e.etype)
+					(get_num_uses v) (get_num_writes v) (can_be_used_as_value com e)
+					(Meta.has Meta.CompilerGenerated v.v_meta) config.optimize config.fusion
+					config.user_var_fusion (type_change_ok com v.v_type e.etype) (v.v_extra = None) b); *)
 			b
 		in
 		let rec fuse acc el = match el with
@@ -400,12 +448,13 @@ module Fusion = struct
 				let affected = ref false in
 				let ik1 = get_interference_kind e1 in
 				let check_interference e2 =
-					let check ik e2 = match ik with
-						| IKNone -> ()
-						| IKSideEffect -> (* TODO: Could this miss a IKVarMod case? *)
+					let check (has_side_effect,modified_vars) e2 =
+						if has_side_effect then begin
 							let rec loop e = match e.eexpr with
 								| TMeta((Meta.Pure,_,_),_) ->
 									()
+								| TArray _ ->
+									raise Exit
 								| TField _ when Optimizer.is_affected_type e.etype ->
 									raise Exit
 								| TCall({eexpr = TField(_,FStatic(c,cf))},el) when is_pure c cf ->
@@ -418,12 +467,14 @@ module Fusion = struct
 									Type.iter loop e
 							in
 							loop e2
-						| IKVarMod vl ->
+						end;
+						if modified_vars <> [] then begin
 							let rec loop e = match e.eexpr with
-								| TLocal v when List.exists (fun v' -> v == v') vl -> raise Exit
+								| TLocal v when List.memq v modified_vars -> raise Exit
 								| _ -> Type.iter loop e
 							in
 							loop e2
+						end
 					in
 					try
 						check ik1 e2;
@@ -441,11 +492,14 @@ module Fusion = struct
 							let e1 = replace e1 in
 							{e with eexpr = TIf(e1,e2,eo)}
 						| TSwitch(e1,cases,edef) ->
-							let e1 = replace e1 in
+							let e1 = match com.platform with
+								| Lua | Python -> e1
+								| _ -> replace e1
+							in
 							{e with eexpr = TSwitch(e1,cases,edef)}
 						| TLocal v2 when v1 == v2 && not !affected ->
 							found := true;
-							e1
+							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
 						| TBinop((OpAssign | OpAssignOp _ as op),({eexpr = TArray(e1,e2)} as ea),e3) ->
 							let e1 = replace e1 in
 							let e2 = replace e2 in
@@ -460,6 +514,12 @@ module Fusion = struct
 							e
 						| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
 							e
+						(* TODO: this is a pretty outrageous hack for https://github.com/HaxeFoundation/haxe/issues/5366 *)
+						| TCall({eexpr = TField(_,FStatic({cl_path=["python"],"Syntax"},{cf_name="arraySet"}))} as ef,[e1;e2;e3]) ->
+							let e3 = replace e3 in
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							{e with eexpr = TCall(ef,[e1;e2;e3])}
 						| TCall(e1,el) when com.platform = Neko ->
 							(* Neko has this reversed at the moment (issue #4787) *)
 							let el = List.map replace el in
@@ -560,6 +620,8 @@ module Cleanup = struct
 				let e2 = loop e2 in
 				let e3 = loop e3 in
 				if_or_op e e1 e2 e3;
+			| TCall({eexpr = TLocal v},_) when is_really_unbound v ->
+				e
 			| TBlock el ->
 				let el = List.map (fun e ->
 					let e = loop e in

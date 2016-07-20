@@ -63,6 +63,7 @@
 
 /haxe.sublime*
 build.bat
+/.vscode
 tests/unit/compile.php.hxml
 /extra/*.xml
 tests/optimization/testopt.js
@@ -79,3 +80,11 @@ tests/misc/projects/Issue3756/cpp/
 tests/misc/projects/Issue4070/cpp/
 
 /*.manifest
+/tests/misc/eventLoop/cpp
+/tests/misc/eventLoop/eventLoop.js
+/tests/misc/eventLoop/eventLoop.n
+/tests/misc/eventLoop/eventLoop.swf
+/tests/misc/eventLoop/dump
+/tests/misc/eventLoop/eventLoop.py
+/tests/misc/eventLoop/php
+*.vscode/

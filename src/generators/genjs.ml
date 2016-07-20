@@ -34,6 +34,7 @@ type sourcemap = {
 	mutable print_comma : bool;
 	mutable output_last_col : int;
 	mutable output_current_col : int;
+	mutable current_expr : texpr option;
 }
 
 type ctx = {
@@ -135,40 +136,10 @@ let static_field c s =
 let has_feature ctx = Common.has_feature ctx.com
 let add_feature ctx = Common.add_feature ctx.com
 
-let handle_newlines ctx str =
-	if ctx.com.debug then
-		let rec loop from =
-			try begin
-				let next = String.index_from str from '\n' + 1 in
-				Rbuffer.add_char ctx.smap.mappings ';';
-				ctx.smap.output_last_col <- 0;
-				ctx.smap.print_comma <- false;
-				loop next
-			end with Not_found ->
-				ctx.smap.output_current_col <- String.length str - from
-		in
-		loop 0
-	else ()
-
-let flush ctx =
-	Rbuffer.output_buffer ctx.chan ctx.buf;
-	Rbuffer.clear ctx.buf
-
-let spr ctx s =
-	ctx.separator <- false;
-	handle_newlines ctx s;
-	Rbuffer.add_string ctx.buf s
-
-let print ctx =
-	ctx.separator <- false;
-	Printf.kprintf (fun s -> begin
-		handle_newlines ctx s;
-		Rbuffer.add_string ctx.buf s
-	end)
-
 let unsupported p = error "This expression cannot be compiled to Javascript" p
 
-let add_mapping ctx e =
+
+let add_mapping ctx force e =
 	if not ctx.com.debug || e.epos.pmin < 0 then () else
 	let pos = e.epos in
 	let smap = ctx.smap in
@@ -182,8 +153,8 @@ let add_mapping ctx e =
 	in
 	let line, col = Lexer.find_pos pos in
 	let line = line - 1 in
-	let col = col - 1 in
-	if smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
+	if force || smap.source_last_file != file || smap.source_last_line != line || smap.source_last_col != col then begin
+		smap.current_expr <- Some e;
 		if smap.print_comma then
 			Rbuffer.add_char smap.mappings ','
 		else
@@ -229,6 +200,39 @@ let add_mapping ctx e =
 		smap.source_last_col <- col;
 		smap.output_last_col <- smap.output_current_col
 	end
+
+let handle_newlines ctx str =
+	if ctx.com.debug then
+		let rec loop from =
+			try begin
+				let next = String.index_from str from '\n' + 1 in
+				Rbuffer.add_char ctx.smap.mappings ';';
+				ctx.smap.output_last_col <- 0;
+				ctx.smap.output_current_col <- 0;
+				ctx.smap.print_comma <- false;
+				Option.may (fun e -> add_mapping ctx true e) ctx.smap.current_expr;
+				loop next
+			end with Not_found ->
+				ctx.smap.output_current_col <- ctx.smap.output_current_col + (String.length str - from);
+		in
+		loop 0
+	else ()
+
+let flush ctx =
+	Rbuffer.output_buffer ctx.chan ctx.buf;
+	Rbuffer.clear ctx.buf
+
+let spr ctx s =
+	ctx.separator <- false;
+	handle_newlines ctx s;
+	Rbuffer.add_string ctx.buf s
+
+let print ctx =
+	ctx.separator <- false;
+	Printf.kprintf (fun s -> begin
+		handle_newlines ctx s;
+		Rbuffer.add_string ctx.buf s
+	end)
 
 let write_mappings ctx =
 	let basefile = Filename.basename ctx.com.file in
@@ -335,15 +339,18 @@ let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
 let is_dynamic_iterator ctx e =
 	let check x =
-		has_feature ctx "HxOverrides.iter" && (match follow x.etype with
+		let rec loop t = match follow t with
 			| TInst ({ cl_path = [],"Array" },_)
 			| TInst ({ cl_kind = KTypeParameter _}, _)
 			| TAnon _
 			| TDynamic _
 			| TMono _ ->
 				true
+			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				loop (Abstract.get_underlying_type a tl)
 			| _ -> false
-		)
+		in
+		has_feature ctx "HxOverrides.iter" && loop x.etype
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
@@ -467,8 +474,8 @@ let rec gen_call ctx e el in_value =
 		spr ctx ")"
 
 and gen_expr ctx e =
-	add_mapping ctx e;
-	match e.eexpr with
+	add_mapping ctx false e;
+	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
 	| TArray (e1,{ eexpr = TConst (TString s) }) when valid_js_ident s && (match e1.eexpr with TConst (TInt _|TFloat _) -> false | _ -> true) ->
@@ -805,7 +812,8 @@ and gen_expr ctx e =
 		gen_expr ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")"
+		spr ctx ")");
+	ctx.smap.current_expr <- None;
 
 
 and gen_block_element ?(after=false) ctx e =
@@ -829,7 +837,7 @@ and gen_block_element ?(after=false) ctx e =
 		if after then newline ctx
 
 and gen_value ctx e =
-	add_mapping ctx e;
+	add_mapping ctx false e;
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
@@ -838,7 +846,7 @@ and gen_value ctx e =
 	in
 	let value() =
 		let old = ctx.in_value, ctx.in_loop in
-		let r = alloc_var "$r" t_dynamic in
+		let r = alloc_var "$r" t_dynamic e.epos in
 		ctx.in_value <- Some r;
 		ctx.in_loop <- false;
 		spr ctx "(function($this) ";
@@ -858,7 +866,7 @@ and gen_value ctx e =
 			print ctx "(%s))" (this ctx)
 		)
 	in
-	match e.eexpr with
+	(match e.eexpr with
 	| TConst _
 	| TLocal _
 	| TArray _
@@ -940,7 +948,9 @@ and gen_value ctx e =
 		gen_expr ctx (mk (TTry (block (assign b),
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
-		v()
+		v());
+	ctx.smap.current_expr <- None
+
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
@@ -1250,6 +1260,7 @@ let alloc_ctx com =
 			sources = DynArray.create();
 			sources_hash = Hashtbl.create 0;
 			mappings = Rbuffer.create 16;
+			current_expr = None;
 		};
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
@@ -1346,7 +1357,7 @@ let generate com =
 
 	let var_exports = (
 		"$hx_exports",
-		"typeof window != \"undefined\" ? window : typeof exports != \"undefined\" ? exports : typeof self != \"undefined\" ? self : this"
+		"typeof exports != \"undefined\" ? exports : typeof window != \"undefined\" ? window : typeof self != \"undefined\" ? self : this"
 	) in
 
 	let var_global = (

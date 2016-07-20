@@ -10,6 +10,6 @@ class Issue3714 extends Test {
 		eq(unit.TestType.typeErrorText(A.f), "Cannot access private field f");
 		eq(unit.TestType.typeErrorText(@:privateAccess A.f), null);
 		eq(unit.TestType.typeErrorText(@:privateAccess A.f(A.a)), null);
-		eq(unit.TestType.typeErrorText(@:privateAccess A.f(@:noPrivateAccess A.a)), "Cannot access private field a");
+		eq(unit.TestType.typeErrorText(@:privateAccess A.f(@:noPrivateAccess A.a)), "Cannot access private field a\nFor function argument 'a'");
 	}
 }

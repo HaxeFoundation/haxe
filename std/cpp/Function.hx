@@ -29,8 +29,21 @@ extern class Function<T,ABI:cpp.abi.Abi>
    // Actually a function pointer, but can be called using haxe notation
 	public var call(default,null):T;
 
-   public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>;
-   public static function fromStaticFunction<T>(inStaticFunction:T) : Callable<T>;
+   @:native("::cpp::Function_obj::getProcAddress")
+   static function nativeGetProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>;
+   public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>
+   {
+      var autoCast = nativeGetProcAddress(inModule, inFunction);
+      return autoCast;
+   }
+
+   @:native("::cpp::Function_obj::fromStaticFunction")
+   static function nativeFromStaticFunction<T>(inStaticFunction:T) : Callable<T>;
+   inline public static function fromStaticFunction<T>(inStaticFunction:T) : Callable<T>
+   {
+      var autoCast = nativeFromStaticFunction(inStaticFunction);
+      return autoCast;
+   }
 
 	public function lt(inOther:Function<T,ABI>):Bool;
 	public function leq(inOther:Function<T,ABI>):Bool;
