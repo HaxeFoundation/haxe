@@ -34,7 +34,7 @@
 	On static targets, `null` cannot be assigned to Float. If this is necessary,
 	`Null<Float>` can be used instead.
 
-	`Std.int` converts a `Float` to an `Int`, rounded towards 0.  
+	`Std.int` converts a `Float` to an `Int`, rounded towards 0.
 	`Std.parseFloat` converts a `String` to a `Float`.
 
 	@see http://haxe.org/manual/types-basic-types.html
@@ -48,7 +48,7 @@
 	On static targets, `null` cannot be assigned to `Int`. If this is necessary,
 	`Null<Int>` can be used instead.
 
-	`Std.int` converts a `Float` to an `Int`, rounded towards 0.  
+	`Std.int` converts a `Float` to an `Int`, rounded towards 0.
 	`Std.parseInt` converts a `String` to an `Int`.
 
 	@see http://haxe.org/manual/types-basic-types.html
@@ -90,7 +90,8 @@ typedef Null<T> = T
 	`Dynamic` is a special type which is compatible with all other types.
 
 	Use of `Dynamic` should be minimized as it prevents several compiler
-	checks and optimizations.
+	checks and optimizations. See `Any` type for a safer alternative for
+	representing values of any type.
 
 	@see http://haxe.org/manual/types-dynamic.html
 **/
