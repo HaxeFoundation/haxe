@@ -31,13 +31,12 @@ class Boot {
 	// Used temporarily for bind()
 	static var _;
 	static var _fid = 0;
+	static var empty_iterator : Iterator<Dynamic> = {next : function() return null, hasNext: function() return false};
 
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function(){}),7) > 0;
 
-	public static var hiddenFields = [
-		"__id__", "hx__closures", "super",
-		"prototype", "__fields__", "__ifields__", "__class__", "__properties__"
-	];
+	static var hiddenFields : Table<String,Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
+
 
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
@@ -218,11 +217,10 @@ class Boot {
 				} else if (s.length > 5){
 					"{...}";
 				}
-				else if (Reflect.hasField(o,"__tostring")) Lua.tostring(o);
-				else if (Reflect.hasField(o,"__class__")) printClass(o,s+"\t");
-				else if (Lua.next(o) == null) "{}";
+				else if (o.__tostring != null) Lua.tostring(o);
+				else if (o.__class__ != null) printClass(o,s+"\t");
 				else {
-					var fields = Reflect.fields(o);
+					var fields = fieldIterator(o);
 					var buffer:Table<Int,String> = Table.create();
 					var first = true;
 					Table.insert(buffer,"{ ");
@@ -373,6 +371,25 @@ class Boot {
 		}
 	}
 
+	public static function fieldIterator( o : Table<String,Dynamic>) : Iterator<String> {
+		var tbl = (untyped o.__fields__ != null) ?  o.__fields__ : o;
+		var cur = Lua.pairs(tbl);
+		var next_valid = function(tbl, val){
+			while (hiddenFields[untyped val] != null){
+				val = cur(tbl, val);
+			}
+			return val;
+		}
+		var cur_val = next_valid(tbl, cur(tbl, null));
+		return {
+			next : function(){
+				var ret = cur_val;
+				cur_val = next_valid(tbl, cur(tbl, cur_val));
+				return ret;
+			},
+			hasNext : function() return cur_val !=  null
+		}
+	}
 
 	public static function __init__(){
 		// anonymous to instance method wrapper

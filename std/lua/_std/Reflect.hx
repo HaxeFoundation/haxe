@@ -90,14 +90,7 @@ import lua.Boot;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
-		var ret = new Array<String>();
-		var fields = lua.Boot.hiddenFields;
-		if (untyped o.__fields__ != null) {
-			untyped __lua__("for k,_ in pairs(o.__fields__) do if fields:indexOf(k) == -1 then ret:push(k) end end");
-		} else {
-			untyped __lua__("for k,_ in pairs(o) do if fields:indexOf(k) == -1 then ret:push(k) end end");
-		}
-		return ret;
+		return [for (f in lua.Boot.fieldIterator(o)) f];
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool {
