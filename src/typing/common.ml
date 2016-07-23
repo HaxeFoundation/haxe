@@ -1027,13 +1027,22 @@ let get_full_path f = try Extc.get_full_path f with _ -> f
 let unique_full_path = if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then (fun f -> String.lowercase (get_full_path f)) else get_full_path
 
 let get_path_parts f =
-	let f = String.concat "/" (ExtString.String.nsplit f "\\") in
-	let cl = ExtString.String.nsplit f "." in
-	let cl = (match List.rev cl with
-		| ["hx";path] -> ExtString.String.nsplit path "/"
-		| _ -> cl
-	) in
-	cl
+	(*
+		this function is quite weird: it tries to determine whether the given
+		argument is a .hx file path with slashes or a dotted module path and
+		based on that it returns path "parts", which are basically a list of
+		either folders or packages (which are folders too) appended by the module name
+
+		TODO: i started doubting my sanity while writing this comment, let's somehow
+		refactor this stuff so it doesn't mix up file and module paths and doesn't introduce
+		the weird "path part" entity.
+	*)
+	let l = String.length f in
+	if l > 3 && (String.sub f (l-3) 3) = ".hx" then
+		let f = String.sub f 0 (l-3) in (* strip the .hx *)
+		ExtString.String.nsplit (String.concat "/" (ExtString.String.nsplit f "\\")) "/" (* TODO: wouldn't it be faster to Str.split here? *)
+	else
+		ExtString.String.nsplit f "."
 
 let add_trailing_slash p =
 	let l = String.length p in
