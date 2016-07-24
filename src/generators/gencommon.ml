@@ -5825,8 +5825,6 @@ struct
 		| TFun(args,ret) -> args,ret
 		| _ -> trace (debug_type t); assert false
 
-	let s_path (pack,n) = (String.concat "." (pack @ [n]))
-
 	(*
 		Since this function is applied under native-context only, the type paraters will already be changed
 	*)
