@@ -1884,6 +1884,10 @@ let generate com =
 	    println ctx "end";
 	end;
 
+	if has_feature ctx "Math.random" then begin
+	    println ctx "_G.math.randomseed(_G.os.time());"
+	end;
+
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
 
