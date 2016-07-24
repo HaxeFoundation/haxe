@@ -1866,7 +1866,23 @@ let generate com =
 		add_feature ctx "use._hx_bind";
 		println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
 	end;
-	if has_feature ctx "use._hx_bind" then println ctx "_hx_bind = lua.Boot.bind";
+
+	if has_feature ctx "use._hx_bind" then begin
+	    println ctx "_hx_bind = function(o,m)";
+	    println ctx "  if m == nil then return nil end;";
+	    println ctx "  local f;";
+	    println ctx "  if o._hx__closures == nil then";
+	    println ctx "    _G.rawset(o, '_hx__closures', {});";
+	    println ctx "  else ";
+	    println ctx "    f = o._hx__closures[m];";
+	    println ctx "  end";
+	    println ctx "  if (f == nil) then";
+	    println ctx "    f = function(...) return m(o, ...) end;";
+	    println ctx "    o._hx__closures[m] = f;";
+	    println ctx "  end";
+	    println ctx "  return f;";
+	    println ctx "end";
+	end;
 
 
 	List.iter (generate_enumMeta_fields ctx) com.types;

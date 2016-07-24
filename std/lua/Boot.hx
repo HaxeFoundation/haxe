@@ -31,7 +31,6 @@ class Boot {
 	// Used temporarily for bind()
 	static var _;
 	static var _fid = 0;
-	static var empty_iterator : Iterator<Dynamic> = {next : function() return null, hasNext: function() return false};
 
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function(){}),7) > 0;
 
@@ -40,24 +39,6 @@ class Boot {
 
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-
-	/*
-	   Binds a function definition to the given instance
-	*/
-	@:keep
-	public static function bind(o:Dynamic, m: Function) : Function{
-		if (m == null) return null;
-		// if (m.__id.__ == nil) m.__id__ = _fid + 1;
-		var f: Function = null;
-		if ( o.hx__closures__ == null )
-			Lua.rawset(o,"hx__closures__", {});
-		else untyped f = o.hx__closures__[m];
-		if (f == null){
-			f = untyped __lua__("function(...) return m(o, ...) end");
-			untyped o.hx__closures__[m] = f;
-		}
-		return f;
-	}
 
 	/*
 	   Indicates if the given object is a class.
@@ -214,10 +195,7 @@ class Boot {
 					var o2 : Array<Dynamic> = untyped o;
 					if (s.length > 5) "[...]"
 					else '[${[for (i in  o2) __string_rec(i,s+1)].join(",")}]';
-				} else if (s.length > 5){
-					"{...}";
 				}
-				else if (o.__tostring != null) Lua.tostring(o);
 				else if (o.__class__ != null) printClass(o,s+"\t");
 				else {
 					var fields = fieldIterator(o);
@@ -227,7 +205,7 @@ class Boot {
 					for (f in fields){
 						if (first) first = false;
 						else Table.insert(buffer,", ");
-						Table.insert(buffer,'${s}${Std.string(f)} : ${untyped Std.string(o[f])}');
+						Table.insert(buffer,'${Std.string(f)} : ${untyped Std.string(o[f])}');
 					}
 					Table.insert(buffer, " }");
 					Table.concat(buffer, "");
