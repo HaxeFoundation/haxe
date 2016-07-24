@@ -1017,6 +1017,7 @@ and gen_value ctx e =
 	(* TODO: this is just a hack because this specific case is a TestReflect unit test. I don't know how to address this properly
 	   at the moment. - Simon *)
 	| TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
+	    add_feature ctx "use._hx_staticToInstance";
 	    spr ctx "_hx_staticToInstance(";
 	    gen_expr ctx e1;
 	    spr ctx ")";
@@ -1139,13 +1140,15 @@ and gen_tbinop ctx op e1 e2 =
 	    | TField(e3, FInstance _ ), TField(e4, FClosure _ )  ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		spr ctx "_hx_functionToInstanceFunction(";
+		add_feature ctx "use._hx_funcToField";
+		spr ctx "_hx_funcToField(";
 		gen_value ctx e2;
 		spr ctx ")";
 	    | TField(_, FInstance _ ), TLocal t  when (is_function_type ctx t.v_type)   ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		spr ctx "_hx_functionToInstanceFunction(";
+		add_feature ctx "use._hx_funcToField";
+		spr ctx "_hx_funcToField(";
 		gen_value ctx e2;
 		spr ctx ")";
 	    | _ ->
@@ -1806,7 +1809,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind,_hx_bit";
+	println ctx "local _hx_bind,_hx_bit, _hx_staticToInstance, _hx_funcToField";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
@@ -1881,6 +1884,34 @@ let generate com =
 	    println ctx "    o._hx__closures[m] = f;";
 	    println ctx "  end";
 	    println ctx "  return f;";
+	    println ctx "end";
+	end;
+
+	if has_feature ctx "use._hx_staticToInstance" then begin
+	    println ctx "_hx_staticToInstance = function (tab)";
+	    println ctx "  return setmetatable({}, {";
+	    println ctx "    __index = function(t,k)";
+	    println ctx "      if type(rawget(tab,k)) == 'function' then ";
+	    println ctx "	return function(self,...)";
+	    println ctx "	  return rawget(tab,k)(...)";
+	    println ctx "	end";
+	    println ctx "      else";
+	    println ctx "	return rawget(tab,k)";
+	    println ctx "      end";
+	    println ctx "    end";
+	    println ctx "  })";
+	    println ctx "end";
+	end;
+
+	if has_feature ctx "use._hx_funcToField" then begin
+	    println ctx "_hx_funcToField = function(f)";
+	    println ctx "  if type(f) == 'function' then ";
+	    println ctx "    return function(self,...) ";
+	    println ctx "      return f(...) ";
+	    println ctx "    end";
+	    println ctx "  else ";
+	    println ctx "    return f";
+	    println ctx "  end";
 	    println ctx "end";
 	end;
 
