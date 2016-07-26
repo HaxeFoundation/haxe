@@ -54,6 +54,7 @@ let keep_whole_class dce c =
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_path = ([],("Math"|"Array"))} when dce.com.platform = Js -> false
+		| { cl_path = ([],("Math"|"Array"|"String"))} when dce.com.platform = Lua -> false
 		| { cl_extern = true }
 		| { cl_path = ["flash";"_Boot"],"RealBoot" } -> true
 		| { cl_path = [],"String" }
