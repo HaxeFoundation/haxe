@@ -81,10 +81,10 @@ import lua.Boot;
 			}
 			return if (self_arg){
 				// call with o as leading self param
-				func(o, lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(o, lua.Table.unpack(new_args, 1, Boot.tableMaxN(new_args)));
 			} else {
 				// call with no self param
-				func(lua.Table.unpack(new_args, 1, lua.Table.maxn(new_args)));
+				func(lua.Table.unpack(new_args, 1,  Boot.tableMaxN(new_args)));
 			}
 		}
 	}

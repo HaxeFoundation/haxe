@@ -354,6 +354,8 @@ let rec gen_call ctx e el in_value =
 		spr ctx "(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
+	| TLocal { v_name = "__lua_length__" }, [e]->
+		spr ctx "#"; gen_value ctx e;
 	| TLocal { v_name = "__lua_table__" }, el ->
 		let count = ref 0 in
 		spr ctx "({";
@@ -1809,7 +1811,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind,_hx_bit, _hx_staticToInstance, _hx_funcToField";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
@@ -1917,6 +1919,16 @@ let generate com =
 
 	if has_feature ctx "Math.random" then begin
 	    println ctx "_G.math.randomseed(_G.os.time());"
+	end;
+
+	if has_feature ctx "use._hx_maxn" then begin
+	    println ctx "_hx_maxn = table.maxn or function(t)";
+	    println ctx "  local maxn=0;";
+	    println ctx "  for i in pairs(t) do";
+	    println ctx "    maxn=type(i)=='number'and i>maxn and i or maxn";
+	    println ctx "  end";
+	    println ctx "  return maxn";
+	    println ctx "end;";
 	end;
 
 
