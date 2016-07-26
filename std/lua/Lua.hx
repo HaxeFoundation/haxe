@@ -173,10 +173,6 @@ extern class Lua {
 	**/
 	public static function loadstring(code:String) : Void;
 
-	private static function __init__() : Void {
-		// print polyfill
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_print.lua");
-	}
 }
 
 /**

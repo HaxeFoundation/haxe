@@ -1811,7 +1811,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
@@ -1930,6 +1930,9 @@ let generate com =
 	    println ctx "  return maxn";
 	    println ctx "end;";
 	end;
+
+	if has_feature ctx "use._hx_print" then
+	    println ctx "_hx_print = print or (function() end)";
 
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
