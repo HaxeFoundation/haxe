@@ -1935,10 +1935,11 @@ let generate com =
 	if has_feature ctx "use._hx_print" then
 	    println ctx "_hx_print = print or (function() end)";
 
-	if has_feature ctx "use._hx_apply_self" then
+	if has_feature ctx "use._hx_apply_self" then begin
 	    println ctx "_hx_apply_self = function(self, f, ...)";
 	    println ctx "  return self[f](self,...)";
 	    println ctx "end";
+	end;
 
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
