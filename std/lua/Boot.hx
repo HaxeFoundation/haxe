@@ -372,9 +372,4 @@ class Boot {
 			hasNext : function() return cur_val !=  null
 		}
 	}
-
-	public static function __init__(){
-		// simple apply method
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_apply.lua");
-	}
 }

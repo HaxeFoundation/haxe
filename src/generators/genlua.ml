@@ -433,6 +433,7 @@ let rec gen_call ctx e el in_value =
 		if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
 		    match e.eexpr with
 		    |TNew _-> (
+			add_feature ctx "use._hx_apply_self";
 			spr ctx "_hx_apply_self(";
 			gen_value ctx e;
 			print ctx ",\"%s\"" (field_name ef);
@@ -1811,7 +1812,7 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self";
 
 	if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
 	    println ctx "pcall(require, 'bit32') pcall(require, 'bit')";
@@ -1933,6 +1934,11 @@ let generate com =
 
 	if has_feature ctx "use._hx_print" then
 	    println ctx "_hx_print = print or (function() end)";
+
+	if has_feature ctx "use._hx_apply_self" then
+	    println ctx "_hx_apply_self = function(self, f, ...)";
+	    println ctx "  return self[f](self,...)";
+	    println ctx "end";
 
 
 	List.iter (generate_enumMeta_fields ctx) com.types;
