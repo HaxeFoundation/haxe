@@ -5409,6 +5409,7 @@ let write_code ch code =
 			write_type t
 		| OSwitch (r,pl,eend) ->
 			byte oid;
+			write_index r;
 			write_index (Array.length pl);
 			Array.iter write_index pl;
 			write_index eend
