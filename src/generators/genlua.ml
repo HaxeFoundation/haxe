@@ -731,7 +731,7 @@ and gen_expr ?(local=true) ctx e = begin
 		println ctx "end";
 		spr ctx "break end";
 	| TObjectDecl [] ->
-		spr ctx "_hx_empty()";
+		spr ctx "_hx_e()";
 		ctx.separator <- true
 	| TObjectDecl fields ->
 		spr ctx "_hx_o({__fields__={";
@@ -1496,7 +1496,7 @@ let generate_class ctx c =
 
 	newline ctx;
 	if (has_prototype ctx c) then begin
-		print ctx "%s.prototype = _hx_anon(" p;
+		print ctx "%s.prototype = _hx_a(" p;
 		let bend = open_block ctx in
 		newline ctx;
 		let count = ref 0 in
@@ -1669,14 +1669,14 @@ let generate_type_forward ctx = function
 		if not c.cl_extern then begin
 		    generate_package_create ctx c.cl_path;
 		    let p = s_path ctx c.cl_path in
-		    println ctx "%s = _hx_empty()" p;
+		    println ctx "%s = _hx_e()" p;
 		end
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		generate_package_create ctx e.e_path;
 		let p = s_path ctx e.e_path in
-		println ctx "%s = _hx_empty()" p;
+		println ctx "%s = _hx_e()" p;
 	| TTypeDecl _ | TAbstractDecl _ -> ()
 
 let set_current_class ctx c =
@@ -1787,7 +1787,7 @@ let generate com =
 
 	let rec print_obj f root = (
 		let path = root ^ (path_to_brackets f.os_name) in
-		print ctx "%s = %s or _hx_empty()" path path;
+		print ctx "%s = %s or _hx_e()" path path;
 		ctx.separator <- true;
 		newline ctx;
 		concat ctx ";" (fun g -> print_obj g path) f.os_fields
