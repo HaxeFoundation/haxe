@@ -3860,7 +3860,7 @@ and handle_display ctx e_ast iscall with_type =
 			f
 	in
 	match ctx.com.display with
-	| DMResolve _ ->
+	| DMResolve _ | DMPackage ->
 		assert false
 	| DMType ->
 		let t = match e.eexpr with

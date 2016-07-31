@@ -97,6 +97,7 @@ type display_mode =
 	| DMPosition
 	| DMToplevel
 	| DMResolve of string
+	| DMPackage
 	| DMType
 	| DMModuleSymbols
 	| DMDiagnostics
