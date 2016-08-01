@@ -36,6 +36,9 @@ extern class NativeArray {
    @:nativeStaticExtension
 	public static function reserve<T>( inArray:Array<T>,inElements:Int ) : Void { }
 
+   @:nativeStaticExtension
+	public static function capacity<T>( inArray:Array<T> ) : Int { }
+
 	public static inline function address<T>( inArray:Array<T>,inIndex:Int ) : Pointer<T> {
       return Pointer.arrayElem(inArray,inIndex);
    }
