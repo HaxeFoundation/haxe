@@ -1531,7 +1531,7 @@ and tcpp_to_string_suffix suffix tcpp = match tcpp with
    | TCppVoid -> "void"
    | TCppVoidStar -> "void *"
    | TCppVariant -> "::cpp::Variant"
-   | TCppEnum(enum) -> "::hx::EnumBase" ^ suffix
+   | TCppEnum(enum) -> " ::" ^ (join_class_path_remap enum.e_path "::") ^ suffix
    | TCppScalar(scalar) -> scalar
    | TCppString -> "::String"
    | TCppFastIterator it -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (tcpp_to_string it) ^ " >";
