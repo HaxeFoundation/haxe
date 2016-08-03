@@ -7025,7 +7025,7 @@ struct
 			Some(true) means collect only methods
 			Some(false) means collect only fields (and MethDynamic fields)
 	*)
-	let collect_fields cl (methods : bool option) (statics : bool option) =
+	let collect_fields cl (methods : bool option) =
 		let collected = Hashtbl.create 0 in
 		let collect cf acc =
 			if Meta.has Meta.CompilerGenerated cf.cf_meta || Meta.has Meta.SkipReflection cf.cf_meta then
@@ -7047,11 +7047,7 @@ struct
 			loop cfs acc
 		in
 		let rec loop cl acc =
-			let acc = match statics with
-				| None -> collect_cfs cl.cl_ordered_fields (collect_cfs cl.cl_ordered_statics acc)
-				| Some true -> collect_cfs cl.cl_ordered_statics acc
-				| Some false -> collect_cfs cl.cl_ordered_fields acc
-			in
+			let acc = collect_cfs cl.cl_ordered_fields acc in
 			match cl.cl_super with
 				| None -> acc
 				| Some(cl,_) ->
@@ -7918,7 +7914,7 @@ struct
 			in
 
 			(* if it is set function, there are some different set fields to do *)
-			let do_default, do_default_static , do_field, tf_args = if is_set then begin
+			let do_default, do_field, tf_args = if is_set then begin
 				let value_var = alloc_var "value" (if is_float then basic.tfloat else t_dynamic) in
 				let value_local = { eexpr = TLocal(value_var); etype = value_var.v_type; epos = pos } in
 				let tf_args = tf_args @ [value_var,None; handle_prop, None; ] in
@@ -7929,9 +7925,9 @@ struct
 							mk_return (mk_this_call_raw lookup_name (TFun(fun_args (field_args @ [value_var,None]),value_var.v_type)) ( List.map (fun (v,_) -> mk_local v pos) field_args @ [ value_local ] ))
 				in
 
-				let do_field cf cf_type is_static =
-					let get_field ethis = { eexpr = TField (ethis, if is_static then FStatic (cl, cf) else FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos } in
-					let this = if is_static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
+				let do_field cf cf_type =
+					let get_field ethis = { eexpr = TField (ethis, FInstance(cl, List.map snd cl.cl_params, cf)); etype = cf_type; epos = pos } in
+					let this = { eexpr = TConst(TThis); etype = t; epos = pos } in
 					let value_local = if is_float then match follow cf_type with
 						| TInst({ cl_kind = KTypeParameter _ }, _) ->
 							mk_cast t_dynamic value_local
@@ -7978,7 +7974,7 @@ struct
 							ret
 				in
 
-				(mk_do_default tf_args do_default, do_default, do_field, tf_args)
+				(mk_do_default tf_args do_default, do_field, tf_args)
 			end else begin
 				(* (field, isStatic, throwErrors, isCheck):Dynamic *)
 				let throw_errors = alloc_var "throwErrors" basic.tbool in
@@ -8029,19 +8025,19 @@ struct
 								{ eexpr = TField (this, FClosure(Some (cl,[]), cf)); etype = cf_type; epos = pos } (* TODO: FClosure change *)
 				in
 
-				let do_field cf cf_type static =
-					let this = if static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
+				let do_field cf cf_type =
+					let this = { eexpr = TConst(TThis); etype = t; epos = pos } in
 					match is_float, follow cf_type with
 						| true, TInst( { cl_kind = KTypeParameter _ }, _ ) ->
 							mk_return (mk_cast basic.tfloat (mk_cast t_dynamic (get_field cf cf_type this cl cf.cf_name)))
 						| _ ->
 							mk_return (maybe_cast (get_field cf cf_type this cl cf.cf_name ))
 				in
-				(mk_do_default tf_args do_default, do_default, do_field, tf_args)
+				(mk_do_default tf_args do_default, do_field, tf_args)
 			end in
 
-			let get_fields static =
-				let ret = collect_fields cl ( if is_float || is_set then Some (false) else None ) (Some static) in
+			let get_fields() =
+				let ret = collect_fields cl ( if is_float || is_set then Some (false) else None ) in
 				let ret = if is_set then List.filter (fun (_,cf) ->
 					match cf.cf_kind with
 					(* | Var { v_write = AccNever } -> false *)
@@ -8069,8 +8065,8 @@ struct
 			fun_type := TFun(List.map (fun (v,_) -> (v.v_name, false, v.v_type)) tf_args, if is_float then basic.tfloat else t_dynamic );
 			let has_fields = ref false in
 
-			let mk_switch static =
-				let fields = get_fields static in
+			let content =
+				let fields = get_fields() in
 				let fields = List.filter (fun (_, cf) -> match is_set, cf.cf_kind with
 					| true, Var { v_write = AccCall } -> true
 					| false, Var { v_read = AccCall } -> true
@@ -8079,14 +8075,12 @@ struct
 				(if fields <> [] then has_fields := true);
 				let cases = List.map (fun (names, cf) ->
 					(if names = [] then assert false);
-					(List.map (switch_case ctx pos) names, do_field cf cf.cf_type static)
+					(List.map (switch_case ctx pos) names, do_field cf cf.cf_type)
 				) fields in
-				let default = Some(if static then do_default_static() else do_default()) in
+				let default = Some(do_default()) in
 
-				{ eexpr = TSwitch(local_switch_var, cases, default); etype = basic.tvoid; epos = pos }
+				mk_block { eexpr = TSwitch(local_switch_var, cases, default); etype = basic.tvoid; epos = pos }
 			in
-
-			let content = mk_block (mk_switch false) in
 
 			let is_override = match cl.cl_super with
 				| Some (cl, _) when is_hxgen (TClassDecl cl) -> true
@@ -8230,7 +8224,7 @@ struct
 					None
 			in
 
-			let expr_contents = map_fields (collect_fields cl (Some false) (Some false)) in
+			let expr_contents = map_fields (collect_fields cl (Some false)) in
 			let expr_contents = expr_contents @ (if is_some if_not_inst then [ get if_not_inst ] else []) in
 
 			let expr =
@@ -8400,7 +8394,7 @@ struct
 		in
 
 		let contents =
-			let nonstatics = collect_fields cl (Some true) (Some false) in
+			let nonstatics = collect_fields cl (Some true) in
 
 			let old_nonstatics = ref [] in
 
