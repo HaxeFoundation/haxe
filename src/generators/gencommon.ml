@@ -8662,12 +8662,9 @@ struct
 					match md with
 						| TClassDecl ( { cl_interface = true } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 							cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-						| TClassDecl ({ cl_kind = KAbstractImpl _ } as cl) ->
-							(*
-								TODO: probably here is not the best place to add @:final to KAbstractImpl, also:
-								Doesn't it make sense to add @:final to KAbstractImpls on all platforms?
-							*)
-							if not (Meta.has Meta.Final cl.cl_meta) then cl.cl_meta <- (Meta.Final, [], cl.cl_pos) :: cl.cl_meta
+						| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
+							(* don't add any base classes to abstract implementations *)
+							()
 						| TClassDecl ( { cl_super = None } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
 							if is_some cl.cl_dynamic then
 								cl.cl_super <- Some (basedynamic,[])
