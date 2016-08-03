@@ -606,13 +606,13 @@ and gen_classes =
 and gen_tools =
 {
 	(* (klass : texpr, t : t) : texpr *)
-	mutable r_create_empty : texpr->t->texpr;
+	r_create_empty : texpr->t->texpr;
 	(* Reflect.fields(). The bool is if we are iterating in a read-only manner. If it is read-only we might not need to allocate a new array *)
-	mutable r_fields : bool->texpr->texpr;
+	r_fields : bool->texpr->texpr;
 	(* (first argument = return type. should be void in most cases) Reflect.setField(obj, field, val) *)
-	mutable r_set_field : t->texpr->texpr->texpr->texpr;
+	r_set_field : t->texpr->texpr->texpr->texpr;
 	(* Reflect.field. bool indicates if is safe (no error throwing) or unsafe; t is the expected return type true = safe *)
-	mutable r_field : bool->t->texpr->texpr->texpr;
+	r_field : bool->t->texpr->texpr->texpr;
 
 	(*
 		these are now the functions that will later be used when creating the reflection classes
@@ -8298,149 +8298,6 @@ struct
 			cf.cf_expr <- Some { eexpr = TFunction(fn); etype = t; epos = pos }
 		in
 		ignore fields
-
-	let implement_class_methods ctx cl =
-		ctx.rcf_class_cl <- Some cl;
-
-		let pos = cl.cl_pos in
-		let gen = ctx.rcf_gen in
-		let basic = gen.gcon.basic in
-		(*
-			fields -> redirected to classFields
-			getField -> redirected to getField with isStatic true
-			setField -> isStatic true
-			invokeField -> isStatic true
-			getClass -> null
-			create -> proxy
-			createEmpty -> proxy
-		*)
-		let is_override = is_override cl in
-		let name = "classProxy" in
-		let t = (TInst(ctx.rcf_object_iface,[])) in
-		(* let cf = mk_class_field name t false pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in *)
-		let register_cf cf override =
-			cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
-			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-			if override then cl.cl_overrides <- cf :: cl.cl_overrides
-		in
-		(* register_cf cf false; *)
-
-		let this_t = TInst(cl, List.map snd cl.cl_params) in
-		let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
-		let mk_this field t = { (mk_field_access gen this field pos) with etype = t } in
-		let proxy = mk_this name t in
-
-		(*let ctor =
-			let cls = alloc_var "cls" t in
-			let tf_args = [cls, None] in
-			let t = TFun(fun_args tf_args, basic.tvoid) in
-			let cf = mk_class_field "new" t true pos (Method MethNormal) [] in
-			cf.cf_expr <- Some({
-				eexpr = TFunction({
-					tf_args = tf_args;
-					tf_type = basic.tvoid;
-					tf_expr = mk_block {
-						eexpr = TBinop(Ast.OpAssign, proxy, mk_local cls pos);
-						etype = cls.v_type;
-						epos = pos;
-					}
-				});
-				etype = t;
-				epos = pos;
-			});
-			cf
-		in
-		register_cf ctor false;*)
-
-		(* setting it as DynamicObject makes getClass return null *)
-		let get_class =
-			cl.cl_meta <- (Meta.DynamicObject, [], pos) :: cl.cl_meta
-		in
-		ignore get_class;
-
-		(* fields -> if isInstanceField, redir the method. If not, return classFields *)
-		let fields =
-			let name = gen.gmk_internal_name "hx" "getFields" in
-			let v_base_arr, v_is_inst = alloc_var "baseArr" (basic.tarray basic.tstring), alloc_var "isInstanceFields" basic.tbool in
-			let base_arr, is_inst = mk_local v_base_arr pos, mk_local v_is_inst pos in
-
-			let tf_args = [ v_base_arr,None; v_is_inst, None ] in
-			let t = TFun(fun_args tf_args, basic.tvoid) in
-			let cf = mk_class_field name t false pos (Method MethNormal) [] in
-			cf.cf_expr <- Some({
-				eexpr = TFunction({
-					tf_args = tf_args;
-					tf_type = basic.tvoid;
-					tf_expr = mk_block {
-						eexpr = TIf(is_inst,
-							{ eexpr = TCall( { (mk_field_access gen proxy name pos) with etype = t }, [base_arr;is_inst]); etype = basic.tvoid; epos = pos },
-							Some { eexpr = TCall(mk_this (gen.gmk_internal_name "hx" "classFields") (TFun(["baseArr",false,basic.tarray basic.tstring], basic.tvoid)), [base_arr]); etype = basic.tvoid; epos = pos });
-						etype = basic.tvoid;
-						epos = pos
-					}
-				});
-				etype = t;
-				epos = pos;
-			});
-			cf
-		in
-		register_cf fields (is_override);
-
-		let do_proxy field tf_args ret is_static_argnum =
-			let field = gen.gmk_internal_name "hx" field in
-			let t = TFun(fun_args tf_args, ret) in
-			let cf = mk_class_field field t false pos (Method MethNormal) [] in
-			let is_void = ExtType.is_void ret in
-			let may_return e = if is_void then mk_block e else mk_block (mk_return e) in
-			let i = ref 0 in
-			cf.cf_expr <- Some({
-				eexpr = TFunction({
-					tf_args = tf_args;
-					tf_type = ret;
-					tf_expr = may_return {
-						eexpr = TCall(
-							{ (mk_field_access gen proxy field pos) with etype = t },
-							List.map (fun (v,_) ->
-								let lasti = !i in
-								incr i;
-								if lasti = is_static_argnum then
-									{ eexpr = TConst(TBool true); etype = basic.tbool; epos = pos }
-								else
-									mk_local v pos
-							) tf_args);
-						etype = ret;
-						epos = pos
-					}
-				});
-				etype = t;
-				epos = pos;
-			});
-			cf
-		in
-
-		(* getClassFields -> redir *)
-		register_cf (do_proxy "classFields" [ alloc_var "baseArr" (basic.tarray basic.tstring), None ] basic.tvoid (-1)) true;
-
-		(*register_cf (do_proxy "classFields" [ alloc_var "baseArr" (basic.tarray basic.tstring), None ] basic.tvoid (-1)) true;*)
-
-		let fst_args, _ = field_type_args ctx pos in
-		let fst_args_len = List.length fst_args in
-
-		(* getField -> redir the method with static = true *)
-		(* setField -> redir the methods with static = true *)
-		(if ctx.rcf_float_special_case then
-			register_cf (do_proxy "getField_f" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "throwErrors" basic.tbool, None ]) basic.tfloat fst_args_len) true;
-			register_cf (do_proxy "setField_f" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "value" basic.tfloat, None ]) basic.tfloat fst_args_len) true
-		);
-		register_cf (do_proxy "getField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "throwErrors" basic.tbool, None; alloc_var "isCheck" basic.tbool, None; alloc_var "handleProperties" basic.tbool,None; ]) t_dynamic fst_args_len) true;
-		register_cf (do_proxy "setField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "value" t_dynamic, None; alloc_var "handleProperties" basic.tbool,None; ]) t_dynamic fst_args_len) true;
-
-		(* invokeField -> redir the method with static = true *)
-		register_cf (do_proxy "invokeField" (fst_args @ [ alloc_var "isStatic" basic.tbool, None; alloc_var "dynArgs" (basic.tarray t_dynamic), None ]) t_dynamic fst_args_len) true;
-
-		(* create / createEmpty -> redir the method *)
-		register_cf (do_proxy "create" [ alloc_var "arr" (basic.tarray t_dynamic), None ] t_dynamic (-1)) true;
-		register_cf (do_proxy "createEmpty" [ ] t_dynamic (-1)) true
 
 
 	let implement_invokeField ctx ~slow_invoke cl =
