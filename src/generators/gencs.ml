@@ -2810,8 +2810,6 @@ let configure gen =
 
 	IteratorsInterface.configure gen (fun e -> e);
 
-	OverrideFix.configure gen;
-
 	ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
 
 	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
