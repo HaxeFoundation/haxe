@@ -204,9 +204,6 @@ let anon_class t =
 					| _ -> None)
 			| _ -> None
 
-let path_s path =
-	match path with | ([], s) -> s | (p, s) -> (String.concat "." (fst path)) ^ "." ^ (snd path)
-
  let rec t_to_md t = match t with
 	| TInst (cl,_) -> TClassDecl cl
 	| TEnum (e,_) -> TEnumDecl e
@@ -222,9 +219,9 @@ let path_s path =
 	| TMono r -> (match !r with | Some t -> t_to_md t | None -> assert false)
 	| _ -> assert false
 
-let get_cl mt = match mt with | TClassDecl cl -> cl | _ -> failwith (Printf.sprintf "Unexpected module type (class expected) for %s: %s" (path_s (t_path mt)) (s_module_type_kind mt))
+let get_cl mt = match mt with | TClassDecl cl -> cl | _ -> failwith (Printf.sprintf "Unexpected module type (class expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
 
-let get_abstract mt = match mt with | TAbstractDecl a -> a | _ -> failwith (Printf.sprintf "Unexpected module type (abstract expected) for %s: %s" (path_s (t_path mt)) (s_module_type_kind mt))
+let get_abstract mt = match mt with | TAbstractDecl a -> a | _ -> failwith (Printf.sprintf "Unexpected module type (abstract expected) for %s: %s" (s_type_path (t_path mt)) (s_module_type_kind mt))
 
 let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
 
@@ -249,7 +246,7 @@ let mk_static_field_access_infer cl field pos params =
 	try
 		let cf = (PMap.find field cl.cl_statics) in
 		{ eexpr = TField(mk_classtype_access cl pos, FStatic(cl, cf)); etype = (if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type); epos = pos }
-	with | Not_found -> failwith ("Cannot find field " ^ field ^ " in type " ^ (path_s cl.cl_path))
+	with | Not_found -> failwith ("Cannot find field " ^ field ^ " in type " ^ (s_type_path cl.cl_path))
 
 let mk_static_field_access cl field fieldt pos =
 	{ (mk_static_field_access_infer cl field pos []) with etype = fieldt }
@@ -6697,7 +6694,7 @@ struct
 						| _ ->
 							gen.gcon.warning (debug_type et) e.epos;
 							(match gen.gcurrent_class with
-								| Some cl -> print_endline (path_s cl.cl_path)
+								| Some cl -> print_endline (s_type_path cl.cl_path)
 								| _ -> ());
 							assert false
 					in

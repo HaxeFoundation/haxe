@@ -221,7 +221,7 @@ struct
 
 		let is_var = alloc_var "__is__" t_dynamic in
 		let name () = match gen.gcurrent_class with
-			| Some cl -> path_s cl.cl_path
+			| Some cl -> s_type_path cl.cl_path
 			| _ -> ""
 		in
 
@@ -424,7 +424,7 @@ struct
 
 		let is_cl t = match gen.greal_type t with | TInst ( { cl_path = (["System"], "Type") }, [] ) -> true | _ -> false in
 		let name () = match gen.gcurrent_class with
-			| Some cl -> path_s cl.cl_path
+			| Some cl -> s_type_path cl.cl_path
 			| _ -> ""
 		in
 
@@ -817,7 +817,7 @@ let configure gen =
 	let rec field_is_hxgeneric e = match e.eexpr with
 		| TParenthesis e | TMeta(_,e) -> field_is_hxgeneric e
 		| TField(_, (FStatic(cl,_) | FInstance(cl,_,_)) ) ->
-			(* print_endline ("is_hxgeneric " ^ path_s cl.cl_path ^ " : " ^ string_of_bool (is_hxgeneric (TClassDecl cl))); *)
+			(* print_endline ("is_hxgeneric " ^ s_type_path cl.cl_path ^ " : " ^ string_of_bool (is_hxgeneric (TClassDecl cl))); *)
 			is_hxgeneric (TClassDecl cl)
 		| _ -> true
 	in
@@ -863,10 +863,10 @@ let configure gen =
 		let path = (t_infos md).mt_path in
 		match path with
 			| ([], "String") -> "string", params
-			| ([], "Null") -> path_s (change_ns md ["haxe"; "lang"], change_clname "Null"), params
+			| ([], "Null") -> s_type_path (change_ns md ["haxe"; "lang"], change_clname "Null"), params
 			| (ns,clname) ->
 				let ns, params = change_ns_params md params ns in
-				path_s (ns, change_clname clname), params
+				s_type_path (ns, change_clname clname), params
 	in
 
 	let module_s md =
@@ -2044,7 +2044,7 @@ let configure gen =
 			| "new" -> snd cl.cl_path, true, false
 			| name when String.contains name '.' ->
 				let fn_name, path = parse_explicit_iface name in
-				(path_s path) ^ "." ^ fn_name, false, true
+				(s_type_path path) ^ "." ^ fn_name, false, true
 			| name -> try
 				let binop = PMap.find name binops_names in
 				"operator " ^ s_binop binop, false, false
@@ -3342,7 +3342,7 @@ let configure gen =
 	if not (Common.defined gen.gcon Define.KeepOldOutput) then
 		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
 
-	dump_descriptor gen ("hxcs_build.txt") path_s module_s;
+	dump_descriptor gen ("hxcs_build.txt") s_type_path module_s;
 	if ( not (Common.defined gen.gcon Define.NoCompilation) ) then begin
 		let old_dir = Sys.getcwd() in
 		Sys.chdir gen.gcon.file;
@@ -3379,7 +3379,7 @@ let generate con =
 		List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
 		configure gen
 	with | TypeNotFound path ->
-		con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")	Ast.null_pos);
+		con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.")	Ast.null_pos);
 	debug_mode := false
 
 (* -net-lib implementation *)
@@ -3527,7 +3527,7 @@ let rec convert_signature ctx p = function
 	| _ -> mk_type_path ctx ([],[], "Dynamic") []
 
 let ilpath_s = function
-	| ns,[], name -> path_s (ns,name)
+	| ns,[], name -> s_type_path (ns,name)
 	| [],nested,name -> String.concat "." nested ^ "." ^ name
 	| ns, nested, name -> String.concat "." ns ^ "." ^ String.concat "." nested ^ "." ^ name
 
@@ -4452,7 +4452,7 @@ let add_net_lib com file std =
 			Hashtbl.iter (fun _ td ->
 				let path = IlMetaTools.get_path (TypeDef td) in
 				if PMap.mem "net_loader_debug" com.defines then
-					Printf.printf "found %s\n" (path_s (netpath_to_hx path));
+					Printf.printf "found %s\n" (s_type_path (netpath_to_hx path));
 				Hashtbl.replace com.net_path_map (netpath_to_hx path) path;
 				Hashtbl.replace meta.il_typedefs path td
 			) il_typedefs;
@@ -4484,12 +4484,12 @@ let add_net_lib com file std =
 	in
 
 	let build path =
-		let p = { pfile = !real_file ^ " @ " ^ path_s path; pmin = 0; pmax = 0; } in
+		let p = { pfile = !real_file ^ " @ " ^ s_type_path path; pmin = 0; pmax = 0; } in
 		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 		let cp = ref [] in
 		let rec build path = try
 			if PMap.mem "net_loader_debug" com.defines then
-				Printf.printf "looking up %s\n" (path_s path);
+				Printf.printf "looking up %s\n" (s_type_path path);
 			match lookup path with
 			| Some({csuper = Some{snorm = LClass( (["System"],[],("Delegate"|"MulticastDelegate")),_)}} as cls)
 				when List.mem SSealed cls.cflags.tdf_semantics ->

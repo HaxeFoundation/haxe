@@ -945,7 +945,7 @@ let configure gen =
 					pack ^ "." ^ name
 			| _ -> raise Not_found
 		with Not_found -> match path with
-			| (ns,clname) -> path_s (change_ns ns, change_clname clname)
+			| (ns,clname) -> s_type_path (change_ns ns, change_clname clname)
 	in
 
 	let cl_cl = get_cl (get_type gen (["java";"lang"],"Class")) in
@@ -2565,7 +2565,7 @@ let generate con =
 
 	(try
 		configure gen
-	with | TypeNotFound path -> con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")	Ast.null_pos);
+	with | TypeNotFound path -> con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.")	Ast.null_pos);
 	debug_mode := false
 
 (** Java lib *)
@@ -2614,7 +2614,7 @@ let jpath_to_hx (pack,name) = match pack, name with
 	| pack, name -> normalize_pack pack, jname_to_hx name
 
 let real_java_path ctx (pack,name) =
-	path_s (pack, name)
+	s_type_path (pack, name)
 
 let lookup_jclass com path =
 	let path = jpath_to_hx path in
@@ -2831,7 +2831,7 @@ let convert_java_enum ctx p pe =
 		List.iter (fun jsig ->
 			match convert_signature ctx p jsig with
 				| CTPath path ->
-					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (path_s (path.tpackage,path.tname))), p],p) :: !cff_meta
+					cff_meta := (Meta.Throws, [Ast.EConst (Ast.String (s_type_path (path.tpackage,path.tname))), p],p) :: !cff_meta
 				| _ -> ()
 		) field.jf_throws;
 
@@ -3132,7 +3132,7 @@ let jclass_with_params com cls params = try
 			cinterfaces = List.map (japply_params jparams) cls.cinterfaces;
 		}
 	with Invalid_argument("List.map2") ->
-		if com.verbose then prerr_endline ("Differing parameters for class: " ^ path_s cls.cpath);
+		if com.verbose then prerr_endline ("Differing parameters for class: " ^ s_type_path cls.cpath);
 		cls
 
 let is_object = function | TObject( (["java";"lang"], "Object"), [] ) -> true | _ -> false
@@ -3573,7 +3573,7 @@ let add_java_lib com file std =
 						if is_disallowed_inner then
 							None
 						else begin
-							if com.verbose then print_endline ("Parsed Java class " ^ (path_s cls.cpath));
+							if com.verbose then print_endline ("Parsed Java class " ^ (s_type_path cls.cpath));
 							let old_types = ctx.jtparams in
 							ctx.jtparams <- cls.ctypes :: ctx.jtparams;
 
