@@ -30,7 +30,7 @@ import cs.Lib;
 import cs.system.Object;
 import cs.system.reflection.*;
 
-@:keep @:coreApi class Reflect {
+@:coreApi class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
@@ -40,6 +40,7 @@ import cs.system.reflection.*;
 		return Runtime.slowHasField(o,field);
 	}
 
+	@:keep
 	public static function field( o : Dynamic, field : String ) : Dynamic
 	{
 		var ihx:IHxObject = Lib.as(o,IHxObject);
@@ -48,6 +49,7 @@ import cs.system.reflection.*;
 		return Runtime.slowGetField(o,field,false);
 	}
 
+	@:keep
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
 	{
 		var ihx:IHxObject = Lib.as(o,IHxObject);
@@ -84,6 +86,7 @@ import cs.system.reflection.*;
 		return untyped cast(func, Function).__hx_invokeDynamic(args);
 	}
 
+	@:keep
 	public static function fields( o : Dynamic ) : Array<String>
 	{
 		var ihx = Lib.as(o,IHxObject);
