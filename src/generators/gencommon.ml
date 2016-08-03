@@ -231,7 +231,9 @@ let mk_local = Codegen.ExprBuilder.make_local
 
 (* this function is used by CastDetection module *)
 let get_fun t =
-	match follow t with | TFun(r1,r2) -> (r1,r2) | _ -> (trace (s_type (print_context()) (follow t) )); assert false
+	match follow t with
+	| TFun(r1,r2) -> (r1,r2)
+	| t -> (trace (debug_type t)); assert false
 
 let mk_cast t e = Type.mk_cast e t e.epos
 
