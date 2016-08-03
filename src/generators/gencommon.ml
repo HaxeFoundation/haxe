@@ -195,14 +195,14 @@ let anon_of_mt mt = match mt with
 	| _ -> assert false
 
 let anon_class t =
-		match follow t with
-			| TAnon anon ->
-				(match !(anon.a_status) with
-					| Statics (cl) -> Some(TClassDecl(cl))
-					| EnumStatics (e) -> Some(TEnumDecl(e))
-					| AbstractStatics (a) -> Some(TAbstractDecl(a))
-					| _ -> None)
-			| _ -> None
+	match follow t with
+	| TAnon anon ->
+		(match !(anon.a_status) with
+		| Statics cl -> Some(TClassDecl cl)
+		| EnumStatics e -> Some(TEnumDecl e)
+		| AbstractStatics a -> Some(TAbstractDecl a)
+		| _ -> None)
+	| _ -> None
 
  let rec t_to_md t = match t with
 	| TInst (cl,_) -> TClassDecl cl
