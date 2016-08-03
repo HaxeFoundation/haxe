@@ -1602,8 +1602,9 @@ end;;
 	static function. The static function will receive the same parameters as the constructor,
 	plus the special "me" var, which will replace "this"
 
-	Then it always adds two constructors to the function: one that receives a special class,
-	indicating that it should be constructed without any parameters, and one that receives its normal constructor.
+	Then it always adds two constructors to the class: one that receives a special marker class,
+	indicating that the object should be constructed without executing constructor body,
+	and one that executes its normal constructor.
 	Both will only include a super() call to the superclasses' emtpy constructor.
 
 
@@ -1856,8 +1857,7 @@ struct
 			| None -> ()
 			| Some e -> Type.iter loop e
 
-		(* major restructring made at r6493 *)
-		let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) ~supports_ctor_inheritance gen =
+		let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 			set_new_create_empty gen empty_ctor_expr;
 
 			let basic = gen.gcon.basic in
@@ -1893,8 +1893,6 @@ struct
 						| Some ctor -> ctor
 						| None -> try
 							let sctor, sup, stl = prev_ctor cl (List.map snd cl.cl_params) in
-							(* we have a previous constructor. if we support inheritance, exit *)
-							if supports_ctor_inheritance then raise Exit;
 							(* we'll make constructors that will only call super() *)
 							let ctor = clone_ctors gen sctor sup stl cl in
 							cl.cl_constructor <- Some ctor;
@@ -1942,7 +1940,6 @@ struct
 								[]
 						| Some (sup,_) -> try
 							ignore (get_last_empty sup);
-							if supports_ctor_inheritance && is_none cl.cl_constructor then raise Exit;
 							[{
 								eexpr = TCall(
 									{ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = cl.cl_pos },
