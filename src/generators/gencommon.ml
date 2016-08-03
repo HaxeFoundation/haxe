@@ -10494,9 +10494,7 @@ struct
 		let rec traverse e =
 			match e.eexpr with
 				| TBlock bl ->
-					let bl = List.map (fun e ->
-						take_off_cast traverse e
-					) bl in
+					let bl = List.map (take_off_cast traverse) bl in
 					{ e with eexpr = TBlock bl }
 				| TTry (block, catches) ->
 					{ e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
