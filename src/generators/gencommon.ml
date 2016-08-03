@@ -8136,119 +8136,85 @@ struct
 
 
 	let implement_fields ctx cl =
-		(*
-			implement two kinds of fields get:
-				classFields
-				generic 'fields': receives a parameter isInstance
-					will receive an Array<String> and start pushing the fields into it.
-					//add all common fields
-					if(isInstance)
-					{
-						//add methods
-					} else {
-						super.fields(isInstance, array);
-					}
-		*)
 		let gen = ctx.rcf_gen in
 		let basic = gen.gcon.basic in
 		let pos = cl.cl_pos in
 
-		let fields =
-			(*
-				function __hx_fields(baseArr:Array<String>, isInstanceFields:Bool)
-				{
-					//add all variable fields
-					//then:
-					if (isInstanceFields)
-					{
-						//add all method fields as well
-					} else {
-						super.__hx_fields(baseArr, isInstanceFields);
-					}
-				}
-			*)
-			let name = gen.gmk_internal_name "hx" "getFields" in
-			let v_base_arr, v_is_inst = alloc_var "baseArr" (basic.tarray basic.tstring), alloc_var "isInstanceFields" basic.tbool in
-			let base_arr, is_inst = mk_local v_base_arr pos, mk_local v_is_inst pos in
+		(*
+			function __hx_getFields(baseArr:Array<String>)
+			{
+				//add all variable fields
+				//then:
+				super.__hx_fields(baseArr);
+			}
+		*)
+		let name = gen.gmk_internal_name "hx" "getFields" in
+		let v_base_arr = alloc_var "baseArr" (basic.tarray basic.tstring) in
+		let base_arr = mk_local v_base_arr pos in
 
-			let tf_args = [(v_base_arr,None)] in
-			let t = TFun(fun_args tf_args, basic.tvoid) in
-			let cf = mk_class_field name t false pos (Method MethNormal) [] in
+		let tf_args = [(v_base_arr,None)] in
+		let t = TFun(fun_args tf_args, basic.tvoid) in
+		let cf = mk_class_field name t false pos (Method MethNormal) [] in
 
-			let mk_push value =
-				{ eexpr = TCall({ (mk_field_access gen base_arr "push" pos) with etype = TFun(["x", false, basic.tstring], basic.tint); }, [value] ); etype = basic.tint; epos = pos }
-			in
+		let mk_push value =
+			{ eexpr = TCall({ (mk_field_access gen base_arr "push" pos) with etype = TFun(["x", false, basic.tstring], basic.tint); }, [value] ); etype = basic.tint; epos = pos }
+		in
 
-			let has_value = ref false in
-			let map_fields =
-				List.map (fun (_,cf) ->
-					match cf.cf_kind with
-						| Var _
-						| Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
-							has_value := true;
-							mk_push { eexpr = TConst(TString(cf.cf_name)); etype = basic.tstring; epos = pos }
-						| _ -> null basic.tvoid pos
-				)
-			in
+		let has_value = ref false in
+		let map_fields =
+			List.map (fun (_,cf) ->
+				match cf.cf_kind with
+					| Var _
+					| Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
+						has_value := true;
+						mk_push { eexpr = TConst(TString(cf.cf_name)); etype = basic.tstring; epos = pos }
+					| _ -> null basic.tvoid pos
+			)
+		in
 
-			(*
-				if it is first_dynamic, then we need to enumerate the dynamic fields
-			*)
-			let if_not_inst = if is_some cl.cl_dynamic && is_first_dynamic cl then begin
+		(*
+			if it is first_dynamic, then we need to enumerate the dynamic fields
+		*)
+		let if_not_inst =
+			if is_some cl.cl_dynamic && is_first_dynamic cl then begin
 				has_value := true;
 				Some (enumerate_dynamic_fields ctx cl mk_push)
 			end else
 				None
-			in
-
-			let if_not_inst = if is_override cl then
-				Some(
-					{
-						eexpr = TBlock(
-							(if is_some if_not_inst then get if_not_inst else []) @
-							[{
-								eexpr = TCall(
-									{ eexpr = TField({ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = pos }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = t; epos = pos },
-									[base_arr]
-								);
-								etype = basic.tvoid;
-								epos = pos
-							}]
-						);
-						etype = basic.tvoid;
-						epos = pos
-					}
-				) else if is_some if_not_inst then
-					Some({ eexpr = TBlock(get if_not_inst); etype = basic.tvoid; epos = pos })
-				else
-					None
-			in
-
-			let expr_contents = map_fields (collect_fields cl (Some false)) in
-			let expr_contents = expr_contents @ (if is_some if_not_inst then [ get if_not_inst ] else []) in
-
-			let expr =
-			{
-				eexpr = TBlock( expr_contents );
-				etype = basic.tvoid;
-				epos = pos;
-			} in
-
-			let fn =
-			{
-				tf_args = tf_args;
-				tf_type = basic.tvoid;
-				tf_expr = expr
-			} in
-
-			(if !has_value || (not (is_override cl)) then begin
-				cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
-				cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-				(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
-			end);
-			cf.cf_expr <- Some { eexpr = TFunction(fn); etype = t; epos = pos }
 		in
-		ignore fields
+
+		let if_not_inst =
+			if is_override cl then
+				(if is_some if_not_inst then get if_not_inst else []) @
+				[{
+					eexpr = TCall(
+						{ eexpr = TField({ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = pos }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = t; epos = pos },
+						[base_arr]
+					);
+					etype = basic.tvoid;
+					epos = pos
+				}]
+			else if is_some if_not_inst then
+				get if_not_inst
+			else
+				[]
+		in
+
+		let expr_contents = map_fields (collect_fields cl (Some false)) @ if_not_inst in
+
+		let fn =
+		{
+			tf_args = tf_args;
+			tf_type = basic.tvoid;
+			tf_expr = mk (TBlock expr_contents) basic.tvoid pos
+		} in
+
+		(if !has_value || (not (is_override cl)) then begin
+			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
+			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
+			(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
+		end);
+		cf.cf_expr <- Some { eexpr = TFunction(fn); etype = t; epos = pos }
 
 
 	let implement_invokeField ctx ~slow_invoke cl =
@@ -8756,7 +8722,7 @@ struct
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
-				(if not (PMap.mem (gen.gmk_internal_name "hx" "classFields") cl.cl_fields) then implement_fields ctx cl);
+				(if not (PMap.mem (gen.gmk_internal_name "hx" "getFields") cl.cl_fields) then implement_fields ctx cl);
 				(if not cl.cl_interface && not (PMap.mem (gen.gmk_internal_name "hx" "create") cl.cl_fields) then implement_create_empty ctx cl);
 				None
 			| _ -> None)
