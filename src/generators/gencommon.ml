@@ -6959,25 +6959,10 @@ struct
 		rcf_gen : generator_ctx;
 		rcf_ft : ClosuresToClass.closures_ctx;
 		rcf_optimize : bool;
-		mutable rcf_float_special_case : bool;
 
-		mutable rcf_object_iface : tclass;
+		rcf_object_iface : tclass;
 
-		mutable rcf_create_getsetinvoke_fields : bool;
-		(* should we create the get type (get Class)? *)
-		mutable rcf_create_get_type : bool;
-		(* should we handle implements dynamic? *)
-		mutable rcf_handle_impl_dynamic : bool;
-		(*
-			create_dyn_overloading_ctor :
-				when creating the implements dynamic code, we can also create a special constructor for
-				the actual DynamicObject class, which will receive all its <implements Dynamic> fields from the code outside.
-				Note that this will only work on targets that support overloading contrstuctors, as any class that extends
-				our DynamicObject will have an empty super() call
-		*)
-		mutable rcf_create_dyn_ctor : bool;
-
-		mutable rcf_max_func_arity : int;
+		rcf_max_func_arity : int;
 
 		(*
 			the hash lookup function. can be an inlined expr or simply a function call.
@@ -6986,29 +6971,15 @@ struct
 
 			hash->hash_array->length->returning expression
 		*)
-		mutable rcf_hash_function : texpr->texpr->texpr->texpr;
+		rcf_hash_function : texpr->texpr->texpr->texpr;
 
-		mutable rcf_lookup_function : texpr->texpr;
-
-		(* hash_array->length->pos->value *)
-		mutable rcf_insert_function : texpr->texpr->texpr->texpr->texpr;
+		rcf_lookup_function : texpr->texpr;
 
 		(* hash_array->length->pos->value *)
-		mutable rcf_remove_function : texpr->texpr->texpr->texpr;
+		rcf_insert_function : texpr->texpr->texpr->texpr->texpr;
 
-		(*
-			class_cl is the real class for Class<> instances.
-			In the current implementation, due to some targets' limitations, (in particular, Java),
-			we have to use an empty object so we can access its virtual mehtods.
-			FIXME find a better way to create Class<> objects in a performant way
-		*)
-		mutable rcf_class_cl : tclass option;
-		(*
-			Also about the Class<> type, should we crate all classes eagerly?
-			If false, it means that we should have a way at runtime to create the class when needed by
-			Type.resolveClass/Enum
-		*)
-		mutable rcf_class_eager_creation : bool;
+		(* hash_array->length->pos->value *)
+		rcf_remove_function : texpr->texpr->texpr->texpr;
 
 		rcf_hash_fields : (int, string) Hashtbl.t;
 
@@ -7019,9 +6990,9 @@ struct
 
 			Changes a get / set field to the runtime resolution function
 		*)
-		mutable rcf_on_getset_field : texpr->texpr->string->int32 option->texpr option->bool->texpr;
+		rcf_on_getset_field : texpr->texpr->string->int32 option->texpr option->bool->texpr;
 
-		mutable rcf_on_call_field : texpr->texpr->string->int32 option->texpr list->texpr;
+		rcf_on_call_field : texpr->texpr->string->int32 option->texpr list->texpr;
 	}
 
 	let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function =
@@ -7031,15 +7002,7 @@ struct
 
 			rcf_optimize = optimize;
 
-			rcf_float_special_case = true;
-
 			rcf_object_iface = object_iface;
-
-			rcf_create_getsetinvoke_fields = true;
-			rcf_create_get_type = true;
-
-			rcf_handle_impl_dynamic = true;
-			rcf_create_dyn_ctor = true;
 
 			rcf_max_func_arity = 10;
 
@@ -7048,9 +7011,6 @@ struct
 
 			rcf_insert_function = insert_function;
 			rcf_remove_function = remove_function;
-
-			rcf_class_cl = None;
-			rcf_class_eager_creation = false;
 
 			rcf_hash_fields = Hashtbl.create 100;
 			rcf_hash_paths = Hashtbl.create 100;
@@ -8152,10 +8112,10 @@ struct
 				(if is_override then cl.cl_overrides <- cfield	:: cl.cl_overrides)
 			end else ()
 		in
-		(if ctx.rcf_float_special_case then mk_cfield true true);
+		mk_cfield true true;
 		mk_cfield true false;
 		mk_cfield false false;
-		(if ctx.rcf_float_special_case then mk_cfield false true)
+		mk_cfield false true
 
 	let mk_field_access_r ctx pos local field is_float is_static throw_errors set_option =
 		let is_set = is_some set_option in
