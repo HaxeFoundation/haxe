@@ -1442,11 +1442,6 @@ let mk_field_access gen expr field pos =
 				{ eexpr = TField(expr, FDynamic field); etype = t_dynamic; epos = pos }
 		| FEnumField _ -> assert false
 
-let mk_iterator_access gen t expr =
-	let pos = expr.epos in
-	let itf = mk_field_access gen expr "iterator" pos in
-	{ eexpr = TCall(itf, []); epos = pos; etype = snd (get_fun itf.etype) }
-
 (* ******************************************* *)
 (* Module dependency resolution *)
 (* ******************************************* *)
