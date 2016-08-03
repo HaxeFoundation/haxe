@@ -230,11 +230,6 @@ let get_tdef mt = match mt with | TTypeDecl t -> t | _ -> assert false
 
 let mk_mt_access mt pos = { eexpr = TTypeExpr(mt); etype = anon_of_mt mt; epos = pos }
 
-let is_void t = match follow t with
-	| TAbstract ({ a_path = ([], "Void") },[]) ->
-			true
-	| _ -> false
-
 let mk_local = Codegen.ExprBuilder.make_local
 
 (* this function is used by CastDetection module *)
@@ -2969,7 +2964,7 @@ struct
 			etype = ret;
 			epos = e.epos;
 		} in
-		let body = if not (is_void ret) then
+		let body = if not (ExtType.is_void ret) then
 			{ body with eexpr = TReturn( Some body ) }
 		else
 			body
@@ -3298,7 +3293,7 @@ struct
 						etype = tfunc.tf_type;
 						epos = pos
 					} in
-					let ibody = if not (is_void tfunc.tf_type) then
+					let ibody = if not (ExtType.is_void tfunc.tf_type) then
 						{ ibody with eexpr = TReturn( Some ibody ) }
 					else
 						ibody
@@ -3611,7 +3606,7 @@ struct
 						let is_dynamic_func = arity >= max_arity in
 						let ret_t = if is_dynamic_func then t_dynamic else ret_t in
 
-						(TFun(args_real_to_func_sig _sig, ret_t), arity, type_n, ret_t, is_void ret, is_dynamic_func)
+						(TFun(args_real_to_func_sig _sig, ret_t), arity, type_n, ret_t, ExtType.is_void ret, is_dynamic_func)
 					| _ -> (print_endline (s_type (print_context()) (follow old_sig) )); assert false
 				in
 
@@ -5225,7 +5220,7 @@ struct
 	(* statement (CS0201). *)
 	let rec shallow_expr_type expr : shallow_expr_type =
 		match expr.eexpr with
-			| TCall _ when not (is_void expr.etype) -> Both expr
+			| TCall _ when not (ExtType.is_void expr.etype) -> Both expr
 			| TNew _
 			| TUnop (Ast.Increment, _, _)
 			| TUnop (Ast.Decrement, _, _)
@@ -5538,14 +5533,14 @@ struct
 
 		let handle_assign op left right =
 			let left = check_left left in
-			Some (apply_assign (fun e -> { e with eexpr = TBinop(op, left, if is_void left.etype then e else gen.ghandle_cast left.etype e.etype e) }) right )
+			Some (apply_assign (fun e -> { e with eexpr = TBinop(op, left, if ExtType.is_void left.etype then e else gen.ghandle_cast left.etype e.etype e) }) right )
 		in
 
 		let handle_return e =
 			Some( apply_assign (fun e ->
 				match e.eexpr with
 					| TThrow _ -> e
-					| _ when is_void e.etype ->
+					| _ when ExtType.is_void e.etype ->
 							{ e with eexpr = TBlock([e; { e with eexpr = TReturn None }]) }
 					| _ ->
 							{ e with eexpr = TReturn( Some e ) }
@@ -5778,7 +5773,7 @@ struct
 					(* a return must be inside a function *)
 					let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
 					(match eopt with
-					| None when not (is_void ret_type) ->
+					| None when not (ExtType.is_void ret_type) ->
 						{ e with eexpr = TReturn( Some(null ret_type e.epos)) }
 					| None -> e
 					| Some eret ->
@@ -6455,7 +6450,7 @@ struct
 				in
 				let error = error || (match follow actual_t with | TFun _ -> false | _ -> true) in
 				if error then (* if error, ignore arguments *)
-					if is_void ecall.etype then
+					if ExtType.is_void ecall.etype then
 						{ ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
 					else
 						local_mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(!ef, f) }, elist ) }
@@ -6837,7 +6832,7 @@ struct
 							in_value := false;
 						run e
 					) el ) }
-				| TCast (expr, md) when is_void (follow e.etype) ->
+				| TCast (expr, md) when ExtType.is_void (follow e.etype) ->
 					run expr
 				| TCast (expr, md) ->
 					let rec get_null e =
@@ -8481,7 +8476,7 @@ struct
 			let field = gen.gmk_internal_name "hx" field in
 			let t = TFun(fun_args tf_args, ret) in
 			let cf = mk_class_field field t false pos (Method MethNormal) [] in
-			let is_void = is_void ret in
+			let is_void = ExtType.is_void ret in
 			let may_return e = if is_void then mk_block e else mk_block (mk_return e) in
 			let i = ref 0 in
 			cf.cf_expr <- Some({
@@ -9021,7 +9016,7 @@ struct
 					let fn_args, ret = get_fun (follow cf.cf_type) in
 
 					let tf_args = List.map (fun (name,_,t) -> alloc_var name t, None) fn_args in
-					let is_void = is_void ret in
+					let is_void = ExtType.is_void ret in
 					let expr = {
 						eexpr = TCall(
 							{
@@ -10455,7 +10450,7 @@ struct
 					{ expr with eexpr = TBlock(List.rev !new_block) }, !ret_kind
 				| TFunction tf ->
 					let changed, kind = process_expr tf.tf_expr in
-					let changed = if handle_not_final_returns && not (is_void tf.tf_type) && kind <> BreaksFunction then
+					let changed = if handle_not_final_returns && not (ExtType.is_void tf.tf_type) && kind <> BreaksFunction then
 						Type.concat changed { eexpr = TReturn( Some (null tf.tf_type expr.epos) ); etype = basic.tvoid; epos = expr.epos }
 					else
 						changed
@@ -11179,7 +11174,7 @@ struct
 									let field = { eexpr = TField(this, FInstance(c,List.map snd c.cl_params,f2)); etype = TFun(a1,r1); epos = p } in
 									let call = { eexpr = TCall(field, args); etype = r1; epos = p } in
 									(* let call = gen.gparam_func_call call field (List.map snd f.cf_params) args in *)
-									let is_void = is_void r2 in
+									let is_void = ExtType.is_void r2 in
 
 									newf.cf_expr <- Some {
 										eexpr = TFunction({
@@ -11245,7 +11240,7 @@ struct
 									let old_args, old_ret = get_fun f.cf_type in
 									let args, ret = get_fun t in
 									let tf_args = List.map (fun (n,o,t) -> alloc_var n t, None) args in
-									let f3_mk_return = if is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
+									let f3_mk_return = if ExtType.is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
 									f3.cf_expr <- Some {
 										eexpr = TFunction({
 											tf_args = List.rev new_args;
