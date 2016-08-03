@@ -5832,14 +5832,18 @@ struct
 		let rec loop c tl =
 			if c == super then
 				fn c tl
-			else (match c.cl_super with
-				| None -> false
-				| Some (cs,tls) ->
-					let tls = gen.greal_type_param (TClassDecl cs) tls in
-					loop cs (List.map (apply_params c.cl_params tl) tls)
-			) || (if also_implements then List.exists (fun (cs,tls) ->
-				loop cs (List.map (apply_params c.cl_params tl) tls)
-			) c.cl_implements else false)
+			else
+				(match c.cl_super with
+					| None -> false
+					| Some (cs,tls) ->
+						let tls = gen.greal_type_param (TClassDecl cs) tls in
+						loop cs (List.map (apply_params c.cl_params tl) tls)
+				)
+				||
+				(if also_implements then
+					List.exists (fun (cs,tls) -> loop cs (List.map (apply_params c.cl_params tl) tls)) c.cl_implements
+				else
+					false)
 		in
 		loop
 
