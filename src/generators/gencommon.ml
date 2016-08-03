@@ -7025,11 +7025,9 @@ struct
 		mutable rcf_on_getset_field : texpr->texpr->string->int32 option->texpr option->bool->texpr;
 
 		mutable rcf_on_call_field : texpr->texpr->string->int32 option->texpr list->texpr;
-
-		mutable rcf_handle_statics : bool;
 	}
 
-	let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function handle_statics =
+	let new_ctx gen ft object_iface optimize dynamic_getset_field dynamic_call_field hash_function lookup_function insert_function remove_function =
 		{
 			rcf_gen = gen;
 			rcf_ft = ft;
@@ -7062,8 +7060,6 @@ struct
 
 			rcf_on_getset_field = dynamic_getset_field;
 			rcf_on_call_field = dynamic_call_field;
-
-			rcf_handle_statics = handle_statics;
 		}
 
 	(*
@@ -7733,7 +7729,6 @@ struct
 		let gen = ctx.rcf_gen in
 		let basic = gen.gcon.basic in
 		let pos = cl.cl_pos in
-		let is_override = is_override cl in
 		let tparams = List.map (fun _ -> t_empty) cl.cl_params in
 
 		let create =
@@ -7792,19 +7787,9 @@ struct
 			cf
 		in
 
-		(* if rcf_handle_statics is false, there is no reason to make createEmpty/create not be static *)
-		if ctx.rcf_handle_statics then begin
-			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [create_empty; create];
-			cl.cl_fields <- PMap.add create_empty.cf_name create_empty cl.cl_fields;
-			cl.cl_fields <- PMap.add create.cf_name create cl.cl_fields;
-			if is_override then begin
-				cl.cl_overrides <- create_empty :: create :: cl.cl_overrides
-			end
-		end else begin
-			cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create_empty; create];
-			cl.cl_statics <- PMap.add create_empty.cf_name create_empty cl.cl_statics;
-			cl.cl_statics <- PMap.add create.cf_name create cl.cl_statics
-		end
+		cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create_empty; create];
+		cl.cl_statics <- PMap.add create_empty.cf_name create_empty cl.cl_statics;
+		cl.cl_statics <- PMap.add create.cf_name create cl.cl_statics
 
 
 	(*
@@ -7941,8 +7926,6 @@ struct
 			let tf_args, switch_var = field_type_args ctx pos in
 			let field_args = tf_args in
 			let local_switch_var = { eexpr = TLocal(switch_var); etype = switch_var.v_type; epos = pos } in
-			let is_static = alloc_var "isStatic" basic.tbool in
-			let is_static_local = { eexpr = TLocal(is_static); etype = basic.tbool; epos = pos } in
 
 			let handle_prop = alloc_var "handleProperties" basic.tbool in
 			let handle_prop_local = mk_local handle_prop pos in
@@ -7951,8 +7934,6 @@ struct
 			let mk_this_call_raw name fun_t params =
 				{ eexpr = TCall( { (mk_field_access gen this name pos) with etype = fun_t; }, params ); etype = snd (get_args fun_t); epos = pos }
 			in
-
-			let tf_args = if ctx.rcf_handle_statics then tf_args @ [is_static, None] else tf_args in
 
 			let fun_type = ref (TFun([], basic.tvoid)) in
 			let fun_name = ctx.rcf_gen.gmk_internal_name "hx" ( (if is_set then "setField" else "getField") ^ (if is_float then "_f" else "") ) in
@@ -8148,11 +8129,7 @@ struct
 				{ eexpr = TSwitch(local_switch_var, cases, default); etype = basic.tvoid; epos = pos }
 			in
 
-			let content = if ctx.rcf_handle_statics then
-				mk_block { eexpr = TIf(is_static_local, mk_switch true, Some(mk_switch false)); etype = basic.tvoid; epos = pos }
-			else
-				mk_block (mk_switch false)
-			in
+			let content = mk_block (mk_switch false) in
 
 			let is_override = match cl.cl_super with
 				| Some (cl, _) when is_hxgen (TClassDecl cl) -> true
@@ -8193,7 +8170,6 @@ struct
 		let tf_args, args = fun_args tf_args, field in
 
 		let rett = if is_float then basic.tfloat else t_dynamic in
-		let tf_args, args = if ctx.rcf_handle_statics then tf_args @ [ "isStatic", false, basic.tbool ], args @ [is_static] else tf_args, args in
 		let tf_args, args = if is_set then tf_args @ [ "setVal", false, rett ], args @ [get set_option] else tf_args, args in
 		let tf_args, args = tf_args @ [ "throwErrors",false,basic.tbool ], args @ [throw_errors] in
 		let tf_args, args = if is_set || is_float then tf_args, args else tf_args @ [ "isCheck", false, basic.tbool ], args @ [{ eexpr = TConst(TBool false); etype = basic.tbool; epos = pos }] in
@@ -8225,54 +8201,6 @@ struct
 		let gen = ctx.rcf_gen in
 		let basic = gen.gcon.basic in
 		let pos = cl.cl_pos in
-	(*
-		let rec has_no_dynamic cl =
-			if is_some cl.cl_dynamic then
-				false
-			else match cl.cl_super with
-				| None -> true
-				| Some(cl,_) -> has_no_dynamic cl
-		in
-	*)
-		(* Type.getClassFields() *)
-		if ctx.rcf_handle_statics then begin
-			let name = gen.gmk_internal_name "hx" "classFields" in
-			let v_base_arr = alloc_var "baseArr" (basic.tarray basic.tstring) in
-			let base_arr = mk_local v_base_arr pos in
-
-			let tf_args = [v_base_arr,None] in
-			let t = TFun(fun_args tf_args, basic.tvoid) in
-			let cf = mk_class_field name t false pos (Method MethNormal) [] in
-			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
-			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
-			(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides);
-			(*
-				var newarr = ["field1", "field2"] ...;
-			*)
-			let fields = collect_fields cl None (Some true) in
-			let mk_push value =
-				{ eexpr = TCall({ (mk_field_access gen base_arr "push" pos) with etype = TFun(["x", false, basic.tstring], basic.tint) }, [value] ); etype = basic.tint; epos = pos }
-			in
-
-			let new_arr_contents =
-			{
-				eexpr = TBlock(
-					List.map (fun (_,cf) -> mk_push { eexpr = TConst(TString(cf.cf_name)); etype = basic.tstring; epos = pos }) fields
-				);
-				etype = basic.tvoid;
-				epos = pos
-			} in
-
-			let expr = new_arr_contents in
-			let fn =
-			{
-				tf_args = tf_args;
-				tf_type = basic.tvoid;
-				tf_expr = mk_block expr
-			} in
-
-			cf.cf_expr <- Some { eexpr = TFunction(fn); etype = t; epos = pos }
-		end;
 
 		let fields =
 			(*
@@ -8292,7 +8220,7 @@ struct
 			let v_base_arr, v_is_inst = alloc_var "baseArr" (basic.tarray basic.tstring), alloc_var "isInstanceFields" basic.tbool in
 			let base_arr, is_inst = mk_local v_base_arr pos, mk_local v_is_inst pos in
 
-			let tf_args = (v_base_arr,None) :: (if ctx.rcf_handle_statics then [v_is_inst, None] else []) in
+			let tf_args = [(v_base_arr,None)] in
 			let t = TFun(fun_args tf_args, basic.tvoid) in
 			let cf = mk_class_field name t false pos (Method MethNormal) [] in
 
@@ -8330,7 +8258,7 @@ struct
 							[{
 								eexpr = TCall(
 									{ eexpr = TField({ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = pos }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = t; epos = pos },
-									base_arr :: (if ctx.rcf_handle_statics then [is_inst] else [])
+									[base_arr]
 								);
 								etype = basic.tvoid;
 								epos = pos
@@ -8346,19 +8274,7 @@ struct
 			in
 
 			let expr_contents = map_fields (collect_fields cl (Some false) (Some false)) in
-			let expr_contents = if ctx.rcf_handle_statics then
-				expr_contents @
-				[ {
-					eexpr = TIf(is_inst,
-						{ eexpr = TBlock( map_fields (collect_fields cl (Some true) (Some false)) ); etype = basic.tvoid; epos = pos },
-						if_not_inst
-					);
-					etype = basic.tvoid;
-					epos = pos
-				} ]
-			else
-				expr_contents @ (if is_some if_not_inst then [ get if_not_inst ] else [])
-			in
+			let expr_contents = expr_contents @ (if is_some if_not_inst then [ get if_not_inst ] else []) in
 
 			let expr =
 			{
@@ -8526,86 +8442,6 @@ struct
 		register_cf (do_proxy "create" [ alloc_var "arr" (basic.tarray t_dynamic), None ] t_dynamic (-1)) true;
 		register_cf (do_proxy "createEmpty" [ ] t_dynamic (-1)) true
 
-	let implement_get_class ctx cl =
-		(*
-			if it is DynamicObject, return null;
-			if it is not, just do the following:
-				if (typehandle(this.class) == typehandle(MyClass))
-					return (MyClass.__hx_class != null ? MyClass.__hx_class : MyClass.__hx_class = create_empty(MyClass));
-				return MyClass.__hx_class = haxe.lang.Runtime.getClass(MyClass);
-
-			implement both on static and non-static contexts. This way we can call without references.
-		*)
-		let gen = ctx.rcf_gen in
-		let basic = gen.gcon.basic in
-		let pos = cl.cl_pos in
-
-		let tclass = get_cl ( (Hashtbl.find gen.gtypes ([],"Class")) ) in
-		let cls = TInst(tclass, [ TInst(cl, List.map (fun _ -> t_dynamic) cl.cl_params) ]) in
-		let cls_dyn = TInst(tclass, [t_dynamic]) in
-
-		let expr, static_cfs =
-			if Meta.has Meta.DynamicObject cl.cl_meta then
-				mk_return (null t_dynamic pos), []
-			else
-				let cache_name = (gen.gmk_internal_name "hx" "class") in
-				let cache = mk_class_field cache_name cls false pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
-				cl.cl_ordered_statics <- cl.cl_ordered_statics @ [ cache ];
-				cl.cl_statics <- PMap.add cache_name cache cl.cl_statics;
-
-				let cache_access = mk_static_field_access cl cache_name cls pos in
-
-
-				let create_expr = {
-					eexpr = TNew(get ctx.rcf_class_cl, [], [gen.gtools.rf_create_empty cl (List.map (fun _ -> t_dynamic) cl.cl_params) pos]);
-					etype = cls;
-					epos = pos
-				} in
-
-				(if ctx.rcf_class_eager_creation then cache.cf_expr <- Some(create_expr));
-
-				let expr = if ctx.rcf_class_eager_creation then
-					mk_return cache_access
-				else
-					mk_return {
-						eexpr = TIf(
-							{ eexpr = TBinop(Ast.OpNotEq, cache_access, null cls pos); etype = basic.tbool; epos = pos },
-							cache_access,
-							Some({ eexpr = TBinop(Ast.OpAssign, cache_access, create_expr); etype = cls; epos = pos })
-						);
-						etype = cls;
-						epos = pos
-					}
-				in
-				expr, []
-		in
-
-		let func =
-		{
-			eexpr = TFunction({
-				tf_args = [];
-				tf_type = cls_dyn;
-				tf_expr = expr
-			});
-			etype = TFun([],cls_dyn);
-			epos = pos
-		} in
-
-		let get_cl_static = mk_class_field (gen.gmk_internal_name "hx" "getClassStatic") (TFun([],cls_dyn)) false pos (Method MethNormal) [] in
-		let get_cl = mk_class_field (gen.gmk_internal_name "hx" "getClass") (TFun([],cls_dyn)) false pos (Method MethNormal) [] in
-
-		get_cl_static.cf_expr <- Some func;
-		get_cl.cf_expr <- Some func;
-
-		let all_f = [get_cl] in
-		cl.cl_ordered_fields <- cl.cl_ordered_fields @ all_f;
-		List.iter (fun cf -> cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields) all_f;
-
-		let all_f = get_cl_static :: static_cfs in
-		cl.cl_ordered_statics <- cl.cl_ordered_statics @ all_f;
-		List.iter (fun cf -> cl.cl_statics <- PMap.add cf.cf_name cf cl.cl_statics) all_f;
-
-		if is_override cl then cl.cl_overrides <- get_cl :: cl.cl_overrides
 
 	let implement_invokeField ctx ~slow_invoke cl =
 		(*
@@ -8639,9 +8475,8 @@ struct
 		let field_args, switch_var = field_type_args ctx cl.cl_pos in
 		let field_args_exprs = List.map (fun (v,_) -> mk_local v pos) field_args in
 
-		let is_static = alloc_var "isStatic" basic.tbool in
 		let dynamic_arg = alloc_var "dynargs" (basic.tarray t_dynamic) in
-		let all_args = field_args @ (if ctx.rcf_handle_statics then [ is_static,None; dynamic_arg,None ] else [ dynamic_arg, None ] ) in
+		let all_args = field_args @ [ dynamic_arg, None ] in
 		let fun_t = TFun(fun_args all_args, t_dynamic) in
 
 		let this_t = TInst(cl, List.map snd cl.cl_params) in
@@ -8751,7 +8586,6 @@ struct
 		in
 
 		let contents =
-			let statics = collect_fields cl (Some true) (Some true) in
 			let nonstatics = collect_fields cl (Some true) (Some false) in
 
 			let old_nonstatics = ref [] in
@@ -8766,13 +8600,7 @@ struct
 					) nonstatics
 			in
 
-			if ctx.rcf_handle_statics then
-			{
-				eexpr = TIf(mk_local is_static pos, mk_switch_dyn statics true [], Some(mk_switch_dyn nonstatics false !old_nonstatics));
-				etype = basic.tvoid;
-				epos = pos;
-			} else
-				mk_switch_dyn nonstatics false !old_nonstatics
+			mk_switch_dyn nonstatics false !old_nonstatics
 		in
 
 		dyn_fun.cf_expr <- Some
@@ -8889,12 +8717,7 @@ struct
 			let expr = {
 				eexpr = TCall(
 					mk_field_access gen this_obj (gen.gmk_internal_name "hx" "invokeField") pos,
-					(List.map (fun (v,_) -> mk_this v.v_name v.v_type) field_args) @
-						(if ctx.rcf_handle_statics then
-							[ { eexpr = TConst(TBool false); etype = basic.tbool; epos = pos }; call_arg ]
-						else
-							[ call_arg ]
-						)
+					(List.map (fun (v,_) -> mk_this v.v_name v.v_type) field_args) @ [ call_arg ]
 				);
 				etype = t_dynamic;
 				epos = pos
@@ -9126,7 +8949,6 @@ struct
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "classFields") cl.cl_fields) then implement_fields ctx cl);
-				(if ctx.rcf_handle_statics && not (PMap.mem (gen.gmk_internal_name "hx" "getClassStatic") cl.cl_statics) then implement_get_class ctx cl);
 				(if not cl.cl_interface && not (PMap.mem (gen.gmk_internal_name "hx" "create") cl.cl_fields) then implement_create_empty ctx cl);
 				None
 			| _ -> None)

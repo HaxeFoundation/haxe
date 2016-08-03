@@ -2220,7 +2220,6 @@ let configure gen =
 				let t = gen.gclasses.nativearray_type hash_array.etype in
 				{ hash_array with eexpr = TCall(rcf_static_remove t, [hash_array; length; pos]); etype = gen.gcon.basic.tvoid }
 			)
-			false
 		in
 
 	ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
