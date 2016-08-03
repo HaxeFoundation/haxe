@@ -7174,22 +7174,18 @@ struct
 			let t = if ctx.rcf_optimize then basic.tint else basic.tstring in
 			let convert_str e = if ctx.rcf_optimize then ctx.rcf_lookup_function e else e in
 			let tmpinc = { eexpr = TUnop(Ast.Increment, Ast.Postfix, mk_local vtmp pos); etype = basic.tint; epos = pos } in
-			{
-				eexpr = TBlock [
-					{ eexpr = TBinop(OpAssign, mk_local vtmp pos, mk_int ctx 0 pos); etype = basic.tint; epos = pos };
-					{
-						eexpr = TWhile (
-							{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, len); etype = basic.tbool; epos = pos },
-							mk_block (when_found (convert_str { eexpr = TArray (arr, tmpinc); etype = t; epos = pos })),
-							Ast.NormalWhile
-						);
-						etype = basic.tvoid;
-						epos = pos
-					}
-				];
-				etype = basic.tvoid;
-				epos = pos;
-			}
+			[
+				{ eexpr = TBinop(OpAssign, mk_local vtmp pos, mk_int ctx 0 pos); etype = basic.tint; epos = pos };
+				{
+					eexpr = TWhile (
+						{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, len); etype = basic.tbool; epos = pos },
+						mk_block (when_found (convert_str { eexpr = TArray (arr, tmpinc); etype = t; epos = pos })),
+						Ast.NormalWhile
+					);
+					etype = basic.tvoid;
+					epos = pos
+				}
+			]
  		in
 
 		let this_t = TInst(cl, List.map snd cl.cl_params) in
@@ -7199,13 +7195,13 @@ struct
 		{ eexpr = TVar (vtmp,None); etype = basic.tvoid; epos = pos }
 		::
 		if ctx.rcf_optimize then
-		[
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint);
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint);
-		] else [
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint);
-			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint);
-		]
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint)
+			@
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tint)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint)
+		else
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length") basic.tint)
+			@
+			mk_for (mk_this (gen.gmk_internal_name "hx" "hashes_f") (gen.gclasses.nativearray basic.tstring)) (mk_this (gen.gmk_internal_name "hx" "length_f") basic.tint)
 
 	(* *********************
 		 Dynamic lookup
@@ -8175,38 +8171,31 @@ struct
 		(*
 			if it is first_dynamic, then we need to enumerate the dynamic fields
 		*)
-		let if_not_inst =
+		let exprs =
 			if is_some cl.cl_dynamic && is_first_dynamic cl then begin
 				has_value := true;
-				Some (enumerate_dynamic_fields ctx cl mk_push)
+				enumerate_dynamic_fields ctx cl mk_push
 			end else
-				None
-		in
-
-		let if_not_inst =
-			if is_override cl then
-				(if is_some if_not_inst then get if_not_inst else []) @
-				[{
-					eexpr = TCall(
-						{ eexpr = TField({ eexpr = TConst TSuper; etype = TInst(cl, List.map snd cl.cl_params); epos = pos }, FInstance(cl, List.map snd cl.cl_params, cf)); etype = t; epos = pos },
-						[base_arr]
-					);
-					etype = basic.tvoid;
-					epos = pos
-				}]
-			else if is_some if_not_inst then
-				get if_not_inst
-			else
 				[]
 		in
 
-		let expr_contents = map_fields (collect_fields cl (Some false)) @ if_not_inst in
+		let exprs =
+			if is_override cl then
+				let tparams = List.map snd cl.cl_params in
+				let esuper = mk (TConst TSuper) (TInst(cl, tparams)) pos in
+				let efield = mk (TField (esuper, FInstance (cl, tparams, cf))) t pos in
+				exprs @ [mk (TCall (efield, [base_arr])) basic.tvoid pos]
+			else
+				exprs
+		in
+
+		let exprs = map_fields (collect_fields cl (Some false)) @ exprs in
 
 		cf.cf_expr <- Some {
 			eexpr = TFunction({
 				tf_args = tf_args;
 				tf_type = basic.tvoid;
-				tf_expr = mk (TBlock expr_contents) basic.tvoid pos
+				tf_expr = mk (TBlock exprs) basic.tvoid pos
 			});
 			etype = t;
 			epos = pos
