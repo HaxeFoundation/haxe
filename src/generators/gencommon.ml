@@ -568,12 +568,6 @@ type generator_ctx =
 	*)
 	mutable gallow_tp_dynamic_conversion : bool;
 
-	(*
-		Does the target support type parameter constraints?
-		If not, they will be ignored when detecting casts
-	*)
-	mutable guse_tp_constraints : bool;
-
 	(* internal apis *)
 	(* param_func_call : used by TypeParams and CastDetection *)
 	mutable gparam_func_call : texpr->texpr->tparams->texpr list->texpr;
@@ -727,8 +721,6 @@ let new_ctx con =
 		greal_type_param = (fun _ t -> t);
 
 		gallow_tp_dynamic_conversion = false;
-
-		guse_tp_constraints = false;
 
 		(* as a default, ignore the params *)
 		gparam_func_call = (fun ecall efield params elist -> { ecall with eexpr = TCall(efield, elist) });
@@ -5901,7 +5893,7 @@ struct
 
 	(* will return true if both arguments are compatible. If it's not the case, a runtime error is very likely *)
 	let is_cl_related gen cl tl super superl =
-		let is_cl_related cl tl super superl = map_cls gen (gen.guse_tp_constraints || (match cl.cl_kind,super.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ _ -> true) super cl tl in
+		let is_cl_related cl tl super superl = map_cls gen (match cl.cl_kind,super.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true) (fun _ _ -> true) super cl tl in
 		is_cl_related cl tl super superl || is_cl_related super superl cl tl
 
 	let is_exactly_basic gen t1 t2 =
@@ -6024,7 +6016,7 @@ struct
 					If a class is found - meaning that the cl_from can be converted without a cast into cl_to,
 					we still need to check their type parameters.
 				*)
-				ignore (map_cls gen (gen.guse_tp_constraints || (match cl_from.cl_kind,cl_to.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true)) (fun _ tl ->
+				ignore (map_cls gen (match cl_from.cl_kind,cl_to.cl_kind with KTypeParameter _, _ | _,KTypeParameter _ -> false | _ -> true) (fun _ tl ->
 					try
 						(* type found, checking type parameters *)
 						List.iter2 (type_eq gen EqStrict) tl params_to;
