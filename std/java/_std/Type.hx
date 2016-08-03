@@ -24,7 +24,7 @@ import java.internal.HxObject;
 
 using StringTools;
 
-@:keep enum ValueType {
+enum ValueType {
 	TNull;
 	TInt;
 	TFloat;
@@ -36,7 +36,7 @@ using StringTools;
 	TUnknown;
 }
 
-@:keep @:coreApi class Type {
+@:coreApi class Type {
 
 	public static function getClass<T>( o : T ) : Class<T>
 	{

@@ -28,7 +28,7 @@ import cs.system.Object;
 import cs.system.reflection.*;
 using StringTools;
 
-@:keep enum ValueType {
+enum ValueType {
 	TNull;
 	TInt;
 	TFloat;
@@ -40,7 +40,7 @@ using StringTools;
 	TUnknown;
 }
 
-@:keep @:coreApi class Type {
+@:coreApi class Type {
 
 	public static function getClass<T>( o : T ) : Class<T> untyped
 	{
