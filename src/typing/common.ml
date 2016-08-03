@@ -587,7 +587,7 @@ module MetaInfo = struct
 		| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
 		| Unreflective -> ":unreflective",("",[Platform Cpp])
 		| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
-		| Usage -> ":usage",("?",[])
+		| Usage -> ":usage",("Internal metadata used to mark a symbol for which usage request was invoked",[Internal])
 		| Used -> ":used",("Internally used by DCE to mark a class or field as used",[Internal])
 		| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[Internal])
 		| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
