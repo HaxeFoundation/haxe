@@ -994,6 +994,10 @@ class RunCi {
 								runCommand("rm", ["-rf", "cpp"]);
 								runCommand("haxe", ["compile-cpp.hxml", "-D", "HXCPP_M64"].concat(args));
 								runCpp("bin/cpp/Test-debug", []);
+
+								runCommand("haxe", ["compile-cppia-host.hxml"]);
+								runCommand("haxe", ["compile-cppia.hxml"]);
+								runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 						}
 
 						changeDirectory(sysDir);

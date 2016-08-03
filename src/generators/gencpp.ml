@@ -3665,16 +3665,16 @@ let is_override class_def field =
 ;;
 
 let all_virtual_functions clazz =
-  let rec all_virtual_functions_rev clazz =
+  let rec all_virtual_functions clazz =
    (match clazz.cl_super with
-   | Some def -> all_virtual_functions_rev (fst def)
+   | Some def -> all_virtual_functions (fst def)
    | _ -> [] ) @
-   (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+   List.rev (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
       | _, Method MethDynamic -> result
       | TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
       | _,_ -> result ) [] clazz.cl_ordered_fields)
    in
-   List.rev (all_virtual_functions_rev clazz)
+   all_virtual_functions clazz
 ;;
 
 
@@ -4958,10 +4958,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n");
                       | _ -> () )
                       in
-                      List.iter gen_field interface.cl_ordered_fields;
-                      match interface.cl_super with
+                      (match interface.cl_super with
                       | Some super -> gen_interface_funcs (fst super)
-                      | _ -> ()
+                      | _ -> ());
+                      List.iter gen_field interface.cl_ordered_fields;
                       in
                    gen_interface_funcs interface;
                    output_cpp "};\n\n";
