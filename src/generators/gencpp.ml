@@ -210,7 +210,7 @@ type context =
 
    ctx_interface_slot : (string,int) Hashtbl.t ref;
    ctx_interface_slot_count : int ref;
-   (* This is for returning from the child nodes of TMatch, TSwitch && TTry *)
+   (* This is for returning from the child nodes of TSwitch && TTry *)
    mutable ctx_real_this_ptr : bool;
    mutable ctx_class_member_types : (string,string) Hashtbl.t;
 }
@@ -1912,7 +1912,7 @@ let cpp_cast_variant_type_of t = match t with
    | TCppScalarArray _
    | TCppDynamicArray
    | TCppClass
-   | TCppEnum _ 
+   | TCppEnum _
    | TCppInst _ -> t
    | _ -> cpp_variant_type_of t;
 ;;
@@ -3304,7 +3304,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
          | TCppClass
          | TCppEnum _
          | TCppInst _ -> out (".StaticCast< " ^ (tcpp_to_string valueType ) ^ " >()")
-         | _ ->() 
+         | _ ->()
          )
 
       | CppIntSwitch(condition, cases, defVal) ->
@@ -3681,7 +3681,7 @@ let all_virtual_functions clazz =
 let rec unreflective_type t =
     match follow t with
        | TInst (klass,_) ->  Meta.has Meta.Unreflective klass.cl_meta
-       | TFun (args,ret) -> 
+       | TFun (args,ret) ->
            List.fold_left (fun result (_,_,t) -> result || (unreflective_type t)) (unreflective_type ret) args;
        | _ -> false
 ;;
@@ -3710,7 +3710,7 @@ let native_field_name_remap is_static field =
    if not is_static then
       remap_name
    else begin
-      let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
+      let nativeImpl = get_meta_string field.cf_meta Meta.Native in
       if nativeImpl<>"" then begin
          let r = Str.regexp "^[a-zA-Z_0-9]+$" in
             if Str.string_match r remap_name 0 then
@@ -3743,7 +3743,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
 
       if (not (is_dynamic_haxe_method field)) then begin
          (* The actual function definition *)
-         let nativeImpl = get_meta_string field.cf_meta Meta.Native in 
+         let nativeImpl = get_meta_string field.cf_meta Meta.Native in
          let remap_name = native_field_name_remap is_static field in
          output (if is_void then "void" else return_type );
          output (" " ^ class_name ^ "::" ^ remap_name ^ "(" );
@@ -4044,13 +4044,6 @@ let find_referenced_types_flags ctx obj super_deps constructor_deps header_only 
             (* Must visit the types, Type.iter will visit the expressions ... *)
             | TTry (e,catches) ->
                List.iter (fun (v,_) -> visit_type v.v_type) catches
-            (* Must visit the enum param types, Type.iter will visit the rest ... *)
-(*             | TMatch (_,enum,cases,_) ->
-               add_type (fst enum).e_path;
-               List.iter (fun (case_ids,params,expression) ->
-                  (match params with
-                  | None -> ()
-                  | Some l -> List.iter (function None -> () | Some v -> visit_type v.v_type) l  ) ) cases; *)
             (* Must visit type too, Type.iter will visit the expressions ... *)
             | TNew  (klass,params,_) -> begin
                visit_type (TInst (klass,params));

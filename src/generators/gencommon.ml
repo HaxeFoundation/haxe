@@ -5174,8 +5174,6 @@ struct
 				{ expr with eexpr = TWhile(fn cond, block, flag) }
 			| TSwitch(cond, el_block_l, default) ->
 				{ expr with eexpr = TSwitch( fn cond, List.map (fun (el,block) -> (List.map fn el, block)) el_block_l, default ) }
-(*			 | TMatch(cond, enum, cases, default) ->
-				{ expr with eexpr = TMatch(fn cond, enum, cases, default) } *)
 			| TReturn(eopt) ->
 				{ expr with eexpr = TReturn(Option.map fn eopt) }
 			| TThrow (texpr) ->
@@ -5367,8 +5365,6 @@ struct
 				{ right with eexpr = TBlock(apply_assign_block assign_fun el) }
 			| TSwitch (cond, elblock_l, default) ->
 				{ right with eexpr = TSwitch(cond, List.map (fun (el,block) -> (el, mk_get_block assign_fun block)) elblock_l, Option.map (mk_get_block assign_fun) default) }
-(*			 | TMatch (cond, ep, il_vlo_e_l, default) ->
-				{ right with eexpr = TMatch(cond, ep, List.map (fun (il,vlo,e) -> (il,vlo,mk_get_block assign_fun e)) il_vlo_e_l, Option.map (mk_get_block assign_fun) default) } *)
 			| TTry (block, catches) ->
 				{ right with eexpr = TTry(mk_get_block assign_fun block, List.map (fun (v,block) -> (v,mk_get_block assign_fun block) ) catches) }
 			| TIf (cond,eif,eelse) ->
@@ -5674,8 +5670,6 @@ struct
 					{ e with eexpr = TBlock(block) }
 				| TTry (block, catches) ->
 					{ e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
-(*				 | TMatch (cond,ep,il_vol_e_l,default) ->
-					{ e with eexpr = TMatch(cond,ep,List.map (fun (il,vol,e) -> (il,vol,traverse (mk_block e))) il_vol_e_l, Option.map (fun e -> traverse (mk_block e)) default) } *)
 				| TSwitch (cond,el_e_l, default) ->
 					{ e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
 				| TWhile (cond,block,flag) ->
@@ -6812,8 +6806,6 @@ struct
 					{ e with eexpr = TWhile (handle (run econd) gen.gcon.basic.tbool econd.etype, (in_value := false; run (mk_block e1)), flag) }
 				| TSwitch (cond, el_e_l, edef) ->
 					{ e with eexpr = TSwitch(run cond, List.map (fun (el,e) -> (List.map run el, (in_value := false; run (mk_block e)))) el_e_l, Option.map (fun e -> in_value := false; run (mk_block e)) edef) }
-(*				 | TMatch (cond, en, il_vl_e_l, edef) ->
-					{ e with eexpr = TMatch(run cond, en, List.map (fun (il, vl, e) -> (il, vl, run (mk_block e))) il_vl_e_l, Option.map (fun e -> run (mk_block e)) edef) } *)
 				| TFor (v,cond,e1) ->
 					{ e with eexpr = TFor(v, run cond, (in_value := false; run (mk_block e1))) }
 				| TTry (e, ve_l) ->
@@ -8771,16 +8763,11 @@ end;;
 	enums into normal classes. This is done at the first module pass by creating new classes with the same
 	path inside the modules, and removing the actual enum module by setting it as en extern.
 
-	Later, on the last expression pass, it will transform the TMatch codes into TSwitch. it will introduce a new
-	dependency, though:
-		* The target must create its own strategy to deal with reflection. As it is right now, we will have a base class
-		which the class will extend, create @:$IsEnum metadata for the class, and create @:alias() metadatas for the fields,
-		with their tag order (as a string) as their alias. If you are using ReflectionCFs, then you don't have to worry
-		about that, as it's already generating all information needed by the haxe runtime.
-		so they can be
-
-	dependencies:
-		The MatchToSwitch part must run after ExprStatementUnwrap as modified expressions might confuse it (not so true anymore)
+	* The target must create its own strategy to deal with reflection. As it is right now, we will have a base class
+	which the class will extend, create @:$IsEnum metadata for the class, and create @:alias() metadatas for the fields,
+	with their tag order (as a string) as their alias. If you are using ReflectionCFs, then you don't have to worry
+	about that, as it's already generating all information needed by the haxe runtime.
+	so they can be
 
 *)
 
@@ -9013,8 +9000,6 @@ struct
 	(*
 
 		Enum to class Expression Filter
-
-		will convert TMatch into TSwitch
 
 		dependencies:
 			Should run before TArrayTransform, since it generates array access expressions
@@ -10097,18 +10082,6 @@ struct
 						(el, handle_case (e, ek))
 					) el_e_l, Some def) } in
 					ret, !k
-(*				 | TMatch(cond, ep, il_vopt_e_l, None) ->
-					{ expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> (il, vopt, handle_case (process_expr e))) il_vopt_e_l, None) }, Normal *)
-(*				 | TMatch(cond, ep, il_vopt_e_l, Some def) ->
-					let def, k = process_expr def in
-					let def = handle_case (def, k) in
-					let k = ref k in
-					let ret = { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) ->
-						let e, ek = process_expr e in
-						k := aggregate_kind !k ek;
-						(il, vopt, handle_case (e, ek))
-					) il_vopt_e_l, Some def) } in
-					ret, !k *)
 				| TTry (e, catches) ->
 					let e, k = process_expr e in
 					let k = ref k in
@@ -10527,8 +10500,6 @@ struct
 					{ e with eexpr = TBlock bl }
 				| TTry (block, catches) ->
 					{ e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
-(*				 | TMatch (cond,ep,il_vol_e_l,default) ->
-					{ e with eexpr = TMatch(cond,ep,List.map (fun (il,vol,e) -> (il,vol,traverse (mk_block e))) il_vol_e_l, Option.map (fun e -> traverse (mk_block e)) default) } *)
 				| TSwitch (cond,el_e_l, default) ->
 					{ e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
 				| TWhile (cond,block,flag) ->

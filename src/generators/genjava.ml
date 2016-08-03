@@ -337,8 +337,6 @@ struct
 			| TBlock bl -> is_final_return_block is_switch bl
 			| TSwitch (_, el_e_l, edef) ->
 				List.for_all (fun (_,e) -> is_final_return_expr e) el_e_l && Option.map_default is_final_return_expr false edef
-(*			 | TMatch (_, _, il_vl_e_l, edef) ->
-				List.for_all (fun (_,_,e) -> is_final_return_expr e)il_vl_e_l && Option.map_default is_final_return_expr false edef *)
 			| TIf (_,eif, Some eelse) ->
 				is_final_return_expr eif && is_final_return_expr eelse
 			| TFor (_,_,e) ->
