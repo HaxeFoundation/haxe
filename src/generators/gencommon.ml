@@ -605,8 +605,6 @@ and gen_classes =
 (* add here all reflection transformation additions *)
 and gen_tools =
 {
-	(* (klass : texpr, t : t) : texpr *)
-	r_create_empty : texpr->t->texpr;
 	(* Reflect.fields(). The bool is if we are iterating in a read-only manner. If it is read-only we might not need to allocate a new array *)
 	r_fields : bool->texpr->texpr;
 	(* (first argument = return type. should be void in most cases) Reflect.setField(obj, field, val) *)
@@ -662,10 +660,6 @@ let new_ctx con =
 			nativearray_len = (fun _ -> assert false);
 		};
 		gtools = {
-			r_create_empty = (fun eclass t ->
-				let fieldcall = mk_static_field_access_infer gen.gclasses.cl_type "createEmptyInstance" eclass.epos [t] in
-				{ eexpr = TCall(fieldcall, [eclass]); etype = t; epos = eclass.epos }
-			);
 			r_fields = (fun is_used_only_by_iteration expr ->
 				let fieldcall = mk_static_field_access_infer gen.gclasses.cl_reflect "fields" expr.epos [] in
 				{ eexpr = TCall(fieldcall, [expr]); etype = gen.gcon.basic.tarray gen.gcon.basic.tstring; epos = expr.epos }
@@ -682,8 +676,11 @@ let new_ctx con =
 				mk_cast t { eexpr = TCall(fieldcall, [obj; field]); etype = t_dynamic; epos = obj.epos }
 			);
 
-			rf_create_empty = (fun cl p pos ->
-				gen.gtools.r_create_empty { eexpr = TTypeExpr(TClassDecl cl); epos = pos; etype = t_dynamic } (TInst(cl,p))
+			rf_create_empty = (fun cl params pos ->
+				let eclass = mk (TTypeExpr(TClassDecl cl)) t_dynamic pos in
+				let tclass = TInst(cl,params) in
+				let fieldcall = mk_static_field_access_infer gen.gclasses.cl_type "createEmptyInstance" pos [tclass] in
+				mk (TCall(fieldcall, [eclass])) tclass pos
 			); (* TODO: Maybe implement using normal reflection? Type.createEmpty(MyClass) *)
 		};
 		gmk_internal_name = (fun ns s -> sprintf "__%s_%s" ns s);
