@@ -779,40 +779,39 @@ let reorder_modules gen =
 
 let run_filters_from gen t filters =
 	match t with
-			| TClassDecl c ->
-				trace (snd c.cl_path);
-				gen.gcurrent_path <- c.cl_path;
-				gen.gcurrent_class <- Some(c);
+	| TClassDecl c ->
+		trace (snd c.cl_path);
+		gen.gcurrent_path <- c.cl_path;
+		gen.gcurrent_class <- Some(c);
 
-				List.iter (fun fn -> fn()) gen.gon_new_module_type;
+		List.iter (fun fn -> fn()) gen.gon_new_module_type;
 
-				gen.gcurrent_classfield <- None;
-				let rec process_field f =
-					reset_temps();
-					gen.gcurrent_classfield <- Some(f);
-					List.iter (fun fn -> fn()) gen.gon_classfield_start;
+		gen.gcurrent_classfield <- None;
+		let rec process_field f =
+			reset_temps();
+			gen.gcurrent_classfield <- Some(f);
+			List.iter (fun fn -> fn()) gen.gon_classfield_start;
 
-					trace f.cf_name;
-					(match f.cf_expr with
-					| None -> ()
-					| Some e ->
-						f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters));
-					List.iter process_field f.cf_overloads;
-				in
-				List.iter process_field c.cl_ordered_fields;
-				List.iter process_field c.cl_ordered_statics;
+			trace f.cf_name;
+			(match f.cf_expr with
+			| None -> ()
+			| Some e ->
+				f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters));
+			List.iter process_field f.cf_overloads;
+		in
+		List.iter process_field c.cl_ordered_fields;
+		List.iter process_field c.cl_ordered_statics;
 
-				(match c.cl_constructor with
-				| None -> ()
-				| Some f -> process_field f);
-				gen.gcurrent_classfield <- None;
-				(match c.cl_init with
-				| None -> ()
-				| Some e ->
-					c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
-			| TEnumDecl _ -> ()
-			| TTypeDecl _ -> ()
-			| TAbstractDecl _ -> ()
+		(match c.cl_constructor with
+		| None -> ()
+		| Some f -> process_field f);
+		gen.gcurrent_classfield <- None;
+		(match c.cl_init with
+		| None -> ()
+		| Some e ->
+			c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
+	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
+		()
 
 let run_filters gen =
 	let last_error = gen.gcon.error in
