@@ -8135,7 +8135,7 @@ struct
 		}
 
 
-	let implement_fields ctx cl =
+	let implement_getFields ctx cl =
 		let gen = ctx.rcf_gen in
 		let basic = gen.gcon.basic in
 		let pos = cl.cl_pos in
@@ -8145,7 +8145,7 @@ struct
 			{
 				//add all variable fields
 				//then:
-				super.__hx_fields(baseArr);
+				super.__hx_getFields(baseArr);
 			}
 		*)
 		let name = gen.gmk_internal_name "hx" "getFields" in
@@ -8202,19 +8202,21 @@ struct
 
 		let expr_contents = map_fields (collect_fields cl (Some false)) @ if_not_inst in
 
-		let fn =
-		{
-			tf_args = tf_args;
-			tf_type = basic.tvoid;
-			tf_expr = mk (TBlock expr_contents) basic.tvoid pos
-		} in
+		cf.cf_expr <- Some {
+			eexpr = TFunction({
+				tf_args = tf_args;
+				tf_type = basic.tvoid;
+				tf_expr = mk (TBlock expr_contents) basic.tvoid pos
+			});
+			etype = t;
+			epos = pos
+		};
 
-		(if !has_value || (not (is_override cl)) then begin
+		if !has_value || not (is_override cl) then begin
 			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [cf];
 			cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields;
 			(if is_override cl then cl.cl_overrides <- cf :: cl.cl_overrides)
-		end);
-		cf.cf_expr <- Some { eexpr = TFunction(fn); etype = t; epos = pos }
+		end
 
 
 	let implement_invokeField ctx ~slow_invoke cl =
@@ -8722,7 +8724,7 @@ struct
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
-				(if not (PMap.mem (gen.gmk_internal_name "hx" "getFields") cl.cl_fields) then implement_fields ctx cl);
+				(if not (PMap.mem (gen.gmk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl);
 				(if not cl.cl_interface && not (PMap.mem (gen.gmk_internal_name "hx" "create") cl.cl_fields) then implement_create_empty ctx cl);
 				None
 			| _ -> None)
