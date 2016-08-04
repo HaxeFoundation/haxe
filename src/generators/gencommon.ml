@@ -9797,12 +9797,11 @@ struct
 
 end;;
 
+
 (* ******************************************* *)
 (* Unreachable Code Elimination *)
 (* ******************************************* *)
-
 (*
-
 	In some source code platforms, the code won't compile if there is Unreachable code, so this filter will take off any unreachable code.
 		If the parameter "handle_switch_break" is set to true, it will already add a "break" statement on switch cases when suitable;
 			in order to not confuse with while break, it will be a special expression __sbreak__
@@ -9814,9 +9813,7 @@ end;;
 	dependencies:
 		This must run before SwitchBreakSynf (see SwitchBreakSynf dependecy value)
 		This must be the LAST syntax filter to run. It expects ExpressionUnwrap to have run correctly, since this will only work for source-code based targets
-
 *)
-
 module UnreachableCodeEliminationSynf =
 struct
 
@@ -9853,8 +9850,9 @@ struct
 			| TParenthesis(e) | TMeta(_,e) -> get_constant_expr e
 			| _ -> None
 
-	let traverse gen should_warn handle_switch_break handle_not_final_returns java_mode =
+	let traverse gen java_mode =
 		let basic = gen.gcon.basic in
+		let should_warn = false in
 
 		let do_warn =
 			if should_warn then gen.gcon.warning "Unreachable code" else (fun pos -> ())
@@ -9878,15 +9876,11 @@ struct
 			| _ -> false
 		in
 
-		let handle_case = if handle_switch_break then
-			(fun (expr,kind) ->
-				match kind with
-					| Normal when has_fallback expr -> expr
-					| Normal -> Type.concat expr (mk_sbreak expr.epos)
-					| BreaksLoop | BreaksFunction -> expr
-			)
-		else
-			fst
+		let handle_case = fun (expr,kind) ->
+			match kind with
+			| Normal when has_fallback expr -> expr
+			| Normal -> Type.concat expr (mk_sbreak expr.epos)
+			| BreaksLoop | BreaksFunction -> expr
 		in
 
 		let has_break = ref false in
@@ -9920,7 +9914,7 @@ struct
 					{ expr with eexpr = TBlock(List.rev !new_block) }, !ret_kind
 				| TFunction tf ->
 					let changed, kind = process_expr tf.tf_expr in
-					let changed = if handle_not_final_returns && not (ExtType.is_void tf.tf_type) && kind <> BreaksFunction then
+					let changed = if not (ExtType.is_void tf.tf_type) && kind <> BreaksFunction then
 						Type.concat changed { eexpr = TReturn( Some (null tf.tf_type expr.epos) ); etype = basic.tvoid; epos = expr.epos }
 					else
 						changed
@@ -9997,11 +9991,12 @@ struct
 		let run e = fst (process_expr e) in
 		run
 
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+	let configure gen java_mode =
+		let run = traverse gen java_mode in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
+
 
 (* ******************************************* *)
 (* DefaultArguments *)

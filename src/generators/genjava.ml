@@ -2426,7 +2426,7 @@ let configure gen =
 
 	IntDivisionSynf.configure gen;
 
-	UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen false true true true);
+	UnreachableCodeEliminationSynf.configure gen true;
 
 	ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
 
