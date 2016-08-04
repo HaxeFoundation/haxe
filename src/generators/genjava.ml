@@ -2387,11 +2387,6 @@ let configure gen =
 
 	ClassInstance.configure gen (fun e _ -> { e with eexpr = TCall({ eexpr = TLocal(alloc_var "__typeof__" t_dynamic); etype = t_dynamic; epos = e.epos }, [e]) });
 
-	(*let v = alloc_var "$type_param" t_dynamic in*)
-	TypeParams.configure gen (fun ecall efield params elist ->
-		{ ecall with eexpr = TCall(efield, elist) }
-	);
-
 	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false);
 
 	SwitchToIf.configure gen (fun e ->

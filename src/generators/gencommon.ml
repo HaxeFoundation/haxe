@@ -4818,10 +4818,6 @@ struct
 
 	end;;
 
-
-	let configure gen (param_func_call:texpr->texpr->tparams->texpr list->texpr) =
-		gen.gparam_func_call <- param_func_call
-
 end;;
 
 (**************************************************************************************************************************)
