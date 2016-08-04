@@ -2206,7 +2206,7 @@ let configure gen =
 			)
 		in
 
-	ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
+	ReflectionCFs.UniversalBaseClass.configure gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
 
 	ReflectionCFs.configure_dynamic_field_access rcf_ctx;
 

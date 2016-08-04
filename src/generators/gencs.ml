@@ -686,12 +686,6 @@ let add_cast_handler gen =
 	Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array
 	(* end set gtparam_cast *)
 
-
-(* Type Parameters Handling *)
-let handle_type_params gen ifaces base_generic =
-	add_cast_handler gen;
-	TypeParams.RealTypeParams.default_config gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces base_generic
-
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
 let default_package = "cs" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
 let strict_mode = ref false (* strict mode is so we can check for unexpected information *)
@@ -2888,12 +2882,11 @@ let configure gen =
 		mk_cast ecall.etype { ecall with eexpr = TCall(infer, call_args) }
 	in
 
+	add_cast_handler gen;
 	if not erase_generics then
-		handle_type_params gen ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
-	else begin
-		add_cast_handler gen;
-		TypeParams.RealTypeParams.RealTypeParamsModf.configure gen (TypeParams.RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen)
-	end;
+		TypeParams.RealTypeParams.configure gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces (get_cl (get_type gen (["haxe";"lang"], "IGenericObject")))
+	else
+		TypeParams.RealTypeParams.RealTypeParamsModf.configure gen (TypeParams.RealTypeParams.RealTypeParamsModf.set_only_hxgeneric gen);
 
 	let rcf_ctx =
 		ReflectionCFs.new_ctx
@@ -2915,7 +2908,7 @@ let configure gen =
 			)
 	in
 
-	ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
+	ReflectionCFs.UniversalBaseClass.configure gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
 
 	ReflectionCFs.configure_dynamic_field_access rcf_ctx;
 

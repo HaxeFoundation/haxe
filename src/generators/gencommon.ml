@@ -4710,13 +4710,11 @@ struct
 			in
 			run
 
-		let configure gen traverse =
+		let configure gen (dyn_tparam_cast:texpr->t->texpr) ifaces base_generic =
 			gen.ghas_tparam_cast_handler <- true;
+			let traverse = default_implementation gen dyn_tparam_cast ifaces in
 			let map e = Some(traverse e) in
-			gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
-		let default_config gen (dyn_tparam_cast:texpr->t->texpr) ifaces base_generic =
-			configure gen (default_implementation gen dyn_tparam_cast ifaces);
+			gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map;
 			RealTypeParamsModf.configure gen (RealTypeParamsModf.default_implementation gen ifaces base_generic)
 
 	end;;
@@ -8476,13 +8474,10 @@ struct
 			in
 			run
 
-		let configure gen mapping_func =
-			let map e = Some(mapping_func e) in
+		let configure gen baseclass baseinterface basedynamic =
+			let impl = default_implementation gen baseclass baseinterface basedynamic in
+			let map e = Some(impl e) in
 			gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
-		let default_config gen baseclass baseinterface basedynamic =
-			let impl = (default_implementation gen baseclass baseinterface basedynamic) in
-			configure gen impl
 
 	end;;
 
