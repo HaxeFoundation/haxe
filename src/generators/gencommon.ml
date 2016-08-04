@@ -166,7 +166,10 @@ let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
 let timer name = if !debug_mode then Common.timer name else fun () -> ()
 
-let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false
+let is_string t =
+	match follow t with
+	| TInst({ cl_path = ([], "String") }, []) -> true
+	| _ -> false
 
 (* helper function for creating Anon types of class / enum modules *)
 
