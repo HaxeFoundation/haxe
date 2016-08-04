@@ -2208,7 +2208,7 @@ let configure gen =
 
 	ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (get_type gen (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
 
-	ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
+	ReflectionCFs.configure_dynamic_field_access rcf_ctx;
 
 	(* let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in *)
 	let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in

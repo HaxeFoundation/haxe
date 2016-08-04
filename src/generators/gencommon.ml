@@ -2183,8 +2183,6 @@ struct
 
 	let priority = 0.0
 
-	let priority_as_synf = 100.0 (*solve_deps name [DBefore ExpressionUnwrap.priority]*)
-
 	let abstract_implementation gen ?(handle_strings = true) (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
 
 
@@ -2303,10 +2301,6 @@ struct
 		let map e = Some(mapping_func e) in
 		gen.gexpr_filters#add ~name:"dyn_ops" ~priority:(PCustom priority) map
 
-	let configure_as_synf gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
-		gen.gexpr_filters#add ~name:"dyn_ops" ~priority:(PCustom priority_as_synf) map
-
 end;;
 
 (* ******************************************* *)
@@ -2353,8 +2347,6 @@ struct
 	let name = "dynamic_field_access"
 
 	let priority = solve_deps name [DAfter DynamicOperators.priority]
-
-	let priority_as_synf = solve_deps name [DAfter DynamicOperators.priority_as_synf]
 
 	(*
 		is_dynamic (expr) (field_access_expr) (field) : a function that indicates if the field access should be changed
@@ -2435,10 +2427,6 @@ struct
 	let configure gen (mapping_func:texpr->texpr) =
 		let map e = Some(mapping_func e) in
 		gen.gexpr_filters#add ~name:"dynamic_field_access" ~priority:(PCustom(priority)) map
-
-	let configure_as_synf gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
-		gen.gexpr_filters#add ~name:"dynamic_field_access" ~priority:(PCustom(priority_as_synf)) map
 
 end;;
 
@@ -2544,8 +2532,6 @@ struct
 
 	let priority = solve_deps name [DBefore DynamicOperators.priority; DBefore DynamicFieldAccess.priority]
 
-	let priority_as_synf = solve_deps name [DBefore DynamicOperators.priority_as_synf; DBefore DynamicFieldAccess.priority_as_synf]
-
 	(* should change signature: tarray expr -> binop operation -> should change? *)
 	let default_implementation gen (should_change:texpr->Ast.binop option->bool) (get_fun:string) (set_fun:string) =
 		let basic = gen.gcon.basic in
@@ -2616,10 +2602,6 @@ struct
 	let configure gen (mapping_func:texpr->texpr) =
 		let map e = Some(mapping_func e) in
 		gen.gexpr_filters#add ~name:"dyn_tarray" ~priority:(PCustom priority) map
-
-	let configure_as_synf gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
-		gen.gexpr_filters#add ~name:"dyn_tarray" ~priority:(PCustom priority_as_synf) map
 
 end;;
 
@@ -2758,8 +2740,6 @@ struct
 	let name = "closures_to_class"
 
 	let priority = solve_deps name [ DAfter DynamicFieldAccess.priority ]
-
-	let priority_as_synf = solve_deps name [ DAfter DynamicFieldAccess.priority_as_synf ]
 
 	type closures_ctx =
 	{
@@ -3341,10 +3321,6 @@ struct
 	let configure gen (mapping_func:texpr->texpr) =
 		let map e = Some(mapping_func e) in
 		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
-
-	let configure_as_synf gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
-		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority_as_synf) map
 
 
 	(*
@@ -8453,7 +8429,7 @@ struct
 		*
 		mutable rcf_on_getset_field : texpr->texpr->string->texpr option->bool->texpr;*)
 
-	let configure_dynamic_field_access ctx is_synf =
+	let configure_dynamic_field_access ctx =
 		let gen = ctx.rcf_gen in
 		let is_dynamic expr fexpr field =
 			match (field_access_esp gen (gen.greal_type fexpr.etype) field) with
@@ -8462,9 +8438,8 @@ struct
 			| _ -> true
 		in
 
-		let configure = if is_synf then DynamicFieldAccess.configure_as_synf else DynamicFieldAccess.configure in
 		let maybe_hash = if ctx.rcf_optimize then fun str pos -> Some (hash_field_i32 ctx pos str) else fun str pos -> None in
-		configure gen (DynamicFieldAccess.abstract_implementation gen is_dynamic
+		DynamicFieldAccess.configure gen (DynamicFieldAccess.abstract_implementation gen is_dynamic
 			(* print_endline *)
 			(fun expr fexpr field set is_unsafe ->
 				let hash = maybe_hash field fexpr.epos in
@@ -9119,8 +9094,6 @@ struct
 
 		let priority = solve_deps name [DBefore DynamicFieldAccess.priority]
 
-		let priority_as_synf = solve_deps name [DBefore DynamicFieldAccess.priority_as_synf]
-
 		let mk_access gen v name pos =
 			let field_t =
 				try match follow v.v_type with
@@ -9167,17 +9140,10 @@ struct
 			let map e = Some(mapping_func e) in
 			gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
 
-		let configure_as_synf gen (mapping_func:texpr->texpr) =
-			let map e = Some(mapping_func e) in
-			gen.gexpr_filters#add ~name:name ~priority:(PCustom priority_as_synf) map
-
 	end;;
 
 	let configure gen change_in_expr =
 		IteratorsInterfaceExprf.configure gen (IteratorsInterfaceExprf.traverse gen change_in_expr)
-
-	let configure_as_synf gen change_in_expr =
-		IteratorsInterfaceExprf.configure_as_synf gen (IteratorsInterfaceExprf.traverse gen change_in_expr)
 
 end;;
 
