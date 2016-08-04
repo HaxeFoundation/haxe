@@ -2281,7 +2281,7 @@ let configure gen =
 	let is_int t = like_int t in
 
 	DynamicOperators.configure gen
-		(DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
+		(fun e -> match e.eexpr with
 			| TBinop (Ast.OpEq, e1, e2) ->
 				is_dynamic e1.etype || is_dynamic e2.etype || is_type_param e1.etype || is_type_param e2.etype
 			| TBinop (Ast.OpAdd, e1, e2)
@@ -2344,7 +2344,7 @@ let configure gen =
 			end else begin
 				let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
 				{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
-			end));
+			end);
 
 	FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
 

@@ -2134,10 +2134,10 @@ struct
 
 end;;
 
+
 (* ******************************************* *)
 (* Dynamic Binop/Unop handler *)
 (* ******************************************* *)
-
 (*
 	On some languages there is limited support for operations on
 	dynamic variables, so those operations must be changed.
@@ -2175,17 +2175,12 @@ end;;
 		must run before OverloadingCtor due to later priority conflicts. Since ExpressionUnwrap is only
 		defined afterwards, we will set this value with absolute values
 *)
-
 module DynamicOperators =
 struct
-
 	let name = "dyn_ops"
-
 	let priority = 0.0
 
-	let abstract_implementation gen ?(handle_strings = true) (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
-
-
+	let configure gen ?(handle_strings = true) (should_change:texpr->bool) (equals_handler:texpr->texpr->texpr) (dyn_plus_handler:texpr->texpr->texpr->texpr) (compare_handler:texpr->texpr->texpr) =
 		let get_etype_one e =
 			if like_int e.etype then
 				(gen.gcon.basic.tint, { eexpr = TConst(TInt(Int32.one)); etype = gen.gcon.basic.tint; epos = e.epos })
@@ -2295,13 +2290,10 @@ struct
 				mk_paren { eexpr = TUnop(op, flag, mk_cast etype (run e1)); etype = etype; epos = e.epos }
 			| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gexpr_filters#add ~name:"dyn_ops" ~priority:(PCustom priority) map
-
 end;;
+
 
 (* ******************************************* *)
 (* Dynamic Field Access *)

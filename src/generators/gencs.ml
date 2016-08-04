@@ -3031,7 +3031,7 @@ let configure gen =
 	in
 
 	DynamicOperators.configure gen
-		(DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
+		(fun e -> match e.eexpr with
 			| TBinop (Ast.OpEq, e1, e2)
 			| TBinop (Ast.OpNotEq, e1, e2) ->
 				(
@@ -3100,7 +3100,8 @@ let configure gen =
 			end else begin
 				let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
 				{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
-			end) ~handle_strings:false);
+			end)
+		~handle_strings:false;
 
 	FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
 
