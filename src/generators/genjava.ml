@@ -2055,7 +2055,7 @@ let configure gen =
 	gen.greal_type <- real_type;
 	gen.greal_type_param <- change_param_type;
 
-	SetHXGen.run_filter gen SetHXGen.default_hxgen_func;
+	SetHXGen.run_filter gen;
 
 	(* before running the filters, follow all possible types *)
 	(* this is needed so our module transformations don't break some core features *)
