@@ -2660,10 +2660,6 @@ let configure gen =
 				false
 	in
 
-	let module_gen w md_def =
-		List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types
-	in
-
 	(* generate source code *)
 	init_ctx gen;
 
@@ -3334,7 +3330,16 @@ let configure gen =
 
 	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
 	mkdir_recursive "" parts;
-	generate_modules gen "cs" "src" module_gen out_files;
+
+	List.iter (fun md_def ->
+		let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in
+		let w = SourceWriter.new_source_writer() in
+		let should_write = List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types in
+		if should_write then begin
+			let path = path_of_md_def md_def in
+			write_file gen w source_dir path "cs" out_files
+		end
+	) gen.gmodules;
 
 	if not (Common.defined gen.gcon Define.KeepOldOutput) then
 		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;

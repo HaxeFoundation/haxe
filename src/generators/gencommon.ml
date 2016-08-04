@@ -1063,37 +1063,6 @@ let dump_descriptor gen name path_s module_s =
 	close_out f
 
 (*
-	helper function to create the source structure. Will send each module_def to the function passed.
-	If received true, it means that module_gen has generated this content, so the file must be saved.
-	See that it will write a whole module
-*)
-let generate_modules gen extension source_dir (module_gen : SourceWriter.source_writer->module_def->bool) out_files =
-	List.iter (fun md_def ->
-		let source_dir =
-				gen.gcon.file ^ "/" ^ source_dir ^ "/" ^ (String.concat "/" (fst (path_of_md_def md_def)))
-		in
-		let w = SourceWriter.new_source_writer () in
-		(*let should_write = List.fold_left (fun should md -> module_gen w md or should) false md_def.m_types in*)
-		let should_write = module_gen w md_def in
-		if should_write then begin
-			let path = path_of_md_def md_def in
-			write_file gen w source_dir path extension out_files
-		end
-	) gen.gmodules
-
-let generate_modules_t gen extension source_dir change_path (module_gen : SourceWriter.source_writer->module_type->bool) out_files =
-	let source_dir = gen.gcon.file ^ "/" ^ source_dir in
-	List.iter (fun md ->
-		let w = SourceWriter.new_source_writer () in
-		(*let should_write = List.fold_left (fun should md -> module_gen w md or should) false md_def.m_types in*)
-		let should_write = module_gen w md in
-		if should_write then begin
-			let path = change_path (t_path md) in
-			write_file gen w (source_dir ^ "/" ^ (String.concat "/" (fst path))) path extension out_files;
-		end
-	) gen.gtypes_list
-
-(*
 	various helper functions
 *)
 

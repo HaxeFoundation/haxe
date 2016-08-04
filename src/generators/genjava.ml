@@ -2041,10 +2041,6 @@ let configure gen =
 				false
 	in
 
-	let module_gen w md =
-		module_type_gen w md
-	in
-
 	(* generate source code *)
 	init_ctx gen;
 
@@ -2499,7 +2495,16 @@ let configure gen =
 
 	let parts = Str.split_delim (Str.regexp "[\\/]+") gen.gcon.file in
 	mkdir_recursive "" parts;
-	generate_modules_t gen "java" "src" change_path module_gen out_files;
+
+	let source_dir = gen.gcon.file ^ "/src" in
+	List.iter (fun md ->
+		let w = SourceWriter.new_source_writer () in
+		let should_write = module_type_gen w md in
+		if should_write then begin
+			let path = change_path (t_path md) in
+			write_file gen w (source_dir ^ "/" ^ (String.concat "/" (fst path))) path "java" out_files;
+		end
+	) gen.gtypes_list;
 
 	if not (Common.defined gen.gcon Define.KeepOldOutput) then
 		clean_files (gen.gcon.file ^ "/src") !out_files gen.gcon.verbose;
