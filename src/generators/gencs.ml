@@ -185,24 +185,25 @@ let rec change_md = function
 		TAbstractDecl a
 	| md -> md
 
+(* used in c#-specific filters to skip some of them for the special haxe.lang.Runtime class *)
+let in_runtime_class gen =
+	match gen.gcurrent_class with
+	| Some { cl_path = ["haxe";"lang"],"Runtime"} -> true
+	| _ -> false
+
 (* ******************************************* *)
 (* CSharpSpecificESynf *)
 (* ******************************************* *)
-
 (*
-
 	Some CSharp-specific syntax filters that must run before ExpressionUnwrap
 
 	dependencies:
 		It must run before ExprUnwrap, as it may not return valid Expr/Statement expressions
 		It must run before ClassInstance, as it will detect expressions that need unchanged TTypeExpr
-
 *)
 module CSharpSpecificESynf =
 struct
-
 	let name = "csharp_specific_e"
-
 	let priority = solve_deps name [DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority; DAfter TryCatchWrapper.priority]
 
 	let get_cl_from_t t =
@@ -215,15 +216,11 @@ struct
 			| TAbstract(ab,_) -> ab
 			| _ -> assert false
 
-	let traverse gen runtime_cl =
+	let configure gen runtime_cl =
 		let basic = gen.gcon.basic in
 		let uint = match get_type gen ([], "UInt") with | TTypeDecl t -> TType(t, []) | TAbstractDecl a -> TAbstract(a, []) | _ -> assert false in
 
 		let is_var = alloc_var "__is__" t_dynamic in
-		let name () = match gen.gcurrent_class with
-			| Some cl -> s_type_path cl.cl_path
-			| _ -> ""
-		in
 
 		let rec run e =
 			match e.eexpr with
@@ -270,7 +267,7 @@ struct
 
 					let obj = run obj in
 					(match follow_module follow md with
-						| TAbstractDecl{ a_path = ([], "Float") } when name() <> "haxe.lang.Runtime" ->
+						| TAbstractDecl{ a_path = ([], "Float") } when not (in_runtime_class gen) ->
 							(* on the special case of seeing if it is a Float, we need to test if both it is a float and if it is an Int *)
 							let mk_is local =
 								(* we check if it float or int or uint *)
@@ -281,7 +278,7 @@ struct
 							in
 							wrap_if_needed obj mk_is
 
-						| TAbstractDecl{ a_path = ([], "Int") } when name() <> "haxe.lang.Runtime" ->
+						| TAbstractDecl{ a_path = ([], "Int") } when not (in_runtime_class gen) ->
 							(* int can be stored in double variable because of anonymous functions, check that case *)
 							let mk_isint_call local =
 								{
@@ -300,7 +297,7 @@ struct
 							in
 							wrap_if_needed obj mk_is
 
-						| TAbstractDecl{ a_path = ([], "UInt") } when name() <> "haxe.lang.Runtime" ->
+						| TAbstractDecl{ a_path = ([], "UInt") } when not (in_runtime_class gen) ->
 							(* uint can be stored in double variable because of anonymous functions, check that case *)
 							let mk_isuint_call local =
 								{
@@ -360,12 +357,8 @@ struct
 
 				| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
 
 (* ******************************************* *)
@@ -383,9 +376,7 @@ end;;
 
 module CSharpSpecificSynf =
 struct
-
 	let name = "csharp_specific"
-
 	let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority;	DAfter HardNullableSynf.priority ]
 
 	let get_cl_from_t t =
@@ -398,7 +389,7 @@ struct
 			| TInst( { cl_kind = KTypeParameter _ }, _ ) -> true
 			| _ -> false
 
-	let traverse gen runtime_cl =
+	let configure gen runtime_cl =
 		let basic = gen.gcon.basic in
 		let tchar = match ( get_type gen (["cs"], "Char16") ) with
 			| TTypeDecl t -> TType(t,[])
@@ -423,10 +414,6 @@ struct
 		in
 
 		let is_cl t = match gen.greal_type t with | TInst ( { cl_path = (["System"], "Type") }, [] ) -> true | _ -> false in
-		let name () = match gen.gcurrent_class with
-			| Some cl -> s_type_path cl.cl_path
-			| _ -> ""
-		in
 
 		let as_var = alloc_var "__as__" t_dynamic in
 		let fast_cast = Common.defined gen.gcon Define.FastCast in
@@ -492,7 +479,7 @@ struct
 						etype = basic.tbool;
 						epos = e.epos
 					}
-				| TCast(expr, _) when is_int_float gen e.etype && is_dynamic gen expr.etype && ( Common.defined gen.gcon Define.EraseGenerics || not (is_null e.etype) ) && name() <> "haxe.lang.Runtime" ->
+				| TCast(expr, _) when is_int_float gen e.etype && is_dynamic gen expr.etype && ( Common.defined gen.gcon Define.EraseGenerics || not (is_null e.etype) ) && not (in_runtime_class gen) ->
 					let needs_cast = match gen.gfollow#run_f e.etype with
 						| TInst _ -> false
 						| _ -> true
@@ -511,7 +498,7 @@ struct
 
 					if needs_cast then mk_cast e.etype ret else ret
 
-				| TCast(expr, _) when Common.defined gen.gcon Define.EraseGenerics && like_i64 e.etype && is_dynamic gen expr.etype && name() <> "haxe.lang.Runtime" ->
+				| TCast(expr, _) when Common.defined gen.gcon Define.EraseGenerics && like_i64 e.etype && is_dynamic gen expr.etype && not (in_runtime_class gen) ->
 					{
 						eexpr = TCall(
 							mk_static_field_access_infer runtime_cl "toLong" expr.epos [],
@@ -527,7 +514,7 @@ struct
 					else
 						{ e with eexpr = TCall(mk_local as_var e.epos, [run expr]) }
 
-				| TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) && name() <> "haxe.lang.Runtime" ->
+				| TCast(expr, _) when (is_string e.etype) && (not (is_string expr.etype)) && not (in_runtime_class gen) ->
 					{ e with eexpr = TCall( mk_static_field_access_infer runtime_cl "toString" expr.epos [], [run expr] ) }
 				| TBinop( (Ast.OpNotEq as op), e1, e2)
 				| TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
@@ -540,7 +527,7 @@ struct
 						}, [ run e1; run e2 ])
 					}
 
-				| TCast(expr, _) when is_tparam e.etype && name() <> "haxe.lang.Runtime" && not (Common.defined gen.gcon Define.EraseGenerics) ->
+				| TCast(expr, _) when is_tparam e.etype && not (in_runtime_class gen) && not (Common.defined gen.gcon Define.EraseGenerics) ->
 					let static = mk_static_field_access_infer (runtime_cl) "genericCast" e.epos [e.etype] in
 					{ e with eexpr = TCall(static, [mk_local (alloc_var "$type_param" e.etype) expr.epos; run expr]); }
 
@@ -556,7 +543,7 @@ struct
 					}
 
 				| TBinop ( (Ast.OpEq as op), e1, e2 )
-				| TBinop ( (Ast.OpNotEq as op), e1, e2 ) when is_cl e1.etype && name() <> "haxe.lang.Runtime" ->
+				| TBinop ( (Ast.OpNotEq as op), e1, e2 ) when is_cl e1.etype && not (in_runtime_class gen) ->
 					let static = mk_static_field_access_infer (runtime_cl) "typeEq" e.epos [] in
 					let ret = { e with eexpr = TCall(static, [run e1; run e2]); } in
 					if op = Ast.OpNotEq then
@@ -566,12 +553,8 @@ struct
 
 				| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
 
 let add_cast_handler gen =
@@ -3177,8 +3160,8 @@ let configure gen =
 	DefaultArguments.configure gen;
 	InterfaceMetas.configure gen;
 
-	CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
-	CSharpSpecificESynf.configure gen (CSharpSpecificESynf.traverse gen runtime_cl);
+	CSharpSpecificSynf.configure gen runtime_cl;
+	CSharpSpecificESynf.configure gen runtime_cl;
 
 	let out_files = ref [] in
 
