@@ -66,7 +66,7 @@ and class_proto = {
 and enum_proto = {
 	ename : string;
 	eid : int;
-	mutable eglobal : int;
+	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
 }
 
@@ -318,7 +318,7 @@ let null_proto =
 
 let all_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
-	let ep = { ename = ""; eid = 0; eglobal = 0; efields = [||] } in
+	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
 	[HVoid;HI8;HI16;HI32;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
 
 let is_number = function
@@ -963,7 +963,7 @@ and enum_type ?(tref=None) ctx e =
 	with Not_found ->
 		let ename = s_type_path e.e_path in
 		let et = {
-			eglobal = 0;
+			eglobal = None;
 			ename = ename;
 			eid = alloc_string ctx ename;
 			efields = [||];
@@ -982,7 +982,7 @@ and enum_type ?(tref=None) ctx e =
 			(f.ef_name, alloc_string ctx f.ef_name, args)
 		) e.e_names);
 		let ct = enum_class ctx e in
-		et.eglobal <- alloc_global ctx (match ct with HObj o -> o.pname | _ -> assert false) ct;
+		et.eglobal <- Some (alloc_global ctx (match ct with HObj o -> o.pname | _ -> assert false) ct);
 		t
 
 and enum_class ctx e =
@@ -2684,7 +2684,7 @@ and build_capture_vars ctx f =
 		c_map = !indexes;
 		c_vars = cvars;
 		c_type = HEnum {
-			eglobal = 0;
+			eglobal = None;
 			ename = "";
 			eid = 0;
 			efields = [|"",0,Array.map (fun v -> to_type ctx v.v_type) cvars|];
@@ -4856,7 +4856,7 @@ let interp code =
 				| [VType t] ->
 					(match t with
 					| HObj c -> (match c.pclassglobal with None -> VNull | Some g -> globals.(g))
-					| HEnum e -> globals.(e.eglobal)
+					| HEnum e -> (match e.eglobal with None -> VNull | Some g -> globals.(g))
 					| _ -> VNull)
 				| _ -> assert false)
 			| "type_name" ->
@@ -5489,6 +5489,9 @@ let write_code ch code =
 			(match p.psuper with
 			| None -> write_index (-1)
 			| Some t -> write_type (HObj t));
+			(match p.pclassglobal with
+			| None -> write_index 0
+			| Some g -> write_index (g + 1));
 			write_index (Array.length p.pfields);
 			write_index (Array.length p.pproto);
 			Array.iter (fun (_,n,t) -> write_index n; write_type t) p.pfields;
@@ -5512,6 +5515,9 @@ let write_code ch code =
 		| HEnum e ->
 			byte 17;
 			write_index e.eid;
+			(match e.eglobal with
+			| None -> write_index 0
+			| Some g -> write_index (g + 1));
 			write_index (Array.length e.efields);
 			Array.iter (fun (_,nid,tl) ->
 				write_index nid;
@@ -6830,7 +6836,7 @@ let write_c version file (code:code) =
 			sexpr "type$%d.tparam = %s" i (type_value t)
 		| HEnum e ->
 			sexpr "type$%d.tenum = &enum$%d" i i;
-			if e.eglobal <> 0 then sexpr "enum$%d.global_value = (void**)&global$%d" i e.eglobal;
+			(match e.eglobal with None -> () | Some g -> sexpr "enum$%d.global_value = (void**)&global$%d" i g);
 			Array.iteri (fun cid (_,_,tl) ->
 				if Array.length tl > 0 then begin
 					line "{";
