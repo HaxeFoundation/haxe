@@ -10297,70 +10297,62 @@ struct
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 end;;
 
+
 (* ******************************************* *)
 (* Int Division Synf *)
 (* ******************************************* *)
-
 (*
-
-	On targets that support int division, this module will force a float division to be performed,
-	so compatibility with current haxe targets is ensured.
-	If catch_int_div is set to true, though, it will look for casts to int or use of Std.int() to optimize
-	this kind of operation.
+	On targets that support int division, this module will force a float division to be performed.
+	It will also look for casts to int or use of Std.int() to optimize this kind of operation.
 
 	dependencies:
 		since it depends on nothing, but many modules might generate division expressions,
 		it will be one of the last modules to run
-
 *)
-
 module IntDivisionSynf =
 struct
-
 	let name = "int_division_synf"
-
 	let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority ]
 
-	let rec is_int t = match follow t with
-		| TInst({ cl_path = (["haxe";"lang"],"Null") }, [t]) -> is_int t
-		| t ->
-			like_int t && not (like_i64 t)
-
-	let is_exactly_int t = match follow t with
-		| TAbstract ({ a_path=[],"Int" }, []) -> true
-		| _ -> false
-
-	let default_implementation gen catch_int_div =
+	let configure gen =
 		let basic = gen.gcon.basic in
+		let rec is_int t = match follow t with
+			| TInst({ cl_path = (["haxe";"lang"],"Null") }, [t]) -> is_int t
+			| t ->
+				like_int t && not (like_i64 t)
+		in
+		let is_exactly_int t = match follow t with
+			| TAbstract ({ a_path=[],"Int" }, []) -> true
+			| _ -> false
+		in
 		let rec run e =
 			match e.eexpr with
-				| TBinop((Ast.OpDiv as op), e1, e2) when is_int e1.etype && is_int e2.etype ->
-					{ e with eexpr = TBinop(op, mk_cast basic.tfloat (run e1), run e2) }
-				| TCall(
-						{ eexpr = TField(_, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })) },
-						[ ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ) ]
-					) when catch_int_div && is_int e1.etype && is_int e2.etype ->
-					let e = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint } in
-					if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
-						mk_cast basic.tint e
-					else
-						e
-				| TCast( ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ), _ )
-				| TCast( ({ eexpr = TBinop(( (Ast.OpAssignOp Ast.OpDiv) as op), e1, e2) } as ebinop ), _ ) when catch_int_div && is_int e1.etype && is_int e2.etype && is_int e.etype ->
-					let ret = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = e.etype } in
-					if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
-						mk_cast e.etype ret
-					else
-						e
-				| _ -> Type.map_expr run e
+			| TBinop((Ast.OpDiv as op), e1, e2) when is_int e1.etype && is_int e2.etype ->
+				{ e with eexpr = TBinop(op, mk_cast basic.tfloat (run e1), run e2) }
+			| TCall(
+					{ eexpr = TField(_, FStatic({ cl_path = ([], "Std") }, { cf_name = "int" })) },
+					[ ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ) ]
+				) when is_int e1.etype && is_int e2.etype ->
+				let e = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint } in
+				if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
+					mk_cast basic.tint e
+				else
+					e
+			| TCast( ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ), _ )
+			| TCast( ({ eexpr = TBinop(( (Ast.OpAssignOp Ast.OpDiv) as op), e1, e2) } as ebinop ), _ ) when is_int e1.etype && is_int e2.etype && is_int e.etype ->
+				let ret = { ebinop with eexpr = TBinop(op, run e1, run e2); etype = e.etype } in
+				if not (is_exactly_int e1.etype && is_exactly_int e2.etype) then
+					mk_cast e.etype ret
+				else
+					e
+			| _ ->
+				Type.map_expr run e
 		in
-		run
 
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
+
 
 (* ******************************************* *)
 (* UnnecessaryCastsRemoval *)

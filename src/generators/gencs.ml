@@ -3178,7 +3178,7 @@ let configure gen =
 
 	UnnecessaryCastsRemoval.configure gen;
 
-	IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
+	IntDivisionSynf.configure gen;
 
 	UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen false true true false);
 
