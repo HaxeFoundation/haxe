@@ -1412,30 +1412,6 @@ exception TypeNotFound of path
 let get_type gen path =
 	try Hashtbl.find gen.gtypes path with | Not_found -> raise (TypeNotFound path)
 
-(* ******************************************* *)
-(* follow all module *)
-(* ******************************************* *)
-
-(*
-	this module will follow each and every type using the rules defined in
-	gen.gfollow. This is a minor helper module, so we don't end up
-	having to follow the same time multiple times in the many filter iterations
-	because of this, it will be one of the first modules to run.
-*)
-module FollowAll =
-struct
-
-	let follow gen e =
-		let follow_func = gen.gfollow#run_f in
-		Some (Type.map_expr_type (fun e->e) (follow_func) (fun tvar-> tvar.v_type <- (follow_func tvar.v_type); tvar) e)
-
-	let priority = max_dep
-
-	(* will add an expression filter as the first filter *)
-	let configure gen =
-		gen.gexpr_filters#add ~name:"follow_all" ~priority:(PCustom(priority)) (follow gen)
-
-end;;
 
 (* ******************************************* *)
 (* set hxgen module *)

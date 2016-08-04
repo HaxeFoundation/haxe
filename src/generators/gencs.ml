@@ -2727,16 +2727,6 @@ let configure gen =
 
 	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
 
-	(*let closure_t = ClosuresToClass.create gen 10 float_cl
-		(fun l -> l)
-		(fun l -> l)
-		(fun args -> args)
-		(fun args -> [])
-	in
-	ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (fun e _ _ -> e));
-
-	StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
-
 	let tp_v = alloc_var "$type_param" t_dynamic in
 	let mk_tp t pos = { eexpr = TLocal(tp_v); etype = t; epos = pos } in
 	TypeParams.configure gen (fun ecall efield params elist ->
@@ -3169,8 +3159,6 @@ let configure gen =
 	));
 
 	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) (not erase_generics) ~overloads_cast_to_base:true);
-
-	(*FollowAll.configure gen;*)
 
 	SwitchToIf.configure gen (SwitchToIf.traverse gen (fun e ->
 		match e.eexpr with
