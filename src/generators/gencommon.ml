@@ -4820,8 +4820,6 @@ struct
 
 
 	let configure gen (param_func_call:texpr->texpr->tparams->texpr list->texpr) =
-		(*let map e = Some(mapping_func e) in
-		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map*)
 		gen.gparam_func_call <- param_func_call
 
 end;;
