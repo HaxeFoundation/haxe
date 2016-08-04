@@ -2464,28 +2464,22 @@ end;;
 (* ******************************************* *)
 (* Dynamic TArray Handling *)
 (* ******************************************* *)
-
 (*
 	In some languages you cannot overload the [] operator,
 	so we need to decide what is kept as TArray and what gets mapped.
-
-	- in order to do this you must ensure that
 
 	depends on:
 		(syntax) must run before expression/statment normalization because it may generate complex expressions
 		(ok) must run before binop transformations because it may generate some untreated binop ops
 		(ok) must run before dynamic field access is transformed into reflection
 *)
-
 module TArrayTransform =
 struct
-
 	let name = "dyn_tarray"
-
 	let priority = solve_deps name [DBefore DynamicOperators.priority; DBefore DynamicFieldAccess.priority]
 
 	(* should change signature: tarray expr -> binop operation -> should change? *)
-	let default_implementation gen (should_change:texpr->Ast.binop option->bool) (get_fun:string) (set_fun:string) =
+	let configure gen (should_change:texpr->Ast.binop option->bool) (get_fun:string) (set_fun:string) =
 		let basic = gen.gcon.basic in
 		let mk_get e e1 e2 =
 			let efield = mk_field_access gen e1 get_fun e.epos in
@@ -2548,14 +2542,11 @@ struct
 					end else
 						Type.map_expr run e
 				| _ -> Type.map_expr run e
-
-		in run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		in
+		let map e = Some(run e) in
 		gen.gexpr_filters#add ~name:"dyn_tarray" ~priority:(PCustom priority) map
-
 end;;
+
 
 (* ******************************************* *)
 (* Try / Catch + throw native types handling *)

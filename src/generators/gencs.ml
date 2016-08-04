@@ -2943,7 +2943,7 @@ let configure gen =
 	ObjectDeclMap.configure gen (ObjectDeclMap.traverse gen objdecl_fn);
 
 	InitFunction.configure gen;
-	TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
+	TArrayTransform.configure gen (
 	fun e binop ->
 		match e.eexpr with
 			| TArray(e1, e2) ->
@@ -2960,7 +2960,7 @@ let configure gen =
 							true
 						| _ -> false)
 			| _ -> assert false
-	) "__get" "__set" );
+	) "__get" "__set";
 
 	let field_is_dynamic t field =
 		match field_access_esp gen (gen.greal_type t) field with
