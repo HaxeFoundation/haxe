@@ -2551,9 +2551,7 @@ end;;
 (* ******************************************* *)
 (* Try / Catch + throw native types handling *)
 (* ******************************************* *)
-
 (*
-
 	Some languages/vm's do not support throwing any kind of value. For them, only
 	special kinds of objects can be thrown. Because of this, we must wrap some throw
 	statements with an expression, and also we must unwrap it on the catch() phase, and
@@ -2562,12 +2560,9 @@ end;;
 	dependencies:
 		must run before dynamic field access (?) TODO review
 		It's a syntax filter, as it alters types (throw wrapper)
-
 *)
-
 module TryCatchWrapper =
 struct
-
 	let priority = solve_deps "try_catch" [DBefore DynamicFieldAccess.priority]
 
 	(*
@@ -2579,7 +2574,7 @@ struct
 		wrapper_type : the wrapper type, so we can test if exception is of type 'wrapper'
 		catch_map : maps the catch expression to include some intialization code (e.g. setting up Stack.exceptionStack)
 	*)
-	let traverse gen (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:tvar->pos->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) =
+	let configure gen (should_wrap:t->bool) (wrap_throw:texpr->texpr->texpr) (unwrap_expr:tvar->pos->texpr) (rethrow_expr:texpr->texpr) (catchall_type:t) (wrapper_type:t) (catch_map:tvar->texpr->texpr) =
 		let rec run e =
 			match e.eexpr with
 					| TThrow texpr when should_wrap texpr.etype -> wrap_throw e (run texpr)
@@ -2647,13 +2642,10 @@ struct
 						{ e with eexpr = TTry(run ttry, (List.rev nowrap_catches) @ dyn_catch) }
 					| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:"try_catch" ~priority:(PCustom priority) map
-
 end;;
+
 
 let fun_args = List.map (function | (v,s) -> (v.v_name, (match s with | None -> false | Some _ -> true), v.v_type))
 

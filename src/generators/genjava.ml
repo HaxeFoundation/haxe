@@ -2361,32 +2361,29 @@ let configure gen =
 	in
 
 	TryCatchWrapper.configure gen
-	(
-		TryCatchWrapper.traverse gen
-			(fun t -> not (is_exception (real_type t)))
-			(fun throwexpr expr ->
-				let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) expr.epos in
-				{ throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]); etype = hx_exception_t }; etype = gen.gcon.basic.tvoid }
-			)
-			(fun v_to_unwrap pos ->
-				let local = mk_cast hx_exception_t { eexpr = TLocal(v_to_unwrap); etype = v_to_unwrap.v_type; epos = pos } in
-				mk_field_access gen local "obj" pos
-			)
-			(fun rethrow ->
-				let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) rethrow.epos in
-				{ rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]); etype = hx_exception_t }; }
-			)
-			(base_exception_t)
-			(hx_exception_t)
-			(fun v e ->
+		(fun t -> not (is_exception (real_type t)))
+		(fun throwexpr expr ->
+			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) expr.epos in
+			{ throwexpr with eexpr = TThrow { expr with eexpr = TCall(wrap_static, [expr]); etype = hx_exception_t }; etype = gen.gcon.basic.tvoid }
+		)
+		(fun v_to_unwrap pos ->
+			let local = mk_cast hx_exception_t { eexpr = TLocal(v_to_unwrap); etype = v_to_unwrap.v_type; epos = pos } in
+			mk_field_access gen local "obj" pos
+		)
+		(fun rethrow ->
+			let wrap_static = mk_static_field_access (hx_exception) "wrap" (TFun([("obj",false,t_dynamic)], hx_exception_t)) rethrow.epos in
+			{ rethrow with eexpr = TThrow { rethrow with eexpr = TCall(wrap_static, [rethrow]); etype = hx_exception_t }; }
+		)
+		(base_exception_t)
+		(hx_exception_t)
+		(fun v e ->
 
-				let exc_cl = get_cl (get_type gen (["haxe";"lang"],"Exceptions")) in
-				let exc_field = mk_static_field_access_infer exc_cl "setException" e.epos [] in
-				let esetstack = { eexpr = TCall(exc_field,[mk_local v e.epos]); etype = gen.gcon.basic.tvoid; epos = e.epos } in
+			let exc_cl = get_cl (get_type gen (["haxe";"lang"],"Exceptions")) in
+			let exc_field = mk_static_field_access_infer exc_cl "setException" e.epos [] in
+			let esetstack = { eexpr = TCall(exc_field,[mk_local v e.epos]); etype = gen.gcon.basic.tvoid; epos = e.epos } in
 
-				Type.concat esetstack e;
-			)
-	);
+			Type.concat esetstack e;
+		);
 
 	ClassInstance.configure gen (fun e _ -> { e with eexpr = TCall({ eexpr = TLocal(alloc_var "__typeof__" t_dynamic); etype = t_dynamic; epos = e.epos }, [e]) });
 
