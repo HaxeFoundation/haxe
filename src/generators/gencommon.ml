@@ -8982,9 +8982,7 @@ struct
 	(* ******************************************* *)
 	(* IteratorsInterfaceExprf *)
 	(* ******************************************* *)
-
 	(*
-
 		The expression filter for Iterators. Will look for TFor, transform it into
 		{
 			var iterator = // in expression here
@@ -8996,14 +8994,10 @@ struct
 
 		dependencies:
 			Must run before Dynamic fields access is run
-
 	*)
-
 	module IteratorsInterfaceExprf =
 	struct
-
 		let name = "iterators_interface_exprf"
-
 		let priority = solve_deps name [DBefore DynamicFieldAccess.priority]
 
 		let mk_access gen v name pos =
@@ -9020,42 +9014,38 @@ struct
 			in
 			{ (mk_field_access gen (mk_local v pos) name pos) with etype = field_t }
 
-		let traverse gen change_in_expr =
+		let configure gen =
 			let basic = gen.gcon.basic in
 			let rec run e =
 				match e.eexpr with
-					| TFor(var, in_expr, block) ->
-						let in_expr = change_in_expr (run in_expr) in
-						let temp = mk_temp gen "iterator" in_expr.etype in
-						let block =
-						[
-							{ eexpr = TVar(temp, Some(in_expr)); etype = basic.tvoid; epos = in_expr.epos };
-							{
-								eexpr = TWhile(
-									{ eexpr = TCall(mk_access gen temp "hasNext" in_expr.epos, []); etype = basic.tbool; epos = in_expr.epos },
-									Type.concat ({
-										eexpr = TVar(var, Some({ eexpr = TCall(mk_access gen temp "next" in_expr.epos, []); etype = var.v_type; epos = in_expr.epos }));
-										etype = basic.tvoid;
-										epos = in_expr.epos
-									}) ( run block ),
-									Ast.NormalWhile);
-								etype = basic.tvoid;
-								epos = e.epos
-							}
-						] in
-						{ eexpr = TBlock(block); etype = e.etype; epos = e.epos }
-					| _ -> Type.map_expr run e
+				| TFor(var, in_expr, block) ->
+					let in_expr = run in_expr in
+					let temp = mk_temp gen "iterator" in_expr.etype in
+					let block = [
+						{ eexpr = TVar(temp, Some(in_expr)); etype = basic.tvoid; epos = in_expr.epos };
+						{
+							eexpr = TWhile(
+								{ eexpr = TCall(mk_access gen temp "hasNext" in_expr.epos, []); etype = basic.tbool; epos = in_expr.epos },
+								Type.concat ({
+									eexpr = TVar(var, Some({ eexpr = TCall(mk_access gen temp "next" in_expr.epos, []); etype = var.v_type; epos = in_expr.epos }));
+									etype = basic.tvoid;
+									epos = in_expr.epos
+								}) ( run block ),
+								Ast.NormalWhile);
+							etype = basic.tvoid;
+							epos = e.epos
+						}
+					] in
+					{ eexpr = TBlock(block); etype = e.etype; epos = e.epos }
+				| _ ->
+					Type.map_expr run e
 			in
-			run
-
-		let configure gen (mapping_func:texpr->texpr) =
-			let map e = Some(mapping_func e) in
+			let map e = Some(run e) in
 			gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
-
 	end;;
 
-	let configure gen change_in_expr =
-		IteratorsInterfaceExprf.configure gen (IteratorsInterfaceExprf.traverse gen change_in_expr)
+	let configure gen =
+		IteratorsInterfaceExprf.configure gen
 
 end;;
 

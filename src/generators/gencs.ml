@@ -2768,7 +2768,7 @@ let configure gen =
 
 	AbstractImplementationFix.configure gen;
 
-	IteratorsInterface.configure gen (fun e -> e);
+	IteratorsInterface.configure gen;
 
 	ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
 
