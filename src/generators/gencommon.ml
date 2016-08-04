@@ -1428,14 +1428,17 @@ struct
 		since many others depend of it.
 	*)
 	let run_filter gen =
-		let rec is_hxgen gen md =
+		let rec is_hxgen md =
 			match md with
 			| TClassDecl { cl_kind = KAbstractImpl a } ->
-				is_hxgen gen (TAbstractDecl a)
+				is_hxgen (TAbstractDecl a)
 			| TClassDecl cl ->
 				let rec is_hxgen_class (c,_) =
 					if c.cl_extern then begin
-						if Meta.has Meta.HxGen c.cl_meta then true else Option.map_default (is_hxgen_class) false c.cl_super || List.exists is_hxgen_class c.cl_implements
+						if Meta.has Meta.HxGen c.cl_meta then
+							true
+						else
+							Option.map_default (is_hxgen_class) false c.cl_super || List.exists is_hxgen_class c.cl_implements
 					end else begin
 						if Meta.has Meta.NativeChildren c.cl_meta || Meta.has Meta.NativeGen c.cl_meta then
 							Option.map_default is_hxgen_class false c.cl_super || List.exists is_hxgen_class c.cl_implements
@@ -1454,8 +1457,10 @@ struct
 					end
 				in
 				is_hxgen_class (cl,[])
-			| TEnumDecl e -> if e.e_extern then Meta.has Meta.HxGen e.e_meta else
-				if Meta.has Meta.NativeGen e.e_meta then
+			| TEnumDecl e ->
+				if e.e_extern then
+					Meta.has Meta.HxGen e.e_meta
+				else if Meta.has Meta.NativeGen e.e_meta then
 					if Meta.has Meta.FlatEnum e.e_meta then
 						false
 					else begin
@@ -1464,12 +1469,12 @@ struct
 					end
 				else
 					true
-				(* not (Meta.has Meta.NativeGen e.e_meta) *)
 			| TAbstractDecl a when Meta.has Meta.CoreType a.a_meta ->
 				not (Meta.has Meta.NativeGen a.a_meta)
-			| TAbstractDecl a -> (match follow a.a_this with
+			| TAbstractDecl a ->
+				(match follow a.a_this with
 				| TInst _ | TEnum _ | TAbstract _ ->
-					is_hxgen gen (t_to_md (follow a.a_this))
+					is_hxgen (t_to_md (follow a.a_this))
 				| _ ->
 					not (Meta.has Meta.NativeGen a.a_meta))
 			| TTypeDecl t -> (* TODO see when would we use this *)
@@ -1477,14 +1482,12 @@ struct
 		in
 
 		let filter md =
-			let meta = if is_hxgen gen md then Meta.HxGen else Meta.NativeGen in
-			begin
-				match md with
-				| TClassDecl cl -> cl.cl_meta <- (meta, [], cl.cl_pos) :: cl.cl_meta
-				| TEnumDecl e -> e.e_meta <- (meta, [], e.e_pos) :: e.e_meta
-				| TTypeDecl t -> t.t_meta <- (meta, [], t.t_pos) :: t.t_meta
-				| TAbstractDecl a -> a.a_meta <- (meta, [], a.a_pos) :: a.a_meta
-			end
+			let meta = if is_hxgen md then Meta.HxGen else Meta.NativeGen in
+			match md with
+			| TClassDecl cl -> cl.cl_meta <- (meta, [], cl.cl_pos) :: cl.cl_meta
+			| TEnumDecl e -> e.e_meta <- (meta, [], e.e_pos) :: e.e_meta
+			| TTypeDecl t -> t.t_meta <- (meta, [], t.t_pos) :: t.t_meta
+			| TAbstractDecl a -> a.a_meta <- (meta, [], a.a_pos) :: a.a_meta
 		in
 
 		List.iter filter gen.gtypes_list
