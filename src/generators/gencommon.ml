@@ -1062,34 +1062,6 @@ let dump_descriptor gen name path_s module_s =
 	output_string f contents;
 	close_out f
 
-let path_regex = Str.regexp "[/\\]+"
-
-let normalize path =
-	let rec normalize acc m = match m with
-		| [] ->
-			List.rev acc
-		| Str.Text "." :: Str.Delim _ :: tl when acc = [] ->
-			normalize [] tl
-		| Str.Text ".." :: Str.Delim _ :: tl -> (match acc with
-			| [] -> raise Exit
-			| _ :: acc -> normalize acc tl)
-		| Str.Text t :: Str.Delim _ :: tl ->
-			normalize (t :: acc) tl
-		| Str.Delim _ :: tl ->
-			normalize ("" :: acc) tl
-		| Str.Text t :: [] ->
-			List.rev (t :: acc)
-		| Str.Text _ :: Str.Text  _ :: _ -> assert false
-	in
-	String.concat "/" (normalize [] (Str.full_split path_regex path))
-
-let is_relative cwd rel =
-	try
-		let rel = normalize rel in
-		Filename.is_relative rel || (String.starts_with rel cwd || String.starts_with (Common.unique_full_path rel) cwd)
-	with | Exit ->
-		String.starts_with rel cwd || String.starts_with (Common.unique_full_path rel) cwd
-
 (*
 	helper function to create the source structure. Will send each module_def to the function passed.
 	If received true, it means that module_gen has generated this content, so the file must be saved.

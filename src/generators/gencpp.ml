@@ -392,7 +392,7 @@ let get_meta_string_path meta key =
               else
                  pos.pfile
               in
-              Gencommon.normalize (Filename.concat (Filename.dirname base) (String.sub name 2 ((String.length name) -2)  ))
+              normalize_path (Filename.concat (Filename.dirname base) (String.sub name 2 ((String.length name) -2)  ))
            end else
               name
            with Invalid_argument _ -> name)
@@ -407,7 +407,7 @@ let get_meta_string_full_filename meta key =
       | [] -> ""
       | (k,_, pos) :: _  when k=key->
            if (Filename.is_relative pos.pfile) then
-              Gencommon.normalize (Filename.concat (Sys.getcwd()) pos.pfile)
+              normalize_path (Filename.concat (Sys.getcwd()) pos.pfile)
            else
               pos.pfile
       | _ :: l -> loop l
@@ -418,7 +418,7 @@ let get_meta_string_full_filename meta key =
 let get_meta_string_full_dirname meta key =
    let name = get_meta_string_full_filename meta key in
    try
-      Gencommon.normalize (Filename.dirname name)
+      normalize_path (Filename.dirname name)
    with Invalid_argument _ -> ""
 ;;
 
