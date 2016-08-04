@@ -5696,12 +5696,19 @@ let dump pr code =
 	pr (string_of_int (Array.length code.functions) ^ " functions");
 	Array.iter (fun f ->
 		pr (Printf.sprintf "	fun@%d(%Xh) %s" f.findex f.findex (tstr f.ftype));
+		let fid, _ = f.debug.(0) in
+		let cur_fid = ref fid in
 		pr (Printf.sprintf "	; %s (%s)" (debug_infos f.debug.(0)) (fundecl_name f));
 		Array.iteri (fun i r ->
 			pr ("		r" ^ string_of_int i ^ " " ^ tstr r);
 		) f.regs;
 		Array.iteri (fun i o ->
-			pr (Printf.sprintf "		.%-5d @%X %s" (snd f.debug.(i)) i (ostr fstr o))
+			let fid, line = f.debug.(i) in
+			if fid <> !cur_fid then begin
+				cur_fid := fid;
+				pr (Printf.sprintf "	; %s" (debug_infos (fid,line)));
+			end;
+			pr (Printf.sprintf "		.%-5d @%X %s" line i (ostr fstr o))
 		) f.code;
 	) code.functions;
 	let protos = Hashtbl.fold (fun _ p acc -> p :: acc) all_protos [] in
