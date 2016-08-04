@@ -9147,24 +9147,16 @@ struct
 
 end;;
 
+
 (* ******************************************* *)
 (* SwitchToIf *)
 (* ******************************************* *)
-
 (*
-
 	Just a syntax filter which changes switch expressions to if() else if() else if() ...
-	It can be also an expression filter
-	dependencies:
-
-
 *)
-
 module SwitchToIf =
 struct
-
 	let name = "switch_to_if"
-
 	let priority = solve_deps name []
 
 	let rec simplify_expr e = match e.eexpr with
@@ -9172,20 +9164,20 @@ struct
 		| TMeta(_,e) -> simplify_expr e
 		| _ -> e
 
-	let traverse gen (should_convert:texpr->bool) (handle_nullables:bool) =
+	let configure gen (should_convert:texpr->bool) =
 		let basic = gen.gcon.basic in
 		let rec run e =
 			match e.eexpr with
 				| TSwitch(cond,cases,default) when should_convert e ->
-					let cond_etype, should_cache = match handle_nullables, gen.gfollow#run_f cond.etype with
-						| true, TType({ t_path = ([], "Null") }, [t]) ->
+					let cond_etype, should_cache = match gen.gfollow#run_f cond.etype with
+						| TType({ t_path = ([], "Null") }, [t]) ->
 							let rec take_off_nullable t = match gen.gfollow#run_f t with
 								| TType({ t_path = ([], "Null") }, [t]) -> take_off_nullable t
 								| _ -> t
 							in
 
 							take_off_nullable t, true
-						| _, _ -> cond.etype, false
+						| _ -> cond.etype, false
 					in
 
 					if should_cache && not (should_convert { e with eexpr = TSwitch({ cond with etype = cond_etype }, cases, default) }) then begin
@@ -9263,13 +9255,10 @@ struct
 					with Not_found -> Type.map_expr run e)
 				| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
+
 
 (* ******************************************* *)
 (* Anonymous Class object handling *)

@@ -3157,7 +3157,7 @@ let configure gen =
 
 	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) (not erase_generics) ~overloads_cast_to_base:true);
 
-	SwitchToIf.configure gen (SwitchToIf.traverse gen (fun e ->
+	SwitchToIf.configure gen (fun e ->
 		match e.eexpr with
 			| TSwitch(cond, cases, def) ->
 				(match gen.gfollow#run_f cond.etype with
@@ -3169,7 +3169,7 @@ let configure gen =
 					| _ -> true
 				)
 			| _ -> assert false
-	) true ) ;
+	);
 
 	ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVar(mk_temp gen "expr" e.etype, Some e); etype = gen.gcon.basic.tvoid; epos = e.epos }));
 
