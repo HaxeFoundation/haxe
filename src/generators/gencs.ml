@@ -2942,7 +2942,7 @@ let configure gen =
 
 	ObjectDeclMap.configure gen (ObjectDeclMap.traverse gen objdecl_fn);
 
-	InitFunction.configure gen true true;
+	InitFunction.configure gen;
 	TArrayTransform.configure gen (TArrayTransform.default_implementation gen (
 	fun e binop ->
 		match e.eexpr with
