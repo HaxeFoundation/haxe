@@ -6539,7 +6539,7 @@ struct
 
 	(** overloads_cast_to_base argument will cast overloaded function types to the class that declared it. **)
 	(**			This is necessary for C#, and if true, will require the target to implement __as__, as a `quicker` form of casting **)
-	let default_implementation gen ?(native_string_cast = true) ?(overloads_cast_to_base = false) maybe_empty_t calls_parameters_explicitly =
+	let default_implementation gen ?(overloads_cast_to_base = false) maybe_empty_t calls_parameters_explicitly =
 		let handle e t1 t2 = handle_cast gen e (gen.greal_type t1) (gen.greal_type t2) in
 
 		let in_value = ref false in

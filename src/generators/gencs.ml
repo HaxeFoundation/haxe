@@ -3172,7 +3172,7 @@ let configure gen =
 		get_typeof e
 	));
 
-	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) (not erase_generics) ~native_string_cast:false ~overloads_cast_to_base:true);
+	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) (not erase_generics) ~overloads_cast_to_base:true);
 
 	(*FollowAll.configure gen;*)
 
