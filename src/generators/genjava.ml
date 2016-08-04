@@ -2428,7 +2428,7 @@ let configure gen =
 
 	UnreachableCodeEliminationSynf.configure gen true;
 
-	ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
+	ArrayDeclSynf.configure gen native_arr_cl;
 
 	let goto_special = alloc_var "__goto__" t_dynamic in
 	let label_special = alloc_var "__label__" t_dynamic in
