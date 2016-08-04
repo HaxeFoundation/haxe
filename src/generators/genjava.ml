@@ -2210,11 +2210,6 @@ let configure gen =
 
 	ReflectionCFs.configure_dynamic_field_access rcf_ctx;
 
-	(* let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in *)
-	let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
-
-	let closure_func = ReflectionCFs.get_closure_func rcf_ctx closure_cl in
-
 	ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
 
 	let slow_invoke = mk_static_field_access_infer (runtime_cl) "slowCallField" Ast.null_pos [] in
@@ -2346,7 +2341,8 @@ let configure gen =
 				{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
 			end);
 
-	FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
+	let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
+	FilterClosures.configure gen (fun e1 s -> true) (ReflectionCFs.get_closure_func rcf_ctx closure_cl);
 
 	let base_exception = get_cl (get_type gen (["java"; "lang"], "Throwable")) in
 	let base_exception_t = TInst(base_exception, []) in

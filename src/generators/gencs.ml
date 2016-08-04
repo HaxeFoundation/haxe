@@ -2919,7 +2919,6 @@ let configure gen =
 
 	ReflectionCFs.configure_dynamic_field_access rcf_ctx;
 
-	(* let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"],"Closure")) ) in *)
 	let closure_cl = get_cl (get_type gen (["haxe";"lang"],"Closure")) in
 	let varargs_cl = get_cl (get_type gen (["haxe";"lang"],"VarArgsFunction")) in
 	let dynamic_name = gen.gmk_internal_name "hx" "invokeDynamic" in
@@ -2929,8 +2928,6 @@ let configure gen =
 			if cf.cf_name = dynamic_name then cl.cl_overrides <- cf :: cl.cl_overrides
 		) cl.cl_ordered_fields
 	) [closure_cl; varargs_cl];
-
-	let closure_func = ReflectionCFs.get_closure_func rcf_ctx closure_cl in
 
 	ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
 
@@ -3103,7 +3100,7 @@ let configure gen =
 			end)
 		~handle_strings:false;
 
-	FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
+	FilterClosures.configure gen (fun e1 s -> true) (ReflectionCFs.get_closure_func rcf_ctx closure_cl);
 
 	let base_exception = get_cl (get_type gen (["System"], "Exception")) in
 	let base_exception_t = TInst(base_exception, []) in

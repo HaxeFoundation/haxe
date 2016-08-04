@@ -2400,9 +2400,7 @@ end;;
 (* ******************************************* *)
 (* Closure Detection *)
 (* ******************************************* *)
-
 (*
-
 	Just a small utility filter that detects when a closure must be created.
 	On the default implementation, this means when a function field is being accessed
 	not via reflection and not to be called instantly
@@ -2410,15 +2408,12 @@ end;;
 	dependencies:
 		must run after DynamicFieldAccess, so any TAnon { Statics / EnumStatics } will be changed to the corresponding TTypeExpr
 *)
-
 module FilterClosures =
 struct
-
 	let name = "filter_closures"
-
 	let priority = solve_deps name [DAfter DynamicFieldAccess.priority]
 
-	let traverse gen (should_change:texpr->string->bool) (filter:texpr->texpr->string->bool->texpr) =
+	let configure gen (should_change:texpr->string->bool) (filter:texpr->texpr->string->bool->texpr) =
 		let rec run e =
 			match e.eexpr with
 				(*(* this is precisely the only case where we won't even ask if we should change, because it is a direct use of TClosure *)
@@ -2468,13 +2463,10 @@ struct
 							filter e (run e1) cf.cf_name false)
 					| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
+
 
 (* ******************************************* *)
 (* Dynamic TArray Handling *)
