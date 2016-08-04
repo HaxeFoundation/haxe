@@ -10006,18 +10006,14 @@ end;;
 (* ******************************************* *)
 (* DefaultArguments *)
 (* ******************************************* *)
-
 (*
-
 	This Module Filter will go through all defined functions in all modules and change them
 	so they set all default arguments to be of a Nullable type, and adds the unroll from nullable to
 	the not-nullable type in the beginning of the function.
 
 	dependencies:
 		It must run before OverloadingCtors, since OverloadingCtors will change optional structures behavior
-
 *)
-
 module DefaultArguments =
 struct
 
@@ -10150,20 +10146,17 @@ struct
 				(if !found then cf.cf_type <- TFun(!args, ret))
 			| _, _ -> assert false
 
-	let traverse gen =
-		let run md = match md with
+	let configure gen =
+		let run md =
+			(match md with
 			| TClassDecl cl ->
 				List.iter (change_func gen) cl.cl_ordered_fields;
 				List.iter (change_func gen) cl.cl_ordered_statics;
-				(match cl.cl_constructor with | None -> () | Some cf -> change_func gen cf);
-				md
-			| _ -> md
+				Option.may (change_func gen) cl.cl_constructor;
+			| _ -> ());
+			Some(md);
 		in
-		run
-
-	let configure gen (mapping_func:module_type->module_type) =
-		let map md = Some(mapping_func md) in
-		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) run
 
 end;;
 
