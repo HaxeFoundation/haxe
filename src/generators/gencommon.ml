@@ -9692,9 +9692,7 @@ end;;
 (* ******************************************* *)
 (* SwitchBreakSynf *)
 (* ******************************************* *)
-
 (*
-
 	In most languages, 'break' is used as a statement also to break from switch statements.
 	This generates an incompatibility with haxe code, as we can use break to break from loops from inside a switch
 
@@ -9710,19 +9708,15 @@ end;;
 		Since UnreachableCodeElimination must run before it, and Unreachable should be one of the
 		very last filters to run, we will make a fixed value which runs after UnreachableCodeElimination
 		(meaning: it's the very last filter)
-
 *)
-
 module SwitchBreakSynf =
 struct
-
 	let name = "switch_break_synf"
-
 	let priority = min_dep -. 150.0
 
 	type add_to_block_api = texpr->bool->unit
 
-	let traverse gen (change_loop:texpr->int->add_to_block_api->texpr) (change_break:texpr->int->add_to_block_api->texpr) =
+	let configure gen (change_loop:texpr->int->add_to_block_api->texpr) (change_break:texpr->int->add_to_block_api->texpr) =
 		let in_switch = ref false in
 		let cur_block = ref [] in
 		let to_add = ref [] in
@@ -9736,65 +9730,61 @@ struct
 
 		let rec run e =
 			match e.eexpr with
-				| TFunction _ ->
-					let old_num = !num in
-					num := 0;
-						let ret = Type.map_expr run e in
-					num := old_num;
-					ret
-				| TFor _
-				| TWhile _ ->
-					let last_switch = !in_switch in
-					let last_found = !did_found in
-					let last_num = !cur_num in
-					in_switch := false;
-					incr num;
-					cur_num := !num;
-					did_found := -1;
-						let new_e = Type.map_expr run e in (* assuming that no loop will be found in the condition *)
-						let new_e = if !did_found <> -1 then change_loop new_e !did_found api else new_e in
-					did_found := last_found;
-					in_switch := last_switch;
-					cur_num := last_num;
+			| TFunction _ ->
+				let old_num = !num in
+				num := 0;
+					let ret = Type.map_expr run e in
+				num := old_num;
+				ret
+			| TFor _
+			| TWhile _ ->
+				let last_switch = !in_switch in
+				let last_found = !did_found in
+				let last_num = !cur_num in
+				in_switch := false;
+				incr num;
+				cur_num := !num;
+				did_found := -1;
+					let new_e = Type.map_expr run e in (* assuming that no loop will be found in the condition *)
+					let new_e = if !did_found <> -1 then change_loop new_e !did_found api else new_e in
+				did_found := last_found;
+				in_switch := last_switch;
+				cur_num := last_num;
 
-					new_e
-				| TSwitch _ ->
-					let last_switch = !in_switch in
-					in_switch := true;
+				new_e
+			| TSwitch _ ->
+				let last_switch = !in_switch in
+				in_switch := true;
 
-						let new_e = Type.map_expr run e in
+					let new_e = Type.map_expr run e in
 
-					in_switch := last_switch;
-					new_e
-				| TBlock bl ->
-					let last_block = !cur_block in
-					let last_toadd = !to_add in
-					to_add := [];
-					cur_block := [];
+				in_switch := last_switch;
+				new_e
+			| TBlock bl ->
+				let last_block = !cur_block in
+				let last_toadd = !to_add in
+				to_add := [];
+				cur_block := [];
 
-						List.iter (fun e ->
-							let new_e = run e in
-							cur_block := new_e :: !cur_block;
-							match !to_add with
-								| [] -> ()
-								| _ -> cur_block := !to_add @ !cur_block; to_add := []
-						) bl;
+					List.iter (fun e ->
+						let new_e = run e in
+						cur_block := new_e :: !cur_block;
+						match !to_add with
+							| [] -> ()
+							| _ -> cur_block := !to_add @ !cur_block; to_add := []
+					) bl;
 
-					let ret = List.rev !cur_block in
-					cur_block := last_block;
-					to_add := last_toadd;
+				let ret = List.rev !cur_block in
+				cur_block := last_block;
+				to_add := last_toadd;
 
-					{ e with eexpr = TBlock(ret) }
-				| TBreak ->
-					if !in_switch then (did_found := !cur_num; change_break e !cur_num api) else e
-				| _ -> Type.map_expr run e
+				{ e with eexpr = TBlock(ret) }
+			| TBreak ->
+				if !in_switch then (did_found := !cur_num; change_break e !cur_num api) else e
+			| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
 
 

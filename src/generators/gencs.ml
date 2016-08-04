@@ -3186,15 +3186,14 @@ let configure gen =
 
 	let goto_special = alloc_var "__goto__" t_dynamic in
 	let label_special = alloc_var "__label__" t_dynamic in
-	SwitchBreakSynf.configure gen (SwitchBreakSynf.traverse gen
+	SwitchBreakSynf.configure gen
 		(fun e_loop n api ->
 			api ({ eexpr = TCall( mk_local label_special e_loop.epos, [ mk_int gen n e_loop.epos ] ); etype = t_dynamic; epos = e_loop.epos }) false;
 			e_loop
 		)
 		(fun e_break n api ->
 			{ eexpr = TCall( mk_local goto_special e_break.epos, [ mk_int gen n e_break.epos ] ); etype = t_dynamic; epos = e_break.epos }
-		)
-	);
+		);
 
 	DefaultArguments.configure gen;
 	InterfaceMetas.configure gen;
