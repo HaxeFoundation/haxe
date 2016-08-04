@@ -3147,13 +3147,7 @@ let configure gen =
 			)
 	);
 
-	let get_typeof e =
-		{ e with eexpr = TCall( { eexpr = TLocal( alloc_var "__typeof__" t_dynamic ); etype = t_dynamic; epos = e.epos }, [e] ) }
-	in
-
-	ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt ->
-		get_typeof e
-	));
+	ClassInstance.configure gen (fun e _ -> { e with eexpr = TCall({ eexpr = TLocal(alloc_var "__typeof__" t_dynamic); etype = t_dynamic; epos = e.epos }, [e]) });
 
 	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) (not erase_generics) ~overloads_cast_to_base:true);
 

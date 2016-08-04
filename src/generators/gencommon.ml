@@ -9263,9 +9263,7 @@ end;;
 (* ******************************************* *)
 (* Anonymous Class object handling *)
 (* ******************************************* *)
-
 (*
-
 	(syntax)
 	When we pass a class as an object, in some languages we will need a special construct to be able to
 	access its statics as if they were normal object fields. On C# and Java the way found to do that is
@@ -9282,17 +9280,12 @@ end;;
 
 	This module will of course let the caller choose how this will be implemented. It will just identify all
 	uses of class that will require it to be cast as an object.
-
-	dependencies:
-
 *)
-
 module ClassInstance =
 struct
-
 	let priority = solve_deps "class_instance" []
 
-	let traverse gen (change_expr:texpr->module_type->texpr) =
+	let configure gen (change_expr:texpr->module_type->texpr) =
 		let rec run e =
 			match e.eexpr with
 					| TCall( ({ eexpr = TLocal({ v_name = ("__is__" | "__as__" | "__typeof__") } as v) } as local), calls ) when Hashtbl.mem gen.gspecial_vars v.v_name ->
@@ -9311,12 +9304,8 @@ struct
 					| TTypeExpr(mt) -> change_expr e mt
 					| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:"class_instance" ~priority:(PCustom priority) map
-
 end;;
 
 (* ******************************************* *)

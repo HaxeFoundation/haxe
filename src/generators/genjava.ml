@@ -2392,11 +2392,7 @@ let configure gen =
 			)
 	);
 
-	let get_typeof e =
-		{ e with eexpr = TCall( { eexpr = TLocal( alloc_var "__typeof__" t_dynamic ); etype = t_dynamic; epos = e.epos }, [e] ) }
-	in
-
-	ClassInstance.configure gen (ClassInstance.traverse gen (fun e mt -> get_typeof e));
+	ClassInstance.configure gen (fun e _ -> { e with eexpr = TCall({ eexpr = TLocal(alloc_var "__typeof__" t_dynamic); etype = t_dynamic; epos = e.epos }, [e]) });
 
 	(*let v = alloc_var "$type_param" t_dynamic in*)
 	TypeParams.configure gen (fun ecall efield params elist ->
