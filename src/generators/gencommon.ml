@@ -10787,38 +10787,3 @@ struct
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
-
-(*
-(* ******************************************* *)
-(* Example *)
-(* ******************************************* *)
-
-(*
-
-	description
-
-	dependencies:
-
-
-*)
-
-module Example =
-struct
-
-	let name = "example"
-
-	let priority = solve_deps name []
-
-	let default_implementation gen =
-		let rec run e =
-			match e.eexpr with
-				| _ -> Type.map_expr run e
-		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
-		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
-end;;
-*)
