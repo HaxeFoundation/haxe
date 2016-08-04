@@ -4827,9 +4827,7 @@ end;;
 (* ******************************************* *)
 (* Expression Unwrap *)
 (* ******************************************* *)
-
 (*
-
 	This is the most important module for source-code based targets. It will follow a convention of what's an expression and what's a statement,
 	and will unwrap statements where expressions are expected, and vice-versa.
 
@@ -4850,10 +4848,8 @@ end;;
 
 	TODO : While statement must become do / while, with the actual block inside an if for the condition, and else for 'break'
 *)
-
 module ExpressionUnwrap =
 struct
-
 	let name = "expression_unwrap"
 
 	(* priority: first syntax filter *)
@@ -5386,9 +5382,7 @@ struct
 				Some (null expr.etype expr.epos)
 			| _ -> None
 
-
-	let traverse gen (on_expr_as_statement:texpr->texpr option) =
-
+	let configure gen (on_expr_as_statement:texpr->texpr option) =
 		let add_assign = add_assign gen in
 
 		let problematic_expression_unwrap add_statement expr e_type =
@@ -5493,12 +5487,8 @@ struct
 					{ e with eexpr = TFunction({ tfunc with tf_expr = traverse (mk_block tfunc.tf_expr) }) }
 				| _ -> e (* if expression doesn't have a block, we will exit *)
 		in
-		traverse
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(traverse e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
 
 (* ******************************************* *)
