@@ -9367,9 +9367,7 @@ end;;
 (* ******************************************* *)
 (* HardNullableSynf *)
 (* ******************************************* *)
-
 (*
-
 	This module will handle Null<T> types for languages that offer a way of dealing with
 	stack-allocated structures or tuples and generics. Essentialy on those targets a Null<T>
 	will be a tuple ( 'a * bool ), where bool is whether the value is null or not.
@@ -9385,15 +9383,10 @@ end;;
 
 	dependencies:
 		Needs to be run after all cast detection modules
-
-
 *)
-
 module HardNullableSynf =
 struct
-
 	let name = "hard_nullable"
-
 	let priority = solve_deps name [DAfter CastDetect.ReturnCast.priority]
 
 	let rec is_null_t gen t = match gen.greal_type t with
@@ -9424,21 +9417,16 @@ struct
 				Some( TType(tdef, [ strip_off_nullable of_t ]) )
 			| _ -> None
 
-	let traverse gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler handle_opeq handle_cast =
-		(* let unwrap_null e = *)
-		(* 	let ret = unwrap_null e in *)
-		(* 	{ ret with eexpr = TParenthesis(ret) } *)
-		(* in *)
-		(* let wrap_val e t b = *)
-		(* 	let ret = wrap_val e t b in *)
-		(* 	{ ret with eexpr = TParenthesis(ret) } *)
-		(* in *)
+	let configure gen unwrap_null wrap_val null_to_dynamic has_value opeq_handler =
+		gen.gfollow#add ~name:(name ^ "_follow") (follow_addon gen);
+
+		let is_null_t = is_null_t gen in
 		let is_string t = match gen.greal_type t with
 			| TInst({ cl_path=([],"String") },_) -> true
 			| _ -> false
 		in
 		let handle_unwrap to_t e =
-			let e_null_t = get (is_null_t gen e.etype) in
+			let e_null_t = get (is_null_t e.etype) in
 			match gen.greal_type to_t with
 				| TDynamic _ | TMono _ | TAnon _ ->
 					(match e_null_t with
@@ -9458,7 +9446,6 @@ struct
 					wrap_val e t true
 		in
 
-		let is_null_t = is_null_t gen in
 		let cur_block = ref [] in
 		let add_tmp v e p =
 			cur_block := { eexpr = TVar(v,e); etype = gen.gcon.basic.tvoid; epos = p } :: !cur_block
@@ -9501,8 +9488,6 @@ struct
 							)
 						| None, Some(et) ->
 							handle_wrap (run v) et
-						| Some(vt), Some(et) when handle_cast ->
-							handle_wrap (gen.ghandle_cast et vt (handle_unwrap vt (run v))) et
 						| Some(vt), Some(et) when not (type_iseq (run_follow gen vt) (run_follow gen et)) ->
 							(* check if has value and convert *)
 							let vlocal_fst, vlocal = get_local (run v) in
@@ -9562,8 +9547,6 @@ struct
 								| _ ->
 									Type.map_expr run e (* casts are already dealt with normal CastDetection module *)
 							)
-						| Ast.OpEq | Ast.OpNotEq when not handle_opeq ->
-							Type.map_expr run e
 						| Ast.OpEq | Ast.OpNotEq ->
 							(match e1.eexpr, e2.eexpr with
 								| TConst(TNull), _ when is_some e2_t ->
@@ -9639,12 +9622,7 @@ struct
 				| { eexpr = TBlock([e]) } -> e
 				| e -> e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		gen.gfollow#add ~name:(name ^ "_follow") (follow_addon gen);
-
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;

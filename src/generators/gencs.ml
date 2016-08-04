@@ -2737,7 +2737,7 @@ let configure gen =
 				{ ecall with eexpr = TCall(efield, (List.map (fun t -> mk_tp t ecall.epos ) params) @ elist) }
 	);
 
-	if not erase_generics then HardNullableSynf.configure gen (HardNullableSynf.traverse gen
+	if not erase_generics then HardNullableSynf.configure gen
 		(fun e ->
 			match e.eexpr, real_type e.etype with
 				| TConst TThis, _ when gen.gcurrent_path = (["haxe";"lang"], "Null") ->
@@ -2779,10 +2779,7 @@ let configure gen =
 				etype = basic.tbool;
 				epos = e1.epos;
 			}
-		)
-		true
-		false
-	);
+		);
 
 
 	let explicit_fn_name c tl fname =
