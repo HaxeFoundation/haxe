@@ -8465,38 +8465,22 @@ end;;
 (* ******************************************* *)
 (* Object Declaration Mapper *)
 (* ******************************************* *)
-
-(*
-
-	A simple Object Declaration Mapper. By default it will be a syntax filter, which only runs
-	after
-
-	dependencies:
-
-
-*)
-
 module ObjectDeclMap =
 struct
-
 	let name = "object_decl_map"
-
 	let priority = solve_deps name []
 
-	let traverse gen map_fn =
+	let configure gen map_fn =
 		let rec run e =
 			match e.eexpr with
-					| TObjectDecl odecl ->
-						let e = Type.map_expr run e in
-						(match e.eexpr with | TObjectDecl odecl -> map_fn e odecl | _ -> assert false)
-					| _ -> Type.map_expr run e
+			| TObjectDecl odecl ->
+				let e = Type.map_expr run e in
+				(match e.eexpr with TObjectDecl odecl -> map_fn e odecl | _ -> assert false)
+			| _ ->
+				Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
 
 
@@ -8814,15 +8798,12 @@ end;;
 
 module IteratorsInterface =
 struct
-
 	let name = "iterators_interface"
 	(* TODO later
 	(* ******************************************* *)
 	(* IteratorsInterfaceModf *)
 	(* ******************************************* *)
-
 	(*
-
 		The module filter for Iterators Interface, which will implement the iterator/iterable interface on each
 		class that conforms with the typedefs Iterator<> and Iterable<>
 
@@ -8831,12 +8812,9 @@ struct
 
 		dependencies:
 			Must run at the Module Filters, so cast detection can detect a cast to the interface and we can
-
 	*)
-
 	module IteratorsInterfaceModf =
 	struct
-
 		let name = "iterators_interface_modf"
 
 		let conforms_cfs has_next next =

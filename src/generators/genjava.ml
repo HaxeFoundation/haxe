@@ -2203,9 +2203,7 @@ let configure gen =
 		epos = ethis.epos;
 	} ) object_iface;
 
-	let objdecl_fn = ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object in
-
-	ObjectDeclMap.configure gen (ObjectDeclMap.traverse gen objdecl_fn);
+	ObjectDeclMap.configure gen (ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object);
 
 	InitFunction.configure gen;
 	TArrayTransform.configure gen (
