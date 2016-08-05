@@ -1362,7 +1362,7 @@ let configure gen =
 				| TField (e, s) when is_pointer gen e.etype ->
 					(* take off the extra cast if possible *)
 					let e = match e.eexpr with
-						| TCast(e1,_) when Gencommon.CastDetect.type_iseq gen e.etype e1.etype ->
+						| TCast(e1,_) when CastDetect.type_iseq gen e.etype e1.etype ->
 							e1
 						| _ -> e
 					in
@@ -2041,7 +2041,7 @@ let configure gen =
 				| true, Some(cl,_) ->
 					 (try
 							let cf2 = PMap.find cf.cf_name cl.cl_statics in
-							Gencommon.CastDetect.type_eq gen EqStrict cf.cf_type cf2.cf_type;
+							CastDetect.type_eq gen EqStrict cf.cf_type cf2.cf_type;
 							["new"]
 						with
 							| Not_found | Unify_error _ ->
@@ -3119,7 +3119,7 @@ let configure gen =
 
 	ClassInstance.configure gen (fun e _ -> { e with eexpr = TCall({ eexpr = TLocal(alloc_var "__typeof__" t_dynamic); etype = t_dynamic; epos = e.epos }, [e]) });
 
-	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) (not erase_generics) ~overloads_cast_to_base:true);
+	CastDetect.configure gen (Some (TEnum(empty_e, []))) (not erase_generics) ~overloads_cast_to_base:true;
 
 	SwitchToIf.configure gen (fun e ->
 		match e.eexpr with

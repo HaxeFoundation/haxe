@@ -2371,7 +2371,7 @@ let configure gen =
 
 	ClassInstance.configure gen (fun e _ -> { e with eexpr = TCall({ eexpr = TLocal(alloc_var "__typeof__" t_dynamic); etype = t_dynamic; epos = e.epos }, [e]) });
 
-	CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))) false);
+	CastDetect.configure gen (Some (TEnum(empty_e, []))) false;
 
 	SwitchToIf.configure gen (fun e ->
 		match e.eexpr with

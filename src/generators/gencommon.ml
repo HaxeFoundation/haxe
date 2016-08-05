@@ -6310,7 +6310,7 @@ struct
 
 	(** overloads_cast_to_base argument will cast overloaded function types to the class that declared it. **)
 	(**			This is necessary for C#, and if true, will require the target to implement __as__, as a `quicker` form of casting **)
-	let default_implementation gen ?(overloads_cast_to_base = false) maybe_empty_t calls_parameters_explicitly =
+	let configure gen ?(overloads_cast_to_base = false) maybe_empty_t calls_parameters_explicitly =
 		let handle e t1 t2 = handle_cast gen e (gen.greal_type t1) (gen.greal_type t2) in
 
 		let in_value = ref false in
@@ -6620,15 +6620,12 @@ struct
 
 				| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
 		gen.ghandle_cast <- (fun tto tfrom expr -> handle_cast gen expr (gen.greal_type tto) (gen.greal_type tfrom));
 		let map e = match gen.gcurrent_classfield with
 			| Some(cf) when Meta.has (Meta.Custom ":skipCastDetect") cf.cf_meta ->
 				None
 			| _ ->
-				Some(mapping_func e)
+				Some(run e)
 		in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map;
 		ReturnCast.configure gen
