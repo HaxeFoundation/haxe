@@ -3150,8 +3150,7 @@ struct
 			cls.cl_fields <- PMap.add invoke_field.cf_name invoke_field cls.cl_fields;
 			cls.cl_overrides <- invoke_field :: cls.cl_overrides;
 
-			(* add this class to the module with gadd_to_module *)
-			ft.fgen.gadd_to_module (TClassDecl(cls)) priority;
+			ft.fgen.gadd_to_module (TClassDecl cls) priority;
 
 			(* if there are no captured variables, we can create a cache so subsequent calls don't need to create a new function *)
 			let expr, clscapt =
