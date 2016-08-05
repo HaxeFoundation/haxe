@@ -2671,16 +2671,13 @@ let fun_args = List.map (function | (v,s) -> (v.v_name, (match s with | None -> 
 
 module ClosuresToClass =
 struct
-
 	let name = "closures_to_class"
-
 	let priority = solve_deps name [ DAfter DynamicFieldAccess.priority ]
 
-	type closures_ctx =
-	{
+	type closures_ctx = {
 		fgen : generator_ctx;
 
-		mutable func_class : tclass;
+		func_class : tclass;
 
 		(*
 			this is what will actually turn the function into class field.
@@ -2688,14 +2685,14 @@ struct
 
 			It will also return the super arguments to be called
 		*)
-		mutable closure_to_classfield : tfunc->t->pos->tclass_field * (texpr list);
+		closure_to_classfield : tfunc->t->pos->tclass_field * (texpr list);
 
 		(*
 			when a dynamic function call is made, we need to convert it as if it were calling the dynamic function interface.
 
 			TCall expr -> new TCall expr
 		*)
-		mutable dynamic_fun_call : texpr->texpr;
+		dynamic_fun_call : texpr->texpr;
 
 		(*
 			Base classfields are the class fields for the abstract implementation of either the Function implementation,
@@ -2704,7 +2701,7 @@ struct
 
 			(tclass - subject (so we know the type of this)) -> is_function_base -> additional arguments for each function (at the beginning) -> list of the abstract implementation class fields
 		*)
-		mutable get_base_classfields_for : tclass->bool->(unit->(tvar * tconstant option) list)->tclass_field list;
+		get_base_classfields_for : tclass->bool->(unit->(tvar * tconstant option) list)->tclass_field list;
 
 		(*
 			This is a more complex version of get_base_classfields_for.
@@ -2725,10 +2722,9 @@ struct
 					should return a list with additional arguments (only works if is_function_base = true)
 					and the underlying function expression
 		*)
-		mutable map_base_classfields : tclass->bool->( int -> t -> (tvar list) -> (int->t->tconstant option->texpr) -> ( (tvar * tconstant option) list * texpr) )->tclass_field list;
+		map_base_classfields : tclass->bool->( int -> t -> (tvar list) -> (int->t->tconstant option->texpr) -> ( (tvar * tconstant option) list * texpr) )->tclass_field list;
 
-		mutable transform_closure : texpr->texpr->string->texpr;
-
+		transform_closure : texpr->texpr->string->texpr;
 	}
 
 	type map_info = {
@@ -2993,18 +2989,8 @@ struct
 
 		This means that it also imposes that the dynamic function return types may only be Dynamic or Float, and all other basic types must be converted to/from it.
 	*)
-
-	let default_implementation ft parent_func_class (* e.g. new haxe.lang.ClassClosure *) =
+	let configure gen ft =
 		let gen = ft.fgen in
-		let cfs = ft.get_base_classfields_for parent_func_class true (fun () -> []) in
-		List.iter (fun cf ->
-			(if cf.cf_name = "new" then parent_func_class.cl_constructor <- Some cf else
-				parent_func_class.cl_fields <- PMap.add cf.cf_name cf parent_func_class.cl_fields
-			)
-		) cfs;
-
-		parent_func_class.cl_ordered_fields <- (List.filter (fun cf -> cf.cf_name <> "new") cfs) @ parent_func_class.cl_ordered_fields;
-		ft.func_class <- parent_func_class;
 
 		let handle_anon_func fexpr tfunc mapinfo delegate_type : texpr * (tclass * texpr list) =
 			let gen = ft.fgen in
@@ -3114,11 +3100,11 @@ struct
 			(* create the constructor *)
 			(* todo properly abstract how type var is set *)
 
-			cls.cl_super <- Some(parent_func_class, []);
+			cls.cl_super <- Some(ft.func_class, []);
 			let pos = cls.cl_pos in
 			let super_call =
 			{
-				eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(parent_func_class,[]); epos = pos }, super_args);
+				eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(ft.func_class,[]); epos = pos }, super_args);
 				etype = ft.fgen.gcon.basic.tvoid;
 				epos = pos;
 			} in
@@ -3192,7 +3178,7 @@ struct
 
 		let tvar_to_cdecl = Hashtbl.create 0 in
 
-		traverse
+		let run = traverse
 			ft.fgen
 			~tparam_anon_decl:(fun v e fn ->
 				let _, info = handle_anon_func e fn null_map_info None in
@@ -3243,10 +3229,8 @@ struct
 			(fun e f info delegate_type -> fst (handle_anon_func e f info delegate_type))
 			ft.dynamic_fun_call
 			(* (dynamic_func_call:texpr->texpr->texpr list->texpr) *)
-
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		in
+		let map e = Some(run e) in
 		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
 
 
@@ -3257,7 +3241,7 @@ struct
 	*)
 	module DoubleAndDynamicClosureImpl =
 	struct
-		let get_ctx gen max_arity =
+		let get_ctx gen parent_func_class max_arity (* e.g. new haxe.lang.ClassClosure *) =
 			let basic = gen.gcon.basic in
 
 			let func_args_i i =
@@ -3819,10 +3803,21 @@ struct
 				map_base_classfields cl is_function map_fn
 			in
 
+			begin
+				let cfs = get_base_classfields_for parent_func_class true (fun () -> []) in
+				List.iter (fun cf ->
+					if cf.cf_name = "new" then
+						parent_func_class.cl_constructor <- Some cf
+					else
+						parent_func_class.cl_fields <- PMap.add cf.cf_name cf parent_func_class.cl_fields
+				) cfs;
+				parent_func_class.cl_ordered_fields <- (List.filter (fun cf -> cf.cf_name <> "new") cfs) @ parent_func_class.cl_ordered_fields
+			end;
+
 			{
 				fgen = gen;
 
-				func_class = null_class;
+				func_class = parent_func_class;
 
 				closure_to_classfield = closure_to_classfield;
 
@@ -3845,7 +3840,6 @@ struct
 					or a custom implementation
 				*)
 				transform_closure = (fun tclosure texpr str -> tclosure);
-
 			}
 
 	end;;

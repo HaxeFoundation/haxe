@@ -2078,8 +2078,6 @@ let configure gen =
 		| _ -> ()
 		) gen.gtypes_list;
 
-	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
-
 	let get_vmtype t = match real_type t with
 		| TInst({ cl_path = ["java"],"NativeArray" }, tl) -> t
 		| TInst(c,tl) -> TInst(c,List.map (fun _ -> t_dynamic) tl)
@@ -2095,7 +2093,8 @@ let configure gen =
 
 	IteratorsInterface.configure gen;
 
-	ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
+	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 in
+	ClosuresToClass.configure gen closure_t;
 
 	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
 	let param_enum_base = (get_cl (get_type gen (["haxe";"lang"],"ParamEnum")) ) in

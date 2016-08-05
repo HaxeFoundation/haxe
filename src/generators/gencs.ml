@@ -2702,8 +2702,6 @@ let configure gen =
 		| _ -> ()
 		) gen.gtypes_list;
 
-	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen 6 in
-
 	let tp_v = alloc_var "$type_param" t_dynamic in
 	let mk_tp t pos = { eexpr = TLocal(tp_v); etype = t; epos = pos } in
 	gen.gparam_func_call <- (fun ecall efield params elist ->
@@ -2770,7 +2768,8 @@ let configure gen =
 
 	IteratorsInterface.configure gen;
 
-	ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (get_type gen (["haxe";"lang"],"Function")) ));
+	let closure_t = ClosuresToClass.DoubleAndDynamicClosureImpl.get_ctx gen (get_cl (get_type gen (["haxe";"lang"],"Function"))) 6 in
+	ClosuresToClass.configure gen closure_t;
 
 	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
 	let param_enum_base = (get_cl (get_type gen (["haxe";"lang"],"ParamEnum")) ) in
