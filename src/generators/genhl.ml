@@ -6093,7 +6093,8 @@ let write_c version file (code:code) =
 					sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun _ -> "0") (Array.to_list tl)));
 					name
 				in
-				sprintf "{(const uchar*)string$%d, %d, %s, %s, %s}" nid (Array.length tl) tval size offsets
+				let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
+				sprintf "{(const uchar*)string$%d, %d, %s, %s, %s, %s}" nid (Array.length tl) tval size (if has_ptr then "true" else "false") offsets
 			in
 			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
 			let efields = [
@@ -6357,21 +6358,18 @@ let write_c version file (code:code) =
 					let meth = cast_fun meth (HDyn :: List.map rtype args) rt in
 					sline "if( hl_vfields(%s)[%d] ) %s%s(%s); else {" (reg o) fid (rassign r rt) meth (String.concat "," ((reg o ^ "->value") :: List.map reg args));
 					block();
-					if args <> [] then sexpr "vdynamic *args[] = {%s}" (String.concat "," (List.map (fun p ->
-						match rtype p with
-						| HDyn ->
+					if args <> [] then sexpr "void *args[] = {%s}" (String.concat "," (List.map (fun p ->
+						let t = rtype p in
+						if is_ptr t then
 							reg p
-						| t ->
-							if is_dynamic t then
-								sprintf "(vdynamic*)%s" (reg p)
-							else
-								sprintf "hl_make_dyn(&%s,%s)" (reg p) (type_value t)
+						else
+							sprintf "&%s" (reg p)
 					) args));
 					let rt = rtype r in
-					let ret = if rt = HVoid then "" else if is_dynamic rt then sprintf "%s = (%s)" (reg r) (ctype rt) else "vdynamic *ret = " in
-					let fname, fid, _ = vp.vfields.(fid) in
-					sexpr "%shlc_dyn_call_obj(%s->value,%ld/*%s*/,%s,%d)" ret (reg o) (hash fid) fname (if args = [] then "NULL" else "args") (List.length args);
-					if rt <> HVoid && not (is_dynamic rt) then sexpr "%s = (%s)hl_dyn_cast%s(&ret,&hlt_dyn%s)" (reg r) (ctype rt) (dyn_prefix rt) (type_value_opt rt);
+					let ret = if rt = HVoid then "" else if is_ptr rt then sprintf "%s = (%s)" (reg r) (ctype rt) else begin sexpr "vdynamic ret"; ""; end in
+					let fname, fid, ft = vp.vfields.(fid) in
+					sexpr "%shl_dyn_call_obj(%s->value,%s,%ld/*%s*/,%s,%s)" ret (reg o) (type_value ft) (hash fid) fname (if args = [] then "NULL" else "args") (if is_ptr rt || rt == HVoid then "NULL" else "&ret");
+					if rt <> HVoid && not (is_ptr rt) then sexpr "%s = (%s)ret.v.%s" (reg r) (ctype rt) (dyn_prefix rt);
 					unblock();
 					sline "}"
 				| _ ->
