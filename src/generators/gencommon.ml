@@ -2698,12 +2698,6 @@ struct
 		mutable dynamic_fun_call : texpr->texpr;
 
 		(*
-			called once so the implementation can make one of a time initializations in the base class
-			for all functions
-		*)
-		mutable initialize_base_class : tclass->unit;
-
-		(*
 			Base classfields are the class fields for the abstract implementation of either the Function implementation,
 			or the invokeField implementation for the classes
 			They will either try to call the right function or will fail with
@@ -3002,7 +2996,6 @@ struct
 
 	let default_implementation ft parent_func_class (* e.g. new haxe.lang.ClassClosure *) =
 		let gen = ft.fgen in
-		ft.initialize_base_class parent_func_class;
 		let cfs = ft.get_base_classfields_for parent_func_class true (fun () -> []) in
 		List.iter (fun cf ->
 			(if cf.cf_name = "new" then parent_func_class.cl_constructor <- Some cf else
@@ -3264,13 +3257,10 @@ struct
 	*)
 	module DoubleAndDynamicClosureImpl =
 	struct
-
 		let get_ctx gen max_arity =
-
 			let basic = gen.gcon.basic in
 
 			let func_args_i i =
-
 				let rec loop i (acc) =
 					if i = 0 then (acc) else begin
 						let vfloat = alloc_var (gen.gmk_internal_name "fn" ("float" ^ string_of_int i)) basic.tfloat in
@@ -3280,11 +3270,9 @@ struct
 					end
 				in
 				loop i []
-
 			in
 
 			let args_real_to_func args =
-
 				let arity = List.length args in
 				if arity >= max_arity then
 					[ alloc_var (gen.gmk_internal_name "fn" "dynargs") (basic.tarray t_dynamic), None ]
@@ -3292,7 +3280,6 @@ struct
 			in
 
 			let func_sig_i i =
-
 				let rec loop i acc =
 					if i = 0 then acc else begin
 						let vfloat = gen.gmk_internal_name "fn" ("float" ^ string_of_int i) in
@@ -3302,18 +3289,15 @@ struct
 					end
 				in
 				loop i []
-
 			in
 
 			let args_real_to_func_sig args =
-
 				let arity = List.length args in
 				if arity >= max_arity then
 					[gen.gmk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic]
 				else begin
 					func_sig_i arity
 				end
-
 			in
 
 			let rettype_real_to_func t = match run_follow gen t with
@@ -3340,22 +3324,25 @@ struct
 
 			let const_type c def =
 				match c with
-					| TString _ -> basic.tstring | TInt _ -> basic.tint
-					| TFloat _ -> basic.tfloat | TBool _ -> basic.tbool
-					| _ -> def
+				| TString _ -> basic.tstring
+				| TInt _ -> basic.tint
+				| TFloat _ -> basic.tfloat
+				| TBool _ -> basic.tbool
+				| _ -> def
 			in
 
 			let get_args_func args changed_args pos =
 				let arity = List.length args in
 				let mk_const const elocal t =
 					match const with
-						| None -> mk_cast t elocal
-						| Some const ->
-							{ eexpr = TIf(
-								{ elocal with eexpr = TBinop(Ast.OpEq, elocal, null elocal.etype elocal.epos); etype = basic.tbool },
-								{ elocal with eexpr = TConst(const); etype = const_type const t },
-								Some ( mk_cast t elocal )
-							); etype = t; epos = elocal.epos }
+					| None ->
+						mk_cast t elocal
+					| Some const ->
+						{ eexpr = TIf(
+							{ elocal with eexpr = TBinop(Ast.OpEq, elocal, null elocal.etype elocal.epos); etype = basic.tbool },
+							{ elocal with eexpr = TConst(const); etype = const_type const t },
+							Some ( mk_cast t elocal )
+						); etype = t; epos = elocal.epos }
 				in
 
 				if arity >= max_arity then begin
@@ -3364,12 +3351,7 @@ struct
 					let mk_varray i = { eexpr = TArray(varray_local, { eexpr = TConst(TInt(Int32.of_int i)); etype = basic.tint; epos = pos }); etype = t_dynamic; epos = pos } in
 
 					snd (List.fold_left (fun (count,acc) (v,const) ->
-						(count + 1,
-							{
-								eexpr = TVar(v, Some(mk_const const ( mk_varray count ) v.v_type));
-								etype = basic.tvoid;
-								epos = pos;
-							} :: acc)
+						(count + 1, (mk (TVar(v, Some(mk_const const (mk_varray count) v.v_type))) basic.tvoid pos) :: acc)
 					) (0,[]) args)
 				end else begin
 					let _, dyn_args, float_args = List.fold_left (fun (count,fargs, dargs) arg ->
@@ -3455,65 +3437,63 @@ struct
 				let invoke_name = if is_dynamic_func then "invokeDynamic" else ("invoke" ^ (string_of_int arity) ^ (if type_number = 0 then "_o" else "_f")) in
 				let invoke_name = gen.gmk_internal_name "hx" invoke_name in
 				let invoke_field = mk_class_field invoke_name changed_sig false func_expr.epos (Method(MethNormal)) [] in
-				let invoke_fun =
-				{
-					eexpr = TFunction(
-					{
+				let invoke_fun = {
+					eexpr = TFunction {
 						tf_args = changed_args;
 						tf_type = changed_sig_ret;
 						tf_expr = func_expr;
-					});
+					};
 					etype = changed_sig;
 					epos = func_expr.epos;
 				} in
-				invoke_field.cf_expr <- Some(invoke_fun);
+				invoke_field.cf_expr <- Some invoke_fun;
 
-				(invoke_field, [
+				invoke_field, [
 					{ eexpr = TConst(TInt( Int32.of_int arity )); etype = gen.gcon.basic.tint; epos = pos };
 					{ eexpr = TConst(TInt( Int32.of_int type_number )); etype = gen.gcon.basic.tint; epos = pos };
-				])
+				]
 			in
 
 			let dynamic_fun_call call_expr =
 				let tc, params = match call_expr.eexpr with
-					| TCall(tc, params) -> (tc, params)
+					| TCall(tc, params) -> tc, params
 					| _ -> assert false
 				in
-					let ct = gen.greal_type call_expr.etype in
-					let postfix, ret_t =
-						if like_float ct && not (like_i64 ct) then
-								"_f", gen.gcon.basic.tfloat
-						else
-							"_o", t_dynamic
-					in
-					let params_len = List.length params in
-					let ret_t = if params_len >= max_arity then t_dynamic else ret_t in
+				let ct = gen.greal_type call_expr.etype in
+				let postfix, ret_t =
+					if like_float ct && not (like_i64 ct) then
+							"_f", gen.gcon.basic.tfloat
+					else
+						"_o", t_dynamic
+				in
+				let params_len = List.length params in
+				let ret_t = if params_len >= max_arity then t_dynamic else ret_t in
 
-					let invoke_fun = if params_len >= max_arity then "invokeDynamic" else "invoke" ^ (string_of_int params_len) ^ postfix in
-					let invoke_fun = gen.gmk_internal_name "hx" invoke_fun in
-					let fun_t = match follow tc.etype with
-						| TFun(_sig, _) ->
-							TFun(args_real_to_func_sig _sig, ret_t)
-						| _ ->
-							let i = ref 0 in
-							let _sig = List.map (fun p -> let name = "arg" ^ (string_of_int !i) in incr i; (name,false,p.etype) ) params in
-							TFun(args_real_to_func_sig _sig, ret_t)
-					in
+				let invoke_fun = if params_len >= max_arity then "invokeDynamic" else "invoke" ^ (string_of_int params_len) ^ postfix in
+				let invoke_fun = gen.gmk_internal_name "hx" invoke_fun in
+				let fun_t = match follow tc.etype with
+					| TFun(_sig, _) ->
+						TFun(args_real_to_func_sig _sig, ret_t)
+					| _ ->
+						let i = ref 0 in
+						let _sig = List.map (fun p -> let name = "arg" ^ (string_of_int !i) in incr i; (name,false,p.etype) ) params in
+						TFun(args_real_to_func_sig _sig, ret_t)
+				in
 
-					let may_cast = match follow call_expr.etype with
-						| TAbstract ({ a_path = ([], "Void") },[]) -> (fun e -> e)
-						| _ -> mk_cast call_expr.etype
-					in
+				let may_cast = match follow call_expr.etype with
+					| TAbstract ({ a_path = ([], "Void") },[]) -> (fun e -> e)
+					| _ -> mk_cast call_expr.etype
+				in
 
-					may_cast
-					{
-						eexpr = TCall(
-							{ (mk_field_access gen { tc with etype = gen.greal_type tc.etype } invoke_fun tc.epos) with etype = fun_t },
-							args_real_to_func_call params call_expr.epos
-						);
-						etype = ret_t;
-						epos = call_expr.epos
-					}
+				may_cast
+				{
+					eexpr = TCall(
+						{ (mk_field_access gen { tc with etype = gen.greal_type tc.etype } invoke_fun tc.epos) with etype = fun_t },
+						args_real_to_func_call params call_expr.epos
+					);
+					etype = ret_t;
+					epos = call_expr.epos
+				}
 			in
 
 			let iname is_function i is_float =
@@ -3522,7 +3502,6 @@ struct
 			in
 
 			let map_base_classfields cl is_function map_fn =
-
 				let pos = cl.cl_pos in
 				let this_t = TInst(cl,List.map snd cl.cl_params) in
 				let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
@@ -3534,7 +3513,6 @@ struct
 				in
 
 				let type_name = gen.gmk_internal_name "fn" "type" in
-
 				let dynamic_arg = alloc_var (gen.gmk_internal_name "fn" "dynargs") (basic.tarray t_dynamic) in
 
 				let mk_invoke_complete_i i is_float =
@@ -3640,13 +3618,12 @@ struct
 				let dyn_t = TFun(fun_args args, t_dynamic) in
 				let dyn_cf = mk_class_field (gen.gmk_internal_name "hx" "invokeDynamic") dyn_t false pos (Method MethNormal) [] in
 
-				dyn_cf.cf_expr <-
-				Some {
-					eexpr = TFunction({
+				dyn_cf.cf_expr <- Some {
+					eexpr = TFunction {
 						tf_args = args;
 						tf_type = t_dynamic;
 						tf_expr = mk_block switch
-					});
+					};
 					etype = dyn_t;
 					epos = pos;
 				};
@@ -3658,32 +3635,32 @@ struct
 					let mk_assign v field = { eexpr = TBinop(Ast.OpAssign, mk_this field v.v_type, mk_local v pos); etype = v.v_type; epos = pos } in
 
 					let arity_name = gen.gmk_internal_name "hx" "arity" in
-					new_cf.cf_expr <-
-						Some {
-							eexpr = TFunction({
-								tf_args = [v_arity, None; v_type, None];
-								tf_type = basic.tvoid;
-								tf_expr =
-								{
-									eexpr = TBlock([
-										mk_assign v_type type_name;
-										mk_assign v_arity arity_name
-									]);
-									etype = basic.tvoid;
-									epos = pos;
-								}
-							});
-							etype = new_t;
-							epos = pos;
-						}
-					;
+					new_cf.cf_expr <- Some {
+						eexpr = TFunction({
+							tf_args = [v_arity, None; v_type, None];
+							tf_type = basic.tvoid;
+							tf_expr =
+							{
+								eexpr = TBlock([
+									mk_assign v_type type_name;
+									mk_assign v_arity arity_name
+								]);
+								etype = basic.tvoid;
+								epos = pos;
+							}
+						});
+						etype = new_t;
+						epos = pos;
+					};
 
 					[
 						new_cf;
 						mk_class_field type_name basic.tint true pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
 						mk_class_field arity_name basic.tint true pos (Var { v_read = AccNormal; v_write = AccNormal }) [];
 					]
-				end else [] in
+				end else
+					[]
+				in
 
 				dyn_cf :: (additional_cfs @ cfs)
 			in
@@ -3842,10 +3819,6 @@ struct
 				map_base_classfields cl is_function map_fn
 			in
 
-			let initialize_base_class cl =
-				()
-			in
-
 			{
 				fgen = gen;
 
@@ -3854,12 +3827,6 @@ struct
 				closure_to_classfield = closure_to_classfield;
 
 				dynamic_fun_call = dynamic_fun_call;
-
-				(*
-					called once so the implementation can make one of a time initializations in the base class
-					for all functions
-				*)
-				initialize_base_class = initialize_base_class;
 
 				(*
 					Base classfields are the class fields for the abstract implementation of either the Function implementation,
