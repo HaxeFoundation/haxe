@@ -8546,9 +8546,7 @@ end;;
 (* ******************************************* *)
 (* EnumToClass *)
 (* ******************************************* *)
-
 (*
-
 	For languages that don't support parameterized enums and/or metadata in enums, we need to transform
 	enums into normal classes. This is done at the first module pass by creating new classes with the same
 	path inside the modules, and removing the actual enum module by setting it as en extern.
@@ -8558,31 +8556,24 @@ end;;
 	with their tag order (as a string) as their alias. If you are using ReflectionCFs, then you don't have to worry
 	about that, as it's already generating all information needed by the haxe runtime.
 	so they can be
-
 *)
-
 module EnumToClass =
 struct
-
 	let name = "enum_to_class"
-
 	let priority = solve_deps name []
 
 	type t = {
 		ec_tbl : (path, tclass) Hashtbl.t;
 	}
 
-	let new_t () =
-	{
+	let new_t () = {
 		ec_tbl = Hashtbl.create 10
 	}
 
 	(* ******************************************* *)
 	(* EnumToClassModf *)
 	(* ******************************************* *)
-
 	(*
-
 		The actual Module Filter that will transform the enum into a class
 
 		dependencies:
@@ -8590,12 +8581,9 @@ struct
 			Should run before TypeParams.RealTypeParams.RealTypeParamsModf, since generic enums must be first converted to generic classes
 			It needs that the target platform implements __array__() as a shortcut to declare haxe.ds.Vector
 	*)
-
 	module EnumToClassModf =
 	struct
-
 		let name = "enum_to_class_mod"
-
 		let priority = solve_deps name [DBefore ReflectionCFs.priority; DBefore TypeParams.RealTypeParams.RealTypeParamsModf.priority]
 
 		let pmap_exists fn pmap = try PMap.iter (fun a b -> if fn a b then raise Exit) pmap; false with | Exit -> true
@@ -8604,7 +8592,8 @@ struct
 			let has_meta meta = List.exists (fun (m,_,_) -> match m with Meta.Custom _ -> true | _ -> false) meta in
 			has_meta en.e_meta || pmap_exists (fun _ ef -> has_meta ef.ef_meta) en.e_constrs
 
-		let convert gen t base_class base_param_class en should_be_hxgen handle_type_params =
+		let convert gen t base_class base_param_class en =
+			let handle_type_params = false in (* TODO: look into this *)
 			let basic = gen.gcon.basic in
 			let pos = en.e_pos in
 
@@ -8741,11 +8730,7 @@ struct
 			cl.cl_ordered_fields <- getTag_cf :: cl.cl_ordered_fields ;
 			cl.cl_fields <- PMap.add "getTag" getTag_cf cl.cl_fields;
 			cl.cl_overrides <- getTag_cf :: cl.cl_overrides;
-
-			if should_be_hxgen then
-				cl.cl_meta <- (Meta.HxGen,[],cl.cl_pos) :: cl.cl_meta
-			else
-				cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
+			cl.cl_meta <- (Meta.NativeGen,[],cl.cl_pos) :: cl.cl_meta;
 			gen.gadd_to_module (TClassDecl cl) (max_dep);
 
 			TEnumDecl en
@@ -8758,9 +8743,10 @@ struct
 				enum_base_class : tclass - the enum base class.
 				should_be_hxgen : bool - should the created enum be hxgen?
 		*)
-		let traverse gen t convert_all convert_if_has_meta enum_base_class param_enum_class should_be_hxgen handle_tparams =
-			let convert e = convert gen t enum_base_class param_enum_class e should_be_hxgen handle_tparams in
-			let run md = match md with
+		let configure gen t convert_all convert_if_has_meta enum_base_class param_enum_class =
+			let convert e = convert gen t enum_base_class param_enum_class e in
+			let run md =
+				match md with
 				| TEnumDecl e when is_hxgen md ->
 					if convert_all then
 						convert e
@@ -8773,37 +8759,28 @@ struct
 						e.e_meta <- List.filter (fun (n,_,_) -> not (n = Meta.HxGen)) e.e_meta;
 						md
 					end
-				| _ -> md
+				| _ ->
+					md
 			in
-			run
-
-		let configure gen (mapping_func:module_type->module_type) =
-			let map md = Some(mapping_func md) in
+			let map md = Some(run md) in
 			gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
 	end;;
 
 	(* ******************************************* *)
 	(* EnumToClassExprf *)
 	(* ******************************************* *)
-
 	(*
-
 		Enum to class Expression Filter
 
 		dependencies:
 			Should run before TArrayTransform, since it generates array access expressions
-
 	*)
-
 	module EnumToClassExprf =
 	struct
-
 		let name = "enum_to_class_exprf"
-
 		let priority = solve_deps name [DBefore TArrayTransform.priority]
 
-		let traverse gen t opt_get_native_enum_tag =
+		let configure gen t opt_get_native_enum_tag =
 			let rec run e =
 				let get_converted_enum_type et =
 					let en, eparams = match follow (gen.gfollow#run_f et) with
@@ -8815,39 +8792,35 @@ struct
 				in
 
 				match e.eexpr with
-					| TCall (({eexpr = TField(_, FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}))} as left), [f]) ->
-						let f = run f in
-						(try
-							mk_field_access gen {f with etype = get_converted_enum_type f.etype} "index" e.epos
-						with Not_found ->
-							{ e with eexpr = TCall(left, [f]) })
-					| TEnumParameter(f, _,i) ->
-						let f = run f in
-						(* check if en was converted to class *)
-						(* if it was, switch on tag field and change cond type *)
-						let f = try
-							{ f with etype = get_converted_enum_type f.etype }
-						with Not_found ->
-							f
-						in
-						let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
-						{ e with eexpr = TArray(cond_array, mk_int gen i cond_array.epos); }
-					| _ -> Type.map_expr run e
+				| TCall (({eexpr = TField(_, FStatic({cl_path=[],"Type"},{cf_name="enumIndex"}))} as left), [f]) ->
+					let f = run f in
+					(try
+						mk_field_access gen {f with etype = get_converted_enum_type f.etype} "index" e.epos
+					with Not_found ->
+						{ e with eexpr = TCall(left, [f]) })
+				| TEnumParameter(f, _,i) ->
+					let f = run f in
+					(* check if en was converted to class *)
+					(* if it was, switch on tag field and change cond type *)
+					let f = try
+						{ f with etype = get_converted_enum_type f.etype }
+					with Not_found ->
+						f
+					in
+					let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
+					{ e with eexpr = TArray(cond_array, mk_int gen i cond_array.epos); }
+				| _ ->
+					Type.map_expr run e
 			in
-
-			run
-
-		let configure gen (mapping_func:texpr->texpr) =
-			let map e = Some(mapping_func e) in
+			let map e = Some(run e) in
 			gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map
 
 	end;;
 
-	let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class param_enum_class should_be_hxgen handle_tparams =
+	let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class param_enum_class =
 		let t = new_t () in
-		EnumToClassModf.configure gen (EnumToClassModf.traverse gen t convert_all convert_if_has_meta enum_base_class param_enum_class should_be_hxgen handle_tparams);
-		EnumToClassExprf.configure gen (EnumToClassExprf.traverse gen t opt_get_native_enum_tag)
-
+		EnumToClassModf.configure gen t convert_all convert_if_has_meta enum_base_class param_enum_class;
+		EnumToClassExprf.configure gen t opt_get_native_enum_tag
 end;;
 
 (* ******************************************* *)

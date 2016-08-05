@@ -2099,7 +2099,7 @@ let configure gen =
 
 	let enum_base = (get_cl (get_type gen (["haxe";"lang"],"Enum")) ) in
 	let param_enum_base = (get_cl (get_type gen (["haxe";"lang"],"ParamEnum")) ) in
-	EnumToClass.configure gen (None) false true enum_base param_enum_base false false;
+	EnumToClass.configure gen (None) false true enum_base param_enum_base;
 
 	InterfaceVarsDeleteModf.configure gen;
 
