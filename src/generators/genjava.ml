@@ -154,12 +154,11 @@ let is_cl t = match follow t with
 	| TAnon(a) when is_some (anon_class t) -> true
 	| _ -> false
 
+
 (* ******************************************* *)
 (* JavaSpecificESynf *)
 (* ******************************************* *)
-
 (*
-
 	Some Java-specific syntax filters that must run before ExpressionUnwrap
 
 	dependencies:
@@ -167,13 +166,10 @@ let is_cl t = match follow t with
 		It must run before ClassInstance, as it will detect expressions that need unchanged TTypeExpr
 		It must run after CastDetect, as it changes casts
 		It must run after TryCatchWrapper, to change Std.is() calls inside there
-
 *)
 module JavaSpecificESynf =
 struct
-
 	let name = "java_specific_e"
-
 	let priority = solve_deps name [ DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority; DAfter CastDetect.priority; DAfter TryCatchWrapper.priority ]
 
 	let get_cl_from_t t =
@@ -181,7 +177,7 @@ struct
 			| TInst(cl,_) -> cl
 			| _ -> assert false
 
-	let traverse gen runtime_cl =
+	let configure gen runtime_cl =
 		let basic = gen.gcon.basic in
 		let float_cl = get_cl ( get_type gen (["java";"lang"], "Double")) in
 		let i8_md  = ( get_type gen (["java";"lang"], "Byte")) in
@@ -272,32 +268,24 @@ struct
 				(* end Std.is() *)
 				| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
 
+
 (* ******************************************* *)
 (* JavaSpecificSynf *)
 (* ******************************************* *)
-
 (*
-
 	Some Java-specific syntax filters that can run after ExprUnwrap
 
 	dependencies:
 		Runs after ExprUnwarp
-
 *)
-
 module JavaSpecificSynf =
 struct
-
 	let name = "java_specific"
-
 	let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority; DBefore IntDivisionSynf.priority ]
 
 	let java_hash s =
@@ -562,10 +550,11 @@ struct
 
 	let get_cl_from_t t =
 		match follow t with
-			| TInst(cl,_) -> cl
-			| _ -> assert false
+		| TInst(cl,_) -> cl
+		| _ -> assert false
 
-	let traverse gen runtime_cl =
+	let configure gen runtime_cl =
+		(if java_hash "Testing string hashCode implementation from haXe" <> (Int32.of_int 545883604) then assert false);
 		let basic = gen.gcon.basic in
 		(* let tchar = mt_to_t_dyn ( get_type gen (["java"], "Char16") ) in *)
 		(* let tbyte = mt_to_t_dyn ( get_type gen (["java"], "Int8") ) in *)
@@ -694,11 +683,7 @@ struct
 					{ e with eexpr = TBinop(op, mk_cast t_empty (run e1), mk_cast t_empty (run e2)) }
 				| _ -> Type.map_expr run e
 		in
-		run
-
-	let configure gen (mapping_func:texpr->texpr) =
-		(if java_hash "Testing string hashCode implementation from haXe" <> (Int32.of_int 545883604) then assert false);
-		let map e = Some(mapping_func e) in
+		let map e = Some(run e) in
 		gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
@@ -2426,8 +2411,8 @@ let configure gen =
 	DefaultArguments.configure gen;
 	InterfaceMetas.configure gen;
 
-	JavaSpecificSynf.configure gen (JavaSpecificSynf.traverse gen runtime_cl);
-	JavaSpecificESynf.configure gen (JavaSpecificESynf.traverse gen runtime_cl);
+	JavaSpecificSynf.configure gen runtime_cl;
+	JavaSpecificESynf.configure gen runtime_cl;
 
 	(* add native String as a String superclass *)
 	let str_cl = match gen.gcon.basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
