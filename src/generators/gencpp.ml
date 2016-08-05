@@ -1120,6 +1120,26 @@ let rec is_null expr =
 
 let is_virtual_array expr = (type_string expr.etype="cpp::VirtualArray") ;;
 
+let is_real_function field =
+   match field.cf_kind with
+   | Method MethNormal | Method MethInline-> true
+   | _ -> false
+;;
+
+
+let is_this expression =
+   match (remove_parens expression).eexpr with
+   | TConst TThis -> true
+   | _ -> false
+;;
+
+let is_super expression =
+   match (remove_parens expression).eexpr with
+   | TConst TSuper -> true
+   | _ -> false
+;;
+
+
 let rec is_dynamic_in_cpp ctx expr =
    let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
    if ( expr_type="Dynamic" || expr_type="cpp::ArrayBase") then
@@ -1134,10 +1154,25 @@ let rec is_dynamic_in_cpp ctx expr =
       | TArray (obj,index) -> (is_dynamic_in_cpp ctx obj || is_virtual_array obj)
       | TTypeExpr _ -> false
       | TCall(func,args) ->
-               (match follow func.etype with
-               | TFun (args,ret) ->
-                  is_dynamic_in_cpp ctx func
-               | _ -> true
+         let is_IaCall = 
+            (match (remove_parens_cast func).eexpr with
+            | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) -> false
+            | TField (obj,FStatic (class_def,field) ) when is_real_function field -> false
+            | TField (obj,FInstance (_,_,field) ) when (is_this obj) && (is_real_function field) -> false
+            | TField (obj,FInstance (_,_,field) ) when is_super obj -> false
+            | TField (obj,FInstance (_,_,field) ) when field.cf_name = "_hx_getIndex" -> false
+            | TField (obj,FInstance (_,_,field) ) when field.cf_name = "__Index" || (not (is_dynamic_in_cppia ctx obj) && is_real_function field) -> false
+            | TField (obj,FDynamic (name) )  when (is_internal_member name || (type_string obj.etype = "::String" && name="cca") ) -> false
+            | TConst TSuper -> false
+            | TField (_,FEnum (enum,field)) -> false
+            | _ -> true
+            ) in
+         if is_IaCall then
+            true
+         else
+            (match follow func.etype with
+            | TFun (args,ret) -> is_dynamic_in_cpp ctx func
+            | _ -> true
          );
       | TParenthesis(expr) | TMeta(_,expr) -> is_dynamic_in_cpp ctx expr
       | TCast (e,None) -> (type_string expr.etype) = "Dynamic"
@@ -1190,6 +1225,10 @@ and is_dynamic_member_return_in_cpp ctx field_object field =
                try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
                   mem_type="Dynamic" || mem_type="cpp::ArrayBase" || mem_type="cpp::VirtualArray" )
                with Not_found -> true )
+and is_dynamic_in_cppia ctx expr =
+   match expr.eexpr with
+   | TCast(_,None) -> true
+   | _ -> is_dynamic_in_cpp ctx expr
 ;;
 
 let cast_if_required ctx expr to_type =
@@ -5858,18 +5897,6 @@ let create_constructor_dependencies common_ctx =
       ) common_ctx.types;
    result;;
 
-let is_this expression =
-   match (remove_parens expression).eexpr with
-   | TConst TThis -> true
-   | _ -> false
-;;
-
-let is_super expression =
-   match (remove_parens expression).eexpr with
-   | TConst TSuper -> true
-   | _ -> false
-;;
-
 
 let is_assign_op op =
    match op with
@@ -5926,12 +5953,6 @@ type array_of =
 
 let is_template_type t =
    false
-;;
-
-let rec is_dynamic_in_cppia ctx expr =
-   match expr.eexpr with
-   | TCast(_,None) -> true
-   | _ -> is_dynamic_in_cpp ctx expr
 ;;
 
 type cppia_op =
@@ -6441,11 +6462,6 @@ class script_writer ctx filename asciiOut =
          this#gen_expression elze; )
    | TCall (func, arg_list) ->
       let argN = (string_of_int (List.length arg_list)) ^ " " in
-      let is_real_function field =
-         match field.cf_kind with
-         | Method MethNormal | Method MethInline-> true
-         | _ -> false;
-      in
       let gen_call () =
          (match (remove_parens_cast func).eexpr with
          | TField ( { eexpr = TLocal  { v_name = "__global__" }}, field ) ->
