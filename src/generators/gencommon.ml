@@ -10462,43 +10462,34 @@ end;;
 (* ******************************************* *)
 (* InterfaceMetas *)
 (* ******************************************* *)
-
 (*
-
 	Deal with metadata on interfaces by taking it off from interface, and adding a new class with `_HxMeta` suffix
 
 	dependencies:
 		Must run before InitFunction
-
 *)
-
 module InterfaceMetas =
 struct
-
 	let name = "interface_metas"
-
 	let priority = solve_deps name [ DBefore InitFunction.priority ]
 
-	let traverse gen =
-		let run md = match md with
+	let configure gen =
+		let run md =
+			match md with
 			| TClassDecl ({ cl_interface = true; cl_ordered_statics = (_ :: _) } as cl) ->
 				cl.cl_ordered_statics <- [];
 				let path = fst cl.cl_path,snd cl.cl_path ^ "_HxMeta" in
 				(match Codegen.build_metadata gen.gcon (TClassDecl cl) with
-					| Some expr ->
-						let ncls = mk_class cl.cl_module path cl.cl_pos in
-						let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
-						cf.cf_expr <- Some expr;
-						ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
-						ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
-						gen.gadd_to_module (TClassDecl(ncls)) priority;
-					| _ -> ())
+				| Some expr ->
+					let ncls = mk_class cl.cl_module path cl.cl_pos in
+					let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+					cf.cf_expr <- Some expr;
+					ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
+					ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
+					gen.gadd_to_module (TClassDecl(ncls)) priority;
+				| _ -> ())
 			| _ -> ()
 		in
-		run
-
-	let configure gen =
-		let map md = traverse gen md; Some(md) in
+		let map md = run md; Some(md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;
