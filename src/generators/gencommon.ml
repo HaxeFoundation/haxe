@@ -8324,69 +8324,6 @@ struct
 			);
 		()
 
-	let replace_reflection ctx cl =
-		let gen = ctx.rcf_gen in
-		let pos = cl.cl_pos in
-
-		let this_t = TInst(cl, List.map snd cl.cl_params) in
-		let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
-
-		let last_fields = match cl.cl_super with
-			| None -> PMap.empty
-			| Some (super,_) -> super.cl_fields
-		in
-
-		let new_fields = ref [] in
-		let process_cf static cf =
-			match cf.cf_kind with
-				| Var _ -> ()
-				| _ when Meta.has Meta.ReplaceReflection cf.cf_meta ->
-					let name = if String.get cf.cf_name 0 = '_' then String.sub cf.cf_name 1 (String.length cf.cf_name - 1) else cf.cf_name in
-					let new_name = gen.gmk_internal_name "hx" name in
-					let new_cf = mk_class_field new_name cf.cf_type cf.cf_public cf.cf_pos cf.cf_kind cf.cf_params in
-					let fn_args, ret = get_fun (follow cf.cf_type) in
-
-					let tf_args = List.map (fun (name,_,t) -> alloc_var name t, None) fn_args in
-					let is_void = ExtType.is_void ret in
-					let expr = {
-						eexpr = TCall(
-							{
-								eexpr = (if static then TField(mk_classtype_access cl pos, FStatic(cl, cf)) else TField(this, FInstance(cl, List.map snd cl.cl_params, cf)));
-								etype = cf.cf_type;
-								epos = cf.cf_pos;
-							},
-							List.map (fun (v,_) -> mk_local v cf.cf_pos) tf_args);
-						etype = ret;
-						epos = cf.cf_pos
-					} in
-
-					let new_f =
-					{
-						tf_args = tf_args;
-						tf_type = ret;
-						tf_expr = {
-							eexpr = TBlock([if is_void then expr else mk_return expr]);
-							etype = ret;
-							epos = pos;
-						}
-					} in
-
-					new_cf.cf_expr <- Some({ eexpr = TFunction(new_f); etype = cf.cf_type; epos = cf.cf_pos});
-
-					new_fields := new_cf :: !new_fields;
-
-					(if static then cl.cl_statics <- PMap.add new_name new_cf cl.cl_statics else cl.cl_fields <- PMap.add new_name new_cf cl.cl_fields);
-
-					if not static && PMap.mem new_name last_fields then cl.cl_overrides <- new_cf :: cl.cl_overrides
-				| _ -> ()
-		in
-
-		List.iter (process_cf false) cl.cl_ordered_fields;
-		cl.cl_ordered_fields <- cl.cl_ordered_fields @ !new_fields;
-		new_fields := [];
-		List.iter (process_cf true) cl.cl_ordered_statics;
-		cl.cl_ordered_statics <- cl.cl_ordered_statics @ !new_fields
-
 
 	(* ******************************************* *)
 	(* UniversalBaseClass *)
@@ -8436,7 +8373,6 @@ struct
 		let gen = ctx.rcf_gen in
 		let run = (fun md -> match md with
 			| TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
-				(if Meta.has Meta.ReplaceReflection cl.cl_meta then replace_reflection ctx cl);
 				(implement_dynamics ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
