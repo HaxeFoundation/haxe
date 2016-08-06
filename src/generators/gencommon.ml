@@ -10380,12 +10380,11 @@ struct
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 end;;
 
+
 (* ******************************************* *)
 (* Normalize *)
 (* ******************************************* *)
-
 (*
-
 	- Filters out enum constructor type parameters from the AST; See Issue #1796
 	- Filters out monomorphs
 	- Filters out all non-whitelisted AST metadata
@@ -10393,51 +10392,59 @@ end;;
 	dependencies:
 		No dependencies; but it still should be one of the first filters to run,
 		as it will help normalize the AST
-
 *)
-
 module Normalize =
 struct
-
 	let name = "normalize_type"
-
 	let priority = max_dep
 
-	let rec filter_param t = match t with
-	| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
-		t_dynamic
-	| TMono r -> (match !r with
-		| None -> t_dynamic
-		| Some t -> filter_param t)
-	| TInst(_,[]) | TEnum(_,[]) | TType(_,[]) | TAbstract(_,[]) -> t
-	| TType(t,tl) -> TType(t,List.map filter_param tl)
-	| TInst(c,tl) -> TInst(c,List.map filter_param tl)
-	| TEnum(e,tl) -> TEnum(e,List.map filter_param tl)
-	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) -> TAbstract(a, List.map filter_param tl)
-	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-		filter_param (Abstract.get_underlying_type a tl)
-	| TAbstract(a,tl) -> TAbstract(a, List.map filter_param tl)
-	| TAnon a ->
-		TAnon {
-			a_fields = PMap.map (fun f -> { f with cf_type = filter_param f.cf_type }) a.a_fields;
-			a_status = a.a_status;
-		}
-	| TFun(args,ret) -> TFun(List.map (fun (n,o,t) -> (n,o,filter_param t)) args, filter_param ret)
-	| TDynamic _ -> t
-	| TLazy f -> filter_param (!f())
+	let rec filter_param t =
+		match t with
+		| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
+			t_dynamic
+		| TMono r ->
+			(match !r with
+			| None -> t_dynamic
+			| Some t -> filter_param t)
+		| TInst(_,[]) | TEnum(_,[]) | TType(_,[]) | TAbstract(_,[]) ->
+			t
+		| TType(t,tl) ->
+			TType(t,List.map filter_param tl)
+		| TInst(c,tl) ->
+			TInst(c,List.map filter_param tl)
+		| TEnum(e,tl) ->
+			TEnum(e,List.map filter_param tl)
+		| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) ->
+			TAbstract(a, List.map filter_param tl)
+		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+			filter_param (Abstract.get_underlying_type a tl)
+		| TAbstract(a,tl) ->
+			TAbstract(a, List.map filter_param tl)
+		| TAnon a ->
+			TAnon {
+				a_fields = PMap.map (fun f -> { f with cf_type = filter_param f.cf_type }) a.a_fields;
+				a_status = a.a_status;
+			}
+		| TFun(args,ret) ->
+			TFun(List.map (fun (n,o,t) -> (n,o,filter_param t)) args, filter_param ret)
+		| TDynamic _ ->
+			t
+		| TLazy f ->
+			filter_param (!f())
 
-	let default_implementation gen ~metas =
+	let configure gen ~metas =
 		let rec run e =
 			match e.eexpr with
-			| TMeta(entry, e) when not (Hashtbl.mem metas entry) ->
+			| TMeta (entry, e) when not (Hashtbl.mem metas entry) ->
 				run e
 			| _ ->
 				map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
 		in
-		run
+		let map e = Some (run e) in
+		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map;
 
-	let default_implementation_module gen ~metas =
-		let rec run md = match md with
+		let run md =
+			match md with
 			| TClassDecl cl ->
 				let rec map cf =
 					cf.cf_type <- filter_param cf.cf_type;
@@ -10445,19 +10452,15 @@ struct
 				in
 				List.iter map cl.cl_ordered_fields;
 				List.iter map cl.cl_ordered_statics;
-				Option.may map cl.cl_constructor;
-				md
-			| _ -> md
+				Option.may map cl.cl_constructor
+			| _ ->
+				()
 		in
-		run
-
-	let configure gen ~metas =
-		let map e = Some(default_implementation gen e ~metas:metas) in
-		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map;
-		let map md = Some(default_implementation_module gen ~metas md) in
+		let map md = Some (run md; md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
+
 
 (* ******************************************* *)
 (* InterfaceMetas *)
