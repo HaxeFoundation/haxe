@@ -2747,13 +2747,7 @@ let configure gen =
 			mk_field_access gen { e with etype = real_type e.etype } "hasValue" e.epos
 		)
 		(fun e1 e2 ->
-			{
-				eexpr = TCall(
-					mk_field_access gen e1 "Equals" e1.epos,
-					[e2]);
-				etype = basic.tbool;
-				epos = e1.epos;
-			}
+			mk (TCall(mk_field_access gen e1 "Equals" e1.epos, [e2])) basic.tbool e1.epos
 		);
 
 
