@@ -6696,6 +6696,7 @@ struct
 		rcf_object_iface : tclass;
 
 		rcf_max_func_arity : int;
+		rcf_create_empty : bool;
 
 		(*
 			the hash lookup function. can be an inlined expr or simply a function call.
@@ -6738,6 +6739,7 @@ struct
 			rcf_object_iface = object_iface;
 
 			rcf_max_func_arity = 10;
+			rcf_create_empty = Common.has_feature gen.gcon "Type.createEmptyInstance";
 
 			rcf_hash_function = hash_function;
 			rcf_lookup_function = lookup_function;
@@ -7452,26 +7454,28 @@ struct
 			cf.cf_expr <- Some fn;
 			cf
 		in
+		cl.cl_statics <- PMap.add create.cf_name create cl.cl_statics;
+		cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create];
 
-		let create_empty =
-			let t = TFun([],t_dynamic) in
-			let cf = mk_class_field (gen.gmk_internal_name "hx" "createEmpty") t false pos (Method MethNormal) [] in
-			let fn = {
-				eexpr = TFunction({
-					tf_args = [];
-					tf_type = t_dynamic;
-					tf_expr = mk_block (mk_return (gen.gtools.r_create_empty cl tparams pos))
-				});
-				etype = t;
-				epos = pos
-			} in
-			cf.cf_expr <- Some fn;
-			cf
-		in
-
-		cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create_empty; create];
-		cl.cl_statics <- PMap.add create_empty.cf_name create_empty cl.cl_statics;
-		cl.cl_statics <- PMap.add create.cf_name create cl.cl_statics
+		if ctx.rcf_create_empty then begin
+			let create_empty =
+				let t = TFun([],t_dynamic) in
+				let cf = mk_class_field (gen.gmk_internal_name "hx" "createEmpty") t false pos (Method MethNormal) [] in
+				let fn = {
+					eexpr = TFunction({
+						tf_args = [];
+						tf_type = t_dynamic;
+						tf_expr = mk_block (mk_return (gen.gtools.r_create_empty cl tparams pos))
+					});
+					etype = t;
+					epos = pos
+				} in
+				cf.cf_expr <- Some fn;
+				cf
+			in
+			cl.cl_statics <- PMap.add create_empty.cf_name create_empty cl.cl_statics;
+			cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create_empty]
+		end
 
 
 	(*
