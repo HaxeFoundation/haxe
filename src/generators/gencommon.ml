@@ -1526,15 +1526,6 @@ struct
 
 	let name = "overloading_constructor"
 
-	let set_new_create_empty gen empty_ctor_expr =
-		let old = gen.gtools.rf_create_empty in
-		gen.gtools.rf_create_empty <- (fun cl params pos ->
-			if is_hxgen (TClassDecl cl) then
-				{ eexpr = TNew(cl,params,[empty_ctor_expr]); etype = TInst(cl,params); epos = pos }
-			else
-				old cl params pos
-		)
-
 	let rec cur_ctor c tl =
 		match c.cl_constructor with
 		| Some ctor ->
@@ -1766,6 +1757,15 @@ struct
 		| None -> ()
 		| Some e -> Type.iter loop e
 
+	let set_new_create_empty gen empty_ctor_expr =
+		let old = gen.gtools.rf_create_empty in
+		gen.gtools.rf_create_empty <- (fun cl params pos ->
+			if is_hxgen (TClassDecl cl) then
+				{ eexpr = TNew(cl,params,[empty_ctor_expr]); etype = TInst(cl,params); epos = pos }
+			else
+				old cl params pos
+		)
+
 	let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
 		set_new_create_empty gen empty_ctor_expr;
 
@@ -1921,7 +1921,7 @@ end;;
 
 	depends on:
 		(syntax) must run before ExprStatement module
-		(ok) must run before OverloadingCtor module so the constructor can be in the correct place
+		(ok) must run before OverloadingConstructor module so the constructor can be in the correct place
 		(syntax) must run before FunctionToClass module
 *)
 module InitFunction =
@@ -2165,7 +2165,7 @@ end;;
 
 	depends on:
 		(syntax) must run before expression/statment normalization because it may generate complex expressions
-		must run before OverloadingCtor due to later priority conflicts. Since ExpressionUnwrap is only
+		must run before OverloadingConstructor due to later priority conflicts. Since ExpressionUnwrap is only
 		defined afterwards, we will set this value with absolute values
 *)
 module DynamicOperators =
@@ -2663,7 +2663,7 @@ let fun_args = List.map (function | (v,s) -> (v.v_name, (match s with | None -> 
 
 	dependencies:
 		must run after dynamic field access, because of conflicting ways to deal with invokeField
-		(module filter) must run after OverloadingCtor so we can also change the dynamic function expressions
+		(module filter) must run after OverloadingConstructor so we can also change the dynamic function expressions
 
 		uses TArray expressions for array. TODO see interaction
 		uses TThrow expressions.
