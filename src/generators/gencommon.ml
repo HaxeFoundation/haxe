@@ -9726,9 +9726,7 @@ end;;
 *)
 module DefaultArguments =
 struct
-
 	let name = "default_arguments"
-
 	let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
 
 	let gen_check basic t nullable_var const pos =
@@ -9760,24 +9758,21 @@ struct
 
 	let add_opt gen block pos (var,opt) =
 		match opt with
-			| None | Some TNull -> (var,opt)
-			| Some (TString str) ->
-				block := Codegen.set_default gen.gcon var (TString str) pos :: !block;
-				(var, opt)
-			| Some const ->
-				let basic = gen.gcon.basic in
-				let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
-				let orig_name = var.v_name in
-				var.v_name <- nullable_var.v_name;
-				nullable_var.v_name <- orig_name;
-				(* var v = (temp_var == null) ? const : cast temp_var; *)
-				block :=
-				{
-					eexpr = TVar(var, Some(gen_check basic var.v_type nullable_var const pos));
-					etype = basic.tvoid;
-					epos = pos;
-				} :: !block;
-				(nullable_var, opt)
+		| None | Some TNull ->
+			(var,opt)
+		| Some (TString str) ->
+			block := Codegen.set_default gen.gcon var (TString str) pos :: !block;
+			(var, opt)
+		| Some const ->
+			let basic = gen.gcon.basic in
+			let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
+			let orig_name = var.v_name in
+			var.v_name <- nullable_var.v_name;
+			nullable_var.v_name <- orig_name;
+			(* var v = (temp_var == null) ? const : cast temp_var; *)
+			let evar = mk (TVar(var, Some(gen_check basic var.v_type nullable_var const pos))) basic.tvoid pos in
+			block := evar :: !block;
+			(nullable_var, opt)
 
 	let rec change_func gen cf =
 		List.iter (change_func gen) cf.cf_overloads;
