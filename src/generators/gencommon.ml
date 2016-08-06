@@ -9870,12 +9870,11 @@ struct
 
 end;;
 
+
 (* ******************************************* *)
 (* Interface Variables Removal Modf *)
 (* ******************************************* *)
-
 (*
-
 	This module filter will take care of sanitizing interfaces for targets that do not support
 	variables declaration in interfaces. By now this will mean that if anything is typed as the interface,
 	and a variable access is made, a FNotFound will be returned for the field_access, so
@@ -9883,70 +9882,58 @@ end;;
 	Speed-wise, ideally it would be best to create getProp/setProp functions in this case and change
 	the AST to call them when accessing by interface. (TODO)
 	But right now it will be accessed by reflection.
-
-	dependencies:
-
-
 *)
-
 module InterfaceVarsDeleteModf =
 struct
-
 	let name = "interface_vars"
-
 	let priority = solve_deps name []
 
-	let run gen =
-		let run md = match md with
-			| TClassDecl ( { cl_interface = true } as cl ) ->
+	let configure gen =
+		let run md =
+			match md with
+			| TClassDecl ({ cl_interface = true } as cl) ->
 				let to_add = ref [] in
 				let fields = List.filter (fun cf ->
 					match cf.cf_kind with
-						| Var _ when gen.gcon.platform = Cs && Meta.has Meta.Event cf.cf_meta ->
-							true
-						| Var vkind when not (Type.is_extern_field cf && Meta.has Meta.Property cf.cf_meta) ->
-							(match vkind.v_read with
-								| AccCall ->
-									let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
-									to_add := newcf :: !to_add;
-								| _ -> ()
-							);
-							(match vkind.v_write with
-								| AccCall ->
-									let newcf = mk_class_field ("set_" ^ cf.cf_name) (TFun(["val",false,cf.cf_type],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
-									to_add := newcf :: !to_add;
-								| _ -> ()
-							);
-							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
-							false
-						| Method MethDynamic ->
-							(* TODO OPTIMIZATION - add a `_dispatch` method to the interface which will call the dynamic function itself *)
-							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
-							false
-						| _ -> true
+					| Var _ when gen.gcon.platform = Cs && Meta.has Meta.Event cf.cf_meta ->
+						true
+					| Var vkind when not (Type.is_extern_field cf && Meta.has Meta.Property cf.cf_meta) ->
+						(match vkind.v_read with
+							| AccCall ->
+								let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+								to_add := newcf :: !to_add;
+							| _ -> ()
+						);
+						(match vkind.v_write with
+							| AccCall ->
+								let newcf = mk_class_field ("set_" ^ cf.cf_name) (TFun(["val",false,cf.cf_type],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+								to_add := newcf :: !to_add;
+							| _ -> ()
+						);
+						cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+						false
+					| Method MethDynamic ->
+						(* TODO OPTIMIZATION - add a `_dispatch` method to the interface which will call the dynamic function itself *)
+						cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+						false
+					| _ ->
+						true
 				) cl.cl_ordered_fields in
 
 				cl.cl_ordered_fields <- fields;
 
 				List.iter (fun cf ->
 					match field_access gen (TInst(cl,List.map snd cl.cl_params)) cf.cf_name with
-						| FNotFound | FDynamicField _ ->
-							cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
-							cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
-						| _ -> ()
-				) !to_add;
-
-				md
-			| _ -> md
+					| FNotFound | FDynamicField _ ->
+						cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
+						cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+					| _ ->
+						()
+				) !to_add
+			| _ -> ()
 		in
-		run
-
-	let configure gen =
-		let run = run gen in
-		let map md = Some(run md) in
+		let map md = Some(run md; md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
-
 end;;
 
 
