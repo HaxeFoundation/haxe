@@ -8387,56 +8387,45 @@ struct
 		List.iter (process_cf true) cl.cl_ordered_statics;
 		cl.cl_ordered_statics <- cl.cl_ordered_statics @ !new_fields
 
+
 	(* ******************************************* *)
 	(* UniversalBaseClass *)
 	(* ******************************************* *)
-
 	(*
-
 		Sets the universal base class for hxgen types (HxObject / IHxObject)
 
 		dependencies:
 			As a rule, it should be one of the last module filters to run so any @:hxgen class created in the process
-			-Should- only run after TypeParams.RealTypeParams.Modf, since
-
+			-Should- only run after TypeParams.RealTypeParams.Modf
 	*)
-
 	module UniversalBaseClass =
 	struct
-
 		let name = "rcf_universal_base_class"
-
 		let priority = min_dep +. 10.
 
-		let default_implementation gen baseclass baseinterface basedynamic =
-			(* baseinterface.cl_meta <- (Meta.BaseInterface, [], baseinterface.cl_pos) :: baseinterface.cl_meta; *)
-			let rec run md =
-				(if is_hxgen md then
-					match md with
-						| TClassDecl ( { cl_interface = true } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
-							cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-						| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
-							(* don't add any base classes to abstract implementations *)
-							()
-						| TClassDecl ( { cl_super = None } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
-							if is_some cl.cl_dynamic then
-								cl.cl_super <- Some (basedynamic,[])
-							else
-								cl.cl_super <- Some (baseclass,[])
-						| TClassDecl ( { cl_super = Some(super,_) } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && not ( is_hxgen (TClassDecl super) ) ->
-							cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-						| _ -> ()
-				);
-				md
-			in
-			run
-
 		let configure gen baseclass baseinterface basedynamic =
-			let impl = default_implementation gen baseclass baseinterface basedynamic in
-			let map e = Some(impl e) in
+			let rec run md =
+				if is_hxgen md then
+					match md with
+					| TClassDecl ({ cl_interface = true } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+						cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+					| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
+						(* don't add any base classes to abstract implementations *)
+						()
+					| TClassDecl ({ cl_super = None } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+						if is_some cl.cl_dynamic then
+							cl.cl_super <- Some (basedynamic,[])
+						else
+							cl.cl_super <- Some (baseclass,[])
+					| TClassDecl ({ cl_super = Some(super,_) } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && not (is_hxgen (TClassDecl super)) ->
+						cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+					| _ ->
+						()
+			in
+			let map md = Some(run md; md) in
 			gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
 	end;;
+
 
 	(*
 		Priority: must run AFTER UniversalBaseClass
