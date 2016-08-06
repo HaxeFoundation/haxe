@@ -613,7 +613,7 @@ and gen_tools =
 		these are now the functions that will later be used when creating the reflection classes
 	*)
 
-	(* on the default implementation (at OverloadingCtors), it will be new SomeClass<params>(EmptyInstance) *)
+	(* on the default implementation (at OverloadingConstructor), it will be new SomeClass<params>(EmptyInstance) *)
 	mutable rf_create_empty : tclass->tparams->pos->texpr;
 }
 
@@ -2012,7 +2012,7 @@ struct
 				| [] -> cl.cl_init <- None
 				| _ -> cl.cl_init <- Some { eexpr = TBlock(init); epos = cl.cl_pos; etype = gen.gcon.basic.tvoid; });
 
-			(* FIXME: find a way to tell OverloadingCtors to execute this code even with empty constructors *)
+			(* FIXME: find a way to tell OverloadingConstructor to execute this code even with empty constructors *)
 			let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->
 				match cf.cf_kind with
 					| Var v when Meta.has Meta.ReadOnly cf.cf_meta ->
@@ -9722,7 +9722,7 @@ end;;
 	the not-nullable type in the beginning of the function.
 
 	dependencies:
-		It must run before OverloadingCtors, since OverloadingCtors will change optional structures behavior
+		It must run before OverloadingConstructor, since OverloadingConstructor will change optional structures behavior
 *)
 module DefaultArguments =
 struct
