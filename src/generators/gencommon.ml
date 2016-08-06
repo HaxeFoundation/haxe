@@ -610,11 +610,10 @@ and gen_tools =
 	r_field : bool->t->texpr->texpr->texpr;
 
 	(*
-		these are now the functions that will later be used when creating the reflection classes
+		return an expression that creates an unitialized instance of a class,
+		used for Type.createEmptyInstance and generic cast helper method.
 	*)
-
-	(* on the default implementation (at OverloadingConstructor), it will be new SomeClass<params>(EmptyInstance) *)
-	mutable rf_create_empty : tclass->tparams->pos->texpr;
+	mutable r_create_empty : tclass->tparams->pos->texpr;
 }
 
 let get_type types path =
@@ -673,12 +672,7 @@ let new_ctx con =
 				mk_cast t { eexpr = TCall(fieldcall, [obj; field]); etype = t_dynamic; epos = obj.epos }
 			);
 
-			rf_create_empty = (fun cl params pos ->
-				let eclass = mk (TTypeExpr(TClassDecl cl)) t_dynamic pos in
-				let tclass = TInst(cl,params) in
-				let fieldcall = mk_static_field_access_infer gen.gclasses.cl_type "createEmptyInstance" pos [tclass] in
-				mk (TCall(fieldcall, [eclass])) tclass pos
-			);
+			r_create_empty = (fun _ _ pos -> gen.gcon.error "r_create_empty implementation is not provided" pos; assert false);
 		};
 		gmk_internal_name = (fun ns s -> sprintf "__%s_%s" ns s);
 		gexpr_filters = new rule_map_dispatcher "gexpr_filters";
@@ -1757,17 +1751,8 @@ struct
 		| None -> ()
 		| Some e -> Type.iter loop e
 
-	let set_new_create_empty gen empty_ctor_expr =
-		let old = gen.gtools.rf_create_empty in
-		gen.gtools.rf_create_empty <- (fun cl params pos ->
-			if is_hxgen (TClassDecl cl) then
-				{ eexpr = TNew(cl,params,[empty_ctor_expr]); etype = TInst(cl,params); epos = pos }
-			else
-				old cl params pos
-		)
-
 	let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
-		set_new_create_empty gen empty_ctor_expr;
+		gen.gtools.r_create_empty <- (fun cl params pos -> mk (TNew(cl,params,[empty_ctor_expr])) (TInst(cl,params)) pos);
 
 		let basic = gen.gcon.basic in
 		let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
@@ -4399,7 +4384,7 @@ struct
 								};
 								(* var new_me = /*special create empty with tparams construct*/ *)
 								{
-									eexpr = TVar(new_me_var, Some(gen.gtools.rf_create_empty cl params pos));
+									eexpr = TVar(new_me_var, Some(gen.gtools.r_create_empty cl params pos));
 									etype = gen.gcon.basic.tvoid;
 									epos = pos
 								};
@@ -7475,7 +7460,7 @@ struct
 				eexpr = TFunction({
 					tf_args = [];
 					tf_type = t_dynamic;
-					tf_expr = mk_block (mk_return ( gen.gtools.rf_create_empty cl tparams pos ))
+					tf_expr = mk_block (mk_return (gen.gtools.r_create_empty cl tparams pos))
 				});
 				etype = t;
 				epos = pos
