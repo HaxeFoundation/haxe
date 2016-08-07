@@ -5568,7 +5568,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    | _ -> () );
 
    (* And any interfaces ... *)
-   List.iter (fun imp-> h_file#add_include (fst imp).cl_path)
+   List.iter (fun imp->
+      let interface = fst imp in
+      let include_file = get_meta_string_path interface.cl_meta Meta.Include in
+      h_file#add_include (if include_file="" then interface.cl_path else path_of_string include_file) )
       (real_interfaces class_def.cl_implements);
 
    (* Only need to foreward-declare classes that are mentioned in the header file
