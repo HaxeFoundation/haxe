@@ -173,14 +173,22 @@ enum ValueType {
 		var t = Lib.toNativeType(cl);
 
 		if (cs.system.Object.ReferenceEquals(t, String))
+			#if erase_generics
+			return untyped "";
+			#else
 			return untyped __cs__("(T)(object){0}", "");
+			#end
 
 		var res = try
 			cs.system.Activator.CreateInstance(t, __createEmptyInstance_EMPTY_ARGS)
 		catch (_:cs.system.MissingMemberException)
 			cs.system.Activator.CreateInstance(t);
 
+		#if erase_generics
+		return res;
+		#else
 		return untyped __cs__("(T){0}", res);
+		#end
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T
