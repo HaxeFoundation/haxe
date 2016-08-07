@@ -1110,14 +1110,15 @@ class RunCi {
 								"";
 						};
 
-						for (fastcast in [[], ["-D", "fast_cast"]])
-						for (noroot in [[], ["-D", "no_root"]])
+						for (fastcast in      [[], ["-D", "fast_cast"]])
+						for (noroot in        [[], ["-D", "no_root"]])
 						for (erasegenerics in [[], ["-D", "erase_generics"]])
 						{
-							runCommand("haxe", ['compile-cs$compl.hxml'].concat(fastcast).concat(erasegenerics).concat(noroot));
+							var extras = fastcast.concat(erasegenerics).concat(noroot);
+							runCommand("haxe", ['compile-cs$compl.hxml'].concat(extras));
 							runCs("bin/cs/bin/Test-Debug.exe");
 
-							runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(fastcast).concat(erasegenerics).concat(noroot));
+							runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(extras));
 							runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 						}
 
