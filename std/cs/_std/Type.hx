@@ -166,32 +166,29 @@ enum ValueType {
 		return Runtime.callMethod(null, cast ctors, ctors.Length, args);
 	}
 
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T
-	{
-		var t:cs.system.Type = Lib.toNativeType(cl);
-		if (t.IsInterface)
-		{
-			//may be generic
-			t = Lib.toNativeType(resolveClass(getClassName(cl)));
-		}
+	// cache empty constructor arguments so we don't allocate it on each createEmptyInstance call
+	@:protected @:readOnly static var __createEmptyInstance_EMPTY_ARGS = cs.NativeArray.make((cs.internal.Runtime.EmptyObject.EMPTY : Any));
 
-		if (Reflect.hasField(cl, "__hx_createEmpty"))
-			return untyped cl.__hx_createEmpty();
-		if (untyped cl == String)
-			return cast "";
-		var t:cs.system.Type = Lib.toNativeType(cl);
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
+		var t = Lib.toNativeType(cl);
 
-		var ctors = t.GetConstructors();
-		for (c in 0...ctors.Length)
-		{
-			if (ctors[c].GetParameters().Length == 0)
-			{
-				var arr = new cs.NativeArray(1);
-				arr[0] = ctors[c];
-				return Runtime.callMethod(null, cast arr, arr.Length, []);
-			}
-		}
-		return cs.system.Activator.CreateInstance(t);
+		if (cs.system.Object.ReferenceEquals(t, String))
+			#if erase_generics
+			return untyped "";
+			#else
+			return untyped __cs__("(T)(object){0}", "");
+			#end
+
+		var res = try
+			cs.system.Activator.CreateInstance(t, __createEmptyInstance_EMPTY_ARGS)
+		catch (_:cs.system.MissingMemberException)
+			cs.system.Activator.CreateInstance(t);
+
+		#if erase_generics
+		return res;
+		#else
+		return untyped __cs__("(T){0}", res);
+		#end
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T

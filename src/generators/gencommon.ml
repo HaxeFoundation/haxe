@@ -610,11 +610,9 @@ and gen_tools =
 	r_field : bool->t->texpr->texpr->texpr;
 
 	(*
-		these are now the functions that will later be used when creating the reflection classes
+		return an expression that creates an unitialized instance of a class, used for the generic cast helper method.
 	*)
-
-	(* on the default implementation (at OverloadingCtors), it will be new SomeClass<params>(EmptyInstance) *)
-	mutable rf_create_empty : tclass->tparams->pos->texpr;
+	mutable r_create_empty : tclass->tparams->pos->texpr;
 }
 
 let get_type types path =
@@ -673,12 +671,7 @@ let new_ctx con =
 				mk_cast t { eexpr = TCall(fieldcall, [obj; field]); etype = t_dynamic; epos = obj.epos }
 			);
 
-			rf_create_empty = (fun cl params pos ->
-				let eclass = mk (TTypeExpr(TClassDecl cl)) t_dynamic pos in
-				let tclass = TInst(cl,params) in
-				let fieldcall = mk_static_field_access_infer gen.gclasses.cl_type "createEmptyInstance" pos [tclass] in
-				mk (TCall(fieldcall, [eclass])) tclass pos
-			); (* TODO: Maybe implement using normal reflection? Type.createEmpty(MyClass) *)
+			r_create_empty = (fun _ _ pos -> gen.gcon.error "r_create_empty implementation is not provided" pos; assert false);
 		};
 		gmk_internal_name = (fun ns s -> sprintf "__%s_%s" ns s);
 		gexpr_filters = new rule_map_dispatcher "gexpr_filters";
@@ -1496,10 +1489,10 @@ struct
 		List.iter filter gen.gtypes_list
 end;;
 
+
 (* ******************************************* *)
 (* overloading reflection constructors *)
 (* ******************************************* *)
-
 (*
 	this module works on languages that support function overloading and
 	enable function hiding via static functions.
@@ -1512,7 +1505,6 @@ end;;
 	and one that executes its normal constructor.
 	Both will only include a super() call to the superclasses' emtpy constructor.
 
-
 	This enables two things:
 		empty construction without the need of incompatibility with the platform's native construction method
 		the ability to call super() constructor in any place in the constructor
@@ -1521,19 +1513,8 @@ end;;
 *)
 module OverloadingConstructor =
 struct
-
 	let priority = 0.0
-
 	let name = "overloading_constructor"
-
-	let set_new_create_empty gen empty_ctor_expr =
-		let old = gen.gtools.rf_create_empty in
-		gen.gtools.rf_create_empty <- (fun cl params pos ->
-			if is_hxgen (TClassDecl cl) then
-				{ eexpr = TNew(cl,params,[empty_ctor_expr]); etype = TInst(cl,params); epos = pos }
-			else
-				old cl params pos
-		)
 
 	let rec cur_ctor c tl =
 		match c.cl_constructor with
@@ -1558,45 +1539,50 @@ struct
 
 	(* replaces super() call with last static constructor call *)
 	let replace_super_call gen name c tl with_params me p =
-		let rec loop_super c tl = match c.cl_super with
-			| None -> raise Not_found
+		let rec loop_super c tl =
+			match c.cl_super with
+			| None ->
+				raise Not_found
 			| Some(sup,stl) ->
 				let stl = List.map (apply_params c.cl_params tl) stl in
 				try
 					let static_ctor_name = name ^ "_" ^ (String.concat "_" (fst sup.cl_path)) ^ "_" ^ (snd sup.cl_path) in
 					sup, stl, PMap.find static_ctor_name sup.cl_statics
-				with | Not_found ->
+				with Not_found ->
 					loop_super sup stl
 		in
 		let sup, stl, cf = loop_super c tl in
-		let with_params = { eexpr = TLocal me; etype = me.v_type; epos = p } :: with_params in
-		let cf = match cf.cf_overloads with
-		(* | [] -> cf *)
-		| _ -> try
-			(* choose best super function *)
-			List.iter (fun e -> replace_mono e.etype) with_params;
-			List.find (fun cf ->
-				replace_mono cf.cf_type;
-				let args, _ = get_fun (apply_params cf.cf_params stl cf.cf_type) in
-				try
-					List.for_all2 (fun (_,_,t) e -> try
-						let e_etype = run_follow gen e.etype in
-						let t = run_follow gen t in
-						unify e_etype t; true
-					with | Unify_error _ -> false) args with_params
-				with | Invalid_argument("List.for_all2") -> false
-			) (cf :: cf.cf_overloads)
-		with | Not_found ->
-			gen.gcon.error "No suitable overload for the super call arguments was found" p; cf
+		let with_params = (mk (TLocal me) me.v_type p) :: with_params in
+		let cf =
+			try
+				(* choose best super function *)
+				List.iter (fun e -> replace_mono e.etype) with_params;
+				List.find (fun cf ->
+					replace_mono cf.cf_type;
+					let args, _ = get_fun (apply_params cf.cf_params stl cf.cf_type) in
+					try
+						List.for_all2 (fun (_,_,t) e -> try
+							let e_etype = run_follow gen e.etype in
+							let t = run_follow gen t in
+							unify e_etype t; true
+						with Unify_error _ ->
+							false
+						) args with_params
+					with Invalid_argument("List.for_all2") ->
+						false
+				) (cf :: cf.cf_overloads)
+			with Not_found ->
+				gen.gcon.error "No suitable overload for the super call arguments was found" p; cf
 		in
 		{
-			eexpr = TCall({
-				eexpr = TField(
-					mk_classtype_access sup p,
-					FStatic(sup,cf));
-				etype = apply_params cf.cf_params stl cf.cf_type;
-				epos = p},
-				with_params);
+			eexpr = TCall(
+				{
+					eexpr = TField(mk_classtype_access sup p, FStatic(sup,cf));
+					etype = apply_params cf.cf_params stl cf.cf_type;
+					epos = p
+				},
+				with_params
+			);
 			etype = gen.gcon.basic.tvoid;
 			epos = p;
 		}
@@ -1767,7 +1753,7 @@ struct
 		| Some e -> Type.iter loop e
 
 	let configure ~(empty_ctor_type : t) ~(empty_ctor_expr : texpr) gen =
-		set_new_create_empty gen empty_ctor_expr;
+		gen.gtools.r_create_empty <- (fun cl params pos -> mk (TNew(cl,params,[empty_ctor_expr])) (TInst(cl,params)) pos);
 
 		let basic = gen.gcon.basic in
 		let should_change cl = not cl.cl_interface && (not cl.cl_extern || is_hxgen (TClassDecl cl)) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) in
@@ -1921,7 +1907,7 @@ end;;
 
 	depends on:
 		(syntax) must run before ExprStatement module
-		(ok) must run before OverloadingCtor module so the constructor can be in the correct place
+		(ok) must run before OverloadingConstructor module so the constructor can be in the correct place
 		(syntax) must run before FunctionToClass module
 *)
 module InitFunction =
@@ -2012,7 +1998,7 @@ struct
 				| [] -> cl.cl_init <- None
 				| _ -> cl.cl_init <- Some { eexpr = TBlock(init); epos = cl.cl_pos; etype = gen.gcon.basic.tvoid; });
 
-			(* FIXME: find a way to tell OverloadingCtors to execute this code even with empty constructors *)
+			(* FIXME: find a way to tell OverloadingConstructor to execute this code even with empty constructors *)
 			let vars, funs = List.fold_left (fun (acc_vars,acc_funs) cf ->
 				match cf.cf_kind with
 					| Var v when Meta.has Meta.ReadOnly cf.cf_meta ->
@@ -2165,7 +2151,7 @@ end;;
 
 	depends on:
 		(syntax) must run before expression/statment normalization because it may generate complex expressions
-		must run before OverloadingCtor due to later priority conflicts. Since ExpressionUnwrap is only
+		must run before OverloadingConstructor due to later priority conflicts. Since ExpressionUnwrap is only
 		defined afterwards, we will set this value with absolute values
 *)
 module DynamicOperators =
@@ -2663,7 +2649,7 @@ let fun_args = List.map (function | (v,s) -> (v.v_name, (match s with | None -> 
 
 	dependencies:
 		must run after dynamic field access, because of conflicting ways to deal with invokeField
-		(module filter) must run after OverloadingCtor so we can also change the dynamic function expressions
+		(module filter) must run after OverloadingConstructor so we can also change the dynamic function expressions
 
 		uses TArray expressions for array. TODO see interaction
 		uses TThrow expressions.
@@ -4399,7 +4385,7 @@ struct
 								};
 								(* var new_me = /*special create empty with tparams construct*/ *)
 								{
-									eexpr = TVar(new_me_var, Some(gen.gtools.rf_create_empty cl params pos));
+									eexpr = TVar(new_me_var, Some(gen.gtools.r_create_empty cl params pos));
 									etype = gen.gcon.basic.tvoid;
 									epos = pos
 								};
@@ -7422,72 +7408,6 @@ struct
 			cl.cl_fields <- PMap.add delete.cf_name delete cl.cl_fields
 		end
 
-	let implement_create_empty ctx cl =
-		let gen = ctx.rcf_gen in
-		let basic = gen.gcon.basic in
-		let pos = cl.cl_pos in
-		let tparams = List.map (fun _ -> t_empty) cl.cl_params in
-
-		let create =
-			let arr = alloc_var "arr" (basic.tarray t_dynamic) in
-			let tf_args = [ arr, None ] in
-			let t = TFun(fun_args tf_args, t_dynamic) in
-			let cf = mk_class_field (gen.gmk_internal_name "hx" "create") t false pos (Method MethNormal) [] in
-			let i = ref 0 in
-
-			let arr_local = mk_local arr pos in
-			let ctor = if is_some cl.cl_constructor then cl.cl_constructor else get_last_ctor cl in
-			let params = match ctor with
-				| None -> []
-				| Some ctor ->
-					List.map (fun (n,_,t) ->
-						let old = !i in
-						incr i;
-						{
-							eexpr = TArray(arr_local, { eexpr = TConst(TInt (Int32.of_int old)); etype = basic.tint; epos = pos } );
-							etype = t_dynamic;
-							epos = pos
-						}
-					) ( fst ( get_fun ctor.cf_type ) )
-			in
-			let expr = mk_return {
-				eexpr = TNew(cl, tparams, params);
-				etype = TInst(cl, tparams);
-				epos = pos
-			} in
-			let fn = {
-				eexpr = TFunction({
-					tf_args = tf_args;
-					tf_type = t_dynamic;
-					tf_expr = mk_block expr
-				});
-				etype = t;
-				epos = pos
-			} in
-			cf.cf_expr <- Some fn;
-			cf
-		in
-
-		let create_empty =
-			let t = TFun([],t_dynamic) in
-			let cf = mk_class_field (gen.gmk_internal_name "hx" "createEmpty") t false pos (Method MethNormal) [] in
-			let fn = {
-				eexpr = TFunction({
-					tf_args = [];
-					tf_type = t_dynamic;
-					tf_expr = mk_block (mk_return ( gen.gtools.rf_create_empty cl tparams pos ))
-				});
-				etype = t;
-				epos = pos
-			} in
-			cf.cf_expr <- Some fn;
-			cf
-		in
-
-		cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create_empty; create];
-		cl.cl_statics <- PMap.add create_empty.cf_name create_empty cl.cl_statics;
-		cl.cl_statics <- PMap.add create.cf_name create cl.cl_statics
-
 
 	(*
 		Implements:
@@ -8324,119 +8244,45 @@ struct
 			);
 		()
 
-	let replace_reflection ctx cl =
-		let gen = ctx.rcf_gen in
-		let pos = cl.cl_pos in
-
-		let this_t = TInst(cl, List.map snd cl.cl_params) in
-		let this = { eexpr = TConst(TThis); etype = this_t; epos = pos } in
-
-		let last_fields = match cl.cl_super with
-			| None -> PMap.empty
-			| Some (super,_) -> super.cl_fields
-		in
-
-		let new_fields = ref [] in
-		let process_cf static cf =
-			match cf.cf_kind with
-				| Var _ -> ()
-				| _ when Meta.has Meta.ReplaceReflection cf.cf_meta ->
-					let name = if String.get cf.cf_name 0 = '_' then String.sub cf.cf_name 1 (String.length cf.cf_name - 1) else cf.cf_name in
-					let new_name = gen.gmk_internal_name "hx" name in
-					let new_cf = mk_class_field new_name cf.cf_type cf.cf_public cf.cf_pos cf.cf_kind cf.cf_params in
-					let fn_args, ret = get_fun (follow cf.cf_type) in
-
-					let tf_args = List.map (fun (name,_,t) -> alloc_var name t, None) fn_args in
-					let is_void = ExtType.is_void ret in
-					let expr = {
-						eexpr = TCall(
-							{
-								eexpr = (if static then TField(mk_classtype_access cl pos, FStatic(cl, cf)) else TField(this, FInstance(cl, List.map snd cl.cl_params, cf)));
-								etype = cf.cf_type;
-								epos = cf.cf_pos;
-							},
-							List.map (fun (v,_) -> mk_local v cf.cf_pos) tf_args);
-						etype = ret;
-						epos = cf.cf_pos
-					} in
-
-					let new_f =
-					{
-						tf_args = tf_args;
-						tf_type = ret;
-						tf_expr = {
-							eexpr = TBlock([if is_void then expr else mk_return expr]);
-							etype = ret;
-							epos = pos;
-						}
-					} in
-
-					new_cf.cf_expr <- Some({ eexpr = TFunction(new_f); etype = cf.cf_type; epos = cf.cf_pos});
-
-					new_fields := new_cf :: !new_fields;
-
-					(if static then cl.cl_statics <- PMap.add new_name new_cf cl.cl_statics else cl.cl_fields <- PMap.add new_name new_cf cl.cl_fields);
-
-					if not static && PMap.mem new_name last_fields then cl.cl_overrides <- new_cf :: cl.cl_overrides
-				| _ -> ()
-		in
-
-		List.iter (process_cf false) cl.cl_ordered_fields;
-		cl.cl_ordered_fields <- cl.cl_ordered_fields @ !new_fields;
-		new_fields := [];
-		List.iter (process_cf true) cl.cl_ordered_statics;
-		cl.cl_ordered_statics <- cl.cl_ordered_statics @ !new_fields
 
 	(* ******************************************* *)
 	(* UniversalBaseClass *)
 	(* ******************************************* *)
-
 	(*
-
 		Sets the universal base class for hxgen types (HxObject / IHxObject)
 
 		dependencies:
 			As a rule, it should be one of the last module filters to run so any @:hxgen class created in the process
-			-Should- only run after TypeParams.RealTypeParams.Modf, since
-
+			-Should- only run after TypeParams.RealTypeParams.Modf
 	*)
-
 	module UniversalBaseClass =
 	struct
-
 		let name = "rcf_universal_base_class"
-
 		let priority = min_dep +. 10.
 
-		let default_implementation gen baseclass baseinterface basedynamic =
-			(* baseinterface.cl_meta <- (Meta.BaseInterface, [], baseinterface.cl_pos) :: baseinterface.cl_meta; *)
-			let rec run md =
-				(if is_hxgen md then
-					match md with
-						| TClassDecl ( { cl_interface = true } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
-							cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-						| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
-							(* don't add any base classes to abstract implementations *)
-							()
-						| TClassDecl ( { cl_super = None } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
-							if is_some cl.cl_dynamic then
-								cl.cl_super <- Some (basedynamic,[])
-							else
-								cl.cl_super <- Some (baseclass,[])
-						| TClassDecl ( { cl_super = Some(super,_) } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && not ( is_hxgen (TClassDecl super) ) ->
-							cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-						| _ -> ()
-				);
-				md
-			in
-			run
-
 		let configure gen baseclass baseinterface basedynamic =
-			let impl = default_implementation gen baseclass baseinterface basedynamic in
-			let map e = Some(impl e) in
+			let rec run md =
+				if is_hxgen md then
+					match md with
+					| TClassDecl ({ cl_interface = true } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+						cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+					| TClassDecl ({ cl_kind = KAbstractImpl _ }) ->
+						(* don't add any base classes to abstract implementations *)
+						()
+					| TClassDecl ({ cl_super = None } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+						if is_some cl.cl_dynamic then
+							cl.cl_super <- Some (basedynamic,[])
+						else
+							cl.cl_super <- Some (baseclass,[])
+					| TClassDecl ({ cl_super = Some(super,_) } as cl) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && not (is_hxgen (TClassDecl super)) ->
+						cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+					| _ ->
+						()
+			in
+			let map md = Some(run md; md) in
 			gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
 	end;;
+
 
 	(*
 		Priority: must run AFTER UniversalBaseClass
@@ -8447,13 +8293,11 @@ struct
 		let gen = ctx.rcf_gen in
 		let run = (fun md -> match md with
 			| TClassDecl cl when is_hxgen md && ( not cl.cl_interface || cl.cl_path = baseinterface.cl_path ) && (match cl.cl_kind with KAbstractImpl _ -> false | _ -> true) ->
-				(if Meta.has Meta.ReplaceReflection cl.cl_meta then replace_reflection ctx cl);
 				(implement_dynamics ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "lookupField") cl.cl_fields) then implement_final_lookup ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl);
-				(if not cl.cl_interface && not (PMap.mem (gen.gmk_internal_name "hx" "create") cl.cl_fields) then implement_create_empty ctx cl);
 				None
 			| _ -> None)
 		in
@@ -9722,13 +9566,11 @@ end;;
 	the not-nullable type in the beginning of the function.
 
 	dependencies:
-		It must run before OverloadingCtors, since OverloadingCtors will change optional structures behavior
+		It must run before OverloadingConstructor, since OverloadingConstructor will change optional structures behavior
 *)
 module DefaultArguments =
 struct
-
 	let name = "default_arguments"
-
 	let priority = solve_deps name [ DBefore OverloadingConstructor.priority ]
 
 	let gen_check basic t nullable_var const pos =
@@ -9760,24 +9602,21 @@ struct
 
 	let add_opt gen block pos (var,opt) =
 		match opt with
-			| None | Some TNull -> (var,opt)
-			| Some (TString str) ->
-				block := Codegen.set_default gen.gcon var (TString str) pos :: !block;
-				(var, opt)
-			| Some const ->
-				let basic = gen.gcon.basic in
-				let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
-				let orig_name = var.v_name in
-				var.v_name <- nullable_var.v_name;
-				nullable_var.v_name <- orig_name;
-				(* var v = (temp_var == null) ? const : cast temp_var; *)
-				block :=
-				{
-					eexpr = TVar(var, Some(gen_check basic var.v_type nullable_var const pos));
-					etype = basic.tvoid;
-					epos = pos;
-				} :: !block;
-				(nullable_var, opt)
+		| None | Some TNull ->
+			(var,opt)
+		| Some (TString str) ->
+			block := Codegen.set_default gen.gcon var (TString str) pos :: !block;
+			(var, opt)
+		| Some const ->
+			let basic = gen.gcon.basic in
+			let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
+			let orig_name = var.v_name in
+			var.v_name <- nullable_var.v_name;
+			nullable_var.v_name <- orig_name;
+			(* var v = (temp_var == null) ? const : cast temp_var; *)
+			let evar = mk (TVar(var, Some(gen_check basic var.v_type nullable_var const pos))) basic.tvoid pos in
+			block := evar :: !block;
+			(nullable_var, opt)
 
 	let rec change_func gen cf =
 		List.iter (change_func gen) cf.cf_overloads;
@@ -9870,12 +9709,11 @@ struct
 
 end;;
 
+
 (* ******************************************* *)
 (* Interface Variables Removal Modf *)
 (* ******************************************* *)
-
 (*
-
 	This module filter will take care of sanitizing interfaces for targets that do not support
 	variables declaration in interfaces. By now this will mean that if anything is typed as the interface,
 	and a variable access is made, a FNotFound will be returned for the field_access, so
@@ -9883,99 +9721,81 @@ end;;
 	Speed-wise, ideally it would be best to create getProp/setProp functions in this case and change
 	the AST to call them when accessing by interface. (TODO)
 	But right now it will be accessed by reflection.
-
-	dependencies:
-
-
 *)
-
 module InterfaceVarsDeleteModf =
 struct
-
 	let name = "interface_vars"
-
 	let priority = solve_deps name []
 
-	let run gen =
-		let run md = match md with
-			| TClassDecl ( { cl_interface = true } as cl ) ->
+	let configure gen =
+		let run md =
+			match md with
+			| TClassDecl ({ cl_interface = true } as cl) ->
 				let to_add = ref [] in
 				let fields = List.filter (fun cf ->
 					match cf.cf_kind with
-						| Var _ when gen.gcon.platform = Cs && Meta.has Meta.Event cf.cf_meta ->
-							true
-						| Var vkind when not (Type.is_extern_field cf && Meta.has Meta.Property cf.cf_meta) ->
-							(match vkind.v_read with
-								| AccCall ->
-									let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
-									to_add := newcf :: !to_add;
-								| _ -> ()
-							);
-							(match vkind.v_write with
-								| AccCall ->
-									let newcf = mk_class_field ("set_" ^ cf.cf_name) (TFun(["val",false,cf.cf_type],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
-									to_add := newcf :: !to_add;
-								| _ -> ()
-							);
-							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
-							false
-						| Method MethDynamic ->
-							(* TODO OPTIMIZATION - add a `_dispatch` method to the interface which will call the dynamic function itself *)
-							cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
-							false
-						| _ -> true
+					| Var _ when gen.gcon.platform = Cs && Meta.has Meta.Event cf.cf_meta ->
+						true
+					| Var vkind when not (Type.is_extern_field cf && Meta.has Meta.Property cf.cf_meta) ->
+						(match vkind.v_read with
+							| AccCall ->
+								let newcf = mk_class_field ("get_" ^ cf.cf_name) (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+								to_add := newcf :: !to_add;
+							| _ -> ()
+						);
+						(match vkind.v_write with
+							| AccCall ->
+								let newcf = mk_class_field ("set_" ^ cf.cf_name) (TFun(["val",false,cf.cf_type],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+								to_add := newcf :: !to_add;
+							| _ -> ()
+						);
+						cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+						false
+					| Method MethDynamic ->
+						(* TODO OPTIMIZATION - add a `_dispatch` method to the interface which will call the dynamic function itself *)
+						cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+						false
+					| _ ->
+						true
 				) cl.cl_ordered_fields in
 
 				cl.cl_ordered_fields <- fields;
 
 				List.iter (fun cf ->
 					match field_access gen (TInst(cl,List.map snd cl.cl_params)) cf.cf_name with
-						| FNotFound | FDynamicField _ ->
-							cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
-							cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
-						| _ -> ()
-				) !to_add;
-
-				md
-			| _ -> md
+					| FNotFound | FDynamicField _ ->
+						cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
+						cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+					| _ ->
+						()
+				) !to_add
+			| _ -> ()
 		in
-		run
-
-	let configure gen =
-		let run = run gen in
-		let map md = Some(run md) in
+		let map md = Some(run md; md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
-
 end;;
+
 
 (* ******************************************* *)
 (* InterfaceProps *)
 (* ******************************************* *)
-
 (*
-
 	This module filter will go through all declared properties, and see if they are conforming to a native interface.
-	If they are, it will add Meta.Property to it
-
-	dependencies:
-
+	If they are, it will add Meta.Property to it.
 *)
-
 module InterfaceProps =
 struct
 	let name = "interface_props"
-
 	let priority = solve_deps name []
 
-	let run gen =
-		let run md = match md with
-			| TClassDecl ( { cl_interface = false; cl_extern = false } as cl ) ->
+	let configure gen =
+		let run md =
+			match md with
+			| TClassDecl ({ cl_interface = false; cl_extern = false } as cl) ->
 				let vars = List.fold_left (fun acc (iface,_) ->
 					if Meta.has Meta.CsNative iface.cl_meta then
 						List.filter (fun cf -> match cf.cf_kind with
-							| Var { v_read = AccCall } | Var { v_write = AccCall } ->
-								true
+							| Var { v_read = AccCall } | Var { v_write = AccCall } -> true
 							| _ -> false
 						) iface.cl_ordered_fields @ acc
 					else
@@ -9987,16 +9807,11 @@ struct
 						| Var { v_read = AccCall } | Var { v_write = AccCall } when List.mem cf.cf_name vars ->
 							cf.cf_meta <- (Meta.Property, [], Ast.null_pos) :: cf.cf_meta
 						| _ -> ()
-					) cl.cl_ordered_fields;
-
-				md
-			| _ -> md
+					) cl.cl_ordered_fields
+			| _ ->
+				()
 		in
-		run
-
-	let configure gen =
-		let run = run gen in
-		let map md = Some(run md) in
+		let map md = Some(run md; md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 end;;
 
@@ -10380,12 +10195,11 @@ struct
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 end;;
 
+
 (* ******************************************* *)
 (* Normalize *)
 (* ******************************************* *)
-
 (*
-
 	- Filters out enum constructor type parameters from the AST; See Issue #1796
 	- Filters out monomorphs
 	- Filters out all non-whitelisted AST metadata
@@ -10393,51 +10207,59 @@ end;;
 	dependencies:
 		No dependencies; but it still should be one of the first filters to run,
 		as it will help normalize the AST
-
 *)
-
 module Normalize =
 struct
-
 	let name = "normalize_type"
-
 	let priority = max_dep
 
-	let rec filter_param t = match t with
-	| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
-		t_dynamic
-	| TMono r -> (match !r with
-		| None -> t_dynamic
-		| Some t -> filter_param t)
-	| TInst(_,[]) | TEnum(_,[]) | TType(_,[]) | TAbstract(_,[]) -> t
-	| TType(t,tl) -> TType(t,List.map filter_param tl)
-	| TInst(c,tl) -> TInst(c,List.map filter_param tl)
-	| TEnum(e,tl) -> TEnum(e,List.map filter_param tl)
-	| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) -> TAbstract(a, List.map filter_param tl)
-	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-		filter_param (Abstract.get_underlying_type a tl)
-	| TAbstract(a,tl) -> TAbstract(a, List.map filter_param tl)
-	| TAnon a ->
-		TAnon {
-			a_fields = PMap.map (fun f -> { f with cf_type = filter_param f.cf_type }) a.a_fields;
-			a_status = a.a_status;
-		}
-	| TFun(args,ret) -> TFun(List.map (fun (n,o,t) -> (n,o,filter_param t)) args, filter_param ret)
-	| TDynamic _ -> t
-	| TLazy f -> filter_param (!f())
+	let rec filter_param t =
+		match t with
+		| TInst({ cl_kind = KTypeParameter _ } as c,_) when Meta.has Meta.EnumConstructorParam c.cl_meta ->
+			t_dynamic
+		| TMono r ->
+			(match !r with
+			| None -> t_dynamic
+			| Some t -> filter_param t)
+		| TInst(_,[]) | TEnum(_,[]) | TType(_,[]) | TAbstract(_,[]) ->
+			t
+		| TType(t,tl) ->
+			TType(t,List.map filter_param tl)
+		| TInst(c,tl) ->
+			TInst(c,List.map filter_param tl)
+		| TEnum(e,tl) ->
+			TEnum(e,List.map filter_param tl)
+		| TAbstract({ a_path = (["haxe";"extern"],"Rest") } as a,tl) ->
+			TAbstract(a, List.map filter_param tl)
+		| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+			filter_param (Abstract.get_underlying_type a tl)
+		| TAbstract(a,tl) ->
+			TAbstract(a, List.map filter_param tl)
+		| TAnon a ->
+			TAnon {
+				a_fields = PMap.map (fun f -> { f with cf_type = filter_param f.cf_type }) a.a_fields;
+				a_status = a.a_status;
+			}
+		| TFun(args,ret) ->
+			TFun(List.map (fun (n,o,t) -> (n,o,filter_param t)) args, filter_param ret)
+		| TDynamic _ ->
+			t
+		| TLazy f ->
+			filter_param (!f())
 
-	let default_implementation gen ~metas =
+	let configure gen ~metas =
 		let rec run e =
 			match e.eexpr with
-			| TMeta(entry, e) when not (Hashtbl.mem metas entry) ->
+			| TMeta (entry, e) when not (Hashtbl.mem metas entry) ->
 				run e
 			| _ ->
 				map_expr_type (fun e -> run e) filter_param (fun v -> v.v_type <- filter_param v.v_type; v) e
 		in
-		run
+		let map e = Some (run e) in
+		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map;
 
-	let default_implementation_module gen ~metas =
-		let rec run md = match md with
+		let run md =
+			match md with
 			| TClassDecl cl ->
 				let rec map cf =
 					cf.cf_type <- filter_param cf.cf_type;
@@ -10445,60 +10267,47 @@ struct
 				in
 				List.iter map cl.cl_ordered_fields;
 				List.iter map cl.cl_ordered_statics;
-				Option.may map cl.cl_constructor;
-				md
-			| _ -> md
+				Option.may map cl.cl_constructor
+			| _ ->
+				()
 		in
-		run
-
-	let configure gen ~metas =
-		let map e = Some(default_implementation gen e ~metas:metas) in
-		gen.gexpr_filters#add ~name:name ~priority:(PCustom priority) map;
-		let map md = Some(default_implementation_module gen ~metas md) in
+		let map md = Some (run md; md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
 
 end;;
 
+
 (* ******************************************* *)
 (* InterfaceMetas *)
 (* ******************************************* *)
-
 (*
-
 	Deal with metadata on interfaces by taking it off from interface, and adding a new class with `_HxMeta` suffix
 
 	dependencies:
 		Must run before InitFunction
-
 *)
-
 module InterfaceMetas =
 struct
-
 	let name = "interface_metas"
-
 	let priority = solve_deps name [ DBefore InitFunction.priority ]
 
-	let traverse gen =
-		let run md = match md with
+	let configure gen =
+		let run md =
+			match md with
 			| TClassDecl ({ cl_interface = true; cl_ordered_statics = (_ :: _) } as cl) ->
 				cl.cl_ordered_statics <- [];
 				let path = fst cl.cl_path,snd cl.cl_path ^ "_HxMeta" in
 				(match Codegen.build_metadata gen.gcon (TClassDecl cl) with
-					| Some expr ->
-						let ncls = mk_class cl.cl_module path cl.cl_pos in
-						let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
-						cf.cf_expr <- Some expr;
-						ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
-						ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
-						gen.gadd_to_module (TClassDecl(ncls)) priority;
-					| _ -> ())
+				| Some expr ->
+					let ncls = mk_class cl.cl_module path cl.cl_pos in
+					let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+					cf.cf_expr <- Some expr;
+					ncls.cl_statics <- PMap.add "__meta__" cf ncls.cl_statics;
+					ncls.cl_ordered_statics <- cf :: ncls.cl_ordered_statics;
+					gen.gadd_to_module (TClassDecl(ncls)) priority;
+				| _ -> ())
 			| _ -> ()
 		in
-		run
-
-	let configure gen =
-		let map md = traverse gen md; Some(md) in
+		let map md = run md; Some(md) in
 		gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
-
 end;;

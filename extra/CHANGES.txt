@@ -1,5 +1,9 @@
 2016-??-??: 3.3.0-RC2
 
+	New features:
+
+	all : added Any type (#5500)
+
 	General improvements and optimizations:
 
 	js : updated jQuery extern (js.jquery.*) for jQuery 1.12.4 / 3.1.0 support.

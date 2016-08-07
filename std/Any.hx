@@ -19,32 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cs;
-import cs.internal.Exceptions;
-import cs.internal.FieldLookup;
-import cs.internal.Function;
-import cs.internal.HxObject;
-import cs.internal.Runtime;
-// TODO (see Gencommon.IteratorsInterfaceModf)
-//import cs.internal.Iterator;
-#if !erase_generics
-import cs.internal.Null;
-#end
-import cs.internal.StringExt;
-#if unsafe
-import cs.internal.BoxedPointer;
-#end
-import cs.StdTypes;
-import haxe.ds.StringMap;
-import Reflect;
 
-@:dox(hide)
-class Boot
-{
+/**
+	`Any` is a type that is compatible with any other in both ways.
 
-	@:keep public static function init():Void
-	{
-		cs.Lib.applyCultureChanges();
-	}
+	This means that a value of any type can be assigned to `Any`, and
+	vice-versa, a value of `Any` type can be assigned to any other type.
 
+	It's a more type-safe alternative to `Dynamic`, because it doesn't
+	support field access or operators and it's bound to monomorphs. So,
+	to work with the actual value, it needs to be explicitly promoted
+	to another type.
+**/
+abstract Any(Dynamic) from Dynamic {
+	@:noCompletion @:extern @:to inline function __promote<T>():T return this;
 }

@@ -584,7 +584,7 @@ package java.internal;
 	}
 }
 
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }
