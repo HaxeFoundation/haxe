@@ -610,8 +610,7 @@ and gen_tools =
 	r_field : bool->t->texpr->texpr->texpr;
 
 	(*
-		return an expression that creates an unitialized instance of a class,
-		used for Type.createEmptyInstance and generic cast helper method.
+		return an expression that creates an unitialized instance of a class, used for the generic cast helper method.
 	*)
 	mutable r_create_empty : tclass->tparams->pos->texpr;
 }
@@ -6696,7 +6695,6 @@ struct
 		rcf_object_iface : tclass;
 
 		rcf_max_func_arity : int;
-		rcf_create_empty : bool;
 
 		(*
 			the hash lookup function. can be an inlined expr or simply a function call.
@@ -6739,7 +6737,6 @@ struct
 			rcf_object_iface = object_iface;
 
 			rcf_max_func_arity = 10;
-			rcf_create_empty = Common.has_feature gen.gcon "Type.createEmptyInstance";
 
 			rcf_hash_function = hash_function;
 			rcf_lookup_function = lookup_function;
@@ -7407,74 +7404,6 @@ struct
 			let delete = get_delete_field ctx cl false in
 			cl.cl_ordered_fields <- cl.cl_ordered_fields @ [delete];
 			cl.cl_fields <- PMap.add delete.cf_name delete cl.cl_fields
-		end
-
-	let implement_create_empty ctx cl =
-		let gen = ctx.rcf_gen in
-		let basic = gen.gcon.basic in
-		let pos = cl.cl_pos in
-		let tparams = List.map (fun _ -> t_empty) cl.cl_params in
-
-		let create =
-			let arr = alloc_var "arr" (basic.tarray t_dynamic) in
-			let tf_args = [ arr, None ] in
-			let t = TFun(fun_args tf_args, t_dynamic) in
-			let cf = mk_class_field (gen.gmk_internal_name "hx" "create") t false pos (Method MethNormal) [] in
-			let i = ref 0 in
-
-			let arr_local = mk_local arr pos in
-			let ctor = if is_some cl.cl_constructor then cl.cl_constructor else get_last_ctor cl in
-			let params = match ctor with
-				| None -> []
-				| Some ctor ->
-					List.map (fun (n,_,t) ->
-						let old = !i in
-						incr i;
-						{
-							eexpr = TArray(arr_local, { eexpr = TConst(TInt (Int32.of_int old)); etype = basic.tint; epos = pos } );
-							etype = t_dynamic;
-							epos = pos
-						}
-					) ( fst ( get_fun ctor.cf_type ) )
-			in
-			let expr = mk_return {
-				eexpr = TNew(cl, tparams, params);
-				etype = TInst(cl, tparams);
-				epos = pos
-			} in
-			let fn = {
-				eexpr = TFunction({
-					tf_args = tf_args;
-					tf_type = t_dynamic;
-					tf_expr = mk_block expr
-				});
-				etype = t;
-				epos = pos
-			} in
-			cf.cf_expr <- Some fn;
-			cf
-		in
-		cl.cl_statics <- PMap.add create.cf_name create cl.cl_statics;
-		cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create];
-
-		if ctx.rcf_create_empty then begin
-			let create_empty =
-				let t = TFun([],t_dynamic) in
-				let cf = mk_class_field (gen.gmk_internal_name "hx" "createEmpty") t false pos (Method MethNormal) [] in
-				let fn = {
-					eexpr = TFunction({
-						tf_args = [];
-						tf_type = t_dynamic;
-						tf_expr = mk_block (mk_return (gen.gtools.r_create_empty cl tparams pos))
-					});
-					etype = t;
-					epos = pos
-				} in
-				cf.cf_expr <- Some fn;
-				cf
-			in
-			cl.cl_statics <- PMap.add create_empty.cf_name create_empty cl.cl_statics;
-			cl.cl_ordered_statics <- cl.cl_ordered_statics @ [create_empty]
 		end
 
 
@@ -8367,7 +8296,6 @@ struct
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getField") cl.cl_fields) then implement_get_set ctx cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "invokeField") cl.cl_fields) then implement_invokeField ctx ~slow_invoke:slow_invoke cl);
 				(if not (PMap.mem (gen.gmk_internal_name "hx" "getFields") cl.cl_fields) then implement_getFields ctx cl);
-				(if not cl.cl_interface && not (PMap.mem (gen.gmk_internal_name "hx" "create") cl.cl_fields) then implement_create_empty ctx cl);
 				None
 			| _ -> None)
 		in
