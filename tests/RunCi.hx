@@ -1110,29 +1110,19 @@ class RunCi {
 								"";
 						};
 
-						runCommand("haxe", ['compile-cs$compl.hxml']);
+						for (fastcast in [[], ["-D", "fast_cast"]])
+						for (noroot in [[], ["-D", "no_root"]])
+						for (erasegenerics in [[], ["-D", "erase_generics"]])
+						{
+							runCommand("haxe", ['compile-cs$compl.hxml'].concat(fastcast).concat(erasegenerics).concat(noroot));
+							runCs("bin/cs/bin/Test-Debug.exe");
+
+							runCommand("haxe", ['compile-cs-unsafe$compl.hxml'].concat(fastcast).concat(erasegenerics).concat(noroot));
+							runCs("bin/cs_unsafe/bin/Test-Debug.exe");
+						}
+
+						runCommand("haxe", ['compile-cs$compl.hxml','-dce','no']);
 						runCs("bin/cs/bin/Test-Debug.exe");
-
-						runCommand("haxe", ['compile-cs$compl.hxml','-D','fast_cast']);
-						runCs("bin/cs/bin/Test-Debug.exe");
-
-						runCommand("haxe", ['compile-cs$compl.hxml','-dce','no','-D','fast_cast']);
-						runCs("bin/cs/bin/Test-Debug.exe");
-
-						runCommand("haxe", ['compile-cs-unsafe$compl.hxml','-D','fast_cast']);
-						runCs("bin/cs_unsafe/bin/Test-Debug.exe");
-
-						runCommand("haxe", ['compile-cs$compl.hxml',"-D","erase_generics",'-D','fast_cast']);
-						runCs("bin/cs/bin/Test-Debug.exe");
-
-						runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","erase_generics",'-D','fast_cast']);
-						runCs("bin/cs_unsafe/bin/Test-Debug.exe");
-
-						runCommand("haxe", ['compile-cs$compl.hxml',"-D","no_root",'-D','fast_cast']);
-						runCs("bin/cs/bin/Test-Debug.exe");
-
-						runCommand("haxe", ['compile-cs-unsafe$compl.hxml',"-D","no_root","-D","erase_generics",'-D','fast_cast']);
-						runCs("bin/cs_unsafe/bin/Test-Debug.exe");
 
 						changeDirectory(sysDir);
 						runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
