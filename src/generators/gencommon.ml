@@ -1489,10 +1489,10 @@ struct
 		List.iter filter gen.gtypes_list
 end;;
 
+
 (* ******************************************* *)
 (* overloading reflection constructors *)
 (* ******************************************* *)
-
 (*
 	this module works on languages that support function overloading and
 	enable function hiding via static functions.
@@ -1505,7 +1505,6 @@ end;;
 	and one that executes its normal constructor.
 	Both will only include a super() call to the superclasses' emtpy constructor.
 
-
 	This enables two things:
 		empty construction without the need of incompatibility with the platform's native construction method
 		the ability to call super() constructor in any place in the constructor
@@ -1514,9 +1513,7 @@ end;;
 *)
 module OverloadingConstructor =
 struct
-
 	let priority = 0.0
-
 	let name = "overloading_constructor"
 
 	let rec cur_ctor c tl =
@@ -1542,45 +1539,50 @@ struct
 
 	(* replaces super() call with last static constructor call *)
 	let replace_super_call gen name c tl with_params me p =
-		let rec loop_super c tl = match c.cl_super with
-			| None -> raise Not_found
+		let rec loop_super c tl =
+			match c.cl_super with
+			| None ->
+				raise Not_found
 			| Some(sup,stl) ->
 				let stl = List.map (apply_params c.cl_params tl) stl in
 				try
 					let static_ctor_name = name ^ "_" ^ (String.concat "_" (fst sup.cl_path)) ^ "_" ^ (snd sup.cl_path) in
 					sup, stl, PMap.find static_ctor_name sup.cl_statics
-				with | Not_found ->
+				with Not_found ->
 					loop_super sup stl
 		in
 		let sup, stl, cf = loop_super c tl in
-		let with_params = { eexpr = TLocal me; etype = me.v_type; epos = p } :: with_params in
-		let cf = match cf.cf_overloads with
-		(* | [] -> cf *)
-		| _ -> try
-			(* choose best super function *)
-			List.iter (fun e -> replace_mono e.etype) with_params;
-			List.find (fun cf ->
-				replace_mono cf.cf_type;
-				let args, _ = get_fun (apply_params cf.cf_params stl cf.cf_type) in
-				try
-					List.for_all2 (fun (_,_,t) e -> try
-						let e_etype = run_follow gen e.etype in
-						let t = run_follow gen t in
-						unify e_etype t; true
-					with | Unify_error _ -> false) args with_params
-				with | Invalid_argument("List.for_all2") -> false
-			) (cf :: cf.cf_overloads)
-		with | Not_found ->
-			gen.gcon.error "No suitable overload for the super call arguments was found" p; cf
+		let with_params = (mk (TLocal me) me.v_type p) :: with_params in
+		let cf =
+			try
+				(* choose best super function *)
+				List.iter (fun e -> replace_mono e.etype) with_params;
+				List.find (fun cf ->
+					replace_mono cf.cf_type;
+					let args, _ = get_fun (apply_params cf.cf_params stl cf.cf_type) in
+					try
+						List.for_all2 (fun (_,_,t) e -> try
+							let e_etype = run_follow gen e.etype in
+							let t = run_follow gen t in
+							unify e_etype t; true
+						with Unify_error _ ->
+							false
+						) args with_params
+					with Invalid_argument("List.for_all2") ->
+						false
+				) (cf :: cf.cf_overloads)
+			with Not_found ->
+				gen.gcon.error "No suitable overload for the super call arguments was found" p; cf
 		in
 		{
-			eexpr = TCall({
-				eexpr = TField(
-					mk_classtype_access sup p,
-					FStatic(sup,cf));
-				etype = apply_params cf.cf_params stl cf.cf_type;
-				epos = p},
-				with_params);
+			eexpr = TCall(
+				{
+					eexpr = TField(mk_classtype_access sup p, FStatic(sup,cf));
+					etype = apply_params cf.cf_params stl cf.cf_type;
+					epos = p
+				},
+				with_params
+			);
 			etype = gen.gcon.basic.tvoid;
 			epos = p;
 		}
