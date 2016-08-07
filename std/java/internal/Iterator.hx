@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package java.internal;
-
+/* TODO (see Gencommon.IteratorsInterfaceModf)
 @:native('haxe.lang.Iterator')
 @:keep
 interface Iterator<T>
@@ -39,4 +39,4 @@ interface Iterable<T>
 
 	public function iterator():Iterator<T>;
 
-}
+}*/
