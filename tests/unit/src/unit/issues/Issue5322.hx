@@ -3,6 +3,8 @@ package unit.issues;
 import unit.TestType.typeErrorText;
 import unit.TestType.typedAs;
 
+private abstract A(String) from String {}
+
 class Issue5322 extends unit.Test {
 	function test() {
 		// unifies!
@@ -26,6 +28,8 @@ class Issue5322 extends unit.Test {
 		// can be used for array of mixed types!
 		var a:Array<Any> = [1,false,"hey",{}];
 		eq("hey", (a[2] : String));
+
+		eq("hello", ((("hello" : A) : Any) : String));
 	}
 
 	function something():Any return "hello";

@@ -31,6 +31,7 @@
 	to work with the actual value, it needs to be explicitly promoted
 	to another type.
 **/
-abstract Any(Dynamic) from Dynamic {
+abstract Any(Dynamic) {
 	@:noCompletion @:extern @:to inline function __promote<T>():T return this;
+	@:noCompletion @:extern @:from inline static function __cast<T>(value:T):Any return cast value;
 }
