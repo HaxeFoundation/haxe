@@ -7,58 +7,38 @@ import haxe.i18n.ByteAccessBuffer;
 
 class EncodingTools {
 
+	public static inline var minHighSurrogate : Int = 0xD800;
+	public static inline var maxHighSurrogate : Int = 0xDBFF;
 
+	public static inline var minLowSurrogate : Int = 0xDC00;
+	public static inline var maxLowSurrogate : Int = 0xDFFF;
 
-	#if (java || cs) // TODO write Utf16 for other targets with ByteAccess
-	public static function nativeStringToUtf16 (s:String):Utf16
-	{
-		#if python
-			return throw "not implemented";
-		#elseif js
-			return throw "not implemented";
-		#elseif neko
-			return throw "not implemented";
-		#elseif php
-			return throw "not implemented";
-		#elseif java
-			// TODO check encoding of JVM or can we assume utf16 here?
-			return new Utf16(s);
-		#elseif cs
-			return new Utf16(s);
-		#elseif cpp
-			return throw "not implemented";
-		#elseif flash
-			return throw "not implemented";
-		#end
+	public static inline var minCodePoint : Int = 0x0000;
+	public static inline var maxCodePoint : Int = 0x10FFFF;
+
+	public static inline function isHighSurrogate(code : Int) : Bool {
+		return minHighSurrogate <= code && code <= maxHighSurrogate;
 	}
-	#end
 
-
- 	public static inline function nativeStringToUtf8 (s:String):Utf8 {
- 		#if python
- 		return Utf8.wrapAsUtf8(ByteAccess.ofData(python.NativeStringTools.encode(s, "utf-8"));
- 		#elseif js
- 		return ucs2ToUtf8( new Ucs2(s));
- 		#else
- 		return Utf8.wrapAsUtf8(ByteAccess.fromBytes(Bytes.ofString(s)));
- 		#end
- 	}
-
-	public static inline function nativeStringToUcs2 (s:String):Ucs2 {
-		#if js
-			return new Ucs2(s);
-		#elseif (neko || cpp || python || php)
-			var bytes = ByteAccess.fromBytes(haxe.io.Bytes.ofString(s));
-			return Ucs2.wrapAsUcs2(utf8ByteAccessToUcs2ByteAccess(bytes));
-		#elseif java
-			// ucs-2 is a subset of utf-16 and we need to make sure that only valid characters ( fixed-)
-			return new Ucs2(s);
-		#elseif cs
-			return throw "not implemented";
-		#elseif flash
-			return new Ucs2(s);
-		#end
+	public static inline function isLowSurrogate(code : Int) : Bool {
+		return minLowSurrogate <= code && code <= maxLowSurrogate;
 	}
+
+	public static inline function isScalar(code : Int) : Bool {
+		return minCodePoint <= code && code <= maxCodePoint && !isHighSurrogate(code) && !isLowSurrogate(code);
+	}
+
+
+	public static inline function ucs2ToUtf16 (s:Ucs2):Utf16 {
+		return Utf16.fromBytes(s.toBytes());
+	}
+
+	public static inline function utf16ToUcs2 (s:Utf16):Ucs2 {
+		return throw "not implemented";
+
+		//return Utf16.fromBytes(s.toBytes());
+	}
+
 
 	public static inline function ucs2ToUtf8 (s:Ucs2):Utf8 {
 		return Utf8.fromBytes(ucs2ToUtf8ByteAccess(s).toBytes());
@@ -87,6 +67,7 @@ class EncodingTools {
 		var max = b.length;
 
 		while (index < max) {
+
 			var read = charUtf8ToUcs2(b, index, buf);
 			index += read;
 		}

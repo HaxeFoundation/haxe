@@ -156,6 +156,7 @@ abstract ByteAccess(BytesData) {
 	public inline function toBytes ():Bytes {
 		return Bytes.ofData(this);
 	}
+
 }
 
 #end
