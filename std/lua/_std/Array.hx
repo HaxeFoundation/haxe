@@ -25,7 +25,7 @@ class Array<T> {
 	public var length(default,null) : Int;
 
 	public function new() : Void  {
-		lua.Lib.defArray(cast this,0);
+		untyped _hx_tab_array(this, 0);
 	}
 	public function concat( a : Array<T> ) : Array<T> {
 		var ret = this.copy();
