@@ -1,4 +1,4 @@
-// new
+/*// new
 
 var wrap = function (s) return new haxe.i18n.Utf8(s);
 
@@ -178,3 +178,4 @@ String.fromCharCode(65) == "A";
 ("3" > "11") == true;
 (" 3" < "3") == true;
 
+*/

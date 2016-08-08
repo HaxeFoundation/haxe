@@ -1,4 +1,4 @@
-// new
+/*// new
 
 var wrap = function (s) return new haxe.i18n.Ucs2(s);
 
@@ -26,6 +26,8 @@ wrap("_BAR").toLowerCase() == wrap("_bar");
 wrap("123B").toLowerCase() == wrap("123b");
 wrap("").toLowerCase() == wrap("");
 wrap("a").toLowerCase() == wrap("a");
+
+
 
 
 
@@ -199,3 +201,4 @@ String.fromCharCode(65) == "A";
 ("3" > "11") == true;
 (" 3" < "3") == true;
 
+*/

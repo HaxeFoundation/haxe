@@ -53,6 +53,41 @@ class BytesDataTools {
 		#end
 	}
 
+	public static function blit( b:BytesData, pos : Int, src : BytesData, srcpos : Int, len : Int ) : Void {
+		#if !neko
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > getLength(b) || srcpos + len > getLength(src) ) throw Error.OutsideBounds;
+		#end
+		#if neko
+		try untyped $sblit(b,pos,src,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
+		#elseif php
+		b.blit(pos, src, srcpos, len);
+		#elseif flash
+		b.position = pos;
+		if( len > 0 ) b.writeBytes(src,srcpos,len);
+		#elseif java
+		java.lang.System.arraycopy(src, srcpos, b, pos, len);
+		#elseif cs
+		cs.system.Array.Copy(src, srcpos, b, pos, len);
+		#elseif python
+		python.Syntax.pythonCode("b[{0}:{0}+{1}] = src[srcpos:srcpos+{1}]", pos, len);
+		#elseif cpp
+		b.blit(pos, src, srcpos, len);
+		#else
+		var b1 = b;
+		var b2 = src;
+		if( b1 == b2 && pos > srcpos ) {
+			var i = len;
+			while( i > 0 ) {
+				i--;
+				b1[i + pos] = b2[i + srcpos];
+			}
+			return;
+		}
+		for( i in 0...len )
+			b1[i+pos] = b2[i+srcpos];
+		#end
+	}
+
 	public static inline function set( b:BytesData, pos : Int, v : Int ) : Void {
 		#if neko
 		untyped $sset(b,pos,v);

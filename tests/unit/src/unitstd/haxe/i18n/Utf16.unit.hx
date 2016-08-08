@@ -6,7 +6,7 @@ var str = wrap("foo");
 var str2 = str;
 str == str2;
 
-
+/*
 // toUpperCase
 wrap("foo").toUpperCase() == wrap("FOO");
 wrap("_bar").toUpperCase() == wrap("_BAR");
@@ -22,7 +22,37 @@ wrap("").toLowerCase() == wrap("");
 wrap("a").toLowerCase() == wrap("a");
 
 
+*/
+#if python
+wrap("𝄞") == haxe.i18n.Utf16.fromCharCode(0xD834DD1E);
+wrap("𝄞") + wrap("𝄞") == wrap("𝄞𝄞");
+#end
 
+var sym = haxe.i18n.Utf16.fromCharCode(0xD834DD1E);
+
+sym.length == 1;
+
+sym + sym == haxe.i18n.Utf16.fromCharCode(0xD834DD1E) + haxe.i18n.Utf16.fromCharCode(0xD834DD1E);
+sym.charAt(0) == sym;
+(sym + wrap("a") + sym).toUpperCase() == (sym + wrap("A") + sym);
+(sym + wrap("A") + sym).toLowerCase() == wrap("𝄞a𝄞");
+(sym + wrap("a") + sym).substr(1) == (wrap("a") + sym);
+(sym + wrap("a") + sym).substr(0,2) == (sym + wrap("a"));
+wrap("€").toBytes().length == 2;
+sym.toBytes().length == 4;
+sym.toBytes().length == 4;
+//wrap("𝄞A𝄞").substr(1) == wrap("a𝄞");
+/*
+sym.toLowerCase() == wrap("𝄞");
+haxe.i18n.Utf16.fromCharCode(0xD834DD1E).length == 1;
+
+
+wrap("𝄞a𝄞").substr(1) == wrap("a𝄞");
+wrap("𝄞a𝄞").substr(0,2) == wrap("𝄞a");
+wrap("€").toLowerCase() == wrap("€");
+
+haxe.i18n.Utf16.fromCharCode(0xD834DD1E) == haxe.i18n.Utf16.fromCharCode(0xD834DD1E);
+*/
 
 
 
@@ -176,6 +206,3 @@ String.fromCharCode(65) == "A";
 // ensure int strings compared as strings, not parsed ints (issue #3734)
 ("3" > "11") == true;
 (" 3" < "3") == true;
-
-/*
-*/

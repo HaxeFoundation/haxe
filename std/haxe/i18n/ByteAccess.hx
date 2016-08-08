@@ -68,9 +68,16 @@ abstract ByteAccess(Uint8Array) {
 		return Uint8ArrayTools.getString(this, pos, len);
 	}
 
+	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
+		return Uint8ArrayTools.blit(this, pos, src.asUint8Array(), srcpos, len);
+	}
 
 	static inline function fromUint8Array (b:Uint8Array):ByteAccess {
 		return cast b;
+	}
+
+	inline function asUint8Array ():Uint8Array {
+		return this;
 	}
 
 	public static inline function fromBytes (b:Bytes):ByteAccess {
@@ -119,6 +126,19 @@ abstract ByteAccess(BytesData) {
 		return BytesDataTools.fastGet(this, pos);
 	}
 
+
+	public inline function blit (pos : Int, src : ByteAccess, srcpos : Int, len : Int):Void {
+		return BytesDataTools.blit(this, pos, src.asBytesData(), srcpos, len);
+	}
+	public inline function append (other : ByteAccess):ByteAccess {
+		var ba = alloc(length + other.length);
+		ba.blit(0, asByteAccess(), 0, length);
+		ba.blit(length, other, 0, other.length);
+		return ba;
+
+	}
+
+
 	public static inline function alloc (length:Int) {
 		return new ByteAccess(length);
 	}
@@ -146,9 +166,20 @@ abstract ByteAccess(BytesData) {
 		return cast b;
 	}
 
+
+
+	inline function asBytesData ():BytesData {
+		return this;
+	}
+
+	inline function asByteAccess ():ByteAccess {
+		return cast this;
+	}
+
 	public static inline function ofData (data:BytesData):ByteAccess {
 		return fromBytesData(data);
 	}
+
 	public static inline function fromBytes (b:Bytes):ByteAccess {
 		return fromBytesData(b.getData());
 	}

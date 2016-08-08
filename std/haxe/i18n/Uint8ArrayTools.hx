@@ -74,6 +74,23 @@ class Uint8ArrayTools {
 		(data:Dynamic).bytes = a;
 		return a;
 	}
+	public static function blit( b:Uint8Array, pos : Int, src : Uint8Array, srcpos : Int, len : Int ) : Void {
+
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > getLength(b) || srcpos + len > getLength(src) ) throw Error.OutsideBounds;
+
+		var b1 = b;
+		var b2 = src;
+		if( b1 == b2 && pos > srcpos ) {
+			var i = len;
+			while( i > 0 ) {
+				i--;
+				b1[i + pos] = b2[i + srcpos];
+			}
+			return;
+		}
+		for( i in 0...len )
+			b1[i+pos] = b2[i+srcpos];
+	}
 	#end
 
 }

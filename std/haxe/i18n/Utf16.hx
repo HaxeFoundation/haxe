@@ -113,10 +113,9 @@ abstract Utf16(ByteAccess) {
 		var res = ByteAccess.alloc(this.length);
 		var i = 0;
 		while (i < this.length) {
-			var b = this.fastGet(i);
+			var b = getNext2Bytes(i);
 			var size = getCharSize(b);
 			toUpperCaseLetter(this, res, i, size);
-
 			i += size;
 		}
 		return wrapAsUtf16(res);
@@ -126,7 +125,7 @@ abstract Utf16(ByteAccess) {
 		var res = ByteAccess.alloc(this.length);
 		var i = 0;
 		while (i < this.length) {
-			var b = this.fastGet(i);
+			var b = getNext2Bytes(i);
 			var size = getCharSize(b);
 			toLowerCaseLetter(this, res, i, size);
 
@@ -134,13 +133,20 @@ abstract Utf16(ByteAccess) {
 		}
 		return wrapAsUtf16(res);
 	}
+
+	inline function getNext2Bytes (pos:Int) {
+		var b1 = this.fastGet(pos);
+		var b2 = this.fastGet(pos+1);
+		return (b1 << 8) | b2;
+	}
+
 	/*@:extern inline*/
 	public function charAt(index : Int) : Utf16 {
 		var res = null;
 		var pos = 0;
 		var i = 0;
 		while (i < this.length) {
-			var b = this.fastGet(i);
+			var b = getNext2Bytes(i);
 			var size = getCharSize(b);
 			if (pos == index) {
 				res = Utf16.wrapAsUtf16(this.sub(i, size));
@@ -338,7 +344,7 @@ abstract Utf16(ByteAccess) {
 		var i = 0;
 
 		while (i < byteLength) {
-			var char = str.fastGet(i);
+			var char = getNext2Bytes(i);
 			if (char == null) throw "error";
 			var size = getCharSize(char);
 			if (cur >= pos && (len == null || cur < pos + len))
@@ -373,15 +379,14 @@ abstract Utf16(ByteAccess) {
 		var size = getCodeSize(code);
 		var bytes = ByteAccess.alloc(size);
 		switch size {
-			case 1:
-				bytes.set(0, code);
 			case 2:
 				bytes.set(0, code & 0xFF00);
 				bytes.set(1, code & 0x00FF);
-			case 3:
-				bytes.set(0, (code & 0xFF0000) >> 16);
-				bytes.set(1, (code & 0x00FF00) >> 8);
-				bytes.set(2, code & 0x0000FF);
+			case 4:
+				bytes.set(0, (code & 0xFF000000) >> 24);
+				bytes.set(1, (code & 0x00FF0000) >> 16);
+				bytes.set(2, (code & 0x0000FF00) >> 8);
+				bytes.set(3,  code & 0x000000FF);
 			case _: throw "invalid char code";
 		}
 		return wrapAsUtf16(bytes);
@@ -403,6 +408,12 @@ abstract Utf16(ByteAccess) {
 		return this.equal(asByteAccess(other));
 	}
 
+
+	@:op(A + B) inline function opAdd (other:Utf16) {
+		return wrapAsUtf16(this.append(asByteAccess(other)));
+	}
+
+
 	@:op(A != B) inline function opNotEq (other:Utf16) {
 		return !opEq(other);
 	}
@@ -413,15 +424,16 @@ abstract Utf16(ByteAccess) {
 		var len = 0;
 		var index = 0;
 		while (index < this.length) {
-			var size = getCharSize(this.fastGet(index));
+			var size = getCharSize(getNext2Bytes(index));
+
 			len++;
 			index += size;
 		}
 		return len;
 	}
 
-	@:extern static inline function getCharSize (start:Int):Int {
-		return if (EncodingTools.isHighSurrogate(start)) 4
+	@:extern static inline function getCharSize (start2Bytes:Int):Int {
+		return if (EncodingTools.isHighSurrogate(start2Bytes)) 4
 		else 2;
 	}
 
@@ -486,10 +498,15 @@ abstract Utf16(ByteAccess) {
 	}
 
 	@:extern static inline function getCodeSize (code:Int):Int {
+		var pre = (code & 0xFFFF0000) >> 16;
+		return if (pre == 0) 2 else 4;
+		/*
+		var pre = (code & 0xFFFF0000) >> 16;
 		return
-			if (EncodingTools.isHighSurrogate(code)) 4
+			if (EncodingTools.isHighSurrogate(pre)) 4
 			else if (EncodingTools.isScalar(code)) 2
 			else throw "invalid utf16";
+		*/
 	}
 
 	@:extern static inline function asByteAccess (s:Utf16):ByteAccess {
