@@ -1918,7 +1918,7 @@ struct
 	let ensure_simple_expr gen e =
 		let rec iter e = match e.eexpr with
 			| TConst _ | TLocal _ | TArray _ | TBinop _
-			| TField _ | TTypeExpr _ | TParenthesis _ | TCast _
+			| TField _ | TTypeExpr _ | TParenthesis _ | TCast _ | TMeta _
 			| TCall _ | TNew _ | TUnop _ ->
 				Type.iter iter e
 			| _ ->
