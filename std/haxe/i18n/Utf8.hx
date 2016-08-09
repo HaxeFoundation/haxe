@@ -419,11 +419,11 @@ abstract Utf8(ByteAccess) {
 			else throw "invalid code";
 	}
 
-	@:extern static inline function asByteAccess (s:Utf8):ByteAccess {
+	@:extern public static inline function asByteAccess (s:Utf8):ByteAccess {
 		return cast s;
 	}
 
-	@:extern static inline function wrapAsUtf8 (bytes:ByteAccess):Utf8 {
+	@:extern public static inline function wrapAsUtf8 (bytes:ByteAccess):Utf8 {
 		return cast bytes;
 	}
 

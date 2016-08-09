@@ -478,8 +478,8 @@ abstract Utf16(ByteAccess) {
 	@:extern static inline function getCharCode ( b:ByteAccess, pos:Int, size:Int):Int {
 		return switch size {
 
-			case 2: (b.fastGet(pos) << 8) | (b.fastGet(pos+1));
-			case 4: (b.fastGet(pos) << 24) | (b.fastGet(pos+1) << 16) | (b.fastGet(pos+2) << 8) | b.fastGet(pos+3);
+			case 2: b.getInt16(pos);
+			case 4: b.getInt32(pos);
 			case _: throw "invalid byte sequence";
 		}
 	}
@@ -509,12 +509,16 @@ abstract Utf16(ByteAccess) {
 		*/
 	}
 
-	@:extern static inline function asByteAccess (s:Utf16):ByteAccess {
+	@:extern public static inline function asByteAccess (s:Utf16):ByteAccess {
 		return cast s;
 	}
 
-	@:extern static inline function wrapAsUtf16 (bytes:ByteAccess):Utf16 {
+	@:extern public static inline function wrapAsUtf16 (bytes:ByteAccess):Utf16 {
 		return cast bytes;
+	}
+
+	public function toUtf8 ():Utf8 {
+		return EncodingTools.utf16ToUtf8(wrapAsUtf16(this));
 	}
 
 	@:extern public static inline function fromNativeString (s:String):Utf16 {

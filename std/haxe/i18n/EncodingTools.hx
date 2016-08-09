@@ -5,6 +5,11 @@ import haxe.i18n.Utf8;
 import haxe.io.Bytes;
 import haxe.i18n.ByteAccessBuffer;
 
+import haxe.i18n.Encoding;
+
+
+// check http://llvm.org/svn/llvm-project/llvm/trunk/lib/Support/ConvertUTF.c
+
 class EncodingTools {
 
 	public static inline var minHighSurrogate : Int = 0xD800;
@@ -80,6 +85,12 @@ class EncodingTools {
 	public static inline function utf8ToUcs2 (s:Utf8):Ucs2 {
 		// TODO this could be done without creating Bytes via fromByteAccess
 		return Ucs2.fromBytes(utf8ToUcs2ByteAccess(s).toBytes());
+	}
+
+	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
+		// TODO this could be done without creating Bytes via fromByteAccess
+		return Utf8.wrapAsUtf8(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
+
 	}
 
 	/*
