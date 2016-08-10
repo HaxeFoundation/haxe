@@ -368,7 +368,13 @@ class RunCi {
 	static function getPhpDependencies() {
 		switch (systemName) {
 			case "Linux":
-				if (commandSucceed("php", ["-v"])) {
+				var phpCmd = commandResult("php", ["-v"]);
+				var phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
+				var phpVer = if (phpVerReg.match(phpCmd.stdout))
+					Std.parseFloat(phpVerReg.matched(1));
+				else
+					null;
+				if (phpCmd.exitCode == 0 && phpVer != null && phpVer >= 5.5) {
 					infoMsg('php has already been installed.');
 				} else {
 					requireAptPackages(["php5-cli", "php5-mysql", "php5-sqlite"]);
