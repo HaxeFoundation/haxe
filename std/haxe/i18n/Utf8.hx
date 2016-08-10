@@ -438,4 +438,8 @@ abstract Utf8(ByteAccess) {
  		return wrapAsUtf8(ByteAccess.fromBytes(Bytes.ofString(s)));
  		#end
  	}
+
+ 	public function toUtf16 ():Utf16 {
+		return EncodingTools.utf8ToUtf16(wrapAsUtf8(this));
+	}
 }

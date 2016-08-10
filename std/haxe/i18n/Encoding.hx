@@ -68,7 +68,7 @@ import haxe.i18n.ByteAccessBuffer;
 
 enum ConversionError {
     SourceExhausted;
-    SourceIllegal;
+    SourceIllegal(bytePos:Int);
 }
 
 enum ConversionFlags {
@@ -126,7 +126,7 @@ class Encoding {
      * This table contains as many values as there might be trailing bytes
      * in a UTF-8 sequence.
      */
-    static var offsetsFromUTF8:Array<Float> = [ // UNSIGNED LONG
+    static var offsetsFromUTF8:Array<Int> = [ // UNSIGNED LONG
         0x00000000, 0x00003080, 0x000E2080,
         0x03C82080, 0xFA082080, 0x82082080
     ];
@@ -157,33 +157,31 @@ class Encoding {
             i+=2;
             /* If we have a surrogate pair, convert to UTF32 first. */
             if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_HIGH_END) {
+                trace("surrogate pair");
                 /* If the 16 bits following the high surrogate are in the source buffer... */
                 if (i < source.length) {
                     var ch2 = source.getInt16(i);
                     /* If it's a low surrogate, convert to UTF32. */
                     if (ch2 >= UNI_SUR_LOW_START && ch2 <= UNI_SUR_LOW_END) {
+                        trace("low surrogate");
                         ch = ((ch - UNI_SUR_HIGH_START) << halfShift)
                             + (ch2 - UNI_SUR_LOW_START) + halfBase;
                         i+=2;
                     } else if (flags.match(StrictConversion)) { /* it's an unpaired high surrogate */
-                        i-=2; /* return to the illegal value itself */
-                        throw SourceExhausted;
+                        /* i-=2;  return to the illegal value itself */
+                        throw SourceIllegal(i-2);
                     }
                 } else { /* We don't have the 16 bits following the high surrogate. */
-                    i-=2; /* return to the high surrogate */
                     throw SourceExhausted;
-                    break;
                 }
             } else if (flags.match(StrictConversion)) {
                 /* UTF-16 surrogate values are illegal in UTF-32 */
                 if (ch >= UNI_SUR_LOW_START && ch <= UNI_SUR_LOW_END) {
-                    i-=2; /* return to the illegal value itself */
-                    throw SourceIllegal;
-                    break;
+                    throw SourceIllegal(i-2);
                 }
             }
-            /* Figure out how many bytes the result will require */
 
+            /* Figure out how many bytes the result will require */
             if (ch < 0x80) {
                 bytesToWrite = 1;
             } else if (ch < 0x800) {
@@ -196,7 +194,6 @@ class Encoding {
                 bytesToWrite = 3;
                 ch = UNI_REPLACEMENT_CHAR;
             }
-
 
             switch (bytesToWrite)
             {
@@ -219,6 +216,132 @@ class Encoding {
         return target.getByteAccess();
     }
 
+
+    public static function convertUTF8toUTF16 (source:ByteAccess, flags:ConversionFlags):ByteAccess {
+
+
+        var target = new ByteAccessBuffer();
+
+        var i = 0;
+
+        while (i < source.length) {
+
+            var ch = 0;
+            var extraBytesToRead:Int = trailingBytesForUTF8[source.get(i)];
+
+
+
+            if (extraBytesToRead >= source.length - i) {
+                throw SourceExhausted;
+            }
+            /* Do this check whether lenient or strict */
+            if (!isLegalUTF8(source, i, extraBytesToRead+1)) {
+                trace("here");
+                throw SourceIllegal(i);
+            }
+            /*
+             * The cases all fall through. See "Note A" below.
+             */
+
+            var j = i;
+            if (extraBytesToRead >= 5) { ch += source.get(j++); ch <<= 6;} /* remember, illegal UTF-8 */
+            if (extraBytesToRead >= 4) { ch += source.get(j++); ch <<= 6;} /* remember, illegal UTF-8 */
+            if (extraBytesToRead >= 3) { ch += source.get(j++); ch <<= 6;}
+            if (extraBytesToRead >= 2) { ch += source.get(j++); ch <<= 6;}
+            if (extraBytesToRead >= 1) { ch += source.get(j++); ch <<= 6;}
+            if (extraBytesToRead >= 0) { ch += source.get(j++); }
+
+            ch -= offsetsFromUTF8[extraBytesToRead];
+
+            if (ch <= UNI_MAX_BMP) { /* Target is a character <= 0xFFFF */
+                /* UTF-16 surrogate values are illegal in UTF-32 */
+                if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_LOW_END) {
+                    if (flags.match(StrictConversion)) {
+                        throw SourceIllegal(i);
+                    } else {
+                        target.addByte(UNI_REPLACEMENT_CHAR);
+                    }
+                } else {
+                    target.addInt16BigEndian(ch);
+                }
+            } else if (ch > UNI_MAX_UTF16) {
+                if (flags.match(StrictConversion)) {
+                    throw SourceIllegal(i);
+                } else {
+                    target.addInt16BigEndian(UNI_REPLACEMENT_CHAR);
+                }
+            } else {
+                /* target is a character in range 0xFFFF - 0x10FFFF. */
+                ch -= halfBase;
+                target.addInt16BigEndian(((ch >> halfShift) + UNI_SUR_HIGH_START));
+                target.addInt16BigEndian(((ch & halfMask) + UNI_SUR_LOW_START));
+            }
+            i+=extraBytesToRead+1;
+        }
+        return target.getByteAccess();
+    }
+
+
+    /*
+     * Utility routine to tell whether a sequence of bytes is legal UTF-8.
+     * This must be called with the length pre-determined by the first byte.
+     * If not calling this from ConvertUTF8to*, then the length can be set by:
+     *  length = trailingBytesForUTF8[*source]+1;
+     * and the sequence is illegal right away if there aren't that many bytes
+     * available.
+     * If presented with a length > 4, this returns false.  The Unicode
+     * definition of UTF-8 goes up to 4-byte sequences.
+     */
+
+    static function  isLegalUTF8( source:ByteAccess, pos:Int, length:Int):Bool {
+
+        var ch0 = source.get(pos);
+
+        inline function case4 () {
+            var ch3 = source.get(pos+3);
+            return if (ch3 < 0x80 || ch3 > 0xBF) false else true;
+        }
+
+        inline function case3 () {
+            var ch2 = source.get(pos+2);
+            return if (ch2 < 0x80 || ch2 > 0xBF) false else true;
+        }
+
+        inline function case2 () {
+            var ch1 = source.get(pos+1);
+            return if (ch1 < 0x80 || ch1 > 0xBF) {
+                false;
+            } else switch (ch0) {
+                case 0xE0 if (ch1 < 0xA0): false;
+                case 0xED if (ch1 > 0x9F): false;
+                case 0xF0 if (ch1 < 0x90): false;
+                case 0xF4 if (ch1 > 0x8F): false;
+                case _    if (ch1 < 0x80): false;
+                case _: true;
+            }
+        }
+
+        inline function case1 () {
+            return if (ch0 >= 0x80 && ch0 < 0xC2) false else true;
+        }
+
+        inline function case0 () {
+            return if (ch0 > 0xF4) false else true;
+        }
+
+        return switch (length)
+        {
+            case 4:
+                case4() && case3() && case2() && case1() && case0();
+            case 3:
+                case3() && case2() && case1() && case0();
+            case 2:
+                case2() && case1() && case0();
+            case 1:
+                case1() && case0();
+            case _: false;
+        }
+    }
 }
 
 
@@ -396,41 +519,6 @@ ConversionResult ConvertUTF32toUTF8 (
 
 /* --------------------------------------------------------------------- */
 
-/*
- * Utility routine to tell whether a sequence of bytes is legal UTF-8.
- * This must be called with the length pre-determined by the first byte.
- * If not calling this from ConvertUTF8to*, then the length can be set by:
- *  length = trailingBytesForUTF8[*source]+1;
- * and the sequence is illegal right away if there aren't that many bytes
- * available.
- * If presented with a length > 4, this returns false.  The Unicode
- * definition of UTF-8 goes up to 4-byte sequences.
- */
-
-static Boolean isLegalUTF8(const UTF8 *source, int length) {
-    UTF8 a;
-    const UTF8 *srcptr = source+length;
-    switch (length) {
-    default: return false;
-        /* Everything else falls through when "true"... */
-    case 4: if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
-    case 3: if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
-    case 2: if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
-
-        switch (*source) {
-            /* no fall-through in this inner switch */
-            case 0xE0: if (a < 0xA0) return false; break;
-            case 0xED: if (a > 0x9F) return false; break;
-            case 0xF0: if (a < 0x90) return false; break;
-            case 0xF4: if (a > 0x8F) return false; break;
-            default:   if (a < 0x80) return false;
-        }
-
-    case 1: if (*source >= 0x80 && *source < 0xC2) return false;
-    }
-    if (*source > 0xF4) return false;
-    return true;
-}
 
 /* --------------------------------------------------------------------- */
 

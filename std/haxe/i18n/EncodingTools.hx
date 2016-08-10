@@ -88,8 +88,12 @@ class EncodingTools {
 	}
 
 	public static inline function utf16ToUtf8 (s:Utf16):Utf8 {
-		// TODO this could be done without creating Bytes via fromByteAccess
 		return Utf8.wrapAsUtf8(Encoding.convertUTF16toUTF8(Utf16.asByteAccess(s), StrictConversion));
+
+	}
+
+	public static inline function utf8ToUtf16 (s:Utf8):Utf16 {
+		return Utf16.wrapAsUtf16(Encoding.convertUTF8toUTF16(Utf8.asByteAccess(s), StrictConversion));
 
 	}
 
