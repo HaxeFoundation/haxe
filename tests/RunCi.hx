@@ -737,6 +737,9 @@ class RunCi {
 			Sys.getEnv("DEPLOY") != null &&
 			Sys.getEnv("haxeci_decrypt") != null
 		) {
+			// setup deb info
+			runCommand("git config --global user.name \"${DEBFULLNAME}\"");
+			runCommand("git config --global user.email \"${DEBEMAIL}\"");
 			// setup haxeci_ssh
 			runCommand("openssl aes-256-cbc -k \"$haxeci_decrypt\" -in extra/haxeci_ssh.enc -out extra/haxeci_ssh -d");
 			runCommand("chmod 600 extra/haxeci_ssh");
@@ -761,8 +764,6 @@ class RunCi {
 			runCommand("backportpackage -d vivid   --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("backportpackage -d trusty  --upload ${PPA} --yes ../haxe_*.dsc");
 			runCommand("git checkout debian/changelog");
-			runCommand("git config --global user.name \"${DEBFULLNAME}\"");
-			runCommand("git config --global user.email \"${DEBEMAIL}\"");
 			runCommand("git merge -X ours --no-edit origin/backport-precise");
 			runCommand('dch -v "1:${SNAPSHOT_VERSION}-1" --urgency low "snapshot build"');
 			runCommand("debuild -S -sa");
