@@ -582,7 +582,7 @@ module MetaInfo = struct
 		| Transient -> ":transient",("Adds the 'transient' flag to the class field",[Platform Java; UsedOn TClassField])
 		| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[Internal])
 		| Volatile -> ":volatile",("",[Platforms [Java;Cs]])
-		| Unbound -> ":unbound", ("Compiler internal to denote unbounded global variable",[])
+		| Unbound -> ":unbound", ("Compiler internal to denote unbounded global variable",[Internal])
 		| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
 		| Unreflective -> ":unreflective",("",[Platform Cpp])
 		| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
