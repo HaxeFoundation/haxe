@@ -999,7 +999,7 @@ let sanitize_expr com e =
 			match ee.eexpr with
 			| TBinop (op2,_,_) -> if left then not (swap op2 op) else swap op op2
 			| TIf _ -> if left then not (swap (OpAssignOp OpAssign) op) else swap op (OpAssignOp OpAssign)
-			| TCast (e,None) -> loop e left
+			| TCast (e,None) | TMeta (_,e) -> loop e left
 			| _ -> false
 		in
 		let e1 = if loop e1 true then parent e1 else e1 in
@@ -1009,7 +1009,7 @@ let sanitize_expr com e =
 		let rec loop ee =
 			match ee.eexpr with
 			| TBinop _ | TIf _ | TUnop _ -> parent e1
-			| TCast (e,None) -> loop e
+			| TCast (e,None) | TMeta (_, e) -> loop e
 			| _ -> e1
 		in
 		{ e with eexpr = TUnop (op,mode,loop e1)}
