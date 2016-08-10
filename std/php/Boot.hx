@@ -344,9 +344,10 @@ function _hx_exception_handler($e) {
 		$i = $GLOBALS['%s']->length;
 		while(--$i >= 0)
 			$stack .= 'Called from '.$GLOBALS['%s'][$i].$nl;
-		die($pre.'uncaught exception: '.$msg.$nl.$nl.$stack.$post);
+		fwrite(STDERR, $pre.'uncaught exception: '.$msg.$nl.$nl.$stack.$post.'\n');
 	} else
-		die($pre.'uncaught exception: '.$msg.$nl.$nl.'in file: '.$e->getFile().' line '.$e->getLine().$nl.$e->getTraceAsString().$post);
+		fwrite(STDERR, $pre.'uncaught exception: '.$msg.$nl.$nl.'in file: '.$e->getFile().' line '.$e->getLine().$nl.$e->getTraceAsString().$post.'\n');
+	exit(1);
 }
 
 function _hx_explode($delimiter, $s) {
