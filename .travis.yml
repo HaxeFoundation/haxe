@@ -11,8 +11,6 @@ env:
     # - secure: "ETbwZaeRq8wIVZVyUk1IsNctYVuQa/U2biRkF9pQkz3MEXpaneynclVzNjm8rnm8JqfKcjUDUvQJBP1KYrJYq3tAJFhl31YUnS0FsF3sgLIcnHkhbRA24xJdIlCwHP6QUPoiyPbkec43NRwrF0071KOMD51vgUToXRtAe3o/15g="
     # - secure: "Fcrrge2f4jFYDOopig2rwkQvgJw6Ra8UK6OwTVk08wecytzVaOJK1TcB22PSvZ+h0ZLJs34T+pXHFjlNuSWm4+CwGSvnltRD1/svjS8zOqK7RzuUdzHz87yruz9PFqV63HTas6qtmgLqp8n/Q6AhtDLF39BTZPyDzEbi9qkwRuI="
     # - secure: "VBJDQNJ9uvdt0aszo7oU3txuRvjkuLmuHZGOkrd4wE/5B4sX5jzx/+dnrKcNTXJCmQ/rVLuMu9GyxqVjNHlzce678voxdQNOtNkNgpkr1qN9/A9rRnCp77hH27ErdthpWxbmcnE62hAJ83TIKSvn//5lAkx4sMCKS1NXEWQ5qec="
-    # HAXECI_GH_TOKEN: haxe-ci Github personal access token
-    - secure: "TpEMYTLgNrVD7kR6hs6EwyWNXUxnfV6XO5MGvYQncKXB1N65PG18n4WQFhnKaH8C2QTFE7dq7688ooXGzwWeoT9WAOBey10jP1f7LXEAjMGAUA4vh2zS93qBZ92ZgzCDZnQN7ZOTQGocwU6Xolu+7/6hP2M8041HBixmFuNkXF4="
     # PPA configs
     - PPA="ppa:haxe/snapshots"
     - DEBFULLNAME="Haxe CI Bot"
