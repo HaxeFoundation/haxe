@@ -461,7 +461,7 @@ module MetaInfo = struct
 		| Dce -> ":dce",("Forces dead code elimination even when -dce full is not specified",[UsedOnEither [TClass;TEnum]])
 		| Debug -> ":debug",("Forces debug information to be generated into the Swf even without -debug",[UsedOnEither [TClass;TClassField]; Platform Flash])
 		| Decl -> ":decl",("",[Platform Cpp])
-		| DefParam -> ":defParam",("?",[])
+		| DefParam -> ":defParam",("Default function argument value loaded from the SWF and used for documentation in Genxml",[Platform Flash;Internal])
 		| Delegate -> ":delegate",("Automatically added by -net-lib on delegates",[Platform Cs; UsedOn TAbstract])
 		| Depend -> ":depend",("",[Platform Cpp])
 		| Deprecated -> ":deprecated",("Mark a type or field as deprecated",[])
