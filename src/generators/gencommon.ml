@@ -3938,8 +3938,6 @@ struct
 
 		let priority = priority
 
-		let cast_field_name = "cast"
-
 		let rec has_type_params t =
 			match follow t with
 				| TInst( { cl_kind = KTypeParameter _ }, _) -> true
@@ -4202,6 +4200,8 @@ struct
 						get_fields gen cs (List.map (apply_params cl.cl_params params_cl) tls) (List.map (apply_params cl.cl_params params_cf) tls) (fields @ acc)
 					| None -> (fields @ acc)
 
+			let get_cast_name cl = String.concat "_" ((fst cl.cl_path) @ [snd cl.cl_path; "cast"]) (* explicitly define it *)
+
 			(* overrides all needed cast functions from super classes / interfaces to call the new cast function *)
 			let create_stub_casts gen cl cast_cfield =
 				(* go through superclasses and interfaces *)
@@ -4211,7 +4211,7 @@ struct
 				let rec loop cls tls level reverse_params =
 					if (level <> 0 || cls.cl_interface) && tls <> [] && is_hxgeneric (TClassDecl cls) then begin
 						let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cls.cl_params in
-						let name = String.concat "_" ((fst cls.cl_path) @ [snd cls.cl_path; cast_field_name]) in
+						let name = get_cast_name cls in
 						if not (PMap.mem name cl.cl_fields) then begin
 							let reverse_params = List.map (apply_params cls.cl_params (List.map snd cparams)) reverse_params in
 							let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
@@ -4500,8 +4500,6 @@ struct
 					}
 				in
 				cfield, delay
-
-			let get_cast_name cl = String.concat "_" ((fst cl.cl_path) @ [snd cl.cl_path; cast_field_name]) (* explicitly define it *)
 
 			let default_implementation gen ifaces base_generic =
 				let add_iface cl =
