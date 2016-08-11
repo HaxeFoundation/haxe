@@ -1399,7 +1399,7 @@ and tcppvarloc =
    | VarThis of tclass_field
    | VarInstance of tcppexpr * tclass_field * string * string
    | VarInterface of tcppexpr * tclass_field
-   | VarStatic of tclass * tclass_field
+   | VarStatic of tclass * bool * tclass_field
    | VarInternal of tcppexpr * string * string
 
 and tcppfuncloc =
@@ -1503,6 +1503,7 @@ let rec s_tcpp = function
    | CppVar VarThis(_) -> "CppVarThis"
    | CppVar VarInstance(expr,field,clazz,op) -> "CppVarInstance(" ^ clazz ^ "::" ^ op ^ field.cf_name ^ ")"
    | CppVar VarInterface(_) -> "CppVarInterface"
+   | CppVar VarStatic(_,true,_) -> "CppObjcVarStatic"
    | CppVar VarStatic(_) -> "CppVarStatic"
    | CppVar VarInternal(_) -> "CppVarInternal"
    | CppDynamicField _ -> "CppDynamicField"
@@ -2313,6 +2314,8 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                      | TCppInterface _,_
                      | TCppDynamic,_ ->
                         CppDynamicField(retypedObj, member.cf_name), TCppVariant
+                     | TCppObjC _,_ ->
+                        CppVar(VarInstance(retypedObj,member,tcpp_to_string clazzType, ".") ), exprType
 
                      | _ ->
                         let operator = if cpp_is_struct_access retypedObj.cpptype || retypedObj.cpptype=TCppString then "." else "->" in
@@ -2363,7 +2366,7 @@ let retype_expression ctx request_type function_args expression_tree forInjectio
                let exprType = cpp_type_of member.cf_type in
                let objC = is_objc_class clazz in
                if is_var_field member then
-                  CppVar(VarStatic(clazz, member)), exprType
+                  CppVar(VarStatic(clazz, objC, member)), exprType
                else
                   CppFunction( FuncStatic(clazz,objC,member), funcReturn ), exprType
             | FClosure (None,field)
@@ -3539,10 +3542,12 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args injection
       match loc with
       | VarClosure(var) -> out (cpp_var_name_of var)
       | VarLocal(local) -> out (cpp_var_name_of local)
-      | VarStatic(clazz,member) ->
+      | VarStatic(clazz,objc,member) ->
           let rename = get_meta_string member.cf_meta Meta.Native in
           if rename <> "" then
              out rename
+          else if objc then
+             (out ( (join_class_path_remap clazz.cl_path "::") ); out ("." ^ (cpp_member_name_of member)))
           else
              (out (cpp_class_name clazz ); out ("::" ^ (cpp_member_name_of member)))
       | VarThis(member) -> out ("this->" ^ (cpp_member_name_of member))
