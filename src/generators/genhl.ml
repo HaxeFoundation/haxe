@@ -4829,7 +4829,7 @@ let interp code =
 				| _ -> assert false)
 			| "sys_exit" ->
 				(function
-				| [VInt code] -> VUndef
+				| [VInt code] -> exit (Int32.to_int code)
 				| _ -> assert false)
 			| "sys_utf8_path" ->
 				(function
